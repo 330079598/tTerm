@@ -1,10 +1,24 @@
 import "./App.css";
+import { RouterProvider, createRouter } from '@tanstack/react-router'
+
+// Import the generated route tree
+import { routeTree } from './routeTree.gen'
+
+// Create a new router instance
+const router = createRouter({ routeTree })
+
+// Register the router instance for type safety
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router
+  }
+}
 
 function App() {
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-    </main>
+    <>
+      <RouterProvider router={router} />
+    </>
   );
 }
 
