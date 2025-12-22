@@ -1,0 +1,11 @@
+{
+  "identifier": "com.stone.tTerm",
+  "app": {
+    "windows": [
+      {
+        "hiddenTitle": true,
+        "titleBarStyle": "Overlay"
+      }
+    ]
+  }
+}

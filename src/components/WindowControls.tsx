@@ -34,23 +34,7 @@ export function WindowControls() {
   // macOS style
   if (os === 'macos') {
     return (
-      <div className="flex gap-2 items-center mr-auto" data-tauri-drag-region>
-        <button
-          onClick={handleClose}
-          className="w-3 h-3 rounded-full bg-[#ff5f57] hover:bg-[#ff4137] transition-colors"
-          title="Close"
-        />
-        <button
-          onClick={handleMinimize}
-          className="w-3 h-3 rounded-full bg-[#febc2e] hover:bg-[#ffb524] transition-colors"
-          title="Minimize"
-        />
-        <button
-          onClick={handleMaximize}
-          className="w-3 h-3 rounded-full bg-[#28c840] hover:bg-[#1fbd35] transition-colors"
-          title="Maximize"
-        />
-      </div>
+      <div></div>
     );
   }
 
