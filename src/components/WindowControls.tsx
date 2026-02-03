@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react';
 const appWindow = getCurrentWindow();
 
 export function WindowControls() {
-
   const [os, setOs] = useState<string>('');
   const [isMaximized, setIsMaximized] = useState(false);
 
@@ -31,36 +30,34 @@ export function WindowControls() {
   const handleMaximize = async () => await appWindow.toggleMaximize();
   const handleClose = async () => await appWindow.close();
 
-  // macOS style
+  // macOS style - hide controls as they're handled by the system
   if (os === 'macos') {
-    return (
-      <div></div>
-    );
+    return null;
   }
 
   // Windows/Linux style
   return (
-    <div className="flex h-full ml-auto">
+    <div className="window-controls">
       <button
         onClick={handleMinimize}
-        className="px-4 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"
+        className="window-control"
         title="Minimize"
       >
-        <Minus className="w-4 h-4" />
+        <Minus size={16} />
       </button>
       <button
         onClick={handleMaximize}
-        className="px-4 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"
+        className="window-control"
         title={isMaximized ? 'Restore' : 'Maximize'}
       >
-        <Square className="w-3.5 h-3.5" />
+        <Square size={14} />
       </button>
       <button
         onClick={handleClose}
-        className="px-4 hover:bg-red-500 hover:text-white transition-colors flex items-center justify-center"
+        className="window-control close"
         title="Close"
       >
-        <X className="w-4 h-4" />
+        <X size={16} />
       </button>
     </div>
   );
