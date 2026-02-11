@@ -13,6 +13,7 @@ import {
 import { ContextMenu } from './ContextMenu';
 import { WindowControls } from './WindowControls';
 import { ConnectionDialog } from './ConnectionDialog';
+import { ThemeSwitcher } from './ThemeSwitcher';
 import { useTabs } from '../hooks/useTabs';
 import { useSessionPersistence } from '../hooks/useSessionPersistence';
 import { useConnectionManager } from '../hooks/useConnectionManager';
@@ -44,6 +45,7 @@ interface ContextMenuState {
 export const TTermApp: React.FC = () => {
   const [os, setOs] = useState<string>('');
   const [showConnectionDialog, setShowConnectionDialog] = useState(false);
+  const [showThemeSwitcher, setShowThemeSwitcher] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dropIndicatorIndex, setDropIndicatorIndex] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
@@ -60,7 +62,6 @@ export const TTermApp: React.FC = () => {
     addTab,
     removeTab,
     setActiveTab,
-    updateTab,
     moveTab,
     duplicateTab,
     closeOtherTabs,
@@ -69,10 +70,7 @@ export const TTermApp: React.FC = () => {
   } = useTabs();
 
   const { saveSession, loadSession, clearSession } = useSessionPersistence();
-  const { 
-    getConnectionState, 
-    cleanupConnection 
-  } = useConnectionManager();
+  const { cleanupConnection } = useConnectionManager();
 
   useEffect(() => {
     setOs(platform());
@@ -128,6 +126,9 @@ export const TTermApp: React.FC = () => {
     if (!contextMenu.tab) {
       // Handle settings menu actions
       switch (action) {
+        case 'change-theme':
+          setShowThemeSwitcher(true);
+          break;
         case 'clear-session':
           clearSession();
           // Reload page to reset state
@@ -172,6 +173,8 @@ export const TTermApp: React.FC = () => {
   // Handle settings button click
   const handleSettingsClick = useCallback(() => {
     const actions: TabContextMenuAction[] = [
+      { label: 'Change Theme', action: 'change-theme', icon: 'palette' },
+      { separator: true, label: '', action: '' },
       { label: 'Clear Session Data', action: 'clear-session', icon: 'x' },
       { separator: true, label: '', action: '' },
       { label: 'About TTerm', action: 'about' },
@@ -393,6 +396,11 @@ export const TTermApp: React.FC = () => {
           onAction={handleContextMenuAction}
           onClose={handleCloseContextMenu}
         />
+      )}
+
+      {/* Theme Switcher */}
+      {showThemeSwitcher && (
+        <ThemeSwitcher onClose={() => setShowThemeSwitcher(false)} />
       )}
     </div>
   );
