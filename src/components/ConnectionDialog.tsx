@@ -16,10 +16,6 @@ interface ConnectionForm {
   host: string;
   port: number;
   username: string;
-  password: string;
-  privateKey: string;
-  serialPort: string;
-  baudRate: number;
 }
 
 const defaultForm: ConnectionForm = {
@@ -28,10 +24,6 @@ const defaultForm: ConnectionForm = {
   host: '',
   port: 22,
   username: '',
-  password: '',
-  privateKey: '',
-  serialPort: '/dev/ttyUSB0',
-  baudRate: 9600,
 };
 
 const connectionTypes = [
@@ -81,7 +73,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
       case 'sftp':
         return form.host ? `SFTP: ${form.host}` : 'SFTP Browser';
       case 'serial':
-        return form.serialPort ? `Serial: ${form.serialPort}` : 'Serial Connection';
+        return 'Serial Connection';
       default:
         return 'New Connection';
     }
@@ -171,49 +163,6 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="password">Password</label>
-                <input
-                  id="password"
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => updateForm({ password: e.target.value })}
-                  placeholder="Leave empty to use key authentication"
-                />
-              </div>
-            </>
-          )}
-
-          {/* Serial specific fields */}
-          {form.type === 'serial' && (
-            <>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="serialPort">Serial Port</label>
-                  <input
-                    id="serialPort"
-                    type="text"
-                    value={form.serialPort}
-                    onChange={(e) => updateForm({ serialPort: e.target.value })}
-                    placeholder="/dev/ttyUSB0"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="baudRate">Baud Rate</label>
-                  <select
-                    id="baudRate"
-                    value={form.baudRate}
-                    onChange={(e) => updateForm({ baudRate: parseInt(e.target.value) })}
-                  >
-                    <option value={9600}>9600</option>
-                    <option value={19200}>19200</option>
-                    <option value={38400}>38400</option>
-                    <option value={57600}>57600</option>
-                    <option value={115200}>115200</option>
-                  </select>
-                </div>
-              </div>
             </>
           )}
 

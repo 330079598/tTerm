@@ -1,13 +1,12 @@
 import React, { useEffect, useRef } from 'react';
-import { 
-  Plus, 
-  X, 
-  Copy, 
-  ArrowRight,
+import {
+  Plus,
+  X,
+  Copy,
   Terminal,
   Server,
   FolderOpen,
-  Zap
+  Zap,
 } from 'lucide-react';
 import { TabContextMenuAction } from '../types/tab';
 
@@ -27,8 +26,6 @@ const getActionIcon = (icon?: string) => {
       return <X size={14} />;
     case 'copy':
       return <Copy size={14} />;
-    case 'arrow-right':
-      return <ArrowRight size={14} />;
     case 'terminal':
       return <Terminal size={14} />;
     case 'server':

@@ -1,38 +1,16 @@
 import React, { useState, useCallback } from 'react';
 import { platform } from '@tauri-apps/plugin-os';
 import { useEffect } from 'react';
-import { 
-  Plus, 
-  X, 
-  Terminal, 
-  Server, 
-  FolderOpen, 
-  Zap,
-  Settings
-} from 'lucide-react';
+import { Plus, Settings } from 'lucide-react';
 import { ContextMenu } from './ContextMenu';
 import { WindowControls } from './WindowControls';
 import { ConnectionDialog } from './ConnectionDialog';
 import { ThemeSwitcher } from './ThemeSwitcher';
+import { TabBar } from './TabBar';
 import { useTabs } from '../hooks/useTabs';
 import { useSessionPersistence } from '../hooks/useSessionPersistence';
 import { useConnectionManager } from '../hooks/useConnectionManager';
 import { Tab, TabContextMenuAction } from '../types/tab';
-
-const getTabIcon = (type: Tab['type']) => {
-  switch (type) {
-    case 'terminal':
-      return <Terminal className="tab-icon" />;
-    case 'ssh':
-      return <Server className="tab-icon" />;
-    case 'sftp':
-      return <FolderOpen className="tab-icon" />;
-    case 'serial':
-      return <Zap className="tab-icon" />;
-    default:
-      return <Terminal className="tab-icon" />;
-  }
-};
 
 interface ContextMenuState {
   visible: boolean;
@@ -46,8 +24,6 @@ export const TTermApp: React.FC = () => {
   const [os, setOs] = useState<string>('');
   const [showConnectionDialog, setShowConnectionDialog] = useState(false);
   const [showThemeSwitcher, setShowThemeSwitcher] = useState(false);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dropIndicatorIndex, setDropIndicatorIndex] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     visible: false,
     x: 0,
@@ -190,60 +166,6 @@ export const TTermApp: React.FC = () => {
     });
   }, []);
 
-  // Drag and drop handlers
-  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
-    console.log('Drag start:', index);
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'move';
-    console.log('Drag over - this should print frequently');
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    console.log('Drop event:', { draggedIndex, dropIndex });
-    
-    if (draggedIndex !== null && draggedIndex !== dropIndex) {
-      console.log('Moving tab from', draggedIndex, 'to', dropIndex);
-      moveTab(draggedIndex, dropIndex);
-    }
-    
-    setDraggedIndex(null);
-    setDropIndicatorIndex(null);
-  }, [draggedIndex, moveTab]);
-
-  const handleDragEnter = useCallback((e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('Drag enter:', index, 'draggedIndex:', draggedIndex);
-    if (draggedIndex !== null && draggedIndex !== index) {
-      setDropIndicatorIndex(index);
-    }
-  }, [draggedIndex]);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    console.log('Drag leave');
-    // Delay clearing indicator to avoid flicker when quickly entering/leaving
-    setTimeout(() => {
-      setDropIndicatorIndex(null);
-    }, 50);
-  }, []);
-
-  const handleDragEnd = useCallback(() => {
-    console.log('Drag end');
-    setDraggedIndex(null);
-    setDropIndicatorIndex(null);
-  }, []);
-
   const renderTabContent = () => {
     if (!activeTabId) {
       return (
@@ -300,53 +222,15 @@ export const TTermApp: React.FC = () => {
         <div className="title-bar-left">
           {/* Tab Bar integrated into title bar */}
           <div className="tab-list-container">
-            <div className="tab-list">
-              {tabs.map((tab, index) => (
-                <React.Fragment key={tab.id}>
-                  {dropIndicatorIndex === index && (
-                    <div className="tab-drop-indicator" />
-                  )}
-                  <div
-                    className={`tab ${tab.id === activeTabId ? 'active' : ''} ${tab.isModified ? 'modified' : ''} ${draggedIndex === index ? 'dragging' : ''}`}
-                    onClick={() => setActiveTab(tab.id)}
-                    onContextMenu={(e) => {
-                      const actions: TabContextMenuAction[] = [
-                        { label: 'New Tab', action: 'new', icon: 'plus' },
-                        { label: 'Duplicate Tab', action: 'duplicate', icon: 'copy' },
-                        { separator: true, label: '', action: '' },
-                        { label: 'Close Tab', action: 'close', icon: 'x' },
-                        { label: 'Close Other Tabs', action: 'close-others' },
-                        { label: 'Close Tabs to the Right', action: 'close-right' },
-                      ];
-                      handleTabContextMenu(e, tab, actions);
-                    }}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, index)}
-                    onDragEnd={handleDragEnd}
-                    onDragOver={handleDragOver}
-                    onDragEnter={(e) => handleDragEnter(e, index)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, index)}
-                    title={`${tab.title}${tab.connection ? ` (${tab.connection.host})` : ''}`}
-                  >
-                    {getTabIcon(tab.type)}
-                    <span className="tab-title">{tab.title}</span>
-                    <button
-                      className="tab-close"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveTab(tab.id);
-                      }}
-                      title="Close tab"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                </React.Fragment>
-              ))}
-            </div>
-            
-            {/* Add tab button - right after tabs */}
+            <TabBar
+              tabs={tabs}
+              activeTabId={activeTabId}
+              onTabClick={setActiveTab}
+              onTabClose={handleRemoveTab}
+              onNewTab={handleNewTab}
+              onTabMove={moveTab}
+              onContextMenu={handleTabContextMenu}
+            />
             <div className="tab-add-button">
               <button
                 className="tab-action"

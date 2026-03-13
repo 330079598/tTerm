@@ -7,12 +7,10 @@ export interface UseTabsReturn {
   addTab: (tab: Omit<Tab, 'id' | 'isActive'>) => string;
   removeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
-  updateTab: (id: string, updates: Partial<Tab>) => void;
   moveTab: (fromIndex: number, toIndex: number) => void;
   duplicateTab: (id: string) => void;
   closeOtherTabs: (id: string) => void;
   closeTabsToRight: (id: string) => void;
-  closeAllTabs: () => void;
   restoreSession: (tabs: Tab[], activeTabId: string | null) => void;
 }
 
@@ -93,14 +91,6 @@ export function useTabs(): UseTabsReturn {
     setActiveTabId(id);
   }, []);
 
-  const updateTab = useCallback((id: string, updates: Partial<Tab>) => {
-    setTabs(prevTabs =>
-      prevTabs.map(tab =>
-        tab.id === id ? { ...tab, ...updates } : tab
-      )
-    );
-  }, []);
-
   const moveTab = useCallback((fromIndex: number, toIndex: number) => {
     console.log('moveTab called:', { fromIndex, toIndex });
     setTabs(prevTabs => {
@@ -154,23 +144,16 @@ export function useTabs(): UseTabsReturn {
     });
   }, []);
 
-  const closeAllTabs = useCallback(() => {
-    setTabs([]);
-    setActiveTabId(null);
-  }, []);
-
   return {
     tabs,
     activeTabId,
     addTab,
     removeTab,
     setActiveTab,
-    updateTab,
     moveTab,
     duplicateTab,
     closeOtherTabs,
     closeTabsToRight,
-    closeAllTabs,
     restoreSession,
   };
 }

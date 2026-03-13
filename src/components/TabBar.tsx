@@ -1,5 +1,6 @@
-import React, {useCallback, useState} from 'react';
-import {FolderOpen, MoreHorizontal, Plus, Server, Terminal, X, Zap,} from 'lucide-react';
+import React, {useCallback} from 'react';
+import {DragDropProvider, useDraggable, useDroppable} from '@dnd-kit/react';
+import {FolderOpen, Server, Terminal, X, Zap} from 'lucide-react';
 import {Tab, TabContextMenuAction} from '../types/tab';
 
 interface TabBarProps {
@@ -9,7 +10,7 @@ interface TabBarProps {
     onTabClose: (id: string) => void;
     onNewTab: () => void;
     onTabMove: (fromIndex: number, toIndex: number) => void;
-    onContextMenu: (tab: Tab, actions: TabContextMenuAction[]) => void;
+    onContextMenu: (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => void;
 }
 
 interface TabItemProps {
@@ -17,11 +18,7 @@ interface TabItemProps {
     isActive: boolean;
     onTabClick: (id: string) => void;
     onTabClose: (id: string) => void;
-    onContextMenu: (tab: Tab, actions: TabContextMenuAction[]) => void;
-    onDragStart: (e: React.DragEvent, index: number) => void;
-    onDragOver: (e: React.DragEvent) => void;
-    onDrop: (e: React.DragEvent, index: number) => void;
-    index: number;
+    onContextMenu: (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => void;
 }
 
 const getTabIcon = (type: Tab['type']) => {
@@ -40,17 +37,28 @@ const getTabIcon = (type: Tab['type']) => {
 };
 
 const TabItem: React.FC<TabItemProps> = ({
-                                             tab,
-                                             isActive,
-                                             onTabClick,
-                                             onTabClose,
-                                             onContextMenu,
-                                             onDragStart,
-                                             onDragOver,
-                                             onDrop,
-                                             index
-                                         }) => {
-    const [isDragging, setIsDragging] = useState(false);
+    tab,
+    isActive,
+    onTabClick,
+    onTabClose,
+    onContextMenu
+}) => {
+    // Use stable IDs based on tab.id so multiple拖拽不会失效
+    const draggableId = `tab:${tab.id}:drag`;
+    const droppableId = `tab:${tab.id}:drop`;
+
+    const {ref: draggableRef, isDragging} = useDraggable({
+        id: draggableId,
+    });
+
+    const {ref: droppableRef, isOver} = useDroppable({
+        id: droppableId,
+    });
+
+    const setNodeRef = (node: HTMLDivElement | null) => {
+        draggableRef(node);
+        droppableRef(node);
+    };
 
     const handleContextMenu = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
@@ -62,28 +70,15 @@ const TabItem: React.FC<TabItemProps> = ({
             {label: 'Close Other Tabs', action: 'close-others'},
             {label: 'Close Tabs to the Right', action: 'close-right'},
         ];
-        onContextMenu(tab, actions);
+        onContextMenu(e, tab, actions);
     }, [tab, onContextMenu]);
-
-    const handleDragStart = useCallback((e: React.DragEvent) => {
-        setIsDragging(true);
-        onDragStart(e, index);
-    }, [onDragStart, index]);
-
-    const handleDragEnd = useCallback(() => {
-        setIsDragging(false);
-    }, []);
 
     return (
         <div
-            className={`tab ${isActive ? 'active' : ''} ${isDragging ? 'dragging' : ''} ${tab.isModified ? 'modified' : ''}`}
+            ref={setNodeRef}
+            className={`tab ${isActive ? 'active' : ''} ${tab.isModified ? 'modified' : ''} ${isDragging ? 'dragging' : ''} ${isOver ? 'drop-over' : ''}`}
             onClick={() => onTabClick(tab.id)}
             onContextMenu={handleContextMenu}
-            draggable
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onDragOver={onDragOver}
-            onDrop={(e) => onDrop(e, index)}
             title={`${tab.title}${tab.connection ? ` (${tab.connection.host})` : ''}`}
         >
             {getTabIcon(tab.type)}
@@ -102,6 +97,14 @@ const TabItem: React.FC<TabItemProps> = ({
     );
 };
 
+const getTabIdFromDndId = (id?: string | null): string | null => {
+    if (!id) return null;
+    const parts = id.split(':');
+    // Expect format "tab:{tabId}:drag|drop"
+    if (parts.length < 3 || parts[0] !== 'tab') return null;
+    return parts[1] || null;
+};
+
 export const TabBar: React.FC<TabBarProps> = ({
                                                   tabs,
                                                   activeTabId,
@@ -111,85 +114,39 @@ export const TabBar: React.FC<TabBarProps> = ({
                                                   onTabMove,
                                                   onContextMenu
                                               }) => {
-    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-    const [dropIndicatorIndex, setDropIndicatorIndex] = useState<number | null>(null);
+    const handleDragEnd = useCallback((event: Parameters<NonNullable<React.ComponentProps<typeof DragDropProvider>['onDragEnd']>>[0]) => {
+        if (event.canceled) return;
 
-    const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
-        setDraggedIndex(index);
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', index.toString());
-    }, []);
+        const sourceTabId = getTabIdFromDndId(event.operation.source?.id ?? null);
+        const targetTabId = getTabIdFromDndId(event.operation.target?.id ?? null);
 
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-    }, []);
-
-    const handleDrop = useCallback((e: React.DragEvent, dropIndex: number) => {
-        e.preventDefault();
-
-        if (draggedIndex !== null && draggedIndex !== dropIndex) {
-            onTabMove(draggedIndex, dropIndex);
+        if (!sourceTabId || !targetTabId || sourceTabId === targetTabId) {
+            return;
         }
 
-        setDraggedIndex(null);
-        setDropIndicatorIndex(null);
-    }, [draggedIndex, onTabMove]);
+        const fromIndex = tabs.findIndex(t => t.id === sourceTabId);
+        const toIndex = tabs.findIndex(t => t.id === targetTabId);
 
-    const handleDragEnter = useCallback((e: React.DragEvent, index: number) => {
-        e.preventDefault();
-        if (draggedIndex !== null && draggedIndex !== index) {
-            setDropIndicatorIndex(index);
+        if (fromIndex >= 0 && toIndex >= 0 && fromIndex !== toIndex) {
+            onTabMove(fromIndex, toIndex);
         }
-    }, [draggedIndex]);
-
-    const handleDragLeave = useCallback(() => {
-        setDropIndicatorIndex(null);
-    }, []);
+    }, [onTabMove, tabs]);
 
     return (
-        <div className="tab-bar">
-            <div className="tab-list">
-                {tabs.map((tab, index) => (
+        <div className="tab-list">
+            <DragDropProvider onDragEnd={handleDragEnd}>
+                {tabs.map((tab) => (
                     <React.Fragment key={tab.id}>
-                        {dropIndicatorIndex === index && (
-                            <div className="tab-drop-indicator"/>
-                        )}
-                        <div
-                            onDragEnter={(e) => handleDragEnter(e, index)}
-                            onDragLeave={handleDragLeave}
-                        >
-                            <TabItem
-                                tab={tab}
-                                isActive={tab.id === activeTabId}
-                                onTabClick={onTabClick}
-                                onTabClose={onTabClose}
-                                onContextMenu={onContextMenu}
-                                onDragStart={handleDragStart}
-                                onDragOver={handleDragOver}
-                                onDrop={handleDrop}
-                                index={index}
-                            />
-                        </div>
+                        <TabItem
+                            tab={tab}
+                            isActive={tab.id === activeTabId}
+                            onTabClick={onTabClick}
+                            onTabClose={onTabClose}
+                            onContextMenu={onContextMenu}
+                        />
                     </React.Fragment>
                 ))}
-            </div>
-
-            <div className="tab-actions">
-                <button
-                    className="tab-action"
-                    onClick={onNewTab}
-                    title="New tab"
-                >
-                    <Plus size={16}/>
-                </button>
-                <button
-                    className="tab-action"
-                    title="Tab options"
-                >
-                    <MoreHorizontal size={16}/>
-                </button>
-            </div>
+            </DragDropProvider>
         </div>
     );
 };
