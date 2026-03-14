@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Palette } from 'lucide-react';
+import { Palette, X } from 'lucide-react';
 import { setTheme, getTheme, type Theme } from '../lib/utils';
 
 const themes: { value: Theme; label: string; description: string }[] = [
@@ -31,7 +31,7 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
             Choose Theme
           </h2>
           <button className="dialog-close" onClick={onClose}>
-            ×
+            <X size={16} />
           </button>
         </div>
         <div className="dialog-content">

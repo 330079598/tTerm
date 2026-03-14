@@ -1,6 +1,5 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { platform } from '@tauri-apps/plugin-os';
-import { useEffect } from 'react';
 import { Plus, Settings } from 'lucide-react';
 import { ContextMenu } from './ContextMenu';
 import { WindowControls } from './WindowControls';
@@ -24,6 +23,7 @@ export const TTermApp: React.FC = () => {
   const [os, setOs] = useState<string>('');
   const [showConnectionDialog, setShowConnectionDialog] = useState(false);
   const [showThemeSwitcher, setShowThemeSwitcher] = useState(false);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     visible: false,
     x: 0,
@@ -54,11 +54,9 @@ export const TTermApp: React.FC = () => {
     // Try to restore previous session
     const savedSession = loadSession();
     if (savedSession && savedSession.tabs.length > 0) {
-      console.log('Restoring session with', savedSession.tabs.length, 'tabs');
       restoreSession(savedSession.tabs, savedSession.activeTabId);
     } else {
       // If no saved session, create default tab
-      console.log('No saved session, creating default tab');
       addTab({
         title: 'Terminal',
         type: 'terminal',
@@ -157,10 +155,13 @@ export const TTermApp: React.FC = () => {
     ];
     
     // Show context menu near settings button
+    const rect = settingsButtonRef.current?.getBoundingClientRect();
+    const x = rect ? rect.right - 200 : window.innerWidth - 200;
+    const y = rect ? rect.bottom + 4 : 50;
     setContextMenu({
       visible: true,
-      x: window.innerWidth - 200, // Near settings button
-      y: 50,
+      x,
+      y,
       tab: null,
       actions
     });
@@ -249,6 +250,7 @@ export const TTermApp: React.FC = () => {
         {/* Settings and window controls */}
         <div className="title-bar-right">
           <button
+            ref={settingsButtonRef}
             className="tab-action settings-button"
             onClick={handleSettingsClick}
             title="Settings"

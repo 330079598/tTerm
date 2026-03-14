@@ -70,9 +70,9 @@ export function useTabs(): UseTabsReturn {
         if (newActiveIndex >= newTabs.length) {
           newActiveIndex = newTabs.length - 1;
         }
-        const newActiveTab = newTabs[newActiveIndex];
-        setActiveTabId(newActiveTab.id);
-        newActiveTab.isActive = true;
+        const newActiveTabId = newTabs[newActiveIndex].id;
+        setActiveTabId(newActiveTabId);
+        return newTabs.map(t => ({ ...t, isActive: t.id === newActiveTabId }));
       } else if (newTabs.length === 0) {
         setActiveTabId(null);
       }
@@ -92,13 +92,10 @@ export function useTabs(): UseTabsReturn {
   }, []);
 
   const moveTab = useCallback((fromIndex: number, toIndex: number) => {
-    console.log('moveTab called:', { fromIndex, toIndex });
     setTabs(prevTabs => {
-      console.log('Previous tabs:', prevTabs.map(t => t.title));
       const newTabs = [...prevTabs];
       const [movedTab] = newTabs.splice(fromIndex, 1);
       newTabs.splice(toIndex, 0, movedTab);
-      console.log('New tabs:', newTabs.map(t => t.title));
       return newTabs;
     });
   }, []);

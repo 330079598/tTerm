@@ -51,7 +51,7 @@ const TabItem: React.FC<TabItemProps> = ({
         id: draggableId,
     });
 
-    const {ref: droppableRef, isOver} = useDroppable({
+    const {ref: droppableRef, isDropTarget} = useDroppable({
         id: droppableId,
     });
 
@@ -76,7 +76,7 @@ const TabItem: React.FC<TabItemProps> = ({
     return (
         <div
             ref={setNodeRef}
-            className={`tab ${isActive ? 'active' : ''} ${tab.isModified ? 'modified' : ''} ${isDragging ? 'dragging' : ''} ${isOver ? 'drop-over' : ''}`}
+            className={`tab ${isActive ? 'active' : ''} ${tab.isModified ? 'modified' : ''} ${isDragging ? 'dragging' : ''} ${isDropTarget ? 'drop-over' : ''}`}
             onClick={() => onTabClick(tab.id)}
             onContextMenu={handleContextMenu}
             title={`${tab.title}${tab.connection ? ` (${tab.connection.host})` : ''}`}
@@ -97,9 +97,9 @@ const TabItem: React.FC<TabItemProps> = ({
     );
 };
 
-const getTabIdFromDndId = (id?: string | null): string | null => {
+const getTabIdFromDndId = (id?: string | number | null): string | null => {
     if (!id) return null;
-    const parts = id.split(':');
+    const parts = String(id).split(':');
     // Expect format "tab:{tabId}:drag|drop"
     if (parts.length < 3 || parts[0] !== 'tab') return null;
     return parts[1] || null;
@@ -110,7 +110,6 @@ export const TabBar: React.FC<TabBarProps> = ({
                                                   activeTabId,
                                                   onTabClick,
                                                   onTabClose,
-                                                  onNewTab,
                                                   onTabMove,
                                                   onContextMenu
                                               }) => {

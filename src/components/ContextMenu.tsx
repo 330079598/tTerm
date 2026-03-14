@@ -47,6 +47,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onClose
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = React.useState<{ left: number; top: number } | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -88,8 +89,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         adjustedY = viewportHeight - rect.height - 10;
       }
 
-      menuRef.current.style.left = `${Math.max(10, adjustedX)}px`;
-      menuRef.current.style.top = `${Math.max(10, adjustedY)}px`;
+      setPosition({ left: Math.max(10, adjustedX), top: Math.max(10, adjustedY) });
     }
   }, [x, y]);
 
@@ -104,7 +104,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     <div
       ref={menuRef}
       className="context-menu"
-      style={{ left: x, top: y }}
+      style={position ?? { visibility: 'hidden' }}
     >
       {actions.map((action, index) => {
         if (action.separator) {

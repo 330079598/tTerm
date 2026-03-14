@@ -32,9 +32,17 @@ export function useSessionPersistence() {
       };
 
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
-      console.log('Session saved:', sessionData);
     } catch (error) {
       console.error('Failed to save session:', error);
+    }
+  }, []);
+
+  // Clear session data
+  const clearSession = useCallback(() => {
+    try {
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+    } catch (error) {
+      console.error('Failed to clear session:', error);
     }
   }, []);
 
@@ -45,32 +53,20 @@ export function useSessionPersistence() {
       if (!stored) return null;
 
       const sessionData: SessionData = JSON.parse(stored);
-      
+
       // Check if data is expired (more than 7 days)
       const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
       if (Date.now() - sessionData.lastSaved > maxAge) {
-        console.log('Session data expired, clearing...');
         clearSession();
         return null;
       }
 
-      console.log('Session loaded:', sessionData);
       return sessionData;
     } catch (error) {
       console.error('Failed to load session:', error);
       return null;
     }
-  }, []);
-
-  // Clear session data
-  const clearSession = useCallback(() => {
-    try {
-      localStorage.removeItem(SESSION_STORAGE_KEY);
-      console.log('Session cleared');
-    } catch (error) {
-      console.error('Failed to clear session:', error);
-    }
-  }, []);
+  }, [clearSession]);
 
   // Debounced save
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
@@ -86,7 +82,7 @@ export function useSessionPersistence() {
 
   return {
     saveSession: debouncedSave,
-        loadSession,
-        clearSession,
-    };
+    loadSession,
+    clearSession,
+  };
 }
