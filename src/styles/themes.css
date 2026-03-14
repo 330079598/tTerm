@@ -20,7 +20,7 @@
   --color-card-foreground: hsl(0 0% 80%);
   --color-popover: hsl(220 13% 18%);
   --color-popover-foreground: hsl(0 0% 80%);
-  
+
   --radius: 0.25rem;
 }
 
@@ -29,34 +29,34 @@
     /* Default theme - Tabby inspired dark theme */
     --background: 220 13% 12%;
     --foreground: 0 0% 80%;
-    
+
     --card: 220 13% 18%;
     --card-foreground: 0 0% 80%;
-    
+
     --popover: 220 13% 18%;
     --popover-foreground: 0 0% 80%;
-    
+
     --primary: 207 100% 40%;
     --primary-foreground: 0 0% 100%;
-    
+
     --secondary: 220 13% 18%;
     --secondary-foreground: 0 0% 80%;
-    
+
     --muted: 220 13% 23%;
     --muted-foreground: 0 0% 59%;
-    
+
     --accent: 207 100% 40%;
     --accent-foreground: 0 0% 100%;
-    
+
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    
+
     --border: 0 0% 24%;
     --input: 0 0% 24%;
     --ring: 207 100% 40%;
-    
+
     --radius: 0.25rem;
-    
+
     /* Custom variables for terminal app */
     --tab-background: 220 13% 18%;
     --tab-active: 220 13% 12%;
@@ -67,32 +67,32 @@
   [data-theme="light"] {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
-    
+
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
-    
+
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    
+
     --primary: 207 100% 40%;
     --primary-foreground: 210 40% 98%;
-    
+
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    
+
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    
+
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
-    
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    
+
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 207 100% 40%;
-    
+
     --tab-background: 210 40% 96.1%;
     --tab-active: 0 0% 100%;
     --tab-hover: 210 40% 92%;
@@ -102,32 +102,32 @@
   [data-theme="ocean"] {
     --background: 200 30% 10%;
     --foreground: 180 20% 85%;
-    
+
     --card: 200 30% 15%;
     --card-foreground: 180 20% 85%;
-    
+
     --popover: 200 30% 15%;
     --popover-foreground: 180 20% 85%;
-    
+
     --primary: 190 80% 45%;
     --primary-foreground: 0 0% 100%;
-    
+
     --secondary: 200 30% 20%;
     --secondary-foreground: 180 20% 85%;
-    
+
     --muted: 200 30% 25%;
     --muted-foreground: 180 15% 60%;
-    
+
     --accent: 170 70% 50%;
     --accent-foreground: 0 0% 100%;
-    
+
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    
+
     --border: 200 20% 30%;
     --input: 200 20% 30%;
     --ring: 190 80% 45%;
-    
+
     --tab-background: 200 30% 15%;
     --tab-active: 200 30% 10%;
     --tab-hover: 200 30% 22%;
@@ -137,32 +137,32 @@
   [data-theme="forest"] {
     --background: 140 25% 12%;
     --foreground: 120 15% 85%;
-    
+
     --card: 140 25% 17%;
     --card-foreground: 120 15% 85%;
-    
+
     --popover: 140 25% 17%;
     --popover-foreground: 120 15% 85%;
-    
+
     --primary: 145 65% 45%;
     --primary-foreground: 0 0% 100%;
-    
+
     --secondary: 140 25% 22%;
     --secondary-foreground: 120 15% 85%;
-    
+
     --muted: 140 25% 27%;
     --muted-foreground: 120 10% 60%;
-    
+
     --accent: 160 60% 50%;
     --accent-foreground: 0 0% 100%;
-    
+
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    
+
     --border: 140 15% 30%;
     --input: 140 15% 30%;
     --ring: 145 65% 45%;
-    
+
     --tab-background: 140 25% 17%;
     --tab-active: 140 25% 12%;
     --tab-hover: 140 25% 24%;
@@ -172,32 +172,32 @@
   [data-theme="sunset"] {
     --background: 20 30% 12%;
     --foreground: 30 20% 85%;
-    
+
     --card: 20 30% 17%;
     --card-foreground: 30 20% 85%;
-    
+
     --popover: 20 30% 17%;
     --popover-foreground: 30 20% 85%;
-    
+
     --primary: 25 85% 55%;
     --primary-foreground: 0 0% 100%;
-    
+
     --secondary: 20 30% 22%;
     --secondary-foreground: 30 20% 85%;
-    
+
     --muted: 20 30% 27%;
     --muted-foreground: 30 15% 60%;
-    
+
     --accent: 340 75% 60%;
     --accent-foreground: 0 0% 100%;
-    
+
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    
+
     --border: 20 20% 30%;
     --input: 20 20% 30%;
     --ring: 25 85% 55%;
-    
+
     --tab-background: 20 30% 17%;
     --tab-active: 20 30% 12%;
     --tab-hover: 20 30% 24%;
@@ -212,6 +212,8 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 }

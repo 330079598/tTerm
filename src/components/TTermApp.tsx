@@ -1,36 +1,36 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { platform } from '@tauri-apps/plugin-os';
-import { Plus, Settings } from 'lucide-react';
-import { ContextMenu } from './ContextMenu';
-import { WindowControls } from './WindowControls';
-import { ConnectionDialog } from './ConnectionDialog';
-import { ThemeSwitcher } from './ThemeSwitcher';
-import { TabBar } from './TabBar';
-import { useTabs } from '../hooks/useTabs';
-import { useSessionPersistence } from '../hooks/useSessionPersistence';
-import { useConnectionManager } from '../hooks/useConnectionManager';
-import { Tab, TabContextMenuAction } from '../types/tab';
+import React, { useState, useCallback, useEffect, useRef } from "react"
+import { platform } from "@tauri-apps/plugin-os"
+import { Plus, Settings } from "lucide-react"
+import { ContextMenu } from "./ContextMenu"
+import { WindowControls } from "./WindowControls"
+import { ConnectionDialog } from "./ConnectionDialog"
+import { ThemeSwitcher } from "./ThemeSwitcher"
+import { TabBar } from "./TabBar"
+import { useTabs } from "../hooks/useTabs"
+import { useSessionPersistence } from "../hooks/useSessionPersistence"
+import { useConnectionManager } from "../hooks/useConnectionManager"
+import { Tab, TabContextMenuAction } from "../types/tab"
 
 interface ContextMenuState {
-  visible: boolean;
-  x: number;
-  y: number;
-  tab: Tab | null;
-  actions: TabContextMenuAction[];
+  visible: boolean
+  x: number
+  y: number
+  tab: Tab | null
+  actions: TabContextMenuAction[]
 }
 
 export const TTermApp: React.FC = () => {
-  const [os, setOs] = useState<string>('');
-  const [showConnectionDialog, setShowConnectionDialog] = useState(false);
-  const [showThemeSwitcher, setShowThemeSwitcher] = useState(false);
-  const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const [os] = useState<string>(() => platform())
+  const [showConnectionDialog, setShowConnectionDialog] = useState(false)
+  const [showThemeSwitcher, setShowThemeSwitcher] = useState(false)
+  const settingsButtonRef = useRef<HTMLButtonElement>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     visible: false,
     x: 0,
     y: 0,
     tab: null,
-    actions: []
-  });
+    actions: [],
+  })
 
   const {
     tabs,
@@ -43,129 +43,147 @@ export const TTermApp: React.FC = () => {
     closeOtherTabs,
     closeTabsToRight,
     restoreSession,
-  } = useTabs();
+  } = useTabs()
 
-  const { saveSession, loadSession, clearSession } = useSessionPersistence();
-  const { cleanupConnection } = useConnectionManager();
+  const { saveSession, loadSession, clearSession } = useSessionPersistence()
+  const { cleanupConnection } = useConnectionManager()
 
   useEffect(() => {
-    setOs(platform());
-    
     // Try to restore previous session
-    const savedSession = loadSession();
+    const savedSession = loadSession()
     if (savedSession && savedSession.tabs.length > 0) {
-      restoreSession(savedSession.tabs, savedSession.activeTabId);
+      restoreSession(savedSession.tabs, savedSession.activeTabId)
     } else {
       // If no saved session, create default tab
       addTab({
-        title: 'Terminal',
-        type: 'terminal',
+        title: "Terminal",
+        type: "terminal",
         isModified: false,
-      });
+      })
     }
-  }, [addTab, loadSession, restoreSession]);
+  }, [addTab, loadSession, restoreSession])
 
   // Save session state when tabs or active tab changes
   useEffect(() => {
     if (tabs.length > 0) {
-      saveSession(tabs, activeTabId);
+      saveSession(tabs, activeTabId)
     }
-  }, [tabs, activeTabId, saveSession]);
+  }, [tabs, activeTabId, saveSession])
 
   const handleNewTab = useCallback(() => {
-    setShowConnectionDialog(true);
-  }, []);
+    setShowConnectionDialog(true)
+  }, [])
 
-  const handleConnect = useCallback((connection: Omit<Tab, 'id' | 'isActive'>) => {
-    addTab(connection);
-  }, [addTab]);
+  const handleConnect = useCallback(
+    (connection: Omit<Tab, "id" | "isActive">) => {
+      addTab(connection)
+    },
+    [addTab]
+  )
 
-  const handleRemoveTab = useCallback((id: string) => {
-    cleanupConnection(id);
-    removeTab(id);
-  }, [removeTab, cleanupConnection]);
+  const handleRemoveTab = useCallback(
+    (id: string) => {
+      cleanupConnection(id)
+      removeTab(id)
+    },
+    [removeTab, cleanupConnection]
+  )
 
-  const handleTabContextMenu = useCallback((e: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => {
-    e.preventDefault();
-    setContextMenu({
-      visible: true,
-      x: e.clientX,
-      y: e.clientY,
-      tab,
-      actions
-    });
-  }, []);
+  const handleTabContextMenu = useCallback(
+    (e: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => {
+      e.preventDefault()
+      setContextMenu({
+        visible: true,
+        x: e.clientX,
+        y: e.clientY,
+        tab,
+        actions,
+      })
+    },
+    []
+  )
 
-  const handleContextMenuAction = useCallback((action: string) => {
-    if (!contextMenu.tab) {
-      // Handle settings menu actions
-      switch (action) {
-        case 'change-theme':
-          setShowThemeSwitcher(true);
-          break;
-        case 'clear-session':
-          clearSession();
-          // Reload page to reset state
-          window.location.reload();
-          break;
-        case 'about':
-          alert('TTerm - Modern Terminal Emulator\nVersion 0.1.0\nBuilt with Tauri + React');
-          break;
-        default:
-          break;
+  const handleContextMenuAction = useCallback(
+    (action: string) => {
+      if (!contextMenu.tab) {
+        // Handle settings menu actions
+        switch (action) {
+          case "change-theme":
+            setShowThemeSwitcher(true)
+            break
+          case "clear-session":
+            clearSession()
+            // Reload page to reset state
+            window.location.reload()
+            break
+          case "about":
+            alert("TTerm - Modern Terminal Emulator\nVersion 0.1.0\nBuilt with Tauri + React")
+            break
+          default:
+            break
+        }
+        return
       }
-      return;
-    }
 
-    const tab = contextMenu.tab;
+      const tab = contextMenu.tab
 
-    switch (action) {
-      case 'new':
-        handleNewTab();
-        break;
-      case 'duplicate':
-        duplicateTab(tab.id);
-        break;
-      case 'close':
-        handleRemoveTab(tab.id);
-        break;
-      case 'close-others':
-        closeOtherTabs(tab.id);
-        break;
-      case 'close-right':
-        closeTabsToRight(tab.id);
-        break;
-      default:
-        break;
-    }
-  }, [contextMenu.tab, handleNewTab, duplicateTab, handleRemoveTab, closeOtherTabs, closeTabsToRight, clearSession]);
+      switch (action) {
+        case "new":
+          handleNewTab()
+          break
+        case "duplicate":
+          duplicateTab(tab.id)
+          break
+        case "close":
+          handleRemoveTab(tab.id)
+          break
+        case "close-others":
+          closeOtherTabs(tab.id)
+          break
+        case "close-right":
+          closeTabsToRight(tab.id)
+          break
+        default:
+          break
+      }
+    },
+    [
+      contextMenu.tab,
+      handleNewTab,
+      duplicateTab,
+      handleRemoveTab,
+      closeOtherTabs,
+      closeTabsToRight,
+      clearSession,
+    ]
+  )
 
   const handleCloseContextMenu = useCallback(() => {
-    setContextMenu(prev => ({ ...prev, visible: false }));
-  }, []);
+    setContextMenu((prev) => ({ ...prev, visible: false }))
+  }, [])
 
   // Handle settings button click
   const handleSettingsClick = useCallback(() => {
     const actions: TabContextMenuAction[] = [
-      { label: 'Change Theme', action: 'change-theme', icon: 'palette' },
-      { separator: true, label: '', action: '' },
-      { label: 'Clear Session Data', action: 'clear-session', icon: 'x' },
-      { separator: true, label: '', action: '' },
-      { label: 'About TTerm', action: 'about' },
-    ];
-    
+      { label: "Change Theme", action: "change-theme", icon: "palette" },
+      { separator: true, label: "", action: "" },
+      { label: "Clear Session Data", action: "clear-session", icon: "x" },
+      { separator: true, label: "", action: "" },
+      { label: "About TTerm", action: "about" },
+    ]
+
     // Show context menu near settings button
-    const rect = settingsButtonRef.current?.getBoundingClientRect();
-    const x = rect ? rect.right - 200 : window.innerWidth - 200;
-    const y = rect ? rect.bottom + 4 : 50;
+    const rect = settingsButtonRef.current?.getBoundingClientRect()
+    const x = rect ? rect.right - 200 : window.innerWidth - 200
+    const y = rect ? rect.bottom + 4 : 50
     setContextMenu({
       visible: true,
       x,
       y,
       tab: null,
-      actions
-    });
-  }, []);
+      actions,
+    })
+  }, [])
 
   const renderTabContent = () => {
     if (!activeTabId) {
@@ -173,22 +191,18 @@ export const TTermApp: React.FC = () => {
         <div className="terminal-placeholder">
           <h3>Welcome to TTerm</h3>
           <p>
-            A modern terminal emulator inspired by Tabby. 
-            Click the + button to create a new connection.
+            A modern terminal emulator inspired by Tabby. Click the + button to create a new
+            connection.
           </p>
-          <button 
-            onClick={handleNewTab}
-            className="btn-primary"
-            style={{ marginTop: '16px' }}
-          >
+          <button onClick={handleNewTab} className="btn-primary" style={{ marginTop: "16px" }}>
             New Connection
           </button>
         </div>
-      );
+      )
     }
 
-    const activeTab = tabs.find(t => t.id === activeTabId);
-    if (!activeTab) return null;
+    const activeTab = tabs.find((t) => t.id === activeTabId)
+    if (!activeTab) return null
 
     // This is where tab content will be rendered
     // You can render different content based on activeTab.type
@@ -213,11 +227,11 @@ export const TTermApp: React.FC = () => {
           </div>
         </div>
       </div>
-    );
-  };
+    )
+  }
 
   return (
-    <div className={`app ${os === 'macos' ? 'macos' : ''}`}>
+    <div className={`app ${os === "macos" ? "macos" : ""}`}>
       {/* Combined Title Bar and Tab Bar */}
       <div className="title-bar" data-tauri-drag-region>
         <div className="title-bar-left">
@@ -233,20 +247,16 @@ export const TTermApp: React.FC = () => {
               onContextMenu={handleTabContextMenu}
             />
             <div className="tab-add-button">
-              <button
-                className="tab-action"
-                onClick={handleNewTab}
-                title="New tab"
-              >
+              <button className="tab-action" onClick={handleNewTab} title="New tab">
                 <Plus size={16} />
               </button>
             </div>
           </div>
         </div>
-        
+
         {/* Draggable space (10% of window width) */}
         <div className="drag-space" data-tauri-drag-region></div>
-        
+
         {/* Settings and window controls */}
         <div className="title-bar-right">
           <button
@@ -262,9 +272,7 @@ export const TTermApp: React.FC = () => {
       </div>
 
       {/* Content Area */}
-      <div className="content-area">
-        {renderTabContent()}
-      </div>
+      <div className="content-area">{renderTabContent()}</div>
 
       {/* Connection Dialog */}
       <ConnectionDialog
@@ -285,9 +293,7 @@ export const TTermApp: React.FC = () => {
       )}
 
       {/* Theme Switcher */}
-      {showThemeSwitcher && (
-        <ThemeSwitcher onClose={() => setShowThemeSwitcher(false)} />
-      )}
+      {showThemeSwitcher && <ThemeSwitcher onClose={() => setShowThemeSwitcher(false)} />}
     </div>
-  );
-};
+  )
+}
