@@ -1,6 +1,7 @@
 import React, { useCallback } from "react"
+import { useTranslation } from "react-i18next"
 import { DragDropProvider, useDraggable, useDroppable } from "@dnd-kit/react"
-import { FolderOpen, Server, Terminal, X, Zap } from "lucide-react"
+import { X } from "lucide-react"
 import { Tab, TabContextMenuAction } from "../types/tab"
 
 interface TabBarProps {
@@ -15,34 +16,22 @@ interface TabBarProps {
 
 interface TabItemProps {
   tab: Tab
+  index: number
   isActive: boolean
   onTabClick: (id: string) => void
   onTabClose: (id: string) => void
   onContextMenu: (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => void
 }
 
-const getTabIcon = (type: Tab["type"]) => {
-  switch (type) {
-    case "terminal":
-      return <Terminal className="tab-icon" />
-    case "ssh":
-      return <Server className="tab-icon" />
-    case "sftp":
-      return <FolderOpen className="tab-icon" />
-    case "serial":
-      return <Zap className="tab-icon" />
-    default:
-      return <Terminal className="tab-icon" />
-  }
-}
-
 const TabItem: React.FC<TabItemProps> = ({
   tab,
+  index,
   isActive,
   onTabClick,
   onTabClose,
   onContextMenu,
 }) => {
+  const { t } = useTranslation()
   // Use stable IDs based on tab.id so multiple拖拽不会失效
   const draggableId = `tab:${tab.id}:drag`
   const droppableId = `tab:${tab.id}:drop`
@@ -64,16 +53,17 @@ const TabItem: React.FC<TabItemProps> = ({
     (e: React.MouseEvent) => {
       e.preventDefault()
       const actions: TabContextMenuAction[] = [
-        { label: "New Tab", action: "new", icon: "plus" },
-        { label: "Duplicate Tab", action: "duplicate", icon: "copy" },
+        { label: t("contextMenu.newTab"), action: "new", icon: "plus" },
+        { label: t("contextMenu.duplicateTab"), action: "duplicate", icon: "copy" },
+        { label: t("contextMenu.renameTab"), action: "rename", icon: "edit" },
         { separator: true, label: "", action: "" },
-        { label: "Close Tab", action: "close", icon: "x" },
-        { label: "Close Other Tabs", action: "close-others" },
-        { label: "Close Tabs to the Right", action: "close-right" },
+        { label: t("contextMenu.closeTab"), action: "close", icon: "x" },
+        { label: t("contextMenu.closeOtherTabs"), action: "close-others" },
+        { label: t("contextMenu.closeTabsToRight"), action: "close-right" },
       ]
       onContextMenu(e, tab, actions)
     },
-    [tab, onContextMenu]
+    [tab, onContextMenu, t]
   )
 
   return (
@@ -84,7 +74,7 @@ const TabItem: React.FC<TabItemProps> = ({
       onContextMenu={handleContextMenu}
       title={`${tab.title}${tab.connection ? ` (${tab.connection.host})` : ""}`}
     >
-      {getTabIcon(tab.type)}
+      <span className="tab-number">{index + 1}</span>
       <span className="tab-title">{tab.title}</span>
       <button
         className="tab-close"
@@ -92,7 +82,7 @@ const TabItem: React.FC<TabItemProps> = ({
           e.stopPropagation()
           onTabClose(tab.id)
         }}
-        title="Close tab"
+        title={t("tabs.closeTab")}
       >
         <X size={12} />
       </button>
@@ -142,10 +132,11 @@ export const TabBar: React.FC<TabBarProps> = ({
   return (
     <div className="tab-list">
       <DragDropProvider onDragEnd={handleDragEnd}>
-        {tabs.map((tab) => (
+        {tabs.map((tab, index) => (
           <React.Fragment key={tab.id}>
             <TabItem
               tab={tab}
+              index={index}
               isActive={tab.id === activeTabId}
               onTabClick={onTabClick}
               onTabClose={onTabClose}

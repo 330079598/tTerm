@@ -1,0 +1,81 @@
+{
+  "app": {
+    "title": "TTerm",
+    "subtitle": "现代终端模拟器",
+    "version": "版本 0.1.0",
+    "builtWith": "使用 Tauri + React 构建"
+  },
+  "welcome": {
+    "title": "欢迎使用 TTerm",
+    "description": "一个受 Tabby 启发的现代终端模拟器。点击 + 按钮创建新连接。",
+    "newConnection": "新建连接"
+  },
+  "tabs": {
+    "newTab": "新建标签页",
+    "closeTab": "关闭标签页",
+    "terminal": "终端",
+    "ssh": "SSH",
+    "sftp": "SFTP",
+    "serial": "串口"
+  },
+  "contextMenu": {
+    "newTab": "新建标签页",
+    "duplicateTab": "复制标签页",
+    "renameTab": "重命名标签页",
+    "closeTab": "关闭标签页",
+    "closeOtherTabs": "关闭其他标签页",
+    "closeTabsToRight": "关闭右侧标签页"
+  },
+  "settings": {
+    "title": "设置",
+    "changeTheme": "更改主题",
+    "changeLanguage": "更改语言",
+    "clearSession": "清除会话数据",
+    "about": "关于 TTerm"
+  },
+  "theme": {
+    "title": "选择主题",
+    "default": "默认",
+    "defaultDesc": "受 Tabby 启发的深色主题",
+    "light": "浅色",
+    "lightDesc": "简洁的浅色主题",
+    "ocean": "海洋",
+    "oceanDesc": "深蓝色海洋主题",
+    "forest": "森林",
+    "forestDesc": "自然绿色主题",
+    "sunset": "日落",
+    "sunsetDesc": "温暖的橙红色主题"
+  },
+  "language": {
+    "title": "选择语言",
+    "en": "English",
+    "zh": "中文"
+  },
+  "connection": {
+    "title": "新建连接",
+    "type": "连接类型",
+    "name": "连接名称",
+    "host": "主机",
+    "port": "端口",
+    "username": "用户名",
+    "cancel": "取消",
+    "connect": "连接",
+    "types": {
+      "terminal": "本地终端",
+      "ssh": "SSH 连接",
+      "sftp": "SFTP 浏览器",
+      "serial": "串口"
+    }
+  },
+  "rename": {
+    "title": "重命名标签页",
+    "label": "标签页名称",
+    "cancel": "取消",
+    "confirm": "重命名"
+  },
+  "tabContent": {
+    "type": "类型",
+    "hint": "这里将渲染 {{type}} 界面。",
+    "implementation": "您可以在这里实现自己的终端/SSH/SFTP 组件。"
+  }
+}

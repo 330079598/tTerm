@@ -1,21 +1,23 @@
 import React, { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Palette, X } from "lucide-react"
 import { setTheme, getTheme, type Theme } from "../lib/utils"
-
-const themes: { value: Theme; label: string; description: string }[] = [
-  { value: "default", label: "Default", description: "Dark theme inspired by Tabby" },
-  { value: "light", label: "Light", description: "Clean light theme" },
-  { value: "ocean", label: "Ocean", description: "Deep blue ocean theme" },
-  { value: "forest", label: "Forest", description: "Natural green theme" },
-  { value: "sunset", label: "Sunset", description: "Warm orange and red theme" },
-]
 
 interface ThemeSwitcherProps {
   onClose: () => void
 }
 
 export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
+  const { t } = useTranslation()
   const [currentTheme, setCurrentTheme] = useState<Theme>(getTheme())
+
+  const themes: { value: Theme; label: string; description: string }[] = [
+    { value: "default", label: t("theme.default"), description: t("theme.defaultDesc") },
+    { value: "light", label: t("theme.light"), description: t("theme.lightDesc") },
+    { value: "ocean", label: t("theme.ocean"), description: t("theme.oceanDesc") },
+    { value: "forest", label: t("theme.forest"), description: t("theme.forestDesc") },
+    { value: "sunset", label: t("theme.sunset"), description: t("theme.sunsetDesc") },
+  ]
 
   const handleThemeChange = (theme: Theme) => {
     setTheme(theme)
@@ -28,7 +30,7 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
         <div className="dialog-header">
           <h2>
             <Palette size={16} style={{ display: "inline", marginRight: "8px" }} />
-            Choose Theme
+            {t("theme.title")}
           </h2>
           <button className="dialog-close" onClick={onClose}>
             <X size={16} />

@@ -1,0 +1,81 @@
+{
+  "app": {
+    "title": "TTerm",
+    "subtitle": "Modern Terminal Emulator",
+    "version": "Version 0.1.0",
+    "builtWith": "Built with Tauri + React"
+  },
+  "welcome": {
+    "title": "Welcome to TTerm",
+    "description": "A modern terminal emulator inspired by Tabby. Click the + button to create a new connection.",
+    "newConnection": "New Connection"
+  },
+  "tabs": {
+    "newTab": "New tab",
+    "closeTab": "Close tab",
+    "terminal": "Terminal",
+    "ssh": "SSH",
+    "sftp": "SFTP",
+    "serial": "Serial"
+  },
+  "contextMenu": {
+    "newTab": "New Tab",
+    "duplicateTab": "Duplicate Tab",
+    "renameTab": "Rename Tab",
+    "closeTab": "Close Tab",
+    "closeOtherTabs": "Close Other Tabs",
+    "closeTabsToRight": "Close Tabs to the Right"
+  },
+  "settings": {
+    "title": "Settings",
+    "changeTheme": "Change Theme",
+    "changeLanguage": "Change Language",
+    "clearSession": "Clear Session Data",
+    "about": "About TTerm"
+  },
+  "theme": {
+    "title": "Choose Theme",
+    "default": "Default",
+    "defaultDesc": "Dark theme inspired by Tabby",
+    "light": "Light",
+    "lightDesc": "Clean light theme",
+    "ocean": "Ocean",
+    "oceanDesc": "Deep blue ocean theme",
+    "forest": "Forest",
+    "forestDesc": "Natural green theme",
+    "sunset": "Sunset",
+    "sunsetDesc": "Warm orange and red theme"
+  },
+  "language": {
+    "title": "Choose Language",
+    "en": "English",
+    "zh": "中文"
+  },
+  "connection": {
+    "title": "New Connection",
+    "type": "Connection Type",
+    "name": "Connection Name",
+    "host": "Host",
+    "port": "Port",
+    "username": "Username",
+    "cancel": "Cancel",
+    "connect": "Connect",
+    "types": {
+      "terminal": "Local Terminal",
+      "ssh": "SSH Connection",
+      "sftp": "SFTP Browser",
+      "serial": "Serial Port"
+    }
+  },
+  "rename": {
+    "title": "Rename Tab",
+    "label": "Tab Name",
+    "cancel": "Cancel",
+    "confirm": "Rename"
+  },
+  "tabContent": {
+    "type": "Type",
+    "hint": "This is where the {{type}} interface will be rendered.",
+    "implementation": "You can implement your own terminal/SSH/SFTP component here."
+  }
+}

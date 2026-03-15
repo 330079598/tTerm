@@ -11,6 +11,7 @@ export interface UseTabsReturn {
   duplicateTab: (id: string) => void
   closeOtherTabs: (id: string) => void
   closeTabsToRight: (id: string) => void
+  renameTab: (id: string, newTitle: string) => void
   restoreSession: (tabs: Tab[], activeTabId: string | null) => void
 }
 
@@ -150,6 +151,12 @@ export function useTabs(): UseTabsReturn {
     })
   }, [])
 
+  const renameTab = useCallback((id: string, newTitle: string) => {
+    setTabs((prevTabs) =>
+      prevTabs.map((tab) => (tab.id === id ? { ...tab, title: newTitle } : tab))
+    )
+  }, [])
+
   return {
     tabs,
     activeTabId,
@@ -160,6 +167,7 @@ export function useTabs(): UseTabsReturn {
     duplicateTab,
     closeOtherTabs,
     closeTabsToRight,
+    renameTab,
     restoreSession,
   }
 }
