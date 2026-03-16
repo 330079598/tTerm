@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useCallback } from "react"
 import { Plus, X, Copy, Terminal, Server, FolderOpen, Zap, Edit } from "lucide-react"
-import { TabContextMenuAction } from "../types/tab"
+import { TabContextMenuAction } from "@/types/tab"
 
 interface ContextMenuProps {
   x: number

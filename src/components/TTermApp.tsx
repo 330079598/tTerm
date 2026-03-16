@@ -2,17 +2,19 @@ import React, { useState, useCallback, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { platform } from "@tauri-apps/plugin-os"
 import { Plus, Settings } from "lucide-react"
-import { ContextMenu } from "./ContextMenu"
-import { WindowControls } from "./WindowControls"
-import { ConnectionDialog } from "./ConnectionDialog"
-import { RenameDialog } from "./RenameDialog"
-import { ThemeSwitcher } from "./ThemeSwitcher"
-import { LanguageSwitcher } from "./LanguageSwitcher"
-import { TabBar } from "./TabBar"
-import { useTabs } from "../hooks/useTabs"
-import { useSessionPersistence } from "../hooks/useSessionPersistence"
-import { useConnectionManager } from "../hooks/useConnectionManager"
-import { Tab, TabContextMenuAction } from "../types/tab"
+import { ContextMenu } from "@/components/ContextMenu"
+import { WindowControls } from "@/components/WindowControls"
+import { ConnectionDialog } from "@/components/ConnectionDialog"
+import { RenameDialog } from "@/components/RenameDialog"
+import { ThemeSwitcher } from "@/components/ThemeSwitcher"
+import { LanguageSwitcher } from "@/components/LanguageSwitcher"
+import { TabBar } from "@/components/TabBar"
+import { useTabs } from "@/hooks/useTabs"
+import { useSessionPersistence } from "@/hooks/useSessionPersistence"
+import { useConnectionManager } from "@/hooks/useConnectionManager"
+import { useConfig } from "@/contexts/ConfigContext"
+import { setTheme, type Theme } from "@/lib/utils"
+import { Tab, TabContextMenuAction } from "@/types/tab"
 
 interface ContextMenuState {
   visible: boolean
@@ -23,7 +25,7 @@ interface ContextMenuState {
 }
 
 export const TTermApp: React.FC = () => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [os] = useState<string>(() => platform())
   const [showConnectionDialog, setShowConnectionDialog] = useState(false)
   const [showThemeSwitcher, setShowThemeSwitcher] = useState(false)
@@ -62,20 +64,33 @@ export const TTermApp: React.FC = () => {
 
   const { saveSession, loadSession, clearSession } = useSessionPersistence()
   const { cleanupConnection } = useConnectionManager()
+  const { config, isLoaded } = useConfig()
+
+  // Load config and apply theme/language on mount
+  useEffect(() => {
+    if (isLoaded) {
+      setTheme(config.theme as Theme)
+      i18n.changeLanguage(config.language)
+    }
+  }, [isLoaded, config, i18n])
 
   useEffect(() => {
     // Try to restore previous session
-    const savedSession = loadSession()
-    if (savedSession && savedSession.tabs.length > 0) {
-      restoreSession(savedSession.tabs, savedSession.activeTabId)
-    } else {
-      // If no saved session, create default tab
-      addTab({
-        title: "Terminal",
-        type: "terminal",
-        isModified: false,
-      })
+    const loadAndRestoreSession = async () => {
+      const savedSession = await loadSession()
+      if (savedSession && savedSession.tabs.length > 0) {
+        restoreSession(savedSession.tabs, savedSession.activeTabId)
+      } else {
+        // If no saved session, create default tab
+        addTab({
+          title: "Terminal",
+          type: "terminal",
+          isModified: false,
+        })
+      }
     }
+
+    loadAndRestoreSession()
   }, [addTab, loadSession, restoreSession])
 
   // Save session state when tabs or active tab changes
@@ -119,7 +134,7 @@ export const TTermApp: React.FC = () => {
   )
 
   const handleContextMenuAction = useCallback(
-    (action: string) => {
+    async (action: string) => {
       if (!contextMenu.tab) {
         // Handle settings menu actions
         switch (action) {
@@ -130,7 +145,7 @@ export const TTermApp: React.FC = () => {
             setShowLanguageSwitcher(true)
             break
           case "clear-session":
-            clearSession()
+            await clearSession()
             // Reload page to reset state
             window.location.reload()
             break

@@ -2,7 +2,7 @@ import React, { useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { DragDropProvider, useDraggable, useDroppable } from "@dnd-kit/react"
 import { X } from "lucide-react"
-import { Tab, TabContextMenuAction } from "../types/tab"
+import { Tab, TabContextMenuAction } from "@/types/tab"
 
 interface TabBarProps {
   tabs: Tab[]
@@ -32,7 +32,7 @@ const TabItem: React.FC<TabItemProps> = ({
   onContextMenu,
 }) => {
   const { t } = useTranslation()
-  // Use stable IDs based on tab.id so multiple拖拽不会失效
+  // Use stable IDs based on tab.id so multiple drag operations won't fail
   const draggableId = `tab:${tab.id}:drag`
   const droppableId = `tab:${tab.id}:drop`
 

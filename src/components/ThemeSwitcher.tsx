@@ -1,7 +1,8 @@
 import React, { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Palette, X } from "lucide-react"
-import { setTheme, getTheme, type Theme } from "../lib/utils"
+import { setTheme, getTheme, type Theme } from "@/lib/utils"
+import { useConfig } from "@/contexts/ConfigContext"
 
 interface ThemeSwitcherProps {
   onClose: () => void
@@ -9,6 +10,7 @@ interface ThemeSwitcherProps {
 
 export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
   const { t } = useTranslation()
+  const { updateTheme } = useConfig()
   const [currentTheme, setCurrentTheme] = useState<Theme>(getTheme())
 
   const themes: { value: Theme; label: string; description: string }[] = [
@@ -19,9 +21,14 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
     { value: "sunset", label: t("theme.sunset"), description: t("theme.sunsetDesc") },
   ]
 
-  const handleThemeChange = (theme: Theme) => {
+  const handleThemeChange = async (theme: Theme) => {
     setTheme(theme)
     setCurrentTheme(theme)
+    try {
+      await updateTheme(theme)
+    } catch (error) {
+      console.error("Failed to save theme:", error)
+    }
   }
 
   return (

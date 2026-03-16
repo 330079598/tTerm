@@ -1,76 +1,69 @@
 import { useCallback, useRef } from "react"
-import { Tab } from "../types/tab"
+import { invoke } from "@tauri-apps/api/core"
+import { Tab } from "@/types/tab"
 
 interface SessionData {
   tabs: Tab[]
   activeTabId: string | null
-  windowState?: {
-    width: number
-    height: number
-    x?: number
-    y?: number
-    maximized?: boolean
-  }
   lastSaved: number
 }
 
-const SESSION_STORAGE_KEY = "tterm-session"
 const SAVE_DEBOUNCE_MS = 1000 // 1 second debounce
 
 export function useSessionPersistence() {
-  // Save session data
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>()
+
+  // Save session data to file system
   const saveSession = useCallback((tabs: Tab[], activeTabId: string | null) => {
     try {
-      const sessionData: SessionData = {
+      const sessionData = {
         tabs: tabs.map((tab) => ({
           ...tab,
-          // Reset some runtime states
           isActive: tab.id === activeTabId,
         })),
-        activeTabId,
-        lastSaved: Date.now(),
+        active_tab_id: activeTabId,
+        last_saved: Date.now(),
       }
 
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData))
+      invoke("save_session", { session: sessionData }).catch((error) => {
+        console.error("Failed to save session:", error)
+      })
     } catch (error) {
-      console.error("Failed to save session:", error)
+      console.error("Failed to prepare session data:", error)
     }
   }, [])
 
   // Clear session data
-  const clearSession = useCallback(() => {
+  const clearSession = useCallback(async () => {
     try {
-      localStorage.removeItem(SESSION_STORAGE_KEY)
+      await invoke("clear_session")
     } catch (error) {
       console.error("Failed to clear session:", error)
     }
   }, [])
 
-  // Load session data
-  const loadSession = useCallback((): SessionData | null => {
+  // Load session data from file system
+  const loadSession = useCallback(async (): Promise<SessionData | null> => {
     try {
-      const stored = localStorage.getItem(SESSION_STORAGE_KEY)
-      if (!stored) return null
+      const session = await invoke<{
+        tabs: Tab[]
+        active_tab_id: string | null
+        last_saved: number
+      }>("load_session")
 
-      const sessionData: SessionData = JSON.parse(stored)
-
-      // Check if data is expired (more than 7 days)
-      const maxAge = 7 * 24 * 60 * 60 * 1000 // 7 days
-      if (Date.now() - sessionData.lastSaved > maxAge) {
-        clearSession()
-        return null
+      // Convert snake_case to camelCase
+      return {
+        tabs: session.tabs || [],
+        activeTabId: session.active_tab_id,
+        lastSaved: session.last_saved,
       }
-
-      return sessionData
     } catch (error) {
       console.error("Failed to load session:", error)
       return null
     }
-  }, [clearSession])
+  }, [])
 
   // Debounced save
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>()
-
   const debouncedSave = useCallback(
     (tabs: Tab[], activeTabId: string | null) => {
       if (timeoutRef.current) {

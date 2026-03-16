@@ -1,7 +1,7 @@
 import React, { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { X, Terminal, Server, FolderOpen, Zap } from "lucide-react"
-import { Tab } from "../types/tab"
+import { Tab } from "@/types/tab"
 
 interface ConnectionDialogProps {
   isOpen: boolean

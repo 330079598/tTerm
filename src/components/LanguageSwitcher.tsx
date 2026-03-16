@@ -1,10 +1,11 @@
 import React from "react"
 import { useTranslation } from "react-i18next"
 import { Languages, X } from "lucide-react"
+import { useConfig } from "@/contexts/ConfigContext"
 
 const languages = [
   { code: "en", label: "English", nativeLabel: "English" },
-  { code: "zh", label: "Chinese", nativeLabel: "中文" },
+  { code: "zh", label: "Chinese", nativeLabel: "Chinese" },
 ]
 
 interface LanguageSwitcherProps {
@@ -13,9 +14,15 @@ interface LanguageSwitcherProps {
 
 export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ onClose }) => {
   const { t, i18n } = useTranslation()
+  const { updateLanguage } = useConfig()
 
-  const handleLanguageChange = (langCode: string) => {
-    i18n.changeLanguage(langCode)
+  const handleLanguageChange = async (langCode: string) => {
+    await i18n.changeLanguage(langCode)
+    try {
+      await updateLanguage(langCode)
+    } catch (error) {
+      console.error("Failed to save language:", error)
+    }
   }
 
   return (

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react"
-import { Tab } from "../types/tab"
+import { Tab } from "@/types/tab"
 
 export interface UseTabsReturn {
   tabs: Tab[]
