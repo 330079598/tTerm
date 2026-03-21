@@ -5,6 +5,7 @@ export interface Tab {
   isActive: boolean
   isModified?: boolean
   icon?: string
+  pid?: number
   connection?: {
     host?: string
     port?: number

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react"
+import { TerminalTab } from "@/components/TerminalTab"
 import { useTranslation } from "react-i18next"
 import { platform } from "@tauri-apps/plugin-os"
 import { Plus, Settings } from "lucide-react"
@@ -247,7 +248,7 @@ export const TTermApp: React.FC = () => {
   }, [t])
 
   const renderTabContent = () => {
-    if (!activeTabId) {
+    if (tabs.length === 0) {
       return (
         <div className="terminal-placeholder">
           <h3>{t("welcome.title")}</h3>
@@ -259,34 +260,44 @@ export const TTermApp: React.FC = () => {
       )
     }
 
-    const activeTab = tabs.find((t) => t.id === activeTabId)
-    if (!activeTab) return null
-
-    // This is where tab content will be rendered
-    // You can render different content based on activeTab.type
-    // e.g., terminal emulator, SSH client, SFTP browser, etc.
     return (
-      <div className="tab-content-container">
-        {/* Future terminal/SSH/SFTP content will be rendered here */}
-        <div className="tab-content-placeholder">
-          <div className="tab-info">
-            <h3>{activeTab.title}</h3>
-            <p>
-              {t("tabContent.type")}: {activeTab.type.toUpperCase()}
-            </p>
-            {activeTab.connection && (
-              <p>
-                {activeTab.connection.host}:{activeTab.connection.port}
-                {activeTab.connection.username && ` (${activeTab.connection.username})`}
-              </p>
+      <>
+        {tabs.map((tab) => (
+          <div
+            key={tab.id}
+            style={{
+              width: "100%",
+              height: "100%",
+              visibility: tab.id === activeTabId ? "visible" : "hidden",
+              position: tab.id === activeTabId ? "relative" : "absolute",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {tab.type === "terminal" ? (
+              <TerminalTab tabId={tab.id} isActive={tab.id === activeTabId} />
+            ) : (
+              <div className="tab-content-placeholder">
+                <div className="tab-info">
+                  <h3>{tab.title}</h3>
+                  <p>
+                    {t("tabContent.type")}: {tab.type.toUpperCase()}
+                  </p>
+                  {tab.connection && (
+                    <p>
+                      {tab.connection.host}:{tab.connection.port}
+                      {tab.connection.username && ` (${tab.connection.username})`}
+                    </p>
+                  )}
+                </div>
+                <div className="tab-hint">
+                  <p>{t("tabContent.hint", { type: tab.type })}</p>
+                </div>
+              </div>
             )}
           </div>
-          <div className="tab-hint">
-            <p>{t("tabContent.hint", { type: activeTab.type })}</p>
-            <p>{t("tabContent.implementation")}</p>
-          </div>
-        </div>
-      </div>
+        ))}
+      </>
     )
   }
 
