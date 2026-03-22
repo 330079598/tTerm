@@ -42,7 +42,7 @@ export const FontSettings: React.FC<FontSettingsProps> = ({ onClose }) => {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Type size={16} />
@@ -50,7 +50,7 @@ export const FontSettings: React.FC<FontSettingsProps> = ({ onClose }) => {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-5 py-2">
+        <div className="max-h-[70vh] overflow-y-auto space-y-5 py-2">
           {/* Font Size */}
           <div>
             <label className="mb-2 block text-sm font-medium">{t("fontSettings.fontSize")}</label>
@@ -69,6 +69,17 @@ export const FontSettings: React.FC<FontSettingsProps> = ({ onClose }) => {
                   {size}
                 </button>
               ))}
+              <input
+                type="number"
+                min={6}
+                max={72}
+                value={fontSize}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value)
+                  if (!isNaN(v) && v >= 6 && v <= 72) setFontSize(v)
+                }}
+                className="border-border bg-background focus:border-primary h-7 w-16 rounded border px-2 text-xs outline-none"
+              />
             </div>
           </div>
 

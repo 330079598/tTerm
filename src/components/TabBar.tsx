@@ -1,5 +1,5 @@
 import "@/components/TabBar.css"
-import React, { useCallback } from "react"
+import React, { useCallback, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { DragDropProvider, useDraggable, useDroppable } from "@dnd-kit/react"
 import { X } from "lucide-react"
@@ -19,6 +19,7 @@ interface TabItemProps {
   tab: Tab
   index: number
   isActive: boolean
+  activeRef?: React.RefObject<HTMLDivElement | null>
   onTabClick: (id: string) => void
   onTabClose: (id: string) => void
   onContextMenu: (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => void
@@ -28,6 +29,7 @@ const TabItem: React.FC<TabItemProps> = ({
   tab,
   index,
   isActive,
+  activeRef,
   onTabClick,
   onTabClose,
   onContextMenu,
@@ -48,6 +50,9 @@ const TabItem: React.FC<TabItemProps> = ({
   const setNodeRef = (node: HTMLDivElement | null) => {
     draggableRef(node)
     droppableRef(node)
+    if (isActive && activeRef) {
+      ;(activeRef as React.MutableRefObject<HTMLDivElement | null>).current = node
+    }
   }
 
   const handleContextMenu = useCallback(
@@ -107,6 +112,15 @@ export const TabBar: React.FC<TabBarProps> = ({
   onTabMove,
   onContextMenu,
 }) => {
+  const activeTabRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      activeTabRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" })
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [activeTabId])
+
   const handleDragEnd = useCallback(
     (
       event: Parameters<NonNullable<React.ComponentProps<typeof DragDropProvider>["onDragEnd"]>>[0]
@@ -139,6 +153,7 @@ export const TabBar: React.FC<TabBarProps> = ({
               tab={tab}
               index={index}
               isActive={tab.id === activeTabId}
+              activeRef={tab.id === activeTabId ? activeTabRef : undefined}
               onTabClick={onTabClick}
               onTabClose={onTabClose}
               onContextMenu={onContextMenu}
