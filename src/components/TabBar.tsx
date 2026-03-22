@@ -1,3 +1,4 @@
+import "@/components/TabBar.css"
 import React, { useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { DragDropProvider, useDraggable, useDroppable } from "@dnd-kit/react"
@@ -69,7 +70,7 @@ const TabItem: React.FC<TabItemProps> = ({
   return (
     <div
       ref={setNodeRef}
-      className={`tab ${isActive ? "active" : ""} ${tab.isModified ? "modified" : ""} ${isDragging ? "dragging" : ""} ${isDropTarget ? "drop-over" : ""}`}
+      className={`tab-item ${isActive ? "active" : ""} ${tab.isModified ? "modified" : ""} ${isDragging ? "dragging" : ""} ${isDropTarget ? "drop-target" : ""}`}
       onClick={() => onTabClick(tab.id)}
       onContextMenu={handleContextMenu}
       title={`${tab.title}${tab.connection ? ` (${tab.connection.host})` : ""}`}

@@ -4,11 +4,15 @@ import { invoke } from "@tauri-apps/api/core"
 export interface AppConfig {
   theme: string
   language: string
+  font_family: string
+  font_size: number
 }
 
 const defaultConfig: AppConfig = {
   theme: "default",
   language: "en",
+  font_family: '"JetBrainsMono Nerd Font", "JetBrains Mono", "Fira Code", Menlo, Monaco, monospace',
+  font_size: 14,
 }
 
 interface ConfigContextType {

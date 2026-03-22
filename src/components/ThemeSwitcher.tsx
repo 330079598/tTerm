@@ -1,11 +1,21 @@
 import React, { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Palette, X } from "lucide-react"
+import { Palette } from "lucide-react"
 import { setTheme, getTheme, type Theme } from "@/lib/utils"
 import { useConfig } from "@/contexts/ConfigContext"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { cn } from "@/lib/utils"
 
 interface ThemeSwitcherProps {
   onClose: () => void
+}
+
+const THEME_COLORS: Record<Theme, string> = {
+  default: "hsl(220 13% 12%)",
+  light: "hsl(0 0% 98%)",
+  ocean: "hsl(200 30% 10%)",
+  forest: "hsl(140 25% 12%)",
+  sunset: "hsl(20 30% 12%)",
 }
 
 export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
@@ -32,43 +42,40 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
   }
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog" onClick={(e) => e.stopPropagation()}>
-        <div className="dialog-header">
-          <h2>
-            <Palette size={16} style={{ display: "inline", marginRight: "8px" }} />
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Palette size={16} />
             {t("theme.title")}
-          </h2>
-          <button className="dialog-close" onClick={onClose}>
-            <X size={16} />
-          </button>
-        </div>
-        <div className="dialog-content">
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {themes.map((theme) => (
-              <div
-                key={theme.value}
-                className={`connection-type ${currentTheme === theme.value ? "active" : ""}`}
-                onClick={() => handleThemeChange(theme.value)}
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  padding: "16px",
-                  cursor: "pointer",
-                }}
-              >
-                <div style={{ textAlign: "left" }}>
-                  <div style={{ fontSize: "14px", fontWeight: 600, marginBottom: "4px" }}>
-                    {theme.label}
-                  </div>
-                  <div style={{ fontSize: "12px", opacity: 0.7 }}>{theme.description}</div>
-                </div>
-                {currentTheme === theme.value && <div style={{ fontSize: "18px" }}>✓</div>}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 gap-2 py-2">
+          {themes.map((theme) => (
+            <button
+              key={theme.value}
+              onClick={() => handleThemeChange(theme.value)}
+              className={cn(
+                "hover:bg-accent flex items-center gap-3 rounded-md border px-3 py-2.5 text-left transition-colors",
+                currentTheme === theme.value ? "border-primary bg-accent" : "border-transparent"
+              )}
+            >
+              <span
+                className="border-border size-5 shrink-0 rounded-full border"
+                style={{ background: THEME_COLORS[theme.value] }}
+              />
+              <div className="flex flex-col">
+                <span className="text-sm leading-none font-medium">{theme.label}</span>
+                <span className="text-muted-foreground mt-1 text-xs">{theme.description}</span>
               </div>
-            ))}
-          </div>
+              {currentTheme === theme.value && (
+                <span className="text-primary ml-auto text-xs">✓</span>
+              )}
+            </button>
+          ))}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

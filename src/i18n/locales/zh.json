@@ -30,6 +30,7 @@
     "title": "设置",
     "changeTheme": "更改主题",
     "changeLanguage": "更改语言",
+    "fontSettings": "字体设置",
     "clearSession": "清除会话数据",
     "about": "关于 TTerm"
   },
@@ -72,6 +73,17 @@
     "label": "标签页名称",
     "cancel": "取消",
     "confirm": "重命名"
+  },
+  "fontSettings": {
+    "title": "字体设置",
+    "fontSize": "字体大小",
+    "fontFamily": "字体",
+    "customFont": "自定义字体名",
+    "loadingFonts": "正在读取系统字体...",
+    "noFontsFound": "未找到系统字体",
+    "preview": "预览",
+    "cancel": "取消",
+    "save": "保存"
   },
   "tabContent": {
     "type": "类型",

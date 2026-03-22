@@ -30,6 +30,7 @@
     "title": "Settings",
     "changeTheme": "Change Theme",
     "changeLanguage": "Change Language",
+    "fontSettings": "Font Settings",
     "clearSession": "Clear Session Data",
     "about": "About TTerm"
   },
@@ -72,6 +73,17 @@
     "label": "Tab Name",
     "cancel": "Cancel",
     "confirm": "Rename"
+  },
+  "fontSettings": {
+    "title": "Font Settings",
+    "fontSize": "Font Size",
+    "fontFamily": "Font Family",
+    "customFont": "Custom font name",
+    "loadingFonts": "Loading system fonts...",
+    "noFontsFound": "No system fonts found",
+    "preview": "Preview",
+    "cancel": "Cancel",
+    "save": "Save"
   },
   "tabContent": {
     "type": "Type",

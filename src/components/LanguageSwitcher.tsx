@@ -1,11 +1,13 @@
 import React from "react"
 import { useTranslation } from "react-i18next"
-import { Languages, X } from "lucide-react"
+import { Languages, Check } from "lucide-react"
 import { useConfig } from "@/contexts/ConfigContext"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { cn } from "@/lib/utils"
 
 const languages = [
   { code: "en", label: "English", nativeLabel: "English" },
-  { code: "zh", label: "Chinese", nativeLabel: "Chinese" },
+  { code: "zh", label: "中文", nativeLabel: "Chinese" },
 ]
 
 interface LanguageSwitcherProps {
@@ -23,46 +25,42 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ onClose }) =
     } catch (error) {
       console.error("Failed to save language:", error)
     }
+    onClose()
   }
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog" onClick={(e) => e.stopPropagation()}>
-        <div className="dialog-header">
-          <h2>
-            <Languages size={16} style={{ display: "inline", marginRight: "8px" }} />
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-xs">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Languages size={16} />
             {t("language.title")}
-          </h2>
-          <button className="dialog-close" onClick={onClose}>
-            <X size={16} />
-          </button>
-        </div>
-        <div className="dialog-content">
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {languages.map((lang) => (
-              <div
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-2 py-2">
+          {languages.map((lang) => {
+            const isActive = i18n.language === lang.code
+            return (
+              <button
                 key={lang.code}
-                className={`connection-type ${i18n.language === lang.code ? "active" : ""}`}
                 onClick={() => handleLanguageChange(lang.code)}
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  padding: "16px",
-                  cursor: "pointer",
-                }}
+                className={cn(
+                  "flex items-center justify-between rounded-md px-4 py-3 text-left transition-colors",
+                  "hover:bg-muted",
+                  isActive && "bg-muted"
+                )}
               >
-                <div style={{ textAlign: "left" }}>
-                  <div style={{ fontSize: "14px", fontWeight: 600, marginBottom: "4px" }}>
-                    {lang.nativeLabel}
-                  </div>
-                  <div style={{ fontSize: "12px", opacity: 0.7 }}>{lang.label}</div>
+                <div>
+                  <div className="text-sm font-semibold">{lang.nativeLabel}</div>
+                  <div className="text-muted-foreground text-xs">{lang.label}</div>
                 </div>
-                {i18n.language === lang.code && <div style={{ fontSize: "18px" }}>✓</div>}
-              </div>
-            ))}
-          </div>
+                {isActive && <Check size={16} className="text-primary" />}
+              </button>
+            )
+          })}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

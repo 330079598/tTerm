@@ -1,0 +1,113 @@
+/* Settings button in title bar */
+.settings-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: hsl(var(--muted-foreground));
+  border-radius: var(--radius);
+  transition: background-color 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.settings-button:hover {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+/* Button variants (used in empty state) */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border: none;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-primary:hover {
+  background-color: hsl(var(--primary) / 0.9);
+}
+
+/* Terminal empty state */
+.terminal-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+  gap: 16px;
+}
+
+.terminal-placeholder h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.terminal-placeholder p {
+  margin: 0;
+  font-size: 14px;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+/* Tab content placeholder */
+.tab-content-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+}
+
+.tab-info {
+  margin-bottom: 30px;
+}
+
+.tab-info h3 {
+  margin: 0 0 12px 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.tab-info p {
+  margin: 6px 0;
+  font-size: 14px;
+  color: hsl(var(--muted-foreground));
+}
+
+.tab-hint {
+  padding: 20px;
+  background-color: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  max-width: 500px;
+}
+
+.tab-hint p {
+  margin: 8px 0;
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.6;
+}
+
+.tab-hint p:first-child {
+  color: hsl(var(--foreground));
+  font-weight: 500;
+}

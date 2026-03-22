@@ -13,6 +13,23 @@ use tauri::{AppHandle, Emitter};
 struct AppConfig {
     theme: String,
     language: String,
+    #[serde(default = "default_font_family")]
+    font_family: String,
+    #[serde(default = "default_font_size")]
+    font_size: u16,
+}
+
+fn default_font_family() -> String {
+    #[cfg(target_os = "macos")]
+    return "Menlo, Monaco, monospace".to_string();
+    #[cfg(target_os = "windows")]
+    return "\"Cascadia Code\", Consolas, monospace".to_string();
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    return "\"DejaVu Sans Mono\", monospace".to_string();
+}
+
+fn default_font_size() -> u16 {
+    14
 }
 
 impl Default for AppConfig {
@@ -20,6 +37,8 @@ impl Default for AppConfig {
         Self {
             theme: "default".to_string(),
             language: "en".to_string(),
+            font_family: default_font_family(),
+            font_size: default_font_size(),
         }
     }
 }
@@ -157,7 +176,7 @@ fn create_pty(
     let app_clone = app.clone();
     let tab_id_clone = tab_id.clone();
     std::thread::spawn(move || {
-        let mut buf = [0u8; 4096];
+        let mut buf = [0u8; 65536];
         loop {
             match reader.read(&mut buf) {
                 Ok(0) => break,
@@ -239,6 +258,96 @@ fn kill_pty(tab_id: String, state: tauri::State<'_, PtyMap>) -> Result<(), Strin
     Ok(())
 }
 
+// ── Font Discovery ────────────────────────────────────────────────────────────
+
+#[tauri::command]
+fn list_fonts() -> Vec<String> {
+    let mut dirs: Vec<PathBuf> = Vec::new();
+
+    #[cfg(target_os = "macos")]
+    {
+        dirs.push(PathBuf::from("/System/Library/Fonts"));
+        dirs.push(PathBuf::from("/Library/Fonts"));
+        if let Ok(home) = std::env::var("HOME") {
+            dirs.push(PathBuf::from(&home).join("Library/Fonts"));
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(windir) = std::env::var("WINDIR") {
+            dirs.push(PathBuf::from(&windir).join("Fonts"));
+        } else {
+            dirs.push(PathBuf::from("C:/Windows/Fonts"));
+        }
+        if let Ok(appdata) = std::env::var("APPDATA") {
+            dirs.push(PathBuf::from(&appdata).join("Microsoft/Windows/Fonts"));
+        }
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        dirs.push(PathBuf::from("/usr/share/fonts"));
+        dirs.push(PathBuf::from("/usr/local/share/fonts"));
+        if let Ok(home) = std::env::var("HOME") {
+            dirs.push(PathBuf::from(&home).join(".fonts"));
+            dirs.push(PathBuf::from(&home).join(".local/share/fonts"));
+        }
+    }
+
+    let mut font_names: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for dir in &dirs {
+        collect_fonts_from_dir(dir, &mut font_names);
+    }
+
+    let mut result: Vec<String> = font_names.into_iter().collect();
+    result.sort();
+    result
+}
+
+fn collect_fonts_from_dir(dir: &PathBuf, names: &mut std::collections::HashSet<String>) {
+    let Ok(entries) = fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_fonts_from_dir(&path, names);
+        } else if let Some(ext) = path.extension() {
+            let ext = ext.to_string_lossy().to_lowercase();
+            if matches!(ext.as_str(), "ttf" | "otf" | "ttc") {
+                if let Some(name) = extract_font_name(&path) {
+                    names.insert(name);
+                }
+            }
+        }
+    }
+}
+
+fn extract_font_name(path: &PathBuf) -> Option<String> {
+    let stem = path.file_stem()?.to_string_lossy().to_string();
+    // Remove common style suffixes and take the family name
+    let suffixes = [
+        "-Bold", "-Italic", "-BoldItalic", "-Regular", "-Light", "-Medium",
+        "-Thin", "-Black", "-Heavy", "-SemiBold", "-ExtraBold", "-ExtraLight",
+        "-Condensed", "-Oblique", "-Mono", "-NF", "-NerdFont",
+        "Bold", "Italic", "Regular", "Light", "Medium",
+    ];
+    let mut name = stem.clone();
+    for suffix in &suffixes {
+        if let Some(stripped) = name.strip_suffix(suffix) {
+            name = stripped.trim_end_matches('-').trim_end_matches(' ').to_string();
+            break;
+        }
+    }
+    // Replace underscores/hyphens with spaces for display
+    let display = name.replace('_', " ");
+    if display.is_empty() {
+        None
+    } else {
+        Some(display)
+    }
+}
+
 // ── App Setup ─────────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -258,6 +367,7 @@ pub fn run() {
             write_pty,
             resize_pty,
             kill_pty,
+            list_fonts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

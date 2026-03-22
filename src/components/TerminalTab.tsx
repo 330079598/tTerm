@@ -1,9 +1,11 @@
+import "@/components/TerminalTab.css"
 import React, { useEffect, useRef, useCallback } from "react"
 import { Terminal } from "@xterm/xterm"
 import { FitAddon } from "@xterm/addon-fit"
 import { WebLinksAddon } from "@xterm/addon-web-links"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
+import { useConfig } from "@/contexts/ConfigContext"
 import "@xterm/xterm/css/xterm.css"
 
 interface TerminalTabProps {
@@ -17,6 +19,9 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({ tabId, isActive, onPid
   const termRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
   const initializedRef = useRef(false)
+  const { config } = useConfig()
+  const initialFontFamily = useRef(config.font_family)
+  const initialFontSize = useRef(config.font_size)
 
   const fitTerminal = useCallback(() => {
     if (!fitAddonRef.current || !termRef.current) return
@@ -25,6 +30,15 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({ tabId, isActive, onPid
     invoke("resize_pty", { tabId, rows, cols }).catch(() => {})
   }, [tabId])
 
+  // Update font options when config changes (after terminal is initialized)
+  useEffect(() => {
+    const term = termRef.current
+    if (!term) return
+    term.options.fontFamily = config.font_family
+    term.options.fontSize = config.font_size
+    fitTerminal()
+  }, [config.font_family, config.font_size, fitTerminal])
+
   useEffect(() => {
     const container = containerRef.current
     if (!container || initializedRef.current) return
@@ -32,8 +46,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({ tabId, isActive, onPid
 
     const term = new Terminal({
       cursorBlink: true,
-      fontSize: 14,
-      fontFamily: '"JetBrains Mono", "Fira Code", Menlo, Monaco, monospace',
+      fontSize: initialFontSize.current,
+      fontFamily: initialFontFamily.current,
       theme: {
         background: "transparent",
         foreground: "#e2e8f0",

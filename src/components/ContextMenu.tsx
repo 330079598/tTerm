@@ -1,6 +1,20 @@
+import "@/components/ContextMenu.css"
 import React, { useEffect, useRef, useCallback } from "react"
-import { Plus, X, Copy, Terminal, Server, FolderOpen, Zap, Edit } from "lucide-react"
+import {
+  Plus,
+  X,
+  Copy,
+  Terminal,
+  Server,
+  FolderOpen,
+  Zap,
+  Edit,
+  Palette,
+  Type,
+  Languages,
+} from "lucide-react"
 import { TabContextMenuAction } from "@/types/tab"
+import { cn } from "@/lib/utils"
 
 interface ContextMenuProps {
   x: number
@@ -28,6 +42,12 @@ const getActionIcon = (icon?: string) => {
       return <FolderOpen size={14} />
     case "zap":
       return <Zap size={14} />
+    case "palette":
+      return <Palette size={14} />
+    case "type":
+      return <Type size={14} />
+    case "languages":
+      return <Languages size={14} />
     default:
       return null
   }
@@ -39,32 +59,24 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
   const adjustPosition = useCallback(() => {
     if (!menuRef.current) return { left: x, top: y }
     const rect = menuRef.current.getBoundingClientRect()
-    const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
-    let adjustedX = x
-    let adjustedY = y
-    if (x + rect.width > viewportWidth) adjustedX = viewportWidth - rect.width - 10
-    if (y + rect.height > viewportHeight) adjustedY = viewportHeight - rect.height - 10
+    const adjustedX = x + rect.width > window.innerWidth ? window.innerWidth - rect.width - 10 : x
+    const adjustedY =
+      y + rect.height > window.innerHeight ? window.innerHeight - rect.height - 10 : y
     return { left: Math.max(10, adjustedX), top: Math.max(10, adjustedY) }
   }, [x, y])
 
-  const [position, setPosition] = React.useState<{ left: number; top: number }>(() => ({
-    left: x,
-    top: y,
-  }))
+  const [position, setPosition] = React.useState({ left: x, top: y })
 
   React.useLayoutEffect(() => {
     setPosition(adjustPosition())
   }, [adjustPosition])
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        onClose()
-      }
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose()
     }
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose()
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose()
     }
     document.addEventListener("mousedown", handleClickOutside)
     document.addEventListener("keydown", handleEscape)
@@ -74,29 +86,35 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
     }
   }, [onClose])
 
-  const handleAction = (action: string, disabled?: boolean) => {
-    if (!disabled) {
-      onAction(action)
-      onClose()
-    }
-  }
-
   return (
-    <div ref={menuRef} className="context-menu" style={position}>
+    <div
+      ref={menuRef}
+      style={{ position: "fixed", left: position.left, top: position.top, zIndex: 9999 }}
+      className="border-border bg-popover min-w-[180px] rounded-md border py-1 shadow-lg"
+    >
       {actions.map((action, index) => {
         if (action.separator) {
-          return <div key={index} className="context-menu-separator" />
+          return <div key={index} className="bg-border my-1 h-px" />
         }
-
         return (
-          <div
+          <button
             key={index}
-            className={`context-menu-item ${action.disabled ? "disabled" : ""}`}
-            onClick={() => handleAction(action.action, action.disabled)}
+            disabled={action.disabled}
+            onClick={() => {
+              if (!action.disabled) {
+                onAction(action.action)
+                onClose()
+              }
+            }}
+            className={cn(
+              "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors",
+              "hover:bg-muted text-foreground",
+              action.disabled && "cursor-not-allowed opacity-40"
+            )}
           >
             {getActionIcon(action.icon)}
             <span>{action.label}</span>
-          </div>
+          </button>
         )
       })}
     </div>

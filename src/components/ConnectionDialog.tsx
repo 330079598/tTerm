@@ -1,7 +1,20 @@
+import "@/components/ConnectionDialog.css"
 import React, { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { X, Terminal, Server, FolderOpen, Zap } from "lucide-react"
+import { Terminal, Server, FolderOpen, Zap } from "lucide-react"
 import { Tab } from "@/types/tab"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
+import { cn } from "@/lib/utils"
 
 interface ConnectionDialogProps {
   isOpen: boolean
@@ -34,6 +47,19 @@ const connectionTypes = [
   { type: "serial" as const, label: "Serial Port", icon: Zap },
 ]
 
+function getDefaultTitle(type: ConnectionType, form: ConnectionForm): string {
+  switch (type) {
+    case "terminal":
+      return "Local Terminal"
+    case "ssh":
+      return form.host ? `${form.username}@${form.host}` : "SSH Connection"
+    case "sftp":
+      return form.host ? `SFTP: ${form.host}` : "SFTP Browser"
+    case "serial":
+      return "Serial Port"
+  }
+}
+
 export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
   isOpen,
   onClose,
@@ -41,8 +67,6 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
 }) => {
   const { t } = useTranslation()
   const [form, setForm] = useState<ConnectionForm>(defaultForm)
-
-  if (!isOpen) return null
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -66,117 +90,102 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
     onClose()
   }
 
-  const getDefaultTitle = (type: ConnectionType, form: ConnectionForm): string => {
-    switch (type) {
-      case "terminal":
-        return t("tabs.terminal")
-      case "ssh":
-        return form.host ? `${t("tabs.ssh")}: ${form.host}` : t("connection.types.ssh")
-      case "sftp":
-        return form.host ? `${t("tabs.sftp")}: ${form.host}` : t("connection.types.sftp")
-      case "serial":
-        return t("connection.types.serial")
-      default:
-        return t("connection.title")
-    }
-  }
-
-  const updateForm = (updates: Partial<ConnectionForm>) => {
-    setForm((prev) => ({ ...prev, ...updates }))
-  }
-
   return (
-    <div className="dialog-overlay">
-      <div className="dialog">
-        <div className="dialog-header">
-          <h2>{t("connection.title")}</h2>
-          <button className="dialog-close" onClick={onClose}>
-            <X size={16} />
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t("connection.newConnection")}</DialogTitle>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="dialog-content">
-          {/* Connection Type Selection */}
-          <div className="form-group">
-            <label>{t("connection.type")}</label>
-            <div className="connection-types">
-              {connectionTypes.map(({ type, icon: Icon }) => (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Connection type selector */}
+          <div>
+            <Label className="mb-2 block">{t("connection.type")}</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {connectionTypes.map(({ type, label, icon: Icon }) => (
                 <button
                   key={type}
                   type="button"
-                  className={`connection-type ${form.type === type ? "active" : ""}`}
-                  onClick={() => updateForm({ type })}
+                  onClick={() => setForm((f) => ({ ...f, type }))}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md border px-3 py-2.5 text-sm transition-colors",
+                    "hover:bg-muted",
+                    form.type === type
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground bg-transparent"
+                  )}
                 >
-                  <Icon size={20} />
-                  <span>{t(`connection.types.${type}`)}</span>
+                  <Icon size={16} />
+                  {label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Connection Name */}
-          <div className="form-group">
-            <label htmlFor="title">{t("connection.name")}</label>
-            <input
-              id="title"
-              type="text"
+          <Separator />
+
+          {/* Title */}
+          <div>
+            <Label htmlFor="conn-title" className="mb-1.5 block">
+              {t("connection.title")}
+            </Label>
+            <Input
+              id="conn-title"
               value={form.title}
-              onChange={(e) => updateForm({ title: e.target.value })}
+              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               placeholder={getDefaultTitle(form.type, form)}
             />
           </div>
 
-          {/* SSH/SFTP specific fields */}
-          {(form.type === "ssh" || form.type === "sftp") && (
+          {/* SSH/SFTP fields */}
+          {form.type !== "terminal" && form.type !== "serial" && (
             <>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="host">{t("connection.host")}</label>
-                  <input
-                    id="host"
-                    type="text"
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  <Label htmlFor="conn-host" className="mb-1.5 block">
+                    {t("connection.host")}
+                  </Label>
+                  <Input
+                    id="conn-host"
                     value={form.host}
-                    onChange={(e) => updateForm({ host: e.target.value })}
-                    placeholder="example.com"
-                    required
+                    onChange={(e) => setForm((f) => ({ ...f, host: e.target.value }))}
+                    placeholder="hostname or IP"
                   />
                 </div>
-                <div className="form-group">
-                  <label htmlFor="port">{t("connection.port")}</label>
-                  <input
-                    id="port"
+                <div>
+                  <Label htmlFor="conn-port" className="mb-1.5 block">
+                    {t("connection.port")}
+                  </Label>
+                  <Input
+                    id="conn-port"
                     type="number"
                     value={form.port}
-                    onChange={(e) => updateForm({ port: parseInt(e.target.value) || 22 })}
-                    min="1"
-                    max="65535"
+                    onChange={(e) => setForm((f) => ({ ...f, port: Number(e.target.value) }))}
                   />
                 </div>
               </div>
-
-              <div className="form-group">
-                <label htmlFor="username">{t("connection.username")}</label>
-                <input
-                  id="username"
-                  type="text"
+              <div>
+                <Label htmlFor="conn-user" className="mb-1.5 block">
+                  {t("connection.username")}
+                </Label>
+                <Input
+                  id="conn-user"
                   value={form.username}
-                  onChange={(e) => updateForm({ username: e.target.value })}
+                  onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
                   placeholder="username"
                 />
               </div>
             </>
           )}
 
-          <div className="dialog-actions">
-            <button type="button" onClick={onClose} className="btn-secondary">
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose}>
               {t("connection.cancel")}
-            </button>
-            <button type="submit" className="btn-primary">
-              {t("connection.connect")}
-            </button>
-          </div>
+            </Button>
+            <Button type="submit">{t("connection.connect")}</Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

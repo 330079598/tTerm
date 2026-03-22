@@ -1,3 +1,4 @@
+import "@/components/WindowControls.css"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { platform } from "@tauri-apps/plugin-os"
 import { Minus, Square, X } from "lucide-react"

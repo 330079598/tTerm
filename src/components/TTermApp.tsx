@@ -1,3 +1,4 @@
+import "@/components/TTermApp.css"
 import React, { useState, useCallback, useEffect, useRef } from "react"
 import { TerminalTab } from "@/components/TerminalTab"
 import { useTranslation } from "react-i18next"
@@ -9,6 +10,7 @@ import { ConnectionDialog } from "@/components/ConnectionDialog"
 import { RenameDialog } from "@/components/RenameDialog"
 import { ThemeSwitcher } from "@/components/ThemeSwitcher"
 import { LanguageSwitcher } from "@/components/LanguageSwitcher"
+import { FontSettings } from "@/components/FontSettings"
 import { TabBar } from "@/components/TabBar"
 import { useTabs } from "@/hooks/useTabs"
 import { useSessionPersistence } from "@/hooks/useSessionPersistence"
@@ -31,6 +33,7 @@ export const TTermApp: React.FC = () => {
   const [showConnectionDialog, setShowConnectionDialog] = useState(false)
   const [showThemeSwitcher, setShowThemeSwitcher] = useState(false)
   const [showLanguageSwitcher, setShowLanguageSwitcher] = useState(false)
+  const [showFontSettings, setShowFontSettings] = useState(false)
   const [renameDialogState, setRenameDialogState] = useState<{
     isOpen: boolean
     tabId: string | null
@@ -145,6 +148,9 @@ export const TTermApp: React.FC = () => {
           case "change-language":
             setShowLanguageSwitcher(true)
             break
+          case "font-settings":
+            setShowFontSettings(true)
+            break
           case "clear-session":
             await clearSession()
             // Reload page to reset state
@@ -228,16 +234,17 @@ export const TTermApp: React.FC = () => {
     const actions: TabContextMenuAction[] = [
       { label: t("settings.changeTheme"), action: "change-theme", icon: "palette" },
       { label: t("settings.changeLanguage"), action: "change-language", icon: "languages" },
+      { label: t("settings.fontSettings"), action: "font-settings", icon: "type" },
       { separator: true, label: "", action: "" },
       { label: t("settings.clearSession"), action: "clear-session", icon: "x" },
       { separator: true, label: "", action: "" },
       { label: t("settings.about"), action: "about" },
     ]
 
-    // Show context menu near settings button
+    // Show context menu near settings button (above, anchored to right of sidebar)
     const rect = settingsButtonRef.current?.getBoundingClientRect()
-    const x = rect ? rect.right - 200 : window.innerWidth - 200
-    const y = rect ? rect.bottom + 4 : 50
+    const x = rect ? rect.left : 8
+    const y = rect ? rect.top - 4 : window.innerHeight - 200
     setContextMenu({
       visible: true,
       x,
@@ -325,7 +332,7 @@ export const TTermApp: React.FC = () => {
           </div>
         </div>
 
-        {/* Draggable space (10% of window width) */}
+        {/* Draggable space */}
         <div className="drag-space" data-tauri-drag-region></div>
 
         {/* Settings and window controls */}
@@ -365,6 +372,9 @@ export const TTermApp: React.FC = () => {
 
       {/* Theme Switcher */}
       {showThemeSwitcher && <ThemeSwitcher onClose={() => setShowThemeSwitcher(false)} />}
+
+      {/* Font Settings */}
+      {showFontSettings && <FontSettings onClose={() => setShowFontSettings(false)} />}
 
       {/* Language Switcher */}
       {showLanguageSwitcher && <LanguageSwitcher onClose={() => setShowLanguageSwitcher(false)} />}

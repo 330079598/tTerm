@@ -1,0 +1,70 @@
+/* Application layout */
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Title bar */
+.title-bar {
+  height: 36px;
+  background-color: hsl(var(--titlebar));
+  border-bottom: 1px solid hsl(var(--border));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.title-bar-left {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  overflow: hidden;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.title-bar-right {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.drag-space {
+  flex: 1;
+  min-width: 10%;
+  height: 100%;
+  -webkit-app-region: drag;
+}
+
+/* Content area */
+.content-area {
+  flex: 1;
+  background-color: hsl(var(--background));
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* macOS specific */
+.macos .title-bar {
+  padding-left: 0;
+}
+
+.macos .tab-list-container {
+  padding-left: 80px;
+}
+
+.macos .window-controls {
+  display: none;
+}
+
+.macos .settings-button {
+  margin-right: 0;
+}
