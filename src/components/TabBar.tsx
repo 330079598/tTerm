@@ -19,7 +19,7 @@ interface TabItemProps {
   tab: Tab
   index: number
   isActive: boolean
-  activeRef?: React.RefObject<HTMLDivElement | null>
+  setActiveNode?: (node: HTMLDivElement | null) => void
   onTabClick: (id: string) => void
   onTabClose: (id: string) => void
   onContextMenu: (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => void
@@ -29,7 +29,7 @@ const TabItem: React.FC<TabItemProps> = ({
   tab,
   index,
   isActive,
-  activeRef,
+  setActiveNode,
   onTabClick,
   onTabClose,
   onContextMenu,
@@ -50,8 +50,8 @@ const TabItem: React.FC<TabItemProps> = ({
   const setNodeRef = (node: HTMLDivElement | null) => {
     draggableRef(node)
     droppableRef(node)
-    if (isActive && activeRef) {
-      ;(activeRef as React.MutableRefObject<HTMLDivElement | null>).current = node
+    if (isActive && setActiveNode) {
+      setActiveNode(node)
     }
   }
 
@@ -113,10 +113,17 @@ export const TabBar: React.FC<TabBarProps> = ({
   onContextMenu,
 }) => {
   const activeTabRef = useRef<HTMLDivElement | null>(null)
+  const setActiveTabNode = useCallback((node: HTMLDivElement | null) => {
+    activeTabRef.current = node
+  }, [])
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      activeTabRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" })
+      activeTabRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      })
     }, 50)
     return () => clearTimeout(timer)
   }, [activeTabId])
@@ -153,7 +160,7 @@ export const TabBar: React.FC<TabBarProps> = ({
               tab={tab}
               index={index}
               isActive={tab.id === activeTabId}
-              activeRef={tab.id === activeTabId ? activeTabRef : undefined}
+              setActiveNode={tab.id === activeTabId ? setActiveTabNode : undefined}
               onTabClick={onTabClick}
               onTabClose={onTabClose}
               onContextMenu={onContextMenu}

@@ -5,6 +5,7 @@ use std::fs;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -129,6 +130,18 @@ struct PtySession {
 
 type PtyMap = Arc<Mutex<HashMap<String, PtySession>>>;
 
+const PTY_OUTPUT_FLUSH_INTERVAL: Duration = Duration::from_millis(8);
+const PTY_OUTPUT_MAX_BATCH_BYTES: usize = 256 * 1024;
+
+fn emit_pty_output(app: &AppHandle, event_name: &str, pending_output: &mut String) {
+    if pending_output.is_empty() {
+        return;
+    }
+
+    let payload = std::mem::take(pending_output);
+    let _ = app.emit_to(tauri::EventTarget::any(), event_name, payload);
+}
+
 // ── PTY Commands ──────────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -176,26 +189,32 @@ fn create_pty(
     let app_clone = app.clone();
     let tab_id_clone = tab_id.clone();
     std::thread::spawn(move || {
+        let output_event = format!("pty-output-{}", tab_id_clone);
+        let exit_event = format!("pty-exit-{}", tab_id_clone);
         let mut buf = [0u8; 65536];
+        let mut pending_output = String::with_capacity(65536);
+        let mut last_flush = Instant::now();
+
         loop {
             match reader.read(&mut buf) {
                 Ok(0) => break,
                 Ok(n) => {
-                    let data = String::from_utf8_lossy(&buf[..n]).to_string();
-                    let _ = app_clone.emit_to(
-                        tauri::EventTarget::any(),
-                        &format!("pty-output-{}", tab_id_clone),
-                        data,
-                    );
+                    let data = String::from_utf8_lossy(&buf[..n]);
+                    pending_output.push_str(data.as_ref());
+
+                    if pending_output.len() >= PTY_OUTPUT_MAX_BATCH_BYTES
+                        || last_flush.elapsed() >= PTY_OUTPUT_FLUSH_INTERVAL
+                    {
+                        emit_pty_output(&app_clone, &output_event, &mut pending_output);
+                        last_flush = Instant::now();
+                    }
                 }
                 Err(_) => break,
             }
         }
-        let _ = app_clone.emit_to(
-            tauri::EventTarget::any(),
-            &format!("pty-exit-{}", tab_id_clone),
-            (),
-        );
+
+        emit_pty_output(&app_clone, &output_event, &mut pending_output);
+        let _ = app_clone.emit_to(tauri::EventTarget::any(), &exit_event, ());
     });
 
     let writer = pair

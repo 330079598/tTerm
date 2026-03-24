@@ -50,7 +50,7 @@ export const FontSettings: React.FC<FontSettingsProps> = ({ onClose }) => {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="max-h-[70vh] overflow-y-auto space-y-5 py-2">
+        <div className="max-h-[70vh] space-y-5 overflow-y-auto py-2">
           {/* Font Size */}
           <div>
             <label className="mb-2 block text-sm font-medium">{t("fontSettings.fontSize")}</label>
