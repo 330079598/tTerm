@@ -7,9 +7,16 @@ export interface Tab {
   icon?: string
   pid?: number
   connection?: {
+    type?: "terminal" | "ssh" | "sftp" | "serial"
     host?: string
     port?: number
     username?: string
+    reconnect?: boolean
+    reconnectDelaySecs?: number
+    reconnectMaxDelaySecs?: number
+    reconnectMaxRetries?: number
+    keepaliveIntervalSecs?: number
+    keepaliveCountMax?: number
   }
 }
 

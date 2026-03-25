@@ -281,8 +281,12 @@ export const TTermApp: React.FC = () => {
               flexDirection: "column",
             }}
           >
-            {tab.type === "terminal" ? (
-              <TerminalTab tabId={tab.id} isActive={tab.id === activeTabId} />
+            {tab.type === "terminal" || tab.type === "ssh" ? (
+              <TerminalTab
+                tabId={tab.id}
+                isActive={tab.id === activeTabId}
+                connection={tab.connection ?? { type: tab.type }}
+              />
             ) : (
               <div className="tab-content-placeholder">
                 <div className="tab-info">

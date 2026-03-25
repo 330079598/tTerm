@@ -12,6 +12,18 @@ import "@xterm/xterm/css/xterm.css"
 interface TerminalTabProps {
   tabId: string
   isActive: boolean
+  connection?: {
+    type?: "terminal" | "ssh" | "sftp" | "serial"
+    host?: string
+    port?: number
+    username?: string
+    reconnect?: boolean
+    reconnectDelaySecs?: number
+    reconnectMaxDelaySecs?: number
+    reconnectMaxRetries?: number
+    keepaliveIntervalSecs?: number
+    keepaliveCountMax?: number
+  }
   onPidChange?: (pid: number) => void
 }
 
@@ -21,7 +33,12 @@ const MAX_PENDING_OUTPUT_BYTES = 4 * 1024 * 1024
 const RESIZE_PTY_COMMIT_DELAY_MS = 90
 const TAB_ACTIVATE_REFIT_DELAY_MS = 32
 
-export const TerminalTab: React.FC<TerminalTabProps> = ({ tabId, isActive, onPidChange }) => {
+export const TerminalTab: React.FC<TerminalTabProps> = ({
+  tabId,
+  isActive,
+  connection,
+  onPidChange,
+}) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
@@ -34,6 +51,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({ tabId, isActive, onPid
   const pendingOutputRef = useRef<string[]>([])
   const pendingOutputBytesRef = useRef(0)
   const lastPtySizeRef = useRef<{ rows: number; cols: number } | null>(null)
+  const connectionRef = useRef(connection)
   const isActiveRef = useRef(isActive)
   const initializedRef = useRef(false)
   const { config } = useConfig()
@@ -43,6 +61,10 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({ tabId, isActive, onPid
   useEffect(() => {
     isActiveRef.current = isActive
   }, [isActive])
+
+  useEffect(() => {
+    connectionRef.current = connection
+  }, [connection])
 
   const resolveTerminalBackground = useCallback(() => {
     if (typeof window === "undefined") {
@@ -275,7 +297,12 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({ tabId, isActive, onPid
       .then(([unOut, unExit]) => {
         unlistenOutput = unOut
         unlistenExit = unExit
-        return invoke<number>("create_pty", { tabId, rows: term.rows, cols: term.cols })
+        return invoke<number>("create_pty", {
+          tabId,
+          rows: term.rows,
+          cols: term.cols,
+          connection: connectionRef.current,
+        })
       })
       .then((pid) => {
         onPidChange?.(pid)

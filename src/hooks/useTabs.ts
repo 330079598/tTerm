@@ -117,6 +117,7 @@ export function useTabs(): UseTabsReturn {
         const { id: _id, isActive: _isActive, ...tabData } = tab
         const newTab: Tab = {
           ...tabData,
+          connection: tabData.connection ?? { type: tabData.type },
           id: newId,
           title: `${tab.title} (Copy)`,
           isActive: false,

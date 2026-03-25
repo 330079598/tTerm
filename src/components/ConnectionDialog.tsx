@@ -30,6 +30,12 @@ interface ConnectionForm {
   host: string
   port: number
   username: string
+  reconnect: boolean
+  reconnectDelaySecs: number
+  reconnectMaxDelaySecs: number
+  reconnectMaxRetries: number
+  keepaliveIntervalSecs: number
+  keepaliveCountMax: number
 }
 
 const defaultForm: ConnectionForm = {
@@ -38,6 +44,12 @@ const defaultForm: ConnectionForm = {
   host: "",
   port: 22,
   username: "",
+  reconnect: true,
+  reconnectDelaySecs: 3,
+  reconnectMaxDelaySecs: 60,
+  reconnectMaxRetries: 8,
+  keepaliveIntervalSecs: 15,
+  keepaliveCountMax: 3,
 }
 
 const connectionTypes = [
@@ -79,9 +91,22 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
 
     if (form.type !== "terminal") {
       connection.connection = {
+        type: form.type,
         host: form.host,
         port: form.port,
         username: form.username,
+        reconnect: form.reconnect,
+        reconnectDelaySecs: form.reconnectDelaySecs,
+        reconnectMaxDelaySecs: form.reconnectMaxDelaySecs,
+        reconnectMaxRetries: form.reconnectMaxRetries,
+        keepaliveIntervalSecs: form.keepaliveIntervalSecs,
+        keepaliveCountMax: form.keepaliveCountMax,
+      }
+    }
+
+    if (form.type === "terminal") {
+      connection.connection = {
+        type: "terminal",
       }
     }
 
