@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{mpsc, oneshot, watch, Mutex as TokioMutex, RwLock};
@@ -480,7 +480,6 @@ enum SessionExitSignal {
 type PtyMap = Arc<RwLock<HashMap<String, PtySession>>>;
 type HostPromptMap = Arc<RwLock<HashMap<String, oneshot::Sender<bool>>>>;
 
-const PTY_OUTPUT_FLUSH_INTERVAL: Duration = Duration::from_millis(8);
 const PTY_OUTPUT_MAX_BATCH_BYTES: usize = 256 * 1024;
 const HOST_KEY_PROMPT_TIMEOUT: Duration = Duration::from_secs(120);
 const HOST_KEY_REJECTED_REASON: &str = "SSH host fingerprint rejected by user";
@@ -651,7 +650,6 @@ fn spawn_reader_thread(
     thread::spawn(move || {
         let mut buf = [0u8; 65536];
         let mut pending_output = String::with_capacity(65536);
-        let mut last_flush = Instant::now();
 
         loop {
             match reader.read(&mut buf) {
@@ -660,11 +658,14 @@ fn spawn_reader_thread(
                     let data = String::from_utf8_lossy(&buf[..n]);
                     pending_output.push_str(data.as_ref());
 
-                    if pending_output.len() >= PTY_OUTPUT_MAX_BATCH_BYTES
-                        || last_flush.elapsed() >= PTY_OUTPUT_FLUSH_INTERVAL
-                    {
+                    // Flush immediately after every read so that vim redraws
+                    // (e.g. gg) are visible without waiting for the next keypress.
+                    // The OS PTY driver already coalesces tiny writes, so we don't
+                    // need an additional batching layer here.
+                    if pending_output.len() >= PTY_OUTPUT_MAX_BATCH_BYTES {
                         emit_batched_output(&app, &tab_id, &mut pending_output);
-                        last_flush = Instant::now();
+                    } else {
+                        emit_pty_output(&app, &tab_id, std::mem::take(&mut pending_output));
                     }
                 }
                 Err(_) => break,
