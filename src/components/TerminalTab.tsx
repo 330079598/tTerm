@@ -1,5 +1,5 @@
 import "@/components/TerminalTab.css"
-import React, { useEffect, useRef, useCallback } from "react"
+import React, { useEffect, useRef, useCallback, useState } from "react"
 import { Terminal } from "@xterm/xterm"
 import { FitAddon } from "@xterm/addon-fit"
 import { WebLinksAddon } from "@xterm/addon-web-links"
@@ -7,6 +7,7 @@ import { WebglAddon } from "@xterm/addon-webgl"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { useConfig } from "@/contexts/ConfigContext"
+import { useTranslation } from "react-i18next"
 import "@xterm/xterm/css/xterm.css"
 
 interface TerminalTabProps {
@@ -14,17 +15,23 @@ interface TerminalTabProps {
   isActive: boolean
   connection?: {
     type?: "terminal" | "ssh" | "sftp" | "serial"
+    profileName?: string
     host?: string
     port?: number
     username?: string
+    password?: string
+    rememberPassword?: boolean
     reconnect?: boolean
     reconnectDelaySecs?: number
     reconnectMaxDelaySecs?: number
     reconnectMaxRetries?: number
     keepaliveIntervalSecs?: number
     keepaliveCountMax?: number
+    privateKeyPath?: string
+    privateKeyPassphrase?: string
   }
   onPidChange?: (pid: number) => void
+  onReconnectRequest?: () => void
 }
 
 const FALLBACK_TERMINAL_BACKGROUND = "#111827"
@@ -38,6 +45,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   isActive,
   connection,
   onPidChange,
+  onReconnectRequest,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
@@ -55,8 +63,22 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const isActiveRef = useRef(isActive)
   const initializedRef = useRef(false)
   const { config } = useConfig()
+  const { t } = useTranslation()
   const initialFontFamily = useRef(config.font_family)
   const initialFontSize = useRef(config.font_size)
+
+  const [hostKeyPrompt, setHostKeyPrompt] = useState<{
+    requestId: string
+    profileName: string
+    host: string
+    port: number
+    algorithm: string
+    fingerprint: string
+    reason: string
+    knownFingerprint?: string
+  } | null>(null)
+
+  const [exitError, setExitError] = useState<string | null>(null)
 
   useEffect(() => {
     isActiveRef.current = isActive
@@ -283,20 +305,38 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
     let unlistenOutput: (() => void) | null = null
     let unlistenExit: (() => void) | null = null
+    let unlistenHostPrompt: (() => void) | null = null
 
     // Register event listeners before spawning the PTY so no output is lost
     Promise.all([
       listen<string>(`pty-output-${tabId}`, (event) => {
         enqueueOutput(event.payload)
       }),
-      listen(`pty-exit-${tabId}`, () => {
+      listen(`pty-exit-${tabId}`, (event) => {
         flushPendingOutput()
         term.writeln("\r\n\x1b[33m[Process exited]\x1b[0m")
+        const reason = event.payload as string | null | undefined
+        if (reason && connectionRef.current?.type === "ssh") {
+          setExitError(reason)
+        }
+      }),
+      listen<{
+        requestId: string
+        profileName: string
+        host: string
+        port: number
+        algorithm: string
+        fingerprint: string
+        reason: string
+        knownFingerprint?: string
+      }>(`ssh-hostkey-prompt-${tabId}`, async (event) => {
+        setHostKeyPrompt(event.payload)
       }),
     ])
-      .then(([unOut, unExit]) => {
+      .then(([unOut, unExit, unHostPrompt]) => {
         unlistenOutput = unOut
         unlistenExit = unExit
+        unlistenHostPrompt = unHostPrompt
         return invoke<number>("create_pty", {
           tabId,
           rows: term.rows,
@@ -354,6 +394,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
       unlistenOutput?.()
       unlistenExit?.()
+      unlistenHostPrompt?.()
       invoke("kill_pty", { tabId }).catch(() => {})
       term.dispose()
     }
@@ -401,14 +442,173 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   }, [isActive, fitAndSyncPty])
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: "100%",
-        height: "100%",
-        overflow: "hidden",
-        backgroundColor: "hsl(var(--background))",
-      }}
-    />
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      <div
+        ref={containerRef}
+        style={{
+          width: "100%",
+          height: "100%",
+          overflow: "hidden",
+          backgroundColor: "hsl(var(--background))",
+        }}
+      />
+
+      {/* Host Key Verification Dialog */}
+      {hostKeyPrompt && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "rgba(0,0,0,0.6)",
+            zIndex: 10,
+          }}
+        >
+          <div
+            style={{
+              background: "hsl(var(--card))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: 8,
+              padding: "24px",
+              maxWidth: 480,
+              width: "90%",
+              color: "hsl(var(--foreground))",
+            }}
+          >
+            <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600 }}>
+              {hostKeyPrompt.reason === "mismatch"
+                ? t("ssh.hostKeyMismatch")
+                : t("ssh.unknownHostKey")}
+            </h3>
+            <div
+              style={{
+                fontSize: 13,
+                lineHeight: 1.6,
+                marginBottom: 16,
+                fontFamily: "monospace",
+                background: "hsl(var(--muted))",
+                padding: "10px 12px",
+                borderRadius: 4,
+              }}
+            >
+              <div>
+                <b>{t("ssh.host")}:</b> {hostKeyPrompt.host}:{hostKeyPrompt.port}
+              </div>
+              <div>
+                <b>{t("ssh.algorithm")}:</b> {hostKeyPrompt.algorithm}
+              </div>
+              <div>
+                <b>{t("ssh.fingerprint")}:</b> {hostKeyPrompt.fingerprint}
+              </div>
+              {hostKeyPrompt.knownFingerprint && (
+                <div style={{ color: "hsl(var(--destructive))" }}>
+                  <b>{t("ssh.knownFingerprint")}:</b> {hostKeyPrompt.knownFingerprint}
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={async () => {
+                  await invoke("respond_ssh_host_key_prompt", {
+                    requestId: hostKeyPrompt.requestId,
+                    trust: false,
+                  }).catch(() => {})
+                  setHostKeyPrompt(null)
+                }}
+                style={{
+                  padding: "6px 16px",
+                  borderRadius: 4,
+                  border: "1px solid hsl(var(--border))",
+                  background: "hsl(var(--muted))",
+                  color: "hsl(var(--foreground))",
+                  cursor: "pointer",
+                }}
+              >
+                {t("ssh.reject")}
+              </button>
+              <button
+                onClick={async () => {
+                  await invoke("respond_ssh_host_key_prompt", {
+                    requestId: hostKeyPrompt.requestId,
+                    trust: true,
+                  }).catch(() => {})
+                  setHostKeyPrompt(null)
+                }}
+                style={{
+                  padding: "6px 16px",
+                  borderRadius: 4,
+                  border: "none",
+                  background: "hsl(var(--primary))",
+                  color: "hsl(var(--primary-foreground))",
+                  cursor: "pointer",
+                }}
+              >
+                {t("ssh.trust")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Exit Error Banner */}
+      {exitError && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: "hsl(var(--destructive))",
+            color: "hsl(var(--destructive-foreground))",
+            padding: "10px 16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            zIndex: 10,
+            fontSize: 13,
+          }}
+        >
+          <span>{exitError}</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            {onReconnectRequest && (
+              <button
+                onClick={() => {
+                  setExitError(null)
+                  onReconnectRequest()
+                }}
+                style={{
+                  padding: "4px 12px",
+                  borderRadius: 4,
+                  border: "none",
+                  background: "rgba(255,255,255,0.2)",
+                  color: "inherit",
+                  cursor: "pointer",
+                  fontSize: 13,
+                }}
+              >
+                {t("ssh.retry")}
+              </button>
+            )}
+            <button
+              onClick={() => setExitError(null)}
+              style={{
+                padding: "4px 12px",
+                borderRadius: 4,
+                border: "none",
+                background: "transparent",
+                color: "inherit",
+                cursor: "pointer",
+                fontSize: 18,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

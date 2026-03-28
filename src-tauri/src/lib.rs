@@ -1,14 +1,20 @@
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+use russh::client;
+use russh::keys::ssh_key::HashAlg;
+use russh::ChannelMsg;
+use russh::Disconnect;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
-use tokio::sync::{watch, Mutex as TokioMutex, RwLock};
+use tokio::io::AsyncWriteExt;
+use tokio::sync::{mpsc, oneshot, watch, Mutex as TokioMutex, RwLock};
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -131,18 +137,248 @@ fn clear_session() -> Result<(), String> {
     Ok(())
 }
 
+// ── Saved Profiles ──────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct SavedProfile {
+    id: String,
+    name: String,
+    #[serde(default)]
+    group: String,
+    connection_type: String,
+    host: Option<String>,
+    port: Option<u16>,
+    username: Option<String>,
+    password: Option<String>,
+    #[serde(default)]
+    remember_password: bool,
+    auth_method: Option<String>,
+    private_key_path: Option<String>,
+    private_key_passphrase: Option<String>,
+    #[serde(default)]
+    reconnect: bool,
+    #[serde(default = "default_reconnect_delay")]
+    reconnect_delay_secs: u32,
+    #[serde(default = "default_reconnect_max_delay")]
+    reconnect_max_delay_secs: u32,
+    #[serde(default = "default_reconnect_max_retries")]
+    reconnect_max_retries: u32,
+    #[serde(default = "default_keepalive_interval")]
+    keepalive_interval_secs: u32,
+    #[serde(default = "default_keepalive_count")]
+    keepalive_count_max: u32,
+}
+
+fn default_reconnect_delay() -> u32 { 5 }
+fn default_reconnect_max_delay() -> u32 { 60 }
+fn default_reconnect_max_retries() -> u32 { 10 }
+fn default_keepalive_interval() -> u32 { 30 }
+fn default_keepalive_count() -> u32 { 3 }
+
+fn load_profiles_from_disk() -> Result<Vec<SavedProfile>, String> {
+    let config_dir = get_config_path()?;
+    let profiles_file = config_dir.join("profiles.json");
+    if !profiles_file.exists() {
+        return Ok(vec![]);
+    }
+    let content = fs::read_to_string(&profiles_file)
+        .map_err(|e| format!("Failed to read profiles file: {}", e))?;
+    serde_json::from_str(&content).map_err(|e| format!("Failed to parse profiles: {}", e))
+}
+
+fn write_profiles_to_disk(profiles: &Vec<SavedProfile>) -> Result<(), String> {
+    let config_dir = ensure_config_dir()?;
+    let profiles_file = config_dir.join("profiles.json");
+    let content = serde_json::to_string_pretty(profiles)
+        .map_err(|e| format!("Failed to serialize profiles: {}", e))?;
+    fs::write(&profiles_file, content).map_err(|e| format!("Failed to write profiles file: {}", e))
+}
+
+#[tauri::command]
+fn list_profiles() -> Result<Vec<SavedProfile>, String> {
+    load_profiles_from_disk()
+}
+
+#[tauri::command]
+fn save_profile(profile: SavedProfile) -> Result<(), String> {
+    let mut profiles = load_profiles_from_disk()?;
+    if let Some(pos) = profiles.iter().position(|p| p.id == profile.id) {
+        profiles[pos] = profile;
+    } else {
+        profiles.push(profile);
+    }
+    write_profiles_to_disk(&profiles)
+}
+
+#[tauri::command]
+fn delete_profile(id: String) -> Result<(), String> {
+    let mut profiles = load_profiles_from_disk()?;
+    profiles.retain(|p| p.id != id);
+    write_profiles_to_disk(&profiles)
+}
+
+// ── SSH Persistent Files ─────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct SshPasswordRecord {
+    profile_name: String,
+    password: String,
+    updated_at: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+struct SshPasswordStore {
+    #[serde(default)]
+    profiles: Vec<SshPasswordRecord>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct KnownHostRecord {
+    profile_name: String,
+    host: String,
+    port: u16,
+    algorithm: String,
+    fingerprint: String,
+    trusted_at: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+struct KnownHostStore {
+    #[serde(default)]
+    entries: Vec<KnownHostRecord>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct SshHostKeyPromptPayload {
+    request_id: String,
+    profile_name: String,
+    host: String,
+    port: u16,
+    algorithm: String,
+    fingerprint: String,
+    reason: String,
+    known_fingerprint: Option<String>,
+}
+
+fn now_unix_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+fn ssh_password_store_path() -> Result<PathBuf, String> {
+    Ok(ensure_config_dir()?.join("ssh_profiles.json"))
+}
+
+fn ssh_known_hosts_path() -> Result<PathBuf, String> {
+    Ok(ensure_config_dir()?.join("ssh_known_hosts.json"))
+}
+
+fn load_password_store() -> Result<SshPasswordStore, String> {
+    let path = ssh_password_store_path()?;
+    if !path.exists() {
+        return Ok(SshPasswordStore::default());
+    }
+    let content = fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read SSH password store: {}", e))?;
+    serde_json::from_str(&content).map_err(|e| format!("Failed to parse SSH password store: {}", e))
+}
+
+fn save_password_store(store: &SshPasswordStore) -> Result<(), String> {
+    let path = ssh_password_store_path()?;
+    let content = serde_json::to_string_pretty(store)
+        .map_err(|e| format!("Failed to serialize SSH password store: {}", e))?;
+    fs::write(&path, content).map_err(|e| format!("Failed to write SSH password store: {}", e))
+}
+
+fn load_known_host_store() -> Result<KnownHostStore, String> {
+    let path = ssh_known_hosts_path()?;
+    if !path.exists() {
+        return Ok(KnownHostStore::default());
+    }
+    let content = fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read known hosts store: {}", e))?;
+    serde_json::from_str(&content).map_err(|e| format!("Failed to parse known hosts store: {}", e))
+}
+
+fn save_known_host_store(store: &KnownHostStore) -> Result<(), String> {
+    let path = ssh_known_hosts_path()?;
+    let content = serde_json::to_string_pretty(store)
+        .map_err(|e| format!("Failed to serialize known hosts store: {}", e))?;
+    fs::write(&path, content).map_err(|e| format!("Failed to write known hosts store: {}", e))
+}
+
+fn load_password_for_profile(profile_name: &str) -> Result<Option<String>, String> {
+    let store = load_password_store()?;
+    Ok(store
+        .profiles
+        .iter()
+        .find(|p| p.profile_name == profile_name)
+        .map(|p| p.password.clone()))
+}
+
+fn save_password_for_profile(profile_name: &str, password: &str) -> Result<(), String> {
+    let mut store = load_password_store()?;
+    if let Some(existing) = store
+        .profiles
+        .iter_mut()
+        .find(|p| p.profile_name == profile_name)
+    {
+        existing.password = password.to_string();
+        existing.updated_at = now_unix_ms();
+    } else {
+        store.profiles.push(SshPasswordRecord {
+            profile_name: profile_name.to_string(),
+            password: password.to_string(),
+            updated_at: now_unix_ms(),
+        });
+    }
+    save_password_store(&store)
+}
+
+fn load_known_host_by_profile(profile_name: &str) -> Result<Option<KnownHostRecord>, String> {
+    let store = load_known_host_store()?;
+    Ok(store
+        .entries
+        .iter()
+        .find(|e| e.profile_name == profile_name)
+        .cloned())
+}
+
+fn save_known_host_entry(entry: KnownHostRecord) -> Result<(), String> {
+    let mut store = load_known_host_store()?;
+    if let Some(existing) = store
+        .entries
+        .iter_mut()
+        .find(|e| e.profile_name == entry.profile_name)
+    {
+        *existing = entry;
+    } else {
+        store.entries.push(entry);
+    }
+    save_known_host_store(&store)
+}
+
 // ── PTY State ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, Clone)]
 struct PtyConnectionOptions {
     #[serde(default, rename = "type")]
     connection_type: Option<String>,
+    #[serde(default, alias = "profileName")]
+    profile_name: Option<String>,
     #[serde(default)]
     host: Option<String>,
     #[serde(default)]
     port: Option<u16>,
     #[serde(default)]
     username: Option<String>,
+    #[serde(default)]
+    password: Option<String>,
+    #[serde(default, alias = "rememberPassword")]
+    remember_password: Option<bool>,
     #[serde(default)]
     reconnect: Option<bool>,
     #[serde(default, alias = "reconnectDelaySecs")]
@@ -155,21 +391,30 @@ struct PtyConnectionOptions {
     keepalive_interval_secs: Option<u16>,
     #[serde(default, alias = "keepaliveCountMax")]
     keepalive_count_max: Option<u16>,
+    #[serde(default, alias = "privateKeyPath")]
+    private_key_path: Option<String>,
+    #[serde(default, alias = "privateKeyPassphrase")]
+    private_key_passphrase: Option<String>,
 }
 
 impl Default for PtyConnectionOptions {
     fn default() -> Self {
         Self {
             connection_type: Some("terminal".to_string()),
+            profile_name: None,
             host: None,
             port: None,
             username: None,
+            password: None,
+            remember_password: None,
             reconnect: None,
             reconnect_delay_secs: None,
             reconnect_max_delay_secs: None,
             reconnect_max_retries: None,
             keepalive_interval_secs: None,
             keepalive_count_max: None,
+            private_key_path: None,
+            private_key_passphrase: None,
         }
     }
 }
@@ -183,15 +428,20 @@ enum SessionKind {
 #[derive(Debug, Clone)]
 struct SessionPlan {
     kind: SessionKind,
+    profile_name: String,
     host: Option<String>,
     port: u16,
     username: Option<String>,
+    password: Option<String>,
+    remember_password: bool,
     reconnect: bool,
     reconnect_initial_delay: Duration,
     reconnect_max_delay: Duration,
     reconnect_max_retries: Option<u32>,
     keepalive_interval_secs: u16,
     keepalive_count_max: u16,
+    private_key_path: Option<String>,
+    private_key_passphrase: Option<String>,
 }
 
 struct ActivePty {
@@ -200,8 +450,19 @@ struct ActivePty {
     child: Box<dyn portable_pty::Child + Send>,
 }
 
+struct ActiveSsh {
+    input_tx: mpsc::UnboundedSender<Vec<u8>>,
+    resize_tx: mpsc::UnboundedSender<(u16, u16)>,
+    task: tokio::task::JoinHandle<()>,
+}
+
+enum ActiveSession {
+    Local(ActivePty),
+    Ssh(ActiveSsh),
+}
+
 struct PtySession {
-    active: Arc<TokioMutex<Option<ActivePty>>>,
+    active: Arc<TokioMutex<Option<ActiveSession>>>,
     stop_tx: watch::Sender<bool>,
     supervisor: tokio::task::JoinHandle<()>,
 }
@@ -210,10 +471,19 @@ struct TokioRuntimeState {
     runtime: tokio::runtime::Runtime,
 }
 
+enum SessionExitSignal {
+    Terminated,
+    Recoverable(String),
+    NonRecoverable(String),
+}
+
 type PtyMap = Arc<RwLock<HashMap<String, PtySession>>>;
+type HostPromptMap = Arc<RwLock<HashMap<String, oneshot::Sender<bool>>>>;
 
 const PTY_OUTPUT_FLUSH_INTERVAL: Duration = Duration::from_millis(8);
 const PTY_OUTPUT_MAX_BATCH_BYTES: usize = 256 * 1024;
+const HOST_KEY_PROMPT_TIMEOUT: Duration = Duration::from_secs(120);
+const HOST_KEY_REJECTED_REASON: &str = "SSH host fingerprint rejected by user";
 
 fn normalize_connection(connection: Option<PtyConnectionOptions>) -> Result<SessionPlan, String> {
     let connection = connection.unwrap_or_default();
@@ -241,15 +511,20 @@ fn normalize_connection(connection: Option<PtyConnectionOptions>) -> Result<Sess
     match kind {
         SessionKind::Terminal => Ok(SessionPlan {
             kind,
+            profile_name: "terminal".to_string(),
             host: None,
             port: 0,
             username: None,
+            password: None,
+            remember_password: false,
             reconnect: false,
             reconnect_initial_delay: Duration::from_secs(reconnect_initial_delay_secs),
             reconnect_max_delay: Duration::from_secs(reconnect_max_delay_secs),
             reconnect_max_retries: None,
             keepalive_interval_secs,
             keepalive_count_max,
+            private_key_path: None,
+            private_key_passphrase: None,
         }),
         SessionKind::Ssh => {
             let host = connection
@@ -258,26 +533,78 @@ fn normalize_connection(connection: Option<PtyConnectionOptions>) -> Result<Sess
                 .map(|v| v.trim().to_string())
                 .filter(|v| !v.is_empty())
                 .ok_or_else(|| "SSH host is required".to_string())?;
+            let port = connection.port.unwrap_or(22);
             let username = connection
                 .username
                 .as_ref()
                 .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+                .ok_or_else(|| "SSH username is required".to_string())?;
+
+            let profile_name = connection
+                .profile_name
+                .as_ref()
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| format!("{}@{}:{}", username, host, port));
+
+            let password = connection.password.filter(|v| !v.is_empty());
+            let remember_password = connection.remember_password.unwrap_or(false);
+            let private_key_path = connection
+                .private_key_path
+                .filter(|v| !v.is_empty());
+            let private_key_passphrase = connection
+                .private_key_passphrase
                 .filter(|v| !v.is_empty());
 
             Ok(SessionPlan {
                 kind,
+                profile_name,
                 host: Some(host),
-                port: connection.port.unwrap_or(22),
-                username,
+                port,
+                username: Some(username),
+                password,
+                remember_password,
                 reconnect,
                 reconnect_initial_delay: Duration::from_secs(reconnect_initial_delay_secs),
                 reconnect_max_delay: Duration::from_secs(reconnect_max_delay_secs),
                 reconnect_max_retries,
                 keepalive_interval_secs,
                 keepalive_count_max,
+                private_key_path,
+                private_key_passphrase,
             })
         }
     }
+}
+
+fn resolve_ssh_password(plan: &mut SessionPlan) -> Result<(), String> {
+    if !matches!(plan.kind, SessionKind::Ssh) {
+        return Ok(());
+    }
+
+    // If using key auth, no password needed
+    if plan.private_key_path.is_some() {
+        return Ok(());
+    }
+
+    let password = if let Some(password) = plan.password.clone() {
+        password
+    } else {
+        load_password_for_profile(&plan.profile_name)?.ok_or_else(|| {
+            format!(
+                "No password provided and no saved password found for profile '{}'",
+                plan.profile_name
+            )
+        })?
+    };
+
+    if plan.remember_password {
+        save_password_for_profile(&plan.profile_name, &password)?;
+    }
+
+    plan.password = Some(password);
+    Ok(())
 }
 
 fn next_backoff_delay(current: Duration, max: Duration) -> Duration {
@@ -298,9 +625,9 @@ fn emit_pty_output(app: &AppHandle, tab_id: &str, payload: String) {
     let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
 }
 
-fn emit_pty_exit(app: &AppHandle, tab_id: &str) {
+fn emit_pty_exit(app: &AppHandle, tab_id: &str, reason: Option<&str>) {
     let event_name = format!("pty-exit-{}", tab_id);
-    let _ = app.emit_to(tauri::EventTarget::any(), &event_name, ());
+    let _ = app.emit_to(tauri::EventTarget::any(), &event_name, reason);
 }
 
 fn emit_status_line(app: &AppHandle, tab_id: &str, color: &str, message: &str) {
@@ -319,7 +646,7 @@ fn spawn_reader_thread(
     mut reader: Box<dyn Read + Send>,
     app: AppHandle,
     tab_id: String,
-    exit_tx: tokio::sync::mpsc::UnboundedSender<()>,
+    exit_tx: mpsc::UnboundedSender<SessionExitSignal>,
 ) {
     thread::spawn(move || {
         let mut buf = [0u8; 65536];
@@ -345,50 +672,289 @@ fn spawn_reader_thread(
         }
 
         emit_batched_output(&app, &tab_id, &mut pending_output);
-        let _ = exit_tx.send(());
+        let _ = exit_tx.send(SessionExitSignal::Terminated);
     });
 }
 
-fn build_command(plan: &SessionPlan) -> Result<CommandBuilder, String> {
-    match plan.kind {
-        SessionKind::Terminal => {
-            let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
-            let home = std::env::var("HOME").unwrap_or_else(|_| "/".to_string());
+fn build_terminal_command() -> CommandBuilder {
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/".to_string());
 
-            let mut cmd = CommandBuilder::new(&shell);
-            cmd.env("TERM", "xterm-256color");
-            cmd.env("HOME", &home);
-            cmd.env("LANG", "en_US.UTF-8");
-            cmd.cwd(&home);
-            Ok(cmd)
+    let mut cmd = CommandBuilder::new(&shell);
+    cmd.env("TERM", "xterm-256color");
+    cmd.env("HOME", &home);
+    cmd.env("LANG", "en_US.UTF-8");
+    cmd.cwd(&home);
+    cmd
+}
+
+#[derive(Clone)]
+struct SshClientHandler {
+    app: AppHandle,
+    tab_id: String,
+    profile_name: String,
+    host: String,
+    port: u16,
+    prompts: HostPromptMap,
+    user_rejected_host_key: Arc<AtomicBool>,
+}
+
+impl client::Handler for SshClientHandler {
+    type Error = russh::Error;
+
+    async fn check_server_key(
+        &mut self,
+        server_public_key: &russh::keys::ssh_key::PublicKey,
+    ) -> Result<bool, Self::Error> {
+        let algorithm = server_public_key.algorithm().to_string();
+        let fingerprint = server_public_key.fingerprint(HashAlg::Sha256).to_string();
+
+        let known = match load_known_host_by_profile(&self.profile_name) {
+            Ok(value) => value,
+            Err(err) => {
+                emit_status_line(
+                    &self.app,
+                    &self.tab_id,
+                    "31",
+                    &format!("Failed to read known host store: {err}"),
+                );
+                return Ok(false);
+            }
+        };
+
+        if let Some(record) = &known {
+            if record.host == self.host
+                && record.port == self.port
+                && record.fingerprint == fingerprint
+            {
+                return Ok(true);
+            }
         }
-        SessionKind::Ssh => {
-            let host = plan
-                .host
-                .as_ref()
-                .ok_or_else(|| "SSH host is missing".to_string())?;
 
-            let mut cmd = CommandBuilder::new("ssh");
-            cmd.arg("-tt");
-            cmd.arg("-p");
-            cmd.arg(plan.port.to_string());
-            cmd.arg("-o");
-            cmd.arg(format!(
-                "ServerAliveInterval={}",
-                plan.keepalive_interval_secs
-            ));
-            cmd.arg("-o");
-            cmd.arg(format!("ServerAliveCountMax={}", plan.keepalive_count_max));
-            cmd.arg("-o");
-            cmd.arg("TCPKeepAlive=yes");
+        let reason = if known.is_some() {
+            "mismatch".to_string()
+        } else {
+            "unknown".to_string()
+        };
+        let known_fingerprint = known.as_ref().map(|r| r.fingerprint.clone());
 
-            let target = match &plan.username {
-                Some(username) => format!("{}@{}", username, host),
-                None => host.to_string(),
-            };
-            cmd.arg(target);
-            cmd.env("TERM", "xterm-256color");
-            Ok(cmd)
+        let request_id = uuid::Uuid::new_v4().to_string();
+        let (tx, rx) = oneshot::channel::<bool>();
+        self.prompts.write().await.insert(request_id.clone(), tx);
+
+        let payload = SshHostKeyPromptPayload {
+            request_id: request_id.clone(),
+            profile_name: self.profile_name.clone(),
+            host: self.host.clone(),
+            port: self.port,
+            algorithm,
+            fingerprint: fingerprint.clone(),
+            reason: reason.clone(),
+            known_fingerprint,
+        };
+
+        let event_name = format!("ssh-hostkey-prompt-{}", self.tab_id);
+        let _ = self
+            .app
+            .emit_to(tauri::EventTarget::any(), &event_name, payload);
+
+        emit_status_line(
+            &self.app,
+            &self.tab_id,
+            "33",
+            "Waiting for user confirmation of SSH host fingerprint...",
+        );
+
+        let approved = match tokio::time::timeout(HOST_KEY_PROMPT_TIMEOUT, rx).await {
+            Ok(Ok(value)) => value,
+            Ok(Err(_)) => false,
+            Err(_) => {
+                let _ = self.prompts.write().await.remove(&request_id);
+                false
+            }
+        };
+
+        if !approved {
+            self.user_rejected_host_key.store(true, Ordering::Relaxed);
+            emit_status_line(&self.app, &self.tab_id, "31", HOST_KEY_REJECTED_REASON);
+            return Err(russh::Error::Disconnect);
+        }
+
+        let save_result = save_known_host_entry(KnownHostRecord {
+            profile_name: self.profile_name.clone(),
+            host: self.host.clone(),
+            port: self.port,
+            algorithm: server_public_key.algorithm().to_string(),
+            fingerprint,
+            trusted_at: now_unix_ms(),
+        });
+
+        if let Err(err) = save_result {
+            emit_status_line(
+                &self.app,
+                &self.tab_id,
+                "31",
+                &format!("Failed to save known host: {err}"),
+            );
+            return Ok(false);
+        }
+
+        Ok(true)
+    }
+}
+
+async fn run_single_ssh_connection(
+    app: AppHandle,
+    tab_id: String,
+    rows: u16,
+    cols: u16,
+    plan: SessionPlan,
+    prompts: HostPromptMap,
+    mut stop_rx: watch::Receiver<bool>,
+    mut input_rx: mpsc::UnboundedReceiver<Vec<u8>>,
+    mut resize_rx: mpsc::UnboundedReceiver<(u16, u16)>,
+) -> SessionExitSignal {
+    let host = match &plan.host {
+        Some(host) => host.clone(),
+        None => return SessionExitSignal::Terminated,
+    };
+    let username = match &plan.username {
+        Some(username) => username.clone(),
+        None => return SessionExitSignal::Terminated,
+    };
+    let private_key_path = plan.private_key_path.clone();
+    let private_key_passphrase = plan.private_key_passphrase.clone();
+    let password = if private_key_path.is_none() {
+        match &plan.password {
+            Some(password) => password.clone(),
+            None => return SessionExitSignal::Terminated,
+        }
+    } else {
+        String::new()
+    };
+
+    let mut config = client::Config::default();
+    config.keepalive_interval = Some(Duration::from_secs(plan.keepalive_interval_secs as u64));
+    config.keepalive_max = plan.keepalive_count_max as usize;
+
+    let handler = SshClientHandler {
+        app: app.clone(),
+        tab_id: tab_id.clone(),
+        profile_name: plan.profile_name.clone(),
+        host: host.clone(),
+        port: plan.port,
+        prompts,
+        user_rejected_host_key: Arc::new(AtomicBool::new(false)),
+    };
+
+    let host_key_rejected_flag = handler.user_rejected_host_key.clone();
+
+    let mut session = match client::connect(Arc::new(config), (host.as_str(), plan.port), handler).await
+    {
+        Ok(session) => session,
+        Err(err) => {
+            if host_key_rejected_flag.load(Ordering::Relaxed) {
+                return SessionExitSignal::NonRecoverable(HOST_KEY_REJECTED_REASON.to_string());
+            }
+            return SessionExitSignal::Recoverable(format!("SSH connect failed: {err}"));
+        }
+    };
+
+    let auth_result = if let Some(key_path) = private_key_path {
+        let key_path = std::path::Path::new(&key_path);
+        let key_pair = match russh::keys::load_secret_key(key_path, private_key_passphrase.as_deref()) {
+            Ok(kp) => kp,
+            Err(err) => {
+                return SessionExitSignal::NonRecoverable(format!("Failed to load SSH key: {err}"));
+            }
+        };
+        match session.authenticate_publickey(username, russh::keys::PrivateKeyWithHashAlg::new(Arc::new(key_pair), None)).await {
+            Ok(result) => result,
+            Err(err) => {
+                return SessionExitSignal::NonRecoverable(format!("SSH key authentication failed: {err}"));
+            }
+        }
+    } else {
+        match session.authenticate_password(username, password).await {
+            Ok(result) => result,
+            Err(err) => {
+                return SessionExitSignal::NonRecoverable(format!("SSH authentication failed: {err}"));
+            }
+        }
+    };
+
+    if !auth_result.success() {
+        emit_status_line(&app, &tab_id, "31", "SSH authentication failed");
+        let _ = session
+            .disconnect(Disconnect::ByApplication, "Authentication failed", "en")
+            .await;
+        return SessionExitSignal::NonRecoverable("SSH authentication failed".to_string());
+    }
+
+    let channel = match session.channel_open_session().await {
+        Ok(channel) => channel,
+        Err(err) => {
+            return SessionExitSignal::Recoverable(format!("Failed to open SSH channel: {err}"));
+        }
+    };
+
+    if let Err(err) = channel
+        .request_pty(false, "xterm-256color", cols as u32, rows as u32, 0, 0, &[])
+        .await
+    {
+        return SessionExitSignal::Recoverable(format!("Failed to request SSH PTY: {err}"));
+    }
+
+    if let Err(err) = channel.request_shell(false).await {
+        return SessionExitSignal::Recoverable(format!("Failed to request SSH shell: {err}"));
+    }
+
+    let (mut reader, writer) = channel.split();
+    let mut writer_stream = writer.make_writer();
+
+    loop {
+        tokio::select! {
+            _ = stop_rx.changed() => {
+                if *stop_rx.borrow() {
+                    let _ = writer.close().await;
+                    let _ = session.disconnect(Disconnect::ByApplication, "Session closed", "en").await;
+                    return SessionExitSignal::Terminated;
+                }
+            }
+            incoming = input_rx.recv() => {
+                if let Some(data) = incoming {
+                    if let Err(err) = writer_stream.write_all(&data).await {
+                        return SessionExitSignal::Recoverable(format!("SSH write failed: {err}"));
+                    }
+                }
+            }
+            resize = resize_rx.recv() => {
+                if let Some((next_rows, next_cols)) = resize {
+                    if let Err(err) = writer.window_change(next_cols as u32, next_rows as u32, 0, 0).await {
+                        return SessionExitSignal::Recoverable(format!("SSH resize failed: {err}"));
+                    }
+                }
+            }
+            event = reader.wait() => {
+                match event {
+                    Some(ChannelMsg::Data { data }) => {
+                        let text = String::from_utf8_lossy(data.as_ref()).to_string();
+                        emit_pty_output(&app, &tab_id, text);
+                    }
+                    Some(ChannelMsg::ExtendedData { data, .. }) => {
+                        let text = String::from_utf8_lossy(data.as_ref()).to_string();
+                        emit_pty_output(&app, &tab_id, text);
+                    }
+                    Some(ChannelMsg::ExitStatus { .. }) => {
+                        let _ = session.disconnect(Disconnect::ByApplication, "Shell exited", "en").await;
+                        return SessionExitSignal::Terminated;
+                    }
+                    Some(ChannelMsg::Eof) | Some(ChannelMsg::Close) | None => {
+                        return SessionExitSignal::Recoverable("SSH channel closed".to_string());
+                    }
+                    _ => {}
+                }
+            }
         }
     }
 }
@@ -399,47 +965,88 @@ fn spawn_process(
     rows: u16,
     cols: u16,
     plan: &SessionPlan,
-    exit_tx: tokio::sync::mpsc::UnboundedSender<()>,
-) -> Result<(u32, ActivePty), String> {
-    let pty_system = native_pty_system();
-    let pair = pty_system
-        .openpty(PtySize {
-            rows,
-            cols,
-            pixel_width: 0,
-            pixel_height: 0,
-        })
-        .map_err(|e| format!("Failed to open PTY: {}", e))?;
+    stop_rx: watch::Receiver<bool>,
+    exit_tx: mpsc::UnboundedSender<SessionExitSignal>,
+    prompt_state: HostPromptMap,
+    runtime_handle: &tokio::runtime::Handle,
+) -> Result<(u32, ActiveSession), String> {
+    match plan.kind {
+        SessionKind::Terminal => {
+            let pty_system = native_pty_system();
+            let pair = pty_system
+                .openpty(PtySize {
+                    rows,
+                    cols,
+                    pixel_width: 0,
+                    pixel_height: 0,
+                })
+                .map_err(|e| format!("Failed to open PTY: {}", e))?;
 
-    let cmd = build_command(plan)?;
-    let child = pair
-        .slave
-        .spawn_command(cmd)
-        .map_err(|e| format!("Failed to spawn process: {}", e))?;
+            let cmd = build_terminal_command();
+            let child = pair
+                .slave
+                .spawn_command(cmd)
+                .map_err(|e| format!("Failed to spawn process: {}", e))?;
 
-    let pid = child.process_id().unwrap_or(0);
+            let pid = child.process_id().unwrap_or(0);
+            drop(pair.slave);
 
-    drop(pair.slave);
+            let reader = pair
+                .master
+                .try_clone_reader()
+                .map_err(|e| format!("Failed to clone reader: {}", e))?;
 
-    let reader = pair
-        .master
-        .try_clone_reader()
-        .map_err(|e| format!("Failed to clone reader: {}", e))?;
+            spawn_reader_thread(reader, app.clone(), tab_id.to_string(), exit_tx);
 
-    spawn_reader_thread(reader, app.clone(), tab_id.to_string(), exit_tx);
+            let writer = pair
+                .master
+                .take_writer()
+                .map_err(|e| format!("Failed to take writer: {}", e))?;
 
-    let writer = pair
-        .master
-        .take_writer()
-        .map_err(|e| format!("Failed to take writer: {}", e))?;
+            let active = ActiveSession::Local(ActivePty {
+                writer,
+                master: pair.master,
+                child,
+            });
 
-    let active = ActivePty {
-        writer,
-        master: pair.master,
-        child,
-    };
+            Ok((pid, active))
+        }
+        SessionKind::Ssh => {
+            let (input_tx, input_rx) = mpsc::unbounded_channel::<Vec<u8>>();
+            let (resize_tx, resize_rx) = mpsc::unbounded_channel::<(u16, u16)>();
 
-    Ok((pid, active))
+            let app_clone = app.clone();
+            let tab_id_clone = tab_id.to_string();
+            let plan_clone = plan.clone();
+            let prompt_state_clone = prompt_state;
+            let exit_tx_clone = exit_tx.clone();
+            let stop_rx_clone = stop_rx.clone();
+
+            let task = runtime_handle.spawn(async move {
+                let signal = run_single_ssh_connection(
+                    app_clone,
+                    tab_id_clone,
+                    rows,
+                    cols,
+                    plan_clone,
+                    prompt_state_clone,
+                    stop_rx_clone,
+                    input_rx,
+                    resize_rx,
+                )
+                .await;
+                let _ = exit_tx_clone.send(signal);
+            });
+
+            let active = ActiveSession::Ssh(ActiveSsh {
+                input_tx,
+                resize_tx,
+                task,
+            });
+
+            Ok((0, active))
+        }
+    }
 }
 
 // ── PTY Commands ──────────────────────────────────────────────────────────────
@@ -452,54 +1059,86 @@ fn create_pty(
     cols: u16,
     connection: Option<PtyConnectionOptions>,
     state: tauri::State<'_, PtyMap>,
+    prompt_state: tauri::State<'_, HostPromptMap>,
     runtime_state: tauri::State<'_, TokioRuntimeState>,
 ) -> Result<u32, String> {
-    let plan = normalize_connection(connection)?;
+    let mut plan = normalize_connection(connection)?;
+    resolve_ssh_password(&mut plan)?;
 
     {
-        let map = runtime_state
+        let exists = runtime_state
             .runtime
             .block_on(async { state.read().await.contains_key(&tab_id) });
-        if map {
+        if exists {
             return Err(format!("PTY session {} already exists", tab_id));
         }
     }
 
-    let (exit_tx, mut exit_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
+    let (exit_tx, mut exit_rx) = mpsc::unbounded_channel::<SessionExitSignal>();
     let active = Arc::new(TokioMutex::new(None));
+    let (stop_tx, mut stop_rx) = watch::channel(false);
 
-    let (pid, initial_active) = spawn_process(&app, &tab_id, rows, cols, &plan, exit_tx.clone())?;
+    let runtime_handle = runtime_state.runtime.handle().clone();
+
+    let (pid, initial_active) = spawn_process(
+        &app,
+        &tab_id,
+        rows,
+        cols,
+        &plan,
+        stop_rx.clone(),
+        exit_tx.clone(),
+        prompt_state.inner().clone(),
+        &runtime_handle,
+    )?;
+
     {
         let mut guard = runtime_state.runtime.block_on(active.lock());
         *guard = Some(initial_active);
     }
-
-    let (stop_tx, mut stop_rx) = watch::channel(false);
 
     let app_clone = app.clone();
     let tab_id_clone = tab_id.clone();
     let plan_clone = plan.clone();
     let active_clone = active.clone();
     let exit_tx_clone = exit_tx.clone();
+    let prompt_state_clone = prompt_state.inner().clone();
+    let reconnect_runtime_handle = runtime_handle.clone();
 
     let supervisor = runtime_state.runtime.spawn(async move {
         let mut attempt: u32 = 0;
         let mut delay = plan_clone.reconnect_initial_delay;
 
-        while exit_rx.recv().await.is_some() {
+        while let Some(signal) = exit_rx.recv().await {
             if *stop_rx.borrow() {
                 break;
             }
+
+            let host_key_rejected = matches!(
+                &signal,
+                SessionExitSignal::NonRecoverable(reason) if reason == HOST_KEY_REJECTED_REASON
+            );
 
             {
                 let mut guard = active_clone.lock().await;
                 *guard = None;
             }
 
-            let should_reconnect =
-                matches!(plan_clone.kind, SessionKind::Ssh) && plan_clone.reconnect;
+            let should_reconnect = (matches!(signal, SessionExitSignal::Recoverable(_))
+                || host_key_rejected)
+                && matches!(plan_clone.kind, SessionKind::Ssh)
+                && plan_clone.reconnect;
+
             if !should_reconnect {
-                emit_pty_exit(&app_clone, &tab_id_clone);
+                let exit_reason = if let SessionExitSignal::Recoverable(reason)
+                | SessionExitSignal::NonRecoverable(reason) = &signal
+                {
+                    emit_status_line(&app_clone, &tab_id_clone, "31", reason);
+                    Some(reason.clone())
+                } else {
+                    None
+                };
+                emit_pty_exit(&app_clone, &tab_id_clone, exit_reason.as_deref());
                 break;
             }
 
@@ -511,7 +1150,7 @@ fn create_pty(
                         "31",
                         "SSH reconnect exhausted retry budget",
                     );
-                    emit_pty_exit(&app_clone, &tab_id_clone);
+                    emit_pty_exit(&app_clone, &tab_id_clone, Some("SSH reconnect exhausted retry budget"));
                     break;
                 }
             }
@@ -546,14 +1185,19 @@ fn create_pty(
                     rows,
                     cols,
                     &plan_clone,
+                    stop_rx.clone(),
                     exit_tx_clone.clone(),
+                    prompt_state_clone.clone(),
+                    &reconnect_runtime_handle,
                 ) {
                     Ok((_, new_active)) => {
                         let mut guard = active_clone.lock().await;
                         *guard = Some(new_active);
                         emit_status_line(&app_clone, &tab_id_clone, "32", "SSH reconnected");
-                        attempt = 0;
-                        delay = plan_clone.reconnect_initial_delay;
+                        if !host_key_rejected {
+                            attempt = 0;
+                            delay = plan_clone.reconnect_initial_delay;
+                        }
                         break;
                     }
                     Err(err) => {
@@ -595,10 +1239,16 @@ fn write_pty(tab_id: String, data: String, state: tauri::State<'_, PtyMap>) -> R
         .as_mut()
         .ok_or_else(|| format!("PTY session {} is reconnecting", tab_id))?;
 
-    active
-        .writer
-        .write_all(data.as_bytes())
-        .map_err(|e| format!("Failed to write to PTY: {}", e))
+    match active {
+        ActiveSession::Local(local) => local
+            .writer
+            .write_all(data.as_bytes())
+            .map_err(|e| format!("Failed to write to PTY: {}", e)),
+        ActiveSession::Ssh(ssh) => ssh
+            .input_tx
+            .send(data.into_bytes())
+            .map_err(|_| format!("PTY session {} is not writable", tab_id)),
+    }
 }
 
 #[tauri::command]
@@ -618,15 +1268,21 @@ fn resize_pty(
         .as_mut()
         .ok_or_else(|| format!("PTY session {} is reconnecting", tab_id))?;
 
-    active
-        .master
-        .resize(PtySize {
-            rows,
-            cols,
-            pixel_width: 0,
-            pixel_height: 0,
-        })
-        .map_err(|e| format!("Failed to resize PTY: {}", e))
+    match active {
+        ActiveSession::Local(local) => local
+            .master
+            .resize(PtySize {
+                rows,
+                cols,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .map_err(|e| format!("Failed to resize PTY: {}", e)),
+        ActiveSession::Ssh(ssh) => ssh
+            .resize_tx
+            .send((rows, cols))
+            .map_err(|_| format!("PTY session {} is not resizable", tab_id)),
+    }
 }
 
 #[tauri::command]
@@ -636,14 +1292,37 @@ fn kill_pty(tab_id: String, state: tauri::State<'_, PtyMap>) -> Result<(), Strin
     if let Some(session) = session {
         let _ = session.stop_tx.send(true);
 
-        if let Some(mut active) = session.active.blocking_lock().take() {
-            let _ = active.child.kill();
+        if let Some(active) = session.active.blocking_lock().take() {
+            match active {
+                ActiveSession::Local(mut local) => {
+                    let _ = local.child.kill();
+                }
+                ActiveSession::Ssh(ssh) => {
+                    ssh.task.abort();
+                }
+            }
         }
 
         session.supervisor.abort();
     }
 
     Ok(())
+}
+
+#[tauri::command]
+fn respond_ssh_host_key_prompt(
+    request_id: String,
+    trust: bool,
+    prompt_state: tauri::State<'_, HostPromptMap>,
+) -> Result<(), String> {
+    let sender = prompt_state
+        .blocking_write()
+        .remove(&request_id)
+        .ok_or_else(|| "Host key prompt expired".to_string())?;
+
+    sender
+        .send(trust)
+        .map_err(|_| "Host key prompt receiver is gone".to_string())
 }
 
 // ── Font Discovery ────────────────────────────────────────────────────────────
@@ -763,6 +1442,7 @@ fn extract_font_name(path: &PathBuf) -> Option<String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let pty_map: PtyMap = Arc::new(RwLock::new(HashMap::new()));
+    let host_prompt_map: HostPromptMap = Arc::new(RwLock::new(HashMap::new()));
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
@@ -772,7 +1452,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(pty_map)
+        .manage(host_prompt_map)
         .manage(TokioRuntimeState { runtime })
         .invoke_handler(tauri::generate_handler![
             load_config,
@@ -784,7 +1466,11 @@ pub fn run() {
             write_pty,
             resize_pty,
             kill_pty,
+            respond_ssh_host_key_prompt,
             list_fonts,
+            list_profiles,
+            save_profile,
+            delete_profile,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

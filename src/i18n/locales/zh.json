@@ -52,13 +52,31 @@
     "en": "English",
     "zh": "中文"
   },
+  "profiles": {
+    "title": "已保存的连接",
+    "empty": "暂无已保存的连接",
+    "save": "保存连接",
+    "saveSuccess": "连接已保存",
+    "connect": "连接",
+    "edit": "编辑",
+    "delete": "删除",
+    "deleteConfirm": "确定删除此连接？",
+    "editTitle": "编辑连接",
+    "newConnection": "新建连接",
+    "ungrouped": "未分组"
+  },
   "connection": {
-    "title": "新建连接",
+    "newConnection": "新建连接",
+    "title": "连接名称",
     "type": "连接类型",
     "name": "连接名称",
+    "group": "分组",
+    "groupPlaceholder": "例如：工作、个人（可选）",
     "host": "主机",
     "port": "端口",
     "username": "用户名",
+    "password": "密码",
+    "rememberPassword": "记住密码",
     "cancel": "取消",
     "connect": "连接",
     "types": {
@@ -89,5 +107,23 @@
     "type": "类型",
     "hint": "这里将渲染 {{type}} 界面。",
     "implementation": "您可以在这里实现自己的终端/SSH/SFTP 组件。"
+  },
+  "ssh": {
+    "hostKeyMismatch": "检测到主机密钥不匹配",
+    "unknownHostKey": "未知主机密钥",
+    "host": "主机",
+    "algorithm": "算法",
+    "fingerprint": "指纹",
+    "knownFingerprint": "已知指纹",
+    "trust": "信任",
+    "reject": "拒绝",
+    "retry": "重试",
+    "authFailed": "SSH 认证失败",
+    "authMethod": "认证方式",
+    "password": "密码",
+    "sshKey": "SSH 密钥",
+    "privateKeyPath": "私钥路径",
+    "privateKeyPassphrase": "密码短语（可选）",
+    "browseKey": "浏览"
   }
 }

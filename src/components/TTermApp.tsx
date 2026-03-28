@@ -3,7 +3,7 @@ import React, { useState, useCallback, useEffect, useRef } from "react"
 import { TerminalTab } from "@/components/TerminalTab"
 import { useTranslation } from "react-i18next"
 import { platform } from "@tauri-apps/plugin-os"
-import { Plus, Settings } from "lucide-react"
+import { Plus, Settings, BookMarked } from "lucide-react"
 import { ContextMenu } from "@/components/ContextMenu"
 import { WindowControls } from "@/components/WindowControls"
 import { ConnectionDialog } from "@/components/ConnectionDialog"
@@ -12,6 +12,7 @@ import { ThemeSwitcher } from "@/components/ThemeSwitcher"
 import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 import { FontSettings } from "@/components/FontSettings"
 import { TabBar } from "@/components/TabBar"
+import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
 import { useTabs } from "@/hooks/useTabs"
 import { useSessionPersistence } from "@/hooks/useSessionPersistence"
 import { useConnectionManager } from "@/hooks/useConnectionManager"
@@ -31,9 +32,11 @@ export const TTermApp: React.FC = () => {
   const { t, i18n } = useTranslation()
   const [os] = useState<string>(() => platform())
   const [showConnectionDialog, setShowConnectionDialog] = useState(false)
+  const [showProfilesPanel, setShowProfilesPanel] = useState(false)
   const [showThemeSwitcher, setShowThemeSwitcher] = useState(false)
   const [showLanguageSwitcher, setShowLanguageSwitcher] = useState(false)
   const [showFontSettings, setShowFontSettings] = useState(false)
+  const [editingProfile, setEditingProfile] = useState<SavedProfile | null>(null)
   const [renameDialogState, setRenameDialogState] = useState<{
     isOpen: boolean
     tabId: string | null
@@ -263,6 +266,17 @@ export const TTermApp: React.FC = () => {
           <button onClick={handleNewTab} className="btn-primary" style={{ marginTop: "16px" }}>
             {t("welcome.newConnection")}
           </button>
+          <div style={{ marginTop: "32px", width: "100%", maxWidth: 480 }}>
+            <ProfilesPanel
+              onConnect={(conn) => {
+                handleConnect(conn)
+              }}
+              onEdit={(profile) => {
+                setEditingProfile(profile)
+                setShowConnectionDialog(true)
+              }}
+            />
+          </div>
         </div>
       )
     }
@@ -286,6 +300,19 @@ export const TTermApp: React.FC = () => {
                 tabId={tab.id}
                 isActive={tab.id === activeTabId}
                 connection={tab.connection ?? { type: tab.type }}
+                onReconnectRequest={() => {
+                  cleanupConnection(tab.id)
+                  // re-open the same connection by re-using its connection config
+                  if (tab.connection) {
+                    addTab({
+                      title: tab.title,
+                      type: tab.type,
+                      isModified: false,
+                      connection: tab.connection,
+                    })
+                    removeTab(tab.id)
+                  }
+                }}
               />
             ) : (
               <div className="tab-content-placeholder">
@@ -332,6 +359,13 @@ export const TTermApp: React.FC = () => {
               <button className="tab-action" onClick={handleNewTab} title={t("tabs.newTab")}>
                 <Plus size={16} />
               </button>
+              <button
+                className="tab-action"
+                onClick={() => setShowProfilesPanel(true)}
+                title={t("profiles.title")}
+              >
+                <BookMarked size={16} />
+              </button>
             </div>
           </div>
         </div>
@@ -357,11 +391,59 @@ export const TTermApp: React.FC = () => {
       <div className="content-area">{renderTabContent()}</div>
 
       {/* Connection Dialog */}
-      <ConnectionDialog
-        isOpen={showConnectionDialog}
-        onClose={() => setShowConnectionDialog(false)}
-        onConnect={handleConnect}
-      />
+      {showConnectionDialog && (
+        <ConnectionDialog
+          isOpen={showConnectionDialog}
+          onClose={() => {
+            setShowConnectionDialog(false)
+            setEditingProfile(null)
+          }}
+          onConnect={handleConnect}
+          editProfile={editingProfile}
+        />
+      )}
+
+      {/* Profiles Panel */}
+      {showProfilesPanel && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 50,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onClick={() => setShowProfilesPanel(false)}
+        >
+          <div
+            style={{
+              background: "hsl(var(--card))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: 8,
+              padding: 24,
+              minWidth: 380,
+              maxWidth: 520,
+              maxHeight: "80vh",
+              overflowY: "auto",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ProfilesPanel
+              onConnect={(conn) => {
+                handleConnect(conn)
+                setShowProfilesPanel(false)
+              }}
+              onEdit={(profile) => {
+                setEditingProfile(profile)
+                setShowConnectionDialog(true)
+                setShowProfilesPanel(false)
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Context Menu */}
       {contextMenu.visible && (

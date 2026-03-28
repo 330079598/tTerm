@@ -52,13 +52,31 @@
     "en": "English",
     "zh": "中文"
   },
+  "profiles": {
+    "title": "Saved Connections",
+    "empty": "No saved connections yet",
+    "save": "Save Connection",
+    "saveSuccess": "Connection saved",
+    "connect": "Connect",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this connection?",
+    "editTitle": "Edit Connection",
+    "newConnection": "New Connection",
+    "ungrouped": "Ungrouped"
+  },
   "connection": {
-    "title": "New Connection",
+    "newConnection": "New Connection",
+    "title": "Connection Name",
     "type": "Connection Type",
     "name": "Connection Name",
+    "group": "Group",
+    "groupPlaceholder": "e.g. Work, Personal (optional)",
     "host": "Host",
     "port": "Port",
     "username": "Username",
+    "password": "Password",
+    "rememberPassword": "Remember password",
     "cancel": "Cancel",
     "connect": "Connect",
     "types": {
@@ -89,5 +107,23 @@
     "type": "Type",
     "hint": "This is where the {{type}} interface will be rendered.",
     "implementation": "You can implement your own terminal/SSH/SFTP component here."
+  },
+  "ssh": {
+    "hostKeyMismatch": "Host key mismatch detected",
+    "unknownHostKey": "Unknown host key",
+    "host": "Host",
+    "algorithm": "Algorithm",
+    "fingerprint": "Fingerprint",
+    "knownFingerprint": "Known fingerprint",
+    "trust": "Trust",
+    "reject": "Reject",
+    "retry": "Retry",
+    "authFailed": "SSH authentication failed",
+    "authMethod": "Authentication Method",
+    "password": "Password",
+    "sshKey": "SSH Key",
+    "privateKeyPath": "Private Key Path",
+    "privateKeyPassphrase": "Passphrase (optional)",
+    "browseKey": "Browse"
   }
 }
