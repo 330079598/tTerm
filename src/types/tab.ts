@@ -21,13 +21,13 @@ export interface SavedProfile {
 export interface Tab {
   id: string
   title: string
-  type: "terminal" | "ssh" | "sftp" | "serial"
+  type: "terminal" | "ssh"
   isActive: boolean
   isModified?: boolean
   icon?: string
   pid?: number
   connection?: {
-    type?: "terminal" | "ssh" | "sftp" | "serial"
+    type?: "terminal" | "ssh"
     profileName?: string
     host?: string
     port?: number

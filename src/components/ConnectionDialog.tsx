@@ -1,7 +1,7 @@
 import "@/components/ConnectionDialog.css"
 import React, { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { Terminal, Server, FolderOpen, Zap } from "lucide-react"
+import { Terminal, Server } from "lucide-react"
 import { Tab } from "@/types/tab"
 import {
   Dialog,
@@ -26,7 +26,7 @@ interface ConnectionDialogProps {
   editProfile?: SavedProfile | null
 }
 
-type ConnectionType = "terminal" | "ssh" | "sftp" | "serial"
+type ConnectionType = "terminal" | "ssh"
 
 interface ConnectionForm {
   type: ConnectionType
@@ -69,10 +69,8 @@ const defaultForm: ConnectionForm = {
 }
 
 const connectionTypes = [
-  { type: "terminal" as const, label: "Local Terminal", icon: Terminal },
+  { type: "terminal" as const, label: "OS terminal", icon: Terminal },
   { type: "ssh" as const, label: "SSH Connection", icon: Server },
-  { type: "sftp" as const, label: "SFTP Browser", icon: FolderOpen },
-  { type: "serial" as const, label: "Serial Port", icon: Zap },
 ]
 
 function buildFormFromProfile(profile?: SavedProfile | null): ConnectionForm {
@@ -102,13 +100,9 @@ function buildFormFromProfile(profile?: SavedProfile | null): ConnectionForm {
 function getDefaultTitle(type: ConnectionType, form: ConnectionForm): string {
   switch (type) {
     case "terminal":
-      return "Local Terminal"
+      return "OS terminal"
     case "ssh":
       return form.host ? `${form.username}@${form.host}` : "SSH Connection"
-    case "sftp":
-      return form.host ? `SFTP: ${form.host}` : "SFTP Browser"
-    case "serial":
-      return "Serial Port"
   }
 }
 
@@ -120,15 +114,18 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
 }) => {
   const { t } = useTranslation()
   const [form, setForm] = useState<ConnectionForm>(() => buildFormFromProfile(editProfile))
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle")
   const [existingGroups, setExistingGroups] = useState<string[]>([])
   const [showGroupDropdown, setShowGroupDropdown] = useState(false)
+  const [nameError, setNameError] = useState<string | null>(null)
 
-  // Load existing groups for autocomplete
+  const [allProfiles, setAllProfiles] = useState<SavedProfile[]>([])
+
+  // Load existing profiles for group autocomplete and duplicate checking
   useEffect(() => {
     if (isOpen) {
       invoke<SavedProfile[]>("list_profiles")
         .then((profiles) => {
+          setAllProfiles(profiles)
           const groups = [...new Set(profiles.map((p) => p.group).filter(Boolean))]
           setExistingGroups(groups)
         })
@@ -136,59 +133,65 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
     }
   }, [isOpen])
 
-  const handleSaveProfile = async () => {
-    if (form.type !== "ssh" || !form.host.trim()) return
-    const profile: SavedProfile = {
-      id: editProfile?.id ?? crypto.randomUUID(),
-      name: form.title.trim() || `${form.username}@${form.host}`,
-      group: form.group.trim(),
-      connection_type: form.type,
-      host: form.host,
-      port: form.port,
-      username: form.username,
-      auth_method: form.authMethod,
-      private_key_path: form.authMethod === "key" ? form.privateKeyPath : undefined,
-      reconnect: form.reconnect,
-      reconnect_delay_secs: form.reconnectDelaySecs,
-      reconnect_max_delay_secs: form.reconnectMaxDelaySecs,
-      reconnect_max_retries: form.reconnectMaxRetries,
-      keepalive_interval_secs: form.keepaliveIntervalSecs,
-      keepalive_count_max: form.keepaliveCountMax,
-    }
-    setSaveStatus("saving")
-    try {
-      await invoke("save_profile", { profile })
-      setSaveStatus("saved")
-      setTimeout(() => setSaveStatus("idle"), 2000)
-    } catch (e) {
-      console.error("Failed to save profile:", e)
-      setSaveStatus("idle")
-    }
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setNameError(null)
+
+    const title = form.title.trim() || getDefaultTitle(form.type, form)
+    const group = form.group.trim()
+
+    // Auto-save SSH connections as profiles
+    if (form.type === "ssh" && form.host.trim()) {
+      const profileId = editProfile?.id ?? crypto.randomUUID()
+      // Check duplicate name within same group
+      const duplicate = allProfiles.find(
+        (p) => p.id !== profileId && p.name === title && p.group === group
+      )
+      if (duplicate) {
+        setNameError(t("profiles.duplicateName"))
+        return
+      }
+      const profile: SavedProfile = {
+        id: profileId,
+        name: title,
+        group,
+        connection_type: form.type,
+        host: form.host,
+        port: form.port,
+        username: form.username,
+        auth_method: form.authMethod,
+        private_key_path: form.authMethod === "key" ? form.privateKeyPath : undefined,
+        reconnect: form.reconnect,
+        reconnect_delay_secs: form.reconnectDelaySecs,
+        reconnect_max_delay_secs: form.reconnectMaxDelaySecs,
+        reconnect_max_retries: form.reconnectMaxRetries,
+        keepalive_interval_secs: form.keepaliveIntervalSecs,
+        keepalive_count_max: form.keepaliveCountMax,
+      }
+      try {
+        await invoke("save_profile", { profile })
+      } catch (e) {
+        console.error("Failed to auto-save profile:", e)
+      }
+    }
 
     const connection: Omit<Tab, "id" | "isActive"> = {
-      title: form.title || getDefaultTitle(form.type, form),
+      title,
       type: form.type,
       isModified: false,
     }
 
-    if (form.type !== "terminal") {
+    if (form.type === "ssh") {
       connection.connection = {
         type: form.type,
-        profileName: form.type === "ssh" ? form.title.trim() || undefined : undefined,
+        profileName: title,
         host: form.host,
         port: form.port,
         username: form.username,
-        password: form.type === "ssh" && form.authMethod === "password" ? form.password : undefined,
-        rememberPassword:
-          form.type === "ssh" && form.authMethod === "password" ? form.rememberPassword : undefined,
-        privateKeyPath:
-          form.type === "ssh" && form.authMethod === "key" ? form.privateKeyPath : undefined,
-        privateKeyPassphrase:
-          form.type === "ssh" && form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
+        password: form.authMethod === "password" ? form.password : undefined,
+        rememberPassword: form.authMethod === "password" ? form.rememberPassword : undefined,
+        privateKeyPath: form.authMethod === "key" ? form.privateKeyPath : undefined,
+        privateKeyPassphrase: form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
         reconnect: form.reconnect,
         reconnectDelaySecs: form.reconnectDelaySecs,
         reconnectMaxDelaySecs: form.reconnectMaxDelaySecs,
@@ -196,12 +199,8 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
         keepaliveIntervalSecs: form.keepaliveIntervalSecs,
         keepaliveCountMax: form.keepaliveCountMax,
       }
-    }
-
-    if (form.type === "terminal") {
-      connection.connection = {
-        type: "terminal",
-      }
+    } else {
+      connection.connection = { type: "terminal" }
     }
 
     onConnect(connection)
@@ -210,18 +209,26 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
   }
 
   const isSsh = form.type === "ssh"
-  const isRemote = form.type !== "terminal" && form.type !== "serial"
+  const isRemote = form.type !== "terminal"
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
+    >
+      <DialogContent
+        className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-md"
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>
             {editProfile ? t("profiles.editTitle") : t("connection.newConnection")}
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto px-1">
           <div>
             <Label className="mb-2 block">{t("connection.type")}</Label>
             <div className="grid grid-cols-2 gap-2">
@@ -254,9 +261,13 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
             <Input
               id="conn-title"
               value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, title: e.target.value }))
+                setNameError(null)
+              }}
               placeholder={getDefaultTitle(form.type, form)}
             />
+            {nameError && <p className="text-destructive mt-1 text-xs">{nameError}</p>}
           </div>
 
           {isSsh && (
@@ -326,6 +337,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
                     value={form.host}
                     onChange={(e) => setForm((f) => ({ ...f, host: e.target.value }))}
                     placeholder="hostname or IP"
+                    required
                   />
                 </div>
                 <div>
@@ -434,7 +446,6 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
                         onClick={async () => {
                           const selected = await openFileDialog({
                             multiple: false,
-                            filters: [{ name: "All Files", extensions: ["*"] }],
                           }).catch(() => null)
                           if (selected && typeof selected === "string") {
                             setForm((f) => ({ ...f, privateKeyPath: selected }))
@@ -468,16 +479,6 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
             <Button type="button" variant="ghost" onClick={onClose}>
               {t("connection.cancel")}
             </Button>
-            {isSsh && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleSaveProfile}
-                disabled={saveStatus === "saving" || !form.host.trim()}
-              >
-                {saveStatus === "saved" ? t("profiles.saveSuccess") : t("profiles.save")}
-              </Button>
-            )}
             <Button type="submit">{t("connection.connect")}</Button>
           </DialogFooter>
         </form>

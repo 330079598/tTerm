@@ -14,9 +14,7 @@
     "newTab": "New tab",
     "closeTab": "Close tab",
     "terminal": "Terminal",
-    "ssh": "SSH",
-    "sftp": "SFTP",
-    "serial": "Serial"
+    "ssh": "SSH"
   },
   "contextMenu": {
     "newTab": "New Tab",
@@ -63,7 +61,8 @@
     "deleteConfirm": "Delete this connection?",
     "editTitle": "Edit Connection",
     "newConnection": "New Connection",
-    "ungrouped": "Ungrouped"
+    "ungrouped": "Ungrouped",
+    "duplicateName": "A connection with this name already exists in this group"
   },
   "connection": {
     "newConnection": "New Connection",
@@ -80,10 +79,8 @@
     "cancel": "Cancel",
     "connect": "Connect",
     "types": {
-      "terminal": "Local Terminal",
-      "ssh": "SSH Connection",
-      "sftp": "SFTP Browser",
-      "serial": "Serial Port"
+      "terminal": "OS terminal",
+      "ssh": "SSH Connection"
     }
   },
   "rename": {
@@ -106,7 +103,7 @@
   "tabContent": {
     "type": "Type",
     "hint": "This is where the {{type}} interface will be rendered.",
-    "implementation": "You can implement your own terminal/SSH/SFTP component here."
+    "implementation": "You can implement your own terminal/SSH component here."
   },
   "ssh": {
     "hostKeyMismatch": "Host key mismatch detected",

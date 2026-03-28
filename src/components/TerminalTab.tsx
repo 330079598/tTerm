@@ -14,7 +14,7 @@ interface TerminalTabProps {
   tabId: string
   isActive: boolean
   connection?: {
-    type?: "terminal" | "ssh" | "sftp" | "serial"
+    type?: "terminal" | "ssh"
     profileName?: string
     host?: string
     port?: number

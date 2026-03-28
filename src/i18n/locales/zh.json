@@ -14,9 +14,7 @@
     "newTab": "新建标签页",
     "closeTab": "关闭标签页",
     "terminal": "终端",
-    "ssh": "SSH",
-    "sftp": "SFTP",
-    "serial": "串口"
+    "ssh": "SSH"
   },
   "contextMenu": {
     "newTab": "新建标签页",
@@ -63,7 +61,8 @@
     "deleteConfirm": "确定删除此连接？",
     "editTitle": "编辑连接",
     "newConnection": "新建连接",
-    "ungrouped": "未分组"
+    "ungrouped": "未分组",
+    "duplicateName": "该分组下已存在同名连接"
   },
   "connection": {
     "newConnection": "新建连接",
@@ -80,10 +79,8 @@
     "cancel": "取消",
     "connect": "连接",
     "types": {
-      "terminal": "本地终端",
-      "ssh": "SSH 连接",
-      "sftp": "SFTP 浏览器",
-      "serial": "串口"
+      "terminal": "OS terminal",
+      "ssh": "SSH 连接"
     }
   },
   "rename": {
@@ -106,7 +103,7 @@
   "tabContent": {
     "type": "类型",
     "hint": "这里将渲染 {{type}} 界面。",
-    "implementation": "您可以在这里实现自己的终端/SSH/SFTP 组件。"
+    "implementation": "您可以在这里实现自己的终端/SSH 组件。"
   },
   "ssh": {
     "hostKeyMismatch": "检测到主机密钥不匹配",

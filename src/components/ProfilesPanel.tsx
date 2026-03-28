@@ -26,6 +26,7 @@ interface SavedProfile {
 interface ProfilesPanelProps {
   onConnect: (connection: Omit<Tab, "id" | "isActive">) => void
   onEdit: (profile: SavedProfile) => void
+  refreshKey?: number
 }
 
 export type { SavedProfile }
@@ -116,7 +117,7 @@ const ProfileRow: React.FC<{
   </div>
 )
 
-export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({ onConnect, onEdit }) => {
+export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({ onConnect, onEdit, refreshKey }) => {
   const { t } = useTranslation()
   const [profiles, setProfiles] = useState<SavedProfile[]>([])
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
@@ -129,7 +130,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({ onConnect, onEdit 
       .catch((e) => {
         console.error("Failed to load profiles:", e)
       })
-  }, [])
+  }, [refreshKey])
 
   const handleDelete = async (id: string) => {
     if (!confirm(t("profiles.deleteConfirm"))) return
@@ -210,7 +211,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({ onConnect, onEdit 
               fontSize: 12,
               fontWeight: 600,
               color: "hsl(var(--muted-foreground))",
-              textTransform: "uppercase",
+              textTransform: "none",
               letterSpacing: "0.05em",
             }}
             className="hover:text-foreground"

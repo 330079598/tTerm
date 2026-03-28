@@ -37,6 +37,7 @@ export const TTermApp: React.FC = () => {
   const [showLanguageSwitcher, setShowLanguageSwitcher] = useState(false)
   const [showFontSettings, setShowFontSettings] = useState(false)
   const [editingProfile, setEditingProfile] = useState<SavedProfile | null>(null)
+  const [profilesRefreshKey, setProfilesRefreshKey] = useState(0)
   const [renameDialogState, setRenameDialogState] = useState<{
     isOpen: boolean
     tabId: string | null
@@ -268,6 +269,7 @@ export const TTermApp: React.FC = () => {
           </button>
           <div style={{ marginTop: "32px", width: "100%", maxWidth: 480 }}>
             <ProfilesPanel
+              refreshKey={profilesRefreshKey}
               onConnect={(conn) => {
                 handleConnect(conn)
               }}
@@ -295,44 +297,24 @@ export const TTermApp: React.FC = () => {
               flexDirection: "column",
             }}
           >
-            {tab.type === "terminal" || tab.type === "ssh" ? (
-              <TerminalTab
-                tabId={tab.id}
-                isActive={tab.id === activeTabId}
-                connection={tab.connection ?? { type: tab.type }}
-                onReconnectRequest={() => {
-                  cleanupConnection(tab.id)
-                  // re-open the same connection by re-using its connection config
-                  if (tab.connection) {
-                    addTab({
-                      title: tab.title,
-                      type: tab.type,
-                      isModified: false,
-                      connection: tab.connection,
-                    })
-                    removeTab(tab.id)
-                  }
-                }}
-              />
-            ) : (
-              <div className="tab-content-placeholder">
-                <div className="tab-info">
-                  <h3>{tab.title}</h3>
-                  <p>
-                    {t("tabContent.type")}: {tab.type.toUpperCase()}
-                  </p>
-                  {tab.connection && (
-                    <p>
-                      {tab.connection.host}:{tab.connection.port}
-                      {tab.connection.username && ` (${tab.connection.username})`}
-                    </p>
-                  )}
-                </div>
-                <div className="tab-hint">
-                  <p>{t("tabContent.hint", { type: tab.type })}</p>
-                </div>
-              </div>
-            )}
+            <TerminalTab
+              tabId={tab.id}
+              isActive={tab.id === activeTabId}
+              connection={tab.connection ?? { type: tab.type }}
+              onReconnectRequest={() => {
+                cleanupConnection(tab.id)
+                // re-open the same connection by re-using its connection config
+                if (tab.connection) {
+                  addTab({
+                    title: tab.title,
+                    type: tab.type,
+                    isModified: false,
+                    connection: tab.connection,
+                  })
+                  removeTab(tab.id)
+                }
+              }}
+            />
           </div>
         ))}
       </>
@@ -397,6 +379,7 @@ export const TTermApp: React.FC = () => {
           onClose={() => {
             setShowConnectionDialog(false)
             setEditingProfile(null)
+            setProfilesRefreshKey((k) => k + 1)
           }}
           onConnect={handleConnect}
           editProfile={editingProfile}
@@ -431,6 +414,7 @@ export const TTermApp: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <ProfilesPanel
+              refreshKey={profilesRefreshKey}
               onConnect={(conn) => {
                 handleConnect(conn)
                 setShowProfilesPanel(false)
