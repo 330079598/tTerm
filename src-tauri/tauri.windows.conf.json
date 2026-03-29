@@ -1,0 +1,10 @@
+{
+  "identifier": "com.stone.tTerm",
+  "app": {
+    "windows": [
+      {
+        "decorations": false
+      }
+    ]
+  }
+}
