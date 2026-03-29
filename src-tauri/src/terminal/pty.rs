@@ -43,7 +43,7 @@ pub fn build_terminal_command() -> CommandBuilder {
 
     #[cfg(not(target_os = "windows"))]
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/".to_string());
+    let home = resolve_home_dir();
 
     let mut cmd = CommandBuilder::new(&shell);
     cmd.env("TERM", "xterm-256color");
@@ -51,6 +51,46 @@ pub fn build_terminal_command() -> CommandBuilder {
     cmd.env("LANG", "en_US.UTF-8");
     cmd.cwd(&home);
     cmd
+}
+
+fn resolve_home_dir() -> String {
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(userprofile) = std::env::var("USERPROFILE") {
+            let userprofile = userprofile.trim();
+            if !userprofile.is_empty() {
+                return userprofile.to_string();
+            }
+        }
+
+        if let (Ok(home_drive), Ok(home_path)) =
+            (std::env::var("HOMEDRIVE"), std::env::var("HOMEPATH"))
+        {
+            let home_drive = home_drive.trim();
+            let home_path = home_path.trim();
+            if !home_drive.is_empty() && !home_path.is_empty() {
+                return format!("{}{}", home_drive, home_path);
+            }
+        }
+
+        if let Ok(home) = std::env::var("HOME") {
+            let home = home.trim();
+            if !home.is_empty() {
+                return home.to_string();
+            }
+        }
+
+        return "C:\\".to_string();
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::env::var("HOME")
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| "/".to_string())
+    }
 }
 
 pub fn spawn_local_pty(
