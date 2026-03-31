@@ -37,7 +37,7 @@ pub fn create_pty(
 
     let (pid, initial_active) = match plan.kind {
         crate::core::SessionKind::Terminal => {
-            let (pid, pty) = terminal::spawn_local_pty(rows, cols)?;
+            let (pid, pty) = terminal::spawn_local_pty(rows, cols, plan.terminal_shell.clone())?;
 
             let reader = pty
                 .master
@@ -239,3 +239,4 @@ pub fn respond_ssh_host_key_prompt(
         .send(trust)
         .map_err(|_| "Host key prompt receiver is gone".to_string())
 }
+

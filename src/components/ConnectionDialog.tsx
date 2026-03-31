@@ -2,7 +2,7 @@ import "@/components/ConnectionDialog.css"
 import React, { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { Terminal, Server } from "lucide-react"
-import { Tab } from "@/types/tab"
+import { Tab, TerminalShellType } from "@/types/tab"
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils"
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog"
 import { invoke } from "@tauri-apps/api/core"
 import { SavedProfile } from "@/components/ProfilesPanel"
+import { useConfig } from "@/contexts/ConfigContext"
 
 interface ConnectionDialogProps {
   isOpen: boolean
@@ -46,6 +47,9 @@ interface ConnectionForm {
   reconnectMaxRetries: number
   keepaliveIntervalSecs: number
   keepaliveCountMax: number
+  terminalShell: TerminalShellType
+  terminalShellCustomPath: string
+  terminalShellCustomArgs: string
 }
 
 const defaultForm: ConnectionForm = {
@@ -66,6 +70,9 @@ const defaultForm: ConnectionForm = {
   reconnectMaxRetries: 8,
   keepaliveIntervalSecs: 15,
   keepaliveCountMax: 3,
+  terminalShell: "auto",
+  terminalShellCustomPath: "",
+  terminalShellCustomArgs: "",
 }
 
 const connectionTypes = [
@@ -113,12 +120,29 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
   editProfile,
 }) => {
   const { t } = useTranslation()
+  const { config, saveConfig } = useConfig()
   const [form, setForm] = useState<ConnectionForm>(() => buildFormFromProfile(editProfile))
   const [existingGroups, setExistingGroups] = useState<string[]>([])
   const [showGroupDropdown, setShowGroupDropdown] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
 
   const [allProfiles, setAllProfiles] = useState<SavedProfile[]>([])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    const base = buildFormFromProfile(editProfile)
+    if (!editProfile || base.type === "terminal") {
+      base.terminalShell = config.terminal_shell
+      base.terminalShellCustomPath = config.terminal_shell_custom_path
+      base.terminalShellCustomArgs = config.terminal_shell_custom_args
+    }
+
+    setForm(base)
+    setNameError(null)
+  }, [isOpen, editProfile, config])
 
   // Load existing profiles for group autocomplete and duplicate checking
   useEffect(() => {
@@ -200,7 +224,26 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
         keepaliveCountMax: form.keepaliveCountMax,
       }
     } else {
-      connection.connection = { type: "terminal" }
+      connection.connection = {
+        type: "terminal",
+        terminalShell: form.terminalShell,
+        terminalShellCustomPath:
+          form.terminalShell === "custom" ? form.terminalShellCustomPath.trim() : undefined,
+        terminalShellCustomArgs:
+          form.terminalShell === "custom" ? form.terminalShellCustomArgs.trim() : undefined,
+      }
+
+      try {
+        await saveConfig({
+          terminal_shell: form.terminalShell,
+          terminal_shell_custom_path:
+            form.terminalShell === "custom" ? form.terminalShellCustomPath.trim() : "",
+          terminal_shell_custom_args:
+            form.terminalShell === "custom" ? form.terminalShellCustomArgs.trim() : "",
+        })
+      } catch (error) {
+        console.error("Failed to save terminal shell defaults:", error)
+      }
     }
 
     onConnect(connection)
@@ -209,6 +252,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
   }
 
   const isSsh = form.type === "ssh"
+  const isTerminal = form.type === "terminal"
   const isRemote = form.type !== "terminal"
 
   return (
@@ -269,6 +313,67 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
             />
             {nameError && <p className="text-destructive mt-1 text-xs">{nameError}</p>}
           </div>
+
+          {isTerminal && (
+            <>
+              <div>
+                <Label htmlFor="conn-terminal-shell" className="mb-1.5 block">
+                  {t("connection.terminalShell")}
+                </Label>
+                <select
+                  id="conn-terminal-shell"
+                  className="border-input bg-background h-9 w-full rounded-md border px-3 py-1 text-sm"
+                  value={form.terminalShell}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      terminalShell: e.target.value as TerminalShellType,
+                    }))
+                  }
+                >
+                  <option value="auto">{t("connection.terminalShellOptions.auto")}</option>
+                  <option value="cmd">{t("connection.terminalShellOptions.cmd")}</option>
+                  <option value="powershell">
+                    {t("connection.terminalShellOptions.powershell")}
+                  </option>
+                  <option value="pwsh">{t("connection.terminalShellOptions.pwsh")}</option>
+                  <option value="custom">{t("connection.terminalShellOptions.custom")}</option>
+                </select>
+              </div>
+
+              {form.terminalShell === "custom" && (
+                <>
+                  <div>
+                    <Label htmlFor="conn-terminal-shell-path" className="mb-1.5 block">
+                      {t("connection.terminalShellCustomPath")}
+                    </Label>
+                    <Input
+                      id="conn-terminal-shell-path"
+                      value={form.terminalShellCustomPath}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, terminalShellCustomPath: e.target.value }))
+                      }
+                      placeholder="C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="conn-terminal-shell-args" className="mb-1.5 block">
+                      {t("connection.terminalShellCustomArgs")}
+                    </Label>
+                    <Input
+                      id="conn-terminal-shell-args"
+                      value={form.terminalShellCustomArgs}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, terminalShellCustomArgs: e.target.value }))
+                      }
+                      placeholder="-NoLogo"
+                    />
+                  </div>
+                </>
+              )}
+            </>
+          )}
 
           {isSsh && (
             <div style={{ position: "relative" }}>

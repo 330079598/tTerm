@@ -81,6 +81,16 @@
     "types": {
       "terminal": "OS terminal",
       "ssh": "SSH Connection"
+    },
+    "terminalShell": "Terminal shell",
+    "terminalShellCustomPath": "Custom shell path",
+    "terminalShellCustomArgs": "Custom shell args",
+    "terminalShellOptions": {
+      "auto": "Auto (recommended)",
+      "cmd": "Command Prompt (cmd)",
+      "powershell": "Windows PowerShell",
+      "pwsh": "PowerShell 7 (pwsh)",
+      "custom": "Custom executable"
     }
   },
   "rename": {

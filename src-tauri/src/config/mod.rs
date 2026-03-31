@@ -13,6 +13,12 @@ pub struct AppConfig {
     pub font_family: String,
     #[serde(default = "default_font_size")]
     pub font_size: u16,
+    #[serde(default = "default_terminal_shell")]
+    pub terminal_shell: String,
+    #[serde(default)]
+    pub terminal_shell_custom_path: String,
+    #[serde(default)]
+    pub terminal_shell_custom_args: String,
 }
 
 fn default_font_family() -> String {
@@ -28,6 +34,10 @@ fn default_font_size() -> u16 {
     14
 }
 
+fn default_terminal_shell() -> String {
+    "auto".to_string()
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -35,6 +45,9 @@ impl Default for AppConfig {
             language: "en".to_string(),
             font_family: default_font_family(),
             font_size: default_font_size(),
+            terminal_shell: default_terminal_shell(),
+            terminal_shell_custom_path: String::new(),
+            terminal_shell_custom_args: String::new(),
         }
     }
 }

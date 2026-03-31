@@ -37,20 +37,107 @@ pub fn spawn_reader_thread(
     });
 }
 
-pub fn build_terminal_command() -> CommandBuilder {
+pub fn build_terminal_command(
+    shell_config: Option<crate::core::session::TerminalShellConfig>,
+) -> Result<CommandBuilder, String> {
     #[cfg(target_os = "windows")]
-    let shell = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
+    let mut cmd = {
+        let config = shell_config.unwrap_or(crate::core::session::TerminalShellConfig {
+            shell: "auto".to_string(),
+            custom_path: None,
+            custom_args: None,
+        });
+
+        build_windows_command(config)?
+    };
 
     #[cfg(not(target_os = "windows"))]
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
-    let home = resolve_home_dir();
+    let mut cmd = {
+        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+        CommandBuilder::new(&shell)
+    };
 
-    let mut cmd = CommandBuilder::new(&shell);
+    let home = resolve_home_dir();
     cmd.env("TERM", "xterm-256color");
     cmd.env("HOME", &home);
     cmd.env("LANG", "en_US.UTF-8");
     cmd.cwd(&home);
-    cmd
+    Ok(cmd)
+}
+
+#[cfg(target_os = "windows")]
+fn build_windows_command(
+    config: crate::core::session::TerminalShellConfig,
+) -> Result<CommandBuilder, String> {
+    let shell = config.shell.trim().to_ascii_lowercase();
+
+    let (program, args): (String, Vec<String>) = match shell.as_str() {
+        "cmd" => ("cmd.exe".to_string(), Vec::new()),
+        "powershell" => (
+            "powershell.exe".to_string(),
+            vec!["-NoLogo".to_string()],
+        ),
+        "pwsh" => ("pwsh.exe".to_string(), vec!["-NoLogo".to_string()]),
+        "custom" => {
+            let path = config
+                .custom_path
+                .as_ref()
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+                .ok_or_else(|| "Terminal shell is set to custom but no custom path was provided".to_string())?;
+
+            let args = config
+                .custom_args
+                .as_ref()
+                .map(|value| value.split_whitespace().map(|s| s.to_string()).collect())
+                .unwrap_or_default();
+
+            (path, args)
+        }
+        _ => resolve_windows_auto_shell(),
+    };
+
+    let mut cmd = CommandBuilder::new(&program);
+    if !args.is_empty() {
+        cmd.args(args);
+    }
+    Ok(cmd)
+}
+
+#[cfg(target_os = "windows")]
+fn resolve_windows_auto_shell() -> (String, Vec<String>) {
+    if let Ok(comspec) = std::env::var("COMSPEC") {
+        let trimmed = comspec.trim();
+        if !trimmed.is_empty() {
+            return (trimmed.to_string(), Vec::new());
+        }
+    }
+
+    if command_exists_on_path("pwsh.exe") {
+        return ("pwsh.exe".to_string(), vec!["-NoLogo".to_string()]);
+    }
+
+    if command_exists_on_path("powershell.exe") {
+        return ("powershell.exe".to_string(), vec!["-NoLogo".to_string()]);
+    }
+
+    ("cmd.exe".to_string(), Vec::new())
+}
+
+#[cfg(target_os = "windows")]
+fn command_exists_on_path(executable: &str) -> bool {
+    let path_var = std::env::var_os("PATH");
+    let Some(path_var) = path_var else {
+        return false;
+    };
+
+    for dir in std::env::split_paths(&path_var) {
+        if dir.join(executable).exists() {
+            return true;
+        }
+    }
+
+    false
 }
 
 fn resolve_home_dir() -> String {
@@ -96,6 +183,7 @@ fn resolve_home_dir() -> String {
 pub fn spawn_local_pty(
     rows: u16,
     cols: u16,
+    shell_config: Option<crate::core::session::TerminalShellConfig>,
 ) -> Result<(u32, ActivePty), String> {
     let pty_system = portable_pty::native_pty_system();
     let pair = pty_system
@@ -107,7 +195,7 @@ pub fn spawn_local_pty(
         })
         .map_err(|e| format!("Failed to open PTY: {}", e))?;
 
-    let cmd = build_terminal_command();
+    let cmd = build_terminal_command(shell_config)?;
     let child = pair
         .slave
         .spawn_command(cmd)

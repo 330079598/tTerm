@@ -18,6 +18,8 @@ export interface SavedProfile {
   keepalive_count_max: number
 }
 
+export type TerminalShellType = "auto" | "cmd" | "powershell" | "pwsh" | "custom"
+
 export interface Tab {
   id: string
   title: string
@@ -42,6 +44,9 @@ export interface Tab {
     keepaliveCountMax?: number
     privateKeyPath?: string
     privateKeyPassphrase?: string
+    terminalShell?: TerminalShellType
+    terminalShellCustomPath?: string
+    terminalShellCustomArgs?: string
   }
 }
 
