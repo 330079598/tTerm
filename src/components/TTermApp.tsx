@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next"
 import { platform } from "@tauri-apps/plugin-os"
 import { Plus, Settings, BookMarked } from "lucide-react"
 import { ContextMenu } from "@/components/ContextMenu"
-import { WindowControls } from "@/components/WindowControls"
 import { ConnectionDialog } from "@/components/ConnectionDialog"
 import { RenameDialog } from "@/components/RenameDialog"
 import { ThemeSwitcher } from "@/components/ThemeSwitcher"
@@ -233,6 +232,10 @@ export const TTermApp: React.FC = () => {
     })
   }, [])
 
+  // Reserve space for native frame buttons on Windows/Linux.
+  // Keep this in sync with tauri-plugin-frame `button_width(46)` and 3 controls.
+  const nativeControlsReservePx = os === "macos" ? 0 : 46 * 3
+
   // Handle settings button click
   const handleSettingsClick = useCallback(() => {
     const actions: TabContextMenuAction[] = [
@@ -324,7 +327,7 @@ export const TTermApp: React.FC = () => {
   return (
     <div className={`app ${os === "macos" ? "macos" : ""}`}>
       {/* Combined Title Bar and Tab Bar */}
-      <div className="title-bar" data-tauri-drag-region>
+      <div className="title-bar">
         <div className="title-bar-left">
           {/* Tab Bar integrated into title bar */}
           <div className="tab-list-container">
@@ -356,7 +359,7 @@ export const TTermApp: React.FC = () => {
         <div className="drag-space" data-tauri-drag-region></div>
 
         {/* Settings and window controls */}
-        <div className="title-bar-right">
+        <div className="title-bar-right" style={{ paddingRight: `${nativeControlsReservePx}px` }}>
           <button
             ref={settingsButtonRef}
             className="tab-action settings-button"
@@ -365,7 +368,6 @@ export const TTermApp: React.FC = () => {
           >
             <Settings size={16} />
           </button>
-          <WindowControls />
         </div>
       </div>
 

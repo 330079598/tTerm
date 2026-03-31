@@ -8,8 +8,8 @@ mod terminal;
 
 use core::PtyMap;
 use std::sync::Arc;
+use tauri_plugin_frame::FramePluginBuilder;
 use tokio::sync::RwLock;
-
 pub struct TokioRuntimeState {
     pub runtime: tokio::runtime::Runtime,
 }
@@ -17,7 +17,8 @@ pub struct TokioRuntimeState {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let pty_map: PtyMap = Arc::new(RwLock::new(std::collections::HashMap::new()));
-    let host_prompt_map: core::HostPromptMap = Arc::new(RwLock::new(std::collections::HashMap::new()));
+    let host_prompt_map: core::HostPromptMap =
+        Arc::new(RwLock::new(std::collections::HashMap::new()));
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
@@ -28,6 +29,22 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(
+            FramePluginBuilder::new()
+                // Titlebar height in pixels
+                .titlebar_height(32)
+                // Button width in pixels
+                .button_width(46)
+                // Automatically apply titlebar to all windows
+                .auto_titlebar(true)
+                // Delay before pressing Alt to hide snap overlay numbers (ms)
+                .snap_overlay_delay_ms(15)
+                // Close button hover background color
+                .close_hover_bg("rgba(196,43,28,1)")
+                // Other buttons hover background color
+                .button_hover_bg("rgba(255,255,255,0.1)")
+                .build(),
+        )
         .manage(pty_map)
         .manage(host_prompt_map)
         .manage(TokioRuntimeState { runtime })

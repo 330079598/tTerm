@@ -7,7 +7,7 @@
 
 /* Title bar */
 .title-bar {
-  height: 36px;
+  height: 32px;
   background-color: hsl(var(--titlebar));
   border-bottom: 1px solid hsl(var(--border));
   display: flex;
@@ -15,7 +15,7 @@
   justify-content: space-between;
   padding: 0;
   user-select: none;
-  -webkit-app-region: drag;
+  -webkit-app-region: no-drag;
 }
 
 .title-bar-left {
@@ -25,6 +25,7 @@
   overflow: hidden;
   flex-shrink: 1;
   min-width: 0;
+  -webkit-app-region: no-drag;
 }
 
 .title-bar-right {
@@ -32,6 +33,7 @@
   align-items: center;
   height: 100%;
   flex-shrink: 0;
+  -webkit-app-region: no-drag;
 }
 
 .drag-space {
@@ -39,6 +41,22 @@
   min-width: 10%;
   height: 100%;
   -webkit-app-region: drag;
+}
+
+/* tauri-plugin-frame injects a fixed full-width overlay at the top.
+   Keep only native window controls interactive so app header buttons remain clickable. */
+[data-tauri-frame-tb] {
+  pointer-events: none;
+}
+
+[data-tauri-frame-tb] [data-tauri-drag-region] {
+  pointer-events: none;
+}
+
+#frame-tb-minimize,
+#frame-tb-maximize,
+#frame-tb-close {
+  pointer-events: auto;
 }
 
 /* Content area */
@@ -59,10 +77,6 @@
 
 .macos .tab-list-container {
   padding-left: 80px;
-}
-
-.macos .window-controls {
-  display: none;
 }
 
 .macos .settings-button {
