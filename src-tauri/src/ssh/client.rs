@@ -302,6 +302,7 @@ pub async fn run_single_ssh_connection(
 
     let (mut reader, writer) = channel.split();
     let mut writer_stream = writer.make_writer();
+    let mut ssh_query_pending = Vec::new();
 
     loop {
         tokio::select! {
@@ -345,6 +346,7 @@ pub async fn run_single_ssh_connection(
                         // This is critical for SSH connections where vim waits for responses
                         let processed = crate::terminal::process_ssh_output_for_ui(
                             data.as_ref(),
+                            &mut ssh_query_pending,
                             &mut writer_stream,
                         ).await;
                         
@@ -354,8 +356,9 @@ pub async fn run_single_ssh_connection(
                                     emit_pty_output(&app, &tab_id, text);
                                 }
                             }
-                            Err(_) => {
+                            Err(e) => {
                                 // Fallback: send raw data if processing fails
+                                eprintln!("SSH output processing failed: {}", e);
                                 let text = String::from_utf8_lossy(data.as_ref()).to_string();
                                 emit_pty_output(&app, &tab_id, text);
                             }
