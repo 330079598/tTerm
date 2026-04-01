@@ -341,8 +341,25 @@ pub async fn run_single_ssh_connection(
             event = reader.wait() => {
                 match event {
                     Some(ChannelMsg::Data { data }) => {
-                        let text = String::from_utf8_lossy(data.as_ref()).to_string();
-                        emit_pty_output(&app, &tab_id, text);
+                        // Process terminal queries (vim t_u7, t_RV, etc.) before forwarding to UI
+                        // This is critical for SSH connections where vim waits for responses
+                        let processed = crate::terminal::process_ssh_output_for_ui(
+                            data.as_ref(),
+                            &mut writer_stream,
+                        ).await;
+                        
+                        match processed {
+                            Ok(text) => {
+                                if !text.is_empty() {
+                                    emit_pty_output(&app, &tab_id, text);
+                                }
+                            }
+                            Err(_) => {
+                                // Fallback: send raw data if processing fails
+                                let text = String::from_utf8_lossy(data.as_ref()).to_string();
+                                emit_pty_output(&app, &tab_id, text);
+                            }
+                        }
                     }
                     Some(ChannelMsg::ExtendedData { data, .. }) => {
                         let text = String::from_utf8_lossy(data.as_ref()).to_string();
