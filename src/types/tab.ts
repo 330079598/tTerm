@@ -5,11 +5,9 @@ export interface SavedProfile {
   host?: string
   port?: number
   username?: string
-  password?: string
   remember_password: boolean
   auth_method?: string
   private_key_path?: string
-  private_key_passphrase?: string
   reconnect: boolean
   reconnect_delay_secs: number
   reconnect_max_delay_secs: number

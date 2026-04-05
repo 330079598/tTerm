@@ -30,3 +30,9 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"
 russh = { version = "0.58", default-features = false, features = ["ring"] }
 async-trait = "0.1"
 tauri-plugin-frame = "1.1.6"
+aes-gcm = "0.10"
+argon2 = "0.5"
+base64 = "0.22"
+keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "sync-secret-service"] }
+rand = "0.8"
+zeroize = "1"

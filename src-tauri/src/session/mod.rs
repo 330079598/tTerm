@@ -19,6 +19,34 @@ impl Default for SessionData {
     }
 }
 
+// Re-sanitize session payloads on the backend so no caller can persist raw secrets.
+fn sanitize_session_tabs(tabs: serde_json::Value) -> serde_json::Value {
+    match tabs {
+        serde_json::Value::Array(entries) => serde_json::Value::Array(
+            entries
+                .into_iter()
+                .map(sanitize_session_tab)
+                .filter(|tab| !tab.is_null())
+                .collect(),
+        ),
+        _ => serde_json::json!([]),
+    }
+}
+
+fn sanitize_session_tab(tab: serde_json::Value) -> serde_json::Value {
+    let mut tab = match tab {
+        serde_json::Value::Object(map) => map,
+        _ => return serde_json::Value::Null,
+    };
+
+    if let Some(serde_json::Value::Object(connection)) = tab.get_mut("connection") {
+        connection.remove("password");
+        connection.remove("privateKeyPassphrase");
+    }
+
+    serde_json::Value::Object(tab)
+}
+
 #[tauri::command]
 pub fn load_session() -> Result<SessionData, String> {
     let config_dir = get_config_path()?;
@@ -28,13 +56,19 @@ pub fn load_session() -> Result<SessionData, String> {
     }
     let content = fs::read_to_string(&session_file)
         .map_err(|e| format!("Failed to read session file: {}", e))?;
-    serde_json::from_str(&content).map_err(|e| format!("Failed to parse session: {}", e))
+    let mut session =
+        serde_json::from_str::<SessionData>(&content).map_err(|e| format!("Failed to parse session: {}", e))?;
+    // Clean older session files as they are loaded so stale plaintext secrets are dropped immediately.
+    session.tabs = sanitize_session_tabs(session.tabs);
+    Ok(session)
 }
 
 #[tauri::command]
-pub fn save_session(session: SessionData) -> Result<(), String> {
+pub fn save_session(mut session: SessionData) -> Result<(), String> {
     let config_dir = crate::config::ensure_config_dir()?;
     let session_file = config_dir.join("session.json");
+    // Keep a backend-side guard even if the frontend payload changes in the future.
+    session.tabs = sanitize_session_tabs(session.tabs);
     let content = serde_json::to_string_pretty(&session)
         .map_err(|e| format!("Failed to serialize session: {}", e))?;
     fs::write(&session_file, content).map_err(|e| format!("Failed to write session file: {}", e))
@@ -50,3 +84,5 @@ pub fn clear_session() -> Result<(), String> {
     }
     Ok(())
 }
+
+

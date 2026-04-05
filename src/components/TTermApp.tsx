@@ -10,6 +10,7 @@ import { RenameDialog } from "@/components/RenameDialog"
 import { ThemeSwitcher } from "@/components/ThemeSwitcher"
 import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 import { FontSettings } from "@/components/FontSettings"
+import { SecretStorageSettings } from "@/components/SecretStorageSettings"
 import { TabBar } from "@/components/TabBar"
 import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
 import { useTabs } from "@/hooks/useTabs"
@@ -35,6 +36,7 @@ export const TTermApp: React.FC = () => {
   const [showThemeSwitcher, setShowThemeSwitcher] = useState(false)
   const [showLanguageSwitcher, setShowLanguageSwitcher] = useState(false)
   const [showFontSettings, setShowFontSettings] = useState(false)
+  const [showSecretStorageSettings, setShowSecretStorageSettings] = useState(false)
   const [editingProfile, setEditingProfile] = useState<SavedProfile | null>(null)
   const [profilesRefreshKey, setProfilesRefreshKey] = useState(0)
   const [renameDialogState, setRenameDialogState] = useState<{
@@ -154,6 +156,9 @@ export const TTermApp: React.FC = () => {
           case "font-settings":
             setShowFontSettings(true)
             break
+          case "secret-storage":
+            setShowSecretStorageSettings(true)
+            break
           case "clear-session":
             await clearSession()
             // Reload page to reset state
@@ -242,6 +247,7 @@ export const TTermApp: React.FC = () => {
       { label: t("settings.changeTheme"), action: "change-theme", icon: "palette" },
       { label: t("settings.changeLanguage"), action: "change-language", icon: "languages" },
       { label: t("settings.fontSettings"), action: "font-settings", icon: "type" },
+      { label: t("settings.secretStorage"), action: "secret-storage", icon: "shield" },
       { separator: true, label: "", action: "" },
       { label: t("settings.clearSession"), action: "clear-session", icon: "x" },
       { separator: true, label: "", action: "" },
@@ -447,6 +453,11 @@ export const TTermApp: React.FC = () => {
 
       {/* Font Settings */}
       {showFontSettings && <FontSettings onClose={() => setShowFontSettings(false)} />}
+
+      {/* Secret Storage Settings */}
+      {showSecretStorageSettings && (
+        <SecretStorageSettings onClose={() => setShowSecretStorageSettings(false)} />
+      )}
 
       {/* Language Switcher */}
       {showLanguageSwitcher && <LanguageSwitcher onClose={() => setShowLanguageSwitcher(false)} />}

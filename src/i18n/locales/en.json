@@ -30,7 +30,8 @@
     "changeLanguage": "Change Language",
     "fontSettings": "Font Settings",
     "clearSession": "Clear Session Data",
-    "about": "About TTerm"
+    "about": "About TTerm",
+    "secretStorage": "Secret Storage"
   },
   "theme": {
     "title": "Choose Theme",
@@ -132,5 +133,24 @@
     "privateKeyPath": "Private Key Path",
     "privateKeyPassphrase": "Passphrase (optional)",
     "browseKey": "Browse"
+  },
+  "secretStorage": {
+    "title": "Secret Storage",
+    "description": "Prefer the system credential store. If it is unavailable, you can enable and unlock the app vault as a controlled fallback.",
+    "activeBackend": "Active backend",
+    "enableVault": "Enable app vault fallback",
+    "enableVaultDesc": "Only used when the system credential store is unavailable.",
+    "vaultPassword": "Vault password",
+    "vaultPasswordPlaceholder": "Enter a vault password",
+    "unlockVault": "Unlock vault",
+    "lockVault": "Lock vault",
+    "close": "Close",
+    "keyringUnavailable": "System credential store unavailable",
+    "keyringUnavailableDesc": "Passwords can only be persisted after you unlock the app vault.",
+    "backends": {
+      "system": "System keyring",
+      "vault": "App vault",
+      "memory": "Memory only"
+    }
   }
 }

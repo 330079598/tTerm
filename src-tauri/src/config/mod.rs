@@ -19,6 +19,8 @@ pub struct AppConfig {
     pub terminal_shell_custom_path: String,
     #[serde(default)]
     pub terminal_shell_custom_args: String,
+    #[serde(default)]
+    pub secret_vault_enabled: bool,
 }
 
 fn default_font_family() -> String {
@@ -48,14 +50,17 @@ impl Default for AppConfig {
             terminal_shell: default_terminal_shell(),
             terminal_shell_custom_path: String::new(),
             terminal_shell_custom_args: String::new(),
+            secret_vault_enabled: false,
         }
     }
 }
 
-#[tauri::command]
-pub fn load_config() -> Result<AppConfig, String> {
-    let config_dir = get_config_path()?;
-    let config_file = config_dir.join("config.json");
+fn config_file_path() -> Result<std::path::PathBuf, String> {
+    Ok(get_config_path()?.join("config.json"))
+}
+
+pub fn load_config_file() -> Result<AppConfig, String> {
+    let config_file = config_file_path()?;
     if !config_file.exists() {
         return Ok(AppConfig::default());
     }
@@ -64,11 +69,20 @@ pub fn load_config() -> Result<AppConfig, String> {
     serde_json::from_str(&content).map_err(|e| format!("Failed to parse config: {}", e))
 }
 
-#[tauri::command]
-pub fn save_config(config: AppConfig) -> Result<(), String> {
+pub fn save_config_file(config: &AppConfig) -> Result<(), String> {
     let config_dir = ensure_config_dir()?;
     let config_file = config_dir.join("config.json");
-    let content = serde_json::to_string_pretty(&config)
+    let content = serde_json::to_string_pretty(config)
         .map_err(|e| format!("Failed to serialize config: {}", e))?;
     fs::write(&config_file, content).map_err(|e| format!("Failed to write config file: {}", e))
+}
+
+#[tauri::command]
+pub fn load_config() -> Result<AppConfig, String> {
+    load_config_file()
+}
+
+#[tauri::command]
+pub fn save_config(config: AppConfig) -> Result<(), String> {
+    save_config_file(&config)
 }

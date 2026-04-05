@@ -10,6 +10,23 @@ interface SessionData {
 
 const SAVE_DEBOUNCE_MS = 1000 // 1 second debounce
 
+// Strip transient secrets before session data is written or restored.
+function sanitizeTabForPersistence(tab: Tab, activeTabId: string | null): Tab {
+  const connection = tab.connection
+
+  return {
+    ...tab,
+    isActive: tab.id === activeTabId,
+    connection: connection
+      ? {
+          ...connection,
+          password: undefined,
+          privateKeyPassphrase: undefined,
+        }
+      : undefined,
+  }
+}
+
 export function useSessionPersistence() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>()
 
@@ -17,10 +34,8 @@ export function useSessionPersistence() {
   const saveSession = useCallback((tabs: Tab[], activeTabId: string | null) => {
     try {
       const sessionData = {
-        tabs: tabs.map((tab) => ({
-          ...tab,
-          isActive: tab.id === activeTabId,
-        })),
+        // Persist the reconnect metadata, but never the raw credentials.
+        tabs: tabs.map((tab) => sanitizeTabForPersistence(tab, activeTabId)),
         active_tab_id: activeTabId,
         last_saved: Date.now(),
       }
@@ -53,7 +68,9 @@ export function useSessionPersistence() {
 
       // Convert snake_case to camelCase
       return {
-        tabs: session.tabs || [],
+        tabs: (session.tabs || []).map((tab) =>
+          sanitizeTabForPersistence(tab, session.active_tab_id)
+        ),
         activeTabId: session.active_tab_id,
         lastSaved: session.last_saved,
       }

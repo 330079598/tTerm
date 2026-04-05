@@ -205,20 +205,24 @@ pub fn normalize_connection(
     }
 }
 
-pub fn resolve_ssh_password(plan: &mut SessionPlan) -> Result<(), String> {
+pub fn resolve_ssh_password(
+    app: &tauri::AppHandle,
+    secret_state: &crate::ssh::SecretStoreState,
+    plan: &mut SessionPlan,
+) -> Result<(), String> {
     if !matches!(plan.kind, SessionKind::Ssh) {
         return Ok(());
     }
 
-    // If using key auth, no password needed
     if plan.private_key_path.is_some() {
         return Ok(());
     }
 
+    let profile_id = plan.profile_name.clone();
     let password = if let Some(password) = plan.password.clone() {
         password
     } else {
-        crate::ssh::load_password_for_profile(&plan.profile_name)?.ok_or_else(|| {
+        secret_state.get_password(app, &profile_id)?.ok_or_else(|| {
             format!(
                 "No password provided and no saved password found for profile '{}'",
                 plan.profile_name
@@ -227,7 +231,13 @@ pub fn resolve_ssh_password(plan: &mut SessionPlan) -> Result<(), String> {
     };
 
     if plan.remember_password {
-        crate::ssh::save_password_for_profile(&plan.profile_name, &password)?;
+        let location = secret_state.save_password(app, &profile_id, &password)?;
+        if matches!(location, crate::ssh::SecretLocation::Memory) {
+            return Err(
+                "Password persistence is unavailable. Enable the app vault or use a supported system credential store."
+                    .to_string(),
+            );
+        }
     }
 
     plan.password = Some(password);

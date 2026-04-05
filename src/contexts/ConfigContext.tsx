@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { invoke } from "@tauri-apps/api/core"
 
+export interface SecretBackendStatus {
+  activeBackend: "system" | "vault" | "memory"
+  keyringAvailable: boolean
+  strongholdEnabled: boolean
+  strongholdUnlocked: boolean
+  persistenceAvailable: boolean
+  message?: string | null
+}
+
 export interface AppConfig {
   theme: string
   language: string
@@ -9,6 +18,7 @@ export interface AppConfig {
   terminal_shell: "auto" | "cmd" | "powershell" | "pwsh" | "custom"
   terminal_shell_custom_path: string
   terminal_shell_custom_args: string
+  secret_vault_enabled: boolean
 }
 
 const defaultConfig: AppConfig = {
@@ -19,30 +29,75 @@ const defaultConfig: AppConfig = {
   terminal_shell: "auto",
   terminal_shell_custom_path: "",
   terminal_shell_custom_args: "",
+  secret_vault_enabled: false,
+}
+
+const defaultSecretStatus: SecretBackendStatus = {
+  activeBackend: "memory",
+  keyringAvailable: false,
+  strongholdEnabled: false,
+  strongholdUnlocked: false,
+  persistenceAvailable: false,
+  message: null,
 }
 
 interface ConfigContextType {
   config: AppConfig
   isLoaded: boolean
+  secretStatus: SecretBackendStatus
   updateTheme: (theme: string) => Promise<void>
   updateLanguage: (language: string) => Promise<void>
   saveConfig: (newConfig: Partial<AppConfig>) => Promise<void>
   loadConfig: () => Promise<void>
+  refreshSecretStatus: () => Promise<SecretBackendStatus>
+  setSecretVaultEnabled: (enabled: boolean) => Promise<SecretBackendStatus>
+  unlockSecretVault: (password: string, enableVault?: boolean) => Promise<SecretBackendStatus>
+  lockSecretVault: () => Promise<SecretBackendStatus>
 }
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined)
 
+function normalizeSecretStatus(status?: Partial<SecretBackendStatus>): SecretBackendStatus {
+  return {
+    activeBackend: (status?.activeBackend as SecretBackendStatus["activeBackend"]) ?? "memory",
+    keyringAvailable: status?.keyringAvailable ?? false,
+    strongholdEnabled: status?.strongholdEnabled ?? false,
+    strongholdUnlocked: status?.strongholdUnlocked ?? false,
+    persistenceAvailable: status?.persistenceAvailable ?? false,
+    message: status?.message ?? null,
+  }
+}
+
 export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfig] = useState<AppConfig>(defaultConfig)
+  const [secretStatus, setSecretStatus] = useState<SecretBackendStatus>(defaultSecretStatus)
   const [isLoaded, setIsLoaded] = useState(false)
 
-  const loadConfig = useCallback(async () => {
+  const refreshSecretStatus = useCallback(async (): Promise<SecretBackendStatus> => {
     try {
-      const loadedConfig = await invoke<AppConfig>("load_config")
+      const status = await invoke<SecretBackendStatus>("get_secret_backend_status")
+      const normalized = normalizeSecretStatus(status)
+      setSecretStatus(normalized)
+      return normalized
+    } catch (error) {
+      console.error("Failed to load secret backend status:", error)
+      setSecretStatus(defaultSecretStatus)
+      return defaultSecretStatus
+    }
+  }, [])
+
+  const loadConfig = useCallback(async (): Promise<void> => {
+    try {
+      const [loadedConfig, loadedSecretStatus] = await Promise.all([
+        invoke<AppConfig>("load_config"),
+        invoke<SecretBackendStatus>("get_secret_backend_status"),
+      ])
       setConfig(loadedConfig)
+      setSecretStatus(normalizeSecretStatus(loadedSecretStatus))
     } catch (error) {
       console.error("Failed to load config:", error)
       setConfig(defaultConfig)
+      setSecretStatus(defaultSecretStatus)
     } finally {
       setIsLoaded(true)
     }
@@ -62,6 +117,33 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     [config]
   )
 
+  const setSecretVaultEnabled = useCallback(async (enabled: boolean) => {
+    const status = await invoke<SecretBackendStatus>("set_secret_vault_enabled", { enabled })
+    const normalized = normalizeSecretStatus(status)
+    setSecretStatus(normalized)
+    setConfig((prev) => ({ ...prev, secret_vault_enabled: enabled }))
+    return normalized
+  }, [])
+
+  const unlockSecretVault = useCallback(async (password: string, enableVault = false) => {
+    const status = await invoke<SecretBackendStatus>("unlock_secret_vault", {
+      input: { password, enableVault },
+    })
+    const normalized = normalizeSecretStatus(status)
+    setSecretStatus(normalized)
+    if (enableVault) {
+      setConfig((prev) => ({ ...prev, secret_vault_enabled: true }))
+    }
+    return normalized
+  }, [])
+
+  const lockSecretVault = useCallback(async () => {
+    const status = await invoke<SecretBackendStatus>("lock_secret_vault")
+    const normalized = normalizeSecretStatus(status)
+    setSecretStatus(normalized)
+    return normalized
+  }, [])
+
   const updateTheme = useCallback(
     async (theme: string) => {
       await saveConfig({ theme })
@@ -76,7 +158,6 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     [saveConfig]
   )
 
-  // Load config on mount
   useEffect(() => {
     loadConfig()
   }, [loadConfig])
@@ -86,10 +167,15 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       value={{
         config,
         isLoaded,
+        secretStatus,
         updateTheme,
         updateLanguage,
         saveConfig,
         loadConfig,
+        refreshSecretStatus,
+        setSecretVaultEnabled,
+        unlockSecretVault,
+        lockSecretVault,
       }}
     >
       {children}

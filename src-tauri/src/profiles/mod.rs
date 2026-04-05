@@ -12,11 +12,13 @@ pub struct SavedProfile {
     pub host: Option<String>,
     pub port: Option<u16>,
     pub username: Option<String>,
+    #[serde(default, skip_serializing)]
     pub password: Option<String>,
     #[serde(default)]
     pub remember_password: bool,
     pub auth_method: Option<String>,
     pub private_key_path: Option<String>,
+    #[serde(default, skip_serializing)]
     pub private_key_passphrase: Option<String>,
     #[serde(default)]
     pub reconnect: bool,
@@ -59,6 +61,14 @@ fn load_profiles_from_disk() -> Result<Vec<SavedProfile>, String> {
     serde_json::from_str(&content).map_err(|e| format!("Failed to parse profiles: {}", e))
 }
 
+fn sanitize_profile(profile: &mut SavedProfile) {
+    profile.password = None;
+    profile.private_key_passphrase = None;
+    if profile.group.trim().is_empty() {
+        profile.group = String::new();
+    }
+}
+
 fn write_profiles_to_disk(profiles: &Vec<SavedProfile>) -> Result<(), String> {
     let config_dir = ensure_config_dir()?;
     let profiles_file = config_dir.join("profiles.json");
@@ -69,16 +79,25 @@ fn write_profiles_to_disk(profiles: &Vec<SavedProfile>) -> Result<(), String> {
 
 #[tauri::command]
 pub fn list_profiles() -> Result<Vec<SavedProfile>, String> {
-    load_profiles_from_disk()
+    let mut profiles = load_profiles_from_disk()?;
+    for profile in &mut profiles {
+        sanitize_profile(profile);
+    }
+    Ok(profiles)
 }
 
 #[tauri::command]
-pub fn save_profile(profile: SavedProfile) -> Result<(), String> {
+pub fn save_profile(mut profile: SavedProfile) -> Result<(), String> {
+    sanitize_profile(&mut profile);
+
     let mut profiles = load_profiles_from_disk()?;
     if let Some(pos) = profiles.iter().position(|p| p.id == profile.id) {
         profiles[pos] = profile;
     } else {
         profiles.push(profile);
+    }
+    for existing in &mut profiles {
+        sanitize_profile(existing);
     }
     write_profiles_to_disk(&profiles)
 }

@@ -29,6 +29,9 @@ interface ConnectionDialogProps {
 
 type ConnectionType = "terminal" | "ssh"
 
+type ConfigState = ReturnType<typeof useConfig>["config"]
+type SaveConfig = ReturnType<typeof useConfig>["saveConfig"]
+
 interface ConnectionForm {
   type: ConnectionType
   title: string
@@ -50,6 +53,11 @@ interface ConnectionForm {
   terminalShell: TerminalShellType
   terminalShellCustomPath: string
   terminalShellCustomArgs: string
+}
+
+interface ConnectionDialogContentProps extends Omit<ConnectionDialogProps, "isOpen"> {
+  config: ConfigState
+  saveConfig: SaveConfig
 }
 
 const defaultForm: ConnectionForm = {
@@ -104,6 +112,21 @@ function buildFormFromProfile(profile?: SavedProfile | null): ConnectionForm {
   }
 }
 
+function buildInitialForm(
+  profile: SavedProfile | null | undefined,
+  config: ConfigState
+): ConnectionForm {
+  const form = buildFormFromProfile(profile)
+
+  if (!profile || form.type === "terminal") {
+    form.terminalShell = config.terminal_shell
+    form.terminalShellCustomPath = config.terminal_shell_custom_path
+    form.terminalShellCustomArgs = config.terminal_shell_custom_args
+  }
+
+  return form
+}
+
 function getDefaultTitle(type: ConnectionType, form: ConnectionForm): string {
   switch (type) {
     case "terminal":
@@ -113,49 +136,29 @@ function getDefaultTitle(type: ConnectionType, form: ConnectionForm): string {
   }
 }
 
-export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
-  isOpen,
+const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   onClose,
   onConnect,
   editProfile,
+  config,
+  saveConfig,
 }) => {
   const { t } = useTranslation()
-  const { config, saveConfig } = useConfig()
-  const [form, setForm] = useState<ConnectionForm>(() => buildFormFromProfile(editProfile))
+  const [form, setForm] = useState<ConnectionForm>(() => buildInitialForm(editProfile, config))
   const [existingGroups, setExistingGroups] = useState<string[]>([])
   const [showGroupDropdown, setShowGroupDropdown] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
-
   const [allProfiles, setAllProfiles] = useState<SavedProfile[]>([])
 
   useEffect(() => {
-    if (!isOpen) {
-      return
-    }
-
-    const base = buildFormFromProfile(editProfile)
-    if (!editProfile || base.type === "terminal") {
-      base.terminalShell = config.terminal_shell
-      base.terminalShellCustomPath = config.terminal_shell_custom_path
-      base.terminalShellCustomArgs = config.terminal_shell_custom_args
-    }
-
-    setForm(base)
-    setNameError(null)
-  }, [isOpen, editProfile, config])
-
-  // Load existing profiles for group autocomplete and duplicate checking
-  useEffect(() => {
-    if (isOpen) {
-      invoke<SavedProfile[]>("list_profiles")
-        .then((profiles) => {
-          setAllProfiles(profiles)
-          const groups = [...new Set(profiles.map((p) => p.group).filter(Boolean))]
-          setExistingGroups(groups)
-        })
-        .catch(() => {})
-    }
-  }, [isOpen])
+    invoke<SavedProfile[]>("list_profiles")
+      .then((profiles) => {
+        setAllProfiles(profiles)
+        const groups = [...new Set(profiles.map((p) => p.group).filter(Boolean))]
+        setExistingGroups(groups)
+      })
+      .catch(() => {})
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -164,10 +167,8 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
     const title = form.title.trim() || getDefaultTitle(form.type, form)
     const group = form.group.trim()
 
-    // Auto-save SSH connections as profiles
     if (form.type === "ssh" && form.host.trim()) {
       const profileId = editProfile?.id ?? crypto.randomUUID()
-      // Check duplicate name within same group
       const duplicate = allProfiles.find(
         (p) => p.id !== profileId && p.name === title && p.group === group
       )
@@ -256,338 +257,364 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
   const isRemote = form.type !== "terminal"
 
   return (
+    <DialogContent
+      className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-md"
+      onInteractOutside={(e) => e.preventDefault()}
+    >
+      <DialogHeader>
+        <DialogTitle>
+          {editProfile ? t("profiles.editTitle") : t("connection.newConnection")}
+        </DialogTitle>
+      </DialogHeader>
+
+      <form onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto px-1">
+        <div>
+          <Label className="mb-2 block">{t("connection.type")}</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {connectionTypes.map(({ type, label, icon: Icon }) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, type }))}
+                className={cn(
+                  "flex items-center gap-2 rounded-md border px-3 py-2.5 text-sm transition-colors",
+                  "hover:bg-muted",
+                  form.type === type
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground bg-transparent"
+                )}
+              >
+                <Icon size={16} />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <Separator />
+
+        <div>
+          <Label htmlFor="conn-title" className="mb-1.5 block">
+            {t("connection.title")}
+          </Label>
+          <Input
+            id="conn-title"
+            value={form.title}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, title: e.target.value }))
+              setNameError(null)
+            }}
+            placeholder={getDefaultTitle(form.type, form)}
+          />
+          {nameError && <p className="text-destructive mt-1 text-xs">{nameError}</p>}
+        </div>
+
+        {isTerminal && (
+          <>
+            <div>
+              <Label htmlFor="conn-terminal-shell" className="mb-1.5 block">
+                {t("connection.terminalShell")}
+              </Label>
+              <select
+                id="conn-terminal-shell"
+                className="border-input bg-background h-9 w-full rounded-md border px-3 py-1 text-sm"
+                value={form.terminalShell}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    terminalShell: e.target.value as TerminalShellType,
+                  }))
+                }
+              >
+                <option value="auto">{t("connection.terminalShellOptions.auto")}</option>
+                <option value="cmd">{t("connection.terminalShellOptions.cmd")}</option>
+                <option value="powershell">
+                  {t("connection.terminalShellOptions.powershell")}
+                </option>
+                <option value="pwsh">{t("connection.terminalShellOptions.pwsh")}</option>
+                <option value="custom">{t("connection.terminalShellOptions.custom")}</option>
+              </select>
+            </div>
+
+            {form.terminalShell === "custom" && (
+              <>
+                <div>
+                  <Label htmlFor="conn-terminal-shell-path" className="mb-1.5 block">
+                    {t("connection.terminalShellCustomPath")}
+                  </Label>
+                  <Input
+                    id="conn-terminal-shell-path"
+                    value={form.terminalShellCustomPath}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, terminalShellCustomPath: e.target.value }))
+                    }
+                    placeholder="C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="conn-terminal-shell-args" className="mb-1.5 block">
+                    {t("connection.terminalShellCustomArgs")}
+                  </Label>
+                  <Input
+                    id="conn-terminal-shell-args"
+                    value={form.terminalShellCustomArgs}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, terminalShellCustomArgs: e.target.value }))
+                    }
+                    placeholder="-NoLogo"
+                  />
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {isSsh && (
+          <div style={{ position: "relative" }}>
+            <Label htmlFor="conn-group" className="mb-1.5 block">
+              {t("connection.group")}
+            </Label>
+            <Input
+              id="conn-group"
+              value={form.group}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, group: e.target.value }))
+                setShowGroupDropdown(true)
+              }}
+              onFocus={() => setShowGroupDropdown(true)}
+              onBlur={() => setTimeout(() => setShowGroupDropdown(false), 150)}
+              placeholder={t("connection.groupPlaceholder")}
+              autoComplete="off"
+            />
+            {showGroupDropdown &&
+              existingGroups.filter((g) => g.toLowerCase().includes(form.group.toLowerCase()))
+                .length > 0 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    right: 0,
+                    zIndex: 20,
+                    background: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 6,
+                    marginTop: 2,
+                    maxHeight: 160,
+                    overflowY: "auto",
+                  }}
+                >
+                  {existingGroups
+                    .filter((g) => g.toLowerCase().includes(form.group.toLowerCase()))
+                    .map((g) => (
+                      <div
+                        key={g}
+                        style={{ padding: "6px 12px", cursor: "pointer", fontSize: 13 }}
+                        className="hover:bg-muted"
+                        onMouseDown={() => {
+                          setForm((f) => ({ ...f, group: g }))
+                          setShowGroupDropdown(false)
+                        }}
+                      >
+                        {g}
+                      </div>
+                    ))}
+                </div>
+              )}
+          </div>
+        )}
+
+        {isRemote && (
+          <>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
+                <Label htmlFor="conn-host" className="mb-1.5 block">
+                  {t("connection.host")}
+                </Label>
+                <Input
+                  id="conn-host"
+                  value={form.host}
+                  onChange={(e) => setForm((f) => ({ ...f, host: e.target.value }))}
+                  placeholder="hostname or IP"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="conn-port" className="mb-1.5 block">
+                  {t("connection.port")}
+                </Label>
+                <Input
+                  id="conn-port"
+                  type="number"
+                  value={form.port}
+                  onChange={(e) => setForm((f) => ({ ...f, port: Number(e.target.value) }))}
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="conn-user" className="mb-1.5 block">
+                {t("connection.username")}
+              </Label>
+              <Input
+                id="conn-user"
+                value={form.username}
+                onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+                placeholder="username"
+              />
+            </div>
+          </>
+        )}
+
+        {isSsh && (
+          <>
+            <div>
+              <Label className="mb-1.5 block">{t("ssh.authMethod")}</Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className={cn(
+                    "flex-1 rounded border px-3 py-1.5 text-sm",
+                    form.authMethod === "password"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background text-foreground"
+                  )}
+                  onClick={() => setForm((f) => ({ ...f, authMethod: "password" }))}
+                >
+                  {t("ssh.password")}
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex-1 rounded border px-3 py-1.5 text-sm",
+                    form.authMethod === "key"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background text-foreground"
+                  )}
+                  onClick={() => setForm((f) => ({ ...f, authMethod: "key" }))}
+                >
+                  {t("ssh.sshKey")}
+                </button>
+              </div>
+            </div>
+
+            {form.authMethod === "password" && (
+              <>
+                <div>
+                  <Label htmlFor="conn-password" className="mb-1.5 block">
+                    {t("connection.password")}
+                  </Label>
+                  <Input
+                    id="conn-password"
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                    placeholder="password"
+                  />
+                </div>
+                <label className="text-foreground flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.rememberPassword}
+                    onChange={(e) => setForm((f) => ({ ...f, rememberPassword: e.target.checked }))}
+                  />
+                  <span>{t("connection.rememberPassword")}</span>
+                </label>
+              </>
+            )}
+
+            {form.authMethod === "key" && (
+              <>
+                <div>
+                  <Label htmlFor="conn-key-path" className="mb-1.5 block">
+                    {t("ssh.privateKeyPath")}
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="conn-key-path"
+                      value={form.privateKeyPath}
+                      onChange={(e) => setForm((f) => ({ ...f, privateKeyPath: e.target.value }))}
+                      placeholder="~/.ssh/id_rsa"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        const selected = await openFileDialog({
+                          multiple: false,
+                        }).catch(() => null)
+                        if (selected && typeof selected === "string") {
+                          setForm((f) => ({ ...f, privateKeyPath: selected }))
+                        }
+                      }}
+                    >
+                      {t("ssh.browseKey")}
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="conn-key-pass" className="mb-1.5 block">
+                    {t("ssh.privateKeyPassphrase")}
+                  </Label>
+                  <Input
+                    id="conn-key-pass"
+                    type="password"
+                    value={form.privateKeyPassphrase}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, privateKeyPassphrase: e.target.value }))
+                    }
+                    placeholder="passphrase"
+                  />
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            {t("connection.cancel")}
+          </Button>
+          <Button type="submit">{t("connection.connect")}</Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  )
+}
+
+export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
+  isOpen,
+  onClose,
+  onConnect,
+  editProfile,
+}) => {
+  const { config, saveConfig } = useConfig()
+  const dialogKey = [
+    editProfile?.id ?? "new",
+    config.terminal_shell,
+    config.terminal_shell_custom_path,
+    config.terminal_shell_custom_args,
+  ].join("::")
+
+  return (
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
         if (!open) onClose()
       }}
     >
-      <DialogContent
-        className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-md"
-        onInteractOutside={(e) => e.preventDefault()}
-      >
-        <DialogHeader>
-          <DialogTitle>
-            {editProfile ? t("profiles.editTitle") : t("connection.newConnection")}
-          </DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto px-1">
-          <div>
-            <Label className="mb-2 block">{t("connection.type")}</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {connectionTypes.map(({ type, label, icon: Icon }) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, type }))}
-                  className={cn(
-                    "flex items-center gap-2 rounded-md border px-3 py-2.5 text-sm transition-colors",
-                    "hover:bg-muted",
-                    form.type === type
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground bg-transparent"
-                  )}
-                >
-                  <Icon size={16} />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <Separator />
-
-          <div>
-            <Label htmlFor="conn-title" className="mb-1.5 block">
-              {t("connection.title")}
-            </Label>
-            <Input
-              id="conn-title"
-              value={form.title}
-              onChange={(e) => {
-                setForm((f) => ({ ...f, title: e.target.value }))
-                setNameError(null)
-              }}
-              placeholder={getDefaultTitle(form.type, form)}
-            />
-            {nameError && <p className="text-destructive mt-1 text-xs">{nameError}</p>}
-          </div>
-
-          {isTerminal && (
-            <>
-              <div>
-                <Label htmlFor="conn-terminal-shell" className="mb-1.5 block">
-                  {t("connection.terminalShell")}
-                </Label>
-                <select
-                  id="conn-terminal-shell"
-                  className="border-input bg-background h-9 w-full rounded-md border px-3 py-1 text-sm"
-                  value={form.terminalShell}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      terminalShell: e.target.value as TerminalShellType,
-                    }))
-                  }
-                >
-                  <option value="auto">{t("connection.terminalShellOptions.auto")}</option>
-                  <option value="cmd">{t("connection.terminalShellOptions.cmd")}</option>
-                  <option value="powershell">
-                    {t("connection.terminalShellOptions.powershell")}
-                  </option>
-                  <option value="pwsh">{t("connection.terminalShellOptions.pwsh")}</option>
-                  <option value="custom">{t("connection.terminalShellOptions.custom")}</option>
-                </select>
-              </div>
-
-              {form.terminalShell === "custom" && (
-                <>
-                  <div>
-                    <Label htmlFor="conn-terminal-shell-path" className="mb-1.5 block">
-                      {t("connection.terminalShellCustomPath")}
-                    </Label>
-                    <Input
-                      id="conn-terminal-shell-path"
-                      value={form.terminalShellCustomPath}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, terminalShellCustomPath: e.target.value }))
-                      }
-                      placeholder="C:\\Program Files\\PowerShell\\7\\pwsh.exe"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="conn-terminal-shell-args" className="mb-1.5 block">
-                      {t("connection.terminalShellCustomArgs")}
-                    </Label>
-                    <Input
-                      id="conn-terminal-shell-args"
-                      value={form.terminalShellCustomArgs}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, terminalShellCustomArgs: e.target.value }))
-                      }
-                      placeholder="-NoLogo"
-                    />
-                  </div>
-                </>
-              )}
-            </>
-          )}
-
-          {isSsh && (
-            <div style={{ position: "relative" }}>
-              <Label htmlFor="conn-group" className="mb-1.5 block">
-                {t("connection.group")}
-              </Label>
-              <Input
-                id="conn-group"
-                value={form.group}
-                onChange={(e) => {
-                  setForm((f) => ({ ...f, group: e.target.value }))
-                  setShowGroupDropdown(true)
-                }}
-                onFocus={() => setShowGroupDropdown(true)}
-                onBlur={() => setTimeout(() => setShowGroupDropdown(false), 150)}
-                placeholder={t("connection.groupPlaceholder")}
-                autoComplete="off"
-              />
-              {showGroupDropdown &&
-                existingGroups.filter((g) => g.toLowerCase().includes(form.group.toLowerCase()))
-                  .length > 0 && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: 0,
-                      right: 0,
-                      zIndex: 20,
-                      background: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: 6,
-                      marginTop: 2,
-                      maxHeight: 160,
-                      overflowY: "auto",
-                    }}
-                  >
-                    {existingGroups
-                      .filter((g) => g.toLowerCase().includes(form.group.toLowerCase()))
-                      .map((g) => (
-                        <div
-                          key={g}
-                          style={{ padding: "6px 12px", cursor: "pointer", fontSize: 13 }}
-                          className="hover:bg-muted"
-                          onMouseDown={() => {
-                            setForm((f) => ({ ...f, group: g }))
-                            setShowGroupDropdown(false)
-                          }}
-                        >
-                          {g}
-                        </div>
-                      ))}
-                  </div>
-                )}
-            </div>
-          )}
-
-          {isRemote && (
-            <>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <Label htmlFor="conn-host" className="mb-1.5 block">
-                    {t("connection.host")}
-                  </Label>
-                  <Input
-                    id="conn-host"
-                    value={form.host}
-                    onChange={(e) => setForm((f) => ({ ...f, host: e.target.value }))}
-                    placeholder="hostname or IP"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="conn-port" className="mb-1.5 block">
-                    {t("connection.port")}
-                  </Label>
-                  <Input
-                    id="conn-port"
-                    type="number"
-                    value={form.port}
-                    onChange={(e) => setForm((f) => ({ ...f, port: Number(e.target.value) }))}
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="conn-user" className="mb-1.5 block">
-                  {t("connection.username")}
-                </Label>
-                <Input
-                  id="conn-user"
-                  value={form.username}
-                  onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-                  placeholder="username"
-                />
-              </div>
-            </>
-          )}
-
-          {isSsh && (
-            <>
-              <div>
-                <Label className="mb-1.5 block">{t("ssh.authMethod")}</Label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    className={cn(
-                      "flex-1 rounded border px-3 py-1.5 text-sm",
-                      form.authMethod === "password"
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-background text-foreground"
-                    )}
-                    onClick={() => setForm((f) => ({ ...f, authMethod: "password" }))}
-                  >
-                    {t("ssh.password")}
-                  </button>
-                  <button
-                    type="button"
-                    className={cn(
-                      "flex-1 rounded border px-3 py-1.5 text-sm",
-                      form.authMethod === "key"
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-background text-foreground"
-                    )}
-                    onClick={() => setForm((f) => ({ ...f, authMethod: "key" }))}
-                  >
-                    {t("ssh.sshKey")}
-                  </button>
-                </div>
-              </div>
-
-              {form.authMethod === "password" && (
-                <>
-                  <div>
-                    <Label htmlFor="conn-password" className="mb-1.5 block">
-                      {t("connection.password")}
-                    </Label>
-                    <Input
-                      id="conn-password"
-                      type="password"
-                      value={form.password}
-                      onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                      placeholder="password"
-                    />
-                  </div>
-                  <label className="text-foreground flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={form.rememberPassword}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, rememberPassword: e.target.checked }))
-                      }
-                    />
-                    <span>{t("connection.rememberPassword")}</span>
-                  </label>
-                </>
-              )}
-
-              {form.authMethod === "key" && (
-                <>
-                  <div>
-                    <Label htmlFor="conn-key-path" className="mb-1.5 block">
-                      {t("ssh.privateKeyPath")}
-                    </Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="conn-key-path"
-                        value={form.privateKeyPath}
-                        onChange={(e) => setForm((f) => ({ ...f, privateKeyPath: e.target.value }))}
-                        placeholder="~/.ssh/id_rsa"
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          const selected = await openFileDialog({
-                            multiple: false,
-                          }).catch(() => null)
-                          if (selected && typeof selected === "string") {
-                            setForm((f) => ({ ...f, privateKeyPath: selected }))
-                          }
-                        }}
-                      >
-                        {t("ssh.browseKey")}
-                      </Button>
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="conn-key-pass" className="mb-1.5 block">
-                      {t("ssh.privateKeyPassphrase")}
-                    </Label>
-                    <Input
-                      id="conn-key-pass"
-                      type="password"
-                      value={form.privateKeyPassphrase}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, privateKeyPassphrase: e.target.value }))
-                      }
-                      placeholder="passphrase"
-                    />
-                  </div>
-                </>
-              )}
-            </>
-          )}
-
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onClose}>
-              {t("connection.cancel")}
-            </Button>
-            <Button type="submit">{t("connection.connect")}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+      {isOpen ? (
+        <ConnectionDialogContent
+          key={dialogKey}
+          onClose={onClose}
+          onConnect={onConnect}
+          editProfile={editProfile}
+          config={config}
+          saveConfig={saveConfig}
+        />
+      ) : null}
     </Dialog>
   )
 }

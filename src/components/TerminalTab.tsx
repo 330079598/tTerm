@@ -217,6 +217,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     let unlistenOutput: (() => void) | null = null
     let unlistenExit: (() => void) | null = null
     let unlistenHostPrompt: (() => void) | null = null
+    let disposed = false
 
     // Register event listeners before spawning the PTY so no output is lost
     Promise.all([
@@ -247,6 +248,14 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         unlistenOutput = unOut
         unlistenExit = unExit
         unlistenHostPrompt = unHostPrompt
+
+        if (disposed) {
+          unlistenOutput?.()
+          unlistenExit?.()
+          unlistenHostPrompt?.()
+          return null
+        }
+
         return invoke<number>("create_pty", {
           tabId,
           rows: term.rows,
@@ -255,9 +264,17 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         })
       })
       .then((pid) => {
+        if (pid == null) return
+
+        if (disposed) {
+          invoke("kill_pty", { tabId }).catch(() => {})
+          return
+        }
+
         onPidChange?.(pid)
       })
       .catch((e) => {
+        if (disposed) return
         term.writeln(`\x1b[31mFailed to start terminal: ${e}\x1b[0m`)
       })
 
@@ -275,6 +292,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     }
 
     return () => {
+      disposed = true
+
       resizeObserver.disconnect()
       resizeObserverRef.current = null
 

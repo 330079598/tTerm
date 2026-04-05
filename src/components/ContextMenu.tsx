@@ -12,6 +12,7 @@ import {
   Palette,
   Type,
   Languages,
+  Shield,
 } from "lucide-react"
 import { TabContextMenuAction } from "@/types/tab"
 import { cn } from "@/lib/utils"
@@ -48,6 +49,8 @@ const getActionIcon = (icon?: string) => {
       return <Type size={14} />
     case "languages":
       return <Languages size={14} />
+    case "shield":
+      return <Shield size={14} />
     default:
       return null
   }

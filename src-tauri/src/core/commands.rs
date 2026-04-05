@@ -16,9 +16,10 @@ pub fn create_pty(
     state: State<'_, PtyMap>,
     prompt_state: State<'_, HostPromptMap>,
     runtime_state: State<'_, crate::TokioRuntimeState>,
+    secret_state: State<'_, crate::ssh::SecretStoreState>,
 ) -> Result<u32, String> {
     let mut plan = normalize_connection(connection)?;
-    resolve_ssh_password(&mut plan)?;
+    resolve_ssh_password(&app, &secret_state, &mut plan)?;
 
     {
         let exists = runtime_state

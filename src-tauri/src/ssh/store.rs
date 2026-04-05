@@ -5,16 +5,16 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct SshPasswordRecord {
+pub struct LegacySshPasswordRecord {
     pub profile_name: String,
     pub password: String,
     pub updated_at: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
-pub struct SshPasswordStore {
+pub struct LegacySshPasswordStore {
     #[serde(default)]
-    pub profiles: Vec<SshPasswordRecord>,
+    pub profiles: Vec<LegacySshPasswordRecord>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -53,7 +53,7 @@ pub fn now_unix_ms() -> i64 {
         .unwrap_or(0)
 }
 
-pub fn ssh_password_store_path() -> Result<PathBuf, String> {
+pub fn legacy_password_store_path() -> Result<PathBuf, String> {
     Ok(ensure_config_dir()?.join("ssh_profiles.json"))
 }
 
@@ -61,21 +61,23 @@ pub fn ssh_known_hosts_path() -> Result<PathBuf, String> {
     Ok(ensure_config_dir()?.join("ssh_known_hosts.json"))
 }
 
-pub fn load_password_store() -> Result<SshPasswordStore, String> {
-    let path = ssh_password_store_path()?;
+pub fn load_legacy_password_store() -> Result<LegacySshPasswordStore, String> {
+    let path = legacy_password_store_path()?;
     if !path.exists() {
-        return Ok(SshPasswordStore::default());
+        return Ok(LegacySshPasswordStore::default());
     }
     let content = fs::read_to_string(&path)
         .map_err(|e| format!("Failed to read SSH password store: {}", e))?;
     serde_json::from_str(&content).map_err(|e| format!("Failed to parse SSH password store: {}", e))
 }
 
-pub fn save_password_store(store: &SshPasswordStore) -> Result<(), String> {
-    let path = ssh_password_store_path()?;
-    let content = serde_json::to_string_pretty(store)
-        .map_err(|e| format!("Failed to serialize SSH password store: {}", e))?;
-    fs::write(&path, content).map_err(|e| format!("Failed to write SSH password store: {}", e))
+
+pub fn remove_legacy_password_store() -> Result<(), String> {
+    let path = legacy_password_store_path()?;
+    if path.exists() {
+        fs::remove_file(path).map_err(|e| format!("Failed to remove SSH password store: {}", e))?;
+    }
+    Ok(())
 }
 
 pub fn load_known_host_store() -> Result<KnownHostStore, String> {
@@ -93,34 +95,6 @@ pub fn save_known_host_store(store: &KnownHostStore) -> Result<(), String> {
     let content = serde_json::to_string_pretty(store)
         .map_err(|e| format!("Failed to serialize known hosts store: {}", e))?;
     fs::write(&path, content).map_err(|e| format!("Failed to write known hosts store: {}", e))
-}
-
-pub fn load_password_for_profile(profile_name: &str) -> Result<Option<String>, String> {
-    let store = load_password_store()?;
-    Ok(store
-        .profiles
-        .iter()
-        .find(|p| p.profile_name == profile_name)
-        .map(|p| p.password.clone()))
-}
-
-pub fn save_password_for_profile(profile_name: &str, password: &str) -> Result<(), String> {
-    let mut store = load_password_store()?;
-    if let Some(existing) = store
-        .profiles
-        .iter_mut()
-        .find(|p| p.profile_name == profile_name)
-    {
-        existing.password = password.to_string();
-        existing.updated_at = now_unix_ms();
-    } else {
-        store.profiles.push(SshPasswordRecord {
-            profile_name: profile_name.to_string(),
-            password: password.to_string(),
-            updated_at: now_unix_ms(),
-        });
-    }
-    save_password_store(&store)
 }
 
 pub fn load_known_host_by_profile(profile_name: &str) -> Result<Option<KnownHostRecord>, String> {
