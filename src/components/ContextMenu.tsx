@@ -13,6 +13,8 @@ import {
   Type,
   Languages,
   Shield,
+  Pin,
+  PinOff,
 } from "lucide-react"
 import { TabContextMenuAction } from "@/types/tab"
 import { cn } from "@/lib/utils"
@@ -51,6 +53,10 @@ const getActionIcon = (icon?: string) => {
       return <Languages size={14} />
     case "shield":
       return <Shield size={14} />
+    case "pin":
+      return <Pin size={14} />
+    case "pin-off":
+      return <PinOff size={14} />
     default:
       return null
   }

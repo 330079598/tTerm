@@ -20,6 +20,8 @@
     "newTab": "New Tab",
     "duplicateTab": "Duplicate Tab",
     "renameTab": "Rename Tab",
+    "pinConnectionHeader": "Pin Connection Header",
+    "unpinConnectionHeader": "Unpin Connection Header",
     "closeTab": "Close Tab",
     "closeOtherTabs": "Close Other Tabs",
     "closeTabsToRight": "Close Tabs to the Right"
@@ -133,6 +135,18 @@
     "privateKeyPath": "Private Key Path",
     "privateKeyPassphrase": "Passphrase (optional)",
     "browseKey": "Browse"
+  },
+  "sessionHeader": {
+    "connecting": "Connecting",
+    "connected": "Connected",
+    "reconnecting": "Reconnecting",
+    "disconnected": "Disconnected",
+    "error": "Error",
+    "reconnect": "Reconnect",
+    "sftp": "SFTP",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "connectionInfo": "Connection"
   },
   "secretStorage": {
     "title": "Secret Storage",

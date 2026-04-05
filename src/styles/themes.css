@@ -50,6 +50,10 @@
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
+    --success: 142 72% 42%;
+    --success-foreground: 142 76% 78%;
+    --warning: 38 92% 52%;
+    --warning-foreground: 42 96% 78%;
 
     --border: 0 0% 24%;
     --input: 0 0% 24%;
@@ -88,6 +92,10 @@
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
+    --success: 142 72% 42%;
+    --success-foreground: 142 50% 28%;
+    --warning: 38 92% 52%;
+    --warning-foreground: 30 75% 26%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
@@ -123,6 +131,10 @@
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
+    --success: 160 70% 44%;
+    --success-foreground: 170 70% 78%;
+    --warning: 38 92% 54%;
+    --warning-foreground: 44 100% 80%;
 
     --border: 200 20% 30%;
     --input: 200 20% 30%;
@@ -158,6 +170,10 @@
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
+    --success: 145 65% 45%;
+    --success-foreground: 125 48% 78%;
+    --warning: 42 88% 56%;
+    --warning-foreground: 54 96% 82%;
 
     --border: 140 15% 30%;
     --input: 140 15% 30%;
@@ -193,6 +209,10 @@
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
+    --success: 142 68% 44%;
+    --success-foreground: 134 70% 82%;
+    --warning: 32 94% 56%;
+    --warning-foreground: 44 100% 84%;
 
     --border: 20 20% 30%;
     --input: 20 20% 30%;

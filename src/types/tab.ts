@@ -26,6 +26,8 @@ export interface Tab {
   isModified?: boolean
   icon?: string
   pid?: number
+  sessionNonce?: number
+  connectionHeaderPinned?: boolean
   connection?: {
     type?: "terminal" | "ssh"
     profileName?: string

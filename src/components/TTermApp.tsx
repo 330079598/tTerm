@@ -28,6 +28,18 @@ interface ContextMenuState {
   actions: TabContextMenuAction[]
 }
 
+const DEFAULT_CONNECTION_HEADER_PINNED = true
+
+function buildTabFromConnection(
+  connection: Omit<Tab, "id" | "isActive">
+): Omit<Tab, "id" | "isActive"> {
+  return {
+    ...connection,
+    sessionNonce: connection.sessionNonce ?? 0,
+    connectionHeaderPinned: connection.connectionHeaderPinned ?? DEFAULT_CONNECTION_HEADER_PINNED,
+  }
+}
+
 export const TTermApp: React.FC = () => {
   const { t, i18n } = useTranslation()
   const [os] = useState<string>(() => platform())
@@ -69,6 +81,7 @@ export const TTermApp: React.FC = () => {
     closeTabsToRight,
     renameTab,
     restoreSession,
+    updateTab,
   } = useTabs()
 
   const { saveSession, loadSession, clearSession } = useSessionPersistence()
@@ -91,11 +104,13 @@ export const TTermApp: React.FC = () => {
         restoreSession(savedSession.tabs, savedSession.activeTabId)
       } else {
         // If no saved session, create default tab
-        addTab({
-          title: "Terminal",
-          type: "terminal",
-          isModified: false,
-        })
+        addTab(
+          buildTabFromConnection({
+            title: "Terminal",
+            type: "terminal",
+            isModified: false,
+          })
+        )
       }
     }
 
@@ -115,7 +130,7 @@ export const TTermApp: React.FC = () => {
 
   const handleConnect = useCallback(
     (connection: Omit<Tab, "id" | "isActive">) => {
-      addTab(connection)
+      addTab(buildTabFromConnection(connection))
     },
     [addTab]
   )
@@ -166,7 +181,9 @@ export const TTermApp: React.FC = () => {
             break
           case "about":
             alert(
-              `${t("app.title")} - ${t("app.subtitle")}\n${t("app.version")}\n${t("app.builtWith")}`
+              `${t("app.title")} - ${t("app.subtitle")}
+${t("app.version")}
+${t("app.builtWith")}`
             )
             break
           default:
@@ -191,6 +208,18 @@ export const TTermApp: React.FC = () => {
             currentName: tab.title,
           })
           break
+        case "pin-header":
+          updateTab(tab.id, (currentTab) => ({
+            ...currentTab,
+            connectionHeaderPinned: true,
+          }))
+          break
+        case "unpin-header":
+          updateTab(tab.id, (currentTab) => ({
+            ...currentTab,
+            connectionHeaderPinned: false,
+          }))
+          break
         case "close":
           handleRemoveTab(tab.id)
           break
@@ -213,6 +242,7 @@ export const TTermApp: React.FC = () => {
       closeTabsToRight,
       clearSession,
       t,
+      updateTab,
     ]
   )
 
@@ -236,6 +266,36 @@ export const TTermApp: React.FC = () => {
       currentName: "",
     })
   }, [])
+
+  const handleReconnectTab = useCallback(
+    (tabId: string) => {
+      updateTab(tabId, (tab) => ({
+        ...tab,
+        sessionNonce: (tab.sessionNonce ?? 0) + 1,
+      }))
+    },
+    [updateTab]
+  )
+
+  const handlePinConnectionHeader = useCallback(
+    (tabId: string) => {
+      updateTab(tabId, (tab) => ({
+        ...tab,
+        connectionHeaderPinned: true,
+      }))
+    },
+    [updateTab]
+  )
+
+  const handleUnpinConnectionHeader = useCallback(
+    (tabId: string) => {
+      updateTab(tabId, (tab) => ({
+        ...tab,
+        connectionHeaderPinned: false,
+      }))
+    },
+    [updateTab]
+  )
 
   // Reserve space for native frame buttons on Windows/Linux.
   // Keep this in sync with tauri-plugin-frame `button_width(46)` and 3 controls.
@@ -296,7 +356,7 @@ export const TTermApp: React.FC = () => {
       <>
         {tabs.map((tab) => (
           <div
-            key={tab.id}
+            key={`${tab.id}:${tab.sessionNonce ?? 0}`}
             style={{
               width: "100%",
               height: "100%",
@@ -308,21 +368,13 @@ export const TTermApp: React.FC = () => {
           >
             <TerminalTab
               tabId={tab.id}
+              sessionNonce={tab.sessionNonce}
               isActive={tab.id === activeTabId}
+              connectionHeaderPinned={tab.connectionHeaderPinned}
               connection={tab.connection ?? { type: tab.type }}
-              onReconnectRequest={() => {
-                cleanupConnection(tab.id)
-                // re-open the same connection by re-using its connection config
-                if (tab.connection) {
-                  addTab({
-                    title: tab.title,
-                    type: tab.type,
-                    isModified: false,
-                    connection: tab.connection,
-                  })
-                  removeTab(tab.id)
-                }
-              }}
+              onReconnectRequest={() => handleReconnectTab(tab.id)}
+              onPinConnectionHeader={() => handlePinConnectionHeader(tab.id)}
+              onUnpinConnectionHeader={() => handleUnpinConnectionHeader(tab.id)}
             />
           </div>
         ))}

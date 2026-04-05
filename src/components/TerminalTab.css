@@ -14,6 +14,154 @@
   }
 }
 
+.terminal-tab-shell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: hsl(var(--background));
+}
+
+.connection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 34px;
+  padding: 0 14px;
+  background: hsl(var(--background));
+  border-bottom: none;
+  flex-shrink: 0;
+}
+
+.connection-header-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.connection-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: none;
+  box-shadow: 0 0 0 1px hsl(var(--background));
+  flex-shrink: 0;
+}
+
+.connection-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.connection-status-pill.is-connecting,
+.connection-status-pill.is-reconnecting {
+  color: hsl(var(--warning));
+  background: transparent;
+}
+
+.connection-status-pill.is-connected {
+  color: hsl(var(--success));
+  background: transparent;
+}
+
+.connection-status-pill.is-disconnected,
+.connection-status-pill.is-error {
+  color: hsl(var(--destructive));
+  background: transparent;
+}
+
+.connection-meta {
+  min-width: 0;
+}
+
+.connection-primary {
+  font-size: 12px;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.connection-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.connection-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.connection-action:hover {
+  background: hsl(var(--muted));
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.terminal-surface {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.connection-header-restore {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  background: hsl(var(--background) / 0.88);
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px hsl(var(--background) / 0.18);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.connection-header-restore:hover {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--muted-foreground) / 0.45);
+  transform: translateY(-1px);
+}
+
 /* Tab content container */
 .tab-content-container {
   width: 100%;
@@ -21,4 +169,16 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+@media (max-width: 860px) {
+  .connection-header {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+  }
+
+  .connection-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }

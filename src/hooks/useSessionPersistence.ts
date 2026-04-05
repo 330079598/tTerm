@@ -17,6 +17,8 @@ function sanitizeTabForPersistence(tab: Tab, activeTabId: string | null): Tab {
   return {
     ...tab,
     isActive: tab.id === activeTabId,
+    sessionNonce: 0,
+    connectionHeaderPinned: tab.connectionHeaderPinned ?? true,
     connection: connection
       ? {
           ...connection,

@@ -13,6 +13,15 @@ export interface UseTabsReturn {
   closeTabsToRight: (id: string) => void
   renameTab: (id: string, newTitle: string) => void
   restoreSession: (tabs: Tab[], activeTabId: string | null) => void
+  updateTab: (id: string, updater: (tab: Tab) => Tab) => void
+}
+
+function ensureTabDefaults(tab: Tab): Tab {
+  return {
+    ...tab,
+    sessionNonce: tab.sessionNonce ?? 0,
+    connectionHeaderPinned: tab.connectionHeaderPinned ?? true,
+  }
 }
 
 export function useTabs(): UseTabsReturn {
@@ -37,18 +46,18 @@ export function useTabs(): UseTabsReturn {
     }, 0)
     tabIdCounter.current = maxId
 
-    setTabs(restoredTabs)
+    setTabs(restoredTabs.map(ensureTabDefaults))
     setActiveTabId(restoredActiveTabId)
   }, [])
 
   const addTab = useCallback(
     (tabData: Omit<Tab, "id" | "isActive">) => {
       const id = generateTabId()
-      const newTab: Tab = {
+      const newTab: Tab = ensureTabDefaults({
         ...tabData,
         id,
         isActive: false,
-      }
+      })
 
       setTabs((prevTabs) => {
         const updatedTabs = prevTabs.map((tab) => ({ ...tab, isActive: false }))
@@ -115,13 +124,14 @@ export function useTabs(): UseTabsReturn {
 
         const newId = generateTabId()
         const { id: _id, isActive: _isActive, ...tabData } = tab
-        const newTab: Tab = {
+        const newTab: Tab = ensureTabDefaults({
           ...tabData,
           connection: tabData.connection ?? { type: tabData.type },
+          sessionNonce: (tab.sessionNonce ?? 0) + 1,
           id: newId,
           title: `${tab.title} (Copy)`,
           isActive: false,
-        }
+        })
 
         // Set all tabs to inactive, new tab to active
         const updatedTabs = prevTabs.map((t) => ({ ...t, isActive: false }))
@@ -158,6 +168,12 @@ export function useTabs(): UseTabsReturn {
     )
   }, [])
 
+  const updateTab = useCallback((id: string, updater: (tab: Tab) => Tab) => {
+    setTabs((prevTabs) =>
+      prevTabs.map((tab) => (tab.id === id ? ensureTabDefaults(updater(tab)) : tab))
+    )
+  }, [])
+
   return {
     tabs,
     activeTabId,
@@ -170,5 +186,6 @@ export function useTabs(): UseTabsReturn {
     closeTabsToRight,
     renameTab,
     restoreSession,
+    updateTab,
   }
 }

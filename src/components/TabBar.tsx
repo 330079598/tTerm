@@ -58,10 +58,22 @@ const TabItem: React.FC<TabItemProps> = ({
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault()
+      const pinAction: TabContextMenuAction | null =
+        tab.type === "ssh"
+          ? tab.connectionHeaderPinned === false
+            ? { label: t("contextMenu.pinConnectionHeader"), action: "pin-header", icon: "pin" }
+            : {
+                label: t("contextMenu.unpinConnectionHeader"),
+                action: "unpin-header",
+                icon: "pin-off",
+              }
+          : null
+
       const actions: TabContextMenuAction[] = [
         { label: t("contextMenu.newTab"), action: "new", icon: "plus" },
         { label: t("contextMenu.duplicateTab"), action: "duplicate", icon: "copy" },
         { label: t("contextMenu.renameTab"), action: "rename", icon: "edit" },
+        ...(pinAction ? [pinAction] : []),
         { separator: true, label: "", action: "" },
         { label: t("contextMenu.closeTab"), action: "close", icon: "x" },
         { label: t("contextMenu.closeOtherTabs"), action: "close-others" },
