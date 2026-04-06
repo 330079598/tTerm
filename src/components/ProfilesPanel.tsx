@@ -5,7 +5,7 @@ import { Server, Trash2, Play, Pencil, ChevronDown, ChevronRight } from "lucide-
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tab } from "@/types/tab"
+import { Tab, type ConnectionType } from "@/types/tab"
 
 interface SavedProfile {
   id: string
@@ -106,12 +106,13 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({ onConnect, onEdit,
   }
 
   const handleConnect = (profile: SavedProfile) => {
+    const connectionType = profile.connection_type as ConnectionType
     const connection: Omit<Tab, "id" | "isActive"> = {
       title: profile.name,
-      type: profile.connection_type as Tab["type"],
+      type: connectionType,
       isModified: false,
       connection: {
-        type: profile.connection_type as Tab["type"],
+        type: connectionType,
         profileName: profile.name,
         host: profile.host,
         port: profile.port,

@@ -2,6 +2,7 @@ mod config;
 mod core;
 mod fonts;
 mod profiles;
+mod sftp;
 mod session;
 mod ssh;
 mod terminal;
@@ -19,6 +20,8 @@ pub struct TokioRuntimeState {
 pub fn run() {
     let pty_map: PtyMap = Arc::new(RwLock::new(std::collections::HashMap::new()));
     let host_prompt_map: core::HostPromptMap =
+        Arc::new(RwLock::new(std::collections::HashMap::new()));
+    let sftp_pool: sftp::SftpConnectionPool =
         Arc::new(RwLock::new(std::collections::HashMap::new()));
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
@@ -43,6 +46,7 @@ pub fn run() {
         )
         .manage(pty_map)
         .manage(host_prompt_map)
+        .manage(sftp_pool)
         .manage(TokioRuntimeState { runtime })
         .manage(secret_store)
         .invoke_handler(tauri::generate_handler![
@@ -60,6 +64,12 @@ pub fn run() {
             profiles::list_profiles,
             profiles::save_profile,
             profiles::delete_profile,
+            sftp::sftp_list_directory,
+            sftp::sftp_create_directory,
+            sftp::sftp_delete_entry,
+            sftp::sftp_rename_entry,
+            sftp::sftp_upload_file,
+            sftp::sftp_download_file,
             ssh::secret_commands::get_secret_backend_status,
             ssh::secret_commands::unlock_secret_vault,
             ssh::secret_commands::lock_secret_vault,

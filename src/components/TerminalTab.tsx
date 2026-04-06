@@ -5,10 +5,11 @@ import { FitAddon } from "@xterm/addon-fit"
 import { WebLinksAddon } from "@xterm/addon-web-links"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
-import { openUrl } from "@tauri-apps/plugin-opener"
 import { Globe, Pin, PinOff, PlugZap, RefreshCcw } from "lucide-react"
+import { SftpDrawer } from "@/components/SftpDrawer"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTranslation } from "react-i18next"
+import type { Tab } from "@/types/tab"
 import "@xterm/xterm/css/xterm.css"
 
 interface TerminalTabProps {
@@ -16,23 +17,7 @@ interface TerminalTabProps {
   sessionNonce?: number
   isActive: boolean
   connectionHeaderPinned?: boolean
-  connection?: {
-    type?: "terminal" | "ssh"
-    profileName?: string
-    host?: string
-    port?: number
-    username?: string
-    password?: string
-    rememberPassword?: boolean
-    reconnect?: boolean
-    reconnectDelaySecs?: number
-    reconnectMaxDelaySecs?: number
-    reconnectMaxRetries?: number
-    keepaliveIntervalSecs?: number
-    keepaliveCountMax?: number
-    privateKeyPath?: string
-    privateKeyPassphrase?: string
-  }
+  connection?: Tab["connection"]
   onPidChange?: (pid: number) => void
   onReconnectRequest?: () => void
   onPinConnectionHeader?: () => void
@@ -129,6 +114,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     sessionKey: string
     value: ConnectionState
   } | null>(null)
+  const [showSftpDrawer, setShowSftpDrawer] = useState(false)
 
   const hostKeyPrompt =
     hostKeyPromptState?.sessionKey === sessionResetKey ? hostKeyPromptState.value : null
@@ -487,27 +473,9 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     onReconnectRequest?.()
   }
 
-  const handleOpenSftp = async () => {
-    if (!connection?.host) {
-      return
-    }
-
-    const host = connection.host
-    const port = connection.port ?? 22
-    const target = connection.username ? `${connection.username}@${host}` : host
-    const primaryUrl = `sftp://${target}:${port}`
-    const fallbackUrl = `ssh://${target}:${port}`
-
-    try {
-      await openUrl(primaryUrl)
-    } catch {
-      try {
-        await openUrl(fallbackUrl)
-      } catch (error) {
-        console.error("Failed to open SFTP target:", error)
-      }
-    }
-  }
+  const handleToggleSftpDrawer = useCallback(() => {
+    setShowSftpDrawer((current) => !current)
+  }, [])
 
   const showConnectionHeader = connection?.type === "ssh" && connectionHeaderPinned
   const showPinnedToggle = connection?.type === "ssh" && !connectionHeaderPinned
@@ -555,7 +523,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
             <button
               type="button"
               className="connection-action"
-              onClick={handleOpenSftp}
+              onClick={handleToggleSftpDrawer}
               title={t("sessionHeader.sftp", { defaultValue: "SFTP" })}
             >
               <Globe size={14} />
@@ -575,6 +543,13 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       )}
 
       <div className="terminal-surface">
+        <SftpDrawer
+          tabId={tabId}
+          visible={showSftpDrawer}
+          connection={connection}
+          onClose={() => setShowSftpDrawer(false)}
+        />
+
         <div
           ref={containerRef}
           onMouseDown={() => termRef.current?.focus()}

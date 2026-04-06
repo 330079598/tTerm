@@ -166,5 +166,42 @@
       "vault": "App vault",
       "memory": "Memory only"
     }
+  },
+  "transfer": {
+    "title": "Transfers",
+    "active": "Active",
+    "history": "History",
+    "noTransfers": "No transfers",
+    "cancel": "Cancel",
+    "remove": "Remove",
+    "clearCompleted": "Clear Completed",
+    "completed": "Completed",
+    "failed": "Failed",
+    "cancelled": "Cancelled"
+  },
+  "sftp": {
+    "transfers": "Transfers",
+    "columns": {
+      "name": "Name",
+      "modified": "Date Modified",
+      "size": "Size",
+      "owner": "Owner/Group"
+    },
+    "actions": {
+      "upload": "Upload Files",
+      "download": "Download File",
+      "rename": "Rename",
+      "delete": "Delete",
+      "newFolder": "New Folder"
+    },
+    "prompts": {
+      "newFolder": "New folder name",
+      "rename": "Rename entry",
+      "delete": "Delete {{name}}?"
+    },
+    "errors": {
+      "missingConnection": "SSH connection is missing"
+    },
+    "emptyDescription": "This folder is empty"
   }
 }

@@ -126,7 +126,9 @@ export function useTabs(): UseTabsReturn {
         const { id: _id, isActive: _isActive, ...tabData } = tab
         const newTab: Tab = ensureTabDefaults({
           ...tabData,
-          connection: tabData.connection ?? { type: tabData.type },
+          connection: tabData.connection ?? {
+            type: tabData.type === "terminal" ? "terminal" : "ssh",
+          },
           sessionNonce: (tab.sessionNonce ?? 0) + 1,
           id: newId,
           title: `${tab.title} (Copy)`,

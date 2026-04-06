@@ -125,22 +125,59 @@
     "browseKey": "浏览"
   },
   "secretStorage": {
-    "title": "????",
-    "description": "?????????????????????????????????????????",
-    "activeBackend": "????",
-    "enableVault": "?????????",
-    "enableVaultDesc": "???????????????",
-    "vaultPassword": "?????",
-    "vaultPasswordPlaceholder": "????????",
-    "unlockVault": "?????",
-    "lockVault": "?????",
-    "close": "??",
-    "keyringUnavailable": "?????????",
-    "keyringUnavailableDesc": "???????????????????",
+    "title": "密钥存储",
+    "description": "优先使用系统凭据存储。如果不可用，您可以启用并解锁应用保险库作为受控后备。",
+    "activeBackend": "当前后端",
+    "enableVault": "启用应用保险库后备",
+    "enableVaultDesc": "仅在系统凭据存储不可用时使用。",
+    "vaultPassword": "保险库密码",
+    "vaultPasswordPlaceholder": "输入保险库密码",
+    "unlockVault": "解锁保险库",
+    "lockVault": "锁定保险库",
+    "close": "关闭",
+    "keyringUnavailable": "系统凭据存储不可用",
+    "keyringUnavailableDesc": "只有在解锁应用保险库后才能持久化密码。",
     "backends": {
-      "system": "??????",
-      "vault": "?????",
-      "memory": "???"
+      "system": "系统密钥环",
+      "vault": "应用保险库",
+      "memory": "仅内存"
     }
+  },
+  "transfer": {
+    "title": "传输",
+    "active": "进行中",
+    "history": "历史记录",
+    "noTransfers": "无传输任务",
+    "cancel": "取消",
+    "remove": "移除",
+    "clearCompleted": "清除已完成",
+    "completed": "已完成",
+    "failed": "失败",
+    "cancelled": "已取消"
+  },
+  "sftp": {
+    "transfers": "传输",
+    "columns": {
+      "name": "名称",
+      "modified": "修改日期",
+      "size": "大小",
+      "owner": "所有者/组"
+    },
+    "actions": {
+      "upload": "上传文件",
+      "download": "下载文件",
+      "rename": "重命名",
+      "delete": "删除",
+      "newFolder": "新建文件夹"
+    },
+    "prompts": {
+      "newFolder": "新文件夹名称",
+      "rename": "重命名条目",
+      "delete": "删除 {{name}}？"
+    },
+    "errors": {
+      "missingConnection": "SSH 连接缺失"
+    },
+    "emptyDescription": "此文件夹为空"
   }
 }

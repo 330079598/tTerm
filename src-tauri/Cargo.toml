@@ -28,6 +28,7 @@ portable-pty = "0.9"
 uuid = { version = "1", features = ["v4"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 russh = { version = "0.58", default-features = false, features = ["ring"] }
+russh-sftp = "2.1.1"
 async-trait = "0.1"
 tauri-plugin-frame = "1.1.6"
 aes-gcm = "0.10"

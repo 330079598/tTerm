@@ -16,7 +16,26 @@ export interface SavedProfile {
   keepalive_count_max: number
 }
 
+export type TransferStatus = "pending" | "transferring" | "completed" | "failed" | "cancelled"
+export type TransferDirection = "upload" | "download"
+
+export interface TransferTask {
+  id: string
+  direction: TransferDirection
+  localPath: string
+  remotePath: string
+  fileName: string
+  fileSize: number
+  transferred: number
+  status: TransferStatus
+  error?: string
+  startTime: number
+  endTime?: number
+  speed?: number
+}
+
 export type TerminalShellType = "auto" | "cmd" | "powershell" | "pwsh" | "custom"
+export type ConnectionType = "terminal" | "ssh"
 
 export interface Tab {
   id: string
@@ -29,7 +48,7 @@ export interface Tab {
   sessionNonce?: number
   connectionHeaderPinned?: boolean
   connection?: {
-    type?: "terminal" | "ssh"
+    type?: ConnectionType
     profileName?: string
     host?: string
     port?: number

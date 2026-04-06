@@ -371,7 +371,7 @@ ${t("app.builtWith")}`
               sessionNonce={tab.sessionNonce}
               isActive={tab.id === activeTabId}
               connectionHeaderPinned={tab.connectionHeaderPinned}
-              connection={tab.connection ?? { type: tab.type }}
+              connection={tab.connection ?? { type: tab.type === "terminal" ? "terminal" : "ssh" }}
               onReconnectRequest={() => handleReconnectTab(tab.id)}
               onPinConnectionHeader={() => handlePinConnectionHeader(tab.id)}
               onUnpinConnectionHeader={() => handleUnpinConnectionHeader(tab.id)}
