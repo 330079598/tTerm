@@ -1,6 +1,7 @@
 import "@/components/SftpDrawer.css"
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
+import { getCurrentWindow } from "@tauri-apps/api/window"
 import { open as openFileDialog, save as saveFileDialog } from "@tauri-apps/plugin-dialog"
 import {
   ArrowUpFromLine,
@@ -149,19 +150,133 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         })
         setListing(nextListing)
         setSelectedPath(null)
-
-        // Show success message briefly
-        if (listing) {
-          setSuccessMessage(t("sftp.refreshed", { defaultValue: "Refreshed" }))
-          setTimeout(() => setSuccessMessage(null), 2000)
-        }
       } catch (invokeError) {
         setError(String(invokeError))
       } finally {
         setIsLoading(false)
       }
     },
-    [connection, listing, t, tabId]
+    [connection, t, tabId]
+  )
+
+  const uploadFiles = useCallback(
+    async (files: File[]) => {
+      console.log("uploadFiles called with:", files)
+      console.log("listing:", listing)
+
+      if (!listing || files.length === 0) {
+        console.log("Early return: listing or files empty")
+        return
+      }
+
+      const validFiles = files.filter((file) => {
+        console.log("Checking file:", file.name, "path:", file.path)
+        if (!file.path) {
+          console.warn("File does not have path property:", file.name)
+          setError(
+            t("sftp.errors.invalidFile", {
+              defaultValue: `Cannot upload ${file.name}: file path not available`,
+              name: file.name,
+            })
+          )
+          return false
+        }
+        return true
+      })
+
+      console.log("Valid files:", validFiles)
+
+      if (validFiles.length === 0) {
+        setError(
+          t("sftp.errors.noValidFiles", {
+            defaultValue: "No valid files to upload",
+          })
+        )
+        return
+      }
+
+      // 清除之前的错误消息
+      setError(null)
+
+      // 并发上传所有文件，而不是串行
+      const uploadPromises = validFiles.map(async (file) => {
+        const fileName = file.name
+        const localPath = file.path!
+
+        console.log("Uploading file:", fileName, "from:", localPath)
+
+        const transferId = addTransfer({
+          direction: "upload",
+          localPath,
+          remotePath: joinRemotePath(listing.currentPath, fileName),
+          fileName,
+          fileSize: file.size || 0,
+          speed: 0,
+        })
+
+        updateTransfer(transferId, { status: "transferring" })
+
+        try {
+          const startTime = Date.now()
+          await invoke("sftp_upload_file", {
+            tabId,
+            connection,
+            localPath,
+            remotePath: joinRemotePath(listing.currentPath, fileName),
+          })
+
+          const duration = Date.now() - startTime
+          const fileSize = file.size || 1024
+          const speed = duration > 0 ? (fileSize / duration) * 1000 : 0
+
+          updateTransfer(transferId, {
+            status: "completed",
+            transferred: fileSize,
+            fileSize,
+            endTime: Date.now(),
+            speed,
+          })
+
+          console.log("Upload completed:", fileName)
+          return { success: true, fileName }
+        } catch (error) {
+          console.error("Upload failed:", fileName, error)
+          updateTransfer(transferId, {
+            status: "failed",
+            error: String(error),
+            endTime: Date.now(),
+          })
+          return { success: false, fileName, error: String(error) }
+        }
+      })
+
+      // 等待所有上传完成
+      const results = await Promise.allSettled(uploadPromises)
+
+      // 统计结果
+      const succeeded = results.filter((r) => r.status === "fulfilled" && r.value.success).length
+      const failed = results.filter(
+        (r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.success)
+      ).length
+
+      console.log(`Upload summary: ${succeeded} succeeded, ${failed} failed`)
+
+      // 刷新目录列表
+      console.log("Refreshing directory listing")
+      await loadDirectory(listing.currentPath)
+
+      // 显示成功消息
+      if (succeeded > 0) {
+        setSuccessMessage(
+          t("sftp.uploadComplete", {
+            defaultValue: `Uploaded ${succeeded} file(s)`,
+            count: succeeded,
+          })
+        )
+        setTimeout(() => setSuccessMessage(null), 3000)
+      }
+    },
+    [addTransfer, connection, listing, loadDirectory, t, tabId, updateTransfer]
   )
 
   useEffect(() => {
@@ -173,7 +288,62 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
     if (!listing) {
       void loadDirectory(null)
     }
-  }, [listing, loadDirectory, visible])
+
+    // 监听 Tauri 文件拖放事件
+    let unlisten: (() => void) | undefined
+
+    const setupDragDropListener = async () => {
+      const appWindow = getCurrentWindow()
+
+      unlisten = await appWindow.onDragDropEvent((event) => {
+        console.log("Drag drop event:", event)
+
+        // 只在 drawer 可见时处理拖放事件
+        if (!visible) return
+
+        if (event.payload.type === "enter") {
+          dragCounterRef.current += 1
+          setIsDragActive(true)
+        } else if (event.payload.type === "leave") {
+          dragCounterRef.current = Math.max(0, dragCounterRef.current - 1)
+          if (dragCounterRef.current === 0) {
+            setIsDragActive(false)
+          }
+        } else if (event.payload.type === "drop") {
+          dragCounterRef.current = 0
+          setIsDragActive(false)
+
+          const paths = event.payload.paths as string[]
+          console.log("Dropped paths:", paths)
+
+          if (paths && paths.length > 0) {
+            // 将路径转换为带有 path 属性的对象
+            const files = paths.map((path) => {
+              const fileName = path.split(/[\\/]/).pop() || "file"
+              // 创建一个模拟的 File 对象，带有 path 属性
+              const fileObj = {
+                name: fileName,
+                path: path,
+                size: 0,
+                type: "application/octet-stream",
+              } as File & { path: string }
+              return fileObj
+            })
+            console.log("Uploading files:", files)
+            void uploadFiles(files)
+          }
+        }
+      })
+    }
+
+    void setupDragDropListener()
+
+    return () => {
+      if (unlisten) {
+        unlisten()
+      }
+    }
+  }, [listing, loadDirectory, visible, uploadFiles])
 
   const selectedEntry = useMemo(
     () => listing?.entries.find((entry) => entry.path === selectedPath) ?? null,
@@ -210,60 +380,6 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       }
     },
     [listing?.currentPath, loadDirectory]
-  )
-
-  const uploadFiles = useCallback(
-    async (files: File[]) => {
-      if (!listing || files.length === 0) return
-
-      for (const file of files) {
-        // 检查文件是否有 path 属性（Tauri 拖放文件才有）
-        if (!file.path) {
-          console.warn("File does not have path property:", file.name)
-          continue
-        }
-
-        const transferId = addTransfer({
-          direction: "upload",
-          localPath: file.path,
-          remotePath: joinRemotePath(listing.currentPath, file.name),
-          fileName: file.name,
-          fileSize: file.size,
-          speed: 0,
-        })
-
-        updateTransfer(transferId, { status: "transferring" })
-
-        try {
-          const startTime = Date.now()
-          await invoke("sftp_upload_file", {
-            tabId,
-            connection,
-            localPath: file.path,
-            remotePath: joinRemotePath(listing.currentPath, file.name),
-          })
-
-          const duration = Date.now() - startTime
-          const speed = duration > 0 ? (file.size / duration) * 1000 : 0
-
-          updateTransfer(transferId, {
-            status: "completed",
-            transferred: file.size,
-            endTime: Date.now(),
-            speed,
-          })
-        } catch (error) {
-          updateTransfer(transferId, {
-            status: "failed",
-            error: String(error),
-            endTime: Date.now(),
-          })
-        }
-      }
-
-      await loadDirectory(listing.currentPath)
-    },
-    [addTransfer, connection, listing, loadDirectory, tabId, updateTransfer]
   )
 
   const handleOpenEntry = useCallback(
@@ -442,8 +558,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
 
     const paths = Array.isArray(selection) ? selection : [selection]
 
-    // 为每个文件创建传输任务
-    for (const path of paths) {
+    // 并发上传所有文件
+    const uploadPromises = paths.map(async (path) => {
       const fileName = path.split(/[\\/]/).pop() ?? "file"
 
       const transferId = addTransfer({
@@ -451,7 +567,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         localPath: path,
         remotePath: joinRemotePath(listing.currentPath, fileName),
         fileName,
-        fileSize: 0, // 文件大小将在上传时更新
+        fileSize: 0,
         speed: 0,
       })
 
@@ -467,24 +583,31 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         })
 
         const duration = Date.now() - startTime
-        const speed = duration > 0 ? (1024 / duration) * 1000 : 0 // 估算速度
+        const speed = duration > 0 ? (1024 / duration) * 1000 : 0
 
         updateTransfer(transferId, {
           status: "completed",
-          transferred: 1024, // 占位值
+          transferred: 1024,
           fileSize: 1024,
           endTime: Date.now(),
           speed,
         })
+
+        return { success: true, fileName }
       } catch (error) {
         updateTransfer(transferId, {
           status: "failed",
           error: String(error),
           endTime: Date.now(),
         })
+        return { success: false, fileName, error: String(error) }
       }
-    }
+    })
 
+    // 等待所有上传完成
+    await Promise.allSettled(uploadPromises)
+
+    // 刷新目录
     await loadDirectory(listing.currentPath)
   }, [addTransfer, connection, listing, loadDirectory, t, tabId, updateTransfer])
 
@@ -516,13 +639,27 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       dragCounterRef.current = 0
       setIsDragActive(false)
 
+      if (!listing) {
+        setError(t("sftp.errors.notReady", { defaultValue: "SFTP not ready" }))
+        return
+      }
+
       const droppedFiles = Array.from(event.dataTransfer.files).filter(
         (file) => typeof file.path === "string" && file.path.length > 0
       )
 
+      if (droppedFiles.length === 0) {
+        setError(
+          t("sftp.errors.noValidFiles", {
+            defaultValue: "No valid files to upload",
+          })
+        )
+        return
+      }
+
       await uploadFiles(droppedFiles)
     },
-    [uploadFiles]
+    [listing, t, uploadFiles]
   )
 
   return (
@@ -606,15 +743,31 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       )}
 
       <div
-        className={cn(
-          "sftp-drawer-body",
-          isDragActive && "outline-primary outline outline-2 outline-offset-[-2px]"
-        )}
+        className={cn("sftp-drawer-body", isDragActive && "drag-active")}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
       >
+        {/* 拖拽覆盖层 */}
+        {isDragActive && (
+          <div className="sftp-drag-overlay">
+            <div className="sftp-drag-hint">
+              <ArrowUpFromLine className="sftp-drag-hint-icon" />
+              <div className="text-center">
+                <p className="sftp-drag-hint-title">
+                  {t("sftp.dropFiles", { defaultValue: "Drop files to upload" })}
+                </p>
+                <p className="sftp-drag-hint-description">
+                  {t("sftp.dropFilesHint", {
+                    defaultValue: "Files will be uploaded to current directory",
+                  })}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="sftp-table-shell">
           <div className="sftp-table-header">
             <span>{t("sftp.columns.name", { defaultValue: "Name" })}</span>

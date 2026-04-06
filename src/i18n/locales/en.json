@@ -192,7 +192,9 @@
       "download": "Download File",
       "rename": "Rename",
       "delete": "Delete",
-      "newFolder": "New Folder"
+      "newFolder": "New Folder",
+      "refresh": "Refresh",
+      "close": "Close"
     },
     "prompts": {
       "newFolder": "New folder name",
@@ -200,8 +202,16 @@
       "delete": "Delete {{name}}?"
     },
     "errors": {
-      "missingConnection": "SSH connection is missing"
+      "missingConnection": "SSH connection is missing",
+      "invalidFile": "Cannot upload {{name}}: file path not available",
+      "noValidFiles": "No valid files to upload",
+      "notReady": "SFTP not ready"
     },
-    "emptyDescription": "This folder is empty"
+    "emptyDescription": "This folder is empty",
+    "loading": "Loading...",
+    "refreshed": "Refreshed",
+    "retry": "Retry",
+    "dropFiles": "Drop files to upload",
+    "dropFilesHint": "Files will be uploaded to current directory"
   }
 }

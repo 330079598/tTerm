@@ -14,10 +14,13 @@
     "core:event:default",
     "dialog:default",
     "dialog:allow-open",
+    "dialog:allow-save",
     "core:window:allow-center",
     "core:window:allow-set-size",
     "core:window:allow-set-focus",
     "core:window:allow-is-maximized",
-    "frame:default"
+    "frame:default",
+    "core:webview:allow-webview-position",
+    "core:webview:allow-webview-size"
   ]
 }

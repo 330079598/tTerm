@@ -168,7 +168,9 @@
       "download": "下载文件",
       "rename": "重命名",
       "delete": "删除",
-      "newFolder": "新建文件夹"
+      "newFolder": "新建文件夹",
+      "refresh": "刷新",
+      "close": "关闭"
     },
     "prompts": {
       "newFolder": "新文件夹名称",
@@ -176,8 +178,16 @@
       "delete": "删除 {{name}}？"
     },
     "errors": {
-      "missingConnection": "SSH 连接缺失"
+      "missingConnection": "SSH 连接缺失",
+      "invalidFile": "无法上传 {{name}}：文件路径不可用",
+      "noValidFiles": "没有有效的文件可上传",
+      "notReady": "SFTP 未就绪"
     },
-    "emptyDescription": "此文件夹为空"
+    "emptyDescription": "此文件夹为空",
+    "loading": "加载中...",
+    "refreshed": "已刷新",
+    "retry": "重试",
+    "dropFiles": "拖放文件以上传",
+    "dropFilesHint": "文件将上传到当前目录"
   }
 }

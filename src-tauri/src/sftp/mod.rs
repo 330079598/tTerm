@@ -333,181 +333,176 @@ fn sanitize_target_path(path: Option<String>) -> Option<String> {
 }
 
 #[tauri::command]
-pub fn sftp_list_directory(
+pub async fn sftp_list_directory(
     app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     path: Option<String>,
     prompt_state: State<'_, HostPromptMap>,
-    runtime_state: State<'_, crate::TokioRuntimeState>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<SftpDirectoryListing, String> {
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
 
-    runtime_state.runtime.block_on(async move {
-        let requested_path = sanitize_target_path(path);
-        
-        with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-            let current_path = match requested_path {
-                Some(path) => sftp.canonicalize(path).await.map_err(map_sftp_error)?,
-                None => sftp.canonicalize(".").await.map_err(map_sftp_error)?,
-            };
+    let requested_path = sanitize_target_path(path);
+    
+    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
+        let current_path = match requested_path {
+            Some(path) => sftp.canonicalize(path).await.map_err(map_sftp_error)?,
+            None => sftp.canonicalize(".").await.map_err(map_sftp_error)?,
+        };
 
-            let mut entries = sftp
-                .read_dir(&current_path)
-                .await
-                .map_err(map_sftp_error)?
-                .map(|entry| {
-                    let name = entry.file_name();
-                    let metadata = entry.metadata();
+        let mut entries = sftp
+            .read_dir(&current_path)
+            .await
+            .map_err(map_sftp_error)?
+            .map(|entry| {
+                let name = entry.file_name();
+                let metadata = entry.metadata();
 
-                    SftpDirectoryEntry {
-                        path: join_remote_path(&current_path, &name),
-                        name,
-                        is_dir: metadata.is_dir(),
-                        is_symlink: metadata.is_symlink(),
-                        size: metadata.size,
-                        modified_at: metadata.mtime.map(|value| value as i64 * 1000),
-                        permissions: metadata.permissions.map(|_| metadata.permissions().to_string()),
-                        owner: metadata
-                            .user
-                            .clone()
-                            .or_else(|| metadata.uid.map(|value| value.to_string())),
-                        group: metadata
-                            .group
-                            .clone()
-                            .or_else(|| metadata.gid.map(|value| value.to_string())),
-                    }
-                })
-                .collect::<Vec<_>>();
-
-            sort_entries(&mut entries);
-            Ok(SftpDirectoryListing {
-                current_path: normalize_remote_path(&current_path),
-                parent_path: parent_remote_path(&current_path),
-                entries,
+                SftpDirectoryEntry {
+                    path: join_remote_path(&current_path, &name),
+                    name,
+                    is_dir: metadata.is_dir(),
+                    is_symlink: metadata.is_symlink(),
+                    size: metadata.size,
+                    modified_at: metadata.mtime.map(|value| value as i64 * 1000),
+                    permissions: metadata.permissions.map(|_| metadata.permissions().to_string()),
+                    owner: metadata
+                        .user
+                        .clone()
+                        .or_else(|| metadata.uid.map(|value| value.to_string())),
+                    group: metadata
+                        .group
+                        .clone()
+                        .or_else(|| metadata.gid.map(|value| value.to_string())),
+                }
             })
+            .collect::<Vec<_>>();
+
+        sort_entries(&mut entries);
+        Ok(SftpDirectoryListing {
+            current_path: normalize_remote_path(&current_path),
+            parent_path: parent_remote_path(&current_path),
+            entries,
         })
     })
 }
 
 #[tauri::command]
-pub fn sftp_create_directory(
+pub async fn sftp_create_directory(
     app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     path: String,
     prompt_state: State<'_, HostPromptMap>,
-    runtime_state: State<'_, crate::TokioRuntimeState>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<(), String> {
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
 
-    runtime_state.runtime.block_on(async move {
-        with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-            sftp.create_dir(path).await.map_err(map_sftp_error)
-        })
+    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
+        sftp.create_dir(path).await.map_err(map_sftp_error)
     })
 }
 
 #[tauri::command]
-pub fn sftp_delete_entry(
+pub async fn sftp_delete_entry(
     app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     path: String,
     is_dir: bool,
     prompt_state: State<'_, HostPromptMap>,
-    runtime_state: State<'_, crate::TokioRuntimeState>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<(), String> {
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
 
-    runtime_state.runtime.block_on(async move {
-        with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-            if is_dir {
-                sftp.remove_dir(path).await.map_err(map_sftp_error)
-            } else {
-                sftp.remove_file(path).await.map_err(map_sftp_error)
-            }
-        })
+    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
+        if is_dir {
+            sftp.remove_dir(path).await.map_err(map_sftp_error)
+        } else {
+            sftp.remove_file(path).await.map_err(map_sftp_error)
+        }
     })
 }
 
 #[tauri::command]
-pub fn sftp_rename_entry(
+pub async fn sftp_rename_entry(
     app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     old_path: String,
     new_path: String,
     prompt_state: State<'_, HostPromptMap>,
-    runtime_state: State<'_, crate::TokioRuntimeState>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<(), String> {
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
 
-    runtime_state.runtime.block_on(async move {
-        with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-            sftp.rename(old_path, new_path).await.map_err(map_sftp_error)
-        })
+    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
+        sftp.rename(old_path, new_path).await.map_err(map_sftp_error)
     })
 }
 
 #[tauri::command]
-pub fn sftp_upload_file(
+pub async fn sftp_upload_file(
     app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     local_path: String,
     remote_path: String,
     prompt_state: State<'_, HostPromptMap>,
-    runtime_state: State<'_, crate::TokioRuntimeState>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<(), String> {
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
-    let data = std::fs::read(&local_path)
-        .map_err(|err| format!("Failed to read local file '{local_path}': {err}"))?;
+    
+    // 在后台线程读取文件，避免阻塞
+    let data = tokio::task::spawn_blocking(move || {
+        std::fs::read(&local_path)
+            .map_err(|err| format!("Failed to read local file '{local_path}': {err}"))
+    })
+    .await
+    .map_err(|err| format!("Task join error: {err}"))??;
 
-    runtime_state.runtime.block_on(async move {
-        with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-            let mut file = sftp.create(remote_path).await.map_err(map_sftp_error)?;
-            file.write_all(&data)
-                .await
-                .map_err(|err| format!("Failed to write remote file: {err}"))?;
-            file.shutdown()
-                .await
-                .map_err(|err| format!("Failed to finalize remote file: {err}"))?;
-            Ok(())
-        })
+    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
+        let mut file = sftp.create(remote_path).await.map_err(map_sftp_error)?;
+        file.write_all(&data)
+            .await
+            .map_err(|err| format!("Failed to write remote file: {err}"))?;
+        file.shutdown()
+            .await
+            .map_err(|err| format!("Failed to finalize remote file: {err}"))?;
+        Ok(())
     })
 }
 
 #[tauri::command]
-pub fn sftp_download_file(
+pub async fn sftp_download_file(
     app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     remote_path: String,
     local_path: String,
     prompt_state: State<'_, HostPromptMap>,
-    runtime_state: State<'_, crate::TokioRuntimeState>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<(), String> {
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
 
-    runtime_state.runtime.block_on(async move {
-        with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-            let data = sftp.read(remote_path).await.map_err(map_sftp_error)?;
-            std::fs::write(&local_path, data)
-                .map_err(|err| format!("Failed to write local file '{local_path}': {err}"))?;
-            Ok(())
-        })
+    let data = with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
+        sftp.read(remote_path).await.map_err(map_sftp_error)
+    })?;
+    
+    // 在后台线程写入文件，避免阻塞
+    tokio::task::spawn_blocking(move || {
+        std::fs::write(&local_path, data)
+            .map_err(|err| format!("Failed to write local file '{local_path}': {err}"))
     })
+    .await
+    .map_err(|err| format!("Task join error: {err}"))??;
+    
+    Ok(())
 }
