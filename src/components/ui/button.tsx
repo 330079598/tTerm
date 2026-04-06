@@ -1,6 +1,5 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
-import { Slot } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
@@ -36,7 +35,13 @@ const buttonVariants = cva(
   }
 )
 
+type SlottableProps = Record<string, unknown> & {
+  className?: string
+  children?: React.ReactNode
+}
+
 function Button({
+  children,
   className,
   variant = "default",
   size = "default",
@@ -46,16 +51,33 @@ function Button({
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
   }) {
-  const Comp = asChild ? Slot.Root : "button"
+  const resolvedClassName = cn(buttonVariants({ variant, size, className }))
+
+  if (asChild && React.isValidElement<SlottableProps>(children)) {
+    const Comp = children.type as React.ElementType<Record<string, unknown>>
+
+    return (
+      <Comp
+        {...(children.props as Record<string, unknown>)}
+        {...(props as Record<string, unknown>)}
+        data-slot="button"
+        data-size={size ?? undefined}
+        data-variant={variant ?? undefined}
+        className={cn(resolvedClassName, children.props.className)}
+      />
+    )
+  }
 
   return (
-    <Comp
+    <button
       data-slot="button"
       data-variant={variant}
       data-size={size}
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={resolvedClassName}
       {...props}
-    />
+    >
+      {children}
+    </button>
   )
 }
 
