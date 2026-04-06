@@ -2,6 +2,8 @@ import React from "react"
 import { useTranslation } from "react-i18next"
 import { Languages, Check } from "lucide-react"
 import { useConfig } from "@/contexts/ConfigContext"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
@@ -42,21 +44,26 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ onClose }) =
           {languages.map((lang) => {
             const isActive = i18n.language === lang.code
             return (
-              <button
-                key={lang.code}
-                onClick={() => handleLanguageChange(lang.code)}
-                className={cn(
-                  "flex items-center justify-between rounded-md px-4 py-3 text-left transition-colors",
-                  "hover:bg-muted",
-                  isActive && "bg-muted"
-                )}
-              >
-                <div>
-                  <div className="text-sm font-semibold">{lang.nativeLabel}</div>
-                  <div className="text-muted-foreground text-xs">{lang.label}</div>
-                </div>
-                {isActive && <Check size={16} className="text-primary" />}
-              </button>
+              <Card key={lang.code} className="overflow-hidden border-transparent shadow-none">
+                <CardContent className="p-0">
+                  <Button
+                    key={lang.code}
+                    type="button"
+                    variant="ghost"
+                    onClick={() => handleLanguageChange(lang.code)}
+                    className={cn(
+                      "h-auto w-full justify-between rounded-lg px-4 py-3 text-left",
+                      isActive && "bg-muted"
+                    )}
+                  >
+                    <div>
+                      <div className="text-sm font-semibold">{lang.nativeLabel}</div>
+                      <div className="text-muted-foreground text-xs">{lang.label}</div>
+                    </div>
+                    {isActive && <Check size={16} className="text-primary" />}
+                  </Button>
+                </CardContent>
+              </Card>
             )
           })}
         </div>

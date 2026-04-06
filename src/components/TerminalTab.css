@@ -171,7 +171,7 @@
   overflow: hidden;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 350px) {
   .connection-header {
     flex-wrap: wrap;
     padding: 8px 12px;

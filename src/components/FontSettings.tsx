@@ -11,6 +11,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
@@ -53,23 +56,21 @@ export const FontSettings: React.FC<FontSettingsProps> = ({ onClose }) => {
         <div className="max-h-[70vh] space-y-5 overflow-y-auto py-2">
           {/* Font Size */}
           <div>
-            <label className="mb-2 block text-sm font-medium">{t("fontSettings.fontSize")}</label>
+            <Label className="mb-2 block">{t("fontSettings.fontSize")}</Label>
             <div className="flex flex-wrap gap-1.5">
               {FONT_SIZE_OPTIONS.map((size) => (
-                <button
+                <Button
                   key={size}
+                  type="button"
+                  variant={fontSize === size ? "default" : "outline"}
+                  size="xs"
                   onClick={() => setFontSize(size)}
-                  className={cn(
-                    "hover:bg-accent h-7 min-w-[2.25rem] rounded border px-2 text-xs transition-colors",
-                    fontSize === size
-                      ? "border-primary bg-accent text-foreground"
-                      : "border-border text-muted-foreground"
-                  )}
+                  className={cn("min-w-[2.25rem]", fontSize !== size && "text-muted-foreground")}
                 >
                   {size}
-                </button>
+                </Button>
               ))}
-              <input
+              <Input
                 type="number"
                 min={6}
                 max={72}
@@ -78,22 +79,22 @@ export const FontSettings: React.FC<FontSettingsProps> = ({ onClose }) => {
                   const v = parseInt(e.target.value)
                   if (!isNaN(v) && v >= 6 && v <= 72) setFontSize(v)
                 }}
-                className="border-border bg-background focus:border-primary h-7 w-16 rounded border px-2 text-xs outline-none"
+                className="h-7 w-16 px-2 text-xs"
               />
             </div>
           </div>
 
           {/* Font Family */}
           <div>
-            <label className="mb-2 block text-sm font-medium">{t("fontSettings.fontFamily")}</label>
+            <Label className="mb-2 block">{t("fontSettings.fontFamily")}</Label>
 
             {/* Custom input */}
-            <input
+            <Input
               type="text"
               value={fontFamily}
               onChange={(e) => setFontFamily(e.target.value)}
               placeholder={t("fontSettings.customFont")}
-              className="border-border bg-background focus:border-primary mb-2 w-full rounded border px-3 py-1.5 text-sm outline-none"
+              className="mb-2"
             />
 
             {/* System fonts list */}
@@ -130,13 +131,15 @@ export const FontSettings: React.FC<FontSettingsProps> = ({ onClose }) => {
 
           {/* Preview */}
           <div>
-            <label className="mb-2 block text-sm font-medium">{t("fontSettings.preview")}</label>
-            <div
-              className="border-border bg-secondary text-foreground rounded border px-4 py-3"
-              style={{ fontFamily, fontSize: `${fontSize}px` }}
-            >
-              The quick brown fox jumps over the lazy dog 0123456789
-            </div>
+            <Label className="mb-2 block">{t("fontSettings.preview")}</Label>
+            <Card>
+              <CardContent
+                className="bg-secondary text-foreground px-4 py-3"
+                style={{ fontFamily, fontSize: `${fontSize}px` }}
+              >
+                The quick brown fox jumps over the lazy dog 0123456789
+              </CardContent>
+            </Card>
           </div>
         </div>
 

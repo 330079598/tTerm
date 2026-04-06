@@ -2,7 +2,9 @@ import React, { useEffect, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { useTranslation } from "react-i18next"
 import { Server, Trash2, Play, Pencil, ChevronDown, ChevronRight } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tab } from "@/types/tab"
 
 interface SavedProfile {
@@ -38,80 +40,41 @@ const ProfileRow: React.FC<{
   onDelete: (id: string) => void
   t: (key: string) => string
 }> = ({ profile, onConnect, onEdit, onDelete, t }) => (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 6,
-      padding: "6px 12px 6px 24px",
-      cursor: "default",
-    }}
-    className="hover:bg-muted"
-  >
-    <Server size={13} style={{ flexShrink: 0, color: "hsl(var(--muted-foreground))" }} />
-    <div style={{ flex: 1, minWidth: 0 }}>
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 500,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {profile.name}
-      </div>
+  <div className="hover:bg-muted/50 flex items-center gap-3 rounded-md px-3 py-2 transition-colors">
+    <div className="bg-secondary text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md">
+      <Server size={14} />
+    </div>
+    <div className="min-w-0 flex-1">
+      <div className="truncate text-sm font-medium">{profile.name}</div>
       {profile.host && (
-        <div
-          style={{
-            fontSize: 11,
-            color: "hsl(var(--muted-foreground))",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
+        <div className="text-muted-foreground truncate text-xs">
           {profile.username ? `${profile.username}@` : ""}
           {profile.host}
           {profile.port && profile.port !== 22 ? `:${profile.port}` : ""}
         </div>
       )}
     </div>
-    <button
+    <Button
       title={t("profiles.edit")}
+      type="button"
+      variant="ghost"
+      size="icon-xs"
       onClick={() => onEdit(profile)}
-      style={{
-        background: "none",
-        border: "none",
-        cursor: "pointer",
-        padding: "2px 4px",
-        color: "hsl(var(--muted-foreground))",
-      }}
-      className="hover:text-foreground"
     >
       <Pencil size={13} />
-    </button>
-    <button
+    </Button>
+    <Button
       title={t("profiles.delete")}
-      onClick={() => onDelete(profile.id)}
-      style={{
-        background: "none",
-        border: "none",
-        cursor: "pointer",
-        padding: "2px 4px",
-        color: "hsl(var(--muted-foreground))",
-      }}
+      type="button"
+      variant="ghost"
+      size="icon-xs"
       className="hover:text-destructive"
+      onClick={() => onDelete(profile.id)}
     >
       <Trash2 size={13} />
-    </button>
-    <Button
-      size="sm"
-      variant="ghost"
-      style={{ height: 24, padding: "0 8px", fontSize: 12 }}
-      onClick={() => onConnect(profile)}
-    >
-      <Play size={12} style={{ marginRight: 3 }} />
+    </Button>
+    <Button size="sm" variant="outline" onClick={() => onConnect(profile)}>
+      <Play size={12} />
       {t("profiles.connect")}
     </Button>
   </div>
@@ -167,9 +130,11 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({ onConnect, onEdit,
 
   if (profiles.length === 0) {
     return (
-      <div style={{ padding: "12px 16px", fontSize: 13, color: "hsl(var(--muted-foreground))" }}>
-        {t("profiles.empty")}
-      </div>
+      <Card>
+        <CardContent className="text-muted-foreground p-4 text-sm">
+          {t("profiles.empty")}
+        </CardContent>
+      </Card>
     )
   }
 
@@ -184,55 +149,41 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({ onConnect, onEdit,
   const toggleGroup = (g: string) => setCollapsed((prev) => ({ ...prev, [g]: !prev[g] }))
 
   return (
-    <div style={{ padding: "4px 0" }}>
-      <div
-        style={{
-          padding: "4px 12px 8px",
-          fontSize: 13,
-          fontWeight: 600,
-          color: "hsl(var(--foreground))",
-        }}
-      >
-        {t("profiles.title")}
-      </div>
-      {Object.entries(groups).map(([group, items]) => (
-        <div key={group}>
-          <button
-            onClick={() => toggleGroup(group)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              width: "100%",
-              padding: "4px 12px",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 12,
-              fontWeight: 600,
-              color: "hsl(var(--muted-foreground))",
-              textTransform: "none",
-              letterSpacing: "0.05em",
-            }}
-            className="hover:text-foreground"
-          >
-            {collapsed[group] ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
-            {group}
-            <span style={{ marginLeft: 4, fontWeight: 400, fontSize: 11 }}>({items.length})</span>
-          </button>
-          {!collapsed[group] &&
-            items.map((profile) => (
-              <ProfileRow
-                key={profile.id}
-                profile={profile}
-                onConnect={handleConnect}
-                onEdit={onEdit}
-                onDelete={handleDelete}
-                t={t}
-              />
-            ))}
-        </div>
-      ))}
-    </div>
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm">{t("profiles.title")}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 p-2 pt-0">
+        {Object.entries(groups).map(([group, items]) => (
+          <div key={group} className="rounded-lg border">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => toggleGroup(group)}
+              className="text-muted-foreground hover:text-foreground h-auto w-full justify-start rounded-b-none px-3 py-2 text-xs font-semibold tracking-[0.08em] uppercase"
+            >
+              {collapsed[group] ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+              {group}
+              <Badge variant="outline" className="ml-2 text-[10px] font-normal">
+                {items.length}
+              </Badge>
+            </Button>
+            {!collapsed[group] &&
+              items.map((profile) => {
+                return (
+                  <ProfileRow
+                    key={profile.id}
+                    profile={profile}
+                    onConnect={handleConnect}
+                    onEdit={onEdit}
+                    onDelete={handleDelete}
+                    t={t}
+                  />
+                )
+              })}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   )
 }

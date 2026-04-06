@@ -1,4 +1,3 @@
-import "@/components/ConnectionDialog.css"
 import React, { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { Terminal, Server } from "lucide-react"
@@ -11,8 +10,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog"
@@ -149,6 +151,9 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const [showGroupDropdown, setShowGroupDropdown] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
   const [allProfiles, setAllProfiles] = useState<SavedProfile[]>([])
+  const matchingGroups = existingGroups.filter((g) =>
+    g.toLowerCase().includes(form.group.toLowerCase())
+  )
 
   useEffect(() => {
     invoke<SavedProfile[]>("list_profiles")
@@ -267,26 +272,24 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         </DialogTitle>
       </DialogHeader>
 
-      <form onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto px-1">
+      <form onSubmit={handleSubmit} className="flex-1 space-y-5 overflow-y-auto px-1">
         <div>
           <Label className="mb-2 block">{t("connection.type")}</Label>
           <div className="grid grid-cols-2 gap-2">
             {connectionTypes.map(({ type, label, icon: Icon }) => (
-              <button
+              <Button
                 key={type}
                 type="button"
+                variant={form.type === type ? "default" : "outline"}
                 onClick={() => setForm((f) => ({ ...f, type }))}
                 className={cn(
-                  "flex items-center gap-2 rounded-md border px-3 py-2.5 text-sm transition-colors",
-                  "hover:bg-muted",
-                  form.type === type
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground bg-transparent"
+                  "h-auto justify-start gap-2 px-3 py-2.5 text-sm transition-colors",
+                  form.type === type ? "shadow-none" : "text-muted-foreground"
                 )}
               >
                 <Icon size={16} />
                 {label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -315,9 +318,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
               <Label htmlFor="conn-terminal-shell" className="mb-1.5 block">
                 {t("connection.terminalShell")}
               </Label>
-              <select
+              <Select
                 id="conn-terminal-shell"
-                className="border-input bg-background h-9 w-full rounded-md border px-3 py-1 text-sm"
                 value={form.terminalShell}
                 onChange={(e) =>
                   setForm((f) => ({
@@ -333,7 +335,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
                 </option>
                 <option value="pwsh">{t("connection.terminalShellOptions.pwsh")}</option>
                 <option value="custom">{t("connection.terminalShellOptions.custom")}</option>
-              </select>
+              </Select>
             </div>
 
             {form.terminalShell === "custom" && (
@@ -371,7 +373,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         )}
 
         {isSsh && (
-          <div style={{ position: "relative" }}>
+          <div className="relative">
             <Label htmlFor="conn-group" className="mb-1.5 block">
               {t("connection.group")}
             </Label>
@@ -387,41 +389,25 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
               placeholder={t("connection.groupPlaceholder")}
               autoComplete="off"
             />
-            {showGroupDropdown &&
-              existingGroups.filter((g) => g.toLowerCase().includes(form.group.toLowerCase()))
-                .length > 0 && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "100%",
-                    left: 0,
-                    right: 0,
-                    zIndex: 20,
-                    background: "hsl(var(--popover))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 6,
-                    marginTop: 2,
-                    maxHeight: 160,
-                    overflowY: "auto",
-                  }}
-                >
-                  {existingGroups
-                    .filter((g) => g.toLowerCase().includes(form.group.toLowerCase()))
-                    .map((g) => (
-                      <div
-                        key={g}
-                        style={{ padding: "6px 12px", cursor: "pointer", fontSize: 13 }}
-                        className="hover:bg-muted"
-                        onMouseDown={() => {
-                          setForm((f) => ({ ...f, group: g }))
-                          setShowGroupDropdown(false)
-                        }}
-                      >
-                        {g}
-                      </div>
-                    ))}
-                </div>
-              )}
+            {showGroupDropdown && matchingGroups.length > 0 && (
+              <Card className="absolute top-full right-0 left-0 z-20 mt-1 max-h-40 overflow-y-auto rounded-md">
+                <CardContent className="p-1">
+                  {matchingGroups.map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      className="hover:bg-muted w-full rounded-sm px-3 py-1.5 text-left text-sm"
+                      onMouseDown={() => {
+                        setForm((f) => ({ ...f, group: g }))
+                        setShowGroupDropdown(false)
+                      }}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
 
@@ -471,30 +457,28 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
             <div>
               <Label className="mb-1.5 block">{t("ssh.authMethod")}</Label>
               <div className="flex gap-2">
-                <button
+                <Button
                   type="button"
+                  variant={form.authMethod === "password" ? "default" : "outline"}
                   className={cn(
-                    "flex-1 rounded border px-3 py-1.5 text-sm",
-                    form.authMethod === "password"
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-background text-foreground"
+                    "flex-1",
+                    form.authMethod === "password" ? "shadow-none" : "text-muted-foreground"
                   )}
                   onClick={() => setForm((f) => ({ ...f, authMethod: "password" }))}
                 >
                   {t("ssh.password")}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant={form.authMethod === "key" ? "default" : "outline"}
                   className={cn(
-                    "flex-1 rounded border px-3 py-1.5 text-sm",
-                    form.authMethod === "key"
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-background text-foreground"
+                    "flex-1",
+                    form.authMethod === "key" ? "shadow-none" : "text-muted-foreground"
                   )}
                   onClick={() => setForm((f) => ({ ...f, authMethod: "key" }))}
                 >
                   {t("ssh.sshKey")}
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -512,14 +496,18 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
                     placeholder="password"
                   />
                 </div>
-                <label className="text-foreground flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
+                <div className="flex items-center gap-2 rounded-md border px-3 py-2">
+                  <Checkbox
+                    id="conn-remember-password"
                     checked={form.rememberPassword}
-                    onChange={(e) => setForm((f) => ({ ...f, rememberPassword: e.target.checked }))}
+                    onCheckedChange={(checked) =>
+                      setForm((f) => ({ ...f, rememberPassword: checked }))
+                    }
                   />
-                  <span>{t("connection.rememberPassword")}</span>
-                </label>
+                  <Label htmlFor="conn-remember-password" className="text-sm font-normal">
+                    {t("connection.rememberPassword")}
+                  </Label>
+                </div>
               </>
             )}
 

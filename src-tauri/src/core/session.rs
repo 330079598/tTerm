@@ -2,12 +2,17 @@ use crate::core::state::SessionKind;
 use serde::Deserialize;
 use std::time::Duration;
 
+#[cfg(target_os = "windows")]
 #[derive(Debug, Clone)]
 pub struct TerminalShellConfig {
     pub shell: String,
     pub custom_path: Option<String>,
     pub custom_args: Option<String>,
 }
+
+#[cfg(not(target_os = "windows"))]
+#[derive(Debug, Clone)]
+pub struct TerminalShellConfig;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct PtyConnectionOptions {
@@ -41,10 +46,13 @@ pub struct PtyConnectionOptions {
     pub private_key_path: Option<String>,
     #[serde(default, alias = "privateKeyPassphrase")]
     pub private_key_passphrase: Option<String>,
+    #[cfg(target_os = "windows")]
     #[serde(default, alias = "terminalShell")]
     pub terminal_shell: Option<String>,
+    #[cfg(target_os = "windows")]
     #[serde(default, alias = "terminalShellCustomPath")]
     pub terminal_shell_custom_path: Option<String>,
+    #[cfg(target_os = "windows")]
     #[serde(default, alias = "terminalShellCustomArgs")]
     pub terminal_shell_custom_args: Option<String>,
 }
@@ -67,8 +75,11 @@ impl Default for PtyConnectionOptions {
             keepalive_count_max: None,
             private_key_path: None,
             private_key_passphrase: None,
+            #[cfg(target_os = "windows")]
             terminal_shell: None,
+            #[cfg(target_os = "windows")]
             terminal_shell_custom_path: None,
+            #[cfg(target_os = "windows")]
             terminal_shell_custom_args: None,
         }
     }
@@ -119,6 +130,7 @@ pub fn normalize_connection(
     let keepalive_interval_secs = connection.keepalive_interval_secs.unwrap_or(15).max(5);
     let keepalive_count_max = connection.keepalive_count_max.unwrap_or(3).max(1);
 
+    #[cfg(target_os = "windows")]
     let terminal_shell = Some(TerminalShellConfig {
         shell: connection
             .terminal_shell
@@ -136,6 +148,9 @@ pub fn normalize_connection(
             .map(|v| v.trim().to_string())
             .filter(|v| !v.is_empty()),
     });
+
+    #[cfg(not(target_os = "windows"))]
+    let terminal_shell = None;
 
     match kind {
         SessionKind::Terminal => Ok(SessionPlan {

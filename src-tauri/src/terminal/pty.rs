@@ -38,7 +38,10 @@ pub fn spawn_reader_thread(
 }
 
 pub fn build_terminal_command(
+    #[cfg(target_os = "windows")]
     shell_config: Option<crate::core::session::TerminalShellConfig>,
+    #[cfg(not(target_os = "windows"))]
+    _shell_config: Option<crate::core::session::TerminalShellConfig>,
 ) -> Result<CommandBuilder, String> {
     #[cfg(target_os = "windows")]
     let mut cmd = {
