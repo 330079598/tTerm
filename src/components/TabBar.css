@@ -58,9 +58,9 @@
   position: relative;
   flex-shrink: 0;
   background-color: transparent;
-  border: 1px solid transparent;
+  border-top: 1.5px solid transparent;
   border-bottom: none;
-  border-radius: 8px 8px 0 0;
+  border-radius: 2px 2px 0 0;
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease;
