@@ -23,6 +23,8 @@ pub fn run() {
         Arc::new(RwLock::new(std::collections::HashMap::new()));
     let sftp_pool: sftp::SftpConnectionPool =
         Arc::new(RwLock::new(std::collections::HashMap::new()));
+    let transfer_cancel_map: sftp::TransferCancelMap =
+        Arc::new(RwLock::new(std::collections::HashMap::new()));
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
@@ -47,6 +49,7 @@ pub fn run() {
         .manage(pty_map)
         .manage(host_prompt_map)
         .manage(sftp_pool)
+        .manage(transfer_cancel_map)
         .manage(TokioRuntimeState { runtime })
         .manage(secret_store)
         .invoke_handler(tauri::generate_handler![
@@ -70,6 +73,7 @@ pub fn run() {
             sftp::sftp_delete_entry,
             sftp::sftp_rename_entry,
             sftp::sftp_upload_file,
+            sftp::sftp_cancel_upload,
             sftp::sftp_download_file,
             sftp::get_file_size,
             ssh::secret_commands::get_secret_backend_status,

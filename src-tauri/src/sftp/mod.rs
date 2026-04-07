@@ -18,6 +18,13 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, State};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::RwLock;
+use tokio::sync::watch;
+
+// Cancel token for upload operations
+pub type CancelSender = watch::Sender<bool>;
+
+// Global map of transfer ID to cancel tokens
+pub type TransferCancelMap = Arc<RwLock<HashMap<String, CancelSender>>>;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -453,11 +460,17 @@ pub async fn sftp_upload_file(
     connection: Option<PtyConnectionOptions>,
     local_path: String,
     remote_path: String,
+    transfer_id: String,
     prompt_state: State<'_, HostPromptMap>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
+    cancel_map: State<'_, TransferCancelMap>,
 ) -> Result<(), String> {
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    
+    // Create cancel token for this transfer
+    let (cancel_tx, cancel_rx) = watch::channel(false);
+    cancel_map.write().await.insert(transfer_id.clone(), cancel_tx);
     
     // Get file size
     let file_size = tokio::task::spawn_blocking({
@@ -483,17 +496,33 @@ pub async fn sftp_upload_file(
     .map_err(|err| format!("Task join error: {err}"))??;
 
     // Write to remote file in chunks
-    const CHUNK_SIZE: usize = 64 * 1024; // 64KB chunks - larger chunks improve performance
-    const PROGRESS_UPDATE_INTERVAL: usize = 10; // Update progress every 10 chunks
+    const CHUNK_SIZE: usize = 64 * 1024; // 64KB chunks
+    const PROGRESS_UPDATE_INTERVAL: usize = 10;
     
-    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-        let mut remote_file = sftp.create(&remote_path).await.map_err(map_sftp_error)?;
+    let result = with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
+        // Ensure parent directory exists
+        if let Some(parent) = std::path::Path::new(&remote_path).parent() {
+            let parent_str = parent.to_string_lossy().to_string();
+            if !parent_str.is_empty() && parent_str != "/" {
+                // Try to create parent directory (ignore error if it already exists)
+                let _ = sftp.create_dir(parent_str).await;
+            }
+        }
+        
+        // Create remote file
+        let mut remote_file = sftp.create(&remote_path).await
+            .map_err(|err| format!("Failed to create remote file '{}': {}", remote_path, err))?;
         
         let mut total_written = 0u64;
         let chunks = data.chunks(CHUNK_SIZE);
         let total_chunks = chunks.len();
         
         for (index, chunk) in chunks.enumerate() {
+            // Check if cancelled
+            if *cancel_rx.borrow() {
+                return Err("Upload cancelled by user".to_string());
+            }
+            
             // Write current chunk
             remote_file.write_all(chunk)
                 .await
@@ -501,7 +530,7 @@ pub async fn sftp_upload_file(
             
             total_written += chunk.len() as u64;
             
-            // Reduce progress event frequency to avoid performance impact from too many events
+            // Reduce progress event frequency
             let should_emit = index % PROGRESS_UPDATE_INTERVAL == 0 
                 || index == total_chunks - 1 
                 || total_chunks < PROGRESS_UPDATE_INTERVAL;
@@ -527,7 +556,26 @@ pub async fn sftp_upload_file(
             .map_err(|err| format!("Failed to finalize remote file: {err}"))?;
         
         Ok(())
-    })
+    });
+    
+    // Clean up the cancel token
+    cancel_map.write().await.remove(&transfer_id);
+    
+    result
+}
+
+#[tauri::command]
+pub async fn sftp_cancel_upload(
+    transfer_id: String,
+    cancel_map: State<'_, TransferCancelMap>,
+) -> Result<(), String> {
+    let map = cancel_map.read().await;
+    if let Some(sender) = map.get(&transfer_id) {
+        let _ = sender.send(true);
+        Ok(())
+    } else {
+        Err("Transfer not found or already completed".to_string())
+    }
 }
 
 #[tauri::command]

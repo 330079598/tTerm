@@ -1,5 +1,6 @@
 import "@/components/SftpDrawer.css"
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { invoke } from "@tauri-apps/api/core"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { open as openFileDialog, save as saveFileDialog } from "@tauri-apps/plugin-dialog"
@@ -21,6 +22,16 @@ import { TransferManager } from "@/components/TransferManager"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
 interface SftpDrawerProps {
@@ -94,6 +105,19 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
     entryPath: string
   } | null>(null)
   const [transfers, setTransfers] = useState<TransferTask[]>([])
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean
+    entry: SftpDirectoryEntry | null
+  }>({ open: false, entry: null })
+  const [renameDialog, setRenameDialog] = useState<{
+    open: boolean
+    entry: SftpDirectoryEntry | null
+    newName: string
+  }>({ open: false, entry: null, newName: "" })
+  const [createFolderDialog, setCreateFolderDialog] = useState<{
+    open: boolean
+    folderName: string
+  }>({ open: false, folderName: "" })
   const dragCounterRef = useRef(0)
   const transfersRef = useRef<TransferTask[]>([])
   const lastProgressUpdateRef = useRef<Map<string, number>>(new Map())
@@ -122,12 +146,17 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
     setTransfers((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)))
   }, [])
 
-  const cancelTransfer = useCallback(
-    (id: string) => {
-      updateTransfer(id, { status: "cancelled", endTime: Date.now() })
-    },
-    [updateTransfer]
-  )
+  const cancelTransfer = useCallback(async (id: string) => {
+    // Don't change status yet - let the backend error handler do it
+    // This preserves the transferred bytes for resume
+
+    // Call backend to cancel the upload
+    try {
+      await invoke("sftp_cancel_upload", { transferId: id })
+    } catch (error) {
+      console.warn("Failed to cancel transfer on backend:", error)
+    }
+  }, [])
 
   const removeTransfer = useCallback((id: string) => {
     setTransfers((prev) => prev.filter((t) => t.id !== id))
@@ -258,6 +287,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
             connection,
             localPath,
             remotePath: joinRemotePath(listing.currentPath, fileName),
+            transferId,
           })
 
           unlisten()
@@ -282,13 +312,25 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         } catch (error) {
           unlisten()
           lastProgressUpdateRef.current.delete(transferId)
-          console.error("Upload failed:", fileName, error)
+
+          const errorMessage = String(error)
+          console.error("Upload error:", fileName, errorMessage)
+
+          // Check if it was cancelled
+          if (errorMessage.includes("cancelled")) {
+            updateTransfer(transferId, {
+              status: "cancelled",
+              endTime: Date.now(),
+            })
+            return { success: false, fileName, cancelled: true }
+          }
+
           updateTransfer(transferId, {
             status: "failed",
-            error: String(error),
+            error: errorMessage,
             endTime: Date.now(),
           })
-          return { success: false, fileName, error: String(error) }
+          return { success: false, fileName, error: errorMessage }
         }
       })
 
@@ -487,14 +529,12 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
   )
 
   const handleCreateDirectory = useCallback(() => {
-    const directoryName = window.prompt(
-      t("sftp.prompts.newFolder", { defaultValue: "New folder name" }),
-      ""
-    )
-    if (!directoryName || !listing) return
+    setCreateFolderDialog({ open: true, folderName: "" })
+  }, [])
 
-    const trimmedName = directoryName.trim()
-    if (!trimmedName) return
+  const handleCreateDirectoryConfirm = useCallback(() => {
+    const trimmedName = createFolderDialog.folderName.trim()
+    if (!trimmedName || !listing) return
 
     void runAndRefresh(() =>
       invoke("sftp_create_directory", {
@@ -503,20 +543,25 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         path: joinRemotePath(listing.currentPath, trimmedName),
       })
     )
-  }, [connection, listing, runAndRefresh, t, tabId])
+    setCreateFolderDialog({ open: false, folderName: "" })
+  }, [connection, createFolderDialog.folderName, listing, runAndRefresh, tabId])
 
   const handleRename = useCallback(() => {
     const entry = contextMenuEntry || selectedEntry
     if (!entry || !listing) return
 
-    const nextName = window.prompt(
-      t("sftp.prompts.rename", { defaultValue: "Rename entry" }),
-      entry.name
-    )
-    if (!nextName) return
+    setRenameDialog({ open: true, entry, newName: entry.name })
+  }, [contextMenuEntry, listing, selectedEntry])
 
-    const trimmedName = nextName.trim()
-    if (!trimmedName || trimmedName === entry.name) return
+  const handleRenameConfirm = useCallback(() => {
+    const { entry, newName } = renameDialog
+    if (!entry || !listing) return
+
+    const trimmedName = newName.trim()
+    if (!trimmedName || trimmedName === entry.name) {
+      setRenameDialog({ open: false, entry: null, newName: "" })
+      return
+    }
 
     void runAndRefresh(() =>
       invoke("sftp_rename_entry", {
@@ -526,19 +571,19 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         newPath: joinRemotePath(listing.currentPath, trimmedName),
       })
     )
-  }, [connection, contextMenuEntry, listing, runAndRefresh, selectedEntry, t, tabId])
+    setRenameDialog({ open: false, entry: null, newName: "" })
+  }, [connection, listing, renameDialog, runAndRefresh, tabId])
 
   const handleDelete = useCallback(() => {
     const entry = contextMenuEntry || selectedEntry
     if (!entry) return
 
-    const confirmed = window.confirm(
-      t("sftp.prompts.delete", {
-        defaultValue: `Delete ${entry.name}?`,
-        name: entry.name,
-      })
-    )
-    if (!confirmed) return
+    setDeleteDialog({ open: true, entry })
+  }, [contextMenuEntry, selectedEntry])
+
+  const handleDeleteConfirm = useCallback(() => {
+    const { entry } = deleteDialog
+    if (!entry) return
 
     void runAndRefresh(() =>
       invoke("sftp_delete_entry", {
@@ -548,7 +593,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         isDir: entry.isDir,
       })
     )
-  }, [connection, contextMenuEntry, runAndRefresh, selectedEntry, t, tabId])
+    setDeleteDialog({ open: false, entry: null })
+  }, [connection, deleteDialog, runAndRefresh, tabId])
 
   const handleDownload = useCallback(async () => {
     const entry = contextMenuEntry || selectedEntry
@@ -667,6 +713,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
           connection,
           localPath: path,
           remotePath: joinRemotePath(listing.currentPath, fileName),
+          transferId,
         })
 
         unlisten()
@@ -689,12 +736,24 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       } catch (error) {
         unlisten()
         lastProgressUpdateRef.current.delete(transferId)
+
+        const errorMessage = String(error)
+
+        // Check if it was cancelled
+        if (errorMessage.includes("cancelled")) {
+          updateTransfer(transferId, {
+            status: "cancelled",
+            endTime: Date.now(),
+          })
+          return { success: false, fileName, cancelled: true }
+        }
+
         updateTransfer(transferId, {
           status: "failed",
-          error: String(error),
+          error: errorMessage,
           endTime: Date.now(),
         })
-        return { success: false, fileName, error: String(error) }
+        return { success: false, fileName, error: errorMessage }
       }
     })
 
@@ -943,37 +1002,168 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         </div>
       </div>
 
-      {contextMenu && contextMenuEntry && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          actions={[
-            {
-              label: t("sftp.actions.download", { defaultValue: "Download" }),
-              action: "download",
-              icon: "copy",
-              disabled: contextMenuEntry.isDir,
-            },
-            {
-              label: t("sftp.actions.rename", { defaultValue: "Rename" }),
-              action: "rename",
-              icon: "edit",
-            },
-            { separator: true, label: "", action: "" },
-            {
-              label: t("sftp.actions.delete", { defaultValue: "Delete" }),
-              action: "delete",
-              icon: "x",
-            },
-          ]}
-          onAction={(action) => {
-            if (action === "download") void handleDownload()
-            else if (action === "rename") handleRename()
-            else if (action === "delete") handleDelete()
-          }}
-          onClose={() => setContextMenu(null)}
-        />
-      )}
+      {contextMenu &&
+        contextMenuEntry &&
+        createPortal(
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            actions={[
+              {
+                label: t("sftp.actions.download", { defaultValue: "Download" }),
+                action: "download",
+                icon: "copy",
+                disabled: contextMenuEntry.isDir,
+              },
+              {
+                label: t("sftp.actions.rename", { defaultValue: "Rename" }),
+                action: "rename",
+                icon: "edit",
+              },
+              { separator: true, label: "", action: "" },
+              {
+                label: t("sftp.actions.delete", { defaultValue: "Delete" }),
+                action: "delete",
+                icon: "x",
+              },
+            ]}
+            onAction={(action) => {
+              if (action === "download") void handleDownload()
+              else if (action === "rename") handleRename()
+              else if (action === "delete") handleDelete()
+            }}
+            onClose={() => setContextMenu(null)}
+          />,
+          document.body
+        )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => !open && setDeleteDialog({ open: false, entry: null })}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {t("sftp.dialogs.deleteTitle", { defaultValue: "Delete Item" })}
+            </DialogTitle>
+            <DialogDescription>
+              {t("sftp.dialogs.deleteDescription", {
+                defaultValue: `Are you sure you want to delete "${deleteDialog.entry?.name}"? This action cannot be undone.`,
+                name: deleteDialog.entry?.name,
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialog({ open: false, entry: null })}>
+              {t("common.cancel", { defaultValue: "Cancel" })}
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm}>
+              {t("common.delete", { defaultValue: "Delete" })}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Dialog */}
+      <Dialog
+        open={renameDialog.open}
+        onOpenChange={(open) => !open && setRenameDialog({ open: false, entry: null, newName: "" })}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {t("sftp.dialogs.renameTitle", { defaultValue: "Rename Item" })}
+            </DialogTitle>
+            <DialogDescription>
+              {t("sftp.dialogs.renameDescription", {
+                defaultValue: "Enter a new name for the item",
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="rename-input">
+                {t("sftp.dialogs.nameLabel", { defaultValue: "Name" })}
+              </Label>
+              <Input
+                id="rename-input"
+                value={renameDialog.newName}
+                onChange={(e) => setRenameDialog({ ...renameDialog, newName: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    handleRenameConfirm()
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRenameDialog({ open: false, entry: null, newName: "" })}
+            >
+              {t("common.cancel", { defaultValue: "Cancel" })}
+            </Button>
+            <Button onClick={handleRenameConfirm}>
+              {t("common.rename", { defaultValue: "Rename" })}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Folder Dialog */}
+      <Dialog
+        open={createFolderDialog.open}
+        onOpenChange={(open) => !open && setCreateFolderDialog({ open: false, folderName: "" })}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {t("sftp.dialogs.createFolderTitle", { defaultValue: "Create New Folder" })}
+            </DialogTitle>
+            <DialogDescription>
+              {t("sftp.dialogs.createFolderDescription", {
+                defaultValue: "Enter a name for the new folder",
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="folder-name-input">
+                {t("sftp.dialogs.folderNameLabel", { defaultValue: "Folder Name" })}
+              </Label>
+              <Input
+                id="folder-name-input"
+                value={createFolderDialog.folderName}
+                onChange={(e) =>
+                  setCreateFolderDialog({ ...createFolderDialog, folderName: e.target.value })
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    handleCreateDirectoryConfirm()
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCreateFolderDialog({ open: false, folderName: "" })}
+            >
+              {t("common.cancel", { defaultValue: "Cancel" })}
+            </Button>
+            <Button onClick={handleCreateDirectoryConfirm}>
+              {t("common.create", { defaultValue: "Create" })}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
