@@ -469,37 +469,25 @@ pub async fn sftp_upload_file(
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
     
     // Create cancel token for this transfer
-    let (cancel_tx, cancel_rx) = watch::channel(false);
+    let (cancel_tx, mut cancel_rx) = watch::channel(false);
     cancel_map.write().await.insert(transfer_id.clone(), cancel_tx);
     
     // Get file size
-    let file_size = tokio::task::spawn_blocking({
-        let local_path = local_path.clone();
-        move || {
-            std::fs::metadata(&local_path)
-                .map(|m| m.len())
-                .map_err(|err| format!("Failed to get file metadata '{local_path}': {err}"))
-        }
-    })
-    .await
-    .map_err(|err| format!("Task join error: {err}"))??;
+    let file_size = tokio::fs::metadata(&local_path)
+        .await
+        .map(|m| m.len())
+        .map_err(|err| format!("Failed to get file metadata '{local_path}': {err}"))?;
 
-    // Read entire file into memory
-    let data = tokio::task::spawn_blocking({
-        let local_path = local_path.clone();
-        move || {
-            std::fs::read(&local_path)
-                .map_err(|err| format!("Failed to read local file '{local_path}': {err}"))
-        }
-    })
-    .await
-    .map_err(|err| format!("Task join error: {err}"))??;
-
-    // Write to remote file in chunks
-    const CHUNK_SIZE: usize = 64 * 1024; // 64KB chunks
-    const PROGRESS_UPDATE_INTERVAL: usize = 10;
+    // Optimized: Use streaming read with larger chunks and buffering
+    // Note: russh-sftp File doesn't support concurrent writes, so we use sequential writes
+    // but with optimized chunk size and buffering for maximum throughput
+    const CHUNK_SIZE: usize = 1024 * 1024; // 1MB chunks for better throughput
+    const READ_BUFFER_SIZE: usize = 4 * 1024 * 1024; // 4MB read buffer
+    const PROGRESS_UPDATE_BYTES: u64 = 2 * 1024 * 1024; // Update progress every 2MB
     
     let result = with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
+        use tokio::io::{AsyncReadExt, BufReader};
+        
         // Ensure parent directory exists
         if let Some(parent) = std::path::Path::new(&remote_path).parent() {
             let parent_str = parent.to_string_lossy().to_string();
@@ -509,33 +497,47 @@ pub async fn sftp_upload_file(
             }
         }
         
+        // Open local file with buffered reader for better I/O performance
+        let file = tokio::fs::File::open(&local_path)
+            .await
+            .map_err(|err| format!("Failed to open local file '{local_path}': {err}"))?;
+        let mut local_file = BufReader::with_capacity(READ_BUFFER_SIZE, file);
+        
         // Create remote file
         let mut remote_file = sftp.create(&remote_path).await
             .map_err(|err| format!("Failed to create remote file '{}': {}", remote_path, err))?;
         
         let mut total_written = 0u64;
-        let chunks = data.chunks(CHUNK_SIZE);
-        let total_chunks = chunks.len();
+        let mut buffer = vec![0u8; CHUNK_SIZE];
+        let mut last_progress_update = 0u64;
         
-        for (index, chunk) in chunks.enumerate() {
+        loop {
             // Check if cancelled
-            if *cancel_rx.borrow() {
+            if *cancel_rx.borrow_and_update() {
                 return Err("Upload cancelled by user".to_string());
             }
             
-            // Write current chunk
-            remote_file.write_all(chunk)
+            // Read chunk from local file
+            let bytes_read = local_file.read(&mut buffer)
+                .await
+                .map_err(|err| format!("Failed to read local file: {err}"))?;
+            
+            if bytes_read == 0 {
+                break; // EOF reached
+            }
+            
+            // Write to remote file
+            remote_file.write_all(&buffer[..bytes_read])
                 .await
                 .map_err(|err| format!("Failed to write remote file: {err}"))?;
             
-            total_written += chunk.len() as u64;
+            total_written += bytes_read as u64;
             
-            // Reduce progress event frequency
-            let should_emit = index % PROGRESS_UPDATE_INTERVAL == 0 
-                || index == total_chunks - 1 
-                || total_chunks < PROGRESS_UPDATE_INTERVAL;
-            
-            if should_emit {
+            // Update progress less frequently to reduce overhead
+            if total_written - last_progress_update >= PROGRESS_UPDATE_BYTES 
+                || total_written == file_size {
+                last_progress_update = total_written;
+                
                 let progress = if file_size > 0 {
                     ((total_written as f64 / file_size as f64) * 100.0).min(100.0) as u32
                 } else {
@@ -549,6 +551,16 @@ pub async fn sftp_upload_file(
                     "progress": progress
                 }));
             }
+        }
+        
+        // Ensure final progress update
+        if total_written > last_progress_update {
+            let _ = app.emit(&format!("sftp-upload-progress-{}", tab_id), serde_json::json!({
+                "localPath": local_path,
+                "transferred": total_written,
+                "total": file_size,
+                "progress": 100
+            }));
         }
         
         remote_file.shutdown()
