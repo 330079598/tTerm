@@ -1,24 +1,21 @@
 import "@/components/TTermApp.css"
-import React, {useCallback, useEffect, useRef, useState} from "react"
-import {TerminalTab} from "@/components/TerminalTab"
-import {useTranslation} from "react-i18next"
-import {platform} from "@tauri-apps/plugin-os"
-import {BookMarked, Plus, Settings} from "lucide-react"
-import {ContextMenu} from "@/components/ContextMenu"
-import {ConnectionDialog} from "@/components/ConnectionDialog"
-import {RenameDialog} from "@/components/RenameDialog"
-import {ThemeSwitcher} from "@/components/ThemeSwitcher"
-import {LanguageSwitcher} from "@/components/LanguageSwitcher"
-import {FontSettings} from "@/components/FontSettings"
-import {SecretStorageSettings} from "@/components/SecretStorageSettings"
-import {TabBar} from "@/components/TabBar"
-import {ProfilesPanel, SavedProfile} from "@/components/ProfilesPanel"
-import {useTabs} from "@/hooks/useTabs"
-import {useSessionPersistence} from "@/hooks/useSessionPersistence"
-import {useConnectionManager} from "@/hooks/useConnectionManager"
-import {useConfig} from "@/contexts/ConfigContext"
-import {setTheme, type Theme} from "@/lib/utils"
-import {Tab, TabContextMenuAction} from "@/types/tab"
+import React, { useCallback, useEffect, useRef, useState } from "react"
+import { TerminalTab } from "@/components/TerminalTab"
+import { useTranslation } from "react-i18next"
+import { platform } from "@tauri-apps/plugin-os"
+import { BookMarked, Plus, Settings } from "lucide-react"
+import { ContextMenu } from "@/components/ContextMenu"
+import { ConnectionDialog } from "@/components/ConnectionDialog"
+import { RenameDialog } from "@/components/RenameDialog"
+import { SettingsDialog } from "@/components/SettingsDialog"
+import { TabBar } from "@/components/TabBar"
+import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
+import { useTabs } from "@/hooks/useTabs"
+import { useSessionPersistence } from "@/hooks/useSessionPersistence"
+import { useConnectionManager } from "@/hooks/useConnectionManager"
+import { useConfig } from "@/contexts/ConfigContext"
+import { setTheme, type Theme } from "@/lib/utils"
+import { Tab, TabContextMenuAction } from "@/types/tab"
 
 interface ContextMenuState {
   visible: boolean
@@ -45,10 +42,7 @@ export const TTermApp: React.FC = () => {
   const [os] = useState<string>(() => platform())
   const [showConnectionDialog, setShowConnectionDialog] = useState(false)
   const [showProfilesPanel, setShowProfilesPanel] = useState(false)
-  const [showThemeSwitcher, setShowThemeSwitcher] = useState(false)
-  const [showLanguageSwitcher, setShowLanguageSwitcher] = useState(false)
-  const [showFontSettings, setShowFontSettings] = useState(false)
-  const [showSecretStorageSettings, setShowSecretStorageSettings] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [editingProfile, setEditingProfile] = useState<SavedProfile | null>(null)
   const [profilesRefreshKey, setProfilesRefreshKey] = useState(0)
   const [renameDialogState, setRenameDialogState] = useState<{
@@ -84,7 +78,7 @@ export const TTermApp: React.FC = () => {
     updateTab,
   } = useTabs()
 
-  const { saveSession, loadSession, clearSession } = useSessionPersistence()
+  const { saveSession, loadSession } = useSessionPersistence()
   const { cleanupConnection } = useConnectionManager()
   const { config, isLoaded } = useConfig()
 
@@ -160,35 +154,6 @@ export const TTermApp: React.FC = () => {
   const handleContextMenuAction = useCallback(
     async (action: string) => {
       if (!contextMenu.tab) {
-        // Handle settings menu actions
-        switch (action) {
-          case "change-theme":
-            setShowThemeSwitcher(true)
-            break
-          case "change-language":
-            setShowLanguageSwitcher(true)
-            break
-          case "font-settings":
-            setShowFontSettings(true)
-            break
-          case "secret-storage":
-            setShowSecretStorageSettings(true)
-            break
-          case "clear-session":
-            await clearSession()
-            // Reload page to reset state
-            window.location.reload()
-            break
-          case "about":
-            alert(
-              `${t("app.title")} - ${t("app.subtitle")}
-${t("app.version")}
-${t("app.builtWith")}`
-            )
-            break
-          default:
-            break
-        }
         return
       }
 
@@ -240,8 +205,6 @@ ${t("app.builtWith")}`
       handleRemoveTab,
       closeOtherTabs,
       closeTabsToRight,
-      clearSession,
-      t,
       updateTab,
     ]
   )
@@ -303,29 +266,8 @@ ${t("app.builtWith")}`
 
   // Handle settings button click
   const handleSettingsClick = useCallback(() => {
-    const actions: TabContextMenuAction[] = [
-      { label: t("settings.changeTheme"), action: "change-theme", icon: "palette" },
-      { label: t("settings.changeLanguage"), action: "change-language", icon: "languages" },
-      { label: t("settings.fontSettings"), action: "font-settings", icon: "type" },
-      { label: t("settings.secretStorage"), action: "secret-storage", icon: "shield" },
-      { separator: true, label: "", action: "" },
-      { label: t("settings.clearSession"), action: "clear-session", icon: "x" },
-      { separator: true, label: "", action: "" },
-      { label: t("settings.about"), action: "about" },
-    ]
-
-    // Show context menu near settings button (above, anchored to right of sidebar)
-    const rect = settingsButtonRef.current?.getBoundingClientRect()
-    const x = rect ? rect.left : 8
-    const y = rect ? rect.top - 4 : window.innerHeight - 200
-    setContextMenu({
-      visible: true,
-      x,
-      y,
-      tab: null,
-      actions,
-    })
-  }, [t])
+    setShowSettings(true)
+  }, [])
 
   const renderTabContent = () => {
     if (tabs.length === 0) {
@@ -477,19 +419,8 @@ ${t("app.builtWith")}`
         />
       )}
 
-      {/* Theme Switcher */}
-      {showThemeSwitcher && <ThemeSwitcher onClose={() => setShowThemeSwitcher(false)} />}
-
-      {/* Font Settings */}
-      {showFontSettings && <FontSettings onClose={() => setShowFontSettings(false)} />}
-
-      {/* Secret Storage Settings */}
-      {showSecretStorageSettings && (
-        <SecretStorageSettings onClose={() => setShowSecretStorageSettings(false)} />
-      )}
-
-      {/* Language Switcher */}
-      {showLanguageSwitcher && <LanguageSwitcher onClose={() => setShowLanguageSwitcher(false)} />}
+      {/* Settings Dialog */}
+      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
 
       {/* Rename Dialog */}
       <RenameDialog

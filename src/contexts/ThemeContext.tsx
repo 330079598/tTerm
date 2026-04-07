@@ -1,7 +1,7 @@
-import React, {createContext, useCallback, useContext, useEffect, useState} from "react"
-import {useConfig} from "@/contexts/ConfigContext"
-import type {CustomTheme, PresetTheme, PresetThemeId, Theme} from "@/types/theme"
-import {applyCustomTheme} from "@/lib/themeUtils"
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react"
+import { useConfig } from "@/contexts/ConfigContext"
+import type { CustomTheme, PresetTheme, PresetThemeId, Theme } from "@/types/theme"
+import { applyCustomTheme } from "@/lib/themeUtils"
 
 const PRESET_THEMES_DATA: PresetTheme[] = [
   { id: "default", name: "Default", description: "Tabby inspired dark theme", isCustom: false },

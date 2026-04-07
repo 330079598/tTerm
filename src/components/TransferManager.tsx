@@ -163,7 +163,8 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
 
           {transfer.status === "pending" && (
             <div className="text-muted-foreground mt-2 text-[10px]">
-              {t("transfer.pending", { defaultValue: "Waiting..." })} • {formatBytes(transfer.fileSize)}
+              {t("transfer.pending", { defaultValue: "Waiting..." })} •{" "}
+              {formatBytes(transfer.fileSize)}
             </div>
           )}
 

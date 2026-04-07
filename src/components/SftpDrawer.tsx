@@ -239,11 +239,11 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
               return
             }
             lastProgressUpdateRef.current.set(transferId, now)
-            
+
             const transfer = transfersRef.current.find((t) => t.id === transferId)
             const duration = now - (transfer?.startTime || now)
             const speed = duration > 0 ? (event.payload.transferred / duration) * 1000 : 0
-            
+
             updateTransfer(transferId, {
               transferred: event.payload.transferred,
               speed,
@@ -273,7 +273,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
             endTime: Date.now(),
             speed,
           })
-          
+
           // Clean up progress update record
           lastProgressUpdateRef.current.delete(transferId)
 
@@ -648,11 +648,11 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
             return
           }
           lastProgressUpdateRef.current.set(transferId, now)
-          
+
           const transfer = transfersRef.current.find((t) => t.id === transferId)
           const duration = now - (transfer?.startTime || now)
           const speed = duration > 0 ? (event.payload.transferred / duration) * 1000 : 0
-          
+
           updateTransfer(transferId, {
             transferred: event.payload.transferred,
             speed,
@@ -681,7 +681,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
           endTime: Date.now(),
           speed,
         })
-        
+
         // Clean up progress update record
         lastProgressUpdateRef.current.delete(transferId)
 

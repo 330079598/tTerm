@@ -1,13 +1,13 @@
-import React, {useState} from "react"
-import {useTranslation} from "react-i18next"
-import {Check, Copy, Edit, Palette, Plus, Trash2} from "lucide-react"
-import {useTheme} from "@/contexts/ThemeContext"
-import type {PresetThemeId} from "@/types/theme"
-import {Button} from "@/components/ui/button"
-import {Card, CardContent} from "@/components/ui/card"
-import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog"
-import {ThemeEditor} from "@/components/ThemeEditor"
-import {cn, hslToCssColor} from "@/lib/utils"
+import React, { useState } from "react"
+import { useTranslation } from "react-i18next"
+import { Check, Copy, Edit, Palette, Plus, Trash2 } from "lucide-react"
+import { useTheme } from "@/contexts/ThemeContext"
+import type { PresetThemeId } from "@/types/theme"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ThemeEditor } from "@/components/ThemeEditor"
+import { cn, hslToCssColor } from "@/lib/utils"
 
 interface ThemeSwitcherProps {
   onClose: () => void

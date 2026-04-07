@@ -1,5 +1,5 @@
 import * as React from "react"
-import {cn} from "@/lib/utils"
+import { cn } from "@/lib/utils"
 
 interface TabsContextValue {
   value: string
@@ -61,6 +61,7 @@ export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
   return (
     <button
       type="button"
+      data-state={isActive ? "active" : "inactive"}
       onClick={() => context.onValueChange(value)}
       className={cn(
         "ring-offset-background focus-visible:ring-ring inline-flex items-center justify-center rounded-sm px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",

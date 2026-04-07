@@ -26,12 +26,18 @@
   },
   "settings": {
     "title": "设置",
+    "appearance": "外观",
+    "font": "字体",
+    "security": "安全",
+    "general": "通用",
     "changeTheme": "更改主题",
     "changeLanguage": "更改语言",
     "fontSettings": "字体设置",
     "clearSession": "清除会话数据",
+    "clearSessionDesc": "清除所有已保存的会话并重新加载应用",
+    "clearSessionConfirm": "确定要清除所有会话数据吗？这将重新加载应用。",
     "about": "关于 TTerm",
-    "secretStorage": "????"
+    "secretStorage": "密钥存储"
   },
   "theme": {
     "title": "选择主题",

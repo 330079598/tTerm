@@ -28,10 +28,16 @@
   },
   "settings": {
     "title": "Settings",
+    "appearance": "Appearance",
+    "font": "Font",
+    "security": "Security",
+    "general": "General",
     "changeTheme": "Change Theme",
     "changeLanguage": "Change Language",
     "fontSettings": "Font Settings",
     "clearSession": "Clear Session Data",
+    "clearSessionDesc": "Clear all saved sessions and reload the app",
+    "clearSessionConfirm": "Are you sure you want to clear all session data? This will reload the app.",
     "about": "About TTerm",
     "secretStorage": "Secret Storage"
   },

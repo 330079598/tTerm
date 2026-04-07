@@ -1,4 +1,4 @@
-import type {CustomTheme, PresetThemeId, ThemeColors} from "@/types/theme"
+import type { CustomTheme, PresetThemeId, ThemeColors } from "@/types/theme"
 
 // 从 CSS 变量中提取当前主题的颜色值
 export function extractThemeColors(): ThemeColors {
