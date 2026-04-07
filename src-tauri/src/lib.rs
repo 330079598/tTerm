@@ -64,6 +64,7 @@ pub fn run() {
             profiles::list_profiles,
             profiles::save_profile,
             profiles::delete_profile,
+            profiles::test_connection,
             sftp::sftp_list_directory,
             sftp::sftp_create_directory,
             sftp::sftp_delete_entry,

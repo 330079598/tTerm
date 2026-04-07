@@ -21,6 +21,7 @@ import { open as openFileDialog } from "@tauri-apps/plugin-dialog"
 import { invoke } from "@tauri-apps/api/core"
 import { SavedProfile } from "@/components/ProfilesPanel"
 import { useConfig } from "@/contexts/ConfigContext"
+import { useToast } from "@/hooks/use-toast"
 
 interface ConnectionDialogProps {
   isOpen: boolean
@@ -146,11 +147,13 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   saveConfig,
 }) => {
   const { t } = useTranslation()
+  const { toast } = useToast()
   const [form, setForm] = useState<ConnectionForm>(() => buildInitialForm(editProfile, config))
   const [existingGroups, setExistingGroups] = useState<string[]>([])
   const [showGroupDropdown, setShowGroupDropdown] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
   const [allProfiles, setAllProfiles] = useState<SavedProfile[]>([])
+  const [isTesting, setIsTesting] = useState(false)
   const matchingGroups = existingGroups.filter((g) =>
     g.toLowerCase().includes(form.group.toLowerCase())
   )
@@ -255,6 +258,49 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     onConnect(connection)
     setForm(defaultForm)
     onClose()
+  }
+
+  const handleTestConnection = async () => {
+    if (form.type !== "ssh") return
+
+    setIsTesting(true)
+    try {
+      const title = form.title.trim() || getDefaultTitle(form.type, form)
+      const profile: SavedProfile = {
+        id: crypto.randomUUID(),
+        name: title,
+        group: form.group.trim(),
+        connection_type: form.type,
+        host: form.host,
+        port: form.port,
+        username: form.username,
+        password: form.authMethod === "password" ? form.password : undefined,
+        auth_method: form.authMethod,
+        private_key_path: form.authMethod === "key" ? form.privateKeyPath : undefined,
+        private_key_passphrase: form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
+        reconnect: form.reconnect,
+        reconnect_delay_secs: form.reconnectDelaySecs,
+        reconnect_max_delay_secs: form.reconnectMaxDelaySecs,
+        reconnect_max_retries: form.reconnectMaxRetries,
+        keepalive_interval_secs: form.keepaliveIntervalSecs,
+        keepalive_count_max: form.keepaliveCountMax,
+        remember_password: false,
+      }
+
+      const result = await invoke<string>("test_connection", { profile })
+      toast({
+        title: t("profiles.testSuccess"),
+        description: result,
+      })
+    } catch (e) {
+      toast({
+        title: t("profiles.testFailed"),
+        description: String(e),
+        variant: "destructive",
+      })
+    } finally {
+      setIsTesting(false)
+    }
   }
 
   const isSsh = form.type === "ssh"
@@ -565,6 +611,16 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
           <Button type="button" variant="ghost" onClick={onClose}>
             {t("connection.cancel")}
           </Button>
+          {isSsh && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleTestConnection}
+              disabled={isTesting || !form.host.trim() || !form.username.trim()}
+            >
+              {isTesting ? t("profiles.testing") : t("profiles.test")}
+            </Button>
+          )}
           <Button type="submit">{t("connection.connect")}</Button>
         </DialogFooter>
       </form>
