@@ -225,30 +225,30 @@
   }
 
   [data-theme="ubuntu"] {
-    /* Ubuntu Dark Aubergine #2C001E as base */
-    --background: 300 100% 6%;
-    --foreground: 0 0% 95%;
+    /* Ubuntu Terminal Dark Aubergine #300A24 as base */
+    --background: 302 58% 10%;
+    --foreground: 0 0% 100%;
 
     /* Ubuntu Mid Aubergine #5E2750 for cards */
-    --card: 312 41% 19%;
-    --card-foreground: 0 0% 95%;
+    --card: 312 41% 26%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 312 41% 19%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 312 41% 26%;
+    --popover-foreground: 0 0% 98%;
 
-    /* Ubuntu Orange #DD4814 as primary */
-    --primary: 16 83% 48%;
+    /* Ubuntu Orange #E95420 as primary */
+    --primary: 14 82% 52%;
     --primary-foreground: 0 0% 100%;
 
     /* Ubuntu Light Aubergine #77216F for secondary */
-    --secondary: 305 48% 29%;
-    --secondary-foreground: 0 0% 95%;
+    --secondary: 305 55% 30%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 312 41% 24%;
-    --muted-foreground: 25 9% 67%;
+    --muted: 312 41% 30%;
+    --muted-foreground: 0 0% 70%;
 
     /* Ubuntu Orange for accent */
-    --accent: 16 83% 48%;
+    --accent: 14 82% 52%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
@@ -261,12 +261,12 @@
     /* Ubuntu Warm Grey #AEA79F for borders */
     --border: 25 9% 67%;
     --input: 25 9% 67%;
-    --ring: 16 83% 48%;
+    --ring: 14 82% 52%;
 
-    --tab-background: 312 41% 19%;
-    --tab-active: 300 100% 6%;
-    --tab-hover: 312 41% 24%;
-    --titlebar: 300 100% 8%;
+    --tab-background: 312 41% 26%;
+    --tab-active: 302 58% 10%;
+    --tab-hover: 312 41% 32%;
+    --titlebar: 302 58% 12%;
   }
 }
 
