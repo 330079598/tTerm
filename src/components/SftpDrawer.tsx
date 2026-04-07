@@ -97,7 +97,6 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isDragActive, setIsDragActive] = useState(false)
   const [contextMenu, setContextMenu] = useState<{
     x: number
@@ -177,7 +176,6 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
 
       setIsLoading(true)
       setError(null)
-      setSuccessMessage(null)
       try {
         const nextListing = await invoke<SftpDirectoryListing>("sftp_list_directory", {
           tabId,
@@ -348,17 +346,6 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       // Refresh directory listing
       console.log("Refreshing directory listing")
       await loadDirectory(listing.currentPath)
-
-      // Show success message
-      if (succeeded > 0) {
-        setSuccessMessage(
-          t("sftp.uploadComplete", {
-            defaultValue: `Uploaded ${succeeded} file(s)`,
-            count: succeeded,
-          })
-        )
-        setTimeout(() => setSuccessMessage(null), 3000)
-      }
     },
     [addTransfer, connection, listing, loadDirectory, t, tabId, updateTransfer]
   )
@@ -882,12 +869,6 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         </div>
       </div>
 
-      {successMessage && (
-        <Alert className="rounded-none border-x-0 border-t-0 bg-green-50 text-green-900 dark:bg-green-950/20 dark:text-green-400">
-          <AlertDescription className="text-center font-medium">{successMessage}</AlertDescription>
-        </Alert>
-      )}
-
       {error && (
         <Alert className="bg-destructive/10 text-destructive rounded-none border-x-0 border-t-0">
           <AlertCircle className="size-4" />
@@ -961,8 +942,12 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
                   <button
                     key={entry.path}
                     type="button"
-                    className={cn("sftp-row", isSelected && "bg-accent/15")}
-                    onClick={() => setSelectedPath(entry.path)}
+                    className={cn("sftp-row", isSelected && "sftp-row-selected")}
+                    aria-pressed={isSelected}
+                    onClick={() => {
+                      setSelectedPath(entry.path)
+                      setContextMenu(null)
+                    }}
                     onDoubleClick={() => handleOpenEntry(entry)}
                     onContextMenu={(e) => {
                       e.preventDefault()

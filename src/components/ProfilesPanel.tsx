@@ -5,25 +5,7 @@ import { Server, Trash2, Play, Pencil, ChevronDown, ChevronRight } from "lucide-
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tab, type ConnectionType } from "@/types/tab"
-
-interface SavedProfile {
-  id: string
-  name: string
-  group: string
-  connection_type: string
-  host?: string
-  port?: number
-  username?: string
-  auth_method?: string
-  private_key_path?: string
-  reconnect: boolean
-  reconnect_delay_secs: number
-  reconnect_max_delay_secs: number
-  reconnect_max_retries: number
-  keepalive_interval_secs: number
-  keepalive_count_max: number
-}
+import { Tab, type ConnectionType, type SavedProfile } from "@/types/tab"
 
 interface ProfilesPanelProps {
   onConnect: (connection: Omit<Tab, "id" | "isActive">) => void

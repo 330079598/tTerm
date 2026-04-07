@@ -97,6 +97,7 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
     (transfer: TransferTask) => {
       const progress = transfer.fileSize > 0 ? (transfer.transferred / transfer.fileSize) * 100 : 0
       const isActive = transfer.status === "pending" || transfer.status === "transferring"
+      const speed = transfer.speed ?? 0
       const duration = transfer.endTime
         ? transfer.endTime - transfer.startTime
         : Date.now() - transfer.startTime
@@ -155,7 +156,7 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
                 <span>
                   {formatBytes(transfer.transferred)} / {formatBytes(transfer.fileSize)}
                 </span>
-                {transfer.speed > 0 && <span>{formatSpeed(transfer.speed)}</span>}
+                {speed > 0 && <span>{formatSpeed(speed)}</span>}
                 <span>{progress.toFixed(1)}%</span>
               </div>
             </div>

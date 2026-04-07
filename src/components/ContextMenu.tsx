@@ -97,39 +97,40 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
   }, [onClose])
 
   return (
-    <Card
+    <div
       ref={menuRef}
       style={{ position: "fixed", left: position.left, top: position.top, zIndex: 9999 }}
-      className="bg-popover min-w-[180px] rounded-md py-1 shadow-lg"
     >
-      <CardContent className="p-1">
-        {actions.map((action, index) => {
-          if (action.separator) {
-            return <div key={index} className="bg-border my-1 h-px" />
-          }
-          return (
-            <Button
-              key={index}
-              type="button"
-              variant="ghost"
-              disabled={action.disabled}
-              onClick={() => {
-                if (!action.disabled) {
-                  onAction(action.action)
-                  onClose()
-                }
-              }}
-              className={cn(
-                "h-auto w-full justify-start gap-2 px-3 py-1.5 text-left text-sm font-normal",
-                action.disabled && "cursor-not-allowed opacity-40"
-              )}
-            >
-              {getActionIcon(action.icon)}
-              <span>{action.label}</span>
-            </Button>
-          )
-        })}
-      </CardContent>
-    </Card>
+      <Card className="bg-popover min-w-[180px] rounded-md py-1 shadow-lg">
+        <CardContent className="p-1">
+          {actions.map((action, index) => {
+            if (action.separator) {
+              return <div key={index} className="bg-border my-1 h-px" />
+            }
+            return (
+              <Button
+                key={index}
+                type="button"
+                variant="ghost"
+                disabled={action.disabled}
+                onClick={() => {
+                  if (!action.disabled) {
+                    onAction(action.action)
+                    onClose()
+                  }
+                }}
+                className={cn(
+                  "h-auto w-full justify-start gap-2 px-3 py-1.5 text-left text-sm font-normal",
+                  action.disabled && "cursor-not-allowed opacity-40"
+                )}
+              >
+                {getActionIcon(action.icon)}
+                <span>{action.label}</span>
+              </Button>
+            )
+          })}
+        </CardContent>
+      </Card>
+    </div>
   )
 }

@@ -192,6 +192,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         host: form.host,
         port: form.port,
         username: form.username,
+        remember_password: false,
         auth_method: form.authMethod,
         private_key_path: form.authMethod === "key" ? form.privateKeyPath : undefined,
         reconnect: form.reconnect,

@@ -170,6 +170,11 @@
   background: hsl(var(--muted) / 0.5);
 }
 
+.sftp-row-selected,
+.sftp-row-selected:hover {
+  background: hsl(var(--accent) / 0.18);
+}
+
 .sftp-cell {
   min-width: 0;
   overflow: hidden;
