@@ -1,9 +1,9 @@
 import * as React from "react"
-import { createPortal } from "react-dom"
-import { XIcon } from "lucide-react"
+import {createPortal} from "react-dom"
+import {XIcon} from "lucide-react"
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import {cn} from "@/lib/utils"
+import {Button} from "@/components/ui/button"
 
 type DialogContextValue = {
   open: boolean
@@ -130,7 +130,7 @@ const DialogOverlay = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
       data-slot="dialog-overlay"
       data-state="open"
       className={cn(
-        "data-[state=open]:animate-in data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
+        "data-[state=open]:animate-in data-[state=open]:fade-in-0 bg-background/80 fixed inset-0 z-50 backdrop-blur-sm",
         className
       )}
       {...props}

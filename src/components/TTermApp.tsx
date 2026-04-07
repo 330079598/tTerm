@@ -1,24 +1,24 @@
 import "@/components/TTermApp.css"
-import React, { useState, useCallback, useEffect, useRef } from "react"
-import { TerminalTab } from "@/components/TerminalTab"
-import { useTranslation } from "react-i18next"
-import { platform } from "@tauri-apps/plugin-os"
-import { Plus, Settings, BookMarked } from "lucide-react"
-import { ContextMenu } from "@/components/ContextMenu"
-import { ConnectionDialog } from "@/components/ConnectionDialog"
-import { RenameDialog } from "@/components/RenameDialog"
-import { ThemeSwitcher } from "@/components/ThemeSwitcher"
-import { LanguageSwitcher } from "@/components/LanguageSwitcher"
-import { FontSettings } from "@/components/FontSettings"
-import { SecretStorageSettings } from "@/components/SecretStorageSettings"
-import { TabBar } from "@/components/TabBar"
-import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
-import { useTabs } from "@/hooks/useTabs"
-import { useSessionPersistence } from "@/hooks/useSessionPersistence"
-import { useConnectionManager } from "@/hooks/useConnectionManager"
-import { useConfig } from "@/contexts/ConfigContext"
-import { setTheme, type Theme } from "@/lib/utils"
-import { Tab, TabContextMenuAction } from "@/types/tab"
+import React, {useCallback, useEffect, useRef, useState} from "react"
+import {TerminalTab} from "@/components/TerminalTab"
+import {useTranslation} from "react-i18next"
+import {platform} from "@tauri-apps/plugin-os"
+import {BookMarked, Plus, Settings} from "lucide-react"
+import {ContextMenu} from "@/components/ContextMenu"
+import {ConnectionDialog} from "@/components/ConnectionDialog"
+import {RenameDialog} from "@/components/RenameDialog"
+import {ThemeSwitcher} from "@/components/ThemeSwitcher"
+import {LanguageSwitcher} from "@/components/LanguageSwitcher"
+import {FontSettings} from "@/components/FontSettings"
+import {SecretStorageSettings} from "@/components/SecretStorageSettings"
+import {TabBar} from "@/components/TabBar"
+import {ProfilesPanel, SavedProfile} from "@/components/ProfilesPanel"
+import {useTabs} from "@/hooks/useTabs"
+import {useSessionPersistence} from "@/hooks/useSessionPersistence"
+import {useConnectionManager} from "@/hooks/useConnectionManager"
+import {useConfig} from "@/contexts/ConfigContext"
+import {setTheme, type Theme} from "@/lib/utils"
+import {Tab, TabContextMenuAction} from "@/types/tab"
 
 interface ContextMenuState {
   visible: boolean
@@ -448,31 +448,8 @@ ${t("app.builtWith")}`
 
       {/* Profiles Panel */}
       {showProfilesPanel && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 50,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          onClick={() => setShowProfilesPanel(false)}
-        >
-          <div
-            style={{
-              background: "hsl(var(--card))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: 8,
-              padding: 24,
-              minWidth: 380,
-              maxWidth: 520,
-              maxHeight: "80vh",
-              overflowY: "auto",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="modal-overlay" onClick={() => setShowProfilesPanel(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <ProfilesPanel
               refreshKey={profilesRefreshKey}
               onConnect={(conn) => {

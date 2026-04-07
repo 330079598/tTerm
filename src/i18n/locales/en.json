@@ -46,7 +46,35 @@
     "forest": "Forest",
     "forestDesc": "Natural green theme",
     "sunset": "Sunset",
-    "sunsetDesc": "Warm orange and red theme"
+    "sunsetDesc": "Warm orange and red theme",
+    "ubuntu": "Ubuntu",
+    "ubuntuDesc": "Ubuntu inspired theme"
+  },
+  "themeEditor": {
+    "createTheme": "Create Custom Theme",
+    "editTheme": "Edit Theme",
+    "name": "Theme Name",
+    "namePlaceholder": "My Custom Theme",
+    "description": "Description",
+    "descriptionPlaceholder": "A beautiful custom theme",
+    "basic": "Basic",
+    "components": "Components",
+    "status": "Status",
+    "tabs": "Tabs",
+    "presetThemes": "Preset Themes",
+    "customThemes": "Custom Themes",
+    "customize": "Customize",
+    "edit": "Edit",
+    "delete": "Delete",
+    "duplicate": "Duplicate",
+    "duplicateName": "Enter name for duplicated theme",
+    "confirmDelete": "Are you sure you want to delete this theme?",
+    "createNew": "Create New Theme"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving..."
   },
   "language": {
     "title": "Choose Language",

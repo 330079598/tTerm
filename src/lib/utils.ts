@@ -1,12 +1,12 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import {type ClassValue, clsx} from "clsx"
+import {twMerge} from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
 // Theme management
-export type Theme = "default" | "light" | "ocean" | "forest" | "sunset"
+export type Theme = "default" | "light" | "ocean" | "forest" | "sunset" | "ubuntu"
 
 export function setTheme(theme: Theme) {
   const root = document.documentElement
@@ -15,4 +15,9 @@ export function setTheme(theme: Theme) {
 
 export function getTheme(): Theme {
   return (document.documentElement.getAttribute("data-theme") as Theme) || "default"
+}
+
+// HSL color helper
+export function hslToCssColor(hsl: string): string {
+  return `hsl(${hsl})`
 }

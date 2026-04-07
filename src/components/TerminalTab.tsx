@@ -1,15 +1,15 @@
 import "@/components/TerminalTab.css"
-import React, { useEffect, useRef, useCallback, useState } from "react"
-import { Terminal } from "@xterm/xterm"
-import { FitAddon } from "@xterm/addon-fit"
-import { WebLinksAddon } from "@xterm/addon-web-links"
-import { invoke } from "@tauri-apps/api/core"
-import { listen } from "@tauri-apps/api/event"
-import { Globe, Pin, PinOff, PlugZap, RefreshCcw } from "lucide-react"
-import { SftpDrawer } from "@/components/SftpDrawer"
-import { useConfig } from "@/contexts/ConfigContext"
-import { useTranslation } from "react-i18next"
-import type { Tab } from "@/types/tab"
+import React, {useCallback, useEffect, useRef, useState} from "react"
+import {Terminal} from "@xterm/xterm"
+import {FitAddon} from "@xterm/addon-fit"
+import {WebLinksAddon} from "@xterm/addon-web-links"
+import {invoke} from "@tauri-apps/api/core"
+import {listen} from "@tauri-apps/api/event"
+import {Globe, Pin, PinOff, PlugZap, RefreshCcw} from "lucide-react"
+import {SftpDrawer} from "@/components/SftpDrawer"
+import {useConfig} from "@/contexts/ConfigContext"
+import {useTranslation} from "react-i18next"
+import type {Tab} from "@/types/tab"
 import "@xterm/xterm/css/xterm.css"
 
 interface TerminalTabProps {
@@ -563,28 +563,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
         {/* Host Key Verification Dialog */}
         {hostKeyPrompt && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "rgba(0,0,0,0.6)",
-              zIndex: 10,
-            }}
-          >
-            <div
-              style={{
-                background: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: 8,
-                padding: "24px",
-                maxWidth: 480,
-                width: "90%",
-                color: "hsl(var(--foreground))",
-              }}
-            >
+          <div className="host-key-dialog-overlay">
+            <div className="host-key-dialog-content">
               <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600 }}>
                 {hostKeyPrompt.reason === "mismatch"
                   ? t("ssh.hostKeyMismatch")

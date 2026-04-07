@@ -1,7 +1,8 @@
-import { createRootRoute } from "@tanstack/react-router"
-import { lazy } from "react"
-import { TTermApp } from "@/components/TTermApp"
-import { ConfigProvider } from "@/contexts/ConfigContext"
+import {createRootRoute} from "@tanstack/react-router"
+import {lazy} from "react"
+import {TTermApp} from "@/components/TTermApp"
+import {ConfigProvider} from "@/contexts/ConfigContext"
+import {ThemeProvider} from "@/contexts/ThemeContext"
 
 const TanStackRouterDevtools = import.meta.env.DEV
   ? lazy(() =>
@@ -14,8 +15,10 @@ const TanStackRouterDevtools = import.meta.env.DEV
 const RootLayout = () => {
   return (
     <ConfigProvider>
-      <TTermApp />
-      <TanStackRouterDevtools />
+      <ThemeProvider>
+        <TTermApp />
+        <TanStackRouterDevtools />
+      </ThemeProvider>
     </ConfigProvider>
   )
 }

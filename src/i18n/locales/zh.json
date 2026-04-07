@@ -44,7 +44,35 @@
     "forest": "森林",
     "forestDesc": "自然绿色主题",
     "sunset": "日落",
-    "sunsetDesc": "温暖的橙红色主题"
+    "sunsetDesc": "温暖的橙红色主题",
+    "ubuntu": "Ubuntu",
+    "ubuntuDesc": "Ubuntu 风格主题"
+  },
+  "themeEditor": {
+    "createTheme": "创建自定义主题",
+    "editTheme": "编辑主题",
+    "name": "主题名称",
+    "namePlaceholder": "我的自定义主题",
+    "description": "描述",
+    "descriptionPlaceholder": "一个漂亮的自定义主题",
+    "basic": "基础",
+    "components": "组件",
+    "status": "状态",
+    "tabs": "标签页",
+    "presetThemes": "预设主题",
+    "customThemes": "自定义主题",
+    "customize": "自定义",
+    "edit": "编辑",
+    "delete": "删除",
+    "duplicate": "复制",
+    "duplicateName": "输入复制主题的名称",
+    "confirmDelete": "确定要删除此主题吗？",
+    "createNew": "创建新主题"
+  },
+  "common": {
+    "cancel": "取消",
+    "save": "保存",
+    "saving": "保存中..."
   },
   "language": {
     "title": "选择语言",

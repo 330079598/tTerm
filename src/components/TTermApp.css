@@ -64,6 +64,30 @@
   line-height: 1.5;
 }
 
+/* Modal overlay and content */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background-color: hsl(var(--background) / 0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  padding: 24px;
+  min-width: 380px;
+  max-width: 520px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px hsl(var(--background) / 0.5);
+}
+
 /* Tab content placeholder */
 .tab-content-placeholder {
   flex: 1;
