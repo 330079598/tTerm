@@ -15,7 +15,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::RwLock;
 
@@ -46,13 +46,13 @@ struct ConnectedSftp {
     sftp: SftpSession,
 }
 
-// SFTP 连接缓存
+// SFTP connection cache
 pub struct CachedSftpConnection {
     connection: ConnectedSftp,
     last_used: Instant,
 }
 
-// 连接缓存键
+// Connection cache key
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub struct SftpConnectionKey {
     tab_id: String,
@@ -61,10 +61,10 @@ pub struct SftpConnectionKey {
     username: String,
 }
 
-// 全局 SFTP 连接池
+// Global SFTP connection pool
 pub type SftpConnectionPool = Arc<RwLock<HashMap<SftpConnectionKey, CachedSftpConnection>>>;
 
-// 连接超时时间（5分钟无活动则关闭）
+// Connection timeout (close after 5 minutes of inactivity)
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(300);
 
 fn map_sftp_error(err: SftpError) -> String {
@@ -194,7 +194,7 @@ async fn close_sftp(connection: ConnectedSftp) {
         .await;
 }
 
-// 获取或创建 SFTP 连接
+// Get or create SFTP connection
 async fn get_or_create_sftp_connection(
     app: &AppHandle,
     tab_id: &str,
@@ -209,7 +209,7 @@ async fn get_or_create_sftp_connection(
         username: plan.username.clone().ok_or("Username is required")?,
     };
 
-    // 清理过期连接
+    // Clean up expired connections
     let mut pool_guard = pool.write().await;
     let now = Instant::now();
     let expired_keys: Vec<_> = pool_guard
@@ -226,14 +226,14 @@ async fn get_or_create_sftp_connection(
         }
     }
 
-    // 检查是否已有可用连接
+    // Check if there's an available connection
     if let Some(cached) = pool_guard.get_mut(&key) {
         cached.last_used = now;
         return Ok(());
     }
 
-    // 创建新连接
-    drop(pool_guard); // 释放写锁，避免阻塞其他操作
+    // Create new connection
+    drop(pool_guard); // Release write lock to avoid blocking other operations
     let connection = connect_sftp(app, tab_id, plan, prompts).await?;
     
     let mut pool_guard = pool.write().await;
@@ -248,7 +248,7 @@ async fn get_or_create_sftp_connection(
     Ok(())
 }
 
-// 使用缓存的连接执行操作（使用宏简化）
+// Execute operations using cached connection (simplified with macro)
 macro_rules! with_sftp {
     ($app:expr, $tab_id:expr, $plan:expr, $prompts:expr, $pool:expr, $sftp:ident => $body:block) => {{
         let key = SftpConnectionKey {
@@ -258,16 +258,16 @@ macro_rules! with_sftp {
             username: $plan.username.clone().ok_or("Username is required")?,
         };
 
-        // 确保连接存在
+        // Ensure connection exists
         get_or_create_sftp_connection($app, $tab_id, $plan, $prompts.clone(), $pool).await?;
 
-        // 执行操作
+        // Execute operation
         let pool_guard = $pool.read().await;
         let cached = pool_guard.get(&key).ok_or("Connection not found")?;
         let $sftp = &cached.connection.sftp;
         let result: Result<_, String> = async { $body }.await;
 
-        // 如果操作失败，可能是连接断开，移除缓存
+        // If operation fails, connection may be broken, remove from cache
         if result.is_err() {
             drop(pool_guard);
             let mut pool_guard = $pool.write().await;
@@ -459,22 +459,73 @@ pub async fn sftp_upload_file(
 ) -> Result<(), String> {
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
     
-    // 在后台线程读取文件，避免阻塞
-    let data = tokio::task::spawn_blocking(move || {
-        std::fs::read(&local_path)
-            .map_err(|err| format!("Failed to read local file '{local_path}': {err}"))
+    // Get file size
+    let file_size = tokio::task::spawn_blocking({
+        let local_path = local_path.clone();
+        move || {
+            std::fs::metadata(&local_path)
+                .map(|m| m.len())
+                .map_err(|err| format!("Failed to get file metadata '{local_path}': {err}"))
+        }
     })
     .await
     .map_err(|err| format!("Task join error: {err}"))??;
 
+    // Read entire file into memory
+    let data = tokio::task::spawn_blocking({
+        let local_path = local_path.clone();
+        move || {
+            std::fs::read(&local_path)
+                .map_err(|err| format!("Failed to read local file '{local_path}': {err}"))
+        }
+    })
+    .await
+    .map_err(|err| format!("Task join error: {err}"))??;
+
+    // Write to remote file in chunks
+    const CHUNK_SIZE: usize = 64 * 1024; // 64KB chunks - larger chunks improve performance
+    const PROGRESS_UPDATE_INTERVAL: usize = 10; // Update progress every 10 chunks
+    
     with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-        let mut file = sftp.create(remote_path).await.map_err(map_sftp_error)?;
-        file.write_all(&data)
-            .await
-            .map_err(|err| format!("Failed to write remote file: {err}"))?;
-        file.shutdown()
+        let mut remote_file = sftp.create(&remote_path).await.map_err(map_sftp_error)?;
+        
+        let mut total_written = 0u64;
+        let chunks = data.chunks(CHUNK_SIZE);
+        let total_chunks = chunks.len();
+        
+        for (index, chunk) in chunks.enumerate() {
+            // Write current chunk
+            remote_file.write_all(chunk)
+                .await
+                .map_err(|err| format!("Failed to write remote file: {err}"))?;
+            
+            total_written += chunk.len() as u64;
+            
+            // Reduce progress event frequency to avoid performance impact from too many events
+            let should_emit = index % PROGRESS_UPDATE_INTERVAL == 0 
+                || index == total_chunks - 1 
+                || total_chunks < PROGRESS_UPDATE_INTERVAL;
+            
+            if should_emit {
+                let progress = if file_size > 0 {
+                    ((total_written as f64 / file_size as f64) * 100.0).min(100.0) as u32
+                } else {
+                    100
+                };
+                
+                let _ = app.emit(&format!("sftp-upload-progress-{}", tab_id), serde_json::json!({
+                    "localPath": local_path,
+                    "transferred": total_written,
+                    "total": file_size,
+                    "progress": progress
+                }));
+            }
+        }
+        
+        remote_file.shutdown()
             .await
             .map_err(|err| format!("Failed to finalize remote file: {err}"))?;
+        
         Ok(())
     })
 }
@@ -496,7 +547,7 @@ pub async fn sftp_download_file(
         sftp.read(remote_path).await.map_err(map_sftp_error)
     })?;
     
-    // 在后台线程写入文件，避免阻塞
+    // Write file in background thread to avoid blocking
     tokio::task::spawn_blocking(move || {
         std::fs::write(&local_path, data)
             .map_err(|err| format!("Failed to write local file '{local_path}': {err}"))
@@ -505,4 +556,15 @@ pub async fn sftp_download_file(
     .map_err(|err| format!("Task join error: {err}"))??;
     
     Ok(())
+}
+
+#[tauri::command]
+pub async fn get_file_size(local_path: String) -> Result<u64, String> {
+    tokio::task::spawn_blocking(move || {
+        std::fs::metadata(&local_path)
+            .map(|metadata| metadata.len())
+            .map_err(|err| format!("Failed to get file size for '{local_path}': {err}"))
+    })
+    .await
+    .map_err(|err| format!("Task join error: {err}"))?
 }

@@ -70,6 +70,7 @@ pub fn run() {
             sftp::sftp_rename_entry,
             sftp::sftp_upload_file,
             sftp::sftp_download_file,
+            sftp::get_file_size,
             ssh::secret_commands::get_secret_backend_status,
             ssh::secret_commands::unlock_secret_vault,
             ssh::secret_commands::lock_secret_vault,

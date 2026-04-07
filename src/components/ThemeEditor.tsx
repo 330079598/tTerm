@@ -2,7 +2,7 @@ import React, {useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {Palette, Save, X} from "lucide-react"
 import {useTheme} from "@/contexts/ThemeContext"
-import type {CustomTheme, ThemeColors} from "@/types/theme"
+import type {CustomTheme, PresetThemeId, ThemeColors} from "@/types/theme"
 import {Button} from "@/components/ui/button"
 import {Input} from "@/components/ui/input"
 import {Label} from "@/components/ui/label"
@@ -11,8 +11,8 @@ import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
 import {hslToCssColor} from "@/lib/themeUtils"
 
 interface ThemeEditorProps {
-  themeId?: string // 如果提供，则编辑现有主题；否则创建新主题
-  baseThemeId?: string // 基于哪个主题创建
+  themeId?: string // If provided, edit existing theme; otherwise create new theme
+  baseThemeId?: string // Which theme to base on
   onClose: () => void
   onSave?: (theme: CustomTheme) => void
 }
@@ -80,7 +80,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
   useEffect(() => {
     const initializeTheme = async () => {
       if (themeId) {
-        // 编辑现有主题
+        // Edit existing theme
         const theme = getTheme(themeId)
         if (theme && theme.isCustom) {
           setName(theme.name)
@@ -88,7 +88,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
           setColors(theme.colors)
         }
       } else if (baseThemeId) {
-        // 基于预设主题创建
+        // Create based on preset theme
         const { createCustomThemeFromPreset } = await import("@/lib/themeUtils")
         const themeData = createCustomThemeFromPreset(
           baseThemeId as PresetThemeId,
@@ -116,7 +116,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
     setIsSaving(true)
     try {
       if (themeId) {
-        // 更新现有主题
+        // Update existing theme
         await updateCustomTheme(themeId, {
           name: name.trim(),
           description: description.trim(),
@@ -125,7 +125,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
         const theme = getTheme(themeId) as CustomTheme
         onSave?.(theme)
       } else {
-        // 创建新主题
+        // Create new theme
         const newTheme = await createCustomTheme({
           name: name.trim(),
           description: description.trim(),
@@ -160,7 +160,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
         </DialogHeader>
 
         <div className="flex-1 space-y-4 overflow-y-auto py-2">
-          {/* 基本信息 */}
+          {/* Basic information */}
           <div className="space-y-3">
             <div>
               <Label htmlFor="theme-name">{t("themeEditor.name")}</Label>
@@ -182,7 +182,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
             </div>
           </div>
 
-          {/* 颜色编辑器 */}
+          {/* Color editor */}
           <Tabs defaultValue="basic" className="w-full">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="basic">{t("themeEditor.basic")}</TabsTrigger>
@@ -281,7 +281,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
           </Tabs>
         </div>
 
-        {/* 操作按钮 */}
+        {/* Action buttons */}
         <div className="flex justify-end gap-2 border-t pt-4">
           <Button variant="outline" onClick={onClose}>
             <X size={16} className="mr-2" />
@@ -297,7 +297,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
   )
 }
 
-// 颜色输入组件
+// Color input component
 interface ColorInputProps {
   label: string
   value: string

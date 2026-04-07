@@ -95,12 +95,19 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
   } | null>(null)
   const [transfers, setTransfers] = useState<TransferTask[]>([])
   const dragCounterRef = useRef(0)
+  const transfersRef = useRef<TransferTask[]>([])
+  const lastProgressUpdateRef = useRef<Map<string, number>>(new Map())
+
+  // Keep transfersRef in sync
+  useEffect(() => {
+    transfersRef.current = transfers
+  }, [transfers])
 
   const addTransfer = useCallback(
     (transfer: Omit<TransferTask, "id" | "startTime" | "status" | "transferred">) => {
       const newTransfer: TransferTask = {
         ...transfer,
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         startTime: Date.now(),
         status: "pending",
         transferred: 0,
@@ -195,10 +202,10 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         return
       }
 
-      // 清除之前的错误消息
+      // Clear previous error messages
       setError(null)
 
-      // 并发上传所有文件，而不是串行
+      // Upload all files concurrently instead of serially
       const uploadPromises = validFiles.map(async (file) => {
         const fileName = file.name
         const localPath = file.path!
@@ -216,6 +223,34 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
 
         updateTransfer(transferId, { status: "transferring" })
 
+        // Listen for progress events
+        const appWindow = getCurrentWindow()
+        const unlisten = await appWindow.listen<{
+          localPath: string
+          transferred: number
+          total: number
+          progress: number
+        }>(`sftp-upload-progress-${tabId}`, (event) => {
+          if (event.payload.localPath === localPath) {
+            // Throttle: update progress at most once every 100ms
+            const now = Date.now()
+            const lastUpdate = lastProgressUpdateRef.current.get(transferId) || 0
+            if (now - lastUpdate < 100 && event.payload.progress < 100) {
+              return
+            }
+            lastProgressUpdateRef.current.set(transferId, now)
+            
+            const transfer = transfersRef.current.find((t) => t.id === transferId)
+            const duration = now - (transfer?.startTime || now)
+            const speed = duration > 0 ? (event.payload.transferred / duration) * 1000 : 0
+            
+            updateTransfer(transferId, {
+              transferred: event.payload.transferred,
+              speed,
+            })
+          }
+        })
+
         try {
           const startTime = Date.now()
           await invoke("sftp_upload_file", {
@@ -224,6 +259,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
             localPath,
             remotePath: joinRemotePath(listing.currentPath, fileName),
           })
+
+          unlisten()
 
           const duration = Date.now() - startTime
           const fileSize = file.size || 1024
@@ -236,10 +273,15 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
             endTime: Date.now(),
             speed,
           })
+          
+          // Clean up progress update record
+          lastProgressUpdateRef.current.delete(transferId)
 
           console.log("Upload completed:", fileName)
           return { success: true, fileName }
         } catch (error) {
+          unlisten()
+          lastProgressUpdateRef.current.delete(transferId)
           console.error("Upload failed:", fileName, error)
           updateTransfer(transferId, {
             status: "failed",
@@ -250,10 +292,10 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         }
       })
 
-      // 等待所有上传完成
+      // Wait for all uploads to complete
       const results = await Promise.allSettled(uploadPromises)
 
-      // 统计结果
+      // Count results
       const succeeded = results.filter((r) => r.status === "fulfilled" && r.value.success).length
       const failed = results.filter(
         (r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.success)
@@ -261,11 +303,11 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
 
       console.log(`Upload summary: ${succeeded} succeeded, ${failed} failed`)
 
-      // 刷新目录列表
+      // Refresh directory listing
       console.log("Refreshing directory listing")
       await loadDirectory(listing.currentPath)
 
-      // 显示成功消息
+      // Show success message
       if (succeeded > 0) {
         setSuccessMessage(
           t("sftp.uploadComplete", {
@@ -289,7 +331,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       void loadDirectory(null)
     }
 
-    // 监听 Tauri 文件拖放事件
+    // Listen for Tauri file drop events
     let unlisten: (() => void) | undefined
 
     const setupDragDropListener = async () => {
@@ -298,7 +340,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       unlisten = await appWindow.onDragDropEvent((event) => {
         console.log("Drag drop event:", event)
 
-        // 只在 drawer 可见时处理拖放事件
+        // Only handle drop events when drawer is visible
         if (!visible) return
 
         if (event.payload.type === "enter") {
@@ -317,20 +359,29 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
           console.log("Dropped paths:", paths)
 
           if (paths && paths.length > 0) {
-            // 将路径转换为带有 path 属性的对象
-            const files = paths.map((path) => {
-              const fileName = path.split(/[\\/]/).pop() || "file"
-              // 创建一个模拟的 File 对象，带有 path 属性
-              const fileObj = {
-                name: fileName,
-                path: path,
-                size: 0,
-                type: "application/octet-stream",
-              } as File & { path: string }
-              return fileObj
-            })
-            console.log("Uploading files:", files)
-            void uploadFiles(files)
+            // Convert paths to objects with path property and get file sizes
+            void (async () => {
+              const filesPromises = paths.map(async (path) => {
+                const fileName = path.split(/[\\/]/).pop() || "file"
+                let fileSize = 0
+                try {
+                  fileSize = await invoke<number>("get_file_size", { localPath: path })
+                } catch (error) {
+                  console.warn("Failed to get file size for", path, error)
+                }
+                // Create a mock File object with path and size properties
+                const fileObj = {
+                  name: fileName,
+                  path: path,
+                  size: fileSize,
+                  type: "application/octet-stream",
+                } as File & { path: string }
+                return fileObj
+              })
+              const files = await Promise.all(filesPromises)
+              console.log("Uploading files:", files)
+              void uploadFiles(files)
+            })()
           }
         }
       })
@@ -387,7 +438,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       if (entry.isDir) {
         void loadDirectory(entry.path)
       } else {
-        // 双击文件时下载
+        // Download file on double-click
         const targetPath = await saveFileDialog({
           title: t("sftp.actions.download", { defaultValue: "Download File" }),
           defaultPath: entry.name,
@@ -558,20 +609,56 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
 
     const paths = Array.isArray(selection) ? selection : [selection]
 
-    // 并发上传所有文件
+    // Upload all files concurrently
     const uploadPromises = paths.map(async (path) => {
       const fileName = path.split(/[\\/]/).pop() ?? "file"
+
+      // Get file size
+      let fileSize = 0
+      try {
+        fileSize = await invoke<number>("get_file_size", { localPath: path })
+      } catch (error) {
+        console.warn("Failed to get file size:", error)
+      }
 
       const transferId = addTransfer({
         direction: "upload",
         localPath: path,
         remotePath: joinRemotePath(listing.currentPath, fileName),
         fileName,
-        fileSize: 0,
+        fileSize,
         speed: 0,
       })
 
       updateTransfer(transferId, { status: "transferring" })
+
+      // Listen for progress events
+      const appWindow = getCurrentWindow()
+      const unlisten = await appWindow.listen<{
+        localPath: string
+        transferred: number
+        total: number
+        progress: number
+      }>(`sftp-upload-progress-${tabId}`, (event) => {
+        if (event.payload.localPath === path) {
+          // Throttle: update progress at most once every 100ms
+          const now = Date.now()
+          const lastUpdate = lastProgressUpdateRef.current.get(transferId) || 0
+          if (now - lastUpdate < 100 && event.payload.progress < 100) {
+            return
+          }
+          lastProgressUpdateRef.current.set(transferId, now)
+          
+          const transfer = transfersRef.current.find((t) => t.id === transferId)
+          const duration = now - (transfer?.startTime || now)
+          const speed = duration > 0 ? (event.payload.transferred / duration) * 1000 : 0
+          
+          updateTransfer(transferId, {
+            transferred: event.payload.transferred,
+            speed,
+          })
+        }
+      })
 
       try {
         const startTime = Date.now()
@@ -582,19 +669,26 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
           remotePath: joinRemotePath(listing.currentPath, fileName),
         })
 
+        unlisten()
+
         const duration = Date.now() - startTime
-        const speed = duration > 0 ? (1024 / duration) * 1000 : 0
+        const speed = duration > 0 ? (fileSize / duration) * 1000 : 0
 
         updateTransfer(transferId, {
           status: "completed",
-          transferred: 1024,
-          fileSize: 1024,
+          transferred: fileSize,
+          fileSize,
           endTime: Date.now(),
           speed,
         })
+        
+        // Clean up progress update record
+        lastProgressUpdateRef.current.delete(transferId)
 
         return { success: true, fileName }
       } catch (error) {
+        unlisten()
+        lastProgressUpdateRef.current.delete(transferId)
         updateTransfer(transferId, {
           status: "failed",
           error: String(error),
@@ -604,10 +698,10 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       }
     })
 
-    // 等待所有上传完成
+    // Wait for all uploads to complete
     await Promise.allSettled(uploadPromises)
 
-    // 刷新目录
+    // Refresh directory
     await loadDirectory(listing.currentPath)
   }, [addTransfer, connection, listing, loadDirectory, t, tabId, updateTransfer])
 
@@ -749,7 +843,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         onDragOver={handleDragOver}
         onDrop={handleDrop}
       >
-        {/* 拖拽覆盖层 */}
+        {/* Drag overlay */}
         {isDragActive && (
           <div className="sftp-drag-overlay">
             <div className="sftp-drag-hint">

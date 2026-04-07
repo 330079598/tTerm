@@ -205,7 +205,8 @@
     "clearCompleted": "Clear Completed",
     "completed": "Completed",
     "failed": "Failed",
-    "cancelled": "Cancelled"
+    "cancelled": "Cancelled",
+    "pending": "Waiting..."
   },
   "sftp": {
     "transfers": "Transfers",

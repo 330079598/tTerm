@@ -84,7 +84,7 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            {/* 预设主题 */}
+            {/* Preset themes */}
             <div>
               <h3 className="mb-2 text-sm font-medium">{t("themeEditor.presetThemes")}</h3>
               <div className="grid grid-cols-1 gap-2">
@@ -136,7 +136,7 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
               </div>
             </div>
 
-            {/* 自定义主题 */}
+            {/* Custom themes */}
             {customThemes.length > 0 && (
               <div>
                 <h3 className="mb-2 text-sm font-medium">{t("themeEditor.customThemes")}</h3>
@@ -212,7 +212,7 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
               </div>
             )}
 
-            {/* 创建新主题按钮 */}
+            {/* Create new theme button */}
             <Button
               variant="outline"
               className="w-full"
@@ -225,12 +225,12 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
         </DialogContent>
       </Dialog>
 
-      {/* 主题编辑器 */}
+      {/* Theme editor */}
       {editingThemeId && (
         <ThemeEditor themeId={editingThemeId} onClose={() => setEditingThemeId(null)} />
       )}
 
-      {/* 基于预设主题创建 */}
+      {/* Create based on preset theme */}
       {creatingFromTheme && (
         <ThemeEditor baseThemeId={creatingFromTheme} onClose={() => setCreatingFromTheme(null)} />
       )}

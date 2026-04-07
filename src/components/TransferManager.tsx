@@ -155,9 +155,15 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
                 <span>
                   {formatBytes(transfer.transferred)} / {formatBytes(transfer.fileSize)}
                 </span>
-                {transfer.speed && <span>{formatSpeed(transfer.speed)}</span>}
+                {transfer.speed > 0 && <span>{formatSpeed(transfer.speed)}</span>}
                 <span>{progress.toFixed(1)}%</span>
               </div>
+            </div>
+          )}
+
+          {transfer.status === "pending" && (
+            <div className="text-muted-foreground mt-2 text-[10px]">
+              {t("transfer.pending", { defaultValue: "Waiting..." })} • {formatBytes(transfer.fileSize)}
             </div>
           )}
 
