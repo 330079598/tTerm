@@ -131,7 +131,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({ onConnect, onEdit,
 
   if (profiles.length === 0) {
     return (
-      <Card>
+      <Card style={{ minWidth: "min(380px, 90vw)", minHeight: "min(300px, 40vh)" }}>
         <CardContent className="text-muted-foreground p-4 text-sm">
           {t("profiles.empty")}
         </CardContent>
@@ -150,7 +150,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({ onConnect, onEdit,
   const toggleGroup = (g: string) => setCollapsed((prev) => ({ ...prev, [g]: !prev[g] }))
 
   return (
-    <Card>
+    <Card style={{ minWidth: "min(380px, 90vw)", minHeight: "min(300px, 40vh)" }}>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm">{t("profiles.title")}</CardTitle>
       </CardHeader>
@@ -161,7 +161,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({ onConnect, onEdit,
               type="button"
               variant="ghost"
               onClick={() => toggleGroup(group)}
-              className="text-muted-foreground hover:text-foreground h-auto w-full justify-start rounded-b-none px-3 py-2 text-xs font-semibold tracking-[0.08em] uppercase"
+              className="text-muted-foreground hover:text-foreground h-auto w-full justify-start rounded-b-none px-3 py-2 text-xs font-semibold tracking-[0.08em]"
             >
               {collapsed[group] ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
               {group}
