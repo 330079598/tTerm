@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { Terminal, Server } from "lucide-react"
+import { Terminal, Server, Loader2 } from "lucide-react"
 import { Tab, TerminalShellType } from "@/types/tab"
 import {
   Dialog,
@@ -292,6 +292,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
       toast({
         title: t("profiles.testSuccess"),
         description: result,
+        variant: "success",
+        duration: 1000,
       })
     } catch (e) {
       toast({
@@ -300,6 +302,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         variant: "destructive",
       })
     } finally {
+      // Small delay to ensure UI updates properly
+      await new Promise((resolve) => setTimeout(resolve, 100))
       setIsTesting(false)
     }
   }
@@ -614,11 +618,14 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
           </Button>
           {isSsh && (
             <Button
+              key={isTesting ? "testing" : "test"}
               type="button"
               variant="outline"
               onClick={handleTestConnection}
               disabled={isTesting || !form.host.trim() || !form.username.trim()}
+              className="min-w-[100px]"
             >
+              {isTesting && <Loader2 className="animate-spin" />}
               {isTesting ? t("profiles.testing") : t("profiles.test")}
             </Button>
           )}

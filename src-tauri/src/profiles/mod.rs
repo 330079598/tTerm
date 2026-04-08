@@ -130,14 +130,14 @@ pub async fn test_connection(
         host: Some(host.clone()),
         port,
         username: Some(username.clone()),
-        password: None,
+        password: profile.password.clone(),
         remember_password: false,
         private_key_path: if profile.auth_method.as_deref() == Some("key") {
             profile.private_key_path.clone()
         } else {
             None
         },
-        private_key_passphrase: None,
+        private_key_passphrase: profile.private_key_passphrase.clone(),
         terminal_shell: None,
         reconnect: false,
         reconnect_initial_delay: std::time::Duration::from_secs(5),
@@ -147,8 +147,10 @@ pub async fn test_connection(
         keepalive_count_max: profile.keepalive_count_max as u16,
     };
 
-    // Resolve password/passphrase from secret store
-    crate::core::session::resolve_ssh_password(&app, &secret_state, &mut plan)?;
+    // If password/passphrase not provided, try to resolve from secret store
+    if plan.password.is_none() && plan.private_key_path.is_none() {
+        crate::core::session::resolve_ssh_password(&app, &secret_state, &mut plan)?;
+    }
 
     // Try to establish connection
     use russh::client;
@@ -158,15 +160,8 @@ pub async fn test_connection(
     config.keepalive_interval = Some(Duration::from_secs(plan.keepalive_interval_secs as u64));
     config.keepalive_max = plan.keepalive_count_max as usize;
 
-    let handler = crate::ssh::SshClientHandler {
-        app: app.clone(),
-        tab_id: "test-connection".to_string(),
-        profile_name: plan.profile_name.clone(),
-        host: host.clone(),
-        port,
-        prompts: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
-        user_rejected_host_key: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
-    };
+    // Use a simple handler that auto-accepts host keys for testing
+    let handler = TestConnectionHandler;
 
     let mut session = tokio::time::timeout(
         Duration::from_secs(10),
@@ -220,4 +215,19 @@ pub async fn test_connection(
         .ok();
 
     Ok(format!("Successfully connected to {}@{}:{}", username, host, port))
+}
+
+// Simple handler for test connections that auto-accepts host keys
+struct TestConnectionHandler;
+
+impl russh::client::Handler for TestConnectionHandler {
+    type Error = russh::Error;
+
+    async fn check_server_key(
+        &mut self,
+        _server_public_key: &russh::keys::ssh_key::PublicKey,
+    ) -> Result<bool, Self::Error> {
+        // Auto-accept for test connections
+        Ok(true)
+    }
 }

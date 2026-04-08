@@ -229,31 +229,38 @@ pub fn resolve_ssh_password(
         return Ok(());
     }
 
+    // If using key authentication, no password needed
     if plan.private_key_path.is_some() {
         return Ok(());
     }
 
-    let profile_id = plan.profile_name.clone();
-    let password = if let Some(password) = plan.password.clone() {
-        password
-    } else {
-        secret_state.get_password(app, &profile_id)?.ok_or_else(|| {
-            format!(
-                "No password provided and no saved password found for profile '{}'",
-                plan.profile_name
-            )
-        })?
-    };
-
-    if plan.remember_password {
-        let location = secret_state.save_password(app, &profile_id, &password)?;
-        if matches!(location, crate::ssh::SecretLocation::Memory) {
-            return Err(
-                "Password persistence is unavailable. Enable the app vault or use a supported system credential store."
-                    .to_string(),
-            );
+    // If password already provided, use it
+    if plan.password.is_some() {
+        let password = plan.password.clone().unwrap();
+        
+        // Save password if remember_password is enabled
+        if plan.remember_password {
+            let profile_id = plan.profile_name.clone();
+            let location = secret_state.save_password(app, &profile_id, &password)?;
+            if matches!(location, crate::ssh::SecretLocation::Memory) {
+                return Err(
+                    "Password persistence is unavailable. Enable the app vault or use a supported system credential store."
+                        .to_string(),
+                );
+            }
         }
+        
+        return Ok(());
     }
+
+    // Try to get password from secret store
+    let profile_id = plan.profile_name.clone();
+    let password = secret_state.get_password(app, &profile_id)?.ok_or_else(|| {
+        format!(
+            "No password provided and no saved password found for profile '{}'",
+            plan.profile_name
+        )
+    })?;
 
     plan.password = Some(password);
     Ok(())
