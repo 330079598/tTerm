@@ -129,7 +129,6 @@
   overflow: hidden;
 }
 
-
 .sftp-row {
   display: grid;
   grid-template-columns: minmax(200px, 2fr) minmax(180px, 1.2fr) minmax(100px, 0.8fr) minmax(
