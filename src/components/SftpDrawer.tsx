@@ -82,13 +82,14 @@ function formatBytes(value?: number): string {
 
 function formatTimestamp(value?: number): string {
   if (!value) return "--"
-  return new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(value)
+  const date = new Date(value)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
 export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connection, onClose }) => {
@@ -903,13 +904,6 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         )}
 
         <div className="sftp-table-shell">
-          <div className="sftp-table-header">
-            <span>{t("sftp.columns.name", { defaultValue: "Name" })}</span>
-            <span>{t("sftp.columns.modified", { defaultValue: "Date Modified" })}</span>
-            <span>{t("sftp.columns.size", { defaultValue: "Size" })}</span>
-            <span>{t("sftp.columns.owner", { defaultValue: "Owner/Group" })}</span>
-          </div>
-
           <ScrollArea className="flex-1">
             {isLoading && (
               <div className="text-muted-foreground flex min-h-[200px] flex-col items-center justify-center gap-3">
@@ -967,10 +961,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
                     <span className="sftp-cell">
                       {entry.isDir ? "--" : formatBytes(entry.size)}
                     </span>
-                    <span className="sftp-cell">
-                      {entry.owner ?? "--"}
-                      {entry.group ? ` / ${entry.group}` : ""}
-                    </span>
+                    <span className="sftp-cell">{entry.permissions ?? "----------"}</span>
                   </button>
                 )
               })}

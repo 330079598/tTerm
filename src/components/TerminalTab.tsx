@@ -552,7 +552,12 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
         <div
           ref={containerRef}
-          onMouseDown={() => termRef.current?.focus()}
+          onMouseDown={() => {
+            termRef.current?.focus()
+            if (showSftpDrawer) {
+              setShowSftpDrawer(false)
+            }
+          }}
           style={{
             width: "100%",
             height: "100%",
