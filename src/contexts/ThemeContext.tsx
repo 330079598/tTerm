@@ -1,4 +1,11 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react"
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useState,
+} from "react"
 import { useConfig } from "@/contexts/ConfigContext"
 import type { CustomTheme, PresetTheme, PresetThemeId, Theme } from "@/types/theme"
 import { applyCustomTheme } from "@/lib/themeUtils"
@@ -32,8 +39,9 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { config, updateTheme, isLoaded } = useConfig()
   const [customThemes, setCustomThemes] = useState<CustomTheme[]>([])
+  const [themesLoaded, setThemesLoaded] = useState(false)
 
-  // 从 localStorage 加载自定义主题
+  // Load custom themes from localStorage on mount
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
@@ -43,10 +51,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("Failed to load custom themes:", error)
+    } finally {
+      setThemesLoaded(true)
     }
   }, [])
 
-  // 保存自定义主题到 localStorage
+  // Save custom themes to localStorage
   const saveCustomThemes = useCallback((themes: CustomTheme[]) => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(themes))
@@ -57,22 +67,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // 应用主题
-  useEffect(() => {
-    if (isLoaded) {
+  // Apply theme using useLayoutEffect to prevent flash of unstyled content
+  useLayoutEffect(() => {
+    if (isLoaded && themesLoaded) {
       const themeId = config.theme || "default"
       const customTheme = customThemes.find((t) => t.id === themeId)
 
       if (customTheme) {
-        // 应用自定义主题
         document.documentElement.removeAttribute("data-theme")
         applyCustomTheme(customTheme.colors)
       } else {
-        // 应用预设主题
         document.documentElement.setAttribute("data-theme", themeId)
       }
     }
-  }, [config.theme, isLoaded, customThemes])
+  }, [config.theme, isLoaded, customThemes, themesLoaded])
 
   const setTheme = async (themeId: string) => {
     const customTheme = customThemes.find((t) => t.id === themeId)
@@ -106,7 +114,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     saveCustomThemes(updatedThemes)
 
-    // 如果更新的是当前主题，重新应用
+    // Re-apply theme if updating the current one
     if (config.theme === id) {
       const updatedTheme = updatedThemes.find((t) => t.id === id)
       if (updatedTheme) {
@@ -119,7 +127,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const updatedThemes = customThemes.filter((theme) => theme.id !== id)
     saveCustomThemes(updatedThemes)
 
-    // 如果删除的是当前主题，切换到默认主题
+    // Switch to default theme if deleting the current one
     if (config.theme === id) {
       await setTheme("default")
     }
@@ -129,7 +137,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const sourceTheme = customThemes.find((t) => t.id === themeId)
 
     if (sourceTheme) {
-      // 复制自定义主题
+      // Duplicate custom theme
       return createCustomTheme({
         name: newName,
         description: sourceTheme.description,
@@ -140,7 +148,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         updatedAt: Date.now(),
       })
     } else {
-      // 从预设主题创建
+      // Create from preset theme
       const { createCustomThemeFromPreset } = await import("@/lib/themeUtils")
       const themeData = createCustomThemeFromPreset(
         themeId as PresetThemeId,
@@ -185,6 +193,5 @@ export function useTheme() {
   return context
 }
 
-// 导出类型和常量
 export type { Theme, CustomTheme, PresetTheme, PresetThemeId } from "@/types/theme"
 export const PRESET_THEMES = PRESET_THEMES_DATA

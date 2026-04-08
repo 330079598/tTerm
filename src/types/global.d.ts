@@ -6,7 +6,7 @@ declare module "react" {
   }
 }
 
-// Tauri 扩展的 File 接口，包含 path 属性
+// Tauri extended File interface with path property
 interface TauriFile extends File {
   path: string
 }

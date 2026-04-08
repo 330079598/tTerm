@@ -1,6 +1,6 @@
 import type { CustomTheme, PresetThemeId, ThemeColors } from "@/types/theme"
 
-// 从 CSS 变量中提取当前主题的颜色值
+// Extract current theme color values from CSS variables
 export function extractThemeColors(): ThemeColors {
   const root = document.documentElement
   const style = getComputedStyle(root)
@@ -40,35 +40,35 @@ export function extractThemeColors(): ThemeColors {
   }
 }
 
-// 应用自定义主题颜色到 DOM
+// Apply custom theme colors to DOM
 export function applyCustomTheme(colors: ThemeColors) {
   const root = document.documentElement
 
   Object.entries(colors).forEach(([key, value]) => {
-    // 将 camelCase 转换为 kebab-case
+    // Convert camelCase to kebab-case
     const cssVar = key.replace(/([A-Z])/g, "-$1").toLowerCase()
     root.style.setProperty(`--${cssVar}`, value)
   })
 }
 
-// 生成唯一的主题 ID
+// Generate unique theme ID
 export function generateThemeId(): string {
   return `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }
 
-// 从预设主题创建自定义主题
+// Create custom theme from preset theme
 export function createCustomThemeFromPreset(
   presetId: PresetThemeId,
   name: string,
   description?: string
 ): Omit<CustomTheme, "id"> {
-  // 临时切换到预设主题以提取颜色
+  // Temporarily switch to preset theme to extract colors
   const currentTheme = document.documentElement.getAttribute("data-theme")
   document.documentElement.setAttribute("data-theme", presetId)
 
   const colors = extractThemeColors()
 
-  // 恢复原主题
+  // Restore original theme
   if (currentTheme) {
     document.documentElement.setAttribute("data-theme", currentTheme)
   }
@@ -84,7 +84,7 @@ export function createCustomThemeFromPreset(
   }
 }
 
-// HSL 颜色转换辅助函数
+// HSL color conversion helper function
 export function hslToString(h: number, s: number, l: number): string {
   return `${h} ${s}% ${l}%`
 }
@@ -100,7 +100,7 @@ export function parseHsl(hsl: string): { h: number; s: number; l: number } | nul
   }
 }
 
-// 颜色预览辅助函数
+// Color preview helper function
 export function hslToCssColor(hsl: string): string {
   return `hsl(${hsl})`
 }

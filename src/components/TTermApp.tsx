@@ -14,7 +14,6 @@ import { useTabs } from "@/hooks/useTabs"
 import { useSessionPersistence } from "@/hooks/useSessionPersistence"
 import { useConnectionManager } from "@/hooks/useConnectionManager"
 import { useConfig } from "@/contexts/ConfigContext"
-import { setTheme, type Theme } from "@/lib/utils"
 import { Tab, TabContextMenuAction } from "@/types/tab"
 
 interface ContextMenuState {
@@ -82,13 +81,11 @@ export const TTermApp: React.FC = () => {
   const { cleanupConnection } = useConnectionManager()
   const { config, isLoaded } = useConfig()
 
-  // Load config and apply theme/language on mount
   useEffect(() => {
     if (isLoaded) {
-      setTheme(config.theme as Theme)
       i18n.changeLanguage(config.language)
     }
-  }, [isLoaded, config, i18n])
+  }, [isLoaded, config.language, i18n])
 
   useEffect(() => {
     // Try to restore previous session

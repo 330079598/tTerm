@@ -35,7 +35,7 @@ export interface CustomTheme {
   name: string
   description?: string
   colors: ThemeColors
-  baseTheme?: string // 基于哪个预设主题修改的
+  baseTheme?: string // Which preset theme this is based on
   isCustom: true
   createdAt: number
   updatedAt: number
