@@ -128,7 +128,7 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  padding-left: .4rem;
+  padding-left: 0.4rem;
 }
 
 .connection-header-restore {

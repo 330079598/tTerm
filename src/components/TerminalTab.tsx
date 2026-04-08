@@ -5,7 +5,7 @@ import { FitAddon } from "@xterm/addon-fit"
 import { WebLinksAddon } from "@xterm/addon-web-links"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
-import { Globe, Pin, PinOff, PlugZap, RefreshCcw } from "lucide-react"
+import { Globe, Pin, PinOff, RefreshCcw } from "lucide-react"
 import { SftpDrawer } from "@/components/SftpDrawer"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTranslation } from "react-i18next"
@@ -94,6 +94,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const connectionRef = useRef(connection)
   const isActiveRef = useRef(isActive)
   const initializedRef = useRef(false)
+  const waitingForReconnectRef = useRef(false)
+  const onReconnectRequestRef = useRef(onReconnectRequest)
   const { config } = useConfig()
   const { t } = useTranslation()
   const initialFontFamily = useRef(config.font_family)
@@ -106,10 +108,6 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     sessionKey: string
     value: HostKeyPromptState
   } | null>(null)
-  const [exitErrorState, setExitErrorState] = useState<{
-    sessionKey: string
-    value: string
-  } | null>(null)
   const [connectionStateState, setConnectionStateState] = useState<{
     sessionKey: string
     value: ConnectionState
@@ -118,7 +116,6 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
   const hostKeyPrompt =
     hostKeyPromptState?.sessionKey === sessionResetKey ? hostKeyPromptState.value : null
-  const exitError = exitErrorState?.sessionKey === sessionResetKey ? exitErrorState.value : null
   const connectionState =
     connectionStateState?.sessionKey === sessionResetKey
       ? connectionStateState.value
@@ -127,13 +124,6 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const setHostKeyPrompt = useCallback(
     (value: HostKeyPromptState | null) => {
       setHostKeyPromptState(value ? { sessionKey: sessionResetKey, value } : null)
-    },
-    [sessionResetKey]
-  )
-
-  const setExitError = useCallback(
-    (value: string | null) => {
-      setExitErrorState(value ? { sessionKey: sessionResetKey, value } : null)
     },
     [sessionResetKey]
   )
@@ -152,6 +142,10 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   useEffect(() => {
     connectionRef.current = connection
   }, [connection])
+
+  useEffect(() => {
+    onReconnectRequestRef.current = onReconnectRequest
+  }, [onReconnectRequest])
 
   const resolveTerminalBackground = useCallback(() => {
     if (typeof window === "undefined") {
@@ -284,6 +278,13 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
     // Forward user keystrokes to the backend PTY
     term.onData((data) => {
+      // If waiting for reconnect, any key press triggers reconnection
+      if (waitingForReconnectRef.current) {
+        waitingForReconnectRef.current = false
+        setConnectionState("connecting")
+        onReconnectRequestRef.current?.()
+        return
+      }
       invoke("write_pty", { tabId, data }).catch(() => {})
     })
 
@@ -300,25 +301,28 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
           setConnectionState("reconnecting")
         } else if (payload.includes(STATUS_RECONNECTED)) {
           setConnectionState("connected")
-          setExitError(null)
         } else if (payload.includes(STATUS_CONNECTING)) {
           setConnectionState("connecting")
         } else if (connectionRef.current?.type === "ssh" && payload.trim().length > 0) {
           setConnectionState("connected")
-          setExitError(null)
         }
         term.write(payload)
       }),
       listen(`pty-exit-${tabId}`, (event) => {
-        term.writeln("\r\n\x1b[33m[Process exited]\x1b[0m")
         const reason = event.payload as string | null | undefined
         if (connectionRef.current?.type === "ssh") {
+          const displayAddress = getConnectionDisplay(connectionRef.current)
+          term.writeln(`\r\n\x1b[33m${displayAddress}: session closed\x1b[0m`)
+          term.writeln("\x1b[36mPress any key to reconnect\x1b[0m")
+
           if (reason) {
-            setExitError(reason)
             setConnectionState("error")
           } else {
             setConnectionState("disconnected")
           }
+          waitingForReconnectRef.current = true
+        } else {
+          term.writeln("\r\n\x1b[33m[Process exited]\x1b[0m")
         }
       }),
       listen<{
@@ -373,7 +377,6 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         if (disposed) return
         if (connectionRef.current?.type === "ssh") {
           setConnectionState("error")
-          setExitError(String(e))
         }
         term.writeln(`\x1b[31mFailed to start terminal: ${e}\x1b[0m`)
       })
@@ -428,7 +431,6 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     resolveTerminalBackground,
     scheduleFitDuringResize,
     setConnectionState,
-    setExitError,
     setHostKeyPrompt,
     sessionNonce,
     tabId,
@@ -468,7 +470,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   }, [isActive, fitAndSyncPty])
 
   const handleReconnect = async () => {
-    setExitError(null)
+    waitingForReconnectRef.current = false
     setConnectionState("connecting")
     onReconnectRequest?.()
   }
@@ -641,63 +643,6 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
                   {t("ssh.trust")}
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Exit Error Banner */}
-        {exitError && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              background: "hsl(var(--destructive))",
-              color: "hsl(var(--destructive-foreground))",
-              padding: "10px 16px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              zIndex: 10,
-              fontSize: 13,
-            }}
-          >
-            <span>{exitError}</span>
-            <div style={{ display: "flex", gap: 8 }}>
-              {onReconnectRequest && (
-                <button
-                  onClick={() => {
-                    handleReconnect().catch(() => {})
-                  }}
-                  style={{
-                    padding: "4px 12px",
-                    borderRadius: 4,
-                    border: "none",
-                    background: "rgba(255,255,255,0.2)",
-                    color: "inherit",
-                    cursor: "pointer",
-                    fontSize: 13,
-                  }}
-                >
-                  {t("ssh.retry")}
-                </button>
-              )}
-              <button
-                onClick={() => setExitError(null)}
-                style={{
-                  padding: "4px 12px",
-                  borderRadius: 4,
-                  border: "none",
-                  background: "transparent",
-                  color: "inherit",
-                  cursor: "pointer",
-                  fontSize: 18,
-                  lineHeight: 1,
-                }}
-              >
-                <PlugZap size={14} />
-              </button>
             </div>
           </div>
         )}

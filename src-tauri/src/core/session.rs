@@ -116,7 +116,7 @@ pub fn normalize_connection(
 
     let reconnect = connection
         .reconnect
-        .unwrap_or(matches!(kind, SessionKind::Ssh));
+        .unwrap_or(false);
     let reconnect_initial_delay_secs = connection.reconnect_delay_secs.unwrap_or(3).max(1);
     let reconnect_max_delay_secs = connection
         .reconnect_max_delay_secs

@@ -75,7 +75,7 @@ const defaultForm: ConnectionForm = {
   rememberPassword: false,
   privateKeyPath: "",
   privateKeyPassphrase: "",
-  reconnect: true,
+  reconnect: false,
   reconnectDelaySecs: 3,
   reconnectMaxDelaySecs: 60,
   reconnectMaxRetries: 8,
