@@ -219,6 +219,14 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     }
   }, [config.font_family, config.font_size, fitAndSyncPty])
 
+  // Update scrollback when config changes
+  useEffect(() => {
+    const term = termRef.current
+    if (!term) return
+
+    term.options.scrollback = config.scrollback_lines
+  }, [config.scrollback_lines])
+
   // Keep terminal background in sync with app theme while staying opaque for faster compositing.
   useEffect(() => {
     const term = termRef.current
@@ -237,6 +245,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
     const term = new Terminal({
       cursorBlink: true,
+      scrollback: config.scrollback_lines,
       fontSize: initialFontSize.current,
       fontFamily: initialFontFamily.current,
       theme: {
@@ -426,6 +435,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       lastPtySizeRef.current = null
     }
   }, [
+    config.scrollback_lines,
     fitTerminalOnly,
     onPidChange,
     resolveTerminalBackground,

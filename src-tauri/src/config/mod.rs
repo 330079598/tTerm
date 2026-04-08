@@ -21,6 +21,8 @@ pub struct AppConfig {
     pub terminal_shell_custom_args: String,
     #[serde(default)]
     pub secret_vault_enabled: bool,
+    #[serde(default = "default_scrollback_lines")]
+    pub scrollback_lines: u32,
 }
 
 fn default_font_family() -> String {
@@ -40,6 +42,10 @@ fn default_terminal_shell() -> String {
     "auto".to_string()
 }
 
+fn default_scrollback_lines() -> u32 {
+    10000
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -51,6 +57,7 @@ impl Default for AppConfig {
             terminal_shell_custom_path: String::new(),
             terminal_shell_custom_args: String::new(),
             secret_vault_enabled: false,
+            scrollback_lines: default_scrollback_lines(),
         }
     }
 }

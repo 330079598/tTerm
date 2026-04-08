@@ -19,6 +19,7 @@ export interface AppConfig {
   terminal_shell_custom_path: string
   terminal_shell_custom_args: string
   secret_vault_enabled: boolean
+  scrollback_lines: number
 }
 
 const defaultConfig: AppConfig = {
@@ -30,6 +31,7 @@ const defaultConfig: AppConfig = {
   terminal_shell_custom_path: "",
   terminal_shell_custom_args: "",
   secret_vault_enabled: false,
+  scrollback_lines: 10000,
 }
 
 const defaultSecretStatus: SecretBackendStatus = {

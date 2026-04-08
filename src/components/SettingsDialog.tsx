@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn, hslToCssColor } from "@/lib/utils"
 import type { PresetThemeId } from "@/types/theme"
 import { ThemeEditor } from "@/components/ThemeEditor"
+import { useToast } from "@/hooks/use-toast"
 
 interface SettingsDialogProps {
   onClose: () => void
@@ -71,10 +72,12 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
   } = useConfig()
   const { currentTheme, presetThemes, customThemes, setTheme, deleteCustomTheme, duplicateTheme } =
     useTheme()
+  const { toast } = useToast()
 
   // Font settings state
   const [fontFamily, setFontFamily] = useState(config.font_family)
   const [fontSize, setFontSize] = useState(config.font_size)
+  const [scrollbackLines, setScrollbackLines] = useState(config.scrollback_lines || 10000)
   const [systemFonts, setSystemFonts] = useState<string[]>([])
   const [loadingFonts, setLoadingFonts] = useState(true)
 
@@ -99,7 +102,27 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
   }, [refreshSecretStatus])
 
   const handleFontSave = async () => {
-    await saveConfig({ font_family: fontFamily, font_size: fontSize })
+    try {
+      await saveConfig({
+        font_family: fontFamily,
+        font_size: fontSize,
+        scrollback_lines: scrollbackLines,
+      })
+      toast({
+        title: t("fontSettings.saved", { defaultValue: "Settings saved" }),
+        description: t("fontSettings.savedDesc", {
+          defaultValue:
+            "Font settings have been saved. New terminal tabs will use the updated scrollback buffer size.",
+        }),
+      })
+    } catch (error) {
+      console.error("Failed to save font settings:", error)
+      toast({
+        title: t("fontSettings.saveFailed", { defaultValue: "Failed to save" }),
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      })
+    }
   }
 
   const handleLanguageChange = async (langCode: string) => {
@@ -498,6 +521,49 @@ ${t("app.builtWith")}`
                     </div>
                   </div>
 
+                  {/* Scrollback Lines */}
+                  <div>
+                    <Label className="mb-2 block">
+                      {t("fontSettings.scrollbackLines", { defaultValue: "Scrollback Lines" })}
+                    </Label>
+                    <div className="space-y-2">
+                      <Input
+                        type="number"
+                        min={100}
+                        max={1000000}
+                        value={scrollbackLines}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value)
+                          if (!isNaN(v) && v >= 100 && v <= 1000000) setScrollbackLines(v)
+                        }}
+                        className="w-full"
+                      />
+                      <p className="text-muted-foreground text-xs">
+                        {t("fontSettings.scrollbackLinesDesc", {
+                          defaultValue:
+                            "Number of lines to keep in terminal history (100 - 1,000,000). Higher values use more memory.",
+                        })}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[1000, 5000, 10000, 50000, 100000].map((lines) => (
+                          <Button
+                            key={lines}
+                            type="button"
+                            variant={scrollbackLines === lines ? "default" : "outline"}
+                            size="xs"
+                            onClick={() => setScrollbackLines(lines)}
+                            className={cn(
+                              "min-w-[3.5rem]",
+                              scrollbackLines !== lines && "text-muted-foreground"
+                            )}
+                          >
+                            {lines >= 1000 ? `${lines / 1000}k` : lines}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Font Family */}
                   <div>
                     <Label className="mb-2 block">{t("fontSettings.fontFamily")}</Label>
@@ -545,14 +611,12 @@ ${t("app.builtWith")}`
                   {/* Preview */}
                   <div>
                     <Label className="mb-2 block">{t("fontSettings.preview")}</Label>
-                    <Card>
-                      <CardContent
-                        className="bg-secondary text-foreground px-4 py-3"
-                        style={{ fontFamily, fontSize: `${fontSize}px` }}
-                      >
-                        The quick brown fox jumps over the lazy dog 0123456789
-                      </CardContent>
-                    </Card>
+                    <div
+                      className="bg-secondary text-foreground border-border rounded-lg border px-4 py-3"
+                      style={{ fontFamily, fontSize: `${fontSize}px` }}
+                    >
+                      The quick brown fox jumps over the lazy dog 0123456789
+                    </div>
                   </div>
 
                   <Button onClick={handleFontSave} className="w-full">
