@@ -13,7 +13,9 @@ use russh_sftp::client::{error::Error as SftpError, SftpSession};
 use serde::Serialize;
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::future::Future;
 use std::path::Path;
+use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -460,10 +462,41 @@ pub async fn sftp_delete_entry(
 
     with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
         if is_dir {
-            sftp.remove_dir(path).await.map_err(map_sftp_error)
+            delete_directory_recursive(sftp, path).await
         } else {
             sftp.remove_file(path).await.map_err(map_sftp_error)
         }
+    })
+}
+
+fn delete_directory_recursive<'a>(
+    sftp: &'a SftpSession,
+    path: String,
+) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+    Box::pin(async move {
+        // List all entries in the directory
+        let entries = sftp.read_dir(&path).await.map_err(map_sftp_error)?;
+
+        // Delete each entry recursively
+        for entry in entries {
+            let name = entry.file_name();
+            let entry_path = if path.ends_with('/') {
+                format!("{}{}", path, name)
+            } else {
+                format!("{}/{}", path, name)
+            };
+
+            if entry.metadata().is_dir() {
+                // Recursively delete subdirectory
+                delete_directory_recursive(sftp, entry_path).await?;
+            } else {
+                // Delete file
+                sftp.remove_file(entry_path).await.map_err(map_sftp_error)?;
+            }
+        }
+
+        // Finally, delete the now-empty directory
+        sftp.remove_dir(path).await.map_err(map_sftp_error)
     })
 }
 
