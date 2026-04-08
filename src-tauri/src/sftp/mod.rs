@@ -1,3 +1,5 @@
+mod store;
+
 use crate::core::session::{
     normalize_connection, resolve_ssh_password, PtyConnectionOptions, SessionPlan,
 };
@@ -356,7 +358,30 @@ pub async fn sftp_list_directory(
     with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
         let current_path = match requested_path {
             Some(path) => sftp.canonicalize(path).await.map_err(map_sftp_error)?,
-            None => sftp.canonicalize(".").await.map_err(map_sftp_error)?,
+            None => {
+                // Try to get last directory from store
+                let host = plan.host.as_ref().ok_or("Host is required")?;
+                let username = plan.username.as_ref().ok_or("Username is required")?;
+                
+                // Try multiple fallback paths in order:
+                // 1. Last saved directory
+                // 2. User home directory (.)
+                // 3. Root directory (/)
+                let fallback_paths = match store::get_last_directory(host, plan.port, username) {
+                    Ok(Some(last_path)) => vec![last_path, ".".to_string(), "/".to_string()],
+                    _ => vec![".".to_string(), "/".to_string()],
+                };
+                
+                let mut resolved_path = None;
+                for path in fallback_paths {
+                    if let Ok(canonical) = sftp.canonicalize(&path).await {
+                        resolved_path = Some(canonical);
+                        break;
+                    }
+                }
+                
+                resolved_path.ok_or("Failed to access any directory (home, root, or last saved)")?
+            }
         };
 
         let mut entries = sftp
@@ -388,8 +413,15 @@ pub async fn sftp_list_directory(
             .collect::<Vec<_>>();
 
         sort_entries(&mut entries);
+        
+        // Save the current path as the last directory
+        let host = plan.host.as_ref().ok_or("Host is required")?;
+        let username = plan.username.as_ref().ok_or("Username is required")?;
+        let normalized_path = normalize_remote_path(&current_path);
+        let _ = store::save_last_directory(host, plan.port, username, &normalized_path);
+        
         Ok(SftpDirectoryListing {
-            current_path: normalize_remote_path(&current_path),
+            current_path: normalized_path,
             parent_path: parent_remote_path(&current_path),
             entries,
         })
