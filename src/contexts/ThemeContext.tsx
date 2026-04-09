@@ -7,8 +7,16 @@ import React, {
   useState,
 } from "react"
 import { useConfig } from "@/contexts/ConfigContext"
-import type { CustomTheme, PresetTheme, PresetThemeId, Theme } from "@/types/theme"
-import { applyCustomTheme } from "@/lib/themeUtils"
+import type { CustomTheme, PresetTheme, PresetThemeId, Theme, ThemeColors } from "@/types/theme"
+
+// Apply custom theme colors to DOM (inlined to avoid mixed imports)
+function applyCustomTheme(colors: ThemeColors) {
+  const root = document.documentElement
+  Object.entries(colors).forEach(([key, value]) => {
+    const cssVar = key.replace(/([A-Z])/g, "-$1").toLowerCase()
+    root.style.setProperty(`--${cssVar}`, value)
+  })
+}
 
 const PRESET_THEMES_DATA: PresetTheme[] = [
   { id: "default", name: "Default", description: "Tabby inspired dark theme", isCustom: false },
@@ -149,8 +157,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       })
     } else {
       // Create from preset theme
-      const { createCustomThemeFromPreset } = await import("@/lib/themeUtils")
-      const themeData = createCustomThemeFromPreset(
+      const themeUtils = await import("@/lib/themeUtils")
+      const themeData = themeUtils.createCustomThemeFromPreset(
         themeId as PresetThemeId,
         newName,
         `Based on ${themeId}`

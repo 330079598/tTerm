@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { hslToCssColor } from "@/lib/themeUtils"
 
 interface ThemeEditorProps {
   themeId?: string // If provided, edit existing theme; otherwise create new theme
@@ -89,8 +88,8 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
         }
       } else if (baseThemeId) {
         // Create based on preset theme
-        const { createCustomThemeFromPreset } = await import("@/lib/themeUtils")
-        const themeData = createCustomThemeFromPreset(
+        const themeUtils = await import("@/lib/themeUtils")
+        const themeData = themeUtils.createCustomThemeFromPreset(
           baseThemeId as PresetThemeId,
           `Custom ${baseThemeId}`,
           `Based on ${baseThemeId}`
@@ -309,7 +308,7 @@ const ColorInput: React.FC<ColorInputProps> = ({ label, value, onChange }) => {
     <div className="flex items-center gap-3">
       <div
         className="border-border size-8 shrink-0 rounded border"
-        style={{ backgroundColor: hslToCssColor(value) }}
+        style={{ backgroundColor: `hsl(${value})` }}
       />
       <div className="flex-1">
         <Label className="text-muted-foreground text-xs">{label}</Label>
