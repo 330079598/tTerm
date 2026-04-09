@@ -174,7 +174,9 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     const term = termRef.current
     if (!term) return
 
-    term.options.scrollback = config.scrollback_lines
+    // 0 means unlimited scrollback in our app, but xterm.js uses a very large number
+    // xterm.js doesn't support true unlimited, so we use a very large number (10 million)
+    term.options.scrollback = config.scrollback_lines === 0 ? 10000000 : config.scrollback_lines
   }, [config.scrollback_lines])
 
   useEffect(() => {
@@ -194,7 +196,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
     const term = new Terminal({
       cursorBlink: true,
-      scrollback: config.scrollback_lines,
+      scrollback: config.scrollback_lines === 0 ? 10000000 : config.scrollback_lines,
       fontSize: initialFontSize.current,
       fontFamily: initialFontFamily.current,
       fontWeight: "normal",

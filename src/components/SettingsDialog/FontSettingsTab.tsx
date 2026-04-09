@@ -78,24 +78,38 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
             {t("fontSettings.scrollbackLines", { defaultValue: "Scrollback Lines" })}
           </Label>
           <div className="space-y-2">
-            <Input
-              type="number"
-              min={100}
-              max={1000000}
-              value={scrollbackLines}
-              onChange={(e) => {
-                const value = parseInt(e.target.value)
-                if (!isNaN(value) && value >= 100 && value <= 1000000) setScrollbackLines(value)
-              }}
-              className="w-full"
-            />
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                min={0}
+                max={10000000}
+                value={scrollbackLines}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value)
+                  if (!isNaN(value) && value >= 0 && value <= 10000000) setScrollbackLines(value)
+                }}
+                className="flex-1"
+                placeholder={t("fontSettings.scrollbackLinesPlaceholder", {
+                  defaultValue: "Enter custom value or select preset",
+                })}
+              />
+            </div>
             <p className="text-muted-foreground text-xs">
               {t("fontSettings.scrollbackLinesDesc", {
                 defaultValue:
-                  "Number of lines to keep in terminal history (100 - 1,000,000). Higher values use more memory.",
+                  "Number of lines to keep in terminal history. Set to 0 for unlimited (may use significant memory).",
               })}
             </p>
             <div className="flex flex-wrap gap-1.5">
+              <Button
+                type="button"
+                variant={scrollbackLines === 0 ? "default" : "outline"}
+                size="xs"
+                onClick={() => setScrollbackLines(0)}
+                className={cn("min-w-[3.5rem]", scrollbackLines !== 0 && "text-muted-foreground")}
+              >
+                {t("fontSettings.unlimited", { defaultValue: "Unlimited" })}
+              </Button>
               {[1000, 5000, 10000, 50000, 100000].map((lines) => (
                 <Button
                   key={lines}

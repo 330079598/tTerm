@@ -33,5 +33,5 @@ export const PRESET_THEME_COLORS: Record<PresetThemeId, string> = {
 
 export const languages = [
   { code: "en", label: "English", nativeLabel: "English" },
-  { code: "zh", label: "涓枃", nativeLabel: "Chinese" },
+  { code: "zh", label: "中文", nativeLabel: "Chinese" },
 ]

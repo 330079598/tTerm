@@ -139,7 +139,14 @@
     "noMatchingFonts": "未找到匹配的字体",
     "preview": "预览",
     "cancel": "取消",
-    "save": "保存"
+    "save": "保存",
+    "saved": "设置已保存",
+    "savedDesc": "字体和回滚设置已保存。新的终端标签页将使用更新后的配置。",
+    "saveFailed": "保存失败",
+    "scrollbackLines": "回滚行数",
+    "scrollbackLinesDesc": "终端历史记录保留的行数。设置为 0 表示无限制（可能占用大量内存）。",
+    "scrollbackLinesPlaceholder": "输入自定义值或选择预设",
+    "unlimited": "无限制"
   },
   "tabContent": {
     "type": "类型",
