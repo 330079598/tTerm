@@ -13,8 +13,6 @@ import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialo
 import {
   FALLBACK_TERMINAL_BACKGROUND,
   STATUS_CONNECTING,
-  STATUS_RECONNECTED,
-  STATUS_RECONNECT_PREFIX,
   TAB_ACTIVATE_REFIT_DELAY_MS,
   getConnectionDisplay,
 } from "@/components/TerminalTab/terminalTabUtils"
@@ -257,11 +255,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     Promise.all([
       listen<string>(`pty-output-${tabId}`, (event) => {
         const payload = event.payload
-        if (payload.includes(STATUS_RECONNECT_PREFIX)) {
-          setConnectionState("reconnecting")
-        } else if (payload.includes(STATUS_RECONNECTED)) {
-          setConnectionState("connected")
-        } else if (payload.includes(STATUS_CONNECTING)) {
+        if (payload.includes(STATUS_CONNECTING)) {
           setConnectionState("connecting")
         } else if (connectionRef.current?.type === "ssh" && payload.trim().length > 0) {
           setConnectionState("connected")

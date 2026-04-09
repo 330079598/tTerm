@@ -22,10 +22,6 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     username: profile.username ?? "",
     authMethod: (profile.auth_method as "password" | "key") ?? "password",
     privateKeyPath: profile.private_key_path ?? "",
-    reconnect: profile.reconnect,
-    reconnectDelaySecs: profile.reconnect_delay_secs,
-    reconnectMaxDelaySecs: profile.reconnect_max_delay_secs,
-    reconnectMaxRetries: profile.reconnect_max_retries,
     keepaliveIntervalSecs: profile.keepalive_interval_secs,
     keepaliveCountMax: profile.keepalive_count_max,
   }

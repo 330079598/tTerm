@@ -11,10 +11,6 @@ export interface SavedProfile {
   auth_method?: string
   private_key_path?: string
   private_key_passphrase?: string
-  reconnect: boolean
-  reconnect_delay_secs: number
-  reconnect_max_delay_secs: number
-  reconnect_max_retries: number
   keepalive_interval_secs: number
   keepalive_count_max: number
 }
@@ -58,10 +54,6 @@ export interface Tab {
     username?: string
     password?: string
     rememberPassword?: boolean
-    reconnect?: boolean
-    reconnectDelaySecs?: number
-    reconnectMaxDelaySecs?: number
-    reconnectMaxRetries?: number
     keepaliveIntervalSecs?: number
     keepaliveCountMax?: number
     privateKeyPath?: string

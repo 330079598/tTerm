@@ -26,10 +26,6 @@ export interface ConnectionForm {
   rememberPassword: boolean
   privateKeyPath: string
   privateKeyPassphrase: string
-  reconnect: boolean
-  reconnectDelaySecs: number
-  reconnectMaxDelaySecs: number
-  reconnectMaxRetries: number
   keepaliveIntervalSecs: number
   keepaliveCountMax: number
   terminalShell: TerminalShellType
@@ -54,10 +50,6 @@ export const defaultForm: ConnectionForm = {
   rememberPassword: false,
   privateKeyPath: "",
   privateKeyPassphrase: "",
-  reconnect: false,
-  reconnectDelaySecs: 3,
-  reconnectMaxDelaySecs: 60,
-  reconnectMaxRetries: 8,
   keepaliveIntervalSecs: 15,
   keepaliveCountMax: 3,
   terminalShell: "auto",

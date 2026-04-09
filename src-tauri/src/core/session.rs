@@ -1,6 +1,5 @@
 use crate::core::state::SessionKind;
 use serde::Deserialize;
-use std::time::Duration;
 
 #[cfg(target_os = "windows")]
 #[derive(Debug, Clone)]
@@ -30,14 +29,6 @@ pub struct PtyConnectionOptions {
     pub password: Option<String>,
     #[serde(default, alias = "rememberPassword")]
     pub remember_password: Option<bool>,
-    #[serde(default)]
-    pub reconnect: Option<bool>,
-    #[serde(default, alias = "reconnectDelaySecs")]
-    pub reconnect_delay_secs: Option<u64>,
-    #[serde(default, alias = "reconnectMaxDelaySecs")]
-    pub reconnect_max_delay_secs: Option<u64>,
-    #[serde(default, alias = "reconnectMaxRetries")]
-    pub reconnect_max_retries: Option<u16>,
     #[serde(default, alias = "keepaliveIntervalSecs")]
     pub keepalive_interval_secs: Option<u16>,
     #[serde(default, alias = "keepaliveCountMax")]
@@ -67,10 +58,6 @@ impl Default for PtyConnectionOptions {
             username: None,
             password: None,
             remember_password: None,
-            reconnect: None,
-            reconnect_delay_secs: None,
-            reconnect_max_delay_secs: None,
-            reconnect_max_retries: None,
             keepalive_interval_secs: None,
             keepalive_count_max: None,
             private_key_path: None,
@@ -94,10 +81,6 @@ pub struct SessionPlan {
     pub username: Option<String>,
     pub password: Option<String>,
     pub remember_password: bool,
-    pub reconnect: bool,
-    pub reconnect_initial_delay: Duration,
-    pub reconnect_max_delay: Duration,
-    pub reconnect_max_retries: Option<u32>,
     pub keepalive_interval_secs: u16,
     pub keepalive_count_max: u16,
     pub private_key_path: Option<String>,
@@ -114,19 +97,6 @@ pub fn normalize_connection(
         _ => SessionKind::Terminal,
     };
 
-    let reconnect = connection
-        .reconnect
-        .unwrap_or(false);
-    let reconnect_initial_delay_secs = connection.reconnect_delay_secs.unwrap_or(3).max(1);
-    let reconnect_max_delay_secs = connection
-        .reconnect_max_delay_secs
-        .unwrap_or(60)
-        .max(reconnect_initial_delay_secs);
-    let reconnect_max_retries = match connection.reconnect_max_retries {
-        Some(0) => None,
-        Some(value) => Some(value as u32),
-        None => Some(8),
-    };
     let keepalive_interval_secs = connection.keepalive_interval_secs.unwrap_or(15).max(5);
     let keepalive_count_max = connection.keepalive_count_max.unwrap_or(3).max(1);
 
@@ -161,10 +131,6 @@ pub fn normalize_connection(
             username: None,
             password: None,
             remember_password: false,
-            reconnect: false,
-            reconnect_initial_delay: Duration::from_secs(reconnect_initial_delay_secs),
-            reconnect_max_delay: Duration::from_secs(reconnect_max_delay_secs),
-            reconnect_max_retries: None,
             keepalive_interval_secs,
             keepalive_count_max,
             private_key_path: None,
@@ -206,10 +172,6 @@ pub fn normalize_connection(
                 username: Some(username),
                 password,
                 remember_password,
-                reconnect,
-                reconnect_initial_delay: Duration::from_secs(reconnect_initial_delay_secs),
-                reconnect_max_delay: Duration::from_secs(reconnect_max_delay_secs),
-                reconnect_max_retries,
                 keepalive_interval_secs,
                 keepalive_count_max,
                 private_key_path,
@@ -264,17 +226,4 @@ pub fn resolve_ssh_password(
 
     plan.password = Some(password);
     Ok(())
-}
-
-pub fn next_backoff_delay(current: Duration, max: Duration) -> Duration {
-    if current >= max {
-        return max;
-    }
-
-    let doubled = current.saturating_mul(2);
-    if doubled > max {
-        max
-    } else {
-        doubled
-    }
 }

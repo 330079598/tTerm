@@ -20,29 +20,12 @@ pub struct SavedProfile {
     pub private_key_path: Option<String>,
     #[serde(default, skip_serializing)]
     pub private_key_passphrase: Option<String>,
-    #[serde(default)]
-    pub reconnect: bool,
-    #[serde(default = "default_reconnect_delay")]
-    pub reconnect_delay_secs: u32,
-    #[serde(default = "default_reconnect_max_delay")]
-    pub reconnect_max_delay_secs: u32,
-    #[serde(default = "default_reconnect_max_retries")]
-    pub reconnect_max_retries: u32,
     #[serde(default = "default_keepalive_interval")]
     pub keepalive_interval_secs: u32,
     #[serde(default = "default_keepalive_count")]
     pub keepalive_count_max: u32,
 }
 
-fn default_reconnect_delay() -> u32 {
-    5
-}
-fn default_reconnect_max_delay() -> u32 {
-    60
-}
-fn default_reconnect_max_retries() -> u32 {
-    10
-}
 fn default_keepalive_interval() -> u32 {
     30
 }
@@ -139,10 +122,6 @@ pub async fn test_connection(
         },
         private_key_passphrase: profile.private_key_passphrase.clone(),
         terminal_shell: None,
-        reconnect: false,
-        reconnect_initial_delay: std::time::Duration::from_secs(5),
-        reconnect_max_delay: std::time::Duration::from_secs(60),
-        reconnect_max_retries: Some(0),
         keepalive_interval_secs: profile.keepalive_interval_secs as u16,
         keepalive_count_max: profile.keepalive_count_max as u16,
     };

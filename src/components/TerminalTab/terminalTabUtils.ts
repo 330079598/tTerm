@@ -2,8 +2,6 @@ import { ConnectionState, TerminalTabProps } from "@/components/TerminalTab/type
 
 export const FALLBACK_TERMINAL_BACKGROUND = "#111827"
 export const TAB_ACTIVATE_REFIT_DELAY_MS = 32
-export const STATUS_RECONNECT_PREFIX = "[SSH disconnected. Reconnect attempt"
-export const STATUS_RECONNECTED = "[SSH reconnected]"
 export const STATUS_CONNECTING = "[Connecting"
 
 export function getConnectionDisplay(connection?: TerminalTabProps["connection"]): string {
@@ -26,8 +24,6 @@ export function getConnectionStateLabel(
       return t("sessionHeader.connecting", { defaultValue: "Connecting" })
     case "connected":
       return t("sessionHeader.connected", { defaultValue: "Connected" })
-    case "reconnecting":
-      return t("sessionHeader.reconnecting", { defaultValue: "Reconnecting" })
     case "disconnected":
       return t("sessionHeader.disconnected", { defaultValue: "Disconnected" })
     case "error":

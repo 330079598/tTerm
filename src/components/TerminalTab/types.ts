@@ -12,7 +12,7 @@ export interface TerminalTabProps {
   onUnpinConnectionHeader?: () => void
 }
 
-export type ConnectionState = "connecting" | "connected" | "reconnecting" | "disconnected" | "error"
+export type ConnectionState = "connecting" | "connected" | "disconnected" | "error"
 
 export type HostKeyPromptState = {
   requestId: string
