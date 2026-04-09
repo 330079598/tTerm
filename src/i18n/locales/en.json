@@ -147,6 +147,8 @@
     "customFont": "Custom font name",
     "loadingFonts": "Loading system fonts...",
     "noFontsFound": "No system fonts found",
+    "searchFonts": "Search fonts...",
+    "noMatchingFonts": "No matching fonts found",
     "preview": "Preview",
     "cancel": "Cancel",
     "save": "Save"

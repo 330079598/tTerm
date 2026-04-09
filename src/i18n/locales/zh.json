@@ -135,6 +135,8 @@
     "customFont": "自定义字体名",
     "loadingFonts": "正在读取系统字体...",
     "noFontsFound": "未找到系统字体",
+    "searchFonts": "搜索字体...",
+    "noMatchingFonts": "未找到匹配的字体",
     "preview": "预览",
     "cancel": "取消",
     "save": "保存"

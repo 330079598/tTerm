@@ -33,6 +33,13 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
   fontSizeOptions,
 }) => {
   const { t } = useTranslation()
+  const [fontSearchQuery, setFontSearchQuery] = React.useState("")
+
+  const filteredFonts = React.useMemo(() => {
+    if (!fontSearchQuery.trim()) return systemFonts
+    const query = fontSearchQuery.toLowerCase()
+    return systemFonts.filter((font) => font.toLowerCase().includes(query))
+  }, [systemFonts, fontSearchQuery])
 
   return (
     <ScrollArea className="h-full pr-4">
@@ -121,31 +128,44 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
           {loadingFonts ? (
             <p className="text-muted-foreground text-xs">{t("fontSettings.loadingFonts")}</p>
           ) : (
-            <ScrollArea className="border-border h-48 rounded border">
-              <div className="p-1">
-                {systemFonts.length === 0 ? (
-                  <p className="text-muted-foreground px-2 py-4 text-center text-xs">
-                    {t("fontSettings.noFontsFound")}
-                  </p>
-                ) : (
-                  systemFonts.map((font) => (
-                    <button
-                      key={font}
-                      onClick={() => setFontFamily(`"${font}", monospace`)}
-                      className={cn(
-                        "hover:bg-accent w-full rounded px-3 py-1.5 text-left text-sm transition-colors",
-                        fontFamily.includes(font)
-                          ? "bg-accent text-foreground"
-                          : "text-muted-foreground"
-                      )}
-                      style={{ fontFamily: font }}
-                    >
-                      {font}
-                    </button>
-                  ))
-                )}
-              </div>
-            </ScrollArea>
+            <>
+              <Input
+                type="text"
+                value={fontSearchQuery}
+                onChange={(e) => setFontSearchQuery(e.target.value)}
+                placeholder={t("fontSettings.searchFonts")}
+                className="mb-2"
+              />
+              <ScrollArea className="border-border h-48 rounded border">
+                <div className="p-1">
+                  {systemFonts.length === 0 ? (
+                    <p className="text-muted-foreground px-2 py-4 text-center text-xs">
+                      {t("fontSettings.noFontsFound")}
+                    </p>
+                  ) : filteredFonts.length === 0 ? (
+                    <p className="text-muted-foreground px-2 py-4 text-center text-xs">
+                      {t("fontSettings.noMatchingFonts")}
+                    </p>
+                  ) : (
+                    filteredFonts.map((font) => (
+                      <button
+                        key={font}
+                        onClick={() => setFontFamily(`"${font}", monospace`)}
+                        className={cn(
+                          "hover:bg-accent w-full rounded px-3 py-1.5 text-left text-sm transition-colors",
+                          fontFamily.includes(font)
+                            ? "bg-accent text-foreground"
+                            : "text-muted-foreground"
+                        )}
+                        style={{ fontFamily: font }}
+                      >
+                        {font}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </>
           )}
         </div>
 

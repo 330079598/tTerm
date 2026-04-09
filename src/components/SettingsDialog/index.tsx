@@ -215,7 +215,7 @@ ${t("app.builtWith")}`)
           <Tabs defaultValue={defaultTab} className="flex h-[calc(85vh-5rem)]">
             <SettingsSidebar />
 
-            <TabsContent value="appearance" className="m-0 flex-1 overflow-hidden p-6">
+            <TabsContent value="appearance" className="m-0 flex-1 overflow-y-auto p-6">
               <AppearanceSettingsTab
                 currentTheme={currentTheme}
                 customThemes={customThemes}
@@ -232,7 +232,7 @@ ${t("app.builtWith")}`)
               />
             </TabsContent>
 
-            <TabsContent value="font" className="m-0 flex-1 overflow-hidden p-6">
+            <TabsContent value="font" className="m-0 flex-1 overflow-y-auto p-6">
               <FontSettingsTab
                 fontFamily={fontFamily}
                 fontSize={fontSize}
@@ -247,7 +247,7 @@ ${t("app.builtWith")}`)
               />
             </TabsContent>
 
-            <TabsContent value="security" className="m-0 flex-1 overflow-hidden p-6">
+            <TabsContent value="security" className="m-0 flex-1 overflow-y-auto p-6">
               <SecuritySettingsTab
                 backendLabel={backendLabel}
                 configSecretVaultEnabled={config.secret_vault_enabled}
@@ -262,7 +262,7 @@ ${t("app.builtWith")}`)
               />
             </TabsContent>
 
-            <TabsContent value="general" className="m-0 flex-1 overflow-hidden p-6">
+            <TabsContent value="general" className="m-0 flex-1 overflow-y-auto p-6">
               <GeneralSettingsTab
                 handleAbout={handleAbout}
                 handleClearSession={handleClearSession}
