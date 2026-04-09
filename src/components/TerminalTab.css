@@ -131,6 +131,18 @@
   padding-left: 0.4rem;
 }
 
+/* Optimize font rendering for terminal */
+.terminal-surface .xterm {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.terminal-surface .xterm-screen {
+  font-variant-ligatures: none;
+  font-feature-settings: normal;
+}
+
 .connection-header-restore {
   position: absolute;
   top: 10px;

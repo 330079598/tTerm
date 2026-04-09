@@ -197,6 +197,10 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       scrollback: config.scrollback_lines,
       fontSize: initialFontSize.current,
       fontFamily: initialFontFamily.current,
+      fontWeight: "normal",
+      fontWeightBold: "bold",
+      letterSpacing: 0,
+      lineHeight: 1.0,
       theme: {
         background: resolveTerminalBackground(),
         foreground: "#e2e8f0",
