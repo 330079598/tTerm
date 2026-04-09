@@ -1,40 +1,24 @@
 import "@/components/TTermApp.css"
 import React, { useCallback, useEffect, useRef, useState } from "react"
-import { TerminalTab } from "@/components/TerminalTab"
 import { useTranslation } from "react-i18next"
 import { platform } from "@tauri-apps/plugin-os"
 import { BookMarked, Plus, Settings } from "lucide-react"
-import { ContextMenu } from "@/components/ContextMenu"
+
 import { ConnectionDialog } from "@/components/ConnectionDialog"
+import { ContextMenu } from "@/components/ContextMenu"
+import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
 import { RenameDialog } from "@/components/RenameDialog"
 import { SettingsDialog } from "@/components/SettingsDialog"
 import { TabBar } from "@/components/TabBar"
-import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
-import { useTabs } from "@/hooks/useTabs"
-import { useSessionPersistence } from "@/hooks/useSessionPersistence"
-import { useConnectionManager } from "@/hooks/useConnectionManager"
+import { EmptyState } from "@/components/TTermApp/EmptyState"
+import { TabPanels } from "@/components/TTermApp/TabPanels"
+import type { ContextMenuState, RenameDialogState } from "@/components/TTermApp/types"
+import { buildTabFromConnection } from "@/components/TTermApp/ttermAppUtils"
 import { useConfig } from "@/contexts/ConfigContext"
+import { useConnectionManager } from "@/hooks/useConnectionManager"
+import { useSessionPersistence } from "@/hooks/useSessionPersistence"
+import { useTabs } from "@/hooks/useTabs"
 import { Tab, TabContextMenuAction } from "@/types/tab"
-
-interface ContextMenuState {
-  visible: boolean
-  x: number
-  y: number
-  tab: Tab | null
-  actions: TabContextMenuAction[]
-}
-
-const DEFAULT_CONNECTION_HEADER_PINNED = true
-
-function buildTabFromConnection(
-  connection: Omit<Tab, "id" | "isActive">
-): Omit<Tab, "id" | "isActive"> {
-  return {
-    ...connection,
-    sessionNonce: connection.sessionNonce ?? 0,
-    connectionHeaderPinned: connection.connectionHeaderPinned ?? DEFAULT_CONNECTION_HEADER_PINNED,
-  }
-}
 
 export const TTermApp: React.FC = () => {
   const { t, i18n } = useTranslation()
@@ -44,11 +28,7 @@ export const TTermApp: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false)
   const [editingProfile, setEditingProfile] = useState<SavedProfile | null>(null)
   const [profilesRefreshKey, setProfilesRefreshKey] = useState(0)
-  const [renameDialogState, setRenameDialogState] = useState<{
-    isOpen: boolean
-    tabId: string | null
-    currentName: string
-  }>({
+  const [renameDialogState, setRenameDialogState] = useState<RenameDialogState>({
     isOpen: false,
     tabId: null,
     currentName: "",
@@ -88,13 +68,11 @@ export const TTermApp: React.FC = () => {
   }, [isLoaded, config.language, i18n])
 
   useEffect(() => {
-    // Try to restore previous session
     const loadAndRestoreSession = async () => {
       const savedSession = await loadSession()
       if (savedSession && savedSession.tabs.length > 0) {
         restoreSession(savedSession.tabs, savedSession.activeTabId)
       } else {
-        // If no saved session, create default tab
         addTab(
           buildTabFromConnection({
             title: "Terminal",
@@ -108,7 +86,6 @@ export const TTermApp: React.FC = () => {
     loadAndRestoreSession()
   }, [addTab, loadSession, restoreSession])
 
-  // Save session state when tabs or active tab changes
   useEffect(() => {
     if (tabs.length > 0) {
       saveSession(tabs, activeTabId)
@@ -135,12 +112,12 @@ export const TTermApp: React.FC = () => {
   )
 
   const handleTabContextMenu = useCallback(
-    (e: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => {
-      e.preventDefault()
+    (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => {
+      event.preventDefault()
       setContextMenu({
         visible: true,
-        x: e.clientX,
-        y: e.clientY,
+        x: event.clientX,
+        y: event.clientY,
         tab,
         actions,
       })
@@ -257,11 +234,8 @@ export const TTermApp: React.FC = () => {
     [updateTab]
   )
 
-  // Reserve space for native frame buttons on Windows/Linux.
-  // Keep this in sync with tauri-plugin-frame `button_width(46)` and 3 controls.
   const nativeControlsReservePx = os === "macos" ? 0 : 46 * 3
 
-  // Handle settings button click
   const handleSettingsClick = useCallback(() => {
     setShowSettings(true)
   }, [])
@@ -269,64 +243,33 @@ export const TTermApp: React.FC = () => {
   const renderTabContent = () => {
     if (tabs.length === 0) {
       return (
-        <div className="terminal-placeholder">
-          <h3>{t("welcome.title")}</h3>
-          <p>{t("welcome.description")}</p>
-          <button onClick={handleNewTab} className="btn-primary" style={{ marginTop: "16px" }}>
-            {t("welcome.newConnection")}
-          </button>
-          <div style={{ marginTop: "32px", width: "100%", maxWidth: 480 }}>
-            <ProfilesPanel
-              refreshKey={profilesRefreshKey}
-              onConnect={(conn) => {
-                handleConnect(conn)
-              }}
-              onEdit={(profile) => {
-                setEditingProfile(profile)
-                setShowConnectionDialog(true)
-              }}
-            />
-          </div>
-        </div>
+        <EmptyState
+          handleConnect={handleConnect}
+          handleNewTab={handleNewTab}
+          onEditProfile={(profile) => {
+            setEditingProfile(profile)
+            setShowConnectionDialog(true)
+          }}
+          profilesRefreshKey={profilesRefreshKey}
+        />
       )
     }
 
     return (
-      <>
-        {tabs.map((tab) => (
-          <div
-            key={`${tab.id}:${tab.sessionNonce ?? 0}`}
-            style={{
-              width: "100%",
-              height: "100%",
-              visibility: tab.id === activeTabId ? "visible" : "hidden",
-              position: tab.id === activeTabId ? "relative" : "absolute",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <TerminalTab
-              tabId={tab.id}
-              sessionNonce={tab.sessionNonce}
-              isActive={tab.id === activeTabId}
-              connectionHeaderPinned={tab.connectionHeaderPinned}
-              connection={tab.connection ?? { type: tab.type === "terminal" ? "terminal" : "ssh" }}
-              onReconnectRequest={() => handleReconnectTab(tab.id)}
-              onPinConnectionHeader={() => handlePinConnectionHeader(tab.id)}
-              onUnpinConnectionHeader={() => handleUnpinConnectionHeader(tab.id)}
-            />
-          </div>
-        ))}
-      </>
+      <TabPanels
+        activeTabId={activeTabId}
+        handlePinConnectionHeader={handlePinConnectionHeader}
+        handleReconnectTab={handleReconnectTab}
+        handleUnpinConnectionHeader={handleUnpinConnectionHeader}
+        tabs={tabs}
+      />
     )
   }
 
   return (
     <div className={`app ${os === "macos" ? "macos" : ""}`}>
-      {/* Combined Title Bar and Tab Bar */}
       <div className="title-bar">
         <div className="title-bar-left">
-          {/* Tab Bar integrated into title bar */}
           <div className="tab-list-container">
             <TabBar
               tabs={tabs}
@@ -352,10 +295,8 @@ export const TTermApp: React.FC = () => {
           </div>
         </div>
 
-        {/* Draggable space */}
         <div className="drag-space" data-tauri-drag-region></div>
 
-        {/* Settings and window controls */}
         <div className="title-bar-right" style={{ paddingRight: `${nativeControlsReservePx}px` }}>
           <button
             ref={settingsButtonRef}
@@ -368,31 +309,28 @@ export const TTermApp: React.FC = () => {
         </div>
       </div>
 
-      {/* Content Area */}
       <div className="content-area">{renderTabContent()}</div>
 
-      {/* Connection Dialog */}
       {showConnectionDialog && (
         <ConnectionDialog
           isOpen={showConnectionDialog}
           onClose={() => {
             setShowConnectionDialog(false)
             setEditingProfile(null)
-            setProfilesRefreshKey((k) => k + 1)
+            setProfilesRefreshKey((key) => key + 1)
           }}
           onConnect={handleConnect}
           editProfile={editingProfile}
         />
       )}
 
-      {/* Profiles Panel */}
       {showProfilesPanel && (
         <div className="modal-overlay" onClick={() => setShowProfilesPanel(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
             <ProfilesPanel
               refreshKey={profilesRefreshKey}
-              onConnect={(conn) => {
-                handleConnect(conn)
+              onConnect={(connection) => {
+                handleConnect(connection)
                 setShowProfilesPanel(false)
               }}
               onEdit={(profile) => {
@@ -405,7 +343,6 @@ export const TTermApp: React.FC = () => {
         </div>
       )}
 
-      {/* Context Menu */}
       {contextMenu.visible && (
         <ContextMenu
           x={contextMenu.x}
@@ -416,10 +353,8 @@ export const TTermApp: React.FC = () => {
         />
       )}
 
-      {/* Settings Dialog */}
       {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
 
-      {/* Rename Dialog */}
       <RenameDialog
         isOpen={renameDialogState.isOpen}
         currentName={renameDialogState.currentName}

@@ -1,0 +1,105 @@
+import React from "react"
+import { ArrowUpFromLine, ChevronRight, FolderPlus, RefreshCcw, X } from "lucide-react"
+import { useTranslation } from "react-i18next"
+
+import { TransferManager } from "@/components/TransferManager"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import type { TransferTask } from "@/types/tab"
+
+interface SftpDrawerHeaderProps {
+  breadcrumbs: Array<{ label: string; path: string }>
+  clearCompletedTransfers: () => void
+  cancelTransfer: (id: string) => Promise<void>
+  handleCreateDirectory: () => void
+  handleUploadDialog: () => Promise<void>
+  isLoading: boolean
+  listingCurrentPath?: string | null
+  loadDirectory: (path?: string | null) => Promise<void>
+  onClose: () => void
+  removeTransfer: (id: string) => void
+  transfers: TransferTask[]
+}
+
+export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
+  breadcrumbs,
+  clearCompletedTransfers,
+  cancelTransfer,
+  handleCreateDirectory,
+  handleUploadDialog,
+  isLoading,
+  listingCurrentPath,
+  loadDirectory,
+  onClose,
+  removeTransfer,
+  transfers,
+}) => {
+  const { t } = useTranslation()
+
+  return (
+    <div className="sftp-drawer-header">
+      <div className="sftp-header-left">
+        <span className="sftp-drawer-eyebrow">SFTP</span>
+        <div className="flex items-center gap-1">
+          {breadcrumbs.map((item, index) => (
+            <React.Fragment key={item.path}>
+              {index > 0 && <ChevronRight className="text-muted-foreground size-3" />}
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => void loadDirectory(item.path)}
+                disabled={isLoading}
+                className="h-6 px-2"
+              >
+                {item.label}
+              </Button>
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+      <div className="sftp-header-actions">
+        <TransferManager
+          transfers={transfers}
+          onCancel={cancelTransfer}
+          onRemove={removeTransfer}
+          onClearCompleted={clearCompletedTransfers}
+        />
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={handleUploadDialog}
+          disabled={!listingCurrentPath || isLoading}
+          title={t("sftp.actions.upload", { defaultValue: "Upload" })}
+        >
+          <ArrowUpFromLine className="size-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={handleCreateDirectory}
+          disabled={!listingCurrentPath || isLoading}
+          title={t("sftp.actions.newFolder", { defaultValue: "New Folder" })}
+        >
+          <FolderPlus className="size-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => void loadDirectory(listingCurrentPath ?? null)}
+          disabled={isLoading}
+          title={t("sftp.actions.refresh", { defaultValue: "Refresh" })}
+        >
+          <RefreshCcw className={cn("size-4", isLoading && "animate-spin")} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose}
+          title={t("sftp.actions.close", { defaultValue: "Close" })}
+        >
+          <X className="size-4" />
+        </Button>
+      </div>
+    </div>
+  )
+}
