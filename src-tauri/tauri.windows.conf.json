@@ -4,7 +4,9 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "decorations": false
+        "decorations": false,
+        "transparent": true,
+        "visibleOnAllWorkspaces": true
       }
     ]
   }

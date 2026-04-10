@@ -10,6 +10,7 @@ mod terminal;
 use core::PtyMap;
 use std::sync::Arc;
 use tauri::Manager;
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 use tauri_plugin_frame::FramePluginBuilder;
 use tokio::sync::RwLock;
 pub struct TokioRuntimeState {
@@ -32,20 +33,24 @@ pub fn run() {
         .expect("failed to build tokio runtime");
     let secret_store = ssh::SecretStoreState::new();
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(
-            FramePluginBuilder::new()
-                .titlebar_height(32)
-                .button_width(46)
-                .auto_titlebar(true)
-                .snap_overlay_delay_ms(15)
-                .close_hover_bg("rgba(196,43,28,1)")
-                .button_hover_bg("rgba(255,255,255,0.1)")
-                .build(),
-        )
+        .plugin(tauri_plugin_dialog::init());
+
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    let builder = builder.plugin(
+        FramePluginBuilder::new()
+            .titlebar_height(32)
+            .button_width(46)
+            .auto_titlebar(true)
+            .snap_overlay_delay_ms(15)
+            .close_hover_bg("rgba(196,43,28,1)")
+            .button_hover_bg("rgba(255,255,255,0.1)")
+            .build(),
+    );
+
+    builder
         .manage(pty_map)
         .manage(host_prompt_map)
         .manage(sftp_pool)

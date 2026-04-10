@@ -1,0 +1,12 @@
+{
+  "identifier": "com.stone.tTerm",
+  "app": {
+    "windows": [
+      {
+        "decorations": true,
+        "transparent": false,
+        "visibleOnAllWorkspaces": false
+      }
+    ]
+  }
+}
