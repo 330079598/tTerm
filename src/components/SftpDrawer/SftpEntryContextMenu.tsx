@@ -13,6 +13,7 @@ interface SftpEntryContextMenuProps {
   handleDownload: () => Promise<void>
   handleRename: () => void
   onClose: () => void
+  selectionCount: number
 }
 
 export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
@@ -22,6 +23,7 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
   handleDownload,
   handleRename,
   onClose,
+  selectionCount,
 }) => {
   const { t } = useTranslation()
 
@@ -38,12 +40,13 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
           label: t("sftp.actions.download", { defaultValue: "Download" }),
           action: "download",
           icon: "copy",
-          disabled: contextMenuEntry.isDir,
+          disabled: contextMenuEntry.isDir || selectionCount !== 1,
         },
         {
           label: t("sftp.actions.rename", { defaultValue: "Rename" }),
           action: "rename",
           icon: "edit",
+          disabled: selectionCount !== 1,
         },
         { separator: true, label: "", action: "" },
         {

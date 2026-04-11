@@ -240,9 +240,34 @@
       "download": "Download File",
       "rename": "Rename",
       "delete": "Delete",
+      "deleteSelected": "Delete Selected",
       "newFolder": "New Folder",
       "refresh": "Refresh",
       "close": "Close"
+    },
+    "selection": {
+      "count_one": "{{count}} item selected",
+      "count_other": "{{count}} items selected",
+      "clear": "Clear selection",
+      "toggle": "Select {{name}}"
+    },
+    "dialogs": {
+      "deleteTitle_one": "Delete Item",
+      "deleteTitle_other": "Delete Items",
+      "deleteDescription": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+      "deleteDescriptionMultiple": "Are you sure you want to delete {{count}} items? {{folderCount}} folder(s) will be deleted recursively. This action cannot be undone.",
+      "renameTitle": "Rename Item",
+      "renameDescription": "Enter a new name for the item",
+      "nameLabel": "Name",
+      "createFolderTitle": "Create New Folder",
+      "createFolderDescription": "Enter a name for the new folder",
+      "folderNameLabel": "Folder Name"
+    },
+    "messages": {
+      "deleteSuccess_one": "Deleted {{count}} item.",
+      "deleteSuccess_other": "Deleted {{count}} items.",
+      "deletePartialFailure": "Deleted {{successCount}} item(s). {{failureCount}} failed.",
+      "deleteFailure": "Failed to delete selected items."
     },
     "prompts": {
       "newFolder": "New folder name",

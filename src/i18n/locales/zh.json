@@ -216,9 +216,34 @@
       "download": "下载文件",
       "rename": "重命名",
       "delete": "删除",
+      "deleteSelected": "删除所选项",
       "newFolder": "新建文件夹",
       "refresh": "刷新",
       "close": "关闭"
+    },
+    "selection": {
+      "count_one": "已选择 {{count}} 项",
+      "count_other": "已选择 {{count}} 项",
+      "clear": "清空选择",
+      "toggle": "选择 {{name}}"
+    },
+    "dialogs": {
+      "deleteTitle_one": "删除项目",
+      "deleteTitle_other": "删除项目",
+      "deleteDescription": "确定要删除“{{name}}”吗？此操作无法撤销。",
+      "deleteDescriptionMultiple": "确定要删除 {{count}} 个项目吗？其中 {{folderCount}} 个文件夹会被递归删除，此操作无法撤销。",
+      "renameTitle": "重命名项目",
+      "renameDescription": "请输入项目的新名称",
+      "nameLabel": "名称",
+      "createFolderTitle": "创建新文件夹",
+      "createFolderDescription": "请输入新文件夹名称",
+      "folderNameLabel": "文件夹名称"
+    },
+    "messages": {
+      "deleteSuccess_one": "已删除 {{count}} 个项目。",
+      "deleteSuccess_other": "已删除 {{count}} 个项目。",
+      "deletePartialFailure": "已删除 {{successCount}} 个项目，{{failureCount}} 个删除失败。",
+      "deleteFailure": "删除所选项目失败。"
     },
     "prompts": {
       "newFolder": "新文件夹名称",

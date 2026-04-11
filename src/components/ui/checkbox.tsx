@@ -16,6 +16,7 @@ function Checkbox({
   disabled = false,
   onCheckedChange,
   className,
+  onClick,
   ...props
 }: CheckboxProps) {
   const [internalChecked, setInternalChecked] = React.useState(defaultChecked)
@@ -31,19 +32,32 @@ function Checkbox({
     onCheckedChange?.(next)
   }, [disabled, isControlled, onCheckedChange, resolvedChecked])
 
+  const handleClick = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      onClick?.(event)
+
+      if (event.defaultPrevented) {
+        return
+      }
+
+      toggle()
+    },
+    [onClick, toggle]
+  )
+
   return (
     <button
+      {...props}
       type="button"
       role="checkbox"
       aria-checked={resolvedChecked}
       data-state={resolvedChecked ? "checked" : "unchecked"}
       disabled={disabled}
-      onClick={toggle}
+      onClick={handleClick}
       className={cn(
         "border-input dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground inline-flex size-4 shrink-0 items-center justify-center rounded-[4px] border bg-transparent shadow-xs transition-all outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
-      {...props}
     >
       <Check className={cn("size-3", resolvedChecked ? "opacity-100" : "opacity-0")} />
     </button>

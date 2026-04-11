@@ -5,33 +5,37 @@ import { AlertCircle } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { toast } from "@/hooks/use-toast"
 
 import { SftpDrawerContent } from "@/components/SftpDrawer/SftpDrawerContent"
 import { SftpDrawerHeader } from "@/components/SftpDrawer/SftpDrawerHeader"
 import { SftpDialogs } from "@/components/SftpDrawer/SftpDialogs"
 import { SftpEntryContextMenu } from "@/components/SftpDrawer/SftpEntryContextMenu"
 import { useSftpDragDrop } from "@/components/SftpDrawer/useSftpDragDrop"
-import { useSftpTransfers } from "@/components/SftpDrawer/useSftpTransfers"
 import { joinRemotePath } from "@/components/SftpDrawer/sftpDrawerUtils"
 import type {
   SftpContextMenuState,
   SftpCreateFolderDialogState,
   SftpDeleteDialogState,
+  SftpDirectoryEntry,
   SftpDirectoryListing,
   SftpDrawerProps,
   SftpRenameDialogState,
 } from "@/components/SftpDrawer/types"
+import { useSftpTransfers } from "@/components/SftpDrawer/useSftpTransfers"
 
 export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connection, onClose }) => {
   const { t } = useTranslation()
   const [listing, setListing] = useState<SftpDirectoryListing | null>(null)
-  const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  const [activePath, setActivePath] = useState<string | null>(null)
+  const [selectedPaths, setSelectedPaths] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<SftpContextMenuState | null>(null)
   const [deleteDialog, setDeleteDialog] = useState<SftpDeleteDialogState>({
     open: false,
-    entry: null,
+    entries: [],
   })
   const [renameDialog, setRenameDialog] = useState<SftpRenameDialogState>({
     open: false,
@@ -59,7 +63,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
           path: path ?? undefined,
         })
         setListing(nextListing)
-        setSelectedPath(null)
+        setActivePath(null)
+        setSelectedPaths([])
       } catch (invokeError) {
         setError(String(invokeError))
       } finally {
@@ -95,9 +100,22 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       visible,
     })
 
-  const selectedEntry = useMemo(
-    () => listing?.entries.find((entry) => entry.path === selectedPath) ?? null,
-    [listing?.entries, selectedPath]
+  const entryMap = useMemo(
+    () => new Map((listing?.entries ?? []).map((entry) => [entry.path, entry])),
+    [listing?.entries]
+  )
+
+  const selectedEntries = useMemo(
+    () =>
+      selectedPaths
+        .map((path) => entryMap.get(path))
+        .filter((entry): entry is SftpDirectoryEntry => Boolean(entry)),
+    [entryMap, selectedPaths]
+  )
+
+  const activeEntry = useMemo(
+    () => (activePath ? (entryMap.get(activePath) ?? null) : null),
+    [activePath, entryMap]
   )
 
   const contextMenuEntry = useMemo(
@@ -134,6 +152,49 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
     [listing?.currentPath, loadDirectory]
   )
 
+  const handleActivateEntry = useCallback((path: string | null) => {
+    setActivePath(path)
+  }, [])
+
+  const buildSelectionRange = useCallback(
+    (startPath: string, endPath: string) => {
+      const entries = listing?.entries ?? []
+      const startIndex = entries.findIndex((entry) => entry.path === startPath)
+      const endIndex = entries.findIndex((entry) => entry.path === endPath)
+
+      if (startIndex === -1 || endIndex === -1) {
+        return [endPath]
+      }
+
+      const [from, to] = startIndex <= endIndex ? [startIndex, endIndex] : [endIndex, startIndex]
+      return entries.slice(from, to + 1).map((entry) => entry.path)
+    },
+    [listing?.entries]
+  )
+
+  const handleSelectRange = useCallback(
+    (anchorPath: string, currentPath: string) => {
+      const range = buildSelectionRange(anchorPath, currentPath)
+      setSelectedPaths(range)
+    },
+    [buildSelectionRange]
+  )
+
+  const handleToggleEntrySelection = useCallback((path: string, checked: boolean) => {
+    setSelectedPaths((current) => {
+      if (checked) {
+        setActivePath(path)
+        return current.includes(path) ? current : [...current, path]
+      }
+
+      return current.filter((item) => item !== path)
+    })
+  }, [])
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedPaths([])
+  }, [])
+
   const handleCreateDirectory = useCallback(() => {
     setCreateFolderDialog({ open: true, folderName: "" })
   }, [])
@@ -155,13 +216,13 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
   }, [connection, createFolderDialog.folderName, listing, runAndRefresh, tabId])
 
   const handleRename = useCallback(() => {
-    const entry = contextMenuEntry || selectedEntry
+    const entry = contextMenuEntry ?? activeEntry
     if (!entry || !listing) {
       return
     }
 
     setRenameDialog({ open: true, entry, newName: entry.name })
-  }, [contextMenuEntry, listing, selectedEntry])
+  }, [activeEntry, contextMenuEntry, listing])
 
   const handleRenameConfirm = useCallback(() => {
     const { entry, newName } = renameDialog
@@ -186,40 +247,113 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
     setRenameDialog({ open: false, entry: null, newName: "" })
   }, [connection, listing, renameDialog, runAndRefresh, tabId])
 
-  const handleDelete = useCallback(() => {
-    const entry = contextMenuEntry || selectedEntry
-    if (!entry) {
+  const handleDeleteSelection = useCallback(() => {
+    if (selectedEntries.length === 0) {
       return
     }
 
-    setDeleteDialog({ open: true, entry })
-  }, [contextMenuEntry, selectedEntry])
+    setDeleteDialog({ open: true, entries: selectedEntries })
+  }, [selectedEntries])
+
+  const handleDelete = useCallback(() => {
+    const entries =
+      contextMenuEntry &&
+      selectedPaths.includes(contextMenuEntry.path) &&
+      selectedEntries.length > 0
+        ? selectedEntries
+        : contextMenuEntry
+          ? [contextMenuEntry]
+          : activeEntry
+            ? [activeEntry]
+            : []
+    if (entries.length === 0) {
+      return
+    }
+
+    setDeleteDialog({ open: true, entries })
+  }, [activeEntry, contextMenuEntry, selectedEntries, selectedPaths])
 
   const handleDeleteConfirm = useCallback(() => {
-    const { entry } = deleteDialog
-    if (!entry) {
+    const entries = deleteDialog.entries
+    if (entries.length === 0) {
       return
     }
 
-    void runAndRefresh(() =>
-      invoke("sftp_delete_entry", {
-        tabId,
-        connection,
-        path: entry.path,
-        isDir: entry.isDir,
-      })
-    )
-    setDeleteDialog({ open: false, entry: null })
-  }, [connection, deleteDialog, runAndRefresh, tabId])
+    void (async () => {
+      setIsDeleting(true)
+      setError(null)
+
+      let successCount = 0
+      const failures: string[] = []
+
+      for (const entry of entries) {
+        try {
+          await invoke("sftp_delete_entry", {
+            tabId,
+            connection,
+            path: entry.path,
+            isDir: entry.isDir,
+          })
+          successCount += 1
+        } catch (invokeError) {
+          failures.push(`${entry.name}: ${String(invokeError)}`)
+        }
+      }
+
+      await loadDirectory(listing?.currentPath ?? null)
+      setDeleteDialog({ open: false, entries: [] })
+      setContextMenu(null)
+
+      if (failures.length === 0) {
+        toast({
+          title: t("sftp.messages.deleteSuccess", {
+            count: successCount,
+            defaultValue: `Deleted ${successCount} item(s).`,
+          }),
+        })
+      } else if (successCount > 0) {
+        toast({
+          variant: "destructive",
+          title: t("sftp.messages.deletePartialFailure", {
+            successCount,
+            failureCount: failures.length,
+            defaultValue: `Deleted ${successCount} item(s). ${failures.length} failed.`,
+          }),
+          description: failures[0],
+        })
+      } else {
+        setError(failures.join("\n"))
+        toast({
+          variant: "destructive",
+          title: t("sftp.messages.deleteFailure", {
+            defaultValue: "Failed to delete selected items.",
+          }),
+          description: failures[0],
+        })
+      }
+
+      setIsDeleting(false)
+    })()
+  }, [connection, deleteDialog.entries, listing?.currentPath, loadDirectory, t, tabId])
 
   const handleDownload = useCallback(async () => {
-    const entry = contextMenuEntry || selectedEntry
+    const entry = contextMenuEntry ?? activeEntry
     if (!entry || entry.isDir) {
       return
     }
 
     await downloadEntry(entry)
-  }, [contextMenuEntry, downloadEntry, selectedEntry])
+  }, [activeEntry, contextMenuEntry, downloadEntry])
+
+  const contextSelectionCount = useMemo(() => {
+    if (!contextMenuEntry) {
+      return selectedPaths.length
+    }
+
+    return selectedPaths.includes(contextMenuEntry.path) ? selectedPaths.length : 1
+  }, [contextMenuEntry, selectedPaths])
+
+  const isBusy = isLoading || isDeleting
 
   return (
     <div className={`sftp-drawer ${visible ? "is-open" : ""}`} aria-hidden={!visible}>
@@ -229,7 +363,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         cancelTransfer={cancelTransfer}
         handleCreateDirectory={handleCreateDirectory}
         handleUploadDialog={handleUploadDialog}
-        isLoading={isLoading}
+        isLoading={isBusy}
         listingCurrentPath={listing?.currentPath}
         loadDirectory={loadDirectory}
         onClose={onClose}
@@ -246,18 +380,24 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
 
       <SftpDrawerContent
         error={error}
+        activePath={activePath}
+        handleActivateEntry={handleActivateEntry}
+        handleDeleteSelection={handleDeleteSelection}
         handleDragEnter={handleDragEnter}
         handleDragLeave={handleDragLeave}
         handleDragOver={handleDragOver}
         handleDrop={handleDrop}
         handleOpenEntry={handleOpenEntry}
+        handleSelectRange={handleSelectRange}
+        handleToggleEntrySelection={handleToggleEntrySelection}
         isDragActive={isDragActive}
-        isLoading={isLoading}
+        isLoading={isBusy}
         listing={listing}
         loadDirectory={loadDirectory}
-        selectedPath={selectedPath}
+        selectedCount={selectedPaths.length}
+        selectedPaths={selectedPaths}
         setContextMenu={setContextMenu}
-        setSelectedPath={setSelectedPath}
+        clearSelection={handleClearSelection}
       />
 
       <SftpEntryContextMenu
@@ -267,6 +407,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         handleDownload={handleDownload}
         handleRename={handleRename}
         onClose={() => setContextMenu(null)}
+        selectionCount={contextSelectionCount}
       />
 
       <SftpDialogs

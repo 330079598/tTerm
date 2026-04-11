@@ -32,7 +32,7 @@ export interface SftpContextMenuState {
 
 export interface SftpDeleteDialogState {
   open: boolean
-  entry: SftpDirectoryEntry | null
+  entries: SftpDirectoryEntry[]
 }
 
 export interface SftpRenameDialogState {

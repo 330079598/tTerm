@@ -65,6 +65,20 @@
   transition: background-color 0.2s ease;
 }
 
+.sftp-drawer-body,
+.sftp-row,
+.sftp-cell,
+.sftp-name-cell {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body.sftp-no-select,
+body.sftp-no-select * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
 .sftp-drawer-body.drag-active {
   background: hsl(var(--primary) / 0.05);
 }
@@ -129,9 +143,35 @@
   overflow: hidden;
 }
 
+.sftp-selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid hsl(var(--border) / 0.6);
+  background: hsl(var(--muted) / 0.35);
+}
+
+.sftp-selection-summary {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.sftp-selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .sftp-row {
   display: grid;
-  grid-template-columns: minmax(200px, 2fr) minmax(180px, 1.2fr) minmax(100px, 0.8fr) minmax(
+  grid-template-columns: 28px minmax(200px, 2fr) minmax(180px, 1.2fr) minmax(100px, 0.8fr) minmax(
       120px,
       1fr
     );
@@ -152,6 +192,11 @@
   background: hsl(var(--muted) / 0.5);
 }
 
+.sftp-row-active,
+.sftp-row-active:hover {
+  background: hsl(var(--accent) / 0.1);
+}
+
 .sftp-row-selected,
 .sftp-row-selected:hover {
   background: hsl(var(--accent) / 0.18);
@@ -166,6 +211,12 @@
   font-size: 13px;
 }
 
+.sftp-checkbox-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .sftp-name-cell {
   display: flex;
   align-items: center;
@@ -175,8 +226,17 @@
 }
 
 @media (max-width: 768px) {
+  .sftp-selection-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sftp-selection-actions {
+    justify-content: flex-end;
+  }
+
   .sftp-row {
-    grid-template-columns: minmax(150px, 2fr) minmax(120px, 1fr) minmax(80px, 0.8fr);
+    grid-template-columns: 28px minmax(150px, 2fr) minmax(120px, 1fr) minmax(80px, 0.8fr);
   }
 
   .sftp-row span:last-child {

@@ -43,27 +43,42 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
   setRenameDialog,
 }) => {
   const { t } = useTranslation()
+  const deleteCount = deleteDialog.entries.length
+  const folderCount = deleteDialog.entries.filter((entry) => entry.isDir).length
+  const singleEntry = deleteDialog.entries[0] ?? null
 
   return (
     <>
       <Dialog
         open={deleteDialog.open}
-        onOpenChange={(open) => !open && setDeleteDialog({ open: false, entry: null })}
+        onOpenChange={(open) => !open && setDeleteDialog({ open: false, entries: [] })}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {t("sftp.dialogs.deleteTitle", { defaultValue: "Delete Item" })}
+              {t("sftp.dialogs.deleteTitle", {
+                count: deleteCount,
+                defaultValue: deleteCount > 1 ? "Delete Items" : "Delete Item",
+              })}
             </DialogTitle>
             <DialogDescription>
-              {t("sftp.dialogs.deleteDescription", {
-                defaultValue: `Are you sure you want to delete "${deleteDialog.entry?.name}"? This action cannot be undone.`,
-                name: deleteDialog.entry?.name,
-              })}
+              {deleteCount > 1
+                ? t("sftp.dialogs.deleteDescriptionMultiple", {
+                    count: deleteCount,
+                    folderCount,
+                    defaultValue:
+                      folderCount > 0
+                        ? `Are you sure you want to delete ${deleteCount} items? ${folderCount} folder(s) will be deleted recursively. This action cannot be undone.`
+                        : `Are you sure you want to delete ${deleteCount} items? This action cannot be undone.`,
+                  })
+                : t("sftp.dialogs.deleteDescription", {
+                    defaultValue: `Are you sure you want to delete "${singleEntry?.name}"? This action cannot be undone.`,
+                    name: singleEntry?.name,
+                  })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialog({ open: false, entry: null })}>
+            <Button variant="outline" onClick={() => setDeleteDialog({ open: false, entries: [] })}>
               {t("common.cancel", { defaultValue: "Cancel" })}
             </Button>
             <Button variant="destructive" onClick={handleDeleteConfirm}>
