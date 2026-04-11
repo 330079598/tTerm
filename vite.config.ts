@@ -4,6 +4,28 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
+function manualChunks(id: string) {
+  if (id.includes("node_modules")) {
+    if (id.includes("react") || id.includes("scheduler")) {
+      return "react-vendor";
+    }
+
+    if (id.includes("@tanstack/react-router")) {
+      return "router";
+    }
+
+    if (id.includes("@xterm/xterm") || id.includes("@xterm/addon-")) {
+      return "xterm";
+    }
+
+    if (id.includes("i18next") || id.includes("react-i18next")) {
+      return "i18n";
+    }
+  }
+
+  return undefined;
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
   plugins: [
@@ -25,10 +47,10 @@ export default defineConfig(async () => ({
     host: host || false,
     hmr: host
       ? {
-        protocol: "ws",
-        host,
-        port: 1421,
-      }
+          protocol: "ws",
+          host,
+          port: 1421,
+        }
       : undefined,
     watch: {
       // 3. tell vite to ignore watching `src-tauri`
@@ -43,12 +65,7 @@ export default defineConfig(async () => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react/jsx-runtime'],
-          'router': ['@tanstack/react-router'],
-          'xterm': ['@xterm/xterm', '@xterm/addon-fit', '@xterm/addon-web-links'],
-          'i18n': ['i18next', 'react-i18next'],
-        },
+        manualChunks,
       },
     },
     chunkSizeWarningLimit: 600,
