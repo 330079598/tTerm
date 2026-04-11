@@ -241,3 +241,12 @@ pub fn respond_ssh_host_key_prompt(
         .map_err(|_| "Host key prompt receiver is gone".to_string())
 }
 
+#[tauri::command]
+pub fn get_saved_password_for_sudo(
+    app: AppHandle,
+    profile_name: String,
+    secret_state: State<'_, crate::ssh::SecretStoreState>,
+) -> Result<Option<String>, String> {
+    // Try to get password from secret store using profile name as the key
+    secret_state.get_password(&app, &profile_name)
+}

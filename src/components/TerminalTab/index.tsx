@@ -53,6 +53,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const sessionResetKey = `${tabId}:${sessionNonce}:${connection?.type ?? "terminal"}`
   const defaultConnectionState: ConnectionState =
     connection?.type === "ssh" ? "connecting" : "connected"
+  const passwordPromptActiveRef = useRef(false)
 
   const [hostKeyPromptState, setHostKeyPromptState] = useState<{
     sessionKey: string
@@ -244,6 +245,27 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         onReconnectRequestRef.current?.()
         return
       }
+
+      // Check if password prompt is active
+      if (passwordPromptActiveRef.current) {
+        // Clear the hint text by moving cursor back and clearing to end of line
+        term.write("\r\x1b[K")
+
+        // Check if Enter key is pressed
+        if (data === "\r") {
+          const savedPassword = connectionRef.current?.password
+          if (savedPassword) {
+            // Send the saved password followed by Enter
+            invoke("write_pty", { tabId, data: savedPassword + "\n" }).catch(() => {})
+            passwordPromptActiveRef.current = false
+            return
+          }
+        }
+
+        // For any other key, disable password prompt and pass through the key
+        passwordPromptActiveRef.current = false
+      }
+
       invoke("write_pty", { tabId, data }).catch(() => {})
     })
 
@@ -260,6 +282,44 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         } else if (connectionRef.current?.type === "ssh" && payload.trim().length > 0) {
           setConnectionState("connected")
         }
+
+        // Detect sudo password prompt
+        const sudoPasswordPattern = /^\[sudo\] password for ([^:]+):\s*$/im
+        const match = payload.match(sudoPasswordPattern)
+
+        if (match && !passwordPromptActiveRef.current) {
+          const promptUsername = match[1].trim() // 去除首尾空格
+          const savedUsername = connectionRef.current?.username
+          const profileName = connectionRef.current?.profileName
+
+          // Only show prompt if username matches
+          if (savedUsername && promptUsername === savedUsername && profileName) {
+            // Try to get password from backend
+            invoke<string | null>("get_saved_password_for_sudo", {
+              profileName,
+            })
+              .then((password) => {
+                if (password) {
+                  passwordPromptActiveRef.current = true
+                  // Store password temporarily for this prompt
+                  connectionRef.current = {
+                    ...connectionRef.current,
+                    password,
+                  }
+                  // Write hint text to terminal with formatted style
+                  // Format: [TTerm in black background] [Gray text message]
+                  const pasteHint =
+                    "\x1b[100m\x1b[36m tTerm \x1b[0m " + // Black text on bright black background
+                    "\x1b[90mPress Enter to paste saved password\x1b[0m" // Gray text
+                  term.write(pasteHint)
+                }
+              })
+              .catch((err) => {
+                console.error("Failed to get saved password:", err)
+              })
+          }
+        }
+
         term.write(payload)
       }),
       listen(`pty-exit-${tabId}`, (event) => {
