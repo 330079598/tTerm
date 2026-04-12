@@ -171,6 +171,24 @@
     "privateKeyPassphrase": "密码短语（可选）",
     "browseKey": "浏览"
   },
+  "sessionHeader": {
+    "connecting": "连接中",
+    "connected": "已连接",
+    "reconnecting": "重新连接中",
+    "disconnected": "已断开连接",
+    "error": "错误",
+    "reconnect": "重新连接",
+    "sftp": "SFTP",
+    "pin": "固定",
+    "unpin": "取消固定",
+    "connectionInfo": "连接"
+  },
+  "terminalContext": {
+    "copyFailedTitle": "复制失败",
+    "copyFailedDescription": "无法复制当前终端选中的内容。",
+    "pasteFailedTitle": "粘贴失败",
+    "pasteFailedDescription": "无法将剪贴板内容粘贴到终端。"
+  },
   "secretStorage": {
     "title": "密钥存储",
     "description": "优先使用系统凭据存储。如果不可用，您可以启用并解锁应用保险库作为受控后备。",

@@ -195,6 +195,12 @@
     "unpin": "Unpin",
     "connectionInfo": "Connection"
   },
+  "terminalContext": {
+    "copyFailedTitle": "Copy failed",
+    "copyFailedDescription": "Unable to copy the current terminal selection.",
+    "pasteFailedTitle": "Paste failed",
+    "pasteFailedDescription": "Unable to paste clipboard contents into the terminal."
+  },
   "secretStorage": {
     "title": "Secret Storage",
     "description": "Prefer the system credential store. If it is unavailable, you can enable and unlock the app vault as a controlled fallback.",

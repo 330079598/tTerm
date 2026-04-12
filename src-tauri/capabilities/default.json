@@ -20,6 +20,8 @@
     "core:window:allow-set-focus",
     "core:window:allow-is-maximized",
     "core:webview:allow-webview-position",
-    "core:webview:allow-webview-size"
+    "core:webview:allow-webview-size",
+    "clipboard-manager:allow-read-text",
+    "clipboard-manager:allow-write-text"
   ]
 }

@@ -34,6 +34,7 @@ pub fn run() {
     let secret_store = ssh::SecretStoreState::new();
 
     let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init());

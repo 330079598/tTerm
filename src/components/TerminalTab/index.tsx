@@ -6,6 +6,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links"
 import { Terminal } from "@xterm/xterm"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
+import { useTranslation } from "react-i18next"
 
 import { SftpDrawer } from "@/components/SftpDrawer"
 import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
@@ -21,6 +22,7 @@ import type {
   HostKeyPromptState,
   TerminalTabProps,
 } from "@/components/TerminalTab/types"
+import { toast } from "@/hooks/use-toast"
 import { useConfig } from "@/contexts/ConfigContext"
 
 export const TerminalTab: React.FC<TerminalTabProps> = ({
@@ -48,6 +50,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const waitingForReconnectRef = useRef(false)
   const onReconnectRequestRef = useRef(onReconnectRequest)
   const { config } = useConfig()
+  const { t } = useTranslation()
   const initialFontFamily = useRef(config.font_family)
   const initialFontSize = useRef(config.font_size)
   const sessionResetKey = `${tabId}:${sessionNonce}:${connection?.type ?? "terminal"}`
@@ -482,6 +485,62 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     setShowSftpDrawer((current) => !current)
   }, [])
 
+  const handleTerminalContextMenu = useCallback(
+    async (event: React.MouseEvent<HTMLDivElement>) => {
+      event.preventDefault()
+
+      const term = termRef.current
+      term?.focus()
+
+      if (showSftpDrawer) {
+        setShowSftpDrawer(false)
+      }
+
+      const selection = term?.hasSelection() ? term.getSelection() : ""
+
+      if (selection) {
+        try {
+          await invoke("plugin:clipboard-manager|write_text", { text: selection })
+          term?.clearSelection()
+        } catch (error) {
+          console.error("Failed to copy terminal selection:", error)
+          toast({
+            title: t("terminalContext.copyFailedTitle", {
+              defaultValue: "Copy failed",
+            }),
+            description: t("terminalContext.copyFailedDescription", {
+              defaultValue: "Unable to copy the current terminal selection.",
+            }),
+            variant: "destructive",
+          })
+        }
+
+        return
+      }
+
+      try {
+        const clipboardText = await invoke<string>("plugin:clipboard-manager|read_text")
+        if (!clipboardText) {
+          return
+        }
+
+        await invoke("write_pty", { tabId, data: clipboardText })
+      } catch (error) {
+        console.error("Failed to paste into terminal:", error)
+        toast({
+          title: t("terminalContext.pasteFailedTitle", {
+            defaultValue: "Paste failed",
+          }),
+          description: t("terminalContext.pasteFailedDescription", {
+            defaultValue: "Unable to paste clipboard contents into the terminal.",
+          }),
+          variant: "destructive",
+        })
+      }
+    },
+    [showSftpDrawer, t, tabId]
+  )
+
   return (
     <div className="terminal-tab-shell">
       <ConnectionHeader
@@ -510,6 +569,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
               setShowSftpDrawer(false)
             }
           }}
+          onContextMenu={handleTerminalContextMenu}
           style={{
             width: "100%",
             height: "100%",
