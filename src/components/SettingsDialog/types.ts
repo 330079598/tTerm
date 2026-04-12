@@ -22,6 +22,12 @@ export type ToastState = ReturnType<typeof useToast>["toast"]
 
 export const FONT_SIZE_OPTIONS = [10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24]
 
+export const CURSOR_STYLE_OPTIONS = [
+  { value: "bar", labelKey: "fontSettings.cursorStyles.bar" },
+  { value: "block", labelKey: "fontSettings.cursorStyles.block" },
+  { value: "underline", labelKey: "fontSettings.cursorStyles.underline" },
+] as const
+
 export const PRESET_THEME_COLORS: Record<PresetThemeId, string> = {
   default: "hsl(220 13% 12%)",
   light: "hsl(0 0% 98%)",

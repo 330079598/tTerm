@@ -53,6 +53,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const { t } = useTranslation()
   const initialFontFamily = useRef(config.font_family)
   const initialFontSize = useRef(config.font_size)
+  const initialCursorStyle = useRef(config.cursor_style)
   const sessionResetKey = `${tabId}:${sessionNonce}:${connection?.type ?? "terminal"}`
   const defaultConnectionState: ConnectionState =
     connection?.type === "ssh" ? "connecting" : "connected"
@@ -167,10 +168,11 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
     term.options.fontFamily = config.font_family
     term.options.fontSize = config.font_size
+    term.options.cursorStyle = config.cursor_style
     if (isActiveRef.current) {
       fitAndSyncPty()
     }
-  }, [config.font_family, config.font_size, fitAndSyncPty])
+  }, [config.cursor_style, config.font_family, config.font_size, fitAndSyncPty])
 
   useEffect(() => {
     const term = termRef.current
@@ -198,6 +200,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
     const term = new Terminal({
       cursorBlink: true,
+      cursorStyle: initialCursorStyle.current,
       scrollback: config.scrollback_lines === 0 ? 10000000 : config.scrollback_lines,
       fontSize: initialFontSize.current,
       fontFamily: initialFontFamily.current,

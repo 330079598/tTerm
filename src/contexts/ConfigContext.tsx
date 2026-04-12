@@ -15,6 +15,7 @@ export interface AppConfig {
   language: string
   font_family: string
   font_size: number
+  cursor_style: "bar" | "block" | "underline"
   terminal_shell: "auto" | "cmd" | "powershell" | "pwsh" | "custom"
   terminal_shell_custom_path: string
   terminal_shell_custom_args: string
@@ -27,6 +28,7 @@ const defaultConfig: AppConfig = {
   language: "en",
   font_family: '"JetBrainsMono Nerd Font", "JetBrains Mono", "Fira Code", Menlo, Monaco, monospace',
   font_size: 14,
+  cursor_style: "block",
   terminal_shell: "auto",
   terminal_shell_custom_path: "",
   terminal_shell_custom_args: "",

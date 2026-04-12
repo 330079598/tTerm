@@ -6,15 +6,18 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
+import { CursorStylePicker } from "@/components/SettingsDialog/CursorStylePicker"
 
 interface FontSettingsTabProps {
   fontFamily: string
   fontSize: number
+  cursorStyle: "bar" | "block" | "underline"
   handleFontSave: () => Promise<void>
   loadingFonts: boolean
   scrollbackLines: number
   setFontFamily: React.Dispatch<React.SetStateAction<string>>
   setFontSize: React.Dispatch<React.SetStateAction<number>>
+  setCursorStyle: React.Dispatch<React.SetStateAction<"bar" | "block" | "underline">>
   setScrollbackLines: React.Dispatch<React.SetStateAction<number>>
   systemFonts: string[]
   fontSizeOptions: number[]
@@ -23,11 +26,13 @@ interface FontSettingsTabProps {
 export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
   fontFamily,
   fontSize,
+  cursorStyle,
   handleFontSave,
   loadingFonts,
   scrollbackLines,
   setFontFamily,
   setFontSize,
+  setCursorStyle,
   setScrollbackLines,
   systemFonts,
   fontSizeOptions,
@@ -71,6 +76,13 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
               className="h-7 w-16 px-2 text-xs"
             />
           </div>
+        </div>
+
+        <div>
+          <Label className="mb-2 block">
+            {t("fontSettings.cursorStyle", { defaultValue: "Cursor Style" })}
+          </Label>
+          <CursorStylePicker value={cursorStyle} onChange={setCursorStyle} />
         </div>
 
         <div>

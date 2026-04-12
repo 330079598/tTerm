@@ -156,9 +156,15 @@
     "savedDesc": "Font and scrollback settings have been saved. New terminal tabs will use the updated configuration.",
     "saveFailed": "Failed to save",
     "scrollbackLines": "Scrollback Lines",
+    "cursorStyle": "Cursor Style",
     "scrollbackLinesDesc": "Number of lines to keep in terminal history. Set to 0 for unlimited (may use significant memory).",
     "scrollbackLinesPlaceholder": "Enter custom value or select preset",
-    "unlimited": "Unlimited"
+    "unlimited": "Unlimited",
+    "cursorStyles": {
+      "bar": "Bar",
+      "block": "Block",
+      "underline": "Underline"
+    }
   },
   "tabContent": {
     "type": "Type",

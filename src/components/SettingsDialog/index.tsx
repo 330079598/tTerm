@@ -45,6 +45,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
 
   const [fontFamily, setFontFamily] = useState(config.font_family)
   const [fontSize, setFontSize] = useState(config.font_size)
+  const [cursorStyle, setCursorStyle] = useState(config.cursor_style)
   const [scrollbackLines, setScrollbackLines] = useState(config.scrollback_lines || 10000)
   const [systemFonts, setSystemFonts] = useState<string[]>([])
   const [loadingFonts, setLoadingFonts] = useState(true)
@@ -72,13 +73,14 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
       await saveConfig({
         font_family: fontFamily,
         font_size: fontSize,
+        cursor_style: cursorStyle,
         scrollback_lines: scrollbackLines,
       })
       toast({
         title: t("fontSettings.saved", { defaultValue: "Settings saved" }),
         description: t("fontSettings.savedDesc", {
           defaultValue:
-            "Font settings have been saved. New terminal tabs will use the updated scrollback buffer size.",
+            "Font, cursor, and scrollback settings have been saved. New terminal tabs will use the updated configuration.",
         }),
       })
     } catch (error) {
@@ -236,11 +238,13 @@ ${t("app.builtWith")}`)
               <FontSettingsTab
                 fontFamily={fontFamily}
                 fontSize={fontSize}
+                cursorStyle={cursorStyle}
                 handleFontSave={handleFontSave}
                 loadingFonts={loadingFonts}
                 scrollbackLines={scrollbackLines}
                 setFontFamily={setFontFamily}
                 setFontSize={setFontSize}
+                setCursorStyle={setCursorStyle}
                 setScrollbackLines={setScrollbackLines}
                 systemFonts={systemFonts}
                 fontSizeOptions={FONT_SIZE_OPTIONS}
