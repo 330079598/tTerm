@@ -6,11 +6,15 @@ import React, {
   useLayoutEffect,
   useState,
 } from "react"
+
 import { useConfig } from "@/contexts/ConfigContext"
+import { cacheTheme } from "@/lib/themePreloader"
 import type { CustomTheme, PresetTheme, PresetThemeId, Theme, ThemeColors } from "@/types/theme"
 
-// Apply custom theme colors to DOM (inlined to avoid mixed imports)
-function applyCustomTheme(colors: ThemeColors) {
+/**
+ * Apply custom theme colors to DOM
+ */
+function applyCustomTheme(colors: ThemeColors): void {
   const root = document.documentElement
   Object.entries(colors).forEach(([key, value]) => {
     const cssVar = key.replace(/([A-Z])/g, "-$1").toLowerCase()
@@ -75,29 +79,54 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Apply theme using useLayoutEffect to prevent flash of unstyled content
+  // Calibrate theme with Tauri config after loading
+  // This is the key to dual-source strategy:
+  // - localStorage may be cleared, but Tauri config is reliable
+  // - On startup: use cached theme first (fast), then calibrate with real config
   useLayoutEffect(() => {
-    if (isLoaded && themesLoaded) {
-      const themeId = config.theme || "default"
-      const customTheme = customThemes.find((t) => t.id === themeId)
+    if (!isLoaded || !themesLoaded) return
 
-      if (customTheme) {
-        document.documentElement.removeAttribute("data-theme")
-        applyCustomTheme(customTheme.colors)
-      } else {
-        document.documentElement.setAttribute("data-theme", themeId)
-      }
-    }
-  }, [config.theme, isLoaded, customThemes, themesLoaded])
-
-  const setTheme = async (themeId: string) => {
+    const themeId = config.theme || "default"
     const customTheme = customThemes.find((t) => t.id === themeId)
 
     if (customTheme) {
+      // Custom theme
       document.documentElement.removeAttribute("data-theme")
       applyCustomTheme(customTheme.colors)
+      cacheTheme({
+        id: themeId,
+        isCustom: true,
+        colors: customTheme.colors,
+      })
     } else {
+      // Preset theme
       document.documentElement.setAttribute("data-theme", themeId)
+      cacheTheme({
+        id: themeId,
+        isCustom: false,
+      })
+    }
+  }, [config.theme, isLoaded, customThemes, themesLoaded])
+
+  const setTheme = async (themeId: string): Promise<void> => {
+    const customTheme = customThemes.find((t) => t.id === themeId)
+
+    if (customTheme) {
+      // Custom theme
+      document.documentElement.removeAttribute("data-theme")
+      applyCustomTheme(customTheme.colors)
+      cacheTheme({
+        id: themeId,
+        isCustom: true,
+        colors: customTheme.colors,
+      })
+    } else {
+      // Preset theme
+      document.documentElement.setAttribute("data-theme", themeId)
+      cacheTheme({
+        id: themeId,
+        isCustom: false,
+      })
     }
 
     await updateTheme(themeId)
