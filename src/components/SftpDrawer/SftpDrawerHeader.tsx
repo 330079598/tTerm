@@ -1,5 +1,13 @@
 import React from "react"
-import { ArrowUpFromLine, ChevronRight, FolderPlus, RefreshCcw, X } from "lucide-react"
+import {
+  ArrowUpFromLine,
+  ChevronRight,
+  FolderPlus,
+  ListX,
+  RefreshCcw,
+  Trash2,
+  X,
+} from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { TransferManager } from "@/components/TransferManager"
@@ -10,28 +18,34 @@ import type { TransferTask } from "@/types/tab"
 interface SftpDrawerHeaderProps {
   breadcrumbs: Array<{ label: string; path: string }>
   clearCompletedTransfers: () => void
+  clearSelection: () => void
   cancelTransfer: (id: string) => Promise<void>
   handleCreateDirectory: () => void
+  handleDeleteSelection: () => void
   handleUploadDialog: () => Promise<void>
   isLoading: boolean
   listingCurrentPath?: string | null
   loadDirectory: (path?: string | null) => Promise<void>
   onClose: () => void
   removeTransfer: (id: string) => void
+  selectedCount: number
   transfers: TransferTask[]
 }
 
 export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   breadcrumbs,
   clearCompletedTransfers,
+  clearSelection,
   cancelTransfer,
   handleCreateDirectory,
+  handleDeleteSelection,
   handleUploadDialog,
   isLoading,
   listingCurrentPath,
   loadDirectory,
   onClose,
   removeTransfer,
+  selectedCount,
   transfers,
 }) => {
   const { t } = useTranslation()
@@ -64,6 +78,26 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
           onRemove={removeTransfer}
           onClearCompleted={clearCompletedTransfers}
         />
+        {selectedCount > 0 && (
+          <>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={clearSelection}
+              title={t("sftp.selection.clear", { defaultValue: "Clear selection" })}
+            >
+              <ListX className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={handleDeleteSelection}
+              title={t("sftp.actions.deleteSelected", { defaultValue: "Delete Selected" })}
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          </>
+        )}
         <Button
           variant="ghost"
           size="icon-sm"

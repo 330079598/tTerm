@@ -2,14 +2,11 @@ import React, { useEffect, useRef, useState } from "react"
 import {
   AlertCircle,
   ArrowUpFromLine,
-  CheckSquare,
   File,
   Folder,
   FolderPlus,
   Loader2,
   RefreshCcw,
-  Square,
-  Trash2,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -27,10 +24,8 @@ import type {
 
 interface SftpDrawerContentProps {
   activePath: string | null
-  clearSelection: () => void
   error: string | null
   handleActivateEntry: (path: string) => void
-  handleDeleteSelection: () => void
   handleDragEnter: (event: React.DragEvent<HTMLDivElement>) => void
   handleDragLeave: (event: React.DragEvent<HTMLDivElement>) => void
   handleDragOver: (event: React.DragEvent<HTMLDivElement>) => void
@@ -42,17 +37,14 @@ interface SftpDrawerContentProps {
   isLoading: boolean
   listing: SftpDirectoryListing | null
   loadDirectory: (path?: string | null) => Promise<void>
-  selectedCount: number
   selectedPaths: string[]
   setContextMenu: React.Dispatch<React.SetStateAction<SftpContextMenuState | null>>
 }
 
 export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
   activePath,
-  clearSelection,
   error,
   handleActivateEntry,
-  handleDeleteSelection,
   handleDragEnter,
   handleDragLeave,
   handleDragOver,
@@ -64,7 +56,6 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
   isLoading,
   listing,
   loadDirectory,
-  selectedCount,
   selectedPaths,
   setContextMenu,
 }) => {
@@ -166,30 +157,6 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
       )}
 
       <div className="sftp-table-shell">
-        {selectedCount > 0 && (
-          <div className="sftp-selection-bar">
-            <div className="sftp-selection-summary">
-              <CheckSquare className="size-4" />
-              <span>
-                {t("sftp.selection.count", {
-                  count: selectedCount,
-                  defaultValue: `${selectedCount} item(s) selected`,
-                })}
-              </span>
-            </div>
-            <div className="sftp-selection-actions">
-              <Button variant="ghost" size="sm" onClick={clearSelection}>
-                <Square className="size-4" />
-                {t("sftp.selection.clear", { defaultValue: "Clear selection" })}
-              </Button>
-              <Button variant="destructive" size="sm" onClick={handleDeleteSelection}>
-                <Trash2 className="size-4" />
-                {t("sftp.actions.deleteSelected", { defaultValue: "Delete Selected" })}
-              </Button>
-            </div>
-          </div>
-        )}
-
         <ScrollArea
           className="flex-1"
           onMouseDown={(event) => {
@@ -293,9 +260,6 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
                   onContextMenu={(event) => {
                     event.preventDefault()
                     handleActivateEntry(entry.path)
-                    if (!selectedPaths.includes(entry.path)) {
-                      clearSelection()
-                    }
                     setContextMenu({ x: event.clientX, y: event.clientY, entryPath: entry.path })
                   }}
                 >

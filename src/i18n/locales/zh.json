@@ -240,14 +240,12 @@
       "download": "下载文件",
       "rename": "重命名",
       "delete": "删除",
-      "deleteSelected": "删除所选项",
+      "deleteSelected": "删除选择",
       "newFolder": "新建文件夹",
       "refresh": "刷新",
       "close": "关闭"
     },
     "selection": {
-      "count_one": "已选择 {{count}} 项",
-      "count_other": "已选择 {{count}} 项",
       "clear": "清空选择",
       "toggle": "选择 {{name}}"
     },

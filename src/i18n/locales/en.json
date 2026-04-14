@@ -252,15 +252,13 @@
       "download": "Download File",
       "rename": "Rename",
       "delete": "Delete",
-      "deleteSelected": "Delete Selected",
+      "deleteSelected": "Delete Selection",
       "newFolder": "New Folder",
       "refresh": "Refresh",
       "close": "Close"
     },
     "selection": {
-      "count_one": "{{count}} item selected",
-      "count_other": "{{count}} items selected",
-      "clear": "Clear selection",
+      "clear": "Clear Selection",
       "toggle": "Select {{name}}"
     },
     "dialogs": {

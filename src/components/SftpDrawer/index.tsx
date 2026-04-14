@@ -360,14 +360,17 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       <SftpDrawerHeader
         breadcrumbs={breadcrumbs}
         clearCompletedTransfers={clearCompletedTransfers}
+        clearSelection={handleClearSelection}
         cancelTransfer={cancelTransfer}
         handleCreateDirectory={handleCreateDirectory}
+        handleDeleteSelection={handleDeleteSelection}
         handleUploadDialog={handleUploadDialog}
         isLoading={isBusy}
         listingCurrentPath={listing?.currentPath}
         loadDirectory={loadDirectory}
         onClose={onClose}
         removeTransfer={removeTransfer}
+        selectedCount={selectedPaths.length}
         transfers={transfers}
       />
 
@@ -382,7 +385,6 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         error={error}
         activePath={activePath}
         handleActivateEntry={handleActivateEntry}
-        handleDeleteSelection={handleDeleteSelection}
         handleDragEnter={handleDragEnter}
         handleDragLeave={handleDragLeave}
         handleDragOver={handleDragOver}
@@ -394,10 +396,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         isLoading={isBusy}
         listing={listing}
         loadDirectory={loadDirectory}
-        selectedCount={selectedPaths.length}
         selectedPaths={selectedPaths}
         setContextMenu={setContextMenu}
-        clearSelection={handleClearSelection}
       />
 
       <SftpEntryContextMenu
