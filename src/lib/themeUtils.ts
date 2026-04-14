@@ -1,4 +1,5 @@
 import type { CustomTheme, PresetThemeId, ThemeColors } from "@/types/theme"
+import { applyThemeToDom, resolveThemeCache } from "@/lib/themePreloader"
 
 // Extract current theme color values from CSS variables
 export function extractThemeColors(): ThemeColors {
@@ -62,15 +63,23 @@ export function createCustomThemeFromPreset(
   name: string,
   description?: string
 ): Omit<CustomTheme, "id"> {
-  // Temporarily switch to preset theme to extract colors
-  const currentTheme = document.documentElement.getAttribute("data-theme")
-  document.documentElement.setAttribute("data-theme", presetId)
+  const currentThemeId = document.documentElement.getAttribute("data-theme")
+  const currentColors = extractThemeColors()
 
+  applyThemeToDom(resolveThemeCache(presetId, []))
   const colors = extractThemeColors()
 
-  // Restore original theme
-  if (currentTheme) {
-    document.documentElement.setAttribute("data-theme", currentTheme)
+  if (currentThemeId) {
+    applyThemeToDom({
+      id: currentThemeId,
+      isCustom: false,
+    })
+  } else {
+    applyThemeToDom({
+      id: "temporary-custom-theme",
+      isCustom: true,
+      colors: currentColors,
+    })
   }
 
   return {

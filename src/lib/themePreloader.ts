@@ -1,4 +1,5 @@
-import type { ThemeColors } from "@/types/theme"
+import type { CustomTheme, ThemeColors } from "@/types/theme"
+import { PRESET_THEME_IDS } from "@/types/theme"
 
 /**
  * Theme preloader utility
@@ -21,12 +22,42 @@ export interface ThemeCache {
   timestamp?: number
 }
 
+const THEME_COLOR_KEYS = [
+  "background",
+  "foreground",
+  "card",
+  "cardForeground",
+  "popover",
+  "popoverForeground",
+  "primary",
+  "primaryForeground",
+  "secondary",
+  "secondaryForeground",
+  "muted",
+  "mutedForeground",
+  "accent",
+  "accentForeground",
+  "destructive",
+  "destructiveForeground",
+  "success",
+  "successForeground",
+  "warning",
+  "warningForeground",
+  "border",
+  "input",
+  "ring",
+  "tabBackground",
+  "tabActive",
+  "tabHover",
+  "titlebar",
+] as const satisfies ReadonlyArray<keyof ThemeColors>
+
 const THEME_CACHE_KEY = "tterm-theme-cache"
 const CACHE_VERSION_KEY = "tterm-cache-version"
 const CURRENT_CACHE_VERSION = "1.0.0"
 
 // Preset theme background colors (from themes.css)
-const PRESET_THEME_BACKGROUNDS: Record<string, string> = {
+const PRESET_THEME_BACKGROUNDS: Record<(typeof PRESET_THEME_IDS)[number], string> = {
   default: "hsl(220 13% 12%)",
   light: "hsl(0 0% 100%)",
   ocean: "hsl(200 30% 10%)",
@@ -35,36 +66,105 @@ const PRESET_THEME_BACKGROUNDS: Record<string, string> = {
   ubuntu: "hsl(302 58% 10%)",
 }
 
+function toCssVariableName(key: keyof ThemeColors): string {
+  return key.replace(/([A-Z])/g, "-$1").toLowerCase()
+}
+
+function toCssColor(value: string): string {
+  const normalized = value.trim()
+
+  if (
+    normalized.startsWith("hsl(") ||
+    normalized.startsWith("rgb(") ||
+    normalized.startsWith("#") ||
+    normalized.startsWith("var(")
+  ) {
+    return normalized
+  }
+
+  return `hsl(${normalized})`
+}
+
+function clearCustomThemeColors(): void {
+  const root = document.documentElement
+
+  THEME_COLOR_KEYS.forEach((key) => {
+    root.style.removeProperty(`--${toCssVariableName(key)}`)
+  })
+}
+
+export function isPresetThemeId(themeId: string): themeId is (typeof PRESET_THEME_IDS)[number] {
+  return PRESET_THEME_IDS.includes(themeId as (typeof PRESET_THEME_IDS)[number])
+}
+
 /**
  * Apply custom theme colors to DOM
  */
 function applyCustomThemeColors(colors: ThemeColors): void {
   const root = document.documentElement
+
   Object.entries(colors).forEach(([key, value]) => {
-    const cssVar = key.replace(/([A-Z])/g, "-$1").toLowerCase()
+    const cssVar = toCssVariableName(key as keyof ThemeColors)
     root.style.setProperty(`--${cssVar}`, value)
   })
 
-  // Also set body background for splash screen
   if (colors.background) {
-    document.body.style.backgroundColor = colors.background
+    document.body.style.backgroundColor = toCssColor(colors.background)
   }
 }
 
 /**
  * Apply preset theme background to body
  */
-function applyPresetThemeBackground(themeId: string): void {
-  const backgroundColor = PRESET_THEME_BACKGROUNDS[themeId] || PRESET_THEME_BACKGROUNDS.default
-  document.body.style.backgroundColor = backgroundColor
+function applyPresetThemeBackground(themeId: (typeof PRESET_THEME_IDS)[number]): void {
+  document.body.style.backgroundColor = PRESET_THEME_BACKGROUNDS[themeId]
+}
+
+export function resolveThemeCache(themeId: string, customThemes: CustomTheme[]): ThemeCache {
+  const customTheme = customThemes.find((theme) => theme.id === themeId)
+  if (customTheme) {
+    return {
+      id: customTheme.id,
+      isCustom: true,
+      colors: customTheme.colors,
+    }
+  }
+
+  if (isPresetThemeId(themeId)) {
+    return {
+      id: themeId,
+      isCustom: false,
+    }
+  }
+
+  return {
+    id: "default",
+    isCustom: false,
+  }
+}
+
+export function applyThemeToDom(themeCache: ThemeCache): void {
+  clearCustomThemeColors()
+
+  if (themeCache.isCustom && themeCache.colors) {
+    document.documentElement.removeAttribute("data-theme")
+    applyCustomThemeColors(themeCache.colors)
+    return
+  }
+
+  const presetThemeId = isPresetThemeId(themeCache.id) ? themeCache.id : "default"
+  document.documentElement.setAttribute("data-theme", presetThemeId)
+  applyPresetThemeBackground(presetThemeId)
 }
 
 /**
  * Apply default theme to DOM
  */
 function applyDefaultTheme(): void {
-  document.documentElement.setAttribute("data-theme", "default")
-  applyPresetThemeBackground("default")
+  applyThemeToDom({
+    id: "default",
+    isCustom: false,
+  })
 }
 
 /**
@@ -93,6 +193,7 @@ function isThemeCacheValid(cache: unknown): cache is ThemeCache {
 
   // If custom theme, must have colors
   if (themeCache.isCustom && !themeCache.colors) return false
+  if (!themeCache.isCustom && !isPresetThemeId(themeCache.id)) return false
 
   return true
 }
@@ -128,14 +229,7 @@ export function preloadTheme(): ThemeCache | null {
       return null
     }
 
-    // Apply theme
-    if (themeCache.isCustom && themeCache.colors) {
-      document.documentElement.removeAttribute("data-theme")
-      applyCustomThemeColors(themeCache.colors)
-    } else {
-      document.documentElement.setAttribute("data-theme", themeCache.id)
-      applyPresetThemeBackground(themeCache.id)
-    }
+    applyThemeToDom(themeCache)
 
     return themeCache
   } catch (error) {

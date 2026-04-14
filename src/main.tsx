@@ -1,6 +1,7 @@
 import ReactDOM from "react-dom/client"
 
 import App from "@/App"
+import { onAppReady } from "@/lib/startup"
 import { preloadTheme } from "@/lib/themePreloader"
 
 import "@/i18n/config"
@@ -11,16 +12,11 @@ preloadTheme()
 // Mount React application
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(<App />)
 
-// Hide splash screen after React renders
-// Use requestIdleCallback for better performance
-if ("requestIdleCallback" in window) {
-  requestIdleCallback(() => {
-    hideSplashScreen()
-  })
-} else {
-  // Fallback for browsers without requestIdleCallback
-  setTimeout(hideSplashScreen, 100)
-}
+let disposeReadyListener = () => {}
+disposeReadyListener = onAppReady(() => {
+  hideSplashScreen()
+  disposeReadyListener()
+})
 
 function hideSplashScreen() {
   const splash = document.getElementById("splash-screen")

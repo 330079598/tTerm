@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { invoke } from "@tauri-apps/api/core"
 
+import { markConfigReady } from "@/lib/startup"
+
 export interface SecretBackendStatus {
   activeBackend: "system" | "vault" | "memory"
   keyringAvailable: boolean
@@ -104,6 +106,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       setSecretStatus(defaultSecretStatus)
     } finally {
       setIsLoaded(true)
+      markConfigReady()
     }
   }, [])
 

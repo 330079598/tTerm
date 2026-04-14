@@ -18,6 +18,7 @@ import { useConfig } from "@/contexts/ConfigContext"
 import { useConnectionManager } from "@/hooks/useConnectionManager"
 import { useSessionPersistence } from "@/hooks/useSessionPersistence"
 import { useTabs } from "@/hooks/useTabs"
+import { markSessionReady } from "@/lib/startup"
 import { Tab, TabContextMenuAction } from "@/types/tab"
 
 export const TTermApp: React.FC = () => {
@@ -68,22 +69,38 @@ export const TTermApp: React.FC = () => {
   }, [isLoaded, config.language, i18n])
 
   useEffect(() => {
+    let cancelled = false
+
     const loadAndRestoreSession = async () => {
-      const savedSession = await loadSession()
-      if (savedSession && savedSession.tabs.length > 0) {
-        restoreSession(savedSession.tabs, savedSession.activeTabId)
-      } else {
-        addTab(
-          buildTabFromConnection({
-            title: "Terminal",
-            type: "terminal",
-            isModified: false,
-          })
-        )
+      try {
+        const savedSession = await loadSession()
+        if (cancelled) {
+          return
+        }
+
+        if (savedSession && savedSession.tabs.length > 0) {
+          restoreSession(savedSession.tabs, savedSession.activeTabId)
+        } else {
+          addTab(
+            buildTabFromConnection({
+              title: "Terminal",
+              type: "terminal",
+              isModified: false,
+            })
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          markSessionReady()
+        }
       }
     }
 
-    loadAndRestoreSession()
+    void loadAndRestoreSession()
+
+    return () => {
+      cancelled = true
+    }
   }, [addTab, loadSession, restoreSession])
 
   useEffect(() => {

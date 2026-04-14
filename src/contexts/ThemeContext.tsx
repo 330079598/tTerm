@@ -4,23 +4,14 @@ import React, {
   useContext,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useState,
 } from "react"
 
 import { useConfig } from "@/contexts/ConfigContext"
-import { cacheTheme } from "@/lib/themePreloader"
-import type { CustomTheme, PresetTheme, PresetThemeId, Theme, ThemeColors } from "@/types/theme"
-
-/**
- * Apply custom theme colors to DOM
- */
-function applyCustomTheme(colors: ThemeColors): void {
-  const root = document.documentElement
-  Object.entries(colors).forEach(([key, value]) => {
-    const cssVar = key.replace(/([A-Z])/g, "-$1").toLowerCase()
-    root.style.setProperty(`--${cssVar}`, value)
-  })
-}
+import { announceThemeReady } from "@/lib/startup"
+import { applyThemeToDom, cacheTheme, resolveThemeCache } from "@/lib/themePreloader"
+import type { CustomTheme, PresetTheme, PresetThemeId, Theme } from "@/types/theme"
 
 const PRESET_THEMES_DATA: PresetTheme[] = [
   { id: "default", name: "Default", description: "Tabby inspired dark theme", isCustom: false },
@@ -52,6 +43,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { config, updateTheme, isLoaded } = useConfig()
   const [customThemes, setCustomThemes] = useState<CustomTheme[]>([])
   const [themesLoaded, setThemesLoaded] = useState(false)
+
+  const applyAndCacheTheme = useCallback((themeId: string, themes: CustomTheme[]) => {
+    const themeCache = resolveThemeCache(themeId, themes)
+    applyThemeToDom(themeCache)
+    cacheTheme(themeCache)
+    return themeCache.id
+  }, [])
 
   // Load custom themes from localStorage on mount
   useEffect(() => {
@@ -86,50 +84,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useLayoutEffect(() => {
     if (!isLoaded || !themesLoaded) return
 
-    const themeId = config.theme || "default"
-    const customTheme = customThemes.find((t) => t.id === themeId)
+    const resolvedThemeId = applyAndCacheTheme(config.theme || "default", customThemes)
 
-    if (customTheme) {
-      // Custom theme
-      document.documentElement.removeAttribute("data-theme")
-      applyCustomTheme(customTheme.colors)
-      cacheTheme({
-        id: themeId,
-        isCustom: true,
-        colors: customTheme.colors,
-      })
-    } else {
-      // Preset theme
-      document.documentElement.setAttribute("data-theme", themeId)
-      cacheTheme({
-        id: themeId,
-        isCustom: false,
-      })
+    if (resolvedThemeId !== (config.theme || "default")) {
+      void updateTheme(resolvedThemeId)
     }
-  }, [config.theme, isLoaded, customThemes, themesLoaded])
+
+    announceThemeReady()
+  }, [applyAndCacheTheme, config.theme, customThemes, isLoaded, themesLoaded, updateTheme])
 
   const setTheme = async (themeId: string): Promise<void> => {
-    const customTheme = customThemes.find((t) => t.id === themeId)
-
-    if (customTheme) {
-      // Custom theme
-      document.documentElement.removeAttribute("data-theme")
-      applyCustomTheme(customTheme.colors)
-      cacheTheme({
-        id: themeId,
-        isCustom: true,
-        colors: customTheme.colors,
-      })
-    } else {
-      // Preset theme
-      document.documentElement.setAttribute("data-theme", themeId)
-      cacheTheme({
-        id: themeId,
-        isCustom: false,
-      })
-    }
-
-    await updateTheme(themeId)
+    const resolvedThemeId = applyAndCacheTheme(themeId, customThemes)
+    await updateTheme(resolvedThemeId)
   }
 
   const createCustomTheme = async (theme: Omit<CustomTheme, "id">): Promise<CustomTheme> => {
@@ -151,12 +117,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     saveCustomThemes(updatedThemes)
 
-    // Re-apply theme if updating the current one
     if (config.theme === id) {
-      const updatedTheme = updatedThemes.find((t) => t.id === id)
-      if (updatedTheme) {
-        applyCustomTheme(updatedTheme.colors)
-      }
+      applyAndCacheTheme(id, updatedThemes)
     }
   }
 
@@ -164,7 +126,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const updatedThemes = customThemes.filter((theme) => theme.id !== id)
     saveCustomThemes(updatedThemes)
 
-    // Switch to default theme if deleting the current one
     if (config.theme === id) {
       await setTheme("default")
     }
@@ -174,7 +135,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const sourceTheme = customThemes.find((t) => t.id === themeId)
 
     if (sourceTheme) {
-      // Duplicate custom theme
       return createCustomTheme({
         name: newName,
         description: sourceTheme.description,
@@ -184,28 +144,36 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       })
-    } else {
-      // Create from preset theme
-      const themeUtils = await import("@/lib/themeUtils")
-      const themeData = themeUtils.createCustomThemeFromPreset(
-        themeId as PresetThemeId,
-        newName,
-        `Based on ${themeId}`
-      )
-      return createCustomTheme(themeData)
     }
+
+    const themeUtils = await import("@/lib/themeUtils")
+    const themeData = themeUtils.createCustomThemeFromPreset(
+      themeId as PresetThemeId,
+      newName,
+      `Based on ${themeId}`
+    )
+    return createCustomTheme(themeData)
   }
 
-  const getTheme = (id: string): Theme | undefined => {
-    return PRESET_THEMES_DATA.find((t) => t.id === id) || customThemes.find((t) => t.id === id)
-  }
+  const getTheme = useCallback(
+    (id: string): Theme | undefined => {
+      return PRESET_THEMES_DATA.find((t) => t.id === id) || customThemes.find((t) => t.id === id)
+    },
+    [customThemes]
+  )
 
-  const availableThemes: Theme[] = [...PRESET_THEMES_DATA, ...customThemes]
+  const availableThemes = useMemo<Theme[]>(() => {
+    return [...PRESET_THEMES_DATA, ...customThemes]
+  }, [customThemes])
+
+  const currentTheme = useMemo(() => {
+    return resolveThemeCache(config.theme || "default", customThemes).id
+  }, [config.theme, customThemes])
 
   return (
     <ThemeContext.Provider
       value={{
-        currentTheme: config.theme || "default",
+        currentTheme,
         availableThemes,
         presetThemes: PRESET_THEMES_DATA,
         customThemes,
