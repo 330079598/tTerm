@@ -10,16 +10,12 @@ import {
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { TransferManager } from "@/components/TransferManager"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import type { TransferTask } from "@/types/tab"
 
 interface SftpDrawerHeaderProps {
   breadcrumbs: Array<{ label: string; path: string }>
-  clearCompletedTransfers: () => void
   clearSelection: () => void
-  cancelTransfer: (id: string) => Promise<void>
   handleCreateDirectory: () => void
   handleDeleteSelection: () => void
   handleUploadDialog: () => Promise<void>
@@ -27,16 +23,12 @@ interface SftpDrawerHeaderProps {
   listingCurrentPath?: string | null
   loadDirectory: (path?: string | null) => Promise<void>
   onClose: () => void
-  removeTransfer: (id: string) => void
   selectedCount: number
-  transfers: TransferTask[]
 }
 
 export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   breadcrumbs,
-  clearCompletedTransfers,
   clearSelection,
-  cancelTransfer,
   handleCreateDirectory,
   handleDeleteSelection,
   handleUploadDialog,
@@ -44,9 +36,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   listingCurrentPath,
   loadDirectory,
   onClose,
-  removeTransfer,
   selectedCount,
-  transfers,
 }) => {
   const { t } = useTranslation()
 
@@ -72,12 +62,6 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
         </div>
       </div>
       <div className="sftp-header-actions">
-        <TransferManager
-          transfers={transfers}
-          onCancel={cancelTransfer}
-          onRemove={removeTransfer}
-          onClearCompleted={clearCompletedTransfers}
-        />
         {selectedCount > 0 && (
           <>
             <Button

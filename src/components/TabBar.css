@@ -3,7 +3,7 @@
   display: flex;
   align-items: stretch;
   height: 100%;
-  overflow: hidden;
+  overflow: visible;
   -webkit-app-region: no-drag;
   flex-shrink: 1;
   min-width: 0;

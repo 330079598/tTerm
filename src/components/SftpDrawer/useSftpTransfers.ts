@@ -1,7 +1,7 @@
 import { useSftpDownloads } from "@/components/SftpDrawer/useSftpDownloads"
-import { useSftpTransferState } from "@/components/SftpDrawer/useSftpTransferState"
 import { useSftpUploads } from "@/components/SftpDrawer/useSftpUploads"
 import type { SftpDirectoryListing } from "@/components/SftpDrawer/types"
+import { useTransferManager } from "@/contexts/TransferContext"
 import type { Tab } from "@/types/tab"
 
 interface UseSftpTransfersParams {
@@ -43,7 +43,7 @@ export function useSftpTransfers({
     transfers,
     transfersRef,
     updateTransfer,
-  } = useSftpTransferState()
+  } = useTransferManager()
 
   const { downloadEntry, handleOpenEntry } = useSftpDownloads({
     addTransfer,

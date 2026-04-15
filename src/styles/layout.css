@@ -16,6 +16,7 @@
   user-select: none;
   -webkit-app-region: no-drag;
   position: relative;
+  z-index: 20;
 }
 
 .title-bar::after {
@@ -33,12 +34,12 @@
   display: flex;
   align-items: center;
   height: 100%;
-  overflow: hidden;
+  overflow: visible;
   flex-shrink: 1;
   min-width: 0;
   -webkit-app-region: no-drag;
   position: relative;
-  z-index: 1;
+  z-index: 21;
 }
 
 .title-bar-right {
@@ -48,7 +49,7 @@
   flex-shrink: 0;
   -webkit-app-region: no-drag;
   position: relative;
-  z-index: 1;
+  z-index: 21;
 }
 
 .drag-space {

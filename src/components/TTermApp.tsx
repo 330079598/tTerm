@@ -10,11 +10,13 @@ import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
 import { RenameDialog } from "@/components/RenameDialog"
 import { SettingsDialog } from "@/components/SettingsDialog"
 import { TabBar } from "@/components/TabBar"
+import { TransferManager } from "@/components/TransferManager"
 import { EmptyState } from "@/components/TTermApp/EmptyState"
 import { TabPanels } from "@/components/TTermApp/TabPanels"
 import type { ContextMenuState, RenameDialogState } from "@/components/TTermApp/types"
 import { buildTabFromConnection } from "@/components/TTermApp/ttermAppUtils"
 import { useConfig } from "@/contexts/ConfigContext"
+import { useTransferManager } from "@/contexts/TransferContext"
 import { useConnectionManager } from "@/hooks/useConnectionManager"
 import { useSessionPersistence } from "@/hooks/useSessionPersistence"
 import { useTabs } from "@/hooks/useTabs"
@@ -61,6 +63,8 @@ export const TTermApp: React.FC = () => {
   const { saveSession, loadSession } = useSessionPersistence()
   const { cleanupConnection } = useConnectionManager()
   const { config, isLoaded } = useConfig()
+  const { cancelTransfer, clearCompletedTransfers, removeTransfer, transfers } =
+    useTransferManager()
 
   useEffect(() => {
     if (isLoaded) {
@@ -308,6 +312,12 @@ export const TTermApp: React.FC = () => {
               >
                 <BookMarked size={16} />
               </button>
+              <TransferManager
+                transfers={transfers}
+                onCancel={cancelTransfer}
+                onRemove={removeTransfer}
+                onClearCompleted={clearCompletedTransfers}
+              />
             </div>
           </div>
         </div>

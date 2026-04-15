@@ -79,7 +79,6 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
     return { active, completed }
   }, [transfers])
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -164,7 +163,7 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
 
           {transfer.status === "pending" && (
             <div className="text-muted-foreground mt-2 text-[10px]">
-              {t("transfer.pending", { defaultValue: "Waiting..." })} •{" "}
+              {t("transfer.pending", { defaultValue: "Waiting..." })} {" - "}
               {formatBytes(transfer.fileSize)}
             </div>
           )}
@@ -202,13 +201,10 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
 
   const hasActive = active.length > 0
   const totalTransfers = transfers.length
-
-  // Auto-open when there are active transfers and dropdown is closed
   const shouldShowBadge = hasActive || totalTransfers > 0
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Dropdown Toggle Button */}
       <Button
         variant="outline"
         size="sm"
@@ -228,9 +224,8 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
         {isOpen ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
       </Button>
 
-      {/* Dropdown Content */}
       {isOpen && (
-        <Card className="absolute top-full right-0 z-50 mt-2 w-[420px] shadow-lg">
+        <Card className="absolute top-full left-0 z-50 mt-2 w-[420px] shadow-lg">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-sm font-semibold">
               {t("transfer.title", { defaultValue: "Transfers" })}

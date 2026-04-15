@@ -4,6 +4,7 @@ import { lazy } from "react"
 import { TTermApp } from "@/components/TTermApp"
 import { ConfigProvider } from "@/contexts/ConfigContext"
 import { ThemeProvider } from "@/contexts/ThemeContext"
+import { TransferProvider } from "@/contexts/TransferContext"
 
 const TanStackRouterDevtools = import.meta.env.DEV
   ? lazy(() =>
@@ -17,8 +18,10 @@ const RootLayout = () => {
   return (
     <ConfigProvider>
       <ThemeProvider>
-        <TTermApp />
-        <TanStackRouterDevtools />
+        <TransferProvider>
+          <TTermApp />
+          <TanStackRouterDevtools />
+        </TransferProvider>
       </ThemeProvider>
     </ConfigProvider>
   )
