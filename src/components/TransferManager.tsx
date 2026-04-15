@@ -206,10 +206,10 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
   return (
     <div className="relative" ref={dropdownRef}>
       <Button
-        variant="outline"
+        variant="ghost"
         size="sm"
         onClick={() => setIsOpen(!isOpen)}
-        className={cn("gap-1.5", hasActive && "border-primary text-primary")}
+        className={cn("gap-1.5 px-2 shadow-none", hasActive && "text-primary")}
       >
         {hasActive ? (
           <Loader2 className="size-4 animate-spin" />
