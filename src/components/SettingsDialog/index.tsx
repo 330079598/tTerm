@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { Settings } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -24,10 +24,81 @@ import {
   SettingsDialogProps,
 } from "@/components/SettingsDialog/types"
 
+const SECRET_STATUS_CACHE_MS = 30_000
+
+let cachedSystemFonts: string[] | null = null
+let systemFontsPromise: Promise<string[]> | null = null
+let lastSecretStatusRefreshAt = 0
+let secretStatusPromise: Promise<unknown> | null = null
+
+function getPerfNow() {
+  return typeof performance === "undefined" ? 0 : performance.now()
+}
+
+function logPerf(label: string, startTime: number, detail?: string) {
+  if (!import.meta.env.DEV || typeof performance === "undefined") {
+    return
+  }
+
+  const duration = Math.round(performance.now() - startTime)
+  const suffix = detail ? ` ${detail}` : ""
+  console.info(`[perf] ${label}: ${duration}ms${suffix}`)
+}
+
+async function loadSystemFontsCached() {
+  if (cachedSystemFonts !== null) {
+    return cachedSystemFonts
+  }
+
+  if (systemFontsPromise) {
+    return systemFontsPromise
+  }
+
+  const startTime = getPerfNow()
+  systemFontsPromise = invoke<string[]>("list_fonts")
+    .then((fonts) => {
+      cachedSystemFonts = fonts
+      return fonts
+    })
+    .finally(() => {
+      logPerf(
+        "settings.fonts",
+        startTime,
+        cachedSystemFonts ? `count=${cachedSystemFonts.length}` : ""
+      )
+      systemFontsPromise = null
+    })
+
+  return systemFontsPromise
+}
+
+function refreshSecretStatusCached(refreshSecretStatus: () => Promise<unknown>) {
+  const now = Date.now()
+  if (now - lastSecretStatusRefreshAt < SECRET_STATUS_CACHE_MS) {
+    return
+  }
+
+  if (secretStatusPromise) {
+    return
+  }
+
+  const startTime = getPerfNow()
+  secretStatusPromise = refreshSecretStatus()
+    .then(() => {
+      lastSecretStatusRefreshAt = Date.now()
+    })
+    .catch(() => {})
+    .finally(() => {
+      logPerf("settings.secret_status", startTime)
+      secretStatusPromise = null
+    })
+}
+
 export const SettingsDialog: React.FC<SettingsDialogProps> = ({
   onClose,
   defaultTab = "appearance",
 }) => {
+  const mountStartRef = useRef(getPerfNow())
   const { t, i18n } = useTranslation()
   const {
     config,
@@ -42,13 +113,15 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
   const { currentTheme, presetThemes, customThemes, setTheme, deleteCustomTheme, duplicateTheme } =
     useTheme()
   const { toast } = useToast()
+  const [activeTab, setActiveTab] = useState(defaultTab)
 
   const [fontFamily, setFontFamily] = useState(config.font_family)
   const [fontSize, setFontSize] = useState(config.font_size)
   const [cursorStyle, setCursorStyle] = useState(config.cursor_style)
   const [scrollbackLines, setScrollbackLines] = useState(config.scrollback_lines || 10000)
-  const [systemFonts, setSystemFonts] = useState<string[]>([])
-  const [loadingFonts, setLoadingFonts] = useState(true)
+  const [systemFonts, setSystemFonts] = useState<string[]>(() => cachedSystemFonts ?? [])
+  const [fontsLoaded, setFontsLoaded] = useState(cachedSystemFonts !== null)
+  const [loadingFonts, setLoadingFonts] = useState(false)
 
   const [password, setPassword] = useState("")
   const [secretError, setSecretError] = useState<string | null>(null)
@@ -58,15 +131,54 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
   const [creatingFromTheme, setCreatingFromTheme] = useState<string | null>(null)
 
   useEffect(() => {
-    invoke<string[]>("list_fonts")
-      .then((fonts) => setSystemFonts(fonts))
-      .catch(() => setSystemFonts([]))
-      .finally(() => setLoadingFonts(false))
-  }, [])
+    setActiveTab(defaultTab)
+  }, [defaultTab])
 
   useEffect(() => {
-    refreshSecretStatus().catch(() => {})
-  }, [refreshSecretStatus])
+    logPerf("settings.open", mountStartRef.current, `tab=${activeTab}`)
+  }, [activeTab])
+
+  useEffect(() => {
+    if (activeTab !== "font" || fontsLoaded || loadingFonts) {
+      return
+    }
+
+    let cancelled = false
+    setLoadingFonts(true)
+
+    loadSystemFontsCached()
+      .then((fonts) => {
+        if (cancelled) {
+          return
+        }
+        setSystemFonts(fonts)
+      })
+      .catch(() => {
+        if (cancelled) {
+          return
+        }
+        setSystemFonts([])
+      })
+      .finally(() => {
+        if (cancelled) {
+          return
+        }
+        setFontsLoaded(true)
+        setLoadingFonts(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab, fontsLoaded, loadingFonts])
+
+  useEffect(() => {
+    if (activeTab !== "security") {
+      return
+    }
+
+    refreshSecretStatusCached(refreshSecretStatus)
+  }, [activeTab, refreshSecretStatus])
 
   const handleFontSave = async () => {
     try {
@@ -214,7 +326,7 @@ ${t("app.builtWith")}`)
             </DialogTitle>
           </DialogHeader>
 
-          <Tabs defaultValue={defaultTab} className="flex h-[calc(85vh-5rem)]">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex h-[calc(85vh-5rem)]">
             <SettingsSidebar />
 
             <TabsContent value="appearance" className="m-0 flex-1 overflow-y-auto p-6">
@@ -240,7 +352,7 @@ ${t("app.builtWith")}`)
                 fontSize={fontSize}
                 cursorStyle={cursorStyle}
                 handleFontSave={handleFontSave}
-                loadingFonts={loadingFonts}
+                loadingFonts={loadingFonts || !fontsLoaded}
                 scrollbackLines={scrollbackLines}
                 setFontFamily={setFontFamily}
                 setFontSize={setFontSize}
