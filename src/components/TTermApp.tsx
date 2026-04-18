@@ -5,6 +5,7 @@ import { platform } from "@tauri-apps/plugin-os"
 import { BookMarked, Plus, Settings } from "lucide-react"
 
 import { ConnectionDialog } from "@/components/ConnectionDialog"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { ContextMenu } from "@/components/ContextMenu"
 import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
 import { RenameDialog } from "@/components/RenameDialog"
@@ -351,24 +352,32 @@ export const TTermApp: React.FC = () => {
         />
       )}
 
-      {showProfilesPanel && (
-        <div className="modal-overlay" onClick={() => setShowProfilesPanel(false)}>
-          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
-            <ProfilesPanel
-              refreshKey={profilesRefreshKey}
-              onConnect={(connection) => {
-                handleConnect(connection)
-                setShowProfilesPanel(false)
-              }}
-              onEdit={(profile) => {
-                setEditingProfile(profile)
-                setShowConnectionDialog(true)
-                setShowProfilesPanel(false)
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <Dialog open={showProfilesPanel} onOpenChange={setShowProfilesPanel}>
+        <DialogContent
+          showCloseButton={false}
+          className="flex h-[min(720px,85vh)] flex-col overflow-hidden p-0 sm:max-w-3xl"
+        >
+          <ProfilesPanel
+            refreshKey={profilesRefreshKey}
+            surface="plain"
+            onClose={() => setShowProfilesPanel(false)}
+            onCreate={() => {
+              setEditingProfile(null)
+              setShowConnectionDialog(true)
+              setShowProfilesPanel(false)
+            }}
+            onConnect={(connection) => {
+              handleConnect(connection)
+              setShowProfilesPanel(false)
+            }}
+            onEdit={(profile) => {
+              setEditingProfile(profile)
+              setShowConnectionDialog(true)
+              setShowProfilesPanel(false)
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       {contextMenu.visible && (
         <ContextMenu

@@ -101,7 +101,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
       ref={menuRef}
       style={{ position: "fixed", left: position.left, top: position.top, zIndex: 9999 }}
     >
-      <Card className="bg-popover w-max min-w-35 max-w-55 rounded-md py-1 shadow-lg">
+      <Card className="bg-popover w-max max-w-55 min-w-35 rounded-md py-1 shadow-lg">
         <CardContent className="p-1">
           {actions.map((action, index) => {
             if (action.separator) {

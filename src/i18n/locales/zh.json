@@ -78,7 +78,8 @@
   "common": {
     "cancel": "取消",
     "save": "保存",
-    "saving": "保存中..."
+    "saving": "保存中...",
+    "close": "关闭"
   },
   "language": {
     "title": "选择语言",
@@ -101,7 +102,19 @@
     "editTitle": "编辑连接",
     "newConnection": "新建连接",
     "ungrouped": "未分组",
-    "duplicateName": "该分组下已存在同名连接"
+    "duplicateName": "该分组下已存在同名连接",
+    "description": "打开、整理并编辑你的连接配置",
+    "emptyDescription": "创建一个连接配置，之后即可一键重连。",
+    "searchPlaceholder": "按名称、主机或分组搜索",
+    "searchEmpty": "没有匹配的连接",
+    "searchEmptyDescription": "试试其他名称、主机、用户名或分组关键词。",
+    "localTerminal": "本地终端",
+    "localBadge": "本地",
+    "authMethodKey": "密钥认证",
+    "authMethodPassword": "密码认证",
+    "portDisplay": "端口 {{port}}",
+    "connectionDetailsUnavailable": "连接信息不可用",
+    "keyboardHint": "使用 {{shortcut}} 聚焦搜索，方向键切换，回车连接。"
   },
   "connection": {
     "newConnection": "新建连接",

@@ -80,7 +80,8 @@
   "common": {
     "cancel": "Cancel",
     "save": "Save",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "close": "Close"
   },
   "language": {
     "title": "Choose Language",
@@ -103,7 +104,19 @@
     "editTitle": "Edit Connection",
     "newConnection": "New Connection",
     "ungrouped": "Ungrouped",
-    "duplicateName": "A connection with this name already exists in this group"
+    "duplicateName": "A connection with this name already exists in this group",
+    "description": "Open, organize, and edit your connection profiles",
+    "emptyDescription": "Create a profile to reconnect in one click.",
+    "searchPlaceholder": "Search by name, host, or group",
+    "searchEmpty": "No matching connections",
+    "searchEmptyDescription": "Try a different name, host, username, or group.",
+    "localTerminal": "Local terminal",
+    "localBadge": "Local",
+    "authMethodKey": "Key auth",
+    "authMethodPassword": "Password auth",
+    "portDisplay": "Port {{port}}",
+    "connectionDetailsUnavailable": "Connection details unavailable",
+    "keyboardHint": "Use {{shortcut}} to focus search, arrows to move, and Enter to connect."
   },
   "connection": {
     "newConnection": "New Connection",
