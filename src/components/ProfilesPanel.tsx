@@ -89,11 +89,10 @@ const ProfileRow: React.FC<{
   onConnect: (p: SavedProfile) => void
   onEdit: (p: SavedProfile) => void
   onDelete: (id: string) => void
-  onHover: (id: string) => void
   onFocusRow: (id: string) => void
   rowRef: (node: HTMLDivElement | null) => void
   t: (key: string, options?: Record<string, unknown>) => string
-}> = ({ profile, isActive, onConnect, onEdit, onDelete, onHover, onFocusRow, rowRef, t }) => {
+}> = ({ profile, isActive, onConnect, onEdit, onDelete, onFocusRow, rowRef, t }) => {
   const connectionType = profile.connection_type as ConnectionType
   const Icon = connectionTypeIcons[connectionType] ?? Server
   const subtitle = buildConnectionSubtitle(profile, t)
@@ -104,9 +103,15 @@ const ProfileRow: React.FC<{
       return
     }
 
-    if (event.key === "Enter" || event.key === " ") {
+    if (event.key === "Enter") {
       event.preventDefault()
       onConnect(profile)
+      return
+    }
+
+    if (event.key === " ") {
+      event.preventDefault()
+      onFocusRow(profile.id)
     }
   }
 
@@ -116,15 +121,20 @@ const ProfileRow: React.FC<{
       role="button"
       tabIndex={0}
       aria-selected={isActive}
-      onClick={() => onConnect(profile)}
+      onClick={() => onFocusRow(profile.id)}
+      onDoubleClick={() => onConnect(profile)}
       onKeyDown={handleKeyDown}
-      onMouseEnter={() => onHover(profile.id)}
       onFocus={() => onFocusRow(profile.id)}
       className={cn(
-        "group border-border/60 focus-visible:ring-ring/50 relative flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors outline-none focus-visible:ring-[3px]",
-        isActive ? "border-border bg-accent/50" : "hover:bg-accent/40"
+        "group focus-visible:ring-ring/50 relative flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors outline-none focus-visible:ring-[3px]",
+        isActive
+          ? "border-border bg-muted/55 shadow-[inset_0_0_0_1px_hsl(var(--border)/0.45)]"
+          : "border-border/60 hover:bg-muted/30"
       )}
     >
+      {isActive && (
+        <div className="bg-foreground/28 absolute inset-y-2 left-0 w-0.5 rounded-full" />
+      )}
       <div className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg border">
         <Icon size={16} />
       </div>
@@ -481,6 +491,9 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
         <div className="text-muted-foreground mt-2 text-[11px] tracking-[0.02em]">
           {t("profiles.keyboardHint", { shortcut: searchShortcut })}
         </div>
+        <div className="text-muted-foreground mt-1 text-[11px] tracking-[0.02em]">
+          {t("profiles.mouseHint")}
+        </div>
       </div>
 
       <ScrollArea className="flex-1 px-3 pb-3">
@@ -528,7 +541,6 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
                       onConnect={handleConnect}
                       onEdit={onEdit}
                       onDelete={handleDelete}
-                      onHover={setSelectedProfileId}
                       onFocusRow={setSelectedProfileId}
                       rowRef={(node) => {
                         rowRefs.current[profile.id] = node
