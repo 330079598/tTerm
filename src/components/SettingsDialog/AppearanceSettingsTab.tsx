@@ -1,5 +1,5 @@
 import React from "react"
-import { Copy, Edit, Languages, Palette, Plus, Trash2 } from "lucide-react"
+import { Copy, Edit, Languages, Palette, Plus, RotateCcw, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { ThemeCard } from "@/components/ThemeCard"
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
-import type { CustomTheme, PresetTheme } from "@/types/theme"
+import type { CustomTheme, PresetTheme, PresetThemeId } from "@/types/theme"
 
 interface LanguageOption {
   code: string
@@ -21,10 +21,12 @@ interface AppearanceSettingsTabProps {
   handleDeleteTheme: (themeId: string) => Promise<void>
   handleDuplicateTheme: (themeId: string) => Promise<void>
   handleLanguageChange: (langCode: string) => Promise<void>
+  handleResetPresetTheme: (themeId: PresetThemeId) => Promise<void>
   handleThemeChange: (themeId: string) => Promise<void>
   i18nLanguage: string
   languages: LanguageOption[]
   presetThemes: PresetTheme[]
+  presetThemeOverrides: CustomTheme[]
   setCreatingFromTheme: React.Dispatch<React.SetStateAction<string | null>>
   setEditingThemeId: React.Dispatch<React.SetStateAction<string | null>>
 }
@@ -35,10 +37,12 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
   handleDeleteTheme,
   handleDuplicateTheme,
   handleLanguageChange,
+  handleResetPresetTheme,
   handleThemeChange,
   i18nLanguage,
   languages,
   presetThemes,
+  presetThemeOverrides,
   setCreatingFromTheme,
   setEditingThemeId,
 }) => {
@@ -90,28 +94,56 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
               {t("themeEditor.presetThemes")}
             </h4>
             <div className="grid gap-2">
-              {presetThemes.map((theme) => (
-                <ThemeCard
-                  key={theme.id}
-                  currentTheme={currentTheme}
-                  description={t(`theme.${theme.id}Desc`)}
-                  name={t(`theme.${theme.id}`)}
-                  onSelect={() => handleThemeChange(theme.id)}
-                  theme={theme}
-                  actionSlot={
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setCreatingFromTheme(theme.id)}
-                      className="h-auto px-2 py-2"
-                      title={t("themeEditor.customize")}
-                    >
-                      <Plus size={16} />
-                    </Button>
-                  }
-                />
-              ))}
+              {presetThemes.map((theme) => {
+                const hasOverride = presetThemeOverrides.some((override) => override.id === theme.id)
+
+                return (
+                  <ThemeCard
+                    key={theme.id}
+                    currentTheme={currentTheme}
+                    description={hasOverride ? (theme.description ?? t("themeEditor.noDescription")) : t(`theme.${theme.id}Desc`)}
+                    name={hasOverride ? theme.name : t(`theme.${theme.id}`)}
+                    onSelect={() => handleThemeChange(theme.id)}
+                    theme={theme}
+                    actionSlot={
+                      <div className="flex">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingThemeId(theme.id)}
+                          className="h-auto px-2 py-2"
+                          title={t("themeEditor.edit")}
+                        >
+                          <Edit size={14} />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDuplicateTheme(theme.id)}
+                          className="h-auto px-2 py-2"
+                          title={t("themeEditor.duplicate")}
+                        >
+                          <Copy size={14} />
+                        </Button>
+                        {hasOverride && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleResetPresetTheme(theme.id as PresetThemeId)}
+                            className="h-auto px-2 py-2"
+                            title={t("themeEditor.restorePreset")}
+                          >
+                            <RotateCcw size={14} />
+                          </Button>
+                        )}
+                      </div>
+                    }
+                  />
+                )
+              })}
             </div>
           </div>
 

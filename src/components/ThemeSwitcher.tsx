@@ -1,12 +1,13 @@
 import React, { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Copy, Edit, Palette, Plus, Trash2 } from "lucide-react"
+import { Copy, Edit, Palette, Plus, RotateCcw, Trash2 } from "lucide-react"
 
 import { ThemeCard } from "@/components/ThemeCard"
 import { ThemeEditor } from "@/components/ThemeEditor"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useTheme } from "@/contexts/ThemeContext"
+import type { PresetThemeId } from "@/types/theme"
 
 interface ThemeSwitcherProps {
   onClose: () => void
@@ -14,8 +15,16 @@ interface ThemeSwitcherProps {
 
 export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
   const { t } = useTranslation()
-  const { currentTheme, presetThemes, customThemes, setTheme, deleteCustomTheme, duplicateTheme } =
-    useTheme()
+  const {
+    currentTheme,
+    presetThemes,
+    customThemes,
+    presetThemeOverrides,
+    setTheme,
+    deleteCustomTheme,
+    resetPresetTheme,
+    duplicateTheme,
+  } = useTheme()
 
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null)
   const [creatingFromTheme, setCreatingFromTheme] = useState<string | null>(null)
@@ -54,6 +63,14 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
     }
   }
 
+  const handleResetPresetTheme = async (themeId: PresetThemeId) => {
+    try {
+      await resetPresetTheme(themeId)
+    } catch (error) {
+      console.error("Failed to reset preset theme:", error)
+    }
+  }
+
   return (
     <>
       <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -69,29 +86,57 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
             <div>
               <h3 className="mb-2 text-sm font-medium">{t("themeEditor.presetThemes")}</h3>
               <div className="grid grid-cols-1 gap-2">
-                {presetThemes.map((theme) => (
-                  <ThemeCard
-                    key={theme.id}
-                    compactPreview
-                    currentTheme={currentTheme}
-                    description={t(`theme.${theme.id}Desc`)}
-                    name={t(`theme.${theme.id}`)}
-                    onSelect={() => handleThemeChange(theme.id)}
-                    theme={theme}
-                    actionSlot={
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setCreatingFromTheme(theme.id)}
-                        className="h-auto px-2 py-2"
-                        title={t("themeEditor.customize")}
-                      >
-                        <Plus size={16} />
-                      </Button>
-                    }
-                  />
-                ))}
+                {presetThemes.map((theme) => {
+                  const hasOverride = presetThemeOverrides.some((override) => override.id === theme.id)
+
+                  return (
+                    <ThemeCard
+                      key={theme.id}
+                      compactPreview
+                      currentTheme={currentTheme}
+                      description={hasOverride ? (theme.description ?? t("themeEditor.noDescription")) : t(`theme.${theme.id}Desc`)}
+                      name={hasOverride ? theme.name : t(`theme.${theme.id}`)}
+                      onSelect={() => handleThemeChange(theme.id)}
+                      theme={theme}
+                      actionSlot={
+                        <div className="flex">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingThemeId(theme.id)}
+                            className="h-auto px-2 py-2"
+                            title={t("themeEditor.edit")}
+                          >
+                            <Edit size={14} />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDuplicateTheme(theme.id)}
+                            className="h-auto px-2 py-2"
+                            title={t("themeEditor.duplicate")}
+                          >
+                            <Copy size={14} />
+                          </Button>
+                          {hasOverride && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleResetPresetTheme(theme.id as PresetThemeId)}
+                              className="h-auto px-2 py-2"
+                              title={t("themeEditor.restorePreset")}
+                            >
+                              <RotateCcw size={14} />
+                            </Button>
+                          )}
+                        </div>
+                      }
+                    />
+                  )
+                })}
               </div>
             </div>
 

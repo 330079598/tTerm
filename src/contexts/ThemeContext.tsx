@@ -10,21 +10,45 @@ import React, {
 
 import { useConfig } from "@/contexts/ConfigContext"
 import { announceThemeReady } from "@/lib/startup"
-import { PRESET_THEMES, resolveThemeDefinition } from "@/lib/themeDefinitions"
+import { getPresetTheme, PRESET_THEMES, resolveThemeDefinition } from "@/lib/themeDefinitions"
 import { applyThemeToDom, cacheTheme, resolveThemeCache } from "@/lib/themePreloader"
 import type { CustomTheme, PresetTheme, PresetThemeId, Theme, TerminalPalette } from "@/types/theme"
+import { PRESET_THEME_IDS } from "@/types/theme"
 
 const STORAGE_KEY = "custom-themes"
+
+function isPresetThemeId(themeId: string): themeId is PresetThemeId {
+  return PRESET_THEME_IDS.includes(themeId as PresetThemeId)
+}
+
+function mergePresetThemeWithOverride(
+  presetTheme: PresetTheme,
+  overrideTheme: CustomTheme | undefined
+): PresetTheme {
+  if (!overrideTheme) {
+    return presetTheme
+  }
+
+  return {
+    ...presetTheme,
+    name: overrideTheme.name,
+    description: overrideTheme.description,
+    colors: { ...overrideTheme.colors },
+    terminal: { ...overrideTheme.terminal },
+  }
+}
 
 interface ThemeContextType {
   currentTheme: string
   availableThemes: Theme[]
   presetThemes: PresetTheme[]
   customThemes: CustomTheme[]
+  presetThemeOverrides: CustomTheme[]
   setTheme: (themeId: string) => Promise<void>
   createCustomTheme: (theme: Omit<CustomTheme, "id">) => Promise<CustomTheme>
   updateCustomTheme: (id: string, updates: Partial<CustomTheme>) => Promise<void>
   deleteCustomTheme: (id: string) => Promise<void>
+  resetPresetTheme: (id: PresetThemeId) => Promise<void>
   duplicateTheme: (themeId: string, newName: string) => Promise<CustomTheme>
   getTheme: (id: string) => Theme | undefined
 }
@@ -62,6 +86,27 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { config, updateTheme, isLoaded } = useConfig()
   const [customThemes, setCustomThemes] = useState<CustomTheme[]>([])
   const [themesLoaded, setThemesLoaded] = useState(false)
+
+  const presetThemeOverrides = useMemo(
+    () => customThemes.filter((theme) => isPresetThemeId(theme.id)),
+    [customThemes]
+  )
+
+  const standaloneCustomThemes = useMemo(
+    () => customThemes.filter((theme) => !isPresetThemeId(theme.id)),
+    [customThemes]
+  )
+
+  const presetThemes = useMemo(
+    () =>
+      PRESET_THEMES.map((theme) =>
+        mergePresetThemeWithOverride(
+          theme,
+          presetThemeOverrides.find((overrideTheme) => overrideTheme.id === theme.id)
+        )
+      ),
+    [presetThemeOverrides]
+  )
 
   const applyAndCacheTheme = useCallback((themeId: string, themes: CustomTheme[]) => {
     const themeCache = resolveThemeCache(themeId, themes)
@@ -126,9 +171,32 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateCustomTheme = async (id: string, updates: Partial<CustomTheme>) => {
-    const updatedThemes = customThemes.map((theme) =>
-      theme.id === id ? { ...theme, ...updates, updatedAt: Date.now() } : theme
-    )
+    const presetTheme = getPresetTheme(id)
+    const existingTheme = customThemes.find((theme) => theme.id === id)
+
+    let updatedThemes: CustomTheme[]
+
+    if (existingTheme) {
+      updatedThemes = customThemes.map((theme) =>
+        theme.id === id ? { ...theme, ...updates, updatedAt: Date.now() } : theme
+      )
+    } else if (presetTheme) {
+      const createdTheme: CustomTheme = {
+        id,
+        name: updates.name ?? presetTheme.name,
+        description: updates.description ?? presetTheme.description,
+        colors: updates.colors ? { ...updates.colors } : { ...presetTheme.colors },
+        terminal: updates.terminal ? { ...updates.terminal } : { ...presetTheme.terminal },
+        baseTheme: presetTheme.id,
+        isCustom: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+
+      updatedThemes = [...customThemes, createdTheme]
+    } else {
+      return
+    }
 
     saveCustomThemes(updatedThemes)
 
@@ -143,6 +211,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     if (config.theme === id) {
       await setTheme("default")
+    }
+  }
+
+  const resetPresetTheme = async (id: PresetThemeId) => {
+    const updatedThemes = customThemes.filter((theme) => theme.id !== id)
+    saveCustomThemes(updatedThemes)
+
+    if (config.theme === id) {
+      applyAndCacheTheme(id, updatedThemes)
     }
   }
 
@@ -174,16 +251,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const getTheme = useCallback(
     (id: string): Theme | undefined => {
       return (
-        PRESET_THEMES.find((theme) => theme.id === id) ||
-        customThemes.find((theme) => theme.id === id)
+        presetThemes.find((theme) => theme.id === id) || standaloneCustomThemes.find((theme) => theme.id === id)
       )
     },
-    [customThemes]
+    [presetThemes, standaloneCustomThemes]
   )
 
   const availableThemes = useMemo<Theme[]>(() => {
-    return [...PRESET_THEMES, ...customThemes]
-  }, [customThemes])
+    return [...presetThemes, ...standaloneCustomThemes]
+  }, [presetThemes, standaloneCustomThemes])
 
   const currentTheme = useMemo(() => {
     return resolveThemeCache(config.theme || "default", customThemes).id
@@ -194,12 +270,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       value={{
         currentTheme,
         availableThemes,
-        presetThemes: PRESET_THEMES,
-        customThemes,
+        presetThemes,
+        customThemes: standaloneCustomThemes,
+        presetThemeOverrides,
         setTheme,
         createCustomTheme,
         updateCustomTheme,
         deleteCustomTheme,
+        resetPresetTheme,
         duplicateTheme,
         getTheme,
       }}

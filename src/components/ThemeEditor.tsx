@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useTheme } from "@/contexts/ThemeContext"
 import { generateTerminalPaletteFromColors } from "@/lib/terminalPalette"
 import type { CustomTheme, PresetThemeId, TerminalPalette, ThemeColors } from "@/types/theme"
+import { PRESET_THEME_IDS } from "@/types/theme"
 
 interface ThemeEditorProps {
   themeId?: string
@@ -131,6 +132,10 @@ function normalizeColorPreview(value: string): string {
   return normalized
 }
 
+function isPresetThemeId(themeId: string): themeId is PresetThemeId {
+  return PRESET_THEME_IDS.includes(themeId as PresetThemeId)
+}
+
 export const ThemeEditor: React.FC<ThemeEditorProps> = ({
   themeId,
   baseThemeId,
@@ -138,7 +143,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
   onSave,
 }) => {
   const { t } = useTranslation()
-  const { getTheme, createCustomTheme, updateCustomTheme } = useTheme()
+  const { getTheme, createCustomTheme, presetThemeOverrides, updateCustomTheme } = useTheme()
 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
@@ -149,10 +154,18 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
   useEffect(() => {
     const initializeTheme = async () => {
       if (themeId) {
+        const presetOverride = presetThemeOverrides.find((theme) => theme.id === themeId)
         const theme = getTheme(themeId)
         if (theme) {
-          setName(theme.name)
-          setDescription(theme.description || "")
+          const resolvedName =
+            presetOverride?.name ||
+            (isPresetThemeId(themeId) ? t(`theme.${themeId}`) : theme.name)
+          const resolvedDescription =
+            presetOverride?.description ||
+            (isPresetThemeId(themeId) ? t(`theme.${themeId}Desc`) : (theme.description ?? ""))
+
+          setName(resolvedName)
+          setDescription(resolvedDescription)
           setColors({ ...theme.colors })
           setTerminal({ ...theme.terminal })
         }
@@ -171,7 +184,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
     }
 
     initializeTheme()
-  }, [themeId, baseThemeId, getTheme])
+  }, [themeId, baseThemeId, getTheme, presetThemeOverrides, t])
 
   const handleColorChange = (key: keyof ThemeColors, value: string) => {
     if (colors) {
@@ -202,8 +215,6 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
           colors,
           terminal,
         })
-        const theme = getTheme(themeId) as CustomTheme
-        onSave?.(theme)
       } else {
         const newTheme = await createCustomTheme({
           name: name.trim(),

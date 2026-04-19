@@ -73,6 +73,7 @@
     "edit": "编辑",
     "delete": "删除",
     "duplicate": "复制",
+    "restorePreset": "恢复预设",
     "duplicateName": "输入复制主题的名称",
     "confirmDelete": "确定要删除此主题吗？",
     "createNew": "创建新主题",

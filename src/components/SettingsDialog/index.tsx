@@ -9,6 +9,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
+import type { PresetThemeId } from "@/types/theme"
 import { AppearanceSettingsTab } from "@/components/SettingsDialog/AppearanceSettingsTab"
 import { FontSettingsTab } from "@/components/SettingsDialog/FontSettingsTab"
 import { GeneralSettingsTab } from "@/components/SettingsDialog/GeneralSettingsTab"
@@ -106,8 +107,16 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
     unlockSecretVault,
     lockSecretVault,
   } = useConfig()
-  const { currentTheme, presetThemes, customThemes, setTheme, deleteCustomTheme, duplicateTheme } =
-    useTheme()
+  const {
+    currentTheme,
+    presetThemes,
+    customThemes,
+    presetThemeOverrides,
+    setTheme,
+    deleteCustomTheme,
+    resetPresetTheme,
+    duplicateTheme,
+  } = useTheme()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState(defaultTab)
 
@@ -244,6 +253,14 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
     }
   }
 
+  const handleResetPresetTheme = async (themeId: PresetThemeId) => {
+    try {
+      await resetPresetTheme(themeId)
+    } catch (error) {
+      console.error("Failed to reset preset theme:", error)
+    }
+  }
+
   const handleEnableVault = async (checked: boolean) => {
     setSecretBusy(true)
     setSecretError(null)
@@ -324,10 +341,12 @@ ${t("app.builtWith")}`)
                 handleDeleteTheme={handleDeleteTheme}
                 handleDuplicateTheme={handleDuplicateTheme}
                 handleLanguageChange={handleLanguageChange}
+                handleResetPresetTheme={handleResetPresetTheme}
                 handleThemeChange={handleThemeChange}
                 i18nLanguage={i18n.language}
                 languages={languages}
                 presetThemes={presetThemes}
+                presetThemeOverrides={presetThemeOverrides}
                 setCreatingFromTheme={setCreatingFromTheme}
                 setEditingThemeId={setEditingThemeId}
               />

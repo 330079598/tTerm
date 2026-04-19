@@ -24,7 +24,6 @@ import type {
 import { toast } from "@/hooks/use-toast"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
-import { resolveThemeDefinition } from "@/lib/themeDefinitions"
 
 export const TerminalTab: React.FC<TerminalTabProps> = ({
   tabId,
@@ -51,7 +50,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const waitingForReconnectRef = useRef(false)
   const onReconnectRequestRef = useRef(onReconnectRequest)
   const { config } = useConfig()
-  const { currentTheme, customThemes } = useTheme()
+  const { currentTheme, getTheme } = useTheme()
   const { t } = useTranslation()
   const initialFontFamily = useRef(config.font_family)
   const initialFontSize = useRef(config.font_size)
@@ -105,8 +104,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   }, [onReconnectRequest])
 
   const resolveTerminalTheme = useCallback(() => {
-    return { ...resolveThemeDefinition(currentTheme, customThemes).terminal }
-  }, [currentTheme, customThemes])
+    return { ...(getTheme(currentTheme)?.terminal ?? getTheme("default")!.terminal) }
+  }, [currentTheme, getTheme])
 
   const fitTerminalOnly = useCallback(() => {
     if (!fitAddonRef.current || !termRef.current) return
