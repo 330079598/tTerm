@@ -251,7 +251,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const getTheme = useCallback(
     (id: string): Theme | undefined => {
       return (
-        presetThemes.find((theme) => theme.id === id) || standaloneCustomThemes.find((theme) => theme.id === id)
+        presetThemes.find((theme) => theme.id === id) ||
+        standaloneCustomThemes.find((theme) => theme.id === id)
       )
     },
     [presetThemes, standaloneCustomThemes]

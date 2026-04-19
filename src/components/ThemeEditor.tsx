@@ -158,8 +158,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
         const theme = getTheme(themeId)
         if (theme) {
           const resolvedName =
-            presetOverride?.name ||
-            (isPresetThemeId(themeId) ? t(`theme.${themeId}`) : theme.name)
+            presetOverride?.name || (isPresetThemeId(themeId) ? t(`theme.${themeId}`) : theme.name)
           const resolvedDescription =
             presetOverride?.description ||
             (isPresetThemeId(themeId) ? t(`theme.${themeId}Desc`) : (theme.description ?? ""))

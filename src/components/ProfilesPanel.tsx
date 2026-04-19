@@ -29,22 +29,6 @@ const connectionTypeIcons = {
   terminal: Terminal,
 } as const
 
-const isInteractiveElement = (target: EventTarget | null) => {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  const tagName = target.tagName
-  return (
-    target.isContentEditable ||
-    tagName === "BUTTON" ||
-    tagName === "A" ||
-    tagName === "INPUT" ||
-    tagName === "TEXTAREA" ||
-    tagName === "SELECT"
-  )
-}
-
 const buildConnectionSubtitle = (
   profile: SavedProfile,
   t: (key: string, options?: Record<string, unknown>) => string
@@ -98,33 +82,12 @@ const ProfileRow: React.FC<{
   const subtitle = buildConnectionSubtitle(profile, t)
   const metaItems = buildMetaItems(profile, t)
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.currentTarget !== event.target) {
-      return
-    }
-
-    if (event.key === "Enter") {
-      event.preventDefault()
-      onConnect(profile)
-      return
-    }
-
-    if (event.key === " ") {
-      event.preventDefault()
-      onFocusRow(profile.id)
-    }
-  }
-
   return (
     <div
       ref={rowRef}
-      role="button"
-      tabIndex={0}
       aria-selected={isActive}
       onClick={() => onFocusRow(profile.id)}
       onDoubleClick={() => onConnect(profile)}
-      onKeyDown={handleKeyDown}
-      onFocus={() => onFocusRow(profile.id)}
       className={cn(
         "group focus-visible:ring-ring/50 relative flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors outline-none focus-visible:ring-[3px]",
         isActive
@@ -338,107 +301,8 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
     rowRefs.current[activeProfileId]?.scrollIntoView({ block: "nearest" })
   }, [activeProfileId])
 
-  const searchShortcut = useMemo(() => {
-    if (typeof navigator !== "undefined" && /(Mac|iPhone|iPad|iPod)/i.test(navigator.platform)) {
-      return "⌘K"
-    }
-
-    return "Ctrl+K"
-  }, [])
-
   const hasProfiles = profiles.length > 0
   const hasFilteredResults = groupedProfiles.length > 0
-
-  const focusSearch = () => {
-    searchInputRef.current?.focus()
-    searchInputRef.current?.select()
-  }
-
-  const moveActiveProfile = (direction: 1 | -1) => {
-    if (flatProfiles.length === 0) {
-      return
-    }
-
-    setSelectedProfileId((current) => {
-      const currentIndex = current
-        ? flatProfiles.findIndex((profile) => profile.id === current)
-        : -1
-      const baseIndex = currentIndex === -1 ? (direction === 1 ? -1 : 0) : currentIndex
-      const nextIndex = Math.min(flatProfiles.length - 1, Math.max(0, baseIndex + direction))
-
-      return flatProfiles[nextIndex]?.id ?? flatProfiles[0].id
-    })
-  }
-
-  const jumpToProfile = (position: "first" | "last") => {
-    if (flatProfiles.length === 0) {
-      return
-    }
-
-    setSelectedProfileId(
-      position === "first" ? flatProfiles[0].id : flatProfiles[flatProfiles.length - 1].id
-    )
-  }
-
-  const connectActiveProfile = () => {
-    if (flatProfiles.length === 0) {
-      return
-    }
-
-    const profile = flatProfiles.find((item) => item.id === activeProfileId) ?? flatProfiles[0]
-    handleConnect(profile)
-  }
-
-  const handleKeyDownCapture = (event: React.KeyboardEvent<HTMLElement>) => {
-    const keyboardShortcutPressed =
-      (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k"
-
-    if (keyboardShortcutPressed) {
-      event.preventDefault()
-      focusSearch()
-      return
-    }
-
-    if (flatProfiles.length === 0) {
-      return
-    }
-
-    const targetIsSearch = event.target === searchInputRef.current
-    const targetIsInteractive = isInteractiveElement(event.target)
-
-    if (targetIsInteractive && !targetIsSearch) {
-      return
-    }
-
-    if (event.key === "ArrowDown") {
-      event.preventDefault()
-      moveActiveProfile(1)
-      return
-    }
-
-    if (event.key === "ArrowUp") {
-      event.preventDefault()
-      moveActiveProfile(-1)
-      return
-    }
-
-    if (event.key === "Home") {
-      event.preventDefault()
-      jumpToProfile("first")
-      return
-    }
-
-    if (event.key === "End") {
-      event.preventDefault()
-      jumpToProfile("last")
-      return
-    }
-
-    if (targetIsSearch && event.key === "Enter") {
-      event.preventDefault()
-      connectActiveProfile()
-    }
-  }
 
   return (
     <section
@@ -447,7 +311,6 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
         surface === "panel" && "bg-card rounded-2xl border shadow-sm",
         className
       )}
-      onKeyDownCapture={handleKeyDownCapture}
     >
       <div className="border-border/80 flex items-start justify-between gap-4 border-b px-5 py-4">
         <div className="min-w-0 pr-6">
@@ -487,12 +350,6 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
             placeholder={t("profiles.searchPlaceholder")}
             className="pl-9"
           />
-        </div>
-        <div className="text-muted-foreground mt-2 text-[11px] tracking-[0.02em]">
-          {t("profiles.keyboardHint", { shortcut: searchShortcut })}
-        </div>
-        <div className="text-muted-foreground mt-1 text-[11px] tracking-[0.02em]">
-          {t("profiles.mouseHint")}
         </div>
       </div>
 

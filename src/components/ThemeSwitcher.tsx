@@ -87,14 +87,20 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
               <h3 className="mb-2 text-sm font-medium">{t("themeEditor.presetThemes")}</h3>
               <div className="grid grid-cols-1 gap-2">
                 {presetThemes.map((theme) => {
-                  const hasOverride = presetThemeOverrides.some((override) => override.id === theme.id)
+                  const hasOverride = presetThemeOverrides.some(
+                    (override) => override.id === theme.id
+                  )
 
                   return (
                     <ThemeCard
                       key={theme.id}
                       compactPreview
                       currentTheme={currentTheme}
-                      description={hasOverride ? (theme.description ?? t("themeEditor.noDescription")) : t(`theme.${theme.id}Desc`)}
+                      description={
+                        hasOverride
+                          ? (theme.description ?? t("themeEditor.noDescription"))
+                          : t(`theme.${theme.id}Desc`)
+                      }
                       name={hasOverride ? theme.name : t(`theme.${theme.id}`)}
                       onSelect={() => handleThemeChange(theme.id)}
                       theme={theme}

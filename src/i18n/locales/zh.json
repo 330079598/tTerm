@@ -120,9 +120,7 @@
     "authMethodKey": "密钥认证",
     "authMethodPassword": "密码认证",
     "portDisplay": "端口 {{port}}",
-    "connectionDetailsUnavailable": "连接信息不可用",
-    "keyboardHint": "使用 {{shortcut}} 聚焦搜索，方向键切换，回车连接。",
-    "mouseHint": "单击选中，双击连接。"
+    "connectionDetailsUnavailable": "连接信息不可用"
   },
   "connection": {
     "newConnection": "新建连接",

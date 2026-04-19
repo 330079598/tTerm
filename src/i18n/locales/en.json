@@ -122,9 +122,7 @@
     "authMethodKey": "Key auth",
     "authMethodPassword": "Password auth",
     "portDisplay": "Port {{port}}",
-    "connectionDetailsUnavailable": "Connection details unavailable",
-    "keyboardHint": "Use {{shortcut}} to focus search, arrows to move, and Enter to connect.",
-    "mouseHint": "Single-click selects, double-click connects."
+    "connectionDetailsUnavailable": "Connection details unavailable"
   },
   "connection": {
     "newConnection": "New Connection",

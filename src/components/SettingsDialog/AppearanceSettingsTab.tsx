@@ -95,13 +95,19 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
             </h4>
             <div className="grid gap-2">
               {presetThemes.map((theme) => {
-                const hasOverride = presetThemeOverrides.some((override) => override.id === theme.id)
+                const hasOverride = presetThemeOverrides.some(
+                  (override) => override.id === theme.id
+                )
 
                 return (
                   <ThemeCard
                     key={theme.id}
                     currentTheme={currentTheme}
-                    description={hasOverride ? (theme.description ?? t("themeEditor.noDescription")) : t(`theme.${theme.id}Desc`)}
+                    description={
+                      hasOverride
+                        ? (theme.description ?? t("themeEditor.noDescription"))
+                        : t(`theme.${theme.id}Desc`)
+                    }
                     name={hasOverride ? theme.name : t(`theme.${theme.id}`)}
                     onSelect={() => handleThemeChange(theme.id)}
                     theme={theme}
