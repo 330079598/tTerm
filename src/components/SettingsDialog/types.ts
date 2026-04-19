@@ -1,7 +1,6 @@
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
-import type { PresetThemeId } from "@/types/theme"
 
 export interface SettingsDialogProps {
   onClose: () => void
@@ -27,15 +26,6 @@ export const CURSOR_STYLE_OPTIONS = [
   { value: "block", labelKey: "fontSettings.cursorStyles.block" },
   { value: "underline", labelKey: "fontSettings.cursorStyles.underline" },
 ] as const
-
-export const PRESET_THEME_COLORS: Record<PresetThemeId, string> = {
-  default: "hsl(220 13% 12%)",
-  light: "hsl(0 0% 98%)",
-  ocean: "hsl(200 30% 10%)",
-  forest: "hsl(140 25% 12%)",
-  sunset: "hsl(20 30% 12%)",
-  ubuntu: "hsl(300 100% 6%)",
-}
 
 export const languages = [
   { code: "en", label: "English", nativeLabel: "English" },

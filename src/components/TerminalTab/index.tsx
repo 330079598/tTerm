@@ -12,7 +12,6 @@ import { SftpDrawer } from "@/components/SftpDrawer"
 import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
 import {
-  FALLBACK_TERMINAL_BACKGROUND,
   STATUS_CONNECTING,
   TAB_ACTIVATE_REFIT_DELAY_MS,
   getConnectionDisplay,
@@ -24,6 +23,8 @@ import type {
 } from "@/components/TerminalTab/types"
 import { toast } from "@/hooks/use-toast"
 import { useConfig } from "@/contexts/ConfigContext"
+import { useTheme } from "@/contexts/ThemeContext"
+import { resolveThemeDefinition } from "@/lib/themeDefinitions"
 
 export const TerminalTab: React.FC<TerminalTabProps> = ({
   tabId,
@@ -50,6 +51,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const waitingForReconnectRef = useRef(false)
   const onReconnectRequestRef = useRef(onReconnectRequest)
   const { config } = useConfig()
+  const { currentTheme, customThemes } = useTheme()
   const { t } = useTranslation()
   const initialFontFamily = useRef(config.font_family)
   const initialFontSize = useRef(config.font_size)
@@ -102,18 +104,9 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     onReconnectRequestRef.current = onReconnectRequest
   }, [onReconnectRequest])
 
-  const resolveTerminalBackground = useCallback(() => {
-    if (typeof window === "undefined") {
-      return FALLBACK_TERMINAL_BACKGROUND
-    }
-
-    const color = window
-      .getComputedStyle(document.documentElement)
-      .getPropertyValue("--background")
-      .trim()
-
-    return color ? `hsl(${color})` : FALLBACK_TERMINAL_BACKGROUND
-  }, [])
+  const resolveTerminalTheme = useCallback(() => {
+    return { ...resolveThemeDefinition(currentTheme, customThemes).terminal }
+  }, [currentTheme, customThemes])
 
   const fitTerminalOnly = useCallback(() => {
     if (!fitAddonRef.current || !termRef.current) return
@@ -187,11 +180,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     const term = termRef.current
     if (!term) return
 
-    term.options.theme = {
-      ...(term.options.theme ?? {}),
-      background: resolveTerminalBackground(),
-    }
-  }, [config.theme, resolveTerminalBackground])
+    term.options.theme = resolveTerminalTheme()
+  }, [currentTheme, resolveTerminalTheme])
 
   useEffect(() => {
     const container = containerRef.current
@@ -208,28 +198,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       fontWeightBold: "bold",
       letterSpacing: 0,
       lineHeight: 1.0,
-      theme: {
-        background: resolveTerminalBackground(),
-        foreground: "#e2e8f0",
-        cursor: "#e2e8f0",
-        selectionBackground: "rgba(226, 232, 240, 0.3)",
-        black: "#1e293b",
-        red: "#f87171",
-        green: "#4ade80",
-        yellow: "#facc15",
-        blue: "#60a5fa",
-        magenta: "#c084fc",
-        cyan: "#22d3ee",
-        white: "#e2e8f0",
-        brightBlack: "#475569",
-        brightRed: "#fca5a5",
-        brightGreen: "#86efac",
-        brightYellow: "#fde047",
-        brightBlue: "#93c5fd",
-        brightMagenta: "#d8b4fe",
-        brightCyan: "#67e8f9",
-        brightWhite: "#f8fafc",
-      },
+      theme: resolveTerminalTheme(),
       allowTransparency: false,
     })
 
@@ -437,7 +406,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     config.scrollback_lines,
     fitTerminalOnly,
     onPidChange,
-    resolveTerminalBackground,
+    resolveTerminalTheme,
     scheduleFitDuringResize,
     setConnectionState,
     setHostKeyPrompt,

@@ -10,17 +10,9 @@ import React, {
 
 import { useConfig } from "@/contexts/ConfigContext"
 import { announceThemeReady } from "@/lib/startup"
+import { PRESET_THEMES, resolveThemeDefinition } from "@/lib/themeDefinitions"
 import { applyThemeToDom, cacheTheme, resolveThemeCache } from "@/lib/themePreloader"
-import type { CustomTheme, PresetTheme, PresetThemeId, Theme } from "@/types/theme"
-
-const PRESET_THEMES_DATA: PresetTheme[] = [
-  { id: "default", name: "Default", description: "Tabby inspired dark theme", isCustom: false },
-  { id: "light", name: "Light", description: "Clean light theme", isCustom: false },
-  { id: "ocean", name: "Ocean", description: "Deep blue ocean theme", isCustom: false },
-  { id: "forest", name: "Forest", description: "Natural green forest theme", isCustom: false },
-  { id: "sunset", name: "Sunset", description: "Warm orange sunset theme", isCustom: false },
-  { id: "ubuntu", name: "Ubuntu", description: "Ubuntu inspired theme", isCustom: false },
-]
+import type { CustomTheme, PresetTheme, PresetThemeId, Theme, TerminalPalette } from "@/types/theme"
 
 const STORAGE_KEY = "custom-themes"
 
@@ -39,6 +31,33 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
+function fallbackTerminalPalette(baseTheme?: string): TerminalPalette {
+  return { ...resolveThemeDefinition(baseTheme || "default", []).terminal }
+}
+
+function normalizeCustomTheme(rawTheme: unknown): CustomTheme | null {
+  if (!rawTheme || typeof rawTheme !== "object") {
+    return null
+  }
+
+  const theme = rawTheme as Partial<CustomTheme>
+  if (!theme.id || !theme.name || !theme.colors) {
+    return null
+  }
+
+  return {
+    id: theme.id,
+    name: theme.name,
+    description: theme.description,
+    colors: theme.colors,
+    terminal: theme.terminal ? { ...theme.terminal } : fallbackTerminalPalette(theme.baseTheme),
+    baseTheme: theme.baseTheme,
+    isCustom: true,
+    createdAt: theme.createdAt ?? Date.now(),
+    updatedAt: theme.updatedAt ?? Date.now(),
+  }
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { config, updateTheme, isLoaded } = useConfig()
   const [customThemes, setCustomThemes] = useState<CustomTheme[]>([])
@@ -51,12 +70,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return themeCache.id
   }, [])
 
-  // Load custom themes from localStorage on mount
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
       if (stored) {
-        const themes = JSON.parse(stored) as CustomTheme[]
+        const themes = (JSON.parse(stored) as unknown[])
+          .map(normalizeCustomTheme)
+          .filter((theme): theme is CustomTheme => theme !== null)
         setCustomThemes(themes)
       }
     } catch (error) {
@@ -66,7 +86,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Save custom themes to localStorage
   const saveCustomThemes = useCallback((themes: CustomTheme[]) => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(themes))
@@ -77,10 +96,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Calibrate theme with Tauri config after loading
-  // This is the key to dual-source strategy:
-  // - localStorage may be cleared, but Tauri config is reliable
-  // - On startup: use cached theme first (fast), then calibrate with real config
   useLayoutEffect(() => {
     if (!isLoaded || !themesLoaded) return
 
@@ -132,13 +147,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }
 
   const duplicateTheme = async (themeId: string, newName: string): Promise<CustomTheme> => {
-    const sourceTheme = customThemes.find((t) => t.id === themeId)
+    const sourceTheme = customThemes.find((theme) => theme.id === themeId)
 
     if (sourceTheme) {
       return createCustomTheme({
         name: newName,
         description: sourceTheme.description,
         colors: { ...sourceTheme.colors },
+        terminal: { ...sourceTheme.terminal },
         baseTheme: sourceTheme.baseTheme,
         isCustom: true,
         createdAt: Date.now(),
@@ -157,13 +173,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const getTheme = useCallback(
     (id: string): Theme | undefined => {
-      return PRESET_THEMES_DATA.find((t) => t.id === id) || customThemes.find((t) => t.id === id)
+      return (
+        PRESET_THEMES.find((theme) => theme.id === id) ||
+        customThemes.find((theme) => theme.id === id)
+      )
     },
     [customThemes]
   )
 
   const availableThemes = useMemo<Theme[]>(() => {
-    return [...PRESET_THEMES_DATA, ...customThemes]
+    return [...PRESET_THEMES, ...customThemes]
   }, [customThemes])
 
   const currentTheme = useMemo(() => {
@@ -175,7 +194,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       value={{
         currentTheme,
         availableThemes,
-        presetThemes: PRESET_THEMES_DATA,
+        presetThemes: PRESET_THEMES,
         customThemes,
         setTheme,
         createCustomTheme,
@@ -199,4 +218,4 @@ export function useTheme() {
 }
 
 export type { Theme, CustomTheme, PresetTheme, PresetThemeId } from "@/types/theme"
-export const PRESET_THEMES = PRESET_THEMES_DATA
+export { PRESET_THEMES }

@@ -9,9 +9,6 @@ import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
-import { hslToCssColor } from "@/lib/utils"
-import type { PresetThemeId } from "@/types/theme"
-
 import { AppearanceSettingsTab } from "@/components/SettingsDialog/AppearanceSettingsTab"
 import { FontSettingsTab } from "@/components/SettingsDialog/FontSettingsTab"
 import { GeneralSettingsTab } from "@/components/SettingsDialog/GeneralSettingsTab"
@@ -20,7 +17,6 @@ import { SettingsSidebar } from "@/components/SettingsDialog/SettingsSidebar"
 import {
   FONT_SIZE_OPTIONS,
   languages,
-  PRESET_THEME_COLORS,
   SettingsDialogProps,
 } from "@/components/SettingsDialog/types"
 
@@ -248,14 +244,6 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
     }
   }
 
-  const getThemeColor = (themeId: string): string => {
-    const customTheme = customThemes.find((theme) => theme.id === themeId)
-    if (customTheme) {
-      return hslToCssColor(customTheme.colors.background)
-    }
-    return PRESET_THEME_COLORS[themeId as PresetThemeId] || "hsl(0 0% 50%)"
-  }
-
   const handleEnableVault = async (checked: boolean) => {
     setSecretBusy(true)
     setSecretError(null)
@@ -333,7 +321,6 @@ ${t("app.builtWith")}`)
               <AppearanceSettingsTab
                 currentTheme={currentTheme}
                 customThemes={customThemes}
-                getThemeColor={getThemeColor}
                 handleDeleteTheme={handleDeleteTheme}
                 handleDuplicateTheme={handleDuplicateTheme}
                 handleLanguageChange={handleLanguageChange}

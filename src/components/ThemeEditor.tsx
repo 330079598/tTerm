@@ -1,17 +1,20 @@
 import React, { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Palette, Save, X } from "lucide-react"
-import { useTheme } from "@/contexts/ThemeContext"
-import type { CustomTheme, PresetThemeId, ThemeColors } from "@/types/theme"
+import { Palette, Sparkles, Save, X } from "lucide-react"
+
+import { ThemePreviewSwatches } from "@/components/ThemePreviewSwatches"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useTheme } from "@/contexts/ThemeContext"
+import { generateTerminalPaletteFromColors } from "@/lib/terminalPalette"
+import type { CustomTheme, PresetThemeId, TerminalPalette, ThemeColors } from "@/types/theme"
 
 interface ThemeEditorProps {
-  themeId?: string // If provided, edit existing theme; otherwise create new theme
-  baseThemeId?: string // Which theme to base on
+  themeId?: string
+  baseThemeId?: string
   onClose: () => void
   onSave?: (theme: CustomTheme) => void
 }
@@ -60,6 +63,71 @@ const COLOR_GROUPS = {
     { key: "tabHover", label: "Tab Hover" },
     { key: "titlebar", label: "Titlebar" },
   ],
+} as const
+
+const TERMINAL_GROUPS: Array<{
+  title: string
+  items: Array<{ key: keyof TerminalPalette; label: string }>
+}> = [
+  {
+    title: "Surface",
+    items: [
+      { key: "background", label: "Terminal Background" },
+      { key: "foreground", label: "Terminal Foreground" },
+      { key: "cursor", label: "Cursor" },
+      { key: "selectionBackground", label: "Selection" },
+    ],
+  },
+  {
+    title: "ANSI",
+    items: [
+      { key: "black", label: "Black" },
+      { key: "red", label: "Red" },
+      { key: "green", label: "Green" },
+      { key: "yellow", label: "Yellow" },
+      { key: "blue", label: "Blue" },
+      { key: "magenta", label: "Magenta" },
+      { key: "cyan", label: "Cyan" },
+      { key: "white", label: "White" },
+    ],
+  },
+  {
+    title: "Bright ANSI",
+    items: [
+      { key: "brightBlack", label: "Bright Black" },
+      { key: "brightRed", label: "Bright Red" },
+      { key: "brightGreen", label: "Bright Green" },
+      { key: "brightYellow", label: "Bright Yellow" },
+      { key: "brightBlue", label: "Bright Blue" },
+      { key: "brightMagenta", label: "Bright Magenta" },
+      { key: "brightCyan", label: "Bright Cyan" },
+      { key: "brightWhite", label: "Bright White" },
+    ],
+  },
+]
+
+function isHslValue(value: string): boolean {
+  return /^\d+(\.\d+)?\s+\d+(\.\d+)?%\s+\d+(\.\d+)?%$/.test(value.trim())
+}
+
+function normalizeColorPreview(value: string): string {
+  const normalized = value.trim()
+
+  if (
+    normalized.startsWith("#") ||
+    normalized.startsWith("rgb(") ||
+    normalized.startsWith("rgba(") ||
+    normalized.startsWith("hsl(") ||
+    normalized.startsWith("hsla(")
+  ) {
+    return normalized
+  }
+
+  if (isHslValue(normalized)) {
+    return `hsl(${normalized})`
+  }
+
+  return normalized
 }
 
 export const ThemeEditor: React.FC<ThemeEditorProps> = ({
@@ -74,20 +142,20 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [colors, setColors] = useState<ThemeColors | null>(null)
+  const [terminal, setTerminal] = useState<TerminalPalette | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     const initializeTheme = async () => {
       if (themeId) {
-        // Edit existing theme
         const theme = getTheme(themeId)
-        if (theme && theme.isCustom) {
+        if (theme) {
           setName(theme.name)
           setDescription(theme.description || "")
-          setColors(theme.colors)
+          setColors({ ...theme.colors })
+          setTerminal({ ...theme.terminal })
         }
       } else if (baseThemeId) {
-        // Create based on preset theme
         const themeUtils = await import("@/lib/themeUtils")
         const themeData = themeUtils.createCustomThemeFromPreset(
           baseThemeId as PresetThemeId,
@@ -97,6 +165,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
         setName(themeData.name)
         setDescription(themeData.description || "")
         setColors(themeData.colors)
+        setTerminal(themeData.terminal)
       }
     }
 
@@ -109,26 +178,37 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
     }
   }
 
+  const handleTerminalChange = (key: keyof TerminalPalette, value: string) => {
+    if (terminal) {
+      setTerminal({ ...terminal, [key]: value })
+    }
+  }
+
+  const handleGenerateTerminalPalette = () => {
+    if (!colors) return
+    setTerminal(generateTerminalPaletteFromColors(colors))
+  }
+
   const handleSave = async () => {
-    if (!colors || !name.trim()) return
+    if (!colors || !terminal || !name.trim()) return
 
     setIsSaving(true)
     try {
       if (themeId) {
-        // Update existing theme
         await updateCustomTheme(themeId, {
           name: name.trim(),
           description: description.trim(),
           colors,
+          terminal,
         })
         const theme = getTheme(themeId) as CustomTheme
         onSave?.(theme)
       } else {
-        // Create new theme
         const newTheme = await createCustomTheme({
           name: name.trim(),
           description: description.trim(),
           colors,
+          terminal,
           baseTheme: baseThemeId,
           isCustom: true,
           createdAt: Date.now(),
@@ -144,13 +224,13 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
     }
   }
 
-  if (!colors) {
+  if (!colors || !terminal) {
     return null
   }
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col overflow-hidden">
+      <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Palette size={16} />
@@ -159,7 +239,6 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
         </DialogHeader>
 
         <div className="flex-1 space-y-4 overflow-y-auto py-2">
-          {/* Basic information */}
           <div className="space-y-3">
             <div>
               <Label htmlFor="theme-name">{t("themeEditor.name")}</Label>
@@ -181,13 +260,13 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
             </div>
           </div>
 
-          {/* Color editor */}
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="basic">{t("themeEditor.basic")}</TabsTrigger>
               <TabsTrigger value="components">{t("themeEditor.components")}</TabsTrigger>
               <TabsTrigger value="status">{t("themeEditor.status")}</TabsTrigger>
               <TabsTrigger value="tabs">{t("themeEditor.tabs")}</TabsTrigger>
+              <TabsTrigger value="terminal">{t("themeEditor.terminal")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basic" className="mt-4 space-y-3">
@@ -277,10 +356,40 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
                 />
               ))}
             </TabsContent>
+
+            <TabsContent value="terminal" className="mt-4 space-y-5">
+              <div className="bg-muted/40 border-border flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">{t("themeEditor.terminalAutoGenerate")}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {t("themeEditor.terminalAutoGenerateDesc")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <ThemePreviewSwatches compact palette={terminal} />
+                  <Button type="button" variant="outline" onClick={handleGenerateTerminalPalette}>
+                    <Sparkles size={14} className="mr-2" />
+                    {t("themeEditor.generatePalette")}
+                  </Button>
+                </div>
+              </div>
+              {TERMINAL_GROUPS.map((group) => (
+                <div key={group.title} className="space-y-3">
+                  <h4 className="text-sm font-medium">{group.title}</h4>
+                  {group.items.map((item) => (
+                    <TerminalColorInput
+                      key={item.key}
+                      label={item.label}
+                      value={terminal[item.key]}
+                      onChange={(value) => handleTerminalChange(item.key, value)}
+                    />
+                  ))}
+                </div>
+              ))}
+            </TabsContent>
           </Tabs>
         </div>
 
-        {/* Action buttons */}
         <div className="flex justify-end gap-2 border-t pt-4">
           <Button variant="outline" onClick={onClose}>
             <X size={16} className="mr-2" />
@@ -296,7 +405,6 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
   )
 }
 
-// Color input component
 interface ColorInputProps {
   label: string
   value: string
@@ -308,7 +416,7 @@ const ColorInput: React.FC<ColorInputProps> = ({ label, value, onChange }) => {
     <div className="flex items-center gap-3">
       <div
         className="border-border size-8 shrink-0 rounded border"
-        style={{ backgroundColor: `hsl(${value})` }}
+        style={{ backgroundColor: normalizeColorPreview(value) }}
       />
       <div className="flex-1">
         <Label className="text-muted-foreground text-xs">{label}</Label>
@@ -316,6 +424,26 @@ const ColorInput: React.FC<ColorInputProps> = ({ label, value, onChange }) => {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="0 0% 0%"
+          className="h-8 font-mono text-sm"
+        />
+      </div>
+    </div>
+  )
+}
+
+const TerminalColorInput: React.FC<ColorInputProps> = ({ label, value, onChange }) => {
+  return (
+    <div className="flex items-center gap-3">
+      <div
+        className="border-border size-8 shrink-0 rounded border"
+        style={{ backgroundColor: normalizeColorPreview(value) }}
+      />
+      <div className="flex-1">
+        <Label className="text-muted-foreground text-xs">{label}</Label>
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="#000000 / rgba(...) / hsl(...)"
           className="h-8 font-mono text-sm"
         />
       </div>
