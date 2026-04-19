@@ -21,14 +21,18 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 
   return (
     <div className="terminal-placeholder">
-      <h3>{t("welcome.title")}</h3>
-      <p>{t("welcome.description")}</p>
-      <button onClick={handleNewTab} className="btn-primary" style={{ marginTop: "16px" }}>
-        {t("welcome.newConnection")}
-      </button>
-      <div style={{ marginTop: "32px", width: "100%", maxWidth: 480 }}>
+      <div className="terminal-placeholder-hero">
+        <h3>{t("welcome.title")}</h3>
+        <p>{t("welcome.description")}</p>
+        <button onClick={handleNewTab} className="btn-primary" style={{ marginTop: "16px" }}>
+          {t("welcome.newConnection")}
+        </button>
+      </div>
+
+      <div className="terminal-placeholder-panel">
         <ProfilesPanel
           refreshKey={profilesRefreshKey}
+          className="h-full"
           onConnect={(connection) => {
             handleConnect(connection)
           }}

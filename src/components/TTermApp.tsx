@@ -359,7 +359,7 @@ export const TTermApp: React.FC = () => {
         >
           <ProfilesPanel
             refreshKey={profilesRefreshKey}
-            surface="plain"
+            surface="panel"
             onClose={() => setShowProfilesPanel(false)}
             onCreate={() => {
               setEditingProfile(null)

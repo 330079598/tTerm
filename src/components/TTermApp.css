@@ -44,11 +44,28 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 24px;
   height: 100%;
+  min-height: 0;
+  padding: 32px 24px;
   color: hsl(var(--muted-foreground));
   text-align: center;
+}
+
+.terminal-placeholder-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
   gap: 16px;
+}
+
+.terminal-placeholder-panel {
+  width: 100%;
+  max-width: 560px;
+  flex: 1;
+  min-height: 0;
 }
 
 .terminal-placeholder h3 {
