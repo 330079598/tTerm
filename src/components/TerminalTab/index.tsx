@@ -1,29 +1,25 @@
 import "@/components/TerminalTab.css"
 import "@xterm/xterm/css/xterm.css"
-import React, { useCallback, useEffect, useRef, useState } from "react"
-import { FitAddon } from "@xterm/addon-fit"
-import { WebLinksAddon } from "@xterm/addon-web-links"
-import { Terminal } from "@xterm/xterm"
-import { invoke } from "@tauri-apps/api/core"
-import { listen } from "@tauri-apps/api/event"
-import { useTranslation } from "react-i18next"
+import React, {useCallback, useEffect, useRef, useState} from "react"
+import {FitAddon} from "@xterm/addon-fit"
+import {WebLinksAddon} from "@xterm/addon-web-links"
+import {Terminal} from "@xterm/xterm"
+import {invoke} from "@tauri-apps/api/core"
+import {listen} from "@tauri-apps/api/event"
+import {useTranslation} from "react-i18next"
 
-import { SftpDrawer } from "@/components/SftpDrawer"
-import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
-import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
+import {SftpDrawer} from "@/components/SftpDrawer"
+import {ConnectionHeader} from "@/components/TerminalTab/ConnectionHeader"
+import {HostKeyPromptDialog} from "@/components/TerminalTab/HostKeyPromptDialog"
 import {
+  getConnectionDisplay,
   STATUS_CONNECTING,
   TAB_ACTIVATE_REFIT_DELAY_MS,
-  getConnectionDisplay,
 } from "@/components/TerminalTab/terminalTabUtils"
-import type {
-  ConnectionState,
-  HostKeyPromptState,
-  TerminalTabProps,
-} from "@/components/TerminalTab/types"
-import { toast } from "@/hooks/use-toast"
-import { useConfig } from "@/contexts/ConfigContext"
-import { useTheme } from "@/contexts/ThemeContext"
+import type {ConnectionState, HostKeyPromptState, TerminalTabProps,} from "@/components/TerminalTab/types"
+import {toast} from "@/hooks/use-toast"
+import {useConfig} from "@/contexts/ConfigContext"
+import {useTheme} from "@/contexts/ThemeContext"
 
 export const TerminalTab: React.FC<TerminalTabProps> = ({
   tabId,
@@ -48,6 +44,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const isActiveRef = useRef(isActive)
   const initializedRef = useRef(false)
   const waitingForReconnectRef = useRef(false)
+  const onPidChangeRef = useRef(onPidChange)
   const onReconnectRequestRef = useRef(onReconnectRequest)
   const { config } = useConfig()
   const { currentTheme, getTheme } = useTheme()
@@ -55,6 +52,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const initialFontFamily = useRef(config.font_family)
   const initialFontSize = useRef(config.font_size)
   const initialCursorStyle = useRef(config.cursor_style)
+  const initialScrollbackLines = useRef(config.scrollback_lines)
   const sessionResetKey = `${tabId}:${sessionNonce}:${connection?.type ?? "terminal"}`
   const defaultConnectionState: ConnectionState =
     connection?.type === "ssh" ? "connecting" : "connected"
@@ -100,12 +98,20 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   }, [connection])
 
   useEffect(() => {
+    onPidChangeRef.current = onPidChange
+  }, [onPidChange])
+
+  useEffect(() => {
     onReconnectRequestRef.current = onReconnectRequest
   }, [onReconnectRequest])
 
   const resolveTerminalTheme = useCallback(() => {
     return { ...(getTheme(currentTheme)?.terminal ?? getTheme("default")!.terminal) }
   }, [currentTheme, getTheme])
+
+  // Keep the first palette for terminal creation; later theme changes update xterm in place.
+  const initialTerminalThemeRef =
+    useRef<ReturnType<typeof resolveTerminalTheme>>(resolveTerminalTheme())
 
   const fitTerminalOnly = useCallback(() => {
     if (!fitAddonRef.current || !termRef.current) return
@@ -186,18 +192,20 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     const container = containerRef.current
     if (!container || initializedRef.current) return
     initializedRef.current = true
+    waitingForReconnectRef.current = false
+    passwordPromptActiveRef.current = false
 
     const term = new Terminal({
       cursorBlink: true,
       cursorStyle: initialCursorStyle.current,
-      scrollback: config.scrollback_lines === 0 ? 10000000 : config.scrollback_lines,
+      scrollback: initialScrollbackLines.current === 0 ? 10000000 : initialScrollbackLines.current,
       fontSize: initialFontSize.current,
       fontFamily: initialFontFamily.current,
       fontWeight: "normal",
       fontWeightBold: "bold",
       letterSpacing: 0,
       lineHeight: 1.0,
-      theme: resolveTerminalTheme(),
+      theme: initialTerminalThemeRef.current,
       allowTransparency: false,
     })
 
@@ -262,7 +270,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         const match = payload.match(sudoPasswordPattern)
 
         if (match && !passwordPromptActiveRef.current) {
-          const promptUsername = match[1].trim() // 去除首尾空格
+          const promptUsername = match[1].trim() // Match the sudo prompt username before offering password paste
           const savedUsername = connectionRef.current?.username
           const profileName = connectionRef.current?.profileName
 
@@ -350,7 +358,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         if (connectionRef.current?.type !== "ssh") {
           setConnectionState("connected")
         }
-        onPidChange?.(pid)
+        onPidChangeRef.current?.(pid)
       })
       .catch((error) => {
         if (disposed) return
@@ -400,12 +408,11 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       fitAddonRef.current = null
       initializedRef.current = false
       lastPtySizeRef.current = null
+      waitingForReconnectRef.current = false
+      passwordPromptActiveRef.current = false
     }
   }, [
-    config.scrollback_lines,
     fitTerminalOnly,
-    onPidChange,
-    resolveTerminalTheme,
     scheduleFitDuringResize,
     setConnectionState,
     setHostKeyPrompt,
