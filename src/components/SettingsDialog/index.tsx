@@ -22,6 +22,7 @@ import {
 } from "@/components/SettingsDialog/types"
 
 const SECRET_STATUS_CACHE_MS = 30_000
+const FONT_LOAD_TIMEOUT_MS = 5_000
 
 let cachedSystemFonts: string[] | null = null
 let systemFontsPromise: Promise<string[]> | null = null
@@ -52,19 +53,33 @@ async function loadSystemFontsCached() {
   }
 
   const startTime = getPerfNow()
-  systemFontsPromise = invoke<string[]>("list_fonts")
-    .then((fonts) => {
-      cachedSystemFonts = fonts
-      return fonts
-    })
-    .finally(() => {
-      logPerf(
-        "settings.fonts",
-        startTime,
-        cachedSystemFonts ? `count=${cachedSystemFonts.length}` : ""
-      )
-      systemFontsPromise = null
-    })
+  const fontRequest = invoke<string[]>("list_fonts").then((fonts) => {
+    cachedSystemFonts = fonts
+    return fonts
+  })
+
+  systemFontsPromise = new Promise<string[]>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error("Timed out while loading system fonts"))
+    }, FONT_LOAD_TIMEOUT_MS)
+
+    fontRequest
+      .then((fonts) => {
+        window.clearTimeout(timeoutId)
+        resolve(fonts)
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId)
+        reject(error)
+      })
+  }).finally(() => {
+    logPerf(
+      "settings.fonts",
+      startTime,
+      cachedSystemFonts ? `count=${cachedSystemFonts.length}` : ""
+    )
+    systemFontsPromise = null
+  })
 
   return systemFontsPromise
 }
@@ -96,6 +111,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
   defaultTab = "appearance",
 }) => {
   const mountStartRef = useRef(getPerfNow())
+  const isMountedRef = useRef(true)
   const { t, i18n } = useTranslation()
   const {
     config,
@@ -127,6 +143,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
   const [systemFonts, setSystemFonts] = useState<string[]>(() => cachedSystemFonts ?? [])
   const [fontsLoaded, setFontsLoaded] = useState(cachedSystemFonts !== null)
   const [loadingFonts, setLoadingFonts] = useState(false)
+  const [fontLoadError, setFontLoadError] = useState<string | null>(null)
 
   const [password, setPassword] = useState("")
   const [secretError, setSecretError] = useState<string | null>(null)
@@ -140,6 +157,12 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
   }, [defaultTab])
 
   useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  useEffect(() => {
     logPerf("settings.open", mountStartRef.current, `tab=${activeTab}`)
   }, [activeTab])
 
@@ -148,34 +171,36 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
       return
     }
 
-    let cancelled = false
     setLoadingFonts(true)
+    setFontLoadError(null)
 
     loadSystemFontsCached()
       .then((fonts) => {
-        if (cancelled) {
+        if (!isMountedRef.current) {
           return
         }
         setSystemFonts(fonts)
       })
       .catch(() => {
-        if (cancelled) {
+        if (!isMountedRef.current) {
           return
         }
         setSystemFonts([])
+        setFontLoadError(
+          t("fontSettings.loadingFontsFailed", {
+            defaultValue:
+              "Couldn't load the system font list. You can still enter a font name manually.",
+          })
+        )
       })
       .finally(() => {
-        if (cancelled) {
+        if (!isMountedRef.current) {
           return
         }
         setFontsLoaded(true)
         setLoadingFonts(false)
       })
-
-    return () => {
-      cancelled = true
-    }
-  }, [activeTab, fontsLoaded, loadingFonts])
+  }, [activeTab, fontsLoaded, loadingFonts, t])
 
   useEffect(() => {
     if (activeTab !== "security") {
@@ -357,8 +382,9 @@ ${t("app.builtWith")}`)
                 fontFamily={fontFamily}
                 fontSize={fontSize}
                 cursorStyle={cursorStyle}
+                fontLoadError={fontLoadError}
                 handleFontSave={handleFontSave}
-                loadingFonts={loadingFonts || !fontsLoaded}
+                loadingFonts={loadingFonts}
                 scrollbackLines={scrollbackLines}
                 setFontFamily={setFontFamily}
                 setFontSize={setFontSize}

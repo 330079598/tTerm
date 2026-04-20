@@ -273,24 +273,33 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
 
           <Tabs defaultValue="basic" className="w-full">
             <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-5">
-              <TabsTrigger value="basic" className="min-w-0 whitespace-normal px-2 text-xs sm:text-sm">
+              <TabsTrigger
+                value="basic"
+                className="min-w-0 px-2 text-xs whitespace-normal sm:text-sm"
+              >
                 {t("themeEditor.basic")}
               </TabsTrigger>
               <TabsTrigger
                 value="components"
-                className="min-w-0 whitespace-normal px-2 text-xs sm:text-sm"
+                className="min-w-0 px-2 text-xs whitespace-normal sm:text-sm"
               >
                 {t("themeEditor.components")}
               </TabsTrigger>
-              <TabsTrigger value="status" className="min-w-0 whitespace-normal px-2 text-xs sm:text-sm">
+              <TabsTrigger
+                value="status"
+                className="min-w-0 px-2 text-xs whitespace-normal sm:text-sm"
+              >
                 {t("themeEditor.status")}
               </TabsTrigger>
-              <TabsTrigger value="tabs" className="min-w-0 whitespace-normal px-2 text-xs sm:text-sm">
+              <TabsTrigger
+                value="tabs"
+                className="min-w-0 px-2 text-xs whitespace-normal sm:text-sm"
+              >
                 {t("themeEditor.tabs")}
               </TabsTrigger>
               <TabsTrigger
                 value="terminal"
-                className="min-w-0 whitespace-normal px-2 text-xs sm:text-sm"
+                className="min-w-0 px-2 text-xs whitespace-normal sm:text-sm"
               >
                 {t("themeEditor.terminal")}
               </TabsTrigger>

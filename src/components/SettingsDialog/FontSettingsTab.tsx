@@ -12,6 +12,7 @@ interface FontSettingsTabProps {
   fontFamily: string
   fontSize: number
   cursorStyle: "bar" | "block" | "underline"
+  fontLoadError: string | null
   handleFontSave: () => Promise<void>
   loadingFonts: boolean
   scrollbackLines: number
@@ -27,6 +28,7 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
   fontFamily,
   fontSize,
   cursorStyle,
+  fontLoadError,
   handleFontSave,
   loadingFonts,
   scrollbackLines,
@@ -155,6 +157,9 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
             <p className="text-muted-foreground text-xs">{t("fontSettings.loadingFonts")}</p>
           ) : (
             <>
+              {fontLoadError ? (
+                <p className="mb-2 text-xs text-amber-600 dark:text-amber-400">{fontLoadError}</p>
+              ) : null}
               <Input
                 type="text"
                 value={fontSearchQuery}

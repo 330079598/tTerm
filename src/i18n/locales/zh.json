@@ -153,6 +153,7 @@
     "fontFamily": "字体",
     "customFont": "自定义字体名",
     "loadingFonts": "正在读取系统字体...",
+    "loadingFontsFailed": "系统字体列表加载失败，但你仍然可以手动输入字体名称。",
     "noFontsFound": "未找到系统字体",
     "searchFonts": "搜索字体...",
     "noMatchingFonts": "未找到匹配的字体",

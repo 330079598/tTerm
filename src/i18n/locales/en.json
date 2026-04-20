@@ -165,6 +165,7 @@
     "fontFamily": "Font Family",
     "customFont": "Custom font name",
     "loadingFonts": "Loading system fonts...",
+    "loadingFontsFailed": "Couldn't load the system font list. You can still enter a font name manually.",
     "noFontsFound": "No system fonts found",
     "searchFonts": "Search fonts...",
     "noMatchingFonts": "No matching fonts found",

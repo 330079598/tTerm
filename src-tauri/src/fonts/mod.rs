@@ -1,9 +1,16 @@
 use std::collections::HashSet;
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 
 #[tauri::command]
-pub fn list_fonts() -> Vec<String> {
+pub async fn list_fonts() -> Vec<String> {
+    tokio::task::spawn_blocking(list_fonts_sync)
+        .await
+        .unwrap_or_default()
+}
+
+fn list_fonts_sync() -> Vec<String> {
     let mut font_names: HashSet<String> = HashSet::new();
 
     // Try to get fonts from system API first (most reliable)
@@ -117,15 +124,25 @@ fn get_windows_fonts() -> Result<HashSet<String>, Box<dyn std::error::Error>> {
     Ok(fonts.into_inner().unwrap())
 }
 
-fn collect_fonts_from_dir(dir: &PathBuf, names: &mut HashSet<String>) {
+fn collect_fonts_from_dir(dir: &Path, names: &mut HashSet<String>) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;
     };
+
     for entry in entries.flatten() {
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
         let path = entry.path();
-        if path.is_dir() {
+
+        // Avoid following symlinked directories, which can create loops and keep
+        // the font picker stuck in a perpetual loading state.
+        if file_type.is_dir() {
             collect_fonts_from_dir(&path, names);
-        } else if let Some(ext) = path.extension() {
+        } else if file_type.is_file() {
+            let Some(ext) = path.extension() else {
+                continue;
+            };
             let ext = ext.to_string_lossy().to_lowercase();
             if matches!(ext.as_str(), "ttf" | "otf" | "ttc") {
                 // Try to parse font file to get real font name

@@ -1,25 +1,29 @@
 import "@/components/TerminalTab.css"
 import "@xterm/xterm/css/xterm.css"
-import React, {useCallback, useEffect, useRef, useState} from "react"
-import {FitAddon} from "@xterm/addon-fit"
-import {WebLinksAddon} from "@xterm/addon-web-links"
-import {Terminal} from "@xterm/xterm"
-import {invoke} from "@tauri-apps/api/core"
-import {listen} from "@tauri-apps/api/event"
-import {useTranslation} from "react-i18next"
+import React, { useCallback, useEffect, useRef, useState } from "react"
+import { FitAddon } from "@xterm/addon-fit"
+import { WebLinksAddon } from "@xterm/addon-web-links"
+import { Terminal } from "@xterm/xterm"
+import { invoke } from "@tauri-apps/api/core"
+import { listen } from "@tauri-apps/api/event"
+import { useTranslation } from "react-i18next"
 
-import {SftpDrawer} from "@/components/SftpDrawer"
-import {ConnectionHeader} from "@/components/TerminalTab/ConnectionHeader"
-import {HostKeyPromptDialog} from "@/components/TerminalTab/HostKeyPromptDialog"
+import { SftpDrawer } from "@/components/SftpDrawer"
+import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
+import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
 import {
   getConnectionDisplay,
   STATUS_CONNECTING,
   TAB_ACTIVATE_REFIT_DELAY_MS,
 } from "@/components/TerminalTab/terminalTabUtils"
-import type {ConnectionState, HostKeyPromptState, TerminalTabProps,} from "@/components/TerminalTab/types"
-import {toast} from "@/hooks/use-toast"
-import {useConfig} from "@/contexts/ConfigContext"
-import {useTheme} from "@/contexts/ThemeContext"
+import type {
+  ConnectionState,
+  HostKeyPromptState,
+  TerminalTabProps,
+} from "@/components/TerminalTab/types"
+import { toast } from "@/hooks/use-toast"
+import { useConfig } from "@/contexts/ConfigContext"
+import { useTheme } from "@/contexts/ThemeContext"
 
 export const TerminalTab: React.FC<TerminalTabProps> = ({
   tabId,
