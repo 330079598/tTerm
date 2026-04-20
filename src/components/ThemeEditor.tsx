@@ -241,7 +241,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col overflow-hidden">
+      <DialogContent className="flex max-h-[90vh] w-[min(64rem,calc(100vw-2rem))] flex-col overflow-hidden sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Palette size={16} />
@@ -272,12 +272,28 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
           </div>
 
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="basic">{t("themeEditor.basic")}</TabsTrigger>
-              <TabsTrigger value="components">{t("themeEditor.components")}</TabsTrigger>
-              <TabsTrigger value="status">{t("themeEditor.status")}</TabsTrigger>
-              <TabsTrigger value="tabs">{t("themeEditor.tabs")}</TabsTrigger>
-              <TabsTrigger value="terminal">{t("themeEditor.terminal")}</TabsTrigger>
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-5">
+              <TabsTrigger value="basic" className="min-w-0 whitespace-normal px-2 text-xs sm:text-sm">
+                {t("themeEditor.basic")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="components"
+                className="min-w-0 whitespace-normal px-2 text-xs sm:text-sm"
+              >
+                {t("themeEditor.components")}
+              </TabsTrigger>
+              <TabsTrigger value="status" className="min-w-0 whitespace-normal px-2 text-xs sm:text-sm">
+                {t("themeEditor.status")}
+              </TabsTrigger>
+              <TabsTrigger value="tabs" className="min-w-0 whitespace-normal px-2 text-xs sm:text-sm">
+                {t("themeEditor.tabs")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="terminal"
+                className="min-w-0 whitespace-normal px-2 text-xs sm:text-sm"
+              >
+                {t("themeEditor.terminal")}
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="basic" className="mt-4 space-y-3">
