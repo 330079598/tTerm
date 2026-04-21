@@ -49,6 +49,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const { t } = useTranslation()
   const { toast } = useToast()
   const [form, setForm] = useState<ConnectionForm>(() => buildInitialForm(editProfile, config))
+  const [draftProfileId, setDraftProfileId] = useState(() => editProfile?.id ?? crypto.randomUUID())
   const [existingGroups, setExistingGroups] = useState<string[]>([])
   const [showGroupDropdown, setShowGroupDropdown] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
@@ -57,6 +58,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const matchingGroups = existingGroups.filter((group) =>
     group.toLowerCase().includes(form.group.toLowerCase())
   )
+  const sshProfileId = editProfile?.id ?? draftProfileId
 
   useEffect(() => {
     invoke<SavedProfile[]>("list_profiles")
@@ -71,6 +73,10 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   useEffect(() => {
     setForm(buildInitialForm(editProfile, config))
   }, [editProfile, config])
+
+  useEffect(() => {
+    setDraftProfileId(editProfile?.id ?? crypto.randomUUID())
+  }, [editProfile])
 
   useEffect(() => {
     if (!editProfile || form.type !== "ssh" || form.authMethod !== "password") {
@@ -113,7 +119,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
 
     const title = form.title.trim() || getDefaultTitle(form.type, form)
     const group = form.group.trim()
-    const profileId = form.type === "ssh" ? (editProfile?.id ?? crypto.randomUUID()) : undefined
+    const profileId = form.type === "ssh" ? sshProfileId : undefined
 
     if (form.type === "ssh" && form.host.trim()) {
       const duplicate = allProfiles.find(
@@ -200,9 +206,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     setIsTesting(true)
     try {
       const title = form.title.trim() || getDefaultTitle(form.type, form)
-      const profileId = editProfile?.id ?? crypto.randomUUID()
       const profile: SavedProfile = {
-        id: profileId,
+        id: sshProfileId,
         name: title,
         group: form.group.trim(),
         connection_type: form.type,
