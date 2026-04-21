@@ -223,6 +223,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
       isModified: false,
       connection: {
         type: connectionType,
+        profileId: profile.id,
         profileName: profile.name,
         host: profile.host,
         port: profile.port,

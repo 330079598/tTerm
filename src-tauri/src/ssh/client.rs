@@ -1,5 +1,5 @@
 use super::store::{
-    load_known_host_by_profile, save_known_host_entry, now_unix_ms, KnownHostRecord,
+    load_known_host, save_known_host_entry, now_unix_ms, KnownHostRecord,
     SshHostKeyPromptPayload,
 };
 use super::types::{HOST_KEY_PROMPT_TIMEOUT, HOST_KEY_REJECTED_REASON, SshClientHandler};
@@ -30,7 +30,7 @@ impl russh::client::Handler for SshClientHandler {
         let algorithm = server_public_key.algorithm().to_string();
         let fingerprint = server_public_key.fingerprint(HashAlg::Sha256).to_string();
 
-        let known = match load_known_host_by_profile(&self.profile_name) {
+        let known = match load_known_host(&self.profile_name, self.profile_id.as_deref()) {
             Ok(value) => value,
             Err(err) => {
                 emit_status_line(
@@ -102,6 +102,7 @@ impl russh::client::Handler for SshClientHandler {
         }
 
         let save_result = save_known_host_entry(KnownHostRecord {
+            profile_id: self.profile_id.clone(),
             profile_name: self.profile_name.clone(),
             host: self.host.clone(),
             port: self.port,
@@ -183,6 +184,7 @@ pub async fn run_single_ssh_connection(
     let handler = SshClientHandler {
         app: app.clone(),
         tab_id: tab_id.clone(),
+        profile_id: plan.profile_id.clone(),
         profile_name: plan.profile_name.clone(),
         host: host.clone(),
         port: plan.port,

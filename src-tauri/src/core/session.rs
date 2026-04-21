@@ -17,6 +17,8 @@ pub struct TerminalShellConfig;
 pub struct PtyConnectionOptions {
     #[serde(default, rename = "type")]
     pub connection_type: Option<String>,
+    #[serde(default, alias = "profileId")]
+    pub profile_id: Option<String>,
     #[serde(default, alias = "profileName")]
     pub profile_name: Option<String>,
     #[serde(default)]
@@ -52,6 +54,7 @@ impl Default for PtyConnectionOptions {
     fn default() -> Self {
         Self {
             connection_type: Some("terminal".to_string()),
+            profile_id: None,
             profile_name: None,
             host: None,
             port: None,
@@ -75,6 +78,7 @@ impl Default for PtyConnectionOptions {
 #[derive(Debug, Clone)]
 pub struct SessionPlan {
     pub kind: SessionKind,
+    pub profile_id: Option<String>,
     pub profile_name: String,
     pub host: Option<String>,
     pub port: u16,
@@ -125,6 +129,7 @@ pub fn normalize_connection(
     match kind {
         SessionKind::Terminal => Ok(SessionPlan {
             kind,
+            profile_id: None,
             profile_name: "terminal".to_string(),
             host: None,
             port: 0,
@@ -158,6 +163,11 @@ pub fn normalize_connection(
                 .map(|v| v.trim().to_string())
                 .filter(|v| !v.is_empty())
                 .unwrap_or_else(|| format!("{}@{}:{}", username, host, port));
+            let profile_id = connection
+                .profile_id
+                .as_ref()
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty());
 
             let password = connection.password.filter(|v| !v.is_empty());
             let remember_password = connection.remember_password.unwrap_or(false);
@@ -166,6 +176,7 @@ pub fn normalize_connection(
 
             Ok(SessionPlan {
                 kind,
+                profile_id,
                 profile_name,
                 host: Some(host),
                 port,
@@ -180,6 +191,33 @@ pub fn normalize_connection(
             })
         }
     }
+}
+
+pub fn load_saved_ssh_password(
+    app: &tauri::AppHandle,
+    secret_state: &crate::ssh::SecretStoreState,
+    profile_id: Option<&str>,
+    profile_name: Option<&str>,
+) -> Result<Option<String>, String> {
+    let profile_id = profile_id.map(str::trim).filter(|v| !v.is_empty());
+    let profile_name = profile_name.map(str::trim).filter(|v| !v.is_empty());
+
+    if let Some(profile_id) = profile_id {
+        if let Some(password) = secret_state.get_password(app, profile_id)? {
+            return Ok(Some(password));
+        }
+    }
+
+    if let Some(profile_name) = profile_name {
+        if let Some(password) = secret_state.get_password(app, profile_name)? {
+            if let Some(profile_id) = profile_id {
+                let _ = secret_state.save_password(app, profile_id, &password);
+            }
+            return Ok(Some(password));
+        }
+    }
+
+    Ok(None)
 }
 
 pub fn resolve_ssh_password(
@@ -202,8 +240,8 @@ pub fn resolve_ssh_password(
         
         // Save password if remember_password is enabled
         if plan.remember_password {
-            let profile_id = plan.profile_name.clone();
-            let location = secret_state.save_password(app, &profile_id, &password)?;
+            let secret_key = plan.profile_id.as_deref().unwrap_or(plan.profile_name.as_str());
+            let location = secret_state.save_password(app, secret_key, &password)?;
             if matches!(location, crate::ssh::SecretLocation::Memory) {
                 return Err(
                     "Password persistence is unavailable. Enable the app vault or use a supported system credential store."
@@ -216,8 +254,13 @@ pub fn resolve_ssh_password(
     }
 
     // Try to get password from secret store
-    let profile_id = plan.profile_name.clone();
-    let password = secret_state.get_password(app, &profile_id)?.ok_or_else(|| {
+    let password = load_saved_ssh_password(
+        app,
+        secret_state,
+        plan.profile_id.as_deref(),
+        Some(plan.profile_name.as_str()),
+    )?
+    .ok_or_else(|| {
         format!(
             "No password provided and no saved password found for profile '{}'",
             plan.profile_name

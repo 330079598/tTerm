@@ -48,6 +48,7 @@ export interface Tab {
   connectionHeaderPinned?: boolean
   connection?: {
     type?: ConnectionType
+    profileId?: string
     profileName?: string
     host?: string
     port?: number

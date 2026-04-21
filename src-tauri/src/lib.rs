@@ -69,6 +69,7 @@ pub fn run() {
             core::commands::resize_pty,
             core::commands::kill_pty,
             core::commands::respond_ssh_host_key_prompt,
+            core::commands::get_saved_password,
             core::commands::get_saved_password_for_sudo,
             fonts::list_fonts,
             profiles::list_profiles,

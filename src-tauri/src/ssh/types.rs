@@ -8,6 +8,7 @@ pub const HOST_KEY_REJECTED_REASON: &str = "SSH host fingerprint rejected by use
 pub struct SshClientHandler {
     pub app: tauri::AppHandle,
     pub tab_id: String,
+    pub profile_id: Option<String>,
     pub profile_name: String,
     pub host: String,
     pub port: u16,

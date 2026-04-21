@@ -242,11 +242,26 @@ pub fn respond_ssh_host_key_prompt(
 }
 
 #[tauri::command]
-pub fn get_saved_password_for_sudo(
+pub fn get_saved_password(
     app: AppHandle,
-    profile_name: String,
+    profile_id: Option<String>,
+    profile_name: Option<String>,
     secret_state: State<'_, crate::ssh::SecretStoreState>,
 ) -> Result<Option<String>, String> {
-    // Try to get password from secret store using profile name as the key
-    secret_state.get_password(&app, &profile_name)
+    super::session::load_saved_ssh_password(
+        &app,
+        &secret_state,
+        profile_id.as_deref(),
+        profile_name.as_deref(),
+    )
+}
+
+#[tauri::command]
+pub fn get_saved_password_for_sudo(
+    app: AppHandle,
+    profile_id: Option<String>,
+    profile_name: Option<String>,
+    secret_state: State<'_, crate::ssh::SecretStoreState>,
+) -> Result<Option<String>, String> {
+    get_saved_password(app, profile_id, profile_name, secret_state)
 }

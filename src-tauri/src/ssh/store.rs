@@ -19,6 +19,8 @@ pub struct LegacySshPasswordStore {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct KnownHostRecord {
+    #[serde(default)]
+    pub profile_id: Option<String>,
     pub profile_name: String,
     pub host: String,
     pub port: u16,
@@ -97,21 +99,53 @@ pub fn save_known_host_store(store: &KnownHostStore) -> Result<(), String> {
     fs::write(&path, content).map_err(|e| format!("Failed to write known hosts store: {}", e))
 }
 
-pub fn load_known_host_by_profile(profile_name: &str) -> Result<Option<KnownHostRecord>, String> {
+pub fn load_known_host(
+    profile_name: &str,
+    profile_id: Option<&str>,
+) -> Result<Option<KnownHostRecord>, String> {
     let store = load_known_host_store()?;
-    Ok(store
+    let profile_id = profile_id.map(str::trim).filter(|value| !value.is_empty());
+
+    if let Some(profile_id) = profile_id {
+        if let Some(entry) = store
+            .entries
+            .iter()
+            .find(|entry| entry.profile_id.as_deref() == Some(profile_id))
+            .cloned()
+        {
+            return Ok(Some(entry));
+        }
+    }
+
+    let mut entry = store
         .entries
         .iter()
-        .find(|e| e.profile_name == profile_name)
-        .cloned())
+        .find(|entry| entry.profile_name == profile_name)
+        .cloned();
+
+    if let (Some(profile_id), Some(record)) = (profile_id, entry.as_mut()) {
+        if record.profile_id.as_deref() != Some(profile_id) {
+            record.profile_id = Some(profile_id.to_string());
+            let _ = save_known_host_entry(record.clone());
+        }
+    }
+
+    Ok(entry)
 }
 
 pub fn save_known_host_entry(entry: KnownHostRecord) -> Result<(), String> {
+    let profile_id = entry.profile_id.as_deref();
     let mut store = load_known_host_store()?;
     if let Some(existing) = store
         .entries
         .iter_mut()
-        .find(|e| e.profile_name == entry.profile_name)
+        .find(|existing| profile_id.is_some() && existing.profile_id.as_deref() == profile_id)
+    {
+        *existing = entry;
+    } else if let Some(existing) = store
+        .entries
+        .iter_mut()
+        .find(|existing| existing.profile_name == entry.profile_name)
     {
         *existing = entry;
     } else {

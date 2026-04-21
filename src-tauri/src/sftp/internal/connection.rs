@@ -59,6 +59,7 @@ async fn connect_authenticated_ssh(
     let handler = SshClientHandler {
         app: app.clone(),
         tab_id: tab_id.to_string(),
+        profile_id: plan.profile_id.clone(),
         profile_name: plan.profile_name.clone(),
         host: host.clone(),
         port: plan.port,

@@ -68,15 +68,54 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
       .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    setForm(buildInitialForm(editProfile, config))
+  }, [editProfile, config])
+
+  useEffect(() => {
+    if (!editProfile || form.type !== "ssh" || form.authMethod !== "password") {
+      return
+    }
+
+    let cancelled = false
+
+    invoke<string | null>("get_saved_password", {
+      profileId: editProfile.id,
+      profileName: editProfile.name,
+    })
+      .then((password) => {
+        if (cancelled || !password) {
+          return
+        }
+
+        setForm((current) => {
+          if (current.type !== "ssh" || current.authMethod !== "password") {
+            return current
+          }
+
+          return {
+            ...current,
+            password,
+            rememberPassword: true,
+          }
+        })
+      })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
+  }, [editProfile, form.authMethod, form.type])
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     setNameError(null)
 
     const title = form.title.trim() || getDefaultTitle(form.type, form)
     const group = form.group.trim()
+    const profileId = form.type === "ssh" ? (editProfile?.id ?? crypto.randomUUID()) : undefined
 
     if (form.type === "ssh" && form.host.trim()) {
-      const profileId = editProfile?.id ?? crypto.randomUUID()
       const duplicate = allProfiles.find(
         (profile) => profile.id !== profileId && profile.name === title && profile.group === group
       )
@@ -115,6 +154,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     if (form.type === "ssh") {
       connection.connection = {
         type: form.type,
+        profileId,
         profileName: title,
         host: form.host,
         port: form.port,
@@ -160,8 +200,9 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     setIsTesting(true)
     try {
       const title = form.title.trim() || getDefaultTitle(form.type, form)
+      const profileId = editProfile?.id ?? crypto.randomUUID()
       const profile: SavedProfile = {
-        id: crypto.randomUUID(),
+        id: profileId,
         name: title,
         group: form.group.trim(),
         connection_type: form.type,

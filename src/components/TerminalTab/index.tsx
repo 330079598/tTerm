@@ -276,12 +276,14 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         if (match && !passwordPromptActiveRef.current) {
           const promptUsername = match[1].trim() // Match the sudo prompt username before offering password paste
           const savedUsername = connectionRef.current?.username
+          const profileId = connectionRef.current?.profileId
           const profileName = connectionRef.current?.profileName
 
           // Only show prompt if username matches
           if (savedUsername && promptUsername === savedUsername && profileName) {
             // Try to get password from backend
             invoke<string | null>("get_saved_password_for_sudo", {
+              profileId,
               profileName,
             })
               .then((password) => {

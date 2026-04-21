@@ -109,6 +109,7 @@ pub async fn test_connection(
     // Build connection plan
     let mut plan = crate::core::session::SessionPlan {
         kind: crate::core::SessionKind::Ssh,
+        profile_id: Some(profile.id.clone()),
         profile_name: profile.name.clone(),
         host: Some(host.clone()),
         port,
