@@ -86,9 +86,20 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
       }
     }
 
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false)
+      }
+    }
+
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside)
-      return () => document.removeEventListener("mousedown", handleClickOutside)
+      document.addEventListener("keydown", handleKeyDown)
+
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside)
+        document.removeEventListener("keydown", handleKeyDown)
+      }
     }
   }, [isOpen])
 
@@ -230,11 +241,22 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
             <CardTitle className="text-sm font-semibold">
               {t("transfer.title", { defaultValue: "Transfers" })}
             </CardTitle>
-            {completed.length > 0 && (
-              <Button variant="ghost" size="xs" onClick={onClearCompleted}>
-                {t("transfer.clearCompleted", { defaultValue: "Clear Completed" })}
+            <div className="flex items-center gap-1">
+              {completed.length > 0 && (
+                <Button variant="ghost" size="xs" onClick={onClearCompleted}>
+                  {t("transfer.clearCompleted", { defaultValue: "Clear Completed" })}
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => setIsOpen(false)}
+                title={t("common.close", { defaultValue: "Close" })}
+                aria-label={t("common.close", { defaultValue: "Close" })}
+              >
+                <X className="size-3" />
               </Button>
-            )}
+            </div>
           </CardHeader>
 
           <CardContent className="p-0">

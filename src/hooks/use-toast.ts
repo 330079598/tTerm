@@ -3,7 +3,6 @@ import * as React from "react"
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
 
 const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000
 const TOAST_DURATION = 3000 // 3 seconds
 
 type ToasterToast = ToastProps & {
@@ -44,70 +43,86 @@ interface State {
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
-const addToRemoveQueue = (toastId: string) => {
-  if (toastTimeouts.has(toastId)) {
+const clearToastTimeout = (toastId: string) => {
+  const timeout = toastTimeouts.get(toastId)
+  if (!timeout) {
+    return
+  }
+
+  clearTimeout(timeout)
+  toastTimeouts.delete(toastId)
+}
+
+const scheduleToastRemoval = (toastId: string, duration: number) => {
+  clearToastTimeout(toastId)
+
+  if (!Number.isFinite(duration) || duration <= 0) {
     return
   }
 
   const timeout = setTimeout(() => {
     toastTimeouts.delete(toastId)
-    dispatch({
-      type: "REMOVE_TOAST",
-      toastId: toastId,
-    })
-  }, TOAST_REMOVE_DELAY)
+    dispatch({ type: "REMOVE_TOAST", toastId })
+  }, duration)
 
   toastTimeouts.set(toastId, timeout)
 }
 
 export const reducer = (state: State, action: Action): State => {
   switch (action.type) {
-    case "ADD_TOAST":
-      return {
-        ...state,
-        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
-      }
+    case "ADD_TOAST": {
+      const nextToasts = [action.toast, ...state.toasts].slice(0, TOAST_LIMIT)
+      const removedToasts = state.toasts.filter(
+        (toast) => !nextToasts.some((nextToast) => nextToast.id === toast.id)
+      )
 
-    case "UPDATE_TOAST":
-      return {
-        ...state,
-        toasts: state.toasts.map((t) => (t.id === action.toast.id ? { ...t, ...action.toast } : t)),
-      }
-
-    case "DISMISS_TOAST": {
-      const { toastId } = action
-
-      if (toastId) {
-        addToRemoveQueue(toastId)
-      } else {
-        state.toasts.forEach((toast) => {
-          addToRemoveQueue(toast.id)
-        })
-      }
+      removedToasts.forEach((toast) => {
+        clearToastTimeout(toast.id)
+      })
+      scheduleToastRemoval(action.toast.id, action.toast.duration ?? TOAST_DURATION)
 
       return {
         ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === toastId || toastId === undefined
-            ? {
-                ...t,
-                open: false,
-              }
-            : t
-        ),
+        toasts: nextToasts,
       }
     }
-    case "REMOVE_TOAST":
-      if (action.toastId === undefined) {
+
+    case "UPDATE_TOAST": {
+      const nextToasts = state.toasts.map((t) =>
+        t.id === action.toast.id ? { ...t, ...action.toast } : t
+      )
+      const updatedToast = nextToasts.find((t) => t.id === action.toast.id)
+
+      if (updatedToast) {
+        scheduleToastRemoval(updatedToast.id, updatedToast.duration ?? TOAST_DURATION)
+      }
+
+      return {
+        ...state,
+        toasts: nextToasts,
+      }
+    }
+
+    case "DISMISS_TOAST":
+    case "REMOVE_TOAST": {
+      const { toastId } = action
+
+      if (toastId === undefined) {
+        state.toasts.forEach((toast) => {
+          clearToastTimeout(toast.id)
+        })
         return {
           ...state,
           toasts: [],
         }
       }
+
+      clearToastTimeout(toastId)
       return {
         ...state,
-        toasts: state.toasts.filter((t) => t.id !== action.toastId),
+        toasts: state.toasts.filter((t) => t.id !== toastId),
       }
+    }
   }
 }
 
@@ -126,6 +141,7 @@ type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {
   const id = genId()
+  const { duration = TOAST_DURATION, open: _open, ...restProps } = props
 
   const update = (props: ToasterToast) =>
     dispatch({
@@ -137,13 +153,9 @@ function toast({ ...props }: Toast) {
   dispatch({
     type: "ADD_TOAST",
     toast: {
-      ...props,
+      ...restProps,
       id,
-      open: true,
-      duration: props.duration ?? TOAST_DURATION,
-      onOpenChange: (open: boolean) => {
-        if (!open) dismiss()
-      },
+      duration,
     },
   })
 
@@ -165,7 +177,7 @@ function useToast() {
         listeners.splice(index, 1)
       }
     }
-  }, [state])
+  }, [])
 
   return {
     ...state,
