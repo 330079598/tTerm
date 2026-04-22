@@ -131,7 +131,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
       }
 
       const profile: SavedProfile = {
-        id: profileId,
+        id: sshProfileId,
         name: title,
         group,
         connection_type: form.type,
