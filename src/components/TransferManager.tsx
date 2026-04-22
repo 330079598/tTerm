@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState, useRef, useEffect } from "react"
+import React, { useCallback, useMemo, useState, useRef, useEffect, useLayoutEffect } from "react"
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -25,6 +25,9 @@ interface TransferManagerProps {
   onRemove: (id: string) => void
   onClearCompleted: () => void
 }
+
+const PANEL_WIDTH = 420
+const PANEL_MARGIN = 12
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B"
@@ -70,6 +73,7 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
   const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({ left: 0, width: PANEL_WIDTH })
 
   const { active, completed } = useMemo(() => {
     const active = transfers.filter((t) => t.status === "pending" || t.status === "transferring")
@@ -102,6 +106,53 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
       }
     }
   }, [isOpen])
+
+  const updatePanelPosition = useCallback(() => {
+    if (!dropdownRef.current) {
+      return
+    }
+
+    const triggerRect = dropdownRef.current.getBoundingClientRect()
+    const availableWidth = Math.max(window.innerWidth - PANEL_MARGIN * 2, 280)
+    const panelWidth = Math.min(PANEL_WIDTH, availableWidth)
+    let nextLeft = 0
+
+    const overflowRight = triggerRect.left + panelWidth - (window.innerWidth - PANEL_MARGIN)
+    if (overflowRight > 0) {
+      nextLeft -= overflowRight
+    }
+
+    const overflowLeft = triggerRect.left + nextLeft - PANEL_MARGIN
+    if (overflowLeft < 0) {
+      nextLeft -= overflowLeft
+    }
+
+    setPanelStyle((prev) => {
+      if (prev.left === nextLeft && prev.width === panelWidth) {
+        return prev
+      }
+
+      return { left: nextLeft, width: panelWidth }
+    })
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    updatePanelPosition()
+
+    const handleResize = () => {
+      updatePanelPosition()
+    }
+
+    window.addEventListener("resize", handleResize)
+
+    return () => {
+      window.removeEventListener("resize", handleResize)
+    }
+  }, [isOpen, updatePanelPosition])
 
   const renderTransfer = useCallback(
     (transfer: TransferTask) => {
@@ -236,7 +287,7 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
       </Button>
 
       {isOpen && (
-        <Card className="absolute top-full left-0 z-50 mt-2 w-[420px] shadow-lg">
+        <Card className="absolute top-full z-50 mt-2 shadow-lg" style={panelStyle}>
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-sm font-semibold">
               {t("transfer.title", { defaultValue: "Transfers" })}
