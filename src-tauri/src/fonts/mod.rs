@@ -74,11 +74,11 @@ fn get_font_directories() -> Vec<PathBuf> {
 
 #[cfg(target_os = "windows")]
 fn get_windows_fonts() -> Result<HashSet<String>, Box<dyn std::error::Error>> {
-    use windows::Win32::Graphics::Gdi::{
-        CreateCompatibleDC, DeleteDC, EnumFontFamiliesExW, LOGFONTW, FONT_CHARSET, DEFAULT_CHARSET,
-    };
-    use windows::Win32::Foundation::LPARAM;
     use std::sync::Mutex;
+    use windows::Win32::Foundation::LPARAM;
+    use windows::Win32::Graphics::Gdi::{
+        CreateCompatibleDC, DeleteDC, EnumFontFamiliesExW, DEFAULT_CHARSET, FONT_CHARSET, LOGFONTW,
+    };
 
     let fonts = Mutex::new(HashSet::new());
 
@@ -159,7 +159,7 @@ fn collect_fonts_from_dir(dir: &Path, names: &mut HashSet<String>) {
 
 fn parse_font_name(path: &PathBuf) -> Option<String> {
     let data = fs::read(path).ok()?;
-    
+
     // Handle TTC (TrueType Collection) files
     if path.extension()?.to_string_lossy().to_lowercase() == "ttc" {
         // For TTC files, try to parse the first font in the collection
@@ -168,7 +168,7 @@ fn parse_font_name(path: &PathBuf) -> Option<String> {
         }
         return None;
     }
-    
+
     // Handle regular TTF/OTF files
     let face = ttf_parser::Face::parse(&data, 0).ok()?;
     get_font_family_name(&face)
@@ -187,7 +187,7 @@ fn get_font_family_name(face: &ttf_parser::Face) -> Option<String> {
             }
         }
     }
-    
+
     // Fallback: try any language for family name
     for name in face.names() {
         if name.name_id == ttf_parser::name_id::FAMILY {
@@ -196,17 +196,35 @@ fn get_font_family_name(face: &ttf_parser::Face) -> Option<String> {
             }
         }
     }
-    
+
     None
 }
 
 fn extract_font_name_from_filename(path: &PathBuf) -> Option<String> {
     let stem = path.file_stem()?.to_string_lossy().to_string();
     let suffixes = [
-        "-Bold", "-Italic", "-BoldItalic", "-Regular", "-Light", "-Medium",
-        "-Thin", "-Black", "-Heavy", "-SemiBold", "-ExtraBold", "-ExtraLight",
-        "-Condensed", "-Oblique", "-Mono", "-NF", "-NerdFont", "Bold", "Italic",
-        "Regular", "Light", "Medium",
+        "-Bold",
+        "-Italic",
+        "-BoldItalic",
+        "-Regular",
+        "-Light",
+        "-Medium",
+        "-Thin",
+        "-Black",
+        "-Heavy",
+        "-SemiBold",
+        "-ExtraBold",
+        "-ExtraLight",
+        "-Condensed",
+        "-Oblique",
+        "-Mono",
+        "-NF",
+        "-NerdFont",
+        "Bold",
+        "Italic",
+        "Regular",
+        "Light",
+        "Medium",
     ];
     let mut name = stem.clone();
     for suffix in &suffixes {

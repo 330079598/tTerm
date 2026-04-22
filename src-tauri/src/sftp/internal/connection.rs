@@ -15,7 +15,7 @@ use crate::core::state::{HostPromptMap, SessionKind};
 use crate::sftp::internal::types::{
     CachedSftpConnection, ConnectedSftp, SftpConnectionKey, SftpConnectionPool,
 };
-use crate::ssh::{HOST_KEY_REJECTED_REASON, SecretStoreState, SshClientHandler};
+use crate::ssh::{SecretStoreState, SshClientHandler, HOST_KEY_REJECTED_REASON};
 
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(300);
 
@@ -67,16 +67,19 @@ async fn connect_authenticated_ssh(
         user_rejected_host_key: host_key_rejected.clone(),
     };
 
-    let mut session: client::Handle<SshClientHandler> =
-        client::connect(std::sync::Arc::new(config), (host.as_str(), plan.port), handler)
-            .await
-            .map_err(|err| {
-                if host_key_rejected.load(AtomicOrdering::Relaxed) {
-                    HOST_KEY_REJECTED_REASON.to_string()
-                } else {
-                    format!("SSH connect failed: {err}")
-                }
-            })?;
+    let mut session: client::Handle<SshClientHandler> = client::connect(
+        std::sync::Arc::new(config),
+        (host.as_str(), plan.port),
+        handler,
+    )
+    .await
+    .map_err(|err| {
+        if host_key_rejected.load(AtomicOrdering::Relaxed) {
+            HOST_KEY_REJECTED_REASON.to_string()
+        } else {
+            format!("SSH connect failed: {err}")
+        }
+    })?;
 
     let auth_result = if let Some(key_path) = &plan.private_key_path {
         let key_pair = russh::keys::load_secret_key(

@@ -66,7 +66,6 @@ pub enum SecretLocation {
     Memory,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Default)]
 struct VaultConfigFile {
     #[serde(default)]
@@ -111,15 +110,22 @@ impl SecretStoreState {
         } else {
             "memory".to_string()
         };
-        let persistence_available = keyring_available || (config.secret_vault_enabled && stronghold_unlocked);
+        let persistence_available =
+            keyring_available || (config.secret_vault_enabled && stronghold_unlocked);
         let message = if keyring_available {
             None
         } else if config.secret_vault_enabled && !stronghold_unlocked {
             Some("System keyring unavailable. Unlock the app vault to persist secrets.".to_string())
         } else if !config.secret_vault_enabled {
-            Some("System keyring unavailable. Enable and unlock the app vault to persist secrets.".to_string())
+            Some(
+                "System keyring unavailable. Enable and unlock the app vault to persist secrets."
+                    .to_string(),
+            )
         } else {
-            Some("Secrets are only kept for this session until the app vault is unlocked.".to_string())
+            Some(
+                "Secrets are only kept for this session until the app vault is unlocked."
+                    .to_string(),
+            )
         };
 
         Ok(SecretBackendStatus {
@@ -183,7 +189,9 @@ impl SecretStoreState {
         }
 
         if !config.secret_vault_enabled {
-            return Err("Vault fallback is disabled. Enable it first before unlocking.".to_string());
+            return Err(
+                "Vault fallback is disabled. Enable it first before unlocking.".to_string(),
+            );
         }
 
         let key = derive_or_initialize_vault_key(app, input.password.as_bytes())?;
@@ -278,7 +286,6 @@ impl SecretStoreState {
 
         Ok(SecretLocation::Memory)
     }
-
 }
 
 impl Drop for SecretStoreRuntime {
@@ -312,8 +319,10 @@ fn write_keyring_secret(profile_id: &str, kind: &str, value: &str) -> Result<(),
         .map_err(|e| format!("Failed to write keyring secret: {}", e))
 }
 
-
-fn derive_or_initialize_vault_key(app: &AppHandle, password: &[u8]) -> Result<[u8; DERIVED_KEY_LEN], String> {
+fn derive_or_initialize_vault_key(
+    app: &AppHandle,
+    password: &[u8],
+) -> Result<[u8; DERIVED_KEY_LEN], String> {
     let config_path = vault_config_path(app)?;
     let config = if config_path.exists() {
         let content = fs::read_to_string(&config_path)
@@ -336,8 +345,13 @@ fn derive_or_initialize_vault_key(app: &AppHandle, password: &[u8]) -> Result<[u
     let salt = BASE64
         .decode(config.salt_b64.as_bytes())
         .map_err(|e| format!("Failed to decode vault salt: {}", e))?;
-    let params = Params::new(PBKDF_MEMORY_KIB, PBKDF_ITERATIONS, PBKDF_PARALLELISM, Some(DERIVED_KEY_LEN))
-        .map_err(|e| format!("Failed to build Argon2 params: {}", e))?;
+    let params = Params::new(
+        PBKDF_MEMORY_KIB,
+        PBKDF_ITERATIONS,
+        PBKDF_PARALLELISM,
+        Some(DERIVED_KEY_LEN),
+    )
+    .map_err(|e| format!("Failed to build Argon2 params: {}", e))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut derived = [0u8; DERIVED_KEY_LEN];
     argon2
@@ -380,7 +394,10 @@ fn save_vault_file(path: &Path, vault: &VaultFile) -> Result<(), String> {
     fs::write(path, content).map_err(|e| format!("Failed to write vault: {}", e))
 }
 
-fn encrypt_secret(runtime: &StrongholdRuntime, plaintext: &str) -> Result<(String, String), String> {
+fn encrypt_secret(
+    runtime: &StrongholdRuntime,
+    plaintext: &str,
+) -> Result<(String, String), String> {
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&runtime.key));
     let mut nonce = [0u8; NONCE_LEN];
     rand::thread_rng().fill_bytes(&mut nonce);
@@ -390,7 +407,10 @@ fn encrypt_secret(runtime: &StrongholdRuntime, plaintext: &str) -> Result<(Strin
     Ok((BASE64.encode(nonce), BASE64.encode(ciphertext)))
 }
 
-fn decrypt_secret(runtime: &StrongholdRuntime, record: &VaultSecretRecord) -> Result<String, String> {
+fn decrypt_secret(
+    runtime: &StrongholdRuntime,
+    record: &VaultSecretRecord,
+) -> Result<String, String> {
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&runtime.key));
     let nonce = BASE64
         .decode(record.nonce_b64.as_bytes())
@@ -451,4 +471,3 @@ fn write_vault_secret(
     }
     save_vault_file(&path, &vault)
 }
-

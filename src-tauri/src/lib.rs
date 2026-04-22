@@ -2,8 +2,8 @@ mod config;
 mod core;
 mod fonts;
 mod profiles;
-mod sftp;
 mod session;
+mod sftp;
 mod ssh;
 mod terminal;
 
@@ -81,6 +81,7 @@ pub fn run() {
             sftp::internal::api::sftp_delete_entry,
             sftp::internal::api::sftp_rename_entry,
             sftp::internal::api::sftp_upload_file,
+            sftp::internal::api::sftp_upload_paths,
             sftp::internal::api::sftp_cancel_upload,
             sftp::internal::api::sftp_download_file,
             sftp::internal::api::get_file_size,

@@ -13,7 +13,8 @@ import type { TransferTask } from "@/types/tab"
 
 interface TransferContextValue {
   addTransfer: (
-    transfer: Omit<TransferTask, "id" | "startTime" | "status" | "transferred">
+    transfer: Omit<TransferTask, "id" | "startTime" | "status" | "transferred">,
+    id?: string
   ) => string
   cancelTransfer: (id: string) => Promise<void>
   clearCompletedTransfers: () => void
@@ -36,16 +37,33 @@ export const TransferProvider: React.FC<React.PropsWithChildren> = ({ children }
   }, [transfers])
 
   const addTransfer = useCallback(
-    (transfer: Omit<TransferTask, "id" | "startTime" | "status" | "transferred">) => {
+    (transfer: Omit<TransferTask, "id" | "startTime" | "status" | "transferred">, id?: string) => {
+      const nextId = id ?? `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
       const newTransfer: TransferTask = {
         ...transfer,
-        id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+        id: nextId,
         startTime: Date.now(),
         status: "pending",
         transferred: 0,
       }
-      setTransfers((prev) => [newTransfer, ...prev])
-      return newTransfer.id
+
+      setTransfers((prev) => {
+        const existing = prev.find((item) => item.id === nextId)
+        if (!existing) {
+          return [newTransfer, ...prev]
+        }
+
+        return prev.map((item) =>
+          item.id === nextId
+            ? {
+                ...item,
+                ...transfer,
+              }
+            : item
+        )
+      })
+
+      return nextId
     },
     []
   )

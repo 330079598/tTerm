@@ -22,9 +22,10 @@ interface UseSftpTransfersReturn {
     entry: import("@/components/SftpDrawer/types").SftpDirectoryEntry
   ) => Promise<void>
   handleUploadDialog: () => Promise<void>
+  handleUploadFolderDialog: () => Promise<void>
   removeTransfer: (id: string) => void
   transfers: import("@/types/tab").TransferTask[]
-  uploadFiles: (files: File[]) => Promise<void>
+  uploadPaths: (paths: string[]) => Promise<void>
 }
 
 export function useSftpTransfers({
@@ -36,10 +37,10 @@ export function useSftpTransfers({
 }: UseSftpTransfersParams): UseSftpTransfersReturn {
   const {
     addTransfer,
-    cancelTransfer,
+    cancelTransfer: cancelTransferRaw,
     clearCompletedTransfers,
     lastProgressUpdateRef,
-    removeTransfer,
+    removeTransfer: removeTransferRaw,
     transfers,
     transfersRef,
     updateTransfer,
@@ -53,7 +54,7 @@ export function useSftpTransfers({
     updateTransfer,
   })
 
-  const { handleUploadDialog, uploadFiles } = useSftpUploads({
+  const { handleUploadDialog, handleUploadFolderDialog, uploadPaths } = useSftpUploads({
     addTransfer,
     connection,
     lastProgressUpdateRef,
@@ -65,14 +66,31 @@ export function useSftpTransfers({
     updateTransfer,
   })
 
+  const cancelTransfer = async (id: string) => {
+    const transfer = transfers.find((item) => item.id === id)
+    const targetId = transfer?.batchId ?? id
+    await cancelTransferRaw(targetId)
+  }
+
+  const removeTransfer = (id: string) => {
+    removeTransferRaw(id)
+
+    for (const transfer of transfers) {
+      if (transfer.batchId === id) {
+        removeTransferRaw(transfer.id)
+      }
+    }
+  }
+
   return {
     cancelTransfer,
     clearCompletedTransfers,
     downloadEntry,
     handleOpenEntry,
     handleUploadDialog,
+    handleUploadFolderDialog,
     removeTransfer,
     transfers,
-    uploadFiles,
+    uploadPaths,
   }
 }

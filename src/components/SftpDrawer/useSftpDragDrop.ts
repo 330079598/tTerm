@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { invoke } from "@tauri-apps/api/core"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { useTranslation } from "react-i18next"
 
@@ -9,7 +8,7 @@ interface UseSftpDragDropParams {
   listing: SftpDirectoryListing | null
   loadDirectory: (path?: string | null) => Promise<void>
   setError: React.Dispatch<React.SetStateAction<string | null>>
-  uploadFiles: (files: File[]) => Promise<void>
+  uploadPaths: (paths: string[]) => Promise<void>
   visible: boolean
 }
 
@@ -27,7 +26,7 @@ export function useSftpDragDrop({
   listing,
   loadDirectory,
   setError,
-  uploadFiles,
+  uploadPaths,
   visible,
 }: UseSftpDragDropParams): UseSftpDragDropReturn {
   const { t } = useTranslation()
@@ -41,7 +40,7 @@ export function useSftpDragDrop({
     }
   }, [listing, loadDirectory, visible])
 
-  const uploadPaths = useCallback(
+  const handleUploadPaths = useCallback(
     async (paths: string[]) => {
       if (!listing) {
         setError(t("sftp.errors.notReady", { defaultValue: "SFTP not ready" }))
@@ -71,28 +70,9 @@ export function useSftpDragDrop({
       }
       lastDropRef.current = { signature, timestamp: now }
 
-      const files = await Promise.all(
-        validPaths.map(async (path) => {
-          const fileName = path.split(/[\\/]/).pop() || "file"
-          let fileSize = 0
-          try {
-            fileSize = await invoke<number>("get_file_size", { localPath: path })
-          } catch (invokeError) {
-            console.warn("Failed to get file size for", path, invokeError)
-          }
-
-          return {
-            name: fileName,
-            path,
-            size: fileSize,
-            type: "application/octet-stream",
-          } as File & { path: string }
-        })
-      )
-
-      await uploadFiles(files)
+      await uploadPaths(validPaths)
     },
-    [listing, setError, t, uploadFiles]
+    [listing, setError, t, uploadPaths]
   )
 
   useEffect(() => {
@@ -124,7 +104,7 @@ export function useSftpDragDrop({
 
           const paths = event.payload.paths as string[]
           if (paths && paths.length > 0) {
-            void uploadPaths(paths)
+            void handleUploadPaths(paths)
           }
         }
       })
@@ -139,7 +119,7 @@ export function useSftpDragDrop({
         unlisten()
       }
     }
-  }, [uploadPaths, visible])
+  }, [handleUploadPaths, visible])
 
   const handleDragEnter = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -173,9 +153,9 @@ export function useSftpDragDrop({
         .map((file) => file.path)
         .filter((path): path is string => typeof path === "string" && path.length > 0)
 
-      await uploadPaths(droppedPaths)
+      await handleUploadPaths(droppedPaths)
     },
-    [uploadPaths]
+    [handleUploadPaths]
   )
 
   return {

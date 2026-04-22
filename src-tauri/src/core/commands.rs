@@ -140,11 +140,7 @@ pub fn create_pty(
 }
 
 #[tauri::command]
-pub fn write_pty(
-    tab_id: String,
-    data: String,
-    state: State<'_, PtyMap>,
-) -> Result<(), String> {
+pub fn write_pty(tab_id: String, data: String, state: State<'_, PtyMap>) -> Result<(), String> {
     let map = state.blocking_read();
     let session = map
         .get(&tab_id)

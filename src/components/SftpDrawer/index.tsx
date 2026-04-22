@@ -74,7 +74,13 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
     [connection, t, tabId]
   )
 
-  const { downloadEntry, handleOpenEntry, handleUploadDialog, uploadFiles } = useSftpTransfers({
+  const {
+    downloadEntry,
+    handleOpenEntry,
+    handleUploadDialog,
+    handleUploadFolderDialog,
+    uploadPaths,
+  } = useSftpTransfers({
     connection,
     listing,
     loadDirectory,
@@ -87,7 +93,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       listing,
       loadDirectory,
       setError,
-      uploadFiles,
+      uploadPaths,
       visible,
     })
 
@@ -354,6 +360,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         handleCreateDirectory={handleCreateDirectory}
         handleDeleteSelection={handleDeleteSelection}
         handleUploadDialog={handleUploadDialog}
+        handleUploadFolderDialog={handleUploadFolderDialog}
         isLoading={isBusy}
         listingCurrentPath={listing?.currentPath}
         loadDirectory={loadDirectory}

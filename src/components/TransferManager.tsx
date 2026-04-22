@@ -70,18 +70,21 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
   onRemove,
   onClearCompleted,
 }) => {
+  const visibleTransfers = transfers.filter((transfer) => !transfer.batchId)
   const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({ left: 0, width: PANEL_WIDTH })
 
   const { active, completed } = useMemo(() => {
-    const active = transfers.filter((t) => t.status === "pending" || t.status === "transferring")
-    const completed = transfers.filter(
+    const active = visibleTransfers.filter(
+      (t) => t.status === "pending" || t.status === "transferring"
+    )
+    const completed = visibleTransfers.filter(
       (t) => t.status === "completed" || t.status === "failed" || t.status === "cancelled"
     )
     return { active, completed }
-  }, [transfers])
+  }, [visibleTransfers])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -257,12 +260,12 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
     [onCancel, onRemove, t]
   )
 
-  if (transfers.length === 0) {
+  if (visibleTransfers.length === 0) {
     return null
   }
 
   const hasActive = active.length > 0
-  const totalTransfers = transfers.length
+  const totalTransfers = visibleTransfers.length
   const shouldShowBadge = hasActive || totalTransfers > 0
 
   return (

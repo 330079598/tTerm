@@ -1,8 +1,7 @@
 use super::store::{
-    load_known_host, save_known_host_entry, now_unix_ms, KnownHostRecord,
-    SshHostKeyPromptPayload,
+    load_known_host, now_unix_ms, save_known_host_entry, KnownHostRecord, SshHostKeyPromptPayload,
 };
-use super::types::{HOST_KEY_PROMPT_TIMEOUT, HOST_KEY_REJECTED_REASON, SshClientHandler};
+use super::types::{SshClientHandler, HOST_KEY_PROMPT_TIMEOUT, HOST_KEY_REJECTED_REASON};
 use crate::core::session::SessionPlan;
 use crate::core::state::HostPromptMap;
 use russh::client;
@@ -148,30 +147,36 @@ pub async fn run_single_ssh_connection(
 ) -> SshExitSignal {
     let host: String = match &plan.host {
         Some(host) => host.clone(),
-        None => return SshExitSignal {
-            terminated: true,
-            recoverable: false,
-            reason: None,
-        },
+        None => {
+            return SshExitSignal {
+                terminated: true,
+                recoverable: false,
+                reason: None,
+            }
+        }
     };
     let username: String = match &plan.username {
         Some(username) => username.clone(),
-        None => return SshExitSignal {
-            terminated: true,
-            recoverable: false,
-            reason: None,
-        },
+        None => {
+            return SshExitSignal {
+                terminated: true,
+                recoverable: false,
+                reason: None,
+            }
+        }
     };
     let private_key_path = plan.private_key_path.clone();
     let private_key_passphrase = plan.private_key_passphrase.clone();
     let password: String = if private_key_path.is_none() {
         match &plan.password {
             Some(password) => password.clone(),
-            None => return SshExitSignal {
-                terminated: true,
-                recoverable: false,
-                reason: None,
-            },
+            None => {
+                return SshExitSignal {
+                    terminated: true,
+                    recoverable: false,
+                    reason: None,
+                }
+            }
         }
     } else {
         String::new()
@@ -351,7 +356,7 @@ pub async fn run_single_ssh_connection(
                             &mut ssh_query_pending,
                             &mut writer_stream,
                         ).await;
-                        
+
                         match processed {
                             Ok(text) => {
                                 if !text.is_empty() {

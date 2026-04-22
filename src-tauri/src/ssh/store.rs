@@ -73,7 +73,6 @@ pub fn load_legacy_password_store() -> Result<LegacySshPasswordStore, String> {
     serde_json::from_str(&content).map_err(|e| format!("Failed to parse SSH password store: {}", e))
 }
 
-
 pub fn remove_legacy_password_store() -> Result<(), String> {
     let path = legacy_password_store_path()?;
     if path.exists() {

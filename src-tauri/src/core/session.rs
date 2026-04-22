@@ -172,7 +172,8 @@ pub fn normalize_connection(
             let password = connection.password.filter(|v| !v.is_empty());
             let remember_password = connection.remember_password.unwrap_or(false);
             let private_key_path = connection.private_key_path.filter(|v| !v.is_empty());
-            let private_key_passphrase = connection.private_key_passphrase.filter(|v| !v.is_empty());
+            let private_key_passphrase =
+                connection.private_key_passphrase.filter(|v| !v.is_empty());
 
             Ok(SessionPlan {
                 kind,
@@ -237,10 +238,13 @@ pub fn resolve_ssh_password(
     // If password already provided, use it
     if plan.password.is_some() {
         let password = plan.password.clone().unwrap();
-        
+
         // Save password if remember_password is enabled
         if plan.remember_password {
-            let secret_key = plan.profile_id.as_deref().unwrap_or(plan.profile_name.as_str());
+            let secret_key = plan
+                .profile_id
+                .as_deref()
+                .unwrap_or(plan.profile_name.as_str());
             let location = secret_state.save_password(app, secret_key, &password)?;
             if matches!(location, crate::ssh::SecretLocation::Memory) {
                 return Err(
@@ -249,7 +253,7 @@ pub fn resolve_ssh_password(
                 );
             }
         }
-        
+
         return Ok(());
     }
 

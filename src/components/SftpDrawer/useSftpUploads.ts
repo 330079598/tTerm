@@ -1,17 +1,71 @@
-import { useCallback } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog"
 import { useTranslation } from "react-i18next"
 
-import type { TransferTask, Tab } from "@/types/tab"
+import type { TransferTask, TransferStatus, Tab } from "@/types/tab"
 
-import { joinRemotePath } from "@/components/SftpDrawer/sftpDrawerUtils"
 import type { SftpDirectoryListing } from "@/components/SftpDrawer/types"
+
+interface UploadItemStartEvent {
+  batchId?: string
+  fileName: string
+  fileSize: number
+  localPath: string
+  remotePath: string
+  transferId: string
+}
+
+interface UploadItemProgressEvent {
+  localPath: string
+  progress: number
+  total: number
+  transferred: number
+  transferId: string
+}
+
+interface UploadItemCompleteEvent {
+  cancelled: boolean
+  error?: string
+  localPath: string
+  remotePath: string
+  success: boolean
+  transferId: string
+}
+
+interface UploadBatchStartEvent {
+  batchId: string
+  displayName: string
+  localPath: string
+  remoteBasePath: string
+}
+
+interface UploadBatchCompleteEvent {
+  batchId: string
+  cancelled: boolean
+  error?: string
+  failed: number
+  succeeded: number
+}
+
+interface UploadBatchResult {
+  cancelled: boolean
+  failed: number
+  succeeded: number
+}
+
+interface BatchChildProgress {
+  fileSize: number
+  speed: number
+  status: TransferStatus
+  transferred: number
+}
 
 interface UseSftpUploadsParams {
   addTransfer: (
-    transfer: Omit<TransferTask, "id" | "startTime" | "status" | "transferred">
+    transfer: Omit<TransferTask, "id" | "startTime" | "status" | "transferred">,
+    id?: string
   ) => string
   connection?: Tab["connection"]
   lastProgressUpdateRef: React.MutableRefObject<Map<string, number>>
@@ -25,7 +79,8 @@ interface UseSftpUploadsParams {
 
 interface UseSftpUploadsReturn {
   handleUploadDialog: () => Promise<void>
-  uploadFiles: (files: File[]) => Promise<void>
+  handleUploadFolderDialog: () => Promise<void>
+  uploadPaths: (paths: string[]) => Promise<void>
 }
 
 export function useSftpUploads({
@@ -40,136 +95,282 @@ export function useSftpUploads({
   updateTransfer,
 }: UseSftpUploadsParams): UseSftpUploadsReturn {
   const { t } = useTranslation()
+  const batchTransferIdsRef = useRef(new Map<string, Set<string>>())
+  const batchProgressRef = useRef(new Map<string, Map<string, BatchChildProgress>>())
 
-  const runUpload = useCallback(
-    async ({
-      fileName,
-      fileSize,
-      localPath,
-      remotePath,
-    }: {
-      fileName: string
-      fileSize: number
-      localPath: string
-      remotePath: string
-    }) => {
-      const transferId = addTransfer({
-        direction: "upload",
-        localPath,
-        remotePath,
-        fileName,
+  const syncBatchTransfer = useCallback(
+    (batchId: string, fallbackStatus?: TransferStatus) => {
+      const children = batchProgressRef.current.get(batchId)
+      const childEntries = children ? Array.from(children.values()) : []
+      const fileSize = childEntries.reduce((sum, child) => sum + child.fileSize, 0)
+      const transferred = childEntries.reduce((sum, child) => sum + child.transferred, 0)
+      const speed = childEntries.reduce((sum, child) => sum + child.speed, 0)
+      const hasFailed = childEntries.some((child) => child.status === "failed")
+      const hasActive = childEntries.some(
+        (child) => child.status === "pending" || child.status === "transferring"
+      )
+
+      updateTransfer(batchId, {
         fileSize,
-        speed: 0,
+        speed,
+        status: fallbackStatus ?? (hasFailed ? "failed" : hasActive ? "transferring" : "pending"),
+        transferred,
       })
+    },
+    [updateTransfer]
+  )
 
-      updateTransfer(transferId, { status: "transferring" })
+  useEffect(() => {
+    const appWindow = getCurrentWindow()
+    let disposed = false
+    const unlisteners: Array<() => void> = []
 
-      const appWindow = getCurrentWindow()
-      const unlisten = await appWindow.listen<{
-        localPath: string
-        transferred: number
-        total: number
-        progress: number
-      }>(`sftp-upload-progress-${tabId}`, (event) => {
-        if (event.payload.localPath === localPath) {
+    const setupListeners = async () => {
+      const nextUnlisteners = await Promise.all([
+        appWindow.listen<UploadBatchStartEvent>(`sftp-upload-batch-start-${tabId}`, (event) => {
+          const { batchId, displayName, localPath, remoteBasePath } = event.payload
+          addTransfer(
+            {
+              direction: "upload",
+              fileName: displayName,
+              fileSize: 0,
+              localPath,
+              remotePath: remoteBasePath,
+              speed: 0,
+            },
+            batchId
+          )
+
+          batchTransferIdsRef.current.set(batchId, new Set())
+          batchProgressRef.current.set(batchId, new Map())
+
+          updateTransfer(batchId, {
+            error: undefined,
+            fileSize: 0,
+            speed: 0,
+            status: "pending",
+            transferred: 0,
+          })
+        }),
+        appWindow.listen<UploadBatchCompleteEvent>(
+          `sftp-upload-batch-complete-${tabId}`,
+          (event) => {
+            const { batchId, cancelled, error, failed, succeeded } = event.payload
+            const childTransferIds = batchTransferIdsRef.current.get(batchId) ?? new Set<string>()
+            const transfer = transfersRef.current.find((item) => item.id === batchId)
+            const now = Date.now()
+
+            for (const transferId of childTransferIds) {
+              lastProgressUpdateRef.current.delete(transferId)
+            }
+            batchTransferIdsRef.current.delete(batchId)
+            batchProgressRef.current.delete(batchId)
+
+            if (cancelled) {
+              for (const transferId of childTransferIds) {
+                updateTransfer(transferId, {
+                  endTime: now,
+                  error: undefined,
+                  status: "cancelled",
+                })
+              }
+
+              updateTransfer(batchId, {
+                endTime: now,
+                error: undefined,
+                status: "cancelled",
+              })
+              return
+            }
+
+            if (error) {
+              updateTransfer(batchId, {
+                endTime: now,
+                error,
+                status: "failed",
+              })
+              return
+            }
+
+            const hasFailedChildren = Array.from(childTransferIds).some((transferId) => {
+              const childTransfer = transfersRef.current.find((item) => item.id === transferId)
+              return childTransfer?.status === "failed"
+            })
+
+            updateTransfer(batchId, {
+              endTime: now,
+              error: hasFailedChildren
+                ? t("sftp.errors.uploadPartialFailed", {
+                    failed,
+                    succeeded,
+                    defaultValue: `${succeeded} upload(s) succeeded, ${failed} failed`,
+                  })
+                : undefined,
+              fileSize: transfer?.fileSize ?? 0,
+              speed: 0,
+              status: hasFailedChildren ? "failed" : "completed",
+              transferred: transfer?.fileSize ?? transfer?.transferred ?? 0,
+            })
+          }
+        ),
+        appWindow.listen<UploadItemStartEvent>(`sftp-upload-item-start-${tabId}`, (event) => {
+          const { batchId, fileName, fileSize, localPath, remotePath, transferId } = event.payload
+
+          if (batchId) {
+            const nextIds = new Set(batchTransferIdsRef.current.get(batchId) ?? [])
+            nextIds.add(transferId)
+            batchTransferIdsRef.current.set(batchId, nextIds)
+
+            const nextBatchProgress = new Map(batchProgressRef.current.get(batchId) ?? [])
+            nextBatchProgress.set(transferId, {
+              fileSize,
+              speed: 0,
+              status: "transferring",
+              transferred: 0,
+            })
+            batchProgressRef.current.set(batchId, nextBatchProgress)
+            syncBatchTransfer(batchId, "transferring")
+          }
+
+          addTransfer(
+            {
+              batchId,
+              direction: "upload",
+              fileName,
+              fileSize,
+              localPath,
+              remotePath,
+              speed: 0,
+            },
+            transferId
+          )
+
+          updateTransfer(transferId, {
+            batchId,
+            error: undefined,
+            fileSize,
+            speed: 0,
+            status: "transferring",
+          })
+        }),
+        appWindow.listen<UploadItemProgressEvent>(`sftp-upload-progress-${tabId}`, (event) => {
+          const { progress, transferId, transferred } = event.payload
           const now = Date.now()
           const lastUpdate = lastProgressUpdateRef.current.get(transferId) || 0
-          if (now - lastUpdate < 100 && event.payload.progress < 100) {
+          if (now - lastUpdate < 100 && progress < 100) {
             return
           }
           lastProgressUpdateRef.current.set(transferId, now)
 
           const transfer = transfersRef.current.find((item) => item.id === transferId)
           const duration = now - (transfer?.startTime || now)
-          const speed = duration > 0 ? (event.payload.transferred / duration) * 1000 : 0
+          const speed = duration > 0 ? (transferred / duration) * 1000 : 0
 
           updateTransfer(transferId, {
-            transferred: event.payload.transferred,
             speed,
+            transferred,
           })
-        }
-      })
 
-      try {
-        const startTime = Date.now()
-        await invoke("sftp_upload_file", {
-          tabId,
-          connection,
-          localPath,
-          remotePath,
-          transferId,
-        })
+          if (transfer?.batchId) {
+            const nextBatchProgress = new Map(batchProgressRef.current.get(transfer.batchId) ?? [])
+            const previous = nextBatchProgress.get(transferId)
+            if (previous) {
+              nextBatchProgress.set(transferId, {
+                ...previous,
+                speed,
+                transferred,
+              })
+              batchProgressRef.current.set(transfer.batchId, nextBatchProgress)
+              syncBatchTransfer(transfer.batchId, "transferring")
+            }
+          }
+        }),
+        appWindow.listen<UploadItemCompleteEvent>(`sftp-upload-item-complete-${tabId}`, (event) => {
+          const { cancelled, error, success, transferId } = event.payload
+          const transfer = transfersRef.current.find((item) => item.id === transferId)
+          const now = Date.now()
+          const duration = now - (transfer?.startTime || now)
+          const completedFileSize = transfer?.fileSize || transfer?.transferred || 0
+          const speed = duration > 0 ? (completedFileSize / duration) * 1000 : 0
 
-        unlisten()
+          lastProgressUpdateRef.current.delete(transferId)
 
-        const duration = Date.now() - startTime
-        const completedFileSize = fileSize || 1024
-        const speed = duration > 0 ? (completedFileSize / duration) * 1000 : 0
+          if (transfer?.batchId) {
+            const nextBatchProgress = new Map(batchProgressRef.current.get(transfer.batchId) ?? [])
+            const previous = nextBatchProgress.get(transferId)
+            if (previous) {
+              nextBatchProgress.set(transferId, {
+                ...previous,
+                speed: 0,
+                status: success ? "completed" : cancelled ? "cancelled" : "failed",
+                transferred: success ? completedFileSize : previous.transferred,
+              })
+              batchProgressRef.current.set(transfer.batchId, nextBatchProgress)
+              syncBatchTransfer(transfer.batchId)
+            }
+          }
 
-        updateTransfer(transferId, {
-          status: "completed",
-          transferred: completedFileSize,
-          fileSize: completedFileSize,
-          endTime: Date.now(),
-          speed,
-        })
+          if (success) {
+            updateTransfer(transferId, {
+              endTime: now,
+              fileSize: completedFileSize,
+              speed,
+              status: "completed",
+              transferred: completedFileSize,
+            })
+            return
+          }
 
-        lastProgressUpdateRef.current.delete(transferId)
+          if (cancelled) {
+            updateTransfer(transferId, {
+              endTime: now,
+              error: undefined,
+              status: "cancelled",
+            })
+            return
+          }
 
-        return { success: true, fileName }
-      } catch (invokeError) {
-        unlisten()
-        lastProgressUpdateRef.current.delete(transferId)
-
-        const errorMessage = String(invokeError)
-
-        if (errorMessage.includes("cancelled")) {
           updateTransfer(transferId, {
-            status: "cancelled",
-            endTime: Date.now(),
+            endTime: now,
+            error: error || "Upload failed",
+            status: "failed",
           })
-          return { success: false, fileName, cancelled: true }
-        }
+        }),
+      ])
 
-        updateTransfer(transferId, {
-          status: "failed",
-          error: errorMessage,
-          endTime: Date.now(),
-        })
-        return { success: false, fileName, error: errorMessage }
-      }
-    },
-    [addTransfer, connection, lastProgressUpdateRef, tabId, transfersRef, updateTransfer]
-  )
-
-  const uploadFiles = useCallback(
-    async (files: File[]) => {
-      console.log("uploadFiles called with:", files)
-      console.log("listing:", listing)
-
-      if (!listing || files.length === 0) {
-        console.log("Early return: listing or files empty")
+      if (disposed) {
+        nextUnlisteners.forEach((unlisten) => unlisten())
         return
       }
 
-      const validFiles = files.filter((file) => {
-        console.log("Checking file:", file.name, "path:", file.path)
-        if (!file.path) {
-          console.warn("File does not have path property:", file.name)
-          setError(
-            t("sftp.errors.invalidFile", {
-              defaultValue: `Cannot upload ${file.name}: file path not available`,
-              name: file.name,
-            })
-          )
-          return false
-        }
-        return true
-      })
+      unlisteners.push(...nextUnlisteners)
+    }
 
-      console.log("Valid files:", validFiles)
+    void setupListeners()
 
-      if (validFiles.length === 0) {
+    return () => {
+      disposed = true
+      unlisteners.forEach((unlisten) => unlisten())
+    }
+  }, [
+    addTransfer,
+    lastProgressUpdateRef,
+    syncBatchTransfer,
+    t,
+    tabId,
+    transfersRef,
+    updateTransfer,
+  ])
+
+  const uploadPaths = useCallback(
+    async (paths: string[]) => {
+      if (!listing) {
+        setError(t("sftp.errors.notReady", { defaultValue: "SFTP not ready" }))
+        return
+      }
+
+      const validPaths = paths.filter((path) => typeof path === "string" && path.length > 0)
+      if (validPaths.length === 0) {
         setError(
           t("sftp.errors.noValidFiles", {
             defaultValue: "No valid files to upload",
@@ -180,74 +381,76 @@ export function useSftpUploads({
 
       setError(null)
 
-      const uploadPromises = validFiles.map(async (file) => {
-        const fileName = file.name
-        const localPath = file.path!
-
-        console.log("Uploading file:", fileName, "from:", localPath)
-
-        return runUpload({
-          fileName,
-          fileSize: file.size || 0,
-          localPath,
-          remotePath: joinRemotePath(listing.currentPath, fileName),
+      try {
+        const result = await invoke<UploadBatchResult>("sftp_upload_paths", {
+          connection,
+          localPaths: validPaths,
+          remoteBasePath: listing.currentPath,
+          tabId,
         })
-      })
 
-      const results = await Promise.allSettled(uploadPromises)
+        if (result.cancelled) {
+          return
+        }
 
-      const succeeded = results.filter(
-        (result) => result.status === "fulfilled" && result.value.success
-      ).length
-      const failed = results.filter(
-        (result) =>
-          result.status === "rejected" || (result.status === "fulfilled" && !result.value.success)
-      ).length
-
-      console.log(`Upload summary: ${succeeded} succeeded, ${failed} failed`)
-      console.log("Refreshing directory listing")
-      await loadDirectory(listing.currentPath)
+        if (result.failed > 0 && result.succeeded === 0) {
+          setError(
+            t("sftp.errors.uploadAllFailed", {
+              count: result.failed,
+              defaultValue: `${result.failed} upload(s) failed`,
+            })
+          )
+        } else if (result.failed > 0) {
+          setError(
+            t("sftp.errors.uploadPartialFailed", {
+              failed: result.failed,
+              succeeded: result.succeeded,
+              defaultValue: `${result.succeeded} upload(s) succeeded, ${result.failed} failed`,
+            })
+          )
+        }
+      } catch (invokeError) {
+        setError(String(invokeError))
+      } finally {
+        await loadDirectory(listing.currentPath)
+      }
     },
-    [listing, loadDirectory, runUpload, setError, t]
+    [connection, listing, loadDirectory, setError, t, tabId]
   )
 
   const handleUploadDialog = useCallback(async () => {
     const selection = await openFileDialog({
-      multiple: true,
       directory: false,
-      title: t("sftp.actions.upload", { defaultValue: "Upload Files" }),
+      multiple: true,
+      title: t("sftp.actions.uploadFiles", { defaultValue: "Upload Files" }),
     })
 
-    if (!selection || !listing) {
+    if (!selection) {
       return
     }
 
     const paths = Array.isArray(selection) ? selection : [selection]
+    await uploadPaths(paths)
+  }, [t, uploadPaths])
 
-    const uploadPromises = paths.map(async (path) => {
-      const fileName = path.split(/[\\/]/).pop() ?? "file"
-
-      let fileSize = 0
-      try {
-        fileSize = await invoke<number>("get_file_size", { localPath: path })
-      } catch (invokeError) {
-        console.warn("Failed to get file size:", invokeError)
-      }
-
-      return runUpload({
-        fileName,
-        fileSize,
-        localPath: path,
-        remotePath: joinRemotePath(listing.currentPath, fileName),
-      })
+  const handleUploadFolderDialog = useCallback(async () => {
+    const selection = await openFileDialog({
+      directory: true,
+      multiple: true,
+      title: t("sftp.actions.uploadFolder", { defaultValue: "Upload Folder" }),
     })
 
-    await Promise.allSettled(uploadPromises)
-    await loadDirectory(listing.currentPath)
-  }, [listing, loadDirectory, runUpload, t])
+    if (!selection) {
+      return
+    }
+
+    const paths = Array.isArray(selection) ? selection : [selection]
+    await uploadPaths(paths)
+  }, [t, uploadPaths])
 
   return {
     handleUploadDialog,
-    uploadFiles,
+    handleUploadFolderDialog,
+    uploadPaths,
   }
 }

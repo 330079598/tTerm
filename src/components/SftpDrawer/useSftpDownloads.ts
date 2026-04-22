@@ -9,7 +9,8 @@ import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 
 interface UseSftpDownloadsParams {
   addTransfer: (
-    transfer: Omit<TransferTask, "id" | "startTime" | "status" | "transferred">
+    transfer: Omit<TransferTask, "id" | "startTime" | "status" | "transferred">,
+    id?: string
   ) => string
   connection?: Tab["connection"]
   loadDirectory: (path?: string | null) => Promise<void>

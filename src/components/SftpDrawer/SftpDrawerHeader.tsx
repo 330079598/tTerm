@@ -19,6 +19,7 @@ interface SftpDrawerHeaderProps {
   handleCreateDirectory: () => void
   handleDeleteSelection: () => void
   handleUploadDialog: () => Promise<void>
+  handleUploadFolderDialog: () => Promise<void>
   isLoading: boolean
   listingCurrentPath?: string | null
   loadDirectory: (path?: string | null) => Promise<void>
@@ -32,6 +33,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   handleCreateDirectory,
   handleDeleteSelection,
   handleUploadDialog,
+  handleUploadFolderDialog,
   isLoading,
   listingCurrentPath,
   loadDirectory,
@@ -87,9 +89,18 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
           size="icon-sm"
           onClick={handleUploadDialog}
           disabled={!listingCurrentPath || isLoading}
-          title={t("sftp.actions.upload", { defaultValue: "Upload" })}
+          title={t("sftp.actions.uploadFiles", { defaultValue: "Upload Files" })}
         >
           <ArrowUpFromLine className="size-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={handleUploadFolderDialog}
+          disabled={!listingCurrentPath || isLoading}
+          title={t("sftp.actions.uploadFolder", { defaultValue: "Upload Folder" })}
+        >
+          <FolderPlus className="size-4" />
         </Button>
         <Button
           variant="ghost"

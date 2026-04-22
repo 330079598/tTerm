@@ -37,15 +37,10 @@ pub fn save_sftp_directory_store(store: &SftpDirectoryStore) -> Result<(), Strin
     let path = sftp_directory_store_path()?;
     let content = serde_json::to_string_pretty(store)
         .map_err(|e| format!("Failed to serialize SFTP directory store: {}", e))?;
-    fs::write(&path, content)
-        .map_err(|e| format!("Failed to write SFTP directory store: {}", e))
+    fs::write(&path, content).map_err(|e| format!("Failed to write SFTP directory store: {}", e))
 }
 
-pub fn get_last_directory(
-    host: &str,
-    port: u16,
-    username: &str,
-) -> Result<Option<String>, String> {
+pub fn get_last_directory(host: &str, port: u16, username: &str) -> Result<Option<String>, String> {
     let store = load_sftp_directory_store()?;
     Ok(store
         .entries
@@ -61,10 +56,12 @@ pub fn save_last_directory(
     last_path: &str,
 ) -> Result<(), String> {
     let mut store = load_sftp_directory_store()?;
-    
-    if let Some(existing) = store.entries.iter_mut().find(|entry| {
-        entry.host == host && entry.port == port && entry.username == username
-    }) {
+
+    if let Some(existing) = store
+        .entries
+        .iter_mut()
+        .find(|entry| entry.host == host && entry.port == port && entry.username == username)
+    {
         existing.last_path = last_path.to_string();
     } else {
         store.entries.push(SftpLastDirectory {
@@ -74,6 +71,6 @@ pub fn save_last_directory(
             last_path: last_path.to_string(),
         });
     }
-    
+
     save_sftp_directory_store(&store)
 }

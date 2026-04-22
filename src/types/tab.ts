@@ -20,6 +20,7 @@ export type TransferDirection = "upload" | "download"
 
 export interface TransferTask {
   id: string
+  batchId?: string
   direction: TransferDirection
   localPath: string
   remotePath: string

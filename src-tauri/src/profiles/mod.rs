@@ -145,11 +145,7 @@ pub async fn test_connection(
 
     let mut session = tokio::time::timeout(
         Duration::from_secs(10),
-        client::connect(
-            std::sync::Arc::new(config),
-            (host.as_str(), port),
-            handler,
-        )
+        client::connect(std::sync::Arc::new(config), (host.as_str(), port), handler),
     )
     .await
     .map_err(|_| "Connection timeout".to_string())?
@@ -159,7 +155,7 @@ pub async fn test_connection(
     let auth_result = if let Some(key_path) = &plan.private_key_path {
         let key_data = std::fs::read_to_string(key_path)
             .map_err(|e| format!("Failed to read private key: {}", e))?;
-        
+
         let key = if let Some(passphrase) = &plan.private_key_passphrase {
             russh::keys::decode_secret_key(&key_data, Some(passphrase))
                 .map_err(|e| format!("Failed to decode private key: {}", e))?
@@ -184,7 +180,7 @@ pub async fn test_connection(
     };
 
     match auth_result {
-        russh::client::AuthResult::Success => {},
+        russh::client::AuthResult::Success => {}
         _ => return Err("Authentication failed".to_string()),
     }
 
@@ -194,7 +190,10 @@ pub async fn test_connection(
         .await
         .ok();
 
-    Ok(format!("Successfully connected to {}@{}:{}", username, host, port))
+    Ok(format!(
+        "Successfully connected to {}@{}:{}",
+        username, host, port
+    ))
 }
 
 // Simple handler for test connections that auto-accepts host keys

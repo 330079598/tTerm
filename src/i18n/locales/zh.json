@@ -257,6 +257,8 @@
     },
     "actions": {
       "upload": "上传文件",
+      "uploadFiles": "上传文件",
+      "uploadFolder": "上传文件夹",
       "download": "下载文件",
       "rename": "重命名",
       "delete": "删除",
@@ -296,7 +298,9 @@
       "missingConnection": "SSH 连接缺失",
       "invalidFile": "无法上传 {{name}}：文件路径不可用",
       "noValidFiles": "没有有效的文件可上传",
-      "notReady": "SFTP 未就绪"
+      "notReady": "SFTP 未就绪",
+      "uploadAllFailed": "{{count}} 个上传任务失败",
+      "uploadPartialFailed": "{{succeeded}} 个上传成功，{{failed}} 个失败"
     },
     "emptyDescription": "此文件夹为空",
     "loading": "加载中...",

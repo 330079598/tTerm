@@ -38,10 +38,10 @@ pub fn spawn_reader_thread(
 }
 
 pub fn build_terminal_command(
-    #[cfg(target_os = "windows")]
-    shell_config: Option<crate::core::session::TerminalShellConfig>,
-    #[cfg(not(target_os = "windows"))]
-    _shell_config: Option<crate::core::session::TerminalShellConfig>,
+    #[cfg(target_os = "windows")] shell_config: Option<crate::core::session::TerminalShellConfig>,
+    #[cfg(not(target_os = "windows"))] _shell_config: Option<
+        crate::core::session::TerminalShellConfig,
+    >,
 ) -> Result<CommandBuilder, String> {
     #[cfg(target_os = "windows")]
     let mut cmd = {
@@ -76,10 +76,7 @@ fn build_windows_command(
 
     let (program, args): (String, Vec<String>) = match shell.as_str() {
         "cmd" => ("cmd.exe".to_string(), Vec::new()),
-        "powershell" => (
-            "powershell.exe".to_string(),
-            vec!["-NoLogo".to_string()],
-        ),
+        "powershell" => ("powershell.exe".to_string(), vec!["-NoLogo".to_string()]),
         "pwsh" => ("pwsh.exe".to_string(), vec!["-NoLogo".to_string()]),
         "custom" => {
             let path = config
@@ -87,7 +84,9 @@ fn build_windows_command(
                 .as_ref()
                 .map(|v| v.trim().to_string())
                 .filter(|v| !v.is_empty())
-                .ok_or_else(|| "Terminal shell is set to custom but no custom path was provided".to_string())?;
+                .ok_or_else(|| {
+                    "Terminal shell is set to custom but no custom path was provided".to_string()
+                })?;
 
             let args = config
                 .custom_args

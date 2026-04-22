@@ -56,8 +56,8 @@ pub fn load_session() -> Result<SessionData, String> {
     }
     let content = fs::read_to_string(&session_file)
         .map_err(|e| format!("Failed to read session file: {}", e))?;
-    let mut session =
-        serde_json::from_str::<SessionData>(&content).map_err(|e| format!("Failed to parse session: {}", e))?;
+    let mut session = serde_json::from_str::<SessionData>(&content)
+        .map_err(|e| format!("Failed to parse session: {}", e))?;
     // Clean older session files as they are loaded so stale plaintext secrets are dropped immediately.
     session.tabs = sanitize_session_tabs(session.tabs);
     Ok(session)
@@ -84,5 +84,3 @@ pub fn clear_session() -> Result<(), String> {
     }
     Ok(())
 }
-
-

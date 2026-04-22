@@ -269,6 +269,8 @@
     },
     "actions": {
       "upload": "Upload Files",
+      "uploadFiles": "Upload Files",
+      "uploadFolder": "Upload Folder",
       "download": "Download File",
       "rename": "Rename",
       "delete": "Delete",
@@ -308,7 +310,9 @@
       "missingConnection": "SSH connection is missing",
       "invalidFile": "Cannot upload {{name}}: file path not available",
       "noValidFiles": "No valid files to upload",
-      "notReady": "SFTP not ready"
+      "notReady": "SFTP not ready",
+      "uploadAllFailed": "{{count}} upload(s) failed",
+      "uploadPartialFailed": "{{succeeded}} upload(s) succeeded, {{failed}} failed"
     },
     "emptyDescription": "This folder is empty",
     "loading": "Loading...",
