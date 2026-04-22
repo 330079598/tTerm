@@ -132,9 +132,11 @@ async fn connect_sftp(
         .await
         .map_err(|err| format!("Failed to start SFTP subsystem: {err}"))?;
 
-    let sftp = SftpSession::new(channel.into_stream())
-        .await
-        .map_err(map_sftp_error)?;
+    let sftp = Arc::new(
+        SftpSession::new(channel.into_stream())
+            .await
+            .map_err(map_sftp_error)?,
+    );
 
     Ok(ConnectedSftp { ssh, sftp })
 }
@@ -161,8 +163,20 @@ pub async fn get_or_create_sftp_connection(
         username: plan.username.clone().ok_or("Username is required")?,
     };
 
-    let mut pool_guard = pool.write().await;
     let now = Instant::now();
+
+    {
+        let pool_guard = pool.read().await;
+        if pool_guard.contains_key(&key) {
+            return Ok(());
+        }
+    }
+
+    let mut pool_guard = pool.write().await;
+    if pool_guard.contains_key(&key) {
+        return Ok(());
+    }
+
     let expired_keys: Vec<_> = pool_guard
         .iter()
         .filter(|(_, cached)| now.duration_since(cached.last_used) > CONNECTION_TIMEOUT)
@@ -175,11 +189,6 @@ pub async fn get_or_create_sftp_connection(
                 close_sftp(cached.connection).await;
             });
         }
-    }
-
-    if let Some(cached) = pool_guard.get_mut(&key) {
-        cached.last_used = now;
-        return Ok(());
     }
 
     drop(pool_guard);

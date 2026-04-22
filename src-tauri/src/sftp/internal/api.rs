@@ -27,15 +27,21 @@ macro_rules! with_sftp {
         // Ensure connection exists
         get_or_create_sftp_connection($app, $tab_id, $plan, $prompts.clone(), $pool).await?;
 
-        // Execute operation
-        let pool_guard = $pool.read().await;
-        let cached = pool_guard.get(&key).ok_or("Connection not found")?;
-        let $sftp = &cached.connection.sftp;
-        let result: Result<_, String> = async { $body }.await;
+        // Clone the session handle so long-running operations do not hold the pool lock.
+        let sftp = {
+            let pool_guard = $pool.read().await;
+            let cached = pool_guard.get(&key).ok_or("Connection not found")?;
+            cached.connection.sftp.clone()
+        };
 
-        // If operation fails, connection may be broken, remove from cache
+        let result: Result<_, String> = async {
+            let $sftp = sftp.as_ref();
+            $body
+        }
+        .await;
+
+        // If operation fails, connection may be broken, remove from cache.
         if result.is_err() {
-            drop(pool_guard);
             let mut pool_guard = $pool.write().await;
             if let Some(cached) = pool_guard.remove(&key) {
                 tokio::spawn(async move {

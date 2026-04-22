@@ -21,6 +21,8 @@ interface UseSftpDragDropReturn {
   isDragActive: boolean
 }
 
+const DROP_DEDUP_WINDOW_MS = 750
+
 export function useSftpDragDrop({
   listing,
   loadDirectory,
@@ -31,12 +33,67 @@ export function useSftpDragDrop({
   const { t } = useTranslation()
   const [isDragActive, setIsDragActive] = useState(false)
   const dragCounterRef = useRef(0)
+  const lastDropRef = useRef<{ signature: string; timestamp: number } | null>(null)
 
   useEffect(() => {
     if (visible && !listing) {
       void loadDirectory(null)
     }
   }, [listing, loadDirectory, visible])
+
+  const uploadPaths = useCallback(
+    async (paths: string[]) => {
+      if (!listing) {
+        setError(t("sftp.errors.notReady", { defaultValue: "SFTP not ready" }))
+        return
+      }
+
+      const validPaths = paths.filter((path) => typeof path === "string" && path.length > 0)
+      if (validPaths.length === 0) {
+        setError(
+          t("sftp.errors.noValidFiles", {
+            defaultValue: "No valid files to upload",
+          })
+        )
+        return
+      }
+
+      const signature = [...validPaths].sort().join("\0")
+      const now = Date.now()
+      const lastDrop = lastDropRef.current
+      if (
+        lastDrop &&
+        lastDrop.signature === signature &&
+        now - lastDrop.timestamp < DROP_DEDUP_WINDOW_MS
+      ) {
+        console.log("Skipping duplicate drop upload", validPaths)
+        return
+      }
+      lastDropRef.current = { signature, timestamp: now }
+
+      const files = await Promise.all(
+        validPaths.map(async (path) => {
+          const fileName = path.split(/[\\/]/).pop() || "file"
+          let fileSize = 0
+          try {
+            fileSize = await invoke<number>("get_file_size", { localPath: path })
+          } catch (invokeError) {
+            console.warn("Failed to get file size for", path, invokeError)
+          }
+
+          return {
+            name: fileName,
+            path,
+            size: fileSize,
+            type: "application/octet-stream",
+          } as File & { path: string }
+        })
+      )
+
+      await uploadFiles(files)
+    },
+    [listing, setError, t, uploadFiles]
+  )
 
   useEffect(() => {
     if (!visible) {
@@ -49,8 +106,6 @@ export function useSftpDragDrop({
       const appWindow = getCurrentWindow()
 
       unlisten = await appWindow.onDragDropEvent((event) => {
-        console.log("Drag drop event:", event)
-
         if (!visible) {
           return
         }
@@ -68,31 +123,8 @@ export function useSftpDragDrop({
           setIsDragActive(false)
 
           const paths = event.payload.paths as string[]
-          console.log("Dropped paths:", paths)
-
           if (paths && paths.length > 0) {
-            void (async () => {
-              const filesPromises = paths.map(async (path) => {
-                const fileName = path.split(/[\\/]/).pop() || "file"
-                let fileSize = 0
-                try {
-                  fileSize = await invoke<number>("get_file_size", { localPath: path })
-                } catch (invokeError) {
-                  console.warn("Failed to get file size for", path, invokeError)
-                }
-
-                const fileObj = {
-                  name: fileName,
-                  path,
-                  size: fileSize,
-                  type: "application/octet-stream",
-                } as File & { path: string }
-                return fileObj
-              })
-              const files = await Promise.all(filesPromises)
-              console.log("Uploading files:", files)
-              void uploadFiles(files)
-            })()
+            void uploadPaths(paths)
           }
         }
       })
@@ -107,7 +139,7 @@ export function useSftpDragDrop({
         unlisten()
       }
     }
-  }, [uploadFiles, visible])
+  }, [uploadPaths, visible])
 
   const handleDragEnter = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -137,27 +169,13 @@ export function useSftpDragDrop({
       dragCounterRef.current = 0
       setIsDragActive(false)
 
-      if (!listing) {
-        setError(t("sftp.errors.notReady", { defaultValue: "SFTP not ready" }))
-        return
-      }
+      const droppedPaths = Array.from(event.dataTransfer.files)
+        .map((file) => file.path)
+        .filter((path): path is string => typeof path === "string" && path.length > 0)
 
-      const droppedFiles = Array.from(event.dataTransfer.files).filter(
-        (file) => typeof file.path === "string" && file.path.length > 0
-      )
-
-      if (droppedFiles.length === 0) {
-        setError(
-          t("sftp.errors.noValidFiles", {
-            defaultValue: "No valid files to upload",
-          })
-        )
-        return
-      }
-
-      await uploadFiles(droppedFiles)
+      await uploadPaths(droppedPaths)
     },
-    [listing, setError, t, uploadFiles]
+    [uploadPaths]
   )
 
   return {

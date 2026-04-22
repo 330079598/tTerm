@@ -36,7 +36,7 @@ pub struct SftpDirectoryListing {
 
 pub struct ConnectedSftp {
     pub ssh: client::Handle<SshClientHandler>,
-    pub sftp: SftpSession,
+    pub sftp: Arc<SftpSession>,
 }
 
 pub struct CachedSftpConnection {
