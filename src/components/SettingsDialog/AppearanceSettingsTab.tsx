@@ -1,5 +1,5 @@
 import React from "react"
-import { Copy, Edit, Languages, Palette, Plus, RotateCcw, Trash2 } from "lucide-react"
+import { Check, Copy, Edit, Languages, Palette, Plus, RotateCcw, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { ThemeCard } from "@/components/ThemeCard"
@@ -65,16 +65,18 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
                     <Button
                       type="button"
                       variant="ghost"
+                      aria-pressed={isActive}
                       onClick={() => handleLanguageChange(lang.code)}
                       className={cn(
-                        "h-auto w-full justify-between rounded-lg px-4 py-3 text-left",
-                        isActive && "bg-muted"
+                        "h-auto w-full justify-between rounded-lg border px-4 py-3 text-left",
+                        isActive ? "border-primary bg-accent" : "border-transparent"
                       )}
                     >
                       <div>
                         <div className="text-sm font-semibold">{lang.nativeLabel}</div>
                         <div className="text-muted-foreground text-xs">{lang.label}</div>
                       </div>
+                      {isActive && <Check size={16} className="text-primary ml-3 shrink-0" />}
                     </Button>
                   </CardContent>
                 </Card>
