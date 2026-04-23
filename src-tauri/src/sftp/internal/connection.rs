@@ -168,15 +168,9 @@ pub async fn get_or_create_sftp_connection(
 
     let now = Instant::now();
 
-    {
-        let pool_guard = pool.read().await;
-        if pool_guard.contains_key(&key) {
-            return Ok(());
-        }
-    }
-
     let mut pool_guard = pool.write().await;
-    if pool_guard.contains_key(&key) {
+    if let Some(cached) = pool_guard.get_mut(&key) {
+        cached.last_used = now;
         return Ok(());
     }
 
