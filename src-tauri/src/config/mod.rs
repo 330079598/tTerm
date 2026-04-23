@@ -4,10 +4,12 @@ pub use paths::{ensure_config_dir, get_config_path, init_config_dir, legacy_conf
 
 use serde::{Deserialize, Serialize};
 use std::fs;
+use sys_locale::get_locale;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppConfig {
     pub theme: String,
+    #[serde(default = "default_language")]
     pub language: String,
     #[serde(default = "default_font_family")]
     pub font_family: String,
@@ -25,6 +27,22 @@ pub struct AppConfig {
     pub secret_vault_enabled: bool,
     #[serde(default = "default_scrollback_lines")]
     pub scrollback_lines: u32,
+}
+
+fn normalize_language(locale: &str) -> String {
+    let normalized_locale = locale.replace('_', "-").to_ascii_lowercase();
+
+    if normalized_locale.starts_with("zh") {
+        return "zh".to_string();
+    }
+
+    "en".to_string()
+}
+
+fn default_language() -> String {
+    get_locale()
+        .map(|locale| normalize_language(&locale))
+        .unwrap_or_else(|| "en".to_string())
 }
 
 fn default_font_family() -> String {
@@ -56,7 +74,7 @@ impl Default for AppConfig {
     fn default() -> Self {
         Self {
             theme: "default".to_string(),
-            language: "en".to_string(),
+            language: default_language(),
             font_family: default_font_family(),
             font_size: default_font_size(),
             cursor_style: default_cursor_style(),

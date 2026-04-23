@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { invoke } from "@tauri-apps/api/core"
 
+import { detectSystemLanguage } from "@/i18n/language"
 import { markConfigReady } from "@/lib/startup"
 
 export interface SecretBackendStatus {
@@ -27,7 +28,7 @@ export interface AppConfig {
 
 const defaultConfig: AppConfig = {
   theme: "default",
-  language: "en",
+  language: detectSystemLanguage(),
   font_family: '"JetBrainsMono Nerd Font", "JetBrains Mono", "Fira Code", Menlo, Monaco, monospace',
   font_size: 14,
   cursor_style: "block",
