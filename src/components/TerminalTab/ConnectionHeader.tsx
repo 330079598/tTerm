@@ -12,6 +12,7 @@ interface ConnectionHeaderProps {
   connection?: TerminalTabProps["connection"]
   connectionHeaderPinned: boolean
   connectionState: ConnectionState
+  onBackgroundMouseDown?: React.MouseEventHandler<HTMLDivElement>
   onPinConnectionHeader?: () => void
   onReconnect: () => void
   onToggleSftpDrawer: () => void
@@ -22,6 +23,7 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
   connection,
   connectionHeaderPinned,
   connectionState,
+  onBackgroundMouseDown,
   onPinConnectionHeader,
   onReconnect,
   onToggleSftpDrawer,
@@ -46,7 +48,7 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
       )}
 
       {showConnectionHeader && (
-        <div className="connection-header">
+        <div className="connection-header" onMouseDown={onBackgroundMouseDown}>
           <div className="connection-header-main">
             <span
               className={`connection-status-pill is-${connectionState}`}

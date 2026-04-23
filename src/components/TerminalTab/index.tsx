@@ -465,6 +465,22 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     onReconnectRequest?.()
   }, [onReconnectRequest, setConnectionState])
 
+  const handleConnectionHeaderMouseDown = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!showSftpDrawer) {
+        return
+      }
+
+      const target = event.target as HTMLElement | null
+      if (target?.closest("button")) {
+        return
+      }
+
+      setShowSftpDrawer(false)
+    },
+    [showSftpDrawer]
+  )
+
   const handleToggleSftpDrawer = useCallback(() => {
     setShowSftpDrawer((current) => !current)
   }, [])
@@ -531,6 +547,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         connection={connection}
         connectionHeaderPinned={connectionHeaderPinned}
         connectionState={connectionState}
+        onBackgroundMouseDown={handleConnectionHeaderMouseDown}
         onPinConnectionHeader={onPinConnectionHeader}
         onReconnect={handleReconnect}
         onToggleSftpDrawer={handleToggleSftpDrawer}
