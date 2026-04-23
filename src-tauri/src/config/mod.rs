@@ -1,6 +1,6 @@
 mod paths;
 
-pub use paths::{ensure_config_dir, get_config_path};
+pub use paths::{ensure_config_dir, get_config_path, init_config_dir, legacy_config_path};
 
 use serde::{Deserialize, Serialize};
 use std::fs;

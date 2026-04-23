@@ -1,4 +1,4 @@
-mod store;
+pub(crate) mod store;
 pub mod internal {
     pub mod api;
     pub mod connection;

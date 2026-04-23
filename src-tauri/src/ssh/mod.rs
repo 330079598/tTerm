@@ -1,7 +1,7 @@
 mod client;
 pub mod secret_commands;
 mod secret_store;
-mod store;
+pub(crate) mod store;
 mod types;
 
 pub use client::run_single_ssh_connection;
