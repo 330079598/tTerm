@@ -1,9 +1,9 @@
-﻿name: Release (Dev)
+﻿name: Release (dev-beta)
 
 on:
   push:
     branches:
-      - dev
+      - dev-beta
   workflow_dispatch:
 
 jobs:
@@ -64,7 +64,7 @@ jobs:
         with:
           tagName: v__VERSION__-beta.${{ github.run_number }}
           releaseName: 'Dev Release v__VERSION__'
-          releaseBody: 'Development build from dev branch'
+          releaseBody: 'Development build from dev-beta branch'
           releaseDraft: false
           prerelease: true
           args: ${{ matrix.args }}
