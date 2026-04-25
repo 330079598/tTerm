@@ -1,5 +1,6 @@
 use super::connection::{
-    close_sftp, ensure_ssh_plan, get_or_create_sftp_connection, map_sftp_error,
+    close_sftp, connect_authenticated_ssh, ensure_ssh_plan, get_or_create_sftp_connection,
+    map_sftp_error,
 };
 use super::types::{
     SftpConnectionKey, SftpConnectionPool, SftpDirectoryEntry, SftpDirectoryListing,
@@ -9,11 +10,13 @@ use crate::core::session::PtyConnectionOptions;
 use crate::core::state::HostPromptMap;
 use crate::sftp::store;
 use crate::ssh::SecretStoreState;
+use russh::ChannelMsg;
 use russh_sftp::client::SftpSession;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
@@ -83,6 +86,96 @@ struct UploadItemCompleteEvent {
     cancelled: bool,
     success: bool,
 }
+
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteEntryRequest {
+    path: String,
+    name: String,
+    is_dir: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteOptions {
+    allow_command_delete: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteBatchStartResult {
+    batch_id: String,
+}
+
+#[derive(Default)]
+struct DeleteStats {
+    directories: usize,
+    files: usize,
+    truncated: bool,
+}
+
+#[derive(Default)]
+struct DeleteProgress {
+    deleted_directories: usize,
+    deleted_files: usize,
+    failed: usize,
+}
+
+struct DeletePlan {
+    method: DeleteMethod,
+    stats: DeleteStats,
+}
+
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+enum DeleteMethod {
+    Sftp,
+    Command,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DeleteBatchStartEvent {
+    batch_id: String,
+    entries: Vec<String>,
+    method: DeleteMethod,
+    total_directories: usize,
+    total_files: usize,
+    total_truncated: bool,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DeleteProgressEvent {
+    batch_id: String,
+    current_path: String,
+    deleted_directories: usize,
+    deleted_files: usize,
+    failed: usize,
+    method: DeleteMethod,
+    total_directories: usize,
+    total_files: usize,
+    total_truncated: bool,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DeleteBatchCompleteEvent {
+    batch_id: String,
+    cancelled: bool,
+    deleted_directories: usize,
+    deleted_files: usize,
+    error: Option<String>,
+    failed: usize,
+    method: DeleteMethod,
+    total_directories: usize,
+    total_files: usize,
+    total_truncated: bool,
+}
+
+const DELETE_COMMAND_THRESHOLD: usize = 1000;
+const DELETE_STATS_LIMIT: usize = 1001;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -270,6 +363,439 @@ async fn ensure_remote_dir_all(
 
 fn next_transfer_id() -> String {
     uuid::Uuid::new_v4().to_string()
+}
+
+fn next_delete_batch_id() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
+
+fn should_emit_delete_progress(progress: &DeleteProgress) -> bool {
+    let total = progress.deleted_directories + progress.deleted_files + progress.failed;
+    total == 0 || total % 25 == 0
+}
+
+fn add_delete_entry_stats(stats: &mut DeleteStats, is_dir: bool) {
+    if is_dir {
+        stats.directories += 1;
+    } else {
+        stats.files += 1;
+    }
+}
+
+fn is_dangerous_delete_path(path: &str) -> bool {
+    let normalized = super::paths::normalize_remote_path(path);
+    normalized.is_empty() || normalized == "/" || normalized == "." || normalized == ".."
+}
+
+fn shell_quote_single(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+fn command_delete_script(paths: &[String]) -> String {
+    let quoted_paths = paths
+        .iter()
+        .map(|path| shell_quote_single(path))
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    format!("rm -rf -- {quoted_paths}")
+}
+
+fn build_delete_complete_event(
+    batch_id: String,
+    method: DeleteMethod,
+    stats: &DeleteStats,
+    progress: &DeleteProgress,
+    cancelled: bool,
+    error: Option<String>,
+) -> DeleteBatchCompleteEvent {
+    DeleteBatchCompleteEvent {
+        batch_id,
+        cancelled,
+        deleted_directories: progress.deleted_directories,
+        deleted_files: progress.deleted_files,
+        error,
+        failed: progress.failed,
+        method,
+        total_directories: stats.directories,
+        total_files: stats.files,
+        total_truncated: stats.truncated,
+    }
+}
+
+fn emit_delete_progress(
+    app: &AppHandle,
+    tab_id: &str,
+    batch_id: &str,
+    method: DeleteMethod,
+    stats: &DeleteStats,
+    progress: &DeleteProgress,
+    current_path: String,
+) {
+    let _ = app.emit(
+        &format!("sftp-delete-progress-{tab_id}"),
+        DeleteProgressEvent {
+            batch_id: batch_id.to_string(),
+            current_path,
+            deleted_directories: progress.deleted_directories,
+            deleted_files: progress.deleted_files,
+            failed: progress.failed,
+            method,
+            total_directories: stats.directories,
+            total_files: stats.files,
+            total_truncated: stats.truncated,
+        },
+    );
+}
+
+fn collect_delete_stats<'a>(
+    sftp: &'a SftpSession,
+    path: String,
+    is_dir: bool,
+    stats: &'a mut DeleteStats,
+    limit: usize,
+) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+    Box::pin(async move {
+        if stats.truncated {
+            return Ok(());
+        }
+
+        add_delete_entry_stats(stats, is_dir);
+        if stats.directories + stats.files >= limit {
+            stats.truncated = true;
+            return Ok(());
+        }
+
+        if !is_dir {
+            return Ok(());
+        }
+
+        let entries = sftp.read_dir(&path).await.map_err(map_sftp_error)?;
+        for entry in entries {
+            let name = entry.file_name();
+            let entry_path = super::paths::join_remote_path(&path, &name);
+            collect_delete_stats(sftp, entry_path, entry.metadata().is_dir(), stats, limit).await?;
+            if stats.truncated {
+                break;
+            }
+        }
+
+        Ok(())
+    })
+}
+
+async fn build_delete_plan(
+    sftp: &SftpSession,
+    entries: &[DeleteEntryRequest],
+    allow_command_delete: bool,
+) -> Result<DeletePlan, String> {
+    let mut stats = DeleteStats::default();
+    for entry in entries {
+        if is_dangerous_delete_path(&entry.path) {
+            return Err(format!("Refusing to delete unsafe path '{}'", entry.path));
+        }
+        collect_delete_stats(sftp, entry.path.clone(), entry.is_dir, &mut stats, DELETE_STATS_LIMIT)
+            .await?;
+        if stats.truncated {
+            break;
+        }
+    }
+
+    let known_count = stats.directories + stats.files;
+    let method = if allow_command_delete && (stats.truncated || known_count >= DELETE_COMMAND_THRESHOLD) {
+        DeleteMethod::Command
+    } else {
+        DeleteMethod::Sftp
+    };
+
+    Ok(DeletePlan { method, stats })
+}
+
+async fn run_remote_delete_command(
+    app: &AppHandle,
+    tab_id: &str,
+    plan: &crate::core::session::SessionPlan,
+    prompts: HostPromptMap,
+    batch_id: &str,
+    entries: &[DeleteEntryRequest],
+    stats: &DeleteStats,
+) -> Result<DeleteProgress, String> {
+    let paths = entries.iter().map(|entry| entry.path.clone()).collect::<Vec<_>>();
+    let command = command_delete_script(&paths);
+    let ssh = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
+    let mut channel = ssh
+        .channel_open_session()
+        .await
+        .map_err(|err| format!("Failed to open SSH channel: {err}"))?;
+
+    channel
+        .exec(true, command)
+        .await
+        .map_err(|err| format!("Failed to execute delete command: {err}"))?;
+
+    let mut stderr = String::new();
+    let mut exit_status = None;
+    while let Some(message) = channel.wait().await {
+        match message {
+            ChannelMsg::Data { .. } => {}
+            ChannelMsg::ExtendedData { data, .. } => {
+                stderr.push_str(&String::from_utf8_lossy(&data));
+            }
+            ChannelMsg::ExitStatus { exit_status: status } => {
+                exit_status = Some(status);
+            }
+            ChannelMsg::Close => break,
+            _ => {}
+        }
+    }
+
+    let _ = channel.close().await;
+    let _ = ssh
+        .disconnect(russh::Disconnect::ByApplication, "delete command completed", "en")
+        .await;
+
+    if exit_status.unwrap_or(0) == 0 {
+        let progress = DeleteProgress {
+            deleted_directories: stats.directories,
+            deleted_files: stats.files,
+            failed: 0,
+        };
+        emit_delete_progress(
+            app,
+            tab_id,
+            batch_id,
+            DeleteMethod::Command,
+            stats,
+            &progress,
+            paths.join(", "),
+        );
+        Ok(progress)
+    } else {
+        let detail = stderr.trim();
+        Err(if detail.is_empty() {
+            format!("Delete command failed with exit status {}", exit_status.unwrap_or(1))
+        } else {
+            format!(
+                "Delete command failed with exit status {}: {}",
+                exit_status.unwrap_or(1),
+                detail
+            )
+        })
+    }
+}
+
+async fn delete_entries_with_sftp(
+    app: &AppHandle,
+    tab_id: &str,
+    sftp: &SftpSession,
+    batch_id: &str,
+    entries: &[DeleteEntryRequest],
+    stats: &DeleteStats,
+) -> DeleteProgress {
+    let mut progress = DeleteProgress::default();
+    for entry in entries {
+        let result = if entry.is_dir {
+            delete_directory_recursive_with_progress(
+                app,
+                tab_id,
+                sftp,
+                batch_id,
+                entry.path.clone(),
+                stats,
+                &mut progress,
+            )
+            .await
+        } else {
+            match sftp.remove_file(entry.path.clone()).await.map_err(map_sftp_error) {
+                Ok(()) => {
+                    progress.deleted_files += 1;
+                    if should_emit_delete_progress(&progress) {
+                        emit_delete_progress(
+                            app,
+                            tab_id,
+                            batch_id,
+                            DeleteMethod::Sftp,
+                            stats,
+                            &progress,
+                            entry.path.clone(),
+                        );
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(error),
+            }
+        };
+
+        if result.is_err() {
+            progress.failed += 1;
+            emit_delete_progress(
+                app,
+                tab_id,
+                batch_id,
+                DeleteMethod::Sftp,
+                stats,
+                &progress,
+                entry.path.clone(),
+            );
+        }
+    }
+
+    emit_delete_progress(
+        app,
+        tab_id,
+        batch_id,
+        DeleteMethod::Sftp,
+        stats,
+        &progress,
+        String::new(),
+    );
+    progress
+}
+
+fn delete_directory_recursive_with_progress<'a>(
+    app: &'a AppHandle,
+    tab_id: &'a str,
+    sftp: &'a SftpSession,
+    batch_id: &'a str,
+    path: String,
+    stats: &'a DeleteStats,
+    progress: &'a mut DeleteProgress,
+) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+    Box::pin(async move {
+        let entries = sftp.read_dir(&path).await.map_err(map_sftp_error)?;
+        for entry in entries {
+            let name = entry.file_name();
+            let entry_path = super::paths::join_remote_path(&path, &name);
+
+            if entry.metadata().is_dir() {
+                delete_directory_recursive_with_progress(
+                    app,
+                    tab_id,
+                    sftp,
+                    batch_id,
+                    entry_path,
+                    stats,
+                    progress,
+                )
+                .await?;
+            } else {
+                sftp.remove_file(entry_path.clone())
+                    .await
+                    .map_err(map_sftp_error)?;
+                progress.deleted_files += 1;
+                if should_emit_delete_progress(progress) {
+                    emit_delete_progress(
+                        app,
+                        tab_id,
+                        batch_id,
+                        DeleteMethod::Sftp,
+                        stats,
+                        progress,
+                        entry_path,
+                    );
+                }
+            }
+        }
+
+        sftp.remove_dir(path.clone()).await.map_err(map_sftp_error)?;
+        progress.deleted_directories += 1;
+        if should_emit_delete_progress(progress) {
+            emit_delete_progress(
+                app,
+                tab_id,
+                batch_id,
+                DeleteMethod::Sftp,
+                stats,
+                progress,
+                path,
+            );
+        }
+        Ok(())
+    })
+}
+
+async fn run_delete_batch(
+    app: AppHandle,
+    tab_id: String,
+    plan: crate::core::session::SessionPlan,
+    prompts: HostPromptMap,
+    pool: SftpConnectionPool,
+    batch_id: String,
+    entries: Vec<DeleteEntryRequest>,
+    options: DeleteOptions,
+) {
+    let mut method = DeleteMethod::Sftp;
+    let mut stats = DeleteStats::default();
+    let mut progress = DeleteProgress::default();
+    let result: Result<(), String> = async {
+        let sftp = get_or_create_delete_sftp(&app, &tab_id, &plan, prompts.clone(), &pool).await?;
+        let delete_plan = build_delete_plan(&sftp, &entries, options.allow_command_delete).await?;
+        method = delete_plan.method;
+        stats = delete_plan.stats;
+
+        let _ = app.emit(
+            &format!("sftp-delete-batch-start-{tab_id}"),
+            DeleteBatchStartEvent {
+                batch_id: batch_id.clone(),
+                entries: entries.iter().map(|entry| entry.name.clone()).collect(),
+                method,
+                total_directories: stats.directories,
+                total_files: stats.files,
+                total_truncated: stats.truncated,
+            },
+        );
+
+        progress = match method {
+            DeleteMethod::Command => {
+                run_remote_delete_command(
+                    &app,
+                    &tab_id,
+                    &plan,
+                    prompts,
+                    &batch_id,
+                    &entries,
+                    &stats,
+                )
+                .await?
+            }
+            DeleteMethod::Sftp => {
+                delete_entries_with_sftp(&app, &tab_id, &sftp, &batch_id, &entries, &stats).await
+            }
+        };
+
+        Ok(())
+    }
+    .await;
+
+    let error = result.err();
+    if error.is_some() {
+        progress.failed += 1;
+    }
+
+    let _ = app.emit(
+        &format!("sftp-delete-batch-complete-{tab_id}"),
+        build_delete_complete_event(batch_id, method, &stats, &progress, false, error),
+    );
+}
+
+async fn get_or_create_delete_sftp(
+    app: &AppHandle,
+    tab_id: &str,
+    plan: &crate::core::session::SessionPlan,
+    prompts: HostPromptMap,
+    pool: &SftpConnectionPool,
+) -> Result<Arc<SftpSession>, String> {
+    let key = SftpConnectionKey {
+        tab_id: tab_id.to_string(),
+        host: plan.host.clone().ok_or("Host is required")?,
+        port: plan.port,
+        username: plan.username.clone().ok_or("Username is required")?,
+    };
+
+    get_or_create_sftp_connection(app, tab_id, plan, prompts, pool).await?;
+    let pool_guard = pool.read().await;
+    let cached = pool_guard.get(&key).ok_or("Connection not found")?;
+    Ok(Arc::clone(&cached.connection.sftp))
 }
 
 fn is_cancelled(cancel_rx: &mut watch::Receiver<bool>) -> bool {
@@ -580,6 +1106,43 @@ pub async fn sftp_create_directory(
     with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
         sftp.create_dir(path).await.map_err(map_sftp_error)
     })
+}
+
+#[tauri::command]
+pub async fn sftp_delete_entries(
+    app: AppHandle,
+    tab_id: String,
+    connection: Option<PtyConnectionOptions>,
+    entries: Vec<DeleteEntryRequest>,
+    options: DeleteOptions,
+    prompt_state: State<'_, HostPromptMap>,
+    secret_state: State<'_, SecretStoreState>,
+    pool_state: State<'_, SftpConnectionPool>,
+) -> Result<DeleteBatchStartResult, String> {
+    if entries.is_empty() {
+        return Err("No entries selected for deletion".to_string());
+    }
+
+    for entry in &entries {
+        if is_dangerous_delete_path(&entry.path) {
+            return Err(format!("Refusing to delete unsafe path '{}'", entry.path));
+        }
+    }
+
+    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let batch_id = next_delete_batch_id();
+    tokio::spawn(run_delete_batch(
+        app.clone(),
+        tab_id,
+        plan,
+        prompt_state.inner().clone(),
+        pool_state.inner().clone(),
+        batch_id.clone(),
+        entries,
+        options,
+    ));
+
+    Ok(DeleteBatchStartResult { batch_id })
 }
 
 #[tauri::command]

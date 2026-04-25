@@ -1,6 +1,7 @@
 import "@/components/SftpDrawer.css"
-import React, { useCallback, useMemo, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
+import { getCurrentWindow } from "@tauri-apps/api/window"
 import { AlertCircle } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -20,9 +21,23 @@ import type {
   SftpDirectoryEntry,
   SftpDirectoryListing,
   SftpDrawerProps,
+  SftpDeleteProgressState,
   SftpRenameDialogState,
 } from "@/components/SftpDrawer/types"
 import { useSftpTransfers } from "@/components/SftpDrawer/useSftpTransfers"
+
+interface DeleteBatchStartResult {
+  batchId: string
+}
+
+interface DeleteBatchStartEvent extends SftpDeleteProgressState {
+  entries: string[]
+}
+
+interface DeleteBatchCompleteEvent extends SftpDeleteProgressState {
+  cancelled: boolean
+  error?: string
+}
 
 export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connection, onClose }) => {
   const { t } = useTranslation()
@@ -31,6 +46,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
   const [selectedPaths, setSelectedPaths] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteProgress, setDeleteProgress] = useState<SftpDeleteProgressState | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<SftpContextMenuState | null>(null)
   const [deleteDialog, setDeleteDialog] = useState<SftpDeleteDialogState>({
@@ -96,6 +112,89 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       uploadPaths,
       visible,
     })
+
+  useEffect(() => {
+    const appWindow = getCurrentWindow()
+    let disposed = false
+    const unlisteners: Array<() => void> = []
+
+    const setupListeners = async () => {
+      const nextUnlisteners = await Promise.all([
+        appWindow.listen<DeleteBatchStartEvent>(`sftp-delete-batch-start-${tabId}`, (event) => {
+          const { payload } = event
+          setDeleteProgress({
+            batchId: payload.batchId,
+            currentPath: payload.entries.join(", "),
+            deletedDirectories: 0,
+            deletedFiles: 0,
+            failed: 0,
+            method: payload.method,
+            totalDirectories: payload.totalDirectories,
+            totalFiles: payload.totalFiles,
+            totalTruncated: payload.totalTruncated,
+          })
+        }),
+        appWindow.listen<SftpDeleteProgressState>(`sftp-delete-progress-${tabId}`, (event) => {
+          setDeleteProgress(event.payload)
+        }),
+        appWindow.listen<DeleteBatchCompleteEvent>(
+          `sftp-delete-batch-complete-${tabId}`,
+          (event) => {
+            const { payload } = event
+            setDeleteProgress(payload)
+            setIsDeleting(false)
+            void loadDirectory(listing?.currentPath ?? null)
+
+            if (payload.error || payload.failed > 0) {
+              const message = payload.error ?? `Failed to delete ${payload.failed} item(s).`
+              setError(message)
+              toast({
+                variant: "destructive",
+                title: t("sftp.messages.deleteFailure", {
+                  defaultValue: "Failed to delete selected items.",
+                }),
+                description: message,
+              })
+              return
+            }
+
+            toast({
+              title: t("sftp.messages.deleteSuccess", {
+                count: payload.deletedDirectories + payload.deletedFiles,
+                defaultValue: `Deleted ${payload.deletedDirectories + payload.deletedFiles} item(s).`,
+              }),
+              description:
+                payload.method === "command"
+                  ? t("sftp.messages.deleteUsedCommand", {
+                      defaultValue: "Used remote command delete for a large folder.",
+                    })
+                  : undefined,
+            })
+
+            window.setTimeout(() => {
+              setDeleteProgress((current) =>
+                current?.batchId === payload.batchId ? null : current
+              )
+            }, 1500)
+          }
+        ),
+      ])
+
+      if (disposed) {
+        nextUnlisteners.forEach((unlisten) => unlisten())
+        return
+      }
+
+      unlisteners.push(...nextUnlisteners)
+    }
+
+    void setupListeners()
+
+    return () => {
+      disposed = true
+      unlisteners.forEach((unlisten) => unlisten())
+    }
+  }, [listing?.currentPath, loadDirectory, t, tabId])
 
   const entryMap = useMemo(
     () => new Map((listing?.entries ?? []).map((entry) => [entry.path, entry])),
@@ -279,59 +378,57 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
     void (async () => {
       setIsDeleting(true)
       setError(null)
-
-      let successCount = 0
-      const failures: string[] = []
-
-      for (const entry of entries) {
-        try {
-          await invoke("sftp_delete_entry", {
-            tabId,
-            connection,
-            path: entry.path,
-            isDir: entry.isDir,
-          })
-          successCount += 1
-        } catch (invokeError) {
-          failures.push(`${entry.name}: ${String(invokeError)}`)
-        }
-      }
-
-      await loadDirectory(listing?.currentPath ?? null)
       setDeleteDialog({ open: false, entries: [] })
       setContextMenu(null)
+      setDeleteProgress({
+        batchId: "pending",
+        currentPath: entries.map((entry) => entry.name).join(", "),
+        deletedDirectories: 0,
+        deletedFiles: 0,
+        failed: 0,
+        method: "sftp",
+        totalDirectories: entries.filter((entry) => entry.isDir).length,
+        totalFiles: entries.filter((entry) => !entry.isDir).length,
+        totalTruncated: true,
+      })
 
-      if (failures.length === 0) {
-        toast({
-          title: t("sftp.messages.deleteSuccess", {
-            count: successCount,
-            defaultValue: `Deleted ${successCount} item(s).`,
-          }),
+      try {
+        const result = await invoke<DeleteBatchStartResult>("sftp_delete_entries", {
+          tabId,
+          connection,
+          entries: entries.map((entry) => ({
+            path: entry.path,
+            name: entry.name,
+            isDir: entry.isDir,
+          })),
+          options: {
+            allowCommandDelete: true,
+          },
         })
-      } else if (successCount > 0) {
-        toast({
-          variant: "destructive",
-          title: t("sftp.messages.deletePartialFailure", {
-            successCount,
-            failureCount: failures.length,
-            defaultValue: `Deleted ${successCount} item(s). ${failures.length} failed.`,
-          }),
-          description: failures[0],
-        })
-      } else {
-        setError(failures.join("\n"))
+
+        setDeleteProgress((current) =>
+          current
+            ? {
+                ...current,
+                batchId: result.batchId,
+              }
+            : current
+        )
+      } catch (invokeError) {
+        const message = String(invokeError)
+        setIsDeleting(false)
+        setDeleteProgress(null)
+        setError(message)
         toast({
           variant: "destructive",
           title: t("sftp.messages.deleteFailure", {
             defaultValue: "Failed to delete selected items.",
           }),
-          description: failures[0],
+          description: message,
         })
       }
-
-      setIsDeleting(false)
     })()
-  }, [connection, deleteDialog.entries, listing?.currentPath, loadDirectory, t, tabId])
+  }, [connection, deleteDialog.entries, t, tabId])
 
   const handleDownload = useCallback(async () => {
     const entry = contextMenuEntry ?? activeEntry
@@ -352,6 +449,17 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
 
   const isBusy = isLoading || isDeleting
 
+  const deleteTotal = deleteProgress
+    ? deleteProgress.totalDirectories + deleteProgress.totalFiles
+    : 0
+  const deleteDone = deleteProgress
+    ? deleteProgress.deletedDirectories + deleteProgress.deletedFiles
+    : 0
+  const deletePercent =
+    deleteProgress && deleteTotal > 0
+      ? Math.min(100, Math.round((deleteDone / deleteTotal) * 100))
+      : null
+
   return (
     <div className={`sftp-drawer ${visible ? "is-open" : ""}`} aria-hidden={!visible}>
       <SftpDrawerHeader
@@ -367,6 +475,37 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         onClose={onClose}
         selectedCount={selectedPaths.length}
       />
+
+      {deleteProgress && (
+        <div className="bg-muted/40 border-b px-4 py-3 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-medium">
+              {deleteProgress.method === "command"
+                ? t("sftp.deleteProgress.command", { defaultValue: "Deleting with remote command" })
+                : t("sftp.deleteProgress.sftp", { defaultValue: "Deleting files" })}
+            </span>
+            <span className="text-muted-foreground">
+              {deletePercent === null
+                ? t("sftp.deleteProgress.counting", { defaultValue: "Counting..." })
+                : `${deletePercent}%`}
+            </span>
+          </div>
+          <div className="bg-muted mt-2 h-2 overflow-hidden rounded-full">
+            <div
+              className="bg-destructive h-full transition-all"
+              style={{ width: `${deletePercent ?? 10}%` }}
+            />
+          </div>
+          <div className="text-muted-foreground mt-2 truncate">
+            {t("sftp.deleteProgress.detail", {
+              defaultValue: `Deleted ${deleteDone}/${deleteTotal || "?"} item(s)`,
+              deleted: deleteDone,
+              total: deleteProgress.totalTruncated ? `${deleteTotal}+` : deleteTotal,
+            })}
+            {deleteProgress.currentPath ? ` - ${deleteProgress.currentPath}` : ""}
+          </div>
+        </div>
+      )}
 
       {error && (
         <Alert className="bg-destructive/10 text-destructive rounded-none border-x-0 border-t-0">
@@ -410,6 +549,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         handleCreateDirectoryConfirm={handleCreateDirectoryConfirm}
         handleDeleteConfirm={handleDeleteConfirm}
         handleRenameConfirm={handleRenameConfirm}
+        isDeleting={isDeleting}
         renameDialog={renameDialog}
         setCreateFolderDialog={setCreateFolderDialog}
         setDeleteDialog={setDeleteDialog}

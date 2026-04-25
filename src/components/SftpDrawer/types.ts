@@ -45,3 +45,17 @@ export interface SftpCreateFolderDialogState {
   open: boolean
   folderName: string
 }
+
+export type SftpDeleteMethod = "sftp" | "command"
+
+export interface SftpDeleteProgressState {
+  batchId: string
+  currentPath: string
+  deletedDirectories: number
+  deletedFiles: number
+  failed: number
+  method: SftpDeleteMethod
+  totalDirectories: number
+  totalFiles: number
+  totalTruncated: boolean
+}

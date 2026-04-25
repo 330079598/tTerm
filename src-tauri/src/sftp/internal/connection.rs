@@ -36,7 +36,7 @@ pub fn ensure_ssh_plan(
     Ok(plan)
 }
 
-async fn connect_authenticated_ssh(
+pub async fn connect_authenticated_ssh(
     app: &AppHandle,
     tab_id: &str,
     plan: &SessionPlan,

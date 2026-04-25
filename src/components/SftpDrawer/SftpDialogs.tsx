@@ -25,6 +25,7 @@ interface SftpDialogsProps {
   handleCreateDirectoryConfirm: () => void
   handleDeleteConfirm: () => void
   handleRenameConfirm: () => void
+  isDeleting?: boolean
   renameDialog: SftpRenameDialogState
   setCreateFolderDialog: React.Dispatch<React.SetStateAction<SftpCreateFolderDialogState>>
   setDeleteDialog: React.Dispatch<React.SetStateAction<SftpDeleteDialogState>>
@@ -37,6 +38,7 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
   handleCreateDirectoryConfirm,
   handleDeleteConfirm,
   handleRenameConfirm,
+  isDeleting = false,
   renameDialog,
   setCreateFolderDialog,
   setDeleteDialog,
@@ -51,7 +53,9 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
     <>
       <Dialog
         open={deleteDialog.open}
-        onOpenChange={(open) => !open && setDeleteDialog({ open: false, entries: [] })}
+        onOpenChange={(open) =>
+          !open && !isDeleting && setDeleteDialog({ open: false, entries: [] })
+        }
       >
         <DialogContent>
           <DialogHeader>
@@ -78,10 +82,14 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialog({ open: false, entries: [] })}>
+            <Button
+              variant="outline"
+              disabled={isDeleting}
+              onClick={() => setDeleteDialog({ open: false, entries: [] })}
+            >
               {t("common.cancel", { defaultValue: "Cancel" })}
             </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm}>
+            <Button variant="destructive" disabled={isDeleting} onClick={handleDeleteConfirm}>
               {t("common.delete", { defaultValue: "Delete" })}
             </Button>
           </DialogFooter>

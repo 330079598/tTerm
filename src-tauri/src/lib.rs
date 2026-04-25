@@ -92,6 +92,7 @@ pub fn run() {
             sftp::internal::api::sftp_list_directory,
             sftp::internal::api::sftp_create_directory,
             sftp::internal::api::sftp_delete_entry,
+            sftp::internal::api::sftp_delete_entries,
             sftp::internal::api::sftp_rename_entry,
             sftp::internal::api::sftp_upload_file,
             sftp::internal::api::sftp_upload_paths,
