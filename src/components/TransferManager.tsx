@@ -9,6 +9,7 @@ import {
   X,
   XCircle,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -70,11 +71,43 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
   onRemove,
   onClearCompleted,
 }) => {
-  const visibleTransfers = transfers.filter((transfer) => !transfer.batchId)
   const { t } = useTranslation()
+  const childTransfersByBatchId = useMemo(() => {
+    const next = new Map<string, TransferTask[]>()
+
+    for (const transfer of transfers) {
+      if (!transfer.batchId) {
+        continue
+      }
+
+      const children = next.get(transfer.batchId) ?? []
+      children.push(transfer)
+      next.set(transfer.batchId, children)
+    }
+
+    for (const children of next.values()) {
+      children.sort((first, second) => first.startTime - second.startTime)
+    }
+
+    return next
+  }, [transfers])
+  const visibleTransfers = transfers.filter((transfer) => !transfer.batchId)
+  const [expandedBatchIds, setExpandedBatchIds] = useState<Set<string>>(() => new Set())
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({ left: 0, width: PANEL_WIDTH })
+
+  const toggleBatchExpanded = useCallback((batchId: string) => {
+    setExpandedBatchIds((current) => {
+      const next = new Set(current)
+      if (next.has(batchId)) {
+        next.delete(batchId)
+      } else {
+        next.add(batchId)
+      }
+      return next
+    })
+  }, [])
 
   const { active, completed } = useMemo(() => {
     const active = visibleTransfers.filter(
@@ -157,108 +190,176 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
     }
   }, [isOpen, updatePanelPosition])
 
-  const renderTransfer = useCallback(
-    (transfer: TransferTask) => {
-      const progress = transfer.fileSize > 0 ? (transfer.transferred / transfer.fileSize) * 100 : 0
-      const isActive = transfer.status === "pending" || transfer.status === "transferring"
-      const speed = transfer.speed ?? 0
-      const duration = transfer.endTime
-        ? transfer.endTime - transfer.startTime
-        : Date.now() - transfer.startTime
+  function renderTransfer(transfer: TransferTask, nested = false) {
+    const progress = transfer.fileSize > 0 ? (transfer.transferred / transfer.fileSize) * 100 : 0
+    const isActive = transfer.status === "pending" || transfer.status === "transferring"
+    const speed = transfer.speed ?? 0
+    const duration = transfer.endTime ? transfer.endTime - transfer.startTime : 0
+    const childTransfers = childTransfersByBatchId.get(transfer.id) ?? []
+    const canExpand = transfer.direction === "upload" && childTransfers.length > 0
+    const isExpanded = expandedBatchIds.has(transfer.id)
+    const completedChildren = childTransfers.filter((child) => child.status === "completed").length
+    const failedChildren = childTransfers.filter((child) => child.status === "failed").length
+    const cancelledChildren = childTransfers.filter((child) => child.status === "cancelled").length
 
-      return (
-        <Card key={transfer.id} className="p-3">
-          <div className="flex items-center gap-2">
-            <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded">
-              {transfer.direction === "upload" ? (
-                <ArrowUpFromLine className="size-3.5" />
+    return (
+      <Card key={transfer.id} className={cn("p-3", nested && "bg-muted/30 py-2 shadow-none")}>
+        <div className="flex items-center gap-2">
+          {canExpand ? (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="size-5 shrink-0"
+              onClick={() => toggleBatchExpanded(transfer.id)}
+              title={
+                isExpanded
+                  ? t("transfer.collapseFolder", { defaultValue: "Collapse folder" })
+                  : t("transfer.expandFolder", { defaultValue: "Expand folder" })
+              }
+              aria-label={
+                isExpanded
+                  ? t("transfer.collapseFolder", { defaultValue: "Collapse folder" })
+                  : t("transfer.expandFolder", { defaultValue: "Expand folder" })
+              }
+              aria-expanded={isExpanded}
+            >
+              {isExpanded ? (
+                <ChevronDown className="size-3" />
               ) : (
-                <ArrowDownToLine className="size-3.5" />
+                <ChevronRight className="size-3" />
               )}
-            </div>
+            </Button>
+          ) : nested ? (
+            <div className="w-5 shrink-0" />
+          ) : null}
 
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-xs font-medium">{transfer.fileName}</div>
-              <div className="text-muted-foreground truncate font-mono text-[10px]">
-                {transfer.direction === "upload" ? transfer.remotePath : transfer.localPath}
-              </div>
-            </div>
+          <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded">
+            {transfer.direction === "upload" ? (
+              <ArrowUpFromLine className="size-3.5" />
+            ) : (
+              <ArrowDownToLine className="size-3.5" />
+            )}
+          </div>
 
-            <div className="flex shrink-0 items-center gap-1">
-              {getStatusIcon(transfer.status)}
-              {isActive ? (
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => onCancel(transfer.id)}
-                  title={t("transfer.cancel", { defaultValue: "Cancel" })}
-                >
-                  <X className="size-3" />
-                </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => onRemove(transfer.id)}
-                  title={t("transfer.remove", { defaultValue: "Remove" })}
-                >
-                  <Trash2 className="size-3" />
-                </Button>
-              )}
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-xs font-medium">{transfer.fileName}</div>
+            <div className="text-muted-foreground truncate font-mono text-[10px]">
+              {transfer.direction === "upload" ? transfer.remotePath : transfer.localPath}
             </div>
           </div>
 
-          {transfer.status === "transferring" && (
-            <div className="mt-2 space-y-1.5">
-              <div className="bg-muted h-1 overflow-hidden rounded-full">
-                <div
-                  className="bg-primary h-full transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <div className="text-muted-foreground flex items-center justify-between text-[10px]">
-                <span>
-                  {formatBytes(transfer.transferred)} / {formatBytes(transfer.fileSize)}
-                </span>
-                {speed > 0 && <span>{formatSpeed(speed)}</span>}
-                <span>{progress.toFixed(1)}%</span>
-              </div>
-            </div>
-          )}
+          <div className="flex shrink-0 items-center gap-1">
+            {getStatusIcon(transfer.status)}
+            {isActive ? (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => onCancel(transfer.id)}
+                title={t("transfer.cancel", { defaultValue: "Cancel" })}
+              >
+                <X className="size-3" />
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => onRemove(transfer.id)}
+                title={t("transfer.remove", { defaultValue: "Remove" })}
+              >
+                <Trash2 className="size-3" />
+              </Button>
+            )}
+          </div>
+        </div>
 
-          {transfer.status === "pending" && (
-            <div className="text-muted-foreground mt-2 text-[10px]">
-              {t("transfer.pending", { defaultValue: "Waiting..." })} {" - "}
-              {formatBytes(transfer.fileSize)}
+        {transfer.status === "transferring" && (
+          <div className="mt-2 space-y-1.5">
+            <div className="bg-muted h-1 overflow-hidden rounded-full">
+              <div
+                className="bg-primary h-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
             </div>
-          )}
-
-          {transfer.status === "completed" && (
-            <div className="text-muted-foreground mt-2 flex items-center gap-3 text-[10px]">
-              <span className="text-green-600 dark:text-green-400">
-                {t("transfer.completed", { defaultValue: "Completed" })}
+            <div className="text-muted-foreground flex items-center justify-between text-[10px]">
+              <span>
+                {formatBytes(transfer.transferred)} / {formatBytes(transfer.fileSize)}
               </span>
-              <span>{formatDuration(duration)}</span>
-              <span>{formatBytes(transfer.fileSize)}</span>
+              {speed > 0 && <span>{formatSpeed(speed)}</span>}
+              <span>{progress.toFixed(1)}%</span>
             </div>
-          )}
+          </div>
+        )}
 
-          {transfer.status === "failed" && (
-            <div className="text-destructive mt-2 text-[10px]">
-              {transfer.error || t("transfer.failed", { defaultValue: "Failed" })}
-            </div>
-          )}
+        {transfer.status === "pending" && (
+          <div className="text-muted-foreground mt-2 text-[10px]">
+            {t("transfer.pending", { defaultValue: "Waiting..." })} {" - "}
+            {formatBytes(transfer.fileSize)}
+          </div>
+        )}
 
-          {transfer.status === "cancelled" && (
-            <div className="text-muted-foreground mt-2 text-[10px]">
-              {t("transfer.cancelled", { defaultValue: "Cancelled" })}
-            </div>
-          )}
-        </Card>
-      )
-    },
-    [onCancel, onRemove, t]
-  )
+        {transfer.status === "completed" && (
+          <div className="text-muted-foreground mt-2 flex items-center gap-3 text-[10px]">
+            <span className="text-green-600 dark:text-green-400">
+              {t("transfer.completed", { defaultValue: "Completed" })}
+            </span>
+            <span>{formatDuration(duration)}</span>
+            <span>{formatBytes(transfer.fileSize)}</span>
+          </div>
+        )}
+
+        {transfer.status === "failed" && (
+          <div className="text-destructive mt-2 text-[10px]">
+            {transfer.error || t("transfer.failed", { defaultValue: "Failed" })}
+          </div>
+        )}
+
+        {transfer.status === "cancelled" && (
+          <div className="text-muted-foreground mt-2 text-[10px]">
+            {t("transfer.cancelled", { defaultValue: "Cancelled" })}
+          </div>
+        )}
+
+        {canExpand && (
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground mt-2 flex w-full items-center justify-between rounded px-1 py-1 text-left text-[10px] transition-colors"
+            onClick={() => toggleBatchExpanded(transfer.id)}
+            aria-expanded={isExpanded}
+          >
+            <span>
+              {t("transfer.folderItems", {
+                count: childTransfers.length,
+                defaultValue: `${childTransfers.length} file(s)`,
+              })}
+            </span>
+            <span className="flex items-center gap-2">
+              {completedChildren > 0 && (
+                <span className="text-green-600 dark:text-green-400">
+                  {completedChildren} {t("transfer.completedShort", { defaultValue: "done" })}
+                </span>
+              )}
+              {failedChildren > 0 && (
+                <span className="text-destructive">
+                  {failedChildren} {t("transfer.failedShort", { defaultValue: "failed" })}
+                </span>
+              )}
+              {cancelledChildren > 0 && (
+                <span>
+                  {cancelledChildren} {t("transfer.cancelledShort", { defaultValue: "cancelled" })}
+                </span>
+              )}
+            </span>
+          </button>
+        )}
+
+        {canExpand && isExpanded && (
+          <div className="mt-2 space-y-2 border-l pl-3">
+            {childTransfers.map((childTransfer) => renderTransfer(childTransfer, true))}
+          </div>
+        )}
+      </Card>
+    )
+  }
 
   if (visibleTransfers.length === 0) {
     return null
@@ -321,7 +422,7 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
                     <div className="text-muted-foreground px-2 text-xs font-semibold tracking-wide uppercase">
                       {t("transfer.active", { defaultValue: "Active" })} ({active.length})
                     </div>
-                    {active.map(renderTransfer)}
+                    {active.map((transfer) => renderTransfer(transfer))}
                   </div>
                 )}
 
@@ -330,7 +431,7 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
                     <div className="text-muted-foreground px-2 text-xs font-semibold tracking-wide uppercase">
                       {t("transfer.history", { defaultValue: "History" })} ({completed.length})
                     </div>
-                    {completed.map(renderTransfer)}
+                    {completed.map((transfer) => renderTransfer(transfer))}
                   </div>
                 )}
               </div>
