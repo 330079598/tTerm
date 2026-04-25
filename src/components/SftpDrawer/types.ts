@@ -35,6 +35,16 @@ export interface SftpDeleteDialogState {
   entries: SftpDirectoryEntry[]
 }
 
+export interface SftpCommandDeleteDialogState {
+  command: string
+  entries: SftpDirectoryEntry[]
+  open: boolean
+  totalDirectories: number
+  totalEntries: number
+  totalFiles: number
+  totalTruncated: boolean
+}
+
 export interface SftpRenameDialogState {
   open: boolean
   entry: SftpDirectoryEntry | null
@@ -56,6 +66,7 @@ export interface SftpDeleteProgressState {
   failed: number
   method: SftpDeleteMethod
   totalDirectories: number
+  totalEntries: number
   totalFiles: number
   totalTruncated: boolean
 }

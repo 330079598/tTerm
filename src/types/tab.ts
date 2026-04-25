@@ -16,7 +16,7 @@ export interface SavedProfile {
 }
 
 export type TransferStatus = "pending" | "transferring" | "completed" | "failed" | "cancelled"
-export type TransferDirection = "upload" | "download"
+export type TransferDirection = "upload" | "download" | "delete"
 
 export interface TransferTask {
   id: string

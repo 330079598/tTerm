@@ -14,32 +14,41 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import type {
+  SftpCommandDeleteDialogState,
   SftpCreateFolderDialogState,
   SftpDeleteDialogState,
   SftpRenameDialogState,
 } from "@/components/SftpDrawer/types"
 
 interface SftpDialogsProps {
+  commandDeleteDialog: SftpCommandDeleteDialogState
   createFolderDialog: SftpCreateFolderDialogState
   deleteDialog: SftpDeleteDialogState
+  handleCommandDeleteConfirm: () => void
+  handleSftpDeleteConfirm: () => void
   handleCreateDirectoryConfirm: () => void
   handleDeleteConfirm: () => void
   handleRenameConfirm: () => void
   isDeleting?: boolean
   renameDialog: SftpRenameDialogState
+  setCommandDeleteDialog: React.Dispatch<React.SetStateAction<SftpCommandDeleteDialogState>>
   setCreateFolderDialog: React.Dispatch<React.SetStateAction<SftpCreateFolderDialogState>>
   setDeleteDialog: React.Dispatch<React.SetStateAction<SftpDeleteDialogState>>
   setRenameDialog: React.Dispatch<React.SetStateAction<SftpRenameDialogState>>
 }
 
 export const SftpDialogs: React.FC<SftpDialogsProps> = ({
+  commandDeleteDialog,
   createFolderDialog,
   deleteDialog,
+  handleCommandDeleteConfirm,
+  handleSftpDeleteConfirm,
   handleCreateDirectoryConfirm,
   handleDeleteConfirm,
   handleRenameConfirm,
   isDeleting = false,
   renameDialog,
+  setCommandDeleteDialog,
   setCreateFolderDialog,
   setDeleteDialog,
   setRenameDialog,
@@ -91,6 +100,96 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
             </Button>
             <Button variant="destructive" disabled={isDeleting} onClick={handleDeleteConfirm}>
               {t("common.delete", { defaultValue: "Delete" })}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={commandDeleteDialog.open}
+        onOpenChange={(open) =>
+          !open &&
+          !isDeleting &&
+          setCommandDeleteDialog({
+            command: "",
+            entries: [],
+            open: false,
+            totalDirectories: 0,
+            totalEntries: 0,
+            totalFiles: 0,
+            totalTruncated: false,
+          })
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {t("sftp.dialogs.commandDeleteTitle", {
+                defaultValue: "Use Command Delete?",
+              })}
+            </DialogTitle>
+            <DialogDescription>
+              {t("sftp.dialogs.commandDeleteDescription", {
+                count: commandDeleteDialog.totalEntries,
+                defaultValue: `Detected ${commandDeleteDialog.totalEntries}${commandDeleteDialog.totalTruncated ? "+" : ""} item(s). Review or edit the command before deleting.`,
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-3">
+            <div className="text-muted-foreground text-sm">
+              {t("sftp.dialogs.commandDeleteCount", {
+                defaultValue: `Scanned: ${commandDeleteDialog.totalEntries}${commandDeleteDialog.totalTruncated ? "+" : ""} items, ${commandDeleteDialog.totalFiles}${commandDeleteDialog.totalTruncated ? "+" : ""} files, ${commandDeleteDialog.totalDirectories}${commandDeleteDialog.totalTruncated ? "+" : ""} folders`,
+                files: commandDeleteDialog.totalTruncated
+                  ? `${commandDeleteDialog.totalFiles}+`
+                  : commandDeleteDialog.totalFiles,
+                folders: commandDeleteDialog.totalTruncated
+                  ? `${commandDeleteDialog.totalDirectories}+`
+                  : commandDeleteDialog.totalDirectories,
+                items: commandDeleteDialog.totalTruncated
+                  ? `${commandDeleteDialog.totalEntries}+`
+                  : commandDeleteDialog.totalEntries,
+              })}
+            </div>
+            <textarea
+              className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-h-28 w-full rounded-md border px-3 py-2 font-mono text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isDeleting}
+              value={commandDeleteDialog.command}
+              onChange={(event) =>
+                setCommandDeleteDialog((current) => ({
+                  ...current,
+                  command: event.target.value,
+                }))
+              }
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={isDeleting}
+              onClick={() =>
+                setCommandDeleteDialog({
+                  command: "",
+                  entries: [],
+                  open: false,
+                  totalDirectories: 0,
+                  totalEntries: 0,
+                  totalFiles: 0,
+                  totalTruncated: false,
+                })
+              }
+            >
+              {t("common.cancel", { defaultValue: "Cancel" })}
+            </Button>
+
+            <Button variant="secondary" disabled={isDeleting} onClick={handleSftpDeleteConfirm}>
+              {t("sftp.dialogs.useSftpDelete", { defaultValue: "Use SFTP Delete" })}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={isDeleting}
+              onClick={handleCommandDeleteConfirm}
+            >
+              {t("sftp.dialogs.useCommandDelete", { defaultValue: "Use Command Delete" })}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -99,7 +99,20 @@ pub struct DeleteEntryRequest {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteOptions {
-    allow_command_delete: bool,
+    command: Option<String>,
+    use_command_delete: bool,
+}
+
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeletePreviewResult {
+    command: String,
+    should_prompt_for_command: bool,
+    total_directories: usize,
+    total_entries: usize,
+    total_files: usize,
+    total_truncated: bool,
 }
 
 #[derive(Serialize)]
@@ -111,6 +124,7 @@ pub struct DeleteBatchStartResult {
 #[derive(Default)]
 struct DeleteStats {
     directories: usize,
+    entries: usize,
     files: usize,
     truncated: bool,
 }
@@ -141,6 +155,7 @@ struct DeleteBatchStartEvent {
     entries: Vec<String>,
     method: DeleteMethod,
     total_directories: usize,
+    total_entries: usize,
     total_files: usize,
     total_truncated: bool,
 }
@@ -155,6 +170,7 @@ struct DeleteProgressEvent {
     failed: usize,
     method: DeleteMethod,
     total_directories: usize,
+    total_entries: usize,
     total_files: usize,
     total_truncated: bool,
 }
@@ -170,12 +186,13 @@ struct DeleteBatchCompleteEvent {
     failed: usize,
     method: DeleteMethod,
     total_directories: usize,
+    total_entries: usize,
     total_files: usize,
     total_truncated: bool,
 }
 
-const DELETE_COMMAND_THRESHOLD: usize = 1000;
-const DELETE_STATS_LIMIT: usize = 1001;
+const DELETE_COMMAND_PROMPT_THRESHOLD: usize = 300;
+const DELETE_STATS_LIMIT: usize = 301;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -380,6 +397,7 @@ fn add_delete_entry_stats(stats: &mut DeleteStats, is_dir: bool) {
     } else {
         stats.files += 1;
     }
+    stats.entries += 1;
 }
 
 fn is_dangerous_delete_path(path: &str) -> bool {
@@ -418,6 +436,7 @@ fn build_delete_complete_event(
         failed: progress.failed,
         method,
         total_directories: stats.directories,
+        total_entries: stats.entries,
         total_files: stats.files,
         total_truncated: stats.truncated,
     }
@@ -442,6 +461,7 @@ fn emit_delete_progress(
             failed: progress.failed,
             method,
             total_directories: stats.directories,
+            total_entries: stats.entries,
             total_files: stats.files,
             total_truncated: stats.truncated,
         },
@@ -461,7 +481,7 @@ fn collect_delete_stats<'a>(
         }
 
         add_delete_entry_stats(stats, is_dir);
-        if stats.directories + stats.files >= limit {
+        if stats.entries >= limit {
             stats.truncated = true;
             return Ok(());
         }
@@ -484,10 +504,43 @@ fn collect_delete_stats<'a>(
     })
 }
 
+async fn preview_delete_entries(
+    app: &AppHandle,
+    tab_id: &str,
+    plan: &crate::core::session::SessionPlan,
+    prompts: HostPromptMap,
+    pool: &SftpConnectionPool,
+    entries: &[DeleteEntryRequest],
+) -> Result<DeletePreviewResult, String> {
+    let sftp = get_or_create_delete_sftp(app, tab_id, plan, prompts, pool).await?;
+    let mut stats = DeleteStats::default();
+    for entry in entries {
+        if is_dangerous_delete_path(&entry.path) {
+            return Err(format!("Refusing to delete unsafe path '{}'", entry.path));
+        }
+        collect_delete_stats(sftp.as_ref(), entry.path.clone(), entry.is_dir, &mut stats, DELETE_STATS_LIMIT)
+            .await?;
+        if stats.truncated {
+            break;
+        }
+    }
+
+    let paths = entries.iter().map(|entry| entry.path.clone()).collect::<Vec<_>>();
+    Ok(DeletePreviewResult {
+        command: command_delete_script(&paths),
+        should_prompt_for_command: stats.truncated
+            || stats.entries > DELETE_COMMAND_PROMPT_THRESHOLD,
+        total_directories: stats.directories,
+        total_entries: stats.entries,
+        total_files: stats.files,
+        total_truncated: stats.truncated,
+    })
+}
+
 async fn build_delete_plan(
     sftp: &SftpSession,
     entries: &[DeleteEntryRequest],
-    allow_command_delete: bool,
+    use_command_delete: bool,
 ) -> Result<DeletePlan, String> {
     let mut stats = DeleteStats::default();
     for entry in entries {
@@ -501,8 +554,7 @@ async fn build_delete_plan(
         }
     }
 
-    let known_count = stats.directories + stats.files;
-    let method = if allow_command_delete && (stats.truncated || known_count >= DELETE_COMMAND_THRESHOLD) {
+    let method = if use_command_delete {
         DeleteMethod::Command
     } else {
         DeleteMethod::Sftp
@@ -519,9 +571,10 @@ async fn run_remote_delete_command(
     batch_id: &str,
     entries: &[DeleteEntryRequest],
     stats: &DeleteStats,
+    custom_command: Option<String>,
 ) -> Result<DeleteProgress, String> {
     let paths = entries.iter().map(|entry| entry.path.clone()).collect::<Vec<_>>();
-    let command = command_delete_script(&paths);
+    let command = custom_command.unwrap_or_else(|| command_delete_script(&paths));
     let ssh = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
     let mut channel = ssh
         .channel_open_session()
@@ -729,7 +782,7 @@ async fn run_delete_batch(
     let mut progress = DeleteProgress::default();
     let result: Result<(), String> = async {
         let sftp = get_or_create_delete_sftp(&app, &tab_id, &plan, prompts.clone(), &pool).await?;
-        let delete_plan = build_delete_plan(&sftp, &entries, options.allow_command_delete).await?;
+        let delete_plan = build_delete_plan(&sftp, &entries, options.use_command_delete).await?;
         method = delete_plan.method;
         stats = delete_plan.stats;
 
@@ -740,6 +793,7 @@ async fn run_delete_batch(
                 entries: entries.iter().map(|entry| entry.name.clone()).collect(),
                 method,
                 total_directories: stats.directories,
+                total_entries: stats.entries,
                 total_files: stats.files,
                 total_truncated: stats.truncated,
             },
@@ -755,6 +809,7 @@ async fn run_delete_batch(
                     &batch_id,
                     &entries,
                     &stats,
+                    options.command.clone(),
                 )
                 .await?
             }
@@ -1106,6 +1161,32 @@ pub async fn sftp_create_directory(
     with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
         sftp.create_dir(path).await.map_err(map_sftp_error)
     })
+}
+
+#[tauri::command]
+pub async fn sftp_preview_delete_entries(
+    app: AppHandle,
+    tab_id: String,
+    connection: Option<PtyConnectionOptions>,
+    entries: Vec<DeleteEntryRequest>,
+    prompt_state: State<'_, HostPromptMap>,
+    secret_state: State<'_, SecretStoreState>,
+    pool_state: State<'_, SftpConnectionPool>,
+) -> Result<DeletePreviewResult, String> {
+    if entries.is_empty() {
+        return Err("No entries selected for deletion".to_string());
+    }
+
+    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    preview_delete_entries(
+        &app,
+        &tab_id,
+        &plan,
+        prompt_state.inner().clone(),
+        pool_state.inner(),
+        &entries,
+    )
+    .await
 }
 
 #[tauri::command]

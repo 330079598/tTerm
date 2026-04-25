@@ -13,6 +13,7 @@ interface UseSftpTransfersParams {
 }
 
 interface UseSftpTransfersReturn {
+  addTransfer: ReturnType<typeof useTransferManager>["addTransfer"]
   cancelTransfer: (id: string) => Promise<void>
   clearCompletedTransfers: () => void
   downloadEntry: (
@@ -25,6 +26,8 @@ interface UseSftpTransfersReturn {
   handleUploadFolderDialog: () => Promise<void>
   removeTransfer: (id: string) => void
   transfers: import("@/types/tab").TransferTask[]
+  transfersRef: React.MutableRefObject<import("@/types/tab").TransferTask[]>
+  updateTransfer: ReturnType<typeof useTransferManager>["updateTransfer"]
   uploadPaths: (paths: string[]) => Promise<void>
 }
 
@@ -83,6 +86,7 @@ export function useSftpTransfers({
   }
 
   return {
+    addTransfer,
     cancelTransfer,
     clearCompletedTransfers,
     downloadEntry,
@@ -91,6 +95,8 @@ export function useSftpTransfers({
     handleUploadFolderDialog,
     removeTransfer,
     transfers,
+    transfersRef,
+    updateTransfer,
     uploadPaths,
   }
 }

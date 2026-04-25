@@ -4,8 +4,6 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::{mpsc, watch, Mutex as TokioMutex};
 
-const HOST_KEY_REJECTED_REASON: &str = "SSH host fingerprint rejected by user";
-
 pub fn emit_pty_exit(app: &AppHandle, tab_id: &str, reason: Option<&str>) {
     let event_name = format!("pty-exit-{}", tab_id);
     let _ = app.emit_to(tauri::EventTarget::any(), &event_name, reason);
@@ -35,15 +33,10 @@ pub fn spawn_supervisor(
     runtime_handle: tokio::runtime::Handle,
 ) -> tokio::task::JoinHandle<()> {
     runtime_handle.clone().spawn(async move {
-        while let Some(signal) = exit_rx.recv().await {
+        if let Some(signal) = exit_rx.recv().await {
             if *stop_rx.borrow() {
-                break;
+                return;
             }
-
-            let _host_key_rejected = matches!(
-                &signal,
-                SessionExitSignal::NonRecoverable(reason) if reason == HOST_KEY_REJECTED_REASON
-            );
 
             {
                 let mut guard = active.lock().await;
@@ -60,7 +53,6 @@ pub fn spawn_supervisor(
                 None
             };
             emit_pty_exit(&app, &tab_id, exit_reason.as_deref());
-            break;
         }
     })
 }

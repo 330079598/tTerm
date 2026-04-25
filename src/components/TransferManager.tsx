@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState, useRef, useEffect, useLayoutEffe
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
+  FileX2,
   CheckCircle2,
   Clock,
   Loader2,
@@ -236,6 +237,8 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
           <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded">
             {transfer.direction === "upload" ? (
               <ArrowUpFromLine className="size-3.5" />
+            ) : transfer.direction === "delete" ? (
+              <FileX2 className="size-3.5" />
             ) : (
               <ArrowDownToLine className="size-3.5" />
             )}
@@ -244,7 +247,11 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
           <div className="min-w-0 flex-1">
             <div className="truncate text-xs font-medium">{transfer.fileName}</div>
             <div className="text-muted-foreground truncate font-mono text-[10px]">
-              {transfer.direction === "upload" ? transfer.remotePath : transfer.localPath}
+              {transfer.direction === "upload"
+                ? transfer.remotePath
+                : transfer.direction === "delete"
+                  ? transfer.remotePath
+                  : transfer.localPath}
             </div>
           </div>
 
