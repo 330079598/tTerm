@@ -2,7 +2,8 @@ import "@/components/TTermApp.css"
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { platform } from "@tauri-apps/plugin-os"
-import { BookMarked, Plus, Settings } from "lucide-react"
+import { getCurrentWindow } from "@tauri-apps/api/window"
+import { BookMarked, Minus, Plus, Settings, Square, X } from "lucide-react"
 
 import { ConnectionDialog } from "@/components/ConnectionDialog"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -27,6 +28,9 @@ import { Tab, TabContextMenuAction } from "@/types/tab"
 export const TTermApp: React.FC = () => {
   const { t, i18n } = useTranslation()
   const [os] = useState<string>(() => platform())
+  const isMacos = os === "macos"
+  const isLinux = os === "linux"
+  const isWindows = os === "windows"
   const [showConnectionDialog, setShowConnectionDialog] = useState(false)
   const [showProfilesPanel, setShowProfilesPanel] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -256,10 +260,22 @@ export const TTermApp: React.FC = () => {
     [updateTab]
   )
 
-  const nativeControlsReservePx = os === "macos" ? 0 : 46 * 3
+  const nativeControlsReservePx = isWindows ? 46 * 3 : 0
 
   const handleSettingsClick = useCallback(() => {
     setShowSettings(true)
+  }, [])
+
+  const handleMinimizeWindow = useCallback(() => {
+    void getCurrentWindow().minimize()
+  }, [])
+
+  const handleToggleMaximizeWindow = useCallback(() => {
+    void getCurrentWindow().toggleMaximize()
+  }, [])
+
+  const handleCloseWindow = useCallback(() => {
+    void getCurrentWindow().close()
   }, [])
 
   const renderTabContent = () => {
@@ -289,7 +305,7 @@ export const TTermApp: React.FC = () => {
   }
 
   return (
-    <div className={`app ${os === "macos" ? "macos" : ""}`}>
+    <div className={`app ${isMacos ? "macos" : ""} ${isLinux ? "linux" : ""}`}>
       <div className="title-bar">
         <div className="title-bar-left">
           <div className="tab-list-container">
@@ -334,6 +350,34 @@ export const TTermApp: React.FC = () => {
           >
             <Settings size={16} />
           </button>
+          {isLinux && (
+            <div className="window-controls" aria-label="Window controls">
+              <button
+                className="window-control-button"
+                onClick={handleMinimizeWindow}
+                title={t("window.minimize", { defaultValue: "Minimize" })}
+                aria-label={t("window.minimize", { defaultValue: "Minimize" })}
+              >
+                <Minus size={16} />
+              </button>
+              <button
+                className="window-control-button"
+                onClick={handleToggleMaximizeWindow}
+                title={t("window.maximize", { defaultValue: "Maximize" })}
+                aria-label={t("window.maximize", { defaultValue: "Maximize" })}
+              >
+                <Square size={13} />
+              </button>
+              <button
+                className="window-control-button close"
+                onClick={handleCloseWindow}
+                title={t("window.close", { defaultValue: "Close" })}
+                aria-label={t("window.close", { defaultValue: "Close" })}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

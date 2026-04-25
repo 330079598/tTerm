@@ -3,7 +3,7 @@
   "app": {
     "windows": [
       {
-        "decorations": true,
+        "decorations": false,
         "transparent": false,
         "visibleOnAllWorkspaces": false
       }

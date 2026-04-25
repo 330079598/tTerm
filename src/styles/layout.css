@@ -52,6 +52,40 @@
   z-index: 21;
 }
 
+.window-controls {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.window-control-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.window-control-button:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.window-control-button.close:hover {
+  background: rgb(196 43 28);
+  color: white;
+}
+
 .drag-space {
   flex: 1;
   min-width: 10%;
@@ -99,4 +133,8 @@
 
 .macos .settings-button {
   margin-right: 0;
+}
+
+.linux .settings-button {
+  margin-right: 4px;
 }
