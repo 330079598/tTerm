@@ -1,8 +1,8 @@
 {
   "app": {
-    "title": "TTerm",
+    "title": "tTerm",
     "subtitle": "Modern Terminal Emulator",
-    "version": "Version 0.1.0",
+    "version": "Version {{version}}",
     "builtWith": "Built with Tauri + React"
   },
   "welcome": {

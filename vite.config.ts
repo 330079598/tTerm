@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import packageJson from "./package.json";
 import react from "@vitejs/plugin-react";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 // @ts-expect-error process is a nodejs global
@@ -56,6 +57,9 @@ export default defineConfig(async () => ({
       // 3. tell vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
+  },
+  define: {
+    "import.meta.env.PACKAGE_VERSION": JSON.stringify(packageJson.version),
   },
   resolve: {
     alias: {

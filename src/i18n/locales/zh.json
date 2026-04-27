@@ -1,8 +1,8 @@
 {
   "app": {
-    "title": "TTerm",
+    "title": "tTerm",
     "subtitle": "现代终端模拟器",
-    "version": "版本 0.1.0",
+    "version": "版本 {{version}}",
     "builtWith": "使用 Tauri + React 构建"
   },
   "welcome": {

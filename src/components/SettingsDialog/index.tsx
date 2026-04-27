@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react"
+import { getVersion } from "@tauri-apps/api/app"
 import { invoke } from "@tauri-apps/api/core"
 import { Settings } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -29,6 +30,8 @@ let cachedSystemFonts: string[] | null = null
 let systemFontsPromise: Promise<string[]> | null = null
 let lastSecretStatusRefreshAt = 0
 let secretStatusPromise: Promise<unknown> | null = null
+
+const fallbackAppVersion = import.meta.env.PACKAGE_VERSION ?? "0.0.0"
 
 function getPerfNow() {
   return typeof performance === "undefined" ? 0 : performance.now()
@@ -358,11 +361,19 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
     }
   }
 
-  const handleAbout = () => {
+  const handleAbout = async () => {
+    let version = fallbackAppVersion
+
+    try {
+      version = await getVersion()
+    } catch {
+      // Use the build-time version when the Tauri app API is unavailable.
+    }
+
     void info({
       title: t("settings.about"),
       description: `${t("app.title")} - ${t("app.subtitle")}
-${t("app.version")}
+${t("app.version", { version })}
 ${t("app.builtWith")}`,
       closeText: t("common.close"),
     })
