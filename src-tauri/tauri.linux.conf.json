@@ -3,6 +3,8 @@
   "app": {
     "windows": [
       {
+        "title": "tTerm",
+        "label": "main",
         "decorations": false,
         "transparent": false,
         "visibleOnAllWorkspaces": false

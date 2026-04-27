@@ -4,6 +4,8 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "title": "tTerm",
+        "label": "main",
         "decorations": false,
         "transparent": true,
         "visibleOnAllWorkspaces": true

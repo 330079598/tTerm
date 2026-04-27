@@ -4,6 +4,8 @@
     "macOSPrivateApi": true,
     "windows": [
       {
+        "title": "tTerm",
+        "label": "main",
         "hiddenTitle": true,
         "titleBarStyle": "Overlay"
       }
