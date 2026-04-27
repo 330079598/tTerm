@@ -5,6 +5,7 @@ import { Copy, Edit, Palette, Plus, RotateCcw, Trash2 } from "lucide-react"
 import { ThemeCard } from "@/components/ThemeCard"
 import { ThemeEditor } from "@/components/ThemeEditor"
 import { Button } from "@/components/ui/button"
+import { useConfirmDialog, usePromptDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useTheme } from "@/contexts/ThemeContext"
 import type { PresetThemeId } from "@/types/theme"
@@ -28,6 +29,8 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
 
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null)
   const [creatingFromTheme, setCreatingFromTheme] = useState<string | null>(null)
+  const { confirm, ConfirmDialog } = useConfirmDialog()
+  const { prompt, PromptDialog } = usePromptDialog()
 
   const handleThemeChange = async (themeId: string) => {
     try {
@@ -38,12 +41,20 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
   }
 
   const handleDeleteTheme = async (themeId: string) => {
-    if (confirm(t("themeEditor.confirmDelete"))) {
-      try {
-        await deleteCustomTheme(themeId)
-      } catch (error) {
-        console.error("Failed to delete theme:", error)
-      }
+    const confirmed = await confirm({
+      title: t("themeEditor.delete"),
+      description: t("themeEditor.confirmDelete"),
+      confirmText: t("themeEditor.delete"),
+      cancelText: t("common.cancel"),
+      variant: "destructive",
+    })
+
+    if (!confirmed) return
+
+    try {
+      await deleteCustomTheme(themeId)
+    } catch (error) {
+      console.error("Failed to delete theme:", error)
     }
   }
 
@@ -52,7 +63,13 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
       presetThemes.find((theme) => theme.id === themeId)?.name ||
       customThemes.find((theme) => theme.id === themeId)?.name ||
       "Theme"
-    const newName = prompt(t("themeEditor.duplicateName"), `${sourceName} Copy`)
+    const newName = await prompt({
+      title: t("themeEditor.duplicate"),
+      label: t("themeEditor.duplicateName"),
+      defaultValue: `${sourceName} Copy`,
+      confirmText: t("themeEditor.duplicate"),
+      cancelText: t("common.cancel"),
+    })
 
     if (newName && newName.trim()) {
       try {
@@ -217,6 +234,8 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
       {creatingFromTheme && (
         <ThemeEditor baseThemeId={creatingFromTheme} onClose={() => setCreatingFromTheme(null)} />
       )}
+      <ConfirmDialog />
+      <PromptDialog />
     </>
   )
 }

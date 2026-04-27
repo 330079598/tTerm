@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { cn } from "@/lib/utils"
 import { Tab, type ConnectionType, type SavedProfile } from "@/types/tab"
 
@@ -176,6 +177,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
   const [profiles, setProfiles] = useState<SavedProfile[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
+  const { confirm, ConfirmDialog } = useConfirmDialog()
 
   useEffect(() => {
     invoke<SavedProfile[]>("list_profiles")
@@ -205,7 +207,15 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
       ? `${t("profiles.deleteConfirm")}\n\n${profile.name}`
       : t("profiles.deleteConfirm")
 
-    if (!confirm(deletePrompt)) return
+    const confirmed = await confirm({
+      title: t("profiles.delete"),
+      description: deletePrompt,
+      confirmText: t("profiles.delete"),
+      cancelText: t("common.cancel"),
+      variant: "destructive",
+    })
+
+    if (!confirmed) return
 
     try {
       await invoke("delete_profile", { id })
@@ -412,6 +422,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
           </div>
         )}
       </ScrollArea>
+      <ConfirmDialog />
     </section>
   )
 }

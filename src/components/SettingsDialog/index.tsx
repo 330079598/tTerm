@@ -4,6 +4,7 @@ import { Settings } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { ThemeEditor } from "@/components/ThemeEditor"
+import { useConfirmDialog, useInfoDialog, usePromptDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { useConfig } from "@/contexts/ConfigContext"
@@ -135,6 +136,9 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
   } = useTheme()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState(defaultTab)
+  const { confirm, ConfirmDialog } = useConfirmDialog()
+  const { prompt, PromptDialog } = usePromptDialog()
+  const { info, InfoDialog } = useInfoDialog()
 
   const [fontFamily, setFontFamily] = useState(config.font_family)
   const [fontSize, setFontSize] = useState(config.font_size)
@@ -253,12 +257,20 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
   }
 
   const handleDeleteTheme = async (themeId: string) => {
-    if (confirm(t("themeEditor.confirmDelete"))) {
-      try {
-        await deleteCustomTheme(themeId)
-      } catch (error) {
-        console.error("Failed to delete theme:", error)
-      }
+    const confirmed = await confirm({
+      title: t("themeEditor.delete"),
+      description: t("themeEditor.confirmDelete"),
+      confirmText: t("themeEditor.delete"),
+      cancelText: t("common.cancel"),
+      variant: "destructive",
+    })
+
+    if (!confirmed) return
+
+    try {
+      await deleteCustomTheme(themeId)
+    } catch (error) {
+      console.error("Failed to delete theme:", error)
     }
   }
 
@@ -267,7 +279,13 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
       presetThemes.find((theme) => theme.id === themeId)?.name ||
       customThemes.find((theme) => theme.id === themeId)?.name ||
       "Theme"
-    const newName = prompt(t("themeEditor.duplicateName"), `${sourceName} Copy`)
+    const newName = await prompt({
+      title: t("themeEditor.duplicate"),
+      label: t("themeEditor.duplicateName"),
+      defaultValue: `${sourceName} Copy`,
+      confirmText: t("themeEditor.duplicate"),
+      cancelText: t("common.cancel"),
+    })
 
     if (newName && newName.trim()) {
       try {
@@ -327,15 +345,27 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
   }
 
   const handleClearSession = async () => {
-    if (confirm(t("settings.clearSessionConfirm"))) {
+    const confirmed = await confirm({
+      title: t("settings.clearSession"),
+      description: t("settings.clearSessionConfirm"),
+      confirmText: t("settings.clearSession"),
+      cancelText: t("common.cancel"),
+      variant: "destructive",
+    })
+
+    if (confirmed) {
       window.location.reload()
     }
   }
 
   const handleAbout = () => {
-    alert(`${t("app.title")} - ${t("app.subtitle")}
+    void info({
+      title: t("settings.about"),
+      description: `${t("app.title")} - ${t("app.subtitle")}
 ${t("app.version")}
-${t("app.builtWith")}`)
+${t("app.builtWith")}`,
+      closeText: t("common.close"),
+    })
   }
 
   const backendLabel =
@@ -427,6 +457,9 @@ ${t("app.builtWith")}`)
       {creatingFromTheme && (
         <ThemeEditor baseThemeId={creatingFromTheme} onClose={() => setCreatingFromTheme(null)} />
       )}
+      <ConfirmDialog />
+      <PromptDialog />
+      <InfoDialog />
     </>
   )
 }
