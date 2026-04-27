@@ -136,6 +136,9 @@
     "rememberPassword": "记住密码",
     "cancel": "取消",
     "connect": "连接",
+    "connectDescription": "使用当前表单内容连接，不保存连接配置，也不修改默认设置。",
+    "saveAndConnect": "保存并连接",
+    "saveAndConnectDescription": "先保存此连接配置，然后立即打开连接。",
     "types": {
       "terminal": "OS terminal",
       "ssh": "SSH 连接"

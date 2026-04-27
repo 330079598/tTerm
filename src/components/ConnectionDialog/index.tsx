@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
-import { Loader2, Server, Terminal } from "lucide-react"
+import { Loader2, Save, Server, Terminal } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { SavedProfile } from "@/components/ProfilesPanel"
@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
@@ -113,15 +114,18 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     }
   }, [editProfile, form.authMethod, form.type])
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null
+    const shouldSave = submitter?.dataset.action === "save"
     setNameError(null)
 
     const title = form.title.trim() || getDefaultTitle(form.type, form)
     const group = form.group.trim()
-    const profileId = form.type === "ssh" ? sshProfileId : undefined
+    const shouldPersistProfile = shouldSave
+    const profileId = form.type === "ssh" && shouldPersistProfile ? sshProfileId : undefined
 
-    if (form.type === "ssh" && form.host.trim()) {
+    if (shouldPersistProfile && form.type === "ssh" && form.host.trim()) {
       const duplicate = allProfiles.find(
         (profile) => profile.id !== profileId && profile.name === title && profile.group === group
       )
@@ -147,7 +151,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
       try {
         await invoke("save_profile", { profile })
       } catch (error) {
-        console.error("Failed to auto-save profile:", error)
+        console.error("Failed to save profile:", error)
       }
     }
 
@@ -166,7 +170,10 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         port: form.port,
         username: form.username,
         password: form.authMethod === "password" ? form.password : undefined,
-        rememberPassword: form.authMethod === "password" ? form.rememberPassword : undefined,
+        rememberPassword:
+          shouldPersistProfile && form.authMethod === "password"
+            ? form.rememberPassword
+            : undefined,
         privateKeyPath: form.authMethod === "key" ? form.privateKeyPath : undefined,
         privateKeyPassphrase: form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
         keepaliveIntervalSecs: form.keepaliveIntervalSecs,
@@ -182,16 +189,18 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
           form.terminalShell === "custom" ? form.terminalShellCustomArgs.trim() : undefined,
       }
 
-      try {
-        await saveConfig({
-          terminal_shell: form.terminalShell,
-          terminal_shell_custom_path:
-            form.terminalShell === "custom" ? form.terminalShellCustomPath.trim() : "",
-          terminal_shell_custom_args:
-            form.terminalShell === "custom" ? form.terminalShellCustomArgs.trim() : "",
-        })
-      } catch (error) {
-        console.error("Failed to save terminal shell defaults:", error)
+      if (shouldSave) {
+        try {
+          await saveConfig({
+            terminal_shell: form.terminalShell,
+            terminal_shell_custom_path:
+              form.terminalShell === "custom" ? form.terminalShellCustomPath.trim() : "",
+            terminal_shell_custom_args:
+              form.terminalShell === "custom" ? form.terminalShellCustomArgs.trim() : "",
+          })
+        } catch (error) {
+          console.error("Failed to save terminal shell defaults:", error)
+        }
       }
     }
 
@@ -335,7 +344,27 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
               {isTesting ? t("profiles.testing") : t("profiles.test")}
             </Button>
           )}
-          <Button type="submit">{t("connection.connect")}</Button>
+          <TooltipProvider>
+            {isSsh && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="submit" variant="outline" data-action="save">
+                    <Save size={14} />
+                    {t("connection.saveAndConnect")}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("connection.saveAndConnectDescription")}</TooltipContent>
+              </Tooltip>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button type="submit" data-action="connect">
+                  {t("connection.connect")}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("connection.connectDescription")}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </DialogFooter>
       </form>
     </DialogContent>

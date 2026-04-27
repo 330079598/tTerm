@@ -138,6 +138,9 @@
     "rememberPassword": "Remember password",
     "cancel": "Cancel",
     "connect": "Connect",
+    "connectDescription": "Connect using the current fields without saving a profile or changing defaults.",
+    "saveAndConnect": "Save & Connect",
+    "saveAndConnectDescription": "Save this connection first, then open it immediately.",
     "types": {
       "terminal": "OS terminal",
       "ssh": "SSH Connection"
