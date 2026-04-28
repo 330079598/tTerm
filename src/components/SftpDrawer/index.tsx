@@ -1,20 +1,23 @@
-import "@/components/SftpDrawer.css"
-import React, { useCallback, useEffect, useMemo, useState } from "react"
+﻿import "@/components/SftpDrawer.css"
+import React, { useCallback, useMemo, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
-import { getCurrentWindow } from "@tauri-apps/api/window"
 import { AlertCircle } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "@/hooks/use-toast"
 
+import { SftpDeleteTransferEvents } from "@/components/SftpDrawer/SftpDeleteTransferEvents"
 import { SftpDrawerContent } from "@/components/SftpDrawer/SftpDrawerContent"
 import { SftpDrawerHeader } from "@/components/SftpDrawer/SftpDrawerHeader"
 import { SftpDialogs } from "@/components/SftpDrawer/SftpDialogs"
 import { SftpEntryContextMenu } from "@/components/SftpDrawer/SftpEntryContextMenu"
 import { useSftpDragDrop } from "@/components/SftpDrawer/useSftpDragDrop"
+import { useSftpSelection } from "@/components/SftpDrawer/useSftpSelection"
 import { joinRemotePath } from "@/components/SftpDrawer/sftpDrawerUtils"
 import type {
+  DeleteBatchStartResult,
+  DeletePreviewResult,
   SftpCommandDeleteDialogState,
   SftpContextMenuState,
   SftpCreateFolderDialogState,
@@ -22,32 +25,9 @@ import type {
   SftpDirectoryEntry,
   SftpDirectoryListing,
   SftpDrawerProps,
-  SftpDeleteProgressState,
   SftpRenameDialogState,
 } from "@/components/SftpDrawer/types"
 import { useSftpTransfers } from "@/components/SftpDrawer/useSftpTransfers"
-
-interface DeleteBatchStartResult {
-  batchId: string
-}
-
-interface DeletePreviewResult {
-  command: string
-  shouldPromptForCommand: boolean
-  totalDirectories: number
-  totalEntries: number
-  totalFiles: number
-  totalTruncated: boolean
-}
-
-interface DeleteBatchStartEvent extends SftpDeleteProgressState {
-  entries: string[]
-}
-
-interface DeleteBatchCompleteEvent extends SftpDeleteProgressState {
-  cancelled: boolean
-  error?: string
-}
 
 export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connection, onClose }) => {
   const { t } = useTranslation()
@@ -134,155 +114,6 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       visible,
     })
 
-  useEffect(() => {
-    const appWindow = getCurrentWindow()
-    let disposed = false
-    const unlisteners: Array<() => void> = []
-
-    const setupListeners = async () => {
-      const nextUnlisteners = await Promise.all([
-        appWindow.listen<DeleteBatchStartEvent>(`sftp-delete-batch-start-${tabId}`, (event) => {
-          const { payload } = event
-          addTransfer(
-            {
-              direction: "delete",
-              fileName:
-                payload.entries.join(", ") ||
-                t("sftp.deleteProgress.sftp", { defaultValue: "Deleting files" }),
-              fileSize: payload.totalEntries,
-              localPath: "",
-              remotePath: payload.entries.join(", "),
-              speed: 0,
-            },
-            payload.batchId
-          )
-          updateTransfer(payload.batchId, {
-            status: "transferring",
-            transferred: 0,
-          })
-        }),
-        appWindow.listen<SftpDeleteProgressState>(`sftp-delete-progress-${tabId}`, (event) => {
-          const payload = event.payload
-          const transferred = payload.deletedDirectories + payload.deletedFiles
-          const transfer = transfersRef.current.find((item) => item.id === payload.batchId)
-          const now = Date.now()
-          const duration = now - (transfer?.startTime || now)
-          const speed = duration > 0 ? (transferred / duration) * 1000 : 0
-
-          updateTransfer(payload.batchId, {
-            fileSize: payload.totalEntries,
-            remotePath: payload.currentPath || transfer?.remotePath || "",
-            speed,
-            status: "transferring",
-            transferred,
-          })
-        }),
-        appWindow.listen<DeleteBatchCompleteEvent>(
-          `sftp-delete-batch-complete-${tabId}`,
-          (event) => {
-            const { payload } = event
-            setIsDeleting(false)
-            void loadDirectory(listing?.currentPath ?? null)
-
-            if (payload.error || payload.failed > 0) {
-              const message = payload.error ?? `Failed to delete ${payload.failed} item(s).`
-              updateTransfer(payload.batchId, {
-                endTime: Date.now(),
-                error: message,
-                fileSize: payload.totalEntries,
-                status: "failed",
-                transferred: payload.deletedDirectories + payload.deletedFiles,
-              })
-              setError(message)
-              toast({
-                variant: "destructive",
-                title: t("sftp.messages.deleteFailure", {
-                  defaultValue: "Failed to delete selected items.",
-                }),
-                description: message,
-              })
-              return
-            }
-
-            updateTransfer(payload.batchId, {
-              endTime: Date.now(),
-              fileSize: payload.totalEntries,
-              speed: 0,
-              status: "completed",
-              transferred: payload.totalEntries,
-            })
-
-            toast({
-              title: t("sftp.messages.deleteSuccess", {
-                count: payload.deletedDirectories + payload.deletedFiles,
-                defaultValue: `Deleted ${payload.deletedDirectories + payload.deletedFiles} item(s).`,
-              }),
-              description:
-                payload.method === "command"
-                  ? t("sftp.messages.deleteUsedCommand", {
-                      defaultValue: "Used remote command delete for a large folder.",
-                    })
-                  : undefined,
-            })
-          }
-        ),
-      ])
-
-      if (disposed) {
-        nextUnlisteners.forEach((unlisten) => unlisten())
-        return
-      }
-
-      unlisteners.push(...nextUnlisteners)
-    }
-
-    void setupListeners()
-
-    return () => {
-      disposed = true
-      unlisteners.forEach((unlisten) => unlisten())
-    }
-  }, [addTransfer, listing?.currentPath, loadDirectory, t, tabId, transfersRef, updateTransfer])
-
-  const entryMap = useMemo(
-    () => new Map((listing?.entries ?? []).map((entry) => [entry.path, entry])),
-    [listing?.entries]
-  )
-
-  const selectedEntries = useMemo(
-    () =>
-      selectedPaths
-        .map((path) => entryMap.get(path))
-        .filter((entry): entry is SftpDirectoryEntry => Boolean(entry)),
-    [entryMap, selectedPaths]
-  )
-
-  const activeEntry = useMemo(
-    () => (activePath ? (entryMap.get(activePath) ?? null) : null),
-    [activePath, entryMap]
-  )
-
-  const contextMenuEntry = useMemo(
-    () => listing?.entries.find((entry) => entry.path === contextMenu?.entryPath) ?? null,
-    [listing?.entries, contextMenu?.entryPath]
-  )
-
-  const breadcrumbs = useMemo(() => {
-    const currentPath = listing?.currentPath ?? "/"
-    if (currentPath === "/") {
-      return [{ label: "/", path: "/" }]
-    }
-
-    const parts = currentPath.split("/").filter(Boolean)
-    let cursor = ""
-    const items = [{ label: "/", path: "/" }]
-    parts.forEach((part) => {
-      cursor = `${cursor}/${part}`
-      items.push({ label: part, path: cursor })
-    })
-    return items
-  }, [listing?.currentPath])
-
   const runAndRefresh = useCallback(
     async (action: () => Promise<void>) => {
       setError(null)
@@ -295,49 +126,23 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
     },
     [listing?.currentPath, loadDirectory]
   )
-
-  const handleActivateEntry = useCallback((path: string | null) => {
-    setActivePath(path)
-  }, [])
-
-  const buildSelectionRange = useCallback(
-    (startPath: string, endPath: string) => {
-      const entries = listing?.entries ?? []
-      const startIndex = entries.findIndex((entry) => entry.path === startPath)
-      const endIndex = entries.findIndex((entry) => entry.path === endPath)
-
-      if (startIndex === -1 || endIndex === -1) {
-        return [endPath]
-      }
-
-      const [from, to] = startIndex <= endIndex ? [startIndex, endIndex] : [endIndex, startIndex]
-      return entries.slice(from, to + 1).map((entry) => entry.path)
-    },
-    [listing?.entries]
-  )
-
-  const handleSelectRange = useCallback(
-    (anchorPath: string, currentPath: string) => {
-      const range = buildSelectionRange(anchorPath, currentPath)
-      setSelectedPaths(range)
-    },
-    [buildSelectionRange]
-  )
-
-  const handleToggleEntrySelection = useCallback((path: string, checked: boolean) => {
-    setSelectedPaths((current) => {
-      if (checked) {
-        setActivePath(path)
-        return current.includes(path) ? current : [...current, path]
-      }
-
-      return current.filter((item) => item !== path)
-    })
-  }, [])
-
-  const handleClearSelection = useCallback(() => {
-    setSelectedPaths([])
-  }, [])
+  const {
+    activeEntry,
+    breadcrumbs,
+    contextMenuEntry,
+    handleActivateEntry,
+    handleClearSelection,
+    handleSelectRange,
+    handleToggleEntrySelection,
+    selectedEntries,
+  } = useSftpSelection({
+    activePath,
+    contextMenu,
+    listing,
+    selectedPaths,
+    setActivePath,
+    setSelectedPaths,
+  })
 
   const handleCreateDirectory = useCallback(() => {
     setCreateFolderDialog({ open: true, folderName: "" })
@@ -554,6 +359,17 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
 
   return (
     <div className={`sftp-drawer ${visible ? "is-open" : ""}`} aria-hidden={!visible}>
+      <SftpDeleteTransferEvents
+        addTransfer={addTransfer}
+        listingCurrentPath={listing?.currentPath}
+        loadDirectory={loadDirectory}
+        setError={setError}
+        setIsDeleting={setIsDeleting}
+        t={t}
+        tabId={tabId}
+        transfersRef={transfersRef}
+        updateTransfer={updateTransfer}
+      />
       <SftpDrawerHeader
         breadcrumbs={breadcrumbs}
         clearSelection={handleClearSelection}

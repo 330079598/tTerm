@@ -1,4 +1,4 @@
-import type { Tab } from "@/types/tab"
+﻿import type { Tab } from "@/types/tab"
 
 export interface SftpDrawerProps {
   tabId: string
@@ -69,4 +69,25 @@ export interface SftpDeleteProgressState {
   totalEntries: number
   totalFiles: number
   totalTruncated: boolean
+}
+export interface DeleteBatchStartResult {
+  batchId: string
+}
+
+export interface DeletePreviewResult {
+  command: string
+  shouldPromptForCommand: boolean
+  totalDirectories: number
+  totalEntries: number
+  totalFiles: number
+  totalTruncated: boolean
+}
+
+export interface DeleteBatchStartEvent extends SftpDeleteProgressState {
+  entries: string[]
+}
+
+export interface DeleteBatchCompleteEvent extends SftpDeleteProgressState {
+  cancelled: boolean
+  error?: string
 }
