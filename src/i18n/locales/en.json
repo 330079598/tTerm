@@ -512,6 +512,7 @@
     "regex": "Use regular expression",
     "previous": "Previous result",
     "next": "Next result",
-    "close": "Close search"
+    "close": "Close search",
+    "drag": "Drag search box"
   }
 }

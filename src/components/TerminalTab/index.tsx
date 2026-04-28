@@ -13,7 +13,15 @@ import { type IDisposable, Terminal } from "@xterm/xterm"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { useTranslation } from "react-i18next"
-import { ArrowDown, ArrowUp, CaseSensitive, Regex, WholeWord, X } from "lucide-react"
+import {
+  ArrowDown,
+  ArrowUp,
+  CaseSensitive,
+  GripHorizontal,
+  Regex,
+  WholeWord,
+  X,
+} from "lucide-react"
 
 import { SftpDrawer } from "@/components/SftpDrawer"
 import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
@@ -38,6 +46,15 @@ type SearchOptionsState = {
   caseSensitive: boolean
   wholeWord: boolean
   regex: boolean
+}
+
+type SearchDragState = {
+  pointerX: number
+  pointerY: number
+  positionX: number
+  positionY: number
+  barRect: DOMRect
+  surfaceRect: DOMRect
 }
 
 const SEARCH_DECORATIONS: ISearchDecorationOptions = {
@@ -67,11 +84,13 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   onUnpinConnectionHeader,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
+  const surfaceRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
   const searchAddonRef = useRef<SearchAddon | null>(null)
   const searchResultsDisposableRef = useRef<IDisposable | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
+  const searchDragStateRef = useRef<SearchDragState | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const resizeRafRef = useRef<number | null>(null)
   const resizeEndTimerRef = useRef<number | null>(null)
@@ -101,6 +120,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     resultIndex: -1,
     resultCount: 0,
   })
+  const [searchPosition, setSearchPosition] = useState({ x: 0, y: 0 })
+  const [isSearchDragging, setIsSearchDragging] = useState(false)
 
   const [hostKeyPromptState, setHostKeyPromptState] = useState<{
     sessionKey: string
@@ -186,6 +207,28 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     }, 0)
   }, [])
 
+  const handleSearchDragStart = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return
+
+      const bar = event.currentTarget.closest<HTMLDivElement>(".terminal-search-bar")
+      const surface = surfaceRef.current
+      if (!bar || !surface) return
+
+      event.preventDefault()
+      searchDragStateRef.current = {
+        pointerX: event.clientX,
+        pointerY: event.clientY,
+        positionX: searchPosition.x,
+        positionY: searchPosition.y,
+        barRect: bar.getBoundingClientRect(),
+        surfaceRect: surface.getBoundingClientRect(),
+      }
+      setIsSearchDragging(true)
+    },
+    [searchPosition.x, searchPosition.y]
+  )
+
   useEffect(() => {
     isActiveRef.current = isActive
   }, [isActive])
@@ -235,6 +278,40 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [openSearch])
+
+  useEffect(() => {
+    if (!isSearchDragging) return
+
+    const margin = 8
+    const handlePointerMove = (event: PointerEvent) => {
+      const dragState = searchDragStateRef.current
+      if (!dragState) return
+
+      const deltaX = event.clientX - dragState.pointerX
+      const deltaY = event.clientY - dragState.pointerY
+      const minDeltaX = dragState.surfaceRect.left + margin - dragState.barRect.left
+      const maxDeltaX = dragState.surfaceRect.right - margin - dragState.barRect.right
+      const minDeltaY = dragState.surfaceRect.top + margin - dragState.barRect.top
+      const maxDeltaY = dragState.surfaceRect.bottom - margin - dragState.barRect.bottom
+
+      setSearchPosition({
+        x: dragState.positionX + Math.min(Math.max(deltaX, minDeltaX), maxDeltaX),
+        y: dragState.positionY + Math.min(Math.max(deltaY, minDeltaY), maxDeltaY),
+      })
+    }
+
+    const handlePointerUp = () => {
+      searchDragStateRef.current = null
+      setIsSearchDragging(false)
+    }
+
+    window.addEventListener("pointermove", handlePointerMove)
+    window.addEventListener("pointerup", handlePointerUp, { once: true })
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove)
+      window.removeEventListener("pointerup", handlePointerUp)
+    }
+  }, [isSearchDragging])
 
   const resolveTerminalTheme = useCallback(() => {
     return { ...(getTheme(currentTheme)?.terminal ?? getTheme("default")!.terminal) }
@@ -724,7 +801,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         onUnpinConnectionHeader={onUnpinConnectionHeader}
       />
 
-      <div className="terminal-surface">
+      <div ref={surfaceRef} className="terminal-surface">
         <SftpDrawer
           tabId={tabId}
           visible={showSftpDrawer}
@@ -733,7 +810,20 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         />
 
         {isSearchOpen && (
-          <div className="terminal-search-bar" onMouseDown={(event) => event.stopPropagation()}>
+          <div
+            className="terminal-search-bar"
+            data-dragging={isSearchDragging ? "true" : undefined}
+            onMouseDown={(event) => event.stopPropagation()}
+            style={{ transform: `translate(${searchPosition.x}px, ${searchPosition.y}px)` }}
+          >
+            <div
+              className="terminal-search-drag-handle"
+              onPointerDown={handleSearchDragStart}
+              title={t("terminalSearch.drag", { defaultValue: "Drag search box" })}
+              aria-label={t("terminalSearch.drag", { defaultValue: "Drag search box" })}
+            >
+              <GripHorizontal />
+            </div>
             <Input
               ref={searchInputRef}
               value={searchQuery}

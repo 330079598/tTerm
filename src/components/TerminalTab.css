@@ -288,3 +288,28 @@
     min-width: 64px;
   }
 }
+
+.terminal-search-bar[data-dragging="true"] {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.terminal-search-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 26px;
+  color: hsl(var(--muted-foreground));
+  cursor: grab;
+  touch-action: none;
+}
+
+.terminal-search-drag-handle:active {
+  cursor: grabbing;
+}
+
+.terminal-search-drag-handle svg {
+  width: 14px;
+  height: 14px;
+}
