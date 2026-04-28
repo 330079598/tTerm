@@ -2,15 +2,24 @@ import "@/components/TerminalTab.css"
 import "@xterm/xterm/css/xterm.css"
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { FitAddon } from "@xterm/addon-fit"
+import {
+  SearchAddon,
+  type ISearchDecorationOptions,
+  type ISearchOptions,
+  type ISearchResultChangeEvent,
+} from "@xterm/addon-search"
 import { WebLinksAddon } from "@xterm/addon-web-links"
-import { Terminal } from "@xterm/xterm"
+import { type IDisposable, Terminal } from "@xterm/xterm"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { useTranslation } from "react-i18next"
+import { ArrowDown, ArrowUp, CaseSensitive, Regex, WholeWord, X } from "lucide-react"
 
 import { SftpDrawer } from "@/components/SftpDrawer"
 import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   getConnectionDisplay,
   STATUS_CONNECTING,
@@ -24,6 +33,27 @@ import type {
 import { toast } from "@/hooks/use-toast"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
+
+type SearchOptionsState = {
+  caseSensitive: boolean
+  wholeWord: boolean
+  regex: boolean
+}
+
+const SEARCH_DECORATIONS: ISearchDecorationOptions = {
+  matchBackground: "#facc15",
+  matchBorder: "#fde047",
+  matchOverviewRuler: "#facc15",
+  activeMatchBackground: "#fb923c",
+  activeMatchBorder: "#fdba74",
+  activeMatchColorOverviewRuler: "#fb923c",
+}
+
+const DEFAULT_SEARCH_OPTIONS: SearchOptionsState = {
+  caseSensitive: false,
+  wholeWord: false,
+  regex: false,
+}
 
 export const TerminalTab: React.FC<TerminalTabProps> = ({
   tabId,
@@ -39,6 +69,9 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
+  const searchAddonRef = useRef<SearchAddon | null>(null)
+  const searchResultsDisposableRef = useRef<IDisposable | null>(null)
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const resizeRafRef = useRef<number | null>(null)
   const resizeEndTimerRef = useRef<number | null>(null)
@@ -61,6 +94,13 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const defaultConnectionState: ConnectionState =
     connection?.type === "ssh" ? "connecting" : "connected"
   const passwordPromptActiveRef = useRef(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchOptions, setSearchOptions] = useState<SearchOptionsState>(DEFAULT_SEARCH_OPTIONS)
+  const [searchResults, setSearchResults] = useState<ISearchResultChangeEvent>({
+    resultIndex: -1,
+    resultCount: 0,
+  })
 
   const [hostKeyPromptState, setHostKeyPromptState] = useState<{
     sessionKey: string
@@ -93,6 +133,59 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     [sessionResetKey]
   )
 
+  const buildSearchOptions = useCallback(
+    (overrides?: Partial<SearchOptionsState>, incremental = false): ISearchOptions => ({
+      ...searchOptions,
+      ...overrides,
+      incremental,
+      decorations: SEARCH_DECORATIONS,
+    }),
+    [searchOptions]
+  )
+
+  const runSearch = useCallback(
+    (direction: "next" | "previous" = "next", incremental = false) => {
+      const searchAddon = searchAddonRef.current
+      const query = searchQuery
+      if (!searchAddon) return false
+
+      if (!query) {
+        searchAddon.clearDecorations()
+        setSearchResults({ resultIndex: -1, resultCount: 0 })
+        return false
+      }
+
+      try {
+        const options = buildSearchOptions(undefined, incremental)
+        return direction === "previous"
+          ? searchAddon.findPrevious(query, options)
+          : searchAddon.findNext(query, options)
+      } catch (error) {
+        console.error("Terminal search failed:", error)
+        setSearchResults({ resultIndex: -1, resultCount: 0 })
+        return false
+      }
+    },
+    [buildSearchOptions, searchQuery]
+  )
+
+  const closeSearch = useCallback(() => {
+    searchAddonRef.current?.clearDecorations()
+    setIsSearchOpen(false)
+    setSearchQuery("")
+    setSearchResults({ resultIndex: -1, resultCount: 0 })
+    window.setTimeout(() => termRef.current?.focus(), 0)
+  }, [])
+
+  const openSearch = useCallback(() => {
+    setIsSearchOpen(true)
+    setShowSftpDrawer(false)
+    window.setTimeout(() => {
+      searchInputRef.current?.focus()
+      searchInputRef.current?.select()
+    }, 0)
+  }, [])
+
   useEffect(() => {
     isActiveRef.current = isActive
   }, [isActive])
@@ -108,6 +201,40 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   useEffect(() => {
     onReconnectRequestRef.current = onReconnectRequest
   }, [onReconnectRequest])
+
+  useEffect(() => {
+    if (!isSearchOpen) return
+
+    window.setTimeout(() => {
+      searchInputRef.current?.focus()
+      searchInputRef.current?.select()
+    }, 0)
+  }, [isSearchOpen])
+
+  useEffect(() => {
+    if (!isSearchOpen) return
+
+    const searchTimer = window.setTimeout(() => {
+      runSearch("next", true)
+    }, 0)
+
+    return () => window.clearTimeout(searchTimer)
+  }, [isSearchOpen, runSearch])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isActiveRef.current) return
+
+      const isFindShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f"
+      if (!isFindShortcut) return
+
+      event.preventDefault()
+      openSearch()
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [openSearch])
 
   const resolveTerminalTheme = useCallback(() => {
     return { ...(getTheme(currentTheme)?.terminal ?? getTheme("default")!.terminal) }
@@ -211,14 +338,21 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       lineHeight: 1.0,
       theme: initialTerminalThemeRef.current,
       allowTransparency: false,
+      allowProposedApi: true,
     })
 
     const fitAddon = new FitAddon()
+    const searchAddon = new SearchAddon({ highlightLimit: 2000 })
     term.loadAddon(fitAddon)
+    term.loadAddon(searchAddon)
     term.loadAddon(new WebLinksAddon())
 
     termRef.current = term
     fitAddonRef.current = fitAddon
+    searchAddonRef.current = searchAddon
+    searchResultsDisposableRef.current = searchAddon.onDidChangeResults((results) => {
+      setSearchResults(results)
+    })
 
     term.open(container)
     term.focus()
@@ -409,6 +543,9 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       unlistenExit?.()
       unlistenHostPrompt?.()
       invoke("kill_pty", { tabId }).catch(() => {})
+      searchResultsDisposableRef.current?.dispose()
+      searchResultsDisposableRef.current = null
+      searchAddonRef.current = null
       term.dispose()
       termRef.current = null
       fitAddonRef.current = null
@@ -485,6 +622,29 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     setShowSftpDrawer((current) => !current)
   }, [])
 
+  const toggleSearchOption = useCallback((option: keyof SearchOptionsState) => {
+    setSearchOptions((current) => ({
+      ...current,
+      [option]: !current[option],
+    }))
+  }, [])
+
+  const handleSearchKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Escape") {
+        event.preventDefault()
+        closeSearch()
+        return
+      }
+
+      if (event.key === "Enter") {
+        event.preventDefault()
+        runSearch(event.shiftKey ? "previous" : "next")
+      }
+    },
+    [closeSearch, runSearch]
+  )
+
   const handleTerminalContextMenu = useCallback(
     async (event: React.MouseEvent<HTMLDivElement>) => {
       event.preventDefault()
@@ -541,6 +701,16 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     [showSftpDrawer, t, tabId]
   )
 
+  const searchResultText = searchQuery
+    ? searchResults.resultCount > 0
+      ? t("terminalSearch.results", {
+          current: searchResults.resultIndex >= 0 ? searchResults.resultIndex + 1 : 0,
+          total: searchResults.resultCount,
+          defaultValue: "{{current}} / {{total}}",
+        })
+      : t("terminalSearch.noResults", { defaultValue: "No results" })
+    : t("terminalSearch.ready", { defaultValue: "Find in terminal" })
+
   return (
     <div className="terminal-tab-shell">
       <ConnectionHeader
@@ -561,6 +731,85 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
           connection={connection}
           onClose={() => setShowSftpDrawer(false)}
         />
+
+        {isSearchOpen && (
+          <div className="terminal-search-bar" onMouseDown={(event) => event.stopPropagation()}>
+            <Input
+              ref={searchInputRef}
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder={t("terminalSearch.placeholder", { defaultValue: "Search terminal" })}
+              aria-label={t("terminalSearch.placeholder", { defaultValue: "Search terminal" })}
+              className="terminal-search-input"
+            />
+            <span
+              className="terminal-search-count"
+              aria-live="polite"
+              data-empty={searchQuery ? undefined : "true"}
+              data-missing={searchQuery && searchResults.resultCount === 0 ? "true" : undefined}
+            >
+              {searchResultText}
+            </span>
+            <Button
+              type="button"
+              variant={searchOptions.caseSensitive ? "secondary" : "ghost"}
+              size="icon-xs"
+              onClick={() => toggleSearchOption("caseSensitive")}
+              title={t("terminalSearch.caseSensitive", { defaultValue: "Match case" })}
+              aria-pressed={searchOptions.caseSensitive}
+            >
+              <CaseSensitive />
+            </Button>
+            <Button
+              type="button"
+              variant={searchOptions.wholeWord ? "secondary" : "ghost"}
+              size="icon-xs"
+              onClick={() => toggleSearchOption("wholeWord")}
+              title={t("terminalSearch.wholeWord", { defaultValue: "Whole word" })}
+              aria-pressed={searchOptions.wholeWord}
+            >
+              <WholeWord />
+            </Button>
+            <Button
+              type="button"
+              variant={searchOptions.regex ? "secondary" : "ghost"}
+              size="icon-xs"
+              onClick={() => toggleSearchOption("regex")}
+              title={t("terminalSearch.regex", { defaultValue: "Use regular expression" })}
+              aria-pressed={searchOptions.regex}
+            >
+              <Regex />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => runSearch("previous")}
+              title={t("terminalSearch.previous", { defaultValue: "Previous result" })}
+            >
+              <ArrowUp />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => runSearch("next")}
+              title={t("terminalSearch.next", { defaultValue: "Next result" })}
+            >
+              <ArrowDown />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={closeSearch}
+              title={t("terminalSearch.close", { defaultValue: "Close search" })}
+            >
+              <X />
+            </Button>
+          </div>
+        )}
 
         <div
           ref={containerRef}

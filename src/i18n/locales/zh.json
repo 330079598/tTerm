@@ -489,5 +489,17 @@
     "retry": "重试",
     "dropFiles": "拖放文件以上传",
     "dropFilesHint": "文件将上传到当前目录"
+  },
+  "terminalSearch": {
+    "placeholder": "搜索终端",
+    "ready": "在终端中查找",
+    "results": "{{current}} / {{total}}",
+    "noResults": "无结果",
+    "caseSensitive": "区分大小写",
+    "wholeWord": "全词匹配",
+    "regex": "使用正则表达式",
+    "previous": "上一个结果",
+    "next": "下一个结果",
+    "close": "关闭搜索"
   }
 }

@@ -501,5 +501,17 @@
     "retry": "Retry",
     "dropFiles": "Drop files to upload",
     "dropFilesHint": "Files will be uploaded to current directory"
+  },
+  "terminalSearch": {
+    "placeholder": "Search terminal",
+    "ready": "Find in terminal",
+    "results": "{{current}} / {{total}}",
+    "noResults": "No results",
+    "caseSensitive": "Match case",
+    "wholeWord": "Whole word",
+    "regex": "Use regular expression",
+    "previous": "Previous result",
+    "next": "Next result",
+    "close": "Close search"
   }
 }
