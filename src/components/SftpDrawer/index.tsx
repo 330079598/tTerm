@@ -347,6 +347,33 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
     await downloadEntry(entry)
   }, [activeEntry, contextMenuEntry, downloadEntry])
 
+  const handleCopyPath = useCallback(async () => {
+    debugger
+    const entry = contextMenuEntry ?? activeEntry
+    if (!entry) {
+      return
+    }
+
+    try {
+      await invoke("plugin:clipboard-manager|write_text", { text: entry.path })
+      toast({
+        title: t("sftp.messages.copyPathSuccess", {
+          defaultValue: "Full path copied.",
+        }),
+        description: entry.path,
+      })
+    } catch (invokeError) {
+      console.error("Failed to copy SFTP path:", invokeError)
+      toast({
+        variant: "destructive",
+        title: t("sftp.messages.copyPathFailure", {
+          defaultValue: "Failed to copy full path.",
+        }),
+        description: String(invokeError),
+      })
+    }
+  }, [activeEntry, contextMenuEntry, t])
+
   const contextSelectionCount = useMemo(() => {
     if (!contextMenuEntry) {
       return selectedPaths.length
@@ -413,6 +440,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       <SftpEntryContextMenu
         contextMenu={contextMenu}
         contextMenuEntry={contextMenuEntry}
+        handleCopyPath={handleCopyPath}
         handleDelete={handleDelete}
         handleDownload={handleDownload}
         handleRename={handleRename}

@@ -453,6 +453,7 @@
       "uploadFiles": "Upload Files",
       "uploadFolder": "Upload Folder",
       "download": "Download File",
+      "copyPath": "Copy Full Path",
       "rename": "Rename",
       "delete": "Delete",
       "deleteSelected": "Delete Selection",
@@ -480,7 +481,9 @@
       "deleteSuccess_one": "Deleted {{count}} item.",
       "deleteSuccess_other": "Deleted {{count}} items.",
       "deletePartialFailure": "Deleted {{successCount}} item(s). {{failureCount}} failed.",
-      "deleteFailure": "Failed to delete selected items."
+      "deleteFailure": "Failed to delete selected items.",
+      "copyPathSuccess": "Full path copied.",
+      "copyPathFailure": "Failed to copy full path."
     },
     "prompts": {
       "newFolder": "New folder name",

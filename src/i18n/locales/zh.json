@@ -441,6 +441,7 @@
       "uploadFiles": "上传文件",
       "uploadFolder": "上传文件夹",
       "download": "下载文件",
+      "copyPath": "复制完整路径",
       "rename": "重命名",
       "delete": "删除",
       "deleteSelected": "删除选择",
@@ -468,7 +469,9 @@
       "deleteSuccess_one": "已删除 {{count}} 个项目。",
       "deleteSuccess_other": "已删除 {{count}} 个项目。",
       "deletePartialFailure": "已删除 {{successCount}} 个项目，{{failureCount}} 个删除失败。",
-      "deleteFailure": "删除所选项目失败。"
+      "deleteFailure": "删除所选项目失败。",
+      "copyPathSuccess": "已复制完整路径。",
+      "copyPathFailure": "复制完整路径失败。"
     },
     "prompts": {
       "newFolder": "新文件夹名称",

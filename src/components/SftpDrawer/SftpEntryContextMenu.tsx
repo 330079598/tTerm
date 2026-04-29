@@ -9,6 +9,7 @@ import type { SftpContextMenuState, SftpDirectoryEntry } from "@/components/Sftp
 interface SftpEntryContextMenuProps {
   contextMenu: SftpContextMenuState | null
   contextMenuEntry: SftpDirectoryEntry | null
+  handleCopyPath: () => Promise<void>
   handleDelete: () => void
   handleDownload: () => Promise<void>
   handleRename: () => void
@@ -19,6 +20,7 @@ interface SftpEntryContextMenuProps {
 export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
   contextMenu,
   contextMenuEntry,
+  handleCopyPath,
   handleDelete,
   handleDownload,
   handleRename,
@@ -43,6 +45,11 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
           disabled: contextMenuEntry.isDir || selectionCount !== 1,
         },
         {
+          label: t("sftp.actions.copyPath", { defaultValue: "Copy Full Path" }),
+          action: "copy-path",
+          icon: "copy",
+        },
+        {
           label: t("sftp.actions.rename", { defaultValue: "Rename" }),
           action: "rename",
           icon: "edit",
@@ -57,6 +64,7 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
       ]}
       onAction={(action) => {
         if (action === "download") void handleDownload()
+        else if (action === "copy-path") void handleCopyPath()
         else if (action === "rename") handleRename()
         else if (action === "delete") handleDelete()
       }}
