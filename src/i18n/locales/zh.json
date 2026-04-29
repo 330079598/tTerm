@@ -491,7 +491,13 @@
     "refreshed": "已刷新",
     "retry": "重试",
     "dropFiles": "拖放文件以上传",
-    "dropFilesHint": "文件将上传到当前目录"
+    "dropFilesHint": "文件将上传到当前目录",
+    "search": {
+      "placeholder": "过滤当前目录",
+      "label": "过滤当前目录",
+      "clear": "清空过滤",
+      "noResults": "没有匹配的文件或文件夹"
+    }
   },
   "terminalSearch": {
     "placeholder": "搜索终端",

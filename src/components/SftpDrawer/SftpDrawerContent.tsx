@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import {
   AlertCircle,
   ArrowUpFromLine,
@@ -37,6 +37,7 @@ interface SftpDrawerContentProps {
   isLoading: boolean
   listing: SftpDirectoryListing | null
   loadDirectory: (path?: string | null) => Promise<void>
+  searchQuery: string
   selectedPaths: string[]
   setContextMenu: React.Dispatch<React.SetStateAction<SftpContextMenuState | null>>
 }
@@ -56,6 +57,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
   isLoading,
   listing,
   loadDirectory,
+  searchQuery,
   selectedPaths,
   setContextMenu,
 }) => {
@@ -65,13 +67,20 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
   const pointerMovedRef = useRef(false)
   const rowRefs = useRef(new Map<string, HTMLDivElement>())
 
+  const filteredEntries = useMemo(() => {
+    const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase()
+    if (!normalizedSearchQuery) {
+      return listing?.entries ?? []
+    }
+
+    return (listing?.entries ?? []).filter((entry) =>
+      entry.name.toLocaleLowerCase().includes(normalizedSearchQuery)
+    )
+  }, [listing?.entries, searchQuery])
+
   const updateSelectionFromPointer = React.useCallback(
     (clientY: number) => {
-      if (!listing) {
-        return
-      }
-
-      const hoveredEntry = listing.entries.find((entry) => {
+      const hoveredEntry = filteredEntries.find((entry) => {
         const row = rowRefs.current.get(entry.path)
         if (!row) {
           return false
@@ -98,7 +107,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
 
       handleSelectRange(pointerAnchorRef.current, hoveredEntry.path)
     },
-    [handleActivateEntry, handleSelectRange, listing]
+    [filteredEntries, handleActivateEntry, handleSelectRange]
   )
 
   useEffect(() => {
@@ -200,7 +209,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
 
           {!isLoading &&
             !error &&
-            listing?.entries.map((entry) => {
+            filteredEntries.map((entry) => {
               const isSelected = selectedPaths.includes(entry.path)
               const isActive = entry.path === activePath
               return (
@@ -293,6 +302,21 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
                 </div>
               )
             })}
+
+          {!isLoading &&
+            !error &&
+            listing &&
+            listing.entries.length > 0 &&
+            filteredEntries.length === 0 && (
+              <div className="text-muted-foreground flex min-h-[200px] flex-col items-center justify-center gap-3">
+                <File className="size-6" />
+                <span className="text-sm">
+                  {t("sftp.search.noResults", {
+                    defaultValue: "No files or folders match this filter",
+                  })}
+                </span>
+              </div>
+            )}
 
           {!isLoading && !error && listing?.entries.length === 0 && (
             <div className="text-muted-foreground flex min-h-[200px] flex-col items-center justify-center gap-3">

@@ -34,6 +34,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
   const [listing, setListing] = useState<SftpDirectoryListing | null>(null)
   const [activePath, setActivePath] = useState<string | null>(null)
   const [selectedPaths, setSelectedPaths] = useState<string[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -79,6 +80,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         setListing(nextListing)
         setActivePath(null)
         setSelectedPaths([])
+        setSearchQuery("")
       } catch (invokeError) {
         setError(String(invokeError))
       } finally {
@@ -114,6 +116,20 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       visible,
     })
 
+  const filteredListing = useMemo(() => {
+    const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase()
+    if (!listing || !normalizedSearchQuery) {
+      return listing
+    }
+
+    return {
+      ...listing,
+      entries: listing.entries.filter((entry) =>
+        entry.name.toLocaleLowerCase().includes(normalizedSearchQuery)
+      ),
+    }
+  }, [listing, searchQuery])
+
   const runAndRefresh = useCallback(
     async (action: () => Promise<void>) => {
       setError(null)
@@ -139,6 +155,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
     activePath,
     contextMenu,
     listing,
+    rangeEntries: filteredListing?.entries,
     selectedPaths,
     setActivePath,
     setSelectedPaths,
@@ -348,7 +365,6 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
   }, [activeEntry, contextMenuEntry, downloadEntry])
 
   const handleCopyPath = useCallback(async () => {
-    debugger
     const entry = contextMenuEntry ?? activeEntry
     if (!entry) {
       return
@@ -408,7 +424,9 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         listingCurrentPath={listing?.currentPath}
         loadDirectory={loadDirectory}
         onClose={onClose}
+        searchQuery={searchQuery}
         selectedCount={selectedPaths.length}
+        setSearchQuery={setSearchQuery}
       />
 
       {error && (
@@ -433,6 +451,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         isLoading={isBusy}
         listing={listing}
         loadDirectory={loadDirectory}
+        searchQuery={searchQuery}
         selectedPaths={selectedPaths}
         setContextMenu={setContextMenu}
       />

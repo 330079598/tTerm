@@ -11,6 +11,7 @@ type UseSftpSelectionOptions = {
   activePath: string | null
   contextMenu: SftpContextMenuState | null
   listing: SftpDirectoryListing | null
+  rangeEntries?: SftpDirectoryEntry[]
   selectedPaths: string[]
   setActivePath: (path: string | null) => void
   setSelectedPaths: Dispatch<SetStateAction<string[]>>
@@ -20,6 +21,7 @@ export function useSftpSelection({
   activePath,
   contextMenu,
   listing,
+  rangeEntries,
   selectedPaths,
   setActivePath,
   setSelectedPaths,
@@ -72,7 +74,7 @@ export function useSftpSelection({
 
   const buildSelectionRange = useCallback(
     (startPath: string, endPath: string) => {
-      const entries = listing?.entries ?? []
+      const entries = rangeEntries ?? listing?.entries ?? []
       const startIndex = entries.findIndex((entry) => entry.path === startPath)
       const endIndex = entries.findIndex((entry) => entry.path === endPath)
 
@@ -83,7 +85,7 @@ export function useSftpSelection({
       const [from, to] = startIndex <= endIndex ? [startIndex, endIndex] : [endIndex, startIndex]
       return entries.slice(from, to + 1).map((entry) => entry.path)
     },
-    [listing?.entries]
+    [listing?.entries, rangeEntries]
   )
 
   const handleSelectRange = useCallback(

@@ -503,7 +503,13 @@
     "refreshed": "Refreshed",
     "retry": "Retry",
     "dropFiles": "Drop files to upload",
-    "dropFilesHint": "Files will be uploaded to current directory"
+    "dropFilesHint": "Files will be uploaded to current directory",
+    "search": {
+      "placeholder": "Filter current folder",
+      "label": "Filter current folder",
+      "clear": "Clear filter",
+      "noResults": "No files or folders match this filter"
+    }
   },
   "terminalSearch": {
     "placeholder": "Search terminal",
