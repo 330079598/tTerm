@@ -1,10 +1,15 @@
 use crate::core::session::PtyConnectionOptions;
 use crate::core::state::HostPromptMap;
 use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error};
-use crate::sftp::internal::types::{SftpConnectionPool, SftpDirectoryEntry, SftpDirectoryListing};
+use crate::sftp::internal::types::{
+    SftpConnectionPool, SftpDirectoryEntry, SftpDirectoryListing, TransferCancelMap,
+};
 use crate::sftp::store;
 use crate::ssh::SecretStoreState;
-use tauri::{AppHandle, State};
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, State};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
+use tokio::sync::watch;
 #[tauri::command]
 pub async fn sftp_list_directory(
     app: AppHandle,
@@ -127,32 +132,160 @@ pub async fn sftp_rename_entry(
     })
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DownloadProgressEvent {
+    transfer_id: String,
+    local_path: String,
+    remote_path: String,
+    transferred: u64,
+    total: u64,
+    progress: u32,
+}
+
+fn is_cancelled(cancel_rx: &mut watch::Receiver<bool>) -> bool {
+    *cancel_rx.borrow_and_update()
+}
+
+async fn download_file_with_progress(
+    app: &AppHandle,
+    tab_id: &str,
+    sftp: &russh_sftp::client::SftpSession,
+    cancel_map: &TransferCancelMap,
+    transfer_id: &str,
+    remote_path: &str,
+    local_path: &str,
+) -> Result<(), String> {
+    const CHUNK_SIZE: usize = 1024 * 1024;
+    const PROGRESS_UPDATE_BYTES: u64 = 2 * 1024 * 1024;
+
+    let (cancel_tx, mut cancel_rx) = watch::channel(false);
+    cancel_map
+        .write()
+        .await
+        .insert(transfer_id.to_string(), cancel_tx);
+
+    let result = async {
+        let mut remote_file = sftp.open(remote_path).await.map_err(map_sftp_error)?;
+        let total = remote_file
+            .metadata()
+            .await
+            .map_err(map_sftp_error)?
+            .size
+            .unwrap_or(0);
+
+        let local_file = tokio::fs::File::create(local_path)
+            .await
+            .map_err(|err| format!("Failed to create local file '{local_path}': {err}"))?;
+        let mut local_file = BufWriter::new(local_file);
+
+        let mut total_read = 0u64;
+        let mut buffer = vec![0u8; CHUNK_SIZE];
+        let mut last_progress_update = 0u64;
+
+        loop {
+            if is_cancelled(&mut cancel_rx) {
+                return Err("Download cancelled by user".to_string());
+            }
+
+            let bytes_read = remote_file
+                .read(&mut buffer)
+                .await
+                .map_err(|err| format!("Failed to read remote file '{remote_path}': {err}"))?;
+
+            if bytes_read == 0 {
+                break;
+            }
+
+            if is_cancelled(&mut cancel_rx) {
+                return Err("Download cancelled by user".to_string());
+            }
+
+            local_file
+                .write_all(&buffer[..bytes_read])
+                .await
+                .map_err(|err| format!("Failed to write local file '{local_path}': {err}"))?;
+
+            total_read += bytes_read as u64;
+
+            if total_read - last_progress_update >= PROGRESS_UPDATE_BYTES
+                || (total > 0 && total_read == total)
+            {
+                last_progress_update = total_read;
+                let progress = if total > 0 {
+                    ((total_read as f64 / total as f64) * 100.0).min(100.0) as u32
+                } else {
+                    0
+                };
+
+                let _ = app.emit(
+                    &format!("sftp-download-progress-{}", tab_id),
+                    DownloadProgressEvent {
+                        transfer_id: transfer_id.to_string(),
+                        local_path: local_path.to_string(),
+                        remote_path: remote_path.to_string(),
+                        transferred: total_read,
+                        total,
+                        progress,
+                    },
+                );
+            }
+        }
+
+        if total_read > last_progress_update || total == 0 {
+            let _ = app.emit(
+                &format!("sftp-download-progress-{}", tab_id),
+                DownloadProgressEvent {
+                    transfer_id: transfer_id.to_string(),
+                    local_path: local_path.to_string(),
+                    remote_path: remote_path.to_string(),
+                    transferred: total_read,
+                    total,
+                    progress: 100,
+                },
+            );
+        }
+
+        local_file
+            .flush()
+            .await
+            .map_err(|err| format!("Failed to flush local file '{local_path}': {err}"))?;
+
+        Ok(())
+    }
+    .await;
+
+    cancel_map.write().await.remove(transfer_id);
+    result
+}
+
 #[tauri::command]
 pub async fn sftp_download_file(
     app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
+    transfer_id: String,
     remote_path: String,
     local_path: String,
     prompt_state: State<'_, HostPromptMap>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
+    cancel_map: State<'_, TransferCancelMap>,
 ) -> Result<(), String> {
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
 
-    let data = with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-        sftp.read(remote_path).await.map_err(map_sftp_error)
-    })?;
-
-    // Write file in background thread to avoid blocking
-    tokio::task::spawn_blocking(move || {
-        std::fs::write(&local_path, data)
-            .map_err(|err| format!("Failed to write local file '{local_path}': {err}"))
+    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
+        download_file_with_progress(
+            &app,
+            &tab_id,
+            sftp,
+            cancel_map.inner(),
+            &transfer_id,
+            &remote_path,
+            &local_path,
+        )
+        .await
     })
-    .await
-    .map_err(|err| format!("Task join error: {err}"))??;
-
-    Ok(())
 }
 
 #[tauri::command]

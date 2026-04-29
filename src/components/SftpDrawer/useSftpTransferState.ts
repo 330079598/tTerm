@@ -47,13 +47,18 @@ export function useSftpTransferState(): UseSftpTransferStateReturn {
     )
   }, [])
 
-  const cancelTransfer = useCallback(async (id: string) => {
-    try {
-      await invoke("sftp_cancel_upload", { transferId: id })
-    } catch (invokeError) {
-      console.warn("Failed to cancel transfer on backend:", invokeError)
-    }
-  }, [])
+  const cancelTransfer = useCallback(
+    async (id: string) => {
+      updateTransfer(id, { status: "cancelled", endTime: Date.now() })
+
+      try {
+        await invoke("sftp_cancel_upload", { transferId: id })
+      } catch (invokeError) {
+        console.warn("Failed to cancel transfer on backend:", invokeError)
+      }
+    },
+    [updateTransfer]
+  )
 
   const removeTransfer = useCallback((id: string) => {
     setTransfers((prev) => prev.filter((transfer) => transfer.id !== id))

@@ -54,6 +54,7 @@ export function useSftpTransfers({
     connection,
     loadDirectory,
     tabId,
+    transfersRef,
     updateTransfer,
   })
 
