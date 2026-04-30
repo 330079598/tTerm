@@ -113,8 +113,12 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
                 variant={searchOptions.regex ? "secondary" : "ghost"}
                 size="icon-xs"
                 onClick={() => toggleSearchOption("regex")}
-                title={t("sftp.search.regex", { defaultValue: "Use regular expression" })}
-                aria-label={t("sftp.search.regex", { defaultValue: "Use regular expression" })}
+                title={t("sftp.search.regex", {
+                  defaultValue: "Use regular expression; falls back to glob",
+                })}
+                aria-label={t("sftp.search.regex", {
+                  defaultValue: "Use regular expression; falls back to glob",
+                })}
                 aria-pressed={searchOptions.regex}
                 disabled={!listingCurrentPath || isLoading}
               >

@@ -505,11 +505,11 @@
     "dropFiles": "Drop files to upload",
     "dropFilesHint": "Files will be uploaded to current directory",
     "search": {
-      "placeholder": "Filter current folder",
-      "label": "Filter current folder",
+      "placeholder": "Filter current folder, e.g. *.sh",
+      "label": "Filter current folder by text, glob, or regex",
       "clear": "Clear filter",
       "noResults": "No files or folders match this filter",
-      "regex": "Use regular expression",
+      "regex": "Use regular expression; falls back to glob",
       "invalidRegex": "Invalid regular expression"
     }
   },

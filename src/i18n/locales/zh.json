@@ -493,11 +493,11 @@
     "dropFiles": "拖放文件以上传",
     "dropFilesHint": "文件将上传到当前目录",
     "search": {
-      "placeholder": "过滤当前目录",
-      "label": "过滤当前目录",
+      "placeholder": "过滤当前目录，例如 *.sh",
+      "label": "按文本、通配符或正则过滤当前目录",
       "clear": "清空过滤",
       "noResults": "没有匹配的文件或文件夹",
-      "regex": "使用正则表达式",
+      "regex": "使用正则表达式；失败时按通配符处理",
       "invalidRegex": "正则表达式无效"
     }
   },
