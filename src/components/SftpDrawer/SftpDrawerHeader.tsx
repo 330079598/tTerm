@@ -93,58 +93,62 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
             </React.Fragment>
           ))}
         </div>
-        {isSearchOpen && (
-          <div className="sftp-search-box">
-            <Search className="sftp-search-icon" />
-            <Input
-              ref={searchInputRef}
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={t("sftp.search.placeholder", { defaultValue: "Filter current folder" })}
-              disabled={!listingCurrentPath || isLoading}
-              className={cn("sftp-search-input", searchError && "border-destructive")}
-              aria-invalid={Boolean(searchError)}
-              aria-label={t("sftp.search.label", { defaultValue: "Filter current folder" })}
-              title={searchError ?? undefined}
-            />
-            <div className="sftp-search-controls">
-              <Button
-                type="button"
-                variant={searchOptions.regex ? "secondary" : "ghost"}
-                size="icon-xs"
-                onClick={() => toggleSearchOption("regex")}
-                title={t("sftp.search.regex", {
-                  defaultValue: "Use regular expression; falls back to glob",
-                })}
-                aria-label={t("sftp.search.regex", {
-                  defaultValue: "Use regular expression; falls back to glob",
-                })}
-                aria-pressed={searchOptions.regex}
-                disabled={!listingCurrentPath || isLoading}
-              >
-                <Regex className="size-3" />
-              </Button>
-              {searchQuery && (
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => setSearchQuery("")}
-                  title={t("sftp.search.clear", { defaultValue: "Clear filter" })}
-                  aria-label={t("sftp.search.clear", { defaultValue: "Clear filter" })}
-                >
-                  <X className="size-3" />
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
-        {isSearchOpen && searchError && (
-          <span className="sftp-search-error" title={searchError}>
-            {t("sftp.search.invalidRegex", { defaultValue: "Invalid regular expression" })}
-          </span>
-        )}
       </div>
       <div className="sftp-header-actions">
+        {isSearchOpen && (
+          <div className="sftp-header-search">
+            <div className="sftp-search-box">
+              <Search className="sftp-search-icon" />
+              <Input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={t("sftp.search.placeholder", {
+                  defaultValue: "Filter current folder",
+                })}
+                disabled={!listingCurrentPath || isLoading}
+                className={cn("sftp-search-input", searchError && "border-destructive")}
+                aria-invalid={Boolean(searchError)}
+                aria-label={t("sftp.search.label", { defaultValue: "Filter current folder" })}
+                title={searchError ?? undefined}
+              />
+              <div className="sftp-search-controls">
+                <Button
+                  type="button"
+                  variant={searchOptions.regex ? "secondary" : "ghost"}
+                  size="icon-xs"
+                  onClick={() => toggleSearchOption("regex")}
+                  title={t("sftp.search.regex", {
+                    defaultValue: "Use regular expression; falls back to glob",
+                  })}
+                  aria-label={t("sftp.search.regex", {
+                    defaultValue: "Use regular expression; falls back to glob",
+                  })}
+                  aria-pressed={searchOptions.regex}
+                  disabled={!listingCurrentPath || isLoading}
+                >
+                  <Regex className="size-3" />
+                </Button>
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => setSearchQuery("")}
+                    title={t("sftp.search.clear", { defaultValue: "Clear filter" })}
+                    aria-label={t("sftp.search.clear", { defaultValue: "Clear filter" })}
+                  >
+                    <X className="size-3" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            {searchError && (
+              <span className="sftp-search-error" title={searchError}>
+                {t("sftp.search.invalidRegex", { defaultValue: "Invalid regular expression" })}
+              </span>
+            )}
+          </div>
+        )}
         <Button
           variant={isSearchOpen || searchQuery ? "secondary" : "ghost"}
           size="icon-sm"

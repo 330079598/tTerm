@@ -57,11 +57,20 @@
   overflow: hidden;
 }
 
+.sftp-header-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  width: min(260px, 30vw);
+  margin-right: 8px;
+  flex: 1 1 180px;
+}
+
 .sftp-search-box {
   position: relative;
-  width: min(280px, 32vw);
-  min-width: 180px;
-  flex-shrink: 0;
+  width: 100%;
+  min-width: 0;
 }
 
 .sftp-search-icon {
@@ -101,7 +110,10 @@
 .sftp-header-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 4px;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 
 .sftp-drawer-body {
@@ -254,9 +266,10 @@ body.sftp-no-select * {
     padding: 6px 12px;
   }
 
-  .sftp-search-box {
+  .sftp-header-search {
     width: min(220px, 42vw);
-    min-width: 140px;
+    flex-basis: 120px;
+    margin-right: 6px;
   }
 
   .sftp-row {
