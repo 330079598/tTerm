@@ -39,15 +39,15 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
       y={contextMenu.y}
       actions={[
         {
+          label: t("sftp.actions.copyPath", { defaultValue: "Copy Full Path" }),
+          action: "copy-path",
+          icon: "copy",
+        },
+        {
           label: t("sftp.actions.download", { defaultValue: "Download" }),
           action: "download",
           icon: "copy",
           disabled: contextMenuEntry.isDir || selectionCount !== 1,
-        },
-        {
-          label: t("sftp.actions.copyPath", { defaultValue: "Copy Full Path" }),
-          action: "copy-path",
-          icon: "copy",
         },
         {
           label: t("sftp.actions.rename", { defaultValue: "Rename" }),
