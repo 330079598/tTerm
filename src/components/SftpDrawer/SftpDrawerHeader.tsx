@@ -5,6 +5,7 @@ import {
   FolderPlus,
   ListX,
   RefreshCcw,
+  Regex,
   Search,
   Trash2,
   X,
@@ -14,6 +15,7 @@ import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import type { SftpSearchOptions } from "@/components/SftpDrawer/sftpSearch"
 
 interface SftpDrawerHeaderProps {
   breadcrumbs: Array<{ label: string; path: string }>
@@ -26,9 +28,12 @@ interface SftpDrawerHeaderProps {
   listingCurrentPath?: string | null
   loadDirectory: (path?: string | null) => Promise<void>
   onClose: () => void
+  searchError: string | null
+  searchOptions: SftpSearchOptions
   searchQuery: string
   selectedCount: number
   setSearchQuery: (query: string) => void
+  toggleSearchOption: (option: keyof SftpSearchOptions) => void
 }
 
 export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
@@ -42,9 +47,12 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   listingCurrentPath,
   loadDirectory,
   onClose,
+  searchError,
+  searchOptions,
   searchQuery,
   selectedCount,
   setSearchQuery,
+  toggleSearchOption,
 }) => {
   const { t } = useTranslation()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -94,22 +102,42 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder={t("sftp.search.placeholder", { defaultValue: "Filter current folder" })}
               disabled={!listingCurrentPath || isLoading}
-              className="sftp-search-input"
+              className={cn("sftp-search-input", searchError && "border-destructive")}
+              aria-invalid={Boolean(searchError)}
               aria-label={t("sftp.search.label", { defaultValue: "Filter current folder" })}
+              title={searchError ?? undefined}
             />
-            {searchQuery && (
+            <div className="sftp-search-controls">
               <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setSearchQuery("")}
-                className="sftp-search-clear"
-                title={t("sftp.search.clear", { defaultValue: "Clear filter" })}
-                aria-label={t("sftp.search.clear", { defaultValue: "Clear filter" })}
+                type="button"
+                variant={searchOptions.regex ? "secondary" : "ghost"}
+                size="icon-xs"
+                onClick={() => toggleSearchOption("regex")}
+                title={t("sftp.search.regex", { defaultValue: "Use regular expression" })}
+                aria-label={t("sftp.search.regex", { defaultValue: "Use regular expression" })}
+                aria-pressed={searchOptions.regex}
+                disabled={!listingCurrentPath || isLoading}
               >
-                <X className="size-3" />
+                <Regex className="size-3" />
               </Button>
-            )}
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => setSearchQuery("")}
+                  title={t("sftp.search.clear", { defaultValue: "Clear filter" })}
+                  aria-label={t("sftp.search.clear", { defaultValue: "Clear filter" })}
+                >
+                  <X className="size-3" />
+                </Button>
+              )}
+            </div>
           </div>
+        )}
+        {isSearchOpen && searchError && (
+          <span className="sftp-search-error" title={searchError}>
+            {t("sftp.search.invalidRegex", { defaultValue: "Invalid regular expression" })}
+          </span>
         )}
       </div>
       <div className="sftp-header-actions">

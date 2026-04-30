@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
 import { formatBytes, formatTimestamp } from "@/components/SftpDrawer/sftpDrawerUtils"
+import type { SftpSearchMatcher } from "@/components/SftpDrawer/sftpSearch"
 import type {
   SftpContextMenuState,
   SftpDirectoryEntry,
@@ -37,7 +38,7 @@ interface SftpDrawerContentProps {
   isLoading: boolean
   listing: SftpDirectoryListing | null
   loadDirectory: (path?: string | null) => Promise<void>
-  searchQuery: string
+  searchMatcher: SftpSearchMatcher
   selectedPaths: string[]
   setContextMenu: React.Dispatch<React.SetStateAction<SftpContextMenuState | null>>
 }
@@ -57,7 +58,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
   isLoading,
   listing,
   loadDirectory,
-  searchQuery,
+  searchMatcher,
   selectedPaths,
   setContextMenu,
 }) => {
@@ -68,15 +69,12 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
   const rowRefs = useRef(new Map<string, HTMLDivElement>())
 
   const filteredEntries = useMemo(() => {
-    const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase()
-    if (!normalizedSearchQuery) {
+    if (!searchMatcher.hasQuery) {
       return listing?.entries ?? []
     }
 
-    return (listing?.entries ?? []).filter((entry) =>
-      entry.name.toLocaleLowerCase().includes(normalizedSearchQuery)
-    )
-  }, [listing?.entries, searchQuery])
+    return (listing?.entries ?? []).filter(searchMatcher.matches)
+  }, [listing?.entries, searchMatcher])
 
   const updateSelectionFromPointer = React.useCallback(
     (clientY: number) => {
@@ -307,7 +305,8 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
             !error &&
             listing &&
             listing.entries.length > 0 &&
-            filteredEntries.length === 0 && (
+            filteredEntries.length === 0 &&
+            !searchMatcher.error && (
               <div className="text-muted-foreground flex min-h-[200px] flex-col items-center justify-center gap-3">
                 <File className="size-6" />
                 <span className="text-sm">
@@ -318,7 +317,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
               </div>
             )}
 
-          {!isLoading && !error && listing?.entries.length === 0 && (
+          {!isLoading && !error && listing?.entries.length === 0 && !searchMatcher.error && (
             <div className="text-muted-foreground flex min-h-[200px] flex-col items-center justify-center gap-3">
               <FolderPlus className="size-6" />
               <span className="text-sm">

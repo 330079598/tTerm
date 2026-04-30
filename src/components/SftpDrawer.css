@@ -78,17 +78,24 @@
 .sftp-search-input {
   height: 28px;
   padding-left: 30px;
-  padding-right: 32px;
+  padding-right: 58px;
   font-size: 12px;
 }
 
-.sftp-search-clear {
+.sftp-search-controls {
   position: absolute;
   right: 2px;
   top: 50%;
-  width: 24px;
-  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 1px;
   transform: translateY(-50%);
+}
+
+.sftp-search-error {
+  color: hsl(var(--destructive));
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .sftp-header-actions {

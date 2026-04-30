@@ -496,7 +496,9 @@
       "placeholder": "过滤当前目录",
       "label": "过滤当前目录",
       "clear": "清空过滤",
-      "noResults": "没有匹配的文件或文件夹"
+      "noResults": "没有匹配的文件或文件夹",
+      "regex": "使用正则表达式",
+      "invalidRegex": "正则表达式无效"
     }
   },
   "terminalSearch": {

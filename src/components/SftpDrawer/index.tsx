@@ -15,6 +15,11 @@ import { SftpEntryContextMenu } from "@/components/SftpDrawer/SftpEntryContextMe
 import { useSftpDragDrop } from "@/components/SftpDrawer/useSftpDragDrop"
 import { useSftpSelection } from "@/components/SftpDrawer/useSftpSelection"
 import { joinRemotePath } from "@/components/SftpDrawer/sftpDrawerUtils"
+import {
+  createSftpSearchMatcher,
+  DEFAULT_SFTP_SEARCH_OPTIONS,
+  type SftpSearchOptions,
+} from "@/components/SftpDrawer/sftpSearch"
 import type {
   DeleteBatchStartResult,
   DeletePreviewResult,
@@ -35,6 +40,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
   const [activePath, setActivePath] = useState<string | null>(null)
   const [selectedPaths, setSelectedPaths] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState("")
+  const [searchOptions, setSearchOptions] = useState<SftpSearchOptions>(DEFAULT_SFTP_SEARCH_OPTIONS)
   const [isLoading, setIsLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -116,19 +122,28 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       visible,
     })
 
+  const searchMatcher = useMemo(
+    () => createSftpSearchMatcher(searchQuery, searchOptions),
+    [searchOptions, searchQuery]
+  )
+
   const filteredListing = useMemo(() => {
-    const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase()
-    if (!listing || !normalizedSearchQuery) {
+    if (!listing || !searchMatcher.hasQuery) {
       return listing
     }
 
     return {
       ...listing,
-      entries: listing.entries.filter((entry) =>
-        entry.name.toLocaleLowerCase().includes(normalizedSearchQuery)
-      ),
+      entries: listing.entries.filter(searchMatcher.matches),
     }
-  }, [listing, searchQuery])
+  }, [listing, searchMatcher])
+
+  const toggleSearchOption = useCallback((option: keyof SftpSearchOptions) => {
+    setSearchOptions((current) => ({
+      ...current,
+      [option]: !current[option],
+    }))
+  }, [])
 
   const runAndRefresh = useCallback(
     async (action: () => Promise<void>) => {
@@ -424,9 +439,12 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         listingCurrentPath={listing?.currentPath}
         loadDirectory={loadDirectory}
         onClose={onClose}
+        searchError={searchMatcher.error?.message ?? null}
+        searchOptions={searchOptions}
         searchQuery={searchQuery}
         selectedCount={selectedPaths.length}
         setSearchQuery={setSearchQuery}
+        toggleSearchOption={toggleSearchOption}
       />
 
       {error && (
@@ -451,7 +469,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         isLoading={isBusy}
         listing={listing}
         loadDirectory={loadDirectory}
-        searchQuery={searchQuery}
+        searchMatcher={searchMatcher}
         selectedPaths={selectedPaths}
         setContextMenu={setContextMenu}
       />
