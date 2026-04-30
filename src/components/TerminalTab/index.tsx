@@ -122,6 +122,22 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const initialTerminalThemeRef =
     useRef<ReturnType<typeof resolveTerminalTheme>>(resolveTerminalTheme())
 
+  useEffect(() => {
+    connectionRef.current = connection
+  }, [connection])
+
+  useEffect(() => {
+    isActiveRef.current = isActive
+  }, [isActive])
+
+  useEffect(() => {
+    onPidChangeRef.current = onPidChange
+  }, [onPidChange])
+
+  useEffect(() => {
+    onReconnectRequestRef.current = onReconnectRequest
+  }, [onReconnectRequest])
+
   const fitTerminalOnly = useCallback(() => {
     if (!fitAddonRef.current || !termRef.current) return
     fitAddonRef.current.fit()
@@ -238,6 +254,10 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       activateFitTimerRef.current = window.setTimeout(() => {
         activateFitTimerRef.current = null
         fitAndSyncPty()
+        const term = termRef.current
+        if (term && term.rows > 0) {
+          term.refresh(0, term.rows - 1)
+        }
         termRef.current?.focus()
       }, TAB_ACTIVATE_REFIT_DELAY_MS)
       return

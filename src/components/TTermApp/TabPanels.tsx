@@ -26,9 +26,7 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
           style={{
             width: "100%",
             height: "100%",
-            visibility: tab.id === activeTabId ? "visible" : "hidden",
-            position: tab.id === activeTabId ? "relative" : "absolute",
-            display: "flex",
+            display: tab.id === activeTabId ? "flex" : "none",
             flexDirection: "column",
           }}
         >
