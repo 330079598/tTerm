@@ -13,6 +13,7 @@ import type { TFunction } from "i18next"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { SearchOptionsState } from "@/components/TerminalTab/searchTypes"
 
 type TerminalSearchBarProps = {
@@ -54,14 +55,20 @@ export const TerminalSearchBar: React.FC<TerminalSearchBarProps> = ({
     onMouseDown={(event) => event.stopPropagation()}
     style={{ transform: `translate(${searchPosition.x}px, ${searchPosition.y}px)` }}
   >
-    <div
-      className="terminal-search-drag-handle"
-      onPointerDown={onDragStart}
-      title={t("terminalSearch.drag", { defaultValue: "Drag search box" })}
-      aria-label={t("terminalSearch.drag", { defaultValue: "Drag search box" })}
-    >
-      <GripHorizontal />
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          className="terminal-search-drag-handle"
+          onPointerDown={onDragStart}
+          aria-label={t("terminalSearch.drag", { defaultValue: "Drag search box" })}
+        >
+          <GripHorizontal />
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        {t("terminalSearch.drag", { defaultValue: "Drag search box" })}
+      </TooltipContent>
+    </Tooltip>
     <Input
       ref={searchInputRef}
       value={searchQuery}
@@ -79,62 +86,84 @@ export const TerminalSearchBar: React.FC<TerminalSearchBarProps> = ({
     >
       {searchResultText}
     </span>
-    <Button
-      type="button"
-      variant={searchOptions.caseSensitive ? "secondary" : "ghost"}
-      size="icon-xs"
-      onClick={() => onToggleOption("caseSensitive")}
-      title={t("terminalSearch.caseSensitive", { defaultValue: "Match case" })}
-      aria-pressed={searchOptions.caseSensitive}
-    >
-      <CaseSensitive />
-    </Button>
-    <Button
-      type="button"
-      variant={searchOptions.wholeWord ? "secondary" : "ghost"}
-      size="icon-xs"
-      onClick={() => onToggleOption("wholeWord")}
-      title={t("terminalSearch.wholeWord", { defaultValue: "Whole word" })}
-      aria-pressed={searchOptions.wholeWord}
-    >
-      <WholeWord />
-    </Button>
-    <Button
-      type="button"
-      variant={searchOptions.regex ? "secondary" : "ghost"}
-      size="icon-xs"
-      onClick={() => onToggleOption("regex")}
-      title={t("terminalSearch.regex", { defaultValue: "Use regular expression" })}
-      aria-pressed={searchOptions.regex}
-    >
-      <Regex />
-    </Button>
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-xs"
-      onClick={() => onRunSearch("previous")}
-      title={t("terminalSearch.previous", { defaultValue: "Previous result" })}
-    >
-      <ArrowUp />
-    </Button>
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-xs"
-      onClick={() => onRunSearch("next")}
-      title={t("terminalSearch.next", { defaultValue: "Next result" })}
-    >
-      <ArrowDown />
-    </Button>
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-xs"
-      onClick={onClose}
-      title={t("terminalSearch.close", { defaultValue: "Close search" })}
-    >
-      <X />
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant={searchOptions.caseSensitive ? "secondary" : "ghost"}
+          size="icon-xs"
+          onClick={() => onToggleOption("caseSensitive")}
+          aria-pressed={searchOptions.caseSensitive}
+        >
+          <CaseSensitive />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        {t("terminalSearch.caseSensitive", { defaultValue: "Match case" })}
+      </TooltipContent>
+    </Tooltip>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant={searchOptions.wholeWord ? "secondary" : "ghost"}
+          size="icon-xs"
+          onClick={() => onToggleOption("wholeWord")}
+          aria-pressed={searchOptions.wholeWord}
+        >
+          <WholeWord />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        {t("terminalSearch.wholeWord", { defaultValue: "Whole word" })}
+      </TooltipContent>
+    </Tooltip>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant={searchOptions.regex ? "secondary" : "ghost"}
+          size="icon-xs"
+          onClick={() => onToggleOption("regex")}
+          aria-pressed={searchOptions.regex}
+        >
+          <Regex />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        {t("terminalSearch.regex", { defaultValue: "Use regular expression" })}
+      </TooltipContent>
+    </Tooltip>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          onClick={() => onRunSearch("previous")}
+        >
+          <ArrowUp />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        {t("terminalSearch.previous", { defaultValue: "Previous result" })}
+      </TooltipContent>
+    </Tooltip>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button type="button" variant="ghost" size="icon-xs" onClick={() => onRunSearch("next")}>
+          <ArrowDown />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{t("terminalSearch.next", { defaultValue: "Next result" })}</TooltipContent>
+    </Tooltip>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button type="button" variant="ghost" size="icon-xs" onClick={onClose}>
+          <X />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{t("terminalSearch.close", { defaultValue: "Close search" })}</TooltipContent>
+    </Tooltip>
   </div>
 )

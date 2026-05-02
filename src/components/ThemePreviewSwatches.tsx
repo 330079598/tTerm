@@ -1,5 +1,6 @@
 import React from "react"
 
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import type { TerminalPalette } from "@/types/theme"
 
@@ -41,45 +42,67 @@ export const ThemePreviewSwatches: React.FC<ThemePreviewSwatchesProps> = ({
   return (
     <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
       <div className="flex items-center gap-1">
-        <span
-          className={cn("rounded-sm border border-white/10", compact ? "size-4" : "size-5")}
-          style={{ background: palette.background }}
-          title="Background"
-        />
-        <span
-          className={cn("rounded-full border border-white/10", dotSize)}
-          style={{ background: palette.foreground }}
-          title="Foreground"
-        />
-        <span
-          className={cn("rounded-full border border-white/10", dotSize)}
-          style={{ background: palette.cursor }}
-          title="Cursor"
-        />
-        <span
-          className={cn("rounded-full border border-white/10", dotSize)}
-          style={{ background: palette.selectionBackground }}
-          title="Selection"
-        />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className={cn("rounded-sm border border-white/10", compact ? "size-4" : "size-5")}
+              style={{ background: palette.background }}
+            />
+          </TooltipTrigger>
+          <TooltipContent>Background</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className={cn("rounded-full border border-white/10", dotSize)}
+              style={{ background: palette.foreground }}
+            />
+          </TooltipTrigger>
+          <TooltipContent>Foreground</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className={cn("rounded-full border border-white/10", dotSize)}
+              style={{ background: palette.cursor }}
+            />
+          </TooltipTrigger>
+          <TooltipContent>Cursor</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className={cn("rounded-full border border-white/10", dotSize)}
+              style={{ background: palette.selectionBackground }}
+            />
+          </TooltipTrigger>
+          <TooltipContent>Selection</TooltipContent>
+        </Tooltip>
       </div>
       <div className="flex flex-wrap gap-1">
         {ANSI_KEYS.map((key) => (
-          <span
-            key={key}
-            className={cn("rounded-full border border-white/10", dotSize)}
-            style={{ background: palette[key] }}
-            title={key}
-          />
+          <Tooltip key={key}>
+            <TooltipTrigger asChild>
+              <span
+                className={cn("rounded-full border border-white/10", dotSize)}
+                style={{ background: palette[key] }}
+              />
+            </TooltipTrigger>
+            <TooltipContent>{key}</TooltipContent>
+          </Tooltip>
         ))}
       </div>
       <div className="flex flex-wrap gap-1">
         {BRIGHT_ANSI_KEYS.map((key) => (
-          <span
-            key={key}
-            className={cn("rounded-full border border-white/10", dotSize)}
-            style={{ background: palette[key] }}
-            title={key}
-          />
+          <Tooltip key={key}>
+            <TooltipTrigger asChild>
+              <span
+                className={cn("rounded-full border border-white/10", dotSize)}
+                style={{ background: palette[key] }}
+              />
+            </TooltipTrigger>
+            <TooltipContent>{key}</TooltipContent>
+          </Tooltip>
         ))}
       </div>
     </div>

@@ -207,29 +207,33 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
       <Card key={transfer.id} className={cn("p-3", nested && "bg-muted/30 py-2 shadow-none")}>
         <div className="flex items-center gap-2">
           {canExpand ? (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="size-5 shrink-0"
-              onClick={() => toggleBatchExpanded(transfer.id)}
-              title={
-                isExpanded
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="size-5 shrink-0"
+                  onClick={() => toggleBatchExpanded(transfer.id)}
+                  aria-label={
+                    isExpanded
+                      ? t("transfer.collapseFolder", { defaultValue: "Collapse folder" })
+                      : t("transfer.expandFolder", { defaultValue: "Expand folder" })
+                  }
+                  aria-expanded={isExpanded}
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="size-3" />
+                  ) : (
+                    <ChevronRight className="size-3" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isExpanded
                   ? t("transfer.collapseFolder", { defaultValue: "Collapse folder" })
-                  : t("transfer.expandFolder", { defaultValue: "Expand folder" })
-              }
-              aria-label={
-                isExpanded
-                  ? t("transfer.collapseFolder", { defaultValue: "Collapse folder" })
-                  : t("transfer.expandFolder", { defaultValue: "Expand folder" })
-              }
-              aria-expanded={isExpanded}
-            >
-              {isExpanded ? (
-                <ChevronDown className="size-3" />
-              ) : (
-                <ChevronRight className="size-3" />
-              )}
-            </Button>
+                  : t("transfer.expandFolder", { defaultValue: "Expand folder" })}
+              </TooltipContent>
+            </Tooltip>
           ) : nested ? (
             <div className="w-5 shrink-0" />
           ) : null}
@@ -258,23 +262,23 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
           <div className="flex shrink-0 items-center gap-1">
             {getStatusIcon(transfer.status)}
             {isActive ? (
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => onCancel(transfer.id)}
-                title={t("transfer.cancel", { defaultValue: "Cancel" })}
-              >
-                <X className="size-3" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon-xs" onClick={() => onCancel(transfer.id)}>
+                    <X className="size-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("transfer.cancel", { defaultValue: "Cancel" })}</TooltipContent>
+              </Tooltip>
             ) : (
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => onRemove(transfer.id)}
-                title={t("transfer.remove", { defaultValue: "Remove" })}
-              >
-                <Trash2 className="size-3" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon-xs" onClick={() => onRemove(transfer.id)}>
+                    <Trash2 className="size-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("transfer.remove", { defaultValue: "Remove" })}</TooltipContent>
+              </Tooltip>
             )}
           </div>
         </div>
@@ -409,15 +413,19 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
                   {t("transfer.clearCompleted", { defaultValue: "Clear Completed" })}
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => setIsOpen(false)}
-                title={t("common.close", { defaultValue: "Close" })}
-                aria-label={t("common.close", { defaultValue: "Close" })}
-              >
-                <X className="size-3" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => setIsOpen(false)}
+                    aria-label={t("common.close", { defaultValue: "Close" })}
+                  >
+                    <X className="size-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("common.close", { defaultValue: "Close" })}</TooltipContent>
+              </Tooltip>
             </div>
           </CardHeader>
 
@@ -449,3 +457,4 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
     </div>
   )
 }
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"

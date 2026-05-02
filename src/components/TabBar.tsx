@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { DragDropProvider, useDraggable, useDroppable } from "@dnd-kit/react"
 import { X } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Tab, TabContextMenuAction } from "@/types/tab"
 
 interface TabBarProps {
@@ -85,26 +86,36 @@ const TabItem: React.FC<TabItemProps> = ({
   )
 
   return (
-    <div
-      ref={setNodeRef}
-      className={`tab-item ${isActive ? "active" : ""} ${tab.isModified ? "modified" : ""} ${isDragging ? "dragging" : ""} ${isDropTarget ? "drop-target" : ""}`}
-      onClick={() => onTabClick(tab.id)}
-      onContextMenu={handleContextMenu}
-      title={`${tab.title}${tab.connection ? ` (${tab.connection.host})` : ""}`}
-    >
-      <span className="tab-number">{index + 1}</span>
-      <span className="tab-title">{tab.title}</span>
-      <button
-        className="tab-close"
-        onClick={(e) => {
-          e.stopPropagation()
-          onTabClose(tab.id)
-        }}
-        title={t("tabs.closeTab")}
-      >
-        <X size={12} />
-      </button>
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          ref={setNodeRef}
+          className={`tab-item ${isActive ? "active" : ""} ${tab.isModified ? "modified" : ""} ${isDragging ? "dragging" : ""} ${isDropTarget ? "drop-target" : ""}`}
+          onClick={() => onTabClick(tab.id)}
+          onContextMenu={handleContextMenu}
+        >
+          <span className="tab-number">{index + 1}</span>
+          <span className="tab-title">{tab.title}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="tab-close"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onTabClose(tab.id)
+                }}
+                onMouseEnter={(e) => e.stopPropagation()}
+                onMouseLeave={(e) => e.stopPropagation()}
+              >
+                <X size={12} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{t("tabs.closeTab")}</TooltipContent>
+          </Tooltip>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>{`${tab.title}${tab.connection ? ` (${tab.connection.host})` : ""}`}</TooltipContent>
+    </Tooltip>
   )
 }
 

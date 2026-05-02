@@ -19,6 +19,7 @@ import { TabContextMenuAction } from "@/types/tab"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface ContextMenuProps {
   x: number
@@ -108,26 +109,29 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
               return <div key={index} className="bg-border my-1 h-px" />
             }
             return (
-              <Button
-                key={index}
-                type="button"
-                variant="ghost"
-                disabled={action.disabled}
-                onClick={() => {
-                  if (!action.disabled) {
-                    onAction(action.action)
-                    onClose()
-                  }
-                }}
-                title={action.label}
-                className={cn(
-                  "h-auto w-full justify-start gap-1.5 px-2 py-1.5 text-left text-sm font-normal",
-                  action.disabled && "cursor-not-allowed opacity-40"
-                )}
-              >
-                {getActionIcon(action.icon)}
-                <span>{action.label}</span>
-              </Button>
+              <Tooltip key={index}>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={action.disabled}
+                    onClick={() => {
+                      if (!action.disabled) {
+                        onAction(action.action)
+                        onClose()
+                      }
+                    }}
+                    className={cn(
+                      "h-auto w-full justify-start gap-1.5 px-2 py-1.5 text-left text-sm font-normal",
+                      action.disabled && "cursor-not-allowed opacity-40"
+                    )}
+                  >
+                    {getActionIcon(action.icon)}
+                    <span>{action.label}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{action.label}</TooltipContent>
+              </Tooltip>
             )
           })}
         </CardContent>

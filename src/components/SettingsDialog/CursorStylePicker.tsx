@@ -1,6 +1,7 @@
 import React from "react"
 import { useTranslation } from "react-i18next"
 
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { AppConfig } from "@/contexts/ConfigContext"
 import { cn } from "@/lib/utils"
 import { CURSOR_STYLE_OPTIONS } from "@/components/SettingsDialog/types"
@@ -39,22 +40,25 @@ export const CursorStylePicker: React.FC<CursorStylePickerProps> = ({ value, onC
         const selected = option.value === value
 
         return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onChange(option.value)}
-            aria-label={t(option.labelKey)}
-            title={t(option.labelKey)}
-            className={cn(
-              "border-border bg-secondary/40 hover:bg-accent hover:border-accent-foreground/20 text-foreground rounded-lg border px-3 py-3 text-left transition-colors",
-              selected && "border-primary bg-accent ring-primary/20 ring-2"
-            )}
-          >
-            <span className="block overflow-hidden rounded bg-black/80 px-3 py-2 font-mono text-sm text-slate-100">
-              <span>{SAMPLE_PROMPT}</span>
-              <CursorSampleGlyph style={option.value} />
-            </span>
-          </button>
+          <Tooltip key={option.value}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => onChange(option.value)}
+                aria-label={t(option.labelKey)}
+                className={cn(
+                  "border-border bg-secondary/40 hover:bg-accent hover:border-accent-foreground/20 text-foreground rounded-lg border px-3 py-3 text-left transition-colors",
+                  selected && "border-primary bg-accent ring-primary/20 ring-2"
+                )}
+              >
+                <span className="block overflow-hidden rounded bg-black/80 px-3 py-2 font-mono text-sm text-slate-100">
+                  <span>{SAMPLE_PROMPT}</span>
+                  <CursorSampleGlyph style={option.value} />
+                </span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{t(option.labelKey)}</TooltipContent>
+          </Tooltip>
         )
       })}
     </div>

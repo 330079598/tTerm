@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import type { SftpSearchOptions } from "@/components/SftpDrawer/sftpSearch"
 
@@ -99,131 +100,184 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
           <div className="sftp-header-search">
             <div className="sftp-search-box">
               <Search className="sftp-search-icon" />
-              <Input
-                ref={searchInputRef}
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={t("sftp.search.placeholder", {
-                  defaultValue: "Filter current folder",
-                })}
-                disabled={!listingCurrentPath || isLoading}
-                className={cn("sftp-search-input", searchError && "border-destructive")}
-                aria-invalid={Boolean(searchError)}
-                aria-label={t("sftp.search.label", { defaultValue: "Filter current folder" })}
-                title={searchError ?? undefined}
-              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Input
+                    ref={searchInputRef}
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder={t("sftp.search.placeholder", {
+                      defaultValue: "Filter current folder",
+                    })}
+                    disabled={!listingCurrentPath || isLoading}
+                    className={cn("sftp-search-input", searchError && "border-destructive")}
+                    aria-invalid={Boolean(searchError)}
+                    aria-label={t("sftp.search.label", { defaultValue: "Filter current folder" })}
+                  />
+                </TooltipTrigger>
+                {searchError && <TooltipContent>{searchError}</TooltipContent>}
+              </Tooltip>
               <div className="sftp-search-controls">
-                <Button
-                  type="button"
-                  variant={searchOptions.regex ? "secondary" : "ghost"}
-                  size="icon-xs"
-                  onClick={() => toggleSearchOption("regex")}
-                  title={t("sftp.search.regex", {
-                    defaultValue: "Use regular expression; falls back to glob",
-                  })}
-                  aria-label={t("sftp.search.regex", {
-                    defaultValue: "Use regular expression; falls back to glob",
-                  })}
-                  aria-pressed={searchOptions.regex}
-                  disabled={!listingCurrentPath || isLoading}
-                >
-                  <Regex className="size-3" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant={searchOptions.regex ? "secondary" : "ghost"}
+                      size="icon-xs"
+                      onClick={() => toggleSearchOption("regex")}
+                      aria-label={t("sftp.search.regex", {
+                        defaultValue: "Use regular expression; falls back to glob",
+                      })}
+                      aria-pressed={searchOptions.regex}
+                      disabled={!listingCurrentPath || isLoading}
+                    >
+                      <Regex className="size-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {t("sftp.search.regex", {
+                      defaultValue: "Use regular expression; falls back to glob",
+                    })}
+                  </TooltipContent>
+                </Tooltip>
                 {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => setSearchQuery("")}
-                    title={t("sftp.search.clear", { defaultValue: "Clear filter" })}
-                    aria-label={t("sftp.search.clear", { defaultValue: "Clear filter" })}
-                  >
-                    <X className="size-3" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => setSearchQuery("")}
+                        aria-label={t("sftp.search.clear", { defaultValue: "Clear filter" })}
+                      >
+                        <X className="size-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {t("sftp.search.clear", { defaultValue: "Clear filter" })}
+                    </TooltipContent>
+                  </Tooltip>
                 )}
               </div>
             </div>
             {searchError && (
-              <span className="sftp-search-error" title={searchError}>
-                {t("sftp.search.invalidRegex", { defaultValue: "Invalid regular expression" })}
-              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="sftp-search-error">
+                    {t("sftp.search.invalidRegex", { defaultValue: "Invalid regular expression" })}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{searchError}</TooltipContent>
+              </Tooltip>
             )}
           </div>
         )}
-        <Button
-          variant={isSearchOpen || searchQuery ? "secondary" : "ghost"}
-          size="icon-sm"
-          onClick={handleToggleSearch}
-          disabled={!listingCurrentPath || isLoading}
-          title={t("sftp.search.label", { defaultValue: "Filter current folder" })}
-          aria-label={t("sftp.search.label", { defaultValue: "Filter current folder" })}
-          aria-pressed={isSearchOpen || Boolean(searchQuery)}
-        >
-          <Search className="size-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={isSearchOpen || searchQuery ? "secondary" : "ghost"}
+              size="icon-sm"
+              onClick={handleToggleSearch}
+              disabled={!listingCurrentPath || isLoading}
+              aria-label={t("sftp.search.label", { defaultValue: "Filter current folder" })}
+              aria-pressed={isSearchOpen || Boolean(searchQuery)}
+            >
+              <Search className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {t("sftp.search.label", { defaultValue: "Filter current folder" })}
+          </TooltipContent>
+        </Tooltip>
         {selectedCount > 0 && (
           <>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={clearSelection}
-              title={t("sftp.selection.clear", { defaultValue: "Clear selection" })}
-            >
-              <ListX className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={handleDeleteSelection}
-              title={t("sftp.actions.deleteSelected", { defaultValue: "Delete Selected" })}
-            >
-              <Trash2 className="size-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon-sm" onClick={clearSelection}>
+                  <ListX className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {t("sftp.selection.clear", { defaultValue: "Clear selection" })}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon-sm" onClick={handleDeleteSelection}>
+                  <Trash2 className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {t("sftp.actions.deleteSelected", { defaultValue: "Delete Selected" })}
+              </TooltipContent>
+            </Tooltip>
           </>
         )}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={handleUploadDialog}
-          disabled={!listingCurrentPath || isLoading}
-          title={t("sftp.actions.uploadFiles", { defaultValue: "Upload Files" })}
-        >
-          <ArrowUpFromLine className="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={handleUploadFolderDialog}
-          disabled={!listingCurrentPath || isLoading}
-          title={t("sftp.actions.uploadFolder", { defaultValue: "Upload Folder" })}
-        >
-          <FolderPlus className="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={handleCreateDirectory}
-          disabled={!listingCurrentPath || isLoading}
-          title={t("sftp.actions.newFolder", { defaultValue: "New Folder" })}
-        >
-          <FolderPlus className="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => void loadDirectory(listingCurrentPath ?? null)}
-          disabled={isLoading}
-          title={t("sftp.actions.refresh", { defaultValue: "Refresh" })}
-        >
-          <RefreshCcw className={cn("size-4", isLoading && "animate-spin")} />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onClose}
-          title={t("sftp.actions.close", { defaultValue: "Close" })}
-        >
-          <X className="size-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={handleUploadDialog}
+              disabled={!listingCurrentPath || isLoading}
+            >
+              <ArrowUpFromLine className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {t("sftp.actions.uploadFiles", { defaultValue: "Upload Files" })}
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={handleUploadFolderDialog}
+              disabled={!listingCurrentPath || isLoading}
+            >
+              <FolderPlus className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {t("sftp.actions.uploadFolder", { defaultValue: "Upload Folder" })}
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={handleCreateDirectory}
+              disabled={!listingCurrentPath || isLoading}
+            >
+              <FolderPlus className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {t("sftp.actions.newFolder", { defaultValue: "New Folder" })}
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => void loadDirectory(listingCurrentPath ?? null)}
+              disabled={isLoading}
+            >
+              <RefreshCcw className={cn("size-4", isLoading && "animate-spin")} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("sftp.actions.refresh", { defaultValue: "Refresh" })}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon-sm" onClick={onClose}>
+              <X className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("sftp.actions.close", { defaultValue: "Close" })}</TooltipContent>
+        </Tooltip>
       </div>
     </div>
   )

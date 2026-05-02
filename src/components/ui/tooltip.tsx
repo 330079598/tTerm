@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils"
 type TooltipContextValue = {
   open: boolean
   setOpen: (open: boolean) => void
-  triggerElement: HTMLSpanElement | null
-  setTriggerElement: (element: HTMLSpanElement | null) => void
+  triggerElement: HTMLElement | null
+  setTriggerElement: (element: HTMLElement | null) => void
 }
 
 const TooltipContext = React.createContext<TooltipContextValue | null>(null)
@@ -18,7 +18,7 @@ function TooltipProvider({ children }: { children: React.ReactNode }) {
 
 function Tooltip({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false)
-  const [triggerElement, setTriggerElement] = React.useState<HTMLSpanElement | null>(null)
+  const [triggerElement, setTriggerElement] = React.useState<HTMLElement | null>(null)
   const value = React.useMemo(
     () => ({ open, setOpen, triggerElement, setTriggerElement }),
     [open, triggerElement]
@@ -31,10 +31,22 @@ type TooltipTriggerProps = React.ComponentProps<"span"> & {
   asChild?: boolean
 }
 
+function composeEventHandlers<E extends React.SyntheticEvent>(
+  childHandler: ((event: E) => void) | undefined,
+  ourHandler: (event: E) => void
+): (event: E) => void {
+  return (event: E) => {
+    childHandler?.(event)
+    if (!event.defaultPrevented) {
+      ourHandler(event)
+    }
+  }
+}
+
 function TooltipTrigger({
   children,
   className,
-  asChild: _asChild = false,
+  asChild = false,
   onBlur,
   onFocus,
   onMouseEnter,
@@ -46,34 +58,57 @@ function TooltipTrigger({
     throw new Error("TooltipTrigger must be used within Tooltip")
   }
 
-  const handleBlur: React.FocusEventHandler<HTMLSpanElement> = (event) => {
-    onBlur?.(event)
+  const handleBlur: React.FocusEventHandler<HTMLElement> = (event) => {
+    onBlur?.(event as React.FocusEvent<HTMLSpanElement>)
     if (!event.defaultPrevented) {
       context.setOpen(false)
     }
   }
 
-  const handleFocus: React.FocusEventHandler<HTMLSpanElement> = (event) => {
-    onFocus?.(event)
+  const handleFocus: React.FocusEventHandler<HTMLElement> = (event) => {
+    onFocus?.(event as React.FocusEvent<HTMLSpanElement>)
     if (!event.defaultPrevented) {
       context.setTriggerElement(event.currentTarget)
       context.setOpen(true)
     }
   }
 
-  const handleMouseEnter: React.MouseEventHandler<HTMLSpanElement> = (event) => {
-    onMouseEnter?.(event)
+  const handleMouseEnter: React.MouseEventHandler<HTMLElement> = (event) => {
+    onMouseEnter?.(event as React.MouseEvent<HTMLSpanElement>)
     if (!event.defaultPrevented) {
       context.setTriggerElement(event.currentTarget)
       context.setOpen(true)
     }
   }
 
-  const handleMouseLeave: React.MouseEventHandler<HTMLSpanElement> = (event) => {
-    onMouseLeave?.(event)
+  const handleMouseLeave: React.MouseEventHandler<HTMLElement> = (event) => {
+    onMouseLeave?.(event as React.MouseEvent<HTMLSpanElement>)
     if (!event.defaultPrevented) {
       context.setOpen(false)
     }
+  }
+
+  if (asChild && React.isValidElement(children)) {
+    const childProps = children.props as Record<string, unknown>
+    return React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
+      ...props,
+      onBlur: composeEventHandlers(
+        childProps.onBlur as ((event: React.FocusEvent<HTMLElement>) => void) | undefined,
+        handleBlur
+      ),
+      onFocus: composeEventHandlers(
+        childProps.onFocus as ((event: React.FocusEvent<HTMLElement>) => void) | undefined,
+        handleFocus
+      ),
+      onMouseEnter: composeEventHandlers(
+        childProps.onMouseEnter as ((event: React.MouseEvent<HTMLElement>) => void) | undefined,
+        handleMouseEnter
+      ),
+      onMouseLeave: composeEventHandlers(
+        childProps.onMouseLeave as ((event: React.MouseEvent<HTMLElement>) => void) | undefined,
+        handleMouseLeave
+      ),
+    })
   }
 
   return (

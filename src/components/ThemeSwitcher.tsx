@@ -5,6 +5,7 @@ import { Copy, Edit, Palette, Plus, RotateCcw, Trash2 } from "lucide-react"
 import { ThemeCard } from "@/components/ThemeCard"
 import { ThemeEditor } from "@/components/ThemeEditor"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useConfirmDialog, usePromptDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useTheme } from "@/contexts/ThemeContext"
@@ -123,37 +124,49 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
                       theme={theme}
                       actionSlot={
                         <div className="flex">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditingThemeId(theme.id)}
-                            className="h-auto px-2 py-2"
-                            title={t("themeEditor.edit")}
-                          >
-                            <Edit size={14} />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDuplicateTheme(theme.id)}
-                            className="h-auto px-2 py-2"
-                            title={t("themeEditor.duplicate")}
-                          >
-                            <Copy size={14} />
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEditingThemeId(theme.id)}
+                                className="h-auto px-2 py-2"
+                              >
+                                <Edit size={14} />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("themeEditor.edit")}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDuplicateTheme(theme.id)}
+                                className="h-auto px-2 py-2"
+                              >
+                                <Copy size={14} />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("themeEditor.duplicate")}</TooltipContent>
+                          </Tooltip>
                           {hasOverride && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleResetPresetTheme(theme.id as PresetThemeId)}
-                              className="h-auto px-2 py-2"
-                              title={t("themeEditor.restorePreset")}
-                            >
-                              <RotateCcw size={14} />
-                            </Button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleResetPresetTheme(theme.id as PresetThemeId)}
+                                  className="h-auto px-2 py-2"
+                                >
+                                  <RotateCcw size={14} />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{t("themeEditor.restorePreset")}</TooltipContent>
+                            </Tooltip>
                           )}
                         </div>
                       }
@@ -178,36 +191,48 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
                       theme={theme}
                       actionSlot={
                         <div className="flex">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditingThemeId(theme.id)}
-                            className="h-auto px-2 py-2"
-                            title={t("themeEditor.edit")}
-                          >
-                            <Edit size={14} />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDuplicateTheme(theme.id)}
-                            className="h-auto px-2 py-2"
-                            title={t("themeEditor.duplicate")}
-                          >
-                            <Copy size={14} />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteTheme(theme.id)}
-                            className="text-destructive hover:text-destructive h-auto px-2 py-2"
-                            title={t("themeEditor.delete")}
-                          >
-                            <Trash2 size={14} />
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEditingThemeId(theme.id)}
+                                className="h-auto px-2 py-2"
+                              >
+                                <Edit size={14} />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("themeEditor.edit")}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDuplicateTheme(theme.id)}
+                                className="h-auto px-2 py-2"
+                              >
+                                <Copy size={14} />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("themeEditor.duplicate")}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteTheme(theme.id)}
+                                className="text-destructive hover:text-destructive h-auto px-2 py-2"
+                              >
+                                <Trash2 size={14} />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("themeEditor.delete")}</TooltipContent>
+                          </Tooltip>
                         </div>
                       }
                     />

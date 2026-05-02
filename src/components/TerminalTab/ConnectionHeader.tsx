@@ -2,6 +2,7 @@ import React from "react"
 import { Pin, PinOff, RefreshCcw, Globe } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   getConnectionDisplay,
   getConnectionStateLabel,
@@ -36,12 +37,7 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
   return (
     <>
       {showPinnedToggle && (
-        <button
-          type="button"
-          className="connection-header-restore"
-          onClick={onPinConnectionHeader}
-          title={t("sessionHeader.pin", { defaultValue: "Pin" })}
-        >
+        <button type="button" className="connection-header-restore" onClick={onPinConnectionHeader}>
           <Pin size={14} />
           <span>{t("sessionHeader.connectionInfo", { defaultValue: "Connection" })}</span>
         </button>
@@ -50,44 +46,33 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
       {showConnectionHeader && (
         <div className="connection-header" onMouseDown={onBackgroundMouseDown}>
           <div className="connection-header-main">
-            <span
-              className={`connection-status-pill is-${connectionState}`}
-              title={getConnectionStateLabel(connectionState, t)}
-              aria-label={getConnectionStateLabel(connectionState, t)}
-            >
-              <span className="connection-status-dot" />
-              <span className="sr-only">{getConnectionStateLabel(connectionState, t)}</span>
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className={`connection-status-pill is-${connectionState}`}
+                  aria-label={getConnectionStateLabel(connectionState, t)}
+                >
+                  <span className="connection-status-dot" />
+                  <span className="sr-only">{getConnectionStateLabel(connectionState, t)}</span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{getConnectionStateLabel(connectionState, t)}</TooltipContent>
+            </Tooltip>
             <div className="connection-meta">
               <div className="connection-primary">{getConnectionDisplay(connection)}</div>
             </div>
           </div>
 
           <div className="connection-header-actions">
-            <button
-              type="button"
-              className="connection-action"
-              onClick={onReconnect}
-              title={t("sessionHeader.reconnect", { defaultValue: "Reconnect" })}
-            >
+            <button type="button" className="connection-action" onClick={onReconnect}>
               <RefreshCcw size={14} />
               <span>{t("sessionHeader.reconnect", { defaultValue: "Reconnect" })}</span>
             </button>
-            <button
-              type="button"
-              className="connection-action"
-              onClick={onToggleSftpDrawer}
-              title={t("sessionHeader.sftp", { defaultValue: "SFTP" })}
-            >
+            <button type="button" className="connection-action" onClick={onToggleSftpDrawer}>
               <Globe size={14} />
               <span>{t("sessionHeader.sftp", { defaultValue: "SFTP" })}</span>
             </button>
-            <button
-              type="button"
-              className="connection-action"
-              onClick={onUnpinConnectionHeader}
-              title={t("sessionHeader.unpin", { defaultValue: "Unpin" })}
-            >
+            <button type="button" className="connection-action" onClick={onUnpinConnectionHeader}>
               <PinOff size={14} />
               <span>{t("sessionHeader.unpin", { defaultValue: "Unpin" })}</span>
             </button>
