@@ -27,8 +27,15 @@ function Tooltip({ children }: { children: React.ReactNode }) {
   return <TooltipContext.Provider value={value}>{children}</TooltipContext.Provider>
 }
 
-type TooltipTriggerProps = React.ComponentProps<"span"> & {
+type TooltipTriggerProps = Omit<
+  React.ComponentProps<"span">,
+  "onBlur" | "onFocus" | "onMouseEnter" | "onMouseLeave"
+> & {
   asChild?: boolean
+  onBlur?: React.FocusEventHandler<HTMLElement>
+  onFocus?: React.FocusEventHandler<HTMLElement>
+  onMouseEnter?: React.MouseEventHandler<HTMLElement>
+  onMouseLeave?: React.MouseEventHandler<HTMLElement>
 }
 
 function composeEventHandlers<E extends React.SyntheticEvent>(
@@ -59,14 +66,14 @@ function TooltipTrigger({
   }
 
   const handleBlur: React.FocusEventHandler<HTMLElement> = (event) => {
-    onBlur?.(event as React.FocusEvent<HTMLSpanElement>)
+    onBlur?.(event)
     if (!event.defaultPrevented) {
       context.setOpen(false)
     }
   }
 
   const handleFocus: React.FocusEventHandler<HTMLElement> = (event) => {
-    onFocus?.(event as React.FocusEvent<HTMLSpanElement>)
+    onFocus?.(event)
     if (!event.defaultPrevented) {
       context.setTriggerElement(event.currentTarget)
       context.setOpen(true)
@@ -74,7 +81,7 @@ function TooltipTrigger({
   }
 
   const handleMouseEnter: React.MouseEventHandler<HTMLElement> = (event) => {
-    onMouseEnter?.(event as React.MouseEvent<HTMLSpanElement>)
+    onMouseEnter?.(event)
     if (!event.defaultPrevented) {
       context.setTriggerElement(event.currentTarget)
       context.setOpen(true)
@@ -82,7 +89,7 @@ function TooltipTrigger({
   }
 
   const handleMouseLeave: React.MouseEventHandler<HTMLElement> = (event) => {
-    onMouseLeave?.(event as React.MouseEvent<HTMLSpanElement>)
+    onMouseLeave?.(event)
     if (!event.defaultPrevented) {
       context.setOpen(false)
     }
@@ -92,20 +99,21 @@ function TooltipTrigger({
     const childProps = children.props as Record<string, unknown>
     return React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
       ...props,
+      className: cn(className, childProps.className as string | undefined),
       onBlur: composeEventHandlers(
-        childProps.onBlur as ((event: React.FocusEvent<HTMLElement>) => void) | undefined,
+        childProps.onBlur as React.FocusEventHandler<HTMLElement> | undefined,
         handleBlur
       ),
       onFocus: composeEventHandlers(
-        childProps.onFocus as ((event: React.FocusEvent<HTMLElement>) => void) | undefined,
+        childProps.onFocus as React.FocusEventHandler<HTMLElement> | undefined,
         handleFocus
       ),
       onMouseEnter: composeEventHandlers(
-        childProps.onMouseEnter as ((event: React.MouseEvent<HTMLElement>) => void) | undefined,
+        childProps.onMouseEnter as React.MouseEventHandler<HTMLElement> | undefined,
         handleMouseEnter
       ),
       onMouseLeave: composeEventHandlers(
-        childProps.onMouseLeave as ((event: React.MouseEvent<HTMLElement>) => void) | undefined,
+        childProps.onMouseLeave as React.MouseEventHandler<HTMLElement> | undefined,
         handleMouseLeave
       ),
     })

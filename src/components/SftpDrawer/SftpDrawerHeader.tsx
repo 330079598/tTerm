@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react"
 import {
   ArrowUpFromLine,
   ChevronRight,
+  FolderUp,
   FolderPlus,
   ListX,
   RefreshCcw,
@@ -235,7 +236,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
               onClick={handleUploadFolderDialog}
               disabled={!listingCurrentPath || isLoading}
             >
-              <FolderPlus className="size-4" />
+              <FolderUp className="size-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent>
