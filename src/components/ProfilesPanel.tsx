@@ -354,7 +354,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
     <section
       className={cn(
         "flex h-full min-h-[360px] flex-col",
-        surface === "panel" && "bg-card rounded-2xl border shadow-sm",
+        surface === "panel" && "bg-card rounded-lg border shadow-sm",
         className
       )}
     >

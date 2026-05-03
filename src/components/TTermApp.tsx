@@ -391,7 +391,7 @@ export const TTermApp: React.FC = () => {
       <Dialog open={showProfilesPanel} onOpenChange={setShowProfilesPanel}>
         <DialogContent
           showCloseButton={false}
-          className="flex h-[min(720px,85vh)] flex-col overflow-hidden p-0 sm:max-w-3xl"
+          className="flex h-[min(720px,85vh)] flex-col overflow-hidden border-0 p-0 shadow-none sm:max-w-3xl"
         >
           <ProfilesPanel
             refreshKey={profilesRefreshKey}
