@@ -1,12 +1,11 @@
 import "@/components/TTermApp.css"
+import { getCurrentWindow } from "@tauri-apps/api/window"
+import { platform } from "@tauri-apps/plugin-os"
+import { BookMarked, Minus, Plus, Settings, Square, X } from "lucide-react"
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { platform } from "@tauri-apps/plugin-os"
-import { getCurrentWindow } from "@tauri-apps/api/window"
-import { BookMarked, Minus, Plus, Settings, Square, X } from "lucide-react"
 
 import { ConnectionDialog } from "@/components/ConnectionDialog"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { ContextMenu } from "@/components/ContextMenu"
 import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
 import { RenameDialog } from "@/components/RenameDialog"
@@ -15,8 +14,9 @@ import { TabBar } from "@/components/TabBar"
 import { TransferManager } from "@/components/TransferManager"
 import { EmptyState } from "@/components/TTermApp/EmptyState"
 import { TabPanels } from "@/components/TTermApp/TabPanels"
-import type { ContextMenuState, RenameDialogState } from "@/components/TTermApp/types"
 import { buildTabFromConnection } from "@/components/TTermApp/ttermAppUtils"
+import type { ContextMenuState, RenameDialogState } from "@/components/TTermApp/types"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTransferManager } from "@/contexts/TransferContext"
 import { useConnectionManager } from "@/hooks/useConnectionManager"
@@ -319,22 +319,12 @@ export const TTermApp: React.FC = () => {
               onContextMenu={handleTabContextMenu}
             />
             <div className="tab-add-button">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button className="tab-action" onClick={handleNewTab}>
-                    <Plus size={16} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>{t("tabs.newTab")}</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button className="tab-action" onClick={() => setShowProfilesPanel(true)}>
-                    <BookMarked size={16} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>{t("profiles.title")}</TooltipContent>
-              </Tooltip>
+              <button className="tab-action" onClick={handleNewTab}>
+                <Plus size={16} />
+              </button>
+              <button className="tab-action" onClick={() => setShowProfilesPanel(true)}>
+                <BookMarked size={16} />
+              </button>
               <TransferManager
                 transfers={transfers}
                 onCancel={cancelTransfer}
@@ -348,60 +338,36 @@ export const TTermApp: React.FC = () => {
         <div className="drag-space" data-tauri-drag-region></div>
 
         <div className="title-bar-right" style={{ paddingRight: `${nativeControlsReservePx}px` }}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                ref={settingsButtonRef}
-                className="tab-action settings-button"
-                onClick={handleSettingsClick}
-              >
-                <Settings size={16} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>{t("settings.title")}</TooltipContent>
-          </Tooltip>
+          <button
+            ref={settingsButtonRef}
+            className="tab-action settings-button"
+            onClick={handleSettingsClick}
+          >
+            <Settings size={16} />
+          </button>
           {isLinux && (
             <div className="window-controls" aria-label="Window controls">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    className="window-control-button"
-                    onClick={handleMinimizeWindow}
-                    aria-label={t("window.minimize", { defaultValue: "Minimize" })}
-                  >
-                    <Minus size={16} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {t("window.minimize", { defaultValue: "Minimize" })}
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    className="window-control-button"
-                    onClick={handleToggleMaximizeWindow}
-                    aria-label={t("window.maximize", { defaultValue: "Maximize" })}
-                  >
-                    <Square size={13} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {t("window.maximize", { defaultValue: "Maximize" })}
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    className="window-control-button close"
-                    onClick={handleCloseWindow}
-                    aria-label={t("window.close", { defaultValue: "Close" })}
-                  >
-                    <X size={16} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>{t("window.close", { defaultValue: "Close" })}</TooltipContent>
-              </Tooltip>
+              <button
+                className="window-control-button"
+                onClick={handleMinimizeWindow}
+                aria-label={t("window.minimize", { defaultValue: "Minimize" })}
+              >
+                <Minus size={16} />
+              </button>
+              <button
+                className="window-control-button"
+                onClick={handleToggleMaximizeWindow}
+                aria-label={t("window.maximize", { defaultValue: "Maximize" })}
+              >
+                <Square size={13} />
+              </button>
+              <button
+                className="window-control-button close"
+                onClick={handleCloseWindow}
+                aria-label={t("window.close", { defaultValue: "Close" })}
+              >
+                <X size={16} />
+              </button>
             </div>
           )}
         </div>
@@ -470,4 +436,3 @@ export const TTermApp: React.FC = () => {
     </div>
   )
 }
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
