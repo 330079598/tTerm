@@ -372,14 +372,9 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
             </Button>
           )}
           {onClose && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button type="button" variant="ghost" size="icon-sm" onClick={onClose}>
-                  <X size={16} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t("common.close")}</TooltipContent>
-            </Tooltip>
+            <Button type="button" variant="ghost" size="icon-sm" onClick={onClose}>
+              <X size={16} />
+            </Button>
           )}
         </div>
       </div>
