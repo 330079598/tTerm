@@ -6,6 +6,8 @@ English | [简体中文](./README.zh-CN.md)
 
 If you often connect to servers, move files between local and remote machines, or juggle multiple terminal sessions, tTerm is designed to be the tool you can open and start working with immediately.
 
+![main-overview](./docs/screenshot/main-overview.png)
+
 ## Why tTerm?
 
 - **Terminal and file management in one place**: Open the SFTP drawer from an SSH session and browse, upload, download, rename, or delete remote files without switching apps.
@@ -18,8 +20,11 @@ If you often connect to servers, move files between local and remote machines, o
 
 ### Terminal Experience
 
-- Local shell terminal
-- Multi-tab session management
+![terminal-search](./docs/screenshot/terminal-search.png)
+
+- Local shell terminal with configurable shell (auto-detect, or choose from system shells)
+- Terminal search with real-time highlighting
+- Multi-tab session management with duplicate, rename, close-others, and close-to-right
 - Drag-and-drop tab reordering
 - Responsive terminal resizing
 - Web link detection
@@ -33,8 +38,11 @@ If you often connect to servers, move files between local and remote machines, o
 - Connection testing
 - SSH host key confirmation
 - Known-host management
+- Per-tab connection info bar with pinning
 
 ### Built-in SFTP File Manager
+
+![sftp-browser](./docs/screenshot/sftp-browser.png)
 
 - Browse remote directories
 - Create folders
@@ -44,6 +52,7 @@ If you often connect to servers, move files between local and remote machines, o
 - Upload and download files
 - Drag-and-drop upload for local files and folders
 - Transfer cancellation and status tracking
+- Clipboard support for file path copying
 
 ### Transfer Manager
 
@@ -54,12 +63,16 @@ If you often connect to servers, move files between local and remote machines, o
 
 ### Personalization and Usability
 
+![theme-editor](./docs/screenshot/theme-editor.png)
+
 - Built-in themes
-- Custom theme editor
-- Terminal palette preview
-- Font settings
-- English and Chinese UI
+- Custom theme editor with live preview
+- Terminal palette preview with 16-color swatches
+- Font settings with system font picker
+- Cursor style picker
+- English and Chinese UI with auto language detection
 - Windows, macOS, and Linux desktop support
+- Automatic config migration between versions
 
 ### Security
 
@@ -69,6 +82,14 @@ If you often connect to servers, move files between local and remote machines, o
 - Local-first sensitive data storage
 
 ## Getting Started
+
+### Download
+
+Pre-built binaries are available on the [Releases](https://github.com/330079598/tTerm/releases) page for:
+
+- **macOS** — Apple Silicon (aarch64) and Intel (x86_64) `.dmg`
+- **Windows** — `.msi` installer
+- **Linux** — `.AppImage` and `.deb` packages
 
 ### Prerequisites
 
@@ -102,6 +123,13 @@ pnpm tauri build
 ```
 
 Tauri writes platform-specific bundles under `src-tauri/target`.
+
+### CI/CD
+
+GitHub Actions workflows are included for automated builds:
+
+- **release-main.yml** — Triggered on push to `main` or `v*` tags. Builds for macOS (aarch64 + x86_64), Ubuntu 24.04, and Windows. Creates draft GitHub releases.
+- **release-dev-beta.yml** — Dev/beta release workflow.
 
 ## Common Scripts
 
@@ -202,6 +230,7 @@ When developing, pay special attention to:
 - Whether Rust commands return clear errors that can be shown in the UI
 - Whether file transfers expose complete progress, cancellation, and failure states
 - Whether password, key, and host-fingerprint flows remain local, safe, and explicit
+- Whether config migration between versions handles all data types (profiles, sessions, known hosts, passwords, SFTP stores)
 
 ## Contributing
 
