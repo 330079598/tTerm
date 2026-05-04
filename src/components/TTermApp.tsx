@@ -89,7 +89,7 @@ export const TTermApp: React.FC = () => {
 
         if (savedSession && savedSession.tabs.length > 0) {
           restoreSession(savedSession.tabs, savedSession.activeTabId)
-        } else {
+        } else if (!savedSession) {
           addTab(
             buildTabFromConnection({
               title: "Terminal",
@@ -113,9 +113,7 @@ export const TTermApp: React.FC = () => {
   }, [addTab, loadSession, restoreSession])
 
   useEffect(() => {
-    if (tabs.length > 0) {
-      saveSession(tabs, activeTabId)
-    }
+    saveSession(tabs, activeTabId)
   }, [tabs, activeTabId, saveSession])
 
   const handleNewTab = useCallback(() => {
