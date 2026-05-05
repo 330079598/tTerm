@@ -1,6 +1,7 @@
 ﻿import { useEffect } from "react"
 import { FitAddon } from "@xterm/addon-fit"
 import { SearchAddon, type ISearchResultChangeEvent } from "@xterm/addon-search"
+import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { WebLinksAddon } from "@xterm/addon-web-links"
 import { type IDisposable, Terminal } from "@xterm/xterm"
 import { invoke } from "@tauri-apps/api/core"
@@ -103,6 +104,8 @@ export function useTerminalLifecycle({
     term.loadAddon(fitAddon)
     term.loadAddon(searchAddon)
     term.loadAddon(new WebLinksAddon())
+    term.loadAddon(new Unicode11Addon())
+    term.unicode.activeVersion = '11'
 
     termRef.current = term
     fitAddonRef.current = fitAddon
