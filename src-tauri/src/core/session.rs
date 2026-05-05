@@ -238,15 +238,16 @@ pub fn resolve_ssh_password(
     // If password already provided, use it
     if plan.password.is_some() {
         let password = plan.password.clone().unwrap();
+        let secret_key = plan
+            .profile_id
+            .as_deref()
+            .unwrap_or(plan.profile_name.as_str());
 
-        // Save password if remember_password is enabled
-        if plan.remember_password {
-            let secret_key = plan
-                .profile_id
-                .as_deref()
-                .unwrap_or(plan.profile_name.as_str());
+        // Save password to persistent store when remember_password is enabled,
+        // or automatically when a profile_id exists (so session restore can find it)
+        if plan.remember_password || plan.profile_id.is_some() {
             let location = secret_state.save_password(app, secret_key, &password)?;
-            if matches!(location, crate::ssh::SecretLocation::Memory) {
+            if plan.remember_password && matches!(location, crate::ssh::SecretLocation::Memory) {
                 return Err(
                     "Password persistence is unavailable. Enable the app vault or use a supported system credential store."
                         .to_string(),

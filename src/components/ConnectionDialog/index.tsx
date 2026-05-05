@@ -170,10 +170,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         port: form.port,
         username: form.username,
         password: form.authMethod === "password" ? form.password : undefined,
-        rememberPassword:
-          shouldPersistProfile && form.authMethod === "password"
-            ? form.rememberPassword
-            : undefined,
+        rememberPassword: form.authMethod === "password" ? form.rememberPassword : undefined,
         privateKeyPath: form.authMethod === "key" ? form.privateKeyPath : undefined,
         privateKeyPassphrase: form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
         keepaliveIntervalSecs: form.keepaliveIntervalSecs,
