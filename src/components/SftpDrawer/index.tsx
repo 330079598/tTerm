@@ -1,4 +1,4 @@
-﻿import "@/components/SftpDrawer.css"
+import "@/components/SftpDrawer.css"
 import React, { useCallback, useMemo, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { AlertCircle } from "lucide-react"
@@ -39,6 +39,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
   const [listing, setListing] = useState<SftpDirectoryListing | null>(null)
   const [activePath, setActivePath] = useState<string | null>(null)
   const [selectedPaths, setSelectedPaths] = useState<string[]>([])
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchOptions, setSearchOptions] = useState<SftpSearchOptions>(DEFAULT_SFTP_SEARCH_OPTIONS)
   const [isLoading, setIsLoading] = useState(false)
@@ -143,6 +144,17 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       ...current,
       [option]: !current[option],
     }))
+  }, [])
+
+  const toggleSelectionMode = useCallback(() => {
+    setIsSelectionMode((current) => {
+      if (current) {
+        setSelectedPaths([])
+        setContextMenu(null)
+      }
+
+      return !current
+    })
   }, [])
 
   const runAndRefresh = useCallback(
@@ -442,9 +454,11 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         searchError={searchMatcher.error?.message ?? null}
         searchOptions={searchOptions}
         searchQuery={searchQuery}
+        isSelectionMode={isSelectionMode}
         selectedCount={selectedPaths.length}
         setSearchQuery={setSearchQuery}
         toggleSearchOption={toggleSearchOption}
+        toggleSelectionMode={toggleSelectionMode}
       />
 
       {error && (
@@ -464,6 +478,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         handleDrop={handleDrop}
         handleOpenEntry={handleOpenEntry}
         handleSelectRange={handleSelectRange}
+        isSelectionMode={isSelectionMode}
         handleToggleEntrySelection={handleToggleEntrySelection}
         isDragActive={isDragActive}
         isLoading={isBusy}

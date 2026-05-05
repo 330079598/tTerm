@@ -60,7 +60,8 @@ export const TerminalPalettePreview: React.FC<TerminalPalettePreviewProps> = ({
       cursorBlink: false,
       cursorStyle: "block",
       disableStdin: true,
-      fontFamily: '"JetBrains Mono Nerd Font", "SFMono-Regular", "JetBrains Mono", "Cascadia Code", monospace',
+      fontFamily:
+        '"JetBrains Mono Nerd Font", "SFMono-Regular", "JetBrains Mono", "Cascadia Code", monospace',
       fontSize: 12,
       lineHeight: 1.15,
       rows: PREVIEW_LINES.length,

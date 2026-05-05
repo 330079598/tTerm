@@ -106,7 +106,7 @@ export function useTerminalLifecycle({
     term.loadAddon(searchAddon)
     term.loadAddon(new WebLinksAddon())
     term.loadAddon(new Unicode11Addon())
-    term.unicode.activeVersion = '11'
+    term.unicode.activeVersion = "11"
 
     try {
       term.loadAddon(new WebglAddon())

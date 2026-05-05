@@ -36,6 +36,7 @@ interface SftpDrawerContentProps {
   handleToggleEntrySelection: (path: string, checked: boolean) => void
   isDragActive: boolean
   isLoading: boolean
+  isSelectionMode: boolean
   listing: SftpDirectoryListing | null
   loadDirectory: (path?: string | null) => Promise<void>
   searchMatcher: SftpSearchMatcher
@@ -56,6 +57,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
   handleToggleEntrySelection,
   isDragActive,
   isLoading,
+  isSelectionMode,
   listing,
   loadDirectory,
   searchMatcher,
@@ -99,10 +101,11 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
         return
       }
 
-      if (pointerAnchorRef.current !== hoveredEntry.path) {
-        pointerMovedRef.current = true
+      if (pointerAnchorRef.current === hoveredEntry.path) {
+        return
       }
 
+      pointerMovedRef.current = true
       handleSelectRange(pointerAnchorRef.current, hoveredEntry.path)
     },
     [filteredEntries, handleActivateEntry, handleSelectRange]
@@ -167,7 +170,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
         <ScrollArea
           className="flex-1"
           onMouseDown={(event) => {
-            if (event.button !== 0) {
+            if (!isSelectionMode || event.button !== 0) {
               return
             }
 
@@ -210,6 +213,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
             filteredEntries.map((entry) => {
               const isSelected = selectedPaths.includes(entry.path)
               const isActive = entry.path === activePath
+
               return (
                 <div
                   key={entry.path}
@@ -222,14 +226,15 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
                   }}
                   className={cn(
                     "sftp-row",
+                    isSelectionMode && "sftp-row-selection-mode",
                     isActive && "sftp-row-active",
                     isSelected && "sftp-row-selected"
                   )}
                   role="button"
                   tabIndex={0}
-                  aria-pressed={isActive}
+                  aria-pressed={isSelectionMode ? isSelected : isActive}
                   onMouseDown={(event) => {
-                    if (event.button !== 0) {
+                    if (!isSelectionMode || event.button !== 0) {
                       return
                     }
 
@@ -244,13 +249,18 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
                     pointerMovedRef.current = false
                     setIsPointerSelecting(true)
                     handleActivateEntry(entry.path)
-                    handleSelectRange(entry.path, entry.path)
-                    event.preventDefault()
                   }}
                   onClick={(event) => {
                     if (pointerMovedRef.current) {
                       event.preventDefault()
                       event.stopPropagation()
+                      return
+                    }
+
+                    if (isSelectionMode) {
+                      handleToggleEntrySelection(entry.path, !isSelected)
+                      handleActivateEntry(entry.path)
+                      setContextMenu(null)
                       return
                     }
 
@@ -260,32 +270,58 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault()
+                      if (isSelectionMode) {
+                        handleToggleEntrySelection(entry.path, !isSelected)
+                        handleActivateEntry(entry.path)
+                        setContextMenu(null)
+                        return
+                      }
+
+                      void handleOpenEntry(entry)
+                      return
+                    }
+
+                    if (event.key === " " && isSelectionMode) {
+                      event.preventDefault()
+                      handleToggleEntrySelection(entry.path, !isSelected)
+                      handleActivateEntry(entry.path)
+                      setContextMenu(null)
+                    }
+                  }}
+                  onDoubleClick={() => {
+                    if (pointerMovedRef.current) {
+                      return
+                    }
+
+                    if (!isSelectionMode) {
                       void handleOpenEntry(entry)
                     }
                   }}
-                  onDoubleClick={() => void handleOpenEntry(entry)}
                   onContextMenu={(event) => {
                     event.preventDefault()
                     handleActivateEntry(entry.path)
                     setContextMenu({ x: event.clientX, y: event.clientY, entryPath: entry.path })
                   }}
                 >
-                  <span className="sftp-cell sftp-checkbox-cell">
-                    <Checkbox
-                      checked={isSelected}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                      }}
-                      onCheckedChange={(checked) => {
-                        handleToggleEntrySelection(entry.path, checked)
-                        setContextMenu(null)
-                      }}
-                      aria-label={t("sftp.selection.toggle", {
-                        name: entry.name,
-                        defaultValue: `Select ${entry.name}`,
-                      })}
-                    />
-                  </span>
+                  {isSelectionMode && (
+                    <span className="sftp-cell sftp-checkbox-cell">
+                      <Checkbox
+                        checked={isSelected}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                        }}
+                        onCheckedChange={(checked) => {
+                          handleToggleEntrySelection(entry.path, checked)
+                          handleActivateEntry(entry.path)
+                          setContextMenu(null)
+                        }}
+                        aria-label={t("sftp.selection.toggle", {
+                          name: entry.name,
+                          defaultValue: `Select ${entry.name}`,
+                        })}
+                      />
+                    </span>
+                  )}
                   <span className="sftp-cell sftp-name-cell">
                     {entry.isDir ? (
                       <Folder className="size-4 shrink-0 text-blue-500" />

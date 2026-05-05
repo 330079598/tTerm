@@ -64,10 +64,10 @@ const TabItem: React.FC<TabItemProps> = ({
           ? tab.connectionHeaderPinned === false
             ? { label: t("contextMenu.pinConnectionHeader"), action: "pin-header", icon: "pin" }
             : {
-              label: t("contextMenu.unpinConnectionHeader"),
-              action: "unpin-header",
-              icon: "pin-off",
-            }
+                label: t("contextMenu.unpinConnectionHeader"),
+                action: "unpin-header",
+                icon: "pin-off",
+              }
           : null
 
       const actions: TabContextMenuAction[] = [

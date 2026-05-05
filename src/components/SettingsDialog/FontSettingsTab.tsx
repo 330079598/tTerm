@@ -264,8 +264,8 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
             className="bg-secondary text-foreground border-border rounded-lg border px-4 py-3"
             style={{ fontFamily, fontSize: `${fontSize}px`, lineHeight: 1.6 }}
           >
-            <div>  󰊢  main  󰁕 ~  </div>
-            <div>  12:34:56  user@host  ~/projects</div>
+            <div> 󰊢 main 󰁕 ~ </div>
+            <div> 12:34:56 user@host ~/projects</div>
           </div>
         </div>
 

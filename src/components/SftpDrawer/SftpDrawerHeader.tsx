@@ -4,6 +4,7 @@ import {
   ChevronRight,
   FolderUp,
   FolderPlus,
+  ListChecks,
   ListX,
   RefreshCcw,
   Regex,
@@ -27,6 +28,7 @@ interface SftpDrawerHeaderProps {
   handleUploadDialog: () => Promise<void>
   handleUploadFolderDialog: () => Promise<void>
   isLoading: boolean
+  isSelectionMode: boolean
   listingCurrentPath?: string | null
   loadDirectory: (path?: string | null) => Promise<void>
   onClose: () => void
@@ -36,6 +38,7 @@ interface SftpDrawerHeaderProps {
   selectedCount: number
   setSearchQuery: (query: string) => void
   toggleSearchOption: (option: keyof SftpSearchOptions) => void
+  toggleSelectionMode: () => void
 }
 
 export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
@@ -46,6 +49,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   handleUploadDialog,
   handleUploadFolderDialog,
   isLoading,
+  isSelectionMode,
   listingCurrentPath,
   loadDirectory,
   onClose,
@@ -55,6 +59,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   selectedCount,
   setSearchQuery,
   toggleSearchOption,
+  toggleSelectionMode,
 }) => {
   const { t } = useTranslation()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -187,6 +192,25 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
           </TooltipTrigger>
           <TooltipContent>
             {t("sftp.search.label", { defaultValue: "Filter current folder" })}
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={isSelectionMode ? "secondary" : "ghost"}
+              size="icon-sm"
+              onClick={toggleSelectionMode}
+              disabled={!listingCurrentPath || isLoading}
+              aria-label={t("sftp.selection.mode", {
+                defaultValue: "Toggle selection mode",
+              })}
+              aria-pressed={isSelectionMode}
+            >
+              <ListChecks className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {t("sftp.selection.mode", { defaultValue: "Toggle selection mode" })}
           </TooltipContent>
         </Tooltip>
         {selectedCount > 0 && (

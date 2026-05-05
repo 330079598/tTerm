@@ -29,7 +29,8 @@ export interface AppConfig {
 const defaultConfig: AppConfig = {
   theme: "default",
   language: detectSystemLanguage(),
-  font_family: '"JetBrains Mono Nerd Font", "JetBrainsMono Nerd Font", "JetBrains Mono", "Fira Code", Menlo, Monaco, monospace',
+  font_family:
+    '"JetBrains Mono Nerd Font", "JetBrainsMono Nerd Font", "JetBrains Mono", "Fira Code", Menlo, Monaco, monospace',
   font_size: 14,
   cursor_style: "block",
   terminal_shell: "auto",
