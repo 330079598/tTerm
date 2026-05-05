@@ -38,7 +38,7 @@
     "clearSession": "Clear Session Data",
     "clearSessionDesc": "Clear all saved sessions and reload the app",
     "clearSessionConfirm": "Are you sure you want to clear all session data? This will reload the app.",
-    "about": "About TTerm",
+    "about": "About tTerm",
     "secretStorage": "Secret Storage"
   },
   "theme": {

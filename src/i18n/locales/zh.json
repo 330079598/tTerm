@@ -36,7 +36,7 @@
     "clearSession": "清除会话数据",
     "clearSessionDesc": "清除所有已保存的会话并重新加载应用",
     "clearSessionConfirm": "确定要清除所有会话数据吗？这将重新加载应用。",
-    "about": "关于 TTerm",
+    "about": "关于 tTerm",
     "secretStorage": "密钥存储"
   },
   "theme": {
