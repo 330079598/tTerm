@@ -38,7 +38,9 @@ fn get_font_directories() -> Vec<PathBuf> {
     #[cfg(target_os = "macos")]
     {
         dirs.push(PathBuf::from("/System/Library/Fonts"));
+        dirs.push(PathBuf::from("/System/Library/Fonts/Supplemental"));
         dirs.push(PathBuf::from("/Library/Fonts"));
+        dirs.push(PathBuf::from("/Library/Fonts/Supplemental"));
         if let Ok(home) = std::env::var("HOME") {
             dirs.push(PathBuf::from(&home).join("Library/Fonts"));
         }

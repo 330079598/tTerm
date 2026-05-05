@@ -8,6 +8,13 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { CursorStylePicker } from "@/components/SettingsDialog/CursorStylePicker"
 
+const NERD_FONT_PATTERN =
+  /nerd\s*font|nerdfont|nf\b|nerd|powerline|meslo\s+lg.*nerd|fira\s*code.*nerd|jetbrains.*nerd|hack.*nerd|iosevka.*nerd|cascadia.*nerd|roboto.*mono.*nerd|ubuntu.*mono.*nerd|source\s*code\s*pro.*nerd|dejavu.*sans.*mono.*nerd|liberation.*mono.*nerd|noto.*sans.*mono.*nerd/i
+
+function isNerdFont(name: string): boolean {
+  return NERD_FONT_PATTERN.test(name)
+}
+
 interface FontSettingsTabProps {
   fontFamily: string
   fontSize: number
@@ -41,12 +48,24 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
 }) => {
   const { t } = useTranslation()
   const [fontSearchQuery, setFontSearchQuery] = React.useState("")
+  const [showNerdFontsOnly, setShowNerdFontsOnly] = React.useState(false)
+
+  const nerdFontCount = React.useMemo(
+    () => systemFonts.filter((f) => isNerdFont(f)).length,
+    [systemFonts]
+  )
 
   const filteredFonts = React.useMemo(() => {
-    if (!fontSearchQuery.trim()) return systemFonts
-    const query = fontSearchQuery.toLowerCase()
-    return systemFonts.filter((font) => font.toLowerCase().includes(query))
-  }, [systemFonts, fontSearchQuery])
+    let fonts = systemFonts
+    if (fontSearchQuery.trim()) {
+      const query = fontSearchQuery.toLowerCase()
+      fonts = fonts.filter((font) => font.toLowerCase().includes(query))
+    }
+    if (showNerdFontsOnly) {
+      fonts = fonts.filter((font) => isNerdFont(font))
+    }
+    return fonts
+  }, [systemFonts, fontSearchQuery, showNerdFontsOnly])
 
   return (
     <ScrollArea className="h-full pr-4">
@@ -152,6 +171,14 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
             placeholder={t("fontSettings.customFont")}
             className="mb-2"
           />
+          {nerdFontCount > 0 && !isNerdFont(fontFamily) && (
+            <p className="mb-2 text-xs text-amber-600 dark:text-amber-400">
+              {t("fontSettings.nerdFontWarning", {
+                defaultValue:
+                  "Current font may not support Nerd Font characters (used by powerlevel10k, starship, etc.). Select a font with the NF badge below.",
+              })}
+            </p>
+          )}
 
           {loadingFonts ? (
             <p className="text-muted-foreground text-xs">{t("fontSettings.loadingFonts")}</p>
@@ -167,6 +194,20 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
                 placeholder={t("fontSettings.searchFonts")}
                 className="mb-2"
               />
+              {nerdFontCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowNerdFontsOnly(!showNerdFontsOnly)}
+                  className={cn(
+                    "mb-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors",
+                    showNerdFontsOnly
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                  )}
+                >
+                  Nerd Font {showNerdFontsOnly ? `(${filteredFonts.length})` : `(${nerdFontCount})`}
+                </button>
+              )}
               <ScrollArea className="border-border h-48 rounded border">
                 <div className="p-1">
                   {systemFonts.length === 0 ? (
@@ -183,14 +224,19 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
                         key={font}
                         onClick={() => setFontFamily(`"${font}", monospace`)}
                         className={cn(
-                          "hover:bg-accent w-full rounded px-3 py-1.5 text-left text-sm transition-colors",
+                          "hover:bg-accent flex w-full items-center justify-between rounded px-3 py-1.5 text-left text-sm transition-colors",
                           fontFamily.includes(font)
                             ? "bg-accent text-foreground"
                             : "text-muted-foreground"
                         )}
                         style={{ fontFamily: font }}
                       >
-                        {font}
+                        <span>{font}</span>
+                        {isNerdFont(font) && (
+                          <span className="ml-2 shrink-0 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                            NF
+                          </span>
+                        )}
                       </button>
                     ))
                   )}
@@ -207,6 +253,19 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
             style={{ fontFamily, fontSize: `${fontSize}px` }}
           >
             The quick brown fox jumps over the lazy dog 0123456789
+          </div>
+        </div>
+
+        <div>
+          <Label className="mb-2 block">
+            {t("fontSettings.nerdFontPreview", { defaultValue: "Nerd Font Preview" })}
+          </Label>
+          <div
+            className="bg-secondary text-foreground border-border rounded-lg border px-4 py-3"
+            style={{ fontFamily, fontSize: `${fontSize}px`, lineHeight: 1.6 }}
+          >
+            <div>  󰊢  main  󰁕 ~  </div>
+            <div>  12:34:56  user@host  ~/projects</div>
           </div>
         </div>
 

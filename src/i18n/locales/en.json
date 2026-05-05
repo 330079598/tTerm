@@ -351,6 +351,8 @@
     "searchFonts": "Search fonts...",
     "noMatchingFonts": "No matching fonts found",
     "preview": "Preview",
+    "nerdFontPreview": "Nerd Font Preview",
+    "nerdFontWarning": "Current font may not support Nerd Font characters (used by powerlevel10k, starship, etc.). Select a font with the NF badge below.",
     "cancel": "Cancel",
     "save": "Save",
     "saved": "Settings saved",

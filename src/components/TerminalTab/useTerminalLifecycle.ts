@@ -3,6 +3,7 @@ import { FitAddon } from "@xterm/addon-fit"
 import { SearchAddon, type ISearchResultChangeEvent } from "@xterm/addon-search"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { WebLinksAddon } from "@xterm/addon-web-links"
+import { WebglAddon } from "@xterm/addon-webgl"
 import { type IDisposable, Terminal } from "@xterm/xterm"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
@@ -106,6 +107,12 @@ export function useTerminalLifecycle({
     term.loadAddon(new WebLinksAddon())
     term.loadAddon(new Unicode11Addon())
     term.unicode.activeVersion = '11'
+
+    try {
+      term.loadAddon(new WebglAddon())
+    } catch {
+      // WebGL not supported in this environment; fall back to canvas renderer
+    }
 
     termRef.current = term
     fitAddonRef.current = fitAddon

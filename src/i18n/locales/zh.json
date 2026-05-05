@@ -339,6 +339,8 @@
     "searchFonts": "搜索字体...",
     "noMatchingFonts": "未找到匹配的字体",
     "preview": "预览",
+    "nerdFontPreview": "Nerd Font 预览",
+    "nerdFontWarning": "当前字体可能不支持 Nerd Font 字符（powerlevel10k、starship 等使用）。请从下方选择带有 NF 标记的字体。",
     "cancel": "取消",
     "save": "保存",
     "saved": "设置已保存",
