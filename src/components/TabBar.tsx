@@ -64,10 +64,10 @@ const TabItem: React.FC<TabItemProps> = ({
           ? tab.connectionHeaderPinned === false
             ? { label: t("contextMenu.pinConnectionHeader"), action: "pin-header", icon: "pin" }
             : {
-                label: t("contextMenu.unpinConnectionHeader"),
-                action: "unpin-header",
-                icon: "pin-off",
-              }
+              label: t("contextMenu.unpinConnectionHeader"),
+              action: "unpin-header",
+              icon: "pin-off",
+            }
           : null
 
       const actions: TabContextMenuAction[] = [
@@ -96,22 +96,17 @@ const TabItem: React.FC<TabItemProps> = ({
         >
           <span className="tab-number">{index + 1}</span>
           <span className="tab-title">{tab.title}</span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                className="tab-close"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onTabClose(tab.id)
-                }}
-                onMouseEnter={(e) => e.stopPropagation()}
-                onMouseLeave={(e) => e.stopPropagation()}
-              >
-                <X size={12} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>{t("tabs.closeTab")}</TooltipContent>
-          </Tooltip>
+          <button
+            className="tab-close"
+            onClick={(e) => {
+              e.stopPropagation()
+              onTabClose(tab.id)
+            }}
+            onMouseEnter={(e) => e.stopPropagation()}
+            onMouseLeave={(e) => e.stopPropagation()}
+          >
+            <X size={12} />
+          </button>
         </div>
       </TooltipTrigger>
       <TooltipContent>{`${tab.title}${tab.connection ? ` (${tab.connection.host})` : ""}`}</TooltipContent>
