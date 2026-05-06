@@ -17,6 +17,10 @@ type UseTerminalSearchOptions = {
   termRef: React.MutableRefObject<Terminal | null>
 }
 
+type SearchDecorationDisposable = {
+  dispose: () => void
+}
+
 export function useTerminalSearch({
   isActiveRef,
   searchAddonRef,
@@ -26,6 +30,7 @@ export function useTerminalSearch({
 }: UseTerminalSearchOptions) {
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const searchDragStateRef = useRef<SearchDragState | null>(null)
+  const activeSearchDecorationsRef = useRef<SearchDecorationDisposable[]>([])
   const previousSearchOptionsRef = useRef<SearchOptionsState>(DEFAULT_SEARCH_OPTIONS)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -47,6 +52,68 @@ export function useTerminalSearch({
     [searchOptions]
   )
 
+  const clearActiveSearchDecorations = useCallback(() => {
+    for (const disposable of activeSearchDecorationsRef.current) {
+      disposable.dispose()
+    }
+    activeSearchDecorationsRef.current = []
+  }, [])
+
+  const decorateActiveSearchSelection = useCallback(() => {
+    const term = termRef.current
+    const activeBackground = SEARCH_DECORATIONS.activeMatchBackground
+    if (!term || !activeBackground) return
+
+    const selection = term.getSelectionPosition()
+    if (!selection) return
+
+    clearActiveSearchDecorations()
+
+    const activeBorder = SEARCH_DECORATIONS.activeMatchBorder
+    const startRow = Math.min(selection.start.y, selection.end.y)
+    const endRow = Math.max(selection.start.y, selection.end.y)
+
+    for (let row = startRow; row <= endRow; row += 1) {
+      const startCol = row === selection.start.y ? selection.start.x : 0
+      const endCol = row === selection.end.y ? selection.end.x : term.cols
+      const width = endCol - startCol
+      if (width <= 0) continue
+
+      const marker = term.registerMarker(
+        row - term.buffer.active.baseY - term.buffer.active.cursorY
+      )
+      if (!marker) continue
+
+      const decoration = term.registerDecoration({
+        marker,
+        x: startCol,
+        width,
+        backgroundColor: activeBackground,
+        layer: "top",
+      })
+
+      if (!decoration) {
+        marker.dispose()
+        continue
+      }
+
+      const renderDisposable = decoration.onRender((element) => {
+        element.classList.add("xterm-find-result-decoration", "xterm-find-active-result-decoration")
+        if (activeBorder) {
+          element.style.outline = `1px solid ${activeBorder}`
+        }
+      })
+
+      activeSearchDecorationsRef.current.push({
+        dispose: () => {
+          renderDisposable.dispose()
+          decoration.dispose()
+          marker.dispose()
+        },
+      })
+    }
+  }, [clearActiveSearchDecorations, termRef])
+
   const runSearch = useCallback(
     (direction: "next" | "previous" = "next", incremental = false) => {
       const searchAddon = searchAddonRef.current
@@ -61,25 +128,42 @@ export function useTerminalSearch({
 
       try {
         const options = buildSearchOptions(undefined, incremental)
-        return direction === "previous"
-          ? searchAddon.findPrevious(query, options)
-          : searchAddon.findNext(query, options)
+        const found =
+          direction === "previous"
+            ? searchAddon.findPrevious(query, options)
+            : searchAddon.findNext(query, options)
+
+        if (found) {
+          window.setTimeout(decorateActiveSearchSelection, 0)
+        } else {
+          clearActiveSearchDecorations()
+        }
+
+        return found
       } catch (error) {
         console.error("Terminal search failed:", error)
+        clearActiveSearchDecorations()
         setSearchResults({ resultIndex: -1, resultCount: 0 })
         return false
       }
     },
-    [buildSearchOptions, searchAddonRef, searchQuery]
+    [
+      buildSearchOptions,
+      clearActiveSearchDecorations,
+      decorateActiveSearchSelection,
+      searchAddonRef,
+      searchQuery,
+    ]
   )
 
   const closeSearch = useCallback(() => {
+    clearActiveSearchDecorations()
     searchAddonRef.current?.clearDecorations()
     setIsSearchOpen(false)
     setSearchQuery("")
     setSearchResults({ resultIndex: -1, resultCount: 0 })
     window.setTimeout(() => termRef.current?.focus(), 0)
-  }, [searchAddonRef, termRef])
+  }, [clearActiveSearchDecorations, searchAddonRef, termRef])
 
   const openSearch = useCallback(() => {
     setIsSearchOpen(true)
@@ -140,6 +224,7 @@ export function useTerminalSearch({
 
     const searchTimer = window.setTimeout(() => {
       if (didSearchOptionsChange) {
+        clearActiveSearchDecorations()
         searchAddonRef.current?.clearDecorations()
         setSearchResults({ resultIndex: -1, resultCount: 0 })
       }
@@ -148,7 +233,9 @@ export function useTerminalSearch({
     }, 0)
 
     return () => window.clearTimeout(searchTimer)
-  }, [isSearchOpen, runSearch, searchAddonRef, searchOptions])
+  }, [clearActiveSearchDecorations, isSearchOpen, runSearch, searchAddonRef, searchOptions])
+
+  useEffect(() => clearActiveSearchDecorations, [clearActiveSearchDecorations])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
