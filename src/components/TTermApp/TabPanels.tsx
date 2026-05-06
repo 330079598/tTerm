@@ -24,10 +24,14 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
         <div
           key={`${tab.id}:${tab.sessionNonce ?? 0}`}
           style={{
+            position: "absolute",
+            inset: 0,
             width: "100%",
             height: "100%",
-            display: tab.id === activeTabId ? "flex" : "none",
+            display: "flex",
             flexDirection: "column",
+            visibility: tab.id === activeTabId ? "visible" : "hidden",
+            pointerEvents: tab.id === activeTabId ? "auto" : "none",
           }}
         >
           <TerminalTab

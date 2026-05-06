@@ -122,7 +122,9 @@ export function useTerminalLifecycle({
     })
 
     term.open(container)
-    term.focus()
+    if (isActiveRef.current) {
+      term.focus()
+    }
     fitTerminalOnly()
 
     term.onData((data) => {
