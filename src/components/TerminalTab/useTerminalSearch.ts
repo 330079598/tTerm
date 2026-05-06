@@ -26,6 +26,7 @@ export function useTerminalSearch({
 }: UseTerminalSearchOptions) {
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const searchDragStateRef = useRef<SearchDragState | null>(null)
+  const previousSearchOptionsRef = useRef<SearchOptionsState>(DEFAULT_SEARCH_OPTIONS)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchOptions, setSearchOptions] = useState<SearchOptionsState>(DEFAULT_SEARCH_OPTIONS)
@@ -130,12 +131,24 @@ export function useTerminalSearch({
   useEffect(() => {
     if (!isSearchOpen) return
 
+    const previousSearchOptions = previousSearchOptionsRef.current
+    const didSearchOptionsChange =
+      previousSearchOptions.caseSensitive !== searchOptions.caseSensitive ||
+      previousSearchOptions.wholeWord !== searchOptions.wholeWord ||
+      previousSearchOptions.regex !== searchOptions.regex
+    previousSearchOptionsRef.current = searchOptions
+
     const searchTimer = window.setTimeout(() => {
-      runSearch("next", true)
+      if (didSearchOptionsChange) {
+        searchAddonRef.current?.clearDecorations()
+        setSearchResults({ resultIndex: -1, resultCount: 0 })
+      }
+
+      runSearch("next", !didSearchOptionsChange)
     }, 0)
 
     return () => window.clearTimeout(searchTimer)
-  }, [isSearchOpen, runSearch])
+  }, [isSearchOpen, runSearch, searchAddonRef, searchOptions])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
