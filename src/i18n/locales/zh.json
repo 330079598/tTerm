@@ -36,6 +36,9 @@
     "clearSession": "清除会话数据",
     "clearSessionDesc": "清除所有已保存的会话并重新加载应用",
     "clearSessionConfirm": "确定要清除所有会话数据吗？这将重新加载应用。",
+    "restoreAllSessionConnections": "启动时恢复所有会话连接",
+    "restoreAllSessionConnectionsDesc": "关闭后，启动时仅连接当前标签页，其他恢复的标签页在打开时再连接。",
+    "saveFailed": "保存设置失败",
     "about": "关于 tTerm",
     "secretStorage": "密钥存储"
   },

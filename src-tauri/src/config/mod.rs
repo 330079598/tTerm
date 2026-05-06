@@ -27,6 +27,8 @@ pub struct AppConfig {
     pub secret_vault_enabled: bool,
     #[serde(default = "default_scrollback_lines")]
     pub scrollback_lines: u32,
+    #[serde(default = "default_startup_session_restore_mode")]
+    pub startup_session_restore_mode: String,
 }
 
 fn normalize_language(locale: &str) -> String {
@@ -70,6 +72,10 @@ fn default_scrollback_lines() -> u32 {
     10000
 }
 
+fn default_startup_session_restore_mode() -> String {
+    "active".to_string()
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -83,6 +89,7 @@ impl Default for AppConfig {
             terminal_shell_custom_args: String::new(),
             secret_vault_enabled: false,
             scrollback_lines: default_scrollback_lines(),
+            startup_session_restore_mode: default_startup_session_restore_mode(),
         }
     }
 }

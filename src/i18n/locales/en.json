@@ -38,6 +38,9 @@
     "clearSession": "Clear Session Data",
     "clearSessionDesc": "Clear all saved sessions and reload the app",
     "clearSessionConfirm": "Are you sure you want to clear all session data? This will reload the app.",
+    "restoreAllSessionConnections": "Restore all session connections on startup",
+    "restoreAllSessionConnectionsDesc": "When off, only the active tab connects at startup. Other restored tabs connect when opened.",
+    "saveFailed": "Failed to save settings",
     "about": "About tTerm",
     "secretStorage": "Secret Storage"
   },

@@ -36,6 +36,7 @@ export const TTermApp: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false)
   const [editingProfile, setEditingProfile] = useState<SavedProfile | null>(null)
   const [profilesRefreshKey, setProfilesRefreshKey] = useState(0)
+  const [sessionRestored, setSessionRestored] = useState(false)
   const [renameDialogState, setRenameDialogState] = useState<RenameDialogState>({
     isOpen: false,
     tabId: null,
@@ -78,6 +79,10 @@ export const TTermApp: React.FC = () => {
   }, [isLoaded, config.language, i18n])
 
   useEffect(() => {
+    if (!isLoaded) {
+      return
+    }
+
     let cancelled = false
 
     const loadAndRestoreSession = async () => {
@@ -100,6 +105,7 @@ export const TTermApp: React.FC = () => {
         }
       } finally {
         if (!cancelled) {
+          setSessionRestored(true)
           markSessionReady()
         }
       }
@@ -110,11 +116,15 @@ export const TTermApp: React.FC = () => {
     return () => {
       cancelled = true
     }
-  }, [addTab, loadSession, restoreSession])
+  }, [addTab, isLoaded, loadSession, restoreSession])
 
   useEffect(() => {
+    if (!sessionRestored) {
+      return
+    }
+
     saveSession(tabs, activeTabId)
-  }, [tabs, activeTabId, saveSession])
+  }, [tabs, activeTabId, saveSession, sessionRestored])
 
   const handleNewTab = useCallback(() => {
     setShowConnectionDialog(true)
@@ -297,6 +307,7 @@ export const TTermApp: React.FC = () => {
         handlePinConnectionHeader={handlePinConnectionHeader}
         handleReconnectTab={handleReconnectTab}
         handleUnpinConnectionHeader={handleUnpinConnectionHeader}
+        startupSessionRestoreMode={config.startup_session_restore_mode}
         tabs={tabs}
       />
     )

@@ -24,6 +24,7 @@ export interface AppConfig {
   terminal_shell_custom_args: string
   secret_vault_enabled: boolean
   scrollback_lines: number
+  startup_session_restore_mode: "active" | "all"
 }
 
 const defaultConfig: AppConfig = {
@@ -38,6 +39,15 @@ const defaultConfig: AppConfig = {
   terminal_shell_custom_args: "",
   secret_vault_enabled: false,
   scrollback_lines: 10000,
+  startup_session_restore_mode: "active",
+}
+
+function normalizeConfig(config: Partial<AppConfig>): AppConfig {
+  return {
+    ...defaultConfig,
+    ...config,
+    startup_session_restore_mode: config.startup_session_restore_mode === "all" ? "all" : "active",
+  }
 }
 
 const defaultSecretStatus: SecretBackendStatus = {
@@ -100,7 +110,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         invoke<AppConfig>("load_config"),
         invoke<SecretBackendStatus>("get_secret_backend_status"),
       ])
-      setConfig(loadedConfig)
+      setConfig(normalizeConfig(loadedConfig))
       setSecretStatus(normalizeSecretStatus(loadedSecretStatus))
     } catch (error) {
       console.error("Failed to load config:", error)
@@ -114,7 +124,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
 
   const saveConfig = useCallback(
     async (newConfig: Partial<AppConfig>) => {
-      const updatedConfig = { ...config, ...newConfig }
+      const updatedConfig = normalizeConfig({ ...config, ...newConfig })
       try {
         await invoke("save_config", { config: updatedConfig })
         setConfig(updatedConfig)

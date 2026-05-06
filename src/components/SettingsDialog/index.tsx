@@ -362,6 +362,19 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
     }
   }
 
+  const handleRestoreAllSessionConnectionsChange = async (checked: boolean) => {
+    try {
+      await saveConfig({ startup_session_restore_mode: checked ? "all" : "active" })
+    } catch (error) {
+      console.error("Failed to save startup session restore mode:", error)
+      toast({
+        title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleAbout = async () => {
     let version = fallbackAppVersion
 
@@ -479,6 +492,8 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
               <GeneralSettingsTab
                 handleAbout={handleAbout}
                 handleClearSession={handleClearSession}
+                handleRestoreAllSessionConnectionsChange={handleRestoreAllSessionConnectionsChange}
+                restoreAllSessionConnections={config.startup_session_restore_mode === "all"}
               />
             </TabsContent>
           </Tabs>
