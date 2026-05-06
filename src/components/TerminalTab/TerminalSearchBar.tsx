@@ -20,7 +20,7 @@ type TerminalSearchBarProps = {
   isSearchDragging: boolean
   onClose: () => void
   onDragStart: (event: React.PointerEvent<HTMLDivElement>) => void
-  onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
+  onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void
   onRunSearch: (direction: "next" | "previous") => void
   onToggleOption: (option: keyof SearchOptionsState) => void
   searchInputRef: React.RefObject<HTMLInputElement>
@@ -53,6 +53,7 @@ export const TerminalSearchBar: React.FC<TerminalSearchBarProps> = ({
     className="terminal-search-bar"
     data-dragging={isSearchDragging ? "true" : undefined}
     onMouseDown={(event) => event.stopPropagation()}
+    onKeyDown={onKeyDown}
     style={{ transform: `translate(${searchPosition.x}px, ${searchPosition.y}px)` }}
   >
     <Tooltip>
@@ -73,7 +74,6 @@ export const TerminalSearchBar: React.FC<TerminalSearchBarProps> = ({
       ref={searchInputRef}
       value={searchQuery}
       onChange={(event) => setSearchQuery(event.target.value)}
-      onKeyDown={onKeyDown}
       placeholder={t("terminalSearch.placeholder", { defaultValue: "Search terminal" })}
       aria-label={t("terminalSearch.placeholder", { defaultValue: "Search terminal" })}
       className="terminal-search-input"

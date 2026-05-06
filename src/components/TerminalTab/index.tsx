@@ -308,19 +308,20 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   }, [])
 
   const handleSearchKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLInputElement>) => {
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (event.key === "Escape") {
         event.preventDefault()
+        event.stopPropagation()
         closeSearch()
         return
       }
 
-      if (event.key === "Enter") {
+      if (event.key === "Enter" && event.target === searchInputRef.current) {
         event.preventDefault()
         runSearch(event.shiftKey ? "previous" : "next")
       }
     },
-    [closeSearch, runSearch]
+    [closeSearch, runSearch, searchInputRef]
   )
 
   const handleTerminalContextMenu = useCallback(

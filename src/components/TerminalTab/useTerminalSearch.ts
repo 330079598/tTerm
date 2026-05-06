@@ -241,6 +241,12 @@ export function useTerminalSearch({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isActiveRef.current) return
 
+      if (isSearchOpen && event.key === "Escape") {
+        event.preventDefault()
+        closeSearch()
+        return
+      }
+
       const isFindShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f"
       if (!isFindShortcut) return
 
@@ -250,7 +256,7 @@ export function useTerminalSearch({
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [isActiveRef, openSearch])
+  }, [closeSearch, isActiveRef, isSearchOpen, openSearch])
 
   useEffect(() => {
     if (!isSearchDragging) return

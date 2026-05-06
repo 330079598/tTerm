@@ -71,13 +71,26 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
     }
   }, [isSearchOpen])
 
+  const handleCloseSearch = () => {
+    setIsSearchOpen(false)
+    setSearchQuery("")
+  }
+
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Escape") return
+
+    event.preventDefault()
+    event.stopPropagation()
+    handleCloseSearch()
+  }
+
   const handleToggleSearch = () => {
-    setIsSearchOpen((current) => {
-      if (current) {
-        setSearchQuery("")
-      }
-      return !current
-    })
+    if (isSearchOpen) {
+      handleCloseSearch()
+      return
+    }
+
+    setIsSearchOpen(true)
   }
 
   return (
@@ -103,7 +116,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
       </div>
       <div className="sftp-header-actions">
         {isSearchOpen && (
-          <div className="sftp-header-search">
+          <div className="sftp-header-search" onKeyDown={handleSearchKeyDown}>
             <div className="sftp-search-box">
               <Search className="sftp-search-icon" />
               <Tooltip>
