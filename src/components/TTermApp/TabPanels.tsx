@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React from "react"
 
 import { TerminalTab } from "@/components/TerminalTab"
 import { Tab } from "@/types/tab"
@@ -20,25 +20,12 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
   startupSessionRestoreMode,
   tabs,
 }) => {
-  const [connectedTabIds, setConnectedTabIds] = useState<Set<string>>(() => new Set())
-
-  useEffect(() => {
-    if (startupSessionRestoreMode === "all") {
-      setConnectedTabIds(new Set(tabs.map((tab) => tab.id)))
-      return
-    }
-
-    if (activeTabId) {
-      setConnectedTabIds((current) => new Set(current).add(activeTabId))
-    }
-  }, [activeTabId, startupSessionRestoreMode, tabs])
-
   return (
     <>
       {tabs.map((tab) => {
         const isActive = tab.id === activeTabId
         const shouldConnect =
-          startupSessionRestoreMode === "all" || isActive || connectedTabIds.has(tab.id)
+          startupSessionRestoreMode === "all" || isActive || tab.hasConnected === true
 
         return (
           <div

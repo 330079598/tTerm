@@ -42,6 +42,7 @@ export interface Tab {
   title: string
   type: "terminal" | "ssh"
   isActive: boolean
+  hasConnected?: boolean
   isModified?: boolean
   icon?: string
   pid?: number

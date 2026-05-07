@@ -19,6 +19,7 @@ export interface UseTabsReturn {
 function ensureTabDefaults(tab: Tab): Tab {
   return {
     ...tab,
+    hasConnected: tab.hasConnected ?? tab.isActive,
     sessionNonce: tab.sessionNonce ?? 0,
     connectionHeaderPinned: tab.connectionHeaderPinned ?? true,
   }
@@ -46,7 +47,14 @@ export function useTabs(): UseTabsReturn {
     }, 0)
     tabIdCounter.current = maxId
 
-    setTabs(restoredTabs.map(ensureTabDefaults))
+    setTabs(
+      restoredTabs.map((tab) =>
+        ensureTabDefaults({
+          ...tab,
+          hasConnected: tab.id === restoredActiveTabId,
+        })
+      )
+    )
     setActiveTabId(restoredActiveTabId)
   }, [])
 
@@ -57,11 +65,12 @@ export function useTabs(): UseTabsReturn {
         ...tabData,
         id,
         isActive: false,
+        hasConnected: true,
       })
 
       setTabs((prevTabs) => {
         const updatedTabs = prevTabs.map((tab) => ({ ...tab, isActive: false }))
-        return [...updatedTabs, { ...newTab, isActive: true }]
+        return [...updatedTabs, { ...newTab, isActive: true, hasConnected: true }]
       })
 
       setActiveTabId(id)
@@ -86,7 +95,11 @@ export function useTabs(): UseTabsReturn {
           }
           const newActiveTabId = newTabs[newActiveIndex].id
           setActiveTabId(newActiveTabId)
-          return newTabs.map((t) => ({ ...t, isActive: t.id === newActiveTabId }))
+          return newTabs.map((t) => ({
+            ...t,
+            isActive: t.id === newActiveTabId,
+            hasConnected: t.id === newActiveTabId ? true : t.hasConnected,
+          }))
         } else if (newTabs.length === 0) {
           setActiveTabId(null)
         }
@@ -102,6 +115,7 @@ export function useTabs(): UseTabsReturn {
       prevTabs.map((tab) => ({
         ...tab,
         isActive: tab.id === id,
+        hasConnected: tab.id === id ? true : tab.hasConnected,
       }))
     )
     setActiveTabId(id)
@@ -133,13 +147,14 @@ export function useTabs(): UseTabsReturn {
           id: newId,
           title: `${tab.title} (Copy)`,
           isActive: false,
+          hasConnected: true,
         })
 
         // Set all tabs to inactive, new tab to active
         const updatedTabs = prevTabs.map((t) => ({ ...t, isActive: false }))
         setActiveTabId(newId)
 
-        return [...updatedTabs, { ...newTab, isActive: true }]
+        return [...updatedTabs, { ...newTab, isActive: true, hasConnected: true }]
       })
     },
     [generateTabId]
@@ -151,7 +166,7 @@ export function useTabs(): UseTabsReturn {
       if (!tabToKeep) return prevTabs
 
       setActiveTabId(id)
-      return [{ ...tabToKeep, isActive: true }]
+      return [{ ...tabToKeep, isActive: true, hasConnected: true }]
     })
   }, [])
 
