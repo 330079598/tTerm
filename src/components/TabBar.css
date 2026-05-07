@@ -103,6 +103,12 @@
   min-width: 14px;
 }
 
+.tab-icon {
+  flex-shrink: 0;
+  color: hsl(var(--muted-foreground));
+  margin-right: 4px;
+}
+
 .tab-title {
   flex: 1;
   font-size: 13px;

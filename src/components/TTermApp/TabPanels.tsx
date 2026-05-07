@@ -1,5 +1,6 @@
 import React from "react"
 
+import { SettingsPanel } from "@/components/SettingsDialog"
 import { TerminalTab } from "@/components/TerminalTab"
 import { Tab } from "@/types/tab"
 
@@ -25,7 +26,8 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
       {tabs.map((tab) => {
         const isActive = tab.id === activeTabId
         const shouldConnect =
-          startupSessionRestoreMode === "all" || isActive || tab.hasConnected === true
+          tab.type !== "settings" &&
+          (startupSessionRestoreMode === "all" || isActive || tab.hasConnected === true)
 
         return (
           <div
@@ -41,19 +43,23 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
               pointerEvents: isActive ? "auto" : "none",
             }}
           >
-            {shouldConnect && (
-              <TerminalTab
-                tabId={tab.id}
-                sessionNonce={tab.sessionNonce}
-                isActive={isActive}
-                connectionHeaderPinned={tab.connectionHeaderPinned}
-                connection={
-                  tab.connection ?? { type: tab.type === "terminal" ? "terminal" : "ssh" }
-                }
-                onReconnectRequest={() => handleReconnectTab(tab.id)}
-                onPinConnectionHeader={() => handlePinConnectionHeader(tab.id)}
-                onUnpinConnectionHeader={() => handleUnpinConnectionHeader(tab.id)}
-              />
+            {tab.type === "settings" ? (
+              <SettingsPanel />
+            ) : (
+              shouldConnect && (
+                <TerminalTab
+                  tabId={tab.id}
+                  sessionNonce={tab.sessionNonce}
+                  isActive={isActive}
+                  connectionHeaderPinned={tab.connectionHeaderPinned}
+                  connection={
+                    tab.connection ?? { type: tab.type === "terminal" ? "terminal" : "ssh" }
+                  }
+                  onReconnectRequest={() => handleReconnectTab(tab.id)}
+                  onPinConnectionHeader={() => handlePinConnectionHeader(tab.id)}
+                  onUnpinConnectionHeader={() => handleUnpinConnectionHeader(tab.id)}
+                />
+              )
             )}
           </div>
         )

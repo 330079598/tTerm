@@ -17,6 +17,15 @@ export interface UseTabsReturn {
 }
 
 function ensureTabDefaults(tab: Tab): Tab {
+  if (tab.type === "settings") {
+    return {
+      ...tab,
+      hasConnected: true,
+      sessionNonce: 0,
+      connection: undefined,
+    }
+  }
+
   return {
     ...tab,
     hasConnected: tab.hasConnected ?? tab.isActive,
@@ -135,6 +144,7 @@ export function useTabs(): UseTabsReturn {
       setTabs((prevTabs) => {
         const tab = prevTabs.find((t) => t.id === id)
         if (!tab) return prevTabs
+        if (tab.type === "settings") return prevTabs
 
         const newId = generateTabId()
         const { id: _id, isActive: _isActive, ...tabData } = tab

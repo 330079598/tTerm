@@ -9,7 +9,6 @@ import { ConnectionDialog } from "@/components/ConnectionDialog"
 import { ContextMenu } from "@/components/ContextMenu"
 import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
 import { RenameDialog } from "@/components/RenameDialog"
-import { SettingsDialog } from "@/components/SettingsDialog"
 import { TabBar } from "@/components/TabBar"
 import { TransferManager } from "@/components/TransferManager"
 import { EmptyState } from "@/components/TTermApp/EmptyState"
@@ -25,6 +24,8 @@ import { useTabs } from "@/hooks/useTabs"
 import { markSessionReady } from "@/lib/startup"
 import { Tab, TabContextMenuAction } from "@/types/tab"
 
+const SETTINGS_TAB_TITLE = "Settings"
+
 export const TTermApp: React.FC = () => {
   const { t, i18n } = useTranslation()
   const [os] = useState<string>(() => platform())
@@ -33,7 +34,6 @@ export const TTermApp: React.FC = () => {
   const isWindows = os === "windows"
   const [showConnectionDialog, setShowConnectionDialog] = useState(false)
   const [showProfilesPanel, setShowProfilesPanel] = useState(false)
-  const [showSettings, setShowSettings] = useState(false)
   const [editingProfile, setEditingProfile] = useState<SavedProfile | null>(null)
   const [profilesRefreshKey, setProfilesRefreshKey] = useState(0)
   const [sessionRestored, setSessionRestored] = useState(false)
@@ -94,7 +94,7 @@ export const TTermApp: React.FC = () => {
 
         if (savedSession && savedSession.tabs.length > 0) {
           restoreSession(savedSession.tabs, savedSession.activeTabId)
-        } else if (!savedSession) {
+        } else {
           addTab(
             buildTabFromConnection({
               title: "Terminal",
@@ -139,10 +139,13 @@ export const TTermApp: React.FC = () => {
 
   const handleRemoveTab = useCallback(
     (id: string) => {
-      cleanupConnection(id)
+      const tab = tabs.find((currentTab) => currentTab.id === id)
+      if (tab?.type !== "settings") {
+        cleanupConnection(id)
+      }
       removeTab(id)
     },
-    [removeTab, cleanupConnection]
+    [cleanupConnection, removeTab, tabs]
   )
 
   const handleTabContextMenu = useCallback(
@@ -271,8 +274,18 @@ export const TTermApp: React.FC = () => {
   const nativeControlsReservePx = isWindows ? 46 * 3 : 0
 
   const handleSettingsClick = useCallback(() => {
-    setShowSettings(true)
-  }, [])
+    const existingSettingsTab = tabs.find((tab) => tab.type === "settings")
+    if (existingSettingsTab) {
+      setActiveTab(existingSettingsTab.id)
+      return
+    }
+
+    addTab({
+      title: t("settings.title", { defaultValue: SETTINGS_TAB_TITLE }),
+      type: "settings",
+      isModified: false,
+    })
+  }, [addTab, setActiveTab, t, tabs])
 
   const handleMinimizeWindow = useCallback(() => {
     void getCurrentWindow().minimize()
@@ -433,8 +446,6 @@ export const TTermApp: React.FC = () => {
           onClose={handleCloseContextMenu}
         />
       )}
-
-      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
 
       <RenameDialog
         isOpen={renameDialogState.isOpen}

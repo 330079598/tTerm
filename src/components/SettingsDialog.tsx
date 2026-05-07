@@ -1,1 +1,1 @@
-export { SettingsDialog } from "@/components/SettingsDialog/index"
+export { SettingsDialog, SettingsPanel } from "@/components/SettingsDialog/index"

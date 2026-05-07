@@ -2,7 +2,7 @@ import "@/components/TabBar.css"
 import React, { useCallback, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { DragDropProvider, useDraggable, useDroppable } from "@dnd-kit/react"
-import { X } from "lucide-react"
+import { Settings, X } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Tab, TabContextMenuAction } from "@/types/tab"
 
@@ -59,6 +59,18 @@ const TabItem: React.FC<TabItemProps> = ({
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault()
+
+      if (tab.type === "settings") {
+        onContextMenu(e, tab, [
+          { label: t("contextMenu.newTab"), action: "new", icon: "plus" },
+          { separator: true, label: "", action: "" },
+          { label: t("contextMenu.closeTab"), action: "close", icon: "x" },
+          { label: t("contextMenu.closeOtherTabs"), action: "close-others" },
+          { label: t("contextMenu.closeTabsToRight"), action: "close-right" },
+        ])
+        return
+      }
+
       const pinAction: TabContextMenuAction | null =
         tab.type === "ssh"
           ? tab.connectionHeaderPinned === false
@@ -95,6 +107,7 @@ const TabItem: React.FC<TabItemProps> = ({
           onContextMenu={handleContextMenu}
         >
           <span className="tab-number">{index + 1}</span>
+          {tab.type === "settings" && <Settings className="tab-icon" size={13} />}
           <span className="tab-title">{tab.title}</span>
           <button
             className="tab-close"

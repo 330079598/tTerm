@@ -36,11 +36,12 @@ export interface TransferTask {
 
 export type TerminalShellType = "auto" | "cmd" | "powershell" | "pwsh" | "custom"
 export type ConnectionType = "terminal" | "ssh"
+export type TabType = ConnectionType | "settings"
 
 export interface Tab {
   id: string
   title: string
-  type: "terminal" | "ssh"
+  type: TabType
   isActive: boolean
   hasConnected?: boolean
   isModified?: boolean

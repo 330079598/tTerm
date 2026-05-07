@@ -12,6 +12,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 import type { PresetThemeId } from "@/types/theme"
 import { AppearanceSettingsTab } from "@/components/SettingsDialog/AppearanceSettingsTab"
 import { FontSettingsTab } from "@/components/SettingsDialog/FontSettingsTab"
@@ -22,6 +23,7 @@ import {
   FONT_SIZE_OPTIONS,
   languages,
   SettingsDialogProps,
+  SettingsPanelProps,
 } from "@/components/SettingsDialog/types"
 
 const SECRET_STATUS_CACHE_MS = 30_000
@@ -111,9 +113,9 @@ function refreshSecretStatusCached(refreshSecretStatus: () => Promise<unknown>) 
     })
 }
 
-export const SettingsDialog: React.FC<SettingsDialogProps> = ({
-  onClose,
+export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   defaultTab = "appearance",
+  className,
 }) => {
   const mountStartRef = useRef(getPerfNow())
   const isMountedRef = useRef(true)
@@ -425,80 +427,78 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
 
   return (
     <>
-      <Dialog open onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="max-h-[85vh] p-0 sm:max-w-4xl">
-          <DialogHeader className="px-6 pt-6 pb-4">
-            <DialogTitle className="flex items-center gap-2">
-              <Settings size={18} />
-              {t("settings.title")}
-            </DialogTitle>
-          </DialogHeader>
+      <div className={cn("bg-background flex h-full min-h-0 flex-col", className)}>
+        <DialogHeader className="border-border border-b px-6 pt-6 pb-4">
+          <DialogTitle className="flex items-center gap-2">
+            <Settings size={18} />
+            {t("settings.title")}
+          </DialogTitle>
+        </DialogHeader>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex h-[calc(85vh-5rem)]">
-            <SettingsSidebar />
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1">
+          <SettingsSidebar />
 
-            <TabsContent value="appearance" className="m-0 flex-1 overflow-y-auto p-6">
-              <AppearanceSettingsTab
-                currentTheme={currentTheme}
-                customThemes={customThemes}
-                handleDeleteTheme={handleDeleteTheme}
-                handleDuplicateTheme={handleDuplicateTheme}
-                handleLanguageChange={handleLanguageChange}
-                handleResetPresetTheme={handleResetPresetTheme}
-                handleThemeChange={handleThemeChange}
-                i18nLanguage={i18n.language}
-                languages={languages}
-                presetThemes={presetThemes}
-                presetThemeOverrides={presetThemeOverrides}
-                setCreatingFromTheme={setCreatingFromTheme}
-                setEditingThemeId={setEditingThemeId}
-              />
-            </TabsContent>
+          <TabsContent value="appearance" className="m-0 flex-1 overflow-y-auto p-6">
+            <AppearanceSettingsTab
+              currentTheme={currentTheme}
+              customThemes={customThemes}
+              handleDeleteTheme={handleDeleteTheme}
+              handleDuplicateTheme={handleDuplicateTheme}
+              handleLanguageChange={handleLanguageChange}
+              handleResetPresetTheme={handleResetPresetTheme}
+              handleThemeChange={handleThemeChange}
+              i18nLanguage={i18n.language}
+              languages={languages}
+              presetThemes={presetThemes}
+              presetThemeOverrides={presetThemeOverrides}
+              setCreatingFromTheme={setCreatingFromTheme}
+              setEditingThemeId={setEditingThemeId}
+            />
+          </TabsContent>
 
-            <TabsContent value="font" className="m-0 flex-1 overflow-y-auto p-6">
-              <FontSettingsTab
-                fontFamily={fontFamily}
-                fontSize={fontSize}
-                cursorStyle={cursorStyle}
-                fontLoadError={fontLoadError}
-                handleFontSave={handleFontSave}
-                loadingFonts={loadingFonts}
-                scrollbackLines={scrollbackLines}
-                setFontFamily={setFontFamily}
-                setFontSize={setFontSize}
-                setCursorStyle={setCursorStyle}
-                setScrollbackLines={setScrollbackLines}
-                systemFonts={systemFonts}
-                fontSizeOptions={FONT_SIZE_OPTIONS}
-              />
-            </TabsContent>
+          <TabsContent value="font" className="m-0 flex-1 overflow-y-auto p-6">
+            <FontSettingsTab
+              fontFamily={fontFamily}
+              fontSize={fontSize}
+              cursorStyle={cursorStyle}
+              fontLoadError={fontLoadError}
+              handleFontSave={handleFontSave}
+              loadingFonts={loadingFonts}
+              scrollbackLines={scrollbackLines}
+              setFontFamily={setFontFamily}
+              setFontSize={setFontSize}
+              setCursorStyle={setCursorStyle}
+              setScrollbackLines={setScrollbackLines}
+              systemFonts={systemFonts}
+              fontSizeOptions={FONT_SIZE_OPTIONS}
+            />
+          </TabsContent>
 
-            <TabsContent value="security" className="m-0 flex-1 overflow-y-auto p-6">
-              <SecuritySettingsTab
-                backendLabel={backendLabel}
-                configSecretVaultEnabled={config.secret_vault_enabled}
-                handleEnableVault={handleEnableVault}
-                handleLock={handleLock}
-                handleUnlock={handleUnlock}
-                password={password}
-                secretBusy={secretBusy}
-                secretError={secretError}
-                secretStatus={secretStatus}
-                setPassword={setPassword}
-              />
-            </TabsContent>
+          <TabsContent value="security" className="m-0 flex-1 overflow-y-auto p-6">
+            <SecuritySettingsTab
+              backendLabel={backendLabel}
+              configSecretVaultEnabled={config.secret_vault_enabled}
+              handleEnableVault={handleEnableVault}
+              handleLock={handleLock}
+              handleUnlock={handleUnlock}
+              password={password}
+              secretBusy={secretBusy}
+              secretError={secretError}
+              secretStatus={secretStatus}
+              setPassword={setPassword}
+            />
+          </TabsContent>
 
-            <TabsContent value="general" className="m-0 flex-1 overflow-y-auto p-6">
-              <GeneralSettingsTab
-                handleAbout={handleAbout}
-                handleClearSession={handleClearSession}
-                handleRestoreAllSessionConnectionsChange={handleRestoreAllSessionConnectionsChange}
-                restoreAllSessionConnections={config.startup_session_restore_mode === "all"}
-              />
-            </TabsContent>
-          </Tabs>
-        </DialogContent>
-      </Dialog>
+          <TabsContent value="general" className="m-0 flex-1 overflow-y-auto p-6">
+            <GeneralSettingsTab
+              handleAbout={handleAbout}
+              handleClearSession={handleClearSession}
+              handleRestoreAllSessionConnectionsChange={handleRestoreAllSessionConnectionsChange}
+              restoreAllSessionConnections={config.startup_session_restore_mode === "all"}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
 
       {editingThemeId && (
         <ThemeEditor themeId={editingThemeId} onClose={() => setEditingThemeId(null)} />
@@ -511,5 +511,15 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
       <PromptDialog />
       <InfoDialog />
     </>
+  )
+}
+
+export const SettingsDialog: React.FC<SettingsDialogProps> = ({ onClose, defaultTab }) => {
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[85vh] p-0 sm:max-w-4xl">
+        <SettingsPanel defaultTab={defaultTab} className="h-[calc(85vh-2rem)]" />
+      </DialogContent>
+    </Dialog>
   )
 }

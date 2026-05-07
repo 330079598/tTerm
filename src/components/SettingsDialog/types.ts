@@ -7,6 +7,11 @@ export interface SettingsDialogProps {
   defaultTab?: string
 }
 
+export interface SettingsPanelProps {
+  defaultTab?: string
+  className?: string
+}
+
 export type ConfigState = ReturnType<typeof useConfig>["config"]
 export type SecretStatusState = ReturnType<typeof useConfig>["secretStatus"]
 export type SaveConfig = ReturnType<typeof useConfig>["saveConfig"]

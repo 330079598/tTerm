@@ -10,6 +10,18 @@ interface SessionData {
 
 const SAVE_DEBOUNCE_MS = 1000 // 1 second debounce
 
+function getPersistableTabs(tabs: Tab[]): Tab[] {
+  return tabs.filter((tab) => tab.type !== "settings")
+}
+
+function getPersistedActiveTabId(tabs: Tab[], activeTabId: string | null): string | null {
+  if (activeTabId && tabs.some((tab) => tab.id === activeTabId)) {
+    return activeTabId
+  }
+
+  return tabs[0]?.id ?? null
+}
+
 // Strip transient secrets before session data is written or restored.
 function sanitizeTabForPersistence(tab: Tab, activeTabId: string | null): Tab {
   const connection = tab.connection
@@ -36,10 +48,12 @@ export function useSessionPersistence() {
   // Save session data to file system
   const saveSession = useCallback((tabs: Tab[], activeTabId: string | null) => {
     try {
+      const persistableTabs = getPersistableTabs(tabs)
+      const persistedActiveTabId = getPersistedActiveTabId(persistableTabs, activeTabId)
       const sessionData = {
         // Persist the reconnect metadata, but never the raw credentials.
-        tabs: tabs.map((tab) => sanitizeTabForPersistence(tab, activeTabId)),
-        active_tab_id: activeTabId,
+        tabs: persistableTabs.map((tab) => sanitizeTabForPersistence(tab, persistedActiveTabId)),
+        active_tab_id: persistedActiveTabId,
         last_saved: Date.now(),
       }
 
@@ -70,11 +84,12 @@ export function useSessionPersistence() {
       }>("load_session")
 
       // Convert snake_case to camelCase
+      const persistableTabs = getPersistableTabs(session.tabs || [])
+      const persistedActiveTabId = getPersistedActiveTabId(persistableTabs, session.active_tab_id)
+
       return {
-        tabs: (session.tabs || []).map((tab) =>
-          sanitizeTabForPersistence(tab, session.active_tab_id)
-        ),
-        activeTabId: session.active_tab_id,
+        tabs: persistableTabs.map((tab) => sanitizeTabForPersistence(tab, persistedActiveTabId)),
+        activeTabId: persistedActiveTabId,
         lastSaved: session.last_saved,
       }
     } catch (error) {
