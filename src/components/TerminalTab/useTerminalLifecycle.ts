@@ -7,6 +7,8 @@ import { WebglAddon } from "@xterm/addon-webgl"
 import { type IDisposable, Terminal } from "@xterm/xterm"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
+import { openUrl } from "@tauri-apps/plugin-opener"
+import { platform } from "@tauri-apps/plugin-os"
 
 import { getConnectionDisplay, STATUS_CONNECTING } from "@/components/TerminalTab/terminalTabUtils"
 import type {
@@ -45,6 +47,25 @@ type UseTerminalLifecycleOptions = {
   tabId: string
   termRef: React.MutableRefObject<Terminal | null>
   waitingForReconnectRef: React.MutableRefObject<boolean>
+}
+
+const LINK_MODIFIER_IS_CMD = (() => {
+  try {
+    return platform() === "macos"
+  } catch {
+    if (typeof navigator !== "undefined") {
+      const platformHint = `${navigator.platform} ${navigator.userAgent}`.toLowerCase()
+      if (platformHint.includes("mac")) {
+        return true
+      }
+    }
+
+    return false
+  }
+})()
+
+function isLinkOpenModifierPressed(event: MouseEvent) {
+  return LINK_MODIFIER_IS_CMD ? event.metaKey : event.ctrlKey
 }
 
 export function useTerminalLifecycle({
@@ -104,7 +125,18 @@ export function useTerminalLifecycle({
     const searchAddon = new SearchAddon({ highlightLimit: 2000 })
     term.loadAddon(fitAddon)
     term.loadAddon(searchAddon)
-    term.loadAddon(new WebLinksAddon())
+    term.loadAddon(
+      new WebLinksAddon((event, uri) => {
+        if (!isLinkOpenModifierPressed(event)) {
+          return
+        }
+
+        event.preventDefault()
+        void openUrl(uri).catch((error) => {
+          console.error("Failed to open terminal link:", error)
+        })
+      })
+    )
     term.loadAddon(new Unicode11Addon())
     term.unicode.activeVersion = "11"
 
