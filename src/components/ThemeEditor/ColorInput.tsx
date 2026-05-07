@@ -46,9 +46,14 @@ export const ColorInput: React.FC<ColorInputProps> = ({
   const { t } = useTranslation()
   const rootRef = useRef<HTMLDivElement | null>(null)
   const [draftValue, setDraftValue] = useState(value)
+  const [pickerHsl, setPickerHsl] = useState<HslParts>(() => {
+    const initialHex = colorToHex(value) ?? "#000000"
+    return hexToHslParts(initialHex) ?? { h: 0, s: 0, l: 0 }
+  })
   const currentValue = isOpen ? draftValue : value
   const pickerValue = colorToHex(currentValue) ?? "#000000"
-  const hslParts = hexToHslParts(pickerValue) ?? { h: 0, s: 0, l: 0 }
+  const derivedHslParts = hexToHslParts(pickerValue) ?? { h: 0, s: 0, l: 0 }
+  const hslParts = isOpen ? pickerHsl : derivedHslParts
   const previewText = readableTextHex(pickerValue)
 
   useEffect(() => {
@@ -75,6 +80,8 @@ export const ColorInput: React.FC<ColorInputProps> = ({
   const handleOpenChange = (open: boolean) => {
     if (open) {
       setDraftValue(value)
+      const nextHex = colorToHex(value) ?? "#000000"
+      setPickerHsl(hexToHslParts(nextHex) ?? { h: 0, s: 0, l: 0 })
     }
 
     onOpenChange?.(open)
@@ -83,6 +90,9 @@ export const ColorInput: React.FC<ColorInputProps> = ({
   const handleDraftChange = (nextValue: string) => {
     if (isOpen) {
       setDraftValue(nextValue)
+      const nextHex = colorToHex(nextValue)
+      const nextHsl = nextHex ? hexToHslParts(nextHex) : null
+      if (nextHsl) setPickerHsl(nextHsl)
       return
     }
 
@@ -95,6 +105,9 @@ export const ColorInput: React.FC<ColorInputProps> = ({
   }
 
   const applyHex = (nextHex: string) => {
+    const nextHsl = hexToHslParts(nextHex)
+    if (nextHsl) setPickerHsl(nextHsl)
+
     if (colorMode === "hsl-token") {
       const hslToken = hexToHslToken(nextHex)
       if (hslToken) setDraftValue(hslToken)
@@ -105,9 +118,20 @@ export const ColorInput: React.FC<ColorInputProps> = ({
   }
 
   const applyHsl = (updates: Partial<HslParts>) => {
-    const next = { ...hslParts, ...updates }
+    const next = {
+      h: clamp(updates.h ?? hslParts.h, 0, 360),
+      s: clamp(updates.s ?? hslParts.s, 0, 100),
+      l: clamp(updates.l ?? hslParts.l, 0, 100),
+    }
+    setPickerHsl(next)
+
+    if (colorMode === "hsl-token") {
+      setDraftValue(`${Math.round(next.h)} ${Math.round(next.s)}% ${Math.round(next.l)}%`)
+      return
+    }
+
     const rgb = hslToRgb(next.h, next.s, next.l)
-    applyHex(rgbToHex(rgb.r, rgb.g, rgb.b))
+    setDraftValue(rgbToHex(rgb.r, rgb.g, rgb.b))
   }
 
   return (
@@ -316,22 +340,87 @@ const ColorSlider: React.FC<ColorSliderProps> = ({
   background,
   onChange,
 }) => {
+  const sliderRef = useRef<HTMLDivElement | null>(null)
+
+  const range = max - min
+  const valueRatio = range === 0 ? 0 : clamp((value - min) / range, 0, 1)
+
+  const updateFromPointer = (clientX: number) => {
+    const rect = sliderRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    const ratio = clamp((clientX - rect.left) / rect.width, 0, 1)
+    onChange(Math.round(min + ratio * range))
+  }
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    updateFromPointer(event.clientX)
+  }
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
+    updateFromPointer(event.clientX)
+  }
+
+  const stopDragging = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = event.shiftKey ? 10 : 1
+    const roundedValue = Math.round(value)
+    let nextValue = roundedValue
+
+    if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
+      nextValue = roundedValue - step
+    } else if (event.key === "ArrowRight" || event.key === "ArrowUp") {
+      nextValue = roundedValue + step
+    } else if (event.key === "Home") {
+      nextValue = min
+    } else if (event.key === "End") {
+      nextValue = max
+    } else {
+      return
+    }
+
+    event.preventDefault()
+    onChange(clamp(nextValue, min, max))
+  }
+
   return (
-    <label className="block space-y-1">
+    <div className="block space-y-1">
       <div className="flex items-center justify-between text-[11px]">
-        <span className="text-muted-foreground font-medium">{label}</span>
+        <span id={`${label}-slider-label`} className="text-muted-foreground font-medium">
+          {label}
+        </span>
         <span className="font-mono">{Math.round(value)}</span>
       </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        value={Math.round(value)}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="border-border accent-primary h-3 w-full cursor-pointer appearance-none rounded-full border bg-transparent"
+      <div
+        ref={sliderRef}
+        role="slider"
+        tabIndex={0}
+        aria-labelledby={`${label}-slider-label`}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={Math.round(value)}
+        onKeyDown={handleKeyDown}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={stopDragging}
+        onPointerCancel={stopDragging}
+        className="border-border focus-visible:ring-ring relative h-3 w-full cursor-pointer touch-none rounded-full border focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
         style={{ background }}
-      />
-    </label>
+      >
+        <span
+          className="bg-primary absolute top-1/2 size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white shadow-[0_1px_6px_rgba(0,0,0,0.35)]"
+          style={{ left: `${valueRatio * 100}%` }}
+        />
+      </div>
+    </div>
   )
 }
 
