@@ -171,6 +171,12 @@ export const COLOR_GROUPS = {
       descriptionKey: "themeEditor.colors.tabActive.description",
     },
     {
+      key: "tabActiveBorder",
+      labelKey: "themeEditor.colors.tabActiveBorder.label",
+      token: "tabActiveBorder",
+      descriptionKey: "themeEditor.colors.tabActiveBorder.description",
+    },
+    {
       key: "tabHover",
       labelKey: "themeEditor.colors.tabHover.label",
       token: "tabHover",

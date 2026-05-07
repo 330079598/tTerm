@@ -26,6 +26,7 @@ export interface ThemeColors {
   ring: string
   tabBackground: string
   tabActive: string
+  tabActiveBorder: string
   tabHover: string
   titlebar: string
 }
@@ -79,6 +80,7 @@ export const THEME_COLOR_KEYS = [
   "ring",
   "tabBackground",
   "tabActive",
+  "tabActiveBorder",
   "tabHover",
   "titlebar",
 ] as const satisfies ReadonlyArray<keyof ThemeColors>

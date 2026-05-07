@@ -59,6 +59,10 @@ function fallbackTerminalPalette(baseTheme?: string): TerminalPalette {
   return { ...resolveThemeDefinition(baseTheme || "default", []).terminal }
 }
 
+function fallbackThemeColors(baseTheme?: string): PresetTheme["colors"] {
+  return { ...resolveThemeDefinition(baseTheme || "default", []).colors }
+}
+
 function normalizeCustomTheme(rawTheme: unknown): CustomTheme | null {
   if (!rawTheme || typeof rawTheme !== "object") {
     return null
@@ -69,11 +73,13 @@ function normalizeCustomTheme(rawTheme: unknown): CustomTheme | null {
     return null
   }
 
+  const fallbackColors = fallbackThemeColors(theme.baseTheme)
+
   return {
     id: theme.id,
     name: theme.name,
     description: theme.description,
-    colors: theme.colors,
+    colors: { ...fallbackColors, ...theme.colors },
     terminal: theme.terminal ? { ...theme.terminal } : fallbackTerminalPalette(theme.baseTheme),
     baseTheme: theme.baseTheme,
     isCustom: true,

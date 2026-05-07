@@ -82,8 +82,9 @@ export const ThemeLivePreview: React.FC<ThemeLivePreviewProps> = ({ colors, term
               }}
             >
               <span
-                className="rounded-md px-2 py-1 text-xs"
+                className="rounded-md border-t px-2 py-1 text-xs"
                 style={{
+                  borderTopColor: resolveCssColor(colors.tabActiveBorder),
                   background: resolveCssColor(colors.tabActive),
                   color: resolveCssColor(colors.foreground),
                 }}

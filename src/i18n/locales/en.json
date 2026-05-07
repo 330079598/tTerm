@@ -196,6 +196,10 @@
         "label": "Active tab",
         "description": "Background of the active tab"
       },
+      "tabActiveBorder": {
+        "label": "Active tab top border",
+        "description": "Top border color of the active tab"
+      },
       "tabHover": {
         "label": "Tab hover",
         "description": "Background when hovering a tab"

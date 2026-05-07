@@ -73,7 +73,7 @@
 
 .tab-item.active {
   background-color: hsl(var(--background));
-  border-color: hsl(var(--border));
+  border-color: hsl(var(--tab-active-border, var(--border)));
   margin-bottom: -1px;
   z-index: 2;
 }
