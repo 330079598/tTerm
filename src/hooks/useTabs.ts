@@ -5,6 +5,8 @@ export interface UseTabsReturn {
   tabs: Tab[]
   activeTabId: string | null
   addTab: (tab: Omit<Tab, "id" | "isActive">) => string
+  openSettingsTab: (title: string) => void
+  renameSettingsTab: (title: string) => void
   removeTab: (id: string) => void
   setActiveTab: (id: string) => void
   moveTab: (fromIndex: number, toIndex: number) => void
@@ -87,6 +89,53 @@ export function useTabs(): UseTabsReturn {
     },
     [generateTabId]
   )
+
+  const openSettingsTab = useCallback(
+    (title: string) => {
+      setTabs((prevTabs) => {
+        const existingSettingsTab = prevTabs.find((tab) => tab.type === "settings")
+        if (existingSettingsTab) {
+          setActiveTabId(existingSettingsTab.id)
+          return prevTabs.map((tab) => ({
+            ...tab,
+            isActive: tab.id === existingSettingsTab.id,
+            hasConnected: tab.id === existingSettingsTab.id ? true : tab.hasConnected,
+          }))
+        }
+
+        const id = generateTabId()
+        const newTab: Tab = ensureTabDefaults({
+          id,
+          title,
+          type: "settings",
+          isActive: true,
+          isModified: false,
+          hasConnected: true,
+        })
+
+        setActiveTabId(id)
+        const updatedTabs = prevTabs.map((tab) => ({ ...tab, isActive: false }))
+        return [...updatedTabs, newTab]
+      })
+    },
+    [generateTabId]
+  )
+
+  const renameSettingsTab = useCallback((title: string) => {
+    setTabs((prevTabs) => {
+      let hasChanges = false
+      const updatedTabs = prevTabs.map((tab) => {
+        if (tab.type !== "settings" || tab.title === title) {
+          return tab
+        }
+
+        hasChanges = true
+        return { ...tab, title }
+      })
+
+      return hasChanges ? updatedTabs : prevTabs
+    })
+  }, [])
 
   const removeTab = useCallback(
     (id: string) => {
@@ -205,6 +254,8 @@ export function useTabs(): UseTabsReturn {
     tabs,
     activeTabId,
     addTab,
+    openSettingsTab,
+    renameSettingsTab,
     removeTab,
     setActiveTab,
     moveTab,

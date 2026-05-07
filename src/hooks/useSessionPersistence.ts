@@ -14,9 +14,17 @@ function getPersistableTabs(tabs: Tab[]): Tab[] {
   return tabs.filter((tab) => tab.type !== "settings")
 }
 
-function getPersistedActiveTabId(tabs: Tab[], activeTabId: string | null): string | null {
+function getPersistedActiveTabId(
+  tabs: Tab[],
+  activeTabId: string | null,
+  fallbackActiveTabId?: string | null
+): string | null {
   if (activeTabId && tabs.some((tab) => tab.id === activeTabId)) {
     return activeTabId
+  }
+
+  if (fallbackActiveTabId && tabs.some((tab) => tab.id === fallbackActiveTabId)) {
+    return fallbackActiveTabId
   }
 
   return tabs[0]?.id ?? null
@@ -44,26 +52,34 @@ function sanitizeTabForPersistence(tab: Tab, activeTabId: string | null): Tab {
 
 export function useSessionPersistence() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  const lastActiveContentTabIdRef = useRef<string | null>(null)
 
   // Save session data to file system
-  const saveSession = useCallback((tabs: Tab[], activeTabId: string | null) => {
-    try {
-      const persistableTabs = getPersistableTabs(tabs)
-      const persistedActiveTabId = getPersistedActiveTabId(persistableTabs, activeTabId)
-      const sessionData = {
-        // Persist the reconnect metadata, but never the raw credentials.
-        tabs: persistableTabs.map((tab) => sanitizeTabForPersistence(tab, persistedActiveTabId)),
-        active_tab_id: persistedActiveTabId,
-        last_saved: Date.now(),
-      }
+  const saveSession = useCallback(
+    (tabs: Tab[], activeTabId: string | null, fallbackActiveTabId?: string | null) => {
+      try {
+        const persistableTabs = getPersistableTabs(tabs)
+        const persistedActiveTabId = getPersistedActiveTabId(
+          persistableTabs,
+          activeTabId,
+          fallbackActiveTabId
+        )
+        const sessionData = {
+          // Persist the reconnect metadata, but never the raw credentials.
+          tabs: persistableTabs.map((tab) => sanitizeTabForPersistence(tab, persistedActiveTabId)),
+          active_tab_id: persistedActiveTabId,
+          last_saved: Date.now(),
+        }
 
-      invoke("save_session", { session: sessionData }).catch((error) => {
-        console.error("Failed to save session:", error)
-      })
-    } catch (error) {
-      console.error("Failed to prepare session data:", error)
-    }
-  }, [])
+        invoke("save_session", { session: sessionData }).catch((error) => {
+          console.error("Failed to save session:", error)
+        })
+      } catch (error) {
+        console.error("Failed to prepare session data:", error)
+      }
+    },
+    []
+  )
 
   // Clear session data
   const clearSession = useCallback(async () => {
@@ -101,11 +117,16 @@ export function useSessionPersistence() {
   // Debounced save
   const debouncedSave = useCallback(
     (tabs: Tab[], activeTabId: string | null) => {
+      const activeContentTab = tabs.find((tab) => tab.id === activeTabId && tab.type !== "settings")
+      if (activeContentTab) {
+        lastActiveContentTabIdRef.current = activeContentTab.id
+      }
+
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
       }
       timeoutRef.current = setTimeout(() => {
-        saveSession(tabs, activeTabId)
+        saveSession(tabs, activeTabId, lastActiveContentTabIdRef.current)
       }, SAVE_DEBOUNCE_MS)
     },
     [saveSession]

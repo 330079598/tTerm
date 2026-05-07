@@ -55,6 +55,8 @@ export const TTermApp: React.FC = () => {
     tabs,
     activeTabId,
     addTab,
+    openSettingsTab,
+    renameSettingsTab,
     removeTab,
     setActiveTab,
     moveTab,
@@ -71,12 +73,17 @@ export const TTermApp: React.FC = () => {
   const { config, isLoaded } = useConfig()
   const { cancelTransfer, clearCompletedTransfers, removeTransfer, transfers } =
     useTransferManager()
+  const settingsTabTitle = t("settings.title", { defaultValue: SETTINGS_TAB_TITLE })
 
   useEffect(() => {
     if (isLoaded) {
       i18n.changeLanguage(config.language)
     }
   }, [isLoaded, config.language, i18n])
+
+  useEffect(() => {
+    renameSettingsTab(settingsTabTitle)
+  }, [renameSettingsTab, settingsTabTitle])
 
   useEffect(() => {
     if (!isLoaded) {
@@ -274,18 +281,8 @@ export const TTermApp: React.FC = () => {
   const nativeControlsReservePx = isWindows ? 46 * 3 : 0
 
   const handleSettingsClick = useCallback(() => {
-    const existingSettingsTab = tabs.find((tab) => tab.type === "settings")
-    if (existingSettingsTab) {
-      setActiveTab(existingSettingsTab.id)
-      return
-    }
-
-    addTab({
-      title: t("settings.title", { defaultValue: SETTINGS_TAB_TITLE }),
-      type: "settings",
-      isModified: false,
-    })
-  }, [addTab, setActiveTab, t, tabs])
+    openSettingsTab(settingsTabTitle)
+  }, [openSettingsTab, settingsTabTitle])
 
   const handleMinimizeWindow = useCallback(() => {
     void getCurrentWindow().minimize()
