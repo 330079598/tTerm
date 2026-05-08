@@ -35,11 +35,15 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
             style={{
               position: "absolute",
               inset: 0,
+              zIndex: isActive ? 1 : 0,
               width: "100%",
               height: "100%",
-              display: "flex",
+              display: isActive ? "flex" : "none",
               flexDirection: "column",
-              visibility: isActive ? "visible" : "hidden",
+              overflow: "hidden",
+              backgroundColor: "hsl(var(--background))",
+              contain: "layout paint",
+              isolation: "isolate",
               pointerEvents: isActive ? "auto" : "none",
             }}
           >
