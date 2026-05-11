@@ -1,4 +1,5 @@
 use crate::config::{ensure_config_dir, get_config_path};
+use crate::ssh::SecretLocation;
 use serde::{Deserialize, Serialize};
 use std::fs;
 
@@ -126,8 +127,24 @@ pub fn save_profile(
     secret_state: tauri::State<'_, crate::ssh::SecretStoreState>,
     mut profile: SavedProfile,
 ) -> Result<(), String> {
+    if profile.auth_method.as_deref() != Some("key") && profile.remember_password {
+        if let Some(password) = profile
+            .password
+            .as_deref()
+            .filter(|value| !value.is_empty())
+        {
+            let location = secret_state.save_password(&app, profile.id.as_str(), password)?;
+            if matches!(location, SecretLocation::Memory) {
+                return Err(
+                    "Password persistence is unavailable. Enable the app vault or use a supported system credential store."
+                        .to_string(),
+                );
+            }
+        }
+    }
+
     for jump in profile.effective_jump_hosts() {
-        if jump.auth_method != "key" {
+        if profile.remember_password && jump.auth_method != "key" {
             if let Some(password) = jump.password.as_deref().filter(|value| !value.is_empty()) {
                 let secret_key = crate::core::session::jump_host_identity_secret_key(
                     Some(profile.id.as_str()),
@@ -136,7 +153,13 @@ pub fn save_profile(
                     jump.port,
                     &jump.username,
                 );
-                secret_state.save_password(&app, &secret_key, password)?;
+                let location = secret_state.save_password(&app, &secret_key, password)?;
+                if matches!(location, SecretLocation::Memory) {
+                    return Err(
+                        "Jump host password persistence is unavailable. Enable the app vault or use a supported system credential store."
+                            .to_string(),
+                    );
+                }
             }
         }
     }

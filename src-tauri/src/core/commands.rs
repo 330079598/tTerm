@@ -262,33 +262,15 @@ pub fn get_saved_jump_host_password(
     username: Option<String>,
     secret_state: State<'_, crate::ssh::SecretStoreState>,
 ) -> Result<Option<String>, String> {
-    if let (Some(host), Some(port), Some(username)) = (
-        host.as_deref()
-            .map(str::trim)
-            .filter(|value| !value.is_empty()),
-        port,
-        username
-            .as_deref()
-            .map(str::trim)
-            .filter(|value| !value.is_empty()),
-    ) {
-        let secret_key = super::session::jump_host_identity_secret_key(
-            profile_id.as_deref(),
-            profile_name.as_deref().unwrap_or(""),
-            host,
-            port,
-            username,
-        );
-        if let Some(password) = secret_state.get_password(&app, &secret_key)? {
-            return Ok(Some(password));
-        }
-    }
-
-    let legacy_secret_key = super::session::jump_host_secret_key(
+    super::session::load_saved_jump_host_password(
+        &app,
+        &secret_state,
         profile_id.as_deref(),
-        profile_name.as_deref().unwrap_or(""),
-    );
-    secret_state.get_password(&app, &legacy_secret_key)
+        profile_name.as_deref(),
+        host.as_deref(),
+        port,
+        username.as_deref(),
+    )
 }
 
 #[tauri::command]

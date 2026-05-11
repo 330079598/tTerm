@@ -49,6 +49,10 @@ const normalizeJumpAuthMethod = (value: string | undefined): "password" | "key" 
 
 const hasJumpHosts = (form: ConnectionForm) => form.useJumpHost && form.jumpHosts.length > 0
 
+const getJumpHostPasswordLookupKey = (
+  jump: Pick<JumpHostConnection, "host" | "port" | "username">
+) => `${jump.host.trim()}:${jump.port}:${jump.username.trim()}`
+
 const getJumpHostValidationError = (form: ConnectionForm): string | null => {
   if (!form.useJumpHost) {
     return null
@@ -138,6 +142,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const [allProfiles, setAllProfiles] = useState<SavedProfile[]>([])
   const [isTesting, setIsTesting] = useState(false)
   const [testHostKeyPrompt, setTestHostKeyPrompt] = useState<HostKeyPromptState | null>(null)
+  const loadedJumpPasswordsForProfile = useRef<string | null>(null)
   const matchingGroups = existingGroups.filter((group) =>
     group.toLowerCase().includes(form.group.toLowerCase())
   )
@@ -154,6 +159,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   }, [])
 
   useEffect(() => {
+    loadedJumpPasswordsForProfile.current = null
     setForm(buildInitialForm(editProfile, config))
   }, [editProfile, config])
 
@@ -196,48 +202,48 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     }
   }, [editProfile, form.authMethod, form.type])
 
-  // Load saved jump host passwords when editing a profile.
-  // Use a ref to track which profile we've already loaded passwords for,
-  // so we only run once per profile and don't re-trigger on every keystroke.
-  const loadedJumpPasswordsForProfile = useRef<string | null>(null)
-
   useEffect(() => {
     if (!editProfile || form.type !== "ssh" || !form.useJumpHost) {
       return
     }
 
-    // Only load once per profile to avoid overwriting user input on re-renders.
-    if (loadedJumpPasswordsForProfile.current === editProfile.id) {
-      return
-    }
-    loadedJumpPasswordsForProfile.current = editProfile.id
-
-    let cancelled = false
     const passwordJumps = form.jumpHosts.filter((jump) => jump.authMethod === "password")
-
     if (passwordJumps.length === 0) return
 
+    const loadKey = `${editProfile.id}:${passwordJumps.map(getJumpHostPasswordLookupKey).join("|")}`
+
+    // Only load once per profile + jump identity set to avoid overwriting user input on re-renders.
+    if (loadedJumpPasswordsForProfile.current === loadKey) {
+      return
+    }
+
+    let cancelled = false
+
     Promise.all(
-      passwordJumps.map((jump) =>
-        invoke<string | null>("get_saved_jump_host_password", {
+      passwordJumps.map((jump) => {
+        const lookupKey = getJumpHostPasswordLookupKey(jump)
+        return invoke<string | null>("get_saved_jump_host_password", {
           profileId: editProfile.id,
           profileName: editProfile.name,
           host: jump.host,
           port: jump.port,
           username: jump.username,
-        }).then((password) => ({ id: jump.id, password }))
-      )
+        }).then((password) => ({ lookupKey, password }))
+      })
     )
       .then((results) => {
         if (cancelled) return
-        const byId = new Map(
-          results.filter((item) => item.password).map((item) => [item.id, item.password ?? ""])
+        loadedJumpPasswordsForProfile.current = loadKey
+        const byLookupKey = new Map(
+          results
+            .filter((item) => item.password)
+            .map((item) => [item.lookupKey, item.password ?? ""])
         )
-        if (byId.size === 0) return
+        if (byLookupKey.size === 0) return
 
         setForm((current) => {
           const jumpHosts = current.jumpHosts.map((jump) => {
-            const password = byId.get(jump.id)
+            const password = byLookupKey.get(getJumpHostPasswordLookupKey(jump))
             return password !== undefined && jump.password !== password
               ? { ...jump, password }
               : jump
@@ -295,7 +301,9 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         host: form.host,
         port: form.port,
         username: form.username,
-        remember_password: false,
+        password:
+          form.authMethod === "password" && form.rememberPassword ? form.password : undefined,
+        remember_password: form.authMethod === "password" ? form.rememberPassword : false,
         auth_method: form.authMethod,
         private_key_path: form.authMethod === "key" ? form.privateKeyPath : undefined,
         keepalive_interval_secs: form.keepaliveIntervalSecs,
@@ -306,6 +314,12 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         await invoke("save_profile", { profile })
       } catch (error) {
         console.error("Failed to save profile:", error)
+        toast({
+          title: t("fontSettings.saveFailed"),
+          description: String(error),
+          variant: "destructive",
+        })
+        return
       }
     }
 

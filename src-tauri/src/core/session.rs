@@ -350,6 +350,69 @@ pub fn load_saved_ssh_password(
     Ok(None)
 }
 
+pub fn load_saved_jump_host_password(
+    app: &tauri::AppHandle,
+    secret_state: &crate::ssh::SecretStoreState,
+    profile_id: Option<&str>,
+    profile_name: Option<&str>,
+    host: Option<&str>,
+    port: Option<u16>,
+    username: Option<&str>,
+) -> Result<Option<String>, String> {
+    let profile_id = profile_id.map(str::trim).filter(|v| !v.is_empty());
+    let profile_name = profile_name.map(str::trim).filter(|v| !v.is_empty());
+    let host = host.map(str::trim).filter(|v| !v.is_empty());
+    let username = username.map(str::trim).filter(|v| !v.is_empty());
+
+    let canonical_identity_key = match (profile_id, profile_name, host, port, username) {
+        (Some(profile_id), _, Some(host), Some(port), Some(username)) => Some(
+            jump_host_identity_secret_key(Some(profile_id), "", host, port, username),
+        ),
+        (None, Some(profile_name), Some(host), Some(port), Some(username)) => Some(
+            jump_host_identity_secret_key(None, profile_name, host, port, username),
+        ),
+        _ => None,
+    };
+
+    if let Some(secret_key) = canonical_identity_key.as_deref() {
+        if let Some(password) = secret_state.get_password(app, secret_key)? {
+            return Ok(Some(password));
+        }
+    }
+
+    if let (Some(profile_name), Some(host), Some(port), Some(username)) =
+        (profile_name, host, port, username)
+    {
+        let name_identity_key =
+            jump_host_identity_secret_key(None, profile_name, host, port, username);
+        if canonical_identity_key.as_deref() != Some(name_identity_key.as_str()) {
+            if let Some(password) = secret_state.get_password(app, &name_identity_key)? {
+                if let Some(secret_key) = canonical_identity_key.as_deref() {
+                    let _ = secret_state.save_password(app, secret_key, &password);
+                }
+                return Ok(Some(password));
+            }
+        }
+    }
+
+    for legacy_key in [
+        profile_id.map(|value| jump_host_secret_key(Some(value), "")),
+        profile_name.map(|value| jump_host_secret_key(None, value)),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if let Some(password) = secret_state.get_password(app, &legacy_key)? {
+            if let Some(secret_key) = canonical_identity_key.as_deref() {
+                let _ = secret_state.save_password(app, secret_key, &password);
+            }
+            return Ok(Some(password));
+        }
+    }
+
+    Ok(None)
+}
+
 pub fn resolve_ssh_password(
     app: &tauri::AppHandle,
     secret_state: &crate::ssh::SecretStoreState,
@@ -409,10 +472,7 @@ fn resolve_jump_host_passwords(
     secret_state: &crate::ssh::SecretStoreState,
     plan: &mut SessionPlan,
 ) -> Result<(), String> {
-    let legacy_secret_key =
-        jump_host_secret_key(plan.profile_id.as_deref(), plan.profile_name.as_str());
-
-    for (index, jump) in plan.jump_hosts.iter_mut().enumerate() {
+    for jump in plan.jump_hosts.iter_mut() {
         if jump.private_key_path.is_some() {
             continue;
         }
@@ -426,25 +486,29 @@ fn resolve_jump_host_passwords(
         );
 
         if let Some(pw) = &jump.password {
-            if plan.profile_id.is_some() {
-                secret_state.save_password(app, &secret_key, pw)?;
-            }
-            continue;
-        }
-
-        if let Some(pw) = secret_state.get_password(app, &secret_key)? {
-            jump.password = Some(pw);
-            continue;
-        }
-
-        // Legacy single-hop profiles stored the first jump password at `{profile}:jump`.
-        if index == 0 {
-            if let Some(pw) = secret_state.get_password(app, &legacy_secret_key)? {
-                if plan.profile_id.is_some() {
-                    let _ = secret_state.save_password(app, &secret_key, &pw);
+            if plan.remember_password || plan.profile_id.is_some() {
+                let location = secret_state.save_password(app, &secret_key, pw)?;
+                if plan.remember_password && matches!(location, crate::ssh::SecretLocation::Memory)
+                {
+                    return Err(
+                        "Jump host password persistence is unavailable. Enable the app vault or use a supported system credential store."
+                            .to_string(),
+                    );
                 }
-                jump.password = Some(pw);
             }
+            continue;
+        }
+
+        if let Some(pw) = load_saved_jump_host_password(
+            app,
+            secret_state,
+            plan.profile_id.as_deref(),
+            Some(plan.profile_name.as_str()),
+            Some(jump.host.as_str()),
+            Some(jump.port),
+            Some(jump.username.as_str()),
+        )? {
+            jump.password = Some(pw);
         }
     }
 
