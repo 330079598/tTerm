@@ -2,6 +2,26 @@ use crate::config::{ensure_config_dir, get_config_path};
 use serde::{Deserialize, Serialize};
 use std::fs;
 
+fn default_auth_method() -> String {
+    "password".to_string()
+}
+
+/// Jump host configuration stored as part of a saved profile.
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct SavedJumpHost {
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    #[serde(default = "default_auth_method")]
+    pub auth_method: String,
+    #[serde(default)]
+    pub private_key_path: Option<String>,
+    #[serde(default, skip_serializing)]
+    pub private_key_passphrase: Option<String>,
+    #[serde(default, skip_serializing)]
+    pub password: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SavedProfile {
     pub id: String,
@@ -24,6 +44,9 @@ pub struct SavedProfile {
     pub keepalive_interval_secs: u32,
     #[serde(default = "default_keepalive_count")]
     pub keepalive_count_max: u32,
+    /// Optional jump host (bastion) configuration.
+    #[serde(default)]
+    pub jump_host: Option<SavedJumpHost>,
 }
 
 fn default_keepalive_interval() -> u32 {
@@ -47,6 +70,10 @@ fn load_profiles_from_disk() -> Result<Vec<SavedProfile>, String> {
 fn sanitize_profile(profile: &mut SavedProfile) {
     profile.password = None;
     profile.private_key_passphrase = None;
+    if let Some(jump) = &mut profile.jump_host {
+        jump.password = None;
+        jump.private_key_passphrase = None;
+    }
     if profile.group.trim().is_empty() {
         profile.group = String::new();
     }
@@ -70,7 +97,23 @@ pub fn list_profiles() -> Result<Vec<SavedProfile>, String> {
 }
 
 #[tauri::command]
-pub fn save_profile(mut profile: SavedProfile) -> Result<(), String> {
+pub fn save_profile(
+    app: tauri::AppHandle,
+    secret_state: tauri::State<'_, crate::ssh::SecretStoreState>,
+    mut profile: SavedProfile,
+) -> Result<(), String> {
+    if let Some(jump) = &profile.jump_host {
+        if jump.auth_method != "key" {
+            if let Some(password) = jump.password.as_deref().filter(|value| !value.is_empty()) {
+                let secret_key = crate::core::session::jump_host_secret_key(
+                    Some(profile.id.as_str()),
+                    profile.name.as_str(),
+                );
+                secret_state.save_password(&app, &secret_key, password)?;
+            }
+        }
+    }
+
     sanitize_profile(&mut profile);
 
     let mut profiles = load_profiles_from_disk()?;
@@ -96,6 +139,7 @@ pub fn delete_profile(id: String) -> Result<(), String> {
 pub async fn test_connection(
     app: tauri::AppHandle,
     profile: SavedProfile,
+    prompt_state: tauri::State<'_, crate::core::state::HostPromptMap>,
     secret_state: tauri::State<'_, crate::ssh::SecretStoreState>,
 ) -> Result<String, String> {
     if profile.connection_type != "ssh" {
@@ -107,6 +151,26 @@ pub async fn test_connection(
     let port = profile.port.unwrap_or(22);
 
     // Build connection plan
+    let jump_plan = profile
+        .jump_host
+        .as_ref()
+        .map(|j| crate::core::session::JumpHostPlan {
+            host: j.host.clone(),
+            port: j.port,
+            username: j.username.clone(),
+            password: j.password.clone(),
+            private_key_path: if j.auth_method == "key" {
+                j.private_key_path.clone()
+            } else {
+                None
+            },
+            private_key_passphrase: if j.auth_method == "key" {
+                j.private_key_passphrase.clone()
+            } else {
+                None
+            },
+        });
+
     let mut plan = crate::core::session::SessionPlan {
         kind: crate::core::SessionKind::Ssh,
         profile_id: Some(profile.id.clone()),
@@ -125,70 +189,78 @@ pub async fn test_connection(
         terminal_shell: None,
         keepalive_interval_secs: profile.keepalive_interval_secs as u16,
         keepalive_count_max: profile.keepalive_count_max as u16,
+        jump_host: jump_plan.clone(),
     };
 
-    // If password/passphrase not provided, try to resolve from secret store
-    if plan.password.is_none() && plan.private_key_path.is_none() {
-        crate::core::session::resolve_ssh_password(&app, &secret_state, &mut plan)?;
-    }
+    crate::core::session::resolve_ssh_password(&app, &secret_state, &mut plan)?;
 
     // Try to establish connection
-    use russh::client;
     use std::time::Duration;
 
-    let mut config = client::Config::default();
-    config.keepalive_interval = Some(Duration::from_secs(plan.keepalive_interval_secs as u64));
-    config.keepalive_max = plan.keepalive_count_max as usize;
+    if let Some(jump) = &plan.jump_host {
+        let test_tab_id = format!("test-{}", profile.id);
+        // Route through jump host: connect -> authenticate jump -> tunnel -> authenticate target
+        use crate::ssh::jump::connect_via_jump;
 
-    // Use a simple handler that auto-accepts host keys for testing
-    let handler = TestConnectionHandler;
+        let target_config = std::sync::Arc::new(crate::ssh::jump::compatibility_client_config(
+            plan.keepalive_interval_secs as u64,
+            plan.keepalive_count_max as usize,
+        ));
 
-    let mut session = tokio::time::timeout(
-        Duration::from_secs(10),
-        client::connect(std::sync::Arc::new(config), (host.as_str(), port), handler),
-    )
-    .await
-    .map_err(|_| "Connection timeout".to_string())?
-    .map_err(|e| format!("Connection failed: {}", e))?;
+        let (jump_session, mut target_session) = connect_via_jump(
+            &app,
+            &test_tab_id,
+            jump,
+            &host,
+            port,
+            TestConnectionHandler,
+            target_config,
+            prompt_state.inner().clone(),
+        )
+        .await?;
 
-    // Authenticate
-    let auth_result = if let Some(key_path) = &plan.private_key_path {
-        let key_data = std::fs::read_to_string(key_path)
-            .map_err(|e| format!("Failed to read private key: {}", e))?;
+        // Authenticate on target through tunnel
+        let auth_result =
+            authenticate_test_connection(&mut target_session, &username, &plan).await?;
 
-        let key = if let Some(passphrase) = &plan.private_key_passphrase {
-            russh::keys::decode_secret_key(&key_data, Some(passphrase))
-                .map_err(|e| format!("Failed to decode private key: {}", e))?
-        } else {
-            russh::keys::decode_secret_key(&key_data, None)
-                .map_err(|e| format!("Failed to decode private key: {}", e))?
-        };
+        match auth_result {
+            russh::client::AuthResult::Success => {}
+            _ => return Err("Authentication failed".to_string()),
+        }
 
-        session
-            .authenticate_publickey(
-                &username,
-                russh::keys::PrivateKeyWithHashAlg::new(std::sync::Arc::new(key), None),
-            )
-            .await
-            .map_err(|e| format!("Authentication failed: {}", e))?
+        let _ = target_session
+            .disconnect(russh::Disconnect::ByApplication, "", "")
+            .await;
+        drop(jump_session);
     } else {
-        let password = plan.password.ok_or("Password is required")?;
-        session
-            .authenticate_password(&username, &password)
-            .await
-            .map_err(|e| format!("Authentication failed: {}", e))?
-    };
+        // Direct connection
+        use russh::client;
 
-    match auth_result {
-        russh::client::AuthResult::Success => {}
-        _ => return Err("Authentication failed".to_string()),
-    }
+        let config = std::sync::Arc::new(crate::ssh::jump::compatibility_client_config(
+            plan.keepalive_interval_secs as u64,
+            plan.keepalive_count_max as usize,
+        ));
 
-    // Close connection
-    session
-        .disconnect(russh::Disconnect::ByApplication, "", "")
+        let mut session = tokio::time::timeout(
+            Duration::from_secs(10),
+            client::connect(config, (host.as_str(), port), TestConnectionHandler),
+        )
         .await
-        .ok();
+        .map_err(|_| "Connection timeout".to_string())?
+        .map_err(|e| format!("Connection failed: {}", e))?;
+
+        let auth_result = authenticate_test_connection(&mut session, &username, &plan).await?;
+
+        match auth_result {
+            russh::client::AuthResult::Success => {}
+            _ => return Err("Authentication failed".to_string()),
+        }
+
+        session
+            .disconnect(russh::Disconnect::ByApplication, "", "")
+            .await
+            .ok();
+    }
 
     Ok(format!(
         "Successfully connected to {}@{}:{}",
@@ -208,5 +280,38 @@ impl russh::client::Handler for TestConnectionHandler {
     ) -> Result<bool, Self::Error> {
         // Auto-accept for test connections
         Ok(true)
+    }
+}
+
+async fn authenticate_test_connection<H: russh::client::Handler>(
+    session: &mut russh::client::Handle<H>,
+    username: &str,
+    plan: &crate::core::session::SessionPlan,
+) -> Result<russh::client::AuthResult, String> {
+    if let Some(key_path) = &plan.private_key_path {
+        let key_data = std::fs::read_to_string(key_path)
+            .map_err(|e| format!("Failed to read private key: {}", e))?;
+
+        let key = if let Some(passphrase) = &plan.private_key_passphrase {
+            russh::keys::decode_secret_key(&key_data, Some(passphrase))
+                .map_err(|e| format!("Failed to decode private key: {}", e))?
+        } else {
+            russh::keys::decode_secret_key(&key_data, None)
+                .map_err(|e| format!("Failed to decode private key: {}", e))?
+        };
+
+        session
+            .authenticate_publickey(
+                username,
+                russh::keys::PrivateKeyWithHashAlg::new(std::sync::Arc::new(key), None),
+            )
+            .await
+            .map_err(|e| format!("Authentication failed: {}", e))
+    } else {
+        let password = plan.password.as_deref().ok_or("Password is required")?;
+        session
+            .authenticate_password(username, password)
+            .await
+            .map_err(|e| format!("Authentication failed: {}", e))
     }
 }

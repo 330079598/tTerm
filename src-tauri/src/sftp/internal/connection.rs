@@ -1,9 +1,6 @@
 use russh::client;
-use russh::keys::PrivateKeyWithHashAlg;
 use russh::Disconnect;
 use russh_sftp::client::{error::Error as SftpError, SftpSession};
-use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::AppHandle;
@@ -15,7 +12,9 @@ use crate::core::state::{HostPromptMap, SessionKind};
 use crate::sftp::internal::types::{
     CachedSftpConnection, ConnectedSftp, SftpConnectionKey, SftpConnectionPool,
 };
-use crate::ssh::{SecretStoreState, SshClientHandler, HOST_KEY_REJECTED_REASON};
+use crate::ssh::{
+    jump::JumpHostHandler, open_target_ssh_session, SecretStoreState, SshClientHandler,
+};
 
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(300);
 
@@ -36,12 +35,21 @@ pub fn ensure_ssh_plan(
     Ok(plan)
 }
 
+/// Open an authenticated SSH session for SFTP use, routing through a jump
+/// host when the plan includes one.  Returns both the target session and an
+/// optional jump session that must be kept alive alongside it.
 pub async fn connect_authenticated_ssh(
     app: &AppHandle,
     tab_id: &str,
     plan: &SessionPlan,
     prompts: HostPromptMap,
-) -> Result<client::Handle<SshClientHandler>, String> {
+) -> Result<
+    (
+        Option<client::Handle<JumpHostHandler>>,
+        client::Handle<SshClientHandler>,
+    ),
+    String,
+> {
     let host = plan
         .host
         .clone()
@@ -51,70 +59,23 @@ pub async fn connect_authenticated_ssh(
         .clone()
         .ok_or_else(|| "SSH username is required".to_string())?;
 
-    let mut config = client::Config::default();
-    config.keepalive_interval = Some(Duration::from_secs(plan.keepalive_interval_secs as u64));
-    config.keepalive_max = plan.keepalive_count_max as usize;
-
-    let host_key_rejected = Arc::new(AtomicBool::new(false));
-    let handler = SshClientHandler {
-        app: app.clone(),
-        tab_id: tab_id.to_string(),
-        profile_id: plan.profile_id.clone(),
-        profile_name: plan.profile_name.clone(),
-        host: host.clone(),
-        port: plan.port,
+    open_target_ssh_session(
+        app,
+        tab_id,
+        plan.profile_id.as_deref(),
+        &plan.profile_name,
+        &host,
+        plan.port,
+        &username,
+        plan.private_key_path.as_deref(),
+        plan.private_key_passphrase.as_deref(),
+        plan.password.as_deref(),
+        plan.keepalive_interval_secs,
+        plan.keepalive_count_max,
+        plan.jump_host.as_ref(),
         prompts,
-        user_rejected_host_key: host_key_rejected.clone(),
-    };
-
-    let mut session: client::Handle<SshClientHandler> = client::connect(
-        std::sync::Arc::new(config),
-        (host.as_str(), plan.port),
-        handler,
     )
     .await
-    .map_err(|err| {
-        if host_key_rejected.load(AtomicOrdering::Relaxed) {
-            HOST_KEY_REJECTED_REASON.to_string()
-        } else {
-            format!("SSH connect failed: {err}")
-        }
-    })?;
-
-    let auth_result = if let Some(key_path) = &plan.private_key_path {
-        let key_pair = russh::keys::load_secret_key(
-            Path::new(key_path),
-            plan.private_key_passphrase.as_deref(),
-        )
-        .map_err(|err| format!("Failed to load SSH key: {err}"))?;
-
-        session
-            .authenticate_publickey(
-                username,
-                PrivateKeyWithHashAlg::new(std::sync::Arc::new(key_pair), None),
-            )
-            .await
-            .map_err(|err| format!("SSH key authentication failed: {err}"))?
-    } else {
-        let password = plan
-            .password
-            .clone()
-            .ok_or_else(|| "SSH password is required".to_string())?;
-
-        session
-            .authenticate_password(username, password)
-            .await
-            .map_err(|err| format!("SSH authentication failed: {err}"))?
-    };
-
-    if !auth_result.success() {
-        let _ = session
-            .disconnect(Disconnect::ByApplication, "Authentication failed", "en")
-            .await;
-        return Err("SSH authentication failed".to_string());
-    }
-
-    Ok(session)
 }
 
 async fn connect_sftp(
@@ -123,8 +84,8 @@ async fn connect_sftp(
     plan: &SessionPlan,
     prompts: HostPromptMap,
 ) -> Result<ConnectedSftp, String> {
-    let ssh: client::Handle<SshClientHandler> =
-        connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
+    let (jump_session, ssh) = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
+
     let channel = ssh
         .channel_open_session()
         .await
@@ -141,15 +102,26 @@ async fn connect_sftp(
             .map_err(map_sftp_error)?,
     );
 
-    Ok(ConnectedSftp { ssh, sftp })
+    Ok(ConnectedSftp {
+        jump_session,
+        ssh,
+        sftp,
+    })
 }
 
 pub async fn close_sftp(connection: ConnectedSftp) {
-    let ConnectedSftp { ssh, sftp } = connection;
+    let ConnectedSftp {
+        jump_session,
+        ssh,
+        sftp,
+    } = connection;
     let _ = sftp.close().await;
     let _ = ssh
         .disconnect(Disconnect::ByApplication, "SFTP session closed", "en")
         .await;
+    // Drop the jump session after the target session is closed so the tunnel
+    // channel stays open until we are fully done with it.
+    drop(jump_session);
 }
 
 pub async fn get_or_create_sftp_connection(
@@ -159,12 +131,7 @@ pub async fn get_or_create_sftp_connection(
     prompts: HostPromptMap,
     pool: &SftpConnectionPool,
 ) -> Result<(), String> {
-    let key = SftpConnectionKey {
-        tab_id: tab_id.to_string(),
-        host: plan.host.clone().ok_or("Host is required")?,
-        port: plan.port,
-        username: plan.username.clone().ok_or("Username is required")?,
-    };
+    let key = SftpConnectionKey::from_plan(tab_id, plan)?;
 
     let now = Instant::now();
 

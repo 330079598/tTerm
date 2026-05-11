@@ -31,6 +31,15 @@ export interface ConnectionForm {
   terminalShell: TerminalShellType
   terminalShellCustomPath: string
   terminalShellCustomArgs: string
+  // Jump host (bastion) fields
+  useJumpHost: boolean
+  jumpHost: string
+  jumpPort: number
+  jumpUsername: string
+  jumpAuthMethod: "password" | "key"
+  jumpPassword: string
+  jumpPrivateKeyPath: string
+  jumpPrivateKeyPassphrase: string
 }
 
 export interface ConnectionDialogContentProps extends Omit<ConnectionDialogProps, "isOpen"> {
@@ -55,6 +64,14 @@ export const defaultForm: ConnectionForm = {
   terminalShell: "auto",
   terminalShellCustomPath: "",
   terminalShellCustomArgs: "",
+  useJumpHost: false,
+  jumpHost: "",
+  jumpPort: 22,
+  jumpUsername: "",
+  jumpAuthMethod: "password",
+  jumpPassword: "",
+  jumpPrivateKeyPath: "",
+  jumpPrivateKeyPassphrase: "",
 }
 
 export const connectionTypes = [

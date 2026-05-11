@@ -13,6 +13,17 @@ export interface SavedProfile {
   private_key_passphrase?: string
   keepalive_interval_secs: number
   keepalive_count_max: number
+  jump_host?: SavedJumpHost
+}
+
+export interface SavedJumpHost {
+  host: string
+  port: number
+  username: string
+  auth_method: string
+  private_key_path?: string
+  private_key_passphrase?: string
+  password?: string
 }
 
 export type TransferStatus = "pending" | "transferring" | "completed" | "failed" | "cancelled"
@@ -37,6 +48,16 @@ export interface TransferTask {
 export type TerminalShellType = "auto" | "cmd" | "powershell" | "pwsh" | "custom"
 export type ConnectionType = "terminal" | "ssh"
 export type TabType = ConnectionType | "settings"
+
+export interface JumpHostConnection {
+  host: string
+  port: number
+  username: string
+  authMethod: "password" | "key"
+  password?: string
+  privateKeyPath?: string
+  privateKeyPassphrase?: string
+}
 
 export interface Tab {
   id: string
@@ -65,6 +86,8 @@ export interface Tab {
     terminalShell?: TerminalShellType
     terminalShellCustomPath?: string
     terminalShellCustomArgs?: string
+    /** Optional jump host (bastion) to tunnel through. */
+    jumpHost?: JumpHostConnection
   }
 }
 

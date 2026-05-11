@@ -1,11 +1,6 @@
 macro_rules! with_sftp {
     ($app:expr, $tab_id:expr, $plan:expr, $prompts:expr, $pool:expr, $sftp:ident => $body:block) => {{
-        let key = $crate::sftp::internal::types::SftpConnectionKey {
-            tab_id: $tab_id.to_string(),
-            host: $plan.host.clone().ok_or("Host is required")?,
-            port: $plan.port,
-            username: $plan.username.clone().ok_or("Username is required")?,
-        };
+        let key = $crate::sftp::internal::types::SftpConnectionKey::from_plan($tab_id, $plan)?;
 
         // Ensure connection exists
         $crate::sftp::internal::connection::get_or_create_sftp_connection(

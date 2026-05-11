@@ -387,6 +387,11 @@
     "privateKeyPassphrase": "密码短语（可选）",
     "browseKey": "浏览"
   },
+  "jumpHost": {
+    "enable": "通过跳板机（堡垒机）连接",
+    "host": "跳板机地址",
+    "via": "经由 {{host}}"
+  },
   "sessionHeader": {
     "connecting": "连接中",
     "connected": "已连接",

@@ -13,6 +13,40 @@ pub struct TerminalShellConfig {
 #[derive(Debug, Clone)]
 pub struct TerminalShellConfig;
 
+/// Jump host (bastion) connection parameters deserialized from the frontend.
+#[derive(Debug, Deserialize, Clone)]
+pub struct JumpHostOptions {
+    #[serde(default)]
+    pub host: Option<String>,
+    #[serde(default)]
+    pub port: Option<u16>,
+    #[serde(default)]
+    pub username: Option<String>,
+    #[serde(default)]
+    pub password: Option<String>,
+    #[serde(default, alias = "authMethod")]
+    pub auth_method: Option<String>,
+    #[serde(default, alias = "privateKeyPath")]
+    pub private_key_path: Option<String>,
+    #[serde(default, alias = "privateKeyPassphrase")]
+    pub private_key_passphrase: Option<String>,
+}
+
+/// Resolved jump host plan used at connection time.
+#[derive(Debug, Clone)]
+pub struct JumpHostPlan {
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    pub password: Option<String>,
+    pub private_key_path: Option<String>,
+    pub private_key_passphrase: Option<String>,
+}
+
+pub fn jump_host_secret_key(profile_id: Option<&str>, profile_name: &str) -> String {
+    format!("{}:jump", profile_id.unwrap_or(profile_name))
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct PtyConnectionOptions {
     #[serde(default, rename = "type")]
@@ -39,6 +73,9 @@ pub struct PtyConnectionOptions {
     pub private_key_path: Option<String>,
     #[serde(default, alias = "privateKeyPassphrase")]
     pub private_key_passphrase: Option<String>,
+    /// Optional jump host (bastion) to tunnel through before reaching the target.
+    #[serde(default, alias = "jumpHost")]
+    pub jump_host: Option<JumpHostOptions>,
     #[cfg(target_os = "windows")]
     #[serde(default, alias = "terminalShell")]
     pub terminal_shell: Option<String>,
@@ -65,6 +102,7 @@ impl Default for PtyConnectionOptions {
             keepalive_count_max: None,
             private_key_path: None,
             private_key_passphrase: None,
+            jump_host: None,
             #[cfg(target_os = "windows")]
             terminal_shell: None,
             #[cfg(target_os = "windows")]
@@ -90,6 +128,8 @@ pub struct SessionPlan {
     pub private_key_path: Option<String>,
     pub private_key_passphrase: Option<String>,
     pub terminal_shell: Option<TerminalShellConfig>,
+    /// Resolved jump host plan; `None` means direct connection.
+    pub jump_host: Option<JumpHostPlan>,
 }
 
 pub fn normalize_connection(
@@ -141,6 +181,7 @@ pub fn normalize_connection(
             private_key_path: None,
             private_key_passphrase: None,
             terminal_shell,
+            jump_host: None,
         }),
         SessionKind::Ssh => {
             let host = connection
@@ -175,6 +216,12 @@ pub fn normalize_connection(
             let private_key_passphrase =
                 connection.private_key_passphrase.filter(|v| !v.is_empty());
 
+            // Resolve optional jump host into a typed plan, validating required fields.
+            let jump_host = match connection.jump_host {
+                Some(j) => Some(normalize_jump_host(j)?),
+                None => None,
+            };
+
             Ok(SessionPlan {
                 kind,
                 profile_id,
@@ -189,9 +236,58 @@ pub fn normalize_connection(
                 private_key_path,
                 private_key_passphrase,
                 terminal_shell: None,
+                jump_host,
             })
         }
     }
+}
+
+/// Validate and convert raw jump host options into a resolved plan.
+/// Returns `Err` if required fields (host, username) are missing or empty.
+fn normalize_jump_host(opts: JumpHostOptions) -> Result<JumpHostPlan, String> {
+    let host = opts
+        .host
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| "Jump host is required".to_string())?
+        .to_string();
+
+    let port = opts.port.unwrap_or(22);
+
+    let username = opts
+        .username
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| "Jump host username is required".to_string())?
+        .to_string();
+
+    let use_key = opts.auth_method.as_deref() == Some("key");
+    let private_key_path = if use_key {
+        opts.private_key_path.filter(|v| !v.is_empty())
+    } else {
+        None
+    };
+    let private_key_passphrase = if use_key {
+        opts.private_key_passphrase.filter(|v| !v.is_empty())
+    } else {
+        None
+    };
+    let password = if use_key {
+        None
+    } else {
+        opts.password.filter(|v| !v.is_empty())
+    };
+
+    Ok(JumpHostPlan {
+        host,
+        port,
+        username,
+        password,
+        private_key_path,
+        private_key_passphrase,
+    })
 }
 
 pub fn load_saved_ssh_password(
@@ -230,48 +326,80 @@ pub fn resolve_ssh_password(
         return Ok(());
     }
 
-    // If using key authentication, no password needed
-    if plan.private_key_path.is_some() {
-        return Ok(());
-    }
+    if plan.private_key_path.is_none() {
+        if let Some(password) = plan.password.clone() {
+            let secret_key = plan
+                .profile_id
+                .as_deref()
+                .unwrap_or(plan.profile_name.as_str());
 
-    // If password already provided, use it
-    if plan.password.is_some() {
-        let password = plan.password.clone().unwrap();
-        let secret_key = plan
-            .profile_id
-            .as_deref()
-            .unwrap_or(plan.profile_name.as_str());
-
-        // Save password to persistent store when remember_password is enabled,
-        // or automatically when a profile_id exists (so session restore can find it)
-        if plan.remember_password || plan.profile_id.is_some() {
-            let location = secret_state.save_password(app, secret_key, &password)?;
-            if plan.remember_password && matches!(location, crate::ssh::SecretLocation::Memory) {
-                return Err(
-                    "Password persistence is unavailable. Enable the app vault or use a supported system credential store."
-                        .to_string(),
-                );
+            // Save password to persistent store when remember_password is enabled,
+            // or automatically when a profile_id exists (so session restore can find it)
+            if plan.remember_password || plan.profile_id.is_some() {
+                let location = secret_state.save_password(app, secret_key, &password)?;
+                if plan.remember_password && matches!(location, crate::ssh::SecretLocation::Memory)
+                {
+                    return Err(
+                        "Password persistence is unavailable. Enable the app vault or use a supported system credential store."
+                            .to_string(),
+                    );
+                }
             }
-        }
+        } else {
+            // Try to get password from secret store
+            let password = load_saved_ssh_password(
+                app,
+                secret_state,
+                plan.profile_id.as_deref(),
+                Some(plan.profile_name.as_str()),
+            )?
+            .ok_or_else(|| {
+                format!(
+                    "No password provided and no saved password found for profile '{}'",
+                    plan.profile_name
+                )
+            })?;
 
+            plan.password = Some(password);
+        }
+    }
+
+    // Resolve the jump host independently of target authentication.
+    resolve_jump_host_password(app, secret_state, plan)?;
+
+    Ok(())
+}
+
+/// Resolve jump host password from the secret store when not already provided.
+fn resolve_jump_host_password(
+    app: &tauri::AppHandle,
+    secret_state: &crate::ssh::SecretStoreState,
+    plan: &mut SessionPlan,
+) -> Result<(), String> {
+    let jump = match &mut plan.jump_host {
+        Some(j) => j,
+        None => return Ok(()),
+    };
+
+    // If using key authentication, no password needed
+    if jump.private_key_path.is_some() {
         return Ok(());
     }
 
-    // Try to get password from secret store
-    let password = load_saved_ssh_password(
-        app,
-        secret_state,
-        plan.profile_id.as_deref(),
-        Some(plan.profile_name.as_str()),
-    )?
-    .ok_or_else(|| {
-        format!(
-            "No password provided and no saved password found for profile '{}'",
-            plan.profile_name
-        )
-    })?;
+    let secret_key = jump_host_secret_key(plan.profile_id.as_deref(), plan.profile_name.as_str());
 
-    plan.password = Some(password);
+    // If password already provided for a saved profile, persist it.
+    if let Some(pw) = &jump.password {
+        if plan.profile_id.is_some() {
+            secret_state.save_password(app, &secret_key, pw)?;
+        }
+        return Ok(());
+    }
+
+    // Try to load from secret store
+    if let Some(pw) = secret_state.get_password(app, &secret_key)? {
+        jump.password = Some(pw);
+    }
+
     Ok(())
 }

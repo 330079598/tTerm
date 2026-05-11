@@ -12,6 +12,10 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     return { ...defaultForm }
   }
 
+  const jump = profile.jump_host
+  const authMethod = profile.auth_method === "key" ? "key" : "password"
+  const jumpAuthMethod = jump?.auth_method === "key" ? "key" : "password"
+
   return {
     ...defaultForm,
     type: profile.connection_type as ConnectionType,
@@ -20,10 +24,17 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     host: profile.host ?? "",
     port: profile.port ?? 22,
     username: profile.username ?? "",
-    authMethod: (profile.auth_method as "password" | "key") ?? "password",
+    authMethod,
     privateKeyPath: profile.private_key_path ?? "",
     keepaliveIntervalSecs: profile.keepalive_interval_secs,
     keepaliveCountMax: profile.keepalive_count_max,
+    // Jump host fields from saved profile
+    useJumpHost: !!jump,
+    jumpHost: jump?.host ?? "",
+    jumpPort: jump?.port ?? 22,
+    jumpUsername: jump?.username ?? "",
+    jumpAuthMethod,
+    jumpPrivateKeyPath: jump?.private_key_path ?? "",
   }
 }
 

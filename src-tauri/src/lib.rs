@@ -84,6 +84,7 @@ pub fn run() {
             core::commands::respond_ssh_host_key_prompt,
             core::commands::get_saved_password,
             core::commands::get_saved_password_for_sudo,
+            core::commands::get_saved_jump_host_password,
             fonts::list_fonts,
             profiles::list_profiles,
             profiles::save_profile,

@@ -399,6 +399,11 @@
     "privateKeyPassphrase": "Passphrase (optional)",
     "browseKey": "Browse"
   },
+  "jumpHost": {
+    "enable": "Connect via jump host (bastion)",
+    "host": "Jump Host",
+    "via": "via {{host}}"
+  },
   "sessionHeader": {
     "connecting": "Connecting",
     "connected": "Connected",

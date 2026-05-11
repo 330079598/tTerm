@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
+import { listen } from "@tauri-apps/api/event"
 import { Loader2, Save, Server, Terminal } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -25,8 +26,11 @@ import {
   buildInitialForm,
   getDefaultTitle,
 } from "@/components/ConnectionDialog/connectionDialogUtils"
+import { JumpHostFields } from "@/components/ConnectionDialog/JumpHostFields"
 import { SshConnectionFields } from "@/components/ConnectionDialog/SshConnectionFields"
 import { TerminalConnectionFields } from "@/components/ConnectionDialog/TerminalConnectionFields"
+import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
+import { HostKeyPromptState } from "@/components/TerminalTab/types"
 import {
   ConnectionDialogContentProps,
   ConnectionDialogProps,
@@ -39,6 +43,54 @@ const connectionTypeIcons = {
   terminal: Terminal,
   ssh: Server,
 } as const
+
+const normalizeJumpAuthMethod = (value: string | undefined): "password" | "key" =>
+  value === "key" ? "key" : "password"
+
+const hasJumpHost = (form: ConnectionForm) => form.useJumpHost
+
+const getJumpHostValidationError = (form: ConnectionForm): string | null => {
+  if (!hasJumpHost(form)) {
+    return null
+  }
+
+  if (!form.jumpHost.trim()) {
+    return "Jump host is required."
+  }
+
+  if (!form.jumpUsername.trim()) {
+    return "Jump host username is required."
+  }
+
+  if (!Number.isInteger(form.jumpPort) || form.jumpPort < 1 || form.jumpPort > 65535) {
+    return "Jump host port must be between 1 and 65535."
+  }
+
+  if (form.jumpAuthMethod === "key" && !form.jumpPrivateKeyPath.trim()) {
+    return "Jump host private key path is required."
+  }
+
+  return null
+}
+
+const buildJumpHostPayload = (form: ConnectionForm) => {
+  if (!hasJumpHost(form)) {
+    return undefined
+  }
+
+  const authMethod = normalizeJumpAuthMethod(form.jumpAuthMethod)
+
+  return {
+    host: form.jumpHost.trim(),
+    port: form.jumpPort,
+    username: form.jumpUsername.trim(),
+    authMethod,
+    password: authMethod === "password" ? form.jumpPassword || undefined : undefined,
+    privateKeyPath: authMethod === "key" ? form.jumpPrivateKeyPath || undefined : undefined,
+    privateKeyPassphrase:
+      authMethod === "key" ? form.jumpPrivateKeyPassphrase || undefined : undefined,
+  }
+}
 
 const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   onClose,
@@ -56,6 +108,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const [nameError, setNameError] = useState<string | null>(null)
   const [allProfiles, setAllProfiles] = useState<SavedProfile[]>([])
   const [isTesting, setIsTesting] = useState(false)
+  const [testHostKeyPrompt, setTestHostKeyPrompt] = useState<HostKeyPromptState | null>(null)
   const matchingGroups = existingGroups.filter((group) =>
     group.toLowerCase().includes(form.group.toLowerCase())
   )
@@ -114,11 +167,61 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     }
   }, [editProfile, form.authMethod, form.type])
 
+  // Load saved jump host password when editing a profile
+  useEffect(() => {
+    if (
+      !editProfile ||
+      form.type !== "ssh" ||
+      !form.useJumpHost ||
+      form.jumpAuthMethod !== "password"
+    ) {
+      return
+    }
+
+    let cancelled = false
+
+    invoke<string | null>("get_saved_jump_host_password", {
+      profileId: editProfile.id,
+      profileName: editProfile.name,
+    })
+      .then((password) => {
+        if (cancelled || !password) {
+          return
+        }
+
+        setForm((current) => {
+          if (!current.useJumpHost || current.jumpAuthMethod !== "password") {
+            return current
+          }
+
+          return {
+            ...current,
+            jumpPassword: password,
+          }
+        })
+      })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
+  }, [editProfile, form.type, form.useJumpHost, form.jumpAuthMethod])
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null
     const shouldSave = submitter?.dataset.action === "save"
     setNameError(null)
+
+    const jumpValidationError = getJumpHostValidationError(form)
+    if (jumpValidationError) {
+      toast({
+        title: t("profiles.testFailed"),
+        description: jumpValidationError,
+        variant: "destructive",
+      })
+      return
+    }
 
     const title = form.title.trim() || getDefaultTitle(form.type, form)
     const group = form.group.trim()
@@ -147,6 +250,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         private_key_path: form.authMethod === "key" ? form.privateKeyPath : undefined,
         keepalive_interval_secs: form.keepaliveIntervalSecs,
         keepalive_count_max: form.keepaliveCountMax,
+        jump_host: buildJumpHostPayload(form),
       }
       try {
         await invoke("save_profile", { profile })
@@ -175,6 +279,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         privateKeyPassphrase: form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
         keepaliveIntervalSecs: form.keepaliveIntervalSecs,
         keepaliveCountMax: form.keepaliveCountMax,
+        jumpHost: buildJumpHostPayload(form),
       }
     } else {
       connection.connection = {
@@ -209,7 +314,22 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const handleTestConnection = async () => {
     if (form.type !== "ssh") return
 
+    const jumpValidationError = getJumpHostValidationError(form)
+    if (jumpValidationError) {
+      toast({
+        title: t("profiles.testFailed"),
+        description: jumpValidationError,
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsTesting(true)
+    const testTabId = `test-${sshProfileId}`
+    const unlistenHostPrompt = await listen<HostKeyPromptState>(
+      `ssh-hostkey-prompt-${testTabId}`,
+      (event) => setTestHostKeyPrompt(event.payload)
+    )
     try {
       const title = form.title.trim() || getDefaultTitle(form.type, form)
       const profile: SavedProfile = {
@@ -227,6 +347,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         keepalive_interval_secs: form.keepaliveIntervalSecs,
         keepalive_count_max: form.keepaliveCountMax,
         remember_password: false,
+        jump_host: buildJumpHostPayload(form),
       }
 
       const result = await invoke<string>("test_connection", { profile })
@@ -243,6 +364,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         variant: "destructive",
       })
     } finally {
+      unlistenHostPrompt()
+      setTestHostKeyPrompt(null)
       // Small delay to ensure UI updates properly.
       await new Promise((resolve) => setTimeout(resolve, 100))
       setIsTesting(false)
@@ -253,118 +376,127 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const isTerminal = form.type === "terminal"
 
   return (
-    <DialogContent
-      className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-md"
-      onInteractOutside={(event) => event.preventDefault()}
-    >
-      <DialogHeader>
-        <DialogTitle>
-          {editProfile ? t("profiles.editTitle") : t("connection.newConnection")}
-        </DialogTitle>
-      </DialogHeader>
+    <>
+      <DialogContent
+        className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-md"
+        onInteractOutside={(event) => event.preventDefault()}
+      >
+        <DialogHeader>
+          <DialogTitle>
+            {editProfile ? t("profiles.editTitle") : t("connection.newConnection")}
+          </DialogTitle>
+        </DialogHeader>
 
-      <form onSubmit={handleSubmit} className="flex-1 space-y-5 overflow-y-auto px-1">
-        <div>
-          <Label className="mb-2 block">{t("connection.type")}</Label>
-          <div className="grid grid-cols-2 gap-2">
-            {connectionTypes.map(({ type, label }) => {
-              const Icon = connectionTypeIcons[type]
-
-              return (
-                <Button
-                  key={type}
-                  type="button"
-                  variant={form.type === type ? "default" : "outline"}
-                  onClick={() => setForm((current) => ({ ...current, type }))}
-                  className={cn(
-                    "h-auto justify-start gap-2 px-3 py-2.5 text-sm transition-colors",
-                    form.type === type ? "shadow-none" : "text-muted-foreground"
-                  )}
-                >
-                  <Icon size={16} />
-                  {label}
-                </Button>
-              )
-            })}
-          </div>
-        </div>
-
-        <Separator />
-
-        {!isSsh && (
+        <form onSubmit={handleSubmit} className="flex-1 space-y-5 overflow-y-auto px-1">
           <div>
-            <Label htmlFor="conn-title" className="mb-1.5 block">
-              {t("connection.title")}
-            </Label>
-            <Input
-              id="conn-title"
-              value={form.title}
-              onChange={(e) => {
-                setForm((current) => ({ ...current, title: e.target.value }))
-                setNameError(null)
-              }}
-              placeholder={getDefaultTitle(form.type, form)}
-            />
-            {nameError && <p className="text-destructive mt-1 text-xs">{nameError}</p>}
+            <Label className="mb-2 block">{t("connection.type")}</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {connectionTypes.map(({ type, label }) => {
+                const Icon = connectionTypeIcons[type]
+
+                return (
+                  <Button
+                    key={type}
+                    type="button"
+                    variant={form.type === type ? "default" : "outline"}
+                    onClick={() => setForm((current) => ({ ...current, type }))}
+                    className={cn(
+                      "h-auto justify-start gap-2 px-3 py-2.5 text-sm transition-colors",
+                      form.type === type ? "shadow-none" : "text-muted-foreground"
+                    )}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </Button>
+                )
+              })}
+            </div>
           </div>
-        )}
 
-        {isTerminal && <TerminalConnectionFields form={form} setForm={setForm} />}
+          <Separator />
 
-        {isSsh && (
-          <SshConnectionFields
-            form={form}
-            setForm={setForm}
-            matchingGroups={matchingGroups}
-            nameError={nameError}
-            setNameError={setNameError}
-            showGroupDropdown={showGroupDropdown}
-            setShowGroupDropdown={setShowGroupDropdown}
-            titlePlaceholder={getDefaultTitle(form.type, form)}
-          />
-        )}
-
-        <DialogFooter>
-          <Button type="button" variant="ghost" onClick={onClose}>
-            {t("connection.cancel")}
-          </Button>
-          {isSsh && (
-            <Button
-              key={isTesting ? "testing" : "test"}
-              type="button"
-              variant="outline"
-              onClick={handleTestConnection}
-              disabled={isTesting || !form.host.trim() || !form.username.trim()}
-              className="min-w-[100px]"
-            >
-              {isTesting && <Loader2 className="animate-spin" />}
-              {isTesting ? t("profiles.testing") : t("profiles.test")}
-            </Button>
+          {!isSsh && (
+            <div>
+              <Label htmlFor="conn-title" className="mb-1.5 block">
+                {t("connection.title")}
+              </Label>
+              <Input
+                id="conn-title"
+                value={form.title}
+                onChange={(e) => {
+                  setForm((current) => ({ ...current, title: e.target.value }))
+                  setNameError(null)
+                }}
+                placeholder={getDefaultTitle(form.type, form)}
+              />
+              {nameError && <p className="text-destructive mt-1 text-xs">{nameError}</p>}
+            </div>
           )}
-          <TooltipProvider>
+
+          {isTerminal && <TerminalConnectionFields form={form} setForm={setForm} />}
+
+          {isSsh && (
+            <>
+              <SshConnectionFields
+                form={form}
+                setForm={setForm}
+                matchingGroups={matchingGroups}
+                nameError={nameError}
+                setNameError={setNameError}
+                showGroupDropdown={showGroupDropdown}
+                setShowGroupDropdown={setShowGroupDropdown}
+                titlePlaceholder={getDefaultTitle(form.type, form)}
+              />
+              <JumpHostFields form={form} setForm={setForm} />
+            </>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose}>
+              {t("connection.cancel")}
+            </Button>
             {isSsh && (
+              <Button
+                key={isTesting ? "testing" : "test"}
+                type="button"
+                variant="outline"
+                onClick={handleTestConnection}
+                disabled={isTesting || !form.host.trim() || !form.username.trim()}
+                className="min-w-[100px]"
+              >
+                {isTesting && <Loader2 className="animate-spin" />}
+                {isTesting ? t("profiles.testing") : t("profiles.test")}
+              </Button>
+            )}
+            <TooltipProvider>
+              {isSsh && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button type="submit" variant="outline" data-action="save">
+                      <Save size={14} />
+                      {t("connection.saveAndConnect")}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t("connection.saveAndConnectDescription")}</TooltipContent>
+                </Tooltip>
+              )}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button type="submit" variant="outline" data-action="save">
-                    <Save size={14} />
-                    {t("connection.saveAndConnect")}
+                  <Button type="submit" data-action="connect">
+                    {t("connection.connect")}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{t("connection.saveAndConnectDescription")}</TooltipContent>
+                <TooltipContent>{t("connection.connectDescription")}</TooltipContent>
               </Tooltip>
-            )}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button type="submit" data-action="connect">
-                  {t("connection.connect")}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t("connection.connectDescription")}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </DialogFooter>
-      </form>
-    </DialogContent>
+            </TooltipProvider>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+      <HostKeyPromptDialog
+        hostKeyPrompt={testHostKeyPrompt}
+        setHostKeyPrompt={setTestHostKeyPrompt}
+      />
+    </>
   )
 }
 

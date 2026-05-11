@@ -253,6 +253,20 @@ pub fn get_saved_password(
 }
 
 #[tauri::command]
+pub fn get_saved_jump_host_password(
+    app: AppHandle,
+    profile_id: Option<String>,
+    profile_name: Option<String>,
+    secret_state: State<'_, crate::ssh::SecretStoreState>,
+) -> Result<Option<String>, String> {
+    let secret_key = super::session::jump_host_secret_key(
+        profile_id.as_deref(),
+        profile_name.as_deref().unwrap_or(""),
+    );
+    secret_state.get_password(&app, &secret_key)
+}
+
+#[tauri::command]
 pub fn get_saved_password_for_sudo(
     app: AppHandle,
     profile_id: Option<String>,

@@ -76,6 +76,10 @@ const buildMetaItems = (
     items.push(t("profiles.portDisplay", { port: profile.port }))
   }
 
+  if (profile.jump_host?.host) {
+    items.push(t("jumpHost.via", { host: profile.jump_host.host }))
+  }
+
   return items
 }
 
@@ -262,6 +266,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
 
   const handleConnect = (profile: SavedProfile) => {
     const connectionType = profile.connection_type as ConnectionType
+    const jump = profile.jump_host
     const connection: Omit<Tab, "id" | "isActive"> = {
       title: profile.name,
       type: connectionType,
@@ -276,6 +281,15 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
         privateKeyPath: profile.auth_method === "key" ? profile.private_key_path : undefined,
         keepaliveIntervalSecs: profile.keepalive_interval_secs,
         keepaliveCountMax: profile.keepalive_count_max,
+        jumpHost: jump
+          ? {
+              host: jump.host,
+              port: jump.port,
+              username: jump.username,
+              authMethod: jump.auth_method === "key" ? "key" : "password",
+              privateKeyPath: jump.private_key_path,
+            }
+          : undefined,
       },
     }
 

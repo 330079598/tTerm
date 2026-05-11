@@ -99,7 +99,7 @@ async fn run_remote_delete_command(
         .map(|entry| entry.path.clone())
         .collect::<Vec<_>>();
     let command = custom_command.unwrap_or_else(|| command_delete_script(&paths));
-    let ssh = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
+    let (_jump_session, ssh) = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
     let mut channel = ssh
         .channel_open_session()
         .await
@@ -373,12 +373,7 @@ async fn get_or_create_delete_sftp(
     prompts: HostPromptMap,
     pool: &SftpConnectionPool,
 ) -> Result<Arc<SftpSession>, String> {
-    let key = SftpConnectionKey {
-        tab_id: tab_id.to_string(),
-        host: plan.host.clone().ok_or("Host is required")?,
-        port: plan.port,
-        username: plan.username.clone().ok_or("Username is required")?,
-    };
+    let key = SftpConnectionKey::from_plan(tab_id, plan)?;
 
     get_or_create_sftp_connection(app, tab_id, plan, prompts, pool).await?;
     let pool_guard = pool.read().await;
