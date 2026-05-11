@@ -47,6 +47,19 @@ pub fn jump_host_secret_key(profile_id: Option<&str>, profile_name: &str) -> Str
     format!("{}:jump", profile_id.unwrap_or(profile_name))
 }
 
+pub fn jump_host_identity_secret_key(
+    profile_id: Option<&str>,
+    profile_name: &str,
+    host: &str,
+    port: u16,
+    username: &str,
+) -> String {
+    let profile_key = profile_id.unwrap_or(profile_name);
+    format!("{profile_key}:jump:{host}:{port}:{username}")
+}
+
+pub const MAX_JUMP_HOSTS: usize = 8;
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct PtyConnectionOptions {
     #[serde(default, rename = "type")]
@@ -76,6 +89,9 @@ pub struct PtyConnectionOptions {
     /// Optional jump host (bastion) to tunnel through before reaching the target.
     #[serde(default, alias = "jumpHost")]
     pub jump_host: Option<JumpHostOptions>,
+    /// Ordered jump host chain. Supersedes `jump_host` while preserving legacy reads.
+    #[serde(default, alias = "jumpHosts")]
+    pub jump_hosts: Vec<JumpHostOptions>,
     #[cfg(target_os = "windows")]
     #[serde(default, alias = "terminalShell")]
     pub terminal_shell: Option<String>,
@@ -103,6 +119,7 @@ impl Default for PtyConnectionOptions {
             private_key_path: None,
             private_key_passphrase: None,
             jump_host: None,
+            jump_hosts: Vec::new(),
             #[cfg(target_os = "windows")]
             terminal_shell: None,
             #[cfg(target_os = "windows")]
@@ -128,8 +145,8 @@ pub struct SessionPlan {
     pub private_key_path: Option<String>,
     pub private_key_passphrase: Option<String>,
     pub terminal_shell: Option<TerminalShellConfig>,
-    /// Resolved jump host plan; `None` means direct connection.
-    pub jump_host: Option<JumpHostPlan>,
+    /// Ordered resolved jump host chain; empty means direct connection.
+    pub jump_hosts: Vec<JumpHostPlan>,
 }
 
 pub fn normalize_connection(
@@ -181,7 +198,7 @@ pub fn normalize_connection(
             private_key_path: None,
             private_key_passphrase: None,
             terminal_shell,
-            jump_host: None,
+            jump_hosts: Vec::new(),
         }),
         SessionKind::Ssh => {
             let host = connection
@@ -216,11 +233,8 @@ pub fn normalize_connection(
             let private_key_passphrase =
                 connection.private_key_passphrase.filter(|v| !v.is_empty());
 
-            // Resolve optional jump host into a typed plan, validating required fields.
-            let jump_host = match connection.jump_host {
-                Some(j) => Some(normalize_jump_host(j)?),
-                None => None,
-            };
+            // Prefer the ordered chain, but keep legacy single-hop payloads working.
+            let jump_hosts = normalize_jump_hosts(connection.jump_hosts, connection.jump_host)?;
 
             Ok(SessionPlan {
                 kind,
@@ -236,10 +250,29 @@ pub fn normalize_connection(
                 private_key_path,
                 private_key_passphrase,
                 terminal_shell: None,
-                jump_host,
+                jump_hosts,
             })
         }
     }
+}
+
+pub fn normalize_jump_hosts(
+    jump_hosts: Vec<JumpHostOptions>,
+    legacy_jump_host: Option<JumpHostOptions>,
+) -> Result<Vec<JumpHostPlan>, String> {
+    let raw_hosts = if jump_hosts.is_empty() {
+        legacy_jump_host.into_iter().collect::<Vec<_>>()
+    } else {
+        jump_hosts
+    };
+
+    if raw_hosts.len() > MAX_JUMP_HOSTS {
+        return Err(format!(
+            "At most {MAX_JUMP_HOSTS} jump hosts are supported per connection"
+        ));
+    }
+
+    raw_hosts.into_iter().map(normalize_jump_host).collect()
 }
 
 /// Validate and convert raw jump host options into a resolved plan.
@@ -364,41 +397,55 @@ pub fn resolve_ssh_password(
         }
     }
 
-    // Resolve the jump host independently of target authentication.
-    resolve_jump_host_password(app, secret_state, plan)?;
+    // Resolve jump host credentials independently of target authentication.
+    resolve_jump_host_passwords(app, secret_state, plan)?;
 
     Ok(())
 }
 
-/// Resolve jump host password from the secret store when not already provided.
-fn resolve_jump_host_password(
+/// Resolve jump host passwords from the secret store when not already provided.
+fn resolve_jump_host_passwords(
     app: &tauri::AppHandle,
     secret_state: &crate::ssh::SecretStoreState,
     plan: &mut SessionPlan,
 ) -> Result<(), String> {
-    let jump = match &mut plan.jump_host {
-        Some(j) => j,
-        None => return Ok(()),
-    };
+    let legacy_secret_key =
+        jump_host_secret_key(plan.profile_id.as_deref(), plan.profile_name.as_str());
 
-    // If using key authentication, no password needed
-    if jump.private_key_path.is_some() {
-        return Ok(());
-    }
-
-    let secret_key = jump_host_secret_key(plan.profile_id.as_deref(), plan.profile_name.as_str());
-
-    // If password already provided for a saved profile, persist it.
-    if let Some(pw) = &jump.password {
-        if plan.profile_id.is_some() {
-            secret_state.save_password(app, &secret_key, pw)?;
+    for (index, jump) in plan.jump_hosts.iter_mut().enumerate() {
+        if jump.private_key_path.is_some() {
+            continue;
         }
-        return Ok(());
-    }
 
-    // Try to load from secret store
-    if let Some(pw) = secret_state.get_password(app, &secret_key)? {
-        jump.password = Some(pw);
+        let secret_key = jump_host_identity_secret_key(
+            plan.profile_id.as_deref(),
+            plan.profile_name.as_str(),
+            &jump.host,
+            jump.port,
+            &jump.username,
+        );
+
+        if let Some(pw) = &jump.password {
+            if plan.profile_id.is_some() {
+                secret_state.save_password(app, &secret_key, pw)?;
+            }
+            continue;
+        }
+
+        if let Some(pw) = secret_state.get_password(app, &secret_key)? {
+            jump.password = Some(pw);
+            continue;
+        }
+
+        // Legacy single-hop profiles stored the first jump password at `{profile}:jump`.
+        if index == 0 {
+            if let Some(pw) = secret_state.get_password(app, &legacy_secret_key)? {
+                if plan.profile_id.is_some() {
+                    let _ = secret_state.save_password(app, &secret_key, &pw);
+                }
+                jump.password = Some(pw);
+            }
+        }
     }
 
     Ok(())

@@ -47,6 +47,19 @@ pub struct SavedProfile {
     /// Optional jump host (bastion) configuration.
     #[serde(default)]
     pub jump_host: Option<SavedJumpHost>,
+    /// Ordered jump host chain. Supersedes `jump_host` for new saves.
+    #[serde(default)]
+    pub jump_hosts: Vec<SavedJumpHost>,
+}
+
+impl SavedProfile {
+    fn effective_jump_hosts(&self) -> Vec<SavedJumpHost> {
+        if self.jump_hosts.is_empty() {
+            self.jump_host.iter().cloned().collect()
+        } else {
+            self.jump_hosts.clone()
+        }
+    }
 }
 
 fn default_keepalive_interval() -> u32 {
@@ -73,6 +86,17 @@ fn sanitize_profile(profile: &mut SavedProfile) {
     if let Some(jump) = &mut profile.jump_host {
         jump.password = None;
         jump.private_key_passphrase = None;
+    }
+    for jump in &mut profile.jump_hosts {
+        jump.password = None;
+        jump.private_key_passphrase = None;
+    }
+    if profile.jump_hosts.is_empty() {
+        if let Some(jump) = profile.jump_host.take() {
+            profile.jump_hosts.push(jump);
+        }
+    } else {
+        profile.jump_host = None;
     }
     if profile.group.trim().is_empty() {
         profile.group = String::new();
@@ -102,12 +126,15 @@ pub fn save_profile(
     secret_state: tauri::State<'_, crate::ssh::SecretStoreState>,
     mut profile: SavedProfile,
 ) -> Result<(), String> {
-    if let Some(jump) = &profile.jump_host {
+    for jump in profile.effective_jump_hosts() {
         if jump.auth_method != "key" {
             if let Some(password) = jump.password.as_deref().filter(|value| !value.is_empty()) {
-                let secret_key = crate::core::session::jump_host_secret_key(
+                let secret_key = crate::core::session::jump_host_identity_secret_key(
                     Some(profile.id.as_str()),
                     profile.name.as_str(),
+                    &jump.host,
+                    jump.port,
+                    &jump.username,
                 );
                 secret_state.save_password(&app, &secret_key, password)?;
             }
@@ -146,30 +173,30 @@ pub async fn test_connection(
         return Err("Only SSH connections can be tested".to_string());
     }
 
-    let host = profile.host.ok_or("Host is required")?;
-    let username = profile.username.ok_or("Username is required")?;
+    let host = profile.host.clone().ok_or("Host is required")?;
+    let username = profile.username.clone().ok_or("Username is required")?;
     let port = profile.port.unwrap_or(22);
 
-    // Build connection plan
-    let jump_plan = profile
-        .jump_host
-        .as_ref()
+    let jump_hosts = profile
+        .effective_jump_hosts()
+        .into_iter()
         .map(|j| crate::core::session::JumpHostPlan {
-            host: j.host.clone(),
+            host: j.host,
             port: j.port,
-            username: j.username.clone(),
-            password: j.password.clone(),
+            username: j.username,
+            password: j.password,
             private_key_path: if j.auth_method == "key" {
-                j.private_key_path.clone()
+                j.private_key_path
             } else {
                 None
             },
             private_key_passphrase: if j.auth_method == "key" {
-                j.private_key_passphrase.clone()
+                j.private_key_passphrase
             } else {
                 None
             },
-        });
+        })
+        .collect::<Vec<_>>();
 
     let mut plan = crate::core::session::SessionPlan {
         kind: crate::core::SessionKind::Ssh,
@@ -189,7 +216,7 @@ pub async fn test_connection(
         terminal_shell: None,
         keepalive_interval_secs: profile.keepalive_interval_secs as u16,
         keepalive_count_max: profile.keepalive_count_max as u16,
-        jump_host: jump_plan.clone(),
+        jump_hosts,
     };
 
     crate::core::session::resolve_ssh_password(&app, &secret_state, &mut plan)?;
@@ -197,20 +224,17 @@ pub async fn test_connection(
     // Try to establish connection
     use std::time::Duration;
 
-    if let Some(jump) = &plan.jump_host {
+    if !plan.jump_hosts.is_empty() {
         let test_tab_id = format!("test-{}", profile.id);
-        // Route through jump host: connect -> authenticate jump -> tunnel -> authenticate target
-        use crate::ssh::jump::connect_via_jump;
-
         let target_config = std::sync::Arc::new(crate::ssh::jump::compatibility_client_config(
             plan.keepalive_interval_secs as u64,
             plan.keepalive_count_max as usize,
         ));
 
-        let (jump_session, mut target_session) = connect_via_jump(
+        let (jump_chain, mut target_session) = crate::ssh::jump::connect_via_jump_chain(
             &app,
             &test_tab_id,
-            jump,
+            &plan.jump_hosts,
             &host,
             port,
             TestConnectionHandler,
@@ -231,7 +255,7 @@ pub async fn test_connection(
         let _ = target_session
             .disconnect(russh::Disconnect::ByApplication, "", "")
             .await;
-        drop(jump_session);
+        drop(jump_chain);
     } else {
         // Direct connection
         use russh::client;

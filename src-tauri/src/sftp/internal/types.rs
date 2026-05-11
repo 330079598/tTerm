@@ -7,7 +7,7 @@ use std::time::Instant;
 use tokio::sync::watch;
 use tokio::sync::RwLock;
 
-use crate::ssh::{jump::JumpHostHandler, SshClientHandler};
+use crate::ssh::{JumpChain, SshClientHandler};
 
 pub type CancelSender = watch::Sender<bool>;
 pub type TransferCancelMap = Arc<RwLock<HashMap<String, CancelSender>>>;
@@ -35,9 +35,9 @@ pub struct SftpDirectoryListing {
 }
 
 pub struct ConnectedSftp {
-    /// Jump host session kept alive to maintain the tunnel channel.
+    /// Jump host chain kept alive to maintain every tunnel channel.
     /// `None` for direct connections.
-    pub jump_session: Option<client::Handle<JumpHostHandler>>,
+    pub jump_chain: Option<JumpChain>,
     pub ssh: client::Handle<SshClientHandler>,
     pub sftp: Arc<SftpSession>,
 }
@@ -53,7 +53,7 @@ pub struct SftpConnectionKey {
     pub host: String,
     pub port: u16,
     pub username: String,
-    pub jump_host: Option<String>,
+    pub jump_chain: Option<String>,
 }
 
 impl SftpConnectionKey {
@@ -66,19 +66,29 @@ impl SftpConnectionKey {
             host: plan.host.clone().ok_or("Host is required")?,
             port: plan.port,
             username: plan.username.clone().ok_or("Username is required")?,
-            jump_host: plan.jump_host.as_ref().map(|jump| {
-                format!(
-                    "{}:{}:{}:{}",
-                    jump.host,
-                    jump.port,
-                    jump.username,
-                    if jump.private_key_path.is_some() {
-                        "key"
-                    } else {
-                        "password"
-                    }
+            jump_chain: if plan.jump_hosts.is_empty() {
+                None
+            } else {
+                Some(
+                    plan.jump_hosts
+                        .iter()
+                        .map(|jump| {
+                            format!(
+                                "{}:{}:{}:{}",
+                                jump.host,
+                                jump.port,
+                                jump.username,
+                                if jump.private_key_path.is_some() {
+                                    "key"
+                                } else {
+                                    "password"
+                                }
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join("|"),
                 )
-            }),
+            },
         })
     }
 }

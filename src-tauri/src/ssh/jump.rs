@@ -24,6 +24,7 @@ pub struct JumpHostHandler {
     pub tab_id: String,
     pub host: String,
     pub port: u16,
+    pub hop_index: usize,
     pub prompts: HostPromptMap,
     pub user_rejected_host_key: Arc<AtomicBool>,
     pub failure_reason: Arc<Mutex<Option<String>>>,
@@ -90,7 +91,10 @@ impl client::Handler for JumpHostHandler {
 
         self.emit_status(
             "33",
-            "Waiting for user confirmation of jump host fingerprint...",
+            &format!(
+                "Waiting for user confirmation of jump host #{} fingerprint...",
+                self.hop_index
+            ),
         );
 
         let approved = match tokio::time::timeout(HOST_KEY_PROMPT_TIMEOUT, rx).await {
@@ -138,7 +142,10 @@ impl JumpHostHandler {
     }
 
     fn emit_status(&self, color: &str, message: &str) {
-        let payload = format!("\r\n\x1b[{}m[{}]\x1b[0m\r\n", color, message);
+        let payload = format!(
+            "\r\n\x1b[{}m[Jump #{}: {}]\x1b[0m\r\n",
+            color, self.hop_index, message
+        );
         let event_name = format!("pty-output-{}", self.tab_id);
         let _ = self
             .app
@@ -242,50 +249,81 @@ fn format_jump_host_connect_error(error: &russh::Error) -> String {
     format!("Jump host connection failed: {detail}")
 }
 
-/// Open a `direct-tcpip` channel through an already-authenticated jump host
-/// session, then establish a second SSH session on top of that tunnel.
-///
-/// Returns `(jump_session, target_session)`.  The caller **must** keep
-/// `jump_session` alive for as long as `target_session` is in use, because
-/// the tunnel channel lives inside the jump session.
-pub async fn connect_via_jump<H>(
+/// Holds the authenticated jump sessions that keep every direct-tcpip hop alive.
+pub struct JumpChain {
+    pub sessions: Vec<client::Handle<JumpHostHandler>>,
+}
+
+impl Drop for JumpChain {
+    fn drop(&mut self) {
+        let _ = self.sessions.len();
+    }
+}
+
+fn build_jump_handler(
     app: &AppHandle,
     tab_id: &str,
     jump_plan: &JumpHostPlan,
-    target_host: &str,
-    target_port: u16,
-    target_handler: H,
-    target_config: Arc<client::Config>,
+    hop_index: usize,
+    _total_hops: usize,
     prompts: HostPromptMap,
-) -> Result<(client::Handle<JumpHostHandler>, client::Handle<H>), String>
-where
-    H: client::Handler + Send + 'static,
-    H::Error: std::fmt::Display,
-{
-    // ── Step 1: connect to the jump host ────────────────────────────────────
-    let jump_handler = JumpHostHandler {
+) -> JumpHostHandler {
+    JumpHostHandler {
         app: app.clone(),
         tab_id: tab_id.to_string(),
         host: jump_plan.host.clone(),
         port: jump_plan.port,
+        hop_index,
         prompts,
         user_rejected_host_key: Arc::new(AtomicBool::new(false)),
         failure_reason: Arc::new(Mutex::new(None)),
-    };
+    }
+}
+
+fn map_jump_connect_error(
+    error: russh::Error,
+    host_key_rejected: Arc<AtomicBool>,
+    failure_reason: Arc<Mutex<Option<String>>>,
+    hop_index: usize,
+) -> String {
+    if let Ok(mut reason) = failure_reason.lock() {
+        if let Some(reason) = reason.take() {
+            return reason;
+        }
+    }
+
+    if host_key_rejected.load(Ordering::Relaxed) {
+        HOST_KEY_REJECTED_REASON.to_string()
+    } else {
+        format!(
+            "Jump host #{hop_index}: {}",
+            format_jump_host_connect_error(&error)
+        )
+    }
+}
+
+async fn connect_jump_direct(
+    app: &AppHandle,
+    tab_id: &str,
+    jump_plan: &JumpHostPlan,
+    hop_index: usize,
+    total_hops: usize,
+    prompts: HostPromptMap,
+) -> Result<client::Handle<JumpHostHandler>, String> {
+    let jump_handler = build_jump_handler(app, tab_id, jump_plan, hop_index, total_hops, prompts);
     let host_key_rejected = jump_handler.user_rejected_host_key.clone();
     let failure_reason = jump_handler.failure_reason.clone();
-
     let jump_config = Arc::new(compatibility_client_config(15, 3));
 
     jump_handler.emit_status(
         "33",
         &format!(
-            "Connecting to jump host {}@{}:{}...",
+            "Connecting to {}@{}:{}...",
             jump_plan.username, jump_plan.host, jump_plan.port
         ),
     );
 
-    let mut jump_session = tokio::time::timeout(
+    let mut session = tokio::time::timeout(
         Duration::from_secs(15),
         client::connect(
             jump_config,
@@ -294,60 +332,165 @@ where
         ),
     )
     .await
-    .map_err(|_| "Jump host connection timed out".to_string())?
-    .map_err(|e| {
-        if let Ok(mut reason) = failure_reason.lock() {
-            if let Some(reason) = reason.take() {
-                return reason;
-            }
-        }
+    .map_err(|_| format!("Jump host #{hop_index} connection timed out"))?
+    .map_err(|e| map_jump_connect_error(e, host_key_rejected, failure_reason, hop_index))?;
 
-        if host_key_rejected.load(Ordering::Relaxed) {
-            HOST_KEY_REJECTED_REASON.to_string()
-        } else {
-            format_jump_host_connect_error(&e)
-        }
-    })?;
-
-    // ── Step 2: authenticate on the jump host ───────────────────────────────
     authenticate_session(
-        &mut jump_session,
+        &mut session,
         &jump_plan.username,
         jump_plan.private_key_path.as_deref(),
         jump_plan.private_key_passphrase.as_deref(),
         jump_plan.password.as_deref(),
     )
-    .await?;
+    .await
+    .map_err(|e| format!("Jump host #{hop_index}: {e}"))?;
+
+    Ok(session)
+}
+
+async fn connect_jump_over_stream<S>(
+    app: &AppHandle,
+    tab_id: &str,
+    jump_plan: &JumpHostPlan,
+    hop_index: usize,
+    total_hops: usize,
+    stream: S,
+    prompts: HostPromptMap,
+) -> Result<client::Handle<JumpHostHandler>, String>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+{
+    let jump_handler = build_jump_handler(app, tab_id, jump_plan, hop_index, total_hops, prompts);
+    let host_key_rejected = jump_handler.user_rejected_host_key.clone();
+    let failure_reason = jump_handler.failure_reason.clone();
+    let jump_config = Arc::new(compatibility_client_config(15, 3));
+
+    jump_handler.emit_status(
+        "33",
+        &format!(
+            "Connecting to {}@{}:{} through tunnel...",
+            jump_plan.username, jump_plan.host, jump_plan.port
+        ),
+    );
+
+    let mut session = tokio::time::timeout(
+        Duration::from_secs(15),
+        client::connect_stream(jump_config, stream, jump_handler),
+    )
+    .await
+    .map_err(|_| format!("Jump host #{hop_index} connection timed out"))?
+    .map_err(|e| map_jump_connect_error(e, host_key_rejected, failure_reason, hop_index))?;
+
+    authenticate_session(
+        &mut session,
+        &jump_plan.username,
+        jump_plan.private_key_path.as_deref(),
+        jump_plan.private_key_passphrase.as_deref(),
+        jump_plan.password.as_deref(),
+    )
+    .await
+    .map_err(|e| format!("Jump host #{hop_index}: {e}"))?;
+
+    Ok(session)
+}
+
+/// Open an ordered ProxyJump-style chain, then establish the target SSH session
+/// on top of the final direct-tcpip stream. The returned `JumpChain` must stay
+/// alive for as long as the target session is used.
+pub async fn connect_via_jump_chain<H>(
+    app: &AppHandle,
+    tab_id: &str,
+    jump_plans: &[JumpHostPlan],
+    target_host: &str,
+    target_port: u16,
+    target_handler: H,
+    target_config: Arc<client::Config>,
+    prompts: HostPromptMap,
+) -> Result<(JumpChain, client::Handle<H>), String>
+where
+    H: client::Handler + Send + 'static,
+    H::Error: std::fmt::Display,
+{
+    if jump_plans.is_empty() {
+        return Err("Jump host chain is empty".to_string());
+    }
+
+    let total_hops = jump_plans.len();
+    let mut sessions = Vec::with_capacity(total_hops);
+
+    let first =
+        connect_jump_direct(app, tab_id, &jump_plans[0], 1, total_hops, prompts.clone()).await?;
+    sessions.push(first);
+
+    for (index, jump_plan) in jump_plans.iter().enumerate().skip(1) {
+        let hop_index = index + 1;
+        let previous = sessions
+            .last()
+            .ok_or_else(|| "Jump chain lost its previous session".to_string())?;
+
+        let status_msg = format!(
+            "\r\n\x1b[33m[Opening tunnel to jump #{} {}:{}...]\x1b[0m\r\n",
+            hop_index, jump_plan.host, jump_plan.port
+        );
+        let event_name = format!("pty-output-{}", tab_id);
+        let _ = app.emit_to(tauri::EventTarget::any(), &event_name, status_msg);
+
+        let tunnel_channel = previous
+            .channel_open_direct_tcpip(
+                jump_plan.host.as_str(),
+                jump_plan.port as u32,
+                "127.0.0.1",
+                0,
+            )
+            .await
+            .map_err(|e| {
+                format!(
+                    "Jump host #{} failed to open tunnel to jump #{}: {e}",
+                    index, hop_index
+                )
+            })?;
+
+        let next = connect_jump_over_stream(
+            app,
+            tab_id,
+            jump_plan,
+            hop_index,
+            total_hops,
+            tunnel_channel.into_stream(),
+            prompts.clone(),
+        )
+        .await?;
+        sessions.push(next);
+    }
 
     let status_msg = format!(
-        "\r\n\x1b[33m[Jump host connected. Opening tunnel to {}:{}...]\x1b[0m\r\n",
+        "\r\n\x1b[33m[Jump chain connected. Opening tunnel to {}:{}...]\x1b[0m\r\n",
         target_host, target_port
     );
     let event_name = format!("pty-output-{}", tab_id);
     let _ = app.emit_to(tauri::EventTarget::any(), &event_name, status_msg);
 
-    // ── Step 3: open a direct-tcpip channel to the target ───────────────────
-    // The originator address/port are informational only (RFC 4254 §7.2).
-    let tunnel_channel = jump_session
+    let last = sessions
+        .last()
+        .ok_or_else(|| "Jump chain is empty".to_string())?;
+    let tunnel_channel = last
         .channel_open_direct_tcpip(target_host, target_port as u32, "127.0.0.1", 0)
         .await
-        .map_err(|e| format!("Failed to open tunnel to target: {e}"))?;
+        .map_err(|e| format!("Failed to open tunnel to target through jump chain: {e}"))?;
 
-    // ── Step 4: run a second SSH session over the tunnel stream ─────────────
-    // `into_stream()` gives us an `AsyncRead + AsyncWrite` backed by the channel.
     let target_session =
         client::connect_stream(target_config, tunnel_channel.into_stream(), target_handler)
             .await
-            .map_err(|e| format!("Failed to establish SSH session through tunnel: {e}"))?;
+            .map_err(|e| format!("Failed to establish SSH session through jump chain: {e}"))?;
 
-    Ok((jump_session, target_session))
+    Ok((JumpChain { sessions }, target_session))
 }
 
 /// Build a `SshClientHandler` for the target host and open an authenticated
-/// SSH session, routing through the jump host when `jump_plan` is `Some`.
+/// SSH session, routing through an ordered jump chain when configured.
 ///
-/// Returns `(Option<jump_session>, target_session)`.  The jump session must
-/// be kept alive alongside the target session.
+/// Returns `(Option<jump_chain>, target_session)`.  The jump chain must be kept
+/// alive alongside the target session.
 pub async fn open_target_ssh_session(
     app: &AppHandle,
     tab_id: &str,
@@ -361,15 +504,9 @@ pub async fn open_target_ssh_session(
     target_password: Option<&str>,
     keepalive_interval_secs: u16,
     keepalive_count_max: u16,
-    jump_plan: Option<&JumpHostPlan>,
+    jump_plans: &[JumpHostPlan],
     prompts: HostPromptMap,
-) -> Result<
-    (
-        Option<client::Handle<JumpHostHandler>>,
-        client::Handle<SshClientHandler>,
-    ),
-    String,
-> {
+) -> Result<(Option<JumpChain>, client::Handle<SshClientHandler>), String> {
     let target_config = Arc::new(compatibility_client_config(
         keepalive_interval_secs as u64,
         keepalive_count_max as usize,
@@ -387,22 +524,7 @@ pub async fn open_target_ssh_session(
     };
     let host_key_rejected = handler.user_rejected_host_key.clone();
 
-    let (jump_session_opt, mut target_session) = if let Some(jump) = jump_plan {
-        // Route through jump host
-        let (jump_sess, target_sess) = connect_via_jump(
-            app,
-            tab_id,
-            jump,
-            target_host,
-            target_port,
-            handler,
-            target_config,
-            prompts,
-        )
-        .await?;
-        (Some(jump_sess), target_sess)
-    } else {
-        // Direct connection
+    let (jump_chain_opt, mut target_session) = if jump_plans.is_empty() {
         let sess = client::connect(target_config, (target_host, target_port), handler)
             .await
             .map_err(|e| {
@@ -414,9 +536,21 @@ pub async fn open_target_ssh_session(
             })?;
 
         (None, sess)
+    } else {
+        let (chain, target_sess) = connect_via_jump_chain(
+            app,
+            tab_id,
+            jump_plans,
+            target_host,
+            target_port,
+            handler,
+            target_config,
+            prompts,
+        )
+        .await?;
+        (Some(chain), target_sess)
     };
 
-    // ── Authenticate on the target ───────────────────────────────────────────
     let auth_result = if let Some(key_path) = target_private_key_path {
         let key_pair =
             russh::keys::load_secret_key(Path::new(key_path), target_private_key_passphrase)
@@ -444,5 +578,5 @@ pub async fn open_target_ssh_session(
         return Err("SSH authentication failed".to_string());
     }
 
-    Ok((jump_session_opt, target_session))
+    Ok((jump_chain_opt, target_session))
 }

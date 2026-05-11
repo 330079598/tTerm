@@ -4,6 +4,7 @@ import {
   ConfigState,
   ConnectionForm,
   ConnectionType,
+  createDefaultJumpHost,
   defaultForm,
 } from "@/components/ConnectionDialog/types"
 
@@ -12,9 +13,9 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     return { ...defaultForm }
   }
 
-  const jump = profile.jump_host
+  const legacyJump = profile.jump_host
+  const jumpHosts = profile.jump_hosts?.length ? profile.jump_hosts : legacyJump ? [legacyJump] : []
   const authMethod = profile.auth_method === "key" ? "key" : "password"
-  const jumpAuthMethod = jump?.auth_method === "key" ? "key" : "password"
 
   return {
     ...defaultForm,
@@ -28,13 +29,15 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     privateKeyPath: profile.private_key_path ?? "",
     keepaliveIntervalSecs: profile.keepalive_interval_secs,
     keepaliveCountMax: profile.keepalive_count_max,
-    // Jump host fields from saved profile
-    useJumpHost: !!jump,
-    jumpHost: jump?.host ?? "",
-    jumpPort: jump?.port ?? 22,
-    jumpUsername: jump?.username ?? "",
-    jumpAuthMethod,
-    jumpPrivateKeyPath: jump?.private_key_path ?? "",
+    useJumpHost: jumpHosts.length > 0,
+    jumpHosts: jumpHosts.map((jump) => ({
+      ...createDefaultJumpHost(),
+      host: jump.host ?? "",
+      port: jump.port ?? 22,
+      username: jump.username ?? "",
+      authMethod: jump.auth_method === "key" ? "key" : "password",
+      privateKeyPath: jump.private_key_path ?? "",
+    })),
   }
 }
 

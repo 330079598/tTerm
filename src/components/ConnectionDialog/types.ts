@@ -14,6 +14,17 @@ export type ConnectionType = "terminal" | "ssh"
 export type ConfigState = ReturnType<typeof useConfig>["config"]
 export type SaveConfig = ReturnType<typeof useConfig>["saveConfig"]
 
+export interface JumpHostForm {
+  id: string
+  host: string
+  port: number
+  username: string
+  authMethod: "password" | "key"
+  password: string
+  privateKeyPath: string
+  privateKeyPassphrase: string
+}
+
 export interface ConnectionForm {
   type: ConnectionType
   title: string
@@ -31,16 +42,21 @@ export interface ConnectionForm {
   terminalShell: TerminalShellType
   terminalShellCustomPath: string
   terminalShellCustomArgs: string
-  // Jump host (bastion) fields
+  // Jump host chain fields
   useJumpHost: boolean
-  jumpHost: string
-  jumpPort: number
-  jumpUsername: string
-  jumpAuthMethod: "password" | "key"
-  jumpPassword: string
-  jumpPrivateKeyPath: string
-  jumpPrivateKeyPassphrase: string
+  jumpHosts: JumpHostForm[]
 }
+
+export const createDefaultJumpHost = (): JumpHostForm => ({
+  id: crypto.randomUUID(),
+  host: "",
+  port: 22,
+  username: "",
+  authMethod: "password",
+  password: "",
+  privateKeyPath: "",
+  privateKeyPassphrase: "",
+})
 
 export interface ConnectionDialogContentProps extends Omit<ConnectionDialogProps, "isOpen"> {
   config: ConfigState
@@ -65,13 +81,7 @@ export const defaultForm: ConnectionForm = {
   terminalShellCustomPath: "",
   terminalShellCustomArgs: "",
   useJumpHost: false,
-  jumpHost: "",
-  jumpPort: 22,
-  jumpUsername: "",
-  jumpAuthMethod: "password",
-  jumpPassword: "",
-  jumpPrivateKeyPath: "",
-  jumpPrivateKeyPassphrase: "",
+  jumpHosts: [],
 }
 
 export const connectionTypes = [

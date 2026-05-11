@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { Loader2, Save, Server, Terminal } from "lucide-react"
@@ -20,7 +20,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useConfig } from "@/contexts/ConfigContext"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import { Tab } from "@/types/tab"
+import { Tab, type JumpHostConnection, type SavedJumpHost } from "@/types/tab"
 
 import {
   buildInitialForm,
@@ -47,49 +47,78 @@ const connectionTypeIcons = {
 const normalizeJumpAuthMethod = (value: string | undefined): "password" | "key" =>
   value === "key" ? "key" : "password"
 
-const hasJumpHost = (form: ConnectionForm) => form.useJumpHost
+const hasJumpHosts = (form: ConnectionForm) => form.useJumpHost && form.jumpHosts.length > 0
 
 const getJumpHostValidationError = (form: ConnectionForm): string | null => {
-  if (!hasJumpHost(form)) {
+  if (!form.useJumpHost) {
     return null
   }
 
-  if (!form.jumpHost.trim()) {
-    return "Jump host is required."
-  }
+  if (form.jumpHosts.length === 0) return "At least one jump host is required."
 
-  if (!form.jumpUsername.trim()) {
-    return "Jump host username is required."
-  }
+  for (const [index, jump] of form.jumpHosts.entries()) {
+    const label = `Jump host #${index + 1}`
 
-  if (!Number.isInteger(form.jumpPort) || form.jumpPort < 1 || form.jumpPort > 65535) {
-    return "Jump host port must be between 1 and 65535."
-  }
+    if (!jump.host.trim()) return `${label} host is required.`
 
-  if (form.jumpAuthMethod === "key" && !form.jumpPrivateKeyPath.trim()) {
-    return "Jump host private key path is required."
+    if (!jump.username.trim()) return `${label} username is required.`
+
+    if (!Number.isInteger(jump.port) || jump.port < 1 || jump.port > 65535) {
+      return `${label} port must be between 1 and 65535.`
+    }
+
+    if (jump.authMethod === "key" && !jump.privateKeyPath.trim()) {
+      return `${label} private key path is required.`
+    }
   }
 
   return null
 }
 
-const buildJumpHostPayload = (form: ConnectionForm) => {
-  if (!hasJumpHost(form)) {
+function buildJumpHostsPayload(form: ConnectionForm, keyCase: "snake"): SavedJumpHost[] | undefined
+function buildJumpHostsPayload(
+  form: ConnectionForm,
+  keyCase: "camel"
+): JumpHostConnection[] | undefined
+function buildJumpHostsPayload(
+  form: ConnectionForm,
+  keyCase: "camel" | "snake"
+): SavedJumpHost[] | JumpHostConnection[] | undefined {
+  if (!hasJumpHosts(form)) {
     return undefined
   }
 
-  const authMethod = normalizeJumpAuthMethod(form.jumpAuthMethod)
-
-  return {
-    host: form.jumpHost.trim(),
-    port: form.jumpPort,
-    username: form.jumpUsername.trim(),
-    authMethod,
-    password: authMethod === "password" ? form.jumpPassword || undefined : undefined,
-    privateKeyPath: authMethod === "key" ? form.jumpPrivateKeyPath || undefined : undefined,
-    privateKeyPassphrase:
-      authMethod === "key" ? form.jumpPrivateKeyPassphrase || undefined : undefined,
+  if (keyCase === "snake") {
+    return form.jumpHosts.map((jump) => {
+      const authMethod = normalizeJumpAuthMethod(jump.authMethod)
+      const privateKeyPath = authMethod === "key" ? jump.privateKeyPath || undefined : undefined
+      const privateKeyPassphrase =
+        authMethod === "key" ? jump.privateKeyPassphrase || undefined : undefined
+      return {
+        host: jump.host.trim(),
+        port: jump.port,
+        username: jump.username.trim(),
+        auth_method: authMethod,
+        password: authMethod === "password" ? jump.password || undefined : undefined,
+        private_key_path: privateKeyPath,
+        private_key_passphrase: privateKeyPassphrase,
+      }
+    })
   }
+
+  return form.jumpHosts.map((jump) => {
+    const authMethod = normalizeJumpAuthMethod(jump.authMethod)
+    return {
+      host: jump.host.trim(),
+      port: jump.port,
+      username: jump.username.trim(),
+      password: authMethod === "password" ? jump.password || undefined : undefined,
+      authMethod,
+      privateKeyPath: authMethod === "key" ? jump.privateKeyPath || undefined : undefined,
+      privateKeyPassphrase:
+        authMethod === "key" ? jump.privateKeyPassphrase || undefined : undefined,
+    }
+  })
 }
 
 const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
@@ -167,37 +196,56 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     }
   }, [editProfile, form.authMethod, form.type])
 
-  // Load saved jump host password when editing a profile
+  // Load saved jump host passwords when editing a profile.
+  // Use a ref to track which profile we've already loaded passwords for,
+  // so we only run once per profile and don't re-trigger on every keystroke.
+  const loadedJumpPasswordsForProfile = useRef<string | null>(null)
+
   useEffect(() => {
-    if (
-      !editProfile ||
-      form.type !== "ssh" ||
-      !form.useJumpHost ||
-      form.jumpAuthMethod !== "password"
-    ) {
+    if (!editProfile || form.type !== "ssh" || !form.useJumpHost) {
       return
     }
 
-    let cancelled = false
+    // Only load once per profile to avoid overwriting user input on re-renders.
+    if (loadedJumpPasswordsForProfile.current === editProfile.id) {
+      return
+    }
+    loadedJumpPasswordsForProfile.current = editProfile.id
 
-    invoke<string | null>("get_saved_jump_host_password", {
-      profileId: editProfile.id,
-      profileName: editProfile.name,
-    })
-      .then((password) => {
-        if (cancelled || !password) {
-          return
-        }
+    let cancelled = false
+    const passwordJumps = form.jumpHosts.filter((jump) => jump.authMethod === "password")
+
+    if (passwordJumps.length === 0) return
+
+    Promise.all(
+      passwordJumps.map((jump) =>
+        invoke<string | null>("get_saved_jump_host_password", {
+          profileId: editProfile.id,
+          profileName: editProfile.name,
+          host: jump.host,
+          port: jump.port,
+          username: jump.username,
+        }).then((password) => ({ id: jump.id, password }))
+      )
+    )
+      .then((results) => {
+        if (cancelled) return
+        const byId = new Map(
+          results.filter((item) => item.password).map((item) => [item.id, item.password ?? ""])
+        )
+        if (byId.size === 0) return
 
         setForm((current) => {
-          if (!current.useJumpHost || current.jumpAuthMethod !== "password") {
-            return current
-          }
+          const jumpHosts = current.jumpHosts.map((jump) => {
+            const password = byId.get(jump.id)
+            return password !== undefined && jump.password !== password
+              ? { ...jump, password }
+              : jump
+          })
 
-          return {
-            ...current,
-            jumpPassword: password,
-          }
+          return jumpHosts.some((jump, index) => jump !== current.jumpHosts[index])
+            ? { ...current, jumpHosts }
+            : current
         })
       })
       .catch(() => {})
@@ -205,7 +253,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     return () => {
       cancelled = true
     }
-  }, [editProfile, form.type, form.useJumpHost, form.jumpAuthMethod])
+  }, [editProfile, form.type, form.useJumpHost, form.jumpHosts])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -227,6 +275,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     const group = form.group.trim()
     const shouldPersistProfile = shouldSave
     const profileId = form.type === "ssh" && shouldPersistProfile ? sshProfileId : undefined
+    const profileJumpHostsPayload = buildJumpHostsPayload(form, "snake")
+    const connectionJumpHostsPayload = buildJumpHostsPayload(form, "camel")
 
     if (shouldPersistProfile && form.type === "ssh" && form.host.trim()) {
       const duplicate = allProfiles.find(
@@ -250,7 +300,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         private_key_path: form.authMethod === "key" ? form.privateKeyPath : undefined,
         keepalive_interval_secs: form.keepaliveIntervalSecs,
         keepalive_count_max: form.keepaliveCountMax,
-        jump_host: buildJumpHostPayload(form),
+        jump_hosts: profileJumpHostsPayload,
       }
       try {
         await invoke("save_profile", { profile })
@@ -279,7 +329,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         privateKeyPassphrase: form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
         keepaliveIntervalSecs: form.keepaliveIntervalSecs,
         keepaliveCountMax: form.keepaliveCountMax,
-        jumpHost: buildJumpHostPayload(form),
+        jumpHosts: connectionJumpHostsPayload,
       }
     } else {
       connection.connection = {
@@ -332,6 +382,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     )
     try {
       const title = form.title.trim() || getDefaultTitle(form.type, form)
+      const jumpHostsPayload = buildJumpHostsPayload(form, "snake")
       const profile: SavedProfile = {
         id: sshProfileId,
         name: title,
@@ -347,7 +398,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         keepalive_interval_secs: form.keepaliveIntervalSecs,
         keepalive_count_max: form.keepaliveCountMax,
         remember_password: false,
-        jump_host: buildJumpHostPayload(form),
+        jump_hosts: jumpHostsPayload,
       }
 
       const result = await invoke<string>("test_connection", { profile })

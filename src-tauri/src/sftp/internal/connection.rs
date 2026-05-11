@@ -12,9 +12,7 @@ use crate::core::state::{HostPromptMap, SessionKind};
 use crate::sftp::internal::types::{
     CachedSftpConnection, ConnectedSftp, SftpConnectionKey, SftpConnectionPool,
 };
-use crate::ssh::{
-    jump::JumpHostHandler, open_target_ssh_session, SecretStoreState, SshClientHandler,
-};
+use crate::ssh::{open_target_ssh_session, JumpChain, SecretStoreState, SshClientHandler};
 
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(300);
 
@@ -43,13 +41,7 @@ pub async fn connect_authenticated_ssh(
     tab_id: &str,
     plan: &SessionPlan,
     prompts: HostPromptMap,
-) -> Result<
-    (
-        Option<client::Handle<JumpHostHandler>>,
-        client::Handle<SshClientHandler>,
-    ),
-    String,
-> {
+) -> Result<(Option<JumpChain>, client::Handle<SshClientHandler>), String> {
     let host = plan
         .host
         .clone()
@@ -72,7 +64,7 @@ pub async fn connect_authenticated_ssh(
         plan.password.as_deref(),
         plan.keepalive_interval_secs,
         plan.keepalive_count_max,
-        plan.jump_host.as_ref(),
+        &plan.jump_hosts,
         prompts,
     )
     .await
@@ -84,7 +76,7 @@ async fn connect_sftp(
     plan: &SessionPlan,
     prompts: HostPromptMap,
 ) -> Result<ConnectedSftp, String> {
-    let (jump_session, ssh) = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
+    let (jump_chain, ssh) = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
 
     let channel = ssh
         .channel_open_session()
@@ -103,7 +95,7 @@ async fn connect_sftp(
     );
 
     Ok(ConnectedSftp {
-        jump_session,
+        jump_chain,
         ssh,
         sftp,
     })
@@ -111,7 +103,7 @@ async fn connect_sftp(
 
 pub async fn close_sftp(connection: ConnectedSftp) {
     let ConnectedSftp {
-        jump_session,
+        jump_chain,
         ssh,
         sftp,
     } = connection;
@@ -119,9 +111,9 @@ pub async fn close_sftp(connection: ConnectedSftp) {
     let _ = ssh
         .disconnect(Disconnect::ByApplication, "SFTP session closed", "en")
         .await;
-    // Drop the jump session after the target session is closed so the tunnel
-    // channel stays open until we are fully done with it.
-    drop(jump_session);
+    // Drop the jump chain after the target session is closed so every tunnel
+    // stays open until we are fully done with it.
+    drop(jump_chain);
 }
 
 pub async fn get_or_create_sftp_connection(

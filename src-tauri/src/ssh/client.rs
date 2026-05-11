@@ -50,7 +50,7 @@ pub async fn run_single_ssh_connection(
     };
 
     // Use open_target_ssh_session for connection + auth (supports jump hosts)
-    let (jump_session, session) = match crate::ssh::open_target_ssh_session(
+    let (jump_chain, session) = match crate::ssh::open_target_ssh_session(
         &app,
         &tab_id,
         plan.profile_id.as_deref(),
@@ -63,7 +63,7 @@ pub async fn run_single_ssh_connection(
         plan.password.as_deref(),
         plan.keepalive_interval_secs,
         plan.keepalive_count_max,
-        plan.jump_host.as_ref(),
+        &plan.jump_hosts,
         prompts,
     )
     .await
@@ -125,7 +125,7 @@ pub async fn run_single_ssh_connection(
                 if *stop_rx.borrow() {
                     let _ = writer.close().await;
                     let _ = session.disconnect(Disconnect::ByApplication, "Session closed", "en").await;
-                    drop(jump_session);
+                    drop(jump_chain);
                     return SshExitSignal {
                         terminated: true,
                         recoverable: false,
@@ -186,7 +186,7 @@ pub async fn run_single_ssh_connection(
                     }
                     Some(ChannelMsg::ExitStatus { .. }) => {
                         let _ = session.disconnect(Disconnect::ByApplication, "Shell exited", "en").await;
-                        drop(jump_session);
+                        drop(jump_chain);
                         return SshExitSignal {
                             terminated: true,
                             recoverable: false,

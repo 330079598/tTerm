@@ -400,9 +400,17 @@
     "browseKey": "Browse"
   },
   "jumpHost": {
-    "enable": "Connect via jump host (bastion)",
+    "enable": "Connect via jump hosts (bastions)",
+    "chain": "Jump chain",
+    "chainDescription": "Connections are opened in order, like OpenSSH ProxyJump.",
+    "add": "Add jump host",
+    "hop": "Jump #{{index}}",
+    "moveUp": "Move jump host up",
+    "moveDown": "Move jump host down",
+    "remove": "Remove jump host",
     "host": "Jump Host",
-    "via": "via {{host}}"
+    "via": "via {{host}}",
+    "viaCount": "via {{count}} jumps"
   },
   "sessionHeader": {
     "connecting": "Connecting",
