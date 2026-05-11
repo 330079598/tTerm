@@ -263,6 +263,7 @@ pub async fn test_connection(
             TestConnectionHandler,
             target_config,
             prompt_state.inner().clone(),
+            crate::ssh::ConnectionStatusOptions::SILENT,
         )
         .await?;
 

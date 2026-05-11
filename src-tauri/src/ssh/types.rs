@@ -5,6 +5,21 @@ use tauri::Emitter;
 pub const HOST_KEY_PROMPT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 pub const HOST_KEY_REJECTED_REASON: &str = "SSH host fingerprint rejected by user";
 
+#[derive(Clone, Copy, Debug)]
+pub struct ConnectionStatusOptions {
+    pub emit_terminal_output: bool,
+}
+
+impl ConnectionStatusOptions {
+    pub const VERBOSE: Self = Self {
+        emit_terminal_output: true,
+    };
+
+    pub const SILENT: Self = Self {
+        emit_terminal_output: false,
+    };
+}
+
 #[derive(Clone)]
 pub struct SshClientHandler {
     pub app: tauri::AppHandle,
@@ -15,6 +30,7 @@ pub struct SshClientHandler {
     pub port: u16,
     pub prompts: crate::core::state::HostPromptMap,
     pub user_rejected_host_key: Arc<AtomicBool>,
+    pub status_options: ConnectionStatusOptions,
 }
 
 impl russh::client::Handler for SshClientHandler {
@@ -119,6 +135,10 @@ impl russh::client::Handler for SshClientHandler {
 
 impl SshClientHandler {
     fn emit_status(&self, color: &str, message: &str) {
+        if !self.status_options.emit_terminal_output {
+            return;
+        }
+
         let payload = format!("\r\n\x1b[{}m[{}]\x1b[0m\r\n", color, message);
         let event_name = format!("pty-output-{}", self.tab_id);
         let _ = self

@@ -1,4 +1,4 @@
-use super::types::HOST_KEY_REJECTED_REASON;
+use super::types::{ConnectionStatusOptions, HOST_KEY_REJECTED_REASON};
 use crate::core::session::SessionPlan;
 use crate::core::state::HostPromptMap;
 use russh::{ChannelMsg, Disconnect};
@@ -65,6 +65,7 @@ pub async fn run_single_ssh_connection(
         plan.keepalive_count_max,
         &plan.jump_hosts,
         prompts,
+        ConnectionStatusOptions::VERBOSE,
     )
     .await
     {

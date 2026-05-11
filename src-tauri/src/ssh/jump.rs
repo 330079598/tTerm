@@ -14,7 +14,9 @@ use crate::core::state::HostPromptMap;
 use crate::ssh::store::{
     load_known_host, now_unix_ms, save_known_host_entry, KnownHostRecord, SshHostKeyPromptPayload,
 };
-use crate::ssh::types::{SshClientHandler, HOST_KEY_PROMPT_TIMEOUT, HOST_KEY_REJECTED_REASON};
+use crate::ssh::types::{
+    ConnectionStatusOptions, SshClientHandler, HOST_KEY_PROMPT_TIMEOUT, HOST_KEY_REJECTED_REASON,
+};
 
 /// russh handler for the jump host leg of the connection.
 /// Performs the same host-key verification as `SshClientHandler`:
@@ -28,6 +30,7 @@ pub struct JumpHostHandler {
     pub prompts: HostPromptMap,
     pub user_rejected_host_key: Arc<AtomicBool>,
     pub failure_reason: Arc<Mutex<Option<String>>>,
+    pub status_options: ConnectionStatusOptions,
 }
 
 impl client::Handler for JumpHostHandler {
@@ -142,6 +145,10 @@ impl JumpHostHandler {
     }
 
     fn emit_status(&self, color: &str, message: &str) {
+        if !self.status_options.emit_terminal_output {
+            return;
+        }
+
         let payload = format!(
             "\r\n\x1b[{}m[Jump #{}: {}]\x1b[0m\r\n",
             color, self.hop_index, message
@@ -267,6 +274,7 @@ fn build_jump_handler(
     hop_index: usize,
     _total_hops: usize,
     prompts: HostPromptMap,
+    status_options: ConnectionStatusOptions,
 ) -> JumpHostHandler {
     JumpHostHandler {
         app: app.clone(),
@@ -277,6 +285,7 @@ fn build_jump_handler(
         prompts,
         user_rejected_host_key: Arc::new(AtomicBool::new(false)),
         failure_reason: Arc::new(Mutex::new(None)),
+        status_options,
     }
 }
 
@@ -309,8 +318,17 @@ async fn connect_jump_direct(
     hop_index: usize,
     total_hops: usize,
     prompts: HostPromptMap,
+    status_options: ConnectionStatusOptions,
 ) -> Result<client::Handle<JumpHostHandler>, String> {
-    let jump_handler = build_jump_handler(app, tab_id, jump_plan, hop_index, total_hops, prompts);
+    let jump_handler = build_jump_handler(
+        app,
+        tab_id,
+        jump_plan,
+        hop_index,
+        total_hops,
+        prompts,
+        status_options,
+    );
     let host_key_rejected = jump_handler.user_rejected_host_key.clone();
     let failure_reason = jump_handler.failure_reason.clone();
     let jump_config = Arc::new(compatibility_client_config(15, 3));
@@ -356,11 +374,20 @@ async fn connect_jump_over_stream<S>(
     total_hops: usize,
     stream: S,
     prompts: HostPromptMap,
+    status_options: ConnectionStatusOptions,
 ) -> Result<client::Handle<JumpHostHandler>, String>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
-    let jump_handler = build_jump_handler(app, tab_id, jump_plan, hop_index, total_hops, prompts);
+    let jump_handler = build_jump_handler(
+        app,
+        tab_id,
+        jump_plan,
+        hop_index,
+        total_hops,
+        prompts,
+        status_options,
+    );
     let host_key_rejected = jump_handler.user_rejected_host_key.clone();
     let failure_reason = jump_handler.failure_reason.clone();
     let jump_config = Arc::new(compatibility_client_config(15, 3));
@@ -406,6 +433,7 @@ pub async fn connect_via_jump_chain<H>(
     target_handler: H,
     target_config: Arc<client::Config>,
     prompts: HostPromptMap,
+    status_options: ConnectionStatusOptions,
 ) -> Result<(JumpChain, client::Handle<H>), String>
 where
     H: client::Handler + Send + 'static,
@@ -418,8 +446,16 @@ where
     let total_hops = jump_plans.len();
     let mut sessions = Vec::with_capacity(total_hops);
 
-    let first =
-        connect_jump_direct(app, tab_id, &jump_plans[0], 1, total_hops, prompts.clone()).await?;
+    let first = connect_jump_direct(
+        app,
+        tab_id,
+        &jump_plans[0],
+        1,
+        total_hops,
+        prompts.clone(),
+        status_options,
+    )
+    .await?;
     sessions.push(first);
 
     for (index, jump_plan) in jump_plans.iter().enumerate().skip(1) {
@@ -428,12 +464,14 @@ where
             .last()
             .ok_or_else(|| "Jump chain lost its previous session".to_string())?;
 
-        let status_msg = format!(
-            "\r\n\x1b[33m[Opening tunnel to jump #{} {}:{}...]\x1b[0m\r\n",
-            hop_index, jump_plan.host, jump_plan.port
-        );
-        let event_name = format!("pty-output-{}", tab_id);
-        let _ = app.emit_to(tauri::EventTarget::any(), &event_name, status_msg);
+        if status_options.emit_terminal_output {
+            let status_msg = format!(
+                "\r\n\x1b[33m[Opening tunnel to jump #{} {}:{}...]\x1b[0m\r\n",
+                hop_index, jump_plan.host, jump_plan.port
+            );
+            let event_name = format!("pty-output-{}", tab_id);
+            let _ = app.emit_to(tauri::EventTarget::any(), &event_name, status_msg);
+        }
 
         let tunnel_channel = previous
             .channel_open_direct_tcpip(
@@ -458,17 +496,20 @@ where
             total_hops,
             tunnel_channel.into_stream(),
             prompts.clone(),
+            status_options,
         )
         .await?;
         sessions.push(next);
     }
 
-    let status_msg = format!(
-        "\r\n\x1b[33m[Jump chain connected. Opening tunnel to {}:{}...]\x1b[0m\r\n",
-        target_host, target_port
-    );
-    let event_name = format!("pty-output-{}", tab_id);
-    let _ = app.emit_to(tauri::EventTarget::any(), &event_name, status_msg);
+    if status_options.emit_terminal_output {
+        let status_msg = format!(
+            "\r\n\x1b[33m[Jump chain connected. Opening tunnel to {}:{}...]\x1b[0m\r\n",
+            target_host, target_port
+        );
+        let event_name = format!("pty-output-{}", tab_id);
+        let _ = app.emit_to(tauri::EventTarget::any(), &event_name, status_msg);
+    }
 
     let last = sessions
         .last()
@@ -506,6 +547,7 @@ pub async fn open_target_ssh_session(
     keepalive_count_max: u16,
     jump_plans: &[JumpHostPlan],
     prompts: HostPromptMap,
+    status_options: ConnectionStatusOptions,
 ) -> Result<(Option<JumpChain>, client::Handle<SshClientHandler>), String> {
     let target_config = Arc::new(compatibility_client_config(
         keepalive_interval_secs as u64,
@@ -521,6 +563,7 @@ pub async fn open_target_ssh_session(
         port: target_port,
         prompts: prompts.clone(),
         user_rejected_host_key: Arc::new(AtomicBool::new(false)),
+        status_options,
     };
     let host_key_rejected = handler.user_rejected_host_key.clone();
 
@@ -546,6 +589,7 @@ pub async fn open_target_ssh_session(
             handler,
             target_config,
             prompts,
+            status_options,
         )
         .await?;
         (Some(chain), target_sess)

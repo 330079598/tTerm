@@ -12,7 +12,10 @@ use crate::core::state::{HostPromptMap, SessionKind};
 use crate::sftp::internal::types::{
     CachedSftpConnection, ConnectedSftp, SftpConnectionKey, SftpConnectionPool,
 };
-use crate::ssh::{open_target_ssh_session, JumpChain, SecretStoreState, SshClientHandler};
+use crate::ssh::{
+    open_target_ssh_session, JumpChain, SecretStoreState, SshClientHandler,
+};
+use crate::ssh::ConnectionStatusOptions;
 
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(300);
 
@@ -66,6 +69,7 @@ pub async fn connect_authenticated_ssh(
         plan.keepalive_count_max,
         &plan.jump_hosts,
         prompts,
+        ConnectionStatusOptions::SILENT,
     )
     .await
 }
