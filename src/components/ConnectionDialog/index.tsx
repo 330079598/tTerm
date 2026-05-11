@@ -429,7 +429,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   return (
     <>
       <DialogContent
-        className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-md"
+        className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-[600px]"
         onInteractOutside={(event) => event.preventDefault()}
       >
         <DialogHeader>
