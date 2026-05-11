@@ -45,9 +45,6 @@ function sanitizeTabForPersistence(tab: Tab, activeTabId: string | null): Tab {
           ...connection,
           password: undefined,
           privateKeyPassphrase: undefined,
-          jumpHost: connection.jumpHost
-            ? { ...connection.jumpHost, password: undefined }
-            : undefined,
           jumpHosts: connection.jumpHosts?.map((jump) => ({ ...jump, password: undefined })),
         }
       : undefined,

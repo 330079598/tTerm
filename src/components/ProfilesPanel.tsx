@@ -76,11 +76,7 @@ const buildMetaItems = (
     items.push(t("profiles.portDisplay", { port: profile.port }))
   }
 
-  const jumpHosts = profile.jump_hosts?.length
-    ? profile.jump_hosts
-    : profile.jump_host
-      ? [profile.jump_host]
-      : []
+  const jumpHosts = profile.jump_hosts ?? []
 
   if (jumpHosts.length === 1) {
     items.push(t("jumpHost.via", { host: jumpHosts[0].host }))
@@ -274,11 +270,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
 
   const handleConnect = (profile: SavedProfile) => {
     const connectionType = profile.connection_type as ConnectionType
-    const jumpHosts = profile.jump_hosts?.length
-      ? profile.jump_hosts
-      : profile.jump_host
-        ? [profile.jump_host]
-        : []
+    const jumpHosts = profile.jump_hosts ?? []
     const connection: Omit<Tab, "id" | "isActive"> = {
       title: profile.name,
       type: connectionType,

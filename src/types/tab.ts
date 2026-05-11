@@ -13,7 +13,6 @@ export interface SavedProfile {
   private_key_passphrase?: string
   keepalive_interval_secs: number
   keepalive_count_max: number
-  jump_host?: SavedJumpHost
   jump_hosts?: SavedJumpHost[]
 }
 
@@ -87,8 +86,6 @@ export interface Tab {
     terminalShell?: TerminalShellType
     terminalShellCustomPath?: string
     terminalShellCustomArgs?: string
-    /** Legacy optional jump host (bastion) to tunnel through. */
-    jumpHost?: JumpHostConnection
     /** Ordered jump host chain to tunnel through. */
     jumpHosts?: JumpHostConnection[]
   }

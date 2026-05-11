@@ -42,9 +42,41 @@ fn sanitize_session_tab(tab: serde_json::Value) -> serde_json::Value {
     if let Some(serde_json::Value::Object(connection)) = tab.get_mut("connection") {
         connection.remove("password");
         connection.remove("privateKeyPassphrase");
+
+        if let Some(legacy_jump_host) = connection.remove("jumpHost") {
+            let should_adopt_legacy = !matches!(
+                connection.get("jumpHosts"),
+                Some(serde_json::Value::Array(entries)) if !entries.is_empty()
+            );
+
+            if should_adopt_legacy {
+                connection.insert(
+                    "jumpHosts".to_string(),
+                    serde_json::Value::Array(vec![sanitize_jump_host_value(legacy_jump_host)]),
+                );
+            }
+        }
+
+        if let Some(serde_json::Value::Array(jump_hosts)) = connection.get_mut("jumpHosts") {
+            for jump_host in jump_hosts.iter_mut() {
+                let sanitized = sanitize_jump_host_value(std::mem::take(jump_host));
+                *jump_host = sanitized;
+            }
+        }
     }
 
     serde_json::Value::Object(tab)
+}
+
+fn sanitize_jump_host_value(value: serde_json::Value) -> serde_json::Value {
+    match value {
+        serde_json::Value::Object(mut jump_host) => {
+            jump_host.remove("password");
+            jump_host.remove("privateKeyPassphrase");
+            serde_json::Value::Object(jump_host)
+        }
+        other => other,
+    }
 }
 
 #[tauri::command]
@@ -83,4 +115,37 @@ pub fn clear_session() -> Result<(), String> {
             .map_err(|e| format!("Failed to remove session file: {}", e))?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sanitize_session_tabs;
+
+    #[test]
+    fn sanitize_session_tabs_migrates_legacy_jump_host_to_jump_hosts() {
+        let tabs = serde_json::json!([
+            {
+                "id": "1",
+                "connection": {
+                    "jumpHost": {
+                        "host": "bastion",
+                        "port": 22,
+                        "username": "stone",
+                        "password": "secret"
+                    }
+                }
+            }
+        ]);
+
+        let sanitized = sanitize_session_tabs(tabs);
+        let connection = sanitized[0]["connection"].as_object().expect("connection object");
+        assert!(connection.get("jumpHost").is_none());
+        let jump_hosts = connection
+            .get("jumpHosts")
+            .and_then(|value| value.as_array())
+            .expect("jumpHosts array");
+        assert_eq!(jump_hosts.len(), 1);
+        assert_eq!(jump_hosts[0]["host"], "bastion");
+        assert!(jump_hosts[0].get("password").is_none());
+    }
 }

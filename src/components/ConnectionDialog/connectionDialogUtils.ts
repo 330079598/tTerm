@@ -13,8 +13,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     return { ...defaultForm }
   }
 
-  const legacyJump = profile.jump_host
-  const jumpHosts = profile.jump_hosts?.length ? profile.jump_hosts : legacyJump ? [legacyJump] : []
+  const jumpHosts = profile.jump_hosts ?? []
   const authMethod = profile.auth_method === "key" ? "key" : "password"
 
   return {

@@ -45,22 +45,12 @@ pub struct SavedProfile {
     pub keepalive_interval_secs: u32,
     #[serde(default = "default_keepalive_count")]
     pub keepalive_count_max: u32,
-    /// Optional jump host (bastion) configuration.
-    #[serde(default)]
-    pub jump_host: Option<SavedJumpHost>,
-    /// Ordered jump host chain. Supersedes `jump_host` for new saves.
+    /// Legacy single jump host field kept only for backward-compatible reads.
+    #[serde(default, rename = "jump_host", skip_serializing)]
+    legacy_jump_host: Option<SavedJumpHost>,
+    /// Ordered jump host chain used throughout the app and for all new saves.
     #[serde(default)]
     pub jump_hosts: Vec<SavedJumpHost>,
-}
-
-impl SavedProfile {
-    fn effective_jump_hosts(&self) -> Vec<SavedJumpHost> {
-        if self.jump_hosts.is_empty() {
-            self.jump_host.iter().cloned().collect()
-        } else {
-            self.jump_hosts.clone()
-        }
-    }
 }
 
 fn default_keepalive_interval() -> u32 {
@@ -81,26 +71,31 @@ fn load_profiles_from_disk() -> Result<Vec<SavedProfile>, String> {
     serde_json::from_str(&content).map_err(|e| format!("Failed to parse profiles: {}", e))
 }
 
+fn normalize_profile(profile: &mut SavedProfile) {
+    if profile.jump_hosts.is_empty() {
+        if let Some(jump) = profile.legacy_jump_host.take() {
+            profile.jump_hosts.push(jump);
+        }
+    } else {
+        profile.legacy_jump_host = None;
+    }
+
+    if profile.group.trim().is_empty() {
+        profile.group = String::new();
+    }
+}
+
 fn sanitize_profile(profile: &mut SavedProfile) {
+    normalize_profile(profile);
     profile.password = None;
     profile.private_key_passphrase = None;
-    if let Some(jump) = &mut profile.jump_host {
+    if let Some(jump) = &mut profile.legacy_jump_host {
         jump.password = None;
         jump.private_key_passphrase = None;
     }
     for jump in &mut profile.jump_hosts {
         jump.password = None;
         jump.private_key_passphrase = None;
-    }
-    if profile.jump_hosts.is_empty() {
-        if let Some(jump) = profile.jump_host.take() {
-            profile.jump_hosts.push(jump);
-        }
-    } else {
-        profile.jump_host = None;
-    }
-    if profile.group.trim().is_empty() {
-        profile.group = String::new();
     }
 }
 
@@ -127,6 +122,8 @@ pub fn save_profile(
     secret_state: tauri::State<'_, crate::ssh::SecretStoreState>,
     mut profile: SavedProfile,
 ) -> Result<(), String> {
+    normalize_profile(&mut profile);
+
     if profile.auth_method.as_deref() != Some("key") && profile.remember_password {
         if let Some(password) = profile
             .password
@@ -143,7 +140,7 @@ pub fn save_profile(
         }
     }
 
-    for jump in profile.effective_jump_hosts() {
+    for jump in &profile.jump_hosts {
         if profile.remember_password && jump.auth_method != "key" {
             if let Some(password) = jump.password.as_deref().filter(|value| !value.is_empty()) {
                 let secret_key = crate::core::session::jump_host_identity_secret_key(
@@ -200,8 +197,11 @@ pub async fn test_connection(
     let username = profile.username.clone().ok_or("Username is required")?;
     let port = profile.port.unwrap_or(22);
 
+    let mut profile = profile;
+    normalize_profile(&mut profile);
+
     let jump_hosts = profile
-        .effective_jump_hosts()
+        .jump_hosts
         .into_iter()
         .map(|j| crate::core::session::JumpHostPlan {
             host: j.host,
@@ -360,5 +360,39 @@ async fn authenticate_test_connection<H: russh::client::Handler>(
             .authenticate_password(username, password)
             .await
             .map_err(|e| format!("Authentication failed: {}", e))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{sanitize_profile, SavedProfile};
+
+    #[test]
+    fn sanitize_profile_migrates_legacy_jump_host_to_chain() {
+        let mut profile: SavedProfile = serde_json::from_value(serde_json::json!({
+            "id": "profile-1",
+            "name": "demo",
+            "group": "",
+            "connection_type": "ssh",
+            "remember_password": false,
+            "keepalive_interval_secs": 30,
+            "keepalive_count_max": 3,
+            "jump_host": {
+                "host": "bastion",
+                "port": 22,
+                "username": "stone",
+                "auth_method": "password",
+                "password": "secret"
+            }
+        }))
+        .expect("profile should deserialize");
+
+        sanitize_profile(&mut profile);
+
+        assert_eq!(profile.jump_hosts.len(), 1);
+        assert_eq!(profile.jump_hosts[0].host, "bastion");
+        assert!(profile.jump_hosts[0].password.is_none());
+        let serialized = serde_json::to_value(&profile).expect("profile should serialize");
+        assert!(serialized.get("jump_host").is_none());
     }
 }

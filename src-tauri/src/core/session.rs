@@ -15,6 +15,7 @@ pub struct TerminalShellConfig;
 
 /// Jump host (bastion) connection parameters deserialized from the frontend.
 #[derive(Debug, Deserialize, Clone)]
+#[serde(from = "RawJumpHostOptions")]
 pub struct JumpHostOptions {
     #[serde(default)]
     pub host: Option<String>,
@@ -30,6 +31,38 @@ pub struct JumpHostOptions {
     pub private_key_path: Option<String>,
     #[serde(default, alias = "privateKeyPassphrase")]
     pub private_key_passphrase: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+struct RawJumpHostOptions {
+    #[serde(default)]
+    host: Option<String>,
+    #[serde(default)]
+    port: Option<u16>,
+    #[serde(default)]
+    username: Option<String>,
+    #[serde(default)]
+    password: Option<String>,
+    #[serde(default, alias = "authMethod")]
+    auth_method: Option<String>,
+    #[serde(default, alias = "privateKeyPath")]
+    private_key_path: Option<String>,
+    #[serde(default, alias = "privateKeyPassphrase")]
+    private_key_passphrase: Option<String>,
+}
+
+impl From<RawJumpHostOptions> for JumpHostOptions {
+    fn from(raw: RawJumpHostOptions) -> Self {
+        Self {
+            host: raw.host,
+            port: raw.port,
+            username: raw.username,
+            password: raw.password,
+            auth_method: raw.auth_method,
+            private_key_path: raw.private_key_path,
+            private_key_passphrase: raw.private_key_passphrase,
+        }
+    }
 }
 
 /// Resolved jump host plan used at connection time.
@@ -61,46 +94,101 @@ pub fn jump_host_identity_secret_key(
 pub const MAX_JUMP_HOSTS: usize = 8;
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(from = "RawPtyConnectionOptions")]
 pub struct PtyConnectionOptions {
-    #[serde(default, rename = "type")]
     pub connection_type: Option<String>,
-    #[serde(default, alias = "profileId")]
     pub profile_id: Option<String>,
-    #[serde(default, alias = "profileName")]
     pub profile_name: Option<String>,
-    #[serde(default)]
     pub host: Option<String>,
-    #[serde(default)]
     pub port: Option<u16>,
-    #[serde(default)]
     pub username: Option<String>,
-    #[serde(default)]
     pub password: Option<String>,
-    #[serde(default, alias = "rememberPassword")]
     pub remember_password: Option<bool>,
-    #[serde(default, alias = "keepaliveIntervalSecs")]
     pub keepalive_interval_secs: Option<u16>,
-    #[serde(default, alias = "keepaliveCountMax")]
     pub keepalive_count_max: Option<u16>,
-    #[serde(default, alias = "privateKeyPath")]
     pub private_key_path: Option<String>,
-    #[serde(default, alias = "privateKeyPassphrase")]
     pub private_key_passphrase: Option<String>,
-    /// Optional jump host (bastion) to tunnel through before reaching the target.
-    #[serde(default, alias = "jumpHost")]
-    pub jump_host: Option<JumpHostOptions>,
-    /// Ordered jump host chain. Supersedes `jump_host` while preserving legacy reads.
-    #[serde(default, alias = "jumpHosts")]
+    /// Ordered jump host chain to tunnel through before reaching the target.
     pub jump_hosts: Vec<JumpHostOptions>,
     #[cfg(target_os = "windows")]
-    #[serde(default, alias = "terminalShell")]
     pub terminal_shell: Option<String>,
     #[cfg(target_os = "windows")]
-    #[serde(default, alias = "terminalShellCustomPath")]
     pub terminal_shell_custom_path: Option<String>,
     #[cfg(target_os = "windows")]
-    #[serde(default, alias = "terminalShellCustomArgs")]
     pub terminal_shell_custom_args: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+struct RawPtyConnectionOptions {
+    #[serde(default, rename = "type")]
+    connection_type: Option<String>,
+    #[serde(default, alias = "profileId")]
+    profile_id: Option<String>,
+    #[serde(default, alias = "profileName")]
+    profile_name: Option<String>,
+    #[serde(default)]
+    host: Option<String>,
+    #[serde(default)]
+    port: Option<u16>,
+    #[serde(default)]
+    username: Option<String>,
+    #[serde(default)]
+    password: Option<String>,
+    #[serde(default, alias = "rememberPassword")]
+    remember_password: Option<bool>,
+    #[serde(default, alias = "keepaliveIntervalSecs")]
+    keepalive_interval_secs: Option<u16>,
+    #[serde(default, alias = "keepaliveCountMax")]
+    keepalive_count_max: Option<u16>,
+    #[serde(default, alias = "privateKeyPath")]
+    private_key_path: Option<String>,
+    #[serde(default, alias = "privateKeyPassphrase")]
+    private_key_passphrase: Option<String>,
+    #[serde(default, alias = "jumpHost")]
+    legacy_jump_host: Option<JumpHostOptions>,
+    #[serde(default, alias = "jumpHosts")]
+    jump_hosts: Vec<JumpHostOptions>,
+    #[cfg(target_os = "windows")]
+    #[serde(default, alias = "terminalShell")]
+    terminal_shell: Option<String>,
+    #[cfg(target_os = "windows")]
+    #[serde(default, alias = "terminalShellCustomPath")]
+    terminal_shell_custom_path: Option<String>,
+    #[cfg(target_os = "windows")]
+    #[serde(default, alias = "terminalShellCustomArgs")]
+    terminal_shell_custom_args: Option<String>,
+}
+
+impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
+    fn from(raw: RawPtyConnectionOptions) -> Self {
+        let jump_hosts = if raw.jump_hosts.is_empty() {
+            raw.legacy_jump_host.into_iter().collect()
+        } else {
+            raw.jump_hosts
+        };
+
+        Self {
+            connection_type: raw.connection_type,
+            profile_id: raw.profile_id,
+            profile_name: raw.profile_name,
+            host: raw.host,
+            port: raw.port,
+            username: raw.username,
+            password: raw.password,
+            remember_password: raw.remember_password,
+            keepalive_interval_secs: raw.keepalive_interval_secs,
+            keepalive_count_max: raw.keepalive_count_max,
+            private_key_path: raw.private_key_path,
+            private_key_passphrase: raw.private_key_passphrase,
+            jump_hosts,
+            #[cfg(target_os = "windows")]
+            terminal_shell: raw.terminal_shell,
+            #[cfg(target_os = "windows")]
+            terminal_shell_custom_path: raw.terminal_shell_custom_path,
+            #[cfg(target_os = "windows")]
+            terminal_shell_custom_args: raw.terminal_shell_custom_args,
+        }
+    }
 }
 
 impl Default for PtyConnectionOptions {
@@ -118,7 +206,6 @@ impl Default for PtyConnectionOptions {
             keepalive_count_max: None,
             private_key_path: None,
             private_key_passphrase: None,
-            jump_host: None,
             jump_hosts: Vec::new(),
             #[cfg(target_os = "windows")]
             terminal_shell: None,
@@ -233,8 +320,7 @@ pub fn normalize_connection(
             let private_key_passphrase =
                 connection.private_key_passphrase.filter(|v| !v.is_empty());
 
-            // Prefer the ordered chain, but keep legacy single-hop payloads working.
-            let jump_hosts = normalize_jump_hosts(connection.jump_hosts, connection.jump_host)?;
+            let jump_hosts = normalize_jump_hosts(connection.jump_hosts)?;
 
             Ok(SessionPlan {
                 kind,
@@ -256,23 +342,14 @@ pub fn normalize_connection(
     }
 }
 
-pub fn normalize_jump_hosts(
-    jump_hosts: Vec<JumpHostOptions>,
-    legacy_jump_host: Option<JumpHostOptions>,
-) -> Result<Vec<JumpHostPlan>, String> {
-    let raw_hosts = if jump_hosts.is_empty() {
-        legacy_jump_host.into_iter().collect::<Vec<_>>()
-    } else {
-        jump_hosts
-    };
-
-    if raw_hosts.len() > MAX_JUMP_HOSTS {
+pub fn normalize_jump_hosts(jump_hosts: Vec<JumpHostOptions>) -> Result<Vec<JumpHostPlan>, String> {
+    if jump_hosts.len() > MAX_JUMP_HOSTS {
         return Err(format!(
             "At most {MAX_JUMP_HOSTS} jump hosts are supported per connection"
         ));
     }
 
-    raw_hosts.into_iter().map(normalize_jump_host).collect()
+    jump_hosts.into_iter().map(normalize_jump_host).collect()
 }
 
 /// Validate and convert raw jump host options into a resolved plan.
