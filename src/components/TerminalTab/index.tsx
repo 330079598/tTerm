@@ -24,8 +24,6 @@ import { toast } from "@/hooks/use-toast"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 
-let hasShownJumpHostInfoDialog = false
-
 export const TerminalTab: React.FC<TerminalTabProps> = ({
   tabId,
   sessionNonce = 0,
@@ -319,8 +317,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     }
     lastJumpHostReadyKeyRef.current = readyKey
 
-    if (config.show_jump_host_connection_info && !hasShownJumpHostInfoDialog) {
-      hasShownJumpHostInfoDialog = true
+    if (config.show_jump_host_connection_info) {
       const openDialogTimer = window.setTimeout(() => {
         setDontShowJumpHostInfoAgain(false)
         setJumpHostInfoOpen(true)
