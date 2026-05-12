@@ -321,9 +321,11 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
     if (config.show_jump_host_connection_info && !hasShownJumpHostInfoDialog) {
       hasShownJumpHostInfoDialog = true
-      setDontShowJumpHostInfoAgain(false)
-      setJumpHostInfoOpen(true)
-      return
+      const openDialogTimer = window.setTimeout(() => {
+        setDontShowJumpHostInfoAgain(false)
+        setJumpHostInfoOpen(true)
+      }, 0)
+      return () => window.clearTimeout(openDialogTimer)
     }
 
     toast({
