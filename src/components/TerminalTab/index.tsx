@@ -1,4 +1,4 @@
-﻿import "@/components/TerminalTab.css"
+import "@/components/TerminalTab.css"
 import "@xterm/xterm/css/xterm.css"
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { FitAddon } from "@xterm/addon-fit"
@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next"
 import { SftpDrawer } from "@/components/SftpDrawer"
 import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
+import { JumpHostInfoDialog } from "@/components/TerminalTab/JumpHostInfoDialog"
 import { TerminalSearchBar } from "@/components/TerminalTab/TerminalSearchBar"
 import { useTerminalSearch } from "@/components/TerminalTab/useTerminalSearch"
 import { useTerminalLifecycle } from "@/components/TerminalTab/useTerminalLifecycle"
@@ -22,6 +23,8 @@ import type {
 import { toast } from "@/hooks/use-toast"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
+
+let hasShownJumpHostInfoDialog = false
 
 export const TerminalTab: React.FC<TerminalTabProps> = ({
   tabId,
@@ -51,7 +54,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const waitingForReconnectRef = useRef(false)
   const onPidChangeRef = useRef(onPidChange)
   const onReconnectRequestRef = useRef(onReconnectRequest)
-  const { config } = useConfig()
+  const { config, saveConfig } = useConfig()
   const { currentTheme, getTheme } = useTheme()
   const { t } = useTranslation()
   const initialFontFamily = useRef(config.font_family)
@@ -62,6 +65,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const defaultConnectionState: ConnectionState =
     connection?.type === "ssh" ? "connecting" : "connected"
   const passwordPromptActiveRef = useRef(false)
+  const lastJumpHostReadyKeyRef = useRef<string | null>(null)
 
   const [hostKeyPromptState, setHostKeyPromptState] = useState<{
     sessionKey: string
@@ -76,6 +80,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     value: SshConnectionProgress
   } | null>(null)
   const [showSftpDrawer, setShowSftpDrawer] = useState(false)
+  const [jumpHostInfoOpen, setJumpHostInfoOpen] = useState(false)
+  const [dontShowJumpHostInfoAgain, setDontShowJumpHostInfoAgain] = useState(false)
   const {
     closeSearch,
     handleSearchDragStart,
@@ -296,6 +302,65 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     }
   }, [isActive, fitAndSyncPty])
 
+  const jumpHostCount = connection?.jumpHosts?.length ?? 0
+
+  useEffect(() => {
+    if (
+      connectionProgress?.phase !== "ready" ||
+      connection?.type !== "ssh" ||
+      jumpHostCount === 0
+    ) {
+      return
+    }
+
+    const readyKey = `${sessionResetKey}:${jumpHostCount}`
+    if (lastJumpHostReadyKeyRef.current === readyKey) {
+      return
+    }
+    lastJumpHostReadyKeyRef.current = readyKey
+
+    if (config.show_jump_host_connection_info && !hasShownJumpHostInfoDialog) {
+      hasShownJumpHostInfoDialog = true
+      setDontShowJumpHostInfoAgain(false)
+      setJumpHostInfoOpen(true)
+      return
+    }
+
+    toast({
+      title: t("jumpHostInfo.toastTitle", { defaultValue: "Jump host route ready" }),
+      description: t("jumpHostInfo.toastDescription", {
+        count: jumpHostCount,
+        defaultValue: "Connected through {{count}} jump host(s).",
+      }),
+    })
+  }, [
+    config.show_jump_host_connection_info,
+    connection,
+    connectionProgress?.phase,
+    jumpHostCount,
+    sessionResetKey,
+    t,
+  ])
+
+  const handleJumpHostInfoOpenChange = useCallback(
+    (open: boolean) => {
+      setJumpHostInfoOpen(open)
+      if (open || !dontShowJumpHostInfoAgain) {
+        return
+      }
+
+      saveConfig({ show_jump_host_connection_info: false }).catch((error) => {
+        console.error("Failed to save jump host info preference:", error)
+        toast({
+          title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
+          description: error instanceof Error ? error.message : String(error),
+          variant: "destructive",
+        })
+      })
+    },
+    [dontShowJumpHostInfoAgain, saveConfig, t]
+  )
+
   const handleReconnect = useCallback(() => {
     waitingForReconnectRef.current = false
     setConnectionState("connecting")
@@ -463,6 +528,13 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         />
 
         <HostKeyPromptDialog hostKeyPrompt={hostKeyPrompt} setHostKeyPrompt={setHostKeyPrompt} />
+        <JumpHostInfoDialog
+          connection={connection}
+          dontShowAgain={dontShowJumpHostInfoAgain}
+          onDontShowAgainChange={setDontShowJumpHostInfoAgain}
+          onOpenChange={handleJumpHostInfoOpenChange}
+          open={jumpHostInfoOpen}
+        />
       </div>
     </div>
   )

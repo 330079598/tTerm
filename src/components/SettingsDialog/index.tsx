@@ -377,6 +377,19 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
   }
 
+  const handleShowJumpHostConnectionInfoChange = async (checked: boolean) => {
+    try {
+      await saveConfig({ show_jump_host_connection_info: checked })
+    } catch (error) {
+      console.error("Failed to save jump host connection info preference:", error)
+      toast({
+        title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleAbout = async () => {
     let version = fallbackAppVersion
 
@@ -494,7 +507,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleAbout={handleAbout}
               handleClearSession={handleClearSession}
               handleRestoreAllSessionConnectionsChange={handleRestoreAllSessionConnectionsChange}
+              handleShowJumpHostConnectionInfoChange={handleShowJumpHostConnectionInfoChange}
               restoreAllSessionConnections={config.startup_session_restore_mode === "all"}
+              showJumpHostConnectionInfo={config.show_jump_host_connection_info}
             />
           </TabsContent>
         </Tabs>

@@ -40,7 +40,9 @@
     "restoreAllSessionConnectionsDesc": "关闭后，启动时仅连接当前标签页，其他恢复的标签页在打开时再连接。",
     "saveFailed": "保存设置失败",
     "about": "关于 tTerm",
-    "secretStorage": "密钥存储"
+    "secretStorage": "密钥存储",
+    "showJumpHostConnectionInfo": "显示跳板机连接信息",
+    "showJumpHostConnectionInfoDesc": "跳板机连接就绪时，首次显示可关闭的链路详情弹框；关闭后后续会改为轻量提示。"
   },
   "theme": {
     "title": "选择主题",
@@ -535,5 +537,26 @@
     "next": "下一个结果",
     "close": "关闭搜索",
     "drag": "拖动搜索框"
+  },
+  "jumpHostInfo": {
+    "title": "跳板机连接信息",
+    "description": "当前会话通过 {{count}} 个跳板机连接。继续操作前可以确认连接链路。",
+    "route": "连接链路",
+    "hop": "跳板机 #{{index}}",
+    "keyAuth": "密钥认证",
+    "passwordAuth": "密码认证",
+    "privateKey": "私钥",
+    "target": "目标主机",
+    "method": "连接方式",
+    "sshCommand": "SSH 命令",
+    "copyField": "复制 {{label}}",
+    "copyCommand": "复制命令",
+    "dontShowAgain": "以后不再显示",
+    "toastTitle": "跳板机链路已就绪",
+    "toastDescription": "已通过 {{count}} 个跳板机连接。",
+    "copySuccessTitle": "已复制",
+    "copySuccessDescription": "连接信息已复制到剪贴板。",
+    "copyFailedTitle": "复制失败",
+    "copyFailedDescription": "无法复制连接信息。"
   }
 }

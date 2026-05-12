@@ -1,5 +1,5 @@
 import React from "react"
-import { Info, PlugZap, Trash2 } from "lucide-react"
+import { Info, PlugZap, Route, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -11,14 +11,18 @@ interface GeneralSettingsTabProps {
   handleAbout: () => void
   handleClearSession: () => Promise<void>
   handleRestoreAllSessionConnectionsChange: (checked: boolean) => Promise<void>
+  handleShowJumpHostConnectionInfoChange: (checked: boolean) => Promise<void>
   restoreAllSessionConnections: boolean
+  showJumpHostConnectionInfo: boolean
 }
 
 export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   handleAbout,
   handleClearSession,
   handleRestoreAllSessionConnectionsChange,
+  handleShowJumpHostConnectionInfoChange,
   restoreAllSessionConnections,
+  showJumpHostConnectionInfo,
 }) => {
   const { t } = useTranslation()
 
@@ -41,6 +45,26 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             <Switch
               checked={restoreAllSessionConnections}
               onCheckedChange={handleRestoreAllSessionConnectionsChange}
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="overflow-hidden border-transparent shadow-none">
+          <CardContent className="flex items-center justify-between gap-4 p-4">
+            <div className="flex items-start gap-3">
+              <Route size={16} className="mt-0.5 shrink-0" />
+              <div>
+                <div className="text-sm font-medium">
+                  {t("settings.showJumpHostConnectionInfo")}
+                </div>
+                <div className="text-muted-foreground text-xs leading-5">
+                  {t("settings.showJumpHostConnectionInfoDesc")}
+                </div>
+              </div>
+            </div>
+            <Switch
+              checked={showJumpHostConnectionInfo}
+              onCheckedChange={handleShowJumpHostConnectionInfoChange}
             />
           </CardContent>
         </Card>

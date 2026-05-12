@@ -29,6 +29,8 @@ pub struct AppConfig {
     pub scrollback_lines: u32,
     #[serde(default = "default_startup_session_restore_mode")]
     pub startup_session_restore_mode: String,
+    #[serde(default = "default_show_jump_host_connection_info")]
+    pub show_jump_host_connection_info: bool,
 }
 
 fn normalize_language(locale: &str) -> String {
@@ -76,6 +78,10 @@ fn default_startup_session_restore_mode() -> String {
     "active".to_string()
 }
 
+fn default_show_jump_host_connection_info() -> bool {
+    true
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -90,6 +96,7 @@ impl Default for AppConfig {
             secret_vault_enabled: false,
             scrollback_lines: default_scrollback_lines(),
             startup_session_restore_mode: default_startup_session_restore_mode(),
+            show_jump_host_connection_info: default_show_jump_host_connection_info(),
         }
     }
 }

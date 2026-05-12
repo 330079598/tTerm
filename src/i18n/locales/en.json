@@ -42,7 +42,9 @@
     "restoreAllSessionConnectionsDesc": "When off, only the active tab connects at startup. Other restored tabs connect when opened.",
     "saveFailed": "Failed to save settings",
     "about": "About tTerm",
-    "secretStorage": "Secret Storage"
+    "secretStorage": "Secret Storage",
+    "showJumpHostConnectionInfo": "Show jump host connection info",
+    "showJumpHostConnectionInfoDesc": "Show a dismissible dialog with route details the first time a jump-host connection is ready; later disabled sessions use a toast."
   },
   "theme": {
     "title": "Choose Theme",
@@ -547,5 +549,26 @@
     "next": "Next result",
     "close": "Close search",
     "drag": "Drag search box"
+  },
+  "jumpHostInfo": {
+    "title": "Jump Host Connection",
+    "description": "This session is connected through {{count}} jump host(s). Review the route before continuing.",
+    "route": "Route",
+    "hop": "Jump #{{index}}",
+    "keyAuth": "Key auth",
+    "passwordAuth": "Password auth",
+    "privateKey": "Private key",
+    "target": "Target",
+    "method": "Method",
+    "sshCommand": "SSH command",
+    "copyField": "Copy {{label}}",
+    "copyCommand": "Copy command",
+    "dontShowAgain": "Do not show this again",
+    "toastTitle": "Jump host route ready",
+    "toastDescription": "Connected through {{count}} jump host(s).",
+    "copySuccessTitle": "Copied",
+    "copySuccessDescription": "Connection information copied to the clipboard.",
+    "copyFailedTitle": "Copy failed",
+    "copyFailedDescription": "Unable to copy the connection information."
   }
 }
