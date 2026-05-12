@@ -207,7 +207,13 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
       return
     }
 
-    const passwordJumps = form.jumpHosts.filter((jump) => jump.authMethod === "password")
+    const passwordJumps = form.jumpHosts.filter(
+      (jump) =>
+        jump.authMethod === "password" &&
+        jump.host.trim() &&
+        jump.username.trim() &&
+        Number.isInteger(jump.port)
+    )
     if (passwordJumps.length === 0) return
 
     const loadKey = `${editProfile.id}:${passwordJumps.map(getJumpHostPasswordLookupKey).join("|")}`
@@ -228,6 +234,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
           host: jump.host,
           port: jump.port,
           username: jump.username,
+          allowLegacyFallback: form.jumpHosts.length === 1,
         }).then((password) => ({ lookupKey, password }))
       })
     )

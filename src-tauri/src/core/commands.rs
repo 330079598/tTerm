@@ -260,6 +260,7 @@ pub fn get_saved_jump_host_password(
     host: Option<String>,
     port: Option<u16>,
     username: Option<String>,
+    allow_legacy_fallback: Option<bool>,
     secret_state: State<'_, crate::ssh::SecretStoreState>,
 ) -> Result<Option<String>, String> {
     super::session::load_saved_jump_host_password(
@@ -270,6 +271,7 @@ pub fn get_saved_jump_host_password(
         host.as_deref(),
         port,
         username.as_deref(),
+        allow_legacy_fallback.unwrap_or(false),
     )
 }
 

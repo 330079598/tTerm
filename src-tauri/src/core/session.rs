@@ -435,6 +435,7 @@ pub fn load_saved_jump_host_password(
     host: Option<&str>,
     port: Option<u16>,
     username: Option<&str>,
+    allow_legacy_fallback: bool,
 ) -> Result<Option<String>, String> {
     let profile_id = profile_id.map(str::trim).filter(|v| !v.is_empty());
     let profile_name = profile_name.map(str::trim).filter(|v| !v.is_empty());
@@ -472,18 +473,20 @@ pub fn load_saved_jump_host_password(
         }
     }
 
-    for legacy_key in [
-        profile_id.map(|value| jump_host_secret_key(Some(value), "")),
-        profile_name.map(|value| jump_host_secret_key(None, value)),
-    ]
-    .into_iter()
-    .flatten()
-    {
-        if let Some(password) = secret_state.get_password(app, &legacy_key)? {
-            if let Some(secret_key) = canonical_identity_key.as_deref() {
-                let _ = secret_state.save_password(app, secret_key, &password);
+    if allow_legacy_fallback {
+        for legacy_key in [
+            profile_id.map(|value| jump_host_secret_key(Some(value), "")),
+            profile_name.map(|value| jump_host_secret_key(None, value)),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if let Some(password) = secret_state.get_password(app, &legacy_key)? {
+                if let Some(secret_key) = canonical_identity_key.as_deref() {
+                    let _ = secret_state.save_password(app, secret_key, &password);
+                }
+                return Ok(Some(password));
             }
-            return Ok(Some(password));
         }
     }
 
@@ -549,6 +552,8 @@ fn resolve_jump_host_passwords(
     secret_state: &crate::ssh::SecretStoreState,
     plan: &mut SessionPlan,
 ) -> Result<(), String> {
+    let allow_legacy_fallback = plan.jump_hosts.len() == 1;
+
     for jump in plan.jump_hosts.iter_mut() {
         if jump.private_key_path.is_some() {
             continue;
@@ -584,6 +589,7 @@ fn resolve_jump_host_passwords(
             Some(jump.host.as_str()),
             Some(jump.port),
             Some(jump.username.as_str()),
+            allow_legacy_fallback,
         )? {
             jump.password = Some(pw);
         }
