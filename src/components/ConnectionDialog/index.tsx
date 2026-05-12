@@ -30,7 +30,8 @@ import { JumpHostFields } from "@/components/ConnectionDialog/JumpHostFields"
 import { SshConnectionFields } from "@/components/ConnectionDialog/SshConnectionFields"
 import { TerminalConnectionFields } from "@/components/ConnectionDialog/TerminalConnectionFields"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
-import { HostKeyPromptState } from "@/components/TerminalTab/types"
+import { getSshConnectionProgressLabel } from "@/components/TerminalTab/terminalTabUtils"
+import { HostKeyPromptState, SshConnectionProgress } from "@/components/TerminalTab/types"
 import {
   ConnectionDialogContentProps,
   ConnectionDialogProps,
@@ -141,6 +142,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const [nameError, setNameError] = useState<string | null>(null)
   const [allProfiles, setAllProfiles] = useState<SavedProfile[]>([])
   const [isTesting, setIsTesting] = useState(false)
+  const [testProgress, setTestProgress] = useState<SshConnectionProgress | null>(null)
   const [testHostKeyPrompt, setTestHostKeyPrompt] = useState<HostKeyPromptState | null>(null)
   const loadedJumpPasswordsForProfile = useRef<string | null>(null)
   const matchingGroups = existingGroups.filter((group) =>
@@ -396,7 +398,15 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     }
 
     setIsTesting(true)
+    setTestProgress({
+      phase: "resolving_credentials",
+      message: t("profiles.testing", { defaultValue: "Testing connection..." }),
+    })
     const testTabId = `test-${sshProfileId}`
+    const unlistenProgress = await listen<SshConnectionProgress>(
+      `ssh-connection-progress-${testTabId}`,
+      (event) => setTestProgress(event.payload)
+    )
     const unlistenHostPrompt = await listen<HostKeyPromptState>(
       `ssh-hostkey-prompt-${testTabId}`,
       (event) => setTestHostKeyPrompt(event.payload)
@@ -436,8 +446,10 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         variant: "destructive",
       })
     } finally {
+      unlistenProgress()
       unlistenHostPrompt()
       setTestHostKeyPrompt(null)
+      setTestProgress(null)
       // Small delay to ensure UI updates properly.
       await new Promise((resolve) => setTimeout(resolve, 100))
       setIsTesting(false)
@@ -521,6 +533,12 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
               />
               <JumpHostFields form={form} setForm={setForm} />
             </>
+          )}
+
+          {isSsh && testProgress && (
+            <div className="border-border bg-muted/35 text-muted-foreground rounded-md border px-3 py-2 text-xs">
+              {getSshConnectionProgressLabel(testProgress)}
+            </div>
           )}
 
           <DialogFooter>

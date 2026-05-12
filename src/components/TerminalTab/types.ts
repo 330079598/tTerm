@@ -14,6 +14,16 @@ export interface TerminalTabProps {
 
 export type ConnectionState = "connecting" | "connected" | "disconnected" | "error"
 
+export type SshConnectionProgress = {
+  phase: string
+  message: string
+  hopIndex?: number
+  totalHops?: number
+  host?: string
+  port?: number
+  username?: string
+}
+
 export type HostKeyPromptState = {
   requestId: string
   profileName: string

@@ -14,6 +14,7 @@ import { getConnectionDisplay, STATUS_CONNECTING } from "@/components/TerminalTa
 import type {
   ConnectionState,
   HostKeyPromptState,
+  SshConnectionProgress,
   TerminalTabProps,
 } from "@/components/TerminalTab/types"
 
@@ -42,6 +43,7 @@ type UseTerminalLifecycleOptions = {
   searchResultsDisposableRef: React.MutableRefObject<IDisposable | null>
   setConnectionState: (value: ConnectionState) => void
   setHostKeyPrompt: (value: HostKeyPromptState | null) => void
+  setConnectionProgress: (value: SshConnectionProgress | null) => void
   setSearchResults: React.Dispatch<React.SetStateAction<ISearchResultChangeEvent>>
   sessionNonce: number
   tabId: string
@@ -93,6 +95,7 @@ export function useTerminalLifecycle({
   searchResultsDisposableRef,
   setConnectionState,
   setHostKeyPrompt,
+  setConnectionProgress,
   setSearchResults,
   sessionNonce,
   tabId,
@@ -188,6 +191,7 @@ export function useTerminalLifecycle({
     let unlistenOutput: (() => void) | null = null
     let unlistenExit: (() => void) | null = null
     let unlistenHostPrompt: (() => void) | null = null
+    let unlistenConnectionProgress: (() => void) | null = null
     let disposed = false
 
     Promise.all([
@@ -255,16 +259,26 @@ export function useTerminalLifecycle({
         setHostKeyPrompt(event.payload)
         setConnectionState("connecting")
       }),
+      listen<SshConnectionProgress>(`ssh-connection-progress-${tabId}`, (event) => {
+        setConnectionProgress(event.payload)
+        if (event.payload.phase === "ready") {
+          setConnectionState("connected")
+        } else if (event.payload.phase !== "failed") {
+          setConnectionState("connecting")
+        }
+      }),
     ])
-      .then(([unOut, unExit, unHostPrompt]) => {
+      .then(([unOut, unExit, unHostPrompt, unProgress]) => {
         unlistenOutput = unOut
         unlistenExit = unExit
         unlistenHostPrompt = unHostPrompt
+        unlistenConnectionProgress = unProgress
 
         if (disposed) {
           unlistenOutput?.()
           unlistenExit?.()
           unlistenHostPrompt?.()
+          unlistenConnectionProgress?.()
           return null
         }
 
@@ -332,6 +346,7 @@ export function useTerminalLifecycle({
       unlistenOutput?.()
       unlistenExit?.()
       unlistenHostPrompt?.()
+      unlistenConnectionProgress?.()
       invoke("kill_pty", { tabId }).catch(() => {})
       searchResultsDisposableRef.current?.dispose()
       searchResultsDisposableRef.current = null
@@ -369,6 +384,7 @@ export function useTerminalLifecycle({
     searchResultsDisposableRef,
     setConnectionState,
     setHostKeyPrompt,
+    setConnectionProgress,
     setSearchResults,
     sessionNonce,
     tabId,

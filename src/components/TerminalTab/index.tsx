@@ -16,6 +16,7 @@ import { TAB_ACTIVATE_REFIT_DELAY_MS } from "@/components/TerminalTab/terminalTa
 import type {
   ConnectionState,
   HostKeyPromptState,
+  SshConnectionProgress,
   TerminalTabProps,
 } from "@/components/TerminalTab/types"
 import { toast } from "@/hooks/use-toast"
@@ -70,6 +71,10 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     sessionKey: string
     value: ConnectionState
   } | null>(null)
+  const [connectionProgressState, setConnectionProgressState] = useState<{
+    sessionKey: string
+    value: SshConnectionProgress
+  } | null>(null)
   const [showSftpDrawer, setShowSftpDrawer] = useState(false)
   const {
     closeSearch,
@@ -99,6 +104,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     connectionStateState?.sessionKey === sessionResetKey
       ? connectionStateState.value
       : defaultConnectionState
+  const connectionProgress =
+    connectionProgressState?.sessionKey === sessionResetKey ? connectionProgressState.value : null
 
   const setHostKeyPrompt = useCallback(
     (value: HostKeyPromptState | null) => {
@@ -110,6 +117,13 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const setConnectionState = useCallback(
     (value: ConnectionState) => {
       setConnectionStateState({ sessionKey: sessionResetKey, value })
+    },
+    [sessionResetKey]
+  )
+
+  const setConnectionProgress = useCallback(
+    (value: SshConnectionProgress | null) => {
+      setConnectionProgressState(value ? { sessionKey: sessionResetKey, value } : null)
     },
     [sessionResetKey]
   )
@@ -238,6 +252,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     searchResultsDisposableRef,
     setConnectionState,
     setHostKeyPrompt,
+    setConnectionProgress,
     setSearchResults,
     sessionNonce,
     tabId,
@@ -396,6 +411,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         connection={connection}
         connectionHeaderPinned={connectionHeaderPinned}
         connectionState={connectionState}
+        connectionProgress={connectionProgress}
         onBackgroundMouseDown={handleConnectionHeaderMouseDown}
         onPinConnectionHeader={onPinConnectionHeader}
         onReconnect={handleReconnect}

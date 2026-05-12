@@ -242,13 +242,23 @@ pub async fn test_connection(
         jump_hosts,
     };
 
+    let test_tab_id = format!("test-{}", profile.id);
     crate::core::session::resolve_ssh_password(&app, &secret_state, &mut plan)?;
+
+    crate::ssh::emit_connection_progress(
+        &app,
+        &test_tab_id,
+        crate::ssh::ConnectionStatusOptions::SILENT,
+        crate::ssh::SshConnectionProgressPayload::new(
+            "resolving_credentials",
+            "Resolved saved credentials for test connection",
+        ),
+    );
 
     // Try to establish connection
     use std::time::Duration;
 
     if !plan.jump_hosts.is_empty() {
-        let test_tab_id = format!("test-{}", profile.id);
         let target_config = std::sync::Arc::new(crate::ssh::jump::compatibility_client_config(
             plan.keepalive_interval_secs as u64,
             plan.keepalive_count_max as usize,
@@ -260,7 +270,7 @@ pub async fn test_connection(
             &plan.jump_hosts,
             &host,
             port,
-            TestConnectionHandler,
+            TestConnectionHandler::new(&app, &test_tab_id, &host, port),
             target_config,
             prompt_state.inner().clone(),
             crate::ssh::ConnectionStatusOptions::SILENT,
@@ -268,11 +278,35 @@ pub async fn test_connection(
         .await?;
 
         // Authenticate on target through tunnel
+        crate::ssh::emit_connection_progress(
+            &app,
+            &test_tab_id,
+            crate::ssh::ConnectionStatusOptions::SILENT,
+            crate::ssh::SshConnectionProgressPayload::new(
+                "target_authenticating",
+                format!("Authenticating target as {}", username),
+            )
+            .host(host.clone(), port)
+            .username(username.clone()),
+        );
+
         let auth_result =
             authenticate_test_connection(&mut target_session, &username, &plan).await?;
 
         match auth_result {
-            russh::client::AuthResult::Success => {}
+            russh::client::AuthResult::Success => {
+                crate::ssh::emit_connection_progress(
+                    &app,
+                    &test_tab_id,
+                    crate::ssh::ConnectionStatusOptions::SILENT,
+                    crate::ssh::SshConnectionProgressPayload::new(
+                        "ready",
+                        format!("Successfully connected to {}@{}:{}", username, host, port),
+                    )
+                    .host(host.clone(), port)
+                    .username(username.clone()),
+                );
+            }
             _ => return Err("Authentication failed".to_string()),
         }
 
@@ -289,18 +323,58 @@ pub async fn test_connection(
             plan.keepalive_count_max as usize,
         ));
 
+        crate::ssh::emit_connection_progress(
+            &app,
+            &test_tab_id,
+            crate::ssh::ConnectionStatusOptions::SILENT,
+            crate::ssh::SshConnectionProgressPayload::new(
+                "target_connecting",
+                format!("Connecting to target {}:{}", host, port),
+            )
+            .host(host.clone(), port)
+            .username(username.clone()),
+        );
+
         let mut session = tokio::time::timeout(
             Duration::from_secs(10),
-            client::connect(config, (host.as_str(), port), TestConnectionHandler),
+            client::connect(
+                config,
+                (host.as_str(), port),
+                TestConnectionHandler::new(&app, &test_tab_id, &host, port),
+            ),
         )
         .await
         .map_err(|_| "Connection timeout".to_string())?
         .map_err(|e| format!("Connection failed: {}", e))?;
 
+        crate::ssh::emit_connection_progress(
+            &app,
+            &test_tab_id,
+            crate::ssh::ConnectionStatusOptions::SILENT,
+            crate::ssh::SshConnectionProgressPayload::new(
+                "target_authenticating",
+                format!("Authenticating target as {}", username),
+            )
+            .host(host.clone(), port)
+            .username(username.clone()),
+        );
+
         let auth_result = authenticate_test_connection(&mut session, &username, &plan).await?;
 
         match auth_result {
-            russh::client::AuthResult::Success => {}
+            russh::client::AuthResult::Success => {
+                crate::ssh::emit_connection_progress(
+                    &app,
+                    &test_tab_id,
+                    crate::ssh::ConnectionStatusOptions::SILENT,
+                    crate::ssh::SshConnectionProgressPayload::new(
+                        "ready",
+                        format!("Successfully connected to {}@{}:{}", username, host, port),
+                    )
+                    .host(host.clone(), port)
+                    .username(username.clone()),
+                );
+            }
             _ => return Err("Authentication failed".to_string()),
         }
 
@@ -317,7 +391,23 @@ pub async fn test_connection(
 }
 
 // Simple handler for test connections that auto-accepts host keys
-struct TestConnectionHandler;
+struct TestConnectionHandler {
+    app: tauri::AppHandle,
+    tab_id: String,
+    host: String,
+    port: u16,
+}
+
+impl TestConnectionHandler {
+    fn new(app: &tauri::AppHandle, tab_id: &str, host: &str, port: u16) -> Self {
+        Self {
+            app: app.clone(),
+            tab_id: tab_id.to_string(),
+            host: host.to_string(),
+            port,
+        }
+    }
+}
 
 impl russh::client::Handler for TestConnectionHandler {
     type Error = russh::Error;
@@ -326,7 +416,21 @@ impl russh::client::Handler for TestConnectionHandler {
         &mut self,
         _server_public_key: &russh::keys::ssh_key::PublicKey,
     ) -> Result<bool, Self::Error> {
-        // Auto-accept for test connections
+        crate::ssh::emit_connection_progress(
+            &self.app,
+            &self.tab_id,
+            crate::ssh::ConnectionStatusOptions::SILENT,
+            crate::ssh::SshConnectionProgressPayload::new(
+                "target_host_key_checking",
+                format!(
+                    "Checking target host fingerprint for {}:{}",
+                    self.host, self.port
+                ),
+            )
+            .host(self.host.clone(), self.port),
+        );
+
+        // Auto-accept for test connections.
         Ok(true)
     }
 }

@@ -1,3 +1,4 @@
+use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::Emitter;
@@ -8,16 +9,81 @@ pub const HOST_KEY_REJECTED_REASON: &str = "SSH host fingerprint rejected by use
 #[derive(Clone, Copy, Debug)]
 pub struct ConnectionStatusOptions {
     pub emit_terminal_output: bool,
+    pub emit_progress_events: bool,
 }
 
 impl ConnectionStatusOptions {
     pub const VERBOSE: Self = Self {
         emit_terminal_output: true,
+        emit_progress_events: true,
     };
 
     pub const SILENT: Self = Self {
         emit_terminal_output: false,
+        emit_progress_events: true,
     };
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SshConnectionProgressPayload {
+    pub phase: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hop_index: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_hops: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub port: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
+}
+
+impl SshConnectionProgressPayload {
+    pub fn new(phase: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            phase: phase.into(),
+            message: message.into(),
+            hop_index: None,
+            total_hops: None,
+            host: None,
+            port: None,
+            username: None,
+        }
+    }
+
+    pub fn host(mut self, host: impl Into<String>, port: u16) -> Self {
+        self.host = Some(host.into());
+        self.port = Some(port);
+        self
+    }
+
+    pub fn username(mut self, username: impl Into<String>) -> Self {
+        self.username = Some(username.into());
+        self
+    }
+
+    pub fn hop(mut self, hop_index: usize, total_hops: usize) -> Self {
+        self.hop_index = Some(hop_index);
+        self.total_hops = Some(total_hops);
+        self
+    }
+}
+
+pub fn emit_connection_progress(
+    app: &tauri::AppHandle,
+    tab_id: &str,
+    status_options: ConnectionStatusOptions,
+    payload: SshConnectionProgressPayload,
+) {
+    if !status_options.emit_progress_events {
+        return;
+    }
+
+    let event_name = format!("ssh-connection-progress-{tab_id}");
+    let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
 }
 
 #[derive(Clone)]
@@ -45,6 +111,20 @@ impl russh::client::Handler for SshClientHandler {
 
         let algorithm = server_public_key.algorithm().to_string();
         let fingerprint = server_public_key.fingerprint(HashAlg::Sha256).to_string();
+
+        emit_connection_progress(
+            &self.app,
+            &self.tab_id,
+            self.status_options,
+            SshConnectionProgressPayload::new(
+                "target_host_key_checking",
+                format!(
+                    "Checking target host fingerprint for {}:{}",
+                    self.host, self.port
+                ),
+            )
+            .host(self.host.clone(), self.port),
+        );
 
         let known = match crate::ssh::store::load_known_host(
             &self.profile_name,

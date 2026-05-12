@@ -6,13 +6,19 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   getConnectionDisplay,
   getConnectionStateLabel,
+  getSshConnectionProgressLabel,
 } from "@/components/TerminalTab/terminalTabUtils"
-import { ConnectionState, TerminalTabProps } from "@/components/TerminalTab/types"
+import {
+  ConnectionState,
+  SshConnectionProgress,
+  TerminalTabProps,
+} from "@/components/TerminalTab/types"
 
 interface ConnectionHeaderProps {
   connection?: TerminalTabProps["connection"]
   connectionHeaderPinned: boolean
   connectionState: ConnectionState
+  connectionProgress?: SshConnectionProgress | null
   onBackgroundMouseDown?: React.MouseEventHandler<HTMLDivElement>
   onPinConnectionHeader?: () => void
   onReconnect: () => void
@@ -24,6 +30,7 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
   connection,
   connectionHeaderPinned,
   connectionState,
+  connectionProgress,
   onBackgroundMouseDown,
   onPinConnectionHeader,
   onReconnect,
@@ -33,6 +40,10 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
   const { t } = useTranslation()
   const showConnectionHeader = connection?.type === "ssh" && connectionHeaderPinned
   const showPinnedToggle = connection?.type === "ssh" && !connectionHeaderPinned
+  const progressLabel =
+    connectionState === "connecting" && connectionProgress
+      ? getSshConnectionProgressLabel(connectionProgress)
+      : null
 
   return (
     <>
@@ -60,6 +71,7 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
             </Tooltip>
             <div className="connection-meta">
               <div className="connection-primary">{getConnectionDisplay(connection)}</div>
+              {progressLabel && <div className="connection-progress-text">{progressLabel}</div>}
             </div>
           </div>
 

@@ -15,7 +15,8 @@ use crate::ssh::store::{
     load_known_host, now_unix_ms, save_known_host_entry, KnownHostRecord, SshHostKeyPromptPayload,
 };
 use crate::ssh::types::{
-    ConnectionStatusOptions, SshClientHandler, HOST_KEY_PROMPT_TIMEOUT, HOST_KEY_REJECTED_REASON,
+    emit_connection_progress, ConnectionStatusOptions, SshClientHandler,
+    SshConnectionProgressPayload, HOST_KEY_PROMPT_TIMEOUT, HOST_KEY_REJECTED_REASON,
 };
 
 /// russh handler for the jump host leg of the connection.
@@ -27,6 +28,7 @@ pub struct JumpHostHandler {
     pub host: String,
     pub port: u16,
     pub hop_index: usize,
+    pub total_hops: usize,
     pub prompts: HostPromptMap,
     pub user_rejected_host_key: Arc<AtomicBool>,
     pub failure_reason: Arc<Mutex<Option<String>>>,
@@ -42,6 +44,21 @@ impl client::Handler for JumpHostHandler {
     ) -> Result<bool, Self::Error> {
         let algorithm = server_public_key.algorithm().to_string();
         let fingerprint = server_public_key.fingerprint(HashAlg::Sha256).to_string();
+
+        emit_connection_progress(
+            &self.app,
+            &self.tab_id,
+            self.status_options,
+            SshConnectionProgressPayload::new(
+                "jump_host_key_checking",
+                format!(
+                    "Checking jump host #{} fingerprint for {}:{}",
+                    self.hop_index, self.host, self.port
+                ),
+            )
+            .host(self.host.clone(), self.port)
+            .hop(self.hop_index, self.total_hops),
+        );
 
         // Use a synthetic profile name to key known_hosts entries for jump hosts.
         let synthetic_name = format!("jump:{}:{}", self.host, self.port);
@@ -272,7 +289,7 @@ fn build_jump_handler(
     tab_id: &str,
     jump_plan: &JumpHostPlan,
     hop_index: usize,
-    _total_hops: usize,
+    total_hops: usize,
     prompts: HostPromptMap,
     status_options: ConnectionStatusOptions,
 ) -> JumpHostHandler {
@@ -282,6 +299,7 @@ fn build_jump_handler(
         host: jump_plan.host.clone(),
         port: jump_plan.port,
         hop_index,
+        total_hops,
         prompts,
         user_rejected_host_key: Arc::new(AtomicBool::new(false)),
         failure_reason: Arc::new(Mutex::new(None)),
@@ -340,6 +358,21 @@ async fn connect_jump_direct(
             jump_plan.username, jump_plan.host, jump_plan.port
         ),
     );
+    emit_connection_progress(
+        app,
+        tab_id,
+        status_options,
+        SshConnectionProgressPayload::new(
+            "jump_connecting",
+            format!(
+                "Connecting to jump host #{} {}@{}:{}",
+                hop_index, jump_plan.username, jump_plan.host, jump_plan.port
+            ),
+        )
+        .host(jump_plan.host.clone(), jump_plan.port)
+        .username(jump_plan.username.clone())
+        .hop(hop_index, total_hops),
+    );
 
     let mut session = tokio::time::timeout(
         Duration::from_secs(15),
@@ -353,6 +386,22 @@ async fn connect_jump_direct(
     .map_err(|_| format!("Jump host #{hop_index} connection timed out"))?
     .map_err(|e| map_jump_connect_error(e, host_key_rejected, failure_reason, hop_index))?;
 
+    emit_connection_progress(
+        app,
+        tab_id,
+        status_options,
+        SshConnectionProgressPayload::new(
+            "jump_authenticating",
+            format!(
+                "Authenticating jump host #{} as {}",
+                hop_index, jump_plan.username
+            ),
+        )
+        .host(jump_plan.host.clone(), jump_plan.port)
+        .username(jump_plan.username.clone())
+        .hop(hop_index, total_hops),
+    );
+
     authenticate_session(
         &mut session,
         &jump_plan.username,
@@ -362,6 +411,19 @@ async fn connect_jump_direct(
     )
     .await
     .map_err(|e| format!("Jump host #{hop_index}: {e}"))?;
+
+    emit_connection_progress(
+        app,
+        tab_id,
+        status_options,
+        SshConnectionProgressPayload::new(
+            "jump_connected",
+            format!("Jump host #{} connected", hop_index),
+        )
+        .host(jump_plan.host.clone(), jump_plan.port)
+        .username(jump_plan.username.clone())
+        .hop(hop_index, total_hops),
+    );
 
     Ok(session)
 }
@@ -399,6 +461,21 @@ where
             jump_plan.username, jump_plan.host, jump_plan.port
         ),
     );
+    emit_connection_progress(
+        app,
+        tab_id,
+        status_options,
+        SshConnectionProgressPayload::new(
+            "jump_connecting",
+            format!(
+                "Connecting to jump host #{} {}@{}:{} through tunnel",
+                hop_index, jump_plan.username, jump_plan.host, jump_plan.port
+            ),
+        )
+        .host(jump_plan.host.clone(), jump_plan.port)
+        .username(jump_plan.username.clone())
+        .hop(hop_index, total_hops),
+    );
 
     let mut session = tokio::time::timeout(
         Duration::from_secs(15),
@@ -407,6 +484,22 @@ where
     .await
     .map_err(|_| format!("Jump host #{hop_index} connection timed out"))?
     .map_err(|e| map_jump_connect_error(e, host_key_rejected, failure_reason, hop_index))?;
+
+    emit_connection_progress(
+        app,
+        tab_id,
+        status_options,
+        SshConnectionProgressPayload::new(
+            "jump_authenticating",
+            format!(
+                "Authenticating jump host #{} as {}",
+                hop_index, jump_plan.username
+            ),
+        )
+        .host(jump_plan.host.clone(), jump_plan.port)
+        .username(jump_plan.username.clone())
+        .hop(hop_index, total_hops),
+    );
 
     authenticate_session(
         &mut session,
@@ -417,6 +510,19 @@ where
     )
     .await
     .map_err(|e| format!("Jump host #{hop_index}: {e}"))?;
+
+    emit_connection_progress(
+        app,
+        tab_id,
+        status_options,
+        SshConnectionProgressPayload::new(
+            "jump_connected",
+            format!("Jump host #{} connected", hop_index),
+        )
+        .host(jump_plan.host.clone(), jump_plan.port)
+        .username(jump_plan.username.clone())
+        .hop(hop_index, total_hops),
+    );
 
     Ok(session)
 }
@@ -473,6 +579,20 @@ where
             let _ = app.emit_to(tauri::EventTarget::any(), &event_name, status_msg);
         }
 
+        emit_connection_progress(
+            app,
+            tab_id,
+            status_options,
+            SshConnectionProgressPayload::new(
+                "tunnel_opening",
+                format!(
+                    "Opening tunnel to jump host #{} {}:{}",
+                    hop_index, jump_plan.host, jump_plan.port
+                ),
+            )
+            .host(jump_plan.host.clone(), jump_plan.port)
+            .hop(hop_index, total_hops),
+        );
         let tunnel_channel = previous
             .channel_open_direct_tcpip(
                 jump_plan.host.as_str(),
@@ -511,6 +631,16 @@ where
         let _ = app.emit_to(tauri::EventTarget::any(), &event_name, status_msg);
     }
 
+    emit_connection_progress(
+        app,
+        tab_id,
+        status_options,
+        SshConnectionProgressPayload::new(
+            "tunnel_opening",
+            format!("Opening tunnel to target {}:{}", target_host, target_port),
+        )
+        .host(target_host.to_string(), target_port),
+    );
     let last = sessions
         .last()
         .ok_or_else(|| "Jump chain is empty".to_string())?;
@@ -518,6 +648,20 @@ where
         .channel_open_direct_tcpip(target_host, target_port as u32, "127.0.0.1", 0)
         .await
         .map_err(|e| format!("Failed to open tunnel to target through jump chain: {e}"))?;
+
+    emit_connection_progress(
+        app,
+        tab_id,
+        status_options,
+        SshConnectionProgressPayload::new(
+            "target_connecting",
+            format!(
+                "Connecting to target {}:{} through jump chain",
+                target_host, target_port
+            ),
+        )
+        .host(target_host.to_string(), target_port),
+    );
 
     let target_session =
         client::connect_stream(target_config, tunnel_channel.into_stream(), target_handler)
@@ -568,6 +712,17 @@ pub async fn open_target_ssh_session(
     let host_key_rejected = handler.user_rejected_host_key.clone();
 
     let (jump_chain_opt, mut target_session) = if jump_plans.is_empty() {
+        emit_connection_progress(
+            app,
+            tab_id,
+            status_options,
+            SshConnectionProgressPayload::new(
+                "target_connecting",
+                format!("Connecting to target {}:{}", target_host, target_port),
+            )
+            .host(target_host.to_string(), target_port)
+            .username(target_username.to_string()),
+        );
         let sess = client::connect(target_config, (target_host, target_port), handler)
             .await
             .map_err(|e| {
@@ -595,6 +750,18 @@ pub async fn open_target_ssh_session(
         (Some(chain), target_sess)
     };
 
+    emit_connection_progress(
+        app,
+        tab_id,
+        status_options,
+        SshConnectionProgressPayload::new(
+            "target_authenticating",
+            format!("Authenticating target as {}", target_username),
+        )
+        .host(target_host.to_string(), target_port)
+        .username(target_username.to_string()),
+    );
+
     let auth_result = if let Some(key_path) = target_private_key_path {
         let key_pair =
             russh::keys::load_secret_key(Path::new(key_path), target_private_key_passphrase)
@@ -621,6 +788,21 @@ pub async fn open_target_ssh_session(
             .await;
         return Err("SSH authentication failed".to_string());
     }
+
+    emit_connection_progress(
+        app,
+        tab_id,
+        status_options,
+        SshConnectionProgressPayload::new(
+            "ready",
+            format!(
+                "Connected to {}@{}:{}",
+                target_username, target_host, target_port
+            ),
+        )
+        .host(target_host.to_string(), target_port)
+        .username(target_username.to_string()),
+    );
 
     Ok((jump_chain_opt, target_session))
 }
