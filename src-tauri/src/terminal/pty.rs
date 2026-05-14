@@ -57,7 +57,9 @@ pub fn build_terminal_command(
     #[cfg(not(target_os = "windows"))]
     let mut cmd = {
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-        CommandBuilder::new(&shell)
+        let mut cmd = CommandBuilder::new_default_prog();
+        cmd.env("SHELL", &shell);
+        cmd
     };
 
     let home = resolve_home_dir();
