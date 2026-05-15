@@ -1,6 +1,8 @@
 use super::types::ActivePty;
 use portable_pty::{CommandBuilder, PtySize};
 use std::io::Read;
+#[cfg(target_os = "macos")]
+use std::sync::OnceLock;
 use std::thread;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc;
@@ -56,11 +58,11 @@ pub fn build_terminal_command(
 
     #[cfg(not(target_os = "windows"))]
     let mut cmd = {
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-        let mut cmd = CommandBuilder::new_default_prog();
-        cmd.env("SHELL", &shell);
-        cmd
+        CommandBuilder::new_default_prog()
     };
+
+    #[cfg(target_os = "macos")]
+    apply_macos_login_shell_env(&mut cmd);
 
     let home = resolve_home_dir();
     cmd.env("TERM", "xterm-256color");
@@ -68,6 +70,85 @@ pub fn build_terminal_command(
     cmd.env("LANG", "en_US.UTF-8");
     cmd.cwd(&home);
     Ok(cmd)
+}
+
+#[cfg(target_os = "macos")]
+fn apply_macos_login_shell_env(cmd: &mut CommandBuilder) {
+    for (key, value) in macos_login_shell_env() {
+        if should_import_macos_login_shell_env(key) {
+            cmd.env(key, value);
+        }
+    }
+
+    cmd.env("PATH", resolve_macos_path(cmd.get_env("PATH")));
+}
+
+#[cfg(target_os = "macos")]
+fn macos_login_shell_env() -> &'static [(String, String)] {
+    static LOGIN_SHELL_ENV: OnceLock<Vec<(String, String)>> = OnceLock::new();
+    LOGIN_SHELL_ENV.get_or_init(load_macos_login_shell_env).as_slice()
+}
+
+#[cfg(target_os = "macos")]
+fn should_import_macos_login_shell_env(key: &str) -> bool {
+    !matches!(key, "" | "PWD" | "OLDPWD" | "SHLVL" | "_")
+}
+
+#[cfg(target_os = "macos")]
+fn load_macos_login_shell_env() -> Vec<(String, String)> {
+    let shell = std::env::var("SHELL")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "/bin/zsh".to_string());
+
+    let Ok(output) = std::process::Command::new(shell)
+        .args(["-l", "-c", "/usr/bin/env -0"])
+        .output()
+    else {
+        return Vec::new();
+    };
+
+    if !output.status.success() {
+        return Vec::new();
+    }
+
+    String::from_utf8_lossy(&output.stdout)
+        .split('\0')
+        .filter_map(|entry| entry.split_once('='))
+        .filter(|(key, _)| !key.trim().is_empty())
+        .map(|(key, value)| (key.to_string(), value.to_string()))
+        .collect()
+}
+
+#[cfg(target_os = "macos")]
+fn resolve_macos_path(path: Option<&std::ffi::OsStr>) -> String {
+    let mut entries: Vec<String> = path
+        .map(std::env::split_paths)
+        .into_iter()
+        .flatten()
+        .filter_map(|entry| entry.into_os_string().into_string().ok())
+        .filter(|entry| !entry.trim().is_empty())
+        .collect();
+
+    // GUI-launched .app bundles do not inherit the user's terminal PATH.
+    // Seed common macOS package-manager locations before the login shell runs.
+    for entry in [
+        "/opt/homebrew/bin",
+        "/opt/homebrew/sbin",
+        "/usr/local/bin",
+        "/usr/local/sbin",
+        "/usr/bin",
+        "/bin",
+        "/usr/sbin",
+        "/sbin",
+    ] {
+        if !entries.iter().any(|existing| existing == entry) {
+            entries.push(entry.to_string());
+        }
+    }
+
+    entries.join(":")
 }
 
 #[cfg(target_os = "windows")]
