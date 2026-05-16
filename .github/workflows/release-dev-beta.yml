@@ -25,7 +25,12 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           LATEST_BETA=$(
             git ls-remote --refs --tags origin "v${VERSION}-beta.*" |
-              sed -E "s#.*refs/tags/v${VERSION}-beta\\.([0-9]+)$#\\1#" |
+              while read -r _ ref; do
+                beta_number="${ref#refs/tags/v${VERSION}-beta.}"
+                if [[ "$beta_number" =~ ^[0-9]+$ ]]; then
+                  echo "$beta_number"
+                fi
+              done |
               sort -n |
               tail -1
           )
