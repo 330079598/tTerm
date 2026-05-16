@@ -9,7 +9,32 @@ on:
   workflow_dispatch:
 
 jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      release_tag: ${{ steps.version.outputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read package version
+        id: version
+        shell: bash
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          CARGO_VERSION=$(node -e "const fs = require('fs'); const cargo = fs.readFileSync('./src-tauri/Cargo.toml', 'utf8'); const match = cargo.match(/^version\\s*=\\s*\"([^\"]+)\"/m); if (!match) process.exit(1); console.log(match[1]);")
+
+          if [ "$PACKAGE_VERSION" != "$CARGO_VERSION" ]; then
+            echo "Version mismatch: package.json=${PACKAGE_VERSION}, src-tauri/Cargo.toml=${CARGO_VERSION}"
+            exit 1
+          fi
+
+          VERSION="$PACKAGE_VERSION"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+
   release:
+    needs: prepare
     permissions:
       contents: write
     strategy:
@@ -66,8 +91,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: v__VERSION__
-          releaseName: 'tTerm v__VERSION__'
+          tagName: ${{ needs.prepare.outputs.release_tag }}
+          releaseName: tTerm v${{ needs.prepare.outputs.version }}
           releaseBody: 'See the assets to download and install this version.'
           releaseDraft: false
           prerelease: false

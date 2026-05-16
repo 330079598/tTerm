@@ -6,6 +6,10 @@ on:
       - dev-beta
   workflow_dispatch:
 
+concurrency:
+  group: release-dev-beta
+  cancel-in-progress: false
+
 jobs:
   prepare:
     runs-on: ubuntu-24.04
@@ -19,7 +23,15 @@ jobs:
         shell: bash
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          echo "beta_tag=v${VERSION}-beta.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          LATEST_BETA=$(
+            git ls-remote --refs --tags origin "v${VERSION}-beta.*" |
+              sed -E "s#.*refs/tags/v${VERSION}-beta\\.([0-9]+)$#\\1#" |
+              sort -n |
+              tail -1
+          )
+          NEXT_BETA=$(( ${LATEST_BETA:-0} + 1 ))
+
+          echo "beta_tag=v${VERSION}-beta.${NEXT_BETA}" >> "$GITHUB_OUTPUT"
 
   release:
     needs: prepare
