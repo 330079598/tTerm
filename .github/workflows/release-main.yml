@@ -1,4 +1,4 @@
-﻿name: Release (Production)
+name: Release (Production)
 
 on:
   push:
@@ -69,6 +69,6 @@ jobs:
           tagName: v__VERSION__
           releaseName: 'tTerm v__VERSION__'
           releaseBody: 'See the assets to download and install this version.'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
