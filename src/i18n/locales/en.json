@@ -578,7 +578,7 @@
     "stable": "Stable",
     "betaDev": "Beta Dev",
     "autoDownload": "Download updates in background",
-    "autoDownloadDesc": "tTerm checks after startup and every 12 hours, then prepares the update without interrupting active sessions.",
+    "autoDownloadDesc": "tTerm checks after startup and every 6 hours, then prepares the update without interrupting active sessions.",
     "manualCheck": "Manual update check",
     "manualCheckDesc": "Check the selected channel now.",
     "checkNow": "Check now",

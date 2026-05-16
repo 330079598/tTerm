@@ -566,7 +566,7 @@
     "stable": "稳定版",
     "betaDev": "Beta Dev",
     "autoDownload": "后台下载更新",
-    "autoDownloadDesc": "tTerm 会在启动后以及每 12 小时检查一次，并在不中断当前会话的情况下准备更新。",
+    "autoDownloadDesc": "tTerm 会在启动后以及每 6 小时检查一次，并在不中断当前会话的情况下准备更新。",
     "manualCheck": "手动检查更新",
     "manualCheckDesc": "立即检查当前选择的通道。",
     "checkNow": "立即检查",
