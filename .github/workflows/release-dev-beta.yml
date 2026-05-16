@@ -63,7 +63,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v__VERSION__-beta.${{ github.run_number }}
-          releaseName: 'Dev Release v__VERSION__'
+          releaseName: 'v__VERSION__-beta.${{ github.run_number }}'
           releaseBody: 'Development build from dev-beta branch'
           releaseDraft: false
           prerelease: true
