@@ -42,7 +42,8 @@
     "about": "关于 tTerm",
     "secretStorage": "密钥存储",
     "showJumpHostConnectionInfo": "显示跳板机连接信息",
-    "showJumpHostConnectionInfoDesc": "跳板机连接就绪时，首次显示可关闭的链路详情弹框；关闭后后续会改为轻量提示。"
+    "showJumpHostConnectionInfoDesc": "跳板机连接就绪时，首次显示可关闭的链路详情弹框；关闭后后续会改为轻量提示。",
+    "updates": "更新"
   },
   "theme": {
     "title": "选择主题",
@@ -558,5 +559,25 @@
     "copySuccessDescription": "连接信息已复制到剪贴板。",
     "copyFailedTitle": "复制失败",
     "copyFailedDescription": "无法复制连接信息。"
+  },
+  "updates": {
+    "channel": "更新通道",
+    "channelDesc": "稳定版跟随正式发布；beta-dev 跟随开发预览构建。",
+    "stable": "稳定版",
+    "betaDev": "Beta Dev",
+    "autoDownload": "后台下载更新",
+    "autoDownloadDesc": "tTerm 会在启动后以及每 12 小时检查一次，并在不中断当前会话的情况下准备更新。",
+    "manualCheck": "手动检查更新",
+    "manualCheckDesc": "立即检查当前选择的通道。",
+    "checkNow": "立即检查",
+    "availableTitle": "发现新版本",
+    "availableDesc": "版本 {{version}} 可下载。",
+    "downloadInstall": "下载并安装",
+    "readyTitle": "更新已准备好",
+    "readyDesc": "准备好后重启 tTerm 即可完成 {{version}} 的安装。",
+    "restart": "重启",
+    "noUpdate": "当前已是最新版本。",
+    "latest": "已是最新版本",
+    "betaHint": "预览构建可能会更频繁更新。"
   }
 }

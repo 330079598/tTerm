@@ -31,6 +31,10 @@ pub struct AppConfig {
     pub startup_session_restore_mode: String,
     #[serde(default = "default_show_jump_host_connection_info")]
     pub show_jump_host_connection_info: bool,
+    #[serde(default = "default_update_channel")]
+    pub update_channel: String,
+    #[serde(default = "default_auto_download_updates")]
+    pub auto_download_updates: bool,
 }
 
 fn normalize_language(locale: &str) -> String {
@@ -82,6 +86,14 @@ fn default_show_jump_host_connection_info() -> bool {
     true
 }
 
+fn default_update_channel() -> String {
+    "stable".to_string()
+}
+
+fn default_auto_download_updates() -> bool {
+    true
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -97,6 +109,8 @@ impl Default for AppConfig {
             scrollback_lines: default_scrollback_lines(),
             startup_session_restore_mode: default_startup_session_restore_mode(),
             show_jump_host_connection_info: default_show_jump_host_connection_info(),
+            update_channel: default_update_channel(),
+            auto_download_updates: default_auto_download_updates(),
         }
     }
 }

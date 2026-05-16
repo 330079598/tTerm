@@ -1,4 +1,4 @@
-﻿name: Release (dev-beta)
+name: Release (dev-beta)
 
 on:
   push:
@@ -7,7 +7,22 @@ on:
   workflow_dispatch:
 
 jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      beta_tag: ${{ steps.version.outputs.beta_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read package version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "beta_tag=v${VERSION}-beta.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
   release:
+    needs: prepare
     permissions:
       contents: write
     strategy:
@@ -61,10 +76,56 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: v__VERSION__-beta.${{ github.run_number }}
-          releaseName: 'v__VERSION__-beta.${{ github.run_number }}'
+          tagName: ${{ needs.prepare.outputs.beta_tag }}
+          releaseName: ${{ needs.prepare.outputs.beta_tag }}
           releaseBody: 'Development build from dev-beta branch'
           releaseDraft: false
           prerelease: true
           args: ${{ matrix.args }}
+
+  publish-beta-manifest:
+    needs:
+      - prepare
+      - release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Download updater manifest from beta release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.beta_tag }}
+        shell: bash
+        run: |
+          mkdir -p updater-manifest
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern latest.json \
+            --dir updater-manifest \
+            --clobber
+
+      - name: Checkout updater manifest repository
+        uses: actions/checkout@v4
+        with:
+          repository: 330079598/tTerm-updates
+          token: ${{ secrets.TTERM_UPDATES_TOKEN }}
+          path: tTerm-updates
+
+      - name: Publish beta-dev updater manifest
+        shell: bash
+        run: |
+          mkdir -p tTerm-updates/beta-dev
+          cp updater-manifest/latest.json tTerm-updates/beta-dev/latest.json
+          cd tTerm-updates
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add beta-dev/latest.json
+          if git diff --cached --quiet; then
+            echo "beta-dev/latest.json is already up to date."
+            exit 0
+          fi
+          git commit -m "Update beta-dev updater manifest to ${{ needs.prepare.outputs.beta_tag }}"
+          git push

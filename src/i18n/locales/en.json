@@ -44,7 +44,8 @@
     "about": "About tTerm",
     "secretStorage": "Secret Storage",
     "showJumpHostConnectionInfo": "Show jump host connection info",
-    "showJumpHostConnectionInfoDesc": "Show a dismissible dialog with route details the first time a jump-host connection is ready; later disabled sessions use a toast."
+    "showJumpHostConnectionInfoDesc": "Show a dismissible dialog with route details the first time a jump-host connection is ready; later disabled sessions use a toast.",
+    "updates": "Updates"
   },
   "theme": {
     "title": "Choose Theme",
@@ -570,5 +571,25 @@
     "copySuccessDescription": "Connection information copied to the clipboard.",
     "copyFailedTitle": "Copy failed",
     "copyFailedDescription": "Unable to copy the connection information."
+  },
+  "updates": {
+    "channel": "Update channel",
+    "channelDesc": "Stable follows normal releases. beta-dev follows development preview builds.",
+    "stable": "Stable",
+    "betaDev": "Beta Dev",
+    "autoDownload": "Download updates in background",
+    "autoDownloadDesc": "tTerm checks after startup and every 12 hours, then prepares the update without interrupting active sessions.",
+    "manualCheck": "Manual update check",
+    "manualCheckDesc": "Check the selected channel now.",
+    "checkNow": "Check now",
+    "availableTitle": "Update available",
+    "availableDesc": "Version {{version}} is ready to download.",
+    "downloadInstall": "Download and install",
+    "readyTitle": "Update ready",
+    "readyDesc": "Restart tTerm when you are ready to finish installing {{version}}.",
+    "restart": "Restart",
+    "noUpdate": "You are already on the latest version.",
+    "latest": "Latest version",
+    "betaHint": "Preview builds may update more often."
   }
 }

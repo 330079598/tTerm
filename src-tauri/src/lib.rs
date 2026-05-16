@@ -12,13 +12,100 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tauri::Manager;
+use tauri::{ipc::Channel, Manager};
+use tauri_plugin_updater::UpdaterExt;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 use tauri_plugin_frame::FramePluginBuilder;
 use tokio::sync::RwLock;
 
 pub struct TokioRuntimeState {
     pub runtime: tokio::runtime::Runtime,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppUpdateMetadata {
+    version: String,
+    current_version: String,
+    body: Option<String>,
+    date: Option<String>,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(tag = "event", content = "data")]
+pub enum AppUpdateDownloadEvent {
+    #[serde(rename_all = "camelCase")]
+    Started { content_length: Option<u64> },
+    #[serde(rename_all = "camelCase")]
+    Progress { chunk_length: usize },
+    Finished,
+}
+
+fn update_endpoint(channel: &str) -> &'static str {
+    match channel {
+        "beta-dev" => "https://330079598.github.io/tTerm-updates/beta-dev/latest.json",
+        _ => "https://github.com/330079598/tTerm/releases/latest/download/latest.json",
+    }
+}
+
+async fn find_app_update(
+    app: &tauri::AppHandle,
+    channel: String,
+) -> Result<Option<tauri_plugin_updater::Update>, String> {
+    let endpoint = tauri::Url::parse(update_endpoint(&channel))
+        .map_err(|e| format!("Invalid update endpoint: {e}"))?;
+
+    app.updater_builder()
+        .endpoints(vec![endpoint])
+        .map_err(|e| e.to_string())?
+        .build()
+        .map_err(|e| e.to_string())?
+        .check()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn check_app_update(
+    app: tauri::AppHandle,
+    channel: String,
+) -> Result<Option<AppUpdateMetadata>, String> {
+    Ok(find_app_update(&app, channel).await?.map(|update| AppUpdateMetadata {
+        version: update.version,
+        current_version: update.current_version,
+        body: update.body,
+        date: update.date.map(|date| date.to_string()),
+    }))
+}
+
+#[tauri::command]
+async fn download_install_app_update(
+    app: tauri::AppHandle,
+    channel: String,
+    on_event: Channel<AppUpdateDownloadEvent>,
+) -> Result<bool, String> {
+    let Some(update) = find_app_update(&app, channel).await? else {
+        return Ok(false);
+    };
+
+    let mut started = false;
+    update
+        .download_and_install(
+            |chunk_length, content_length| {
+                if !started {
+                    let _ = on_event.send(AppUpdateDownloadEvent::Started { content_length });
+                    started = true;
+                }
+                let _ = on_event.send(AppUpdateDownloadEvent::Progress { chunk_length });
+            },
+            || {
+                let _ = on_event.send(AppUpdateDownloadEvent::Finished);
+            },
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(true)
 }
 
 const MIGRATED_CONFIG_FILES: &[&str] = &[
@@ -50,7 +137,9 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_dialog::init());
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build());
 
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     let builder = builder.plugin(
@@ -105,6 +194,8 @@ pub fn run() {
             ssh::secret_commands::unlock_secret_vault,
             ssh::secret_commands::lock_secret_vault,
             ssh::secret_commands::set_secret_vault_enabled,
+            check_app_update,
+            download_install_app_update,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();

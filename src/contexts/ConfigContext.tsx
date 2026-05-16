@@ -26,6 +26,8 @@ export interface AppConfig {
   scrollback_lines: number
   startup_session_restore_mode: "active" | "all"
   show_jump_host_connection_info: boolean
+  update_channel: "stable" | "beta-dev"
+  auto_download_updates: boolean
 }
 
 const defaultConfig: AppConfig = {
@@ -42,6 +44,8 @@ const defaultConfig: AppConfig = {
   scrollback_lines: 10000,
   startup_session_restore_mode: "active",
   show_jump_host_connection_info: true,
+  update_channel: import.meta.env.DEV ? "beta-dev" : "stable",
+  auto_download_updates: true,
 }
 
 function normalizeConfig(config: Partial<AppConfig>): AppConfig {
@@ -50,6 +54,8 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     ...config,
     startup_session_restore_mode: config.startup_session_restore_mode === "all" ? "all" : "active",
     show_jump_host_connection_info: config.show_jump_host_connection_info !== false,
+    update_channel: config.update_channel === "beta-dev" ? "beta-dev" : "stable",
+    auto_download_updates: config.auto_download_updates !== false,
   }
 }
 

@@ -19,12 +19,14 @@ import { FontSettingsTab } from "@/components/SettingsDialog/FontSettingsTab"
 import { GeneralSettingsTab } from "@/components/SettingsDialog/GeneralSettingsTab"
 import { SecuritySettingsTab } from "@/components/SettingsDialog/SecuritySettingsTab"
 import { SettingsSidebar } from "@/components/SettingsDialog/SettingsSidebar"
+import { UpdateSettingsTab } from "@/components/SettingsDialog/UpdateSettingsTab"
 import {
   FONT_SIZE_OPTIONS,
   languages,
   SettingsDialogProps,
   SettingsPanelProps,
 } from "@/components/SettingsDialog/types"
+import type { UpdateChannel } from "@/lib/updater"
 
 const SECRET_STATUS_CACHE_MS = 30_000
 const FONT_LOAD_TIMEOUT_MS = 5_000
@@ -390,6 +392,32 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
   }
 
+  const handleUpdateChannelChange = async (channel: UpdateChannel) => {
+    try {
+      await saveConfig({ update_channel: channel })
+    } catch (error) {
+      console.error("Failed to save update channel:", error)
+      toast({
+        title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleAutoDownloadUpdatesChange = async (checked: boolean) => {
+    try {
+      await saveConfig({ auto_download_updates: checked })
+    } catch (error) {
+      console.error("Failed to save auto update preference:", error)
+      toast({
+        title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleAbout = async () => {
     let version = fallbackAppVersion
 
@@ -510,6 +538,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleShowJumpHostConnectionInfoChange={handleShowJumpHostConnectionInfoChange}
               restoreAllSessionConnections={config.startup_session_restore_mode === "all"}
               showJumpHostConnectionInfo={config.show_jump_host_connection_info}
+            />
+          </TabsContent>
+
+          <TabsContent value="updates" className="m-0 flex-1 overflow-y-auto p-6">
+            <UpdateSettingsTab
+              autoDownloadUpdates={config.auto_download_updates}
+              handleAutoDownloadUpdatesChange={handleAutoDownloadUpdatesChange}
+              handleUpdateChannelChange={handleUpdateChannelChange}
+              updateChannel={config.update_channel}
             />
           </TabsContent>
         </Tabs>

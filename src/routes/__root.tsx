@@ -2,6 +2,7 @@ import { createRootRoute } from "@tanstack/react-router"
 import { lazy } from "react"
 
 import { TTermApp } from "@/components/TTermApp"
+import { AppUpdateManager } from "@/components/AppUpdateManager"
 import { ConfigProvider } from "@/contexts/ConfigContext"
 import { ThemeProvider } from "@/contexts/ThemeContext"
 import { TransferProvider } from "@/contexts/TransferContext"
@@ -20,6 +21,7 @@ const RootLayout = () => {
       <ThemeProvider>
         <TransferProvider>
           <TTermApp />
+          <AppUpdateManager />
           <TanStackRouterDevtools />
         </TransferProvider>
       </ThemeProvider>
