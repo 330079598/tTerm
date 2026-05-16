@@ -92,7 +92,7 @@ jobs:
       - release
     runs-on: ubuntu-24.04
     permissions:
-      contents: read
+      contents: write
     steps:
       - name: Download updater manifest from beta release
         env:
@@ -107,19 +107,33 @@ jobs:
             --dir updater-manifest \
             --clobber
 
-      - name: Checkout updater manifest repository
-        uses: actions/checkout@v4
-        with:
-          repository: 330079598/tTerm-updates
-          token: ${{ secrets.TTERM_UPDATES_TOKEN }}
-          path: tTerm-updates
+      - name: Checkout GitHub Pages branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code --heads "$REMOTE" github-pages >/dev/null 2>&1; then
+            git clone --branch github-pages --depth 1 "$REMOTE" pages
+          else
+            git clone --depth 1 "$REMOTE" pages
+            cd pages
+            git checkout --orphan github-pages
+            git rm -rf .
+            touch .nojekyll
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .nojekyll
+            git commit -m "Initialize GitHub Pages branch"
+            git push origin github-pages
+          fi
 
       - name: Publish beta-dev updater manifest
         shell: bash
         run: |
-          mkdir -p tTerm-updates/beta-dev
-          cp updater-manifest/latest.json tTerm-updates/beta-dev/latest.json
-          cd tTerm-updates
+          mkdir -p pages/beta-dev
+          cp updater-manifest/latest.json pages/beta-dev/latest.json
+          cd pages
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add beta-dev/latest.json
@@ -128,4 +142,4 @@ jobs:
             exit 0
           fi
           git commit -m "Update beta-dev updater manifest to ${{ needs.prepare.outputs.beta_tag }}"
-          git push
+          git push origin github-pages

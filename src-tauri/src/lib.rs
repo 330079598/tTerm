@@ -43,7 +43,7 @@ pub enum AppUpdateDownloadEvent {
 
 fn update_endpoint(channel: &str) -> &'static str {
     match channel {
-        "beta-dev" => "https://330079598.github.io/tTerm-updates/beta-dev/latest.json",
+        "beta-dev" => "https://330079598.github.io/tTerm/beta-dev/latest.json",
         _ => "https://github.com/330079598/tTerm/releases/latest/download/latest.json",
     }
 }
