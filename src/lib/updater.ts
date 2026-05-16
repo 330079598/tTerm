@@ -38,8 +38,8 @@ export type DownloadEvent =
 
 export type UpdateStateListener = (state: UpdateState) => void
 
-const UPDATE_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000
-const STARTUP_UPDATE_DELAY_MS = 8_000
+const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
+const STARTUP_UPDATE_DELAY_MS = 6_000
 
 let state: UpdateState = {
   status: "idle",

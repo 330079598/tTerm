@@ -66,7 +66,10 @@ export function AppUpdateManager() {
         }),
         duration: 20_000,
         action: (
-          <ToastAction altText={t("updates.restart", { defaultValue: "Restart" })} onClick={relaunchApp}>
+          <ToastAction
+            altText={t("updates.restart", { defaultValue: "Restart" })}
+            onClick={relaunchApp}
+          >
             <RotateCcw size={14} />
             {t("updates.restart", { defaultValue: "Restart" })}
           </ToastAction>

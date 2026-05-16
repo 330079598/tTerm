@@ -113,7 +113,10 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
                 </div>
               </div>
             </div>
-            <Switch checked={autoDownloadUpdates} onCheckedChange={handleAutoDownloadUpdatesChange} />
+            <Switch
+              checked={autoDownloadUpdates}
+              onCheckedChange={handleAutoDownloadUpdatesChange}
+            />
           </CardContent>
         </Card>
 
@@ -128,12 +131,15 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
                   </div>
                   <div className="text-muted-foreground text-xs leading-5">
                     {state?.status === "not-available"
-                      ? t("updates.noUpdate", { defaultValue: "You are already on the latest version." })
+                      ? t("updates.noUpdate", {
+                          defaultValue: "You are already on the latest version.",
+                        })
                       : state?.status === "error"
                         ? state.error
                         : ready
                           ? t("updates.readyDesc", {
-                              defaultValue: "Restart tTerm when you are ready to finish installing {{version}}.",
+                              defaultValue:
+                                "Restart tTerm when you are ready to finish installing {{version}}.",
                               version: state.latestVersion,
                             })
                           : hasUpdate
@@ -153,7 +159,10 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
             {downloading && (
               <div className="space-y-2">
                 <div className="bg-muted h-2 overflow-hidden rounded-full">
-                  <div className="bg-primary h-full transition-all" style={{ width: `${progress}%` }} />
+                  <div
+                    className="bg-primary h-full transition-all"
+                    style={{ width: `${progress}%` }}
+                  />
                 </div>
                 <div className="text-muted-foreground text-xs">
                   {state.totalBytes
