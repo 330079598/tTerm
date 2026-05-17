@@ -87,9 +87,9 @@
 
 可在 [Releases](https://github.com/330079598/tTerm/releases) 页面下载预编译版本：
 
-- **macOS** — Apple Silicon (aarch64) 和 Intel (x86_64) `.dmg`
-- **Windows** — `.msi` 安装包
-- **Linux** — `.AppImage` 和 `.deb` 包
+- **macOS** — Apple Silicon (aarch64) 和 Intel (x86_64) `.dmg` 与 `.app` 包
+- **Windows** — `.exe` NSIS 安装包
+- **Linux** — `.AppImage`、`.deb` 和 `.rpm` 包
 
 ### 环境要求
 

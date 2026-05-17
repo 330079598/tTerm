@@ -87,9 +87,9 @@ If you often connect to servers, move files between local and remote machines, o
 
 Pre-built binaries are available on the [Releases](https://github.com/330079598/tTerm/releases) page for:
 
-- **macOS** — Apple Silicon (aarch64) and Intel (x86_64) `.dmg`
-- **Windows** — `.msi` installer
-- **Linux** — `.AppImage` and `.deb` packages
+- **macOS** — Apple Silicon (aarch64) and Intel (x86_64) `.dmg` and `.app` bundles
+- **Windows** — `.exe` NSIS installer
+- **Linux** — `.AppImage`, `.deb`, and `.rpm` packages
 
 ### Prerequisites
 
