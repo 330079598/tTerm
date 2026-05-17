@@ -2,11 +2,13 @@ name: Release (Production)
 
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v*'
   workflow_dispatch:
+
+concurrency:
+  group: release-production
+  cancel-in-progress: false
 
 jobs:
   prepare:
@@ -30,8 +32,15 @@ jobs:
           fi
 
           VERSION="$PACKAGE_VERSION"
+          RELEASE_TAG="v${VERSION}"
+
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "${RELEASE_TAG}" ]; then
+            echo "Tag mismatch: pushed tag=${GITHUB_REF_NAME}, package/Cargo version tag=${RELEASE_TAG}"
+            exit 1
+          fi
+
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "release_tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
 
   release:
     needs: prepare
@@ -97,3 +106,63 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+  publish-stable-manifest:
+    needs:
+      - prepare
+      - release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download updater manifest from stable release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+        shell: bash
+        run: |
+          mkdir -p updater-manifest
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern latest.json \
+            --dir updater-manifest \
+            --clobber
+
+      - name: Checkout GitHub Pages branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code --heads "$REMOTE" github-pages >/dev/null 2>&1; then
+            git clone --branch github-pages --depth 1 "$REMOTE" pages
+          else
+            git clone --depth 1 "$REMOTE" pages
+            cd pages
+            git checkout --orphan github-pages
+            git rm -rf .
+            touch .nojekyll
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .nojekyll
+            git commit -m "Initialize GitHub Pages branch"
+            git push origin github-pages
+          fi
+
+      - name: Publish stable updater manifest
+        shell: bash
+        run: |
+          mkdir -p pages/update/stable pages/update/beta-dev pages/beta-dev
+          cp updater-manifest/latest.json pages/update/stable/latest.json
+          cp updater-manifest/latest.json pages/update/beta-dev/latest.json
+          cp updater-manifest/latest.json pages/beta-dev/latest.json
+          cd pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add update/stable/latest.json update/beta-dev/latest.json beta-dev/latest.json
+          if git diff --cached --quiet; then
+            echo "stable updater manifests are already up to date."
+            exit 0
+          fi
+          git commit -m "Update stable updater manifests to ${{ needs.prepare.outputs.release_tag }}"
+          git push origin github-pages

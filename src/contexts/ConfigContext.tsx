@@ -30,6 +30,12 @@ export interface AppConfig {
   auto_download_updates: boolean
 }
 
+const defaultUpdateChannel = /-(alpha|beta|rc|dev)(\.|$)/.test(
+  import.meta.env.PACKAGE_VERSION ?? ""
+)
+  ? "beta-dev"
+  : "stable"
+
 const defaultConfig: AppConfig = {
   theme: "default",
   language: detectSystemLanguage(),
@@ -44,7 +50,7 @@ const defaultConfig: AppConfig = {
   scrollback_lines: 10000,
   startup_session_restore_mode: "active",
   show_jump_host_connection_info: true,
-  update_channel: import.meta.env.DEV ? "beta-dev" : "stable",
+  update_channel: defaultUpdateChannel,
   auto_download_updates: true,
 }
 

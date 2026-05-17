@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       beta_tag: ${{ steps.version.outputs.beta_tag }}
+      beta_version: ${{ steps.version.outputs.beta_version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -23,10 +24,13 @@ jobs:
         shell: bash
         run: |
           VERSION=$(node -p "require('./package.json').version")
+          BETA_BASE=$(
+            node -p "const parts = require('./package.json').version.split('-')[0].split('.').map(Number); if (parts.length !== 3 || parts.some(Number.isNaN)) throw new Error('Invalid package version'); [parts[0], parts[1], parts[2] + 1].join('.')"
+          )
           LATEST_BETA=$(
-            git ls-remote --refs --tags origin "v${VERSION}-beta.*" |
+            git ls-remote --refs --tags origin "v${BETA_BASE}-beta.*" |
               while read -r _ ref; do
-                beta_number="${ref#refs/tags/v${VERSION}-beta.}"
+                beta_number="${ref#refs/tags/v${BETA_BASE}-beta.}"
                 if [[ "$beta_number" =~ ^[0-9]+$ ]]; then
                   echo "$beta_number"
                 fi
@@ -35,8 +39,10 @@ jobs:
               tail -1
           )
           NEXT_BETA=$(( ${LATEST_BETA:-0} + 1 ))
+          BETA_VERSION="${BETA_BASE}-beta.${NEXT_BETA}"
 
-          echo "beta_tag=v${VERSION}-beta.${NEXT_BETA}" >> "$GITHUB_OUTPUT"
+          echo "beta_tag=v${BETA_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "beta_version=${BETA_VERSION}" >> "$GITHUB_OUTPUT"
 
   release:
     needs: prepare
@@ -89,6 +95,14 @@ jobs:
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Set beta app version
+        shell: bash
+        run: |
+          BETA_VERSION="${{ needs.prepare.outputs.beta_version }}"
+          export BETA_VERSION
+          node -e "const fs = require('fs'); const path = './package.json'; const pkg = JSON.parse(fs.readFileSync(path, 'utf8')); pkg.version = process.env.BETA_VERSION; fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');"
+          perl -0pi -e 's/^version\s*=\s*"[^"]+"/version = "'"$BETA_VERSION"'"/m' src-tauri/Cargo.toml
 
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -148,14 +162,15 @@ jobs:
       - name: Publish beta-dev updater manifest
         shell: bash
         run: |
-          mkdir -p pages/beta-dev
+          mkdir -p pages/update/beta-dev pages/beta-dev
+          cp updater-manifest/latest.json pages/update/beta-dev/latest.json
           cp updater-manifest/latest.json pages/beta-dev/latest.json
           cd pages
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add beta-dev/latest.json
+          git add update/beta-dev/latest.json beta-dev/latest.json
           if git diff --cached --quiet; then
-            echo "beta-dev/latest.json is already up to date."
+            echo "beta-dev updater manifest is already up to date."
             exit 0
           fi
           git commit -m "Update beta-dev updater manifest to ${{ needs.prepare.outputs.beta_tag }}"

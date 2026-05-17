@@ -44,7 +44,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERFMDgwRDY2RDRCMjU4REIKUldUYldMTFVaZzBJM3B0WXBtYmlXdmtqc1dnM0cwRzlaK1dhSEhoK0pzdms1bXNVcndUcDEzRjkK",
       "endpoints": [
-        "https://github.com/330079598/tTerm/releases/latest/download/latest.json"
+        "https://330079598.github.io/tTerm/update/stable/latest.json"
       ],
       "windows": {
         "installMode": "passive"
