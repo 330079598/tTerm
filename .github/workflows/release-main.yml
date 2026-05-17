@@ -152,17 +152,15 @@ jobs:
       - name: Publish stable updater manifest
         shell: bash
         run: |
-          mkdir -p pages/update/stable pages/update/beta-dev pages/beta-dev
+          mkdir -p pages/update/stable
           cp updater-manifest/latest.json pages/update/stable/latest.json
-          cp updater-manifest/latest.json pages/update/beta-dev/latest.json
-          cp updater-manifest/latest.json pages/beta-dev/latest.json
           cd pages
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add update/stable/latest.json update/beta-dev/latest.json beta-dev/latest.json
+          git add update/stable/latest.json
           if git diff --cached --quiet; then
-            echo "stable updater manifests are already up to date."
+            echo "stable updater manifest is already up to date."
             exit 0
           fi
-          git commit -m "Update stable updater manifests to ${{ needs.prepare.outputs.release_tag }}"
+          git commit -m "Update stable updater manifest to ${{ needs.prepare.outputs.release_tag }}"
           git push origin github-pages
