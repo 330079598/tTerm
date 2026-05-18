@@ -3,6 +3,7 @@ import { Channel, invoke } from "@tauri-apps/api/core"
 import { relaunch } from "@tauri-apps/plugin-process"
 
 export type UpdateChannel = "stable" | "beta-dev"
+export type UpdateCheckFrequency = "daily" | "every-3-days" | "weekly" | "never"
 
 export type UpdateStatus =
   | "idle"
@@ -38,8 +39,13 @@ export type DownloadEvent =
 
 export type UpdateStateListener = (state: UpdateState) => void
 
-const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
 const STARTUP_UPDATE_DELAY_MS = 6_000
+
+const UPDATE_CHECK_INTERVALS_MS: Record<Exclude<UpdateCheckFrequency, "never">, number> = {
+  daily: 24 * 60 * 60 * 1000,
+  "every-3-days": 3 * 24 * 60 * 60 * 1000,
+  weekly: 7 * 24 * 60 * 60 * 1000,
+}
 
 let state: UpdateState = {
   status: "idle",
@@ -185,8 +191,16 @@ export async function relaunchApp() {
   await relaunch()
 }
 
-export function startBackgroundUpdateChecks(channel: UpdateChannel, autoDownload: boolean) {
+export function startBackgroundUpdateChecks(
+  channel: UpdateChannel,
+  autoDownload: boolean,
+  frequency: UpdateCheckFrequency
+) {
   stopBackgroundUpdateChecks()
+
+  if (frequency === "never") {
+    return
+  }
 
   const run = async () => {
     const update = await checkForAppUpdate(channel, true)
@@ -201,7 +215,7 @@ export function startBackgroundUpdateChecks(channel: UpdateChannel, autoDownload
 
   intervalTimer = setInterval(() => {
     void run()
-  }, UPDATE_CHECK_INTERVAL_MS)
+  }, UPDATE_CHECK_INTERVALS_MS[frequency])
 }
 
 export function stopBackgroundUpdateChecks() {

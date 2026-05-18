@@ -35,6 +35,8 @@ pub struct AppConfig {
     pub update_channel: String,
     #[serde(default = "default_auto_download_updates")]
     pub auto_download_updates: bool,
+    #[serde(default = "default_update_check_frequency")]
+    pub update_check_frequency: String,
 }
 
 fn normalize_language(locale: &str) -> String {
@@ -94,6 +96,10 @@ fn default_auto_download_updates() -> bool {
     true
 }
 
+fn default_update_check_frequency() -> String {
+    "daily".to_string()
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -111,6 +117,7 @@ impl Default for AppConfig {
             show_jump_host_connection_info: default_show_jump_host_connection_info(),
             update_channel: default_update_channel(),
             auto_download_updates: default_auto_download_updates(),
+            update_check_frequency: default_update_check_frequency(),
         }
     }
 }

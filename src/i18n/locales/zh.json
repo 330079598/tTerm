@@ -566,7 +566,7 @@
     "stable": "稳定版",
     "betaDev": "Beta Dev",
     "autoDownload": "后台下载更新",
-    "autoDownloadDesc": "tTerm 会在启动后以及每 6 小时检查一次，并在不中断当前会话的情况下准备更新。",
+    "autoDownloadDesc": "自动检查发现更新时，tTerm 会在不中断当前会话的情况下后台下载更新。",
     "manualCheck": "手动检查更新",
     "manualCheckDesc": "立即检查当前选择的通道。",
     "checkNow": "立即检查",
@@ -578,6 +578,12 @@
     "restart": "重启",
     "noUpdate": "当前已是最新版本。",
     "latest": "已是最新版本",
-    "betaHint": "预览构建可能会更频繁更新。"
+    "betaHint": "预览构建可能会更频繁更新。",
+    "checkFrequency": "自动检查频率",
+    "checkFrequencyDesc": "选择 tTerm 启动后检查当前更新通道的频率。",
+    "frequencyDaily": "每天",
+    "frequencyEvery3Days": "每 3 天",
+    "frequencyWeekly": "每周",
+    "frequencyNever": "从不"
   }
 }

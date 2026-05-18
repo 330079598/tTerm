@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core"
 
 import { detectSystemLanguage } from "@/i18n/language"
 import { markConfigReady } from "@/lib/startup"
+import type { UpdateCheckFrequency } from "@/lib/updater"
 
 export interface SecretBackendStatus {
   activeBackend: "system" | "vault" | "memory"
@@ -28,6 +29,7 @@ export interface AppConfig {
   show_jump_host_connection_info: boolean
   update_channel: "stable" | "beta-dev"
   auto_download_updates: boolean
+  update_check_frequency: UpdateCheckFrequency
 }
 
 const defaultUpdateChannel = /-(alpha|beta|rc|dev)(\.|$)/.test(
@@ -52,6 +54,17 @@ const defaultConfig: AppConfig = {
   show_jump_host_connection_info: true,
   update_channel: defaultUpdateChannel,
   auto_download_updates: true,
+  update_check_frequency: "daily",
+}
+
+function normalizeUpdateCheckFrequency(
+  frequency: Partial<AppConfig>["update_check_frequency"]
+): UpdateCheckFrequency {
+  if (frequency === "every-3-days" || frequency === "weekly" || frequency === "never") {
+    return frequency
+  }
+
+  return "daily"
 }
 
 function normalizeConfig(config: Partial<AppConfig>): AppConfig {
@@ -62,6 +75,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     show_jump_host_connection_info: config.show_jump_host_connection_info !== false,
     update_channel: config.update_channel === "beta-dev" ? "beta-dev" : "stable",
     auto_download_updates: config.auto_download_updates !== false,
+    update_check_frequency: normalizeUpdateCheckFrequency(config.update_check_frequency),
   }
 }
 

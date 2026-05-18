@@ -26,7 +26,7 @@ import {
   SettingsDialogProps,
   SettingsPanelProps,
 } from "@/components/SettingsDialog/types"
-import type { UpdateChannel } from "@/lib/updater"
+import type { UpdateChannel, UpdateCheckFrequency } from "@/lib/updater"
 
 const SECRET_STATUS_CACHE_MS = 30_000
 const FONT_LOAD_TIMEOUT_MS = 5_000
@@ -418,6 +418,19 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
   }
 
+  const handleUpdateCheckFrequencyChange = async (frequency: UpdateCheckFrequency) => {
+    try {
+      await saveConfig({ update_check_frequency: frequency })
+    } catch (error) {
+      console.error("Failed to save update check frequency:", error)
+      toast({
+        title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleAbout = async () => {
     let version = fallbackAppVersion
 
@@ -545,8 +558,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <UpdateSettingsTab
               autoDownloadUpdates={config.auto_download_updates}
               handleAutoDownloadUpdatesChange={handleAutoDownloadUpdatesChange}
+              handleUpdateCheckFrequencyChange={handleUpdateCheckFrequencyChange}
               handleUpdateChannelChange={handleUpdateChannelChange}
               updateChannel={config.update_channel}
+              updateCheckFrequency={config.update_check_frequency}
             />
           </TabsContent>
         </Tabs>

@@ -31,9 +31,13 @@ export function AppUpdateManager() {
       return
     }
 
-    startBackgroundUpdateChecks(config.update_channel, config.auto_download_updates)
+    startBackgroundUpdateChecks(
+      config.update_channel,
+      config.auto_download_updates,
+      config.update_check_frequency
+    )
     return stopBackgroundUpdateChecks
-  }, [config.auto_download_updates, config.update_channel, isLoaded])
+  }, [config.auto_download_updates, config.update_channel, config.update_check_frequency, isLoaded])
 
   useEffect(() => {
     if (!updateState) {

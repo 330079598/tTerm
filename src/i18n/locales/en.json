@@ -578,7 +578,7 @@
     "stable": "Stable",
     "betaDev": "Beta Dev",
     "autoDownload": "Download updates in background",
-    "autoDownloadDesc": "tTerm checks after startup and every 6 hours, then prepares the update without interrupting active sessions.",
+    "autoDownloadDesc": "When an automatic check finds an update, tTerm downloads it in the background without interrupting active sessions.",
     "manualCheck": "Manual update check",
     "manualCheckDesc": "Check the selected channel now.",
     "checkNow": "Check now",
@@ -590,6 +590,12 @@
     "restart": "Restart",
     "noUpdate": "You are already on the latest version.",
     "latest": "Latest version",
-    "betaHint": "Preview builds may update more often."
+    "betaHint": "Preview builds may update more often.",
+    "checkFrequency": "Automatic check frequency",
+    "checkFrequencyDesc": "Choose how often tTerm checks the selected channel after startup.",
+    "frequencyDaily": "Daily",
+    "frequencyEvery3Days": "Every 3 days",
+    "frequencyWeekly": "Weekly",
+    "frequencyNever": "Never"
   }
 }

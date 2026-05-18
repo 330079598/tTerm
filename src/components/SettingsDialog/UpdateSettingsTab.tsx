@@ -1,11 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react"
-import { CheckCircle2, Download, RefreshCw, RotateCcw, Rocket, Send } from "lucide-react"
+import {
+  CalendarClock,
+  CheckCircle2,
+  Download,
+  RefreshCw,
+  RotateCcw,
+  Rocket,
+  Send,
+} from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import {
   checkForAppUpdate,
@@ -13,14 +22,17 @@ import {
   relaunchApp,
   subscribeToUpdater,
   type UpdateChannel,
+  type UpdateCheckFrequency,
   type UpdateState,
 } from "@/lib/updater"
 
 interface UpdateSettingsTabProps {
   autoDownloadUpdates: boolean
   handleAutoDownloadUpdatesChange: (checked: boolean) => Promise<void>
+  handleUpdateCheckFrequencyChange: (frequency: UpdateCheckFrequency) => Promise<void>
   handleUpdateChannelChange: (channel: UpdateChannel) => Promise<void>
   updateChannel: UpdateChannel
+  updateCheckFrequency: UpdateCheckFrequency
 }
 
 function formatBytes(bytes: number) {
@@ -33,8 +45,10 @@ function formatBytes(bytes: number) {
 export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
   autoDownloadUpdates,
   handleAutoDownloadUpdatesChange,
+  handleUpdateCheckFrequencyChange,
   handleUpdateChannelChange,
   updateChannel,
+  updateCheckFrequency,
 }) => {
   const { t } = useTranslation()
   const [state, setState] = useState<UpdateState | null>(null)
@@ -108,7 +122,7 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
                 <div className="text-muted-foreground text-xs leading-5">
                   {t("updates.autoDownloadDesc", {
                     defaultValue:
-                      "tTerm checks after startup and every 12 hours, then prepares the update without interrupting active sessions.",
+                      "When an automatic check finds an update, tTerm downloads it in the background without interrupting active sessions.",
                   })}
                 </div>
               </div>
@@ -117,6 +131,45 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
               checked={autoDownloadUpdates}
               onCheckedChange={handleAutoDownloadUpdatesChange}
             />
+          </CardContent>
+        </Card>
+
+        <Card className="overflow-hidden border-transparent shadow-none">
+          <CardContent className="flex items-center justify-between gap-4 p-4">
+            <div className="flex items-start gap-3">
+              <CalendarClock size={16} className="mt-0.5 shrink-0" />
+              <div>
+                <div className="text-sm font-medium">
+                  {t("updates.checkFrequency", { defaultValue: "Automatic check frequency" })}
+                </div>
+                <div className="text-muted-foreground text-xs leading-5">
+                  {t("updates.checkFrequencyDesc", {
+                    defaultValue:
+                      "Choose how often tTerm checks the selected channel after startup.",
+                  })}
+                </div>
+              </div>
+            </div>
+            <Select
+              className="w-40"
+              value={updateCheckFrequency}
+              onChange={(event) =>
+                handleUpdateCheckFrequencyChange(event.target.value as UpdateCheckFrequency)
+              }
+            >
+              <option value="daily">
+                {t("updates.frequencyDaily", { defaultValue: "Daily" })}
+              </option>
+              <option value="every-3-days">
+                {t("updates.frequencyEvery3Days", { defaultValue: "Every 3 days" })}
+              </option>
+              <option value="weekly">
+                {t("updates.frequencyWeekly", { defaultValue: "Weekly" })}
+              </option>
+              <option value="never">
+                {t("updates.frequencyNever", { defaultValue: "Never" })}
+              </option>
+            </Select>
           </CardContent>
         </Card>
 
