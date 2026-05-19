@@ -11,6 +11,7 @@ export type UpdateStatus =
   | "available"
   | "not-available"
   | "downloading"
+  | "downloaded"
   | "ready"
   | "error"
 
@@ -54,6 +55,7 @@ let state: UpdateState = {
   downloadedBytes: 0,
 }
 let pendingUpdate: AppUpdateMetadata | null = null
+let hasDownloadedUpdate = false
 let hasInstalledUpdate = false
 let checkInFlight: Promise<AppUpdateMetadata | null> | null = null
 let startupTimer: ReturnType<typeof setTimeout> | null = null
@@ -131,9 +133,9 @@ export async function checkForAppUpdate(channel: UpdateChannel, silent = false) 
   return checkInFlight
 }
 
-export async function downloadAndInstallAppUpdate(channel: UpdateChannel) {
-  if (hasInstalledUpdate) {
-    publish({ status: "ready" })
+export async function downloadAppUpdate(channel: UpdateChannel) {
+  if (hasDownloadedUpdate || hasInstalledUpdate) {
+    publish({ status: hasInstalledUpdate ? "ready" : "downloaded" })
     return true
   }
 
@@ -171,20 +173,51 @@ export async function downloadAndInstallAppUpdate(channel: UpdateChannel) {
       publish({ downloadedBytes, totalBytes })
     }
 
-    const installed = await invoke<boolean>("download_install_app_update", { channel, onEvent })
-    if (!installed) {
+    const downloaded = await invoke<boolean>("download_app_update", { channel, onEvent })
+    if (!downloaded) {
       publish({ status: "not-available", latestVersion: undefined })
       return false
     }
 
-    hasInstalledUpdate = true
-    pendingUpdate = null
-    publish({ status: "ready", downloadedBytes, totalBytes })
+    hasDownloadedUpdate = true
+    publish({ status: "downloaded", downloadedBytes, totalBytes })
     return true
   } catch (error) {
     publish({ status: "error", error: toErrorMessage(error) })
     return false
   }
+}
+
+export async function installDownloadedAppUpdate(channel: UpdateChannel) {
+  if (hasInstalledUpdate) {
+    publish({ status: "ready" })
+    return true
+  }
+
+  try {
+    const installed = await invoke<boolean>("install_downloaded_app_update", { channel })
+    if (!installed) {
+      return false
+    }
+
+    hasDownloadedUpdate = false
+    hasInstalledUpdate = true
+    pendingUpdate = null
+    publish({ status: "ready" })
+    return true
+  } catch (error) {
+    publish({ status: "error", error: toErrorMessage(error) })
+    return false
+  }
+}
+
+export async function downloadAndInstallAppUpdate(channel: UpdateChannel) {
+  const downloaded = await downloadAppUpdate(channel)
+  if (!downloaded) {
+    return false
+  }
+
+  return installDownloadedAppUpdate(channel)
 }
 
 export async function relaunchApp() {
@@ -210,7 +243,7 @@ export function startBackgroundUpdateChecks(
     const update = await checkForAppUpdate(channel, true)
     onCheckComplete(Date.now())
     if (update && autoDownload) {
-      await downloadAndInstallAppUpdate(channel)
+      await downloadAppUpdate(channel)
     }
   }
 

@@ -10,6 +10,7 @@ mod terminal;
 use core::PtyMap;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::{ipc::Channel, Manager};
@@ -21,6 +22,9 @@ use tokio::sync::RwLock;
 pub struct TokioRuntimeState {
     pub runtime: tokio::runtime::Runtime,
 }
+
+#[derive(Default)]
+pub struct PendingUpdateDownloads(pub RwLock<HashMap<String, Vec<u8>>>);
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -79,18 +83,19 @@ async fn check_app_update(
 }
 
 #[tauri::command]
-async fn download_install_app_update(
+async fn download_app_update(
     app: tauri::AppHandle,
+    downloads: tauri::State<'_, PendingUpdateDownloads>,
     channel: String,
     on_event: Channel<AppUpdateDownloadEvent>,
 ) -> Result<bool, String> {
-    let Some(update) = find_app_update(&app, channel).await? else {
+    let Some(update) = find_app_update(&app, channel.clone()).await? else {
         return Ok(false);
     };
 
     let mut started = false;
-    update
-        .download_and_install(
+    let bytes = update
+        .download(
             |chunk_length, content_length| {
                 if !started {
                     let _ = on_event.send(AppUpdateDownloadEvent::Started { content_length });
@@ -105,7 +110,40 @@ async fn download_install_app_update(
         .await
         .map_err(|e| e.to_string())?;
 
+    downloads.0.write().await.insert(channel, bytes);
     Ok(true)
+}
+
+#[tauri::command]
+async fn install_downloaded_app_update(
+    app: tauri::AppHandle,
+    downloads: tauri::State<'_, PendingUpdateDownloads>,
+    channel: String,
+) -> Result<bool, String> {
+    let Some(bytes) = downloads.0.write().await.remove(&channel) else {
+        return Ok(false);
+    };
+    let Some(update) = find_app_update(&app, channel).await? else {
+        return Ok(false);
+    };
+
+    update.install(bytes).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+#[tauri::command]
+async fn download_install_app_update(
+    app: tauri::AppHandle,
+    downloads: tauri::State<'_, PendingUpdateDownloads>,
+    channel: String,
+    on_event: Channel<AppUpdateDownloadEvent>,
+) -> Result<bool, String> {
+    let downloaded = download_app_update(app.clone(), downloads.clone(), channel.clone(), on_event).await?;
+    if !downloaded {
+        return Ok(false);
+    }
+
+    install_downloaded_app_update(app, downloads, channel).await
 }
 
 const MIGRATED_CONFIG_FILES: &[&str] = &[
@@ -159,6 +197,7 @@ pub fn run() {
         .manage(sftp_pool)
         .manage(transfer_cancel_map)
         .manage(TokioRuntimeState { runtime })
+        .manage(PendingUpdateDownloads::default())
         .manage(secret_store)
         .invoke_handler(tauri::generate_handler![
             config::load_config,
@@ -195,6 +234,8 @@ pub fn run() {
             ssh::secret_commands::lock_secret_vault,
             ssh::secret_commands::set_secret_vault_enabled,
             check_app_update,
+            download_app_update,
+            install_downloaded_app_update,
             download_install_app_update,
         ])
         .setup(|app| {

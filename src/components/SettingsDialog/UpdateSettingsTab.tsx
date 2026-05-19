@@ -1,11 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react"
-import ReactMarkdown from "react-markdown"
-import remarkEmoji from "remark-emoji"
-import remarkGfm from "remark-gfm"
 import {
   CalendarClock,
   CheckCircle2,
   Download,
+  PackageCheck,
   RefreshCw,
   RotateCcw,
   Rocket,
@@ -19,9 +17,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { UpdateReleaseNotes } from "@/components/UpdateReleaseNotes"
 import {
   checkForAppUpdate,
   downloadAndInstallAppUpdate,
+  installDownloadedAppUpdate,
   relaunchApp,
   subscribeToUpdater,
   type UpdateChannel,
@@ -38,24 +38,6 @@ interface UpdateSettingsTabProps {
   updateChannel: UpdateChannel
   updateCheckFrequency: UpdateCheckFrequency
   lastUpdateCheckAt: number | null
-}
-
-function isSafeMarkdownHref(href: string | undefined) {
-  if (!href) return false
-  const trimmed = href.trim().toLowerCase()
-  return (
-    trimmed.startsWith("https://") || trimmed.startsWith("http://") || trimmed.startsWith("mailto:")
-  )
-}
-
-const releaseNotesEmojiFallbacks: Record<string, string> = {
-  technologist: "\u{1F9D1}\u200D\u{1F4BB}",
-}
-
-function normalizereleaseNotesEmojiFallbacks(notes: string) {
-  return notes.replace(/:([\w+-]+):/g, (match, shortcode: string) => {
-    return releaseNotesEmojiFallbacks[shortcode] ?? match
-  })
 }
 
 function formatTimestamp(timestamp: number | null) {
@@ -97,14 +79,10 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
   const checking = state?.status === "checking"
   const downloading = state?.status === "downloading"
   const hasUpdate = state?.status === "available"
+  const downloaded = state?.status === "downloaded"
   const ready = state?.status === "ready"
   const releaseNotes = state?.notes?.trim()
   const lastUpdateCheckLabel = formatTimestamp(lastUpdateCheckAt)
-  const renderedReleaseNotes = useMemo(
-    () => (releaseNotes ? normalizereleaseNotesEmojiFallbacks(releaseNotes) : ""),
-    [releaseNotes]
-  )
-
   return (
     <ScrollArea className="h-full pr-4">
       <div className="space-y-3">
@@ -238,71 +216,33 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
                                 "Restart tTerm when you are ready to finish installing {{version}}.",
                               version: state.latestVersion,
                             })
-                          : hasUpdate
-                            ? t("updates.availableDesc", {
-                                defaultValue: "Version {{version}} is ready to download.",
+                          : downloaded
+                            ? t("updates.downloadedDesc", {
+                                defaultValue:
+                                  "Version {{version}} has been downloaded. Install it now?",
                                 version: state.latestVersion,
                               })
-                            : t("updates.manualCheckDesc", {
-                                defaultValue: "Check the selected channel now.",
-                              })}
+                            : hasUpdate
+                              ? t("updates.availableDesc", {
+                                  defaultValue: "Version {{version}} is ready to download.",
+                                  version: state.latestVersion,
+                                })
+                              : t("updates.manualCheckDesc", {
+                                  defaultValue: "Check the selected channel now.",
+                                })}
                   </div>
                 </div>
               </div>
               {state?.currentVersion && <Badge variant="secondary">v{state.currentVersion}</Badge>}
             </div>
 
-            {(hasUpdate || ready || downloading) && releaseNotes && (
+            {(hasUpdate || downloaded || ready || downloading) && releaseNotes && (
               <div className="bg-muted/50 space-y-2 rounded-md border p-3">
                 <div className="text-xs font-medium">
                   {t("updates.releaseNotes", { defaultValue: "What's new" })}
                 </div>
                 <div className="text-muted-foreground max-h-44 overflow-auto text-xs leading-5 break-words">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkEmoji]}
-                    skipHtml
-                    components={{
-                      a: ({ href, children }) =>
-                        isSafeMarkdownHref(href) ? (
-                          <a
-                            className="text-primary underline underline-offset-2"
-                            href={href}
-                            rel="noreferrer"
-                            target="_blank"
-                          >
-                            {children}
-                          </a>
-                        ) : (
-                          <>{children}</>
-                        ),
-                      blockquote: ({ children }) => (
-                        <blockquote className="my-2 border-l-2 pl-3 italic">{children}</blockquote>
-                      ),
-                      code: ({ children }) => (
-                        <code className="bg-muted rounded px-1 py-0.5 font-mono">{children}</code>
-                      ),
-                      h1: ({ children }) => (
-                        <h4 className="text-foreground mb-2 font-semibold">{children}</h4>
-                      ),
-                      h2: ({ children }) => (
-                        <h4 className="text-foreground mb-2 font-semibold">{children}</h4>
-                      ),
-                      h3: ({ children }) => (
-                        <h5 className="text-foreground mb-2 font-semibold">{children}</h5>
-                      ),
-                      li: ({ children }) => <li className="my-1">{children}</li>,
-                      ol: ({ children }) => <ol className="my-2 list-decimal pl-4">{children}</ol>,
-                      p: ({ children }) => <p className="my-2 first:mt-0 last:mb-0">{children}</p>,
-                      pre: ({ children }) => (
-                        <pre className="bg-background my-2 overflow-auto rounded border p-2">
-                          {children}
-                        </pre>
-                      ),
-                      ul: ({ children }) => <ul className="my-2 list-disc pl-4">{children}</ul>,
-                    }}
-                  >
-                    {renderedReleaseNotes}
-                  </ReactMarkdown>
+                  <UpdateReleaseNotes notes={releaseNotes} />
                 </div>
               </div>
             )}
@@ -346,6 +286,16 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
                 >
                   <Download size={14} />
                   {t("updates.downloadInstall", { defaultValue: "Download and install" })}
+                </Button>
+              )}
+
+              {downloaded && (
+                <Button
+                  type="button"
+                  onClick={() => void installDownloadedAppUpdate(updateChannel)}
+                >
+                  <PackageCheck size={14} />
+                  {t("updates.install", { defaultValue: "Install" })}
                 </Button>
               )}
 
