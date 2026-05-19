@@ -560,8 +560,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleAutoDownloadUpdatesChange={handleAutoDownloadUpdatesChange}
               handleUpdateCheckFrequencyChange={handleUpdateCheckFrequencyChange}
               handleUpdateChannelChange={handleUpdateChannelChange}
+              handleUpdateCheckComplete={(checkedAt) =>
+                saveConfig({ last_update_check_at: checkedAt })
+              }
               updateChannel={config.update_channel}
               updateCheckFrequency={config.update_check_frequency}
+              lastUpdateCheckAt={config.last_update_check_at}
             />
           </TabsContent>
         </Tabs>

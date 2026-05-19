@@ -57,7 +57,7 @@ let pendingUpdate: AppUpdateMetadata | null = null
 let hasInstalledUpdate = false
 let checkInFlight: Promise<AppUpdateMetadata | null> | null = null
 let startupTimer: ReturnType<typeof setTimeout> | null = null
-let intervalTimer: ReturnType<typeof setInterval> | null = null
+let intervalTimer: ReturnType<typeof setTimeout> | null = null
 const listeners = new Set<UpdateStateListener>()
 
 function toErrorMessage(error: unknown) {
@@ -194,7 +194,9 @@ export async function relaunchApp() {
 export function startBackgroundUpdateChecks(
   channel: UpdateChannel,
   autoDownload: boolean,
-  frequency: UpdateCheckFrequency
+  frequency: UpdateCheckFrequency,
+  lastCheckedAt: number | null | undefined,
+  onCheckComplete: (checkedAt: number) => void
 ) {
   stopBackgroundUpdateChecks()
 
@@ -202,20 +204,41 @@ export function startBackgroundUpdateChecks(
     return
   }
 
+  const intervalMs = UPDATE_CHECK_INTERVALS_MS[frequency]
+
   const run = async () => {
     const update = await checkForAppUpdate(channel, true)
+    onCheckComplete(Date.now())
     if (update && autoDownload) {
       await downloadAndInstallAppUpdate(channel)
     }
   }
 
-  startupTimer = setTimeout(() => {
-    void run()
-  }, STARTUP_UPDATE_DELAY_MS)
+  const scheduleNext = (delayMs: number) => {
+    intervalTimer = setTimeout(() => {
+      void (async () => {
+        await run()
+        scheduleNext(intervalMs)
+      })()
+    }, delayMs)
+  }
 
-  intervalTimer = setInterval(() => {
-    void run()
-  }, UPDATE_CHECK_INTERVALS_MS[frequency])
+  const elapsedMs = lastCheckedAt
+    ? Math.max(0, Date.now() - lastCheckedAt)
+    : Number.POSITIVE_INFINITY
+  const isDue = elapsedMs >= intervalMs
+
+  if (isDue) {
+    startupTimer = setTimeout(() => {
+      void (async () => {
+        await run()
+        scheduleNext(intervalMs)
+      })()
+    }, STARTUP_UPDATE_DELAY_MS)
+    return
+  }
+
+  scheduleNext(intervalMs - elapsedMs)
 }
 
 export function stopBackgroundUpdateChecks() {
@@ -225,7 +248,7 @@ export function stopBackgroundUpdateChecks() {
   }
 
   if (intervalTimer) {
-    clearInterval(intervalTimer)
+    clearTimeout(intervalTimer)
     intervalTimer = null
   }
 }

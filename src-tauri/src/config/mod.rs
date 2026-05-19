@@ -37,6 +37,8 @@ pub struct AppConfig {
     pub auto_download_updates: bool,
     #[serde(default = "default_update_check_frequency")]
     pub update_check_frequency: String,
+    #[serde(default)]
+    pub last_update_check_at: Option<i64>,
 }
 
 fn normalize_language(locale: &str) -> String {
@@ -118,6 +120,7 @@ impl Default for AppConfig {
             update_channel: default_update_channel(),
             auto_download_updates: default_auto_download_updates(),
             update_check_frequency: default_update_check_frequency(),
+            last_update_check_at: None,
         }
     }
 }
@@ -153,3 +156,4 @@ pub fn load_config() -> Result<AppConfig, String> {
 pub fn save_config(config: AppConfig) -> Result<(), String> {
     save_config_file(&config)
 }
+

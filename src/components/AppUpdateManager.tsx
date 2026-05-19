@@ -15,7 +15,7 @@ import {
 
 export function AppUpdateManager() {
   const { t } = useTranslation()
-  const { config, isLoaded } = useConfig()
+  const { config, isLoaded, saveConfig } = useConfig()
   const [updateState, setUpdateState] = useState<UpdateState | null>(null)
   const lastNotifiedStatusRef = useRef<string | null>(null)
 
@@ -34,10 +34,23 @@ export function AppUpdateManager() {
     startBackgroundUpdateChecks(
       config.update_channel,
       config.auto_download_updates,
-      config.update_check_frequency
+      config.update_check_frequency,
+      config.last_update_check_at,
+      (checkedAt) => {
+        saveConfig({ last_update_check_at: checkedAt }).catch((error) => {
+          console.error("Failed to save update check timestamp:", error)
+        })
+      }
     )
     return stopBackgroundUpdateChecks
-  }, [config.auto_download_updates, config.update_channel, config.update_check_frequency, isLoaded])
+  }, [
+    config.auto_download_updates,
+    config.last_update_check_at,
+    config.update_channel,
+    config.update_check_frequency,
+    isLoaded,
+    saveConfig,
+  ])
 
   useEffect(() => {
     if (!updateState) {

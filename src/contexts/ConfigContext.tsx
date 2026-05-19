@@ -30,6 +30,7 @@ export interface AppConfig {
   update_channel: "stable" | "beta-dev"
   auto_download_updates: boolean
   update_check_frequency: UpdateCheckFrequency
+  last_update_check_at: number | null
 }
 
 const defaultUpdateChannel = /-(alpha|beta|rc|dev)(\.|$)/.test(
@@ -55,6 +56,7 @@ const defaultConfig: AppConfig = {
   update_channel: defaultUpdateChannel,
   auto_download_updates: true,
   update_check_frequency: "daily",
+  last_update_check_at: null,
 }
 
 function normalizeUpdateCheckFrequency(
@@ -76,6 +78,8 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     update_channel: config.update_channel === "beta-dev" ? "beta-dev" : "stable",
     auto_download_updates: config.auto_download_updates !== false,
     update_check_frequency: normalizeUpdateCheckFrequency(config.update_check_frequency),
+    last_update_check_at:
+      typeof config.last_update_check_at === "number" ? config.last_update_check_at : null,
   }
 }
 

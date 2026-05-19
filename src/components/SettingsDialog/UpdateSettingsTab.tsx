@@ -34,8 +34,10 @@ interface UpdateSettingsTabProps {
   handleAutoDownloadUpdatesChange: (checked: boolean) => Promise<void>
   handleUpdateCheckFrequencyChange: (frequency: UpdateCheckFrequency) => Promise<void>
   handleUpdateChannelChange: (channel: UpdateChannel) => Promise<void>
+  handleUpdateCheckComplete: (checkedAt: number) => Promise<void>
   updateChannel: UpdateChannel
   updateCheckFrequency: UpdateCheckFrequency
+  lastUpdateCheckAt: number | null
 }
 
 function isSafeMarkdownHref(href: string | undefined) {
@@ -56,6 +58,10 @@ function normalizereleaseNotesEmojiFallbacks(notes: string) {
   })
 }
 
+function formatTimestamp(timestamp: number | null) {
+  return timestamp ? new Date(timestamp).toLocaleString() : null
+}
+
 function formatBytes(bytes: number) {
   if (!bytes) return "0 B"
   const units = ["B", "KB", "MB", "GB"]
@@ -68,8 +74,10 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
   handleAutoDownloadUpdatesChange,
   handleUpdateCheckFrequencyChange,
   handleUpdateChannelChange,
+  handleUpdateCheckComplete,
   updateChannel,
   updateCheckFrequency,
+  lastUpdateCheckAt,
 }) => {
   const { t } = useTranslation()
   const [state, setState] = useState<UpdateState | null>(null)
@@ -91,6 +99,7 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
   const hasUpdate = state?.status === "available"
   const ready = state?.status === "ready"
   const releaseNotes = state?.notes?.trim()
+  const lastUpdateCheckLabel = formatTimestamp(lastUpdateCheckAt)
   const renderedReleaseNotes = useMemo(
     () => (releaseNotes ? normalizereleaseNotesEmojiFallbacks(releaseNotes) : ""),
     [releaseNotes]
@@ -171,8 +180,16 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
                 <div className="text-muted-foreground text-xs leading-5">
                   {t("updates.checkFrequencyDesc", {
                     defaultValue:
-                      "Choose how often tTerm checks the selected channel after startup.",
+                      "Choose the minimum time between automatic checks for the selected channel.",
                   })}
+                  {lastUpdateCheckLabel && (
+                    <div>
+                      {t("updates.lastChecked", {
+                        defaultValue: "Last checked: {{time}}",
+                        time: lastUpdateCheckLabel,
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -311,7 +328,11 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
                 type="button"
                 variant="outline"
                 disabled={checking || downloading}
-                onClick={() => void checkForAppUpdate(updateChannel)}
+                onClick={() => {
+                  void checkForAppUpdate(updateChannel).then(() =>
+                    handleUpdateCheckComplete(Date.now())
+                  )
+                }}
               >
                 {checking && <RefreshCw className="animate-spin" size={14} />}
                 {t("updates.checkNow", { defaultValue: "Check now" })}
