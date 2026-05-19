@@ -69,6 +69,7 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
   const downloading = state?.status === "downloading"
   const hasUpdate = state?.status === "available"
   const ready = state?.status === "ready"
+  const releaseNotes = state?.notes?.trim()
 
   return (
     <ScrollArea className="h-full pr-4">
@@ -208,6 +209,17 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
               </div>
               {state?.currentVersion && <Badge variant="secondary">v{state.currentVersion}</Badge>}
             </div>
+
+            {(hasUpdate || ready || downloading) && releaseNotes && (
+              <div className="bg-muted/50 space-y-2 rounded-md border p-3">
+                <div className="text-xs font-medium">
+                  {t("updates.releaseNotes", { defaultValue: "What's new" })}
+                </div>
+                <div className="text-muted-foreground max-h-44 overflow-auto text-xs leading-5 whitespace-pre-wrap">
+                  {releaseNotes}
+                </div>
+              </div>
+            )}
 
             {downloading && (
               <div className="space-y-2">

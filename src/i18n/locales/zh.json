@@ -584,6 +584,7 @@
     "frequencyDaily": "每天",
     "frequencyEvery3Days": "每 3 天",
     "frequencyWeekly": "每周",
-    "frequencyNever": "从不"
+    "frequencyNever": "从不",
+    "releaseNotes": "更新内容"
   }
 }

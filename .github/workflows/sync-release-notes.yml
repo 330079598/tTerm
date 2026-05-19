@@ -1,0 +1,145 @@
+name: Sync Release Notes To Updater Manifest
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Updater channel to sync"
+        required: true
+        default: "stable"
+        type: choice
+        options:
+          - stable
+          - beta-dev
+      tag:
+        description: "GitHub release tag, for example v1.2.3 or v1.2.3-beta.1"
+        required: true
+        type: string
+  release:
+    types:
+      - edited
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Resolve sync target
+        id: target
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_CHANNEL: ${{ inputs.channel }}
+          INPUT_TAG: ${{ inputs.tag }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            CHANNEL="$INPUT_CHANNEL"
+            TAG="$INPUT_TAG"
+            MANUAL="true"
+          else
+            TAG="$RELEASE_TAG"
+            MANUAL="false"
+            if [ "$RELEASE_PRERELEASE" = "true" ]; then
+              CHANNEL="beta-dev"
+            else
+              CHANNEL="stable"
+            fi
+          fi
+
+          echo "channel=${CHANNEL}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "manual=${MANUAL}" >> "$GITHUB_OUTPUT"
+          echo "Resolved ${TAG} to ${CHANNEL}."
+
+      - name: Read release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.target.outputs.tag }}
+        shell: bash
+        run: |
+          gh release view "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json body \
+            --jq .body > release-notes.md
+
+          if [ ! -s release-notes.md ]; then
+            echo "Release body is empty for ${RELEASE_TAG}."
+            exit 1
+          fi
+
+      - name: Checkout GitHub Pages branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git clone --branch github-pages --depth 1 "$REMOTE" pages
+
+      - name: Update manifest release notes
+        env:
+          CHANNEL: ${{ steps.target.outputs.channel }}
+          RELEASE_TAG: ${{ steps.target.outputs.tag }}
+          MANUAL_SYNC: ${{ steps.target.outputs.manual }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${RELEASE_TAG#v}"
+          MANIFESTS=("pages/update/${CHANNEL}/latest.json")
+
+          if [ "$CHANNEL" = "beta-dev" ]; then
+            MANIFESTS+=("pages/beta-dev/latest.json")
+          fi
+
+          BODY_JSON=$(jq -Rs . < release-notes.md)
+
+          for MANIFEST in "${MANIFESTS[@]}"; do
+            if [ ! -f "$MANIFEST" ]; then
+              echo "Manifest not found: $MANIFEST"
+              exit 1
+            fi
+
+            MANIFEST_VERSION=$(jq -r '.version // empty' "$MANIFEST")
+            if [ "$MANIFEST_VERSION" != "$VERSION" ]; then
+              MESSAGE="Manifest $MANIFEST is version '$MANIFEST_VERSION', not release tag version '$VERSION'."
+              if [ "$MANUAL_SYNC" = "true" ]; then
+                echo "Refusing manual sync: ${MESSAGE}"
+                exit 1
+              fi
+              echo "Skipping automatic sync: ${MESSAGE}"
+              exit 0
+            fi
+
+            jq ".body = ${BODY_JSON}" "$MANIFEST" > latest.tmp
+            mv latest.tmp "$MANIFEST"
+          done
+
+      - name: Commit updated manifests
+        env:
+          CHANNEL: ${{ steps.target.outputs.channel }}
+          RELEASE_TAG: ${{ steps.target.outputs.tag }}
+        shell: bash
+        run: |
+          cd pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add "update/${CHANNEL}/latest.json"
+          if [ "$CHANNEL" = "beta-dev" ]; then
+            git add "beta-dev/latest.json"
+          fi
+
+          if git diff --cached --quiet; then
+            echo "Updater manifest release notes are already up to date."
+            exit 0
+          fi
+
+          git commit -m "Sync ${CHANNEL} release notes for ${RELEASE_TAG}"
+          git push origin github-pages

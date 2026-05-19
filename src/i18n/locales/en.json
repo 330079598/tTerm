@@ -596,6 +596,7 @@
     "frequencyDaily": "Daily",
     "frequencyEvery3Days": "Every 3 days",
     "frequencyWeekly": "Weekly",
-    "frequencyNever": "Never"
+    "frequencyNever": "Never",
+    "releaseNotes": "What's new"
   }
 }
