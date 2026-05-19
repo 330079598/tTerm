@@ -64,10 +64,13 @@ jobs:
           RELEASE_TAG: ${{ steps.target.outputs.tag }}
         shell: bash
         run: |
-          gh release view "$RELEASE_TAG" \
+          if ! gh release view "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --json body \
-            --jq .body > release-notes.md
+            --jq .body > release-notes.md; then
+            echo "Failed to read release body for ${RELEASE_TAG}."
+            exit 1
+          fi
 
           if [ ! -s release-notes.md ]; then
             echo "Release body is empty for ${RELEASE_TAG}."
@@ -98,8 +101,6 @@ jobs:
             MANIFESTS+=("pages/beta-dev/latest.json")
           fi
 
-          BODY_JSON=$(jq -Rs . < release-notes.md)
-
           for MANIFEST in "${MANIFESTS[@]}"; do
             if [ ! -f "$MANIFEST" ]; then
               echo "Manifest not found: $MANIFEST"
@@ -117,7 +118,7 @@ jobs:
               exit 0
             fi
 
-            jq ".body = ${BODY_JSON}" "$MANIFEST" > latest.tmp
+            jq --rawfile notes release-notes.md '.notes = $notes | .body = $notes' "$MANIFEST" > latest.tmp
             mv latest.tmp "$MANIFEST"
           done
 
@@ -143,3 +144,4 @@ jobs:
 
           git commit -m "Sync ${CHANNEL} release notes for ${RELEASE_TAG}"
           git push origin github-pages
+

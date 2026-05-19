@@ -128,6 +128,28 @@ jobs:
             --dir updater-manifest \
             --clobber
 
+      - name: Sync release notes into updater manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+        shell: bash
+        run: |
+          if ! gh release view "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json body \
+            --jq .body > release-notes.md; then
+            echo "Failed to read release body for ${RELEASE_TAG}."
+            exit 1
+          fi
+
+          if [ ! -s release-notes.md ]; then
+            echo "Release body is empty for ${RELEASE_TAG}."
+            exit 1
+          fi
+
+          jq --rawfile notes release-notes.md '.notes = $notes | .body = $notes' updater-manifest/latest.json > updater-manifest/latest.tmp
+          mv updater-manifest/latest.tmp updater-manifest/latest.json
+
       - name: Checkout GitHub Pages branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -164,3 +186,4 @@ jobs:
           fi
           git commit -m "Update stable updater manifest to ${{ needs.prepare.outputs.release_tag }}"
           git push origin github-pages
+
