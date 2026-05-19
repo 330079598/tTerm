@@ -157,7 +157,7 @@ jobs:
             exit 1
           fi
 
-          jq --rawfile notes release-notes.md '.notes = $notes | .body = $notes' updater-manifest/latest.json > updater-manifest/latest.tmp
+          jq --rawfile notes release-notes.md '.notes = $notes' updater-manifest/latest.json > updater-manifest/latest.tmp
           mv updater-manifest/latest.tmp updater-manifest/latest.json
 
       - name: Checkout GitHub Pages branch

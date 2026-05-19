@@ -118,7 +118,7 @@ jobs:
               exit 0
             fi
 
-            jq --rawfile notes release-notes.md '.notes = $notes | .body = $notes' "$MANIFEST" > latest.tmp
+            jq --rawfile notes release-notes.md '.notes = $notes' "$MANIFEST" > latest.tmp
             mv latest.tmp "$MANIFEST"
           done
 
