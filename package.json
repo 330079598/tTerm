@@ -36,6 +36,9 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-i18next": "^16.5.8",
+    "react-markdown": "^10.1.0",
+    "remark-emoji": "^5.0.2",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7"
   },
