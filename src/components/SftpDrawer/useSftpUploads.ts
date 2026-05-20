@@ -131,6 +131,7 @@ export function useSftpUploads({
           const { batchId, displayName, localPath, remoteBasePath } = event.payload
           addTransfer(
             {
+              tabId,
               direction: "upload",
               fileName: displayName,
               fileSize: 0,
@@ -235,6 +236,7 @@ export function useSftpUploads({
           addTransfer(
             {
               batchId,
+              tabId,
               direction: "upload",
               fileName,
               fileSize,

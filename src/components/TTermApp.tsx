@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/TTermApp/EmptyState"
 import { TabPanels } from "@/components/TTermApp/TabPanels"
 import { buildTabFromConnection } from "@/components/TTermApp/ttermAppUtils"
 import type { ContextMenuState, RenameDialogState } from "@/components/TTermApp/types"
+import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTransferManager } from "@/contexts/TransferContext"
@@ -73,6 +74,7 @@ export const TTermApp: React.FC = () => {
   const { config, isLoaded } = useConfig()
   const { cancelTransfer, clearCompletedTransfers, removeTransfer, transfers } =
     useTransferManager()
+  const { confirm, ConfirmDialog } = useConfirmDialog()
   const settingsTabTitle = t("settings.title", { defaultValue: SETTINGS_TAB_TITLE })
 
   useEffect(() => {
@@ -144,7 +146,45 @@ export const TTermApp: React.FC = () => {
     [addTab]
   )
 
-  const handleRemoveTab = useCallback(
+  const getActiveTransfersForTabs = useCallback(
+    (tabIds: string[]) => {
+      const idSet = new Set(tabIds)
+      return transfers.filter(
+        (transfer) =>
+          transfer.tabId &&
+          idSet.has(transfer.tabId) &&
+          (transfer.status === "pending" || transfer.status === "transferring")
+      )
+    },
+    [transfers]
+  )
+
+  const confirmCloseTabsWithTransfers = useCallback(
+    async (tabIds: string[]) => {
+      const activeTransfers = getActiveTransfersForTabs(tabIds)
+      if (activeTransfers.length === 0) {
+        return true
+      }
+
+      return confirm({
+        title: t("tabs.closeActiveTransferTitle", {
+          count: activeTransfers.length,
+          defaultValue: "Active transfer in progress",
+        }),
+        description: t("tabs.closeActiveTransferDescription", {
+          count: activeTransfers.length,
+          defaultValue:
+            "Closing this tab will hide active SFTP transfer progress and may interrupt the transfer. Continue?",
+        }),
+        confirmText: t("tabs.closeActiveTransferConfirm", { defaultValue: "Close anyway" }),
+        cancelText: t("common.cancel", { defaultValue: "Cancel" }),
+        variant: "destructive",
+      })
+    },
+    [confirm, getActiveTransfersForTabs, t]
+  )
+
+  const closeTabById = useCallback(
     (id: string) => {
       const tab = tabs.find((currentTab) => currentTab.id === id)
       if (tab?.type !== "settings") {
@@ -153,6 +193,59 @@ export const TTermApp: React.FC = () => {
       removeTab(id)
     },
     [cleanupConnection, removeTab, tabs]
+  )
+
+  const handleRemoveTab = useCallback(
+    async (id: string) => {
+      const confirmed = await confirmCloseTabsWithTransfers([id])
+      if (!confirmed) {
+        return
+      }
+      closeTabById(id)
+    },
+    [closeTabById, confirmCloseTabsWithTransfers]
+  )
+
+  const handleCloseOtherTabs = useCallback(
+    async (id: string) => {
+      const targetTabIds = tabs.filter((tab) => tab.id !== id).map((tab) => tab.id)
+      const confirmed = await confirmCloseTabsWithTransfers(targetTabIds)
+      if (!confirmed) {
+        return
+      }
+
+      for (const targetTabId of targetTabIds) {
+        const targetTab = tabs.find((tab) => tab.id === targetTabId)
+        if (targetTab?.type !== "settings") {
+          cleanupConnection(targetTabId)
+        }
+      }
+      closeOtherTabs(id)
+    },
+    [cleanupConnection, closeOtherTabs, confirmCloseTabsWithTransfers, tabs]
+  )
+
+  const handleCloseTabsToRight = useCallback(
+    async (id: string) => {
+      const tabIndex = tabs.findIndex((tab) => tab.id === id)
+      if (tabIndex === -1) {
+        return
+      }
+
+      const targetTabs = tabs.slice(tabIndex + 1)
+      const confirmed = await confirmCloseTabsWithTransfers(targetTabs.map((tab) => tab.id))
+      if (!confirmed) {
+        return
+      }
+
+      for (const targetTab of targetTabs) {
+        if (targetTab.type !== "settings") {
+          cleanupConnection(targetTab.id)
+        }
+      }
+      closeTabsToRight(id)
+    },
+    [cleanupConnection, closeTabsToRight, confirmCloseTabsWithTransfers, tabs]
   )
 
   const handleTabContextMenu = useCallback(
@@ -207,10 +300,10 @@ export const TTermApp: React.FC = () => {
           handleRemoveTab(tab.id)
           break
         case "close-others":
-          closeOtherTabs(tab.id)
+          handleCloseOtherTabs(tab.id)
           break
         case "close-right":
-          closeTabsToRight(tab.id)
+          handleCloseTabsToRight(tab.id)
           break
         default:
           break
@@ -221,8 +314,8 @@ export const TTermApp: React.FC = () => {
       handleNewTab,
       duplicateTab,
       handleRemoveTab,
-      closeOtherTabs,
-      closeTabsToRight,
+      handleCloseOtherTabs,
+      handleCloseTabsToRight,
       updateTab,
     ]
   )
@@ -443,6 +536,8 @@ export const TTermApp: React.FC = () => {
           onClose={handleCloseContextMenu}
         />
       )}
+
+      <ConfirmDialog />
 
       <RenameDialog
         isOpen={renameDialogState.isOpen}

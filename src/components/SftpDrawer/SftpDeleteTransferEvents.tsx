@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from "react"
+import React, { useEffect } from "react"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import type { TFunction } from "i18next"
 
@@ -47,6 +47,7 @@ export const SftpDeleteTransferEvents: React.FC<SftpDeleteTransferEventsProps> =
           const { payload } = event
           addTransfer(
             {
+              tabId,
               direction: "delete",
               fileName:
                 payload.entries.join(", ") ||

@@ -31,6 +31,7 @@ export type TransferDirection = "upload" | "download" | "delete"
 
 export interface TransferTask {
   id: string
+  tabId?: string
   batchId?: string
   direction: TransferDirection
   localPath: string

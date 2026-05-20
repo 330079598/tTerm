@@ -13,6 +13,11 @@
   "tabs": {
     "newTab": "New tab",
     "closeTab": "Close tab",
+    "closeActiveTransferTitle_one": "Active transfer in progress",
+    "closeActiveTransferTitle_other": "{{count}} active transfers in progress",
+    "closeActiveTransferDescription_one": "Closing this tab will hide active SFTP transfer progress and may interrupt the transfer. Continue?",
+    "closeActiveTransferDescription_other": "Closing these tabs will hide {{count}} active SFTP transfer progress entries and may interrupt the transfers. Continue?",
+    "closeActiveTransferConfirm": "Close anyway",
     "terminal": "Terminal",
     "ssh": "SSH"
   },

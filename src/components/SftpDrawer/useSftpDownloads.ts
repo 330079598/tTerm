@@ -103,6 +103,7 @@ export function useSftpDownloads({
       }
 
       const transferId = addTransfer({
+        tabId,
         direction: "download",
         localPath: targetPath,
         remotePath: entry.path,
