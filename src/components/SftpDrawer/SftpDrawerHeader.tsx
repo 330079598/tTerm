@@ -27,6 +27,7 @@ interface SftpDrawerHeaderProps {
   handleDeleteSelection: () => void
   handleUploadDialog: () => Promise<void>
   handleUploadFolderDialog: () => Promise<void>
+  isDeleting: boolean
   isLoading: boolean
   isSelectionMode: boolean
   listingCurrentPath?: string | null
@@ -48,6 +49,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   handleDeleteSelection,
   handleUploadDialog,
   handleUploadFolderDialog,
+  isDeleting,
   isLoading,
   isSelectionMode,
   listingCurrentPath,
@@ -240,7 +242,12 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-sm" onClick={handleDeleteSelection}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={handleDeleteSelection}
+                  disabled={isDeleting}
+                >
                   <Trash2 className="size-4" />
                 </Button>
               </TooltipTrigger>

@@ -425,8 +425,6 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
     return selectedPaths.includes(contextMenuEntry.path) ? selectedPaths.length : 1
   }, [contextMenuEntry, selectedPaths])
 
-  const isBusy = isLoading || isDeleting
-
   return (
     <div className={`sftp-drawer ${visible ? "is-open" : ""}`} aria-hidden={!visible}>
       <SftpDeleteTransferEvents
@@ -447,7 +445,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         handleDeleteSelection={handleDeleteSelection}
         handleUploadDialog={handleUploadDialog}
         handleUploadFolderDialog={handleUploadFolderDialog}
-        isLoading={isBusy}
+        isDeleting={isDeleting}
+        isLoading={isLoading}
         listingCurrentPath={listing?.currentPath}
         loadDirectory={loadDirectory}
         onClose={onClose}
@@ -481,7 +480,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         isSelectionMode={isSelectionMode}
         handleToggleEntrySelection={handleToggleEntrySelection}
         isDragActive={isDragActive}
-        isLoading={isBusy}
+        isLoading={isLoading}
         listing={listing}
         loadDirectory={loadDirectory}
         searchMatcher={searchMatcher}
@@ -496,6 +495,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         handleDelete={handleDelete}
         handleDownload={handleDownload}
         handleRename={handleRename}
+        isDeleting={isDeleting}
         onClose={() => setContextMenu(null)}
         selectionCount={contextSelectionCount}
       />

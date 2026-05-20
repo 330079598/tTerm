@@ -13,6 +13,7 @@ interface SftpEntryContextMenuProps {
   handleDelete: () => void
   handleDownload: () => Promise<void>
   handleRename: () => void
+  isDeleting: boolean
   onClose: () => void
   selectionCount: number
 }
@@ -24,6 +25,7 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
   handleDelete,
   handleDownload,
   handleRename,
+  isDeleting,
   onClose,
   selectionCount,
 }) => {
@@ -60,6 +62,7 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
           label: t("sftp.actions.delete", { defaultValue: "Delete" }),
           action: "delete",
           icon: "x",
+          disabled: isDeleting,
         },
       ]}
       onAction={(action) => {
