@@ -225,6 +225,17 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   }, [config.scrollback_lines])
 
   useEffect(() => {
+    if (!isActiveRef.current) return
+
+    fitAndSyncPty()
+  }, [
+    config.terminal_padding_bottom_px,
+    config.terminal_padding_left_px,
+    config.terminal_padding_right_px,
+    fitAndSyncPty,
+  ])
+
+  useEffect(() => {
     const term = termRef.current
     if (!term) return
 
@@ -469,6 +480,12 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       : t("terminalSearch.noResults", { defaultValue: "No results" })
     : t("terminalSearch.ready", { defaultValue: "Find in terminal" })
 
+  const terminalPaddingStyle = {
+    "--terminal-padding-left": `${config.terminal_padding_left_px}px`,
+    "--terminal-padding-right": `${config.terminal_padding_right_px}px`,
+    "--terminal-padding-bottom": `${config.terminal_padding_bottom_px}px`,
+  } as React.CSSProperties
+
   return (
     <div className="terminal-tab-shell">
       <ConnectionHeader
@@ -483,7 +500,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         onUnpinConnectionHeader={onUnpinConnectionHeader}
       />
 
-      <div ref={surfaceRef} className="terminal-surface">
+      <div ref={surfaceRef} className="terminal-surface" style={terminalPaddingStyle}>
         <SftpDrawer
           tabId={tabId}
           visible={showSftpDrawer}

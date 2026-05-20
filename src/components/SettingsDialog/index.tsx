@@ -152,6 +152,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [fontSize, setFontSize] = useState(config.font_size)
   const [cursorStyle, setCursorStyle] = useState(config.cursor_style)
   const [scrollbackLines, setScrollbackLines] = useState(config.scrollback_lines || 10000)
+  const [terminalPaddingLeftPx, setTerminalPaddingLeftPx] = useState(
+    config.terminal_padding_left_px
+  )
+  const [terminalPaddingRightPx, setTerminalPaddingRightPx] = useState(
+    config.terminal_padding_right_px
+  )
+  const [terminalPaddingBottomPx, setTerminalPaddingBottomPx] = useState(
+    config.terminal_padding_bottom_px
+  )
   const [systemFonts, setSystemFonts] = useState<string[]>(() => cachedSystemFonts ?? [])
   const [fontsLoaded, setFontsLoaded] = useState(cachedSystemFonts !== null)
   const [loadingFonts, setLoadingFonts] = useState(false)
@@ -229,6 +238,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         font_size: fontSize,
         cursor_style: cursorStyle,
         scrollback_lines: scrollbackLines,
+        terminal_padding_left_px: terminalPaddingLeftPx,
+        terminal_padding_right_px: terminalPaddingRightPx,
+        terminal_padding_bottom_px: terminalPaddingBottomPx,
       })
       toast({
         title: t("fontSettings.saved", { defaultValue: "Settings saved" }),
@@ -519,10 +531,16 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleFontSave={handleFontSave}
               loadingFonts={loadingFonts}
               scrollbackLines={scrollbackLines}
+              terminalPaddingLeftPx={terminalPaddingLeftPx}
+              terminalPaddingRightPx={terminalPaddingRightPx}
+              terminalPaddingBottomPx={terminalPaddingBottomPx}
               setFontFamily={setFontFamily}
               setFontSize={setFontSize}
               setCursorStyle={setCursorStyle}
               setScrollbackLines={setScrollbackLines}
+              setTerminalPaddingLeftPx={setTerminalPaddingLeftPx}
+              setTerminalPaddingRightPx={setTerminalPaddingRightPx}
+              setTerminalPaddingBottomPx={setTerminalPaddingBottomPx}
               systemFonts={systemFonts}
               fontSizeOptions={FONT_SIZE_OPTIONS}
             />

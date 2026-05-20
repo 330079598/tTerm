@@ -27,6 +27,12 @@ pub struct AppConfig {
     pub secret_vault_enabled: bool,
     #[serde(default = "default_scrollback_lines")]
     pub scrollback_lines: u32,
+    #[serde(default = "default_terminal_padding_left_px")]
+    pub terminal_padding_left_px: u16,
+    #[serde(default)]
+    pub terminal_padding_right_px: u16,
+    #[serde(default)]
+    pub terminal_padding_bottom_px: u16,
     #[serde(default = "default_startup_session_restore_mode")]
     pub startup_session_restore_mode: String,
     #[serde(default = "default_show_jump_host_connection_info")]
@@ -82,6 +88,10 @@ fn default_scrollback_lines() -> u32 {
     10000
 }
 
+fn default_terminal_padding_left_px() -> u16 {
+    6
+}
+
 fn default_startup_session_restore_mode() -> String {
     "active".to_string()
 }
@@ -115,6 +125,9 @@ impl Default for AppConfig {
             terminal_shell_custom_args: String::new(),
             secret_vault_enabled: false,
             scrollback_lines: default_scrollback_lines(),
+            terminal_padding_left_px: default_terminal_padding_left_px(),
+            terminal_padding_right_px: 0,
+            terminal_padding_bottom_px: 0,
             startup_session_restore_mode: default_startup_session_restore_mode(),
             show_jump_host_connection_info: default_show_jump_host_connection_info(),
             update_channel: default_update_channel(),

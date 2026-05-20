@@ -25,6 +25,9 @@ export interface AppConfig {
   terminal_shell_custom_args: string
   secret_vault_enabled: boolean
   scrollback_lines: number
+  terminal_padding_left_px: number
+  terminal_padding_right_px: number
+  terminal_padding_bottom_px: number
   startup_session_restore_mode: "active" | "all"
   show_jump_host_connection_info: boolean
   update_channel: "stable" | "beta-dev"
@@ -51,6 +54,9 @@ const defaultConfig: AppConfig = {
   terminal_shell_custom_args: "",
   secret_vault_enabled: false,
   scrollback_lines: 10000,
+  terminal_padding_left_px: 6,
+  terminal_padding_right_px: 0,
+  terminal_padding_bottom_px: 0,
   startup_session_restore_mode: "active",
   show_jump_host_connection_info: true,
   update_channel: defaultUpdateChannel,
@@ -69,6 +75,17 @@ function normalizeUpdateCheckFrequency(
   return "daily"
 }
 
+function normalizeTerminalPadding(
+  value: Partial<AppConfig>["terminal_padding_left_px"],
+  fallback: number
+): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback
+  }
+
+  return Math.min(Math.max(Math.round(value), 0), 80)
+}
+
 function normalizeConfig(config: Partial<AppConfig>): AppConfig {
   return {
     ...defaultConfig,
@@ -77,6 +94,9 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     show_jump_host_connection_info: config.show_jump_host_connection_info !== false,
     update_channel: config.update_channel === "beta-dev" ? "beta-dev" : "stable",
     auto_download_updates: config.auto_download_updates !== false,
+    terminal_padding_left_px: normalizeTerminalPadding(config.terminal_padding_left_px, 6),
+    terminal_padding_right_px: normalizeTerminalPadding(config.terminal_padding_right_px, 0),
+    terminal_padding_bottom_px: normalizeTerminalPadding(config.terminal_padding_bottom_px, 0),
     update_check_frequency: normalizeUpdateCheckFrequency(config.update_check_frequency),
     last_update_check_at:
       typeof config.last_update_check_at === "number" ? config.last_update_check_at : null,
