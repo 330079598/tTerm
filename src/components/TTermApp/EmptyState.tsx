@@ -8,14 +8,14 @@ interface EmptyStateProps {
   handleConnect: (connection: Omit<Tab, "id" | "isActive">) => void
   handleNewTab: () => void
   onEditProfile: (profile: SavedProfile) => void
-  profilesRefreshKey: number
+  refreshKey?: number
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
   handleConnect,
   handleNewTab,
   onEditProfile,
-  profilesRefreshKey,
+  refreshKey,
 }) => {
   const { t } = useTranslation()
 
@@ -31,7 +31,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 
       <div className="terminal-placeholder-panel">
         <ProfilesPanel
-          refreshKey={profilesRefreshKey}
+          refreshKey={refreshKey}
           className="h-full"
           onConnect={(connection) => {
             handleConnect(connection)

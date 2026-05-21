@@ -23,6 +23,7 @@ import type {
 import { toast } from "@/hooks/use-toast"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
+import { useStableRef } from "@/hooks/useStableRef"
 
 export const TerminalTab: React.FC<TerminalTabProps> = ({
   tabId,
@@ -43,15 +44,14 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const searchResultsDisposableRef = useRef<IDisposable | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const resizeRafRef = useRef<number | null>(null)
-  const resizeEndTimerRef = useRef<number | null>(null)
   const activateFitTimerRef = useRef<number | null>(null)
   const lastPtySizeRef = useRef<{ rows: number; cols: number } | null>(null)
-  const connectionRef = useRef(connection)
-  const isActiveRef = useRef(isActive)
+  const connectionRef = useStableRef(connection)
+  const isActiveRef = useStableRef(isActive)
   const initializedRef = useRef(false)
   const waitingForReconnectRef = useRef(false)
-  const onPidChangeRef = useRef(onPidChange)
-  const onReconnectRequestRef = useRef(onReconnectRequest)
+  const onPidChangeRef = useStableRef(onPidChange)
+  const onReconnectRequestRef = useStableRef(onReconnectRequest)
   const { config, saveConfig } = useConfig()
   const { currentTheme, getTheme } = useTheme()
   const { t } = useTranslation()
@@ -140,22 +140,6 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const initialTerminalThemeRef =
     useRef<ReturnType<typeof resolveTerminalTheme>>(resolveTerminalTheme())
 
-  useEffect(() => {
-    connectionRef.current = connection
-  }, [connection])
-
-  useEffect(() => {
-    isActiveRef.current = isActive
-  }, [isActive])
-
-  useEffect(() => {
-    onPidChangeRef.current = onPidChange
-  }, [onPidChange])
-
-  useEffect(() => {
-    onReconnectRequestRef.current = onReconnectRequest
-  }, [onReconnectRequest])
-
   const fitTerminalOnly = useCallback(() => {
     if (!fitAddonRef.current || !termRef.current) return
     fitAddonRef.current.fit()
@@ -178,7 +162,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       }
 
       lastPtySizeRef.current = nextSize
-      invoke("resize_pty", { tabId, rows: nextSize.rows, cols: nextSize.cols }).catch(() => {})
+      invoke("resize_pty", { tabId, rows: nextSize.rows, cols: nextSize.cols }).catch(console.error)
     },
     [tabId]
   )
@@ -201,7 +185,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       if (!isActiveRef.current) return
       fitAndSyncPty()
     })
-  }, [fitAndSyncPty])
+  }, [fitAndSyncPty, isActiveRef])
 
   useEffect(() => {
     const term = termRef.current
@@ -213,7 +197,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     if (isActiveRef.current) {
       fitAndSyncPty()
     }
-  }, [config.cursor_style, config.font_family, config.font_size, fitAndSyncPty])
+  }, [config.cursor_style, config.font_family, config.font_size, fitAndSyncPty, isActiveRef])
 
   useEffect(() => {
     const term = termRef.current
@@ -233,6 +217,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     config.terminal_padding_left_px,
     config.terminal_padding_right_px,
     fitAndSyncPty,
+    isActiveRef,
   ])
 
   useEffect(() => {
@@ -259,7 +244,6 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     onPidChangeRef,
     onReconnectRequestRef,
     passwordPromptActiveRef,
-    resizeEndTimerRef,
     resizeObserverRef,
     resizeRafRef,
     scheduleFitDuringResize,
@@ -298,11 +282,6 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     if (resizeRafRef.current !== null) {
       window.cancelAnimationFrame(resizeRafRef.current)
       resizeRafRef.current = null
-    }
-
-    if (resizeEndTimerRef.current !== null) {
-      window.clearTimeout(resizeEndTimerRef.current)
-      resizeEndTimerRef.current = null
     }
 
     if (activateFitTimerRef.current !== null) {

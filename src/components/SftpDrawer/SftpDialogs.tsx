@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useCallback } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -13,58 +13,58 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-import type {
-  SftpCommandDeleteDialogState,
-  SftpCreateFolderDialogState,
-  SftpDeleteDialogState,
-  SftpRenameDialogState,
-} from "@/components/SftpDrawer/types"
+import type { SftpDialogAction, SftpDialogState } from "@/components/SftpDrawer/types"
 
 interface SftpDialogsProps {
-  commandDeleteDialog: SftpCommandDeleteDialogState
-  createFolderDialog: SftpCreateFolderDialogState
-  deleteDialog: SftpDeleteDialogState
+  dialog: SftpDialogState
+  dispatchDialog: React.Dispatch<SftpDialogAction>
   handleCommandDeleteConfirm: () => void
   handleSftpDeleteConfirm: () => void
   handleCreateDirectoryConfirm: () => void
   handleDeleteConfirm: () => void
   handleRenameConfirm: () => void
   isDeleting?: boolean
-  renameDialog: SftpRenameDialogState
-  setCommandDeleteDialog: React.Dispatch<React.SetStateAction<SftpCommandDeleteDialogState>>
-  setCreateFolderDialog: React.Dispatch<React.SetStateAction<SftpCreateFolderDialogState>>
-  setDeleteDialog: React.Dispatch<React.SetStateAction<SftpDeleteDialogState>>
-  setRenameDialog: React.Dispatch<React.SetStateAction<SftpRenameDialogState>>
 }
 
 export const SftpDialogs: React.FC<SftpDialogsProps> = ({
-  commandDeleteDialog,
-  createFolderDialog,
-  deleteDialog,
+  dialog,
+  dispatchDialog,
   handleCommandDeleteConfirm,
   handleSftpDeleteConfirm,
   handleCreateDirectoryConfirm,
   handleDeleteConfirm,
   handleRenameConfirm,
   isDeleting = false,
-  renameDialog,
-  setCommandDeleteDialog,
-  setCreateFolderDialog,
-  setDeleteDialog,
-  setRenameDialog,
 }) => {
   const { t } = useTranslation()
-  const deleteCount = deleteDialog.entries.length
-  const folderCount = deleteDialog.entries.filter((entry) => entry.isDir).length
-  const singleEntry = deleteDialog.entries[0] ?? null
+
+  const closeDialog = useCallback(() => dispatchDialog({ action: "close" }), [dispatchDialog])
+
+  const deleteEntries = dialog.type === "delete" ? dialog.entries : []
+  const deleteCount = deleteEntries.length
+  const folderCount = deleteEntries.filter((entry) => entry.isDir).length
+  const singleEntry = deleteEntries[0] ?? null
+
+  const commandDelete =
+    dialog.type === "commandDelete"
+      ? dialog
+      : {
+          entries: [],
+          command: "",
+          totalDirectories: 0,
+          totalEntries: 0,
+          totalFiles: 0,
+          totalTruncated: false,
+        }
+
+  const renameEntry = dialog.type === "rename" ? dialog : { entry: null, newName: "" }
+  const createFolder = dialog.type === "createFolder" ? dialog : { folderName: "" }
 
   return (
     <>
       <Dialog
-        open={deleteDialog.open}
-        onOpenChange={(open) =>
-          !open && !isDeleting && setDeleteDialog({ open: false, entries: [] })
-        }
+        open={dialog.type === "delete"}
+        onOpenChange={(open) => !open && !isDeleting && closeDialog()}
       >
         <DialogContent>
           <DialogHeader>
@@ -91,11 +91,7 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              disabled={isDeleting}
-              onClick={() => setDeleteDialog({ open: false, entries: [] })}
-            >
+            <Button variant="outline" disabled={isDeleting} onClick={closeDialog}>
               {t("common.cancel", { defaultValue: "Cancel" })}
             </Button>
             <Button variant="destructive" disabled={isDeleting} onClick={handleDeleteConfirm}>
@@ -106,20 +102,8 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
       </Dialog>
 
       <Dialog
-        open={commandDeleteDialog.open}
-        onOpenChange={(open) =>
-          !open &&
-          !isDeleting &&
-          setCommandDeleteDialog({
-            command: "",
-            entries: [],
-            open: false,
-            totalDirectories: 0,
-            totalEntries: 0,
-            totalFiles: 0,
-            totalTruncated: false,
-          })
-        }
+        open={dialog.type === "commandDelete"}
+        onOpenChange={(open) => !open && !isDeleting && closeDialog()}
       >
         <DialogContent>
           <DialogHeader>
@@ -130,54 +114,40 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
             </DialogTitle>
             <DialogDescription>
               {t("sftp.dialogs.commandDeleteDescription", {
-                count: commandDeleteDialog.totalEntries,
-                defaultValue: `Detected ${commandDeleteDialog.totalEntries}${commandDeleteDialog.totalTruncated ? "+" : ""} item(s). Review or edit the command before deleting.`,
+                count: commandDelete.totalEntries,
+                defaultValue: `Detected ${commandDelete.totalEntries}${commandDelete.totalTruncated ? "+" : ""} item(s). Review or edit the command before deleting.`,
               })}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 py-3">
             <div className="text-muted-foreground text-sm">
               {t("sftp.dialogs.commandDeleteCount", {
-                defaultValue: `Scanned: ${commandDeleteDialog.totalEntries}${commandDeleteDialog.totalTruncated ? "+" : ""} items, ${commandDeleteDialog.totalFiles}${commandDeleteDialog.totalTruncated ? "+" : ""} files, ${commandDeleteDialog.totalDirectories}${commandDeleteDialog.totalTruncated ? "+" : ""} folders`,
-                files: commandDeleteDialog.totalTruncated
-                  ? `${commandDeleteDialog.totalFiles}+`
-                  : commandDeleteDialog.totalFiles,
-                folders: commandDeleteDialog.totalTruncated
-                  ? `${commandDeleteDialog.totalDirectories}+`
-                  : commandDeleteDialog.totalDirectories,
-                items: commandDeleteDialog.totalTruncated
-                  ? `${commandDeleteDialog.totalEntries}+`
-                  : commandDeleteDialog.totalEntries,
+                defaultValue: `Scanned: ${commandDelete.totalEntries}${commandDelete.totalTruncated ? "+" : ""} items, ${commandDelete.totalFiles}${commandDelete.totalTruncated ? "+" : ""} files, ${commandDelete.totalDirectories}${commandDelete.totalTruncated ? "+" : ""} folders`,
+                files: commandDelete.totalTruncated
+                  ? `${commandDelete.totalFiles}+`
+                  : commandDelete.totalFiles,
+                folders: commandDelete.totalTruncated
+                  ? `${commandDelete.totalDirectories}+`
+                  : commandDelete.totalDirectories,
+                items: commandDelete.totalTruncated
+                  ? `${commandDelete.totalEntries}+`
+                  : commandDelete.totalEntries,
               })}
             </div>
             <textarea
               className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-h-28 w-full rounded-md border px-3 py-2 font-mono text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               disabled={isDeleting}
-              value={commandDeleteDialog.command}
+              value={commandDelete.command}
               onChange={(event) =>
-                setCommandDeleteDialog((current) => ({
-                  ...current,
+                dispatchDialog({
+                  action: "updateCommandDeleteCommand",
                   command: event.target.value,
-                }))
+                })
               }
             />
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              disabled={isDeleting}
-              onClick={() =>
-                setCommandDeleteDialog({
-                  command: "",
-                  entries: [],
-                  open: false,
-                  totalDirectories: 0,
-                  totalEntries: 0,
-                  totalFiles: 0,
-                  totalTruncated: false,
-                })
-              }
-            >
+            <Button variant="outline" disabled={isDeleting} onClick={closeDialog}>
               {t("common.cancel", { defaultValue: "Cancel" })}
             </Button>
 
@@ -195,10 +165,7 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={renameDialog.open}
-        onOpenChange={(open) => !open && setRenameDialog({ open: false, entry: null, newName: "" })}
-      >
+      <Dialog open={dialog.type === "rename"} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -217,9 +184,9 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
               </Label>
               <Input
                 id="rename-input"
-                value={renameDialog.newName}
+                value={renameEntry.newName}
                 onChange={(event) =>
-                  setRenameDialog({ ...renameDialog, newName: event.target.value })
+                  dispatchDialog({ action: "updateRenameNewName", newName: event.target.value })
                 }
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -232,10 +199,7 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setRenameDialog({ open: false, entry: null, newName: "" })}
-            >
+            <Button variant="outline" onClick={closeDialog}>
               {t("common.cancel", { defaultValue: "Cancel" })}
             </Button>
             <Button onClick={handleRenameConfirm}>
@@ -245,10 +209,7 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={createFolderDialog.open}
-        onOpenChange={(open) => !open && setCreateFolderDialog({ open: false, folderName: "" })}
-      >
+      <Dialog open={dialog.type === "createFolder"} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -267,9 +228,12 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
               </Label>
               <Input
                 id="folder-name-input"
-                value={createFolderDialog.folderName}
+                value={createFolder.folderName}
                 onChange={(event) =>
-                  setCreateFolderDialog({ ...createFolderDialog, folderName: event.target.value })
+                  dispatchDialog({
+                    action: "updateCreateFolderName",
+                    folderName: event.target.value,
+                  })
                 }
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -282,10 +246,7 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setCreateFolderDialog({ open: false, folderName: "" })}
-            >
+            <Button variant="outline" onClick={closeDialog}>
               {t("common.cancel", { defaultValue: "Cancel" })}
             </Button>
             <Button onClick={handleCreateDirectoryConfirm}>

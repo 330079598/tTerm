@@ -57,7 +57,7 @@ export const HostKeyPromptDialog: React.FC<HostKeyPromptDialogProps> = ({
               await invoke("respond_ssh_host_key_prompt", {
                 requestId: hostKeyPrompt.requestId,
                 trust: false,
-              }).catch(() => {})
+              }).catch(console.error)
               setHostKeyPrompt(null)
             }}
             style={{
@@ -76,7 +76,7 @@ export const HostKeyPromptDialog: React.FC<HostKeyPromptDialogProps> = ({
               await invoke("respond_ssh_host_key_prompt", {
                 requestId: hostKeyPrompt.requestId,
                 trust: true,
-              }).catch(() => {})
+              }).catch(console.error)
               setHostKeyPrompt(null)
             }}
             style={{

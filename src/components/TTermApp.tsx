@@ -1,8 +1,7 @@
 import "@/components/TTermApp.css"
-import { getCurrentWindow } from "@tauri-apps/api/window"
 import { platform } from "@tauri-apps/plugin-os"
 import { BookMarked, Minus, Plus, Settings, Square, X } from "lucide-react"
-import React, { useCallback, useEffect, useRef, useState } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { ConnectionDialog } from "@/components/ConnectionDialog"
@@ -14,16 +13,17 @@ import { TransferManager } from "@/components/TransferManager"
 import { EmptyState } from "@/components/TTermApp/EmptyState"
 import { TabPanels } from "@/components/TTermApp/TabPanels"
 import { buildTabFromConnection } from "@/components/TTermApp/ttermAppUtils"
-import type { ContextMenuState, RenameDialogState } from "@/components/TTermApp/types"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTransferManager } from "@/contexts/TransferContext"
 import { useConnectionManager } from "@/hooks/useConnectionManager"
 import { useSessionPersistence } from "@/hooks/useSessionPersistence"
+import { useTabContextMenu } from "@/hooks/useTabContextMenu"
 import { useTabs } from "@/hooks/useTabs"
+import { useWindowControls } from "@/hooks/useWindowControls"
 import { markSessionReady } from "@/lib/startup"
-import { Tab, TabContextMenuAction } from "@/types/tab"
+import { Tab } from "@/types/tab"
 
 const SETTINGS_TAB_TITLE = "Settings"
 
@@ -38,19 +38,6 @@ export const TTermApp: React.FC = () => {
   const [editingProfile, setEditingProfile] = useState<SavedProfile | null>(null)
   const [profilesRefreshKey, setProfilesRefreshKey] = useState(0)
   const [sessionRestored, setSessionRestored] = useState(false)
-  const [renameDialogState, setRenameDialogState] = useState<RenameDialogState>({
-    isOpen: false,
-    tabId: null,
-    currentName: "",
-  })
-  const settingsButtonRef = useRef<HTMLButtonElement>(null)
-  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
-    visible: false,
-    x: 0,
-    y: 0,
-    tab: null,
-    actions: [],
-  })
 
   const {
     tabs,
@@ -248,98 +235,30 @@ export const TTermApp: React.FC = () => {
     [cleanupConnection, closeTabsToRight, confirmCloseTabsWithTransfers, tabs]
   )
 
-  const handleTabContextMenu = useCallback(
-    (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => {
-      event.preventDefault()
-      setContextMenu({
-        visible: true,
-        x: event.clientX,
-        y: event.clientY,
-        tab,
-        actions,
-      })
-    },
-    []
-  )
+  const {
+    nativeControlsReservePx,
+    handleMinimizeWindow,
+    handleToggleMaximizeWindow,
+    handleCloseWindow,
+  } = useWindowControls(isWindows)
 
-  const handleContextMenuAction = useCallback(
-    async (action: string) => {
-      if (!contextMenu.tab) {
-        return
-      }
-
-      const tab = contextMenu.tab
-
-      switch (action) {
-        case "new":
-          handleNewTab()
-          break
-        case "duplicate":
-          duplicateTab(tab.id)
-          break
-        case "rename":
-          setRenameDialogState({
-            isOpen: true,
-            tabId: tab.id,
-            currentName: tab.title,
-          })
-          break
-        case "pin-header":
-          updateTab(tab.id, (currentTab) => ({
-            ...currentTab,
-            connectionHeaderPinned: true,
-          }))
-          break
-        case "unpin-header":
-          updateTab(tab.id, (currentTab) => ({
-            ...currentTab,
-            connectionHeaderPinned: false,
-          }))
-          break
-        case "close":
-          handleRemoveTab(tab.id)
-          break
-        case "close-others":
-          handleCloseOtherTabs(tab.id)
-          break
-        case "close-right":
-          handleCloseTabsToRight(tab.id)
-          break
-        default:
-          break
-      }
-    },
-    [
-      contextMenu.tab,
-      handleNewTab,
-      duplicateTab,
-      handleRemoveTab,
-      handleCloseOtherTabs,
-      handleCloseTabsToRight,
-      updateTab,
-    ]
-  )
-
-  const handleCloseContextMenu = useCallback(() => {
-    setContextMenu((prev) => ({ ...prev, visible: false }))
-  }, [])
-
-  const handleRenameConfirm = useCallback(
-    (newName: string) => {
-      if (renameDialogState.tabId) {
-        renameTab(renameDialogState.tabId, newName)
-      }
-    },
-    [renameDialogState.tabId, renameTab]
-  )
-
-  const handleRenameClose = useCallback(() => {
-    setRenameDialogState({
-      isOpen: false,
-      tabId: null,
-      currentName: "",
-    })
-  }, [])
+  const {
+    contextMenu,
+    renameDialogState,
+    handleTabContextMenu,
+    handleContextMenuAction,
+    handleCloseContextMenu,
+    handleRenameConfirm,
+    handleRenameClose,
+  } = useTabContextMenu({
+    handleNewTab,
+    duplicateTab,
+    handleRemoveTab,
+    handleCloseOtherTabs,
+    handleCloseTabsToRight,
+    updateTab,
+    renameTab,
+  })
 
   const handleReconnectTab = useCallback(
     (tabId: string) => {
@@ -371,23 +290,9 @@ export const TTermApp: React.FC = () => {
     [updateTab]
   )
 
-  const nativeControlsReservePx = isWindows ? 46 * 3 : 0
-
   const handleSettingsClick = useCallback(() => {
     openSettingsTab(settingsTabTitle)
   }, [openSettingsTab, settingsTabTitle])
-
-  const handleMinimizeWindow = useCallback(() => {
-    void getCurrentWindow().minimize()
-  }, [])
-
-  const handleToggleMaximizeWindow = useCallback(() => {
-    void getCurrentWindow().toggleMaximize()
-  }, [])
-
-  const handleCloseWindow = useCallback(() => {
-    void getCurrentWindow().close()
-  }, [])
 
   const renderTabContent = () => {
     if (tabs.length === 0) {
@@ -399,7 +304,7 @@ export const TTermApp: React.FC = () => {
             setEditingProfile(profile)
             setShowConnectionDialog(true)
           }}
-          profilesRefreshKey={profilesRefreshKey}
+          refreshKey={profilesRefreshKey}
         />
       )
     }
@@ -450,11 +355,7 @@ export const TTermApp: React.FC = () => {
         <div className="drag-space" data-tauri-drag-region></div>
 
         <div className="title-bar-right" style={{ paddingRight: `${nativeControlsReservePx}px` }}>
-          <button
-            ref={settingsButtonRef}
-            className="tab-action settings-button"
-            onClick={handleSettingsClick}
-          >
+          <button className="tab-action settings-button" onClick={handleSettingsClick}>
             <Settings size={16} />
           </button>
           {isLinux && (

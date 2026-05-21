@@ -1,4 +1,3 @@
-import { SavedProfile } from "@/components/ProfilesPanel"
 import { Tab, TabContextMenuAction } from "@/types/tab"
 
 export interface ContextMenuState {
@@ -13,13 +12,6 @@ export interface RenameDialogState {
   isOpen: boolean
   tabId: string | null
   currentName: string
-}
-
-export interface EmptyStateProps {
-  handleConnect: (connection: Omit<Tab, "id" | "isActive">) => void
-  handleNewTab: () => void
-  onEditProfile: (profile: SavedProfile) => void
-  profilesRefreshKey: number
 }
 
 export interface TabPanelsProps {

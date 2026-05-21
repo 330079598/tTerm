@@ -35,7 +35,6 @@ type UseTerminalLifecycleOptions = {
   onPidChangeRef: React.MutableRefObject<TerminalTabProps["onPidChange"]>
   onReconnectRequestRef: React.MutableRefObject<TerminalTabProps["onReconnectRequest"]>
   passwordPromptActiveRef: React.MutableRefObject<boolean>
-  resizeEndTimerRef: React.MutableRefObject<number | null>
   resizeObserverRef: React.MutableRefObject<ResizeObserver | null>
   resizeRafRef: React.MutableRefObject<number | null>
   scheduleFitDuringResize: () => void
@@ -87,7 +86,6 @@ export function useTerminalLifecycle({
   onPidChangeRef,
   onReconnectRequestRef,
   passwordPromptActiveRef,
-  resizeEndTimerRef,
   resizeObserverRef,
   resizeRafRef,
   scheduleFitDuringResize,
@@ -176,7 +174,7 @@ export function useTerminalLifecycle({
         if (data === "\r") {
           const savedPassword = connectionRef.current?.password
           if (savedPassword) {
-            invoke("write_pty", { tabId, data: savedPassword + "\n" }).catch(() => {})
+            invoke("write_pty", { tabId, data: savedPassword + "\n" }).catch(console.error)
             passwordPromptActiveRef.current = false
             return
           }
@@ -185,7 +183,7 @@ export function useTerminalLifecycle({
         passwordPromptActiveRef.current = false
       }
 
-      invoke("write_pty", { tabId, data }).catch(() => {})
+      invoke("write_pty", { tabId, data }).catch(console.error)
     })
 
     let unlistenOutput: (() => void) | null = null
@@ -295,7 +293,7 @@ export function useTerminalLifecycle({
         if (pid == null) return
 
         if (disposed) {
-          invoke("kill_pty", { tabId }).catch(() => {})
+          invoke("kill_pty", { tabId }).catch(console.error)
           return
         }
 
@@ -333,11 +331,6 @@ export function useTerminalLifecycle({
         resizeRafRef.current = null
       }
 
-      if (resizeEndTimerRef.current !== null) {
-        window.clearTimeout(resizeEndTimerRef.current)
-        resizeEndTimerRef.current = null
-      }
-
       if (activateFitTimerRef.current !== null) {
         window.clearTimeout(activateFitTimerRef.current)
         activateFitTimerRef.current = null
@@ -347,7 +340,7 @@ export function useTerminalLifecycle({
       unlistenExit?.()
       unlistenHostPrompt?.()
       unlistenConnectionProgress?.()
-      invoke("kill_pty", { tabId }).catch(() => {})
+      invoke("kill_pty", { tabId }).catch(console.error)
       searchResultsDisposableRef.current?.dispose()
       searchResultsDisposableRef.current = null
       searchAddonRef.current = null
@@ -376,7 +369,6 @@ export function useTerminalLifecycle({
     onPidChangeRef,
     onReconnectRequestRef,
     passwordPromptActiveRef,
-    resizeEndTimerRef,
     resizeObserverRef,
     resizeRafRef,
     scheduleFitDuringResize,

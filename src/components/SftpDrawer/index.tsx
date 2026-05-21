@@ -1,5 +1,5 @@
 import "@/components/SftpDrawer.css"
-import React, { useCallback, useMemo, useState } from "react"
+import React, { useCallback, useMemo, useReducer, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { AlertCircle } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -23,16 +23,50 @@ import {
 import type {
   DeleteBatchStartResult,
   DeletePreviewResult,
-  SftpCommandDeleteDialogState,
   SftpContextMenuState,
-  SftpCreateFolderDialogState,
-  SftpDeleteDialogState,
+  SftpDialogAction,
+  SftpDialogState,
   SftpDirectoryEntry,
   SftpDirectoryListing,
   SftpDrawerProps,
-  SftpRenameDialogState,
 } from "@/components/SftpDrawer/types"
 import { useSftpTransfers } from "@/components/SftpDrawer/useSftpTransfers"
+
+function sftpDialogReducer(state: SftpDialogState, action: SftpDialogAction): SftpDialogState {
+  switch (action.action) {
+    case "close":
+      return { type: "none" }
+    case "openDelete":
+      return { type: "delete", entries: action.entries }
+    case "openCommandDelete":
+      return {
+        type: "commandDelete",
+        entries: action.entries,
+        command: action.command,
+        totalDirectories: action.totalDirectories,
+        totalEntries: action.totalEntries,
+        totalFiles: action.totalFiles,
+        totalTruncated: action.totalTruncated,
+      }
+    case "openRename":
+      return { type: "rename", entry: action.entry, newName: action.newName }
+    case "openCreateFolder":
+      return { type: "createFolder", folderName: "" }
+    case "updateRenameNewName":
+      if (state.type !== "rename") return state
+      return { ...state, newName: action.newName }
+    case "updateCreateFolderName":
+      if (state.type !== "createFolder") return state
+      return { ...state, folderName: action.folderName }
+    case "updateCommandDeleteCommand":
+      if (state.type !== "commandDelete") return state
+      return { ...state, command: action.command }
+    default:
+      return state
+  }
+}
+
+const EMPTY_SFTP_ENTRIES: SftpDirectoryEntry[] = []
 
 export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connection, onClose }) => {
   const { t } = useTranslation()
@@ -46,28 +80,14 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<SftpContextMenuState | null>(null)
-  const [deleteDialog, setDeleteDialog] = useState<SftpDeleteDialogState>({
-    open: false,
-    entries: [],
-  })
-  const [commandDeleteDialog, setCommandDeleteDialog] = useState<SftpCommandDeleteDialogState>({
-    command: "",
-    entries: [],
-    open: false,
-    totalDirectories: 0,
-    totalEntries: 0,
-    totalFiles: 0,
-    totalTruncated: false,
-  })
-  const [renameDialog, setRenameDialog] = useState<SftpRenameDialogState>({
-    open: false,
-    entry: null,
-    newName: "",
-  })
-  const [createFolderDialog, setCreateFolderDialog] = useState<SftpCreateFolderDialogState>({
-    open: false,
-    folderName: "",
-  })
+  const [dialog, dispatchDialog] = useReducer(sftpDialogReducer, { type: "none" })
+  const listingCurrentPath = listing?.currentPath ?? null
+  const createFolderName = dialog.type === "createFolder" ? dialog.folderName : ""
+  const renameEntry = dialog.type === "rename" ? dialog.entry : null
+  const renameNewName = dialog.type === "rename" ? dialog.newName : ""
+  const deleteDialogEntries = dialog.type === "delete" ? dialog.entries : EMPTY_SFTP_ENTRIES
+  const commandDeleteEntries = dialog.type === "commandDelete" ? dialog.entries : EMPTY_SFTP_ENTRIES
+  const commandDeleteCommand = dialog.type === "commandDelete" ? dialog.command : ""
 
   const loadDirectory = useCallback(
     async (path?: string | null) => {
@@ -189,12 +209,12 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
   })
 
   const handleCreateDirectory = useCallback(() => {
-    setCreateFolderDialog({ open: true, folderName: "" })
+    dispatchDialog({ action: "openCreateFolder" })
   }, [])
 
   const handleCreateDirectoryConfirm = useCallback(() => {
-    const trimmedName = createFolderDialog.folderName.trim()
-    if (!trimmedName || !listing) {
+    const trimmedName = createFolderName.trim()
+    if (!trimmedName || !listingCurrentPath) {
       return
     }
 
@@ -202,11 +222,11 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       invoke("sftp_create_directory", {
         tabId,
         connection,
-        path: joinRemotePath(listing.currentPath, trimmedName),
+        path: joinRemotePath(listingCurrentPath, trimmedName),
       })
     )
-    setCreateFolderDialog({ open: false, folderName: "" })
-  }, [connection, createFolderDialog.folderName, listing, runAndRefresh, tabId])
+    dispatchDialog({ action: "close" })
+  }, [connection, createFolderName, listingCurrentPath, runAndRefresh, tabId])
 
   const handleRename = useCallback(() => {
     const entry = contextMenuEntry ?? activeEntry
@@ -214,18 +234,17 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       return
     }
 
-    setRenameDialog({ open: true, entry, newName: entry.name })
+    dispatchDialog({ action: "openRename", entry, newName: entry.name })
   }, [activeEntry, contextMenuEntry, listing])
 
   const handleRenameConfirm = useCallback(() => {
-    const { entry, newName } = renameDialog
-    if (!entry || !listing) {
+    if (!renameEntry || !listingCurrentPath) {
       return
     }
 
-    const trimmedName = newName.trim()
-    if (!trimmedName || trimmedName === entry.name) {
-      setRenameDialog({ open: false, entry: null, newName: "" })
+    const trimmedName = renameNewName.trim()
+    if (!trimmedName || trimmedName === renameEntry.name) {
+      dispatchDialog({ action: "close" })
       return
     }
 
@@ -233,19 +252,19 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       invoke("sftp_rename_entry", {
         tabId,
         connection,
-        oldPath: entry.path,
-        newPath: joinRemotePath(listing.currentPath, trimmedName),
+        oldPath: renameEntry.path,
+        newPath: joinRemotePath(listingCurrentPath, trimmedName),
       })
     )
-    setRenameDialog({ open: false, entry: null, newName: "" })
-  }, [connection, listing, renameDialog, runAndRefresh, tabId])
+    dispatchDialog({ action: "close" })
+  }, [connection, listingCurrentPath, renameEntry, renameNewName, runAndRefresh, tabId])
 
   const handleDeleteSelection = useCallback(() => {
     if (selectedEntries.length === 0) {
       return
     }
 
-    setDeleteDialog({ open: true, entries: selectedEntries })
+    dispatchDialog({ action: "openDelete", entries: selectedEntries })
   }, [selectedEntries])
 
   const handleDelete = useCallback(() => {
@@ -263,23 +282,14 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       return
     }
 
-    setDeleteDialog({ open: true, entries })
+    dispatchDialog({ action: "openDelete", entries })
   }, [activeEntry, contextMenuEntry, selectedEntries, selectedPaths])
 
   const startDeleteBatch = useCallback(
     async (entries: SftpDirectoryEntry[], useCommandDelete: boolean, command?: string) => {
       setIsDeleting(true)
       setError(null)
-      setDeleteDialog({ open: false, entries: [] })
-      setCommandDeleteDialog({
-        command: "",
-        entries: [],
-        open: false,
-        totalDirectories: 0,
-        totalEntries: 0,
-        totalFiles: 0,
-        totalTruncated: false,
-      })
+      dispatchDialog({ action: "close" })
       setContextMenu(null)
 
       try {
@@ -313,8 +323,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
   )
 
   const handleDeleteConfirm = useCallback(() => {
-    const entries = deleteDialog.entries
-    if (entries.length === 0) {
+    if (deleteDialogEntries.length === 0) {
       return
     }
 
@@ -325,7 +334,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         const preview = await invoke<DeletePreviewResult>("sftp_preview_delete_entries", {
           tabId,
           connection,
-          entries: entries.map((entry) => ({
+          entries: deleteDialogEntries.map((entry) => ({
             path: entry.path,
             name: entry.name,
             isDir: entry.isDir,
@@ -334,11 +343,10 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
 
         setIsDeleting(false)
         if (preview.shouldPromptForCommand) {
-          setDeleteDialog({ open: false, entries: [] })
-          setCommandDeleteDialog({
+          dispatchDialog({
+            action: "openCommandDelete",
+            entries: deleteDialogEntries,
             command: preview.command,
-            entries,
-            open: true,
             totalDirectories: preview.totalDirectories,
             totalEntries: preview.totalEntries,
             totalFiles: preview.totalFiles,
@@ -347,7 +355,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
           return
         }
 
-        await startDeleteBatch(entries, false)
+        await startDeleteBatch(deleteDialogEntries, false)
       } catch (invokeError) {
         const message = String(invokeError)
         setIsDeleting(false)
@@ -361,26 +369,24 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         })
       }
     })()
-  }, [connection, deleteDialog.entries, startDeleteBatch, t, tabId])
+  }, [connection, deleteDialogEntries, startDeleteBatch, t, tabId])
 
   const handleCommandDeleteConfirm = useCallback(() => {
-    const entries = commandDeleteDialog.entries
-    const command = commandDeleteDialog.command.trim()
-    if (entries.length === 0 || !command) {
+    const command = commandDeleteCommand.trim()
+    if (commandDeleteEntries.length === 0 || !command) {
       return
     }
 
-    void startDeleteBatch(entries, true, command)
-  }, [commandDeleteDialog.command, commandDeleteDialog.entries, startDeleteBatch])
+    void startDeleteBatch(commandDeleteEntries, true, command)
+  }, [commandDeleteCommand, commandDeleteEntries, startDeleteBatch])
 
   const handleSftpDeleteConfirm = useCallback(() => {
-    const entries = commandDeleteDialog.entries
-    if (entries.length === 0) {
+    if (commandDeleteEntries.length === 0) {
       return
     }
 
-    void startDeleteBatch(entries, false)
-  }, [commandDeleteDialog.entries, startDeleteBatch])
+    void startDeleteBatch(commandDeleteEntries, false)
+  }, [commandDeleteEntries, startDeleteBatch])
 
   const handleDownload = useCallback(async () => {
     const entry = contextMenuEntry ?? activeEntry
@@ -501,20 +507,14 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
       />
 
       <SftpDialogs
-        commandDeleteDialog={commandDeleteDialog}
-        createFolderDialog={createFolderDialog}
-        deleteDialog={deleteDialog}
+        dialog={dialog}
+        dispatchDialog={dispatchDialog}
         handleCommandDeleteConfirm={handleCommandDeleteConfirm}
         handleCreateDirectoryConfirm={handleCreateDirectoryConfirm}
         handleDeleteConfirm={handleDeleteConfirm}
         handleRenameConfirm={handleRenameConfirm}
         handleSftpDeleteConfirm={handleSftpDeleteConfirm}
         isDeleting={isDeleting}
-        renameDialog={renameDialog}
-        setCommandDeleteDialog={setCommandDeleteDialog}
-        setCreateFolderDialog={setCreateFolderDialog}
-        setDeleteDialog={setDeleteDialog}
-        setRenameDialog={setRenameDialog}
       />
     </div>
   )

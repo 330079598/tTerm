@@ -1,4 +1,4 @@
-﻿import type { Tab } from "@/types/tab"
+import type { Tab } from "@/types/tab"
 
 export interface SftpDrawerProps {
   tabId: string
@@ -30,33 +30,40 @@ export interface SftpContextMenuState {
   entryPath: string
 }
 
-export interface SftpDeleteDialogState {
-  open: boolean
-  entries: SftpDirectoryEntry[]
-}
-
-export interface SftpCommandDeleteDialogState {
-  command: string
-  entries: SftpDirectoryEntry[]
-  open: boolean
-  totalDirectories: number
-  totalEntries: number
-  totalFiles: number
-  totalTruncated: boolean
-}
-
-export interface SftpRenameDialogState {
-  open: boolean
-  entry: SftpDirectoryEntry | null
-  newName: string
-}
-
-export interface SftpCreateFolderDialogState {
-  open: boolean
-  folderName: string
-}
-
 export type SftpDeleteMethod = "sftp" | "command"
+
+export type SftpDialogState =
+  | { type: "none" }
+  | { type: "delete"; entries: SftpDirectoryEntry[] }
+  | {
+      type: "commandDelete"
+      entries: SftpDirectoryEntry[]
+      command: string
+      totalDirectories: number
+      totalEntries: number
+      totalFiles: number
+      totalTruncated: boolean
+    }
+  | { type: "rename"; entry: SftpDirectoryEntry | null; newName: string }
+  | { type: "createFolder"; folderName: string }
+
+export type SftpDialogAction =
+  | { action: "close" }
+  | { action: "openDelete"; entries: SftpDirectoryEntry[] }
+  | {
+      action: "openCommandDelete"
+      entries: SftpDirectoryEntry[]
+      command: string
+      totalDirectories: number
+      totalEntries: number
+      totalFiles: number
+      totalTruncated: boolean
+    }
+  | { action: "openRename"; entry: SftpDirectoryEntry; newName: string }
+  | { action: "openCreateFolder" }
+  | { action: "updateRenameNewName"; newName: string }
+  | { action: "updateCreateFolderName"; folderName: string }
+  | { action: "updateCommandDeleteCommand"; command: string }
 
 export interface SftpDeleteProgressState {
   batchId: string
