@@ -185,22 +185,27 @@ async fn authenticate_session(
     private_key_passphrase: Option<&str>,
     password: Option<&str>,
 ) -> Result<(), String> {
+    const AUTH_TIMEOUT: Duration = Duration::from_secs(30);
+
     let auth_result = if let Some(key_path) = private_key_path {
         let key_pair = russh::keys::load_secret_key(Path::new(key_path), private_key_passphrase)
             .map_err(|e| format!("Failed to load jump host SSH key: {e}"))?;
 
-        session
-            .authenticate_publickey(
+        tokio::time::timeout(
+            AUTH_TIMEOUT,
+            session.authenticate_publickey(
                 username,
                 PrivateKeyWithHashAlg::new(Arc::new(key_pair), None),
-            )
-            .await
-            .map_err(|e| format!("Jump host key authentication failed: {e}"))?
+            ),
+        )
+        .await
+        .map_err(|_| "Jump host key authentication timed out".to_string())?
+        .map_err(|e| format!("Jump host key authentication failed: {e}"))?
     } else {
         let pw = password.ok_or_else(|| "Jump host password is required".to_string())?;
-        session
-            .authenticate_password(username, pw)
+        tokio::time::timeout(AUTH_TIMEOUT, session.authenticate_password(username, pw))
             .await
+            .map_err(|_| "Jump host password authentication timed out".to_string())?
             .map_err(|e| format!("Jump host password authentication failed: {e}"))?
     };
 
@@ -762,24 +767,32 @@ pub async fn open_target_ssh_session(
         .username(target_username.to_string()),
     );
 
+    const TARGET_AUTH_TIMEOUT: Duration = Duration::from_secs(30);
+
     let auth_result = if let Some(key_path) = target_private_key_path {
         let key_pair =
             russh::keys::load_secret_key(Path::new(key_path), target_private_key_passphrase)
                 .map_err(|e| format!("Failed to load SSH key: {e}"))?;
 
-        target_session
-            .authenticate_publickey(
+        tokio::time::timeout(
+            TARGET_AUTH_TIMEOUT,
+            target_session.authenticate_publickey(
                 target_username,
                 PrivateKeyWithHashAlg::new(Arc::new(key_pair), None),
-            )
-            .await
-            .map_err(|e| format!("SSH key authentication failed: {e}"))?
+            ),
+        )
+        .await
+        .map_err(|_| "SSH key authentication timed out".to_string())?
+        .map_err(|e| format!("SSH key authentication failed: {e}"))?
     } else {
         let pw = target_password.ok_or_else(|| "SSH password is required".to_string())?;
-        target_session
-            .authenticate_password(target_username, pw)
-            .await
-            .map_err(|e| format!("SSH authentication failed: {e}"))?
+        tokio::time::timeout(
+            TARGET_AUTH_TIMEOUT,
+            target_session.authenticate_password(target_username, pw),
+        )
+        .await
+        .map_err(|_| "SSH password authentication timed out".to_string())?
+        .map_err(|e| format!("SSH authentication failed: {e}"))?
     };
 
     if !auth_result.success() {
