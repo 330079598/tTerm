@@ -1,7 +1,9 @@
 use crate::config::{ensure_config_dir, get_config_path};
-use crate::ssh::SecretLocation;
+use crate::ssh::{SecretLocation, SshClientHandler};
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
 fn default_auth_method() -> String {
     "password".to_string()
@@ -99,7 +101,7 @@ fn sanitize_profile(profile: &mut SavedProfile) {
     }
 }
 
-fn write_profiles_to_disk(profiles: &Vec<SavedProfile>) -> Result<(), String> {
+fn write_profiles_to_disk(profiles: &[SavedProfile]) -> Result<(), String> {
     let config_dir = ensure_config_dir()?;
     let profiles_file = config_dir.join("profiles.json");
     let content = serde_json::to_string_pretty(profiles)
@@ -270,7 +272,14 @@ pub async fn test_connection(
             &plan.jump_hosts,
             &host,
             port,
-            TestConnectionHandler::new(&app, &test_tab_id, &host, port),
+            test_connection_handler(
+                &app,
+                &test_tab_id,
+                &plan,
+                &host,
+                port,
+                prompt_state.inner().clone(),
+            ),
             target_config,
             prompt_state.inner().clone(),
             crate::ssh::ConnectionStatusOptions::SILENT,
@@ -340,7 +349,14 @@ pub async fn test_connection(
             client::connect(
                 config,
                 (host.as_str(), port),
-                TestConnectionHandler::new(&app, &test_tab_id, &host, port),
+                test_connection_handler(
+                    &app,
+                    &test_tab_id,
+                    &plan,
+                    &host,
+                    port,
+                    prompt_state.inner().clone(),
+                ),
             ),
         )
         .await
@@ -390,48 +406,24 @@ pub async fn test_connection(
     ))
 }
 
-// Simple handler for test connections that auto-accepts host keys
-struct TestConnectionHandler {
-    app: tauri::AppHandle,
-    tab_id: String,
-    host: String,
+fn test_connection_handler(
+    app: &tauri::AppHandle,
+    tab_id: &str,
+    plan: &crate::core::session::SessionPlan,
+    host: &str,
     port: u16,
-}
-
-impl TestConnectionHandler {
-    fn new(app: &tauri::AppHandle, tab_id: &str, host: &str, port: u16) -> Self {
-        Self {
-            app: app.clone(),
-            tab_id: tab_id.to_string(),
-            host: host.to_string(),
-            port,
-        }
-    }
-}
-
-impl russh::client::Handler for TestConnectionHandler {
-    type Error = russh::Error;
-
-    async fn check_server_key(
-        &mut self,
-        _server_public_key: &russh::keys::ssh_key::PublicKey,
-    ) -> Result<bool, Self::Error> {
-        crate::ssh::emit_connection_progress(
-            &self.app,
-            &self.tab_id,
-            crate::ssh::ConnectionStatusOptions::SILENT,
-            crate::ssh::SshConnectionProgressPayload::new(
-                "target_host_key_checking",
-                format!(
-                    "Checking target host fingerprint for {}:{}",
-                    self.host, self.port
-                ),
-            )
-            .host(self.host.clone(), self.port),
-        );
-
-        // Auto-accept for test connections.
-        Ok(true)
+    prompts: crate::core::state::HostPromptMap,
+) -> SshClientHandler {
+    SshClientHandler {
+        app: app.clone(),
+        tab_id: tab_id.to_string(),
+        profile_id: plan.profile_id.clone(),
+        profile_name: plan.profile_name.clone(),
+        host: host.to_string(),
+        port,
+        prompts,
+        user_rejected_host_key: Arc::new(AtomicBool::new(false)),
+        status_options: crate::ssh::ConnectionStatusOptions::SILENT,
     }
 }
 
