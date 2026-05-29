@@ -129,6 +129,8 @@ impl russh::client::Handler for SshClientHandler {
         let known = match crate::ssh::store::load_known_host(
             &self.profile_name,
             self.profile_id.as_deref(),
+            &self.host,
+            self.port,
         ) {
             Ok(value) => value,
             Err(err) => {

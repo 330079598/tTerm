@@ -101,26 +101,22 @@ pub fn save_known_host_store(store: &KnownHostStore) -> Result<(), String> {
 pub fn load_known_host(
     profile_name: &str,
     profile_id: Option<&str>,
+    host: &str,
+    port: u16,
 ) -> Result<Option<KnownHostRecord>, String> {
     let store = load_known_host_store()?;
     let profile_id = profile_id.map(str::trim).filter(|value| !value.is_empty());
+    let host = host.trim();
 
     if let Some(profile_id) = profile_id {
-        if let Some(entry) = store
-            .entries
-            .iter()
-            .find(|entry| entry.profile_id.as_deref() == Some(profile_id))
-            .cloned()
+        if let Some(entry) =
+            find_known_host_entry(&store, profile_name, Some(profile_id), host, port)
         {
             return Ok(Some(entry));
         }
     }
 
-    let mut entry = store
-        .entries
-        .iter()
-        .find(|entry| entry.profile_name == profile_name)
-        .cloned();
+    let mut entry = find_known_host_entry(&store, profile_name, None, host, port);
 
     if let (Some(profile_id), Some(record)) = (profile_id, entry.as_mut()) {
         if record.profile_id.as_deref() != Some(profile_id) {
@@ -132,23 +128,99 @@ pub fn load_known_host(
     Ok(entry)
 }
 
+fn find_known_host_entry(
+    store: &KnownHostStore,
+    profile_name: &str,
+    profile_id: Option<&str>,
+    host: &str,
+    port: u16,
+) -> Option<KnownHostRecord> {
+    store
+        .entries
+        .iter()
+        .find(|entry| {
+            profile_id
+                .map(|value| entry.profile_id.as_deref() == Some(value))
+                .unwrap_or_else(|| entry.profile_name == profile_name)
+                && entry.host == host
+                && entry.port == port
+        })
+        .cloned()
+}
+
 pub fn save_known_host_entry(entry: KnownHostRecord) -> Result<(), String> {
     let profile_id = entry.profile_id.as_deref();
     let mut store = load_known_host_store()?;
-    if let Some(existing) = store
-        .entries
-        .iter_mut()
-        .find(|existing| profile_id.is_some() && existing.profile_id.as_deref() == profile_id)
-    {
+    if let Some(existing) = store.entries.iter_mut().find(|existing| {
+        profile_id.is_some()
+            && existing.profile_id.as_deref() == profile_id
+            && existing.host == entry.host
+            && existing.port == entry.port
+    }) {
         *existing = entry;
-    } else if let Some(existing) = store
-        .entries
-        .iter_mut()
-        .find(|existing| existing.profile_name == entry.profile_name)
-    {
+    } else if let Some(existing) = store.entries.iter_mut().find(|existing| {
+        existing.profile_name == entry.profile_name
+            && existing.host == entry.host
+            && existing.port == entry.port
+    }) {
         *existing = entry;
     } else {
         store.entries.push(entry);
     }
     save_known_host_store(&store)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{find_known_host_entry, KnownHostRecord, KnownHostStore};
+
+    fn record(
+        profile_id: Option<&str>,
+        profile_name: &str,
+        host: &str,
+        port: u16,
+        fingerprint: &str,
+    ) -> KnownHostRecord {
+        KnownHostRecord {
+            profile_id: profile_id.map(str::to_string),
+            profile_name: profile_name.to_string(),
+            host: host.to_string(),
+            port,
+            algorithm: "ssh-ed25519".to_string(),
+            fingerprint: fingerprint.to_string(),
+            trusted_at: 1,
+        }
+    }
+
+    #[test]
+    fn known_host_lookup_includes_host_and_port_when_profile_id_matches() {
+        let store = KnownHostStore {
+            entries: vec![
+                record(Some("profile-1"), "prod", "example.com", 22, "first"),
+                record(Some("profile-1"), "prod", "example.net", 2222, "second"),
+            ],
+        };
+
+        let entry = find_known_host_entry(&store, "prod", Some("profile-1"), "example.net", 2222)
+            .expect("known host should match host and port");
+
+        assert_eq!(entry.fingerprint, "second");
+    }
+
+    #[test]
+    fn known_host_lookup_does_not_match_same_profile_different_host() {
+        let store = KnownHostStore {
+            entries: vec![record(
+                Some("profile-1"),
+                "prod",
+                "example.com",
+                22,
+                "fingerprint",
+            )],
+        };
+
+        assert!(
+            find_known_host_entry(&store, "prod", Some("profile-1"), "example.net", 22).is_none()
+        );
+    }
 }

@@ -63,7 +63,7 @@ impl client::Handler for JumpHostHandler {
         // Use a synthetic profile name to key known_hosts entries for jump hosts.
         let synthetic_name = format!("jump:{}:{}", self.host, self.port);
 
-        let known = match load_known_host(&synthetic_name, None) {
+        let known = match load_known_host(&synthetic_name, None, &self.host, self.port) {
             Ok(value) => value,
             Err(err) => {
                 let reason = format!("Failed to read jump host known_hosts store: {err}");
