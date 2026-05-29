@@ -34,7 +34,7 @@ pub async fn run_single_ssh_connection(
             return SshExitSignal {
                 terminated: true,
                 recoverable: false,
-                reason: None,
+                reason: Some("SSH host is required".to_string()),
             }
         }
     };
@@ -44,7 +44,7 @@ pub async fn run_single_ssh_connection(
             return SshExitSignal {
                 terminated: true,
                 recoverable: false,
-                reason: None,
+                reason: Some("SSH username is required".to_string()),
             }
         }
     };
