@@ -12,10 +12,8 @@ use crate::core::state::{HostPromptMap, SessionKind};
 use crate::sftp::internal::types::{
     CachedSftpConnection, ConnectedSftp, SftpConnectionKey, SftpConnectionPool,
 };
-use crate::ssh::{
-    open_target_ssh_session, JumpChain, SecretStoreState, SshClientHandler,
-};
 use crate::ssh::ConnectionStatusOptions;
+use crate::ssh::{open_target_ssh_session, JumpChain, SecretStoreState, SshClientHandler};
 
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(300);
 

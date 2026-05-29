@@ -14,9 +14,9 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::{ipc::Channel, Manager};
-use tauri_plugin_updater::UpdaterExt;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 use tauri_plugin_frame::FramePluginBuilder;
+use tauri_plugin_updater::UpdaterExt;
 use tokio::sync::RwLock;
 
 pub struct TokioRuntimeState {
@@ -39,9 +39,13 @@ pub struct AppUpdateMetadata {
 #[serde(tag = "event", content = "data")]
 pub enum AppUpdateDownloadEvent {
     #[serde(rename_all = "camelCase")]
-    Started { content_length: Option<u64> },
+    Started {
+        content_length: Option<u64>,
+    },
     #[serde(rename_all = "camelCase")]
-    Progress { chunk_length: usize },
+    Progress {
+        chunk_length: usize,
+    },
     Finished,
 }
 
@@ -74,12 +78,14 @@ async fn check_app_update(
     app: tauri::AppHandle,
     channel: String,
 ) -> Result<Option<AppUpdateMetadata>, String> {
-    Ok(find_app_update(&app, channel).await?.map(|update| AppUpdateMetadata {
-        version: update.version,
-        current_version: update.current_version,
-        body: update.body,
-        date: update.date.map(|date| date.to_string()),
-    }))
+    Ok(find_app_update(&app, channel)
+        .await?
+        .map(|update| AppUpdateMetadata {
+            version: update.version,
+            current_version: update.current_version,
+            body: update.body,
+            date: update.date.map(|date| date.to_string()),
+        }))
 }
 
 #[tauri::command]
@@ -138,7 +144,8 @@ async fn download_install_app_update(
     channel: String,
     on_event: Channel<AppUpdateDownloadEvent>,
 ) -> Result<bool, String> {
-    let downloaded = download_app_update(app.clone(), downloads.clone(), channel.clone(), on_event).await?;
+    let downloaded =
+        download_app_update(app.clone(), downloads.clone(), channel.clone(), on_event).await?;
     if !downloaded {
         return Ok(false);
     }

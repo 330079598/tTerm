@@ -169,4 +169,3 @@ pub fn load_config() -> Result<AppConfig, String> {
 pub fn save_config(config: AppConfig) -> Result<(), String> {
     save_config_file(&config)
 }
-

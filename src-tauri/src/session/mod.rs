@@ -138,7 +138,9 @@ mod tests {
         ]);
 
         let sanitized = sanitize_session_tabs(tabs);
-        let connection = sanitized[0]["connection"].as_object().expect("connection object");
+        let connection = sanitized[0]["connection"]
+            .as_object()
+            .expect("connection object");
         assert!(connection.get("jumpHost").is_none());
         let jump_hosts = connection
             .get("jumpHosts")

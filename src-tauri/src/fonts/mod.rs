@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[tauri::command]
 pub async fn list_fonts() -> Vec<String> {
@@ -91,7 +90,7 @@ fn get_windows_fonts() -> Result<HashSet<String>, Box<dyn std::error::Error>> {
         }
 
         let mut logfont: LOGFONTW = std::mem::zeroed();
-        logfont.lfCharSet = FONT_CHARSET(DEFAULT_CHARSET.0 as u8);
+        logfont.lfCharSet = FONT_CHARSET(DEFAULT_CHARSET.0);
 
         let fonts_ptr = &fonts as *const Mutex<HashSet<String>> as isize;
 
@@ -159,7 +158,7 @@ fn collect_fonts_from_dir(dir: &Path, names: &mut HashSet<String>) {
     }
 }
 
-fn parse_font_name(path: &PathBuf) -> Option<String> {
+fn parse_font_name(path: &Path) -> Option<String> {
     let data = fs::read(path).ok()?;
 
     // Handle TTC (TrueType Collection) files
@@ -202,7 +201,7 @@ fn get_font_family_name(face: &ttf_parser::Face) -> Option<String> {
     None
 }
 
-fn extract_font_name_from_filename(path: &PathBuf) -> Option<String> {
+fn extract_font_name_from_filename(path: &Path) -> Option<String> {
     let stem = path.file_stem()?.to_string_lossy().to_string();
     let suffixes = [
         "-Bold",

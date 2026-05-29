@@ -115,7 +115,7 @@ fn next_delete_batch_id() -> String {
 
 fn should_emit_delete_progress(progress: &DeleteProgress) -> bool {
     let total = progress.deleted_directories + progress.deleted_files + progress.failed;
-    total == 0 || total % 25 == 0
+    total == 0 || total.is_multiple_of(25)
 }
 
 fn add_delete_entry_stats(stats: &mut DeleteStats, is_dir: bool) {
