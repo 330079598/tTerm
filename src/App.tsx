@@ -1,5 +1,6 @@
 import "@/App.css"
 import { RouterProvider, createRouter } from "@tanstack/react-router"
+import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { Toaster } from "@/components/ui/toaster"
 
 // Import the generated route tree
@@ -18,7 +19,9 @@ declare module "@tanstack/react-router" {
 function App() {
   return (
     <>
-      <RouterProvider router={router} />
+      <ErrorBoundary scope="app">
+        <RouterProvider router={router} />
+      </ErrorBoundary>
       <Toaster />
     </>
   )

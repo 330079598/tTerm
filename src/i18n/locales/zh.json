@@ -5,6 +5,11 @@
     "version": "版本 {{version}}",
     "builtWith": "使用 Tauri + React 构建"
   },
+  "errors": {
+    "boundaryTitle": "出现错误",
+    "boundaryDescription": "此视图已崩溃。可以重试，无需重启应用。",
+    "retry": "重试"
+  },
   "welcome": {
     "title": "欢迎使用 TTerm",
     "description": "一个受 Tabby 启发的现代终端模拟器。点击 + 按钮创建新连接。",

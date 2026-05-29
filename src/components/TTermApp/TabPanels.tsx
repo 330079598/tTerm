@@ -1,5 +1,6 @@
 import React from "react"
 
+import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { SettingsPanel } from "@/components/SettingsDialog"
 import { TerminalTab } from "@/components/TerminalTab"
 import { Tab } from "@/types/tab"
@@ -48,21 +49,25 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
             }}
           >
             {tab.type === "settings" ? (
-              <SettingsPanel />
+              <ErrorBoundary resetKey={tab.id} scope="settings">
+                <SettingsPanel />
+              </ErrorBoundary>
             ) : (
               shouldConnect && (
-                <TerminalTab
-                  tabId={tab.id}
-                  sessionNonce={tab.sessionNonce}
-                  isActive={isActive}
-                  connectionHeaderPinned={tab.connectionHeaderPinned}
-                  connection={
-                    tab.connection ?? { type: tab.type === "terminal" ? "terminal" : "ssh" }
-                  }
-                  onReconnectRequest={() => handleReconnectTab(tab.id)}
-                  onPinConnectionHeader={() => handlePinConnectionHeader(tab.id)}
-                  onUnpinConnectionHeader={() => handleUnpinConnectionHeader(tab.id)}
-                />
+                <ErrorBoundary resetKey={`${tab.id}:${tab.sessionNonce ?? 0}`} scope="terminal-tab">
+                  <TerminalTab
+                    tabId={tab.id}
+                    sessionNonce={tab.sessionNonce}
+                    isActive={isActive}
+                    connectionHeaderPinned={tab.connectionHeaderPinned}
+                    connection={
+                      tab.connection ?? { type: tab.type === "terminal" ? "terminal" : "ssh" }
+                    }
+                    onReconnectRequest={() => handleReconnectTab(tab.id)}
+                    onPinConnectionHeader={() => handlePinConnectionHeader(tab.id)}
+                    onUnpinConnectionHeader={() => handleUnpinConnectionHeader(tab.id)}
+                  />
+                </ErrorBoundary>
               )
             )}
           </div>

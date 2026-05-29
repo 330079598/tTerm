@@ -5,6 +5,11 @@
     "version": "Version {{version}}",
     "builtWith": "Built with Tauri + React"
   },
+  "errors": {
+    "boundaryTitle": "Something went wrong",
+    "boundaryDescription": "This view crashed. You can retry without restarting the app.",
+    "retry": "Retry"
+  },
   "welcome": {
     "title": "Welcome to TTerm",
     "description": "A modern terminal emulator inspired by Tabby. Click the + button to create a new connection.",
