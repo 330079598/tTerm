@@ -30,7 +30,13 @@ pub fn spawn_reader_thread(
                     // need an additional batching layer here.
                     emit_pty_output(&app, &tab_id, std::mem::take(&mut pending_output));
                 }
-                Err(_) => break,
+                Err(err) => {
+                    let _ =
+                        exit_tx.send(super::super::core::state::SessionExitSignal::Recoverable(
+                            format!("PTY read failed: {err}"),
+                        ));
+                    return;
+                }
             }
         }
 
@@ -57,9 +63,7 @@ pub fn build_terminal_command(
     };
 
     #[cfg(not(target_os = "windows"))]
-    let mut cmd = {
-        CommandBuilder::new_default_prog()
-    };
+    let mut cmd = { CommandBuilder::new_default_prog() };
 
     #[cfg(target_os = "macos")]
     apply_macos_login_shell_env(&mut cmd);
@@ -67,7 +71,9 @@ pub fn build_terminal_command(
     let home = resolve_home_dir();
     cmd.env("TERM", "xterm-256color");
     cmd.env("HOME", &home);
-    cmd.env("LANG", "en_US.UTF-8");
+    if std::env::var_os("LANG").is_none() {
+        cmd.env("LANG", "en_US.UTF-8");
+    }
     cmd.cwd(&home);
     Ok(cmd)
 }
@@ -86,7 +92,9 @@ fn apply_macos_login_shell_env(cmd: &mut CommandBuilder) {
 #[cfg(target_os = "macos")]
 fn macos_login_shell_env() -> &'static [(String, String)] {
     static LOGIN_SHELL_ENV: OnceLock<Vec<(String, String)>> = OnceLock::new();
-    LOGIN_SHELL_ENV.get_or_init(load_macos_login_shell_env).as_slice()
+    LOGIN_SHELL_ENV
+        .get_or_init(load_macos_login_shell_env)
+        .as_slice()
 }
 
 #[cfg(target_os = "macos")]
@@ -252,7 +260,7 @@ fn resolve_home_dir() -> String {
             }
         }
 
-        return "C:\\".to_string();
+        "C:\\".to_string()
     }
 
     #[cfg(not(target_os = "windows"))]
