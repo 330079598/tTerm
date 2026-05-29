@@ -1,3 +1,4 @@
+use crate::sftp::internal::paths::parent_remote_path;
 use crate::sftp::internal::types::TransferCancelMap;
 use russh_sftp::client::SftpSession;
 use serde::Serialize;
@@ -327,10 +328,9 @@ async fn upload_single_file_with_progress(
         .insert(transfer_id.to_string(), cancel_tx);
 
     let result = async {
-        if let Some(parent) = Path::new(&plan_item.remote_path).parent() {
-            let parent_str = parent.to_string_lossy().to_string();
-            if !parent_str.is_empty() {
-                ensure_remote_dir_all(sftp, &parent_str, batch_cancel_rx.clone()).await?;
+        if let Some(parent) = parent_remote_path(&plan_item.remote_path) {
+            if !parent.is_empty() {
+                ensure_remote_dir_all(sftp, &parent, batch_cancel_rx.clone()).await?;
             }
         }
 
