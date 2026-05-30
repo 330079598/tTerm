@@ -390,7 +390,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
 
   const handleDownload = useCallback(async () => {
     const entry = contextMenuEntry ?? activeEntry
-    if (!entry || entry.isDir) {
+    if (!entry) {
       return
     }
 

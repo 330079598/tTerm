@@ -228,6 +228,7 @@ pub fn run() {
             sftp::internal::api::upload::commands::sftp_upload_paths,
             sftp::internal::api::upload::commands::sftp_cancel_upload,
             sftp::internal::api::base::sftp_download_file,
+            sftp::internal::api::base::sftp_download_directory,
             sftp::internal::api::base::get_file_size,
             ssh::secret_commands::get_secret_backend_status,
             ssh::secret_commands::unlock_secret_vault,

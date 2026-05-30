@@ -471,6 +471,7 @@
       "uploadFiles": "上传文件",
       "uploadFolder": "上传文件夹",
       "download": "下载文件",
+      "downloadFolder": "下载文件夹",
       "copyPath": "复制完整路径",
       "rename": "重命名",
       "delete": "删除",

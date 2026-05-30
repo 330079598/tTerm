@@ -197,7 +197,9 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
     const speed = transfer.speed ?? 0
     const duration = transfer.endTime ? transfer.endTime - transfer.startTime : 0
     const childTransfers = childTransfersByBatchId.get(transfer.id) ?? []
-    const canExpand = transfer.direction === "upload" && childTransfers.length > 0
+    const canExpand =
+      (transfer.direction === "upload" || transfer.direction === "download") &&
+      childTransfers.length > 0
     const isExpanded = expandedBatchIds.has(transfer.id)
     const completedChildren = childTransfers.filter((child) => child.status === "completed").length
     const failedChildren = childTransfers.filter((child) => child.status === "failed").length
