@@ -488,6 +488,7 @@
       "uploadFiles": "Upload Files",
       "uploadFolder": "Upload Folder",
       "download": "Download File",
+      "downloadFolder": "Download Folder",
       "copyPath": "Copy Full Path",
       "rename": "Rename",
       "delete": "Delete",

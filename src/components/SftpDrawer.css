@@ -287,7 +287,7 @@ body.sftp-no-select * {
     grid-template-columns: 28px minmax(150px, 2fr) minmax(120px, 1fr) minmax(80px, 0.8fr);
   }
 
-  .sftp-row span:last-child {
+  .sftp-row > .sftp-cell:last-child {
     display: none;
   }
 }

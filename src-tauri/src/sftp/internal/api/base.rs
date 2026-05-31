@@ -8,6 +8,7 @@ use crate::sftp::store;
 use crate::ssh::SecretStoreState;
 use russh_sftp::client::SftpSession;
 use serde::Serialize;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter, State};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
 use tokio::sync::watch;
@@ -177,8 +178,42 @@ struct DownloadProgressEvent {
     progress: u32,
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DownloadItemStartEvent {
+    transfer_id: String,
+    batch_id: String,
+    file_name: String,
+    file_size: u64,
+    local_path: String,
+    remote_path: String,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DownloadItemCompleteEvent {
+    transfer_id: String,
+    error: Option<String>,
+    local_path: String,
+    remote_path: String,
+    cancelled: bool,
+    success: bool,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DownloadBatchCompleteEvent {
+    batch_id: String,
+    cancelled: bool,
+    error: Option<String>,
+}
+
 fn is_cancelled(cancel_rx: &mut watch::Receiver<bool>) -> bool {
     *cancel_rx.borrow_and_update()
+}
+
+fn next_transfer_id() -> String {
+    uuid::Uuid::new_v4().to_string()
 }
 
 async fn download_file_with_progress(
@@ -293,6 +328,356 @@ async fn download_file_with_progress(
     result
 }
 
+struct DirectoryDownloadItem {
+    remote_path: String,
+    relative_path: PathBuf,
+    file_name: String,
+    size: u64,
+}
+
+struct DirectoryDownloadPlan {
+    directories: Vec<PathBuf>,
+    files: Vec<DirectoryDownloadItem>,
+    total_size: u64,
+}
+
+fn remote_basename(path: &str) -> Result<String, String> {
+    path.trim_end_matches('/')
+        .rsplit('/')
+        .next()
+        .filter(|name| !name.is_empty() && *name != "." && *name != "..")
+        .map(ToString::to_string)
+        .ok_or_else(|| format!("Failed to determine folder name for remote path '{path}'"))
+}
+
+fn push_local_path_component(path: &mut PathBuf, component: &str) -> Result<(), String> {
+    if component.is_empty()
+        || component == "."
+        || component == ".."
+        || component.contains('/')
+        || component.contains('\\')
+    {
+        return Err(format!("Unsupported remote path component '{component}'"));
+    }
+
+    path.push(component);
+    Ok(())
+}
+
+async fn collect_directory_download_plan(
+    sftp: &SftpSession,
+    remote_root: &str,
+    root_name: &str,
+) -> Result<DirectoryDownloadPlan, String> {
+    let mut directories = Vec::new();
+    let mut files = Vec::new();
+    let mut total_size = 0u64;
+    let mut stack = vec![(remote_root.to_string(), PathBuf::from(root_name))];
+
+    while let Some((remote_dir, relative_dir)) = stack.pop() {
+        directories.push(relative_dir.clone());
+
+        let entries = sftp.read_dir(&remote_dir).await.map_err(map_sftp_error)?;
+        for entry in entries {
+            let name = entry.file_name();
+            let metadata = entry.metadata();
+            let remote_path = crate::sftp::internal::paths::join_remote_path(&remote_dir, &name);
+            let mut relative_path = relative_dir.clone();
+            push_local_path_component(&mut relative_path, &name)?;
+
+            if metadata.is_dir() {
+                stack.push((remote_path, relative_path));
+            } else {
+                let size = metadata.size.unwrap_or(0);
+                total_size = total_size.saturating_add(size);
+                files.push(DirectoryDownloadItem {
+                    remote_path,
+                    relative_path,
+                    file_name: name,
+                    size,
+                });
+            }
+        }
+    }
+
+    Ok(DirectoryDownloadPlan {
+        directories,
+        files,
+        total_size,
+    })
+}
+
+async fn download_file_into_directory(
+    app: &AppHandle,
+    tab_id: &str,
+    sftp: &SftpSession,
+    cancel_rx: &mut watch::Receiver<bool>,
+    batch_transfer_id: &str,
+    item_transfer_id: &str,
+    item: &DirectoryDownloadItem,
+    local_path: &Path,
+    total_size: u64,
+    aggregate_transferred: &mut u64,
+) -> Result<(), String> {
+    const CHUNK_SIZE: usize = 1024 * 1024;
+    const PROGRESS_UPDATE_BYTES: u64 = 2 * 1024 * 1024;
+
+    let mut remote_file = sftp.open(&item.remote_path).await.map_err(map_sftp_error)?;
+    let local_file = tokio::fs::File::create(local_path).await.map_err(|err| {
+        format!(
+            "Failed to create local file '{}': {err}",
+            local_path.display()
+        )
+    })?;
+    let mut local_file = BufWriter::new(local_file);
+    let mut buffer = vec![0u8; CHUNK_SIZE];
+    let mut last_progress_update = *aggregate_transferred;
+    let mut item_transferred = 0u64;
+    let mut last_item_progress_update = 0u64;
+
+    loop {
+        if is_cancelled(cancel_rx) {
+            return Err("Download cancelled by user".to_string());
+        }
+
+        let bytes_read = remote_file.read(&mut buffer).await.map_err(|err| {
+            format!("Failed to read remote file '{}': {err}", item.remote_path)
+        })?;
+
+        if bytes_read == 0 {
+            break;
+        }
+
+        if is_cancelled(cancel_rx) {
+            return Err("Download cancelled by user".to_string());
+        }
+
+        local_file.write_all(&buffer[..bytes_read]).await.map_err(|err| {
+            format!("Failed to write local file '{}': {err}", local_path.display())
+        })?;
+
+        *aggregate_transferred = aggregate_transferred.saturating_add(bytes_read as u64);
+        item_transferred = item_transferred.saturating_add(bytes_read as u64);
+
+        if item_transferred - last_item_progress_update >= PROGRESS_UPDATE_BYTES
+            || item_transferred == item.size
+        {
+            last_item_progress_update = item_transferred;
+            let progress = if item.size > 0 {
+                ((item_transferred as f64 / item.size as f64) * 100.0).min(100.0) as u32
+            } else {
+                100
+            };
+
+            let _ = app.emit(
+                &format!("sftp-download-progress-{}", tab_id),
+                DownloadProgressEvent {
+                    transfer_id: item_transfer_id.to_string(),
+                    local_path: local_path.display().to_string(),
+                    remote_path: item.remote_path.clone(),
+                    transferred: item_transferred,
+                    total: item.size,
+                    progress,
+                },
+            );
+        }
+
+        if *aggregate_transferred - last_progress_update >= PROGRESS_UPDATE_BYTES
+            || (total_size > 0 && *aggregate_transferred == total_size)
+        {
+            last_progress_update = *aggregate_transferred;
+            let progress = if total_size > 0 {
+                ((*aggregate_transferred as f64 / total_size as f64) * 100.0).min(100.0) as u32
+            } else {
+                0
+            };
+
+            let _ = app.emit(
+                &format!("sftp-download-progress-{}", tab_id),
+                DownloadProgressEvent {
+                    transfer_id: batch_transfer_id.to_string(),
+                    local_path: local_path.display().to_string(),
+                    remote_path: item.remote_path.clone(),
+                    transferred: *aggregate_transferred,
+                    total: total_size,
+                    progress,
+                },
+            );
+        }
+    }
+
+    local_file
+        .flush()
+        .await
+        .map_err(|err| format!("Failed to flush local file '{}': {err}", local_path.display()))?;
+
+    if item.size == 0 {
+        let _ = app.emit(
+            &format!("sftp-download-progress-{}", tab_id),
+            DownloadProgressEvent {
+                transfer_id: item_transfer_id.to_string(),
+                local_path: local_path.display().to_string(),
+                remote_path: item.remote_path.clone(),
+                transferred: 0,
+                total: 0,
+                progress: 100,
+            },
+        );
+    }
+
+    Ok(())
+}
+
+async fn download_directory_with_progress(
+    app: &AppHandle,
+    tab_id: &str,
+    sftp: &SftpSession,
+    cancel_map: &TransferCancelMap,
+    transfer_id: &str,
+    remote_path: &str,
+    local_parent_path: &str,
+) -> Result<(), String> {
+    let (cancel_tx, mut cancel_rx) = watch::channel(false);
+    cancel_map
+        .write()
+        .await
+        .insert(transfer_id.to_string(), cancel_tx);
+
+    let result = async {
+        let root_name = remote_basename(remote_path)?;
+        let plan = collect_directory_download_plan(sftp, remote_path, &root_name).await?;
+        let local_parent = PathBuf::from(local_parent_path);
+
+        for directory in &plan.directories {
+            if is_cancelled(&mut cancel_rx) {
+                return Err("Download cancelled by user".to_string());
+            }
+
+            let local_dir = local_parent.join(directory);
+            tokio::fs::create_dir_all(&local_dir).await.map_err(|err| {
+                format!(
+                    "Failed to create local directory '{}': {err}",
+                    local_dir.display()
+                )
+            })?;
+        }
+
+        let mut aggregate_transferred = 0u64;
+        for item in &plan.files {
+            if is_cancelled(&mut cancel_rx) {
+                return Err("Download cancelled by user".to_string());
+            }
+
+            let local_path = local_parent.join(&item.relative_path);
+            if let Some(parent) = local_path.parent() {
+                tokio::fs::create_dir_all(parent).await.map_err(|err| {
+                    format!(
+                        "Failed to create local directory '{}': {err}",
+                        parent.display()
+                    )
+                })?;
+            }
+
+            let item_transfer_id = next_transfer_id();
+            let local_path_string = local_path.display().to_string();
+            let _ = app.emit(
+                &format!("sftp-download-item-start-{}", tab_id),
+                DownloadItemStartEvent {
+                    transfer_id: item_transfer_id.clone(),
+                    batch_id: transfer_id.to_string(),
+                    file_name: item.file_name.clone(),
+                    file_size: item.size,
+                    local_path: local_path_string.clone(),
+                    remote_path: item.remote_path.clone(),
+                },
+            );
+
+            let item_result = download_file_into_directory(
+                app,
+                tab_id,
+                sftp,
+                &mut cancel_rx,
+                transfer_id,
+                &item_transfer_id,
+                item,
+                &local_path,
+                plan.total_size,
+                &mut aggregate_transferred,
+            )
+            .await;
+
+            match item_result {
+                Ok(()) => {
+                    let _ = app.emit(
+                        &format!("sftp-download-item-complete-{}", tab_id),
+                        DownloadItemCompleteEvent {
+                            transfer_id: item_transfer_id,
+                            error: None,
+                            local_path: local_path_string,
+                            remote_path: item.remote_path.clone(),
+                            cancelled: false,
+                            success: true,
+                        },
+                    );
+                }
+                Err(error) => {
+                    let cancelled = error.contains("cancelled");
+                    let _ = app.emit(
+                        &format!("sftp-download-item-complete-{}", tab_id),
+                        DownloadItemCompleteEvent {
+                            transfer_id: item_transfer_id,
+                            error: if cancelled { None } else { Some(error.clone()) },
+                            local_path: local_path_string,
+                            remote_path: item.remote_path.clone(),
+                            cancelled,
+                            success: false,
+                        },
+                    );
+                    return Err(error);
+                }
+            }
+        }
+
+        let root_local_path = local_parent.join(&root_name);
+        let _ = app.emit(
+            &format!("sftp-download-progress-{}", tab_id),
+            DownloadProgressEvent {
+                transfer_id: transfer_id.to_string(),
+                local_path: root_local_path.display().to_string(),
+                remote_path: remote_path.to_string(),
+                transferred: aggregate_transferred,
+                total: plan.total_size,
+                progress: 100,
+            },
+        );
+
+        Ok(())
+    }
+    .await;
+
+    let _ = app.emit(
+        &format!("sftp-download-batch-complete-{}", tab_id),
+        DownloadBatchCompleteEvent {
+            batch_id: transfer_id.to_string(),
+            cancelled: result
+                .as_ref()
+                .err()
+                .map(|error| error.contains("cancelled"))
+                .unwrap_or(false),
+            error: result.as_ref().err().and_then(|error| {
+                if error.contains("cancelled") {
+                    None
+                } else {
+                    Some(error.clone())
+                }
+            }),
+        },
+    );
+
+    cancel_map.write().await.remove(transfer_id);
+    result
+}
+
 #[tauri::command]
 pub async fn sftp_download_file(
     app: AppHandle,
@@ -317,6 +702,35 @@ pub async fn sftp_download_file(
             &transfer_id,
             &remote_path,
             &local_path,
+        )
+        .await
+    })
+}
+
+#[tauri::command]
+pub async fn sftp_download_directory(
+    app: AppHandle,
+    tab_id: String,
+    connection: Option<PtyConnectionOptions>,
+    transfer_id: String,
+    remote_path: String,
+    local_parent_path: String,
+    prompt_state: State<'_, HostPromptMap>,
+    secret_state: State<'_, SecretStoreState>,
+    pool_state: State<'_, SftpConnectionPool>,
+    cancel_map: State<'_, TransferCancelMap>,
+) -> Result<(), String> {
+    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+
+    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
+        download_directory_with_progress(
+            &app,
+            &tab_id,
+            sftp,
+            cancel_map.inner(),
+            &transfer_id,
+            &remote_path,
+            &local_parent_path,
         )
         .await
     })
