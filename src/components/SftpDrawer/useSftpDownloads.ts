@@ -51,6 +51,8 @@ interface DownloadBatchCompleteEvent {
   batchId: string
   cancelled: boolean
   error?: string
+  total: number
+  transferred: number
 }
 
 interface UseSftpDownloadsReturn {
@@ -174,8 +176,12 @@ export function useSftpDownloads({
         appWindow.listen<DownloadBatchCompleteEvent>(
           `sftp-download-batch-complete-${tabId}`,
           (event) => {
-            const { batchId, cancelled } = event.payload
+            const { batchId, cancelled, error, total, transferred } = event.payload
             const childTransferIds = batchTransferIdsRef.current.get(batchId) ?? new Set<string>()
+            const now = Date.now()
+            const startTime = transferStartTimesRef.current.get(batchId) || now
+            const duration = now - startTime
+            const speed = duration > 0 ? (transferred / duration) * 1000 : 0
 
             for (const transferId of childTransferIds) {
               lastProgressUpdateRef.current.delete(transferId)
@@ -184,7 +190,7 @@ export function useSftpDownloads({
               const transfer = transfersRef.current.find((item) => item.id === transferId)
               if (cancelled && transfer?.status === "transferring") {
                 updateTransfer(transferId, {
-                  endTime: Date.now(),
+                  endTime: now,
                   error: undefined,
                   status: "cancelled",
                 })
@@ -192,6 +198,35 @@ export function useSftpDownloads({
             }
 
             batchTransferIdsRef.current.delete(batchId)
+            lastProgressUpdateRef.current.delete(batchId)
+            transferStartTimesRef.current.delete(batchId)
+
+            if (cancelled) {
+              updateTransfer(batchId, {
+                endTime: now,
+                error: undefined,
+                status: "cancelled",
+              })
+              return
+            }
+
+            if (error) {
+              updateTransfer(batchId, {
+                endTime: now,
+                error,
+                status: "failed",
+              })
+              return
+            }
+
+            updateTransfer(batchId, {
+              endTime: now,
+              error: undefined,
+              fileSize: total,
+              speed,
+              status: "completed",
+              transferred,
+            })
           }
         ),
       ])
@@ -240,7 +275,6 @@ export function useSftpDownloads({
         updateTransfer(transferId, { status: "transferring" })
 
         try {
-          const startTime = Date.now()
           await invoke("sftp_download_directory", {
             tabId,
             connection,
@@ -248,25 +282,8 @@ export function useSftpDownloads({
             remotePath: entry.path,
             localParentPath: targetPath,
           })
-
-          const duration = Date.now() - startTime
-          const currentTransfer = transfersRef.current.find((item) => item.id === transferId)
-          const completedSize = currentTransfer?.fileSize || currentTransfer?.transferred || 0
-          const speed = duration > 0 ? (completedSize / duration) * 1000 : 0
           lastProgressUpdateRef.current.delete(transferId)
           transferStartTimesRef.current.delete(transferId)
-
-          if (currentTransfer?.status === "cancelled") {
-            return
-          }
-
-          updateTransfer(transferId, {
-            status: "completed",
-            transferred: completedSize,
-            fileSize: completedSize,
-            endTime: Date.now(),
-            speed,
-          })
         } catch (invokeError) {
           const error = String(invokeError)
           const cancelled = error.toLowerCase().includes("cancelled")

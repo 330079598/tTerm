@@ -206,6 +206,8 @@ struct DownloadBatchCompleteEvent {
     batch_id: String,
     cancelled: bool,
     error: Option<String>,
+    transferred: u64,
+    total: u64,
 }
 
 fn is_cancelled(cancel_rx: &mut watch::Receiver<bool>) -> bool {
@@ -543,9 +545,13 @@ async fn download_directory_with_progress(
         .await
         .insert(transfer_id.to_string(), cancel_tx);
 
+    let mut final_transferred = 0u64;
+    let mut final_total = 0u64;
+
     let result = async {
         let root_name = remote_basename(remote_path)?;
         let plan = collect_directory_download_plan(sftp, remote_path, &root_name).await?;
+        final_total = plan.total_size;
         let local_parent = PathBuf::from(local_parent_path);
 
         for directory in &plan.directories {
@@ -637,6 +643,7 @@ async fn download_directory_with_progress(
                 }
             }
         }
+        final_transferred = aggregate_transferred;
 
         let root_local_path = local_parent.join(&root_name);
         let _ = app.emit(
@@ -671,6 +678,8 @@ async fn download_directory_with_progress(
                     Some(error.clone())
                 }
             }),
+            transferred: final_transferred,
+            total: final_total,
         },
     );
 
