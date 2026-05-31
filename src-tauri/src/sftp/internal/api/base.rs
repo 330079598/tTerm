@@ -178,8 +178,42 @@ struct DownloadProgressEvent {
     progress: u32,
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DownloadItemStartEvent {
+    transfer_id: String,
+    batch_id: String,
+    file_name: String,
+    file_size: u64,
+    local_path: String,
+    remote_path: String,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DownloadItemCompleteEvent {
+    transfer_id: String,
+    error: Option<String>,
+    local_path: String,
+    remote_path: String,
+    cancelled: bool,
+    success: bool,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DownloadBatchCompleteEvent {
+    batch_id: String,
+    cancelled: bool,
+    error: Option<String>,
+}
+
 fn is_cancelled(cancel_rx: &mut watch::Receiver<bool>) -> bool {
     *cancel_rx.borrow_and_update()
+}
+
+fn next_transfer_id() -> String {
+    uuid::Uuid::new_v4().to_string()
 }
 
 async fn download_file_with_progress(
@@ -297,6 +331,7 @@ async fn download_file_with_progress(
 struct DirectoryDownloadItem {
     remote_path: String,
     relative_path: PathBuf,
+    file_name: String,
     size: u64,
 }
 
@@ -358,6 +393,7 @@ async fn collect_directory_download_plan(
                 files.push(DirectoryDownloadItem {
                     remote_path,
                     relative_path,
+                    file_name: name,
                     size,
                 });
             }
@@ -376,7 +412,8 @@ async fn download_file_into_directory(
     tab_id: &str,
     sftp: &SftpSession,
     cancel_rx: &mut watch::Receiver<bool>,
-    transfer_id: &str,
+    batch_transfer_id: &str,
+    item_transfer_id: &str,
     item: &DirectoryDownloadItem,
     local_path: &Path,
     total_size: u64,
@@ -395,6 +432,8 @@ async fn download_file_into_directory(
     let mut local_file = BufWriter::new(local_file);
     let mut buffer = vec![0u8; CHUNK_SIZE];
     let mut last_progress_update = *aggregate_transferred;
+    let mut item_transferred = 0u64;
+    let mut last_item_progress_update = 0u64;
 
     loop {
         if is_cancelled(cancel_rx) {
@@ -418,6 +457,30 @@ async fn download_file_into_directory(
         })?;
 
         *aggregate_transferred = aggregate_transferred.saturating_add(bytes_read as u64);
+        item_transferred = item_transferred.saturating_add(bytes_read as u64);
+
+        if item_transferred - last_item_progress_update >= PROGRESS_UPDATE_BYTES
+            || item_transferred == item.size
+        {
+            last_item_progress_update = item_transferred;
+            let progress = if item.size > 0 {
+                ((item_transferred as f64 / item.size as f64) * 100.0).min(100.0) as u32
+            } else {
+                100
+            };
+
+            let _ = app.emit(
+                &format!("sftp-download-progress-{}", tab_id),
+                DownloadProgressEvent {
+                    transfer_id: item_transfer_id.to_string(),
+                    local_path: local_path.display().to_string(),
+                    remote_path: item.remote_path.clone(),
+                    transferred: item_transferred,
+                    total: item.size,
+                    progress,
+                },
+            );
+        }
 
         if *aggregate_transferred - last_progress_update >= PROGRESS_UPDATE_BYTES
             || (total_size > 0 && *aggregate_transferred == total_size)
@@ -432,7 +495,7 @@ async fn download_file_into_directory(
             let _ = app.emit(
                 &format!("sftp-download-progress-{}", tab_id),
                 DownloadProgressEvent {
-                    transfer_id: transfer_id.to_string(),
+                    transfer_id: batch_transfer_id.to_string(),
                     local_path: local_path.display().to_string(),
                     remote_path: item.remote_path.clone(),
                     transferred: *aggregate_transferred,
@@ -447,6 +510,20 @@ async fn download_file_into_directory(
         .flush()
         .await
         .map_err(|err| format!("Failed to flush local file '{}': {err}", local_path.display()))?;
+
+    if item.size == 0 {
+        let _ = app.emit(
+            &format!("sftp-download-progress-{}", tab_id),
+            DownloadProgressEvent {
+                transfer_id: item_transfer_id.to_string(),
+                local_path: local_path.display().to_string(),
+                remote_path: item.remote_path.clone(),
+                transferred: 0,
+                total: 0,
+                progress: 100,
+            },
+        );
+    }
 
     Ok(())
 }
@@ -501,31 +578,63 @@ async fn download_directory_with_progress(
                 })?;
             }
 
-            download_file_into_directory(
+            let item_transfer_id = next_transfer_id();
+            let local_path_string = local_path.display().to_string();
+            let _ = app.emit(
+                &format!("sftp-download-item-start-{}", tab_id),
+                DownloadItemStartEvent {
+                    transfer_id: item_transfer_id.clone(),
+                    batch_id: transfer_id.to_string(),
+                    file_name: item.file_name.clone(),
+                    file_size: item.size,
+                    local_path: local_path_string.clone(),
+                    remote_path: item.remote_path.clone(),
+                },
+            );
+
+            let item_result = download_file_into_directory(
                 app,
                 tab_id,
                 sftp,
                 &mut cancel_rx,
                 transfer_id,
+                &item_transfer_id,
                 item,
                 &local_path,
                 plan.total_size,
                 &mut aggregate_transferred,
             )
-            .await?;
+            .await;
 
-            if item.size == 0 {
-                let _ = app.emit(
-                    &format!("sftp-download-progress-{}", tab_id),
-                    DownloadProgressEvent {
-                        transfer_id: transfer_id.to_string(),
-                        local_path: local_path.display().to_string(),
-                        remote_path: item.remote_path.clone(),
-                        transferred: aggregate_transferred,
-                        total: plan.total_size,
-                        progress: if plan.total_size == 0 { 100 } else { 0 },
-                    },
-                );
+            match item_result {
+                Ok(()) => {
+                    let _ = app.emit(
+                        &format!("sftp-download-item-complete-{}", tab_id),
+                        DownloadItemCompleteEvent {
+                            transfer_id: item_transfer_id,
+                            error: None,
+                            local_path: local_path_string,
+                            remote_path: item.remote_path.clone(),
+                            cancelled: false,
+                            success: true,
+                        },
+                    );
+                }
+                Err(error) => {
+                    let cancelled = error.contains("cancelled");
+                    let _ = app.emit(
+                        &format!("sftp-download-item-complete-{}", tab_id),
+                        DownloadItemCompleteEvent {
+                            transfer_id: item_transfer_id,
+                            error: if cancelled { None } else { Some(error.clone()) },
+                            local_path: local_path_string,
+                            remote_path: item.remote_path.clone(),
+                            cancelled,
+                            success: false,
+                        },
+                    );
+                    return Err(error);
+                }
             }
         }
 
@@ -545,6 +654,25 @@ async fn download_directory_with_progress(
         Ok(())
     }
     .await;
+
+    let _ = app.emit(
+        &format!("sftp-download-batch-complete-{}", tab_id),
+        DownloadBatchCompleteEvent {
+            batch_id: transfer_id.to_string(),
+            cancelled: result
+                .as_ref()
+                .err()
+                .map(|error| error.contains("cancelled"))
+                .unwrap_or(false),
+            error: result.as_ref().err().and_then(|error| {
+                if error.contains("cancelled") {
+                    None
+                } else {
+                    Some(error.clone())
+                }
+            }),
+        },
+    );
 
     cancel_map.write().await.remove(transfer_id);
     result
