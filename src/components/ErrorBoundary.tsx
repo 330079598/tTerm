@@ -42,13 +42,13 @@ class ErrorBoundaryInner extends React.Component<
     }
 
     return (
-      <div className="flex h-full w-full items-center justify-center bg-background p-6 text-foreground">
-        <div className="max-w-md space-y-3 rounded-md border border-border bg-card p-4 text-card-foreground shadow-sm">
+      <div className="bg-background text-foreground flex h-full w-full items-center justify-center p-6">
+        <div className="border-border bg-card text-card-foreground max-w-md space-y-3 rounded-md border p-4 shadow-sm">
           <div className="space-y-1">
             <h2 className="text-sm font-semibold">{this.props.title}</h2>
-            <p className="text-sm text-muted-foreground">{this.props.description}</p>
+            <p className="text-muted-foreground text-sm">{this.props.description}</p>
           </div>
-          <pre className="max-h-28 overflow-auto rounded bg-muted p-2 text-xs text-muted-foreground">
+          <pre className="bg-muted text-muted-foreground max-h-28 overflow-auto rounded p-2 text-xs">
             {this.state.error.message}
           </pre>
           <Button size="sm" onClick={() => this.setState({ error: null })}>
