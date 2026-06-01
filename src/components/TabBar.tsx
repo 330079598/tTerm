@@ -1,5 +1,6 @@
 import "@/components/TabBar.css"
 import React, { useCallback, useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { useTranslation } from "react-i18next"
 import { DragDropProvider, useDraggable, useDroppable } from "@dnd-kit/react"
 import { ChevronDown, Search, Settings, X } from "lucide-react"
@@ -7,6 +8,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Tab, TabContextMenuAction } from "@/types/tab"
 
 const TAB_OVERFLOW_THRESHOLD = 16
+const OVERFLOW_PANEL_MAX_WIDTH = 320
+const OVERFLOW_PANEL_VIEWPORT_RATIO = 0.7
+const OVERFLOW_PANEL_MARGIN = 8
+
+type OverflowPanelStyle = React.CSSProperties & {
+  "--tab-overflow-panel-max-height"?: string
+}
 
 interface TabBarProps {
   tabs: Tab[]
@@ -148,10 +156,13 @@ export const TabBar: React.FC<TabBarProps> = ({
   const activeTabRef = useRef<HTMLDivElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const overflowMenuRef = useRef<HTMLDivElement | null>(null)
+  const overflowTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const overflowPanelRef = useRef<HTMLDivElement | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const [scrollState, setScrollState] = useState({ canScrollLeft: false, canScrollRight: false })
   const [isOverflowMenuOpen, setIsOverflowMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [overflowPanelStyle, setOverflowPanelStyle] = useState<OverflowPanelStyle | null>(null)
 
   const updateScrollState = useCallback(() => {
     const list = listRef.current
@@ -203,6 +214,42 @@ export const TabBar: React.FC<TabBarProps> = ({
     }
   }, [updateScrollState])
 
+  const updateOverflowPanelPosition = useCallback(() => {
+    const trigger = overflowTriggerRef.current
+    if (!trigger) {
+      return
+    }
+
+    const triggerRect = trigger.getBoundingClientRect()
+    const viewportMargin = Math.min(OVERFLOW_PANEL_MARGIN, window.innerWidth / 2)
+    const availableWidth = Math.max(0, window.innerWidth - viewportMargin * 2)
+    const panelWidth = Math.min(
+      OVERFLOW_PANEL_MAX_WIDTH,
+      window.innerWidth * OVERFLOW_PANEL_VIEWPORT_RATIO,
+      availableWidth
+    )
+    const left = Math.min(
+      Math.max(viewportMargin, triggerRect.right - panelWidth),
+      window.innerWidth - panelWidth - viewportMargin
+    )
+    const top = triggerRect.bottom + 4
+    const maxHeight = Math.max(120, Math.min(420, window.innerHeight - top - viewportMargin))
+
+    setOverflowPanelStyle({
+      left,
+      top,
+      width: panelWidth,
+      maxHeight,
+      "--tab-overflow-panel-max-height": `${maxHeight}px`,
+    })
+  }, [])
+
+  const closeOverflowMenu = useCallback(() => {
+    setIsOverflowMenuOpen(false)
+    setSearchQuery("")
+    setOverflowPanelStyle(null)
+  }, [])
+
   useEffect(() => {
     if (!isOverflowMenuOpen) {
       return
@@ -211,16 +258,18 @@ export const TabBar: React.FC<TabBarProps> = ({
     searchInputRef.current?.focus()
 
     const handlePointerDown = (event: MouseEvent) => {
-      if (!overflowMenuRef.current?.contains(event.target as Node)) {
-        setIsOverflowMenuOpen(false)
-        setSearchQuery("")
+      const target = event.target as Node
+      if (
+        !overflowMenuRef.current?.contains(target) &&
+        !overflowPanelRef.current?.contains(target)
+      ) {
+        closeOverflowMenu()
       }
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setIsOverflowMenuOpen(false)
-        setSearchQuery("")
+        closeOverflowMenu()
       }
     }
 
@@ -231,7 +280,21 @@ export const TabBar: React.FC<TabBarProps> = ({
       document.removeEventListener("mousedown", handlePointerDown)
       document.removeEventListener("keydown", handleKeyDown)
     }
-  }, [isOverflowMenuOpen])
+  }, [closeOverflowMenu, isOverflowMenuOpen])
+
+  useEffect(() => {
+    if (!isOverflowMenuOpen) {
+      return
+    }
+
+    window.addEventListener("resize", updateOverflowPanelPosition)
+    window.addEventListener("scroll", updateOverflowPanelPosition, true)
+
+    return () => {
+      window.removeEventListener("resize", updateOverflowPanelPosition)
+      window.removeEventListener("scroll", updateOverflowPanelPosition, true)
+    }
+  }, [isOverflowMenuOpen, updateOverflowPanelPosition])
 
   const handleDragEnd = useCallback(
     (
@@ -259,10 +322,9 @@ export const TabBar: React.FC<TabBarProps> = ({
   const handleSelectTab = useCallback(
     (id: string) => {
       onTabClick(id)
-      setIsOverflowMenuOpen(false)
-      setSearchQuery("")
+      closeOverflowMenu()
     },
-    [onTabClick]
+    [closeOverflowMenu, onTabClick]
   )
 
   const hasOverflow = scrollState.canScrollLeft || scrollState.canScrollRight
@@ -323,74 +385,86 @@ export const TabBar: React.FC<TabBarProps> = ({
       {hasOverflow && (
         <div ref={overflowMenuRef} className="tab-overflow-menu">
           <button
+            ref={overflowTriggerRef}
             type="button"
             className="tab-action tab-overflow-trigger"
             aria-expanded={isOverflowMenuOpen}
             aria-label="Show all tabs"
             onClick={() => {
-              setIsOverflowMenuOpen((isOpen) => !isOpen)
               if (isOverflowMenuOpen) {
-                setSearchQuery("")
+                closeOverflowMenu()
+                return
               }
+
+              updateOverflowPanelPosition()
+              setIsOverflowMenuOpen(true)
             }}
           >
             <ChevronDown size={15} />
           </button>
 
-          {isOverflowMenuOpen && (
-            <div className="tab-overflow-panel" role="dialog" aria-label="Search tabs">
-              <div className="tab-search-box">
-                <Search size={14} />
-                <input
-                  ref={searchInputRef}
-                  className="tab-search-input"
-                  value={searchQuery}
-                  placeholder="Search tabs"
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  onKeyDown={handleSearchKeyDown}
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    className="tab-search-clear"
-                    aria-label="Clear search"
-                    onClick={() => {
-                      setSearchQuery("")
-                      searchInputRef.current?.focus()
-                    }}
-                  >
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
-
-              <div className="tab-overflow-results">
-                {filteredTabs.map((tab) => {
-                  const tabIndex = tabs.findIndex((currentTab) => currentTab.id === tab.id)
-
-                  return (
+          {isOverflowMenuOpen &&
+            createPortal(
+              <div
+                ref={overflowPanelRef}
+                className="tab-overflow-panel"
+                role="dialog"
+                aria-label="Search tabs"
+                style={overflowPanelStyle ?? undefined}
+              >
+                <div className="tab-search-box">
+                  <Search size={14} />
+                  <input
+                    ref={searchInputRef}
+                    className="tab-search-input"
+                    value={searchQuery}
+                    placeholder="Search tabs"
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    onKeyDown={handleSearchKeyDown}
+                  />
+                  {searchQuery && (
                     <button
-                      key={tab.id}
                       type="button"
-                      className={`tab-overflow-item ${tab.id === activeTabId ? "active" : ""}`}
-                      onClick={() => handleSelectTab(tab.id)}
+                      className="tab-search-clear"
+                      aria-label="Clear search"
+                      onClick={() => {
+                        setSearchQuery("")
+                        searchInputRef.current?.focus()
+                      }}
                     >
-                      <span className="tab-overflow-number">{tabIndex + 1}</span>
-                      {tab.type === "settings" && <Settings className="tab-icon" size={13} />}
-                      <span className="tab-overflow-title">{tab.title}</span>
-                      {tab.connection?.host && (
-                        <span className="tab-overflow-host">{tab.connection.host}</span>
-                      )}
+                      <X size={13} />
                     </button>
-                  )
-                })}
+                  )}
+                </div>
 
-                {filteredTabs.length === 0 && (
-                  <div className="tab-overflow-empty">No matching tabs</div>
-                )}
-              </div>
-            </div>
-          )}
+                <div className="tab-overflow-results">
+                  {filteredTabs.map((tab) => {
+                    const tabIndex = tabs.findIndex((currentTab) => currentTab.id === tab.id)
+
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        className={`tab-overflow-item ${tab.id === activeTabId ? "active" : ""}`}
+                        onClick={() => handleSelectTab(tab.id)}
+                      >
+                        <span className="tab-overflow-number">{tabIndex + 1}</span>
+                        {tab.type === "settings" && <Settings className="tab-icon" size={13} />}
+                        <span className="tab-overflow-title">{tab.title}</span>
+                        {tab.connection?.host && (
+                          <span className="tab-overflow-host">{tab.connection.host}</span>
+                        )}
+                      </button>
+                    )
+                  })}
+
+                  {filteredTabs.length === 0 && (
+                    <div className="tab-overflow-empty">No matching tabs</div>
+                  )}
+                </div>
+              </div>,
+              document.body
+            )}
         </div>
       )}
     </div>
