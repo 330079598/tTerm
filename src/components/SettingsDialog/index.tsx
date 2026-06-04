@@ -5,7 +5,6 @@ import { openUrl } from "@tauri-apps/plugin-opener"
 import { Settings } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { ThemeEditor } from "@/components/ThemeEditor"
 import { useConfirmDialog, useInfoDialog, usePromptDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
@@ -27,6 +26,12 @@ import {
   SettingsPanelProps,
 } from "@/components/SettingsDialog/types"
 import type { UpdateChannel, UpdateCheckFrequency } from "@/lib/updater"
+
+const ThemeEditor = React.lazy(() =>
+  import("@/components/ThemeEditor").then((module) => ({
+    default: module.ThemeEditor,
+  }))
+)
 
 const SECRET_STATUS_CACHE_MS = 30_000
 const FONT_LOAD_TIMEOUT_MS = 5_000
@@ -590,11 +595,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       </div>
 
       {editingThemeId && (
-        <ThemeEditor themeId={editingThemeId} onClose={() => setEditingThemeId(null)} />
+        <React.Suspense fallback={null}>
+          <ThemeEditor themeId={editingThemeId} onClose={() => setEditingThemeId(null)} />
+        </React.Suspense>
       )}
 
       {creatingFromTheme && (
-        <ThemeEditor baseThemeId={creatingFromTheme} onClose={() => setCreatingFromTheme(null)} />
+        <React.Suspense fallback={null}>
+          <ThemeEditor baseThemeId={creatingFromTheme} onClose={() => setCreatingFromTheme(null)} />
+        </React.Suspense>
       )}
       <ConfirmDialog />
       <PromptDialog />

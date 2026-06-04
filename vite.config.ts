@@ -47,10 +47,6 @@ function materialIconsPlugin(): PluginOption {
 
 function manualChunks(id: string) {
   if (id.includes("node_modules")) {
-    if (id.includes("react") || id.includes("scheduler")) {
-      return "react-vendor";
-    }
-
     if (id.includes("@tanstack/react-router")) {
       return "router";
     }
@@ -59,8 +55,35 @@ function manualChunks(id: string) {
       return "xterm";
     }
 
+    if (id.includes("@codemirror/lang-") || id.includes("@lezer/")) {
+      return "codemirror-languages";
+    }
+
+    if (id.includes("@codemirror/")) {
+      return "codemirror-core";
+    }
+
+    if (id.includes("react-markdown") || id.includes("remark-")) {
+      return "markdown";
+    }
+
     if (id.includes("i18next") || id.includes("react-i18next")) {
       return "i18n";
+    }
+
+    if (id.includes("lucide-react")) {
+      return "icons";
+    }
+
+    if (
+      id.includes("/react/") ||
+      id.includes("\\react\\") ||
+      id.includes("/react-dom/") ||
+      id.includes("\\react-dom\\") ||
+      id.includes("/scheduler/") ||
+      id.includes("\\scheduler\\")
+    ) {
+      return "react-vendor";
     }
   }
 

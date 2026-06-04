@@ -1,11 +1,21 @@
 import React from "react"
 
 import { ErrorBoundary } from "@/components/ErrorBoundary"
-import { RemoteFileEditor } from "@/components/RemoteFileEditor"
-import { SettingsPanel } from "@/components/SettingsDialog"
 import { TerminalTab } from "@/components/TerminalTab"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { Tab } from "@/types/tab"
+
+const RemoteFileEditor = React.lazy(() =>
+  import("@/components/RemoteFileEditor").then((module) => ({
+    default: module.RemoteFileEditor,
+  }))
+)
+
+const SettingsPanel = React.lazy(() =>
+  import("@/components/SettingsDialog").then((module) => ({
+    default: module.SettingsPanel,
+  }))
+)
 
 interface TabPanelsProps {
   activeTabId: string | null
@@ -61,11 +71,18 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
           >
             {tab.type === "settings" ? (
               <ErrorBoundary resetKey={tab.id} scope="settings">
-                <SettingsPanel />
+                <React.Suspense fallback={null}>
+                  <SettingsPanel />
+                </React.Suspense>
               </ErrorBoundary>
             ) : tab.type === "remote-file-editor" ? (
               <ErrorBoundary resetKey={tab.id} scope="remote-file-editor">
-                <RemoteFileEditor tab={tab} onTabUpdate={(updater) => updateTab(tab.id, updater)} />
+                <React.Suspense fallback={null}>
+                  <RemoteFileEditor
+                    tab={tab}
+                    onTabUpdate={(updater) => updateTab(tab.id, updater)}
+                  />
+                </React.Suspense>
               </ErrorBoundary>
             ) : (
               shouldConnect && (

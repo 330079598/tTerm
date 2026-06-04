@@ -3,13 +3,18 @@ import { useTranslation } from "react-i18next"
 import { Copy, Edit, Palette, Plus, RotateCcw, Trash2 } from "lucide-react"
 
 import { ThemeCard } from "@/components/ThemeCard"
-import { ThemeEditor } from "@/components/ThemeEditor"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useConfirmDialog, usePromptDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useTheme } from "@/contexts/ThemeContext"
 import type { PresetThemeId } from "@/types/theme"
+
+const ThemeEditor = React.lazy(() =>
+  import("@/components/ThemeEditor").then((module) => ({
+    default: module.ThemeEditor,
+  }))
+)
 
 interface ThemeSwitcherProps {
   onClose: () => void
@@ -254,10 +259,14 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ onClose }) => {
       </Dialog>
 
       {editingThemeId && (
-        <ThemeEditor themeId={editingThemeId} onClose={() => setEditingThemeId(null)} />
+        <React.Suspense fallback={null}>
+          <ThemeEditor themeId={editingThemeId} onClose={() => setEditingThemeId(null)} />
+        </React.Suspense>
       )}
       {creatingFromTheme && (
-        <ThemeEditor baseThemeId={creatingFromTheme} onClose={() => setCreatingFromTheme(null)} />
+        <React.Suspense fallback={null}>
+          <ThemeEditor baseThemeId={creatingFromTheme} onClose={() => setCreatingFromTheme(null)} />
+        </React.Suspense>
       )}
       <ConfirmDialog />
       <PromptDialog />
