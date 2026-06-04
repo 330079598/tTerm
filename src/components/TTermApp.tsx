@@ -13,6 +13,7 @@ import { TransferManager } from "@/components/TransferManager"
 import { EmptyState } from "@/components/TTermApp/EmptyState"
 import { TabPanels } from "@/components/TTermApp/TabPanels"
 import { buildTabFromConnection } from "@/components/TTermApp/ttermAppUtils"
+import { formatBytes, MAX_EDIT_FILE_BYTES } from "@/components/SftpDrawer/sftpDrawerUtils"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
@@ -22,6 +23,7 @@ import { useConnectionManager } from "@/hooks/useConnectionManager"
 import { useSessionPersistence } from "@/hooks/useSessionPersistence"
 import { useTabContextMenu } from "@/hooks/useTabContextMenu"
 import { useTabs } from "@/hooks/useTabs"
+import { toast } from "@/hooks/use-toast"
 import { useWindowControls } from "@/hooks/useWindowControls"
 import { markSessionReady } from "@/lib/startup"
 import { Tab } from "@/types/tab"
@@ -136,6 +138,17 @@ export const TTermApp: React.FC = () => {
 
   const handleOpenRemoteFile = useCallback(
     (entry: SftpDirectoryEntry, sourceTabId: string, connection?: Tab["connection"]) => {
+      const fileSize = entry.size ?? 0
+      if (fileSize > MAX_EDIT_FILE_BYTES) {
+        const message = `Remote file is too large to edit in tTerm (${fileSize} bytes, limit ${MAX_EDIT_FILE_BYTES} bytes)`
+        toast({
+          variant: "destructive",
+          title: t("remoteFileEditor.openFailed", { defaultValue: "Failed to open remote file" }),
+          description: `${message} (${formatBytes(fileSize)}, limit ${formatBytes(MAX_EDIT_FILE_BYTES)})`,
+        })
+        return
+      }
+
       const host = connection?.host
       const existingTab = tabs.find(
         (tab) =>
@@ -164,7 +177,7 @@ export const TTermApp: React.FC = () => {
         },
       })
     },
-    [addTab, setActiveTab, tabs]
+    [addTab, setActiveTab, t, tabs]
   )
 
   const getActiveTransfersForTabs = useCallback(

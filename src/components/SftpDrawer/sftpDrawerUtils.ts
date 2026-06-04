@@ -1,3 +1,5 @@
+export const MAX_EDIT_FILE_BYTES = 5 * 1024 * 1024
+
 export function joinRemotePath(basePath: string, name: string): string {
   if (basePath === "/") {
     return `/${name}`
