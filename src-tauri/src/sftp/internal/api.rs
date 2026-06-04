@@ -41,4 +41,5 @@ macro_rules! with_sftp {
 
 pub mod base;
 pub mod delete;
+pub mod edit;
 pub mod upload;

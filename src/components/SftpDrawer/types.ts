@@ -5,6 +5,11 @@ export interface SftpDrawerProps {
   visible: boolean
   connection?: Tab["connection"]
   onClose: () => void
+  onOpenRemoteFile?: (
+    entry: SftpDirectoryEntry,
+    sourceTabId: string,
+    connection?: Tab["connection"]
+  ) => void
 }
 
 export interface SftpDirectoryEntry {

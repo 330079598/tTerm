@@ -1,0 +1,73 @@
+.remote-file-editor {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  background: hsl(var(--background));
+}
+
+.remote-file-editor-toolbar {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid hsl(var(--border));
+  padding: 6px 12px;
+}
+
+.remote-file-editor-title {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.remote-file-editor-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.remote-file-editor-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+}
+
+.remote-file-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.remote-file-editor-textarea {
+  min-height: 0;
+  flex: 1;
+  resize: none;
+  border: 0;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  outline: none;
+  padding: 12px;
+  tab-size: 2;
+}
+
+.remote-file-editor-empty {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+}

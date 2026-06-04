@@ -11,7 +11,7 @@ interface SessionData {
 const SAVE_DEBOUNCE_MS = 1000 // 1 second debounce
 
 function getPersistableTabs(tabs: Tab[]): Tab[] {
-  return tabs.filter((tab) => tab.type !== "settings")
+  return tabs.filter((tab) => tab.type !== "settings" && tab.type !== "remote-file-editor")
 }
 
 function getPersistedActiveTabId(

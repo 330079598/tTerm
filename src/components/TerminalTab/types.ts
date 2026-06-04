@@ -1,4 +1,5 @@
 import type { Tab } from "@/types/tab"
+import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 
 export interface TerminalTabProps {
   tabId: string
@@ -8,6 +9,11 @@ export interface TerminalTabProps {
   connection?: Tab["connection"]
   onPidChange?: (pid: number) => void
   onReconnectRequest?: () => void
+  onOpenRemoteFile?: (
+    entry: SftpDirectoryEntry,
+    sourceTabId: string,
+    connection?: Tab["connection"]
+  ) => void
   onPinConnectionHeader?: () => void
   onUnpinConnectionHeader?: () => void
 }

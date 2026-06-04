@@ -68,7 +68,13 @@ function sftpDialogReducer(state: SftpDialogState, action: SftpDialogAction): Sf
 
 const EMPTY_SFTP_ENTRIES: SftpDirectoryEntry[] = []
 
-export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connection, onClose }) => {
+export const SftpDrawer: React.FC<SftpDrawerProps> = ({
+  tabId,
+  visible,
+  connection,
+  onClose,
+  onOpenRemoteFile,
+}) => {
   const { t } = useTranslation()
   const [listing, setListing] = useState<SftpDirectoryListing | null>(null)
   const [activePath, setActivePath] = useState<string | null>(null)
@@ -397,6 +403,15 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
     await downloadEntry(entry)
   }, [activeEntry, contextMenuEntry, downloadEntry])
 
+  const handleEdit = useCallback(() => {
+    const entry = contextMenuEntry ?? activeEntry
+    if (!entry || entry.isDir) {
+      return
+    }
+
+    onOpenRemoteFile?.(entry, tabId, connection)
+  }, [activeEntry, connection, contextMenuEntry, onOpenRemoteFile, tabId])
+
   const handleCopyPath = useCallback(async () => {
     const entry = contextMenuEntry ?? activeEntry
     if (!entry) {
@@ -500,6 +515,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({ tabId, visible, connecti
         handleCopyPath={handleCopyPath}
         handleDelete={handleDelete}
         handleDownload={handleDownload}
+        handleEdit={handleEdit}
         handleRename={handleRename}
         isDeleting={isDeleting}
         onClose={() => setContextMenu(null)}

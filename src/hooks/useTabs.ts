@@ -19,12 +19,12 @@ export interface UseTabsReturn {
 }
 
 function ensureTabDefaults(tab: Tab): Tab {
-  if (tab.type === "settings") {
+  if (tab.type === "settings" || tab.type === "remote-file-editor") {
     return {
       ...tab,
       hasConnected: true,
       sessionNonce: 0,
-      connection: undefined,
+      connection: tab.type === "settings" ? undefined : tab.connection,
     }
   }
 
@@ -193,7 +193,7 @@ export function useTabs(): UseTabsReturn {
       setTabs((prevTabs) => {
         const tab = prevTabs.find((t) => t.id === id)
         if (!tab) return prevTabs
-        if (tab.type === "settings") return prevTabs
+        if (tab.type === "settings" || tab.type === "remote-file-editor") return prevTabs
 
         const newId = generateTabId()
         const { id: _id, isActive: _isActive, ...tabData } = tab

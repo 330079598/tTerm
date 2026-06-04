@@ -12,6 +12,7 @@ interface SftpEntryContextMenuProps {
   handleCopyPath: () => Promise<void>
   handleDelete: () => void
   handleDownload: () => Promise<void>
+  handleEdit: () => void
   handleRename: () => void
   isDeleting: boolean
   onClose: () => void
@@ -24,6 +25,7 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
   handleCopyPath,
   handleDelete,
   handleDownload,
+  handleEdit,
   handleRename,
   isDeleting,
   onClose,
@@ -54,6 +56,12 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
           disabled: selectionCount !== 1,
         },
         {
+          label: t("sftp.actions.edit", { defaultValue: "Edit" }),
+          action: "edit",
+          icon: "edit",
+          disabled: selectionCount !== 1 || contextMenuEntry.isDir,
+        },
+        {
           label: t("sftp.actions.rename", { defaultValue: "Rename" }),
           action: "rename",
           icon: "edit",
@@ -70,6 +78,7 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
       onAction={(action) => {
         if (action === "download") void handleDownload()
         else if (action === "copy-path") void handleCopyPath()
+        else if (action === "edit") handleEdit()
         else if (action === "rename") handleRename()
         else if (action === "delete") handleDelete()
       }}

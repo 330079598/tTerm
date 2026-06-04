@@ -48,7 +48,7 @@ export interface TransferTask {
 
 export type TerminalShellType = "auto" | "cmd" | "powershell" | "pwsh" | "custom"
 export type ConnectionType = "terminal" | "ssh"
-export type TabType = ConnectionType | "settings"
+export type TabType = ConnectionType | "settings" | "remote-file-editor"
 
 export interface JumpHostConnection {
   host: string
@@ -89,6 +89,14 @@ export interface Tab {
     terminalShellCustomArgs?: string
     /** Ordered jump host chain to tunnel through. */
     jumpHosts?: JumpHostConnection[]
+  }
+  remoteFile?: {
+    sourceTabId: string
+    host?: string
+    path: string
+    fileName: string
+    size: number
+    modifiedAt?: number
   }
 }
 

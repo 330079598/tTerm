@@ -15,6 +15,7 @@ import { TabPanels } from "@/components/TTermApp/TabPanels"
 import { buildTabFromConnection } from "@/components/TTermApp/ttermAppUtils"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTransferManager } from "@/contexts/TransferContext"
 import { useConnectionManager } from "@/hooks/useConnectionManager"
@@ -133,6 +134,39 @@ export const TTermApp: React.FC = () => {
     [addTab]
   )
 
+  const handleOpenRemoteFile = useCallback(
+    (entry: SftpDirectoryEntry, sourceTabId: string, connection?: Tab["connection"]) => {
+      const host = connection?.host
+      const existingTab = tabs.find(
+        (tab) =>
+          tab.type === "remote-file-editor" &&
+          tab.remoteFile?.path === entry.path &&
+          tab.remoteFile?.host === host
+      )
+
+      if (existingTab) {
+        setActiveTab(existingTab.id)
+        return
+      }
+
+      addTab({
+        title: entry.name,
+        type: "remote-file-editor",
+        isModified: false,
+        connection,
+        remoteFile: {
+          sourceTabId,
+          host,
+          path: entry.path,
+          fileName: entry.name,
+          size: entry.size ?? 0,
+          modifiedAt: entry.modifiedAt,
+        },
+      })
+    },
+    [addTab, setActiveTab, tabs]
+  )
+
   const getActiveTransfersForTabs = useCallback(
     (tabIds: string[]) => {
       const idSet = new Set(tabIds)
@@ -171,10 +205,38 @@ export const TTermApp: React.FC = () => {
     [confirm, getActiveTransfersForTabs, t]
   )
 
+  const confirmCloseTabsWithUnsavedRemoteFiles = useCallback(
+    async (tabIds: string[]) => {
+      const idSet = new Set(tabIds)
+      const unsavedTabs = tabs.filter(
+        (tab) => idSet.has(tab.id) && tab.type === "remote-file-editor" && tab.isModified
+      )
+      if (unsavedTabs.length === 0) {
+        return true
+      }
+
+      return confirm({
+        title: t("remoteFileEditor.closeUnsavedTitle", {
+          count: unsavedTabs.length,
+          defaultValue: "Close unsaved remote file?",
+        }),
+        description: t("remoteFileEditor.closeUnsavedDescription", {
+          count: unsavedTabs.length,
+          defaultValue:
+            "One or more remote file tabs have unsaved changes. Closing them will discard those changes.",
+        }),
+        confirmText: t("remoteFileEditor.closeUnsavedConfirm", { defaultValue: "Discard" }),
+        cancelText: t("common.cancel", { defaultValue: "Cancel" }),
+        variant: "destructive",
+      })
+    },
+    [confirm, t, tabs]
+  )
+
   const closeTabById = useCallback(
     (id: string) => {
       const tab = tabs.find((currentTab) => currentTab.id === id)
-      if (tab?.type !== "settings") {
+      if (tab?.type !== "settings" && tab?.type !== "remote-file-editor") {
         cleanupConnection(id)
       }
       removeTab(id)
@@ -184,18 +246,28 @@ export const TTermApp: React.FC = () => {
 
   const handleRemoveTab = useCallback(
     async (id: string) => {
+      const unsavedConfirmed = await confirmCloseTabsWithUnsavedRemoteFiles([id])
+      if (!unsavedConfirmed) {
+        return
+      }
+
       const confirmed = await confirmCloseTabsWithTransfers([id])
       if (!confirmed) {
         return
       }
       closeTabById(id)
     },
-    [closeTabById, confirmCloseTabsWithTransfers]
+    [closeTabById, confirmCloseTabsWithTransfers, confirmCloseTabsWithUnsavedRemoteFiles]
   )
 
   const handleCloseOtherTabs = useCallback(
     async (id: string) => {
       const targetTabIds = tabs.filter((tab) => tab.id !== id).map((tab) => tab.id)
+      const unsavedConfirmed = await confirmCloseTabsWithUnsavedRemoteFiles(targetTabIds)
+      if (!unsavedConfirmed) {
+        return
+      }
+
       const confirmed = await confirmCloseTabsWithTransfers(targetTabIds)
       if (!confirmed) {
         return
@@ -203,13 +275,19 @@ export const TTermApp: React.FC = () => {
 
       for (const targetTabId of targetTabIds) {
         const targetTab = tabs.find((tab) => tab.id === targetTabId)
-        if (targetTab?.type !== "settings") {
+        if (targetTab?.type !== "settings" && targetTab?.type !== "remote-file-editor") {
           cleanupConnection(targetTabId)
         }
       }
       closeOtherTabs(id)
     },
-    [cleanupConnection, closeOtherTabs, confirmCloseTabsWithTransfers, tabs]
+    [
+      cleanupConnection,
+      closeOtherTabs,
+      confirmCloseTabsWithTransfers,
+      confirmCloseTabsWithUnsavedRemoteFiles,
+      tabs,
+    ]
   )
 
   const handleCloseTabsToRight = useCallback(
@@ -220,19 +298,32 @@ export const TTermApp: React.FC = () => {
       }
 
       const targetTabs = tabs.slice(tabIndex + 1)
+      const unsavedConfirmed = await confirmCloseTabsWithUnsavedRemoteFiles(
+        targetTabs.map((tab) => tab.id)
+      )
+      if (!unsavedConfirmed) {
+        return
+      }
+
       const confirmed = await confirmCloseTabsWithTransfers(targetTabs.map((tab) => tab.id))
       if (!confirmed) {
         return
       }
 
       for (const targetTab of targetTabs) {
-        if (targetTab.type !== "settings") {
+        if (targetTab.type !== "settings" && targetTab.type !== "remote-file-editor") {
           cleanupConnection(targetTab.id)
         }
       }
       closeTabsToRight(id)
     },
-    [cleanupConnection, closeTabsToRight, confirmCloseTabsWithTransfers, tabs]
+    [
+      cleanupConnection,
+      closeTabsToRight,
+      confirmCloseTabsWithTransfers,
+      confirmCloseTabsWithUnsavedRemoteFiles,
+      tabs,
+    ]
   )
 
   const {
@@ -315,8 +406,10 @@ export const TTermApp: React.FC = () => {
         handlePinConnectionHeader={handlePinConnectionHeader}
         handleReconnectTab={handleReconnectTab}
         handleUnpinConnectionHeader={handleUnpinConnectionHeader}
+        onOpenRemoteFile={handleOpenRemoteFile}
         startupSessionRestoreMode={config.startup_session_restore_mode}
         tabs={tabs}
+        updateTab={updateTab}
       />
     )
   }

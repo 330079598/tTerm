@@ -1,8 +1,10 @@
 import React from "react"
 
 import { ErrorBoundary } from "@/components/ErrorBoundary"
+import { RemoteFileEditor } from "@/components/RemoteFileEditor"
 import { SettingsPanel } from "@/components/SettingsDialog"
 import { TerminalTab } from "@/components/TerminalTab"
+import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { Tab } from "@/types/tab"
 
 interface TabPanelsProps {
@@ -10,8 +12,14 @@ interface TabPanelsProps {
   handlePinConnectionHeader: (tabId: string) => void
   handleReconnectTab: (tabId: string) => void
   handleUnpinConnectionHeader: (tabId: string) => void
+  onOpenRemoteFile: (
+    entry: SftpDirectoryEntry,
+    sourceTabId: string,
+    connection?: Tab["connection"]
+  ) => void
   startupSessionRestoreMode: "active" | "all"
   tabs: Tab[]
+  updateTab: (id: string, updater: (tab: Tab) => Tab) => void
 }
 
 export const TabPanels: React.FC<TabPanelsProps> = ({
@@ -19,8 +27,10 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
   handlePinConnectionHeader,
   handleReconnectTab,
   handleUnpinConnectionHeader,
+  onOpenRemoteFile,
   startupSessionRestoreMode,
   tabs,
+  updateTab,
 }) => {
   return (
     <>
@@ -28,6 +38,7 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
         const isActive = tab.id === activeTabId
         const shouldConnect =
           tab.type !== "settings" &&
+          tab.type !== "remote-file-editor" &&
           (startupSessionRestoreMode === "all" || isActive || tab.hasConnected === true)
 
         return (
@@ -52,6 +63,10 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
               <ErrorBoundary resetKey={tab.id} scope="settings">
                 <SettingsPanel />
               </ErrorBoundary>
+            ) : tab.type === "remote-file-editor" ? (
+              <ErrorBoundary resetKey={tab.id} scope="remote-file-editor">
+                <RemoteFileEditor tab={tab} onTabUpdate={(updater) => updateTab(tab.id, updater)} />
+              </ErrorBoundary>
             ) : (
               shouldConnect && (
                 <ErrorBoundary resetKey={`${tab.id}:${tab.sessionNonce ?? 0}`} scope="terminal-tab">
@@ -64,6 +79,7 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
                       tab.connection ?? { type: tab.type === "terminal" ? "terminal" : "ssh" }
                     }
                     onReconnectRequest={() => handleReconnectTab(tab.id)}
+                    onOpenRemoteFile={onOpenRemoteFile}
                     onPinConnectionHeader={() => handlePinConnectionHeader(tab.id)}
                     onUnpinConnectionHeader={() => handleUnpinConnectionHeader(tab.id)}
                   />

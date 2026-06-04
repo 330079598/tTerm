@@ -33,6 +33,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   connection,
   onPidChange,
   onReconnectRequest,
+  onOpenRemoteFile,
   onPinConnectionHeader,
   onUnpinConnectionHeader,
 }) => {
@@ -485,6 +486,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
           visible={showSftpDrawer}
           connection={connection}
           onClose={() => setShowSftpDrawer(false)}
+          onOpenRemoteFile={onOpenRemoteFile}
         />
         {isSearchOpen && (
           <TerminalSearchBar
