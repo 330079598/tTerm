@@ -128,6 +128,9 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@4.1.18)
+      vscode-material-icons:
+        specifier: ^0.1.1
+        version: 0.1.1
     devDependencies:
       '@eslint/js':
         specifier: ^9.39.4
@@ -2340,6 +2343,9 @@ packages:
   strip-json-comments@3.1.1:
     resolution: {integrity: sha512-6fPc+R4ihwqP6N/aIv2f1gMH8lOVtWQHoqC4yK6oSDVVocumAsfCqjkXnqiYMhmMwS/mEHLp7Vehlt3ql6lEig==}
     engines: {node: '>=8'}
+
+  vscode-material-icons@0.1.1:
+    resolution: {integrity: sha512-GsoEEF8Tbb0yUFQ6N6FPvh11kFkL9F95x0FkKlbbfRQN9eFms67h+L3t6b9cUv58dSn2gu8kEhNfoESVCrz4ag==}
 
   style-mod@4.1.3:
     resolution: {integrity: sha512-i/n8VsZydrugj3Iuzll8+x/00GH2vnYsk1eomD8QiRrSAeW6ItbCQDtfXCeJHd0iwiNagqjQkvpvREEPtW3IoQ==}
@@ -4822,6 +4828,8 @@ snapshots:
       tailwindcss: 4.1.18
 
   tailwindcss@4.1.18: {}
+
+  vscode-material-icons@0.1.1: {}
 
   tapable@2.3.0: {}
 

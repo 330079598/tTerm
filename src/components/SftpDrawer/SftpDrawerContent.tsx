@@ -1,13 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
-import {
-  AlertCircle,
-  ArrowUpFromLine,
-  File,
-  Folder,
-  FolderPlus,
-  Loader2,
-  RefreshCcw,
-} from "lucide-react"
+import { AlertCircle, ArrowUpFromLine, File, FolderPlus, Loader2, RefreshCcw } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -15,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
+import { SftpEntryIcon } from "@/components/SftpDrawer/SftpEntryIcon"
 import { formatBytes, formatTimestamp } from "@/components/SftpDrawer/sftpDrawerUtils"
 import type { SftpSearchMatcher } from "@/components/SftpDrawer/sftpSearch"
 import type {
@@ -323,11 +316,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
                     </span>
                   )}
                   <span className="sftp-cell sftp-name-cell">
-                    {entry.isDir ? (
-                      <Folder className="size-4 shrink-0 text-blue-500" />
-                    ) : (
-                      <File className="text-muted-foreground size-4 shrink-0" />
-                    )}
+                    <SftpEntryIcon entry={entry} />
                     <span className="truncate">{entry.name}</span>
                   </span>
                   <span className="sftp-cell">{formatTimestamp(entry.modifiedAt)}</span>

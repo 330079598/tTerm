@@ -267,6 +267,13 @@ body.sftp-no-select * {
   font-weight: 400;
 }
 
+.sftp-entry-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  object-fit: contain;
+}
+
 @media (max-width: 768px) {
   .sftp-drawer-header {
     gap: 8px;
