@@ -8,9 +8,9 @@ import { rust } from "@codemirror/lang-rust"
 import { yaml } from "@codemirror/lang-yaml"
 import {
   bracketMatching,
-  defaultHighlightStyle,
   foldGutter,
   foldKeymap,
+  HighlightStyle,
   indentOnInput,
   syntaxHighlighting,
 } from "@codemirror/language"
@@ -24,6 +24,7 @@ import {
   keymap,
   lineNumbers,
 } from "@codemirror/view"
+import { tags } from "@lezer/highlight"
 import React, { useEffect, useMemo, useRef } from "react"
 
 interface CodeMirrorEditorProps {
@@ -35,6 +36,28 @@ interface CodeMirrorEditorProps {
 
 const languageCompartment = new Compartment()
 const themeCompartment = new Compartment()
+
+const ttermHighlightStyle = HighlightStyle.define([
+  { tag: tags.keyword, color: "hsl(var(--primary))" },
+  { tag: [tags.atom, tags.bool, tags.null, tags.number], color: "hsl(28 85% 55%)" },
+  { tag: [tags.string, tags.special(tags.string)], color: "hsl(145 55% 45%)" },
+  { tag: tags.regexp, color: "hsl(325 72% 60%)" },
+  {
+    tag: [tags.function(tags.propertyName), tags.function(tags.variableName), tags.labelName],
+    color: "hsl(190 80% 45%)",
+  },
+  {
+    tag: [tags.className, tags.definition(tags.typeName), tags.typeName],
+    color: "hsl(45 85% 50%)",
+  },
+  { tag: [tags.propertyName, tags.variableName], color: "hsl(var(--foreground))" },
+  {
+    tag: [tags.comment, tags.lineComment, tags.blockComment],
+    color: "hsl(var(--muted-foreground))",
+  },
+  { tag: tags.meta, color: "hsl(var(--muted-foreground))" },
+  { tag: tags.invalid, color: "hsl(var(--destructive))" },
+])
 
 function extensionForFileName(fileName?: string): Extension {
   const extension = fileName?.toLowerCase().split(".").pop()
@@ -153,7 +176,7 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
         drawSelection(),
         indentOnInput(),
         bracketMatching(),
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        syntaxHighlighting(ttermHighlightStyle, { fallback: true }),
         highlightActiveLine(),
         keymap.of([indentWithTab, ...historyKeymap, ...foldKeymap, ...searchKeymap]),
         languageCompartment.of(initialLanguageExtension),
