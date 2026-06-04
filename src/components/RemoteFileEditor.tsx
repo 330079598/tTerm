@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
+import { CodeMirrorEditor } from "@/components/CodeMirrorEditor"
 import { toast } from "@/hooks/use-toast"
 import type { Tab } from "@/types/tab"
 
@@ -202,11 +203,11 @@ export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({ tab, onTabUp
           {t("remoteFileEditor.loading", { defaultValue: "Loading remote file..." })}
         </div>
       ) : (
-        <textarea
-          className="remote-file-editor-textarea"
-          spellCheck={false}
+        <CodeMirrorEditor
+          className="remote-file-editor-code"
+          fileName={remoteFile.fileName}
           value={content}
-          onChange={(event) => setContent(event.target.value)}
+          onChange={setContent}
         />
       )}
     </div>

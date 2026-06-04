@@ -46,20 +46,11 @@
   gap: 8px;
 }
 
-.remote-file-editor-textarea {
+.remote-file-editor-code {
   min-height: 0;
   flex: 1;
-  resize: none;
-  border: 0;
   background: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-family:
-    ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 13px;
-  line-height: 1.55;
-  outline: none;
-  padding: 12px;
-  tab-size: 2;
+  overflow: hidden;
 }
 
 .remote-file-editor-empty {
