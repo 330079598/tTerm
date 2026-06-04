@@ -30,6 +30,32 @@ import { Tab } from "@/types/tab"
 
 const SETTINGS_TAB_TITLE = "Settings"
 
+function formatRemoteFileConnectionLabel(connection?: Tab["connection"]): string | undefined {
+  const profileName = connection?.profileName?.trim()
+  if (profileName) {
+    return profileName
+  }
+
+  const host = connection?.host?.trim()
+  if (!host) {
+    return undefined
+  }
+
+  const userHost = connection?.username ? `${connection.username}@${host}` : host
+  return connection?.port && connection.port !== 22 ? `${userHost}:${connection.port}` : userHost
+}
+
+function getRemoteFileConnectionKey(connection?: Tab["connection"]): string {
+  if (connection?.profileId) {
+    return `profile:${connection.profileId}`
+  }
+
+  const host = connection?.host?.trim() ?? ""
+  const username = connection?.username?.trim() ?? ""
+  const port = connection?.port ?? 22
+  return `target:${username}@${host}:${port}`
+}
+
 export const TTermApp: React.FC = () => {
   const { t, i18n } = useTranslation()
   const [os] = useState<string>(() => platform())
@@ -150,11 +176,14 @@ export const TTermApp: React.FC = () => {
       }
 
       const host = connection?.host
+      const connectionLabel = formatRemoteFileConnectionLabel(connection)
+      const connectionKey = getRemoteFileConnectionKey(connection)
       const existingTab = tabs.find(
         (tab) =>
           tab.type === "remote-file-editor" &&
           tab.remoteFile?.path === entry.path &&
-          tab.remoteFile?.host === host
+          (tab.remoteFile.connectionKey ?? getRemoteFileConnectionKey(tab.connection)) ===
+            connectionKey
       )
 
       if (existingTab) {
@@ -169,6 +198,10 @@ export const TTermApp: React.FC = () => {
         connection,
         remoteFile: {
           sourceTabId,
+          profileId: connection?.profileId,
+          profileName: connection?.profileName,
+          connectionLabel,
+          connectionKey,
           host,
           path: entry.path,
           fileName: entry.name,

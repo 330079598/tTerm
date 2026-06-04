@@ -39,6 +39,9 @@ export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({ tab, onTabUp
   const loadedPathRef = useRef<string | null>(null)
 
   const dirty = content !== savedContent
+  const connectionLabel =
+    remoteFile?.connectionLabel ?? remoteFile?.profileName ?? tab.connection?.profileName
+  const subtitle = connectionLabel ? `${connectionLabel} · ${remoteFile?.path}` : remoteFile?.path
 
   useEffect(() => {
     if (tab.isModified === dirty) {
@@ -173,7 +176,9 @@ export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({ tab, onTabUp
             {dirty ? "*" : ""}
             {remoteFile.fileName}
           </div>
-          <div className="remote-file-editor-path">{remoteFile.path}</div>
+          <div className="remote-file-editor-path" title={subtitle}>
+            {subtitle}
+          </div>
         </div>
         <div className="remote-file-editor-actions">
           <Button variant="outline" size="sm" onClick={() => void loadFile()} disabled={isLoading}>

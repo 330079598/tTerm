@@ -92,6 +92,10 @@ export interface Tab {
   }
   remoteFile?: {
     sourceTabId: string
+    profileId?: string
+    profileName?: string
+    connectionLabel?: string
+    connectionKey?: string
     host?: string
     path: string
     fileName: string
