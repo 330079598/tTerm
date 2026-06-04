@@ -143,6 +143,15 @@ function editorTheme(): Extension {
   })
 }
 
+function codeMirrorCspNonceExtension(): Extension {
+  const nonce =
+    Array.from(document.getElementsByTagName("style"))
+      .map((style) => style.nonce)
+      .find(Boolean) ?? ""
+
+  return nonce ? EditorView.cspNonce.of(nonce) : []
+}
+
 export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
   className,
   fileName,
@@ -169,6 +178,7 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
     const state = EditorState.create({
       doc: initialValueRef.current,
       extensions: [
+        codeMirrorCspNonceExtension(),
         lineNumbers(),
         foldGutter(),
         highlightActiveLineGutter(),
