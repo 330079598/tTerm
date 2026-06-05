@@ -1,7 +1,9 @@
+import { Server, Terminal } from "lucide-react"
 import React from "react"
 import { useTranslation } from "react-i18next"
 
 import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
+import { Button } from "@/components/ui/button"
 import { Tab } from "@/types/tab"
 
 interface EmptyStateProps {
@@ -22,11 +24,30 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   return (
     <div className="terminal-placeholder">
       <div className="terminal-placeholder-hero">
-        <h3>{t("welcome.title")}</h3>
-        <p>{t("welcome.description")}</p>
-        <button onClick={handleNewTab} className="btn-primary" style={{ marginTop: "16px" }}>
-          {t("welcome.newConnection")}
-        </button>
+        <div className="terminal-placeholder-heading">
+          <h3>{t("welcome.title")}</h3>
+          <p>{t("welcome.description")}</p>
+        </div>
+        <div className="terminal-placeholder-actions">
+          <Button
+            type="button"
+            onClick={() =>
+              handleConnect({
+                title: t("profiles.localTerminal", { defaultValue: "Local terminal" }),
+                type: "terminal",
+                isModified: false,
+                connection: { type: "terminal" },
+              })
+            }
+          >
+            <Terminal className="size-4" />
+            {t("welcome.localTerminal", { defaultValue: "Local terminal" })}
+          </Button>
+          <Button type="button" variant="outline" onClick={handleNewTab}>
+            <Server className="size-4" />
+            {t("welcome.sshConnection", { defaultValue: "SSH connection" })}
+          </Button>
+        </div>
       </div>
 
       <div className="terminal-placeholder-panel">

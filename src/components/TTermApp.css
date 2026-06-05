@@ -55,10 +55,25 @@
 
 .terminal-placeholder-hero {
   display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 560px;
   flex-shrink: 0;
   gap: 16px;
+}
+
+.terminal-placeholder-heading {
+  min-width: 0;
+  text-align: left;
+}
+
+.terminal-placeholder-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .terminal-placeholder-panel {
@@ -79,6 +94,22 @@
   font-size: 14px;
   max-width: 400px;
   line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .terminal-placeholder-hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .terminal-placeholder-heading {
+    text-align: center;
+  }
+
+  .terminal-placeholder-actions {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
 }
 
 /* Tab content placeholder */

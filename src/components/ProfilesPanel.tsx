@@ -101,13 +101,28 @@ const ProfileRow: React.FC<{
   const Icon = connectionTypeIcons[connectionType] ?? Server
   const subtitle = buildConnectionSubtitle(profile, t)
   const metaItems = buildMetaItems(profile, t)
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault()
+      onConnect(profile)
+      return
+    }
+
+    if (event.key === " ") {
+      event.preventDefault()
+      onFocusRow(profile.id)
+    }
+  }
 
   return (
     <div
       ref={rowRef}
+      role="option"
+      tabIndex={0}
       aria-selected={isActive}
       onClick={() => onFocusRow(profile.id)}
       onDoubleClick={() => onConnect(profile)}
+      onKeyDown={handleKeyDown}
       className={cn(
         "group focus-visible:ring-ring/50 relative flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors outline-none focus-visible:ring-[3px]",
         isActive
@@ -156,6 +171,7 @@ const ProfileRow: React.FC<{
               type="button"
               variant="ghost"
               size="icon-sm"
+              aria-label={t("profiles.connect")}
               onClick={(event) => {
                 event.stopPropagation()
                 onConnect(profile)
@@ -172,6 +188,7 @@ const ProfileRow: React.FC<{
               type="button"
               variant="ghost"
               size="icon-sm"
+              aria-label={t("profiles.edit")}
               onClick={(event) => {
                 event.stopPropagation()
                 onEdit(profile)
@@ -189,6 +206,7 @@ const ProfileRow: React.FC<{
               variant="ghost"
               size="icon-sm"
               className="hover:text-destructive"
+              aria-label={t("profiles.delete")}
               onClick={(event) => {
                 event.stopPropagation()
                 onDelete(profile.id)
@@ -391,7 +409,13 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
             </Button>
           )}
           {onClose && (
-            <Button type="button" variant="ghost" size="icon-sm" onClick={onClose}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={onClose}
+              aria-label={t("common.close")}
+            >
               <X size={16} />
             </Button>
           )}
@@ -448,7 +472,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
                   <span>{items.length}</span>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2" role="listbox" aria-label={t("profiles.title")}>
                   {items.map((profile) => (
                     <ProfileRow
                       key={profile.id}
