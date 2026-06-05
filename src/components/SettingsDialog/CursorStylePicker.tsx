@@ -48,7 +48,7 @@ export const CursorStylePicker: React.FC<CursorStylePickerProps> = ({ value, onC
                 aria-label={t(option.labelKey)}
                 className={cn(
                   "border-border bg-secondary/40 hover:bg-accent hover:border-accent-foreground/20 text-foreground rounded-lg border px-3 py-3 text-left transition-colors",
-                  selected && "border-primary bg-accent ring-primary/20 ring-2"
+                  selected && "border-primary bg-accent ring-primary ring-1 ring-inset"
                 )}
               >
                 <span className="block overflow-hidden rounded bg-black/80 px-3 py-2 font-mono text-sm text-slate-100">

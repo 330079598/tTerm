@@ -279,6 +279,10 @@
   z-index: 2;
 }
 
+[data-theme="ubuntu"] .tab-item.active {
+  border-top-width: 1px;
+}
+
 .tab-item.active::before,
 .tab-item.active::after {
   content: "";

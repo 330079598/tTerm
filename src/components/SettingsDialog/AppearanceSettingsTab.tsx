@@ -83,7 +83,9 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
                       onClick={() => handleLanguageChange(lang.code)}
                       className={cn(
                         "h-auto w-full justify-between rounded-lg border px-4 py-3 text-left",
-                        isActive ? "border-primary bg-accent" : "border-transparent"
+                        isActive
+                          ? "border-primary bg-accent ring-primary ring-1 ring-inset"
+                          : "border-transparent"
                       )}
                     >
                       <div>

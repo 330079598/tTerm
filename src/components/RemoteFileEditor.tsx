@@ -189,10 +189,7 @@ export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({ tab, onTabUp
           </div>
         </div>
         <div className="remote-file-editor-actions">
-          <span
-            className={`remote-file-editor-save-status ${saveStatusState}`}
-            aria-live="polite"
-          >
+          <span className={`remote-file-editor-save-status ${saveStatusState}`} aria-live="polite">
             {saveStatus}
           </span>
           <Button variant="outline" size="sm" onClick={() => void loadFile()} disabled={isLoading}>

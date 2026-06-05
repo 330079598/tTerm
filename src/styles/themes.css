@@ -232,47 +232,43 @@
   [data-theme="ubuntu"] {
     /* Ubuntu Terminal Dark Aubergine #300A24 as base */
     --background: 302 58% 10%;
-    --foreground: 0 0% 100%;
+    --foreground: 25 24% 92%;
 
-    /* Ubuntu Mid Aubergine #5E2750 for cards */
-    --card: 312 41% 26%;
-    --card-foreground: 0 0% 98%;
+    --card: 312 40% 17%;
+    --card-foreground: 25 24% 92%;
 
-    --popover: 312 41% 26%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 312 40% 17%;
+    --popover-foreground: 25 24% 92%;
 
     /* Ubuntu Orange #E95420 as primary */
     --primary: 14 82% 52%;
     --primary-foreground: 0 0% 100%;
 
-    /* Ubuntu Light Aubergine #77216F for secondary */
-    --secondary: 305 55% 30%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 312 34% 20%;
+    --secondary-foreground: 25 24% 92%;
 
-    --muted: 312 41% 30%;
-    --muted-foreground: 0 0% 70%;
+    --muted: 312 30% 23%;
+    --muted-foreground: 25 12% 72%;
 
-    /* Ubuntu Orange for accent */
-    --accent: 14 82% 52%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 312 34% 22%;
+    --accent-foreground: 25 24% 92%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --success: 120 60% 50%;
-    --success-foreground: 120 60% 90%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 38 92% 90%;
+    --success: 120 52% 46%;
+    --success-foreground: 120 52% 86%;
+    --warning: 38 88% 52%;
+    --warning-foreground: 38 88% 88%;
 
-    /* Ubuntu Warm Grey #AEA79F for borders */
-    --border: 25 9% 67%;
-    --input: 25 9% 67%;
+    --border: 312 22% 27%;
+    --input: 312 22% 27%;
     --ring: 14 82% 52%;
 
-    --tab-background: 312 41% 26%;
+    --tab-background: 312 38% 16%;
     --tab-active: 302 58% 10%;
-    --tab-active-border: 25 9% 67%;
-    --tab-hover: 312 41% 32%;
-    --titlebar: 302 58% 12%;
+    --tab-active-border: 14 50% 36%;
+    --tab-hover: 312 34% 21%;
+    --titlebar: 302 54% 11%;
   }
 }
 

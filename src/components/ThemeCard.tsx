@@ -43,7 +43,9 @@ export const ThemeCard: React.FC<ThemeCardProps> = ({
             onClick={onSelect}
             className={cn(
               "h-auto flex-1 justify-start gap-3 rounded-lg border px-3 py-2.5 text-left",
-              isActive ? "border-primary bg-accent" : "border-transparent"
+              isActive
+                ? "border-primary bg-accent ring-primary ring-1 ring-inset"
+                : "border-transparent"
             )}
           >
             <span
