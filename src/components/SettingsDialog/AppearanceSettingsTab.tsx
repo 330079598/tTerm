@@ -48,6 +48,19 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
   setEditingThemeId,
 }) => {
   const { t } = useTranslation()
+  const getPresetTone = (themeId: PresetThemeId) => {
+    if (themeId === "default" || themeId === "light") {
+      return {
+        label: t("theme.workbenchRecommended", { defaultValue: "Recommended" }),
+        variant: "secondary" as const,
+      }
+    }
+
+    return {
+      label: t("theme.expressive", { defaultValue: "Expressive" }),
+      variant: "outline" as const,
+    }
+  }
 
   return (
     <ScrollArea className="h-full pr-4">
@@ -101,6 +114,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
                 const hasOverride = presetThemeOverrides.some(
                   (override) => override.id === theme.id
                 )
+                const tone = getPresetTone(theme.id as PresetThemeId)
 
                 return (
                   <ThemeCard
@@ -113,6 +127,8 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
                     }
                     name={hasOverride ? theme.name : t(`theme.${theme.id}`)}
                     onSelect={() => handleThemeChange(theme.id)}
+                    toneLabel={tone.label}
+                    toneVariant={tone.variant}
                     theme={theme}
                     actionSlot={
                       <div className="flex">
@@ -123,6 +139,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
                               variant="ghost"
                               size="sm"
                               onClick={() => setEditingThemeId(theme.id)}
+                              aria-label={t("themeEditor.edit")}
                               className="h-auto px-2 py-2"
                             >
                               <Edit size={14} />
@@ -137,6 +154,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDuplicateTheme(theme.id)}
+                              aria-label={t("themeEditor.duplicate")}
                               className="h-auto px-2 py-2"
                             >
                               <Copy size={14} />
@@ -152,6 +170,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleResetPresetTheme(theme.id as PresetThemeId)}
+                                aria-label={t("themeEditor.restorePreset")}
                                 className="h-auto px-2 py-2"
                               >
                                 <RotateCcw size={14} />
@@ -191,6 +210,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
                               variant="ghost"
                               size="sm"
                               onClick={() => setEditingThemeId(theme.id)}
+                              aria-label={t("themeEditor.edit")}
                               className="h-auto px-2 py-2"
                             >
                               <Edit size={14} />
@@ -205,6 +225,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDuplicateTheme(theme.id)}
+                              aria-label={t("themeEditor.duplicate")}
                               className="h-auto px-2 py-2"
                             >
                               <Copy size={14} />
@@ -219,6 +240,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDeleteTheme(theme.id)}
+                              aria-label={t("themeEditor.delete")}
                               className="text-destructive hover:text-destructive h-auto px-2 py-2"
                             >
                               <Trash2 size={14} />

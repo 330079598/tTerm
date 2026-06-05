@@ -70,7 +70,31 @@
     "sunset": "日落",
     "sunsetDesc": "温暖的橙红色主题",
     "ubuntu": "Ubuntu",
-    "ubuntuDesc": "Ubuntu 风格主题"
+    "ubuntuDesc": "Ubuntu 风格主题",
+    "workbenchRecommended": "推荐",
+    "expressive": "表现型",
+    "previewSwatches": {
+      "background": "背景",
+      "foreground": "前景",
+      "cursor": "光标",
+      "selection": "选区",
+      "black": "黑色",
+      "red": "红色",
+      "green": "绿色",
+      "yellow": "黄色",
+      "blue": "蓝色",
+      "magenta": "洋红",
+      "cyan": "青色",
+      "white": "白色",
+      "brightBlack": "亮黑色",
+      "brightRed": "亮红色",
+      "brightGreen": "亮绿色",
+      "brightYellow": "亮黄色",
+      "brightBlue": "亮蓝色",
+      "brightMagenta": "亮洋红",
+      "brightCyan": "亮青色",
+      "brightWhite": "亮白色"
+    }
   },
   "themeEditor": {
     "createTheme": "创建自定义主题",

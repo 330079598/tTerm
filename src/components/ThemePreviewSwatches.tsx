@@ -1,4 +1,5 @@
 import React from "react"
+import { useTranslation } from "react-i18next"
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -37,6 +38,7 @@ export const ThemePreviewSwatches: React.FC<ThemePreviewSwatchesProps> = ({
   compact = false,
   palette,
 }) => {
+  const { t } = useTranslation()
   const dotSize = compact ? "size-2.5" : "size-3"
 
   return (
@@ -49,7 +51,7 @@ export const ThemePreviewSwatches: React.FC<ThemePreviewSwatchesProps> = ({
               style={{ background: palette.background }}
             />
           </TooltipTrigger>
-          <TooltipContent>Background</TooltipContent>
+          <TooltipContent>{t("theme.previewSwatches.background")}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -58,7 +60,7 @@ export const ThemePreviewSwatches: React.FC<ThemePreviewSwatchesProps> = ({
               style={{ background: palette.foreground }}
             />
           </TooltipTrigger>
-          <TooltipContent>Foreground</TooltipContent>
+          <TooltipContent>{t("theme.previewSwatches.foreground")}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -67,7 +69,7 @@ export const ThemePreviewSwatches: React.FC<ThemePreviewSwatchesProps> = ({
               style={{ background: palette.cursor }}
             />
           </TooltipTrigger>
-          <TooltipContent>Cursor</TooltipContent>
+          <TooltipContent>{t("theme.previewSwatches.cursor")}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -76,7 +78,7 @@ export const ThemePreviewSwatches: React.FC<ThemePreviewSwatchesProps> = ({
               style={{ background: palette.selectionBackground }}
             />
           </TooltipTrigger>
-          <TooltipContent>Selection</TooltipContent>
+          <TooltipContent>{t("theme.previewSwatches.selection")}</TooltipContent>
         </Tooltip>
       </div>
       <div className="flex flex-wrap gap-1">
@@ -88,7 +90,7 @@ export const ThemePreviewSwatches: React.FC<ThemePreviewSwatchesProps> = ({
                 style={{ background: palette[key] }}
               />
             </TooltipTrigger>
-            <TooltipContent>{key}</TooltipContent>
+            <TooltipContent>{t(`theme.previewSwatches.${key}`)}</TooltipContent>
           </Tooltip>
         ))}
       </div>
@@ -101,7 +103,7 @@ export const ThemePreviewSwatches: React.FC<ThemePreviewSwatchesProps> = ({
                 style={{ background: palette[key] }}
               />
             </TooltipTrigger>
-            <TooltipContent>{key}</TooltipContent>
+            <TooltipContent>{t(`theme.previewSwatches.${key}`)}</TooltipContent>
           </Tooltip>
         ))}
       </div>

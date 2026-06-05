@@ -72,7 +72,31 @@
     "sunset": "Sunset",
     "sunsetDesc": "Warm orange and red theme",
     "ubuntu": "Ubuntu",
-    "ubuntuDesc": "Ubuntu inspired theme"
+    "ubuntuDesc": "Ubuntu inspired theme",
+    "workbenchRecommended": "Recommended",
+    "expressive": "Expressive",
+    "previewSwatches": {
+      "background": "Background",
+      "foreground": "Foreground",
+      "cursor": "Cursor",
+      "selection": "Selection",
+      "black": "Black",
+      "red": "Red",
+      "green": "Green",
+      "yellow": "Yellow",
+      "blue": "Blue",
+      "magenta": "Magenta",
+      "cyan": "Cyan",
+      "white": "White",
+      "brightBlack": "Bright black",
+      "brightRed": "Bright red",
+      "brightGreen": "Bright green",
+      "brightYellow": "Bright yellow",
+      "brightBlue": "Bright blue",
+      "brightMagenta": "Bright magenta",
+      "brightCyan": "Bright cyan",
+      "brightWhite": "Bright white"
+    }
   },
   "themeEditor": {
     "createTheme": "Create Custom Theme",

@@ -2,6 +2,7 @@ import React from "react"
 import { Check } from "lucide-react"
 
 import { ThemePreviewSwatches } from "@/components/ThemePreviewSwatches"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn, hslToCssColor } from "@/lib/utils"
@@ -12,6 +13,8 @@ interface ThemeCardProps {
   compactPreview?: boolean
   currentTheme: string
   description: string
+  toneLabel?: string
+  toneVariant?: "default" | "outline" | "secondary"
   name: string
   onSelect: () => void
   theme: Theme
@@ -22,6 +25,8 @@ export const ThemeCard: React.FC<ThemeCardProps> = ({
   compactPreview = false,
   currentTheme,
   description,
+  toneLabel,
+  toneVariant = "outline",
   name,
   onSelect,
   theme,
@@ -48,7 +53,14 @@ export const ThemeCard: React.FC<ThemeCardProps> = ({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-3">
                 <div className="flex min-w-0 flex-1 flex-col items-start">
-                  <span className="truncate text-sm leading-none font-medium">{name}</span>
+                  <span className="flex max-w-full items-center gap-2">
+                    <span className="truncate text-sm leading-none font-medium">{name}</span>
+                    {toneLabel && (
+                      <Badge variant={toneVariant} className="h-5 shrink-0 px-1.5 text-[10px]">
+                        {toneLabel}
+                      </Badge>
+                    )}
+                  </span>
                   <span className="text-muted-foreground mt-1 truncate text-xs">{description}</span>
                 </div>
                 <ThemePreviewSwatches compact={compactPreview} palette={theme.terminal} />
