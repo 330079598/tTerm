@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { AlertCircle, ArrowUpFromLine, File, FolderPlus, Loader2, RefreshCcw } from "lucide-react"
+import type { TFunction } from "i18next"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -15,6 +16,29 @@ import type {
   SftpDirectoryEntry,
   SftpDirectoryListing,
 } from "@/components/SftpDrawer/types"
+
+function getEntryKindLabel(entry: SftpDirectoryEntry, t: TFunction) {
+  if (entry.isSymlink) {
+    return t("sftp.kinds.symlink", { defaultValue: "Symlink" })
+  }
+
+  if (entry.isDir) {
+    return t("sftp.kinds.folder", { defaultValue: "Folder" })
+  }
+
+  return t("sftp.kinds.file", { defaultValue: "File" })
+}
+
+function getOwnerGroupLabel(entry: SftpDirectoryEntry) {
+  const owner = entry.owner?.trim()
+  const group = entry.group?.trim()
+
+  if (owner && group) {
+    return `${owner}/${group}`
+  }
+
+  return owner || group || "--"
+}
 
 interface SftpDrawerContentProps {
   activePath: string | null
@@ -70,6 +94,20 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
 
     return (listing?.entries ?? []).filter(searchMatcher.matches)
   }, [listing?.entries, searchMatcher])
+  const showTableHeader = !isLoading && !error && listing && listing.entries.length > 0
+  const resultSummary =
+    !isLoading && !error && listing && (searchMatcher.hasQuery || isSelectionMode)
+      ? searchMatcher.hasQuery
+        ? t("sftp.search.resultSummary", {
+            count: filteredEntries.length,
+            total: listing.entries.length,
+            defaultValue: "{{count}} of {{total}} items",
+          })
+        : t("sftp.itemSummary", {
+            count: listing.entries.length,
+            defaultValue: "{{count}} items",
+          })
+      : null
 
   const updateSelectionFromPointer = React.useCallback(
     (clientY: number) => {
@@ -160,6 +198,26 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
       )}
 
       <div className="sftp-table-shell">
+        {showTableHeader && (
+          <div
+            className={cn("sftp-table-header", isSelectionMode && "sftp-table-header-selection")}
+            role="row"
+          >
+            {isSelectionMode && <span className="sftp-header-cell" aria-hidden="true" />}
+            <span className="sftp-header-cell">{t("sftp.columns.name")}</span>
+            <span className="sftp-header-cell">{t("sftp.columns.modified")}</span>
+            <span className="sftp-header-cell">{t("sftp.columns.size")}</span>
+            <span className="sftp-header-cell">
+              {t("sftp.columns.kind", { defaultValue: "Kind" })}
+            </span>
+            <span className="sftp-header-cell">
+              {t("sftp.columns.permissions", { defaultValue: "Permissions" })}
+            </span>
+            <span className="sftp-header-cell sftp-header-summary" aria-live="polite">
+              {resultSummary ?? t("sftp.columns.owner")}
+            </span>
+          </div>
+        )}
         <ScrollArea
           className="flex-1"
           onMouseDown={(event) => {
@@ -321,7 +379,9 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
                   </span>
                   <span className="sftp-cell">{formatTimestamp(entry.modifiedAt)}</span>
                   <span className="sftp-cell">{entry.isDir ? "--" : formatBytes(entry.size)}</span>
+                  <span className="sftp-cell">{getEntryKindLabel(entry, t)}</span>
                   <span className="sftp-cell">{entry.permissions ?? "----------"}</span>
+                  <span className="sftp-cell">{getOwnerGroupLabel(entry)}</span>
                 </div>
               )
             })}
@@ -332,21 +392,31 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
             listing.entries.length > 0 &&
             filteredEntries.length === 0 &&
             !searchMatcher.error && (
-              <div className="text-muted-foreground flex min-h-[200px] flex-col items-center justify-center gap-3">
+              <div className="sftp-empty-state">
                 <File className="size-6" />
-                <span className="text-sm">
+                <span className="sftp-empty-title">
                   {t("sftp.search.noResults", {
                     defaultValue: "No files or folders match this filter",
+                  })}
+                </span>
+                <span className="sftp-empty-description">
+                  {t("sftp.search.noResultsHint", {
+                    defaultValue: "Try a broader text filter, glob, or regular expression.",
                   })}
                 </span>
               </div>
             )}
 
           {!isLoading && !error && listing?.entries.length === 0 && !searchMatcher.error && (
-            <div className="text-muted-foreground flex min-h-[200px] flex-col items-center justify-center gap-3">
+            <div className="sftp-empty-state">
               <FolderPlus className="size-6" />
-              <span className="text-sm">
+              <span className="sftp-empty-title">
                 {t("sftp.emptyDescription", { defaultValue: "This folder is empty" })}
+              </span>
+              <span className="sftp-empty-description">
+                {t("sftp.emptyHint", {
+                  defaultValue: "Upload files or create a folder to start organizing this path.",
+                })}
               </span>
             </div>
           )}

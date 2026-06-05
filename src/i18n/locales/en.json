@@ -461,7 +461,9 @@
     "sftp": "SFTP",
     "pin": "Pin",
     "unpin": "Unpin",
-    "connectionInfo": "Connection"
+    "connectionInfo": "Connection",
+    "jumpRoute_one": "{{count}} jump host route",
+    "jumpRoute_other": "{{count}} jump host route"
   },
   "terminalContext": {
     "copyFailedTitle": "Copy failed",
@@ -507,7 +509,14 @@
       "name": "Name",
       "modified": "Date Modified",
       "size": "Size",
-      "owner": "Owner/Group"
+      "owner": "Owner/Group",
+      "kind": "Kind",
+      "permissions": "Permissions"
+    },
+    "kinds": {
+      "file": "File",
+      "folder": "Folder",
+      "symlink": "Symlink"
     },
     "actions": {
       "upload": "Upload Files",
@@ -563,6 +572,9 @@
       "uploadPartialFailed": "{{succeeded}} upload(s) succeeded, {{failed}} failed"
     },
     "emptyDescription": "This folder is empty",
+    "emptyHint": "Upload files or create a folder to start organizing this path.",
+    "itemSummary_one": "{{count}} item",
+    "itemSummary_other": "{{count}} items",
     "loading": "Loading...",
     "refreshed": "Refreshed",
     "retry": "Retry",
@@ -573,6 +585,9 @@
       "label": "Filter current folder by text, glob, or regex",
       "clear": "Clear filter",
       "noResults": "No files or folders match this filter",
+      "noResultsHint": "Try a broader text filter, glob, or regular expression.",
+      "resultSummary_one": "{{count}} of {{total}} item",
+      "resultSummary_other": "{{count}} of {{total}} items",
       "regex": "Use regular expression; falls back to glob",
       "invalidRegex": "Invalid regular expression"
     }

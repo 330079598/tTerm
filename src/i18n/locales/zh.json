@@ -449,7 +449,9 @@
     "sftp": "SFTP",
     "pin": "固定",
     "unpin": "取消固定",
-    "connectionInfo": "连接"
+    "connectionInfo": "连接",
+    "jumpRoute_one": "{{count}} 个跳转机链路",
+    "jumpRoute_other": "{{count}} 个跳转机链路"
   },
   "terminalContext": {
     "copyFailedTitle": "复制失败",
@@ -495,7 +497,14 @@
       "name": "名称",
       "modified": "修改日期",
       "size": "大小",
-      "owner": "所有者/组"
+      "owner": "所有者/组",
+      "kind": "类型",
+      "permissions": "权限"
+    },
+    "kinds": {
+      "file": "文件",
+      "folder": "文件夹",
+      "symlink": "符号链接"
     },
     "actions": {
       "upload": "上传文件",
@@ -551,6 +560,9 @@
       "uploadPartialFailed": "{{succeeded}} 个上传成功，{{failed}} 个失败"
     },
     "emptyDescription": "此文件夹为空",
+    "emptyHint": "上传文件或新建文件夹，开始整理此路径。",
+    "itemSummary_one": "共 {{count}} 项",
+    "itemSummary_other": "共 {{count}} 项",
     "loading": "加载中...",
     "refreshed": "已刷新",
     "retry": "重试",
@@ -561,6 +573,9 @@
       "label": "按文本、通配符或正则过滤当前目录",
       "clear": "清空过滤",
       "noResults": "没有匹配的文件或文件夹",
+      "noResultsHint": "可以尝试更宽泛的文本、通配符或正则表达式。",
+      "resultSummary_one": "匹配 {{count}} / {{total}} 项",
+      "resultSummary_other": "匹配 {{count}} / {{total}} 项",
       "regex": "使用正则表达式；失败时按通配符处理",
       "invalidRegex": "正则表达式无效"
     }

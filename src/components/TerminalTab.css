@@ -27,10 +27,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  min-height: 34px;
-  padding: 0 14px;
-  background: hsl(var(--background));
+  gap: 12px;
+  min-height: 28px;
+  padding: 0 10px 0 12px;
+  background: transparent;
   border-bottom: none;
   flex-shrink: 0;
 }
@@ -38,7 +38,7 @@
 .connection-header-main {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -46,17 +46,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 999px;
   border: none;
-  box-shadow: 0 0 0 1px hsl(var(--background));
+  box-shadow: none;
   flex-shrink: 0;
 }
 
 .connection-status-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 999px;
   background: currentColor;
 }
@@ -81,12 +81,36 @@
 .connection-meta {
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.connection-primary-row,
+.connection-secondary-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+}
+
+.connection-kind {
+  display: inline-flex;
+  align-items: center;
+  height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .connection-primary {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: hsl(var(--foreground));
   white-space: nowrap;
@@ -94,35 +118,91 @@
   text-overflow: ellipsis;
 }
 
+.connection-state-label {
+  flex-shrink: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.connection-state-label.is-connected {
+  color: hsl(var(--success));
+}
+
+.connection-state-label.is-connecting,
+.connection-state-label.is-reconnecting {
+  color: hsl(var(--warning));
+}
+
+.connection-state-label.is-disconnected,
+.connection-state-label.is-error {
+  color: hsl(var(--destructive));
+}
+
 .connection-progress-text {
   max-width: min(460px, 48vw);
   color: hsl(var(--muted-foreground));
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.connection-detail-item {
+  min-width: 0;
+  max-width: 160px;
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connection-detail-item + .connection-detail-item::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin: 0 7px 2px 0;
+  border-radius: 999px;
+  background: hsl(var(--muted-foreground) / 0.55);
+}
+
 .connection-header-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   flex-shrink: 0;
+}
+
+.connection-route-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .connection-action {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 8px;
+  gap: 4px;
+  height: 22px;
+  padding: 0 6px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 4px;
   background: transparent;
   color: hsl(var(--muted-foreground));
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   transition:
     background-color 0.15s ease,
