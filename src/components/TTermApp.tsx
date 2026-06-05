@@ -475,10 +475,18 @@ export const TTermApp: React.FC = () => {
               onContextMenu={handleTabContextMenu}
             />
             <div className="tab-add-button">
-              <button className="tab-action" onClick={handleNewTab}>
+              <button
+                className="tab-action"
+                onClick={handleNewTab}
+                aria-label={t("tabs.newTab", { defaultValue: "New tab" })}
+              >
                 <Plus size={16} />
               </button>
-              <button className="tab-action" onClick={() => setShowProfilesPanel(true)}>
+              <button
+                className="tab-action"
+                onClick={() => setShowProfilesPanel(true)}
+                aria-label={t("profiles.title", { defaultValue: "Profiles" })}
+              >
                 <BookMarked size={16} />
               </button>
               <TransferManager
@@ -494,7 +502,11 @@ export const TTermApp: React.FC = () => {
         <div className="drag-space" data-tauri-drag-region></div>
 
         <div className="title-bar-right" style={{ paddingRight: `${nativeControlsReservePx}px` }}>
-          <button className="tab-action settings-button" onClick={handleSettingsClick}>
+          <button
+            className="tab-action settings-button"
+            onClick={handleSettingsClick}
+            aria-label={settingsTabTitle}
+          >
             <Settings size={16} />
           </button>
           {isLinux && (

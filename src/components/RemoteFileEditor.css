@@ -46,6 +46,24 @@
   gap: 8px;
 }
 
+.remote-file-editor-save-status {
+  display: inline-flex;
+  align-items: center;
+  min-width: 84px;
+  justify-content: flex-end;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.remote-file-editor-save-status.dirty {
+  color: hsl(var(--warning-foreground));
+}
+
+.remote-file-editor-save-status.saving {
+  color: hsl(var(--primary));
+}
+
 .remote-file-editor-code {
   min-height: 0;
   flex: 1;

@@ -81,6 +81,11 @@
   color: hsl(var(--foreground));
 }
 
+.window-control-button:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: -2px;
+}
+
 .window-control-button.close:hover {
   background: rgb(196 43 28);
   color: white;

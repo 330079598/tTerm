@@ -42,6 +42,14 @@ export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({ tab, onTabUp
   const connectionLabel =
     remoteFile?.connectionLabel ?? remoteFile?.profileName ?? tab.connection?.profileName
   const subtitle = connectionLabel ? `${connectionLabel} · ${remoteFile?.path}` : remoteFile?.path
+  const saveStatus = isSaving
+    ? t("remoteFileEditor.saving", { defaultValue: "Saving..." })
+    : isLoading
+      ? t("remoteFileEditor.loadingShort", { defaultValue: "Loading..." })
+      : dirty
+        ? t("remoteFileEditor.unsaved", { defaultValue: "Unsaved changes" })
+        : t("remoteFileEditor.saved", { defaultValue: "Saved" })
+  const saveStatusState = isSaving ? "saving" : dirty ? "dirty" : "saved"
 
   useEffect(() => {
     if (tab.isModified === dirty) {
@@ -181,6 +189,12 @@ export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({ tab, onTabUp
           </div>
         </div>
         <div className="remote-file-editor-actions">
+          <span
+            className={`remote-file-editor-save-status ${saveStatusState}`}
+            aria-live="polite"
+          >
+            {saveStatus}
+          </span>
           <Button variant="outline" size="sm" onClick={() => void loadFile()} disabled={isLoading}>
             <RefreshCcw className="size-4" />
             {t("remoteFileEditor.reload", { defaultValue: "Reload" })}

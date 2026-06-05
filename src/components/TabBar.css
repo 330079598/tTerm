@@ -140,6 +140,11 @@
   color: hsl(var(--foreground));
 }
 
+.tab-search-clear:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
 .tab-overflow-results {
   max-height: calc(var(--tab-overflow-panel-max-height, min(420px, calc(100vh - 56px))) - 60px);
   overflow-y: auto;
@@ -162,6 +167,11 @@
 
 .tab-overflow-item:hover {
   background: hsl(var(--muted));
+}
+
+.tab-overflow-item:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: -2px;
 }
 
 .tab-overflow-item.active {
@@ -229,6 +239,11 @@
   color: hsl(var(--foreground));
 }
 
+.tab-action:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
 .tab-item {
   display: flex;
   align-items: center;
@@ -250,6 +265,11 @@
 
 .tab-item:hover {
   background-color: hsl(var(--tab-hover));
+}
+
+.tab-item:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: -2px;
 }
 
 .tab-item.active {
@@ -353,6 +373,12 @@
 .tab-close:hover {
   background-color: hsl(var(--muted));
   color: hsl(var(--foreground));
+}
+
+.tab-close:focus-visible {
+  opacity: 1;
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
 }
 
 .tab-close.always-visible {

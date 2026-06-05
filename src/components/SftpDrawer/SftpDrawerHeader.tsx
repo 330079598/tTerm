@@ -232,7 +232,12 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
           <>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-sm" onClick={clearSelection}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={clearSelection}
+                  aria-label={t("sftp.selection.clear", { defaultValue: "Clear selection" })}
+                >
                   <ListX className="size-4" />
                 </Button>
               </TooltipTrigger>
@@ -247,6 +252,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
                   size="icon-sm"
                   onClick={handleDeleteSelection}
                   disabled={isDeleting}
+                  aria-label={t("sftp.actions.deleteSelected", { defaultValue: "Delete Selected" })}
                 >
                   <Trash2 className="size-4" />
                 </Button>
@@ -264,6 +270,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
               size="icon-sm"
               onClick={handleUploadDialog}
               disabled={!listingCurrentPath || isLoading}
+              aria-label={t("sftp.actions.uploadFiles", { defaultValue: "Upload Files" })}
             >
               <ArrowUpFromLine className="size-4" />
             </Button>
@@ -279,6 +286,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
               size="icon-sm"
               onClick={handleUploadFolderDialog}
               disabled={!listingCurrentPath || isLoading}
+              aria-label={t("sftp.actions.uploadFolder", { defaultValue: "Upload Folder" })}
             >
               <FolderUp className="size-4" />
             </Button>
@@ -294,6 +302,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
               size="icon-sm"
               onClick={handleCreateDirectory}
               disabled={!listingCurrentPath || isLoading}
+              aria-label={t("sftp.actions.newFolder", { defaultValue: "New Folder" })}
             >
               <FolderPlus className="size-4" />
             </Button>
@@ -309,6 +318,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
               size="icon-sm"
               onClick={() => void loadDirectory(listingCurrentPath ?? null)}
               disabled={isLoading}
+              aria-label={t("sftp.actions.refresh", { defaultValue: "Refresh" })}
             >
               <RefreshCcw className={cn("size-4", isLoading && "animate-spin")} />
             </Button>
@@ -317,7 +327,12 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" onClick={onClose}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onClose}
+              aria-label={t("sftp.actions.close", { defaultValue: "Close" })}
+            >
               <X className="size-4" />
             </Button>
           </TooltipTrigger>

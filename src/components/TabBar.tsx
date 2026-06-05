@@ -107,20 +107,37 @@ const TabItem: React.FC<TabItemProps> = ({
     [tab, onContextMenu, t]
   )
 
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return
+      }
+
+      event.preventDefault()
+      onTabClick(tab.id)
+    },
+    [onTabClick, tab.id]
+  )
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <div
           ref={setNodeRef}
           className={`tab-item ${isActive ? "active" : ""} ${tab.isModified ? "modified" : ""} ${isDragging ? "dragging" : ""} ${isDropTarget ? "drop-target" : ""}`}
+          role="tab"
+          tabIndex={0}
+          aria-selected={isActive}
           onClick={() => onTabClick(tab.id)}
           onContextMenu={handleContextMenu}
+          onKeyDown={handleKeyDown}
         >
           <span className="tab-number">{index + 1}</span>
           {tab.type === "settings" && <Settings className="tab-icon" size={13} />}
           <span className="tab-title">{tab.title}</span>
           <button
             className="tab-close"
+            aria-label={t("contextMenu.closeTab", { defaultValue: "Close tab" })}
             onClick={(e) => {
               e.stopPropagation()
               onTabClose(tab.id)
