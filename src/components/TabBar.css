@@ -259,12 +259,17 @@
   border-top: 1.5px solid transparent;
   border-bottom: none;
   border-radius: 2px 2px 0 0;
-  transition: border-color 0.15s ease;
+  color: hsl(var(--foreground) / 0.68);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
   -webkit-app-region: no-drag;
 }
 
 .tab-item:hover {
   background-color: hsl(var(--tab-hover));
+  color: hsl(var(--foreground) / 0.86);
 }
 
 .tab-item:focus-visible {
@@ -273,14 +278,21 @@
 }
 
 .tab-item.active {
-  background-color: hsl(var(--background));
+  background-color: hsl(var(--tab-active, var(--background)));
   border-color: hsl(var(--tab-active-border, var(--border)));
+  color: hsl(var(--foreground));
+  box-shadow:
+    0 1px 0 hsl(var(--tab-active, var(--background))),
+    0 8px 18px hsl(var(--foreground) / 0.08);
   margin-bottom: -1px;
   z-index: 2;
 }
 
 [data-theme="ubuntu"] .tab-item.active {
   border-top-width: 1px;
+  box-shadow:
+    0 1px 0 hsl(var(--tab-active, var(--background))),
+    0 8px 18px hsl(var(--foreground) / 0.1);
 }
 
 .tab-item.active::before,
@@ -290,19 +302,20 @@
   bottom: -1px;
   width: 12px;
   height: 12px;
+  z-index: 1;
   pointer-events: none;
 }
 
 .tab-item.active::before {
   left: -12px;
   border-bottom-right-radius: 12px;
-  box-shadow: 6px 6px 0 6px hsl(var(--background));
+  box-shadow: 6px 6px 0 6px hsl(var(--tab-active, var(--background)));
 }
 
 .tab-item.active::after {
   right: -12px;
   border-bottom-left-radius: 12px;
-  box-shadow: -6px 6px 0 6px hsl(var(--background));
+  box-shadow: -6px 6px 0 6px hsl(var(--tab-active, var(--background)));
 }
 
 .tab-item.active.dragging::before,
@@ -315,7 +328,7 @@
 }
 
 .tab-item.active.drop-target {
-  background-color: hsl(var(--background));
+  background-color: hsl(var(--tab-active, var(--background)));
 }
 
 .tab-item.dragging {
@@ -325,20 +338,20 @@
 .tab-number {
   flex-shrink: 0;
   font-size: 11px;
-  color: hsl(var(--muted-foreground));
+  color: currentColor;
   min-width: 14px;
 }
 
 .tab-icon {
   flex-shrink: 0;
-  color: hsl(var(--muted-foreground));
+  color: currentColor;
   margin-right: 4px;
 }
 
 .tab-title {
   flex: 1;
   font-size: 13px;
-  color: hsl(var(--foreground));
+  color: currentColor;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -347,6 +360,7 @@
 }
 
 .tab-item.active .tab-title {
+  color: hsl(var(--foreground));
   font-weight: 500;
 }
 
