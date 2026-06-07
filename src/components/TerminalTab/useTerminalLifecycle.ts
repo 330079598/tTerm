@@ -22,6 +22,7 @@ type UseTerminalLifecycleOptions = {
   activateFitTimerRef: React.MutableRefObject<number | null>
   connectionRef: React.MutableRefObject<TerminalTabProps["connection"]>
   containerRef: React.RefObject<HTMLDivElement>
+  creatingPtyRef: React.MutableRefObject<boolean>
   fitAddonRef: React.MutableRefObject<FitAddon | null>
   fitTerminalOnly: () => void
   initializedRef: React.MutableRefObject<boolean>
@@ -73,6 +74,7 @@ export function useTerminalLifecycle({
   activateFitTimerRef,
   connectionRef,
   containerRef,
+  creatingPtyRef,
   fitAddonRef,
   fitTerminalOnly,
   initializedRef,
@@ -174,7 +176,9 @@ export function useTerminalLifecycle({
         if (data === "\r") {
           const savedPassword = connectionRef.current?.password
           if (savedPassword) {
-            invoke("write_pty", { tabId, data: savedPassword + "\n" }).catch(console.error)
+            invoke("write_pty", { tabId, sessionNonce, data: savedPassword + "\n" }).catch(
+              console.error
+            )
             passwordPromptActiveRef.current = false
             return
           }
@@ -183,7 +187,7 @@ export function useTerminalLifecycle({
         passwordPromptActiveRef.current = false
       }
 
-      invoke("write_pty", { tabId, data }).catch(console.error)
+      invoke("write_pty", { tabId, sessionNonce, data }).catch(console.error)
     })
 
     let unlistenOutput: (() => void) | null = null
@@ -282,8 +286,14 @@ export function useTerminalLifecycle({
 
         setConnectionState(connectionRef.current?.type === "ssh" ? "connecting" : "connected")
 
+        if (creatingPtyRef.current) {
+          return null
+        }
+
+        creatingPtyRef.current = true
         return invoke<number>("create_pty", {
           tabId,
+          sessionNonce,
           rows: term.rows,
           cols: term.cols,
           connection: connectionRef.current,
@@ -293,7 +303,7 @@ export function useTerminalLifecycle({
         if (pid == null) return
 
         if (disposed) {
-          invoke("kill_pty", { tabId }).catch(console.error)
+          invoke("kill_pty", { tabId, sessionNonce }).catch(console.error)
           return
         }
 
@@ -308,6 +318,9 @@ export function useTerminalLifecycle({
           setConnectionState("error")
         }
         term.writeln(`\x1b[31mFailed to start terminal: ${error}\x1b[0m`)
+      })
+      .finally(() => {
+        creatingPtyRef.current = false
       })
 
     const resizeObserver = new ResizeObserver(() => {
@@ -340,7 +353,7 @@ export function useTerminalLifecycle({
       unlistenExit?.()
       unlistenHostPrompt?.()
       unlistenConnectionProgress?.()
-      invoke("kill_pty", { tabId }).catch(console.error)
+      invoke("kill_pty", { tabId, sessionNonce }).catch(console.error)
       searchResultsDisposableRef.current?.dispose()
       searchResultsDisposableRef.current = null
       searchAddonRef.current = null
@@ -349,6 +362,7 @@ export function useTerminalLifecycle({
       fitAddonRef.current = null
       initializedRef.current = false
       lastPtySizeRef.current = null
+      creatingPtyRef.current = false
       waitingForReconnectRef.current = false
       passwordPromptActiveRef.current = false
     }
@@ -356,6 +370,7 @@ export function useTerminalLifecycle({
     activateFitTimerRef,
     connectionRef,
     containerRef,
+    creatingPtyRef,
     fitAddonRef,
     fitTerminalOnly,
     initializedRef,

@@ -50,6 +50,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const connectionRef = useStableRef(connection)
   const isActiveRef = useStableRef(isActive)
   const initializedRef = useRef(false)
+  const creatingPtyRef = useRef(false)
   const waitingForReconnectRef = useRef(false)
   const onPidChangeRef = useStableRef(onPidChange)
   const onReconnectRequestRef = useStableRef(onReconnectRequest)
@@ -163,9 +164,14 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       }
 
       lastPtySizeRef.current = nextSize
-      invoke("resize_pty", { tabId, rows: nextSize.rows, cols: nextSize.cols }).catch(console.error)
+      invoke("resize_pty", {
+        tabId,
+        sessionNonce,
+        rows: nextSize.rows,
+        cols: nextSize.cols,
+      }).catch(console.error)
     },
-    [tabId]
+    [sessionNonce, tabId]
   )
 
   const fitAndSyncPty = useCallback(
@@ -232,6 +238,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     activateFitTimerRef,
     connectionRef,
     containerRef,
+    creatingPtyRef,
     fitAddonRef,
     fitTerminalOnly,
     initializedRef,
@@ -433,7 +440,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
           return
         }
 
-        await invoke("write_pty", { tabId, data: clipboardText })
+        await invoke("write_pty", { tabId, sessionNonce, data: clipboardText })
       } catch (error) {
         console.error("Failed to paste into terminal:", error)
         toast({
@@ -447,7 +454,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         })
       }
     },
-    [showSftpDrawer, t, tabId]
+    [sessionNonce, showSftpDrawer, t, tabId]
   )
 
   const searchResultText = searchQuery

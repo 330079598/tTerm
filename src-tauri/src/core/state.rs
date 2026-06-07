@@ -23,6 +23,8 @@ pub struct ActiveSsh {
 }
 
 pub struct PtySession {
+    pub pid: u32,
+    pub session_nonce: u32,
     pub active: Arc<TokioMutex<Option<ActiveSession>>>,
     pub stop_tx: watch::Sender<bool>,
     pub supervisor: tokio::task::JoinHandle<()>,

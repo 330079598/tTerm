@@ -6,10 +6,28 @@ use std::sync::Arc;
 use tauri::{AppHandle, State};
 use tokio::sync::{mpsc, watch, Mutex as TokioMutex};
 
+fn stop_pty_session(session: PtySession) {
+    let _ = session.stop_tx.send(true);
+
+    if let Some(active) = session.active.blocking_lock().take() {
+        match active {
+            ActiveSession::Local(mut local) => {
+                let _ = local.child.kill();
+            }
+            ActiveSession::Ssh(ssh) => {
+                ssh.task.abort();
+            }
+        }
+    }
+
+    session.supervisor.abort();
+}
+
 #[tauri::command]
 pub fn create_pty(
     app: AppHandle,
     tab_id: String,
+    session_nonce: u32,
     rows: u16,
     cols: u16,
     connection: Option<super::session::PtyConnectionOptions>,
@@ -21,13 +39,32 @@ pub fn create_pty(
     let mut plan = normalize_connection(connection)?;
     resolve_ssh_password(&app, &secret_state, &mut plan)?;
 
-    {
-        let exists = runtime_state
-            .runtime
-            .block_on(async { state.read().await.contains_key(&tab_id) });
-        if exists {
-            return Err(format!("PTY session {} already exists", tab_id));
+    let mut sessions = state.blocking_write();
+    if let Some(session) = sessions.get(&tab_id) {
+        if session.session_nonce == session_nonce {
+            let mut active_guard = session.active.blocking_lock();
+            if let Some(active) = active_guard.as_mut() {
+                match active {
+                    ActiveSession::Local(local) => {
+                        let _ = local.master.resize(portable_pty::PtySize {
+                            rows,
+                            cols,
+                            pixel_width: 0,
+                            pixel_height: 0,
+                        });
+                    }
+                    ActiveSession::Ssh(ssh) => {
+                        let _ = ssh.resize_tx.send((rows, cols));
+                    }
+                }
+
+                return Ok(session.pid);
+            }
         }
+    }
+
+    if let Some(session) = sessions.remove(&tab_id) {
+        stop_pty_session(session);
     }
 
     let (exit_tx, exit_rx) = mpsc::unbounded_channel::<SessionExitSignal>();
@@ -127,24 +164,32 @@ pub fn create_pty(
     );
 
     let session = PtySession {
+        pid,
+        session_nonce,
         active,
         stop_tx,
         supervisor,
     };
 
-    runtime_state
-        .runtime
-        .block_on(async { state.write().await.insert(tab_id, session) });
+    sessions.insert(tab_id, session);
 
     Ok(pid)
 }
 
 #[tauri::command]
-pub fn write_pty(tab_id: String, data: String, state: State<'_, PtyMap>) -> Result<(), String> {
+pub fn write_pty(
+    tab_id: String,
+    session_nonce: u32,
+    data: String,
+    state: State<'_, PtyMap>,
+) -> Result<(), String> {
     let map = state.blocking_read();
     let session = map
         .get(&tab_id)
         .ok_or_else(|| format!("PTY session {} not found", tab_id))?;
+    if session.session_nonce != session_nonce {
+        return Ok(());
+    }
 
     let mut active_guard = session.active.blocking_lock();
     let active = active_guard
@@ -166,6 +211,7 @@ pub fn write_pty(tab_id: String, data: String, state: State<'_, PtyMap>) -> Resu
 #[tauri::command]
 pub fn resize_pty(
     tab_id: String,
+    session_nonce: u32,
     rows: u16,
     cols: u16,
     state: State<'_, PtyMap>,
@@ -174,6 +220,9 @@ pub fn resize_pty(
     let session = map
         .get(&tab_id)
         .ok_or_else(|| format!("PTY session {} not found", tab_id))?;
+    if session.session_nonce != session_nonce {
+        return Ok(());
+    }
 
     let mut active_guard = session.active.blocking_lock();
     let active = active_guard
@@ -198,24 +247,25 @@ pub fn resize_pty(
 }
 
 #[tauri::command]
-pub fn kill_pty(tab_id: String, state: State<'_, PtyMap>) -> Result<(), String> {
-    let session = state.blocking_write().remove(&tab_id);
+pub fn kill_pty(
+    tab_id: String,
+    session_nonce: u32,
+    state: State<'_, PtyMap>,
+) -> Result<(), String> {
+    let session = {
+        let mut sessions = state.blocking_write();
+        if sessions
+            .get(&tab_id)
+            .is_some_and(|session| session.session_nonce == session_nonce)
+        {
+            sessions.remove(&tab_id)
+        } else {
+            None
+        }
+    };
 
     if let Some(session) = session {
-        let _ = session.stop_tx.send(true);
-
-        if let Some(active) = session.active.blocking_lock().take() {
-            match active {
-                ActiveSession::Local(mut local) => {
-                    let _ = local.child.kill();
-                }
-                ActiveSession::Ssh(ssh) => {
-                    ssh.task.abort();
-                }
-            }
-        }
-
-        session.supervisor.abort();
+        stop_pty_session(session);
     }
 
     Ok(())
