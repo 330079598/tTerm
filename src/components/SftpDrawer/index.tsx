@@ -126,7 +126,6 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   const {
     addTransfer,
     downloadEntry,
-    handleOpenEntry,
     handleUploadDialog,
     handleUploadFolderDialog,
     transfersRef,
@@ -402,6 +401,18 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
 
     await downloadEntry(entry)
   }, [activeEntry, contextMenuEntry, downloadEntry])
+
+  const handleOpenEntry = useCallback(
+    async (entry: SftpDirectoryEntry) => {
+      if (entry.isDir) {
+        await loadDirectory(entry.path)
+        return
+      }
+
+      onOpenRemoteFile?.(entry, tabId, connection)
+    },
+    [connection, loadDirectory, onOpenRemoteFile, tabId]
+  )
 
   const handleEdit = useCallback(() => {
     const entry = contextMenuEntry ?? activeEntry

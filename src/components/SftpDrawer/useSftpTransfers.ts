@@ -19,9 +19,6 @@ interface UseSftpTransfersReturn {
   downloadEntry: (
     entry: import("@/components/SftpDrawer/types").SftpDirectoryEntry
   ) => Promise<void>
-  handleOpenEntry: (
-    entry: import("@/components/SftpDrawer/types").SftpDirectoryEntry
-  ) => Promise<void>
   handleUploadDialog: () => Promise<void>
   handleUploadFolderDialog: () => Promise<void>
   removeTransfer: (id: string) => void
@@ -49,10 +46,9 @@ export function useSftpTransfers({
     updateTransfer,
   } = useTransferManager()
 
-  const { downloadEntry, handleOpenEntry } = useSftpDownloads({
+  const { downloadEntry } = useSftpDownloads({
     addTransfer,
     connection,
-    loadDirectory,
     tabId,
     transfersRef,
     updateTransfer,
@@ -91,7 +87,6 @@ export function useSftpTransfers({
     cancelTransfer,
     clearCompletedTransfers,
     downloadEntry,
-    handleOpenEntry,
     handleUploadDialog,
     handleUploadFolderDialog,
     removeTransfer,

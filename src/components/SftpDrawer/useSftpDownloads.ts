@@ -14,7 +14,6 @@ interface UseSftpDownloadsParams {
     id?: string
   ) => string
   connection?: Tab["connection"]
-  loadDirectory: (path?: string | null) => Promise<void>
   tabId: string
   transfersRef: React.MutableRefObject<TransferTask[]>
   updateTransfer: (id: string, updates: Partial<TransferTask>) => void
@@ -57,13 +56,11 @@ interface DownloadBatchCompleteEvent {
 
 interface UseSftpDownloadsReturn {
   downloadEntry: (entry: SftpDirectoryEntry) => Promise<void>
-  handleOpenEntry: (entry: SftpDirectoryEntry) => Promise<void>
 }
 
 export function useSftpDownloads({
   addTransfer,
   connection,
-  loadDirectory,
   tabId,
   transfersRef,
   updateTransfer,
@@ -366,19 +363,7 @@ export function useSftpDownloads({
     [addTransfer, connection, t, tabId, transfersRef, updateTransfer]
   )
 
-  const handleOpenEntry = useCallback(
-    async (entry: SftpDirectoryEntry) => {
-      if (entry.isDir) {
-        void loadDirectory(entry.path)
-      } else {
-        await downloadEntry(entry)
-      }
-    },
-    [downloadEntry, loadDirectory]
-  )
-
   return {
     downloadEntry,
-    handleOpenEntry,
   }
 }
