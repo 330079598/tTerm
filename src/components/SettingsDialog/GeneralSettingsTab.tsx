@@ -1,109 +1,120 @@
 import React from "react"
-import { Info, PlugZap, Route, Trash2 } from "lucide-react"
+import { Check, Info, Languages, PlugZap, Trash2, Wrench } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
+import { cn } from "@/lib/utils"
+import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
+
+interface LanguageOption {
+  code: string
+  label: string
+  nativeLabel: string
+}
 
 interface GeneralSettingsTabProps {
   handleAbout: () => void
   handleClearSession: () => Promise<void>
+  handleLanguageChange: (langCode: string) => Promise<void>
   handleRestoreAllSessionConnectionsChange: (checked: boolean) => Promise<void>
-  handleShowJumpHostConnectionInfoChange: (checked: boolean) => Promise<void>
+  i18nLanguage: string
+  languages: LanguageOption[]
   restoreAllSessionConnections: boolean
-  showJumpHostConnectionInfo: boolean
 }
 
 export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   handleAbout,
   handleClearSession,
+  handleLanguageChange,
   handleRestoreAllSessionConnectionsChange,
-  handleShowJumpHostConnectionInfoChange,
+  i18nLanguage,
+  languages,
   restoreAllSessionConnections,
-  showJumpHostConnectionInfo,
 }) => {
   const { t } = useTranslation()
 
   return (
     <ScrollArea className="h-full pr-4">
-      <div className="space-y-3">
-        <Card className="overflow-hidden border-transparent shadow-none">
-          <CardContent className="flex items-center justify-between gap-4 p-4">
-            <div className="flex items-start gap-3">
-              <PlugZap size={16} className="mt-0.5 shrink-0" />
-              <div>
-                <div className="text-sm font-medium">
-                  {t("settings.restoreAllSessionConnections")}
-                </div>
-                <div className="text-muted-foreground text-xs leading-5">
-                  {t("settings.restoreAllSessionConnectionsDesc")}
-                </div>
-              </div>
-            </div>
-            <Switch
-              checked={restoreAllSessionConnections}
-              onCheckedChange={handleRestoreAllSessionConnectionsChange}
-            />
-          </CardContent>
-        </Card>
+      <div className="space-y-6">
+        <SettingsSection
+          icon={<Languages size={16} />}
+          title={t("language.title")}
+          description={t("language.description", {
+            defaultValue: "Set the display language for tTerm.",
+          })}
+        >
+          <div className="grid gap-2">
+            {languages.map((lang) => {
+              const isActive = i18nLanguage === lang.code
+              return (
+                <Button
+                  key={lang.code}
+                  type="button"
+                  variant="ghost"
+                  aria-pressed={isActive}
+                  onClick={() => handleLanguageChange(lang.code)}
+                  className={cn(
+                    "h-auto w-full justify-between rounded-lg border px-4 py-3 text-left",
+                    isActive
+                      ? "border-primary bg-accent ring-primary ring-1 ring-inset"
+                      : "border-transparent"
+                  )}
+                >
+                  <div>
+                    <div className="text-sm font-semibold">{lang.nativeLabel}</div>
+                    <div className="text-muted-foreground text-xs">{lang.label}</div>
+                  </div>
+                  {isActive && <Check size={16} className="text-primary ml-3 shrink-0" />}
+                </Button>
+              )
+            })}
+          </div>
+        </SettingsSection>
 
-        <Card className="overflow-hidden border-transparent shadow-none">
-          <CardContent className="flex items-center justify-between gap-4 p-4">
-            <div className="flex items-start gap-3">
-              <Route size={16} className="mt-0.5 shrink-0" />
-              <div>
-                <div className="text-sm font-medium">
-                  {t("settings.showJumpHostConnectionInfo")}
-                </div>
-                <div className="text-muted-foreground text-xs leading-5">
-                  {t("settings.showJumpHostConnectionInfoDesc")}
-                </div>
-              </div>
-            </div>
-            <Switch
-              checked={showJumpHostConnectionInfo}
-              onCheckedChange={handleShowJumpHostConnectionInfoChange}
-            />
-          </CardContent>
-        </Card>
+        <SettingsSection
+          icon={<PlugZap size={16} />}
+          title={t("settings.startup", { defaultValue: "Startup" })}
+        >
+          <SettingsRow
+            icon={<PlugZap size={16} />}
+            title={t("settings.restoreAllSessionConnections")}
+            description={t("settings.restoreAllSessionConnectionsDesc")}
+            action={
+              <Switch
+                checked={restoreAllSessionConnections}
+                onCheckedChange={handleRestoreAllSessionConnectionsChange}
+              />
+            }
+          />
+        </SettingsSection>
 
-        <Card className="overflow-hidden border-transparent shadow-none">
-          <CardContent className="p-0">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={handleClearSession}
-              className="h-auto w-full justify-start gap-3 rounded-lg px-4 py-3 text-left"
-            >
-              <Trash2 size={16} className="text-destructive" />
-              <div>
-                <div className="text-sm font-medium">{t("settings.clearSession")}</div>
-                <div className="text-muted-foreground text-xs">
-                  {t("settings.clearSessionDesc")}
-                </div>
-              </div>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="overflow-hidden border-transparent shadow-none">
-          <CardContent className="p-0">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={handleAbout}
-              className="h-auto w-full justify-start gap-3 rounded-lg px-4 py-3 text-left"
-            >
-              <Info size={16} />
-              <div>
-                <div className="text-sm font-medium">{t("settings.about")}</div>
-                <div className="text-muted-foreground text-xs">{t("app.subtitle")}</div>
-              </div>
-            </Button>
-          </CardContent>
-        </Card>
+        <SettingsSection
+          icon={<Wrench size={16} />}
+          title={t("settings.maintenance", { defaultValue: "Maintenance" })}
+        >
+          <SettingsRow
+            icon={<Trash2 size={16} className="text-destructive" />}
+            title={t("settings.clearSession")}
+            description={t("settings.clearSessionDesc")}
+            action={
+              <Button type="button" variant="outline" onClick={handleClearSession}>
+                {t("settings.clearSession")}
+              </Button>
+            }
+          />
+          <SettingsRow
+            icon={<Info size={16} />}
+            title={t("settings.about")}
+            description={t("app.subtitle")}
+            action={
+              <Button type="button" variant="outline" onClick={handleAbout}>
+                {t("common.open", { defaultValue: "Open" })}
+              </Button>
+            }
+          />
+        </SettingsSection>
       </div>
     </ScrollArea>
   )

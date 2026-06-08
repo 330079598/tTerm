@@ -1,31 +1,21 @@
 import React from "react"
-import { Check, Copy, Edit, Languages, Palette, Plus, RotateCcw, Trash2 } from "lucide-react"
+import { Copy, Edit, Palette, Plus, RotateCcw, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { ThemeCard } from "@/components/ThemeCard"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
+import { SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
 import type { CustomTheme, PresetTheme, PresetThemeId } from "@/types/theme"
-
-interface LanguageOption {
-  code: string
-  label: string
-  nativeLabel: string
-}
 
 interface AppearanceSettingsTabProps {
   currentTheme: string
   customThemes: CustomTheme[]
   handleDeleteTheme: (themeId: string) => Promise<void>
   handleDuplicateTheme: (themeId: string) => Promise<void>
-  handleLanguageChange: (langCode: string) => Promise<void>
   handleResetPresetTheme: (themeId: PresetThemeId) => Promise<void>
   handleThemeChange: (themeId: string) => Promise<void>
-  i18nLanguage: string
-  languages: LanguageOption[]
   presetThemes: PresetTheme[]
   presetThemeOverrides: CustomTheme[]
   setCreatingFromTheme: React.Dispatch<React.SetStateAction<string | null>>
@@ -37,11 +27,8 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
   customThemes,
   handleDeleteTheme,
   handleDuplicateTheme,
-  handleLanguageChange,
   handleResetPresetTheme,
   handleThemeChange,
-  i18nLanguage,
-  languages,
   presetThemes,
   presetThemeOverrides,
   setCreatingFromTheme,
@@ -65,48 +52,13 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
   return (
     <ScrollArea className="h-full pr-4">
       <div className="space-y-6">
-        <div>
-          <div className="mb-3 flex items-center gap-2">
-            <Languages size={16} />
-            <h3 className="text-sm font-semibold">{t("language.title")}</h3>
-          </div>
-          <div className="grid gap-2">
-            {languages.map((lang) => {
-              const isActive = i18nLanguage === lang.code
-              return (
-                <Card key={lang.code} className="overflow-hidden border-transparent shadow-none">
-                  <CardContent className="p-0">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      aria-pressed={isActive}
-                      onClick={() => handleLanguageChange(lang.code)}
-                      className={cn(
-                        "h-auto w-full justify-between rounded-lg border px-4 py-3 text-left",
-                        isActive
-                          ? "border-primary bg-accent ring-primary ring-1 ring-inset"
-                          : "border-transparent"
-                      )}
-                    >
-                      <div>
-                        <div className="text-sm font-semibold">{lang.nativeLabel}</div>
-                        <div className="text-muted-foreground text-xs">{lang.label}</div>
-                      </div>
-                      {isActive && <Check size={16} className="text-primary ml-3 shrink-0" />}
-                    </Button>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-        </div>
-
-        <div>
-          <div className="mb-3 flex items-center gap-2">
-            <Palette size={16} />
-            <h3 className="text-sm font-semibold">{t("theme.title")}</h3>
-          </div>
-
+        <SettingsSection
+          icon={<Palette size={16} />}
+          title={t("theme.title")}
+          description={t("theme.description", {
+            defaultValue: "Choose the UI and terminal palette used across tTerm.",
+          })}
+        >
           <div className="mb-4">
             <h4 className="text-muted-foreground mb-2 text-xs font-medium">
               {t("themeEditor.presetThemes")}
@@ -266,7 +218,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
             <Plus size={16} className="mr-2" />
             {t("themeEditor.createNew")}
           </Button>
-        </div>
+        </SettingsSection>
       </div>
     </ScrollArea>
   )

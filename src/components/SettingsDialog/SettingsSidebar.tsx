@@ -1,5 +1,5 @@
 import React from "react"
-import { Info, Palette, Shield, Type, UploadCloud } from "lucide-react"
+import { Info, Palette, Plug, Shield, SquareTerminal, UploadCloud } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -18,11 +18,18 @@ export const SettingsSidebar: React.FC = () => {
           {t("settings.appearance")}
         </TabsTrigger>
         <TabsTrigger
-          value="font"
+          value="terminal"
           className="data-[state=active]:bg-background w-full justify-start gap-2 data-[state=active]:shadow-sm"
         >
-          <Type size={16} />
-          {t("settings.font")}
+          <SquareTerminal size={16} />
+          {t("settings.terminal", { defaultValue: "Terminal" })}
+        </TabsTrigger>
+        <TabsTrigger
+          value="connection"
+          className="data-[state=active]:bg-background w-full justify-start gap-2 data-[state=active]:shadow-sm"
+        >
+          <Plug size={16} />
+          {t("settings.connection", { defaultValue: "Connection" })}
         </TabsTrigger>
         <TabsTrigger
           value="security"

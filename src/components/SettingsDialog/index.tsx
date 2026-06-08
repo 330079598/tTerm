@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import type { PresetThemeId } from "@/types/theme"
 import { AppearanceSettingsTab } from "@/components/SettingsDialog/AppearanceSettingsTab"
+import { ConnectionSettingsTab } from "@/components/SettingsDialog/ConnectionSettingsTab"
 import { FontSettingsTab } from "@/components/SettingsDialog/FontSettingsTab"
 import { GeneralSettingsTab } from "@/components/SettingsDialog/GeneralSettingsTab"
 import { SecuritySettingsTab } from "@/components/SettingsDialog/SecuritySettingsTab"
@@ -42,6 +43,10 @@ let lastSecretStatusRefreshAt = 0
 let secretStatusPromise: Promise<unknown> | null = null
 
 const fallbackAppVersion = import.meta.env.PACKAGE_VERSION ?? "0.0.0"
+
+function normalizeSettingsTab(tab: string) {
+  return tab === "font" ? "terminal" : tab
+}
 
 function getPerfNow() {
   return typeof performance === "undefined" ? 0 : performance.now()
@@ -148,7 +153,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     duplicateTheme,
   } = useTheme()
   const { toast } = useToast()
-  const [activeTab, setActiveTab] = useState(defaultTab)
+  const [activeTab, setActiveTab] = useState(() => normalizeSettingsTab(defaultTab))
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const { prompt, PromptDialog } = usePromptDialog()
   const { info, InfoDialog } = useInfoDialog()
@@ -179,7 +184,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [creatingFromTheme, setCreatingFromTheme] = useState<string | null>(null)
 
   useEffect(() => {
-    setActiveTab(defaultTab)
+    setActiveTab(normalizeSettingsTab(defaultTab))
   }, [defaultTab])
 
   useEffect(() => {
@@ -193,7 +198,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   }, [activeTab])
 
   useEffect(() => {
-    if (activeTab !== "font" || fontsLoaded || loadingFonts) {
+    if (activeTab !== "terminal" || fontsLoaded || loadingFonts) {
       return
     }
 
@@ -515,11 +520,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               customThemes={customThemes}
               handleDeleteTheme={handleDeleteTheme}
               handleDuplicateTheme={handleDuplicateTheme}
-              handleLanguageChange={handleLanguageChange}
               handleResetPresetTheme={handleResetPresetTheme}
               handleThemeChange={handleThemeChange}
-              i18nLanguage={i18n.language}
-              languages={languages}
               presetThemes={presetThemes}
               presetThemeOverrides={presetThemeOverrides}
               setCreatingFromTheme={setCreatingFromTheme}
@@ -527,7 +529,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             />
           </TabsContent>
 
-          <TabsContent value="font" className="m-0 flex-1 overflow-y-auto p-6">
+          <TabsContent value="terminal" className="m-0 flex-1 overflow-y-auto p-6">
             <FontSettingsTab
               fontFamily={fontFamily}
               fontSize={fontSize}
@@ -551,6 +553,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             />
           </TabsContent>
 
+          <TabsContent value="connection" className="m-0 flex-1 overflow-y-auto p-6">
+            <ConnectionSettingsTab
+              handleShowJumpHostConnectionInfoChange={handleShowJumpHostConnectionInfoChange}
+              showJumpHostConnectionInfo={config.show_jump_host_connection_info}
+            />
+          </TabsContent>
+
           <TabsContent value="security" className="m-0 flex-1 overflow-y-auto p-6">
             <SecuritySettingsTab
               backendLabel={backendLabel}
@@ -570,10 +579,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <GeneralSettingsTab
               handleAbout={handleAbout}
               handleClearSession={handleClearSession}
+              handleLanguageChange={handleLanguageChange}
               handleRestoreAllSessionConnectionsChange={handleRestoreAllSessionConnectionsChange}
-              handleShowJumpHostConnectionInfoChange={handleShowJumpHostConnectionInfoChange}
+              i18nLanguage={i18n.language}
+              languages={languages}
               restoreAllSessionConnections={config.startup_session_restore_mode === "all"}
-              showJumpHostConnectionInfo={config.show_jump_host_connection_info}
             />
           </TabsContent>
 
