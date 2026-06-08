@@ -7,7 +7,7 @@ import type { TerminalTabProps } from "@/components/TerminalTab/types"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useToast } from "@/hooks/use-toast"
 
-const MIN_REFRESH_INTERVAL_MS = 2000
+const MIN_REFRESH_INTERVAL_MS = 1000
 const MAX_REFRESH_INTERVAL_MS = 60000
 const DISTRO_ICON_BASE = "/assets/distro-icons"
 
@@ -201,6 +201,10 @@ function hasClipboardPluginError(error: unknown) {
   return String(error).toLowerCase().includes("plugin:clipboard-manager")
 }
 
+function normalizeSessionNonce(sessionNonce: number) {
+  return sessionNonce >>> 0
+}
+
 function MetricItem({
   ariaLabel,
   className,
@@ -253,6 +257,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
   const [state, setState] = useState<MonitorState>({ status: "loading" })
   const previousCpuTimesRef = useRef<CpuTimes | undefined>()
   const requestIdRef = useRef(0)
+  const monitorSessionNonce = normalizeSessionNonce(sessionNonce)
   const refreshIntervalMs = useMemo(() => {
     const configuredMs = config.monitor_refresh_interval_secs * 1000
     if (!Number.isFinite(configuredMs)) {
@@ -320,6 +325,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
       try {
         const snapshot = await invoke<ServerMetricsSnapshot>("get_server_metrics_snapshot", {
           tabId,
+          sessionNonce: monitorSessionNonce,
           connection,
         })
         if (cancelled || requestId !== requestIdRef.current) return
@@ -348,8 +354,9 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
       if (timeoutId !== undefined) {
         window.clearTimeout(timeoutId)
       }
+      void invoke("release_server_monitor_session", { tabId, sessionNonce: monitorSessionNonce })
     }
-  }, [connection, connectionState, refreshIntervalMs, sessionNonce, t, tabId, visible])
+  }, [connection, connectionState, monitorSessionNonce, refreshIntervalMs, t, tabId, visible])
 
   const content = useMemo(() => {
     if (connectionState !== "connected") {

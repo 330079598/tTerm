@@ -64,7 +64,7 @@
     "monitorRefreshInterval": "Server monitor refresh interval",
     "monitorRefreshIntervalDesc": "Choose a compact cadence for CPU, memory, IP and disk metrics. Shorter intervals feel more live but run more SSH queries.",
     "monitorRefreshIntervalSeconds": "Seconds",
-    "monitorRefreshIntervalRange": "2-60s",
+    "monitorRefreshIntervalRange": "1-60s",
     "startup": "Startup",
     "maintenance": "Maintenance",
     "jumpHost": "Jump hosts",

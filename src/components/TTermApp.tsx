@@ -401,7 +401,7 @@ export const TTermApp: React.FC = () => {
     (tabId: string) => {
       updateTab(tabId, (tab) => ({
         ...tab,
-        sessionNonce: (tab.sessionNonce ?? 0) + 1,
+        sessionNonce: ((tab.sessionNonce ?? 0) + 1) >>> 0,
       }))
     },
     [updateTab]

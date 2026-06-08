@@ -170,6 +170,8 @@ pub fn run() {
         Arc::new(RwLock::new(std::collections::HashMap::new()));
     let sftp_pool: sftp::SftpConnectionPool =
         Arc::new(RwLock::new(std::collections::HashMap::new()));
+    let monitor_sessions: monitor::MonitorSessionMap =
+        Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
     let transfer_cancel_map: sftp::TransferCancelMap =
         Arc::new(RwLock::new(std::collections::HashMap::new()));
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -203,6 +205,7 @@ pub fn run() {
         .manage(pty_map)
         .manage(host_prompt_map)
         .manage(sftp_pool)
+        .manage(monitor_sessions)
         .manage(transfer_cancel_map)
         .manage(TokioRuntimeState { runtime })
         .manage(PendingUpdateDownloads::default())
@@ -223,6 +226,7 @@ pub fn run() {
             core::commands::get_saved_jump_host_password,
             fonts::list_fonts,
             monitor::get_server_metrics_snapshot,
+            monitor::release_server_monitor_session,
             profiles::list_profiles,
             profiles::save_profile,
             profiles::delete_profile,

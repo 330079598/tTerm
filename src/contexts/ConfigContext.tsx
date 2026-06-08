@@ -95,7 +95,7 @@ function normalizeMonitorRefreshInterval(
     return 5
   }
 
-  return Math.min(Math.max(Math.round(value), 2), 60)
+  return Math.min(Math.max(Math.round(value), 1), 60)
 }
 
 function normalizeConfig(config: Partial<AppConfig>): AppConfig {

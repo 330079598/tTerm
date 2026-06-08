@@ -37,7 +37,7 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
       return
     }
 
-    const normalizedValue = Math.min(Math.max(value, 2), 60)
+    const normalizedValue = Math.min(Math.max(value, 1), 60)
     setMonitorRefreshDraft(String(normalizedValue))
     if (normalizedValue !== monitorRefreshIntervalSecs) {
       void handleMonitorRefreshIntervalChange(normalizedValue)
@@ -92,7 +92,7 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
                 <Input
                   id="monitor-refresh-interval"
                   type="number"
-                  min={2}
+                  min={1}
                   max={60}
                   step={1}
                   value={monitorRefreshDraft}
@@ -101,7 +101,7 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
                     setMonitorRefreshDraft(nextValue)
 
                     const value = parseInt(nextValue, 10)
-                    if (!Number.isNaN(value) && value >= 2 && value <= 60) {
+                    if (!Number.isNaN(value) && value >= 1 && value <= 60) {
                       void handleMonitorRefreshIntervalChange(value)
                     }
                   }}
@@ -115,7 +115,7 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
                 />
               </div>
               <div className="text-muted-foreground pb-2 text-xs">
-                {t("settings.monitorRefreshIntervalRange", { defaultValue: "2-60s" })}
+                {t("settings.monitorRefreshIntervalRange", { defaultValue: "1-60s" })}
               </div>
             </div>
           </SettingsRow>

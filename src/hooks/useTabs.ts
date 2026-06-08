@@ -36,6 +36,10 @@ function ensureTabDefaults(tab: Tab): Tab {
   }
 }
 
+function nextSessionNonce(sessionNonce?: number) {
+  return ((sessionNonce ?? 0) + 1) >>> 0
+}
+
 export function useTabs(): UseTabsReturn {
   const [tabs, setTabs] = useState<Tab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
@@ -202,7 +206,7 @@ export function useTabs(): UseTabsReturn {
           connection: tabData.connection ?? {
             type: tabData.type === "terminal" ? "terminal" : "ssh",
           },
-          sessionNonce: (tab.sessionNonce ?? 0) + 1,
+          sessionNonce: nextSessionNonce(tab.sessionNonce),
           id: newId,
           title: `${tab.title} (Copy)`,
           isActive: false,

@@ -442,9 +442,10 @@ async fn download_file_into_directory(
             return Err("Download cancelled by user".to_string());
         }
 
-        let bytes_read = remote_file.read(&mut buffer).await.map_err(|err| {
-            format!("Failed to read remote file '{}': {err}", item.remote_path)
-        })?;
+        let bytes_read = remote_file
+            .read(&mut buffer)
+            .await
+            .map_err(|err| format!("Failed to read remote file '{}': {err}", item.remote_path))?;
 
         if bytes_read == 0 {
             break;
@@ -454,9 +455,15 @@ async fn download_file_into_directory(
             return Err("Download cancelled by user".to_string());
         }
 
-        local_file.write_all(&buffer[..bytes_read]).await.map_err(|err| {
-            format!("Failed to write local file '{}': {err}", local_path.display())
-        })?;
+        local_file
+            .write_all(&buffer[..bytes_read])
+            .await
+            .map_err(|err| {
+                format!(
+                    "Failed to write local file '{}': {err}",
+                    local_path.display()
+                )
+            })?;
 
         *aggregate_transferred = aggregate_transferred.saturating_add(bytes_read as u64);
         item_transferred = item_transferred.saturating_add(bytes_read as u64);
@@ -508,10 +515,12 @@ async fn download_file_into_directory(
         }
     }
 
-    local_file
-        .flush()
-        .await
-        .map_err(|err| format!("Failed to flush local file '{}': {err}", local_path.display()))?;
+    local_file.flush().await.map_err(|err| {
+        format!(
+            "Failed to flush local file '{}': {err}",
+            local_path.display()
+        )
+    })?;
 
     if item.size == 0 {
         let _ = app.emit(

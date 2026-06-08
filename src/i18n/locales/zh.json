@@ -62,7 +62,7 @@
     "monitorRefreshInterval": "服务器监控刷新间隔",
     "monitorRefreshIntervalDesc": "设置 CPU、内存、IP 和磁盘指标的刷新节奏。间隔越短越接近实时，但会发起更多 SSH 查询。",
     "monitorRefreshIntervalSeconds": "秒",
-    "monitorRefreshIntervalRange": "2-60 秒",
+    "monitorRefreshIntervalRange": "1-60 秒",
     "startup": "启动",
     "maintenance": "维护",
     "jumpHost": "跳板机",
