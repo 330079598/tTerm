@@ -216,6 +216,12 @@
   color: hsl(var(--foreground));
 }
 
+.connection-action.is-active {
+  background: hsl(var(--primary) / 0.12);
+  border-color: hsl(var(--primary) / 0.32);
+  color: hsl(var(--primary));
+}
+
 .terminal-surface {
   position: relative;
   flex: 1;
@@ -225,6 +231,107 @@
   padding-right: var(--terminal-padding-right, 0px);
   padding-bottom: var(--terminal-padding-bottom, 0px);
   padding-left: var(--terminal-padding-left, 6px);
+}
+
+.server-monitor-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+  max-height: 26px;
+  padding: 0 10px;
+  border-top: 1px solid hsl(var(--border) / 0.72);
+  background: hsl(var(--card) / 0.82);
+  color: hsl(var(--muted-foreground));
+  flex-shrink: 0;
+  font-size: 11px;
+  line-height: 1;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.server-monitor-leading-icon {
+  color: hsl(var(--muted-foreground));
+  flex: 0 0 auto;
+}
+
+.server-monitor-distro,
+.server-monitor-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.server-monitor-distro {
+  max-width: 230px;
+  color: hsl(var(--foreground));
+}
+
+.server-monitor-distro-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  display: block;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.server-monitor-distro-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.server-monitor-metric {
+  padding-left: 10px;
+  border-left: 1px solid hsl(var(--border) / 0.74);
+}
+
+.server-monitor-metric svg {
+  color: currentColor;
+  flex: 0 0 auto;
+}
+
+.server-monitor-metric-label {
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.server-monitor-metric-value {
+  color: hsl(var(--foreground));
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.server-monitor-metric.is-warning .server-monitor-metric-value {
+  color: hsl(var(--warning));
+}
+
+.server-monitor-metric.is-critical .server-monitor-metric-value {
+  color: hsl(var(--destructive));
+}
+
+.server-monitor-message {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.server-monitor-message.is-error,
+.server-monitor-stale {
+  color: hsl(var(--warning));
+}
+
+.server-monitor-stale {
+  padding-left: 10px;
+  border-left: 1px solid hsl(var(--border) / 0.74);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 /* Optimize font rendering for terminal */
@@ -313,6 +420,27 @@
   .connection-header-actions {
     width: 100%;
     justify-content: flex-end;
+  }
+}
+
+@media (max-width: 760px) {
+  .server-monitor-distro {
+    max-width: 150px;
+  }
+
+  .server-monitor-load {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .server-monitor-leading-icon,
+  .server-monitor-metric-label {
+    display: none;
+  }
+
+  .server-monitor-distro-name {
+    max-width: 82px;
   }
 }
 

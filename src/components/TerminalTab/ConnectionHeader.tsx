@@ -1,5 +1,5 @@
 import React from "react"
-import { Globe, Pin, PinOff, RefreshCcw, Route } from "lucide-react"
+import { Activity, Globe, Pin, PinOff, RefreshCcw, Route } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -49,8 +49,10 @@ interface ConnectionHeaderProps {
   onBackgroundMouseDown?: React.MouseEventHandler<HTMLDivElement>
   onPinConnectionHeader?: () => void
   onReconnect: () => void
+  onToggleServerMonitor: () => void
   onToggleSftpDrawer: () => void
   onUnpinConnectionHeader?: () => void
+  serverMonitorVisible: boolean
 }
 
 export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
@@ -61,8 +63,10 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
   onBackgroundMouseDown,
   onPinConnectionHeader,
   onReconnect,
+  onToggleServerMonitor,
   onToggleSftpDrawer,
   onUnpinConnectionHeader,
+  serverMonitorVisible,
 }) => {
   const { t } = useTranslation()
   const showConnectionHeader = connection?.type === "ssh" && connectionHeaderPinned
@@ -146,6 +150,19 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
             <button type="button" className="connection-action" onClick={onToggleSftpDrawer}>
               <Globe size={14} />
               <span>{t("sessionHeader.sftp", { defaultValue: "SFTP" })}</span>
+            </button>
+            <button
+              type="button"
+              className={`connection-action ${serverMonitorVisible ? "is-active" : ""}`}
+              onClick={onToggleServerMonitor}
+              aria-pressed={serverMonitorVisible}
+            >
+              <Activity size={14} />
+              <span>
+                {serverMonitorVisible
+                  ? t("sessionHeader.hideMonitor", { defaultValue: "Hide Monitor" })
+                  : t("sessionHeader.showMonitor", { defaultValue: "Monitor" })}
+              </span>
             </button>
             <button type="button" className="connection-action" onClick={onUnpinConnectionHeader}>
               <PinOff size={14} />

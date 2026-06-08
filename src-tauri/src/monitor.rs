@@ -1,0 +1,396 @@
+use crate::core::session::{normalize_connection, resolve_ssh_password, PtyConnectionOptions};
+use crate::core::state::{HostPromptMap, SessionKind};
+use crate::ssh::{open_target_ssh_session, ConnectionStatusOptions, SecretStoreState};
+use russh::ChannelMsg;
+use serde::Serialize;
+use tauri::{AppHandle, State};
+
+const METRICS_SCRIPT: &str = r#"set -efu
+echo "__TTERM_OS_RELEASE_BEGIN__"
+if [ -r /etc/os-release ]; then cat /etc/os-release; fi
+echo "__TTERM_OS_RELEASE_END__"
+printf "__TTERM_UNAME__ "
+uname -srm 2>/dev/null || true
+if [ "$(uname -s 2>/dev/null || true)" != "Linux" ]; then
+  exit 0
+fi
+printf "__TTERM_PROC_STAT__ "
+awk '/^cpu / {print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11}' /proc/stat 2>/dev/null || true
+printf "__TTERM_MEMINFO__ "
+awk '
+  /^(MemTotal|MemAvailable|MemFree|Buffers|Cached|SReclaimable):/ {
+    gsub(":", "", $1);
+    printf "%s=%s ", $1, $2
+  }
+  END { printf "\n" }
+' /proc/meminfo 2>/dev/null || true
+printf "__TTERM_LOADAVG__ "
+cat /proc/loadavg 2>/dev/null || true
+printf "__TTERM_DF_ROOT__ "
+df -P -k / 2>/dev/null | awk 'NR==2 {print $2,$3,$4,$5,$6}' || true
+"#;
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinuxDistributionInfo {
+    pub id: String,
+    pub id_like: Vec<String>,
+    pub name: String,
+    pub pretty_name: String,
+    pub version_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CpuTimes {
+    pub user: u64,
+    pub nice: u64,
+    pub system: u64,
+    pub idle: u64,
+    pub iowait: u64,
+    pub irq: u64,
+    pub softirq: u64,
+    pub steal: u64,
+    pub guest: u64,
+    pub guest_nice: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MemoryMetrics {
+    pub total_kib: u64,
+    pub available_kib: u64,
+    pub used_kib: u64,
+    pub used_percent: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LoadMetrics {
+    pub one: f64,
+    pub five: f64,
+    pub fifteen: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiskMetrics {
+    pub mount: String,
+    pub total_kib: u64,
+    pub used_kib: u64,
+    pub available_kib: u64,
+    pub used_percent: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerMetricsSnapshot {
+    pub supported: bool,
+    pub unsupported_reason: Option<String>,
+    pub distribution: Option<LinuxDistributionInfo>,
+    pub kernel: Option<String>,
+    pub cpu_times: Option<CpuTimes>,
+    pub memory: Option<MemoryMetrics>,
+    pub load: Option<LoadMetrics>,
+    pub disk: Option<DiskMetrics>,
+}
+
+#[tauri::command]
+pub async fn get_server_metrics_snapshot(
+    app: AppHandle,
+    tab_id: String,
+    connection: Option<PtyConnectionOptions>,
+    prompt_state: State<'_, HostPromptMap>,
+    secret_state: State<'_, SecretStoreState>,
+) -> Result<ServerMetricsSnapshot, String> {
+    let mut plan = normalize_connection(connection)?;
+    if !matches!(plan.kind, SessionKind::Ssh) {
+        return Err("Server monitoring requires an SSH connection".to_string());
+    }
+    resolve_ssh_password(&app, &secret_state, &mut plan)?;
+
+    let host = plan
+        .host
+        .clone()
+        .ok_or_else(|| "SSH host is required".to_string())?;
+    let username = plan
+        .username
+        .clone()
+        .ok_or_else(|| "SSH username is required".to_string())?;
+    let (_jump_chain, ssh) = open_target_ssh_session(
+        &app,
+        &tab_id,
+        plan.profile_id.as_deref(),
+        &plan.profile_name,
+        &host,
+        plan.port,
+        &username,
+        plan.private_key_path.as_deref(),
+        plan.private_key_passphrase.as_deref(),
+        plan.password.as_deref(),
+        plan.keepalive_interval_secs,
+        plan.keepalive_count_max,
+        &plan.jump_hosts,
+        prompt_state.inner().clone(),
+        ConnectionStatusOptions::QUIET,
+    )
+    .await?;
+    let mut channel = ssh
+        .channel_open_session()
+        .await
+        .map_err(|err| format!("Failed to open SSH channel: {err}"))?;
+
+    channel
+        .exec(true, METRICS_SCRIPT)
+        .await
+        .map_err(|err| format!("Failed to execute metrics command: {err}"))?;
+
+    let mut stdout = String::new();
+    let mut stderr = String::new();
+    let mut exit_status = None;
+    while let Some(message) = channel.wait().await {
+        match message {
+            ChannelMsg::Data { data } => stdout.push_str(&String::from_utf8_lossy(&data)),
+            ChannelMsg::ExtendedData { data, .. } => {
+                stderr.push_str(&String::from_utf8_lossy(&data))
+            }
+            ChannelMsg::ExitStatus { exit_status: code } => exit_status = Some(code),
+            ChannelMsg::Close => break,
+            _ => {}
+        }
+    }
+
+    let _ = channel.close().await;
+    let _ = ssh
+        .disconnect(
+            russh::Disconnect::ByApplication,
+            "metrics command completed",
+            "en",
+        )
+        .await;
+    drop(_jump_chain);
+
+    if exit_status.unwrap_or(0) != 0 {
+        let detail = stderr.trim();
+        return Err(if detail.is_empty() {
+            format!(
+                "Metrics command failed with exit status {}",
+                exit_status.unwrap_or(1)
+            )
+        } else {
+            format!(
+                "Metrics command failed with exit status {}: {}",
+                exit_status.unwrap_or(1),
+                detail
+            )
+        });
+    }
+
+    Ok(parse_metrics_output(&stdout))
+}
+
+fn parse_metrics_output(output: &str) -> ServerMetricsSnapshot {
+    let os_release = extract_block(
+        output,
+        "__TTERM_OS_RELEASE_BEGIN__",
+        "__TTERM_OS_RELEASE_END__",
+    );
+    let uname = find_prefixed_line(output, "__TTERM_UNAME__").unwrap_or_default();
+    let kernel = (!uname.trim().is_empty()).then(|| uname.trim().to_string());
+    let supported = uname.split_whitespace().next() == Some("Linux");
+
+    ServerMetricsSnapshot {
+        supported,
+        unsupported_reason: if supported {
+            None
+        } else {
+            Some("Only Linux hosts are supported".to_string())
+        },
+        distribution: parse_os_release(os_release.unwrap_or_default()),
+        kernel,
+        cpu_times: find_prefixed_line(output, "__TTERM_PROC_STAT__")
+            .and_then(|line| parse_cpu_times(&line)),
+        memory: find_prefixed_line(output, "__TTERM_MEMINFO__")
+            .and_then(|line| parse_memory_metrics(&line)),
+        load: find_prefixed_line(output, "__TTERM_LOADAVG__")
+            .and_then(|line| parse_load_metrics(&line)),
+        disk: find_prefixed_line(output, "__TTERM_DF_ROOT__")
+            .and_then(|line| parse_disk_metrics(&line)),
+    }
+}
+
+fn extract_block<'a>(output: &'a str, start: &str, end: &str) -> Option<&'a str> {
+    let start_idx = output.find(start)? + start.len();
+    let rest = &output[start_idx..];
+    let end_idx = rest.find(end)?;
+    Some(rest[..end_idx].trim())
+}
+
+fn find_prefixed_line(output: &str, prefix: &str) -> Option<String> {
+    output.lines().find_map(|line| {
+        line.strip_prefix(prefix)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+    })
+}
+
+fn parse_os_release(content: &str) -> Option<LinuxDistributionInfo> {
+    if content.trim().is_empty() {
+        return None;
+    }
+
+    let mut id = String::new();
+    let mut id_like = Vec::new();
+    let mut name = String::new();
+    let mut pretty_name = String::new();
+    let mut version_id = None;
+
+    for line in content.lines() {
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        let value = unquote_os_release_value(value.trim());
+        match key.trim() {
+            "ID" => id = value,
+            "ID_LIKE" => {
+                id_like = value.split_whitespace().map(str::to_string).collect();
+            }
+            "NAME" => name = value,
+            "PRETTY_NAME" => pretty_name = value,
+            "VERSION_ID" => version_id = Some(value),
+            _ => {}
+        }
+    }
+
+    if id.is_empty() && name.is_empty() && pretty_name.is_empty() {
+        return None;
+    }
+
+    if pretty_name.is_empty() {
+        pretty_name = name.clone();
+    }
+    if name.is_empty() {
+        name = pretty_name.clone();
+    }
+
+    Some(LinuxDistributionInfo {
+        id,
+        id_like,
+        name,
+        pretty_name,
+        version_id,
+    })
+}
+
+fn unquote_os_release_value(value: &str) -> String {
+    let unquoted = value
+        .strip_prefix('"')
+        .and_then(|inner| inner.strip_suffix('"'))
+        .or_else(|| value.strip_prefix('\'').and_then(|inner| inner.strip_suffix('\'')))
+        .unwrap_or(value);
+    unquoted
+        .replace("\\\"", "\"")
+        .replace("\\'", "'")
+        .replace("\\\\", "\\")
+}
+
+fn parse_cpu_times(line: &str) -> Option<CpuTimes> {
+    let values = line
+        .split_whitespace()
+        .map(str::parse::<u64>)
+        .collect::<Result<Vec<_>, _>>()
+        .ok()?;
+    if values.len() < 10 {
+        return None;
+    }
+
+    Some(CpuTimes {
+        user: values[0],
+        nice: values[1],
+        system: values[2],
+        idle: values[3],
+        iowait: values[4],
+        irq: values[5],
+        softirq: values[6],
+        steal: values[7],
+        guest: values[8],
+        guest_nice: values[9],
+    })
+}
+
+fn parse_memory_metrics(line: &str) -> Option<MemoryMetrics> {
+    let mut total = None;
+    let mut available = None;
+    let mut free = None;
+    let mut buffers = None;
+    let mut cached = None;
+    let mut reclaimable = None;
+
+    for item in line.split_whitespace() {
+        let Some((key, raw_value)) = item.split_once('=') else {
+            continue;
+        };
+        let value = raw_value.parse::<u64>().ok();
+        match key {
+            "MemTotal" => total = value,
+            "MemAvailable" => available = value,
+            "MemFree" => free = value,
+            "Buffers" => buffers = value,
+            "Cached" => cached = value,
+            "SReclaimable" => reclaimable = value,
+            _ => {}
+        }
+    }
+
+    let total = total?;
+    let available = available.or_else(|| {
+        Some(free.unwrap_or(0) + buffers.unwrap_or(0) + cached.unwrap_or(0) + reclaimable.unwrap_or(0))
+    })?;
+    let used = total.saturating_sub(available);
+    let used_percent = percent(used, total);
+
+    Some(MemoryMetrics {
+        total_kib: total,
+        available_kib: available,
+        used_kib: used,
+        used_percent,
+    })
+}
+
+fn parse_load_metrics(line: &str) -> Option<LoadMetrics> {
+    let mut values = line.split_whitespace();
+    Some(LoadMetrics {
+        one: values.next()?.parse().ok()?,
+        five: values.next()?.parse().ok()?,
+        fifteen: values.next()?.parse().ok()?,
+    })
+}
+
+fn parse_disk_metrics(line: &str) -> Option<DiskMetrics> {
+    let mut values = line.split_whitespace();
+    let total = values.next()?.parse::<u64>().ok()?;
+    let used = values.next()?.parse::<u64>().ok()?;
+    let available = values.next()?.parse::<u64>().ok()?;
+    let raw_percent = values.next().unwrap_or("0").trim_end_matches('%');
+    let mount = values.next().unwrap_or("/").to_string();
+    let used_percent = raw_percent
+        .parse::<f64>()
+        .unwrap_or_else(|_| percent(used, total));
+
+    Some(DiskMetrics {
+        mount,
+        total_kib: total,
+        used_kib: used,
+        available_kib: available,
+        used_percent,
+    })
+}
+
+fn percent(value: u64, total: u64) -> f64 {
+    if total == 0 {
+        0.0
+    } else {
+        (value as f64 / total as f64) * 100.0
+    }
+}

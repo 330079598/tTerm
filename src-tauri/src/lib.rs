@@ -1,6 +1,7 @@
 mod config;
 mod core;
 mod fonts;
+mod monitor;
 mod profiles;
 mod session;
 mod sftp;
@@ -221,6 +222,7 @@ pub fn run() {
             core::commands::get_saved_password_for_sudo,
             core::commands::get_saved_jump_host_password,
             fonts::list_fonts,
+            monitor::get_server_metrics_snapshot,
             profiles::list_profiles,
             profiles::save_profile,
             profiles::delete_profile,

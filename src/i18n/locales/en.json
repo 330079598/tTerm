@@ -478,11 +478,19 @@
     "error": "Error",
     "reconnect": "Reconnect",
     "sftp": "SFTP",
+    "showMonitor": "Monitor",
+    "hideMonitor": "Hide Monitor",
     "pin": "Pin",
     "unpin": "Unpin",
     "connectionInfo": "Connection",
     "jumpRoute_one": "{{count}} jump host route",
     "jumpRoute_other": "{{count}} jump host route"
+  },
+  "serverMonitor": {
+    "loading": "Loading server metrics...",
+    "disconnected": "Monitor paused until SSH reconnects",
+    "unsupported": "Only Linux hosts are supported",
+    "stale": "stale"
   },
   "terminalContext": {
     "copyFailedTitle": "Copy failed",

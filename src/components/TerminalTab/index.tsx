@@ -10,6 +10,7 @@ import { SftpDrawer } from "@/components/SftpDrawer"
 import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
 import { JumpHostInfoDialog } from "@/components/TerminalTab/JumpHostInfoDialog"
+import { ServerMonitorBar } from "@/components/TerminalTab/ServerMonitorBar"
 import { TerminalSearchBar } from "@/components/TerminalTab/TerminalSearchBar"
 import { useTerminalSearch } from "@/components/TerminalTab/useTerminalSearch"
 import { useTerminalLifecycle } from "@/components/TerminalTab/useTerminalLifecycle"
@@ -80,6 +81,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     value: SshConnectionProgress
   } | null>(null)
   const [showSftpDrawer, setShowSftpDrawer] = useState(false)
+  const [showServerMonitor, setShowServerMonitor] = useState(false)
   const [jumpHostInfoOpen, setJumpHostInfoOpen] = useState(false)
   const [dontShowJumpHostInfoAgain, setDontShowJumpHostInfoAgain] = useState(false)
   const {
@@ -384,6 +386,10 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     setShowSftpDrawer((current) => !current)
   }, [])
 
+  const handleToggleServerMonitor = useCallback(() => {
+    setShowServerMonitor((current) => !current)
+  }, [])
+
   const handleSearchKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (event.key === "Escape") {
@@ -483,8 +489,10 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         onBackgroundMouseDown={handleConnectionHeaderMouseDown}
         onPinConnectionHeader={onPinConnectionHeader}
         onReconnect={handleReconnect}
+        onToggleServerMonitor={handleToggleServerMonitor}
         onToggleSftpDrawer={handleToggleSftpDrawer}
         onUnpinConnectionHeader={onUnpinConnectionHeader}
+        serverMonitorVisible={showServerMonitor}
       />
 
       <div ref={surfaceRef} className="terminal-surface" style={terminalPaddingStyle}>
@@ -540,6 +548,14 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
           open={jumpHostInfoOpen}
         />
       </div>
+      <ServerMonitorBar
+        connection={connection}
+        connectionState={connectionState}
+        sessionNonce={sessionNonce}
+        tabId={tabId}
+        t={t}
+        visible={showServerMonitor}
+      />
     </div>
   )
 }

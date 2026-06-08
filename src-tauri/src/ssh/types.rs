@@ -22,6 +22,11 @@ impl ConnectionStatusOptions {
         emit_terminal_output: false,
         emit_progress_events: true,
     };
+
+    pub const QUIET: Self = Self {
+        emit_terminal_output: false,
+        emit_progress_events: false,
+    };
 }
 
 #[derive(Clone, Debug, Serialize)]

@@ -466,11 +466,19 @@
     "error": "错误",
     "reconnect": "重新连接",
     "sftp": "SFTP",
+    "showMonitor": "监控",
+    "hideMonitor": "隐藏监控",
     "pin": "固定",
     "unpin": "取消固定",
     "connectionInfo": "连接",
     "jumpRoute_one": "{{count}} 个跳转机链路",
     "jumpRoute_other": "{{count}} 个跳转机链路"
+  },
+  "serverMonitor": {
+    "loading": "正在加载服务器指标...",
+    "disconnected": "SSH 重连前暂停监控",
+    "unsupported": "仅支持 Linux 主机",
+    "stale": "过期"
   },
   "terminalContext": {
     "copyFailedTitle": "复制失败",
