@@ -30,6 +30,7 @@ export interface AppConfig {
   terminal_padding_bottom_px: number
   startup_session_restore_mode: "active" | "all"
   show_jump_host_connection_info: boolean
+  monitor_refresh_interval_secs: number
   update_channel: "stable" | "beta-dev"
   auto_download_updates: boolean
   update_check_frequency: UpdateCheckFrequency
@@ -59,6 +60,7 @@ const defaultConfig: AppConfig = {
   terminal_padding_bottom_px: 0,
   startup_session_restore_mode: "active",
   show_jump_host_connection_info: true,
+  monitor_refresh_interval_secs: 5,
   update_channel: defaultUpdateChannel,
   auto_download_updates: true,
   update_check_frequency: "daily",
@@ -86,12 +88,25 @@ function normalizeTerminalPadding(
   return Math.min(Math.max(Math.round(value), 0), 80)
 }
 
+function normalizeMonitorRefreshInterval(
+  value: Partial<AppConfig>["monitor_refresh_interval_secs"]
+): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 5
+  }
+
+  return Math.min(Math.max(Math.round(value), 2), 60)
+}
+
 function normalizeConfig(config: Partial<AppConfig>): AppConfig {
   return {
     ...defaultConfig,
     ...config,
     startup_session_restore_mode: config.startup_session_restore_mode === "all" ? "all" : "active",
     show_jump_host_connection_info: config.show_jump_host_connection_info !== false,
+    monitor_refresh_interval_secs: normalizeMonitorRefreshInterval(
+      config.monitor_refresh_interval_secs
+    ),
     update_channel: config.update_channel === "beta-dev" ? "beta-dev" : "stable",
     auto_download_updates: config.auto_download_updates !== false,
     terminal_padding_left_px: normalizeTerminalPadding(config.terminal_padding_left_px, 6),

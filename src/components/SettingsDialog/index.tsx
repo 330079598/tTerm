@@ -414,6 +414,19 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
   }
 
+  const handleMonitorRefreshIntervalChange = async (seconds: number) => {
+    try {
+      await saveConfig({ monitor_refresh_interval_secs: seconds })
+    } catch (error) {
+      console.error("Failed to save monitor refresh interval:", error)
+      toast({
+        title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleUpdateChannelChange = async (channel: UpdateChannel) => {
     try {
       await saveConfig({ update_channel: channel })
@@ -555,7 +568,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
           <TabsContent value="connection" className="m-0 flex-1 overflow-y-auto p-6">
             <ConnectionSettingsTab
+              handleMonitorRefreshIntervalChange={handleMonitorRefreshIntervalChange}
               handleShowJumpHostConnectionInfoChange={handleShowJumpHostConnectionInfoChange}
+              monitorRefreshIntervalSecs={config.monitor_refresh_interval_secs}
               showJumpHostConnectionInfo={config.show_jump_host_connection_info}
             />
           </TabsContent>

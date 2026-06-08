@@ -4,10 +4,11 @@ import { invoke } from "@tauri-apps/api/core"
 import type { TFunction } from "i18next"
 
 import type { TerminalTabProps } from "@/components/TerminalTab/types"
+import { useConfig } from "@/contexts/ConfigContext"
 import { useToast } from "@/hooks/use-toast"
 
-const REFRESH_INTERVAL_MS = 5000
-const STALE_AFTER_MS = 12000
+const MIN_REFRESH_INTERVAL_MS = 2000
+const MAX_REFRESH_INTERVAL_MS = 60000
 const DISTRO_ICON_BASE = "/assets/distro-icons"
 
 type CpuTimes = {
@@ -248,9 +249,25 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
   visible,
 }) => {
   const { toast } = useToast()
+  const { config } = useConfig()
   const [state, setState] = useState<MonitorState>({ status: "loading" })
   const previousCpuTimesRef = useRef<CpuTimes | undefined>()
   const requestIdRef = useRef(0)
+  const refreshIntervalMs = useMemo(() => {
+    const configuredMs = config.monitor_refresh_interval_secs * 1000
+    if (!Number.isFinite(configuredMs)) {
+      return 5000
+    }
+
+    return Math.min(
+      Math.max(Math.round(configuredMs), MIN_REFRESH_INTERVAL_MS),
+      MAX_REFRESH_INTERVAL_MS
+    )
+  }, [config.monitor_refresh_interval_secs])
+  const staleAfterMs = useMemo(
+    () => Math.max(12000, refreshIntervalMs * 2 + 2000),
+    [refreshIntervalMs]
+  )
 
   const copyIpAddress = useCallback(
     async (ipAddress: string) => {
@@ -318,7 +335,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         })
       } finally {
         if (!cancelled) {
-          timeoutId = window.setTimeout(refresh, REFRESH_INTERVAL_MS)
+          timeoutId = window.setTimeout(refresh, refreshIntervalMs)
         }
       }
     }
@@ -332,7 +349,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         window.clearTimeout(timeoutId)
       }
     }
-  }, [connection, connectionState, sessionNonce, t, tabId, visible])
+  }, [connection, connectionState, refreshIntervalMs, sessionNonce, t, tabId, visible])
 
   const content = useMemo(() => {
     if (connectionState !== "connected") {
@@ -367,7 +384,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
 
     const distroId = normalizeDistroId(snapshot)
     const distroLabel = getDistroLabel(snapshot)
-    const stale = Date.now() - collectedAt > STALE_AFTER_MS
+    const stale = Date.now() - collectedAt > staleAfterMs
     const memoryValue = snapshot.memory
       ? `${formatKib(snapshot.memory.usedKib)}/${formatKib(snapshot.memory.totalKib)}`
       : "--"
@@ -425,7 +442,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         )}
       </>
     )
-  }, [connectionState, copyIpAddress, state, t])
+  }, [connectionState, copyIpAddress, staleAfterMs, state, t])
 
   if (!visible || connection?.type !== "ssh") {
     return null

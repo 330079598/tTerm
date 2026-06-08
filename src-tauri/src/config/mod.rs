@@ -37,6 +37,8 @@ pub struct AppConfig {
     pub startup_session_restore_mode: String,
     #[serde(default = "default_show_jump_host_connection_info")]
     pub show_jump_host_connection_info: bool,
+    #[serde(default = "default_monitor_refresh_interval_secs")]
+    pub monitor_refresh_interval_secs: u16,
     #[serde(default = "default_update_channel")]
     pub update_channel: String,
     #[serde(default = "default_auto_download_updates")]
@@ -100,6 +102,10 @@ fn default_show_jump_host_connection_info() -> bool {
     true
 }
 
+fn default_monitor_refresh_interval_secs() -> u16 {
+    5
+}
+
 fn default_update_channel() -> String {
     "stable".to_string()
 }
@@ -130,6 +136,7 @@ impl Default for AppConfig {
             terminal_padding_bottom_px: 0,
             startup_session_restore_mode: default_startup_session_restore_mode(),
             show_jump_host_connection_info: default_show_jump_host_connection_info(),
+            monitor_refresh_interval_secs: default_monitor_refresh_interval_secs(),
             update_channel: default_update_channel(),
             auto_download_updates: default_auto_download_updates(),
             update_check_frequency: default_update_check_frequency(),
