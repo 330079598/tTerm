@@ -24,8 +24,13 @@ awk '
   }
   END { printf "\n" }
 ' /proc/meminfo 2>/dev/null || true
-printf "__TTERM_LOADAVG__ "
-cat /proc/loadavg 2>/dev/null || true
+printf "__TTERM_PRIMARY_IP__ "
+(
+  ip -o -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}'
+  hostname -I 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i !~ /^127\./ && $i !~ /^169\.254\./) {print $i; exit}}'
+  ip -o -4 addr show scope global 2>/dev/null | awk '{split($4, parts, "/"); print parts[1]; exit}'
+) | awk 'NF {print; exit}'
+printf "\n"
 printf "__TTERM_DF_ROOT__ "
 df -P -k / 2>/dev/null | awk 'NR==2 {print $2,$3,$4,$5,$6}' || true
 "#;
@@ -66,14 +71,6 @@ pub struct MemoryMetrics {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LoadMetrics {
-    pub one: f64,
-    pub five: f64,
-    pub fifteen: f64,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct DiskMetrics {
     pub mount: String,
     pub total_kib: u64,
@@ -91,7 +88,7 @@ pub struct ServerMetricsSnapshot {
     pub kernel: Option<String>,
     pub cpu_times: Option<CpuTimes>,
     pub memory: Option<MemoryMetrics>,
-    pub load: Option<LoadMetrics>,
+    pub primary_ip: Option<String>,
     pub disk: Option<DiskMetrics>,
 }
 
@@ -212,8 +209,8 @@ fn parse_metrics_output(output: &str) -> ServerMetricsSnapshot {
             .and_then(|line| parse_cpu_times(&line)),
         memory: find_prefixed_line(output, "__TTERM_MEMINFO__")
             .and_then(|line| parse_memory_metrics(&line)),
-        load: find_prefixed_line(output, "__TTERM_LOADAVG__")
-            .and_then(|line| parse_load_metrics(&line)),
+        primary_ip: find_prefixed_line(output, "__TTERM_PRIMARY_IP__")
+            .and_then(|line| parse_primary_ip(&line)),
         disk: find_prefixed_line(output, "__TTERM_DF_ROOT__")
             .and_then(|line| parse_disk_metrics(&line)),
     }
@@ -358,13 +355,10 @@ fn parse_memory_metrics(line: &str) -> Option<MemoryMetrics> {
     })
 }
 
-fn parse_load_metrics(line: &str) -> Option<LoadMetrics> {
-    let mut values = line.split_whitespace();
-    Some(LoadMetrics {
-        one: values.next()?.parse().ok()?,
-        five: values.next()?.parse().ok()?,
-        fifteen: values.next()?.parse().ok()?,
-    })
+fn parse_primary_ip(line: &str) -> Option<String> {
+    line.split_whitespace()
+        .find(|value| !value.starts_with("127.") && !value.starts_with("169.254."))
+        .map(str::to_string)
 }
 
 fn parse_disk_metrics(line: &str) -> Option<DiskMetrics> {

@@ -490,7 +490,11 @@
     "loading": "Loading server metrics...",
     "disconnected": "Monitor paused until SSH reconnects",
     "unsupported": "Only Linux hosts are supported",
-    "stale": "stale"
+    "stale": "stale",
+    "copyIp": "Copy server IP address",
+    "copyIpSuccess": "IP copied",
+    "copyIpFailed": "Copy failed",
+    "copyIpFailedDescription": "Unable to copy the server IP address."
   },
   "terminalContext": {
     "copyFailedTitle": "Copy failed",

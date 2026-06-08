@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react"
-import { Cpu, HardDrive, MemoryStick, Server, TrendingUp } from "lucide-react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Cpu, HardDrive, MemoryStick, Network, Server } from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 import type { TFunction } from "i18next"
 
 import type { TerminalTabProps } from "@/components/TerminalTab/types"
+import { useToast } from "@/hooks/use-toast"
 
 const REFRESH_INTERVAL_MS = 5000
 const STALE_AFTER_MS = 12000
@@ -37,12 +38,6 @@ type MemoryMetrics = {
   usedPercent: number
 }
 
-type LoadMetrics = {
-  one: number
-  five: number
-  fifteen: number
-}
-
 type DiskMetrics = {
   mount: string
   totalKib: number
@@ -58,7 +53,7 @@ type ServerMetricsSnapshot = {
   kernel?: string
   cpuTimes?: CpuTimes
   memory?: MemoryMetrics
-  load?: LoadMetrics
+  primaryIp?: string
   disk?: DiskMetrics
 }
 
@@ -201,17 +196,40 @@ function getDistroIconSrc(distroId: string) {
   return `${DISTRO_ICON_BASE}/${distroId}.svg`
 }
 
+function hasClipboardPluginError(error: unknown) {
+  return String(error).toLowerCase().includes("plugin:clipboard-manager")
+}
+
 function MetricItem({
+  ariaLabel,
   className,
   icon,
   label,
+  onClick,
   value,
 }: {
+  ariaLabel?: string
   className?: string
   icon: React.ReactNode
   label: string
+  onClick?: () => void
   value: string
 }) {
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        className={`server-monitor-metric is-clickable ${className ?? ""}`.trim()}
+        onClick={onClick}
+        aria-label={ariaLabel}
+      >
+        {icon}
+        <span className="server-monitor-metric-label">{label}</span>
+        <span className="server-monitor-metric-value">{value}</span>
+      </button>
+    )
+  }
+
   return (
     <span className={`server-monitor-metric ${className ?? ""}`.trim()}>
       {icon}
@@ -229,9 +247,45 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
   t,
   visible,
 }) => {
+  const { toast } = useToast()
   const [state, setState] = useState<MonitorState>({ status: "loading" })
   const previousCpuTimesRef = useRef<CpuTimes | undefined>()
   const requestIdRef = useRef(0)
+
+  const copyIpAddress = useCallback(
+    async (ipAddress: string) => {
+      try {
+        await invoke("plugin:clipboard-manager|write_text", { text: ipAddress })
+        toast({
+          title: t("serverMonitor.copyIpSuccess", { defaultValue: "IP copied" }),
+          description: ipAddress,
+        })
+      } catch (error) {
+        if (!hasClipboardPluginError(error) && navigator.clipboard?.writeText) {
+          try {
+            await navigator.clipboard.writeText(ipAddress)
+            toast({
+              title: t("serverMonitor.copyIpSuccess", { defaultValue: "IP copied" }),
+              description: ipAddress,
+            })
+            return
+          } catch (clipboardError) {
+            console.error("Failed to copy server IP address:", clipboardError)
+          }
+        } else {
+          console.error("Failed to copy server IP address:", error)
+        }
+
+        toast({
+          title: t("serverMonitor.copyIpFailed", { defaultValue: "Copy failed" }),
+          description: t("serverMonitor.copyIpFailedDescription", {
+            defaultValue: "Unable to copy the server IP address.",
+          }),
+        })
+      }
+    },
+    [t, toast]
+  )
 
   useEffect(() => {
     if (!visible || connection?.type !== "ssh" || connectionState !== "connected") {
@@ -317,9 +371,8 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
     const memoryValue = snapshot.memory
       ? `${formatKib(snapshot.memory.usedKib)}/${formatKib(snapshot.memory.totalKib)}`
       : "--"
-    const loadValue = snapshot.load
-      ? `${snapshot.load.one.toFixed(2)} ${snapshot.load.five.toFixed(2)} ${snapshot.load.fifteen.toFixed(2)}`
-      : "--"
+    const ipValue = snapshot.primaryIp?.trim() || "--"
+    const copyIp = snapshot.primaryIp ? () => void copyIpAddress(snapshot.primaryIp!) : undefined
 
     return (
       <>
@@ -351,10 +404,13 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
           value={memoryValue}
         />
         <MetricItem
-          className="server-monitor-load"
-          icon={<TrendingUp size={13} />}
-          label="LOAD"
-          value={loadValue}
+          ariaLabel={t("serverMonitor.copyIp", {
+            defaultValue: "Copy server IP address",
+          })}
+          icon={<Network size={13} />}
+          label="IP"
+          onClick={copyIp}
+          value={ipValue}
         />
         <MetricItem
           className={severityClass(snapshot.disk?.usedPercent)}
@@ -369,7 +425,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         )}
       </>
     )
-  }, [connectionState, state, t])
+  }, [connectionState, copyIpAddress, state, t])
 
   if (!visible || connection?.type !== "ssh") {
     return null

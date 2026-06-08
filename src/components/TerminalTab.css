@@ -289,6 +289,34 @@
   border-left: 1px solid hsl(var(--border) / 0.74);
 }
 
+button.server-monitor-metric {
+  appearance: none;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  line-height: inherit;
+}
+
+button.server-monitor-metric.is-clickable {
+  border-radius: 4px;
+  margin-left: -4px;
+  padding: 4px 4px 4px 10px;
+}
+
+button.server-monitor-metric.is-clickable:hover {
+  background: hsl(var(--accent) / 0.55);
+  color: hsl(var(--foreground));
+}
+
+button.server-monitor-metric.is-clickable:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
 .server-monitor-metric svg {
   color: currentColor;
   flex: 0 0 auto;
@@ -426,10 +454,6 @@
 @media (max-width: 760px) {
   .server-monitor-distro {
     max-width: 150px;
-  }
-
-  .server-monitor-load {
-    display: none;
   }
 }
 

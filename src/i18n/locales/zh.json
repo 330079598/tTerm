@@ -478,7 +478,11 @@
     "loading": "正在加载服务器指标...",
     "disconnected": "SSH 重连前暂停监控",
     "unsupported": "仅支持 Linux 主机",
-    "stale": "过期"
+    "stale": "过期",
+    "copyIp": "复制服务器 IP 地址",
+    "copyIpSuccess": "已复制 IP",
+    "copyIpFailed": "复制失败",
+    "copyIpFailedDescription": "无法复制服务器 IP 地址。"
   },
   "terminalContext": {
     "copyFailedTitle": "复制失败",
