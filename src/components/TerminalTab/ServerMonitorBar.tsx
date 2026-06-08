@@ -104,11 +104,6 @@ function calculateCpuPercent(previous?: CpuTimes, next?: CpuTimes) {
   return Math.max(0, Math.min(100, ((totalDelta - idleDelta) / totalDelta) * 100))
 }
 
-function formatPercent(value?: number) {
-  if (value === undefined || Number.isNaN(value)) return "--"
-  return `${Math.round(value)}%`
-}
-
 function formatKib(value?: number) {
   if (value === undefined) return "--"
   const bytes = value * 1024
@@ -121,6 +116,13 @@ function formatKib(value?: number) {
   }
   const digits = current >= 10 || unitIndex < 2 ? 0 : 1
   return `${current.toFixed(digits)}${units[unitIndex]}`
+}
+
+function formatKibAsG(value?: number) {
+  if (value === undefined) return "--"
+  const gib = value / 1024 / 1024
+  const digits = gib >= 10 ? 0 : 1
+  return `${gib.toFixed(digits)}G`
 }
 
 function severityClass(percent?: number) {
@@ -205,6 +207,20 @@ function normalizeSessionNonce(sessionNonce: number) {
   return sessionNonce >>> 0
 }
 
+function PercentValue({ value }: { value?: number }) {
+  const percent =
+    value === undefined || Number.isNaN(value)
+      ? "--"
+      : String(Math.max(0, Math.min(100, Math.round(value))))
+
+  return (
+    <span className="server-monitor-percent-value">
+      <span className="server-monitor-percent-number">{percent}</span>
+      {percent !== "--" && <span>%</span>}
+    </span>
+  )
+}
+
 function MetricItem({
   ariaLabel,
   className,
@@ -218,7 +234,7 @@ function MetricItem({
   icon: React.ReactNode
   label: string
   onClick?: () => void
-  value: string
+  value: React.ReactNode
 }) {
   if (onClick) {
     return (
@@ -395,6 +411,18 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
     const memoryValue = snapshot.memory
       ? `${formatKib(snapshot.memory.usedKib)}/${formatKib(snapshot.memory.totalKib)}`
       : "--"
+    const diskValue = snapshot.disk ? (
+      <span className="server-monitor-disk-value">
+        <span>
+          {formatKibAsG(snapshot.disk.usedKib)}
+          <span className="server-monitor-disk-join"> / </span>
+          {formatKibAsG(snapshot.disk.totalKib)}
+        </span>
+        <PercentValue value={snapshot.disk.usedPercent} />
+      </span>
+    ) : (
+      "--"
+    )
     const ipValue = snapshot.primaryIp?.trim() || "--"
     const copyIp = snapshot.primaryIp ? () => void copyIpAddress(snapshot.primaryIp!) : undefined
 
@@ -419,7 +447,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
           className={severityClass(cpuPercent)}
           icon={<Cpu size={13} />}
           label="CPU"
-          value={formatPercent(cpuPercent)}
+          value={<PercentValue value={cpuPercent} />}
         />
         <MetricItem
           className={severityClass(snapshot.memory?.usedPercent)}
@@ -439,8 +467,8 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         <MetricItem
           className={severityClass(snapshot.disk?.usedPercent)}
           icon={<HardDrive size={13} />}
-          label={`DISK ${snapshot.disk?.mount ?? "/"}`}
-          value={formatPercent(snapshot.disk?.usedPercent)}
+          label="DISK"
+          value={diskValue}
         />
         {stale && (
           <span className="server-monitor-stale">

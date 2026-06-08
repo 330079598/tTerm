@@ -335,6 +335,28 @@ button.server-monitor-metric.is-clickable:focus-visible {
   font-weight: 600;
 }
 
+.server-monitor-percent-value,
+.server-monitor-disk-value {
+  display: inline-flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.server-monitor-percent-number {
+  display: inline-block;
+  width: 3ch;
+  text-align: right;
+}
+
+.server-monitor-disk-value {
+  gap: 6px;
+}
+
+.server-monitor-disk-join {
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+}
+
 .server-monitor-metric.is-warning .server-monitor-metric-value {
   color: hsl(var(--warning));
 }
