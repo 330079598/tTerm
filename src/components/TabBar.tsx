@@ -16,6 +16,38 @@ type OverflowPanelStyle = React.CSSProperties & {
   "--tab-overflow-panel-max-height"?: string
 }
 
+function getConnectionHostLabel(tab: Tab): string | undefined {
+  const host = tab.remoteFile?.host?.trim() || tab.connection?.host?.trim()
+  if (!host) {
+    return undefined
+  }
+
+  const port = tab.connection?.port
+  return port && port !== 22 ? `${host}:${port}` : host
+}
+
+function getOverflowConnectionMeta(tab: Tab): { primary?: string; secondary?: string } {
+  const hostLabel = getConnectionHostLabel(tab)
+
+  if (tab.type !== "remote-file-editor") {
+    return { primary: hostLabel }
+  }
+
+  const savedName =
+    tab.remoteFile?.profileName?.trim() ||
+    tab.connection?.profileName?.trim() ||
+    tab.remoteFile?.connectionLabel?.trim()
+
+  if (!savedName) {
+    return { primary: hostLabel }
+  }
+
+  return {
+    primary: savedName,
+    secondary: hostLabel && hostLabel !== savedName ? hostLabel : undefined,
+  }
+}
+
 interface TabBarProps {
   tabs: Tab[]
   activeTabId: string | null
@@ -356,6 +388,10 @@ export const TabBar: React.FC<TabBarProps> = ({
           connection?.host,
           connection?.username,
           connection?.profileName,
+          tab.remoteFile?.profileName,
+          tab.remoteFile?.connectionLabel,
+          tab.remoteFile?.host,
+          tab.remoteFile?.path,
           connection?.port ? String(connection.port) : undefined,
         ]
           .filter(Boolean)
@@ -457,6 +493,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                 <div className="tab-overflow-results">
                   {filteredTabs.map((tab) => {
                     const tabIndex = tabs.findIndex((currentTab) => currentTab.id === tab.id)
+                    const connectionMeta = getOverflowConnectionMeta(tab)
 
                     return (
                       <button
@@ -468,8 +505,17 @@ export const TabBar: React.FC<TabBarProps> = ({
                         <span className="tab-overflow-number">{tabIndex + 1}</span>
                         {tab.type === "settings" && <Settings className="tab-icon" size={13} />}
                         <span className="tab-overflow-title">{tab.title}</span>
-                        {tab.connection?.host && (
-                          <span className="tab-overflow-host">{tab.connection.host}</span>
+                        {connectionMeta.primary && (
+                          <span className="tab-overflow-meta">
+                            <span className="tab-overflow-meta-primary">
+                              {connectionMeta.primary}
+                            </span>
+                            {connectionMeta.secondary && (
+                              <span className="tab-overflow-meta-secondary">
+                                {connectionMeta.secondary}
+                              </span>
+                            )}
+                          </span>
                         )}
                       </button>
                     )

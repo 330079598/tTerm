@@ -194,14 +194,34 @@
   font-size: 13px;
 }
 
-.tab-overflow-host {
+.tab-overflow-meta {
+  display: flex;
+  min-width: 0;
+  max-width: 128px;
   flex-shrink: 0;
-  max-width: 110px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.tab-overflow-meta-primary,
+.tab-overflow-meta-secondary {
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tab-overflow-meta-primary {
   color: hsl(var(--muted-foreground));
   font-size: 11px;
+  line-height: 1.15;
+}
+
+.tab-overflow-meta-secondary {
+  color: hsl(var(--muted-foreground) / 0.72);
+  font-size: 10px;
+  line-height: 1.1;
 }
 
 .tab-overflow-empty {
