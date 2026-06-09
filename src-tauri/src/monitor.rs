@@ -15,36 +15,86 @@ use tokio::time::{sleep, Duration, Instant};
 
 const MONITOR_SESSION_IDLE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
-const METRICS_SCRIPT: &str = r#"set -efu
-echo "__TTERM_OS_RELEASE_BEGIN__"
-if [ -r /etc/os-release ]; then cat /etc/os-release; fi
-echo "__TTERM_OS_RELEASE_END__"
-printf "__TTERM_UNAME__ "
-uname -srm 2>/dev/null || true
-if [ "$(uname -s 2>/dev/null || true)" != "Linux" ]; then
-  exit 0
-fi
-printf "__TTERM_PROC_STAT__ "
-awk '/^cpu / {print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11}' /proc/stat 2>/dev/null || true
-printf "__TTERM_PROC_STAT_CORES__ "
-awk '/^cpu[0-9]+ / {printf "%s=%s,%s,%s,%s,%s,%s,%s,%s,%s,%s ", $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11} END {printf "\n"}' /proc/stat 2>/dev/null || true
-printf "__TTERM_MEMINFO__ "
-awk '
-  /^(MemTotal|MemAvailable|MemFree|Buffers|Cached|SReclaimable):/ {
-    gsub(":", "", $1);
-    printf "%s=%s ", $1, $2
-  }
-  END { printf "\n" }
-' /proc/meminfo 2>/dev/null || true
-printf "__TTERM_PRIMARY_IP__ "
-(
-  ip -o -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}'
-  hostname -I 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i !~ /^127\./ && $i !~ /^169\.254\./) {print $i; exit}}'
-  ip -o -4 addr show scope global 2>/dev/null | awk '{split($4, parts, "/"); print parts[1]; exit}'
-) | awk 'NF {print; exit}'
-printf "\n"
-printf "__TTERM_DF_ROOT__ "
-df -P -k / 2>/dev/null | awk 'NR==2 {print $2,$3,$4,$5,$6}' || true
+const METRICS_SCRIPT: &str = r#"    set -efu
+
+    echo "__TTERM_OS_RELEASE_BEGIN__"
+    if [ -r /etc/os-release ]; then
+      cat /etc/os-release
+    fi
+    echo "__TTERM_OS_RELEASE_END__"
+
+    printf "__TTERM_UNAME__ "
+    uname -srm 2>/dev/null || true
+
+    if [ "$(uname -s 2>/dev/null || true)" != "Linux" ]; then
+      exit 0
+    fi
+
+    printf "__TTERM_PROC_STAT__ "
+    awk '
+      /^cpu / {
+        print $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+      }
+    ' /proc/stat 2>/dev/null || true
+
+    printf "__TTERM_PROC_STAT_CORES__ "
+    awk '
+      /^cpu[0-9]+ / {
+        times = $2 "," $3 "," $4 "," $5 "," $6 "," $7 "," $8 "," $9 "," $10 "," $11
+        printf "%s=%s ", $1, times
+      }
+      END {
+        printf "\n"
+      }
+    ' /proc/stat 2>/dev/null || true
+
+    printf "__TTERM_MEMINFO__ "
+    awk '
+      /^(MemTotal|MemAvailable|MemFree|Buffers|Cached|SReclaimable):/ {
+        gsub(":", "", $1)
+        printf "%s=%s ", $1, $2
+      }
+      END {
+        printf "\n"
+      }
+    ' /proc/meminfo 2>/dev/null || true
+
+    printf "__TTERM_PRIMARY_IP__ "
+    (
+      ip -o -4 route get 1.1.1.1 2>/dev/null | awk '
+        {
+          for (i = 1; i <= NF; i++) {
+            if ($i == "src") {
+              print $(i + 1)
+              exit
+            }
+          }
+        }
+      '
+
+      hostname -I 2>/dev/null | awk '
+        {
+          for (i = 1; i <= NF; i++) {
+            if ($i !~ /^127\./ && $i !~ /^169\.254\./) {
+              print $i
+              exit
+            }
+          }
+        }
+      '
+
+      ip -o -4 addr show scope global 2>/dev/null | awk '
+        {
+          split($4, parts, "/")
+          print parts[1]
+          exit
+        }
+      '
+    ) | awk 'NF { print; exit }'
+    printf "\n"
+
+    printf "__TTERM_DF_ROOT__ "
+    df -P -k / 2>/dev/null | awk 'NR == 2 { print $2, $3, $4, $5, $6 }' || true
 "#;
 
 pub type MonitorSessionMap = Arc<Mutex<HashMap<String, Arc<Mutex<MonitorSession>>>>>;
