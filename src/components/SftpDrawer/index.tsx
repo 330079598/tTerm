@@ -1,5 +1,5 @@
 import "@/components/SftpDrawer.css"
-import React, { useCallback, useMemo, useReducer, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useReducer, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { AlertCircle } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -67,6 +67,17 @@ function sftpDialogReducer(state: SftpDialogState, action: SftpDialogAction): Sf
 }
 
 const EMPTY_SFTP_ENTRIES: SftpDirectoryEntry[] = []
+
+function isEditableShortcutTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false
+  }
+
+  return Boolean(
+    target.isContentEditable ||
+      target.closest("input, textarea, select, [contenteditable='true'], [role='textbox']")
+  )
+}
 
 export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   tabId,
@@ -170,6 +181,38 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       [option]: !current[option],
     }))
   }, [])
+
+  useEffect(() => {
+    if (!visible || dialog.type !== "none") {
+      return
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isSelectAllShortcut =
+        event.key.toLowerCase() === "a" && (event.ctrlKey || event.metaKey) && !event.altKey
+
+      if (!isSelectAllShortcut || isEditableShortcutTarget(event.target)) {
+        return
+      }
+
+      const entries = filteredListing?.entries ?? []
+      if (entries.length === 0 || isLoading || error) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+      setIsSelectionMode(true)
+      setSelectedPaths(entries.map((entry) => entry.path))
+      setActivePath((current) =>
+        current && entries.some((entry) => entry.path === current) ? current : entries[0].path
+      )
+      setContextMenu(null)
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [dialog.type, error, filteredListing?.entries, isLoading, visible])
 
   const toggleSelectionMode = useCallback(() => {
     setIsSelectionMode((current) => {
