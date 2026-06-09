@@ -111,6 +111,65 @@ fn write_profiles_to_disk(profiles: &[SavedProfile]) -> Result<(), String> {
     fs::write(&profiles_file, content).map_err(|e| format!("Failed to write profiles file: {}", e))
 }
 
+fn profile_groups_file_path() -> Result<std::path::PathBuf, String> {
+    Ok(get_config_path()?.join("profile_groups.json"))
+}
+
+fn normalize_group_name(value: &str) -> String {
+    value.trim().to_string()
+}
+
+fn push_unique_group(groups: &mut Vec<String>, group: String) {
+    if group.is_empty() || groups.iter().any(|existing| existing == &group) {
+        return;
+    }
+
+    groups.push(group);
+}
+
+fn load_configured_profile_groups() -> Result<Vec<String>, String> {
+    let groups_file = profile_groups_file_path()?;
+    if !groups_file.exists() {
+        return Ok(vec![]);
+    }
+
+    let content = fs::read_to_string(&groups_file)
+        .map_err(|e| format!("Failed to read profile groups file: {}", e))?;
+    let raw_groups: Vec<String> = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse profile groups: {}", e))?;
+
+    let mut groups = Vec::new();
+    for group in raw_groups {
+        push_unique_group(&mut groups, normalize_group_name(&group));
+    }
+
+    Ok(groups)
+}
+
+fn write_profile_groups_to_disk(groups: &[String]) -> Result<(), String> {
+    let config_dir = ensure_config_dir()?;
+    let groups_file = config_dir.join("profile_groups.json");
+    let mut normalized_groups = Vec::new();
+    for group in groups {
+        push_unique_group(&mut normalized_groups, normalize_group_name(group));
+    }
+    normalized_groups.sort_by(|left, right| left.to_lowercase().cmp(&right.to_lowercase()));
+
+    let content = serde_json::to_string_pretty(&normalized_groups)
+        .map_err(|e| format!("Failed to serialize profile groups: {}", e))?;
+    fs::write(&groups_file, content)
+        .map_err(|e| format!("Failed to write profile groups file: {}", e))
+}
+
+fn load_all_profile_groups() -> Result<Vec<String>, String> {
+    let mut groups = load_configured_profile_groups()?;
+    for profile in load_profiles_from_disk()? {
+        push_unique_group(&mut groups, normalize_group_name(&profile.group));
+    }
+    groups.sort_by(|left, right| left.to_lowercase().cmp(&right.to_lowercase()));
+    Ok(groups)
+}
+
 #[tauri::command]
 pub fn list_profiles() -> Result<Vec<SavedProfile>, String> {
     let mut profiles = load_profiles_from_disk()?;
@@ -177,6 +236,110 @@ pub fn save_profile(
         sanitize_profile(existing);
     }
     write_profiles_to_disk(&profiles)
+}
+
+#[tauri::command]
+pub fn list_profile_groups() -> Result<Vec<String>, String> {
+    load_all_profile_groups()
+}
+
+#[tauri::command]
+pub fn save_profile_group(name: String) -> Result<Vec<String>, String> {
+    let name = normalize_group_name(&name);
+    if name.is_empty() {
+        return Err("Group name is required".to_string());
+    }
+
+    let mut groups = load_all_profile_groups()?;
+    push_unique_group(&mut groups, name);
+    write_profile_groups_to_disk(&groups)?;
+    load_all_profile_groups()
+}
+
+#[tauri::command]
+pub fn rename_profile_group(old_name: String, new_name: String) -> Result<Vec<String>, String> {
+    let old_name = normalize_group_name(&old_name);
+    let new_name = normalize_group_name(&new_name);
+    if old_name.is_empty() || new_name.is_empty() {
+        return Err("Group name is required".to_string());
+    }
+
+    let mut profiles = load_profiles_from_disk()?;
+    let mut profiles_changed = false;
+    for profile in &mut profiles {
+        if normalize_group_name(&profile.group) == old_name {
+            profile.group = new_name.clone();
+            profiles_changed = true;
+        }
+    }
+    if profiles_changed {
+        write_profiles_to_disk(&profiles)?;
+    }
+
+    let mut groups = load_configured_profile_groups()?
+        .into_iter()
+        .filter(|group| normalize_group_name(group) != old_name)
+        .collect::<Vec<_>>();
+    push_unique_group(&mut groups, new_name);
+    write_profile_groups_to_disk(&groups)?;
+    load_all_profile_groups()
+}
+
+#[tauri::command]
+pub fn delete_profile_group(name: String) -> Result<Vec<String>, String> {
+    let name = normalize_group_name(&name);
+    if name.is_empty() {
+        return Err("Group name is required".to_string());
+    }
+
+    let mut profiles = load_profiles_from_disk()?;
+    let mut profiles_changed = false;
+    for profile in &mut profiles {
+        if normalize_group_name(&profile.group) == name {
+            profile.group = String::new();
+            profiles_changed = true;
+        }
+    }
+    if profiles_changed {
+        write_profiles_to_disk(&profiles)?;
+    }
+
+    let groups = load_configured_profile_groups()?
+        .into_iter()
+        .filter(|group| normalize_group_name(group) != name)
+        .collect::<Vec<_>>();
+    write_profile_groups_to_disk(&groups)?;
+    load_all_profile_groups()
+}
+
+#[tauri::command]
+pub fn move_profile_to_group(
+    id: String,
+    group: String,
+    target_id: Option<String>,
+) -> Result<(), String> {
+    let group = normalize_group_name(&group);
+    let mut profiles = load_profiles_from_disk()?;
+    let Some(source_index) = profiles.iter().position(|profile| profile.id == id) else {
+        return Err("Profile not found".to_string());
+    };
+
+    let mut profile = profiles.remove(source_index);
+    profile.group = group.clone();
+    let insert_index = target_id
+        .as_deref()
+        .and_then(|target_id| profiles.iter().position(|profile| profile.id == target_id))
+        .unwrap_or(profiles.len());
+    profiles.insert(insert_index, profile);
+    write_profiles_to_disk(&profiles)?;
+
+    if !group.is_empty() {
+        let mut groups = load_configured_profile_groups()?;
+        push_unique_group(&mut groups, group);
+        write_profile_groups_to_disk(&groups)?;
+    }
+
+    Ok(())
 }
 
 #[tauri::command]

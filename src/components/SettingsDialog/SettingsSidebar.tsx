@@ -1,5 +1,5 @@
 import React from "react"
-import { Info, Palette, Plug, Shield, SquareTerminal, UploadCloud } from "lucide-react"
+import { FolderTree, Info, Palette, Plug, Shield, SquareTerminal, UploadCloud } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -30,6 +30,13 @@ export const SettingsSidebar: React.FC = () => {
         >
           <Plug size={16} />
           {t("settings.connection", { defaultValue: "Connection" })}
+        </TabsTrigger>
+        <TabsTrigger
+          value="profile-groups"
+          className="data-[state=active]:bg-background w-full justify-start gap-2 data-[state=active]:shadow-sm"
+        >
+          <FolderTree size={16} />
+          {t("settings.profileGroups", { defaultValue: "Groups" })}
         </TabsTrigger>
         <TabsTrigger
           value="security"

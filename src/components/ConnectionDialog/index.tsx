@@ -151,10 +151,15 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const sshProfileId = editProfile?.id ?? draftProfileId
 
   useEffect(() => {
-    invoke<SavedProfile[]>("list_profiles")
-      .then((profiles) => {
+    Promise.all([invoke<SavedProfile[]>("list_profiles"), invoke<string[]>("list_profile_groups")])
+      .then(([profiles, configuredGroups]) => {
         setAllProfiles(profiles)
-        const groups = [...new Set(profiles.map((profile) => profile.group).filter(Boolean))]
+        const groups = [
+          ...new Set([
+            ...configuredGroups,
+            ...profiles.map((profile) => profile.group).filter(Boolean),
+          ]),
+        ].sort((left, right) => left.localeCompare(right))
         setExistingGroups(groups)
       })
       .catch(() => {})

@@ -67,6 +67,7 @@
     "maintenance": "维护",
     "jumpHost": "跳板机",
     "connectionDesc": "管理连接相关提示和链路信息显示。",
+    "profileGroups": "分组",
     "updates": "更新"
   },
   "theme": {
@@ -360,6 +361,28 @@
     "authMethodPassword": "密码认证",
     "portDisplay": "端口 {{port}}",
     "connectionDetailsUnavailable": "连接信息不可用"
+  },
+  "profileGroups": {
+    "title": "连接分组",
+    "description": "新增或重命名用于整理已保存 SSH 连接配置的分组。",
+    "pageDescription": "新增分组，并将已保存连接拖动到对应分组中，保持连接列表有序。",
+    "add": "新增分组",
+    "addDesc": "保存或编辑连接配置时，这些分组会作为候选项显示。",
+    "addButton": "新增",
+    "namePlaceholder": "生产、测试、个人",
+    "manage": "已配置分组",
+    "manageDesc": "重命名分组会同步更新所有归属该分组的已保存连接。",
+    "empty": "还没有配置分组。",
+    "profileCount_one": "{{count}} 个已保存连接",
+    "profileCount_other": "{{count}} 个已保存连接",
+    "rename": "重命名分组",
+    "delete": "删除分组",
+    "deleteConfirm_one": "确定删除该分组吗？{{count}} 个已保存连接会移动到未分组。",
+    "deleteConfirm_other": "确定删除该分组吗？{{count}} 个已保存连接会移动到未分组。",
+    "dropEmpty": "将已保存连接拖到这里。",
+    "duplicate": "该分组已存在",
+    "moveFailed": "移动连接失败",
+    "saveFailed": "保存分组失败"
   },
   "connection": {
     "newConnection": "新建连接",

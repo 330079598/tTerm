@@ -69,6 +69,7 @@
     "maintenance": "Maintenance",
     "jumpHost": "Jump hosts",
     "connectionDesc": "Control connection-related prompts and route details.",
+    "profileGroups": "Groups",
     "updates": "Updates"
   },
   "theme": {
@@ -362,6 +363,28 @@
     "authMethodPassword": "Password auth",
     "portDisplay": "Port {{port}}",
     "connectionDetailsUnavailable": "Connection details unavailable"
+  },
+  "profileGroups": {
+    "title": "Connection groups",
+    "description": "Create and rename the groups used to organize saved SSH connection profiles.",
+    "pageDescription": "Create groups and drag saved connection profiles between them to keep your workspace organized.",
+    "add": "Add group",
+    "addDesc": "Groups appear as suggestions when saving or editing a connection profile.",
+    "addButton": "Add",
+    "namePlaceholder": "Production, Lab, Personal",
+    "manage": "Configured groups",
+    "manageDesc": "Renaming a group updates every saved connection assigned to that group.",
+    "empty": "No groups configured yet.",
+    "profileCount_one": "{{count}} saved connection",
+    "profileCount_other": "{{count}} saved connections",
+    "rename": "Rename group",
+    "delete": "Delete group",
+    "deleteConfirm_one": "Delete this group? {{count}} saved connection will move to Ungrouped.",
+    "deleteConfirm_other": "Delete this group? {{count}} saved connections will move to Ungrouped.",
+    "dropEmpty": "Drop saved connections here.",
+    "duplicate": "Group already exists",
+    "moveFailed": "Failed to move connection",
+    "saveFailed": "Failed to save group"
   },
   "connection": {
     "newConnection": "New Connection",

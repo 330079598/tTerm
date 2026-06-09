@@ -17,6 +17,7 @@ import { AppearanceSettingsTab } from "@/components/SettingsDialog/AppearanceSet
 import { ConnectionSettingsTab } from "@/components/SettingsDialog/ConnectionSettingsTab"
 import { FontSettingsTab } from "@/components/SettingsDialog/FontSettingsTab"
 import { GeneralSettingsTab } from "@/components/SettingsDialog/GeneralSettingsTab"
+import { ProfileGroupsSettingsTab } from "@/components/SettingsDialog/ProfileGroupsSettingsTab"
 import { SecuritySettingsTab } from "@/components/SettingsDialog/SecuritySettingsTab"
 import { SettingsSidebar } from "@/components/SettingsDialog/SettingsSidebar"
 import { UpdateSettingsTab } from "@/components/SettingsDialog/UpdateSettingsTab"
@@ -583,6 +584,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               monitorRefreshIntervalSecs={config.monitor_refresh_interval_secs}
               showJumpHostConnectionInfo={config.show_jump_host_connection_info}
             />
+          </TabsContent>
+
+          <TabsContent value="profile-groups" className="m-0 flex-1 overflow-y-auto p-6">
+            <ProfileGroupsSettingsTab />
           </TabsContent>
 
           <TabsContent value="security" className="m-0 flex-1 overflow-y-auto p-6">

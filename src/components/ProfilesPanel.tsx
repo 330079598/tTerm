@@ -322,24 +322,22 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
 
   const groupedProfiles = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-    const filteredProfiles = profiles
-      .filter((profile) => {
-        if (!query) return true
+    const filteredProfiles = profiles.filter((profile) => {
+      if (!query) return true
 
-        const searchTarget = [
-          profile.name,
-          profile.group,
-          profile.host,
-          profile.username,
-          profile.connection_type,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
+      const searchTarget = [
+        profile.name,
+        profile.group,
+        profile.host,
+        profile.username,
+        profile.connection_type,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
 
-        return searchTarget.includes(query)
-      })
-      .sort((a, b) => a.name.localeCompare(b.name))
+      return searchTarget.includes(query)
+    })
 
     const groups = new Map<string, SavedProfile[]>()
 

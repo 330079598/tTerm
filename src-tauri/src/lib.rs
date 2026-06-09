@@ -157,6 +157,7 @@ async fn download_install_app_update(
 const MIGRATED_CONFIG_FILES: &[&str] = &[
     "config.json",
     "profiles.json",
+    "profile_groups.json",
     "session.json",
     "ssh_known_hosts.json",
     "ssh_profiles.json",
@@ -228,6 +229,11 @@ pub fn run() {
             monitor::get_server_metrics_snapshot,
             monitor::release_server_monitor_session,
             profiles::list_profiles,
+            profiles::list_profile_groups,
+            profiles::save_profile_group,
+            profiles::rename_profile_group,
+            profiles::delete_profile_group,
+            profiles::move_profile_to_group,
             profiles::save_profile,
             profiles::delete_profile,
             profiles::set_profile_server_monitor_visible,
@@ -316,12 +322,36 @@ fn migrate_legacy_config_files(app: &tauri::AppHandle) -> Result<(), String> {
 fn merge_migrated_config_file(name: &str, old_path: &Path, new_path: &Path) -> Result<(), String> {
     match name {
         "profiles.json" => merge_profiles_file(old_path, new_path),
+        "profile_groups.json" => merge_profile_groups_file(old_path, new_path),
         "session.json" => merge_session_file(old_path, new_path),
         "ssh_known_hosts.json" => merge_known_hosts_file(old_path, new_path),
         "ssh_profiles.json" => merge_legacy_password_store_file(old_path, new_path),
         "sftp_directories.json" => merge_sftp_directory_store_file(old_path, new_path),
         _ => Ok(()),
     }
+}
+
+fn merge_profile_groups_file(old_path: &Path, new_path: &Path) -> Result<(), String> {
+    let old_groups = read_json_file::<Vec<String>>(old_path, "profile groups")?;
+    let mut new_groups = read_json_file::<Vec<String>>(new_path, "profile groups")?;
+    let mut changed = false;
+
+    for group in old_groups {
+        let group = group.trim();
+        if group.is_empty() || new_groups.iter().any(|existing| existing == group) {
+            continue;
+        }
+
+        new_groups.push(group.to_string());
+        changed = true;
+    }
+
+    if changed {
+        new_groups.sort_by(|left, right| left.to_lowercase().cmp(&right.to_lowercase()));
+        write_json_file(new_path, &new_groups, "profile groups")?;
+    }
+
+    Ok(())
 }
 
 fn merge_profiles_file(old_path: &Path, new_path: &Path) -> Result<(), String> {
