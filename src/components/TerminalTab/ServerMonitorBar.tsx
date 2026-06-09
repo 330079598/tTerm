@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast"
 
 const MIN_REFRESH_INTERVAL_MS = 1000
 const MAX_REFRESH_INTERVAL_MS = 60000
+const INITIAL_CPU_SAMPLE_DELAY_MS = 300
 const CPU_HISTORY_SAMPLE_LIMIT = 48
 const CPU_SPARKLINE_WIDTH = 78
 const CPU_SPARKLINE_HEIGHT = 16
@@ -510,6 +511,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
 
     let cancelled = false
     let timeoutId: number | undefined
+    let usedInitialCpuSampleDelay = false
     previousCpuTimesRef.current = undefined
     previousCpuCoreTimesRef.current = undefined
     setCpuHistory([])
@@ -517,6 +519,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
     const refresh = async () => {
       const requestId = requestIdRef.current + 1
       requestIdRef.current = requestId
+      let nextRefreshDelayMs = refreshIntervalMs
 
       try {
         const snapshot = await invoke<ServerMetricsSnapshot>("get_server_metrics_snapshot", {
@@ -526,11 +529,16 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         })
         if (cancelled || requestId !== requestIdRef.current) return
 
+        const hadCpuBaseline = previousCpuTimesRef.current !== undefined
         const cpuPercent = calculateCpuPercent(previousCpuTimesRef.current, snapshot.cpuTimes)
         const cpuCorePercents = calculateCpuCorePercents(
           previousCpuCoreTimesRef.current,
           snapshot.cpuCoreTimes
         )
+        if (!usedInitialCpuSampleDelay && !hadCpuBaseline && snapshot.cpuTimes) {
+          usedInitialCpuSampleDelay = true
+          nextRefreshDelayMs = Math.min(INITIAL_CPU_SAMPLE_DELAY_MS, refreshIntervalMs)
+        }
         previousCpuTimesRef.current = snapshot.cpuTimes
         previousCpuCoreTimesRef.current = snapshot.cpuCoreTimes
         setCpuHistory((history) => appendCpuHistorySample(history, cpuPercent, cpuCorePercents))
@@ -543,7 +551,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         })
       } finally {
         if (!cancelled) {
-          timeoutId = window.setTimeout(refresh, refreshIntervalMs)
+          timeoutId = window.setTimeout(refresh, nextRefreshDelayMs)
         }
       }
     }
