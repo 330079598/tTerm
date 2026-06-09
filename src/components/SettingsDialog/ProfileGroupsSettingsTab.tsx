@@ -7,6 +7,7 @@ import {
   GripVertical,
   Pencil,
   Plus,
+  PlugZap,
   Server,
   Terminal,
   Trash2,
@@ -22,8 +23,9 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
+import { buildConnectionFromProfile } from "@/lib/profileConnections"
 import { cn } from "@/lib/utils"
-import type { SavedProfile } from "@/types/tab"
+import type { SavedProfile, Tab } from "@/types/tab"
 
 const UNGROUPED_KEY = "__ungrouped__"
 
@@ -256,14 +258,23 @@ const ProfileGroupCard: React.FC<ProfileGroupCardProps> = ({
 
 interface ProfileDragRowProps {
   profile: SavedProfile
+  onConnectProfile?: (connection: Omit<Tab, "id" | "isActive">) => void
+  onDeleteProfile: (profile: SavedProfile) => void
+  onEditProfile?: (profile: SavedProfile) => void
 }
 
-const ProfileDragRow: React.FC<ProfileDragRowProps> = ({ profile }) => {
+const ProfileDragRow: React.FC<ProfileDragRowProps> = ({
+  profile,
+  onConnectProfile,
+  onDeleteProfile,
+  onEditProfile,
+}) => {
   const { t } = useTranslation()
   const { ref: draggableRef, isDragging } = useDraggable({ id: profileDragId(profile.id) })
   const { ref: droppableRef, isDropTarget } = useDroppable({ id: profileDropId(profile.id) })
   const isTerminal = profile.connection_type === "terminal"
   const Icon = isTerminal ? Terminal : Server
+  const hasProfileActions = Boolean(onConnectProfile || onEditProfile || onDeleteProfile)
   const setNodeRef = (node: HTMLDivElement | null) => {
     draggableRef(node)
     droppableRef(node)
@@ -273,7 +284,7 @@ const ProfileDragRow: React.FC<ProfileDragRowProps> = ({ profile }) => {
     <div
       ref={setNodeRef}
       className={cn(
-        "border-border/70 bg-background/70 hover:bg-muted/35 focus-visible:ring-ring/50 flex cursor-grab items-start gap-3 rounded-md border px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-[3px]",
+        "group border-border/70 bg-background/70 hover:bg-muted/35 focus-visible:ring-ring/50 flex cursor-grab items-start gap-3 rounded-md border px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-[3px]",
         isDragging && "cursor-grabbing opacity-60",
         isDropTarget && "border-primary/70 bg-primary/5"
       )}
@@ -293,11 +304,81 @@ const ProfileDragRow: React.FC<ProfileDragRowProps> = ({ profile }) => {
           {buildProfileSubtitle(profile, t)}
         </div>
       </div>
+      {hasProfileActions && (
+        <div className="flex shrink-0 items-center gap-1 self-center opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+          {onConnectProfile && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t("profiles.connect")}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onConnectProfile(buildConnectionFromProfile(profile))
+                  }}
+                >
+                  <PlugZap size={13} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("profiles.connect")}</TooltipContent>
+            </Tooltip>
+          )}
+          {onEditProfile && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t("profiles.edit")}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onEditProfile(profile)
+                  }}
+                >
+                  <Pencil size={13} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("profiles.edit")}</TooltipContent>
+            </Tooltip>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="hover:text-destructive"
+                aria-label={t("profiles.delete")}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onDeleteProfile(profile)
+                }}
+              >
+                <Trash2 size={13} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("profiles.delete")}</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
     </div>
   )
 }
 
-export const ProfileGroupsSettingsTab: React.FC = () => {
+interface ProfileGroupsSettingsTabProps {
+  onConnectProfile?: (connection: Omit<Tab, "id" | "isActive">) => void
+  onEditProfile?: (profile: SavedProfile) => void
+  refreshKey?: number
+}
+
+export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> = ({
+  onConnectProfile,
+  onEditProfile,
+  refreshKey,
+}) => {
   const { t } = useTranslation()
   const { toast } = useToast()
   const { confirm, ConfirmDialog } = useConfirmDialog()
@@ -321,7 +402,7 @@ export const ProfileGroupsSettingsTab: React.FC = () => {
     refreshProfileGroups().catch((error) => {
       console.error("Failed to load profile groups:", error)
     })
-  }, [refreshProfileGroups])
+  }, [refreshKey, refreshProfileGroups])
 
   const showGroupError = React.useCallback(
     (error: unknown) => {
@@ -466,6 +547,32 @@ export const ProfileGroupsSettingsTab: React.FC = () => {
       }
     },
     [confirm, profiles, showGroupError, t]
+  )
+
+  const handleDeleteProfile = React.useCallback(
+    async (profile: SavedProfile) => {
+      const confirmed = await confirm({
+        title: t("profiles.delete"),
+        description: `${t("profiles.deleteConfirm")}\n\n${profile.name}`,
+        confirmText: t("profiles.delete"),
+        cancelText: t("common.cancel"),
+        variant: "destructive",
+      })
+
+      if (!confirmed) return
+
+      try {
+        await invoke("delete_profile", { id: profile.id })
+        setProfiles((current) => current.filter((item) => item.id !== profile.id))
+      } catch (error) {
+        toast({
+          title: t("profiles.delete"),
+          description: error instanceof Error ? error.message : String(error),
+          variant: "destructive",
+        })
+      }
+    },
+    [confirm, t, toast]
   )
 
   const getProfileGroupKey = React.useCallback(
@@ -619,7 +726,13 @@ export const ProfileGroupsSettingsTab: React.FC = () => {
                     ) : (
                       <div className="space-y-2" role="list">
                         {group.profiles.map((profile) => (
-                          <ProfileDragRow key={profile.id} profile={profile} />
+                          <ProfileDragRow
+                            key={profile.id}
+                            profile={profile}
+                            onConnectProfile={onConnectProfile}
+                            onDeleteProfile={handleDeleteProfile}
+                            onEditProfile={onEditProfile}
+                          />
                         ))}
                       </div>
                     )}

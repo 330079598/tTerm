@@ -1,15 +1,22 @@
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
+import type { SavedProfile, Tab } from "@/types/tab"
 
 export interface SettingsDialogProps {
   onClose: () => void
   defaultTab?: string
+  onConnectProfile?: (connection: Omit<Tab, "id" | "isActive">) => void
+  onEditProfile?: (profile: SavedProfile) => void
+  profilesRefreshKey?: number
 }
 
 export interface SettingsPanelProps {
   defaultTab?: string
   className?: string
+  onConnectProfile?: (connection: Omit<Tab, "id" | "isActive">) => void
+  onEditProfile?: (profile: SavedProfile) => void
+  profilesRefreshKey?: number
 }
 
 export type ConfigState = ReturnType<typeof useConfig>["config"]

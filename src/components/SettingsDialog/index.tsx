@@ -135,8 +135,11 @@ function refreshSecretStatusCached(refreshSecretStatus: () => Promise<unknown>) 
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
-  defaultTab = "appearance",
+  defaultTab = "profile-groups",
   className,
+  onConnectProfile,
+  onEditProfile,
+  profilesRefreshKey,
 }) => {
   const mountStartRef = useRef(getPerfNow())
   const isMountedRef = useRef(true)
@@ -587,7 +590,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           </TabsContent>
 
           <TabsContent value="profile-groups" className="m-0 flex-1 overflow-y-auto p-6">
-            <ProfileGroupsSettingsTab />
+            <ProfileGroupsSettingsTab
+              onConnectProfile={onConnectProfile}
+              onEditProfile={onEditProfile}
+              refreshKey={profilesRefreshKey}
+            />
           </TabsContent>
 
           <TabsContent value="security" className="m-0 flex-1 overflow-y-auto p-6">
@@ -652,11 +659,23 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   )
 }
 
-export const SettingsDialog: React.FC<SettingsDialogProps> = ({ onClose, defaultTab }) => {
+export const SettingsDialog: React.FC<SettingsDialogProps> = ({
+  onClose,
+  defaultTab,
+  onConnectProfile,
+  onEditProfile,
+  profilesRefreshKey,
+}) => {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[85vh] p-0 sm:max-w-4xl">
-        <SettingsPanel defaultTab={defaultTab} className="h-[calc(85vh-2rem)]" />
+        <SettingsPanel
+          defaultTab={defaultTab}
+          className="h-[calc(85vh-2rem)]"
+          onConnectProfile={onConnectProfile}
+          onEditProfile={onEditProfile}
+          profilesRefreshKey={profilesRefreshKey}
+        />
       </DialogContent>
     </Dialog>
   )

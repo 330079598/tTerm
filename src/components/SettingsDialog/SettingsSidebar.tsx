@@ -11,6 +11,13 @@ export const SettingsSidebar: React.FC = () => {
     <div className="border-border bg-muted/30 w-48 border-r p-3">
       <TabsList className="flex h-auto w-full flex-col gap-1 bg-transparent">
         <TabsTrigger
+          value="profile-groups"
+          className="data-[state=active]:bg-background w-full justify-start gap-2 data-[state=active]:shadow-sm"
+        >
+          <FolderTree size={16} />
+          {t("settings.profileGroups", { defaultValue: "Groups" })}
+        </TabsTrigger>
+        <TabsTrigger
           value="appearance"
           className="data-[state=active]:bg-background w-full justify-start gap-2 data-[state=active]:shadow-sm"
         >
@@ -30,13 +37,6 @@ export const SettingsSidebar: React.FC = () => {
         >
           <Plug size={16} />
           {t("settings.connection", { defaultValue: "Connection" })}
-        </TabsTrigger>
-        <TabsTrigger
-          value="profile-groups"
-          className="data-[state=active]:bg-background w-full justify-start gap-2 data-[state=active]:shadow-sm"
-        >
-          <FolderTree size={16} />
-          {t("settings.profileGroups", { defaultValue: "Groups" })}
         </TabsTrigger>
         <TabsTrigger
           value="security"

@@ -163,6 +163,11 @@ export const TTermApp: React.FC = () => {
     [addTab]
   )
 
+  const handleEditProfile = useCallback((profile: SavedProfile) => {
+    setEditingProfile(profile)
+    setShowConnectionDialog(true)
+  }, [])
+
   const handleOpenRemoteFile = useCallback(
     (entry: SftpDirectoryEntry, sourceTabId: string, connection?: Tab["connection"]) => {
       const fileSize = entry.size ?? 0
@@ -467,10 +472,7 @@ export const TTermApp: React.FC = () => {
         <EmptyState
           handleConnect={handleConnect}
           handleNewTab={handleNewTab}
-          onEditProfile={(profile) => {
-            setEditingProfile(profile)
-            setShowConnectionDialog(true)
-          }}
+          onEditProfile={handleEditProfile}
           refreshKey={profilesRefreshKey}
         />
       )
@@ -483,7 +485,10 @@ export const TTermApp: React.FC = () => {
         handleReconnectTab={handleReconnectTab}
         handleServerMonitorVisibilityChange={handleServerMonitorVisibilityChange}
         handleUnpinConnectionHeader={handleUnpinConnectionHeader}
+        onConnectProfile={handleConnect}
+        onEditProfile={handleEditProfile}
         onOpenRemoteFile={handleOpenRemoteFile}
+        profilesRefreshKey={profilesRefreshKey}
         startupSessionRestoreMode={config.startup_session_restore_mode}
         tabs={tabs}
         updateTab={updateTab}
@@ -602,8 +607,7 @@ export const TTermApp: React.FC = () => {
               setShowProfilesPanel(false)
             }}
             onEdit={(profile) => {
-              setEditingProfile(profile)
-              setShowConnectionDialog(true)
+              handleEditProfile(profile)
               setShowProfilesPanel(false)
             }}
           />

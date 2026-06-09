@@ -3,7 +3,7 @@ import React from "react"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { TerminalTab } from "@/components/TerminalTab"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
-import { Tab } from "@/types/tab"
+import { Tab, type SavedProfile } from "@/types/tab"
 
 const RemoteFileEditor = React.lazy(() =>
   import("@/components/RemoteFileEditor").then((module) => ({
@@ -28,6 +28,9 @@ interface TabPanelsProps {
     sourceTabId: string,
     connection?: Tab["connection"]
   ) => void
+  onConnectProfile: (connection: Omit<Tab, "id" | "isActive">) => void
+  onEditProfile: (profile: SavedProfile) => void
+  profilesRefreshKey?: number
   startupSessionRestoreMode: "active" | "all"
   tabs: Tab[]
   updateTab: (id: string, updater: (tab: Tab) => Tab) => void
@@ -39,7 +42,10 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
   handleReconnectTab,
   handleServerMonitorVisibilityChange,
   handleUnpinConnectionHeader,
+  onConnectProfile,
+  onEditProfile,
   onOpenRemoteFile,
+  profilesRefreshKey,
   startupSessionRestoreMode,
   tabs,
   updateTab,
@@ -74,7 +80,11 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
             {tab.type === "settings" ? (
               <ErrorBoundary resetKey={tab.id} scope="settings">
                 <React.Suspense fallback={null}>
-                  <SettingsPanel />
+                  <SettingsPanel
+                    onConnectProfile={onConnectProfile}
+                    onEditProfile={onEditProfile}
+                    profilesRefreshKey={profilesRefreshKey}
+                  />
                 </React.Suspense>
               </ErrorBoundary>
             ) : tab.type === "remote-file-editor" ? (
