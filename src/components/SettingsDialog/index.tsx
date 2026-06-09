@@ -48,6 +48,14 @@ function normalizeSettingsTab(tab: string) {
   return tab === "font" ? "terminal" : tab
 }
 
+function normalizeScrollbackLines(value: number | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 10000
+  }
+
+  return Math.min(Math.max(Math.round(value), 0), 10000000)
+}
+
 function getPerfNow() {
   return typeof performance === "undefined" ? 0 : performance.now()
 }
@@ -161,7 +169,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [fontFamily, setFontFamily] = useState(config.font_family)
   const [fontSize, setFontSize] = useState(config.font_size)
   const [cursorStyle, setCursorStyle] = useState(config.cursor_style)
-  const [scrollbackLines, setScrollbackLines] = useState(config.scrollback_lines || 10000)
+  const [scrollbackLines, setScrollbackLines] = useState(() =>
+    normalizeScrollbackLines(config.scrollback_lines)
+  )
   const [terminalPaddingLeftPx, setTerminalPaddingLeftPx] = useState(
     config.terminal_padding_left_px
   )
