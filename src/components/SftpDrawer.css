@@ -134,11 +134,18 @@
 }
 
 .sftp-selection-actions {
+  box-sizing: border-box;
+  height: 32px;
   margin-left: 2px;
-  padding: 2px;
+  padding: 0 2px;
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
   background: hsl(var(--muted) / 0.35);
+}
+
+.sftp-selection-actions [data-slot="button"] {
+  height: 28px;
+  width: 28px;
 }
 
 .sftp-selection-count {
