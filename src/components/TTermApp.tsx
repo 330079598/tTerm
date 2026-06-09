@@ -1,4 +1,5 @@
 import "@/components/TTermApp.css"
+import { invoke } from "@tauri-apps/api/core"
 import { platform } from "@tauri-apps/plugin-os"
 import { BookMarked, Minus, Plus, Settings, Square, X } from "lucide-react"
 import React, { useCallback, useEffect, useState } from "react"
@@ -427,6 +428,35 @@ export const TTermApp: React.FC = () => {
     [updateTab]
   )
 
+  const handleServerMonitorVisibilityChange = useCallback(
+    (tabId: string, visible: boolean) => {
+      const profileId = tabs.find((tab) => tab.id === tabId)?.connection?.profileId
+
+      updateTab(tabId, (tab) => {
+        if (!tab.connection || tab.connection.type !== "ssh") {
+          return tab
+        }
+
+        return {
+          ...tab,
+          connection: {
+            ...tab.connection,
+            serverMonitorVisible: visible,
+          },
+        }
+      })
+
+      if (!profileId) {
+        return
+      }
+
+      invoke("set_profile_server_monitor_visible", { id: profileId, visible }).catch((error) => {
+        console.error("Failed to save server monitor preference:", error)
+      })
+    },
+    [tabs, updateTab]
+  )
+
   const handleSettingsClick = useCallback(() => {
     openSettingsTab(settingsTabTitle)
   }, [openSettingsTab, settingsTabTitle])
@@ -451,6 +481,7 @@ export const TTermApp: React.FC = () => {
         activeTabId={activeTabId}
         handlePinConnectionHeader={handlePinConnectionHeader}
         handleReconnectTab={handleReconnectTab}
+        handleServerMonitorVisibilityChange={handleServerMonitorVisibilityChange}
         handleUnpinConnectionHeader={handleUnpinConnectionHeader}
         onOpenRemoteFile={handleOpenRemoteFile}
         startupSessionRestoreMode={config.startup_session_restore_mode}

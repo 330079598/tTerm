@@ -15,6 +15,7 @@ export interface TerminalTabProps {
     connection?: Tab["connection"]
   ) => void
   onPinConnectionHeader?: () => void
+  onServerMonitorVisibilityChange?: (visible: boolean) => void
   onUnpinConnectionHeader?: () => void
 }
 

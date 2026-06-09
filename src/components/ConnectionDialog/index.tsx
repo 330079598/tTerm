@@ -317,6 +317,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         private_key_path: form.authMethod === "key" ? form.privateKeyPath : undefined,
         keepalive_interval_secs: form.keepaliveIntervalSecs,
         keepalive_count_max: form.keepaliveCountMax,
+        server_monitor_visible: editProfile?.server_monitor_visible === true,
         jump_hosts: profileJumpHostsPayload,
       }
       try {
@@ -352,6 +353,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         privateKeyPassphrase: form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
         keepaliveIntervalSecs: form.keepaliveIntervalSecs,
         keepaliveCountMax: form.keepaliveCountMax,
+        serverMonitorVisible: editProfile?.server_monitor_visible === true,
         jumpHosts: connectionJumpHostsPayload,
       }
     } else {
@@ -428,6 +430,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         private_key_passphrase: form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
         keepalive_interval_secs: form.keepaliveIntervalSecs,
         keepalive_count_max: form.keepaliveCountMax,
+        server_monitor_visible: editProfile?.server_monitor_visible === true,
         remember_password: false,
         jump_hosts: jumpHostsPayload,
       }

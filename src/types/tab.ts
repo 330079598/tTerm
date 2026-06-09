@@ -13,6 +13,7 @@ export interface SavedProfile {
   private_key_passphrase?: string
   keepalive_interval_secs: number
   keepalive_count_max: number
+  server_monitor_visible?: boolean
   jump_hosts?: SavedJumpHost[]
 }
 
@@ -82,6 +83,7 @@ export interface Tab {
     rememberPassword?: boolean
     keepaliveIntervalSecs?: number
     keepaliveCountMax?: number
+    serverMonitorVisible?: boolean
     privateKeyPath?: string
     privateKeyPassphrase?: string
     terminalShell?: TerminalShellType

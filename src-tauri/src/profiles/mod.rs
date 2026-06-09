@@ -47,6 +47,8 @@ pub struct SavedProfile {
     pub keepalive_interval_secs: u32,
     #[serde(default = "default_keepalive_count")]
     pub keepalive_count_max: u32,
+    #[serde(default)]
+    pub server_monitor_visible: bool,
     /// Legacy single jump host field kept only for backward-compatible reads.
     #[serde(default, rename = "jump_host", skip_serializing)]
     legacy_jump_host: Option<SavedJumpHost>,
@@ -182,6 +184,16 @@ pub fn delete_profile(id: String) -> Result<(), String> {
     let mut profiles = load_profiles_from_disk()?;
     profiles.retain(|p| p.id != id);
     write_profiles_to_disk(&profiles)
+}
+
+#[tauri::command]
+pub fn set_profile_server_monitor_visible(id: String, visible: bool) -> Result<(), String> {
+    let mut profiles = load_profiles_from_disk()?;
+    if let Some(profile) = profiles.iter_mut().find(|profile| profile.id == id) {
+        profile.server_monitor_visible = visible;
+        write_profiles_to_disk(&profiles)?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -474,6 +486,7 @@ mod tests {
             "remember_password": false,
             "keepalive_interval_secs": 30,
             "keepalive_count_max": 3,
+            "server_monitor_visible": false,
             "jump_host": {
                 "host": "bastion",
                 "port": 22,

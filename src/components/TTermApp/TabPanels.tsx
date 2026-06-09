@@ -21,6 +21,7 @@ interface TabPanelsProps {
   activeTabId: string | null
   handlePinConnectionHeader: (tabId: string) => void
   handleReconnectTab: (tabId: string) => void
+  handleServerMonitorVisibilityChange: (tabId: string, visible: boolean) => void
   handleUnpinConnectionHeader: (tabId: string) => void
   onOpenRemoteFile: (
     entry: SftpDirectoryEntry,
@@ -36,6 +37,7 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
   activeTabId,
   handlePinConnectionHeader,
   handleReconnectTab,
+  handleServerMonitorVisibilityChange,
   handleUnpinConnectionHeader,
   onOpenRemoteFile,
   startupSessionRestoreMode,
@@ -98,6 +100,9 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
                     onReconnectRequest={() => handleReconnectTab(tab.id)}
                     onOpenRemoteFile={onOpenRemoteFile}
                     onPinConnectionHeader={() => handlePinConnectionHeader(tab.id)}
+                    onServerMonitorVisibilityChange={(visible) =>
+                      handleServerMonitorVisibilityChange(tab.id, visible)
+                    }
                     onUnpinConnectionHeader={() => handleUnpinConnectionHeader(tab.id)}
                   />
                 </ErrorBoundary>

@@ -36,6 +36,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   onReconnectRequest,
   onOpenRemoteFile,
   onPinConnectionHeader,
+  onServerMonitorVisibilityChange,
   onUnpinConnectionHeader,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -81,7 +82,9 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     value: SshConnectionProgress
   } | null>(null)
   const [showSftpDrawer, setShowSftpDrawer] = useState(false)
-  const [showServerMonitor, setShowServerMonitor] = useState(false)
+  const [showServerMonitor, setShowServerMonitor] = useState(
+    () => connection?.serverMonitorVisible === true
+  )
   const [jumpHostInfoOpen, setJumpHostInfoOpen] = useState(false)
   const [dontShowJumpHostInfoAgain, setDontShowJumpHostInfoAgain] = useState(false)
   const {
@@ -387,8 +390,12 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   }, [])
 
   const handleToggleServerMonitor = useCallback(() => {
-    setShowServerMonitor((current) => !current)
-  }, [])
+    setShowServerMonitor((current) => {
+      const nextVisible = !current
+      onServerMonitorVisibilityChange?.(nextVisible)
+      return nextVisible
+    })
+  }, [onServerMonitorVisibilityChange])
 
   const handleSearchKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {

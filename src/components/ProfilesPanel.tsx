@@ -303,6 +303,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
         privateKeyPath: profile.auth_method === "key" ? profile.private_key_path : undefined,
         keepaliveIntervalSecs: profile.keepalive_interval_secs,
         keepaliveCountMax: profile.keepalive_count_max,
+        serverMonitorVisible: profile.server_monitor_visible === true,
         jumpHosts:
           jumpHosts.length > 0
             ? jumpHosts.map((jump) => ({

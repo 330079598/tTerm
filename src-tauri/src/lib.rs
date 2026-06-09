@@ -230,6 +230,7 @@ pub fn run() {
             profiles::list_profiles,
             profiles::save_profile,
             profiles::delete_profile,
+            profiles::set_profile_server_monitor_visible,
             profiles::test_connection,
             sftp::internal::api::base::sftp_list_directory,
             sftp::internal::api::base::sftp_create_directory,
