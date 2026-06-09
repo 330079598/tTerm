@@ -26,6 +26,8 @@ if [ "$(uname -s 2>/dev/null || true)" != "Linux" ]; then
 fi
 printf "__TTERM_PROC_STAT__ "
 awk '/^cpu / {print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11}' /proc/stat 2>/dev/null || true
+printf "__TTERM_PROC_STAT_CORES__ "
+awk '/^cpu[0-9]+ / {printf "%s=%s,%s,%s,%s,%s,%s,%s,%s,%s,%s ", $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11} END {printf "\n"}' /proc/stat 2>/dev/null || true
 printf "__TTERM_MEMINFO__ "
 awk '
   /^(MemTotal|MemAvailable|MemFree|Buffers|Cached|SReclaimable):/ {
@@ -82,6 +84,13 @@ pub struct CpuTimes {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CpuCoreTimes {
+    pub id: String,
+    pub times: CpuTimes,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MemoryMetrics {
     pub total_kib: u64,
     pub available_kib: u64,
@@ -107,6 +116,7 @@ pub struct ServerMetricsSnapshot {
     pub distribution: Option<LinuxDistributionInfo>,
     pub kernel: Option<String>,
     pub cpu_times: Option<CpuTimes>,
+    pub cpu_core_times: Vec<CpuCoreTimes>,
     pub memory: Option<MemoryMetrics>,
     pub primary_ip: Option<String>,
     pub disk: Option<DiskMetrics>,
@@ -488,6 +498,9 @@ fn parse_metrics_output(output: &str) -> ServerMetricsSnapshot {
         kernel,
         cpu_times: find_prefixed_line(output, "__TTERM_PROC_STAT__")
             .and_then(|line| parse_cpu_times(&line)),
+        cpu_core_times: find_prefixed_line(output, "__TTERM_PROC_STAT_CORES__")
+            .map(|line| parse_cpu_core_times(&line))
+            .unwrap_or_default(),
         memory: find_prefixed_line(output, "__TTERM_MEMINFO__")
             .and_then(|line| parse_memory_metrics(&line)),
         primary_ip: find_prefixed_line(output, "__TTERM_PRIMARY_IP__")
@@ -599,6 +612,19 @@ fn parse_cpu_times(line: &str) -> Option<CpuTimes> {
         guest: values[8],
         guest_nice: values[9],
     })
+}
+
+fn parse_cpu_core_times(line: &str) -> Vec<CpuCoreTimes> {
+    line.split_whitespace()
+        .filter_map(|item| {
+            let (id, raw_times) = item.split_once('=')?;
+            let times = parse_cpu_times(&raw_times.replace(',', " "))?;
+            Some(CpuCoreTimes {
+                id: id.to_string(),
+                times,
+            })
+        })
+        .collect()
 }
 
 fn parse_memory_metrics(line: &str) -> Option<MemoryMetrics> {

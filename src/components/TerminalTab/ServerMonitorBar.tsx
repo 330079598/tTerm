@@ -9,6 +9,11 @@ import { useToast } from "@/hooks/use-toast"
 
 const MIN_REFRESH_INTERVAL_MS = 1000
 const MAX_REFRESH_INTERVAL_MS = 60000
+const CPU_HISTORY_SAMPLE_LIMIT = 48
+const CPU_SPARKLINE_WIDTH = 78
+const CPU_SPARKLINE_HEIGHT = 16
+const CPU_SPARKLINE_MAX_CORE_LINES = 6
+const CPU_SPARKLINE_SMOOTHING = 0.45
 const DISTRO_ICON_BASE = "/assets/distro-icons"
 
 type CpuTimes = {
@@ -22,6 +27,16 @@ type CpuTimes = {
   steal: number
   guest: number
   guestNice: number
+}
+
+type CpuCoreTimes = {
+  id: string
+  times: CpuTimes
+}
+
+type CpuHistorySample = {
+  total: number
+  cores: Array<{ id: string; percent: number }>
 }
 
 type LinuxDistributionInfo = {
@@ -53,6 +68,7 @@ type ServerMetricsSnapshot = {
   distribution?: LinuxDistributionInfo
   kernel?: string
   cpuTimes?: CpuTimes
+  cpuCoreTimes?: CpuCoreTimes[]
   memory?: MemoryMetrics
   primaryIp?: string
   disk?: DiskMetrics
@@ -102,6 +118,58 @@ function calculateCpuPercent(previous?: CpuTimes, next?: CpuTimes) {
   if (totalDelta <= 0) return undefined
 
   return Math.max(0, Math.min(100, ((totalDelta - idleDelta) / totalDelta) * 100))
+}
+
+function normalizePercent(value: number) {
+  return Math.max(0, Math.min(100, value))
+}
+
+function smoothPercent(previous: number | undefined, next: number) {
+  if (previous === undefined) {
+    return normalizePercent(next)
+  }
+
+  return normalizePercent(previous * CPU_SPARKLINE_SMOOTHING + next * (1 - CPU_SPARKLINE_SMOOTHING))
+}
+
+function calculateCpuCorePercents(previous?: CpuCoreTimes[], next?: CpuCoreTimes[]) {
+  if (!previous?.length || !next?.length) {
+    return []
+  }
+
+  const previousById = new Map(previous.map((core) => [core.id, core.times]))
+  return next
+    .map((core) => ({
+      id: core.id,
+      percent: calculateCpuPercent(previousById.get(core.id), core.times),
+    }))
+    .filter((core): core is { id: string; percent: number } => core.percent !== undefined)
+}
+
+function appendCpuHistorySample(
+  history: CpuHistorySample[],
+  total?: number,
+  cores: Array<{ id: string; percent: number }> = []
+) {
+  if (total === undefined || Number.isNaN(total)) {
+    return history
+  }
+
+  const previousSample = history[history.length - 1]
+  const previousCoresById = new Map(
+    previousSample?.cores.map((core) => [core.id, core.percent]) ?? []
+  )
+
+  return [
+    ...history,
+    {
+      total: smoothPercent(previousSample?.total, total),
+      cores: cores.map((core) => ({
+        id: core.id,
+        percent: smoothPercent(previousCoresById.get(core.id), core.percent),
+      })),
+    },
+  ].slice(-CPU_HISTORY_SAMPLE_LIMIT)
 }
 
 function formatKib(value?: number) {
@@ -221,6 +289,114 @@ function PercentValue({ value }: { value?: number }) {
   )
 }
 
+function buildCpuSparklinePoints(values: number[]) {
+  const paddingX = 2
+  const paddingY = 2
+  const plotWidth = CPU_SPARKLINE_WIDTH - paddingX * 2
+  const plotHeight = CPU_SPARKLINE_HEIGHT - paddingY * 2
+
+  if (values.length === 0) {
+    return []
+  }
+
+  return values.map((value, index) => {
+    const x =
+      values.length === 1
+        ? CPU_SPARKLINE_WIDTH / 2
+        : paddingX + (index / (values.length - 1)) * plotWidth
+    const y = paddingY + (1 - normalizePercent(value) / 100) * plotHeight
+    return { x, y }
+  })
+}
+
+function buildSmoothPath(points: Array<{ x: number; y: number }>) {
+  if (points.length < 2) {
+    return ""
+  }
+
+  return points.reduce((path, point, index) => {
+    if (index === 0) {
+      return `M${point.x},${point.y}`
+    }
+
+    const previous = points[index - 1]
+    const controlX = previous.x + (point.x - previous.x) * 0.5
+    return `${path} C${controlX},${previous.y} ${controlX},${point.y} ${point.x},${point.y}`
+  }, "")
+}
+
+function getCoreSeries(samples: CpuHistorySample[]) {
+  const coreIds = Array.from(
+    new Set(samples.flatMap((sample) => sample.cores.map((core) => core.id)))
+  )
+
+  return coreIds
+    .map((id) => {
+      const values = samples.map(
+        (sample) => sample.cores.find((core) => core.id === id)?.percent ?? 0
+      )
+      return { id, values, latest: values[values.length - 1] ?? 0 }
+    })
+    .sort((first, second) => second.latest - first.latest)
+    .slice(0, CPU_SPARKLINE_MAX_CORE_LINES)
+}
+
+function CpuSparkline({ samples }: { samples: CpuHistorySample[] }) {
+  const values = samples.map((sample) => sample.total)
+  const points = buildCpuSparklinePoints(values)
+  const hasLine = points.length > 1
+  const linePath = hasLine ? buildSmoothPath(points) : ""
+  const areaPath = hasLine
+    ? `${linePath} L${points[points.length - 1].x},${CPU_SPARKLINE_HEIGHT - 1} L${
+        points[0].x
+      },${CPU_SPARKLINE_HEIGHT - 1} Z`
+    : ""
+  const coreSeries = getCoreSeries(samples)
+  const latestPoint = points[points.length - 1]
+
+  return (
+    <span className="server-monitor-cpu-chart" aria-hidden="true">
+      <svg
+        viewBox={`0 0 ${CPU_SPARKLINE_WIDTH} ${CPU_SPARKLINE_HEIGHT}`}
+        preserveAspectRatio="none"
+        focusable="false"
+      >
+        <path
+          className="server-monitor-cpu-threshold"
+          d={`M2,${2 + (1 - 0.7) * (CPU_SPARKLINE_HEIGHT - 4)} L${
+            CPU_SPARKLINE_WIDTH - 2
+          },${2 + (1 - 0.7) * (CPU_SPARKLINE_HEIGHT - 4)}`}
+        />
+        {hasLine &&
+          coreSeries.map((series, index) => {
+            const corePath = buildSmoothPath(buildCpuSparklinePoints(series.values))
+            if (!corePath) return null
+
+            return (
+              <path
+                key={series.id}
+                className="server-monitor-cpu-core-line"
+                data-core-index={index}
+                d={corePath}
+              />
+            )
+          })}
+        {hasLine && <path className="server-monitor-cpu-area" d={areaPath} />}
+        {hasLine && <path className="server-monitor-cpu-line" d={linePath} />}
+        {!hasLine && <path className="server-monitor-cpu-placeholder" d="M4,10 L64,10" />}
+        {latestPoint && (
+          <circle
+            className="server-monitor-cpu-dot"
+            cx={latestPoint.x}
+            cy={latestPoint.y}
+            r="1.8"
+          />
+        )}
+      </svg>
+    </span>
+  )
+}
+
 function MetricItem({
   ariaLabel,
   className,
@@ -271,7 +447,9 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
   const { toast } = useToast()
   const { config } = useConfig()
   const [state, setState] = useState<MonitorState>({ status: "loading" })
+  const [cpuHistory, setCpuHistory] = useState<CpuHistorySample[]>([])
   const previousCpuTimesRef = useRef<CpuTimes | undefined>()
+  const previousCpuCoreTimesRef = useRef<CpuCoreTimes[] | undefined>()
   const requestIdRef = useRef(0)
   const monitorSessionNonce = normalizeSessionNonce(sessionNonce)
   const refreshIntervalMs = useMemo(() => {
@@ -333,6 +511,8 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
     let cancelled = false
     let timeoutId: number | undefined
     previousCpuTimesRef.current = undefined
+    previousCpuCoreTimesRef.current = undefined
+    setCpuHistory([])
 
     const refresh = async () => {
       const requestId = requestIdRef.current + 1
@@ -347,7 +527,13 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         if (cancelled || requestId !== requestIdRef.current) return
 
         const cpuPercent = calculateCpuPercent(previousCpuTimesRef.current, snapshot.cpuTimes)
+        const cpuCorePercents = calculateCpuCorePercents(
+          previousCpuCoreTimesRef.current,
+          snapshot.cpuCoreTimes
+        )
         previousCpuTimesRef.current = snapshot.cpuTimes
+        previousCpuCoreTimesRef.current = snapshot.cpuCoreTimes
+        setCpuHistory((history) => appendCpuHistorySample(history, cpuPercent, cpuCorePercents))
         setState({ status: "ready", snapshot, cpuPercent, collectedAt: Date.now() })
       } catch (error) {
         if (cancelled || requestId !== requestIdRef.current) return
@@ -444,10 +630,15 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
           <span className="server-monitor-distro-name">{distroLabel}</span>
         </span>
         <MetricItem
-          className={severityClass(cpuPercent)}
+          className={`server-monitor-cpu-metric ${severityClass(cpuPercent)}`}
           icon={<Cpu size={13} />}
           label="CPU"
-          value={<PercentValue value={cpuPercent} />}
+          value={
+            <span className="server-monitor-cpu-value">
+              <CpuSparkline samples={cpuHistory} />
+              <PercentValue value={cpuPercent} />
+            </span>
+          }
         />
         <MetricItem
           className={severityClass(snapshot.memory?.usedPercent)}
@@ -477,7 +668,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         )}
       </>
     )
-  }, [connectionState, copyIpAddress, staleAfterMs, state, t])
+  }, [connectionState, copyIpAddress, cpuHistory, staleAfterMs, state, t])
 
   if (!visible || connection?.type !== "ssh") {
     return null
