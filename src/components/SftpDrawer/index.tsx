@@ -75,7 +75,7 @@ function isEditableShortcutTarget(target: EventTarget | null) {
 
   return Boolean(
     target.isContentEditable ||
-      target.closest("input, textarea, select, [contenteditable='true'], [role='textbox']")
+    target.closest("input, textarea, select, [contenteditable='true'], [role='textbox']")
   )
 }
 

@@ -7,15 +7,19 @@ import { Button } from "@/components/ui/button"
 import { Tab } from "@/types/tab"
 
 interface EmptyStateProps {
+  collapsedProfileGroupKeys?: string[]
   handleConnect: (connection: Omit<Tab, "id" | "isActive">) => void
   handleNewTab: () => void
+  onCollapsedProfileGroupKeysChange?: (groups: string[]) => void
   onEditProfile: (profile: SavedProfile) => void
   refreshKey?: number
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
+  collapsedProfileGroupKeys,
   handleConnect,
   handleNewTab,
+  onCollapsedProfileGroupKeysChange,
   onEditProfile,
   refreshKey,
 }) => {
@@ -53,7 +57,9 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       <div className="terminal-placeholder-panel">
         <ProfilesPanel
           refreshKey={refreshKey}
+          collapsedGroupKeys={collapsedProfileGroupKeys}
           className="h-full"
+          onCollapsedGroupKeysChange={onCollapsedProfileGroupKeysChange}
           onConnect={(connection) => {
             handleConnect(connection)
           }}

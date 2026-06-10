@@ -35,6 +35,7 @@ export interface AppConfig {
   auto_download_updates: boolean
   update_check_frequency: UpdateCheckFrequency
   last_update_check_at: number | null
+  collapsed_profile_group_keys: string[]
 }
 
 const defaultUpdateChannel = /-(alpha|beta|rc|dev)(\.|$)/.test(
@@ -65,6 +66,7 @@ const defaultConfig: AppConfig = {
   auto_download_updates: true,
   update_check_frequency: "daily",
   last_update_check_at: null,
+  collapsed_profile_group_keys: [],
 }
 
 function normalizeUpdateCheckFrequency(
@@ -99,6 +101,10 @@ function normalizeMonitorRefreshInterval(
 }
 
 function normalizeConfig(config: Partial<AppConfig>): AppConfig {
+  const collapsedProfileGroupKeys = Array.isArray(config.collapsed_profile_group_keys)
+    ? config.collapsed_profile_group_keys.filter((item): item is string => typeof item === "string")
+    : []
+
   return {
     ...defaultConfig,
     ...config,
@@ -115,6 +121,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     update_check_frequency: normalizeUpdateCheckFrequency(config.update_check_frequency),
     last_update_check_at:
       typeof config.last_update_check_at === "number" ? config.last_update_check_at : null,
+    collapsed_profile_group_keys: collapsedProfileGroupKeys,
   }
 }
 

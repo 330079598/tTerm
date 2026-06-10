@@ -362,7 +362,9 @@
     "authMethodKey": "Key auth",
     "authMethodPassword": "Password auth",
     "portDisplay": "Port {{port}}",
-    "connectionDetailsUnavailable": "Connection details unavailable"
+    "connectionDetailsUnavailable": "Connection details unavailable",
+    "collapseGroup": "Collapse {{group}}",
+    "expandGroup": "Expand {{group}}"
   },
   "profileGroups": {
     "title": "Connection groups",

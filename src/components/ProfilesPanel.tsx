@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { useTranslation } from "react-i18next"
 import {
+  ChevronDown,
   ChevronRight,
   Pencil,
   PlugZap,
@@ -26,9 +27,11 @@ import { Tab, type ConnectionType, type SavedProfile } from "@/types/tab"
 interface ProfilesPanelProps {
   onConnect: (connection: Omit<Tab, "id" | "isActive">) => void
   onEdit: (profile: SavedProfile) => void
+  collapsedGroupKeys?: string[]
   refreshKey?: number
   onCreate?: () => void
   onClose?: () => void
+  onCollapsedGroupKeysChange?: (groups: string[]) => void
   surface?: "panel" | "plain"
   className?: string
 }
@@ -41,6 +44,8 @@ const connectionTypeIcons = {
   ssh: Server,
   terminal: Terminal,
 } as const
+
+const getGroupListId = (group: string) => `profiles-group-${encodeURIComponent(group)}`
 
 const buildConnectionSubtitle = (
   profile: SavedProfile,
@@ -227,9 +232,11 @@ const ProfileRow: React.FC<{
 export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
   onConnect,
   onEdit,
+  collapsedGroupKeys = [],
   refreshKey,
   onCreate,
   onClose,
+  onCollapsedGroupKeysChange,
   surface = "panel",
   className,
 }) => {
@@ -240,6 +247,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
   const { confirm, ConfirmDialog } = useConfirmDialog()
+  const collapsedGroupKeySet = useMemo(() => new Set(collapsedGroupKeys), [collapsedGroupKeys])
 
   useEffect(() => {
     invoke<SavedProfile[]>("list_profiles")
@@ -330,8 +338,11 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
   }, [profiles, searchQuery])
 
   const flatProfiles = useMemo(
-    () => groupedProfiles.flatMap(([, items]) => items),
-    [groupedProfiles]
+    () =>
+      groupedProfiles.flatMap(([group, items]) =>
+        collapsedGroupKeySet.has(group) && !searchQuery.trim() ? [] : items
+      ),
+    [collapsedGroupKeySet, groupedProfiles, searchQuery]
   )
 
   const activeProfileId = useMemo(() => {
@@ -356,6 +367,17 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
 
   const hasProfiles = profiles.length > 0
   const hasFilteredResults = groupedProfiles.length > 0
+  const isFiltering = searchQuery.trim().length > 0
+
+  const toggleGroupCollapsed = (group: string) => {
+    const next = new Set(collapsedGroupKeySet)
+    if (next.has(group)) {
+      next.delete(group)
+    } else {
+      next.add(group)
+    }
+    onCollapsedGroupKeysChange?.(Array.from(next))
+  }
 
   return (
     <section
@@ -433,34 +455,61 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
 
         {hasFilteredResults && (
           <div className="space-y-5 px-2 pb-2">
-            {groupedProfiles.map(([group, items]) => (
-              <section key={group} className="space-y-2">
-                <div className="text-muted-foreground flex items-center justify-between px-1 text-[11px] font-semibold tracking-[0.08em]">
-                  <span className="whitespace-pre-wrap">
-                    {group === UNGROUPED_KEY ? t("profiles.ungrouped") : group}
-                  </span>
-                  <span>{items.length}</span>
-                </div>
+            {groupedProfiles.map(([group, items]) => {
+              const isCollapsed = collapsedGroupKeySet.has(group) && !isFiltering
+              const groupLabel = group === UNGROUPED_KEY ? t("profiles.ungrouped") : group
+              const groupListId = getGroupListId(group)
 
-                <div className="space-y-2" role="listbox" aria-label={t("profiles.title")}>
-                  {items.map((profile) => (
-                    <ProfileRow
-                      key={profile.id}
-                      profile={profile}
-                      isActive={profile.id === activeProfileId}
-                      onConnect={handleConnect}
-                      onEdit={onEdit}
-                      onDelete={handleDelete}
-                      onFocusRow={setSelectedProfileId}
-                      rowRef={(node) => {
-                        rowRefs.current[profile.id] = node
-                      }}
-                      t={t}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
+              return (
+                <section key={group} className="space-y-2">
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:bg-muted/35 focus-visible:ring-ring/50 flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-[11px] font-semibold tracking-[0.08em] transition-colors outline-none focus-visible:ring-[3px]"
+                    onClick={() => toggleGroupCollapsed(group)}
+                    aria-expanded={!isCollapsed}
+                    aria-controls={groupListId}
+                    aria-label={
+                      isCollapsed
+                        ? t("profiles.expandGroup", { group: groupLabel })
+                        : t("profiles.collapseGroup", { group: groupLabel })
+                    }
+                  >
+                    {isCollapsed ? (
+                      <ChevronRight className="size-3 shrink-0" />
+                    ) : (
+                      <ChevronDown className="size-3 shrink-0" />
+                    )}
+                    <span className="min-w-0 flex-1 whitespace-pre-wrap">{groupLabel}</span>
+                    <span className="shrink-0 tabular-nums">{items.length}</span>
+                  </button>
+
+                  {!isCollapsed && (
+                    <div
+                      id={groupListId}
+                      className="space-y-2"
+                      role="listbox"
+                      aria-label={groupLabel}
+                    >
+                      {items.map((profile) => (
+                        <ProfileRow
+                          key={profile.id}
+                          profile={profile}
+                          isActive={profile.id === activeProfileId}
+                          onConnect={handleConnect}
+                          onEdit={onEdit}
+                          onDelete={handleDelete}
+                          onFocusRow={setSelectedProfileId}
+                          rowRef={(node) => {
+                            rowRefs.current[profile.id] = node
+                          }}
+                          t={t}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )
+            })}
           </div>
         )}
       </ScrollArea>

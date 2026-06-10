@@ -360,7 +360,9 @@
     "authMethodKey": "密钥认证",
     "authMethodPassword": "密码认证",
     "portDisplay": "端口 {{port}}",
-    "connectionDetailsUnavailable": "连接信息不可用"
+    "connectionDetailsUnavailable": "连接信息不可用",
+    "collapseGroup": "折叠 {{group}}",
+    "expandGroup": "展开 {{group}}"
   },
   "profileGroups": {
     "title": "连接分组",

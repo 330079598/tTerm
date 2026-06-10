@@ -88,7 +88,7 @@ export const TTermApp: React.FC = () => {
 
   const { saveSession, loadSession } = useSessionPersistence()
   const { cleanupConnection } = useConnectionManager()
-  const { config, isLoaded } = useConfig()
+  const { config, isLoaded, saveConfig } = useConfig()
   const { cancelTransfer, clearCompletedTransfers, removeTransfer, transfers } =
     useTransferManager()
   const { confirm, ConfirmDialog } = useConfirmDialog()
@@ -466,12 +466,23 @@ export const TTermApp: React.FC = () => {
     openSettingsTab(settingsTabTitle)
   }, [openSettingsTab, settingsTabTitle])
 
+  const handleCollapsedProfileGroupKeysChange = useCallback(
+    (groups: string[]) => {
+      saveConfig({ collapsed_profile_group_keys: groups }).catch((error) => {
+        console.error("Failed to save collapsed profile groups:", error)
+      })
+    },
+    [saveConfig]
+  )
+
   const renderTabContent = () => {
     if (tabs.length === 0) {
       return (
         <EmptyState
+          collapsedProfileGroupKeys={config.collapsed_profile_group_keys}
           handleConnect={handleConnect}
           handleNewTab={handleNewTab}
+          onCollapsedProfileGroupKeysChange={handleCollapsedProfileGroupKeysChange}
           onEditProfile={handleEditProfile}
           refreshKey={profilesRefreshKey}
         />
@@ -595,7 +606,9 @@ export const TTermApp: React.FC = () => {
         >
           <ProfilesPanel
             refreshKey={profilesRefreshKey}
+            collapsedGroupKeys={config.collapsed_profile_group_keys}
             surface="panel"
+            onCollapsedGroupKeysChange={handleCollapsedProfileGroupKeysChange}
             onClose={() => setShowProfilesPanel(false)}
             onCreate={() => {
               setEditingProfile(null)

@@ -47,6 +47,8 @@ pub struct AppConfig {
     pub update_check_frequency: String,
     #[serde(default)]
     pub last_update_check_at: Option<i64>,
+    #[serde(default)]
+    pub collapsed_profile_group_keys: Vec<String>,
 }
 
 fn normalize_language(locale: &str) -> String {
@@ -141,6 +143,7 @@ impl Default for AppConfig {
             auto_download_updates: default_auto_download_updates(),
             update_check_frequency: default_update_check_frequency(),
             last_update_check_at: None,
+            collapsed_profile_group_keys: Vec::new(),
         }
     }
 }
