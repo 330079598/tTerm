@@ -68,6 +68,16 @@ function sftpDialogReducer(state: SftpDialogState, action: SftpDialogAction): Sf
 
 const EMPTY_SFTP_ENTRIES: SftpDirectoryEntry[] = []
 
+function isDeletedEntryPath(path: string, deletedPaths: Set<string>) {
+  for (const deletedPath of deletedPaths) {
+    if (path === deletedPath || path.startsWith(`${deletedPath}/`)) {
+      return true
+    }
+  }
+
+  return false
+}
+
 function isEditableShortcutTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) {
     return false
@@ -308,14 +318,22 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   }, [connection, listingCurrentPath, renameEntry, renameNewName, runAndRefresh, tabId])
 
   const handleDeleteSelection = useCallback(() => {
+    if (isDeleting) {
+      return
+    }
+
     if (selectedEntries.length === 0) {
       return
     }
 
     dispatchDialog({ action: "openDelete", entries: selectedEntries })
-  }, [selectedEntries])
+  }, [isDeleting, selectedEntries])
 
   const handleDelete = useCallback(() => {
+    if (isDeleting) {
+      return
+    }
+
     const entries =
       contextMenuEntry &&
       selectedPaths.includes(contextMenuEntry.path) &&
@@ -331,7 +349,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     }
 
     dispatchDialog({ action: "openDelete", entries })
-  }, [activeEntry, contextMenuEntry, selectedEntries, selectedPaths])
+  }, [activeEntry, contextMenuEntry, isDeleting, selectedEntries, selectedPaths])
 
   const startDeleteBatch = useCallback(
     async (entries: SftpDirectoryEntry[], useCommandDelete: boolean, command?: string) => {
@@ -354,6 +372,23 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
             useCommandDelete,
           },
         })
+        const deletedPaths = new Set(entries.map((entry) => entry.path))
+        setListing((current) =>
+          current
+            ? {
+                ...current,
+                entries: current.entries.filter(
+                  (entry) => !isDeletedEntryPath(entry.path, deletedPaths)
+                ),
+              }
+            : current
+        )
+        setSelectedPaths((current) =>
+          current.filter((path) => !isDeletedEntryPath(path, deletedPaths))
+        )
+        setActivePath((current) =>
+          current && isDeletedEntryPath(current, deletedPaths) ? null : current
+        )
       } catch (invokeError) {
         const message = String(invokeError)
         setIsDeleting(false)
@@ -371,6 +406,10 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   )
 
   const handleDeleteConfirm = useCallback(() => {
+    if (isDeleting) {
+      return
+    }
+
     if (deleteDialogEntries.length === 0) {
       return
     }
@@ -417,24 +456,32 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         })
       }
     })()
-  }, [connection, deleteDialogEntries, startDeleteBatch, t, tabId])
+  }, [connection, deleteDialogEntries, isDeleting, startDeleteBatch, t, tabId])
 
   const handleCommandDeleteConfirm = useCallback(() => {
+    if (isDeleting) {
+      return
+    }
+
     const command = commandDeleteCommand.trim()
     if (commandDeleteEntries.length === 0 || !command) {
       return
     }
 
     void startDeleteBatch(commandDeleteEntries, true, command)
-  }, [commandDeleteCommand, commandDeleteEntries, startDeleteBatch])
+  }, [commandDeleteCommand, commandDeleteEntries, isDeleting, startDeleteBatch])
 
   const handleSftpDeleteConfirm = useCallback(() => {
+    if (isDeleting) {
+      return
+    }
+
     if (commandDeleteEntries.length === 0) {
       return
     }
 
     void startDeleteBatch(commandDeleteEntries, false)
-  }, [commandDeleteEntries, startDeleteBatch])
+  }, [commandDeleteEntries, isDeleting, startDeleteBatch])
 
   const handleDownload = useCallback(async () => {
     const entry = contextMenuEntry ?? activeEntry

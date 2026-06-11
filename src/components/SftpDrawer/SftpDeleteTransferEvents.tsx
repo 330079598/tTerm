@@ -45,6 +45,8 @@ export const SftpDeleteTransferEvents: React.FC<SftpDeleteTransferEventsProps> =
       const nextUnlisteners = await Promise.all([
         appWindow.listen<DeleteBatchStartEvent>(`sftp-delete-batch-start-${tabId}`, (event) => {
           const { payload } = event
+          setIsDeleting(true)
+          setError(null)
           addTransfer(
             {
               tabId,
