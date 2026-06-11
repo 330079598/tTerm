@@ -37,6 +37,8 @@ pub struct AppConfig {
     pub startup_session_restore_mode: String,
     #[serde(default = "default_show_jump_host_connection_info")]
     pub show_jump_host_connection_info: bool,
+    #[serde(default)]
+    pub sftp_paste_upload_enabled: bool,
     #[serde(default = "default_monitor_refresh_interval_secs")]
     pub monitor_refresh_interval_secs: u16,
     #[serde(default = "default_update_channel")]
@@ -138,6 +140,7 @@ impl Default for AppConfig {
             terminal_padding_bottom_px: 0,
             startup_session_restore_mode: default_startup_session_restore_mode(),
             show_jump_host_connection_info: default_show_jump_host_connection_info(),
+            sftp_paste_upload_enabled: false,
             monitor_refresh_interval_secs: default_monitor_refresh_interval_secs(),
             update_channel: default_update_channel(),
             auto_download_updates: default_auto_download_updates(),

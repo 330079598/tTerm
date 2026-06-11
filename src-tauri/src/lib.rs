@@ -1,3 +1,4 @@
+mod clipboard_files;
 mod config;
 mod core;
 mod fonts;
@@ -214,6 +215,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             config::load_config,
             config::save_config,
+            clipboard_files::read_clipboard_file_paths,
             session::load_session,
             session::save_session,
             session::clear_session,

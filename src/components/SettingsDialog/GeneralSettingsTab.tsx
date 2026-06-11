@@ -1,5 +1,5 @@
 import React from "react"
-import { Check, Info, Languages, PlugZap, Trash2, Wrench } from "lucide-react"
+import { Check, ClipboardPaste, Info, Languages, PlugZap, Trash2, Wrench } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -19,9 +19,11 @@ interface GeneralSettingsTabProps {
   handleClearSession: () => Promise<void>
   handleLanguageChange: (langCode: string) => Promise<void>
   handleRestoreAllSessionConnectionsChange: (checked: boolean) => Promise<void>
+  handleSftpPasteUploadEnabledChange: (checked: boolean) => Promise<void>
   i18nLanguage: string
   languages: LanguageOption[]
   restoreAllSessionConnections: boolean
+  sftpPasteUploadEnabled: boolean
 }
 
 export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
@@ -29,9 +31,11 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   handleClearSession,
   handleLanguageChange,
   handleRestoreAllSessionConnectionsChange,
+  handleSftpPasteUploadEnabledChange,
   i18nLanguage,
   languages,
   restoreAllSessionConnections,
+  sftpPasteUploadEnabled,
 }) => {
   const { t } = useTranslation()
 
@@ -71,6 +75,26 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               )
             })}
           </div>
+        </SettingsSection>
+
+        <SettingsSection
+          icon={<ClipboardPaste size={16} />}
+          title={t("settings.sftp", { defaultValue: "SFTP" })}
+          description={t("settings.sftpDesc", {
+            defaultValue: "Configure file manager behavior for remote directories.",
+          })}
+        >
+          <SettingsRow
+            icon={<ClipboardPaste size={16} />}
+            title={t("settings.sftpPasteUpload")}
+            description={t("settings.sftpPasteUploadDesc")}
+            action={
+              <Switch
+                checked={sftpPasteUploadEnabled}
+                onCheckedChange={handleSftpPasteUploadEnabledChange}
+              />
+            }
+          />
         </SettingsSection>
 
         <SettingsSection

@@ -415,6 +415,19 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
   }
 
+  const handleSftpPasteUploadEnabledChange = async (checked: boolean) => {
+    try {
+      await saveConfig({ sftp_paste_upload_enabled: checked })
+    } catch (error) {
+      console.error("Failed to save SFTP paste upload preference:", error)
+      toast({
+        title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleShowJumpHostConnectionInfoChange = async (checked: boolean) => {
     try {
       await saveConfig({ show_jump_host_connection_info: checked })
@@ -618,9 +631,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleClearSession={handleClearSession}
               handleLanguageChange={handleLanguageChange}
               handleRestoreAllSessionConnectionsChange={handleRestoreAllSessionConnectionsChange}
+              handleSftpPasteUploadEnabledChange={handleSftpPasteUploadEnabledChange}
               i18nLanguage={i18n.language}
               languages={languages}
               restoreAllSessionConnections={config.startup_session_restore_mode === "all"}
+              sftpPasteUploadEnabled={config.sftp_paste_upload_enabled}
             />
           </TabsContent>
 

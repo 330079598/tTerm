@@ -30,6 +30,7 @@ export interface AppConfig {
   terminal_padding_bottom_px: number
   startup_session_restore_mode: "active" | "all"
   show_jump_host_connection_info: boolean
+  sftp_paste_upload_enabled: boolean
   monitor_refresh_interval_secs: number
   update_channel: "stable" | "beta-dev"
   auto_download_updates: boolean
@@ -61,6 +62,7 @@ const defaultConfig: AppConfig = {
   terminal_padding_bottom_px: 0,
   startup_session_restore_mode: "active",
   show_jump_host_connection_info: true,
+  sftp_paste_upload_enabled: false,
   monitor_refresh_interval_secs: 5,
   update_channel: defaultUpdateChannel,
   auto_download_updates: true,
@@ -110,6 +112,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     ...config,
     startup_session_restore_mode: config.startup_session_restore_mode === "all" ? "all" : "active",
     show_jump_host_connection_info: config.show_jump_host_connection_info !== false,
+    sftp_paste_upload_enabled: config.sftp_paste_upload_enabled === true,
     monitor_refresh_interval_secs: normalizeMonitorRefreshInterval(
       config.monitor_refresh_interval_secs
     ),

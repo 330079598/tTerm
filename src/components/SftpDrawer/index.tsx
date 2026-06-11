@@ -5,6 +5,7 @@ import { AlertCircle } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useConfig } from "@/contexts/ConfigContext"
 import { toast } from "@/hooks/use-toast"
 
 import { SftpDeleteTransferEvents } from "@/components/SftpDrawer/SftpDeleteTransferEvents"
@@ -13,6 +14,7 @@ import { SftpDrawerHeader } from "@/components/SftpDrawer/SftpDrawerHeader"
 import { SftpDialogs } from "@/components/SftpDrawer/SftpDialogs"
 import { SftpEntryContextMenu } from "@/components/SftpDrawer/SftpEntryContextMenu"
 import { useSftpDragDrop } from "@/components/SftpDrawer/useSftpDragDrop"
+import { useSftpPasteUpload } from "@/components/SftpDrawer/useSftpPasteUpload"
 import { useSftpSelection } from "@/components/SftpDrawer/useSftpSelection"
 import { joinRemotePath } from "@/components/SftpDrawer/sftpDrawerUtils"
 import {
@@ -97,6 +99,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   onOpenRemoteFile,
 }) => {
   const { t } = useTranslation()
+  const { config } = useConfig()
   const [listing, setListing] = useState<SftpDirectoryListing | null>(null)
   const [activePath, setActivePath] = useState<string | null>(null)
   const [selectedPaths, setSelectedPaths] = useState<string[]>([])
@@ -168,6 +171,14 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       uploadPaths,
       visible,
     })
+
+  useSftpPasteUpload({
+    enabled: config.sftp_paste_upload_enabled,
+    listing,
+    setError,
+    uploadPaths,
+    visible,
+  })
 
   const searchMatcher = useMemo(
     () => createSftpSearchMatcher(searchQuery, searchOptions),
