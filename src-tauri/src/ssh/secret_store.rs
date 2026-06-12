@@ -28,6 +28,7 @@ const PBKDF_PARALLELISM: u32 = 1;
 #[serde(rename_all = "camelCase")]
 pub struct SecretBackendStatus {
     pub active_backend: String,
+    pub storage_mode: String,
     pub keyring_available: bool,
     pub stronghold_enabled: bool,
     pub stronghold_unlocked: bool,
@@ -64,6 +65,34 @@ pub enum SecretLocation {
     Keyring,
     Stronghold,
     Memory,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SecretStorageMode {
+    Auto,
+    System,
+    Vault,
+    Memory,
+}
+
+impl SecretStorageMode {
+    fn from_config_value(value: &str) -> Self {
+        match value {
+            "system" => Self::System,
+            "vault" => Self::Vault,
+            "memory" => Self::Memory,
+            _ => Self::Auto,
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::System => "system",
+            Self::Vault => "vault",
+            Self::Memory => "memory",
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -103,33 +132,57 @@ impl SecretStoreState {
             .is_some();
         let keyring_available = self.keyring_available()?;
         let config = load_config_file()?;
-        let active_backend = if keyring_available {
-            "system".to_string()
-        } else if config.secret_vault_enabled && stronghold_unlocked {
-            "vault".to_string()
-        } else {
-            "memory".to_string()
+        let mode = SecretStorageMode::from_config_value(&config.secret_storage_mode);
+        let active_backend = match mode {
+            SecretStorageMode::System if keyring_available => "system",
+            SecretStorageMode::Vault if config.secret_vault_enabled && stronghold_unlocked => {
+                "vault"
+            }
+            SecretStorageMode::Auto if keyring_available => "system",
+            SecretStorageMode::Auto if config.secret_vault_enabled && stronghold_unlocked => {
+                "vault"
+            }
+            _ => "memory",
         };
-        let persistence_available =
-            keyring_available || (config.secret_vault_enabled && stronghold_unlocked);
-        let message = if keyring_available {
-            None
-        } else if config.secret_vault_enabled && !stronghold_unlocked {
-            Some("System keyring unavailable. Unlock the app vault to persist secrets.".to_string())
-        } else if !config.secret_vault_enabled {
-            Some(
+        let persistence_available = match mode {
+            SecretStorageMode::System => keyring_available,
+            SecretStorageMode::Vault => config.secret_vault_enabled && stronghold_unlocked,
+            SecretStorageMode::Memory => false,
+            SecretStorageMode::Auto => {
+                keyring_available || (config.secret_vault_enabled && stronghold_unlocked)
+            }
+        };
+        let message = match mode {
+            SecretStorageMode::System if !keyring_available => {
+                Some("System credential store is unavailable.".to_string())
+            }
+            SecretStorageMode::Vault if !config.secret_vault_enabled => Some(
+                "App vault mode is selected. Unlock the vault before saving passwords.".to_string(),
+            ),
+            SecretStorageMode::Vault if !stronghold_unlocked => {
+                Some("App vault mode is selected. Unlock the vault to persist secrets.".to_string())
+            }
+            SecretStorageMode::Memory => {
+                Some("Passwords are only kept for the current app session.".to_string())
+            }
+            SecretStorageMode::Auto
+                if !keyring_available && config.secret_vault_enabled && !stronghold_unlocked =>
+            {
+                Some(
+                    "System keyring unavailable. Unlock the app vault to persist secrets."
+                        .to_string(),
+                )
+            }
+            SecretStorageMode::Auto if !keyring_available && !config.secret_vault_enabled => Some(
                 "System keyring unavailable. Enable and unlock the app vault to persist secrets."
                     .to_string(),
-            )
-        } else {
-            Some(
-                "Secrets are only kept for this session until the app vault is unlocked."
-                    .to_string(),
-            )
+            ),
+            _ => None,
         };
 
         Ok(SecretBackendStatus {
-            active_backend,
+            active_backend: active_backend.to_string(),
+            storage_mode: mode.as_str().to_string(),
             keyring_available,
             stronghold_enabled: config.secret_vault_enabled,
             stronghold_unlocked,
@@ -223,6 +276,12 @@ impl SecretStoreState {
     pub fn set_vault_enabled(&self, enabled: bool) -> Result<SecretBackendStatus, String> {
         let mut config = load_config_file()?;
         config.secret_vault_enabled = enabled;
+        if enabled && config.secret_storage_mode == "memory" {
+            config.secret_storage_mode = "auto".to_string();
+        }
+        if !enabled && config.secret_storage_mode == "vault" {
+            config.secret_storage_mode = "auto".to_string();
+        }
         save_config_file(&config)?;
 
         if !enabled {
@@ -239,20 +298,56 @@ impl SecretStoreState {
         self.get_status()
     }
 
+    pub fn set_storage_mode(&self, mode: &str) -> Result<SecretBackendStatus, String> {
+        let mode = SecretStorageMode::from_config_value(mode);
+        let mut config = load_config_file()?;
+        config.secret_storage_mode = mode.as_str().to_string();
+        config.secret_vault_enabled =
+            config.secret_vault_enabled || mode == SecretStorageMode::Vault;
+        save_config_file(&config)?;
+        self.get_status()
+    }
+
+    pub fn vault_unlocked(&self) -> Result<bool, String> {
+        Ok(self
+            .inner
+            .lock()
+            .map_err(|_| "Secret store state is poisoned".to_string())?
+            .stronghold
+            .is_some())
+    }
+
     pub fn get_password(
         &self,
         app: &AppHandle,
         profile_id: &str,
     ) -> Result<Option<String>, String> {
-        if self.keyring_available()? {
-            match read_keyring_secret(profile_id, SECRET_KIND_PASSWORD) {
-                Ok(value) => return Ok(value),
-                Err(err) => {
-                    return Err(format!("Failed to read system credential store: {}", err));
+        match SecretStorageMode::from_config_value(&load_config_file()?.secret_storage_mode) {
+            SecretStorageMode::System => self.get_password_from_keyring(profile_id),
+            SecretStorageMode::Vault => self.get_password_from_vault(app, profile_id),
+            SecretStorageMode::Memory => Ok(None),
+            SecretStorageMode::Auto => {
+                if self.keyring_available()? {
+                    return self.get_password_from_keyring(profile_id);
                 }
+                self.get_password_from_vault(app, profile_id)
             }
         }
+    }
 
+    fn get_password_from_keyring(&self, profile_id: &str) -> Result<Option<String>, String> {
+        if !self.keyring_available()? {
+            return Ok(None);
+        }
+        read_keyring_secret(profile_id, SECRET_KIND_PASSWORD)
+            .map_err(|err| format!("Failed to read system credential store: {}", err))
+    }
+
+    fn get_password_from_vault(
+        &self,
+        app: &AppHandle,
+        profile_id: &str,
+    ) -> Result<Option<String>, String> {
         let guard = self
             .inner
             .lock()
@@ -270,11 +365,37 @@ impl SecretStoreState {
         profile_id: &str,
         password: &str,
     ) -> Result<SecretLocation, String> {
-        if self.keyring_available()? {
-            write_keyring_secret(profile_id, SECRET_KIND_PASSWORD, password)?;
-            return Ok(SecretLocation::Keyring);
+        match SecretStorageMode::from_config_value(&load_config_file()?.secret_storage_mode) {
+            SecretStorageMode::System => self.save_password_to_keyring(profile_id, password),
+            SecretStorageMode::Vault => self.save_password_to_vault(app, profile_id, password),
+            SecretStorageMode::Memory => Ok(SecretLocation::Memory),
+            SecretStorageMode::Auto => {
+                if self.keyring_available()? {
+                    return self.save_password_to_keyring(profile_id, password);
+                }
+                self.save_password_to_vault(app, profile_id, password)
+            }
         }
+    }
 
+    fn save_password_to_keyring(
+        &self,
+        profile_id: &str,
+        password: &str,
+    ) -> Result<SecretLocation, String> {
+        if !self.keyring_available()? {
+            return Ok(SecretLocation::Memory);
+        }
+        write_keyring_secret(profile_id, SECRET_KIND_PASSWORD, password)?;
+        Ok(SecretLocation::Keyring)
+    }
+
+    fn save_password_to_vault(
+        &self,
+        app: &AppHandle,
+        profile_id: &str,
+        password: &str,
+    ) -> Result<SecretLocation, String> {
         let guard = self
             .inner
             .lock()
@@ -285,6 +406,46 @@ impl SecretStoreState {
         }
 
         Ok(SecretLocation::Memory)
+    }
+
+    pub fn copy_password(
+        &self,
+        app: &AppHandle,
+        profile_id: &str,
+        from: &str,
+        to: &str,
+    ) -> Result<bool, String> {
+        if matches!(
+            SecretStorageMode::from_config_value(from),
+            SecretStorageMode::Vault
+        ) && !self.vault_unlocked()?
+        {
+            return Err("Unlock the app vault before copying passwords from it.".to_string());
+        }
+        if matches!(
+            SecretStorageMode::from_config_value(to),
+            SecretStorageMode::Vault
+        ) && !self.vault_unlocked()?
+        {
+            return Err("Unlock the app vault before copying passwords to it.".to_string());
+        }
+
+        let password = match SecretStorageMode::from_config_value(from) {
+            SecretStorageMode::System => self.get_password_from_keyring(profile_id)?,
+            SecretStorageMode::Vault => self.get_password_from_vault(app, profile_id)?,
+            SecretStorageMode::Auto | SecretStorageMode::Memory => None,
+        };
+        let Some(password) = password else {
+            return Ok(false);
+        };
+
+        let location = match SecretStorageMode::from_config_value(to) {
+            SecretStorageMode::System => self.save_password_to_keyring(profile_id, &password)?,
+            SecretStorageMode::Vault => self.save_password_to_vault(app, profile_id, &password)?,
+            SecretStorageMode::Auto | SecretStorageMode::Memory => SecretLocation::Memory,
+        };
+
+        Ok(!matches!(location, SecretLocation::Memory))
     }
 }
 

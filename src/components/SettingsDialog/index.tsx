@@ -151,8 +151,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     secretStatus,
     refreshSecretStatus,
     setSecretVaultEnabled,
+    setSecretStorageMode,
     unlockSecretVault,
     lockSecretVault,
+    copySecretStore,
   } = useConfig()
   const {
     currentTheme,
@@ -356,6 +358,60 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       if (!checked) {
         setPassword("")
       }
+    } catch (error) {
+      setSecretError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setSecretBusy(false)
+    }
+  }
+
+  const handleSecretStorageModeChange = async (mode: typeof config.secret_storage_mode) => {
+    setSecretBusy(true)
+    setSecretError(null)
+    try {
+      await setSecretStorageMode(mode)
+      toast({
+        title: t("secretStorage.modeSaved"),
+        description: t(`secretStorage.modeDescriptions.${mode}`),
+      })
+    } catch (error) {
+      setSecretError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setSecretBusy(false)
+    }
+  }
+
+  const handleCopySecretStore = async (direction: "systemToVault" | "vaultToSystem") => {
+    setSecretBusy(true)
+    setSecretError(null)
+    try {
+      const result = await copySecretStore(direction)
+      toast({
+        title: t("secretStorage.copyComplete"),
+        description: t("secretStorage.copyCompleteDesc", {
+          copied: result.copied,
+          skipped: result.skipped,
+        }),
+      })
+      await refreshSecretStatus()
+    } catch (error) {
+      setSecretError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setSecretBusy(false)
+    }
+  }
+
+  const handlePromptUnlockOnStartupChange = async (checked: boolean) => {
+    setSecretBusy(true)
+    setSecretError(null)
+    try {
+      await saveConfig({ prompt_unlock_vault_on_startup: checked })
+      toast({
+        title: t("secretStorage.startupPromptSaved"),
+        description: checked
+          ? t("secretStorage.startupPromptEnabledDesc")
+          : t("secretStorage.startupPromptDisabledDesc"),
+      })
     } catch (error) {
       setSecretError(error instanceof Error ? error.message : String(error))
     } finally {
@@ -614,13 +670,18 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <SecuritySettingsTab
               backendLabel={backendLabel}
               configSecretVaultEnabled={config.secret_vault_enabled}
+              handleCopySecretStore={handleCopySecretStore}
               handleEnableVault={handleEnableVault}
               handleLock={handleLock}
+              handlePromptUnlockOnStartupChange={handlePromptUnlockOnStartupChange}
+              handleSecretStorageModeChange={handleSecretStorageModeChange}
               handleUnlock={handleUnlock}
               password={password}
+              promptUnlockVaultOnStartup={config.prompt_unlock_vault_on_startup}
               secretBusy={secretBusy}
               secretError={secretError}
               secretStatus={secretStatus}
+              secretStorageMode={config.secret_storage_mode}
               setPassword={setPassword}
             />
           </TabsContent>

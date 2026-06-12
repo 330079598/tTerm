@@ -111,6 +111,45 @@ fn write_profiles_to_disk(profiles: &[SavedProfile]) -> Result<(), String> {
     fs::write(&profiles_file, content).map_err(|e| format!("Failed to write profiles file: {}", e))
 }
 
+pub fn saved_secret_keys() -> Result<Vec<String>, String> {
+    let profiles = load_profiles_from_disk()?;
+    let mut keys = Vec::new();
+
+    for mut profile in profiles {
+        normalize_profile(&mut profile);
+
+        if profile.connection_type == "ssh" && profile.auth_method.as_deref() != Some("key") {
+            keys.push(profile.id.clone());
+            if !profile.name.trim().is_empty() {
+                keys.push(profile.name.clone());
+            }
+        }
+
+        for jump in &profile.jump_hosts {
+            if jump.auth_method != "key" {
+                keys.push(crate::core::session::jump_host_identity_secret_key(
+                    Some(profile.id.as_str()),
+                    profile.name.as_str(),
+                    &jump.host,
+                    jump.port,
+                    &jump.username,
+                ));
+                if !profile.name.trim().is_empty() {
+                    keys.push(crate::core::session::jump_host_identity_secret_key(
+                        None,
+                        profile.name.as_str(),
+                        &jump.host,
+                        jump.port,
+                        &jump.username,
+                    ));
+                }
+            }
+        }
+    }
+
+    Ok(keys)
+}
+
 fn profile_groups_file_path() -> Result<std::path::PathBuf, String> {
     Ok(get_config_path()?.join("profile_groups.json"))
 }

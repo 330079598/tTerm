@@ -258,6 +258,8 @@ pub fn run() {
             ssh::secret_commands::unlock_secret_vault,
             ssh::secret_commands::lock_secret_vault,
             ssh::secret_commands::set_secret_vault_enabled,
+            ssh::secret_commands::set_secret_storage_mode,
+            ssh::secret_commands::copy_secret_store,
             check_app_update,
             download_app_update,
             install_downloaded_app_update,

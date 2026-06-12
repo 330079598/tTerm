@@ -1,5 +1,5 @@
 import React from "react"
-import { AlertTriangle, Lock, Unlock } from "lucide-react"
+import { AlertTriangle, ArrowLeftRight, Lock, Unlock } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -9,36 +9,50 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 
 import { SecretStatusState } from "@/components/SettingsDialog/types"
+import type { SecretStorageMode } from "@/contexts/ConfigContext"
 
 interface SecuritySettingsTabProps {
   backendLabel: string
   configSecretVaultEnabled: boolean
+  handleCopySecretStore: (direction: "systemToVault" | "vaultToSystem") => Promise<void>
   handleEnableVault: (checked: boolean) => Promise<void>
   handleLock: () => Promise<void>
+  handlePromptUnlockOnStartupChange: (checked: boolean) => Promise<void>
+  handleSecretStorageModeChange: (mode: SecretStorageMode) => Promise<void>
   handleUnlock: () => Promise<void>
   password: string
+  promptUnlockVaultOnStartup: boolean
   secretBusy: boolean
   secretError: string | null
   secretStatus: SecretStatusState
+  secretStorageMode: SecretStorageMode
   setPassword: React.Dispatch<React.SetStateAction<string>>
 }
 
 export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
   backendLabel,
   configSecretVaultEnabled,
+  handleCopySecretStore,
   handleEnableVault,
   handleLock,
+  handlePromptUnlockOnStartupChange,
+  handleSecretStorageModeChange,
   handleUnlock,
   password,
+  promptUnlockVaultOnStartup,
   secretBusy,
   secretError,
   secretStatus,
+  secretStorageMode,
   setPassword,
 }) => {
   const { t } = useTranslation()
+  const vaultControlsVisible = secretStorageMode === "vault" || secretStorageMode === "auto"
+  const vaultSettingsVisible = vaultControlsVisible && configSecretVaultEnabled
 
   return (
     <ScrollArea className="h-full pr-4">
@@ -57,6 +71,32 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
           </CardContent>
         </Card>
 
+        <Card>
+          <CardContent className="space-y-3 p-4">
+            <div>
+              <Label htmlFor="secret-storage-mode" className="mb-1.5 block">
+                {t("secretStorage.storageMode")}
+              </Label>
+              <Select
+                id="secret-storage-mode"
+                value={secretStorageMode}
+                disabled={secretBusy}
+                onChange={(event) =>
+                  handleSecretStorageModeChange(event.target.value as SecretStorageMode)
+                }
+              >
+                <option value="auto">{t("secretStorage.modes.auto")}</option>
+                <option value="system">{t("secretStorage.modes.system")}</option>
+                <option value="vault">{t("secretStorage.modes.vault")}</option>
+                <option value="memory">{t("secretStorage.modes.memory")}</option>
+              </Select>
+            </div>
+            <p className="text-muted-foreground text-xs leading-5">
+              {t(`secretStorage.modeDescriptions.${secretStorageMode}`)}
+            </p>
+          </CardContent>
+        </Card>
+
         {!secretStatus.keyringAvailable && (
           <Alert className="border-amber-500/40 bg-amber-500/10">
             <div className="flex items-start gap-2">
@@ -71,23 +111,25 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
           </Alert>
         )}
 
-        <Card>
-          <CardContent className="flex items-center justify-between gap-4 p-4">
-            <div>
-              <div className="text-sm font-medium">{t("secretStorage.enableVault")}</div>
-              <div className="text-muted-foreground mt-1 text-xs">
-                {t("secretStorage.enableVaultDesc")}
+        {vaultControlsVisible && (
+          <Card>
+            <CardContent className="flex items-center justify-between gap-4 p-4">
+              <div>
+                <div className="text-sm font-medium">{t("secretStorage.enableVault")}</div>
+                <div className="text-muted-foreground mt-1 text-xs">
+                  {t("secretStorage.enableVaultDesc")}
+                </div>
               </div>
-            </div>
-            <Switch
-              checked={configSecretVaultEnabled}
-              disabled={secretBusy || secretStatus.keyringAvailable}
-              onCheckedChange={handleEnableVault}
-            />
-          </CardContent>
-        </Card>
+              <Switch
+                checked={configSecretVaultEnabled}
+                disabled={secretBusy || secretStorageMode === "vault"}
+                onCheckedChange={handleEnableVault}
+              />
+            </CardContent>
+          </Card>
+        )}
 
-        {configSecretVaultEnabled && !secretStatus.keyringAvailable && (
+        {vaultSettingsVisible && (
           <Card>
             <CardContent className="space-y-3 p-4">
               <div>
@@ -115,6 +157,61 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
                     {t("secretStorage.lockVault")}
                   </Button>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {vaultSettingsVisible && (
+          <Card>
+            <CardContent className="flex items-center justify-between gap-4 p-4">
+              <div>
+                <div className="text-sm font-medium">
+                  {t("secretStorage.promptUnlockOnStartup")}
+                </div>
+                <div className="text-muted-foreground mt-1 text-xs leading-5">
+                  {t("secretStorage.promptUnlockOnStartupDesc")}
+                </div>
+              </div>
+              <Switch
+                checked={promptUnlockVaultOnStartup}
+                disabled={secretBusy}
+                onCheckedChange={handlePromptUnlockOnStartupChange}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {vaultSettingsVisible && (
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              <div>
+                <div className="text-sm font-medium">{t("secretStorage.copyTitle")}</div>
+                <div className="text-muted-foreground mt-1 text-xs leading-5">
+                  {t("secretStorage.copyDesc")}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleCopySecretStore("systemToVault")}
+                  disabled={
+                    secretBusy || !secretStatus.keyringAvailable || !secretStatus.strongholdUnlocked
+                  }
+                >
+                  <ArrowLeftRight size={14} className="mr-2" />
+                  {t("secretStorage.copySystemToVault")}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleCopySecretStore("vaultToSystem")}
+                  disabled={
+                    secretBusy || !secretStatus.keyringAvailable || !secretStatus.strongholdUnlocked
+                  }
+                >
+                  <ArrowLeftRight size={14} className="mr-2" />
+                  {t("secretStorage.copyVaultToSystem")}
+                </Button>
               </div>
             </CardContent>
           </Card>

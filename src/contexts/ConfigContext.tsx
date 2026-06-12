@@ -7,11 +7,19 @@ import type { UpdateCheckFrequency } from "@/lib/updater"
 
 export interface SecretBackendStatus {
   activeBackend: "system" | "vault" | "memory"
+  storageMode: SecretStorageMode
   keyringAvailable: boolean
   strongholdEnabled: boolean
   strongholdUnlocked: boolean
   persistenceAvailable: boolean
   message?: string | null
+}
+
+export type SecretStorageMode = "auto" | "system" | "vault" | "memory"
+
+export interface CopySecretStoreResult {
+  copied: number
+  skipped: number
 }
 
 export interface AppConfig {
@@ -24,6 +32,8 @@ export interface AppConfig {
   terminal_shell_custom_path: string
   terminal_shell_custom_args: string
   secret_vault_enabled: boolean
+  secret_storage_mode: SecretStorageMode
+  prompt_unlock_vault_on_startup: boolean
   scrollback_lines: number
   terminal_padding_left_px: number
   terminal_padding_right_px: number
@@ -56,6 +66,8 @@ const defaultConfig: AppConfig = {
   terminal_shell_custom_path: "",
   terminal_shell_custom_args: "",
   secret_vault_enabled: false,
+  secret_storage_mode: "auto",
+  prompt_unlock_vault_on_startup: false,
   scrollback_lines: 10000,
   terminal_padding_left_px: 6,
   terminal_padding_right_px: 0,
@@ -113,6 +125,13 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     startup_session_restore_mode: config.startup_session_restore_mode === "all" ? "all" : "active",
     show_jump_host_connection_info: config.show_jump_host_connection_info !== false,
     sftp_paste_upload_enabled: config.sftp_paste_upload_enabled === true,
+    secret_storage_mode:
+      config.secret_storage_mode === "system" ||
+      config.secret_storage_mode === "vault" ||
+      config.secret_storage_mode === "memory"
+        ? config.secret_storage_mode
+        : "auto",
+    prompt_unlock_vault_on_startup: config.prompt_unlock_vault_on_startup === true,
     monitor_refresh_interval_secs: normalizeMonitorRefreshInterval(
       config.monitor_refresh_interval_secs
     ),
@@ -130,6 +149,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
 
 const defaultSecretStatus: SecretBackendStatus = {
   activeBackend: "memory",
+  storageMode: "auto",
   keyringAvailable: false,
   strongholdEnabled: false,
   strongholdUnlocked: false,
@@ -147,8 +167,10 @@ interface ConfigContextType {
   loadConfig: () => Promise<void>
   refreshSecretStatus: () => Promise<SecretBackendStatus>
   setSecretVaultEnabled: (enabled: boolean) => Promise<SecretBackendStatus>
+  setSecretStorageMode: (mode: SecretStorageMode) => Promise<SecretBackendStatus>
   unlockSecretVault: (password: string, enableVault?: boolean) => Promise<SecretBackendStatus>
   lockSecretVault: () => Promise<SecretBackendStatus>
+  copySecretStore: (direction: "systemToVault" | "vaultToSystem") => Promise<CopySecretStoreResult>
 }
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined)
@@ -156,6 +178,7 @@ const ConfigContext = createContext<ConfigContextType | undefined>(undefined)
 function normalizeSecretStatus(status?: Partial<SecretBackendStatus>): SecretBackendStatus {
   return {
     activeBackend: (status?.activeBackend as SecretBackendStatus["activeBackend"]) ?? "memory",
+    storageMode: (status?.storageMode as SecretStorageMode) ?? "auto",
     keyringAvailable: status?.keyringAvailable ?? false,
     strongholdEnabled: status?.strongholdEnabled ?? false,
     strongholdUnlocked: status?.strongholdUnlocked ?? false,
@@ -222,6 +245,20 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     return normalized
   }, [])
 
+  const setSecretStorageMode = useCallback(async (mode: SecretStorageMode) => {
+    const status = await invoke<SecretBackendStatus>("set_secret_storage_mode", {
+      input: { mode },
+    })
+    const normalized = normalizeSecretStatus(status)
+    setSecretStatus(normalized)
+    setConfig((prev) => ({
+      ...prev,
+      secret_storage_mode: mode,
+      secret_vault_enabled: prev.secret_vault_enabled || mode === "vault",
+    }))
+    return normalized
+  }, [])
+
   const unlockSecretVault = useCallback(async (password: string, enableVault = false) => {
     const status = await invoke<SecretBackendStatus>("unlock_secret_vault", {
       input: { password, enableVault },
@@ -240,6 +277,12 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     setSecretStatus(normalized)
     return normalized
   }, [])
+
+  const copySecretStore = useCallback(
+    async (direction: "systemToVault" | "vaultToSystem") =>
+      invoke<CopySecretStoreResult>("copy_secret_store", { input: { direction } }),
+    []
+  )
 
   const updateTheme = useCallback(
     async (theme: string) => {
@@ -271,8 +314,10 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         loadConfig,
         refreshSecretStatus,
         setSecretVaultEnabled,
+        setSecretStorageMode,
         unlockSecretVault,
         lockSecretVault,
+        copySecretStore,
       }}
     >
       {children}

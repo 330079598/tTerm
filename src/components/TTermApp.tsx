@@ -14,6 +14,7 @@ import { TransferManager } from "@/components/TransferManager"
 import { EmptyState } from "@/components/TTermApp/EmptyState"
 import { TabPanels } from "@/components/TTermApp/TabPanels"
 import { buildTabFromConnection } from "@/components/TTermApp/ttermAppUtils"
+import { VaultStartupUnlockDialog } from "@/components/VaultStartupUnlockDialog"
 import { formatBytes, MAX_EDIT_FILE_BYTES } from "@/components/SftpDrawer/sftpDrawerUtils"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -68,6 +69,7 @@ export const TTermApp: React.FC = () => {
   const [editingProfile, setEditingProfile] = useState<SavedProfile | null>(null)
   const [profilesRefreshKey, setProfilesRefreshKey] = useState(0)
   const [sessionRestored, setSessionRestored] = useState(false)
+  const [startupVaultUnlockDismissed, setStartupVaultUnlockDismissed] = useState(false)
 
   const {
     tabs,
@@ -88,7 +90,7 @@ export const TTermApp: React.FC = () => {
 
   const { saveSession, loadSession } = useSessionPersistence()
   const { cleanupConnection } = useConnectionManager()
-  const { config, isLoaded, saveConfig } = useConfig()
+  const { config, isLoaded, saveConfig, secretStatus } = useConfig()
   const { cancelTransfer, clearCompletedTransfers, removeTransfer, transfers } =
     useTransferManager()
   const { confirm, ConfirmDialog } = useConfirmDialog()
@@ -644,6 +646,18 @@ export const TTermApp: React.FC = () => {
         currentName={renameDialogState.currentName}
         onConfirm={handleRenameConfirm}
         onClose={handleRenameClose}
+      />
+
+      <VaultStartupUnlockDialog
+        open={
+          isLoaded &&
+          config.prompt_unlock_vault_on_startup &&
+          config.secret_vault_enabled &&
+          (config.secret_storage_mode === "vault" || config.secret_storage_mode === "auto") &&
+          !secretStatus.strongholdUnlocked &&
+          !startupVaultUnlockDismissed
+        }
+        onClose={() => setStartupVaultUnlockDismissed(true)}
       />
     </div>
   )
