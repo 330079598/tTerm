@@ -95,6 +95,14 @@ export const TTermApp: React.FC = () => {
     useTransferManager()
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const settingsTabTitle = t("settings.title", { defaultValue: SETTINGS_TAB_TITLE })
+  const shouldPromptStartupVaultUnlock =
+    isLoaded &&
+    config.prompt_unlock_vault_on_startup &&
+    config.secret_vault_enabled &&
+    (config.secret_storage_mode === "vault" || config.secret_storage_mode === "auto") &&
+    !secretStatus.strongholdUnlocked &&
+    !startupVaultUnlockDismissed
+  const startupConnectionsReady = !shouldPromptStartupVaultUnlock
 
   useEffect(() => {
     if (isLoaded) {
@@ -502,6 +510,7 @@ export const TTermApp: React.FC = () => {
         onEditProfile={handleEditProfile}
         onOpenRemoteFile={handleOpenRemoteFile}
         profilesRefreshKey={profilesRefreshKey}
+        startupConnectionsReady={startupConnectionsReady}
         startupSessionRestoreMode={config.startup_session_restore_mode}
         tabs={tabs}
         updateTab={updateTab}
@@ -649,14 +658,7 @@ export const TTermApp: React.FC = () => {
       />
 
       <VaultStartupUnlockDialog
-        open={
-          isLoaded &&
-          config.prompt_unlock_vault_on_startup &&
-          config.secret_vault_enabled &&
-          (config.secret_storage_mode === "vault" || config.secret_storage_mode === "auto") &&
-          !secretStatus.strongholdUnlocked &&
-          !startupVaultUnlockDismissed
-        }
+        open={shouldPromptStartupVaultUnlock}
         onClose={() => setStartupVaultUnlockDismissed(true)}
       />
     </div>

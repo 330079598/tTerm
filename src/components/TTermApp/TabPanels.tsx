@@ -31,6 +31,7 @@ interface TabPanelsProps {
   onConnectProfile: (connection: Omit<Tab, "id" | "isActive">) => void
   onEditProfile: (profile: SavedProfile) => void
   profilesRefreshKey?: number
+  startupConnectionsReady: boolean
   startupSessionRestoreMode: "active" | "all"
   tabs: Tab[]
   updateTab: (id: string, updater: (tab: Tab) => Tab) => void
@@ -46,6 +47,7 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
   onEditProfile,
   onOpenRemoteFile,
   profilesRefreshKey,
+  startupConnectionsReady,
   startupSessionRestoreMode,
   tabs,
   updateTab,
@@ -54,9 +56,11 @@ export const TabPanels: React.FC<TabPanelsProps> = ({
     <>
       {tabs.map((tab) => {
         const isActive = tab.id === activeTabId
+        const isSshConnection = tab.connection?.type === "ssh" || tab.type === "ssh"
         const shouldConnect =
           tab.type !== "settings" &&
           tab.type !== "remote-file-editor" &&
+          (startupConnectionsReady || !isSshConnection) &&
           (startupSessionRestoreMode === "all" || isActive || tab.hasConnected === true)
 
         return (
