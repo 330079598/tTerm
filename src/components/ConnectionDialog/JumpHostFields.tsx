@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Plus, Server, Trash2, ArrowDown, ArrowUp } f
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,10 +18,12 @@ import {
 } from "@/components/ConnectionDialog/types"
 
 const MAX_JUMP_HOSTS = 8
+const SAVED_PASSWORD_MASK = "********"
 
 interface JumpHostFieldsProps {
   form: ConnectionForm
   setForm: React.Dispatch<React.SetStateAction<ConnectionForm>>
+  savedJumpPasswordKeys: Set<string>
 }
 
 function updateJumpHost(
@@ -34,7 +37,15 @@ function updateJumpHost(
   }))
 }
 
-export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({ form, setForm }) => {
+function getJumpHostPasswordLookupKey(jump: Pick<JumpHostForm, "host" | "port" | "username">) {
+  return `${jump.host.trim()}:${jump.port}:${jump.username.trim()}`
+}
+
+export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
+  form,
+  setForm,
+  savedJumpPasswordKeys,
+}) => {
   const { t } = useTranslation()
 
   const addJumpHost = () => {
@@ -233,16 +244,62 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({ form, setForm })
 
               {jump.authMethod === "password" && (
                 <div>
-                  <Label htmlFor={`jump-password-${jump.id}`} className="mb-1.5 block">
-                    {t("connection.password")}
-                  </Label>
-                  <Input
-                    id={`jump-password-${jump.id}`}
-                    type="password"
-                    value={jump.password}
-                    onChange={(e) => updateJumpHost(setForm, jump.id, { password: e.target.value })}
-                    placeholder="password"
-                  />
+                  {(() => {
+                    const savedPasswordMasked =
+                      form.rememberPassword &&
+                      savedJumpPasswordKeys.has(getJumpHostPasswordLookupKey(jump)) &&
+                      jump.password.length === 0
+                    return (
+                      <>
+                        <div className="mb-1.5 flex items-center gap-2">
+                          <Label htmlFor={`jump-password-${jump.id}`}>
+                            {t("connection.password")}
+                          </Label>
+                          {savedPasswordMasked && (
+                            <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                              {t("connection.savedPasswordBadge")}
+                            </Badge>
+                          )}
+                        </div>
+                        <Input
+                          id={`jump-password-${jump.id}`}
+                          type="password"
+                          value={savedPasswordMasked ? SAVED_PASSWORD_MASK : jump.password}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            if (savedPasswordMasked && /^\**$/.test(value)) {
+                              setForm((current) => ({
+                                ...current,
+                                rememberPassword: false,
+                                jumpHosts: current.jumpHosts.map((currentJump) =>
+                                  currentJump.id === jump.id
+                                    ? { ...currentJump, password: "" }
+                                    : currentJump
+                                ),
+                              }))
+                              return
+                            }
+
+                            const nextValue =
+                              savedPasswordMasked && value.startsWith(SAVED_PASSWORD_MASK)
+                                ? value.slice(SAVED_PASSWORD_MASK.length)
+                                : value
+                            updateJumpHost(setForm, jump.id, { password: nextValue })
+                          }}
+                          placeholder={
+                            savedPasswordMasked
+                              ? t("connection.savedPasswordPlaceholder")
+                              : "password"
+                          }
+                        />
+                        {savedPasswordMasked && (
+                          <p className="text-muted-foreground mt-1 text-xs">
+                            {t("connection.savedPasswordHint")}
+                          </p>
+                        )}
+                      </>
+                    )
+                  })()}
                 </div>
               )}
 

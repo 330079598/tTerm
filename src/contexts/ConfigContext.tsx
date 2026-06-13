@@ -9,8 +9,8 @@ export interface SecretBackendStatus {
   activeBackend: "system" | "vault" | "memory"
   storageMode: SecretStorageMode
   keyringAvailable: boolean
-  strongholdEnabled: boolean
-  strongholdUnlocked: boolean
+  vaultEnabled: boolean
+  vaultUnlocked: boolean
   persistenceAvailable: boolean
   message?: string | null
 }
@@ -20,6 +20,14 @@ export type SecretStorageMode = "auto" | "system" | "vault" | "memory"
 export interface CopySecretStoreResult {
   copied: number
   skipped: number
+}
+
+export interface SavedSecretEntry {
+  key: string
+  profileId: string
+  profileName: string
+  label: string
+  kind: string
 }
 
 export interface AppConfig {
@@ -151,8 +159,8 @@ const defaultSecretStatus: SecretBackendStatus = {
   activeBackend: "memory",
   storageMode: "auto",
   keyringAvailable: false,
-  strongholdEnabled: false,
-  strongholdUnlocked: false,
+  vaultEnabled: false,
+  vaultUnlocked: false,
   persistenceAvailable: false,
   message: null,
 }
@@ -171,6 +179,8 @@ interface ConfigContextType {
   unlockSecretVault: (password: string, enableVault?: boolean) => Promise<SecretBackendStatus>
   lockSecretVault: () => Promise<SecretBackendStatus>
   copySecretStore: (direction: "systemToVault" | "vaultToSystem") => Promise<CopySecretStoreResult>
+  listSavedSecrets: () => Promise<SavedSecretEntry[]>
+  deleteSavedSecret: (key: string) => Promise<boolean>
 }
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined)
@@ -180,8 +190,8 @@ function normalizeSecretStatus(status?: Partial<SecretBackendStatus>): SecretBac
     activeBackend: (status?.activeBackend as SecretBackendStatus["activeBackend"]) ?? "memory",
     storageMode: (status?.storageMode as SecretStorageMode) ?? "auto",
     keyringAvailable: status?.keyringAvailable ?? false,
-    strongholdEnabled: status?.strongholdEnabled ?? false,
-    strongholdUnlocked: status?.strongholdUnlocked ?? false,
+    vaultEnabled: status?.vaultEnabled ?? false,
+    vaultUnlocked: status?.vaultUnlocked ?? false,
     persistenceAvailable: status?.persistenceAvailable ?? false,
     message: status?.message ?? null,
   }
@@ -284,6 +294,16 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     []
   )
 
+  const listSavedSecrets = useCallback(
+    async () => invoke<SavedSecretEntry[]>("list_saved_secrets"),
+    []
+  )
+
+  const deleteSavedSecret = useCallback(
+    async (key: string) => invoke<boolean>("delete_saved_secret", { input: { key } }),
+    []
+  )
+
   const updateTheme = useCallback(
     async (theme: string) => {
       await saveConfig({ theme })
@@ -318,6 +338,8 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         unlockSecretVault,
         lockSecretVault,
         copySecretStore,
+        listSavedSecrets,
+        deleteSavedSecret,
       }}
     >
       {children}

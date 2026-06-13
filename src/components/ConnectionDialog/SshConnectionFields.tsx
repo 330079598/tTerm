@@ -3,6 +3,7 @@ import { open as openFileDialog } from "@tauri-apps/plugin-dialog"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -11,9 +12,12 @@ import { cn } from "@/lib/utils"
 
 import { ConnectionForm } from "@/components/ConnectionDialog/types"
 
+const SAVED_PASSWORD_MASK = "********"
+
 interface SshConnectionFieldsProps {
   form: ConnectionForm
   setForm: React.Dispatch<React.SetStateAction<ConnectionForm>>
+  savedPasswordAvailable: boolean
   matchingGroups: string[]
   nameError: string | null
   setNameError: React.Dispatch<React.SetStateAction<string | null>>
@@ -25,6 +29,7 @@ interface SshConnectionFieldsProps {
 export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
   form,
   setForm,
+  savedPasswordAvailable,
   matchingGroups,
   nameError,
   setNameError,
@@ -33,6 +38,8 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
   titlePlaceholder,
 }) => {
   const { t } = useTranslation()
+  const savedPasswordMasked =
+    savedPasswordAvailable && form.rememberPassword && form.password.length === 0
 
   return (
     <>
@@ -158,16 +165,44 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
       {form.authMethod === "password" && (
         <>
           <div>
-            <Label htmlFor="conn-password" className="mb-1.5 block">
-              {t("connection.password")}
-            </Label>
+            <div className="mb-1.5 flex items-center gap-2">
+              <Label htmlFor="conn-password">{t("connection.password")}</Label>
+              {savedPasswordMasked && (
+                <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                  {t("connection.savedPasswordBadge")}
+                </Badge>
+              )}
+            </div>
             <Input
               id="conn-password"
               type="password"
-              value={form.password}
-              onChange={(e) => setForm((current) => ({ ...current, password: e.target.value }))}
-              placeholder="password"
+              value={savedPasswordMasked ? SAVED_PASSWORD_MASK : form.password}
+              onChange={(e) => {
+                const value = e.target.value
+                if (savedPasswordMasked && /^\**$/.test(value)) {
+                  setForm((current) => ({
+                    ...current,
+                    password: "",
+                    rememberPassword: false,
+                  }))
+                  return
+                }
+
+                const nextValue =
+                  savedPasswordMasked && value.startsWith(SAVED_PASSWORD_MASK)
+                    ? value.slice(SAVED_PASSWORD_MASK.length)
+                    : value
+                setForm((current) => ({ ...current, password: nextValue }))
+              }}
+              placeholder={
+                savedPasswordAvailable ? t("connection.savedPasswordPlaceholder") : "password"
+              }
             />
+            {savedPasswordMasked && (
+              <p className="text-muted-foreground mt-1 text-xs">
+                {t("connection.savedPasswordHint")}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2 rounded-md border px-3 py-2">
             <Checkbox

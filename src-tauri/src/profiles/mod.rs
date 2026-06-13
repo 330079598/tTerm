@@ -37,6 +37,8 @@ pub struct SavedProfile {
     pub username: Option<String>,
     #[serde(default, skip_serializing)]
     pub password: Option<String>,
+    #[serde(default, skip_serializing)]
+    pub ignore_saved_password: bool,
     #[serde(default)]
     pub remember_password: bool,
     pub auth_method: Option<String>,
@@ -55,6 +57,16 @@ pub struct SavedProfile {
     /// Ordered jump host chain used throughout the app and for all new saves.
     #[serde(default)]
     pub jump_hosts: Vec<SavedJumpHost>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedSecretSummary {
+    pub key: String,
+    pub profile_id: String,
+    pub profile_name: String,
+    pub label: String,
+    pub kind: String,
 }
 
 fn default_keepalive_interval() -> u32 {
@@ -92,6 +104,7 @@ fn normalize_profile(profile: &mut SavedProfile) {
 fn sanitize_profile(profile: &mut SavedProfile) {
     normalize_profile(profile);
     profile.password = None;
+    profile.ignore_saved_password = false;
     profile.private_key_passphrase = None;
     if let Some(jump) = &mut profile.legacy_jump_host {
         jump.password = None;
@@ -111,43 +124,98 @@ fn write_profiles_to_disk(profiles: &[SavedProfile]) -> Result<(), String> {
     fs::write(&profiles_file, content).map_err(|e| format!("Failed to write profiles file: {}", e))
 }
 
-pub fn saved_secret_keys() -> Result<Vec<String>, String> {
-    let profiles = load_profiles_from_disk()?;
-    let mut keys = Vec::new();
+fn profile_secret_summaries(profile: &SavedProfile) -> Vec<SavedSecretSummary> {
+    let mut summaries = Vec::new();
 
-    for mut profile in profiles {
-        normalize_profile(&mut profile);
+    if profile.connection_type == "ssh" && profile.auth_method.as_deref() != Some("key") {
+        summaries.push(SavedSecretSummary {
+            key: profile.id.clone(),
+            profile_id: profile.id.clone(),
+            profile_name: profile.name.clone(),
+            label: profile.name.clone(),
+            kind: "ssh".to_string(),
+        });
+        if !profile.name.trim().is_empty() {
+            summaries.push(SavedSecretSummary {
+                key: profile.name.clone(),
+                profile_id: profile.id.clone(),
+                profile_name: profile.name.clone(),
+                label: profile.name.clone(),
+                kind: "ssh-legacy-name".to_string(),
+            });
+        }
+    }
 
-        if profile.connection_type == "ssh" && profile.auth_method.as_deref() != Some("key") {
-            keys.push(profile.id.clone());
-            if !profile.name.trim().is_empty() {
-                keys.push(profile.name.clone());
-            }
+    for jump in &profile.jump_hosts {
+        if jump.auth_method == "key" {
+            continue;
         }
 
-        for jump in &profile.jump_hosts {
-            if jump.auth_method != "key" {
-                keys.push(crate::core::session::jump_host_identity_secret_key(
-                    Some(profile.id.as_str()),
+        let label = format!("{} via {}@{}:{}", profile.name, jump.username, jump.host, jump.port);
+        summaries.push(SavedSecretSummary {
+            key: crate::core::session::jump_host_identity_secret_key(
+                Some(profile.id.as_str()),
+                profile.name.as_str(),
+                &jump.host,
+                jump.port,
+                &jump.username,
+            ),
+            profile_id: profile.id.clone(),
+            profile_name: profile.name.clone(),
+            label: label.clone(),
+            kind: "jump-host".to_string(),
+        });
+        if !profile.name.trim().is_empty() {
+            summaries.push(SavedSecretSummary {
+                key: crate::core::session::jump_host_identity_secret_key(
+                    None,
                     profile.name.as_str(),
                     &jump.host,
                     jump.port,
                     &jump.username,
-                ));
-                if !profile.name.trim().is_empty() {
-                    keys.push(crate::core::session::jump_host_identity_secret_key(
-                        None,
-                        profile.name.as_str(),
-                        &jump.host,
-                        jump.port,
-                        &jump.username,
-                    ));
-                }
-            }
+                ),
+                profile_id: profile.id.clone(),
+                profile_name: profile.name.clone(),
+                label,
+                kind: "jump-host-legacy-name".to_string(),
+            });
         }
     }
 
-    Ok(keys)
+    summaries
+}
+
+pub fn saved_secret_summaries() -> Result<Vec<SavedSecretSummary>, String> {
+    let profiles = load_profiles_from_disk()?;
+    let mut summaries = Vec::new();
+
+    for mut profile in profiles {
+        normalize_profile(&mut profile);
+        summaries.extend(profile_secret_summaries(&profile));
+    }
+
+    Ok(summaries)
+}
+
+pub fn saved_secret_keys() -> Result<Vec<String>, String> {
+    Ok(saved_secret_summaries()?
+        .into_iter()
+        .map(|summary| summary.key)
+        .collect())
+}
+
+fn delete_profile_secrets(
+    app: &tauri::AppHandle,
+    secret_state: &crate::ssh::SecretStoreState,
+    profile: &SavedProfile,
+) -> Result<usize, String> {
+    let mut deleted = 0;
+    for summary in profile_secret_summaries(profile) {
+        if secret_state.delete_password(app, &summary.key)? {
+            deleted += 1;
+        }
+    }
+    Ok(deleted)
 }
 
 fn profile_groups_file_path() -> Result<std::path::PathBuf, String> {
@@ -242,6 +310,13 @@ pub fn save_profile(
         }
     }
 
+    if !profile.remember_password || profile.auth_method.as_deref() == Some("key") {
+        let _ = secret_state.delete_password(&app, profile.id.as_str());
+        if !profile.name.trim().is_empty() {
+            let _ = secret_state.delete_password(&app, profile.name.as_str());
+        }
+    }
+
     for jump in &profile.jump_hosts {
         if profile.remember_password && jump.auth_method != "key" {
             if let Some(password) = jump.password.as_deref().filter(|value| !value.is_empty()) {
@@ -260,6 +335,25 @@ pub fn save_profile(
                     );
                 }
             }
+        } else {
+            let secret_key = crate::core::session::jump_host_identity_secret_key(
+                Some(profile.id.as_str()),
+                profile.name.as_str(),
+                &jump.host,
+                jump.port,
+                &jump.username,
+            );
+            let _ = secret_state.delete_password(&app, &secret_key);
+            if !profile.name.trim().is_empty() {
+                let name_key = crate::core::session::jump_host_identity_secret_key(
+                    None,
+                    profile.name.as_str(),
+                    &jump.host,
+                    jump.port,
+                    &jump.username,
+                );
+                let _ = secret_state.delete_password(&app, &name_key);
+            }
         }
     }
 
@@ -267,6 +361,16 @@ pub fn save_profile(
 
     let mut profiles = load_profiles_from_disk()?;
     if let Some(pos) = profiles.iter().position(|p| p.id == profile.id) {
+        let mut previous = profiles[pos].clone();
+        normalize_profile(&mut previous);
+        for summary in profile_secret_summaries(&previous) {
+            if !profile_secret_summaries(&profile)
+                .iter()
+                .any(|current| current.key == summary.key)
+            {
+                let _ = secret_state.delete_password(&app, &summary.key);
+            }
+        }
         profiles[pos] = profile;
     } else {
         profiles.push(profile);
@@ -382,8 +486,17 @@ pub fn move_profile_to_group(
 }
 
 #[tauri::command]
-pub fn delete_profile(id: String) -> Result<(), String> {
+pub fn delete_profile(
+    app: tauri::AppHandle,
+    secret_state: tauri::State<'_, crate::ssh::SecretStoreState>,
+    id: String,
+) -> Result<(), String> {
     let mut profiles = load_profiles_from_disk()?;
+    if let Some(profile) = profiles.iter().find(|p| p.id == id).cloned() {
+        let mut profile = profile;
+        normalize_profile(&mut profile);
+        delete_profile_secrets(&app, &secret_state, &profile)?;
+    }
     profiles.retain(|p| p.id != id);
     write_profiles_to_disk(&profiles)
 }
@@ -445,6 +558,7 @@ pub async fn test_connection(
         port,
         username: Some(username.clone()),
         password: profile.password.clone(),
+        ignore_saved_password: profile.ignore_saved_password,
         remember_password: false,
         private_key_path: if profile.auth_method.as_deref() == Some("key") {
             profile.private_key_path.clone()

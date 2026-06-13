@@ -1,4 +1,4 @@
-use super::secret_store::{SecretBackendStatus, SecretStoreState, StrongholdPasswordInput};
+use super::secret_store::{SecretBackendStatus, SecretStoreState, VaultPasswordInput};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 
@@ -21,6 +21,22 @@ pub struct CopySecretStoreResult {
     pub skipped: usize,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteSavedSecretInput {
+    pub key: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedSecretEntry {
+    pub key: String,
+    pub profile_id: String,
+    pub profile_name: String,
+    pub label: String,
+    pub kind: String,
+}
+
 #[tauri::command]
 pub fn get_secret_backend_status(
     secret_state: State<'_, SecretStoreState>,
@@ -31,17 +47,17 @@ pub fn get_secret_backend_status(
 #[tauri::command]
 pub fn unlock_secret_vault(
     app: AppHandle,
-    input: StrongholdPasswordInput,
+    input: VaultPasswordInput,
     secret_state: State<'_, SecretStoreState>,
 ) -> Result<SecretBackendStatus, String> {
-    secret_state.unlock_stronghold(&app, input)
+    secret_state.unlock_vault(&app, input)
 }
 
 #[tauri::command]
 pub fn lock_secret_vault(
     secret_state: State<'_, SecretStoreState>,
 ) -> Result<SecretBackendStatus, String> {
-    secret_state.lock_stronghold()
+    secret_state.lock_vault()
 }
 
 #[tauri::command]
@@ -94,4 +110,54 @@ pub fn copy_secret_store(
     }
 
     Ok(CopySecretStoreResult { copied, skipped })
+}
+
+#[tauri::command]
+pub fn list_saved_secrets(
+    app: AppHandle,
+    secret_state: State<'_, SecretStoreState>,
+) -> Result<Vec<SavedSecretEntry>, String> {
+    let mut entries = Vec::new();
+    for summary in crate::profiles::saved_secret_summaries()? {
+        if secret_state.has_password(&app, &summary.key)? {
+            entries.push(SavedSecretEntry {
+                key: summary.key,
+                profile_id: summary.profile_id,
+                profile_name: summary.profile_name,
+                label: summary.label,
+                kind: summary.kind,
+            });
+        }
+    }
+
+    entries.sort_by(|left, right| {
+        left.profile_name
+            .to_lowercase()
+            .cmp(&right.profile_name.to_lowercase())
+            .then_with(|| left.kind.cmp(&right.kind))
+            .then_with(|| left.key.cmp(&right.key))
+    });
+    entries.dedup_by(|left, right| left.key == right.key);
+    Ok(entries)
+}
+
+#[tauri::command]
+pub fn delete_saved_secret(
+    app: AppHandle,
+    input: DeleteSavedSecretInput,
+    secret_state: State<'_, SecretStoreState>,
+) -> Result<bool, String> {
+    let key = input.key.trim();
+    if key.is_empty() {
+        return Err("Secret key is required".to_string());
+    }
+
+    let allowed = crate::profiles::saved_secret_keys()?
+        .into_iter()
+        .any(|candidate| candidate == key);
+    if !allowed {
+        return Err("Saved secret is not linked to a current profile.".to_string());
+    }
+
+    secret_state.delete_password(&app, key)
 }

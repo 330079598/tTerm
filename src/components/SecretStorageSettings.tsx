@@ -158,7 +158,7 @@ export const SecretStorageSettings: React.FC<SecretStorageSettingsProps> = ({ on
                   />
                 </div>
                 <div className="flex gap-2">
-                  {!secretStatus.strongholdUnlocked ? (
+                  {!secretStatus.vaultUnlocked ? (
                     <Button onClick={handleUnlock} disabled={busy || password.length === 0}>
                       <Unlock size={14} className="mr-2" />
                       {t("secretStorage.unlockVault")}

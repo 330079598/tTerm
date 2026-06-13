@@ -769,6 +769,7 @@ mod tests {
             port: 22,
             username: Some(username.to_string()),
             password: None,
+            ignore_saved_password: false,
             remember_password: false,
             keepalive_interval_secs: 15,
             keepalive_count_max: 3,

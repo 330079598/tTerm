@@ -174,14 +174,16 @@ export function useTerminalLifecycle({
         term.write("\r\x1b[K")
 
         if (data === "\r") {
-          const savedPassword = connectionRef.current?.password
-          if (savedPassword) {
-            invoke("write_pty", { tabId, sessionNonce, data: savedPassword + "\n" }).catch(
-              console.error
-            )
-            passwordPromptActiveRef.current = false
-            return
-          }
+          const profileId = connectionRef.current?.profileId
+          const profileName = connectionRef.current?.profileName
+          passwordPromptActiveRef.current = false
+          invoke("write_saved_password_for_sudo", {
+            tabId,
+            sessionNonce,
+            profileId,
+            profileName,
+          }).catch(console.error)
+          return
         }
 
         passwordPromptActiveRef.current = false
@@ -215,17 +217,13 @@ export function useTerminalLifecycle({
           const profileName = connectionRef.current?.profileName
 
           if (savedUsername && promptUsername === savedUsername && profileName) {
-            invoke<string | null>("get_saved_password_for_sudo", {
+            invoke<boolean>("has_saved_password", {
               profileId,
               profileName,
             })
-              .then((password) => {
-                if (password) {
+              .then((hasPassword) => {
+                if (hasPassword) {
                   passwordPromptActiveRef.current = true
-                  connectionRef.current = {
-                    ...connectionRef.current,
-                    password,
-                  }
                   const pasteHint =
                     "\x1b[100m\x1b[36m tTerm \x1b[0m " +
                     "\x1b[90mPress Enter to paste saved password\x1b[0m"

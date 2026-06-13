@@ -15,6 +15,9 @@ const SERVICE_NAME: &str = "tterm";
 const VAULT_FILE_NAME: &str = "secret_vault.json";
 const VAULT_CONFIG_FILE_NAME: &str = "secret_vault_config.json";
 const SECRET_KIND_PASSWORD: &str = "password";
+const SECRET_KIND_VERIFIER: &str = "verifier";
+const VERIFIER_PROFILE_ID: &str = "__vault_verifier__";
+const VAULT_VERIFIER_PLAINTEXT: &str = "tterm-vault-verifier-v1";
 const PROBE_ACCOUNT: &str = "__probe__";
 const KEYRING_PROBE_SECRET: &str = "tterm-keyring-probe";
 const SALT_LEN: usize = 16;
@@ -30,15 +33,15 @@ pub struct SecretBackendStatus {
     pub active_backend: String,
     pub storage_mode: String,
     pub keyring_available: bool,
-    pub stronghold_enabled: bool,
-    pub stronghold_unlocked: bool,
+    pub vault_enabled: bool,
+    pub vault_unlocked: bool,
     pub persistence_available: bool,
     pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct StrongholdPasswordInput {
+pub struct VaultPasswordInput {
     pub password: String,
     #[serde(default)]
     pub enable_vault: bool,
@@ -52,18 +55,18 @@ pub struct SecretStoreState {
 #[derive(Debug, Default)]
 struct SecretStoreRuntime {
     cached_keyring_available: Option<bool>,
-    stronghold: Option<StrongholdRuntime>,
+    vault: Option<VaultRuntime>,
 }
 
 #[derive(Debug)]
-struct StrongholdRuntime {
+struct VaultRuntime {
     key: [u8; DERIVED_KEY_LEN],
 }
 
 #[derive(Debug, Clone)]
 pub enum SecretLocation {
     Keyring,
-    Stronghold,
+    Vault,
     Memory,
 }
 
@@ -99,6 +102,18 @@ impl SecretStorageMode {
 struct VaultConfigFile {
     #[serde(default)]
     salt_b64: String,
+    #[serde(default = "default_vault_config_version")]
+    version: u16,
+    #[serde(default = "default_vault_algorithm")]
+    algorithm: String,
+    #[serde(default = "default_vault_kdf")]
+    kdf: String,
+    #[serde(default = "default_vault_memory_kib")]
+    memory_kib: u32,
+    #[serde(default = "default_vault_iterations")]
+    iterations: u32,
+    #[serde(default = "default_vault_parallelism")]
+    parallelism: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -116,6 +131,30 @@ struct VaultSecretRecord {
     updated_at: i64,
 }
 
+fn default_vault_config_version() -> u16 {
+    1
+}
+
+fn default_vault_algorithm() -> String {
+    "AES-256-GCM".to_string()
+}
+
+fn default_vault_kdf() -> String {
+    "Argon2id-v1.3".to_string()
+}
+
+fn default_vault_memory_kib() -> u32 {
+    PBKDF_MEMORY_KIB
+}
+
+fn default_vault_iterations() -> u32 {
+    PBKDF_ITERATIONS
+}
+
+fn default_vault_parallelism() -> u32 {
+    PBKDF_PARALLELISM
+}
+
 impl SecretStoreState {
     pub fn new() -> Self {
         Self {
@@ -124,32 +163,32 @@ impl SecretStoreState {
     }
 
     pub fn get_status(&self) -> Result<SecretBackendStatus, String> {
-        let stronghold_unlocked = self
+        let vault_unlocked = self
             .inner
             .lock()
             .map_err(|_| "Secret store state is poisoned".to_string())?
-            .stronghold
+            .vault
             .is_some();
         let keyring_available = self.keyring_available()?;
         let config = load_config_file()?;
         let mode = SecretStorageMode::from_config_value(&config.secret_storage_mode);
         let active_backend = match mode {
             SecretStorageMode::System if keyring_available => "system",
-            SecretStorageMode::Vault if config.secret_vault_enabled && stronghold_unlocked => {
+            SecretStorageMode::Vault if config.secret_vault_enabled && vault_unlocked => {
                 "vault"
             }
             SecretStorageMode::Auto if keyring_available => "system",
-            SecretStorageMode::Auto if config.secret_vault_enabled && stronghold_unlocked => {
+            SecretStorageMode::Auto if config.secret_vault_enabled && vault_unlocked => {
                 "vault"
             }
             _ => "memory",
         };
         let persistence_available = match mode {
             SecretStorageMode::System => keyring_available,
-            SecretStorageMode::Vault => config.secret_vault_enabled && stronghold_unlocked,
+            SecretStorageMode::Vault => config.secret_vault_enabled && vault_unlocked,
             SecretStorageMode::Memory => false,
             SecretStorageMode::Auto => {
-                keyring_available || (config.secret_vault_enabled && stronghold_unlocked)
+                keyring_available || (config.secret_vault_enabled && vault_unlocked)
             }
         };
         let message = match mode {
@@ -159,14 +198,14 @@ impl SecretStoreState {
             SecretStorageMode::Vault if !config.secret_vault_enabled => Some(
                 "App vault mode is selected. Unlock the vault before saving passwords.".to_string(),
             ),
-            SecretStorageMode::Vault if !stronghold_unlocked => {
+            SecretStorageMode::Vault if !vault_unlocked => {
                 Some("App vault mode is selected. Unlock the vault to persist secrets.".to_string())
             }
             SecretStorageMode::Memory => {
                 Some("Passwords are only kept for the current app session.".to_string())
             }
             SecretStorageMode::Auto
-                if !keyring_available && config.secret_vault_enabled && !stronghold_unlocked =>
+                if !keyring_available && config.secret_vault_enabled && !vault_unlocked =>
             {
                 Some(
                     "System keyring unavailable. Unlock the app vault to persist secrets."
@@ -184,8 +223,8 @@ impl SecretStoreState {
             active_backend: active_backend.to_string(),
             storage_mode: mode.as_str().to_string(),
             keyring_available,
-            stronghold_enabled: config.secret_vault_enabled,
-            stronghold_unlocked,
+            vault_enabled: config.secret_vault_enabled,
+            vault_unlocked,
             persistence_available,
             message,
         })
@@ -226,10 +265,10 @@ impl SecretStoreState {
         ok
     }
 
-    pub fn unlock_stronghold(
+    pub fn unlock_vault(
         &self,
         app: &AppHandle,
-        input: StrongholdPasswordInput,
+        input: VaultPasswordInput,
     ) -> Result<SecretBackendStatus, String> {
         if input.password.is_empty() {
             return Err("Vault password cannot be empty".to_string());
@@ -248,27 +287,28 @@ impl SecretStoreState {
         }
 
         let key = derive_or_initialize_vault_key(app, input.password.as_bytes())?;
-        let runtime = StrongholdRuntime { key };
+        let runtime = VaultRuntime { key };
+        verify_or_initialize_vault(app, &runtime)?;
 
         let mut guard = self
             .inner
             .lock()
             .map_err(|_| "Secret store state is poisoned".to_string())?;
-        guard.stronghold = Some(runtime);
+        guard.vault = Some(runtime);
         drop(guard);
 
         self.get_status()
     }
 
-    pub fn lock_stronghold(&self) -> Result<SecretBackendStatus, String> {
+    pub fn lock_vault(&self) -> Result<SecretBackendStatus, String> {
         let mut guard = self
             .inner
             .lock()
             .map_err(|_| "Secret store state is poisoned".to_string())?;
-        if let Some(runtime) = &mut guard.stronghold {
+        if let Some(runtime) = &mut guard.vault {
             runtime.key.zeroize();
         }
-        guard.stronghold = None;
+        guard.vault = None;
         drop(guard);
         self.get_status()
     }
@@ -289,10 +329,10 @@ impl SecretStoreState {
                 .inner
                 .lock()
                 .map_err(|_| "Secret store state is poisoned".to_string())?;
-            if let Some(runtime) = &mut guard.stronghold {
+            if let Some(runtime) = &mut guard.vault {
                 runtime.key.zeroize();
             }
-            guard.stronghold = None;
+            guard.vault = None;
         }
 
         self.get_status()
@@ -313,7 +353,7 @@ impl SecretStoreState {
             .inner
             .lock()
             .map_err(|_| "Secret store state is poisoned".to_string())?
-            .stronghold
+            .vault
             .is_some())
     }
 
@@ -352,7 +392,7 @@ impl SecretStoreState {
             .inner
             .lock()
             .map_err(|_| "Secret store state is poisoned".to_string())?;
-        if let Some(runtime) = &guard.stronghold {
+        if let Some(runtime) = &guard.vault {
             return read_vault_secret(app, runtime, profile_id, SECRET_KIND_PASSWORD);
         }
 
@@ -400,12 +440,25 @@ impl SecretStoreState {
             .inner
             .lock()
             .map_err(|_| "Secret store state is poisoned".to_string())?;
-        if let Some(runtime) = &guard.stronghold {
+        if let Some(runtime) = &guard.vault {
             write_vault_secret(app, runtime, profile_id, SECRET_KIND_PASSWORD, password)?;
-            return Ok(SecretLocation::Stronghold);
+            return Ok(SecretLocation::Vault);
         }
 
         Ok(SecretLocation::Memory)
+    }
+
+    pub fn has_password(&self, app: &AppHandle, profile_id: &str) -> Result<bool, String> {
+        Ok(self.get_password(app, profile_id)?.is_some())
+    }
+
+    pub fn delete_password(&self, app: &AppHandle, profile_id: &str) -> Result<bool, String> {
+        let mut deleted = false;
+        if self.keyring_available()? {
+            deleted |= delete_keyring_secret(profile_id, SECRET_KIND_PASSWORD)?;
+        }
+        deleted |= delete_vault_secret(app, profile_id, SECRET_KIND_PASSWORD)?;
+        Ok(deleted)
     }
 
     pub fn copy_password(
@@ -451,18 +504,18 @@ impl SecretStoreState {
 
 impl Drop for SecretStoreRuntime {
     fn drop(&mut self) {
-        if let Some(runtime) = &mut self.stronghold {
+        if let Some(runtime) = &mut self.vault {
             runtime.key.zeroize();
         }
     }
 }
 
-fn stronghold_key_name(profile_id: &str, kind: &str) -> String {
+fn secret_key_name(profile_id: &str, kind: &str) -> String {
     format!("{}::{}", kind, profile_id)
 }
 
 fn read_keyring_secret(profile_id: &str, kind: &str) -> Result<Option<String>, keyring::Error> {
-    let account = stronghold_key_name(profile_id, kind);
+    let account = secret_key_name(profile_id, kind);
     let entry = keyring::Entry::new(SERVICE_NAME, &account)?;
     match entry.get_password() {
         Ok(value) => Ok(Some(value)),
@@ -472,12 +525,23 @@ fn read_keyring_secret(profile_id: &str, kind: &str) -> Result<Option<String>, k
 }
 
 fn write_keyring_secret(profile_id: &str, kind: &str, value: &str) -> Result<(), String> {
-    let account = stronghold_key_name(profile_id, kind);
+    let account = secret_key_name(profile_id, kind);
     let entry = keyring::Entry::new(SERVICE_NAME, &account)
         .map_err(|e| format!("Failed to open keyring entry: {}", e))?;
     entry
         .set_password(value)
         .map_err(|e| format!("Failed to write keyring secret: {}", e))
+}
+
+fn delete_keyring_secret(profile_id: &str, kind: &str) -> Result<bool, String> {
+    let account = secret_key_name(profile_id, kind);
+    let entry = keyring::Entry::new(SERVICE_NAME, &account)
+        .map_err(|e| format!("Failed to open keyring entry: {}", e))?;
+    match entry.delete_credential() {
+        Ok(()) => Ok(true),
+        Err(keyring::Error::NoEntry) => Ok(false),
+        Err(err) => Err(format!("Failed to delete keyring secret: {}", err)),
+    }
 }
 
 fn derive_or_initialize_vault_key(
@@ -488,13 +552,24 @@ fn derive_or_initialize_vault_key(
     let config = if config_path.exists() {
         let content = fs::read_to_string(&config_path)
             .map_err(|e| format!("Failed to read vault config: {}", e))?;
-        serde_json::from_str::<VaultConfigFile>(&content)
-            .map_err(|e| format!("Failed to parse vault config: {}", e))?
+        let config = serde_json::from_str::<VaultConfigFile>(&content)
+            .map_err(|e| format!("Failed to parse vault config: {}", e))?;
+        let content = serde_json::to_string_pretty(&config)
+            .map_err(|e| format!("Failed to serialize vault config: {}", e))?;
+        fs::write(&config_path, content)
+            .map_err(|e| format!("Failed to write vault config: {}", e))?;
+        config
     } else {
         let mut salt = [0u8; SALT_LEN];
         rand::thread_rng().fill_bytes(&mut salt);
         let config = VaultConfigFile {
             salt_b64: BASE64.encode(salt),
+            version: default_vault_config_version(),
+            algorithm: default_vault_algorithm(),
+            kdf: default_vault_kdf(),
+            memory_kib: default_vault_memory_kib(),
+            iterations: default_vault_iterations(),
+            parallelism: default_vault_parallelism(),
         };
         let content = serde_json::to_string_pretty(&config)
             .map_err(|e| format!("Failed to serialize vault config: {}", e))?;
@@ -507,9 +582,9 @@ fn derive_or_initialize_vault_key(
         .decode(config.salt_b64.as_bytes())
         .map_err(|e| format!("Failed to decode vault salt: {}", e))?;
     let params = Params::new(
-        PBKDF_MEMORY_KIB,
-        PBKDF_ITERATIONS,
-        PBKDF_PARALLELISM,
+        config.memory_kib,
+        config.iterations,
+        config.parallelism,
         Some(DERIVED_KEY_LEN),
     )
     .map_err(|e| format!("Failed to build Argon2 params: {}", e))?;
@@ -556,7 +631,7 @@ fn save_vault_file(path: &Path, vault: &VaultFile) -> Result<(), String> {
 }
 
 fn encrypt_secret(
-    runtime: &StrongholdRuntime,
+    runtime: &VaultRuntime,
     plaintext: &str,
 ) -> Result<(String, String), String> {
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&runtime.key));
@@ -569,7 +644,7 @@ fn encrypt_secret(
 }
 
 fn decrypt_secret(
-    runtime: &StrongholdRuntime,
+    runtime: &VaultRuntime,
     record: &VaultSecretRecord,
 ) -> Result<String, String> {
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&runtime.key));
@@ -587,7 +662,7 @@ fn decrypt_secret(
 
 fn read_vault_secret(
     app: &AppHandle,
-    runtime: &StrongholdRuntime,
+    runtime: &VaultRuntime,
     profile_id: &str,
     kind: &str,
 ) -> Result<Option<String>, String> {
@@ -605,7 +680,7 @@ fn read_vault_secret(
 
 fn write_vault_secret(
     app: &AppHandle,
-    runtime: &StrongholdRuntime,
+    runtime: &VaultRuntime,
     profile_id: &str,
     kind: &str,
     plaintext: &str,
@@ -631,4 +706,51 @@ fn write_vault_secret(
         });
     }
     save_vault_file(&path, &vault)
+}
+
+fn delete_vault_secret(
+    app: &AppHandle,
+    profile_id: &str,
+    kind: &str,
+) -> Result<bool, String> {
+    let path = vault_path(app)?;
+    let mut vault = load_vault_file(&path)?;
+    let before = vault.secrets.len();
+    vault
+        .secrets
+        .retain(|record| !(record.profile_id == profile_id && record.kind == kind));
+    if vault.secrets.len() == before {
+        return Ok(false);
+    }
+    save_vault_file(&path, &vault)?;
+    Ok(true)
+}
+
+fn verify_or_initialize_vault(app: &AppHandle, runtime: &VaultRuntime) -> Result<(), String> {
+    let path = vault_path(app)?;
+    let vault = load_vault_file(&path)?;
+
+    if let Some(record) = vault
+        .secrets
+        .iter()
+        .find(|record| record.profile_id == VERIFIER_PROFILE_ID && record.kind == SECRET_KIND_VERIFIER)
+    {
+        let value = decrypt_secret(runtime, record)?;
+        if value == VAULT_VERIFIER_PLAINTEXT {
+            return Ok(());
+        }
+        return Err("Failed to unlock vault. Check the vault password.".to_string());
+    }
+
+    if let Some(record) = vault.secrets.first() {
+        decrypt_secret(runtime, record).map(|_| ())?;
+    }
+
+    write_vault_secret(
+        app,
+        runtime,
+        VERIFIER_PROFILE_ID,
+        SECRET_KIND_VERIFIER,
+        VAULT_VERIFIER_PLAINTEXT,
+    )
 }

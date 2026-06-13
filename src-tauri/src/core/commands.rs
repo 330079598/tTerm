@@ -288,22 +288,23 @@ pub fn respond_ssh_host_key_prompt(
 }
 
 #[tauri::command]
-pub fn get_saved_password(
+pub fn has_saved_password(
     app: AppHandle,
     profile_id: Option<String>,
     profile_name: Option<String>,
     secret_state: State<'_, crate::ssh::SecretStoreState>,
-) -> Result<Option<String>, String> {
-    super::session::load_saved_ssh_password(
+) -> Result<bool, String> {
+    Ok(super::session::load_saved_ssh_password(
         &app,
         &secret_state,
         profile_id.as_deref(),
         profile_name.as_deref(),
-    )
+    )?
+    .is_some())
 }
 
 #[tauri::command]
-pub fn get_saved_jump_host_password(
+pub fn has_saved_jump_host_password(
     app: AppHandle,
     profile_id: Option<String>,
     profile_name: Option<String>,
@@ -312,8 +313,8 @@ pub fn get_saved_jump_host_password(
     username: Option<String>,
     allow_legacy_fallback: Option<bool>,
     secret_state: State<'_, crate::ssh::SecretStoreState>,
-) -> Result<Option<String>, String> {
-    super::session::load_saved_jump_host_password(
+) -> Result<bool, String> {
+    Ok(super::session::load_saved_jump_host_password(
         &app,
         &secret_state,
         profile_id.as_deref(),
@@ -322,15 +323,52 @@ pub fn get_saved_jump_host_password(
         port,
         username.as_deref(),
         allow_legacy_fallback.unwrap_or(false),
-    )
+    )?
+    .is_some())
 }
 
 #[tauri::command]
-pub fn get_saved_password_for_sudo(
+pub fn write_saved_password_for_sudo(
     app: AppHandle,
+    tab_id: String,
+    session_nonce: u32,
     profile_id: Option<String>,
     profile_name: Option<String>,
+    state: State<'_, PtyMap>,
     secret_state: State<'_, crate::ssh::SecretStoreState>,
-) -> Result<Option<String>, String> {
-    get_saved_password(app, profile_id, profile_name, secret_state)
+) -> Result<bool, String> {
+    let Some(password) = super::session::load_saved_ssh_password(
+        &app,
+        &secret_state,
+        profile_id.as_deref(),
+        profile_name.as_deref(),
+    )?
+    else {
+        return Ok(false);
+    };
+
+    let map = state.blocking_read();
+    let session = map
+        .get(&tab_id)
+        .ok_or_else(|| format!("PTY session {} not found", tab_id))?;
+    if session.session_nonce != session_nonce {
+        return Ok(false);
+    }
+
+    let mut active_guard = session.active.blocking_lock();
+    let active = active_guard
+        .as_mut()
+        .ok_or_else(|| format!("PTY session {} is reconnecting", tab_id))?;
+
+    let mut data = password.into_bytes();
+    data.push(b'\n');
+
+    match active {
+        ActiveSession::Local(_) => Err("Saved SSH password cannot be written to a local terminal.".to_string()),
+        ActiveSession::Ssh(ssh) => ssh
+            .input_tx
+            .send(data)
+            .map(|_| true)
+            .map_err(|_| format!("PTY session {} is not writable", tab_id)),
+    }
 }

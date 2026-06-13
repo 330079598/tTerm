@@ -100,7 +100,7 @@ export const TTermApp: React.FC = () => {
     config.prompt_unlock_vault_on_startup &&
     config.secret_vault_enabled &&
     (config.secret_storage_mode === "vault" || config.secret_storage_mode === "auto") &&
-    !secretStatus.strongholdUnlocked &&
+    !secretStatus.vaultUnlocked &&
     !startupVaultUnlockDismissed
   const startupConnectionsReady = !shouldPromptStartupVaultUnlock
 

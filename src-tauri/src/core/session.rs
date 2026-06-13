@@ -103,6 +103,7 @@ pub struct PtyConnectionOptions {
     pub port: Option<u16>,
     pub username: Option<String>,
     pub password: Option<String>,
+    pub ignore_saved_password: bool,
     pub remember_password: Option<bool>,
     pub keepalive_interval_secs: Option<u16>,
     pub keepalive_count_max: Option<u16>,
@@ -134,6 +135,8 @@ struct RawPtyConnectionOptions {
     username: Option<String>,
     #[serde(default)]
     password: Option<String>,
+    #[serde(default, alias = "ignoreSavedPassword")]
+    ignore_saved_password: bool,
     #[serde(default, alias = "rememberPassword")]
     remember_password: Option<bool>,
     #[serde(default, alias = "keepaliveIntervalSecs")]
@@ -175,6 +178,7 @@ impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
             port: raw.port,
             username: raw.username,
             password: raw.password,
+            ignore_saved_password: raw.ignore_saved_password,
             remember_password: raw.remember_password,
             keepalive_interval_secs: raw.keepalive_interval_secs,
             keepalive_count_max: raw.keepalive_count_max,
@@ -201,6 +205,7 @@ impl Default for PtyConnectionOptions {
             port: None,
             username: None,
             password: None,
+            ignore_saved_password: false,
             remember_password: None,
             keepalive_interval_secs: None,
             keepalive_count_max: None,
@@ -226,6 +231,7 @@ pub struct SessionPlan {
     pub port: u16,
     pub username: Option<String>,
     pub password: Option<String>,
+    pub ignore_saved_password: bool,
     pub remember_password: bool,
     pub keepalive_interval_secs: u16,
     pub keepalive_count_max: u16,
@@ -279,6 +285,7 @@ pub fn normalize_connection(
             port: 0,
             username: None,
             password: None,
+            ignore_saved_password: false,
             remember_password: false,
             keepalive_interval_secs,
             keepalive_count_max,
@@ -315,6 +322,7 @@ pub fn normalize_connection(
                 .filter(|v| !v.is_empty());
 
             let password = connection.password.filter(|v| !v.is_empty());
+            let ignore_saved_password = connection.ignore_saved_password;
             let remember_password = connection.remember_password.unwrap_or(false);
             let private_key_path = connection.private_key_path.filter(|v| !v.is_empty());
             let private_key_passphrase =
@@ -330,6 +338,7 @@ pub fn normalize_connection(
                 port,
                 username: Some(username),
                 password,
+                ignore_saved_password,
                 remember_password,
                 keepalive_interval_secs,
                 keepalive_count_max,
@@ -509,9 +518,8 @@ pub fn resolve_ssh_password(
                 .as_deref()
                 .unwrap_or(plan.profile_name.as_str());
 
-            // Save password to persistent store when remember_password is enabled,
-            // or automatically when a profile_id exists (so session restore can find it)
-            if plan.remember_password || plan.profile_id.is_some() {
+            // Persist only when the user explicitly enabled "remember password".
+            if plan.remember_password {
                 let location = secret_state.save_password(app, secret_key, &password)?;
                 if plan.remember_password && matches!(location, crate::ssh::SecretLocation::Memory)
                 {
@@ -521,6 +529,11 @@ pub fn resolve_ssh_password(
                     );
                 }
             }
+        } else if plan.ignore_saved_password {
+            return Err(format!(
+                "Password is required for profile '{}'",
+                plan.profile_name
+            ));
         } else {
             // Try to get password from secret store
             let password = load_saved_ssh_password(
@@ -568,7 +581,7 @@ fn resolve_jump_host_passwords(
         );
 
         if let Some(pw) = &jump.password {
-            if plan.remember_password || plan.profile_id.is_some() {
+            if plan.remember_password {
                 let location = secret_state.save_password(app, &secret_key, pw)?;
                 if plan.remember_password && matches!(location, crate::ssh::SecretLocation::Memory)
                 {

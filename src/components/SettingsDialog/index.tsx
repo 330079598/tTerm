@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next"
 import { useConfirmDialog, useInfoDialog, usePromptDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
-import { useConfig } from "@/contexts/ConfigContext"
+import { SavedSecretEntry, useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
@@ -155,6 +155,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     unlockSecretVault,
     lockSecretVault,
     copySecretStore,
+    listSavedSecrets,
+    deleteSavedSecret,
   } = useConfig()
   const {
     currentTheme,
@@ -195,6 +197,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [password, setPassword] = useState("")
   const [secretError, setSecretError] = useState<string | null>(null)
   const [secretBusy, setSecretBusy] = useState(false)
+  const [savedSecrets, setSavedSecrets] = useState<SavedSecretEntry[]>([])
 
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null)
   const [creatingFromTheme, setCreatingFromTheme] = useState<string | null>(null)
@@ -255,7 +258,18 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
 
     refreshSecretStatusCached(refreshSecretStatus)
-  }, [activeTab, refreshSecretStatus])
+    listSavedSecrets()
+      .then((entries) => {
+        if (isMountedRef.current) {
+          setSavedSecrets(entries)
+        }
+      })
+      .catch(() => {
+        if (isMountedRef.current) {
+          setSavedSecrets([])
+        }
+      })
+  }, [activeTab, listSavedSecrets, refreshSecretStatus])
 
   const handleFontSave = async () => {
     try {
@@ -394,6 +408,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         }),
       })
       await refreshSecretStatus()
+      setSavedSecrets(await listSavedSecrets())
     } catch (error) {
       setSecretError(error instanceof Error ? error.message : String(error))
     } finally {
@@ -437,6 +452,35 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setSecretError(null)
     try {
       await lockSecretVault()
+    } catch (error) {
+      setSecretError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setSecretBusy(false)
+    }
+  }
+
+  const handleDeleteSavedSecret = async (entry: SavedSecretEntry) => {
+    const confirmed = await confirm({
+      title: t("secretStorage.deleteSavedSecret"),
+      description: t("secretStorage.deleteSavedSecretConfirm", { label: entry.label }),
+      confirmText: t("secretStorage.deleteSavedSecret"),
+      cancelText: t("common.cancel"),
+      variant: "destructive",
+    })
+
+    if (!confirmed) {
+      return
+    }
+
+    setSecretBusy(true)
+    setSecretError(null)
+    try {
+      await deleteSavedSecret(entry.key)
+      setSavedSecrets(await listSavedSecrets())
+      toast({
+        title: t("secretStorage.savedSecretDeleted"),
+        description: t("secretStorage.savedSecretDeletedDesc", { label: entry.label }),
+      })
     } catch (error) {
       setSecretError(error instanceof Error ? error.message : String(error))
     } finally {
@@ -675,11 +719,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleLock={handleLock}
               handlePromptUnlockOnStartupChange={handlePromptUnlockOnStartupChange}
               handleSecretStorageModeChange={handleSecretStorageModeChange}
+              handleDeleteSavedSecret={handleDeleteSavedSecret}
               handleUnlock={handleUnlock}
               password={password}
               promptUnlockVaultOnStartup={config.prompt_unlock_vault_on_startup}
               secretBusy={secretBusy}
               secretError={secretError}
+              savedSecrets={savedSecrets}
               secretStatus={secretStatus}
               secretStorageMode={config.secret_storage_mode}
               setPassword={setPassword}

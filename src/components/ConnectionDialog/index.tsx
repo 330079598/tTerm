@@ -83,11 +83,13 @@ const getJumpHostValidationError = (form: ConnectionForm): string | null => {
 function buildJumpHostsPayload(form: ConnectionForm, keyCase: "snake"): SavedJumpHost[] | undefined
 function buildJumpHostsPayload(
   form: ConnectionForm,
-  keyCase: "camel"
+  keyCase: "camel",
+  savedJumpPasswordKeys?: Set<string>
 ): JumpHostConnection[] | undefined
 function buildJumpHostsPayload(
   form: ConnectionForm,
-  keyCase: "camel" | "snake"
+  keyCase: "camel" | "snake",
+  savedJumpPasswordKeys: Set<string> = new Set()
 ): SavedJumpHost[] | JumpHostConnection[] | undefined {
   if (!hasJumpHosts(form)) {
     return undefined
@@ -113,11 +115,15 @@ function buildJumpHostsPayload(
 
   return form.jumpHosts.map((jump) => {
     const authMethod = normalizeJumpAuthMethod(jump.authMethod)
+    const savedPasswordAvailable = savedJumpPasswordKeys.has(getJumpHostPasswordLookupKey(jump))
     return {
       host: jump.host.trim(),
       port: jump.port,
       username: jump.username.trim(),
-      password: authMethod === "password" ? jump.password || undefined : undefined,
+      password:
+        authMethod === "password" && (!savedPasswordAvailable || jump.password.length > 0)
+          ? jump.password || undefined
+          : undefined,
       authMethod,
       privateKeyPath: authMethod === "key" ? jump.privateKeyPath || undefined : undefined,
       privateKeyPassphrase:
@@ -144,6 +150,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const [isTesting, setIsTesting] = useState(false)
   const [testProgress, setTestProgress] = useState<SshConnectionProgress | null>(null)
   const [testHostKeyPrompt, setTestHostKeyPrompt] = useState<HostKeyPromptState | null>(null)
+  const [savedPasswordAvailable, setSavedPasswordAvailable] = useState(false)
+  const [savedJumpPasswordKeys, setSavedJumpPasswordKeys] = useState<Set<string>>(() => new Set())
   const loadedJumpPasswordsForProfile = useRef<string | null>(null)
   const matchingGroups = existingGroups.filter((group) =>
     group.toLowerCase().includes(form.group.toLowerCase())
@@ -167,6 +175,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
 
   useEffect(() => {
     loadedJumpPasswordsForProfile.current = null
+    setSavedPasswordAvailable(false)
+    setSavedJumpPasswordKeys(new Set())
     setForm(buildInitialForm(editProfile, config))
   }, [editProfile, config])
 
@@ -181,15 +191,16 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
 
     let cancelled = false
 
-    invoke<string | null>("get_saved_password", {
+    invoke<boolean>("has_saved_password", {
       profileId: editProfile.id,
       profileName: editProfile.name,
     })
-      .then((password) => {
-        if (cancelled || !password) {
+      .then((hasPassword) => {
+        if (cancelled || !hasPassword) {
           return
         }
 
+        setSavedPasswordAvailable(true)
         setForm((current) => {
           if (current.type !== "ssh" || current.authMethod !== "password") {
             return current
@@ -197,7 +208,6 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
 
           return {
             ...current,
-            password,
             rememberPassword: true,
           }
         })
@@ -235,38 +245,21 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     Promise.all(
       passwordJumps.map((jump) => {
         const lookupKey = getJumpHostPasswordLookupKey(jump)
-        return invoke<string | null>("get_saved_jump_host_password", {
+        return invoke<boolean>("has_saved_jump_host_password", {
           profileId: editProfile.id,
           profileName: editProfile.name,
           host: jump.host,
           port: jump.port,
           username: jump.username,
           allowLegacyFallback: form.jumpHosts.length === 1,
-        }).then((password) => ({ lookupKey, password }))
+        }).then((hasPassword) => ({ lookupKey, hasPassword }))
       })
     )
       .then((results) => {
         if (cancelled) return
         loadedJumpPasswordsForProfile.current = loadKey
-        const byLookupKey = new Map(
-          results
-            .filter((item) => item.password)
-            .map((item) => [item.lookupKey, item.password ?? ""])
-        )
-        if (byLookupKey.size === 0) return
-
-        setForm((current) => {
-          const jumpHosts = current.jumpHosts.map((jump) => {
-            const password = byLookupKey.get(getJumpHostPasswordLookupKey(jump))
-            return password !== undefined && jump.password !== password
-              ? { ...jump, password }
-              : jump
-          })
-
-          return jumpHosts.some((jump, index) => jump !== current.jumpHosts[index])
-            ? { ...current, jumpHosts }
-            : current
-        })
+        const keys = results.filter((item) => item.hasPassword).map((item) => item.lookupKey)
+        setSavedJumpPasswordKeys(new Set(keys))
       })
       .catch(() => {})
 
@@ -294,9 +287,16 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     const title = form.title.trim() || getDefaultTitle(form.type, form)
     const group = form.group.trim()
     const shouldPersistProfile = shouldSave
-    const profileId = form.type === "ssh" && shouldPersistProfile ? sshProfileId : undefined
+    const profileId =
+      form.type === "ssh" && (shouldPersistProfile || editProfile) ? sshProfileId : undefined
+    const ignoreSavedPassword =
+      form.type === "ssh" &&
+      form.authMethod === "password" &&
+      !form.rememberPassword &&
+      savedPasswordAvailable &&
+      form.password.length === 0
     const profileJumpHostsPayload = buildJumpHostsPayload(form, "snake")
-    const connectionJumpHostsPayload = buildJumpHostsPayload(form, "camel")
+    const connectionJumpHostsPayload = buildJumpHostsPayload(form, "camel", savedJumpPasswordKeys)
 
     if (shouldPersistProfile && form.type === "ssh" && form.host.trim()) {
       const duplicate = allProfiles.find(
@@ -316,7 +316,10 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         port: form.port,
         username: form.username,
         password:
-          form.authMethod === "password" && form.rememberPassword ? form.password : undefined,
+          form.authMethod === "password" && form.rememberPassword && form.password.length > 0
+            ? form.password
+            : undefined,
+        ignore_saved_password: ignoreSavedPassword,
         remember_password: form.authMethod === "password" ? form.rememberPassword : false,
         auth_method: form.authMethod,
         private_key_path: form.authMethod === "key" ? form.privateKeyPath : undefined,
@@ -352,7 +355,9 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         host: form.host,
         port: form.port,
         username: form.username,
-        password: form.authMethod === "password" ? form.password : undefined,
+        password:
+          form.authMethod === "password" && form.password.length > 0 ? form.password : undefined,
+        ignoreSavedPassword,
         rememberPassword: form.authMethod === "password" ? form.rememberPassword : undefined,
         privateKeyPath: form.authMethod === "key" ? form.privateKeyPath : undefined,
         privateKeyPassphrase: form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
@@ -421,6 +426,11 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     try {
       const title = form.title.trim() || getDefaultTitle(form.type, form)
       const jumpHostsPayload = buildJumpHostsPayload(form, "snake")
+      const ignoreSavedPassword =
+        form.authMethod === "password" &&
+        !form.rememberPassword &&
+        savedPasswordAvailable &&
+        form.password.length === 0
       const profile: SavedProfile = {
         id: sshProfileId,
         name: title,
@@ -429,7 +439,9 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         host: form.host,
         port: form.port,
         username: form.username,
-        password: form.authMethod === "password" ? form.password : undefined,
+        password:
+          form.authMethod === "password" && form.password.length > 0 ? form.password : undefined,
+        ignore_saved_password: ignoreSavedPassword,
         auth_method: form.authMethod,
         private_key_path: form.authMethod === "key" ? form.privateKeyPath : undefined,
         private_key_passphrase: form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
@@ -532,6 +544,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
               <SshConnectionFields
                 form={form}
                 setForm={setForm}
+                savedPasswordAvailable={savedPasswordAvailable}
                 matchingGroups={matchingGroups}
                 nameError={nameError}
                 setNameError={setNameError}
@@ -539,7 +552,11 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
                 setShowGroupDropdown={setShowGroupDropdown}
                 titlePlaceholder={getDefaultTitle(form.type, form)}
               />
-              <JumpHostFields form={form} setForm={setForm} />
+              <JumpHostFields
+                form={form}
+                setForm={setForm}
+                savedJumpPasswordKeys={savedJumpPasswordKeys}
+              />
             </>
           )}
 

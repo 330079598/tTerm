@@ -7,6 +7,7 @@ export interface SavedProfile {
   port?: number
   username?: string
   password?: string
+  ignore_saved_password?: boolean
   remember_password: boolean
   auth_method?: string
   private_key_path?: string
@@ -80,6 +81,7 @@ export interface Tab {
     port?: number
     username?: string
     password?: string
+    ignoreSavedPassword?: boolean
     rememberPassword?: boolean
     keepaliveIntervalSecs?: number
     keepaliveCountMax?: number

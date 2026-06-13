@@ -1,5 +1,5 @@
 import React from "react"
-import { AlertTriangle, ArrowLeftRight, Lock, Unlock } from "lucide-react"
+import { AlertTriangle, ArrowLeftRight, Lock, Trash2, Unlock } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -13,7 +13,7 @@ import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 
 import { SecretStatusState } from "@/components/SettingsDialog/types"
-import type { SecretStorageMode } from "@/contexts/ConfigContext"
+import type { SavedSecretEntry, SecretStorageMode } from "@/contexts/ConfigContext"
 
 interface SecuritySettingsTabProps {
   backendLabel: string
@@ -21,11 +21,13 @@ interface SecuritySettingsTabProps {
   handleCopySecretStore: (direction: "systemToVault" | "vaultToSystem") => Promise<void>
   handleEnableVault: (checked: boolean) => Promise<void>
   handleLock: () => Promise<void>
+  handleDeleteSavedSecret: (entry: SavedSecretEntry) => Promise<void>
   handlePromptUnlockOnStartupChange: (checked: boolean) => Promise<void>
   handleSecretStorageModeChange: (mode: SecretStorageMode) => Promise<void>
   handleUnlock: () => Promise<void>
   password: string
   promptUnlockVaultOnStartup: boolean
+  savedSecrets: SavedSecretEntry[]
   secretBusy: boolean
   secretError: string | null
   secretStatus: SecretStatusState
@@ -39,11 +41,13 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
   handleCopySecretStore,
   handleEnableVault,
   handleLock,
+  handleDeleteSavedSecret,
   handlePromptUnlockOnStartupChange,
   handleSecretStorageModeChange,
   handleUnlock,
   password,
   promptUnlockVaultOnStartup,
+  savedSecrets,
   secretBusy,
   secretError,
   secretStatus,
@@ -146,7 +150,7 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
                 />
               </div>
               <div className="flex gap-2">
-                {!secretStatus.strongholdUnlocked ? (
+                {!secretStatus.vaultUnlocked ? (
                   <Button onClick={handleUnlock} disabled={secretBusy || password.length === 0}>
                     <Unlock size={14} className="mr-2" />
                     {t("secretStorage.unlockVault")}
@@ -196,7 +200,7 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
                   variant="outline"
                   onClick={() => handleCopySecretStore("systemToVault")}
                   disabled={
-                    secretBusy || !secretStatus.keyringAvailable || !secretStatus.strongholdUnlocked
+                    secretBusy || !secretStatus.keyringAvailable || !secretStatus.vaultUnlocked
                   }
                 >
                   <ArrowLeftRight size={14} className="mr-2" />
@@ -206,7 +210,7 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
                   variant="outline"
                   onClick={() => handleCopySecretStore("vaultToSystem")}
                   disabled={
-                    secretBusy || !secretStatus.keyringAvailable || !secretStatus.strongholdUnlocked
+                    secretBusy || !secretStatus.keyringAvailable || !secretStatus.vaultUnlocked
                   }
                 >
                   <ArrowLeftRight size={14} className="mr-2" />
@@ -216,6 +220,56 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
             </CardContent>
           </Card>
         )}
+
+        <Card>
+          <CardContent className="space-y-3 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium">{t("secretStorage.savedPasswords")}</div>
+                <div className="text-muted-foreground mt-1 text-xs leading-5">
+                  {t("secretStorage.savedPasswordsDesc")}
+                </div>
+              </div>
+              <Badge variant="secondary">
+                {t("secretStorage.savedPasswordCount", { count: savedSecrets.length })}
+              </Badge>
+            </div>
+
+            {savedSecrets.length === 0 ? (
+              <p className="text-muted-foreground text-xs leading-5">
+                {t("secretStorage.noSavedPasswords")}
+              </p>
+            ) : (
+              <div className="border-border divide-border overflow-hidden rounded-md border">
+                {savedSecrets.map((entry) => (
+                  <div
+                    key={entry.key}
+                    className="flex items-center justify-between gap-3 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-sm">{entry.label}</div>
+                      <div className="text-muted-foreground truncate text-xs">
+                        {entry.kind.includes("jump")
+                          ? t("secretStorage.secretKinds.jumpHost")
+                          : t("secretStorage.secretKinds.ssh")}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive shrink-0"
+                      disabled={secretBusy}
+                      onClick={() => handleDeleteSavedSecret(entry)}
+                      title={t("secretStorage.deleteSavedSecret")}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {secretError && (
           <Alert className="border-destructive/40 bg-destructive/10 text-destructive">
