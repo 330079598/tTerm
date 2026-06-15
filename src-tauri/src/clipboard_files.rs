@@ -18,7 +18,7 @@ fn path_from_file_uri(uri: &str) -> Option<String> {
         return None;
     }
 
-    let decoded = percent_decode(path)?;
+    let decoded = percent_decode(&path)?;
 
     Some(decoded)
 }
