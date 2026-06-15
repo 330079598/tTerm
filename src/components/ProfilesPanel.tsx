@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 import {
   ChevronDown,
   ChevronRight,
+  FileInput,
   Pencil,
   PlugZap,
   Plus,
@@ -20,6 +21,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
+import { SshConfigImportDialog } from "@/components/SshConfigImportDialog"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
 import { cn } from "@/lib/utils"
 import { Tab, type ConnectionType, type SavedProfile } from "@/types/tab"
@@ -246,6 +248,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
   const [profiles, setProfiles] = useState<SavedProfile[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const collapsedGroupKeySet = useMemo(() => new Set(collapsedGroupKeys), [collapsedGroupKeys])
 
@@ -394,6 +397,21 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => setImportDialogOpen(true)}
+              >
+                <FileInput size={14} />
+                {t("profiles.importSshConfig")}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("profiles.importSshConfigTooltip")}</TooltipContent>
+          </Tooltip>
           {onCreate && (
             <Button type="button" size="sm" className="shrink-0" onClick={onCreate}>
               <Plus size={14} />
@@ -436,10 +454,21 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
               {t("profiles.emptyDescription")}
             </p>
             {onCreate && (
-              <Button type="button" size="sm" className="mt-4" onClick={onCreate}>
-                <Plus size={14} />
-                {t("profiles.newConnection")}
-              </Button>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <Button type="button" size="sm" onClick={onCreate}>
+                  <Plus size={14} />
+                  {t("profiles.newConnection")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setImportDialogOpen(true)}
+                >
+                  <FileInput size={14} />
+                  {t("profiles.importSshConfig")}
+                </Button>
+              </div>
             )}
           </div>
         )}
@@ -513,6 +542,13 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
           </div>
         )}
       </ScrollArea>
+      <SshConfigImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImported={(nextProfiles) => {
+          setProfiles(nextProfiles)
+        }}
+      />
       <ConfirmDialog />
     </section>
   )

@@ -231,6 +231,8 @@ pub fn run() {
             monitor::get_server_metrics_snapshot,
             monitor::release_server_monitor_session,
             profiles::list_profiles,
+            profiles::preview_ssh_config_import,
+            profiles::import_ssh_config_profiles,
             profiles::list_profile_groups,
             profiles::save_profile_group,
             profiles::rename_profile_group,

@@ -174,13 +174,9 @@ impl SecretStoreState {
         let mode = SecretStorageMode::from_config_value(&config.secret_storage_mode);
         let active_backend = match mode {
             SecretStorageMode::System if keyring_available => "system",
-            SecretStorageMode::Vault if config.secret_vault_enabled && vault_unlocked => {
-                "vault"
-            }
+            SecretStorageMode::Vault if config.secret_vault_enabled && vault_unlocked => "vault",
             SecretStorageMode::Auto if keyring_available => "system",
-            SecretStorageMode::Auto if config.secret_vault_enabled && vault_unlocked => {
-                "vault"
-            }
+            SecretStorageMode::Auto if config.secret_vault_enabled && vault_unlocked => "vault",
             _ => "memory",
         };
         let persistence_available = match mode {
@@ -630,10 +626,7 @@ fn save_vault_file(path: &Path, vault: &VaultFile) -> Result<(), String> {
     fs::write(path, content).map_err(|e| format!("Failed to write vault: {}", e))
 }
 
-fn encrypt_secret(
-    runtime: &VaultRuntime,
-    plaintext: &str,
-) -> Result<(String, String), String> {
+fn encrypt_secret(runtime: &VaultRuntime, plaintext: &str) -> Result<(String, String), String> {
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&runtime.key));
     let mut nonce = [0u8; NONCE_LEN];
     rand::thread_rng().fill_bytes(&mut nonce);
@@ -643,10 +636,7 @@ fn encrypt_secret(
     Ok((BASE64.encode(nonce), BASE64.encode(ciphertext)))
 }
 
-fn decrypt_secret(
-    runtime: &VaultRuntime,
-    record: &VaultSecretRecord,
-) -> Result<String, String> {
+fn decrypt_secret(runtime: &VaultRuntime, record: &VaultSecretRecord) -> Result<String, String> {
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&runtime.key));
     let nonce = BASE64
         .decode(record.nonce_b64.as_bytes())
@@ -708,11 +698,7 @@ fn write_vault_secret(
     save_vault_file(&path, &vault)
 }
 
-fn delete_vault_secret(
-    app: &AppHandle,
-    profile_id: &str,
-    kind: &str,
-) -> Result<bool, String> {
+fn delete_vault_secret(app: &AppHandle, profile_id: &str, kind: &str) -> Result<bool, String> {
     let path = vault_path(app)?;
     let mut vault = load_vault_file(&path)?;
     let before = vault.secrets.len();
@@ -730,11 +716,9 @@ fn verify_or_initialize_vault(app: &AppHandle, runtime: &VaultRuntime) -> Result
     let path = vault_path(app)?;
     let vault = load_vault_file(&path)?;
 
-    if let Some(record) = vault
-        .secrets
-        .iter()
-        .find(|record| record.profile_id == VERIFIER_PROFILE_ID && record.kind == SECRET_KIND_VERIFIER)
-    {
+    if let Some(record) = vault.secrets.iter().find(|record| {
+        record.profile_id == VERIFIER_PROFILE_ID && record.kind == SECRET_KIND_VERIFIER
+    }) {
         let value = decrypt_secret(runtime, record)?;
         if value == VAULT_VERIFIER_PLAINTEXT {
             return Ok(());

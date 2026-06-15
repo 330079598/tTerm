@@ -364,7 +364,9 @@ pub fn write_saved_password_for_sudo(
     data.push(b'\n');
 
     match active {
-        ActiveSession::Local(_) => Err("Saved SSH password cannot be written to a local terminal.".to_string()),
+        ActiveSession::Local(_) => {
+            Err("Saved SSH password cannot be written to a local terminal.".to_string())
+        }
         ActiveSession::Ssh(ssh) => ssh
             .input_tx
             .send(data)

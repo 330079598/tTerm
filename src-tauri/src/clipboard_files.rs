@@ -226,12 +226,39 @@ mod platform {
 
     pub fn read_clipboard_file_paths() -> Result<Vec<String>, String> {
         for (program, args) in [
-            ("wl-paste", vec!["--no-newline", "--type", "x-special/gnome-copied-files"]),
+            (
+                "wl-paste",
+                vec!["--no-newline", "--type", "x-special/gnome-copied-files"],
+            ),
             ("wl-paste", vec!["--no-newline", "--type", "text/uri-list"]),
-            ("wl-paste", vec!["--no-newline", "--type", "application/x-kde-cutselection"]),
-            ("xclip", vec!["-selection", "clipboard", "-t", "x-special/gnome-copied-files", "-o"]),
-            ("xclip", vec!["-selection", "clipboard", "-t", "text/uri-list", "-o"]),
-            ("xclip", vec!["-selection", "clipboard", "-t", "application/x-kde-cutselection", "-o"]),
+            (
+                "wl-paste",
+                vec!["--no-newline", "--type", "application/x-kde-cutselection"],
+            ),
+            (
+                "xclip",
+                vec![
+                    "-selection",
+                    "clipboard",
+                    "-t",
+                    "x-special/gnome-copied-files",
+                    "-o",
+                ],
+            ),
+            (
+                "xclip",
+                vec!["-selection", "clipboard", "-t", "text/uri-list", "-o"],
+            ),
+            (
+                "xclip",
+                vec![
+                    "-selection",
+                    "clipboard",
+                    "-t",
+                    "application/x-kde-cutselection",
+                    "-o",
+                ],
+            ),
             ("xsel", vec!["--clipboard", "--output"]),
         ] {
             let Ok(output) = Command::new(program).args(args).output() else {
