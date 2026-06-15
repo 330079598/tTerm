@@ -3,6 +3,8 @@ import { DragDropProvider, useDraggable, useDroppable } from "@dnd-kit/react"
 import { invoke } from "@tauri-apps/api/core"
 import {
   Check,
+  ChevronDown,
+  ChevronRight,
   FolderTree,
   GripVertical,
   Pencil,
@@ -22,6 +24,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useConfig } from "@/contexts/ConfigContext"
 import { useToast } from "@/hooks/use-toast"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
 import { cn } from "@/lib/utils"
@@ -34,6 +37,7 @@ const getGroupNameFromKey = (key: string) => (key === UNGROUPED_KEY ? "" : key)
 const profileDragId = (profileId: string) => `profile:${profileId}:drag`
 const profileDropId = (profileId: string) => `profile:${profileId}:drop`
 const groupDropId = (groupKey: string) => `profile-group:${encodeURIComponent(groupKey)}:drop`
+const groupListId = (groupKey: string) => `profile-group-${encodeURIComponent(groupKey)}-list`
 
 const getProfileIdFromDndId = (id?: string | number | null): string | null => {
   if (!id) return null
@@ -106,12 +110,14 @@ interface ProfileGroupCardProps {
   count: number
   group: GroupColumn
   groupBusy: boolean
+  isCollapsed: boolean
   isEditing: boolean
   editingGroupDraft: string
   onCancelEdit: () => void
   onDeleteGroup: (name: string) => void
   onRenameGroup: (oldName: string) => void
   onStartEdit: (name: string) => void
+  onToggleCollapsed: (groupKey: string) => void
   setEditingGroupDraft: React.Dispatch<React.SetStateAction<string>>
 }
 
@@ -120,27 +126,52 @@ const ProfileGroupCard: React.FC<ProfileGroupCardProps> = ({
   count,
   group,
   groupBusy,
+  isCollapsed,
   isEditing,
   editingGroupDraft,
   onCancelEdit,
   onDeleteGroup,
   onRenameGroup,
   onStartEdit,
+  onToggleCollapsed,
   setEditingGroupDraft,
 }) => {
   const { t } = useTranslation()
   const { ref, isDropTarget } = useDroppable({ id: groupDropId(group.key) })
   const isUngrouped = group.key === UNGROUPED_KEY
+  const displayName = isUngrouped ? t("profiles.ungrouped") : group.name
+  const listId = groupListId(group.key)
+  const toggleLabel = isCollapsed
+    ? t("profiles.expandGroup", { group: displayName })
+    : t("profiles.collapseGroup", { group: displayName })
 
   return (
     <section
       ref={ref}
       className={cn(
-        "border-border/70 bg-card flex min-h-[220px] flex-col rounded-md border transition-colors",
+        "border-border/70 bg-card flex flex-col rounded-md border transition-colors",
+        isCollapsed ? "min-h-0" : "min-h-[220px]",
         isDropTarget && "border-primary/70 bg-primary/5"
       )}
     >
       <div className="border-border/70 flex items-start gap-3 border-b px-4 py-3">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="-ml-1 shrink-0"
+              onClick={() => onToggleCollapsed(group.key)}
+              aria-expanded={!isCollapsed}
+              aria-controls={listId}
+              aria-label={toggleLabel}
+            >
+              {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{toggleLabel}</TooltipContent>
+        </Tooltip>
         <div className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md border">
           <FolderTree size={15} />
         </div>
@@ -164,9 +195,7 @@ const ProfileGroupCard: React.FC<ProfileGroupCardProps> = ({
             />
           ) : (
             <>
-              <div className="truncate text-sm font-semibold">
-                {isUngrouped ? t("profiles.ungrouped") : group.name}
-              </div>
+              <div className="truncate text-sm font-semibold">{displayName}</div>
               <div className="text-muted-foreground mt-1 text-xs">
                 {t("profileGroups.profileCount", {
                   count,
@@ -251,7 +280,11 @@ const ProfileGroupCard: React.FC<ProfileGroupCardProps> = ({
         )}
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 p-3">{children}</div>
+      {!isCollapsed && (
+        <div id={listId} className="flex flex-1 flex-col gap-2 p-3">
+          {children}
+        </div>
+      )}
     </section>
   )
 }
@@ -381,6 +414,7 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
 }) => {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { config, saveConfig } = useConfig()
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const [profileGroups, setProfileGroups] = React.useState<string[]>([])
   const [profiles, setProfiles] = React.useState<SavedProfile[]>([])
@@ -388,6 +422,10 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
   const [editingGroupName, setEditingGroupName] = React.useState<string | null>(null)
   const [editingGroupDraft, setEditingGroupDraft] = React.useState("")
   const [groupBusy, setGroupBusy] = React.useState(false)
+  const collapsedGroupKeySet = React.useMemo(
+    () => new Set(config.collapsed_profile_group_keys),
+    [config.collapsed_profile_group_keys]
+  )
 
   const refreshProfileGroups = React.useCallback(async () => {
     const [groups, loadedProfiles] = await Promise.all([
@@ -641,6 +679,26 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
     [getProfileGroupKey, profiles, refreshProfileGroups, t, toast]
   )
 
+  const toggleGroupCollapsed = React.useCallback(
+    (groupKey: string) => {
+      const next = new Set(collapsedGroupKeySet)
+      if (next.has(groupKey)) {
+        next.delete(groupKey)
+      } else {
+        next.add(groupKey)
+      }
+
+      saveConfig({ collapsed_profile_group_keys: Array.from(next) }).catch((error) => {
+        toast({
+          title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
+          description: error instanceof Error ? error.message : String(error),
+          variant: "destructive",
+        })
+      })
+    },
+    [collapsedGroupKeySet, saveConfig, t, toast]
+  )
+
   const handleDragEnd = React.useCallback(
     (
       event: Parameters<NonNullable<React.ComponentProps<typeof DragDropProvider>["onDragEnd"]>>[0]
@@ -709,12 +767,14 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
                     group={group}
                     count={group.profiles.length}
                     groupBusy={groupBusy}
+                    isCollapsed={collapsedGroupKeySet.has(group.key)}
                     isEditing={editingGroupName === group.name}
                     editingGroupDraft={editingGroupDraft}
                     onCancelEdit={cancelEditGroup}
                     onDeleteGroup={handleDeleteGroup}
                     onRenameGroup={handleRenameGroup}
                     onStartEdit={startEditGroup}
+                    onToggleCollapsed={toggleGroupCollapsed}
                     setEditingGroupDraft={setEditingGroupDraft}
                   >
                     {group.profiles.length === 0 ? (
