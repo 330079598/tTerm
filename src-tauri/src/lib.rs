@@ -26,7 +26,12 @@ pub struct TokioRuntimeState {
 }
 
 #[derive(Default)]
-pub struct PendingUpdateDownloads(pub RwLock<HashMap<String, Vec<u8>>>);
+pub struct PendingUpdateDownloads(pub RwLock<HashMap<String, PendingUpdateDownload>>);
+
+#[derive(Clone)]
+pub struct PendingUpdateDownload {
+    path: PathBuf,
+}
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -60,9 +65,9 @@ fn update_endpoint(channel: &str) -> &'static str {
 
 async fn find_app_update(
     app: &tauri::AppHandle,
-    channel: String,
+    channel: &str,
 ) -> Result<Option<tauri_plugin_updater::Update>, String> {
-    let endpoint = tauri::Url::parse(update_endpoint(&channel))
+    let endpoint = tauri::Url::parse(update_endpoint(channel))
         .map_err(|e| format!("Invalid update endpoint: {e}"))?;
 
     app.updater_builder()
@@ -80,7 +85,7 @@ async fn check_app_update(
     app: tauri::AppHandle,
     channel: String,
 ) -> Result<Option<AppUpdateMetadata>, String> {
-    Ok(find_app_update(&app, channel)
+    Ok(find_app_update(&app, &channel)
         .await?
         .map(|update| AppUpdateMetadata {
             version: update.version,
@@ -97,7 +102,7 @@ async fn download_app_update(
     channel: String,
     on_event: Channel<AppUpdateDownloadEvent>,
 ) -> Result<bool, String> {
-    let Some(update) = find_app_update(&app, channel.clone()).await? else {
+    let Some(update) = find_app_update(&app, &channel).await? else {
         return Ok(false);
     };
 
@@ -118,7 +123,15 @@ async fn download_app_update(
         .await
         .map_err(|e| e.to_string())?;
 
-    downloads.0.write().await.insert(channel, bytes);
+    let update_path = pending_update_download_path(&app, &channel)?;
+    write_pending_update_download(&channel, &update_path, &bytes).await?;
+
+    let previous_download = downloads
+        .0
+        .write()
+        .await
+        .insert(channel, PendingUpdateDownload { path: update_path });
+    remove_pending_update_download(previous_download).await;
     Ok(true)
 }
 
@@ -128,14 +141,27 @@ async fn install_downloaded_app_update(
     downloads: tauri::State<'_, PendingUpdateDownloads>,
     channel: String,
 ) -> Result<bool, String> {
-    let Some(bytes) = downloads.0.write().await.remove(&channel) else {
+    let Some(download) = downloads.0.read().await.get(&channel).cloned() else {
         return Ok(false);
     };
-    let Some(update) = find_app_update(&app, channel).await? else {
+    let Some(update) = find_app_update(&app, &channel).await? else {
+        remove_cached_update(downloads.inner(), &channel).await;
         return Ok(false);
     };
 
+    let bytes = match tokio::fs::read(&download.path).await {
+        Ok(bytes) => bytes,
+        Err(err) => {
+            remove_cached_update(downloads.inner(), &channel).await;
+            return Err(format!(
+                "Failed to read downloaded update '{}': {}",
+                download.path.display(),
+                err
+            ));
+        }
+    };
     update.install(bytes).map_err(|e| e.to_string())?;
+    remove_cached_update(downloads.inner(), &channel).await;
     Ok(true)
 }
 
@@ -146,13 +172,163 @@ async fn download_install_app_update(
     channel: String,
     on_event: Channel<AppUpdateDownloadEvent>,
 ) -> Result<bool, String> {
-    let downloaded =
-        download_app_update(app.clone(), downloads.clone(), channel.clone(), on_event).await?;
-    if !downloaded {
+    let Some(update) = find_app_update(&app, &channel).await? else {
         return Ok(false);
+    };
+
+    let mut started = false;
+    update
+        .download_and_install(
+            |chunk_length, content_length| {
+                if !started {
+                    let _ = on_event.send(AppUpdateDownloadEvent::Started { content_length });
+                    started = true;
+                }
+                let _ = on_event.send(AppUpdateDownloadEvent::Progress { chunk_length });
+            },
+            || {
+                let _ = on_event.send(AppUpdateDownloadEvent::Finished);
+            },
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+    remove_cached_update(downloads.inner(), &channel).await;
+    Ok(true)
+}
+
+fn sanitize_update_channel(channel: &str) -> String {
+    channel
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' {
+                ch
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
+fn pending_update_download_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    Ok(app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| format!("Failed to resolve app cache dir: {e}"))?
+        .join("updates"))
+}
+
+fn pending_update_download_path(app: &tauri::AppHandle, channel: &str) -> Result<PathBuf, String> {
+    let update_dir = pending_update_download_dir(app)?;
+
+    std::fs::create_dir_all(&update_dir).map_err(|e| {
+        format!(
+            "Failed to create update cache dir '{}': {}",
+            update_dir.display(),
+            e
+        )
+    })?;
+
+    Ok(update_dir.join(format!(
+        "{}-{}.bin",
+        sanitize_update_channel(channel),
+        uuid::Uuid::new_v4()
+    )))
+}
+
+async fn write_pending_update_download(
+    channel: &str,
+    update_path: &Path,
+    bytes: &[u8],
+) -> Result<(), String> {
+    let update_dir = update_path
+        .parent()
+        .ok_or_else(|| format!("Invalid update cache path '{}'", update_path.display()))?;
+    let temp_path = update_dir.join(format!(
+        "{}-{}.tmp",
+        sanitize_update_channel(channel),
+        uuid::Uuid::new_v4()
+    ));
+
+    let write_result = async {
+        tokio::fs::write(&temp_path, bytes).await.map_err(|e| {
+            format!(
+                "Failed to cache downloaded update '{}': {}",
+                temp_path.display(),
+                e
+            )
+        })?;
+        tokio::fs::rename(&temp_path, update_path)
+            .await
+            .map_err(|e| {
+                format!(
+                    "Failed to finalize downloaded update '{}' from '{}': {}",
+                    update_path.display(),
+                    temp_path.display(),
+                    e
+                )
+            })
+    }
+    .await;
+
+    if write_result.is_err() {
+        remove_pending_update_file(&temp_path).await;
     }
 
-    install_downloaded_app_update(app, downloads, channel).await
+    write_result
+}
+
+async fn remove_cached_update(downloads: &PendingUpdateDownloads, channel: &str) {
+    let download = downloads.0.write().await.remove(channel);
+    remove_pending_update_download(download).await;
+}
+
+async fn remove_pending_update_download(download: Option<PendingUpdateDownload>) {
+    let Some(download) = download else {
+        return;
+    };
+
+    remove_pending_update_file(&download.path).await;
+}
+
+async fn remove_pending_update_file(path: &Path) {
+    if let Err(err) = tokio::fs::remove_file(path).await {
+        if err.kind() != std::io::ErrorKind::NotFound {
+            eprintln!(
+                "Failed to remove cached update '{}': {}",
+                path.display(),
+                err
+            );
+        }
+    }
+}
+
+fn cleanup_stale_pending_update_files(app: &tauri::AppHandle) -> Result<(), String> {
+    let update_dir = pending_update_download_dir(app)?;
+    let Ok(entries) = std::fs::read_dir(&update_dir) else {
+        return Ok(());
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let is_update_cache_file = matches!(
+            path.extension().and_then(|value| value.to_str()),
+            Some("bin" | "tmp")
+        );
+        if is_update_cache_file {
+            if let Err(err) = std::fs::remove_file(&path) {
+                if err.kind() != std::io::ErrorKind::NotFound {
+                    eprintln!(
+                        "Failed to remove stale update '{}': {}",
+                        path.display(),
+                        err
+                    );
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
 
 const MIGRATED_CONFIG_FILES: &[&str] = &[
@@ -272,6 +448,10 @@ pub fn run() {
         .setup(|app| {
             let app_handle = app.handle().clone();
             config::init_config_dir(&app_handle)?;
+
+            if let Err(err) = cleanup_stale_pending_update_files(&app_handle) {
+                eprintln!("Failed to clean stale update cache files: {}", err);
+            }
 
             if let Err(err) = migrate_legacy_config_files(&app_handle) {
                 eprintln!("Failed to migrate legacy config files: {}", err);
