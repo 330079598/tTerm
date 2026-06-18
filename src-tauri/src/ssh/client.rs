@@ -66,6 +66,7 @@ pub async fn run_single_ssh_connection(
         &plan.jump_hosts,
         prompts,
         ConnectionStatusOptions::VERBOSE,
+        crate::ssh::HostKeyVerificationMode::PromptAndPersist,
     )
     .await
     {

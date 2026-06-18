@@ -15,7 +15,7 @@ use crate::ssh::store::{
     load_known_host, now_unix_ms, save_known_host_entry, KnownHostRecord, SshHostKeyPromptPayload,
 };
 use crate::ssh::types::{
-    emit_connection_progress, ConnectionStatusOptions, SshClientHandler,
+    emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode, SshClientHandler,
     SshConnectionProgressPayload, HOST_KEY_PROMPT_TIMEOUT, HOST_KEY_REJECTED_REASON,
 };
 
@@ -33,6 +33,7 @@ pub struct JumpHostHandler {
     pub user_rejected_host_key: Arc<AtomicBool>,
     pub failure_reason: Arc<Mutex<Option<String>>>,
     pub status_options: ConnectionStatusOptions,
+    pub host_key_verification_mode: HostKeyVerificationMode,
 }
 
 impl client::Handler for JumpHostHandler {
@@ -80,6 +81,34 @@ impl client::Handler for JumpHostHandler {
             {
                 return Ok(true);
             }
+        }
+
+        if self.host_key_verification_mode == HostKeyVerificationMode::TrustUnknownForSession {
+            if known.is_none() {
+                emit_connection_progress(
+                    &self.app,
+                    &self.tab_id,
+                    self.status_options,
+                    SshConnectionProgressPayload::new(
+                        "jump_host_key_trusted_for_test",
+                        format!(
+                            "Temporarily trusting jump host #{} fingerprint for {}:{}",
+                            self.hop_index, self.host, self.port
+                        ),
+                    )
+                    .host(self.host.clone(), self.port)
+                    .hop(self.hop_index, self.total_hops),
+                );
+                return Ok(true);
+            }
+
+            let reason = format!(
+                "Jump host #{} fingerprint changed; connect normally to review the new fingerprint.",
+                self.hop_index
+            );
+            self.set_failure_reason(reason.clone());
+            self.emit_status("31", &reason);
+            return Err(russh::Error::Disconnect);
         }
 
         let reason = if known.is_some() {
@@ -297,6 +326,7 @@ fn build_jump_handler(
     total_hops: usize,
     prompts: HostPromptMap,
     status_options: ConnectionStatusOptions,
+    host_key_verification_mode: HostKeyVerificationMode,
 ) -> JumpHostHandler {
     JumpHostHandler {
         app: app.clone(),
@@ -309,6 +339,7 @@ fn build_jump_handler(
         user_rejected_host_key: Arc::new(AtomicBool::new(false)),
         failure_reason: Arc::new(Mutex::new(None)),
         status_options,
+        host_key_verification_mode,
     }
 }
 
@@ -342,6 +373,7 @@ async fn connect_jump_direct(
     total_hops: usize,
     prompts: HostPromptMap,
     status_options: ConnectionStatusOptions,
+    host_key_verification_mode: HostKeyVerificationMode,
 ) -> Result<client::Handle<JumpHostHandler>, String> {
     let jump_handler = build_jump_handler(
         app,
@@ -351,6 +383,7 @@ async fn connect_jump_direct(
         total_hops,
         prompts,
         status_options,
+        host_key_verification_mode,
     );
     let host_key_rejected = jump_handler.user_rejected_host_key.clone();
     let failure_reason = jump_handler.failure_reason.clone();
@@ -442,6 +475,7 @@ async fn connect_jump_over_stream<S>(
     stream: S,
     prompts: HostPromptMap,
     status_options: ConnectionStatusOptions,
+    host_key_verification_mode: HostKeyVerificationMode,
 ) -> Result<client::Handle<JumpHostHandler>, String>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
@@ -454,6 +488,7 @@ where
         total_hops,
         prompts,
         status_options,
+        host_key_verification_mode,
     );
     let host_key_rejected = jump_handler.user_rejected_host_key.clone();
     let failure_reason = jump_handler.failure_reason.clone();
@@ -545,6 +580,7 @@ pub async fn connect_via_jump_chain<H>(
     target_config: Arc<client::Config>,
     prompts: HostPromptMap,
     status_options: ConnectionStatusOptions,
+    host_key_verification_mode: HostKeyVerificationMode,
 ) -> Result<(JumpChain, client::Handle<H>), String>
 where
     H: client::Handler + Send + 'static,
@@ -565,6 +601,7 @@ where
         total_hops,
         prompts.clone(),
         status_options,
+        host_key_verification_mode,
     )
     .await?;
     sessions.push(first);
@@ -622,6 +659,7 @@ where
             tunnel_channel.into_stream(),
             prompts.clone(),
             status_options,
+            host_key_verification_mode,
         )
         .await?;
         sessions.push(next);
@@ -697,6 +735,7 @@ pub async fn open_target_ssh_session(
     jump_plans: &[JumpHostPlan],
     prompts: HostPromptMap,
     status_options: ConnectionStatusOptions,
+    host_key_verification_mode: HostKeyVerificationMode,
 ) -> Result<(Option<JumpChain>, client::Handle<SshClientHandler>), String> {
     let target_config = Arc::new(compatibility_client_config(
         keepalive_interval_secs as u64,
@@ -713,6 +752,7 @@ pub async fn open_target_ssh_session(
         prompts: prompts.clone(),
         user_rejected_host_key: Arc::new(AtomicBool::new(false)),
         status_options,
+        host_key_verification_mode,
     };
     let host_key_rejected = handler.user_rejected_host_key.clone();
 
@@ -750,6 +790,7 @@ pub async fn open_target_ssh_session(
             target_config,
             prompts,
             status_options,
+            host_key_verification_mode,
         )
         .await?;
         (Some(chain), target_sess)

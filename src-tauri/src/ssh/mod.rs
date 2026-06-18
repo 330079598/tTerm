@@ -10,6 +10,6 @@ pub use jump::{open_target_ssh_session, JumpChain};
 pub use secret_store::{SecretLocation, SecretStoreState};
 pub use store::{load_legacy_password_store, now_unix_ms, remove_legacy_password_store};
 pub use types::{
-    emit_connection_progress, ConnectionStatusOptions, SshClientHandler,
+    emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode, SshClientHandler,
     SshConnectionProgressPayload, HOST_KEY_REJECTED_REASON,
 };

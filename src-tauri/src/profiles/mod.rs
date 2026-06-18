@@ -1,5 +1,5 @@
 use crate::config::{ensure_config_dir, get_config_path};
-use crate::ssh::{SecretLocation, SshClientHandler};
+use crate::ssh::{HostKeyVerificationMode, SecretLocation, SshClientHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::env;
@@ -1461,7 +1461,6 @@ pub async fn test_connection(
         ),
     );
 
-    // Try to establish connection
     use std::time::Duration;
 
     if !plan.jump_hosts.is_empty() {
@@ -1483,10 +1482,12 @@ pub async fn test_connection(
                 &host,
                 port,
                 prompt_state.inner().clone(),
+                HostKeyVerificationMode::TrustUnknownForSession,
             ),
             target_config,
             prompt_state.inner().clone(),
             crate::ssh::ConnectionStatusOptions::SILENT,
+            HostKeyVerificationMode::TrustUnknownForSession,
         )
         .await?;
 
@@ -1560,6 +1561,7 @@ pub async fn test_connection(
                     &host,
                     port,
                     prompt_state.inner().clone(),
+                    HostKeyVerificationMode::TrustUnknownForSession,
                 ),
             ),
         )
@@ -1617,6 +1619,7 @@ fn test_connection_handler(
     host: &str,
     port: u16,
     prompts: crate::core::state::HostPromptMap,
+    host_key_verification_mode: HostKeyVerificationMode,
 ) -> SshClientHandler {
     SshClientHandler {
         app: app.clone(),
@@ -1628,6 +1631,7 @@ fn test_connection_handler(
         prompts,
         user_rejected_host_key: Arc::new(AtomicBool::new(false)),
         status_options: crate::ssh::ConnectionStatusOptions::SILENT,
+        host_key_verification_mode,
     }
 }
 

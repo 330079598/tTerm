@@ -68,6 +68,7 @@ pub async fn connect_authenticated_ssh(
         &plan.jump_hosts,
         prompts,
         ConnectionStatusOptions::SILENT,
+        crate::ssh::HostKeyVerificationMode::PromptAndPersist,
     )
     .await
 }

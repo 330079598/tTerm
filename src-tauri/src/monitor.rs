@@ -327,6 +327,7 @@ async fn get_or_open_monitor_session(
         &plan.jump_hosts,
         prompts,
         ConnectionStatusOptions::QUIET,
+        crate::ssh::HostKeyVerificationMode::PromptAndPersist,
     )
     .await?;
 

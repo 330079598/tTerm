@@ -6,6 +6,44 @@ use tauri::Emitter;
 pub const HOST_KEY_PROMPT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 pub const HOST_KEY_REJECTED_REASON: &str = "SSH host fingerprint rejected by user";
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HostKeyVerificationMode {
+    PromptAndPersist,
+    TrustUnknownForSession,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum HostKeyCheckOutcome {
+    TrustedKnown,
+    TrustUnknownForSession,
+    PromptUser,
+    RejectChangedKnownHost,
+}
+
+fn resolve_host_key_check(
+    mode: HostKeyVerificationMode,
+    known: Option<&crate::ssh::store::KnownHostRecord>,
+    host: &str,
+    port: u16,
+    fingerprint: &str,
+) -> HostKeyCheckOutcome {
+    if let Some(record) = known {
+        if record.host == host && record.port == port && record.fingerprint == fingerprint {
+            return HostKeyCheckOutcome::TrustedKnown;
+        }
+    }
+
+    match (mode, known.is_some()) {
+        (HostKeyVerificationMode::TrustUnknownForSession, false) => {
+            HostKeyCheckOutcome::TrustUnknownForSession
+        }
+        (HostKeyVerificationMode::TrustUnknownForSession, true) => {
+            HostKeyCheckOutcome::RejectChangedKnownHost
+        }
+        (HostKeyVerificationMode::PromptAndPersist, _) => HostKeyCheckOutcome::PromptUser,
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct ConnectionStatusOptions {
     pub emit_terminal_output: bool,
@@ -102,6 +140,7 @@ pub struct SshClientHandler {
     pub prompts: crate::core::state::HostPromptMap,
     pub user_rejected_host_key: Arc<AtomicBool>,
     pub status_options: ConnectionStatusOptions,
+    pub host_key_verification_mode: HostKeyVerificationMode,
 }
 
 impl russh::client::Handler for SshClientHandler {
@@ -144,13 +183,38 @@ impl russh::client::Handler for SshClientHandler {
             }
         };
 
-        if let Some(record) = &known {
-            if record.host == self.host
-                && record.port == self.port
-                && record.fingerprint == fingerprint
-            {
+        match resolve_host_key_check(
+            self.host_key_verification_mode,
+            known.as_ref(),
+            &self.host,
+            self.port,
+            &fingerprint,
+        ) {
+            HostKeyCheckOutcome::TrustedKnown => return Ok(true),
+            HostKeyCheckOutcome::TrustUnknownForSession => {
+                emit_connection_progress(
+                    &self.app,
+                    &self.tab_id,
+                    self.status_options,
+                    SshConnectionProgressPayload::new(
+                        "target_host_key_trusted_for_test",
+                        format!(
+                            "Temporarily trusting target host fingerprint for {}:{}",
+                            self.host, self.port
+                        ),
+                    )
+                    .host(self.host.clone(), self.port),
+                );
                 return Ok(true);
             }
+            HostKeyCheckOutcome::RejectChangedKnownHost => {
+                self.emit_status(
+                    "31",
+                    "SSH host fingerprint changed; connect normally to review the new fingerprint.",
+                );
+                return Ok(false);
+            }
+            HostKeyCheckOutcome::PromptUser => {}
         }
 
         let reason = if known.is_some() {
@@ -217,6 +281,67 @@ impl russh::client::Handler for SshClientHandler {
         }
 
         Ok(true)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{resolve_host_key_check, HostKeyCheckOutcome, HostKeyVerificationMode};
+
+    fn known_host(fingerprint: &str) -> crate::ssh::store::KnownHostRecord {
+        crate::ssh::store::KnownHostRecord {
+            profile_id: Some("profile-1".to_string()),
+            profile_name: "demo".to_string(),
+            host: "example.com".to_string(),
+            port: 22,
+            algorithm: "ssh-ed25519".to_string(),
+            fingerprint: fingerprint.to_string(),
+            trusted_at: 1,
+        }
+    }
+
+    #[test]
+    fn test_mode_trusts_unknown_host_key_for_session() {
+        assert_eq!(
+            resolve_host_key_check(
+                HostKeyVerificationMode::TrustUnknownForSession,
+                None,
+                "example.com",
+                22,
+                "SHA256:new"
+            ),
+            HostKeyCheckOutcome::TrustUnknownForSession
+        );
+    }
+
+    #[test]
+    fn test_mode_rejects_changed_known_host_key() {
+        let known = known_host("SHA256:old");
+
+        assert_eq!(
+            resolve_host_key_check(
+                HostKeyVerificationMode::TrustUnknownForSession,
+                Some(&known),
+                "example.com",
+                22,
+                "SHA256:new"
+            ),
+            HostKeyCheckOutcome::RejectChangedKnownHost
+        );
+    }
+
+    #[test]
+    fn normal_mode_prompts_for_unknown_host_key() {
+        assert_eq!(
+            resolve_host_key_check(
+                HostKeyVerificationMode::PromptAndPersist,
+                None,
+                "example.com",
+                22,
+                "SHA256:new"
+            ),
+            HostKeyCheckOutcome::PromptUser
+        );
     }
 }
 
