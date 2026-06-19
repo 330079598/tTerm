@@ -160,7 +160,9 @@ async fn install_downloaded_app_update(
             ));
         }
     };
+    let app_bundle_path = current_macos_app_bundle_path();
     update.install(bytes).map_err(|e| e.to_string())?;
+    clear_macos_quarantine_after_update(app_bundle_path.as_deref());
     remove_cached_update(downloads.inner(), &channel).await;
     Ok(true)
 }
@@ -177,6 +179,7 @@ async fn download_install_app_update(
     };
 
     let mut started = false;
+    let app_bundle_path = current_macos_app_bundle_path();
     update
         .download_and_install(
             |chunk_length, content_length| {
@@ -193,8 +196,72 @@ async fn download_install_app_update(
         .await
         .map_err(|e| e.to_string())?;
 
+    clear_macos_quarantine_after_update(app_bundle_path.as_deref());
     remove_cached_update(downloads.inner(), &channel).await;
     Ok(true)
+}
+
+#[cfg(target_os = "macos")]
+fn current_macos_app_bundle_path() -> Option<PathBuf> {
+    let executable = std::env::current_exe().ok()?;
+    macos_app_bundle_path_from_executable(&executable)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn current_macos_app_bundle_path() -> Option<PathBuf> {
+    None
+}
+
+#[cfg(target_os = "macos")]
+fn macos_app_bundle_path_from_executable(executable: &Path) -> Option<PathBuf> {
+    let macos_dir = executable.parent()?;
+    if macos_dir.file_name().and_then(|value| value.to_str()) != Some("MacOS") {
+        return None;
+    }
+
+    let contents_dir = macos_dir.parent()?;
+    if contents_dir.file_name().and_then(|value| value.to_str()) != Some("Contents") {
+        return None;
+    }
+
+    let app_bundle = contents_dir.parent()?;
+    if app_bundle.extension().and_then(|value| value.to_str()) != Some("app") {
+        return None;
+    }
+
+    Some(app_bundle.to_path_buf())
+}
+
+fn clear_macos_quarantine_after_update(app_bundle_path: Option<&Path>) {
+    #[cfg(target_os = "macos")]
+    {
+        let Some(app_bundle_path) = app_bundle_path else {
+            return;
+        };
+
+        match std::process::Command::new("/usr/bin/xattr")
+            .args(["-rd", "com.apple.quarantine"])
+            .arg(app_bundle_path)
+            .status()
+        {
+            Ok(status) if status.success() => {}
+            Ok(status) => eprintln!(
+                "Failed to clear macOS quarantine attribute for '{}': xattr exited with {}",
+                app_bundle_path.display(),
+                status
+            ),
+            Err(err) => eprintln!(
+                "Failed to clear macOS quarantine attribute for '{}': {}",
+                app_bundle_path.display(),
+                err
+            ),
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = app_bundle_path;
+    }
 }
 
 fn sanitize_update_channel(channel: &str) -> String {
