@@ -17,6 +17,7 @@ const VAULT_CONFIG_FILE_NAME: &str = "secret_vault_config.json";
 const SECRET_KIND_PASSWORD: &str = "password";
 const SECRET_KIND_VERIFIER: &str = "verifier";
 const VERIFIER_PROFILE_ID: &str = "__vault_verifier__";
+const VAULT_MASTER_ACCOUNT: &str = "__vault_master__";
 const VAULT_VERIFIER_PLAINTEXT: &str = "tterm-vault-verifier-v1";
 const PROBE_ACCOUNT: &str = "__probe__";
 const KEYRING_PROBE_SECRET: &str = "tterm-keyring-probe";
@@ -75,6 +76,7 @@ enum SecretStorageMode {
     Auto,
     System,
     Vault,
+    Hybrid,
     Memory,
 }
 
@@ -83,6 +85,7 @@ impl SecretStorageMode {
         match value {
             "system" => Self::System,
             "vault" => Self::Vault,
+            "hybrid" => Self::Hybrid,
             "memory" => Self::Memory,
             _ => Self::Auto,
         }
@@ -93,6 +96,7 @@ impl SecretStorageMode {
             Self::Auto => "auto",
             Self::System => "system",
             Self::Vault => "vault",
+            Self::Hybrid => "hybrid",
             Self::Memory => "memory",
         }
     }
@@ -175,6 +179,7 @@ impl SecretStoreState {
         let active_backend = match mode {
             SecretStorageMode::System if keyring_available => "system",
             SecretStorageMode::Vault if config.secret_vault_enabled && vault_unlocked => "vault",
+            SecretStorageMode::Hybrid if config.secret_vault_enabled && vault_unlocked => "vault",
             SecretStorageMode::Auto if keyring_available => "system",
             SecretStorageMode::Auto if config.secret_vault_enabled && vault_unlocked => "vault",
             _ => "memory",
@@ -182,6 +187,7 @@ impl SecretStoreState {
         let persistence_available = match mode {
             SecretStorageMode::System => keyring_available,
             SecretStorageMode::Vault => config.secret_vault_enabled && vault_unlocked,
+            SecretStorageMode::Hybrid => config.secret_vault_enabled && vault_unlocked,
             SecretStorageMode::Memory => false,
             SecretStorageMode::Auto => {
                 keyring_available || (config.secret_vault_enabled && vault_unlocked)
@@ -197,6 +203,13 @@ impl SecretStoreState {
             SecretStorageMode::Vault if !vault_unlocked => {
                 Some("App vault mode is selected. Unlock the vault to persist secrets.".to_string())
             }
+            SecretStorageMode::Hybrid if !config.secret_vault_enabled => Some(
+                "Hybrid mode requires the app vault. Set a vault password to enable it."
+                    .to_string(),
+            ),
+            SecretStorageMode::Hybrid if !vault_unlocked => Some(
+                "Hybrid mode requires an unlocked vault. Enter the vault password.".to_string(),
+            ),
             SecretStorageMode::Memory => {
                 Some("Passwords are only kept for the current app session.".to_string())
             }
@@ -286,6 +299,17 @@ impl SecretStoreState {
         let runtime = VaultRuntime { key };
         verify_or_initialize_vault(app, &runtime)?;
 
+        let mode = SecretStorageMode::from_config_value(&config.secret_storage_mode);
+        if mode == SecretStorageMode::Hybrid {
+            if !self.keyring_available()? {
+                return Err(
+                    "Hybrid mode requires the system credential store to save the vault master password."
+                        .to_string(),
+                );
+            }
+            write_keyring_secret(VAULT_MASTER_ACCOUNT, "master", &input.password)?;
+        }
+
         let mut guard = self
             .inner
             .lock()
@@ -311,11 +335,18 @@ impl SecretStoreState {
 
     pub fn set_vault_enabled(&self, enabled: bool) -> Result<SecretBackendStatus, String> {
         let mut config = load_config_file()?;
+        if !enabled {
+            self.delete_vault_master_password_from_keyring()?;
+        }
+
         config.secret_vault_enabled = enabled;
         if enabled && config.secret_storage_mode == "memory" {
             config.secret_storage_mode = "auto".to_string();
         }
         if !enabled && config.secret_storage_mode == "vault" {
+            config.secret_storage_mode = "auto".to_string();
+        }
+        if !enabled && config.secret_storage_mode == "hybrid" {
             config.secret_storage_mode = "auto".to_string();
         }
         save_config_file(&config)?;
@@ -337,9 +368,15 @@ impl SecretStoreState {
     pub fn set_storage_mode(&self, mode: &str) -> Result<SecretBackendStatus, String> {
         let mode = SecretStorageMode::from_config_value(mode);
         let mut config = load_config_file()?;
+        let previous_mode = SecretStorageMode::from_config_value(&config.secret_storage_mode);
+        if previous_mode == SecretStorageMode::Hybrid && mode != SecretStorageMode::Hybrid {
+            self.delete_vault_master_password_from_keyring()?;
+        }
+
         config.secret_storage_mode = mode.as_str().to_string();
-        config.secret_vault_enabled =
-            config.secret_vault_enabled || mode == SecretStorageMode::Vault;
+        config.secret_vault_enabled = config.secret_vault_enabled
+            || mode == SecretStorageMode::Vault
+            || mode == SecretStorageMode::Hybrid;
         save_config_file(&config)?;
         self.get_status()
     }
@@ -360,7 +397,9 @@ impl SecretStoreState {
     ) -> Result<Option<String>, String> {
         match SecretStorageMode::from_config_value(&load_config_file()?.secret_storage_mode) {
             SecretStorageMode::System => self.get_password_from_keyring(profile_id),
-            SecretStorageMode::Vault => self.get_password_from_vault(app, profile_id),
+            SecretStorageMode::Vault | SecretStorageMode::Hybrid => {
+                self.get_password_from_vault(app, profile_id)
+            }
             SecretStorageMode::Memory => Ok(None),
             SecretStorageMode::Auto => {
                 if self.keyring_available()? {
@@ -403,7 +442,9 @@ impl SecretStoreState {
     ) -> Result<SecretLocation, String> {
         match SecretStorageMode::from_config_value(&load_config_file()?.secret_storage_mode) {
             SecretStorageMode::System => self.save_password_to_keyring(profile_id, password),
-            SecretStorageMode::Vault => self.save_password_to_vault(app, profile_id, password),
+            SecretStorageMode::Vault | SecretStorageMode::Hybrid => {
+                self.save_password_to_vault(app, profile_id, password)
+            }
             SecretStorageMode::Memory => Ok(SecretLocation::Memory),
             SecretStorageMode::Auto => {
                 if self.keyring_available()? {
@@ -466,14 +507,14 @@ impl SecretStoreState {
     ) -> Result<bool, String> {
         if matches!(
             SecretStorageMode::from_config_value(from),
-            SecretStorageMode::Vault
+            SecretStorageMode::Vault | SecretStorageMode::Hybrid
         ) && !self.vault_unlocked()?
         {
             return Err("Unlock the app vault before copying passwords from it.".to_string());
         }
         if matches!(
             SecretStorageMode::from_config_value(to),
-            SecretStorageMode::Vault
+            SecretStorageMode::Vault | SecretStorageMode::Hybrid
         ) && !self.vault_unlocked()?
         {
             return Err("Unlock the app vault before copying passwords to it.".to_string());
@@ -481,7 +522,9 @@ impl SecretStoreState {
 
         let password = match SecretStorageMode::from_config_value(from) {
             SecretStorageMode::System => self.get_password_from_keyring(profile_id)?,
-            SecretStorageMode::Vault => self.get_password_from_vault(app, profile_id)?,
+            SecretStorageMode::Vault | SecretStorageMode::Hybrid => {
+                self.get_password_from_vault(app, profile_id)?
+            }
             SecretStorageMode::Auto | SecretStorageMode::Memory => None,
         };
         let Some(password) = password else {
@@ -490,11 +533,52 @@ impl SecretStoreState {
 
         let location = match SecretStorageMode::from_config_value(to) {
             SecretStorageMode::System => self.save_password_to_keyring(profile_id, &password)?,
-            SecretStorageMode::Vault => self.save_password_to_vault(app, profile_id, &password)?,
+            SecretStorageMode::Vault | SecretStorageMode::Hybrid => {
+                self.save_password_to_vault(app, profile_id, &password)?
+            }
             SecretStorageMode::Auto | SecretStorageMode::Memory => SecretLocation::Memory,
         };
 
         Ok(!matches!(location, SecretLocation::Memory))
+    }
+
+    /// Attempt to auto-unlock the vault by reading the master password from
+    /// the system keyring. Returns `Ok(true)` on success, `Ok(false)` if no
+    /// saved password exists or the keyring is unavailable.
+    pub fn try_auto_unlock_hybrid(&self, app: &AppHandle) -> Result<bool, String> {
+        if !self.keyring_available()? {
+            return Ok(false);
+        }
+
+        let config = load_config_file()?;
+        if !config.secret_vault_enabled {
+            return Ok(false);
+        }
+
+        let Some(password) = read_keyring_secret(VAULT_MASTER_ACCOUNT, "master")
+            .map_err(|e| format!("Failed to read keyring: {}", e))?
+        else {
+            return Ok(false);
+        };
+
+        let key = derive_or_initialize_vault_key(app, password.as_bytes())?;
+        let runtime = VaultRuntime { key };
+        verify_or_initialize_vault(app, &runtime)?;
+
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|_| "Secret store state is poisoned".to_string())?;
+        guard.vault = Some(runtime);
+
+        Ok(true)
+    }
+
+    fn delete_vault_master_password_from_keyring(&self) -> Result<bool, String> {
+        if !self.keyring_available()? {
+            return Ok(false);
+        }
+        delete_keyring_secret(VAULT_MASTER_ACCOUNT, "master")
     }
 }
 

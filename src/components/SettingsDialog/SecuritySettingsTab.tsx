@@ -55,8 +55,10 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
   setPassword,
 }) => {
   const { t } = useTranslation()
-  const vaultControlsVisible = secretStorageMode === "vault" || secretStorageMode === "auto"
+  const vaultControlsVisible =
+    secretStorageMode === "vault" || secretStorageMode === "auto" || secretStorageMode === "hybrid"
   const vaultSettingsVisible = vaultControlsVisible && configSecretVaultEnabled
+  const isHybrid = secretStorageMode === "hybrid"
 
   return (
     <ScrollArea className="h-full pr-4">
@@ -92,6 +94,7 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
                 <option value="auto">{t("secretStorage.modes.auto")}</option>
                 <option value="system">{t("secretStorage.modes.system")}</option>
                 <option value="vault">{t("secretStorage.modes.vault")}</option>
+                <option value="hybrid">{t("secretStorage.modes.hybrid")}</option>
                 <option value="memory">{t("secretStorage.modes.memory")}</option>
               </Select>
             </div>
@@ -115,7 +118,7 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
           </Alert>
         )}
 
-        {vaultControlsVisible && (
+        {vaultControlsVisible && !isHybrid && (
           <Card>
             <CardContent className="flex items-center justify-between gap-4 p-4">
               <div>
@@ -129,6 +132,16 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
                 disabled={secretBusy || secretStorageMode === "vault"}
                 onCheckedChange={handleEnableVault}
               />
+            </CardContent>
+          </Card>
+        )}
+
+        {isHybrid && !secretStatus.vaultUnlocked && secretStatus.keyringAvailable && (
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-muted-foreground text-xs leading-5">
+                {t("secretStorage.hybridSetup")}
+              </p>
             </CardContent>
           </Card>
         )}
@@ -166,7 +179,7 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
           </Card>
         )}
 
-        {vaultSettingsVisible && (
+        {vaultSettingsVisible && !isHybrid && (
           <Card>
             <CardContent className="flex items-center justify-between gap-4 p-4">
               <div>

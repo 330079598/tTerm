@@ -97,9 +97,11 @@ export const TTermApp: React.FC = () => {
   const settingsTabTitle = t("settings.title", { defaultValue: SETTINGS_TAB_TITLE })
   const shouldPromptStartupVaultUnlock =
     isLoaded &&
-    config.prompt_unlock_vault_on_startup &&
     config.secret_vault_enabled &&
-    (config.secret_storage_mode === "vault" || config.secret_storage_mode === "auto") &&
+    (config.secret_storage_mode === "vault" ||
+      config.secret_storage_mode === "auto" ||
+      config.secret_storage_mode === "hybrid") &&
+    (config.prompt_unlock_vault_on_startup || config.secret_storage_mode === "hybrid") &&
     !secretStatus.vaultUnlocked &&
     !startupVaultUnlockDismissed
   const startupConnectionsReady = !shouldPromptStartupVaultUnlock

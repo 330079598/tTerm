@@ -15,7 +15,7 @@ export interface SecretBackendStatus {
   message?: string | null
 }
 
-export type SecretStorageMode = "auto" | "system" | "vault" | "memory"
+export type SecretStorageMode = "auto" | "system" | "vault" | "hybrid" | "memory"
 
 export interface CopySecretStoreResult {
   copied: number
@@ -73,8 +73,8 @@ const defaultConfig: AppConfig = {
   terminal_shell: "auto",
   terminal_shell_custom_path: "",
   terminal_shell_custom_args: "",
-  secret_vault_enabled: false,
-  secret_storage_mode: "auto",
+  secret_vault_enabled: true,
+  secret_storage_mode: "hybrid",
   prompt_unlock_vault_on_startup: false,
   scrollback_lines: 10000,
   terminal_padding_left_px: 6,
@@ -136,9 +136,10 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     secret_storage_mode:
       config.secret_storage_mode === "system" ||
       config.secret_storage_mode === "vault" ||
+      config.secret_storage_mode === "hybrid" ||
       config.secret_storage_mode === "memory"
         ? config.secret_storage_mode
-        : "auto",
+        : "hybrid",
     prompt_unlock_vault_on_startup: config.prompt_unlock_vault_on_startup === true,
     monitor_refresh_interval_secs: normalizeMonitorRefreshInterval(
       config.monitor_refresh_interval_secs
@@ -251,7 +252,11 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     const status = await invoke<SecretBackendStatus>("set_secret_vault_enabled", { enabled })
     const normalized = normalizeSecretStatus(status)
     setSecretStatus(normalized)
-    setConfig((prev) => ({ ...prev, secret_vault_enabled: enabled }))
+    setConfig((prev) => ({
+      ...prev,
+      secret_storage_mode: normalized.storageMode,
+      secret_vault_enabled: normalized.vaultEnabled,
+    }))
     return normalized
   }, [])
 
@@ -263,8 +268,8 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     setSecretStatus(normalized)
     setConfig((prev) => ({
       ...prev,
-      secret_storage_mode: mode,
-      secret_vault_enabled: prev.secret_vault_enabled || mode === "vault",
+      secret_storage_mode: normalized.storageMode,
+      secret_vault_enabled: normalized.vaultEnabled,
     }))
     return normalized
   }, [])

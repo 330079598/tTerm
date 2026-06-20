@@ -23,7 +23,7 @@ pub struct AppConfig {
     pub terminal_shell_custom_path: String,
     #[serde(default)]
     pub terminal_shell_custom_args: String,
-    #[serde(default)]
+    #[serde(default = "default_secret_vault_enabled")]
     pub secret_vault_enabled: bool,
     #[serde(default = "default_secret_storage_mode")]
     pub secret_storage_mode: String,
@@ -95,7 +95,11 @@ fn default_terminal_shell() -> String {
 }
 
 fn default_secret_storage_mode() -> String {
-    "auto".to_string()
+    "hybrid".to_string()
+}
+
+fn default_secret_vault_enabled() -> bool {
+    true
 }
 
 fn default_scrollback_lines() -> u32 {
@@ -141,7 +145,7 @@ impl Default for AppConfig {
             terminal_shell: default_terminal_shell(),
             terminal_shell_custom_path: String::new(),
             terminal_shell_custom_args: String::new(),
-            secret_vault_enabled: false,
+            secret_vault_enabled: default_secret_vault_enabled(),
             secret_storage_mode: default_secret_storage_mode(),
             prompt_unlock_vault_on_startup: false,
             scrollback_lines: default_scrollback_lines(),

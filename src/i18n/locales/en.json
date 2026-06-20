@@ -571,7 +571,7 @@
   },
   "secretStorage": {
     "title": "Secret Storage",
-    "description": "Choose where SSH passwords are persisted. System keyring is the default; app vault can be used directly when you want app-managed encrypted storage.",
+    "description": "Choose where SSH passwords are persisted. Hybrid mode (recommended) stores all passwords in an encrypted vault and saves the master password in the system keyring for automatic unlock.",
     "activeBackend": "Active backend",
     "storageMode": "Storage mode",
     "enableVault": "Enable app vault",
@@ -615,14 +615,17 @@
       "auto": "Auto",
       "system": "System keyring",
       "vault": "App vault",
+      "hybrid": "Hybrid (recommended)",
       "memory": "Memory only"
     },
     "modeDescriptions": {
       "auto": "Use the system keyring when available, then fall back to the unlocked app vault.",
       "system": "Use only the operating system credential store.",
       "vault": "Use only the app vault. Unlock it before saving or loading passwords.",
+      "hybrid": "All passwords are stored in the encrypted app vault. The vault master password is saved in the system keyring so the vault unlocks automatically on startup.",
       "memory": "Do not persist passwords; keep them only for the current app session."
     },
+    "hybridSetup": "Set a vault password to enable hybrid mode. It will be saved in your system keyring for automatic unlock.",
     "backends": {
       "system": "System keyring",
       "vault": "App vault",

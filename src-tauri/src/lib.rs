@@ -527,6 +527,23 @@ pub fn run() {
             if let Err(err) = migrate_legacy_ssh_passwords(&app_handle) {
                 eprintln!("Failed to migrate legacy SSH passwords: {}", err);
             }
+
+            // Auto-unlock vault from keyring when hybrid mode is active
+            if let Ok(cfg) = config::load_config_file() {
+                if cfg.secret_storage_mode == "hybrid" && cfg.secret_vault_enabled {
+                    let secret_state = app_handle.state::<ssh::SecretStoreState>();
+                    match secret_state.try_auto_unlock_hybrid(&app_handle) {
+                        Ok(true) => {}
+                        Ok(false) => {
+                            eprintln!("Hybrid auto-unlock: no saved master password in keyring");
+                        }
+                        Err(err) => {
+                            eprintln!("Hybrid auto-unlock failed: {}", err);
+                        }
+                    }
+                }
+            }
+
             Ok(())
         })
         .run(tauri::generate_context!())
