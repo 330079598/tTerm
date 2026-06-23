@@ -543,6 +543,34 @@ button.server-monitor-metric.is-clickable:focus-visible {
   font-feature-settings: normal;
 }
 
+.terminal-surface .xterm .xterm-viewport {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+.terminal-surface .xterm .xterm-viewport::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-track {
+  background: hsl(var(--secondary) / 0.3);
+}
+
+.terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-thumb {
+  min-height: 24px;
+  border-radius: 999px;
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+.terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.8);
+}
+
+.terminal-surface .xterm .xterm-scrollable-element > .scrollbar.invisible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .connection-header-restore {
   position: absolute;
   top: 10px;
