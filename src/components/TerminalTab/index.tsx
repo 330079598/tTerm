@@ -1,5 +1,4 @@
 import "@/components/TerminalTab.css"
-import "@xterm/xterm/css/xterm.css"
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { FitAddon } from "@xterm/addon-fit"
 import { SearchAddon } from "@xterm/addon-search"
