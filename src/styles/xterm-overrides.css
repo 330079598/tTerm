@@ -1,0 +1,111 @@
+/**
+ * xterm.js Scrollbar Overrides
+ * 
+ * This file provides critical CSS overrides for xterm.js v6 scrollbar behavior.
+ * These styles are intentionally placed in a separate file and imported AFTER
+ * xterm.css to ensure proper cascade order in both dev and production builds.
+ * 
+ * Why this approach:
+ * - xterm.css is unlayered (no @layer wrapper)
+ * - Unlayered CSS has higher specificity than @layer in Tailwind v4
+ * - By keeping these overrides unlayered too, we match xterm.css specificity
+ * - Import order in main.tsx ensures our overrides come after xterm.css
+ */
+
+/* =============================================================================
+   xterm v6 Floating Scrollbar Overrides
+   ============================================================================= */
+
+/**
+ * Force xterm v6 floating scrollbar to always be visible
+ * xterm v6 uses .xterm-scrollable-element > .scrollbar with dynamic 'invisible' class
+ */
+.xterm .xterm-scrollable-element > .scrollbar {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  display: block !important;
+}
+
+/**
+ * Prevent xterm from hiding scrollbar with 'invisible' class
+ */
+.xterm .xterm-scrollable-element > .scrollbar.invisible {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/**
+ * Style the scrollbar slider (thumb)
+ */
+.xterm .xterm-scrollable-element > .scrollbar > .slider {
+  background: hsl(0 0% 80% / 0.4) !important;
+  min-height: 24px !important;
+  border-radius: 999px;
+}
+
+.xterm .xterm-scrollable-element > .scrollbar > .slider:hover {
+  background: hsl(0 0% 80% / 0.7) !important;
+}
+
+.xterm .xterm-scrollable-element > .scrollbar > .slider.active {
+  background: hsl(0 0% 80% / 0.6) !important;
+}
+
+/* =============================================================================
+   Terminal Surface Specific Overrides
+   ============================================================================= */
+
+/**
+ * Apply our custom webkit scrollbar styles to terminal viewport
+ * This provides fallback styling for the native scrollbar underneath
+ */
+.terminal-surface .xterm .xterm-viewport {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+.terminal-surface .xterm .xterm-viewport::-webkit-scrollbar {
+  width: 14px;
+}
+
+.terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-thumb {
+  min-height: 24px;
+  border-radius: 999px;
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+.terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.8);
+}
+
+/* =============================================================================
+   Theme-aware Scrollbar Colors
+   ============================================================================= */
+
+/**
+ * Adjust scrollbar colors based on theme
+ * Using CSS variables ensures consistency across theme switches
+ */
+[data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar > .slider {
+  background: hsl(0 0% 40% / 0.3) !important;
+}
+
+[data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar > .slider:hover {
+  background: hsl(0 0% 40% / 0.5) !important;
+}
+
+[data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar > .slider.active {
+  background: hsl(0 0% 40% / 0.45) !important;
+}
+
+[data-theme="light"] .terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.4);
+}
+
+[data-theme="light"] .terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.6);
+}
