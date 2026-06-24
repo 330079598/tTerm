@@ -1,16 +1,13 @@
 /**
  * xterm.js Scrollbar Overrides
- * 
- * This file provides critical CSS overrides for xterm.js v6 scrollbar behavior.
- * These styles are intentionally placed in a separate file and imported AFTER
- * xterm.css to ensure proper cascade order in both dev and production builds.
- * 
- * Why this approach:
- * - xterm.css is unlayered (no @layer wrapper)
- * - Unlayered CSS has higher specificity than @layer in Tailwind v4
- * - By keeping these overrides unlayered too, we match xterm.css specificity
- * - Import order in main.tsx ensures our overrides come after xterm.css
+ *
+ * Wrapped in @layer overrides (declared before Tailwind's layers in themes.css).
+ * Per CSS Cascade Layers spec, !important in an earlier-declared layer beats
+ * !important in later layers and unlayered CSS — solving the production build
+ * issue where Tailwind v4's @layer declarations demoted our unlayered !important.
  */
+
+@layer overrides {
 
 /* =============================================================================
    xterm v6 Floating Scrollbar Overrides
@@ -109,3 +106,5 @@
 [data-theme="light"] .terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.6);
 }
+
+} /* end @layer overrides */

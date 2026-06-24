@@ -1,3 +1,4 @@
+@layer overrides;
 @import "tailwindcss";
 
 @theme {
