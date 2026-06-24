@@ -22,6 +22,7 @@
  * - Hover/drag the slider: brighter
  */
   .xterm .xterm-scrollable-element > .scrollbar {
+    visibility: visible !important;
     opacity: 1 !important;
     pointer-events: auto !important;
     display: block !important;
@@ -32,8 +33,11 @@
   /**
  * Idle state (mouse left the terminal): xterm adds .invisible.
  * Keep it visible but collapse to a thin line instead of hiding.
+ * NOTE: xterm reuses the class name "invisible", which Tailwind v4 maps to
+ * `visibility: hidden !important` — so we must re-force visibility here.
  */
   .xterm .xterm-scrollable-element > .scrollbar.invisible {
+    visibility: visible !important;
     opacity: 1 !important;
     pointer-events: auto !important;
     width: 4px !important;
