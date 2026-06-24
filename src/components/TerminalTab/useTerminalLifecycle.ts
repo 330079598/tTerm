@@ -158,43 +158,6 @@ export function useTerminalLifecycle({
 
     term.open(container)
 
-    /**
-     * xterm v6 floating scrollbar fix.
-     *
-     * The scrollbar behavior is primarily controlled by CSS in:
-     * - src/styles/xterm-overrides.css (static styles with !important)
-     *
-     * This MutationObserver provides runtime enforcement as a safety net,
-     * ensuring scrollbar visibility even if xterm.js dynamically toggles classes.
-     *
-     * The CSS approach is the primary solution; this is defensive programming.
-     */
-    const enforceScrollbarVisibility = () => {
-      const scrollbar = container.querySelector<HTMLElement>(
-        ".xterm-scrollable-element > .scrollbar"
-      )
-      if (scrollbar && scrollbar.classList.contains("invisible")) {
-        // Remove the invisible class that xterm adds on mouse leave
-        scrollbar.classList.remove("invisible")
-      }
-    }
-
-    // Initial enforcement after terminal renders
-    requestAnimationFrame(enforceScrollbarVisibility)
-
-    // Watch for class changes and enforce visibility
-    const scrollableEl = container.querySelector(".xterm-scrollable-element")
-    let classObserver: MutationObserver | null = null
-
-    if (scrollableEl) {
-      classObserver = new MutationObserver(enforceScrollbarVisibility)
-      classObserver.observe(scrollableEl, {
-        subtree: true,
-        attributes: true,
-        attributeFilter: ["class"],
-      })
-    }
-
     if (isActiveRef.current) {
       term.focus()
     }
@@ -371,9 +334,6 @@ export function useTerminalLifecycle({
 
     return () => {
       disposed = true
-
-      // Cleanup class observer
-      classObserver?.disconnect()
 
       resizeObserver.disconnect()
       resizeObserverRef.current = null

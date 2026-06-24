@@ -8,105 +8,123 @@
  */
 
 @layer overrides {
-
-/* =============================================================================
+  /* =============================================================================
    xterm v6 Floating Scrollbar Overrides
    ============================================================================= */
 
-/**
- * Force xterm v6 floating scrollbar to always be visible
- * xterm v6 uses .xterm-scrollable-element > .scrollbar with dynamic 'invisible' class
+  /**
+ * xterm v6 floating scrollbar: PowerShell-style auto-thin behavior.
+ * xterm v6 uses .xterm-scrollable-element > .scrollbar with a dynamic
+ * 'invisible' class added on mouse leave and removed on mouse enter.
+ *
+ * - Mouse over terminal (no .invisible): full-width, normal opacity
+ * - Mouse away (.invisible): thin dim line, still visible
+ * - Hover/drag the slider: brighter
  */
-.xterm .xterm-scrollable-element > .scrollbar {
-  opacity: 1 !important;
-  pointer-events: auto !important;
-  display: block !important;
-  width: 10px !important;
-}
+  .xterm .xterm-scrollable-element > .scrollbar {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    display: block !important;
+    width: 10px !important;
+    transition: width 120ms ease;
+  }
 
-/**
- * Prevent xterm from hiding scrollbar with 'invisible' class
+  /**
+ * Idle state (mouse left the terminal): xterm adds .invisible.
+ * Keep it visible but collapse to a thin line instead of hiding.
  */
-.xterm .xterm-scrollable-element > .scrollbar.invisible {
-  opacity: 1 !important;
-  pointer-events: auto !important;
-}
+  .xterm .xterm-scrollable-element > .scrollbar.invisible {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    width: 4px !important;
+  }
 
-/**
+  /**
  * Style the scrollbar slider (thumb)
  */
-.xterm .xterm-scrollable-element > .scrollbar > .slider {
-  background: hsl(0 0% 80% / 0.4) !important;
-  min-height: 24px !important;
-  border-radius: 999px;
-  width: 10px !important;
-}
+  .xterm .xterm-scrollable-element > .scrollbar > .slider {
+    background: hsl(0 0% 80% / 0.4) !important;
+    min-height: 24px !important;
+    border-radius: 999px;
+    width: 10px !important;
+    transition:
+      width 120ms ease,
+      background 120ms ease;
+  }
 
-.xterm .xterm-scrollable-element > .scrollbar > .slider:hover {
-  background: hsl(0 0% 80% / 0.7) !important;
-}
+  .xterm .xterm-scrollable-element > .scrollbar.invisible > .slider {
+    width: 4px !important;
+    background: hsl(0 0% 80% / 0.22) !important;
+  }
 
-.xterm .xterm-scrollable-element > .scrollbar > .slider.active {
-  background: hsl(0 0% 80% / 0.6) !important;
-}
+  .xterm .xterm-scrollable-element > .scrollbar > .slider:hover {
+    background: hsl(0 0% 80% / 0.7) !important;
+  }
 
-/* =============================================================================
+  .xterm .xterm-scrollable-element > .scrollbar > .slider.active {
+    background: hsl(0 0% 80% / 0.6) !important;
+  }
+
+  /* =============================================================================
    Terminal Surface Specific Overrides
    ============================================================================= */
 
-/**
+  /**
  * Apply our custom webkit scrollbar styles to terminal viewport
  * This provides fallback styling for the native scrollbar underneath
  */
-.terminal-surface .xterm .xterm-viewport {
-  overflow-y: scroll;
-  scrollbar-gutter: stable;
-}
+  .terminal-surface .xterm .xterm-viewport {
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+  }
 
-.terminal-surface .xterm .xterm-viewport::-webkit-scrollbar {
-  width: 10px;
-}
+  .terminal-surface .xterm .xterm-viewport::-webkit-scrollbar {
+    width: 10px;
+  }
 
-.terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-track {
-  background: transparent;
-}
+  .terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-track {
+    background: transparent;
+  }
 
-.terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-thumb {
-  min-height: 24px;
-  border-radius: 999px;
-  background: hsl(var(--muted-foreground) / 0.5);
-}
+  .terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-thumb {
+    min-height: 24px;
+    border-radius: 999px;
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
 
-.terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.8);
-}
+  .terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.8);
+  }
 
-/* =============================================================================
+  /* =============================================================================
    Theme-aware Scrollbar Colors
    ============================================================================= */
 
-/**
+  /**
  * Adjust scrollbar colors based on theme
  * Using CSS variables ensures consistency across theme switches
  */
-[data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar > .slider {
-  background: hsl(0 0% 40% / 0.3) !important;
-}
+  [data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar > .slider {
+    background: hsl(0 0% 40% / 0.3) !important;
+  }
 
-[data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar > .slider:hover {
-  background: hsl(0 0% 40% / 0.5) !important;
-}
+  [data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar.invisible > .slider {
+    background: hsl(0 0% 40% / 0.2) !important;
+  }
 
-[data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar > .slider.active {
-  background: hsl(0 0% 40% / 0.45) !important;
-}
+  [data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar > .slider:hover {
+    background: hsl(0 0% 40% / 0.5) !important;
+  }
 
-[data-theme="light"] .terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.4);
-}
+  [data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar > .slider.active {
+    background: hsl(0 0% 40% / 0.45) !important;
+  }
 
-[data-theme="light"] .terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.6);
-}
+  [data-theme="light"] .terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
 
+  [data-theme="light"] .terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.6);
+  }
 } /* end @layer overrides */
