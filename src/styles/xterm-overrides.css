@@ -21,6 +21,7 @@
   opacity: 1 !important;
   pointer-events: auto !important;
   display: block !important;
+  width: 10px !important;
 }
 
 /**
@@ -38,6 +39,7 @@
   background: hsl(0 0% 80% / 0.4) !important;
   min-height: 24px !important;
   border-radius: 999px;
+  width: 10px !important;
 }
 
 .xterm .xterm-scrollable-element > .scrollbar > .slider:hover {
@@ -62,7 +64,7 @@
 }
 
 .terminal-surface .xterm .xterm-viewport::-webkit-scrollbar {
-  width: 14px;
+  width: 10px;
 }
 
 .terminal-surface .xterm .xterm-viewport::-webkit-scrollbar-track {
