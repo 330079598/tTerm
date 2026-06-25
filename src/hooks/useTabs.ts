@@ -13,6 +13,7 @@ export interface UseTabsReturn {
   duplicateTab: (id: string) => void
   closeOtherTabs: (id: string) => void
   closeTabsToRight: (id: string) => void
+  closeTabsToLeft: (id: string) => void
   renameTab: (id: string, newTitle: string) => void
   restoreSession: (tabs: Tab[], activeTabId: string | null) => void
   updateTab: (id: string, updater: (tab: Tab) => Tab) => void
@@ -242,6 +243,15 @@ export function useTabs(): UseTabsReturn {
     })
   }, [])
 
+  const closeTabsToLeft = useCallback((id: string) => {
+    setTabs((prevTabs) => {
+      const tabIndex = prevTabs.findIndex((tab) => tab.id === id)
+      if (tabIndex <= 0) return prevTabs
+
+      return prevTabs.slice(tabIndex)
+    })
+  }, [])
+
   const renameTab = useCallback((id: string, newTitle: string) => {
     setTabs((prevTabs) =>
       prevTabs.map((tab) => (tab.id === id ? { ...tab, title: newTitle } : tab))
@@ -266,6 +276,7 @@ export function useTabs(): UseTabsReturn {
     duplicateTab,
     closeOtherTabs,
     closeTabsToRight,
+    closeTabsToLeft,
     renameTab,
     restoreSession,
     updateTab,

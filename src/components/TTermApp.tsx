@@ -83,6 +83,7 @@ export const TTermApp: React.FC = () => {
     duplicateTab,
     closeOtherTabs,
     closeTabsToRight,
+    closeTabsToLeft,
     renameTab,
     restoreSession,
     updateTab,
@@ -354,6 +355,42 @@ export const TTermApp: React.FC = () => {
     ]
   )
 
+  const handleCloseTabsToLeft = useCallback(
+    async (id: string) => {
+      const tabIndex = tabs.findIndex((tab) => tab.id === id)
+      if (tabIndex <= 0) {
+        return
+      }
+
+      const targetTabs = tabs.slice(0, tabIndex)
+      const unsavedConfirmed = await confirmCloseTabsWithUnsavedRemoteFiles(
+        targetTabs.map((tab) => tab.id)
+      )
+      if (!unsavedConfirmed) {
+        return
+      }
+
+      const confirmed = await confirmCloseTabsWithTransfers(targetTabs.map((tab) => tab.id))
+      if (!confirmed) {
+        return
+      }
+
+      for (const targetTab of targetTabs) {
+        if (targetTab.type !== "settings" && targetTab.type !== "remote-file-editor") {
+          cleanupConnection(targetTab.id)
+        }
+      }
+      closeTabsToLeft(id)
+    },
+    [
+      cleanupConnection,
+      closeTabsToLeft,
+      confirmCloseTabsWithTransfers,
+      confirmCloseTabsWithUnsavedRemoteFiles,
+      tabs,
+    ]
+  )
+
   const handleCloseTabsToRight = useCallback(
     async (id: string) => {
       const tabIndex = tabs.findIndex((tab) => tab.id === id)
@@ -411,6 +448,7 @@ export const TTermApp: React.FC = () => {
     handleRemoveTab,
     handleCloseOtherTabs,
     handleCloseTabsToRight,
+    handleCloseTabsToLeft,
     updateTab,
     renameTab,
   })

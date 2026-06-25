@@ -36,6 +36,7 @@
     "unpinConnectionHeader": "Unpin Connection Header",
     "closeTab": "Close Tab",
     "closeOtherTabs": "Close Other Tabs",
+    "closeTabsToLeft": "Close Tabs to the Left",
     "closeTabsToRight": "Close Tabs to the Right"
   },
   "settings": {

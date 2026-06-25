@@ -9,6 +9,7 @@ interface UseTabContextMenuDeps {
   handleRemoveTab: (id: string) => void
   handleCloseOtherTabs: (id: string) => void
   handleCloseTabsToRight: (id: string) => void
+  handleCloseTabsToLeft: (id: string) => void
   updateTab: (id: string, updater: (tab: Tab) => Tab) => void
   renameTab: (id: string, newName: string) => void
 }
@@ -19,6 +20,7 @@ export function useTabContextMenu({
   handleRemoveTab,
   handleCloseOtherTabs,
   handleCloseTabsToRight,
+  handleCloseTabsToLeft,
   updateTab,
   renameTab,
 }: UseTabContextMenuDeps) {
@@ -93,6 +95,9 @@ export function useTabContextMenu({
         case "close-right":
           handleCloseTabsToRight(tab.id)
           break
+        case "close-left":
+          handleCloseTabsToLeft(tab.id)
+          break
         default:
           break
       }
@@ -106,6 +111,7 @@ export function useTabContextMenu({
       handleRemoveTab,
       handleCloseOtherTabs,
       handleCloseTabsToRight,
+      handleCloseTabsToLeft,
       updateTab,
     ]
   )

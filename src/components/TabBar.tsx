@@ -108,6 +108,7 @@ const TabItem: React.FC<TabItemProps> = ({
           { separator: true, label: "", action: "" },
           { label: t("contextMenu.closeTab"), action: "close", icon: "x" },
           { label: t("contextMenu.closeOtherTabs"), action: "close-others" },
+          { label: t("contextMenu.closeTabsToLeft"), action: "close-left" },
           { label: t("contextMenu.closeTabsToRight"), action: "close-right" },
         ])
         return
@@ -132,6 +133,7 @@ const TabItem: React.FC<TabItemProps> = ({
         { separator: true, label: "", action: "" },
         { label: t("contextMenu.closeTab"), action: "close", icon: "x" },
         { label: t("contextMenu.closeOtherTabs"), action: "close-others" },
+        { label: t("contextMenu.closeTabsToLeft"), action: "close-left" },
         { label: t("contextMenu.closeTabsToRight"), action: "close-right" },
       ]
       onContextMenu(e, tab, actions)
