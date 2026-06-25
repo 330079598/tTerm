@@ -162,6 +162,7 @@ const TabItem: React.FC<TabItemProps> = ({
           role="tab"
           tabIndex={0}
           aria-selected={isActive}
+          data-allow-context-menu
           onClick={() => onTabClick(tab.id)}
           onContextMenu={handleContextMenu}
           onKeyDown={handleKeyDown}

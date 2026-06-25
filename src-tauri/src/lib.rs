@@ -398,6 +398,21 @@ fn cleanup_stale_pending_update_files(app: &tauri::AppHandle) -> Result<(), Stri
     Ok(())
 }
 
+#[tauri::command]
+fn toggle_devtools(app: tauri::AppHandle, enable: bool) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or("Main window not found")?;
+
+    if enable {
+        window.open_devtools();
+    } else {
+        window.close_devtools();
+    }
+
+    Ok(())
+}
+
 const MIGRATED_CONFIG_FILES: &[&str] = &[
     "config.json",
     "profiles.json",
@@ -511,6 +526,7 @@ pub fn run() {
             download_app_update,
             install_downloaded_app_update,
             download_install_app_update,
+            toggle_devtools,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();

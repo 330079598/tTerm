@@ -353,6 +353,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
                     handleActivateEntry(entry.path)
                     setContextMenu({ x: event.clientX, y: event.clientY, entryPath: entry.path })
                   }}
+                  data-allow-context-menu
                 >
                   {isSelectionMode && (
                     <span className="sftp-cell sftp-checkbox-cell">

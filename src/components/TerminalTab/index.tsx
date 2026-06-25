@@ -530,6 +530,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
         <div
           ref={containerRef}
+          data-allow-context-menu
           onMouseDown={() => {
             termRef.current?.focus()
             if (showSftpDrawer) {

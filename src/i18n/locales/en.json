@@ -75,7 +75,11 @@
     "jumpHost": "Jump hosts",
     "connectionDesc": "Control connection-related prompts and route details.",
     "profileGroups": "Groups",
-    "updates": "Updates"
+    "updates": "Updates",
+    "devtools": "Developer Tools",
+    "devtoolsDesc": "Open the developer tools window for debugging.",
+    "enableDevtools": "Developer Tools",
+    "openDevtools": "Open DevTools"
   },
   "theme": {
     "title": "Choose Theme",

@@ -528,6 +528,19 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
   }
 
+  const handleEnableDevtoolsChange = async () => {
+    try {
+      await invoke("toggle_devtools", { enable: true })
+    } catch (error) {
+      console.error("Failed to open devtools:", error)
+      toast({
+        title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleShowJumpHostConnectionInfoChange = async (checked: boolean) => {
     try {
       await saveConfig({ show_jump_host_connection_info: checked })
@@ -739,6 +752,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleLanguageChange={handleLanguageChange}
               handleRestoreAllSessionConnectionsChange={handleRestoreAllSessionConnectionsChange}
               handleSftpPasteUploadEnabledChange={handleSftpPasteUploadEnabledChange}
+              handleEnableDevtoolsChange={handleEnableDevtoolsChange}
               i18nLanguage={i18n.language}
               languages={languages}
               restoreAllSessionConnections={config.startup_session_restore_mode === "all"}

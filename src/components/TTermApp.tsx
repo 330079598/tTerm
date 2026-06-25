@@ -165,6 +165,17 @@ export const TTermApp: React.FC = () => {
     saveSession(tabs, activeTabId)
   }, [tabs, activeTabId, saveSession, sessionRestored])
 
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest("[data-allow-context-menu]")) {
+        e.preventDefault()
+      }
+    }
+    document.addEventListener("contextmenu", handler)
+    return () => document.removeEventListener("contextmenu", handler)
+  }, [])
+
   const handleNewTab = useCallback(() => {
     setShowConnectionDialog(true)
   }, [])

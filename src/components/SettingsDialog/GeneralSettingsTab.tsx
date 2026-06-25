@@ -1,5 +1,5 @@
 import React from "react"
-import { Check, ClipboardPaste, Info, Languages, PlugZap, Trash2, Wrench } from "lucide-react"
+import { Check, ClipboardPaste, Info, Languages, PlugZap, Trash2, Wrench, Bug } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,7 @@ interface GeneralSettingsTabProps {
   handleLanguageChange: (langCode: string) => Promise<void>
   handleRestoreAllSessionConnectionsChange: (checked: boolean) => Promise<void>
   handleSftpPasteUploadEnabledChange: (checked: boolean) => Promise<void>
+  handleEnableDevtoolsChange: () => Promise<void>
   i18nLanguage: string
   languages: LanguageOption[]
   restoreAllSessionConnections: boolean
@@ -32,6 +33,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   handleLanguageChange,
   handleRestoreAllSessionConnectionsChange,
   handleSftpPasteUploadEnabledChange,
+  handleEnableDevtoolsChange,
   i18nLanguage,
   languages,
   restoreAllSessionConnections,
@@ -110,6 +112,23 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                 checked={restoreAllSessionConnections}
                 onCheckedChange={handleRestoreAllSessionConnectionsChange}
               />
+            }
+          />
+        </SettingsSection>
+
+        <SettingsSection
+          icon={<Bug size={16} />}
+          title={t("settings.devtools")}
+          description={t("settings.devtoolsDesc")}
+        >
+          <SettingsRow
+            icon={<Bug size={16} />}
+            title={t("settings.enableDevtools")}
+            description={t("settings.devtoolsDesc")}
+            action={
+              <Button type="button" variant="outline" onClick={handleEnableDevtoolsChange}>
+                {t("settings.openDevtools", { defaultValue: "Open" })}
+              </Button>
             }
           />
         </SettingsSection>

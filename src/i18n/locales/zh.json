@@ -73,7 +73,11 @@
     "jumpHost": "跳板机",
     "connectionDesc": "管理连接相关提示和链路信息显示。",
     "profileGroups": "分组",
-    "updates": "更新"
+    "updates": "更新",
+    "devtools": "开发者工具",
+    "devtoolsDesc": "打开开发者工具窗口进行调试。",
+    "enableDevtools": "开发者工具",
+    "openDevtools": "打开 DevTools"
   },
   "theme": {
     "title": "选择主题",
