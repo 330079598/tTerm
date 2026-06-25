@@ -288,6 +288,7 @@ body.sftp-no-select * {
 }
 
 .sftp-row {
+  position: relative;
   display: grid;
   grid-template-columns:
     minmax(180px, 2fr) minmax(130px, 1.1fr) minmax(78px, 0.65fr) minmax(70px, 0.6fr)
@@ -303,7 +304,25 @@ body.sftp-no-select * {
   color: hsl(var(--foreground));
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.12s ease;
+  outline: none;
+  transition:
+    background-color 0.14s ease,
+    box-shadow 0.14s ease,
+    color 0.14s ease;
+}
+
+.sftp-row::before {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: transparent;
+  content: "";
+  transition:
+    background-color 0.14s ease,
+    box-shadow 0.14s ease;
 }
 
 .sftp-row-selection-mode {
@@ -313,26 +332,76 @@ body.sftp-no-select * {
 }
 
 .sftp-row:hover {
-  background: hsl(var(--muted) / 0.5);
+  background: hsl(var(--accent) / 0.16);
+  box-shadow: inset 0 0 0 1px hsl(var(--accent) / 0.22);
+}
+
+.sftp-row:hover::before {
+  background: hsl(var(--accent) / 0.75);
+}
+
+.sftp-row:focus-visible {
+  box-shadow:
+    inset 0 0 0 1px hsl(var(--ring) / 0.6),
+    0 0 0 1px hsl(var(--ring) / 0.25);
 }
 
 .sftp-row-active,
 .sftp-row-active:hover {
-  background: hsl(var(--accent) / 0.1);
+  background: hsl(var(--accent) / 0.24);
+  box-shadow: inset 0 0 0 1px hsl(var(--accent) / 0.35);
+}
+
+.sftp-row-active::before,
+.sftp-row-active:hover::before {
+  background: hsl(var(--accent));
+  box-shadow: 0 0 10px hsl(var(--accent) / 0.35);
 }
 
 .sftp-row-selected,
 .sftp-row-selected:hover {
-  background: hsl(var(--accent) / 0.18);
+  background:
+    linear-gradient(90deg, hsl(var(--primary) / 0.22), hsl(var(--accent) / 0.2)),
+    hsl(var(--accent) / 0.2);
+  box-shadow:
+    inset 0 0 0 1px hsl(var(--primary) / 0.55),
+    inset 0 1px 0 hsl(var(--foreground) / 0.08);
+}
+
+.sftp-row-selected::before,
+.sftp-row-selected:hover::before {
+  background: hsl(var(--primary));
+  box-shadow: 0 0 12px hsl(var(--primary) / 0.45);
+}
+
+.sftp-row-active.sftp-row-selected,
+.sftp-row-active.sftp-row-selected:hover {
+  background:
+    linear-gradient(90deg, hsl(var(--primary) / 0.3), hsl(var(--accent) / 0.26)),
+    hsl(var(--accent) / 0.22);
+  box-shadow:
+    inset 0 0 0 1px hsl(var(--primary) / 0.7),
+    inset 0 0 0 2px hsl(var(--foreground) / 0.08);
 }
 
 .sftp-cell {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: hsl(var(--muted-foreground));
   font-size: 12px;
+}
+
+.sftp-row:hover .sftp-cell {
+  color: hsl(var(--foreground) / 0.86);
+}
+
+.sftp-row-active .sftp-cell,
+.sftp-row-selected .sftp-cell {
+  color: hsl(var(--foreground) / 0.92);
 }
 
 .sftp-checkbox-cell {
@@ -347,6 +416,10 @@ body.sftp-no-select * {
   gap: 8px;
   color: hsl(var(--foreground));
   font-weight: 400;
+}
+
+.sftp-row-selected .sftp-name-cell {
+  font-weight: 600;
 }
 
 .sftp-entry-icon {
