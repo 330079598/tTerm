@@ -13,6 +13,22 @@
    ============================================================================= */
 
   /**
+ * xterm v6 always creates both a vertical and a horizontal scrollbar as
+ * children of .xterm-scrollable-element. The horizontal one is positioned at
+ * left:0; bottom:0 and is meant to be hidden (visibility: Hidden), but our
+ * visibility overrides below would otherwise un-hide it, producing a stray
+ * scrollbar in the bottom-left corner. Hide it explicitly.
+ */
+  .xterm .xterm-scrollable-element > .scrollbar.horizontal {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  /**
  * xterm v6 floating scrollbar: PowerShell-style auto-thin behavior.
  * xterm v6 uses .xterm-scrollable-element > .scrollbar with a dynamic
  * 'invisible' class added on mouse leave and removed on mouse enter.
@@ -20,8 +36,10 @@
  * - Mouse over terminal (no .invisible): full-width, normal opacity
  * - Mouse away (.invisible): thin dim line, still visible
  * - Hover/drag the slider: brighter
+ *
+ * Scoped to .vertical so we never re-show the horizontal scrollbar.
  */
-  .xterm .xterm-scrollable-element > .scrollbar {
+  .xterm .xterm-scrollable-element > .scrollbar.vertical {
     visibility: visible !important;
     opacity: 1 !important;
     pointer-events: auto !important;
@@ -36,7 +54,7 @@
  * NOTE: xterm reuses the class name "invisible", which Tailwind v4 maps to
  * `visibility: hidden !important` — so we must re-force visibility here.
  */
-  .xterm .xterm-scrollable-element > .scrollbar.invisible {
+  .xterm .xterm-scrollable-element > .scrollbar.vertical.invisible {
     visibility: visible !important;
     opacity: 1 !important;
     pointer-events: auto !important;
@@ -46,7 +64,7 @@
   /**
  * Style the scrollbar slider (thumb)
  */
-  .xterm .xterm-scrollable-element > .scrollbar > .slider {
+  .xterm .xterm-scrollable-element > .scrollbar.vertical > .slider {
     background: hsl(0 0% 80% / 0.4) !important;
     min-height: 24px !important;
     border-radius: 999px;
@@ -56,16 +74,16 @@
       background 120ms ease;
   }
 
-  .xterm .xterm-scrollable-element > .scrollbar.invisible > .slider {
+  .xterm .xterm-scrollable-element > .scrollbar.vertical.invisible > .slider {
     width: 4px !important;
     background: hsl(0 0% 80% / 0.22) !important;
   }
 
-  .xterm .xterm-scrollable-element > .scrollbar > .slider:hover {
+  .xterm .xterm-scrollable-element > .scrollbar.vertical > .slider:hover {
     background: hsl(0 0% 80% / 0.7) !important;
   }
 
-  .xterm .xterm-scrollable-element > .scrollbar > .slider.active {
+  .xterm .xterm-scrollable-element > .scrollbar.vertical > .slider.active {
     background: hsl(0 0% 80% / 0.6) !important;
   }
 
@@ -108,19 +126,19 @@
  * Adjust scrollbar colors based on theme
  * Using CSS variables ensures consistency across theme switches
  */
-  [data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar > .slider {
+  [data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar.vertical > .slider {
     background: hsl(0 0% 40% / 0.3) !important;
   }
 
-  [data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar.invisible > .slider {
+  [data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar.vertical.invisible > .slider {
     background: hsl(0 0% 40% / 0.2) !important;
   }
 
-  [data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar > .slider:hover {
+  [data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar.vertical > .slider:hover {
     background: hsl(0 0% 40% / 0.5) !important;
   }
 
-  [data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar > .slider.active {
+  [data-theme="light"] .xterm .xterm-scrollable-element > .scrollbar.vertical > .slider.active {
     background: hsl(0 0% 40% / 0.45) !important;
   }
 

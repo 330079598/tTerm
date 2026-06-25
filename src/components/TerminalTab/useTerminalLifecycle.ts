@@ -174,8 +174,12 @@ export function useTerminalLifecycle({
      */
     let mouseInside = false
     const applyScrollbarWidth = (wide: boolean) => {
+      // Target ONLY the vertical scrollbar. xterm v6 appends the horizontal
+      // scrollbar first, then the vertical one, so a bare ".scrollbar"
+      // selector would match the horizontal one and force it visible,
+      // producing a stray vertical bar in the bottom-left corner.
       const scrollbar = container.querySelector<HTMLElement>(
-        ".xterm-scrollable-element > .scrollbar"
+        ".xterm-scrollable-element > .scrollbar.vertical"
       )
       if (!scrollbar) return
       // xterm reuses the class name "invisible" for its idle scrollbar state.
