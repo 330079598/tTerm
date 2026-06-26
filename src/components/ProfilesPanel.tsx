@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronRight,
   FileInput,
+  Loader2,
   Pencil,
   PlugZap,
   Plus,
@@ -18,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/hooks/use-toast"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
@@ -98,13 +100,14 @@ const buildMetaItems = (
 const ProfileRow: React.FC<{
   profile: SavedProfile
   isActive: boolean
+  isDeleting: boolean
   onConnect: (p: SavedProfile) => void
   onEdit: (p: SavedProfile) => void
   onDelete: (id: string) => void
   onFocusRow: (id: string) => void
   rowRef: (node: HTMLDivElement | null) => void
   t: (key: string, options?: Record<string, unknown>) => string
-}> = ({ profile, isActive, onConnect, onEdit, onDelete, onFocusRow, rowRef, t }) => {
+}> = ({ profile, isActive, isDeleting, onConnect, onEdit, onDelete, onFocusRow, rowRef, t }) => {
   const connectionType = profile.connection_type as ConnectionType
   const Icon = connectionTypeIcons[connectionType] ?? Server
   const subtitle = buildConnectionSubtitle(profile, t)
@@ -214,6 +217,7 @@ const ProfileRow: React.FC<{
               variant="ghost"
               size="icon-sm"
               className="hover:text-destructive"
+              disabled={isDeleting}
               aria-label={t("profiles.delete")}
               onClick={(event) => {
                 event.stopPropagation()
@@ -243,24 +247,38 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
   className,
 }) => {
   const { t } = useTranslation()
+  const { toast } = useToast()
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const [profiles, setProfiles] = useState<SavedProfile[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const collapsedGroupKeySet = useMemo(() => new Set(collapsedGroupKeys), [collapsedGroupKeys])
 
   useEffect(() => {
+    setIsLoading(true)
     invoke<SavedProfile[]>("list_profiles")
       .then((result) => {
         setProfiles(result)
       })
       .catch((error) => {
         console.error("Failed to load profiles:", error)
+        toast({
+          title: t("common.error", { defaultValue: "Error" }),
+          description: t("profiles.loadFailed", {
+            defaultValue: "Failed to load connection profiles.",
+          }),
+          variant: "destructive",
+        })
       })
-  }, [refreshKey])
+      .finally(() => {
+        setIsLoading(false)
+      })
+  }, [refreshKey, t, toast])
 
   useEffect(() => {
     if (surface !== "plain") {
@@ -290,11 +308,21 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
 
     if (!confirmed) return
 
+    setDeletingId(id)
     try {
       await invoke("delete_profile", { id })
       setProfiles((prev) => prev.filter((item) => item.id !== id))
     } catch (error) {
       console.error("Failed to delete profile:", error)
+      toast({
+        title: t("common.error", { defaultValue: "Error" }),
+        description: t("profiles.deleteFailed", {
+          defaultValue: "Failed to delete connection profile.",
+        }),
+        variant: "destructive",
+      })
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -447,7 +475,13 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
       </div>
 
       <ScrollArea className="flex-1 px-3 pb-3">
-        {!hasProfiles && (
+        {isLoading && (
+          <div className="flex min-h-[260px] flex-col items-center justify-center">
+            <Loader2 className="text-muted-foreground size-6 animate-spin" />
+          </div>
+        )}
+
+        {!isLoading && !hasProfiles && (
           <div className="flex min-h-[260px] flex-col items-center justify-center rounded-xl border border-dashed px-6 text-center">
             <div className="text-sm font-medium">{t("profiles.empty")}</div>
             <p className="text-muted-foreground mt-2 max-w-sm text-sm">
@@ -524,6 +558,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
                           key={profile.id}
                           profile={profile}
                           isActive={profile.id === activeProfileId}
+                          isDeleting={deletingId === profile.id}
                           onConnect={handleConnect}
                           onEdit={onEdit}
                           onDelete={handleDelete}

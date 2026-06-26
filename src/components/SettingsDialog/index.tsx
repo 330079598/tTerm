@@ -300,11 +300,18 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   }
 
   const handleLanguageChange = async (langCode: string) => {
-    await i18n.changeLanguage(langCode)
     try {
+      await i18n.changeLanguage(langCode)
       await updateLanguage(langCode)
     } catch (error) {
       console.error("Failed to save language:", error)
+      toast({
+        title: t("common.error", { defaultValue: "Error" }),
+        description: t("settings.languageChangeFailed", {
+          defaultValue: "Failed to save language setting.",
+        }),
+        variant: "destructive",
+      })
     }
   }
 
@@ -313,6 +320,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       await setTheme(themeId)
     } catch (error) {
       console.error("Failed to save theme:", error)
+      toast({
+        title: t("common.error", { defaultValue: "Error" }),
+        description: t("settings.themeChangeFailed", {
+          defaultValue: "Failed to save theme.",
+        }),
+        variant: "destructive",
+      })
     }
   }
 
@@ -331,6 +345,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       await deleteCustomTheme(themeId)
     } catch (error) {
       console.error("Failed to delete theme:", error)
+      toast({
+        title: t("common.error", { defaultValue: "Error" }),
+        description: t("themeEditor.deleteFailed", {
+          defaultValue: "Failed to delete theme.",
+        }),
+        variant: "destructive",
+      })
     }
   }
 
@@ -352,6 +373,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         await duplicateTheme(themeId, newName.trim())
       } catch (error) {
         console.error("Failed to duplicate theme:", error)
+        toast({
+          title: t("common.error", { defaultValue: "Error" }),
+          description: t("themeEditor.duplicateFailed", {
+            defaultValue: "Failed to duplicate theme.",
+          }),
+          variant: "destructive",
+        })
       }
     }
   }
@@ -361,6 +389,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       await resetPresetTheme(themeId)
     } catch (error) {
       console.error("Failed to reset preset theme:", error)
+      toast({
+        title: t("common.error", { defaultValue: "Error" }),
+        description: t("themeEditor.resetFailed", {
+          defaultValue: "Failed to reset theme.",
+        }),
+        variant: "destructive",
+      })
     }
   }
 

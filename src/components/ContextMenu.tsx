@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from "react"
+import React, { useEffect, useRef, useCallback, useState } from "react"
 import {
   Plus,
   X,
@@ -19,7 +19,6 @@ import { TabContextMenuAction } from "@/types/tab"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface ContextMenuProps {
   x: number
@@ -32,40 +31,52 @@ interface ContextMenuProps {
 const getActionIcon = (icon?: string) => {
   switch (icon) {
     case "plus":
-      return <Plus size={14} />
+      return <Plus size={14} aria-hidden="true" />
     case "x":
-      return <X size={14} />
+      return <X size={14} aria-hidden="true" />
     case "copy":
-      return <Copy size={14} />
+      return <Copy size={14} aria-hidden="true" />
     case "edit":
-      return <Edit size={14} />
+      return <Edit size={14} aria-hidden="true" />
     case "terminal":
-      return <Terminal size={14} />
+      return <Terminal size={14} aria-hidden="true" />
     case "server":
-      return <Server size={14} />
+      return <Server size={14} aria-hidden="true" />
     case "folder":
-      return <FolderOpen size={14} />
+      return <FolderOpen size={14} aria-hidden="true" />
     case "zap":
-      return <Zap size={14} />
+      return <Zap size={14} aria-hidden="true" />
     case "palette":
-      return <Palette size={14} />
+      return <Palette size={14} aria-hidden="true" />
     case "type":
-      return <Type size={14} />
+      return <Type size={14} aria-hidden="true" />
     case "languages":
-      return <Languages size={14} />
+      return <Languages size={14} aria-hidden="true" />
     case "shield":
-      return <Shield size={14} />
+      return <Shield size={14} aria-hidden="true" />
     case "pin":
-      return <Pin size={14} />
+      return <Pin size={14} aria-hidden="true" />
     case "pin-off":
-      return <PinOff size={14} />
+      return <PinOff size={14} aria-hidden="true" />
     default:
       return null
   }
 }
 
+function getMenuItemIndices(actions: TabContextMenuAction[]) {
+  const indices: number[] = []
+  for (let i = 0; i < actions.length; i++) {
+    if (!actions[i].separator && !actions[i].disabled) {
+      indices.push(i)
+    }
+  }
+  return indices
+}
+
 export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onAction, onClose }) => {
   const menuRef = useRef<HTMLDivElement>(null)
+  const enabledIndices = getMenuItemIndices(actions)
+  const [focusIndex, setFocusIndex] = useState(() => enabledIndices[0] ?? -1)
 
   const adjustPosition = useCallback(() => {
     if (!menuRef.current) return { left: x, top: y }
@@ -76,25 +87,80 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
     return { left: Math.max(10, adjustedX), top: Math.max(10, adjustedY) }
   }, [x, y])
 
-  const [position, setPosition] = React.useState({ left: x, top: y })
+  const [position, setPosition] = useState({ left: x, top: y })
 
   React.useLayoutEffect(() => {
     setPosition(adjustPosition())
   }, [adjustPosition])
 
+  // Focus the menuitem element when focusIndex changes
+  useEffect(() => {
+    if (focusIndex >= 0 && menuRef.current) {
+      const items = menuRef.current.querySelectorAll('[role="menuitem"]')
+      const targetItem = items[focusIndex] as HTMLElement | undefined
+      targetItem?.focus()
+    }
+  }, [focusIndex])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault()
+        onClose()
+        return
+      }
+
+      if (enabledIndices.length === 0) return
+
+      const currentPos = enabledIndices.indexOf(focusIndex)
+
+      switch (e.key) {
+        case "ArrowDown": {
+          e.preventDefault()
+          const nextPos = currentPos < enabledIndices.length - 1 ? currentPos + 1 : 0
+          setFocusIndex(enabledIndices[nextPos])
+          break
+        }
+        case "ArrowUp": {
+          e.preventDefault()
+          const prevPos = currentPos > 0 ? currentPos - 1 : enabledIndices.length - 1
+          setFocusIndex(enabledIndices[prevPos])
+          break
+        }
+        case "Home": {
+          e.preventDefault()
+          setFocusIndex(enabledIndices[0])
+          break
+        }
+        case "End": {
+          e.preventDefault()
+          setFocusIndex(enabledIndices[enabledIndices.length - 1])
+          break
+        }
+        case "Tab": {
+          e.preventDefault()
+          if (e.shiftKey) {
+            const prevPos = currentPos > 0 ? currentPos - 1 : enabledIndices.length - 1
+            setFocusIndex(enabledIndices[prevPos])
+          } else {
+            const nextPos = currentPos < enabledIndices.length - 1 ? currentPos + 1 : 0
+            setFocusIndex(enabledIndices[nextPos])
+          }
+          break
+        }
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [enabledIndices, focusIndex, onClose])
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose()
     }
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose()
-    }
     document.addEventListener("mousedown", handleClickOutside)
-    document.addEventListener("keydown", handleEscape)
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-      document.removeEventListener("keydown", handleEscape)
-    }
+    return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [onClose])
 
   return (
@@ -102,36 +168,46 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
       ref={menuRef}
       style={{ position: "fixed", left: position.left, top: position.top, zIndex: 9999 }}
     >
-      <Card className="bg-popover w-max max-w-55 min-w-35 rounded-md py-1 shadow-lg">
+      <Card role="menu" className="bg-popover w-max max-w-55 min-w-35 rounded-md py-1 shadow-lg">
         <CardContent className="p-1">
           {actions.map((action, index) => {
             if (action.separator) {
-              return <div key={index} className="bg-border my-1 h-px" />
+              return <div key={index} role="separator" className="bg-border my-1 h-px" />
             }
+            const isFocused = focusIndex === index
             return (
-              <Tooltip key={index}>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    disabled={action.disabled}
-                    onClick={() => {
-                      if (!action.disabled) {
-                        onAction(action.action)
-                        onClose()
-                      }
-                    }}
-                    className={cn(
-                      "h-auto w-full justify-start gap-1.5 px-2 py-1.5 text-left text-sm font-normal",
-                      action.disabled && "cursor-not-allowed opacity-40"
-                    )}
-                  >
-                    {getActionIcon(action.icon)}
-                    <span>{action.label}</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{action.label}</TooltipContent>
-              </Tooltip>
+              <Button
+                key={index}
+                type="button"
+                variant="ghost"
+                role="menuitem"
+                disabled={action.disabled}
+                tabIndex={isFocused ? 0 : -1}
+                onFocus={() => setFocusIndex(index)}
+                onClick={() => {
+                  if (!action.disabled) {
+                    onAction(action.action)
+                    onClose()
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    if (!action.disabled) {
+                      onAction(action.action)
+                      onClose()
+                    }
+                  }
+                }}
+                className={cn(
+                  "h-auto w-full justify-start gap-1.5 px-2 py-1.5 text-left text-sm font-normal",
+                  action.disabled && "cursor-not-allowed opacity-40"
+                )}
+                aria-label={action.label}
+              >
+                {getActionIcon(action.icon)}
+                <span>{action.label}</span>
+              </Button>
             )
           })}
         </CardContent>

@@ -54,6 +54,25 @@ function clearCustomThemeColors(): void {
   })
 }
 
+function isLightBackground(background: string): boolean {
+  const normalized = background.trim()
+  const hslMatch = normalized.match(/(\d+\.?\d*)\s+(\d+\.?\d*)%\s+(\d+\.?\d*)%/)
+  if (hslMatch) {
+    return parseFloat(hslMatch[3]) > 50
+  }
+
+  if (normalized.startsWith("#")) {
+    const hex = normalized.slice(1)
+    const r = parseInt(hex.slice(0, 2), 16)
+    const g = parseInt(hex.slice(2, 4), 16)
+    const b = parseInt(hex.slice(4, 6), 16)
+    const luminance = 0.299 * r + 0.587 * g + 0.114 * b
+    return luminance > 128
+  }
+
+  return false
+}
+
 function isLegacyTheme(themeId: string): themeId is AppTheme["id"] {
   return getPresetTheme(themeId) !== undefined
 }
@@ -117,7 +136,11 @@ export function applyThemeToDom(themeCache: ThemeCache): void {
   clearCustomThemeColors()
 
   if (themeCache.isCustom && themeCache.colors) {
-    document.documentElement.removeAttribute("data-theme")
+    if (themeCache.colors.background && isLightBackground(themeCache.colors.background)) {
+      document.documentElement.setAttribute("data-theme", "light")
+    } else {
+      document.documentElement.removeAttribute("data-theme")
+    }
     applyCustomThemeColors(themeCache.colors)
     return
   }
