@@ -1,6 +1,8 @@
 @layer overrides;
 @import "tailwindcss";
 
+@custom-variant dark (&:where(:not([data-theme="light"], [data-theme="light"] *)));
+
 @theme {
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
@@ -21,6 +23,10 @@
   --color-card-foreground: hsl(var(--card-foreground));
   --color-popover: hsl(var(--popover));
   --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
 
   --radius: 0.25rem;
 }
@@ -175,9 +181,9 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --success: 145 65% 45%;
-    --success-foreground: 125 48% 78%;
+    --success-foreground: 125 48% 32%;
     --warning: 42 88% 56%;
-    --warning-foreground: 54 96% 82%;
+    --warning-foreground: 42 88% 28%;
 
     --border: 140 15% 30%;
     --input: 140 15% 30%;
@@ -217,7 +223,7 @@
     --success: 142 68% 44%;
     --success-foreground: 134 70% 82%;
     --warning: 32 94% 56%;
-    --warning-foreground: 44 100% 84%;
+    --warning-foreground: 32 80% 24%;
 
     --border: 20 20% 30%;
     --input: 20 20% 30%;
@@ -259,7 +265,7 @@
     --success: 120 52% 46%;
     --success-foreground: 120 52% 86%;
     --warning: 38 88% 52%;
-    --warning-foreground: 38 88% 88%;
+    --warning-foreground: 38 80% 32%;
 
     --border: 312 22% 27%;
     --input: 312 22% 27%;

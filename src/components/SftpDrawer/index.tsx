@@ -1,5 +1,5 @@
 import "@/components/SftpDrawer.css"
-import React, { useCallback, useEffect, useMemo, useReducer, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { AlertCircle } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -100,6 +100,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
 }) => {
   const { t } = useTranslation()
   const { config } = useConfig()
+  const drawerRef = useRef<HTMLDivElement>(null)
   const [listing, setListing] = useState<SftpDirectoryListing | null>(null)
   const [activePath, setActivePath] = useState<string | null>(null)
   const [selectedPaths, setSelectedPaths] = useState<string[]>([])
@@ -558,8 +559,25 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     return selectedPaths.includes(contextMenuEntry.path) ? selectedPaths.length : 1
   }, [contextMenuEntry, selectedPaths])
 
+  useEffect(() => {
+    const drawer = drawerRef.current
+    if (!drawer) {
+      return
+    }
+
+    if (visible) {
+      drawer.removeAttribute("inert")
+    } else {
+      drawer.setAttribute("inert", "")
+    }
+  }, [visible])
+
   return (
-    <div className={`sftp-drawer ${visible ? "is-open" : ""}`} aria-hidden={!visible}>
+    <div
+      className={`sftp-drawer ${visible ? "is-open" : ""}`}
+      aria-hidden={!visible}
+      ref={drawerRef}
+    >
       <SftpDeleteTransferEvents
         addTransfer={addTransfer}
         listingCurrentPath={listing?.currentPath}

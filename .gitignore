@@ -31,3 +31,4 @@ Thumbs.db
 .claude
 src-tauri/target*
 .codex
+.agents
