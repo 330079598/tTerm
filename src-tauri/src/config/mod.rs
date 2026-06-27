@@ -95,7 +95,11 @@ fn default_terminal_shell() -> String {
 }
 
 fn default_secret_storage_mode() -> String {
-    "hybrid".to_string()
+    if cfg!(target_os = "windows") {
+        "system".to_string()
+    } else {
+        "hybrid".to_string()
+    }
 }
 
 fn default_secret_vault_enabled() -> bool {

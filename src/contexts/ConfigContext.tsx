@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { invoke } from "@tauri-apps/api/core"
+import { platform } from "@tauri-apps/plugin-os"
 
 import { detectSystemLanguage } from "@/i18n/language"
 import { markConfigReady } from "@/lib/startup"
@@ -16,6 +17,17 @@ export interface SecretBackendStatus {
 }
 
 export type SecretStorageMode = "auto" | "system" | "vault" | "hybrid" | "memory"
+
+let _cachedPlatform: string | null = null
+
+function getDefaultSecretStorageMode(): SecretStorageMode {
+  try {
+    _cachedPlatform ??= platform()
+    return _cachedPlatform === "windows" ? "system" : "hybrid"
+  } catch {
+    return "hybrid"
+  }
+}
 
 export interface CopySecretStoreResult {
   copied: number
@@ -74,7 +86,7 @@ const defaultConfig: AppConfig = {
   terminal_shell_custom_path: "",
   terminal_shell_custom_args: "",
   secret_vault_enabled: true,
-  secret_storage_mode: "hybrid",
+  secret_storage_mode: getDefaultSecretStorageMode(),
   prompt_unlock_vault_on_startup: false,
   scrollback_lines: 10000,
   terminal_padding_left_px: 6,
@@ -139,7 +151,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
       config.secret_storage_mode === "hybrid" ||
       config.secret_storage_mode === "memory"
         ? config.secret_storage_mode
-        : "hybrid",
+        : getDefaultSecretStorageMode(),
     prompt_unlock_vault_on_startup: config.prompt_unlock_vault_on_startup === true,
     monitor_refresh_interval_secs: normalizeMonitorRefreshInterval(
       config.monitor_refresh_interval_secs
