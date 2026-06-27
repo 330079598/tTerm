@@ -517,6 +517,7 @@ pub fn run() {
             ssh::secret_commands::get_secret_backend_status,
             ssh::secret_commands::unlock_secret_vault,
             ssh::secret_commands::lock_secret_vault,
+            ssh::secret_commands::change_vault_password,
             ssh::secret_commands::set_secret_vault_enabled,
             ssh::secret_commands::set_secret_storage_mode,
             ssh::secret_commands::copy_secret_store,

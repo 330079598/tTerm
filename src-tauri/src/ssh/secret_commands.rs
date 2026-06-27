@@ -1,4 +1,6 @@
-use super::secret_store::{SecretBackendStatus, SecretStoreState, VaultPasswordInput};
+use super::secret_store::{
+    ChangeVaultPasswordInput, SecretBackendStatus, SecretStoreState, VaultPasswordInput,
+};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 
@@ -58,6 +60,15 @@ pub fn lock_secret_vault(
     secret_state: State<'_, SecretStoreState>,
 ) -> Result<SecretBackendStatus, String> {
     secret_state.lock_vault()
+}
+
+#[tauri::command]
+pub fn change_vault_password(
+    app: AppHandle,
+    input: ChangeVaultPasswordInput,
+    secret_state: State<'_, SecretStoreState>,
+) -> Result<SecretBackendStatus, String> {
+    secret_state.change_vault_password(&app, input)
 }
 
 #[tauri::command]

@@ -48,6 +48,13 @@ pub struct VaultPasswordInput {
     pub enable_vault: bool,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeVaultPasswordInput {
+    pub current_password: String,
+    pub new_password: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct SecretStoreState {
     inner: Arc<Mutex<SecretStoreRuntime>>,
@@ -316,6 +323,130 @@ impl SecretStoreState {
             .map_err(|_| "Secret store state is poisoned".to_string())?;
         guard.vault = Some(runtime);
         drop(guard);
+
+        self.get_status()
+    }
+
+    pub fn change_vault_password(
+        &self,
+        app: &AppHandle,
+        input: ChangeVaultPasswordInput,
+    ) -> Result<SecretBackendStatus, String> {
+        if input.current_password.is_empty() || input.new_password.is_empty() {
+            return Err("Passwords cannot be empty".to_string());
+        }
+
+        // Vault must be unlocked — copy the current key to use for decryption
+        let mut stored_key = {
+            let guard = self
+                .inner
+                .lock()
+                .map_err(|_| "Secret store state is poisoned".to_string())?;
+            match &guard.vault {
+                Some(rt) => rt.key,
+                None => return Err("Vault must be unlocked before changing the password.".to_string()),
+            }
+        };
+        let old_runtime = VaultRuntime { key: stored_key };
+
+        // Verify the current password is correct by deriving the same key
+        let mut derived_key = derive_or_initialize_vault_key(app, input.current_password.as_bytes())?;
+        if derived_key != old_runtime.key {
+            return Err("Current password is incorrect.".to_string());
+        }
+        derived_key.zeroize();
+
+        // Load all secrets
+        let path = vault_path(app)?;
+        let vault = load_vault_file(&path)?;
+
+        // Decrypt all secrets with the old key
+        let mut decrypted: Vec<(String, String, String, i64)> = Vec::new();
+        for record in &vault.secrets {
+            let plaintext = decrypt_secret(&old_runtime, record)?;
+            decrypted.push((
+                record.profile_id.clone(),
+                record.kind.clone(),
+                plaintext,
+                record.updated_at,
+            ));
+        }
+
+        // Generate new salt and derive new key
+        let mut salt = [0u8; SALT_LEN];
+        rand::thread_rng().fill_bytes(&mut salt);
+        let new_config = VaultConfigFile {
+            salt_b64: BASE64.encode(salt),
+            version: default_vault_config_version(),
+            algorithm: default_vault_algorithm(),
+            kdf: default_vault_kdf(),
+            memory_kib: default_vault_memory_kib(),
+            iterations: default_vault_iterations(),
+            parallelism: default_vault_parallelism(),
+        };
+
+        let config_path = vault_config_path(app)?;
+        let content = serde_json::to_string_pretty(&new_config)
+            .map_err(|e| format!("Failed to serialize vault config: {}", e))?;
+        fs::write(&config_path, content)
+            .map_err(|e| format!("Failed to write vault config: {}", e))?;
+
+        let salt_bytes = BASE64
+            .decode(new_config.salt_b64.as_bytes())
+            .map_err(|e| format!("Failed to decode vault salt: {}", e))?;
+        let params = Params::new(
+            new_config.memory_kib,
+            new_config.iterations,
+            new_config.parallelism,
+            Some(DERIVED_KEY_LEN),
+        )
+        .map_err(|e| format!("Failed to build Argon2 params: {}", e))?;
+        let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+        let mut new_key = [0u8; DERIVED_KEY_LEN];
+        argon2
+            .hash_password_into(input.new_password.as_bytes(), &salt_bytes, &mut new_key)
+            .map_err(|e| format!("Failed to derive vault key: {}", e))?;
+
+        let new_runtime = VaultRuntime { key: new_key };
+
+        // Re-encrypt all secrets with the new key
+        let mut new_records: Vec<VaultSecretRecord> = Vec::new();
+        for (profile_id, kind, plaintext, updated_at) in &decrypted {
+            let (nonce_b64, ciphertext_b64) = encrypt_secret(&new_runtime, plaintext)?;
+            new_records.push(VaultSecretRecord {
+                profile_id: profile_id.clone(),
+                kind: kind.clone(),
+                nonce_b64,
+                ciphertext_b64,
+                updated_at: *updated_at,
+            });
+        }
+
+        let new_vault = VaultFile {
+            secrets: new_records,
+        };
+        save_vault_file(&path, &new_vault)?;
+
+        // Zeroize the old key material
+        stored_key.zeroize();
+
+        // Update the in-memory runtime with the new key
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|_| "Secret store state is poisoned".to_string())?;
+        if let Some(old) = &mut guard.vault {
+            old.key.zeroize();
+        }
+        guard.vault = Some(new_runtime);
+        drop(guard);
+
+        // If hybrid mode, update the master password in the keyring
+        let config = load_config_file()?;
+        let mode = SecretStorageMode::from_config_value(&config.secret_storage_mode);
+        if mode == SecretStorageMode::Hybrid {
+            write_keyring_secret(VAULT_MASTER_ACCOUNT, "master", &input.new_password)?;
+        }
 
         self.get_status()
     }

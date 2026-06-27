@@ -72,7 +72,11 @@ export const VaultStartupUnlockDialog: React.FC<VaultStartupUnlockDialogProps> =
               disabled={busy}
               onChange={(event) => setPassword(event.target.value)}
             />
-            {error && <p className="text-destructive text-sm">{error}</p>}
+            {error && (
+              <p className="text-destructive mt-1 text-xs" role="alert">
+                {error}
+              </p>
+            )}
           </div>
 
           <DialogFooter>

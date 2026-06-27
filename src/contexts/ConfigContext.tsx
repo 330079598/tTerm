@@ -191,6 +191,10 @@ interface ConfigContextType {
   setSecretStorageMode: (mode: SecretStorageMode) => Promise<SecretBackendStatus>
   unlockSecretVault: (password: string, enableVault?: boolean) => Promise<SecretBackendStatus>
   lockSecretVault: () => Promise<SecretBackendStatus>
+  changeVaultPassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<SecretBackendStatus>
   copySecretStore: (direction: "systemToVault" | "vaultToSystem") => Promise<CopySecretStoreResult>
   listSavedSecrets: () => Promise<SavedSecretEntry[]>
   deleteSavedSecret: (key: string) => Promise<boolean>
@@ -305,6 +309,15 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     return normalized
   }, [])
 
+  const changeVaultPassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    const status = await invoke<SecretBackendStatus>("change_vault_password", {
+      input: { currentPassword, newPassword },
+    })
+    const normalized = normalizeSecretStatus(status)
+    setSecretStatus(normalized)
+    return normalized
+  }, [])
+
   const copySecretStore = useCallback(
     async (direction: "systemToVault" | "vaultToSystem") =>
       invoke<CopySecretStoreResult>("copy_secret_store", { input: { direction } }),
@@ -354,6 +367,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         setSecretStorageMode,
         unlockSecretVault,
         lockSecretVault,
+        changeVaultPassword,
         copySecretStore,
         listSavedSecrets,
         deleteSavedSecret,

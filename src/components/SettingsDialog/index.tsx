@@ -154,6 +154,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setSecretStorageMode,
     unlockSecretVault,
     lockSecretVault,
+    changeVaultPassword,
     copySecretStore,
     listSavedSecrets,
     deleteSavedSecret,
@@ -195,6 +196,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [fontLoadError, setFontLoadError] = useState<string | null>(null)
 
   const [password, setPassword] = useState("")
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [secretError, setSecretError] = useState<string | null>(null)
   const [secretBusy, setSecretBusy] = useState(false)
   const [savedSecrets, setSavedSecrets] = useState<SavedSecretEntry[]>([])
@@ -473,7 +477,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setSecretBusy(true)
     setSecretError(null)
     try {
-      await unlockSecretVault(password, config.secret_vault_enabled)
+      const shouldEnable = config.secret_storage_mode === "hybrid" || config.secret_vault_enabled
+      await unlockSecretVault(password, shouldEnable)
       setPassword("")
     } catch (error) {
       setSecretError(error instanceof Error ? error.message : String(error))
@@ -489,6 +494,37 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       await lockSecretVault()
     } catch (error) {
       setSecretError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setSecretBusy(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      await info({
+        title: t("secretStorage.changeVaultPassword"),
+        description: t("secretStorage.passwordMismatch"),
+      })
+      return
+    }
+    setSecretBusy(true)
+    setSecretError(null)
+    try {
+      await changeVaultPassword(currentPassword, newPassword)
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+      toast({
+        title: t("secretStorage.passwordChanged"),
+        description: t("secretStorage.passwordChangedDesc"),
+        variant: "success",
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      await info({
+        title: t("secretStorage.changeVaultPassword"),
+        description: message,
+      })
     } finally {
       setSecretBusy(false)
     }
@@ -765,11 +801,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleCopySecretStore={handleCopySecretStore}
               handleEnableVault={handleEnableVault}
               handleLock={handleLock}
+              handleChangePassword={handleChangePassword}
               handlePromptUnlockOnStartupChange={handlePromptUnlockOnStartupChange}
               handleSecretStorageModeChange={handleSecretStorageModeChange}
               handleDeleteSavedSecret={handleDeleteSavedSecret}
               handleUnlock={handleUnlock}
               password={password}
+              currentPassword={currentPassword}
+              newPassword={newPassword}
+              confirmPassword={confirmPassword}
               promptUnlockVaultOnStartup={config.prompt_unlock_vault_on_startup}
               secretBusy={secretBusy}
               secretError={secretError}
@@ -777,6 +817,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               secretStatus={secretStatus}
               secretStorageMode={config.secret_storage_mode}
               setPassword={setPassword}
+              setCurrentPassword={setCurrentPassword}
+              setNewPassword={setNewPassword}
+              setConfirmPassword={setConfirmPassword}
             />
           </TabsContent>
 

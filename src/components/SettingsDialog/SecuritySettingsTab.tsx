@@ -1,5 +1,5 @@
-import React from "react"
-import { AlertTriangle, ArrowLeftRight, Lock, Trash2, Unlock } from "lucide-react"
+import React, { useState } from "react"
+import { AlertTriangle, ArrowLeftRight, Eye, EyeOff, Lock, Trash2, Unlock } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -21,11 +21,15 @@ interface SecuritySettingsTabProps {
   handleCopySecretStore: (direction: "systemToVault" | "vaultToSystem") => Promise<void>
   handleEnableVault: (checked: boolean) => Promise<void>
   handleLock: () => Promise<void>
+  handleChangePassword: () => Promise<void>
   handleDeleteSavedSecret: (entry: SavedSecretEntry) => Promise<void>
   handlePromptUnlockOnStartupChange: (checked: boolean) => Promise<void>
   handleSecretStorageModeChange: (mode: SecretStorageMode) => Promise<void>
   handleUnlock: () => Promise<void>
   password: string
+  currentPassword: string
+  newPassword: string
+  confirmPassword: string
   promptUnlockVaultOnStartup: boolean
   savedSecrets: SavedSecretEntry[]
   secretBusy: boolean
@@ -33,6 +37,9 @@ interface SecuritySettingsTabProps {
   secretStatus: SecretStatusState
   secretStorageMode: SecretStorageMode
   setPassword: React.Dispatch<React.SetStateAction<string>>
+  setCurrentPassword: React.Dispatch<React.SetStateAction<string>>
+  setNewPassword: React.Dispatch<React.SetStateAction<string>>
+  setConfirmPassword: React.Dispatch<React.SetStateAction<string>>
 }
 
 export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
@@ -41,11 +48,15 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
   handleCopySecretStore,
   handleEnableVault,
   handleLock,
+  handleChangePassword,
   handleDeleteSavedSecret,
   handlePromptUnlockOnStartupChange,
   handleSecretStorageModeChange,
   handleUnlock,
   password,
+  currentPassword,
+  newPassword,
+  confirmPassword,
   promptUnlockVaultOnStartup,
   savedSecrets,
   secretBusy,
@@ -53,8 +64,15 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
   secretStatus,
   secretStorageMode,
   setPassword,
+  setCurrentPassword,
+  setNewPassword,
+  setConfirmPassword,
 }) => {
   const { t } = useTranslation()
+  const [showVaultPassword, setShowVaultPassword] = useState(false)
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const vaultControlsVisible =
     secretStorageMode === "vault" || secretStorageMode === "auto" || secretStorageMode === "hybrid"
   const vaultSettingsVisible = vaultControlsVisible && configSecretVaultEnabled
@@ -146,35 +164,159 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
           </Card>
         )}
 
-        {vaultSettingsVisible && (
+        {vaultSettingsVisible && (!isHybrid || !secretStatus.vaultUnlocked) && (
           <Card>
             <CardContent className="space-y-3 p-4">
               <div>
                 <Label htmlFor="vault-password" className="mb-1.5 block">
                   {t("secretStorage.vaultPassword")}
                 </Label>
-                <Input
-                  id="vault-password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={t("secretStorage.vaultPasswordPlaceholder")}
-                  disabled={secretBusy}
-                />
+                <div className="relative">
+                  <Input
+                    id="vault-password"
+                    type={showVaultPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={t("secretStorage.vaultPasswordPlaceholder")}
+                    disabled={secretBusy}
+                    className="pr-9"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowVaultPassword((v) => !v)}
+                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2"
+                    tabIndex={-1}
+                  >
+                    {showVaultPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
               <div className="flex gap-2">
                 {!secretStatus.vaultUnlocked ? (
                   <Button onClick={handleUnlock} disabled={secretBusy || password.length === 0}>
                     <Unlock size={14} className="mr-2" />
-                    {t("secretStorage.unlockVault")}
+                    {isHybrid
+                      ? t("secretStorage.setVaultPassword")
+                      : t("secretStorage.unlockVault")}
                   </Button>
                 ) : (
-                  <Button variant="outline" onClick={handleLock} disabled={secretBusy}>
-                    <Lock size={14} className="mr-2" />
-                    {t("secretStorage.lockVault")}
-                  </Button>
+                  <>
+                    <Button variant="outline" onClick={handleLock} disabled={secretBusy}>
+                      <Lock size={14} className="mr-2" />
+                      {t("secretStorage.lockVault")}
+                    </Button>
+                    {isHybrid && (
+                      <p className="text-muted-foreground self-center text-xs">
+                        {t("secretStorage.lockVaultHybridDesc")}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
+              {secretError && !secretStatus.vaultUnlocked && (
+                <p className="text-destructive mt-1 text-xs" role="alert">
+                  {secretError}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {vaultSettingsVisible && secretStatus.vaultUnlocked && (
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              <div>
+                <div className="text-sm font-medium">{t("secretStorage.changeVaultPassword")}</div>
+                <div className="text-muted-foreground mt-1 text-xs leading-5">
+                  {t("secretStorage.changeVaultPasswordDesc")}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div>
+                  <Label htmlFor="current-password" className="mb-1.5 block">
+                    {t("secretStorage.currentPassword")}
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="current-password"
+                      type={showCurrentPassword ? "text" : "password"}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder={t("secretStorage.vaultPasswordPlaceholder")}
+                      disabled={secretBusy}
+                      className="pr-9"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword((v) => !v)}
+                      className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2"
+                      tabIndex={-1}
+                    >
+                      {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="new-password" className="mb-1.5 block">
+                    {t("secretStorage.newPassword")}
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="new-password"
+                      type={showNewPassword ? "text" : "password"}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder={t("secretStorage.vaultPasswordPlaceholder")}
+                      disabled={secretBusy}
+                      className="pr-9"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword((v) => !v)}
+                      className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2"
+                      tabIndex={-1}
+                    >
+                      {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="confirm-password" className="mb-1.5 block">
+                    {t("secretStorage.confirmNewPassword")}
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="confirm-password"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder={t("secretStorage.vaultPasswordPlaceholder")}
+                      disabled={secretBusy}
+                      className="pr-9"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((v) => !v)}
+                      className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2"
+                      tabIndex={-1}
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <Button
+                onClick={handleChangePassword}
+                disabled={
+                  secretBusy ||
+                  currentPassword.length === 0 ||
+                  newPassword.length === 0 ||
+                  confirmPassword.length === 0
+                }
+              >
+                <Lock size={14} className="mr-2" />
+                {t("secretStorage.changeVaultPassword")}
+              </Button>
             </CardContent>
           </Card>
         )}
@@ -284,7 +426,7 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
           </CardContent>
         </Card>
 
-        {secretError && (
+        {secretError && secretStatus.vaultUnlocked && (
           <Alert className="border-destructive/40 bg-destructive/10 text-destructive">
             <AlertTitle>{t("secretStorage.title")}</AlertTitle>
             <AlertDescription className="mt-1 text-sm text-current">{secretError}</AlertDescription>

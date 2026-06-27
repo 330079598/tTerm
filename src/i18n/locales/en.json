@@ -585,6 +585,7 @@
     "vaultPasswordPlaceholder": "Enter a vault password",
     "unlockVault": "Unlock vault",
     "lockVault": "Lock vault",
+    "lockVaultHybridDesc": "After locking, you'll need to enter the vault password manually next time (auto-unlock will be paused).",
     "promptUnlockOnStartup": "Prompt to unlock vault on startup",
     "promptUnlockOnStartupDesc": "Show an unlock dialog when tTerm starts. The vault password is never saved.",
     "startupUnlockTitle": "Unlock app vault",
@@ -631,6 +632,15 @@
       "memory": "Do not persist passwords; keep them only for the current app session."
     },
     "hybridSetup": "Set a vault password to enable hybrid mode. It will be saved in your system keyring for automatic unlock.",
+    "setVaultPassword": "Set password",
+    "changeVaultPassword": "Change password",
+    "changeVaultPasswordDesc": "Update the vault master password. All stored secrets will be re-encrypted with the new password.",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmNewPassword": "Confirm new password",
+    "passwordChanged": "Vault password changed",
+    "passwordChangedDesc": "The vault password has been updated. Your system keyring entry was also refreshed.",
+    "passwordMismatch": "New passwords do not match",
     "backends": {
       "system": "System keyring",
       "vault": "App vault",

@@ -573,6 +573,7 @@
     "vaultPasswordPlaceholder": "输入保险库密码",
     "unlockVault": "解锁保险库",
     "lockVault": "锁定保险库",
+    "lockVaultHybridDesc": "锁定后，下次使用时需手动输入保险库密码（自动解锁将暂停）。",
     "promptUnlockOnStartup": "启动时提示解锁保险库",
     "promptUnlockOnStartupDesc": "tTerm 启动时显示解锁弹窗。保险库密码不会被保存。",
     "startupUnlockTitle": "解锁应用保险库",
@@ -619,6 +620,15 @@
       "memory": "不持久化密码，只在当前应用会话中临时保留。"
     },
     "hybridSetup": "设置保险库密码以启用混合模式。密码将保存在系统密钥环中，实现自动解锁。",
+    "setVaultPassword": "设置密码",
+    "changeVaultPassword": "修改密码",
+    "changeVaultPasswordDesc": "更新保险库主密码。所有已存储的密钥将使用新密码重新加密。",
+    "currentPassword": "当前密码",
+    "newPassword": "新密码",
+    "confirmNewPassword": "确认新密码",
+    "passwordChanged": "保险库密码已修改",
+    "passwordChangedDesc": "保险库密码已更新，系统密钥环中的条目也已同步刷新。",
+    "passwordMismatch": "两次输入的新密码不一致",
     "backends": {
       "system": "系统密钥环",
       "vault": "应用保险库",
