@@ -577,6 +577,9 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       className={`sftp-drawer ${visible ? "is-open" : ""}`}
       aria-hidden={!visible}
       ref={drawerRef}
+      style={
+        { "--sftp-font-size": `${Math.max(config.font_size - 2, 10)}px` } as React.CSSProperties
+      }
     >
       <SftpDeleteTransferEvents
         addTransfer={addTransfer}

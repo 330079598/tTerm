@@ -1,4 +1,5 @@
 .sftp-drawer {
+  --sftp-font-size: 12px;
   position: absolute;
   left: 0;
   right: 0;
@@ -42,7 +43,7 @@
 
 .sftp-drawer-eyebrow {
   color: hsl(var(--muted-foreground));
-  font-size: 11px;
+  font-size: calc(var(--sftp-font-size) - 1px);
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -88,7 +89,7 @@
   height: 28px;
   padding-left: 30px;
   padding-right: 58px;
-  font-size: 12px;
+  font-size: var(--sftp-font-size);
 }
 
 .sftp-search-controls {
@@ -103,7 +104,7 @@
 
 .sftp-search-error {
   color: hsl(var(--destructive));
-  font-size: 11px;
+  font-size: calc(var(--sftp-font-size) - 1px);
   white-space: nowrap;
 }
 
@@ -153,7 +154,7 @@
   overflow: hidden;
   padding: 0 6px;
   color: hsl(var(--foreground));
-  font-size: 12px;
+  font-size: var(--sftp-font-size);
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -228,13 +229,13 @@ body.sftp-no-select * {
 }
 
 .sftp-drag-hint-title {
-  font-size: 18px;
+  font-size: calc(var(--sftp-font-size) + 6px);
   font-weight: 600;
   color: hsl(var(--foreground));
 }
 
 .sftp-drag-hint-description {
-  font-size: 14px;
+  font-size: calc(var(--sftp-font-size) + 2px);
   color: hsl(var(--muted-foreground));
   text-align: center;
 }
@@ -271,7 +272,7 @@ body.sftp-no-select * {
   min-width: 0;
   overflow: hidden;
   color: hsl(var(--muted-foreground));
-  font-size: 11px;
+  font-size: calc(var(--sftp-font-size) - 1px);
   font-weight: 700;
   letter-spacing: 0.04em;
   line-height: 1.2;
@@ -392,7 +393,7 @@ body.sftp-no-select * {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: hsl(var(--muted-foreground));
-  font-size: 12px;
+  font-size: var(--sftp-font-size);
 }
 
 .sftp-row:hover .sftp-cell {
@@ -443,14 +444,14 @@ body.sftp-no-select * {
 
 .sftp-empty-title {
   color: hsl(var(--foreground));
-  font-size: 14px;
+  font-size: calc(var(--sftp-font-size) + 2px);
   font-weight: 600;
 }
 
 .sftp-empty-description {
   max-width: 320px;
   color: hsl(var(--muted-foreground));
-  font-size: 12px;
+  font-size: var(--sftp-font-size);
   line-height: 1.5;
 }
 
