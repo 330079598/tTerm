@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useConfig } from "@/contexts/ConfigContext"
+import { toErrorMessage } from "@/lib/utils"
 
 interface VaultStartupUnlockDialogProps {
   open: boolean
@@ -43,7 +44,7 @@ export const VaultStartupUnlockDialog: React.FC<VaultStartupUnlockDialogProps> =
       setPassword("")
       onClose()
     } catch (error) {
-      setError(error instanceof Error ? error.message : String(error))
+      setError(toErrorMessage(error))
     } finally {
       setBusy(false)
     }

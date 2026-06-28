@@ -6,6 +6,7 @@ import type { TFunction } from "i18next"
 import type { TerminalTabProps } from "@/components/TerminalTab/types"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useToast } from "@/hooks/use-toast"
+import { toErrorMessage } from "@/lib/utils"
 
 const MIN_REFRESH_INTERVAL_MS = 1000
 const MAX_REFRESH_INTERVAL_MS = 60000
@@ -201,6 +202,47 @@ function severityClass(percent?: number) {
   return "is-normal"
 }
 
+const DISTRO_RULES: Array<{ patterns: string[]; id: string; exact?: boolean }> = [
+  { patterns: ["archlinux"], id: "arch" },
+  { patterns: ["ubuntu"], id: "ubuntu" },
+  { patterns: ["linuxmint", "linux mint"], id: "linuxmint" },
+  { patterns: ["mint"], id: "linuxmint" },
+  { patterns: ["debian"], id: "debian" },
+  { patterns: ["gentoo"], id: "gentoo" },
+  { patterns: ["manjaro"], id: "manjaro" },
+  { patterns: ["kali"], id: "kali" },
+  { patterns: ["pop!_os", "pop_os"], id: "popos" },
+  { patterns: ["pop os", "pop!"], id: "popos" },
+  { patterns: ["zorin"], id: "zorin" },
+  { patterns: ["elementary"], id: "elementary" },
+  { patterns: ["mx linux"], id: "mx" },
+  { patterns: ["mx"], id: "mx", exact: true },
+  { patterns: ["endeavouros"], id: "endeavouros" },
+  { patterns: ["endeavour"], id: "endeavouros" },
+  { patterns: ["cachyos"], id: "cachyos" },
+  { patterns: ["nixos", "nix os"], id: "nixos" },
+  { patterns: ["nobara"], id: "nobara" },
+  { patterns: ["bazzite"], id: "bazzite" },
+  { patterns: ["antix"], id: "antix" },
+  { patterns: ["biglinux", "big linux"], id: "biglinux" },
+  { patterns: ["deepin"], id: "deepin" },
+  { patterns: ["garuda"], id: "garuda" },
+  { patterns: ["slackware"], id: "slackware" },
+  { patterns: ["void"], id: "void" },
+  { patterns: ["parrot"], id: "parrot" },
+  { patterns: ["rocky"], id: "rocky" },
+  { patterns: ["alma"], id: "alma" },
+  { patterns: ["centos"], id: "centos" },
+  { patterns: ["rhel", "redhat", "red hat"], id: "rhel" },
+  { patterns: ["fedora"], id: "fedora" },
+  { patterns: ["suse", "opensuse"], id: "suse" },
+  { patterns: ["arch"], id: "arch" },
+  { patterns: ["alpine"], id: "alpine" },
+  { patterns: ["amazon"], id: "amazon" },
+  { patterns: ["amzn"], id: "amazon", exact: true },
+  { patterns: ["oracle"], id: "oracle" },
+]
+
 function normalizeDistroId(snapshot?: ServerMetricsSnapshot) {
   const values = [
     snapshot?.distribution?.id,
@@ -211,50 +253,15 @@ function normalizeDistroId(snapshot?: ServerMetricsSnapshot) {
     .filter(Boolean)
     .map((value) => value!.toLowerCase())
 
-  if (values.some((value) => value.includes("archlinux"))) return "arch"
-  if (values.some((value) => value.includes("ubuntu"))) return "ubuntu"
-  if (values.some((value) => value.includes("linuxmint") || value.includes("linux mint"))) {
-    return "linuxmint"
+  for (const rule of DISTRO_RULES) {
+    const matches = rule.exact
+      ? values.some((value) => rule.patterns.some((pattern) => value === pattern))
+      : values.some((value) => rule.patterns.some((pattern) => value.includes(pattern)))
+    if (matches) {
+      return rule.id
+    }
   }
-  if (values.some((value) => value.includes("mint"))) return "linuxmint"
-  if (values.some((value) => value.includes("debian"))) return "debian"
-  if (values.some((value) => value.includes("gentoo"))) return "gentoo"
-  if (values.some((value) => value.includes("manjaro"))) return "manjaro"
-  if (values.some((value) => value.includes("kali"))) return "kali"
-  if (values.some((value) => value.includes("pop!_os") || value.includes("pop_os"))) return "popos"
-  if (values.some((value) => value.includes("pop os") || value.includes("pop!"))) return "popos"
-  if (values.some((value) => value.includes("zorin"))) return "zorin"
-  if (values.some((value) => value.includes("elementary"))) return "elementary"
-  if (values.some((value) => value === "mx" || value.includes("mx linux"))) return "mx"
-  if (values.some((value) => value.includes("endeavouros"))) return "endeavouros"
-  if (values.some((value) => value.includes("endeavour"))) return "endeavouros"
-  if (values.some((value) => value.includes("cachyos"))) return "cachyos"
-  if (values.some((value) => value.includes("nixos") || value.includes("nix os"))) return "nixos"
-  if (values.some((value) => value.includes("nobara"))) return "nobara"
-  if (values.some((value) => value.includes("bazzite"))) return "bazzite"
-  if (values.some((value) => value.includes("antix"))) return "antix"
-  if (values.some((value) => value.includes("biglinux") || value.includes("big linux")))
-    return "biglinux"
-  if (values.some((value) => value.includes("deepin"))) return "deepin"
-  if (values.some((value) => value.includes("garuda"))) return "garuda"
-  if (values.some((value) => value.includes("slackware"))) return "slackware"
-  if (values.some((value) => value.includes("void"))) return "void"
-  if (values.some((value) => value.includes("parrot"))) return "parrot"
-  if (values.some((value) => value.includes("rocky"))) return "rocky"
-  if (values.some((value) => value.includes("alma"))) return "alma"
-  if (values.some((value) => value.includes("centos"))) return "centos"
-  if (
-    values.some(
-      (value) => value.includes("rhel") || value.includes("redhat") || value.includes("red hat")
-    )
-  )
-    return "rhel"
-  if (values.some((value) => value.includes("fedora"))) return "fedora"
-  if (values.some((value) => value.includes("suse") || value.includes("opensuse"))) return "suse"
-  if (values.some((value) => value.includes("arch"))) return "arch"
-  if (values.some((value) => value.includes("alpine"))) return "alpine"
-  if (values.some((value) => value.includes("amazon") || value === "amzn")) return "amazon"
-  if (values.some((value) => value.includes("oracle"))) return "oracle"
+
   return "linux"
 }
 
@@ -547,7 +554,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         if (cancelled || requestId !== requestIdRef.current) return
         setState({
           status: "error",
-          message: error instanceof Error ? error.message : String(error),
+          message: toErrorMessage(error),
         })
       } finally {
         if (!cancelled) {

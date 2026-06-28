@@ -336,9 +336,9 @@ export const TTermApp: React.FC = () => {
     [closeTabById, confirmCloseTabsWithTransfers, confirmCloseTabsWithUnsavedRemoteFiles]
   )
 
-  const handleCloseOtherTabs = useCallback(
-    async (id: string) => {
-      const targetTabIds = tabs.filter((tab) => tab.id !== id).map((tab) => tab.id)
+  const closeTabsWithConfirmation = useCallback(
+    async (targetTabs: Tab[], closeAction: () => void) => {
+      const targetTabIds = targetTabs.map((tab) => tab.id)
       const unsavedConfirmed = await confirmCloseTabsWithUnsavedRemoteFiles(targetTabIds)
       if (!unsavedConfirmed) {
         return
@@ -349,21 +349,22 @@ export const TTermApp: React.FC = () => {
         return
       }
 
-      for (const targetTabId of targetTabIds) {
-        const targetTab = tabs.find((tab) => tab.id === targetTabId)
-        if (targetTab?.type !== "settings" && targetTab?.type !== "remote-file-editor") {
-          cleanupConnection(targetTabId)
+      for (const targetTab of targetTabs) {
+        if (targetTab.type !== "settings" && targetTab.type !== "remote-file-editor") {
+          cleanupConnection(targetTab.id)
         }
       }
-      closeOtherTabs(id)
+      closeAction()
     },
-    [
-      cleanupConnection,
-      closeOtherTabs,
-      confirmCloseTabsWithTransfers,
-      confirmCloseTabsWithUnsavedRemoteFiles,
-      tabs,
-    ]
+    [cleanupConnection, confirmCloseTabsWithTransfers, confirmCloseTabsWithUnsavedRemoteFiles]
+  )
+
+  const handleCloseOtherTabs = useCallback(
+    async (id: string) => {
+      const targetTabs = tabs.filter((tab) => tab.id !== id)
+      await closeTabsWithConfirmation(targetTabs, () => closeOtherTabs(id))
+    },
+    [closeOtherTabs, closeTabsWithConfirmation, tabs]
   )
 
   const handleCloseTabsToLeft = useCallback(
@@ -374,32 +375,9 @@ export const TTermApp: React.FC = () => {
       }
 
       const targetTabs = tabs.slice(0, tabIndex)
-      const unsavedConfirmed = await confirmCloseTabsWithUnsavedRemoteFiles(
-        targetTabs.map((tab) => tab.id)
-      )
-      if (!unsavedConfirmed) {
-        return
-      }
-
-      const confirmed = await confirmCloseTabsWithTransfers(targetTabs.map((tab) => tab.id))
-      if (!confirmed) {
-        return
-      }
-
-      for (const targetTab of targetTabs) {
-        if (targetTab.type !== "settings" && targetTab.type !== "remote-file-editor") {
-          cleanupConnection(targetTab.id)
-        }
-      }
-      closeTabsToLeft(id)
+      await closeTabsWithConfirmation(targetTabs, () => closeTabsToLeft(id))
     },
-    [
-      cleanupConnection,
-      closeTabsToLeft,
-      confirmCloseTabsWithTransfers,
-      confirmCloseTabsWithUnsavedRemoteFiles,
-      tabs,
-    ]
+    [closeTabsToLeft, closeTabsWithConfirmation, tabs]
   )
 
   const handleCloseTabsToRight = useCallback(
@@ -410,32 +388,9 @@ export const TTermApp: React.FC = () => {
       }
 
       const targetTabs = tabs.slice(tabIndex + 1)
-      const unsavedConfirmed = await confirmCloseTabsWithUnsavedRemoteFiles(
-        targetTabs.map((tab) => tab.id)
-      )
-      if (!unsavedConfirmed) {
-        return
-      }
-
-      const confirmed = await confirmCloseTabsWithTransfers(targetTabs.map((tab) => tab.id))
-      if (!confirmed) {
-        return
-      }
-
-      for (const targetTab of targetTabs) {
-        if (targetTab.type !== "settings" && targetTab.type !== "remote-file-editor") {
-          cleanupConnection(targetTab.id)
-        }
-      }
-      closeTabsToRight(id)
+      await closeTabsWithConfirmation(targetTabs, () => closeTabsToRight(id))
     },
-    [
-      cleanupConnection,
-      closeTabsToRight,
-      confirmCloseTabsWithTransfers,
-      confirmCloseTabsWithUnsavedRemoteFiles,
-      tabs,
-    ]
+    [closeTabsToRight, closeTabsWithConfirmation, tabs]
   )
 
   const {

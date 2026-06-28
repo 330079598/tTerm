@@ -11,7 +11,8 @@ import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { SavedSecretEntry, useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
-import { cn } from "@/lib/utils"
+import { useSettingsSave } from "@/hooks/useSettingsSave"
+import { cn, toErrorMessage } from "@/lib/utils"
 import type { PresetThemeId } from "@/types/theme"
 import { AppearanceSettingsTab } from "@/components/SettingsDialog/AppearanceSettingsTab"
 import { ConnectionSettingsTab } from "@/components/SettingsDialog/ConnectionSettingsTab"
@@ -170,6 +171,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     duplicateTheme,
   } = useTheme()
   const { toast } = useToast()
+  const { saveSettings } = useSettingsSave()
   const [activeTab, setActiveTab] = useState(() => normalizeSettingsTab(defaultTab))
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const { prompt, PromptDialog } = usePromptDialog()
@@ -297,7 +299,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       console.error("Failed to save font settings:", error)
       toast({
         title: t("fontSettings.saveFailed", { defaultValue: "Failed to save" }),
-        description: error instanceof Error ? error.message : String(error),
+        description: toErrorMessage(error),
         variant: "destructive",
       })
     }
@@ -412,7 +414,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         setPassword("")
       }
     } catch (error) {
-      setSecretError(error instanceof Error ? error.message : String(error))
+      setSecretError(toErrorMessage(error))
     } finally {
       setSecretBusy(false)
     }
@@ -428,7 +430,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         description: t(`secretStorage.modeDescriptions.${mode}`),
       })
     } catch (error) {
-      setSecretError(error instanceof Error ? error.message : String(error))
+      setSecretError(toErrorMessage(error))
     } finally {
       setSecretBusy(false)
     }
@@ -449,7 +451,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       await refreshSecretStatus()
       setSavedSecrets(await listSavedSecrets())
     } catch (error) {
-      setSecretError(error instanceof Error ? error.message : String(error))
+      setSecretError(toErrorMessage(error))
     } finally {
       setSecretBusy(false)
     }
@@ -467,7 +469,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           : t("secretStorage.startupPromptDisabledDesc"),
       })
     } catch (error) {
-      setSecretError(error instanceof Error ? error.message : String(error))
+      setSecretError(toErrorMessage(error))
     } finally {
       setSecretBusy(false)
     }
@@ -481,7 +483,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       await unlockSecretVault(password, shouldEnable)
       setPassword("")
     } catch (error) {
-      setSecretError(error instanceof Error ? error.message : String(error))
+      setSecretError(toErrorMessage(error))
     } finally {
       setSecretBusy(false)
     }
@@ -493,7 +495,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     try {
       await lockSecretVault()
     } catch (error) {
-      setSecretError(error instanceof Error ? error.message : String(error))
+      setSecretError(toErrorMessage(error))
     } finally {
       setSecretBusy(false)
     }
@@ -520,7 +522,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         variant: "success",
       })
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = toErrorMessage(error)
       await info({
         title: t("secretStorage.changeVaultPassword"),
         description: message,
@@ -553,7 +555,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         description: t("secretStorage.savedSecretDeletedDesc", { label: entry.label }),
       })
     } catch (error) {
-      setSecretError(error instanceof Error ? error.message : String(error))
+      setSecretError(toErrorMessage(error))
     } finally {
       setSecretBusy(false)
     }
@@ -574,29 +576,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   }
 
   const handleRestoreAllSessionConnectionsChange = async (checked: boolean) => {
-    try {
-      await saveConfig({ startup_session_restore_mode: checked ? "all" : "active" })
-    } catch (error) {
-      console.error("Failed to save startup session restore mode:", error)
-      toast({
-        title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      })
-    }
+    await saveSettings({ startup_session_restore_mode: checked ? "all" : "active" })
   }
 
   const handleSftpPasteUploadEnabledChange = async (checked: boolean) => {
-    try {
-      await saveConfig({ sftp_paste_upload_enabled: checked })
-    } catch (error) {
-      console.error("Failed to save SFTP paste upload preference:", error)
-      toast({
-        title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      })
-    }
+    await saveSettings({ sftp_paste_upload_enabled: checked })
   }
 
   const handleEnableDevtoolsChange = async () => {
@@ -606,75 +590,30 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       console.error("Failed to open devtools:", error)
       toast({
         title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
-        description: error instanceof Error ? error.message : String(error),
+        description: toErrorMessage(error),
         variant: "destructive",
       })
     }
   }
 
   const handleShowJumpHostConnectionInfoChange = async (checked: boolean) => {
-    try {
-      await saveConfig({ show_jump_host_connection_info: checked })
-    } catch (error) {
-      console.error("Failed to save jump host connection info preference:", error)
-      toast({
-        title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      })
-    }
+    await saveSettings({ show_jump_host_connection_info: checked })
   }
 
   const handleMonitorRefreshIntervalChange = async (seconds: number) => {
-    try {
-      await saveConfig({ monitor_refresh_interval_secs: seconds })
-    } catch (error) {
-      console.error("Failed to save monitor refresh interval:", error)
-      toast({
-        title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      })
-    }
+    await saveSettings({ monitor_refresh_interval_secs: seconds })
   }
 
   const handleUpdateChannelChange = async (channel: UpdateChannel) => {
-    try {
-      await saveConfig({ update_channel: channel })
-    } catch (error) {
-      console.error("Failed to save update channel:", error)
-      toast({
-        title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      })
-    }
+    await saveSettings({ update_channel: channel })
   }
 
   const handleAutoDownloadUpdatesChange = async (checked: boolean) => {
-    try {
-      await saveConfig({ auto_download_updates: checked })
-    } catch (error) {
-      console.error("Failed to save auto update preference:", error)
-      toast({
-        title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      })
-    }
+    await saveSettings({ auto_download_updates: checked })
   }
 
   const handleUpdateCheckFrequencyChange = async (frequency: UpdateCheckFrequency) => {
-    try {
-      await saveConfig({ update_check_frequency: frequency })
-    } catch (error) {
-      console.error("Failed to save update check frequency:", error)
-      toast({
-        title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      })
-    }
+    await saveSettings({ update_check_frequency: frequency })
   }
 
   const handleAbout = async () => {

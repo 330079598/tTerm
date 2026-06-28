@@ -27,7 +27,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useConfig } from "@/contexts/ConfigContext"
 import { useToast } from "@/hooks/use-toast"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
-import { cn } from "@/lib/utils"
+import { cn, toErrorMessage } from "@/lib/utils"
 import type { SavedProfile, Tab } from "@/types/tab"
 
 const UNGROUPED_KEY = "__ungrouped__"
@@ -446,7 +446,7 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
     (error: unknown) => {
       toast({
         title: t("profileGroups.saveFailed", { defaultValue: "Failed to save group" }),
-        description: error instanceof Error ? error.message : String(error),
+        description: toErrorMessage(error),
         variant: "destructive",
       })
     },
@@ -605,7 +605,7 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
       } catch (error) {
         toast({
           title: t("profiles.delete"),
-          description: error instanceof Error ? error.message : String(error),
+          description: toErrorMessage(error),
           variant: "destructive",
         })
       }
@@ -671,7 +671,7 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
         await refreshProfileGroups()
         toast({
           title: t("profileGroups.moveFailed", { defaultValue: "Failed to move connection" }),
-          description: error instanceof Error ? error.message : String(error),
+          description: toErrorMessage(error),
           variant: "destructive",
         })
       }
@@ -691,7 +691,7 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
       saveConfig({ collapsed_profile_group_keys: Array.from(next) }).catch((error) => {
         toast({
           title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
-          description: error instanceof Error ? error.message : String(error),
+          description: toErrorMessage(error),
           variant: "destructive",
         })
       })

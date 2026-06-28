@@ -2,6 +2,8 @@ import { getVersion } from "@tauri-apps/api/app"
 import { Channel, invoke } from "@tauri-apps/api/core"
 import { relaunch } from "@tauri-apps/plugin-process"
 
+import { toErrorMessage } from "@/lib/utils"
+
 export type UpdateChannel = "stable" | "beta-dev"
 export type UpdateCheckFrequency = "daily" | "every-3-days" | "weekly" | "never"
 
@@ -61,10 +63,6 @@ let checkInFlight: Promise<AppUpdateMetadata | null> | null = null
 let startupTimer: ReturnType<typeof setTimeout> | null = null
 let intervalTimer: ReturnType<typeof setTimeout> | null = null
 const listeners = new Set<UpdateStateListener>()
-
-function toErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
-}
 
 function publish(nextState: Partial<UpdateState>) {
   state = { ...state, ...nextState }

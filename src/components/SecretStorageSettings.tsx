@@ -17,6 +17,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { toErrorMessage } from "@/lib/utils"
 
 interface SecretStorageSettingsProps {
   onClose: () => void
@@ -49,7 +50,7 @@ export const SecretStorageSettings: React.FC<SecretStorageSettingsProps> = ({ on
         setPassword("")
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(toErrorMessage(err))
     } finally {
       setBusy(false)
     }
@@ -62,7 +63,7 @@ export const SecretStorageSettings: React.FC<SecretStorageSettingsProps> = ({ on
       await unlockSecretVault(password, config.secret_vault_enabled)
       setPassword("")
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(toErrorMessage(err))
     } finally {
       setBusy(false)
     }
@@ -74,7 +75,7 @@ export const SecretStorageSettings: React.FC<SecretStorageSettingsProps> = ({ on
     try {
       await lockSecretVault()
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(toErrorMessage(err))
     } finally {
       setBusy(false)
     }

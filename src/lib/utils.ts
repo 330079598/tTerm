@@ -17,6 +17,11 @@ export function getTheme(): Theme {
   return (document.documentElement.getAttribute("data-theme") as Theme) || "default"
 }
 
+// Error message extraction
+export function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 // HSL color helper
 export function hslToCssColor(hsl: string): string {
   return `hsl(${hsl})`

@@ -32,6 +32,8 @@
     "newTab": "新建标签页",
     "duplicateTab": "复制标签页",
     "renameTab": "重命名标签页",
+    "pinConnectionHeader": "固定连接信息栏",
+    "unpinConnectionHeader": "取消固定连接信息栏",
     "closeTab": "关闭标签页",
     "closeOtherTabs": "关闭其他标签页",
     "closeTabsToLeft": "关闭左侧标签页",
@@ -447,6 +449,16 @@
     "types": {
       "terminal": "OS terminal",
       "ssh": "SSH 连接"
+    },
+    "terminalShell": "终端 Shell",
+    "terminalShellCustomPath": "自定义 Shell 路径",
+    "terminalShellCustomArgs": "自定义 Shell 参数",
+    "terminalShellOptions": {
+      "auto": "自动（推荐）",
+      "cmd": "命令提示符 (cmd)",
+      "powershell": "Windows PowerShell",
+      "pwsh": "PowerShell 7 (pwsh)",
+      "custom": "自定义可执行文件"
     }
   },
   "rename": {

@@ -24,6 +24,7 @@ import { toast } from "@/hooks/use-toast"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useStableRef } from "@/hooks/useStableRef"
+import { toErrorMessage } from "@/lib/utils"
 
 export const TerminalTab: React.FC<TerminalTabProps> = ({
   tabId,
@@ -354,7 +355,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         console.error("Failed to save jump host info preference:", error)
         toast({
           title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
-          description: error instanceof Error ? error.message : String(error),
+          description: toErrorMessage(error),
           variant: "destructive",
         })
       })
