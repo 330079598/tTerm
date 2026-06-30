@@ -2,7 +2,6 @@ import "@/components/TabBar.css"
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useTranslation } from "react-i18next"
-import { DragDropProvider, useDraggable, useDroppable } from "@dnd-kit/react"
 import { ChevronDown, Search, Settings, X } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Tab, TabContextMenuAction } from "@/types/tab"
@@ -11,6 +10,7 @@ const TAB_OVERFLOW_THRESHOLD = 16
 const OVERFLOW_PANEL_MAX_WIDTH = 320
 const OVERFLOW_PANEL_VIEWPORT_RATIO = 0.7
 const OVERFLOW_PANEL_MARGIN = 8
+const TAB_DRAG_THRESHOLD = 6
 
 type OverflowPanelStyle = React.CSSProperties & {
   "--tab-overflow-panel-max-height"?: string
@@ -62,37 +62,45 @@ interface TabItemProps {
   tab: Tab
   index: number
   isActive: boolean
+  isDragging: boolean
+  isDropTarget: boolean
   setActiveNode?: (node: HTMLDivElement | null) => void
   onTabClick: (id: string) => void
   onTabClose: (id: string) => void
   onContextMenu: (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => void
+  onPointerDown: (event: React.PointerEvent<HTMLDivElement>, tabId: string) => void
+  onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void
+  onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void
+  onPointerCancel: () => void
+}
+
+type TabDragState = {
+  tabId: string
+  pointerId: number
+  startX: number
+  startY: number
+  dragging: boolean
+  targetTabId: string | null
 }
 
 const TabItem: React.FC<TabItemProps> = ({
   tab,
   index,
   isActive,
+  isDragging,
+  isDropTarget,
   setActiveNode,
   onTabClick,
   onTabClose,
   onContextMenu,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
 }) => {
   const { t } = useTranslation()
-  // Use stable IDs based on tab.id so multiple drag operations won't fail
-  const draggableId = `tab:${tab.id}:drag`
-  const droppableId = `tab:${tab.id}:drop`
-
-  const { ref: draggableRef, isDragging } = useDraggable({
-    id: draggableId,
-  })
-
-  const { ref: droppableRef, isDropTarget } = useDroppable({
-    id: droppableId,
-  })
 
   const setNodeRef = (node: HTMLDivElement | null) => {
-    draggableRef(node)
-    droppableRef(node)
     if (isActive && setActiveNode) {
       setActiveNode(node)
     }
@@ -162,10 +170,15 @@ const TabItem: React.FC<TabItemProps> = ({
           role="tab"
           tabIndex={0}
           aria-selected={isActive}
+          data-tab-id={tab.id}
           data-allow-context-menu
           onClick={() => onTabClick(tab.id)}
           onContextMenu={handleContextMenu}
           onKeyDown={handleKeyDown}
+          onPointerDown={(event) => onPointerDown(event, tab.id)}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
         >
           <span className="tab-number">{index + 1}</span>
           {tab.type === "settings" && <Settings className="tab-icon" size={13} />}
@@ -189,14 +202,6 @@ const TabItem: React.FC<TabItemProps> = ({
   )
 }
 
-const getTabIdFromDndId = (id?: string | number | null): string | null => {
-  if (!id) return null
-  const parts = String(id).split(":")
-  // Expect format "tab:{tabId}:drag|drop"
-  if (parts.length < 3 || parts[0] !== "tab") return null
-  return parts[1] || null
-}
-
 export const TabBar: React.FC<TabBarProps> = ({
   tabs,
   activeTabId,
@@ -211,10 +216,14 @@ export const TabBar: React.FC<TabBarProps> = ({
   const overflowTriggerRef = useRef<HTMLButtonElement | null>(null)
   const overflowPanelRef = useRef<HTMLDivElement | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
+  const dragStateRef = useRef<TabDragState | null>(null)
+  const suppressNextClickRef = useRef(false)
   const [scrollState, setScrollState] = useState({ canScrollLeft: false, canScrollRight: false })
   const [isOverflowMenuOpen, setIsOverflowMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [overflowPanelStyle, setOverflowPanelStyle] = useState<OverflowPanelStyle | null>(null)
+  const [draggingTabId, setDraggingTabId] = useState<string | null>(null)
+  const [dropTargetTabId, setDropTargetTabId] = useState<string | null>(null)
 
   const updateScrollState = useCallback(() => {
     const list = listRef.current
@@ -348,27 +357,107 @@ export const TabBar: React.FC<TabBarProps> = ({
     }
   }, [isOverflowMenuOpen, updateOverflowPanelPosition])
 
-  const handleDragEnd = useCallback(
-    (
-      event: Parameters<NonNullable<React.ComponentProps<typeof DragDropProvider>["onDragEnd"]>>[0]
-    ) => {
-      if (event.canceled) return
+  const resetTabDrag = useCallback(() => {
+    dragStateRef.current = null
+    setDraggingTabId(null)
+    setDropTargetTabId(null)
+  }, [])
 
-      const sourceTabId = getTabIdFromDndId(event.operation.source?.id ?? null)
-      const targetTabId = getTabIdFromDndId(event.operation.target?.id ?? null)
-
-      if (!sourceTabId || !targetTabId || sourceTabId === targetTabId) {
+  const handleTabPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>, tabId: string) => {
+      const target = event.target
+      if (event.button !== 0 || !(target instanceof Element) || target.closest("button")) {
         return
       }
 
-      const fromIndex = tabs.findIndex((t) => t.id === sourceTabId)
-      const toIndex = tabs.findIndex((t) => t.id === targetTabId)
-
-      if (fromIndex >= 0 && toIndex >= 0 && fromIndex !== toIndex) {
-        onTabMove(fromIndex, toIndex)
+      dragStateRef.current = {
+        tabId,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        dragging: false,
+        targetTabId: null,
       }
+      event.currentTarget.setPointerCapture(event.pointerId)
     },
-    [onTabMove, tabs]
+    []
+  )
+
+  const handleTabPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const dragState = dragStateRef.current
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return
+    }
+
+    const deltaX = event.clientX - dragState.startX
+    const deltaY = event.clientY - dragState.startY
+
+    if (!dragState.dragging) {
+      if (Math.hypot(deltaX, deltaY) < TAB_DRAG_THRESHOLD) {
+        return
+      }
+      dragState.dragging = true
+      suppressNextClickRef.current = true
+      setDraggingTabId(dragState.tabId)
+    }
+
+    event.preventDefault()
+
+    const tabElements = Array.from(
+      listRef.current?.querySelectorAll<HTMLElement>("[data-tab-id]") ?? []
+    )
+    const targetTab = tabElements.find((element) => {
+      const rect = element.getBoundingClientRect()
+      return (
+        element.dataset.tabId !== dragState.tabId &&
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom
+      )
+    })
+    const targetTabId = targetTab?.dataset.tabId ?? null
+
+    dragState.targetTabId = targetTabId && targetTabId !== dragState.tabId ? targetTabId : null
+    setDropTargetTabId(dragState.targetTabId)
+  }, [])
+
+  const finishTabDrag = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const dragState = dragStateRef.current
+      if (!dragState || dragState.pointerId !== event.pointerId) {
+        return
+      }
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+
+      if (dragState.dragging && dragState.targetTabId) {
+        event.preventDefault()
+        const fromIndex = tabs.findIndex((tab) => tab.id === dragState.tabId)
+        const toIndex = tabs.findIndex((tab) => tab.id === dragState.targetTabId)
+
+        if (fromIndex >= 0 && toIndex >= 0 && fromIndex !== toIndex) {
+          onTabMove(fromIndex, toIndex)
+        }
+      }
+
+      resetTabDrag()
+    },
+    [onTabMove, resetTabDrag, tabs]
+  )
+
+  const handleTabClick = useCallback(
+    (id: string) => {
+      if (suppressNextClickRef.current) {
+        suppressNextClickRef.current = false
+        return
+      }
+
+      onTabClick(id)
+    },
+    [onTabClick]
   )
 
   const handleSelectTab = useCallback(
@@ -420,21 +509,25 @@ export const TabBar: React.FC<TabBarProps> = ({
         className={`tab-list-viewport ${scrollState.canScrollLeft ? "can-scroll-left" : ""} ${scrollState.canScrollRight ? "can-scroll-right" : ""}`}
       >
         <div ref={listRef} className="tab-list" onScroll={updateScrollState}>
-          <DragDropProvider onDragEnd={handleDragEnd}>
-            {tabs.map((tab, index) => (
-              <React.Fragment key={tab.id}>
-                <TabItem
-                  tab={tab}
-                  index={index}
-                  isActive={tab.id === activeTabId}
-                  setActiveNode={tab.id === activeTabId ? setActiveTabNode : undefined}
-                  onTabClick={onTabClick}
-                  onTabClose={onTabClose}
-                  onContextMenu={onContextMenu}
-                />
-              </React.Fragment>
-            ))}
-          </DragDropProvider>
+          {tabs.map((tab, index) => (
+            <React.Fragment key={tab.id}>
+              <TabItem
+                tab={tab}
+                index={index}
+                isActive={tab.id === activeTabId}
+                isDragging={tab.id === draggingTabId}
+                isDropTarget={tab.id === dropTargetTabId}
+                setActiveNode={tab.id === activeTabId ? setActiveTabNode : undefined}
+                onTabClick={handleTabClick}
+                onTabClose={onTabClose}
+                onContextMenu={onContextMenu}
+                onPointerDown={handleTabPointerDown}
+                onPointerMove={handleTabPointerMove}
+                onPointerUp={finishTabDrag}
+                onPointerCancel={resetTabDrag}
+              />
+            </React.Fragment>
+          ))}
         </div>
       </div>
 
