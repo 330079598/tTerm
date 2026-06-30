@@ -2,7 +2,7 @@ use super::metrics::parse_metrics_output;
 use super::types::{MonitorSession, MonitorSessionMap, MONITOR_SESSION_IDLE_TIMEOUT};
 use crate::core::session::SessionPlan;
 use crate::core::state::HostPromptMap;
-use crate::ssh::{ConnectionStatusOptions, open_target_ssh_session};
+use crate::ssh::{open_target_ssh_session, ConnectionStatusOptions};
 use russh::ChannelMsg;
 use std::sync::Arc;
 use tokio::sync::Mutex;

@@ -5,12 +5,12 @@ mod types;
 use crate::core::session::{normalize_connection, resolve_ssh_password, PtyConnectionOptions};
 use crate::core::state::HostPromptMap;
 use crate::ssh::SecretStoreState;
-pub use types::MonitorSessionMap;
 use session::{
     collect_metrics_snapshot, get_or_open_monitor_session, monitor_connection_fingerprint,
     reap_idle_monitor_sessions, release_monitor_session_inner,
 };
 use tauri::{AppHandle, State};
+pub use types::MonitorSessionMap;
 use types::ServerMetricsSnapshot;
 
 #[tauri::command]

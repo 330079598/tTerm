@@ -1,9 +1,9 @@
 use super::types::{
-    VaultConfigFile, VaultFile, VaultRuntime, VaultSecretRecord, DERIVED_KEY_LEN, NONCE_LEN,
-    SALT_LEN, SECRET_KIND_VERIFIER, VAULT_CONFIG_FILE_NAME, VAULT_FILE_NAME,
-    VAULT_VERIFIER_PLAINTEXT, VERIFIER_PROFILE_ID, default_vault_algorithm,
-    default_vault_config_version, default_vault_iterations, default_vault_kdf,
-    default_vault_memory_kib, default_vault_parallelism,
+    default_vault_algorithm, default_vault_config_version, default_vault_iterations,
+    default_vault_kdf, default_vault_memory_kib, default_vault_parallelism, VaultConfigFile,
+    VaultFile, VaultRuntime, VaultSecretRecord, DERIVED_KEY_LEN, NONCE_LEN, SALT_LEN,
+    SECRET_KIND_VERIFIER, VAULT_CONFIG_FILE_NAME, VAULT_FILE_NAME, VAULT_VERIFIER_PLAINTEXT,
+    VERIFIER_PROFILE_ID,
 };
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Key, Nonce};

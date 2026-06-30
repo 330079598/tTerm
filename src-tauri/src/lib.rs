@@ -99,6 +99,7 @@ pub fn run() {
             core::commands::has_saved_password,
             core::commands::has_saved_jump_host_password,
             core::commands::write_saved_password_for_sudo,
+            terminal::list_available_terminal_shells,
             fonts::list_fonts,
             monitor::get_server_metrics_snapshot,
             monitor::release_server_monitor_session,

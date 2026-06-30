@@ -1,4 +1,6 @@
-import React from "react"
+import React, { useEffect, useMemo, useState } from "react"
+import { invoke } from "@tauri-apps/api/core"
+import { platform } from "@tauri-apps/plugin-os"
 import { useTranslation } from "react-i18next"
 
 import { Input } from "@/components/ui/input"
@@ -8,9 +10,61 @@ import { TerminalShellType } from "@/types/tab"
 
 import { ConnectionForm } from "@/components/ConnectionDialog/types"
 
+interface TerminalShellProfile {
+  shell: TerminalShellType
+  label: string
+  source: string
+}
+
+type TerminalShellOption = TerminalShellProfile & {
+  value: string
+}
+
 interface TerminalConnectionFieldsProps {
   form: ConnectionForm
   setForm: React.Dispatch<React.SetStateAction<ConnectionForm>>
+}
+
+const windowsFallbackTerminalShellProfiles: TerminalShellProfile[] = [
+  { shell: "auto", label: "Auto (recommended)", source: "tTerm default" },
+  { shell: "cmd", label: "Command Prompt (cmd)", source: "cmd.exe" },
+  { shell: "powershell", label: "Windows PowerShell", source: "powershell.exe" },
+  { shell: "pwsh", label: "PowerShell 7 (pwsh)", source: "pwsh.exe" },
+  { shell: "wsl", label: "Windows Subsystem for Linux (WSL)", source: "wsl.exe" },
+  { shell: "git-bash", label: "Git Bash", source: "bash.exe" },
+  { shell: "custom", label: "Custom executable", source: "manual path" },
+]
+
+const unixFallbackTerminalShellProfiles: TerminalShellProfile[] = [
+  { shell: "auto", label: "Auto (recommended)", source: "tTerm default" },
+  { shell: "custom", label: "Custom shell", source: "$SHELL" },
+]
+
+function getFallbackTerminalShellProfiles(): TerminalShellProfile[] {
+  try {
+    return platform() === "windows"
+      ? windowsFallbackTerminalShellProfiles
+      : unixFallbackTerminalShellProfiles
+  } catch {
+    return unixFallbackTerminalShellProfiles
+  }
+}
+
+const terminalShellTranslationKeys: Record<TerminalShellType, string> = {
+  auto: "auto",
+  cmd: "cmd",
+  powershell: "powershell",
+  pwsh: "pwsh",
+  wsl: "wsl",
+  "git-bash": "gitBash",
+  custom: "custom",
+}
+
+function toShellOption(profile: TerminalShellProfile): TerminalShellOption {
+  return {
+    ...profile,
+    value: profile.shell === "custom" ? `custom:${profile.source}` : profile.shell,
+  }
 }
 
 export const TerminalConnectionFields: React.FC<TerminalConnectionFieldsProps> = ({
@@ -18,6 +72,44 @@ export const TerminalConnectionFields: React.FC<TerminalConnectionFieldsProps> =
   setForm,
 }) => {
   const { t } = useTranslation()
+  const [fallbackShellProfiles] = useState<TerminalShellProfile[]>(getFallbackTerminalShellProfiles)
+  const [shellProfiles, setShellProfiles] = useState<TerminalShellProfile[]>(fallbackShellProfiles)
+
+  useEffect(() => {
+    let cancelled = false
+
+    invoke<TerminalShellProfile[]>("list_available_terminal_shells")
+      .then((profiles) => {
+        if (!cancelled && profiles.length > 0) {
+          setShellProfiles(profiles)
+        }
+      })
+      .catch((error) => {
+        console.warn("Failed to list available terminal shells", error)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const visibleShellOptions = useMemo(() => {
+    if (shellProfiles.some((profile) => profile.shell === form.terminalShell)) {
+      return shellProfiles.map(toShellOption)
+    }
+
+    const selectedProfile = fallbackShellProfiles.find(
+      (profile) => profile.shell === form.terminalShell
+    )
+    return (selectedProfile ? [...shellProfiles, selectedProfile] : shellProfiles).map(
+      toShellOption
+    )
+  }, [fallbackShellProfiles, form.terminalShell, shellProfiles])
+
+  const selectedShellValue =
+    form.terminalShell === "custom" && form.terminalShellCustomPath
+      ? `custom:${form.terminalShellCustomPath}`
+      : form.terminalShell
 
   return (
     <>
@@ -27,19 +119,34 @@ export const TerminalConnectionFields: React.FC<TerminalConnectionFieldsProps> =
         </Label>
         <Select
           id="conn-terminal-shell"
-          value={form.terminalShell}
-          onChange={(e) =>
+          value={selectedShellValue}
+          onChange={(e) => {
+            const selectedValue = e.target.value
+            const selectedProfile = visibleShellOptions.find(
+              (profile) => profile.value === selectedValue
+            )
+            const isDetectedCustomShell =
+              selectedProfile?.shell === "custom" &&
+              selectedProfile.source !== "manual path" &&
+              selectedProfile.source !== "$SHELL"
+
             setForm((current) => ({
               ...current,
-              terminalShell: e.target.value as TerminalShellType,
+              terminalShell: selectedProfile?.shell ?? (selectedValue as TerminalShellType),
+              terminalShellCustomPath: isDetectedCustomShell
+                ? selectedProfile.source
+                : current.terminalShellCustomPath,
             }))
-          }
+          }}
         >
-          <option value="auto">{t("connection.terminalShellOptions.auto")}</option>
-          <option value="cmd">{t("connection.terminalShellOptions.cmd")}</option>
-          <option value="powershell">{t("connection.terminalShellOptions.powershell")}</option>
-          <option value="pwsh">{t("connection.terminalShellOptions.pwsh")}</option>
-          <option value="custom">{t("connection.terminalShellOptions.custom")}</option>
+          {visibleShellOptions.map((profile) => (
+            <option key={profile.value} value={profile.value}>
+              {t(
+                `connection.terminalShellOptions.${terminalShellTranslationKeys[profile.shell]}`,
+                profile.label
+              )}
+            </option>
+          ))}
         </Select>
       </div>
 

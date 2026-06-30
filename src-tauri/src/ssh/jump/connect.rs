@@ -3,11 +3,11 @@ use super::handler::JumpHostHandler;
 use crate::core::session::JumpHostPlan;
 use crate::core::state::HostPromptMap;
 use crate::ssh::types::{
-    ConnectionStatusOptions, HostKeyVerificationMode, SshClientHandler, SshConnectionProgressPayload,
-    HOST_KEY_REJECTED_REASON, emit_connection_progress,
+    emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode, SshClientHandler,
+    SshConnectionProgressPayload, HOST_KEY_REJECTED_REASON,
 };
-use russh::{client, Disconnect};
 use russh::keys::PrivateKeyWithHashAlg;
+use russh::{client, Disconnect};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};

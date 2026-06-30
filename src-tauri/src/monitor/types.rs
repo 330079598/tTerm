@@ -5,9 +5,11 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::Instant;
 
-pub(crate) const MONITOR_SESSION_IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5 * 60);
+pub(crate) const MONITOR_SESSION_IDLE_TIMEOUT: std::time::Duration =
+    std::time::Duration::from_secs(5 * 60);
 
-pub type MonitorSessionMap = Arc<Mutex<std::collections::HashMap<String, Arc<Mutex<MonitorSession>>>>>;
+pub type MonitorSessionMap =
+    Arc<Mutex<std::collections::HashMap<String, Arc<Mutex<MonitorSession>>>>>;
 
 pub struct MonitorSession {
     pub session_nonce: u32,

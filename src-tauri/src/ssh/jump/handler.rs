@@ -3,11 +3,11 @@ use crate::ssh::store::{
     load_known_host, now_unix_ms, save_known_host_entry, KnownHostRecord, SshHostKeyPromptPayload,
 };
 use crate::ssh::types::{
-    ConnectionStatusOptions, HostKeyVerificationMode, SshConnectionProgressPayload,
-    HOST_KEY_PROMPT_TIMEOUT, HOST_KEY_REJECTED_REASON, emit_connection_progress,
+    emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode,
+    SshConnectionProgressPayload, HOST_KEY_PROMPT_TIMEOUT, HOST_KEY_REJECTED_REASON,
 };
-use russh::keys::ssh_key::HashAlg;
 use russh::client;
+use russh::keys::ssh_key::HashAlg;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};

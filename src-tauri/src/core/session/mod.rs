@@ -1,8 +1,8 @@
 mod types;
 
 pub use types::{
-    JumpHostOptions, JumpHostPlan, PtyConnectionOptions, SessionPlan, TerminalShellConfig,
-    jump_host_identity_secret_key, jump_host_secret_key, MAX_JUMP_HOSTS,
+    jump_host_identity_secret_key, jump_host_secret_key, JumpHostOptions, JumpHostPlan,
+    PtyConnectionOptions, SessionPlan, TerminalShellConfig, MAX_JUMP_HOSTS,
 };
 
 use crate::core::state::SessionKind;

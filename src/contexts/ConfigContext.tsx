@@ -48,7 +48,7 @@ export interface AppConfig {
   font_family: string
   font_size: number
   cursor_style: "bar" | "block" | "underline"
-  terminal_shell: "auto" | "cmd" | "powershell" | "pwsh" | "custom"
+  terminal_shell: "auto" | "cmd" | "powershell" | "pwsh" | "wsl" | "git-bash" | "custom"
   terminal_shell_custom_path: string
   terminal_shell_custom_args: string
   secret_vault_enabled: boolean

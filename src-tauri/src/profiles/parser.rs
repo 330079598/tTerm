@@ -385,9 +385,7 @@ fn is_wildcard_host(pattern: &str) -> bool {
     pattern.contains('*') || pattern.contains('?') || pattern.contains('!')
 }
 
-pub(crate) fn parse_ssh_config(
-    content: &str,
-) -> (Vec<RawSshHost>, SshConfigDefaults, Vec<String>) {
+pub(crate) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefaults, Vec<String>) {
     let supported = HashSet::from([
         "host",
         "hostname",

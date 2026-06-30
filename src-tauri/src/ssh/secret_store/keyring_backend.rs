@@ -30,10 +30,7 @@ pub(crate) fn write_keyring_secret(
         .map_err(|e| format!("Failed to write keyring secret: {}", e))
 }
 
-pub(crate) fn delete_keyring_secret(
-    profile_id: &str,
-    kind: &str,
-) -> Result<bool, String> {
+pub(crate) fn delete_keyring_secret(profile_id: &str, kind: &str) -> Result<bool, String> {
     let account = secret_key_name(profile_id, kind);
     let entry = keyring::Entry::new(SERVICE_NAME, &account)
         .map_err(|e| format!("Failed to open keyring entry: {}", e))?;

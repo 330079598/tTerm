@@ -7,9 +7,11 @@ use super::storage::{
 use super::types::{
     SavedProfile, SshConfigImportOptions, SshConfigImportPreview, SshConfigImportResult,
 };
-use crate::ssh::{ConnectionStatusOptions, HostKeyVerificationMode, SecretLocation, SshClientHandler};
-use crate::ssh::SshConnectionProgressPayload;
 use crate::core::state::HostPromptMap;
+use crate::ssh::SshConnectionProgressPayload;
+use crate::ssh::{
+    ConnectionStatusOptions, HostKeyVerificationMode, SecretLocation, SshClientHandler,
+};
 use std::collections::HashSet;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;

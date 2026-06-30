@@ -458,6 +458,8 @@
       "cmd": "命令提示符 (cmd)",
       "powershell": "Windows PowerShell",
       "pwsh": "PowerShell 7 (pwsh)",
+      "wsl": "Windows Subsystem for Linux (WSL)",
+      "gitBash": "Git Bash",
       "custom": "自定义可执行文件"
     }
   },

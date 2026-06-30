@@ -458,6 +458,8 @@
       "cmd": "Command Prompt (cmd)",
       "powershell": "Windows PowerShell",
       "pwsh": "PowerShell 7 (pwsh)",
+      "wsl": "Windows Subsystem for Linux (WSL)",
+      "gitBash": "Git Bash",
       "custom": "Custom executable"
     }
   },

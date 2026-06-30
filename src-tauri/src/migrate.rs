@@ -1,8 +1,8 @@
 use crate::config;
 use crate::profiles;
 use crate::session;
-use crate::ssh;
 use crate::sftp;
+use crate::ssh;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::path::{Path, PathBuf};

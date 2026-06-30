@@ -8,12 +8,11 @@ use rand::RngCore;
 use std::sync::{Arc, Mutex};
 use tauri::AppHandle;
 use types::{
-    DERIVED_KEY_LEN, PROBE_ACCOUNT, KEYRING_PROBE_SECRET,
-    SecretStorageMode, SecretStoreRuntime,
-    VAULT_MASTER_ACCOUNT, VaultRuntime,
+    SecretStorageMode, SecretStoreRuntime, VaultRuntime, DERIVED_KEY_LEN, KEYRING_PROBE_SECRET,
+    PROBE_ACCOUNT, VAULT_MASTER_ACCOUNT,
 };
 use vault::{
-    decrypt_secret, derive_or_initialize_vault_key, delete_vault_secret, encrypt_secret,
+    decrypt_secret, delete_vault_secret, derive_or_initialize_vault_key, encrypt_secret,
     load_vault_file, read_vault_secret, save_vault_file, vault_config_path, vault_path,
     verify_or_initialize_vault, write_vault_secret,
 };
@@ -125,10 +124,7 @@ impl SecretStoreState {
     }
 
     fn probe_keyring() -> bool {
-        let entry = match keyring::Entry::new(
-            types::SERVICE_NAME,
-            PROBE_ACCOUNT,
-        ) {
+        let entry = match keyring::Entry::new(types::SERVICE_NAME, PROBE_ACCOUNT) {
             Ok(entry) => entry,
             Err(_) => return false,
         };
@@ -204,12 +200,15 @@ impl SecretStoreState {
                 .map_err(|_| "Secret store state is poisoned".to_string())?;
             match &guard.vault {
                 Some(rt) => rt.key,
-                None => return Err("Vault must be unlocked before changing the password.".to_string()),
+                None => {
+                    return Err("Vault must be unlocked before changing the password.".to_string())
+                }
             }
         };
         let old_runtime = VaultRuntime { key: stored_key };
 
-        let mut derived_key = derive_or_initialize_vault_key(app, input.current_password.as_bytes())?;
+        let mut derived_key =
+            derive_or_initialize_vault_key(app, input.current_password.as_bytes())?;
         if derived_key != old_runtime.key {
             return Err("Current password is incorrect.".to_string());
         }
@@ -232,10 +231,7 @@ impl SecretStoreState {
         let mut salt = [0u8; DERIVED_KEY_LEN];
         rand::thread_rng().fill_bytes(&mut salt);
         let new_config = types::VaultConfigFile {
-            salt_b64: base64::Engine::encode(
-                &base64::engine::general_purpose::STANDARD,
-                salt,
-            ),
+            salt_b64: base64::Engine::encode(&base64::engine::general_purpose::STANDARD, salt),
             version: types::default_vault_config_version(),
             algorithm: types::default_vault_algorithm(),
             kdf: types::default_vault_kdf(),
@@ -262,7 +258,8 @@ impl SecretStoreState {
             Some(DERIVED_KEY_LEN),
         )
         .map_err(|e| format!("Failed to build Argon2 params: {}", e))?;
-        let argon2 = argon2::Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
+        let argon2 =
+            argon2::Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
         let mut new_key = [0u8; DERIVED_KEY_LEN];
         argon2
             .hash_password_into(input.new_password.as_bytes(), &salt_bytes, &mut new_key)
@@ -466,7 +463,13 @@ impl SecretStoreState {
             .lock()
             .map_err(|_| "Secret store state is poisoned".to_string())?;
         if let Some(runtime) = &guard.vault {
-            write_vault_secret(app, runtime, profile_id, types::SECRET_KIND_PASSWORD, password)?;
+            write_vault_secret(
+                app,
+                runtime,
+                profile_id,
+                types::SECRET_KIND_PASSWORD,
+                password,
+            )?;
             return Ok(SecretLocation::Vault);
         }
 

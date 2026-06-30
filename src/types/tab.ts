@@ -48,7 +48,14 @@ export interface TransferTask {
   speed?: number
 }
 
-export type TerminalShellType = "auto" | "cmd" | "powershell" | "pwsh" | "custom"
+export type TerminalShellType =
+  | "auto"
+  | "cmd"
+  | "powershell"
+  | "pwsh"
+  | "wsl"
+  | "git-bash"
+  | "custom"
 export type ConnectionType = "terminal" | "ssh"
 export type TabType = ConnectionType | "settings" | "remote-file-editor"
 
