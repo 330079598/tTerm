@@ -2,7 +2,7 @@ import "@/components/TabBar.css"
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useTranslation } from "react-i18next"
-import { ChevronDown, Search, Settings, X } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, Search, Settings, X } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Tab, TabContextMenuAction } from "@/types/tab"
 
@@ -469,6 +469,46 @@ export const TabBar: React.FC<TabBarProps> = ({
   )
 
   const hasOverflow = scrollState.canScrollLeft || scrollState.canScrollRight
+
+  const scrollTabs = useCallback(
+    (direction: "left" | "right") => {
+      const list = listRef.current
+      if (!list) {
+        return
+      }
+
+      const distance = Math.max(140, Math.floor(list.clientWidth * 0.72))
+      list.scrollBy({
+        left: direction === "left" ? -distance : distance,
+        behavior: "smooth",
+      })
+
+      window.setTimeout(updateScrollState, 180)
+    },
+    [updateScrollState]
+  )
+
+  const handleTabListWheel = useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      const list = listRef.current
+      if (!list || list.scrollWidth <= list.clientWidth) {
+        return
+      }
+
+      const horizontalDelta =
+        Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
+
+      if (horizontalDelta === 0) {
+        return
+      }
+
+      event.preventDefault()
+      list.scrollLeft += horizontalDelta
+      updateScrollState()
+    },
+    [updateScrollState]
+  )
+
   const normalizedSearchQuery = searchQuery.trim().toLowerCase()
   const filteredTabs = normalizedSearchQuery
     ? tabs.filter((tab, index) => {
@@ -505,10 +545,27 @@ export const TabBar: React.FC<TabBarProps> = ({
 
   return (
     <div className="tab-bar-shell">
+      {hasOverflow && (
+        <button
+          type="button"
+          className="tab-action tab-scroll-button tab-scroll-left"
+          aria-label="Scroll tabs left"
+          disabled={!scrollState.canScrollLeft}
+          onClick={() => scrollTabs("left")}
+        >
+          <ChevronLeft size={15} />
+        </button>
+      )}
+
       <div
         className={`tab-list-viewport ${scrollState.canScrollLeft ? "can-scroll-left" : ""} ${scrollState.canScrollRight ? "can-scroll-right" : ""}`}
       >
-        <div ref={listRef} className="tab-list" onScroll={updateScrollState}>
+        <div
+          ref={listRef}
+          className="tab-list"
+          onScroll={updateScrollState}
+          onWheel={handleTabListWheel}
+        >
           {tabs.map((tab, index) => (
             <React.Fragment key={tab.id}>
               <TabItem
@@ -530,6 +587,18 @@ export const TabBar: React.FC<TabBarProps> = ({
           ))}
         </div>
       </div>
+
+      {hasOverflow && (
+        <button
+          type="button"
+          className="tab-action tab-scroll-button tab-scroll-right"
+          aria-label="Scroll tabs right"
+          disabled={!scrollState.canScrollRight}
+          onClick={() => scrollTabs("right")}
+        >
+          <ChevronRight size={15} />
+        </button>
+      )}
 
       {hasOverflow && (
         <div ref={overflowMenuRef} className="tab-overflow-menu">
