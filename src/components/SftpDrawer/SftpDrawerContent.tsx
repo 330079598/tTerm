@@ -18,13 +18,14 @@ import type {
 } from "@/components/SftpDrawer/types"
 
 const SFTP_COLUMN_WIDTH_STORAGE_KEY = "tterm.sftp.columnWidths"
-const SFTP_COLUMN_DEFAULT_WIDTHS = [300, 170, 100, 100, 126, 148] as const
-const SFTP_COLUMN_MIN_WIDTHS = [180, 130, 78, 70, 92, 110] as const
+const SFTP_COLUMN_DEFAULT_WEIGHTS = [300, 170, 100, 100, 126, 148] as const
+const SFTP_COLUMN_MIN_WEIGHTS = [180, 130, 78, 70, 92, 110] as const
 
 type ResizeState = {
   index: number
   startX: number
-  startWidths: number[]
+  pxPerWeight: number
+  startWeights: number[]
 }
 
 function getEntryKindLabel(entry: SftpDirectoryEntry, t: TFunction) {
@@ -50,26 +51,48 @@ function getOwnerGroupLabel(entry: SftpDirectoryEntry) {
   return owner || group || "--"
 }
 
-function getInitialColumnWidths() {
+function normalizeColumnWeight(weight: number) {
+  return Math.round(weight * 10) / 10
+}
+
+function resizeColumnPair(startWeights: number[], index: number, deltaWeight: number) {
+  const nextWeights = [...startWeights]
+  const leftMin = SFTP_COLUMN_MIN_WEIGHTS[index]
+  const rightMin = SFTP_COLUMN_MIN_WEIGHTS[index + 1]
+  const pairTotal = startWeights[index] + startWeights[index + 1]
+  const minLeft = Math.min(leftMin, pairTotal - rightMin)
+  const maxLeft = Math.max(minLeft, pairTotal - rightMin)
+  const requestedLeft = startWeights[index] + deltaWeight
+  const nextLeft = Math.min(Math.max(requestedLeft, minLeft), maxLeft)
+
+  nextWeights[index] = normalizeColumnWeight(nextLeft)
+  nextWeights[index + 1] = normalizeColumnWeight(pairTotal - nextLeft)
+  return nextWeights
+}
+
+function getInitialColumnWeights() {
   try {
     const storedWidths = window.localStorage.getItem(SFTP_COLUMN_WIDTH_STORAGE_KEY)
     if (!storedWidths) {
-      return [...SFTP_COLUMN_DEFAULT_WIDTHS]
+      return [...SFTP_COLUMN_DEFAULT_WEIGHTS]
     }
 
     const parsedWidths = JSON.parse(storedWidths)
-    if (!Array.isArray(parsedWidths) || parsedWidths.length !== SFTP_COLUMN_DEFAULT_WIDTHS.length) {
-      return [...SFTP_COLUMN_DEFAULT_WIDTHS]
+    if (
+      !Array.isArray(parsedWidths) ||
+      parsedWidths.length !== SFTP_COLUMN_DEFAULT_WEIGHTS.length
+    ) {
+      return [...SFTP_COLUMN_DEFAULT_WEIGHTS]
     }
 
-    return SFTP_COLUMN_DEFAULT_WIDTHS.map((defaultWidth, index) => {
+    return SFTP_COLUMN_DEFAULT_WEIGHTS.map((defaultWidth, index) => {
       const width = parsedWidths[index]
       return typeof width === "number" && Number.isFinite(width)
-        ? Math.max(SFTP_COLUMN_MIN_WIDTHS[index], Math.round(width))
+        ? Math.max(SFTP_COLUMN_MIN_WEIGHTS[index], normalizeColumnWeight(width))
         : defaultWidth
     })
   } catch {
-    return [...SFTP_COLUMN_DEFAULT_WIDTHS]
+    return [...SFTP_COLUMN_DEFAULT_WEIGHTS]
   }
 }
 
@@ -116,33 +139,50 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
 }) => {
   const { t } = useTranslation()
   const [isPointerSelecting, setIsPointerSelecting] = useState(false)
-  const [columnWidths, setColumnWidths] = useState(getInitialColumnWidths)
+  const [columnWeights, setColumnWeights] = useState(getInitialColumnWeights)
   const pointerAnchorRef = useRef<string | null>(null)
   const pointerMovedRef = useRef(false)
   const resizeStateRef = useRef<ResizeState | null>(null)
   const rowRefs = useRef(new Map<string, HTMLDivElement>())
+  const tableShellRef = useRef<HTMLDivElement>(null)
   const gridTemplateColumns = useMemo(
-    () =>
-      columnWidths
-        .map((width, index) => `minmax(${SFTP_COLUMN_MIN_WIDTHS[index]}px, ${width}fr)`)
-        .join(" "),
-    [columnWidths]
+    () => columnWeights.map((width) => `minmax(0, ${width}fr)`).join(" "),
+    [columnWeights]
   )
   const compactGridTemplateColumns = useMemo(
     () =>
-      columnWidths
+      columnWeights
         .slice(0, 3)
-        .map((width, index) => `minmax(${SFTP_COLUMN_MIN_WIDTHS[index]}px, ${width}fr)`)
+        .map((width) => `minmax(0, ${width}fr)`)
         .join(" "),
-    [columnWidths]
+    [columnWeights]
+  )
+  const minimalGridTemplateColumns = useMemo(
+    () =>
+      columnWeights
+        .slice(0, 2)
+        .map((width) => `minmax(0, ${width}fr)`)
+        .join(" "),
+    [columnWeights]
+  )
+  const singleGridTemplateColumns = useMemo(
+    () => `minmax(0, ${columnWeights[0]}fr)`,
+    [columnWeights]
   )
   const tableGridStyle = useMemo(
     () =>
       ({
         "--sftp-grid-template": gridTemplateColumns,
         "--sftp-grid-template-compact": compactGridTemplateColumns,
+        "--sftp-grid-template-minimal": minimalGridTemplateColumns,
+        "--sftp-grid-template-single": singleGridTemplateColumns,
       }) as React.CSSProperties,
-    [compactGridTemplateColumns, gridTemplateColumns]
+    [
+      compactGridTemplateColumns,
+      gridTemplateColumns,
+      minimalGridTemplateColumns,
+      singleGridTemplateColumns,
+    ]
   )
 
   const filteredEntries = useMemo(() => {
@@ -204,28 +244,26 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
     (index: number, event: React.MouseEvent<HTMLSpanElement>) => {
       event.preventDefault()
       event.stopPropagation()
+      const totalWeight = columnWeights.reduce((sum, width) => sum + width, 0)
+      const availableWidth = tableShellRef.current?.clientWidth ?? totalWeight
       resizeStateRef.current = {
         index,
         startX: event.clientX,
-        startWidths: columnWidths,
+        pxPerWeight: Math.max(availableWidth / totalWeight, 0.1),
+        startWeights: columnWeights,
       }
       document.body.classList.add("sftp-column-resizing")
     },
-    [columnWidths]
+    [columnWeights]
   )
 
   const adjustColumnWidth = React.useCallback((index: number, delta: number) => {
-    setColumnWidths((currentWidths) => {
-      const nextWidths = [...currentWidths]
-      const leftWidth = Math.max(SFTP_COLUMN_MIN_WIDTHS[index], currentWidths[index] + delta)
-      nextWidths[index] = leftWidth
-      return nextWidths
-    })
+    setColumnWeights((currentWeights) => resizeColumnPair(currentWeights, index, delta))
   }, [])
 
   useEffect(() => {
-    window.localStorage.setItem(SFTP_COLUMN_WIDTH_STORAGE_KEY, JSON.stringify(columnWidths))
-  }, [columnWidths])
+    window.localStorage.setItem(SFTP_COLUMN_WIDTH_STORAGE_KEY, JSON.stringify(columnWeights))
+  }, [columnWeights])
 
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
@@ -235,12 +273,13 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
       }
 
       const delta = event.clientX - resizeState.startX
-      const nextWidths = [...resizeState.startWidths]
-      nextWidths[resizeState.index] = Math.max(
-        SFTP_COLUMN_MIN_WIDTHS[resizeState.index],
-        resizeState.startWidths[resizeState.index] + delta
+      setColumnWeights(
+        resizeColumnPair(
+          resizeState.startWeights,
+          resizeState.index,
+          delta / resizeState.pxPerWeight
+        )
       )
-      setColumnWidths(nextWidths)
     }
 
     const stopResize = () => {
@@ -312,7 +351,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
         </div>
       )}
 
-      <div className="sftp-table-shell">
+      <div className="sftp-table-shell" ref={tableShellRef}>
         {showTableHeader && (
           <div
             className={cn("sftp-table-header", isSelectionMode && "sftp-table-header-selection")}
@@ -332,17 +371,18 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
                 key={index}
                 className={cn(
                   "sftp-header-cell",
-                  index === SFTP_COLUMN_DEFAULT_WIDTHS.length - 1 && "sftp-header-summary"
+                  index === SFTP_COLUMN_DEFAULT_WEIGHTS.length - 1 && "sftp-header-summary"
                 )}
-                aria-live={index === SFTP_COLUMN_DEFAULT_WIDTHS.length - 1 ? "polite" : undefined}
+                aria-live={index === SFTP_COLUMN_DEFAULT_WEIGHTS.length - 1 ? "polite" : undefined}
               >
                 {label}
-                {index < SFTP_COLUMN_DEFAULT_WIDTHS.length - 1 && (
+                {index < SFTP_COLUMN_DEFAULT_WEIGHTS.length - 1 && (
                   <span
                     className="sftp-column-resizer"
                     role="separator"
                     tabIndex={0}
                     aria-orientation="vertical"
+                    aria-valuenow={Math.round(columnWeights[index])}
                     aria-label={t("sftp.columns.resize", {
                       column: label,
                       defaultValue: `Resize ${label}`,
