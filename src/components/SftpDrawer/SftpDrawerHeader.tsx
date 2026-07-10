@@ -97,6 +97,17 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
     setIsPathEditing(true)
   }, [isLoading, listingCurrentPath, visible])
 
+  const handlePathDisplayDoubleClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if ((event.target as HTMLElement).closest("button")) {
+        return
+      }
+
+      openPathEditor()
+    },
+    [openPathEditor]
+  )
+
   const closePathEditor = () => {
     setIsPathEditing(false)
     setPathDraft(listingCurrentPath ?? "")
@@ -228,7 +239,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
             )}
           </div>
         ) : (
-          <div className="sftp-path-display">
+          <div className="sftp-path-display" onDoubleClick={handlePathDisplayDoubleClick}>
             <div className="sftp-breadcrumbs">
               {breadcrumbs.map((item, index) => (
                 <React.Fragment key={item.path}>
