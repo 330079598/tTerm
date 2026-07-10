@@ -31,7 +31,7 @@
   padding: 1px 16px;
   border-bottom: 1px solid hsl(var(--border));
   background: hsl(var(--card));
-  overflow: hidden;
+  overflow: visible;
 }
 
 .sftp-header-left {
@@ -55,6 +55,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  flex: 1;
   min-width: 0;
   overflow: hidden;
 }
@@ -64,6 +65,77 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sftp-path-display,
+.sftp-path-editor {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.sftp-path-display {
+  gap: 4px;
+}
+
+.sftp-path-display [data-slot="button"] {
+  flex-shrink: 0;
+}
+
+.sftp-path-editor {
+  position: relative;
+  max-width: min(620px, 52vw);
+}
+
+.sftp-path-icon {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  color: hsl(var(--muted-foreground));
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.sftp-path-input {
+  height: 28px;
+  padding-left: 30px;
+  padding-right: 58px;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: var(--sftp-font-size);
+}
+
+.sftp-path-controls {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  transform: translateY(-50%);
+}
+
+.sftp-path-error {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  max-width: min(420px, 100%);
+  overflow: hidden;
+  border: 1px solid hsl(var(--destructive) / 0.35);
+  border-radius: var(--radius);
+  background: hsl(var(--background));
+  color: hsl(var(--destructive));
+  padding: 4px 8px;
+  font-size: calc(var(--sftp-font-size) - 1px);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px hsl(var(--foreground) / 0.12);
 }
 
 .sftp-header-search {
@@ -516,6 +588,10 @@ body.sftp-column-resizing .sftp-column-resizer::after {
     margin-right: 6px;
   }
 
+  .sftp-path-editor {
+    max-width: min(420px, 46vw);
+  }
+
   .sftp-action-divider {
     display: none;
   }
@@ -569,6 +645,10 @@ body.sftp-column-resizing .sftp-column-resizer::after {
     margin-right: 2px;
   }
 
+  .sftp-path-editor {
+    max-width: 38vw;
+  }
+
   .sftp-header-actions,
   .sftp-action-group {
     gap: 2px;
@@ -616,6 +696,10 @@ body.sftp-column-resizing .sftp-column-resizer::after {
 
   .sftp-breadcrumbs {
     max-width: 34vw;
+  }
+
+  .sftp-path-editor {
+    max-width: 36vw;
   }
 
   .sftp-header-search {

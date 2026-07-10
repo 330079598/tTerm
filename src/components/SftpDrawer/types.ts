@@ -29,6 +29,12 @@ export interface SftpDirectoryListing {
   parentPath?: string | null
   entries: SftpDirectoryEntry[]
 }
+
+export type LoadSftpDirectory = (
+  path?: string | null,
+  options?: { throwOnError?: boolean }
+) => Promise<void>
+
 export interface SftpContextMenuState {
   x: number
   y: number

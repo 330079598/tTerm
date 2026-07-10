@@ -749,6 +749,12 @@
       "resultSummary_other": "{{count}} of {{total}} items",
       "regex": "Use regular expression; falls back to glob",
       "invalidRegex": "Invalid regular expression"
+    },
+    "path": {
+      "label": "Go to remote path",
+      "edit": "Enter remote path",
+      "go": "Go to path",
+      "cancel": "Cancel path edit"
     }
   },
   "terminalSearch": {

@@ -6,6 +6,7 @@ import { toast } from "@/hooks/use-toast"
 import type {
   DeleteBatchCompleteEvent,
   DeleteBatchStartEvent,
+  LoadSftpDirectory,
   SftpDeleteProgressState,
 } from "@/components/SftpDrawer/types"
 import type { TransferTask } from "@/types/tab"
@@ -16,7 +17,7 @@ type SftpDeleteTransferEventsProps = {
     id?: string
   ) => void
   listingCurrentPath?: string
-  loadDirectory: (path?: string | null) => Promise<void>
+  loadDirectory: LoadSftpDirectory
   setError: (error: string | null) => void
   setIsDeleting: (isDeleting: boolean) => void
   t: TFunction

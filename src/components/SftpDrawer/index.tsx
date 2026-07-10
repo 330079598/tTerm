@@ -121,9 +121,15 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   const commandDeleteCommand = dialog.type === "commandDelete" ? dialog.command : ""
 
   const loadDirectory = useCallback(
-    async (path?: string | null) => {
+    async (path?: string | null, options?: { throwOnError?: boolean }) => {
       if (!connection) {
-        setError(t("sftp.errors.missingConnection", { defaultValue: "SSH connection is missing" }))
+        const message = t("sftp.errors.missingConnection", {
+          defaultValue: "SSH connection is missing",
+        })
+        setError(message)
+        if (options?.throwOnError) {
+          throw new Error(message)
+        }
         return
       }
 
@@ -140,7 +146,11 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         setSelectedPaths([])
         setSearchQuery("")
       } catch (invokeError) {
-        setError(String(invokeError))
+        const message = String(invokeError)
+        setError(message)
+        if (options?.throwOnError) {
+          throw new Error(message)
+        }
       } finally {
         setIsLoading(false)
       }
@@ -604,6 +614,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         listingCurrentPath={listing?.currentPath}
         loadDirectory={loadDirectory}
         onClose={onClose}
+        visible={visible}
         searchError={searchMatcher.error?.message ?? null}
         searchOptions={searchOptions}
         searchQuery={searchQuery}

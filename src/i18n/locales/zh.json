@@ -749,6 +749,12 @@
       "resultSummary_other": "匹配 {{count}} / {{total}} 项",
       "regex": "使用正则表达式；失败时按通配符处理",
       "invalidRegex": "正则表达式无效"
+    },
+    "path": {
+      "label": "跳转远程路径",
+      "edit": "输入远程路径",
+      "go": "跳转路径",
+      "cancel": "取消路径编辑"
     }
   },
   "terminalSearch": {

@@ -12,6 +12,7 @@ import { SftpEntryIcon } from "@/components/SftpDrawer/SftpEntryIcon"
 import { formatBytes, formatTimestamp } from "@/components/SftpDrawer/sftpDrawerUtils"
 import type { SftpSearchMatcher } from "@/components/SftpDrawer/sftpSearch"
 import type {
+  LoadSftpDirectory,
   SftpContextMenuState,
   SftpDirectoryEntry,
   SftpDirectoryListing,
@@ -111,7 +112,7 @@ interface SftpDrawerContentProps {
   isLoading: boolean
   isSelectionMode: boolean
   listing: SftpDirectoryListing | null
-  loadDirectory: (path?: string | null) => Promise<void>
+  loadDirectory: LoadSftpDirectory
   searchMatcher: SftpSearchMatcher
   selectedPaths: string[]
   setContextMenu: React.Dispatch<React.SetStateAction<SftpContextMenuState | null>>

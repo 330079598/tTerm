@@ -2,11 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { useTranslation } from "react-i18next"
 
-import type { SftpDirectoryListing } from "@/components/SftpDrawer/types"
+import type { LoadSftpDirectory, SftpDirectoryListing } from "@/components/SftpDrawer/types"
 
 interface UseSftpDragDropParams {
   listing: SftpDirectoryListing | null
-  loadDirectory: (path?: string | null) => Promise<void>
+  loadDirectory: LoadSftpDirectory
   setError: React.Dispatch<React.SetStateAction<string | null>>
   uploadPaths: (paths: string[]) => Promise<void>
   visible: boolean

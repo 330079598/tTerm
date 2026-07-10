@@ -1,13 +1,13 @@
 import { useSftpDownloads } from "@/components/SftpDrawer/useSftpDownloads"
 import { useSftpUploads } from "@/components/SftpDrawer/useSftpUploads"
-import type { SftpDirectoryListing } from "@/components/SftpDrawer/types"
+import type { LoadSftpDirectory, SftpDirectoryListing } from "@/components/SftpDrawer/types"
 import { useTransferManager } from "@/contexts/TransferContext"
 import type { Tab } from "@/types/tab"
 
 interface UseSftpTransfersParams {
   connection?: Tab["connection"]
   listing: SftpDirectoryListing | null
-  loadDirectory: (path?: string | null) => Promise<void>
+  loadDirectory: LoadSftpDirectory
   setError: React.Dispatch<React.SetStateAction<string | null>>
   tabId: string
 }

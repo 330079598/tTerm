@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next"
 
 import type { TransferTask, TransferStatus, Tab } from "@/types/tab"
 
-import type { SftpDirectoryListing } from "@/components/SftpDrawer/types"
+import type { LoadSftpDirectory, SftpDirectoryListing } from "@/components/SftpDrawer/types"
 
 interface UploadItemStartEvent {
   batchId?: string
@@ -70,7 +70,7 @@ interface UseSftpUploadsParams {
   connection?: Tab["connection"]
   lastProgressUpdateRef: React.MutableRefObject<Map<string, number>>
   listing: SftpDirectoryListing | null
-  loadDirectory: (path?: string | null) => Promise<void>
+  loadDirectory: LoadSftpDirectory
   setError: React.Dispatch<React.SetStateAction<string | null>>
   tabId: string
   transfersRef: React.MutableRefObject<TransferTask[]>
