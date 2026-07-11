@@ -133,10 +133,16 @@ const TabItem: React.FC<TabItemProps> = ({
               }
           : null
 
+      const editConnectionAction: TabContextMenuAction | null =
+        tab.type === "ssh" && tab.connection?.profileId
+          ? { label: t("contextMenu.editConnection"), action: "edit-connection", icon: "edit" }
+          : null
+
       const actions: TabContextMenuAction[] = [
         { label: t("contextMenu.newTab"), action: "new", icon: "plus" },
         { label: t("contextMenu.duplicateTab"), action: "duplicate", icon: "copy" },
         { label: t("contextMenu.renameTab"), action: "rename", icon: "edit" },
+        ...(editConnectionAction ? [editConnectionAction] : []),
         ...(pinAction ? [pinAction] : []),
         { separator: true, label: "", action: "" },
         { label: t("contextMenu.closeTab"), action: "close", icon: "x" },

@@ -12,6 +12,7 @@ interface UseTabContextMenuDeps {
   handleCloseTabsToLeft: (id: string) => void
   updateTab: (id: string, updater: (tab: Tab) => Tab) => void
   renameTab: (id: string, newName: string) => void
+  editTabProfile: (tab: Tab) => void
 }
 
 export function useTabContextMenu({
@@ -23,6 +24,7 @@ export function useTabContextMenu({
   handleCloseTabsToLeft,
   updateTab,
   renameTab,
+  editTabProfile,
 }: UseTabContextMenuDeps) {
   const [renameDialogState, setRenameDialogState] = useState<RenameDialogState>({
     isOpen: false,
@@ -74,6 +76,9 @@ export function useTabContextMenu({
             currentName: tab.title,
           })
           break
+        case "edit-connection":
+          editTabProfile(tab)
+          break
         case "pin-header":
           updateTab(tab.id, (currentTab) => ({
             ...currentTab,
@@ -113,6 +118,7 @@ export function useTabContextMenu({
       handleCloseTabsToRight,
       handleCloseTabsToLeft,
       updateTab,
+      editTabProfile,
     ]
   )
 

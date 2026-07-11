@@ -32,6 +32,7 @@
     "newTab": "New Tab",
     "duplicateTab": "Duplicate Tab",
     "renameTab": "Rename Tab",
+    "editConnection": "Edit Connection Configuration",
     "pinConnectionHeader": "Pin Connection Header",
     "unpinConnectionHeader": "Unpin Connection Header",
     "closeTab": "Close Tab",

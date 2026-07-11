@@ -192,6 +192,42 @@ export const TTermApp: React.FC = () => {
     setShowConnectionDialog(true)
   }, [])
 
+  const handleEditTabProfile = useCallback(
+    async (tab: Tab) => {
+      const profileId = tab.connection?.profileId
+      if (!profileId) {
+        return
+      }
+
+      try {
+        const profiles = await invoke<SavedProfile[]>("list_profiles")
+        const profile = profiles.find((item) => item.id === profileId)
+        if (!profile) {
+          toast({
+            title: t("common.error", { defaultValue: "Error" }),
+            description: t("profiles.notFound", {
+              defaultValue: "This connection configuration no longer exists.",
+            }),
+            variant: "destructive",
+          })
+          return
+        }
+
+        handleEditProfile(profile)
+      } catch (error) {
+        console.error("Failed to load connection profile:", error)
+        toast({
+          title: t("common.error", { defaultValue: "Error" }),
+          description: t("profiles.loadFailed", {
+            defaultValue: "Failed to load connection profiles.",
+          }),
+          variant: "destructive",
+        })
+      }
+    },
+    [handleEditProfile, t]
+  )
+
   const handleOpenRemoteFile = useCallback(
     (entry: SftpDirectoryEntry, sourceTabId: string, connection?: Tab["connection"]) => {
       const fileSize = entry.size ?? 0
@@ -417,6 +453,7 @@ export const TTermApp: React.FC = () => {
     handleCloseTabsToLeft,
     updateTab,
     renameTab,
+    editTabProfile: handleEditTabProfile,
   })
 
   const handleReconnectTab = useCallback(

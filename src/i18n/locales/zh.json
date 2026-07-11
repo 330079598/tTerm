@@ -32,6 +32,7 @@
     "newTab": "新建标签页",
     "duplicateTab": "复制标签页",
     "renameTab": "重命名标签页",
+    "editConnection": "修改连接配置",
     "pinConnectionHeader": "固定连接信息栏",
     "unpinConnectionHeader": "取消固定连接信息栏",
     "closeTab": "关闭标签页",
