@@ -141,10 +141,12 @@ export const TerminalConnectionFields: React.FC<TerminalConnectionFieldsProps> =
         >
           {visibleShellOptions.map((profile) => (
             <option key={profile.value} value={profile.value}>
-              {t(
-                `connection.terminalShellOptions.${terminalShellTranslationKeys[profile.shell]}`,
-                profile.label
-              )}
+              {profile.shell === "custom"
+                ? profile.label
+                : t(
+                    `connection.terminalShellOptions.${terminalShellTranslationKeys[profile.shell]}`,
+                    profile.label
+                  )}
             </option>
           ))}
         </Select>
