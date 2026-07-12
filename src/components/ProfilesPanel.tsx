@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 import {
   ChevronDown,
   ChevronRight,
+  Copy,
   FileInput,
   Loader2,
   Pencil,
@@ -31,6 +32,7 @@ import { Tab, type ConnectionType, type SavedProfile } from "@/types/tab"
 interface ProfilesPanelProps {
   onConnect: (connection: Omit<Tab, "id" | "isActive">) => void
   onEdit: (profile: SavedProfile) => void
+  onDuplicate: (profile: SavedProfile) => void
   collapsedGroupKeys?: string[]
   refreshKey?: number
   onCreate?: () => void
@@ -103,11 +105,23 @@ const ProfileRow: React.FC<{
   isDeleting: boolean
   onConnect: (p: SavedProfile) => void
   onEdit: (p: SavedProfile) => void
+  onDuplicate: (p: SavedProfile) => void
   onDelete: (id: string) => void
   onFocusRow: (id: string) => void
   rowRef: (node: HTMLDivElement | null) => void
   t: (key: string, options?: Record<string, unknown>) => string
-}> = ({ profile, isActive, isDeleting, onConnect, onEdit, onDelete, onFocusRow, rowRef, t }) => {
+}> = ({
+  profile,
+  isActive,
+  isDeleting,
+  onConnect,
+  onEdit,
+  onDuplicate,
+  onDelete,
+  onFocusRow,
+  rowRef,
+  t,
+}) => {
   const connectionType = profile.connection_type as ConnectionType
   const Icon = connectionTypeIcons[connectionType] ?? Server
   const subtitle = buildConnectionSubtitle(profile, t)
@@ -216,6 +230,23 @@ const ProfileRow: React.FC<{
               type="button"
               variant="ghost"
               size="icon-sm"
+              aria-label={t("profiles.copy")}
+              onClick={(event) => {
+                event.stopPropagation()
+                onDuplicate(profile)
+              }}
+            >
+              <Copy size={13} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("profiles.copy")}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
               className="hover:text-destructive"
               disabled={isDeleting}
               aria-label={t("profiles.delete")}
@@ -238,6 +269,7 @@ const ProfileRow: React.FC<{
 export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
   onConnect,
   onEdit,
+  onDuplicate,
   collapsedGroupKeys = [],
   refreshKey,
   onCreate,
@@ -561,6 +593,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
                           isDeleting={deletingId === profile.id}
                           onConnect={handleConnect}
                           onEdit={onEdit}
+                          onDuplicate={onDuplicate}
                           onDelete={handleDelete}
                           onFocusRow={setSelectedProfileId}
                           rowRef={(node) => {

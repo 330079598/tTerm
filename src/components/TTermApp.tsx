@@ -67,6 +67,7 @@ export const TTermApp: React.FC = () => {
   const [showConnectionDialog, setShowConnectionDialog] = useState(false)
   const [showProfilesPanel, setShowProfilesPanel] = useState(false)
   const [editingProfile, setEditingProfile] = useState<SavedProfile | null>(null)
+  const [duplicatingProfile, setDuplicatingProfile] = useState<SavedProfile | null>(null)
   const [profilesRefreshKey, setProfilesRefreshKey] = useState(0)
   const [sessionRestored, setSessionRestored] = useState(false)
   const [startupVaultUnlockDismissed, setStartupVaultUnlockDismissed] = useState(false)
@@ -188,7 +189,14 @@ export const TTermApp: React.FC = () => {
   )
 
   const handleEditProfile = useCallback((profile: SavedProfile) => {
+    setDuplicatingProfile(null)
     setEditingProfile(profile)
+    setShowConnectionDialog(true)
+  }, [])
+
+  const handleDuplicateProfile = useCallback((profile: SavedProfile) => {
+    setEditingProfile(null)
+    setDuplicatingProfile(profile)
     setShowConnectionDialog(true)
   }, [])
 
@@ -536,6 +544,7 @@ export const TTermApp: React.FC = () => {
           handleConnect={handleConnect}
           handleNewTab={handleNewTab}
           onCollapsedProfileGroupKeysChange={handleCollapsedProfileGroupKeysChange}
+          onDuplicateProfile={handleDuplicateProfile}
           onEditProfile={handleEditProfile}
           refreshKey={profilesRefreshKey}
         />
@@ -646,10 +655,12 @@ export const TTermApp: React.FC = () => {
           onClose={() => {
             setShowConnectionDialog(false)
             setEditingProfile(null)
+            setDuplicatingProfile(null)
             setProfilesRefreshKey((key) => key + 1)
           }}
           onConnect={handleConnect}
           editProfile={editingProfile}
+          duplicateProfile={duplicatingProfile}
         />
       )}
 
@@ -666,6 +677,7 @@ export const TTermApp: React.FC = () => {
             onClose={() => setShowProfilesPanel(false)}
             onCreate={() => {
               setEditingProfile(null)
+              setDuplicatingProfile(null)
               setShowConnectionDialog(true)
               setShowProfilesPanel(false)
             }}
@@ -675,6 +687,10 @@ export const TTermApp: React.FC = () => {
             }}
             onEdit={(profile) => {
               handleEditProfile(profile)
+              setShowProfilesPanel(false)
+            }}
+            onDuplicate={(profile) => {
+              handleDuplicateProfile(profile)
               setShowProfilesPanel(false)
             }}
           />

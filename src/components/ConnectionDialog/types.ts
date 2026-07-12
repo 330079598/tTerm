@@ -7,6 +7,7 @@ export interface ConnectionDialogProps {
   onClose: () => void
   onConnect: (connection: Omit<Tab, "id" | "isActive">) => void
   editProfile?: SavedProfile | null
+  duplicateProfile?: SavedProfile | null
 }
 
 export type ConnectionType = "terminal" | "ssh"

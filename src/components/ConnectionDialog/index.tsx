@@ -136,12 +136,19 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   onClose,
   onConnect,
   editProfile,
+  duplicateProfile,
   config,
   saveConfig,
 }) => {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const [form, setForm] = useState<ConnectionForm>(() => buildInitialForm(editProfile, config))
+  const [form, setForm] = useState<ConnectionForm>(() => {
+    const initialForm = buildInitialForm(editProfile ?? duplicateProfile, config)
+    if (duplicateProfile) {
+      initialForm.title = t("profiles.copyName", { name: duplicateProfile.name })
+    }
+    return initialForm
+  })
   const [draftProfileId, setDraftProfileId] = useState(() => editProfile?.id ?? crypto.randomUUID())
   const [existingGroups, setExistingGroups] = useState<string[]>([])
   const [showGroupDropdown, setShowGroupDropdown] = useState(false)
@@ -177,8 +184,12 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     loadedJumpPasswordsForProfile.current = null
     setSavedPasswordAvailable(false)
     setSavedJumpPasswordKeys(new Set())
-    setForm(buildInitialForm(editProfile, config))
-  }, [editProfile, config])
+    const initialForm = buildInitialForm(editProfile ?? duplicateProfile, config)
+    if (duplicateProfile) {
+      initialForm.title = t("profiles.copyName", { name: duplicateProfile.name })
+    }
+    setForm(initialForm)
+  }, [editProfile, duplicateProfile, config, t])
 
   useEffect(() => {
     setDraftProfileId(editProfile?.id ?? crypto.randomUUID())
@@ -487,7 +498,11 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
       >
         <DialogHeader>
           <DialogTitle>
-            {editProfile ? t("profiles.editTitle") : t("connection.newConnection")}
+            {editProfile
+              ? t("profiles.editTitle")
+              : duplicateProfile
+                ? t("profiles.copyTitle")
+                : t("connection.newConnection")}
           </DialogTitle>
         </DialogHeader>
 
@@ -620,10 +635,12 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
   onClose,
   onConnect,
   editProfile,
+  duplicateProfile,
 }) => {
   const { config, saveConfig } = useConfig()
   const dialogKey = [
-    editProfile?.id ?? "new",
+    editProfile?.id ?? duplicateProfile?.id ?? "new",
+    duplicateProfile ? "duplicate" : "edit",
     config.terminal_shell,
     config.terminal_shell_custom_path,
     config.terminal_shell_custom_args,
@@ -642,6 +659,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
           onClose={onClose}
           onConnect={onConnect}
           editProfile={editProfile}
+          duplicateProfile={duplicateProfile}
           config={config}
           saveConfig={saveConfig}
         />

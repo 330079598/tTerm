@@ -11,6 +11,7 @@ interface EmptyStateProps {
   handleConnect: (connection: Omit<Tab, "id" | "isActive">) => void
   handleNewTab: () => void
   onCollapsedProfileGroupKeysChange?: (groups: string[]) => void
+  onDuplicateProfile: (profile: SavedProfile) => void
   onEditProfile: (profile: SavedProfile) => void
   refreshKey?: number
 }
@@ -20,6 +21,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   handleConnect,
   handleNewTab,
   onCollapsedProfileGroupKeysChange,
+  onDuplicateProfile,
   onEditProfile,
   refreshKey,
 }) => {
@@ -64,6 +66,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
             handleConnect(connection)
           }}
           onEdit={onEditProfile}
+          onDuplicate={onDuplicateProfile}
         />
       </div>
     </div>
