@@ -32,3 +32,4 @@ Thumbs.db
 src-tauri/target*
 .codex
 .agents
+.pnpm-store/*
