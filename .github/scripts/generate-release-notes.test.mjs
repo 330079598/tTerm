@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildReleaseNotes, classifyCommit } from "./generate-beta-release-notes.mjs"
+import { buildReleaseNotes, classifyCommit } from "./generate-release-notes.mjs"
 
 test("classifies repository Gitmoji subjects", () => {
   assert.deepEqual(classifyCommit(":sparkles: add jump host support"), {
@@ -36,7 +36,7 @@ test("builds grouped notes with commit and comparison links", () => {
       { sha: "c".repeat(40), subject: "test: add coverage" },
     ],
     previousTag: "v0.2.2-beta.1",
-    betaTag: "v0.2.2-beta.2",
+    releaseTag: "v0.2.2-beta.2",
     repository: "330079598/tTerm",
   })
 
@@ -52,9 +52,20 @@ test("explains when all commits are filtered out", () => {
   const notes = buildReleaseNotes({
     commits: [{ sha: "d".repeat(40), subject: "ci: update runner" }],
     previousTag: "v0.2.2-beta.2",
-    betaTag: "v0.2.2-beta.3",
+    releaseTag: "v0.2.2-beta.3",
     repository: "330079598/tTerm",
   })
 
   assert.match(notes, /No user-facing changes were detected/)
+})
+
+test("uses the stable release tag in the comparison link", () => {
+  const notes = buildReleaseNotes({
+    commits: [],
+    previousTag: "v0.1.3",
+    releaseTag: "v0.2.1",
+    repository: "330079598/tTerm",
+  })
+
+  assert.match(notes, /compare\/v0\.1\.3\.\.\.v0\.2\.1/)
 })

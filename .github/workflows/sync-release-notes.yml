@@ -25,6 +25,9 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-24.04
+    concurrency:
+      group: github-pages-updater-manifest
+      cancel-in-progress: false
 
     steps:
       - name: Resolve sync target
@@ -58,25 +61,6 @@ jobs:
           echo "manual=${MANUAL}" >> "$GITHUB_OUTPUT"
           echo "Resolved ${TAG} to ${CHANNEL}."
 
-      - name: Read release notes
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ steps.target.outputs.tag }}
-        shell: bash
-        run: |
-          if ! gh release view "$RELEASE_TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --json body \
-            --jq .body > release-notes.md; then
-            echo "Failed to read release body for ${RELEASE_TAG}."
-            exit 1
-          fi
-
-          if [ ! -s release-notes.md ]; then
-            echo "Release body is empty for ${RELEASE_TAG}."
-            exit 1
-          fi
-
       - name: Checkout GitHub Pages branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -85,44 +69,22 @@ jobs:
           REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git clone --branch github-pages --depth 1 "$REMOTE" pages
 
-      - name: Update manifest release notes
+      - name: Sync release notes into updater manifests
+        id: sync_notes
         env:
-          CHANNEL: ${{ steps.target.outputs.channel }}
           RELEASE_TAG: ${{ steps.target.outputs.tag }}
-          MANUAL_SYNC: ${{ steps.target.outputs.manual }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STRICT_VERSION_MATCH: ${{ steps.target.outputs.manual }}
         shell: bash
         run: |
-          set -euo pipefail
-
-          VERSION="${RELEASE_TAG#v}"
-          MANIFESTS=("pages/update/${CHANNEL}/latest.json")
-
-          if [ "$CHANNEL" = "beta-dev" ]; then
+          MANIFESTS=("pages/update/${{ steps.target.outputs.channel }}/latest.json")
+          if [ "${{ steps.target.outputs.channel }}" = "beta-dev" ]; then
             MANIFESTS+=("pages/beta-dev/latest.json")
           fi
-
-          for MANIFEST in "${MANIFESTS[@]}"; do
-            if [ ! -f "$MANIFEST" ]; then
-              echo "Manifest not found: $MANIFEST"
-              exit 1
-            fi
-
-            MANIFEST_VERSION=$(jq -r '.version // empty' "$MANIFEST")
-            if [ "$MANIFEST_VERSION" != "$VERSION" ]; then
-              MESSAGE="Manifest $MANIFEST is version '$MANIFEST_VERSION', not release tag version '$VERSION'."
-              if [ "$MANUAL_SYNC" = "true" ]; then
-                echo "Refusing manual sync: ${MESSAGE}"
-                exit 1
-              fi
-              echo "Skipping automatic sync: ${MESSAGE}"
-              exit 0
-            fi
-
-            jq --rawfile notes release-notes.md '.notes = $notes' "$MANIFEST" > latest.tmp
-            mv latest.tmp "$MANIFEST"
-          done
+          node .github/scripts/sync-updater-manifest-notes.mjs "${MANIFESTS[@]}"
 
       - name: Commit updated manifests
+        if: steps.sync_notes.outputs.changed == 'true'
         env:
           CHANNEL: ${{ steps.target.outputs.channel }}
           RELEASE_TAG: ${{ steps.target.outputs.tag }}
@@ -133,15 +95,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add "update/${CHANNEL}/latest.json"
-          if [ "$CHANNEL" = "beta-dev" ]; then
-            git add "beta-dev/latest.json"
-          fi
-
-          if git diff --cached --quiet; then
-            echo "Updater manifest release notes are already up to date."
-            exit 0
-          fi
+          if [ "$CHANNEL" = "beta-dev" ]; then git add "beta-dev/latest.json"; fi
 
           git commit -m "Sync ${CHANNEL} release notes for ${RELEASE_TAG}"
           git push origin github-pages
-

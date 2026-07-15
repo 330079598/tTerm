@@ -82,7 +82,7 @@ function escapeMarkdownText(value) {
   return value.replaceAll("\\", "\\\\").replaceAll("[", "\\[").replaceAll("]", "\\]")
 }
 
-export function buildReleaseNotes({ commits, previousTag, betaTag, repository }) {
+export function buildReleaseNotes({ commits, previousTag, releaseTag, repository }) {
   const grouped = new Map(CATEGORY_ORDER.map((category) => [category, []]))
 
   for (const commit of commits) {
@@ -112,8 +112,8 @@ export function buildReleaseNotes({ commits, previousTag, betaTag, repository })
     lines.push("_No user-facing changes were detected in this build._", "")
   }
 
-  const compareUrl = `https://github.com/${repository}/compare/${previousTag}...${betaTag}`
-  lines.push(`**Full comparison:** [${previousTag}...${betaTag}](${compareUrl})`, "")
+  const compareUrl = `https://github.com/${repository}/compare/${previousTag}...${releaseTag}`
+  lines.push(`**Full comparison:** [${previousTag}...${releaseTag}](${compareUrl})`, "")
 
   return lines.join("\n")
 }
@@ -147,14 +147,14 @@ function requireEnvironmentVariable(name) {
 
 function main() {
   const previousTag = requireEnvironmentVariable("PREVIOUS_TAG")
-  const betaTag = requireEnvironmentVariable("BETA_TAG")
+  const releaseTag = requireEnvironmentVariable("RELEASE_TAG")
   const repository = requireEnvironmentVariable("GITHUB_REPOSITORY")
   const githubOutput = requireEnvironmentVariable("GITHUB_OUTPUT")
   const commits = readCommits(previousTag)
   const releaseNotes = buildReleaseNotes({
     commits,
     previousTag,
-    betaTag,
+    releaseTag,
     repository,
   })
 

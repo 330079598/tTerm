@@ -16,8 +16,11 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       release_tag: ${{ steps.version.outputs.release_tag }}
+      release_notes: ${{ steps.release_notes.outputs.release_notes }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Read package version
         id: version
@@ -39,8 +42,34 @@ jobs:
             exit 1
           fi
 
+          PREVIOUS_TAG=$(git tag --merged HEAD --sort=-version:refname |
+            grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' |
+            grep -Fxv "$RELEASE_TAG" |
+            head -1)
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "No previous stable release tag was found before ${RELEASE_TAG}."
+            exit 1
+          fi
+
+          if ! git merge-base --is-ancestor "$PREVIOUS_TAG" HEAD; then
+            echo "Previous stable release tag is not an ancestor of HEAD: ${PREVIOUS_TAG}"
+            exit 1
+          fi
+
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "previous_tag=${PREVIOUS_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Test release notes generator
+        run: node --test .github/scripts/generate-release-notes.test.mjs
+
+      - name: Generate stable release notes
+        id: release_notes
+        env:
+          PREVIOUS_TAG: ${{ steps.version.outputs.previous_tag }}
+          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+        run: node .github/scripts/generate-release-notes.mjs
 
   release:
     needs: prepare
@@ -102,7 +131,7 @@ jobs:
         with:
           tagName: ${{ needs.prepare.outputs.release_tag }}
           releaseName: tTerm v${{ needs.prepare.outputs.version }}
-          releaseBody: 'See the assets to download and install this version.'
+          releaseBody: ${{ needs.prepare.outputs.release_notes }}
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
@@ -112,6 +141,9 @@ jobs:
       - prepare
       - release
     runs-on: ubuntu-24.04
+    concurrency:
+      group: github-pages-updater-manifest
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:
@@ -129,26 +161,12 @@ jobs:
             --clobber
 
       - name: Sync release notes into updater manifest
+        id: sync_notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
-        shell: bash
-        run: |
-          if ! gh release view "$RELEASE_TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --json body \
-            --jq .body > release-notes.md; then
-            echo "Failed to read release body for ${RELEASE_TAG}."
-            exit 1
-          fi
-
-          if [ ! -s release-notes.md ]; then
-            echo "Release body is empty for ${RELEASE_TAG}."
-            exit 1
-          fi
-
-          jq --rawfile notes release-notes.md '.notes = $notes' updater-manifest/latest.json > updater-manifest/latest.tmp
-          mv updater-manifest/latest.tmp updater-manifest/latest.json
+          STRICT_VERSION_MATCH: "true"
+        run: node .github/scripts/sync-updater-manifest-notes.mjs updater-manifest/latest.json
 
       - name: Checkout GitHub Pages branch
         env:
@@ -186,4 +204,3 @@ jobs:
           fi
           git commit -m "Update stable updater manifest to ${{ needs.prepare.outputs.release_tag }}"
           git push origin github-pages
-
