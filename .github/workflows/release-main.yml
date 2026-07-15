@@ -147,6 +147,8 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download updater manifest from stable release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
