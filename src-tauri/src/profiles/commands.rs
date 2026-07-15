@@ -92,6 +92,7 @@ pub fn import_ssh_config_profiles(
             keepalive_interval_secs: host.keepalive_interval_secs,
             keepalive_count_max: host.keepalive_count_max,
             server_monitor_visible: false,
+            use_jump_host: Some(!host.jump_hosts.is_empty()),
             legacy_jump_host: None,
             jump_hosts: host.jump_hosts,
         };
@@ -372,26 +373,30 @@ pub async fn test_connection(
     let mut profile = profile;
     normalize_profile(&mut profile);
 
-    let jump_hosts = profile
-        .jump_hosts
-        .into_iter()
-        .map(|j| crate::core::session::JumpHostPlan {
-            host: j.host,
-            port: j.port,
-            username: j.username,
-            password: j.password,
-            private_key_path: if j.auth_method == "key" {
-                j.private_key_path
-            } else {
-                None
-            },
-            private_key_passphrase: if j.auth_method == "key" {
-                j.private_key_passphrase
-            } else {
-                None
-            },
-        })
-        .collect::<Vec<_>>();
+    let jump_hosts = if profile.uses_jump_host() {
+        profile
+            .jump_hosts
+            .into_iter()
+            .map(|j| crate::core::session::JumpHostPlan {
+                host: j.host,
+                port: j.port,
+                username: j.username,
+                password: j.password,
+                private_key_path: if j.auth_method == "key" {
+                    j.private_key_path
+                } else {
+                    None
+                },
+                private_key_passphrase: if j.auth_method == "key" {
+                    j.private_key_passphrase
+                } else {
+                    None
+                },
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
 
     let mut plan = crate::core::session::SessionPlan {
         kind: crate::core::SessionKind::Ssh,

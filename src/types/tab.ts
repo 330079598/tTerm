@@ -15,6 +15,7 @@ export interface SavedProfile {
   keepalive_interval_secs: number
   keepalive_count_max: number
   server_monitor_visible?: boolean
+  use_jump_host?: boolean
   jump_hosts?: SavedJumpHost[]
 }
 

@@ -40,6 +40,9 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
   const { t } = useTranslation()
   const savedPasswordMasked =
     savedPasswordAvailable && form.rememberPassword && form.password.length === 0
+  const canRememberPasswords =
+    form.authMethod === "password" ||
+    (form.useJumpHost && form.jumpHosts.some((jump) => jump.authMethod === "password"))
 
   return (
     <>
@@ -136,7 +139,7 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
 
       <div>
         <Label className="mb-1.5 block">{t("ssh.authMethod")}</Label>
-        <div className="flex gap-2">
+        <div className="flex gap-2" aria-label={t("ssh.authMethod")}>
           <Button
             type="button"
             variant={form.authMethod === "password" ? "default" : "outline"}
@@ -145,6 +148,7 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
               form.authMethod === "password" ? "shadow-none" : "text-muted-foreground"
             )}
             onClick={() => setForm((current) => ({ ...current, authMethod: "password" }))}
+            aria-pressed={form.authMethod === "password"}
           >
             {t("ssh.password")}
           </Button>
@@ -156,6 +160,7 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
               form.authMethod === "key" ? "shadow-none" : "text-muted-foreground"
             )}
             onClick={() => setForm((current) => ({ ...current, authMethod: "key" }))}
+            aria-pressed={form.authMethod === "key"}
           >
             {t("ssh.sshKey")}
           </Button>
@@ -203,18 +208,6 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
                 {t("connection.savedPasswordHint")}
               </p>
             )}
-          </div>
-          <div className="flex items-center gap-2 rounded-md border px-3 py-2">
-            <Checkbox
-              id="conn-remember-password"
-              checked={form.rememberPassword}
-              onCheckedChange={(checked) =>
-                setForm((current) => ({ ...current, rememberPassword: checked }))
-              }
-            />
-            <Label htmlFor="conn-remember-password" className="text-sm font-normal">
-              {t("connection.rememberPassword")}
-            </Label>
           </div>
         </>
       )}
@@ -267,6 +260,26 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
             />
           </div>
         </>
+      )}
+
+      {canRememberPasswords && (
+        <div className="flex items-start gap-2 rounded-md border px-3 py-2">
+          <Checkbox
+            id="conn-remember-password"
+            checked={form.rememberPassword}
+            onCheckedChange={(checked) =>
+              setForm((current) => ({ ...current, rememberPassword: checked }))
+            }
+          />
+          <div className="space-y-0.5">
+            <Label htmlFor="conn-remember-password" className="text-sm font-normal">
+              {t("connection.rememberCredentials")}
+            </Label>
+            <p className="text-muted-foreground text-xs">
+              {t("connection.rememberCredentialsDesc")}
+            </p>
+          </div>
+        </div>
       )}
     </>
   )

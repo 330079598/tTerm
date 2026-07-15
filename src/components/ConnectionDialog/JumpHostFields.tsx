@@ -1,6 +1,6 @@
 import React from "react"
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog"
-import { ChevronDown, ChevronRight, Plus, Server, Trash2, ArrowDown, ArrowUp } from "lucide-react"
+import { Plus, Route, Server, Trash2, ArrowDown, ArrowUp } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { cn } from "@/lib/utils"
 
 import {
@@ -24,7 +26,11 @@ interface JumpHostFieldsProps {
   form: ConnectionForm
   setForm: React.Dispatch<React.SetStateAction<ConnectionForm>>
   savedJumpPasswordKeys: Set<string>
+  errors: Record<string, string>
+  onClearError: (jumpId: string, field: string) => void
 }
+
+const errorKey = (jumpId: string, field: string) => `${jumpId}:${field}`
 
 function updateJumpHost(
   setForm: React.Dispatch<React.SetStateAction<ConnectionForm>>,
@@ -45,8 +51,12 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
   form,
   setForm,
   savedJumpPasswordKeys,
+  errors,
+  onClearError,
 }) => {
   const { t } = useTranslation()
+  const { confirm, ConfirmDialog } = useConfirmDialog()
+  const target = `${form.username || "user"}@${form.host || "target"}:${form.port || 22}`
 
   const addJumpHost = () => {
     setForm((cur) => ({
@@ -78,6 +88,19 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
     })
   }
 
+  const clearJumpHosts = async () => {
+    const confirmed = await confirm({
+      title: t("jumpHost.clear"),
+      description: t("jumpHost.clearConfirm"),
+      confirmText: t("jumpHost.clear"),
+      cancelText: t("common.cancel"),
+      variant: "destructive",
+    })
+    if (!confirmed) return
+
+    setForm((current) => ({ ...current, useJumpHost: false, jumpHosts: [] }))
+  }
+
   return (
     <div className="space-y-3">
       <Separator />
@@ -102,10 +125,17 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
           <Server size={14} className="text-muted-foreground" />
           {t("jumpHost.enable")}
         </Label>
-        {form.useJumpHost ? (
-          <ChevronDown size={14} className="text-muted-foreground ml-auto" />
-        ) : (
-          <ChevronRight size={14} className="text-muted-foreground ml-auto" />
+        {form.jumpHosts.length > 0 && (
+          <Button
+            type="button"
+            size="sm"
+            variant="destructive"
+            className="ml-auto"
+            onClick={() => void clearJumpHosts()}
+          >
+            <Trash2 size={14} />
+            {t("jumpHost.clear")}
+          </Button>
         )}
       </div>
 
@@ -128,6 +158,22 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
             </Button>
           </div>
 
+          <div
+            className="bg-muted/35 text-muted-foreground flex items-start gap-2 rounded-md px-3 py-2 text-xs"
+            role="group"
+            aria-label={t("jumpHost.route", { defaultValue: "Connection route" })}
+          >
+            <Route size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <span className="font-mono leading-5 break-all">
+              {[
+                ...form.jumpHosts.map(
+                  (jump) => `${jump.username || "user"}@${jump.host || "host"}:${jump.port || 22}`
+                ),
+                target,
+              ].join(" -> ")}
+            </span>
+          </div>
+
           {form.jumpHosts.map((jump, index) => (
             <div
               key={jump.id}
@@ -140,37 +186,54 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                     {jump.username || "user"}@{jump.host || "host"}:{jump.port || 22}
                   </p>
                 </div>
-                <div className="flex gap-1">
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => moveJumpHost(index, -1)}
-                    disabled={index === 0}
-                    aria-label={t("jumpHost.moveUp")}
-                  >
-                    <ArrowUp size={14} />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => moveJumpHost(index, 1)}
-                    disabled={index === form.jumpHosts.length - 1}
-                    aria-label={t("jumpHost.moveDown")}
-                  >
-                    <ArrowDown size={14} />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => removeJumpHost(jump.id)}
-                    aria-label={t("jumpHost.remove")}
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
+                <TooltipProvider>
+                  <div className="flex gap-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => moveJumpHost(index, -1)}
+                          disabled={index === 0}
+                          aria-label={t("jumpHost.moveUp")}
+                        >
+                          <ArrowUp size={14} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t("jumpHost.moveUp")}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => moveJumpHost(index, 1)}
+                          disabled={index === form.jumpHosts.length - 1}
+                          aria-label={t("jumpHost.moveDown")}
+                        >
+                          <ArrowDown size={14} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t("jumpHost.moveDown")}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => removeJumpHost(jump.id)}
+                          aria-label={t("jumpHost.remove")}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t("jumpHost.remove")}</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </TooltipProvider>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
@@ -181,9 +244,25 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                   <Input
                     id={`jump-host-${jump.id}`}
                     value={jump.host}
-                    onChange={(e) => updateJumpHost(setForm, jump.id, { host: e.target.value })}
+                    onChange={(e) => {
+                      onClearError(jump.id, "host")
+                      updateJumpHost(setForm, jump.id, { host: e.target.value })
+                    }}
                     placeholder="bastion.example.com"
+                    aria-invalid={!!errors[errorKey(jump.id, "host")]}
+                    aria-describedby={
+                      errors[errorKey(jump.id, "host")] ? `jump-host-error-${jump.id}` : undefined
+                    }
                   />
+                  {errors[errorKey(jump.id, "host")] && (
+                    <p
+                      id={`jump-host-error-${jump.id}`}
+                      className="text-destructive mt-1 text-xs"
+                      role="alert"
+                    >
+                      {errors[errorKey(jump.id, "host")]}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor={`jump-port-${jump.id}`} className="mb-1.5 block">
@@ -195,10 +274,24 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                     min={1}
                     max={65535}
                     value={jump.port}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      onClearError(jump.id, "port")
                       updateJumpHost(setForm, jump.id, { port: Number(e.target.value) })
+                    }}
+                    aria-invalid={!!errors[errorKey(jump.id, "port")]}
+                    aria-describedby={
+                      errors[errorKey(jump.id, "port")] ? `jump-port-error-${jump.id}` : undefined
                     }
                   />
+                  {errors[errorKey(jump.id, "port")] && (
+                    <p
+                      id={`jump-port-error-${jump.id}`}
+                      className="text-destructive mt-1 text-xs"
+                      role="alert"
+                    >
+                      {errors[errorKey(jump.id, "port")]}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -209,14 +302,32 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                 <Input
                   id={`jump-username-${jump.id}`}
                   value={jump.username}
-                  onChange={(e) => updateJumpHost(setForm, jump.id, { username: e.target.value })}
+                  onChange={(e) => {
+                    onClearError(jump.id, "username")
+                    updateJumpHost(setForm, jump.id, { username: e.target.value })
+                  }}
                   placeholder="username"
+                  aria-invalid={!!errors[errorKey(jump.id, "username")]}
+                  aria-describedby={
+                    errors[errorKey(jump.id, "username")]
+                      ? `jump-username-error-${jump.id}`
+                      : undefined
+                  }
                 />
+                {errors[errorKey(jump.id, "username")] && (
+                  <p
+                    id={`jump-username-error-${jump.id}`}
+                    className="text-destructive mt-1 text-xs"
+                    role="alert"
+                  >
+                    {errors[errorKey(jump.id, "username")]}
+                  </p>
+                )}
               </div>
 
               <div>
                 <Label className="mb-1.5 block">{t("ssh.authMethod")}</Label>
-                <div className="flex gap-2">
+                <div className="flex gap-2" aria-label={t("ssh.authMethod")}>
                   <Button
                     type="button"
                     variant={jump.authMethod === "password" ? "default" : "outline"}
@@ -225,6 +336,7 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                       jump.authMethod === "password" ? "shadow-none" : "text-muted-foreground"
                     )}
                     onClick={() => updateJumpHost(setForm, jump.id, { authMethod: "password" })}
+                    aria-pressed={jump.authMethod === "password"}
                   >
                     {t("ssh.password")}
                   </Button>
@@ -236,6 +348,7 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                       jump.authMethod === "key" ? "shadow-none" : "text-muted-foreground"
                     )}
                     onClick={() => updateJumpHost(setForm, jump.id, { authMethod: "key" })}
+                    aria-pressed={jump.authMethod === "key"}
                   >
                     {t("ssh.sshKey")}
                   </Button>
@@ -270,7 +383,6 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                             if (savedPasswordMasked && /^\**$/.test(value)) {
                               setForm((current) => ({
                                 ...current,
-                                rememberPassword: false,
                                 jumpHosts: current.jumpHosts.map((currentJump) =>
                                   currentJump.id === jump.id
                                     ? { ...currentJump, password: "" }
@@ -313,11 +425,18 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                       <Input
                         id={`jump-key-path-${jump.id}`}
                         value={jump.privateKeyPath}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          onClearError(jump.id, "privateKeyPath")
                           updateJumpHost(setForm, jump.id, { privateKeyPath: e.target.value })
-                        }
+                        }}
                         placeholder="~/.ssh/id_rsa"
                         className="flex-1"
+                        aria-invalid={!!errors[errorKey(jump.id, "privateKeyPath")]}
+                        aria-describedby={
+                          errors[errorKey(jump.id, "privateKeyPath")]
+                            ? `jump-key-error-${jump.id}`
+                            : undefined
+                        }
                       />
                       <Button
                         type="button"
@@ -328,6 +447,7 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                             () => null
                           )
                           if (selected && typeof selected === "string") {
+                            onClearError(jump.id, "privateKeyPath")
                             updateJumpHost(setForm, jump.id, { privateKeyPath: selected })
                           }
                         }}
@@ -335,6 +455,15 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                         {t("ssh.browseKey")}
                       </Button>
                     </div>
+                    {errors[errorKey(jump.id, "privateKeyPath")] && (
+                      <p
+                        id={`jump-key-error-${jump.id}`}
+                        className="text-destructive mt-1 text-xs"
+                        role="alert"
+                      >
+                        {errors[errorKey(jump.id, "privateKeyPath")]}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor={`jump-key-pass-${jump.id}`} className="mb-1.5 block">
@@ -356,6 +485,7 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
           ))}
         </div>
       )}
+      <ConfirmDialog />
     </div>
   )
 }

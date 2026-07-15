@@ -22,6 +22,10 @@ pub(crate) fn normalize_profile(profile: &mut SavedProfile) {
         profile.legacy_jump_host = None;
     }
 
+    if profile.use_jump_host.is_none() {
+        profile.use_jump_host = Some(!profile.jump_hosts.is_empty());
+    }
+
     if profile.group.trim().is_empty() {
         profile.group = String::new();
     }
@@ -204,4 +208,52 @@ pub(crate) fn load_all_profile_groups() -> Result<Vec<String>, String> {
     }
     groups.sort_by(|left, right| left.to_lowercase().cmp(&right.to_lowercase()));
     Ok(groups)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_profile;
+    use crate::profiles::types::SavedProfile;
+
+    #[test]
+    fn legacy_jump_host_profiles_remain_enabled_after_migration() {
+        let mut profile: SavedProfile = serde_json::from_value(serde_json::json!({
+            "id": "legacy",
+            "name": "Legacy",
+            "connection_type": "ssh",
+            "jump_hosts": [{
+                "host": "bastion.example.com",
+                "port": 22,
+                "username": "ops"
+            }]
+        }))
+        .expect("legacy profile should deserialize");
+
+        normalize_profile(&mut profile);
+
+        assert_eq!(profile.use_jump_host, Some(true));
+        assert!(profile.uses_jump_host());
+    }
+
+    #[test]
+    fn disabled_jump_host_profiles_keep_their_chain() {
+        let mut profile: SavedProfile = serde_json::from_value(serde_json::json!({
+            "id": "disabled",
+            "name": "Disabled",
+            "connection_type": "ssh",
+            "use_jump_host": false,
+            "jump_hosts": [{
+                "host": "bastion.example.com",
+                "port": 22,
+                "username": "ops"
+            }]
+        }))
+        .expect("disabled profile should deserialize");
+
+        normalize_profile(&mut profile);
+
+        assert_eq!(profile.use_jump_host, Some(false));
+        assert_eq!(profile.jump_hosts.len(), 1);
+        assert!(!profile.uses_jump_host());
+    }
 }

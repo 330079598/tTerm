@@ -47,12 +47,22 @@ pub struct SavedProfile {
     pub keepalive_count_max: u32,
     #[serde(default)]
     pub server_monitor_visible: bool,
+    /// Whether the saved jump-host chain is used for connections. `None` preserves legacy
+    /// profiles, which enabled the chain whenever at least one hop was configured.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub use_jump_host: Option<bool>,
     /// Legacy single jump host field kept only for backward-compatible reads.
     #[serde(default, rename = "jump_host", skip_serializing)]
     pub(crate) legacy_jump_host: Option<SavedJumpHost>,
     /// Ordered jump host chain used throughout the app and for all new saves.
     #[serde(default)]
     pub jump_hosts: Vec<SavedJumpHost>,
+}
+
+impl SavedProfile {
+    pub fn uses_jump_host(&self) -> bool {
+        self.use_jump_host.unwrap_or(!self.jump_hosts.is_empty())
+    }
 }
 
 #[derive(Debug, Serialize, Clone)]

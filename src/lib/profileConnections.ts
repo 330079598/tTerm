@@ -3,6 +3,7 @@ import type { ConnectionType, SavedProfile, Tab } from "@/types/tab"
 export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id" | "isActive"> {
   const connectionType = profile.connection_type as ConnectionType
   const jumpHosts = profile.jump_hosts ?? []
+  const useJumpHost = profile.use_jump_host ?? jumpHosts.length > 0
 
   return {
     title: profile.name,
@@ -20,7 +21,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
       keepaliveCountMax: profile.keepalive_count_max,
       serverMonitorVisible: profile.server_monitor_visible === true,
       jumpHosts:
-        jumpHosts.length > 0
+        useJumpHost && jumpHosts.length > 0
           ? jumpHosts.map((jump) => ({
               host: jump.host,
               port: jump.port,

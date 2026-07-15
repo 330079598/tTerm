@@ -48,11 +48,43 @@ const connectionTypeIcons = {
 const normalizeJumpAuthMethod = (value: string | undefined): "password" | "key" =>
   value === "key" ? "key" : "password"
 
-const hasJumpHosts = (form: ConnectionForm) => form.useJumpHost && form.jumpHosts.length > 0
-
 const getJumpHostPasswordLookupKey = (
   jump: Pick<JumpHostConnection, "host" | "port" | "username">
 ) => `${jump.host.trim()}:${jump.port}:${jump.username.trim()}`
+
+const getJumpHostErrorKey = (jumpId: string, field: string) => `${jumpId}:${field}`
+
+const getJumpHostFieldElementId = (jumpId: string, field: string) => {
+  const fieldIds: Record<string, string> = {
+    host: "jump-host",
+    port: "jump-port",
+    username: "jump-username",
+    privateKeyPath: "jump-key-path",
+  }
+  return `${fieldIds[field]}-${jumpId}`
+}
+
+const getJumpHostValidationErrors = (form: ConnectionForm): Record<string, string> => {
+  const errors: Record<string, string> = {}
+  if (!form.useJumpHost) return errors
+
+  for (const [index, jump] of form.jumpHosts.entries()) {
+    const label = `Jump host #${index + 1}`
+    if (!jump.host.trim())
+      errors[getJumpHostErrorKey(jump.id, "host")] = `${label} host is required.`
+    if (!jump.username.trim()) {
+      errors[getJumpHostErrorKey(jump.id, "username")] = `${label} username is required.`
+    }
+    if (!Number.isInteger(jump.port) || jump.port < 1 || jump.port > 65535) {
+      errors[getJumpHostErrorKey(jump.id, "port")] = `${label} port must be between 1 and 65535.`
+    }
+    if (jump.authMethod === "key" && !jump.privateKeyPath.trim()) {
+      errors[getJumpHostErrorKey(jump.id, "privateKeyPath")] =
+        `${label} private key path is required.`
+    }
+  }
+  return errors
+}
 
 const getJumpHostValidationError = (form: ConnectionForm): string | null => {
   if (!form.useJumpHost) {
@@ -61,26 +93,15 @@ const getJumpHostValidationError = (form: ConnectionForm): string | null => {
 
   if (form.jumpHosts.length === 0) return "At least one jump host is required."
 
-  for (const [index, jump] of form.jumpHosts.entries()) {
-    const label = `Jump host #${index + 1}`
-
-    if (!jump.host.trim()) return `${label} host is required.`
-
-    if (!jump.username.trim()) return `${label} username is required.`
-
-    if (!Number.isInteger(jump.port) || jump.port < 1 || jump.port > 65535) {
-      return `${label} port must be between 1 and 65535.`
-    }
-
-    if (jump.authMethod === "key" && !jump.privateKeyPath.trim()) {
-      return `${label} private key path is required.`
-    }
-  }
-
-  return null
+  return Object.values(getJumpHostValidationErrors(form))[0] ?? null
 }
 
-function buildJumpHostsPayload(form: ConnectionForm, keyCase: "snake"): SavedJumpHost[] | undefined
+function buildJumpHostsPayload(
+  form: ConnectionForm,
+  keyCase: "snake",
+  savedJumpPasswordKeys?: Set<string>,
+  preserveWhenDisabled?: boolean
+): SavedJumpHost[] | undefined
 function buildJumpHostsPayload(
   form: ConnectionForm,
   keyCase: "camel",
@@ -89,9 +110,10 @@ function buildJumpHostsPayload(
 function buildJumpHostsPayload(
   form: ConnectionForm,
   keyCase: "camel" | "snake",
-  savedJumpPasswordKeys: Set<string> = new Set()
+  savedJumpPasswordKeys: Set<string> = new Set(),
+  preserveWhenDisabled = false
 ): SavedJumpHost[] | JumpHostConnection[] | undefined {
-  if (!hasJumpHosts(form)) {
+  if (form.jumpHosts.length === 0 || (!form.useJumpHost && !preserveWhenDisabled)) {
     return undefined
   }
 
@@ -159,6 +181,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const [testHostKeyPrompt, setTestHostKeyPrompt] = useState<HostKeyPromptState | null>(null)
   const [savedPasswordAvailable, setSavedPasswordAvailable] = useState(false)
   const [savedJumpPasswordKeys, setSavedJumpPasswordKeys] = useState<Set<string>>(() => new Set())
+  const [jumpHostErrors, setJumpHostErrors] = useState<Record<string, string>>({})
   const loadedJumpPasswordsForProfile = useRef<string | null>(null)
   const matchingGroups = existingGroups.filter((group) =>
     group.toLowerCase().includes(form.group.toLowerCase())
@@ -285,8 +308,17 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     const shouldSave = submitter?.dataset.action === "save"
     setNameError(null)
 
+    const jumpErrors = getJumpHostValidationErrors(form)
+    setJumpHostErrors(jumpErrors)
     const jumpValidationError = getJumpHostValidationError(form)
     if (jumpValidationError) {
+      const firstErrorKey = Object.keys(jumpErrors)[0]
+      if (firstErrorKey) {
+        const [jumpId, field] = firstErrorKey.split(":")
+        window.setTimeout(() =>
+          document.getElementById(getJumpHostFieldElementId(jumpId, field))?.focus()
+        )
+      }
       toast({
         title: t("profiles.testFailed"),
         description: jumpValidationError,
@@ -306,7 +338,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
       !form.rememberPassword &&
       savedPasswordAvailable &&
       form.password.length === 0
-    const profileJumpHostsPayload = buildJumpHostsPayload(form, "snake")
+    const profileJumpHostsPayload = buildJumpHostsPayload(form, "snake", undefined, true)
     const connectionJumpHostsPayload = buildJumpHostsPayload(form, "camel", savedJumpPasswordKeys)
 
     if (shouldPersistProfile && form.type === "ssh" && form.host.trim()) {
@@ -331,12 +363,13 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
             ? form.password
             : undefined,
         ignore_saved_password: ignoreSavedPassword,
-        remember_password: form.authMethod === "password" ? form.rememberPassword : false,
+        remember_password: form.rememberPassword,
         auth_method: form.authMethod,
         private_key_path: form.authMethod === "key" ? form.privateKeyPath : undefined,
         keepalive_interval_secs: form.keepaliveIntervalSecs,
         keepalive_count_max: form.keepaliveCountMax,
         server_monitor_visible: editProfile?.server_monitor_visible === true,
+        use_jump_host: form.useJumpHost,
         jump_hosts: profileJumpHostsPayload,
       }
       try {
@@ -369,7 +402,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         password:
           form.authMethod === "password" && form.password.length > 0 ? form.password : undefined,
         ignoreSavedPassword,
-        rememberPassword: form.authMethod === "password" ? form.rememberPassword : undefined,
+        rememberPassword: form.rememberPassword,
         privateKeyPath: form.authMethod === "key" ? form.privateKeyPath : undefined,
         privateKeyPassphrase: form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
         keepaliveIntervalSecs: form.keepaliveIntervalSecs,
@@ -410,8 +443,17 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const handleTestConnection = async () => {
     if (form.type !== "ssh") return
 
+    const jumpErrors = getJumpHostValidationErrors(form)
+    setJumpHostErrors(jumpErrors)
     const jumpValidationError = getJumpHostValidationError(form)
     if (jumpValidationError) {
+      const firstErrorKey = Object.keys(jumpErrors)[0]
+      if (firstErrorKey) {
+        const [jumpId, field] = firstErrorKey.split(":")
+        window.setTimeout(() =>
+          document.getElementById(getJumpHostFieldElementId(jumpId, field))?.focus()
+        )
+      }
       toast({
         title: t("profiles.testFailed"),
         description: jumpValidationError,
@@ -460,6 +502,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         keepalive_count_max: form.keepaliveCountMax,
         server_monitor_visible: editProfile?.server_monitor_visible === true,
         remember_password: false,
+        use_jump_host: form.useJumpHost,
         jump_hosts: jumpHostsPayload,
       }
 
@@ -571,6 +614,15 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
                 form={form}
                 setForm={setForm}
                 savedJumpPasswordKeys={savedJumpPasswordKeys}
+                errors={jumpHostErrors}
+                onClearError={(jumpId, field) =>
+                  setJumpHostErrors((current) => {
+                    const key = getJumpHostErrorKey(jumpId, field)
+                    if (!current[key]) return current
+                    const { [key]: _, ...remaining } = current
+                    return remaining
+                  })
+                }
               />
             </>
           )}

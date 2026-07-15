@@ -28,7 +28,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     privateKeyPath: profile.private_key_path ?? "",
     keepaliveIntervalSecs: profile.keepalive_interval_secs,
     keepaliveCountMax: profile.keepalive_count_max,
-    useJumpHost: jumpHosts.length > 0,
+    useJumpHost: profile.use_jump_host ?? jumpHosts.length > 0,
     jumpHosts: jumpHosts.map((jump) => ({
       ...createDefaultJumpHost(),
       host: jump.host ?? "",

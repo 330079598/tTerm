@@ -90,9 +90,10 @@ const buildMetaItems = (
 
   const jumpHosts = profile.jump_hosts ?? []
 
-  if (jumpHosts.length === 1) {
+  const useJumpHost = profile.use_jump_host ?? jumpHosts.length > 0
+  if (useJumpHost && jumpHosts.length === 1) {
     items.push(t("jumpHost.via", { host: jumpHosts[0].host }))
-  } else if (jumpHosts.length > 1) {
+  } else if (useJumpHost && jumpHosts.length > 1) {
     items.push(t("jumpHost.viaCount", { count: jumpHosts.length }))
   }
 
