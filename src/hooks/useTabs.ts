@@ -8,6 +8,7 @@ export interface UseTabsReturn {
   openSettingsTab: (title: string) => void
   renameSettingsTab: (title: string) => void
   removeTab: (id: string) => void
+  removeTabs: (ids: string[]) => void
   setActiveTab: (id: string) => void
   moveTab: (fromIndex: number, toIndex: number) => void
   duplicateTab: (id: string) => void
@@ -173,6 +174,36 @@ export function useTabs(): UseTabsReturn {
     [activeTabId]
   )
 
+  const removeTabs = useCallback(
+    (ids: string[]) => {
+      const idsToRemove = new Set(ids)
+      if (idsToRemove.size === 0) return
+
+      setTabs((prevTabs) => {
+        const activeTabIndex = prevTabs.findIndex((tab) => tab.id === activeTabId)
+        const remainingTabs = prevTabs.filter((tab) => !idsToRemove.has(tab.id))
+
+        if (!idsToRemove.has(activeTabId ?? "")) {
+          return remainingTabs
+        }
+
+        if (remainingTabs.length === 0) {
+          setActiveTabId(null)
+          return remainingTabs
+        }
+
+        const newActiveTab = remainingTabs[Math.min(activeTabIndex, remainingTabs.length - 1)]
+        setActiveTabId(newActiveTab.id)
+        return remainingTabs.map((tab) => ({
+          ...tab,
+          isActive: tab.id === newActiveTab.id,
+          hasConnected: tab.id === newActiveTab.id ? true : tab.hasConnected,
+        }))
+      })
+    },
+    [activeTabId]
+  )
+
   const setActiveTab = useCallback((id: string) => {
     setTabs((prevTabs) =>
       prevTabs.map((tab) => ({
@@ -271,6 +302,7 @@ export function useTabs(): UseTabsReturn {
     openSettingsTab,
     renameSettingsTab,
     removeTab,
+    removeTabs,
     setActiveTab,
     moveTab,
     duplicateTab,

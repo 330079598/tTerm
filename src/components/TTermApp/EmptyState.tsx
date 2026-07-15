@@ -12,6 +12,7 @@ interface EmptyStateProps {
   handleNewTab: () => void
   onCollapsedProfileGroupKeysChange?: (groups: string[]) => void
   onDuplicateProfile: (profile: SavedProfile) => void
+  onDeleteProfile?: (profile: SavedProfile) => void
   onEditProfile: (profile: SavedProfile) => void
   refreshKey?: number
 }
@@ -22,6 +23,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   handleNewTab,
   onCollapsedProfileGroupKeysChange,
   onDuplicateProfile,
+  onDeleteProfile,
   onEditProfile,
   refreshKey,
 }) => {
@@ -67,6 +69,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           }}
           onEdit={onEditProfile}
           onDuplicate={onDuplicateProfile}
+          onDeleteProfile={onDeleteProfile}
         />
       </div>
     </div>

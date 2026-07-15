@@ -79,6 +79,7 @@ export const TTermApp: React.FC = () => {
     openSettingsTab,
     renameSettingsTab,
     removeTab,
+    removeTabs,
     setActiveTab,
     moveTab,
     duplicateTab,
@@ -199,6 +200,20 @@ export const TTermApp: React.FC = () => {
     setDuplicatingProfile(profile)
     setShowConnectionDialog(true)
   }, [])
+
+  const handleDeleteProfile = useCallback(
+    (profile: SavedProfile) => {
+      const profileTabs = tabs.filter(
+        (tab) => tab.type === "ssh" && tab.connection?.profileId === profile.id
+      )
+
+      for (const tab of profileTabs) {
+        cleanupConnection(tab.id)
+      }
+      removeTabs(profileTabs.map((tab) => tab.id))
+    },
+    [cleanupConnection, removeTabs, tabs]
+  )
 
   const handleEditTabProfile = useCallback(
     async (tab: Tab) => {
@@ -545,6 +560,7 @@ export const TTermApp: React.FC = () => {
           handleNewTab={handleNewTab}
           onCollapsedProfileGroupKeysChange={handleCollapsedProfileGroupKeysChange}
           onDuplicateProfile={handleDuplicateProfile}
+          onDeleteProfile={handleDeleteProfile}
           onEditProfile={handleEditProfile}
           refreshKey={profilesRefreshKey}
         />
@@ -693,6 +709,7 @@ export const TTermApp: React.FC = () => {
               handleDuplicateProfile(profile)
               setShowProfilesPanel(false)
             }}
+            onDeleteProfile={handleDeleteProfile}
           />
         </DialogContent>
       </Dialog>

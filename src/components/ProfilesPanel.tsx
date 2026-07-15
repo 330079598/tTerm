@@ -33,6 +33,7 @@ interface ProfilesPanelProps {
   onConnect: (connection: Omit<Tab, "id" | "isActive">) => void
   onEdit: (profile: SavedProfile) => void
   onDuplicate: (profile: SavedProfile) => void
+  onDeleteProfile?: (profile: SavedProfile) => void
   collapsedGroupKeys?: string[]
   refreshKey?: number
   onCreate?: () => void
@@ -271,6 +272,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
   onConnect,
   onEdit,
   onDuplicate,
+  onDeleteProfile,
   collapsedGroupKeys = [],
   refreshKey,
   onCreate,
@@ -345,6 +347,9 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
     try {
       await invoke("delete_profile", { id })
       setProfiles((prev) => prev.filter((item) => item.id !== id))
+      if (profile) {
+        onDeleteProfile?.(profile)
+      }
     } catch (error) {
       console.error("Failed to delete profile:", error)
       toast({
