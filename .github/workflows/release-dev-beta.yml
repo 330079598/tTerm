@@ -16,8 +16,11 @@ jobs:
     outputs:
       beta_tag: ${{ steps.version.outputs.beta_tag }}
       beta_version: ${{ steps.version.outputs.beta_version }}
+      release_notes: ${{ steps.release_notes.outputs.release_notes }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Read package version
         id: version
@@ -41,8 +44,35 @@ jobs:
           NEXT_BETA=$(( ${LATEST_BETA:-0} + 1 ))
           BETA_VERSION="${BETA_BASE}-beta.${NEXT_BETA}"
 
+          if [ -n "$LATEST_BETA" ]; then
+            PREVIOUS_TAG="v${BETA_BASE}-beta.${LATEST_BETA}"
+          else
+            PREVIOUS_TAG="v${VERSION}"
+          fi
+
+          if ! git rev-parse --verify --quiet "refs/tags/${PREVIOUS_TAG}" >/dev/null; then
+            echo "Previous release tag does not exist: ${PREVIOUS_TAG}"
+            exit 1
+          fi
+
+          if ! git merge-base --is-ancestor "$PREVIOUS_TAG" HEAD; then
+            echo "Previous release tag is not an ancestor of HEAD: ${PREVIOUS_TAG}"
+            exit 1
+          fi
+
           echo "beta_tag=v${BETA_VERSION}" >> "$GITHUB_OUTPUT"
           echo "beta_version=${BETA_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "previous_tag=${PREVIOUS_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Test beta release notes generator
+        run: node --test .github/scripts/generate-beta-release-notes.test.mjs
+
+      - name: Generate beta release notes
+        id: release_notes
+        env:
+          PREVIOUS_TAG: ${{ steps.version.outputs.previous_tag }}
+          BETA_TAG: ${{ steps.version.outputs.beta_tag }}
+        run: node .github/scripts/generate-beta-release-notes.mjs
 
   release:
     needs: prepare
@@ -112,7 +142,7 @@ jobs:
         with:
           tagName: ${{ needs.prepare.outputs.beta_tag }}
           releaseName: ${{ needs.prepare.outputs.beta_tag }}
-          releaseBody: 'Development build from dev-beta branch'
+          releaseBody: ${{ needs.prepare.outputs.release_notes }}
           releaseDraft: false
           prerelease: true
           args: ${{ matrix.args }}
@@ -197,4 +227,3 @@ jobs:
           fi
           git commit -m "Update beta-dev updater manifest to ${{ needs.prepare.outputs.beta_tag }}"
           git push origin github-pages
-
