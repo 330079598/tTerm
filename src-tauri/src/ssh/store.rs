@@ -95,7 +95,7 @@ pub fn save_known_host_store(store: &KnownHostStore) -> Result<(), String> {
     let path = ssh_known_hosts_path()?;
     let content = serde_json::to_string_pretty(store)
         .map_err(|e| format!("Failed to serialize known hosts store: {}", e))?;
-    fs::write(&path, content).map_err(|e| format!("Failed to write known hosts store: {}", e))
+    crate::config::atomic_write(&path, content)
 }
 
 pub fn load_known_host(

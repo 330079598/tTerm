@@ -232,7 +232,7 @@ where
             e
         )
     })?;
-    std::fs::write(path, content)
+    crate::config::atomic_write(path, content)
         .map_err(|e| format!("Failed to write {} file '{}': {}", label, path.display(), e))
 }
 

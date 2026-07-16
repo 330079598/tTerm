@@ -243,8 +243,7 @@ impl SecretStoreState {
         let config_path = vault_config_path(app)?;
         let content = serde_json::to_string_pretty(&new_config)
             .map_err(|e| format!("Failed to serialize vault config: {}", e))?;
-        std::fs::write(&config_path, content)
-            .map_err(|e| format!("Failed to write vault config: {}", e))?;
+        crate::config::atomic_write(&config_path, content)?;
 
         let salt_bytes = base64::Engine::decode(
             &base64::engine::general_purpose::STANDARD,

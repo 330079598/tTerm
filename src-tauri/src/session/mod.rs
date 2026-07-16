@@ -1,4 +1,4 @@
-use crate::config::get_config_path;
+use crate::config::{atomic_write, get_config_path};
 use serde::{Deserialize, Serialize};
 use std::fs;
 
@@ -103,7 +103,7 @@ pub fn save_session(mut session: SessionData) -> Result<(), String> {
     session.tabs = sanitize_session_tabs(session.tabs);
     let content = serde_json::to_string_pretty(&session)
         .map_err(|e| format!("Failed to serialize session: {}", e))?;
-    fs::write(&session_file, content).map_err(|e| format!("Failed to write session file: {}", e))
+    atomic_write(&session_file, content)
 }
 
 #[tauri::command]

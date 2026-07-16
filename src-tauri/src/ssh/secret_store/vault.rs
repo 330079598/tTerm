@@ -26,8 +26,7 @@ pub(crate) fn derive_or_initialize_vault_key(
             .map_err(|e| format!("Failed to parse vault config: {}", e))?;
         let content = serde_json::to_string_pretty(&config)
             .map_err(|e| format!("Failed to serialize vault config: {}", e))?;
-        fs::write(&config_path, content)
-            .map_err(|e| format!("Failed to write vault config: {}", e))?;
+        crate::config::atomic_write_private(&config_path, content)?;
         config
     } else {
         let mut salt = [0u8; SALT_LEN];
@@ -43,8 +42,7 @@ pub(crate) fn derive_or_initialize_vault_key(
         };
         let content = serde_json::to_string_pretty(&config)
             .map_err(|e| format!("Failed to serialize vault config: {}", e))?;
-        fs::write(&config_path, content)
-            .map_err(|e| format!("Failed to write vault config: {}", e))?;
+        crate::config::atomic_write_private(&config_path, content)?;
         config
     };
 
@@ -75,7 +73,21 @@ fn app_secret_dir(app: &AppHandle) -> Result<PathBuf, String> {
     if !dir.exists() {
         fs::create_dir_all(&dir).map_err(|e| format!("Failed to create secrets dir: {}", e))?;
     }
+    restrict_secret_directory(&dir)?;
     Ok(dir)
+}
+
+#[cfg(unix)]
+fn restrict_secret_directory(dir: &Path) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt;
+
+    fs::set_permissions(dir, fs::Permissions::from_mode(0o700))
+        .map_err(|e| format!("Failed to restrict secrets directory permissions: {}", e))
+}
+
+#[cfg(not(unix))]
+fn restrict_secret_directory(_dir: &Path) -> Result<(), String> {
+    Ok(())
 }
 
 pub(crate) fn vault_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -97,7 +109,7 @@ pub(crate) fn load_vault_file(path: &Path) -> Result<VaultFile, String> {
 pub(crate) fn save_vault_file(path: &Path, vault: &VaultFile) -> Result<(), String> {
     let content = serde_json::to_string_pretty(vault)
         .map_err(|e| format!("Failed to serialize vault: {}", e))?;
-    fs::write(path, content).map_err(|e| format!("Failed to write vault: {}", e))
+    crate::config::atomic_write_private(path, content)
 }
 
 pub(crate) fn encrypt_secret(

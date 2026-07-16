@@ -37,7 +37,7 @@ pub fn save_sftp_directory_store(store: &SftpDirectoryStore) -> Result<(), Strin
     let path = sftp_directory_store_path()?;
     let content = serde_json::to_string_pretty(store)
         .map_err(|e| format!("Failed to serialize SFTP directory store: {}", e))?;
-    fs::write(&path, content).map_err(|e| format!("Failed to write SFTP directory store: {}", e))
+    crate::config::atomic_write(&path, content)
 }
 
 pub fn get_last_directory(host: &str, port: u16, username: &str) -> Result<Option<String>, String> {

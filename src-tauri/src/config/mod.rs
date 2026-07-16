@@ -1,5 +1,7 @@
+mod atomic;
 mod paths;
 
+pub use atomic::{atomic_write, atomic_write_private};
 pub use paths::{ensure_config_dir, get_config_path, init_config_dir, legacy_config_path};
 
 use serde::{Deserialize, Serialize};
@@ -188,7 +190,7 @@ pub fn save_config_file(config: &AppConfig) -> Result<(), String> {
     let config_file = config_dir.join("config.json");
     let content = serde_json::to_string_pretty(config)
         .map_err(|e| format!("Failed to serialize config: {}", e))?;
-    fs::write(&config_file, content).map_err(|e| format!("Failed to write config file: {}", e))
+    atomic_write(&config_file, content)
 }
 
 #[tauri::command]

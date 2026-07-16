@@ -1,5 +1,5 @@
 use super::types::{SavedProfile, SavedSecretSummary};
-use crate::config::{ensure_config_dir, get_config_path};
+use crate::config::{atomic_write, ensure_config_dir, get_config_path};
 use std::fs;
 
 pub(crate) fn load_profiles_from_disk() -> Result<Vec<SavedProfile>, String> {
@@ -51,7 +51,7 @@ pub(crate) fn write_profiles_to_disk(profiles: &[SavedProfile]) -> Result<(), St
     let profiles_file = config_dir.join("profiles.json");
     let content = serde_json::to_string_pretty(profiles)
         .map_err(|e| format!("Failed to serialize profiles: {}", e))?;
-    fs::write(&profiles_file, content).map_err(|e| format!("Failed to write profiles file: {}", e))
+    atomic_write(&profiles_file, content)
 }
 
 pub(crate) fn profile_secret_summaries(profile: &SavedProfile) -> Vec<SavedSecretSummary> {
@@ -197,8 +197,7 @@ pub(crate) fn write_profile_groups_to_disk(groups: &[String]) -> Result<(), Stri
 
     let content = serde_json::to_string_pretty(&normalized_groups)
         .map_err(|e| format!("Failed to serialize profile groups: {}", e))?;
-    fs::write(&groups_file, content)
-        .map_err(|e| format!("Failed to write profile groups file: {}", e))
+    atomic_write(&groups_file, content)
 }
 
 pub(crate) fn load_all_profile_groups() -> Result<Vec<String>, String> {
