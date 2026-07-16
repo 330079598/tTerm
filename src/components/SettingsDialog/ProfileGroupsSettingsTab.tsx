@@ -26,6 +26,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useToast } from "@/hooks/use-toast"
+import { invokeSafe } from "@/lib/errors"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
 import { cn, toErrorMessage } from "@/lib/utils"
 import type { SavedProfile, Tab } from "@/types/tab"
@@ -428,18 +429,24 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
   )
 
   const refreshProfileGroups = React.useCallback(async () => {
-    const [groups, loadedProfiles] = await Promise.all([
-      invoke<string[]>("list_profile_groups"),
-      invoke<SavedProfile[]>("list_profiles"),
-    ])
-    setProfileGroups(groups)
-    setProfiles(loadedProfiles)
-  }, [])
+    const groupsResult = await invokeSafe<string[]>("list_profile_groups", undefined, {
+      context: "list_profile_groups",
+      title: t("errors.profileGroupsLoadFailed"),
+    })
+    if (!groupsResult.ok) return
+
+    const profilesResult = await invokeSafe<SavedProfile[]>("list_profiles", undefined, {
+      context: "list_profiles",
+      title: t("errors.profileGroupsLoadFailed"),
+    })
+    if (!profilesResult.ok) return
+
+    setProfileGroups(groupsResult.value)
+    setProfiles(profilesResult.value)
+  }, [t])
 
   React.useEffect(() => {
-    refreshProfileGroups().catch((error) => {
-      console.error("Failed to load profile groups:", error)
-    })
+    void refreshProfileGroups()
   }, [refreshKey, refreshProfileGroups])
 
   const showGroupError = React.useCallback(

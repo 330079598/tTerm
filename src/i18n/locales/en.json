@@ -8,7 +8,15 @@
   "errors": {
     "boundaryTitle": "Something went wrong",
     "boundaryDescription": "This view crashed. You can retry without restarting the app.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "operationFailed": "Operation failed",
+    "sessionSaveFailed": "Failed to save session",
+    "sessionSaveFailedDesc": "Your open tabs may not restore after restart.",
+    "sessionLoadFailed": "Failed to load session",
+    "sessionLoadFailedDesc": "Could not restore previous tabs.",
+    "configSaveFailed": "Failed to save settings",
+    "profileSaveFailed": "Failed to save profile",
+    "profileGroupsLoadFailed": "Failed to load profile groups"
   },
   "welcome": {
     "title": "Start a session",
@@ -505,8 +513,9 @@
     "terminalPaddingRight": "Right",
     "terminalPaddingBottom": "Bottom",
     "terminalPaddingDesc": "Adjust left, right, and bottom spacing in pixels. Bottom spacing lifts the last terminal line away from the window edge.",
-    "scrollbackLinesDesc": "Number of lines to keep in terminal history. Set to 0 for unlimited (may use significant memory).",
-    "scrollbackLinesPlaceholder": "Enter custom value or select preset",
+    "scrollbackLinesDesc": "Default: 10,000 lines. Unlimited history can use significant memory.",
+    "scrollbackLinesPlaceholder": "Default 10000, or pick a preset",
+    "scrollbackUnlimitedWarning": "Heavy output or many tabs may slow the app or use a lot of memory.",
     "unlimited": "Unlimited",
     "cursorStyles": {
       "bar": "Bar",

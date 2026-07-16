@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useToast } from "@/hooks/use-toast"
+import { invokeSafe, reportError } from "@/lib/errors"
 import { cn } from "@/lib/utils"
 import { Tab, type JumpHostConnection, type SavedJumpHost } from "@/types/tab"
 
@@ -372,15 +373,15 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         use_jump_host: form.useJumpHost,
         jump_hosts: profileJumpHostsPayload,
       }
-      try {
-        await invoke("save_profile", { profile })
-      } catch (error) {
-        console.error("Failed to save profile:", error)
-        toast({
-          title: t("fontSettings.saveFailed"),
-          description: String(error),
-          variant: "destructive",
-        })
+      const result = await invokeSafe<void>(
+        "save_profile",
+        { profile },
+        {
+          context: "save_profile",
+          title: t("errors.profileSaveFailed"),
+        }
+      )
+      if (!result.ok) {
         return
       }
     }
@@ -430,7 +431,11 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
               form.terminalShell === "custom" ? form.terminalShellCustomArgs.trim() : "",
           })
         } catch (error) {
-          console.error("Failed to save terminal shell defaults:", error)
+          reportError(error, {
+            context: "save_config",
+            title: t("errors.configSaveFailed"),
+          })
+          return
         }
       }
     }

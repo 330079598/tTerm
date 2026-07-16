@@ -8,7 +8,15 @@
   "errors": {
     "boundaryTitle": "出现错误",
     "boundaryDescription": "此视图已崩溃。可以重试，无需重启应用。",
-    "retry": "重试"
+    "retry": "重试",
+    "operationFailed": "操作失败",
+    "sessionSaveFailed": "保存会话失败",
+    "sessionSaveFailedDesc": "重启后可能无法恢复当前标签页。",
+    "sessionLoadFailed": "加载会话失败",
+    "sessionLoadFailedDesc": "无法恢复上次打开的标签页。",
+    "configSaveFailed": "保存设置失败",
+    "profileSaveFailed": "保存连接配置失败",
+    "profileGroupsLoadFailed": "加载连接分组失败"
   },
   "welcome": {
     "title": "开始会话",
@@ -505,8 +513,9 @@
     "terminalPaddingRight": "右侧",
     "terminalPaddingBottom": "底部",
     "terminalPaddingDesc": "调整终端左侧、右侧和底部的像素间距。底部间距可以让最后一行远离窗口边缘。",
-    "scrollbackLinesDesc": "终端历史记录保留的行数。设置为 0 表示无限制（可能占用大量内存）。",
-    "scrollbackLinesPlaceholder": "输入自定义值或选择预设",
+    "scrollbackLinesDesc": "默认 10,000 行；无限制历史可能占用较多内存。",
+    "scrollbackLinesPlaceholder": "默认 10000，或选择预设",
+    "scrollbackUnlimitedWarning": "大量输出或多标签可能导致内存占用高、应用变慢。",
     "unlimited": "无限制",
     "cursorStyles": {
       "bar": "竖线",
