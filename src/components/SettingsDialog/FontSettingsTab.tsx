@@ -6,9 +6,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  DEFAULT_SCROLLBACK_LINES,
+  MAX_EXPLICIT_SCROLLBACK_LINES,
+  UNLIMITED_SCROLLBACK_SENTINEL,
+  isUnlimitedScrollback,
+} from "@/lib/scrollback"
 import { cn } from "@/lib/utils"
 import { CursorStylePicker } from "@/components/SettingsDialog/CursorStylePicker"
 import { SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
+
+const SCROLLBACK_PRESETS = [1000, 5000, DEFAULT_SCROLLBACK_LINES, 50000, 100000] as const
 
 const NERD_FONT_PATTERN =
   /nerd\s*font|nerdfont|nf\b|nerd|powerline|meslo\s+lg.*nerd|fira\s*code.*nerd|jetbrains.*nerd|hack.*nerd|iosevka.*nerd|cascadia.*nerd|roboto.*mono.*nerd|ubuntu.*mono.*nerd|source\s*code\s*pro.*nerd|dejavu.*sans.*mono.*nerd|liberation.*mono.*nerd|noto.*sans.*mono.*nerd/i
@@ -250,35 +258,52 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
                 <Input
                   type="number"
                   min={0}
-                  max={10000000}
+                  max={MAX_EXPLICIT_SCROLLBACK_LINES}
                   value={scrollbackLines}
                   onChange={(e) => {
-                    const value = parseInt(e.target.value)
-                    if (!isNaN(value) && value >= 0 && value <= 10000000) setScrollbackLines(value)
+                    const value = parseInt(e.target.value, 10)
+                    if (
+                      !isNaN(value) &&
+                      value >= UNLIMITED_SCROLLBACK_SENTINEL &&
+                      value <= MAX_EXPLICIT_SCROLLBACK_LINES
+                    ) {
+                      setScrollbackLines(value)
+                    }
                   }}
                   className="flex-1"
                   placeholder={t("fontSettings.scrollbackLinesPlaceholder", {
-                    defaultValue: "Enter custom value or select preset",
+                    defaultValue: "Default 10000, or pick a preset",
                   })}
                 />
               </div>
               <p className="text-muted-foreground text-xs">
                 {t("fontSettings.scrollbackLinesDesc", {
                   defaultValue:
-                    "Number of lines to keep in terminal history. Set to 0 for unlimited (may use significant memory).",
+                    "Default: 10,000 lines. Unlimited history can use significant memory.",
                 })}
               </p>
+              {isUnlimitedScrollback(scrollbackLines) && (
+                <p className="text-xs text-amber-600 dark:text-amber-500">
+                  {t("fontSettings.scrollbackUnlimitedWarning", {
+                    defaultValue:
+                      "Heavy output or many tabs may slow the app or use a lot of memory.",
+                  })}
+                </p>
+              )}
               <div className="flex flex-wrap gap-1.5">
                 <Button
                   type="button"
-                  variant={scrollbackLines === 0 ? "default" : "outline"}
+                  variant={isUnlimitedScrollback(scrollbackLines) ? "default" : "outline"}
                   size="xs"
-                  onClick={() => setScrollbackLines(0)}
-                  className={cn("min-w-[3.5rem]", scrollbackLines !== 0 && "text-muted-foreground")}
+                  onClick={() => setScrollbackLines(UNLIMITED_SCROLLBACK_SENTINEL)}
+                  className={cn(
+                    "min-w-[3.5rem]",
+                    !isUnlimitedScrollback(scrollbackLines) && "text-muted-foreground"
+                  )}
                 >
                   {t("fontSettings.unlimited", { defaultValue: "Unlimited" })}
                 </Button>
-                {[1000, 5000, 10000, 50000, 100000].map((lines) => (
+                {SCROLLBACK_PRESETS.map((lines) => (
                   <Button
                     key={lines}
                     type="button"

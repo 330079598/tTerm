@@ -24,6 +24,7 @@ import { toast } from "@/hooks/use-toast"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useStableRef } from "@/hooks/useStableRef"
+import { resolveScrollbackLines } from "@/lib/scrollback"
 import { toErrorMessage } from "@/lib/utils"
 
 export const TerminalTab: React.FC<TerminalTabProps> = ({
@@ -215,9 +216,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     const term = termRef.current
     if (!term) return
 
-    // 0 means unlimited scrollback in our app, but xterm.js uses a very large number
-    // xterm.js doesn't support true unlimited, so we use a very large number (10 million)
-    term.options.scrollback = config.scrollback_lines === 0 ? 10000000 : config.scrollback_lines
+    // 0 = unlimited in settings; resolveScrollbackLines maps it for xterm.
+    term.options.scrollback = resolveScrollbackLines(config.scrollback_lines)
   }, [config.scrollback_lines])
 
   useEffect(() => {

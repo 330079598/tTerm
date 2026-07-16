@@ -17,6 +17,7 @@ import type {
   SshConnectionProgress,
   TerminalTabProps,
 } from "@/components/TerminalTab/types"
+import { resolveScrollbackLines } from "@/lib/scrollback"
 
 type UseTerminalLifecycleOptions = {
   activateFitTimerRef: React.MutableRefObject<number | null>
@@ -112,7 +113,7 @@ export function useTerminalLifecycle({
     const term = new Terminal({
       cursorBlink: true,
       cursorStyle: initialCursorStyle.current,
-      scrollback: initialScrollbackLines.current === 0 ? 10000000 : initialScrollbackLines.current,
+      scrollback: resolveScrollbackLines(initialScrollbackLines.current),
       fontSize: initialFontSize.current,
       fontFamily: initialFontFamily.current,
       fontWeight: "normal",

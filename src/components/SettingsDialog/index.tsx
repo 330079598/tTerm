@@ -12,6 +12,7 @@ import { SavedSecretEntry, useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
+import { normalizeScrollbackConfig } from "@/lib/scrollback"
 import { cn, toErrorMessage } from "@/lib/utils"
 import type { PresetThemeId } from "@/types/theme"
 import { AppearanceSettingsTab } from "@/components/SettingsDialog/AppearanceSettingsTab"
@@ -51,11 +52,7 @@ function normalizeSettingsTab(tab: string) {
 }
 
 function normalizeScrollbackLines(value: number | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 10000
-  }
-
-  return Math.min(Math.max(Math.round(value), 0), 10000000)
+  return normalizeScrollbackConfig(value)
 }
 
 function getPerfNow() {
