@@ -55,6 +55,7 @@
     "splitDown": "Split Down",
     "maximizeGroup": "Maximize Group",
     "restoreGroup": "Restore Group",
+    "restoreSingleGroup": "Restore Single Group",
     "emptyGroup": "Drag a tab here"
   },
   "settings": {

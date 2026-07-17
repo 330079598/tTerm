@@ -48,6 +48,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const searchResultsDisposableRef = useRef<IDisposable | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const resizeRafRef = useRef<number | null>(null)
+  const resizePtySyncTimerRef = useRef<number | null>(null)
   const activateFitTimerRef = useRef<number | null>(null)
   const lastPtySizeRef = useRef<{ rows: number; cols: number } | null>(null)
   const connectionRef = useStableRef(connection)
@@ -196,9 +197,19 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     resizeRafRef.current = window.requestAnimationFrame(() => {
       resizeRafRef.current = null
       if (!isActiveRef.current) return
-      fitAndSyncPty()
+      fitTerminalOnly()
+
+      if (resizePtySyncTimerRef.current !== null) {
+        window.clearTimeout(resizePtySyncTimerRef.current)
+      }
+      resizePtySyncTimerRef.current = window.setTimeout(() => {
+        resizePtySyncTimerRef.current = null
+        if (isActiveRef.current) {
+          syncPtySize()
+        }
+      }, 80)
     })
-  }, [fitAndSyncPty, isActiveRef])
+  }, [fitTerminalOnly, isActiveRef, syncPtySize])
 
   useEffect(() => {
     const term = termRef.current
@@ -258,6 +269,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     onReconnectRequestRef,
     passwordPromptActiveRef,
     resizeObserverRef,
+    resizePtySyncTimerRef,
     resizeRafRef,
     scheduleFitDuringResize,
     searchAddonRef,

@@ -34,6 +34,12 @@
   color: hsl(var(--foreground));
 }
 
+/* Dockview defaults split views to overflow:auto, which can flash native
+   scrollbars while a group is resized or maximized. Panels own their overflow. */
+.workspace-dock .dv-split-view-container .dv-view-container > .dv-view {
+  overflow: hidden;
+}
+
 .workspace-dock .dv-groupview {
   min-width: 220px;
   min-height: 140px;
@@ -52,6 +58,11 @@
 
 .workspace-dock .dv-resize-container {
   transition: background-color 160ms ease;
+}
+
+/* Dockview keeps the grid's sash DOM mounted while a group is maximized. */
+.workspace-dock.is-maximized .dv-sash-container {
+  display: none;
 }
 
 .workspace-dock .dv-sash-container .dv-sash:hover,
@@ -234,6 +245,10 @@
 
 .workspace-drop-preview.below .workspace-drop-preview-surface {
   bottom: 6px;
+}
+
+.workspace-drop-preview.center .workspace-drop-preview-surface {
+  inset: 18%;
 }
 
 .workspace-watermark {

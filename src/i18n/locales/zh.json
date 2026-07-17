@@ -55,6 +55,7 @@
     "splitDown": "向下分屏",
     "maximizeGroup": "最大化分组",
     "restoreGroup": "还原分组",
+    "restoreSingleGroup": "还原单分组",
     "emptyGroup": "将标签拖到此处"
   },
   "settings": {

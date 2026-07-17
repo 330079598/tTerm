@@ -21,7 +21,7 @@ import {
   type IDockviewPanelProps,
   type SerializedDockview,
 } from "dockview-react"
-import { Columns2, Maximize2, Minimize2, Rows2, Settings, X } from "lucide-react"
+import { Columns2, Maximize2, Minimize2, PanelsTopLeft, Rows2, Settings, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { ErrorBoundary } from "@/components/ErrorBoundary"
@@ -57,7 +57,7 @@ export interface TabPanelsHandle {
   splitTab: (tabId: string, direction: WorkspaceSplitDirection) => void
 }
 
-type WorkspaceDropDirection = "left" | "right" | "above" | "below"
+type WorkspaceDropDirection = "left" | "right" | "above" | "below" | "center"
 
 type WorkspaceDropPreview = {
   direction: WorkspaceDropDirection
@@ -99,6 +99,9 @@ type WorkspaceContextValue = Omit<
   TabPanelsProps,
   "activeTabId" | "initialLayout" | "onActiveTabChange" | "onLayoutChange"
 > & {
+  collapseToSingleGroup: (tabId: string) => void
+  groupCount: number
+  maximizedGroupId: string | null
   splitTab: (tabId: string, direction: WorkspaceSplitDirection) => void
 }
 
@@ -312,10 +315,10 @@ const WorkspaceHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({
   isGroupActive,
 }) => {
   const { t } = useTranslation()
-  const { splitTab, tabs } = useWorkspace()
+  const { collapseToSingleGroup, groupCount, maximizedGroupId, splitTab, tabs } = useWorkspace()
   const tab = activePanel ? tabs.find((candidate) => candidate.id === activePanel.id) : undefined
   const canSplit = tab?.type === "terminal" || tab?.type === "ssh"
-  const isMaximized = activePanel?.api.isMaximized() ?? false
+  const isMaximized = activePanel?.group.id === maximizedGroupId
 
   const action = (label: string, icon: React.ReactNode, onClick: () => void, disabled = false) => (
     <Tooltip>
@@ -360,6 +363,13 @@ const WorkspaceHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({
           ),
           () => (isMaximized ? activePanel.api.exitMaximized() : activePanel.api.maximize())
         )}
+      {activePanel &&
+        groupCount > 1 &&
+        action(
+          t("workspace.restoreSingleGroup", { defaultValue: "Restore Single Group" }),
+          <PanelsTopLeft size={14} aria-hidden="true" />,
+          () => collapseToSingleGroup(activePanel.id)
+        )}
     </div>
   )
 }
@@ -391,11 +401,11 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
 ) {
   const [dockApi, setDockApi] = useState<DockviewApi | null>(null)
   const [groupCount, setGroupCount] = useState(1)
+  const [maximizedGroupId, setMaximizedGroupId] = useState<string | null>(null)
   const [dropPreview, setDropPreview] = useState<WorkspaceDropPreview | null>(null)
   const dockRootRef = useRef<HTMLDivElement | null>(null)
   const dropPreviewRef = useRef<WorkspaceDropPreview | null>(null)
   const tabsRef = useRef(tabs)
-  const duplicateTabRef = useRef(duplicateTab)
   const onActiveTabChangeRef = useRef(onActiveTabChange)
   const onLayoutChangeRef = useRef(onLayoutChange)
   const initialLayoutRef = useRef(initialLayout)
@@ -416,8 +426,8 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
         return false
       }
 
-      const targetElement = Array.from(
-        root.querySelectorAll<HTMLElement>("[data-workspace-panel-id]")
+      const targetGroupElement = Array.from(
+        root.querySelectorAll<HTMLElement>(".dv-groupview")
       ).find((element) => {
         const rect = element.getBoundingClientRect()
         return (
@@ -429,30 +439,43 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
           clientY <= rect.bottom
         )
       })
+      const targetElement = targetGroupElement
+        ? Array.from(
+            targetGroupElement.querySelectorAll<HTMLElement>("[data-workspace-panel-id]")
+          ).find((element) => {
+            const rect = element.getBoundingClientRect()
+            return rect.width > 0 && rect.height > 0
+          })
+        : undefined
       const targetTabId = targetElement?.dataset.workspacePanelId
       const targetPanel = targetTabId ? api.getPanel(targetTabId) : undefined
-      if (!targetElement || !targetTabId || !targetPanel) {
-        clearTabDrop()
-        return false
-      }
-
-      if (sourcePanel.group === targetPanel.group && sourcePanel.group.panels.length <= 1) {
+      if (!targetGroupElement || !targetElement || !targetTabId || !targetPanel) {
         clearTabDrop()
         return false
       }
 
       const rootRect = root.getBoundingClientRect()
-      const targetRect = targetElement.getBoundingClientRect()
+      const targetRect = targetGroupElement.getBoundingClientRect()
       const normalizedX = (clientX - targetRect.left) / targetRect.width - 0.5
       const normalizedY = (clientY - targetRect.top) / targetRect.height - 0.5
       const direction: WorkspaceDropDirection =
-        Math.abs(normalizedX) > Math.abs(normalizedY)
-          ? normalizedX < 0
-            ? "left"
-            : "right"
-          : normalizedY < 0
-            ? "above"
-            : "below"
+        Math.abs(normalizedX) <= 0.25 && Math.abs(normalizedY) <= 0.25
+          ? "center"
+          : Math.abs(normalizedX) > Math.abs(normalizedY)
+            ? normalizedX < 0
+              ? "left"
+              : "right"
+            : normalizedY < 0
+              ? "above"
+              : "below"
+
+      if (
+        sourcePanel.group === targetPanel.group &&
+        (direction === "center" || sourcePanel.group.panels.length <= 1)
+      ) {
+        clearTabDrop()
+        return false
+      }
       const nextPreview: WorkspaceDropPreview = {
         direction,
         sourceTabId: tabId,
@@ -512,10 +535,9 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
 
   useEffect(() => {
     tabsRef.current = tabs
-    duplicateTabRef.current = duplicateTab
     onActiveTabChangeRef.current = onActiveTabChange
     onLayoutChangeRef.current = onLayoutChange
-  }, [duplicateTab, onActiveTabChange, onLayoutChange, tabs])
+  }, [onActiveTabChange, onLayoutChange, tabs])
 
   const addPanel = useCallback(
     (
@@ -540,24 +562,37 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
 
   const splitTab = useCallback(
     (tabId: string, direction: WorkspaceSplitDirection) => {
-      if (!dockApi || !dockApi.getPanel(tabId)) {
+      const sourcePanel = dockApi?.getPanel(tabId)
+      if (!dockApi || !sourcePanel) {
         return
       }
       const sourceTab = tabsRef.current.find((tab) => tab.id === tabId)
       if (!sourceTab || (sourceTab.type !== "terminal" && sourceTab.type !== "ssh")) {
         return
       }
-      const newTabId = duplicateTabRef.current(tabId)
-      if (!newTabId) {
+      const targetGroup = dockApi.addGroup({ referencePanel: sourcePanel, direction })
+      sourcePanel.api.moveTo({ group: targetGroup, position: "center" })
+      sourcePanel.api.setActive()
+    },
+    [dockApi]
+  )
+
+  const collapseToSingleGroup = useCallback(
+    (tabId: string) => {
+      const targetPanel = dockApi?.getPanel(tabId)
+      if (!dockApi || !targetPanel) {
         return
       }
-      addPanel(
-        dockApi,
-        { ...sourceTab, id: newTabId, title: `${sourceTab.title} (Copy)` },
-        { referencePanel: tabId, direction }
-      )
+
+      dockApi.exitMaximizedGroup()
+      for (const panel of [...dockApi.panels]) {
+        if (panel.group !== targetPanel.group) {
+          panel.api.moveTo({ group: targetPanel.group, position: "center", skipSetActive: true })
+        }
+      }
+      targetPanel.api.setActive()
     },
-    [addPanel, dockApi]
+    [dockApi]
   )
 
   useImperativeHandle(
@@ -620,7 +655,11 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
         }),
         api.onDidAddGroup(() => setGroupCount(api.size)),
         api.onDidRemoveGroup(() => setGroupCount(api.size)),
+        api.onDidMaximizedGroupChange(({ group, isMaximized }) => {
+          setMaximizedGroupId(isMaximized ? group.id : null)
+        }),
       ]
+      setMaximizedGroupId(api.panels.find((panel) => panel.api.isMaximized())?.group.id ?? null)
 
       if (activeTabId) {
         api.getPanel(activeTabId)?.api.setActive()
@@ -673,18 +712,29 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
   const contextValue = useMemo<WorkspaceContextValue>(
     () => ({
       ...workspaceProps,
+      collapseToSingleGroup,
       duplicateTab,
+      groupCount,
+      maximizedGroupId,
       splitTab,
       tabs,
     }),
-    [duplicateTab, splitTab, tabs, workspaceProps]
+    [
+      collapseToSingleGroup,
+      duplicateTab,
+      groupCount,
+      maximizedGroupId,
+      splitTab,
+      tabs,
+      workspaceProps,
+    ]
   )
 
   return (
     <WorkspaceContext.Provider value={contextValue}>
       <div
         ref={dockRootRef}
-        className={`workspace-dock dockview-theme-dark ${groupCount <= 1 ? "single-group" : "multi-group"}`}
+        className={`workspace-dock dockview-theme-dark ${groupCount <= 1 ? "single-group" : "multi-group"} ${maximizedGroupId ? "is-maximized" : ""}`}
       >
         <DockviewReact
           components={dockComponents}
@@ -710,7 +760,9 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
             aria-hidden="true"
           >
             <div className="workspace-drop-preview-surface">
-              {dropPreview.direction === "left" || dropPreview.direction === "right" ? (
+              {dropPreview.direction === "center" ? (
+                <PanelsTopLeft size={24} />
+              ) : dropPreview.direction === "left" || dropPreview.direction === "right" ? (
                 <Columns2 size={24} />
               ) : (
                 <Rows2 size={24} />

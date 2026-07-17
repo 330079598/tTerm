@@ -38,6 +38,7 @@ type UseTerminalLifecycleOptions = {
   onReconnectRequestRef: React.MutableRefObject<TerminalTabProps["onReconnectRequest"]>
   passwordPromptActiveRef: React.MutableRefObject<boolean>
   resizeObserverRef: React.MutableRefObject<ResizeObserver | null>
+  resizePtySyncTimerRef: React.MutableRefObject<number | null>
   resizeRafRef: React.MutableRefObject<number | null>
   scheduleFitDuringResize: () => void
   searchAddonRef: React.MutableRefObject<SearchAddon | null>
@@ -90,6 +91,7 @@ export function useTerminalLifecycle({
   onReconnectRequestRef,
   passwordPromptActiveRef,
   resizeObserverRef,
+  resizePtySyncTimerRef,
   resizeRafRef,
   scheduleFitDuringResize,
   searchAddonRef,
@@ -420,6 +422,11 @@ export function useTerminalLifecycle({
         resizeRafRef.current = null
       }
 
+      if (resizePtySyncTimerRef.current !== null) {
+        window.clearTimeout(resizePtySyncTimerRef.current)
+        resizePtySyncTimerRef.current = null
+      }
+
       if (activateFitTimerRef.current !== null) {
         window.clearTimeout(activateFitTimerRef.current)
         activateFitTimerRef.current = null
@@ -461,6 +468,7 @@ export function useTerminalLifecycle({
     onReconnectRequestRef,
     passwordPromptActiveRef,
     resizeObserverRef,
+    resizePtySyncTimerRef,
     resizeRafRef,
     scheduleFitDuringResize,
     searchAddonRef,
