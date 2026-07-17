@@ -590,6 +590,11 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
           panel.api.moveTo({ group: targetPanel.group, position: "center", skipSetActive: true })
         }
       }
+      for (const group of [...dockApi.groups]) {
+        if (group !== targetPanel.group && group.panels.length === 0) {
+          dockApi.removeGroup(group)
+        }
+      }
       targetPanel.api.setActive()
     },
     [dockApi]
