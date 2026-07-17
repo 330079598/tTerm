@@ -39,6 +39,8 @@
   "contextMenu": {
     "newTab": "新建标签页",
     "duplicateTab": "复制标签页",
+    "splitRight": "向右分屏",
+    "splitDown": "向下分屏",
     "renameTab": "重命名标签页",
     "editConnection": "修改连接配置",
     "pinConnectionHeader": "固定连接信息栏",
@@ -47,6 +49,13 @@
     "closeOtherTabs": "关闭其他标签页",
     "closeTabsToLeft": "关闭左侧标签页",
     "closeTabsToRight": "关闭右侧标签页"
+  },
+  "workspace": {
+    "splitRight": "向右分屏",
+    "splitDown": "向下分屏",
+    "maximizeGroup": "最大化分组",
+    "restoreGroup": "还原分组",
+    "emptyGroup": "将标签拖到此处"
   },
   "settings": {
     "title": "设置",

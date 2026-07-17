@@ -14,6 +14,8 @@ import {
   Shield,
   Pin,
   PinOff,
+  Columns2,
+  Rows2,
 } from "lucide-react"
 import { TabContextMenuAction } from "@/types/tab"
 import { cn } from "@/lib/utils"
@@ -58,6 +60,10 @@ const getActionIcon = (icon?: string) => {
       return <Pin size={14} aria-hidden="true" />
     case "pin-off":
       return <PinOff size={14} aria-hidden="true" />
+    case "split-right":
+      return <Columns2 size={14} aria-hidden="true" />
+    case "split-down":
+      return <Rows2 size={14} aria-hidden="true" />
     default:
       return null
   }

@@ -6,6 +6,10 @@ use std::fs;
 pub struct SessionData {
     pub tabs: serde_json::Value,
     pub active_tab_id: Option<String>,
+    #[serde(default)]
+    pub layout: Option<serde_json::Value>,
+    #[serde(default)]
+    pub schema_version: u32,
     pub last_saved: i64,
 }
 
@@ -14,6 +18,8 @@ impl Default for SessionData {
         Self {
             tabs: serde_json::json!([]),
             active_tab_id: None,
+            layout: None,
+            schema_version: 1,
             last_saved: 0,
         }
     }
@@ -119,7 +125,18 @@ pub fn clear_session() -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::sanitize_session_tabs;
+    use super::{sanitize_session_tabs, SessionData};
+
+    #[test]
+    fn legacy_session_without_layout_uses_defaults() {
+        let session: SessionData = serde_json::from_str(
+            r#"{"tabs":[],"active_tab_id":null,"last_saved":0}"#,
+        )
+        .expect("legacy session should deserialize");
+
+        assert!(session.layout.is_none());
+        assert_eq!(session.schema_version, 0);
+    }
 
     #[test]
     fn sanitize_session_tabs_migrates_legacy_jump_host_to_jump_hosts() {

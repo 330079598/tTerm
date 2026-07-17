@@ -1,0 +1,263 @@
+.workspace-dock {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  --dv-paneview-active-outline-color: hsl(var(--primary));
+  --dv-group-view-background-color: hsl(var(--background));
+  --dv-tabs-and-actions-container-background-color: hsl(var(--titlebar));
+  --dv-tabs-and-actions-container-height: 34px;
+  --dv-activegroup-visiblepanel-tab-background-color: hsl(var(--background));
+  --dv-activegroup-hiddenpanel-tab-background-color: hsl(var(--titlebar));
+  --dv-inactivegroup-visiblepanel-tab-background-color: hsl(var(--background));
+  --dv-inactivegroup-hiddenpanel-tab-background-color: hsl(var(--titlebar));
+  --dv-tab-divider-color: hsl(var(--border) / 0.45);
+  --dv-activegroup-visiblepanel-tab-color: hsl(var(--foreground));
+  --dv-activegroup-hiddenpanel-tab-color: hsl(var(--muted-foreground));
+  --dv-inactivegroup-visiblepanel-tab-color: hsl(var(--foreground) / 0.78);
+  --dv-inactivegroup-hiddenpanel-tab-color: hsl(var(--muted-foreground) / 0.72);
+  --dv-separator-border: hsl(var(--border));
+  --dv-paneview-header-border-color: hsl(var(--border));
+  --dv-sash-color: transparent;
+  --dv-active-sash-color: hsl(var(--primary));
+  --dv-active-sash-transition-duration: 160ms;
+  --dv-active-sash-transition-delay: 80ms;
+  --dv-icon-hover-background-color: hsl(var(--muted));
+  --dv-drag-over-background-color: hsl(var(--primary) / 0.16);
+  --dv-drag-over-border-color: hsl(var(--primary));
+  --dv-tabs-container-scrollbar-color: hsl(var(--muted-foreground) / 0.4);
+}
+
+.workspace-dock .dv-dockview {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.workspace-dock .dv-groupview {
+  min-width: 220px;
+  min-height: 140px;
+  background: hsl(var(--background));
+}
+
+.workspace-dock .dv-tabs-and-actions-container {
+  height: 34px;
+  border-bottom: 1px solid hsl(var(--border) / 0.62);
+  box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.035);
+}
+
+.workspace-dock.single-group .dv-tabs-and-actions-container {
+  display: none;
+}
+
+.workspace-dock .dv-resize-container {
+  transition: background-color 160ms ease;
+}
+
+.workspace-dock .dv-sash-container .dv-sash:hover,
+.workspace-dock .dv-sash-container .dv-sash.dv-active-sash {
+  background: hsl(var(--primary));
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.22);
+}
+
+.workspace-tab {
+  display: flex;
+  height: 34px;
+  min-width: 88px;
+  max-width: 180px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 7px 0 10px;
+  border-right: 1px solid hsl(var(--border) / 0.42);
+  color: hsl(var(--foreground) / 0.68);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.workspace-tab:hover {
+  background: hsl(var(--tab-hover) / 0.68);
+  color: hsl(var(--foreground) / 0.9);
+}
+
+.workspace-tab.active {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  box-shadow: inset 0 2px 0 hsl(var(--tab-active-border, var(--primary)));
+}
+
+.workspace-tab:focus-visible,
+.workspace-header-action:focus-visible,
+.workspace-tab-close:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: -2px;
+}
+
+.workspace-tab-title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.workspace-tab.modified .workspace-tab-title::before {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: hsl(var(--primary));
+  content: "";
+  vertical-align: 1px;
+}
+
+.workspace-tab-close,
+.workspace-header-action {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease;
+}
+
+.workspace-tab-close {
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
+  opacity: 0;
+}
+
+.workspace-tab:hover .workspace-tab-close,
+.workspace-tab.active .workspace-tab-close,
+.workspace-tab-close:focus-visible {
+  opacity: 1;
+}
+
+.workspace-tab-close:hover,
+.workspace-header-action:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.workspace-header-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+
+.workspace-header-actions {
+  display: flex;
+  height: 34px;
+  align-items: center;
+  gap: 1px;
+  padding: 0 5px;
+  border-left: 1px solid hsl(var(--border) / 0.34);
+}
+
+.workspace-panel {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: hsl(var(--background));
+}
+
+.workspace-panel[data-focused] {
+  box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.2);
+}
+
+.workspace-drop-preview {
+  position: absolute;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.workspace-drop-preview-surface {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid hsl(var(--primary) / 0.9);
+  background: hsl(var(--primary) / 0.18);
+  color: hsl(var(--primary-foreground));
+  box-shadow:
+    inset 0 0 0 1px hsl(var(--primary-foreground) / 0.08),
+    0 0 24px hsl(var(--primary) / 0.12);
+  transition:
+    inset 120ms ease,
+    background-color 120ms ease;
+}
+
+.workspace-drop-preview.left .workspace-drop-preview-surface,
+.workspace-drop-preview.right .workspace-drop-preview-surface {
+  top: 6px;
+  bottom: 6px;
+  width: calc(50% - 9px);
+}
+
+.workspace-drop-preview.left .workspace-drop-preview-surface {
+  left: 6px;
+}
+
+.workspace-drop-preview.right .workspace-drop-preview-surface {
+  right: 6px;
+}
+
+.workspace-drop-preview.above .workspace-drop-preview-surface,
+.workspace-drop-preview.below .workspace-drop-preview-surface {
+  right: 6px;
+  left: 6px;
+  height: calc(50% - 9px);
+}
+
+.workspace-drop-preview.above .workspace-drop-preview-surface {
+  top: 6px;
+}
+
+.workspace-drop-preview.below .workspace-drop-preview-surface {
+  bottom: 6px;
+}
+
+.workspace-watermark {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+}
+
+.workspace-dock .dv-drop-target-dropzone {
+  border-radius: 4px;
+}
+
+@media (max-width: 640px) {
+  .workspace-header-actions {
+    padding-inline: 2px;
+  }
+
+  .workspace-tab {
+    min-width: 76px;
+    max-width: 132px;
+  }
+}

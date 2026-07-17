@@ -55,6 +55,9 @@ interface TabBarProps {
   onTabClose: (id: string) => void
   onNewTab: () => void
   onTabMove: (fromIndex: number, toIndex: number) => void
+  onTabDragMove: (tabId: string, clientX: number, clientY: number) => void
+  onTabDrop: (tabId: string, clientX: number, clientY: number) => boolean
+  onTabDragCancel: () => void
   onContextMenu: (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => void
 }
 
@@ -141,6 +144,20 @@ const TabItem: React.FC<TabItemProps> = ({
       const actions: TabContextMenuAction[] = [
         { label: t("contextMenu.newTab"), action: "new", icon: "plus" },
         { label: t("contextMenu.duplicateTab"), action: "duplicate", icon: "copy" },
+        ...(tab.type === "terminal" || tab.type === "ssh"
+          ? [
+              {
+                label: t("contextMenu.splitRight", { defaultValue: "Split Right" }),
+                action: "split-right",
+                icon: "split-right",
+              },
+              {
+                label: t("contextMenu.splitDown", { defaultValue: "Split Down" }),
+                action: "split-down",
+                icon: "split-down",
+              },
+            ]
+          : []),
         { label: t("contextMenu.renameTab"), action: "rename", icon: "edit" },
         ...(editConnectionAction ? [editConnectionAction] : []),
         ...(pinAction ? [pinAction] : []),
@@ -214,6 +231,9 @@ export const TabBar: React.FC<TabBarProps> = ({
   onTabClick,
   onTabClose,
   onTabMove,
+  onTabDragMove,
+  onTabDrop,
+  onTabDragCancel,
   onContextMenu,
 }) => {
   const activeTabRef = useRef<HTMLDivElement | null>(null)
@@ -367,7 +387,8 @@ export const TabBar: React.FC<TabBarProps> = ({
     dragStateRef.current = null
     setDraggingTabId(null)
     setDropTargetTabId(null)
-  }, [])
+    onTabDragCancel()
+  }, [onTabDragCancel])
 
   const handleTabPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>, tabId: string) => {
@@ -389,44 +410,48 @@ export const TabBar: React.FC<TabBarProps> = ({
     []
   )
 
-  const handleTabPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const dragState = dragStateRef.current
-    if (!dragState || dragState.pointerId !== event.pointerId) {
-      return
-    }
-
-    const deltaX = event.clientX - dragState.startX
-    const deltaY = event.clientY - dragState.startY
-
-    if (!dragState.dragging) {
-      if (Math.hypot(deltaX, deltaY) < TAB_DRAG_THRESHOLD) {
+  const handleTabPointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const dragState = dragStateRef.current
+      if (!dragState || dragState.pointerId !== event.pointerId) {
         return
       }
-      dragState.dragging = true
-      suppressNextClickRef.current = true
-      setDraggingTabId(dragState.tabId)
-    }
 
-    event.preventDefault()
+      const deltaX = event.clientX - dragState.startX
+      const deltaY = event.clientY - dragState.startY
 
-    const tabElements = Array.from(
-      listRef.current?.querySelectorAll<HTMLElement>("[data-tab-id]") ?? []
-    )
-    const targetTab = tabElements.find((element) => {
-      const rect = element.getBoundingClientRect()
-      return (
-        element.dataset.tabId !== dragState.tabId &&
-        event.clientX >= rect.left &&
-        event.clientX <= rect.right &&
-        event.clientY >= rect.top &&
-        event.clientY <= rect.bottom
+      if (!dragState.dragging) {
+        if (Math.hypot(deltaX, deltaY) < TAB_DRAG_THRESHOLD) {
+          return
+        }
+        dragState.dragging = true
+        suppressNextClickRef.current = true
+        setDraggingTabId(dragState.tabId)
+      }
+
+      event.preventDefault()
+      onTabDragMove(dragState.tabId, event.clientX, event.clientY)
+
+      const tabElements = Array.from(
+        listRef.current?.querySelectorAll<HTMLElement>("[data-tab-id]") ?? []
       )
-    })
-    const targetTabId = targetTab?.dataset.tabId ?? null
+      const targetTab = tabElements.find((element) => {
+        const rect = element.getBoundingClientRect()
+        return (
+          element.dataset.tabId !== dragState.tabId &&
+          event.clientX >= rect.left &&
+          event.clientX <= rect.right &&
+          event.clientY >= rect.top &&
+          event.clientY <= rect.bottom
+        )
+      })
+      const targetTabId = targetTab?.dataset.tabId ?? null
 
-    dragState.targetTabId = targetTabId && targetTabId !== dragState.tabId ? targetTabId : null
-    setDropTargetTabId(dragState.targetTabId)
-  }, [])
+      dragState.targetTabId = targetTabId && targetTabId !== dragState.tabId ? targetTabId : null
+      setDropTargetTabId(dragState.targetTabId)
+    },
+    [onTabDragMove]
+  )
 
   const finishTabDrag = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -439,7 +464,10 @@ export const TabBar: React.FC<TabBarProps> = ({
         event.currentTarget.releasePointerCapture(event.pointerId)
       }
 
-      if (dragState.dragging && dragState.targetTabId) {
+      const handledWorkspaceDrop =
+        dragState.dragging && onTabDrop(dragState.tabId, event.clientX, event.clientY)
+
+      if (!handledWorkspaceDrop && dragState.dragging && dragState.targetTabId) {
         event.preventDefault()
         const fromIndex = tabs.findIndex((tab) => tab.id === dragState.tabId)
         const toIndex = tabs.findIndex((tab) => tab.id === dragState.targetTabId)
@@ -451,7 +479,7 @@ export const TabBar: React.FC<TabBarProps> = ({
 
       resetTabDrag()
     },
-    [onTabMove, resetTabDrag, tabs]
+    [onTabDrop, onTabMove, resetTabDrag, tabs]
   )
 
   const handleTabClick = useCallback(

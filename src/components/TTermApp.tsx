@@ -1,8 +1,9 @@
 import "@/components/TTermApp.css"
 import { invoke } from "@tauri-apps/api/core"
 import { platform } from "@tauri-apps/plugin-os"
+import type { SerializedDockview } from "dockview-react"
 import { BookMarked, Minus, Plus, Settings, Square, X } from "lucide-react"
-import React, { useCallback, useEffect, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { ConnectionDialog } from "@/components/ConnectionDialog"
@@ -12,7 +13,11 @@ import { RenameDialog } from "@/components/RenameDialog"
 import { TabBar } from "@/components/TabBar"
 import { TransferManager } from "@/components/TransferManager"
 import { EmptyState } from "@/components/TTermApp/EmptyState"
-import { TabPanels } from "@/components/TTermApp/TabPanels"
+import {
+  TabPanels,
+  type TabPanelsHandle,
+  type WorkspaceSplitDirection,
+} from "@/components/TTermApp/TabPanels"
 import { buildTabFromConnection } from "@/components/TTermApp/ttermAppUtils"
 import { VaultStartupUnlockDialog } from "@/components/VaultStartupUnlockDialog"
 import { formatBytes, MAX_EDIT_FILE_BYTES } from "@/components/SftpDrawer/sftpDrawerUtils"
@@ -70,7 +75,9 @@ export const TTermApp: React.FC = () => {
   const [duplicatingProfile, setDuplicatingProfile] = useState<SavedProfile | null>(null)
   const [profilesRefreshKey, setProfilesRefreshKey] = useState(0)
   const [sessionRestored, setSessionRestored] = useState(false)
+  const [workspaceLayout, setWorkspaceLayout] = useState<SerializedDockview | null>(null)
   const [startupVaultUnlockDismissed, setStartupVaultUnlockDismissed] = useState(false)
+  const workspaceRef = useRef<TabPanelsHandle>(null)
 
   const {
     tabs,
@@ -134,6 +141,7 @@ export const TTermApp: React.FC = () => {
         }
 
         if (savedSession && savedSession.tabs.length > 0) {
+          setWorkspaceLayout(savedSession.layout)
           restoreSession(savedSession.tabs, savedSession.activeTabId)
         } else {
           addTab(
@@ -164,8 +172,8 @@ export const TTermApp: React.FC = () => {
       return
     }
 
-    saveSession(tabs, activeTabId)
-  }, [tabs, activeTabId, saveSession, sessionRestored])
+    saveSession(tabs, activeTabId, workspaceLayout)
+  }, [tabs, activeTabId, saveSession, sessionRestored, workspaceLayout])
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -420,37 +428,94 @@ export const TTermApp: React.FC = () => {
 
   const handleCloseOtherTabs = useCallback(
     async (id: string) => {
-      const targetTabs = tabs.filter((tab) => tab.id !== id)
-      await closeTabsWithConfirmation(targetTabs, () => closeOtherTabs(id))
+      const groupTabIds = workspaceRef.current?.getGroupTabIds(id)
+      const targetIdSet = groupTabIds ? new Set(groupTabIds.filter((tabId) => tabId !== id)) : null
+      const targetTabs = targetIdSet
+        ? tabs.filter((tab) => targetIdSet.has(tab.id))
+        : tabs.filter((tab) => tab.id !== id)
+      await closeTabsWithConfirmation(targetTabs, () =>
+        targetIdSet ? removeTabs([...targetIdSet]) : closeOtherTabs(id)
+      )
     },
-    [closeOtherTabs, closeTabsWithConfirmation, tabs]
+    [closeOtherTabs, closeTabsWithConfirmation, removeTabs, tabs]
   )
 
   const handleCloseTabsToLeft = useCallback(
     async (id: string) => {
-      const tabIndex = tabs.findIndex((tab) => tab.id === id)
-      if (tabIndex <= 0) {
+      const groupTabIds = workspaceRef.current?.getGroupTabIds(id)
+      const tabIndex = groupTabIds
+        ? groupTabIds.indexOf(id)
+        : tabs.findIndex((tab) => tab.id === id)
+      const targetIds = groupTabIds?.slice(0, tabIndex)
+      if (tabIndex <= 0 || (targetIds && targetIds.length === 0)) {
         return
       }
 
-      const targetTabs = tabs.slice(0, tabIndex)
-      await closeTabsWithConfirmation(targetTabs, () => closeTabsToLeft(id))
+      const targetIdSet = targetIds ? new Set(targetIds) : null
+      const targetTabs = targetIdSet
+        ? tabs.filter((tab) => targetIdSet.has(tab.id))
+        : tabs.slice(0, tabIndex)
+      await closeTabsWithConfirmation(targetTabs, () =>
+        targetIds ? removeTabs(targetIds) : closeTabsToLeft(id)
+      )
     },
-    [closeTabsToLeft, closeTabsWithConfirmation, tabs]
+    [closeTabsToLeft, closeTabsWithConfirmation, removeTabs, tabs]
   )
 
   const handleCloseTabsToRight = useCallback(
     async (id: string) => {
-      const tabIndex = tabs.findIndex((tab) => tab.id === id)
+      const groupTabIds = workspaceRef.current?.getGroupTabIds(id)
+      const tabIndex = groupTabIds
+        ? groupTabIds.indexOf(id)
+        : tabs.findIndex((tab) => tab.id === id)
       if (tabIndex === -1) {
         return
       }
 
-      const targetTabs = tabs.slice(tabIndex + 1)
-      await closeTabsWithConfirmation(targetTabs, () => closeTabsToRight(id))
+      const targetIds = groupTabIds?.slice(tabIndex + 1)
+      const targetIdSet = targetIds ? new Set(targetIds) : null
+      const targetTabs = targetIdSet
+        ? tabs.filter((tab) => targetIdSet.has(tab.id))
+        : tabs.slice(tabIndex + 1)
+      await closeTabsWithConfirmation(targetTabs, () =>
+        targetIds ? removeTabs(targetIds) : closeTabsToRight(id)
+      )
     },
-    [closeTabsToRight, closeTabsWithConfirmation, tabs]
+    [closeTabsToRight, closeTabsWithConfirmation, removeTabs, tabs]
   )
+
+  const handleSplitTab = useCallback((tabId: string, direction: WorkspaceSplitDirection) => {
+    workspaceRef.current?.splitTab(tabId, direction)
+  }, [])
+
+  const handleTabDragMove = useCallback((tabId: string, clientX: number, clientY: number) => {
+    workspaceRef.current?.previewTabDrop(tabId, clientX, clientY)
+  }, [])
+
+  const handleTabDrop = useCallback((tabId: string, clientX: number, clientY: number) => {
+    return workspaceRef.current?.commitTabDrop(tabId, clientX, clientY) ?? false
+  }, [])
+
+  const handleTabDragCancel = useCallback(() => {
+    workspaceRef.current?.clearTabDrop()
+  }, [])
+
+  useEffect(() => {
+    const handleWorkspaceShortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key !== "\\") {
+        return
+      }
+      if (!activeTabId) {
+        return
+      }
+
+      event.preventDefault()
+      handleSplitTab(activeTabId, event.shiftKey ? "below" : "right")
+    }
+
+    window.addEventListener("keydown", handleWorkspaceShortcut, true)
+    return () => window.removeEventListener("keydown", handleWorkspaceShortcut, true)
+  }, [activeTabId, handleSplitTab])
 
   const {
     nativeControlsReservePx,
@@ -470,6 +535,7 @@ export const TTermApp: React.FC = () => {
   } = useTabContextMenu({
     handleNewTab,
     duplicateTab,
+    splitTab: handleSplitTab,
     handleRemoveTab,
     handleCloseOtherTabs,
     handleCloseTabsToRight,
@@ -569,14 +635,21 @@ export const TTermApp: React.FC = () => {
 
     return (
       <TabPanels
+        ref={workspaceRef}
         activeTabId={activeTabId}
+        duplicateTab={duplicateTab}
         handlePinConnectionHeader={handlePinConnectionHeader}
         handleReconnectTab={handleReconnectTab}
         handleServerMonitorVisibilityChange={handleServerMonitorVisibilityChange}
         handleUnpinConnectionHeader={handleUnpinConnectionHeader}
+        initialLayout={workspaceLayout}
+        onActiveTabChange={setActiveTab}
         onConnectProfile={handleConnect}
         onEditProfile={handleEditProfile}
+        onLayoutChange={setWorkspaceLayout}
         onOpenRemoteFile={handleOpenRemoteFile}
+        onTabClose={handleRemoveTab}
+        onTabContextMenu={handleTabContextMenu}
         profilesRefreshKey={profilesRefreshKey}
         startupConnectionsReady={startupConnectionsReady}
         startupSessionRestoreMode={config.startup_session_restore_mode}
@@ -598,6 +671,9 @@ export const TTermApp: React.FC = () => {
               onTabClose={handleRemoveTab}
               onNewTab={handleNewTab}
               onTabMove={moveTab}
+              onTabDragMove={handleTabDragMove}
+              onTabDrop={handleTabDrop}
+              onTabDragCancel={handleTabDragCancel}
               onContextMenu={handleTabContextMenu}
             />
             <div className="tab-add-button">

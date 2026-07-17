@@ -1,12 +1,14 @@
 import { useCallback, useRef } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { useTranslation } from "react-i18next"
+import type { SerializedDockview } from "dockview-react"
 import { invokeSafe, reportError } from "@/lib/errors"
 import { Tab } from "@/types/tab"
 
 interface SessionData {
   tabs: Tab[]
   activeTabId: string | null
+  layout: SerializedDockview | null
   lastSaved: number
 }
 
@@ -80,7 +82,12 @@ export function useSessionPersistence() {
 
   // Save session data to file system
   const saveSession = useCallback(
-    (tabs: Tab[], activeTabId: string | null, fallbackActiveTabId?: string | null) => {
+    (
+      tabs: Tab[],
+      activeTabId: string | null,
+      layout: SerializedDockview | null,
+      fallbackActiveTabId?: string | null
+    ) => {
       try {
         const persistableTabs = getPersistableTabs(tabs)
         const persistedActiveTabId = getPersistedActiveTabId(
@@ -92,6 +99,8 @@ export function useSessionPersistence() {
           // Persist the reconnect metadata, but never the raw credentials.
           tabs: persistableTabs.map((tab) => sanitizeTabForPersistence(tab, persistedActiveTabId)),
           active_tab_id: persistedActiveTabId,
+          layout,
+          schema_version: 1,
           last_saved: Date.now(),
         }
 
@@ -137,6 +146,7 @@ export function useSessionPersistence() {
     const result = await invokeSafe<{
       tabs: Tab[]
       active_tab_id: string | null
+      layout?: SerializedDockview | null
       last_saved: number
     }>("load_session", undefined, {
       context: "load_session",
@@ -157,13 +167,14 @@ export function useSessionPersistence() {
     return {
       tabs: persistableTabs.map((tab) => sanitizeTabForPersistence(tab, persistedActiveTabId)),
       activeTabId: persistedActiveTabId,
+      layout: session.layout ?? null,
       lastSaved: session.last_saved,
     }
   }, [t])
 
   // Debounced save
   const debouncedSave = useCallback(
-    (tabs: Tab[], activeTabId: string | null) => {
+    (tabs: Tab[], activeTabId: string | null, layout: SerializedDockview | null) => {
       const activeContentTab = tabs.find((tab) => tab.id === activeTabId && tab.type !== "settings")
       if (activeContentTab) {
         lastActiveContentTabIdRef.current = activeContentTab.id
@@ -173,7 +184,7 @@ export function useSessionPersistence() {
         clearTimeout(timeoutRef.current)
       }
       timeoutRef.current = setTimeout(() => {
-        saveSession(tabs, activeTabId, lastActiveContentTabIdRef.current)
+        saveSession(tabs, activeTabId, layout, lastActiveContentTabIdRef.current)
       }, SAVE_DEBOUNCE_MS)
     },
     [saveSession]

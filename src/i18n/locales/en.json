@@ -39,6 +39,8 @@
   "contextMenu": {
     "newTab": "New Tab",
     "duplicateTab": "Duplicate Tab",
+    "splitRight": "Split Right",
+    "splitDown": "Split Down",
     "renameTab": "Rename Tab",
     "editConnection": "Edit Connection Configuration",
     "pinConnectionHeader": "Pin Connection Header",
@@ -47,6 +49,13 @@
     "closeOtherTabs": "Close Other Tabs",
     "closeTabsToLeft": "Close Tabs to the Left",
     "closeTabsToRight": "Close Tabs to the Right"
+  },
+  "workspace": {
+    "splitRight": "Split Right",
+    "splitDown": "Split Down",
+    "maximizeGroup": "Maximize Group",
+    "restoreGroup": "Restore Group",
+    "emptyGroup": "Drag a tab here"
   },
   "settings": {
     "title": "Settings",

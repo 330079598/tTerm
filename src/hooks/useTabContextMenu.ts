@@ -5,7 +5,8 @@ import type { Tab, TabContextMenuAction } from "@/types/tab"
 
 interface UseTabContextMenuDeps {
   handleNewTab: () => void
-  duplicateTab: (id: string) => void
+  duplicateTab: (id: string) => string | null
+  splitTab: (id: string, direction: "right" | "below") => void
   handleRemoveTab: (id: string) => void
   handleCloseOtherTabs: (id: string) => void
   handleCloseTabsToRight: (id: string) => void
@@ -18,6 +19,7 @@ interface UseTabContextMenuDeps {
 export function useTabContextMenu({
   handleNewTab,
   duplicateTab,
+  splitTab,
   handleRemoveTab,
   handleCloseOtherTabs,
   handleCloseTabsToRight,
@@ -69,6 +71,12 @@ export function useTabContextMenu({
         case "duplicate":
           duplicateTab(tab.id)
           break
+        case "split-right":
+          splitTab(tab.id, "right")
+          break
+        case "split-down":
+          splitTab(tab.id, "below")
+          break
         case "rename":
           setRenameDialogState({
             isOpen: true,
@@ -113,6 +121,7 @@ export function useTabContextMenu({
       contextMenu.tab,
       handleNewTab,
       duplicateTab,
+      splitTab,
       handleRemoveTab,
       handleCloseOtherTabs,
       handleCloseTabsToRight,

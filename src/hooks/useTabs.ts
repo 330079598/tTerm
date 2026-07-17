@@ -11,7 +11,7 @@ export interface UseTabsReturn {
   removeTabs: (ids: string[]) => void
   setActiveTab: (id: string) => void
   moveTab: (fromIndex: number, toIndex: number) => void
-  duplicateTab: (id: string) => void
+  duplicateTab: (id: string) => string | null
   closeOtherTabs: (id: string) => void
   closeTabsToRight: (id: string) => void
   closeTabsToLeft: (id: string) => void
@@ -226,33 +226,33 @@ export function useTabs(): UseTabsReturn {
 
   const duplicateTab = useCallback(
     (id: string) => {
-      setTabs((prevTabs) => {
-        const tab = prevTabs.find((t) => t.id === id)
-        if (!tab) return prevTabs
-        if (tab.type === "settings" || tab.type === "remote-file-editor") return prevTabs
+      const tab = tabs.find((candidate) => candidate.id === id)
+      if (!tab || tab.type === "settings" || tab.type === "remote-file-editor") {
+        return null
+      }
 
-        const newId = generateTabId()
-        const { id: _id, isActive: _isActive, ...tabData } = tab
-        const newTab: Tab = ensureTabDefaults({
-          ...tabData,
-          connection: tabData.connection ?? {
-            type: tabData.type === "terminal" ? "terminal" : "ssh",
-          },
-          sessionNonce: nextSessionNonce(tab.sessionNonce),
-          id: newId,
-          title: `${tab.title} (Copy)`,
-          isActive: false,
-          hasConnected: true,
-        })
-
-        // Set all tabs to inactive, new tab to active
-        const updatedTabs = prevTabs.map((t) => ({ ...t, isActive: false }))
-        setActiveTabId(newId)
-
-        return [...updatedTabs, { ...newTab, isActive: true, hasConnected: true }]
+      const newId = generateTabId()
+      const { id: _id, isActive: _isActive, ...tabData } = tab
+      const newTab: Tab = ensureTabDefaults({
+        ...tabData,
+        connection: tabData.connection ?? {
+          type: tabData.type === "terminal" ? "terminal" : "ssh",
+        },
+        sessionNonce: nextSessionNonce(tab.sessionNonce),
+        id: newId,
+        title: `${tab.title} (Copy)`,
+        isActive: true,
+        hasConnected: true,
       })
+
+      setTabs((prevTabs) => [
+        ...prevTabs.map((currentTab) => ({ ...currentTab, isActive: false })),
+        newTab,
+      ])
+      setActiveTabId(newId)
+      return newId
     },
-    [generateTabId]
+    [generateTabId, tabs]
   )
 
   const closeOtherTabs = useCallback((id: string) => {
