@@ -60,6 +60,24 @@
   transition: background-color 160ms ease;
 }
 
+/* Dockview resizes a sash with document-level pointer events. Disable native
+   selection for the duration so the pointer cannot select terminal content. */
+body.workspace-sash-resizing,
+body.workspace-sash-resizing * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+body.workspace-sash-resizing-horizontal,
+body.workspace-sash-resizing-horizontal * {
+  cursor: ew-resize !important;
+}
+
+body.workspace-sash-resizing-vertical,
+body.workspace-sash-resizing-vertical * {
+  cursor: ns-resize !important;
+}
+
 /* Dockview keeps the grid's sash DOM mounted while a group is maximized. */
 .workspace-dock.is-maximized .dv-sash-container {
   display: none;

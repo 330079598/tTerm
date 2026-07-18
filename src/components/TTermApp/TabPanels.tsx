@@ -411,6 +411,58 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
   const initialLayoutRef = useRef(initialLayout)
   const dockDisposablesRef = useRef<Array<{ dispose: () => void }>>([])
 
+  useEffect(() => {
+    const root = dockRootRef.current
+    if (!root) {
+      return
+    }
+
+    const stopResizing = () => {
+      document.body.classList.remove(
+        "workspace-sash-resizing",
+        "workspace-sash-resizing-horizontal",
+        "workspace-sash-resizing-vertical"
+      )
+    }
+
+    const startResizing = (event: PointerEvent) => {
+      if (event.button !== 0 || !(event.target instanceof Element)) {
+        return
+      }
+
+      const sash = event.target.closest(".dv-sash")
+      if (!sash || !root.contains(sash)) {
+        return
+      }
+
+      const splitView = sash.closest(".dv-split-view-container")
+      document.body.classList.add("workspace-sash-resizing")
+      document.body.classList.toggle(
+        "workspace-sash-resizing-horizontal",
+        splitView?.classList.contains("dv-horizontal") ?? false
+      )
+      document.body.classList.toggle(
+        "workspace-sash-resizing-vertical",
+        splitView?.classList.contains("dv-vertical") ?? false
+      )
+      window.getSelection()?.removeAllRanges()
+      event.preventDefault()
+    }
+
+    root.addEventListener("pointerdown", startResizing, true)
+    document.addEventListener("pointerup", stopResizing)
+    document.addEventListener("pointercancel", stopResizing)
+    window.addEventListener("blur", stopResizing)
+
+    return () => {
+      root.removeEventListener("pointerdown", startResizing, true)
+      document.removeEventListener("pointerup", stopResizing)
+      document.removeEventListener("pointercancel", stopResizing)
+      window.removeEventListener("blur", stopResizing)
+      stopResizing()
+    }
+  }, [])
+
   const clearTabDrop = useCallback(() => {
     dropPreviewRef.current = null
     setDropPreview(null)
