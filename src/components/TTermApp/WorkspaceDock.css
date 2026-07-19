@@ -53,8 +53,28 @@
   box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.035);
 }
 
+.workspace-dock .dv-tabs-container {
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  padding: 2px 4px;
+}
+
 .workspace-dock .dv-tabs-container > .dv-tab {
+  height: 30px;
   padding: 0;
+  border-radius: 5px;
+  background: transparent !important;
+}
+
+.workspace-dock .dv-tabs-container.dv-horizontal > .dv-tab:not(:first-child)::before {
+  display: none;
+}
+
+.workspace-dock .dv-tab:focus-within::after,
+.workspace-dock .dv-tab:focus::after,
+.workspace-dock .dv-tab-ghost-drag::after {
+  border-radius: 5px;
 }
 
 /* Dockview renders its own 4px scrollbar over the tab strip. Group dragging
@@ -126,14 +146,15 @@ body.workspace-sash-resizing-vertical * {
 
 .workspace-tab {
   display: flex;
-  height: 34px;
+  height: 30px;
   min-width: 88px;
   max-width: 180px;
   align-items: center;
   gap: 6px;
   padding: 0 7px 0 10px;
-  border-right: 1px solid hsl(var(--border) / 0.42);
-  background: hsl(var(--titlebar));
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: hsl(var(--tab-hover) / 0.2);
   color: hsl(var(--foreground) / 0.68);
   cursor: pointer;
   user-select: none;
@@ -149,6 +170,7 @@ body.workspace-sash-resizing-vertical * {
 
 .workspace-tab.active {
   background: hsl(var(--tab-active, var(--background)));
+  border-color: hsl(var(--border) / 0.5);
   color: hsl(var(--foreground));
   box-shadow: inset 0 2px 0 hsl(var(--tab-active-border, var(--primary)));
 }
