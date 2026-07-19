@@ -252,6 +252,8 @@ const WorkspacePanel: React.FC<IDockviewPanelProps<WorkspacePanelParams>> = ({ a
   const workspace = useWorkspace()
   const { hasBeenVisible, isVisible } = useDockPanelState(api)
   const tab = workspace.tabs.find((candidate) => candidate.id === params.tabId)
+  const isHiddenByMaximize =
+    workspace.maximizedGroupId !== null && api.group.id !== workspace.maximizedGroupId
 
   if (!tab) {
     return null
@@ -271,6 +273,7 @@ const WorkspacePanel: React.FC<IDockviewPanelProps<WorkspacePanelParams>> = ({ a
     <div
       className="workspace-panel"
       data-focused={api.isFocused || undefined}
+      data-maximized-hidden={isHiddenByMaximize || undefined}
       data-workspace-panel-id={tab.id}
     >
       {tab.type === "settings" ? (
