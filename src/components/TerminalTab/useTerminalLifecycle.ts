@@ -163,78 +163,6 @@ export function useTerminalLifecycle({
 
     term.open(container)
 
-    /**
-     * xterm v6 floating scrollbar: PowerShell-style auto-thin behavior.
-     *
-     * Goal: scrollbar is always visible — a thin dim line when the mouse is
-     * outside the terminal, expanding to full width when the mouse enters.
-     *
-     * xterm adds the `.invisible` class on mouse leave and removes it on mouse
-     * enter, with its own CSS setting `opacity: 0; pointer-events: none`.
-     * Our CSS overrides in xterm-overrides.css handle colors/transitions and
-     * work in dev, but in production builds Tailwind v4's layer ordering can
-     * demote those rules. This JS layer is the reliable enforcement: it keeps
-     * the scrollbar visible (inline !important beats any stylesheet) and
-     * toggles width based on hover state.
-     */
-    let mouseInside = false
-    const applyScrollbarWidth = (wide: boolean) => {
-      // Target ONLY the vertical scrollbar. xterm v6 appends the horizontal
-      // scrollbar first, then the vertical one, so a bare ".scrollbar"
-      // selector would match the horizontal one and force it visible,
-      // producing a stray vertical bar in the bottom-left corner.
-      const scrollbar = container.querySelector<HTMLElement>(
-        ".xterm-scrollable-element > .scrollbar.vertical"
-      )
-      if (!scrollbar) return
-      // xterm reuses the class name "invisible" for its idle scrollbar state.
-      // Tailwind v4 generates `.invisible { visibility: hidden !important }`
-      // as a utility, which clashes with xterm's class and fully hides the
-      // scrollbar in production. We override with inline !important styles,
-      // which beat any stylesheet rule including Tailwind utilities.
-      scrollbar.style.setProperty("visibility", "visible", "important")
-      scrollbar.style.setProperty("opacity", "1", "important")
-      scrollbar.style.setProperty("pointer-events", "auto", "important")
-      scrollbar.style.setProperty("display", "block", "important")
-      scrollbar.style.setProperty("width", wide ? "10px" : "4px", "important")
-      const slider = scrollbar.querySelector<HTMLElement>(".slider")
-      if (slider) {
-        slider.style.setProperty("visibility", "visible", "important")
-        slider.style.setProperty("width", wide ? "10px" : "4px", "important")
-      }
-    }
-
-    // Start thin (idle) — the terminal container starts without mouse.
-    requestAnimationFrame(() => applyScrollbarWidth(false))
-
-    // Mouse enters the terminal surface → wide scrollbar.
-    const handleMouseEnter = () => {
-      mouseInside = true
-      applyScrollbarWidth(true)
-    }
-    // Mouse leaves the terminal surface → thin scrollbar.
-    const handleMouseLeave = () => {
-      mouseInside = false
-      applyScrollbarWidth(false)
-    }
-    container.addEventListener("mouseenter", handleMouseEnter)
-    container.addEventListener("mouseleave", handleMouseLeave)
-
-    // Safety net: if xterm toggles .invisible or recreates the scrollbar,
-    // re-apply the current target width so it never disappears in production.
-    const scrollableEl = container.querySelector(".xterm-scrollable-element")
-    let classObserver: MutationObserver | null = null
-    if (scrollableEl) {
-      classObserver = new MutationObserver(() => {
-        applyScrollbarWidth(mouseInside)
-      })
-      classObserver.observe(scrollableEl, {
-        subtree: true,
-        attributes: true,
-        attributeFilter: ["class"],
-      })
-    }
-
     if (isActiveRef.current) {
       term.focus()
     }
@@ -414,10 +342,6 @@ export function useTerminalLifecycle({
 
     return () => {
       disposed = true
-
-      container.removeEventListener("mouseenter", handleMouseEnter)
-      container.removeEventListener("mouseleave", handleMouseLeave)
-      classObserver?.disconnect()
 
       resizeObserver.disconnect()
       resizeObserverRef.current = null

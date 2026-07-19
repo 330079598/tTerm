@@ -5,7 +5,6 @@ import { onAppReady } from "@/lib/startup"
 import { preloadTheme } from "@/lib/themePreloader"
 
 import "@xterm/xterm/css/xterm.css"
-import "@/styles/xterm-overrides.css"
 import "@/i18n/config"
 
 // Preload theme before React mounts to prevent flash
