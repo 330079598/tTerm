@@ -63,9 +63,16 @@
 /* Dockview resizes a sash with document-level pointer events. Disable native
    selection for the duration so the pointer cannot select terminal content. */
 body.workspace-sash-resizing,
-body.workspace-sash-resizing * {
+body.workspace-sash-resizing *,
+body.workspace-group-dragging,
+body.workspace-group-dragging * {
   user-select: none !important;
   -webkit-user-select: none !important;
+}
+
+body.workspace-group-dragging,
+body.workspace-group-dragging * {
+  cursor: grabbing !important;
 }
 
 body.workspace-sash-resizing-horizontal,
