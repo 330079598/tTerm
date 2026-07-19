@@ -27,10 +27,14 @@ import { useStableRef } from "@/hooks/useStableRef"
 import { resolveScrollbackLines } from "@/lib/scrollback"
 import { toErrorMessage } from "@/lib/utils"
 
+const FIT_STABILITY_FRAMES = 2
+const MAX_PENDING_FIT_FRAMES = 4
+
 export const TerminalTab: React.FC<TerminalTabProps> = ({
   tabId,
   sessionNonce = 0,
   isActive,
+  workspacePanelApi,
   connectionHeaderPinned = true,
   connection,
   onPidChange,
@@ -150,8 +154,15 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     useRef<ReturnType<typeof resolveTerminalTheme>>(resolveTerminalTheme())
 
   const fitTerminalOnly = useCallback(() => {
-    if (!fitAddonRef.current || !termRef.current) return
-    fitAddonRef.current.fit()
+    const fitAddon = fitAddonRef.current
+    const term = termRef.current
+    if (!fitAddon || !term) return false
+
+    const dimensions = fitAddon.proposeDimensions()
+    if (!dimensions) return false
+
+    fitAddon.fit()
+    return term.cols === dimensions.cols && term.rows === dimensions.rows
   }, [])
 
   const syncPtySize = useCallback(
@@ -193,22 +204,44 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     if (resizeRafRef.current !== null) {
       window.cancelAnimationFrame(resizeRafRef.current)
     }
+    if (resizePtySyncTimerRef.current !== null) {
+      window.clearTimeout(resizePtySyncTimerRef.current)
+      resizePtySyncTimerRef.current = null
+    }
 
-    resizeRafRef.current = window.requestAnimationFrame(() => {
-      resizeRafRef.current = null
-      if (!isActiveRef.current) return
-      fitTerminalOnly()
+    let frameCount = 0
+    let stableFrameCount = 0
+    const fitAfterLayout = () => {
+      resizeRafRef.current = window.requestAnimationFrame(() => {
+        resizeRafRef.current = null
+        if (!isActiveRef.current) return
 
-      if (resizePtySyncTimerRef.current !== null) {
-        window.clearTimeout(resizePtySyncTimerRef.current)
-      }
-      resizePtySyncTimerRef.current = window.setTimeout(() => {
-        resizePtySyncTimerRef.current = null
-        if (isActiveRef.current) {
-          syncPtySize()
+        frameCount += 1
+        const fitted = fitTerminalOnly()
+        stableFrameCount = fitted ? stableFrameCount + 1 : 0
+
+        if (stableFrameCount < FIT_STABILITY_FRAMES && frameCount < MAX_PENDING_FIT_FRAMES) {
+          fitAfterLayout()
+          return
         }
-      }, 80)
-    })
+
+        if (!fitted) return
+
+        const term = termRef.current
+        if (term && term.rows > 0) {
+          term.refresh(0, term.rows - 1)
+        }
+
+        resizePtySyncTimerRef.current = window.setTimeout(() => {
+          resizePtySyncTimerRef.current = null
+          if (isActiveRef.current) {
+            syncPtySize()
+          }
+        }, 80)
+      })
+    }
+
+    fitAfterLayout()
   }, [fitTerminalOnly, isActiveRef, syncPtySize])
 
   useEffect(() => {
@@ -272,6 +305,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     resizePtySyncTimerRef,
     resizeRafRef,
     scheduleFitDuringResize,
+    surfaceRef,
     searchAddonRef,
     searchResultsDisposableRef,
     setConnectionState,
@@ -283,26 +317,42 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     termRef,
     waitingForReconnectRef,
   })
+
+  useEffect(() => {
+    if (!workspacePanelApi) return
+
+    const disposable = workspacePanelApi.onDidDimensionsChange(() => {
+      if (isActiveRef.current) {
+        scheduleFitDuringResize()
+      }
+    })
+
+    return () => disposable.dispose()
+  }, [isActiveRef, scheduleFitDuringResize, workspacePanelApi])
+
   useEffect(() => {
     const container = containerRef.current
+    const surface = surfaceRef.current
     const resizeObserver = resizeObserverRef.current
     if (!container || !resizeObserver) return
 
     if (isActive) {
       resizeObserver.observe(container)
+      if (surface) {
+        resizeObserver.observe(surface)
+      }
       activateFitTimerRef.current = window.setTimeout(() => {
         activateFitTimerRef.current = null
-        fitAndSyncPty()
-        const term = termRef.current
-        if (term && term.rows > 0) {
-          term.refresh(0, term.rows - 1)
-        }
+        scheduleFitDuringResize()
         termRef.current?.focus()
       }, TAB_ACTIVATE_REFIT_DELAY_MS)
       return
     }
 
     resizeObserver.unobserve(container)
+    if (surface) {
+      resizeObserver.unobserve(surface)
+    }
 
     if (resizeRafRef.current !== null) {
       window.cancelAnimationFrame(resizeRafRef.current)
@@ -313,7 +363,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       window.clearTimeout(activateFitTimerRef.current)
       activateFitTimerRef.current = null
     }
-  }, [isActive, fitAndSyncPty])
+  }, [isActive, scheduleFitDuringResize])
 
   const jumpHostCount = connection?.jumpHosts?.length ?? 0
 

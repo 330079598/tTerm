@@ -1,10 +1,12 @@
 import type { Tab } from "@/types/tab"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
+import type { DockviewPanelApi } from "dockview-react"
 
 export interface TerminalTabProps {
   tabId: string
   sessionNonce?: number
   isActive: boolean
+  workspacePanelApi?: Pick<DockviewPanelApi, "onDidDimensionsChange">
   connectionHeaderPinned?: boolean
   connection?: Tab["connection"]
   onPidChange?: (pid: number) => void

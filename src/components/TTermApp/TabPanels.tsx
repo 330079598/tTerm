@@ -302,6 +302,7 @@ const WorkspacePanel: React.FC<IDockviewPanelProps<WorkspacePanelParams>> = ({ a
               tabId={tab.id}
               sessionNonce={tab.sessionNonce}
               isActive={isVisible}
+              workspacePanelApi={api}
               connectionHeaderPinned={tab.connectionHeaderPinned}
               connection={tab.connection ?? { type: tab.type === "terminal" ? "terminal" : "ssh" }}
               onReconnectRequest={() => workspace.handleReconnectTab(tab.id)}

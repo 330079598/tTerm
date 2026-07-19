@@ -41,6 +41,7 @@ type UseTerminalLifecycleOptions = {
   resizePtySyncTimerRef: React.MutableRefObject<number | null>
   resizeRafRef: React.MutableRefObject<number | null>
   scheduleFitDuringResize: () => void
+  surfaceRef: React.RefObject<HTMLDivElement>
   searchAddonRef: React.MutableRefObject<SearchAddon | null>
   searchResultsDisposableRef: React.MutableRefObject<IDisposable | null>
   setConnectionState: (value: ConnectionState) => void
@@ -94,6 +95,7 @@ export function useTerminalLifecycle({
   resizePtySyncTimerRef,
   resizeRafRef,
   scheduleFitDuringResize,
+  surfaceRef,
   searchAddonRef,
   searchResultsDisposableRef,
   setConnectionState,
@@ -405,6 +407,9 @@ export function useTerminalLifecycle({
 
     if (isActiveRef.current) {
       resizeObserver.observe(container)
+      if (surfaceRef.current) {
+        resizeObserver.observe(surfaceRef.current)
+      }
     }
 
     return () => {
@@ -471,6 +476,7 @@ export function useTerminalLifecycle({
     resizePtySyncTimerRef,
     resizeRafRef,
     scheduleFitDuringResize,
+    surfaceRef,
     searchAddonRef,
     searchResultsDisposableRef,
     setConnectionState,
