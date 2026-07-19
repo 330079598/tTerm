@@ -69,6 +69,12 @@ type WorkspaceDropPreview = {
   height: number
 }
 
+type PendingSplit = {
+  direction: WorkspaceSplitDirection
+  sourceTabId: string
+  tabId: string
+}
+
 interface TabPanelsProps {
   activeTabId: string | null
   duplicateTab: (id: string) => string | null
@@ -405,6 +411,7 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
   const [dropPreview, setDropPreview] = useState<WorkspaceDropPreview | null>(null)
   const dockRootRef = useRef<HTMLDivElement | null>(null)
   const dropPreviewRef = useRef<WorkspaceDropPreview | null>(null)
+  const pendingSplitRef = useRef<PendingSplit | null>(null)
   const tabsRef = useRef(tabs)
   const onActiveTabChangeRef = useRef(onActiveTabChange)
   const onLayoutChangeRef = useRef(onLayoutChange)
@@ -622,11 +629,24 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
       if (!sourceTab || (sourceTab.type !== "terminal" && sourceTab.type !== "ssh")) {
         return
       }
+
+      if (sourcePanel.group.panels.length === 1) {
+        const duplicatedTabId = duplicateTab(tabId)
+        if (duplicatedTabId) {
+          pendingSplitRef.current = {
+            direction,
+            sourceTabId: tabId,
+            tabId: duplicatedTabId,
+          }
+        }
+        return
+      }
+
       const targetGroup = dockApi.addGroup({ referencePanel: sourcePanel, direction })
       sourcePanel.api.moveTo({ group: targetGroup, position: "center" })
       sourcePanel.api.setActive()
     },
-    [dockApi]
+    [dockApi, duplicateTab]
   )
 
   const collapseToSingleGroup = useCallback(
@@ -754,6 +774,19 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
         }
         continue
       }
+      const pendingSplit = pendingSplitRef.current
+      if (pendingSplit?.tabId === tab.id) {
+        pendingSplitRef.current = null
+        if (dockApi.getPanel(pendingSplit.sourceTabId)) {
+          addPanel(dockApi, tab, {
+            referencePanel: pendingSplit.sourceTabId,
+            direction: pendingSplit.direction,
+          })
+          dockApi.getPanel(tab.id)?.api.setActive()
+          referencePanel = tab.id
+          continue
+        }
+      }
       addPanel(dockApi, tab, referencePanel ? { referencePanel } : undefined)
       referencePanel = tab.id
     }
@@ -799,7 +832,7 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
           rightHeaderActionsComponent={WorkspaceHeaderActions}
           watermarkComponent={WorkspaceWatermark}
           defaultRenderer="always"
-          dndStrategy="auto"
+          dndStrategy="pointer"
           keyboardNavigation
           disableFloatingGroups
           noPanelsOverlay="watermark"
