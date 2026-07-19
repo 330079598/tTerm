@@ -19,7 +19,7 @@
   --dv-inactivegroup-hiddenpanel-tab-color: hsl(var(--muted-foreground) / 0.72);
   --dv-separator-border: hsl(var(--border));
   --dv-paneview-header-border-color: hsl(var(--border));
-  --dv-sash-color: transparent;
+  --dv-sash-color: hsl(var(--titlebar));
   --dv-active-sash-color: hsl(var(--foreground) / 0.28);
   --dv-active-sash-transition-duration: 160ms;
   --dv-active-sash-transition-delay: 80ms;
@@ -57,12 +57,33 @@
   padding: 0;
 }
 
+/* Dockview renders its own 4px scrollbar over the tab strip. Group dragging
+   scrolls that strip and leaves the indicator visible after the drop. The
+   overflow menu already exposes hidden tabs, so the indicator is redundant. */
+.workspace-dock .dv-tabs-and-actions-container .dv-scrollbar {
+  display: none;
+}
+
 .workspace-dock.single-group .dv-tabs-and-actions-container {
   display: none;
 }
 
 .workspace-dock .dv-resize-container {
   transition: background-color 160ms ease;
+}
+
+/* Keep split groups visually distinct like VS Code: the 4px Dockview sash is
+   always visible as a quiet gutter, while its edge lines define each pane. */
+.workspace-dock .dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash {
+  box-shadow:
+    inset 1px 0 hsl(var(--border) / 0.72),
+    inset -1px 0 hsl(var(--border) / 0.72);
+}
+
+.workspace-dock .dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash {
+  box-shadow:
+    inset 0 1px hsl(var(--border) / 0.72),
+    inset 0 -1px hsl(var(--border) / 0.72);
 }
 
 /* Dockview resizes a sash with document-level pointer events. Disable native
@@ -97,12 +118,10 @@ body.workspace-sash-resizing-vertical * {
 
 .workspace-dock .dv-sash-container .dv-sash:hover {
   background: hsl(var(--foreground) / 0.14);
-  box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.04);
 }
 
 .workspace-dock .dv-sash-container .dv-sash.dv-active-sash {
   background: hsl(var(--foreground) / 0.28);
-  box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.08);
 }
 
 .workspace-tab {
