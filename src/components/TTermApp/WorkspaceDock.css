@@ -8,9 +8,9 @@
   --dv-group-view-background-color: hsl(var(--background));
   --dv-tabs-and-actions-container-background-color: hsl(var(--titlebar));
   --dv-tabs-and-actions-container-height: 34px;
-  --dv-activegroup-visiblepanel-tab-background-color: hsl(var(--background));
+  --dv-activegroup-visiblepanel-tab-background-color: hsl(var(--tab-active, var(--background)));
   --dv-activegroup-hiddenpanel-tab-background-color: hsl(var(--titlebar));
-  --dv-inactivegroup-visiblepanel-tab-background-color: hsl(var(--background));
+  --dv-inactivegroup-visiblepanel-tab-background-color: hsl(var(--tab-active, var(--background)));
   --dv-inactivegroup-hiddenpanel-tab-background-color: hsl(var(--titlebar));
   --dv-tab-divider-color: hsl(var(--border) / 0.45);
   --dv-activegroup-visiblepanel-tab-color: hsl(var(--foreground));
@@ -48,8 +48,13 @@
 
 .workspace-dock .dv-tabs-and-actions-container {
   height: 34px;
+  background-color: hsl(var(--titlebar));
   border-bottom: 1px solid hsl(var(--border) / 0.62);
   box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.035);
+}
+
+.workspace-dock .dv-tabs-container > .dv-tab {
+  padding: 0;
 }
 
 .workspace-dock.single-group .dv-tabs-and-actions-container {
@@ -109,6 +114,7 @@ body.workspace-sash-resizing-vertical * {
   gap: 6px;
   padding: 0 7px 0 10px;
   border-right: 1px solid hsl(var(--border) / 0.42);
+  background: hsl(var(--titlebar));
   color: hsl(var(--foreground) / 0.68);
   cursor: pointer;
   user-select: none;
@@ -123,7 +129,7 @@ body.workspace-sash-resizing-vertical * {
 }
 
 .workspace-tab.active {
-  background: hsl(var(--background));
+  background: hsl(var(--tab-active, var(--background)));
   color: hsl(var(--foreground));
   box-shadow: inset 0 2px 0 hsl(var(--tab-active-border, var(--primary)));
 }

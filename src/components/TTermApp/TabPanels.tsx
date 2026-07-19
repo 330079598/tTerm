@@ -215,7 +215,7 @@ const WorkspaceTab: React.FC<IDockviewPanelHeaderProps<WorkspacePanelParams>> = 
 }) => {
   const { t } = useTranslation()
   const { onTabClose, onTabContextMenu, tabs } = useWorkspace()
-  const { isActive } = useDockPanelState(api)
+  const { isVisible } = useDockPanelState(api)
   const tab = tabs.find((candidate) => candidate.id === params.tabId)
 
   if (!tab) {
@@ -224,9 +224,9 @@ const WorkspaceTab: React.FC<IDockviewPanelHeaderProps<WorkspacePanelParams>> = 
 
   return (
     <div
-      className={`workspace-tab ${isActive ? "active" : ""} ${tab.isModified ? "modified" : ""}`}
+      className={`workspace-tab ${isVisible ? "active" : ""} ${tab.isModified ? "modified" : ""}`}
       role="tab"
-      aria-selected={isActive}
+      aria-selected={isVisible}
       data-allow-context-menu
       onClick={() => api.setActive()}
       onContextMenu={(event) => onTabContextMenu(event, tab, getTabActions(tab, t))}
