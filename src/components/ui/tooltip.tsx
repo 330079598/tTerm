@@ -137,27 +137,39 @@ type TooltipContentProps = React.ComponentProps<"span"> & {
   side?: "top" | "bottom"
 }
 
+const TOOLTIP_VIEWPORT_PADDING = 8
+
 function TooltipContent({ children, className, side = "top", ...props }: TooltipContentProps) {
   const context = React.useContext(TooltipContext)
+  const contentRef = React.useRef<HTMLSpanElement>(null)
   const [position, setPosition] = React.useState<{ left: number; top: number } | null>(null)
 
   if (!context) {
     throw new Error("TooltipContent must be used within Tooltip")
   }
 
+  const updatePosition = React.useCallback(() => {
+    const rect = context.triggerElement?.getBoundingClientRect()
+    if (!rect) return
+
+    const preferredLeft = rect.left + rect.width / 2
+    const tooltipWidth = contentRef.current?.getBoundingClientRect().width ?? 0
+    const halfTooltipWidth = tooltipWidth / 2
+    const minLeft = TOOLTIP_VIEWPORT_PADDING + halfTooltipWidth
+    const maxLeft = window.innerWidth - TOOLTIP_VIEWPORT_PADDING - halfTooltipWidth
+    const left = tooltipWidth
+      ? Math.min(Math.max(preferredLeft, minLeft), Math.max(minLeft, maxLeft))
+      : preferredLeft
+    const top = side === "top" ? rect.top : rect.bottom
+
+    setPosition((current) =>
+      current?.left === left && current.top === top ? current : { left, top }
+    )
+  }, [context.triggerElement, side])
+
   React.useLayoutEffect(() => {
     if (!context.open) {
       return undefined
-    }
-
-    const updatePosition = () => {
-      const rect = context.triggerElement?.getBoundingClientRect()
-      if (!rect) return
-
-      setPosition({
-        left: rect.left + rect.width / 2,
-        top: side === "top" ? rect.top : rect.bottom,
-      })
     }
 
     updatePosition()
@@ -168,7 +180,13 @@ function TooltipContent({ children, className, side = "top", ...props }: Tooltip
       window.removeEventListener("resize", updatePosition)
       window.removeEventListener("scroll", updatePosition, true)
     }
-  }, [context.open, context.triggerElement, side])
+  }, [context.open, updatePosition])
+
+  React.useLayoutEffect(() => {
+    if (context.open && position) {
+      updatePosition()
+    }
+  }, [children, className, context.open, position, updatePosition])
 
   if (!context.open || !position || typeof document === "undefined") {
     return null
@@ -176,10 +194,11 @@ function TooltipContent({ children, className, side = "top", ...props }: Tooltip
 
   return createPortal(
     <span
+      ref={contentRef}
       role="tooltip"
       style={{ left: position.left, top: position.top }}
       className={cn(
-        "bg-popover text-popover-foreground pointer-events-none fixed z-[100] w-max max-w-64 -translate-x-1/2 rounded-md border px-3 py-1.5 text-xs leading-relaxed shadow-md",
+        "bg-popover text-popover-foreground pointer-events-none fixed z-[100] w-max max-w-[min(16rem,calc(100vw-1rem))] -translate-x-1/2 rounded-md border px-3 py-1.5 text-xs leading-relaxed shadow-md",
         side === "top" ? "-translate-y-[calc(100%+0.5rem)]" : "translate-y-2",
         className
       )}
