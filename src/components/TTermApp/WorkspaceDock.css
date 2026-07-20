@@ -17,7 +17,6 @@
   --dv-activegroup-hiddenpanel-tab-color: hsl(var(--foreground) / 0.8);
   --dv-inactivegroup-visiblepanel-tab-color: hsl(var(--foreground) / 0.8);
   --dv-inactivegroup-hiddenpanel-tab-color: hsl(var(--foreground) / 0.72);
-  --dv-separator-border: hsl(var(--border));
   --dv-paneview-header-border-color: hsl(var(--border));
   --dv-sash-color: hsl(var(--titlebar));
   --dv-active-sash-color: hsl(var(--foreground) / 0.28);
@@ -30,8 +29,26 @@
 }
 
 .workspace-dock .dv-dockview {
+  --dv-separator-border: transparent;
   background: hsl(var(--background));
   color: hsl(var(--foreground));
+}
+
+/* Theme classes are applied inside the workspace and can redefine the
+   separator variable. Keep Dockview's second-pane edge disabled explicitly so
+   right and lower splits use only the centered sash line. */
+.workspace-dock
+  .dv-split-view-container.dv-separator-border
+  > .dv-view-container
+  > .dv-view:not(:first-child)::before {
+  display: none;
+}
+
+/* The layout gap is transparent by default, so it disappears against panels
+   that share the same background. Give the full gutter one consistent tone in
+   both split directions; the sash draws the interaction line above it. */
+.workspace-dock.multi-group .dv-split-view-container {
+  background-color: hsl(var(--border) / 0.1);
 }
 
 /* Dockview defaults split views to overflow:auto, which can flash native
@@ -102,18 +119,54 @@
   transition: background-color 160ms ease;
 }
 
-/* Keep split groups visually distinct like VS Code: the 4px Dockview sash is
-   always visible as a quiet gutter, while its edge lines define each pane. */
+/* Keep the workspace visually continuous: Dockview reserves a 4px sash, but
+   only a quiet center line is visible until the user interacts with it. */
 .workspace-dock .dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash {
-  box-shadow:
-    inset 1px 0 hsl(var(--border) / 0.72),
-    inset -1px 0 hsl(var(--border) / 0.72);
+  background-color: transparent;
+  background-image: linear-gradient(hsl(var(--border) / 0.42), hsl(var(--border) / 0.42));
+  background-position: center;
+  background-size: 1px 100%;
+  background-repeat: no-repeat;
+  transition: background-size 160ms ease;
 }
 
 .workspace-dock .dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash {
-  box-shadow:
-    inset 0 1px hsl(var(--border) / 0.72),
-    inset 0 -1px hsl(var(--border) / 0.72);
+  background-color: transparent;
+  background-image: linear-gradient(hsl(var(--border) / 0.42), hsl(var(--border) / 0.42));
+  background-position: center;
+  background-size: 100% 1px;
+  background-repeat: no-repeat;
+  transition: background-size 160ms ease;
+}
+
+/* Expand the mouse target without making the divider look heavier. Dockview
+   already provides a larger target for coarse pointers. */
+@media (pointer: fine) {
+  .workspace-dock
+    .dv-split-view-container.dv-horizontal
+    > .dv-sash-container
+    > .dv-sash:not(.dv-disabled)::before {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    bottom: 0;
+    left: -3px;
+    background: transparent;
+    content: "";
+  }
+
+  .workspace-dock
+    .dv-split-view-container.dv-vertical
+    > .dv-sash-container
+    > .dv-sash:not(.dv-disabled)::before {
+    position: absolute;
+    top: -3px;
+    right: 0;
+    bottom: -3px;
+    left: 0;
+    background: transparent;
+    content: "";
+  }
 }
 
 /* Dockview resizes a sash with document-level pointer events. Disable native
@@ -146,12 +199,34 @@ body.workspace-sash-resizing-vertical * {
   display: none;
 }
 
-.workspace-dock .dv-sash-container .dv-sash:hover {
-  background: hsl(var(--foreground) / 0.14);
+.workspace-dock .dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash:hover {
+  background-color: transparent;
+  background-image: linear-gradient(hsl(var(--foreground) / 0.2), hsl(var(--foreground) / 0.2));
+  background-size: 2px 100%;
 }
 
-.workspace-dock .dv-sash-container .dv-sash.dv-active-sash {
-  background: hsl(var(--foreground) / 0.28);
+.workspace-dock .dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash:hover {
+  background-color: transparent;
+  background-image: linear-gradient(hsl(var(--foreground) / 0.2), hsl(var(--foreground) / 0.2));
+  background-size: 100% 2px;
+}
+
+.workspace-dock
+  .dv-split-view-container.dv-horizontal
+  > .dv-sash-container
+  > .dv-sash.dv-active-sash {
+  background-color: transparent;
+  background-image: linear-gradient(hsl(var(--foreground) / 0.34), hsl(var(--foreground) / 0.34));
+  background-size: 2px 100%;
+}
+
+.workspace-dock
+  .dv-split-view-container.dv-vertical
+  > .dv-sash-container
+  > .dv-sash.dv-active-sash {
+  background-color: transparent;
+  background-image: linear-gradient(hsl(var(--foreground) / 0.34), hsl(var(--foreground) / 0.34));
+  background-size: 100% 2px;
 }
 
 .workspace-tab {
@@ -286,10 +361,6 @@ body.workspace-sash-resizing-vertical * {
 
 .workspace-panel[data-maximized-hidden] {
   display: none;
-}
-
-.workspace-panel[data-focused] {
-  box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.2);
 }
 
 .workspace-drop-preview {

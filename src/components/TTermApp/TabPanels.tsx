@@ -20,6 +20,7 @@ import {
   type IDockviewPanelHeaderProps,
   type IDockviewPanelProps,
   type SerializedDockview,
+  themeDark,
 } from "dockview-react"
 import { Columns2, Maximize2, Minimize2, PanelsTopLeft, Rows2, Settings, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -29,6 +30,11 @@ import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { TerminalTab } from "@/components/TerminalTab"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { SavedProfile, Tab, TabContextMenuAction } from "@/types/tab"
+
+const workspaceDockTheme = {
+  ...themeDark,
+  gap: 8,
+}
 
 const RemoteFileEditor = React.lazy(() =>
   import("@/components/RemoteFileEditor").then((module) => ({
@@ -125,7 +131,6 @@ function useDockPanelState(api: IDockviewPanelProps["api"]) {
   const [state, setState] = useState(() => ({
     hasBeenVisible: api.isVisible,
     isActive: api.isActive,
-    isFocused: api.isFocused,
     isVisible: api.isVisible,
   }))
 
@@ -134,15 +139,10 @@ function useDockPanelState(api: IDockviewPanelProps["api"]) {
       setState((current) => ({
         hasBeenVisible: current.hasBeenVisible || api.isVisible,
         isActive: api.isActive,
-        isFocused: api.isFocused,
         isVisible: api.isVisible,
       }))
     }
-    const disposables = [
-      api.onDidActiveChange(update),
-      api.onDidFocusChange(update),
-      api.onDidVisibilityChange(update),
-    ]
+    const disposables = [api.onDidActiveChange(update), api.onDidVisibilityChange(update)]
     update()
     return () => disposables.forEach((disposable) => disposable.dispose())
   }, [api])
@@ -272,7 +272,6 @@ const WorkspacePanel: React.FC<IDockviewPanelProps<WorkspacePanelParams>> = ({ a
   return (
     <div
       className="workspace-panel"
-      data-focused={api.isFocused || undefined}
       data-maximized-hidden={isHiddenByMaximize || undefined}
       data-workspace-panel-id={tab.id}
     >
@@ -876,6 +875,7 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
         <DockviewReact
           components={dockComponents}
           tabComponents={dockTabComponents}
+          theme={workspaceDockTheme}
           rightHeaderActionsComponent={WorkspaceHeaderActions}
           watermarkComponent={WorkspaceWatermark}
           defaultRenderer="always"
