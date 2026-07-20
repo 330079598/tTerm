@@ -101,11 +101,11 @@
   z-index: 8;
   width: var(--tab-scroll-control-width);
   height: 26px;
-  border: 1px solid hsl(var(--border) / 0.42);
+  border: 1px solid hsl(var(--border) / 0.62);
   border-radius: 5px;
-  background: hsl(var(--titlebar) / 0.92);
+  background: hsl(var(--muted));
   box-shadow: 0 4px 12px hsl(var(--foreground) / 0.12);
-  opacity: 0.78;
+  opacity: 0.92;
   transform: translateY(-50%);
 }
 
@@ -129,7 +129,7 @@
 }
 
 .tab-scroll-button:disabled:hover {
-  background: hsl(var(--titlebar) / 0.92);
+  background: hsl(var(--muted));
   color: hsl(var(--muted-foreground));
 }
 
@@ -327,35 +327,20 @@
   user-select: none;
   position: relative;
   flex-shrink: 0;
-  background-color: hsl(var(--tab-hover) / 0.2);
+  background-color: hsl(var(--tab-background));
   border: 1px solid transparent;
   border-radius: 5px;
-  color: hsl(var(--foreground) / 0.68);
+  color: hsl(var(--foreground) / 0.8);
   transition:
     background-color 0.15s ease,
-    color 0.15s ease;
+    color 0.15s ease,
+    box-shadow 0.15s ease;
   -webkit-app-region: no-drag;
 }
 
-.tab-item:not(.active):not(.drop-target)::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  background-color: hsl(var(--tab-hover) / 0.62);
-  opacity: 0;
-  transform-origin: center;
-  transition: opacity 0.15s ease;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.tab-item:not(.active):not(.drop-target):hover::before {
-  opacity: 1;
-}
-
-.tab-item:hover {
-  color: hsl(var(--foreground) / 0.86);
+.tab-item:not(.active):not(.drop-target):hover {
+  background-color: hsl(var(--tab-hover));
+  color: hsl(var(--foreground) / 0.92);
 }
 
 .tab-item:focus-visible {
@@ -365,14 +350,16 @@
 
 .tab-item.active {
   background-color: hsl(var(--tab-active, var(--background)));
-  border-color: hsl(var(--border) / 0.5);
+  background-image: linear-gradient(
+    hsl(var(--tab-active-border, var(--primary))),
+    hsl(var(--tab-active-border, var(--primary)))
+  );
+  background-position: top center;
+  background-size: calc(100% - 10px) 2.5px;
+  background-repeat: no-repeat;
+  border-color: transparent;
   color: hsl(var(--foreground));
-  box-shadow: inset 0 2px 0 hsl(var(--tab-active-border, var(--primary)));
   z-index: 2;
-}
-
-[data-theme="ubuntu"] .tab-item.active {
-  box-shadow: inset 0 2px 0 hsl(var(--tab-active-border, var(--primary)));
 }
 
 .tab-item.active::before,
@@ -410,13 +397,13 @@
   font-size: 11px;
   color: currentColor;
   min-width: 12px;
-  opacity: 0.5;
+  opacity: 0.55;
   transition: opacity 0.15s ease;
 }
 
 .tab-item:hover .tab-number,
 .tab-item.active .tab-number {
-  opacity: 0.78;
+  opacity: 0.72;
 }
 
 .tab-icon {
@@ -445,7 +432,8 @@
   height: 5px;
   margin-right: 6px;
   border-radius: 999px;
-  background: hsl(var(--primary));
+  /* Distinct from active primary top-bar so dirty state stays scannable */
+  background: hsl(var(--warning));
   vertical-align: 1px;
 }
 

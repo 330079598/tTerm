@@ -270,24 +270,24 @@
         "description": "键盘焦点和选中轮廓"
       },
       "tabBackground": {
-        "label": "标签栏",
-        "description": "顶部标签栏和终端标签区域"
+        "label": "未激活标签",
+        "description": "未选中标签的实心背景"
       },
       "tabActive": {
         "label": "活动标签",
-        "description": "当前活动标签的背景"
+        "description": "当前活动标签的背景（通常与内容区一致）"
       },
       "tabActiveBorder": {
-        "label": "活动标签顶部边框",
-        "description": "当前活动标签顶部边框的颜色"
+        "label": "活动标签指示条",
+        "description": "活动标签顶部的品牌色指示条"
       },
       "tabHover": {
         "label": "标签悬停",
-        "description": "鼠标悬停标签时的背景"
+        "description": "鼠标悬停未选中标签时的背景"
       },
       "titlebar": {
         "label": "标题栏",
-        "description": "窗口标题栏和顶部框架"
+        "description": "标签条背后的窗口标题栏"
       }
     },
     "terminalGroups": {

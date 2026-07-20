@@ -9,14 +9,14 @@
   --dv-tabs-and-actions-container-background-color: hsl(var(--titlebar));
   --dv-tabs-and-actions-container-height: 34px;
   --dv-activegroup-visiblepanel-tab-background-color: hsl(var(--tab-active, var(--background)));
-  --dv-activegroup-hiddenpanel-tab-background-color: hsl(var(--titlebar));
+  --dv-activegroup-hiddenpanel-tab-background-color: hsl(var(--tab-background));
   --dv-inactivegroup-visiblepanel-tab-background-color: hsl(var(--tab-active, var(--background)));
-  --dv-inactivegroup-hiddenpanel-tab-background-color: hsl(var(--titlebar));
+  --dv-inactivegroup-hiddenpanel-tab-background-color: hsl(var(--tab-background));
   --dv-tab-divider-color: hsl(var(--border) / 0.45);
   --dv-activegroup-visiblepanel-tab-color: hsl(var(--foreground));
-  --dv-activegroup-hiddenpanel-tab-color: hsl(var(--muted-foreground));
-  --dv-inactivegroup-visiblepanel-tab-color: hsl(var(--foreground) / 0.78);
-  --dv-inactivegroup-hiddenpanel-tab-color: hsl(var(--muted-foreground) / 0.72);
+  --dv-activegroup-hiddenpanel-tab-color: hsl(var(--foreground) / 0.8);
+  --dv-inactivegroup-visiblepanel-tab-color: hsl(var(--foreground) / 0.8);
+  --dv-inactivegroup-hiddenpanel-tab-color: hsl(var(--foreground) / 0.72);
   --dv-separator-border: hsl(var(--border));
   --dv-paneview-header-border-color: hsl(var(--border));
   --dv-sash-color: hsl(var(--titlebar));
@@ -154,8 +154,8 @@ body.workspace-sash-resizing-vertical * {
   padding: 0 7px 0 10px;
   border: 1px solid transparent;
   border-radius: 5px;
-  background: hsl(var(--tab-hover) / 0.2);
-  color: hsl(var(--foreground) / 0.68);
+  background: hsl(var(--tab-background));
+  color: hsl(var(--foreground) / 0.8);
   cursor: pointer;
   user-select: none;
   transition:
@@ -164,15 +164,21 @@ body.workspace-sash-resizing-vertical * {
 }
 
 .workspace-tab:hover {
-  background: hsl(var(--tab-hover) / 0.68);
-  color: hsl(var(--foreground) / 0.9);
+  background: hsl(var(--tab-hover));
+  color: hsl(var(--foreground) / 0.92);
 }
 
 .workspace-tab.active {
   background: hsl(var(--tab-active, var(--background)));
-  border-color: hsl(var(--border) / 0.5);
+  background-image: linear-gradient(
+    hsl(var(--tab-active-border, var(--primary))),
+    hsl(var(--tab-active-border, var(--primary)))
+  );
+  background-position: top center;
+  background-size: calc(100% - 10px) 2.5px;
+  background-repeat: no-repeat;
+  border-color: transparent;
   color: hsl(var(--foreground));
-  box-shadow: inset 0 2px 0 hsl(var(--tab-active-border, var(--primary)));
 }
 
 .workspace-tab:focus-visible,
@@ -198,7 +204,7 @@ body.workspace-sash-resizing-vertical * {
   height: 5px;
   margin-right: 6px;
   border-radius: 50%;
-  background: hsl(var(--primary));
+  background: hsl(var(--warning));
   content: "";
   vertical-align: 1px;
 }

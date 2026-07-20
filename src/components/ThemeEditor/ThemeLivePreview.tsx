@@ -78,14 +78,17 @@ export const ThemeLivePreview: React.FC<ThemeLivePreviewProps> = ({ colors, term
               className="flex gap-1 border-y px-2 py-2"
               style={{
                 borderColor: resolveCssColor(colors.border),
-                background: resolveCssColor(colors.tabBackground),
+                background: resolveCssColor(colors.titlebar),
               }}
             >
               <span
-                className="rounded-md border-t px-2 py-1 text-xs"
+                className="rounded-md px-2 py-1 text-xs font-medium"
                 style={{
-                  borderTopColor: resolveCssColor(colors.tabActiveBorder),
                   background: resolveCssColor(colors.tabActive),
+                  backgroundImage: `linear-gradient(${resolveCssColor(colors.tabActiveBorder)}, ${resolveCssColor(colors.tabActiveBorder)})`,
+                  backgroundPosition: "top center",
+                  backgroundRepeat: "no-repeat",
+                  backgroundSize: "calc(100% - 10px) 2.5px",
                   color: resolveCssColor(colors.foreground),
                 }}
               >
@@ -94,8 +97,9 @@ export const ThemeLivePreview: React.FC<ThemeLivePreviewProps> = ({ colors, term
               <span
                 className="rounded-md px-2 py-1 text-xs"
                 style={{
-                  background: resolveCssColor(colors.tabHover),
-                  color: resolveCssColor(colors.mutedForeground),
+                  background: resolveCssColor(colors.tabBackground),
+                  color: resolveCssColor(colors.foreground),
+                  opacity: 0.8,
                 }}
               >
                 {t("themeEditor.preview.sshTab")}
