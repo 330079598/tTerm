@@ -139,13 +139,25 @@ const DialogOverlay = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
 )
 DialogOverlay.displayName = "DialogOverlay"
 
-const DialogContent = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & {
-    showCloseButton?: boolean
-    onInteractOutside?: (event: DialogInteractOutsideEvent) => void
-  }
->(({ className, children, showCloseButton = true, onInteractOutside, ...props }, ref) => {
+type DialogContentProps = React.HTMLAttributes<HTMLDivElement> & {
+  showCloseButton?: boolean
+  onInteractOutside?: (event: DialogInteractOutsideEvent) => void
+  overlayClassName?: string
+  overlayDragRegion?: boolean
+}
+
+function DialogContentComponent(
+  {
+    className,
+    children,
+    showCloseButton = true,
+    onInteractOutside,
+    overlayClassName,
+    overlayDragRegion = false,
+    ...props
+  }: DialogContentProps,
+  ref: React.ForwardedRef<HTMLDivElement>
+) {
   const { open, setOpen } = useDialogContext("DialogContent")
   const contentRef = React.useRef<HTMLDivElement | null>(null)
 
@@ -210,8 +222,12 @@ const DialogContent = React.forwardRef<
 
   return (
     <DialogPortal>
-      <DialogOverlay onMouseDown={handleOverlayMouseDown} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <DialogOverlay
+        className={cn("z-[200]", overlayClassName)}
+        data-tauri-drag-region={overlayDragRegion || undefined}
+        onMouseDown={handleOverlayMouseDown}
+      />
+      <div className="pointer-events-none fixed inset-0 z-[200] flex items-center justify-center p-4">
         <div
           ref={composeRefs(contentRef, ref)}
           data-slot="dialog-content"
@@ -220,7 +236,7 @@ const DialogContent = React.forwardRef<
           role="dialog"
           tabIndex={-1}
           className={cn(
-            "bg-background data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg outline-none sm:max-w-lg",
+            "bg-background data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 pointer-events-auto fixed top-[50%] left-[50%] z-[200] grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg outline-none sm:max-w-lg",
             className
           )}
           {...props}
@@ -241,7 +257,9 @@ const DialogContent = React.forwardRef<
       </div>
     </DialogPortal>
   )
-})
+}
+
+const DialogContent = React.forwardRef(DialogContentComponent)
 DialogContent.displayName = "DialogContent"
 
 function DialogClose({

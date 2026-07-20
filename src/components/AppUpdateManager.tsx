@@ -99,7 +99,12 @@ export function AppUpdateManager() {
 
   return (
     <Dialog open={Boolean(dialogState)} onOpenChange={(open) => !open && closeDialog()}>
-      <DialogContent className="sm:max-w-[620px]">
+      <DialogContent
+        className="sm:max-w-[620px]"
+        overlayClassName="bg-background backdrop-blur-none"
+        overlayDragRegion
+        onInteractOutside={(event) => event.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>{dialogDescription}</DialogDescription>
