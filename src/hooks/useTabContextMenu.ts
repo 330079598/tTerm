@@ -1,12 +1,13 @@
 import { useCallback, useState } from "react"
 
 import type { ContextMenuState, RenameDialogState } from "@/components/TTermApp/types"
+import type { WorkspaceSplitDirection } from "@/components/TTermApp/TabPanels"
 import type { Tab, TabContextMenuAction } from "@/types/tab"
 
 interface UseTabContextMenuDeps {
   handleNewTab: () => void
   duplicateTab: (id: string) => string | null
-  splitTab: (id: string, direction: "right" | "below") => void
+  splitTab: (id: string, direction: WorkspaceSplitDirection) => void
   handleRemoveTab: (id: string) => void
   handleCloseOtherTabs: (id: string) => void
   handleCloseTabsToRight: (id: string) => void
@@ -74,8 +75,14 @@ export function useTabContextMenu({
         case "split-right":
           splitTab(tab.id, "right")
           break
+        case "split-left":
+          splitTab(tab.id, "left")
+          break
         case "split-down":
           splitTab(tab.id, "below")
+          break
+        case "split-above":
+          splitTab(tab.id, "above")
           break
         case "rename":
           setRenameDialogState({

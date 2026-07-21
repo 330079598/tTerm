@@ -488,3 +488,41 @@
 .tab-close.always-visible {
   opacity: 1;
 }
+
+.tab-drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--popover) / 0.96);
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  line-height: 1.2;
+  box-shadow: 0 8px 20px hsl(var(--foreground) / 0.22);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  /* Offset from the cursor so the ghost doesn't sit under the pointer.
+     Uses the independent `translate` property so it composes with the
+     JS-driven `transform: translate(x, y)` set on pointermove. */
+  translate: 12px 12px;
+  will-change: transform;
+}
+
+.tab-drag-ghost .tab-icon {
+  flex-shrink: 0;
+  color: hsl(var(--muted-foreground));
+}
+
+.tab-drag-ghost-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

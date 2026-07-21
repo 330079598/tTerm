@@ -14,8 +14,10 @@ import {
   Shield,
   Pin,
   PinOff,
-  Columns2,
-  Rows2,
+  PanelLeft,
+  PanelRight,
+  PanelTop,
+  PanelBottom,
 } from "lucide-react"
 import { TabContextMenuAction } from "@/types/tab"
 import { cn } from "@/lib/utils"
@@ -61,9 +63,13 @@ const getActionIcon = (icon?: string) => {
     case "pin-off":
       return <PinOff size={14} aria-hidden="true" />
     case "split-right":
-      return <Columns2 size={14} aria-hidden="true" />
+      return <PanelRight size={14} aria-hidden="true" />
+    case "split-left":
+      return <PanelLeft size={14} aria-hidden="true" />
     case "split-down":
-      return <Rows2 size={14} aria-hidden="true" />
+      return <PanelBottom size={14} aria-hidden="true" />
+    case "split-above":
+      return <PanelTop size={14} aria-hidden="true" />
     default:
       return null
   }

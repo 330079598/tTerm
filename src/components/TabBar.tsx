@@ -72,9 +72,6 @@ interface TabItemProps {
   onTabClose: (id: string) => void
   onContextMenu: (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => void
   onPointerDown: (event: React.PointerEvent<HTMLDivElement>, tabId: string) => void
-  onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void
-  onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void
-  onPointerCancel: () => void
 }
 
 type TabDragState = {
@@ -84,6 +81,8 @@ type TabDragState = {
   startY: number
   dragging: boolean
   targetTabId: string | null
+  sourceElement: HTMLDivElement
+  threshold: number
 }
 
 const TabItem: React.FC<TabItemProps> = ({
@@ -97,9 +96,6 @@ const TabItem: React.FC<TabItemProps> = ({
   onTabClose,
   onContextMenu,
   onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerCancel,
 }) => {
   const { t } = useTranslation()
 
@@ -152,9 +148,19 @@ const TabItem: React.FC<TabItemProps> = ({
                 icon: "split-right",
               },
               {
+                label: t("contextMenu.splitLeft", { defaultValue: "Split Left" }),
+                action: "split-left",
+                icon: "split-left",
+              },
+              {
                 label: t("contextMenu.splitDown", { defaultValue: "Split Down" }),
                 action: "split-down",
                 icon: "split-down",
+              },
+              {
+                label: t("contextMenu.splitAbove", { defaultValue: "Split Above" }),
+                action: "split-above",
+                icon: "split-above",
               },
             ]
           : []),
@@ -199,9 +205,6 @@ const TabItem: React.FC<TabItemProps> = ({
           onContextMenu={handleContextMenu}
           onKeyDown={handleKeyDown}
           onPointerDown={(event) => onPointerDown(event, tab.id)}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerCancel}
         >
           <span className="tab-number">{index + 1}</span>
           {tab.type === "settings" && <Settings className="tab-icon" size={13} />}
@@ -243,6 +246,9 @@ export const TabBar: React.FC<TabBarProps> = ({
   const overflowPanelRef = useRef<HTMLDivElement | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const dragStateRef = useRef<TabDragState | null>(null)
+  const dragGhostRef = useRef<HTMLDivElement | null>(null)
+  const lastPointerPosRef = useRef<{ x: number; y: number } | null>(null)
+  const tabsRef = useRef(tabs)
   const suppressNextClickRef = useRef(false)
   const [scrollState, setScrollState] = useState({ canScrollLeft: false, canScrollRight: false })
   const [isOverflowMenuOpen, setIsOverflowMenuOpen] = useState(false)
@@ -250,6 +256,18 @@ export const TabBar: React.FC<TabBarProps> = ({
   const [overflowPanelStyle, setOverflowPanelStyle] = useState<OverflowPanelStyle | null>(null)
   const [draggingTabId, setDraggingTabId] = useState<string | null>(null)
   const [dropTargetTabId, setDropTargetTabId] = useState<string | null>(null)
+  const [dragGhostTab, setDragGhostTab] = useState<Tab | null>(null)
+
+  useEffect(() => {
+    tabsRef.current = tabs
+  }, [tabs])
+
+  useEffect(() => {
+    if (dragGhostTab && dragGhostRef.current && lastPointerPosRef.current) {
+      const { x, y } = lastPointerPosRef.current
+      dragGhostRef.current.style.transform = `translate(${x}px, ${y}px)`
+    }
+  }, [dragGhostTab])
 
   const updateScrollState = useCallback(() => {
     const list = listRef.current
@@ -387,6 +405,7 @@ export const TabBar: React.FC<TabBarProps> = ({
     dragStateRef.current = null
     setDraggingTabId(null)
     setDropTargetTabId(null)
+    setDragGhostTab(null)
     onTabDragCancel()
   }, [onTabDragCancel])
 
@@ -404,6 +423,8 @@ export const TabBar: React.FC<TabBarProps> = ({
         startY: event.clientY,
         dragging: false,
         targetTabId: null,
+        sourceElement: event.currentTarget,
+        threshold: TAB_DRAG_THRESHOLD * (window.devicePixelRatio || 1),
       }
       event.currentTarget.setPointerCapture(event.pointerId)
     },
@@ -411,7 +432,7 @@ export const TabBar: React.FC<TabBarProps> = ({
   )
 
   const handleTabPointerMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
+    (event: PointerEvent) => {
       const dragState = dragStateRef.current
       if (!dragState || dragState.pointerId !== event.pointerId) {
         return
@@ -419,14 +440,24 @@ export const TabBar: React.FC<TabBarProps> = ({
 
       const deltaX = event.clientX - dragState.startX
       const deltaY = event.clientY - dragState.startY
+      lastPointerPosRef.current = { x: event.clientX, y: event.clientY }
 
       if (!dragState.dragging) {
-        if (Math.hypot(deltaX, deltaY) < TAB_DRAG_THRESHOLD) {
+        if (Math.hypot(deltaX, deltaY) < dragState.threshold) {
           return
         }
         dragState.dragging = true
         suppressNextClickRef.current = true
         setDraggingTabId(dragState.tabId)
+        const draggedTab = tabsRef.current.find((tab) => tab.id === dragState.tabId)
+        if (draggedTab) {
+          setDragGhostTab(draggedTab)
+        }
+      }
+
+      const ghost = dragGhostRef.current
+      if (ghost) {
+        ghost.style.transform = `translate(${event.clientX}px, ${event.clientY}px)`
       }
 
       event.preventDefault()
@@ -454,14 +485,14 @@ export const TabBar: React.FC<TabBarProps> = ({
   )
 
   const finishTabDrag = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
+    (event: PointerEvent) => {
       const dragState = dragStateRef.current
       if (!dragState || dragState.pointerId !== event.pointerId) {
         return
       }
 
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId)
+      if (dragState.sourceElement.hasPointerCapture(event.pointerId)) {
+        dragState.sourceElement.releasePointerCapture(event.pointerId)
       }
 
       const handledWorkspaceDrop =
@@ -481,6 +512,28 @@ export const TabBar: React.FC<TabBarProps> = ({
     },
     [onTabDrop, onTabMove, resetTabDrag, tabs]
   )
+
+  useEffect(() => {
+    const handlePointerCancel = (event: PointerEvent) => {
+      if (dragStateRef.current?.pointerId === event.pointerId) {
+        resetTabDrag()
+      }
+    }
+
+    const handleWindowBlur = () => resetTabDrag()
+
+    window.addEventListener("pointermove", handleTabPointerMove, true)
+    window.addEventListener("pointerup", finishTabDrag, true)
+    window.addEventListener("pointercancel", handlePointerCancel, true)
+    window.addEventListener("blur", handleWindowBlur)
+
+    return () => {
+      window.removeEventListener("pointermove", handleTabPointerMove, true)
+      window.removeEventListener("pointerup", finishTabDrag, true)
+      window.removeEventListener("pointercancel", handlePointerCancel, true)
+      window.removeEventListener("blur", handleWindowBlur)
+    }
+  }, [finishTabDrag, handleTabPointerMove, resetTabDrag])
 
   const handleTabClick = useCallback(
     (id: string) => {
@@ -613,9 +666,6 @@ export const TabBar: React.FC<TabBarProps> = ({
                 onTabClose={onTabClose}
                 onContextMenu={onContextMenu}
                 onPointerDown={handleTabPointerDown}
-                onPointerMove={handleTabPointerMove}
-                onPointerUp={finishTabDrag}
-                onPointerCancel={resetTabDrag}
               />
             </React.Fragment>
           ))}
@@ -729,6 +779,15 @@ export const TabBar: React.FC<TabBarProps> = ({
             )}
         </div>
       )}
+
+      {dragGhostTab &&
+        createPortal(
+          <div ref={dragGhostRef} className="tab-drag-ghost" aria-hidden="true">
+            {dragGhostTab.type === "settings" && <Settings className="tab-icon" size={13} />}
+            <span className="tab-drag-ghost-title">{dragGhostTab.title}</span>
+          </div>,
+          document.body
+        )}
     </div>
   )
 }

@@ -22,7 +22,19 @@ import {
   type SerializedDockview,
   themeDark,
 } from "dockview-react"
-import { Columns2, Maximize2, Minimize2, PanelsTopLeft, Rows2, Settings, X } from "lucide-react"
+import {
+  Columns2,
+  Maximize2,
+  Minimize2,
+  PanelBottom,
+  PanelLeft,
+  PanelRight,
+  PanelTop,
+  PanelsTopLeft,
+  Rows2,
+  Settings,
+  X,
+} from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { ErrorBoundary } from "@/components/ErrorBoundary"
@@ -52,7 +64,7 @@ type WorkspacePanelParams = {
   tabId: string
 }
 
-export type WorkspaceSplitDirection = "right" | "below"
+export type WorkspaceSplitDirection = "left" | "right" | "above" | "below"
 
 export interface TabPanelsHandle {
   activateTab: (tabId: string) => void
@@ -196,9 +208,19 @@ function getTabActions(
             icon: "split-right",
           },
           {
+            label: t("contextMenu.splitLeft", { defaultValue: "Split Left" }),
+            action: "split-left",
+            icon: "split-left",
+          },
+          {
             label: t("contextMenu.splitDown", { defaultValue: "Split Down" }),
             action: "split-down",
             icon: "split-down",
+          },
+          {
+            label: t("contextMenu.splitAbove", { defaultValue: "Split Above" }),
+            action: "split-above",
+            icon: "split-above",
           },
         ]
       : []),
@@ -350,14 +372,26 @@ const WorkspaceHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({
     <div className={`workspace-header-actions ${isGroupActive ? "active" : ""}`}>
       {action(
         t("workspace.splitRight", { defaultValue: "Split Right" }),
-        <Columns2 size={14} aria-hidden="true" />,
+        <PanelRight size={14} aria-hidden="true" />,
         () => activePanel && splitTab(activePanel.id, "right"),
         !canSplit
       )}
       {action(
+        t("workspace.splitLeft", { defaultValue: "Split Left" }),
+        <PanelLeft size={14} aria-hidden="true" />,
+        () => activePanel && splitTab(activePanel.id, "left"),
+        !canSplit
+      )}
+      {action(
         t("workspace.splitDown", { defaultValue: "Split Down" }),
-        <Rows2 size={14} aria-hidden="true" />,
+        <PanelBottom size={14} aria-hidden="true" />,
         () => activePanel && splitTab(activePanel.id, "below"),
+        !canSplit
+      )}
+      {action(
+        t("workspace.splitAbove", { defaultValue: "Split Above" }),
+        <PanelTop size={14} aria-hidden="true" />,
+        () => activePanel && splitTab(activePanel.id, "above"),
         !canSplit
       )}
       {activePanel &&
@@ -516,6 +550,36 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
     }
   }, [])
 
+  const splitTab = useCallback(
+    (tabId: string, direction: WorkspaceSplitDirection) => {
+      const sourcePanel = dockApi?.getPanel(tabId)
+      if (!dockApi || !sourcePanel) {
+        return
+      }
+      const sourceTab = tabsRef.current.find((tab) => tab.id === tabId)
+      if (!sourceTab || (sourceTab.type !== "terminal" && sourceTab.type !== "ssh")) {
+        return
+      }
+
+      if (sourcePanel.group.panels.length === 1) {
+        const duplicatedTabId = duplicateTab(tabId)
+        if (duplicatedTabId) {
+          pendingSplitRef.current = {
+            direction,
+            sourceTabId: tabId,
+            tabId: duplicatedTabId,
+          }
+        }
+        return
+      }
+
+      const targetGroup = dockApi.addGroup({ referencePanel: sourcePanel, direction })
+      sourcePanel.api.moveTo({ group: targetGroup, position: "center" })
+      sourcePanel.api.setActive()
+    },
+    [dockApi, duplicateTab]
+  )
+
   const clearTabDrop = useCallback(() => {
     dropPreviewRef.current = null
     setDropPreview(null)
@@ -531,40 +595,60 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
         return false
       }
 
-      const targetGroupElement = Array.from(
-        root.querySelectorAll<HTMLElement>(".dv-groupview")
-      ).find((element) => {
-        const rect = element.getBoundingClientRect()
-        return (
-          rect.width > 0 &&
-          rect.height > 0 &&
-          clientX >= rect.left &&
-          clientX <= rect.right &&
-          clientY >= rect.top &&
-          clientY <= rect.bottom
-        )
-      })
-      const targetElement = targetGroupElement
-        ? Array.from(
-            targetGroupElement.querySelectorAll<HTMLElement>("[data-workspace-panel-id]")
-          ).find((element) => {
-            const rect = element.getBoundingClientRect()
-            return rect.width > 0 && rect.height > 0
-          })
-        : undefined
-      const targetTabId = targetElement?.dataset.workspacePanelId
-      const targetPanel = targetTabId ? api.getPanel(targetTabId) : undefined
-      if (!targetGroupElement || !targetElement || !targetTabId || !targetPanel) {
+      const rootRect = root.getBoundingClientRect()
+      if (
+        clientX < rootRect.left ||
+        clientX > rootRect.right ||
+        clientY < rootRect.top ||
+        clientY > rootRect.bottom
+      ) {
         clearTabDrop()
         return false
       }
 
-      const rootRect = root.getBoundingClientRect()
-      const targetRect = targetGroupElement.getBoundingClientRect()
+      const targetGroupMatch = api.groups
+        .map((group) => ({ group, bounds: group.api.boundingBox }))
+        .filter(
+          (
+            candidate
+          ): candidate is {
+            group: (typeof api.groups)[number]
+            bounds: NonNullable<(typeof candidate)["bounds"]>
+          } => {
+            const { bounds } = candidate
+            return (
+              bounds !== undefined &&
+              bounds.width > 0 &&
+              bounds.height > 0 &&
+              clientX >= rootRect.left + bounds.left &&
+              clientX <= rootRect.left + bounds.left + bounds.width &&
+              clientY >= rootRect.top + bounds.top &&
+              clientY <= rootRect.top + bounds.top + bounds.height
+            )
+          }
+        )
+        .sort(
+          (first, second) =>
+            first.bounds.width * first.bounds.height - second.bounds.width * second.bounds.height
+        )[0]
+      const targetGroup = targetGroupMatch?.group
+      const targetPanel = targetGroup?.activePanel ?? targetGroup?.panels[0]
+      if (!targetGroupMatch || !targetPanel) {
+        clearTabDrop()
+        return false
+      }
+
+      const targetRect = {
+        left: rootRect.left + targetGroupMatch.bounds.left,
+        top: rootRect.top + targetGroupMatch.bounds.top,
+        width: targetGroupMatch.bounds.width,
+        height: targetGroupMatch.bounds.height,
+      }
       const normalizedX = (clientX - targetRect.left) / targetRect.width - 0.5
       const normalizedY = (clientY - targetRect.top) / targetRect.height - 0.5
+      const isSourceGroup = sourcePanel.group === targetPanel.group
       const direction: WorkspaceDropDirection =
-        Math.abs(normalizedX) <= 0.25 && Math.abs(normalizedY) <= 0.25
+        !isSourceGroup && Math.abs(normalizedX) <= 0.25 && Math.abs(normalizedY) <= 0.25
           ? "center"
           : Math.abs(normalizedX) > Math.abs(normalizedY)
             ? normalizedX < 0
@@ -574,17 +658,20 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
               ? "above"
               : "below"
 
-      if (
-        sourcePanel.group === targetPanel.group &&
-        (direction === "center" || sourcePanel.group.panels.length <= 1)
-      ) {
-        clearTabDrop()
-        return false
+      if (isSourceGroup) {
+        const sourceTab = tabsRef.current.find((tab) => tab.id === tabId)
+        if (
+          sourcePanel.group.panels.length === 1 &&
+          (!sourceTab || (sourceTab.type !== "terminal" && sourceTab.type !== "ssh"))
+        ) {
+          clearTabDrop()
+          return false
+        }
       }
       const nextPreview: WorkspaceDropPreview = {
         direction,
         sourceTabId: tabId,
-        targetTabId,
+        targetTabId: targetPanel.id,
         left: targetRect.left - rootRect.left,
         top: targetRect.top - rootRect.top,
         width: targetRect.width,
@@ -622,6 +709,12 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
         return false
       }
 
+      if (sourcePanel.group === targetPanel.group && sourcePanel.group.panels.length === 1) {
+        splitTab(tabId, preview.direction as WorkspaceSplitDirection)
+        clearTabDrop()
+        return true
+      }
+
       sourcePanel.api.moveTo({
         group: targetPanel.group,
         position:
@@ -635,7 +728,7 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
       clearTabDrop()
       return true
     },
-    [clearTabDrop, dockApi, previewTabDrop]
+    [clearTabDrop, dockApi, previewTabDrop, splitTab]
   )
 
   useEffect(() => {
@@ -663,36 +756,6 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
       })
     },
     []
-  )
-
-  const splitTab = useCallback(
-    (tabId: string, direction: WorkspaceSplitDirection) => {
-      const sourcePanel = dockApi?.getPanel(tabId)
-      if (!dockApi || !sourcePanel) {
-        return
-      }
-      const sourceTab = tabsRef.current.find((tab) => tab.id === tabId)
-      if (!sourceTab || (sourceTab.type !== "terminal" && sourceTab.type !== "ssh")) {
-        return
-      }
-
-      if (sourcePanel.group.panels.length === 1) {
-        const duplicatedTabId = duplicateTab(tabId)
-        if (duplicatedTabId) {
-          pendingSplitRef.current = {
-            direction,
-            sourceTabId: tabId,
-            tabId: duplicatedTabId,
-          }
-        }
-        return
-      }
-
-      const targetGroup = dockApi.addGroup({ referencePanel: sourcePanel, direction })
-      sourcePanel.api.moveTo({ group: targetGroup, position: "center" })
-      sourcePanel.api.setActive()
-    },
-    [dockApi, duplicateTab]
   )
 
   const collapseToSingleGroup = useCallback(
