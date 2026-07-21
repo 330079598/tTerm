@@ -98,7 +98,16 @@
     "devtools": "开发者工具",
     "devtoolsDesc": "打开开发者工具窗口进行调试。",
     "enableDevtools": "开发者工具",
-    "openDevtools": "打开 DevTools"
+    "openDevtools": "打开 DevTools",
+    "tabWidth": "标签宽度",
+    "tabWidthDesc": "统一控制标题栏标签和分屏分组标签的宽度。",
+    "tabWidthMode": "宽度模式",
+    "tabWidthModeDesc": "自适应宽度根据标题长度显示；标准宽度让所有标签使用相同的固定宽度。",
+    "tabWidthModeLabel": "模式",
+    "tabWidthAdaptive": "自适应宽度",
+    "tabWidthStandard": "标准宽度",
+    "tabStandardWidth": "标准宽度",
+    "tabStandardWidthRange": "80-300px"
   },
   "theme": {
     "title": "选择主题",

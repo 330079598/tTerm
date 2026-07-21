@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next"
 import { useConfirmDialog, useInfoDialog, usePromptDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
-import { SavedSecretEntry, useConfig } from "@/contexts/ConfigContext"
+import { SavedSecretEntry, type TabWidthMode, useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
@@ -332,6 +332,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       })
     }
   }
+
+  const handleTabWidthModeChange = async (mode: TabWidthMode) => {
+    await saveSettings({ tab_width_mode: mode })
+  }
+
+  const handleTabStandardWidthChange = (width: number) =>
+    saveSettings({ tab_standard_width: width })
 
   const handleDeleteTheme = async (themeId: string) => {
     const confirmed = await confirm({
@@ -682,10 +689,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleDuplicateTheme={handleDuplicateTheme}
               handleResetPresetTheme={handleResetPresetTheme}
               handleThemeChange={handleThemeChange}
+              handleTabStandardWidthChange={handleTabStandardWidthChange}
+              handleTabWidthModeChange={handleTabWidthModeChange}
               presetThemes={presetThemes}
               presetThemeOverrides={presetThemeOverrides}
               setCreatingFromTheme={setCreatingFromTheme}
               setEditingThemeId={setEditingThemeId}
+              tabStandardWidth={config.tab_standard_width}
+              tabWidthMode={config.tab_width_mode}
             />
           </TabsContent>
 

@@ -321,7 +321,6 @@
   padding: 0 7px 0 9px;
   height: 30px;
   min-width: 96px;
-  max-width: 168px;
   cursor: pointer;
   touch-action: none;
   user-select: none;
@@ -336,6 +335,12 @@
     color 0.15s ease,
     box-shadow 0.15s ease;
   -webkit-app-region: no-drag;
+}
+
+.app[data-tab-width-mode="standard"] .tab-item {
+  width: var(--tab-standard-width);
+  min-width: var(--tab-standard-width);
+  max-width: var(--tab-standard-width);
 }
 
 .tab-item:not(.active):not(.drop-target):hover {

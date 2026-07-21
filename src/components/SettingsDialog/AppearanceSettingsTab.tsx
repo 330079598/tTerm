@@ -1,12 +1,24 @@
 import React from "react"
-import { Copy, Edit, Palette, Plus, RotateCcw, Trash2 } from "lucide-react"
+import {
+  Copy,
+  Edit,
+  GalleryHorizontal,
+  Palette,
+  Plus,
+  RotateCcw,
+  Trash2,
+} from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { ThemeCard } from "@/components/ThemeCard"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Select } from "@/components/ui/select"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
+import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
+import type { TabWidthMode } from "@/contexts/ConfigContext"
 import type { CustomTheme, PresetTheme, PresetThemeId } from "@/types/theme"
 
 interface AppearanceSettingsTabProps {
@@ -16,10 +28,14 @@ interface AppearanceSettingsTabProps {
   handleDuplicateTheme: (themeId: string) => Promise<void>
   handleResetPresetTheme: (themeId: PresetThemeId) => Promise<void>
   handleThemeChange: (themeId: string) => Promise<void>
+  handleTabStandardWidthChange: (width: number) => Promise<boolean>
+  handleTabWidthModeChange: (mode: TabWidthMode) => Promise<void>
   presetThemes: PresetTheme[]
   presetThemeOverrides: CustomTheme[]
   setCreatingFromTheme: React.Dispatch<React.SetStateAction<string | null>>
   setEditingThemeId: React.Dispatch<React.SetStateAction<string | null>>
+  tabStandardWidth: number
+  tabWidthMode: TabWidthMode
 }
 
 export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
@@ -29,12 +45,38 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
   handleDuplicateTheme,
   handleResetPresetTheme,
   handleThemeChange,
+  handleTabStandardWidthChange,
+  handleTabWidthModeChange,
   presetThemes,
   presetThemeOverrides,
   setCreatingFromTheme,
   setEditingThemeId,
+  tabStandardWidth,
+  tabWidthMode,
 }) => {
   const { t } = useTranslation()
+  const [tabWidthDraft, setTabWidthDraft] = React.useState(String(tabStandardWidth))
+
+  React.useEffect(() => {
+    setTabWidthDraft(String(tabStandardWidth))
+  }, [tabStandardWidth])
+
+  const commitTabStandardWidth = React.useCallback(async () => {
+    const value = Number.parseInt(tabWidthDraft, 10)
+    if (Number.isNaN(value)) {
+      setTabWidthDraft(String(tabStandardWidth))
+      return
+    }
+
+    const normalizedValue = Math.min(Math.max(value, 80), 300)
+    setTabWidthDraft(String(normalizedValue))
+    if (normalizedValue !== tabStandardWidth) {
+      const saved = await handleTabStandardWidthChange(normalizedValue)
+      if (!saved) {
+        setTabWidthDraft(String(tabStandardWidth))
+      }
+    }
+  }, [handleTabStandardWidthChange, tabStandardWidth, tabWidthDraft])
   const getPresetTone = (themeId: PresetThemeId) => {
     if (themeId === "default" || themeId === "light") {
       return {
@@ -218,6 +260,75 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
             <Plus size={16} className="mr-2" />
             {t("themeEditor.createNew")}
           </Button>
+        </SettingsSection>
+
+        <SettingsSection
+          icon={<GalleryHorizontal size={16} />}
+          title={t("settings.tabWidth", { defaultValue: "Tab width" })}
+          description={t("settings.tabWidthDesc", {
+            defaultValue: "Control the width of title-bar and split-group tabs.",
+          })}
+        >
+          <SettingsRow
+            icon={<GalleryHorizontal size={16} />}
+            title={t("settings.tabWidthMode", { defaultValue: "Width mode" })}
+            description={t("settings.tabWidthModeDesc", {
+              defaultValue:
+                "Adaptive width follows each title. Standard width gives every tab the same width.",
+            })}
+          >
+            <div className="grid max-w-xs gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="tab-width-mode" className="text-muted-foreground text-xs">
+                  {t("settings.tabWidthModeLabel", { defaultValue: "Mode" })}
+                </Label>
+                <Select
+                  id="tab-width-mode"
+                  value={tabWidthMode}
+                  onChange={(event) =>
+                    void handleTabWidthModeChange(event.target.value as TabWidthMode)
+                  }
+                >
+                  <option value="adaptive">
+                    {t("settings.tabWidthAdaptive", { defaultValue: "Adaptive width" })}
+                  </option>
+                  <option value="standard">
+                    {t("settings.tabWidthStandard", { defaultValue: "Standard width" })}
+                  </option>
+                </Select>
+              </div>
+
+              {tabWidthMode === "standard" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="tab-standard-width" className="text-muted-foreground text-xs">
+                    {t("settings.tabStandardWidth", { defaultValue: "Standard width" })}
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="tab-standard-width"
+                      type="number"
+                      min={80}
+                      max={300}
+                      step={1}
+                      value={tabWidthDraft}
+                      aria-describedby="tab-standard-width-range"
+                      onChange={(event) => setTabWidthDraft(event.target.value)}
+                      onBlur={() => void commitTabStandardWidth()}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.currentTarget.blur()
+                        }
+                      }}
+                    />
+                    <span className="text-muted-foreground text-xs">px</span>
+                  </div>
+                  <p id="tab-standard-width-range" className="text-muted-foreground text-xs">
+                    {t("settings.tabStandardWidthRange", { defaultValue: "80-300px" })}
+                  </p>
+                </div>
+              )}
+            </div>
+          </SettingsRow>
         </SettingsSection>
       </div>
     </ScrollArea>

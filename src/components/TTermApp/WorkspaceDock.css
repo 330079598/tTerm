@@ -233,7 +233,6 @@ body.workspace-sash-resizing-vertical * {
   display: flex;
   height: 30px;
   min-width: 96px;
-  max-width: 168px;
   align-items: center;
   gap: 6px;
   padding: 0 7px 0 9px;
@@ -247,6 +246,12 @@ body.workspace-sash-resizing-vertical * {
     background-color 0.15s ease,
     color 0.15s ease,
     box-shadow 0.15s ease;
+}
+
+.app[data-tab-width-mode="standard"] .workspace-tab {
+  width: var(--tab-standard-width);
+  min-width: var(--tab-standard-width);
+  max-width: var(--tab-standard-width);
 }
 
 .workspace-tab:hover {
@@ -441,6 +446,5 @@ body.workspace-sash-resizing-vertical * {
 
   .workspace-tab {
     min-width: 76px;
-    max-width: 132px;
   }
 }

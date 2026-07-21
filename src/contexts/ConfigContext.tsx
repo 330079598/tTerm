@@ -17,6 +17,7 @@ export interface SecretBackendStatus {
 }
 
 export type SecretStorageMode = "auto" | "system" | "vault" | "hybrid" | "memory"
+export type TabWidthMode = "adaptive" | "standard"
 
 let _cachedPlatform: string | null = null
 
@@ -67,6 +68,8 @@ export interface AppConfig {
   update_check_frequency: UpdateCheckFrequency
   last_update_check_at: number | null
   collapsed_profile_group_keys: string[]
+  tab_width_mode: TabWidthMode
+  tab_standard_width: number
 }
 
 const defaultUpdateChannel = /-(alpha|beta|rc|dev)(\.|$)/.test(
@@ -101,6 +104,8 @@ const defaultConfig: AppConfig = {
   update_check_frequency: "daily",
   last_update_check_at: null,
   collapsed_profile_group_keys: [],
+  tab_width_mode: "adaptive",
+  tab_standard_width: 120,
 }
 
 function normalizeUpdateCheckFrequency(
@@ -134,6 +139,14 @@ function normalizeMonitorRefreshInterval(
   return Math.min(Math.max(Math.round(value), 1), 60)
 }
 
+function normalizeTabStandardWidth(value: Partial<AppConfig>["tab_standard_width"]): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 120
+  }
+
+  return Math.min(Math.max(Math.round(value), 80), 300)
+}
+
 function normalizeConfig(config: Partial<AppConfig>): AppConfig {
   const collapsedProfileGroupKeys = Array.isArray(config.collapsed_profile_group_keys)
     ? config.collapsed_profile_group_keys.filter((item): item is string => typeof item === "string")
@@ -165,6 +178,8 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     last_update_check_at:
       typeof config.last_update_check_at === "number" ? config.last_update_check_at : null,
     collapsed_profile_group_keys: collapsedProfileGroupKeys,
+    tab_width_mode: config.tab_width_mode === "standard" ? "standard" : "adaptive",
+    tab_standard_width: normalizeTabStandardWidth(config.tab_standard_width),
   }
 }
 

@@ -660,7 +660,15 @@ export const TTermApp: React.FC = () => {
   }
 
   return (
-    <div className={`app ${isMacos ? "macos" : ""} ${isLinux ? "linux" : ""}`}>
+    <div
+      className={`app ${isMacos ? "macos" : ""} ${isLinux ? "linux" : ""}`}
+      data-tab-width-mode={config.tab_width_mode}
+      style={
+        {
+          "--tab-standard-width": `${config.tab_standard_width}px`,
+        } as React.CSSProperties
+      }
+    >
       <div className="title-bar">
         <div className="title-bar-left">
           <div className="tab-list-container">

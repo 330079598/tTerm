@@ -26,6 +26,7 @@ export function useSettingsSave() {
             description: options.successDescription,
           })
         }
+        return true
       } catch (error) {
         console.error("Failed to save settings:", error)
         toast({
@@ -35,6 +36,7 @@ export function useSettingsSave() {
           description: toErrorMessage(error),
           variant: "destructive",
         })
+        return false
       }
     },
     [saveConfig, toast, t]

@@ -4,7 +4,7 @@ mod paths;
 pub use atomic::{atomic_write, atomic_write_private};
 pub use paths::{ensure_config_dir, get_config_path, init_config_dir, legacy_config_path};
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fs;
 use sys_locale::get_locale;
 
@@ -57,6 +57,16 @@ pub struct AppConfig {
     pub last_update_check_at: Option<i64>,
     #[serde(default)]
     pub collapsed_profile_group_keys: Vec<String>,
+    #[serde(
+        default = "default_tab_width_mode",
+        deserialize_with = "deserialize_tab_width_mode"
+    )]
+    pub tab_width_mode: String,
+    #[serde(
+        default = "default_tab_standard_width",
+        deserialize_with = "deserialize_tab_standard_width"
+    )]
+    pub tab_standard_width: u16,
 }
 
 fn normalize_language(locale: &str) -> String {
@@ -140,6 +150,34 @@ fn default_update_check_frequency() -> String {
     "daily".to_string()
 }
 
+fn default_tab_width_mode() -> String {
+    "adaptive".to_string()
+}
+
+fn default_tab_standard_width() -> u16 {
+    120
+}
+
+fn deserialize_tab_width_mode<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let mode = String::deserialize(deserializer)?;
+    Ok(if mode == "standard" {
+        mode
+    } else {
+        default_tab_width_mode()
+    })
+}
+
+fn deserialize_tab_standard_width<'de, D>(deserializer: D) -> Result<u16, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let width = f64::deserialize(deserializer)?;
+    Ok(width.round().clamp(80.0, 300.0) as u16)
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -167,6 +205,8 @@ impl Default for AppConfig {
             update_check_frequency: default_update_check_frequency(),
             last_update_check_at: None,
             collapsed_profile_group_keys: Vec::new(),
+            tab_width_mode: default_tab_width_mode(),
+            tab_standard_width: default_tab_standard_width(),
         }
     }
 }
@@ -201,4 +241,39 @@ pub fn load_config() -> Result<AppConfig, String> {
 #[tauri::command]
 pub fn save_config(config: AppConfig) -> Result<(), String> {
     save_config_file(&config)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AppConfig;
+
+    #[test]
+    fn legacy_config_uses_adaptive_tab_width_defaults() {
+        let config: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+
+        assert_eq!(config.tab_width_mode, "adaptive");
+        assert_eq!(config.tab_standard_width, 120);
+    }
+
+    #[test]
+    fn explicit_tab_width_config_is_deserialized() {
+        let config: AppConfig = serde_json::from_str(
+            r#"{"theme":"default","tab_width_mode":"standard","tab_standard_width":180}"#,
+        )
+        .unwrap();
+
+        assert_eq!(config.tab_width_mode, "standard");
+        assert_eq!(config.tab_standard_width, 180);
+    }
+
+    #[test]
+    fn invalid_tab_width_config_is_normalized() {
+        let config: AppConfig = serde_json::from_str(
+            r#"{"theme":"default","tab_width_mode":"wide","tab_standard_width":79.6}"#,
+        )
+        .unwrap();
+
+        assert_eq!(config.tab_width_mode, "adaptive");
+        assert_eq!(config.tab_standard_width, 80);
+    }
 }

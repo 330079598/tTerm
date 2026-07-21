@@ -98,7 +98,16 @@
     "devtools": "Developer Tools",
     "devtoolsDesc": "Open the developer tools window for debugging.",
     "enableDevtools": "Developer Tools",
-    "openDevtools": "Open DevTools"
+    "openDevtools": "Open DevTools",
+    "tabWidth": "Tab width",
+    "tabWidthDesc": "Control the width of title-bar and split-group tabs.",
+    "tabWidthMode": "Width mode",
+    "tabWidthModeDesc": "Adaptive width follows each title. Standard width gives every tab the same width.",
+    "tabWidthModeLabel": "Mode",
+    "tabWidthAdaptive": "Adaptive width",
+    "tabWidthStandard": "Standard width",
+    "tabStandardWidth": "Standard width",
+    "tabStandardWidthRange": "80-300px"
   },
   "theme": {
     "title": "Choose Theme",
