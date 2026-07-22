@@ -1,13 +1,5 @@
 import React from "react"
-import {
-  Copy,
-  Edit,
-  GalleryHorizontal,
-  Palette,
-  Plus,
-  RotateCcw,
-  Trash2,
-} from "lucide-react"
+import { Copy, Edit, GalleryHorizontal, Palette, Plus, RotateCcw, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { ThemeCard } from "@/components/ThemeCard"
