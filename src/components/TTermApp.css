@@ -62,18 +62,39 @@
   letter-spacing: 0.08em;
 }
 
-.broadcast-panel {
-  position: absolute;
+.broadcast-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: hsl(0 0% 0% / 0.45);
+  backdrop-filter: blur(4px);
   z-index: 1000;
-  top: 36px;
-  right: 0;
-  width: min(390px, calc(100vw - 20px));
-  padding: 14px;
+}
+
+.broadcast-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(70vw, calc(100vw - 32px));
+  height: min(70vh, calc(100vh - 32px));
+  min-width: min(560px, calc(100vw - 32px));
+  min-height: min(420px, calc(100vh - 32px));
+  padding: 16px;
   border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) + 2px);
+  border-radius: 10px;
   color: hsl(var(--foreground));
   background: hsl(var(--popover));
   box-shadow: 0 18px 50px rgb(0 0 0 / 0.38);
+  animation: broadcast-panel-in 0.18s ease-out;
+  overflow: hidden;
+}
+
+@keyframes broadcast-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
 }
 
 .broadcast-panel-header,
@@ -100,8 +121,47 @@
   font-size: 11px;
 }
 
+.broadcast-panel button,
+.broadcast-panel textarea {
+  font-family: inherit;
+}
+
 .broadcast-panel-header .broadcast-live-label {
   color: hsl(var(--destructive));
+}
+
+.broadcast-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.broadcast-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  color: hsl(var(--muted-foreground));
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.broadcast-close-btn:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--muted) / 0.7);
+}
+
+.broadcast-panel button:focus-visible,
+.broadcast-panel textarea:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
 }
 
 .broadcast-mode-tabs {
@@ -141,11 +201,16 @@
 }
 
 .broadcast-target-actions {
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 8px;
 }
 
 .broadcast-target-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
   padding: 2px 0;
 }
 
@@ -153,9 +218,22 @@
   color: hsl(var(--foreground));
 }
 
+.broadcast-target-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.broadcast-target-actions .broadcast-reconnect-button {
+  margin-left: auto;
+  padding: 4px 8px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
 .broadcast-target-list {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  max-height: 210px;
   border-block: 1px solid hsl(var(--border));
 }
 
@@ -260,6 +338,27 @@
   flex-shrink: 0;
   color: hsl(var(--destructive-foreground));
   background: hsl(var(--destructive));
+}
+
+.broadcast-live-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+@media (max-width: 640px), (max-height: 520px) {
+  .broadcast-panel {
+    width: calc(100vw - 24px);
+    height: calc(100vh - 24px);
+    min-width: 0;
+    min-height: 0;
+    padding: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .broadcast-panel {
+    animation: none;
+  }
 }
 
 /* Button variants (used in empty state) */

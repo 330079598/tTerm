@@ -2,6 +2,7 @@ import type { Tab } from "@/types/tab"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import type { DockviewPanelApi } from "dockview-react"
 import type { TerminalInputRequest } from "@/types/broadcast"
+import type { LiveBroadcastState } from "@/types/broadcast"
 
 export interface TerminalTabProps {
   tabId: string
@@ -29,6 +30,10 @@ export interface TerminalTabProps {
   onServerMonitorVisibilityChange?: (visible: boolean) => void
   onUnpinConnectionHeader?: () => void
   isBroadcastSource?: boolean
+  liveBroadcastState?: LiveBroadcastState
+  onPauseBroadcast?: () => void
+  onResumeBroadcast?: () => void
+  onStopBroadcast?: () => void
 }
 
 export type ConnectionState = "connecting" | "connected" | "disconnected" | "error"

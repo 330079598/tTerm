@@ -37,6 +37,7 @@ import { markSessionReady } from "@/lib/startup"
 import { Tab } from "@/types/tab"
 import type {
   BroadcastMode,
+  LiveBroadcastState,
   PtyWriteResult,
   TerminalInputRequest,
   TerminalRuntimeState,
@@ -86,6 +87,7 @@ export const TTermApp: React.FC = () => {
   const [workspaceLayout, setWorkspaceLayout] = useState<SerializedDockview | null>(null)
   const [startupVaultUnlockDismissed, setStartupVaultUnlockDismissed] = useState(false)
   const [broadcastMode, setBroadcastMode] = useState<BroadcastMode>("command")
+  const [liveBroadcastState, setLiveBroadcastState] = useState<LiveBroadcastState>("idle")
   const [broadcastSource, setBroadcastSource] = useState<{
     tabId: string
     sessionNonce: number
@@ -101,12 +103,14 @@ export const TTermApp: React.FC = () => {
   const broadcastWriteQueueRef = useRef(Promise.resolve())
   const broadcastGenerationRef = useRef(0)
   const liveSourceRef = useRef<{ tabId: string; sessionNonce: number } | null>(null)
+  const liveStateRef = useRef<LiveBroadcastState>(liveBroadcastState)
   const runtimeStatesRef = useRef(terminalRuntimeStates)
   const targetIdsRef = useRef(broadcastTargetIds)
   const unavailableTargetIdsRef = useRef(unavailableBroadcastTargetIds)
   runtimeStatesRef.current = terminalRuntimeStates
   targetIdsRef.current = broadcastTargetIds
   unavailableTargetIdsRef.current = unavailableBroadcastTargetIds
+  liveStateRef.current = liveBroadcastState
   const workspaceRef = useRef<TabPanelsHandle>(null)
 
   const {
@@ -153,7 +157,9 @@ export const TTermApp: React.FC = () => {
   const stopLiveBroadcast = useCallback(() => {
     broadcastGenerationRef.current += 1
     liveSourceRef.current = null
+    liveStateRef.current = "idle"
     setBroadcastSource(null)
+    setLiveBroadcastState("idle")
     setBroadcastMode("command")
   }, [])
 
@@ -224,6 +230,11 @@ export const TTermApp: React.FC = () => {
         return
       }
 
+      if (liveStateRef.current === "paused") {
+        await invoke("write_pty", { tabId, sessionNonce, data })
+        return
+      }
+
       if (kind === "paste" && /[\r\n]/.test(data)) {
         const confirmed = await confirm({
           title: t("broadcast.multilinePasteTitle"),
@@ -240,7 +251,16 @@ export const TTermApp: React.FC = () => {
       const generation = broadcastGenerationRef.current
       const queuedWrite = broadcastWriteQueueRef.current.then(async () => {
         if (generation !== broadcastGenerationRef.current || !liveSourceRef.current) return
-        results = await writeBroadcast(data)
+        const targets = resolveBroadcastTargets()
+        const source = liveSourceRef.current
+        if (!source) return
+        const batchTargets = targets.some((target) => target.tabId === source.tabId)
+          ? targets
+          : [...targets, source]
+        results = await invoke<PtyWriteResult[]>("write_pty_batch", {
+          targets: batchTargets,
+          data,
+        })
       })
       broadcastWriteQueueRef.current = queuedWrite.catch(() => undefined)
       try {
@@ -277,7 +297,7 @@ export const TTermApp: React.FC = () => {
         })
       }
     },
-    [confirm, resolveBroadcastTargets, stopLiveBroadcast, t, writeBroadcast]
+    [confirm, resolveBroadcastTargets, stopLiveBroadcast, t]
   )
 
   const handleSendBroadcastCommand = useCallback(
@@ -349,16 +369,19 @@ export const TTermApp: React.FC = () => {
         return
       }
 
-      setBroadcastTargetIds((current) =>
-        current.includes(sourceTabId) ? current : [...current, sourceTabId]
-      )
+      const liveTargets = resolveBroadcastTargets().filter((target) => target.tabId !== sourceTabId)
+      if (liveTargets.length === 0) return
+      setBroadcastTargetIds((current) => current.filter((tabId) => tabId !== sourceTabId))
+
       const source = { tabId: sourceTabId, sessionNonce: currentSourceTab.sessionNonce ?? 0 }
       broadcastGenerationRef.current += 1
       liveSourceRef.current = source
+      liveStateRef.current = "active"
       setBroadcastSource(source)
+      setLiveBroadcastState("active")
       setBroadcastMode("live")
     },
-    [confirm, t, tabs, terminalRuntimeStates]
+    [confirm, resolveBroadcastTargets, t, tabs, terminalRuntimeStates]
   )
 
   const handleTerminalSensitivePrompt = useCallback(
@@ -386,15 +409,11 @@ export const TTermApp: React.FC = () => {
     [stopLiveBroadcast]
   )
 
-  const toggleBroadcastTarget = useCallback(
-    (tabId: string) => {
-      setBroadcastTargetIds((current) => {
-        if (broadcastSource?.tabId === tabId && current.includes(tabId)) return current
-        return current.includes(tabId) ? current.filter((id) => id !== tabId) : [...current, tabId]
-      })
-    },
-    [broadcastSource?.tabId]
-  )
+  const toggleBroadcastTarget = useCallback((tabId: string) => {
+    setBroadcastTargetIds((current) => {
+      return current.includes(tabId) ? current.filter((id) => id !== tabId) : [...current, tabId]
+    })
+  }, [])
 
   const selectWritableTargets = useCallback(
     (tabIds: string[]) => {
@@ -409,12 +428,9 @@ export const TTermApp: React.FC = () => {
             terminalRuntimeStates[tab.id]?.sessionNonce === (tab.sessionNonce ?? 0)
         )
         .map((tab) => tab.id)
-      if (broadcastSource && !selected.includes(broadcastSource.tabId)) {
-        selected.push(broadcastSource.tabId)
-      }
       setBroadcastTargetIds(selected)
     },
-    [broadcastSource, tabs, terminalRuntimeStates, unavailableBroadcastTargetIds]
+    [tabs, terminalRuntimeStates, unavailableBroadcastTargetIds]
   )
 
   const selectVisibleBroadcastTargets = useCallback(() => {
@@ -427,7 +443,9 @@ export const TTermApp: React.FC = () => {
 
   const clearBroadcastTargets = useCallback(() => {
     setBroadcastTargetIds([])
-    stopLiveBroadcast()
+    if (liveSourceRef.current) {
+      stopLiveBroadcast()
+    }
   }, [stopLiveBroadcast])
 
   useEffect(() => {
@@ -451,19 +469,6 @@ export const TTermApp: React.FC = () => {
       stopLiveBroadcast()
     }
   }, [broadcastSource, stopLiveBroadcast, tabs, terminalRuntimeStates])
-
-  useEffect(() => {
-    if (broadcastMode !== "live") return
-    const stopShortcut = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "b") {
-        event.preventDefault()
-        event.stopPropagation()
-        stopLiveBroadcast()
-      }
-    }
-    window.addEventListener("keydown", stopShortcut, true)
-    return () => window.removeEventListener("keydown", stopShortcut, true)
-  }, [broadcastMode, stopLiveBroadcast])
 
   useEffect(() => {
     if (isLoaded) {
@@ -904,6 +909,46 @@ export const TTermApp: React.FC = () => {
     [updateTab]
   )
 
+  const pauseLiveBroadcast = useCallback(() => {
+    if (liveSourceRef.current) {
+      broadcastGenerationRef.current += 1
+      liveStateRef.current = "paused"
+      setLiveBroadcastState("paused")
+    }
+  }, [])
+
+  const resumeLiveBroadcast = useCallback(() => {
+    if (liveSourceRef.current) {
+      broadcastGenerationRef.current += 1
+      liveStateRef.current = "active"
+      setLiveBroadcastState("active")
+    }
+  }, [])
+
+  const reconnectBroadcastTargets = useCallback(async () => {
+    const selected = new Set(broadcastTargetIds)
+    const openTerminalTabs = tabs.filter((tab) => tab.type === "terminal" || tab.type === "ssh")
+    const targets =
+      selected.size > 0 ? openTerminalTabs.filter((tab) => selected.has(tab.id)) : openTerminalTabs
+    if (targets.length === 0) return
+
+    const confirmed = await confirm({
+      title: t("broadcast.reconnectConfirmTitle", { count: targets.length }),
+      description: t("broadcast.reconnectConfirmDescription", { count: targets.length }),
+      confirmText: t("broadcast.reconnectConfirmAction"),
+      variant: "destructive",
+    })
+    if (!confirmed) return
+
+    stopLiveBroadcast()
+    const targetIds = new Set(targets.map((tab) => tab.id))
+    setLatestBroadcastResults((current) =>
+      Object.fromEntries(Object.entries(current).filter(([tabId]) => !targetIds.has(tabId)))
+    )
+    setUnavailableBroadcastTargetIds((current) => current.filter((id) => !targetIds.has(id)))
+    targets.forEach((tab) => handleReconnectTab(tab.id))
+  }, [broadcastTargetIds, confirm, handleReconnectTab, stopLiveBroadcast, t, tabs])
+
   const handlePinConnectionHeader = useCallback(
     (tabId: string) => {
       updateTab(tabId, (tab) => ({
@@ -987,6 +1032,7 @@ export const TTermApp: React.FC = () => {
         ref={workspaceRef}
         activeTabId={activeTabId}
         broadcastSourceTabId={broadcastMode === "live" ? (broadcastSource?.tabId ?? null) : null}
+        liveBroadcastState={liveBroadcastState}
         duplicateTab={duplicateTab}
         handlePinConnectionHeader={handlePinConnectionHeader}
         handleReconnectTab={handleReconnectTab}
@@ -998,6 +1044,9 @@ export const TTermApp: React.FC = () => {
         onEditProfile={handleEditProfile}
         onLayoutChange={setWorkspaceLayout}
         onOpenRemoteFile={handleOpenRemoteFile}
+        onPauseBroadcast={pauseLiveBroadcast}
+        onResumeBroadcast={resumeLiveBroadcast}
+        onStopBroadcast={stopLiveBroadcast}
         onTabClose={handleRemoveTab}
         onTabContextMenu={handleTabContextMenu}
         onTerminalConnectionStateChange={handleTerminalConnectionStateChange}
@@ -1062,6 +1111,7 @@ export const TTermApp: React.FC = () => {
               <BroadcastManager
                 activeTabId={activeTabId}
                 mode={broadcastMode}
+                liveState={liveBroadcastState}
                 latestResults={latestBroadcastResults}
                 unavailableTabIds={unavailableBroadcastTargetIds}
                 runtimeStates={terminalRuntimeStates}
@@ -1070,6 +1120,7 @@ export const TTermApp: React.FC = () => {
                 tabs={tabs}
                 onClear={clearBroadcastTargets}
                 onModeChange={setBroadcastMode}
+                onReconnectTargets={reconnectBroadcastTargets}
                 onSelectAll={selectAllBroadcastTargets}
                 onSelectVisible={selectVisibleBroadcastTargets}
                 onSendCommand={handleSendBroadcastCommand}

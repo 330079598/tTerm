@@ -5,6 +5,7 @@ import { SearchAddon } from "@xterm/addon-search"
 import { type IDisposable, Terminal } from "@xterm/xterm"
 import { invoke } from "@tauri-apps/api/core"
 import { useTranslation } from "react-i18next"
+import { Pause, Play, Square } from "lucide-react"
 import { SftpDrawer } from "@/components/SftpDrawer"
 import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
@@ -38,6 +39,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   connectionHeaderPinned = true,
   connection,
   isBroadcastSource = false,
+  liveBroadcastState = "idle",
   onConnectionStateChange,
   onInput,
   onPidChange,
@@ -46,6 +48,9 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   onSensitivePrompt,
   onOpenRemoteFile,
   onPinConnectionHeader,
+  onPauseBroadcast,
+  onResumeBroadcast,
+  onStopBroadcast,
   onServerMonitorVisibilityChange,
   onUnpinConnectionHeader,
 }) => {
@@ -100,6 +105,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   )
   const [jumpHostInfoOpen, setJumpHostInfoOpen] = useState(false)
   const [dontShowJumpHostInfoAgain, setDontShowJumpHostInfoAgain] = useState(false)
+
   const {
     closeSearch,
     handleSearchDragStart,
@@ -590,6 +596,36 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         onUnpinConnectionHeader={onUnpinConnectionHeader}
         serverMonitorVisible={showServerMonitor}
       />
+
+      {isBroadcastSource && liveBroadcastState !== "idle" && (
+        <div
+          className={`terminal-broadcast-controls is-${liveBroadcastState}`}
+          style={{ fontFamily: config.font_family }}
+        >
+          <span role="status">
+            {liveBroadcastState === "paused"
+              ? t("broadcast.livePaused")
+              : t("broadcast.liveActive")}
+          </span>
+          <div>
+            {liveBroadcastState === "paused" ? (
+              <button type="button" onClick={onResumeBroadcast}>
+                <Play size={13} aria-hidden="true" />
+                {t("broadcast.resumeLive")}
+              </button>
+            ) : (
+              <button type="button" onClick={onPauseBroadcast}>
+                <Pause size={13} aria-hidden="true" />
+                {t("broadcast.pauseLive")}
+              </button>
+            )}
+            <button type="button" className="destructive" onClick={onStopBroadcast}>
+              <Square size={13} aria-hidden="true" />
+              {t("broadcast.stopLive")}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div ref={surfaceRef} className="terminal-surface" style={terminalPaddingStyle}>
         <SftpDrawer

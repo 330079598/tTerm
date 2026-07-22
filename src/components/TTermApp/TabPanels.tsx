@@ -43,6 +43,7 @@ import { TerminalTab } from "@/components/TerminalTab"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { SavedProfile, Tab, TabContextMenuAction } from "@/types/tab"
 import type { TerminalInputRequest } from "@/types/broadcast"
+import type { LiveBroadcastState } from "@/types/broadcast"
 import type { ConnectionState } from "@/components/TerminalTab/types"
 
 const workspaceDockTheme = {
@@ -128,6 +129,10 @@ interface TabPanelsProps {
   startupSessionRestoreMode: "active" | "all"
   tabs: Tab[]
   broadcastSourceTabId: string | null
+  liveBroadcastState: LiveBroadcastState
+  onPauseBroadcast: () => void
+  onResumeBroadcast: () => void
+  onStopBroadcast: () => void
   updateTab: (id: string, updater: (tab: Tab) => Tab) => void
 }
 
@@ -339,6 +344,10 @@ const WorkspacePanel: React.FC<IDockviewPanelProps<WorkspacePanelParams>> = ({ a
               connectionHeaderPinned={tab.connectionHeaderPinned}
               connection={tab.connection ?? { type: tab.type === "terminal" ? "terminal" : "ssh" }}
               isBroadcastSource={workspace.broadcastSourceTabId === tab.id}
+              liveBroadcastState={workspace.liveBroadcastState}
+              onPauseBroadcast={workspace.onPauseBroadcast}
+              onResumeBroadcast={workspace.onResumeBroadcast}
+              onStopBroadcast={workspace.onStopBroadcast}
               onConnectionStateChange={workspace.onTerminalConnectionStateChange}
               onInput={workspace.onTerminalInput}
               onSessionUnavailable={workspace.onTerminalSessionUnavailable}
