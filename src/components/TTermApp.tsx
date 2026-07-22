@@ -100,6 +100,7 @@ export const TTermApp: React.FC = () => {
     Record<string, PtyWriteResult>
   >({})
   const [unavailableBroadcastTargetIds, setUnavailableBroadcastTargetIds] = useState<string[]>([])
+  const [isBroadcastPreparing, setIsBroadcastPreparing] = useState(false)
   const broadcastWriteQueueRef = useRef(Promise.resolve())
   const broadcastGenerationRef = useRef(0)
   const liveSourceRef = useRef<{ tabId: string; sessionNonce: number } | null>(null)
@@ -107,6 +108,12 @@ export const TTermApp: React.FC = () => {
   const runtimeStatesRef = useRef(terminalRuntimeStates)
   const targetIdsRef = useRef(broadcastTargetIds)
   const unavailableTargetIdsRef = useRef(unavailableBroadcastTargetIds)
+  const broadcastPreparingRef = useRef(false)
+  const broadcastPreflightRef = useRef<{
+    reject: (error: Error) => void
+    resolve: (targets: Array<{ tabId: string; sessionNonce: number }>) => void
+    targets: Map<string, number>
+  } | null>(null)
   runtimeStatesRef.current = terminalRuntimeStates
   targetIdsRef.current = broadcastTargetIds
   unavailableTargetIdsRef.current = unavailableBroadcastTargetIds
@@ -211,13 +218,134 @@ export const TTermApp: React.FC = () => {
   }, [])
 
   const writeBroadcast = useCallback(
-    async (data: string) => {
-      const targets = resolveBroadcastTargets()
+    async (data: string, targets = resolveBroadcastTargets()) => {
       if (targets.length === 0 || data.length === 0) return []
       return invoke<PtyWriteResult[]>("write_pty_batch", { targets, data })
     },
     [resolveBroadcastTargets]
   )
+
+  const evaluateBroadcastPreflight = useCallback(() => {
+    const preflight = broadcastPreflightRef.current
+    if (!preflight) return
+
+    const targets: Array<{ tabId: string; sessionNonce: number }> = []
+    for (const [tabId, sessionNonce] of preflight.targets) {
+      const tab = tabsRef.current.find((candidate) => candidate.id === tabId)
+      if (!tab || (tab.type !== "terminal" && tab.type !== "ssh")) {
+        preflight.reject(new Error(t("broadcast.reconnectTargetMissing")))
+        broadcastPreflightRef.current = null
+        return
+      }
+      const tabNonce = tab.sessionNonce ?? 0
+      if (tabNonce > sessionNonce) {
+        preflight.reject(new Error(t("broadcast.reconnectTargetChanged")))
+        broadcastPreflightRef.current = null
+        return
+      }
+      if (tabNonce < sessionNonce) return
+
+      const runtime = runtimeStatesRef.current[tabId]
+      if (!runtime || runtime.sessionNonce < sessionNonce) return
+      if (runtime.sessionNonce > sessionNonce) {
+        preflight.reject(new Error(t("broadcast.reconnectTargetChanged")))
+        broadcastPreflightRef.current = null
+        return
+      }
+      if (runtime.connectionState === "error" || runtime.connectionState === "disconnected") {
+        preflight.reject(new Error(t("broadcast.reconnectTargetFailed", { name: tab.title })))
+        broadcastPreflightRef.current = null
+        return
+      }
+      if (runtime.connectionState !== "connected") return
+      targets.push({ tabId, sessionNonce })
+    }
+
+    broadcastPreflightRef.current = null
+    preflight.resolve(targets)
+  }, [t])
+
+  useEffect(() => {
+    evaluateBroadcastPreflight()
+  }, [evaluateBroadcastPreflight, tabs, terminalRuntimeStates])
+
+  const ensureBroadcastTargetsConnected = useCallback(async () => {
+    if (broadcastPreparingRef.current) return null
+
+    const selected = new Set(targetIdsRef.current)
+    const targets = tabsRef.current.filter(
+      (tab) => selected.has(tab.id) && (tab.type === "terminal" || tab.type === "ssh")
+    )
+    if (targets.length !== selected.size || targets.length === 0) return null
+
+    const reconnectTargets = targets.filter((tab) => {
+      const runtime = runtimeStatesRef.current[tab.id]
+      return !(
+        runtime?.connectionState === "connected" && runtime.sessionNonce === (tab.sessionNonce ?? 0)
+      )
+    })
+    if (reconnectTargets.length === 0) {
+      return targets.map((tab) => ({ tabId: tab.id, sessionNonce: tab.sessionNonce ?? 0 }))
+    }
+
+    broadcastPreparingRef.current = true
+    setIsBroadcastPreparing(true)
+    try {
+      const confirmed = await confirm({
+        title: t("broadcast.autoReconnectConfirmTitle", { count: reconnectTargets.length }),
+        description: t("broadcast.autoReconnectConfirmDescription", {
+          count: reconnectTargets.length,
+        }),
+        confirmText: t("broadcast.reconnectConfirmAction"),
+        variant: "destructive",
+      })
+      if (!confirmed) return null
+
+      const expected = new Map<string, number>()
+      const reconnectIds = new Set(reconnectTargets.map((tab) => tab.id))
+      for (const tab of targets) {
+        const runtime = runtimeStatesRef.current[tab.id]
+        const nonce = tab.sessionNonce ?? 0
+        const keepConnecting =
+          reconnectIds.has(tab.id) &&
+          runtime?.connectionState === "connecting" &&
+          runtime.sessionNonce === nonce
+        expected.set(
+          tab.id,
+          reconnectIds.has(tab.id) && !keepConnecting ? (nonce + 1) >>> 0 : nonce
+        )
+      }
+
+      const connectedTargets = await new Promise<Array<{ tabId: string; sessionNonce: number }>>(
+        (resolve, reject) => {
+          broadcastPreflightRef.current = { reject, resolve, targets: expected }
+          for (const tab of reconnectTargets) {
+            const runtime = runtimeStatesRef.current[tab.id]
+            const nonce = tab.sessionNonce ?? 0
+            if (runtime?.connectionState !== "connecting" || runtime.sessionNonce !== nonce) {
+              updateTab(tab.id, (current) => ({
+                ...current,
+                sessionNonce: ((current.sessionNonce ?? 0) + 1) >>> 0,
+              }))
+            }
+          }
+          evaluateBroadcastPreflight()
+        }
+      )
+      return connectedTargets
+    } catch (error) {
+      toast({
+        title: t("broadcast.reconnectFailedTitle"),
+        description: String(error instanceof Error ? error.message : error),
+        variant: "destructive",
+      })
+      return null
+    } finally {
+      broadcastPreflightRef.current = null
+      broadcastPreparingRef.current = false
+      setIsBroadcastPreparing(false)
+    }
+  }, [confirm, evaluateBroadcastPreflight, t, updateTab])
 
   const handleTerminalInput = useCallback(
     async ({ tabId, sessionNonce, data, kind }: TerminalInputRequest) => {
@@ -302,11 +430,14 @@ export const TTermApp: React.FC = () => {
 
   const handleSendBroadcastCommand = useCallback(
     async (command: string) => {
+      const targets = await ensureBroadcastTargetsConnected()
+      if (!targets) return false
+
       if (/\r|\n/.test(command)) {
         const confirmed = await confirm({
           title: t("broadcast.multilineCommandTitle"),
           description: t("broadcast.multilineCommandDescription", {
-            count: resolveBroadcastTargets().length,
+            count: targets.length,
           }),
           confirmText: t("broadcast.sendAnyway"),
           variant: "destructive",
@@ -317,7 +448,20 @@ export const TTermApp: React.FC = () => {
       try {
         let results: PtyWriteResult[] = []
         const queuedWrite = broadcastWriteQueueRef.current.then(async () => {
-          results = await writeBroadcast(`${command}\r`)
+          const validTargets = resolveBroadcastTargets()
+          if (
+            validTargets.length !== targets.length ||
+            targets.some(
+              (target) =>
+                !validTargets.some(
+                  (valid) =>
+                    valid.tabId === target.tabId && valid.sessionNonce === target.sessionNonce
+                )
+            )
+          ) {
+            throw new Error(t("broadcast.targetsChanged"))
+          }
+          results = await writeBroadcast(`${command}\r`, targets)
         })
         broadcastWriteQueueRef.current = queuedWrite.catch(() => undefined)
         await queuedWrite
@@ -341,14 +485,17 @@ export const TTermApp: React.FC = () => {
         return false
       }
     },
-    [confirm, resolveBroadcastTargets, t, writeBroadcast]
+    [confirm, ensureBroadcastTargetsConnected, resolveBroadcastTargets, t, writeBroadcast]
   )
 
   const handleStartLiveBroadcast = useCallback(
     async (sourceTabId: string) => {
       const sourceTab = tabs.find((tab) => tab.id === sourceTabId)
       const runtime = terminalRuntimeStates[sourceTabId]
-      if (!sourceTab || runtime?.connectionState !== "connected") return
+      if (!sourceTab || runtime?.connectionState !== "connected") return false
+
+      const targets = await ensureBroadcastTargetsConnected()
+      if (!targets) return false
 
       const confirmed = await confirm({
         title: t("broadcast.liveConfirmTitle"),
@@ -356,7 +503,7 @@ export const TTermApp: React.FC = () => {
         confirmText: t("broadcast.startLive"),
         variant: "destructive",
       })
-      if (!confirmed) return
+      if (!confirmed) return false
 
       const currentSourceTab = tabsRef.current.find((tab) => tab.id === sourceTabId)
       const currentRuntime = runtimeStatesRef.current[sourceTabId]
@@ -366,11 +513,28 @@ export const TTermApp: React.FC = () => {
         currentRuntime?.connectionState !== "connected" ||
         currentRuntime.sessionNonce !== (currentSourceTab.sessionNonce ?? 0)
       ) {
-        return
+        return false
       }
 
       const liveTargets = resolveBroadcastTargets().filter((target) => target.tabId !== sourceTabId)
-      if (liveTargets.length === 0) return
+      if (
+        liveTargets.length === 0 ||
+        liveTargets.length !== targets.filter((target) => target.tabId !== sourceTabId).length ||
+        liveTargets.some(
+          (target) =>
+            !targets.some(
+              (expected) =>
+                expected.tabId === target.tabId && expected.sessionNonce === target.sessionNonce
+            )
+        )
+      ) {
+        toast({
+          title: t("broadcast.sendFailedTitle"),
+          description: t("broadcast.targetsChanged"),
+          variant: "destructive",
+        })
+        return false
+      }
       setBroadcastTargetIds((current) => current.filter((tabId) => tabId !== sourceTabId))
 
       const source = { tabId: sourceTabId, sessionNonce: currentSourceTab.sessionNonce ?? 0 }
@@ -380,8 +544,16 @@ export const TTermApp: React.FC = () => {
       setBroadcastSource(source)
       setLiveBroadcastState("active")
       setBroadcastMode("live")
+      return true
     },
-    [confirm, resolveBroadcastTargets, t, tabs, terminalRuntimeStates]
+    [
+      confirm,
+      ensureBroadcastTargetsConnected,
+      resolveBroadcastTargets,
+      t,
+      tabs,
+      terminalRuntimeStates,
+    ]
   )
 
   const handleTerminalSensitivePrompt = useCallback(
@@ -415,31 +587,24 @@ export const TTermApp: React.FC = () => {
     })
   }, [])
 
-  const selectWritableTargets = useCallback(
+  const selectBroadcastTargets = useCallback(
     (tabIds: string[]) => {
       const requested = new Set(tabIds)
       const selected = tabs
-        .filter(
-          (tab) =>
-            requested.has(tab.id) &&
-            (tab.type === "terminal" || tab.type === "ssh") &&
-            !unavailableBroadcastTargetIds.includes(tab.id) &&
-            terminalRuntimeStates[tab.id]?.connectionState === "connected" &&
-            terminalRuntimeStates[tab.id]?.sessionNonce === (tab.sessionNonce ?? 0)
-        )
+        .filter((tab) => requested.has(tab.id) && (tab.type === "terminal" || tab.type === "ssh"))
         .map((tab) => tab.id)
       setBroadcastTargetIds(selected)
     },
-    [tabs, terminalRuntimeStates, unavailableBroadcastTargetIds]
+    [tabs]
   )
 
   const selectVisibleBroadcastTargets = useCallback(() => {
-    selectWritableTargets(workspaceRef.current?.getVisibleTerminalTabIds() ?? [])
-  }, [selectWritableTargets])
+    selectBroadcastTargets(workspaceRef.current?.getVisibleTerminalTabIds() ?? [])
+  }, [selectBroadcastTargets])
 
   const selectAllBroadcastTargets = useCallback(() => {
-    selectWritableTargets(tabs.map((tab) => tab.id))
-  }, [selectWritableTargets, tabs])
+    selectBroadcastTargets(tabs.map((tab) => tab.id))
+  }, [selectBroadcastTargets, tabs])
 
   const clearBroadcastTargets = useCallback(() => {
     setBroadcastTargetIds([])
@@ -1112,6 +1277,7 @@ export const TTermApp: React.FC = () => {
                 activeTabId={activeTabId}
                 mode={broadcastMode}
                 liveState={liveBroadcastState}
+                preparing={isBroadcastPreparing}
                 latestResults={latestBroadcastResults}
                 unavailableTabIds={unavailableBroadcastTargetIds}
                 runtimeStates={terminalRuntimeStates}
@@ -1124,7 +1290,7 @@ export const TTermApp: React.FC = () => {
                 onSelectAll={selectAllBroadcastTargets}
                 onSelectVisible={selectVisibleBroadcastTargets}
                 onSendCommand={handleSendBroadcastCommand}
-                onStartLive={(tabId) => void handleStartLiveBroadcast(tabId)}
+                onStartLive={handleStartLiveBroadcast}
                 onStopLive={stopLiveBroadcast}
                 onToggleTarget={toggleBroadcastTarget}
               />

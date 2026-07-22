@@ -16,6 +16,7 @@ type BroadcastManagerProps = {
   activeTabId: string | null
   mode: BroadcastMode
   liveState: LiveBroadcastState
+  preparing: boolean
   latestResults: Record<string, PtyWriteResult>
   unavailableTabIds: string[]
   runtimeStates: Record<string, TerminalRuntimeState>
@@ -28,7 +29,7 @@ type BroadcastManagerProps = {
   onSelectAll: () => void
   onSelectVisible: () => void
   onSendCommand: (command: string) => Promise<boolean>
-  onStartLive: (sourceTabId: string) => void
+  onStartLive: (sourceTabId: string) => Promise<boolean>
   onStopLive: () => void
   onToggleTarget: (tabId: string) => void
 }
@@ -37,6 +38,7 @@ export function BroadcastManager({
   activeTabId,
   mode,
   liveState,
+  preparing,
   latestResults,
   unavailableTabIds,
   runtimeStates,
@@ -61,39 +63,25 @@ export function BroadcastManager({
   const terminalTabs = tabs.filter((tab) => tab.type === "terminal" || tab.type === "ssh")
   const selected = new Set(selectedTabIds)
   const unavailable = new Set(unavailableTabIds)
-  const writableCount = selectedTabIds.filter((tabId) => {
-    const tab = terminalTabs.find((candidate) => candidate.id === tabId)
-    return (
-      !!tab &&
-      !unavailable.has(tabId) &&
-      runtimeStates[tabId]?.connectionState === "connected" &&
-      runtimeStates[tabId]?.sessionNonce === (tab.sessionNonce ?? 0)
-    )
-  }).length
   const activeTab = terminalTabs.find((tab) => tab.id === activeTabId)
   const isLiveRunning = liveState !== "idle"
   const canStartLive =
     !!activeTab &&
     runtimeStates[activeTab.id]?.connectionState === "connected" &&
     runtimeStates[activeTab.id]?.sessionNonce === (activeTab.sessionNonce ?? 0)
-  const liveTargetCount = selectedTabIds
-    .filter((tabId) => tabId !== activeTab?.id)
-    .filter((tabId) => {
-      const tab = terminalTabs.find((candidate) => candidate.id === tabId)
-      return (
-        !!tab &&
-        !unavailable.has(tabId) &&
-        runtimeStates[tabId]?.connectionState === "connected" &&
-        runtimeStates[tabId]?.sessionNonce === (tab.sessionNonce ?? 0)
-      )
-    }).length
+  const liveTargetCount = selectedTabIds.filter((tabId) => tabId !== activeTab?.id).length
 
   const close = useCallback(() => setOpen(false), [])
 
   useEffect(() => {
     if (!open) return
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close()
+      if (
+        e.key === "Escape" &&
+        !document.querySelector('[data-slot="dialog-content"][data-state="open"]')
+      ) {
+        close()
+      }
     }
     document.addEventListener("keydown", onKeyDown)
     return () => document.removeEventListener("keydown", onKeyDown)
@@ -109,7 +97,7 @@ export function BroadcastManager({
   )
 
   const submitCommand = async () => {
-    if (!command.trim()) return
+    if (!command.trim() || preparing) return
     if (await onSendCommand(command)) {
       setCommand("")
     }
@@ -165,7 +153,7 @@ export function BroadcastManager({
                   type="button"
                   className={mode === "command" ? "active" : ""}
                   onClick={() => onModeChange("command")}
-                  disabled={isLiveRunning}
+                  disabled={isLiveRunning || preparing}
                 >
                   {t("broadcast.commandMode")}
                 </button>
@@ -173,26 +161,26 @@ export function BroadcastManager({
                   type="button"
                   className={mode === "live" ? "active live" : ""}
                   onClick={() => onModeChange("live")}
-                  disabled={isLiveRunning}
+                  disabled={isLiveRunning || preparing}
                 >
                   {t("broadcast.liveMode")}
                 </button>
               </div>
 
               <div className="broadcast-target-actions">
-                <button type="button" onClick={onSelectVisible}>
+                <button type="button" onClick={onSelectVisible} disabled={preparing}>
                   {t("broadcast.selectVisible")}
                 </button>
-                <button type="button" onClick={onSelectAll}>
+                <button type="button" onClick={onSelectAll} disabled={preparing}>
                   {t("broadcast.selectAll")}
                 </button>
-                <button type="button" onClick={onClear}>
+                <button type="button" onClick={onClear} disabled={preparing}>
                   {t("broadcast.clear")}
                 </button>
                 <button
                   type="button"
                   className="broadcast-reconnect-button"
-                  disabled={terminalTabs.length === 0}
+                  disabled={terminalTabs.length === 0 || preparing}
                   onClick={() => void onReconnectTargets()}
                 >
                   <RefreshCw size={12} aria-hidden="true" />
@@ -214,11 +202,11 @@ export function BroadcastManager({
                       runtime.sessionNonce === (tab.sessionNonce ?? 0)
                     const isLiveSource = isLiveRunning && sourceTabId === tab.id
                     return (
-                      <label key={tab.id} className={!writable || isLiveSource ? "disabled" : ""}>
+                      <label key={tab.id} className={isLiveSource ? "disabled" : ""}>
                         <input
                           type="checkbox"
                           checked={selected.has(tab.id)}
-                          disabled={!writable || isLiveSource}
+                          disabled={isLiveSource || preparing}
                           onChange={() => onToggleTarget(tab.id)}
                         />
                         <span className="broadcast-target-name">{tab.title}</span>
@@ -259,11 +247,17 @@ export function BroadcastManager({
                       <p>{t("broadcast.liveReadyDescription")}</p>
                       <button
                         type="button"
-                        disabled={!canStartLive || liveTargetCount === 0}
-                        onClick={() => activeTab && onStartLive(activeTab.id)}
+                        disabled={!canStartLive || liveTargetCount === 0 || preparing}
+                        onClick={() => {
+                          if (!activeTab) return
+                          close()
+                          void onStartLive(activeTab.id)
+                        }}
                       >
                         <RadioTower size={13} aria-hidden="true" />
-                        {t("broadcast.startLive")}
+                        {preparing
+                          ? t("broadcast.waitingForConnections")
+                          : t("broadcast.startLive")}
                       </button>
                     </>
                   )}
@@ -272,6 +266,7 @@ export function BroadcastManager({
                 <div className="broadcast-command-editor">
                   <textarea
                     value={command}
+                    disabled={preparing}
                     placeholder={t("broadcast.commandPlaceholder")}
                     onChange={(event) => setCommand(event.target.value)}
                     onKeyDown={(event) => {
@@ -283,11 +278,13 @@ export function BroadcastManager({
                   />
                   <button
                     type="button"
-                    disabled={!command.trim() || writableCount === 0}
+                    disabled={!command.trim() || selectedTabIds.length === 0 || preparing}
                     onClick={() => void submitCommand()}
                   >
                     <Send size={14} />
-                    {t("broadcast.send", { count: writableCount })}
+                    {preparing
+                      ? t("broadcast.waitingForConnections")
+                      : t("broadcast.send", { count: selectedTabIds.length })}
                   </button>
                 </div>
               )}

@@ -70,7 +70,7 @@
   justify-content: center;
   background: hsl(0 0% 0% / 0.45);
   backdrop-filter: blur(4px);
-  z-index: 1000;
+  z-index: 150;
 }
 
 .broadcast-panel {
