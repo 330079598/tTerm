@@ -69,9 +69,9 @@
     --radius: 0.25rem;
 
     /* Custom variables for terminal app
-       Hierarchy: titlebar < tab-background < tab-hover; tab-active = content bg */
-    --tab-background: 220 13% 20%;
-    --tab-active: 220 13% 12%;
+       Keep inactive tabs quiet and lift the active tab above the titlebar. */
+    --tab-background: 220 13% 12%;
+    --tab-active: 220 13% 20%;
     --tab-active-border: 207 100% 48%;
     --tab-hover: 220 13% 24%;
     --titlebar: 220 13% 16%;
@@ -110,8 +110,8 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 207 100% 40%;
 
-    --tab-background: 210 40% 93%;
-    --tab-active: 0 0% 100%;
+    --tab-background: 0 0% 100%;
+    --tab-active: 210 40% 93%;
     --tab-active-border: 207 100% 45%;
     --tab-hover: 210 40% 90%;
     --titlebar: 210 40% 96%;
@@ -150,8 +150,8 @@
     --input: 200 20% 30%;
     --ring: 190 80% 45%;
 
-    --tab-background: 200 30% 17%;
-    --tab-active: 200 30% 10%;
+    --tab-background: 200 30% 10%;
+    --tab-active: 200 30% 17%;
     --tab-active-border: 190 80% 48%;
     --tab-hover: 200 30% 22%;
     --titlebar: 200 30% 13%;
@@ -190,8 +190,8 @@
     --input: 140 15% 30%;
     --ring: 145 65% 45%;
 
-    --tab-background: 140 25% 19%;
-    --tab-active: 140 25% 12%;
+    --tab-background: 140 25% 12%;
+    --tab-active: 140 25% 19%;
     --tab-active-border: 145 65% 48%;
     --tab-hover: 140 25% 24%;
     --titlebar: 140 25% 15%;
@@ -230,8 +230,8 @@
     --input: 20 20% 30%;
     --ring: 25 85% 55%;
 
-    --tab-background: 20 30% 19%;
-    --tab-active: 20 30% 12%;
+    --tab-background: 20 30% 12%;
+    --tab-active: 20 30% 19%;
     --tab-active-border: 25 85% 55%;
     --tab-hover: 20 30% 24%;
     --titlebar: 20 30% 15%;
@@ -272,8 +272,8 @@
     --input: 312 22% 27%;
     --ring: 14 82% 52%;
 
-    --tab-background: 312 36% 18%;
-    --tab-active: 302 58% 10%;
+    --tab-background: 302 58% 10%;
+    --tab-active: 312 36% 18%;
     --tab-active-border: 14 82% 52%;
     --tab-hover: 312 34% 23%;
     --titlebar: 302 50% 13%;
