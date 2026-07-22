@@ -17,19 +17,6 @@
   -webkit-app-region: no-drag;
   position: relative;
   z-index: 20;
-  border-bottom: 1px solid hsl(var(--border) / 0.55);
-  box-shadow: 0 1px 0 hsl(var(--foreground) / 0.025);
-}
-
-.title-bar::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  /* height: .5px; */
-  background-color: hsl(var(--border));
-  z-index: 0;
 }
 
 .title-bar-left {
