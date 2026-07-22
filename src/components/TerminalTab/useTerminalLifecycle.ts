@@ -35,7 +35,10 @@ type UseTerminalLifecycleOptions = {
   isActiveRef: React.MutableRefObject<boolean>
   lastPtySizeRef: React.MutableRefObject<{ rows: number; cols: number } | null>
   onPidChangeRef: React.MutableRefObject<TerminalTabProps["onPidChange"]>
+  onInputRef: React.MutableRefObject<TerminalTabProps["onInput"]>
   onReconnectRequestRef: React.MutableRefObject<TerminalTabProps["onReconnectRequest"]>
+  onSessionUnavailableRef: React.MutableRefObject<TerminalTabProps["onSessionUnavailable"]>
+  onSensitivePromptRef: React.MutableRefObject<TerminalTabProps["onSensitivePrompt"]>
   passwordPromptActiveRef: React.MutableRefObject<boolean>
   resizeObserverRef: React.MutableRefObject<ResizeObserver | null>
   resizePtySyncTimerRef: React.MutableRefObject<number | null>
@@ -89,7 +92,10 @@ export function useTerminalLifecycle({
   isActiveRef,
   lastPtySizeRef,
   onPidChangeRef,
+  onInputRef,
   onReconnectRequestRef,
+  onSessionUnavailableRef,
+  onSensitivePromptRef,
   passwordPromptActiveRef,
   resizeObserverRef,
   resizePtySyncTimerRef,
@@ -193,9 +199,25 @@ export function useTerminalLifecycle({
         }
 
         passwordPromptActiveRef.current = false
+        invoke("write_pty", { tabId, sessionNonce, data }).catch(console.error)
+        return
       }
 
-      invoke("write_pty", { tabId, sessionNonce, data }).catch(console.error)
+      const onInput = onInputRef.current
+      if (onInput) {
+        const isMultilinePaste =
+          data.includes("\n") ||
+          (data.length > 1 && data.includes("\r")) ||
+          data.includes("\x1b[200~")
+        void onInput({
+          tabId,
+          sessionNonce,
+          data,
+          kind: isMultilinePaste ? "paste" : "keyboard",
+        }).catch(console.error)
+      } else {
+        invoke("write_pty", { tabId, sessionNonce, data }).catch(console.error)
+      }
     })
 
     let unlistenOutput: (() => void) | null = null
@@ -217,6 +239,7 @@ export function useTerminalLifecycle({
         const match = payload.match(sudoPasswordPattern)
 
         if (match && !passwordPromptActiveRef.current) {
+          onSensitivePromptRef.current?.(tabId)
           const promptUsername = match[1].trim()
           const savedUsername = connectionRef.current?.username
           const profileId = connectionRef.current?.profileId
@@ -245,6 +268,7 @@ export function useTerminalLifecycle({
         term.write(payload)
       }),
       listen(`pty-exit-${tabId}`, (event) => {
+        onSessionUnavailableRef.current?.(tabId)
         const reason = event.payload as string | null | undefined
         if (connectionRef.current?.type === "ssh") {
           const displayAddress = getConnectionDisplay(connectionRef.current)
@@ -259,6 +283,7 @@ export function useTerminalLifecycle({
           waitingForReconnectRef.current = true
         } else {
           term.writeln("\r\n\x1b[33m[Process exited]\x1b[0m")
+          setConnectionState("disconnected")
         }
       }),
       listen<HostKeyPromptState>(`ssh-hostkey-prompt-${tabId}`, async (event) => {
@@ -288,7 +313,7 @@ export function useTerminalLifecycle({
           return null
         }
 
-        setConnectionState(connectionRef.current?.type === "ssh" ? "connecting" : "connected")
+        setConnectionState("connecting")
 
         if (creatingPtyRef.current) {
           return null
@@ -394,7 +419,10 @@ export function useTerminalLifecycle({
     isActiveRef,
     lastPtySizeRef,
     onPidChangeRef,
+    onInputRef,
     onReconnectRequestRef,
+    onSessionUnavailableRef,
+    onSensitivePromptRef,
     passwordPromptActiveRef,
     resizeObserverRef,
     resizePtySyncTimerRef,

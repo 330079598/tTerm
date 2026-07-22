@@ -23,6 +23,10 @@
   background: hsl(var(--background));
 }
 
+.terminal-tab-shell.is-broadcast-source {
+  box-shadow: inset 0 0 0 2px hsl(var(--destructive) / 0.85);
+}
+
 .connection-header {
   display: flex;
   align-items: center;

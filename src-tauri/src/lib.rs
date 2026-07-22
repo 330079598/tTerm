@@ -147,6 +147,7 @@ pub fn run() {
             session::clear_session,
             core::commands::create_pty,
             core::commands::write_pty,
+            core::commands::write_pty_batch,
             core::commands::resize_pty,
             core::commands::kill_pty,
             core::commands::respond_ssh_host_key_prompt,

@@ -19,6 +19,249 @@
   color: hsl(var(--foreground));
 }
 
+.broadcast-manager {
+  position: relative;
+  -webkit-app-region: no-drag;
+}
+
+.broadcast-trigger {
+  position: relative;
+}
+
+.broadcast-trigger.is-open {
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.12);
+}
+
+.broadcast-trigger.is-live {
+  width: auto;
+  gap: 4px;
+  padding: 0 7px;
+  color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 0.14);
+}
+
+.broadcast-count-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 12px;
+  height: 12px;
+  padding: 0 3px;
+  border-radius: 999px;
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
+  font-size: 8px;
+  line-height: 12px;
+}
+
+.broadcast-live-badge,
+.broadcast-live-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.broadcast-panel {
+  position: absolute;
+  z-index: 1000;
+  top: 36px;
+  right: 0;
+  width: min(390px, calc(100vw - 20px));
+  padding: 14px;
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) + 2px);
+  color: hsl(var(--foreground));
+  background: hsl(var(--popover));
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.38);
+}
+
+.broadcast-panel-header,
+.broadcast-panel-header > div,
+.broadcast-target-actions,
+.broadcast-mode-tabs,
+.broadcast-live-controls,
+.broadcast-command-editor {
+  display: flex;
+  align-items: center;
+}
+
+.broadcast-panel-header {
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.broadcast-panel-header > div {
+  gap: 8px;
+}
+
+.broadcast-panel-header span {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+}
+
+.broadcast-panel-header .broadcast-live-label {
+  color: hsl(var(--destructive));
+}
+
+.broadcast-mode-tabs {
+  padding: 3px;
+  margin-bottom: 10px;
+  border-radius: var(--radius);
+  background: hsl(var(--muted) / 0.65);
+}
+
+.broadcast-mode-tabs button,
+.broadcast-target-actions button {
+  border: 0;
+  color: hsl(var(--muted-foreground));
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.broadcast-mode-tabs button {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.broadcast-mode-tabs button.active {
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+}
+
+.broadcast-mode-tabs button.active.live {
+  color: hsl(var(--destructive));
+}
+
+.broadcast-mode-tabs button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.broadcast-target-actions {
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.broadcast-target-actions button {
+  padding: 2px 0;
+}
+
+.broadcast-target-actions button:hover {
+  color: hsl(var(--foreground));
+}
+
+.broadcast-target-list {
+  overflow-y: auto;
+  max-height: 210px;
+  border-block: 1px solid hsl(var(--border));
+}
+
+.broadcast-target-list label {
+  display: grid;
+  grid-template-columns: auto minmax(80px, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.broadcast-target-list label.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.broadcast-target-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.broadcast-target-kind,
+.broadcast-target-status {
+  color: hsl(var(--muted-foreground));
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.broadcast-target-status.connected {
+  color: hsl(var(--success));
+}
+
+.broadcast-empty {
+  padding: 24px 8px;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+  font-size: 11px;
+}
+
+.broadcast-command-editor {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.broadcast-command-editor textarea {
+  min-height: 72px;
+  resize: vertical;
+  padding: 8px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  outline: none;
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  font: 11px/1.5 var(--font-mono, monospace);
+}
+
+.broadcast-command-editor textarea:focus {
+  border-color: hsl(var(--ring));
+}
+
+.broadcast-command-editor button,
+.broadcast-live-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  align-self: flex-end;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius);
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.broadcast-command-editor button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.broadcast-live-controls {
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 10px;
+}
+
+.broadcast-live-controls p {
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.broadcast-live-controls button {
+  flex-shrink: 0;
+  color: hsl(var(--destructive-foreground));
+  background: hsl(var(--destructive));
+}
+
 /* Button variants (used in empty state) */
 .btn-primary {
   display: inline-flex;

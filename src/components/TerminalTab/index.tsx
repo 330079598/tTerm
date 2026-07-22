@@ -37,8 +37,13 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   workspacePanelApi,
   connectionHeaderPinned = true,
   connection,
+  isBroadcastSource = false,
+  onConnectionStateChange,
+  onInput,
   onPidChange,
   onReconnectRequest,
+  onSessionUnavailable,
+  onSensitivePrompt,
   onOpenRemoteFile,
   onPinConnectionHeader,
   onServerMonitorVisibilityChange,
@@ -61,7 +66,10 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const creatingPtyRef = useRef(false)
   const waitingForReconnectRef = useRef(false)
   const onPidChangeRef = useStableRef(onPidChange)
+  const onInputRef = useStableRef(onInput)
   const onReconnectRequestRef = useStableRef(onReconnectRequest)
+  const onSessionUnavailableRef = useStableRef(onSessionUnavailable)
+  const onSensitivePromptRef = useStableRef(onSensitivePrompt)
   const { config, saveConfig } = useConfig()
   const { currentTheme, getTheme } = useTheme()
   const { t } = useTranslation()
@@ -70,8 +78,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const initialCursorStyle = useRef(config.cursor_style)
   const initialScrollbackLines = useRef(config.scrollback_lines)
   const sessionResetKey = `${tabId}:${sessionNonce}:${connection?.type ?? "terminal"}`
-  const defaultConnectionState: ConnectionState =
-    connection?.type === "ssh" ? "connecting" : "connected"
+  const defaultConnectionState: ConnectionState = "connecting"
   const passwordPromptActiveRef = useRef(false)
   const lastJumpHostReadyKeyRef = useRef<string | null>(null)
 
@@ -299,7 +306,10 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     isActiveRef,
     lastPtySizeRef,
     onPidChangeRef,
+    onInputRef,
     onReconnectRequestRef,
+    onSessionUnavailableRef,
+    onSensitivePromptRef,
     passwordPromptActiveRef,
     resizeObserverRef,
     resizePtySyncTimerRef,
@@ -317,6 +327,15 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     termRef,
     waitingForReconnectRef,
   })
+
+  useEffect(() => {
+    onConnectionStateChange?.(tabId, sessionNonce, connectionState)
+  }, [connectionState, onConnectionStateChange, sessionNonce, tabId])
+
+  useEffect(
+    () => () => onConnectionStateChange?.(tabId, sessionNonce, null),
+    [onConnectionStateChange, sessionNonce, tabId]
+  )
 
   useEffect(() => {
     if (!workspacePanelApi) return
@@ -426,10 +445,11 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   )
 
   const handleReconnect = useCallback(() => {
+    onSessionUnavailable?.(tabId)
     waitingForReconnectRef.current = false
     setConnectionState("connecting")
     onReconnectRequest?.()
-  }, [onReconnectRequest, setConnectionState])
+  }, [onReconnectRequest, onSessionUnavailable, setConnectionState, tabId])
 
   const handleConnectionHeaderMouseDown = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
@@ -515,7 +535,11 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
           return
         }
 
-        await invoke("write_pty", { tabId, sessionNonce, data: clipboardText })
+        if (onInput) {
+          await onInput({ tabId, sessionNonce, data: clipboardText, kind: "paste" })
+        } else {
+          await invoke("write_pty", { tabId, sessionNonce, data: clipboardText })
+        }
       } catch (error) {
         console.error("Failed to paste into terminal:", error)
         toast({
@@ -529,7 +553,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         })
       }
     },
-    [sessionNonce, showSftpDrawer, t, tabId]
+    [onInput, sessionNonce, showSftpDrawer, t, tabId]
   )
 
   const searchResultText = searchQuery
@@ -549,7 +573,10 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   } as React.CSSProperties
 
   return (
-    <div className="terminal-tab-shell">
+    <div
+      className={`terminal-tab-shell ${isBroadcastSource ? "is-broadcast-source" : ""}`}
+      aria-label={isBroadcastSource ? t("broadcast.sourceTerminal") : undefined}
+    >
       <ConnectionHeader
         connection={connection}
         connectionHeaderPinned={connectionHeaderPinned}

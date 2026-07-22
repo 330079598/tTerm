@@ -1,6 +1,7 @@
 import type { Tab } from "@/types/tab"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import type { DockviewPanelApi } from "dockview-react"
+import type { TerminalInputRequest } from "@/types/broadcast"
 
 export interface TerminalTabProps {
   tabId: string
@@ -10,6 +11,14 @@ export interface TerminalTabProps {
   connectionHeaderPinned?: boolean
   connection?: Tab["connection"]
   onPidChange?: (pid: number) => void
+  onConnectionStateChange?: (
+    tabId: string,
+    sessionNonce: number,
+    state: ConnectionState | null
+  ) => void
+  onInput?: (request: TerminalInputRequest) => Promise<void>
+  onSessionUnavailable?: (tabId: string) => void
+  onSensitivePrompt?: (tabId: string) => void
   onReconnectRequest?: () => void
   onOpenRemoteFile?: (
     entry: SftpDirectoryEntry,
@@ -19,6 +28,7 @@ export interface TerminalTabProps {
   onPinConnectionHeader?: () => void
   onServerMonitorVisibilityChange?: (visible: boolean) => void
   onUnpinConnectionHeader?: () => void
+  isBroadcastSource?: boolean
 }
 
 export type ConnectionState = "connecting" | "connected" | "disconnected" | "error"

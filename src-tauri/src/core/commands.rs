@@ -2,6 +2,9 @@ use super::session::{normalize_connection, resolve_ssh_password};
 use super::state::{ActiveSession, HostPromptMap, PtyMap, PtySession, SessionExitSignal};
 use super::supervisor::spawn_supervisor;
 use crate::terminal;
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
+use std::io::Write;
 use std::sync::Arc;
 use tauri::{AppHandle, State};
 use tokio::sync::{mpsc, watch, Mutex as TokioMutex};
@@ -205,6 +208,188 @@ pub fn write_pty(
             .input_tx
             .send(data.into_bytes())
             .map_err(|_| format!("PTY session {} is not writable", tab_id)),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PtyWriteTarget {
+    pub tab_id: String,
+    pub session_nonce: u32,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum PtyWriteStatus {
+    Written,
+    Stale,
+    Missing,
+    Reconnecting,
+    Failed,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PtyWriteResult {
+    pub tab_id: String,
+    pub status: PtyWriteStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+impl PtyWriteResult {
+    fn new(tab_id: String, status: PtyWriteStatus) -> Self {
+        Self {
+            tab_id,
+            status,
+            error: None,
+        }
+    }
+
+    fn failed(tab_id: String, error: String) -> Self {
+        Self {
+            tab_id,
+            status: PtyWriteStatus::Failed,
+            error: Some(error),
+        }
+    }
+}
+
+enum BatchTarget {
+    Ready {
+        tab_id: String,
+        active: Arc<TokioMutex<Option<ActiveSession>>>,
+    },
+    Result(PtyWriteResult),
+}
+
+fn snapshot_batch_targets(
+    sessions: &HashMap<String, PtySession>,
+    targets: Vec<PtyWriteTarget>,
+) -> Vec<BatchTarget> {
+    let mut seen = HashSet::with_capacity(targets.len());
+    targets
+        .into_iter()
+        .filter(|target| seen.insert(target.tab_id.clone()))
+        .map(|target| match sessions.get(&target.tab_id) {
+            None => {
+                BatchTarget::Result(PtyWriteResult::new(target.tab_id, PtyWriteStatus::Missing))
+            }
+            Some(session) if session.session_nonce != target.session_nonce => {
+                BatchTarget::Result(PtyWriteResult::new(target.tab_id, PtyWriteStatus::Stale))
+            }
+            Some(session) => BatchTarget::Ready {
+                tab_id: target.tab_id,
+                active: session.active.clone(),
+            },
+        })
+        .collect()
+}
+
+#[tauri::command]
+pub fn write_pty_batch(
+    targets: Vec<PtyWriteTarget>,
+    data: String,
+    state: State<'_, PtyMap>,
+) -> Vec<PtyWriteResult> {
+    if targets.is_empty() || data.is_empty() {
+        return Vec::new();
+    }
+
+    let map = state.blocking_read();
+    let targets = snapshot_batch_targets(&map, targets);
+    drop(map);
+
+    targets
+        .into_iter()
+        .map(|target| match target {
+            BatchTarget::Result(result) => result,
+            BatchTarget::Ready { tab_id, active } => {
+                let mut active_guard = active.blocking_lock();
+                let Some(active) = active_guard.as_mut() else {
+                    return PtyWriteResult::new(tab_id, PtyWriteStatus::Reconnecting);
+                };
+
+                let write_result = match active {
+                    ActiveSession::Local(local) => local.writer.write_all(data.as_bytes()),
+                    ActiveSession::Ssh(ssh) => ssh
+                        .input_tx
+                        .send(data.as_bytes().to_vec())
+                        .map_err(|_| std::io::Error::other("SSH input channel is closed")),
+                };
+
+                match write_result {
+                    Ok(()) => PtyWriteResult::new(tab_id, PtyWriteStatus::Written),
+                    Err(error) => PtyWriteResult::failed(tab_id, error.to_string()),
+                }
+            }
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod batch_write_tests {
+    use super::*;
+
+    fn session(session_nonce: u32, runtime: &tokio::runtime::Runtime) -> PtySession {
+        let (stop_tx, _) = watch::channel(false);
+        PtySession {
+            pid: 0,
+            session_nonce,
+            active: Arc::new(TokioMutex::new(None)),
+            stop_tx,
+            supervisor: runtime.spawn(async {}),
+        }
+    }
+
+    #[test]
+    fn snapshot_deduplicates_and_classifies_targets_in_request_order() {
+        let runtime = tokio::runtime::Runtime::new().expect("runtime");
+        let sessions = HashMap::from([
+            ("ready".to_string(), session(7, &runtime)),
+            ("stale".to_string(), session(9, &runtime)),
+        ]);
+        let targets = vec![
+            PtyWriteTarget {
+                tab_id: "missing".to_string(),
+                session_nonce: 1,
+            },
+            PtyWriteTarget {
+                tab_id: "ready".to_string(),
+                session_nonce: 7,
+            },
+            PtyWriteTarget {
+                tab_id: "stale".to_string(),
+                session_nonce: 8,
+            },
+            PtyWriteTarget {
+                tab_id: "ready".to_string(),
+                session_nonce: 7,
+            },
+        ];
+
+        let snapshot = snapshot_batch_targets(&sessions, targets);
+        assert_eq!(snapshot.len(), 3);
+        assert!(matches!(
+            &snapshot[0],
+            BatchTarget::Result(PtyWriteResult {
+                tab_id,
+                status: PtyWriteStatus::Missing,
+                ..
+            }) if tab_id == "missing"
+        ));
+        assert!(matches!(
+            &snapshot[1],
+            BatchTarget::Ready { tab_id, .. } if tab_id == "ready"
+        ));
+        assert!(matches!(
+            &snapshot[2],
+            BatchTarget::Result(PtyWriteResult {
+                tab_id,
+                status: PtyWriteStatus::Stale,
+                ..
+            }) if tab_id == "stale"
+        ));
     }
 }
 

@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { ConnectionDialog } from "@/components/ConnectionDialog"
+import { BroadcastManager } from "@/components/BroadcastManager"
 import { ContextMenu } from "@/components/ContextMenu"
 import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
 import { RenameDialog } from "@/components/RenameDialog"
@@ -34,6 +35,13 @@ import { toast } from "@/hooks/use-toast"
 import { useWindowControls } from "@/hooks/useWindowControls"
 import { markSessionReady } from "@/lib/startup"
 import { Tab } from "@/types/tab"
+import type {
+  BroadcastMode,
+  PtyWriteResult,
+  TerminalInputRequest,
+  TerminalRuntimeState,
+} from "@/types/broadcast"
+import type { ConnectionState } from "@/components/TerminalTab/types"
 
 const SETTINGS_TAB_TITLE = "Settings"
 
@@ -77,6 +85,28 @@ export const TTermApp: React.FC = () => {
   const [sessionRestored, setSessionRestored] = useState(false)
   const [workspaceLayout, setWorkspaceLayout] = useState<SerializedDockview | null>(null)
   const [startupVaultUnlockDismissed, setStartupVaultUnlockDismissed] = useState(false)
+  const [broadcastMode, setBroadcastMode] = useState<BroadcastMode>("command")
+  const [broadcastSource, setBroadcastSource] = useState<{
+    tabId: string
+    sessionNonce: number
+  } | null>(null)
+  const [broadcastTargetIds, setBroadcastTargetIds] = useState<string[]>([])
+  const [terminalRuntimeStates, setTerminalRuntimeStates] = useState<
+    Record<string, TerminalRuntimeState>
+  >({})
+  const [latestBroadcastResults, setLatestBroadcastResults] = useState<
+    Record<string, PtyWriteResult>
+  >({})
+  const [unavailableBroadcastTargetIds, setUnavailableBroadcastTargetIds] = useState<string[]>([])
+  const broadcastWriteQueueRef = useRef(Promise.resolve())
+  const broadcastGenerationRef = useRef(0)
+  const liveSourceRef = useRef<{ tabId: string; sessionNonce: number } | null>(null)
+  const runtimeStatesRef = useRef(terminalRuntimeStates)
+  const targetIdsRef = useRef(broadcastTargetIds)
+  const unavailableTargetIdsRef = useRef(unavailableBroadcastTargetIds)
+  runtimeStatesRef.current = terminalRuntimeStates
+  targetIdsRef.current = broadcastTargetIds
+  unavailableTargetIdsRef.current = unavailableBroadcastTargetIds
   const workspaceRef = useRef<TabPanelsHandle>(null)
 
   const {
@@ -97,6 +127,10 @@ export const TTermApp: React.FC = () => {
     restoreSession,
     updateTab,
   } = useTabs()
+  const tabsRef = useRef(tabs)
+  const activeTabIdRef = useRef(activeTabId)
+  tabsRef.current = tabs
+  activeTabIdRef.current = activeTabId
 
   const { saveSession, loadSession } = useSessionPersistence()
   const { cleanupConnection } = useConnectionManager()
@@ -115,6 +149,321 @@ export const TTermApp: React.FC = () => {
     !secretStatus.vaultUnlocked &&
     !startupVaultUnlockDismissed
   const startupConnectionsReady = !shouldPromptStartupVaultUnlock
+
+  const stopLiveBroadcast = useCallback(() => {
+    broadcastGenerationRef.current += 1
+    liveSourceRef.current = null
+    setBroadcastSource(null)
+    setBroadcastMode("command")
+  }, [])
+
+  const handleTerminalConnectionStateChange = useCallback(
+    (tabId: string, sessionNonce: number, connectionState: ConnectionState | null) => {
+      setTerminalRuntimeStates((current) => {
+        if (connectionState === null) {
+          if (current[tabId]?.sessionNonce !== sessionNonce) return current
+          const next = { ...current }
+          delete next[tabId]
+          return next
+        }
+
+        const previous = current[tabId]
+        if (
+          previous?.sessionNonce === sessionNonce &&
+          previous.connectionState === connectionState
+        ) {
+          return current
+        }
+        return { ...current, [tabId]: { connectionState, sessionNonce } }
+      })
+      if (connectionState === "connected") {
+        setUnavailableBroadcastTargetIds((current) => current.filter((id) => id !== tabId))
+        setLatestBroadcastResults((current) => {
+          if (!current[tabId]) return current
+          const next = { ...current }
+          delete next[tabId]
+          return next
+        })
+      }
+    },
+    []
+  )
+
+  const resolveBroadcastTargets = useCallback(() => {
+    const selected = new Set(targetIdsRef.current)
+    const unavailable = new Set(unavailableTargetIdsRef.current)
+    return tabsRef.current
+      .filter(
+        (tab) =>
+          selected.has(tab.id) &&
+          !unavailable.has(tab.id) &&
+          (tab.type === "terminal" || tab.type === "ssh") &&
+          runtimeStatesRef.current[tab.id]?.connectionState === "connected" &&
+          runtimeStatesRef.current[tab.id]?.sessionNonce === (tab.sessionNonce ?? 0)
+      )
+      .map((tab) => ({ tabId: tab.id, sessionNonce: tab.sessionNonce ?? 0 }))
+  }, [])
+
+  const writeBroadcast = useCallback(
+    async (data: string) => {
+      const targets = resolveBroadcastTargets()
+      if (targets.length === 0 || data.length === 0) return []
+      return invoke<PtyWriteResult[]>("write_pty_batch", { targets, data })
+    },
+    [resolveBroadcastTargets]
+  )
+
+  const handleTerminalInput = useCallback(
+    async ({ tabId, sessionNonce, data, kind }: TerminalInputRequest) => {
+      const isLiveSource =
+        liveSourceRef.current?.tabId === tabId &&
+        liveSourceRef.current.sessionNonce === sessionNonce
+
+      if (!isLiveSource) {
+        await invoke("write_pty", { tabId, sessionNonce, data })
+        return
+      }
+
+      if (kind === "paste" && /[\r\n]/.test(data)) {
+        const confirmed = await confirm({
+          title: t("broadcast.multilinePasteTitle"),
+          description: t("broadcast.multilinePasteDescription", {
+            count: resolveBroadcastTargets().length,
+          }),
+          confirmText: t("broadcast.sendAnyway"),
+          variant: "destructive",
+        })
+        if (!confirmed) return
+      }
+
+      let results: PtyWriteResult[] = []
+      const generation = broadcastGenerationRef.current
+      const queuedWrite = broadcastWriteQueueRef.current.then(async () => {
+        if (generation !== broadcastGenerationRef.current || !liveSourceRef.current) return
+        results = await writeBroadcast(data)
+      })
+      broadcastWriteQueueRef.current = queuedWrite.catch(() => undefined)
+      try {
+        await queuedWrite
+      } catch (error) {
+        stopLiveBroadcast()
+        toast({
+          title: t("broadcast.sendFailedTitle"),
+          description: String(error),
+          variant: "destructive",
+        })
+        return
+      }
+      if (generation !== broadcastGenerationRef.current || !liveSourceRef.current) return
+      setLatestBroadcastResults(Object.fromEntries(results.map((result) => [result.tabId, result])))
+      const sourceResult = results.find((result) => result.tabId === tabId)
+      const failedIds = results
+        .filter((result) => result.status !== "written")
+        .map((result) => result.tabId)
+
+      if (!sourceResult || sourceResult.status !== "written") {
+        stopLiveBroadcast()
+      }
+      if (failedIds.length > 0) {
+        setUnavailableBroadcastTargetIds((current) => [...new Set([...current, ...failedIds])])
+        setBroadcastTargetIds((current) => current.filter((id) => !failedIds.includes(id)))
+        toast({
+          title: t("broadcast.partialFailureTitle"),
+          description: t("broadcast.partialFailureDescription", {
+            failed: failedIds.length,
+            total: results.length,
+          }),
+          variant: "destructive",
+        })
+      }
+    },
+    [confirm, resolveBroadcastTargets, stopLiveBroadcast, t, writeBroadcast]
+  )
+
+  const handleSendBroadcastCommand = useCallback(
+    async (command: string) => {
+      if (/\r|\n/.test(command)) {
+        const confirmed = await confirm({
+          title: t("broadcast.multilineCommandTitle"),
+          description: t("broadcast.multilineCommandDescription", {
+            count: resolveBroadcastTargets().length,
+          }),
+          confirmText: t("broadcast.sendAnyway"),
+          variant: "destructive",
+        })
+        if (!confirmed) return false
+      }
+
+      try {
+        let results: PtyWriteResult[] = []
+        const queuedWrite = broadcastWriteQueueRef.current.then(async () => {
+          results = await writeBroadcast(`${command}\r`)
+        })
+        broadcastWriteQueueRef.current = queuedWrite.catch(() => undefined)
+        await queuedWrite
+        setLatestBroadcastResults(
+          Object.fromEntries(results.map((result) => [result.tabId, result]))
+        )
+        const written = results.filter((result) => result.status === "written").length
+        toast({
+          title: written > 0 ? t("broadcast.sentTitle") : t("broadcast.sendFailedTitle"),
+          description: t("broadcast.sentDescription", { written, total: results.length }),
+          variant: written > 0 ? "default" : "destructive",
+        })
+        return written > 0
+      } catch (error) {
+        console.error("Failed to broadcast command:", error)
+        toast({
+          title: t("broadcast.sendFailedTitle"),
+          description: String(error),
+          variant: "destructive",
+        })
+        return false
+      }
+    },
+    [confirm, resolveBroadcastTargets, t, writeBroadcast]
+  )
+
+  const handleStartLiveBroadcast = useCallback(
+    async (sourceTabId: string) => {
+      const sourceTab = tabs.find((tab) => tab.id === sourceTabId)
+      const runtime = terminalRuntimeStates[sourceTabId]
+      if (!sourceTab || runtime?.connectionState !== "connected") return
+
+      const confirmed = await confirm({
+        title: t("broadcast.liveConfirmTitle"),
+        description: t("broadcast.liveConfirmDescription"),
+        confirmText: t("broadcast.startLive"),
+        variant: "destructive",
+      })
+      if (!confirmed) return
+
+      const currentSourceTab = tabsRef.current.find((tab) => tab.id === sourceTabId)
+      const currentRuntime = runtimeStatesRef.current[sourceTabId]
+      if (
+        activeTabIdRef.current !== sourceTabId ||
+        !currentSourceTab ||
+        currentRuntime?.connectionState !== "connected" ||
+        currentRuntime.sessionNonce !== (currentSourceTab.sessionNonce ?? 0)
+      ) {
+        return
+      }
+
+      setBroadcastTargetIds((current) =>
+        current.includes(sourceTabId) ? current : [...current, sourceTabId]
+      )
+      const source = { tabId: sourceTabId, sessionNonce: currentSourceTab.sessionNonce ?? 0 }
+      broadcastGenerationRef.current += 1
+      liveSourceRef.current = source
+      setBroadcastSource(source)
+      setBroadcastMode("live")
+    },
+    [confirm, t, tabs, terminalRuntimeStates]
+  )
+
+  const handleTerminalSensitivePrompt = useCallback(
+    (tabId: string) => {
+      if (liveSourceRef.current?.tabId === tabId) {
+        stopLiveBroadcast()
+        toast({
+          title: t("broadcast.stoppedForPromptTitle"),
+          description: t("broadcast.stoppedForPromptDescription"),
+        })
+      }
+    },
+    [stopLiveBroadcast, t]
+  )
+
+  const handleTerminalSessionUnavailable = useCallback(
+    (tabId: string) => {
+      setUnavailableBroadcastTargetIds((current) =>
+        current.includes(tabId) ? current : [...current, tabId]
+      )
+      if (liveSourceRef.current?.tabId === tabId) {
+        stopLiveBroadcast()
+      }
+    },
+    [stopLiveBroadcast]
+  )
+
+  const toggleBroadcastTarget = useCallback(
+    (tabId: string) => {
+      setBroadcastTargetIds((current) => {
+        if (broadcastSource?.tabId === tabId && current.includes(tabId)) return current
+        return current.includes(tabId) ? current.filter((id) => id !== tabId) : [...current, tabId]
+      })
+    },
+    [broadcastSource?.tabId]
+  )
+
+  const selectWritableTargets = useCallback(
+    (tabIds: string[]) => {
+      const requested = new Set(tabIds)
+      const selected = tabs
+        .filter(
+          (tab) =>
+            requested.has(tab.id) &&
+            (tab.type === "terminal" || tab.type === "ssh") &&
+            !unavailableBroadcastTargetIds.includes(tab.id) &&
+            terminalRuntimeStates[tab.id]?.connectionState === "connected" &&
+            terminalRuntimeStates[tab.id]?.sessionNonce === (tab.sessionNonce ?? 0)
+        )
+        .map((tab) => tab.id)
+      if (broadcastSource && !selected.includes(broadcastSource.tabId)) {
+        selected.push(broadcastSource.tabId)
+      }
+      setBroadcastTargetIds(selected)
+    },
+    [broadcastSource, tabs, terminalRuntimeStates, unavailableBroadcastTargetIds]
+  )
+
+  const selectVisibleBroadcastTargets = useCallback(() => {
+    selectWritableTargets(workspaceRef.current?.getVisibleTerminalTabIds() ?? [])
+  }, [selectWritableTargets])
+
+  const selectAllBroadcastTargets = useCallback(() => {
+    selectWritableTargets(tabs.map((tab) => tab.id))
+  }, [selectWritableTargets, tabs])
+
+  const clearBroadcastTargets = useCallback(() => {
+    setBroadcastTargetIds([])
+    stopLiveBroadcast()
+  }, [stopLiveBroadcast])
+
+  useEffect(() => {
+    const validIds = new Set(
+      tabs.filter((tab) => tab.type === "terminal" || tab.type === "ssh").map((tab) => tab.id)
+    )
+    setBroadcastTargetIds((current) => {
+      const next = current.filter((id) => validIds.has(id))
+      return next.length === current.length ? current : next
+    })
+
+    if (!broadcastSource) return
+    const sourceTab = tabs.find((tab) => tab.id === broadcastSource.tabId)
+    const runtime = terminalRuntimeStates[broadcastSource.tabId]
+    if (
+      !sourceTab ||
+      sourceTab.sessionNonce !== broadcastSource.sessionNonce ||
+      runtime?.sessionNonce !== broadcastSource.sessionNonce ||
+      runtime.connectionState !== "connected"
+    ) {
+      stopLiveBroadcast()
+    }
+  }, [broadcastSource, stopLiveBroadcast, tabs, terminalRuntimeStates])
+
+  useEffect(() => {
+    if (broadcastMode !== "live") return
+    const stopShortcut = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "b") {
+        event.preventDefault()
+        event.stopPropagation()
+        stopLiveBroadcast()
+      }
+    }
+    window.addEventListener("keydown", stopShortcut, true)
+    return () => window.removeEventListener("keydown", stopShortcut, true)
+  }, [broadcastMode, stopLiveBroadcast])
 
   useEffect(() => {
     if (isLoaded) {
@@ -637,6 +986,7 @@ export const TTermApp: React.FC = () => {
       <TabPanels
         ref={workspaceRef}
         activeTabId={activeTabId}
+        broadcastSourceTabId={broadcastMode === "live" ? (broadcastSource?.tabId ?? null) : null}
         duplicateTab={duplicateTab}
         handlePinConnectionHeader={handlePinConnectionHeader}
         handleReconnectTab={handleReconnectTab}
@@ -650,6 +1000,10 @@ export const TTermApp: React.FC = () => {
         onOpenRemoteFile={handleOpenRemoteFile}
         onTabClose={handleRemoveTab}
         onTabContextMenu={handleTabContextMenu}
+        onTerminalConnectionStateChange={handleTerminalConnectionStateChange}
+        onTerminalInput={handleTerminalInput}
+        onTerminalSessionUnavailable={handleTerminalSessionUnavailable}
+        onTerminalSensitivePrompt={handleTerminalSensitivePrompt}
         profilesRefreshKey={profilesRefreshKey}
         startupConnectionsReady={startupConnectionsReady}
         startupSessionRestoreMode={config.startup_session_restore_mode}
@@ -704,6 +1058,24 @@ export const TTermApp: React.FC = () => {
                 onCancel={cancelTransfer}
                 onRemove={removeTransfer}
                 onClearCompleted={clearCompletedTransfers}
+              />
+              <BroadcastManager
+                activeTabId={activeTabId}
+                mode={broadcastMode}
+                latestResults={latestBroadcastResults}
+                unavailableTabIds={unavailableBroadcastTargetIds}
+                runtimeStates={terminalRuntimeStates}
+                selectedTabIds={broadcastTargetIds}
+                sourceTabId={broadcastSource?.tabId ?? null}
+                tabs={tabs}
+                onClear={clearBroadcastTargets}
+                onModeChange={setBroadcastMode}
+                onSelectAll={selectAllBroadcastTargets}
+                onSelectVisible={selectVisibleBroadcastTargets}
+                onSendCommand={handleSendBroadcastCommand}
+                onStartLive={(tabId) => void handleStartLiveBroadcast(tabId)}
+                onStopLive={stopLiveBroadcast}
+                onToggleTarget={toggleBroadcastTarget}
               />
             </div>
           </div>

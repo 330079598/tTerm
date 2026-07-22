@@ -42,6 +42,8 @@ import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { TerminalTab } from "@/components/TerminalTab"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { SavedProfile, Tab, TabContextMenuAction } from "@/types/tab"
+import type { TerminalInputRequest } from "@/types/broadcast"
+import type { ConnectionState } from "@/components/TerminalTab/types"
 
 const workspaceDockTheme = {
   ...themeDark,
@@ -71,6 +73,7 @@ export interface TabPanelsHandle {
   clearTabDrop: () => void
   commitTabDrop: (tabId: string, clientX: number, clientY: number) => boolean
   getGroupTabIds: (tabId: string) => string[] | null
+  getVisibleTerminalTabIds: () => string[]
   previewTabDrop: (tabId: string, clientX: number, clientY: number) => boolean
   splitTab: (tabId: string, direction: WorkspaceSplitDirection) => void
 }
@@ -112,10 +115,19 @@ interface TabPanelsProps {
   onEditProfile: (profile: SavedProfile) => void
   onTabClose: (tabId: string) => void
   onTabContextMenu: (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => void
+  onTerminalConnectionStateChange: (
+    tabId: string,
+    sessionNonce: number,
+    state: ConnectionState | null
+  ) => void
+  onTerminalInput: (request: TerminalInputRequest) => Promise<void>
+  onTerminalSessionUnavailable: (tabId: string) => void
+  onTerminalSensitivePrompt: (tabId: string) => void
   profilesRefreshKey?: number
   startupConnectionsReady: boolean
   startupSessionRestoreMode: "active" | "all"
   tabs: Tab[]
+  broadcastSourceTabId: string | null
   updateTab: (id: string, updater: (tab: Tab) => Tab) => void
 }
 
@@ -326,12 +338,17 @@ const WorkspacePanel: React.FC<IDockviewPanelProps<WorkspacePanelParams>> = ({ a
               workspacePanelApi={api}
               connectionHeaderPinned={tab.connectionHeaderPinned}
               connection={tab.connection ?? { type: tab.type === "terminal" ? "terminal" : "ssh" }}
+              isBroadcastSource={workspace.broadcastSourceTabId === tab.id}
+              onConnectionStateChange={workspace.onTerminalConnectionStateChange}
+              onInput={workspace.onTerminalInput}
+              onSessionUnavailable={workspace.onTerminalSessionUnavailable}
               onReconnectRequest={() => workspace.handleReconnectTab(tab.id)}
               onOpenRemoteFile={workspace.onOpenRemoteFile}
               onPinConnectionHeader={() => workspace.handlePinConnectionHeader(tab.id)}
               onServerMonitorVisibilityChange={(visible) =>
                 workspace.handleServerMonitorVisibilityChange(tab.id, visible)
               }
+              onSensitivePrompt={workspace.onTerminalSensitivePrompt}
               onUnpinConnectionHeader={() => workspace.handleUnpinConnectionHeader(tab.id)}
             />
           </ErrorBoundary>
@@ -792,6 +809,15 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
       getGroupTabIds(tabId) {
         const panel = dockApi?.getPanel(tabId)
         return panel ? panel.group.panels.map((groupPanel) => groupPanel.id) : null
+      },
+      getVisibleTerminalTabIds() {
+        if (!dockApi) return []
+        return dockApi.panels
+          .filter((panel) => {
+            const tab = tabsRef.current.find((candidate) => candidate.id === panel.id)
+            return panel.api.isVisible && (tab?.type === "terminal" || tab?.type === "ssh")
+          })
+          .map((panel) => panel.id)
       },
       previewTabDrop,
       splitTab,
