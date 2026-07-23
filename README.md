@@ -116,6 +116,16 @@ pnpm install
 pnpm tauri dev
 ```
 
+On Linux, if the Wayland backend exits with a GDK protocol error or WebKitGTK
+reports GBM buffer errors, use the XWayland-compatible development command:
+
+```bash
+pnpm tauri:dev:linux
+```
+
+This command runs the app with `GDK_BACKEND=x11` and disables WebKitGTK's
+DMABUF renderer. An XWayland installation is required.
+
 ### Build the Desktop App
 
 ```bash
@@ -145,6 +155,9 @@ pnpm preview
 
 # Start Tauri development mode
 pnpm tauri dev
+
+# Start Tauri on Linux through XWayland (Wayland/GBM compatibility mode)
+pnpm tauri:dev:linux
 
 # Build the desktop application
 pnpm tauri build

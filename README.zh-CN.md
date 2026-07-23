@@ -116,6 +116,16 @@ pnpm install
 pnpm tauri dev
 ```
 
+在 Linux 上，如果 Wayland 后端因 GDK 协议错误退出，或者 WebKitGTK 报告 GBM
+缓冲区错误，可以使用兼容 XWayland 的开发命令：
+
+```bash
+pnpm tauri:dev:linux
+```
+
+该命令会设置 `GDK_BACKEND=x11` 并禁用 WebKitGTK 的 DMABUF 渲染器，系统需要已安装
+XWayland。
+
 ### 构建桌面应用
 
 ```bash
@@ -145,6 +155,9 @@ pnpm preview
 
 # 启动 Tauri 开发模式
 pnpm tauri dev
+
+# 在 Linux 上通过 XWayland 启动（Wayland/GBM 兼容模式）
+pnpm tauri:dev:linux
 
 # 构建桌面应用
 pnpm tauri build
