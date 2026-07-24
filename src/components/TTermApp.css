@@ -128,7 +128,8 @@
 }
 
 .broadcast-panel button,
-.broadcast-panel textarea {
+.broadcast-panel textarea,
+.broadcast-panel select {
   font-family: inherit;
 }
 
@@ -165,7 +166,8 @@
 }
 
 .broadcast-panel button:focus-visible,
-.broadcast-panel textarea:focus-visible {
+.broadcast-panel textarea:focus-visible,
+.broadcast-panel select:focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
@@ -247,6 +249,61 @@
   border-block: 1px solid hsl(var(--border));
 }
 
+.broadcast-primary-input {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border: 1px solid hsl(var(--primary) / 0.35);
+  border-radius: var(--radius);
+  background: hsl(var(--primary) / 0.08);
+}
+
+.broadcast-primary-input-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  color: hsl(var(--primary));
+}
+
+.broadcast-primary-input-heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.broadcast-primary-input-heading label {
+  color: hsl(var(--foreground));
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-weight: 650;
+}
+
+.broadcast-primary-input-heading span {
+  color: hsl(var(--muted-foreground));
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  line-height: 1.35;
+}
+
+.broadcast-primary-input select {
+  width: min(260px, 42%);
+  min-height: 32px;
+  padding: 4px 28px 4px 9px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  font-size: calc(12px * var(--ui-font-scale, 1));
+}
+
+.broadcast-primary-input select:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
 .broadcast-target-list label {
   display: grid;
   grid-template-columns: auto minmax(80px, 1fr) auto auto;
@@ -275,6 +332,21 @@
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.broadcast-primary-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: hsl(var(--primary));
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.broadcast-target-list label.broadcast-primary-target {
+  opacity: 1;
+  background: hsl(var(--primary) / 0.06);
 }
 
 .broadcast-target-status {
@@ -373,6 +445,16 @@
     min-width: 0;
     min-height: 0;
     padding: 12px;
+  }
+
+  .broadcast-primary-input {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .broadcast-primary-input select {
+    width: 100%;
   }
 }
 

@@ -1,4 +1,4 @@
-import { RadioTower, RefreshCw, Send, Square, X } from "lucide-react"
+import { Keyboard, RadioTower, RefreshCw, Send, Square, X } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useTranslation } from "react-i18next"
@@ -26,8 +26,8 @@ type BroadcastManagerProps = {
   onClear: () => void
   onModeChange: (mode: BroadcastMode) => void
   onReconnectTargets: () => Promise<void>
-  onSelectAll: () => void
-  onSelectVisible: () => void
+  onSelectAll: (excludeTabId?: string) => void
+  onSelectVisible: (excludeTabId?: string) => void
   onSendCommand: (command: string) => Promise<boolean>
   onStartLive: (sourceTabId: string) => Promise<boolean>
   onStopLive: () => void
@@ -59,17 +59,27 @@ export function BroadcastManager({
   const { config } = useConfig()
   const [open, setOpen] = useState(false)
   const [command, setCommand] = useState("")
+  const [primaryInputTabId, setPrimaryInputTabId] = useState<string | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const terminalTabs = tabs.filter((tab) => tab.type === "terminal" || tab.type === "ssh")
   const selected = new Set(selectedTabIds)
   const unavailable = new Set(unavailableTabIds)
   const activeTab = terminalTabs.find((tab) => tab.id === activeTabId)
   const isLiveRunning = liveState !== "idle"
+  const selectedPrimaryInputTabId = terminalTabs.some((tab) => tab.id === primaryInputTabId)
+    ? primaryInputTabId
+    : (activeTab?.id ?? terminalTabs[0]?.id ?? null)
+  const effectivePrimaryInputTabId = isLiveRunning ? sourceTabId : selectedPrimaryInputTabId
+  const primaryInputTab = terminalTabs.find((tab) => tab.id === effectivePrimaryInputTabId)
+  const primaryInputRuntime = primaryInputTab ? runtimeStates[primaryInputTab.id] : undefined
   const canStartLive =
-    !!activeTab &&
-    runtimeStates[activeTab.id]?.connectionState === "connected" &&
-    runtimeStates[activeTab.id]?.sessionNonce === (activeTab.sessionNonce ?? 0)
-  const liveTargetCount = selectedTabIds.filter((tabId) => tabId !== activeTab?.id).length
+    !!primaryInputTab &&
+    primaryInputRuntime?.connectionState === "connected" &&
+    primaryInputRuntime.sessionNonce === (primaryInputTab.sessionNonce ?? 0)
+  const liveTargetCount = selectedTabIds.filter(
+    (tabId) => tabId !== effectivePrimaryInputTabId
+  ).length
+  const selectedCount = mode === "live" ? liveTargetCount : selectedTabIds.length
 
   const close = useCallback(() => setOpen(false), [])
 
@@ -132,7 +142,7 @@ export function BroadcastManager({
               <div className="broadcast-panel-header">
                 <div>
                   <strong>{t("broadcast.title")}</strong>
-                  <span>{t("broadcast.selected", { count: selectedTabIds.length })}</span>
+                  <span>{t("broadcast.selected", { count: selectedCount })}</span>
                 </div>
                 <div className="broadcast-header-right">
                   {isLiveRunning && <span className="broadcast-live-label">LIVE</span>}
@@ -167,10 +177,26 @@ export function BroadcastManager({
               </div>
 
               <div className="broadcast-target-actions">
-                <button type="button" onClick={onSelectVisible} disabled={preparing}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSelectVisible(
+                      mode === "live" ? (effectivePrimaryInputTabId ?? undefined) : undefined
+                    )
+                  }
+                  disabled={preparing}
+                >
                   {t("broadcast.selectVisible")}
                 </button>
-                <button type="button" onClick={onSelectAll} disabled={preparing}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSelectAll(
+                      mode === "live" ? (effectivePrimaryInputTabId ?? undefined) : undefined
+                    )
+                  }
+                  disabled={preparing}
+                >
                   {t("broadcast.selectAll")}
                 </button>
                 <button type="button" onClick={onClear} disabled={preparing}>
@@ -189,6 +215,37 @@ export function BroadcastManager({
                 </button>
               </div>
 
+              {mode === "live" && (
+                <div className="broadcast-primary-input">
+                  <div className="broadcast-primary-input-heading">
+                    <Keyboard size={16} aria-hidden="true" />
+                    <div>
+                      <label htmlFor="broadcast-primary-input">{t("broadcast.primaryInput")}</label>
+                      <span>{t("broadcast.primaryInputDescription")}</span>
+                    </div>
+                  </div>
+                  <select
+                    id="broadcast-primary-input"
+                    value={effectivePrimaryInputTabId ?? ""}
+                    disabled={isLiveRunning || preparing || terminalTabs.length === 0}
+                    onChange={(event) => {
+                      const nextTabId = event.target.value || null
+                      setPrimaryInputTabId(nextTabId)
+                      if (nextTabId && selected.has(nextTabId)) onToggleTarget(nextTabId)
+                    }}
+                  >
+                    {terminalTabs.length === 0 && (
+                      <option value="">{t("broadcast.noTerminals")}</option>
+                    )}
+                    {terminalTabs.map((tab) => (
+                      <option key={tab.id} value={tab.id}>
+                        {tab.title} ({tab.type === "ssh" ? "SSH" : t("broadcast.local")})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="broadcast-target-list">
                 {terminalTabs.length === 0 ? (
                   <div className="broadcast-empty">{t("broadcast.noTerminals")}</div>
@@ -199,19 +256,29 @@ export function BroadcastManager({
                       !unavailable.has(tab.id) &&
                       runtime?.connectionState === "connected" &&
                       runtime.sessionNonce === (tab.sessionNonce ?? 0)
-                    const isLiveSource = isLiveRunning && sourceTabId === tab.id
+                    const isPrimaryInput = mode === "live" && effectivePrimaryInputTabId === tab.id
                     return (
-                      <label key={tab.id} className={isLiveSource ? "disabled" : ""}>
+                      <label
+                        key={tab.id}
+                        className={isPrimaryInput ? "broadcast-primary-target disabled" : ""}
+                      >
                         <input
                           type="checkbox"
-                          checked={selected.has(tab.id)}
-                          disabled={isLiveSource || preparing}
+                          checked={!isPrimaryInput && selected.has(tab.id)}
+                          disabled={isPrimaryInput || preparing}
                           onChange={() => onToggleTarget(tab.id)}
                         />
                         <span className="broadcast-target-name">{tab.title}</span>
-                        <span className="broadcast-target-kind">
-                          {tab.type === "ssh" ? "SSH" : t("broadcast.local")}
-                        </span>
+                        {isPrimaryInput ? (
+                          <span className="broadcast-primary-badge">
+                            <Keyboard size={11} aria-hidden="true" />
+                            {t("broadcast.primaryInput")}
+                          </span>
+                        ) : (
+                          <span className="broadcast-target-kind">
+                            {tab.type === "ssh" ? "SSH" : t("broadcast.local")}
+                          </span>
+                        )}
                         <span className={`broadcast-target-status ${writable ? "connected" : ""}`}>
                           {latestResults[tab.id]
                             ? t(`broadcast.status.${latestResults[tab.id].status}`)
@@ -233,7 +300,7 @@ export function BroadcastManager({
                     <>
                       <p>
                         {t("broadcast.liveSource", {
-                          name: terminalTabs.find((tab) => tab.id === sourceTabId)?.title ?? "-",
+                          name: primaryInputTab?.title ?? "-",
                         })}
                       </p>
                       <button type="button" onClick={onStopLive}>
@@ -248,9 +315,9 @@ export function BroadcastManager({
                         type="button"
                         disabled={!canStartLive || liveTargetCount === 0 || preparing}
                         onClick={() => {
-                          if (!activeTab) return
+                          if (!primaryInputTab) return
                           close()
-                          void onStartLive(activeTab.id)
+                          void onStartLive(primaryInputTab.id)
                         }}
                       >
                         <RadioTower size={13} aria-hidden="true" />

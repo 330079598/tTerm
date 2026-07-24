@@ -139,9 +139,7 @@ export const TTermApp: React.FC = () => {
     updateTab,
   } = useTabs()
   const tabsRef = useRef(tabs)
-  const activeTabIdRef = useRef(activeTabId)
   tabsRef.current = tabs
-  activeTabIdRef.current = activeTabId
 
   const { saveSession, loadSession } = useSessionPersistence()
   const { cleanupConnection } = useConnectionManager()
@@ -508,7 +506,6 @@ export const TTermApp: React.FC = () => {
       const currentSourceTab = tabsRef.current.find((tab) => tab.id === sourceTabId)
       const currentRuntime = runtimeStatesRef.current[sourceTabId]
       if (
-        activeTabIdRef.current !== sourceTabId ||
         !currentSourceTab ||
         currentRuntime?.connectionState !== "connected" ||
         currentRuntime.sessionNonce !== (currentSourceTab.sessionNonce ?? 0)
@@ -544,12 +541,14 @@ export const TTermApp: React.FC = () => {
       setBroadcastSource(source)
       setLiveBroadcastState("active")
       setBroadcastMode("live")
+      setActiveTab(sourceTabId)
       return true
     },
     [
       confirm,
       ensureBroadcastTargetsConnected,
       resolveBroadcastTargets,
+      setActiveTab,
       t,
       tabs,
       terminalRuntimeStates,
@@ -598,13 +597,21 @@ export const TTermApp: React.FC = () => {
     [tabs]
   )
 
-  const selectVisibleBroadcastTargets = useCallback(() => {
-    selectBroadcastTargets(workspaceRef.current?.getVisibleTerminalTabIds() ?? [])
-  }, [selectBroadcastTargets])
+  const selectVisibleBroadcastTargets = useCallback(
+    (excludeTabId?: string) => {
+      selectBroadcastTargets(
+        (workspaceRef.current?.getVisibleTerminalTabIds() ?? []).filter((id) => id !== excludeTabId)
+      )
+    },
+    [selectBroadcastTargets]
+  )
 
-  const selectAllBroadcastTargets = useCallback(() => {
-    selectBroadcastTargets(tabs.map((tab) => tab.id))
-  }, [selectBroadcastTargets, tabs])
+  const selectAllBroadcastTargets = useCallback(
+    (excludeTabId?: string) => {
+      selectBroadcastTargets(tabs.filter((tab) => tab.id !== excludeTabId).map((tab) => tab.id))
+    },
+    [selectBroadcastTargets, tabs]
+  )
 
   const clearBroadcastTargets = useCallback(() => {
     setBroadcastTargetIds([])

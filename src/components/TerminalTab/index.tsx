@@ -5,7 +5,7 @@ import { SearchAddon } from "@xterm/addon-search"
 import { type IDisposable, Terminal } from "@xterm/xterm"
 import { invoke } from "@tauri-apps/api/core"
 import { useTranslation } from "react-i18next"
-import { Pause, Play, Square } from "lucide-react"
+import { Keyboard, Pause, Play, Square } from "lucide-react"
 import { SftpDrawer } from "@/components/SftpDrawer"
 import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
@@ -609,6 +609,9 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
           style={{ fontFamily: config.font_family }}
         >
           <span role="status">
+            <Keyboard size={13} aria-hidden="true" />
+            <strong>{t("broadcast.primaryInput")}</strong>
+            <span aria-hidden="true">·</span>
             {liveBroadcastState === "paused"
               ? t("broadcast.livePaused")
               : t("broadcast.liveActive")}

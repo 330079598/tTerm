@@ -58,6 +58,18 @@
   gap: 6px;
 }
 
+.terminal-broadcast-controls > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.terminal-broadcast-controls > span strong {
+  color: hsl(var(--foreground));
+  font-weight: 700;
+}
+
 .terminal-broadcast-controls button {
   justify-content: center;
   gap: 5px;
