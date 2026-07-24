@@ -44,7 +44,7 @@
   color: hsl(var(--destructive));
   background: hsl(var(--destructive) / 0.1);
   font-family: inherit;
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   font-weight: 600;
 }
 
@@ -164,7 +164,7 @@
   border-radius: 0;
   background: transparent;
   color: hsl(var(--muted-foreground));
-  font-size: 10px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
   font-weight: 700;
   letter-spacing: 0.04em;
   line-height: 1;
@@ -172,7 +172,7 @@
 }
 
 .connection-primary {
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   font-weight: 500;
   color: hsl(var(--foreground));
   white-space: nowrap;
@@ -183,7 +183,7 @@
 .connection-state-label {
   flex-shrink: 0;
   color: hsl(var(--muted-foreground));
-  font-size: 10px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
   font-weight: 600;
 }
 
@@ -204,7 +204,7 @@
 .connection-progress-text {
   max-width: min(460px, 48vw);
   color: hsl(var(--muted-foreground));
-  font-size: 10px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -216,7 +216,7 @@
   max-width: 160px;
   overflow: hidden;
   color: hsl(var(--muted-foreground));
-  font-size: 10px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -249,7 +249,7 @@
   border-radius: 4px;
   background: transparent;
   color: hsl(var(--muted-foreground));
-  font-size: 10px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
   font-weight: 600;
 }
 
@@ -264,7 +264,7 @@
   background: transparent;
   color: hsl(var(--muted-foreground));
   cursor: pointer;
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   font-weight: 500;
   transition:
     background-color 0.15s ease,
@@ -306,7 +306,7 @@
   background: hsl(var(--card) / 0.82);
   color: hsl(var(--muted-foreground));
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   line-height: 1;
   overflow: hidden;
   white-space: nowrap;
@@ -390,7 +390,7 @@ button.server-monitor-metric.is-clickable:focus-visible {
 
 .server-monitor-metric-label {
   color: hsl(var(--muted-foreground));
-  font-size: 10px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
   font-weight: 700;
   letter-spacing: 0.04em;
 }
@@ -588,7 +588,7 @@ button.server-monitor-metric.is-clickable:focus-visible {
 .server-monitor-stale {
   padding-left: 10px;
   border-left: 1px solid hsl(var(--border) / 0.74);
-  font-size: 10px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -620,7 +620,7 @@ button.server-monitor-metric.is-clickable:focus-visible {
   background: hsl(var(--background) / 0.88);
   color: hsl(var(--muted-foreground));
   cursor: pointer;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 500;
   backdrop-filter: blur(8px);
   box-shadow: 0 4px 14px hsl(var(--background) / 0.18);
@@ -725,13 +725,13 @@ button.server-monitor-metric.is-clickable:focus-visible {
   width: 220px;
   height: 28px;
   padding-inline: 10px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
 }
 
 .terminal-search-count {
   min-width: 74px;
   color: hsl(var(--muted-foreground));
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   text-align: center;
   white-space: nowrap;
 }
@@ -848,13 +848,13 @@ button.server-monitor-metric.is-clickable:focus-visible {
   align-items: center;
   gap: 4px;
   color: hsl(var(--muted-foreground));
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   white-space: nowrap;
 }
 
 .jump-host-info-hop-address {
   color: hsl(var(--foreground));
-  font-size: 13px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -864,7 +864,7 @@ button.server-monitor-metric.is-clickable:focus-visible {
 .jump-host-info-hop-user,
 .jump-host-info-key-path {
   color: hsl(var(--muted-foreground));
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -893,7 +893,7 @@ button.server-monitor-metric.is-clickable:focus-visible {
 
 .jump-host-info-detail-label {
   color: hsl(var(--muted-foreground));
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -902,7 +902,7 @@ button.server-monitor-metric.is-clickable:focus-visible {
 .jump-host-info-detail-value {
   display: block;
   color: hsl(var(--foreground));
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.5;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
@@ -914,7 +914,7 @@ button.server-monitor-metric.is-clickable:focus-visible {
   align-items: center;
   gap: 8px;
   color: hsl(var(--muted-foreground));
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   cursor: pointer;
 }
 

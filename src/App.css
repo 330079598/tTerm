@@ -1,3 +1,32 @@
 @import "./styles/themes.css";
 @import "./styles/base.css";
 @import "./styles/layout.css";
+
+/* Tailwind arbitrary font sizes are not backed by theme tokens. */
+.text-\[8px\] {
+  font-size: calc(8px * var(--ui-font-scale, 1));
+}
+
+.text-\[9px\] {
+  font-size: calc(9px * var(--ui-font-scale, 1));
+}
+
+.text-\[10px\] {
+  font-size: calc(10px * var(--ui-font-scale, 1));
+}
+
+.text-\[11px\] {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+}
+
+.text-\[12px\] {
+  font-size: calc(12px * var(--ui-font-scale, 1));
+}
+
+.text-\[13px\] {
+  font-size: calc(13px * var(--ui-font-scale, 1));
+}
+
+.leading-5 {
+  line-height: 1.35;
+}

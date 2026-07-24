@@ -285,7 +285,7 @@ body.workspace-sash-resizing-vertical * {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
   letter-spacing: 0;
 }
 
@@ -432,7 +432,7 @@ body.workspace-sash-resizing-vertical * {
   justify-content: center;
   gap: 10px;
   color: hsl(var(--muted-foreground));
-  font-size: 13px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
 }
 
 .workspace-dock .dv-drop-target-dropzone {

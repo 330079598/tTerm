@@ -22,12 +22,18 @@ export const HostKeyPromptDialog: React.FC<HostKeyPromptDialogProps> = ({
   return (
     <div className="host-key-dialog-overlay">
       <div className="host-key-dialog-content">
-        <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600 }}>
+        <h3
+          style={{
+            margin: "0 0 12px",
+            fontSize: "calc(16px * var(--ui-font-scale, 1))",
+            fontWeight: 600,
+          }}
+        >
           {hostKeyPrompt.reason === "mismatch" ? t("ssh.hostKeyMismatch") : t("ssh.unknownHostKey")}
         </h3>
         <div
           style={{
-            fontSize: 13,
+            fontSize: "calc(13px * var(--ui-font-scale, 1))",
             lineHeight: 1.6,
             marginBottom: 16,
             fontFamily: "monospace",

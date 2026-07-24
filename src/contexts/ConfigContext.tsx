@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react"
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { platform } from "@tauri-apps/plugin-os"
 
@@ -18,6 +18,26 @@ export interface SecretBackendStatus {
 
 export type SecretStorageMode = "auto" | "system" | "vault" | "hybrid" | "memory"
 export type TabWidthMode = "adaptive" | "standard"
+
+export function applyUiScalePercent(scale: number) {
+  const rootStyle = document.documentElement.style
+  const factor = scale / 100
+  rootStyle.setProperty("--ui-font-scale", String(factor))
+  rootStyle.setProperty("--text-xs", `${0.75 * factor}rem`)
+  rootStyle.setProperty("--text-xs--line-height", "1.15")
+  rootStyle.setProperty("--text-sm", `${0.875 * factor}rem`)
+  rootStyle.setProperty("--text-sm--line-height", "1.2")
+  rootStyle.setProperty("--text-base", `${factor}rem`)
+  rootStyle.setProperty("--text-base--line-height", "1.25")
+  rootStyle.setProperty("--text-lg", `${1.125 * factor}rem`)
+  rootStyle.setProperty("--text-lg--line-height", "1.25")
+  rootStyle.setProperty("--text-xl", `${1.25 * factor}rem`)
+  rootStyle.setProperty("--text-xl--line-height", "1.25")
+  rootStyle.setProperty("--text-2xl", `${1.5 * factor}rem`)
+  rootStyle.setProperty("--text-2xl--line-height", "1.2")
+  rootStyle.setProperty("--text-3xl", `${1.875 * factor}rem`)
+  rootStyle.setProperty("--text-3xl--line-height", "1.2")
+}
 
 let _cachedPlatform: string | null = null
 
@@ -48,6 +68,7 @@ export interface AppConfig {
   language: string
   font_family: string
   font_size: number
+  ui_scale_percent: number
   cursor_style: "bar" | "block" | "underline"
   terminal_shell: "auto" | "cmd" | "powershell" | "pwsh" | "wsl" | "git-bash" | "custom"
   terminal_shell_custom_path: string
@@ -84,6 +105,7 @@ const defaultConfig: AppConfig = {
   font_family:
     '"JetBrains Mono Nerd Font", "JetBrainsMono Nerd Font", "JetBrains Mono", "Fira Code", Menlo, Monaco, monospace',
   font_size: 14,
+  ui_scale_percent: 100,
   cursor_style: "block",
   terminal_shell: "auto",
   terminal_shell_custom_path: "",
@@ -147,6 +169,14 @@ function normalizeTabStandardWidth(value: Partial<AppConfig>["tab_standard_width
   return Math.min(Math.max(Math.round(value), 80), 300)
 }
 
+export function normalizeUiScalePercent(value: Partial<AppConfig>["ui_scale_percent"]): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 100
+  }
+
+  return Math.min(Math.max(Math.round(value / 10) * 10, 80), 200)
+}
+
 function normalizeConfig(config: Partial<AppConfig>): AppConfig {
   const collapsedProfileGroupKeys = Array.isArray(config.collapsed_profile_group_keys)
     ? config.collapsed_profile_group_keys.filter((item): item is string => typeof item === "string")
@@ -180,6 +210,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     collapsed_profile_group_keys: collapsedProfileGroupKeys,
     tab_width_mode: config.tab_width_mode === "standard" ? "standard" : "adaptive",
     tab_standard_width: normalizeTabStandardWidth(config.tab_standard_width),
+    ui_scale_percent: normalizeUiScalePercent(config.ui_scale_percent),
   }
 }
 
@@ -231,8 +262,28 @@ function normalizeSecretStatus(status?: Partial<SecretBackendStatus>): SecretBac
 
 export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfig] = useState<AppConfig>(defaultConfig)
+  const configRef = useRef(config)
+  const configSaveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const [secretStatus, setSecretStatus] = useState<SecretBackendStatus>(defaultSecretStatus)
   const [isLoaded, setIsLoaded] = useState(false)
+
+  const updateConfigState = useCallback((update: (current: AppConfig) => AppConfig) => {
+    const updatedConfig = update(configRef.current)
+    configRef.current = updatedConfig
+    setConfig(updatedConfig)
+  }, [])
+
+  useEffect(() => {
+    applyUiScalePercent(config.ui_scale_percent)
+    return () => {
+      const rootStyle = document.documentElement.style
+      rootStyle.removeProperty("--ui-font-scale")
+      for (const size of ["xs", "sm", "base", "lg", "xl", "2xl", "3xl"]) {
+        rootStyle.removeProperty(`--text-${size}`)
+        rootStyle.removeProperty(`--text-${size}--line-height`)
+      }
+    }
+  }, [config.ui_scale_percent])
 
   const refreshSecretStatus = useCallback(async (): Promise<SecretBackendStatus> => {
     try {
@@ -253,10 +304,13 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         invoke<AppConfig>("load_config"),
         invoke<SecretBackendStatus>("get_secret_backend_status"),
       ])
-      setConfig(normalizeConfig(loadedConfig))
+      const normalizedConfig = normalizeConfig(loadedConfig)
+      configRef.current = normalizedConfig
+      setConfig(normalizedConfig)
       setSecretStatus(normalizeSecretStatus(loadedSecretStatus))
     } catch (error) {
       console.error("Failed to load config:", error)
+      configRef.current = defaultConfig
       setConfig(defaultConfig)
       setSecretStatus(defaultSecretStatus)
     } finally {
@@ -265,57 +319,75 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const saveConfig = useCallback(
-    async (newConfig: Partial<AppConfig>) => {
-      const updatedConfig = normalizeConfig({ ...config, ...newConfig })
-      try {
-        await invoke("save_config", { config: updatedConfig })
-        setConfig(updatedConfig)
-      } catch (error) {
-        console.error("Failed to save config:", error)
-        throw error
+  const saveConfig = useCallback(async (newConfig: Partial<AppConfig>) => {
+    const save = configSaveQueueRef.current.then(async () => {
+      while (true) {
+        const baseConfig = configRef.current
+        const updatedConfig = normalizeConfig({ ...baseConfig, ...newConfig })
+        try {
+          await invoke("save_config", { config: updatedConfig })
+        } catch (error) {
+          console.error("Failed to save config:", error)
+          throw error
+        }
+
+        if (configRef.current === baseConfig) {
+          configRef.current = updatedConfig
+          setConfig(updatedConfig)
+          return
+        }
       }
+    })
+    configSaveQueueRef.current = save.catch(() => undefined)
+    return save
+  }, [])
+
+  const setSecretVaultEnabled = useCallback(
+    async (enabled: boolean) => {
+      const status = await invoke<SecretBackendStatus>("set_secret_vault_enabled", { enabled })
+      const normalized = normalizeSecretStatus(status)
+      setSecretStatus(normalized)
+      updateConfigState((prev) => ({
+        ...prev,
+        secret_storage_mode: normalized.storageMode,
+        secret_vault_enabled: normalized.vaultEnabled,
+      }))
+      return normalized
     },
-    [config]
+    [updateConfigState]
   )
 
-  const setSecretVaultEnabled = useCallback(async (enabled: boolean) => {
-    const status = await invoke<SecretBackendStatus>("set_secret_vault_enabled", { enabled })
-    const normalized = normalizeSecretStatus(status)
-    setSecretStatus(normalized)
-    setConfig((prev) => ({
-      ...prev,
-      secret_storage_mode: normalized.storageMode,
-      secret_vault_enabled: normalized.vaultEnabled,
-    }))
-    return normalized
-  }, [])
+  const setSecretStorageMode = useCallback(
+    async (mode: SecretStorageMode) => {
+      const status = await invoke<SecretBackendStatus>("set_secret_storage_mode", {
+        input: { mode },
+      })
+      const normalized = normalizeSecretStatus(status)
+      setSecretStatus(normalized)
+      updateConfigState((prev) => ({
+        ...prev,
+        secret_storage_mode: normalized.storageMode,
+        secret_vault_enabled: normalized.vaultEnabled,
+      }))
+      return normalized
+    },
+    [updateConfigState]
+  )
 
-  const setSecretStorageMode = useCallback(async (mode: SecretStorageMode) => {
-    const status = await invoke<SecretBackendStatus>("set_secret_storage_mode", {
-      input: { mode },
-    })
-    const normalized = normalizeSecretStatus(status)
-    setSecretStatus(normalized)
-    setConfig((prev) => ({
-      ...prev,
-      secret_storage_mode: normalized.storageMode,
-      secret_vault_enabled: normalized.vaultEnabled,
-    }))
-    return normalized
-  }, [])
-
-  const unlockSecretVault = useCallback(async (password: string, enableVault = false) => {
-    const status = await invoke<SecretBackendStatus>("unlock_secret_vault", {
-      input: { password, enableVault },
-    })
-    const normalized = normalizeSecretStatus(status)
-    setSecretStatus(normalized)
-    if (enableVault) {
-      setConfig((prev) => ({ ...prev, secret_vault_enabled: true }))
-    }
-    return normalized
-  }, [])
+  const unlockSecretVault = useCallback(
+    async (password: string, enableVault = false) => {
+      const status = await invoke<SecretBackendStatus>("unlock_secret_vault", {
+        input: { password, enableVault },
+      })
+      const normalized = normalizeSecretStatus(status)
+      setSecretStatus(normalized)
+      if (enableVault) {
+        updateConfigState((prev) => ({ ...prev, secret_vault_enabled: true }))
+      }
+      return normalized
+    },
+    [updateConfigState]
+  )
 
   const lockSecretVault = useCallback(async () => {
     const status = await invoke<SecretBackendStatus>("lock_secret_vault")

@@ -1,5 +1,5 @@
 .sftp-drawer {
-  --sftp-font-size: 12px;
+  --sftp-font-size: calc(12px * var(--ui-font-scale, 1));
   position: absolute;
   left: 0;
   right: 0;
@@ -44,7 +44,7 @@
 
 .sftp-drawer-eyebrow {
   color: hsl(var(--muted-foreground));
-  font-size: calc(var(--sftp-font-size) - 1px);
+  font-size: var(--sftp-font-size-small);
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -131,7 +131,7 @@
   background: hsl(var(--background));
   color: hsl(var(--destructive));
   padding: 4px 8px;
-  font-size: calc(var(--sftp-font-size) - 1px);
+  font-size: var(--sftp-font-size-small);
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -184,7 +184,7 @@
 
 .sftp-search-error {
   color: hsl(var(--destructive));
-  font-size: calc(var(--sftp-font-size) - 1px);
+  font-size: var(--sftp-font-size-small);
   white-space: nowrap;
 }
 
@@ -316,13 +316,13 @@ body.sftp-column-resizing * {
 }
 
 .sftp-drag-hint-title {
-  font-size: calc(var(--sftp-font-size) + 6px);
+  font-size: var(--sftp-font-size-title);
   font-weight: 600;
   color: hsl(var(--foreground));
 }
 
 .sftp-drag-hint-description {
-  font-size: calc(var(--sftp-font-size) + 2px);
+  font-size: var(--sftp-font-size-large);
   color: hsl(var(--muted-foreground));
   text-align: center;
 }
@@ -364,7 +364,7 @@ body.sftp-column-resizing * {
   overflow: hidden;
   padding-right: 8px;
   color: hsl(var(--muted-foreground));
-  font-size: calc(var(--sftp-font-size) - 1px);
+  font-size: var(--sftp-font-size-small);
   font-weight: 700;
   letter-spacing: 0.04em;
   line-height: 1.2;
@@ -565,7 +565,7 @@ body.sftp-column-resizing .sftp-column-resizer::after {
 
 .sftp-empty-title {
   color: hsl(var(--foreground));
-  font-size: calc(var(--sftp-font-size) + 2px);
+  font-size: var(--sftp-font-size-large);
   font-weight: 600;
 }
 

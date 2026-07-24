@@ -28,7 +28,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
   font-weight: 600;
 }
 
@@ -37,7 +37,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: hsl(var(--muted-foreground));
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
 }
 
 .remote-file-editor-actions {
@@ -52,7 +52,7 @@
   min-width: 84px;
   justify-content: flex-end;
   color: hsl(var(--muted-foreground));
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   white-space: nowrap;
 }
 
@@ -78,5 +78,5 @@
   align-items: center;
   justify-content: center;
   color: hsl(var(--muted-foreground));
-  font-size: 13px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
 }

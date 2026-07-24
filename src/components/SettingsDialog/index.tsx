@@ -340,6 +340,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const handleTabStandardWidthChange = (width: number) =>
     saveSettings({ tab_standard_width: width })
 
+  const handleUiScaleChange = (scale: number) => saveSettings({ ui_scale_percent: scale })
+
   const handleDeleteTheme = async (themeId: string) => {
     const confirmed = await confirm({
       title: t("themeEditor.delete"),
@@ -691,12 +693,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleThemeChange={handleThemeChange}
               handleTabStandardWidthChange={handleTabStandardWidthChange}
               handleTabWidthModeChange={handleTabWidthModeChange}
+              handleUiScaleChange={handleUiScaleChange}
               presetThemes={presetThemes}
               presetThemeOverrides={presetThemeOverrides}
               setCreatingFromTheme={setCreatingFromTheme}
               setEditingThemeId={setEditingThemeId}
               tabStandardWidth={config.tab_standard_width}
               tabWidthMode={config.tab_width_mode}
+              uiScalePercent={config.ui_scale_percent}
             />
           </TabsContent>
 

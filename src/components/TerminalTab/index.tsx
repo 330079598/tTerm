@@ -265,9 +265,15 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     term.options.fontSize = config.font_size
     term.options.cursorStyle = config.cursor_style
     if (isActiveRef.current) {
-      fitAndSyncPty()
+      scheduleFitDuringResize()
     }
-  }, [config.cursor_style, config.font_family, config.font_size, fitAndSyncPty, isActiveRef])
+  }, [
+    config.cursor_style,
+    config.font_family,
+    config.font_size,
+    isActiveRef,
+    scheduleFitDuringResize,
+  ])
 
   useEffect(() => {
     const term = termRef.current

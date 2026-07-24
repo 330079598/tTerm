@@ -588,7 +588,12 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       aria-hidden={!visible}
       ref={drawerRef}
       style={
-        { "--sftp-font-size": `${Math.max(config.font_size - 2, 10)}px` } as React.CSSProperties
+        {
+          "--sftp-font-size": `calc(${Math.max(config.font_size - 2, 10)}px * var(--ui-font-scale, 1))`,
+          "--sftp-font-size-small": `calc(${Math.max(config.font_size - 3, 9)}px * var(--ui-font-scale, 1))`,
+          "--sftp-font-size-large": `calc(${Math.max(config.font_size, 12)}px * var(--ui-font-scale, 1))`,
+          "--sftp-font-size-title": `calc(${Math.max(config.font_size + 4, 16)}px * var(--ui-font-scale, 1))`,
+        } as React.CSSProperties
       }
     >
       <SftpDeleteTransferEvents

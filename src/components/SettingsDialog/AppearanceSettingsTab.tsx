@@ -1,5 +1,14 @@
 import React from "react"
-import { Copy, Edit, GalleryHorizontal, Palette, Plus, RotateCcw, Trash2 } from "lucide-react"
+import {
+  Copy,
+  Edit,
+  GalleryHorizontal,
+  MonitorCog,
+  Palette,
+  Plus,
+  RotateCcw,
+  Trash2,
+} from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { ThemeCard } from "@/components/ThemeCard"
@@ -10,7 +19,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select } from "@/components/ui/select"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
-import type { TabWidthMode } from "@/contexts/ConfigContext"
+import { applyUiScalePercent, type TabWidthMode } from "@/contexts/ConfigContext"
 import type { CustomTheme, PresetTheme, PresetThemeId } from "@/types/theme"
 
 interface AppearanceSettingsTabProps {
@@ -22,12 +31,14 @@ interface AppearanceSettingsTabProps {
   handleThemeChange: (themeId: string) => Promise<void>
   handleTabStandardWidthChange: (width: number) => Promise<boolean>
   handleTabWidthModeChange: (mode: TabWidthMode) => Promise<void>
+  handleUiScaleChange: (scale: number) => Promise<boolean>
   presetThemes: PresetTheme[]
   presetThemeOverrides: CustomTheme[]
   setCreatingFromTheme: React.Dispatch<React.SetStateAction<string | null>>
   setEditingThemeId: React.Dispatch<React.SetStateAction<string | null>>
   tabStandardWidth: number
   tabWidthMode: TabWidthMode
+  uiScalePercent: number
 }
 
 export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
@@ -39,19 +50,57 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
   handleThemeChange,
   handleTabStandardWidthChange,
   handleTabWidthModeChange,
+  handleUiScaleChange,
   presetThemes,
   presetThemeOverrides,
   setCreatingFromTheme,
   setEditingThemeId,
   tabStandardWidth,
   tabWidthMode,
+  uiScalePercent,
 }) => {
   const { t } = useTranslation()
   const [tabWidthDraft, setTabWidthDraft] = React.useState(String(tabStandardWidth))
+  const [uiScaleDraft, setUiScaleDraft] = React.useState(uiScalePercent)
+  const [savingUiScale, setSavingUiScale] = React.useState(false)
+  const savingUiScaleRef = React.useRef(false)
+  const savedUiScaleRef = React.useRef(uiScalePercent)
+  const mountedRef = React.useRef(true)
 
   React.useEffect(() => {
     setTabWidthDraft(String(tabStandardWidth))
   }, [tabStandardWidth])
+
+  React.useEffect(() => {
+    setUiScaleDraft(uiScalePercent)
+    savedUiScaleRef.current = uiScalePercent
+  }, [uiScalePercent])
+
+  React.useEffect(
+    () => () => {
+      mountedRef.current = false
+      applyUiScalePercent(savedUiScaleRef.current)
+    },
+    []
+  )
+
+  const previewUiScale = React.useCallback((scale: number) => {
+    setUiScaleDraft(scale)
+    applyUiScalePercent(scale)
+  }, [])
+
+  const commitUiScale = React.useCallback(async () => {
+    if (uiScaleDraft === uiScalePercent || savingUiScaleRef.current) return
+    savingUiScaleRef.current = true
+    setSavingUiScale(true)
+    const saved = await handleUiScaleChange(uiScaleDraft)
+    if (!mountedRef.current) return
+    savingUiScaleRef.current = false
+    setSavingUiScale(false)
+    if (!saved) {
+      previewUiScale(uiScalePercent)
+    }
+  }, [handleUiScaleChange, previewUiScale, uiScaleDraft, uiScalePercent])
 
   const commitTabStandardWidth = React.useCallback(async () => {
     const value = Number.parseInt(tabWidthDraft, 10)
@@ -252,6 +301,66 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
             <Plus size={16} className="mr-2" />
             {t("themeEditor.createNew")}
           </Button>
+        </SettingsSection>
+
+        <SettingsSection
+          icon={<MonitorCog size={16} />}
+          title={t("settings.interfaceScale", { defaultValue: "Interface font scale" })}
+          description={t("settings.interfaceScaleDesc", {
+            defaultValue:
+              "Scale application text without changing controls, spacing, terminal text, or editor content.",
+          })}
+        >
+          <SettingsRow
+            icon={<MonitorCog size={16} />}
+            title={t("settings.interfaceScale", { defaultValue: "Interface font scale" })}
+            description={t("settings.interfaceScaleRange", {
+              defaultValue: "Choose a text scale from 80% to 200%.",
+            })}
+          >
+            <div className="flex w-full max-w-sm items-center gap-3">
+              <input
+                type="range"
+                min={80}
+                max={200}
+                step={10}
+                value={uiScaleDraft}
+                aria-label={t("settings.interfaceScale", {
+                  defaultValue: "Interface font scale",
+                })}
+                aria-valuetext={`${uiScaleDraft}%`}
+                disabled={savingUiScale}
+                onChange={(event) => previewUiScale(Number(event.target.value))}
+                onPointerUp={() => void commitUiScale()}
+                onKeyUp={() => void commitUiScale()}
+                onBlur={() => void commitUiScale()}
+                className="accent-primary min-w-0 flex-1 cursor-pointer"
+              />
+              <output className="w-12 text-right text-sm font-medium" aria-live="polite">
+                {uiScaleDraft}%
+              </output>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uiScaleDraft === 100 || savingUiScale}
+                onClick={async () => {
+                  if (savingUiScaleRef.current) return
+                  previewUiScale(100)
+                  savingUiScaleRef.current = true
+                  setSavingUiScale(true)
+                  const saved = await handleUiScaleChange(100)
+                  if (!mountedRef.current) return
+                  savingUiScaleRef.current = false
+                  setSavingUiScale(false)
+                  if (!saved) previewUiScale(uiScalePercent)
+                }}
+              >
+                <RotateCcw size={14} />
+                {t("settings.resetScale", { defaultValue: "Reset" })}
+              </Button>
+            </div>
+          </SettingsRow>
         </SettingsSection>
 
         <SettingsSection

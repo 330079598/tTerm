@@ -17,6 +17,11 @@ pub struct AppConfig {
     pub font_family: String,
     #[serde(default = "default_font_size")]
     pub font_size: u16,
+    #[serde(
+        default = "default_ui_scale_percent",
+        deserialize_with = "deserialize_ui_scale_percent"
+    )]
+    pub ui_scale_percent: u16,
     #[serde(default = "default_cursor_style")]
     pub cursor_style: String,
     #[serde(default = "default_terminal_shell")]
@@ -96,6 +101,18 @@ fn default_font_family() -> String {
 
 fn default_font_size() -> u16 {
     14
+}
+
+fn default_ui_scale_percent() -> u16 {
+    100
+}
+
+fn deserialize_ui_scale_percent<'de, D>(deserializer: D) -> Result<u16, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = f64::deserialize(deserializer)?;
+    Ok(((value / 10.0).round() * 10.0).clamp(80.0, 200.0) as u16)
 }
 
 fn default_cursor_style() -> String {
@@ -185,6 +202,7 @@ impl Default for AppConfig {
             language: default_language(),
             font_family: default_font_family(),
             font_size: default_font_size(),
+            ui_scale_percent: default_ui_scale_percent(),
             cursor_style: default_cursor_style(),
             terminal_shell: default_terminal_shell(),
             terminal_shell_custom_path: String::new(),
@@ -253,6 +271,7 @@ mod tests {
 
         assert_eq!(config.tab_width_mode, "adaptive");
         assert_eq!(config.tab_standard_width, 120);
+        assert_eq!(config.ui_scale_percent, 100);
     }
 
     #[test]
@@ -275,5 +294,19 @@ mod tests {
 
         assert_eq!(config.tab_width_mode, "adaptive");
         assert_eq!(config.tab_standard_width, 80);
+    }
+
+    #[test]
+    fn ui_scale_config_is_rounded_and_clamped() {
+        let rounded: AppConfig =
+            serde_json::from_str(r#"{"theme":"default","ui_scale_percent":146}"#).unwrap();
+        let minimum: AppConfig =
+            serde_json::from_str(r#"{"theme":"default","ui_scale_percent":40}"#).unwrap();
+        let maximum: AppConfig =
+            serde_json::from_str(r#"{"theme":"default","ui_scale_percent":260}"#).unwrap();
+
+        assert_eq!(rounded.ui_scale_percent, 150);
+        assert_eq!(minimum.ui_scale_percent, 80);
+        assert_eq!(maximum.ui_scale_percent, 200);
     }
 }

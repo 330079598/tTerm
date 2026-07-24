@@ -163,7 +163,7 @@
   outline: 0;
   background: transparent;
   color: hsl(var(--foreground));
-  font-size: 13px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
 }
 
 .tab-search-input::placeholder {
@@ -232,7 +232,7 @@
   flex-shrink: 0;
   min-width: 18px;
   color: hsl(var(--muted-foreground));
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
 }
 
 .tab-overflow-title {
@@ -241,7 +241,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
 }
 
 .tab-overflow-meta {
@@ -264,20 +264,20 @@
 
 .tab-overflow-meta-primary {
   color: hsl(var(--muted-foreground));
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   line-height: 1.15;
 }
 
 .tab-overflow-meta-secondary {
   color: hsl(var(--muted-foreground) / 0.72);
-  font-size: 10px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
   line-height: 1.1;
 }
 
 .tab-overflow-empty {
   padding: 14px 8px;
   color: hsl(var(--muted-foreground));
-  font-size: 13px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
   text-align: center;
 }
 
@@ -399,7 +399,7 @@
   position: relative;
   z-index: 1;
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   color: currentColor;
   min-width: 12px;
   opacity: 0.55;
@@ -422,7 +422,7 @@
   position: relative;
   z-index: 1;
   flex: 1;
-  font-size: 13px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
   color: currentColor;
   white-space: nowrap;
   overflow: hidden;
@@ -503,7 +503,7 @@
   border: 1px solid hsl(var(--border));
   background: hsl(var(--popover) / 0.96);
   color: hsl(var(--foreground));
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.2;
   box-shadow: 0 8px 20px hsl(var(--foreground) / 0.22);
   pointer-events: none;

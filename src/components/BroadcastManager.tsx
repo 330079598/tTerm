@@ -128,7 +128,6 @@ export function BroadcastManager({
               ref={panelRef}
               role="dialog"
               aria-label={t("broadcast.title")}
-              style={{ fontFamily: config.font_family }}
             >
               <div className="broadcast-panel-header">
                 <div>
@@ -268,6 +267,7 @@ export function BroadcastManager({
                     value={command}
                     disabled={preparing}
                     placeholder={t("broadcast.commandPlaceholder")}
+                    style={{ fontFamily: config.font_family }}
                     onChange={(event) => setCommand(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" && !event.shiftKey) {
