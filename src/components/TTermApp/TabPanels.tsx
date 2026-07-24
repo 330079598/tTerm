@@ -776,7 +776,9 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
         title: tab.title,
         params: { tabId: tab.id },
         position,
-        renderer: "always",
+        // Settings is regular DOM content. Keeping it in Dockview's overlay layer can leave
+        // stale pixels behind when WebView2 switches back to a WebGL-backed terminal.
+        renderer: tab.type === "settings" ? "onlyWhenVisible" : "always",
         minimumWidth: 220,
         minimumHeight: 140,
       })
