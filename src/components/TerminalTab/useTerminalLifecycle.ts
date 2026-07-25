@@ -268,7 +268,7 @@ export function useTerminalLifecycle({
         term.write(payload)
       }),
       listen(`pty-exit-${tabId}`, (event) => {
-        onSessionUnavailableRef.current?.(tabId)
+        onSessionUnavailableRef.current?.(tabId, sessionNonce, true)
         const reason = event.payload as string | null | undefined
         if (connectionRef.current?.type === "ssh") {
           const displayAddress = getConnectionDisplay(connectionRef.current)

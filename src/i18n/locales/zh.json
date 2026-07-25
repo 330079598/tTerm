@@ -116,6 +116,8 @@
     "partialFailureDescription": "{{total}} 个目标中有 {{failed}} 个已从实时广播移除。",
     "stoppedForPromptTitle": "实时广播已停止",
     "stoppedForPromptDescription": "检测到密码提示，敏感输入将仅发送到来源终端。",
+    "sourceUnavailableTitle": "实时广播已停止",
+    "sourceUnavailableDescription": "主输入终端已关闭或断开，后续输入不会再发送到广播目标。",
     "status": {
       "written": "已发送",
       "stale": "已过期",

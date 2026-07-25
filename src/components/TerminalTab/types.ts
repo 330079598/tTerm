@@ -18,7 +18,7 @@ export interface TerminalTabProps {
     state: ConnectionState | null
   ) => void
   onInput?: (request: TerminalInputRequest) => Promise<void>
-  onSessionUnavailable?: (tabId: string) => void
+  onSessionUnavailable?: (tabId: string, sessionNonce: number, unexpected: boolean) => void
   onSensitivePrompt?: (tabId: string) => void
   onReconnectRequest?: () => void
   onOpenRemoteFile?: (

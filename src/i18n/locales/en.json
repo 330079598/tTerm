@@ -125,6 +125,8 @@
     "partialFailureDescription": "{{failed}} of {{total}} targets were removed from live broadcast.",
     "stoppedForPromptTitle": "Live broadcast stopped",
     "stoppedForPromptDescription": "A password prompt was detected. Sensitive input will remain in the source terminal.",
+    "sourceUnavailableTitle": "Live broadcast stopped",
+    "sourceUnavailableDescription": "The primary input terminal was closed or disconnected. No further input will be sent to broadcast targets.",
     "status": {
       "written": "Sent",
       "stale": "Stale",

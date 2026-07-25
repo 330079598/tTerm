@@ -286,45 +286,94 @@ fn snapshot_batch_targets(
         .collect()
 }
 
+fn write_active_session(tab_id: String, active: &mut ActiveSession, data: &[u8]) -> PtyWriteResult {
+    let write_result = match active {
+        ActiveSession::Local(local) => local.writer.write_all(data),
+        ActiveSession::Ssh(ssh) => ssh
+            .input_tx
+            .send(data.to_vec())
+            .map_err(|_| std::io::Error::other("SSH input channel is closed")),
+    };
+
+    match write_result {
+        Ok(()) => PtyWriteResult::new(tab_id, PtyWriteStatus::Written),
+        Err(error) => PtyWriteResult::failed(tab_id, error.to_string()),
+    }
+}
+
+fn write_batch_target(target: BatchTarget, data: &[u8]) -> PtyWriteResult {
+    let (tab_id, active) = match target {
+        BatchTarget::Result(result) => return result,
+        BatchTarget::Ready { tab_id, active } => (tab_id, active),
+    };
+    let mut active_guard = active.blocking_lock();
+    let Some(active) = active_guard.as_mut() else {
+        return PtyWriteResult::new(tab_id, PtyWriteStatus::Reconnecting);
+    };
+    write_active_session(tab_id, active, data)
+}
+
+fn write_targets(targets: Vec<BatchTarget>, data: &[u8]) -> Vec<PtyWriteResult> {
+    targets
+        .into_iter()
+        .map(|target| write_batch_target(target, data))
+        .collect()
+}
+
+fn write_guarded_batch(
+    guard_target: Option<BatchTarget>,
+    targets: Vec<BatchTarget>,
+    data: &[u8],
+) -> Vec<PtyWriteResult> {
+    let Some(guard_target) = guard_target else {
+        return write_targets(targets, data);
+    };
+    let (tab_id, active) = match guard_target {
+        BatchTarget::Result(result) => return vec![result],
+        BatchTarget::Ready { tab_id, active } => (tab_id, active),
+    };
+
+    // Keep the source session active until every target write has completed.
+    let mut active_guard = active.blocking_lock();
+    let Some(active) = active_guard.as_mut() else {
+        return vec![PtyWriteResult::new(tab_id, PtyWriteStatus::Reconnecting)];
+    };
+    let guard_result = write_active_session(tab_id, active, data);
+    if guard_result.status != PtyWriteStatus::Written {
+        return vec![guard_result];
+    }
+
+    let mut results = Vec::with_capacity(targets.len() + 1);
+    results.push(guard_result);
+    results.extend(write_targets(targets, data));
+    results
+}
+
 #[tauri::command]
 pub fn write_pty_batch(
-    targets: Vec<PtyWriteTarget>,
+    mut targets: Vec<PtyWriteTarget>,
+    guard_target: Option<PtyWriteTarget>,
     data: String,
     state: State<'_, PtyMap>,
 ) -> Vec<PtyWriteResult> {
-    if targets.is_empty() || data.is_empty() {
+    if let Some(guard_tab_id) = guard_target.as_ref().map(|target| target.tab_id.as_str()) {
+        targets.retain(|target| target.tab_id != guard_tab_id);
+    }
+    if (targets.is_empty() && guard_target.is_none()) || data.is_empty() {
         return Vec::new();
     }
 
     let map = state.blocking_read();
+    let guard_target = guard_target.map(|target| {
+        snapshot_batch_targets(&map, vec![target])
+            .into_iter()
+            .next()
+            .expect("guard target snapshot")
+    });
     let targets = snapshot_batch_targets(&map, targets);
     drop(map);
 
-    targets
-        .into_iter()
-        .map(|target| match target {
-            BatchTarget::Result(result) => result,
-            BatchTarget::Ready { tab_id, active } => {
-                let mut active_guard = active.blocking_lock();
-                let Some(active) = active_guard.as_mut() else {
-                    return PtyWriteResult::new(tab_id, PtyWriteStatus::Reconnecting);
-                };
-
-                let write_result = match active {
-                    ActiveSession::Local(local) => local.writer.write_all(data.as_bytes()),
-                    ActiveSession::Ssh(ssh) => ssh
-                        .input_tx
-                        .send(data.as_bytes().to_vec())
-                        .map_err(|_| std::io::Error::other("SSH input channel is closed")),
-                };
-
-                match write_result {
-                    Ok(()) => PtyWriteResult::new(tab_id, PtyWriteStatus::Written),
-                    Err(error) => PtyWriteResult::failed(tab_id, error.to_string()),
-                }
-            }
-        })
-        .collect()
+    write_guarded_batch(guard_target, targets, data.as_bytes())
 }
 
 #[cfg(test)]
@@ -340,6 +389,32 @@ mod batch_write_tests {
             stop_tx,
             supervisor: runtime.spawn(async {}),
         }
+    }
+
+    fn writable_ssh_target(
+        runtime: &tokio::runtime::Runtime,
+    ) -> (
+        BatchTarget,
+        Arc<TokioMutex<Option<ActiveSession>>>,
+        mpsc::UnboundedReceiver<Vec<u8>>,
+    ) {
+        let (input_tx, input_rx) = mpsc::unbounded_channel();
+        let (resize_tx, _) = mpsc::unbounded_channel();
+        let active = Arc::new(TokioMutex::new(Some(ActiveSession::Ssh(
+            super::super::state::ActiveSsh {
+                input_tx,
+                resize_tx,
+                task: runtime.spawn(async {}),
+            },
+        ))));
+        (
+            BatchTarget::Ready {
+                tab_id: "target".to_string(),
+                active: active.clone(),
+            },
+            active,
+            input_rx,
+        )
     }
 
     #[test]
@@ -390,6 +465,61 @@ mod batch_write_tests {
                 ..
             }) if tab_id == "stale"
         ));
+    }
+
+    #[test]
+    fn failed_guard_prevents_target_writes() {
+        let runtime = tokio::runtime::Runtime::new().expect("runtime");
+        let guard = BatchTarget::Result(PtyWriteResult::new(
+            "source".to_string(),
+            PtyWriteStatus::Missing,
+        ));
+        let (target, target_active, mut input_rx) = writable_ssh_target(&runtime);
+
+        let results = write_guarded_batch(Some(guard), vec![target], b"input");
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].tab_id, "source");
+        assert_eq!(results[0].status, PtyWriteStatus::Missing);
+        assert!(target_active.blocking_lock().is_some());
+        assert!(matches!(
+            input_rx.try_recv(),
+            Err(mpsc::error::TryRecvError::Empty)
+        ));
+    }
+
+    #[test]
+    fn disconnected_guard_prevents_target_writes() {
+        let runtime = tokio::runtime::Runtime::new().expect("runtime");
+        let guard = BatchTarget::Ready {
+            tab_id: "source".to_string(),
+            active: Arc::new(TokioMutex::new(None)),
+        };
+        let (target, target_active, mut input_rx) = writable_ssh_target(&runtime);
+
+        let results = write_guarded_batch(Some(guard), vec![target], b"input");
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].tab_id, "source");
+        assert_eq!(results[0].status, PtyWriteStatus::Reconnecting);
+        assert!(target_active.blocking_lock().is_some());
+        assert!(matches!(
+            input_rx.try_recv(),
+            Err(mpsc::error::TryRecvError::Empty)
+        ));
+    }
+
+    #[test]
+    fn writable_guard_receives_input_without_targets() {
+        let runtime = tokio::runtime::Runtime::new().expect("runtime");
+        let (guard, guard_active, mut input_rx) = writable_ssh_target(&runtime);
+
+        let results = write_guarded_batch(Some(guard), Vec::new(), b"input");
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].status, PtyWriteStatus::Written);
+        assert!(guard_active.blocking_lock().is_some());
+        assert_eq!(input_rx.try_recv().expect("guard input"), b"input");
     }
 }
 

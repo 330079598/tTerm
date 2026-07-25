@@ -457,11 +457,11 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   )
 
   const handleReconnect = useCallback(() => {
-    onSessionUnavailable?.(tabId)
+    onSessionUnavailable?.(tabId, sessionNonce, false)
     waitingForReconnectRef.current = false
     setConnectionState("connecting")
     onReconnectRequest?.()
-  }, [onReconnectRequest, onSessionUnavailable, setConnectionState, tabId])
+  }, [onReconnectRequest, onSessionUnavailable, sessionNonce, setConnectionState, tabId])
 
   const handleConnectionHeaderMouseDown = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {

@@ -168,8 +168,34 @@ export const TTermApp: React.FC = () => {
     setBroadcastMode("command")
   }, [])
 
+  const stopLiveSource = useCallback(
+    (tabId: string, sessionNonce: number) => {
+      const source = liveSourceRef.current
+      if (source?.tabId !== tabId || source.sessionNonce !== sessionNonce) return false
+
+      stopLiveBroadcast()
+      return true
+    },
+    [stopLiveBroadcast]
+  )
+
+  const stopUnavailableLiveSource = useCallback(
+    (tabId: string, sessionNonce: number) => {
+      if (!stopLiveSource(tabId, sessionNonce)) return
+
+      toast({
+        title: t("broadcast.sourceUnavailableTitle"),
+        description: t("broadcast.sourceUnavailableDescription"),
+      })
+    },
+    [stopLiveSource, t]
+  )
+
   const handleTerminalConnectionStateChange = useCallback(
     (tabId: string, sessionNonce: number, connectionState: ConnectionState | null) => {
+      if (connectionState !== "connected") {
+        stopUnavailableLiveSource(tabId, sessionNonce)
+      }
       setTerminalRuntimeStates((current) => {
         if (connectionState === null) {
           if (current[tabId]?.sessionNonce !== sessionNonce) return current
@@ -197,7 +223,7 @@ export const TTermApp: React.FC = () => {
         })
       }
     },
-    []
+    [stopUnavailableLiveSource]
   )
 
   const resolveBroadcastTargets = useCallback(() => {
@@ -218,7 +244,7 @@ export const TTermApp: React.FC = () => {
   const writeBroadcast = useCallback(
     async (data: string, targets = resolveBroadcastTargets()) => {
       if (targets.length === 0 || data.length === 0) return []
-      return invoke<PtyWriteResult[]>("write_pty_batch", { targets, data })
+      return invoke<PtyWriteResult[]>("write_pty_batch", { targets, guardTarget: null, data })
     },
     [resolveBroadcastTargets]
   )
@@ -374,17 +400,17 @@ export const TTermApp: React.FC = () => {
       }
 
       let results: PtyWriteResult[] = []
+      let liveTargetCount = 0
       const generation = broadcastGenerationRef.current
       const queuedWrite = broadcastWriteQueueRef.current.then(async () => {
         if (generation !== broadcastGenerationRef.current || !liveSourceRef.current) return
         const targets = resolveBroadcastTargets()
         const source = liveSourceRef.current
         if (!source) return
-        const batchTargets = targets.some((target) => target.tabId === source.tabId)
-          ? targets
-          : [...targets, source]
+        liveTargetCount = targets.filter((target) => target.tabId !== source.tabId).length
         results = await invoke<PtyWriteResult[]>("write_pty_batch", {
-          targets: batchTargets,
+          targets: targets.filter((target) => target.tabId !== source.tabId),
+          guardTarget: source,
           data,
         })
       })
@@ -403,13 +429,15 @@ export const TTermApp: React.FC = () => {
       if (generation !== broadcastGenerationRef.current || !liveSourceRef.current) return
       setLatestBroadcastResults(Object.fromEntries(results.map((result) => [result.tabId, result])))
       const sourceResult = results.find((result) => result.tabId === tabId)
+      if (!sourceResult || sourceResult.status !== "written") {
+        stopUnavailableLiveSource(tabId, sessionNonce)
+        return
+      }
+
       const failedIds = results
-        .filter((result) => result.status !== "written")
+        .filter((result) => result.tabId !== tabId && result.status !== "written")
         .map((result) => result.tabId)
 
-      if (!sourceResult || sourceResult.status !== "written") {
-        stopLiveBroadcast()
-      }
       if (failedIds.length > 0) {
         setUnavailableBroadcastTargetIds((current) => [...new Set([...current, ...failedIds])])
         setBroadcastTargetIds((current) => current.filter((id) => !failedIds.includes(id)))
@@ -417,13 +445,13 @@ export const TTermApp: React.FC = () => {
           title: t("broadcast.partialFailureTitle"),
           description: t("broadcast.partialFailureDescription", {
             failed: failedIds.length,
-            total: results.length,
+            total: liveTargetCount,
           }),
           variant: "destructive",
         })
       }
     },
-    [confirm, resolveBroadcastTargets, stopLiveBroadcast, t]
+    [confirm, resolveBroadcastTargets, stopLiveBroadcast, stopUnavailableLiveSource, t]
   )
 
   const handleSendBroadcastCommand = useCallback(
@@ -569,15 +597,17 @@ export const TTermApp: React.FC = () => {
   )
 
   const handleTerminalSessionUnavailable = useCallback(
-    (tabId: string) => {
+    (tabId: string, sessionNonce: number, unexpected: boolean) => {
       setUnavailableBroadcastTargetIds((current) =>
         current.includes(tabId) ? current : [...current, tabId]
       )
-      if (liveSourceRef.current?.tabId === tabId) {
-        stopLiveBroadcast()
+      if (unexpected) {
+        stopUnavailableLiveSource(tabId, sessionNonce)
+      } else {
+        stopLiveSource(tabId, sessionNonce)
       }
     },
-    [stopLiveBroadcast]
+    [stopLiveSource, stopUnavailableLiveSource]
   )
 
   const toggleBroadcastTarget = useCallback((tabId: string) => {
@@ -741,12 +771,17 @@ export const TTermApp: React.FC = () => {
         (tab) => tab.type === "ssh" && tab.connection?.profileId === profile.id
       )
 
+      const source = liveSourceRef.current
+      if (source && profileTabs.some((tab) => tab.id === source.tabId)) {
+        stopLiveSource(source.tabId, source.sessionNonce)
+      }
+
       for (const tab of profileTabs) {
         cleanupConnection(tab.id)
       }
       removeTabs(profileTabs.map((tab) => tab.id))
     },
-    [cleanupConnection, removeTabs, tabs]
+    [cleanupConnection, removeTabs, stopLiveSource, tabs]
   )
 
   const handleEditTabProfile = useCallback(
@@ -905,12 +940,15 @@ export const TTermApp: React.FC = () => {
   const closeTabById = useCallback(
     (id: string) => {
       const tab = tabs.find((currentTab) => currentTab.id === id)
+      if (tab) {
+        stopLiveSource(tab.id, tab.sessionNonce ?? 0)
+      }
       if (tab?.type !== "settings" && tab?.type !== "remote-file-editor") {
         cleanupConnection(id)
       }
       removeTab(id)
     },
-    [cleanupConnection, removeTab, tabs]
+    [cleanupConnection, removeTab, stopLiveSource, tabs]
   )
 
   const handleRemoveTab = useCallback(
@@ -943,13 +981,19 @@ export const TTermApp: React.FC = () => {
       }
 
       for (const targetTab of targetTabs) {
+        stopLiveSource(targetTab.id, targetTab.sessionNonce ?? 0)
         if (targetTab.type !== "settings" && targetTab.type !== "remote-file-editor") {
           cleanupConnection(targetTab.id)
         }
       }
       closeAction()
     },
-    [cleanupConnection, confirmCloseTabsWithTransfers, confirmCloseTabsWithUnsavedRemoteFiles]
+    [
+      cleanupConnection,
+      confirmCloseTabsWithTransfers,
+      confirmCloseTabsWithUnsavedRemoteFiles,
+      stopLiveSource,
+    ]
   )
 
   const handleCloseOtherTabs = useCallback(

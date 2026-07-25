@@ -122,7 +122,7 @@ interface TabPanelsProps {
     state: ConnectionState | null
   ) => void
   onTerminalInput: (request: TerminalInputRequest) => Promise<void>
-  onTerminalSessionUnavailable: (tabId: string) => void
+  onTerminalSessionUnavailable: (tabId: string, sessionNonce: number, unexpected: boolean) => void
   onTerminalSensitivePrompt: (tabId: string) => void
   profilesRefreshKey?: number
   startupConnectionsReady: boolean
