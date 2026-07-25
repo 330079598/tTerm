@@ -20,11 +20,12 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  box-sizing: border-box;
   background: hsl(var(--background));
 }
 
 .terminal-tab-shell.is-broadcast-source {
-  box-shadow: inset 0 0 0 2px hsl(var(--destructive) / 0.85);
+  border: 2px solid hsl(var(--destructive) / 0.85);
 }
 
 .terminal-broadcast-controls,
