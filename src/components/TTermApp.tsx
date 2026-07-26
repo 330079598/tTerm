@@ -34,6 +34,7 @@ import { useTabs } from "@/hooks/useTabs"
 import { toast } from "@/hooks/use-toast"
 import { useWindowControls } from "@/hooks/useWindowControls"
 import { markSessionReady } from "@/lib/startup"
+import { getAdjacentTabId, getTabIdsForCloseAction } from "@/lib/tabClosing"
 import { Tab } from "@/types/tab"
 import type {
   BroadcastMode,
@@ -126,20 +127,18 @@ export const TTermApp: React.FC = () => {
     addTab,
     openSettingsTab,
     renameSettingsTab,
-    removeTab,
     removeTabs,
     setActiveTab,
     moveTab,
     duplicateTab,
-    closeOtherTabs,
-    closeTabsToRight,
-    closeTabsToLeft,
     renameTab,
     restoreSession,
     updateTab,
   } = useTabs()
   const tabsRef = useRef(tabs)
+  const activeTabIdRef = useRef(activeTabId)
   tabsRef.current = tabs
+  activeTabIdRef.current = activeTabId
 
   const { saveSession, loadSession } = useSessionPersistence()
   const { cleanupConnection } = useConnectionManager()
@@ -912,7 +911,7 @@ export const TTermApp: React.FC = () => {
   const confirmCloseTabsWithUnsavedRemoteFiles = useCallback(
     async (tabIds: string[]) => {
       const idSet = new Set(tabIds)
-      const unsavedTabs = tabs.filter(
+      const unsavedTabs = tabsRef.current.filter(
         (tab) => idSet.has(tab.id) && tab.type === "remote-file-editor" && tab.isModified
       )
       if (unsavedTabs.length === 0) {
@@ -934,25 +933,32 @@ export const TTermApp: React.FC = () => {
         variant: "destructive",
       })
     },
-    [confirm, t, tabs]
+    [confirm, t]
   )
 
   const closeTabById = useCallback(
-    (id: string) => {
-      const tab = tabs.find((currentTab) => currentTab.id === id)
+    (id: string, preferredActiveTabId?: string) => {
+      const tab = tabsRef.current.find((currentTab) => currentTab.id === id)
       if (tab) {
         stopLiveSource(tab.id, tab.sessionNonce ?? 0)
       }
       if (tab?.type !== "settings" && tab?.type !== "remote-file-editor") {
         cleanupConnection(id)
       }
-      removeTab(id)
+      if (activeTabIdRef.current === id && preferredActiveTabId) {
+        workspaceRef.current?.activateTab(preferredActiveTabId)
+      }
+      removeTabs([id], { preferredActiveTabId })
     },
-    [cleanupConnection, removeTab, stopLiveSource, tabs]
+    [cleanupConnection, removeTabs, stopLiveSource]
   )
 
   const handleRemoveTab = useCallback(
     async (id: string) => {
+      const tabIds =
+        workspaceRef.current?.getGroupTabIds(id) ??
+        tabsRef.current.map((currentTab) => currentTab.id)
+      const preferredActiveTabId = getAdjacentTabId(tabIds, id)
       const unsavedConfirmed = await confirmCloseTabsWithUnsavedRemoteFiles([id])
       if (!unsavedConfirmed) {
         return
@@ -962,7 +968,7 @@ export const TTermApp: React.FC = () => {
       if (!confirmed) {
         return
       }
-      closeTabById(id)
+      closeTabById(id, preferredActiveTabId)
     },
     [closeTabById, confirmCloseTabsWithTransfers, confirmCloseTabsWithUnsavedRemoteFiles]
   )
@@ -998,60 +1004,56 @@ export const TTermApp: React.FC = () => {
 
   const handleCloseOtherTabs = useCallback(
     async (id: string) => {
-      const groupTabIds = workspaceRef.current?.getGroupTabIds(id)
-      const targetIdSet = groupTabIds ? new Set(groupTabIds.filter((tabId) => tabId !== id)) : null
-      const targetTabs = targetIdSet
-        ? tabs.filter((tab) => targetIdSet.has(tab.id))
-        : tabs.filter((tab) => tab.id !== id)
-      await closeTabsWithConfirmation(targetTabs, () =>
-        targetIdSet ? removeTabs([...targetIdSet]) : closeOtherTabs(id)
-      )
+      const tabIds = workspaceRef.current?.getGroupTabIds(id) ?? tabs.map((tab) => tab.id)
+      const targetIds = getTabIdsForCloseAction(tabIds, id, "close-others")
+      const targetIdSet = new Set(targetIds)
+      const targetTabs = tabs.filter((tab) => targetIdSet.has(tab.id))
+      await closeTabsWithConfirmation(targetTabs, () => {
+        workspaceRef.current?.activateTab(id)
+        removeTabs(targetIds, { preferredActiveTabId: id, activatePreferred: true })
+      })
     },
-    [closeOtherTabs, closeTabsWithConfirmation, removeTabs, tabs]
+    [closeTabsWithConfirmation, removeTabs, tabs]
   )
 
   const handleCloseTabsToLeft = useCallback(
     async (id: string) => {
-      const groupTabIds = workspaceRef.current?.getGroupTabIds(id)
-      const tabIndex = groupTabIds
-        ? groupTabIds.indexOf(id)
-        : tabs.findIndex((tab) => tab.id === id)
-      const targetIds = groupTabIds?.slice(0, tabIndex)
-      if (tabIndex <= 0 || (targetIds && targetIds.length === 0)) {
+      const tabIds = workspaceRef.current?.getGroupTabIds(id) ?? tabs.map((tab) => tab.id)
+      const targetIds = getTabIdsForCloseAction(tabIds, id, "close-left")
+      if (targetIds.length === 0) {
         return
       }
 
-      const targetIdSet = targetIds ? new Set(targetIds) : null
-      const targetTabs = targetIdSet
-        ? tabs.filter((tab) => targetIdSet.has(tab.id))
-        : tabs.slice(0, tabIndex)
-      await closeTabsWithConfirmation(targetTabs, () =>
-        targetIds ? removeTabs(targetIds) : closeTabsToLeft(id)
-      )
+      const targetIdSet = new Set(targetIds)
+      const targetTabs = tabs.filter((tab) => targetIdSet.has(tab.id))
+      await closeTabsWithConfirmation(targetTabs, () => {
+        if (activeTabId && targetIdSet.has(activeTabId)) {
+          workspaceRef.current?.activateTab(id)
+        }
+        removeTabs(targetIds, { preferredActiveTabId: id })
+      })
     },
-    [closeTabsToLeft, closeTabsWithConfirmation, removeTabs, tabs]
+    [activeTabId, closeTabsWithConfirmation, removeTabs, tabs]
   )
 
   const handleCloseTabsToRight = useCallback(
     async (id: string) => {
-      const groupTabIds = workspaceRef.current?.getGroupTabIds(id)
-      const tabIndex = groupTabIds
-        ? groupTabIds.indexOf(id)
-        : tabs.findIndex((tab) => tab.id === id)
-      if (tabIndex === -1) {
+      const tabIds = workspaceRef.current?.getGroupTabIds(id) ?? tabs.map((tab) => tab.id)
+      const targetIds = getTabIdsForCloseAction(tabIds, id, "close-right")
+      if (targetIds.length === 0) {
         return
       }
 
-      const targetIds = groupTabIds?.slice(tabIndex + 1)
-      const targetIdSet = targetIds ? new Set(targetIds) : null
-      const targetTabs = targetIdSet
-        ? tabs.filter((tab) => targetIdSet.has(tab.id))
-        : tabs.slice(tabIndex + 1)
-      await closeTabsWithConfirmation(targetTabs, () =>
-        targetIds ? removeTabs(targetIds) : closeTabsToRight(id)
-      )
+      const targetIdSet = new Set(targetIds)
+      const targetTabs = tabs.filter((tab) => targetIdSet.has(tab.id))
+      await closeTabsWithConfirmation(targetTabs, () => {
+        if (activeTabId && targetIdSet.has(activeTabId)) {
+          workspaceRef.current?.activateTab(id)
+        }
+        removeTabs(targetIds, { preferredActiveTabId: id })
+      })
     },
-    [closeTabsToRight, closeTabsWithConfirmation, removeTabs, tabs]
+    [activeTabId, closeTabsWithConfirmation, removeTabs, tabs]
   )
 
   const handleSplitTab = useCallback((tabId: string, direction: WorkspaceSplitDirection) => {
@@ -1069,6 +1071,11 @@ export const TTermApp: React.FC = () => {
   const handleTabDragCancel = useCallback(() => {
     workspaceRef.current?.clearTabDrop()
   }, [])
+
+  const getTabContextIds = useCallback(
+    (tabId: string) => workspaceRef.current?.getGroupTabIds(tabId) ?? tabs.map((tab) => tab.id),
+    [tabs]
+  )
 
   useEffect(() => {
     const handleWorkspaceShortcut = (event: KeyboardEvent) => {
@@ -1301,6 +1308,7 @@ export const TTermApp: React.FC = () => {
               onTabDragMove={handleTabDragMove}
               onTabDrop={handleTabDrop}
               onTabDragCancel={handleTabDragCancel}
+              getTabContextIds={getTabContextIds}
               onContextMenu={handleTabContextMenu}
             />
             <div className="tab-add-button">

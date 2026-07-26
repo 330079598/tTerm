@@ -108,8 +108,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
   // Focus the menuitem element when focusIndex changes
   useEffect(() => {
     if (focusIndex >= 0 && menuRef.current) {
-      const items = menuRef.current.querySelectorAll('[role="menuitem"]')
-      const targetItem = items[focusIndex] as HTMLElement | undefined
+      const targetItem = menuRef.current.querySelector<HTMLElement>(
+        `[role="menuitem"][data-action-index="${focusIndex}"]`
+      )
       targetItem?.focus()
     }
   }, [focusIndex])
@@ -196,6 +197,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
                 type="button"
                 variant="ghost"
                 role="menuitem"
+                data-action-index={index}
                 disabled={action.disabled}
                 tabIndex={isFocused ? 0 : -1}
                 onFocus={() => setFocusIndex(index)}

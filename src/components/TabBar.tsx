@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 import { ChevronDown, ChevronLeft, ChevronRight, Search, Settings, X } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Tab, TabContextMenuAction } from "@/types/tab"
+import { getTabCloseMenuActions } from "@/lib/tabClosing"
 
 const TAB_OVERFLOW_THRESHOLD = 16
 const OVERFLOW_PANEL_MAX_WIDTH = 320
@@ -58,12 +59,14 @@ interface TabBarProps {
   onTabDragMove: (tabId: string, clientX: number, clientY: number) => void
   onTabDrop: (tabId: string, clientX: number, clientY: number) => boolean
   onTabDragCancel: () => void
+  getTabContextIds: (tabId: string) => string[]
   onContextMenu: (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => void
 }
 
 interface TabItemProps {
   tab: Tab
   index: number
+  getTabContextIds: (tabId: string) => string[]
   isActive: boolean
   isDragging: boolean
   isDropTarget: boolean
@@ -88,6 +91,7 @@ type TabDragState = {
 const TabItem: React.FC<TabItemProps> = ({
   tab,
   index,
+  getTabContextIds,
   isActive,
   isDragging,
   isDropTarget,
@@ -108,15 +112,18 @@ const TabItem: React.FC<TabItemProps> = ({
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault()
+      const closeActions = getTabCloseMenuActions(getTabContextIds(tab.id), tab.id, {
+        closeTab: t("contextMenu.closeTab"),
+        closeOtherTabs: t("contextMenu.closeOtherTabs"),
+        closeTabsToLeft: t("contextMenu.closeTabsToLeft"),
+        closeTabsToRight: t("contextMenu.closeTabsToRight"),
+      })
 
       if (tab.type === "settings") {
         onContextMenu(e, tab, [
           { label: t("contextMenu.newTab"), action: "new", icon: "plus" },
           { separator: true, label: "", action: "" },
-          { label: t("contextMenu.closeTab"), action: "close", icon: "x" },
-          { label: t("contextMenu.closeOtherTabs"), action: "close-others" },
-          { label: t("contextMenu.closeTabsToLeft"), action: "close-left" },
-          { label: t("contextMenu.closeTabsToRight"), action: "close-right" },
+          ...closeActions,
         ])
         return
       }
@@ -168,14 +175,11 @@ const TabItem: React.FC<TabItemProps> = ({
         ...(editConnectionAction ? [editConnectionAction] : []),
         ...(pinAction ? [pinAction] : []),
         { separator: true, label: "", action: "" },
-        { label: t("contextMenu.closeTab"), action: "close", icon: "x" },
-        { label: t("contextMenu.closeOtherTabs"), action: "close-others" },
-        { label: t("contextMenu.closeTabsToLeft"), action: "close-left" },
-        { label: t("contextMenu.closeTabsToRight"), action: "close-right" },
+        ...closeActions,
       ]
       onContextMenu(e, tab, actions)
     },
-    [tab, onContextMenu, t]
+    [getTabContextIds, tab, onContextMenu, t]
   )
 
   const handleKeyDown = useCallback(
@@ -237,6 +241,7 @@ export const TabBar: React.FC<TabBarProps> = ({
   onTabDragMove,
   onTabDrop,
   onTabDragCancel,
+  getTabContextIds,
   onContextMenu,
 }) => {
   const activeTabRef = useRef<HTMLDivElement | null>(null)
@@ -658,6 +663,7 @@ export const TabBar: React.FC<TabBarProps> = ({
               <TabItem
                 tab={tab}
                 index={index}
+                getTabContextIds={getTabContextIds}
                 isActive={tab.id === activeTabId}
                 isDragging={tab.id === draggingTabId}
                 isDropTarget={tab.id === dropTargetTabId}

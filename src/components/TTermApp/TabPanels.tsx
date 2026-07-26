@@ -43,6 +43,7 @@ import { TerminalTab } from "@/components/TerminalTab"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { SavedProfile, Tab, TabContextMenuAction } from "@/types/tab"
 import type { TerminalInputRequest } from "@/types/broadcast"
+import { getTabCloseMenuActions } from "@/lib/tabClosing"
 import type { LiveBroadcastState } from "@/types/broadcast"
 import type { ConnectionState } from "@/components/TerminalTab/types"
 
@@ -73,6 +74,7 @@ export interface TabPanelsHandle {
   activateTab: (tabId: string) => void
   clearTabDrop: () => void
   commitTabDrop: (tabId: string, clientX: number, clientY: number) => boolean
+  getActiveTabId: () => string | null
   getGroupTabIds: (tabId: string) => string[] | null
   getVisibleTerminalTabIds: () => string[]
   previewTabDrop: (tabId: string, clientX: number, clientY: number) => boolean
@@ -181,6 +183,7 @@ function useDockPanelState(api: IDockviewPanelProps["api"]) {
 
 function getTabActions(
   tab: Tab,
+  tabIds: string[],
   t: ReturnType<typeof useTranslation>["t"]
 ): TabContextMenuAction[] {
   const commonStart: TabContextMenuAction[] = [
@@ -188,10 +191,12 @@ function getTabActions(
   ]
   const commonEnd: TabContextMenuAction[] = [
     { separator: true, label: "", action: "" },
-    { label: t("contextMenu.closeTab"), action: "close", icon: "x" },
-    { label: t("contextMenu.closeOtherTabs"), action: "close-others" },
-    { label: t("contextMenu.closeTabsToLeft"), action: "close-left" },
-    { label: t("contextMenu.closeTabsToRight"), action: "close-right" },
+    ...getTabCloseMenuActions(tabIds, tab.id, {
+      closeTab: t("contextMenu.closeTab"),
+      closeOtherTabs: t("contextMenu.closeOtherTabs"),
+      closeTabsToLeft: t("contextMenu.closeTabsToLeft"),
+      closeTabsToRight: t("contextMenu.closeTabsToRight"),
+    }),
   ]
 
   if (tab.type === "settings") {
@@ -268,7 +273,17 @@ const WorkspaceTab: React.FC<IDockviewPanelHeaderProps<WorkspacePanelParams>> = 
       aria-selected={isVisible}
       data-allow-context-menu
       onClick={() => api.setActive()}
-      onContextMenu={(event) => onTabContextMenu(event, tab, getTabActions(tab, t))}
+      onContextMenu={(event) =>
+        onTabContextMenu(
+          event,
+          tab,
+          getTabActions(
+            tab,
+            api.group.panels.map((panel) => panel.id),
+            t
+          )
+        )
+      }
     >
       {tab.type === "settings" && <Settings size={13} aria-hidden="true" />}
       <span className="workspace-tab-title">{tab.title}</span>
@@ -817,6 +832,9 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
       },
       clearTabDrop,
       commitTabDrop,
+      getActiveTabId() {
+        return dockApi?.activePanel?.id ?? null
+      },
       getGroupTabIds(tabId) {
         const panel = dockApi?.getPanel(tabId)
         return panel ? panel.group.panels.map((groupPanel) => groupPanel.id) : null
