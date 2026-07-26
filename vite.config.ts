@@ -86,36 +86,6 @@ export default defineConfig(async () => ({
     },
   },
   build: {
-    rolldownOptions: {
-      checks: {
-        pluginTimings: false,
-      },
-      output: {
-        codeSplitting: {
-          includeDependenciesRecursively: false,
-          groups: [
-            { name: "router", test: /node_modules[\\/]@tanstack[\\/]react-router/, priority: 20 },
-            { name: "xterm", test: /node_modules[\\/]@xterm[\\/]/, priority: 20 },
-            {
-              name: "codemirror-languages",
-              test: /node_modules[\\/](@codemirror[\\/]lang-|@lezer[\\/])/,
-              priority: 20,
-            },
-            { name: "codemirror-core", test: /node_modules[\\/]@codemirror[\\/]/, priority: 15 },
-            { name: "markdown", test: /node_modules[\\/](react-markdown|remark-)/, priority: 20 },
-            { name: "i18n", test: /node_modules[\\/](i18next|react-i18next)/, priority: 20 },
-            { name: "icons", test: /node_modules[\\/]lucide-react/, priority: 20 },
-            {
-              name: "react-vendor",
-              test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/,
-              priority: 20,
-            },
-            { name: "vendor", test: /node_modules[\\/]/, maxSize: 550_000, priority: 10 },
-            { name: "app", test: /[\\/]src[\\/]/, maxSize: 550_000, priority: 5 },
-          ],
-        },
-      },
-    },
-    chunkSizeWarningLimit: 600,
+    chunkSizeWarningLimit: 1024,
   },
 }));
