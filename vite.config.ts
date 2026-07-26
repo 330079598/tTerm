@@ -45,51 +45,6 @@ function materialIconsPlugin(): PluginOption {
   };
 }
 
-function manualChunks(id: string) {
-  if (id.includes("node_modules")) {
-    if (id.includes("@tanstack/react-router")) {
-      return "router";
-    }
-
-    if (id.includes("@xterm/xterm") || id.includes("@xterm/addon-")) {
-      return "xterm";
-    }
-
-    if (id.includes("@codemirror/lang-") || id.includes("@lezer/")) {
-      return "codemirror-languages";
-    }
-
-    if (id.includes("@codemirror/")) {
-      return "codemirror-core";
-    }
-
-    if (id.includes("react-markdown") || id.includes("remark-")) {
-      return "markdown";
-    }
-
-    if (id.includes("i18next") || id.includes("react-i18next")) {
-      return "i18n";
-    }
-
-    if (id.includes("lucide-react")) {
-      return "icons";
-    }
-
-    if (
-      id.includes("/react/") ||
-      id.includes("\\react\\") ||
-      id.includes("/react-dom/") ||
-      id.includes("\\react-dom\\") ||
-      id.includes("/scheduler/") ||
-      id.includes("\\scheduler\\")
-    ) {
-      return "react-vendor";
-    }
-  }
-
-  return undefined;
-}
-
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
   plugins: [
@@ -131,9 +86,34 @@ export default defineConfig(async () => ({
     },
   },
   build: {
-    rollupOptions: {
+    rolldownOptions: {
+      checks: {
+        pluginTimings: false,
+      },
       output: {
-        manualChunks,
+        codeSplitting: {
+          includeDependenciesRecursively: false,
+          groups: [
+            { name: "router", test: /node_modules[\\/]@tanstack[\\/]react-router/, priority: 20 },
+            { name: "xterm", test: /node_modules[\\/]@xterm[\\/]/, priority: 20 },
+            {
+              name: "codemirror-languages",
+              test: /node_modules[\\/](@codemirror[\\/]lang-|@lezer[\\/])/,
+              priority: 20,
+            },
+            { name: "codemirror-core", test: /node_modules[\\/]@codemirror[\\/]/, priority: 15 },
+            { name: "markdown", test: /node_modules[\\/](react-markdown|remark-)/, priority: 20 },
+            { name: "i18n", test: /node_modules[\\/](i18next|react-i18next)/, priority: 20 },
+            { name: "icons", test: /node_modules[\\/]lucide-react/, priority: 20 },
+            {
+              name: "react-vendor",
+              test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+              priority: 20,
+            },
+            { name: "vendor", test: /node_modules[\\/]/, maxSize: 550_000, priority: 10 },
+            { name: "app", test: /[\\/]src[\\/]/, maxSize: 550_000, priority: 5 },
+          ],
+        },
       },
     },
     chunkSizeWarningLimit: 600,
