@@ -169,6 +169,66 @@ export function useTerminalLifecycle({
 
     term.open(container)
 
+    const verticalScrollbarSelector = ".xterm-scrollable-element > .scrollbar.vertical"
+    const resetScrollbackVisibility = () => {
+      const scrollbar = container.querySelector<HTMLElement>(verticalScrollbarSelector)
+      if (!scrollbar) return
+
+      for (const property of [
+        "visibility",
+        "z-index",
+        "opacity",
+        "pointer-events",
+        "display",
+        "width",
+      ]) {
+        scrollbar.style.removeProperty(property)
+      }
+      const slider = scrollbar.querySelector<HTMLElement>(".slider")
+      if (!slider) return
+
+      for (const property of [
+        "visibility",
+        "opacity",
+        "display",
+        "width",
+        "min-height",
+        "border-radius",
+        "background-color",
+      ]) {
+        slider.style.removeProperty(property)
+      }
+    }
+    const syncScrollbackVisibility = () => {
+      if (term.buffer.active.baseY <= 0) {
+        resetScrollbackVisibility()
+        return
+      }
+
+      const scrollbar = container.querySelector<HTMLElement>(verticalScrollbarSelector)
+      if (!scrollbar) return
+
+      scrollbar.style.setProperty("visibility", "visible", "important")
+      scrollbar.style.setProperty("z-index", "11", "important")
+      scrollbar.style.setProperty("opacity", "1", "important")
+      scrollbar.style.setProperty("pointer-events", "auto", "important")
+      scrollbar.style.setProperty("display", "block", "important")
+      scrollbar.style.setProperty("width", "10px", "important")
+
+      const slider = scrollbar.querySelector<HTMLElement>(".slider")
+      if (!slider) return
+
+      slider.style.setProperty("visibility", "visible", "important")
+      slider.style.setProperty("opacity", "1", "important")
+      slider.style.setProperty("display", "block", "important")
+      slider.style.setProperty("width", "10px", "important")
+      slider.style.setProperty("min-height", "24px", "important")
+      slider.style.setProperty("border-radius", "4px", "important")
+      slider.style.setProperty("background-color", "rgba(160, 160, 160, 0.55)", "important")
+    }
+    const scrollbackVisibilityDisposable = term.onWriteParsed(syncScrollbackVisibility)
+    syncScrollbackVisibility()
+
     if (isActiveRef.current) {
       term.focus()
     }
@@ -402,6 +462,8 @@ export function useTerminalLifecycle({
       creatingPtyRef.current = false
       waitingForReconnectRef.current = false
       passwordPromptActiveRef.current = false
+      scrollbackVisibilityDisposable.dispose()
+      resetScrollbackVisibility()
     }
   }, [
     activateFitTimerRef,
