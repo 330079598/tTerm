@@ -586,7 +586,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
   return (
     <div
-      className={`terminal-tab-shell ${isBroadcastSource ? "is-broadcast-source" : ""}`}
+      className={`terminal-tab-shell ${isActive ? "is-active" : ""} ${isBroadcastSource ? "is-broadcast-source" : ""}`}
       aria-label={isBroadcastSource ? t("broadcast.sourceTerminal") : undefined}
     >
       <ConnectionHeader

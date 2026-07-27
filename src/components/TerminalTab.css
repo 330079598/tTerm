@@ -618,6 +618,40 @@ button.server-monitor-metric.is-clickable:focus-visible {
   font-feature-settings: normal;
 }
 
+.terminal-tab-shell.is-active
+  .xterm-has-scrollback
+  .xterm
+  .xterm-scrollable-element
+  > .scrollbar.vertical {
+  visibility: visible !important;
+  z-index: 11 !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  display: block !important;
+  width: 10px !important;
+}
+
+.terminal-tab-shell.is-active
+  .xterm-has-scrollback
+  .xterm
+  .xterm-scrollable-element
+  > .scrollbar.vertical
+  > .slider {
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: block !important;
+  width: 10px !important;
+  min-height: 24px !important;
+  border-radius: 4px !important;
+  background-color: hsl(var(--muted-foreground) / 0.55) !important;
+}
+
+.terminal-tab-shell:not(.is-active) .xterm .xterm-scrollable-element > .scrollbar.vertical {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 .connection-header-restore {
   position: absolute;
   top: 10px;
