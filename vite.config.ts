@@ -86,6 +86,11 @@ export default defineConfig(async () => ({
     },
   },
   build: {
-    chunkSizeWarningLimit: 1024,
+    rolldownOptions: {
+      checks: {
+        pluginTimings: false,
+      },
+    },
+    chunkSizeWarningLimit: 2048,
   },
 }));

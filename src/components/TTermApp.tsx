@@ -28,6 +28,7 @@ import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTransferManager } from "@/contexts/TransferContext"
 import { useConnectionManager } from "@/hooks/useConnectionManager"
+import { usePreloadedSession } from "@/hooks/usePreloadedSession"
 import { useSessionPersistence } from "@/hooks/useSessionPersistence"
 import { useTabContextMenu } from "@/hooks/useTabContextMenu"
 import { useTabs } from "@/hooks/useTabs"
@@ -141,6 +142,7 @@ export const TTermApp: React.FC = () => {
   activeTabIdRef.current = activeTabId
 
   const { saveSession, loadSession } = useSessionPersistence()
+  const getPreloadedSession = usePreloadedSession(loadSession)
   const { cleanupConnection } = useConnectionManager()
   const { config, isLoaded, saveConfig, secretStatus } = useConfig()
   const { cancelTransfer, clearCompletedTransfers, removeTransfer, transfers } =
@@ -690,7 +692,7 @@ export const TTermApp: React.FC = () => {
 
     const loadAndRestoreSession = async () => {
       try {
-        const savedSession = await loadSession()
+        const savedSession = await getPreloadedSession()
         if (cancelled) {
           return
         }
@@ -720,7 +722,7 @@ export const TTermApp: React.FC = () => {
     return () => {
       cancelled = true
     }
-  }, [addTab, isLoaded, loadSession, restoreSession])
+  }, [addTab, getPreloadedSession, isLoaded, restoreSession])
 
   useEffect(() => {
     if (!sessionRestored) {

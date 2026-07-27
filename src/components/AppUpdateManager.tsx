@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { lazy, Suspense, useEffect, useState } from "react"
 import { Download, PackageCheck, RotateCcw } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { UpdateReleaseNotes } from "@/components/UpdateReleaseNotes"
 import { useConfig } from "@/contexts/ConfigContext"
 import {
   downloadAndInstallAppUpdate,
@@ -22,6 +21,12 @@ import {
   subscribeToUpdater,
   type UpdateState,
 } from "@/lib/updater"
+
+const UpdateReleaseNotes = lazy(() =>
+  import("@/components/UpdateReleaseNotes").then((module) => ({
+    default: module.UpdateReleaseNotes,
+  }))
+)
 
 export function AppUpdateManager() {
   const { t } = useTranslation()
@@ -116,7 +121,9 @@ export function AppUpdateManager() {
               {t("updates.releaseNotes", { defaultValue: "What's new" })}
             </div>
             <div className="text-muted-foreground max-h-72 overflow-auto text-xs leading-5 break-words">
-              <UpdateReleaseNotes notes={releaseNotes} />
+              <Suspense fallback={<div className="whitespace-pre-wrap">{releaseNotes}</div>}>
+                <UpdateReleaseNotes notes={releaseNotes} />
+              </Suspense>
             </div>
           </div>
         )}
