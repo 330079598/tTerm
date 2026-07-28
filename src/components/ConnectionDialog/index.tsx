@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
-import { Loader2, Save, Server, Terminal } from "lucide-react"
+import { CheckCircle2, CircleAlert, Loader2, Save, Server, Terminal } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { SavedProfile } from "@/components/ProfilesPanel"
@@ -45,6 +45,11 @@ const connectionTypeIcons = {
   terminal: Terminal,
   ssh: Server,
 } as const
+
+type TestConnectionResultState = {
+  status: "success" | "error"
+  message: string
+}
 
 const normalizeJumpAuthMethod = (value: string | undefined): "password" | "key" =>
   value === "key" ? "key" : "password"
@@ -179,6 +184,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const [allProfiles, setAllProfiles] = useState<SavedProfile[]>([])
   const [isTesting, setIsTesting] = useState(false)
   const [testProgress, setTestProgress] = useState<SshConnectionProgress | null>(null)
+  const [testResult, setTestResult] = useState<TestConnectionResultState | null>(null)
   const [testHostKeyPrompt, setTestHostKeyPrompt] = useState<HostKeyPromptState | null>(null)
   const [savedPasswordAvailable, setSavedPasswordAvailable] = useState(false)
   const [savedJumpPasswordKeys, setSavedJumpPasswordKeys] = useState<Set<string>>(() => new Set())
@@ -468,20 +474,24 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     }
 
     setIsTesting(true)
+    setTestResult(null)
     setTestProgress({
       phase: "resolving_credentials",
       message: t("profiles.testing", { defaultValue: "Testing connection..." }),
     })
     const testTabId = `test-${sshProfileId}`
-    const unlistenProgress = await listen<SshConnectionProgress>(
-      `ssh-connection-progress-${testTabId}`,
-      (event) => setTestProgress(event.payload)
-    )
-    const unlistenHostPrompt = await listen<HostKeyPromptState>(
-      `ssh-hostkey-prompt-${testTabId}`,
-      (event) => setTestHostKeyPrompt(event.payload)
-    )
+    let unlistenProgress = () => {}
+    let unlistenHostPrompt = () => {}
     try {
+      unlistenProgress = await listen<SshConnectionProgress>(
+        `ssh-connection-progress-${testTabId}`,
+        (event) => setTestProgress(event.payload)
+      )
+      unlistenHostPrompt = await listen<HostKeyPromptState>(
+        `ssh-hostkey-prompt-${testTabId}`,
+        (event) => setTestHostKeyPrompt(event.payload)
+      )
+
       const title = form.title.trim() || getDefaultTitle(form.type, form)
       const jumpHostsPayload = buildJumpHostsPayload(form, "snake")
       const ignoreSavedPassword =
@@ -516,26 +526,30 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         { profile }
       )
       const target = `${form.username}@${form.host}:${form.port}`
+      const successMessage =
+        result.networkLatencyMs == null
+          ? t("profiles.testSuccessDescriptionNoLatency", {
+              target,
+              defaultValue: "Connected to {{target}}. Latency unavailable.",
+            })
+          : t("profiles.testSuccessDescription", {
+              target,
+              latency: result.networkLatencyMs,
+              defaultValue: "Connected to {{target}} · Latency {{latency}} ms",
+            })
+      setTestResult({ status: "success", message: successMessage })
       toast({
         title: t("profiles.testSuccess"),
-        description:
-          result.networkLatencyMs == null
-            ? t("profiles.testSuccessDescriptionNoLatency", {
-                target,
-                defaultValue: "Connected to {{target}}. Latency unavailable.",
-              })
-            : t("profiles.testSuccessDescription", {
-                target,
-                latency: result.networkLatencyMs,
-                defaultValue: "Connected to {{target}} · Latency {{latency}} ms",
-              }),
+        description: successMessage,
         variant: "success",
         duration: 2500,
       })
     } catch (error) {
+      const errorMessage = String(error)
+      setTestResult({ status: "error", message: errorMessage })
       toast({
         title: t("profiles.testFailed"),
-        description: String(error),
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
@@ -647,8 +661,40 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
           )}
 
           {isSsh && testProgress && (
-            <div className="border-border bg-muted/35 text-muted-foreground rounded-md border px-3 py-2 text-xs">
+            <div
+              role="status"
+              aria-live="polite"
+              className="border-border bg-muted/35 text-muted-foreground rounded-md border px-3 py-2 text-xs"
+            >
               {getSshConnectionProgressLabel(testProgress)}
+            </div>
+          )}
+
+          {isSsh && !testProgress && testResult && (
+            <div
+              role={testResult.status === "error" ? "alert" : "status"}
+              aria-live="polite"
+              className={cn(
+                "flex items-start gap-2 rounded-md border px-3 py-2 text-xs",
+                testResult.status === "success"
+                  ? "border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-300"
+                  : "border-destructive/40 bg-destructive/10 text-destructive"
+              )}
+            >
+              {testResult.status === "success" ? (
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+              ) : (
+                <CircleAlert className="mt-0.5 size-4 shrink-0" />
+              )}
+              <span>
+                <span className="font-medium">
+                  {testResult.status === "success"
+                    ? t("profiles.testSuccess")
+                    : t("profiles.testFailed")}
+                  :{" "}
+                </span>
+                {testResult.message}
+              </span>
             </div>
           )}
 
