@@ -82,6 +82,8 @@ pub struct SshConnectionProgressPayload {
     pub port: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network_latency_ms: Option<u64>,
 }
 
 impl SshConnectionProgressPayload {
@@ -94,6 +96,7 @@ impl SshConnectionProgressPayload {
             host: None,
             port: None,
             username: None,
+            network_latency_ms: None,
         }
     }
 
@@ -111,6 +114,11 @@ impl SshConnectionProgressPayload {
     pub fn hop(mut self, hop_index: usize, total_hops: usize) -> Self {
         self.hop_index = Some(hop_index);
         self.total_hops = Some(total_hops);
+        self
+    }
+
+    pub fn network_latency(mut self, network_latency_ms: Option<u64>) -> Self {
+        self.network_latency_ms = network_latency_ms;
         self
     }
 }

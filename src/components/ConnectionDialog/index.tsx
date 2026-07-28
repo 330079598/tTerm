@@ -511,12 +511,26 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         jump_hosts: jumpHostsPayload,
       }
 
-      const result = await invoke<string>("test_connection", { profile })
+      const result = await invoke<{ message: string; networkLatencyMs?: number }>(
+        "test_connection",
+        { profile }
+      )
+      const target = `${form.username}@${form.host}:${form.port}`
       toast({
         title: t("profiles.testSuccess"),
-        description: result,
+        description:
+          result.networkLatencyMs === undefined
+            ? t("profiles.testSuccessDescriptionNoLatency", {
+                target,
+                defaultValue: "Connected to {{target}}. Latency unavailable.",
+              })
+            : t("profiles.testSuccessDescription", {
+                target,
+                latency: result.networkLatencyMs,
+                defaultValue: "Connected to {{target}} · Latency {{latency}} ms",
+              }),
         variant: "success",
-        duration: 1000,
+        duration: 2500,
       })
     } catch (error) {
       toast({

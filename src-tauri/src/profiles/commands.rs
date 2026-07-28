@@ -355,13 +355,20 @@ pub fn set_profile_server_monitor_visible(id: String, visible: bool) -> Result<(
     Ok(())
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestConnectionResult {
+    message: String,
+    network_latency_ms: Option<u64>,
+}
+
 #[tauri::command]
 pub async fn test_connection(
     app: tauri::AppHandle,
     profile: SavedProfile,
     prompt_state: tauri::State<'_, HostPromptMap>,
     secret_state: tauri::State<'_, crate::ssh::SecretStoreState>,
-) -> Result<String, String> {
+) -> Result<TestConnectionResult, String> {
     if profile.connection_type != "ssh" {
         return Err("Only SSH connections can be tested".to_string());
     }
@@ -434,6 +441,7 @@ pub async fn test_connection(
     );
 
     use std::time::Duration;
+    let network_latency_ms;
 
     if !plan.jump_hosts.is_empty() {
         let target_config = std::sync::Arc::new(crate::ssh::jump::compatibility_client_config(
@@ -480,6 +488,7 @@ pub async fn test_connection(
 
         match auth_result {
             russh::client::AuthResult::Success => {
+                network_latency_ms = crate::ssh::measure_ssh_latency(&target_session).await.ok();
                 crate::ssh::emit_connection_progress(
                     &app,
                     &test_tab_id,
@@ -489,7 +498,8 @@ pub async fn test_connection(
                         format!("Successfully connected to {}@{}:{}", username, host, port),
                     )
                     .host(host.clone(), port)
-                    .username(username.clone()),
+                    .username(username.clone())
+                    .network_latency(network_latency_ms),
                 );
             }
             _ => return Err("Authentication failed".to_string()),
@@ -555,6 +565,7 @@ pub async fn test_connection(
 
         match auth_result {
             russh::client::AuthResult::Success => {
+                network_latency_ms = crate::ssh::measure_ssh_latency(&session).await.ok();
                 crate::ssh::emit_connection_progress(
                     &app,
                     &test_tab_id,
@@ -564,7 +575,8 @@ pub async fn test_connection(
                         format!("Successfully connected to {}@{}:{}", username, host, port),
                     )
                     .host(host.clone(), port)
-                    .username(username.clone()),
+                    .username(username.clone())
+                    .network_latency(network_latency_ms),
                 );
             }
             _ => return Err("Authentication failed".to_string()),
@@ -576,10 +588,10 @@ pub async fn test_connection(
             .ok();
     }
 
-    Ok(format!(
-        "Successfully connected to {}@{}:{}",
-        username, host, port
-    ))
+    Ok(TestConnectionResult {
+        message: format!("Successfully connected to {}@{}:{}", username, host, port),
+        network_latency_ms,
+    })
 }
 
 fn test_connection_handler(

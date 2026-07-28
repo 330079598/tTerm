@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Cpu, HardDrive, MemoryStick, Network, Server } from "lucide-react"
+import { Cpu, Gauge, HardDrive, MemoryStick, Network, Server } from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 import type { TFunction } from "i18next"
 
@@ -74,6 +74,7 @@ type ServerMetricsSnapshot = {
   memory?: MemoryMetrics
   primaryIp?: string
   disk?: DiskMetrics
+  networkLatencyMs?: number
 }
 
 type MonitorState =
@@ -200,6 +201,18 @@ function severityClass(percent?: number) {
   if (percent >= 90) return "is-critical"
   if (percent >= 70) return "is-warning"
   return "is-normal"
+}
+
+function latencySeverityClass(latencyMs?: number) {
+  if (latencyMs === undefined) return "is-muted"
+  if (latencyMs >= 300) return "is-critical"
+  if (latencyMs >= 150) return "is-warning"
+  return "is-normal"
+}
+
+function formatLatency(latencyMs?: number) {
+  if (latencyMs === undefined) return "--"
+  return latencyMs === 0 ? "<1 ms" : `${latencyMs} ms`
 }
 
 const DISTRO_RULES: Array<{ patterns: string[]; id: string; exact?: boolean }> = [
@@ -669,6 +682,15 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
           label="IP"
           onClick={copyIp}
           value={ipValue}
+        />
+        <MetricItem
+          ariaLabel={t("serverMonitor.networkLatency", {
+            defaultValue: "SSH network round-trip latency",
+          })}
+          className={latencySeverityClass(snapshot.networkLatencyMs)}
+          icon={<Gauge size={13} />}
+          label="RTT"
+          value={formatLatency(snapshot.networkLatencyMs)}
         />
         <MetricItem
           className={severityClass(snapshot.disk?.usedPercent)}

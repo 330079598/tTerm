@@ -46,6 +46,7 @@ export type SshConnectionProgress = {
   host?: string
   port?: number
   username?: string
+  networkLatencyMs?: number
 }
 
 export type HostKeyPromptState = {

@@ -453,6 +453,8 @@
     "test": "测试连接",
     "testing": "测试中...",
     "testSuccess": "连接测试成功",
+    "testSuccessDescription": "已连接到 {{target}} · 延迟 {{latency}} 毫秒",
+    "testSuccessDescriptionNoLatency": "已连接到 {{target}} · 暂时无法获取延迟",
     "testFailed": "连接测试失败",
     "edit": "编辑",
     "copy": "复制",
@@ -667,7 +669,8 @@
     "unpin": "取消固定",
     "connectionInfo": "连接",
     "jumpRoute_one": "{{count}} 个跳转机链路",
-    "jumpRoute_other": "{{count}} 个跳转机链路"
+    "jumpRoute_other": "{{count}} 个跳转机链路",
+    "networkLatency": "延迟 {{latency}} 毫秒"
   },
   "serverMonitor": {
     "loading": "正在加载服务器指标...",
@@ -677,7 +680,8 @@
     "copyIp": "复制服务器 IP 地址",
     "copyIpSuccess": "已复制 IP",
     "copyIpFailed": "复制失败",
-    "copyIpFailedDescription": "无法复制服务器 IP 地址。"
+    "copyIpFailedDescription": "无法复制服务器 IP 地址。",
+    "networkLatency": "SSH 网络往返延迟"
   },
   "terminalContext": {
     "copyFailedTitle": "复制失败",

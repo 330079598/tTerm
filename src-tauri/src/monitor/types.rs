@@ -82,4 +82,5 @@ pub struct ServerMetricsSnapshot {
     pub memory: Option<MemoryMetrics>,
     pub primary_ip: Option<String>,
     pub disk: Option<DiskMetrics>,
+    pub network_latency_ms: Option<u64>,
 }

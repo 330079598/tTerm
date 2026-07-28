@@ -598,20 +598,5 @@ pub async fn open_target_ssh_session(
         return Err("SSH authentication failed".to_string());
     }
 
-    emit_connection_progress(
-        app,
-        tab_id,
-        status_options,
-        SshConnectionProgressPayload::new(
-            "ready",
-            format!(
-                "Connected to {}@{}:{}",
-                target_username, target_host, target_port
-            ),
-        )
-        .host(target_host.to_string(), target_port)
-        .username(target_username.to_string()),
-    );
-
     Ok((jump_chain_opt, target_session))
 }

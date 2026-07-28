@@ -77,6 +77,14 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
       : null
   const stateLabel = getConnectionStateLabel(connectionState, t)
   const detailItems = getConnectionDetailItems(connection)
+  if (connectionProgress?.networkLatencyMs !== undefined) {
+    detailItems.push(
+      t("sessionHeader.networkLatency", {
+        latency: connectionProgress.networkLatencyMs,
+        defaultValue: "Latency {{latency}} ms",
+      })
+    )
+  }
   const jumpHostCount = connection?.jumpHosts?.length ?? 0
 
   return (

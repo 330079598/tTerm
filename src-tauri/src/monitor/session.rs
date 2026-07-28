@@ -133,11 +133,16 @@ pub(crate) async fn collect_metrics_snapshot(
 ) -> Result<super::types::ServerMetricsSnapshot, String> {
     let mut session = monitor_session.lock().await;
     session.last_used_at = Instant::now();
+    let channel_open_started_at = Instant::now();
     let mut channel = session
         .ssh
         .channel_open_session()
         .await
         .map_err(|err| format!("Failed to open SSH channel: {err}"))?;
+    let network_latency_ms = channel_open_started_at
+        .elapsed()
+        .as_millis()
+        .min(u64::MAX as u128) as u64;
 
     channel
         .exec(true, super::metrics::METRICS_SCRIPT)
@@ -178,7 +183,9 @@ pub(crate) async fn collect_metrics_snapshot(
         });
     }
 
-    Ok(parse_metrics_output(&stdout))
+    let mut snapshot = parse_metrics_output(&stdout);
+    snapshot.network_latency_ms = Some(network_latency_ms);
+    Ok(snapshot)
 }
 
 pub(crate) async fn reap_idle_monitor_sessions(monitor_sessions: MonitorSessionMap) {

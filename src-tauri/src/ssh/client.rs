@@ -1,10 +1,33 @@
-use super::types::{ConnectionStatusOptions, HOST_KEY_REJECTED_REASON};
+use super::types::{
+    emit_connection_progress, ConnectionStatusOptions, SshClientHandler,
+    SshConnectionProgressPayload, HOST_KEY_REJECTED_REASON,
+};
 use crate::core::session::SessionPlan;
 use crate::core::state::HostPromptMap;
 use russh::{ChannelMsg, Disconnect};
 use tauri::Emitter;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{mpsc, watch};
+
+const LATENCY_PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Measures an SSH round trip by timing the server's channel-open confirmation.
+pub async fn measure_ssh_latency(
+    session: &russh::client::Handle<SshClientHandler>,
+) -> Result<u64, String> {
+    tokio::time::timeout(LATENCY_PROBE_TIMEOUT, async {
+        let started_at = tokio::time::Instant::now();
+        let channel = session
+            .channel_open_session()
+            .await
+            .map_err(|err| format!("Failed to open latency probe channel: {err}"))?;
+        let elapsed = started_at.elapsed();
+        let _ = channel.close().await;
+        Ok(elapsed.as_millis().min(u64::MAX as u128) as u64)
+    })
+    .await
+    .map_err(|_| "Latency probe timed out".to_string())?
+}
 
 pub struct SshExitSignal {
     pub terminated: bool,
@@ -87,6 +110,7 @@ pub async fn run_single_ssh_connection(
         }
     };
 
+    let channel_open_started_at = tokio::time::Instant::now();
     let channel = match session.channel_open_session().await {
         Ok(channel) => channel,
         Err(err) => {
@@ -97,6 +121,10 @@ pub async fn run_single_ssh_connection(
             };
         }
     };
+    let network_latency_ms = channel_open_started_at
+        .elapsed()
+        .as_millis()
+        .min(u64::MAX as u128) as u64;
 
     if let Err(err) = channel
         .request_pty(false, "xterm-256color", cols as u32, rows as u32, 0, 0, &[])
@@ -116,6 +144,19 @@ pub async fn run_single_ssh_connection(
             reason: Some(format!("Failed to request SSH shell: {err}")),
         };
     }
+
+    emit_connection_progress(
+        &app,
+        &tab_id,
+        ConnectionStatusOptions::VERBOSE,
+        SshConnectionProgressPayload::new(
+            "ready",
+            format!("Connected to {}@{}:{}", username, host, plan.port),
+        )
+        .host(host.clone(), plan.port)
+        .username(username.clone())
+        .network_latency(Some(network_latency_ms)),
+    );
 
     let (mut reader, writer) = channel.split();
     let mut writer_stream = writer.make_writer();

@@ -462,6 +462,8 @@
     "test": "Test Connection",
     "testing": "Testing...",
     "testSuccess": "Connection test successful",
+    "testSuccessDescription": "Connected to {{target}} · Latency {{latency}} ms",
+    "testSuccessDescriptionNoLatency": "Connected to {{target}} · Latency unavailable",
     "testFailed": "Connection test failed",
     "edit": "Edit",
     "copy": "Copy",
@@ -676,7 +678,8 @@
     "unpin": "Unpin",
     "connectionInfo": "Connection",
     "jumpRoute_one": "{{count}} jump host route",
-    "jumpRoute_other": "{{count}} jump host route"
+    "jumpRoute_other": "{{count}} jump host route",
+    "networkLatency": "Latency {{latency}} ms"
   },
   "serverMonitor": {
     "loading": "Loading server metrics...",
@@ -686,7 +689,8 @@
     "copyIp": "Copy server IP address",
     "copyIpSuccess": "IP copied",
     "copyIpFailed": "Copy failed",
-    "copyIpFailedDescription": "Unable to copy the server IP address."
+    "copyIpFailedDescription": "Unable to copy the server IP address.",
+    "networkLatency": "SSH network round-trip latency"
   },
   "terminalContext": {
     "copyFailedTitle": "Copy failed",

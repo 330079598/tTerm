@@ -115,6 +115,7 @@ pub(crate) fn parse_metrics_output(output: &str) -> ServerMetricsSnapshot {
             .and_then(|line| parse_primary_ip(&line)),
         disk: find_prefixed_line(output, "__TTERM_DF_ROOT__")
             .and_then(|line| parse_disk_metrics(&line)),
+        network_latency_ms: None,
     }
 }
 
