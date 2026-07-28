@@ -581,7 +581,7 @@ export const TabBar: React.FC<TabBarProps> = ({
   )
 
   const handleTabListWheel = useCallback(
-    (event: React.WheelEvent<HTMLDivElement>) => {
+    (event: WheelEvent) => {
       const list = listRef.current
       if (!list || list.scrollWidth <= list.clientWidth) {
         return
@@ -600,6 +600,14 @@ export const TabBar: React.FC<TabBarProps> = ({
     },
     [updateScrollState]
   )
+
+  useEffect(() => {
+    const list = listRef.current
+    if (!list) return
+
+    list.addEventListener("wheel", handleTabListWheel, { passive: false })
+    return () => list.removeEventListener("wheel", handleTabListWheel)
+  }, [handleTabListWheel])
 
   const normalizedSearchQuery = searchQuery.trim().toLowerCase()
   const filteredTabs = normalizedSearchQuery
@@ -656,7 +664,6 @@ export const TabBar: React.FC<TabBarProps> = ({
           ref={listRef}
           className="tab-list"
           onScroll={updateScrollState}
-          onWheel={handleTabListWheel}
         >
           {tabs.map((tab, index) => (
             <React.Fragment key={tab.id}>
