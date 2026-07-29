@@ -119,6 +119,7 @@ function WorkspaceHarness() {
         onTabContextMenu={() => {}}
         onTerminalConnectionStateChange={() => {}}
         onTerminalInput={async () => {}}
+        onTerminalSavedPasswordPromptChange={() => {}}
         onTerminalSessionUnavailable={() => {}}
         onTerminalSensitivePrompt={() => {}}
         startupConnectionsReady

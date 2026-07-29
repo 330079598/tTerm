@@ -2,7 +2,7 @@ import type { ConnectionState } from "@/components/TerminalTab/types"
 
 export type BroadcastMode = "command" | "live"
 export type LiveBroadcastState = "idle" | "active" | "paused"
-export type TerminalInputKind = "keyboard" | "paste"
+export type TerminalInputKind = "keyboard" | "paste" | "saved-password"
 
 export type TerminalRuntimeState = {
   connectionState: ConnectionState

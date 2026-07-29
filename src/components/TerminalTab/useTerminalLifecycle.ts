@@ -37,6 +37,9 @@ type UseTerminalLifecycleOptions = {
   onPidChangeRef: React.MutableRefObject<TerminalTabProps["onPidChange"]>
   onInputRef: React.MutableRefObject<TerminalTabProps["onInput"]>
   onReconnectRequestRef: React.MutableRefObject<TerminalTabProps["onReconnectRequest"]>
+  onSavedPasswordPromptChangeRef: React.MutableRefObject<
+    TerminalTabProps["onSavedPasswordPromptChange"]
+  >
   onSessionUnavailableRef: React.MutableRefObject<TerminalTabProps["onSessionUnavailable"]>
   onSensitivePromptRef: React.MutableRefObject<TerminalTabProps["onSensitivePrompt"]>
   passwordPromptActiveRef: React.MutableRefObject<boolean>
@@ -94,6 +97,7 @@ export function useTerminalLifecycle({
   onPidChangeRef,
   onInputRef,
   onReconnectRequestRef,
+  onSavedPasswordPromptChangeRef,
   onSessionUnavailableRef,
   onSensitivePromptRef,
   passwordPromptActiveRef,
@@ -116,6 +120,7 @@ export function useTerminalLifecycle({
   useEffect(() => {
     const container = containerRef.current
     if (!container || initializedRef.current) return
+    const onSavedPasswordPromptChange = onSavedPasswordPromptChangeRef.current
     initializedRef.current = true
     waitingForReconnectRef.current = false
     passwordPromptActiveRef.current = false
@@ -183,6 +188,9 @@ export function useTerminalLifecycle({
     }
     fitTerminalOnly()
 
+    let disposed = false
+    let passwordPromptCheckId = 0
+
     term.onData((data) => {
       if (waitingForReconnectRef.current) {
         waitingForReconnectRef.current = false
@@ -192,22 +200,28 @@ export function useTerminalLifecycle({
       }
 
       if (passwordPromptActiveRef.current) {
+        passwordPromptCheckId += 1
         term.write("\r\x1b[K")
+        passwordPromptActiveRef.current = false
+        onSavedPasswordPromptChange?.(tabId, sessionNonce, false)
 
         if (data === "\r") {
-          const profileId = connectionRef.current?.profileId
-          const profileName = connectionRef.current?.profileName
-          passwordPromptActiveRef.current = false
-          invoke("write_saved_password_for_sudo", {
-            tabId,
-            sessionNonce,
-            profileId,
-            profileName,
-          }).catch(console.error)
+          const onInput = onInputRef.current
+          if (onInput) {
+            void onInput({ tabId, sessionNonce, data: "", kind: "saved-password" }).catch(
+              console.error
+            )
+          } else {
+            invoke("write_saved_password_for_sudo", {
+              tabId,
+              sessionNonce,
+              profileId: connectionRef.current?.profileId,
+              profileName: connectionRef.current?.profileName,
+            }).catch(console.error)
+          }
           return
         }
 
-        passwordPromptActiveRef.current = false
         invoke("write_pty", { tabId, sessionNonce, data }).catch(console.error)
         return
       }
@@ -233,11 +247,11 @@ export function useTerminalLifecycle({
     let unlistenExit: (() => void) | null = null
     let unlistenHostPrompt: (() => void) | null = null
     let unlistenConnectionProgress: (() => void) | null = null
-    let disposed = false
 
     Promise.all([
       listen<string>(`pty-output-${tabId}`, (event) => {
         const payload = event.payload
+        const currentPasswordPromptCheckId = ++passwordPromptCheckId
         if (payload.includes(STATUS_CONNECTING)) {
           setConnectionState("connecting")
         } else if (connectionRef.current?.type === "ssh" && payload.trim().length > 0) {
@@ -247,30 +261,45 @@ export function useTerminalLifecycle({
         const sudoPasswordPattern = /^\[sudo\] password for ([^:]+):\s*$/im
         const match = payload.match(sudoPasswordPattern)
 
-        if (match && !passwordPromptActiveRef.current) {
-          onSensitivePromptRef.current?.(tabId)
+        if (passwordPromptActiveRef.current) {
+          passwordPromptActiveRef.current = false
+          onSavedPasswordPromptChange?.(tabId, sessionNonce, false)
+        }
+
+        if (match) {
           const promptUsername = match[1].trim()
           const savedUsername = connectionRef.current?.username
           const profileId = connectionRef.current?.profileId
           const profileName = connectionRef.current?.profileName
 
           if (savedUsername && promptUsername === savedUsername && profileName) {
+            passwordPromptActiveRef.current = true
             invoke<boolean>("has_saved_password", {
               profileId,
               profileName,
             })
               .then((hasPassword) => {
+                if (disposed || currentPasswordPromptCheckId !== passwordPromptCheckId) return
                 if (hasPassword) {
                   passwordPromptActiveRef.current = true
+                  onSavedPasswordPromptChange?.(tabId, sessionNonce, true)
                   const pasteHint =
                     "\x1b[100m\x1b[36m tTerm \x1b[0m " +
                     "\x1b[90mPress Enter to paste saved password\x1b[0m"
                   term.write(pasteHint)
+                } else {
+                  passwordPromptActiveRef.current = false
+                  onSensitivePromptRef.current?.(tabId)
                 }
               })
               .catch((err) => {
+                if (disposed || currentPasswordPromptCheckId !== passwordPromptCheckId) return
+                passwordPromptActiveRef.current = false
                 console.error("Failed to get saved password:", err)
+                onSensitivePromptRef.current?.(tabId)
               })
+          } else {
+            onSensitivePromptRef.current?.(tabId)
           }
         }
 
@@ -376,6 +405,7 @@ export function useTerminalLifecycle({
 
     return () => {
       disposed = true
+      passwordPromptCheckId += 1
 
       resizeObserver.disconnect()
       resizeObserverRef.current = null
@@ -411,6 +441,7 @@ export function useTerminalLifecycle({
       creatingPtyRef.current = false
       waitingForReconnectRef.current = false
       passwordPromptActiveRef.current = false
+      onSavedPasswordPromptChange?.(tabId, sessionNonce, false)
       for (const disposable of scrollbackDisposables) disposable.dispose()
       container.classList.remove("xterm-has-scrollback")
     }
@@ -432,6 +463,7 @@ export function useTerminalLifecycle({
     onPidChangeRef,
     onInputRef,
     onReconnectRequestRef,
+    onSavedPasswordPromptChangeRef,
     onSessionUnavailableRef,
     onSensitivePromptRef,
     passwordPromptActiveRef,

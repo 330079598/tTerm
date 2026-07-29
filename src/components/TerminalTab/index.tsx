@@ -44,6 +44,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   onInput,
   onPidChange,
   onReconnectRequest,
+  onSavedPasswordPromptChange,
   onSessionUnavailable,
   onSensitivePrompt,
   onOpenRemoteFile,
@@ -73,6 +74,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const onPidChangeRef = useStableRef(onPidChange)
   const onInputRef = useStableRef(onInput)
   const onReconnectRequestRef = useStableRef(onReconnectRequest)
+  const onSavedPasswordPromptChangeRef = useStableRef(onSavedPasswordPromptChange)
   const onSessionUnavailableRef = useStableRef(onSessionUnavailable)
   const onSensitivePromptRef = useStableRef(onSensitivePrompt)
   const { config, saveConfig } = useConfig()
@@ -320,6 +322,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     onPidChangeRef,
     onInputRef,
     onReconnectRequestRef,
+    onSavedPasswordPromptChangeRef,
     onSessionUnavailableRef,
     onSensitivePromptRef,
     passwordPromptActiveRef,

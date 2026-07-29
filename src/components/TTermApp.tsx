@@ -23,6 +23,7 @@ import {
 import {
   buildTabFromConnection,
   isTerminalConnectionUnavailable,
+  resolveSavedPasswordInjectionTargets,
 } from "@/components/TTermApp/ttermAppUtils"
 import { VaultStartupUnlockDialog } from "@/components/VaultStartupUnlockDialog"
 import { formatBytes, MAX_EDIT_FILE_BYTES } from "@/components/SftpDrawer/sftpDrawerUtils"
@@ -117,6 +118,7 @@ export const TTermApp: React.FC = () => {
   const [isBroadcastPreparing, setIsBroadcastPreparing] = useState(false)
   const broadcastWriteQueueRef = useRef(Promise.resolve())
   const broadcastGenerationRef = useRef(0)
+  const savedPasswordPromptTargetsRef = useRef<Map<string, number>>(new Map())
   const liveSourceRef = useRef<{ tabId: string; sessionNonce: number } | null>(null)
   const liveStateRef = useRef<LiveBroadcastState>(liveBroadcastState)
   const runtimeStatesRef = useRef(terminalRuntimeStates)
@@ -409,6 +411,35 @@ export const TTermApp: React.FC = () => {
         liveSourceRef.current?.tabId === tabId &&
         liveSourceRef.current.sessionNonce === sessionNonce
 
+      if (kind === "saved-password") {
+        const source = { tabId, sessionNonce }
+        const targets = resolveSavedPasswordInjectionTargets(
+          source,
+          isLiveSource && liveStateRef.current === "active",
+          resolveBroadcastTargets(),
+          savedPasswordPromptTargetsRef.current
+        )
+
+        await Promise.all(
+          targets.map(async (target) => {
+            const tab = tabsRef.current.find((candidate) => candidate.id === target.tabId)
+            if (!tab) return
+
+            try {
+              await invoke("write_saved_password_for_sudo", {
+                tabId: target.tabId,
+                sessionNonce: target.sessionNonce,
+                profileId: tab.connection?.profileId,
+                profileName: tab.connection?.profileName,
+              })
+            } catch (error) {
+              console.error(`Failed to inject saved password into terminal ${target.tabId}`, error)
+            }
+          })
+        )
+        return
+      }
+
       if (!isLiveSource) {
         await invoke("write_pty", { tabId, sessionNonce, data })
         return
@@ -628,6 +659,17 @@ export const TTermApp: React.FC = () => {
       }
     },
     [stopLiveBroadcast, t]
+  )
+
+  const handleTerminalSavedPasswordPromptChange = useCallback(
+    (tabId: string, sessionNonce: number, active: boolean) => {
+      if (active) {
+        savedPasswordPromptTargetsRef.current.set(tabId, sessionNonce)
+      } else if (savedPasswordPromptTargetsRef.current.get(tabId) === sessionNonce) {
+        savedPasswordPromptTargetsRef.current.delete(tabId)
+      }
+    },
+    []
   )
 
   const handleTerminalSessionUnavailable = useCallback(
@@ -1310,6 +1352,7 @@ export const TTermApp: React.FC = () => {
         onTabContextMenu={handleTabContextMenu}
         onTerminalConnectionStateChange={handleTerminalConnectionStateChange}
         onTerminalInput={handleTerminalInput}
+        onTerminalSavedPasswordPromptChange={handleTerminalSavedPasswordPromptChange}
         onTerminalSessionUnavailable={handleTerminalSessionUnavailable}
         onTerminalSensitivePrompt={handleTerminalSensitivePrompt}
         profilesRefreshKey={profilesRefreshKey}

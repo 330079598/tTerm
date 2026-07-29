@@ -18,6 +18,7 @@ export interface TerminalTabProps {
     state: ConnectionState | null
   ) => void
   onInput?: (request: TerminalInputRequest) => Promise<void>
+  onSavedPasswordPromptChange?: (tabId: string, sessionNonce: number, active: boolean) => void
   onSessionUnavailable?: (tabId: string, sessionNonce: number, unexpected: boolean) => void
   onSensitivePrompt?: (tabId: string) => void
   onReconnectRequest?: () => void

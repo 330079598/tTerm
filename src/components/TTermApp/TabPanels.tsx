@@ -124,6 +124,11 @@ interface TabPanelsProps {
     state: ConnectionState | null
   ) => void
   onTerminalInput: (request: TerminalInputRequest) => Promise<void>
+  onTerminalSavedPasswordPromptChange: (
+    tabId: string,
+    sessionNonce: number,
+    active: boolean
+  ) => void
   onTerminalSessionUnavailable: (tabId: string, sessionNonce: number, unexpected: boolean) => void
   onTerminalSensitivePrompt: (tabId: string) => void
   profilesRefreshKey?: number
@@ -365,6 +370,7 @@ const WorkspacePanel: React.FC<IDockviewPanelProps<WorkspacePanelParams>> = ({ a
               onStopBroadcast={workspace.onStopBroadcast}
               onConnectionStateChange={workspace.onTerminalConnectionStateChange}
               onInput={workspace.onTerminalInput}
+              onSavedPasswordPromptChange={workspace.onTerminalSavedPasswordPromptChange}
               onSessionUnavailable={workspace.onTerminalSessionUnavailable}
               onReconnectRequest={() => workspace.handleReconnectTab(tab.id)}
               onOpenRemoteFile={workspace.onOpenRemoteFile}
