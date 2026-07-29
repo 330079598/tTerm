@@ -20,7 +20,10 @@ import {
   type TabPanelsHandle,
   type WorkspaceSplitDirection,
 } from "@/components/TTermApp/TabPanels"
-import { buildTabFromConnection } from "@/components/TTermApp/ttermAppUtils"
+import {
+  buildTabFromConnection,
+  isTerminalConnectionUnavailable,
+} from "@/components/TTermApp/ttermAppUtils"
 import { VaultStartupUnlockDialog } from "@/components/VaultStartupUnlockDialog"
 import { formatBytes, MAX_EDIT_FILE_BYTES } from "@/components/SftpDrawer/sftpDrawerUtils"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
@@ -203,7 +206,7 @@ export const TTermApp: React.FC = () => {
 
   const handleTerminalConnectionStateChange = useCallback(
     (tabId: string, sessionNonce: number, connectionState: ConnectionState | null) => {
-      if (connectionState !== "connected") {
+      if (isTerminalConnectionUnavailable(connectionState)) {
         stopUnavailableLiveSource(tabId, sessionNonce)
       }
       setTerminalRuntimeStates((current) => {
@@ -423,6 +426,7 @@ export const TTermApp: React.FC = () => {
             count: resolveBroadcastTargets().length,
           }),
           confirmText: t("broadcast.sendAnyway"),
+          defaultAction: "confirm",
           variant: "destructive",
         })
         if (!confirmed) return
@@ -495,6 +499,7 @@ export const TTermApp: React.FC = () => {
             count: targets.length,
           }),
           confirmText: t("broadcast.sendAnyway"),
+          defaultAction: "confirm",
           variant: "destructive",
         })
         if (!confirmed) return false
@@ -694,8 +699,9 @@ export const TTermApp: React.FC = () => {
     if (
       !sourceTab ||
       sourceTab.sessionNonce !== broadcastSource.sessionNonce ||
-      runtime?.sessionNonce !== broadcastSource.sessionNonce ||
-      runtime.connectionState !== "connected"
+      (runtime !== undefined &&
+        (runtime.sessionNonce !== broadcastSource.sessionNonce ||
+          isTerminalConnectionUnavailable(runtime.connectionState)))
     ) {
       stopLiveBroadcast()
     }

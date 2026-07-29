@@ -18,6 +18,7 @@ interface ConfirmDialogOptions {
   description?: React.ReactNode
   confirmText?: React.ReactNode
   cancelText?: React.ReactNode
+  defaultAction?: "confirm" | "cancel"
   variant?: "default" | "destructive"
 }
 
@@ -75,7 +76,15 @@ export function useConfirmDialog() {
 
     return (
       <Dialog open onOpenChange={(open) => !open && close(false)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent
+          className="sm:max-w-md"
+          onKeyDown={(event) => {
+            if (state.defaultAction && event.key === "Enter" && !event.nativeEvent.isComposing) {
+              event.preventDefault()
+              close(state.defaultAction === "confirm")
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {isDestructive && <AlertTriangle className="text-destructive size-4" />}
@@ -88,11 +97,17 @@ export function useConfirmDialog() {
             )}
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => close(false)}>
+            <Button
+              type="button"
+              data-dialog-initial-focus={state.defaultAction === "cancel" ? "true" : undefined}
+              variant="outline"
+              onClick={() => close(false)}
+            >
               {state.cancelText ?? "Cancel"}
             </Button>
             <Button
               type="button"
+              data-dialog-initial-focus={state.defaultAction === "confirm" ? "true" : undefined}
               variant={isDestructive ? "destructive" : "default"}
               onClick={() => close(true)}
             >

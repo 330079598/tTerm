@@ -191,8 +191,21 @@ function DialogContentComponent(
   }, [open, setOpen])
 
   React.useEffect(() => {
-    if (open) {
-      contentRef.current?.focus()
+    if (!open) {
+      return undefined
+    }
+
+    const previouslyFocusedElement =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const initialFocusElement = contentRef.current?.querySelector<HTMLElement>(
+      "[data-dialog-initial-focus]"
+    )
+    ;(initialFocusElement ?? contentRef.current)?.focus()
+
+    return () => {
+      if (previouslyFocusedElement?.isConnected) {
+        previouslyFocusedElement.focus()
+      }
     }
   }, [open])
 
