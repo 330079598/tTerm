@@ -1,5 +1,6 @@
 import "@/components/TTermApp.css"
 import { invoke } from "@tauri-apps/api/core"
+import { listen } from "@tauri-apps/api/event"
 import { platform } from "@tauri-apps/plugin-os"
 import type { SerializedDockview } from "dockview-react"
 import { BookMarked, Minus, Plus, Settings, Square, X } from "lucide-react"
@@ -48,6 +49,14 @@ import type { ConnectionState } from "@/components/TerminalTab/types"
 
 const SETTINGS_TAB_TITLE = "Settings"
 
+function getRuntimePlatform() {
+  try {
+    return platform()
+  } catch {
+    return "windows"
+  }
+}
+
 function formatRemoteFileConnectionLabel(connection?: Tab["connection"]): string | undefined {
   const profileName = connection?.profileName?.trim()
   if (profileName) {
@@ -76,7 +85,7 @@ function getRemoteFileConnectionKey(connection?: Tab["connection"]): string {
 
 export const TTermApp: React.FC = () => {
   const { t, i18n } = useTranslation()
-  const [os] = useState<string>(() => platform())
+  const [os] = useState<string>(getRuntimePlatform)
   const isMacos = os === "macos"
   const isLinux = os === "linux"
   const isWindows = os === "windows"
@@ -293,6 +302,25 @@ export const TTermApp: React.FC = () => {
   useEffect(() => {
     evaluateBroadcastPreflight()
   }, [evaluateBroadcastPreflight, tabs, terminalRuntimeStates])
+
+  useEffect(() => {
+    let disposed = false
+    let unlisten: (() => void) | undefined
+    void listen<{ message?: string }>("terminal-log-error", (event) => {
+      toast({
+        title: t("terminalLogging.writeFailed"),
+        description: event.payload.message ?? t("terminalLogging.writeFailed"),
+        variant: "destructive",
+      })
+    }).then((cleanup) => {
+      if (disposed) cleanup()
+      else unlisten = cleanup
+    })
+    return () => {
+      disposed = true
+      unlisten?.()
+    }
+  }, [t])
 
   const ensureBroadcastTargetsConnected = useCallback(async () => {
     if (broadcastPreparingRef.current) return null

@@ -72,6 +72,18 @@ pub struct AppConfig {
         deserialize_with = "deserialize_tab_standard_width"
     )]
     pub tab_standard_width: u16,
+    #[serde(default)]
+    pub terminal_log_enabled: bool,
+    #[serde(default)]
+    pub terminal_log_directory: String,
+    #[serde(default = "default_terminal_log_format")]
+    pub terminal_log_format: String,
+    #[serde(default = "default_terminal_log_name_template")]
+    pub terminal_log_name_template: String,
+    #[serde(default = "default_terminal_log_max_file_size_mb")]
+    pub terminal_log_max_file_size_mb: u32,
+    #[serde(default)]
+    pub terminal_log_compress: bool,
 }
 
 fn normalize_language(locale: &str) -> String {
@@ -175,6 +187,18 @@ fn default_tab_standard_width() -> u16 {
     120
 }
 
+fn default_terminal_log_format() -> String {
+    "both".to_string()
+}
+
+fn default_terminal_log_name_template() -> String {
+    "{profile}-{host}-{yyyyMMdd-HHmmss}-{sessionId}".to_string()
+}
+
+fn default_terminal_log_max_file_size_mb() -> u32 {
+    50
+}
+
 fn deserialize_tab_width_mode<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,
@@ -225,6 +249,12 @@ impl Default for AppConfig {
             collapsed_profile_group_keys: Vec::new(),
             tab_width_mode: default_tab_width_mode(),
             tab_standard_width: default_tab_standard_width(),
+            terminal_log_enabled: false,
+            terminal_log_directory: String::new(),
+            terminal_log_format: default_terminal_log_format(),
+            terminal_log_name_template: default_terminal_log_name_template(),
+            terminal_log_max_file_size_mb: default_terminal_log_max_file_size_mb(),
+            terminal_log_compress: false,
         }
     }
 }
@@ -257,8 +287,14 @@ pub fn load_config() -> Result<AppConfig, String> {
 }
 
 #[tauri::command]
-pub fn save_config(config: AppConfig) -> Result<(), String> {
-    save_config_file(&config)
+pub fn save_config(
+    app: tauri::AppHandle,
+    config: AppConfig,
+    log_state: tauri::State<'_, crate::session_log::SessionLogState>,
+) -> Result<(), String> {
+    log_state.validate_config(&config)?;
+    save_config_file(&config)?;
+    log_state.apply_config(&app, &config)
 }
 
 #[cfg(test)]
@@ -272,6 +308,9 @@ mod tests {
         assert_eq!(config.tab_width_mode, "adaptive");
         assert_eq!(config.tab_standard_width, 120);
         assert_eq!(config.ui_scale_percent, 100);
+        assert!(!config.terminal_log_enabled);
+        assert_eq!(config.terminal_log_format, "both");
+        assert_eq!(config.terminal_log_max_file_size_mb, 50);
     }
 
     #[test]

@@ -360,6 +360,7 @@ impl SshClientHandler {
         }
 
         let payload = format!("\r\n\x1b[{}m[{}]\x1b[0m\r\n", color, message);
+        crate::session_log::record_output(&self.app, &self.tab_id, payload.as_bytes());
         let event_name = format!("pty-output-{}", self.tab_id);
         let _ = self
             .app

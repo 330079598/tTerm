@@ -15,6 +15,7 @@ fn emit_status_line(app: &AppHandle, tab_id: &str, color: &str, message: &str) {
 }
 
 fn emit_pty_output(app: &AppHandle, tab_id: &str, payload: String) {
+    crate::session_log::record_output(app, tab_id, payload.as_bytes());
     let event_name = format!("pty-output-{}", tab_id);
     let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
 }
@@ -53,6 +54,7 @@ pub fn spawn_supervisor(
                 None
             };
             emit_pty_exit(&app, &tab_id, exit_reason.as_deref());
+            crate::session_log::end_session(&app, &tab_id);
         }
     })
 }

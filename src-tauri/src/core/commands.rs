@@ -70,6 +70,8 @@ pub fn create_pty(
         stop_pty_session(session);
     }
 
+    crate::session_log::start_session(&app, &tab_id, session_nonce, &plan)?;
+
     let (exit_tx, exit_rx) = mpsc::unbounded_channel::<SessionExitSignal>();
     let active = Arc::new(TokioMutex::new(None));
     let (stop_tx, stop_rx) = watch::channel(false);
@@ -181,6 +183,7 @@ pub fn create_pty(
 
 #[tauri::command]
 pub fn write_pty(
+    app: AppHandle,
     tab_id: String,
     session_nonce: u32,
     data: String,
@@ -199,16 +202,21 @@ pub fn write_pty(
         .as_mut()
         .ok_or_else(|| format!("PTY session {} is reconnecting", tab_id))?;
 
-    match active {
+    let input = data.into_bytes();
+    let result = match active {
         ActiveSession::Local(local) => local
             .writer
-            .write_all(data.as_bytes())
+            .write_all(&input)
             .map_err(|e| format!("Failed to write to PTY: {}", e)),
         ActiveSession::Ssh(ssh) => ssh
             .input_tx
-            .send(data.into_bytes())
+            .send(input.clone())
             .map_err(|_| format!("PTY session {} is not writable", tab_id)),
+    };
+    if result.is_ok() {
+        crate::session_log::record_input(&app, &tab_id, &input);
     }
+    result
 }
 
 #[derive(Debug, Deserialize)]
@@ -351,6 +359,7 @@ fn write_guarded_batch(
 
 #[tauri::command]
 pub fn write_pty_batch(
+    app: AppHandle,
     mut targets: Vec<PtyWriteTarget>,
     guard_target: Option<PtyWriteTarget>,
     data: String,
@@ -373,7 +382,13 @@ pub fn write_pty_batch(
     let targets = snapshot_batch_targets(&map, targets);
     drop(map);
 
-    write_guarded_batch(guard_target, targets, data.as_bytes())
+    let results = write_guarded_batch(guard_target, targets, data.as_bytes());
+    for result in &results {
+        if result.status == PtyWriteStatus::Written {
+            crate::session_log::record_input(&app, &result.tab_id, data.as_bytes());
+        }
+    }
+    results
 }
 
 #[cfg(test)]
@@ -525,6 +540,7 @@ mod batch_write_tests {
 
 #[tauri::command]
 pub fn resize_pty(
+    app: AppHandle,
     tab_id: String,
     session_nonce: u32,
     rows: u16,
@@ -544,7 +560,7 @@ pub fn resize_pty(
         .as_mut()
         .ok_or_else(|| format!("PTY session {} is reconnecting", tab_id))?;
 
-    match active {
+    let result = match active {
         ActiveSession::Local(local) => local
             .master
             .resize(portable_pty::PtySize {
@@ -558,11 +574,16 @@ pub fn resize_pty(
             .resize_tx
             .send((rows, cols))
             .map_err(|_| format!("PTY session {} is not resizable", tab_id)),
+    };
+    if result.is_ok() {
+        crate::session_log::record_resize(&app, &tab_id, rows, cols);
     }
+    result
 }
 
 #[tauri::command]
 pub fn kill_pty(
+    app: AppHandle,
     tab_id: String,
     session_nonce: u32,
     state: State<'_, PtyMap>,
@@ -581,6 +602,7 @@ pub fn kill_pty(
 
     if let Some(session) = session {
         stop_pty_session(session);
+        crate::session_log::end_session(&app, &tab_id);
     }
 
     Ok(())
@@ -678,7 +700,7 @@ pub fn write_saved_password_for_sudo(
     let mut data = password.into_bytes();
     data.push(b'\n');
 
-    match active {
+    let result = match active {
         ActiveSession::Local(_) => {
             Err("Saved SSH password cannot be written to a local terminal.".to_string())
         }
@@ -687,5 +709,9 @@ pub fn write_saved_password_for_sudo(
             .send(data)
             .map(|_| true)
             .map_err(|_| format!("PTY session {} is not writable", tab_id)),
+    };
+    if matches!(result, Ok(true)) {
+        crate::session_log::record_credential_injection(&app, &tab_id);
     }
+    result
 }

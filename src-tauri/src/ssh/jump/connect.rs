@@ -372,6 +372,7 @@ where
                 "\r\n\x1b[33m[Opening tunnel to jump #{} {}:{}...]\x1b[0m\r\n",
                 hop_index, jump_plan.host, jump_plan.port
             );
+            crate::session_log::record_output(app, tab_id, status_msg.as_bytes());
             let event_name = format!("pty-output-{}", tab_id);
             let _ = app.emit_to(tauri::EventTarget::any(), &event_name, status_msg);
         }
@@ -425,6 +426,7 @@ where
             "\r\n\x1b[33m[Jump chain connected. Opening tunnel to {}:{}...]\x1b[0m\r\n",
             target_host, target_port
         );
+        crate::session_log::record_output(app, tab_id, status_msg.as_bytes());
         let event_name = format!("pty-output-{}", tab_id);
         let _ = app.emit_to(tauri::EventTarget::any(), &event_name, status_msg);
     }

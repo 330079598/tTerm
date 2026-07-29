@@ -1,5 +1,14 @@
 import React from "react"
-import { FolderTree, Info, Palette, Plug, Shield, SquareTerminal, UploadCloud } from "lucide-react"
+import {
+  FileClock,
+  FolderTree,
+  Info,
+  Palette,
+  Plug,
+  Shield,
+  SquareTerminal,
+  UploadCloud,
+} from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -37,6 +46,13 @@ export const SettingsSidebar: React.FC = () => {
         >
           <Plug size={16} />
           {t("settings.connection", { defaultValue: "Connection" })}
+        </TabsTrigger>
+        <TabsTrigger
+          value="logging"
+          className="data-[state=active]:bg-background w-full justify-start gap-2 data-[state=active]:shadow-sm"
+        >
+          <FileClock size={16} />
+          {t("terminalLogging.title")}
         </TabsTrigger>
         <TabsTrigger
           value="security"

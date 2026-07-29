@@ -138,6 +138,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "arrayvec"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
+
+[[package]]
 name = "async-broadcast"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5382,6 +5388,9 @@ dependencies = [
  "argon2",
  "async-trait",
  "base64 0.22.1",
+ "chrono",
+ "crc32fast",
+ "flate2",
  "keyring",
  "portable-pty",
  "rand 0.8.5",
@@ -5402,6 +5411,7 @@ dependencies = [
  "tokio",
  "ttf-parser",
  "uuid",
+ "vte",
  "windows 0.58.0",
  "zeroize",
 ]
@@ -6437,6 +6447,16 @@ checksum = "fb067e4cbd1ff067d1df46c9194b5de0e98efd2810bbc95c5d5e5f25a3231150"
 dependencies = [
  "cc",
  "libc",
+]
+
+[[package]]
+name = "vte"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "231fdcd7ef3037e8330d8e17e61011a2c244126acc0a982f4040ac3f9f0bc077"
+dependencies = [
+ "arrayvec",
+ "memchr",
 ]
 
 [[package]]

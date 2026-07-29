@@ -18,6 +18,7 @@ export interface SecretBackendStatus {
 
 export type SecretStorageMode = "auto" | "system" | "vault" | "hybrid" | "memory"
 export type TabWidthMode = "adaptive" | "standard"
+export type TerminalLogFormat = "raw" | "plain" | "both"
 
 export function applyUiScalePercent(scale: number) {
   const rootStyle = document.documentElement.style
@@ -91,6 +92,12 @@ export interface AppConfig {
   collapsed_profile_group_keys: string[]
   tab_width_mode: TabWidthMode
   tab_standard_width: number
+  terminal_log_enabled: boolean
+  terminal_log_directory: string
+  terminal_log_format: TerminalLogFormat
+  terminal_log_name_template: string
+  terminal_log_max_file_size_mb: number
+  terminal_log_compress: boolean
 }
 
 const defaultUpdateChannel = /-(alpha|beta|rc|dev)(\.|$)/.test(
@@ -128,6 +135,12 @@ const defaultConfig: AppConfig = {
   collapsed_profile_group_keys: [],
   tab_width_mode: "adaptive",
   tab_standard_width: 120,
+  terminal_log_enabled: false,
+  terminal_log_directory: "",
+  terminal_log_format: "both",
+  terminal_log_name_template: "{profile}-{host}-{yyyyMMdd-HHmmss}-{sessionId}",
+  terminal_log_max_file_size_mb: 50,
+  terminal_log_compress: false,
 }
 
 function normalizeUpdateCheckFrequency(
@@ -167,6 +180,15 @@ function normalizeTabStandardWidth(value: Partial<AppConfig>["tab_standard_width
   }
 
   return Math.min(Math.max(Math.round(value), 80), 300)
+}
+
+function normalizeTerminalLogFileSize(
+  value: Partial<AppConfig>["terminal_log_max_file_size_mb"]
+): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 50
+  }
+  return Math.min(Math.max(Math.round(value), 1), 1024)
 }
 
 export function normalizeUiScalePercent(value: Partial<AppConfig>["ui_scale_percent"]): number {
@@ -210,6 +232,22 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     collapsed_profile_group_keys: collapsedProfileGroupKeys,
     tab_width_mode: config.tab_width_mode === "standard" ? "standard" : "adaptive",
     tab_standard_width: normalizeTabStandardWidth(config.tab_standard_width),
+    terminal_log_enabled: config.terminal_log_enabled === true,
+    terminal_log_directory:
+      typeof config.terminal_log_directory === "string" ? config.terminal_log_directory : "",
+    terminal_log_format:
+      config.terminal_log_format === "raw" || config.terminal_log_format === "plain"
+        ? config.terminal_log_format
+        : "both",
+    terminal_log_name_template:
+      typeof config.terminal_log_name_template === "string" &&
+      config.terminal_log_name_template.trim()
+        ? config.terminal_log_name_template
+        : "{profile}-{host}-{yyyyMMdd-HHmmss}-{sessionId}",
+    terminal_log_max_file_size_mb: normalizeTerminalLogFileSize(
+      config.terminal_log_max_file_size_mb
+    ),
+    terminal_log_compress: config.terminal_log_compress === true,
     ui_scale_percent: normalizeUiScalePercent(config.ui_scale_percent),
   }
 }

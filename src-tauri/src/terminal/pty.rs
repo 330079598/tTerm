@@ -31,6 +31,7 @@ pub fn spawn_reader_thread(
             match reader.read(&mut buf) {
                 Ok(0) => break,
                 Ok(n) => {
+                    crate::session_log::record_output(&app, &tab_id, &buf[..n]);
                     let data = String::from_utf8_lossy(&buf[..n]);
                     pending_output.push_str(data.as_ref());
 

@@ -6,6 +6,7 @@ mod migrate;
 mod monitor;
 mod profiles;
 mod session;
+mod session_log;
 mod sftp;
 mod ssh;
 mod terminal;
@@ -108,6 +109,7 @@ pub fn run() {
         .build()
         .expect("failed to build tokio runtime");
     let secret_store = ssh::SecretStoreState::new();
+    let session_log_state = session_log::SessionLogState::default();
 
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -138,9 +140,13 @@ pub fn run() {
         .manage(TokioRuntimeState { runtime })
         .manage(updater::PendingUpdateDownloads::default())
         .manage(secret_store)
+        .manage(session_log_state)
         .invoke_handler(tauri::generate_handler![
             config::load_config,
             config::save_config,
+            session_log::get_terminal_log_status,
+            session_log::open_terminal_log_directory,
+            session_log::retry_terminal_logging,
             clipboard_files::read_clipboard_file_paths,
             session::load_session,
             session::save_session,
@@ -217,6 +223,11 @@ pub fn run() {
 
             // Auto-unlock vault from keyring when hybrid mode is active
             if let Ok(cfg) = config::load_config_file() {
+                let log_state = app_handle.state::<session_log::SessionLogState>();
+                if let Err(err) = log_state.apply_config(&app_handle, &cfg) {
+                    eprintln!("Failed to initialize terminal logging: {}", err);
+                }
+
                 if cfg.secret_storage_mode == "hybrid" && cfg.secret_vault_enabled {
                     let secret_state = app_handle.state::<ssh::SecretStoreState>();
                     match secret_state.try_auto_unlock_hybrid(&app_handle) {
