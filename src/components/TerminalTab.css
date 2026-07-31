@@ -721,13 +721,19 @@ button.server-monitor-metric.is-clickable:focus-visible {
   flex: 0 0 38px;
   align-items: center;
   justify-content: space-between;
-  padding: 5px 8px 0 12px;
+  padding: 5px 8px 0;
   border-bottom: 1px solid hsl(var(--border) / 0.72);
+}
+
+.server-monitor-panel-header::before {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  content: "";
 }
 
 .server-monitor-panel-tab-list {
   height: 28px;
-  justify-content: flex-start;
   gap: 2px;
   padding: 2px;
   border-radius: 5px;
@@ -743,6 +749,7 @@ button.server-monitor-metric.is-clickable:focus-visible {
 .server-monitor-panel-close {
   width: 28px;
   height: 28px;
+  flex: 0 0 28px;
   border-radius: 4px;
 }
 
