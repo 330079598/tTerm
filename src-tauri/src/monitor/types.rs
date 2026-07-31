@@ -67,6 +67,8 @@ pub struct MemoryMetrics {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiskMetrics {
+    pub filesystem: String,
+    pub filesystem_type: String,
     pub mount: String,
     pub total_kib: u64,
     pub used_kib: u64,
@@ -106,6 +108,7 @@ pub struct ServerMetricsSnapshot {
     pub memory: Option<MemoryMetrics>,
     pub primary_ip: Option<String>,
     pub disk: Option<DiskMetrics>,
+    pub disks: Vec<DiskMetrics>,
     pub network: Option<NetworkMetrics>,
     pub load_average: Option<LoadAverageMetrics>,
     pub uptime_secs: Option<u64>,

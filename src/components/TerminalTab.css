@@ -459,6 +459,13 @@ button.server-monitor-metric.is-clickable:focus-visible {
   letter-spacing: 0.04em;
 }
 
+.server-monitor-disk-metric .server-monitor-metric-label {
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .server-monitor-metric-value {
   color: hsl(var(--foreground));
   font-variant-numeric: tabular-nums;
@@ -914,6 +921,56 @@ button.server-monitor-metric.is-clickable:focus-visible {
   transition: width 0.2s ease;
 }
 
+.server-monitor-usage-track.is-warning > span {
+  background: hsl(var(--warning));
+}
+
+.server-monitor-usage-track.is-critical > span {
+  background: hsl(var(--destructive));
+}
+
+.server-monitor-disk-list {
+  display: grid;
+  max-width: 920px;
+  margin: 0 auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.server-monitor-panel-resource.is-disk-section {
+  height: auto;
+  min-height: 112px;
+  padding: 12px;
+  justify-content: flex-start;
+  gap: 10px;
+  border: 1px solid hsl(var(--border) / 0.68);
+  border-radius: 6px;
+  background: hsl(var(--background) / 0.48);
+}
+
+.server-monitor-panel-resource.is-disk-section .server-monitor-panel-resource-head code {
+  font-size: calc(12px * var(--ui-font-scale, 1));
+}
+
+.server-monitor-panel-resource.is-disk-section .server-monitor-panel-resource-head small {
+  flex: none;
+  padding: 2px 5px;
+  border: 1px solid hsl(var(--primary) / 0.32);
+  border-radius: 4px;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.08);
+  font-size: calc(9px * var(--ui-font-scale, 1));
+}
+
+.server-monitor-panel-resource.is-disk-section
+  .server-monitor-panel-resource-values
+  span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .server-monitor-panel-resource-values,
 .server-monitor-network-totals {
   display: flex;
@@ -1133,6 +1190,10 @@ button.server-monitor-metric.is-clickable:focus-visible {
   .server-monitor-memory-resources {
     grid-template-columns: 1fr;
     gap: 18px;
+  }
+
+  .server-monitor-disk-list {
+    grid-template-columns: 1fr;
   }
 
   .server-monitor-panel-resource.is-memory-section {

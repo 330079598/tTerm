@@ -74,7 +74,9 @@ type MemoryMetrics = {
   swapUsedPercent: number
 }
 
-type DiskMetrics = {
+export type DiskMetrics = {
+  filesystem: string
+  filesystemType: string
   mount: string
   totalKib: number
   usedKib: number
@@ -117,6 +119,7 @@ export type ServerMetricsSnapshot = {
   memory?: MemoryMetrics
   primaryIp?: string
   disk?: DiskMetrics
+  disks?: DiskMetrics[]
   network?: NetworkMetrics
   loadAverage?: LoadAverageMetrics
   uptimeSecs?: number
@@ -242,6 +245,13 @@ export function calculateNetworkRate(
     transmittedBytesPerSecond:
       (next.transmittedBytes - previous.metrics.transmittedBytes) / elapsedSeconds,
   }
+}
+
+export function selectMostUsedDisk(disks: DiskMetrics[] | undefined): DiskMetrics | undefined {
+  if (!disks?.length) return undefined
+  return disks.reduce((mostUsed, disk) =>
+    disk.usedPercent > mostUsed.usedPercent ? disk : mostUsed
+  )
 }
 
 function appendNetworkHistorySample(
@@ -521,6 +531,7 @@ function MetricItem({
   className,
   icon,
   label,
+  labelTitle,
   onClick,
   value,
 }: {
@@ -528,6 +539,7 @@ function MetricItem({
   className?: string
   icon: React.ReactNode
   label: string
+  labelTitle?: string
   onClick?: () => void
   value: React.ReactNode
 }) {
@@ -540,7 +552,9 @@ function MetricItem({
         aria-label={ariaLabel}
       >
         {icon}
-        <span className="server-monitor-metric-label">{label}</span>
+        <span className="server-monitor-metric-label" title={labelTitle}>
+          {label}
+        </span>
         <span className="server-monitor-metric-value">{value}</span>
       </button>
     )
@@ -549,7 +563,9 @@ function MetricItem({
   return (
     <span className={`server-monitor-metric ${className ?? ""}`.trim()}>
       {icon}
-      <span className="server-monitor-metric-label">{label}</span>
+      <span className="server-monitor-metric-label" title={labelTitle}>
+        {label}
+      </span>
       <span className="server-monitor-metric-value">{value}</span>
     </span>
   )
@@ -736,17 +752,18 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
     const distroId = normalizeDistroId(snapshot)
     const distroLabel = getDistroLabel(snapshot)
     const stale = Date.now() - collectedAt > staleAfterMs
+    const primaryDisk = selectMostUsedDisk(snapshot.disks) ?? snapshot.disk
     const memoryValue = snapshot.memory
       ? `${formatKib(snapshot.memory.usedKib)}/${formatKib(snapshot.memory.totalKib)}`
       : "--"
-    const diskValue = snapshot.disk ? (
+    const diskValue = primaryDisk ? (
       <span className="server-monitor-disk-value">
         <span>
-          {formatKibAsG(snapshot.disk.usedKib)}
+          {formatKibAsG(primaryDisk.usedKib)}
           <span className="server-monitor-disk-join"> / </span>
-          {formatKibAsG(snapshot.disk.totalKib)}
+          {formatKibAsG(primaryDisk.totalKib)}
         </span>
-        <PercentValue value={snapshot.disk.usedPercent} />
+        <PercentValue value={primaryDisk.usedPercent} />
       </span>
     ) : (
       "--"
@@ -831,9 +848,10 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
           return (
             <MetricItem
               key={metric}
-              className={severityClass(snapshot.disk?.usedPercent)}
+              className={`server-monitor-disk-metric ${severityClass(primaryDisk?.usedPercent)}`}
               icon={<HardDrive size={13} />}
-              label="DISK"
+              label={primaryDisk ? `DISK ${primaryDisk.mount}` : "DISK"}
+              labelTitle={primaryDisk?.mount}
               value={diskValue}
             />
           )
@@ -910,6 +928,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
           networkRate={readyState.networkRate}
           onClose={() => setPanelExpanded(false)}
           onHeightChange={setPanelHeight}
+          primaryDisk={selectMostUsedDisk(readyState.snapshot.disks) ?? readyState.snapshot.disk}
           snapshot={readyState.snapshot}
           t={t}
         />

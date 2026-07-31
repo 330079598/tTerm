@@ -84,6 +84,22 @@ pub(crate) const METRICS_SCRIPT: &str = r#"    set -efu
     printf "__TTERM_DF_ROOT__ "
     df -P -k / 2>/dev/null | awk 'NR == 2 { print $2, $3, $4, $5, $6 }' || true
 
+    echo "__TTERM_DISKS_BEGIN__"
+    df -P -k -T 2>/dev/null | awk '
+      NR > 1 {
+        type = $2
+        if (type ~ /^(tmpfs|devtmpfs|overlay|squashfs|proc|sysfs|cgroup|cgroup2|pstore|securityfs|debugfs|tracefs|configfs|fusectl|mqueue|hugetlbfs|ramfs|autofs|binfmt_misc|rpc_pipefs|nsfs)$/) {
+          next
+        }
+        mount = $7
+        for (i = 8; i <= NF; i++) {
+          mount = mount " " $i
+        }
+        printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", $1, type, $3, $4, $5, $6, mount
+      }
+    ' || true
+    echo "__TTERM_DISKS_END__"
+
     printf "__TTERM_LOADAVG__ "
     awk '{ print $1, $2, $3 }' /proc/loadavg 2>/dev/null || true
 
@@ -118,6 +134,18 @@ pub(crate) fn parse_metrics_output(output: &str) -> ServerMetricsSnapshot {
     let kernel = (!uname.trim().is_empty()).then(|| uname.trim().to_string());
     let supported = uname.split_whitespace().next() == Some("Linux");
 
+    let disks = extract_block(output, "__TTERM_DISKS_BEGIN__", "__TTERM_DISKS_END__")
+        .map(parse_disk_metrics_block)
+        .unwrap_or_default();
+    let disk = disks
+        .iter()
+        .find(|disk| disk.mount == "/")
+        .cloned()
+        .or_else(|| {
+            find_prefixed_line(output, "__TTERM_DF_ROOT__")
+                .and_then(|line| parse_legacy_disk_metrics(&line))
+        });
+
     ServerMetricsSnapshot {
         supported,
         unsupported_reason: if supported {
@@ -136,8 +164,8 @@ pub(crate) fn parse_metrics_output(output: &str) -> ServerMetricsSnapshot {
             .and_then(|line| parse_memory_metrics(&line)),
         primary_ip: find_prefixed_line(output, "__TTERM_PRIMARY_IP__")
             .and_then(|line| parse_primary_ip(&line)),
-        disk: find_prefixed_line(output, "__TTERM_DF_ROOT__")
-            .and_then(|line| parse_disk_metrics(&line)),
+        disk,
+        disks,
         network: find_prefixed_line(output, "__TTERM_NETWORK__")
             .and_then(|line| parse_network_metrics(&line)),
         load_average: find_prefixed_line(output, "__TTERM_LOADAVG__")
@@ -326,7 +354,7 @@ fn parse_primary_ip(line: &str) -> Option<String> {
         .map(str::to_string)
 }
 
-fn parse_disk_metrics(line: &str) -> Option<DiskMetrics> {
+fn parse_legacy_disk_metrics(line: &str) -> Option<DiskMetrics> {
     let mut values = line.split_whitespace();
     let total = values.next()?.parse::<u64>().ok()?;
     let used = values.next()?.parse::<u64>().ok()?;
@@ -338,12 +366,49 @@ fn parse_disk_metrics(line: &str) -> Option<DiskMetrics> {
         .unwrap_or_else(|_| percent(used, total));
 
     Some(DiskMetrics {
+        filesystem: String::new(),
+        filesystem_type: String::new(),
         mount,
         total_kib: total,
         used_kib: used,
         available_kib: available,
         used_percent,
     })
+}
+
+fn parse_disk_metrics_block(block: &str) -> Vec<DiskMetrics> {
+    let mut disks = block
+        .lines()
+        .filter_map(|line| {
+            let mut values = line.split('\t');
+            let filesystem = values.next()?.to_string();
+            let filesystem_type = values.next()?.to_string();
+            let total = values.next()?.parse::<u64>().ok()?;
+            let used = values.next()?.parse::<u64>().ok()?;
+            let available = values.next()?.parse::<u64>().ok()?;
+            let raw_percent = values.next()?.trim_end_matches('%');
+            let mount = values.next()?.to_string();
+            let used_percent = raw_percent
+                .parse::<f64>()
+                .unwrap_or_else(|_| percent(used, total));
+
+            Some(DiskMetrics {
+                filesystem,
+                filesystem_type,
+                mount,
+                total_kib: total,
+                used_kib: used,
+                available_kib: available,
+                used_percent,
+            })
+        })
+        .collect::<Vec<_>>();
+    disks.sort_by(|left, right| {
+        (left.mount != "/")
+            .cmp(&(right.mount != "/"))
+            .then_with(|| left.mount.cmp(&right.mount))
+    });
+    disks
 }
 
 fn parse_network_metrics(line: &str) -> Option<NetworkMetrics> {
@@ -379,7 +444,8 @@ pub(crate) fn percent(value: u64, total: u64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        parse_load_average, parse_memory_metrics, parse_metrics_output, parse_network_metrics,
+        parse_disk_metrics_block, parse_load_average, parse_memory_metrics, parse_metrics_output,
+        parse_network_metrics,
     };
 
     #[test]
@@ -419,6 +485,19 @@ mod tests {
 
         assert_eq!(load.one, 0.12);
         assert_eq!(load.fifteen, 0.56);
+    }
+
+    #[test]
+    fn parses_and_orders_real_filesystems() {
+        let disks = parse_disk_metrics_block(
+            "/dev/mapper/vgdata-data\txfs\t104857600\t40894464\t63963136\t39%\t/data\n/dev/mapper/centos-root\txfs\t40894464\t18874368\t22020096\t47%\t/",
+        );
+
+        assert_eq!(disks.len(), 2);
+        assert_eq!(disks[0].mount, "/");
+        assert_eq!(disks[1].mount, "/data");
+        assert_eq!(disks[1].filesystem_type, "xfs");
+        assert_eq!(disks[1].used_percent, 39.0);
     }
 
     #[test]

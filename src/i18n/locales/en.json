@@ -773,7 +773,10 @@
     "notConfigured": "Not configured",
     "history": "Recent sample trend",
     "noTrend": "Collecting trend data",
-    "rootFilesystem": "Root filesystem"
+    "rootFilesystem": "Root filesystem",
+    "primaryDisk": "Status bar",
+    "filesystem": "Filesystem",
+    "noDisks": "No physical filesystems found"
   },
   "terminalContext": {
     "copyFailedTitle": "Copy failed",

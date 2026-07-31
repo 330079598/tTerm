@@ -764,7 +764,10 @@
     "notConfigured": "未配置",
     "history": "最近采样趋势",
     "noTrend": "正在收集趋势数据",
-    "rootFilesystem": "根文件系统"
+    "rootFilesystem": "根文件系统",
+    "primaryDisk": "底栏",
+    "filesystem": "文件系统",
+    "noDisks": "未发现可监控的真实文件系统"
   },
   "terminalContext": {
     "copyFailedTitle": "复制失败",

@@ -14,6 +14,7 @@ import type { TFunction } from "i18next"
 
 import type {
   CpuHistorySample,
+  DiskMetrics,
   NetworkHistorySample,
   NetworkRate,
   ServerMetricsSnapshot,
@@ -38,16 +39,6 @@ function formatBytes(value?: number, perSecond = false) {
 
 function formatKib(value?: number) {
   return value === undefined ? "--" : formatBytes(value * 1024)
-}
-
-function formatDuration(seconds?: number) {
-  if (seconds === undefined) return "--"
-  const days = Math.floor(seconds / 86400)
-  const hours = Math.floor((seconds % 86400) / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  if (days > 0) return `${days}d ${hours}h`
-  if (hours > 0) return `${hours}h ${minutes}m`
-  return `${minutes}m`
 }
 
 function linePath(values: number[], width = 100, height = 52, fixedMax?: number) {
@@ -111,8 +102,9 @@ function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; va
 
 function UsageBar({ value }: { value?: number }) {
   const percent = Math.min(Math.max(value ?? 0, 0), 100)
+  const severity = percent >= 90 ? "is-critical" : percent >= 80 ? "is-warning" : "is-normal"
   return (
-    <div className="server-monitor-usage-track" aria-hidden="true">
+    <div className={`server-monitor-usage-track ${severity}`} aria-hidden="true">
       <span style={{ width: `${percent}%` }} />
     </div>
   )
@@ -126,6 +118,7 @@ interface ServerMonitorPanelProps {
   networkRate?: NetworkRate
   onClose: () => void
   onHeightChange: (height: number) => void
+  primaryDisk?: DiskMetrics
   snapshot: ServerMetricsSnapshot
   t: TFunction
 }
@@ -138,6 +131,7 @@ export function ServerMonitorPanel({
   networkRate,
   onClose,
   onHeightChange,
+  primaryDisk,
   snapshot,
   t,
 }: ServerMonitorPanelProps) {
@@ -169,7 +163,8 @@ export function ServerMonitorPanel({
   const memoryPercent = snapshot.memory?.usedPercent
   const swapConfigured = (snapshot.memory?.swapTotalKib ?? 0) > 0
   const swapPercent = swapConfigured ? snapshot.memory?.swapUsedPercent : undefined
-  const diskPercent = snapshot.disk?.usedPercent
+  const diskPercent = primaryDisk?.usedPercent
+  const disks = snapshot.disks?.length ? snapshot.disks : snapshot.disk ? [snapshot.disk] : []
   const receiveValues = networkHistory.map((sample) => sample.receivedBytesPerSecond)
   const transmitValues = networkHistory.map((sample) => sample.transmittedBytesPerSecond)
   const network = snapshot.network
@@ -373,29 +368,55 @@ export function ServerMonitorPanel({
         </TabsContent>
 
         <TabsContent value="disk" className="server-monitor-panel-content">
-          <div className="server-monitor-panel-resource">
-            <div className="server-monitor-panel-resource-head">
-              <span>
-                <HardDrive size={16} /> {t("serverMonitor.rootFilesystem")}
-              </span>
-              <strong>{diskPercent === undefined ? "--" : `${Math.round(diskPercent)}%`}</strong>
+          {disks.length ? (
+            <div className="server-monitor-disk-list">
+              {disks.map((disk) => {
+                const isPrimary = disk.mount === primaryDisk?.mount
+                return (
+                  <div
+                    key={`${disk.filesystem}:${disk.mount}`}
+                    className="server-monitor-panel-resource is-disk-section"
+                  >
+                    <div className="server-monitor-panel-resource-head">
+                      <span className="min-w-0">
+                        <HardDrive size={16} className="shrink-0" />
+                        <code className="truncate">{disk.mount}</code>
+                        {isPrimary && (
+                          <small>
+                            {t("serverMonitor.primaryDisk", { defaultValue: "Status bar" })}
+                          </small>
+                        )}
+                      </span>
+                      <strong>{Math.round(disk.usedPercent)}%</strong>
+                    </div>
+                    <UsageBar value={disk.usedPercent} />
+                    <div className="server-monitor-panel-resource-values">
+                      <span>
+                        {t("serverMonitor.used")}: {formatKib(disk.usedKib)}
+                      </span>
+                      <span>
+                        {t("serverMonitor.available")}: {formatKib(disk.availableKib)}
+                      </span>
+                      <span>
+                        {t("serverMonitor.total")}: {formatKib(disk.totalKib)}
+                      </span>
+                      {disk.filesystem && (
+                        <span title={disk.filesystem}>
+                          {t("serverMonitor.filesystem", { defaultValue: "Filesystem" })}:{" "}
+                          {disk.filesystem}
+                          {disk.filesystemType ? ` (${disk.filesystemType})` : ""}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-            <UsageBar value={diskPercent} />
-            <div className="server-monitor-panel-resource-values">
-              <span>
-                {t("serverMonitor.used")}: {formatKib(snapshot.disk?.usedKib)}
-              </span>
-              <span>
-                {t("serverMonitor.available")}: {formatKib(snapshot.disk?.availableKib)}
-              </span>
-              <span>
-                {t("serverMonitor.total")}: {formatKib(snapshot.disk?.totalKib)}
-              </span>
-              <span>
-                {t("serverMonitor.uptime")}: {formatDuration(snapshot.uptimeSecs)}
-              </span>
+          ) : (
+            <div className="server-monitor-panel-empty">
+              {t("serverMonitor.noDisks", { defaultValue: "No physical filesystems found" })}
             </div>
-          </div>
+          )}
         </TabsContent>
       </Tabs>
     </section>
