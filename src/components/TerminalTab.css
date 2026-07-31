@@ -931,9 +931,11 @@ button.server-monitor-metric.is-clickable:focus-visible {
 
 .server-monitor-disk-list {
   display: grid;
-  max-width: 920px;
+  width: fit-content;
+  max-width: min(920px, 100%);
   margin: 0 auto;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 300px));
+  justify-content: center;
   gap: 10px;
 }
 
@@ -969,6 +971,25 @@ button.server-monitor-metric.is-clickable:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.server-monitor-panel-resource.is-disk-section .server-monitor-panel-resource-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.server-monitor-panel-resource.is-disk-section .server-monitor-panel-resource-values > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.server-monitor-panel-resource.is-disk-section
+  .server-monitor-panel-resource-values
+  > span:last-child {
+  grid-column: 1 / -1;
 }
 
 .server-monitor-panel-resource-values,
@@ -1193,7 +1214,18 @@ button.server-monitor-metric.is-clickable:focus-visible {
   }
 
   .server-monitor-disk-list {
+    width: 100%;
     grid-template-columns: 1fr;
+  }
+
+  .server-monitor-panel-resource.is-disk-section .server-monitor-panel-resource-values {
+    grid-template-columns: 1fr;
+  }
+
+  .server-monitor-panel-resource.is-disk-section
+    .server-monitor-panel-resource-values
+    > span:last-child {
+    grid-column: auto;
   }
 
   .server-monitor-panel-resource.is-memory-section {
