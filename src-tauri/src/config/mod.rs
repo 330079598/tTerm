@@ -52,6 +52,8 @@ pub struct AppConfig {
     pub sftp_paste_upload_enabled: bool,
     #[serde(default = "default_monitor_refresh_interval_secs")]
     pub monitor_refresh_interval_secs: u16,
+    #[serde(default = "default_monitor_visible_metrics")]
+    pub monitor_visible_metrics: Vec<String>,
     #[serde(default = "default_update_channel")]
     pub update_channel: String,
     #[serde(default = "default_auto_download_updates")]
@@ -167,6 +169,13 @@ fn default_monitor_refresh_interval_secs() -> u16 {
     5
 }
 
+fn default_monitor_visible_metrics() -> Vec<String> {
+    ["cpu", "memory", "network", "ip", "latency", "disk"]
+        .into_iter()
+        .map(str::to_string)
+        .collect()
+}
+
 fn default_update_channel() -> String {
     "stable".to_string()
 }
@@ -242,6 +251,7 @@ impl Default for AppConfig {
             show_jump_host_connection_info: default_show_jump_host_connection_info(),
             sftp_paste_upload_enabled: false,
             monitor_refresh_interval_secs: default_monitor_refresh_interval_secs(),
+            monitor_visible_metrics: default_monitor_visible_metrics(),
             update_channel: default_update_channel(),
             auto_download_updates: default_auto_download_updates(),
             update_check_frequency: default_update_check_frequency(),
@@ -311,6 +321,10 @@ mod tests {
         assert!(!config.terminal_log_enabled);
         assert_eq!(config.terminal_log_format, "both");
         assert_eq!(config.terminal_log_max_file_size_mb, 50);
+        assert_eq!(
+            config.monitor_visible_metrics,
+            ["cpu", "memory", "network", "ip", "latency", "disk"]
+        );
     }
 
     #[test]

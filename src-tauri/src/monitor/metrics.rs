@@ -1,6 +1,6 @@
 use super::types::{
-    CpuCoreTimes, CpuTimes, DiskMetrics, LinuxDistributionInfo, MemoryMetrics,
-    ServerMetricsSnapshot,
+    CpuCoreTimes, CpuTimes, DiskMetrics, LinuxDistributionInfo, LoadAverageMetrics, MemoryMetrics,
+    NetworkMetrics, ServerMetricsSnapshot,
 };
 
 pub(crate) const METRICS_SCRIPT: &str = r#"    set -efu
@@ -38,7 +38,7 @@ pub(crate) const METRICS_SCRIPT: &str = r#"    set -efu
 
     printf "__TTERM_MEMINFO__ "
     awk '
-      /^(MemTotal|MemAvailable|MemFree|Buffers|Cached|SReclaimable):/ {
+      /^(MemTotal|MemAvailable|MemFree|Buffers|Cached|SReclaimable|SwapTotal|SwapFree):/ {
         gsub(":", "", $1)
         printf "%s=%s ", $1, $2
       }
@@ -83,6 +83,29 @@ pub(crate) const METRICS_SCRIPT: &str = r#"    set -efu
 
     printf "__TTERM_DF_ROOT__ "
     df -P -k / 2>/dev/null | awk 'NR == 2 { print $2, $3, $4, $5, $6 }' || true
+
+    printf "__TTERM_LOADAVG__ "
+    awk '{ print $1, $2, $3 }' /proc/loadavg 2>/dev/null || true
+
+    printf "__TTERM_UPTIME__ "
+    awk '{ printf "%.0f\n", $1 }' /proc/uptime 2>/dev/null || true
+
+    printf "__TTERM_NETWORK__ "
+    network_interface="$(ip -o route show default 2>/dev/null | awk 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit } }')"
+    if [ -z "$network_interface" ]; then
+      network_interface="$(awk -F: '$1 !~ /^[[:space:]]*lo[[:space:]]*$/ { gsub(/[[:space:]]/, "", $1); print $1; exit }' /proc/net/dev 2>/dev/null)"
+    fi
+    if [ -n "$network_interface" ]; then
+      awk -v iface="$network_interface" '
+        {
+          gsub(":", " ", $0)
+        }
+        $1 == iface {
+          print iface, $2, $10, $4, $12, $5, $13
+          exit
+        }
+      ' /proc/net/dev 2>/dev/null || true
+    fi
 "#;
 
 pub(crate) fn parse_metrics_output(output: &str) -> ServerMetricsSnapshot {
@@ -115,6 +138,12 @@ pub(crate) fn parse_metrics_output(output: &str) -> ServerMetricsSnapshot {
             .and_then(|line| parse_primary_ip(&line)),
         disk: find_prefixed_line(output, "__TTERM_DF_ROOT__")
             .and_then(|line| parse_disk_metrics(&line)),
+        network: find_prefixed_line(output, "__TTERM_NETWORK__")
+            .and_then(|line| parse_network_metrics(&line)),
+        load_average: find_prefixed_line(output, "__TTERM_LOADAVG__")
+            .and_then(|line| parse_load_average(&line)),
+        uptime_secs: find_prefixed_line(output, "__TTERM_UPTIME__")
+            .and_then(|line| line.parse::<u64>().ok()),
         network_latency_ms: None,
     }
 }
@@ -243,6 +272,8 @@ fn parse_memory_metrics(line: &str) -> Option<MemoryMetrics> {
     let mut buffers = None;
     let mut cached = None;
     let mut reclaimable = None;
+    let mut swap_total = None;
+    let mut swap_free = None;
 
     for item in line.split_whitespace() {
         let Some((key, raw_value)) = item.split_once('=') else {
@@ -256,6 +287,8 @@ fn parse_memory_metrics(line: &str) -> Option<MemoryMetrics> {
             "Buffers" => buffers = value,
             "Cached" => cached = value,
             "SReclaimable" => reclaimable = value,
+            "SwapTotal" => swap_total = value,
+            "SwapFree" => swap_free = value,
             _ => {}
         }
     }
@@ -271,12 +304,19 @@ fn parse_memory_metrics(line: &str) -> Option<MemoryMetrics> {
     })?;
     let used = total.saturating_sub(available);
     let used_percent = percent(used, total);
+    let swap_total = swap_total.unwrap_or(0);
+    let swap_free = swap_free.unwrap_or(0).min(swap_total);
+    let swap_used = swap_total.saturating_sub(swap_free);
 
     Some(MemoryMetrics {
         total_kib: total,
         available_kib: available,
         used_kib: used,
         used_percent,
+        swap_total_kib: swap_total,
+        swap_free_kib: swap_free,
+        swap_used_kib: swap_used,
+        swap_used_percent: percent(swap_used, swap_total),
     })
 }
 
@@ -306,10 +346,90 @@ fn parse_disk_metrics(line: &str) -> Option<DiskMetrics> {
     })
 }
 
+fn parse_network_metrics(line: &str) -> Option<NetworkMetrics> {
+    let mut values = line.split_whitespace();
+    Some(NetworkMetrics {
+        interface: values.next()?.to_string(),
+        received_bytes: values.next()?.parse().ok()?,
+        transmitted_bytes: values.next()?.parse().ok()?,
+        receive_errors: values.next()?.parse().ok()?,
+        transmit_errors: values.next()?.parse().ok()?,
+        receive_dropped: values.next()?.parse().ok()?,
+        transmit_dropped: values.next()?.parse().ok()?,
+    })
+}
+
+fn parse_load_average(line: &str) -> Option<LoadAverageMetrics> {
+    let mut values = line.split_whitespace();
+    Some(LoadAverageMetrics {
+        one: values.next()?.parse().ok()?,
+        five: values.next()?.parse().ok()?,
+        fifteen: values.next()?.parse().ok()?,
+    })
+}
+
 pub(crate) fn percent(value: u64, total: u64) -> f64 {
     if total == 0 {
         0.0
     } else {
         (value as f64 / total as f64) * 100.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        parse_load_average, parse_memory_metrics, parse_metrics_output, parse_network_metrics,
+    };
+
+    #[test]
+    fn parses_memory_and_swap_usage() {
+        let metrics =
+            parse_memory_metrics("MemTotal=8192 MemAvailable=4096 SwapTotal=2048 SwapFree=1536")
+                .unwrap();
+
+        assert_eq!(metrics.used_kib, 4096);
+        assert_eq!(metrics.swap_used_kib, 512);
+        assert_eq!(metrics.swap_used_percent, 25.0);
+    }
+
+    #[test]
+    fn missing_swap_is_reported_as_unconfigured() {
+        let metrics = parse_memory_metrics("MemTotal=8192 MemAvailable=4096").unwrap();
+
+        assert_eq!(metrics.swap_total_kib, 0);
+        assert_eq!(metrics.swap_used_kib, 0);
+        assert_eq!(metrics.swap_used_percent, 0.0);
+    }
+
+    #[test]
+    fn parses_network_counters() {
+        let metrics = parse_network_metrics("eth0 1024 2048 2 3 4 5").unwrap();
+
+        assert_eq!(metrics.interface, "eth0");
+        assert_eq!(metrics.received_bytes, 1024);
+        assert_eq!(metrics.transmitted_bytes, 2048);
+        assert_eq!(metrics.receive_errors, 2);
+        assert_eq!(metrics.transmit_dropped, 5);
+    }
+
+    #[test]
+    fn parses_load_average() {
+        let load = parse_load_average("0.12 0.34 0.56").unwrap();
+
+        assert_eq!(load.one, 0.12);
+        assert_eq!(load.fifteen, 0.56);
+    }
+
+    #[test]
+    fn snapshot_includes_extended_metrics() {
+        let snapshot = parse_metrics_output(
+            "__TTERM_UNAME__ Linux 6.8 x86_64\n__TTERM_NETWORK__ eth0 10 20 0 0 0 0\n__TTERM_LOADAVG__ 1.0 0.8 0.4\n__TTERM_UPTIME__ 3600",
+        );
+
+        assert!(snapshot.supported);
+        assert_eq!(snapshot.network.unwrap().interface, "eth0");
+        assert_eq!(snapshot.load_average.unwrap().five, 0.8);
+        assert_eq!(snapshot.uptime_secs, Some(3600));
     }
 }

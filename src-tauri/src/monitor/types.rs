@@ -58,6 +58,10 @@ pub struct MemoryMetrics {
     pub available_kib: u64,
     pub used_kib: u64,
     pub used_percent: f64,
+    pub swap_total_kib: u64,
+    pub swap_free_kib: u64,
+    pub swap_used_kib: u64,
+    pub swap_used_percent: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -72,6 +76,26 @@ pub struct DiskMetrics {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct NetworkMetrics {
+    pub interface: String,
+    pub received_bytes: u64,
+    pub transmitted_bytes: u64,
+    pub receive_errors: u64,
+    pub transmit_errors: u64,
+    pub receive_dropped: u64,
+    pub transmit_dropped: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LoadAverageMetrics {
+    pub one: f64,
+    pub five: f64,
+    pub fifteen: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ServerMetricsSnapshot {
     pub supported: bool,
     pub unsupported_reason: Option<String>,
@@ -82,5 +106,8 @@ pub struct ServerMetricsSnapshot {
     pub memory: Option<MemoryMetrics>,
     pub primary_ip: Option<String>,
     pub disk: Option<DiskMetrics>,
+    pub network: Option<NetworkMetrics>,
+    pub load_average: Option<LoadAverageMetrics>,
+    pub uptime_secs: Option<u64>,
     pub network_latency_ms: Option<u64>,
 }

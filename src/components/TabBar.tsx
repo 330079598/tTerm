@@ -660,11 +660,7 @@ export const TabBar: React.FC<TabBarProps> = ({
       <div
         className={`tab-list-viewport ${scrollState.canScrollLeft ? "can-scroll-left" : ""} ${scrollState.canScrollRight ? "can-scroll-right" : ""}`}
       >
-        <div
-          ref={listRef}
-          className="tab-list"
-          onScroll={updateScrollState}
-        >
+        <div ref={listRef} className="tab-list" onScroll={updateScrollState}>
           {tabs.map((tab, index) => (
             <React.Fragment key={tab.id}>
               <TabItem

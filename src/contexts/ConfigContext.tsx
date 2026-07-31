@@ -19,6 +19,30 @@ export interface SecretBackendStatus {
 export type SecretStorageMode = "auto" | "system" | "vault" | "hybrid" | "memory"
 export type TabWidthMode = "adaptive" | "standard"
 export type TerminalLogFormat = "raw" | "plain" | "both"
+export type MonitorMetricId =
+  | "cpu"
+  | "memory"
+  | "network"
+  | "ip"
+  | "latency"
+  | "disk"
+  | "load"
+  | "uptime"
+
+export const DEFAULT_MONITOR_VISIBLE_METRICS: MonitorMetricId[] = [
+  "cpu",
+  "memory",
+  "network",
+  "ip",
+  "latency",
+  "disk",
+]
+
+const MONITOR_METRIC_IDS = new Set<MonitorMetricId>([
+  ...DEFAULT_MONITOR_VISIBLE_METRICS,
+  "load",
+  "uptime",
+])
 
 export function applyUiScalePercent(scale: number) {
   const rootStyle = document.documentElement.style
@@ -85,6 +109,7 @@ export interface AppConfig {
   show_jump_host_connection_info: boolean
   sftp_paste_upload_enabled: boolean
   monitor_refresh_interval_secs: number
+  monitor_visible_metrics: MonitorMetricId[]
   update_channel: "stable" | "beta-dev"
   auto_download_updates: boolean
   update_check_frequency: UpdateCheckFrequency
@@ -128,6 +153,7 @@ const defaultConfig: AppConfig = {
   show_jump_host_connection_info: true,
   sftp_paste_upload_enabled: false,
   monitor_refresh_interval_secs: 5,
+  monitor_visible_metrics: DEFAULT_MONITOR_VISIBLE_METRICS,
   update_channel: defaultUpdateChannel,
   auto_download_updates: true,
   update_check_frequency: "daily",
@@ -172,6 +198,20 @@ function normalizeMonitorRefreshInterval(
   }
 
   return Math.min(Math.max(Math.round(value), 1), 60)
+}
+
+function normalizeMonitorVisibleMetrics(
+  value: Partial<AppConfig>["monitor_visible_metrics"]
+): MonitorMetricId[] {
+  if (!Array.isArray(value)) {
+    return [...DEFAULT_MONITOR_VISIBLE_METRICS]
+  }
+
+  const metrics = value.filter(
+    (item, index): item is MonitorMetricId =>
+      MONITOR_METRIC_IDS.has(item as MonitorMetricId) && value.indexOf(item) === index
+  )
+  return metrics.length > 0 ? metrics : [...DEFAULT_MONITOR_VISIBLE_METRICS]
 }
 
 function normalizeTabStandardWidth(value: Partial<AppConfig>["tab_standard_width"]): number {
@@ -221,6 +261,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     monitor_refresh_interval_secs: normalizeMonitorRefreshInterval(
       config.monitor_refresh_interval_secs
     ),
+    monitor_visible_metrics: normalizeMonitorVisibleMetrics(config.monitor_visible_metrics),
     update_channel: config.update_channel === "beta-dev" ? "beta-dev" : "stable",
     auto_download_updates: config.auto_download_updates !== false,
     terminal_padding_left_px: normalizeTerminalPadding(config.terminal_padding_left_px, 6),

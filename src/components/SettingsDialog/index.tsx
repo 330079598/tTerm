@@ -611,6 +611,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     await saveSettings({ monitor_refresh_interval_secs: seconds })
   }
 
+  const handleMonitorVisibleMetricsChange = async (
+    metrics: typeof config.monitor_visible_metrics
+  ) => {
+    await saveSettings({ monitor_visible_metrics: metrics })
+  }
+
   const handleTerminalLogEnabledChange = async (enabled: boolean) => {
     if (enabled) {
       const confirmed = await confirm({
@@ -745,8 +751,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <TabsContent value="connection" className="m-0 flex-1 overflow-y-auto p-6">
             <ConnectionSettingsTab
               handleMonitorRefreshIntervalChange={handleMonitorRefreshIntervalChange}
+              handleMonitorVisibleMetricsChange={handleMonitorVisibleMetricsChange}
               handleShowJumpHostConnectionInfoChange={handleShowJumpHostConnectionInfoChange}
               monitorRefreshIntervalSecs={config.monitor_refresh_interval_secs}
+              monitorVisibleMetrics={config.monitor_visible_metrics}
               showJumpHostConnectionInfo={config.show_jump_host_connection_info}
             />
           </TabsContent>

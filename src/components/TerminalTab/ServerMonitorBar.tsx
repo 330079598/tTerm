@@ -1,10 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Cpu, Gauge, HardDrive, MemoryStick, Network, Server } from "lucide-react"
+import {
+  Activity,
+  ChevronUp,
+  Clock3,
+  Cpu,
+  Download,
+  Gauge,
+  HardDrive,
+  MemoryStick,
+  Network,
+  Server,
+  Upload,
+} from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 import type { TFunction } from "i18next"
 
 import type { TerminalTabProps } from "@/components/TerminalTab/types"
+import { ServerMonitorPanel } from "@/components/TerminalTab/ServerMonitorPanel"
 import { useConfig } from "@/contexts/ConfigContext"
+import type { MonitorMetricId } from "@/contexts/ConfigContext"
 import { useToast } from "@/hooks/use-toast"
 import { toErrorMessage } from "@/lib/utils"
 
@@ -36,7 +50,7 @@ type CpuCoreTimes = {
   times: CpuTimes
 }
 
-type CpuHistorySample = {
+export type CpuHistorySample = {
   total: number
   cores: Array<{ id: string; percent: number }>
 }
@@ -54,6 +68,10 @@ type MemoryMetrics = {
   availableKib: number
   usedKib: number
   usedPercent: number
+  swapTotalKib: number
+  swapFreeKib: number
+  swapUsedKib: number
+  swapUsedPercent: number
 }
 
 type DiskMetrics = {
@@ -64,7 +82,32 @@ type DiskMetrics = {
   usedPercent: number
 }
 
-type ServerMetricsSnapshot = {
+type NetworkMetrics = {
+  interface: string
+  receivedBytes: number
+  transmittedBytes: number
+  receiveErrors: number
+  transmitErrors: number
+  receiveDropped: number
+  transmitDropped: number
+}
+
+type LoadAverageMetrics = {
+  one: number
+  five: number
+  fifteen: number
+}
+
+export type NetworkRate = {
+  receivedBytesPerSecond: number
+  transmittedBytesPerSecond: number
+}
+
+export type NetworkHistorySample = NetworkRate & {
+  capturedAt: number
+}
+
+export type ServerMetricsSnapshot = {
   supported: boolean
   unsupportedReason?: string
   distribution?: LinuxDistributionInfo
@@ -74,6 +117,9 @@ type ServerMetricsSnapshot = {
   memory?: MemoryMetrics
   primaryIp?: string
   disk?: DiskMetrics
+  network?: NetworkMetrics
+  loadAverage?: LoadAverageMetrics
+  uptimeSecs?: number
   networkLatencyMs?: number
 }
 
@@ -83,6 +129,7 @@ type MonitorState =
       status: "ready"
       snapshot: ServerMetricsSnapshot
       cpuPercent?: number
+      networkRate?: NetworkRate
       collectedAt: number
     }
   | { status: "error"; message: string }
@@ -175,6 +222,37 @@ function appendCpuHistorySample(
   ].slice(-CPU_HISTORY_SAMPLE_LIMIT)
 }
 
+export function calculateNetworkRate(
+  previous: { metrics: NetworkMetrics; capturedAt: number } | undefined,
+  next: NetworkMetrics | undefined,
+  capturedAt: number
+): NetworkRate | undefined {
+  if (!previous || !next || previous.metrics.interface !== next.interface) return undefined
+  const elapsedSeconds = (capturedAt - previous.capturedAt) / 1000
+  if (
+    elapsedSeconds <= 0 ||
+    next.receivedBytes < previous.metrics.receivedBytes ||
+    next.transmittedBytes < previous.metrics.transmittedBytes
+  ) {
+    return undefined
+  }
+
+  return {
+    receivedBytesPerSecond: (next.receivedBytes - previous.metrics.receivedBytes) / elapsedSeconds,
+    transmittedBytesPerSecond:
+      (next.transmittedBytes - previous.metrics.transmittedBytes) / elapsedSeconds,
+  }
+}
+
+function appendNetworkHistorySample(
+  history: NetworkHistorySample[],
+  rate: NetworkRate | undefined,
+  capturedAt: number
+) {
+  if (!rate) return history
+  return [...history, { ...rate, capturedAt }].slice(-CPU_HISTORY_SAMPLE_LIMIT)
+}
+
 function formatKib(value?: number) {
   if (value === undefined) return "--"
   const bytes = value * 1024
@@ -213,6 +291,26 @@ function latencySeverityClass(latencyMs?: number) {
 function formatLatency(latencyMs?: number) {
   if (latencyMs === undefined) return "--"
   return latencyMs === 0 ? "<1 ms" : `${latencyMs} ms`
+}
+
+export function formatNetworkRate(value?: number) {
+  if (value === undefined || !Number.isFinite(value)) return "--"
+  const units = ["B", "K", "M", "G"]
+  let current = Math.max(0, value)
+  let index = 0
+  while (current >= 1024 && index < units.length - 1) {
+    current /= 1024
+    index += 1
+  }
+  const digits = current >= 100 || index === 0 ? 0 : current >= 10 ? 1 : 2
+  return `${current.toFixed(digits)}${units[index]}/s`
+}
+
+function formatUptime(seconds?: number) {
+  if (seconds === undefined) return "--"
+  const days = Math.floor(seconds / 86400)
+  const hours = Math.floor((seconds % 86400) / 3600)
+  return days > 0 ? `${days}d ${hours}h` : `${hours}h`
 }
 
 const DISTRO_RULES: Array<{ patterns: string[]; id: string; exact?: boolean }> = [
@@ -469,8 +567,12 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
   const { config } = useConfig()
   const [state, setState] = useState<MonitorState>({ status: "loading" })
   const [cpuHistory, setCpuHistory] = useState<CpuHistorySample[]>([])
+  const [networkHistory, setNetworkHistory] = useState<NetworkHistorySample[]>([])
+  const [panelExpanded, setPanelExpanded] = useState(false)
+  const [panelHeight, setPanelHeight] = useState(228)
   const previousCpuTimesRef = useRef<CpuTimes | undefined>()
   const previousCpuCoreTimesRef = useRef<CpuCoreTimes[] | undefined>()
+  const previousNetworkRef = useRef<{ metrics: NetworkMetrics; capturedAt: number } | undefined>()
   const requestIdRef = useRef(0)
   const monitorSessionNonce = normalizeSessionNonce(sessionNonce)
   const refreshIntervalMs = useMemo(() => {
@@ -534,7 +636,9 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
     let usedInitialCpuSampleDelay = false
     previousCpuTimesRef.current = undefined
     previousCpuCoreTimesRef.current = undefined
+    previousNetworkRef.current = undefined
     setCpuHistory([])
+    setNetworkHistory([])
 
     const refresh = async () => {
       const requestId = requestIdRef.current + 1
@@ -549,11 +653,17 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         })
         if (cancelled || requestId !== requestIdRef.current) return
 
+        const capturedAt = Date.now()
         const hadCpuBaseline = previousCpuTimesRef.current !== undefined
         const cpuPercent = calculateCpuPercent(previousCpuTimesRef.current, snapshot.cpuTimes)
         const cpuCorePercents = calculateCpuCorePercents(
           previousCpuCoreTimesRef.current,
           snapshot.cpuCoreTimes
+        )
+        const networkRate = calculateNetworkRate(
+          previousNetworkRef.current,
+          snapshot.network,
+          capturedAt
         )
         if (!usedInitialCpuSampleDelay && !hadCpuBaseline && snapshot.cpuTimes) {
           usedInitialCpuSampleDelay = true
@@ -561,8 +671,12 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         }
         previousCpuTimesRef.current = snapshot.cpuTimes
         previousCpuCoreTimesRef.current = snapshot.cpuCoreTimes
+        previousNetworkRef.current = snapshot.network
+          ? { metrics: snapshot.network, capturedAt }
+          : undefined
         setCpuHistory((history) => appendCpuHistorySample(history, cpuPercent, cpuCorePercents))
-        setState({ status: "ready", snapshot, cpuPercent, collectedAt: Date.now() })
+        setNetworkHistory((history) => appendNetworkHistorySample(history, networkRate, capturedAt))
+        setState({ status: "ready", snapshot, cpuPercent, networkRate, collectedAt: capturedAt })
       } catch (error) {
         if (cancelled || requestId !== requestIdRef.current) return
         setState({
@@ -609,7 +723,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
       return <span className="server-monitor-message is-error">{state.message}</span>
     }
 
-    const { snapshot, cpuPercent, collectedAt } = state
+    const { snapshot, cpuPercent, networkRate, collectedAt } = state
     if (!snapshot.supported) {
       return (
         <span className="server-monitor-message">
@@ -639,6 +753,110 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
     )
     const ipValue = snapshot.primaryIp?.trim() || "--"
     const copyIp = snapshot.primaryIp ? () => void copyIpAddress(snapshot.primaryIp!) : undefined
+    const renderMetric = (metric: MonitorMetricId) => {
+      switch (metric) {
+        case "cpu":
+          return (
+            <MetricItem
+              key={metric}
+              className={`server-monitor-cpu-metric ${severityClass(cpuPercent)}`}
+              icon={<Cpu size={13} />}
+              label="CPU"
+              value={
+                <span className="server-monitor-cpu-value">
+                  <CpuSparkline samples={cpuHistory} />
+                  <PercentValue value={cpuPercent} />
+                </span>
+              }
+            />
+          )
+        case "memory":
+          return (
+            <MetricItem
+              key={metric}
+              className={severityClass(snapshot.memory?.usedPercent)}
+              icon={<MemoryStick size={13} />}
+              label="MEM"
+              value={memoryValue}
+            />
+          )
+        case "network":
+          return (
+            <MetricItem
+              key={metric}
+              className="server-monitor-network-metric"
+              icon={<Network size={13} />}
+              label="NET"
+              value={
+                <span className="server-monitor-network-value">
+                  <span>
+                    <Download size={11} />
+                    {formatNetworkRate(networkRate?.receivedBytesPerSecond)}
+                  </span>
+                  <span>
+                    <Upload size={11} />
+                    {formatNetworkRate(networkRate?.transmittedBytesPerSecond)}
+                  </span>
+                </span>
+              }
+            />
+          )
+        case "ip":
+          return (
+            <MetricItem
+              key={metric}
+              ariaLabel={t("serverMonitor.copyIp", {
+                defaultValue: "Copy server IP address",
+              })}
+              icon={<Network size={13} />}
+              label="IP"
+              onClick={copyIp}
+              value={ipValue}
+            />
+          )
+        case "latency":
+          return (
+            <MetricItem
+              key={metric}
+              ariaLabel={t("serverMonitor.networkLatency", {
+                defaultValue: "SSH network round-trip latency",
+              })}
+              className={latencySeverityClass(snapshot.networkLatencyMs)}
+              icon={<Gauge size={13} />}
+              label="RTT"
+              value={formatLatency(snapshot.networkLatencyMs)}
+            />
+          )
+        case "disk":
+          return (
+            <MetricItem
+              key={metric}
+              className={severityClass(snapshot.disk?.usedPercent)}
+              icon={<HardDrive size={13} />}
+              label="DISK"
+              value={diskValue}
+            />
+          )
+        case "load":
+          return (
+            <MetricItem
+              key={metric}
+              icon={<Activity size={13} />}
+              label="LOAD"
+              value={snapshot.loadAverage ? snapshot.loadAverage.one.toFixed(2) : "--"}
+            />
+          )
+        case "uptime":
+          return (
+            <MetricItem
+              key={metric}
+              icon={<Clock3 size={13} />}
+              label="UP"
+              value={formatUptime(snapshot.uptimeSecs)}
+            />
+          )
+      }
+    }
 
     return (
       <>
@@ -657,47 +875,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
           />
           <span className="server-monitor-distro-name">{distroLabel}</span>
         </span>
-        <MetricItem
-          className={`server-monitor-cpu-metric ${severityClass(cpuPercent)}`}
-          icon={<Cpu size={13} />}
-          label="CPU"
-          value={
-            <span className="server-monitor-cpu-value">
-              <CpuSparkline samples={cpuHistory} />
-              <PercentValue value={cpuPercent} />
-            </span>
-          }
-        />
-        <MetricItem
-          className={severityClass(snapshot.memory?.usedPercent)}
-          icon={<MemoryStick size={13} />}
-          label="MEM"
-          value={memoryValue}
-        />
-        <MetricItem
-          ariaLabel={t("serverMonitor.copyIp", {
-            defaultValue: "Copy server IP address",
-          })}
-          icon={<Network size={13} />}
-          label="IP"
-          onClick={copyIp}
-          value={ipValue}
-        />
-        <MetricItem
-          ariaLabel={t("serverMonitor.networkLatency", {
-            defaultValue: "SSH network round-trip latency",
-          })}
-          className={latencySeverityClass(snapshot.networkLatencyMs)}
-          icon={<Gauge size={13} />}
-          label="RTT"
-          value={formatLatency(snapshot.networkLatencyMs)}
-        />
-        <MetricItem
-          className={severityClass(snapshot.disk?.usedPercent)}
-          icon={<HardDrive size={13} />}
-          label="DISK"
-          value={diskValue}
-        />
+        {config.monitor_visible_metrics.map(renderMetric)}
         {stale && (
           <span className="server-monitor-stale">
             {t("serverMonitor.stale", { defaultValue: "stale" })}
@@ -705,16 +883,57 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         )}
       </>
     )
-  }, [connectionState, copyIpAddress, cpuHistory, staleAfterMs, state, t])
+  }, [
+    config.monitor_visible_metrics,
+    connectionState,
+    copyIpAddress,
+    cpuHistory,
+    staleAfterMs,
+    state,
+    t,
+  ])
 
   if (!visible || connection?.type !== "ssh") {
     return null
   }
 
+  const readyState = state.status === "ready" && state.snapshot.supported ? state : undefined
+
   return (
-    <div className="server-monitor-bar" role="status" aria-live="polite">
-      <Server size={13} className="server-monitor-leading-icon" />
-      {content}
-    </div>
+    <>
+      {panelExpanded && readyState && (
+        <ServerMonitorPanel
+          cpuHistory={cpuHistory}
+          cpuPercent={readyState.cpuPercent}
+          height={panelHeight}
+          networkHistory={networkHistory}
+          networkRate={readyState.networkRate}
+          onClose={() => setPanelExpanded(false)}
+          onHeightChange={setPanelHeight}
+          snapshot={readyState.snapshot}
+          t={t}
+        />
+      )}
+      <div className="server-monitor-bar">
+        <div className="server-monitor-status" role="status" aria-live="polite">
+          <Server size={13} className="server-monitor-leading-icon" />
+          {content}
+        </div>
+        <button
+          type="button"
+          className="server-monitor-expand"
+          onClick={() => setPanelExpanded((expanded) => !expanded)}
+          disabled={!readyState}
+          aria-expanded={panelExpanded}
+          aria-label={
+            panelExpanded
+              ? t("serverMonitor.collapse", { defaultValue: "Collapse monitor details" })
+              : t("serverMonitor.expand", { defaultValue: "Expand monitor details" })
+          }
+        >
+          <ChevronUp size={14} aria-hidden="true" />
+        </button>
+      </div>
+    </>
   )
 }
