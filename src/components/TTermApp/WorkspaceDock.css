@@ -364,6 +364,15 @@ body.workspace-sash-resizing-vertical * {
   background: hsl(var(--background));
 }
 
+/* Dockview keeps terminal panels mounted in GPU-backed overlays. Stop hidden
+   overlays from painting to avoid stale WebView2 pixels, while restoring them
+   in the same frame that Dockview makes the overlay visible. */
+.workspace-dock
+  .dv-render-overlay[style*="visibility: hidden"]
+  .terminal-tab-shell {
+  display: none;
+}
+
 .workspace-panel[data-maximized-hidden] {
   display: none;
 }
