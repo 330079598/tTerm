@@ -144,7 +144,6 @@ pub async fn install_downloaded_app_update(
     update.install(bytes).map_err(|e| e.to_string())?;
     clear_macos_quarantine_after_update(app_bundle_path.as_deref());
     remove_cached_update(downloads.inner(), &channel).await;
-    restart_updated_macos_app(&app, app_bundle_path.as_deref())?;
     Ok(true)
 }
 
@@ -179,41 +178,7 @@ pub async fn download_install_app_update(
 
     clear_macos_quarantine_after_update(app_bundle_path.as_deref());
     remove_cached_update(downloads.inner(), &channel).await;
-    restart_updated_macos_app(&app, app_bundle_path.as_deref())?;
     Ok(true)
-}
-
-#[cfg(target_os = "macos")]
-fn restart_updated_macos_app(
-    app: &tauri::AppHandle,
-    app_bundle_path: Option<&Path>,
-) -> Result<(), String> {
-    let Some(app_bundle_path) = app_bundle_path else {
-        return Ok(());
-    };
-
-    std::process::Command::new("/usr/bin/open")
-        .arg("-n")
-        .arg(app_bundle_path)
-        .spawn()
-        .map_err(|err| {
-            format!(
-                "Failed to launch updated macOS app '{}': {}",
-                app_bundle_path.display(),
-                err
-            )
-        })?;
-
-    app.exit(0);
-    Ok(())
-}
-
-#[cfg(not(target_os = "macos"))]
-fn restart_updated_macos_app(
-    _app: &tauri::AppHandle,
-    _app_bundle_path: Option<&Path>,
-) -> Result<(), String> {
-    Ok(())
 }
 
 #[cfg(target_os = "macos")]

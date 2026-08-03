@@ -31,6 +31,7 @@ import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { useConfig } from "@/contexts/ConfigContext"
+import { useAppActivity } from "@/contexts/AppActivityContext"
 import { useTransferManager } from "@/contexts/TransferContext"
 import { useConnectionManager } from "@/hooks/useConnectionManager"
 import { usePreloadedSession } from "@/hooks/usePreloadedSession"
@@ -89,6 +90,7 @@ function getRemoteFileConnectionKey(connection?: Tab["connection"]): string {
 
 export const TTermApp: React.FC = () => {
   const { t, i18n } = useTranslation()
+  const { setActiveTerminalSessionCount } = useAppActivity()
   const [os] = useState<string>(getRuntimePlatform)
   const isMacos = os === "macos"
   const isLinux = os === "linux"
@@ -154,6 +156,26 @@ export const TTermApp: React.FC = () => {
   const activeTabIdRef = useRef(activeTabId)
   tabsRef.current = tabs
   activeTabIdRef.current = activeTabId
+
+  const activeTerminalSessionCount = tabs.reduce((count, tab) => {
+    if (tab.type !== "terminal" && tab.type !== "ssh") {
+      return count
+    }
+
+    const connectionState = terminalRuntimeStates[tab.id]?.connectionState
+    return connectionState === "connected" || connectionState === "connecting" ? count + 1 : count
+  }, 0)
+
+  useEffect(() => {
+    setActiveTerminalSessionCount(activeTerminalSessionCount)
+  }, [activeTerminalSessionCount, setActiveTerminalSessionCount])
+
+  useEffect(
+    () => () => {
+      setActiveTerminalSessionCount(0)
+    },
+    [setActiveTerminalSessionCount]
+  )
 
   const { saveSession, loadSession } = useSessionPersistence()
   const getPreloadedSession = usePreloadedSession(loadSession)

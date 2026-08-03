@@ -1,8 +1,9 @@
-import { lazy, Suspense, useEffect, useState } from "react"
-import { Download, PackageCheck, RotateCcw } from "lucide-react"
+import { lazy, Suspense, useEffect, useRef, useState } from "react"
+import { Download, PackageCheck } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
+import { ToastAction } from "@/components/ui/toast"
 import {
   Dialog,
   DialogContent,
@@ -12,10 +13,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useConfig } from "@/contexts/ConfigContext"
+import { useAppActivity } from "@/contexts/AppActivityContext"
+import { toast } from "@/hooks/use-toast"
 import {
   downloadAndInstallAppUpdate,
   installDownloadedAppUpdate,
-  relaunchApp,
+  retryAppUpdate,
   startBackgroundUpdateChecks,
   stopBackgroundUpdateChecks,
   subscribeToUpdater,
@@ -30,9 +33,12 @@ const UpdateReleaseNotes = lazy(() =>
 
 export function AppUpdateManager() {
   const { t } = useTranslation()
+  const { requestAppRestart } = useAppActivity()
   const { config, isLoaded, saveConfig } = useConfig()
   const [updateState, setUpdateState] = useState<UpdateState | null>(null)
   const [dismissedStatusKey, setDismissedStatusKey] = useState<string | null>(null)
+  const notificationRef = useRef<ReturnType<typeof toast> | null>(null)
+  const dismissedNotificationStatusRef = useRef<UpdateState["status"] | null>(null)
 
   useEffect(() => {
     const unsubscribe = subscribeToUpdater(setUpdateState)
@@ -40,6 +46,127 @@ export function AppUpdateManager() {
       unsubscribe()
     }
   }, [])
+
+  useEffect(() => {
+    if (!updateState) {
+      return
+    }
+
+    const showNotification = (options: Parameters<typeof toast>[0]) => {
+      if (dismissedNotificationStatusRef.current === updateState.status) {
+        return
+      }
+
+      const notificationOptions = {
+        ...options,
+        onOpenChange: (open: boolean) => {
+          options.onOpenChange?.(open)
+          if (!open) {
+            notificationRef.current = null
+            dismissedNotificationStatusRef.current = updateState.status
+          }
+        },
+      }
+      if (notificationRef.current) {
+        notificationRef.current.update(notificationOptions)
+      } else {
+        notificationRef.current = toast(notificationOptions)
+      }
+    }
+
+    if (dismissedNotificationStatusRef.current !== updateState.status) {
+      dismissedNotificationStatusRef.current = null
+    }
+
+    if (updateState.status === "downloading") {
+      const progress = updateState.totalBytes
+        ? Math.min(100, Math.round((updateState.downloadedBytes / updateState.totalBytes) * 100))
+        : null
+      showNotification({
+        title: t("updates.downloadingTitle", { defaultValue: "Downloading update" }),
+        description:
+          progress === null
+            ? t("updates.downloadingDesc", {
+                defaultValue: "Downloading version {{version}} in the background.",
+                version: updateState.latestVersion,
+              })
+            : t("updates.downloadingProgress", {
+                defaultValue: "Version {{version}}: {{progress}}%",
+                version: updateState.latestVersion,
+                progress,
+              }),
+        duration: Number.POSITIVE_INFINITY,
+        variant: "default",
+        action: undefined,
+      })
+      return
+    }
+
+    if (updateState.status === "installing") {
+      showNotification({
+        title: t("updates.installingTitle", { defaultValue: "Installing update" }),
+        description: t("updates.installingDesc", {
+          defaultValue: "Installing version {{version}}. You can continue working.",
+          version: updateState.latestVersion,
+        }),
+        duration: Number.POSITIVE_INFINITY,
+        variant: "default",
+        action: undefined,
+      })
+      return
+    }
+
+    if (updateState.status === "ready") {
+      showNotification({
+        title: t("updates.readyTitle", { defaultValue: "Update ready" }),
+        description: t("updates.readyDesc", {
+          defaultValue: "Version {{version}} is installed. Restart tTerm to use it.",
+          version: updateState.latestVersion,
+        }),
+        duration: Number.POSITIVE_INFINITY,
+        variant: "success",
+        action: (
+          <ToastAction
+            altText={t("updates.restart", { defaultValue: "Restart" })}
+            onClick={() => void requestAppRestart()}
+          >
+            {t("updates.restart", { defaultValue: "Restart" })}
+          </ToastAction>
+        ),
+      })
+      return
+    }
+
+    if (updateState.status === "error") {
+      const errorDescription =
+        updateState.errorCode === "downloaded-update-unavailable"
+          ? t("updates.downloadedUnavailable", {
+              defaultValue:
+                "The downloaded update is no longer available. Check for updates again.",
+            })
+          : updateState.error
+      showNotification({
+        title: t("updates.failedTitle", { defaultValue: "Update failed" }),
+        description: errorDescription,
+        duration: Number.POSITIVE_INFINITY,
+        variant: "destructive",
+        action: updateState.canRetry ? (
+          <ToastAction
+            altText={t("common.retry", { defaultValue: "Retry" })}
+            onClick={() => void retryAppUpdate()}
+          >
+            {t("common.retry", { defaultValue: "Retry" })}
+          </ToastAction>
+        ) : undefined,
+      })
+      return
+    }
+
+    if (notificationRef.current) {
+      notificationRef.current.dismiss()
+      notificationRef.current = null
+    }
+  }, [requestAppRestart, t, updateState])
 
   useEffect(() => {
     if (!isLoaded) {
@@ -72,34 +199,26 @@ export function AppUpdateManager() {
     updateState &&
     statusKey !== dismissedStatusKey &&
     ((updateState.status === "available" && !config.auto_download_updates) ||
-      updateState.status === "downloaded" ||
-      updateState.status === "ready")
+      updateState.status === "downloaded")
   const dialogState = shouldShowUpdateDialog ? updateState : null
   const closeDialog = () => {
     setDismissedStatusKey(statusKey)
   }
 
   const dialogTitle =
-    dialogState?.status === "ready"
-      ? t("updates.readyTitle", { defaultValue: "Update ready" })
-      : dialogState?.status === "downloaded"
-        ? t("updates.downloadedTitle", { defaultValue: "Update downloaded" })
-        : t("updates.availableTitle", { defaultValue: "Update available" })
+    dialogState?.status === "downloaded"
+      ? t("updates.downloadedTitle", { defaultValue: "Update downloaded" })
+      : t("updates.availableTitle", { defaultValue: "Update available" })
   const dialogDescription =
-    dialogState?.status === "ready"
-      ? t("updates.readyDesc", {
-          defaultValue: "Restart tTerm when you are ready to finish installing {{version}}.",
+    dialogState?.status === "downloaded"
+      ? t("updates.downloadedDesc", {
+          defaultValue: "Version {{version}} has been downloaded. Install it now?",
           version: dialogState.latestVersion,
         })
-      : dialogState?.status === "downloaded"
-        ? t("updates.downloadedDesc", {
-            defaultValue: "Version {{version}} has been downloaded. Install it now?",
-            version: dialogState.latestVersion,
-          })
-        : t("updates.availableDesc", {
-            defaultValue: "Version {{version}} is ready to download.",
-            version: dialogState?.latestVersion,
-          })
+      : t("updates.availableDesc", {
+          defaultValue: "Version {{version}} is ready to download.",
+          version: dialogState?.latestVersion,
+        })
   const releaseNotes = dialogState?.notes?.trim()
 
   return (
@@ -149,17 +268,11 @@ export function AppUpdateManager() {
               type="button"
               onClick={() => {
                 closeDialog()
-                void installDownloadedAppUpdate(config.update_channel)
+                void installDownloadedAppUpdate(dialogState.channel)
               }}
             >
               <PackageCheck size={14} />
               {t("updates.install", { defaultValue: "Install" })}
-            </Button>
-          )}
-          {dialogState?.status === "ready" && (
-            <Button type="button" onClick={() => void relaunchApp()}>
-              <RotateCcw size={14} />
-              {t("updates.restart", { defaultValue: "Restart" })}
             </Button>
           )}
         </DialogFooter>

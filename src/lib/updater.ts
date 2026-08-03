@@ -14,6 +14,7 @@ export type UpdateStatus =
   | "not-available"
   | "downloading"
   | "downloaded"
+  | "installing"
   | "ready"
   | "error"
 
@@ -24,8 +25,10 @@ export interface UpdateState {
   latestVersion?: string
   notes?: string
   error?: string
+  errorCode?: "downloaded-update-unavailable"
   downloadedBytes: number
   totalBytes?: number
+  canRetry?: boolean
 }
 
 export interface AppUpdateMetadata {
@@ -57,9 +60,18 @@ let state: UpdateState = {
   downloadedBytes: 0,
 }
 let pendingUpdate: AppUpdateMetadata | null = null
-let hasDownloadedUpdate = false
+let pendingUpdateChannel: UpdateChannel | null = null
+let downloadedUpdateChannel: UpdateChannel | null = null
 let hasInstalledUpdate = false
 let checkInFlight: Promise<AppUpdateMetadata | null> | null = null
+let downloadInFlight: Promise<boolean> | null = null
+let installInFlight: Promise<boolean> | null = null
+let downloadAndInstallInFlight: Promise<boolean> | null = null
+let autoInstallRequested = false
+let failedOperation: {
+  action: "check" | "download" | "download-and-install" | "install"
+  channel: UpdateChannel
+} | null = null
 let startupTimer: ReturnType<typeof setTimeout> | null = null
 let intervalTimer: ReturnType<typeof setTimeout> | null = null
 const listeners = new Set<UpdateStateListener>()
@@ -84,6 +96,10 @@ export async function checkForAppUpdate(channel: UpdateChannel, silent = false) 
     return pendingUpdate
   }
 
+  if (downloadInFlight || installInFlight || downloadAndInstallInFlight) {
+    return pendingUpdate
+  }
+
   if (checkInFlight) {
     return checkInFlight
   }
@@ -91,17 +107,21 @@ export async function checkForAppUpdate(channel: UpdateChannel, silent = false) 
   checkInFlight = (async () => {
     try {
       const currentVersion = await getVersion().catch(() => state.currentVersion)
+      failedOperation = null
       publish({
         status: "checking",
         channel,
         currentVersion,
         error: undefined,
+        errorCode: undefined,
         downloadedBytes: 0,
         totalBytes: undefined,
+        canRetry: false,
       })
 
       const update = await invoke<AppUpdateMetadata | null>("check_app_update", { channel })
       pendingUpdate = update
+      pendingUpdateChannel = update ? channel : null
 
       if (!update) {
         if (!silent) {
@@ -121,7 +141,12 @@ export async function checkForAppUpdate(channel: UpdateChannel, silent = false) 
       })
       return update
     } catch (error) {
-      publish({ status: silent ? "idle" : "error", error: toErrorMessage(error) })
+      failedOperation = silent ? null : { action: "check", channel }
+      publish({
+        status: silent ? "idle" : "error",
+        error: toErrorMessage(error),
+        canRetry: !silent,
+      })
       return null
     } finally {
       checkInFlight = null
@@ -131,59 +156,89 @@ export async function checkForAppUpdate(channel: UpdateChannel, silent = false) 
   return checkInFlight
 }
 
-export async function downloadAppUpdate(channel: UpdateChannel) {
-  if (hasDownloadedUpdate || hasInstalledUpdate) {
-    publish({ status: hasInstalledUpdate ? "ready" : "downloaded" })
+async function runDownloadAppUpdate(channel: UpdateChannel, publishDownloaded: boolean) {
+  if (downloadedUpdateChannel === channel || hasInstalledUpdate) {
+    if (hasInstalledUpdate) {
+      publish({ status: "ready" })
+    } else if (publishDownloaded) {
+      publish({ status: "downloaded" })
+    }
     return true
   }
 
-  const update = pendingUpdate ?? (await checkForAppUpdate(channel, true))
-  if (!update) {
-    return false
+  if (downloadInFlight) {
+    return downloadInFlight
   }
 
-  try {
-    let downloadedBytes = 0
-    let totalBytes: number | undefined
-    publish({
-      status: "downloading",
-      channel,
-      latestVersion: update.version,
-      error: undefined,
-      downloadedBytes,
-      totalBytes,
-    })
-
-    const onEvent = new Channel<DownloadEvent>()
-    onEvent.onmessage = (event) => {
-      if (event.event === "Started") {
-        totalBytes = event.data.contentLength ?? undefined
-        publish({ downloadedBytes, totalBytes })
-        return
-      }
-
-      if (event.event === "Progress") {
-        downloadedBytes += event.data.chunkLength
-        publish({ downloadedBytes, totalBytes })
-        return
-      }
-
-      publish({ downloadedBytes, totalBytes })
-    }
-
-    const downloaded = await invoke<boolean>("download_app_update", { channel, onEvent })
-    if (!downloaded) {
-      publish({ status: "not-available", latestVersion: undefined })
+  downloadInFlight = (async () => {
+    const update =
+      pendingUpdateChannel === channel ? pendingUpdate : await checkForAppUpdate(channel, true)
+    if (!update) {
       return false
     }
 
-    hasDownloadedUpdate = true
-    publish({ status: "downloaded", downloadedBytes, totalBytes })
-    return true
-  } catch (error) {
-    publish({ status: "error", error: toErrorMessage(error) })
-    return false
+    try {
+      let downloadedBytes = 0
+      let totalBytes: number | undefined
+      failedOperation = null
+      publish({
+        status: "downloading",
+        channel,
+        latestVersion: update.version,
+        error: undefined,
+        errorCode: undefined,
+        downloadedBytes,
+        totalBytes,
+        canRetry: false,
+      })
+
+      const onEvent = new Channel<DownloadEvent>()
+      onEvent.onmessage = (event) => {
+        if (event.event === "Started") {
+          totalBytes = event.data.contentLength ?? undefined
+          publish({ downloadedBytes, totalBytes })
+          return
+        }
+
+        if (event.event === "Progress") {
+          downloadedBytes += event.data.chunkLength
+          publish({ downloadedBytes, totalBytes })
+          return
+        }
+
+        publish({ downloadedBytes, totalBytes })
+      }
+
+      const downloaded = await invoke<boolean>("download_app_update", { channel, onEvent })
+      if (!downloaded) {
+        publish({ status: "not-available", latestVersion: undefined })
+        return false
+      }
+
+      downloadedUpdateChannel = channel
+      if (publishDownloaded && !autoInstallRequested) {
+        publish({ status: "downloaded", downloadedBytes, totalBytes })
+      }
+      return true
+    } catch (error) {
+      failedOperation = {
+        action: publishDownloaded && !autoInstallRequested ? "download" : "download-and-install",
+        channel,
+      }
+      publish({ status: "error", error: toErrorMessage(error), canRetry: true })
+      return false
+    }
+  })()
+
+  try {
+    return await downloadInFlight
+  } finally {
+    downloadInFlight = null
   }
+}
+
+export function downloadAppUpdate(channel: UpdateChannel) {
+  return runDownloadAppUpdate(channel, true)
 }
 
 export async function installDownloadedAppUpdate(channel: UpdateChannel) {
@@ -192,30 +247,92 @@ export async function installDownloadedAppUpdate(channel: UpdateChannel) {
     return true
   }
 
-  try {
-    const installed = await invoke<boolean>("install_downloaded_app_update", { channel })
-    if (!installed) {
+  if (installInFlight) {
+    return installInFlight
+  }
+
+  installInFlight = (async () => {
+    try {
+      failedOperation = null
+      publish({
+        status: "installing",
+        channel,
+        error: undefined,
+        errorCode: undefined,
+        canRetry: false,
+      })
+      const installed = await invoke<boolean>("install_downloaded_app_update", { channel })
+      if (!installed) {
+        downloadedUpdateChannel = null
+        failedOperation = { action: "check", channel }
+        publish({
+          status: "error",
+          error: undefined,
+          errorCode: "downloaded-update-unavailable",
+          canRetry: true,
+        })
+        return false
+      }
+
+      downloadedUpdateChannel = null
+      hasInstalledUpdate = true
+      pendingUpdate = null
+      pendingUpdateChannel = null
+      publish({ status: "ready", canRetry: false })
+      return true
+    } catch (error) {
+      failedOperation = { action: "install", channel }
+      publish({ status: "error", error: toErrorMessage(error), canRetry: true })
       return false
     }
+  })()
 
-    hasDownloadedUpdate = false
-    hasInstalledUpdate = true
-    pendingUpdate = null
-    publish({ status: "ready" })
-    return true
-  } catch (error) {
-    publish({ status: "error", error: toErrorMessage(error) })
-    return false
+  try {
+    return await installInFlight
+  } finally {
+    installInFlight = null
   }
 }
 
 export async function downloadAndInstallAppUpdate(channel: UpdateChannel) {
-  const downloaded = await downloadAppUpdate(channel)
-  if (!downloaded) {
+  if (downloadAndInstallInFlight) {
+    return downloadAndInstallInFlight
+  }
+
+  autoInstallRequested = true
+  downloadAndInstallInFlight = (async () => {
+    const downloaded = await runDownloadAppUpdate(channel, false)
+    if (!downloaded) {
+      return false
+    }
+
+    return installDownloadedAppUpdate(channel)
+  })()
+
+  try {
+    return await downloadAndInstallInFlight
+  } finally {
+    downloadAndInstallInFlight = null
+    autoInstallRequested = false
+  }
+}
+
+export async function retryAppUpdate() {
+  const operation = failedOperation
+  if (!operation) {
     return false
   }
 
-  return installDownloadedAppUpdate(channel)
+  switch (operation.action) {
+    case "check":
+      return Boolean(await checkForAppUpdate(operation.channel))
+    case "download":
+      return downloadAppUpdate(operation.channel)
+    case "download-and-install":
+      return downloadAndInstallAppUpdate(operation.channel)
+    case "install":
+      return installDownloadedAppUpdate(operation.channel)
+  }
 }
 
 export async function relaunchApp() {

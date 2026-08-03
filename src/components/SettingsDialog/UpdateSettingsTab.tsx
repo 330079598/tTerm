@@ -3,6 +3,7 @@ import {
   CalendarClock,
   CheckCircle2,
   Download,
+  LoaderCircle,
   PackageCheck,
   RefreshCw,
   RotateCcw,
@@ -18,11 +19,12 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { UpdateReleaseNotes } from "@/components/UpdateReleaseNotes"
+import { useAppActivity } from "@/contexts/AppActivityContext"
 import {
   checkForAppUpdate,
   downloadAndInstallAppUpdate,
   installDownloadedAppUpdate,
-  relaunchApp,
+  retryAppUpdate,
   subscribeToUpdater,
   type UpdateChannel,
   type UpdateCheckFrequency,
@@ -62,6 +64,7 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
   lastUpdateCheckAt,
 }) => {
   const { t } = useTranslation()
+  const { requestAppRestart } = useAppActivity()
   const [state, setState] = useState<UpdateState | null>(null)
 
   useEffect(() => {
@@ -78,10 +81,18 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
 
   const checking = state?.status === "checking"
   const downloading = state?.status === "downloading"
+  const installing = state?.status === "installing"
   const hasUpdate = state?.status === "available"
   const downloaded = state?.status === "downloaded"
   const ready = state?.status === "ready"
+  const busy = checking || downloading || installing
   const releaseNotes = state?.notes?.trim()
+  const updateError =
+    state?.errorCode === "downloaded-update-unavailable"
+      ? t("updates.downloadedUnavailable", {
+          defaultValue: "The downloaded update is no longer available. Check for updates again.",
+        })
+      : state?.error
   const lastUpdateCheckLabel = formatTimestamp(lastUpdateCheckAt)
   return (
     <ScrollArea className="h-full pr-4">
@@ -108,6 +119,7 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
+                disabled={busy}
                 variant={updateChannel === "stable" ? "default" : "outline"}
                 onClick={() => handleUpdateChannelChange("stable")}
               >
@@ -115,6 +127,7 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
               </Button>
               <Button
                 type="button"
+                disabled={busy}
                 variant={updateChannel === "beta-dev" ? "default" : "outline"}
                 onClick={() => handleUpdateChannelChange("beta-dev")}
               >
@@ -142,6 +155,7 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
             </div>
             <Switch
               checked={autoDownloadUpdates}
+              disabled={busy}
               onCheckedChange={handleAutoDownloadUpdatesChange}
             />
           </CardContent>
@@ -173,6 +187,7 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
             </div>
             <Select
               className="w-40"
+              disabled={busy}
               value={updateCheckFrequency}
               onChange={(event) =>
                 handleUpdateCheckFrequencyChange(event.target.value as UpdateCheckFrequency)
@@ -209,34 +224,40 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
                           defaultValue: "You are already on the latest version.",
                         })
                       : state?.status === "error"
-                        ? state.error
-                        : ready
-                          ? t("updates.readyDesc", {
+                        ? updateError
+                        : installing
+                          ? t("updates.installingDesc", {
                               defaultValue:
-                                "Restart tTerm when you are ready to finish installing {{version}}.",
+                                "Installing version {{version}}. You can continue working.",
                               version: state.latestVersion,
                             })
-                          : downloaded
-                            ? t("updates.downloadedDesc", {
+                          : ready
+                            ? t("updates.readyDesc", {
                                 defaultValue:
-                                  "Version {{version}} has been downloaded. Install it now?",
+                                  "Version {{version}} is installed. Restart tTerm to use it.",
                                 version: state.latestVersion,
                               })
-                            : hasUpdate
-                              ? t("updates.availableDesc", {
-                                  defaultValue: "Version {{version}} is ready to download.",
+                            : downloaded
+                              ? t("updates.downloadedDesc", {
+                                  defaultValue:
+                                    "Version {{version}} has been downloaded. Install it now?",
                                   version: state.latestVersion,
                                 })
-                              : t("updates.manualCheckDesc", {
-                                  defaultValue: "Check the selected channel now.",
-                                })}
+                              : hasUpdate
+                                ? t("updates.availableDesc", {
+                                    defaultValue: "Version {{version}} is ready to download.",
+                                    version: state.latestVersion,
+                                  })
+                                : t("updates.manualCheckDesc", {
+                                    defaultValue: "Check the selected channel now.",
+                                  })}
                   </div>
                 </div>
               </div>
               {state?.currentVersion && <Badge variant="secondary">v{state.currentVersion}</Badge>}
             </div>
 
-            {(hasUpdate || downloaded || ready || downloading) && releaseNotes && (
+            {(hasUpdate || downloaded || ready || downloading || installing) && releaseNotes && (
               <div className="bg-muted/50 space-y-2 rounded-md border p-3">
                 <div className="text-xs font-medium">
                   {t("updates.releaseNotes", { defaultValue: "What's new" })}
@@ -267,7 +288,7 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
               <Button
                 type="button"
                 variant="outline"
-                disabled={checking || downloading}
+                disabled={busy}
                 onClick={() => {
                   void checkForAppUpdate(updateChannel).then(() =>
                     handleUpdateCheckComplete(Date.now())
@@ -281,7 +302,7 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
               {hasUpdate && (
                 <Button
                   type="button"
-                  disabled={downloading}
+                  disabled={busy}
                   onClick={() => void downloadAndInstallAppUpdate(updateChannel)}
                 >
                   <Download size={14} />
@@ -292,17 +313,31 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
               {downloaded && (
                 <Button
                   type="button"
-                  onClick={() => void installDownloadedAppUpdate(updateChannel)}
+                  onClick={() => void installDownloadedAppUpdate(state.channel)}
                 >
                   <PackageCheck size={14} />
                   {t("updates.install", { defaultValue: "Install" })}
                 </Button>
               )}
 
+              {installing && (
+                <Button type="button" disabled>
+                  <LoaderCircle className="animate-spin" size={14} />
+                  {t("updates.installing", { defaultValue: "Installing" })}
+                </Button>
+              )}
+
               {ready && (
-                <Button type="button" onClick={() => void relaunchApp()}>
+                <Button type="button" onClick={() => void requestAppRestart()}>
                   <RotateCcw size={14} />
                   {t("updates.restart", { defaultValue: "Restart" })}
+                </Button>
+              )}
+
+              {state?.status === "error" && state.canRetry && (
+                <Button type="button" onClick={() => void retryAppUpdate()}>
+                  <RefreshCw size={14} />
+                  {t("common.retry", { defaultValue: "Retry" })}
                 </Button>
               )}
 

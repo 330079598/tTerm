@@ -13,13 +13,14 @@ export function Toaster() {
 
   return (
     <ToastProvider>
-      {toasts.map(function ({ id, title, description, action, ...props }) {
+      {toasts.map(function ({ id, title, description, action, onOpenChange, ...props }) {
         return (
           <Toast
             key={id}
             {...props}
             open
             onOpenChange={(open) => {
+              onOpenChange?.(open)
               if (!open) {
                 dismiss(id)
               }

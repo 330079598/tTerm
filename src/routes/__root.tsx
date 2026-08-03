@@ -4,6 +4,7 @@ import { lazy } from "react"
 import { TTermApp } from "@/components/TTermApp"
 import { AppUpdateManager } from "@/components/AppUpdateManager"
 import { ConfigProvider } from "@/contexts/ConfigContext"
+import { AppActivityProvider } from "@/contexts/AppActivityContext"
 import { ThemeProvider } from "@/contexts/ThemeContext"
 import { TransferProvider } from "@/contexts/TransferContext"
 
@@ -20,8 +21,10 @@ const RootLayout = () => {
     <ConfigProvider>
       <ThemeProvider>
         <TransferProvider>
-          <TTermApp />
-          <AppUpdateManager />
+          <AppActivityProvider>
+            <TTermApp />
+            <AppUpdateManager />
+          </AppActivityProvider>
           <TanStackRouterDevtools />
         </TransferProvider>
       </ThemeProvider>
