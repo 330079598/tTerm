@@ -3,6 +3,7 @@ import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import type { DockviewPanelApi } from "dockview-react"
 import type { TerminalInputRequest } from "@/types/broadcast"
 import type { LiveBroadcastState } from "@/types/broadcast"
+import type { ExecutedCommand } from "@/types/command"
 
 export interface TerminalTabProps {
   tabId: string
@@ -18,6 +19,9 @@ export interface TerminalTabProps {
     state: ConnectionState | null
   ) => void
   onInput?: (request: TerminalInputRequest) => Promise<void>
+  onCommandExecuted?: (command: ExecutedCommand) => void
+  onOpenCommandLibrary?: (query?: string) => void
+  onSaveCommand?: (commandText: string, profile?: { id: string; name: string }) => void
   onSavedPasswordPromptChange?: (tabId: string, sessionNonce: number, active: boolean) => void
   onSessionUnavailable?: (tabId: string, sessionNonce: number, unexpected: boolean) => void
   onSensitivePrompt?: (tabId: string) => void

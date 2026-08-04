@@ -3,11 +3,12 @@ import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { platform } from "@tauri-apps/plugin-os"
 import type { SerializedDockview } from "dockview-react"
-import { BookMarked, Minus, Plus, Settings, Square, X } from "lucide-react"
-import React, { useCallback, useEffect, useRef, useState } from "react"
+import { BookMarked, Library, Minus, Plus, Settings, Square, X } from "lucide-react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { ConnectionDialog } from "@/components/ConnectionDialog"
+import { CommandEditorDialog, CommandLibrary } from "@/components/CommandLibrary"
 import { BroadcastManager } from "@/components/BroadcastManager"
 import { ContextMenu } from "@/components/ContextMenu"
 import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
@@ -41,8 +42,15 @@ import { useTabs } from "@/hooks/useTabs"
 import { toast } from "@/hooks/use-toast"
 import { useWindowControls } from "@/hooks/useWindowControls"
 import { markSessionReady } from "@/lib/startup"
+import {
+  addRecentCommand,
+  createCommandDraft,
+  loadRecentCommands,
+  saveRecentCommands,
+} from "@/lib/recentCommands"
 import { getAdjacentTabId, getTabIdsForCloseAction } from "@/lib/tabClosing"
 import { Tab } from "@/types/tab"
+import type { CommandDraft, ExecutedCommand, RecentCommand, SavedCommand } from "@/types/command"
 import type {
   BroadcastMode,
   LiveBroadcastState,
@@ -97,6 +105,15 @@ export const TTermApp: React.FC = () => {
   const isWindows = os === "windows"
   const [showConnectionDialog, setShowConnectionDialog] = useState(false)
   const [showProfilesPanel, setShowProfilesPanel] = useState(false)
+  const [showCommandLibrary, setShowCommandLibrary] = useState(false)
+  const [commandLibrarySearchQuery, setCommandLibrarySearchQuery] = useState("")
+  const [quickSaveRequest, setQuickSaveRequest] = useState<{
+    draft: CommandDraft
+    profile?: { id: string; name: string }
+  } | null>(null)
+  const [recentCommands, setRecentCommands] = useState<RecentCommand[]>(() =>
+    typeof window === "undefined" ? [] : loadRecentCommands(window.localStorage)
+  )
   const [editingProfile, setEditingProfile] = useState<SavedProfile | null>(null)
   const [duplicatingProfile, setDuplicatingProfile] = useState<SavedProfile | null>(null)
   const [profilesRefreshKey, setProfilesRefreshKey] = useState(0)
@@ -1325,6 +1342,108 @@ export const TTermApp: React.FC = () => {
     openSettingsTab(settingsTabTitle)
   }, [openSettingsTab, settingsTabTitle])
 
+  const activeTerminalTab = useMemo(() => {
+    const tab = tabs.find((candidate) => candidate.id === activeTabId)
+    return tab?.type === "terminal" || tab?.type === "ssh" ? tab : null
+  }, [activeTabId, tabs])
+  const activeTerminalRuntime = activeTerminalTab
+    ? terminalRuntimeStates[activeTerminalTab.id]
+    : undefined
+  const canInsertSavedCommand = Boolean(
+    activeTerminalTab &&
+    activeTerminalRuntime?.connectionState === "connected" &&
+    activeTerminalRuntime.sessionNonce === (activeTerminalTab.sessionNonce ?? 0)
+  )
+  const activeCommandProfile =
+    activeTerminalTab?.connection?.profileId && activeTerminalTab.connection.profileName
+      ? {
+          id: activeTerminalTab.connection.profileId,
+          name: activeTerminalTab.connection.profileName,
+        }
+      : undefined
+
+  const handleInsertCommandText = useCallback(
+    async (commandText: string) => {
+      const tabId = activeTabIdRef.current
+      const tab = tabsRef.current.find((candidate) => candidate.id === tabId)
+      if (!tab || (tab.type !== "terminal" && tab.type !== "ssh")) {
+        toast({
+          title: t("commandLibrary.messages.insertFailed"),
+          description: t("commandLibrary.selectTerminalHint"),
+          variant: "destructive",
+        })
+        return false
+      }
+
+      const sessionNonce = tab.sessionNonce ?? 0
+      const runtime = runtimeStatesRef.current[tab.id]
+      if (runtime?.connectionState !== "connected" || runtime.sessionNonce !== sessionNonce) {
+        toast({
+          title: t("commandLibrary.messages.insertFailed"),
+          description: t("commandLibrary.messages.terminalUnavailable"),
+          variant: "destructive",
+        })
+        return false
+      }
+
+      try {
+        await invoke("write_pty", { tabId: tab.id, sessionNonce, data: commandText })
+        toast({ title: t("commandLibrary.messages.inserted") })
+        return true
+      } catch (error) {
+        toast({
+          title: t("commandLibrary.messages.insertFailed"),
+          description: String(error),
+          variant: "destructive",
+        })
+        return false
+      }
+    },
+    [t]
+  )
+
+  const handleInsertSavedCommand = useCallback(
+    (command: SavedCommand) => handleInsertCommandText(command.commandText),
+    [handleInsertCommandText]
+  )
+
+  const handleTerminalCommandExecuted = useCallback((command: ExecutedCommand) => {
+    setRecentCommands((current) => {
+      const next = addRecentCommand(current, command)
+      try {
+        saveRecentCommands(window.localStorage, next)
+      } catch (error) {
+        console.error("Failed to persist recent commands:", error)
+      }
+      return next
+    })
+  }, [])
+
+  const handleSaveCommand = useCallback(
+    (commandText: string, profile?: { id: string; name: string }) => {
+      const draft = createCommandDraft(commandText, profile)
+      if (!draft.commandText) return
+      setQuickSaveRequest({ draft, profile })
+    },
+    []
+  )
+
+  const handleOpenCommandLibrary = useCallback((query?: string) => {
+    setCommandLibrarySearchQuery(query ?? "")
+    setShowCommandLibrary(true)
+  }, [])
+
+  useEffect(() => {
+    const handleCommandLibraryShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "p") {
+        event.preventDefault()
+        handleOpenCommandLibrary()
+      }
+    }
+    document.addEventListener("keydown", handleCommandLibraryShortcut)
+    return () => document.removeEventListener("keydown", handleCommandLibraryShortcut)
+  }, [handleOpenCommandLibrary])
+
   const handleCollapsedProfileGroupKeysChange = useCallback(
     (groups: string[]) => {
       saveConfig({ collapsed_profile_group_keys: groups }).catch((error) => {
@@ -1373,7 +1492,10 @@ export const TTermApp: React.FC = () => {
         onTabClose={handleRemoveTab}
         onTabContextMenu={handleTabContextMenu}
         onTerminalConnectionStateChange={handleTerminalConnectionStateChange}
+        onTerminalCommandExecuted={handleTerminalCommandExecuted}
         onTerminalInput={handleTerminalInput}
+        onOpenCommandLibrary={handleOpenCommandLibrary}
+        onSaveCommand={handleSaveCommand}
         onTerminalSavedPasswordPromptChange={handleTerminalSavedPasswordPromptChange}
         onTerminalSessionUnavailable={handleTerminalSessionUnavailable}
         onTerminalSensitivePrompt={handleTerminalSensitivePrompt}
@@ -1426,6 +1548,13 @@ export const TTermApp: React.FC = () => {
                 aria-label={t("profiles.title", { defaultValue: "Profiles" })}
               >
                 <BookMarked size={16} />
+              </button>
+              <button
+                className="tab-action"
+                onClick={() => handleOpenCommandLibrary()}
+                aria-label={t("commandLibrary.title")}
+              >
+                <Library size={16} />
               </button>
               <TransferManager
                 transfers={transfers}
@@ -1546,6 +1675,29 @@ export const TTermApp: React.FC = () => {
           />
         </DialogContent>
       </Dialog>
+
+      <CommandLibrary
+        open={showCommandLibrary}
+        onOpenChange={setShowCommandLibrary}
+        activeProfile={activeCommandProfile}
+        canInsert={canInsertSavedCommand}
+        onInsert={handleInsertSavedCommand}
+        onInsertRecent={handleInsertCommandText}
+        recentCommands={recentCommands}
+        initialSearchQuery={commandLibrarySearchQuery}
+      />
+
+      <CommandEditorDialog
+        open={Boolean(quickSaveRequest)}
+        command={null}
+        draft={quickSaveRequest?.draft}
+        availableTags={[]}
+        activeProfile={quickSaveRequest?.profile}
+        onOpenChange={(open) => {
+          if (!open) setQuickSaveRequest(null)
+        }}
+        onSaved={() => setQuickSaveRequest(null)}
+      />
 
       {contextMenu.visible && (
         <ContextMenu

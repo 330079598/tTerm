@@ -198,7 +198,7 @@ function TooltipContent({ children, className, side = "top", ...props }: Tooltip
       role="tooltip"
       style={{ left: position.left, top: position.top }}
       className={cn(
-        "bg-popover text-popover-foreground pointer-events-none fixed z-[100] w-max max-w-[min(16rem,calc(100vw-1rem))] -translate-x-1/2 rounded-md border px-3 py-1.5 text-xs leading-relaxed shadow-md",
+        "bg-popover text-popover-foreground pointer-events-none fixed z-[300] w-max max-w-[min(16rem,calc(100vw-1rem))] -translate-x-1/2 rounded-md border px-3 py-1.5 text-xs leading-relaxed shadow-md",
         side === "top" ? "-translate-y-[calc(100%+0.5rem)]" : "translate-y-2",
         className
       )}

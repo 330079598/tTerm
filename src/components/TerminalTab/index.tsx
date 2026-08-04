@@ -6,6 +6,7 @@ import { type IDisposable, Terminal } from "@xterm/xterm"
 import { invoke } from "@tauri-apps/api/core"
 import { useTranslation } from "react-i18next"
 import { Keyboard, Pause, Play, Square } from "lucide-react"
+import { ContextMenu } from "@/components/ContextMenu"
 import { SftpDrawer } from "@/components/SftpDrawer"
 import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
@@ -26,7 +27,9 @@ import { useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useStableRef } from "@/hooks/useStableRef"
 import { resolveScrollbackLines } from "@/lib/scrollback"
+import { isSaveCommandShortcut } from "@/lib/terminalCommandCapture"
 import { toErrorMessage } from "@/lib/utils"
+import type { TabContextMenuAction } from "@/types/tab"
 
 const FIT_STABILITY_FRAMES = 2
 const MAX_PENDING_FIT_FRAMES = 4
@@ -42,6 +45,9 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   liveBroadcastState = "idle",
   onConnectionStateChange,
   onInput,
+  onCommandExecuted,
+  onOpenCommandLibrary,
+  onSaveCommand,
   onPidChange,
   onReconnectRequest,
   onSavedPasswordPromptChange,
@@ -73,6 +79,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const waitingForReconnectRef = useRef(false)
   const onPidChangeRef = useStableRef(onPidChange)
   const onInputRef = useStableRef(onInput)
+  const onCommandExecutedRef = useStableRef(onCommandExecuted)
   const onReconnectRequestRef = useStableRef(onReconnectRequest)
   const onSavedPasswordPromptChangeRef = useStableRef(onSavedPasswordPromptChange)
   const onSessionUnavailableRef = useStableRef(onSessionUnavailable)
@@ -107,6 +114,11 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   )
   const [jumpHostInfoOpen, setJumpHostInfoOpen] = useState(false)
   const [dontShowJumpHostInfoAgain, setDontShowJumpHostInfoAgain] = useState(false)
+  const [terminalContextMenu, setTerminalContextMenu] = useState<{
+    x: number
+    y: number
+    selection: string
+  } | null>(null)
 
   const {
     closeSearch,
@@ -321,6 +333,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     lastPtySizeRef,
     onPidChangeRef,
     onInputRef,
+    onCommandExecutedRef,
     onReconnectRequestRef,
     onSavedPasswordPromptChangeRef,
     onSessionUnavailableRef,
@@ -512,64 +525,103 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   )
 
   const handleTerminalContextMenu = useCallback(
-    async (event: React.MouseEvent<HTMLDivElement>) => {
+    (event: React.MouseEvent<HTMLDivElement>) => {
       event.preventDefault()
-
       const term = termRef.current
       term?.focus()
+      if (showSftpDrawer) setShowSftpDrawer(false)
+      setTerminalContextMenu({
+        x: event.clientX,
+        y: event.clientY,
+        selection: term?.hasSelection() ? term.getSelection() : "",
+      })
+    },
+    [showSftpDrawer]
+  )
 
-      if (showSftpDrawer) {
-        setShowSftpDrawer(false)
-      }
-
-      const selection = term?.hasSelection() ? term.getSelection() : ""
-
-      if (selection) {
+  const handleTerminalMenuAction = useCallback(
+    async (action: string) => {
+      const term = termRef.current
+      const selection = terminalContextMenu?.selection.trim() ?? ""
+      if (action === "copy" && selection) {
         try {
           await invoke("plugin:clipboard-manager|write_text", { text: selection })
           term?.clearSelection()
         } catch (error) {
           console.error("Failed to copy terminal selection:", error)
           toast({
-            title: t("terminalContext.copyFailedTitle", {
-              defaultValue: "Copy failed",
-            }),
-            description: t("terminalContext.copyFailedDescription", {
-              defaultValue: "Unable to copy the current terminal selection.",
-            }),
+            title: t("terminalContext.copyFailedTitle"),
+            description: t("terminalContext.copyFailedDescription"),
             variant: "destructive",
           })
         }
-
         return
       }
-
-      try {
-        const clipboardText = await invoke<string>("plugin:clipboard-manager|read_text")
-        if (!clipboardText) {
-          return
+      if (action === "save" && selection) {
+        const profile =
+          connection?.profileId && connection.profileName
+            ? { id: connection.profileId, name: connection.profileName }
+            : undefined
+        onSaveCommand?.(selection, profile)
+        return
+      }
+      if (action === "find") {
+        onOpenCommandLibrary?.(selection || undefined)
+        return
+      }
+      if (action === "paste") {
+        try {
+          const clipboardText = await invoke<string>("plugin:clipboard-manager|read_text")
+          if (clipboardText) term?.paste(clipboardText)
+        } catch (error) {
+          console.error("Failed to paste into terminal:", error)
+          toast({
+            title: t("terminalContext.pasteFailedTitle"),
+            description: t("terminalContext.pasteFailedDescription"),
+            variant: "destructive",
+          })
         }
-
-        if (onInput) {
-          await onInput({ tabId, sessionNonce, data: clipboardText, kind: "paste" })
-        } else {
-          await invoke("write_pty", { tabId, sessionNonce, data: clipboardText })
-        }
-      } catch (error) {
-        console.error("Failed to paste into terminal:", error)
-        toast({
-          title: t("terminalContext.pasteFailedTitle", {
-            defaultValue: "Paste failed",
-          }),
-          description: t("terminalContext.pasteFailedDescription", {
-            defaultValue: "Unable to paste clipboard contents into the terminal.",
-          }),
-          variant: "destructive",
-        })
       }
     },
-    [onInput, sessionNonce, showSftpDrawer, t, tabId]
+    [connection, onOpenCommandLibrary, onSaveCommand, t, terminalContextMenu]
   )
+
+  const terminalMenuActions: TabContextMenuAction[] = [
+    {
+      action: "copy",
+      label: t("terminalContext.copy"),
+      icon: "copy",
+      disabled: !terminalContextMenu?.selection,
+    },
+    {
+      action: "save",
+      label: t("terminalContext.saveCommand"),
+      icon: "star",
+      disabled: !terminalContextMenu?.selection,
+    },
+    { separator: true, action: "separator", label: "" },
+    { action: "paste", label: t("terminalContext.paste"), icon: "paste" },
+    { action: "find", label: t("terminalContext.findCommand"), icon: "search" },
+  ]
+
+  useEffect(() => {
+    if (!isActive) return
+    const handleSaveShortcut = (event: KeyboardEvent) => {
+      if (!isSaveCommandShortcut(event)) return
+      if (!containerRef.current?.contains(document.activeElement)) return
+      const selection = termRef.current?.hasSelection() ? termRef.current.getSelection().trim() : ""
+      if (!selection) return
+      event.preventDefault()
+      event.stopPropagation()
+      const profile =
+        connection?.profileId && connection.profileName
+          ? { id: connection.profileId, name: connection.profileName }
+          : undefined
+      onSaveCommand?.(selection, profile)
+    }
+    document.addEventListener("keydown", handleSaveShortcut, true)
+    return () => document.removeEventListener("keydown", handleSaveShortcut, true)
+  }, [connection, isActive, onSaveCommand])
 
   const searchResultText = searchQuery
     ? searchResults.resultCount > 0
@@ -683,6 +735,16 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
             backgroundColor: "hsl(var(--background))",
           }}
         />
+
+        {terminalContextMenu && (
+          <ContextMenu
+            x={terminalContextMenu.x}
+            y={terminalContextMenu.y}
+            actions={terminalMenuActions}
+            onAction={(action) => void handleTerminalMenuAction(action)}
+            onClose={() => setTerminalContextMenu(null)}
+          />
+        )}
 
         <HostKeyPromptDialog hostKeyPrompt={hostKeyPrompt} setHostKeyPrompt={setHostKeyPrompt} />
         <JumpHostInfoDialog

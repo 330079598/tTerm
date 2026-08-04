@@ -45,6 +45,7 @@ import type { SavedProfile, Tab, TabContextMenuAction } from "@/types/tab"
 import type { TerminalInputRequest } from "@/types/broadcast"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
 import type { LiveBroadcastState } from "@/types/broadcast"
+import type { ExecutedCommand } from "@/types/command"
 import type { ConnectionState } from "@/components/TerminalTab/types"
 
 const workspaceDockTheme = {
@@ -124,6 +125,9 @@ interface TabPanelsProps {
     state: ConnectionState | null
   ) => void
   onTerminalInput: (request: TerminalInputRequest) => Promise<void>
+  onTerminalCommandExecuted?: (command: ExecutedCommand) => void
+  onOpenCommandLibrary?: (query?: string) => void
+  onSaveCommand?: (commandText: string, profile?: { id: string; name: string }) => void
   onTerminalSavedPasswordPromptChange: (
     tabId: string,
     sessionNonce: number,
@@ -370,6 +374,9 @@ const WorkspacePanel: React.FC<IDockviewPanelProps<WorkspacePanelParams>> = ({ a
               onStopBroadcast={workspace.onStopBroadcast}
               onConnectionStateChange={workspace.onTerminalConnectionStateChange}
               onInput={workspace.onTerminalInput}
+              onCommandExecuted={workspace.onTerminalCommandExecuted}
+              onOpenCommandLibrary={workspace.onOpenCommandLibrary}
+              onSaveCommand={workspace.onSaveCommand}
               onSavedPasswordPromptChange={workspace.onTerminalSavedPasswordPromptChange}
               onSessionUnavailable={workspace.onTerminalSessionUnavailable}
               onReconnectRequest={() => workspace.handleReconnectTab(tab.id)}

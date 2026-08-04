@@ -18,6 +18,11 @@ import type {
   TerminalTabProps,
 } from "@/components/TerminalTab/types"
 import { resolveScrollbackLines } from "@/lib/scrollback"
+import {
+  captureTerminalInput,
+  EMPTY_COMMAND_CAPTURE_STATE,
+  parseShellIntegrationCommand,
+} from "@/lib/terminalCommandCapture"
 
 type UseTerminalLifecycleOptions = {
   activateFitTimerRef: React.MutableRefObject<number | null>
@@ -36,6 +41,7 @@ type UseTerminalLifecycleOptions = {
   lastPtySizeRef: React.MutableRefObject<{ rows: number; cols: number } | null>
   onPidChangeRef: React.MutableRefObject<TerminalTabProps["onPidChange"]>
   onInputRef: React.MutableRefObject<TerminalTabProps["onInput"]>
+  onCommandExecutedRef: React.MutableRefObject<TerminalTabProps["onCommandExecuted"]>
   onReconnectRequestRef: React.MutableRefObject<TerminalTabProps["onReconnectRequest"]>
   onSavedPasswordPromptChangeRef: React.MutableRefObject<
     TerminalTabProps["onSavedPasswordPromptChange"]
@@ -96,6 +102,7 @@ export function useTerminalLifecycle({
   lastPtySizeRef,
   onPidChangeRef,
   onInputRef,
+  onCommandExecutedRef,
   onReconnectRequestRef,
   onSavedPasswordPromptChangeRef,
   onSessionUnavailableRef,
@@ -190,6 +197,32 @@ export function useTerminalLifecycle({
 
     let disposed = false
     let passwordPromptCheckId = 0
+    let commandCaptureState = EMPTY_COMMAND_CAPTURE_STATE
+    let commandCaptureSuspended = false
+    let lastEmittedCommand: { text: string; at: number } | null = null
+
+    const emitExecutedCommand = (commandText: string) => {
+      const normalized = commandText.trim()
+      if (!normalized) return
+      const now = Date.now()
+      if (lastEmittedCommand?.text === normalized && now - lastEmittedCommand.at < 1500) return
+      lastEmittedCommand = { text: normalized, at: now }
+      const connection = connectionRef.current
+      onCommandExecutedRef.current?.({
+        commandText: normalized,
+        profileId: connection?.profileId,
+        profileName: connection?.profileName,
+        executedAt: now,
+      })
+    }
+
+    const shellIntegrationDisposables = [133, 633].map((osc) =>
+      term.parser.registerOscHandler(osc, (data) => {
+        const command = parseShellIntegrationCommand(data)
+        if (command) emitExecutedCommand(command)
+        return false
+      })
+    )
 
     term.onData((data) => {
       if (waitingForReconnectRef.current) {
@@ -206,6 +239,8 @@ export function useTerminalLifecycle({
         onSavedPasswordPromptChange?.(tabId, sessionNonce, false)
 
         if (data === "\r") {
+          commandCaptureState = EMPTY_COMMAND_CAPTURE_STATE
+          commandCaptureSuspended = false
           const onInput = onInputRef.current
           if (onInput) {
             void onInput({ tabId, sessionNonce, data: "", kind: "saved-password" }).catch(
@@ -224,6 +259,17 @@ export function useTerminalLifecycle({
 
         invoke("write_pty", { tabId, sessionNonce, data }).catch(console.error)
         return
+      }
+
+      if (commandCaptureSuspended) {
+        if (data.includes("\r") || data.includes("\n") || data.includes("\x03")) {
+          commandCaptureSuspended = false
+          commandCaptureState = EMPTY_COMMAND_CAPTURE_STATE
+        }
+      } else {
+        const captured = captureTerminalInput(commandCaptureState, data)
+        commandCaptureState = captured.state
+        for (const command of captured.commands) emitExecutedCommand(command)
       }
 
       const onInput = onInputRef.current
@@ -267,6 +313,8 @@ export function useTerminalLifecycle({
         }
 
         if (match) {
+          commandCaptureSuspended = true
+          commandCaptureState = EMPTY_COMMAND_CAPTURE_STATE
           const promptUsername = match[1].trim()
           const savedUsername = connectionRef.current?.username
           const profileId = connectionRef.current?.profileId
@@ -443,6 +491,7 @@ export function useTerminalLifecycle({
       passwordPromptActiveRef.current = false
       onSavedPasswordPromptChange?.(tabId, sessionNonce, false)
       for (const disposable of scrollbackDisposables) disposable.dispose()
+      for (const disposable of shellIntegrationDisposables) disposable.dispose()
       container.classList.remove("xterm-has-scrollback")
     }
   }, [
@@ -462,6 +511,7 @@ export function useTerminalLifecycle({
     lastPtySizeRef,
     onPidChangeRef,
     onInputRef,
+    onCommandExecutedRef,
     onReconnectRequestRef,
     onSavedPasswordPromptChangeRef,
     onSessionUnavailableRef,

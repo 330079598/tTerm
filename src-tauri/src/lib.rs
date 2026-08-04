@@ -1,4 +1,5 @@
 mod clipboard_files;
+pub mod command_library;
 mod config;
 mod core;
 mod fonts;
@@ -176,6 +177,11 @@ pub fn run() {
             profiles::delete_profile,
             profiles::set_profile_server_monitor_visible,
             profiles::test_connection,
+            command_library::list_saved_commands,
+            command_library::save_saved_command,
+            command_library::delete_saved_command,
+            command_library::set_saved_command_favorite,
+            command_library::record_saved_command_use,
             sftp::internal::api::base::sftp_list_directory,
             sftp::internal::api::base::sftp_create_directory,
             sftp::internal::api::delete::commands::sftp_delete_entry,
@@ -208,6 +214,12 @@ pub fn run() {
         .setup(|app| {
             let app_handle = app.handle().clone();
             config::init_config_dir(&app_handle)?;
+
+            let command_library_state = command_library::CommandLibraryState::initialize();
+            if let Some(error) = command_library_state.initialization_error() {
+                eprintln!("Failed to initialize command library: {error}");
+            }
+            app.manage(command_library_state);
 
             if let Err(err) = updater::cleanup_stale_pending_update_files(&app_handle) {
                 eprintln!("Failed to clean stale update cache files: {}", err);

@@ -3,6 +3,7 @@ import {
   Plus,
   X,
   Copy,
+  ClipboardPaste,
   Terminal,
   Server,
   FolderOpen,
@@ -18,6 +19,8 @@ import {
   PanelRight,
   PanelTop,
   PanelBottom,
+  Search,
+  Star,
 } from "lucide-react"
 import { TabContextMenuAction } from "@/types/tab"
 import { cn } from "@/lib/utils"
@@ -40,6 +43,12 @@ const getActionIcon = (icon?: string) => {
       return <X size={14} aria-hidden="true" />
     case "copy":
       return <Copy size={14} aria-hidden="true" />
+    case "paste":
+      return <ClipboardPaste size={14} aria-hidden="true" />
+    case "search":
+      return <Search size={14} aria-hidden="true" />
+    case "star":
+      return <Star size={14} aria-hidden="true" />
     case "edit":
       return <Edit size={14} aria-hidden="true" />
     case "terminal":
