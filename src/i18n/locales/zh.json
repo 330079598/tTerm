@@ -579,6 +579,20 @@
     "selectTerminalHint": "请先选择一个已连接的终端。",
     "selectHint": "选择一条命令查看详情",
     "backToList": "返回命令列表",
+    "tags": {
+      "title": "管理标签",
+      "description": "创建、重命名或删除命令库中的标签。",
+      "manage": "管理标签",
+      "name": "标签名称",
+      "add": "添加",
+      "addPlaceholder": "新标签",
+      "renamePlaceholder": "重命名标签",
+      "rename": "重命名 {{tag}}",
+      "delete": "删除 {{tag}}",
+      "empty": "还没有标签",
+      "saveFailed": "保存标签失败",
+      "deleteFailed": "删除标签失败"
+    },
     "scope": {
       "global": "所有连接",
       "connection": "当前连接 · {{name}}",
@@ -604,6 +618,9 @@
       "favorite": "添加到收藏",
       "favoriteHint": "收藏命令会优先显示在列表顶部。"
     },
+    "tagsLabel": "标签",
+    "editTags": "编辑标签",
+    "noTags": "尚未添加标签",
     "messages": {
       "created": "命令已保存",
       "updated": "命令已更新",

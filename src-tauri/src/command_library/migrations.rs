@@ -6,11 +6,10 @@ struct Migration {
     sql: &'static str,
 }
 
-const MIGRATIONS: &[Migration] = &[Migration {
-    version: 1,
-    name: "command_library",
-    sql: include_str!("../../migrations/0001_command_library.sql"),
-}];
+const MIGRATIONS: &[Migration] = &[
+    Migration { version: 1, name: "command_library", sql: include_str!("../../migrations/0001_command_library.sql") },
+    Migration { version: 2, name: "command_tag_catalog", sql: include_str!("../../migrations/0002_command_tag_catalog.sql") },
+];
 
 pub(super) fn apply(connection: &mut Connection) -> Result<(), String> {
     connection
@@ -92,7 +91,7 @@ mod tests {
                 row.get(0)
             })
             .expect("read schema version");
-        assert_eq!(version, 1);
+        assert_eq!(version, 2);
 
         let table_count: i64 = connection
             .query_row(

@@ -12,6 +12,7 @@ import {
   Plus,
   Search,
   Star,
+  Tags,
   Trash2,
   X,
 } from "lucide-react"
@@ -476,13 +477,22 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const [selectedRecentId, setSelectedRecentId] = useState<string | null>(null)
   const [recentPendingId, setRecentPendingId] = useState<string | null>(null)
+  const [tags, setTags] = useState<string[]>([])
+  const [tagManagerOpen, setTagManagerOpen] = useState(false)
+  const [managedTagDraft, setManagedTagDraft] = useState("")
+  const [editingTag, setEditingTag] = useState<string | null>(null)
+  const [tagMutationPending, setTagMutationPending] = useState(false)
 
   const loadCommands = async () => {
     setIsLoading(true)
     setLoadError(null)
     try {
-      const loaded = await invoke<SavedCommand[]>("list_saved_commands")
+      const [loaded, loadedTags] = await Promise.all([
+        invoke<SavedCommand[]>("list_saved_commands"),
+        invoke<string[]>("list_command_tags"),
+      ])
       setCommands(loaded)
+      setTags(loadedTags)
       setMobileDetailOpen(false)
       setSelectedId((current) =>
         current && loaded.some((command) => command.id === current)
@@ -519,7 +529,7 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
         : true
     )
   }, [deferredQuery, recentCommands])
-  const availableTags = useMemo(() => collectCommandTags(commands), [commands])
+  const availableTags = tags
   const selectedCommand = commands.find((command) => command.id === selectedId) ?? null
   const selectedRecent = recentCommands.find((command) => command.id === selectedRecentId) ?? null
   const hasSelectedItem = mode === "recent" ? Boolean(selectedRecent) : Boolean(selectedCommand)
@@ -677,14 +687,56 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
 
   const isFiltering = searchQuery.trim().length > 0 || mode === "favorites"
 
+  const saveManagedTag = async () => {
+    const value = managedTagDraft.trim()
+    if (!value || tagMutationPending) return
+    setTagMutationPending(true)
+    try {
+      if (editingTag) {
+        setTags(await invoke<string[]>("rename_command_tag", { oldTag: editingTag, newTag: value }))
+        await loadCommands()
+      } else {
+        await invoke<string>("create_command_tag", { tag: value })
+        setTags(await invoke<string[]>("list_command_tags"))
+      }
+      setManagedTagDraft("")
+      setEditingTag(null)
+    } catch (error) {
+      toast({
+        title: t("commandLibrary.tags.saveFailed"),
+        description: String(error),
+        variant: "destructive",
+      })
+    } finally {
+      setTagMutationPending(false)
+    }
+  }
+
+  const deleteManagedTag = async (tag: string) => {
+    if (tagMutationPending) return
+    setTagMutationPending(true)
+    try {
+      setTags(await invoke<string[]>("delete_command_tag", { tag }))
+      await loadCommands()
+    } catch (error) {
+      toast({
+        title: t("commandLibrary.tags.deleteFailed"),
+        description: String(error),
+        variant: "destructive",
+      })
+    } finally {
+      setTagMutationPending(false)
+    }
+  }
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           showCloseButton={false}
-          className="flex h-[min(720px,calc(100dvh-2rem))] w-[min(960px,calc(100vw-2rem))] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none"
+          className="flex h-[min(720px,calc(100dvh-2rem))] w-[min(960px,calc(100vw-2rem))] max-w-none flex-col gap-0 overflow-hidden p-0 shadow-2xl sm:max-w-none"
         >
-          <header className="border-border/80 flex min-h-14 items-center justify-between gap-2 border-b px-3 py-2 sm:min-h-16 sm:gap-4 sm:px-5 sm:py-3">
+          <header className="border-border/80 bg-muted/20 flex min-h-14 items-center justify-between gap-2 border-b px-3 py-2 sm:min-h-16 sm:gap-4 sm:px-5 sm:py-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="bg-muted text-muted-foreground hidden size-9 shrink-0 items-center justify-center rounded-md border sm:flex">
                 <Library className="size-4" />
@@ -697,6 +749,16 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-label={t("commandLibrary.tags.manage")}
+                onClick={() => setTagManagerOpen(true)}
+              >
+                <Tags />
+                <span className="hidden sm:inline">{t("commandLibrary.tags.manage")}</span>
+              </Button>
               <Button
                 type="button"
                 size="sm"
@@ -723,11 +785,11 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
           <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(280px,0.82fr)_minmax(0,1.18fr)]">
             <section
               className={cn(
-                "border-border/80 min-h-0 flex-col border-b md:flex md:border-r md:border-b-0",
+                "border-border/80 bg-muted/10 min-h-0 flex-col border-b md:flex md:border-r md:border-b-0",
                 mobileDetailOpen && hasSelectedItem ? "hidden" : "flex"
               )}
             >
-              <div className="space-y-3 border-b p-4">
+              <div className="border-border/70 bg-background/70 space-y-3 border-b p-4">
                 <div className="relative">
                   <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
                   <Input
@@ -752,7 +814,7 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
                       aria-pressed={mode === value}
                       onClick={() => setMode(value)}
                       className={cn(
-                        "focus-visible:ring-ring/50 min-h-8 rounded-sm px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-[3px]",
+                        "focus-visible:ring-ring/50 min-h-9 rounded-sm px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-[3px]",
                         mode === value
                           ? "bg-background text-foreground shadow-xs"
                           : "text-muted-foreground hover:text-foreground"
@@ -839,8 +901,8 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
                       <div
                         key={command.id}
                         className={cn(
-                          "group relative border-b last:border-b-0",
-                          selectedId === command.id && "bg-muted/55"
+                          "group border-border/60 hover:bg-muted/35 relative border-b last:border-b-0",
+                          selectedId === command.id && "bg-primary/8 hover:bg-primary/10"
                         )}
                       >
                         {selectedId === command.id && (
@@ -850,7 +912,7 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
                           type="button"
                           role="option"
                           aria-selected={selectedId === command.id}
-                          className="focus-visible:ring-ring/50 w-full px-4 py-3 pr-12 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
+                          className="focus-visible:ring-ring/50 w-full px-4 py-3.5 pr-12 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
                           onClick={() => {
                             setSelectedId(command.id)
                             setMobileDetailOpen(true)
@@ -888,7 +950,7 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
                               ? t("commandLibrary.unfavorite")
                               : t("commandLibrary.favorite")
                           }
-                          className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 absolute top-2.5 right-2 flex size-8 items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-[3px] disabled:opacity-50"
+                          className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 absolute top-3 right-2 flex size-9 items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-[3px] disabled:opacity-50"
                           onClick={() => void handleFavorite(command)}
                         >
                           {favoritePendingId === command.id ? (
@@ -926,8 +988,8 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
                           <div
                             key={recent.id}
                             className={cn(
-                              "group relative border-b last:border-b-0",
-                              selectedRecentId === recent.id && "bg-muted/55"
+                              "group border-border/60 hover:bg-muted/35 relative border-b last:border-b-0",
+                              selectedRecentId === recent.id && "bg-primary/8 hover:bg-primary/10"
                             )}
                           >
                             {selectedRecentId === recent.id && (
@@ -937,7 +999,7 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
                               type="button"
                               role="option"
                               aria-selected={selectedRecentId === recent.id}
-                              className="focus-visible:ring-ring/50 w-full px-4 py-3 pr-12 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
+                              className="focus-visible:ring-ring/50 w-full px-4 py-3.5 pr-12 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
                               onClick={() => {
                                 setSelectedRecentId(recent.id)
                                 setMobileDetailOpen(true)
@@ -964,7 +1026,7 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
                                   ? t("commandLibrary.unfavorite")
                                   : t("commandLibrary.favorite")
                               }
-                              className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 absolute top-2.5 right-2 flex size-8 items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-[3px] disabled:opacity-50"
+                              className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 absolute top-3 right-2 flex size-9 items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-[3px] disabled:opacity-50"
                               onClick={() => void handleRecentFavorite(recent)}
                             >
                               {recentPendingId === recent.id ? (
@@ -988,7 +1050,7 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
 
             <section
               className={cn(
-                "bg-background min-h-0 overflow-auto md:block",
+                "bg-background/95 min-h-0 overflow-auto md:block",
                 mobileDetailOpen && hasSelectedItem ? "block" : "hidden"
               )}
             >
@@ -1028,7 +1090,7 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
                       )}
                     </Button>
                   </div>
-                  <div className="mt-5 min-h-32 rounded-md border bg-[hsl(var(--muted)/0.35)] p-4">
+                  <div className="border-border/80 bg-muted/30 mt-5 min-h-32 rounded-md border p-4 shadow-inner">
                     <div className="text-muted-foreground mb-3 flex items-center gap-2 text-xs font-medium">
                       <Braces className="size-3.5" />
                       {t("commandLibrary.commandPreview")}
@@ -1130,7 +1192,7 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
                     </div>
                   </div>
 
-                  <div className="mt-5 min-h-32 rounded-md border bg-[hsl(var(--muted)/0.35)] p-4">
+                  <div className="border-border/80 bg-muted/30 mt-5 min-h-32 rounded-md border p-4 shadow-inner">
                     <div className="text-muted-foreground mb-3 flex items-center gap-2 text-xs font-medium">
                       <Braces className="size-3.5" />
                       {t("commandLibrary.commandPreview")}
@@ -1161,19 +1223,50 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
                     </div>
                   </dl>
 
-                  {selectedCommand.tags.length > 0 && (
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      {selectedCommand.tags.map((tag) => (
-                        <Badge
-                          key={tag.toLocaleLowerCase()}
-                          variant="secondary"
-                          className="rounded-md"
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
+                  <section
+                    className="border-border/70 bg-muted/15 mt-5 rounded-md border p-3"
+                    aria-label={t("commandLibrary.tagsLabel")}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Tags
+                          className="text-muted-foreground size-3.5 shrink-0"
+                          aria-hidden="true"
+                        />
+                        <h4 className="text-muted-foreground text-xs font-medium">
+                          {t("commandLibrary.tagsLabel")}
+                        </h4>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 shrink-0 gap-1.5 px-2 text-xs"
+                        aria-label={t("commandLibrary.editTags")}
+                        onClick={() => openEditor(selectedCommand)}
+                      >
+                        <Pencil className="size-3.5" />
+                        {t("commandLibrary.editTags")}
+                      </Button>
                     </div>
-                  )}
+                    {selectedCommand.tags.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {selectedCommand.tags.map((tag) => (
+                          <Badge
+                            key={tag.toLocaleLowerCase()}
+                            variant="secondary"
+                            className="rounded-md"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground mt-2 text-xs">
+                        {t("commandLibrary.noTags")}
+                      </p>
+                    )}
+                  </section>
 
                   <div className="mt-auto pt-6">
                     <Button
@@ -1200,6 +1293,104 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
               )}
             </section>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={tagManagerOpen} onOpenChange={setTagManagerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("commandLibrary.tags.title")}</DialogTitle>
+            <DialogDescription>{t("commandLibrary.tags.description")}</DialogDescription>
+          </DialogHeader>
+          <div className="flex min-w-0 gap-2">
+            <Input
+              value={managedTagDraft}
+              maxLength={64}
+              placeholder={
+                editingTag
+                  ? t("commandLibrary.tags.renamePlaceholder")
+                  : t("commandLibrary.tags.addPlaceholder")
+              }
+              aria-label={t("commandLibrary.tags.name")}
+              onChange={(event) => setManagedTagDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault()
+                  void saveManagedTag()
+                }
+              }}
+            />
+            <Button
+              type="button"
+              className="shrink-0"
+              disabled={!managedTagDraft.trim() || tagMutationPending}
+              onClick={() => void saveManagedTag()}
+            >
+              {tagMutationPending ? (
+                <Loader2 className="animate-spin" />
+              ) : editingTag ? (
+                <Check />
+              ) : (
+                <Plus />
+              )}
+              {editingTag ? t("common.save") : t("commandLibrary.tags.add")}
+            </Button>
+          </div>
+          {editingTag && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="w-fit"
+              onClick={() => {
+                setEditingTag(null)
+                setManagedTagDraft("")
+              }}
+            >
+              <X />
+              {t("common.cancel")}
+            </Button>
+          )}
+          <ScrollArea className="max-h-72">
+            {tags.length === 0 ? (
+              <p className="text-muted-foreground py-8 text-center text-sm">
+                {t("commandLibrary.tags.empty")}
+              </p>
+            ) : (
+              <div className="divide-y rounded-md border">
+                {tags.map((tag) => (
+                  <div
+                    key={tag.toLocaleLowerCase()}
+                    className="hover:bg-muted/35 flex min-h-12 items-center gap-2 px-3 transition-colors"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-sm">{tag}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={t("commandLibrary.tags.rename", { tag })}
+                      onClick={() => {
+                        setEditingTag(tag)
+                        setManagedTagDraft(tag)
+                      }}
+                    >
+                      <Pencil />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="hover:text-destructive"
+                      aria-label={t("commandLibrary.tags.delete", { tag })}
+                      onClick={() => void deleteManagedTag(tag)}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 

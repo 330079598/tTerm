@@ -33,6 +33,18 @@ pub fn list_saved_commands(
 }
 
 #[tauri::command]
+pub fn list_command_tags(state: State<'_, CommandLibraryState>) -> Result<Vec<String>, String> { CommandRepository::new(state.database()?).list_tags() }
+
+#[tauri::command]
+pub fn create_command_tag(state: State<'_, CommandLibraryState>, tag: String) -> Result<String, String> { CommandRepository::new(state.database()?).create_tag(&tag) }
+
+#[tauri::command]
+pub fn rename_command_tag(state: State<'_, CommandLibraryState>, old_tag: String, new_tag: String) -> Result<Vec<String>, String> { CommandRepository::new(state.database()?).rename_tag(&old_tag, &new_tag) }
+
+#[tauri::command]
+pub fn delete_command_tag(state: State<'_, CommandLibraryState>, tag: String) -> Result<Vec<String>, String> { CommandRepository::new(state.database()?).delete_tag(&tag) }
+
+#[tauri::command]
 pub fn save_saved_command(
     state: State<'_, CommandLibraryState>,
     input: SaveCommandInput,
