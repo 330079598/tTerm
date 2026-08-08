@@ -1,6 +1,7 @@
 import React from "react"
 import {
   FileClock,
+  HardDriveDownload,
   FolderTree,
   Info,
   Palette,
@@ -53,6 +54,13 @@ export const SettingsSidebar: React.FC = () => {
         >
           <FileClock size={16} />
           {t("terminalLogging.title")}
+        </TabsTrigger>
+        <TabsTrigger
+          value="data-migration"
+          className="data-[state=active]:bg-background w-full justify-start gap-2 data-[state=active]:shadow-sm"
+        >
+          <HardDriveDownload size={16} />
+          {t("dataMigration.sidebar")}
         </TabsTrigger>
         <TabsTrigger
           value="security"

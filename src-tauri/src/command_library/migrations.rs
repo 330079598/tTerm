@@ -7,8 +7,16 @@ struct Migration {
 }
 
 const MIGRATIONS: &[Migration] = &[
-    Migration { version: 1, name: "command_library", sql: include_str!("../../migrations/0001_command_library.sql") },
-    Migration { version: 2, name: "command_tag_catalog", sql: include_str!("../../migrations/0002_command_tag_catalog.sql") },
+    Migration {
+        version: 1,
+        name: "command_library",
+        sql: include_str!("../../migrations/0001_command_library.sql"),
+    },
+    Migration {
+        version: 2,
+        name: "command_tag_catalog",
+        sql: include_str!("../../migrations/0002_command_tag_catalog.sql"),
+    },
 ];
 
 pub(super) fn apply(connection: &mut Connection) -> Result<(), String> {

@@ -1,3 +1,4 @@
+mod backup;
 mod clipboard_files;
 pub mod command_library;
 mod config;
@@ -143,6 +144,14 @@ pub fn run() {
         .manage(secret_store)
         .manage(session_log_state)
         .invoke_handler(tauri::generate_handler![
+            backup::export_backup,
+            backup::inspect_backup,
+            backup::import_backup,
+            backup::get_automatic_backup_settings,
+            backup::save_automatic_backup_settings,
+            backup::run_due_automatic_backup,
+            backup::list_backup_history,
+            backup::delete_backup_history_entry,
             config::load_config,
             config::save_config,
             session_log::get_terminal_log_status,

@@ -17,6 +17,7 @@ import { cn, toErrorMessage } from "@/lib/utils"
 import type { PresetThemeId } from "@/types/theme"
 import { AppearanceSettingsTab } from "@/components/SettingsDialog/AppearanceSettingsTab"
 import { ConnectionSettingsTab } from "@/components/SettingsDialog/ConnectionSettingsTab"
+import { DataMigrationSettingsTab } from "@/components/SettingsDialog/DataMigrationSettingsTab"
 import { FontSettingsTab } from "@/components/SettingsDialog/FontSettingsTab"
 import { GeneralSettingsTab } from "@/components/SettingsDialog/GeneralSettingsTab"
 import { LoggingSettingsTab } from "@/components/SettingsDialog/LoggingSettingsTab"
@@ -769,6 +770,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               onEditProfile={onEditProfile}
               refreshKey={profilesRefreshKey}
             />
+          </TabsContent>
+
+          <TabsContent value="data-migration" className="m-0 flex-1 overflow-y-auto p-6">
+            <DataMigrationSettingsTab />
           </TabsContent>
 
           <TabsContent value="security" className="m-0 flex-1 overflow-y-auto p-6">

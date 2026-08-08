@@ -158,8 +158,14 @@ impl<'a> CommandRepository<'a> {
     }
 
     pub fn list_tags(&self) -> Result<Vec<String>, String> {
-        let connection = self.database.connection.lock().map_err(|_| "Command database lock was poisoned".to_string())?;
-        let mut statement = connection.prepare("SELECT tag FROM command_tag_catalog ORDER BY normalized_tag").map_err(database_error("prepare tag list"))?;
+        let connection = self
+            .database
+            .connection
+            .lock()
+            .map_err(|_| "Command database lock was poisoned".to_string())?;
+        let mut statement = connection
+            .prepare("SELECT tag FROM command_tag_catalog ORDER BY normalized_tag")
+            .map_err(database_error("prepare tag list"))?;
         let tags = statement
             .query_map([], |row| row.get(0))
             .map_err(database_error("query tags"))?
@@ -170,19 +176,45 @@ impl<'a> CommandRepository<'a> {
 
     pub fn create_tag(&self, tag: &str) -> Result<String, String> {
         let tag = tag.trim();
-        if tag.is_empty() || tag.chars().count() > 64 { return Err("Tag must contain between 1 and 64 characters".to_string()); }
+        if tag.is_empty() || tag.chars().count() > 64 {
+            return Err("Tag must contain between 1 and 64 characters".to_string());
+        }
         let normalized = tag.to_lowercase();
-        let connection = self.database.connection.lock().map_err(|_| "Command database lock was poisoned".to_string())?;
-        connection.execute("INSERT OR IGNORE INTO command_tag_catalog (normalized_tag, tag) VALUES (?1, ?2)", params![normalized, tag]).map_err(database_error("create tag"))?;
-        connection.query_row("SELECT tag FROM command_tag_catalog WHERE normalized_tag = ?1", params![normalized], |row| row.get(0)).map_err(database_error("read tag"))
+        let connection = self
+            .database
+            .connection
+            .lock()
+            .map_err(|_| "Command database lock was poisoned".to_string())?;
+        connection
+            .execute(
+                "INSERT OR IGNORE INTO command_tag_catalog (normalized_tag, tag) VALUES (?1, ?2)",
+                params![normalized, tag],
+            )
+            .map_err(database_error("create tag"))?;
+        connection
+            .query_row(
+                "SELECT tag FROM command_tag_catalog WHERE normalized_tag = ?1",
+                params![normalized],
+                |row| row.get(0),
+            )
+            .map_err(database_error("read tag"))
     }
 
     pub fn rename_tag(&self, old_tag: &str, new_tag: &str) -> Result<Vec<String>, String> {
-        let old = old_tag.trim().to_lowercase(); let new = new_tag.trim();
-        if old.is_empty() || new.is_empty() || new.chars().count() > 64 { return Err("Tag must contain between 1 and 64 characters".to_string()); }
+        let old = old_tag.trim().to_lowercase();
+        let new = new_tag.trim();
+        if old.is_empty() || new.is_empty() || new.chars().count() > 64 {
+            return Err("Tag must contain between 1 and 64 characters".to_string());
+        }
         let normalized = new.to_lowercase();
-        let mut connection = self.database.connection.lock().map_err(|_| "Command database lock was poisoned".to_string())?;
-        let transaction = connection.transaction().map_err(database_error("start tag rename"))?;
+        let mut connection = self
+            .database
+            .connection
+            .lock()
+            .map_err(|_| "Command database lock was poisoned".to_string())?;
+        let transaction = connection
+            .transaction()
+            .map_err(database_error("start tag rename"))?;
         transaction
             .execute(
                 "DELETE FROM command_tags WHERE normalized_tag = ?1 AND EXISTS (SELECT 1 FROM command_tags existing WHERE existing.command_id = command_tags.command_id AND existing.normalized_tag = ?2)",
@@ -195,20 +227,50 @@ impl<'a> CommandRepository<'a> {
                 params![new, normalized, old],
             )
             .map_err(database_error("rename command tags"))?;
-        transaction.execute("DELETE FROM command_tag_catalog WHERE normalized_tag = ?1", params![old]).map_err(database_error("remove old tag"))?;
-        transaction.execute("INSERT OR IGNORE INTO command_tag_catalog (normalized_tag, tag) VALUES (?1, ?2)", params![normalized, new]).map_err(database_error("save renamed tag"))?;
-        transaction.commit().map_err(database_error("commit tag rename"))?;
+        transaction
+            .execute(
+                "DELETE FROM command_tag_catalog WHERE normalized_tag = ?1",
+                params![old],
+            )
+            .map_err(database_error("remove old tag"))?;
+        transaction
+            .execute(
+                "INSERT OR IGNORE INTO command_tag_catalog (normalized_tag, tag) VALUES (?1, ?2)",
+                params![normalized, new],
+            )
+            .map_err(database_error("save renamed tag"))?;
+        transaction
+            .commit()
+            .map_err(database_error("commit tag rename"))?;
         drop(connection);
         self.list_tags()
     }
 
     pub fn delete_tag(&self, tag: &str) -> Result<Vec<String>, String> {
         let normalized = tag.trim().to_lowercase();
-        let mut connection = self.database.connection.lock().map_err(|_| "Command database lock was poisoned".to_string())?;
-        let transaction = connection.transaction().map_err(database_error("start tag delete"))?;
-        transaction.execute("DELETE FROM command_tags WHERE normalized_tag = ?1", params![normalized]).map_err(database_error("delete command tags"))?;
-        transaction.execute("DELETE FROM command_tag_catalog WHERE normalized_tag = ?1", params![normalized]).map_err(database_error("delete tag"))?;
-        transaction.commit().map_err(database_error("commit tag delete"))?;
+        let mut connection = self
+            .database
+            .connection
+            .lock()
+            .map_err(|_| "Command database lock was poisoned".to_string())?;
+        let transaction = connection
+            .transaction()
+            .map_err(database_error("start tag delete"))?;
+        transaction
+            .execute(
+                "DELETE FROM command_tags WHERE normalized_tag = ?1",
+                params![normalized],
+            )
+            .map_err(database_error("delete command tags"))?;
+        transaction
+            .execute(
+                "DELETE FROM command_tag_catalog WHERE normalized_tag = ?1",
+                params![normalized],
+            )
+            .map_err(database_error("delete tag"))?;
+        transaction
+            .commit()
+            .map_err(database_error("commit tag delete"))?;
         drop(connection);
         self.list_tags()
     }

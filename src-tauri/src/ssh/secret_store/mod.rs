@@ -394,6 +394,89 @@ impl SecretStoreState {
         }
     }
 
+    /// Read a persisted password for an encrypted migration bundle. This checks both
+    /// supported persistent backends so changing the active backend cannot silently
+    /// omit credentials from a user-requested full migration.
+    pub(crate) fn get_password_for_migration(
+        &self,
+        app: &AppHandle,
+        profile_id: &str,
+    ) -> Result<Option<String>, String> {
+        let mode = SecretStorageMode::from_config_value(&load_config_file()?.secret_storage_mode);
+        if matches!(mode, SecretStorageMode::Vault | SecretStorageMode::Hybrid) {
+            if let Some(password) = self.get_password_from_vault(app, profile_id)? {
+                return Ok(Some(password));
+            }
+            return self.get_password_from_keyring(profile_id);
+        }
+        if let Some(password) = self.get_password_from_keyring(profile_id)? {
+            return Ok(Some(password));
+        }
+        self.get_password_from_vault(app, profile_id)
+    }
+
+    pub(crate) fn read_migration_destination(
+        &self,
+        app: &AppHandle,
+        profile_id: &str,
+        destination: &str,
+    ) -> Result<Option<String>, String> {
+        match destination {
+            "system" => self.get_password_from_keyring(profile_id),
+            "vault" => self.get_password_from_vault(app, profile_id),
+            _ => Err("Unsupported secret migration destination".to_string()),
+        }
+    }
+
+    pub(crate) fn write_migration_destination(
+        &self,
+        app: &AppHandle,
+        profile_id: &str,
+        password: &str,
+        destination: &str,
+    ) -> Result<(), String> {
+        match destination {
+            "system" => {
+                if !self.keyring_available()? {
+                    return Err("System credential store is unavailable.".to_string());
+                }
+                write_keyring_secret(profile_id, types::SECRET_KIND_PASSWORD, password)
+            }
+            "vault" => {
+                let guard = self
+                    .inner
+                    .lock()
+                    .map_err(|_| "Secret store state is poisoned".to_string())?;
+                let runtime = guard.vault.as_ref().ok_or_else(|| {
+                    "Unlock the app vault before importing passwords.".to_string()
+                })?;
+                write_vault_secret(
+                    app,
+                    runtime,
+                    profile_id,
+                    types::SECRET_KIND_PASSWORD,
+                    password,
+                )
+            }
+            _ => Err("Unsupported secret migration destination".to_string()),
+        }
+    }
+
+    pub(crate) fn delete_migration_destination(
+        &self,
+        app: &AppHandle,
+        profile_id: &str,
+        destination: &str,
+    ) -> Result<(), String> {
+        match destination {
+            "system" => delete_keyring_secret(profile_id, types::SECRET_KIND_PASSWORD).map(|_| ()),
+            "vault" => {
+                delete_vault_secret(app, profile_id, types::SECRET_KIND_PASSWORD).map(|_| ())
+            }
+            _ => Err("Unsupported secret migration destination".to_string()),
+        }
+    }
+
     fn get_password_from_keyring(&self, profile_id: &str) -> Result<Option<String>, String> {
         if !self.keyring_available()? {
             return Ok(None);

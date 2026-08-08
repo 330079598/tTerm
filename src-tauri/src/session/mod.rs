@@ -129,10 +129,9 @@ mod tests {
 
     #[test]
     fn legacy_session_without_layout_uses_defaults() {
-        let session: SessionData = serde_json::from_str(
-            r#"{"tabs":[],"active_tab_id":null,"last_saved":0}"#,
-        )
-        .expect("legacy session should deserialize");
+        let session: SessionData =
+            serde_json::from_str(r#"{"tabs":[],"active_tab_id":null,"last_saved":0}"#)
+                .expect("legacy session should deserialize");
 
         assert!(session.layout.is_none());
         assert_eq!(session.schema_version, 0);
