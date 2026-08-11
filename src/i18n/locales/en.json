@@ -881,6 +881,7 @@
     "paste": "Paste",
     "saveCommand": "Save selected command",
     "findCommand": "Find in Command Library",
+    "clearHistory": "Clear terminal history",
     "copyFailedTitle": "Copy failed",
     "copyFailedDescription": "Unable to copy the current terminal selection.",
     "pasteFailedTitle": "Paste failed",

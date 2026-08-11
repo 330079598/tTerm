@@ -872,6 +872,7 @@
     "paste": "粘贴",
     "saveCommand": "收藏所选命令",
     "findCommand": "在命令库中查找",
+    "clearHistory": "清空终端历史",
     "copyFailedTitle": "复制失败",
     "copyFailedDescription": "无法复制当前终端选中的内容。",
     "pasteFailedTitle": "粘贴失败",

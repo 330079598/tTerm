@@ -539,10 +539,24 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     [showSftpDrawer]
   )
 
+  const clearTerminalHistory = useCallback(() => {
+    const term = termRef.current
+    if (!term) return
+
+    term.clear()
+    term.scrollToBottom()
+    term.clearSelection()
+    term.focus()
+  }, [])
+
   const handleTerminalMenuAction = useCallback(
     async (action: string) => {
       const term = termRef.current
       const selection = terminalContextMenu?.selection.trim() ?? ""
+      if (action === "clear-history") {
+        clearTerminalHistory()
+        return
+      }
       if (action === "copy" && selection) {
         try {
           await invoke("plugin:clipboard-manager|write_text", { text: selection })
@@ -583,7 +597,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         }
       }
     },
-    [connection, onOpenCommandLibrary, onSaveCommand, t, terminalContextMenu]
+    [clearTerminalHistory, connection, onOpenCommandLibrary, onSaveCommand, t, terminalContextMenu]
   )
 
   const terminalMenuActions: TabContextMenuAction[] = [
@@ -602,6 +616,12 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     { separator: true, action: "separator", label: "" },
     { action: "paste", label: t("terminalContext.paste"), icon: "paste" },
     { action: "find", label: t("terminalContext.findCommand"), icon: "search" },
+    { separator: true, action: "separator", label: "" },
+    {
+      action: "clear-history",
+      label: t("terminalContext.clearHistory"),
+      icon: "x",
+    },
   ]
 
   useEffect(() => {
