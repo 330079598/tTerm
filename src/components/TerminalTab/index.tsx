@@ -38,6 +38,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   tabId,
   sessionNonce = 0,
   isActive,
+  isGlobalShortcutTarget,
   workspacePanelApi,
   connectionHeaderPinned = true,
   connection,
@@ -715,6 +716,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         <SftpDrawer
           tabId={tabId}
           visible={showSftpDrawer}
+          isGlobalShortcutTarget={isGlobalShortcutTarget}
           connection={connection}
           onClose={() => setShowSftpDrawer(false)}
           onOpenRemoteFile={onOpenRemoteFile}

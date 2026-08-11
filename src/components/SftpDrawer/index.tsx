@@ -94,6 +94,7 @@ function isEditableShortcutTarget(target: EventTarget | null) {
 export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   tabId,
   visible,
+  isGlobalShortcutTarget,
   connection,
   onClose,
   onOpenRemoteFile,
@@ -184,7 +185,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     })
 
   useSftpPasteUpload({
-    enabled: config.sftp_paste_upload_enabled,
+    enabled: config.sftp_paste_upload_enabled && isGlobalShortcutTarget,
     listing,
     setError,
     uploadPaths,

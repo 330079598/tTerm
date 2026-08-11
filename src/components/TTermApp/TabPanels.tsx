@@ -313,7 +313,7 @@ const WorkspaceTab: React.FC<IDockviewPanelHeaderProps<WorkspacePanelParams>> = 
 
 const WorkspacePanel: React.FC<IDockviewPanelProps<WorkspacePanelParams>> = ({ api, params }) => {
   const workspace = useWorkspace()
-  const { hasBeenVisible, isVisible } = useDockPanelState(api)
+  const { hasBeenVisible, isActive, isVisible } = useDockPanelState(api)
   const tab = workspace.tabs.find((candidate) => candidate.id === params.tabId)
   const isHiddenByMaximize =
     workspace.maximizedGroupId !== null && api.group.id !== workspace.maximizedGroupId
@@ -364,6 +364,7 @@ const WorkspacePanel: React.FC<IDockviewPanelProps<WorkspacePanelParams>> = ({ a
               tabId={tab.id}
               sessionNonce={tab.sessionNonce}
               isActive={isVisible}
+              isGlobalShortcutTarget={isActive}
               workspacePanelApi={api}
               connectionHeaderPinned={tab.connectionHeaderPinned}
               connection={tab.connection ?? { type: tab.type === "terminal" ? "terminal" : "ssh" }}

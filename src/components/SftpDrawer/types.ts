@@ -3,6 +3,7 @@ import type { Tab } from "@/types/tab"
 export interface SftpDrawerProps {
   tabId: string
   visible: boolean
+  isGlobalShortcutTarget: boolean
   connection?: Tab["connection"]
   onClose: () => void
   onOpenRemoteFile?: (

@@ -167,34 +167,36 @@ mod platform {
     use super::{existing_paths, parse_file_uri_lines};
     use std::process::Command;
 
+    const APPKIT_CLIPBOARD_SCRIPT: &str = r#"
+use framework "AppKit"
+set pasteboard to current application's NSPasteboard's generalPasteboard()
+set urlClasses to current application's NSArray's arrayWithObject:(current application's NSURL)
+set readOptions to current application's NSDictionary's dictionary()
+set urls to pasteboard's readObjectsForClasses:urlClasses options:readOptions
+set outputText to ""
+repeat with fileUrl in urls
+    set outputText to outputText & (fileUrl's |path|() as text) & linefeed
+end repeat
+return outputText
+"#;
+
+    fn command_error(output: &std::process::Output) -> String {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+        if stderr.is_empty() {
+            format!("exit status {}", output.status)
+        } else {
+            stderr
+        }
+    }
+
     pub fn read_clipboard_file_paths() -> Result<Vec<String>, String> {
         let output = Command::new("osascript")
-            .args([
-                "-e",
-                r#"use framework "AppKit""#,
-                "-e",
-                r#"set pasteboard to current application's NSPasteboard's generalPasteboard()"#,
-                "-e",
-                r#"set classes to current application's NSArray's arrayWithObject:(current application's NSURL)"#,
-                "-e",
-                r#"set options to current application's NSDictionary's dictionary()"#,
-                "-e",
-                r#"set urls to pasteboard's readObjectsForClasses:classes options:options"#,
-                "-e",
-                r#"set output to """#,
-                "-e",
-                r#"repeat with fileUrl in urls"#,
-                "-e",
-                r#"set output to output & (fileUrl's |path|() as text) & linefeed"#,
-                "-e",
-                r#"end repeat"#,
-                "-e",
-                r#"return output"#,
-            ])
+            .args(["-e", APPKIT_CLIPBOARD_SCRIPT])
             .output()
             .map_err(|err| format!("Failed to read macOS clipboard: {err}"))?;
 
-        if output.status.success() {
+        let appkit_succeeded = output.status.success();
+        if appkit_succeeded {
             let text = String::from_utf8_lossy(&output.stdout);
             let paths = text
                 .lines()
@@ -202,7 +204,10 @@ mod platform {
                 .filter(|line| !line.is_empty())
                 .map(ToOwned::to_owned)
                 .collect();
-            return Ok(existing_paths(paths));
+            let paths = existing_paths(paths);
+            if !paths.is_empty() {
+                return Ok(paths);
+            }
         }
 
         let uri_output = Command::new("osascript")
@@ -211,11 +216,38 @@ mod platform {
             .map_err(|err| format!("Failed to read macOS file URL clipboard: {err}"))?;
 
         if !uri_output.status.success() {
-            return Ok(Vec::new());
+            if appkit_succeeded {
+                return Ok(Vec::new());
+            }
+
+            return Err(format!(
+                "Failed to read macOS file clipboard (AppKit: {}; file URL fallback: {})",
+                command_error(&output),
+                command_error(&uri_output)
+            ));
         }
 
         let text = String::from_utf8_lossy(&uri_output.stdout);
         Ok(existing_paths(parse_file_uri_lines(&text)))
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{Command, APPKIT_CLIPBOARD_SCRIPT};
+
+        #[test]
+        fn appkit_clipboard_script_compiles() {
+            let output = Command::new("osacompile")
+                .args(["-e", APPKIT_CLIPBOARD_SCRIPT, "-o", "/dev/null"])
+                .output()
+                .expect("osacompile should be available on macOS");
+
+            assert!(
+                output.status.success(),
+                "AppleScript failed to compile: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
     }
 }
 

@@ -9,6 +9,7 @@ export interface TerminalTabProps {
   tabId: string
   sessionNonce?: number
   isActive: boolean
+  isGlobalShortcutTarget: boolean
   workspacePanelApi?: Pick<DockviewPanelApi, "onDidDimensionsChange">
   connectionHeaderPinned?: boolean
   connection?: Tab["connection"]

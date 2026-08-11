@@ -36,52 +36,46 @@ export function useSftpPasteUpload({
   const isPasteUploadRunningRef = useRef(false)
   const lastPasteRef = useRef<{ signature: string; timestamp: number } | null>(null)
 
-  const uploadClipboardPaths = useCallback(
-    async (event: KeyboardEvent) => {
-      if (isPasteUploadRunningRef.current) {
-        return
-      }
+  const uploadClipboardPaths = useCallback(async () => {
+    if (isPasteUploadRunningRef.current) {
+      return
+    }
 
-      isPasteUploadRunningRef.current = true
-      let validPaths: string[]
-      try {
-        const paths = await invoke<string[]>("read_clipboard_file_paths")
-        validPaths = paths.filter((path) => typeof path === "string" && path.length > 0)
-      } catch (invokeError) {
-        setError(String(invokeError))
-        return
-      } finally {
-        isPasteUploadRunningRef.current = false
-      }
+    isPasteUploadRunningRef.current = true
+    let validPaths: string[]
+    try {
+      const paths = await invoke<string[]>("read_clipboard_file_paths")
+      validPaths = paths.filter((path) => typeof path === "string" && path.length > 0)
+    } catch (invokeError) {
+      setError(String(invokeError))
+      return
+    } finally {
+      isPasteUploadRunningRef.current = false
+    }
 
-      if (validPaths.length === 0) {
-        return
-      }
+    if (validPaths.length === 0) {
+      return
+    }
 
-      event.preventDefault()
-      event.stopPropagation()
+    if (!listing) {
+      setError(t("sftp.errors.notReady", { defaultValue: "SFTP not ready" }))
+      return
+    }
 
-      if (!listing) {
-        setError(t("sftp.errors.notReady", { defaultValue: "SFTP not ready" }))
-        return
-      }
+    const signature = [...validPaths].sort().join("\0")
+    const now = Date.now()
+    const lastPaste = lastPasteRef.current
+    if (
+      lastPaste &&
+      lastPaste.signature === signature &&
+      now - lastPaste.timestamp < PASTE_DEDUP_WINDOW_MS
+    ) {
+      return
+    }
+    lastPasteRef.current = { signature, timestamp: now }
 
-      const signature = [...validPaths].sort().join("\0")
-      const now = Date.now()
-      const lastPaste = lastPasteRef.current
-      if (
-        lastPaste &&
-        lastPaste.signature === signature &&
-        now - lastPaste.timestamp < PASTE_DEDUP_WINDOW_MS
-      ) {
-        return
-      }
-      lastPasteRef.current = { signature, timestamp: now }
-
-      await uploadPaths(validPaths)
-    },
-    [listing, setError, t, uploadPaths]
-  )
+    await uploadPaths(validPaths)
+  }, [listing, setError, t, uploadPaths])
 
   useEffect(() => {
     if (!enabled || !visible) {
@@ -99,13 +93,14 @@ export function useSftpPasteUpload({
         return
       }
 
+      event.preventDefault()
+      event.stopPropagation()
+
       if (event.repeat) {
-        event.preventDefault()
-        event.stopPropagation()
         return
       }
 
-      void uploadClipboardPaths(event)
+      void uploadClipboardPaths()
     }
 
     window.addEventListener("keydown", handleKeyDown)
