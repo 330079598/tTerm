@@ -101,7 +101,7 @@ interface BackupImportResult {
   profilesImported: number
   commandsImported: number
   secretsImported: number
-  secretDestination: "system" | "vault" | null
+  secretDestination: "system" | "vault" | "hybrid" | null
   frontendState: {
     customThemes?: unknown[]
     recentCommands?: unknown[]
@@ -871,7 +871,13 @@ export const DataMigrationSettingsTab: React.FC = () => {
                         <option value="auto">{t("dataMigration.destinationAuto")}</option>
                         <option value="system">{t("dataMigration.destinationSystem")}</option>
                         <option value="vault">{t("dataMigration.destinationVault")}</option>
+                        <option value="hybrid">{t("dataMigration.destinationHybrid")}</option>
                       </Select>
+                      {secretDestination === "hybrid" && (
+                        <p className="text-muted-foreground mt-1.5 text-xs">
+                          {t("dataMigration.hybridPasswordNotice")}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

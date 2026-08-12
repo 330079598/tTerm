@@ -380,6 +380,7 @@ pub fn import_backup(
     ensure_selection_available(&options.selection, &bundle.manifest.selection)?;
     validate_payload(payload)?;
 
+    let mut hybrid_snapshot = None;
     let destination = if options.selection.secrets {
         Some(resolve_secret_destination(
             secret_state.inner(),
@@ -388,21 +389,93 @@ pub fn import_backup(
     } else {
         None
     };
+    // Capture the original application config before hybrid initialization changes it.
+    let config_snapshot = if destination.is_some() && !options.selection.settings {
+        let config_path = config::get_config_path()?.join("config.json");
+        Some((
+            config_path.clone(),
+            fs::read(&config_path)
+                .map_err(|error| format!("Failed to snapshot secret storage config: {error}"))?,
+        ))
+    } else {
+        None
+    };
+    if destination.as_deref() == Some("hybrid") {
+        if !secret_state.vault_unlocked()? {
+            let password = options
+                .backup_password
+                .as_deref()
+                .filter(|p| !p.is_empty())
+                .ok_or_else(|| {
+                    "A backup password is required to initialize the target vault.".to_string()
+                })?;
+            hybrid_snapshot = Some(secret_state.prepare_migration_hybrid(&app, password)?);
+        } else {
+            // An already-unlocked vault can only be switched to hybrid if it
+            // already has a master password in the system credential store.
+            // The import password is the backup password, not necessarily the
+            // existing vault password.
+            if !secret_state.hybrid_master_available()? {
+                return Err("Hybrid migration requires the existing vault password to be configured for system auto-unlock.".to_string());
+            }
+        }
+    }
 
-    let pre_import_backup_path = create_pre_import_backup(
+    let pre_import_backup_path = match create_pre_import_backup(
         &app,
         &options.selection,
         command_state.inner(),
         secret_state.inner(),
-    )?;
-    let file_snapshot = capture_file_snapshot(&options.selection, payload)?;
+    ) {
+        Ok(path) => path,
+        Err(error) => {
+            if let Some(snapshot) = hybrid_snapshot.take() {
+                let _ = secret_state.rollback_migration_hybrid(snapshot);
+            }
+            return Err(error);
+        }
+    };
+    let file_snapshot = match capture_file_snapshot(&options.selection, payload) {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            if let Some(snapshot) = hybrid_snapshot.take() {
+                let _ = secret_state.rollback_migration_hybrid(snapshot);
+            }
+            return Err(error);
+        }
+    };
     let command_snapshot = if options.selection.command_library {
-        Some(CommandRepository::new(command_state.database()?).list()?)
+        let database = match command_state.database() {
+            Ok(database) => database,
+            Err(error) => {
+                if let Some(snapshot) = hybrid_snapshot.take() {
+                    let _ = secret_state.rollback_migration_hybrid(snapshot);
+                }
+                return Err(error);
+            }
+        };
+        match CommandRepository::new(database).list() {
+            Ok(commands) => Some(commands),
+            Err(error) => {
+                if let Some(snapshot) = hybrid_snapshot.take() {
+                    let _ = secret_state.rollback_migration_hybrid(snapshot);
+                }
+                return Err(error);
+            }
+        }
     } else {
         None
     };
     let secret_snapshot = if let Some(destination) = destination.as_deref() {
-        capture_secret_snapshot(&app, secret_state.inner(), &payload.secrets, destination)?
+        match capture_secret_snapshot(&app, secret_state.inner(), &payload.secrets, destination) {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                if let Some(snapshot) = hybrid_snapshot.take() {
+                    let _ = secret_state.rollback_migration_hybrid(snapshot);
+                }
+                return Err(error);
+            }
+        }
     } else {
         Vec::new()
     };
@@ -419,22 +492,43 @@ pub fn import_backup(
         Ok(counts) => counts,
         Err(error) => {
             let mut rollback_errors = Vec::new();
+            let had_hybrid_snapshot = hybrid_snapshot.is_some();
+            let mut hybrid_rollback_failed = false;
+            if let Some(snapshot) = hybrid_snapshot.take() {
+                match secret_state.rollback_migration_hybrid(snapshot) {
+                    Ok(()) => {}
+                    Err(err) => {
+                        hybrid_rollback_failed = true;
+                        rollback_errors.push(err);
+                    }
+                }
+            }
             if let Err(err) = restore_file_snapshot(&file_snapshot) {
                 rollback_errors.push(err);
+            }
+            if !had_hybrid_snapshot || hybrid_rollback_failed {
+                if let Some((path, bytes)) = config_snapshot.as_ref() {
+                    if let Err(err) = config::atomic_write_private(path, bytes) {
+                        rollback_errors
+                            .push(format!("Failed to restore secret storage config: {err}"));
+                    }
+                }
             }
             if let Some(commands) = command_snapshot.as_ref() {
                 if let Err(err) = replace_commands(command_state.inner(), commands) {
                     rollback_errors.push(err);
                 }
             }
-            if let Some(destination) = destination.as_deref() {
-                if let Err(err) = restore_secret_snapshot(
-                    &app,
-                    secret_state.inner(),
-                    &secret_snapshot,
-                    destination,
-                ) {
-                    rollback_errors.push(err);
+            if !had_hybrid_snapshot {
+                if let Some(destination) = destination.as_deref() {
+                    if let Err(err) = restore_secret_snapshot(
+                        &app,
+                        secret_state.inner(),
+                        &secret_snapshot,
+                        destination,
+                    ) {
+                        rollback_errors.push(err);
+                    }
                 }
             }
             if rollback_errors.is_empty() {
@@ -1114,13 +1208,18 @@ fn resolve_secret_destination(state: &SecretStoreState, requested: &str) -> Resu
         "system" => Err("System credential store is unavailable.".to_string()),
         "vault" if state.vault_unlocked()? => Ok("vault".to_string()),
         "vault" => Err("Unlock the app vault before importing passwords.".to_string()),
+        "hybrid" if state.keyring_available()? => Ok("hybrid".to_string()),
+        "hybrid" => Err("Hybrid credential storage requires the system credential store.".to_string()),
+        // Automatic import must remain compatible with existing vaults. An
+        // unlocked vault can be selected explicitly as hybrid; auto uses the
+        // system store whenever it is available, as older versions did.
         "auto" if state.keyring_available()? => Ok("system".to_string()),
         "auto" if state.vault_unlocked()? => Ok("vault".to_string()),
         "auto" => Err(
             "No persistent credential store is ready. Enable system credentials or unlock the app vault."
                 .to_string(),
         ),
-        _ => Err("Secret destination must be auto, system, or vault.".to_string()),
+        _ => Err("Secret destination must be auto, system, vault, or hybrid.".to_string()),
     }
 }
 
@@ -1135,15 +1234,21 @@ fn apply_payload(
     let directory = config::ensure_config_dir()?;
     if options.selection.settings {
         if let Some(value) = payload.config.as_ref() {
-            let imported = serde_json::from_value::<AppConfig>(value.clone())
+            let mut imported = serde_json::from_value::<AppConfig>(value.clone())
                 .map_err(|error| format!("Invalid settings: {error}"))?;
+            // Secret backends are device-local. Never let a Windows `system` or
+            // another source-device mode overwrite the destination policy.
+            let current = config::load_config_file()?;
+            imported.secret_storage_mode = current.secret_storage_mode;
+            imported.secret_vault_enabled = current.secret_vault_enabled;
+            imported.prompt_unlock_vault_on_startup = current.prompt_unlock_vault_on_startup;
             config::save_config_file(&imported)?;
         }
     }
     if let Some(destination) = destination {
         let mut imported = config::load_config_file()?;
         imported.secret_storage_mode = destination.to_string();
-        if destination == "vault" {
+        if matches!(destination, "vault" | "hybrid") {
             imported.secret_vault_enabled = true;
         }
         config::save_config_file(&imported)?;

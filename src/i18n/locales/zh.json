@@ -1182,6 +1182,8 @@
     "destinationAuto": "自动（优先系统凭据库）",
     "destinationSystem": "系统凭据库",
     "destinationVault": "已解锁的 tTerm 保险库",
+    "destinationHybrid": "tTerm 保险库（系统凭据自动解锁）",
+    "hybridPasswordNotice": "如果保险库尚未解锁，备份密码也会被用作新保险库密码。",
     "importConfirm": "确定导入所选数据吗？修改前会自动创建恢复备份。",
     "importAction": "导入所选数据",
     "importSuccess": "数据迁移完成",

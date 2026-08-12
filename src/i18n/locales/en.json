@@ -1191,6 +1191,8 @@
     "destinationAuto": "Automatic (system store preferred)",
     "destinationSystem": "System credential store",
     "destinationVault": "Unlocked tTerm vault",
+    "destinationHybrid": "tTerm vault with system auto-unlock",
+    "hybridPasswordNotice": "If the vault is not unlocked, the backup password will also be used as the new vault password.",
     "importConfirm": "Import the selected data? tTerm will create a recovery backup before making changes.",
     "importAction": "Import selected data",
     "importSuccess": "Migration completed",

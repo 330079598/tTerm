@@ -23,6 +23,17 @@ pub use types::{
     VaultPasswordInput,
 };
 
+pub(crate) struct MigrationHybridSnapshot {
+    previous_config: crate::config::AppConfig,
+    config_path: std::path::PathBuf,
+    config_bytes: Option<Vec<u8>>,
+    config_existed: bool,
+    vault_path: std::path::PathBuf,
+    vault_bytes: Option<Vec<u8>>,
+    vault_existed: bool,
+    keyring_master: Option<String>,
+}
+
 impl SecretStoreState {
     pub fn new() -> Self {
         Self {
@@ -374,6 +385,214 @@ impl SecretStoreState {
             .is_some())
     }
 
+    pub(crate) fn hybrid_master_available(&self) -> Result<bool, String> {
+        if !self.keyring_available()? {
+            return Ok(false);
+        }
+        read_keyring_secret(VAULT_MASTER_ACCOUNT, "master")
+            .map(|value| value.is_some())
+            .map_err(|error| format!("Failed to read keyring vault master entry: {error}"))
+    }
+
+    /// Initialize or unlock the vault for a cross-device migration. The migration
+    /// password is already supplied by the user and is never persisted outside the
+    /// normal hybrid keyring entry.
+    pub(crate) fn prepare_migration_hybrid(
+        &self,
+        app: &AppHandle,
+        password: &str,
+    ) -> Result<MigrationHybridSnapshot, String> {
+        let mut config = load_config_file()?;
+        let previous_config = config.clone();
+
+        // Snapshot on-disk artifacts that unlock_vault may mutate, so we can
+        // restore them if initialization fails. Without this, a failed migration
+        // on a fresh device would leave a vault silently initialized with the
+        // backup password and a stale keyring master entry.
+        let config_path = match vault_config_path(app) {
+            Ok(path) => path,
+            Err(error) => {
+                let _ = save_config_file(&previous_config);
+                return Err(error);
+            }
+        };
+        let vault_config_existed = config_path.exists();
+        let vault_config_snapshot = std::fs::read(&config_path)
+            .map(Some)
+            .or_else(|error| {
+                if error.kind() == std::io::ErrorKind::NotFound {
+                    Ok(None)
+                } else {
+                    Err(error)
+                }
+            })
+            .map_err(|error| format!("Failed to snapshot vault config: {error}"))?;
+
+        let vault_file_path = match vault_path(app) {
+            Ok(path) => path,
+            Err(error) => {
+                let _ = save_config_file(&previous_config);
+                return Err(error);
+            }
+        };
+        let vault_existed = vault_file_path.exists();
+        let vault_snapshot = std::fs::read(&vault_file_path)
+            .map(Some)
+            .or_else(|error| {
+                if error.kind() == std::io::ErrorKind::NotFound {
+                    Ok(None)
+                } else {
+                    Err(error)
+                }
+            })
+            .map_err(|error| format!("Failed to snapshot vault file: {error}"))?;
+
+        let keyring_master_snapshot = read_keyring_secret(VAULT_MASTER_ACCOUNT, "master")
+            .map_err(|error| format!("Failed to snapshot keyring vault master entry: {error}"))?;
+
+        config.secret_vault_enabled = true;
+        config.secret_storage_mode = "hybrid".to_string();
+        save_config_file(&config)?;
+
+        if let Err(error) = self.unlock_vault(
+            app,
+            types::VaultPasswordInput {
+                password: password.to_string(),
+                enable_vault: true,
+            },
+        ) {
+            let mut errors = vec![error];
+
+            if let Err(restore_err) = save_config_file(&previous_config) {
+                errors.push(format!(
+                    "Failed to restore config after migration rollback: {restore_err}"
+                ));
+            }
+
+            match (vault_config_snapshot.as_deref(), vault_config_existed) {
+                (Some(original), _) => {
+                    if let Err(restore_err) =
+                        crate::config::atomic_write_private(&config_path, original)
+                    {
+                        errors.push(format!(
+                            "Failed to restore vault config after rollback: {restore_err}"
+                        ));
+                    }
+                }
+                (None, false) => {
+                    if config_path.exists() {
+                        if let Err(remove_err) = std::fs::remove_file(&config_path) {
+                            errors.push(format!(
+                                "Failed to remove newly created vault config: {remove_err}"
+                            ));
+                        }
+                    }
+                }
+                (None, true) => {}
+            }
+
+            match (vault_snapshot.as_deref(), vault_existed) {
+                (Some(original), _) => {
+                    if let Err(restore_err) =
+                        crate::config::atomic_write_private(&vault_file_path, original)
+                    {
+                        errors.push(format!(
+                            "Failed to restore vault file after rollback: {restore_err}"
+                        ));
+                    }
+                }
+                (None, false) => {
+                    if vault_file_path.exists() {
+                        if let Err(remove_err) = std::fs::remove_file(&vault_file_path) {
+                            errors.push(format!(
+                                "Failed to remove newly created vault file: {remove_err}"
+                            ));
+                        }
+                    }
+                }
+                (None, true) => {}
+            }
+
+            if let Some(original) = keyring_master_snapshot.as_deref() {
+                if let Err(restore_err) =
+                    write_keyring_secret(VAULT_MASTER_ACCOUNT, "master", original)
+                {
+                    errors.push(format!(
+                        "Failed to restore keyring vault master entry after rollback: {restore_err}"
+                    ));
+                }
+            } else if let Err(restore_err) = delete_keyring_secret(VAULT_MASTER_ACCOUNT, "master") {
+                errors.push(format!(
+                    "Failed to remove newly created keyring vault master entry: {restore_err}"
+                ));
+            }
+
+            return Err(errors.join(" | "));
+        }
+        Ok(MigrationHybridSnapshot {
+            previous_config,
+            config_path,
+            config_bytes: vault_config_snapshot,
+            config_existed: vault_config_existed,
+            vault_path: vault_file_path,
+            vault_bytes: vault_snapshot,
+            vault_existed,
+            keyring_master: keyring_master_snapshot,
+        })
+    }
+
+    pub(crate) fn rollback_migration_hybrid(
+        &self,
+        snapshot: MigrationHybridSnapshot,
+    ) -> Result<(), String> {
+        let mut errors = Vec::new();
+        if let Err(error) = save_config_file(&snapshot.previous_config) {
+            errors.push(error);
+        }
+        let restore = |path: &std::path::Path,
+                       bytes: &Option<Vec<u8>>,
+                       existed: bool,
+                       errors: &mut Vec<String>| {
+            let result = match (bytes.as_deref(), existed) {
+                (Some(bytes), _) => crate::config::atomic_write_private(path, bytes),
+                (None, false) if path.exists() => {
+                    std::fs::remove_file(path).map_err(|e| e.to_string())
+                }
+                _ => Ok(()),
+            };
+            if let Err(error) = result {
+                errors.push(format!("Failed to restore '{}': {error}", path.display()));
+            }
+        };
+        restore(
+            &snapshot.config_path,
+            &snapshot.config_bytes,
+            snapshot.config_existed,
+            &mut errors,
+        );
+        restore(
+            &snapshot.vault_path,
+            &snapshot.vault_bytes,
+            snapshot.vault_existed,
+            &mut errors,
+        );
+        let keyring_result = match snapshot.keyring_master.as_deref() {
+            Some(value) => write_keyring_secret(VAULT_MASTER_ACCOUNT, "master", value),
+            None => delete_keyring_secret(VAULT_MASTER_ACCOUNT, "master").map(|_| ()),
+        };
+        if let Err(error) = keyring_result {
+            errors.push(error);
+        }
+        if let Err(error) = self.lock_vault() {
+            errors.push(error);
+        }
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors.join("; "))
+        }
+    }
+
     pub fn get_password(
         &self,
         app: &AppHandle,
@@ -423,7 +642,7 @@ impl SecretStoreState {
     ) -> Result<Option<String>, String> {
         match destination {
             "system" => self.get_password_from_keyring(profile_id),
-            "vault" => self.get_password_from_vault(app, profile_id),
+            "vault" | "hybrid" => self.get_password_from_vault(app, profile_id),
             _ => Err("Unsupported secret migration destination".to_string()),
         }
     }
@@ -442,7 +661,7 @@ impl SecretStoreState {
                 }
                 write_keyring_secret(profile_id, types::SECRET_KIND_PASSWORD, password)
             }
-            "vault" => {
+            "vault" | "hybrid" => {
                 let guard = self
                     .inner
                     .lock()
@@ -470,7 +689,7 @@ impl SecretStoreState {
     ) -> Result<(), String> {
         match destination {
             "system" => delete_keyring_secret(profile_id, types::SECRET_KIND_PASSWORD).map(|_| ()),
-            "vault" => {
+            "vault" | "hybrid" => {
                 delete_vault_secret(app, profile_id, types::SECRET_KIND_PASSWORD).map(|_| ())
             }
             _ => Err("Unsupported secret migration destination".to_string()),
