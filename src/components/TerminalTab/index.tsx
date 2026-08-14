@@ -24,6 +24,7 @@ import type {
 } from "@/components/TerminalTab/types"
 import { toast } from "@/hooks/use-toast"
 import { useConfig } from "@/contexts/ConfigContext"
+import type { TerminalRenderer } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useStableRef } from "@/hooks/useStableRef"
 import { resolveScrollbackLines } from "@/lib/scrollback"
@@ -92,6 +93,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const initialFontSize = useRef(config.font_size)
   const initialCursorStyle = useRef(config.cursor_style)
   const initialScrollbackLines = useRef(config.scrollback_lines)
+  const initialTerminalRenderer = useRef<TerminalRenderer>(config.terminal_renderer)
   const sessionResetKey = `${tabId}:${sessionNonce}:${connection?.type ?? "terminal"}`
   const defaultConnectionState: ConnectionState = "connecting"
   const passwordPromptActiveRef = useRef(false)
@@ -329,6 +331,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     initialFontFamily,
     initialFontSize,
     initialScrollbackLines,
+    initialTerminalRenderer,
     initialTerminalThemeRef,
     isActiveRef,
     lastPtySizeRef,

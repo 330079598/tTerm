@@ -8,7 +8,12 @@ import { useTranslation } from "react-i18next"
 import { useConfirmDialog, useInfoDialog, usePromptDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
-import { SavedSecretEntry, type TabWidthMode, useConfig } from "@/contexts/ConfigContext"
+import {
+  SavedSecretEntry,
+  type TabWidthMode,
+  type TerminalRenderer,
+  useConfig,
+} from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
@@ -182,6 +187,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [scrollbackLines, setScrollbackLines] = useState(() =>
     normalizeScrollbackLines(config.scrollback_lines)
   )
+  const [terminalRenderer, setTerminalRenderer] = useState<TerminalRenderer>(
+    config.terminal_renderer
+  )
   const [terminalPaddingLeftPx, setTerminalPaddingLeftPx] = useState(
     config.terminal_padding_left_px
   )
@@ -283,6 +291,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         font_size: fontSize,
         cursor_style: cursorStyle,
         scrollback_lines: scrollbackLines,
+        terminal_renderer: terminalRenderer,
         terminal_padding_left_px: terminalPaddingLeftPx,
         terminal_padding_right_px: terminalPaddingRightPx,
         terminal_padding_bottom_px: terminalPaddingBottomPx,
@@ -734,6 +743,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleFontSave={handleFontSave}
               loadingFonts={loadingFonts}
               scrollbackLines={scrollbackLines}
+              terminalRenderer={terminalRenderer}
               terminalPaddingLeftPx={terminalPaddingLeftPx}
               terminalPaddingRightPx={terminalPaddingRightPx}
               terminalPaddingBottomPx={terminalPaddingBottomPx}
@@ -741,6 +751,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               setFontSize={setFontSize}
               setCursorStyle={setCursorStyle}
               setScrollbackLines={setScrollbackLines}
+              setTerminalRenderer={setTerminalRenderer}
               setTerminalPaddingLeftPx={setTerminalPaddingLeftPx}
               setTerminalPaddingRightPx={setTerminalPaddingRightPx}
               setTerminalPaddingBottomPx={setTerminalPaddingBottomPx}

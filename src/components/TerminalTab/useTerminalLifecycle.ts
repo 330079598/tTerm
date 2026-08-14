@@ -18,6 +18,7 @@ import type {
   TerminalTabProps,
 } from "@/components/TerminalTab/types"
 import { resolveScrollbackLines } from "@/lib/scrollback"
+import type { TerminalRenderer } from "@/contexts/ConfigContext"
 import {
   captureTerminalInput,
   EMPTY_COMMAND_CAPTURE_STATE,
@@ -36,6 +37,7 @@ type UseTerminalLifecycleOptions = {
   initialFontFamily: React.MutableRefObject<string>
   initialFontSize: React.MutableRefObject<number>
   initialScrollbackLines: React.MutableRefObject<number>
+  initialTerminalRenderer: React.MutableRefObject<TerminalRenderer>
   initialTerminalThemeRef: React.MutableRefObject<NonNullable<Terminal["options"]["theme"]>>
   isActiveRef: React.MutableRefObject<boolean>
   lastPtySizeRef: React.MutableRefObject<{ rows: number; cols: number } | null>
@@ -97,6 +99,7 @@ export function useTerminalLifecycle({
   initialFontFamily,
   initialFontSize,
   initialScrollbackLines,
+  initialTerminalRenderer,
   initialTerminalThemeRef,
   isActiveRef,
   lastPtySizeRef,
@@ -166,10 +169,12 @@ export function useTerminalLifecycle({
     term.loadAddon(new Unicode11Addon())
     term.unicode.activeVersion = "11"
 
-    try {
-      term.loadAddon(new WebglAddon())
-    } catch {
-      // WebGL not supported in this environment; fall back to canvas renderer
+    if (initialTerminalRenderer.current === "webgl") {
+      try {
+        term.loadAddon(new WebglAddon())
+      } catch {
+        // WebGL not supported in this environment; fall back to canvas renderer
+      }
     }
 
     termRef.current = term
@@ -506,6 +511,7 @@ export function useTerminalLifecycle({
     initialFontFamily,
     initialFontSize,
     initialScrollbackLines,
+    initialTerminalRenderer,
     initialTerminalThemeRef,
     isActiveRef,
     lastPtySizeRef,

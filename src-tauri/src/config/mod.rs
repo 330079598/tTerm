@@ -38,6 +38,8 @@ pub struct AppConfig {
     pub prompt_unlock_vault_on_startup: bool,
     #[serde(default = "default_scrollback_lines")]
     pub scrollback_lines: u32,
+    #[serde(default = "default_terminal_renderer")]
+    pub terminal_renderer: String,
     #[serde(default = "default_terminal_padding_left_px")]
     pub terminal_padding_left_px: u16,
     #[serde(default)]
@@ -153,6 +155,10 @@ fn default_scrollback_lines() -> u32 {
     10000
 }
 
+fn default_terminal_renderer() -> String {
+    "webgl".to_string()
+}
+
 fn default_terminal_padding_left_px() -> u16 {
     6
 }
@@ -244,6 +250,7 @@ impl Default for AppConfig {
             secret_storage_mode: default_secret_storage_mode(),
             prompt_unlock_vault_on_startup: false,
             scrollback_lines: default_scrollback_lines(),
+            terminal_renderer: default_terminal_renderer(),
             terminal_padding_left_px: default_terminal_padding_left_px(),
             terminal_padding_right_px: 0,
             terminal_padding_bottom_px: 0,

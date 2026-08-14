@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   DEFAULT_SCROLLBACK_LINES,
@@ -15,6 +16,7 @@ import {
 import { cn } from "@/lib/utils"
 import { CursorStylePicker } from "@/components/SettingsDialog/CursorStylePicker"
 import { SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
+import type { TerminalRenderer } from "@/contexts/ConfigContext"
 
 const SCROLLBACK_PRESETS = [1000, 5000, DEFAULT_SCROLLBACK_LINES, 50000, 100000] as const
 
@@ -33,6 +35,7 @@ interface FontSettingsTabProps {
   handleFontSave: () => Promise<void>
   loadingFonts: boolean
   scrollbackLines: number
+  terminalRenderer: TerminalRenderer
   terminalPaddingLeftPx: number
   terminalPaddingRightPx: number
   terminalPaddingBottomPx: number
@@ -40,6 +43,7 @@ interface FontSettingsTabProps {
   setFontSize: React.Dispatch<React.SetStateAction<number>>
   setCursorStyle: React.Dispatch<React.SetStateAction<"bar" | "block" | "underline">>
   setScrollbackLines: React.Dispatch<React.SetStateAction<number>>
+  setTerminalRenderer: React.Dispatch<React.SetStateAction<TerminalRenderer>>
   setTerminalPaddingLeftPx: React.Dispatch<React.SetStateAction<number>>
   setTerminalPaddingRightPx: React.Dispatch<React.SetStateAction<number>>
   setTerminalPaddingBottomPx: React.Dispatch<React.SetStateAction<number>>
@@ -55,6 +59,7 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
   handleFontSave,
   loadingFonts,
   scrollbackLines,
+  terminalRenderer,
   terminalPaddingLeftPx,
   terminalPaddingRightPx,
   terminalPaddingBottomPx,
@@ -62,6 +67,7 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
   setFontSize,
   setCursorStyle,
   setScrollbackLines,
+  setTerminalRenderer,
   setTerminalPaddingLeftPx,
   setTerminalPaddingRightPx,
   setTerminalPaddingBottomPx,
@@ -120,6 +126,29 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
             defaultValue: "Choose the typeface and size used by terminal sessions.",
           })}
         >
+          <div>
+            <Label htmlFor="terminal-renderer" className="mb-2 block">
+              {t("fontSettings.renderer", { defaultValue: "Terminal renderer" })}
+            </Label>
+            <Select
+              id="terminal-renderer"
+              value={terminalRenderer}
+              onChange={(event) => setTerminalRenderer(event.target.value as TerminalRenderer)}
+            >
+              <option value="webgl">
+                {t("fontSettings.rendererWebgl", { defaultValue: "WebGL (recommended)" })}
+              </option>
+              <option value="canvas">
+                {t("fontSettings.rendererCanvas", { defaultValue: "Canvas (lower memory)" })}
+              </option>
+            </Select>
+            <p className="text-muted-foreground mt-1.5 text-xs">
+              {t("fontSettings.rendererDesc", {
+                defaultValue: "WebGL is faster for heavy output; Canvas can use less GPU memory.",
+              })}
+            </p>
+          </div>
+
           <div>
             <Label className="mb-2 block">{t("fontSettings.fontSize")}</Label>
             <div className="flex flex-wrap gap-1.5">

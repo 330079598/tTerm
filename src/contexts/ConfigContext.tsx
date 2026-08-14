@@ -19,6 +19,7 @@ export interface SecretBackendStatus {
 export type SecretStorageMode = "auto" | "system" | "vault" | "hybrid" | "memory"
 export type TabWidthMode = "adaptive" | "standard"
 export type TerminalLogFormat = "raw" | "plain" | "both"
+export type TerminalRenderer = "webgl" | "canvas"
 export type MonitorMetricId =
   | "cpu"
   | "memory"
@@ -102,6 +103,7 @@ export interface AppConfig {
   secret_storage_mode: SecretStorageMode
   prompt_unlock_vault_on_startup: boolean
   scrollback_lines: number
+  terminal_renderer: TerminalRenderer
   terminal_padding_left_px: number
   terminal_padding_right_px: number
   terminal_padding_bottom_px: number
@@ -146,6 +148,7 @@ const defaultConfig: AppConfig = {
   secret_storage_mode: getDefaultSecretStorageMode(),
   prompt_unlock_vault_on_startup: false,
   scrollback_lines: 10000,
+  terminal_renderer: "webgl",
   terminal_padding_left_px: 6,
   terminal_padding_right_px: 0,
   terminal_padding_bottom_px: 0,
@@ -258,6 +261,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
         ? config.secret_storage_mode
         : getDefaultSecretStorageMode(),
     prompt_unlock_vault_on_startup: config.prompt_unlock_vault_on_startup === true,
+    terminal_renderer: config.terminal_renderer === "canvas" ? "canvas" : "webgl",
     monitor_refresh_interval_secs: normalizeMonitorRefreshInterval(
       config.monitor_refresh_interval_secs
     ),
