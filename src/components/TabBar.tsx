@@ -88,7 +88,7 @@ type TabDragState = {
   threshold: number
 }
 
-const TabItem: React.FC<TabItemProps> = ({
+const TabItem = React.memo(function TabItem({
   tab,
   index,
   getTabContextIds,
@@ -100,7 +100,7 @@ const TabItem: React.FC<TabItemProps> = ({
   onTabClose,
   onContextMenu,
   onPointerDown,
-}) => {
+}: TabItemProps) {
   const { t } = useTranslation()
 
   const setNodeRef = (node: HTMLDivElement | null) => {
@@ -230,7 +230,7 @@ const TabItem: React.FC<TabItemProps> = ({
       <TooltipContent>{`${tab.title}${tab.connection ? ` (${tab.connection.host})` : ""}`}</TooltipContent>
     </Tooltip>
   )
-}
+})
 
 export const TabBar: React.FC<TabBarProps> = ({
   tabs,

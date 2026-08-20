@@ -159,100 +159,118 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     announceThemeReady()
   }, [applyAndCacheTheme, config.theme, customThemes, isLoaded, themesLoaded, updateTheme])
 
-  const setTheme = async (themeId: string): Promise<void> => {
-    const resolvedThemeId = applyAndCacheTheme(themeId, customThemes)
-    await updateTheme(resolvedThemeId)
-  }
+  const setTheme = useCallback(
+    async (themeId: string): Promise<void> => {
+      const resolvedThemeId = applyAndCacheTheme(themeId, customThemes)
+      await updateTheme(resolvedThemeId)
+    },
+    [applyAndCacheTheme, customThemes, updateTheme]
+  )
 
-  const createCustomTheme = async (theme: Omit<CustomTheme, "id">): Promise<CustomTheme> => {
-    const newTheme: CustomTheme = {
-      ...theme,
-      id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    }
-
-    const updatedThemes = [...customThemes, newTheme]
-    saveCustomThemes(updatedThemes)
-
-    return newTheme
-  }
-
-  const updateCustomTheme = async (id: string, updates: Partial<CustomTheme>) => {
-    const presetTheme = getPresetTheme(id)
-    const existingTheme = customThemes.find((theme) => theme.id === id)
-
-    let updatedThemes: CustomTheme[]
-
-    if (existingTheme) {
-      updatedThemes = customThemes.map((theme) =>
-        theme.id === id ? { ...theme, ...updates, updatedAt: Date.now() } : theme
-      )
-    } else if (presetTheme) {
-      const createdTheme: CustomTheme = {
-        id,
-        name: updates.name ?? presetTheme.name,
-        description: updates.description ?? presetTheme.description,
-        colors: updates.colors ? { ...updates.colors } : { ...presetTheme.colors },
-        terminal: updates.terminal ? { ...updates.terminal } : { ...presetTheme.terminal },
-        baseTheme: presetTheme.id,
-        isCustom: true,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+  const createCustomTheme = useCallback(
+    async (theme: Omit<CustomTheme, "id">): Promise<CustomTheme> => {
+      const newTheme: CustomTheme = {
+        ...theme,
+        id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       }
 
-      updatedThemes = [...customThemes, createdTheme]
-    } else {
-      return
-    }
+      const updatedThemes = [...customThemes, newTheme]
+      saveCustomThemes(updatedThemes)
 
-    saveCustomThemes(updatedThemes)
+      return newTheme
+    },
+    [customThemes, saveCustomThemes]
+  )
 
-    if (config.theme === id) {
-      applyAndCacheTheme(id, updatedThemes)
-    }
-  }
+  const updateCustomTheme = useCallback(
+    async (id: string, updates: Partial<CustomTheme>) => {
+      const presetTheme = getPresetTheme(id)
+      const existingTheme = customThemes.find((theme) => theme.id === id)
 
-  const deleteCustomTheme = async (id: string) => {
-    const updatedThemes = customThemes.filter((theme) => theme.id !== id)
-    saveCustomThemes(updatedThemes)
+      let updatedThemes: CustomTheme[]
 
-    if (config.theme === id) {
-      await setTheme("default")
-    }
-  }
+      if (existingTheme) {
+        updatedThemes = customThemes.map((theme) =>
+          theme.id === id ? { ...theme, ...updates, updatedAt: Date.now() } : theme
+        )
+      } else if (presetTheme) {
+        const createdTheme: CustomTheme = {
+          id,
+          name: updates.name ?? presetTheme.name,
+          description: updates.description ?? presetTheme.description,
+          colors: updates.colors ? { ...updates.colors } : { ...presetTheme.colors },
+          terminal: updates.terminal ? { ...updates.terminal } : { ...presetTheme.terminal },
+          baseTheme: presetTheme.id,
+          isCustom: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }
 
-  const resetPresetTheme = async (id: PresetThemeId) => {
-    const updatedThemes = customThemes.filter((theme) => theme.id !== id)
-    saveCustomThemes(updatedThemes)
+        updatedThemes = [...customThemes, createdTheme]
+      } else {
+        return
+      }
 
-    if (config.theme === id) {
-      applyAndCacheTheme(id, updatedThemes)
-    }
-  }
+      saveCustomThemes(updatedThemes)
 
-  const duplicateTheme = async (themeId: string, newName: string): Promise<CustomTheme> => {
-    const sourceTheme = customThemes.find((theme) => theme.id === themeId)
+      if (config.theme === id) {
+        applyAndCacheTheme(id, updatedThemes)
+      }
+    },
+    [applyAndCacheTheme, config.theme, customThemes, saveCustomThemes]
+  )
 
-    if (sourceTheme) {
-      return createCustomTheme({
-        name: newName,
-        description: sourceTheme.description,
-        colors: { ...sourceTheme.colors },
-        terminal: { ...sourceTheme.terminal },
-        baseTheme: sourceTheme.baseTheme,
-        isCustom: true,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      })
-    }
+  const deleteCustomTheme = useCallback(
+    async (id: string) => {
+      const updatedThemes = customThemes.filter((theme) => theme.id !== id)
+      saveCustomThemes(updatedThemes)
 
-    const themeUtils = await import("@/lib/themeUtils")
-    const themeData = themeUtils.createCustomThemeFromPreset(
-      themeId as PresetThemeId,
-      newName,
-      `Based on ${themeId}`
-    )
-    return createCustomTheme(themeData)
-  }
+      if (config.theme === id) {
+        await setTheme("default")
+      }
+    },
+    [config.theme, customThemes, saveCustomThemes, setTheme]
+  )
+
+  const resetPresetTheme = useCallback(
+    async (id: PresetThemeId) => {
+      const updatedThemes = customThemes.filter((theme) => theme.id !== id)
+      saveCustomThemes(updatedThemes)
+
+      if (config.theme === id) {
+        applyAndCacheTheme(id, updatedThemes)
+      }
+    },
+    [applyAndCacheTheme, config.theme, customThemes, saveCustomThemes]
+  )
+
+  const duplicateTheme = useCallback(
+    async (themeId: string, newName: string): Promise<CustomTheme> => {
+      const sourceTheme = customThemes.find((theme) => theme.id === themeId)
+
+      if (sourceTheme) {
+        return createCustomTheme({
+          name: newName,
+          description: sourceTheme.description,
+          colors: { ...sourceTheme.colors },
+          terminal: { ...sourceTheme.terminal },
+          baseTheme: sourceTheme.baseTheme,
+          isCustom: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        })
+      }
+
+      const themeUtils = await import("@/lib/themeUtils")
+      const themeData = themeUtils.createCustomThemeFromPreset(
+        themeId as PresetThemeId,
+        newName,
+        `Based on ${themeId}`
+      )
+      return createCustomTheme(themeData)
+    },
+    [createCustomTheme, customThemes]
+  )
 
   const getTheme = useCallback(
     (id: string): Theme | undefined => {
@@ -272,26 +290,38 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return resolveThemeCache(config.theme || "default", customThemes).id
   }, [config.theme, customThemes])
 
-  return (
-    <ThemeContext.Provider
-      value={{
-        currentTheme,
-        availableThemes,
-        presetThemes,
-        customThemes: standaloneCustomThemes,
-        presetThemeOverrides,
-        setTheme,
-        createCustomTheme,
-        updateCustomTheme,
-        deleteCustomTheme,
-        resetPresetTheme,
-        duplicateTheme,
-        getTheme,
-      }}
-    >
-      {children}
-    </ThemeContext.Provider>
+  const contextValue = useMemo<ThemeContextType>(
+    () => ({
+      currentTheme,
+      availableThemes,
+      presetThemes,
+      customThemes: standaloneCustomThemes,
+      presetThemeOverrides,
+      setTheme,
+      createCustomTheme,
+      updateCustomTheme,
+      deleteCustomTheme,
+      resetPresetTheme,
+      duplicateTheme,
+      getTheme,
+    }),
+    [
+      availableThemes,
+      createCustomTheme,
+      currentTheme,
+      deleteCustomTheme,
+      duplicateTheme,
+      getTheme,
+      presetThemeOverrides,
+      presetThemes,
+      resetPresetTheme,
+      setTheme,
+      standaloneCustomThemes,
+      updateCustomTheme,
+    ]
   )
+
+  return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>
 }
 
 export function useTheme() {

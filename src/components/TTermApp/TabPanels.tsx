@@ -262,10 +262,10 @@ function getTabActions(
   ]
 }
 
-const WorkspaceTab: React.FC<IDockviewPanelHeaderProps<WorkspacePanelParams>> = ({
+const WorkspaceTab = React.memo(function WorkspaceTab({
   api,
   params,
-}) => {
+}: IDockviewPanelHeaderProps<WorkspacePanelParams>) {
   const { t } = useTranslation()
   const { onTabClose, onTabContextMenu, tabs } = useWorkspace()
   const { isVisible } = useDockPanelState(api)
@@ -309,9 +309,12 @@ const WorkspaceTab: React.FC<IDockviewPanelHeaderProps<WorkspacePanelParams>> = 
       </button>
     </div>
   )
-}
+})
 
-const WorkspacePanel: React.FC<IDockviewPanelProps<WorkspacePanelParams>> = ({ api, params }) => {
+const WorkspacePanel = React.memo(function WorkspacePanel({
+  api,
+  params,
+}: IDockviewPanelProps<WorkspacePanelParams>) {
   const workspace = useWorkspace()
   const { hasBeenVisible, isActive, isVisible } = useDockPanelState(api)
   const tab = workspace.tabs.find((candidate) => candidate.id === params.tabId)
@@ -394,7 +397,7 @@ const WorkspacePanel: React.FC<IDockviewPanelProps<WorkspacePanelParams>> = ({ a
       )}
     </div>
   )
-}
+})
 
 const WorkspaceHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({
   activePanel,
@@ -488,12 +491,37 @@ const dockTabComponents = { workspaceTab: WorkspaceTab }
 export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function TabPanels(
   {
     activeTabId,
+    broadcastSourceTabId,
     duplicateTab,
+    handlePinConnectionHeader,
+    handleReconnectTab,
+    handleServerMonitorVisibilityChange,
+    handleUnpinConnectionHeader,
     initialLayout,
+    liveBroadcastState,
     onActiveTabChange,
+    onConnectProfile,
+    onEditProfile,
     onLayoutChange,
+    onOpenCommandLibrary,
+    onOpenRemoteFile,
+    onPauseBroadcast,
+    onResumeBroadcast,
+    onStopBroadcast,
+    onTabClose,
+    onTabContextMenu,
+    onTerminalCommandExecuted,
+    onTerminalConnectionStateChange,
+    onTerminalInput,
+    onSaveCommand,
+    onTerminalSavedPasswordPromptChange,
+    onTerminalSessionUnavailable,
+    onTerminalSensitivePrompt,
+    profilesRefreshKey,
+    startupConnectionsReady,
+    startupSessionRestoreMode,
     tabs,
-    ...workspaceProps
+    updateTab,
   },
   ref
 ) {
@@ -979,22 +1007,72 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
 
   const contextValue = useMemo<WorkspaceContextValue>(
     () => ({
-      ...workspaceProps,
+      broadcastSourceTabId,
       collapseToSingleGroup,
       duplicateTab,
       groupCount,
+      handlePinConnectionHeader,
+      handleReconnectTab,
+      handleServerMonitorVisibilityChange,
+      handleUnpinConnectionHeader,
+      liveBroadcastState,
       maximizedGroupId,
+      onConnectProfile,
+      onEditProfile,
+      onOpenCommandLibrary,
+      onOpenRemoteFile,
+      onPauseBroadcast,
+      onResumeBroadcast,
+      onStopBroadcast,
+      onTabClose,
+      onTabContextMenu,
+      onTerminalCommandExecuted,
+      onTerminalConnectionStateChange,
+      onTerminalInput,
+      onSaveCommand,
+      onTerminalSavedPasswordPromptChange,
+      onTerminalSessionUnavailable,
+      onTerminalSensitivePrompt,
+      profilesRefreshKey,
       splitTab,
+      startupConnectionsReady,
+      startupSessionRestoreMode,
       tabs,
+      updateTab,
     }),
     [
+      broadcastSourceTabId,
       collapseToSingleGroup,
       duplicateTab,
       groupCount,
+      handlePinConnectionHeader,
+      handleReconnectTab,
+      handleServerMonitorVisibilityChange,
+      handleUnpinConnectionHeader,
+      liveBroadcastState,
       maximizedGroupId,
+      onConnectProfile,
+      onEditProfile,
+      onOpenCommandLibrary,
+      onOpenRemoteFile,
+      onPauseBroadcast,
+      onResumeBroadcast,
+      onStopBroadcast,
+      onTabClose,
+      onTabContextMenu,
+      onTerminalCommandExecuted,
+      onTerminalConnectionStateChange,
+      onTerminalInput,
+      onSaveCommand,
+      onTerminalSavedPasswordPromptChange,
+      onTerminalSessionUnavailable,
+      onTerminalSensitivePrompt,
+      profilesRefreshKey,
       splitTab,
+      startupConnectionsReady,
+      startupSessionRestoreMode,
       tabs,
-      workspaceProps,
+      updateTab,
     ]
   )
 

@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react"
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { platform } from "@tauri-apps/plugin-os"
 
@@ -522,30 +530,46 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     loadConfig()
   }, [loadConfig])
 
-  return (
-    <ConfigContext.Provider
-      value={{
-        config,
-        isLoaded,
-        secretStatus,
-        updateTheme,
-        updateLanguage,
-        saveConfig,
-        loadConfig,
-        refreshSecretStatus,
-        setSecretVaultEnabled,
-        setSecretStorageMode,
-        unlockSecretVault,
-        lockSecretVault,
-        changeVaultPassword,
-        copySecretStore,
-        listSavedSecrets,
-        deleteSavedSecret,
-      }}
-    >
-      {children}
-    </ConfigContext.Provider>
+  const contextValue = useMemo<ConfigContextType>(
+    () => ({
+      config,
+      isLoaded,
+      secretStatus,
+      updateTheme,
+      updateLanguage,
+      saveConfig,
+      loadConfig,
+      refreshSecretStatus,
+      setSecretVaultEnabled,
+      setSecretStorageMode,
+      unlockSecretVault,
+      lockSecretVault,
+      changeVaultPassword,
+      copySecretStore,
+      listSavedSecrets,
+      deleteSavedSecret,
+    }),
+    [
+      config,
+      isLoaded,
+      secretStatus,
+      updateTheme,
+      updateLanguage,
+      saveConfig,
+      loadConfig,
+      refreshSecretStatus,
+      setSecretVaultEnabled,
+      setSecretStorageMode,
+      unlockSecretVault,
+      lockSecretVault,
+      changeVaultPassword,
+      copySecretStore,
+      listSavedSecrets,
+      deleteSavedSecret,
+    ]
   )
+
+  return <ConfigContext.Provider value={contextValue}>{children}</ConfigContext.Provider>
 }
 
 export function useConfig() {

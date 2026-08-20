@@ -455,33 +455,45 @@ function buildSmoothPath(points: Array<{ x: number; y: number }>) {
 }
 
 function getCoreSeries(samples: CpuHistorySample[]) {
-  const coreIds = Array.from(
-    new Set(samples.flatMap((sample) => sample.cores.map((core) => core.id)))
-  )
+  const valuesByCore = new Map<string, number[]>()
+  samples.forEach((sample, sampleIndex) => {
+    for (const core of sample.cores) {
+      let values = valuesByCore.get(core.id)
+      if (!values) {
+        values = new Array<number>(samples.length).fill(0)
+        valuesByCore.set(core.id, values)
+      }
+      values[sampleIndex] = core.percent
+    }
+  })
 
-  return coreIds
-    .map((id) => {
-      const values = samples.map(
-        (sample) => sample.cores.find((core) => core.id === id)?.percent ?? 0
-      )
-      return { id, values, latest: values[values.length - 1] ?? 0 }
-    })
+  return Array.from(valuesByCore, ([id, values]) => ({
+    id,
+    values,
+    latest: values[values.length - 1] ?? 0,
+  }))
     .sort((first, second) => second.latest - first.latest)
     .slice(0, CPU_SPARKLINE_MAX_CORE_LINES)
 }
 
-function CpuSparkline({ samples }: { samples: CpuHistorySample[] }) {
-  const values = samples.map((sample) => sample.total)
-  const points = buildCpuSparklinePoints(values)
-  const hasLine = points.length > 1
-  const linePath = hasLine ? buildSmoothPath(points) : ""
-  const areaPath = hasLine
-    ? `${linePath} L${points[points.length - 1].x},${CPU_SPARKLINE_HEIGHT - 1} L${
-        points[0].x
-      },${CPU_SPARKLINE_HEIGHT - 1} Z`
-    : ""
-  const coreSeries = getCoreSeries(samples)
-  const latestPoint = points[points.length - 1]
+const CpuSparkline = React.memo(function CpuSparkline({ samples }: { samples: CpuHistorySample[] }) {
+  const { hasLine, linePath, areaPath, coreSeries, latestPoint } = useMemo(() => {
+    const values = samples.map((sample) => sample.total)
+    const points = buildCpuSparklinePoints(values)
+    const hasLine = points.length > 1
+    const linePath = hasLine ? buildSmoothPath(points) : ""
+    const areaPath = hasLine
+      ? `${linePath} L${points[points.length - 1].x},${CPU_SPARKLINE_HEIGHT - 1} L${
+          points[0].x
+        },${CPU_SPARKLINE_HEIGHT - 1} Z`
+      : ""
+    const coreSeries = getCoreSeries(samples).map((series) => ({
+      id: series.id,
+      path: buildSmoothPath(buildCpuSparklinePoints(series.values)),
+    }))
+    const latestPoint = points[points.length - 1]
+    return { hasLine, linePath, areaPath, coreSeries, latestPoint }
+  }, [samples])
 
   return (
     <span className="server-monitor-cpu-chart" aria-hidden="true">
@@ -497,19 +509,16 @@ function CpuSparkline({ samples }: { samples: CpuHistorySample[] }) {
           },${2 + (1 - 0.7) * (CPU_SPARKLINE_HEIGHT - 4)}`}
         />
         {hasLine &&
-          coreSeries.map((series, index) => {
-            const corePath = buildSmoothPath(buildCpuSparklinePoints(series.values))
-            if (!corePath) return null
-
-            return (
+          coreSeries.map((series, index) =>
+            series.path ? (
               <path
                 key={series.id}
                 className="server-monitor-cpu-core-line"
                 data-core-index={index}
-                d={corePath}
+                d={series.path}
               />
-            )
-          })}
+            ) : null
+          )}
         {hasLine && <path className="server-monitor-cpu-area" d={areaPath} />}
         {hasLine && <path className="server-monitor-cpu-line" d={linePath} />}
         {!hasLine && <path className="server-monitor-cpu-placeholder" d="M4,10 L64,10" />}
@@ -524,9 +533,9 @@ function CpuSparkline({ samples }: { samples: CpuHistorySample[] }) {
       </svg>
     </span>
   )
-}
+})
 
-function MetricItem({
+const MetricItem = React.memo(function MetricItem({
   ariaLabel,
   className,
   icon,
@@ -569,7 +578,7 @@ function MetricItem({
       <span className="server-monitor-metric-value">{value}</span>
     </span>
   )
-}
+})
 
 export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
   connection,

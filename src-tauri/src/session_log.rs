@@ -10,7 +10,8 @@ use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_opener::OpenerExt;
@@ -205,6 +206,7 @@ impl Drop for RotatingFile {
 struct SessionWriter {
     started: Instant,
     sequence: u64,
+    closed: bool,
     raw: Option<RotatingFile>,
     plain: Option<RotatingFile>,
     plain_input: PlainStream,
@@ -466,6 +468,7 @@ impl SessionWriter {
         let writer = Self {
             started: Instant::now(),
             sequence: 0,
+            closed: false,
             raw,
             plain,
             plain_input: PlainStream::new(true),
@@ -475,7 +478,7 @@ impl SessionWriter {
     }
 
     fn record_bytes(&mut self, direction: &str, data: &[u8]) -> Result<(), String> {
-        if data.is_empty() {
+        if self.closed || data.is_empty() {
             return Ok(());
         }
         self.sequence = self.sequence.saturating_add(1);
@@ -507,6 +510,9 @@ impl SessionWriter {
     }
 
     fn record_event(&mut self, event_type: &str, detail: serde_json::Value) -> Result<(), String> {
+        if self.closed {
+            return Ok(());
+        }
         self.sequence = self.sequence.saturating_add(1);
         let timestamp_ms = now_unix_ms();
         if let Some(raw) = self.raw.as_mut() {
@@ -532,12 +538,16 @@ impl SessionWriter {
         Ok(())
     }
 
-    fn close_with(mut self, event_type: &str) -> Result<(), String> {
+    fn close_with(&mut self, event_type: &str) -> Result<(), String> {
+        if self.closed {
+            return Ok(());
+        }
         if let Some(plain) = self.plain.as_mut() {
             write_plain_lines(plain, "input", self.plain_input.finish())?;
             write_plain_lines(plain, "output", self.plain_output.finish())?;
         }
         self.record_event(event_type, serde_json::json!({}))?;
+        self.closed = true;
         if let Some(mut raw) = self.raw.take() {
             raw.finish_current()?;
         }
@@ -547,7 +557,7 @@ impl SessionWriter {
         Ok(())
     }
 
-    fn finish(self) -> Result<(), String> {
+    fn finish(&mut self) -> Result<(), String> {
         self.close_with("session_end")
     }
 }
@@ -575,7 +585,7 @@ fn write_plain_lines(
 
 struct SessionEntry {
     metadata: SessionMetadata,
-    writer: Option<SessionWriter>,
+    writer: Option<Arc<Mutex<SessionWriter>>>,
 }
 
 struct LogManager {
@@ -597,6 +607,14 @@ impl Default for LogManager {
 #[derive(Default)]
 pub struct SessionLogState {
     manager: Mutex<LogManager>,
+    enabled: AtomicBool,
+}
+
+fn lock_session_writer(writer: &Arc<Mutex<SessionWriter>>) -> MutexGuard<'_, SessionWriter> {
+    match writer.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -637,6 +655,9 @@ impl SessionLogState {
         if manager.config.as_ref() == Some(&config) {
             return Ok(());
         }
+        if config.enabled {
+            self.enabled.store(true, Ordering::Relaxed);
+        }
         let close_event = if config.enabled {
             "logging_reconfigured"
         } else {
@@ -645,21 +666,25 @@ impl SessionLogState {
         let mut close_error = None;
         for entry in manager.sessions.values_mut() {
             if let Some(writer) = entry.writer.take() {
-                if let Err(err) = writer.close_with(close_event) {
+                if let Err(err) = lock_session_writer(&writer).close_with(close_event) {
                     close_error = Some(err);
                 }
             }
+        }
+        if !config.enabled {
+            self.enabled.store(false, Ordering::Relaxed);
         }
         manager.config = Some(config.clone());
         manager.last_error = close_error;
         if config.enabled {
             for entry in manager.sessions.values_mut() {
-                entry.writer = Some(SessionWriter::create(app, &config, entry.metadata.clone())?);
-                entry
-                    .writer
-                    .as_mut()
-                    .expect("writer just created")
-                    .record_event("logging_enabled", serde_json::json!({}))?;
+                let writer = Arc::new(Mutex::new(SessionWriter::create(
+                    app,
+                    &config,
+                    entry.metadata.clone(),
+                )?));
+                lock_session_writer(&writer).record_event("logging_enabled", serde_json::json!({}))?;
+                entry.writer = Some(writer);
             }
         }
         drop(manager);
@@ -681,13 +706,15 @@ impl SessionLogState {
             .map_err(|_| "Terminal log state is unavailable")?;
         if let Some(previous) = manager.sessions.remove(tab_id) {
             if let Some(writer) = previous.writer {
-                let _ = writer.finish();
+                let _ = lock_session_writer(&writer).finish();
             }
         }
         let writer = match manager.config.as_ref() {
             Some(config) if config.enabled => {
-                let mut writer = SessionWriter::create(app, config, metadata.clone())?;
-                writer.record_event("session_start", serde_json::json!({}))?;
+                let writer = Arc::new(Mutex::new(SessionWriter::create(
+                    app, config, metadata.clone(),
+                )?));
+                lock_session_writer(&writer).record_event("session_start", serde_json::json!({}))?;
                 Some(writer)
             }
             _ => None,
@@ -701,45 +728,49 @@ impl SessionLogState {
     }
 
     fn record_bytes(&self, app: &AppHandle, tab_id: &str, direction: &str, data: &[u8]) {
-        let result = self
-            .manager
-            .lock()
-            .map_err(|_| "Terminal log state is unavailable".to_string())
-            .and_then(|mut manager| {
-                let result = manager
-                    .sessions
-                    .get_mut(tab_id)
-                    .and_then(|entry| entry.writer.as_mut())
-                    .map(|writer| writer.record_bytes(direction, data))
-                    .transpose();
-                if let Err(err) = &result {
-                    manager.last_error = Some(err.clone());
-                }
-                result
-            });
+        if !self.enabled.load(Ordering::Relaxed) {
+            return;
+        }
+        let writer = match self.manager.lock() {
+            Ok(manager) => manager
+                .sessions
+                .get(tab_id)
+                .and_then(|entry| entry.writer.clone()),
+            Err(_) => {
+                emit_error(app, tab_id, "Terminal log state is unavailable");
+                return;
+            }
+        };
+        let Some(writer) = writer else {
+            return;
+        };
+        let result = lock_session_writer(&writer).record_bytes(direction, data);
         if let Err(err) = result {
+            self.set_error(err.clone());
             emit_error(app, tab_id, &err);
         }
     }
 
     fn record_event(&self, app: &AppHandle, tab_id: &str, event: &str, detail: serde_json::Value) {
-        let result = self
-            .manager
-            .lock()
-            .map_err(|_| "Terminal log state is unavailable".to_string())
-            .and_then(|mut manager| {
-                let result = manager
-                    .sessions
-                    .get_mut(tab_id)
-                    .and_then(|entry| entry.writer.as_mut())
-                    .map(|writer| writer.record_event(event, detail))
-                    .transpose();
-                if let Err(err) = &result {
-                    manager.last_error = Some(err.clone());
-                }
-                result
-            });
+        if !self.enabled.load(Ordering::Relaxed) {
+            return;
+        }
+        let writer = match self.manager.lock() {
+            Ok(manager) => manager
+                .sessions
+                .get(tab_id)
+                .and_then(|entry| entry.writer.clone()),
+            Err(_) => {
+                emit_error(app, tab_id, "Terminal log state is unavailable");
+                return;
+            }
+        };
+        let Some(writer) = writer else {
+            return;
+        };
+        let result = lock_session_writer(&writer).record_event(event, detail);
         if let Err(err) = result {
+            self.set_error(err.clone());
             emit_error(app, tab_id, &err);
         }
     }
@@ -752,7 +783,7 @@ impl SessionLogState {
             .and_then(|mut manager| manager.sessions.remove(tab_id))
             .and_then(|entry| entry.writer);
         if let Some(writer) = writer {
-            if let Err(err) = writer.finish() {
+            if let Err(err) = lock_session_writer(&writer).finish() {
                 emit_error(app, tab_id, &err);
             }
         }
