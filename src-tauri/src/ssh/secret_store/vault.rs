@@ -142,24 +142,6 @@ pub(crate) fn decrypt_secret(
     String::from_utf8(plaintext).map_err(|e| format!("Vault secret is not valid UTF-8: {}", e))
 }
 
-pub(crate) fn read_vault_secret(
-    app: &AppHandle,
-    runtime: &VaultRuntime,
-    profile_id: &str,
-    kind: &str,
-) -> Result<Option<String>, String> {
-    let path = vault_path(app)?;
-    let vault = load_vault_file(&path)?;
-    if let Some(record) = vault
-        .secrets
-        .iter()
-        .find(|record| record.profile_id == profile_id && record.kind == kind)
-    {
-        return decrypt_secret(runtime, record).map(Some);
-    }
-    Ok(None)
-}
-
 pub(crate) fn write_vault_secret(
     app: &AppHandle,
     runtime: &VaultRuntime,
@@ -188,6 +170,48 @@ pub(crate) fn write_vault_secret(
         });
     }
     save_vault_file(&path, &vault)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ssh::secret_store::types::SECRET_KIND_PASSWORD;
+
+    #[test]
+    fn encrypted_record_round_trips_without_changing_file_format() {
+        let runtime = VaultRuntime {
+            key: [7u8; DERIVED_KEY_LEN],
+        };
+        let (nonce_b64, ciphertext_b64) = encrypt_secret(&runtime, "correct horse battery staple")
+            .expect("secret encryption should succeed");
+        let record = VaultSecretRecord {
+            profile_id: "profile-1".to_string(),
+            kind: SECRET_KIND_PASSWORD.to_string(),
+            nonce_b64,
+            ciphertext_b64,
+            updated_at: 123,
+        };
+
+        assert_eq!(
+            decrypt_secret(&runtime, &record).expect("secret decryption should succeed"),
+            "correct horse battery staple"
+        );
+        assert_eq!(record.profile_id, "profile-1");
+        assert_eq!(record.kind, SECRET_KIND_PASSWORD);
+        assert_eq!(record.updated_at, 123);
+    }
+
+    #[test]
+    fn encrypted_records_use_a_fresh_nonce() {
+        let runtime = VaultRuntime {
+            key: [9u8; DERIVED_KEY_LEN],
+        };
+        let first = encrypt_secret(&runtime, "same secret").expect("first encryption");
+        let second = encrypt_secret(&runtime, "same secret").expect("second encryption");
+
+        assert_ne!(first.0, second.0);
+        assert_ne!(first.1, second.1);
+    }
 }
 
 pub(crate) fn delete_vault_secret(

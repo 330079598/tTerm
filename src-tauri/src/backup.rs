@@ -740,7 +740,7 @@ fn validate_export_options(options: &BackupExportOptions) -> Result<(), String> 
 }
 
 fn collect_payload(
-    app: &AppHandle,
+    _app: &AppHandle,
     selection: &BackupSelection,
     frontend_state: Option<Value>,
     command_state: &CommandLibraryState,
@@ -792,11 +792,13 @@ fn collect_payload(
         let mut keys = crate::profiles::saved_secret_keys()?;
         keys.sort();
         keys.dedup();
+        let passwords = secret_state.get_passwords_for_migration(&keys)?;
         for key in keys {
-            if let Some(password) = secret_state.get_password_for_migration(app, &key)? {
-                payload
-                    .secrets
-                    .push(MigrationSecretRecord { key, password });
+            if let Some(password) = passwords.get(&key) {
+                payload.secrets.push(MigrationSecretRecord {
+                    key,
+                    password: (**password).clone(),
+                });
             }
         }
         // Older installations may still have the legacy plaintext store when the

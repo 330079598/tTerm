@@ -5,7 +5,8 @@ mod vault;
 use crate::config::{load_config_file, save_config_file};
 use keyring_backend::{delete_keyring_secret, read_keyring_secret, write_keyring_secret};
 use rand::RngCore;
-use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, RwLock};
 use tauri::AppHandle;
 use types::{
     SecretStorageMode, SecretStoreRuntime, VaultRuntime, DERIVED_KEY_LEN, KEYRING_PROBE_SECRET,
@@ -13,10 +14,9 @@ use types::{
 };
 use vault::{
     decrypt_secret, delete_vault_secret, derive_or_initialize_vault_key, encrypt_secret,
-    load_vault_file, read_vault_secret, save_vault_file, vault_config_path, vault_path,
-    verify_or_initialize_vault, write_vault_secret,
+    load_vault_file, save_vault_file, vault_config_path, vault_path, verify_or_initialize_vault,
 };
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 pub use types::{
     ChangeVaultPasswordInput, SecretBackendStatus, SecretLocation, SecretStoreState,
@@ -173,6 +173,7 @@ impl SecretStoreState {
         let key = derive_or_initialize_vault_key(app, input.password.as_bytes())?;
         let runtime = VaultRuntime { key };
         verify_or_initialize_vault(app, &runtime)?;
+        let vault_file = Arc::new(RwLock::new(load_vault_file(&vault_path(app)?)?));
 
         let mode = SecretStorageMode::from_config_value(&config.secret_storage_mode);
         if mode == SecretStorageMode::Hybrid {
@@ -185,11 +186,25 @@ impl SecretStoreState {
             write_keyring_secret(VAULT_MASTER_ACCOUNT, "master", &input.password)?;
         }
 
+        let gate = {
+            let guard = self
+                .inner
+                .lock()
+                .map_err(|_| "Secret store state is poisoned".to_string())?;
+            Arc::clone(&guard.vault_gate)
+        };
+        let _gate = gate
+            .write()
+            .map_err(|_| "Vault state is poisoned".to_string())?;
         let mut guard = self
             .inner
             .lock()
             .map_err(|_| "Secret store state is poisoned".to_string())?;
+        if let Some(old) = &mut guard.vault {
+            old.key.zeroize();
+        }
         guard.vault = Some(runtime);
+        guard.vault_file = Some(vault_file);
         drop(guard);
 
         self.get_status()
@@ -203,6 +218,17 @@ impl SecretStoreState {
         if input.current_password.is_empty() || input.new_password.is_empty() {
             return Err("Passwords cannot be empty".to_string());
         }
+
+        let gate = {
+            let guard = self
+                .inner
+                .lock()
+                .map_err(|_| "Secret store state is poisoned".to_string())?;
+            Arc::clone(&guard.vault_gate)
+        };
+        let _gate = gate
+            .write()
+            .map_err(|_| "Vault state is poisoned".to_string())?;
 
         let mut stored_key = {
             let guard = self
@@ -226,7 +252,21 @@ impl SecretStoreState {
         derived_key.zeroize();
 
         let path = vault_path(app)?;
-        let vault = load_vault_file(&path)?;
+        let cached_vault = {
+            let guard = self
+                .inner
+                .lock()
+                .map_err(|_| "Secret store state is poisoned".to_string())?;
+            guard.vault_file.as_ref().map(Arc::clone)
+        };
+        let vault = if let Some(cached_vault) = cached_vault {
+            cached_vault
+                .read()
+                .map_err(|_| "Vault data is poisoned".to_string())?
+                .clone()
+        } else {
+            load_vault_file(&path)?
+        };
 
         let mut decrypted: Vec<(String, String, String, i64)> = Vec::new();
         for record in &vault.secrets {
@@ -304,6 +344,7 @@ impl SecretStoreState {
             old.key.zeroize();
         }
         guard.vault = Some(new_runtime);
+        guard.vault_file = Some(Arc::new(RwLock::new(new_vault)));
         drop(guard);
 
         let config = load_config_file()?;
@@ -316,6 +357,16 @@ impl SecretStoreState {
     }
 
     pub fn lock_vault(&self) -> Result<SecretBackendStatus, String> {
+        let gate = {
+            let guard = self
+                .inner
+                .lock()
+                .map_err(|_| "Secret store state is poisoned".to_string())?;
+            Arc::clone(&guard.vault_gate)
+        };
+        let _gate = gate
+            .write()
+            .map_err(|_| "Vault state is poisoned".to_string())?;
         let mut guard = self
             .inner
             .lock()
@@ -324,6 +375,7 @@ impl SecretStoreState {
             runtime.key.zeroize();
         }
         guard.vault = None;
+        guard.vault_file = None;
         drop(guard);
         self.get_status()
     }
@@ -347,6 +399,16 @@ impl SecretStoreState {
         save_config_file(&config)?;
 
         if !enabled {
+            let gate = {
+                let guard = self
+                    .inner
+                    .lock()
+                    .map_err(|_| "Secret store state is poisoned".to_string())?;
+                Arc::clone(&guard.vault_gate)
+            };
+            let _gate = gate
+                .write()
+                .map_err(|_| "Vault state is poisoned".to_string())?;
             let mut guard = self
                 .inner
                 .lock()
@@ -355,6 +417,7 @@ impl SecretStoreState {
                 runtime.key.zeroize();
             }
             guard.vault = None;
+            guard.vault_file = None;
         }
 
         self.get_status()
@@ -613,25 +676,75 @@ impl SecretStoreState {
         }
     }
 
-    /// Read a persisted password for an encrypted migration bundle. This checks both
-    /// supported persistent backends so changing the active backend cannot silently
-    /// omit credentials from a user-requested full migration.
-    pub(crate) fn get_password_for_migration(
+    pub(crate) fn get_passwords_for_migration(
         &self,
-        app: &AppHandle,
-        profile_id: &str,
-    ) -> Result<Option<String>, String> {
+        profile_ids: &[String],
+    ) -> Result<HashMap<String, Zeroizing<String>>, String> {
         let mode = SecretStorageMode::from_config_value(&load_config_file()?.secret_storage_mode);
-        if matches!(mode, SecretStorageMode::Vault | SecretStorageMode::Hybrid) {
-            if let Some(password) = self.get_password_from_vault(app, profile_id)? {
-                return Ok(Some(password));
+        let vault_passwords = self.get_cached_vault_passwords(profile_ids)?;
+        let mut passwords = HashMap::new();
+        for profile_id in profile_ids {
+            let password = if matches!(mode, SecretStorageMode::Vault | SecretStorageMode::Hybrid) {
+                if let Some(password) = vault_passwords.get(profile_id) {
+                    Some((**password).clone())
+                } else {
+                    self.get_password_from_keyring(profile_id)?
+                }
+            } else {
+                self.get_password_from_keyring(profile_id)?.or_else(|| {
+                    vault_passwords
+                        .get(profile_id)
+                        .map(|password| (**password).clone())
+                })
+            };
+            if let Some(password) = password {
+                passwords.insert(profile_id.clone(), Zeroizing::new(password));
             }
-            return self.get_password_from_keyring(profile_id);
         }
-        if let Some(password) = self.get_password_from_keyring(profile_id)? {
-            return Ok(Some(password));
+        Ok(passwords)
+    }
+
+    fn get_cached_vault_passwords(
+        &self,
+        profile_ids: &[String],
+    ) -> Result<HashMap<String, Zeroizing<String>>, String> {
+        let gate = {
+            let guard = self
+                .inner
+                .lock()
+                .map_err(|_| "Secret store state is poisoned".to_string())?;
+            Arc::clone(&guard.vault_gate)
+        };
+        let _gate = gate
+            .read()
+            .map_err(|_| "Vault state is poisoned".to_string())?;
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| "Secret store state is poisoned".to_string())?;
+        let (Some(runtime), Some(vault_file)) = (&guard.vault, &guard.vault_file) else {
+            return Ok(HashMap::new());
+        };
+        let key = runtime.key;
+        let vault_file = Arc::clone(vault_file);
+        drop(guard);
+        let vault = vault_file
+            .read()
+            .map_err(|_| "Vault data is poisoned".to_string())?;
+        let wanted = profile_ids.iter().collect::<std::collections::HashSet<_>>();
+        let runtime = VaultRuntime { key };
+        let mut result = HashMap::new();
+        for record in vault.secrets.iter().filter(|record| {
+            record.kind == types::SECRET_KIND_PASSWORD && wanted.contains(&record.profile_id)
+        }) {
+            if !result.contains_key(&record.profile_id) {
+                result.insert(
+                    record.profile_id.clone(),
+                    Zeroizing::new(decrypt_secret(&runtime, record)?),
+                );
+            }
         }
-        self.get_password_from_vault(app, profile_id)
+        Ok(result)
     }
 
     pub(crate) fn read_migration_destination(
@@ -661,22 +774,15 @@ impl SecretStoreState {
                 }
                 write_keyring_secret(profile_id, types::SECRET_KIND_PASSWORD, password)
             }
-            "vault" | "hybrid" => {
-                let guard = self
-                    .inner
-                    .lock()
-                    .map_err(|_| "Secret store state is poisoned".to_string())?;
-                let runtime = guard.vault.as_ref().ok_or_else(|| {
-                    "Unlock the app vault before importing passwords.".to_string()
-                })?;
-                write_vault_secret(
-                    app,
-                    runtime,
-                    profile_id,
-                    types::SECRET_KIND_PASSWORD,
-                    password,
-                )
-            }
+            "vault" | "hybrid" => self
+                .write_cached_vault_secret(app, profile_id, types::SECRET_KIND_PASSWORD, password)
+                .and_then(|written| {
+                    if written {
+                        Ok(())
+                    } else {
+                        Err("Unlock the app vault before importing passwords.".to_string())
+                    }
+                }),
             _ => Err("Unsupported secret migration destination".to_string()),
         }
     }
@@ -689,9 +795,9 @@ impl SecretStoreState {
     ) -> Result<(), String> {
         match destination {
             "system" => delete_keyring_secret(profile_id, types::SECRET_KIND_PASSWORD).map(|_| ()),
-            "vault" | "hybrid" => {
-                delete_vault_secret(app, profile_id, types::SECRET_KIND_PASSWORD).map(|_| ())
-            }
+            "vault" | "hybrid" => self
+                .delete_cached_vault_secret(app, profile_id, types::SECRET_KIND_PASSWORD)
+                .map(|_| ()),
             _ => Err("Unsupported secret migration destination".to_string()),
         }
     }
@@ -706,18 +812,41 @@ impl SecretStoreState {
 
     fn get_password_from_vault(
         &self,
-        app: &AppHandle,
+        _app: &AppHandle,
         profile_id: &str,
     ) -> Result<Option<String>, String> {
+        let gate = {
+            let guard = self
+                .inner
+                .lock()
+                .map_err(|_| "Secret store state is poisoned".to_string())?;
+            Arc::clone(&guard.vault_gate)
+        };
+        let _gate = gate
+            .read()
+            .map_err(|_| "Vault state is poisoned".to_string())?;
         let guard = self
             .inner
             .lock()
             .map_err(|_| "Secret store state is poisoned".to_string())?;
-        if let Some(runtime) = &guard.vault {
-            return read_vault_secret(app, runtime, profile_id, types::SECRET_KIND_PASSWORD);
-        }
-
-        Ok(None)
+        let Some(runtime) = guard.vault.as_ref() else {
+            return Ok(None);
+        };
+        let Some(vault_file) = guard.vault_file.as_ref() else {
+            return Ok(None);
+        };
+        let key = runtime.key;
+        let vault_file = Arc::clone(vault_file);
+        drop(guard);
+        let vault = vault_file
+            .read()
+            .map_err(|_| "Vault data is poisoned".to_string())?;
+        let Some(record) = vault.secrets.iter().find(|record| {
+            record.profile_id == profile_id && record.kind == types::SECRET_KIND_PASSWORD
+        }) else {
+            return Ok(None);
+        };
+        decrypt_secret(&VaultRuntime { key }, record).map(Some)
     }
 
     pub fn save_password(
@@ -759,22 +888,74 @@ impl SecretStoreState {
         profile_id: &str,
         password: &str,
     ) -> Result<SecretLocation, String> {
+        let written =
+            self.write_cached_vault_secret(app, profile_id, types::SECRET_KIND_PASSWORD, password)?;
+        Ok(if written {
+            SecretLocation::Vault
+        } else {
+            SecretLocation::Memory
+        })
+    }
+
+    fn write_cached_vault_secret(
+        &self,
+        app: &AppHandle,
+        profile_id: &str,
+        kind: &str,
+        plaintext: &str,
+    ) -> Result<bool, String> {
+        let gate = {
+            let guard = self
+                .inner
+                .lock()
+                .map_err(|_| "Secret store state is poisoned".to_string())?;
+            Arc::clone(&guard.vault_gate)
+        };
+        let _gate = gate
+            .write()
+            .map_err(|_| "Vault state is poisoned".to_string())?;
         let guard = self
             .inner
             .lock()
             .map_err(|_| "Secret store state is poisoned".to_string())?;
-        if let Some(runtime) = &guard.vault {
-            write_vault_secret(
-                app,
-                runtime,
-                profile_id,
-                types::SECRET_KIND_PASSWORD,
-                password,
-            )?;
-            return Ok(SecretLocation::Vault);
-        }
+        let Some(runtime) = guard.vault.as_ref() else {
+            return Ok(false);
+        };
+        let Some(vault_file) = guard.vault_file.as_ref() else {
+            return Ok(false);
+        };
+        let key = runtime.key;
+        let vault_file = Arc::clone(vault_file);
+        drop(guard);
+        let path = vault_path(app)?;
 
-        Ok(SecretLocation::Memory)
+        let (nonce_b64, ciphertext_b64) = encrypt_secret(&VaultRuntime { key }, plaintext)?;
+        let mut vault = vault_file
+            .write()
+            .map_err(|_| "Vault data is poisoned".to_string())?;
+        let previous = vault.clone();
+        if let Some(record) = vault
+            .secrets
+            .iter_mut()
+            .find(|record| record.profile_id == profile_id && record.kind == kind)
+        {
+            record.nonce_b64 = nonce_b64;
+            record.ciphertext_b64 = ciphertext_b64;
+            record.updated_at = crate::ssh::now_unix_ms();
+        } else {
+            vault.secrets.push(types::VaultSecretRecord {
+                profile_id: profile_id.to_string(),
+                kind: kind.to_string(),
+                nonce_b64,
+                ciphertext_b64,
+                updated_at: crate::ssh::now_unix_ms(),
+            });
+        }
+        if let Err(error) = save_vault_file(&path, &vault) {
+            *vault = previous;
+            return Err(error);
+        }
+        Ok(true)
     }
 
     pub fn has_password(&self, app: &AppHandle, profile_id: &str) -> Result<bool, String> {
@@ -786,8 +967,53 @@ impl SecretStoreState {
         if self.keyring_available()? {
             deleted |= delete_keyring_secret(profile_id, types::SECRET_KIND_PASSWORD)?;
         }
-        deleted |= delete_vault_secret(app, profile_id, types::SECRET_KIND_PASSWORD)?;
+        deleted |= self.delete_cached_vault_secret(app, profile_id, types::SECRET_KIND_PASSWORD)?;
         Ok(deleted)
+    }
+
+    fn delete_cached_vault_secret(
+        &self,
+        app: &AppHandle,
+        profile_id: &str,
+        kind: &str,
+    ) -> Result<bool, String> {
+        let gate = {
+            let guard = self
+                .inner
+                .lock()
+                .map_err(|_| "Secret store state is poisoned".to_string())?;
+            Arc::clone(&guard.vault_gate)
+        };
+        let _gate = gate
+            .write()
+            .map_err(|_| "Vault state is poisoned".to_string())?;
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| "Secret store state is poisoned".to_string())?;
+        let Some(vault_file) = guard.vault_file.as_ref() else {
+            drop(guard);
+            return delete_vault_secret(app, profile_id, kind);
+        };
+        let vault_file = Arc::clone(vault_file);
+        drop(guard);
+        let path = vault_path(app)?;
+        let mut vault = vault_file
+            .write()
+            .map_err(|_| "Vault data is poisoned".to_string())?;
+        let previous = vault.clone();
+        let before = vault.secrets.len();
+        vault
+            .secrets
+            .retain(|record| !(record.profile_id == profile_id && record.kind == kind));
+        if vault.secrets.len() == before {
+            return Ok(false);
+        }
+        if let Err(error) = save_vault_file(&path, &vault) {
+            *vault = previous;
+            return Err(error);
+        }
+        Ok(true)
     }
 
     pub fn copy_password(

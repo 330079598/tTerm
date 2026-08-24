@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, RwLock};
 
 pub(crate) const SERVICE_NAME: &str = "tterm";
 pub(crate) const VAULT_FILE_NAME: &str = "secret_vault.json";
@@ -49,10 +50,23 @@ pub struct SecretStoreState {
     pub(crate) inner: std::sync::Arc<std::sync::Mutex<SecretStoreRuntime>>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct SecretStoreRuntime {
     pub cached_keyring_available: Option<bool>,
     pub vault: Option<VaultRuntime>,
+    pub vault_file: Option<Arc<RwLock<VaultFile>>>,
+    pub vault_gate: Arc<RwLock<()>>,
+}
+
+impl Default for SecretStoreRuntime {
+    fn default() -> Self {
+        Self {
+            cached_keyring_available: None,
+            vault: None,
+            vault_file: None,
+            vault_gate: Arc::new(RwLock::new(())),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -116,7 +130,7 @@ pub(crate) struct VaultConfigFile {
     pub parallelism: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct VaultFile {
     #[serde(default)]
     pub secrets: Vec<VaultSecretRecord>,
