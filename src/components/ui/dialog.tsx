@@ -200,10 +200,27 @@ function DialogContentComponent(
     const initialFocusElement = contentRef.current?.querySelector<HTMLElement>(
       "[data-dialog-initial-focus]"
     )
+    const currentlyFocusedElement =
+      document.activeElement instanceof HTMLElement &&
+      contentRef.current?.contains(document.activeElement) &&
+      document.activeElement.matches("input, textarea, select, button, [tabindex]")
+        ? document.activeElement
+        : null
+    const autoFocusElement = Array.from(
+      contentRef.current?.querySelectorAll<HTMLElement>(
+        "input, textarea, select, button, [tabindex]"
+      ) ?? []
+    ).find((element) => Boolean((element as HTMLElement & { autofocus?: boolean }).autofocus))
     const firstFormControl = contentRef.current?.querySelector<HTMLElement>(
       "input:not(:disabled), textarea:not(:disabled), select:not(:disabled)"
     )
-    ;(initialFocusElement ?? firstFormControl ?? contentRef.current)?.focus()
+    ;(
+      initialFocusElement ??
+      currentlyFocusedElement ??
+      autoFocusElement ??
+      firstFormControl ??
+      contentRef.current
+    )?.focus()
 
     return () => {
       if (previouslyFocusedElement?.isConnected) {

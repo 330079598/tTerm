@@ -81,6 +81,27 @@ function DisabledInputFocusDialogHarness() {
   )
 }
 
+function AutoFocusDialogHarness() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Open auto focus dialog
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        {open && (
+          <DialogContent>
+            <DialogTitle>Auto focus dialog</DialogTitle>
+            <Input aria-label="First input" />
+            <Input aria-label="Auto focused input" autoFocus />
+          </DialogContent>
+        )}
+      </Dialog>
+    </>
+  )
+}
+
 function EmptyFocusDialogHarness() {
   const [open, setOpen] = useState(false)
 
@@ -140,6 +161,14 @@ describe("useConfirmDialog", () => {
 
     const enabledInput = await screen.findByRole("textbox", { name: "Enabled input" })
     expect(document.activeElement).toBe(enabledInput)
+  })
+
+  it("preserves an input's explicit autoFocus when another input comes first", async () => {
+    render(<AutoFocusDialogHarness />)
+    fireEvent.click(screen.getByRole("button", { name: "Open auto focus dialog" }))
+
+    const autoFocusedInput = await screen.findByRole("textbox", { name: "Auto focused input" })
+    expect(document.activeElement).toBe(autoFocusedInput)
   })
 
   it("focuses the dialog container when it has no form control", async () => {
