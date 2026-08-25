@@ -200,7 +200,10 @@ function DialogContentComponent(
     const initialFocusElement = contentRef.current?.querySelector<HTMLElement>(
       "[data-dialog-initial-focus]"
     )
-    ;(initialFocusElement ?? contentRef.current)?.focus()
+    const firstFormControl = contentRef.current?.querySelector<HTMLElement>(
+      "input:not(:disabled), textarea:not(:disabled), select:not(:disabled)"
+    )
+    ;(initialFocusElement ?? firstFormControl ?? contentRef.current)?.focus()
 
     return () => {
       if (previouslyFocusedElement?.isConnected) {
