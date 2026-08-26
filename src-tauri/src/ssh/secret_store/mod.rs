@@ -1079,12 +1079,27 @@ impl SecretStoreState {
         let key = derive_or_initialize_vault_key(app, password.as_bytes())?;
         let runtime = VaultRuntime { key };
         verify_or_initialize_vault(app, &runtime)?;
+        let vault_file = Arc::new(RwLock::new(load_vault_file(&vault_path(app)?)?));
 
+        let gate = {
+            let guard = self
+                .inner
+                .lock()
+                .map_err(|_| "Secret store state is poisoned".to_string())?;
+            Arc::clone(&guard.vault_gate)
+        };
+        let _gate = gate
+            .write()
+            .map_err(|_| "Vault state is poisoned".to_string())?;
         let mut guard = self
             .inner
             .lock()
             .map_err(|_| "Secret store state is poisoned".to_string())?;
+        if let Some(old) = &mut guard.vault {
+            old.key.zeroize();
+        }
         guard.vault = Some(runtime);
+        guard.vault_file = Some(vault_file);
 
         Ok(true)
     }
