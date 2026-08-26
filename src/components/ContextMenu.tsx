@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from "react"
+import { createPortal } from "react-dom"
 import {
   Plus,
   X,
@@ -185,7 +186,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [onClose])
 
-  return (
+  const menu = (
     <div
       ref={menuRef}
       style={{ position: "fixed", left: position.left, top: position.top, zIndex: 9999 }}
@@ -240,4 +241,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
       </Card>
     </div>
   )
+
+  // Keep viewport coordinates independent from transformed ancestors such as the SFTP drawer.
+  return typeof document === "undefined" ? menu : createPortal(menu, document.body)
 }

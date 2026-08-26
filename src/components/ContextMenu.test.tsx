@@ -39,4 +39,11 @@ describe("ContextMenu keyboard navigation", () => {
     expect(onAction).toHaveBeenCalledOnce()
     expect(onAction).toHaveBeenCalledWith("close")
   })
+
+  it("mounts the fixed-position surface under the document body", () => {
+    render(<ContextMenu x={10} y={10} actions={actions} onAction={vi.fn()} onClose={vi.fn()} />)
+
+    const menu = screen.getByRole("menu")
+    expect(menu.parentElement?.parentElement).toBe(document.body)
+  })
 })
