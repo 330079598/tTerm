@@ -244,15 +244,3 @@ export function cacheTheme(themeCache: ThemeCache): void {
     console.error("[ThemePreloader] Failed to cache theme:", error)
   }
 }
-
-/**
- * Clear theme cache (for debugging or reset)
- */
-export function clearThemeCache(): void {
-  try {
-    localStorage.removeItem(THEME_CACHE_KEY)
-    localStorage.removeItem(CACHE_VERSION_KEY)
-  } catch (error) {
-    console.error("[ThemePreloader] Failed to clear theme cache:", error)
-  }
-}

@@ -85,29 +85,6 @@ export const THEME_COLOR_KEYS = [
   "titlebar",
 ] as const satisfies ReadonlyArray<keyof ThemeColors>
 
-export const TERMINAL_PALETTE_KEYS = [
-  "background",
-  "foreground",
-  "cursor",
-  "selectionBackground",
-  "black",
-  "red",
-  "green",
-  "yellow",
-  "blue",
-  "magenta",
-  "cyan",
-  "white",
-  "brightBlack",
-  "brightRed",
-  "brightGreen",
-  "brightYellow",
-  "brightBlue",
-  "brightMagenta",
-  "brightCyan",
-  "brightWhite",
-] as const satisfies ReadonlyArray<keyof TerminalPalette>
-
 interface ThemeDefinition {
   id: string
   name: string
