@@ -130,7 +130,7 @@ const DialogOverlay = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
       data-slot="dialog-overlay"
       data-state="open"
       className={cn(
-        "data-[state=open]:animate-in data-[state=open]:fade-in-0 bg-background/80 fixed inset-0 z-50 backdrop-blur-sm",
+        "bg-background/80 fixed inset-0 z-50 backdrop-blur-sm",
         className
       )}
       {...props}
@@ -269,7 +269,7 @@ function DialogContentComponent(
           role="dialog"
           tabIndex={-1}
           className={cn(
-            "bg-background data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 pointer-events-auto fixed top-[50%] left-[50%] z-[200] grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg outline-none sm:max-w-lg",
+            "bg-background pointer-events-auto fixed top-[50%] left-[50%] z-[200] grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg outline-none sm:max-w-lg",
             className
           )}
           {...props}

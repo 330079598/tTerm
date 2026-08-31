@@ -5,18 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// Theme management
-export type Theme = "default" | "light" | "ocean" | "forest" | "sunset" | "ubuntu"
-
-export function setTheme(theme: Theme) {
-  const root = document.documentElement
-  root.setAttribute("data-theme", theme)
-}
-
-export function getTheme(): Theme {
-  return (document.documentElement.getAttribute("data-theme") as Theme) || "default"
-}
-
 // Error message extraction
 export function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
