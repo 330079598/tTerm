@@ -921,6 +921,9 @@
     "deleteSavedSecretConfirm": "确定删除 {{label}} 的已保存密码吗？这会移除匹配的系统密钥环和保险库条目。",
     "savedSecretDeleted": "已删除保存的密码",
     "savedSecretDeletedDesc": "已移除 {{label}} 的已保存密码。",
+    "showSavedSecret": "显示已保存密码",
+    "hideSavedSecret": "隐藏已保存密码",
+    "revealSavedSecretFailed": "无法显示已保存密码，请先解锁密钥存储。",
     "secretKinds": {
       "ssh": "SSH 密码",
       "jumpHost": "跳板机密码"

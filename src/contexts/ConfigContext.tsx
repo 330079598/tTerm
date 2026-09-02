@@ -334,6 +334,7 @@ interface ConfigContextType {
   ) => Promise<SecretBackendStatus>
   copySecretStore: (direction: "systemToVault" | "vaultToSystem") => Promise<CopySecretStoreResult>
   listSavedSecrets: () => Promise<SavedSecretEntry[]>
+  getSavedSecret: (key: string) => Promise<string>
   deleteSavedSecret: (key: string) => Promise<boolean>
 }
 
@@ -507,6 +508,11 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     []
   )
 
+  const getSavedSecret = useCallback(
+    async (key: string) => invoke<string>("get_saved_secret", { input: { key } }),
+    []
+  )
+
   const deleteSavedSecret = useCallback(
     async (key: string) => invoke<boolean>("delete_saved_secret", { input: { key } }),
     []
@@ -547,6 +553,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       changeVaultPassword,
       copySecretStore,
       listSavedSecrets,
+      getSavedSecret,
       deleteSavedSecret,
     }),
     [
@@ -565,6 +572,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       changeVaultPassword,
       copySecretStore,
       listSavedSecrets,
+      getSavedSecret,
       deleteSavedSecret,
     ]
   )

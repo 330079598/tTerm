@@ -29,6 +29,12 @@ pub struct DeleteSavedSecretInput {
     pub key: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetSavedSecretInput {
+    pub key: String,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SavedSecretEntry {
@@ -150,6 +156,29 @@ pub fn list_saved_secrets(
     });
     entries.dedup_by(|left, right| left.key == right.key);
     Ok(entries)
+}
+
+#[tauri::command]
+pub fn get_saved_secret(
+    app: AppHandle,
+    input: GetSavedSecretInput,
+    secret_state: State<'_, SecretStoreState>,
+) -> Result<String, String> {
+    let key = input.key.trim();
+    if key.is_empty() {
+        return Err("Secret key is required".to_string());
+    }
+
+    let allowed = crate::profiles::saved_secret_keys()?
+        .into_iter()
+        .any(|candidate| candidate == key);
+    if !allowed {
+        return Err("Saved secret is not linked to a current profile.".to_string());
+    }
+
+    secret_state
+        .get_password(&app, key)?
+        .ok_or_else(|| "Saved password is no longer available.".to_string())
 }
 
 #[tauri::command]

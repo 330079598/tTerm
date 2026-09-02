@@ -476,7 +476,11 @@ function getCoreSeries(samples: CpuHistorySample[]) {
     .slice(0, CPU_SPARKLINE_MAX_CORE_LINES)
 }
 
-const CpuSparkline = React.memo(function CpuSparkline({ samples }: { samples: CpuHistorySample[] }) {
+const CpuSparkline = React.memo(function CpuSparkline({
+  samples,
+}: {
+  samples: CpuHistorySample[]
+}) {
   const { hasLine, linePath, areaPath, coreSeries, latestPoint } = useMemo(() => {
     const values = samples.map((sample) => sample.total)
     const points = buildCpuSparklinePoints(values)

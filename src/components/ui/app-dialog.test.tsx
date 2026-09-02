@@ -35,7 +35,11 @@ function ConfirmDialogHarness() {
   )
 }
 
-function InputFocusDialogHarness({ explicitInitialFocus = false }: { explicitInitialFocus?: boolean }) {
+function InputFocusDialogHarness({
+  explicitInitialFocus = false,
+}: {
+  explicitInitialFocus?: boolean
+}) {
   const [open, setOpen] = useState(false)
 
   return (

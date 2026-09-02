@@ -162,6 +162,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     changeVaultPassword,
     copySecretStore,
     listSavedSecrets,
+    getSavedSecret,
     deleteSavedSecret,
   } = useConfig()
   const {
@@ -798,6 +799,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handlePromptUnlockOnStartupChange={handlePromptUnlockOnStartupChange}
               handleSecretStorageModeChange={handleSecretStorageModeChange}
               handleDeleteSavedSecret={handleDeleteSavedSecret}
+              handleRevealSavedSecret={getSavedSecret}
               handleUnlock={handleUnlock}
               password={password}
               currentPassword={currentPassword}

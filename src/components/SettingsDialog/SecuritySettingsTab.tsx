@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { AlertTriangle, ArrowLeftRight, Eye, EyeOff, Lock, Trash2, Unlock } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -23,6 +23,7 @@ interface SecuritySettingsTabProps {
   handleLock: () => Promise<void>
   handleChangePassword: () => Promise<void>
   handleDeleteSavedSecret: (entry: SavedSecretEntry) => Promise<void>
+  handleRevealSavedSecret: (key: string) => Promise<string>
   handlePromptUnlockOnStartupChange: (checked: boolean) => Promise<void>
   handleSecretStorageModeChange: (mode: SecretStorageMode) => Promise<void>
   handleUnlock: () => Promise<void>
@@ -50,6 +51,7 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
   handleLock,
   handleChangePassword,
   handleDeleteSavedSecret,
+  handleRevealSavedSecret,
   handlePromptUnlockOnStartupChange,
   handleSecretStorageModeChange,
   handleUnlock,
@@ -73,10 +75,71 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [revealedSecretKey, setRevealedSecretKey] = useState<string | null>(null)
+  const [revealedPassword, setRevealedPassword] = useState<string | null>(null)
+  const [revealError, setRevealError] = useState(false)
+  const revealTimerRef = useRef<number | null>(null)
+  const revealRequestRef = useRef(0)
   const vaultControlsVisible =
     secretStorageMode === "vault" || secretStorageMode === "auto" || secretStorageMode === "hybrid"
   const vaultSettingsVisible = vaultControlsVisible && configSecretVaultEnabled
   const isHybrid = secretStorageMode === "hybrid"
+
+  const clearRevealedPassword = () => {
+    if (revealTimerRef.current !== null) {
+      window.clearTimeout(revealTimerRef.current)
+      revealTimerRef.current = null
+    }
+    setRevealedSecretKey(null)
+    setRevealedPassword(null)
+  }
+
+  useEffect(
+    () => () => {
+      if (revealTimerRef.current !== null) {
+        window.clearTimeout(revealTimerRef.current)
+      }
+    },
+    []
+  )
+
+  const handleRevealToggle = async (entry: SavedSecretEntry) => {
+    if (revealedSecretKey === entry.key) {
+      clearRevealedPassword()
+      return
+    }
+
+    const requestId = revealRequestRef.current + 1
+    revealRequestRef.current = requestId
+    setRevealError(false)
+    clearRevealedPassword()
+
+    try {
+      const password = await handleRevealSavedSecret(entry.key)
+      if (revealRequestRef.current !== requestId) {
+        return
+      }
+      setRevealedSecretKey(entry.key)
+      setRevealedPassword(password)
+      revealTimerRef.current = window.setTimeout(clearRevealedPassword, 10_000)
+    } catch {
+      if (revealRequestRef.current === requestId) {
+        setRevealError(true)
+      }
+    }
+  }
+
+  const handleLockAndClear = async () => {
+    clearRevealedPassword()
+    await handleLock()
+  }
+
+  const handleDeleteAndClear = async (entry: SavedSecretEntry) => {
+    await handleDeleteSavedSecret(entry)
+    if (revealedSecretKey === entry.key) {
+      clearRevealedPassword()
+    }
+  }
 
   return (
     <ScrollArea className="h-full pr-4">
@@ -201,7 +264,7 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
                   </Button>
                 ) : (
                   <>
-                    <Button variant="outline" onClick={handleLock} disabled={secretBusy}>
+                    <Button variant="outline" onClick={handleLockAndClear} disabled={secretBusy}>
                       <Lock size={14} className="mr-2" />
                       {t("secretStorage.lockVault")}
                     </Button>
@@ -408,20 +471,51 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
                           ? t("secretStorage.secretKinds.jumpHost")
                           : t("secretStorage.secretKinds.ssh")}
                       </div>
+                      {revealedSecretKey === entry.key && revealedPassword !== null && (
+                        <div className="bg-muted/60 mt-1 rounded-sm px-2 py-1 font-mono text-xs break-all">
+                          {revealedPassword}
+                        </div>
+                      )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive shrink-0"
-                      disabled={secretBusy}
-                      onClick={() => handleDeleteSavedSecret(entry)}
-                      title={t("secretStorage.deleteSavedSecret")}
-                    >
-                      <Trash2 size={14} />
-                    </Button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={secretBusy}
+                        onClick={() => void handleRevealToggle(entry)}
+                        title={
+                          revealedSecretKey === entry.key
+                            ? t("secretStorage.hideSavedSecret")
+                            : t("secretStorage.showSavedSecret")
+                        }
+                        aria-label={
+                          revealedSecretKey === entry.key
+                            ? t("secretStorage.hideSavedSecret")
+                            : t("secretStorage.showSavedSecret")
+                        }
+                      >
+                        {revealedSecretKey === entry.key ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-destructive hover:text-destructive"
+                        disabled={secretBusy}
+                        onClick={() => void handleDeleteAndClear(entry)}
+                        title={t("secretStorage.deleteSavedSecret")}
+                        aria-label={t("secretStorage.deleteSavedSecret")}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
+            )}
+            {revealError && (
+              <p className="text-destructive text-xs leading-5">
+                {t("secretStorage.revealSavedSecretFailed")}
+              </p>
             )}
           </CardContent>
         </Card>

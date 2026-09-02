@@ -217,6 +217,7 @@ pub fn run() {
             ssh::secret_commands::set_secret_storage_mode,
             ssh::secret_commands::copy_secret_store,
             ssh::secret_commands::list_saved_secrets,
+            ssh::secret_commands::get_saved_secret,
             ssh::secret_commands::delete_saved_secret,
             updater::check_app_update,
             updater::download_app_update,

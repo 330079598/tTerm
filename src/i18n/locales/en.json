@@ -930,6 +930,9 @@
     "deleteSavedSecretConfirm": "Delete the saved password for {{label}}? This removes the matching system keyring and vault entries.",
     "savedSecretDeleted": "Saved password deleted",
     "savedSecretDeletedDesc": "Removed the saved password for {{label}}.",
+    "showSavedSecret": "Show saved password",
+    "hideSavedSecret": "Hide saved password",
+    "revealSavedSecretFailed": "Unable to show the saved password. Unlock secret storage first.",
     "secretKinds": {
       "ssh": "SSH password",
       "jumpHost": "Jump host password"
