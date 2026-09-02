@@ -31,7 +31,7 @@ type UseTerminalLifecycleOptions = {
   containerRef: React.RefObject<HTMLDivElement>
   creatingPtyRef: React.MutableRefObject<boolean>
   fitAddonRef: React.MutableRefObject<FitAddon | null>
-  fitTerminalOnly: () => void
+  fitTerminalOnly: () => boolean
   initializedRef: React.MutableRefObject<boolean>
   initialCursorStyle: React.MutableRefObject<Terminal["options"]["cursorStyle"]>
   initialFontFamily: React.MutableRefObject<string>
@@ -201,6 +201,21 @@ export function useTerminalLifecycle({
     fitTerminalOnly()
 
     let disposed = false
+
+    const waitForStableFit = async () => {
+      let stableFrames = 0
+      for (let frame = 0; frame < 60 && stableFrames < 4; frame += 1) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        if (disposed) return
+        if (fitTerminalOnly()) stableFrames += 1
+        else stableFrames = 0
+      }
+    }
+
+    void document.fonts.ready.then(() => {
+      if (disposed) return
+      fitTerminalOnly()
+    })
     let passwordPromptCheckId = 0
     let commandCaptureState = EMPTY_COMMAND_CAPTURE_STATE
     let commandCaptureSuspended = false
@@ -411,13 +426,15 @@ export function useTerminalLifecycle({
         }
 
         creatingPtyRef.current = true
-        return invoke<number>("create_pty", {
-          tabId,
-          sessionNonce,
-          rows: term.rows,
-          cols: term.cols,
-          connection: connectionRef.current,
-        })
+        return waitForStableFit().then(() =>
+          invoke<number>("create_pty", {
+            tabId,
+            sessionNonce,
+            rows: term.rows,
+            cols: term.cols,
+            connection: connectionRef.current,
+          })
+        )
       })
       .then((pid) => {
         if (pid == null) return

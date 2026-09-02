@@ -1075,8 +1075,6 @@ button.server-monitor-metric.is-clickable:focus-visible {
 
 /* Optimize font rendering for terminal */
 .terminal-surface .xterm {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
