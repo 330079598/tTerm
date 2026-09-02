@@ -1,5 +1,5 @@
 import React from "react"
-import { Check, ClipboardPaste, Info, Languages, PlugZap, Trash2, Wrench, Bug } from "lucide-react"
+import { Bug, Check, ClipboardPaste, Info, Languages, PlugZap, Trash2, Wrench } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -51,7 +51,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             defaultValue: "Set the display language for tTerm.",
           })}
         >
-          <div className="grid gap-2">
+          <div className="grid max-w-lg grid-cols-2 gap-2">
             {languages.map((lang) => {
               const isActive = i18nLanguage === lang.code
               return (
@@ -62,15 +62,17 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                   aria-pressed={isActive}
                   onClick={() => handleLanguageChange(lang.code)}
                   className={cn(
-                    "h-auto w-full justify-between rounded-lg border px-4 py-3 text-left",
+                    "h-10 w-full justify-start rounded-md border px-3 text-left",
                     isActive
                       ? "border-primary bg-accent ring-primary ring-1 ring-inset"
                       : "border-transparent"
                   )}
                 >
-                  <div>
-                    <div className="text-sm font-semibold">{lang.nativeLabel}</div>
-                    <div className="text-muted-foreground text-xs">{lang.label}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{lang.nativeLabel}</div>
+                    {lang.nativeLabel !== lang.label && (
+                      <div className="text-muted-foreground truncate text-[11px]">{lang.label}</div>
+                    )}
                   </div>
                   {isActive && <Check size={16} className="text-primary ml-3 shrink-0" />}
                 </Button>
@@ -87,7 +89,6 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
           })}
         >
           <SettingsRow
-            icon={<ClipboardPaste size={16} />}
             title={t("settings.sftpPasteUpload")}
             description={t("settings.sftpPasteUploadDesc")}
             action={
@@ -104,7 +105,6 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
           title={t("settings.startup", { defaultValue: "Startup" })}
         >
           <SettingsRow
-            icon={<PlugZap size={16} />}
             title={t("settings.restoreAllSessionConnections")}
             description={t("settings.restoreAllSessionConnectionsDesc")}
             action={
@@ -118,12 +118,14 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
 
         <SettingsSection
           icon={<Bug size={16} />}
-          title={t("settings.devtools")}
-          description={t("settings.devtoolsDesc")}
+          title={t("settings.advanced", { defaultValue: "Advanced" })}
+          description={t("settings.advancedDesc", {
+            defaultValue: "Tools intended for diagnostics and development.",
+          })}
         >
           <SettingsRow
             icon={<Bug size={16} />}
-            title={t("settings.enableDevtools")}
+            title={t("settings.devtools")}
             description={t("settings.devtoolsDesc")}
             action={
               <Button type="button" variant="outline" onClick={handleEnableDevtoolsChange}>
@@ -142,7 +144,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             title={t("settings.clearSession")}
             description={t("settings.clearSessionDesc")}
             action={
-              <Button type="button" variant="outline" onClick={handleClearSession}>
+              <Button type="button" variant="destructive" onClick={handleClearSession}>
                 {t("settings.clearSession")}
               </Button>
             }

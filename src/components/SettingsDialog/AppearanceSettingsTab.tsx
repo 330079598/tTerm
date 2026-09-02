@@ -1,5 +1,7 @@
 import React from "react"
 import {
+  ChevronDown,
+  ChevronUp,
   Copy,
   Edit,
   GalleryHorizontal,
@@ -63,6 +65,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
   const [tabWidthDraft, setTabWidthDraft] = React.useState(String(tabStandardWidth))
   const [uiScaleDraft, setUiScaleDraft] = React.useState(uiScalePercent)
   const [savingUiScale, setSavingUiScale] = React.useState(false)
+  const [showAllPresetThemes, setShowAllPresetThemes] = React.useState(false)
   const savingUiScaleRef = React.useRef(false)
   const savedUiScaleRef = React.useRef(uiScalePercent)
   const mountedRef = React.useRef(true)
@@ -132,6 +135,12 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
     }
   }
 
+  const compactPresetThemes = presetThemes.filter(
+    (theme) => theme.id === "default" || theme.id === "light" || theme.id === currentTheme
+  )
+  const visiblePresetThemes = showAllPresetThemes ? presetThemes : compactPresetThemes
+  const hiddenPresetThemeCount = presetThemes.length - compactPresetThemes.length
+
   return (
     <ScrollArea className="h-full pr-4">
       <div className="space-y-6">
@@ -146,8 +155,8 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
             <h4 className="text-muted-foreground mb-2 text-xs font-medium">
               {t("themeEditor.presetThemes")}
             </h4>
-            <div className="grid gap-2">
-              {presetThemes.map((theme) => {
+            <div className="grid gap-1.5">
+              {visiblePresetThemes.map((theme) => {
                 const hasOverride = presetThemeOverrides.some(
                   (override) => override.id === theme.id
                 )
@@ -164,6 +173,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
                     }
                     name={hasOverride ? theme.name : t(`theme.${theme.id}`)}
                     onSelect={() => handleThemeChange(theme.id)}
+                    compactPreview
                     toneLabel={tone.label}
                     toneVariant={tone.variant}
                     theme={theme}
@@ -222,6 +232,24 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
                 )
               })}
             </div>
+            {hiddenPresetThemeCount > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground mt-1.5 w-full"
+                aria-expanded={showAllPresetThemes}
+                onClick={() => setShowAllPresetThemes((visible) => !visible)}
+              >
+                {showAllPresetThemes ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                {showAllPresetThemes
+                  ? t("themeEditor.showFewerPresets", { defaultValue: "Show fewer themes" })
+                  : t("themeEditor.showMorePresets", {
+                      defaultValue: "Show {{count}} more themes",
+                      count: hiddenPresetThemeCount,
+                    })}
+              </Button>
+            )}
           </div>
 
           {customThemes.length > 0 && (
@@ -237,6 +265,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
                     description={theme.description || t("themeEditor.noDescription")}
                     name={theme.name}
                     onSelect={() => handleThemeChange(theme.id)}
+                    compactPreview
                     theme={theme}
                     actionSlot={
                       <div className="flex">
@@ -305,14 +334,13 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
 
         <SettingsSection
           icon={<MonitorCog size={16} />}
-          title={t("settings.interfaceScale", { defaultValue: "Interface font scale" })}
+          title={t("settings.interface", { defaultValue: "Interface" })}
           description={t("settings.interfaceScaleDesc", {
             defaultValue:
               "Scale application text without changing controls, spacing, terminal text, or editor content.",
           })}
         >
           <SettingsRow
-            icon={<MonitorCog size={16} />}
             title={t("settings.interfaceScale", { defaultValue: "Interface font scale" })}
             description={t("settings.interfaceScaleRange", {
               defaultValue: "Choose a text scale from 80% to 200%.",
@@ -371,7 +399,6 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
           })}
         >
           <SettingsRow
-            icon={<GalleryHorizontal size={16} />}
             title={t("settings.tabWidthMode", { defaultValue: "Width mode" })}
             description={t("settings.tabWidthModeDesc", {
               defaultValue:

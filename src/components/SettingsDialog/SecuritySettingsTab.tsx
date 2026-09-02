@@ -1,5 +1,14 @@
 import React, { useEffect, useRef, useState } from "react"
-import { AlertTriangle, ArrowLeftRight, Eye, EyeOff, Lock, Trash2, Unlock } from "lucide-react"
+import {
+  AlertTriangle,
+  ArrowLeftRight,
+  Eye,
+  EyeOff,
+  Lock,
+  Shield,
+  Trash2,
+  Unlock,
+} from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -12,6 +21,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 
+import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
 import { SecretStatusState } from "@/components/SettingsDialog/types"
 import type { SavedSecretEntry, SecretStorageMode } from "@/contexts/ConfigContext"
 
@@ -144,46 +154,39 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
   return (
     <ScrollArea className="h-full pr-4">
       <div className="space-y-4">
-        <p className="text-muted-foreground text-sm">{t("secretStorage.description")}</p>
-
-        <Card>
-          <CardContent className="space-y-2 p-4 text-sm">
-            <div className="flex items-center justify-between gap-3">
-              <span>{t("secretStorage.activeBackend")}</span>
-              <Badge variant="secondary">{backendLabel}</Badge>
-            </div>
-            {secretStatus.message && (
-              <p className="text-muted-foreground text-xs leading-5">{secretStatus.message}</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="space-y-3 p-4">
-            <div>
-              <Label htmlFor="secret-storage-mode" className="mb-1.5 block">
-                {t("secretStorage.storageMode")}
-              </Label>
-              <Select
-                id="secret-storage-mode"
-                value={secretStorageMode}
-                disabled={secretBusy}
-                onChange={(event) =>
-                  handleSecretStorageModeChange(event.target.value as SecretStorageMode)
-                }
-              >
-                <option value="auto">{t("secretStorage.modes.auto")}</option>
-                <option value="system">{t("secretStorage.modes.system")}</option>
-                <option value="vault">{t("secretStorage.modes.vault")}</option>
-                <option value="hybrid">{t("secretStorage.modes.hybrid")}</option>
-                <option value="memory">{t("secretStorage.modes.memory")}</option>
-              </Select>
-            </div>
-            <p className="text-muted-foreground text-xs leading-5">
-              {t(`secretStorage.modeDescriptions.${secretStorageMode}`)}
-            </p>
-          </CardContent>
-        </Card>
+        <SettingsSection
+          icon={<Shield size={16} />}
+          title={t("secretStorage.title")}
+          description={t("secretStorage.description")}
+        >
+          <SettingsRow
+            title={t("secretStorage.activeBackend")}
+            description={secretStatus.message}
+            action={<Badge variant="secondary">{backendLabel}</Badge>}
+          />
+          <SettingsRow
+            title={t("secretStorage.storageMode")}
+            description={t(`secretStorage.modeDescriptions.${secretStorageMode}`)}
+          >
+            <Label htmlFor="secret-storage-mode" className="sr-only">
+              {t("secretStorage.storageMode")}
+            </Label>
+            <Select
+              id="secret-storage-mode"
+              value={secretStorageMode}
+              disabled={secretBusy}
+              onChange={(event) =>
+                handleSecretStorageModeChange(event.target.value as SecretStorageMode)
+              }
+            >
+              <option value="auto">{t("secretStorage.modes.auto")}</option>
+              <option value="system">{t("secretStorage.modes.system")}</option>
+              <option value="vault">{t("secretStorage.modes.vault")}</option>
+              <option value="hybrid">{t("secretStorage.modes.hybrid")}</option>
+              <option value="memory">{t("secretStorage.modes.memory")}</option>
+            </Select>
+          </SettingsRow>
+        </SettingsSection>
 
         {!secretStatus.keyringAvailable && (
           <Alert className="border-amber-500/40 bg-amber-500/10">
@@ -238,20 +241,32 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
                   <Input
                     id="vault-password"
                     type={showVaultPassword ? "text" : "password"}
+                    autoComplete={secretStatus.vaultUnlocked ? "current-password" : "new-password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={t("secretStorage.vaultPasswordPlaceholder")}
                     disabled={secretBusy}
                     className="pr-9"
                   />
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-sm"
                     onClick={() => setShowVaultPassword((v) => !v)}
-                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2"
-                    tabIndex={-1}
+                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1 -translate-y-1/2"
+                    aria-label={t(
+                      showVaultPassword
+                        ? "secretStorage.hidePassword"
+                        : "secretStorage.showPassword"
+                    )}
+                    title={t(
+                      showVaultPassword
+                        ? "secretStorage.hidePassword"
+                        : "secretStorage.showPassword"
+                    )}
                   >
                     {showVaultPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
+                  </Button>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -303,20 +318,32 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
                     <Input
                       id="current-password"
                       type={showCurrentPassword ? "text" : "password"}
+                      autoComplete="current-password"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       placeholder={t("secretStorage.vaultPasswordPlaceholder")}
                       disabled={secretBusy}
                       className="pr-9"
                     />
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon-sm"
                       onClick={() => setShowCurrentPassword((v) => !v)}
-                      className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2"
-                      tabIndex={-1}
+                      className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1 -translate-y-1/2"
+                      aria-label={t(
+                        showCurrentPassword
+                          ? "secretStorage.hidePassword"
+                          : "secretStorage.showPassword"
+                      )}
+                      title={t(
+                        showCurrentPassword
+                          ? "secretStorage.hidePassword"
+                          : "secretStorage.showPassword"
+                      )}
                     >
                       {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 <div>
@@ -327,20 +354,32 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
                     <Input
                       id="new-password"
                       type={showNewPassword ? "text" : "password"}
+                      autoComplete="new-password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder={t("secretStorage.vaultPasswordPlaceholder")}
                       disabled={secretBusy}
                       className="pr-9"
                     />
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon-sm"
                       onClick={() => setShowNewPassword((v) => !v)}
-                      className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2"
-                      tabIndex={-1}
+                      className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1 -translate-y-1/2"
+                      aria-label={t(
+                        showNewPassword
+                          ? "secretStorage.hidePassword"
+                          : "secretStorage.showPassword"
+                      )}
+                      title={t(
+                        showNewPassword
+                          ? "secretStorage.hidePassword"
+                          : "secretStorage.showPassword"
+                      )}
                     >
                       {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 <div>
@@ -351,20 +390,32 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
                     <Input
                       id="confirm-password"
                       type={showConfirmPassword ? "text" : "password"}
+                      autoComplete="new-password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder={t("secretStorage.vaultPasswordPlaceholder")}
                       disabled={secretBusy}
                       className="pr-9"
                     />
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon-sm"
                       onClick={() => setShowConfirmPassword((v) => !v)}
-                      className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2"
-                      tabIndex={-1}
+                      className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1 -translate-y-1/2"
+                      aria-label={t(
+                        showConfirmPassword
+                          ? "secretStorage.hidePassword"
+                          : "secretStorage.showPassword"
+                      )}
+                      title={t(
+                        showConfirmPassword
+                          ? "secretStorage.hidePassword"
+                          : "secretStorage.showPassword"
+                      )}
                     >
                       {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>

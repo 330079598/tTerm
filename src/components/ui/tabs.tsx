@@ -76,13 +76,11 @@ export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
   )
 }
 
-interface TabsContentProps {
+interface TabsContentProps extends React.HTMLAttributes<HTMLDivElement> {
   value: string
-  children: React.ReactNode
-  className?: string
 }
 
-export function TabsContent({ value, children, className }: TabsContentProps) {
+export function TabsContent({ value, children, className, ...props }: TabsContentProps) {
   const context = React.useContext(TabsContext)
   if (!context) throw new Error("TabsContent must be used within Tabs")
 
@@ -90,6 +88,7 @@ export function TabsContent({ value, children, className }: TabsContentProps) {
 
   return (
     <div
+      {...props}
       className={cn(
         "ring-offset-background focus-visible:ring-ring mt-2 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
         className

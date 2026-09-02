@@ -140,7 +140,7 @@ function refreshSecretStatusCached(refreshSecretStatus: () => Promise<unknown>) 
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
-  defaultTab = "profile-groups",
+  defaultTab = "general",
   className,
   onConnectProfile,
   onEditProfile,
@@ -712,9 +712,16 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1">
-          <SettingsSidebar />
+          <SettingsSidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-          <TabsContent value="appearance" className="m-0 flex-1 overflow-y-auto p-6">
+          <TabsContent
+            value="appearance"
+            id="settings-panel-appearance"
+            role="tabpanel"
+            aria-labelledby="settings-tab-appearance"
+            tabIndex={0}
+            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
+          >
             <AppearanceSettingsTab
               currentTheme={currentTheme}
               customThemes={customThemes}
@@ -735,7 +742,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             />
           </TabsContent>
 
-          <TabsContent value="terminal" className="m-0 flex-1 overflow-y-auto p-6">
+          <TabsContent
+            value="terminal"
+            id="settings-panel-terminal"
+            role="tabpanel"
+            aria-labelledby="settings-tab-terminal"
+            tabIndex={0}
+            className="m-0 min-w-0 flex-1 overflow-y-auto p-6"
+          >
             <FontSettingsTab
               fontFamily={fontFamily}
               fontSize={fontSize}
@@ -761,7 +775,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             />
           </TabsContent>
 
-          <TabsContent value="connection" className="m-0 flex-1 overflow-y-auto p-6">
+          <TabsContent
+            value="connection"
+            id="settings-panel-connection"
+            role="tabpanel"
+            aria-labelledby="settings-tab-connection"
+            tabIndex={0}
+            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
+          >
             <ConnectionSettingsTab
               handleMonitorRefreshIntervalChange={handleMonitorRefreshIntervalChange}
               handleMonitorVisibleMetricsChange={handleMonitorVisibleMetricsChange}
@@ -772,11 +793,25 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             />
           </TabsContent>
 
-          <TabsContent value="logging" className="m-0 flex-1 overflow-y-auto p-6">
+          <TabsContent
+            value="logging"
+            id="settings-panel-logging"
+            role="tabpanel"
+            aria-labelledby="settings-tab-logging"
+            tabIndex={0}
+            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
+          >
             <LoggingSettingsTab handleEnabledChange={handleTerminalLogEnabledChange} />
           </TabsContent>
 
-          <TabsContent value="profile-groups" className="m-0 flex-1 overflow-y-auto p-6">
+          <TabsContent
+            value="profile-groups"
+            id="settings-panel-profile-groups"
+            role="tabpanel"
+            aria-labelledby="settings-tab-profile-groups"
+            tabIndex={0}
+            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
+          >
             <ProfileGroupsSettingsTab
               onConnectProfile={onConnectProfile}
               onEditProfile={onEditProfile}
@@ -784,11 +819,25 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             />
           </TabsContent>
 
-          <TabsContent value="data-migration" className="m-0 flex-1 overflow-y-auto p-6">
+          <TabsContent
+            value="data-migration"
+            id="settings-panel-data-migration"
+            role="tabpanel"
+            aria-labelledby="settings-tab-data-migration"
+            tabIndex={0}
+            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
+          >
             <DataMigrationSettingsTab />
           </TabsContent>
 
-          <TabsContent value="security" className="m-0 flex-1 overflow-y-auto p-6">
+          <TabsContent
+            value="security"
+            id="settings-panel-security"
+            role="tabpanel"
+            aria-labelledby="settings-tab-security"
+            tabIndex={0}
+            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
+          >
             <SecuritySettingsTab
               backendLabel={backendLabel}
               configSecretVaultEnabled={config.secret_vault_enabled}
@@ -818,7 +867,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             />
           </TabsContent>
 
-          <TabsContent value="general" className="m-0 flex-1 overflow-y-auto p-6">
+          <TabsContent
+            value="general"
+            id="settings-panel-general"
+            role="tabpanel"
+            aria-labelledby="settings-tab-general"
+            tabIndex={0}
+            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
+          >
             <GeneralSettingsTab
               handleAbout={handleAbout}
               handleClearSession={handleClearSession}
@@ -833,7 +889,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             />
           </TabsContent>
 
-          <TabsContent value="updates" className="m-0 flex-1 overflow-y-auto p-6">
+          <TabsContent
+            value="updates"
+            id="settings-panel-updates"
+            role="tabpanel"
+            aria-labelledby="settings-tab-updates"
+            tabIndex={0}
+            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
+          >
             <UpdateSettingsTab
               autoDownloadUpdates={config.auto_download_updates}
               handleAutoDownloadUpdatesChange={handleAutoDownloadUpdatesChange}

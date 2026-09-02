@@ -194,162 +194,165 @@ export const LoggingSettingsTab: React.FC<LoggingSettingsTabProps> = ({ handleEn
         </SettingsSection>
 
         {config.terminal_log_enabled && (
-          <Alert className="border-amber-500/40 bg-amber-500/5">
-            <CircleAlert className="absolute top-3.5 left-4 size-4 text-amber-500" />
-            <div className="pl-6">
-              <AlertTitle>{t("terminalLogging.securityTitle")}</AlertTitle>
-              <AlertDescription>{t("terminalLogging.securityDescription")}</AlertDescription>
-            </div>
-          </Alert>
-        )}
+          <>
+            <Alert className="border-amber-500/40 bg-amber-500/5">
+              <CircleAlert className="absolute top-3.5 left-4 size-4 text-amber-500" />
+              <div className="pl-6">
+                <AlertTitle>{t("terminalLogging.securityTitle")}</AlertTitle>
+                <AlertDescription>{t("terminalLogging.securityDescription")}</AlertDescription>
+              </div>
+            </Alert>
 
-        <SettingsSection icon={<HardDrive size={16} />} title={t("terminalLogging.storage")}>
-          <SettingsRow
-            icon={<FolderOpen size={16} />}
-            title={t("terminalLogging.directory")}
-            description={t("terminalLogging.directoryDesc")}
-          >
-            <div className="flex min-w-0 gap-2">
-              <Input
-                value={resolvedDirectory}
-                readOnly
-                disabled={controlsDisabled}
-                aria-label={t("terminalLogging.directory")}
-                className="min-w-0 flex-1 font-mono text-xs"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                disabled={controlsDisabled}
-                onClick={() => void chooseDirectory()}
+            <SettingsSection icon={<HardDrive size={16} />} title={t("terminalLogging.storage")}>
+              <SettingsRow
+                icon={<FolderOpen size={16} />}
+                title={t("terminalLogging.directory")}
+                description={t("terminalLogging.directoryDesc")}
               >
-                <FolderOpen />
-                {t("terminalLogging.choose")}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!resolvedDirectory}
-                onClick={() =>
-                  void invoke("open_terminal_log_directory").catch((error) =>
-                    setStatusError(toErrorMessage(error))
-                  )
-                }
-              >
-                <FolderOpen />
-                {t("terminalLogging.openDirectory")}
-              </Button>
-            </div>
-          </SettingsRow>
+                <div className="flex min-w-0 gap-2">
+                  <Input
+                    value={resolvedDirectory}
+                    readOnly
+                    disabled={controlsDisabled}
+                    aria-label={t("terminalLogging.directory")}
+                    className="min-w-0 flex-1 font-mono text-xs"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={controlsDisabled}
+                    onClick={() => void chooseDirectory()}
+                  >
+                    <FolderOpen />
+                    {t("terminalLogging.choose")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!resolvedDirectory}
+                    onClick={() =>
+                      void invoke("open_terminal_log_directory").catch((error) =>
+                        setStatusError(toErrorMessage(error))
+                      )
+                    }
+                  >
+                    <FolderOpen />
+                    {t("terminalLogging.openDirectory")}
+                  </Button>
+                </div>
+              </SettingsRow>
 
-          <SettingsRow
-            icon={<FileText size={16} />}
-            title={t("terminalLogging.format")}
-            description={t("terminalLogging.formatDesc")}
-          >
-            <div
-              className="grid grid-cols-3 gap-2"
-              role="group"
-              aria-label={t("terminalLogging.format")}
-            >
-              {(["raw", "plain", "both"] as const).map((format) => (
-                <Button
-                  key={format}
-                  type="button"
-                  variant={config.terminal_log_format === format ? "default" : "outline"}
-                  disabled={controlsDisabled}
-                  aria-pressed={config.terminal_log_format === format}
-                  onClick={() => void saveFormat(format)}
+              <SettingsRow
+                icon={<FileText size={16} />}
+                title={t("terminalLogging.format")}
+                description={t("terminalLogging.formatDesc")}
+              >
+                <div
+                  className="grid grid-cols-3 gap-2"
+                  role="group"
+                  aria-label={t("terminalLogging.format")}
                 >
-                  {t(`terminalLogging.formats.${format}`)}
-                </Button>
-              ))}
-            </div>
-          </SettingsRow>
+                  {(["raw", "plain", "both"] as const).map((format) => (
+                    <Button
+                      key={format}
+                      type="button"
+                      variant={config.terminal_log_format === format ? "default" : "outline"}
+                      disabled={controlsDisabled}
+                      aria-pressed={config.terminal_log_format === format}
+                      onClick={() => void saveFormat(format)}
+                    >
+                      {t(`terminalLogging.formats.${format}`)}
+                    </Button>
+                  ))}
+                </div>
+              </SettingsRow>
 
-          <SettingsRow
-            icon={<FileText size={16} />}
-            title={t("terminalLogging.nameTemplate")}
-            description={t("terminalLogging.nameTemplateDesc")}
-          >
-            <Label htmlFor="terminal-log-name" className="sr-only">
-              {t("terminalLogging.nameTemplate")}
-            </Label>
-            <Input
-              id="terminal-log-name"
-              value={nameTemplate}
-              disabled={controlsDisabled}
-              aria-invalid={Boolean(nameError)}
-              aria-describedby="terminal-log-name-help"
-              onChange={(event) => {
-                setNameTemplate(event.target.value)
-                setNameError(null)
-              }}
-              onBlur={() => void saveNameTemplate()}
-              className="font-mono text-xs"
-            />
-            <p
-              id="terminal-log-name-help"
-              role={nameError ? "alert" : undefined}
-              className={cn(
-                "mt-2 text-xs",
-                nameError ? "text-destructive" : "text-muted-foreground"
-              )}
-            >
-              {nameError ?? t("terminalLogging.nameExample", { name: exampleName })}
-            </p>
-          </SettingsRow>
+              <SettingsRow
+                icon={<FileText size={16} />}
+                title={t("terminalLogging.nameTemplate")}
+                description={t("terminalLogging.nameTemplateDesc")}
+              >
+                <Label htmlFor="terminal-log-name" className="sr-only">
+                  {t("terminalLogging.nameTemplate")}
+                </Label>
+                <Input
+                  id="terminal-log-name"
+                  value={nameTemplate}
+                  disabled={controlsDisabled}
+                  aria-invalid={Boolean(nameError)}
+                  aria-describedby="terminal-log-name-help"
+                  onChange={(event) => {
+                    setNameTemplate(event.target.value)
+                    setNameError(null)
+                  }}
+                  onBlur={() => void saveNameTemplate()}
+                  className="font-mono text-xs"
+                />
+                <p
+                  id="terminal-log-name-help"
+                  role={nameError ? "alert" : undefined}
+                  className={cn(
+                    "mt-2 text-xs",
+                    nameError ? "text-destructive" : "text-muted-foreground"
+                  )}
+                >
+                  {nameError ?? t("terminalLogging.nameExample", { name: exampleName })}
+                </p>
+              </SettingsRow>
 
-          <SettingsRow
-            icon={<HardDrive size={16} />}
-            title={t("terminalLogging.maxFileSize")}
-            description={t("terminalLogging.maxFileSizeDesc")}
-          >
-            <div className="flex items-center gap-2">
-              <Label htmlFor="terminal-log-size" className="sr-only">
-                {t("terminalLogging.maxFileSize")}
-              </Label>
-              <Input
-                id="terminal-log-size"
-                type="number"
-                min={1}
-                max={1024}
-                step={1}
-                value={maxFileSize}
-                disabled={controlsDisabled}
-                aria-invalid={Boolean(sizeError)}
-                onChange={(event) => {
-                  setMaxFileSize(event.target.value)
-                  setSizeError(null)
-                }}
-                onBlur={() => void saveMaxFileSize()}
-                className="w-32"
+              <SettingsRow
+                icon={<HardDrive size={16} />}
+                title={t("terminalLogging.maxFileSize")}
+                description={t("terminalLogging.maxFileSizeDesc")}
+              >
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="terminal-log-size" className="sr-only">
+                    {t("terminalLogging.maxFileSize")}
+                  </Label>
+                  <Input
+                    id="terminal-log-size"
+                    type="number"
+                    min={1}
+                    max={1024}
+                    step={1}
+                    value={maxFileSize}
+                    disabled={controlsDisabled}
+                    aria-invalid={Boolean(sizeError)}
+                    onChange={(event) => {
+                      setMaxFileSize(event.target.value)
+                      setSizeError(null)
+                    }}
+                    onBlur={() => void saveMaxFileSize()}
+                    className="w-32"
+                  />
+                  <span className="text-muted-foreground text-sm">MiB</span>
+                </div>
+                {sizeError && (
+                  <p role="alert" className="text-destructive mt-2 text-xs">
+                    {sizeError}
+                  </p>
+                )}
+              </SettingsRow>
+
+              <SettingsRow
+                icon={<Archive size={16} />}
+                title={t("terminalLogging.compress")}
+                description={t("terminalLogging.compressDesc")}
+                action={
+                  <Switch
+                    checked={config.terminal_log_compress}
+                    disabled={controlsDisabled}
+                    onCheckedChange={async (checked) => {
+                      if (await saveSettings({ terminal_log_compress: checked }))
+                        void refreshStatus()
+                    }}
+                    aria-label={t("terminalLogging.compress")}
+                  />
+                }
               />
-              <span className="text-muted-foreground text-sm">MiB</span>
-            </div>
-            {sizeError && (
-              <p role="alert" className="text-destructive mt-2 text-xs">
-                {sizeError}
-              </p>
-            )}
-          </SettingsRow>
-
-          <SettingsRow
-            icon={<Archive size={16} />}
-            title={t("terminalLogging.compress")}
-            description={t("terminalLogging.compressDesc")}
-            action={
-              <Switch
-                checked={config.terminal_log_compress}
-                disabled={controlsDisabled}
-                onCheckedChange={async (checked) => {
-                  if (await saveSettings({ terminal_log_compress: checked })) void refreshStatus()
-                }}
-                aria-label={t("terminalLogging.compress")}
-              />
-            }
-          />
-        </SettingsSection>
+            </SettingsSection>
+          </>
+        )}
 
         <SettingsSection icon={<CheckCircle2 size={16} />} title={t("terminalLogging.status")}>
           <div className="border-border bg-muted/20 grid grid-cols-2 gap-4 rounded-md border p-4 text-sm sm:grid-cols-3">
