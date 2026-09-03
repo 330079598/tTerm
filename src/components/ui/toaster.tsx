@@ -1,3 +1,5 @@
+import { AlertCircle, CheckCircle2 } from "lucide-react"
+
 import {
   Toast,
   ToastClose,
@@ -26,9 +28,17 @@ export function Toaster() {
               }
             }}
           >
-            <div className="grid gap-1">
-              {title && <ToastTitle>{title}</ToastTitle>}
-              {description && <ToastDescription>{description}</ToastDescription>}
+            <div className="flex items-start gap-3">
+              {props.variant === "success" && (
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+              )}
+              {props.variant === "destructive" && (
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              )}
+              <div className="grid gap-1">
+                {title && <ToastTitle>{title}</ToastTitle>}
+                {description && <ToastDescription>{description}</ToastDescription>}
+              </div>
             </div>
             {action}
             <ToastClose onClick={() => dismiss(id)} />

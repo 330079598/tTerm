@@ -765,7 +765,7 @@
     "cancel": "取消",
     "save": "保存",
     "saved": "设置已保存",
-    "savedDesc": "字体和回滚设置已保存。新的终端标签页将使用更新后的配置。",
+    "savedDesc": "终端设置已保存。新的终端标签页将使用更新后的配置。",
     "saveFailed": "保存失败",
     "scrollbackLines": "回滚行数",
     "cursorStyle": "光标样式",

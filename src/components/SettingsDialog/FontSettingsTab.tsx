@@ -33,6 +33,7 @@ interface FontSettingsTabProps {
   cursorStyle: "bar" | "block" | "underline"
   fontLoadError: string | null
   handleFontSave: () => Promise<void>
+  savingFont?: boolean
   loadingFonts: boolean
   scrollbackLines: number
   terminalRenderer: TerminalRenderer
@@ -57,6 +58,7 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
   cursorStyle,
   fontLoadError,
   handleFontSave,
+  savingFont = false,
   loadingFonts,
   scrollbackLines,
   terminalRenderer,
@@ -416,8 +418,10 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
           </div>
         </SettingsSection>
 
-        <Button onClick={handleFontSave} className="w-full">
-          {t("fontSettings.save")}
+        <Button onClick={handleFontSave} disabled={savingFont} className="w-full">
+          {savingFont
+            ? t("common.saving", { defaultValue: "Saving..." })
+            : t("fontSettings.save", { defaultValue: "Save" })}
         </Button>
       </div>
     </ScrollArea>

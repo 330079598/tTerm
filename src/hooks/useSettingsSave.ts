@@ -24,6 +24,7 @@ export function useSettingsSave() {
           toast({
             title: options.successTitle,
             description: options.successDescription,
+            variant: "success",
           })
         }
         return true

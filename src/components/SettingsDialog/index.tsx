@@ -200,6 +200,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [terminalPaddingBottomPx, setTerminalPaddingBottomPx] = useState(
     config.terminal_padding_bottom_px
   )
+  const [savingFont, setSavingFont] = useState(false)
+  const savingFontRef = useRef(false)
   const [systemFonts, setSystemFonts] = useState<string[]>(() => cachedSystemFonts ?? [])
   const [fontsLoaded, setFontsLoaded] = useState(cachedSystemFonts !== null)
   const [loadingFonts, setLoadingFonts] = useState(false)
@@ -286,6 +288,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   }, [activeTab, listSavedSecrets, refreshSecretStatus])
 
   const handleFontSave = async () => {
+    if (savingFontRef.current) {
+      return
+    }
+    savingFontRef.current = true
+    setSavingFont(true)
     try {
       await saveConfig({
         font_family: fontFamily,
@@ -301,8 +308,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         title: t("fontSettings.saved", { defaultValue: "Settings saved" }),
         description: t("fontSettings.savedDesc", {
           defaultValue:
-            "Font, cursor, and scrollback settings have been saved. New terminal tabs will use the updated configuration.",
+            "Terminal settings have been saved. New terminal tabs will use the updated configuration.",
         }),
+        variant: "success",
       })
     } catch (error) {
       console.error("Failed to save font settings:", error)
@@ -311,6 +319,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         description: toErrorMessage(error),
         variant: "destructive",
       })
+    } finally {
+      savingFontRef.current = false
+      if (isMountedRef.current) {
+        setSavingFont(false)
+      }
     }
   }
 
@@ -756,6 +769,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               cursorStyle={cursorStyle}
               fontLoadError={fontLoadError}
               handleFontSave={handleFontSave}
+              savingFont={savingFont}
               loadingFonts={loadingFonts}
               scrollbackLines={scrollbackLines}
               terminalRenderer={terminalRenderer}
