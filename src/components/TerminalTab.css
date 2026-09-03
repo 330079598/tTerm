@@ -1083,6 +1083,28 @@ button.server-monitor-metric.is-clickable:focus-visible {
   font-feature-settings: normal;
 }
 
+/* Ensure canvas layers from WebglAddon and CanvasAddon maintain absolute positioning */
+.terminal-surface .xterm .xterm-screen canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* Protect fallback DOM renderer against global CSS resets */
+.terminal-surface .xterm .xterm-rows {
+  font-family: inherit;
+  line-height: normal;
+}
+
+.terminal-surface .xterm .xterm-rows span {
+  display: inline-block;
+  vertical-align: top;
+}
+
+.terminal-surface .xterm-cursor {
+  box-sizing: content-box;
+}
+
 .terminal-tab-shell.is-active
   .xterm-has-scrollback
   .xterm

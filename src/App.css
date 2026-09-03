@@ -1,6 +1,7 @@
 @import "./styles/themes.css";
 @import "./styles/base.css";
 @import "./styles/layout.css";
+@import "@xterm/xterm/css/xterm.css";
 
 /* Tailwind arbitrary font sizes are not backed by theme tokens. */
 .text-\[8px\] {

@@ -1,4 +1,5 @@
-﻿import { useEffect } from "react"
+import { useCallback, useEffect, useRef } from "react"
+import { CanvasAddon } from "@xterm/addon-canvas"
 import { FitAddon } from "@xterm/addon-fit"
 import { SearchAddon, type ISearchResultChangeEvent } from "@xterm/addon-search"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
@@ -25,6 +26,11 @@ import {
   parseShellIntegrationCommand,
 } from "@/lib/terminalCommandCapture"
 
+type ActiveRendererAddon = (WebglAddon | CanvasAddon) & {
+  dispose: () => void
+  clearTextureAtlas?: () => void
+}
+
 type UseTerminalLifecycleOptions = {
   activateFitTimerRef: React.MutableRefObject<number | null>
   connectionRef: React.MutableRefObject<TerminalTabProps["connection"]>
@@ -38,6 +44,7 @@ type UseTerminalLifecycleOptions = {
   initialFontSize: React.MutableRefObject<number>
   initialScrollbackLines: React.MutableRefObject<number>
   initialTerminalRenderer: React.MutableRefObject<TerminalRenderer>
+  terminalRenderer?: TerminalRenderer
   initialTerminalThemeRef: React.MutableRefObject<NonNullable<Terminal["options"]["theme"]>>
   isActiveRef: React.MutableRefObject<boolean>
   lastPtySizeRef: React.MutableRefObject<{ rows: number; cols: number } | null>
@@ -124,9 +131,75 @@ export function useTerminalLifecycle({
   setSearchResults,
   sessionNonce,
   tabId,
+  terminalRenderer,
   termRef,
   waitingForReconnectRef,
 }: UseTerminalLifecycleOptions) {
+  const activeRendererAddonRef = useRef<ActiveRendererAddon | null>(null)
+  const lastRendererRef = useRef<TerminalRenderer | null>(null)
+
+  const loadTerminalRenderer = useCallback(
+    (targetRenderer: TerminalRenderer) => {
+      const term = termRef.current
+      if (!term) return
+
+      if (activeRendererAddonRef.current) {
+        try {
+          activeRendererAddonRef.current.dispose()
+        } catch (error) {
+          console.error("Failed to dispose active terminal renderer addon:", error)
+        }
+        activeRendererAddonRef.current = null
+      }
+
+      if (targetRenderer === "webgl") {
+        try {
+          const webglAddon = new WebglAddon()
+          webglAddon.onContextLoss(() => {
+            console.warn("WebGL context lost; falling back to canvas renderer")
+            try {
+              webglAddon.dispose()
+            } catch (disposeErr) {
+              console.warn("Failed to dispose WebGL addon on context loss:", disposeErr)
+            }
+            if (activeRendererAddonRef.current === webglAddon) {
+              activeRendererAddonRef.current = null
+            }
+            try {
+              const canvasAddon = new CanvasAddon()
+              term.loadAddon(canvasAddon)
+              activeRendererAddonRef.current = canvasAddon
+              lastRendererRef.current = "canvas"
+            } catch (canvasErr) {
+              console.error("Failed to load canvas fallback after WebGL context loss:", canvasErr)
+            }
+          })
+          term.loadAddon(webglAddon)
+          activeRendererAddonRef.current = webglAddon
+          lastRendererRef.current = "webgl"
+          return
+        } catch (error) {
+          console.warn(
+            "WebGL not supported in this environment; falling back to canvas renderer",
+            error
+          )
+        }
+      }
+
+      // "canvas" mode or fallback from failed WebGL
+      try {
+        const canvasAddon = new CanvasAddon()
+        term.loadAddon(canvasAddon)
+        activeRendererAddonRef.current = canvasAddon
+        lastRendererRef.current = "canvas"
+      } catch (error) {
+        console.error("Failed to load canvas renderer; using DOM renderer fallback", error)
+        lastRendererRef.current = null
+      }
+    },
+    [termRef]
+  )
+
   useEffect(() => {
     const container = containerRef.current
     if (!container || initializedRef.current) return
@@ -169,13 +242,8 @@ export function useTerminalLifecycle({
     term.loadAddon(new Unicode11Addon())
     term.unicode.activeVersion = "11"
 
-    if (initialTerminalRenderer.current === "webgl") {
-      try {
-        term.loadAddon(new WebglAddon())
-      } catch {
-        // WebGL not supported in this environment; fall back to canvas renderer
-      }
-    }
+    const effectiveRenderer = terminalRenderer ?? initialTerminalRenderer.current
+    loadTerminalRenderer(effectiveRenderer)
 
     termRef.current = term
     fitAddonRef.current = fitAddon
@@ -212,10 +280,15 @@ export function useTerminalLifecycle({
       }
     }
 
-    void document.fonts.ready.then(() => {
+    const handleFontsLoaded = () => {
       if (disposed) return
+      activeRendererAddonRef.current?.clearTextureAtlas?.()
       fitTerminalOnly()
-    })
+      term.refresh(0, Math.max(0, term.rows - 1))
+    }
+
+    void document.fonts?.ready?.then(handleFontsLoaded)
+    document.fonts?.addEventListener?.("loadingdone", handleFontsLoaded)
     let passwordPromptCheckId = 0
     let commandCaptureState = EMPTY_COMMAND_CAPTURE_STATE
     let commandCaptureSuspended = false
@@ -503,6 +576,18 @@ export function useTerminalLifecycle({
       searchResultsDisposableRef.current?.dispose()
       searchResultsDisposableRef.current = null
       searchAddonRef.current = null
+      if (typeof document !== "undefined") {
+        document.fonts?.removeEventListener?.("loadingdone", handleFontsLoaded)
+      }
+      if (activeRendererAddonRef.current) {
+        try {
+          activeRendererAddonRef.current.dispose()
+        } catch (disposeErr) {
+          console.warn("Failed to dispose active renderer addon during unmount:", disposeErr)
+        }
+        activeRendererAddonRef.current = null
+      }
+      lastRendererRef.current = null
       term.dispose()
       termRef.current = null
       fitAddonRef.current = null
@@ -532,6 +617,7 @@ export function useTerminalLifecycle({
     initialTerminalThemeRef,
     isActiveRef,
     lastPtySizeRef,
+    loadTerminalRenderer,
     onPidChangeRef,
     onInputRef,
     onCommandExecutedRef,
@@ -553,7 +639,37 @@ export function useTerminalLifecycle({
     setSearchResults,
     sessionNonce,
     tabId,
+    terminalRenderer,
     termRef,
     waitingForReconnectRef,
   ])
+
+  useEffect(() => {
+    const term = termRef.current
+    if (!term || !initializedRef.current) return
+    const targetRenderer = terminalRenderer ?? initialTerminalRenderer.current
+    if (lastRendererRef.current === targetRenderer) return
+
+    loadTerminalRenderer(targetRenderer)
+    if (isActiveRef.current) {
+      fitTerminalOnly()
+      term.refresh(0, Math.max(0, term.rows - 1))
+    }
+  }, [
+    fitTerminalOnly,
+    initialTerminalRenderer,
+    initializedRef,
+    isActiveRef,
+    loadTerminalRenderer,
+    termRef,
+    terminalRenderer,
+  ])
+
+  const clearTextureAtlas = useCallback(() => {
+    activeRendererAddonRef.current?.clearTextureAtlas?.()
+  }, [])
+
+  return {
+    clearTextureAtlas,
+  }
 }

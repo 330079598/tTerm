@@ -274,52 +274,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     fitAfterLayout()
   }, [fitTerminalOnly, isActiveRef, syncPtySize])
 
-  useEffect(() => {
-    const term = termRef.current
-    if (!term) return
-
-    term.options.fontFamily = config.font_family
-    term.options.fontSize = config.font_size
-    term.options.cursorStyle = config.cursor_style
-    if (isActiveRef.current) {
-      scheduleFitDuringResize()
-    }
-  }, [
-    config.cursor_style,
-    config.font_family,
-    config.font_size,
-    isActiveRef,
-    scheduleFitDuringResize,
-  ])
-
-  useEffect(() => {
-    const term = termRef.current
-    if (!term) return
-
-    // 0 = unlimited in settings; resolveScrollbackLines maps it for xterm.
-    term.options.scrollback = resolveScrollbackLines(config.scrollback_lines)
-  }, [config.scrollback_lines])
-
-  useEffect(() => {
-    if (!isActiveRef.current) return
-
-    fitAndSyncPty()
-  }, [
-    config.terminal_padding_bottom_px,
-    config.terminal_padding_left_px,
-    config.terminal_padding_right_px,
-    fitAndSyncPty,
-    isActiveRef,
-  ])
-
-  useEffect(() => {
-    const term = termRef.current
-    if (!term) return
-
-    term.options.theme = resolveTerminalTheme()
-  }, [currentTheme, resolveTerminalTheme])
-
-  useTerminalLifecycle({
+  const { clearTextureAtlas } = useTerminalLifecycle({
     activateFitTimerRef,
     connectionRef,
     containerRef,
@@ -356,9 +311,58 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     setSearchResults,
     sessionNonce,
     tabId,
+    terminalRenderer: config.terminal_renderer,
     termRef,
     waitingForReconnectRef,
   })
+
+  useEffect(() => {
+    const term = termRef.current
+    if (!term) return
+
+    term.options.fontFamily = config.font_family
+    term.options.fontSize = config.font_size
+    term.options.cursorStyle = config.cursor_style
+    clearTextureAtlas()
+    if (isActiveRef.current) {
+      scheduleFitDuringResize()
+      term.refresh(0, Math.max(0, term.rows - 1))
+    }
+  }, [
+    clearTextureAtlas,
+    config.cursor_style,
+    config.font_family,
+    config.font_size,
+    isActiveRef,
+    scheduleFitDuringResize,
+  ])
+
+  useEffect(() => {
+    const term = termRef.current
+    if (!term) return
+
+    // 0 = unlimited in settings; resolveScrollbackLines maps it for xterm.
+    term.options.scrollback = resolveScrollbackLines(config.scrollback_lines)
+  }, [config.scrollback_lines])
+
+  useEffect(() => {
+    if (!isActiveRef.current) return
+
+    fitAndSyncPty()
+  }, [
+    config.terminal_padding_bottom_px,
+    config.terminal_padding_left_px,
+    config.terminal_padding_right_px,
+    fitAndSyncPty,
+    isActiveRef,
+  ])
+
+  useEffect(() => {
+    const term = termRef.current
+    if (!term) return
+
+    term.options.theme = resolveTerminalTheme()
+  }, [currentTheme, resolveTerminalTheme])
 
   useEffect(() => {
     onConnectionStateChange?.(tabId, sessionNonce, connectionState)

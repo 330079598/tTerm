@@ -1,4 +1,3 @@
-import "@xterm/xterm/css/xterm.css"
 import React, { useEffect, useRef } from "react"
 import { FitAddon } from "@xterm/addon-fit"
 import { Terminal } from "@xterm/xterm"
