@@ -28,6 +28,7 @@ import type { TerminalRenderer } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useStableRef } from "@/hooks/useStableRef"
 import { resolveScrollbackLines } from "@/lib/scrollback"
+import { safePreloadFont } from "@/lib/canvasFontHost"
 import { isSaveCommandShortcut } from "@/lib/terminalCommandCapture"
 import { toErrorMessage } from "@/lib/utils"
 import type { TabContextMenuAction } from "@/types/tab"
@@ -328,6 +329,16 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       scheduleFitDuringResize()
       term.refresh(0, Math.max(0, term.rows - 1))
     }
+
+    void safePreloadFont(config.font_size, config.font_family).then((loaded) => {
+      if (loaded) {
+        clearTextureAtlas()
+        if (isActiveRef.current) {
+          scheduleFitDuringResize()
+          term.refresh(0, Math.max(0, term.rows - 1))
+        }
+      }
+    })
   }, [
     clearTextureAtlas,
     config.cursor_style,

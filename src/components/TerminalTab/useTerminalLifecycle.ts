@@ -20,6 +20,7 @@ import type {
 } from "@/components/TerminalTab/types"
 import { resolveScrollbackLines } from "@/lib/scrollback"
 import type { TerminalRenderer } from "@/contexts/ConfigContext"
+import { safePreloadFont } from "@/lib/canvasFontHost"
 import {
   captureTerminalInput,
   EMPTY_COMMAND_CAPTURE_STATE,
@@ -289,6 +290,12 @@ export function useTerminalLifecycle({
 
     void document.fonts?.ready?.then(handleFontsLoaded)
     document.fonts?.addEventListener?.("loadingdone", handleFontsLoaded)
+
+    void safePreloadFont(initialFontSize.current, initialFontFamily.current).then((loaded) => {
+      if (loaded) {
+        handleFontsLoaded()
+      }
+    })
     let passwordPromptCheckId = 0
     let commandCaptureState = EMPTY_COMMAND_CAPTURE_STATE
     let commandCaptureSuspended = false
