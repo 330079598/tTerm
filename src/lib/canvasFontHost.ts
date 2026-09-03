@@ -31,6 +31,15 @@
 export const HOST_ELEMENT_ID = "tterm-canvas-font-host"
 export const MAX_HOST_CANVASES = 512
 
+/**
+ * Matches stacks originating from xterm internals only: the TextureAtlas /
+ * CharAtlas classes, or @xterm/xterm package files (covers both raw
+ * node_modules paths and Vite pre-bundled deps like "@xterm_addon-webgl.js").
+ * A bare "xterm" substring match is intentionally avoided as it is too broad.
+ */
+const XTERM_INTERNAL_STACK_PATTERN =
+  /(TextureAtlas|CharAtlas|@xterm[/_-]|node_modules[\\/]xterm[/_-])/
+
 let originalCreateElement: typeof document.createElement | null = null
 let originalGetContext: typeof HTMLCanvasElement.prototype.getContext | null = null
 let hostElement: HTMLElement | null = null
@@ -156,11 +165,7 @@ export function initCanvasFontHost(): void {
       const canvas = element as unknown as HTMLCanvasElement
       try {
         const stack = new Error().stack || ""
-        if (
-          stack.includes("TextureAtlas") ||
-          stack.includes("CharAtlas") ||
-          stack.includes("xterm")
-        ) {
+        if (XTERM_INTERNAL_STACK_PATTERN.test(stack)) {
           canvas.setAttribute("data-pinned-font-host", "true")
         }
       } catch {
