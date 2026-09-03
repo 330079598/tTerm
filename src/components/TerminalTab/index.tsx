@@ -1,5 +1,5 @@
 import "@/components/TerminalTab.css"
-import React, { useCallback, useEffect, useRef, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FitAddon } from "@xterm/addon-fit"
 import { SearchAddon } from "@xterm/addon-search"
 import { type IDisposable, Terminal } from "@xterm/xterm"
@@ -90,11 +90,11 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const { config, saveConfig } = useConfig()
   const { currentTheme, getTheme } = useTheme()
   const { t } = useTranslation()
-  const initialFontFamily = useRef(config.font_family)
-  const initialFontSize = useRef(config.font_size)
-  const initialCursorStyle = useRef(config.cursor_style)
-  const initialScrollbackLines = useRef(config.scrollback_lines)
-  const initialTerminalRenderer = useRef<TerminalRenderer>(config.terminal_renderer)
+  const configFontFamilyRef = useStableRef(config.font_family)
+  const configFontSizeRef = useStableRef(config.font_size)
+  const configCursorStyleRef = useStableRef(config.cursor_style)
+  const configScrollbackLinesRef = useStableRef(config.scrollback_lines)
+  const configTerminalRendererRef = useStableRef<TerminalRenderer>(config.terminal_renderer)
   const sessionResetKey = `${tabId}:${sessionNonce}:${connection?.type ?? "terminal"}`
   const defaultConnectionState: ConnectionState = "connecting"
   const passwordPromptActiveRef = useRef(false)
@@ -180,9 +180,11 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     return { ...(getTheme(currentTheme)?.terminal ?? getTheme("default")!.terminal) }
   }, [currentTheme, getTheme])
 
-  // Keep the first palette for terminal creation; later theme changes update xterm in place.
-  const initialTerminalThemeRef =
-    useRef<ReturnType<typeof resolveTerminalTheme>>(resolveTerminalTheme())
+  const terminalTheme = useMemo(
+    () => ({ ...(getTheme(currentTheme)?.terminal ?? getTheme("default")!.terminal) }),
+    [currentTheme, getTheme]
+  )
+  const terminalThemeRef = useStableRef(terminalTheme)
 
   const fitTerminalOnly = useCallback(() => {
     const fitAddon = fitAddonRef.current
@@ -283,12 +285,12 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     fitAddonRef,
     fitTerminalOnly,
     initializedRef,
-    initialCursorStyle,
-    initialFontFamily,
-    initialFontSize,
-    initialScrollbackLines,
-    initialTerminalRenderer,
-    initialTerminalThemeRef,
+    configCursorStyleRef,
+    configFontFamilyRef,
+    configFontSizeRef,
+    configScrollbackLinesRef,
+    configTerminalRendererRef,
+    terminalThemeRef,
     isActiveRef,
     lastPtySizeRef,
     onPidChangeRef,
@@ -346,6 +348,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     config.font_size,
     isActiveRef,
     scheduleFitDuringResize,
+    sessionNonce,
   ])
 
   useEffect(() => {
@@ -354,7 +357,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
     // 0 = unlimited in settings; resolveScrollbackLines maps it for xterm.
     term.options.scrollback = resolveScrollbackLines(config.scrollback_lines)
-  }, [config.scrollback_lines])
+  }, [config.scrollback_lines, sessionNonce])
 
   useEffect(() => {
     if (!isActiveRef.current) return
@@ -373,7 +376,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     if (!term) return
 
     term.options.theme = resolveTerminalTheme()
-  }, [currentTheme, resolveTerminalTheme])
+  }, [currentTheme, resolveTerminalTheme, sessionNonce])
 
   useEffect(() => {
     onConnectionStateChange?.(tabId, sessionNonce, connectionState)

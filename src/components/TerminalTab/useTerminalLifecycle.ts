@@ -40,13 +40,19 @@ type UseTerminalLifecycleOptions = {
   fitAddonRef: React.MutableRefObject<FitAddon | null>
   fitTerminalOnly: () => boolean
   initializedRef: React.MutableRefObject<boolean>
-  initialCursorStyle: React.MutableRefObject<Terminal["options"]["cursorStyle"]>
-  initialFontFamily: React.MutableRefObject<string>
-  initialFontSize: React.MutableRefObject<number>
-  initialScrollbackLines: React.MutableRefObject<number>
-  initialTerminalRenderer: React.MutableRefObject<TerminalRenderer>
+  configCursorStyleRef?: React.MutableRefObject<Terminal["options"]["cursorStyle"]>
+  configFontFamilyRef?: React.MutableRefObject<string>
+  configFontSizeRef?: React.MutableRefObject<number>
+  configScrollbackLinesRef?: React.MutableRefObject<number>
+  configTerminalRendererRef?: React.MutableRefObject<TerminalRenderer>
+  terminalThemeRef?: React.MutableRefObject<NonNullable<Terminal["options"]["theme"]>>
+  initialCursorStyle?: React.MutableRefObject<Terminal["options"]["cursorStyle"]>
+  initialFontFamily?: React.MutableRefObject<string>
+  initialFontSize?: React.MutableRefObject<number>
+  initialScrollbackLines?: React.MutableRefObject<number>
+  initialTerminalRenderer?: React.MutableRefObject<TerminalRenderer>
+  initialTerminalThemeRef?: React.MutableRefObject<NonNullable<Terminal["options"]["theme"]>>
   terminalRenderer?: TerminalRenderer
-  initialTerminalThemeRef: React.MutableRefObject<NonNullable<Terminal["options"]["theme"]>>
   isActiveRef: React.MutableRefObject<boolean>
   lastPtySizeRef: React.MutableRefObject<{ rows: number; cols: number } | null>
   onPidChangeRef: React.MutableRefObject<TerminalTabProps["onPidChange"]>
@@ -103,6 +109,12 @@ export function useTerminalLifecycle({
   fitAddonRef,
   fitTerminalOnly,
   initializedRef,
+  configCursorStyleRef,
+  configFontFamilyRef,
+  configFontSizeRef,
+  configScrollbackLinesRef,
+  configTerminalRendererRef,
+  terminalThemeRef,
   initialCursorStyle,
   initialFontFamily,
   initialFontSize,
@@ -139,9 +151,16 @@ export function useTerminalLifecycle({
   const activeRendererAddonRef = useRef<ActiveRendererAddon | null>(null)
   const lastRendererRef = useRef<TerminalRenderer | null>(null)
 
+  const cursorStyleRef = (configCursorStyleRef ?? initialCursorStyle)!
+  const fontFamilyRef = (configFontFamilyRef ?? initialFontFamily)!
+  const fontSizeRef = (configFontSizeRef ?? initialFontSize)!
+  const scrollbackLinesRef = (configScrollbackLinesRef ?? initialScrollbackLines)!
+  const rendererRef = (configTerminalRendererRef ?? initialTerminalRenderer)!
+  const themeRef = (terminalThemeRef ?? initialTerminalThemeRef)!
+
   const loadTerminalRenderer = useCallback(
-    (targetRenderer: TerminalRenderer) => {
-      const term = termRef.current
+    (targetRenderer: TerminalRenderer, targetTerm?: Terminal) => {
+      const term = targetTerm ?? termRef.current
       if (!term) return
 
       if (activeRendererAddonRef.current) {
@@ -211,15 +230,15 @@ export function useTerminalLifecycle({
 
     const term = new Terminal({
       cursorBlink: true,
-      cursorStyle: initialCursorStyle.current,
-      scrollback: resolveScrollbackLines(initialScrollbackLines.current),
-      fontSize: initialFontSize.current,
-      fontFamily: initialFontFamily.current,
+      cursorStyle: cursorStyleRef.current,
+      scrollback: resolveScrollbackLines(scrollbackLinesRef.current),
+      fontSize: fontSizeRef.current,
+      fontFamily: fontFamilyRef.current,
       fontWeight: "normal",
       fontWeightBold: "bold",
       letterSpacing: 0,
       lineHeight: 1.0,
-      theme: initialTerminalThemeRef.current,
+      theme: themeRef.current,
       allowTransparency: false,
       allowProposedApi: true,
     })
@@ -243,9 +262,6 @@ export function useTerminalLifecycle({
     term.loadAddon(new Unicode11Addon())
     term.unicode.activeVersion = "11"
 
-    const effectiveRenderer = terminalRenderer ?? initialTerminalRenderer.current
-    loadTerminalRenderer(effectiveRenderer)
-
     termRef.current = term
     fitAddonRef.current = fitAddon
     searchAddonRef.current = searchAddon
@@ -253,7 +269,11 @@ export function useTerminalLifecycle({
       setSearchResults(results)
     })
 
+    container.replaceChildren()
     term.open(container)
+
+    const effectiveRenderer = terminalRenderer ?? rendererRef.current
+    loadTerminalRenderer(effectiveRenderer, term)
 
     const updateScrollbackState = () => {
       container.classList.toggle("xterm-has-scrollback", term.buffer.active.baseY > 0)
@@ -291,7 +311,7 @@ export function useTerminalLifecycle({
     void document.fonts?.ready?.then(handleFontsLoaded)
     document.fonts?.addEventListener?.("loadingdone", handleFontsLoaded)
 
-    void safePreloadFont(initialFontSize.current, initialFontFamily.current).then((loaded) => {
+    void safePreloadFont(fontSizeRef.current, fontFamilyRef.current).then((loaded) => {
       if (loaded) {
         handleFontsLoaded()
       }
@@ -607,21 +627,19 @@ export function useTerminalLifecycle({
       for (const disposable of scrollbackDisposables) disposable.dispose()
       for (const disposable of shellIntegrationDisposables) disposable.dispose()
       container.classList.remove("xterm-has-scrollback")
+      container.replaceChildren()
     }
   }, [
     activateFitTimerRef,
     connectionRef,
     containerRef,
     creatingPtyRef,
+    cursorStyleRef,
     fitAddonRef,
     fitTerminalOnly,
+    fontFamilyRef,
+    fontSizeRef,
     initializedRef,
-    initialCursorStyle,
-    initialFontFamily,
-    initialFontSize,
-    initialScrollbackLines,
-    initialTerminalRenderer,
-    initialTerminalThemeRef,
     isActiveRef,
     lastPtySizeRef,
     loadTerminalRenderer,
@@ -633,10 +651,12 @@ export function useTerminalLifecycle({
     onSessionUnavailableRef,
     onSensitivePromptRef,
     passwordPromptActiveRef,
+    rendererRef,
     resizeObserverRef,
     resizePtySyncTimerRef,
     resizeRafRef,
     scheduleFitDuringResize,
+    scrollbackLinesRef,
     surfaceRef,
     searchAddonRef,
     searchResultsDisposableRef,
@@ -648,26 +668,27 @@ export function useTerminalLifecycle({
     tabId,
     terminalRenderer,
     termRef,
+    themeRef,
     waitingForReconnectRef,
   ])
 
   useEffect(() => {
     const term = termRef.current
     if (!term || !initializedRef.current) return
-    const targetRenderer = terminalRenderer ?? initialTerminalRenderer.current
+    const targetRenderer = terminalRenderer ?? rendererRef.current
     if (lastRendererRef.current === targetRenderer) return
 
-    loadTerminalRenderer(targetRenderer)
+    loadTerminalRenderer(targetRenderer, term)
     if (isActiveRef.current) {
       fitTerminalOnly()
       term.refresh(0, Math.max(0, term.rows - 1))
     }
   }, [
     fitTerminalOnly,
-    initialTerminalRenderer,
     initializedRef,
     isActiveRef,
     loadTerminalRenderer,
+    rendererRef,
     termRef,
     terminalRenderer,
   ])

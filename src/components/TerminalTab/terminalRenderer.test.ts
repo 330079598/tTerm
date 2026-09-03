@@ -150,4 +150,50 @@ describe("Terminal Renderer Addon & Canvas Lifecycle", () => {
     term.dispose()
     container.remove()
   })
+
+  it("properly re-attaches renderer addon and clears texture atlas on reconnection", () => {
+    const container = document.createElement("div")
+    document.body.appendChild(container)
+
+    // Initial session
+    let term = new Terminal({
+      allowProposedApi: true,
+      fontFamily: '"Fira Code", monospace',
+      fontSize: 15,
+    })
+    term.open(container)
+    let activeRenderer: (ITerminalAddon & { clearTextureAtlas?: () => void }) | null =
+      new CanvasAddon()
+    term.loadAddon(activeRenderer)
+    expect(container.querySelectorAll("canvas").length).toBeGreaterThan(0)
+    expect(term.options.fontFamily).toBe('"Fira Code", monospace')
+    expect(term.options.fontSize).toBe(15)
+
+    // Reconnect cleanup
+    activeRenderer.dispose()
+    activeRenderer = null
+    term.dispose()
+    container.replaceChildren()
+    expect(container.children.length).toBe(0)
+
+    // Reconnect: new terminal created with updated/current font and renderer
+    term = new Terminal({
+      allowProposedApi: true,
+      fontFamily: '"JetBrains Mono Nerd Font", monospace',
+      fontSize: 16,
+    })
+    term.open(container)
+    activeRenderer = new CanvasAddon()
+    term.loadAddon(activeRenderer)
+
+    expect(container.querySelectorAll("canvas").length).toBeGreaterThan(0)
+    expect(term.options.fontFamily).toBe('"JetBrains Mono Nerd Font", monospace')
+    expect(term.options.fontSize).toBe(16)
+    expect(() => activeRenderer?.clearTextureAtlas?.()).not.toThrow()
+
+    activeRenderer.dispose()
+    term.dispose()
+    container.remove()
+  })
 })
+
