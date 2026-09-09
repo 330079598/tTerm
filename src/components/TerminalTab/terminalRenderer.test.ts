@@ -196,4 +196,3 @@ describe("Terminal Renderer Addon & Canvas Lifecycle", () => {
     container.remove()
   })
 })
-

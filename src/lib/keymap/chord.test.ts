@@ -5,6 +5,7 @@ import {
   eventToChord,
   formatChord,
   isEditableTarget,
+  normalizeEventCode,
   normalizeEventKey,
   parseChord,
   serializeChord,
@@ -39,6 +40,15 @@ describe("normalizeEventKey", () => {
     expect(normalizeEventKey("Meta")).toBeNull()
     expect(normalizeEventKey("Dead")).toBeNull()
     expect(normalizeEventKey("")).toBeNull()
+  })
+})
+
+describe("normalizeEventCode", () => {
+  it("maps physical letter, digit, and punctuation keys to chord tokens", () => {
+    expect(normalizeEventCode("KeyT")).toBe("t")
+    expect(normalizeEventCode("Digit1")).toBe("1")
+    expect(normalizeEventCode("Backslash")).toBe("\\")
+    expect(normalizeEventCode("PageDown")).toBe("pagedown")
   })
 })
 
@@ -93,6 +103,49 @@ describe("eventToChord", () => {
       alt: true,
       shift: true,
     })
+  })
+
+  it("uses physical key codes across non-Latin layouts", () => {
+    const russianEvent = { ...baseEvent, key: "е", code: "KeyT", ctrlKey: true } as KeyboardEvent
+    const frenchDigitEvent = {
+      ...baseEvent,
+      key: "&",
+      code: "Digit1",
+      altKey: true,
+    } as KeyboardEvent
+
+    expect(eventToChord(russianEvent, false)).toEqual({ key: "t", mod: true })
+    expect(eventToChord(frenchDigitEvent, false)).toEqual({ key: "1", alt: true })
+  })
+
+  it("keeps Command and physical Control distinct on macOS", () => {
+    const commandEvent = {
+      ...baseEvent,
+      key: "е",
+      code: "KeyT",
+      metaKey: true,
+    } as KeyboardEvent
+    const controlEvent = {
+      ...baseEvent,
+      key: "е",
+      code: "KeyT",
+      ctrlKey: true,
+    } as KeyboardEvent
+
+    expect(eventToChord(commandEvent, true)).toEqual({ key: "t", mod: true })
+    expect(eventToChord(controlEvent, true)).toEqual({ key: "t", ctrl: true })
+  })
+
+  it("does not dispatch IME composition or dead-key intermediates", () => {
+    expect(
+      eventToChord({ ...baseEvent, key: "Process", code: "KeyT" } as KeyboardEvent, false)
+    ).toBeNull()
+    expect(
+      eventToChord({ ...baseEvent, key: "Dead", code: "Quote" } as KeyboardEvent, false)
+    ).toBeNull()
+    expect(
+      eventToChord({ ...baseEvent, code: "KeyT", isComposing: true } as KeyboardEvent, false)
+    ).toBeNull()
   })
 
   it("returns null for bare modifiers", () => {

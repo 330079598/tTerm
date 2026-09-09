@@ -22,6 +22,10 @@ function actionLabelKey(actionId: KeymapActionId) {
   return `keymap.actions.${actionId}`
 }
 
+function hasModifier(event: KeyboardEvent): boolean {
+  return event.ctrlKey || event.metaKey || event.altKey || event.shiftKey
+}
+
 export const KeymapSettingsTab: React.FC = () => {
   const { t } = useTranslation()
   const { config } = useConfig()
@@ -70,13 +74,13 @@ export const KeymapSettingsTab: React.FC = () => {
       event.preventDefault()
       event.stopPropagation()
 
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !hasModifier(event)) {
         setRecordingAction(null)
         setConflict(null)
         setRecordingError(null)
         return
       }
-      if (event.key === "Backspace" || event.key === "Delete") {
+      if ((event.key === "Backspace" || event.key === "Delete") && !hasModifier(event)) {
         void updateBinding(recordingAction, null).then((saved) => {
           if (saved) setRecordingAction(null)
         })

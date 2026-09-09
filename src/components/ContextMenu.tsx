@@ -192,6 +192,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
       style={{ position: "fixed", left: position.left, top: position.top, zIndex: 9999 }}
     >
       <Card
+        data-slot="context-menu-content"
+        data-state="open"
         role="menu"
         className="bg-popover w-[min(16rem,calc(100vw-20px))] min-w-52 rounded-md py-1 shadow-lg"
       >

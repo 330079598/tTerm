@@ -29,9 +29,7 @@ export function Toaster() {
             }}
           >
             <div className="flex items-start gap-3">
-              {props.variant === "success" && (
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-              )}
+              {props.variant === "success" && <CheckCircle2 className="mt-0.5 size-4 shrink-0" />}
               {props.variant === "destructive" && (
                 <AlertCircle className="mt-0.5 size-4 shrink-0" />
               )}

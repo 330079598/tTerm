@@ -212,7 +212,7 @@
     "conflictTitle": "快捷键冲突",
     "conflictDescription": "已被以下操作占用：{{actions}}。请选择其他快捷键。",
     "recording": "请按快捷键...",
-    "recordingHelp": "按下组合键即可保存；Escape 取消，Backspace 或 Delete 清除绑定。",
+    "recordingHelp": "按下组合键即可保存；单独按 Escape 取消，单独按 Backspace 或 Delete 清除绑定。",
     "numberRequired": "请按下以 1-9 数字结尾的快捷键，系统会自动生成完整的 1-9 绑定。",
     "help": "点击快捷键可替换绑定；重置图标会恢复 tTerm 默认绑定。",
     "recordFor": "为“{{action}}”录制快捷键",

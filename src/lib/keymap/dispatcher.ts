@@ -12,8 +12,8 @@ export type KeymapHandler = (event: KeyboardEvent, chord: Chord) => void | boole
 export interface KeymapDispatchEnvironment {
   /** Whether dispatching is paused (settings key recorder, ...). */
   isDispatchSuppressed(): boolean
-  /** Whether a modal dialog is currently open. */
-  hasOpenModal(): boolean
+  /** Whether a dialog, menu, popover, or similar blocking layer is open. */
+  hasOpenLayer(): boolean
   /** Serialized chord -> actionId lookup for the current bindings. */
   getChordIndex(): Map<string, KeymapActionId>
   /** Registered handlers per action. */
@@ -30,7 +30,7 @@ export function dispatchKeydownEvent(
   event: KeyboardEvent,
   env: KeymapDispatchEnvironment
 ): KeymapActionId | null {
-  if (env.isDispatchSuppressed() || env.hasOpenModal()) {
+  if (env.isDispatchSuppressed() || env.hasOpenLayer()) {
     return null
   }
   if (event.key === "Escape") {

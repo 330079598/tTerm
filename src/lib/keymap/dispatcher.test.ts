@@ -12,14 +12,14 @@ import { buildChordIndex, DEFAULT_KEYMAP_CONFIG, resolveEffectiveKeymap } from "
 
 function createEnv(options?: {
   suppressed?: boolean
-  modalOpen?: boolean
+  layerOpen?: boolean
   index?: Map<string, KeymapActionId>
   handlers?: Map<KeymapActionId, Set<KeymapHandler>>
   isMac?: boolean
 }): KeymapDispatchEnvironment {
   return {
     isDispatchSuppressed: () => options?.suppressed ?? false,
-    hasOpenModal: () => options?.modalOpen ?? false,
+    hasOpenLayer: () => options?.layerOpen ?? false,
     getChordIndex: () => options?.index ?? new Map(),
     getHandlers: () => options?.handlers ?? new Map(),
     isMac: () => options?.isMac ?? false,
@@ -117,7 +117,7 @@ describe("dispatchKeydownEvent", () => {
     const handler = vi.fn()
     const handlers = new Map([["terminal.find", new Set([handler])] as const])
     const index = new Map([["mod+f", "terminal.find"] as const])
-    const env = createEnv({ modalOpen: true, handlers, index })
+    const env = createEnv({ layerOpen: true, handlers, index })
     expect(dispatchKeydownEvent(keydown("f", { ctrlKey: true }), env)).toBeNull()
   })
 
@@ -217,6 +217,20 @@ describe("real default bindings", () => {
     )
     expect(dispatchKeydownEvent(keydown("t", { ctrlKey: true }), env)).toBe("sftp.toggle")
     expect(newTab).toHaveBeenCalledOnce()
+    expect(toggleSftp).toHaveBeenCalledOnce()
+  })
+
+  it("keeps explicit Control defaults distinct from Command on macOS", () => {
+    const toggleSftp = vi.fn()
+    const handlers = new Map<KeymapActionId, Set<KeymapHandler>>([
+      ["sftp.toggle", new Set([toggleSftp])],
+    ])
+    const env = createEnv({ handlers, index: bindDefaultChords(), isMac: true })
+
+    expect(dispatchKeydownEvent(keydown("t", { code: "KeyT", ctrlKey: true }), env)).toBe(
+      "sftp.toggle"
+    )
+    expect(dispatchKeydownEvent(keydown("t", { code: "KeyT", metaKey: true }), env)).toBeNull()
     expect(toggleSftp).toHaveBeenCalledOnce()
   })
 

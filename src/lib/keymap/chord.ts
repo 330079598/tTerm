@@ -37,6 +37,22 @@ const KEY_ALIASES: Record<string, string> = {
   "+": "plus",
 }
 
+/** Physical printable keys mapped to the existing serialized key tokens. */
+const CODE_KEY_ALIASES: Record<string, string> = {
+  Space: "space",
+  Backquote: "`",
+  Minus: "-",
+  Equal: "=",
+  BracketLeft: "[",
+  BracketRight: "]",
+  Backslash: "\\",
+  Semicolon: ";",
+  Quote: "'",
+  Comma: ",",
+  Period: ".",
+  Slash: "/",
+}
+
 const KEY_ALIAS_DISPLAY: Record<string, string> = {
   space: "Space",
   plus: "+",
@@ -102,8 +118,33 @@ export function normalizeEventKey(rawKey: string): string | null {
   return NAMED_KEY_RE.test(lower) ? lower : null
 }
 
+/**
+ * Maps a KeyboardEvent `code` to the stable token used by persisted chords.
+ * Letter and digit codes follow their physical US-keyboard positions, so a
+ * binding keeps working when the active keyboard layout changes.
+ */
+export function normalizeEventCode(rawCode: string): string | null {
+  if (!rawCode) {
+    return null
+  }
+  if (/^Key[A-Z]$/.test(rawCode)) {
+    return rawCode.slice(3).toLowerCase()
+  }
+  if (/^Digit[0-9]$/.test(rawCode)) {
+    return rawCode.slice(5)
+  }
+  const aliased = CODE_KEY_ALIASES[rawCode]
+  if (aliased) {
+    return aliased
+  }
+  return normalizeEventKey(rawCode)
+}
+
 export function eventToChord(event: KeyboardEvent, isMac: boolean): Chord | null {
-  const key = normalizeEventKey(event.key)
+  if (event.isComposing || UNBINDABLE_KEYS.has(event.key) || MODIFIER_KEYS.has(event.key)) {
+    return null
+  }
+  const key = normalizeEventCode(event.code) ?? normalizeEventKey(event.key)
   if (!key) {
     return null
   }

@@ -21,7 +21,21 @@ interface KeymapContextValue {
 
 const KeymapContext = createContext<KeymapContextValue | null>(null)
 
-const MODAL_OPEN_SELECTOR = '[data-slot="dialog-content"][data-state="open"]'
+const OPEN_LAYER_SELECTOR = [
+  '[data-slot="dialog-content"][data-state="open"]',
+  '[data-slot="popover-content"][data-state="open"]',
+  '[data-slot="dropdown-menu-content"][data-state="open"]',
+  '[data-slot="select-content"][data-state="open"]',
+  '[role="listbox"][data-state="open"]',
+  '[role="menu"]:not([hidden])',
+].join(",")
+
+export function hasOpenShortcutBlockingLayer(doc: Document): boolean {
+  if (doc.querySelector(OPEN_LAYER_SELECTOR)) {
+    return true
+  }
+  return Boolean(doc.activeElement?.matches('select, [aria-haspopup][aria-expanded="true"]'))
+}
 
 export function KeymapProvider({ children }: { children: React.ReactNode }) {
   const { config } = useConfig()
@@ -43,8 +57,7 @@ export function KeymapProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     return attachKeymapDispatcher(window, {
       isDispatchSuppressed: () => suppressedRef.current,
-      hasOpenModal: () =>
-        typeof document !== "undefined" && Boolean(document.querySelector(MODAL_OPEN_SELECTOR)),
+      hasOpenLayer: () => typeof document !== "undefined" && hasOpenShortcutBlockingLayer(document),
       getChordIndex: () => indexRef.current,
       getHandlers: () => handlersRef.current,
       isMac: () => isMacRef.current,

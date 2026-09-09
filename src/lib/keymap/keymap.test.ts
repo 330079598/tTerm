@@ -44,11 +44,11 @@ describe("resolveEffectiveKeymap", () => {
     expect(effective["terminal.find"]).toBeNull()
   })
 
-  it("drops unparseable chords", () => {
+  it("falls back to the default when an override is unparseable", () => {
     const effective = resolveEffectiveKeymap({
       bindings: { "terminal.find": ["not a chord"] },
     })
-    expect(effective["terminal.find"]).toBeNull()
+    expect(effective["terminal.find"]).toEqual(["mod+f"])
   })
 })
 
@@ -99,9 +99,23 @@ describe("normalizeKeymap", () => {
       },
     })
     expect(normalized.bindings["terminal.find"]).toEqual(["mod+j"])
-    expect(normalized.bindings["terminal.clear"]).toBeNull()
+    expect(normalized.bindings["terminal.clear"]).toBeUndefined()
     expect(normalized.bindings["editor.save"]).toBeNull()
     expect(Object.prototype.hasOwnProperty.call(normalized.bindings, "unknown.action")).toBe(false)
+  })
+
+  it("drops empty and invalid overrides but preserves explicit unbinding", () => {
+    const normalized = normalizeKeymap({
+      bindings: {
+        "terminal.find": [],
+        "terminal.clear": ["not a chord"],
+        "editor.save": null,
+      },
+    })
+
+    expect(normalized.bindings["terminal.find"]).toBeUndefined()
+    expect(normalized.bindings["terminal.clear"]).toBeUndefined()
+    expect(normalized.bindings["editor.save"]).toBeNull()
   })
 
   it("canonicalizes chord serializations", () => {

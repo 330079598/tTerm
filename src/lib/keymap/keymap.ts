@@ -48,22 +48,29 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
 /** actionId -> serialized chords currently in effect (null = unbound). */
 export type EffectiveKeymap = Record<KeymapActionId, string[] | null>
 
+function normalizeBinding(source: string | string[] | null | undefined): string[] | null {
+  if (source == null) {
+    return null
+  }
+  const valid = (Array.isArray(source) ? source : [source])
+    .map(parseChord)
+    .filter((chord): chord is NonNullable<typeof chord> => chord !== null)
+    .map((chord) => serializeChord(chord))
+    .filter((serialized): serialized is string => serialized !== null)
+  return valid.length > 0 ? valid : null
+}
+
 export function resolveEffectiveKeymap(keymap: KeymapConfig): EffectiveKeymap {
   const effective = {} as EffectiveKeymap
 
   for (const action of KEYMAP_ACTIONS) {
     const override = keymap.bindings[action.id]
-    const source = override !== undefined ? override : DEFAULT_BINDINGS[action.id]
-    if (source == null) {
+    if (override === null) {
       effective[action.id] = null
       continue
     }
-    const chords = (Array.isArray(source) ? source : [source]).map(parseChord)
-    const valid = chords
-      .filter((chord): chord is NonNullable<typeof chord> => chord !== null)
-      .map((chord) => serializeChord(chord))
-      .filter((serialized): serialized is string => serialized !== null)
-    effective[action.id] = valid.length > 0 ? valid : null
+    const normalizedOverride = normalizeBinding(override)
+    effective[action.id] = normalizedOverride ?? normalizeBinding(DEFAULT_BINDINGS[action.id])
   }
 
   return effective
@@ -171,7 +178,9 @@ export function normalizeKeymap(value: unknown): KeymapConfig {
         .filter((chord): chord is NonNullable<typeof chord> => chord !== null)
         .map((chord) => serializeChord(chord))
         .filter((serialized): serialized is string => serialized !== null)
-      bindings[actionId as KeymapActionId] = valid.length > 0 ? valid : null
+      if (valid.length > 0) {
+        bindings[actionId as KeymapActionId] = valid
+      }
     }
   }
 
