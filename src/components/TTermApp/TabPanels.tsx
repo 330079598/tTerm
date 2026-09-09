@@ -355,6 +355,7 @@ const WorkspacePanel = React.memo(function WorkspacePanel({
         <ErrorBoundary resetKey={tab.id} scope="remote-file-editor">
           <React.Suspense fallback={null}>
             <RemoteFileEditor
+              isVisible={isVisible}
               tab={tab}
               onTabUpdate={(updater) => workspace.updateTab(tab.id, updater)}
             />

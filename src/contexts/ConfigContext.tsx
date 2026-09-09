@@ -13,6 +13,7 @@ import { platform } from "@tauri-apps/plugin-os"
 import { detectSystemLanguage } from "@/i18n/language"
 import { markConfigReady } from "@/lib/startup"
 import type { UpdateCheckFrequency } from "@/lib/updater"
+import { DEFAULT_KEYMAP_CONFIG, normalizeKeymap, type KeymapConfig } from "@/lib/keymap/keymap"
 
 export interface SecretBackendStatus {
   activeBackend: "system" | "vault" | "memory"
@@ -133,6 +134,7 @@ export interface AppConfig {
   terminal_log_name_template: string
   terminal_log_max_file_size_mb: number
   terminal_log_compress: boolean
+  keymap: KeymapConfig
 }
 
 const defaultUpdateChannel = /-(alpha|beta|rc|dev)(\.|$)/.test(
@@ -178,6 +180,7 @@ const defaultConfig: AppConfig = {
   terminal_log_name_template: "{profile}-{host}-{yyyyMMdd-HHmmss}-{sessionId}",
   terminal_log_max_file_size_mb: 50,
   terminal_log_compress: false,
+  keymap: { ...DEFAULT_KEYMAP_CONFIG, bindings: {} },
 }
 
 function normalizeUpdateCheckFrequency(
@@ -302,6 +305,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     ),
     terminal_log_compress: config.terminal_log_compress === true,
     ui_scale_percent: normalizeUiScalePercent(config.ui_scale_percent),
+    keymap: normalizeKeymap(config.keymap),
   }
 }
 

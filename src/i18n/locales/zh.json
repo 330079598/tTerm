@@ -137,6 +137,7 @@
     "appearance": "外观",
     "font": "字体",
     "terminal": "终端",
+    "keymap": "键盘快捷键",
     "connection": "连接",
     "security": "安全",
     "general": "通用",
@@ -203,6 +204,82 @@
     "tabStandardWidth": "标准宽度",
     "tabStandardWidthRange": "80-300px",
     "interface": "界面"
+  },
+  "keymap": {
+    "title": "键盘快捷键",
+    "description": "按需修改 tTerm 各项操作的快捷键。未匹配的按键会直接传递给当前终端。",
+    "resetOverrides": "重置自定义项",
+    "conflictTitle": "快捷键冲突",
+    "conflictDescription": "已被以下操作占用：{{actions}}。请选择其他快捷键。",
+    "recording": "请按快捷键...",
+    "recordingHelp": "按下组合键即可保存；Escape 取消，Backspace 或 Delete 清除绑定。",
+    "numberRequired": "请按下以 1-9 数字结尾的快捷键，系统会自动生成完整的 1-9 绑定。",
+    "help": "点击快捷键可替换绑定；重置图标会恢复 tTerm 默认绑定。",
+    "recordFor": "为“{{action}}”录制快捷键",
+    "unbound": "未绑定",
+    "clear": "清除快捷键",
+    "restoreDefault": "恢复默认绑定",
+    "groups": {
+      "workspace": "工作区",
+      "tabs": "标签页",
+      "terminal": "终端",
+      "sftp": "SFTP",
+      "editor": "编辑器"
+    },
+    "actions": {
+      "workspace": {
+        "newTab": "新建连接标签页",
+        "splitRight": "向右分屏",
+        "splitBelow": "向下分屏"
+      },
+      "commandLibrary": {
+        "open": "打开命令库"
+      },
+      "broadcast": {
+        "togglePanel": "切换广播面板"
+      },
+      "tabs": {
+        "next": "下一个标签页",
+        "prev": "上一个标签页",
+        "switchToNth": "切换到第 1-9 个标签页",
+        "closeActive": "关闭当前标签页"
+      },
+      "terminal": {
+        "find": "在终端中查找",
+        "clear": "清空终端",
+        "saveSelection": "将选中文本收藏为命令"
+      },
+      "sftp": {
+        "toggle": "切换 SFTP 面板",
+        "selectAll": "选择全部文件",
+        "focusPath": "聚焦远程路径",
+        "pasteUpload": "上传已复制的文件"
+      },
+      "editor": {
+        "save": "保存远程文件"
+      }
+    },
+    "cliHints": {
+      "xoff": "Ctrl+S 常用于终端流控暂停（XOFF）。",
+      "xon": "Ctrl+Q 常用于恢复终端流控（XON）。",
+      "readlineHome": "Ctrl+A 在 Readline 和 Emacs 中用于移动到行首。",
+      "readlineEnd": "Ctrl+E 在 Readline 和 Emacs 中用于移动到行尾。",
+      "readlineKillLineStart": "Ctrl+U 在许多 Shell 中用于删除到行首。",
+      "readlineKillLineEnd": "Ctrl+K 在许多 Shell 中用于删除到行尾。",
+      "readlineDeleteWord": "Ctrl+W 在许多 Shell 中用于删除前一个单词。",
+      "clearScreen": "Ctrl+L 在许多 Shell 中用于清屏。",
+      "historySearch": "Ctrl+R 在许多 Shell 中用于搜索命令历史。",
+      "tmuxPrefix": "Ctrl+B 是 tmux 的默认前缀键。",
+      "suspend": "Ctrl+Z 在 Unix Shell 中用于挂起前台进程。",
+      "eof": "Ctrl+D 用于发送 EOF 或退出许多 Shell。",
+      "quotedInsert": "Ctrl+V 在许多 Shell 中用于原样插入下一个字符。",
+      "historyNext": "Ctrl+N 在 Readline 中用于选择下一条历史记录。",
+      "historyPrevious": "Ctrl+P 在 Readline 中用于选择上一条历史记录。",
+      "operateAndGetNext": "Ctrl+O 用于执行当前行并取出下一条历史记录。",
+      "wordBack": "Alt+B 在许多 Shell 中用于向后移动一个单词。",
+      "wordForward": "Alt+F 在许多 Shell 中用于向前移动一个单词。",
+      "wordKill": "Alt+D 在许多 Shell 中用于删除下一个单词。"
+    }
   },
   "theme": {
     "title": "选择主题",

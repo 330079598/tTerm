@@ -14,6 +14,7 @@ vi.mock("react-i18next", () => ({
         "settings.connection": "Connection",
         "settings.appearance": "Appearance",
         "settings.terminal": "Terminal",
+        "settings.keymap": "Keyboard shortcuts",
         "terminalLogging.title": "Logs",
         "dataMigration.sidebar": "Backup & migration",
         "settings.security": "Security",
@@ -35,7 +36,7 @@ describe("SettingsSidebar", () => {
     const general = screen.getByRole("tab", { name: "General" })
     const updates = screen.getByRole("tab", { name: "Updates" })
 
-    expect(screen.getAllByRole("tab")).toHaveLength(9)
+    expect(screen.getAllByRole("tab")).toHaveLength(10)
     expect(general.getAttribute("aria-selected")).toBe("true")
     expect(updates.getAttribute("aria-selected")).toBe("false")
 

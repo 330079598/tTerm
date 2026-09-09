@@ -6,10 +6,12 @@ import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import { CodeMirrorEditor } from "@/components/CodeMirrorEditor"
+import { useKeymap } from "@/contexts/KeymapContext"
 import { toast } from "@/hooks/use-toast"
 import type { Tab } from "@/types/tab"
 
 interface RemoteFileEditorProps {
+  isVisible: boolean
   tab: Tab
   onTabUpdate: (updater: (tab: Tab) => Tab) => void
 }
@@ -27,8 +29,13 @@ interface SftpSaveEditedFileResult {
   size: number
 }
 
-export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({ tab, onTabUpdate }) => {
+export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({
+  isVisible,
+  tab,
+  onTabUpdate,
+}) => {
   const { t } = useTranslation()
+  const { registerHandler } = useKeymap()
   const remoteFile = tab.remoteFile
   const [content, setContent] = useState("")
   const [savedContent, setSavedContent] = useState("")
@@ -155,16 +162,11 @@ export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({ tab, onTabUp
   }, [baseline, content, isSaving, onTabUpdate, remoteFile, t, tab.connection])
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
-        event.preventDefault()
-        void saveFile()
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [saveFile])
+    return registerHandler("editor.save", () => {
+      if (!isVisible || !remoteFile || !baseline || isSaving) return false
+      void saveFile()
+    })
+  }, [baseline, isSaving, isVisible, registerHandler, remoteFile, saveFile])
 
   if (!remoteFile) {
     return (

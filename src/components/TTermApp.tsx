@@ -32,6 +32,7 @@ import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { useConfig } from "@/contexts/ConfigContext"
+import { useKeymap } from "@/contexts/KeymapContext"
 import { useAppActivity } from "@/contexts/AppActivityContext"
 import { useTransferManager } from "@/contexts/TransferContext"
 import { useConnectionManager } from "@/hooks/useConnectionManager"
@@ -49,6 +50,7 @@ import {
   saveRecentCommands,
 } from "@/lib/recentCommands"
 import { getAdjacentTabId, getTabIdsForCloseAction } from "@/lib/tabClosing"
+import { getSiblingTabId, getTabIdAtPosition } from "@/lib/tabNavigation"
 import { Tab } from "@/types/tab"
 import type { CommandDraft, ExecutedCommand, RecentCommand, SavedCommand } from "@/types/command"
 import type {
@@ -1194,22 +1196,24 @@ export const TTermApp: React.FC = () => {
     [tabs]
   )
 
+  const { registerHandler } = useKeymap()
+
   useEffect(() => {
-    const handleWorkspaceShortcut = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key !== "\\") {
-        return
+    const unregisterSplitRight = registerHandler("workspace.splitRight", () => {
+      if (activeTabId) {
+        handleSplitTab(activeTabId, "right")
       }
-      if (!activeTabId) {
-        return
+    })
+    const unregisterSplitBelow = registerHandler("workspace.splitBelow", () => {
+      if (activeTabId) {
+        handleSplitTab(activeTabId, "below")
       }
-
-      event.preventDefault()
-      handleSplitTab(activeTabId, event.shiftKey ? "below" : "right")
+    })
+    return () => {
+      unregisterSplitRight()
+      unregisterSplitBelow()
     }
-
-    window.addEventListener("keydown", handleWorkspaceShortcut, true)
-    return () => window.removeEventListener("keydown", handleWorkspaceShortcut, true)
-  }, [activeTabId, handleSplitTab])
+  }, [registerHandler, handleSplitTab, activeTabId])
 
   const {
     nativeControlsReservePx,
@@ -1434,15 +1438,53 @@ export const TTermApp: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    const handleCommandLibraryShortcut = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "p") {
-        event.preventDefault()
-        handleOpenCommandLibrary()
+    const unregister = registerHandler("commandLibrary.open", () => {
+      handleOpenCommandLibrary()
+    })
+    return unregister
+  }, [registerHandler, handleOpenCommandLibrary])
+
+  const keymapTabIds = useMemo(() => tabs.map((tab) => tab.id), [tabs])
+
+  useEffect(() => {
+    const unregisterNewTab = registerHandler("workspace.newTab", () => {
+      handleNewTab()
+    })
+    const unregisterNextTab = registerHandler("tabs.next", () => {
+      const nextId = getSiblingTabId(keymapTabIds, activeTabId, 1)
+      if (nextId) {
+        setActiveTab(nextId)
       }
+    })
+    const unregisterPrevTab = registerHandler("tabs.prev", () => {
+      const prevId = getSiblingTabId(keymapTabIds, activeTabId, -1)
+      if (prevId) {
+        setActiveTab(prevId)
+      }
+    })
+    const unregisterSwitchToNth = registerHandler("tabs.switchToNth", (event) => {
+      const position = Number.parseInt(event.key, 10)
+      if (Number.isNaN(position)) {
+        return false
+      }
+      const tabId = getTabIdAtPosition(keymapTabIds, position)
+      if (tabId) {
+        setActiveTab(tabId)
+      }
+    })
+    const unregisterCloseActive = registerHandler("tabs.closeActive", () => {
+      if (activeTabId) {
+        void handleRemoveTab(activeTabId)
+      }
+    })
+    return () => {
+      unregisterNewTab()
+      unregisterNextTab()
+      unregisterPrevTab()
+      unregisterSwitchToNth()
+      unregisterCloseActive()
     }
-    document.addEventListener("keydown", handleCommandLibraryShortcut)
-    return () => document.removeEventListener("keydown", handleCommandLibraryShortcut)
-  }, [handleOpenCommandLibrary])
+  }, [registerHandler, keymapTabIds, activeTabId, setActiveTab, handleNewTab, handleRemoveTab])
 
   const handleCollapsedProfileGroupKeysChange = useCallback(
     (groups: string[]) => {

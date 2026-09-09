@@ -26,6 +26,7 @@ import { DataMigrationSettingsTab } from "@/components/SettingsDialog/DataMigrat
 import { FontSettingsTab } from "@/components/SettingsDialog/FontSettingsTab"
 import { GeneralSettingsTab } from "@/components/SettingsDialog/GeneralSettingsTab"
 import { LoggingSettingsTab } from "@/components/SettingsDialog/LoggingSettingsTab"
+import { KeymapSettingsTab } from "@/components/SettingsDialog/KeymapSettingsTab"
 import { ProfileGroupsSettingsTab } from "@/components/SettingsDialog/ProfileGroupsSettingsTab"
 import { SecuritySettingsTab } from "@/components/SettingsDialog/SecuritySettingsTab"
 import { SettingsSidebar } from "@/components/SettingsDialog/SettingsSidebar"
@@ -816,6 +817,17 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
           >
             <LoggingSettingsTab handleEnabledChange={handleTerminalLogEnabledChange} />
+          </TabsContent>
+
+          <TabsContent
+            value="keymap"
+            id="settings-panel-keymap"
+            role="tabpanel"
+            aria-labelledby="settings-tab-keymap"
+            tabIndex={0}
+            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
+          >
+            <KeymapSettingsTab />
           </TabsContent>
 
           <TabsContent

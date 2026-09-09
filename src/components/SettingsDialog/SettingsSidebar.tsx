@@ -4,6 +4,7 @@ import {
   FolderTree,
   HardDriveDownload,
   Info,
+  Keyboard,
   Palette,
   Plug,
   Shield,
@@ -48,6 +49,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ activeTab, onT
           label: t("settings.terminal", { defaultValue: "Terminal" }),
           icon: SquareTerminal,
         },
+        { value: "keymap", label: t("settings.keymap"), icon: Keyboard },
       ],
     },
     {

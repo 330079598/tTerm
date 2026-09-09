@@ -25,11 +25,11 @@ import type {
 import { toast } from "@/hooks/use-toast"
 import { useConfig } from "@/contexts/ConfigContext"
 import type { TerminalRenderer } from "@/contexts/ConfigContext"
+import { useKeymap } from "@/contexts/KeymapContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useStableRef } from "@/hooks/useStableRef"
 import { resolveScrollbackLines } from "@/lib/scrollback"
 import { safePreloadFont } from "@/lib/canvasFontHost"
-import { isSaveCommandShortcut } from "@/lib/terminalCommandCapture"
 import { toErrorMessage } from "@/lib/utils"
 import type { TabContextMenuAction } from "@/types/tab"
 
@@ -129,6 +129,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     handleSearchDragStart,
     isSearchDragging,
     isSearchOpen,
+    openSearch,
     runSearch,
     searchInputRef,
     searchOptions,
@@ -145,6 +146,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     surfaceRef,
     termRef,
   })
+
+  const { registerHandler } = useKeymap()
 
   const hostKeyPrompt =
     hostKeyPromptState?.sessionKey === sessionResetKey ? hostKeyPromptState.value : null
@@ -647,23 +650,45 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   ]
 
   useEffect(() => {
-    if (!isActive) return
-    const handleSaveShortcut = (event: KeyboardEvent) => {
-      if (!isSaveCommandShortcut(event)) return
-      if (!containerRef.current?.contains(document.activeElement)) return
+    const unregisterFind = registerHandler("terminal.find", () => {
+      if (!isActiveRef.current) return false
+      openSearch()
+    })
+    const unregisterClear = registerHandler("terminal.clear", () => {
+      if (!isActiveRef.current) return false
+      clearTerminalHistory()
+    })
+    const unregisterToggleSftp = registerHandler("sftp.toggle", () => {
+      if (!isActiveRef.current) return false
+      handleToggleSftpDrawer()
+    })
+    const unregisterSaveSelection = registerHandler("terminal.saveSelection", () => {
+      if (!isActiveRef.current) return false
+      if (!containerRef.current?.contains(document.activeElement)) return false
       const selection = termRef.current?.hasSelection() ? termRef.current.getSelection().trim() : ""
-      if (!selection) return
-      event.preventDefault()
-      event.stopPropagation()
+      if (!selection) return false
+      const currentConnection = connectionRef.current
       const profile =
-        connection?.profileId && connection.profileName
-          ? { id: connection.profileId, name: connection.profileName }
+        currentConnection?.profileId && currentConnection.profileName
+          ? { id: currentConnection.profileId, name: currentConnection.profileName }
           : undefined
       onSaveCommand?.(selection, profile)
+    })
+    return () => {
+      unregisterFind()
+      unregisterClear()
+      unregisterToggleSftp()
+      unregisterSaveSelection()
     }
-    document.addEventListener("keydown", handleSaveShortcut, true)
-    return () => document.removeEventListener("keydown", handleSaveShortcut, true)
-  }, [connection, isActive, onSaveCommand])
+  }, [
+    clearTerminalHistory,
+    connectionRef,
+    handleToggleSftpDrawer,
+    isActiveRef,
+    onSaveCommand,
+    openSearch,
+    registerHandler,
+  ])
 
   const searchResultText = searchQuery
     ? searchResults.resultCount > 0

@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core"
 import { useTranslation } from "react-i18next"
 
 import type { SftpDirectoryListing } from "@/components/SftpDrawer/types"
+import { useKeymap } from "@/contexts/KeymapContext"
 
 interface UseSftpPasteUploadParams {
   enabled: boolean
@@ -14,17 +15,6 @@ interface UseSftpPasteUploadParams {
 
 const PASTE_DEDUP_WINDOW_MS = 750
 
-function isEditablePasteTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  return Boolean(
-    target.isContentEditable ||
-    target.closest("input, textarea, select, [contenteditable='true'], [role='textbox']")
-  )
-}
-
 export function useSftpPasteUpload({
   enabled,
   listing,
@@ -33,6 +23,7 @@ export function useSftpPasteUpload({
   visible,
 }: UseSftpPasteUploadParams) {
   const { t } = useTranslation()
+  const { registerHandler } = useKeymap()
   const isPasteUploadRunningRef = useRef(false)
   const lastPasteRef = useRef<{ signature: string; timestamp: number } | null>(null)
 
@@ -78,32 +69,13 @@ export function useSftpPasteUpload({
   }, [listing, setError, t, uploadPaths])
 
   useEffect(() => {
-    if (!enabled || !visible) {
-      return
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const isPasteShortcut =
-        event.key.toLowerCase() === "v" &&
-        (event.ctrlKey || event.metaKey) &&
-        !event.altKey &&
-        !event.shiftKey
-
-      if (!isPasteShortcut || isEditablePasteTarget(event.target)) {
-        return
-      }
-
-      event.preventDefault()
-      event.stopPropagation()
-
+    return registerHandler("sftp.pasteUpload", (event) => {
+      if (!enabled || !visible) return false
       if (event.repeat) {
-        return
+        return true
       }
 
       void uploadClipboardPaths()
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [enabled, uploadClipboardPaths, visible])
+    })
+  }, [enabled, registerHandler, uploadClipboardPaths, visible])
 }

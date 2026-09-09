@@ -88,6 +88,57 @@ pub struct AppConfig {
     pub terminal_log_max_file_size_mb: u32,
     #[serde(default)]
     pub terminal_log_compress: bool,
+    #[serde(default = "default_keymap")]
+    pub keymap: KeymapConfig,
+}
+
+/// User-configurable keyboard shortcut overrides. `bindings` maps action ids
+/// to their chord serializations; `None` entries mean "unbound", missing
+/// entries fall back to the tTerm defaults on the frontend.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct KeymapConfig {
+    #[serde(default, deserialize_with = "deserialize_keymap_bindings")]
+    pub bindings: std::collections::BTreeMap<String, Option<Vec<String>>>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum KeymapBindingValue {
+    One(String),
+    Many(Vec<String>),
+}
+
+fn deserialize_keymap_bindings<'de, D>(
+    deserializer: D,
+) -> Result<std::collections::BTreeMap<String, Option<Vec<String>>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let bindings = std::collections::BTreeMap::<String, Option<KeymapBindingValue>>::deserialize(
+        deserializer,
+    )?;
+    Ok(bindings
+        .into_iter()
+        .map(|(action, value)| {
+            let chords = value.map(|binding| match binding {
+                KeymapBindingValue::One(chord) => vec![chord],
+                KeymapBindingValue::Many(chords) => chords,
+            });
+            (action, chords)
+        })
+        .collect())
+}
+
+impl Default for KeymapConfig {
+    fn default() -> Self {
+        default_keymap()
+    }
+}
+
+fn default_keymap() -> KeymapConfig {
+    KeymapConfig {
+        bindings: std::collections::BTreeMap::new(),
+    }
 }
 
 fn normalize_language(locale: &str) -> String {
@@ -272,6 +323,7 @@ impl Default for AppConfig {
             terminal_log_name_template: default_terminal_log_name_template(),
             terminal_log_max_file_size_mb: default_terminal_log_max_file_size_mb(),
             terminal_log_compress: false,
+            keymap: default_keymap(),
         }
     }
 }
@@ -332,6 +384,58 @@ mod tests {
             config.monitor_visible_metrics,
             ["cpu", "memory", "network", "ip", "latency", "disk"]
         );
+    }
+
+    #[test]
+    fn legacy_config_gets_default_keymap() {
+        let config: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+
+        assert!(config.keymap.bindings.is_empty());
+    }
+
+    #[test]
+    fn keymap_config_round_trips() {
+        let config: AppConfig = serde_json::from_str(
+            r#"{"theme":"default","keymap":{"bindings":{"terminal.find":["mod+j"],"terminal.clear":null}}}"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            config.keymap.bindings.get("terminal.find"),
+            Some(&Some(vec!["mod+j".to_string()]))
+        );
+        assert_eq!(config.keymap.bindings.get("terminal.clear"), Some(&None));
+
+        let serialized = serde_json::to_string(&config).unwrap();
+        let reparsed: AppConfig = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(
+            reparsed.keymap.bindings.get("terminal.find"),
+            config.keymap.bindings.get("terminal.find")
+        );
+    }
+
+    #[test]
+    fn keymap_config_ignores_removed_preset_field() {
+        let config: AppConfig =
+            serde_json::from_str(r#"{"theme":"default","keymap":{"preset":"vscode","bindings":{}}}"#)
+                .unwrap();
+
+        assert!(config.keymap.bindings.is_empty());
+        assert!(!serde_json::to_string(&config).unwrap().contains("preset"));
+    }
+
+    #[test]
+    fn keymap_config_accepts_legacy_single_chord_values() {
+        let config: AppConfig = serde_json::from_str(
+            r#"{"theme":"default","keymap":{"bindings":{"terminal.find":"mod+j","editor.save":null}}}"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            config.keymap.bindings.get("terminal.find"),
+            Some(&Some(vec!["mod+j".to_string()]))
+        );
+        assert_eq!(config.keymap.bindings.get("editor.save"), Some(&None));
     }
 
     #[test]

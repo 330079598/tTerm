@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest"
 import {
   captureTerminalInput,
   EMPTY_COMMAND_CAPTURE_STATE,
-  isSaveCommandShortcut,
   parseShellIntegrationCommand,
 } from "@/lib/terminalCommandCapture"
 
@@ -37,17 +36,5 @@ describe("terminal command capture", () => {
     expect(parseShellIntegrationCommand("E;docker ps")).toBe("docker ps")
     expect(parseShellIntegrationCommand("E;printf a; printf b")).toBe("printf a; printf b")
     expect(parseShellIntegrationCommand("D;0")).toBeNull()
-  })
-
-  it("recognizes the cross-platform save-selection shortcut", () => {
-    expect(isSaveCommandShortcut({ ctrlKey: true, metaKey: false, shiftKey: true, key: "S" })).toBe(
-      true
-    )
-    expect(isSaveCommandShortcut({ ctrlKey: false, metaKey: true, shiftKey: true, key: "s" })).toBe(
-      true
-    )
-    expect(
-      isSaveCommandShortcut({ ctrlKey: true, metaKey: false, shiftKey: false, key: "s" })
-    ).toBe(false)
   })
 })

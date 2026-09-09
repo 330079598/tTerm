@@ -6,8 +6,19 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { useSftpPasteUpload } from "@/components/SftpDrawer/useSftpPasteUpload"
 
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }))
+const { keymapHandlers } = vi.hoisted(() => ({
+  keymapHandlers: new Map<string, (event: KeyboardEvent) => void | boolean>(),
+}))
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke }))
+vi.mock("@/contexts/KeymapContext", () => ({
+  useKeymap: () => ({
+    registerHandler: (actionId: string, handler: (event: KeyboardEvent) => void | boolean) => {
+      keymapHandlers.set(actionId, handler)
+      return () => keymapHandlers.delete(actionId)
+    },
+  }),
+}))
 
 const listing = { currentPath: "/remote", entries: [] }
 
@@ -18,7 +29,11 @@ function dispatchPasteShortcut(target: EventTarget = window) {
     key: "v",
     metaKey: true,
   })
-  target.dispatchEvent(event)
+  Object.defineProperty(event, "target", { value: target })
+  if (!(target instanceof HTMLElement && target.closest("input, textarea, select"))) {
+    const result = keymapHandlers.get("sftp.pasteUpload")?.(event)
+    if (result !== false && keymapHandlers.has("sftp.pasteUpload")) event.preventDefault()
+  }
   return event
 }
 

@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useConfig } from "@/contexts/ConfigContext"
+import { useKeymap } from "@/contexts/KeymapContext"
 import { toast } from "@/hooks/use-toast"
 
 import { SftpDeleteTransferEvents } from "@/components/SftpDrawer/SftpDeleteTransferEvents"
@@ -80,17 +81,6 @@ function isDeletedEntryPath(path: string, deletedPaths: Set<string>) {
   return false
 }
 
-function isEditableShortcutTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  return Boolean(
-    target.isContentEditable ||
-    target.closest("input, textarea, select, [contenteditable='true'], [role='textbox']")
-  )
-}
-
 export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   tabId,
   visible,
@@ -101,6 +91,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
 }) => {
   const { t } = useTranslation()
   const { config } = useConfig()
+  const { registerHandler } = useKeymap()
   const drawerRef = useRef<HTMLDivElement>(null)
   const [listing, setListing] = useState<SftpDirectoryListing | null>(null)
   const [activePath, setActivePath] = useState<string | null>(null)
@@ -216,36 +207,21 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   }, [])
 
   useEffect(() => {
-    if (!visible || dialog.type !== "none") {
-      return
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const isSelectAllShortcut =
-        event.key.toLowerCase() === "a" && (event.ctrlKey || event.metaKey) && !event.altKey
-
-      if (!isSelectAllShortcut || isEditableShortcutTarget(event.target)) {
-        return
-      }
-
+    return registerHandler("sftp.selectAll", () => {
+      if (!visible || dialog.type !== "none") return false
       const entries = filteredListing?.entries ?? []
       if (entries.length === 0 || isLoading || error) {
-        return
+        return false
       }
 
-      event.preventDefault()
-      event.stopPropagation()
       setIsSelectionMode(true)
       setSelectedPaths(entries.map((entry) => entry.path))
       setActivePath((current) =>
         current && entries.some((entry) => entry.path === current) ? current : entries[0].path
       )
       setContextMenu(null)
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [dialog.type, error, filteredListing?.entries, isLoading, visible])
+    })
+  }, [dialog.type, error, filteredListing?.entries, isLoading, registerHandler, visible])
 
   const toggleSelectionMode = useCallback(() => {
     setIsSelectionMode((current) => {

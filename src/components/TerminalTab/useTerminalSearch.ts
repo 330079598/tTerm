@@ -238,25 +238,20 @@ export function useTerminalSearch({
   useEffect(() => clearActiveSearchDecorations, [clearActiveSearchDecorations])
 
   useEffect(() => {
+    if (!isSearchOpen) return
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isActiveRef.current) return
 
-      if (isSearchOpen && event.key === "Escape") {
+      if (event.key === "Escape") {
         event.preventDefault()
         closeSearch()
-        return
       }
-
-      const isFindShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f"
-      if (!isFindShortcut) return
-
-      event.preventDefault()
-      openSearch()
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [closeSearch, isActiveRef, isSearchOpen, openSearch])
+  }, [closeSearch, isActiveRef, isSearchOpen])
 
   useEffect(() => {
     if (!isSearchDragging) return
@@ -297,6 +292,7 @@ export function useTerminalSearch({
     handleSearchDragStart,
     isSearchDragging,
     isSearchOpen,
+    openSearch,
     runSearch,
     searchInputRef,
     searchOptions,

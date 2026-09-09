@@ -11,6 +11,7 @@ import type {
   TerminalRuntimeState,
 } from "@/types/broadcast"
 import { useConfig } from "@/contexts/ConfigContext"
+import { useKeymap } from "@/contexts/KeymapContext"
 
 type BroadcastManagerProps = {
   activeTabId: string | null
@@ -57,6 +58,7 @@ export function BroadcastManager({
 }: BroadcastManagerProps) {
   const { t } = useTranslation()
   const { config } = useConfig()
+  const { registerHandler } = useKeymap()
   const [open, setOpen] = useState(false)
   const [command, setCommand] = useState("")
   const [primaryInputTabId, setPrimaryInputTabId] = useState<string | null>(null)
@@ -82,6 +84,11 @@ export function BroadcastManager({
   const selectedCount = mode === "live" ? liveTargetCount : selectedTabIds.length
 
   const close = useCallback(() => setOpen(false), [])
+
+  useEffect(
+    () => registerHandler("broadcast.togglePanel", () => setOpen((current) => !current)),
+    [registerHandler]
+  )
 
   useEffect(() => {
     if (!open) return

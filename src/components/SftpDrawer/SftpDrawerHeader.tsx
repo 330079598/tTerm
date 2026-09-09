@@ -17,6 +17,7 @@ import {
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
+import { useKeymap } from "@/contexts/KeymapContext"
 import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -69,6 +70,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   toggleSelectionMode,
 }) => {
   const { t } = useTranslation()
+  const { registerHandler } = useKeymap()
   const [isPathEditing, setIsPathEditing] = useState(false)
   const [pathDraft, setPathDraft] = useState(listingCurrentPath ?? "")
   const [pathError, setPathError] = useState<string | null>(null)
@@ -163,18 +165,11 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   }
 
   useEffect(() => {
-    const handleGlobalKeyDown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== "l" || (!event.ctrlKey && !event.metaKey) || event.altKey) {
-        return
-      }
-
-      event.preventDefault()
+    return registerHandler("sftp.focusPath", () => {
+      if (!visible || !listingCurrentPath || isLoading) return false
       openPathEditor()
-    }
-
-    window.addEventListener("keydown", handleGlobalKeyDown)
-    return () => window.removeEventListener("keydown", handleGlobalKeyDown)
-  }, [openPathEditor])
+    })
+  }, [isLoading, listingCurrentPath, openPathEditor, registerHandler, visible])
 
   const selectionLabel = t("sftp.selection.selectedCount", {
     count: selectedCount,

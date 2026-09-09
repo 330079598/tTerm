@@ -146,6 +146,7 @@
     "appearance": "Appearance",
     "font": "Font",
     "terminal": "Terminal",
+    "keymap": "Keyboard shortcuts",
     "connection": "Connection",
     "security": "Security",
     "general": "General",
@@ -212,6 +213,82 @@
     "tabStandardWidth": "Standard width",
     "tabStandardWidthRange": "80-300px",
     "interface": "Interface"
+  },
+  "keymap": {
+    "title": "Keyboard shortcuts",
+    "description": "Customize tTerm shortcuts for individual actions. Unmatched keys pass directly to the active terminal.",
+    "resetOverrides": "Reset customizations",
+    "conflictTitle": "Shortcut conflict",
+    "conflictDescription": "Already used by: {{actions}}. Choose a different shortcut.",
+    "recording": "Press shortcut...",
+    "recordingHelp": "Press a shortcut to save it. Escape cancels; Backspace or Delete clears the binding.",
+    "numberRequired": "Press a shortcut ending in a number from 1 to 9. The full 1-9 set will be created automatically.",
+    "help": "Select a shortcut to replace it. The reset icon restores the tTerm default binding.",
+    "recordFor": "Record shortcut for {{action}}",
+    "unbound": "Unbound",
+    "clear": "Clear shortcut",
+    "restoreDefault": "Restore default binding",
+    "groups": {
+      "workspace": "Workspace",
+      "tabs": "Tabs",
+      "terminal": "Terminal",
+      "sftp": "SFTP",
+      "editor": "Editor"
+    },
+    "actions": {
+      "workspace": {
+        "newTab": "New connection tab",
+        "splitRight": "Split right",
+        "splitBelow": "Split below"
+      },
+      "commandLibrary": {
+        "open": "Open command library"
+      },
+      "broadcast": {
+        "togglePanel": "Toggle broadcast panel"
+      },
+      "tabs": {
+        "next": "Next tab",
+        "prev": "Previous tab",
+        "switchToNth": "Switch to tab 1-9",
+        "closeActive": "Close active tab"
+      },
+      "terminal": {
+        "find": "Find in terminal",
+        "clear": "Clear terminal",
+        "saveSelection": "Save selected text as command"
+      },
+      "sftp": {
+        "toggle": "Toggle SFTP panel",
+        "selectAll": "Select all files",
+        "focusPath": "Focus remote path",
+        "pasteUpload": "Upload copied files"
+      },
+      "editor": {
+        "save": "Save remote file"
+      }
+    },
+    "cliHints": {
+      "xoff": "Ctrl+S is commonly used for terminal flow control (XOFF).",
+      "xon": "Ctrl+Q is commonly used to resume terminal flow (XON).",
+      "readlineHome": "Ctrl+A moves to the start of the line in Readline and Emacs.",
+      "readlineEnd": "Ctrl+E moves to the end of the line in Readline and Emacs.",
+      "readlineKillLineStart": "Ctrl+U deletes to the start of the line in many shells.",
+      "readlineKillLineEnd": "Ctrl+K deletes to the end of the line in many shells.",
+      "readlineDeleteWord": "Ctrl+W deletes the previous word in many shells.",
+      "clearScreen": "Ctrl+L clears the screen in many shells.",
+      "historySearch": "Ctrl+R searches command history in many shells.",
+      "tmuxPrefix": "Ctrl+B is the default tmux prefix.",
+      "suspend": "Ctrl+Z suspends the foreground process in Unix shells.",
+      "eof": "Ctrl+D sends EOF or exits many shells.",
+      "quotedInsert": "Ctrl+V inserts the next character literally in many shells.",
+      "historyNext": "Ctrl+N selects the next history entry in Readline.",
+      "historyPrevious": "Ctrl+P selects the previous history entry in Readline.",
+      "operateAndGetNext": "Ctrl+O runs the current line and recalls the next history entry.",
+      "wordBack": "Alt+B moves backward by one word in many shells.",
+      "wordForward": "Alt+F moves forward by one word in many shells.",
+      "wordKill": "Alt+D deletes the next word in many shells."
+    }
   },
   "theme": {
     "title": "Choose Theme",

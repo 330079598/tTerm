@@ -10,15 +10,6 @@ export interface TerminalCommandCaptureResult {
   commands: string[]
 }
 
-export function isSaveCommandShortcut(event: {
-  ctrlKey: boolean
-  metaKey: boolean
-  shiftKey: boolean
-  key: string
-}) {
-  return (event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "s"
-}
-
 export const EMPTY_COMMAND_CAPTURE_STATE: TerminalCommandCaptureState = {
   text: "",
   cursor: 0,

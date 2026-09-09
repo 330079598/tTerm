@@ -4,6 +4,7 @@ import { lazy } from "react"
 import { TTermApp } from "@/components/TTermApp"
 import { AppUpdateManager } from "@/components/AppUpdateManager"
 import { ConfigProvider } from "@/contexts/ConfigContext"
+import { KeymapProvider } from "@/contexts/KeymapContext"
 import { AppActivityProvider } from "@/contexts/AppActivityContext"
 import { ThemeProvider } from "@/contexts/ThemeContext"
 import { TransferProvider } from "@/contexts/TransferContext"
@@ -19,15 +20,17 @@ const TanStackRouterDevtools = import.meta.env.DEV
 const RootLayout = () => {
   return (
     <ConfigProvider>
-      <ThemeProvider>
-        <TransferProvider>
-          <AppActivityProvider>
-            <TTermApp />
-            <AppUpdateManager />
-          </AppActivityProvider>
-          <TanStackRouterDevtools />
-        </TransferProvider>
-      </ThemeProvider>
+      <KeymapProvider>
+        <ThemeProvider>
+          <TransferProvider>
+            <AppActivityProvider>
+              <TTermApp />
+              <AppUpdateManager />
+            </AppActivityProvider>
+            <TanStackRouterDevtools />
+          </TransferProvider>
+        </ThemeProvider>
+      </KeymapProvider>
     </ConfigProvider>
   )
 }
