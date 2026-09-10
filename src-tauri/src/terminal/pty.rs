@@ -103,9 +103,7 @@ pub fn spawn_reader_thread(
         );
 
         let _ = exit_tx.send(match outcome {
-            ReaderOutcome::Terminated => {
-                super::super::core::state::SessionExitSignal::Terminated
-            }
+            ReaderOutcome::Terminated => super::super::core::state::SessionExitSignal::Terminated,
             ReaderOutcome::Failed(reason) => {
                 super::super::core::state::SessionExitSignal::Recoverable(reason)
             }

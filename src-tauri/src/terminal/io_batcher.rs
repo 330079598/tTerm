@@ -1,5 +1,5 @@
 use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender, TryRecvError};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::ipc::{Channel, InvokeResponseBody};
 
 /// Bounded queue capacity between the reader and the sender thread. When the
@@ -111,9 +111,19 @@ impl Drop for TerminalOutputSender {
 
 fn sender_loop(rx: &Receiver<Vec<u8>>, channel: &Channel<InvokeResponseBody>) {
     let mut pending: Vec<u8> = Vec::with_capacity(FLUSH_THRESHOLD_BYTES);
+    // Deadline of the open batching window: set when the first unwritten
+    // byte arrives, never extended by later arrivals. A self-resetting
+    // recv_timeout would starve a steady trickle (messages every few ms,
+    // below the byte threshold) until megabytes accumulated.
+    let mut flush_deadline: Option<Instant> = None;
     let mut alive = true;
     while alive {
-        let message = match rx.recv_timeout(BATCH_INTERVAL) {
+        let wait = match flush_deadline {
+            Some(deadline) => deadline.saturating_duration_since(Instant::now()),
+            // Idle poll while no window is open; flush below is a no-op.
+            None => BATCH_INTERVAL,
+        };
+        let message = match rx.recv_timeout(wait) {
             Ok(data) => Some(data),
             Err(RecvTimeoutError::Timeout) => None,
             Err(RecvTimeoutError::Disconnected) => {
@@ -122,9 +132,13 @@ fn sender_loop(rx: &Receiver<Vec<u8>>, channel: &Channel<InvokeResponseBody>) {
             }
         };
         if let Some(data) = message {
+            if flush_deadline.is_none() {
+                flush_deadline = Some(Instant::now() + BATCH_INTERVAL);
+            }
             pending.extend_from_slice(&data);
             if pending.len() >= FLUSH_THRESHOLD_BYTES {
                 flush_all(&mut pending, channel);
+                flush_deadline = None;
                 // Bytes queued behind this batch are already deliverable:
                 // drain them now instead of waking once per message.
                 loop {
@@ -142,9 +156,14 @@ fn sender_loop(rx: &Receiver<Vec<u8>>, channel: &Channel<InvokeResponseBody>) {
                         }
                     }
                 }
+                if alive && !pending.is_empty() {
+                    flush_deadline = Some(Instant::now() + BATCH_INTERVAL);
+                }
             }
+        } else if flush_deadline.take().is_some() {
+            // Batching window elapsed: deliver what accumulated.
+            flush_all(&mut pending, channel);
         }
-        flush_all(&mut pending, channel);
     }
     // End of stream: deliver any deferred partial sequence as-is.
     flush_final(&mut pending, channel);
@@ -332,7 +351,11 @@ mod tests {
         assert_eq!(joined.len(), 1000 * 1024);
         for (index, byte) in joined.iter().enumerate() {
             let round = index / 1024;
-            assert_eq!(*byte, b'a' + (round % 26) as u8, "byte {index} out of order");
+            assert_eq!(
+                *byte,
+                b'a' + (round % 26) as u8,
+                "byte {index} out of order"
+            );
         }
     }
 
@@ -349,6 +372,57 @@ mod tests {
         let chunks = recorder.chunks.lock().unwrap();
         let joined: Vec<u8> = chunks.concat();
         assert_eq!(joined, b"first");
+    }
+
+    #[test]
+    fn rapid_messages_coalesce_into_fewer_chunks() {
+        let recorder = ChunkRecorder {
+            chunks: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
+        };
+        let mut sender = TerminalOutputSender::spawn("coalesce", recorder.channel());
+        // All ten land inside one batching window, so they must reach the
+        // webview as fewer IPC messages than reads.
+        let mut expected = Vec::new();
+        for i in 0..10 {
+            let message = format!("message-{i:02} ").into_bytes();
+            expected.extend_from_slice(&message);
+            sender.send(message);
+        }
+        sender.finish();
+
+        let chunks = recorder.chunks.lock().unwrap();
+        assert!(
+            chunks.len() < 10,
+            "expected coalescing, got {} chunks",
+            chunks.len()
+        );
+        assert_eq!(chunks.concat(), expected);
+    }
+
+    #[test]
+    fn steady_trickle_flushes_without_waiting_for_disconnect() {
+        let recorder = ChunkRecorder {
+            chunks: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
+        };
+        let mut sender = TerminalOutputSender::spawn("trickle", recorder.channel());
+        // Gaps below BATCH_INTERVAL keep a self-resetting recv_timeout from
+        // ever firing; the window deadline must flush on its own anyway.
+        let mut expected = Vec::new();
+        for i in 0..10 {
+            let message = format!("tick-{i} ").into_bytes();
+            expected.extend_from_slice(&message);
+            sender.send(message);
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        std::thread::sleep(BATCH_INTERVAL * 4);
+
+        let delivered_before_finish = recorder.chunks.lock().unwrap().len();
+        sender.finish();
+        assert!(
+            delivered_before_finish > 0,
+            "trickle starved the webview until finish()"
+        );
+        assert_eq!(recorder.chunks.lock().unwrap().concat(), expected);
     }
 
     /// End-to-end: a fake PTY reader whose reads split multi-byte characters

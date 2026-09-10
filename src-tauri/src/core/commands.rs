@@ -93,7 +93,13 @@ pub fn create_pty(
 
             let sender =
                 crate::terminal::TerminalOutputSender::spawn(&tab_id, output_channel.clone());
-            terminal::spawn_reader_thread(reader, app.clone(), tab_id.clone(), exit_tx.clone(), Some(sender));
+            terminal::spawn_reader_thread(
+                reader,
+                app.clone(),
+                tab_id.clone(),
+                exit_tx.clone(),
+                Some(sender),
+            );
 
             (pid, ActiveSession::Local(pty))
         }

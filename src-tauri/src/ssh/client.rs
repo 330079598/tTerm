@@ -35,12 +35,22 @@ pub struct SshExitSignal {
     pub reason: Option<String>,
 }
 
-/// Forwards one output batch to the webview. With a batcher the bounded queue
-/// can block while the webview catches up, so the send runs in
-/// `block_in_place` to keep the connection's select! loop responsive.
-/// `block_in_place` panics outside a multi-thread runtime, so fall back to a
-/// direct blocking send on a current-thread runtime (the sender runs on its
-/// own OS thread, so this cannot deadlock).
+/// Runs a call that may block on the batcher's bounded queue (send, or the
+/// join inside finish) off the async worker: `block_in_place` on a
+/// multi-thread runtime keeps the connection's select! loop responsive.
+/// `block_in_place` panics outside a multi-thread runtime, so fall back to
+/// running inline on a current-thread runtime or plain thread (the sender
+/// runs on its own OS thread, so this cannot deadlock).
+fn run_blocking<T>(f: impl FnOnce() -> T) -> T {
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) if handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread => {
+            tokio::task::block_in_place(f)
+        }
+        _ => f(),
+    }
+}
+
+/// Forwards one output batch to the webview.
 fn deliver_output(
     app: &tauri::AppHandle,
     tab_id: &str,
@@ -48,15 +58,7 @@ fn deliver_output(
     payload: Vec<u8>,
 ) {
     match sender {
-        Some(sender) => {
-            if tokio::runtime::Handle::current().runtime_flavor()
-                == tokio::runtime::RuntimeFlavor::MultiThread
-            {
-                tokio::task::block_in_place(|| sender.send(payload));
-            } else {
-                sender.send(payload);
-            }
-        }
+        Some(sender) => run_blocking(|| sender.send(payload)),
         None => {
             emit_pty_output(app, tab_id, String::from_utf8_lossy(&payload).into_owned());
         }
@@ -83,7 +85,7 @@ pub async fn run_single_ssh_connection(
     macro_rules! finish_output {
         () => {
             if let Some(sender) = sender.as_mut() {
-                sender.finish();
+                run_blocking(|| sender.finish());
             }
         };
     }
@@ -95,7 +97,7 @@ pub async fn run_single_ssh_connection(
                 terminated: true,
                 recoverable: false,
                 reason: Some("SSH host is required".to_string()),
-            }
+            };
         }
     };
     let username: String = match &plan.username {
@@ -106,7 +108,7 @@ pub async fn run_single_ssh_connection(
                 terminated: true,
                 recoverable: false,
                 reason: Some("SSH username is required".to_string()),
-            }
+            };
         }
     };
 
