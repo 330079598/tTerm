@@ -6,12 +6,12 @@ import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { WebLinksAddon } from "@xterm/addon-web-links"
 import { WebglAddon } from "@xterm/addon-webgl"
 import { type IDisposable, Terminal } from "@xterm/xterm"
-import { invoke } from "@tauri-apps/api/core"
+import { Channel, invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { openUrl } from "@tauri-apps/plugin-opener"
 import { platform } from "@tauri-apps/plugin-os"
 
-import { getConnectionDisplay, STATUS_CONNECTING } from "@/components/TerminalTab/terminalTabUtils"
+import { getConnectionDisplay } from "@/components/TerminalTab/terminalTabUtils"
 import type {
   ConnectionState,
   HostKeyPromptState,
@@ -21,6 +21,12 @@ import type {
 import { resolveScrollbackLines } from "@/lib/scrollback"
 import type { TerminalRenderer } from "@/contexts/ConfigContext"
 import { safePreloadFont } from "@/lib/canvasFontHost"
+import {
+  decodeOutputChunk,
+  EMPTY_OUTPUT_SCAN_STATE,
+  scanTerminalOutput,
+  type TerminalOutputScanState,
+} from "@/lib/terminalOutputScanner"
 import {
   captureTerminalInput,
   EMPTY_COMMAND_CAPTURE_STATE,
@@ -320,6 +326,54 @@ export function useTerminalLifecycle({
     let commandCaptureState = EMPTY_COMMAND_CAPTURE_STATE
     let commandCaptureSuspended = false
     let lastEmittedCommand: { text: string; at: number } | null = null
+    let outputScanState: TerminalOutputScanState = EMPTY_OUTPUT_SCAN_STATE
+    let activeSudoPromptUser: string | null = null
+    let lastConnectionState: ConnectionState = "connecting"
+
+    const setConnectionStateIfChanged = (next: ConnectionState) => {
+      if (next === lastConnectionState) return
+      lastConnectionState = next
+      setConnectionState(next)
+    }
+
+    const handleSudoPrompt = (promptUsername: string) => {
+      const currentPasswordPromptCheckId = ++passwordPromptCheckId
+      commandCaptureSuspended = true
+      commandCaptureState = EMPTY_COMMAND_CAPTURE_STATE
+      const savedUsername = connectionRef.current?.username
+      const profileId = connectionRef.current?.profileId
+      const profileName = connectionRef.current?.profileName
+
+      if (savedUsername && promptUsername === savedUsername && profileName) {
+        passwordPromptActiveRef.current = true
+        invoke<boolean>("has_saved_password", {
+          profileId,
+          profileName,
+        })
+          .then((hasPassword) => {
+            if (disposed || currentPasswordPromptCheckId !== passwordPromptCheckId) return
+            if (hasPassword) {
+              passwordPromptActiveRef.current = true
+              onSavedPasswordPromptChange?.(tabId, sessionNonce, true)
+              const pasteHint =
+                "\x1b[100m\x1b[36m tTerm \x1b[0m " +
+                "\x1b[90mPress Enter to paste saved password\x1b[0m"
+              term.write(pasteHint)
+            } else {
+              passwordPromptActiveRef.current = false
+              onSensitivePromptRef.current?.(tabId)
+            }
+          })
+          .catch((err) => {
+            if (disposed || currentPasswordPromptCheckId !== passwordPromptCheckId) return
+            passwordPromptActiveRef.current = false
+            console.error("Failed to get saved password:", err)
+            onSensitivePromptRef.current?.(tabId)
+          })
+      } else {
+        onSensitivePromptRef.current?.(tabId)
+      }
+    }
 
     const emitExecutedCommand = (commandText: string) => {
       const normalized = commandText.trim()
@@ -356,6 +410,7 @@ export function useTerminalLifecycle({
         passwordPromptCheckId += 1
         term.write("\r\x1b[K")
         passwordPromptActiveRef.current = false
+        activeSudoPromptUser = null
         onSavedPasswordPromptChange?.(tabId, sessionNonce, false)
 
         if (data === "\r") {
@@ -414,64 +469,59 @@ export function useTerminalLifecycle({
     let unlistenHostPrompt: (() => void) | null = null
     let unlistenConnectionProgress: (() => void) | null = null
 
-    Promise.all([
-      listen<string>(`pty-output-${tabId}`, (event) => {
-        const payload = event.payload
-        const currentPasswordPromptCheckId = ++passwordPromptCheckId
-        if (payload.includes(STATUS_CONNECTING)) {
-          setConnectionState("connecting")
-        } else if (connectionRef.current?.type === "ssh" && payload.trim().length > 0) {
-          setConnectionState("connected")
+    // Hot-path terminal output. Binary chunks arrive through a Tauri Channel
+    // (raw bytes, ordered, no JSON escaping); the legacy pty-output event
+    // still carries cold-path status lines from jump-host connection setup.
+    const handleTerminalOutput = (payload: unknown) => {
+      if (disposed) return
+      let text: string
+      if (typeof payload === "string") {
+        text = payload
+      } else if (payload instanceof Uint8Array) {
+        text = decodeOutputChunk(payload)
+      } else if (payload instanceof ArrayBuffer) {
+        text = decodeOutputChunk(new Uint8Array(payload))
+      } else {
+        return
+      }
+
+      const scanned = scanTerminalOutput(outputScanState, text)
+      outputScanState = scanned.state
+
+      if (scanned.connecting) {
+        setConnectionStateIfChanged("connecting")
+      } else if (connectionRef.current?.type === "ssh" && text.length > 0) {
+        setConnectionStateIfChanged("connected")
+      }
+
+      if (scanned.sudoPromptUser !== null) {
+        // A \r or \n in this chunk means the prompt line started fresh in it
+        // (e.g. sudo retrying after a wrong password), so re-arm even for the
+        // same user; without it, only a username change re-triggers.
+        const promptLineStartedInChunk = /[\r\n]/.test(text)
+        if (scanned.sudoPromptUser !== activeSudoPromptUser || promptLineStartedInChunk) {
+          handleSudoPrompt(scanned.sudoPromptUser)
         }
-
-        const sudoPasswordPattern = /^\[sudo\] password for ([^:]+):\s*$/im
-        const match = payload.match(sudoPasswordPattern)
-
+        activeSudoPromptUser = scanned.sudoPromptUser
+      } else if (activeSudoPromptUser !== null) {
+        activeSudoPromptUser = null
+        // Invalidate any in-flight has_saved_password reply so it cannot
+        // revive the prompt after the output stream moved past it.
+        passwordPromptCheckId += 1
         if (passwordPromptActiveRef.current) {
           passwordPromptActiveRef.current = false
           onSavedPasswordPromptChange?.(tabId, sessionNonce, false)
         }
+      }
 
-        if (match) {
-          commandCaptureSuspended = true
-          commandCaptureState = EMPTY_COMMAND_CAPTURE_STATE
-          const promptUsername = match[1].trim()
-          const savedUsername = connectionRef.current?.username
-          const profileId = connectionRef.current?.profileId
-          const profileName = connectionRef.current?.profileName
+      term.write(text)
+    }
 
-          if (savedUsername && promptUsername === savedUsername && profileName) {
-            passwordPromptActiveRef.current = true
-            invoke<boolean>("has_saved_password", {
-              profileId,
-              profileName,
-            })
-              .then((hasPassword) => {
-                if (disposed || currentPasswordPromptCheckId !== passwordPromptCheckId) return
-                if (hasPassword) {
-                  passwordPromptActiveRef.current = true
-                  onSavedPasswordPromptChange?.(tabId, sessionNonce, true)
-                  const pasteHint =
-                    "\x1b[100m\x1b[36m tTerm \x1b[0m " +
-                    "\x1b[90mPress Enter to paste saved password\x1b[0m"
-                  term.write(pasteHint)
-                } else {
-                  passwordPromptActiveRef.current = false
-                  onSensitivePromptRef.current?.(tabId)
-                }
-              })
-              .catch((err) => {
-                if (disposed || currentPasswordPromptCheckId !== passwordPromptCheckId) return
-                passwordPromptActiveRef.current = false
-                console.error("Failed to get saved password:", err)
-                onSensitivePromptRef.current?.(tabId)
-              })
-          } else {
-            onSensitivePromptRef.current?.(tabId)
-          }
-        }
+    const outputChannel = new Channel<ArrayBuffer>(handleTerminalOutput)
 
-        term.write(payload)
+    Promise.all([
+      listen<string>(`pty-output-${tabId}`, (event) => {
+        handleTerminalOutput(event.payload)
       }),
       listen(`pty-exit-${tabId}`, (event) => {
         onSessionUnavailableRef.current?.(tabId, sessionNonce, true)
@@ -519,7 +569,7 @@ export function useTerminalLifecycle({
           return null
         }
 
-        setConnectionState("connecting")
+        setConnectionStateIfChanged("connecting")
 
         if (creatingPtyRef.current) {
           return null
@@ -533,6 +583,7 @@ export function useTerminalLifecycle({
             rows: term.rows,
             cols: term.cols,
             connection: connectionRef.current,
+            outputChannel,
           })
         )
       })
@@ -545,7 +596,7 @@ export function useTerminalLifecycle({
         }
 
         if (connectionRef.current?.type !== "ssh") {
-          setConnectionState("connected")
+          setConnectionStateIfChanged("connected")
         }
         onPidChangeRef.current?.(pid)
       })

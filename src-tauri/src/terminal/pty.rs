@@ -17,42 +17,99 @@ pub struct TerminalShellProfile {
     pub source: String,
 }
 
+/// Result of reading a PTY reader to end-of-stream.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ReaderOutcome {
+    Terminated,
+    Failed(String),
+}
+
+/// Blocking read loop shared by the reader thread. Each read parks until the
+/// next output (interactive keystroke echoes flush immediately); coalescing
+/// into batches is the io_batcher's job, so a sustained flood still reaches
+/// the webview as few large IPC messages.
+///
+/// The PTY fd is blocking: reads return data or park, never `WouldBlock`, so
+/// this loop must not try to drain the fd between blocking reads — an extra
+/// read would withhold the bytes already read until more output arrives.
+///
+/// `log_chunk` records raw bytes to the session log; `deliver` forwards one
+/// batch to the webview. Split out from the thread spawn so the read behavior
+/// is testable without a live Tauri app.
+pub fn run_pty_reader<R, L, D>(
+    mut reader: R,
+    mut log_chunk: L,
+    mut deliver: D,
+    finish: impl FnOnce(),
+) -> ReaderOutcome
+where
+    R: Read,
+    L: FnMut(&[u8]),
+    D: FnMut(&[u8]),
+{
+    let mut buf = [0u8; 65536];
+    let mut result: Result<(), String> = Ok(());
+    loop {
+        match reader.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => {
+                log_chunk(&buf[..n]);
+                deliver(&buf[..n]);
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => {
+                result = Err(format!("PTY read failed: {e}"));
+                break;
+            }
+        }
+    }
+
+    // Flush every buffered byte to the webview before the exit event so
+    // trailing output (e.g. a final prompt or exit message) is not lost.
+    finish();
+
+    match result {
+        Ok(()) => ReaderOutcome::Terminated,
+        Err(reason) => ReaderOutcome::Failed(reason),
+    }
+}
+
 pub fn spawn_reader_thread(
-    mut reader: Box<dyn Read + Send>,
+    reader: Box<dyn Read + Send>,
     app: AppHandle,
     tab_id: String,
     exit_tx: mpsc::UnboundedSender<super::super::core::state::SessionExitSignal>,
+    sender: Option<super::io_batcher::TerminalOutputSender>,
 ) {
     thread::spawn(move || {
-        let mut buf = [0u8; 65536];
-        let mut pending_output = String::with_capacity(65536);
+        // Shared between the deliver closure and the final flush: the sender
+        // must outlive both, so route it through interior mutability.
+        let sender = std::sync::Mutex::new(sender);
+        let log_app = app.clone();
+        let log_tab_id = tab_id.clone();
 
-        loop {
-            match reader.read(&mut buf) {
-                Ok(0) => break,
-                Ok(n) => {
-                    crate::session_log::record_output(&app, &tab_id, &buf[..n]);
-                    let data = String::from_utf8_lossy(&buf[..n]);
-                    pending_output.push_str(data.as_ref());
+        let outcome = run_pty_reader(
+            reader,
+            |chunk| crate::session_log::record_output(&log_app, &log_tab_id, chunk),
+            |chunk| match sender.lock().expect("pty sender lock").as_mut() {
+                Some(sender) => sender.send(chunk.to_vec()),
+                None => emit_pty_output(&app, &tab_id, String::from_utf8_lossy(chunk).into_owned()),
+            },
+            || {
+                if let Some(sender) = sender.lock().expect("pty sender lock").as_mut() {
+                    sender.finish();
+                }
+            },
+        );
 
-                    // Flush immediately after every read so that vim redraws
-                    // (e.g. gg) are visible without waiting for the next keypress.
-                    // The OS PTY driver already coalesces tiny writes, so we don't
-                    // need an additional batching layer here.
-                    emit_pty_output(&app, &tab_id, std::mem::take(&mut pending_output));
-                }
-                Err(err) => {
-                    let _ =
-                        exit_tx.send(super::super::core::state::SessionExitSignal::Recoverable(
-                            format!("PTY read failed: {err}"),
-                        ));
-                    return;
-                }
+        let _ = exit_tx.send(match outcome {
+            ReaderOutcome::Terminated => {
+                super::super::core::state::SessionExitSignal::Terminated
             }
-        }
-
-        emit_batched_output(&app, &tab_id, &mut pending_output);
-        let _ = exit_tx.send(super::super::core::state::SessionExitSignal::Terminated);
+            ReaderOutcome::Failed(reason) => {
+                super::super::core::state::SessionExitSignal::Recoverable(reason)
+            }
+        });
     });
 }
 
@@ -553,11 +610,4 @@ pub fn spawn_local_pty(
 fn emit_pty_output(app: &AppHandle, tab_id: &str, payload: String) {
     let event_name = format!("pty-output-{}", tab_id);
     let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
-}
-
-fn emit_batched_output(app: &AppHandle, tab_id: &str, pending_output: &mut String) {
-    if pending_output.is_empty() {
-        return;
-    }
-    emit_pty_output(app, tab_id, std::mem::take(pending_output));
 }

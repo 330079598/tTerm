@@ -35,6 +35,34 @@ pub struct SshExitSignal {
     pub reason: Option<String>,
 }
 
+/// Forwards one output batch to the webview. With a batcher the bounded queue
+/// can block while the webview catches up, so the send runs in
+/// `block_in_place` to keep the connection's select! loop responsive.
+/// `block_in_place` panics outside a multi-thread runtime, so fall back to a
+/// direct blocking send on a current-thread runtime (the sender runs on its
+/// own OS thread, so this cannot deadlock).
+fn deliver_output(
+    app: &tauri::AppHandle,
+    tab_id: &str,
+    sender: Option<&crate::terminal::TerminalOutputSender>,
+    payload: Vec<u8>,
+) {
+    match sender {
+        Some(sender) => {
+            if tokio::runtime::Handle::current().runtime_flavor()
+                == tokio::runtime::RuntimeFlavor::MultiThread
+            {
+                tokio::task::block_in_place(|| sender.send(payload));
+            } else {
+                sender.send(payload);
+            }
+        }
+        None => {
+            emit_pty_output(app, tab_id, String::from_utf8_lossy(&payload).into_owned());
+        }
+    }
+}
+
 fn emit_pty_output(app: &tauri::AppHandle, tab_id: &str, payload: String) {
     let event_name = format!("pty-output-{}", tab_id);
     let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
@@ -50,10 +78,19 @@ pub async fn run_single_ssh_connection(
     mut stop_rx: watch::Receiver<bool>,
     mut input_rx: mpsc::UnboundedReceiver<Vec<u8>>,
     mut resize_rx: mpsc::UnboundedReceiver<(u16, u16)>,
+    mut sender: Option<crate::terminal::TerminalOutputSender>,
 ) -> SshExitSignal {
+    macro_rules! finish_output {
+        () => {
+            if let Some(sender) = sender.as_mut() {
+                sender.finish();
+            }
+        };
+    }
     let host: String = match &plan.host {
         Some(host) => host.clone(),
         None => {
+            finish_output!();
             return SshExitSignal {
                 terminated: true,
                 recoverable: false,
@@ -64,6 +101,7 @@ pub async fn run_single_ssh_connection(
     let username: String = match &plan.username {
         Some(username) => username.clone(),
         None => {
+            finish_output!();
             return SshExitSignal {
                 terminated: true,
                 recoverable: false,
@@ -95,6 +133,7 @@ pub async fn run_single_ssh_connection(
     {
         Ok(result) => result,
         Err(err) => {
+            finish_output!();
             if err == HOST_KEY_REJECTED_REASON {
                 return SshExitSignal {
                     terminated: true,
@@ -114,6 +153,7 @@ pub async fn run_single_ssh_connection(
     let channel = match session.channel_open_session().await {
         Ok(channel) => channel,
         Err(err) => {
+            finish_output!();
             return SshExitSignal {
                 terminated: false,
                 recoverable: true,
@@ -130,6 +170,7 @@ pub async fn run_single_ssh_connection(
         .request_pty(false, "xterm-256color", cols as u32, rows as u32, 0, 0, &[])
         .await
     {
+        finish_output!();
         return SshExitSignal {
             terminated: false,
             recoverable: true,
@@ -138,6 +179,7 @@ pub async fn run_single_ssh_connection(
     }
 
     if let Err(err) = channel.request_shell(false).await {
+        finish_output!();
         return SshExitSignal {
             terminated: false,
             recoverable: true,
@@ -169,6 +211,7 @@ pub async fn run_single_ssh_connection(
                     let _ = writer.close().await;
                     let _ = session.disconnect(Disconnect::ByApplication, "Session closed", "en").await;
                     drop(jump_chain);
+                    finish_output!();
                     return SshExitSignal {
                         terminated: true,
                         recoverable: false,
@@ -179,6 +222,7 @@ pub async fn run_single_ssh_connection(
             incoming = input_rx.recv() => {
                 if let Some(data) = incoming {
                     if let Err(err) = writer_stream.write_all(&data).await {
+                        finish_output!();
                         return SshExitSignal {
                             terminated: false,
                             recoverable: true,
@@ -190,6 +234,7 @@ pub async fn run_single_ssh_connection(
             resize = resize_rx.recv() => {
                 if let Some((next_rows, next_cols)) = resize {
                     if let Err(err) = writer.window_change(next_cols as u32, next_rows as u32, 0, 0).await {
+                        finish_output!();
                         return SshExitSignal {
                             terminated: false,
                             recoverable: true,
@@ -213,25 +258,24 @@ pub async fn run_single_ssh_connection(
                         match processed {
                             Ok(text) => {
                                 if !text.is_empty() {
-                                    emit_pty_output(&app, &tab_id, text);
+                                    deliver_output(&app, &tab_id, sender.as_ref(), text.into_bytes());
                                 }
                             }
                             Err(e) => {
                                 // Fallback: send raw data if processing fails
                                 eprintln!("SSH output processing failed: {}", e);
-                                let text = String::from_utf8_lossy(data.as_ref()).to_string();
-                                emit_pty_output(&app, &tab_id, text);
+                                deliver_output(&app, &tab_id, sender.as_ref(), data.as_ref().to_vec());
                             }
                         }
                     }
                     Some(ChannelMsg::ExtendedData { data, .. }) => {
                         crate::session_log::record_output(&app, &tab_id, data.as_ref());
-                        let text = String::from_utf8_lossy(data.as_ref()).to_string();
-                        emit_pty_output(&app, &tab_id, text);
+                        deliver_output(&app, &tab_id, sender.as_ref(), data.as_ref().to_vec());
                     }
                     Some(ChannelMsg::ExitStatus { .. }) => {
                         let _ = session.disconnect(Disconnect::ByApplication, "Shell exited", "en").await;
                         drop(jump_chain);
+                        finish_output!();
                         return SshExitSignal {
                             terminated: true,
                             recoverable: false,
@@ -239,6 +283,7 @@ pub async fn run_single_ssh_connection(
                         };
                     }
                     Some(ChannelMsg::Eof) | Some(ChannelMsg::Close) | None => {
+                        finish_output!();
                         return SshExitSignal {
                             terminated: false,
                             recoverable: true,

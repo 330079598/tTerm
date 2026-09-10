@@ -29,16 +29,20 @@ fn stop_pty_session(session: PtySession) {
 #[tauri::command]
 pub fn create_pty(
     app: AppHandle,
+    webview: tauri::Webview,
     tab_id: String,
     session_nonce: u32,
     rows: u16,
     cols: u16,
     connection: Option<super::session::PtyConnectionOptions>,
+    output_channel: tauri::ipc::JavaScriptChannelId,
     state: State<'_, PtyMap>,
     prompt_state: State<'_, HostPromptMap>,
     runtime_state: State<'_, crate::TokioRuntimeState>,
     secret_state: State<'_, crate::ssh::SecretStoreState>,
 ) -> Result<u32, String> {
+    let output_channel: tauri::ipc::Channel<tauri::ipc::InvokeResponseBody> =
+        output_channel.channel_on(webview);
     let mut plan = normalize_connection(connection)?;
     resolve_ssh_password(&app, &secret_state, &mut plan)?;
 
@@ -87,7 +91,9 @@ pub fn create_pty(
                 .try_clone_reader()
                 .map_err(|e| format!("Failed to clone reader: {}", e))?;
 
-            terminal::spawn_reader_thread(reader, app.clone(), tab_id.clone(), exit_tx.clone());
+            let sender =
+                crate::terminal::TerminalOutputSender::spawn(&tab_id, output_channel.clone());
+            terminal::spawn_reader_thread(reader, app.clone(), tab_id.clone(), exit_tx.clone(), Some(sender));
 
             (pid, ActiveSession::Local(pty))
         }
@@ -101,6 +107,10 @@ pub fn create_pty(
             let _prompt_state_clone = prompt_state.inner().clone();
             let _exit_tx_clone = exit_tx.clone();
             let _stop_rx_clone = stop_rx.clone();
+            let _sender = Some(crate::terminal::TerminalOutputSender::spawn(
+                &tab_id,
+                output_channel.clone(),
+            ));
 
             let task = runtime_handle.spawn(async move {
                 let _ssh_result = crate::ssh::run_single_ssh_connection(
@@ -113,6 +123,7 @@ pub fn create_pty(
                     _stop_rx_clone,
                     _input_rx,
                     _resize_rx,
+                    _sender,
                 )
                 .await;
 

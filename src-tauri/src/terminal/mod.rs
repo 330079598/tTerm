@@ -1,7 +1,9 @@
+mod io_batcher;
 mod pty;
 mod ssh_query_handler;
 mod types;
 
+pub use io_batcher::TerminalOutputSender;
 pub use pty::{__cmd__list_available_terminal_shells, list_available_terminal_shells};
 pub use pty::{spawn_local_pty, spawn_reader_thread};
 pub use ssh_query_handler::process_ssh_output_for_ui;
