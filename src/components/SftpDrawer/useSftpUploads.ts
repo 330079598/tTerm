@@ -23,6 +23,10 @@ interface UploadItemProgressEvent {
   total: number
   transferred: number
   transferId: string
+  resumedFrom?: number
+  parallelism?: number
+  completedChunks?: number
+  chunkCount?: number
 }
 
 interface UploadItemCompleteEvent {
@@ -97,6 +101,9 @@ export function useSftpUploads({
   const { t } = useTranslation()
   const batchTransferIdsRef = useRef(new Map<string, Set<string>>())
   const batchProgressRef = useRef(new Map<string, Map<string, BatchChildProgress>>())
+  const latestUploadPathsRef = useRef<string[]>([])
+  const latestUploadBaseRef = useRef<string>("")
+  const uploadPathsRunnerRef = useRef<((paths: string[]) => void) | null>(null)
 
   const syncBatchTransfer = useCallback(
     (batchId: string, fallbackStatus?: TransferStatus) => {
@@ -118,6 +125,47 @@ export function useSftpUploads({
       })
     },
     [updateTransfer]
+  )
+
+  const runUploadFile = useCallback(
+    async (transferId: string, localPath: string, remotePath: string) => {
+      updateTransfer(transferId, {
+        status: "transferring",
+        error: undefined,
+        endTime: undefined,
+        speed: 0,
+      })
+
+      try {
+        await invoke("sftp_upload_file", {
+          tabId,
+          connection,
+          localPath,
+          remotePath,
+          transferId,
+        })
+
+        const transfer = transfersRef.current.find((item) => item.id === transferId)
+        const completedSize = transfer?.fileSize || transfer?.transferred || 0
+        lastProgressUpdateRef.current.delete(transferId)
+        updateTransfer(transferId, {
+          status: "completed",
+          transferred: completedSize,
+          fileSize: completedSize,
+          endTime: Date.now(),
+        })
+      } catch (invokeError) {
+        const error = String(invokeError)
+        const cancelled = error.toLowerCase().includes("cancelled")
+        lastProgressUpdateRef.current.delete(transferId)
+        updateTransfer(transferId, {
+          status: cancelled ? "cancelled" : "failed",
+          error: cancelled ? undefined : error,
+          endTime: Date.now(),
+        })
+      }
+    },
+    [connection, lastProgressUpdateRef, tabId, transfersRef, updateTransfer]
   )
 
   useEffect(() => {
@@ -151,6 +199,9 @@ export function useSftpUploads({
             speed: 0,
             status: "pending",
             transferred: 0,
+            retry: () => {
+              uploadPathsRunnerRef.current?.(latestUploadPathsRef.current)
+            },
           })
         }),
         appWindow.listen<UploadBatchCompleteEvent>(
@@ -253,10 +304,13 @@ export function useSftpUploads({
             fileSize,
             speed: 0,
             status: "transferring",
+            retry: () => {
+              void runUploadFile(transferId, localPath, remotePath)
+            },
           })
         }),
         appWindow.listen<UploadItemProgressEvent>(`sftp-upload-progress-${tabId}`, (event) => {
-          const { progress, transferId, transferred } = event.payload
+          const { progress, resumedFrom, parallelism, transferId, transferred } = event.payload
           const now = Date.now()
           const lastUpdate = lastProgressUpdateRef.current.get(transferId) || 0
           if (now - lastUpdate < 100 && progress < 100) {
@@ -266,11 +320,14 @@ export function useSftpUploads({
 
           const transfer = transfersRef.current.find((item) => item.id === transferId)
           const duration = now - (transfer?.startTime || now)
-          const speed = duration > 0 ? (transferred / duration) * 1000 : 0
+          const measured = Math.max(0, transferred - (resumedFrom ?? 0))
+          const speed = duration > 0 ? (measured / duration) * 1000 : 0
 
           updateTransfer(transferId, {
             speed,
             transferred,
+            resumedFrom: resumedFrom && resumedFrom > 0 ? resumedFrom : undefined,
+            parallelism: parallelism && parallelism > 0 ? parallelism : undefined,
           })
 
           if (transfer?.batchId) {
@@ -357,6 +414,7 @@ export function useSftpUploads({
   }, [
     addTransfer,
     lastProgressUpdateRef,
+    runUploadFile,
     syncBatchTransfer,
     t,
     tabId,
@@ -364,13 +422,8 @@ export function useSftpUploads({
     updateTransfer,
   ])
 
-  const uploadPaths = useCallback(
-    async (paths: string[]) => {
-      if (!listing) {
-        setError(t("sftp.errors.notReady", { defaultValue: "SFTP not ready" }))
-        return
-      }
-
+  const runUploadPaths = useCallback(
+    async (paths: string[], remoteBasePath: string) => {
       const validPaths = paths.filter((path) => typeof path === "string" && path.length > 0)
       if (validPaths.length === 0) {
         setError(
@@ -381,13 +434,15 @@ export function useSftpUploads({
         return
       }
 
+      latestUploadPathsRef.current = validPaths
+      latestUploadBaseRef.current = remoteBasePath
       setError(null)
 
       try {
         const result = await invoke<UploadBatchResult>("sftp_upload_paths", {
           connection,
           localPaths: validPaths,
-          remoteBasePath: listing.currentPath,
+          remoteBasePath,
           tabId,
         })
 
@@ -414,10 +469,30 @@ export function useSftpUploads({
       } catch (invokeError) {
         setError(String(invokeError))
       } finally {
-        await loadDirectory(listing.currentPath)
+        await loadDirectory(remoteBasePath)
       }
     },
-    [connection, listing, loadDirectory, setError, t, tabId]
+    [connection, loadDirectory, setError, t, tabId]
+  )
+
+  // Assign in an effect (not during render) so a discarded concurrent render
+  // can never leave an uncommitted closure in the ref for retry to pick up.
+  useEffect(() => {
+    uploadPathsRunnerRef.current = (paths) => {
+      void runUploadPaths(paths, latestUploadBaseRef.current)
+    }
+  }, [runUploadPaths])
+
+  const uploadPaths = useCallback(
+    async (paths: string[]) => {
+      if (!listing) {
+        setError(t("sftp.errors.notReady", { defaultValue: "SFTP not ready" }))
+        return
+      }
+
+      await runUploadPaths(paths, listing.currentPath)
+    },
+    [listing, runUploadPaths, setError, t]
   )
 
   const handleUploadDialog = useCallback(async () => {

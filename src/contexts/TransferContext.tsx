@@ -20,6 +20,7 @@ interface TransferContextValue {
   clearCompletedTransfers: () => void
   lastProgressUpdateRef: React.MutableRefObject<Map<string, number>>
   removeTransfer: (id: string) => void
+  retryTransfer: (id: string) => void
   transfers: TransferTask[]
   transfersRef: React.MutableRefObject<TransferTask[]>
   updateTransfer: (id: string, updates: Partial<TransferTask>) => void
@@ -91,6 +92,11 @@ export const TransferProvider: React.FC<React.PropsWithChildren> = ({ children }
     setTransfers((prev) => prev.filter((transfer) => transfer.id !== id))
   }, [])
 
+  const retryTransfer = useCallback((id: string) => {
+    const transfer = transfersRef.current.find((item) => item.id === id)
+    transfer?.retry?.()
+  }, [])
+
   const clearCompletedTransfers = useCallback(() => {
     setTransfers((prev) =>
       prev.filter((transfer) => transfer.status === "pending" || transfer.status === "transferring")
@@ -104,6 +110,7 @@ export const TransferProvider: React.FC<React.PropsWithChildren> = ({ children }
       clearCompletedTransfers,
       lastProgressUpdateRef,
       removeTransfer,
+      retryTransfer,
       transfers,
       transfersRef,
       updateTransfer,
@@ -113,6 +120,7 @@ export const TransferProvider: React.FC<React.PropsWithChildren> = ({ children }
       cancelTransfer,
       clearCompletedTransfers,
       removeTransfer,
+      retryTransfer,
       transfers,
       updateTransfer,
     ]

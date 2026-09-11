@@ -200,7 +200,7 @@ export const TTermApp: React.FC = () => {
   const getPreloadedSession = usePreloadedSession(loadSession)
   const { cleanupConnection } = useConnectionManager()
   const { config, isLoaded, saveConfig, secretStatus } = useConfig()
-  const { cancelTransfer, clearCompletedTransfers, removeTransfer, transfers } =
+  const { cancelTransfer, clearCompletedTransfers, removeTransfer, retryTransfer, transfers } =
     useTransferManager()
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const settingsTabTitle = t("settings.title", { defaultValue: SETTINGS_TAB_TITLE })
@@ -1602,6 +1602,7 @@ export const TTermApp: React.FC = () => {
                 transfers={transfers}
                 onCancel={cancelTransfer}
                 onRemove={removeTransfer}
+                onRetry={retryTransfer}
                 onClearCompleted={clearCompletedTransfers}
               />
               <BroadcastManager

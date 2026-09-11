@@ -26,6 +26,10 @@ interface DownloadProgressEvent {
   total: number
   transferred: number
   transferId: string
+  resumedFrom?: number
+  parallelism?: number
+  completedChunks?: number
+  chunkCount?: number
 }
 
 interface DownloadItemStartEvent {
@@ -70,6 +74,96 @@ export function useSftpDownloads({
   const batchTransferIdsRef = useRef(new Map<string, Set<string>>())
   const transferStartTimesRef = useRef<Map<string, number>>(new Map())
 
+  const runDownloadFile = useCallback(
+    async (transferId: string, remotePath: string, localPath: string) => {
+      transferStartTimesRef.current.set(transferId, Date.now())
+      updateTransfer(transferId, {
+        status: "transferring",
+        error: undefined,
+        endTime: undefined,
+        speed: 0,
+      })
+
+      try {
+        const startTime = Date.now()
+        await invoke("sftp_download_file", {
+          tabId,
+          connection,
+          transferId,
+          remotePath,
+          localPath,
+        })
+
+        const duration = Date.now() - startTime
+        const currentTransfer = transfersRef.current.find((item) => item.id === transferId)
+        const completedSize = currentTransfer?.fileSize || currentTransfer?.transferred || 0
+        const speed = duration > 0 ? (completedSize / duration) * 1000 : 0
+        lastProgressUpdateRef.current.delete(transferId)
+        transferStartTimesRef.current.delete(transferId)
+
+        if (currentTransfer?.status === "cancelled") {
+          return
+        }
+
+        updateTransfer(transferId, {
+          status: "completed",
+          transferred: completedSize,
+          fileSize: completedSize,
+          endTime: Date.now(),
+          speed,
+        })
+      } catch (invokeError) {
+        const error = String(invokeError)
+        const cancelled = error.toLowerCase().includes("cancelled")
+        lastProgressUpdateRef.current.delete(transferId)
+        transferStartTimesRef.current.delete(transferId)
+
+        updateTransfer(transferId, {
+          status: cancelled ? "cancelled" : "failed",
+          error: cancelled ? undefined : error,
+          endTime: Date.now(),
+        })
+      }
+    },
+    [connection, tabId, transfersRef, updateTransfer]
+  )
+
+  const runDownloadDirectory = useCallback(
+    async (transferId: string, remotePath: string, localParentPath: string) => {
+      transferStartTimesRef.current.set(transferId, Date.now())
+      updateTransfer(transferId, {
+        status: "transferring",
+        error: undefined,
+        endTime: undefined,
+        speed: 0,
+      })
+
+      try {
+        await invoke("sftp_download_directory", {
+          tabId,
+          connection,
+          transferId,
+          remotePath,
+          localParentPath,
+        })
+        lastProgressUpdateRef.current.delete(transferId)
+        transferStartTimesRef.current.delete(transferId)
+      } catch (invokeError) {
+        const error = String(invokeError)
+        const cancelled = error.toLowerCase().includes("cancelled")
+        lastProgressUpdateRef.current.delete(transferId)
+        transferStartTimesRef.current.delete(transferId)
+
+        updateTransfer(transferId, {
+          status: cancelled ? "cancelled" : "failed",
+          error: cancelled ? undefined : error,
+          endTime: Date.now(),
+        })
+      }
+    },
+    [connection, tabId, updateTransfer]
+  )
+
   useEffect(() => {
     const appWindow = getCurrentWindow()
     let disposed = false
@@ -103,10 +197,14 @@ export function useSftpDownloads({
             fileSize,
             speed: 0,
             status: "transferring",
+            retry: () => {
+              void runDownloadFile(transferId, remotePath, localPath)
+            },
           })
         }),
         appWindow.listen<DownloadProgressEvent>(`sftp-download-progress-${tabId}`, (event) => {
-          const { progress, total, transferId, transferred } = event.payload
+          const { progress, resumedFrom, parallelism, total, transferId, transferred } =
+            event.payload
           const now = Date.now()
           const lastUpdate = lastProgressUpdateRef.current.get(transferId) || 0
           if (now - lastUpdate < 100 && progress < 100) {
@@ -121,13 +219,16 @@ export function useSftpDownloads({
 
           const startTime = transferStartTimesRef.current.get(transferId) || now
           const duration = now - startTime
-          const speed = duration > 0 ? (transferred / duration) * 1000 : 0
+          const measured = Math.max(0, transferred - (resumedFrom ?? 0))
+          const speed = duration > 0 ? (measured / duration) * 1000 : 0
 
           updateTransfer(transferId, {
             transferred,
             fileSize: total,
             speed,
             status: "transferring",
+            resumedFrom: resumedFrom && resumedFrom > 0 ? resumedFrom : undefined,
+            parallelism: parallelism && parallelism > 0 ? parallelism : undefined,
           })
         }),
         appWindow.listen<DownloadItemCompleteEvent>(
@@ -244,7 +345,7 @@ export function useSftpDownloads({
       disposed = true
       unlisteners.forEach((unlisten) => unlisten())
     }
-  }, [addTransfer, tabId, transfersRef, updateTransfer])
+  }, [addTransfer, runDownloadFile, tabId, transfersRef, updateTransfer])
 
   const downloadEntry = useCallback(
     async (entry: SftpDirectoryEntry) => {
@@ -268,32 +369,13 @@ export function useSftpDownloads({
           speed: 0,
         })
 
-        transferStartTimesRef.current.set(transferId, Date.now())
-        updateTransfer(transferId, { status: "transferring" })
+        updateTransfer(transferId, {
+          retry: () => {
+            void runDownloadDirectory(transferId, entry.path, targetPath)
+          },
+        })
 
-        try {
-          await invoke("sftp_download_directory", {
-            tabId,
-            connection,
-            transferId,
-            remotePath: entry.path,
-            localParentPath: targetPath,
-          })
-          lastProgressUpdateRef.current.delete(transferId)
-          transferStartTimesRef.current.delete(transferId)
-        } catch (invokeError) {
-          const error = String(invokeError)
-          const cancelled = error.toLowerCase().includes("cancelled")
-          lastProgressUpdateRef.current.delete(transferId)
-          transferStartTimesRef.current.delete(transferId)
-
-          updateTransfer(transferId, {
-            status: cancelled ? "cancelled" : "failed",
-            error: cancelled ? undefined : error,
-            endTime: Date.now(),
-          })
-        }
-
+        await runDownloadDirectory(transferId, entry.path, targetPath)
         return
       }
 
@@ -315,52 +397,15 @@ export function useSftpDownloads({
         speed: 0,
       })
 
-      transferStartTimesRef.current.set(transferId, Date.now())
-      updateTransfer(transferId, { status: "transferring" })
+      updateTransfer(transferId, {
+        retry: () => {
+          void runDownloadFile(transferId, entry.path, targetPath)
+        },
+      })
 
-      try {
-        const startTime = Date.now()
-        await invoke("sftp_download_file", {
-          tabId,
-          connection,
-          transferId,
-          remotePath: entry.path,
-          localPath: targetPath,
-        })
-
-        const duration = Date.now() - startTime
-        const currentTransfer = transfersRef.current.find((item) => item.id === transferId)
-        const completedSize =
-          entry.size || currentTransfer?.fileSize || currentTransfer?.transferred || 0
-        const speed = duration > 0 ? (completedSize / duration) * 1000 : 0
-        lastProgressUpdateRef.current.delete(transferId)
-        transferStartTimesRef.current.delete(transferId)
-
-        if (currentTransfer?.status === "cancelled") {
-          return
-        }
-
-        updateTransfer(transferId, {
-          status: "completed",
-          transferred: completedSize,
-          fileSize: completedSize,
-          endTime: Date.now(),
-          speed,
-        })
-      } catch (invokeError) {
-        const error = String(invokeError)
-        const cancelled = error.toLowerCase().includes("cancelled")
-        lastProgressUpdateRef.current.delete(transferId)
-        transferStartTimesRef.current.delete(transferId)
-
-        updateTransfer(transferId, {
-          status: cancelled ? "cancelled" : "failed",
-          error: cancelled ? undefined : error,
-          endTime: Date.now(),
-        })
-      }
+      await runDownloadFile(transferId, entry.path, targetPath)
     },
-    [addTransfer, connection, t, tabId, transfersRef, updateTransfer]
+    [addTransfer, runDownloadDirectory, runDownloadFile, t, tabId, updateTransfer]
   )
 
   return {

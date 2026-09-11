@@ -1,13 +1,17 @@
 use crate::core::session::PtyConnectionOptions;
 use crate::core::state::HostPromptMap;
+use crate::sftp::internal::api::prepare_transfer;
 use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error};
+use crate::sftp::internal::transfer::{
+    self, ProgressSink, RemoteChannels, TransferError, TransferOptions, TransferProgress,
+};
 use crate::sftp::internal::types::{SftpConnectionPool, TransferCancelMap};
 use crate::ssh::SecretStoreState;
 use russh_sftp::client::SftpSession;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
 use tokio::sync::watch;
 
 #[derive(Clone, Serialize)]
@@ -19,6 +23,10 @@ struct DownloadProgressEvent {
     transferred: u64,
     total: u64,
     progress: u32,
+    resumed_from: u64,
+    parallelism: u32,
+    completed_chunks: u64,
+    chunk_count: u64,
 }
 
 #[derive(Clone, Serialize)]
@@ -61,116 +69,78 @@ fn next_transfer_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
 
+fn transfer_options() -> TransferOptions {
+    TransferOptions {
+        parallelism: crate::sftp::internal::api::resolve_transfer_parallelism(),
+        chunk_size: transfer::DEFAULT_CHUNK_SIZE,
+        progress_interval_bytes: 2 * 1024 * 1024,
+    }
+}
+
+fn transfer_result_message(result: Result<transfer::TransferOutcome, TransferError>) -> Result<(), String> {
+    match result {
+        Ok(_) => Ok(()),
+        Err(error) if error.is_cancelled() => Err("Download cancelled by user".to_string()),
+        Err(error) => Err(error.message()),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 async fn download_file_with_progress(
     app: &AppHandle,
     tab_id: &str,
-    sftp: &SftpSession,
+    channels: RemoteChannels,
     cancel_map: &TransferCancelMap,
     transfer_id: &str,
     remote_path: &str,
     local_path: &str,
 ) -> Result<(), String> {
-    const CHUNK_SIZE: usize = 1024 * 1024;
-    const PROGRESS_UPDATE_BYTES: u64 = 2 * 1024 * 1024;
-
-    let (cancel_tx, mut cancel_rx) = watch::channel(false);
+    let (cancel_tx, cancel_rx) = watch::channel(false);
     cancel_map
         .write()
         .await
         .insert(transfer_id.to_string(), cancel_tx);
 
-    let result = async {
-        let mut remote_file = sftp.open(remote_path).await.map_err(map_sftp_error)?;
-        let total = remote_file
-            .metadata()
-            .await
-            .map_err(map_sftp_error)?
-            .size
-            .unwrap_or(0);
+    let app_for_progress = app.clone();
+    let tab_id_for_progress = tab_id.to_string();
+    let transfer_id_for_progress = transfer_id.to_string();
+    let local_path_for_progress = local_path.to_string();
+    let remote_path_for_progress = remote_path.to_string();
+    let progress: ProgressSink = Arc::new(move |update: TransferProgress| {
+        let progress = if update.total > 0 {
+            ((update.transferred as f64 / update.total as f64) * 100.0).min(100.0) as u32
+        } else {
+            100
+        };
+        let _ = app_for_progress.emit(
+            &format!("sftp-download-progress-{}", tab_id_for_progress),
+            DownloadProgressEvent {
+                transfer_id: transfer_id_for_progress.clone(),
+                local_path: local_path_for_progress.clone(),
+                remote_path: remote_path_for_progress.clone(),
+                transferred: update.transferred,
+                total: update.total,
+                progress,
+                resumed_from: update.resumed_from,
+                parallelism: update.parallelism as u32,
+                completed_chunks: update.completed_chunks,
+                chunk_count: update.chunk_count,
+            },
+        );
+    });
 
-        let local_file = tokio::fs::File::create(local_path)
-            .await
-            .map_err(|err| format!("Failed to create local file '{local_path}': {err}"))?;
-        let mut local_file = BufWriter::new(local_file);
-
-        let mut total_read = 0u64;
-        let mut buffer = vec![0u8; CHUNK_SIZE];
-        let mut last_progress_update = 0u64;
-
-        loop {
-            if is_cancelled(&mut cancel_rx) {
-                return Err("Download cancelled by user".to_string());
-            }
-
-            let bytes_read = remote_file
-                .read(&mut buffer)
-                .await
-                .map_err(|err| format!("Failed to read remote file '{remote_path}': {err}"))?;
-
-            if bytes_read == 0 {
-                break;
-            }
-
-            if is_cancelled(&mut cancel_rx) {
-                return Err("Download cancelled by user".to_string());
-            }
-
-            local_file
-                .write_all(&buffer[..bytes_read])
-                .await
-                .map_err(|err| format!("Failed to write local file '{local_path}': {err}"))?;
-
-            total_read += bytes_read as u64;
-
-            if total_read - last_progress_update >= PROGRESS_UPDATE_BYTES
-                || (total > 0 && total_read == total)
-            {
-                last_progress_update = total_read;
-                let progress = if total > 0 {
-                    ((total_read as f64 / total as f64) * 100.0).min(100.0) as u32
-                } else {
-                    0
-                };
-
-                let _ = app.emit(
-                    &format!("sftp-download-progress-{}", tab_id),
-                    DownloadProgressEvent {
-                        transfer_id: transfer_id.to_string(),
-                        local_path: local_path.to_string(),
-                        remote_path: remote_path.to_string(),
-                        transferred: total_read,
-                        total,
-                        progress,
-                    },
-                );
-            }
-        }
-
-        if total_read > last_progress_update || total == 0 {
-            let _ = app.emit(
-                &format!("sftp-download-progress-{}", tab_id),
-                DownloadProgressEvent {
-                    transfer_id: transfer_id.to_string(),
-                    local_path: local_path.to_string(),
-                    remote_path: remote_path.to_string(),
-                    transferred: total_read,
-                    total,
-                    progress: 100,
-                },
-            );
-        }
-
-        local_file
-            .flush()
-            .await
-            .map_err(|err| format!("Failed to flush local file '{local_path}': {err}"))?;
-
-        Ok(())
-    }
+    let result = transfer::download_file(
+        channels,
+        PathBuf::from(local_path),
+        remote_path.to_string(),
+        transfer_options(),
+        cancel_rx,
+        progress,
+    )
     .await;
 
     cancel_map.write().await.remove(transfer_id);
-    result
+    transfer_result_message(result)
 }
 
 struct DirectoryDownloadItem {
@@ -252,140 +222,103 @@ async fn collect_directory_download_plan(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn download_file_into_directory(
     app: &AppHandle,
     tab_id: &str,
-    sftp: &SftpSession,
-    cancel_rx: &mut watch::Receiver<bool>,
+    channels: RemoteChannels,
+    cancel_map: &TransferCancelMap,
+    batch_cancel_rx: Option<watch::Receiver<bool>>,
     batch_transfer_id: &str,
     item_transfer_id: &str,
     item: &DirectoryDownloadItem,
     local_path: &Path,
     total_size: u64,
-    aggregate_transferred: &mut u64,
+    aggregate_base: u64,
 ) -> Result<(), String> {
-    const CHUNK_SIZE: usize = 1024 * 1024;
-    const PROGRESS_UPDATE_BYTES: u64 = 2 * 1024 * 1024;
+    let (cancel_tx, cancel_rx) = watch::channel(false);
+    cancel_map
+        .write()
+        .await
+        .insert(item_transfer_id.to_string(), cancel_tx.clone());
 
-    let mut remote_file = sftp.open(&item.remote_path).await.map_err(map_sftp_error)?;
-    let local_file = tokio::fs::File::create(local_path).await.map_err(|err| {
-        format!(
-            "Failed to create local file '{}': {err}",
-            local_path.display()
-        )
-    })?;
-    let mut local_file = BufWriter::new(local_file);
-    let mut buffer = vec![0u8; CHUNK_SIZE];
-    let mut last_progress_update = *aggregate_transferred;
-    let mut item_transferred = 0u64;
-    let mut last_item_progress_update = 0u64;
-
-    loop {
-        if is_cancelled(cancel_rx) {
-            return Err("Download cancelled by user".to_string());
+    let app_for_progress = app.clone();
+    let tab_id_for_progress = tab_id.to_string();
+    let item_transfer_id_for_progress = item_transfer_id.to_string();
+    let batch_transfer_id_for_progress = batch_transfer_id.to_string();
+    let local_path_for_progress = local_path.display().to_string();
+    let remote_path_for_progress = item.remote_path.clone();
+    let item_size = item.size;
+    let progress: ProgressSink = Arc::new(move |update: TransferProgress| {
+        if let Some(receiver) = batch_cancel_rx.as_ref() {
+            if *receiver.borrow() {
+                let _ = cancel_tx.send(true);
+            }
         }
 
-        let bytes_read = remote_file
-            .read(&mut buffer)
-            .await
-            .map_err(|err| format!("Failed to read remote file '{}': {err}", item.remote_path))?;
-
-        if bytes_read == 0 {
-            break;
-        }
-
-        if is_cancelled(cancel_rx) {
-            return Err("Download cancelled by user".to_string());
-        }
-
-        local_file
-            .write_all(&buffer[..bytes_read])
-            .await
-            .map_err(|err| {
-                format!(
-                    "Failed to write local file '{}': {err}",
-                    local_path.display()
-                )
-            })?;
-
-        *aggregate_transferred = aggregate_transferred.saturating_add(bytes_read as u64);
-        item_transferred = item_transferred.saturating_add(bytes_read as u64);
-
-        if item_transferred - last_item_progress_update >= PROGRESS_UPDATE_BYTES
-            || item_transferred == item.size
-        {
-            last_item_progress_update = item_transferred;
-            let progress = if item.size > 0 {
-                ((item_transferred as f64 / item.size as f64) * 100.0).min(100.0) as u32
-            } else {
-                100
-            };
-
-            let _ = app.emit(
-                &format!("sftp-download-progress-{}", tab_id),
-                DownloadProgressEvent {
-                    transfer_id: item_transfer_id.to_string(),
-                    local_path: local_path.display().to_string(),
-                    remote_path: item.remote_path.clone(),
-                    transferred: item_transferred,
-                    total: item.size,
-                    progress,
-                },
-            );
-        }
-
-        if *aggregate_transferred - last_progress_update >= PROGRESS_UPDATE_BYTES
-            || (total_size > 0 && *aggregate_transferred == total_size)
-        {
-            last_progress_update = *aggregate_transferred;
-            let progress = if total_size > 0 {
-                ((*aggregate_transferred as f64 / total_size as f64) * 100.0).min(100.0) as u32
-            } else {
-                0
-            };
-
-            let _ = app.emit(
-                &format!("sftp-download-progress-{}", tab_id),
-                DownloadProgressEvent {
-                    transfer_id: batch_transfer_id.to_string(),
-                    local_path: local_path.display().to_string(),
-                    remote_path: item.remote_path.clone(),
-                    transferred: *aggregate_transferred,
-                    total: total_size,
-                    progress,
-                },
-            );
-        }
-    }
-
-    local_file.flush().await.map_err(|err| {
-        format!(
-            "Failed to flush local file '{}': {err}",
-            local_path.display()
-        )
-    })?;
-
-    if item.size == 0 {
-        let _ = app.emit(
-            &format!("sftp-download-progress-{}", tab_id),
+        let item_progress = if item_size > 0 {
+            ((update.transferred as f64 / item_size as f64) * 100.0).min(100.0) as u32
+        } else {
+            100
+        };
+        let _ = app_for_progress.emit(
+            &format!("sftp-download-progress-{}", tab_id_for_progress),
             DownloadProgressEvent {
-                transfer_id: item_transfer_id.to_string(),
-                local_path: local_path.display().to_string(),
-                remote_path: item.remote_path.clone(),
-                transferred: 0,
-                total: 0,
-                progress: 100,
+                transfer_id: item_transfer_id_for_progress.clone(),
+                local_path: local_path_for_progress.clone(),
+                remote_path: remote_path_for_progress.clone(),
+                transferred: update.transferred,
+                total: item_size,
+                progress: item_progress,
+                resumed_from: update.resumed_from,
+                parallelism: update.parallelism as u32,
+                completed_chunks: update.completed_chunks,
+                chunk_count: update.chunk_count,
             },
         );
-    }
 
-    Ok(())
+        let aggregate = aggregate_base.saturating_add(update.transferred);
+        let aggregate_progress = if total_size > 0 {
+            ((aggregate as f64 / total_size as f64) * 100.0).min(100.0) as u32
+        } else {
+            0
+        };
+        let _ = app_for_progress.emit(
+            &format!("sftp-download-progress-{}", tab_id_for_progress),
+            DownloadProgressEvent {
+                transfer_id: batch_transfer_id_for_progress.clone(),
+                local_path: local_path_for_progress.clone(),
+                remote_path: remote_path_for_progress.clone(),
+                transferred: aggregate,
+                total: total_size,
+                progress: aggregate_progress,
+                resumed_from: update.resumed_from,
+                parallelism: update.parallelism as u32,
+                completed_chunks: update.completed_chunks,
+                chunk_count: update.chunk_count,
+            },
+        );
+    });
+
+    let result = transfer::download_file(
+        channels,
+        local_path.to_path_buf(),
+        item.remote_path.clone(),
+        transfer_options(),
+        cancel_rx,
+        progress,
+    )
+    .await;
+
+    cancel_map.write().await.remove(item_transfer_id);
+    transfer_result_message(result)
 }
 
 async fn download_directory_with_progress(
     app: &AppHandle,
     tab_id: &str,
     sftp: &SftpSession,
+    channels: &RemoteChannels,
     cancel_map: &TransferCancelMap,
     transfer_id: &str,
     remote_path: &str,
@@ -453,19 +386,21 @@ async fn download_directory_with_progress(
             let item_result = download_file_into_directory(
                 app,
                 tab_id,
-                sftp,
-                &mut cancel_rx,
+                channels.instance(),
+                cancel_map,
+                Some(cancel_rx.clone()),
                 transfer_id,
                 &item_transfer_id,
                 item,
                 &local_path,
                 plan.total_size,
-                &mut aggregate_transferred,
+                aggregate_transferred,
             )
             .await;
 
             match item_result {
                 Ok(()) => {
+                    aggregate_transferred = aggregate_transferred.saturating_add(item.size);
                     let _ = app.emit(
                         &format!("sftp-download-item-complete-{}", tab_id),
                         DownloadItemCompleteEvent {
@@ -507,6 +442,10 @@ async fn download_directory_with_progress(
                 transferred: aggregate_transferred,
                 total: plan.total_size,
                 progress: 100,
+                resumed_from: 0,
+                parallelism: 0,
+                completed_chunks: 0,
+                chunk_count: 0,
             },
         );
 
@@ -554,18 +493,25 @@ pub async fn sftp_download_file(
 ) -> Result<(), String> {
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
 
-    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-        download_file_with_progress(
-            &app,
-            &tab_id,
-            sftp,
-            cancel_map.inner(),
-            &transfer_id,
-            &remote_path,
-            &local_path,
-        )
-        .await
-    })
+    let (_sftp, channels) = prepare_transfer(
+        &app,
+        &tab_id,
+        &plan,
+        prompt_state.inner().clone(),
+        pool_state.inner(),
+    )
+    .await?;
+
+    download_file_with_progress(
+        &app,
+        &tab_id,
+        channels,
+        cancel_map.inner(),
+        &transfer_id,
+        &remote_path,
+        &local_path,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -583,18 +529,26 @@ pub async fn sftp_download_directory(
 ) -> Result<(), String> {
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
 
-    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-        download_directory_with_progress(
-            &app,
-            &tab_id,
-            sftp,
-            cancel_map.inner(),
-            &transfer_id,
-            &remote_path,
-            &local_parent_path,
-        )
-        .await
-    })
+    let (sftp, channels) = prepare_transfer(
+        &app,
+        &tab_id,
+        &plan,
+        prompt_state.inner().clone(),
+        pool_state.inner(),
+    )
+    .await?;
+
+    download_directory_with_progress(
+        &app,
+        &tab_id,
+        &sftp,
+        &channels,
+        cancel_map.inner(),
+        &transfer_id,
+        &remote_path,
+        &local_parent_path,
+    )
+    .await
 }
 
 #[tauri::command]

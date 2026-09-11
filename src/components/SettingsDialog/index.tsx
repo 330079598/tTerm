@@ -615,6 +615,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     await saveSettings({ sftp_paste_upload_enabled: checked })
   }
 
+  const handleSftpTransferParallelismChange = async (value: number) => {
+    if (!Number.isFinite(value)) {
+      return
+    }
+    await saveSettings({ sftp_transfer_parallelism: Math.min(Math.max(Math.round(value), 1), 16) })
+  }
+
   const handleEnableDevtoolsChange = async () => {
     try {
       await invoke("toggle_devtools", { enable: true })
@@ -907,11 +914,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleLanguageChange={handleLanguageChange}
               handleRestoreAllSessionConnectionsChange={handleRestoreAllSessionConnectionsChange}
               handleSftpPasteUploadEnabledChange={handleSftpPasteUploadEnabledChange}
+              handleSftpTransferParallelismChange={handleSftpTransferParallelismChange}
               handleEnableDevtoolsChange={handleEnableDevtoolsChange}
               i18nLanguage={i18n.language}
               languages={languages}
               restoreAllSessionConnections={config.startup_session_restore_mode === "all"}
               sftpPasteUploadEnabled={config.sftp_paste_upload_enabled}
+              sftpTransferParallelism={config.sftp_transfer_parallelism}
             />
           </TabsContent>
 

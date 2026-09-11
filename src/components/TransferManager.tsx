@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  RotateCcw,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import type { TransferTask, TransferStatus } from "@/types/tab"
@@ -25,6 +26,7 @@ interface TransferManagerProps {
   transfers: TransferTask[]
   onCancel: (id: string) => void
   onRemove: (id: string) => void
+  onRetry: (id: string) => void
   onClearCompleted: () => void
 }
 
@@ -78,6 +80,7 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
   transfers,
   onCancel,
   onRemove,
+  onRetry,
   onClearCompleted,
 }) => {
   const { t } = useTranslation()
@@ -213,6 +216,12 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
     const completedChildren = childTransfers.filter((child) => child.status === "completed").length
     const failedChildren = childTransfers.filter((child) => child.status === "failed").length
     const cancelledChildren = childTransfers.filter((child) => child.status === "cancelled").length
+    const canRetry =
+      !isActive &&
+      Boolean(transfer.retry) &&
+      (transfer.status === "failed" || transfer.status === "cancelled")
+    const resumedFrom = transfer.resumedFrom ?? 0
+    const parallelism = transfer.parallelism ?? 0
 
     return (
       <Card key={transfer.id} className={cn("p-3", nested && "bg-muted/30 py-2 shadow-none")}>
@@ -282,14 +291,35 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
                 <TooltipContent>{t("transfer.cancel", { defaultValue: "Cancel" })}</TooltipContent>
               </Tooltip>
             ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon-xs" onClick={() => onRemove(transfer.id)}>
-                    <Trash2 className="size-3" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t("transfer.remove", { defaultValue: "Remove" })}</TooltipContent>
-              </Tooltip>
+              <>
+                {canRetry && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => onRetry(transfer.id)}
+                        aria-label={t("transfer.retry", { defaultValue: "Resume / Retry" })}
+                      >
+                        <RotateCcw className="size-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {t("transfer.retry", { defaultValue: "Resume / Retry" })}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon-xs" onClick={() => onRemove(transfer.id)}>
+                      <Trash2 className="size-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {t("transfer.remove", { defaultValue: "Remove" })}
+                  </TooltipContent>
+                </Tooltip>
+              </>
             )}
           </div>
         </div>
@@ -309,7 +339,15 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
                   : `${formatBytes(transfer.transferred)} / ${formatBytes(transfer.fileSize)}`}
               </span>
               {speed > 0 && <span>{isDelete ? formatItemSpeed(speed) : formatSpeed(speed)}</span>}
-              <span>{progress.toFixed(1)}%</span>
+              <span className="flex items-center gap-1">
+                {parallelism > 1 && <span>{parallelism}x</span>}
+                {resumedFrom > 0 && (
+                  <span className="text-primary">
+                    {t("transfer.resumed", { defaultValue: "resumed" })}
+                  </span>
+                )}
+                <span>{progress.toFixed(1)}%</span>
+              </span>
             </div>
           </div>
         )}

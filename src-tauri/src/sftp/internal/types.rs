@@ -38,7 +38,10 @@ pub struct ConnectedSftp {
     /// Jump host chain kept alive to maintain every tunnel channel.
     /// `None` for direct connections.
     pub jump_chain: Option<JumpChain>,
-    pub ssh: client::Handle<SshClientHandler>,
+    /// Shared handle: `client::Handle` is not `Clone` (it owns the reply
+    /// receiver and drops the session), so cheap clones for use outside the
+    /// pool lock go through the `Arc`.
+    pub ssh: Arc<client::Handle<SshClientHandler>>,
     pub sftp: Arc<SftpSession>,
 }
 

@@ -13,7 +13,7 @@ export interface TerminalOutputScanResult {
   state: TerminalOutputScanState
   /** The sudo prompt username, when a sudo password prompt was detected. */
   sudoPromptUser: string | null
-  /** True when a cold-path "[Connecting" status line was seen. */
+  /** True when a cold-path "[Connecting" status line was seen in this chunk. */
   connecting: boolean
 }
 
@@ -35,7 +35,12 @@ export function scanTerminalOutput(
   const lastLine = boundedTail.slice(boundedTail.lastIndexOf("\n") + 1)
   const effectiveLine = lastLine.slice(lastLine.lastIndexOf("\r") + 1)
   const match = effectiveLine.match(SUDO_PASSWORD_PROMPT)
-  const connecting = boundedTail.includes(STATUS_CONNECTING)
+  // The connecting marker must reflect the live stream: searching the whole
+  // rolling tail would also flag historical output that merely contains the
+  // marker (echoed commands, `grep` hits) long after the status line passed.
+  // A carry of marker-length-minus-one chars keeps split markers detectable.
+  const connectingCarry = current.tail.slice(-(STATUS_CONNECTING.length - 1))
+  const connecting = (connectingCarry + chunk).includes(STATUS_CONNECTING)
 
   return {
     state,
@@ -48,12 +53,11 @@ export function scanTerminalOutput(
  * Decodes a binary channel payload into text. The backend batches on UTF-8
  * sequence boundaries, but the stream can still carry malformed bytes (remote
  * non-UTF-8 locale output, `cat` on a binary); those decode lossily to U+FFFD
- * instead of dropping the whole chunk.
+ * instead of dropping the whole chunk. The shared decoder is safe because
+ * decode() without `{ stream: true }` leaves no state between calls.
  */
+const chunkDecoder = new TextDecoder("utf-8")
+
 export function decodeOutputChunk(payload: ArrayBuffer | Uint8Array): string {
-  try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(payload)
-  } catch {
-    return new TextDecoder("utf-8").decode(payload)
-  }
+  return chunkDecoder.decode(payload)
 }

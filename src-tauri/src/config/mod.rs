@@ -88,6 +88,8 @@ pub struct AppConfig {
     pub terminal_log_max_file_size_mb: u32,
     #[serde(default)]
     pub terminal_log_compress: bool,
+    #[serde(default = "default_sftp_transfer_parallelism")]
+    pub sftp_transfer_parallelism: u16,
     #[serde(default = "default_keymap")]
     pub keymap: KeymapConfig,
 }
@@ -265,6 +267,10 @@ fn default_terminal_log_max_file_size_mb() -> u32 {
     50
 }
 
+fn default_sftp_transfer_parallelism() -> u16 {
+    4
+}
+
 fn deserialize_tab_width_mode<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,
@@ -323,6 +329,7 @@ impl Default for AppConfig {
             terminal_log_name_template: default_terminal_log_name_template(),
             terminal_log_max_file_size_mb: default_terminal_log_max_file_size_mb(),
             terminal_log_compress: false,
+            sftp_transfer_parallelism: default_sftp_transfer_parallelism(),
             keymap: default_keymap(),
         }
     }
@@ -384,6 +391,15 @@ mod tests {
             config.monitor_visible_metrics,
             ["cpu", "memory", "network", "ip", "latency", "disk"]
         );
+        assert_eq!(config.sftp_transfer_parallelism, 4);
+    }
+
+    #[test]
+    fn explicit_sftp_transfer_parallelism_round_trips() {
+        let config: AppConfig =
+            serde_json::from_str(r#"{"theme":"default","sftp_transfer_parallelism":6}"#).unwrap();
+
+        assert_eq!(config.sftp_transfer_parallelism, 6);
     }
 
     #[test]

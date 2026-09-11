@@ -134,6 +134,7 @@ export interface AppConfig {
   terminal_log_name_template: string
   terminal_log_max_file_size_mb: number
   terminal_log_compress: boolean
+  sftp_transfer_parallelism: number
   keymap: KeymapConfig
 }
 
@@ -180,6 +181,7 @@ const defaultConfig: AppConfig = {
   terminal_log_name_template: "{profile}-{host}-{yyyyMMdd-HHmmss}-{sessionId}",
   terminal_log_max_file_size_mb: 50,
   terminal_log_compress: false,
+  sftp_transfer_parallelism: 4,
   keymap: { ...DEFAULT_KEYMAP_CONFIG, bindings: {} },
 }
 
@@ -245,6 +247,15 @@ function normalizeTerminalLogFileSize(
   return Math.min(Math.max(Math.round(value), 1), 1024)
 }
 
+function normalizeSftpTransferParallelism(
+  value: Partial<AppConfig>["sftp_transfer_parallelism"]
+): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 4
+  }
+  return Math.min(Math.max(Math.round(value), 1), 16)
+}
+
 export function normalizeUiScalePercent(value: Partial<AppConfig>["ui_scale_percent"]): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return 100
@@ -304,6 +315,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
       config.terminal_log_max_file_size_mb
     ),
     terminal_log_compress: config.terminal_log_compress === true,
+    sftp_transfer_parallelism: normalizeSftpTransferParallelism(config.sftp_transfer_parallelism),
     ui_scale_percent: normalizeUiScalePercent(config.ui_scale_percent),
     keymap: normalizeKeymap(config.keymap),
   }

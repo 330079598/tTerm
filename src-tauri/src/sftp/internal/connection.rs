@@ -1,6 +1,8 @@
 use russh::client;
 use russh::Disconnect;
-use russh_sftp::client::{error::Error as SftpError, SftpSession};
+use russh_sftp::client::rawsession::Limits;
+use russh_sftp::client::{error::Error as SftpError, RawSftpSession, SftpSession};
+use russh_sftp::extensions::LimitsExtension;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::AppHandle;
@@ -99,7 +101,7 @@ async fn connect_sftp(
 
     Ok(ConnectedSftp {
         jump_chain,
-        ssh,
+        ssh: Arc::new(ssh),
         sftp,
     })
 }
@@ -163,4 +165,58 @@ pub async fn get_or_create_sftp_connection(
     );
 
     Ok(())
+}
+
+/// Remove a pooled connection (used when it is known to be broken) and close
+/// it in the background.
+pub async fn evict_connection(pool: &SftpConnectionPool, key: &SftpConnectionKey) {
+    let mut pool_guard = pool.write().await;
+    if let Some(cached) = pool_guard.remove(key) {
+        tokio::spawn(async move {
+            close_sftp(cached.connection).await;
+        });
+    }
+}
+
+/// Open one additional SFTP subsystem channel on an existing SSH connection and
+/// wrap it as a raw session, negotiating `limits@openssh.com` when offered.
+pub async fn open_sftp_raw_session(
+    ssh: &client::Handle<SshClientHandler>,
+) -> Result<(Arc<RawSftpSession>, Option<LimitsExtension>), String> {
+    let channel = ssh
+        .channel_open_session()
+        .await
+        .map_err(|err| format!("Failed to open SFTP channel: {err}"))?;
+
+    channel
+        .request_subsystem(true, "sftp")
+        .await
+        .map_err(|err| format!("Failed to start SFTP subsystem: {err}"))?;
+
+    let mut session = RawSftpSession::new(channel.into_stream());
+    let version = session
+        .init()
+        .await
+        .map_err(|err| format!("Failed to initialize SFTP channel: {err}"))?;
+
+    let limits = if version
+        .extensions
+        .get(russh_sftp::extensions::LIMITS)
+        .is_some_and(|value| value == "1")
+    {
+        let extension = session
+            .limits()
+            .await
+            .map_err(|err| format!("Failed to query server SFTP limits: {err}"))?;
+        session.set_limits(Arc::new(Limits {
+            read_len: (extension.max_read_len > 0).then_some(extension.max_read_len),
+            write_len: (extension.max_write_len > 0).then_some(extension.max_write_len),
+            open_handles: None,
+        }));
+        Some(extension)
+    } else {
+        None
+    };
+
+    Ok((Arc::new(session), limits))
 }

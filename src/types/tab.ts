@@ -47,6 +47,12 @@ export interface TransferTask {
   startTime: number
   endTime?: number
   speed?: number
+  /** Bytes already present when a resumed transfer started. */
+  resumedFrom?: number
+  /** Number of parallel SFTP channels used for this transfer. */
+  parallelism?: number
+  /** Re-run the transfer, resuming from its checkpoint when possible. */
+  retry?: () => void
 }
 
 export type TerminalShellType =

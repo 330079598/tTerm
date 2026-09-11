@@ -1,4 +1,4 @@
-use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender, TryRecvError};
+use std::sync::mpsc::{Receiver, RecvError, RecvTimeoutError, SyncSender, TryRecvError};
 use std::time::{Duration, Instant};
 use tauri::ipc::{Channel, InvokeResponseBody};
 
@@ -118,18 +118,28 @@ fn sender_loop(rx: &Receiver<Vec<u8>>, channel: &Channel<InvokeResponseBody>) {
     let mut flush_deadline: Option<Instant> = None;
     let mut alive = true;
     while alive {
-        let wait = match flush_deadline {
-            Some(deadline) => deadline.saturating_duration_since(Instant::now()),
-            // Idle poll while no window is open; flush below is a no-op.
-            None => BATCH_INTERVAL,
-        };
-        let message = match rx.recv_timeout(wait) {
-            Ok(data) => Some(data),
-            Err(RecvTimeoutError::Timeout) => None,
-            Err(RecvTimeoutError::Disconnected) => {
-                alive = false;
-                None
+        let message = match flush_deadline {
+            Some(deadline) => {
+                match rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+                    Ok(data) => Some(data),
+                    Err(RecvTimeoutError::Timeout) => None,
+                    Err(RecvTimeoutError::Disconnected) => {
+                        alive = false;
+                        None
+                    }
+                }
             }
+            // No batching window is open, so no timer can expire usefully:
+            // block until the next byte arrives. finish() wakes this via
+            // Disconnected when the sender side is dropped. Deferred partial
+            // UTF-8 bytes (if any) need more input, not a timeout, to flush.
+            None => match rx.recv() {
+                Ok(data) => Some(data),
+                Err(RecvError) => {
+                    alive = false;
+                    None
+                }
+            },
         };
         if let Some(data) = message {
             if flush_deadline.is_none() {

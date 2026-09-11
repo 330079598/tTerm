@@ -1,13 +1,15 @@
-use crate::sftp::internal::paths::parent_remote_path;
+use crate::sftp::internal::transfer::{
+    self, ProgressSink, RemoteChannels, TransferOptions, TransferProgress,
+};
 use crate::sftp::internal::types::TransferCancelMap;
 use russh_sftp::client::SftpSession;
 use serde::Serialize;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use tokio::fs;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::watch;
 #[derive(Clone)]
 struct UploadFilePlanItem {
@@ -61,6 +63,10 @@ struct UploadItemProgressEvent {
     transferred: u64,
     total: u64,
     progress: u32,
+    resumed_from: u64,
+    parallelism: u32,
+    completed_chunks: u64,
+    chunk_count: u64,
 }
 
 #[derive(Clone, Serialize)]
@@ -308,130 +314,78 @@ async fn inspect_upload_roots(local_paths: &[String]) -> Result<UploadRootSummar
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn upload_single_file_with_progress(
     app: &AppHandle,
     tab_id: &str,
-    sftp: &SftpSession,
+    channels: RemoteChannels,
     cancel_map: &TransferCancelMap,
-    mut batch_cancel_rx: Option<watch::Receiver<bool>>,
+    batch_cancel_rx: Option<watch::Receiver<bool>>,
     plan_item: &UploadFilePlanItem,
     transfer_id: &str,
 ) -> Result<(), String> {
-    const CHUNK_SIZE: usize = 1024 * 1024;
-    const READ_BUFFER_SIZE: usize = 4 * 1024 * 1024;
-    const PROGRESS_UPDATE_BYTES: u64 = 2 * 1024 * 1024;
-
-    let (cancel_tx, mut cancel_rx) = watch::channel(false);
+    let (cancel_tx, cancel_rx) = watch::channel(false);
     cancel_map
         .write()
         .await
-        .insert(transfer_id.to_string(), cancel_tx);
+        .insert(transfer_id.to_string(), cancel_tx.clone());
 
-    let result = async {
-        if let Some(parent) = parent_remote_path(&plan_item.remote_path) {
-            if !parent.is_empty() {
-                ensure_remote_dir_all(sftp, &parent, batch_cancel_rx.clone()).await?;
+    let app_for_progress = app.clone();
+    let tab_id_for_progress = tab_id.to_string();
+    let transfer_id_for_progress = transfer_id.to_string();
+    let local_path_for_progress = plan_item.local_path.clone();
+    let progress: ProgressSink = Arc::new(move |update: TransferProgress| {
+        if let Some(receiver) = batch_cancel_rx.as_ref() {
+            if *receiver.borrow() {
+                let _ = cancel_tx.send(true);
             }
         }
 
-        let file = fs::File::open(&plan_item.local_path).await.map_err(|err| {
-            format!(
-                "Failed to open local file '{}': {err}",
-                plan_item.local_path
-            )
-        })?;
-        let mut local_file = BufReader::with_capacity(READ_BUFFER_SIZE, file);
+        let progress = if update.total > 0 {
+            ((update.transferred as f64 / update.total as f64) * 100.0).min(100.0) as u32
+        } else {
+            100
+        };
 
-        let mut remote_file = sftp.create(&plan_item.remote_path).await.map_err(|err| {
-            format!(
-                "Failed to create remote file '{}': {}",
-                plan_item.remote_path, err
-            )
-        })?;
+        let _ = app_for_progress.emit(
+            &format!("sftp-upload-progress-{}", tab_id_for_progress),
+            UploadItemProgressEvent {
+                transfer_id: transfer_id_for_progress.clone(),
+                local_path: local_path_for_progress.clone(),
+                transferred: update.transferred,
+                total: update.total,
+                progress,
+                resumed_from: update.resumed_from,
+                parallelism: update.parallelism as u32,
+                completed_chunks: update.completed_chunks,
+                chunk_count: update.chunk_count,
+            },
+        );
+    });
 
-        let mut total_written = 0u64;
-        let mut buffer = vec![0u8; CHUNK_SIZE];
-        let mut last_progress_update = 0u64;
+    let options = TransferOptions {
+        parallelism: crate::sftp::internal::api::resolve_transfer_parallelism(),
+        chunk_size: transfer::DEFAULT_CHUNK_SIZE,
+        progress_interval_bytes: 2 * 1024 * 1024,
+    };
 
-        loop {
-            if is_cancelled(&mut cancel_rx)
-                || batch_cancel_rx.as_mut().map(is_cancelled).unwrap_or(false)
-            {
-                return Err("Upload cancelled by user".to_string());
-            }
-
-            let bytes_read = local_file.read(&mut buffer).await.map_err(|err| {
-                format!(
-                    "Failed to read local file '{}': {err}",
-                    plan_item.local_path
-                )
-            })?;
-
-            if bytes_read == 0 {
-                break;
-            }
-
-            remote_file
-                .write_all(&buffer[..bytes_read])
-                .await
-                .map_err(|err| {
-                    format!(
-                        "Failed to write remote file '{}': {err}",
-                        plan_item.remote_path
-                    )
-                })?;
-
-            total_written += bytes_read as u64;
-
-            if total_written - last_progress_update >= PROGRESS_UPDATE_BYTES
-                || total_written == plan_item.file_size
-            {
-                last_progress_update = total_written;
-                let progress = if plan_item.file_size > 0 {
-                    ((total_written as f64 / plan_item.file_size as f64) * 100.0).min(100.0) as u32
-                } else {
-                    100
-                };
-
-                let _ = app.emit(
-                    &format!("sftp-upload-progress-{}", tab_id),
-                    UploadItemProgressEvent {
-                        transfer_id: transfer_id.to_string(),
-                        local_path: plan_item.local_path.clone(),
-                        transferred: total_written,
-                        total: plan_item.file_size,
-                        progress,
-                    },
-                );
-            }
-        }
-
-        if total_written > last_progress_update {
-            let _ = app.emit(
-                &format!("sftp-upload-progress-{}", tab_id),
-                UploadItemProgressEvent {
-                    transfer_id: transfer_id.to_string(),
-                    local_path: plan_item.local_path.clone(),
-                    transferred: total_written,
-                    total: plan_item.file_size,
-                    progress: 100,
-                },
-            );
-        }
-
-        remote_file.shutdown().await.map_err(|err| {
-            format!(
-                "Failed to finalize remote file '{}': {err}",
-                plan_item.remote_path
-            )
-        })?;
-
-        Ok(())
-    }
+    let result = transfer::upload_file(
+        channels,
+        PathBuf::from(&plan_item.local_path),
+        plan_item.remote_path.clone(),
+        options,
+        cancel_rx,
+        progress,
+    )
     .await;
 
     cancel_map.write().await.remove(transfer_id);
-    result
+
+    match result {
+        Ok(_) => Ok(()),
+        Err(error) if error.is_cancelled() => Err("Upload cancelled by user".to_string()),
+        Err(error) => Err(error.message()),
+    }
 }
 
 pub mod commands;

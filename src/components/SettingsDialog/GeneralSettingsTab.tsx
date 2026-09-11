@@ -3,6 +3,7 @@ import { Bug, Check, ClipboardPaste, Info, Languages, PlugZap, Trash2, Wrench } 
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
@@ -20,11 +21,13 @@ interface GeneralSettingsTabProps {
   handleLanguageChange: (langCode: string) => Promise<void>
   handleRestoreAllSessionConnectionsChange: (checked: boolean) => Promise<void>
   handleSftpPasteUploadEnabledChange: (checked: boolean) => Promise<void>
+  handleSftpTransferParallelismChange: (value: number) => Promise<void>
   handleEnableDevtoolsChange: () => Promise<void>
   i18nLanguage: string
   languages: LanguageOption[]
   restoreAllSessionConnections: boolean
   sftpPasteUploadEnabled: boolean
+  sftpTransferParallelism: number
 }
 
 export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
@@ -33,11 +36,13 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   handleLanguageChange,
   handleRestoreAllSessionConnectionsChange,
   handleSftpPasteUploadEnabledChange,
+  handleSftpTransferParallelismChange,
   handleEnableDevtoolsChange,
   i18nLanguage,
   languages,
   restoreAllSessionConnections,
   sftpPasteUploadEnabled,
+  sftpTransferParallelism,
 }) => {
   const { t } = useTranslation()
 
@@ -95,6 +100,27 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               <Switch
                 checked={sftpPasteUploadEnabled}
                 onCheckedChange={handleSftpPasteUploadEnabledChange}
+              />
+            }
+          />
+          <SettingsRow
+            title={t("settings.sftpTransferParallelism", {
+              defaultValue: "Parallel transfer channels",
+            })}
+            description={t("settings.sftpTransferParallelismDesc", {
+              defaultValue:
+                "Number of SFTP channels used per resumable transfer (1-16, default 4).",
+            })}
+            action={
+              <Input
+                type="number"
+                min={1}
+                max={16}
+                value={sftpTransferParallelism}
+                onChange={(event) =>
+                  handleSftpTransferParallelismChange(Number(event.target.value))
+                }
+                className="w-20"
               />
             }
           />
