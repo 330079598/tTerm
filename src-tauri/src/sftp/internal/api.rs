@@ -50,19 +50,55 @@ use crate::core::state::HostPromptMap;
 use crate::sftp::internal::connection::{
     evict_connection, get_or_create_sftp_connection, open_sftp_raw_session,
 };
-use crate::sftp::internal::transfer::RemoteChannels;
+use crate::sftp::internal::transfer::{RemoteChannels, DEFAULT_PARALLELISM, MAX_PARALLELISM};
 use crate::sftp::internal::types::{SftpConnectionKey, SftpConnectionPool};
 use russh_sftp::client::SftpSession;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
+use std::time::SystemTime;
 use tauri::AppHandle;
+
+/// Resolved parallelism cached against the config file's mtime: transfers
+/// resolve this per file (directory batches), and re-reading + re-parsing the
+/// config from disk each time shows up as per-file startup latency.
+static PARALLELISM_CACHE: RwLock<Option<(Option<SystemTime>, usize)>> = RwLock::new(None);
+
+/// Cache lookup for [`resolve_transfer_parallelism`]: a hit requires the
+/// whole mtime token — including `None` ("config file absent") — to match,
+/// so a machine running on default config still hits the cache instead of
+/// stat-ing the disk on every transfer.
+fn parallelism_cache_hit(
+    cached: Option<(Option<SystemTime>, usize)>,
+    mtime: Option<SystemTime>,
+) -> Option<usize> {
+    cached
+        .filter(|(cached_mtime, _)| *cached_mtime == mtime)
+        .map(|(_, value)| value)
+}
 
 /// Resolve the configured number of parallel SFTP channels (clamped safely).
 pub fn resolve_transfer_parallelism() -> usize {
-    crate::config::load_config_file()
+    let mtime = crate::config::get_config_path()
+        .ok()
+        .map(|dir| dir.join("config.json"))
+        .and_then(|path| std::fs::metadata(path).ok())
+        .and_then(|metadata| metadata.modified().ok());
+    if let Some(cached) = parallelism_cache_hit(
+        *PARALLELISM_CACHE.read().expect("parallelism cache read"),
+        mtime,
+    ) {
+        return cached;
+    }
+
+    let parallelism = crate::config::load_config_file()
         .ok()
         .map(|config| config.sftp_transfer_parallelism as usize)
-        .unwrap_or(4)
-        .clamp(1, 16)
+        .unwrap_or(DEFAULT_PARALLELISM)
+        .clamp(1, MAX_PARALLELISM);
+
+    if let Ok(mut cache) = PARALLELISM_CACHE.write() {
+        *cache = Some((mtime, parallelism));
+    }
+    parallelism
 }
 
 /// Ensure a pooled connection exists, then open `parallelism` SFTP channels
@@ -95,29 +131,74 @@ pub async fn prepare_transfer(
         )
     };
 
+    // Open every channel concurrently: sequentially they cost one (or more)
+    // round trips each, which is the bulk of the "first transfer feels slow"
+    // wait on high-latency links.
+    let mut open_tasks = tokio::task::JoinSet::new();
+    for _ in 0..parallelism {
+        let ssh = ssh.clone();
+        open_tasks.spawn(async move { open_sftp_raw_session(ssh.as_ref()).await });
+    }
+
     let mut sessions = Vec::with_capacity(parallelism);
     let mut limits = None;
     let mut open_error = None;
-    for _ in 0..parallelism {
-        match open_sftp_raw_session(ssh.as_ref()).await {
-            Ok((session, negotiated)) => {
+    while let Some(result) = open_tasks.join_next().await {
+        match result {
+            Ok(Ok((session, negotiated))) => {
                 if limits.is_none() {
                     limits = negotiated;
                 }
                 sessions.push(session);
             }
-            Err(error) => {
+            Ok(Err(error)) => {
                 open_error = Some(error);
+                break;
+            }
+            Err(join_error) => {
+                open_error = Some(format!("SFTP channel open failed: {join_error}"));
                 break;
             }
         }
     }
 
     if let Some(error) = open_error {
+        open_tasks.abort_all();
+        while open_tasks.join_next().await.is_some() {}
         // A failed channel setup means the pooled connection is unusable.
         evict_connection(pool, &key).await;
         return Err(error);
     }
 
     Ok((sftp, RemoteChannels::new(sessions, limits)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parallelism_cache_hits_when_config_file_is_absent() {
+        assert_eq!(parallelism_cache_hit(None, None), None);
+        assert_eq!(
+            parallelism_cache_hit(Some((None, 4)), None),
+            Some(4),
+            "a missing config.json must still hit the cache"
+        );
+        // A config file created after the cache was populated invalidates it.
+        assert_eq!(
+            parallelism_cache_hit(Some((None, 4)), Some(SystemTime::UNIX_EPOCH)),
+            None
+        );
+    }
+
+    #[test]
+    fn parallelism_cache_matches_mtime_token() {
+        let mtime = Some(SystemTime::UNIX_EPOCH);
+        assert_eq!(parallelism_cache_hit(Some((mtime, 6)), mtime), Some(6));
+        assert_eq!(
+            parallelism_cache_hit(Some((Some(SystemTime::now()), 6)), mtime),
+            None
+        );
+    }
 }

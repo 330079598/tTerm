@@ -50,6 +50,7 @@ fn write_file_blocking(path: &Path, bytes: &[u8]) {
     std::fs::write(path, bytes).unwrap();
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_sidecar(
     direction: TransferDirection,
     final_path: &str,
@@ -90,6 +91,7 @@ fn write_remote_partial(root: &Path, part: &str, content: &[u8], bits: &[u8], ch
         .create(true)
         .read(true)
         .write(true)
+        .truncate(false)
         .open(&part_path)
         .unwrap();
     use std::io::{Seek, SeekFrom, Write};
@@ -125,6 +127,36 @@ fn negotiate_chunk_size_respects_server_limits() {
     );
     assert_eq!(negotiate_chunk_size(8 * 1024, Some(&limits)), 8 * 1024);
     assert_eq!(negotiate_chunk_size(1024, None), MIN_CHUNK_SIZE);
+}
+
+#[test]
+fn effective_chunk_size_fills_window_for_small_files() {
+    let mib = 1024 * 1024u64;
+    // No-limits server, 3 MiB file: 8 × 384 KiB chunks instead of one
+    // 4 MiB chunk whose steps would serialize.
+    assert_eq!(
+        effective_chunk_size(4 * mib, 256 * 1024, 3 * mib, 8),
+        384 * 1024
+    );
+    // Large transfer: the negotiated chunk is untouched.
+    assert_eq!(
+        effective_chunk_size(4 * mib, 256 * 1024, 5 * 1024 * mib, 8),
+        4 * mib
+    );
+    // File smaller than one write step: a single (whole-file) chunk.
+    assert_eq!(
+        effective_chunk_size(4 * mib, 256 * 1024, 200 * 1024, 8),
+        256 * 1024
+    );
+    // Already-small negotiated chunks (test shape: 8 KiB chunks, 32 KiB
+    // step) and limits-clamped chunks (chunk ≤ step) are unchanged.
+    assert_eq!(
+        effective_chunk_size(8 * 1024, 32 * 1024, 40 * 1024, 8),
+        8 * 1024
+    );
+    assert_eq!(effective_chunk_size(261_120, 262_144, 3 * mib, 8), 261_120);
+    // Empty transfer: nothing to pipeline.
+    assert_eq!(effective_chunk_size(4 * mib, 256 * 1024, 0, 8), 4 * mib);
 }
 
 #[test]
@@ -511,6 +543,156 @@ async fn cancel_preserves_checkpoint_and_resumes_to_completion() {
     assert_eq!(outcome.resumed_from, threshold);
     assert_eq!(std::fs::read(server.root().join(relative)).unwrap(), data);
     assert!(!server.root().join(&part).exists());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn single_chunk_upload_skips_checkpoint_files() {
+    let server = TestServer::start(ServerOptions::default()).await;
+    let local_dir = server.local_dir().to_path_buf();
+    // chunk_size larger than the file: exactly one chunk, checkpointing off.
+    let data = content(16 * 1024);
+    let local_path = local_dir.join("single-source.bin");
+    write_local(&local_path, &data).await;
+
+    let relative = "single.bin";
+    let outcome = upload_file(
+        server.channels(2).await,
+        local_path.clone(),
+        relative.to_string(),
+        options(64 * 1024, 2),
+        watch::channel(false).1,
+        noop_progress(),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(outcome.transferred, data.len() as u64);
+    assert_eq!(std::fs::read(server.root().join(relative)).unwrap(), data);
+    assert!(!server.root().join(part_path(relative)).exists());
+    assert!(!server.root().join(sidecar_path(relative)).exists());
+    assert!(!server
+        .root()
+        .join(format!("{}.tmp", sidecar_path(relative)))
+        .exists());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn single_chunk_upload_replaces_stale_oversized_part() {
+    let server = TestServer::start(ServerOptions::default()).await;
+    let local_dir = server.local_dir().to_path_buf();
+    let data = content(16 * 1024);
+    let local_path = local_dir.join("stale-part-source.bin");
+    write_local(&local_path, &data).await;
+
+    let relative = "stale-part.bin";
+    let part = part_path(relative);
+    // A stale part from an older, larger attempt: a longer tail must not
+    // survive the single-chunk rewrite.
+    let stale: Vec<u8> = vec![0xABu8; 3 * data.len()];
+    write_file_blocking(&server.root().join(&part), &stale);
+
+    upload_file(
+        server.channels(2).await,
+        local_path.clone(),
+        relative.to_string(),
+        options(64 * 1024, 2),
+        watch::channel(false).1,
+        noop_progress(),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(std::fs::read(server.root().join(relative)).unwrap(), data);
+    assert!(!server.root().join(&part).exists());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn empty_file_upload_creates_empty_final() {
+    let server = TestServer::start(ServerOptions::default()).await;
+    let local_path = server.local_dir().join("empty-source.bin");
+    write_local(&local_path, &[]).await;
+
+    let relative = "empty.bin";
+    upload_file(
+        server.channels(2).await,
+        local_path.clone(),
+        relative.to_string(),
+        options(8 * 1024, 2),
+        watch::channel(false).1,
+        noop_progress(),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        std::fs::read(server.root().join(relative)).unwrap(),
+        Vec::<u8>::new()
+    );
+    assert!(!server.root().join(part_path(relative)).exists());
+    assert!(!server.root().join(sidecar_path(relative)).exists());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn small_file_without_limits_shrinks_chunks_and_resumes() {
+    // No limits advertised: the negotiated chunk would be the full 4 MiB
+    // desired size, leaving a 1.5 MiB file as a single serial-stepped chunk.
+    // The engine must shrink it to 256 KiB (one write step) so the lane
+    // window pipelines the six chunks as six concurrent requests.
+    let server = TestServer::start(ServerOptions::default()).await;
+    let local_dir = server.local_dir().to_path_buf();
+    let data = content(1536 * 1024);
+    let local_path = local_dir.join("shrink-source.bin");
+    write_local(&local_path, &data).await;
+
+    let relative = "shrink-target.bin";
+    let (cancel_tx, cancel_rx) = watch::channel(false);
+    let threshold = 256 * 1024 * 2;
+    let progress: ProgressSink = Arc::new(move |update: TransferProgress| {
+        if update.resumed_from == 0 && update.transferred >= threshold {
+            let _ = cancel_tx.send(true);
+        }
+    });
+
+    let first = upload_file(
+        server.channels(2).await,
+        local_path.clone(),
+        relative.to_string(),
+        options(4 * 1024 * 1024, 2),
+        cancel_rx,
+        progress,
+    )
+    .await;
+    assert!(matches!(first, Err(TransferError::Cancelled)));
+
+    let sidecar: TransferSidecar =
+        serde_json::from_slice(&std::fs::read(server.root().join(sidecar_path(relative))).unwrap())
+            .unwrap();
+    assert_eq!(
+        sidecar.chunk_size,
+        256 * 1024,
+        "chunk must shrink to one write step"
+    );
+    assert_eq!(sidecar.total_size, data.len() as u64);
+    assert!(
+        sidecar.completed.len() > 2,
+        "more than a single chunk must have been checkpointed"
+    );
+
+    let outcome = upload_file(
+        server.channels(2).await,
+        local_path.clone(),
+        relative.to_string(),
+        options(4 * 1024 * 1024, 2),
+        watch::channel(false).1,
+        noop_progress(),
+    )
+    .await
+    .unwrap();
+
+    assert!(outcome.resumed_from >= threshold);
+    assert_eq!(std::fs::read(server.root().join(relative)).unwrap(), data);
+    assert!(!server.root().join(part_path(relative)).exists());
+    assert!(!server.root().join(sidecar_path(relative)).exists());
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

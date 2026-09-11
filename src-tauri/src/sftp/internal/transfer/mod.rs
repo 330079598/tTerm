@@ -11,6 +11,17 @@
 //! The engine is transport agnostic: callers hand it one `RawSftpSession`
 //! per parallel lane. That keeps the logic unit-testable against an
 //! in-process `russh_sftp::server` (see `test_server`).
+//!
+//! Two properties keep the transfer fast on high-latency links:
+//!
+//! * Each lane keeps up to [`PIPELINE_WINDOW`] chunk requests in flight
+//!   instead of waiting for every write/read acknowledgement, the way the
+//!   OpenSSH `sftp` client does.
+//! * The checkpoint sidecar is persisted at most once per
+//!   [`CHECKPOINT_MIN_CHUNKS`] chunks / [`CHECKPOINT_MIN_BYTES`] bytes (and
+//!   forced on cancel or failure). Chunk data is only ever marked in the
+//!   bitmap after the server acknowledged it, so a lagging checkpoint merely
+//!   re-sends a few chunks after a crash — it can never stitch wrong bytes.
 
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
@@ -26,6 +37,7 @@ use russh_sftp::protocol::{FileAttributes, OpenFlags, StatusCode};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use tokio::sync::{watch, Mutex};
+use tokio::task::JoinSet;
 
 #[cfg(test)]
 mod test_server;
@@ -36,11 +48,20 @@ pub const SIDECAR_VERSION: u32 = 1;
 pub const SIDECAR_SUFFIX: &str = ".tterm.part.json";
 pub const PART_SUFFIX: &str = ".tterm.part";
 pub const DEFAULT_CHUNK_SIZE: u64 = 4 * 1024 * 1024;
+pub const DEFAULT_PARALLELISM: usize = 4;
 const MIN_CHUNK_SIZE: u64 = 4 * 1024;
 /// Fallback step for a single SFTP read/write when the server does not
 /// advertise `limits@openssh.com` (mirrors russh-sftp's own default).
 const DEFAULT_IO_STEP: u64 = 256 * 1024;
-const MAX_PARALLELISM: usize = 16;
+pub const MAX_PARALLELISM: usize = 16;
+/// Chunk requests one lane keeps in flight. SFTP multiplexes requests by id,
+/// so a lane does not have to wait for each acknowledgement before sending
+/// the next one; real servers (OpenSSH) process them concurrently.
+const PIPELINE_WINDOW: usize = 8;
+/// Checkpoint cadence: the sidecar is persisted once either threshold of
+/// *newly completed* chunks/bytes is reached, plus once on cancel/failure.
+const CHECKPOINT_MIN_CHUNKS: usize = 8;
+const CHECKPOINT_MIN_BYTES: u64 = 32 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -59,7 +80,7 @@ pub struct TransferOptions {
 impl Default for TransferOptions {
     fn default() -> Self {
         Self {
-            parallelism: 4,
+            parallelism: DEFAULT_PARALLELISM,
             chunk_size: DEFAULT_CHUNK_SIZE,
             progress_interval_bytes: 2 * 1024 * 1024,
         }
@@ -297,6 +318,39 @@ fn step_from_limits(limits: Option<&LimitsExtension>) -> u64 {
     step.max(1)
 }
 
+/// Largest single write request a lane will issue for upload chunks.
+fn io_write_step(limits: Option<&LimitsExtension>) -> u64 {
+    limits
+        .and_then(|limits| (limits.max_write_len > 0).then_some(limits.max_write_len))
+        .unwrap_or(DEFAULT_IO_STEP)
+}
+
+/// Largest single read request a lane will issue for download chunks.
+fn io_read_step(limits: Option<&LimitsExtension>) -> u64 {
+    limits
+        .and_then(|limits| (limits.max_read_len > 0).then_some(limits.max_read_len))
+        .unwrap_or(DEFAULT_IO_STEP)
+}
+
+/// Chunk size after small-file shrinking.
+///
+/// A lane pipelines *chunks*, and each chunk sends its steps serially. When
+/// the server does not advertise `limits@openssh.com` the negotiated chunk
+/// (4 MiB) is far larger than one write step (256 KiB), so a file smaller
+/// than a handful of chunks would run almost serially. Shrink the chunk to
+/// `max(one write step, total / window)` in that case so the sliding window
+/// becomes request-level pipelining. Never grows the chunk, never shrinks
+/// below one write step, and leaves empty transfers alone — so large
+/// transfers and servers that clamp the chunk to their write limit (where
+/// chunk == step already) are untouched.
+fn effective_chunk_size(negotiated: u64, step: u64, total_size: u64, window: usize) -> u64 {
+    if total_size == 0 {
+        return negotiated;
+    }
+    let target = (total_size / window.max(1) as u64).max(1);
+    negotiated.min(step.max(target)).max(MIN_CHUNK_SIZE)
+}
+
 enum SidecarStore {
     Remote {
         session: Arc<RawSftpSession>,
@@ -336,7 +390,20 @@ impl SidecarStore {
                 session,
                 path,
                 step,
-            } => remote_write_all(session.as_ref(), path, &data, *step).await,
+            } => {
+                // Write-then-swap: a crash mid-write leaves the previous
+                // checkpoint intact instead of a truncated one. SFTPv3 rename
+                // cannot overwrite, so remove first (leaving a missing — not
+                // corrupt — checkpoint for at most one round trip) and fall
+                // back to a direct write if the swap still fails.
+                let tmp_path = format!("{path}.tmp");
+                remote_write_all(session.as_ref(), &tmp_path, &data, *step).await?;
+                let _ = session.remove(path).await;
+                if session.rename(&tmp_path, path).await.is_err() {
+                    remote_write_all(session.as_ref(), path, &data, *step).await?;
+                }
+                Ok(())
+            }
             SidecarStore::Local { path } => {
                 let tmp = path.with_extension("json.tmp");
                 tokio::fs::write(&tmp, &data)
@@ -357,6 +424,7 @@ impl SidecarStore {
         match self {
             SidecarStore::Remote { session, path, .. } => {
                 let _ = session.remove(path).await;
+                let _ = session.remove(format!("{path}.tmp")).await;
             }
             SidecarStore::Local { path } => {
                 let _ = tokio::fs::remove_file(path).await;
@@ -467,6 +535,12 @@ async fn ensure_remote_dir_all(
 
     for segment in normalized.split('/').filter(|segment| !segment.is_empty()) {
         current = crate::sftp::internal::paths::join_remote_path(&current, segment);
+        // Stat before mkdir: for an already-existing tree this costs one
+        // round trip per segment instead of a failing mkdir plus a
+        // confirming stat.
+        if session.stat(&current).await.is_ok() {
+            continue;
+        }
         if session
             .mkdir(&current, FileAttributes::empty())
             .await
@@ -521,6 +595,12 @@ fn now_unix_ms() -> i64 {
 struct SidecarState {
     sidecar: TransferSidecar,
     bits: Vec<u8>,
+    /// Completed chunks not yet reflected in a persisted checkpoint.
+    unsaved_chunks: usize,
+    unsaved_bytes: u64,
+    /// Completed chunks included in the last persisted checkpoint. Doubles as
+    /// a dedupe guard so a lagging snapshot cannot be re-persisted forever.
+    persisted_chunks: usize,
 }
 
 struct TransferPaths {
@@ -589,7 +669,6 @@ async fn run_transfer(
     }
 
     let control = channels.sessions[0].clone();
-    let chunk_size = negotiate_chunk_size(options.chunk_size, channels.limits.as_ref());
     let paths = build_paths(
         direction,
         &local_path,
@@ -606,6 +685,12 @@ async fn run_transfer(
     };
 
     let total_size = source_size;
+    let chunk_size = effective_chunk_size(
+        negotiate_chunk_size(options.chunk_size, channels.limits.as_ref()),
+        io_write_step(channels.limits.as_ref()),
+        total_size,
+        PIPELINE_WINDOW,
+    );
     let chunk_count = chunk_count_for(total_size, chunk_size);
 
     // Make sure the destination directory exists before touching the part file.
@@ -633,29 +718,40 @@ async fn run_transfer(
         }
     }
 
-    let existing = paths.sidecar_store.load().await;
+    // Checkpointing only pays off when there is more than one chunk to
+    // resume; for single-chunk (and empty) transfers it is pure per-file
+    // overhead, so they skip the sidecar entirely and just retransmit on
+    // retry.
+    let checkpointing = chunk_count > 1;
     let mut bits = vec![0u8; bitmap_len(chunk_count)];
     let mut resumed_from = 0u64;
 
-    match existing {
-        Some(sidecar)
-            if sidecar.matches_source(
-                direction,
-                &paths.final_path,
-                &paths.part_path,
-                chunk_size,
-                source_size,
-                source_mtime,
-            ) =>
-        {
-            bits = decode_bitmap(&sidecar.completed, chunk_count)?;
-            resumed_from = completed_bytes(&bits, chunk_size, total_size, chunk_count);
+    if checkpointing {
+        match paths.sidecar_store.load().await {
+            Some(sidecar)
+                if sidecar.matches_source(
+                    direction,
+                    &paths.final_path,
+                    &paths.part_path,
+                    chunk_size,
+                    source_size,
+                    source_mtime,
+                ) =>
+            {
+                bits = decode_bitmap(&sidecar.completed, chunk_count)?;
+                resumed_from = completed_bytes(&bits, chunk_size, total_size, chunk_count);
+            }
+            Some(_) | None => {
+                // Baseline mismatch or a brand new transfer: never stitch
+                // unrelated bytes together, always start from a clean part file.
+                discard_partial(direction, control.as_ref(), &paths).await;
+            }
         }
-        Some(_) | None => {
-            // Baseline mismatch or a brand new transfer: never stitch
-            // unrelated bytes together, always start from a clean part file.
-            discard_partial(direction, control.as_ref(), &paths).await;
-        }
+    } else {
+        // Even without checkpointing, a stale part from an aborted older
+        // attempt must not survive: writes cover [0, total) but a longer
+        // stale tail would remain after the final rename.
+        discard_partial(direction, control.as_ref(), &paths).await;
     }
 
     let mut missing: Vec<usize> = (0..chunk_count)
@@ -664,7 +760,8 @@ async fn run_transfer(
 
     // A checkpoint that claims completion is only trustworthy if the part file
     // is actually large enough; otherwise we would rename a truncated file.
-    if missing.is_empty()
+    if checkpointing
+        && missing.is_empty()
         && total_size > 0
         && !part_is_complete(direction, control.as_ref(), &paths, total_size).await
     {
@@ -675,7 +772,7 @@ async fn run_transfer(
     }
 
     let initial_completed_chunks = bitmap_count(&bits, chunk_count) as u64;
-    let mut sidecar = TransferSidecar {
+    let sidecar = TransferSidecar {
         version: SIDECAR_VERSION,
         direction,
         final_path: paths.final_path.clone(),
@@ -690,10 +787,10 @@ async fn run_transfer(
 
     if missing.is_empty() {
         // Checkpoint already complete: make sure the part file exists (it may
-        // be a zero-byte transfer, or a stale part was discarded above),
-        // persist the checkpoint and finalize without any chunk I/O.
+        // be a zero-byte transfer, or a stale part was discarded above) and
+        // finalize without any chunk I/O. No checkpoint write is needed —
+        // finalize removes the sidecar right after the rename.
         ensure_part_exists(direction, control.as_ref(), &paths).await?;
-        paths.sidecar_store.save(&sidecar).await?;
         finalize(direction, control.as_ref(), &paths).await?;
         return Ok(TransferOutcome {
             resumed_from,
@@ -703,8 +800,6 @@ async fn run_transfer(
         });
     }
 
-    sidecar.updated_at_ms = now_unix_ms();
-    paths.sidecar_store.save(&sidecar).await?;
     emit_progress(
         &progress,
         total_size,
@@ -723,11 +818,25 @@ async fn run_transfer(
         chunk_count,
         resumed_from,
         initial_completed_chunks,
-        sidecar_state: Arc::new(Mutex::new(SidecarState { sidecar, bits })),
+        checkpointing,
+        sidecar_state: Arc::new(Mutex::new(SidecarState {
+            sidecar,
+            bits,
+            unsaved_chunks: 0,
+            unsaved_bytes: 0,
+            persisted_chunks: initial_completed_chunks as usize,
+        })),
         sidecar_store: paths.sidecar_store.clone(),
     });
 
-    execute_parallel(&channels, &paths, &run, &options, &mut cancel, &progress).await?;
+    if let Err(err) =
+        execute_parallel(&channels, &paths, &run, &options, &mut cancel, &progress).await
+    {
+        // Best-effort flush so every acknowledged chunk survives the retry;
+        // check(point) failures are not allowed to mask the transfer error.
+        flush_checkpoint(&run).await;
+        return Err(err);
+    }
 
     // Everything should be present now; guard against a lost update.
     let (completed_chunks, transferred) = {
@@ -793,6 +902,7 @@ struct TransferRun {
     chunk_count: usize,
     resumed_from: u64,
     initial_completed_chunks: u64,
+    checkpointing: bool,
     sidecar_state: Arc<Mutex<SidecarState>>,
     sidecar_store: Arc<SidecarStore>,
 }
@@ -842,6 +952,7 @@ async fn ensure_part_exists(
             tokio::fs::OpenOptions::new()
                 .create(true)
                 .write(true)
+                .truncate(false)
                 .open(PathBuf::from(&paths.part_path))
                 .await
                 .map_err(|err| {
@@ -885,47 +996,47 @@ async fn execute_parallel(
     cancel: &mut watch::Receiver<bool>,
     progress: &ProgressSink,
 ) -> Result<(), TransferError> {
-    let lanes = options.parallelism.min(channels.sessions.len()).max(1);
+    let mut lanes = options.parallelism.min(channels.sessions.len()).max(1);
+    if let Some(limits) = channels.limits.as_ref() {
+        if limits.max_open_handles > 0 {
+            // Every lane holds one handle for the whole transfer; reserve one
+            // more for the control session's checkpoint/metadata traffic.
+            lanes = lanes
+                .min((limits.max_open_handles as usize).saturating_sub(1))
+                .max(1);
+        }
+    }
+
     let queue = Arc::new(Mutex::new(VecDeque::from(run.chunks.clone())));
-    let transferred = Arc::new(AtomicU64::new(run.resumed_from));
-    let completed_chunks = Arc::new(AtomicU64::new(run.initial_completed_chunks));
-    let total_size = run.total_size;
-    let resumed_from = run.resumed_from;
+    let shared = Arc::new(LaneShared {
+        queue: queue.clone(),
+        transferred: Arc::new(AtomicU64::new(run.resumed_from)),
+        completed_chunks: Arc::new(AtomicU64::new(run.initial_completed_chunks)),
+        progress: progress.clone(),
+        cancel: cancel.clone(),
+        chunk_size: run.chunk_size,
+        total_size: run.total_size,
+        chunk_count: run.chunk_count,
+        resumed_from: run.resumed_from,
+        parallelism: options.parallelism,
+        progress_interval: options.progress_interval_bytes,
+        sidecar_state: run.sidecar_state.clone(),
+        sidecar_store: run.sidecar_store.clone(),
+        local_source: paths.local_path.clone(),
+        local_part: PathBuf::from(&paths.part_path),
+        remote_part: paths.part_path.clone(),
+        remote_source: paths.remote_path.clone(),
+        direction: run.direction,
+        read_step: io_read_step(channels.limits.as_ref()),
+        write_step: io_write_step(channels.limits.as_ref()),
+        checkpointing: run.checkpointing,
+    });
 
     let mut join_set = tokio::task::JoinSet::new();
 
     for lane in 0..lanes {
         let session = channels.sessions[lane % channels.sessions.len()].clone();
-        let ctx = LaneContext {
-            session,
-            queue: queue.clone(),
-            transferred: transferred.clone(),
-            completed_chunks: completed_chunks.clone(),
-            progress: progress.clone(),
-            cancel: cancel.clone(),
-            chunk_size: run.chunk_size,
-            total_size,
-            chunk_count: run.chunk_count,
-            resumed_from,
-            parallelism: options.parallelism,
-            progress_interval: options.progress_interval_bytes,
-            sidecar_state: run.sidecar_state.clone(),
-            sidecar_store: run.sidecar_store.clone(),
-            local_source: paths.local_path.clone(),
-            local_part: PathBuf::from(&paths.part_path),
-            remote_part: paths.part_path.clone(),
-            remote_source: paths.remote_path.clone(),
-            direction: run.direction,
-            read_limit: channels
-                .limits
-                .as_ref()
-                .and_then(|limits| (limits.max_read_len > 0).then_some(limits.max_read_len)),
-            write_limit: channels
-                .limits
-                .as_ref()
-                .and_then(|limits| (limits.max_write_len > 0).then_some(limits.max_write_len)),
-        };
-        join_set.spawn(lane_worker(ctx));
+        join_set.spawn(lane_worker(session, shared.clone()));
     }
 
     let mut first_error: Option<TransferError> = None;
@@ -957,8 +1068,9 @@ async fn execute_parallel(
     }
 }
 
-struct LaneContext {
-    session: Arc<RawSftpSession>,
+/// State shared by every lane of one transfer (each lane pairs it with its
+/// own `RawSftpSession`).
+struct LaneShared {
     queue: Arc<Mutex<VecDeque<usize>>>,
     transferred: Arc<AtomicU64>,
     completed_chunks: Arc<AtomicU64>,
@@ -977,155 +1089,276 @@ struct LaneContext {
     remote_part: String,
     remote_source: String,
     direction: TransferDirection,
-    read_limit: Option<u64>,
-    write_limit: Option<u64>,
+    read_step: u64,
+    write_step: u64,
+    checkpointing: bool,
 }
 
-async fn lane_worker(ctx: LaneContext) -> Result<(), TransferError> {
-    let handle = match ctx.direction {
-        TransferDirection::Upload => Some(open_upload_part(&ctx.session, &ctx.remote_part).await?),
+async fn lane_worker(
+    session: Arc<RawSftpSession>,
+    shared: Arc<LaneShared>,
+) -> Result<(), TransferError> {
+    let handle = match shared.direction {
+        TransferDirection::Upload => {
+            open_upload_part(session.as_ref(), &shared.remote_part).await?
+        }
         TransferDirection::Download => {
-            Some(open_download_source(&ctx.session, &ctx.remote_source).await?)
+            open_download_source(session.as_ref(), &shared.remote_source).await?
         }
     };
 
-    let mut local_reader = if ctx.direction == TransferDirection::Upload {
-        Some(
-            tokio::fs::File::open(&ctx.local_source)
-                .await
-                .map_err(|err| {
-                    failed(format!(
-                        "Failed to open local source '{}': {err}",
-                        ctx.local_source.display()
-                    ))
-                })?,
-        )
-    } else {
-        None
-    };
+    // Sliding window of chunk tasks. Keeping several requests in flight
+    // hides the per-request round trip on high-latency links; each task
+    // reports its chunk index so only fully acknowledged chunks are marked.
+    let mut chunk_tasks: JoinSet<(usize, Result<(), TransferError>)> = JoinSet::new();
+    let mut last_progress = shared.transferred.load(Ordering::Relaxed);
 
-    let mut local_writer = if ctx.direction == TransferDirection::Download {
-        Some(
-            tokio::fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .truncate(false)
-                .open(&ctx.local_part)
-                .await
-                .map_err(|err| {
-                    failed(format!(
-                        "Failed to open local part '{}': {err}",
-                        ctx.local_part.display()
-                    ))
-                })?,
-        )
-    } else {
-        None
-    };
+    let result: Result<(), TransferError> = loop {
+        while chunk_tasks.len() < PIPELINE_WINDOW {
+            if *shared.cancel.borrow() {
+                break;
+            }
+            let index = {
+                let mut queue = shared.queue.lock().await;
+                queue.pop_front()
+            };
+            let Some(index) = index else { break };
+            chunk_tasks.spawn(transfer_chunk(
+                session.clone(),
+                shared.clone(),
+                handle.clone(),
+                index,
+            ));
+        }
 
-    let mut last_progress = ctx.transferred.load(Ordering::Relaxed);
-
-    let result = loop {
-        let index = {
-            let mut queue = ctx.queue.lock().await;
-            queue.pop_front()
-        };
-        let Some(index) = index else { break Ok(()) };
-
-        if *ctx.cancel.borrow() {
+        // Checked before draining completions so a cancel triggered by the
+        // progress callback stops marking chunks deterministically.
+        if *shared.cancel.borrow() {
             break Err(TransferError::Cancelled);
         }
 
-        let offset = index as u64 * ctx.chunk_size;
-        let len = chunk_len_for(index, ctx.chunk_size, ctx.total_size);
+        let Some(joined) = chunk_tasks.join_next().await else {
+            // Window empty and queue drained.
+            break Ok(());
+        };
 
-        match ctx.direction {
-            TransferDirection::Upload => {
-                let reader = local_reader.as_mut().expect("upload reader");
-                let mut buffer = vec![0u8; len as usize];
-                reader
-                    .seek(std::io::SeekFrom::Start(offset))
-                    .await
-                    .map_err(|err| failed(format!("Failed to seek local source: {err}")))?;
-                reader.read_exact(&mut buffer).await.map_err(|err| {
-                    failed(format!(
-                        "Failed to read local source at offset {offset}: {err}"
-                    ))
-                })?;
-                let handle = handle.as_ref().expect("upload handle");
-                write_remote_chunk(&ctx.session, handle, offset, &buffer, ctx.write_limit).await?;
+        match joined {
+            Ok((index, Ok(()))) => {
+                record_chunk_completion(&shared, index, &mut last_progress).await;
             }
-            TransferDirection::Download => {
-                let handle = handle.as_ref().expect("download handle");
-                let data = read_remote_chunk(
-                    &ctx.session,
-                    handle,
-                    offset,
-                    len,
-                    ctx.read_limit.unwrap_or(DEFAULT_IO_STEP),
-                )
-                .await?;
-                if data.len() as u64 != len {
-                    break Err(failed(format!(
-                        "Short read from remote source at offset {offset}: got {} of {len} bytes",
-                        data.len()
-                    )));
-                }
-                let writer = local_writer.as_mut().expect("download writer");
-                writer
-                    .seek(std::io::SeekFrom::Start(offset))
-                    .await
-                    .map_err(|err| failed(format!("Failed to seek local part: {err}")))?;
-                writer
-                    .write_all(&data)
-                    .await
-                    .map_err(|err| failed(format!("Failed to write local part: {err}")))?;
-                writer
-                    .flush()
-                    .await
-                    .map_err(|err| failed(format!("Failed to flush local part: {err}")))?;
-            }
-        }
-
-        // Persist the checkpoint only after the chunk data is safely in place.
-        {
-            let mut state = ctx.sidecar_state.lock().await;
-            if !bitmap_get(&state.bits, index) {
-                bitmap_set(&mut state.bits, index);
-                state.sidecar.completed = encode_bitmap(&state.bits);
-                state.sidecar.updated_at_ms = now_unix_ms();
-                ctx.sidecar_store.save(&state.sidecar).await?;
-                ctx.completed_chunks.fetch_add(1, Ordering::SeqCst);
-            }
-        }
-
-        let total = ctx.transferred.fetch_add(len, Ordering::SeqCst) + len;
-        if total.saturating_sub(last_progress) >= ctx.progress_interval || total >= ctx.total_size {
-            last_progress = total;
-            (ctx.progress)(TransferProgress {
-                transferred: total,
-                total: ctx.total_size,
-                resumed_from: ctx.resumed_from,
-                parallelism: ctx.parallelism,
-                completed_chunks: ctx.completed_chunks.load(Ordering::SeqCst),
-                chunk_count: ctx.chunk_count as u64,
-            });
+            Ok((_, Err(err))) => break Err(err),
+            Err(join_err) => break Err(failed(format!("Transfer worker failed: {join_err}"))),
         }
     };
 
-    if let Some(handle) = handle {
-        let _ = ctx.session.close(handle.as_str()).await;
-    }
+    chunk_tasks.abort_all();
+    while chunk_tasks.join_next().await.is_some() {}
+    let _ = session.close(handle.as_str()).await;
 
     result
+}
+
+/// Move one acknowledged chunk into the bitmap (throttled checkpoint) and
+/// emit progress. The chunk data is already durable at this point, so a
+/// failed checkpoint save is deliberately non-fatal: the next cadence save
+/// or the cancel/error flush will retry it.
+async fn record_chunk_completion(shared: &LaneShared, index: usize, last_progress: &mut u64) {
+    let len = chunk_len_for(index, shared.chunk_size, shared.total_size);
+    let snapshot = {
+        let mut state = shared.sidecar_state.lock().await;
+        if bitmap_get(&state.bits, index) {
+            None
+        } else {
+            bitmap_set(&mut state.bits, index);
+            shared.completed_chunks.fetch_add(1, Ordering::SeqCst);
+            state.unsaved_chunks += 1;
+            state.unsaved_bytes += len;
+            let completed = bitmap_count(&state.bits, shared.chunk_count);
+            if shared.checkpointing
+                && completed > state.persisted_chunks
+                && (state.unsaved_chunks >= CHECKPOINT_MIN_CHUNKS
+                    || state.unsaved_bytes >= CHECKPOINT_MIN_BYTES)
+            {
+                state.unsaved_chunks = 0;
+                state.unsaved_bytes = 0;
+                state.sidecar.completed = encode_bitmap(&state.bits);
+                state.sidecar.updated_at_ms = now_unix_ms();
+                Some((state.sidecar.clone(), completed))
+            } else {
+                None
+            }
+        }
+    };
+
+    if let Some((sidecar, completed)) = snapshot {
+        // Persisted outside the state lock so lanes never queue on the
+        // network while holding it.
+        if shared.sidecar_store.save(&sidecar).await.is_ok() {
+            let mut state = shared.sidecar_state.lock().await;
+            state.persisted_chunks = state.persisted_chunks.max(completed);
+        }
+    }
+
+    let total = shared.transferred.fetch_add(len, Ordering::SeqCst) + len;
+    if total.saturating_sub(*last_progress) >= shared.progress_interval
+        || total >= shared.total_size
+    {
+        *last_progress = total;
+        (shared.progress)(TransferProgress {
+            transferred: total,
+            total: shared.total_size,
+            resumed_from: shared.resumed_from,
+            parallelism: shared.parallelism,
+            completed_chunks: shared.completed_chunks.load(Ordering::SeqCst),
+            chunk_count: shared.chunk_count as u64,
+        });
+    }
+}
+
+/// Persist the current bitmap unconditionally (cancel/failure path). Skipped
+/// when the on-disk checkpoint already reflects every marked chunk.
+async fn flush_checkpoint(run: &TransferRun) {
+    if !run.checkpointing {
+        return;
+    }
+    let snapshot = {
+        let mut state = run.sidecar_state.lock().await;
+        let completed = bitmap_count(&state.bits, run.chunk_count);
+        if completed <= state.persisted_chunks {
+            return;
+        }
+        state.sidecar.completed = encode_bitmap(&state.bits);
+        state.sidecar.updated_at_ms = now_unix_ms();
+        (state.sidecar.clone(), completed)
+    };
+    if run.sidecar_store.save(&snapshot.0).await.is_ok() {
+        let mut state = run.sidecar_state.lock().await;
+        state.persisted_chunks = state.persisted_chunks.max(snapshot.1);
+    }
+}
+
+/// Transfer a single chunk: upload reads the local source and writes remote
+/// steps; download reads remote steps and writes the local part. Runs as its
+/// own task so several chunks can be in flight per lane.
+async fn transfer_chunk(
+    session: Arc<RawSftpSession>,
+    shared: Arc<LaneShared>,
+    handle: String,
+    index: usize,
+) -> (usize, Result<(), TransferError>) {
+    let offset = index as u64 * shared.chunk_size;
+    let len = chunk_len_for(index, shared.chunk_size, shared.total_size);
+    let result = match shared.direction {
+        TransferDirection::Upload => {
+            upload_chunk(&shared, session.as_ref(), &handle, offset, len).await
+        }
+        TransferDirection::Download => {
+            download_chunk(&shared, session.as_ref(), &handle, offset, len).await
+        }
+    };
+    (index, result)
+}
+
+async fn upload_chunk(
+    shared: &LaneShared,
+    session: &RawSftpSession,
+    handle: &str,
+    offset: u64,
+    len: u64,
+) -> Result<(), TransferError> {
+    // One handle per chunk task: concurrent positioned I/O on a shared
+    // tokio File would race on the cursor, while opening per chunk is a
+    // local syscall, not a network round trip.
+    let mut reader = tokio::fs::File::open(&shared.local_source)
+        .await
+        .map_err(|err| {
+            failed(format!(
+                "Failed to open local source '{}': {err}",
+                shared.local_source.display()
+            ))
+        })?;
+    let mut buffer = vec![0u8; shared.write_step as usize];
+    let mut pos = 0u64;
+    while pos < len {
+        if *shared.cancel.borrow() {
+            return Err(TransferError::Cancelled);
+        }
+        let want = (len - pos).min(shared.write_step) as usize;
+        reader
+            .seek(std::io::SeekFrom::Start(offset + pos))
+            .await
+            .map_err(|err| failed(format!("Failed to seek local source: {err}")))?;
+        reader
+            .read_exact(&mut buffer[..want])
+            .await
+            .map_err(|err| {
+                failed(format!(
+                    "Failed to read local source at offset {}: {err}",
+                    offset + pos
+                ))
+            })?;
+        session
+            .write(handle, offset + pos, buffer[..want].to_vec())
+            .await
+            .map_err(|err| failed(format!("Failed to write remote part: {err}")))?;
+        pos += want as u64;
+    }
+    Ok(())
+}
+
+async fn download_chunk(
+    shared: &LaneShared,
+    session: &RawSftpSession,
+    handle: &str,
+    offset: u64,
+    len: u64,
+) -> Result<(), TransferError> {
+    let mut writer = tokio::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&shared.local_part)
+        .await
+        .map_err(|err| {
+            failed(format!(
+                "Failed to open local part '{}': {err}",
+                shared.local_part.display()
+            ))
+        })?;
+    let step = shared.read_step.clamp(1, u32::MAX as u64);
+    let mut pos = 0u64;
+    while pos < len {
+        if *shared.cancel.borrow() {
+            return Err(TransferError::Cancelled);
+        }
+        let request = (len - pos).min(step) as u32;
+        let data = session
+            .read(handle, offset + pos, request)
+            .await
+            .map_err(|err| failed(format!("Failed to read remote source: {err}")))?;
+        if data.data.is_empty() {
+            return Err(failed(format!(
+                "Short read from remote source at offset {offset}: got {pos} of {len} bytes"
+            )));
+        }
+        writer
+            .seek(std::io::SeekFrom::Start(offset + pos))
+            .await
+            .map_err(|err| failed(format!("Failed to seek local part: {err}")))?;
+        writer
+            .write_all(&data.data)
+            .await
+            .map_err(|err| failed(format!("Failed to write local part: {err}")))?;
+        pos += data.data.len() as u64;
+    }
+    Ok(())
 }
 
 async fn open_upload_part(session: &RawSftpSession, path: &str) -> Result<String, TransferError> {
     session
         .open(
             path,
-            OpenFlags::CREATE | OpenFlags::WRITE | OpenFlags::READ,
+            OpenFlags::CREATE | OpenFlags::WRITE,
             FileAttributes::empty(),
         )
         .await
@@ -1142,53 +1375,6 @@ async fn open_download_source(
         .await
         .map(|handle| handle.handle)
         .map_err(|err| failed(format!("Failed to open remote source '{path}': {err}")))
-}
-
-async fn write_remote_chunk(
-    session: &RawSftpSession,
-    handle: &str,
-    offset: u64,
-    data: &[u8],
-    limit: Option<u64>,
-) -> Result<(), TransferError> {
-    let step = limit
-        .filter(|value| *value > 0)
-        .unwrap_or(DEFAULT_IO_STEP)
-        .clamp(1, u32::MAX as u64) as usize;
-    let mut written = 0usize;
-    while written < data.len() {
-        let end = (written + step).min(data.len());
-        session
-            .write(handle, offset + written as u64, data[written..end].to_vec())
-            .await
-            .map_err(|err| failed(format!("Failed to write remote part: {err}")))?;
-        written = end;
-    }
-    Ok(())
-}
-
-async fn read_remote_chunk(
-    session: &RawSftpSession,
-    handle: &str,
-    offset: u64,
-    len: u64,
-    limit: u64,
-) -> Result<Vec<u8>, TransferError> {
-    let step = limit.clamp(1, u32::MAX as u64);
-    let mut buffer = Vec::with_capacity(len as usize);
-    while (buffer.len() as u64) < len {
-        let remaining = len - buffer.len() as u64;
-        let request = remaining.min(step) as u32;
-        let data = session
-            .read(handle, offset + buffer.len() as u64, request)
-            .await
-            .map_err(|err| failed(format!("Failed to read remote source: {err}")))?;
-        if data.data.is_empty() {
-            break;
-        }
-        buffer.extend_from_slice(&data.data);
-    }
-    Ok(buffer)
 }
 
 async fn finalize(

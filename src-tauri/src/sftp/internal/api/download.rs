@@ -77,7 +77,9 @@ fn transfer_options() -> TransferOptions {
     }
 }
 
-fn transfer_result_message(result: Result<transfer::TransferOutcome, TransferError>) -> Result<(), String> {
+fn transfer_result_message(
+    result: Result<transfer::TransferOutcome, TransferError>,
+) -> Result<(), String> {
     match result {
         Ok(_) => Ok(()),
         Err(error) if error.is_cancelled() => Err("Download cancelled by user".to_string()),
