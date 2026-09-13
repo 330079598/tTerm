@@ -143,6 +143,9 @@ pub async fn prepare_transfer(
     let mut sessions = Vec::with_capacity(parallelism);
     let mut limits = None;
     let mut open_error = None;
+    // Drain every spawned open even when one fails: the requests are already
+    // in flight, so aborting them would leak half-opened channels on the
+    // connection — and every channel that did open is still usable.
     while let Some(result) = open_tasks.join_next().await {
         match result {
             Ok(Ok((session, negotiated))) => {
@@ -152,24 +155,35 @@ pub async fn prepare_transfer(
                 sessions.push(session);
             }
             Ok(Err(error)) => {
-                open_error = Some(error);
-                break;
+                if open_error.is_none() {
+                    open_error = Some(error);
+                }
             }
             Err(join_error) => {
-                open_error = Some(format!("SFTP channel open failed: {join_error}"));
-                break;
+                if open_error.is_none() {
+                    open_error = Some(format!("SFTP channel open failed: {join_error}"));
+                }
             }
         }
     }
 
     if let Some(error) = open_error {
-        open_tasks.abort_all();
-        while open_tasks.join_next().await.is_some() {}
-        // A failed channel setup means the pooled connection is unusable.
-        evict_connection(pool, &key).await;
-        return Err(error);
+        if sessions.is_empty() {
+            // Every channel failed. Only evict the pooled connection when
+            // the transport itself is gone: a live connection that merely
+            // refuses new channels (e.g. a tight MaxSessions limit) must
+            // stay — the terminal and other SFTP work on this tab run over
+            // it, and evicting would tear them all down.
+            if ssh.is_closed() {
+                evict_connection(pool, &key).await;
+            }
+            return Err(error);
+        }
     }
 
+    // Elastic degradation: with at least one channel open, run the transfer
+    // with as many lanes as we actually got instead of failing the transfer
+    // over a rejected extra channel.
     Ok((sftp, RemoteChannels::new(sessions, limits)))
 }
 

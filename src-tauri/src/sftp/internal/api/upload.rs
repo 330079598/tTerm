@@ -42,6 +42,9 @@ struct UploadBatchStartEvent {
     batch_id: String,
     display_name: String,
     local_path: String,
+    /// Every path the batch was started with, so a retry can re-run exactly
+    /// this batch instead of whatever batch happens to be the latest one.
+    local_paths: Vec<String>,
     remote_base_path: String,
 }
 
@@ -78,6 +81,9 @@ struct UploadItemCompleteEvent {
     remote_path: String,
     cancelled: bool,
     success: bool,
+    /// The destination already held the source bytes, so no bytes moved in
+    /// this run. Reported so the UI does not derive a speed from them.
+    skipped: bool,
 }
 
 #[derive(Serialize)]

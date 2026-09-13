@@ -114,19 +114,24 @@ fn write_remote_partial(root: &Path, part: &str, content: &[u8], bits: &[u8], ch
 }
 
 #[test]
-fn negotiate_chunk_size_respects_server_limits() {
+fn chunk_size_is_not_clamped_by_wire_limits() {
+    // The chunk is the logical resume unit: a server advertising small
+    // read/write limits (e.g. OpenSSH's ~256 KiB) must not shrink it — the
+    // per-request steps (`io_write_step`/`io_read_step`) absorb the wire
+    // limit instead, so large files keep 4 MiB chunks instead of tens of
+    // thousands of wire-sized ones.
     let limits = LimitsExtension {
         max_packet_len: 300 * 1024,
         max_read_len: 32 * 1024,
         max_write_len: 16 * 1024,
         max_open_handles: 0,
     };
+    let step = io_write_step(Some(&limits));
+    assert_eq!(step, 16 * 1024);
     assert_eq!(
-        negotiate_chunk_size(4 * 1024 * 1024, Some(&limits)),
-        16 * 1024
+        effective_chunk_size(4 * 1024 * 1024, step, 512 * 1024 * 1024, 8),
+        4 * 1024 * 1024
     );
-    assert_eq!(negotiate_chunk_size(8 * 1024, Some(&limits)), 8 * 1024);
-    assert_eq!(negotiate_chunk_size(1024, None), MIN_CHUNK_SIZE);
 }
 
 #[test]
@@ -149,7 +154,7 @@ fn effective_chunk_size_fills_window_for_small_files() {
         256 * 1024
     );
     // Already-small negotiated chunks (test shape: 8 KiB chunks, 32 KiB
-    // step) and limits-clamped chunks (chunk ≤ step) are unchanged.
+    // step) stay untouched, as do chunks at or below their step.
     assert_eq!(
         effective_chunk_size(8 * 1024, 32 * 1024, 40 * 1024, 8),
         8 * 1024
@@ -168,6 +173,28 @@ fn bitmap_round_trips_and_rehomes() {
 
     // A short bitmap is padded, a long one truncated.
     assert_eq!(decode_bitmap(&encode_bitmap(&[0xFF]), 20).unwrap().len(), 3);
+}
+
+#[test]
+fn checkpoint_cadence_ignores_chunk_counts_below_byte_threshold() {
+    let mut state = SidecarState {
+        sidecar: build_sidecar(TransferDirection::Upload, "f", "p", 4096, 0, 0, None, &[]),
+        bits: Vec::new(),
+        unsaved_chunks: 8,
+        unsaved_bytes: 8 * 4096,
+        persisted_chunks: 0,
+        last_checkpoint: Instant::now(),
+    };
+    // A handful of wire-sized chunks (a few KiB each) must not trigger a
+    // save: chunk counts alone would flood the store with round trips.
+    assert!(!checkpoint_due(&state));
+    // The interval backstop bounds the re-send window on slow links.
+    state.last_checkpoint = Instant::now() - CHECKPOINT_MIN_INTERVAL - Duration::from_millis(1);
+    assert!(checkpoint_due(&state));
+    // The byte threshold fires regardless of the interval.
+    state.last_checkpoint = Instant::now();
+    state.unsaved_bytes = CHECKPOINT_MIN_BYTES;
+    assert!(checkpoint_due(&state));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -454,6 +481,128 @@ async fn complete_checkpoint_with_missing_part_retransmits() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn partial_checkpoint_with_missing_part_retransmits() {
+    let server = TestServer::start(ServerOptions {
+        limits: Some(server_limits()),
+        ..Default::default()
+    })
+    .await;
+    let local_path = server.local_dir().join("holes-missing-part-source.bin");
+    let chunk_size = 8 * 1024u64;
+    let data = content(chunk_size as usize * 5);
+    write_local(&local_path, &data).await;
+
+    let relative = "holes-missing-part.bin";
+    let part = part_path(relative);
+    let sidecar_path = sidecar_path(relative);
+
+    // Checkpoint claims chunks 0 and 2 are done but the part file was lost
+    // out-of-band. Resuming into a fresh part file would stitch zero-filled
+    // holes in front of the renamed final file, so the transfer must
+    // restart from scratch.
+    let mut bits = vec![0u8; bitmap_len(5)];
+    bitmap_set(&mut bits, 0);
+    bitmap_set(&mut bits, 2);
+    let (_, mtime) = local_fingerprint(&local_path).await.unwrap();
+    let sidecar = build_sidecar(
+        TransferDirection::Upload,
+        relative,
+        &part,
+        chunk_size,
+        data.len() as u64,
+        data.len() as u64,
+        mtime,
+        &bits,
+    );
+    write_sidecar_json(&server.root().join(&sidecar_path), &sidecar);
+
+    let outcome = upload_file(
+        server.channels(2).await,
+        local_path.clone(),
+        relative.to_string(),
+        options(chunk_size, 2),
+        watch::channel(false).1,
+        noop_progress(),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        outcome.resumed_from, 0,
+        "a partial checkpoint without its part bytes must be discarded"
+    );
+    assert_eq!(
+        std::fs::read(server.root().join(relative)).unwrap(),
+        data,
+        "the rebuilt file must be byte-identical"
+    );
+    assert!(!server.root().join(&part).exists());
+    assert!(!server.root().join(&sidecar_path).exists());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn remote_sidecar_tmp_fallback_recovers_checkpoint() {
+    let server = TestServer::start(ServerOptions {
+        limits: Some(server_limits()),
+        ..Default::default()
+    })
+    .await;
+    let local_dir = server.local_dir().to_path_buf();
+    let chunk_size = 8 * 1024u64;
+    let data = content(chunk_size as usize * 5);
+    let local_path = local_dir.join("tmp-fallback-source.bin");
+    write_local(&local_path, &data).await;
+
+    let relative = "tmp-fallback.bin";
+    let part = part_path(relative);
+    let sidecar_path = sidecar_path(relative);
+
+    // A crashed save swap (remove primary, crash before rename) leaves only
+    // the temp copy: chunks 0 and 1 are done, and the checkpoint exists
+    // solely as `<sidecar>.tmp`.
+    let mut bits = vec![0u8; bitmap_len(5)];
+    bitmap_set(&mut bits, 0);
+    bitmap_set(&mut bits, 1);
+    write_remote_partial(server.root(), &part, &data, &bits, chunk_size);
+    let (_, mtime) = local_fingerprint(&local_path).await.unwrap();
+    let sidecar = build_sidecar(
+        TransferDirection::Upload,
+        relative,
+        &part,
+        chunk_size,
+        data.len() as u64,
+        data.len() as u64,
+        mtime,
+        &bits,
+    );
+    write_file_blocking(
+        &server.root().join(format!("{sidecar_path}.tmp")),
+        &serde_json::to_vec(&sidecar).unwrap(),
+    );
+
+    let outcome = upload_file(
+        server.channels(4).await,
+        local_path.clone(),
+        relative.to_string(),
+        options(chunk_size, 4),
+        watch::channel(false).1,
+        noop_progress(),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        outcome.resumed_from,
+        chunk_size * 2,
+        "the temp checkpoint must be recovered instead of discarding the transfer"
+    );
+    assert_eq!(std::fs::read(server.root().join(relative)).unwrap(), data);
+    assert!(!server.root().join(&part).exists());
+    assert!(!server.root().join(&sidecar_path).exists());
+    assert!(!server.root().join(format!("{sidecar_path}.tmp")).exists());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn rename_overwrite_and_remove_then_rename_fallback() {
     let chunk_size = 8 * 1024u64;
     let data = content(chunk_size as usize * 3);
@@ -607,6 +756,43 @@ async fn single_chunk_upload_replaces_stale_oversized_part() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn stale_part_survives_failing_remove_and_gets_truncated() {
+    // Every remove is refused, so the fresh-transfer discard cannot delete
+    // the stale oversized part: only the truncate fallback keeps the old
+    // tail out of the renamed final file.
+    let server = TestServer::start(ServerOptions {
+        fail_removes: true,
+        ..Default::default()
+    })
+    .await;
+    let local_path = server.local_dir().join("remove-fail-source.bin");
+    let data = content(16 * 1024);
+    write_local(&local_path, &data).await;
+
+    let relative = "remove-fail.bin";
+    let part = part_path(relative);
+    // A stale part from an older, larger attempt (4x the new size).
+    write_file_blocking(&server.root().join(&part), &content(64 * 1024));
+
+    upload_file(
+        server.channels(2).await,
+        local_path.clone(),
+        relative.to_string(),
+        options(64 * 1024, 2),
+        watch::channel(false).1,
+        noop_progress(),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        std::fs::read(server.root().join(relative)).unwrap(),
+        data,
+        "the stale part tail must not survive the final rename"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn empty_file_upload_creates_empty_final() {
     let server = TestServer::start(ServerOptions::default()).await;
     let local_path = server.local_dir().join("empty-source.bin");
@@ -696,12 +882,97 @@ async fn small_file_without_limits_shrinks_chunks_and_resumes() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn checkpoint_with_oversized_part_retransmits() {
+    let server = TestServer::start(ServerOptions {
+        limits: Some(server_limits()),
+        ..Default::default()
+    })
+    .await;
+    let local_path = server.local_dir().join("oversized-part-source.bin");
+    let chunk_size = 8 * 1024u64;
+    let data = content(chunk_size as usize * 3);
+    write_local(&local_path, &data).await;
+
+    let relative = "oversized-part.bin";
+    let part = part_path(relative);
+    let sidecar_path = sidecar_path(relative);
+
+    // The checkpoint claims every chunk is done and the part file covers all
+    // of them, but carries an extra stale tail from a larger older attempt.
+    // Parts are opened without truncation, so resuming would rename that tail
+    // into the final file as trailing garbage.
+    let mut bits = vec![0u8; bitmap_len(3)];
+    for index in 0..3 {
+        bitmap_set(&mut bits, index);
+    }
+    let (_, mtime) = local_fingerprint(&local_path).await.unwrap();
+    let sidecar = build_sidecar(
+        TransferDirection::Upload,
+        relative,
+        &part,
+        chunk_size,
+        data.len() as u64,
+        data.len() as u64,
+        mtime,
+        &bits,
+    );
+    write_sidecar_json(&server.root().join(&sidecar_path), &sidecar);
+    let mut stale = data.clone();
+    stale.extend_from_slice(&[0xCD; 4096]);
+    write_file_blocking(&server.root().join(&part), &stale);
+
+    let outcome = upload_file(
+        server.channels(2).await,
+        local_path.clone(),
+        relative.to_string(),
+        options(chunk_size, 2),
+        watch::channel(false).1,
+        noop_progress(),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        outcome.resumed_from, 0,
+        "an oversized part must be discarded, not resumed"
+    );
+    assert_eq!(
+        std::fs::read(server.root().join(relative)).unwrap(),
+        data,
+        "the retransmitted file must be byte-identical"
+    );
+    assert!(!server.root().join(&part).exists());
+    assert!(!server.root().join(&sidecar_path).exists());
+}
+
+#[tokio::test]
+async fn local_sidecar_removal_cleans_tmp_swap_file() {
+    let dir = std::env::temp_dir().join("tterm-local-sidecar-remove-test");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("file.bin.tterm.part.json");
+    let tmp = path.with_extension("json.tmp");
+    write_file_blocking(&path, b"{}");
+    write_file_blocking(&tmp, b"{}");
+
+    SidecarStore::Local { path: path.clone() }.remove().await;
+
+    assert!(!path.exists());
+    assert!(
+        !tmp.exists(),
+        "the save() swap temp file must be cleaned up"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn parallel_upload_outperforms_serial_with_injected_latency() {
     let latency = Duration::from_millis(3);
     let server = TestServer::start(ServerOptions {
         limits: None,
         latency,
         rename_overwrites: true,
+        fail_removes: false,
     })
     .await;
     let chunk_size = 16 * 1024u64;

@@ -49,6 +49,9 @@ struct DownloadItemCompleteEvent {
     remote_path: String,
     cancelled: bool,
     success: bool,
+    /// The local file already held the remote bytes, so no bytes moved in
+    /// this run. Reported so the UI does not derive a speed from them.
+    skipped: bool,
 }
 
 #[derive(Clone, Serialize)]
@@ -59,6 +62,14 @@ struct DownloadBatchCompleteEvent {
     error: Option<String>,
     transferred: u64,
     total: u64,
+    /// Bytes of files the run skipped because the local copy was already
+    /// current. They are included in `transferred` so the bar reaches 100%,
+    /// but no bytes moved for them — reported separately so the UI does not
+    /// derive a speed from them.
+    skipped: u64,
+    /// Bytes of files this run resumed from a previous partial attempt: they
+    /// are part of `transferred` as well, but only the remainder was fetched.
+    resumed: u64,
 }
 
 fn is_cancelled(cancel_rx: &mut watch::Receiver<bool>) -> bool {
@@ -69,6 +80,38 @@ fn next_transfer_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
 
+/// Whether the local file provably already holds the remote file's bytes: an
+/// identical length and a local mtime at least as new as the remote one.
+///
+/// Only consulted for a run that explicitly opted into skipping existing
+/// files (a directory-download retry). A size match alone is not evidence: a
+/// local file that changed in place keeps its length and would otherwise
+/// never be refreshed from the remote. Clock skew between client and server
+/// can only make this check stricter (an apparently older local copy is
+/// simply re-downloaded).
+///
+/// The known blind spot of every mtime+size check (rsync has it too): a
+/// local rewrite that keeps the length and carries a fresh mtime compares as
+/// current and is kept, so a retry does not restore the remote copy over
+/// such an edit.
+async fn local_already_holds_source(path: &Path, item: &DirectoryDownloadItem) -> bool {
+    let Some(remote_mtime) = item.mtime else {
+        return false;
+    };
+    let Ok(metadata) = tokio::fs::metadata(path).await else {
+        return false;
+    };
+    if !metadata.is_file() || metadata.len() != item.size {
+        return false;
+    }
+    metadata
+        .modified()
+        .ok()
+        .and_then(|modified| modified.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|modified| modified.as_secs() as i64 >= remote_mtime)
+        .unwrap_or(false)
+}
+
 fn transfer_options() -> TransferOptions {
     TransferOptions {
         parallelism: crate::sftp::internal::api::resolve_transfer_parallelism(),
@@ -77,14 +120,20 @@ fn transfer_options() -> TransferOptions {
     }
 }
 
-fn transfer_result_message(
+fn transfer_outcome(
     result: Result<transfer::TransferOutcome, TransferError>,
-) -> Result<(), String> {
+) -> Result<transfer::TransferOutcome, String> {
     match result {
-        Ok(_) => Ok(()),
+        Ok(outcome) => Ok(outcome),
         Err(error) if error.is_cancelled() => Err("Download cancelled by user".to_string()),
         Err(error) => Err(error.message()),
     }
+}
+
+fn transfer_result_message(
+    result: Result<transfer::TransferOutcome, TransferError>,
+) -> Result<(), String> {
+    transfer_outcome(result).map(|_| ())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -150,6 +199,7 @@ struct DirectoryDownloadItem {
     relative_path: PathBuf,
     file_name: String,
     size: u64,
+    mtime: Option<i64>,
 }
 
 struct DirectoryDownloadPlan {
@@ -212,6 +262,7 @@ async fn collect_directory_download_plan(
                     relative_path,
                     file_name: name,
                     size,
+                    mtime: metadata.mtime.map(|mtime| mtime as i64),
                 });
             }
         }
@@ -237,7 +288,12 @@ async fn download_file_into_directory(
     local_path: &Path,
     total_size: u64,
     aggregate_base: u64,
-) -> Result<(), String> {
+    // Bytes already on disk before this item started (earlier skipped files
+    // plus resumed bytes of earlier files). Reported as part of the aggregate
+    // event's `resumed_from` so the UI measures throughput from the bytes this
+    // run actually fetched.
+    existing_base: u64,
+) -> Result<u64, String> {
     let (cancel_tx, cancel_rx) = watch::channel(false);
     cancel_map
         .write()
@@ -294,7 +350,10 @@ async fn download_file_into_directory(
                 transferred: aggregate,
                 total: total_size,
                 progress: aggregate_progress,
-                resumed_from: update.resumed_from,
+                // Skipped bytes and this item's resumed bytes moved nothing in
+                // this run; the UI derives the batch's throughput from
+                // `transferred - resumed_from`.
+                resumed_from: existing_base.saturating_add(update.resumed_from),
                 parallelism: update.parallelism as u32,
                 completed_chunks: update.completed_chunks,
                 chunk_count: update.chunk_count,
@@ -313,9 +372,12 @@ async fn download_file_into_directory(
     .await;
 
     cancel_map.write().await.remove(item_transfer_id);
-    transfer_result_message(result)
+    // The item's resumed bytes are handed back so the caller can keep the
+    // aggregate speed honest: they were already on disk before this run.
+    transfer_outcome(result).map(|outcome| outcome.resumed_from)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn download_directory_with_progress(
     app: &AppHandle,
     tab_id: &str,
@@ -325,6 +387,7 @@ async fn download_directory_with_progress(
     transfer_id: &str,
     remote_path: &str,
     local_parent_path: &str,
+    skip_existing: Option<bool>,
 ) -> Result<(), String> {
     let (cancel_tx, mut cancel_rx) = watch::channel(false);
     cancel_map
@@ -334,6 +397,13 @@ async fn download_directory_with_progress(
 
     let mut final_transferred = 0u64;
     let mut final_total = 0u64;
+    // Bytes of files this run skipped because the local copy was already
+    // current: tracked across the loop so the batch-complete event can report
+    // them even when the run is cancelled partway.
+    let mut skipped_bytes = 0u64;
+    // Bytes of files this run resumed from a previous partial attempt: like
+    // the skipped ones they are part of the final size but moved no bytes.
+    let mut resumed_bytes = 0u64;
 
     let result = async {
         let root_name = remote_basename(remote_path)?;
@@ -385,6 +455,54 @@ async fn download_directory_with_progress(
                 },
             );
 
+            // Skipping is opt-in (a retry re-runs the whole batch) and even
+            // then only when the local file provably holds the remote bytes:
+            // an unchanged size on its own would silently keep a stale local
+            // copy in place.
+            if skip_existing.unwrap_or(false) && local_already_holds_source(&local_path, item).await
+            {
+                aggregate_transferred = aggregate_transferred.saturating_add(item.size);
+                skipped_bytes = skipped_bytes.saturating_add(item.size);
+                let _ = app.emit(
+                    &format!("sftp-download-item-complete-{}", tab_id),
+                    DownloadItemCompleteEvent {
+                        transfer_id: item_transfer_id,
+                        error: None,
+                        local_path: local_path_string.clone(),
+                        remote_path: item.remote_path.clone(),
+                        cancelled: false,
+                        success: true,
+                        skipped: true,
+                    },
+                );
+                let progress = if plan.total_size > 0 {
+                    ((aggregate_transferred as f64 / plan.total_size as f64) * 100.0).min(100.0)
+                        as u32
+                } else {
+                    0
+                };
+                let _ = app.emit(
+                    &format!("sftp-download-progress-{}", tab_id),
+                    DownloadProgressEvent {
+                        transfer_id: transfer_id.to_string(),
+                        local_path: local_path_string,
+                        remote_path: item.remote_path.clone(),
+                        transferred: aggregate_transferred,
+                        total: plan.total_size,
+                        progress,
+                        // Counted in `transferred` for the progress bar, but no
+                        // bytes moved for it in this run. Earlier resumed bytes
+                        // are just as absent, hence the same sum as the
+                        // aggregate events.
+                        resumed_from: skipped_bytes.saturating_add(resumed_bytes),
+                        parallelism: 0,
+                        completed_chunks: 0,
+                        chunk_count: 0,
+                    },
+                );
+                continue;
+            }
+
             let item_result = download_file_into_directory(
                 app,
                 tab_id,
@@ -397,11 +515,13 @@ async fn download_directory_with_progress(
                 &local_path,
                 plan.total_size,
                 aggregate_transferred,
+                skipped_bytes.saturating_add(resumed_bytes),
             )
             .await;
 
             match item_result {
-                Ok(()) => {
+                Ok(item_resumed) => {
+                    resumed_bytes = resumed_bytes.saturating_add(item_resumed);
                     aggregate_transferred = aggregate_transferred.saturating_add(item.size);
                     let _ = app.emit(
                         &format!("sftp-download-item-complete-{}", tab_id),
@@ -412,6 +532,7 @@ async fn download_directory_with_progress(
                             remote_path: item.remote_path.clone(),
                             cancelled: false,
                             success: true,
+                            skipped: false,
                         },
                     );
                 }
@@ -426,6 +547,7 @@ async fn download_directory_with_progress(
                             remote_path: item.remote_path.clone(),
                             cancelled,
                             success: false,
+                            skipped: false,
                         },
                     );
                     return Err(error);
@@ -444,7 +566,9 @@ async fn download_directory_with_progress(
                 transferred: aggregate_transferred,
                 total: plan.total_size,
                 progress: 100,
-                resumed_from: 0,
+                // Same accounting as the aggregate events: everything skipped
+                // or resumed is already on disk, only the rest was fetched.
+                resumed_from: skipped_bytes.saturating_add(resumed_bytes),
                 parallelism: 0,
                 completed_chunks: 0,
                 chunk_count: 0,
@@ -473,6 +597,8 @@ async fn download_directory_with_progress(
             }),
             transferred: final_transferred,
             total: final_total,
+            skipped: skipped_bytes,
+            resumed: resumed_bytes,
         },
     );
 
@@ -524,6 +650,7 @@ pub async fn sftp_download_directory(
     transfer_id: String,
     remote_path: String,
     local_parent_path: String,
+    skip_existing: Option<bool>,
     prompt_state: State<'_, HostPromptMap>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
@@ -549,6 +676,7 @@ pub async fn sftp_download_directory(
         &transfer_id,
         &remote_path,
         &local_parent_path,
+        skip_existing,
     )
     .await
 }

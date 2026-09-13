@@ -36,12 +36,14 @@ interface UploadItemCompleteEvent {
   remotePath: string
   success: boolean
   transferId: string
+  skipped?: boolean
 }
 
 interface UploadBatchStartEvent {
   batchId: string
   displayName: string
   localPath: string
+  localPaths: string[]
   remoteBasePath: string
 }
 
@@ -101,9 +103,9 @@ export function useSftpUploads({
   const { t } = useTranslation()
   const batchTransferIdsRef = useRef(new Map<string, Set<string>>())
   const batchProgressRef = useRef(new Map<string, Map<string, BatchChildProgress>>())
-  const latestUploadPathsRef = useRef<string[]>([])
-  const latestUploadBaseRef = useRef<string>("")
-  const uploadPathsRunnerRef = useRef<((paths: string[]) => void) | null>(null)
+  const uploadPathsRunnerRef = useRef<
+    ((paths: string[], remoteBasePath: string, skipExisting?: boolean) => void) | null
+  >(null)
 
   const syncBatchTransfer = useCallback(
     (batchId: string, fallbackStatus?: TransferStatus) => {
@@ -134,6 +136,9 @@ export function useSftpUploads({
         error: undefined,
         endTime: undefined,
         speed: 0,
+        // Reset the clock so retry speed is measured from this attempt, not
+        // from the original (failed) one.
+        startTime: Date.now(),
       })
 
       try {
@@ -176,7 +181,7 @@ export function useSftpUploads({
     const setupListeners = async () => {
       const nextUnlisteners = await Promise.all([
         appWindow.listen<UploadBatchStartEvent>(`sftp-upload-batch-start-${tabId}`, (event) => {
-          const { batchId, displayName, localPath, remoteBasePath } = event.payload
+          const { batchId, displayName, localPath, localPaths, remoteBasePath } = event.payload
           addTransfer(
             {
               tabId,
@@ -199,8 +204,13 @@ export function useSftpUploads({
             speed: 0,
             status: "pending",
             transferred: 0,
+            // The batch's own paths are captured directly: a retry must re-run
+            // exactly this batch, and anything stored in a map that is cleaned
+            // up when the batch completes would be gone by the time the user
+            // can click retry. `skipExisting` lets the backend pass over files
+            // an earlier attempt already finished instead of re-uploading them.
             retry: () => {
-              uploadPathsRunnerRef.current?.(latestUploadPathsRef.current)
+              uploadPathsRunnerRef.current?.(localPaths, remoteBasePath, true)
             },
           })
         }),
@@ -345,12 +355,19 @@ export function useSftpUploads({
           }
         }),
         appWindow.listen<UploadItemCompleteEvent>(`sftp-upload-item-complete-${tabId}`, (event) => {
-          const { cancelled, error, success, transferId } = event.payload
+          const { cancelled, error, skipped, success, transferId } = event.payload
           const transfer = transfersRef.current.find((item) => item.id === transferId)
           const now = Date.now()
           const duration = now - (transfer?.startTime || now)
           const completedFileSize = transfer?.fileSize || transfer?.transferred || 0
-          const speed = duration > 0 ? (completedFileSize / duration) * 1000 : 0
+          // Only the bytes moved in this attempt count towards the speed: a
+          // resumed transfer would otherwise report the whole file size over
+          // the final attempt's duration and spike on completion. A skipped
+          // item moved nothing at all in this run.
+          const transferredActual = skipped
+            ? 0
+            : Math.max(0, completedFileSize - (transfer?.resumedFrom ?? 0))
+          const speed = duration > 0 ? (transferredActual / duration) * 1000 : 0
 
           lastProgressUpdateRef.current.delete(transferId)
 
@@ -423,7 +440,7 @@ export function useSftpUploads({
   ])
 
   const runUploadPaths = useCallback(
-    async (paths: string[], remoteBasePath: string) => {
+    async (paths: string[], remoteBasePath: string, skipExisting = false) => {
       const validPaths = paths.filter((path) => typeof path === "string" && path.length > 0)
       if (validPaths.length === 0) {
         setError(
@@ -434,8 +451,6 @@ export function useSftpUploads({
         return
       }
 
-      latestUploadPathsRef.current = validPaths
-      latestUploadBaseRef.current = remoteBasePath
       setError(null)
 
       try {
@@ -443,6 +458,7 @@ export function useSftpUploads({
           connection,
           localPaths: validPaths,
           remoteBasePath,
+          skipExisting,
           tabId,
         })
 
@@ -478,8 +494,8 @@ export function useSftpUploads({
   // Assign in an effect (not during render) so a discarded concurrent render
   // can never leave an uncommitted closure in the ref for retry to pick up.
   useEffect(() => {
-    uploadPathsRunnerRef.current = (paths) => {
-      void runUploadPaths(paths, latestUploadBaseRef.current)
+    uploadPathsRunnerRef.current = (paths, remoteBasePath, skipExisting) => {
+      void runUploadPaths(paths, remoteBasePath, skipExisting)
     }
   }, [runUploadPaths])
 

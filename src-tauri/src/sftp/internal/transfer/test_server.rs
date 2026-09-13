@@ -45,6 +45,9 @@ pub struct ServerOptions {
     pub limits: Option<TestLimits>,
     pub latency: Duration,
     pub rename_overwrites: bool,
+    /// Refuse every remove, so tests can exercise paths that must survive a
+    /// discard whose removal keeps failing.
+    pub fail_removes: bool,
 }
 
 impl Default for ServerOptions {
@@ -53,6 +56,7 @@ impl Default for ServerOptions {
             limits: None,
             latency: Duration::ZERO,
             rename_overwrites: true,
+            fail_removes: false,
         }
     }
 }
@@ -316,7 +320,16 @@ impl russh_sftp::server::Handler for SftpHandler {
     }
 
     async fn remove(&mut self, id: u32, filename: String) -> Result<Status, Self::Error> {
-        std::fs::remove_file(self.real_path(&filename)).map_err(|_| StatusCode::Failure)?;
+        if self.options.fail_removes {
+            return Err(StatusCode::Failure);
+        }
+        std::fs::remove_file(self.real_path(&filename)).map_err(|err| {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                StatusCode::NoSuchFile
+            } else {
+                StatusCode::Failure
+            }
+        })?;
         Ok(self.ok(id))
     }
 

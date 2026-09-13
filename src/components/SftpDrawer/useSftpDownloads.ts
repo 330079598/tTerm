@@ -48,6 +48,7 @@ interface DownloadItemCompleteEvent {
   remotePath: string
   success: boolean
   transferId: string
+  skipped?: boolean
 }
 
 interface DownloadBatchCompleteEvent {
@@ -56,6 +57,10 @@ interface DownloadBatchCompleteEvent {
   error?: string
   total: number
   transferred: number
+  /** Bytes of files the run skipped because the local copy was current. */
+  skipped?: number
+  /** Bytes of files the run resumed from a previous partial attempt. */
+  resumed?: number
 }
 
 interface UseSftpDownloadsReturn {
@@ -97,7 +102,12 @@ export function useSftpDownloads({
         const duration = Date.now() - startTime
         const currentTransfer = transfersRef.current.find((item) => item.id === transferId)
         const completedSize = currentTransfer?.fileSize || currentTransfer?.transferred || 0
-        const speed = duration > 0 ? (completedSize / duration) * 1000 : 0
+        // Only the bytes actually fetched in this attempt count towards the
+        // speed: a resumed transfer would otherwise report the whole file
+        // size over the final attempt's duration.
+        const resumedFrom = currentTransfer?.resumedFrom ?? 0
+        const transferredActual = Math.max(0, completedSize - resumedFrom)
+        const speed = duration > 0 ? (transferredActual / duration) * 1000 : 0
         lastProgressUpdateRef.current.delete(transferId)
         transferStartTimesRef.current.delete(transferId)
 
@@ -129,7 +139,12 @@ export function useSftpDownloads({
   )
 
   const runDownloadDirectory = useCallback(
-    async (transferId: string, remotePath: string, localParentPath: string) => {
+    async (
+      transferId: string,
+      remotePath: string,
+      localParentPath: string,
+      skipExisting = false
+    ) => {
       transferStartTimesRef.current.set(transferId, Date.now())
       updateTransfer(transferId, {
         status: "transferring",
@@ -145,6 +160,7 @@ export function useSftpDownloads({
           transferId,
           remotePath,
           localParentPath,
+          skipExisting,
         })
         lastProgressUpdateRef.current.delete(transferId)
         transferStartTimesRef.current.delete(transferId)
@@ -234,12 +250,18 @@ export function useSftpDownloads({
         appWindow.listen<DownloadItemCompleteEvent>(
           `sftp-download-item-complete-${tabId}`,
           (event) => {
-            const { cancelled, error, success, transferId } = event.payload
+            const { cancelled, error, skipped, success, transferId } = event.payload
             const transfer = transfersRef.current.find((item) => item.id === transferId)
             const now = Date.now()
             const duration = now - (transferStartTimesRef.current.get(transferId) || now)
             const completedFileSize = transfer?.fileSize || transfer?.transferred || 0
-            const speed = duration > 0 ? (completedFileSize / duration) * 1000 : 0
+            // Exclude bytes restored by resume from the final speed, matching
+            // the in-progress calculation. A skipped item moved nothing at all
+            // in this run.
+            const transferredActual = skipped
+              ? 0
+              : Math.max(0, completedFileSize - (transfer?.resumedFrom ?? 0))
+            const speed = duration > 0 ? (transferredActual / duration) * 1000 : 0
 
             lastProgressUpdateRef.current.delete(transferId)
             transferStartTimesRef.current.delete(transferId)
@@ -274,12 +296,17 @@ export function useSftpDownloads({
         appWindow.listen<DownloadBatchCompleteEvent>(
           `sftp-download-batch-complete-${tabId}`,
           (event) => {
-            const { batchId, cancelled, error, total, transferred } = event.payload
+            const { batchId, cancelled, error, resumed, skipped, total, transferred } =
+              event.payload
             const childTransferIds = batchTransferIdsRef.current.get(batchId) ?? new Set<string>()
             const now = Date.now()
             const startTime = transferStartTimesRef.current.get(batchId) || now
             const duration = now - startTime
-            const speed = duration > 0 ? (transferred / duration) * 1000 : 0
+            // Skipped files and resumed bytes are part of `transferred` so the
+            // bar reaches 100%, but no bytes moved for them in this run:
+            // counting them would report more than what was fetched.
+            const measured = Math.max(0, transferred - (skipped ?? 0) - (resumed ?? 0))
+            const speed = duration > 0 ? (measured / duration) * 1000 : 0
 
             for (const transferId of childTransferIds) {
               lastProgressUpdateRef.current.delete(transferId)
@@ -371,7 +398,9 @@ export function useSftpDownloads({
 
         updateTransfer(transferId, {
           retry: () => {
-            void runDownloadDirectory(transferId, entry.path, targetPath)
+            // A retry re-runs the whole folder: files the previous attempt
+            // already finished are skipped instead of fetched again.
+            void runDownloadDirectory(transferId, entry.path, targetPath, true)
           },
         })
 
