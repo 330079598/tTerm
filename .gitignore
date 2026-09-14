@@ -29,6 +29,7 @@ Thumbs.db
 
 .kiro
 .claude
+.zcode
 src-tauri/target*
 .codex
 .agents

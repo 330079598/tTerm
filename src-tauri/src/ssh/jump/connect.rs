@@ -4,7 +4,7 @@ use crate::core::session::JumpHostPlan;
 use crate::core::state::HostPromptMap;
 use crate::ssh::types::{
     emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode, SshClientHandler,
-    SshConnectionProgressPayload, HOST_KEY_REJECTED_REASON,
+    SshConnectError, SshConnectionProgressPayload,
 };
 use russh::keys::PrivateKeyWithHashAlg;
 use russh::{client, Disconnect};
@@ -15,18 +15,23 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
 /// Authenticate a russh session using either a private key or a password.
+///
+/// Every failure here is classified [`SshConnectError::Permanent`]: bad
+/// credentials or an unusable key cannot be fixed by retrying.
 async fn authenticate_session(
     session: &mut client::Handle<JumpHostHandler>,
     username: &str,
     private_key_path: Option<&str>,
     private_key_passphrase: Option<&str>,
     password: Option<&str>,
-) -> Result<(), String> {
+) -> Result<(), SshConnectError> {
     const AUTH_TIMEOUT: Duration = Duration::from_secs(30);
 
     let auth_result = if let Some(key_path) = private_key_path {
         let key_pair = russh::keys::load_secret_key(Path::new(key_path), private_key_passphrase)
-            .map_err(|e| format!("Failed to load jump host SSH key: {e}"))?;
+            .map_err(|e| {
+                SshConnectError::Permanent(format!("Failed to load jump host SSH key: {e}"))
+            })?;
 
         tokio::time::timeout(
             AUTH_TIMEOUT,
@@ -36,18 +41,32 @@ async fn authenticate_session(
             ),
         )
         .await
-        .map_err(|_| "Jump host key authentication timed out".to_string())?
-        .map_err(|e| format!("Jump host key authentication failed: {e}"))?
+        .map_err(|_| {
+            SshConnectError::Permanent("Jump host key authentication timed out".to_string())
+        })?
+        .map_err(|e| {
+            SshConnectError::Permanent(format!("Jump host key authentication failed: {e}"))
+        })?
     } else {
-        let pw = password.ok_or_else(|| "Jump host password is required".to_string())?;
+        let pw = password.ok_or_else(|| {
+            SshConnectError::Permanent("Jump host password is required".to_string())
+        })?;
         tokio::time::timeout(AUTH_TIMEOUT, session.authenticate_password(username, pw))
             .await
-            .map_err(|_| "Jump host password authentication timed out".to_string())?
-            .map_err(|e| format!("Jump host password authentication failed: {e}"))?
+            .map_err(|_| {
+                SshConnectError::Permanent(
+                    "Jump host password authentication timed out".to_string(),
+                )
+            })?
+            .map_err(|e| {
+                SshConnectError::Permanent(format!("Jump host password authentication failed: {e}"))
+            })?
     };
 
     if !auth_result.success() {
-        return Err("Jump host authentication failed".to_string());
+        return Err(SshConnectError::Permanent(
+            "Jump host authentication failed".to_string(),
+        ));
     }
 
     Ok(())
@@ -92,21 +111,23 @@ fn map_jump_connect_error(
     host_key_rejected: Arc<AtomicBool>,
     failure_reason: Arc<Mutex<Option<String>>>,
     hop_index: usize,
-) -> String {
+) -> SshConnectError {
+    // The rejection flag is checked first so a user-refused host key is
+    // classified correctly even though the handler also records a reason.
+    if host_key_rejected.load(Ordering::Relaxed) {
+        return SshConnectError::HostKeyRejected;
+    }
+
     if let Ok(mut reason) = failure_reason.lock() {
         if let Some(reason) = reason.take() {
-            return reason;
+            return SshConnectError::Permanent(reason);
         }
     }
 
-    if host_key_rejected.load(Ordering::Relaxed) {
-        HOST_KEY_REJECTED_REASON.to_string()
-    } else {
-        format!(
-            "Jump host #{hop_index}: {}",
-            format_jump_host_connect_error(&error)
-        )
-    }
+    SshConnectError::Network(format!(
+        "Jump host #{hop_index}: {}",
+        format_jump_host_connect_error(&error)
+    ))
 }
 
 async fn connect_jump_direct(
@@ -118,7 +139,7 @@ async fn connect_jump_direct(
     prompts: HostPromptMap,
     status_options: ConnectionStatusOptions,
     host_key_verification_mode: HostKeyVerificationMode,
-) -> Result<client::Handle<JumpHostHandler>, String> {
+) -> Result<client::Handle<JumpHostHandler>, SshConnectError> {
     let jump_handler = build_jump_handler(
         app,
         tab_id,
@@ -165,7 +186,7 @@ async fn connect_jump_direct(
         ),
     )
     .await
-    .map_err(|_| format!("Jump host #{hop_index} connection timed out"))?
+    .map_err(|_| SshConnectError::Network(format!("Jump host #{hop_index} connection timed out")))?
     .map_err(|e| map_jump_connect_error(e, host_key_rejected, failure_reason, hop_index))?;
 
     emit_connection_progress(
@@ -192,7 +213,7 @@ async fn connect_jump_direct(
         jump_plan.password.as_deref(),
     )
     .await
-    .map_err(|e| format!("Jump host #{hop_index}: {e}"))?;
+    .map_err(|e| e.with_prefix(&format!("Jump host #{hop_index}: ")))?;
 
     emit_connection_progress(
         app,
@@ -220,7 +241,7 @@ async fn connect_jump_over_stream<S>(
     prompts: HostPromptMap,
     status_options: ConnectionStatusOptions,
     host_key_verification_mode: HostKeyVerificationMode,
-) -> Result<client::Handle<JumpHostHandler>, String>
+) -> Result<client::Handle<JumpHostHandler>, SshConnectError>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
@@ -266,7 +287,7 @@ where
         client::connect_stream(jump_config, stream, jump_handler),
     )
     .await
-    .map_err(|_| format!("Jump host #{hop_index} connection timed out"))?
+    .map_err(|_| SshConnectError::Network(format!("Jump host #{hop_index} connection timed out")))?
     .map_err(|e| map_jump_connect_error(e, host_key_rejected, failure_reason, hop_index))?;
 
     emit_connection_progress(
@@ -293,7 +314,7 @@ where
         jump_plan.password.as_deref(),
     )
     .await
-    .map_err(|e| format!("Jump host #{hop_index}: {e}"))?;
+    .map_err(|e| e.with_prefix(&format!("Jump host #{hop_index}: ")))?;
 
     emit_connection_progress(
         app,
@@ -336,13 +357,15 @@ pub async fn connect_via_jump_chain<H>(
     prompts: HostPromptMap,
     status_options: ConnectionStatusOptions,
     host_key_verification_mode: HostKeyVerificationMode,
-) -> Result<(JumpChain, client::Handle<H>), String>
+) -> Result<(JumpChain, client::Handle<H>), SshConnectError>
 where
     H: client::Handler + Send + 'static,
     H::Error: std::fmt::Display,
 {
     if jump_plans.is_empty() {
-        return Err("Jump host chain is empty".to_string());
+        return Err(SshConnectError::Permanent(
+            "Jump host chain is empty".to_string(),
+        ));
     }
 
     let total_hops = jump_plans.len();
@@ -363,9 +386,9 @@ where
 
     for (index, jump_plan) in jump_plans.iter().enumerate().skip(1) {
         let hop_index = index + 1;
-        let previous = sessions
-            .last()
-            .ok_or_else(|| "Jump chain lost its previous session".to_string())?;
+        let previous = sessions.last().ok_or_else(|| {
+            SshConnectError::Permanent("Jump chain lost its previous session".to_string())
+        })?;
 
         if status_options.emit_terminal_output {
             let status_msg = format!(
@@ -400,10 +423,10 @@ where
             )
             .await
             .map_err(|e| {
-                format!(
+                SshConnectError::Network(format!(
                     "Jump host #{} failed to open tunnel to jump #{}: {e}",
                     index, hop_index
-                )
+                ))
             })?;
 
         let next = connect_jump_over_stream(
@@ -443,11 +466,15 @@ where
     );
     let last = sessions
         .last()
-        .ok_or_else(|| "Jump chain is empty".to_string())?;
+        .ok_or_else(|| SshConnectError::Permanent("Jump chain is empty".to_string()))?;
     let tunnel_channel = last
         .channel_open_direct_tcpip(target_host, target_port as u32, "127.0.0.1", 0)
         .await
-        .map_err(|e| format!("Failed to open tunnel to target through jump chain: {e}"))?;
+        .map_err(|e| {
+            SshConnectError::Network(format!(
+                "Failed to open tunnel to target through jump chain: {e}"
+            ))
+        })?;
 
     emit_connection_progress(
         app,
@@ -466,7 +493,11 @@ where
     let target_session =
         client::connect_stream(target_config, tunnel_channel.into_stream(), target_handler)
             .await
-            .map_err(|e| format!("Failed to establish SSH session through jump chain: {e}"))?;
+            .map_err(|e| {
+                SshConnectError::Network(format!(
+                    "Failed to establish SSH session through jump chain: {e}"
+                ))
+            })?;
 
     Ok((JumpChain { sessions }, target_session))
 }
@@ -493,7 +524,7 @@ pub async fn open_target_ssh_session(
     prompts: HostPromptMap,
     status_options: ConnectionStatusOptions,
     host_key_verification_mode: HostKeyVerificationMode,
-) -> Result<(Option<JumpChain>, client::Handle<SshClientHandler>), String> {
+) -> Result<(Option<JumpChain>, client::Handle<SshClientHandler>), SshConnectError> {
     let target_config = Arc::new(compatibility_client_config(
         keepalive_interval_secs as u64,
         keepalive_count_max as usize,
@@ -529,9 +560,9 @@ pub async fn open_target_ssh_session(
             .await
             .map_err(|e| {
                 if host_key_rejected.load(Ordering::Relaxed) {
-                    HOST_KEY_REJECTED_REASON.to_string()
+                    SshConnectError::HostKeyRejected
                 } else {
-                    format!("SSH connect failed: {e}")
+                    SshConnectError::Network(format!("SSH connect failed: {e}"))
                 }
             })?;
 
@@ -570,7 +601,7 @@ pub async fn open_target_ssh_session(
     let auth_result = if let Some(key_path) = target_private_key_path {
         let key_pair =
             russh::keys::load_secret_key(Path::new(key_path), target_private_key_passphrase)
-                .map_err(|e| format!("Failed to load SSH key: {e}"))?;
+                .map_err(|e| SshConnectError::Permanent(format!("Failed to load SSH key: {e}")))?;
 
         tokio::time::timeout(
             TARGET_AUTH_TIMEOUT,
@@ -580,24 +611,29 @@ pub async fn open_target_ssh_session(
             ),
         )
         .await
-        .map_err(|_| "SSH key authentication timed out".to_string())?
-        .map_err(|e| format!("SSH key authentication failed: {e}"))?
+        .map_err(|_| SshConnectError::Permanent("SSH key authentication timed out".to_string()))?
+        .map_err(|e| SshConnectError::Permanent(format!("SSH key authentication failed: {e}")))?
     } else {
-        let pw = target_password.ok_or_else(|| "SSH password is required".to_string())?;
+        let pw = target_password
+            .ok_or_else(|| SshConnectError::Permanent("SSH password is required".to_string()))?;
         tokio::time::timeout(
             TARGET_AUTH_TIMEOUT,
             target_session.authenticate_password(target_username, pw),
         )
         .await
-        .map_err(|_| "SSH password authentication timed out".to_string())?
-        .map_err(|e| format!("SSH authentication failed: {e}"))?
+        .map_err(|_| {
+            SshConnectError::Permanent("SSH password authentication timed out".to_string())
+        })?
+        .map_err(|e| SshConnectError::Permanent(format!("SSH authentication failed: {e}")))?
     };
 
     if !auth_result.success() {
         let _ = target_session
             .disconnect(Disconnect::ByApplication, "Authentication failed", "en")
             .await;
-        return Err("SSH authentication failed".to_string());
+        return Err(SshConnectError::Permanent(
+            "SSH authentication failed".to_string(),
+        ));
     }
 
     Ok((jump_chain_opt, target_session))

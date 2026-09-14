@@ -93,6 +93,8 @@ mod tests {
             remember_password: false,
             keepalive_interval_secs: 15,
             keepalive_count_max: 3,
+            reconnect_enabled: false,
+            reconnect_max_attempts: 0,
             private_key_path: None,
             private_key_passphrase: None,
             terminal_shell: None,

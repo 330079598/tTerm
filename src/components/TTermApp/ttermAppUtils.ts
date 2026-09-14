@@ -11,7 +11,11 @@ type TerminalSessionTarget = {
 export function isTerminalConnectionUnavailable(
   connectionState: ConnectionState | null | undefined
 ): boolean {
-  return connectionState === "disconnected" || connectionState === "error"
+  return (
+    connectionState === "disconnected" ||
+    connectionState === "reconnecting" ||
+    connectionState === "error"
+  )
 }
 
 export function resolveSavedPasswordInjectionTargets(

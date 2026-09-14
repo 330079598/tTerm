@@ -11,6 +11,7 @@ import {
   type LucideIcon,
   MemoryStick,
   Network,
+  RefreshCw,
   RotateCcw,
   Route,
   Waves,
@@ -25,7 +26,12 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
-import { DEFAULT_MONITOR_VISIBLE_METRICS, type MonitorMetricId } from "@/contexts/ConfigContext"
+import {
+  DEFAULT_MONITOR_VISIBLE_METRICS,
+  RECONNECT_MAX_ATTEMPTS_MAX,
+  RECONNECT_MAX_ATTEMPTS_MIN,
+  type MonitorMetricId,
+} from "@/contexts/ConfigContext"
 import { cn } from "@/lib/utils"
 
 const monitorMetricDragId = (id: MonitorMetricId) => `monitor-metric:${id}:drag`
@@ -136,25 +142,36 @@ const MonitorMetricRow: React.FC<MonitorMetricRowProps> = ({
 }
 
 interface ConnectionSettingsTabProps {
+  handleReconnectEnabledChange: (checked: boolean) => Promise<void>
+  handleReconnectMaxAttemptsChange: (attempts: number) => Promise<void>
   handleShowJumpHostConnectionInfoChange: (checked: boolean) => Promise<void>
   handleMonitorRefreshIntervalChange: (seconds: number) => Promise<void>
   handleMonitorVisibleMetricsChange: (metrics: MonitorMetricId[]) => Promise<void>
   monitorRefreshIntervalSecs: number
   monitorVisibleMetrics: MonitorMetricId[]
+  reconnectEnabled: boolean
+  reconnectMaxAttempts: number
   showJumpHostConnectionInfo: boolean
 }
 
 export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
+  handleReconnectEnabledChange,
+  handleReconnectMaxAttemptsChange,
   handleShowJumpHostConnectionInfoChange,
   handleMonitorRefreshIntervalChange,
   handleMonitorVisibleMetricsChange,
   monitorRefreshIntervalSecs,
   monitorVisibleMetrics,
+  reconnectEnabled,
+  reconnectMaxAttempts,
   showJumpHostConnectionInfo,
 }) => {
   const { t } = useTranslation()
   const [monitorRefreshDraft, setMonitorRefreshDraft] = React.useState(
     String(monitorRefreshIntervalSecs)
+  )
+  const [reconnectMaxAttemptsDraft, setReconnectMaxAttemptsDraft] = React.useState(
+    String(reconnectMaxAttempts)
   )
   const [monitorVisibleMetricsDraft, setMonitorVisibleMetricsDraft] =
     React.useState(monitorVisibleMetrics)
@@ -162,6 +179,10 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
   React.useEffect(() => {
     setMonitorRefreshDraft(String(monitorRefreshIntervalSecs))
   }, [monitorRefreshIntervalSecs])
+
+  React.useEffect(() => {
+    setReconnectMaxAttemptsDraft(String(reconnectMaxAttempts))
+  }, [reconnectMaxAttempts])
 
   React.useEffect(() => {
     setMonitorVisibleMetricsDraft(monitorVisibleMetrics)
@@ -180,6 +201,23 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
       void handleMonitorRefreshIntervalChange(normalizedValue)
     }
   }, [handleMonitorRefreshIntervalChange, monitorRefreshDraft, monitorRefreshIntervalSecs])
+
+  const commitReconnectMaxAttempts = React.useCallback(() => {
+    const value = parseInt(reconnectMaxAttemptsDraft, 10)
+    if (Number.isNaN(value)) {
+      setReconnectMaxAttemptsDraft(String(reconnectMaxAttempts))
+      return
+    }
+
+    const normalizedValue = Math.min(
+      Math.max(value, RECONNECT_MAX_ATTEMPTS_MIN),
+      RECONNECT_MAX_ATTEMPTS_MAX
+    )
+    setReconnectMaxAttemptsDraft(String(normalizedValue))
+    if (normalizedValue !== reconnectMaxAttempts) {
+      void handleReconnectMaxAttemptsChange(normalizedValue)
+    }
+  }, [handleReconnectMaxAttemptsChange, reconnectMaxAttempts, reconnectMaxAttemptsDraft])
 
   const monitorMetrics = React.useMemo(
     () => [
@@ -238,6 +276,78 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
   return (
     <ScrollArea className="h-full pr-4">
       <div className="space-y-6">
+        <SettingsSection
+          icon={<RefreshCw size={16} />}
+          title={t("settings.reconnect", { defaultValue: "Connection recovery" })}
+          description={t("settings.reconnectDesc", {
+            defaultValue: "Automatically re-establish SSH sessions that drop unexpectedly.",
+          })}
+        >
+          <SettingsRow
+            icon={<RefreshCw size={16} />}
+            title={t("settings.autoReconnect", { defaultValue: "Automatically reconnect" })}
+            description={t("settings.autoReconnectDesc", {
+              defaultValue:
+                "Retry a dropped SSH session with capped backoff up to the configured attempt limit. When off, the disconnect is reported instead.",
+            })}
+            action={
+              <Switch checked={reconnectEnabled} onCheckedChange={handleReconnectEnabledChange} />
+            }
+          />
+          <SettingsRow
+            icon={<RefreshCw size={16} />}
+            title={t("settings.reconnectMaxAttempts", {
+              defaultValue: "Reconnect attempt limit",
+            })}
+            description={t("settings.reconnectMaxAttemptsDesc", {
+              defaultValue:
+                "Maximum automatic reconnect attempts per dropped session before the disconnect is reported. Defaults to 5.",
+            })}
+          >
+            <div className="flex max-w-xs items-end gap-3">
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Label htmlFor="reconnect-max-attempts" className="text-muted-foreground text-xs">
+                  {t("settings.reconnectMaxAttemptsTimes", { defaultValue: "Times" })}
+                </Label>
+                <Input
+                  id="reconnect-max-attempts"
+                  type="number"
+                  min={RECONNECT_MAX_ATTEMPTS_MIN}
+                  max={RECONNECT_MAX_ATTEMPTS_MAX}
+                  step={1}
+                  disabled={!reconnectEnabled}
+                  value={reconnectMaxAttemptsDraft}
+                  onChange={(event) => {
+                    const nextValue = event.target.value
+                    setReconnectMaxAttemptsDraft(nextValue)
+
+                    const value = parseInt(nextValue, 10)
+                    if (
+                      !Number.isNaN(value) &&
+                      value >= RECONNECT_MAX_ATTEMPTS_MIN &&
+                      value <= RECONNECT_MAX_ATTEMPTS_MAX
+                    ) {
+                      void handleReconnectMaxAttemptsChange(value)
+                    }
+                  }}
+                  onBlur={commitReconnectMaxAttempts}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.currentTarget.blur()
+                    }
+                  }}
+                  className="h-8"
+                />
+              </div>
+              <div className="text-muted-foreground pb-2 text-xs">
+                {t("settings.reconnectMaxAttemptsRange", {
+                  defaultValue: `${RECONNECT_MAX_ATTEMPTS_MIN}-${RECONNECT_MAX_ATTEMPTS_MAX}`,
+                })}
+              </div>
+            </div>
+          </SettingsRow>
+        </SettingsSection>
+
         <SettingsSection
           icon={<Route size={16} />}
           title={t("settings.jumpHost", { defaultValue: "Jump hosts" })}

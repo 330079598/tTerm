@@ -15,6 +15,7 @@ describe("isTerminalConnectionUnavailable", () => {
 
   it("stops live input for a confirmed unavailable terminal", () => {
     expect(isTerminalConnectionUnavailable("disconnected")).toBe(true)
+    expect(isTerminalConnectionUnavailable("reconnecting")).toBe(true)
     expect(isTerminalConnectionUnavailable("error")).toBe(true)
   })
 })

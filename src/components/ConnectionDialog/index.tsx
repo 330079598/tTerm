@@ -666,7 +666,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
               aria-live="polite"
               className="border-border bg-muted/35 text-muted-foreground rounded-md border px-3 py-2 text-xs"
             >
-              {getSshConnectionProgressLabel(testProgress)}
+              {getSshConnectionProgressLabel(testProgress, t)}
             </div>
           )}
 

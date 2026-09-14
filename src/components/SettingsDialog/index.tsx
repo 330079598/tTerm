@@ -635,6 +635,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
   }
 
+  const handleReconnectEnabledChange = async (checked: boolean) => {
+    await saveSettings({ reconnect_enabled: checked })
+  }
+
+  const handleReconnectMaxAttemptsChange = async (attempts: number) => {
+    await saveSettings({ reconnect_max_attempts: attempts })
+  }
+
   const handleShowJumpHostConnectionInfoChange = async (checked: boolean) => {
     await saveSettings({ show_jump_host_connection_info: checked })
   }
@@ -808,9 +816,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <ConnectionSettingsTab
               handleMonitorRefreshIntervalChange={handleMonitorRefreshIntervalChange}
               handleMonitorVisibleMetricsChange={handleMonitorVisibleMetricsChange}
+              handleReconnectEnabledChange={handleReconnectEnabledChange}
+              handleReconnectMaxAttemptsChange={handleReconnectMaxAttemptsChange}
               handleShowJumpHostConnectionInfoChange={handleShowJumpHostConnectionInfoChange}
               monitorRefreshIntervalSecs={config.monitor_refresh_interval_secs}
               monitorVisibleMetrics={config.monitor_visible_metrics}
+              reconnectEnabled={config.reconnect_enabled}
+              reconnectMaxAttempts={config.reconnect_max_attempts}
               showJumpHostConnectionInfo={config.show_jump_host_connection_info}
             />
           </TabsContent>

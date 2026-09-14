@@ -293,7 +293,9 @@ export function BroadcastManager({
                               ? t("broadcast.connected")
                               : runtime?.connectionState === "connecting"
                                 ? t("broadcast.connecting")
-                                : t("broadcast.unavailable")}
+                                : runtime?.connectionState === "reconnecting"
+                                  ? t("broadcast.status.reconnecting")
+                                  : t("broadcast.unavailable")}
                         </span>
                       </label>
                     )

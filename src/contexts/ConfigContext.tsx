@@ -135,6 +135,8 @@ export interface AppConfig {
   terminal_log_max_file_size_mb: number
   terminal_log_compress: boolean
   sftp_transfer_parallelism: number
+  reconnect_enabled: boolean
+  reconnect_max_attempts: number
   keymap: KeymapConfig
 }
 
@@ -182,6 +184,8 @@ const defaultConfig: AppConfig = {
   terminal_log_max_file_size_mb: 50,
   terminal_log_compress: false,
   sftp_transfer_parallelism: 4,
+  reconnect_enabled: true,
+  reconnect_max_attempts: 5,
   keymap: { ...DEFAULT_KEYMAP_CONFIG, bindings: {} },
 }
 
@@ -256,6 +260,21 @@ function normalizeSftpTransferParallelism(
   return Math.min(Math.max(Math.round(value), 1), 16)
 }
 
+export const RECONNECT_MAX_ATTEMPTS_MIN = 1
+export const RECONNECT_MAX_ATTEMPTS_MAX = 99
+
+function normalizeReconnectMaxAttempts(
+  value: Partial<AppConfig>["reconnect_max_attempts"]
+): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 5
+  }
+  return Math.min(
+    Math.max(Math.round(value), RECONNECT_MAX_ATTEMPTS_MIN),
+    RECONNECT_MAX_ATTEMPTS_MAX
+  )
+}
+
 export function normalizeUiScalePercent(value: Partial<AppConfig>["ui_scale_percent"]): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return 100
@@ -316,6 +335,8 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     ),
     terminal_log_compress: config.terminal_log_compress === true,
     sftp_transfer_parallelism: normalizeSftpTransferParallelism(config.sftp_transfer_parallelism),
+    reconnect_enabled: config.reconnect_enabled !== false,
+    reconnect_max_attempts: normalizeReconnectMaxAttempts(config.reconnect_max_attempts),
     ui_scale_percent: normalizeUiScalePercent(config.ui_scale_percent),
     keymap: normalizeKeymap(config.keymap),
   }

@@ -6,6 +6,62 @@ use tauri::Emitter;
 pub const HOST_KEY_PROMPT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 pub const HOST_KEY_REJECTED_REASON: &str = "SSH host fingerprint rejected by user";
 
+/// Classified failure while establishing an SSH session. Callers use
+/// [`SshConnectError::is_retryable`] to decide whether an automatic reconnect
+/// is worthwhile: rejected credentials must not be retried (repeated attempts
+/// risk a server-side lockout), while transient network failures may recover.
+#[derive(Debug, Clone)]
+pub enum SshConnectError {
+    /// The user refused the host key (or a changed known host was rejected).
+    HostKeyRejected,
+    /// A permanent failure — rejected credentials, an unusable key, or a local
+    /// known_hosts store error. Retrying cannot succeed.
+    Permanent(String),
+    /// A transient network, handshake, or tunnel failure. A retry may succeed.
+    Network(String),
+}
+
+impl SshConnectError {
+    pub fn is_retryable(&self) -> bool {
+        matches!(self, Self::Network(_))
+    }
+
+    pub fn is_host_key_rejected(&self) -> bool {
+        matches!(self, Self::HostKeyRejected)
+    }
+
+    /// The user-facing message, always non-empty.
+    pub fn message(&self) -> &str {
+        match self {
+            Self::HostKeyRejected => HOST_KEY_REJECTED_REASON,
+            Self::Permanent(message) | Self::Network(message) => message,
+        }
+    }
+
+    /// Prefix the message while preserving the retry classification.
+    pub fn with_prefix(self, prefix: &str) -> Self {
+        match self {
+            Self::HostKeyRejected => Self::HostKeyRejected,
+            Self::Permanent(message) => Self::Permanent(format!("{prefix}{message}")),
+            Self::Network(message) => Self::Network(format!("{prefix}{message}")),
+        }
+    }
+}
+
+impl std::fmt::Display for SshConnectError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.message())
+    }
+}
+
+impl std::error::Error for SshConnectError {}
+
+impl From<SshConnectError> for String {
+    fn from(error: SshConnectError) -> Self {
+        error.to_string()
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum HostKeyVerificationMode {
     PromptAndPersist,
@@ -84,6 +140,19 @@ pub struct SshConnectionProgressPayload {
     pub username: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub network_latency_ms: Option<u64>,
+    /// 1-indexed reconnect attempt for the `retrying` phase.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retry_attempt: Option<u32>,
+    /// Delay chosen for the pending reconnect attempt, in seconds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retry_delay_secs: Option<f64>,
+    /// Configured reconnect attempt limit for the retry phases.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retry_max_attempts: Option<u32>,
+    /// Why the session dropped, for the retry phases. The frontend renders the
+    /// localized retry status from the structured fields, not `message`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
 }
 
 impl SshConnectionProgressPayload {
@@ -97,6 +166,10 @@ impl SshConnectionProgressPayload {
             port: None,
             username: None,
             network_latency_ms: None,
+            retry_attempt: None,
+            retry_delay_secs: None,
+            retry_max_attempts: None,
+            reason: None,
         }
     }
 
@@ -119,6 +192,25 @@ impl SshConnectionProgressPayload {
 
     pub fn network_latency(mut self, network_latency_ms: Option<u64>) -> Self {
         self.network_latency_ms = network_latency_ms;
+        self
+    }
+
+    /// Describe the pending reconnect attempt (used by the `retrying` phase).
+    pub fn retry_attempt(mut self, attempt: u32, delay_secs: f64) -> Self {
+        self.retry_attempt = Some(attempt);
+        self.retry_delay_secs = Some(delay_secs);
+        self
+    }
+
+    /// Attach the configured reconnect attempt limit (retry phases).
+    pub fn retry_max(mut self, max_attempts: u32) -> Self {
+        self.retry_max_attempts = Some(max_attempts);
+        self
+    }
+
+    /// Attach the disconnect reason (retry phases).
+    pub fn reason(mut self, reason: impl Into<String>) -> Self {
+        self.reason = Some(reason.into());
         self
     }
 }
@@ -294,7 +386,10 @@ impl russh::client::Handler for SshClientHandler {
 
 #[cfg(test)]
 mod tests {
-    use super::{resolve_host_key_check, HostKeyCheckOutcome, HostKeyVerificationMode};
+    use super::{
+        resolve_host_key_check, HostKeyCheckOutcome, HostKeyVerificationMode, SshConnectError,
+        HOST_KEY_REJECTED_REASON,
+    };
 
     fn known_host(fingerprint: &str) -> crate::ssh::store::KnownHostRecord {
         crate::ssh::store::KnownHostRecord {
@@ -350,6 +445,28 @@ mod tests {
             ),
             HostKeyCheckOutcome::PromptUser
         );
+    }
+
+    #[test]
+    fn connect_error_classifies_retryability() {
+        assert!(SshConnectError::Network("timeout".to_string()).is_retryable());
+        assert!(!SshConnectError::Permanent("bad password".to_string()).is_retryable());
+        assert!(!SshConnectError::HostKeyRejected.is_retryable());
+
+        assert_eq!(
+            SshConnectError::HostKeyRejected.to_string(),
+            HOST_KEY_REJECTED_REASON
+        );
+        assert_eq!(
+            SshConnectError::Network("boom".to_string())
+                .with_prefix("Jump host #1: ")
+                .to_string(),
+            "Jump host #1: boom"
+        );
+        // Prefixing must not change the retry classification.
+        assert!(SshConnectError::HostKeyRejected
+            .with_prefix("ignored: ")
+            .is_host_key_rejected());
     }
 }
 

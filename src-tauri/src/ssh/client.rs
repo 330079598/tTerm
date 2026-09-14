@@ -1,6 +1,6 @@
 use super::types::{
     emit_connection_progress, ConnectionStatusOptions, SshClientHandler,
-    SshConnectionProgressPayload, HOST_KEY_REJECTED_REASON,
+    SshConnectionProgressPayload,
 };
 use crate::core::session::SessionPlan;
 use crate::core::state::HostPromptMap;
@@ -33,6 +33,7 @@ pub struct SshExitSignal {
     pub terminated: bool,
     pub recoverable: bool,
     pub reason: Option<String>,
+    pub connected_duration: Option<std::time::Duration>,
 }
 
 /// Runs a call that may block on the batcher's bounded queue (send, or the
@@ -97,6 +98,7 @@ pub async fn run_single_ssh_connection(
                 terminated: true,
                 recoverable: false,
                 reason: Some("SSH host is required".to_string()),
+                connected_duration: None,
             };
         }
     };
@@ -108,6 +110,7 @@ pub async fn run_single_ssh_connection(
                 terminated: true,
                 recoverable: false,
                 reason: Some("SSH username is required".to_string()),
+                connected_duration: None,
             };
         }
     };
@@ -136,17 +139,14 @@ pub async fn run_single_ssh_connection(
         Ok(result) => result,
         Err(err) => {
             finish_output!();
-            if err == HOST_KEY_REJECTED_REASON {
-                return SshExitSignal {
-                    terminated: true,
-                    recoverable: false,
-                    reason: Some(err),
-                };
-            }
+            // Auth failures and host-key rejections are permanent: automatic
+            // reconnect must not loop on them.
+            let recoverable = err.is_retryable();
             return SshExitSignal {
                 terminated: false,
-                recoverable: true,
-                reason: Some(err),
+                recoverable,
+                reason: Some(err.to_string()),
+                connected_duration: None,
             };
         }
     };
@@ -160,6 +160,7 @@ pub async fn run_single_ssh_connection(
                 terminated: false,
                 recoverable: true,
                 reason: Some(format!("Failed to open SSH channel: {err}")),
+                connected_duration: None,
             };
         }
     };
@@ -177,6 +178,7 @@ pub async fn run_single_ssh_connection(
             terminated: false,
             recoverable: true,
             reason: Some(format!("Failed to request SSH PTY: {err}")),
+            connected_duration: None,
         };
     }
 
@@ -186,6 +188,7 @@ pub async fn run_single_ssh_connection(
             terminated: false,
             recoverable: true,
             reason: Some(format!("Failed to request SSH shell: {err}")),
+            connected_duration: None,
         };
     }
 
@@ -205,6 +208,7 @@ pub async fn run_single_ssh_connection(
     let (mut reader, writer) = channel.split();
     let mut writer_stream = writer.make_writer();
     let mut ssh_query_pending = Vec::new();
+    let connected_at = std::time::Instant::now();
 
     loop {
         tokio::select! {
@@ -218,6 +222,7 @@ pub async fn run_single_ssh_connection(
                         terminated: true,
                         recoverable: false,
                         reason: None,
+                        connected_duration: Some(connected_at.elapsed()),
                     };
                 }
             }
@@ -229,6 +234,7 @@ pub async fn run_single_ssh_connection(
                             terminated: false,
                             recoverable: true,
                             reason: Some(format!("SSH write failed: {err}")),
+                            connected_duration: Some(connected_at.elapsed()),
                         };
                     }
                 }
@@ -241,6 +247,7 @@ pub async fn run_single_ssh_connection(
                             terminated: false,
                             recoverable: true,
                             reason: Some(format!("SSH resize failed: {err}")),
+                            connected_duration: Some(connected_at.elapsed()),
                         };
                     }
                 }
@@ -282,6 +289,7 @@ pub async fn run_single_ssh_connection(
                             terminated: true,
                             recoverable: false,
                             reason: None,
+                            connected_duration: Some(connected_at.elapsed()),
                         };
                     }
                     Some(ChannelMsg::Eof) | Some(ChannelMsg::Close) | None => {
@@ -290,6 +298,7 @@ pub async fn run_single_ssh_connection(
                             terminated: false,
                             recoverable: true,
                             reason: Some("SSH channel closed".to_string()),
+                            connected_duration: Some(connected_at.elapsed()),
                         };
                     }
                     _ => {}

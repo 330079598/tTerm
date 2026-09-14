@@ -28,6 +28,8 @@ export function getConnectionStateLabel(
       return t("sessionHeader.connecting", { defaultValue: "Connecting" })
     case "connected":
       return t("sessionHeader.connected", { defaultValue: "Connected" })
+    case "reconnecting":
+      return t("sessionHeader.reconnecting", { defaultValue: "Reconnecting" })
     case "disconnected":
       return t("sessionHeader.disconnected", { defaultValue: "Disconnected" })
     case "error":
@@ -35,7 +37,32 @@ export function getConnectionStateLabel(
   }
 }
 
-export function getSshConnectionProgressLabel(progress: SshConnectionProgress): string {
+type Translator = (key: string, options?: Record<string, unknown>) => string
+
+export function getSshConnectionProgressLabel(
+  progress: SshConnectionProgress,
+  t: Translator
+): string {
+  // Retry phases render from structured fields so the status is localized;
+  // every other phase still prefers the backend-provided message.
+  if (progress.phase === "retrying") {
+    return t("sessionHeader.reconnectRetryStatus", {
+      reason: progress.reason ?? "",
+      delay: Math.max(1, Math.round(progress.retryDelaySecs ?? 0)),
+      attempt: progress.retryAttempt ?? 1,
+      max: progress.retryMaxAttempts ?? 0,
+      defaultValue:
+        "Disconnected ({{reason}}). Reconnecting in {{delay}}s (attempt {{attempt}}/{{max}})",
+    })
+  }
+  if (progress.phase === "retry_exhausted") {
+    return t("sessionHeader.reconnectExhausted", {
+      count: progress.retryMaxAttempts ?? 0,
+      reason: progress.reason ?? "",
+      defaultValue: "Automatic reconnect failed after {{count}} attempts: {{reason}}",
+    })
+  }
+
   if (progress.message) {
     return progress.message
   }

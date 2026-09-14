@@ -6,6 +6,8 @@ pub use paths::{ensure_config_dir, get_config_path, init_config_dir, legacy_conf
 
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fs;
+use std::sync::RwLock;
+use std::time::SystemTime;
 use sys_locale::get_locale;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -90,6 +92,12 @@ pub struct AppConfig {
     pub terminal_log_compress: bool,
     #[serde(default = "default_sftp_transfer_parallelism")]
     pub sftp_transfer_parallelism: u16,
+    /// Automatically re-establish dropped SSH sessions with capped backoff.
+    #[serde(default = "default_reconnect_enabled")]
+    pub reconnect_enabled: bool,
+    /// How many automatic reconnect attempts to make before giving up.
+    #[serde(default = "default_reconnect_max_attempts")]
+    pub reconnect_max_attempts: u32,
     #[serde(default = "default_keymap")]
     pub keymap: KeymapConfig,
 }
@@ -271,6 +279,14 @@ fn default_sftp_transfer_parallelism() -> u16 {
     4
 }
 
+fn default_reconnect_enabled() -> bool {
+    true
+}
+
+fn default_reconnect_max_attempts() -> u32 {
+    5
+}
+
 fn deserialize_tab_width_mode<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,
@@ -330,6 +346,8 @@ impl Default for AppConfig {
             terminal_log_max_file_size_mb: default_terminal_log_max_file_size_mb(),
             terminal_log_compress: false,
             sftp_transfer_parallelism: default_sftp_transfer_parallelism(),
+            reconnect_enabled: default_reconnect_enabled(),
+            reconnect_max_attempts: default_reconnect_max_attempts(),
             keymap: default_keymap(),
         }
     }
@@ -355,6 +373,52 @@ pub fn save_config_file(config: &AppConfig) -> Result<(), String> {
     let content = serde_json::to_string_pretty(config)
         .map_err(|e| format!("Failed to serialize config: {}", e))?;
     atomic_write(&config_file, content)
+}
+
+/// Resolved reconnect settings, cached against the config file's mtime: every
+/// session normalizes its connection on create, and re-reading + re-parsing the
+/// whole config from disk each time would add needless disk I/O to connect.
+static RECONNECT_SETTINGS_CACHE: RwLock<Option<(Option<SystemTime>, bool, u32)>> =
+    RwLock::new(None);
+
+/// Cache lookup: a hit requires the whole mtime token — including `None`
+/// ("config file absent") — to match, so a machine running on defaults still
+/// hits the cache instead of stat-ing the disk on every connect.
+fn reconnect_settings_cache_hit(
+    cached: Option<(Option<SystemTime>, bool, u32)>,
+    mtime: Option<SystemTime>,
+) -> Option<(bool, u32)> {
+    cached
+        .filter(|(cached_mtime, _, _)| *cached_mtime == mtime)
+        .map(|(_, enabled, max_attempts)| (enabled, max_attempts))
+}
+
+/// Resolve the automatic SSH reconnect settings (enabled, max attempts).
+/// Falls back to the built-in defaults when the config file is missing or
+/// unreadable.
+pub fn resolve_reconnect_settings() -> (bool, u32) {
+    let mtime = get_config_path()
+        .ok()
+        .map(|dir| dir.join("config.json"))
+        .and_then(|path| fs::metadata(path).ok())
+        .and_then(|metadata| metadata.modified().ok());
+
+    if let Some(cached) = RECONNECT_SETTINGS_CACHE
+        .read()
+        .ok()
+        .and_then(|guard| reconnect_settings_cache_hit(*guard, mtime))
+    {
+        return cached;
+    }
+
+    let settings = load_config_file()
+        .map(|config| (config.reconnect_enabled, config.reconnect_max_attempts))
+        .unwrap_or_else(|_| (default_reconnect_enabled(), default_reconnect_max_attempts()));
+
+    if let Ok(mut cache) = RECONNECT_SETTINGS_CACHE.write() {
+        *cache = Some((mtime, settings.0, settings.1));
+    }
+    settings
 }
 
 #[tauri::command]
@@ -392,6 +456,8 @@ mod tests {
             ["cpu", "memory", "network", "ip", "latency", "disk"]
         );
         assert_eq!(config.sftp_transfer_parallelism, 4);
+        assert!(config.reconnect_enabled);
+        assert_eq!(config.reconnect_max_attempts, 5);
     }
 
     #[test]
@@ -400,6 +466,31 @@ mod tests {
             serde_json::from_str(r#"{"theme":"default","sftp_transfer_parallelism":6}"#).unwrap();
 
         assert_eq!(config.sftp_transfer_parallelism, 6);
+    }
+
+    #[test]
+    fn reconnect_enabled_round_trips() {
+        let disabled: AppConfig =
+            serde_json::from_str(r#"{"theme":"default","reconnect_enabled":false}"#).unwrap();
+        assert!(!disabled.reconnect_enabled);
+
+        let enabled: AppConfig =
+            serde_json::from_str(r#"{"theme":"default","reconnect_enabled":true}"#).unwrap();
+        assert!(enabled.reconnect_enabled);
+
+        let serialized = serde_json::to_string(&disabled).unwrap();
+        let reparsed: AppConfig = serde_json::from_str(&serialized).unwrap();
+        assert!(!reparsed.reconnect_enabled);
+    }
+
+    #[test]
+    fn reconnect_max_attempts_round_trips() {
+        let custom: AppConfig =
+            serde_json::from_str(r#"{"theme":"default","reconnect_max_attempts":12}"#).unwrap();
+        assert_eq!(custom.reconnect_max_attempts, 12);
+
+        let legacy: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+        assert_eq!(legacy.reconnect_max_attempts, 5);
     }
 
     #[test]

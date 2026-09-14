@@ -424,6 +424,8 @@ pub async fn test_connection(
         terminal_shell: None,
         keepalive_interval_secs: profile.keepalive_interval_secs as u16,
         keepalive_count_max: profile.keepalive_count_max as u16,
+        reconnect_enabled: false,
+        reconnect_max_attempts: 0,
         jump_hosts,
     };
 

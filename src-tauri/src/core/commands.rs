@@ -1,6 +1,8 @@
 use super::session::{normalize_connection, resolve_ssh_password};
-use super::state::{ActiveSession, HostPromptMap, PtyMap, PtySession, SessionExitSignal};
-use super::supervisor::spawn_supervisor;
+use super::state::{
+    ActiveSession, AtomicTerminalSize, HostPromptMap, PtyMap, PtySession, SessionExitSignal,
+};
+use super::supervisor::{spawn_ssh_attempt, spawn_supervisor};
 use crate::terminal;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -49,6 +51,7 @@ pub fn create_pty(
     let mut sessions = state.blocking_write();
     if let Some(session) = sessions.get(&tab_id) {
         if session.session_nonce == session_nonce {
+            session.size.store(rows, cols);
             let mut active_guard = session.active.blocking_lock();
             if let Some(active) = active_guard.as_mut() {
                 match active {
@@ -79,6 +82,7 @@ pub fn create_pty(
     let (exit_tx, exit_rx) = mpsc::unbounded_channel::<SessionExitSignal>();
     let active = Arc::new(TokioMutex::new(None));
     let (stop_tx, stop_rx) = watch::channel(false);
+    let size = Arc::new(AtomicTerminalSize::new(rows, cols));
 
     let runtime_handle = runtime_state.runtime.handle().clone();
 
@@ -104,65 +108,20 @@ pub fn create_pty(
             (pid, ActiveSession::Local(pty))
         }
         crate::core::SessionKind::Ssh => {
-            let (input_tx, _input_rx) = mpsc::unbounded_channel::<Vec<u8>>();
-            let (resize_tx, _resize_rx) = mpsc::unbounded_channel::<(u16, u16)>();
-
-            let _app_clone = app.clone();
-            let _tab_id_clone = tab_id.clone();
-            let _plan_clone = plan.clone();
-            let _prompt_state_clone = prompt_state.inner().clone();
-            let _exit_tx_clone = exit_tx.clone();
-            let _stop_rx_clone = stop_rx.clone();
-            let _sender = Some(crate::terminal::TerminalOutputSender::spawn(
-                &tab_id,
+            let ssh = spawn_ssh_attempt(
+                app.clone(),
+                tab_id.clone(),
+                rows,
+                cols,
+                plan.clone(),
+                prompt_state.inner().clone(),
+                stop_rx.clone(),
+                exit_tx.clone(),
                 output_channel.clone(),
-            ));
+                runtime_handle.clone(),
+            );
 
-            let task = runtime_handle.spawn(async move {
-                let _ssh_result = crate::ssh::run_single_ssh_connection(
-                    _app_clone,
-                    _tab_id_clone,
-                    rows,
-                    cols,
-                    _plan_clone,
-                    _prompt_state_clone,
-                    _stop_rx_clone,
-                    _input_rx,
-                    _resize_rx,
-                    _sender,
-                )
-                .await;
-
-                let signal = match _ssh_result {
-                    r if r.terminated && !r.recoverable => {
-                        if let Some(reason) = r.reason {
-                            if reason == crate::ssh::HOST_KEY_REJECTED_REASON {
-                                SessionExitSignal::NonRecoverable(reason)
-                            } else {
-                                SessionExitSignal::Terminated
-                            }
-                        } else {
-                            SessionExitSignal::Terminated
-                        }
-                    }
-                    r if !r.terminated && r.recoverable => {
-                        SessionExitSignal::Recoverable(r.reason.unwrap_or_default())
-                    }
-                    r if !r.terminated && !r.recoverable => {
-                        SessionExitSignal::NonRecoverable(r.reason.unwrap_or_default())
-                    }
-                    _ => SessionExitSignal::Terminated,
-                };
-                let _ = _exit_tx_clone.send(signal);
-            });
-
-            let active = ActiveSession::Ssh(super::state::ActiveSsh {
-                input_tx,
-                resize_tx,
-                task,
-            });
-
-            (0, active)
+            (0, ActiveSession::Ssh(ssh))
         }
     };
 
@@ -174,14 +133,14 @@ pub fn create_pty(
     let supervisor = spawn_supervisor(
         app.clone(),
         tab_id.clone(),
-        rows,
-        cols,
         plan.clone(),
         exit_rx,
         exit_tx.clone(),
         active.clone(),
         stop_rx.clone(),
         prompt_state.inner().clone(),
+        size.clone(),
+        output_channel,
         runtime_handle.clone(),
     );
 
@@ -191,6 +150,7 @@ pub fn create_pty(
         active,
         stop_tx,
         supervisor,
+        size,
     };
 
     sessions.insert(tab_id, session);
@@ -420,6 +380,7 @@ mod batch_write_tests {
             active: Arc::new(TokioMutex::new(None)),
             stop_tx,
             supervisor: runtime.spawn(async {}),
+            size: Arc::new(AtomicTerminalSize::new(24, 80)),
         }
     }
 
@@ -571,6 +532,9 @@ pub fn resize_pty(
     if session.session_nonce != session_nonce {
         return Ok(());
     }
+
+    // Record the size even while reconnecting so the next attempt adopts it.
+    session.size.store(rows, cols);
 
     let mut active_guard = session.active.blocking_lock();
     let active = active_guard

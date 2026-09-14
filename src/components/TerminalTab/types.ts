@@ -42,7 +42,7 @@ export interface TerminalTabProps {
   onStopBroadcast?: () => void
 }
 
-export type ConnectionState = "connecting" | "connected" | "disconnected" | "error"
+export type ConnectionState = "connecting" | "connected" | "disconnected" | "reconnecting" | "error"
 
 export type SshConnectionProgress = {
   phase: string
@@ -53,6 +53,10 @@ export type SshConnectionProgress = {
   port?: number
   username?: string
   networkLatencyMs?: number
+  retryAttempt?: number
+  retryDelaySecs?: number
+  retryMaxAttempts?: number
+  reason?: string
 }
 
 export type HostKeyPromptState = {

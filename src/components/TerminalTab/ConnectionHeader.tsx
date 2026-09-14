@@ -72,8 +72,8 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
   const showConnectionHeader = connection?.type === "ssh" && connectionHeaderPinned
   const showPinnedToggle = connection?.type === "ssh" && !connectionHeaderPinned
   const progressLabel =
-    connectionState === "connecting" && connectionProgress
-      ? getSshConnectionProgressLabel(connectionProgress)
+    (connectionState === "connecting" || connectionState === "reconnecting") && connectionProgress
+      ? getSshConnectionProgressLabel(connectionProgress, t)
       : null
   const stateLabel = getConnectionStateLabel(connectionState, t)
   const detailItems = getConnectionDetailItems(connection)

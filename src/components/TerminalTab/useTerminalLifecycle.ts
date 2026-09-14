@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react"
+import { useTranslation } from "react-i18next"
 import { CanvasAddon } from "@xterm/addon-canvas"
 import { FitAddon } from "@xterm/addon-fit"
 import { SearchAddon, type ISearchResultChangeEvent } from "@xterm/addon-search"
@@ -156,6 +157,14 @@ export function useTerminalLifecycle({
 }: UseTerminalLifecycleOptions) {
   const activeRendererAddonRef = useRef<ActiveRendererAddon | null>(null)
   const lastRendererRef = useRef<TerminalRenderer | null>(null)
+
+  // Kept in a ref so event-time terminal banners translate with the active
+  // language without re-running the terminal-creation effect.
+  const { t } = useTranslation()
+  const translationRef = useRef(t)
+  useEffect(() => {
+    translationRef.current = t
+  }, [t])
 
   const cursorStyleRef = (configCursorStyleRef ?? initialCursorStyle)!
   const fontFamilyRef = (configFontFamilyRef ?? initialFontFamily)!
@@ -468,6 +477,9 @@ export function useTerminalLifecycle({
     let unlistenExit: (() => void) | null = null
     let unlistenHostPrompt: (() => void) | null = null
     let unlistenConnectionProgress: (() => void) | null = null
+    // Set once a "retrying" progress arrives; the next "ready" then shows the
+    // localized re-established banner instead of the plain connected state.
+    let sawRetryingPhase = false
 
     // Hot-path terminal output. Binary chunks arrive through a Tauri Channel
     // (raw bytes, ordered, no JSON escaping); the legacy pty-output event
@@ -549,7 +561,28 @@ export function useTerminalLifecycle({
       listen<SshConnectionProgress>(`ssh-connection-progress-${tabId}`, (event) => {
         setConnectionProgress(event.payload)
         if (event.payload.phase === "ready") {
+          if (sawRetryingPhase) {
+            sawRetryingPhase = false
+            const banner = translationRef.current("sessionHeader.reconnectRestored", {
+              defaultValue: "Connection re-established",
+            })
+            term.write(`\r\n\x1b[32m[${banner}]\x1b[0m\r\n`)
+          }
           setConnectionState("connected")
+        } else if (event.payload.phase === "retrying") {
+          sawRetryingPhase = true
+          setConnectionState("reconnecting")
+        } else if (event.payload.phase === "retry_exhausted") {
+          // The supervisor emits pty-exit right after this; the localized
+          // give-up line goes to the terminal here because the backend no
+          // longer writes an English status line.
+          sawRetryingPhase = false
+          const giveUp = translationRef.current("sessionHeader.reconnectExhausted", {
+            count: event.payload.retryMaxAttempts ?? 0,
+            reason: event.payload.reason ?? "",
+            defaultValue: "Automatic reconnect failed after {{count}} attempts: {{reason}}",
+          })
+          term.write(`\r\n\x1b[31m[${giveUp}]\x1b[0m\r\n`)
         } else if (event.payload.phase !== "failed") {
           setConnectionState("connecting")
         }

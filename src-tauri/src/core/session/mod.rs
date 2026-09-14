@@ -54,6 +54,8 @@ pub fn normalize_connection(
             remember_password: false,
             keepalive_interval_secs,
             keepalive_count_max,
+            reconnect_enabled: false,
+            reconnect_max_attempts: 0,
             private_key_path: None,
             private_key_passphrase: None,
             terminal_shell,
@@ -94,6 +96,8 @@ pub fn normalize_connection(
                 connection.private_key_passphrase.filter(|v| !v.is_empty());
 
             let jump_hosts = normalize_jump_hosts(connection.jump_hosts)?;
+            let (reconnect_enabled, reconnect_max_attempts) =
+                crate::config::resolve_reconnect_settings();
 
             Ok(SessionPlan {
                 kind,
@@ -107,6 +111,8 @@ pub fn normalize_connection(
                 remember_password,
                 keepalive_interval_secs,
                 keepalive_count_max,
+                reconnect_enabled,
+                reconnect_max_attempts,
                 private_key_path,
                 private_key_passphrase,
                 terminal_shell: None,

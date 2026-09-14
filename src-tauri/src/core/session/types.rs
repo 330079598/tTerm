@@ -235,6 +235,12 @@ pub struct SessionPlan {
     pub remember_password: bool,
     pub keepalive_interval_secs: u16,
     pub keepalive_count_max: u16,
+    /// Automatically re-establish this session after a recoverable disconnect.
+    /// Only meaningful for SSH sessions.
+    pub reconnect_enabled: bool,
+    /// How many automatic reconnect attempts to make before giving up and
+    /// reporting the disconnect. Only meaningful for SSH sessions.
+    pub reconnect_max_attempts: u32,
     pub private_key_path: Option<String>,
     pub private_key_passphrase: Option<String>,
     pub terminal_shell: Option<TerminalShellConfig>,

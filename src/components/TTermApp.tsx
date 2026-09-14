@@ -182,7 +182,11 @@ export const TTermApp: React.FC = () => {
     }
 
     const connectionState = terminalRuntimeStates[tab.id]?.connectionState
-    return connectionState === "connected" || connectionState === "connecting" ? count + 1 : count
+    return connectionState === "connected" ||
+      connectionState === "connecting" ||
+      connectionState === "reconnecting"
+      ? count + 1
+      : count
   }, 0)
 
   useEffect(() => {

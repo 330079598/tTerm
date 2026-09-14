@@ -73,6 +73,7 @@ pub async fn connect_authenticated_ssh(
         crate::ssh::HostKeyVerificationMode::PromptAndPersist,
     )
     .await
+    .map_err(String::from)
 }
 
 async fn connect_sftp(
