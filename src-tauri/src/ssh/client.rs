@@ -265,9 +265,9 @@ pub async fn run_single_ssh_connection(
                         ).await;
 
                         match processed {
-                            Ok(text) => {
-                                if !text.is_empty() {
-                                    deliver_output(&app, &tab_id, sender.as_ref(), text.into_bytes());
+                            Ok(bytes) => {
+                                if !bytes.is_empty() {
+                                    deliver_output(&app, &tab_id, sender.as_ref(), bytes);
                                 }
                             }
                             Err(e) => {

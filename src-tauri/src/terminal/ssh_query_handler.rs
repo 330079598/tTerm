@@ -11,6 +11,11 @@ struct SequenceEnd {
 /// If we don't respond, they will hang waiting forever. This function intercepts those queries,
 /// sends appropriate responses back through the SSH channel, and returns the display output for UI.
 ///
+/// The display output is raw bytes: SSH data packets split at arbitrary byte
+/// boundaries, so decoding to text here would corrupt multi-byte characters
+/// that straddle a packet boundary. UTF-8-safe chunking is the output
+/// batcher's job (`crate::terminal::io_batcher`).
+///
 /// Supported queries:
 /// - Device Attributes (DA): terminal identification
 /// - Cursor Position Report (CPR): current cursor location
@@ -21,7 +26,7 @@ pub async fn process_ssh_output_for_ui<W>(
     data: &[u8],
     pending: &mut Vec<u8>,
     writer: &mut W,
-) -> std::io::Result<String>
+) -> std::io::Result<Vec<u8>>
 where
     W: AsyncWriteExt + Unpin,
 {
@@ -164,7 +169,7 @@ where
         }
     }
 
-    Ok(String::from_utf8_lossy(&output).into_owned())
+    Ok(output)
 }
 
 fn is_incomplete_query(rest: &[u8]) -> bool {
@@ -233,4 +238,84 @@ fn find_osc_end(data: &[u8]) -> Option<SequenceEnd> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Feeds `data` through the processor in fixed-size slices, as SSH data
+    /// packets would, and returns the concatenated display output plus every
+    /// byte written back through the channel.
+    async fn process_in_chunks(
+        data: &[u8],
+        chunk_size: usize,
+    ) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+        let mut pending = Vec::new();
+        let mut replies = Vec::new();
+        let mut output = Vec::new();
+        for chunk in data.chunks(chunk_size.max(1)) {
+            output.extend_from_slice(
+                &process_ssh_output_for_ui(chunk, &mut pending, &mut replies)
+                    .await
+                    .expect("process chunk"),
+            );
+        }
+        (output, replies, pending)
+    }
+
+    #[tokio::test]
+    async fn multibyte_chars_split_across_packets_survive() {
+        // 7 slices through the middle of both 3-byte and 4-byte sequences.
+        let text = "中文测试 😀 tail\r\n";
+        let (output, replies, pending) = process_in_chunks(text.as_bytes(), 7).await;
+        assert!(replies.is_empty());
+        assert!(pending.is_empty());
+        assert_eq!(output, text.as_bytes());
+    }
+
+    #[tokio::test]
+    async fn single_char_split_at_packet_boundary_survives() {
+        // "中" is E4 B8 AD; a packet ending after E4 B8 must defer those bytes.
+        let text = "中";
+        let (output, _, _) = process_in_chunks(text.as_bytes(), 2).await;
+        assert_eq!(output, text.as_bytes());
+    }
+
+    #[tokio::test]
+    async fn device_attributes_query_is_answered_and_consumed() {
+        let (output, replies, _) = process_in_chunks(b"before\x1b[cafter", 8).await;
+        assert_eq!(
+            replies,
+            b"\x1b[?64;1;2;4;6;9;15;21;22c".to_vec(),
+            "primary DA must be answered"
+        );
+        assert_eq!(output, b"beforeafter".to_vec());
+    }
+
+    #[tokio::test]
+    async fn cursor_position_report_is_answered_and_consumed() {
+        let (output, replies, _) = process_in_chunks(b"\x1b[6n", 8).await;
+        assert_eq!(replies, b"\x1b[1;1R".to_vec());
+        assert!(output.is_empty());
+    }
+
+    #[tokio::test]
+    async fn incomplete_sequence_tail_is_deferred_to_pending() {
+        // A CSI cut off by a packet boundary must wait for the next packet.
+        let (first_output, replies, pending) =
+            process_in_chunks(b"hi\x1b[", 16).await;
+        assert_eq!(first_output, b"hi".to_vec());
+        assert!(replies.is_empty());
+        assert_eq!(pending, b"\x1b[".to_vec());
+
+        let mut pending = pending;
+        let mut replies = Vec::new();
+        let second = process_ssh_output_for_ui(b"31m", &mut pending, &mut replies)
+            .await
+            .expect("process completion chunk");
+        assert!(replies.is_empty());
+        assert!(pending.is_empty());
+        assert_eq!(second, b"\x1b[31m".to_vec());
+    }
 }
