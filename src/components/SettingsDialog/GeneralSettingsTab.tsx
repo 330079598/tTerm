@@ -109,7 +109,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             })}
             description={t("settings.sftpTransferParallelismDesc", {
               defaultValue:
-                "Number of SFTP channels used per resumable transfer (1-16, default 4).",
+                "Number of SFTP channels used per resumable transfer (1-16, default 4). Set to 1 for single-stream sequential transfers, which is the compatible choice for servers whose storage stalls under concurrent writes.",
             })}
             action={
               <Input

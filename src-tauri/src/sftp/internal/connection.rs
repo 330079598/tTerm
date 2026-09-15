@@ -18,6 +18,7 @@ use crate::ssh::ConnectionStatusOptions;
 use crate::ssh::{open_target_ssh_session, JumpChain, SecretStoreState, SshClientHandler};
 
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(300);
+const SFTP_REQUEST_TIMEOUT_SECS: u64 = 120;
 
 pub fn map_sftp_error(err: SftpError) -> String {
     err.to_string()
@@ -94,11 +95,11 @@ async fn connect_sftp(
         .await
         .map_err(|err| format!("Failed to start SFTP subsystem: {err}"))?;
 
-    let sftp = Arc::new(
-        SftpSession::new(channel.into_stream())
-            .await
-            .map_err(map_sftp_error)?,
-    );
+    let sftp = SftpSession::new(channel.into_stream())
+        .await
+        .map_err(map_sftp_error)?;
+    sftp.set_timeout(SFTP_REQUEST_TIMEOUT_SECS).await;
+    let sftp = Arc::new(sftp);
 
     Ok(ConnectedSftp {
         jump_chain,
@@ -199,6 +200,8 @@ pub async fn open_sftp_raw_session(
         .init()
         .await
         .map_err(|err| format!("Failed to initialize SFTP channel: {err}"))?;
+
+    session.set_timeout(SFTP_REQUEST_TIMEOUT_SECS).await;
 
     let limits = if version
         .extensions

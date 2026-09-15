@@ -53,6 +53,7 @@ pub const SIDECAR_SUFFIX: &str = ".tterm.part.json";
 pub const PART_SUFFIX: &str = ".tterm.part";
 pub const DEFAULT_CHUNK_SIZE: u64 = 4 * 1024 * 1024;
 pub const DEFAULT_PARALLELISM: usize = 4;
+pub const DEFAULT_PROGRESS_INTERVAL_BYTES: u64 = 64 * 1024;
 const MIN_CHUNK_SIZE: u64 = 4 * 1024;
 /// Fallback step for a single SFTP read/write when the server does not
 /// advertise `limits@openssh.com` (mirrors russh-sftp's own default).
@@ -61,7 +62,13 @@ pub const MAX_PARALLELISM: usize = 16;
 /// Chunk requests one lane keeps in flight. SFTP multiplexes requests by id,
 /// so a lane does not have to wait for each acknowledgement before sending
 /// the next one; real servers (OpenSSH) process them concurrently.
-const PIPELINE_WINDOW: usize = 8;
+///
+/// This is an upper bound, not a fixed value: a server whose storage cannot
+/// keep up with several concurrent writers answers none of them within the
+/// client's request timeout, which surfaces as `Failed to write ...: Timeout`
+/// with zero progress. A single lane is therefore run strictly sequentially
+/// (see [`TransferOptions::normalized`]).
+pub const PIPELINE_WINDOW: usize = 8;
 /// Checkpoint cadence: the sidecar is persisted once [`CHECKPOINT_MIN_BYTES`]
 /// of *newly completed* bytes have piled up — or, bounding the re-send window
 /// on slow links, whenever anything is still unpersisted after
@@ -75,6 +82,15 @@ const CHECKPOINT_MIN_INTERVAL: Duration = Duration::from_secs(3);
 /// snapshots are dropped: a lagging checkpoint only widens the re-send
 /// window after a crash, it can never stitch wrong bytes.
 const CHECKPOINT_QUEUE_CAPACITY: usize = 4;
+/// Upper bound on the post-failure checkpoint teardown. The connection that
+/// just failed is typically the one that would carry those writes, so the
+/// flush is given a generous-but-finite budget instead of the full
+/// per-request timeout for every queued snapshot.
+const CHECKPOINT_TEARDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+/// How long a failing lane waits for its final remote-close before giving up
+/// on it, so a dead session cannot stretch the failure by another full
+/// per-request timeout.
+const LANE_CLOSE_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -88,6 +104,11 @@ pub struct TransferOptions {
     pub parallelism: usize,
     pub chunk_size: u64,
     pub progress_interval_bytes: u64,
+    /// Chunk requests one lane keeps in flight (clamped to
+    /// [`PIPELINE_WINDOW`]). `1` makes a lane strictly sequential — one
+    /// request at a time, in ascending offset order, the way plain
+    /// `sftp`/`scp` write.
+    pub pipeline_window: usize,
 }
 
 impl Default for TransferOptions {
@@ -95,7 +116,8 @@ impl Default for TransferOptions {
         Self {
             parallelism: DEFAULT_PARALLELISM,
             chunk_size: DEFAULT_CHUNK_SIZE,
-            progress_interval_bytes: 2 * 1024 * 1024,
+            progress_interval_bytes: DEFAULT_PROGRESS_INTERVAL_BYTES,
+            pipeline_window: PIPELINE_WINDOW,
         }
     }
 }
@@ -104,6 +126,16 @@ impl TransferOptions {
     pub fn normalized(mut self) -> Self {
         self.parallelism = self.parallelism.clamp(1, MAX_PARALLELISM);
         self.chunk_size = self.chunk_size.max(MIN_CHUNK_SIZE);
+        self.pipeline_window = self.pipeline_window.clamp(1, PIPELINE_WINDOW);
+        // A single lane is the compatibility mode: one chunk request in
+        // flight, so no two writes at different offsets are ever outstanding
+        // at the same time. This is what a fragile server needs — with the
+        // usual window its storage can stall long enough that every in-flight
+        // request hits the client's request timeout and no chunk is ever
+        // acknowledged.
+        if self.parallelism == 1 {
+            self.pipeline_window = 1;
+        }
         self
     }
 }
@@ -310,16 +342,28 @@ fn step_from_limits(limits: Option<&LimitsExtension>) -> u64 {
 
 /// Largest single write request a lane will issue for upload chunks.
 fn io_write_step(limits: Option<&LimitsExtension>) -> u64 {
-    limits
+    let mut step = limits
         .and_then(|limits| (limits.max_write_len > 0).then_some(limits.max_write_len))
-        .unwrap_or(DEFAULT_IO_STEP)
+        .unwrap_or(DEFAULT_IO_STEP);
+    if let Some(limits) = limits {
+        if limits.max_packet_len > 0 {
+            step = step.min(limits.max_packet_len.saturating_sub(1024));
+        }
+    }
+    step.max(1)
 }
 
 /// Largest single read request a lane will issue for download chunks.
 fn io_read_step(limits: Option<&LimitsExtension>) -> u64 {
-    limits
+    let mut step = limits
         .and_then(|limits| (limits.max_read_len > 0).then_some(limits.max_read_len))
-        .unwrap_or(DEFAULT_IO_STEP)
+        .unwrap_or(DEFAULT_IO_STEP);
+    if let Some(limits) = limits {
+        if limits.max_packet_len > 0 {
+            step = step.min(limits.max_packet_len.saturating_sub(1024));
+        }
+    }
+    step.max(1)
 }
 
 /// Chunk size after small-file shrinking.
@@ -864,6 +908,7 @@ async fn run_transfer(
         resumed_from,
         initial_completed_chunks,
         checkpointing,
+        pipeline_window: options.pipeline_window,
         sidecar_state: Arc::new(Mutex::new(SidecarState {
             sidecar,
             bits,
@@ -895,11 +940,18 @@ async fn run_transfer(
     {
         // Best-effort flush so every acknowledged chunk survives the retry;
         // check(point) failures are not allowed to mask the transfer error.
+        //
+        // Both steps are bounded: the connection that just failed is usually
+        // the reason the transfer stopped (a stalled server stops answering
+        // checkpoint writes too), so persisting through it must never turn a
+        // fast failure into another minute of waiting. A dropped snapshot only
+        // re-sends those chunks on the next attempt, it cannot corrupt anything.
         if let Some(writer) = checkpoint.as_ref() {
-            flush_checkpoint(&run, writer).await;
+            let _ = tokio::time::timeout(CHECKPOINT_TEARDOWN_TIMEOUT, flush_checkpoint(&run, writer))
+                .await;
         }
         if let Some(writer) = checkpoint {
-            writer.finish().await;
+            let _ = tokio::time::timeout(CHECKPOINT_TEARDOWN_TIMEOUT, writer.finish()).await;
         }
         return Err(err);
     }
@@ -975,6 +1027,7 @@ struct TransferRun {
     resumed_from: u64,
     initial_completed_chunks: u64,
     checkpointing: bool,
+    pipeline_window: usize,
     sidecar_state: Arc<Mutex<SidecarState>>,
     sidecar_store: Arc<SidecarStore>,
 }
@@ -1199,6 +1252,7 @@ async fn execute_parallel(
     let shared = Arc::new(LaneShared {
         queue: queue.clone(),
         transferred: Arc::new(AtomicU64::new(run.resumed_from)),
+        last_progress: Arc::new(AtomicU64::new(run.resumed_from)),
         completed_chunks: Arc::new(AtomicU64::new(run.initial_completed_chunks)),
         progress: progress.clone(),
         cancel: cancel.clone(),
@@ -1217,6 +1271,7 @@ async fn execute_parallel(
         read_step: io_read_step(channels.limits.as_ref()),
         write_step: io_write_step(channels.limits.as_ref()),
         checkpointing: run.checkpointing,
+        pipeline_window: run.pipeline_window,
         checkpoint_tx: checkpoint.and_then(|writer| writer.sender()),
     });
 
@@ -1268,6 +1323,7 @@ type LocalLaneFile = Arc<Mutex<tokio::fs::File>>;
 struct LaneShared {
     queue: Arc<Mutex<VecDeque<usize>>>,
     transferred: Arc<AtomicU64>,
+    last_progress: Arc<AtomicU64>,
     completed_chunks: Arc<AtomicU64>,
     progress: ProgressSink,
     cancel: watch::Receiver<bool>,
@@ -1286,6 +1342,7 @@ struct LaneShared {
     read_step: u64,
     write_step: u64,
     checkpointing: bool,
+    pipeline_window: usize,
     checkpoint_tx: Option<mpsc::Sender<CheckpointSnapshot>>,
 }
 
@@ -1334,11 +1391,12 @@ async fn lane_worker(
     // Sliding window of chunk tasks. Keeping several requests in flight
     // hides the per-request round trip on high-latency links; each task
     // reports its chunk index so only fully acknowledged chunks are marked.
+    // With `pipeline_window == 1` the lane is strictly sequential: one chunk,
+    // and therefore one write request, at a time in ascending offset order.
     let mut chunk_tasks: JoinSet<(usize, Result<(), TransferError>)> = JoinSet::new();
-    let mut last_progress = shared.transferred.load(Ordering::Relaxed);
 
     let result: Result<(), TransferError> = loop {
-        while chunk_tasks.len() < PIPELINE_WINDOW {
+        while chunk_tasks.len() < shared.pipeline_window {
             if *shared.cancel.borrow() {
                 break;
             }
@@ -1369,7 +1427,7 @@ async fn lane_worker(
 
         match joined {
             Ok((index, Ok(()))) => {
-                record_chunk_completion(&shared, index, &mut last_progress).await;
+                record_chunk_completion(&shared, index).await;
             }
             Ok((_, Err(err))) => break Err(err),
             Err(join_err) => break Err(failed(format!("Transfer worker failed: {join_err}"))),
@@ -1378,16 +1436,56 @@ async fn lane_worker(
 
     chunk_tasks.abort_all();
     while chunk_tasks.join_next().await.is_some() {}
-    let _ = session.close(handle.as_str()).await;
+    // Closing the remote part is a courtesy on a healthy link, but on the
+    // failure path the lane is stopping precisely because the session stopped
+    // answering: waiting a full request timeout for that CLOSE would add
+    // another ten seconds before the user sees the error.
+    let close = session.close(handle.as_str());
+    if result.is_err() {
+        let _ = tokio::time::timeout(LANE_CLOSE_TIMEOUT, close).await;
+    } else {
+        let _ = close.await;
+    }
 
     result
+}
+
+fn record_transfer_progress(shared: &LaneShared, step_bytes: u64) {
+    if step_bytes == 0 {
+        return;
+    }
+    let total = shared.transferred.fetch_add(step_bytes, Ordering::SeqCst) + step_bytes;
+    let mut last = shared.last_progress.load(Ordering::Relaxed);
+    while total.saturating_sub(last) >= shared.progress_interval || total >= shared.total_size {
+        match shared.last_progress.compare_exchange_weak(
+            last,
+            total,
+            Ordering::SeqCst,
+            Ordering::Relaxed,
+        ) {
+            Ok(_) => {
+                (shared.progress)(TransferProgress {
+                    transferred: total.min(shared.total_size),
+                    total: shared.total_size,
+                    resumed_from: shared.resumed_from,
+                    parallelism: shared.parallelism,
+                    completed_chunks: shared.completed_chunks.load(Ordering::SeqCst),
+                    chunk_count: shared.chunk_count as u64,
+                });
+                break;
+            }
+            Err(actual) => {
+                last = actual;
+            }
+        }
+    }
 }
 
 /// Move one acknowledged chunk into the bitmap (throttled checkpoint) and
 /// emit progress. The chunk data is already durable at this point, so a
 /// failed checkpoint save is deliberately non-fatal: the next cadence save
 /// or the cancel/error flush will retry it.
-async fn record_chunk_completion(shared: &LaneShared, index: usize, last_progress: &mut u64) {
+async fn record_chunk_completion(shared: &LaneShared, index: usize) {
     let len = chunk_len_for(index, shared.chunk_size, shared.total_size);
     let snapshot = {
         let mut state = shared.sidecar_state.lock().await;
@@ -1428,19 +1526,33 @@ async fn record_chunk_completion(shared: &LaneShared, index: usize, last_progres
         }
     }
 
-    let total = shared.transferred.fetch_add(len, Ordering::SeqCst) + len;
-    if total.saturating_sub(*last_progress) >= shared.progress_interval
+    let total = shared.transferred.load(Ordering::SeqCst);
+    let mut last = shared.last_progress.load(Ordering::Relaxed);
+    while total.saturating_sub(last) >= shared.progress_interval
         || total >= shared.total_size
+        || shared.completed_chunks.load(Ordering::SeqCst) >= shared.chunk_count as u64
     {
-        *last_progress = total;
-        (shared.progress)(TransferProgress {
-            transferred: total,
-            total: shared.total_size,
-            resumed_from: shared.resumed_from,
-            parallelism: shared.parallelism,
-            completed_chunks: shared.completed_chunks.load(Ordering::SeqCst),
-            chunk_count: shared.chunk_count as u64,
-        });
+        match shared.last_progress.compare_exchange_weak(
+            last,
+            total,
+            Ordering::SeqCst,
+            Ordering::Relaxed,
+        ) {
+            Ok(_) => {
+                (shared.progress)(TransferProgress {
+                    transferred: total.min(shared.total_size),
+                    total: shared.total_size,
+                    resumed_from: shared.resumed_from,
+                    parallelism: shared.parallelism,
+                    completed_chunks: shared.completed_chunks.load(Ordering::SeqCst),
+                    chunk_count: shared.chunk_count as u64,
+                });
+                break;
+            }
+            Err(actual) => {
+                last = actual;
+            }
+        }
     }
 }
 
@@ -1532,6 +1644,12 @@ async fn upload_chunk(
             .await
             .map_err(|err| failed(format!("Failed to write remote part: {err}")))?;
         pos += want as u64;
+        let is_last = pos == len;
+        if is_last {
+            shared.transferred.fetch_add(want as u64, Ordering::SeqCst);
+        } else {
+            record_transfer_progress(shared, want as u64);
+        }
     }
     Ok(())
 }
@@ -1573,7 +1691,14 @@ async fn download_chunk(
                 .await
                 .map_err(|err| failed(format!("Failed to write local part: {err}")))?;
         }
-        pos += data.data.len() as u64;
+        let read_len = data.data.len() as u64;
+        pos += read_len;
+        let is_last = pos == len;
+        if is_last {
+            shared.transferred.fetch_add(read_len, Ordering::SeqCst);
+        } else {
+            record_transfer_progress(shared, read_len);
+        }
     }
     Ok(())
 }

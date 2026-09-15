@@ -21,6 +21,7 @@ fn options(chunk_size: u64, parallelism: usize) -> TransferOptions {
         parallelism,
         chunk_size,
         progress_interval_bytes: 0,
+        pipeline_window: PIPELINE_WINDOW,
     }
 }
 
@@ -973,6 +974,8 @@ async fn parallel_upload_outperforms_serial_with_injected_latency() {
         latency,
         rename_overwrites: true,
         fail_removes: false,
+        stall_writes_after_bytes: None,
+        recorded_write_offsets: None,
     })
     .await;
     let chunk_size = 16 * 1024u64;
@@ -1022,3 +1025,199 @@ async fn parallel_upload_outperforms_serial_with_injected_latency() {
         "expected a meaningful parallel speedup, serial={serial:?} parallel={parallel:?}"
     );
 }
+
+/// A remote that accepts bytes but silently stops acknowledging mid-transfer
+/// must surface an error instead of wedging the transfer command forever.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn stalled_remote_fails_instead_of_hanging() {
+    let server = TestServer::start(ServerOptions {
+        limits: Some(server_limits()),
+        stall_writes_after_bytes: Some(256 * 1024),
+        ..Default::default()
+    })
+    .await;
+
+    let local_dir = server.local_dir().to_path_buf();
+    let chunk_size = 4 * 1024 * 1024u64;
+    let data = content(chunk_size as usize * 4);
+    let local_path = local_dir.join("stall-source.bin");
+    write_local(&local_path, &data).await;
+
+    let started = Instant::now();
+    let result = tokio::time::timeout(
+        Duration::from_secs(90),
+        upload_file(
+            server.channels(4).await,
+            local_path,
+            "stalled.bin".to_string(),
+            options(chunk_size, 4),
+            watch::channel(false).1,
+            noop_progress(),
+        ),
+    )
+    .await;
+
+    match result {
+        Err(_elapsed) => panic!(
+            "upload hung on a stalled remote for {:?} instead of failing",
+            started.elapsed()
+        ),
+        Ok(Ok(_)) => panic!("upload claimed success against a stalled remote"),
+        Ok(Err(err)) => eprintln!("stalled upload failed after {:?}: {err}", started.elapsed()),
+    }
+}
+
+/// A large upload that crosses the 32 MiB checkpoint byte-threshold with
+/// OpenSSH-style limits, i.e. the exact branch a 274 MB upload takes, must
+/// complete and stay byte-identical.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn large_upload_crossing_checkpoint_threshold_completes() {
+    let server = TestServer::start(ServerOptions {
+        limits: Some(server_limits()),
+        ..Default::default()
+    })
+    .await;
+    let local_dir = server.local_dir().to_path_buf();
+    let chunk_size = 4 * 1024 * 1024u64;
+    let data = content(64 * 1024 * 1024);
+    let local_path = local_dir.join("large-source.bin");
+    write_local(&local_path, &data).await;
+
+    let started = Instant::now();
+    let outcome = tokio::time::timeout(
+        Duration::from_secs(120),
+        upload_file(
+            server.channels(4).await,
+            local_path,
+            "large.bin".to_string(),
+            options(chunk_size, 4),
+            watch::channel(false).1,
+            noop_progress(),
+        ),
+    )
+    .await
+    .expect("large upload must finish")
+    .expect("large upload must succeed");
+    eprintln!(
+        "64 MiB upload finished in {:?}, transferred {} bytes",
+        started.elapsed(),
+        outcome.transferred
+    );
+
+    let final_bytes = std::fs::read(server.root().join("large.bin")).unwrap();
+    assert_eq!(final_bytes.len(), data.len());
+    assert!(final_bytes == data, "large upload must be byte-identical");
+}
+
+#[test]
+fn single_lane_normalizes_to_a_strictly_sequential_pipeline() {
+    let sequential = options(4 * 1024 * 1024, 1).normalized();
+    assert_eq!(sequential.parallelism, 1);
+    assert_eq!(
+        sequential.pipeline_window, 1,
+        "one lane must keep exactly one chunk request in flight"
+    );
+
+    let parallel = options(4 * 1024 * 1024, 4).normalized();
+    assert_eq!(parallel.pipeline_window, PIPELINE_WINDOW);
+
+    let clamped = TransferOptions {
+        pipeline_window: PIPELINE_WINDOW * 8,
+        ..options(4 * 1024 * 1024, 4)
+    }
+    .normalized();
+    assert_eq!(clamped.pipeline_window, PIPELINE_WINDOW);
+}
+
+/// With one lane the client must issue its writes strictly in ascending
+/// offset order, the way plain `sftp`/`scp` do — that is what a server whose
+/// storage cannot keep up with concurrent writers needs.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn single_lane_writes_in_ascending_offset_order() {
+    let offsets = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let chunk_size = 8 * 1024u64;
+    let server = TestServer::start(ServerOptions {
+        limits: Some(TestLimits {
+            max_packet_len: 256 * 1024,
+            max_read_len: 32 * 1024,
+            max_write_len: chunk_size,
+        }),
+        recorded_write_offsets: Some(offsets.clone()),
+        ..Default::default()
+    })
+    .await;
+
+    let data = content(chunk_size as usize * 8);
+    let local_path = server.local_dir().join("sequential-source.bin");
+    write_local(&local_path, &data).await;
+
+    upload_file(
+        server.channels(4).await,
+        local_path,
+        "sequential.bin".to_string(),
+        options(chunk_size, 1),
+        watch::channel(false).1,
+        noop_progress(),
+    )
+    .await
+    .unwrap();
+
+    let recorded = offsets.lock().unwrap().clone();
+    let expected: Vec<u64> = (0..8).map(|index| index * chunk_size).collect();
+    assert_eq!(
+        recorded, expected,
+        "sequential mode must write exactly once per chunk, in ascending offset order"
+    );
+}
+
+/// Progress must be reported as step writes complete rather than stalling at 0%
+/// until an entire large chunk finishes.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn step_level_progress_emits_before_chunk_completes() {
+    let write_step = 16 * 1024u64;
+    let chunk_size = 64 * 1024u64; // 4 steps per chunk
+    let server = TestServer::start(ServerOptions {
+        limits: Some(TestLimits {
+            max_packet_len: 256 * 1024,
+            max_read_len: 32 * 1024,
+            max_write_len: write_step,
+        }),
+        ..Default::default()
+    })
+    .await;
+
+    let data = content(chunk_size as usize); // Exactly 1 chunk
+    let local_path = server.local_dir().join("step-progress-source.bin");
+    write_local(&local_path, &data).await;
+
+    let recorded_progress = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let progress_sink = {
+        let recorded = recorded_progress.clone();
+        Arc::new(move |update: TransferProgress| {
+            recorded.lock().unwrap().push(update.transferred);
+        })
+    };
+
+    let mut opts = options(chunk_size, 1);
+    opts.progress_interval_bytes = 0; // Emit on every step
+
+    upload_file(
+        server.channels(1).await,
+        local_path,
+        "step-progress.bin".to_string(),
+        opts,
+        watch::channel(false).1,
+        progress_sink,
+    )
+    .await
+    .unwrap();
+
+    let recorded = recorded_progress.lock().unwrap().clone();
+    // Must have intermediate progress events before the final chunk completes
+    assert!(
+        recorded.iter().any(|&bytes| bytes > 0 && bytes < chunk_size),
+        "expected step-level progress before full chunk completion, got {recorded:?}"
+    );
+    assert_eq!(*recorded.last().unwrap(), chunk_size);
+}
+

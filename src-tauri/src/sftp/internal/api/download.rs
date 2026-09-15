@@ -116,7 +116,8 @@ fn transfer_options() -> TransferOptions {
     TransferOptions {
         parallelism: crate::sftp::internal::api::resolve_transfer_parallelism(),
         chunk_size: transfer::DEFAULT_CHUNK_SIZE,
-        progress_interval_bytes: 2 * 1024 * 1024,
+        progress_interval_bytes: transfer::DEFAULT_PROGRESS_INTERVAL_BYTES,
+        pipeline_window: transfer::PIPELINE_WINDOW,
     }
 }
 

@@ -48,6 +48,14 @@ pub struct ServerOptions {
     /// Refuse every remove, so tests can exercise paths that must survive a
     /// discard whose removal keeps failing.
     pub fail_removes: bool,
+    /// Stop answering writes once this many bytes have been accepted on a
+    /// channel, mimicking a server (or a middlebox) that silently stops
+    /// acknowledging a bulk upload. The handler never returns, so nothing on
+    /// that channel is answered afterwards.
+    pub stall_writes_after_bytes: Option<u64>,
+    /// Records the offset of every accepted write, in arrival order, so tests
+    /// can assert on the order the client actually put requests on the wire.
+    pub recorded_write_offsets: Option<Arc<Mutex<Vec<u64>>>>,
 }
 
 impl Default for ServerOptions {
@@ -57,6 +65,8 @@ impl Default for ServerOptions {
             latency: Duration::ZERO,
             rename_overwrites: true,
             fail_removes: false,
+            stall_writes_after_bytes: None,
+            recorded_write_offsets: None,
         }
     }
 }
@@ -104,6 +114,7 @@ impl russh::server::Handler for SshSession {
                 options: self.options.clone(),
                 next_handle: 0,
                 handles: HashMap::new(),
+                written_bytes: 0,
             };
             session.channel_success(channel_id)?;
             russh_sftp::server::run(channel.into_stream(), handler).await;
@@ -124,6 +135,7 @@ struct SftpHandler {
     options: Arc<ServerOptions>,
     next_handle: u64,
     handles: HashMap<String, HandleEntry>,
+    written_bytes: u64,
 }
 
 impl SftpHandler {
@@ -260,6 +272,19 @@ impl russh_sftp::server::Handler for SftpHandler {
         file.seek(std::io::SeekFrom::Start(offset))
             .map_err(|_| StatusCode::Failure)?;
         file.write_all(&data).map_err(|_| StatusCode::Failure)?;
+        if let Some(offsets) = &self.options.recorded_write_offsets {
+            offsets.lock().expect("write offsets lock").push(offset);
+        }
+        self.written_bytes += data.len() as u64;
+        if self
+            .options
+            .stall_writes_after_bytes
+            .is_some_and(|limit| self.written_bytes >= limit)
+        {
+            // Accept the bytes but never acknowledge them: the client can only
+            // learn about this through its own request timeouts.
+            let _: Result<Status, StatusCode> = std::future::pending().await;
+        }
         Ok(self.ok(id))
     }
 

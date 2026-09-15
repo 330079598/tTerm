@@ -100,13 +100,50 @@ struct UploadRootSummary {
     local_path: String,
 }
 
+fn percent_decode(input: &str) -> String {
+    let mut bytes = Vec::with_capacity(input.len());
+    let mut chars = input.bytes();
+    while let Some(b) = chars.next() {
+        if b == b'%' {
+            let h1 = chars.next();
+            let h2 = chars.next();
+            if let (Some(h1), Some(h2)) = (h1, h2) {
+                let s = [h1, h2];
+                if let Ok(hex_str) = std::str::from_utf8(&s) {
+                    if let Ok(byte) = u8::from_str_radix(hex_str, 16) {
+                        bytes.push(byte);
+                        continue;
+                    }
+                }
+                bytes.push(b'%');
+                bytes.push(h1);
+                bytes.push(h2);
+            } else {
+                bytes.push(b'%');
+                if let Some(h1) = h1 {
+                    bytes.push(h1);
+                }
+            }
+        } else {
+            bytes.push(b);
+        }
+    }
+    String::from_utf8_lossy(&bytes).into_owned()
+}
+
 fn sanitize_local_path(path: &str) -> Result<PathBuf, String> {
     let trimmed = path.trim();
     if trimmed.is_empty() {
         return Err("Local path is required".to_string());
     }
 
-    Ok(PathBuf::from(trimmed))
+    let stripped = if let Some(rest) = trimmed.strip_prefix("file://") {
+        percent_decode(rest)
+    } else {
+        trimmed.to_string()
+    };
+
+    Ok(PathBuf::from(stripped))
 }
 
 fn file_name_from_path(path: &Path) -> Result<String, String> {
@@ -372,7 +409,8 @@ async fn upload_single_file_with_progress(
     let options = TransferOptions {
         parallelism: crate::sftp::internal::api::resolve_transfer_parallelism(),
         chunk_size: transfer::DEFAULT_CHUNK_SIZE,
-        progress_interval_bytes: 2 * 1024 * 1024,
+        progress_interval_bytes: transfer::DEFAULT_PROGRESS_INTERVAL_BYTES,
+        pipeline_window: transfer::PIPELINE_WINDOW,
     };
 
     let result = transfer::upload_file(
