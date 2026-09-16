@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils"
 import { CursorStylePicker } from "@/components/SettingsDialog/CursorStylePicker"
 import { SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
-import type { TerminalRenderer } from "@/contexts/ConfigContext"
+import { getDetectedPlatform, type TerminalRenderer } from "@/contexts/ConfigContext"
 
 const SCROLLBACK_PRESETS = [1000, 5000, DEFAULT_SCROLLBACK_LINES, 50000, 100000] as const
 
@@ -137,17 +137,38 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
               value={terminalRenderer}
               onChange={(event) => setTerminalRenderer(event.target.value as TerminalRenderer)}
             >
-              <option value="webgl">
-                {t("fontSettings.rendererWebgl", { defaultValue: "WebGL (recommended)" })}
-              </option>
-              <option value="canvas">
-                {t("fontSettings.rendererCanvas", { defaultValue: "Canvas (lower memory)" })}
-              </option>
+              {getDetectedPlatform() === "macos" ? (
+                <>
+                  <option value="canvas">
+                    {t("fontSettings.rendererCanvasMac", {
+                      defaultValue: "Canvas (recommended for macOS)",
+                    })}
+                  </option>
+                  <option value="webgl">
+                    {t("fontSettings.rendererWebglMac", { defaultValue: "WebGL" })}
+                  </option>
+                </>
+              ) : (
+                <>
+                  <option value="webgl">
+                    {t("fontSettings.rendererWebgl", { defaultValue: "WebGL (recommended)" })}
+                  </option>
+                  <option value="canvas">
+                    {t("fontSettings.rendererCanvas", { defaultValue: "Canvas (lower memory)" })}
+                  </option>
+                </>
+              )}
             </Select>
             <p className="text-muted-foreground mt-1.5 text-xs">
-              {t("fontSettings.rendererDesc", {
-                defaultValue: "WebGL is faster for heavy output; Canvas can use less GPU memory.",
-              })}
+              {getDetectedPlatform() === "macos"
+                ? t("fontSettings.rendererDescMac", {
+                    defaultValue:
+                      "Canvas renderer is recommended on macOS for sharp text and maximum stability; WebGL is suitable for high-throughput output.",
+                  })
+                : t("fontSettings.rendererDesc", {
+                    defaultValue:
+                      "WebGL is faster for heavy output; Canvas can use less GPU memory.",
+                  })}
             </p>
           </div>
 

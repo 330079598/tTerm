@@ -76,13 +76,27 @@ export function applyUiScalePercent(scale: number) {
 
 let _cachedPlatform: string | null = null
 
-function getDefaultSecretStorageMode(): SecretStorageMode {
+export function getDetectedPlatform(): string {
   try {
     _cachedPlatform ??= platform()
-    return _cachedPlatform === "windows" ? "system" : "hybrid"
+    return _cachedPlatform
   } catch {
-    return "hybrid"
+    if (typeof navigator !== "undefined") {
+      const hint = `${navigator.platform} ${navigator.userAgent}`.toLowerCase()
+      if (hint.includes("mac")) return "macos"
+      if (hint.includes("win")) return "windows"
+      if (hint.includes("linux")) return "linux"
+    }
+    return "unknown"
   }
+}
+
+export function getDefaultTerminalRenderer(): TerminalRenderer {
+  return getDetectedPlatform() === "macos" ? "canvas" : "webgl"
+}
+
+function getDefaultSecretStorageMode(): SecretStorageMode {
+  return getDetectedPlatform() === "windows" ? "system" : "hybrid"
 }
 
 export interface CopySecretStoreResult {
@@ -146,11 +160,13 @@ const defaultUpdateChannel = /-(alpha|beta|rc|dev)(\.|$)/.test(
   ? "beta-dev"
   : "stable"
 
+export const DEFAULT_TERMINAL_FONT_FAMILY =
+  '"JetBrains Mono Nerd Font", "JetBrainsMono Nerd Font", "JetBrains Mono", "Fira Code", Menlo, Monaco, monospace'
+
 const defaultConfig: AppConfig = {
   theme: "default",
   language: detectSystemLanguage(),
-  font_family:
-    '"JetBrains Mono Nerd Font", "JetBrainsMono Nerd Font", "JetBrains Mono", "Fira Code", Menlo, Monaco, monospace',
+  font_family: DEFAULT_TERMINAL_FONT_FAMILY,
   font_size: 14,
   ui_scale_percent: 100,
   cursor_style: "block",
@@ -161,7 +177,7 @@ const defaultConfig: AppConfig = {
   secret_storage_mode: getDefaultSecretStorageMode(),
   prompt_unlock_vault_on_startup: false,
   scrollback_lines: 10000,
-  terminal_renderer: "webgl",
+  terminal_renderer: getDefaultTerminalRenderer(),
   terminal_padding_left_px: 6,
   terminal_padding_right_px: 0,
   terminal_padding_bottom_px: 0,
@@ -302,7 +318,10 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
         ? config.secret_storage_mode
         : getDefaultSecretStorageMode(),
     prompt_unlock_vault_on_startup: config.prompt_unlock_vault_on_startup === true,
-    terminal_renderer: config.terminal_renderer === "canvas" ? "canvas" : "webgl",
+    terminal_renderer:
+      config.terminal_renderer === "canvas" || config.terminal_renderer === "webgl"
+        ? config.terminal_renderer
+        : getDefaultTerminalRenderer(),
     monitor_refresh_interval_secs: normalizeMonitorRefreshInterval(
       config.monitor_refresh_interval_secs
     ),

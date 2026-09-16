@@ -29,7 +29,7 @@ import { useKeymap } from "@/contexts/KeymapContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useStableRef } from "@/hooks/useStableRef"
 import { resolveScrollbackLines } from "@/lib/scrollback"
-import { safePreloadFont } from "@/lib/canvasFontHost"
+import { safePreloadFont, updateCanvasFontHostFont } from "@/lib/canvasFontHost"
 import { toErrorMessage } from "@/lib/utils"
 import type { TabContextMenuAction } from "@/types/tab"
 
@@ -280,7 +280,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     fitAfterLayout()
   }, [fitTerminalOnly, isActiveRef, syncPtySize])
 
-  const { clearTextureAtlas } = useTerminalLifecycle({
+  useTerminalLifecycle({
     activateFitTimerRef,
     connectionRef,
     containerRef,
@@ -322,36 +322,46 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     waitingForReconnectRef,
   })
 
+  const lastAppliedFontRef = useRef<{ family: string; size: number } | null>(null)
+
   useEffect(() => {
     const term = termRef.current
     if (!term) return
 
-    term.options.fontFamily = config.font_family
-    term.options.fontSize = config.font_size
     term.options.cursorStyle = config.cursor_style
-    clearTextureAtlas()
-    if (isActiveRef.current) {
-      scheduleFitDuringResize()
-      term.refresh(0, Math.max(0, term.rows - 1))
-    }
 
-    void safePreloadFont(config.font_size, config.font_family).then((loaded) => {
-      if (loaded) {
-        clearTextureAtlas()
-        if (isActiveRef.current) {
+    const fontChanged =
+      !lastAppliedFontRef.current ||
+      lastAppliedFontRef.current.family !== config.font_family ||
+      lastAppliedFontRef.current.size !== config.font_size
+
+    if (fontChanged) {
+      lastAppliedFontRef.current = {
+        family: config.font_family,
+        size: config.font_size,
+      }
+      updateCanvasFontHostFont(config.font_family, config.font_size)
+      term.options.fontFamily = config.font_family
+      term.options.fontSize = config.font_size
+
+      if (isActiveRef.current) {
+        scheduleFitDuringResize()
+        term.refresh(0, Math.max(0, term.rows - 1))
+      }
+
+      void safePreloadFont(config.font_size, config.font_family).then((loaded) => {
+        if (loaded && isActiveRef.current) {
           scheduleFitDuringResize()
           term.refresh(0, Math.max(0, term.rows - 1))
         }
-      }
-    })
+      })
+    }
   }, [
-    clearTextureAtlas,
     config.cursor_style,
     config.font_family,
     config.font_size,
     isActiveRef,
     scheduleFitDuringResize,
-    sessionNonce,
   ])
 
   useEffect(() => {

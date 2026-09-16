@@ -42,6 +42,7 @@ const XTERM_INTERNAL_STACK_PATTERN =
 
 let originalCreateElement: typeof document.createElement | null = null
 let originalGetContext: typeof HTMLCanvasElement.prototype.getContext | null = null
+let originalCreateImageBitmap: typeof window.createImageBitmap | null = null
 let hostElement: HTMLElement | null = null
 
 function getOrCreateHostElement(): HTMLElement | null {
@@ -66,8 +67,11 @@ function getOrCreateHostElement(): HTMLElement | null {
   const host = document.createElement("div")
   host.id = HOST_ELEMENT_ID
   host.setAttribute("aria-hidden", "true")
+  // Use off-screen placement and opacity:0 with non-zero dimensions.
+  // Never use visibility:hidden or width:0/height:0, which causes WebKit (macOS Safari/WKWebView)
+  // to cull the composited layer and break gl.texImage2D/drawImage for scratch canvases.
   host.style.cssText =
-    "position:fixed;top:-99999px;left:-99999px;width:0;height:0;overflow:hidden;visibility:hidden;pointer-events:none;opacity:0;"
+    "position:fixed;top:-99999px;left:-99999px;width:1px;height:1px;pointer-events:none;opacity:0;"
 
   document.body.appendChild(host)
   hostElement = host
@@ -218,6 +222,43 @@ export function initCanvasFontHost(): void {
       ]) as RenderingContext | null
     } as typeof HTMLCanvasElement.prototype.getContext
   }
+
+  // Intercept createImageBitmap on WebKit/macOS:
+  // WebKit bug 149990 causes createImageBitmap from HTMLCanvasElement to have severe scanline
+  // tearing, missing row dots, and chromatic noise on Retina displays.
+  // xterm.js disables its BitmapGenerator only when the UA looks like Safari; the WKWebView UA
+  // has no "Safari" token, so that guard never engages. Returning a promise that never settles
+  // keeps xterm's BitmapGenerator in its initial state, making it render directly from the
+  // clean 2D canvas instead of committing a corrupted ImageBitmap. This is intentionally
+  // scoped to HTMLCanvasElement sources; other image types are passed through untouched.
+  if (
+    typeof window !== "undefined" &&
+    typeof window.createImageBitmap === "function" &&
+    !originalCreateImageBitmap
+  ) {
+    const isMac =
+      typeof navigator !== "undefined" &&
+      (/mac/i.test(navigator.platform || "") ||
+        /macintosh|mac os x/i.test(navigator.userAgent || ""))
+
+    if (isMac) {
+      originalCreateImageBitmap = window.createImageBitmap.bind(window)
+      window.createImageBitmap = function (
+        image: ImageBitmapSource,
+        ...args: unknown[]
+      ): Promise<ImageBitmap> {
+        if (typeof HTMLCanvasElement !== "undefined" && image instanceof HTMLCanvasElement) {
+          // Return a pending promise that never settles so xterm's BitmapGenerator
+          // never commits a corrupted ImageBitmap into the active render pipeline.
+          return new Promise<ImageBitmap>(() => {})
+        }
+        return Reflect.apply(originalCreateImageBitmap!, window, [
+          image,
+          ...args,
+        ]) as Promise<ImageBitmap>
+      } as typeof window.createImageBitmap
+    }
+  }
 }
 
 /**
@@ -245,18 +286,58 @@ export function restoreCanvasFontHost(): void {
     }
     hostElement = null
   }
+
+  if (typeof window !== "undefined" && originalCreateImageBitmap) {
+    window.createImageBitmap = originalCreateImageBitmap
+    originalCreateImageBitmap = null
+  }
 }
 
 /**
- * Safely preloads a font using CSS font shorthand via document.fonts.load.
+ * Updates the font-family of the canvas font host container and forces WebKit to
+ * layout and resolve the font face before canvases rasterize glyphs.
+ */
+export function updateCanvasFontHostFont(fontFamily: string, fontSize?: number): void {
+  const host = getOrCreateHostElement()
+  if (!host) return
+  const safeFont = (fontFamily || "").trim()
+  if (!safeFont || /[\n\r\t\0]/.test(safeFont)) {
+    return
+  }
+  const safeSize = Number.isFinite(fontSize) && fontSize! > 0 ? fontSize! : 14
+  host.style.fontFamily = safeFont
+
+  let probe = host.querySelector<HTMLElement>("#tterm-font-probe")
+  if (!probe) {
+    probe = document.createElement("span")
+    probe.id = "tterm-font-probe"
+    probe.style.cssText =
+      "position:absolute;font-family:inherit;font-size:16px;white-space:nowrap;visibility:hidden;"
+    probe.textContent =
+      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,.<>/?`~"
+    host.appendChild(probe)
+  }
+  probe.style.fontFamily = safeFont
+  probe.style.fontSize = `${safeSize}px`
+  // Reading offsetWidth forces WebKit's layout tree to resolve and load the local font face into memory
+  try {
+    void probe.offsetWidth
+  } catch {
+    // Ignore layout reading errors in mock DOM
+  }
+}
+
+/**
+ * Safely preloads a font using CSS font shorthand via document.fonts.load and DOM probe.
  * Performs input sanitization, ignores malformed font families, and never rejects.
  *
- * NOTE: document.fonts.load resolves with an empty array ([]) for local OS-installed
- * fonts (which are not in the FontFaceSet). Thus, resolving with any array (even empty)
- * indicates that the font specification was syntactically parsed by the engine.
+ * NOTE: In WebKit (macOS Safari / WKWebView), document.fonts.load resolves with an
+ * empty array ([]) for local OS-installed fonts (which are not in the FontFaceSet).
+ * We update the host element's font-family and probe its layout to ensure WebKit
+ * resolves the local font before canvas rasterization begins.
  */
 export async function safePreloadFont(fontSize: number, fontFamily: string): Promise<boolean> {
-  if (typeof document === "undefined" || !document.fonts?.load) {
+  if (typeof document === "undefined") {
     return false
   }
 
@@ -268,9 +349,17 @@ export async function safePreloadFont(fontSize: number, fontFamily: string): Pro
     return false
   }
 
+  updateCanvasFontHostFont(trimmedFamily, safeSize)
+
   const fontSpec = `${safeSize}px ${trimmedFamily}`
   try {
-    await document.fonts.load(fontSpec)
+    if (document.fonts?.load) {
+      await document.fonts.load(fontSpec)
+    }
+    if (document.fonts?.ready) {
+      await document.fonts.ready
+    }
+    updateCanvasFontHostFont(trimmedFamily, safeSize)
     return true
   } catch {
     // Silently swallow font syntax/loading errors

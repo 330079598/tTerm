@@ -217,7 +217,11 @@ fn default_scrollback_lines() -> u32 {
 }
 
 fn default_terminal_renderer() -> String {
-    "webgl".to_string()
+    if cfg!(target_os = "macos") {
+        "canvas".to_string()
+    } else {
+        "webgl".to_string()
+    }
 }
 
 fn default_terminal_padding_left_px() -> u16 {

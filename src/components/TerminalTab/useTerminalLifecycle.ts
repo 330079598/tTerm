@@ -21,7 +21,7 @@ import type {
 } from "@/components/TerminalTab/types"
 import { resolveScrollbackLines } from "@/lib/scrollback"
 import type { TerminalRenderer } from "@/contexts/ConfigContext"
-import { safePreloadFont } from "@/lib/canvasFontHost"
+import { safePreloadFont, updateCanvasFontHostFont } from "@/lib/canvasFontHost"
 import {
   decodeOutputChunk,
   EMPTY_OUTPUT_SCAN_STATE,
@@ -243,6 +243,15 @@ export function useTerminalLifecycle({
     waitingForReconnectRef.current = false
     passwordPromptActiveRef.current = false
 
+    // Ensure WebKit resolves the local font on the canvas font host and container before warmUp
+    updateCanvasFontHostFont(fontFamilyRef.current, fontSizeRef.current)
+    container.style.fontFamily = fontFamilyRef.current
+    try {
+      void container.offsetWidth
+    } catch {
+      // Ignore in non-browser environments
+    }
+
     const term = new Terminal({
       cursorBlink: true,
       cursorStyle: cursorStyleRef.current,
@@ -318,7 +327,6 @@ export function useTerminalLifecycle({
 
     const handleFontsLoaded = () => {
       if (disposed) return
-      activeRendererAddonRef.current?.clearTextureAtlas?.()
       fitTerminalOnly()
       term.refresh(0, Math.max(0, term.rows - 1))
     }
@@ -327,7 +335,7 @@ export function useTerminalLifecycle({
     document.fonts?.addEventListener?.("loadingdone", handleFontsLoaded)
 
     void safePreloadFont(fontSizeRef.current, fontFamilyRef.current).then((loaded) => {
-      if (loaded) {
+      if (loaded && !disposed) {
         handleFontsLoaded()
       }
     })

@@ -4,6 +4,7 @@ import {
   initCanvasFontHost,
   restoreCanvasFontHost,
   safePreloadFont,
+  updateCanvasFontHostFont,
   MAX_HOST_CANVASES,
   HOST_ELEMENT_ID,
 } from "@/lib/canvasFontHost"
@@ -135,6 +136,19 @@ describe("canvasFontHost", () => {
 
     expect(canvas.parentElement).toBeNull()
     expect(canvas.isConnected).toBe(false)
+  })
+
+  it("updates host font-family and creates probe element to force WebKit resolution", () => {
+    initCanvasFontHost()
+    const host = document.getElementById(HOST_ELEMENT_ID)!
+
+    updateCanvasFontHostFont('"JetBrains Mono", monospace', 15)
+    expect(host.style.fontFamily).toBe('"JetBrains Mono", monospace')
+
+    const probe = host.querySelector<HTMLElement>("#tterm-font-probe")
+    expect(probe).toBeTruthy()
+    expect(probe?.style.fontFamily).toBe('"JetBrains Mono", monospace')
+    expect(probe?.style.fontSize).toBe("15px")
   })
 
   describe("safePreloadFont", () => {
