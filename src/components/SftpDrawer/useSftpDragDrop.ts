@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 import type { LoadSftpDirectory, SftpDirectoryListing } from "@/components/SftpDrawer/types"
 
 interface UseSftpDragDropParams {
+  isGlobalShortcutTarget: boolean
   listing: SftpDirectoryListing | null
   loadDirectory: LoadSftpDirectory
   setError: React.Dispatch<React.SetStateAction<string | null>>
@@ -23,6 +24,7 @@ interface UseSftpDragDropReturn {
 const DROP_DEDUP_WINDOW_MS = 750
 
 export function useSftpDragDrop({
+  isGlobalShortcutTarget,
   listing,
   loadDirectory,
   setError,
@@ -75,8 +77,13 @@ export function useSftpDragDrop({
     [listing, setError, t, uploadPaths]
   )
 
+  // The OS delivers a drop to the window, not to a tab, and background tabs
+  // stay mounted with their drawer open. Without the focus check every open
+  // drawer would upload the dropped file to its own current directory.
+  const acceptsWindowDrop = visible && isGlobalShortcutTarget
+
   useEffect(() => {
-    if (!visible) {
+    if (!acceptsWindowDrop) {
       return
     }
 
@@ -86,7 +93,7 @@ export function useSftpDragDrop({
       const appWindow = getCurrentWindow()
 
       unlisten = await appWindow.onDragDropEvent((event) => {
-        if (!visible) {
+        if (!acceptsWindowDrop) {
           return
         }
 
@@ -119,7 +126,7 @@ export function useSftpDragDrop({
         unlisten()
       }
     }
-  }, [handleUploadPaths, visible])
+  }, [acceptsWindowDrop, handleUploadPaths])
 
   const handleDragEnter = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()

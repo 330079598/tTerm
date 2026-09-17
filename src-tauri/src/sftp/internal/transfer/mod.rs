@@ -57,7 +57,14 @@ pub const DEFAULT_PROGRESS_INTERVAL_BYTES: u64 = 64 * 1024;
 const MIN_CHUNK_SIZE: u64 = 4 * 1024;
 /// Fallback step for a single SFTP read/write when the server does not
 /// advertise `limits@openssh.com` (mirrors russh-sftp's own default).
-const DEFAULT_IO_STEP: u64 = 256 * 1024;
+///
+/// 255 KiB, not 256 KiB: OpenSSH caps a whole SFTP message at 256 KiB, and a
+/// WRITE carries ~25 bytes of framing (type, request id, handle, offset and
+/// two length prefixes) on top of its payload. A 256 KiB payload overflows
+/// that cap, and `sftp-server` answers by killing the subsystem — so on a
+/// server predating the `limits@openssh.com` extension (OpenSSH < 8.5) not a
+/// single write is ever acknowledged and the transfer sits at 0%.
+const DEFAULT_IO_STEP: u64 = 255 * 1024;
 pub const MAX_PARALLELISM: usize = 16;
 /// Chunk requests one lane keeps in flight. SFTP multiplexes requests by id,
 /// so a lane does not have to wait for each acknowledgement before sending

@@ -115,6 +115,26 @@ fn write_remote_partial(root: &Path, part: &str, content: &[u8], bits: &[u8], ch
 }
 
 #[test]
+fn fallback_io_step_fits_openssh_max_message() {
+    // OpenSSH caps a whole SFTP message at 256 KiB and kills the subsystem
+    // when one exceeds it. A WRITE adds framing on top of the payload:
+    // type(1) + request id(4) + handle(4 + len) + offset(8) + data length(4).
+    // A server that predates `limits@openssh.com` (OpenSSH < 8.5) advertises
+    // nothing, so this fallback is what goes on the wire — and if it does not
+    // leave room for the framing, no write is ever acknowledged and the
+    // transfer stalls at 0%.
+    const OPENSSH_MAX_MSG_LENGTH: u64 = 256 * 1024;
+    let framing = 1 + 4 + (4 + 4) + 8 + 4;
+
+    for step in [io_write_step(None), io_read_step(None)] {
+        assert!(
+            step + framing <= OPENSSH_MAX_MSG_LENGTH,
+            "fallback step {step} + {framing} bytes of framing exceeds OpenSSH's {OPENSSH_MAX_MSG_LENGTH} byte message cap"
+        );
+    }
+}
+
+#[test]
 fn chunk_size_is_not_clamped_by_wire_limits() {
     // The chunk is the logical resume unit: a server advertising small
     // read/write limits (e.g. OpenSSH's ~256 KiB) must not shrink it — the
@@ -855,8 +875,7 @@ async fn small_file_without_limits_shrinks_chunks_and_resumes() {
         serde_json::from_slice(&std::fs::read(server.root().join(sidecar_path(relative))).unwrap())
             .unwrap();
     assert_eq!(
-        sidecar.chunk_size,
-        256 * 1024,
+        sidecar.chunk_size, DEFAULT_IO_STEP,
         "chunk must shrink to one write step"
     );
     assert_eq!(sidecar.total_size, data.len() as u64);

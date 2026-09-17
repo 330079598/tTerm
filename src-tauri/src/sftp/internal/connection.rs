@@ -19,6 +19,18 @@ use crate::ssh::{open_target_ssh_session, JumpChain, SecretStoreState, SshClient
 
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(300);
 const SFTP_REQUEST_TIMEOUT_SECS: u64 = 120;
+/// Bound on opening an SSH channel and negotiating the SFTP subsystem on it.
+/// `russh_sftp` only times out its own protocol requests (via
+/// `set_timeout`), which only start once a channel exists — the
+/// `channel_open_session`/`request_subsystem` calls that precede it are
+/// plain `russh` futures with no timeout of their own. A server that accepts
+/// a channel but never answers it (e.g. a session limit that is enforced by
+/// silence rather than a refusal, or a transport that stalls without
+/// resetting the socket) would otherwise hang this forever — freezing a
+/// fresh transfer at 0% with no error, since `prepare_transfer` opens a new
+/// batch of channels for every upload/download call and waits for all of
+/// them before doing any I/O.
+const SFTP_CHANNEL_SETUP_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub fn map_sftp_error(err: SftpError) -> String {
     err.to_string()
@@ -77,14 +89,9 @@ pub async fn connect_authenticated_ssh(
     .map_err(String::from)
 }
 
-async fn connect_sftp(
-    app: &AppHandle,
-    tab_id: &str,
-    plan: &SessionPlan,
-    prompts: HostPromptMap,
-) -> Result<ConnectedSftp, String> {
-    let (jump_chain, ssh) = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
-
+async fn open_control_sftp_session(
+    ssh: &client::Handle<SshClientHandler>,
+) -> Result<Arc<SftpSession>, String> {
     let channel = ssh
         .channel_open_session()
         .await
@@ -99,7 +106,23 @@ async fn connect_sftp(
         .await
         .map_err(map_sftp_error)?;
     sftp.set_timeout(SFTP_REQUEST_TIMEOUT_SECS).await;
-    let sftp = Arc::new(sftp);
+    Ok(Arc::new(sftp))
+}
+
+async fn connect_sftp(
+    app: &AppHandle,
+    tab_id: &str,
+    plan: &SessionPlan,
+    prompts: HostPromptMap,
+) -> Result<ConnectedSftp, String> {
+    let (jump_chain, ssh) = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
+
+    let sftp = tokio::time::timeout(
+        SFTP_CHANNEL_SETUP_TIMEOUT,
+        open_control_sftp_session(&ssh),
+    )
+    .await
+    .map_err(|_| "Timed out opening SFTP channel".to_string())??;
 
     Ok(ConnectedSftp {
         jump_chain,
@@ -183,6 +206,14 @@ pub async fn evict_connection(pool: &SftpConnectionPool, key: &SftpConnectionKey
 /// Open one additional SFTP subsystem channel on an existing SSH connection and
 /// wrap it as a raw session, negotiating `limits@openssh.com` when offered.
 pub async fn open_sftp_raw_session(
+    ssh: &client::Handle<SshClientHandler>,
+) -> Result<(Arc<RawSftpSession>, Option<LimitsExtension>), String> {
+    tokio::time::timeout(SFTP_CHANNEL_SETUP_TIMEOUT, open_sftp_raw_session_inner(ssh))
+        .await
+        .map_err(|_| "Timed out opening SFTP channel".to_string())?
+}
+
+async fn open_sftp_raw_session_inner(
     ssh: &client::Handle<SshClientHandler>,
 ) -> Result<(Arc<RawSftpSession>, Option<LimitsExtension>), String> {
     let channel = ssh
