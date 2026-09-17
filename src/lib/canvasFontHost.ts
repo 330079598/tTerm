@@ -229,8 +229,10 @@ export function initCanvasFontHost(): void {
   // xterm.js disables its BitmapGenerator only when the UA looks like Safari; the WKWebView UA
   // has no "Safari" token, so that guard never engages. Returning a promise that never settles
   // keeps xterm's BitmapGenerator in its initial state, making it render directly from the
-  // clean 2D canvas instead of committing a corrupted ImageBitmap. This is intentionally
-  // scoped to HTMLCanvasElement sources; other image types are passed through untouched.
+  // clean 2D canvas instead of committing a corrupted ImageBitmap.
+  // Scoped to canvases pinned as xterm-internal (TextureAtlas/CharAtlas pages, the only
+  // canvases BitmapGenerator ever calls this on) so unrelated future createImageBitmap(canvas)
+  // callers elsewhere in the app are never silently stalled.
   if (
     typeof window !== "undefined" &&
     typeof window.createImageBitmap === "function" &&
@@ -247,7 +249,11 @@ export function initCanvasFontHost(): void {
         image: ImageBitmapSource,
         ...args: unknown[]
       ): Promise<ImageBitmap> {
-        if (typeof HTMLCanvasElement !== "undefined" && image instanceof HTMLCanvasElement) {
+        if (
+          typeof HTMLCanvasElement !== "undefined" &&
+          image instanceof HTMLCanvasElement &&
+          image.getAttribute("data-pinned-font-host") === "true"
+        ) {
           // Return a pending promise that never settles so xterm's BitmapGenerator
           // never commits a corrupted ImageBitmap into the active render pipeline.
           return new Promise<ImageBitmap>(() => {})

@@ -138,6 +138,72 @@ describe("canvasFontHost", () => {
     expect(canvas.isConnected).toBe(false)
   })
 
+  describe("createImageBitmap interception on macOS", () => {
+    const originalPlatform = navigator.platform
+    const originalUserAgent = navigator.userAgent
+    let originalWindowCreateImageBitmap: typeof window.createImageBitmap | undefined
+
+    beforeEach(() => {
+      Object.defineProperty(navigator, "platform", {
+        configurable: true,
+        value: "MacIntel",
+      })
+      Object.defineProperty(navigator, "userAgent", {
+        configurable: true,
+        value: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15",
+      })
+      originalWindowCreateImageBitmap = window.createImageBitmap
+      window.createImageBitmap = vi.fn().mockResolvedValue({ close: () => {} })
+    })
+
+    afterEach(() => {
+      Object.defineProperty(navigator, "platform", {
+        configurable: true,
+        value: originalPlatform,
+      })
+      Object.defineProperty(navigator, "userAgent", {
+        configurable: true,
+        value: originalUserAgent,
+      })
+      if (originalWindowCreateImageBitmap) {
+        window.createImageBitmap = originalWindowCreateImageBitmap
+      }
+    })
+
+    it("stalls createImageBitmap for pinned xterm-internal canvases", async () => {
+      initCanvasFontHost()
+
+      const canvas = document.createElement("canvas")
+      canvas.setAttribute("data-pinned-font-host", "true")
+
+      let settled = false
+      void window.createImageBitmap(canvas).then(() => {
+        settled = true
+      })
+
+      await Promise.resolve()
+      await Promise.resolve()
+      expect(settled).toBe(false)
+    })
+
+    it("passes through createImageBitmap for canvases not recognized as xterm-internal", async () => {
+      initCanvasFontHost()
+
+      const canvas = document.createElement("canvas")
+
+      const bitmap = await window.createImageBitmap(canvas)
+      expect(bitmap).toBeTruthy()
+    })
+
+    it("passes through createImageBitmap for non-canvas sources unchanged", async () => {
+      initCanvasFontHost()
+
+      const blob = new Blob()
+      const bitmap = await window.createImageBitmap(blob as unknown as ImageBitmapSource)
+      expect(bitmap).toBeTruthy()
+    })
+  })
+
   it("updates host font-family and creates probe element to force WebKit resolution", () => {
     initCanvasFontHost()
     const host = document.getElementById(HOST_ELEMENT_ID)!
