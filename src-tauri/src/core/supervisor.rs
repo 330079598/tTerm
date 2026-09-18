@@ -12,8 +12,11 @@ use tokio::sync::{mpsc, watch, Mutex as TokioMutex};
 const RECONNECT_INITIAL_DELAY_SECS: u64 = 1;
 /// Upper bound for the (pre-jitter) backoff delay.
 const RECONNECT_MAX_DELAY_SECS: u64 = 30;
-/// A session that stayed up at least this long resets the attempt counter, so
-/// one flappy outage cannot exhaust the retry budget of a later real drop.
+/// A session that stayed up at least this long fully forgives the attempt
+/// counter, so one flappy outage cannot exhaust the retry budget of a later
+/// real drop. A reconnect that held for only part of this window still earns
+/// proportional credit instead of an all-or-nothing reset — see
+/// `decayed_attempt`.
 const RECONNECT_STABLE_RESET: Duration = Duration::from_secs(60);
 
 pub fn emit_pty_exit(app: &AppHandle, tab_id: &str, reason: Option<&str>) {
@@ -96,6 +99,21 @@ fn reconnect_nominal_secs(attempt: u32) -> u64 {
     (RECONNECT_INITIAL_DELAY_SECS << exponent).min(RECONNECT_MAX_DELAY_SECS)
 }
 
+/// Forgive part of the retry budget based on how long the last reconnect held
+/// before dropping again: a session that stayed up for the full
+/// `RECONNECT_STABLE_RESET` window is treated the same as before (fully
+/// forgiven), a session that never connected keeps the whole count, and
+/// anything in between is prorated. This lets a connection that keeps
+/// reconnecting but only holding for, say, 30-45s at a time survive far
+/// longer than a hard, immediately-failing outage — instead of both cases
+/// burning the same fixed number of attempts.
+fn decayed_attempt(attempt: u32, connected_duration: Duration) -> u32 {
+    let stable_secs = RECONNECT_STABLE_RESET.as_secs_f64();
+    let forgiveness = (connected_duration.as_secs_f64() / stable_secs).min(1.0);
+    let retained = attempt as f64 * (1.0 - forgiveness);
+    retained.round() as u32
+}
+
 /// Equal jitter: keep half the nominal delay fixed and randomize the rest, so
 /// retries spread out without ever collapsing to a near-zero sleep.
 fn equal_jitter(nominal_secs: u64) -> Duration {
@@ -163,11 +181,10 @@ pub fn spawn_supervisor(
             }
 
             let (reason, connected_duration) = recoverable_info.unwrap_or_default();
-            // Reset the exponential backoff attempt counter only when the connection
-            // was established and stayed up for at least RECONNECT_STABLE_RESET.
-            if connected_duration.unwrap_or_default() >= RECONNECT_STABLE_RESET {
-                attempt = 0;
-            }
+            // Forgive part of the backoff attempt counter in proportion to how
+            // long this reconnect held before dropping again, instead of only
+            // resetting it on a full RECONNECT_STABLE_RESET-long connection.
+            attempt = decayed_attempt(attempt, connected_duration.unwrap_or_default());
             attempt += 1;
 
             // Retry budget exhausted: report the disconnect. The localized
@@ -239,7 +256,25 @@ pub fn spawn_supervisor(
 
 #[cfg(test)]
 mod tests {
-    use super::{equal_jitter, reconnect_nominal_secs};
+    use super::{decayed_attempt, equal_jitter, reconnect_nominal_secs, RECONNECT_STABLE_RESET};
+    use std::time::Duration;
+
+    #[test]
+    fn decayed_attempt_is_untouched_after_an_immediate_drop() {
+        assert_eq!(decayed_attempt(5, Duration::ZERO), 5);
+    }
+
+    #[test]
+    fn decayed_attempt_is_fully_forgiven_after_a_full_stable_window() {
+        assert_eq!(decayed_attempt(5, RECONNECT_STABLE_RESET), 0);
+        assert_eq!(decayed_attempt(5, RECONNECT_STABLE_RESET * 2), 0);
+    }
+
+    #[test]
+    fn decayed_attempt_prorates_a_partial_stable_window() {
+        // Half the stable window forgives roughly half the attempts.
+        assert_eq!(decayed_attempt(4, RECONNECT_STABLE_RESET / 2), 2);
+    }
 
     #[test]
     fn nominal_backoff_doubles_then_caps() {
