@@ -1,0 +1,64 @@
+.tunnel-connector {
+  position: relative;
+  flex: 0 0 34px;
+  height: 2px;
+  margin: 0 2px;
+  border-radius: 1px;
+  background: hsl(var(--border));
+}
+
+.tunnel-connector::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -1px;
+  width: 6px;
+  height: 6px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  transform: translateY(-50%) rotate(45deg);
+  color: hsl(var(--border));
+}
+
+.tunnel-connector[data-flow="active"] {
+  background: repeating-linear-gradient(90deg, hsl(var(--success)) 0 6px, transparent 6px 12px);
+  background-size: 12px 2px;
+  animation: tunnel-flow 0.7s linear infinite;
+}
+
+.tunnel-connector[data-flow="active"]::after {
+  color: hsl(var(--success));
+}
+
+.tunnel-connector[data-flow="pending"] {
+  background: repeating-linear-gradient(90deg, hsl(var(--warning)) 0 4px, transparent 4px 10px);
+  background-size: 10px 2px;
+  animation: tunnel-flow 1.4s linear infinite;
+}
+
+.tunnel-connector[data-flow="pending"]::after {
+  color: hsl(var(--warning));
+}
+
+.tunnel-connector[data-flow="error"] {
+  background: hsl(var(--destructive) / 0.6);
+}
+
+.tunnel-connector[data-flow="error"]::after {
+  color: hsl(var(--destructive) / 0.6);
+}
+
+@keyframes tunnel-flow {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 12px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tunnel-connector[data-flow] {
+    animation: none;
+  }
+}

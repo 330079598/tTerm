@@ -12,6 +12,7 @@ mod session_log;
 mod sftp;
 mod ssh;
 mod terminal;
+mod tunnel;
 mod updater;
 
 use core::PtyMap;
@@ -143,6 +144,7 @@ pub fn run() {
         .manage(updater::PendingUpdateDownloads::default())
         .manage(secret_store)
         .manage(session_log_state)
+        .manage(tunnel::TunnelManager::default())
         .invoke_handler(tauri::generate_handler![
             backup::export_backup,
             backup::inspect_backup,
@@ -186,6 +188,12 @@ pub fn run() {
             profiles::delete_profile,
             profiles::set_profile_server_monitor_visible,
             profiles::test_connection,
+            tunnel::list_tunnels,
+            tunnel::list_tunnel_statuses,
+            tunnel::save_tunnel,
+            tunnel::delete_tunnel,
+            tunnel::start_tunnel,
+            tunnel::stop_tunnel,
             command_library::list_saved_commands,
             command_library::list_command_tags,
             command_library::create_command_tag,

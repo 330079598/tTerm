@@ -13,6 +13,7 @@ If you often connect to servers, move files between local and remote machines, o
 - **Terminal and file management in one place**: Open the SFTP drawer from an SSH session and browse, upload, download, rename, or delete remote files without switching apps.
 - **Built for multitasking**: Use multiple tabs, reorder them with drag and drop, and restore previous sessions after restarting the app.
 - **Visible transfer progress**: Uploads, downloads, and batch operations expose clear task status and progress feedback.
+- **Visual port forwarding**: Manage local, remote, and dynamic (SOCKS5) SSH tunnels from a dedicated page, with live status, traffic counters, and automatic reconnects.
 - **Safer SSH workflow**: Confirm host keys, save reusable connection profiles, and store sensitive credentials with system keyring or an encrypted local vault.
 - **Modern desktop experience**: Built with Tauri for a lightweight, fast, cross-platform app with themes, font settings, and internationalization.
 

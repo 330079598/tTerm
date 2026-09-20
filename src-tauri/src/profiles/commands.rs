@@ -616,6 +616,7 @@ fn test_connection_handler(
         user_rejected_host_key: Arc::new(AtomicBool::new(false)),
         status_options: ConnectionStatusOptions::SILENT,
         host_key_verification_mode,
+        forwarded_tcpip_tx: None,
     }
 }
 

@@ -6,10 +6,10 @@ pub(crate) mod store;
 mod types;
 
 pub use client::{measure_ssh_latency, run_single_ssh_connection, SshExitSignal};
-pub use jump::{open_target_ssh_session, JumpChain};
+pub use jump::{open_target_ssh_session, open_target_ssh_session_with_forwarding, JumpChain};
 pub use secret_store::{SecretLocation, SecretStoreState};
 pub use store::{load_legacy_password_store, now_unix_ms, remove_legacy_password_store};
 pub use types::{
-    emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode, SshClientHandler,
-    SshConnectionProgressPayload,
+    emit_connection_progress, ConnectionStatusOptions, ForwardedTcpIp, HostKeyVerificationMode,
+    SshClientHandler, SshConnectionProgressPayload,
 };

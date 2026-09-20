@@ -525,6 +525,47 @@ pub async fn open_target_ssh_session(
     status_options: ConnectionStatusOptions,
     host_key_verification_mode: HostKeyVerificationMode,
 ) -> Result<(Option<JumpChain>, client::Handle<SshClientHandler>), SshConnectError> {
+    open_target_ssh_session_with_forwarding(
+        app,
+        tab_id,
+        profile_id,
+        profile_name,
+        target_host,
+        target_port,
+        target_username,
+        target_private_key_path,
+        target_private_key_passphrase,
+        target_password,
+        keepalive_interval_secs,
+        keepalive_count_max,
+        jump_plans,
+        prompts,
+        status_options,
+        host_key_verification_mode,
+        None,
+    )
+    .await
+}
+
+pub async fn open_target_ssh_session_with_forwarding(
+    app: &AppHandle,
+    tab_id: &str,
+    profile_id: Option<&str>,
+    profile_name: &str,
+    target_host: &str,
+    target_port: u16,
+    target_username: &str,
+    target_private_key_path: Option<&str>,
+    target_private_key_passphrase: Option<&str>,
+    target_password: Option<&str>,
+    keepalive_interval_secs: u16,
+    keepalive_count_max: u16,
+    jump_plans: &[JumpHostPlan],
+    prompts: HostPromptMap,
+    status_options: ConnectionStatusOptions,
+    host_key_verification_mode: HostKeyVerificationMode,
+    forwarded_tcpip_tx: Option<tokio::sync::mpsc::UnboundedSender<crate::ssh::ForwardedTcpIp>>,
+) -> Result<(Option<JumpChain>, client::Handle<SshClientHandler>), SshConnectError> {
     let target_config = Arc::new(compatibility_client_config(
         keepalive_interval_secs as u64,
         keepalive_count_max as usize,
@@ -541,6 +582,7 @@ pub async fn open_target_ssh_session(
         user_rejected_host_key: Arc::new(AtomicBool::new(false)),
         status_options,
         host_key_verification_mode,
+        forwarded_tcpip_tx,
     };
     let host_key_rejected = handler.user_rejected_host_key.clone();
 

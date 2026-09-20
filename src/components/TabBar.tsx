@@ -2,9 +2,17 @@ import "@/components/TabBar.css"
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useTranslation } from "react-i18next"
-import { ChevronDown, ChevronLeft, ChevronRight, Search, Settings, X } from "lucide-react"
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  Settings,
+  Waypoints,
+  X,
+} from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Tab, TabContextMenuAction } from "@/types/tab"
+import { isPageTab, Tab, TabContextMenuAction } from "@/types/tab"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
 
 const TAB_OVERFLOW_THRESHOLD = 16
@@ -119,7 +127,7 @@ const TabItem = React.memo(function TabItem({
         closeTabsToRight: t("contextMenu.closeTabsToRight"),
       })
 
-      if (tab.type === "settings") {
+      if (isPageTab(tab)) {
         onContextMenu(e, tab, [
           { label: t("contextMenu.newTab"), action: "new", icon: "plus" },
           { separator: true, label: "", action: "" },
@@ -212,6 +220,7 @@ const TabItem = React.memo(function TabItem({
         >
           <span className="tab-number">{index + 1}</span>
           {tab.type === "settings" && <Settings className="tab-icon" size={13} />}
+          {tab.type === "tunnels" && <Waypoints className="tab-icon" size={13} />}
           <span className="tab-title">{tab.title}</span>
           <button
             className="tab-close"
@@ -762,6 +771,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                       >
                         <span className="tab-overflow-number">{tabIndex + 1}</span>
                         {tab.type === "settings" && <Settings className="tab-icon" size={13} />}
+                        {tab.type === "tunnels" && <Waypoints className="tab-icon" size={13} />}
                         <span className="tab-overflow-title">{tab.title}</span>
                         {connectionMeta.primary && (
                           <span className="tab-overflow-meta">
@@ -793,6 +803,7 @@ export const TabBar: React.FC<TabBarProps> = ({
         createPortal(
           <div ref={dragGhostRef} className="tab-drag-ghost" aria-hidden="true">
             {dragGhostTab.type === "settings" && <Settings className="tab-icon" size={13} />}
+            {dragGhostTab.type === "tunnels" && <Waypoints className="tab-icon" size={13} />}
             <span className="tab-drag-ghost-title">{dragGhostTab.title}</span>
           </div>,
           document.body

@@ -604,6 +604,87 @@
     "en": "English",
     "zh": "中文"
   },
+  "tunnels": {
+    "title": "Port Forwarding",
+    "description": "Reach private services through SSH, or expose local ones to a server.",
+    "new": "New tunnel",
+    "newTitle": "New tunnel",
+    "editTitle": "Edit tunnel",
+    "dialogDescription": "Forward a port through an SSH host you have already saved.",
+    "edit": "Edit",
+    "delete": "Delete",
+    "start": "Start",
+    "stop": "Stop",
+    "runningCount": "{{count}} running",
+    "emptyTitle": "No tunnels yet",
+    "emptyDescription": "Create a local, remote or dynamic (SOCKS5) forward and switch it on whenever you need it.",
+    "hostMissing": "The saved host for this tunnel was deleted.",
+    "loadFailed": "Failed to load tunnels",
+    "startFailed": "Could not start the tunnel",
+    "deleteFailed": "Failed to delete tunnel",
+    "deleteConfirmTitle": "Delete this tunnel?",
+    "deleteConfirmDescription": "“{{name}}” will be stopped and removed.",
+    "state": {
+      "stopped": "Stopped",
+      "starting": "Starting…",
+      "running": "Running",
+      "reconnecting": "Reconnecting…",
+      "error": "Failed"
+    },
+    "kinds": {
+      "local": {
+        "title": "Local",
+        "badge": "Local",
+        "description": "Open a port on this device that reaches a service the SSH host can see."
+      },
+      "remote": {
+        "title": "Remote",
+        "badge": "Remote",
+        "description": "Open a port on the server that reaches a service on this device."
+      },
+      "dynamic": {
+        "title": "Dynamic",
+        "badge": "SOCKS5",
+        "description": "Run a SOCKS5 proxy here that sends traffic out through the SSH host."
+      }
+    },
+    "route": {
+      "device": "This device",
+      "proxy": "SOCKS5 proxy",
+      "server": "SSH host",
+      "target": "Destination",
+      "anyDestination": "Any address"
+    },
+    "form": {
+      "type": "Tunnel type",
+      "host": "SSH host",
+      "hostPlaceholder": "Choose a saved host…",
+      "noHosts": "Save an SSH connection first, then come back to add a tunnel.",
+      "name": "Name",
+      "namePlaceholder": "e.g. Production DB",
+      "localBind": "Listen on this device",
+      "remoteBind": "Listen on the server",
+      "localDest": "Forward to (from the SSH host)",
+      "remoteDest": "Forward to (from this device)",
+      "port": "Port",
+      "exposedWarning": "This address is reachable by other devices on your network. Use 127.0.0.1 to keep the tunnel private to this device.",
+      "equivalent": "Equivalent OpenSSH command"
+    },
+    "stats": {
+      "connections": "{{count}} active",
+      "total": "{{count}} total",
+      "up": "Sent",
+      "down": "Received"
+    },
+    "errors": {
+      "nameRequired": "Give the tunnel a name.",
+      "hostRequired": "Choose an SSH host.",
+      "bindHostRequired": "Enter an address to listen on.",
+      "bindPortInvalid": "Enter a port from 1 to 65535.",
+      "destHostRequired": "Enter a destination host.",
+      "destPortInvalid": "Enter a port from 1 to 65535."
+    }
+  },
   "profiles": {
     "title": "Saved Connections",
     "empty": "No saved connections yet",

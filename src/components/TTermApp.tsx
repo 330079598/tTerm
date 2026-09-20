@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { platform } from "@tauri-apps/plugin-os"
 import type { SerializedDockview } from "dockview-react"
-import { BookMarked, Library, Minus, Plus, Settings, Square, X } from "lucide-react"
+import { BookMarked, Library, Minus, Plus, Settings, Square, Waypoints, X } from "lucide-react"
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -51,7 +51,7 @@ import {
 } from "@/lib/recentCommands"
 import { getAdjacentTabId, getTabIdsForCloseAction } from "@/lib/tabClosing"
 import { getSiblingTabId, getTabIdAtPosition } from "@/lib/tabNavigation"
-import { Tab } from "@/types/tab"
+import { isPageTab, Tab } from "@/types/tab"
 import type { CommandDraft, ExecutedCommand, RecentCommand, SavedCommand } from "@/types/command"
 import type {
   BroadcastMode,
@@ -163,6 +163,8 @@ export const TTermApp: React.FC = () => {
     addTab,
     openSettingsTab,
     renameSettingsTab,
+    openTunnelsTab,
+    renameTunnelsTab,
     removeTabs,
     setActiveTab,
     moveTab,
@@ -208,6 +210,7 @@ export const TTermApp: React.FC = () => {
     useTransferManager()
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const settingsTabTitle = t("settings.title", { defaultValue: SETTINGS_TAB_TITLE })
+  const tunnelsTabTitle = t("tunnels.title", { defaultValue: "Port Forwarding" })
   const shouldPromptStartupVaultUnlock =
     isLoaded &&
     config.secret_vault_enabled &&
@@ -805,6 +808,10 @@ export const TTermApp: React.FC = () => {
   }, [renameSettingsTab, settingsTabTitle])
 
   useEffect(() => {
+    renameTunnelsTab(tunnelsTabTitle)
+  }, [renameTunnelsTab, tunnelsTabTitle])
+
+  useEffect(() => {
     if (!isLoaded) {
       return
     }
@@ -1065,7 +1072,7 @@ export const TTermApp: React.FC = () => {
       if (tab) {
         stopLiveSource(tab.id, tab.sessionNonce ?? 0)
       }
-      if (tab?.type !== "settings" && tab?.type !== "remote-file-editor") {
+      if (!isPageTab(tab) && tab?.type !== "remote-file-editor") {
         cleanupConnection(id)
       }
       if (activeTabIdRef.current === id && preferredActiveTabId) {
@@ -1111,7 +1118,7 @@ export const TTermApp: React.FC = () => {
 
       for (const targetTab of targetTabs) {
         stopLiveSource(targetTab.id, targetTab.sessionNonce ?? 0)
-        if (targetTab.type !== "settings" && targetTab.type !== "remote-file-editor") {
+        if (!isPageTab(targetTab) && targetTab.type !== "remote-file-editor") {
           cleanupConnection(targetTab.id)
         }
       }
@@ -1349,6 +1356,10 @@ export const TTermApp: React.FC = () => {
   const handleSettingsClick = useCallback(() => {
     openSettingsTab(settingsTabTitle)
   }, [openSettingsTab, settingsTabTitle])
+
+  const handleTunnelsClick = useCallback(() => {
+    openTunnelsTab(tunnelsTabTitle)
+  }, [openTunnelsTab, tunnelsTabTitle])
 
   const activeTerminalTab = useMemo(() => {
     const tab = tabs.find((candidate) => candidate.id === activeTabId)
@@ -1637,6 +1648,14 @@ export const TTermApp: React.FC = () => {
         <div className="drag-space" data-tauri-drag-region></div>
 
         <div className="title-bar-right" style={{ paddingRight: `${nativeControlsReservePx}px` }}>
+          <button
+            className="tab-action settings-button"
+            onClick={handleTunnelsClick}
+            aria-label={tunnelsTabTitle}
+            title={tunnelsTabTitle}
+          >
+            <Waypoints size={16} />
+          </button>
           <button
             className="tab-action settings-button"
             onClick={handleSettingsClick}

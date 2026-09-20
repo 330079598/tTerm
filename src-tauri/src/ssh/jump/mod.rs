@@ -3,4 +3,7 @@ pub mod connect;
 mod handler;
 
 pub use config::compatibility_client_config;
-pub use connect::{connect_via_jump_chain, open_target_ssh_session, JumpChain};
+pub use connect::{
+    connect_via_jump_chain, open_target_ssh_session, open_target_ssh_session_with_forwarding,
+    JumpChain,
+};

@@ -33,6 +33,7 @@ import {
   PanelsTopLeft,
   Rows2,
   Settings,
+  Waypoints,
   X,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -41,7 +42,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { TerminalTab } from "@/components/TerminalTab"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { SavedProfile, Tab, TabContextMenuAction } from "@/types/tab"
+import { isPageTab, type SavedProfile, type Tab, type TabContextMenuAction } from "@/types/tab"
 import type { TerminalInputRequest } from "@/types/broadcast"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
 import type { LiveBroadcastState } from "@/types/broadcast"
@@ -56,6 +57,12 @@ const workspaceDockTheme = {
 const RemoteFileEditor = React.lazy(() =>
   import("@/components/RemoteFileEditor").then((module) => ({
     default: module.RemoteFileEditor,
+  }))
+)
+
+const TunnelsPanel = React.lazy(() =>
+  import("@/components/TunnelsPanel").then((module) => ({
+    default: module.TunnelsPanel,
   }))
 )
 
@@ -208,7 +215,7 @@ function getTabActions(
     }),
   ]
 
-  if (tab.type === "settings") {
+  if (isPageTab(tab)) {
     return [...commonStart, ...commonEnd]
   }
 
@@ -295,6 +302,7 @@ const WorkspaceTab = React.memo(function WorkspaceTab({
       }
     >
       {tab.type === "settings" && <Settings size={13} aria-hidden="true" />}
+      {tab.type === "tunnels" && <Waypoints size={13} aria-hidden="true" />}
       <span className="workspace-tab-title">{tab.title}</span>
       <button
         type="button"
@@ -327,7 +335,7 @@ const WorkspacePanel = React.memo(function WorkspacePanel({
 
   const isSshConnection = tab.connection?.type === "ssh" || tab.type === "ssh"
   const shouldConnect =
-    tab.type !== "settings" &&
+    !isPageTab(tab) &&
     tab.type !== "remote-file-editor" &&
     (workspace.startupConnectionsReady || !isSshConnection) &&
     (workspace.startupSessionRestoreMode === "all" ||
@@ -349,6 +357,12 @@ const WorkspacePanel = React.memo(function WorkspacePanel({
               onEditProfile={workspace.onEditProfile}
               profilesRefreshKey={workspace.profilesRefreshKey}
             />
+          </React.Suspense>
+        </ErrorBoundary>
+      ) : tab.type === "tunnels" ? (
+        <ErrorBoundary resetKey={tab.id} scope="tunnels">
+          <React.Suspense fallback={null}>
+            <TunnelsPanel profilesRefreshKey={workspace.profilesRefreshKey} />
           </React.Suspense>
         </ErrorBoundary>
       ) : tab.type === "remote-file-editor" ? (
@@ -834,9 +848,9 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
         title: tab.title,
         params: { tabId: tab.id },
         position,
-        // Settings is regular DOM content. Keeping it in Dockview's overlay layer can leave
-        // stale pixels behind when WebView2 switches back to a WebGL-backed terminal.
-        renderer: tab.type === "settings" ? "onlyWhenVisible" : "always",
+        // Settings and other app pages are regular DOM content. Keeping them in Dockview's overlay
+        // layer can leave stale pixels behind when WebView2 switches back to a WebGL-backed terminal.
+        renderer: isPageTab(tab) ? "onlyWhenVisible" : "always",
         minimumWidth: 220,
         minimumHeight: 140,
       })

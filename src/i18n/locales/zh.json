@@ -595,6 +595,87 @@
     "en": "English",
     "zh": "中文"
   },
+  "tunnels": {
+    "title": "端口转发",
+    "description": "通过 SSH 访问内网服务，或把本机服务暴露到服务器上。",
+    "new": "新建隧道",
+    "newTitle": "新建隧道",
+    "editTitle": "编辑隧道",
+    "dialogDescription": "通过已保存的 SSH 主机转发端口。",
+    "edit": "编辑",
+    "delete": "删除",
+    "start": "启动",
+    "stop": "停止",
+    "runningCount": "{{count}} 个运行中",
+    "emptyTitle": "还没有隧道",
+    "emptyDescription": "创建本地、远程或动态（SOCKS5）转发，需要时一键开启。",
+    "hostMissing": "此隧道所使用的已保存主机已被删除。",
+    "loadFailed": "加载隧道失败",
+    "startFailed": "无法启动隧道",
+    "deleteFailed": "删除隧道失败",
+    "deleteConfirmTitle": "删除这个隧道？",
+    "deleteConfirmDescription": "“{{name}}”将被停止并移除。",
+    "state": {
+      "stopped": "已停止",
+      "starting": "启动中…",
+      "running": "运行中",
+      "reconnecting": "重连中…",
+      "error": "失败"
+    },
+    "kinds": {
+      "local": {
+        "title": "本地转发",
+        "badge": "本地",
+        "description": "在本机开放一个端口，访问 SSH 主机能连通的服务。"
+      },
+      "remote": {
+        "title": "远程转发",
+        "badge": "远程",
+        "description": "在服务器上开放一个端口，访问本机上的服务。"
+      },
+      "dynamic": {
+        "title": "动态转发",
+        "badge": "SOCKS5",
+        "description": "在本机运行 SOCKS5 代理，流量经 SSH 主机转出。"
+      }
+    },
+    "route": {
+      "device": "本机",
+      "proxy": "SOCKS5 代理",
+      "server": "SSH 主机",
+      "target": "目标",
+      "anyDestination": "任意地址"
+    },
+    "form": {
+      "type": "隧道类型",
+      "host": "SSH 主机",
+      "hostPlaceholder": "选择已保存的主机…",
+      "noHosts": "请先保存一个 SSH 连接，再回来添加隧道。",
+      "name": "名称",
+      "namePlaceholder": "例如：生产数据库",
+      "localBind": "在本机监听",
+      "remoteBind": "在服务器上监听",
+      "localDest": "转发到（由 SSH 主机发起）",
+      "remoteDest": "转发到（由本机发起）",
+      "port": "端口",
+      "exposedWarning": "该地址可被局域网内其他设备访问。使用 127.0.0.1 可让隧道仅限本机使用。",
+      "equivalent": "等效的 OpenSSH 命令"
+    },
+    "stats": {
+      "connections": "{{count}} 个活动连接",
+      "total": "累计 {{count}} 个",
+      "up": "已发送",
+      "down": "已接收"
+    },
+    "errors": {
+      "nameRequired": "请为隧道起个名字。",
+      "hostRequired": "请选择 SSH 主机。",
+      "bindHostRequired": "请输入监听地址。",
+      "bindPortInvalid": "请输入 1–65535 之间的端口。",
+      "destHostRequired": "请输入目标主机。",
+      "destPortInvalid": "请输入 1–65535 之间的端口。"
+    }
+  },
   "profiles": {
     "title": "已保存的连接",
     "empty": "暂无已保存的连接",

@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core"
 import { useTranslation } from "react-i18next"
 import type { SerializedDockview } from "dockview-react"
 import { invokeSafe, reportError } from "@/lib/errors"
-import { Tab } from "@/types/tab"
+import { isPageTab, Tab } from "@/types/tab"
 
 interface SessionData {
   tabs: Tab[]
@@ -16,7 +16,7 @@ const SAVE_DEBOUNCE_MS = 1000 // 1 second debounce
 const SAVE_ERROR_TOAST_COOLDOWN_MS = 30_000
 
 function getPersistableTabs(tabs: Tab[]): Tab[] {
-  return tabs.filter((tab) => tab.type !== "settings" && tab.type !== "remote-file-editor")
+  return tabs.filter((tab) => !isPageTab(tab) && tab.type !== "remote-file-editor")
 }
 
 function getPersistedActiveTabId(
@@ -175,7 +175,7 @@ export function useSessionPersistence() {
   // Debounced save
   const debouncedSave = useCallback(
     (tabs: Tab[], activeTabId: string | null, layout: SerializedDockview | null) => {
-      const activeContentTab = tabs.find((tab) => tab.id === activeTabId && tab.type !== "settings")
+      const activeContentTab = tabs.find((tab) => tab.id === activeTabId && !isPageTab(tab))
       if (activeContentTab) {
         lastActiveContentTabIdRef.current = activeContentTab.id
       }

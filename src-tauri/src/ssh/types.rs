@@ -229,6 +229,11 @@ pub fn emit_connection_progress(
     let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
 }
 
+/// A connection the server opened back to us for a remote (`-R`) port forward.
+pub struct ForwardedTcpIp {
+    pub channel: russh::Channel<russh::client::Msg>,
+}
+
 #[derive(Clone)]
 pub struct SshClientHandler {
     pub app: tauri::AppHandle,
@@ -241,10 +246,28 @@ pub struct SshClientHandler {
     pub user_rejected_host_key: Arc<AtomicBool>,
     pub status_options: ConnectionStatusOptions,
     pub host_key_verification_mode: HostKeyVerificationMode,
+    /// Receives channels the server opens for remote port forwards. `None`
+    /// for sessions that never request one; such channels are dropped.
+    pub forwarded_tcpip_tx: Option<tokio::sync::mpsc::UnboundedSender<ForwardedTcpIp>>,
 }
 
 impl russh::client::Handler for SshClientHandler {
     type Error = russh::Error;
+
+    async fn server_channel_open_forwarded_tcpip(
+        &mut self,
+        channel: russh::Channel<russh::client::Msg>,
+        _connected_address: &str,
+        _connected_port: u32,
+        _originator_address: &str,
+        _originator_port: u32,
+        _session: &mut russh::client::Session,
+    ) -> Result<(), Self::Error> {
+        if let Some(tx) = &self.forwarded_tcpip_tx {
+            let _ = tx.send(ForwardedTcpIp { channel });
+        }
+        Ok(())
+    }
 
     async fn check_server_key(
         &mut self,

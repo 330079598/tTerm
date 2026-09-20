@@ -1,5 +1,5 @@
 import { useCallback, useReducer, useRef } from "react"
-import { Tab } from "@/types/tab"
+import { isPageTab, type PageTabType, Tab } from "@/types/tab"
 
 export interface UseTabsReturn {
   tabs: Tab[]
@@ -7,6 +7,8 @@ export interface UseTabsReturn {
   addTab: (tab: Omit<Tab, "id" | "isActive">) => string
   openSettingsTab: (title: string) => void
   renameSettingsTab: (title: string) => void
+  openTunnelsTab: (title: string) => void
+  renameTunnelsTab: (title: string) => void
   removeTabs: (ids: string[], options?: RemoveTabsOptions) => void
   setActiveTab: (id: string) => void
   moveTab: (fromIndex: number, toIndex: number) => void
@@ -31,8 +33,8 @@ type TabsState = RemoveTabsResult
 type TabsAction =
   | { type: "restore"; tabs: Tab[]; activeTabId: string | null }
   | { type: "add"; tab: Tab }
-  | { type: "open-settings"; tab: Tab }
-  | { type: "rename-settings"; title: string }
+  | { type: "open-page"; tab: Tab }
+  | { type: "rename-page"; tabType: PageTabType; title: string }
   | { type: "remove"; ids: string[]; options?: RemoveTabsOptions }
   | { type: "set-active"; id: string }
   | { type: "move"; fromIndex: number; toIndex: number }
@@ -78,12 +80,12 @@ export function removeTabsFromState(
 }
 
 function ensureTabDefaults(tab: Tab): Tab {
-  if (tab.type === "settings" || tab.type === "remote-file-editor") {
+  if (isPageTab(tab) || tab.type === "remote-file-editor") {
     return {
       ...tab,
       hasConnected: true,
       sessionNonce: 0,
-      connection: tab.type === "settings" ? undefined : tab.connection,
+      connection: tab.type === "remote-file-editor" ? tab.connection : undefined,
     }
   }
 
@@ -135,10 +137,10 @@ function tabsReducer(state: TabsState, action: TabsAction): TabsState {
           { ...action.tab, isActive: true, hasConnected: true },
         ],
       }
-    case "open-settings": {
-      const existingSettingsTab = state.tabs.find((tab) => tab.type === "settings")
-      if (existingSettingsTab) {
-        return activateTabInState(state, existingSettingsTab.id)
+    case "open-page": {
+      const existingPageTab = state.tabs.find((tab) => tab.type === action.tab.type)
+      if (existingPageTab) {
+        return activateTabInState(state, existingPageTab.id)
       }
       return {
         activeTabId: action.tab.id,
@@ -148,10 +150,10 @@ function tabsReducer(state: TabsState, action: TabsAction): TabsState {
         ],
       }
     }
-    case "rename-settings": {
+    case "rename-page": {
       let hasChanges = false
       const tabs = state.tabs.map((tab) => {
-        if (tab.type !== "settings" || tab.title === action.title) {
+        if (tab.type !== action.tabType || tab.title === action.title) {
           return tab
         }
         hasChanges = true
@@ -180,7 +182,7 @@ function tabsReducer(state: TabsState, action: TabsAction): TabsState {
     }
     case "duplicate": {
       const sourceTab = state.tabs.find((tab) => tab.id === action.sourceId)
-      if (!sourceTab || sourceTab.type === "settings" || sourceTab.type === "remote-file-editor") {
+      if (!sourceTab || isPageTab(sourceTab) || sourceTab.type === "remote-file-editor") {
         return state
       }
       const { id: _id, isActive: _isActive, ...tabData } = sourceTab
@@ -262,24 +264,41 @@ export function useTabs(): UseTabsReturn {
     [generateTabId]
   )
 
-  const openSettingsTab = useCallback(
-    (title: string) => {
+  const openPageTab = useCallback(
+    (type: PageTabType, title: string) => {
       const tab = ensureTabDefaults({
         id: generateTabId(),
         title,
-        type: "settings",
+        type,
         isActive: true,
         isModified: false,
         hasConnected: true,
       })
-      dispatch({ type: "open-settings", tab })
+      dispatch({ type: "open-page", tab })
     },
     [generateTabId]
   )
 
-  const renameSettingsTab = useCallback((title: string) => {
-    dispatch({ type: "rename-settings", title })
+  const renamePageTab = useCallback((tabType: PageTabType, title: string) => {
+    dispatch({ type: "rename-page", tabType, title })
   }, [])
+
+  const openSettingsTab = useCallback(
+    (title: string) => openPageTab("settings", title),
+    [openPageTab]
+  )
+  const renameSettingsTab = useCallback(
+    (title: string) => renamePageTab("settings", title),
+    [renamePageTab]
+  )
+  const openTunnelsTab = useCallback(
+    (title: string) => openPageTab("tunnels", title),
+    [openPageTab]
+  )
+  const renameTunnelsTab = useCallback(
+    (title: string) => renamePageTab("tunnels", title),
+    [renamePageTab]
+  )
 
   const removeTabs = useCallback((ids: string[], options?: RemoveTabsOptions) => {
     if (ids.length === 0) return
@@ -297,7 +316,7 @@ export function useTabs(): UseTabsReturn {
   const duplicateTab = useCallback(
     (id: string) => {
       const tab = tabs.find((candidate) => candidate.id === id)
-      if (!tab || tab.type === "settings" || tab.type === "remote-file-editor") {
+      if (!tab || isPageTab(tab) || tab.type === "remote-file-editor") {
         return null
       }
 
@@ -322,6 +341,8 @@ export function useTabs(): UseTabsReturn {
     addTab,
     openSettingsTab,
     renameSettingsTab,
+    openTunnelsTab,
+    renameTunnelsTab,
     removeTabs,
     setActiveTab,
     moveTab,

@@ -64,7 +64,7 @@ export type TerminalShellType =
   | "git-bash"
   | "custom"
 export type ConnectionType = "terminal" | "ssh"
-export type TabType = ConnectionType | "settings" | "remote-file-editor"
+export type TabType = ConnectionType | "settings" | "tunnels" | "remote-file-editor"
 
 export interface JumpHostConnection {
   host: string
@@ -120,6 +120,13 @@ export interface Tab {
     size: number
     modifiedAt?: number
   }
+}
+
+/** Singleton app pages that live in a tab but have no connection or session. */
+export type PageTabType = Extract<TabType, "settings" | "tunnels">
+
+export function isPageTab(tab: Pick<Tab, "type"> | null | undefined): boolean {
+  return tab?.type === "settings" || tab?.type === "tunnels"
 }
 
 export interface TabContextMenuAction {
