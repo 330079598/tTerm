@@ -26,6 +26,8 @@ import {
   isTerminalConnectionUnavailable,
   resolveSavedPasswordInjectionTargets,
 } from "@/components/TTermApp/ttermAppUtils"
+import { TunnelHostKeyPrompt } from "@/components/TunnelsPanel/TunnelHostKeyPrompt"
+import { useTunnelAutoStart } from "@/components/TunnelsPanel/useTunnelAutoStart"
 import { VaultStartupUnlockDialog } from "@/components/VaultStartupUnlockDialog"
 import { formatBytes, MAX_EDIT_FILE_BYTES } from "@/components/SftpDrawer/sftpDrawerUtils"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
@@ -221,6 +223,7 @@ export const TTermApp: React.FC = () => {
     !secretStatus.vaultUnlocked &&
     !startupVaultUnlockDismissed
   const startupConnectionsReady = !shouldPromptStartupVaultUnlock
+  useTunnelAutoStart(isLoaded && startupConnectionsReady)
 
   const stopLiveBroadcast = useCallback(() => {
     broadcastGenerationRef.current += 1
@@ -1784,6 +1787,7 @@ export const TTermApp: React.FC = () => {
         onClose={handleRenameClose}
       />
 
+      <TunnelHostKeyPrompt />
       <VaultStartupUnlockDialog
         open={shouldPromptStartupVaultUnlock}
         onClose={() => setStartupVaultUnlockDismissed(true)}

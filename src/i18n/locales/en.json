@@ -629,7 +629,8 @@
       "starting": "Starting…",
       "running": "Running",
       "reconnecting": "Reconnecting…",
-      "error": "Failed"
+      "error": "Failed",
+      "needsCredentials": "Needs password"
     },
     "kinds": {
       "local": {
@@ -668,7 +669,20 @@
       "remoteDest": "Forward to (from this device)",
       "port": "Port",
       "exposedWarning": "This address is reachable by other devices on your network. Use 127.0.0.1 to keep the tunnel private to this device.",
+      "autoStart": "Start when tTerm opens",
+      "autoStartDescription": "Only starts on its own if no password needs to be typed; otherwise it waits for you.",
       "equivalent": "Equivalent OpenSSH command"
+    },
+    "needsCredentialsHint": "Not started automatically — press Start to enter the missing password.",
+    "stopFailed": "Could not stop the tunnel",
+    "credentials": {
+      "title": "Credentials required",
+      "description": "“{{name}}” needs the following to connect.",
+      "password": "Password for {{label}}",
+      "passphrase": "Key passphrase for {{label}}",
+      "incorrect": "That passphrase did not unlock the key. Try again.",
+      "remember": "Save in secure storage so I am not asked again",
+      "connect": "Connect"
     },
     "stats": {
       "connections": "{{count}} active",
@@ -1349,7 +1363,7 @@
     "importDescription": "Inspect a backup before applying it. A local recovery snapshot is created automatically.",
     "categories": {
       "settings": "Application settings",
-      "profiles": "Connection profiles and groups",
+      "profiles": "Connection profiles, groups, and port-forwarding tunnels",
       "session": "Session and workspace layout",
       "knownHosts": "SSH known hosts",
       "sftpDirectories": "SFTP recent directories",

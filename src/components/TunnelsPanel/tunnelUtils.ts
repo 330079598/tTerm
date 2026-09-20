@@ -1,5 +1,12 @@
 import type { SavedProfile } from "@/types/tab"
-import type { TunnelKind, TunnelRule, TunnelState, TunnelStatus } from "@/types/tunnel"
+import type {
+  CredentialRequest,
+  TunnelCredentials,
+  TunnelKind,
+  TunnelRule,
+  TunnelState,
+  TunnelStatus,
+} from "@/types/tunnel"
 
 export const TUNNEL_KINDS: TunnelKind[] = ["local", "remote", "dynamic"]
 
@@ -26,6 +33,7 @@ export function createEmptyTunnel(kind: TunnelKind = "local"): TunnelRule {
     bindPort: kind === "dynamic" ? 1080 : 0,
     destHost: kind === "dynamic" ? "" : "localhost",
     destPort: 0,
+    autoStart: false,
   }
 }
 
@@ -160,7 +168,7 @@ export function formatUptime(connectedAt: number | null, now: number): string {
 }
 
 export function isTunnelActive(state: TunnelState): boolean {
-  return state !== "stopped" && state !== "error"
+  return state !== "stopped" && state !== "error" && state !== "needsCredentials"
 }
 
 export function stoppedStatus(id: string): TunnelStatus {
@@ -176,4 +184,41 @@ export function stoppedStatus(id: string): TunnelStatus {
     connectedAt: null,
     retryAttempt: 0,
   }
+}
+
+export function credentialFieldKey(request: Pick<CredentialRequest, "hop" | "kind">): string {
+  return `${request.hop ?? "target"}:${request.kind}`
+}
+
+/**
+ * Folds one round of answers into what has been entered so far. Later rounds
+ * only re-ask for what was wrong, so earlier answers must be carried along.
+ */
+export function mergeCredentials(
+  previous: TunnelCredentials,
+  requests: CredentialRequest[],
+  values: Record<string, string>,
+  remember: boolean
+): TunnelCredentials {
+  const next: TunnelCredentials = {
+    ...previous,
+    jumpHosts: (previous.jumpHosts ?? []).map((entry) => ({ ...entry })),
+    remember: previous.remember || remember,
+  }
+  for (const request of requests) {
+    const value = values[credentialFieldKey(request)] ?? ""
+    if (request.hop === null) {
+      if (request.kind === "password") next.password = value
+      else next.keyPassphrase = value
+      continue
+    }
+    let entry = next.jumpHosts!.find((candidate) => candidate.index === request.hop)
+    if (!entry) {
+      entry = { index: request.hop }
+      next.jumpHosts!.push(entry)
+    }
+    if (request.kind === "password") entry.password = value
+    else entry.keyPassphrase = value
+  }
+  return next
 }

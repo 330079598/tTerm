@@ -4,21 +4,28 @@ import { listen } from "@tauri-apps/api/event"
 import { ArrowDown, ArrowUp, Pencil, Play, Plus, Square, Trash2, Waypoints } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
-import type { HostKeyPromptState } from "@/components/TerminalTab/types"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { cn, toErrorMessage } from "@/lib/utils"
 import type { SavedProfile } from "@/types/tab"
-import type { TunnelRule, TunnelState, TunnelStatus } from "@/types/tunnel"
+import type {
+  CredentialRequest,
+  StartOutcome,
+  TunnelCredentials,
+  TunnelRule,
+  TunnelState,
+  TunnelStatus,
+} from "@/types/tunnel"
+import { CredentialsDialog } from "@/components/TunnelsPanel/CredentialsDialog"
 import { TunnelDialog } from "@/components/TunnelsPanel/TunnelDialog"
 import { TunnelRoute } from "@/components/TunnelsPanel/TunnelRoute"
 import {
   formatBytes,
   formatUptime,
   isTunnelActive,
+  mergeCredentials,
   profileLabel,
   stoppedStatus,
 } from "@/components/TunnelsPanel/tunnelUtils"
@@ -29,6 +36,7 @@ const STATUS_DOT: Record<TunnelState, string> = {
   running: "bg-success",
   reconnecting: "bg-warning animate-pulse",
   error: "bg-destructive",
+  needsCredentials: "bg-warning",
 }
 
 interface TunnelsPanelProps {
@@ -139,6 +147,13 @@ const TunnelCard = React.memo(function TunnelCard({
               defaultValue: "The saved host for this tunnel was deleted.",
             })}
           </span>
+        ) : status.state === "needsCredentials" ? (
+          <span className="text-warning">
+            {t("tunnels.needsCredentialsHint", {
+              defaultValue:
+                "Not started automatically — press Start to enter the missing password.",
+            })}
+          </span>
         ) : status.message && (status.state === "error" || status.state === "reconnecting") ? (
           <span
             className={status.state === "error" ? "text-destructive" : "text-warning"}
@@ -190,7 +205,12 @@ export const TunnelsPanel: React.FC<TunnelsPanelProps> = ({ profilesRefreshKey }
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<TunnelRule | null>(null)
-  const [hostKeyPrompt, setHostKeyPrompt] = useState<HostKeyPromptState | null>(null)
+  const [credentialFlow, setCredentialFlow] = useState<{
+    rule: TunnelRule
+    requests: CredentialRequest[]
+    entered: TunnelCredentials
+    busy: boolean
+  } | null>(null)
   const [now, setNow] = useState(() => Date.now())
 
   const sshProfiles = useMemo(
@@ -223,15 +243,11 @@ export const TunnelsPanel: React.FC<TunnelsPanelProps> = ({ profilesRefreshKey }
       const offStatus = await listen<TunnelStatus>("tunnel-status", (event) =>
         applyStatus(event.payload)
       )
-      const offPrompt = await listen<HostKeyPromptState>("ssh-hostkey-prompt-tunnels", (event) =>
-        setHostKeyPrompt(event.payload)
-      )
       if (disposed) {
         offStatus()
-        offPrompt()
         return
       }
-      unlisteners.push(offStatus, offPrompt)
+      unlisteners.push(offStatus)
       try {
         await reload()
       } catch (error) {
@@ -270,19 +286,59 @@ export const TunnelsPanel: React.FC<TunnelsPanelProps> = ({ profilesRefreshKey }
     [toast]
   )
 
-  const handleToggle = useCallback(
-    async (rule: TunnelRule, status: TunnelStatus) => {
+  /**
+   * Starts a tunnel, asking for any password or key passphrase it is missing.
+   * `entered` carries answers from earlier rounds so a wrong passphrase only
+   * re-asks for that one secret.
+   */
+  const startTunnel = useCallback(
+    async (rule: TunnelRule, entered: TunnelCredentials = {}) => {
       try {
-        if (isTunnelActive(status.state)) {
-          await invoke("stop_tunnel", { id: rule.id })
-        } else {
-          await invoke("start_tunnel", { id: rule.id })
-        }
+        const outcome = await invoke<StartOutcome>("start_tunnel", {
+          id: rule.id,
+          credentials: entered,
+        })
+        setCredentialFlow(
+          outcome.status === "needsCredentials"
+            ? { rule, requests: outcome.requests, entered, busy: false }
+            : null
+        )
       } catch (error) {
+        setCredentialFlow(null)
         reportError(t("tunnels.startFailed", { defaultValue: "Could not start the tunnel" }), error)
       }
     },
     [reportError, t]
+  )
+
+  const handleCredentialsSubmit = useCallback(
+    async (values: Record<string, string>, remember: boolean) => {
+      if (!credentialFlow) return
+      const entered = mergeCredentials(
+        credentialFlow.entered,
+        credentialFlow.requests,
+        values,
+        remember
+      )
+      setCredentialFlow({ ...credentialFlow, busy: true })
+      await startTunnel(credentialFlow.rule, entered)
+    },
+    [credentialFlow, startTunnel]
+  )
+
+  const handleToggle = useCallback(
+    async (rule: TunnelRule, status: TunnelStatus) => {
+      if (!isTunnelActive(status.state)) {
+        await startTunnel(rule)
+        return
+      }
+      try {
+        await invoke("stop_tunnel", { id: rule.id })
+      } catch (error) {
+        reportError(t("tunnels.stopFailed", { defaultValue: "Could not stop the tunnel" }), error)
+      }
+    },
+    [reportError, startTunnel, t]
   )
 
   const handleSave = useCallback(
@@ -294,16 +350,14 @@ export const TunnelsPanel: React.FC<TunnelsPanelProps> = ({ profilesRefreshKey }
         // A running tunnel keeps its old settings, so restart it to apply the edit.
         try {
           await invoke("stop_tunnel", { id: rule.id })
-          await invoke("start_tunnel", { id: rule.id })
         } catch (error) {
-          reportError(
-            t("tunnels.startFailed", { defaultValue: "Could not start the tunnel" }),
-            error
-          )
+          reportError(t("tunnels.stopFailed", { defaultValue: "Could not stop the tunnel" }), error)
+          return
         }
+        await startTunnel(rule)
       }
     },
-    [reload, reportError, statuses, t]
+    [reload, reportError, startTunnel, statuses, t]
   )
 
   const handleDelete = useCallback(
@@ -417,7 +471,18 @@ export const TunnelsPanel: React.FC<TunnelsPanelProps> = ({ profilesRefreshKey }
         profiles={sshProfiles}
         onSave={handleSave}
       />
-      <HostKeyPromptDialog hostKeyPrompt={hostKeyPrompt} setHostKeyPrompt={setHostKeyPrompt} />
+      {credentialFlow && (
+        <CredentialsDialog
+          key={credentialFlow.requests
+            .map((request) => `${request.hop}:${request.kind}:${request.incorrect}`)
+            .join("|")}
+          tunnelName={credentialFlow.rule.name}
+          requests={credentialFlow.requests}
+          busy={credentialFlow.busy}
+          onSubmit={handleCredentialsSubmit}
+          onCancel={() => setCredentialFlow(null)}
+        />
+      )}
       <ConfirmDialog />
     </section>
   )

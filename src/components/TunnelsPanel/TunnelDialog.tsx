@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import type { SavedProfile } from "@/types/tab"
 import type { TunnelKind, TunnelRule } from "@/types/tunnel"
@@ -314,6 +315,25 @@ const TunnelForm: React.FC<TunnelFormProps> = ({ onOpenChange, tunnel, profiles,
             </span>
           </div>
         )}
+
+        <div className="flex items-start justify-between gap-4 rounded-lg border px-3 py-2.5">
+          <div className="min-w-0">
+            <Label htmlFor="tunnel-auto-start">
+              {t("tunnels.form.autoStart", { defaultValue: "Start when tTerm opens" })}
+            </Label>
+            <p className="text-muted-foreground mt-0.5 text-xs">
+              {t("tunnels.form.autoStartDescription", {
+                defaultValue:
+                  "Only starts on its own if no password needs to be typed; otherwise it waits for you.",
+              })}
+            </p>
+          </div>
+          <Switch
+            id="tunnel-auto-start"
+            checked={draft.autoStart}
+            onCheckedChange={(checked) => update({ autoStart: checked })}
+          />
+        </div>
 
         <div>
           <div className="text-muted-foreground mb-1.5 text-xs">

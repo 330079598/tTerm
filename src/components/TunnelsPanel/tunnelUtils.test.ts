@@ -8,6 +8,8 @@ import {
   formatUptime,
   getRouteNodes,
   isTunnelActive,
+  mergeCredentials,
+  credentialFieldKey,
   parsePortInput,
   suggestTunnelName,
   validateTunnel,
@@ -32,6 +34,7 @@ function rule(overrides: Partial<TunnelRule> = {}): TunnelRule {
     bindPort: 5432,
     destHost: "db.internal",
     destPort: 5432,
+    autoStart: false,
     ...overrides,
   }
 }
@@ -151,5 +154,42 @@ describe("misc", () => {
     expect(isTunnelActive("reconnecting")).toBe(true)
     expect(isTunnelActive("stopped")).toBe(false)
     expect(isTunnelActive("error")).toBe(false)
+    expect(isTunnelActive("needsCredentials")).toBe(false)
+  })
+})
+
+describe("mergeCredentials", () => {
+  const target = { hop: null, kind: "password", label: "a@b:22", incorrect: false } as const
+  const jump = { hop: 1, kind: "passphrase", label: "o@j:22", incorrect: false } as const
+
+  it("maps answers onto the target and the right jump host", () => {
+    const merged = mergeCredentials(
+      {},
+      [target, jump],
+      { [credentialFieldKey(target)]: "pw", [credentialFieldKey(jump)]: "pp" },
+      true
+    )
+    expect(merged.password).toBe("pw")
+    expect(merged.jumpHosts).toEqual([{ index: 1, keyPassphrase: "pp" }])
+    expect(merged.remember).toBe(true)
+  })
+
+  it("keeps earlier answers when only one secret is asked again", () => {
+    const first = mergeCredentials({}, [target], { [credentialFieldKey(target)]: "pw" }, false)
+    const wrongKey = { hop: null, kind: "passphrase", label: "a@b:22", incorrect: true } as const
+    const second = mergeCredentials(
+      first,
+      [wrongKey],
+      { [credentialFieldKey(wrongKey)]: "pp" },
+      false
+    )
+    expect(second.password).toBe("pw")
+    expect(second.keyPassphrase).toBe("pp")
+    expect(first.keyPassphrase).toBeUndefined()
+  })
+
+  it("does not drop a remember choice made in an earlier round", () => {
+    const first = mergeCredentials({}, [target], { [credentialFieldKey(target)]: "pw" }, true)
+    expect(mergeCredentials(first, [], {}, false).remember).toBe(true)
   })
 })

@@ -5,6 +5,7 @@ use crate::session::SessionData;
 use crate::sftp::store::SftpDirectoryStore;
 use crate::ssh::store::KnownHostStore;
 use crate::ssh::SecretStoreState;
+use crate::tunnel::TunnelRule;
 use aes_gcm::aead::{Aead, KeyInit, Payload as AeadPayload};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};
@@ -161,6 +162,9 @@ struct BackupPayload {
     config: Option<Value>,
     profiles: Option<Value>,
     profile_groups: Option<Value>,
+    /// Port-forwarding rules; travel with `profiles` because they reference profile ids.
+    #[serde(default)]
+    tunnels: Option<Value>,
     session: Option<Value>,
     known_hosts: Option<Value>,
     sftp_directories: Option<Value>,
@@ -756,6 +760,7 @@ fn collect_payload(
         config: read_selected_json(selection.settings, "config.json")?,
         profiles: read_selected_json(selection.profiles, "profiles.json")?,
         profile_groups: read_selected_json(selection.profiles, "profile_groups.json")?,
+        tunnels: read_selected_json(selection.profiles, "tunnels.json")?,
         session: read_selected_json(selection.session, "session.json")?,
         known_hosts: read_selected_json(selection.known_hosts, "ssh_known_hosts.json")?,
         sftp_directories: read_selected_json(selection.sftp_directories, "sftp_directories.json")?,
@@ -1046,6 +1051,10 @@ fn validate_payload(payload: &BackupPayload) -> Result<(), String> {
         serde_json::from_value::<Vec<SavedProfile>>(value)
             .map_err(|error| format!("Invalid profile data in backup: {error}"))?;
     }
+    if let Some(value) = payload.tunnels.clone() {
+        serde_json::from_value::<Vec<TunnelRule>>(value)
+            .map_err(|error| format!("Invalid tunnel data in backup: {error}"))?;
+    }
     if let Some(value) = payload.session.clone() {
         serde_json::from_value::<SessionData>(value)
             .map_err(|error| format!("Invalid session data in backup: {error}"))?;
@@ -1282,6 +1291,15 @@ fn apply_payload(
                 incoming.clone()
             };
             write_json_value(&directory.join("profile_groups.json"), &final_value)?;
+        }
+        // Backups made before tunnels existed carry none; keep the current rules then.
+        if let Some(incoming) = payload.tunnels.as_ref() {
+            let final_value = if options.conflict_strategy == "merge" {
+                merge_json_array_file(&directory.join("tunnels.json"), incoming, &["id"])?
+            } else {
+                incoming.clone()
+            };
+            write_json_value(&directory.join("tunnels.json"), &final_value)?;
         }
     }
     if options.selection.session {
@@ -1643,7 +1661,7 @@ fn capture_file_snapshot(
         names.push("config.json");
     }
     if selection.profiles {
-        names.extend(["profiles.json", "profile_groups.json"]);
+        names.extend(["profiles.json", "profile_groups.json", "tunnels.json"]);
     }
     if selection.session {
         names.push("session.json");
@@ -1918,6 +1936,28 @@ mod tests {
         let merged = merge_arrays_by_keys(existing, incoming, &["id"]).unwrap();
         assert_eq!(merged.as_array().unwrap().len(), 3);
         assert_eq!(merged[0]["name"], "new");
+    }
+
+    #[test]
+    fn backups_without_tunnels_still_load_and_validate() {
+        let payload: BackupPayload =
+            serde_json::from_str(r#"{"profiles":[]}"#).expect("old payload should deserialize");
+        assert!(payload.tunnels.is_none());
+        validate_payload(&payload).expect("old payload should validate");
+    }
+
+    #[test]
+    fn tunnel_data_is_validated_on_import() {
+        let mut payload = BackupPayload::default();
+        payload.tunnels = Some(serde_json::json!([{
+            "id": "t1", "name": "db", "profileId": "p1", "kind": "local",
+            "bindHost": "127.0.0.1", "bindPort": 5432,
+            "destHost": "db.internal", "destPort": 5432
+        }]));
+        validate_payload(&payload).expect("well-formed tunnels are accepted");
+
+        payload.tunnels = Some(serde_json::json!([{ "id": "t1", "kind": "sideways" }]));
+        assert!(validate_payload(&payload).is_err());
     }
 
     #[test]

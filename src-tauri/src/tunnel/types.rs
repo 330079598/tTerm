@@ -28,6 +28,9 @@ pub struct TunnelRule {
     pub dest_host: String,
     #[serde(default)]
     pub dest_port: u16,
+    /// Start when the app opens.
+    #[serde(default)]
+    pub auto_start: bool,
 }
 
 impl TunnelRule {
@@ -74,6 +77,9 @@ pub enum TunnelState {
     Running,
     Reconnecting,
     Error,
+    /// An automatic start was skipped because a secret is missing.
+    #[serde(rename = "needsCredentials")]
+    NeedsCredentials,
 }
 
 /// Live status snapshot sent to the UI on the `tunnel-status` event.
@@ -143,6 +149,7 @@ mod tests {
             bind_port: 5432,
             dest_host: " db.internal ".into(),
             dest_port: 5432,
+            auto_start: false,
         }
     }
 

@@ -194,6 +194,7 @@ pub fn run() {
             tunnel::delete_tunnel,
             tunnel::start_tunnel,
             tunnel::stop_tunnel,
+            tunnel::auto_start_tunnels,
             command_library::list_saved_commands,
             command_library::list_command_tags,
             command_library::create_command_tag,
