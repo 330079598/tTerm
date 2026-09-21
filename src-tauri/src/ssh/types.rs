@@ -232,6 +232,9 @@ pub fn emit_connection_progress(
 /// A connection the server opened back to us for a remote (`-R`) port forward.
 pub struct ForwardedTcpIp {
     pub channel: russh::Channel<russh::client::Msg>,
+    /// The server-side port the connection arrived on; it identifies which
+    /// remote forward the connection belongs to.
+    pub connected_port: u16,
 }
 
 #[derive(Clone)]
@@ -258,13 +261,16 @@ impl russh::client::Handler for SshClientHandler {
         &mut self,
         channel: russh::Channel<russh::client::Msg>,
         _connected_address: &str,
-        _connected_port: u32,
+        connected_port: u32,
         _originator_address: &str,
         _originator_port: u32,
         _session: &mut russh::client::Session,
     ) -> Result<(), Self::Error> {
         if let Some(tx) = &self.forwarded_tcpip_tx {
-            let _ = tx.send(ForwardedTcpIp { channel });
+            let _ = tx.send(ForwardedTcpIp {
+                channel,
+                connected_port: u16::try_from(connected_port).unwrap_or(0),
+            });
         }
         Ok(())
     }

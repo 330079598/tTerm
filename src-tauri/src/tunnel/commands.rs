@@ -1,4 +1,5 @@
 use super::credentials::{apply_credentials, collect_requests, StartOutcome, TunnelCredentials};
+use super::hub::{SessionHub, SshConnection};
 use super::runtime::{run_tunnel, RunContext, TunnelReporter};
 use super::storage::{load_tunnels_from_disk, write_tunnels_to_disk};
 use super::types::{TunnelRule, TunnelState, TunnelStatus};
@@ -29,6 +30,8 @@ struct RunningTunnel {
 pub struct TunnelManager {
     running: Mutex<HashMap<String, RunningTunnel>>,
     reporters: std::sync::Mutex<HashMap<String, Arc<TunnelReporter>>>,
+    /// The SSH connections tunnels share, one per host.
+    hub: Arc<SessionHub<SshConnection>>,
     auto_started: AtomicBool,
     /// The user agreed to quit despite running tunnels.
     quit_confirmed: AtomicBool,
@@ -307,6 +310,7 @@ async fn start_rule(
             plan,
             prompts: prompts.clone(),
             reporter,
+            hub: manager.hub.clone(),
         },
         stop_rx,
     ));

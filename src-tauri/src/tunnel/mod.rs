@@ -1,6 +1,7 @@
 mod commands;
 mod credentials;
 mod forwards;
+mod hub;
 mod runtime;
 mod socks5;
 mod storage;

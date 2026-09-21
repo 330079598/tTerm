@@ -11,5 +11,5 @@ pub use secret_store::{SecretLocation, SecretStoreState};
 pub use store::{load_legacy_password_store, now_unix_ms, remove_legacy_password_store};
 pub use types::{
     emit_connection_progress, ConnectionStatusOptions, ForwardedTcpIp, HostKeyVerificationMode,
-    SshClientHandler, SshConnectionProgressPayload,
+    SshClientHandler, SshConnectError, SshConnectionProgressPayload,
 };

@@ -1,13 +1,12 @@
+use super::hub::{Lease, RouteGuard, SessionHub, SessionKey, SshConnection, SshHandle};
 use super::socks5::{self, ConnectOutcome};
 use super::types::{TunnelKind, TunnelRule, TunnelState, TunnelStats, TunnelStatus};
 use crate::core::session::SessionPlan;
 use crate::core::state::HostPromptMap;
 use crate::ssh::{
     open_target_ssh_session_with_forwarding, ConnectionStatusOptions, ForwardedTcpIp,
-    HostKeyVerificationMode, SshClientHandler,
+    HostKeyVerificationMode,
 };
-use russh::client::Handle;
-use russh::Disconnect;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -17,7 +16,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{mpsc, watch, OwnedSemaphorePermit, Semaphore};
+use tokio::sync::{watch, OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinSet;
 
 /// Event tab id shared by every tunnel; host-key prompts arrive on
@@ -42,7 +41,6 @@ const KEEPALIVE_COUNT_CEILING: u16 = 3;
 /// A session that lasted this long counts as healthy and resets the backoff.
 const STABLE_SESSION: Duration = Duration::from_secs(30);
 
-type SshHandle = Handle<SshClientHandler>;
 /// active, total, failed, bytes up, bytes down.
 type Counters = (u64, u64, u64, u64, u64);
 
@@ -597,13 +595,54 @@ fn remote_bind_address(host: &str) -> String {
     }
 }
 
-async fn run_remote_session(
+/// A `-R` listener on the server. The connection is shared with other
+/// tunnels and outlives this one, so the server must be told to stop
+/// listening however this ends.
+struct RemoteForward {
     session: Arc<SshHandle>,
-    forwarded_rx: &mut mpsc::UnboundedReceiver<ForwardedTcpIp>,
+    bind_host: String,
+    port: u16,
+    route: Option<RouteGuard<ForwardedTcpIp>>,
+    cancelled: bool,
+}
+
+impl RemoteForward {
+    /// Stops the server-side listener and waits for it, so a restart right
+    /// after can claim the same port.
+    async fn cancel(mut self) {
+        self.cancelled = true;
+        self.route.take();
+        let _ = self
+            .session
+            .cancel_tcpip_forward(self.bind_host.clone(), self.port as u32)
+            .await;
+    }
+}
+
+impl Drop for RemoteForward {
+    /// Covers the ways out that skip `cancel` (a task abort, an early return).
+    fn drop(&mut self) {
+        if self.cancelled || self.session.is_closed() {
+            return;
+        }
+        let session = self.session.clone();
+        let bind_host = self.bind_host.clone();
+        let port = self.port as u32;
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            runtime.spawn(async move {
+                let _ = session.cancel_tcpip_forward(bind_host, port).await;
+            });
+        }
+    }
+}
+
+async fn run_remote_session(
+    lease: &Lease<SshConnection>,
     rule: &TunnelRule,
     reporter: &TunnelReporter,
     stop_rx: &mut watch::Receiver<bool>,
 ) -> SessionEnd {
+    let session = lease.connection().handle.clone();
     let bind_host = remote_bind_address(&rule.bind_host);
     let bound_port = match session
         .tcpip_forward(bind_host.clone(), rule.bind_port as u32)
@@ -623,6 +662,21 @@ async fn run_remote_session(
         rule.bind_port
     } else {
         bound_port as u16
+    };
+    let Some((route, mut forwarded_rx)) = lease.register_route(bound_port) else {
+        let _ = session
+            .cancel_tcpip_forward(bind_host, bound_port as u32)
+            .await;
+        return SessionEnd::Fatal(format!(
+            "Port {bound_port} on the server is already forwarded by another tunnel"
+        ));
+    };
+    let forward = RemoteForward {
+        session: session.clone(),
+        bind_host,
+        port: bound_port,
+        route: Some(route),
+        cancelled: false,
     };
     reporter.set_bound_port(Some(bound_port));
     reporter.set_running();
@@ -663,9 +717,7 @@ async fn run_remote_session(
     };
 
     if matches!(end, SessionEnd::Stopped) {
-        let _ = session
-            .cancel_tcpip_forward(bind_host, bound_port as u32)
-            .await;
+        forward.cancel().await;
     }
     end
 }
@@ -676,6 +728,8 @@ pub struct RunContext {
     pub plan: SessionPlan,
     pub prompts: HostPromptMap,
     pub reporter: Arc<TunnelReporter>,
+    /// Shared with every other tunnel, so those to the same host share a connection.
+    pub hub: Arc<SessionHub<SshConnection>>,
 }
 
 fn backoff_delay(attempt: u32) -> Duration {
@@ -723,6 +777,7 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
         plan,
         prompts,
         reporter,
+        hub,
     } = ctx;
 
     reporter.set_state(TunnelState::Starting, None);
@@ -750,32 +805,38 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
 
     let (keepalive_interval_secs, keepalive_count_max) =
         tunnel_keepalive(plan.keepalive_interval_secs, plan.keepalive_count_max);
+    let session_key = SessionKey::for_plan(&plan);
     let mut attempt: u32 = 0;
     loop {
         if attempt > 0 {
             reporter.set_retry_attempt(attempt);
         }
 
-        let (forwarded_tx, mut forwarded_rx) = mpsc::unbounded_channel();
-        let connect = open_target_ssh_session_with_forwarding(
-            &app,
-            TUNNEL_EVENT_TAB_ID,
-            plan.profile_id.as_deref(),
-            &plan.profile_name,
-            plan.host.as_deref().unwrap_or_default(),
-            plan.port,
-            plan.username.as_deref().unwrap_or_default(),
-            plan.private_key_path.as_deref(),
-            plan.private_key_passphrase.as_deref(),
-            plan.password.as_deref(),
-            keepalive_interval_secs,
-            keepalive_count_max,
-            &plan.jump_hosts,
-            prompts.clone(),
-            ConnectionStatusOptions::QUIET,
-            HostKeyVerificationMode::PromptAndPersist,
-            (rule.kind == TunnelKind::Remote).then_some(forwarded_tx),
-        );
+        // Joins the connection another tunnel to this host already has, or
+        // opens it for the others to join.
+        let connect = hub.acquire(&session_key, |forwarded_tx| async {
+            let (jump_chain, handle) = open_target_ssh_session_with_forwarding(
+                &app,
+                TUNNEL_EVENT_TAB_ID,
+                plan.profile_id.as_deref(),
+                &plan.profile_name,
+                plan.host.as_deref().unwrap_or_default(),
+                plan.port,
+                plan.username.as_deref().unwrap_or_default(),
+                plan.private_key_path.as_deref(),
+                plan.private_key_passphrase.as_deref(),
+                plan.password.as_deref(),
+                keepalive_interval_secs,
+                keepalive_count_max,
+                &plan.jump_hosts,
+                prompts.clone(),
+                ConnectionStatusOptions::QUIET,
+                HostKeyVerificationMode::PromptAndPersist,
+                Some(forwarded_tx),
+            )
+            .await?;
+            Ok(SshConnection::new(handle, jump_chain))
+        });
         let connected = tokio::select! {
             _ = wait_for_stop(&mut stop_rx) => {
                 reporter.set_state(TunnelState::Stopped, None);
@@ -785,8 +846,8 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
             never = refuse_connections(listener.as_ref()) => match never {},
         };
 
-        let (jump_chain, session) = match connected {
-            Ok(Ok(pair)) => pair,
+        let lease = match connected {
+            Ok(Ok(lease)) => lease,
             failed => {
                 let (retryable, message) = match failed {
                     Ok(Err(err)) => (err.is_retryable(), err.to_string()),
@@ -814,31 +875,25 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
             }
         };
 
-        let session = Arc::new(session);
         let started = tokio::time::Instant::now();
         let end = match &listener {
             Some(listener) => {
                 reporter.set_running();
-                run_listener_session(session.clone(), listener, &rule, &reporter, &mut stop_rx)
-                    .await
-            }
-            None => {
-                run_remote_session(
-                    session.clone(),
-                    &mut forwarded_rx,
+                run_listener_session(
+                    lease.connection().handle.clone(),
+                    listener,
                     &rule,
                     &reporter,
                     &mut stop_rx,
                 )
                 .await
             }
+            None => run_remote_session(&lease, &rule, &reporter, &mut stop_rx).await,
         };
 
-        let _ = session
-            .disconnect(Disconnect::ByApplication, "Tunnel closed", "en")
-            .await;
-        drop(session);
-        drop(jump_chain);
+        // Other tunnels may still be using the connection; the last one out
+        // closes it.
+        drop(lease);
 
         match end {
             SessionEnd::Stopped => {
