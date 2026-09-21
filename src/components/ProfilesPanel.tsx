@@ -28,6 +28,8 @@ import { SshConfigImportDialog } from "@/components/SshConfigImportDialog"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
 import { cn } from "@/lib/utils"
 import { Tab, type ConnectionType, type SavedProfile } from "@/types/tab"
+import { findTunnelsUsingProfile } from "@/components/TunnelsPanel/profileTunnels"
+import { summarizeTunnelNames } from "@/components/TunnelsPanel/tunnelUtils"
 
 interface ProfilesPanelProps {
   onConnect: (connection: Omit<Tab, "id" | "isActive">) => void
@@ -329,9 +331,18 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
 
   const handleDelete = async (id: string) => {
     const profile = profiles.find((item) => item.id === id)
-    const deletePrompt = profile
+    const tunnels = await findTunnelsUsingProfile(id)
+    let deletePrompt = profile
       ? `${t("profiles.deleteConfirm")}\n\n${profile.name}`
       : t("profiles.deleteConfirm")
+    if (tunnels.length > 0) {
+      deletePrompt += `\n\n${t("tunnels.profileInUse", {
+        count: tunnels.length,
+        names: summarizeTunnelNames(tunnels),
+        defaultValue:
+          "{{count}} port-forwarding tunnel(s) use this host and will be stopped: {{names}}. Their rules are kept; choose another host for them afterwards.",
+      })}`
+    }
 
     const confirmed = await confirm({
       title: t("profiles.delete"),

@@ -55,6 +55,19 @@ impl TunnelManager {
             .unwrap_or_else(|| TunnelStatus::stopped(id))
     }
 
+    /// Stops every running tunnel that connects through `profile_id`.
+    pub async fn stop_for_profile(&self, profile_id: &str) {
+        let ids = load_tunnels_from_disk()
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|rule| rule.profile_id == profile_id)
+            .map(|rule| rule.id)
+            .collect::<Vec<_>>();
+        for id in ids {
+            self.stop(&id).await;
+        }
+    }
+
     fn is_running(&self, id: &str) -> bool {
         self.reporters
             .lock()

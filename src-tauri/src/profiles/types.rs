@@ -86,6 +86,9 @@ pub struct SshConfigImportOptions {
     pub overwrite_existing: bool,
     #[serde(default)]
     pub selected_hosts: Vec<String>,
+    /// Also create port-forwarding rules from the config's forward directives.
+    #[serde(default)]
+    pub import_forwards: bool,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -103,6 +106,8 @@ pub struct SshConfigImportHost {
     pub jump_hosts: Vec<SavedJumpHost>,
     pub warnings: Vec<String>,
     pub unsupported_options: Vec<String>,
+    /// `LocalForward` / `RemoteForward` / `DynamicForward` entries.
+    pub forwards: Vec<crate::tunnel::ForwardSpec>,
     pub skipped: bool,
     pub skip_reason: Option<String>,
     pub existing_profile_id: Option<String>,
@@ -122,6 +127,8 @@ pub struct SshConfigImportResult {
     pub imported: usize,
     pub updated: usize,
     pub skipped: usize,
+    pub tunnels_imported: usize,
+    pub tunnels_skipped: usize,
     pub profiles: Vec<SavedProfile>,
 }
 

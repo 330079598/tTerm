@@ -30,6 +30,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import type { SavedJumpHost, SavedProfile } from "@/types/tab"
+import type { ForwardSpec } from "@/types/tunnel"
+import { formatForward } from "@/components/TunnelsPanel/tunnelUtils"
 
 interface SshConfigImportDialogProps {
   open: boolean
@@ -50,6 +52,7 @@ interface SshConfigImportHost {
   jumpHosts: SavedJumpHost[]
   warnings: string[]
   unsupportedOptions: string[]
+  forwards: ForwardSpec[]
   skipped: boolean
   skipReason?: string
   existingProfileId?: string
@@ -65,6 +68,8 @@ interface SshConfigImportResult {
   imported: number
   updated: number
   skipped: number
+  tunnelsImported: number
+  tunnelsSkipped: number
   profiles: SavedProfile[]
 }
 
@@ -85,6 +90,7 @@ export const SshConfigImportDialog: React.FC<SshConfigImportDialogProps> = ({
   const [sourcePath, setSourcePath] = useState("~/.ssh")
   const [group, setGroup] = useState(DEFAULT_GROUP)
   const [overwriteExisting, setOverwriteExisting] = useState(false)
+  const [importForwards, setImportForwards] = useState(true)
   const [preview, setPreview] = useState<SshConfigImportPreview | null>(null)
   const [selectedHosts, setSelectedHosts] = useState<Set<string>>(new Set())
   const [loadingPreview, setLoadingPreview] = useState(false)
@@ -96,6 +102,13 @@ export const SshConfigImportDialog: React.FC<SshConfigImportDialogProps> = ({
     [preview]
   )
   const selectedCount = selectedHosts.size
+  const forwardCount = useMemo(
+    () =>
+      selectableHosts
+        .filter((host) => selectedHosts.has(host.hostPattern))
+        .reduce((total, host) => total + host.forwards.length, 0),
+    [selectableHosts, selectedHosts]
+  )
   const readyCount = selectableHosts.length
 
   const formatImportError = (err: unknown) => {
@@ -206,16 +219,25 @@ export const SshConfigImportDialog: React.FC<SshConfigImportDialogProps> = ({
           group,
           overwriteExisting,
           selectedHosts: Array.from(selectedHosts),
+          importForwards,
         },
       })
       onImported(result.profiles)
       toast({
         title: t("sshConfigImport.importComplete"),
-        description: t("sshConfigImport.importCompleteDesc", {
-          imported: result.imported,
-          updated: result.updated,
-          skipped: result.skipped,
-        }),
+        description:
+          t("sshConfigImport.importCompleteDesc", {
+            imported: result.imported,
+            updated: result.updated,
+            skipped: result.skipped,
+          }) +
+          (result.tunnelsImported > 0
+            ? " " +
+              t("sshConfigImport.importCompleteTunnels", {
+                count: result.tunnelsImported,
+                defaultValue: "Added {{count}} port forwards.",
+              })
+            : ""),
       })
       onOpenChange(false)
     } catch (err) {
@@ -315,10 +337,25 @@ export const SshConfigImportDialog: React.FC<SshConfigImportDialogProps> = ({
                 {t("sshConfigImport.selectedCount", { selected: selectedCount, total: readyCount })}
               </span>
             </label>
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <Checkbox checked={overwriteExisting} onCheckedChange={setOverwriteExisting} />
-              <span>{t("sshConfigImport.overwriteExisting")}</span>
-            </label>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <Checkbox
+                  checked={importForwards && forwardCount > 0}
+                  disabled={forwardCount === 0}
+                  onCheckedChange={setImportForwards}
+                />
+                <span>
+                  {t("sshConfigImport.importForwards", {
+                    count: forwardCount,
+                    defaultValue: "Also import port forwards ({{count}})",
+                  })}
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <Checkbox checked={overwriteExisting} onCheckedChange={setOverwriteExisting} />
+                <span>{t("sshConfigImport.overwriteExisting")}</span>
+              </label>
+            </div>
           </div>
 
           {error && (
@@ -410,6 +447,14 @@ export const SshConfigImportDialog: React.FC<SshConfigImportDialogProps> = ({
                           </div>
                         </div>
                       </div>
+
+                      {host.forwards.length > 0 && (
+                        <div className="text-muted-foreground ml-7 grid gap-0.5 font-mono text-xs">
+                          {host.forwards.map((forward) => (
+                            <div key={formatForward(forward)}>{formatForward(forward)}</div>
+                          ))}
+                        </div>
+                      )}
 
                       {(host.skipReason ||
                         host.warnings.length > 0 ||

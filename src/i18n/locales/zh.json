@@ -667,6 +667,19 @@
     "quitConfirmTitle": "隧道仍在运行，确定退出吗？",
     "quitConfirmDescription": "有 {{count}} 个端口转发隧道正在运行，退出 tTerm 后将会停止。",
     "quitConfirm": "退出",
+    "profileInUse": "有 {{count}} 个端口转发隧道使用此主机，将被停止：{{names}}。隧道规则会保留，之后可为它们重新选择主机。",
+    "profileEditedTitle": "运行中的隧道未更新",
+    "profileEditedDescription": "{{names}} 会继续使用旧的连接设置，重启后才会生效。",
+    "copyAddress": "复制地址",
+    "copied": "已复制 {{address}}",
+    "copyFailed": "复制失败",
+    "openInBrowser": "在浏览器中打开",
+    "openFailed": "无法打开浏览器",
+    "notify": {
+      "lost": "「{{name}}」连接已断开",
+      "restored": "「{{name}}」已恢复连接",
+      "failed": "「{{name}}」已停止"
+    },
     "needsCredentialsHint": "未自动启动 —— 点击“启动”并输入缺少的密码。",
     "stopFailed": "无法停止隧道",
     "credentials": {
@@ -856,7 +869,9 @@
     "errorNotFile": "选择的 SSH 配置路径不是文件。请选择配置文件或 SSH 配置目录。",
     "importSelected": "导入所选",
     "importComplete": "SSH 配置已导入",
-    "importCompleteDesc": "新增 {{imported}}，更新 {{updated}}，跳过 {{skipped}}。"
+    "importCompleteDesc": "新增 {{imported}}，更新 {{updated}}，跳过 {{skipped}}。",
+    "importForwards": "同时导入端口转发（{{count}}）",
+    "importCompleteTunnels": "新增 {{count}} 条端口转发。"
   },
   "profileGroups": {
     "title": "连接分组",

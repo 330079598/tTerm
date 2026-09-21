@@ -30,6 +30,8 @@ import { invokeSafe } from "@/lib/errors"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
 import { cn, toErrorMessage } from "@/lib/utils"
 import type { SavedProfile, Tab } from "@/types/tab"
+import { findTunnelsUsingProfile } from "@/components/TunnelsPanel/profileTunnels"
+import { summarizeTunnelNames } from "@/components/TunnelsPanel/tunnelUtils"
 
 const UNGROUPED_KEY = "__ungrouped__"
 
@@ -596,9 +598,19 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
 
   const handleDeleteProfile = React.useCallback(
     async (profile: SavedProfile) => {
+      const tunnels = await findTunnelsUsingProfile(profile.id)
+      const tunnelNote =
+        tunnels.length > 0
+          ? `\n\n${t("tunnels.profileInUse", {
+              count: tunnels.length,
+              names: summarizeTunnelNames(tunnels),
+              defaultValue:
+                "{{count}} port-forwarding tunnel(s) use this host and will be stopped: {{names}}. Their rules are kept; choose another host for them afterwards.",
+            })}`
+          : ""
       const confirmed = await confirm({
         title: t("profiles.delete"),
-        description: `${t("profiles.deleteConfirm")}\n\n${profile.name}`,
+        description: `${t("profiles.deleteConfirm")}\n\n${profile.name}${tunnelNote}`,
         confirmText: t("profiles.delete"),
         cancelText: t("common.cancel"),
         variant: "destructive",

@@ -40,6 +40,8 @@ import {
   connectionTypes,
   defaultForm,
 } from "@/components/ConnectionDialog/types"
+import { findActiveTunnelsUsingProfile } from "@/components/TunnelsPanel/profileTunnels"
+import { summarizeTunnelNames } from "@/components/TunnelsPanel/tunnelUtils"
 
 const connectionTypeIcons = {
   terminal: Terminal,
@@ -389,6 +391,19 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
       )
       if (!result.ok) {
         return
+      }
+      if (editProfile) {
+        const running = await findActiveTunnelsUsingProfile(profile.id)
+        if (running.length > 0) {
+          toast({
+            title: t("tunnels.profileEditedTitle", { defaultValue: "Running tunnels not updated" }),
+            description: t("tunnels.profileEditedDescription", {
+              names: summarizeTunnelNames(running),
+              defaultValue:
+                "{{names}} keep the previous connection settings until you restart them.",
+            }),
+          })
+        }
       }
     }
 

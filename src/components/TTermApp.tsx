@@ -28,6 +28,7 @@ import {
 } from "@/components/TTermApp/ttermAppUtils"
 import { TunnelHostKeyPrompt } from "@/components/TunnelsPanel/TunnelHostKeyPrompt"
 import { useTunnelAutoStart } from "@/components/TunnelsPanel/useTunnelAutoStart"
+import { useTunnelNotifications } from "@/components/TunnelsPanel/useTunnelNotifications"
 import { useTunnelQuitGuard } from "@/components/TunnelsPanel/useTunnelQuitGuard"
 import { VaultStartupUnlockDialog } from "@/components/VaultStartupUnlockDialog"
 import { formatBytes, MAX_EDIT_FILE_BYTES } from "@/components/SftpDrawer/sftpDrawerUtils"
@@ -226,6 +227,7 @@ export const TTermApp: React.FC = () => {
   const startupConnectionsReady = !shouldPromptStartupVaultUnlock
   useTunnelAutoStart(isLoaded && startupConnectionsReady)
   useTunnelQuitGuard(confirm)
+  useTunnelNotifications()
 
   const stopLiveBroadcast = useCallback(() => {
     broadcastGenerationRef.current += 1

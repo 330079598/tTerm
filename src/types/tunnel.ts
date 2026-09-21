@@ -27,6 +27,15 @@ export interface TunnelFailure {
   at: number
 }
 
+/** A forward found in an ssh_config, before it becomes a rule. */
+export interface ForwardSpec {
+  kind: TunnelKind
+  bindHost: string
+  bindPort: number
+  destHost: string
+  destPort: number
+}
+
 export interface TunnelStatus {
   id: string
   state: TunnelState

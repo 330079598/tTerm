@@ -676,6 +676,19 @@
     "quitConfirmTitle": "Quit while tunnels are running?",
     "quitConfirmDescription": "{{count}} port-forwarding tunnel(s) are running and will stop when tTerm quits.",
     "quitConfirm": "Quit",
+    "profileInUse": "{{count}} port-forwarding tunnel(s) use this host and will be stopped: {{names}}. Their rules are kept; choose another host for them afterwards.",
+    "profileEditedTitle": "Running tunnels not updated",
+    "profileEditedDescription": "{{names}} keep the previous connection settings until you restart them.",
+    "copyAddress": "Copy address",
+    "copied": "Copied {{address}}",
+    "copyFailed": "Could not copy",
+    "openInBrowser": "Open in browser",
+    "openFailed": "Could not open the browser",
+    "notify": {
+      "lost": "“{{name}}” lost its connection",
+      "restored": "“{{name}}” is back online",
+      "failed": "“{{name}}” stopped"
+    },
     "needsCredentialsHint": "Not started automatically — press Start to enter the missing password.",
     "stopFailed": "Could not stop the tunnel",
     "credentials": {
@@ -865,7 +878,9 @@
     "errorNotFile": "The selected SSH config path is not a file. Choose a config file or an SSH config folder.",
     "importSelected": "Import selected",
     "importComplete": "SSH config imported",
-    "importCompleteDesc": "Imported {{imported}}, updated {{updated}}, skipped {{skipped}}."
+    "importCompleteDesc": "Imported {{imported}}, updated {{updated}}, skipped {{skipped}}.",
+    "importForwards": "Also import port forwards ({{count}})",
+    "importCompleteTunnels": "Added {{count}} port forwards."
   },
   "profileGroups": {
     "title": "Connection groups",

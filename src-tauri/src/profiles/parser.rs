@@ -3,6 +3,7 @@ use super::types::{
     default_keepalive_count, default_keepalive_interval, RawSshHost, SavedJumpHost,
     SshConfigDefaults, SshConfigImportHost, SshConfigImportPreview,
 };
+use crate::tunnel::ForwardSpec;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
@@ -397,12 +398,12 @@ pub(crate) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefa
         "serveralivecountmax",
         "preferredauthentications",
         "identitiesonly",
-    ]);
-    let unsupported_tracked = HashSet::from([
-        "proxycommand",
         "localforward",
         "remoteforward",
         "dynamicforward",
+    ]);
+    let unsupported_tracked = HashSet::from([
+        "proxycommand",
         "certificatefile",
         "controlmaster",
         "controlpath",
@@ -609,6 +610,31 @@ fn parse_proxy_jump(
         .collect()
 }
 
+/// Collects a host's forward directives; ones that cannot be understood become
+/// warnings rather than failing the import.
+fn parse_forwards(
+    options: &HashMap<String, Vec<String>>,
+    warnings: &mut Vec<String>,
+) -> Vec<ForwardSpec> {
+    use crate::tunnel::{parse_forward, TunnelKind};
+
+    let mut forwards = Vec::new();
+    for (key, label, kind) in [
+        ("localforward", "LocalForward", TunnelKind::Local),
+        ("remoteforward", "RemoteForward", TunnelKind::Remote),
+        ("dynamicforward", "DynamicForward", TunnelKind::Dynamic),
+    ] {
+        for value in options.get(key).into_iter().flatten() {
+            match parse_forward(kind, value) {
+                Ok(spec) if !forwards.contains(&spec) => forwards.push(spec),
+                Ok(_) => {}
+                Err(reason) => warnings.push(format!("{label} '{value}' was skipped: {reason}.")),
+            }
+        }
+    }
+    forwards
+}
+
 pub(crate) fn build_import_host(
     raw: RawSshHost,
     defaults: &SshConfigDefaults,
@@ -662,6 +688,7 @@ pub(crate) fn build_import_host(
         private_key_path.as_deref(),
         &mut warnings,
     );
+    let forwards = parse_forwards(&raw.options, &mut warnings);
     let existing_profile_id = existing_profiles
         .iter()
         .find(|profile| profile.name == name)
@@ -680,6 +707,7 @@ pub(crate) fn build_import_host(
         jump_hosts,
         warnings,
         unsupported_options: raw.unsupported_options,
+        forwards,
         skipped,
         skip_reason,
         existing_profile_id,
@@ -807,6 +835,35 @@ Host *.internal
             Some("Wildcard Host patterns are not imported as saved profiles.")
         );
         assert_eq!(host.unsupported_options, vec!["proxycommand".to_string()]);
+    }
+
+    #[test]
+    fn parse_ssh_config_collects_forwards_and_reports_bad_ones() {
+        let config = r#"
+Host prod
+  HostName prod.example.com
+  LocalForward 5432 db.internal:5432
+  LocalForward 8080 web:80
+  RemoteForward 9000 localhost:3000
+  DynamicForward 1080
+  LocalForward nonsense
+"#;
+
+        let (raw_hosts, defaults, _) = parse_ssh_config(config);
+        let host = build_import_host(raw_hosts[0].clone(), &defaults, &[]);
+
+        assert_eq!(host.forwards.len(), 4);
+        assert_eq!(host.forwards[0].dest_host, "db.internal");
+        assert_eq!(host.forwards[2].bind_port, 9000);
+        assert_eq!(host.forwards[3].bind_port, 1080);
+        assert!(host
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("LocalForward 'nonsense' was skipped")));
+        assert!(
+            host.unsupported_options.is_empty(),
+            "forwards are supported now"
+        );
     }
 
     #[test]

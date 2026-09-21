@@ -52,6 +52,8 @@ pub fn import_ssh_config_profiles(
     let mut imported = 0;
     let mut updated = 0;
     let mut skipped = 0;
+    // (profile id, profile name, forwards) for hosts whose forwards to import.
+    let mut forward_sources: Vec<(String, String, Vec<crate::tunnel::ForwardSpec>)> = Vec::new();
 
     for host in preview.hosts {
         if host.skipped || (!import_all && !selected_hosts.contains(&host.host_pattern)) {
@@ -68,9 +70,17 @@ pub fn import_ssh_config_profiles(
             .iter()
             .position(|profile| profile.name == host.name && profile.group == group);
 
-        if existing_index.is_some() && !options.overwrite_existing {
-            skipped += 1;
-            continue;
+        if let Some(index) = existing_index {
+            if !options.overwrite_existing {
+                // The profile stays as it is, but its forwards can still be added.
+                forward_sources.push((
+                    profiles[index].id.clone(),
+                    profiles[index].name.clone(),
+                    host.forwards,
+                ));
+                skipped += 1;
+                continue;
+            }
         }
 
         let profile = SavedProfile {
@@ -97,6 +107,8 @@ pub fn import_ssh_config_profiles(
             jump_hosts: host.jump_hosts,
         };
 
+        forward_sources.push((profile.id.clone(), profile.name.clone(), host.forwards));
+
         if let Some(index) = existing_index {
             profiles[index] = profile;
             updated += 1;
@@ -117,6 +129,20 @@ pub fn import_ssh_config_profiles(
         write_profile_groups_to_disk(&groups)?;
     }
 
+    let (tunnels_imported, tunnels_skipped) = if options.import_forwards {
+        let rules = forward_sources
+            .iter()
+            .flat_map(|(profile_id, profile_name, specs)| {
+                specs
+                    .iter()
+                    .map(|spec| crate::tunnel::rule_from_spec(profile_id, profile_name, spec))
+            })
+            .collect();
+        crate::tunnel::add_rules(rules)?
+    } else {
+        (0, 0)
+    };
+
     let mut sanitized_profiles = profiles.clone();
     for profile in &mut sanitized_profiles {
         sanitize_profile(profile);
@@ -126,6 +152,8 @@ pub fn import_ssh_config_profiles(
         imported,
         updated,
         skipped,
+        tunnels_imported,
+        tunnels_skipped,
         profiles: sanitized_profiles,
     })
 }
@@ -330,11 +358,17 @@ pub fn move_profile_to_group(
 }
 
 #[tauri::command]
-pub fn delete_profile(
+pub async fn delete_profile(
     app: tauri::AppHandle,
     secret_state: tauri::State<'_, crate::ssh::SecretStoreState>,
+    tunnels: tauri::State<'_, crate::tunnel::TunnelManager>,
     id: String,
 ) -> Result<(), String> {
+    // A running tunnel holds the host's connection settings and would keep
+    // going for a host that no longer exists. Its rule is kept so the user can
+    // point it at another host.
+    tunnels.stop_for_profile(&id).await;
+
     let mut profiles = load_profiles_from_disk()?;
     if let Some(profile) = profiles.iter().find(|p| p.id == id).cloned() {
         let mut profile = profile;

@@ -4,14 +4,19 @@ import type { SavedProfile } from "@/types/tab"
 import type { TunnelRule } from "@/types/tunnel"
 import {
   buildSshCommand,
+  describeTransition,
   formatBytes,
+  formatForward,
   formatUptime,
   getRouteNodes,
   isTunnelActive,
   mergeCredentials,
   credentialFieldKey,
   parsePortInput,
+  summarizeTunnelNames,
   suggestTunnelName,
+  tunnelBrowserUrl,
+  tunnelClientAddress,
   validateTunnel,
 } from "@/components/TunnelsPanel/tunnelUtils"
 
@@ -191,5 +196,72 @@ describe("mergeCredentials", () => {
   it("does not drop a remember choice made in an earlier round", () => {
     const first = mergeCredentials({}, [target], { [credentialFieldKey(target)]: "pw" }, true)
     expect(mergeCredentials(first, [], {}, false).remember).toBe(true)
+  })
+})
+
+describe("client addresses", () => {
+  it("copies host:port for local forwards and a socks5h URL for dynamic ones", () => {
+    expect(tunnelClientAddress(rule({ bindHost: "127.0.0.1", bindPort: 5432 }), null)).toBe(
+      "127.0.0.1:5432"
+    )
+    expect(tunnelClientAddress(rule({ kind: "dynamic", bindPort: 1080 }), null)).toBe(
+      "socks5h://127.0.0.1:1080"
+    )
+  })
+
+  it("prefers the port actually bound and turns wildcards into loopback", () => {
+    expect(tunnelClientAddress(rule({ bindHost: "0.0.0.0", bindPort: 5432 }), 6000)).toBe(
+      "127.0.0.1:6000"
+    )
+    expect(tunnelClientAddress(rule({ bindHost: "::1", bindPort: 5432 }), null)).toBe("[::1]:5432")
+  })
+
+  it("has nothing to copy for remote forwards", () => {
+    expect(tunnelClientAddress(rule({ kind: "remote" }), null)).toBeNull()
+  })
+})
+
+describe("tunnelBrowserUrl", () => {
+  it("opens local forwards to well-known web ports", () => {
+    const web = rule({ bindHost: "127.0.0.1", bindPort: 9000, destPort: 8080 })
+    expect(tunnelBrowserUrl(web, null)).toBe("http://127.0.0.1:9000")
+    expect(tunnelBrowserUrl({ ...web, destPort: 443 }, null)).toBe("https://127.0.0.1:9000")
+  })
+
+  it("offers nothing for databases, SOCKS or remote forwards", () => {
+    expect(tunnelBrowserUrl(rule({ destPort: 5432 }), null)).toBeNull()
+    expect(tunnelBrowserUrl(rule({ kind: "dynamic", destPort: 0 }), null)).toBeNull()
+    expect(tunnelBrowserUrl(rule({ kind: "remote", destPort: 8080 }), null)).toBeNull()
+  })
+})
+
+describe("formatForward", () => {
+  it("describes each kind on one line", () => {
+    const base = { bindHost: "localhost", bindPort: 5432, destHost: "db", destPort: 5432 }
+    expect(formatForward({ kind: "local", ...base })).toBe("L localhost:5432 → db:5432")
+    expect(formatForward({ kind: "remote", ...base })).toBe("R localhost:5432 → db:5432")
+    expect(formatForward({ kind: "dynamic", ...base, destHost: "", destPort: 0 })).toBe(
+      "D localhost:5432"
+    )
+  })
+})
+
+describe("summarizeTunnelNames", () => {
+  it("lists a few names and counts the rest", () => {
+    const rules = ["a", "b", "c", "d", "e"].map((name) => ({ name }))
+    expect(summarizeTunnelNames(rules.slice(0, 2))).toBe("a, b")
+    expect(summarizeTunnelNames(rules)).toBe("a, b, c (+2)")
+  })
+})
+
+describe("describeTransition", () => {
+  it("reports drops, recoveries and failures only", () => {
+    expect(describeTransition("running", "reconnecting")).toBe("lost")
+    expect(describeTransition("reconnecting", "running")).toBe("restored")
+    expect(describeTransition("reconnecting", "error")).toBe("failed")
+    expect(describeTransition(undefined, "error")).toBe("failed")
+    expect(describeTransition("error", "error")).toBeNull()
+    expect(describeTransition("starting", "running")).toBeNull()
+    expect(describeTransition("running", "stopped")).toBeNull()
   })
 })

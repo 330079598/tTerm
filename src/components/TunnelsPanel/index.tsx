@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
+import { openUrl } from "@tauri-apps/plugin-opener"
 import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
+  Copy,
+  ExternalLink,
   Pencil,
   Play,
   Plus,
@@ -38,6 +41,8 @@ import {
   mergeCredentials,
   profileLabel,
   stoppedStatus,
+  tunnelBrowserUrl,
+  tunnelClientAddress,
 } from "@/components/TunnelsPanel/tunnelUtils"
 
 const STATUS_DOT: Record<TunnelState, string> = {
@@ -60,6 +65,8 @@ interface TunnelCardProps {
   hostMissing: boolean
   now: number
   onToggle: (rule: TunnelRule, status: TunnelStatus) => void
+  onCopy: (address: string) => void
+  onOpen: (url: string) => void
   onEdit: (rule: TunnelRule) => void
   onDelete: (rule: TunnelRule) => void
 }
@@ -71,6 +78,8 @@ const TunnelCard = React.memo(function TunnelCard({
   hostMissing,
   now,
   onToggle,
+  onCopy,
+  onOpen,
   onEdit,
   onDelete,
 }: TunnelCardProps) {
@@ -78,6 +87,9 @@ const TunnelCard = React.memo(function TunnelCard({
   const active = isTunnelActive(status.state)
   const shownBindPort = status.boundPort ?? rule.bindPort
   const stateLabel = t(`tunnels.state.${status.state}`, { defaultValue: status.state })
+  const running = status.state === "running"
+  const clientAddress = running ? tunnelClientAddress(rule, status.boundPort) : null
+  const browserUrl = running ? tunnelBrowserUrl(rule, status.boundPort) : null
 
   return (
     <article
@@ -104,6 +116,30 @@ const TunnelCard = React.memo(function TunnelCard({
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
+          {browserUrl && (
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={t("tunnels.openInBrowser", { defaultValue: "Open in browser" })}
+              title={`${t("tunnels.openInBrowser", { defaultValue: "Open in browser" })} · ${browserUrl}`}
+              onClick={() => onOpen(browserUrl)}
+            >
+              <ExternalLink />
+            </Button>
+          )}
+          {clientAddress && (
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={t("tunnels.copyAddress", { defaultValue: "Copy address" })}
+              title={`${t("tunnels.copyAddress", { defaultValue: "Copy address" })} · ${clientAddress}`}
+              onClick={() => onCopy(clientAddress)}
+            >
+              <Copy />
+            </Button>
+          )}
           <Button
             type="button"
             size="icon-sm"
@@ -415,6 +451,32 @@ export const TunnelsPanel: React.FC<TunnelsPanelProps> = ({ profilesRefreshKey }
     [confirm, reload, reportError, t]
   )
 
+  const handleCopy = useCallback(
+    async (address: string) => {
+      try {
+        await invoke("plugin:clipboard-manager|write_text", { text: address })
+      } catch {
+        try {
+          await navigator.clipboard.writeText(address)
+        } catch (error) {
+          reportError(t("tunnels.copyFailed", { defaultValue: "Could not copy" }), error)
+          return
+        }
+      }
+      toast({ title: t("tunnels.copied", { address, defaultValue: "Copied {{address}}" }) })
+    },
+    [reportError, t, toast]
+  )
+
+  const handleOpen = useCallback(
+    (url: string) => {
+      openUrl(url).catch((error) =>
+        reportError(t("tunnels.openFailed", { defaultValue: "Could not open the browser" }), error)
+      )
+    },
+    [reportError, t]
+  )
+
   const openCreate = () => {
     setEditing(null)
     setDialogOpen(true)
@@ -488,6 +550,8 @@ export const TunnelsPanel: React.FC<TunnelsPanelProps> = ({ profilesRefreshKey }
                   hostMissing={profiles.length > 0 && !profile}
                   now={now}
                   onToggle={handleToggle}
+                  onCopy={handleCopy}
+                  onOpen={handleOpen}
                   onEdit={openEdit}
                   onDelete={handleDelete}
                 />
