@@ -679,7 +679,9 @@
       "connections": "{{count}} 个活动连接",
       "total": "累计 {{count}} 个",
       "up": "已发送",
-      "down": "已接收"
+      "down": "已接收",
+      "failed": "{{count}} 次失败",
+      "ago": "{{time}}前"
     },
     "errors": {
       "nameRequired": "请为隧道起个名字。",

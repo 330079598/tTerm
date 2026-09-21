@@ -30,12 +30,18 @@ const CHANNEL_OPEN_TIMEOUT: Duration = Duration::from_secs(15);
 const DEST_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const SOCKS_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 const HEALTH_TICK: Duration = Duration::from_secs(1);
-const MAX_RECONNECT_ATTEMPTS: u32 = 8;
 const MAX_BACKOFF_SECS: u64 = 30;
+/// Tunnels sit idle for long stretches, so a silent drop (NAT timeout, sleeping
+/// laptop) must be noticed quickly whatever the profile's terminal keepalive
+/// says: at most 3 missed probes 30 seconds apart.
+const KEEPALIVE_INTERVAL_CEILING_SECS: u16 = 30;
+const KEEPALIVE_COUNT_CEILING: u16 = 3;
 /// A session that lasted this long counts as healthy and resets the backoff.
 const STABLE_SESSION: Duration = Duration::from_secs(30);
 
 type SshHandle = Handle<SshClientHandler>;
+/// active, total, failed, bytes up, bytes down.
+type Counters = (u64, u64, u64, u64, u64);
 
 struct StatusInner {
     state: TunnelState,
@@ -43,7 +49,7 @@ struct StatusInner {
     bound_port: Option<u16>,
     connected_at: Option<u64>,
     retry_attempt: u32,
-    last_emitted_counters: (u64, u64, u64, u64),
+    last_emitted_counters: Counters,
 }
 
 /// Holds a tunnel's live state and pushes changes to the UI.
@@ -66,15 +72,16 @@ impl TunnelReporter {
                 bound_port: None,
                 connected_at: None,
                 retry_attempt: 0,
-                last_emitted_counters: (0, 0, 0, 0),
+                last_emitted_counters: (0, 0, 0, 0, 0),
             }),
         })
     }
 
-    fn counters(&self) -> (u64, u64, u64, u64) {
+    fn counters(&self) -> Counters {
         (
             self.stats.active_connections.load(Ordering::Relaxed),
             self.stats.total_connections.load(Ordering::Relaxed),
+            self.stats.failed_connections.load(Ordering::Relaxed),
             self.stats.bytes_up.load(Ordering::Relaxed),
             self.stats.bytes_down.load(Ordering::Relaxed),
         )
@@ -82,7 +89,7 @@ impl TunnelReporter {
 
     pub fn snapshot(&self) -> TunnelStatus {
         let inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-        let (active, total, up, down) = self.counters();
+        let (active, total, failed, up, down) = self.counters();
         TunnelStatus {
             id: self.id.clone(),
             state: inner.state,
@@ -90,10 +97,12 @@ impl TunnelReporter {
             bound_port: inner.bound_port,
             active_connections: active,
             total_connections: total,
+            failed_connections: failed,
             bytes_up: up,
             bytes_down: down,
             connected_at: inner.connected_at,
             retry_attempt: inner.retry_attempt,
+            last_failure: self.stats.last_failure(),
         }
     }
 
@@ -264,12 +273,58 @@ where
     let _ = tokio::io::copy_bidirectional(&mut local, &mut remote).await;
 }
 
+/// Why the server could not open a channel to a destination.
+#[derive(Debug, PartialEq, Eq)]
+enum ChannelFailure {
+    Prohibited,
+    ConnectFailed,
+    ResourceShortage,
+    TimedOut,
+    Other(String),
+}
+
+impl ChannelFailure {
+    fn from_error(err: russh::Error) -> Self {
+        match err {
+            russh::Error::ChannelOpenFailure(reason) => match reason {
+                russh::ChannelOpenFailure::AdministrativelyProhibited => Self::Prohibited,
+                russh::ChannelOpenFailure::ConnectFailed => Self::ConnectFailed,
+                russh::ChannelOpenFailure::ResourceShortage => Self::ResourceShortage,
+                _ => Self::Other("the server rejected the channel".to_string()),
+            },
+            other => Self::Other(format!("SSH error: {other}")),
+        }
+    }
+
+    fn describe(&self, host: &str, port: u16) -> String {
+        let reason = match self {
+            Self::Prohibited => "the server does not allow forwarding to this destination",
+            Self::ConnectFailed => {
+                "the server could not connect (connection refused or host unreachable)"
+            }
+            Self::ResourceShortage => "the server is out of resources for new channels",
+            Self::TimedOut => "timed out waiting for the server to open the connection",
+            Self::Other(reason) => reason.as_str(),
+        };
+        format!("{host}:{port}: {reason}")
+    }
+
+    fn socks_outcome(&self) -> ConnectOutcome {
+        match self {
+            Self::Prohibited => ConnectOutcome::NotAllowed,
+            Self::ConnectFailed => ConnectOutcome::Refused,
+            Self::TimedOut => ConnectOutcome::TimedOut,
+            Self::ResourceShortage | Self::Other(_) => ConnectOutcome::Failed,
+        }
+    }
+}
+
 async fn open_direct_channel(
     session: &SshHandle,
     host: &str,
     port: u16,
     peer: SocketAddr,
-) -> Option<russh::Channel<russh::client::Msg>> {
+) -> Result<russh::Channel<russh::client::Msg>, ChannelFailure> {
     match tokio::time::timeout(
         CHANNEL_OPEN_TIMEOUT,
         session.channel_open_direct_tcpip(
@@ -281,8 +336,9 @@ async fn open_direct_channel(
     )
     .await
     {
-        Ok(Ok(channel)) => Some(channel),
-        _ => None,
+        Ok(Ok(channel)) => Ok(channel),
+        Ok(Err(err)) => Err(ChannelFailure::from_error(err)),
+        Err(_) => Err(ChannelFailure::TimedOut),
     }
 }
 
@@ -295,8 +351,9 @@ async fn forward_local_connection(
     stats: Arc<TunnelStats>,
 ) {
     let _guard = ConnectionGuard::new(&stats);
-    if let Some(channel) = open_direct_channel(&session, &dest_host, dest_port, peer).await {
-        pipe(tcp, channel.into_stream(), &stats, true).await;
+    match open_direct_channel(&session, &dest_host, dest_port, peer).await {
+        Ok(channel) => pipe(tcp, channel.into_stream(), &stats, true).await,
+        Err(failure) => stats.record_failure(failure.describe(&dest_host, dest_port)),
     }
 }
 
@@ -316,7 +373,7 @@ async fn forward_socks_connection(
         return;
     };
     match open_direct_channel(&session, &host, port, peer).await {
-        Some(channel) => {
+        Ok(channel) => {
             if socks5::write_outcome(&mut tcp, ConnectOutcome::Success)
                 .await
                 .is_ok()
@@ -324,8 +381,9 @@ async fn forward_socks_connection(
                 pipe(tcp, channel.into_stream(), &stats, true).await;
             }
         }
-        None => {
-            let _ = socks5::write_outcome(&mut tcp, ConnectOutcome::Refused).await;
+        Err(failure) => {
+            stats.record_failure(failure.describe(&host, port));
+            let _ = socks5::write_outcome(&mut tcp, failure.socks_outcome()).await;
         }
     }
 }
@@ -344,7 +402,12 @@ async fn forward_remote_connection(
     .await;
     match connect {
         Ok(Ok(tcp)) => pipe(tcp, forwarded.channel.into_stream(), &stats, false).await,
-        _ => {
+        failed => {
+            let reason = match failed {
+                Ok(Err(err)) => err.to_string(),
+                _ => "timed out".to_string(),
+            };
+            stats.record_failure(format!("{dest_host}:{dest_port}: {reason}"));
             let _ = forwarded.channel.close().await;
         }
     }
@@ -487,6 +550,22 @@ fn backoff_delay(attempt: u32) -> Duration {
     Duration::from_secs((1u64 << attempt.min(6)).min(MAX_BACKOFF_SECS))
 }
 
+/// Clamps a profile's keepalive settings to what a tunnel needs; zero means
+/// "unset" and gets the ceiling.
+fn tunnel_keepalive(interval_secs: u16, count_max: u16) -> (u16, u16) {
+    let clamp = |value: u16, ceiling: u16| {
+        if value == 0 {
+            ceiling
+        } else {
+            value.min(ceiling)
+        }
+    };
+    (
+        clamp(interval_secs, KEEPALIVE_INTERVAL_CEILING_SECS),
+        clamp(count_max, KEEPALIVE_COUNT_CEILING),
+    )
+}
+
 /// Sleeps for `delay`, returning `false` if a stop arrived first.
 async fn sleep_unless_stopped(delay: Duration, stop_rx: &mut watch::Receiver<bool>) -> bool {
     tokio::select! {
@@ -495,8 +574,10 @@ async fn sleep_unless_stopped(delay: Duration, stop_rx: &mut watch::Receiver<boo
     }
 }
 
-/// Drives one tunnel until it is stopped or fails permanently, reconnecting
-/// with capped backoff while the SSH connection is lost.
+/// Drives one tunnel until it is stopped or fails permanently. While the SSH
+/// connection is lost or unreachable it reconnects indefinitely with capped
+/// backoff; only errors that retrying cannot fix (rejected credentials, a
+/// server that forbids forwarding) end it.
 pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
     let RunContext {
         app,
@@ -529,6 +610,8 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
         }
     };
 
+    let (keepalive_interval_secs, keepalive_count_max) =
+        tunnel_keepalive(plan.keepalive_interval_secs, plan.keepalive_count_max);
     let mut attempt: u32 = 0;
     loop {
         if attempt > 0 {
@@ -547,8 +630,8 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
             plan.private_key_path.as_deref(),
             plan.private_key_passphrase.as_deref(),
             plan.password.as_deref(),
-            plan.keepalive_interval_secs,
-            plan.keepalive_count_max,
+            keepalive_interval_secs,
+            keepalive_count_max,
             &plan.jump_hosts,
             prompts.clone(),
             ConnectionStatusOptions::QUIET,
@@ -570,16 +653,19 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
                     Ok(Err(err)) => (err.is_retryable(), err.to_string()),
                     _ => (true, "Timed out connecting to the SSH server".to_string()),
                 };
-                attempt += 1;
-                if !retryable || attempt > MAX_RECONNECT_ATTEMPTS {
+                if !retryable {
                     reporter.set_state(TunnelState::Error, Some(message));
                     return;
                 }
+                attempt = attempt.saturating_add(1);
                 let delay = backoff_delay(attempt);
                 reporter.set_retry_attempt(attempt);
                 reporter.set_state(
                     TunnelState::Reconnecting,
-                    Some(format!("{message} — retrying in {}s", delay.as_secs())),
+                    Some(format!(
+                        "{message} — retrying in {}s (attempt {attempt})",
+                        delay.as_secs()
+                    )),
                 );
                 if !sleep_unless_stopped(delay, &mut stop_rx).await {
                     reporter.set_state(TunnelState::Stopped, None);
@@ -628,16 +714,15 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
                 if started.elapsed() >= STABLE_SESSION {
                     attempt = 0;
                 }
-                attempt += 1;
-                if attempt > MAX_RECONNECT_ATTEMPTS {
-                    reporter.set_state(TunnelState::Error, Some(message));
-                    return;
-                }
+                attempt = attempt.saturating_add(1);
                 let delay = backoff_delay(attempt);
                 reporter.set_retry_attempt(attempt);
                 reporter.set_state(
                     TunnelState::Reconnecting,
-                    Some(format!("{message} — retrying in {}s", delay.as_secs())),
+                    Some(format!(
+                        "{message} — retrying in {}s (attempt {attempt})",
+                        delay.as_secs()
+                    )),
                 );
                 if !sleep_unless_stopped(delay, &mut stop_rx).await {
                     reporter.set_state(TunnelState::Stopped, None);
@@ -659,6 +744,60 @@ mod tests {
         assert_eq!(backoff_delay(3), Duration::from_secs(8));
         assert_eq!(backoff_delay(5), Duration::from_secs(30));
         assert_eq!(backoff_delay(40), Duration::from_secs(30));
+    }
+
+    #[test]
+    fn keepalive_is_clamped_for_tunnels() {
+        assert_eq!(tunnel_keepalive(0, 0), (30, 3));
+        assert_eq!(tunnel_keepalive(120, 10), (30, 3));
+        assert_eq!(tunnel_keepalive(10, 2), (10, 2));
+    }
+
+    #[test]
+    fn channel_failures_are_classified_and_described() {
+        use russh::ChannelOpenFailure as Reason;
+        let classify =
+            |reason| ChannelFailure::from_error(russh::Error::ChannelOpenFailure(reason));
+
+        assert_eq!(
+            classify(Reason::AdministrativelyProhibited),
+            ChannelFailure::Prohibited
+        );
+        assert_eq!(
+            classify(Reason::ConnectFailed),
+            ChannelFailure::ConnectFailed
+        );
+        assert_eq!(
+            classify(Reason::ResourceShortage),
+            ChannelFailure::ResourceShortage
+        );
+        assert!(matches!(
+            classify(Reason::Unknown),
+            ChannelFailure::Other(_)
+        ));
+
+        let message = ChannelFailure::ConnectFailed.describe("db.internal", 5432);
+        assert!(message.starts_with("db.internal:5432: "));
+    }
+
+    #[test]
+    fn channel_failures_map_to_socks_replies() {
+        assert!(matches!(
+            ChannelFailure::Prohibited.socks_outcome(),
+            ConnectOutcome::NotAllowed
+        ));
+        assert!(matches!(
+            ChannelFailure::ConnectFailed.socks_outcome(),
+            ConnectOutcome::Refused
+        ));
+        assert!(matches!(
+            ChannelFailure::TimedOut.socks_outcome(),
+            ConnectOutcome::TimedOut
+        ));
+        assert!(matches!(
+            ChannelFailure::Other("x".into()).socks_outcome(),
+            ConnectOutcome::Failed
+        ));
     }
 
     #[test]

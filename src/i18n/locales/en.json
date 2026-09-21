@@ -688,7 +688,9 @@
       "connections": "{{count}} active",
       "total": "{{count}} total",
       "up": "Sent",
-      "down": "Received"
+      "down": "Received",
+      "failed": "{{count}} failed",
+      "ago": "{{time}} ago"
     },
     "errors": {
       "nameRequired": "Give the tunnel a name.",

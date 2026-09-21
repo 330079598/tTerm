@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -93,12 +94,25 @@ pub struct TunnelStatus {
     pub bound_port: Option<u16>,
     pub active_connections: u64,
     pub total_connections: u64,
+    /// Connections that could not reach their destination.
+    pub failed_connections: u64,
     /// Bytes sent toward the destination / received back from it.
     pub bytes_up: u64,
     pub bytes_down: u64,
     /// Unix ms when the current session came up.
     pub connected_at: Option<u64>,
     pub retry_attempt: u32,
+    /// Why the most recent forwarded connection failed, kept while the tunnel
+    /// itself stays up so a refused destination is not invisible.
+    pub last_failure: Option<TunnelFailure>,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct TunnelFailure {
+    pub message: String,
+    /// Unix ms.
+    pub at: u64,
 }
 
 impl TunnelStatus {
@@ -110,10 +124,12 @@ impl TunnelStatus {
             bound_port: None,
             active_connections: 0,
             total_connections: 0,
+            failed_connections: 0,
             bytes_up: 0,
             bytes_down: 0,
             connected_at: None,
             retry_attempt: 0,
+            last_failure: None,
         }
     }
 }
@@ -122,16 +138,37 @@ impl TunnelStatus {
 pub struct TunnelStats {
     pub active_connections: AtomicU64,
     pub total_connections: AtomicU64,
+    pub failed_connections: AtomicU64,
     pub bytes_up: AtomicU64,
     pub bytes_down: AtomicU64,
+    last_failure: Mutex<Option<TunnelFailure>>,
 }
 
 impl TunnelStats {
     pub fn reset(&self) {
         self.active_connections.store(0, Ordering::Relaxed);
         self.total_connections.store(0, Ordering::Relaxed);
+        self.failed_connections.store(0, Ordering::Relaxed);
         self.bytes_up.store(0, Ordering::Relaxed);
         self.bytes_down.store(0, Ordering::Relaxed);
+        *self.last_failure.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// Notes a connection that never reached its destination. The UI is told
+    /// on the next health tick, so a burst of failures does not flood events.
+    pub fn record_failure(&self, message: String) {
+        self.failed_connections.fetch_add(1, Ordering::Relaxed);
+        *self.last_failure.lock().unwrap_or_else(|e| e.into_inner()) = Some(TunnelFailure {
+            message,
+            at: crate::ssh::now_unix_ms().max(0) as u64,
+        });
+    }
+
+    pub fn last_failure(&self) -> Option<TunnelFailure> {
+        self.last_failure
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 }
 
@@ -176,6 +213,22 @@ mod tests {
         dynamic.validate().expect("dynamic needs no destination");
         assert!(dynamic.dest_host.is_empty());
         assert_eq!(dynamic.dest_port, 0);
+    }
+
+    #[test]
+    fn stats_record_and_reset_failures() {
+        let stats = TunnelStats::default();
+        stats.record_failure("db:5432: refused".into());
+        stats.record_failure("db:5432: timed out".into());
+        assert_eq!(stats.failed_connections.load(Ordering::Relaxed), 2);
+        assert_eq!(
+            stats.last_failure().map(|failure| failure.message),
+            Some("db:5432: timed out".to_string())
+        );
+
+        stats.reset();
+        assert_eq!(stats.failed_connections.load(Ordering::Relaxed), 0);
+        assert!(stats.last_failure().is_none());
     }
 
     #[test]

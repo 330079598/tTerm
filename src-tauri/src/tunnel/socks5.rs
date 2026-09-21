@@ -4,7 +4,10 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 const VERSION: u8 = 5;
 const REP_SUCCESS: u8 = 0x00;
+const REP_GENERAL_FAILURE: u8 = 0x01;
+const REP_NOT_ALLOWED: u8 = 0x02;
 const REP_CONNECTION_REFUSED: u8 = 0x05;
+const REP_TTL_EXPIRED: u8 = 0x06;
 const REP_COMMAND_NOT_SUPPORTED: u8 = 0x07;
 const REP_ADDRESS_NOT_SUPPORTED: u8 = 0x08;
 
@@ -12,14 +15,24 @@ const REP_ADDRESS_NOT_SUPPORTED: u8 = 0x08;
 #[derive(Clone, Copy)]
 pub enum ConnectOutcome {
     Success,
+    /// The server's policy forbids this destination.
+    NotAllowed,
+    /// The server tried and the destination did not accept.
     Refused,
+    /// Opening the channel took too long.
+    TimedOut,
+    /// Anything else, e.g. the SSH session itself failing.
+    Failed,
 }
 
 impl ConnectOutcome {
     fn reply_code(self) -> u8 {
         match self {
             Self::Success => REP_SUCCESS,
+            Self::NotAllowed => REP_NOT_ALLOWED,
             Self::Refused => REP_CONNECTION_REFUSED,
+            Self::TimedOut => REP_TTL_EXPIRED,
+            Self::Failed => REP_GENERAL_FAILURE,
         }
     }
 }
@@ -149,6 +162,15 @@ mod tests {
         assert_eq!(replies[0..2], [5, 0]);
         assert_eq!(replies[2], 5);
         assert_eq!(replies[3], REP_COMMAND_NOT_SUPPORTED);
+    }
+
+    #[test]
+    fn outcomes_map_to_distinct_reply_codes() {
+        assert_eq!(ConnectOutcome::Success.reply_code(), 0x00);
+        assert_eq!(ConnectOutcome::Failed.reply_code(), 0x01);
+        assert_eq!(ConnectOutcome::NotAllowed.reply_code(), 0x02);
+        assert_eq!(ConnectOutcome::Refused.reply_code(), 0x05);
+        assert_eq!(ConnectOutcome::TimedOut.reply_code(), 0x06);
     }
 
     #[tokio::test]

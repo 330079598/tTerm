@@ -179,10 +179,12 @@ export function stoppedStatus(id: string): TunnelStatus {
     boundPort: null,
     activeConnections: 0,
     totalConnections: 0,
+    failedConnections: 0,
     bytesUp: 0,
     bytesDown: 0,
     connectedAt: null,
     retryAttempt: 0,
+    lastFailure: null,
   }
 }
 

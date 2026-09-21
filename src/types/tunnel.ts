@@ -21,6 +21,12 @@ export type TunnelState =
   | "error"
   | "needsCredentials"
 
+export interface TunnelFailure {
+  message: string
+  /** Unix ms. */
+  at: number
+}
+
 export interface TunnelStatus {
   id: string
   state: TunnelState
@@ -28,11 +34,15 @@ export interface TunnelStatus {
   boundPort: number | null
   activeConnections: number
   totalConnections: number
+  /** Connections that could not reach their destination. */
+  failedConnections: number
   bytesUp: number
   bytesDown: number
   /** Unix ms when the current session came up. */
   connectedAt: number | null
   retryAttempt: number
+  /** Why the latest forwarded connection failed; the tunnel itself may still be up. */
+  lastFailure: TunnelFailure | null
 }
 
 /** A secret the backend needs before it can connect. */

@@ -1,7 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
-import { ArrowDown, ArrowUp, Pencil, Play, Plus, Square, Trash2, Waypoints } from "lucide-react"
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  Pencil,
+  Play,
+  Plus,
+  Square,
+  Trash2,
+  Waypoints,
+} from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { useConfirmDialog } from "@/components/ui/app-dialog"
@@ -162,33 +172,56 @@ const TunnelCard = React.memo(function TunnelCard({
             {status.message}
           </span>
         ) : status.state === "running" ? (
-          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
-            <span>
-              {t("tunnels.stats.connections", {
-                count: status.activeConnections,
-                defaultValue: "{{count}} active",
-              })}
-              {" · "}
-              {t("tunnels.stats.total", {
-                count: status.totalConnections,
-                defaultValue: "{{count}} total",
-              })}
+          <div className="flex flex-col gap-1">
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
+              <span>
+                {t("tunnels.stats.connections", {
+                  count: status.activeConnections,
+                  defaultValue: "{{count}} active",
+                })}
+                {" · "}
+                {t("tunnels.stats.total", {
+                  count: status.totalConnections,
+                  defaultValue: "{{count}} total",
+                })}
+              </span>
+              <span className="inline-flex items-center gap-0.5">
+                <ArrowUp
+                  className="size-3"
+                  aria-label={t("tunnels.stats.up", { defaultValue: "Sent" })}
+                />
+                {formatBytes(status.bytesUp)}
+              </span>
+              <span className="inline-flex items-center gap-0.5">
+                <ArrowDown
+                  className="size-3"
+                  aria-label={t("tunnels.stats.down", { defaultValue: "Received" })}
+                />
+                {formatBytes(status.bytesDown)}
+              </span>
             </span>
-            <span className="inline-flex items-center gap-0.5">
-              <ArrowUp
-                className="size-3"
-                aria-label={t("tunnels.stats.up", { defaultValue: "Sent" })}
-              />
-              {formatBytes(status.bytesUp)}
-            </span>
-            <span className="inline-flex items-center gap-0.5">
-              <ArrowDown
-                className="size-3"
-                aria-label={t("tunnels.stats.down", { defaultValue: "Received" })}
-              />
-              {formatBytes(status.bytesDown)}
-            </span>
-          </span>
+            {status.lastFailure && (
+              <span
+                className="text-warning flex items-start gap-1 break-all"
+                title={status.lastFailure.message}
+              >
+                <AlertTriangle className="mt-0.5 size-3 shrink-0" aria-hidden />
+                <span className="min-w-0">
+                  {t("tunnels.stats.failed", {
+                    count: status.failedConnections,
+                    defaultValue: "{{count}} failed",
+                  })}
+                  {" · "}
+                  {status.lastFailure.message}
+                  {" · "}
+                  {t("tunnels.stats.ago", {
+                    time: formatUptime(status.lastFailure.at, now),
+                    defaultValue: "{{time}} ago",
+                  })}
+                </span>
+              </span>
+            )}
+          </div>
         ) : null}
       </footer>
     </article>
