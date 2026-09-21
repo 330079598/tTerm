@@ -8,9 +8,9 @@ use crate::ssh::{
 };
 use russh::client::Handle;
 use russh::Disconnect;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::pin::Pin;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 use std::time::Duration;
@@ -168,6 +168,88 @@ impl TunnelReporter {
         if changed {
             self.emit();
         }
+    }
+}
+
+/// The sockets serving one bind address. `localhost` and `*` cover both IP
+/// families, as OpenSSH does, so a client resolving to either one connects.
+struct Listeners {
+    sockets: Vec<TcpListener>,
+    /// Rotates which socket is polled first so none is starved.
+    next: AtomicUsize,
+}
+
+impl Listeners {
+    fn addresses_for(host: &str) -> Option<[IpAddr; 2]> {
+        match host {
+            "localhost" => Some([Ipv4Addr::LOCALHOST.into(), Ipv6Addr::LOCALHOST.into()]),
+            "*" => Some([Ipv4Addr::UNSPECIFIED.into(), Ipv6Addr::UNSPECIFIED.into()]),
+            _ => None,
+        }
+    }
+
+    /// Binds every address for `host`. For the dual-family aliases one family
+    /// may be unavailable (IPv6 disabled, or a dual-stack socket already
+    /// covering it); that is fine as long as one socket comes up.
+    async fn bind(host: &str, port: u16) -> std::io::Result<Self> {
+        let sockets = match Self::addresses_for(host) {
+            Some(addresses) => {
+                let mut sockets = Vec::new();
+                let mut first_error = None;
+                for address in addresses {
+                    match TcpListener::bind((address, port)).await {
+                        Ok(socket) => sockets.push(socket),
+                        Err(err) => {
+                            first_error.get_or_insert(err);
+                        }
+                    }
+                }
+                if sockets.is_empty() {
+                    return Err(first_error
+                        .unwrap_or_else(|| std::io::Error::other("no address to listen on")));
+                }
+                sockets
+            }
+            None => vec![TcpListener::bind((host, port)).await?],
+        };
+        Ok(Self {
+            sockets,
+            next: AtomicUsize::new(0),
+        })
+    }
+
+    fn local_port(&self) -> Option<u16> {
+        self.sockets
+            .first()
+            .and_then(|socket| socket.local_addr().ok())
+            .map(|addr| addr.port())
+    }
+
+    async fn accept(&self) -> std::io::Result<(TcpStream, SocketAddr)> {
+        let start = self.next.fetch_add(1, Ordering::Relaxed);
+        std::future::poll_fn(|cx| {
+            for offset in 0..self.sockets.len() {
+                let socket = &self.sockets[(start + offset) % self.sockets.len()];
+                if let Poll::Ready(result) = socket.poll_accept(cx) {
+                    return Poll::Ready(result);
+                }
+            }
+            Poll::Pending
+        })
+        .await
+    }
+}
+
+/// Closes every connection that arrives while there is no SSH session to carry
+/// it, so clients fail at once instead of hanging in the accept backlog and
+/// being served stale after the tunnel recovers. Never completes.
+async fn refuse_connections(listeners: Option<&Listeners>) -> std::convert::Infallible {
+    let Some(listeners) = listeners else {
+        return std::future::pending().await;
+    };
+    loop {
+        // The dropped stream is closed immediately.
+        let _ = listeners.accept().await;
     }
 }
 
@@ -435,7 +517,7 @@ enum SessionEnd {
 
 async fn run_listener_session(
     session: Arc<SshHandle>,
-    listener: &TcpListener,
+    listener: &Listeners,
     rule: &TunnelRule,
     reporter: &TunnelReporter,
     stop_rx: &mut watch::Receiver<bool>,
@@ -473,6 +555,16 @@ async fn run_listener_session(
     }
 }
 
+/// The SSH protocol spells "all interfaces" as an empty address; `*` is the
+/// friendlier form users know from OpenSSH's `-R`.
+fn remote_bind_address(host: &str) -> String {
+    if host == "*" {
+        String::new()
+    } else {
+        host.to_string()
+    }
+}
+
 async fn run_remote_session(
     session: Arc<SshHandle>,
     forwarded_rx: &mut mpsc::UnboundedReceiver<ForwardedTcpIp>,
@@ -480,8 +572,9 @@ async fn run_remote_session(
     reporter: &TunnelReporter,
     stop_rx: &mut watch::Receiver<bool>,
 ) -> SessionEnd {
+    let bind_host = remote_bind_address(&rule.bind_host);
     let bound_port = match session
-        .tcpip_forward(rule.bind_host.clone(), rule.bind_port as u32)
+        .tcpip_forward(bind_host.clone(), rule.bind_port as u32)
         .await
     {
         Ok(port) => port,
@@ -532,7 +625,7 @@ async fn run_remote_session(
 
     if matches!(end, SessionEnd::Stopped) {
         let _ = session
-            .cancel_tcpip_forward(rule.bind_host.clone(), bound_port as u32)
+            .cancel_tcpip_forward(bind_host, bound_port as u32)
             .await;
     }
     end
@@ -567,10 +660,16 @@ fn tunnel_keepalive(interval_secs: u16, count_max: u16) -> (u16, u16) {
 }
 
 /// Sleeps for `delay`, returning `false` if a stop arrived first.
-async fn sleep_unless_stopped(delay: Duration, stop_rx: &mut watch::Receiver<bool>) -> bool {
+/// Connections arriving on `listeners` meanwhile are refused.
+async fn sleep_unless_stopped(
+    delay: Duration,
+    stop_rx: &mut watch::Receiver<bool>,
+    listeners: Option<&Listeners>,
+) -> bool {
     tokio::select! {
         _ = tokio::time::sleep(delay) => true,
         _ = wait_for_stop(stop_rx) => false,
+        never = refuse_connections(listeners) => match never {},
     }
 }
 
@@ -592,9 +691,9 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
     let listener = if rule.kind == TunnelKind::Remote {
         None
     } else {
-        match TcpListener::bind((rule.bind_host.as_str(), rule.bind_port)).await {
+        match Listeners::bind(&rule.bind_host, rule.bind_port).await {
             Ok(listener) => {
-                reporter.set_bound_port(listener.local_addr().ok().map(|addr| addr.port()));
+                reporter.set_bound_port(listener.local_port());
                 Some(listener)
             }
             Err(err) => {
@@ -644,6 +743,7 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
                 return;
             }
             result = tokio::time::timeout(CONNECT_TIMEOUT, connect) => result,
+            never = refuse_connections(listener.as_ref()) => match never {},
         };
 
         let (jump_chain, session) = match connected {
@@ -667,7 +767,7 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
                         delay.as_secs()
                     )),
                 );
-                if !sleep_unless_stopped(delay, &mut stop_rx).await {
+                if !sleep_unless_stopped(delay, &mut stop_rx, listener.as_ref()).await {
                     reporter.set_state(TunnelState::Stopped, None);
                     return;
                 }
@@ -724,7 +824,7 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
                         delay.as_secs()
                     )),
                 );
-                if !sleep_unless_stopped(delay, &mut stop_rx).await {
+                if !sleep_unless_stopped(delay, &mut stop_rx, listener.as_ref()).await {
                     reporter.set_state(TunnelState::Stopped, None);
                     return;
                 }
@@ -744,6 +844,51 @@ mod tests {
         assert_eq!(backoff_delay(3), Duration::from_secs(8));
         assert_eq!(backoff_delay(5), Duration::from_secs(30));
         assert_eq!(backoff_delay(40), Duration::from_secs(30));
+    }
+
+    #[test]
+    fn remote_star_means_all_interfaces() {
+        assert_eq!(remote_bind_address("*"), "");
+        assert_eq!(remote_bind_address("localhost"), "localhost");
+        assert_eq!(remote_bind_address("0.0.0.0"), "0.0.0.0");
+    }
+
+    async fn free_port() -> u16 {
+        let probe = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        probe.local_addr().unwrap().port()
+    }
+
+    #[tokio::test]
+    async fn localhost_listens_on_ipv4_and_serves_accepts() {
+        let port = free_port().await;
+        let listeners = Listeners::bind("localhost", port).await.unwrap();
+        assert_eq!(listeners.local_port(), Some(port));
+
+        let _client = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
+        let (_, peer) = listeners.accept().await.unwrap();
+        assert!(peer.ip().is_loopback());
+    }
+
+    #[tokio::test]
+    async fn binding_a_taken_port_fails() {
+        let port = free_port().await;
+        let _first = Listeners::bind("127.0.0.1", port).await.unwrap();
+        assert!(Listeners::bind("127.0.0.1", port).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn refused_connections_are_closed_at_once() {
+        use tokio::io::AsyncReadExt;
+        let port = free_port().await;
+        let listeners = Listeners::bind("127.0.0.1", port).await.unwrap();
+        let mut client = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
+
+        let mut buf = [0u8; 1];
+        let read = tokio::select! {
+            never = refuse_connections(Some(&listeners)) => match never {},
+            read = tokio::time::timeout(Duration::from_secs(2), client.read(&mut buf)) => read,
+        };
+        assert_eq!(read.expect("client must not hang").unwrap_or(0), 0);
     }
 
     #[test]
