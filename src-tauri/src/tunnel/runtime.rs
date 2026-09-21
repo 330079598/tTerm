@@ -17,7 +17,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{mpsc, watch};
+use tokio::sync::{mpsc, watch, OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinSet;
 
 /// Event tab id shared by every tunnel; host-key prompts arrive on
@@ -31,6 +31,9 @@ const DEST_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const SOCKS_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 const HEALTH_TICK: Duration = Duration::from_secs(1);
 const MAX_BACKOFF_SECS: u64 = 30;
+/// Simultaneous forwarded connections per tunnel; further ones are refused so
+/// a port scan or a runaway client cannot exhaust tasks and file descriptors.
+const MAX_CONNECTIONS: usize = 256;
 /// Tunnels sit idle for long stretches, so a silent drop (NAT timeout, sleeping
 /// laptop) must be noticed quickly whatever the profile's terminal keepalive
 /// says: at most 3 missed probes 30 seconds apart.
@@ -85,6 +88,10 @@ impl TunnelReporter {
             self.stats.bytes_up.load(Ordering::Relaxed),
             self.stats.bytes_down.load(Ordering::Relaxed),
         )
+    }
+
+    pub fn state(&self) -> TunnelState {
+        self.inner.lock().unwrap_or_else(|e| e.into_inner()).state
     }
 
     pub fn snapshot(&self) -> TunnelStatus {
@@ -250,6 +257,27 @@ async fn refuse_connections(listeners: Option<&Listeners>) -> std::convert::Infa
     loop {
         // The dropped stream is closed immediately.
         let _ = listeners.accept().await;
+    }
+}
+
+/// Hands out slots for forwarded connections, refusing past the limit.
+struct ConnectionLimiter(Arc<Semaphore>);
+
+impl ConnectionLimiter {
+    fn new(limit: usize) -> Self {
+        Self(Arc::new(Semaphore::new(limit)))
+    }
+
+    /// A slot that frees itself when the connection task ends, or `None`
+    /// (after noting the refusal) when the tunnel is full.
+    fn acquire(&self, stats: &TunnelStats) -> Option<OwnedSemaphorePermit> {
+        let permit = self.0.clone().try_acquire_owned().ok();
+        if permit.is_none() {
+            stats.record_failure(format!(
+                "Too many simultaneous connections (limit {MAX_CONNECTIONS}); refusing new ones"
+            ));
+        }
+        permit
     }
 }
 
@@ -523,6 +551,7 @@ async fn run_listener_session(
     stop_rx: &mut watch::Receiver<bool>,
 ) -> SessionEnd {
     let mut connections: JoinSet<()> = JoinSet::new();
+    let limiter = ConnectionLimiter::new(MAX_CONNECTIONS);
     let mut tick = tokio::time::interval(HEALTH_TICK);
     loop {
         tokio::select! {
@@ -536,19 +565,22 @@ async fn run_listener_session(
             Some(_) = connections.join_next(), if !connections.is_empty() => {}
             accepted = listener.accept() => {
                 let Ok((tcp, peer)) = accepted else { continue };
+                let Some(permit) = limiter.acquire(&reporter.stats) else { continue };
                 let session = session.clone();
                 let stats = reporter.stats.clone();
                 if rule.kind == TunnelKind::Dynamic {
-                    connections.spawn(forward_socks_connection(session, tcp, peer, stats));
+                    connections.spawn(async move {
+                        let _permit = permit;
+                        forward_socks_connection(session, tcp, peer, stats).await;
+                    });
                 } else {
-                    connections.spawn(forward_local_connection(
-                        session,
-                        tcp,
-                        peer,
-                        rule.dest_host.clone(),
-                        rule.dest_port,
-                        stats,
-                    ));
+                    let dest_host = rule.dest_host.clone();
+                    let dest_port = rule.dest_port;
+                    connections.spawn(async move {
+                        let _permit = permit;
+                        forward_local_connection(session, tcp, peer, dest_host, dest_port, stats)
+                            .await;
+                    });
                 }
             }
         }
@@ -596,6 +628,7 @@ async fn run_remote_session(
     reporter.set_running();
 
     let mut connections: JoinSet<()> = JoinSet::new();
+    let limiter = ConnectionLimiter::new(MAX_CONNECTIONS);
     let mut tick = tokio::time::interval(HEALTH_TICK);
     let end = loop {
         tokio::select! {
@@ -610,12 +643,18 @@ async fn run_remote_session(
             incoming = forwarded_rx.recv() => {
                 match incoming {
                     Some(forwarded) => {
-                        connections.spawn(forward_remote_connection(
-                            forwarded,
-                            rule.dest_host.clone(),
-                            rule.dest_port,
-                            reporter.stats.clone(),
-                        ));
+                        let Some(permit) = limiter.acquire(&reporter.stats) else {
+                            let _ = forwarded.channel.close().await;
+                            continue;
+                        };
+                        let dest_host = rule.dest_host.clone();
+                        let dest_port = rule.dest_port;
+                        let stats = reporter.stats.clone();
+                        connections.spawn(async move {
+                            let _permit = permit;
+                            forward_remote_connection(forwarded, dest_host, dest_port, stats)
+                                .await;
+                        });
                     }
                     None => break SessionEnd::Lost("SSH connection closed".to_string()),
                 }
@@ -844,6 +883,19 @@ mod tests {
         assert_eq!(backoff_delay(3), Duration::from_secs(8));
         assert_eq!(backoff_delay(5), Duration::from_secs(30));
         assert_eq!(backoff_delay(40), Duration::from_secs(30));
+    }
+
+    #[test]
+    fn limiter_refuses_past_the_limit_and_frees_slots() {
+        let stats = TunnelStats::default();
+        let limiter = ConnectionLimiter::new(2);
+        let a = limiter.acquire(&stats).expect("first slot");
+        let _b = limiter.acquire(&stats).expect("second slot");
+        assert!(limiter.acquire(&stats).is_none());
+        assert_eq!(stats.failed_connections.load(Ordering::Relaxed), 1);
+
+        drop(a);
+        assert!(limiter.acquire(&stats).is_some());
     }
 
     #[test]

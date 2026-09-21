@@ -35,6 +35,23 @@ pub struct TunnelRule {
 }
 
 impl TunnelRule {
+    /// Whether this rule and `other` would listen on the same port at once:
+    /// both on this device (local and dynamic), or both on the same server
+    /// (remote).
+    pub fn competes_for_port_with(&self, other: &TunnelRule) -> bool {
+        let listens_here = |rule: &TunnelRule| rule.kind != TunnelKind::Remote;
+        let same_side = if listens_here(self) && listens_here(other) {
+            true
+        } else {
+            self.kind == TunnelKind::Remote
+                && other.kind == TunnelKind::Remote
+                && self.profile_id == other.profile_id
+        };
+        same_side
+            && self.bind_port == other.bind_port
+            && bind_hosts_overlap(&self.bind_host, &other.bind_host)
+    }
+
     pub fn validate(&mut self) -> Result<(), String> {
         self.name = self.name.trim().to_string();
         self.bind_host = self.bind_host.trim().to_string();
@@ -70,6 +87,25 @@ impl TunnelRule {
     }
 }
 
+/// Whether a bind address covers every interface.
+fn is_wildcard_host(host: &str) -> bool {
+    matches!(host, "*" | "0.0.0.0" | "::" | "[::]" | "")
+}
+
+fn is_loopback_host(host: &str) -> bool {
+    matches!(host, "localhost" | "127.0.0.1" | "::1" | "[::1]")
+}
+
+/// Whether two bind addresses can claim the same port on one machine.
+/// `localhost` covers both loopback families; other names compare literally.
+fn bind_hosts_overlap(a: &str, b: &str) -> bool {
+    let (a, b) = (a.trim().to_lowercase(), b.trim().to_lowercase());
+    if is_wildcard_host(&a) || is_wildcard_host(&b) || a == b {
+        return true;
+    }
+    (a == "localhost" && is_loopback_host(&b)) || (b == "localhost" && is_loopback_host(&a))
+}
+
 #[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum TunnelState {
@@ -81,6 +117,13 @@ pub enum TunnelState {
     /// An automatic start was skipped because a secret is missing.
     #[serde(rename = "needsCredentials")]
     NeedsCredentials,
+}
+
+impl TunnelState {
+    /// Running, or on its way to running.
+    pub fn is_active(self) -> bool {
+        !matches!(self, Self::Stopped | Self::Error | Self::NeedsCredentials)
+    }
 }
 
 /// Live status snapshot sent to the UI on the `tunnel-status` event.
@@ -213,6 +256,42 @@ mod tests {
         dynamic.validate().expect("dynamic needs no destination");
         assert!(dynamic.dest_host.is_empty());
         assert_eq!(dynamic.dest_port, 0);
+    }
+
+    #[test]
+    fn rules_compete_for_a_port_only_when_they_listen_in_the_same_place() {
+        let mut a = rule(TunnelKind::Local);
+        a.bind_host = "127.0.0.1".into();
+        let mut b = rule(TunnelKind::Dynamic);
+        b.bind_host = "localhost".into();
+        assert!(a.competes_for_port_with(&b));
+
+        b.bind_host = "::1".into();
+        assert!(!a.competes_for_port_with(&b), "different loopback families");
+        b.bind_host = "0.0.0.0".into();
+        assert!(a.competes_for_port_with(&b), "a wildcard covers everything");
+        b.bind_port = 1;
+        assert!(!a.competes_for_port_with(&b));
+
+        // A remote rule listens on the server, not here.
+        let mut remote = rule(TunnelKind::Remote);
+        remote.bind_host = "127.0.0.1".into();
+        assert!(!a.competes_for_port_with(&remote));
+
+        let mut other_server = remote.clone();
+        assert!(remote.competes_for_port_with(&other_server));
+        other_server.profile_id = "p2".into();
+        assert!(!remote.competes_for_port_with(&other_server));
+    }
+
+    #[test]
+    fn only_live_states_count_as_active() {
+        assert!(TunnelState::Starting.is_active());
+        assert!(TunnelState::Running.is_active());
+        assert!(TunnelState::Reconnecting.is_active());
+        assert!(!TunnelState::Stopped.is_active());
+        assert!(!TunnelState::Error.is_active());
+        assert!(!TunnelState::NeedsCredentials.is_active());
     }
 
     #[test]

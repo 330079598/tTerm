@@ -12,11 +12,13 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 use tokio::sync::{watch, Mutex};
 use tokio::task::JoinHandle;
 
 const STOP_TIMEOUT: Duration = Duration::from_secs(5);
+/// Emitted when the app is asked to quit while tunnels are running.
+pub const QUIT_REQUESTED_EVENT: &str = "tunnels-quit-requested";
 
 struct RunningTunnel {
     stop_tx: watch::Sender<bool>,
@@ -28,6 +30,10 @@ pub struct TunnelManager {
     running: Mutex<HashMap<String, RunningTunnel>>,
     reporters: std::sync::Mutex<HashMap<String, Arc<TunnelReporter>>>,
     auto_started: AtomicBool,
+    /// The user agreed to quit despite running tunnels.
+    quit_confirmed: AtomicBool,
+    /// A quit confirmation is on screen.
+    quit_prompt_open: AtomicBool,
 }
 
 impl TunnelManager {
@@ -47,6 +53,44 @@ impl TunnelManager {
             .get(id)
             .map(|reporter| reporter.snapshot())
             .unwrap_or_else(|| TunnelStatus::stopped(id))
+    }
+
+    fn is_running(&self, id: &str) -> bool {
+        self.reporters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(id)
+            .is_some_and(|reporter| reporter.state().is_active())
+    }
+
+    fn active_count(&self) -> usize {
+        self.reporters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .values()
+            .filter(|reporter| reporter.state().is_active())
+            .count()
+    }
+
+    fn should_hold_exit(&self, active: usize) -> bool {
+        if active == 0 || self.quit_confirmed.load(Ordering::SeqCst) {
+            return false;
+        }
+        // Asking to quit again while the prompt is open means the user insists
+        // (or the prompt could not be shown); never trap them in the app.
+        !self.quit_prompt_open.swap(true, Ordering::SeqCst)
+    }
+
+    /// Called when the app is about to close. Returns `true` when the exit
+    /// must wait because the UI is asking the user to confirm stopping the
+    /// running tunnels.
+    pub fn hold_exit_for_confirmation(&self, app: &AppHandle) -> bool {
+        let active = self.active_count();
+        let hold = self.should_hold_exit(active);
+        if hold {
+            let _ = app.emit(QUIT_REQUESTED_EVENT, active);
+        }
+        hold
     }
 
     async fn stop(&self, id: &str) {
@@ -176,10 +220,22 @@ async fn start_rule(
     credentials: &TunnelCredentials,
     auto: bool,
 ) -> Result<StartOutcome, String> {
-    let rule = load_tunnels_from_disk()?
-        .into_iter()
+    let all_rules = load_tunnels_from_disk()?;
+    let rule = all_rules
+        .iter()
         .find(|rule| rule.id == id)
+        .cloned()
         .ok_or_else(|| "Tunnel not found".to_string())?;
+    // Two rules may share a port so long as only one runs at a time; say so
+    // plainly instead of failing later with a bare "address in use".
+    if let Some(rival) = all_rules.iter().find(|other| {
+        other.id != id && other.competes_for_port_with(&rule) && manager.is_running(&other.id)
+    }) {
+        return Err(format!(
+            "Port {} is already used by the running tunnel \"{}\". Stop it first.",
+            rule.bind_port, rival.name
+        ));
+    }
     let profile = find_profile(&rule.profile_id)?;
     let mut options = connection_options_for_profile(&profile)?;
     apply_credentials(&mut options, credentials);
@@ -302,6 +358,17 @@ pub async fn auto_start_tunnels(
 }
 
 #[tauri::command]
+pub fn confirm_quit_app(app: AppHandle, manager: State<'_, TunnelManager>) {
+    manager.quit_confirmed.store(true, Ordering::SeqCst);
+    app.exit(0);
+}
+
+#[tauri::command]
+pub fn cancel_quit_prompt(manager: State<'_, TunnelManager>) {
+    manager.quit_prompt_open.store(false, Ordering::SeqCst);
+}
+
+#[tauri::command]
 pub async fn stop_tunnel(id: String, manager: State<'_, TunnelManager>) -> Result<(), String> {
     manager.stop(&id).await;
     Ok(())
@@ -313,6 +380,21 @@ mod tests {
 
     fn profile(json: serde_json::Value) -> SavedProfile {
         serde_json::from_value(json).expect("profile should deserialize")
+    }
+
+    #[test]
+    fn exit_is_held_once_while_tunnels_run() {
+        let manager = TunnelManager::default();
+        assert!(!manager.should_hold_exit(0), "nothing running");
+
+        assert!(manager.should_hold_exit(2), "first attempt asks the user");
+        assert!(!manager.should_hold_exit(2), "insisting lets the app quit");
+
+        manager.quit_prompt_open.store(false, Ordering::SeqCst);
+        assert!(manager.should_hold_exit(2), "cancelling re-arms the prompt");
+
+        manager.quit_confirmed.store(true, Ordering::SeqCst);
+        assert!(!manager.should_hold_exit(2), "confirmed");
     }
 
     #[test]

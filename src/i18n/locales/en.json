@@ -673,6 +673,9 @@
       "autoStartDescription": "Only starts on its own if no password needs to be typed; otherwise it waits for you.",
       "equivalent": "Equivalent OpenSSH command"
     },
+    "quitConfirmTitle": "Quit while tunnels are running?",
+    "quitConfirmDescription": "{{count}} port-forwarding tunnel(s) are running and will stop when tTerm quits.",
+    "quitConfirm": "Quit",
     "needsCredentialsHint": "Not started automatically — press Start to enter the missing password.",
     "stopFailed": "Could not stop the tunnel",
     "credentials": {

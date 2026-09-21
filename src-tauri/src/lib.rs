@@ -145,6 +145,17 @@ pub fn run() {
         .manage(secret_store)
         .manage(session_log_state)
         .manage(tunnel::TunnelManager::default())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let app = window.app_handle();
+                if app
+                    .state::<tunnel::TunnelManager>()
+                    .hold_exit_for_confirmation(app)
+                {
+                    api.prevent_close();
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             backup::export_backup,
             backup::inspect_backup,
@@ -195,6 +206,8 @@ pub fn run() {
             tunnel::start_tunnel,
             tunnel::stop_tunnel,
             tunnel::auto_start_tunnels,
+            tunnel::confirm_quit_app,
+            tunnel::cancel_quit_prompt,
             command_library::list_saved_commands,
             command_library::list_command_tags,
             command_library::create_command_tag,
@@ -279,6 +292,21 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            // Cmd+Q and the like skip the window-close path. An exit with a
+            // code is one the app requested itself and is never held back.
+            if let tauri::RunEvent::ExitRequested {
+                api, code: None, ..
+            } = event
+            {
+                if app
+                    .state::<tunnel::TunnelManager>()
+                    .hold_exit_for_confirmation(app)
+                {
+                    api.prevent_exit();
+                }
+            }
+        });
 }

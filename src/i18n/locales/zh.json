@@ -664,6 +664,9 @@
       "autoStartDescription": "仅在无需输入密码时才会自动启动，否则会等你手动操作。",
       "equivalent": "等效的 OpenSSH 命令"
     },
+    "quitConfirmTitle": "隧道仍在运行，确定退出吗？",
+    "quitConfirmDescription": "有 {{count}} 个端口转发隧道正在运行，退出 tTerm 后将会停止。",
+    "quitConfirm": "退出",
     "needsCredentialsHint": "未自动启动 —— 点击“启动”并输入缺少的密码。",
     "stopFailed": "无法停止隧道",
     "credentials": {
