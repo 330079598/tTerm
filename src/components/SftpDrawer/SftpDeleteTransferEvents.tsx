@@ -91,7 +91,12 @@ export const SftpDeleteTransferEvents: React.FC<SftpDeleteTransferEventsProps> =
             void loadDirectory(listingCurrentPath ?? null)
 
             if (payload.error || payload.failed > 0) {
-              const message = payload.error ?? `Failed to delete ${payload.failed} item(s).`
+              const message =
+                payload.error ??
+                t("sftp.messages.deleteFailedCount", {
+                  count: payload.failed,
+                  defaultValue: `Failed to delete ${payload.failed} item(s).`,
+                })
               updateTransfer(payload.batchId, {
                 endTime: Date.now(),
                 error: message,

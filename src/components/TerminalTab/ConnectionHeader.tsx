@@ -14,15 +14,21 @@ import {
   TerminalTabProps,
 } from "@/components/TerminalTab/types"
 
-function getConnectionProtocolLabel(connection?: TerminalTabProps["connection"]) {
+function getConnectionProtocolLabel(
+  connection: TerminalTabProps["connection"] | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string
+) {
   if (!connection || connection.type === "terminal") {
-    return "Local"
+    return t("sessionHeader.protocolLocal", { defaultValue: "Local" })
   }
 
   return "SSH"
 }
 
-function getConnectionDetailItems(connection?: TerminalTabProps["connection"]) {
+function getConnectionDetailItems(
+  connection: TerminalTabProps["connection"] | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string
+) {
   if (!connection || connection.type !== "ssh") {
     return []
   }
@@ -35,7 +41,12 @@ function getConnectionDetailItems(connection?: TerminalTabProps["connection"]) {
     items.push(`:${connection.port}`)
   }
   if (connection.jumpHosts?.length) {
-    items.push(`${connection.jumpHosts.length} jump${connection.jumpHosts.length === 1 ? "" : "s"}`)
+    items.push(
+      t("sessionHeader.jumpCount", {
+        count: connection.jumpHosts.length,
+        defaultValue: "{{count}} jump(s)",
+      })
+    )
   }
 
   return items
@@ -76,7 +87,7 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
       ? getSshConnectionProgressLabel(connectionProgress, t)
       : null
   const stateLabel = getConnectionStateLabel(connectionState, t)
-  const detailItems = getConnectionDetailItems(connection)
+  const detailItems = getConnectionDetailItems(connection, t)
   if (connectionProgress?.networkLatencyMs !== undefined) {
     detailItems.push(
       t("sessionHeader.networkLatency", {
@@ -113,8 +124,8 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
             </Tooltip>
             <div className="connection-meta">
               <div className="connection-primary-row">
-                <span className="connection-kind">{getConnectionProtocolLabel(connection)}</span>
-                <span className="connection-primary">{getConnectionDisplay(connection)}</span>
+                <span className="connection-kind">{getConnectionProtocolLabel(connection, t)}</span>
+                <span className="connection-primary">{getConnectionDisplay(connection, t)}</span>
                 <span className={`connection-state-label is-${connectionState}`}>{stateLabel}</span>
               </div>
               <div className="connection-secondary-row">
@@ -137,7 +148,10 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
                 <TooltipTrigger asChild>
                   <span
                     className="connection-route-indicator"
-                    aria-label={`${jumpHostCount} jump host route`}
+                    aria-label={t("sessionHeader.jumpRoute", {
+                      count: jumpHostCount,
+                      defaultValue: "{{count}} jump host route",
+                    })}
                   >
                     <Route size={13} />
                     <span>{jumpHostCount}</span>

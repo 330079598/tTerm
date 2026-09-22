@@ -838,7 +838,7 @@ export const TTermApp: React.FC = () => {
         } else {
           addTab(
             buildTabFromConnection({
-              title: "Terminal",
+              title: t("settings.terminal", { defaultValue: "Terminal" }),
               type: "terminal",
               isModified: false,
             })
@@ -857,7 +857,7 @@ export const TTermApp: React.FC = () => {
     return () => {
       cancelled = true
     }
-  }, [addTab, getPreloadedSession, isLoaded, restoreSession])
+  }, [addTab, getPreloadedSession, isLoaded, restoreSession, t])
 
   useEffect(() => {
     if (!sessionRestored) {
@@ -1671,7 +1671,10 @@ export const TTermApp: React.FC = () => {
             <Settings size={16} />
           </button>
           {isLinux && (
-            <div className="window-controls" aria-label="Window controls">
+            <div
+              className="window-controls"
+              aria-label={t("window.controls", { defaultValue: "Window controls" })}
+            >
               <button
                 className="window-control-button"
                 onClick={handleMinimizeWindow}

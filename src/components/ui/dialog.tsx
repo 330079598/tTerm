@@ -1,6 +1,7 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { XIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -156,6 +157,7 @@ function DialogContentComponent(
   ref: React.ForwardedRef<HTMLDivElement>
 ) {
   const { open, setOpen } = useDialogContext("DialogContent")
+  const { t } = useTranslation()
   const contentRef = React.useRef<HTMLDivElement | null>(null)
 
   React.useEffect(() => {
@@ -280,7 +282,7 @@ function DialogContentComponent(
               className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
             >
               <XIcon />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{t("common.close", { defaultValue: "Close" })}</span>
             </button>
           )}
         </div>
@@ -348,6 +350,8 @@ function DialogFooter({
 }: React.ComponentProps<"div"> & {
   showCloseButton?: boolean
 }) {
+  const { t } = useTranslation()
+
   return (
     <div
       data-slot="dialog-footer"
@@ -357,7 +361,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogClose asChild>
-          <Button variant="outline">Close</Button>
+          <Button variant="outline">{t("common.close", { defaultValue: "Close" })}</Button>
         </DialogClose>
       )}
     </div>

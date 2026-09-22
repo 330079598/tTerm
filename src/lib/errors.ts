@@ -1,5 +1,6 @@
 import { invoke, type InvokeArgs } from "@tauri-apps/api/core"
 
+import i18n from "@/i18n/config"
 import { toast } from "@/hooks/use-toast"
 import { toErrorMessage } from "@/lib/utils"
 
@@ -24,7 +25,7 @@ export function reportError(error: unknown, options: ReportErrorOptions = {}): s
 
   if (!options.silent) {
     toast({
-      title: options.title ?? "Operation failed",
+      title: options.title ?? i18n.t("errors.operationFailed", { defaultValue: "Operation failed" }),
       description: options.userMessage ?? message,
       variant: "destructive",
     })

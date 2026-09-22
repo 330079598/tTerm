@@ -253,6 +253,7 @@ export const TabBar: React.FC<TabBarProps> = ({
   getTabContextIds,
   onContextMenu,
 }) => {
+  const { t } = useTranslation()
   const activeTabRef = useRef<HTMLDivElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const overflowMenuRef = useRef<HTMLDivElement | null>(null)
@@ -658,7 +659,7 @@ export const TabBar: React.FC<TabBarProps> = ({
         <button
           type="button"
           className="tab-action tab-scroll-button tab-scroll-left"
-          aria-label="Scroll tabs left"
+          aria-label={t("tabs.scrollLeft", { defaultValue: "Scroll tabs left" })}
           disabled={!scrollState.canScrollLeft}
           onClick={() => scrollTabs("left")}
         >
@@ -694,7 +695,7 @@ export const TabBar: React.FC<TabBarProps> = ({
         <button
           type="button"
           className="tab-action tab-scroll-button tab-scroll-right"
-          aria-label="Scroll tabs right"
+          aria-label={t("tabs.scrollRight", { defaultValue: "Scroll tabs right" })}
           disabled={!scrollState.canScrollRight}
           onClick={() => scrollTabs("right")}
         >
@@ -709,7 +710,7 @@ export const TabBar: React.FC<TabBarProps> = ({
             type="button"
             className="tab-action tab-overflow-trigger"
             aria-expanded={isOverflowMenuOpen}
-            aria-label="Show all tabs"
+            aria-label={t("tabs.showAll", { defaultValue: "Show all tabs" })}
             onClick={() => {
               if (isOverflowMenuOpen) {
                 closeOverflowMenu()
@@ -729,7 +730,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                 ref={overflowPanelRef}
                 className="tab-overflow-panel"
                 role="dialog"
-                aria-label="Search tabs"
+                aria-label={t("tabs.searchTabs", { defaultValue: "Search tabs" })}
                 style={overflowPanelStyle ?? undefined}
               >
                 <div className="tab-search-box">
@@ -738,7 +739,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                     ref={searchInputRef}
                     className="tab-search-input"
                     value={searchQuery}
-                    placeholder="Search tabs"
+                    placeholder={t("tabs.searchTabs", { defaultValue: "Search tabs" })}
                     onChange={(event) => setSearchQuery(event.target.value)}
                     onKeyDown={handleSearchKeyDown}
                   />
@@ -746,7 +747,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                     <button
                       type="button"
                       className="tab-search-clear"
-                      aria-label="Clear search"
+                      aria-label={t("tabs.clearSearch", { defaultValue: "Clear search" })}
                       onClick={() => {
                         setSearchQuery("")
                         searchInputRef.current?.focus()
@@ -790,7 +791,9 @@ export const TabBar: React.FC<TabBarProps> = ({
                   })}
 
                   {filteredTabs.length === 0 && (
-                    <div className="tab-overflow-empty">No matching tabs</div>
+                    <div className="tab-overflow-empty">
+                      {t("tabs.noMatchingTabs", { defaultValue: "No matching tabs" })}
+                    </div>
                   )}
                 </div>
               </div>,

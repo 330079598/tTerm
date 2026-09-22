@@ -288,7 +288,7 @@ export function useSftpDownloads({
 
             updateTransfer(transferId, {
               endTime: now,
-              error: error || "Download failed",
+              error: error || undefined,
               status: "failed",
             })
           }

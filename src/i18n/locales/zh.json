@@ -28,13 +28,19 @@
   "tabs": {
     "newTab": "新建标签页",
     "closeTab": "关闭标签页",
-    "closeActiveTransferTitle_one": "\u6709\u6d3b\u8dc3\u4f20\u8f93\u4efb\u52a1",
-    "closeActiveTransferTitle_other": "\u6709 {{count}} \u4e2a\u6d3b\u8dc3\u4f20\u8f93\u4efb\u52a1",
-    "closeActiveTransferDescription_one": "\u5173\u95ed\u6b64\u6807\u7b7e\u9875\u4f1a\u9690\u85cf\u6d3b\u8dc3 SFTP \u4f20\u8f93\u8fdb\u5ea6\uff0c\u5e76\u53ef\u80fd\u4e2d\u65ad\u4f20\u8f93\u3002\u8981\u7ee7\u7eed\u5417\uff1f",
-    "closeActiveTransferDescription_other": "\u5173\u95ed\u8fd9\u4e9b\u6807\u7b7e\u9875\u4f1a\u9690\u85cf {{count}} \u4e2a\u6d3b\u8dc3 SFTP \u4f20\u8f93\u8fdb\u5ea6\uff0c\u5e76\u53ef\u80fd\u4e2d\u65ad\u4f20\u8f93\u3002\u8981\u7ee7\u7eed\u5417\uff1f",
-    "closeActiveTransferConfirm": "\u4ecd\u7136\u5173\u95ed",
+    "closeActiveTransferTitle_one": "有活跃传输任务",
+    "closeActiveTransferTitle_other": "有 {{count}} 个活跃传输任务",
+    "closeActiveTransferDescription_one": "关闭此标签页会隐藏活跃 SFTP 传输进度，并可能中断传输。要继续吗？",
+    "closeActiveTransferDescription_other": "关闭这些标签页会隐藏 {{count}} 个活跃 SFTP 传输进度，并可能中断传输。要继续吗？",
+    "closeActiveTransferConfirm": "仍然关闭",
     "terminal": "终端",
-    "ssh": "SSH"
+    "ssh": "SSH",
+    "scrollLeft": "向左滚动标签页",
+    "scrollRight": "向右滚动标签页",
+    "showAll": "显示所有标签页",
+    "searchTabs": "搜索标签页",
+    "clearSearch": "清除搜索",
+    "noMatchingTabs": "没有匹配的标签页"
   },
   "contextMenu": {
     "newTab": "新建标签页",
@@ -67,6 +73,7 @@
     "selected": "已选择 {{count}} 个",
     "commandMode": "命令",
     "liveMode": "实时输入",
+    "liveBadge": "直播中",
     "selectVisible": "选择可见终端",
     "selectAll": "选择全部",
     "clear": "清空",
@@ -150,6 +157,8 @@
     "restoreAllSessionConnections": "启动时恢复所有会话连接",
     "restoreAllSessionConnectionsDesc": "关闭后，启动时仅连接当前标签页，其他恢复的标签页在打开时再连接。",
     "saveFailed": "保存设置失败",
+    "languageChangeFailed": "保存语言设置失败。",
+    "themeChangeFailed": "保存主题失败。",
     "interfaceScale": "界面字体缩放",
     "interfaceScaleDesc": "仅缩放应用文字，不改变控件、间距、终端文字或编辑器内容。",
     "interfaceScaleRange": "选择 80% 到 200% 的文字缩放比例。",
@@ -192,6 +201,8 @@
     "sftpDesc": "配置远程目录文件管理器的行为。",
     "sftpPasteUpload": "将复制的文件粘贴到 SFTP",
     "sftpPasteUploadDesc": "开启后，在 SFTP 面板按 Ctrl+V 或 Cmd+V 会上传系统剪贴板中的本地文件和文件夹；剪贴板文本会被忽略。",
+    "sftpTransferParallelism": "并行传输通道数",
+    "sftpTransferParallelismDesc": "每个可续传任务使用的 SFTP 通道数量（1-16，默认 4）。设置为 1 可使用单通道顺序传输，适用于并发写入会导致存储卡顿的服务器。",
     "jumpHost": "跳板机",
     "connectionDesc": "管理连接相关提示和链路信息显示。",
     "profileGroups": "分组",
@@ -327,7 +338,8 @@
       "brightMagenta": "亮洋红",
       "brightCyan": "亮青色",
       "brightWhite": "亮白色"
-    }
+    },
+    "basedOn": "基于 {{themeId}}"
   },
   "themeEditor": {
     "createTheme": "创建自定义主题",
@@ -351,6 +363,9 @@
     "restorePreset": "恢复预设",
     "duplicateName": "输入复制主题的名称",
     "confirmDelete": "确定要删除此主题吗？",
+    "deleteFailed": "删除主题失败。",
+    "duplicateFailed": "复制主题失败。",
+    "resetFailed": "重置主题失败。",
     "createNew": "创建新主题",
     "showMorePresets": "显示另外 {{count}} 个主题",
     "showFewerPresets": "收起主题",
@@ -587,7 +602,15 @@
     "close": "关闭",
     "done": "完成",
     "preview": "预览",
-    "open": "打开"
+    "open": "打开",
+    "confirm": "确认",
+    "ok": "确定",
+    "create": "创建",
+    "delete": "删除",
+    "error": "错误",
+    "loading": "加载中...",
+    "rename": "重命名",
+    "retry": "重试"
   },
   "language": {
     "title": "选择语言",
@@ -724,6 +747,9 @@
     "copy": "复制",
     "delete": "删除",
     "deleteConfirm": "确定删除此连接？",
+    "deleteFailed": "删除连接配置失败。",
+    "loadFailed": "加载连接配置失败。",
+    "notFound": "此连接配置已不存在。",
     "editTitle": "编辑连接",
     "copyTitle": "复制连接",
     "copyName": "{{name}} 的副本",
@@ -871,7 +897,8 @@
     "importComplete": "SSH 配置已导入",
     "importCompleteDesc": "新增 {{imported}}，更新 {{updated}}，跳过 {{skipped}}。",
     "importForwards": "同时导入端口转发（{{count}}）",
-    "importCompleteTunnels": "新增 {{count}} 条端口转发。"
+    "importCompleteTunnels": "新增 {{count}} 条端口转发。",
+    "defaultGroup": "从 SSH 配置导入"
   },
   "profileGroups": {
     "title": "连接分组",
@@ -936,7 +963,7 @@
   },
   "rename": {
     "title": "重命名标签页",
-    "label": "标签页名称",
+    "newName": "标签页名称",
     "cancel": "取消",
     "confirm": "重命名"
   },
@@ -1044,7 +1071,24 @@
     "connectionInfo": "连接",
     "jumpRoute_one": "{{count}} 个跳转机链路",
     "jumpRoute_other": "{{count}} 个跳转机链路",
-    "networkLatency": "延迟 {{latency}} 毫秒"
+    "networkLatency": "延迟 {{latency}} 毫秒",
+    "localShell": "本地终端",
+    "unknownHost": "未知主机",
+    "protocolLocal": "本地",
+    "jumpCount_one": "{{count}} 个跳转",
+    "jumpCount_other": "{{count}} 个跳转",
+    "jumpHostIndexed": "跳转机 #{{index}}{{totalSuffix}}",
+    "jumpHostFallback": "跳转机",
+    "resolvingCredentials": "正在读取已保存的凭据",
+    "jumpConnecting": "正在连接{{hop}}{{address}}",
+    "jumpHostKeyChecking": "正在校验{{hop}}指纹{{forAddress}}",
+    "jumpAuthenticating": "正在验证{{hop}}身份{{asUsername}}",
+    "jumpConnected": "{{hop}}已连接",
+    "tunnelOpening": "正在打开隧道{{toAddress}}",
+    "targetConnecting": "正在连接目标{{address}}",
+    "targetHostKeyChecking": "正在校验目标指纹{{forAddress}}",
+    "targetAuthenticating": "正在验证目标身份{{asUsername}}",
+    "connectionReady": "连接就绪"
   },
   "serverMonitor": {
     "loading": "正在加载服务器指标...",
@@ -1188,7 +1232,18 @@
     "completed": "已完成",
     "failed": "失败",
     "cancelled": "已取消",
-    "pending": "等待中..."
+    "pending": "等待中...",
+    "itemCount_one": "{{count}} 项",
+    "itemCount_other": "{{count}} 项",
+    "retry": "续传 / 重试",
+    "resumed": "已续传",
+    "collapseFolder": "折叠文件夹",
+    "expandFolder": "展开文件夹",
+    "folderItems_one": "{{count}} 个文件",
+    "folderItems_other": "{{count}} 个文件",
+    "completedShort": "已完成",
+    "failedShort": "失败",
+    "cancelledShort": "已取消"
   },
   "sftp": {
     "transfers": "传输",
@@ -1198,7 +1253,8 @@
       "size": "大小",
       "owner": "所有者/组",
       "kind": "类型",
-      "permissions": "权限"
+      "permissions": "权限",
+      "resize": "调整{{column}}列宽"
     },
     "kinds": {
       "file": "文件",
@@ -1213,6 +1269,7 @@
       "downloadFolder": "下载文件夹",
       "copyPath": "复制完整路径",
       "rename": "重命名",
+      "edit": "编辑",
       "delete": "删除",
       "deleteSelected": "删除选择",
       "newFolder": "新建文件夹",
@@ -1223,7 +1280,8 @@
       "clear": "清空选择",
       "selectedCount_one": "已选择 {{count}} 项",
       "selectedCount_other": "已选择 {{count}} 项",
-      "toggle": "选择 {{name}}"
+      "toggle": "选择 {{name}}",
+      "mode": "切换选择模式"
     },
     "dialogs": {
       "deleteTitle_one": "删除项目",
@@ -1235,15 +1293,26 @@
       "nameLabel": "名称",
       "createFolderTitle": "创建新文件夹",
       "createFolderDescription": "请输入新文件夹名称",
-      "folderNameLabel": "文件夹名称"
+      "folderNameLabel": "文件夹名称",
+      "commandDeleteTitle": "使用命令删除？",
+      "commandDeleteDescription": "检测到 {{count}} 项。删除前请检查或编辑该命令。",
+      "commandDeleteCount": "已扫描：{{items}} 项，{{files}} 个文件，{{folders}} 个文件夹",
+      "useSftpDelete": "使用 SFTP 删除",
+      "useCommandDelete": "使用命令删除"
     },
     "messages": {
       "deleteSuccess_one": "已删除 {{count}} 个项目。",
       "deleteSuccess_other": "已删除 {{count}} 个项目。",
       "deletePartialFailure": "已删除 {{successCount}} 个项目，{{failureCount}} 个删除失败。",
       "deleteFailure": "删除所选项目失败。",
+      "deleteFailedCount_one": "未能删除 {{count}} 个项目。",
+      "deleteFailedCount_other": "未能删除 {{count}} 个项目。",
+      "deleteUsedCommand": "已对大文件夹使用远程命令删除。",
       "copyPathSuccess": "已复制完整路径。",
       "copyPathFailure": "复制完整路径失败。"
+    },
+    "deleteProgress": {
+      "sftp": "正在删除文件"
     },
     "prompts": {
       "newFolder": "新文件夹名称",
@@ -1446,5 +1515,27 @@
     "deleteBackup": "删除 {{name}}",
     "deleteBackupConfirm": "确定删除备份 {{name}} 吗？此操作无法撤销。",
     "deleteBackupFailed": "无法删除备份"
+  },
+  "window": {
+    "controls": "窗口控制",
+    "minimize": "最小化",
+    "maximize": "最大化",
+    "close": "关闭"
+  },
+  "remoteFileEditor": {
+    "openFailed": "打开远程文件失败",
+    "closeUnsavedTitle": "关闭未保存的远程文件？",
+    "closeUnsavedDescription": "一个或多个远程文件标签页有未保存的更改。关闭它们将放弃这些更改。",
+    "closeUnsavedConfirm": "放弃",
+    "saving": "正在保存...",
+    "loadingShort": "加载中...",
+    "unsaved": "有未保存的更改",
+    "saved": "已保存",
+    "saveSuccess": "远程文件已保存",
+    "saveFailed": "保存远程文件失败",
+    "missingFile": "远程文件元数据缺失。",
+    "reload": "重新加载",
+    "save": "保存",
+    "loading": "正在加载远程文件..."
   }
 }

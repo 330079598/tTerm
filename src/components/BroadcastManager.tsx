@@ -131,7 +131,9 @@ export function BroadcastManager({
       >
         <RadioTower size={16} />
         {isLiveRunning ? (
-          <span className="broadcast-live-badge">LIVE</span>
+          <span className="broadcast-live-badge">
+            {t("broadcast.liveBadge", { defaultValue: "LIVE" })}
+          </span>
         ) : selectedTabIds.length > 0 ? (
           <span className="broadcast-count-badge">{selectedTabIds.length}</span>
         ) : null}
@@ -152,7 +154,11 @@ export function BroadcastManager({
                   <span>{t("broadcast.selected", { count: selectedCount })}</span>
                 </div>
                 <div className="broadcast-header-right">
-                  {isLiveRunning && <span className="broadcast-live-label">LIVE</span>}
+                  {isLiveRunning && (
+                    <span className="broadcast-live-label">
+                      {t("broadcast.liveBadge", { defaultValue: "LIVE" })}
+                    </span>
+                  )}
                   <button
                     type="button"
                     className="broadcast-close-btn"

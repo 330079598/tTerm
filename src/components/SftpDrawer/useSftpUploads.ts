@@ -408,7 +408,7 @@ export function useSftpUploads({
 
           updateTransfer(transferId, {
             endTime: now,
-            error: error || "Upload failed",
+            error: error || undefined,
             status: "failed",
           })
         }),

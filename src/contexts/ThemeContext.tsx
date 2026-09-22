@@ -7,6 +7,7 @@ import React, {
   useMemo,
   useState,
 } from "react"
+import { useTranslation } from "react-i18next"
 
 import { useConfig } from "@/contexts/ConfigContext"
 import { announceThemeReady } from "@/lib/startup"
@@ -89,6 +90,7 @@ function normalizeCustomTheme(rawTheme: unknown): CustomTheme | null {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation()
   const { config, updateTheme, isLoaded } = useConfig()
   const [customThemes, setCustomThemes] = useState<CustomTheme[]>([])
   const [themesLoaded, setThemesLoaded] = useState(false)
@@ -265,11 +267,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       const themeData = themeUtils.createCustomThemeFromPreset(
         themeId as PresetThemeId,
         newName,
-        `Based on ${themeId}`
+        t("theme.basedOn", { themeId, defaultValue: "Based on {{themeId}}" })
       )
       return createCustomTheme(themeData)
     },
-    [createCustomTheme, customThemes]
+    [createCustomTheme, customThemes, t]
   )
 
   const getTheme = useCallback(

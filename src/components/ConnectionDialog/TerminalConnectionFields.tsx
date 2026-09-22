@@ -141,7 +141,7 @@ export const TerminalConnectionFields: React.FC<TerminalConnectionFieldsProps> =
         >
           {visibleShellOptions.map((profile) => (
             <option key={profile.value} value={profile.value}>
-              {profile.shell === "custom"
+              {profile.shell === "custom" && profile.source !== "manual path" && profile.source !== "$SHELL"
                 ? profile.label
                 : t(
                     `connection.terminalShellOptions.${terminalShellTranslationKeys[profile.shell]}`,

@@ -53,12 +53,14 @@ function formatDuration(ms: number): string {
   return `${minutes}m ${remainingSeconds}s`
 }
 
-function formatItems(count: number): string {
-  return `${count} ${count === 1 ? "item" : "items"}`
+type Translator = (key: string, options?: Record<string, unknown>) => string
+
+function formatItems(count: number, t: Translator): string {
+  return t("transfer.itemCount", { count, defaultValue: `${count} item(s)` })
 }
 
-function formatItemSpeed(itemsPerSecond: number): string {
-  return `${formatItems(Math.round(itemsPerSecond))}/s`
+function formatItemSpeed(itemsPerSecond: number, t: Translator): string {
+  return `${formatItems(Math.round(itemsPerSecond), t)}/s`
 }
 
 function getStatusIcon(status: TransferStatus) {
@@ -335,10 +337,12 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
             <div className="text-muted-foreground flex items-center justify-between text-[10px]">
               <span>
                 {isDelete
-                  ? `${formatItems(transfer.transferred)} / ${formatItems(transfer.fileSize)}`
+                  ? `${formatItems(transfer.transferred, t)} / ${formatItems(transfer.fileSize, t)}`
                   : `${formatBytes(transfer.transferred)} / ${formatBytes(transfer.fileSize)}`}
               </span>
-              {speed > 0 && <span>{isDelete ? formatItemSpeed(speed) : formatSpeed(speed)}</span>}
+              {speed > 0 && (
+                <span>{isDelete ? formatItemSpeed(speed, t) : formatSpeed(speed)}</span>
+              )}
               <span className="flex items-center gap-1">
                 {parallelism > 1 && <span>{parallelism}x</span>}
                 {resumedFrom > 0 && (
@@ -355,7 +359,7 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
         {transfer.status === "pending" && (
           <div className="text-muted-foreground mt-2 text-[10px]">
             {t("transfer.pending", { defaultValue: "Waiting..." })} {" - "}
-            {isDelete ? formatItems(transfer.fileSize) : formatBytes(transfer.fileSize)}
+            {isDelete ? formatItems(transfer.fileSize, t) : formatBytes(transfer.fileSize)}
           </div>
         )}
 
@@ -366,7 +370,7 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
             </span>
             <span>{formatDuration(duration)}</span>
             <span>
-              {isDelete ? formatItems(transfer.fileSize) : formatBytes(transfer.fileSize)}
+              {isDelete ? formatItems(transfer.fileSize, t) : formatBytes(transfer.fileSize)}
             </span>
           </div>
         )}

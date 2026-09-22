@@ -218,7 +218,7 @@ export function ServerMonitorPanel({
           <div className="server-monitor-panel-overview">
             <Stat
               icon={<Cpu size={15} />}
-              label="CPU"
+              label={t("serverMonitor.tabs.cpu")}
               value={cpuPercent === undefined ? "--" : `${Math.round(cpuPercent)}%`}
             />
             <Stat
@@ -251,7 +251,7 @@ export function ServerMonitorPanel({
 
         <TabsContent value="cpu" className="server-monitor-panel-content is-chart-view">
           <div className="server-monitor-panel-kpi">
-            <span>CPU</span>
+            <span>{t("serverMonitor.tabs.cpu")}</span>
             <strong>{cpuPercent === undefined ? "--" : `${Math.round(cpuPercent)}%`}</strong>
           </div>
           <TrendChart

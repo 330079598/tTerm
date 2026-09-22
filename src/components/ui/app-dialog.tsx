@@ -1,5 +1,6 @@
 ﻿import * as React from "react"
 import { AlertTriangle, Info } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import {
   Dialog,
@@ -51,6 +52,7 @@ type InfoDialogState = InfoDialogOptions & {
 }
 
 export function useConfirmDialog() {
+  const { t } = useTranslation()
   const [state, setState] = React.useState<ConfirmDialogState | null>(null)
 
   const confirm = React.useCallback((options: ConfirmDialogOptions) => {
@@ -103,7 +105,7 @@ export function useConfirmDialog() {
               variant="outline"
               onClick={() => close(false)}
             >
-              {state.cancelText ?? "Cancel"}
+              {state.cancelText ?? t("common.cancel", { defaultValue: "Cancel" })}
             </Button>
             <Button
               type="button"
@@ -111,18 +113,19 @@ export function useConfirmDialog() {
               variant={isDestructive ? "destructive" : "default"}
               onClick={() => close(true)}
             >
-              {state.confirmText ?? "Confirm"}
+              {state.confirmText ?? t("common.confirm", { defaultValue: "Confirm" })}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     )
-  }, [close, state])
+  }, [close, state, t])
 
   return { confirm, ConfirmDialog }
 }
 
 export function usePromptDialog() {
+  const { t } = useTranslation()
   const [state, setState] = React.useState<PromptDialogState | null>(null)
   const [value, setValue] = React.useState("")
 
@@ -176,20 +179,23 @@ export function usePromptDialog() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => close(null)}>
-                {state.cancelText ?? "Cancel"}
+                {state.cancelText ?? t("common.cancel", { defaultValue: "Cancel" })}
               </Button>
-              <Button type="submit">{state.confirmText ?? "OK"}</Button>
+              <Button type="submit">
+                {state.confirmText ?? t("common.ok", { defaultValue: "OK" })}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
     )
-  }, [close, state, value])
+  }, [close, state, value, t])
 
   return { prompt, PromptDialog }
 }
 
 export function useInfoDialog() {
+  const { t } = useTranslation()
   const [state, setState] = React.useState<InfoDialogState | null>(null)
 
   const info = React.useCallback((options: InfoDialogOptions) => {
@@ -224,13 +230,13 @@ export function useInfoDialog() {
           </DialogHeader>
           <DialogFooter>
             <Button type="button" onClick={close}>
-              {state.closeText ?? "OK"}
+              {state.closeText ?? t("common.ok", { defaultValue: "OK" })}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     )
-  }, [close, state])
+  }, [close, state, t])
 
   return { info, InfoDialog }
 }

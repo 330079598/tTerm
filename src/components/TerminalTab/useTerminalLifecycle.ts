@@ -547,7 +547,7 @@ export function useTerminalLifecycle({
         onSessionUnavailableRef.current?.(tabId, sessionNonce, true)
         const reason = event.payload as string | null | undefined
         if (connectionRef.current?.type === "ssh") {
-          const displayAddress = getConnectionDisplay(connectionRef.current)
+          const displayAddress = getConnectionDisplay(connectionRef.current, t)
           term.writeln(`\r\n\x1b[33m${displayAddress}: session closed\x1b[0m`)
           term.writeln("\x1b[36mPress any key to reconnect\x1b[0m")
 
@@ -757,6 +757,7 @@ export function useTerminalLifecycle({
     setConnectionProgress,
     setSearchResults,
     sessionNonce,
+    t,
     tabId,
     terminalRenderer,
     termRef,

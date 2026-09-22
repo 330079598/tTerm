@@ -73,8 +73,6 @@ interface SshConfigImportResult {
   profiles: SavedProfile[]
 }
 
-const DEFAULT_GROUP = "Imported from SSH config"
-
 const statusForHost = (host: SshConfigImportHost) => {
   if (host.skipped) return "skipped"
   if (host.unsupportedOptions.length > 0 || host.warnings.length > 0) return "warning"
@@ -87,8 +85,11 @@ export const SshConfigImportDialog: React.FC<SshConfigImportDialogProps> = ({
   onImported,
 }) => {
   const { t } = useTranslation()
+  const defaultGroup = t("sshConfigImport.defaultGroup", {
+    defaultValue: "Imported from SSH config",
+  })
   const [sourcePath, setSourcePath] = useState("~/.ssh")
-  const [group, setGroup] = useState(DEFAULT_GROUP)
+  const [group, setGroup] = useState(defaultGroup)
   const [overwriteExisting, setOverwriteExisting] = useState(false)
   const [importForwards, setImportForwards] = useState(true)
   const [preview, setPreview] = useState<SshConfigImportPreview | null>(null)
@@ -320,7 +321,7 @@ export const SshConfigImportDialog: React.FC<SshConfigImportDialogProps> = ({
                 id="ssh-config-group"
                 value={group}
                 onChange={(event) => setGroup(event.target.value)}
-                placeholder={DEFAULT_GROUP}
+                placeholder={defaultGroup}
               />
             </div>
           </div>

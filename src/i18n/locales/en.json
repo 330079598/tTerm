@@ -34,7 +34,13 @@
     "closeActiveTransferDescription_other": "Closing these tabs will hide {{count}} active SFTP transfer progress entries and may interrupt the transfers. Continue?",
     "closeActiveTransferConfirm": "Close anyway",
     "terminal": "Terminal",
-    "ssh": "SSH"
+    "ssh": "SSH",
+    "scrollLeft": "Scroll tabs left",
+    "scrollRight": "Scroll tabs right",
+    "showAll": "Show all tabs",
+    "searchTabs": "Search tabs",
+    "clearSearch": "Clear search",
+    "noMatchingTabs": "No matching tabs"
   },
   "contextMenu": {
     "newTab": "New Tab",
@@ -68,6 +74,7 @@
     "selected_other": "{{count}} selected",
     "commandMode": "Command",
     "liveMode": "Live input",
+    "liveBadge": "LIVE",
     "selectVisible": "Select visible",
     "selectAll": "Select all",
     "clear": "Clear",
@@ -159,6 +166,8 @@
     "restoreAllSessionConnections": "Restore all session connections on startup",
     "restoreAllSessionConnectionsDesc": "When off, only the active tab connects at startup. Other restored tabs connect when opened.",
     "saveFailed": "Failed to save settings",
+    "languageChangeFailed": "Failed to save language setting.",
+    "themeChangeFailed": "Failed to save theme.",
     "interfaceScale": "Interface font scale",
     "interfaceScaleDesc": "Scale application text without changing controls, spacing, terminal text, or editor content.",
     "interfaceScaleRange": "Choose a text scale from 80% to 200%.",
@@ -201,6 +210,8 @@
     "sftpDesc": "Configure file manager behavior for remote directories.",
     "sftpPasteUpload": "Paste copied files into SFTP",
     "sftpPasteUploadDesc": "When enabled, Ctrl+V or Cmd+V in the SFTP panel uploads copied local files and folders. Clipboard text is ignored.",
+    "sftpTransferParallelism": "Parallel transfer channels",
+    "sftpTransferParallelismDesc": "Number of SFTP channels used per resumable transfer (1-16, default 4). Set to 1 for single-stream sequential transfers, which is the compatible choice for servers whose storage stalls under concurrent writes.",
     "jumpHost": "Jump hosts",
     "connectionDesc": "Control connection-related prompts and route details.",
     "profileGroups": "Groups",
@@ -336,7 +347,8 @@
       "brightMagenta": "Bright magenta",
       "brightCyan": "Bright cyan",
       "brightWhite": "Bright white"
-    }
+    },
+    "basedOn": "Based on {{themeId}}"
   },
   "themeEditor": {
     "createTheme": "Create Custom Theme",
@@ -360,6 +372,9 @@
     "restorePreset": "Restore preset",
     "duplicateName": "Enter name for duplicated theme",
     "confirmDelete": "Are you sure you want to delete this theme?",
+    "deleteFailed": "Failed to delete theme.",
+    "duplicateFailed": "Failed to duplicate theme.",
+    "resetFailed": "Failed to reset theme.",
     "createNew": "Create New Theme",
     "showMorePresets": "Show {{count}} more themes",
     "showFewerPresets": "Show fewer themes",
@@ -596,7 +611,15 @@
     "close": "Close",
     "done": "Done",
     "preview": "Preview",
-    "open": "Open"
+    "open": "Open",
+    "confirm": "Confirm",
+    "ok": "OK",
+    "create": "Create",
+    "delete": "Delete",
+    "error": "Error",
+    "loading": "Loading...",
+    "rename": "Rename",
+    "retry": "Retry"
   },
   "language": {
     "title": "Choose Language",
@@ -733,6 +756,9 @@
     "copy": "Copy",
     "delete": "Delete",
     "deleteConfirm": "Delete this connection?",
+    "deleteFailed": "Failed to delete connection profile.",
+    "loadFailed": "Failed to load connection profiles.",
+    "notFound": "This connection configuration no longer exists.",
     "editTitle": "Edit Connection",
     "copyTitle": "Copy Connection",
     "copyName": "Copy of {{name}}",
@@ -880,7 +906,8 @@
     "importComplete": "SSH config imported",
     "importCompleteDesc": "Imported {{imported}}, updated {{updated}}, skipped {{skipped}}.",
     "importForwards": "Also import port forwards ({{count}})",
-    "importCompleteTunnels": "Added {{count}} port forwards."
+    "importCompleteTunnels": "Added {{count}} port forwards.",
+    "defaultGroup": "Imported from SSH config"
   },
   "profileGroups": {
     "title": "Connection groups",
@@ -945,7 +972,7 @@
   },
   "rename": {
     "title": "Rename Tab",
-    "label": "Tab Name",
+    "newName": "Tab Name",
     "cancel": "Cancel",
     "confirm": "Rename"
   },
@@ -1053,7 +1080,24 @@
     "connectionInfo": "Connection",
     "jumpRoute_one": "{{count}} jump host route",
     "jumpRoute_other": "{{count}} jump host route",
-    "networkLatency": "Latency {{latency}} ms"
+    "networkLatency": "Latency {{latency}} ms",
+    "localShell": "Local shell",
+    "unknownHost": "unknown-host",
+    "protocolLocal": "Local",
+    "jumpCount_one": "{{count}} jump",
+    "jumpCount_other": "{{count}} jumps",
+    "jumpHostIndexed": "jump host #{{index}}{{totalSuffix}}",
+    "jumpHostFallback": "jump host",
+    "resolvingCredentials": "Resolving saved credentials",
+    "jumpConnecting": "Connecting to {{hop}}{{address}}",
+    "jumpHostKeyChecking": "Checking {{hop}} fingerprint{{forAddress}}",
+    "jumpAuthenticating": "Authenticating {{hop}}{{asUsername}}",
+    "jumpConnected": "{{hop}} connected",
+    "tunnelOpening": "Opening tunnel{{toAddress}}",
+    "targetConnecting": "Connecting to target{{address}}",
+    "targetHostKeyChecking": "Checking target fingerprint{{forAddress}}",
+    "targetAuthenticating": "Authenticating target{{asUsername}}",
+    "connectionReady": "Connection ready"
   },
   "serverMonitor": {
     "loading": "Loading server metrics...",
@@ -1197,7 +1241,18 @@
     "completed": "Completed",
     "failed": "Failed",
     "cancelled": "Cancelled",
-    "pending": "Waiting..."
+    "pending": "Waiting...",
+    "itemCount_one": "{{count}} item",
+    "itemCount_other": "{{count}} items",
+    "retry": "Resume / Retry",
+    "resumed": "resumed",
+    "collapseFolder": "Collapse folder",
+    "expandFolder": "Expand folder",
+    "folderItems_one": "{{count}} file",
+    "folderItems_other": "{{count}} files",
+    "completedShort": "done",
+    "failedShort": "failed",
+    "cancelledShort": "cancelled"
   },
   "sftp": {
     "transfers": "Transfers",
@@ -1207,7 +1262,8 @@
       "size": "Size",
       "owner": "Owner/Group",
       "kind": "Kind",
-      "permissions": "Permissions"
+      "permissions": "Permissions",
+      "resize": "Resize {{column}}"
     },
     "kinds": {
       "file": "File",
@@ -1222,6 +1278,7 @@
       "downloadFolder": "Download Folder",
       "copyPath": "Copy Full Path",
       "rename": "Rename",
+      "edit": "Edit",
       "delete": "Delete",
       "deleteSelected": "Delete Selection",
       "newFolder": "New Folder",
@@ -1232,7 +1289,8 @@
       "clear": "Clear Selection",
       "selectedCount_one": "{{count}} selected",
       "selectedCount_other": "{{count}} selected",
-      "toggle": "Select {{name}}"
+      "toggle": "Select {{name}}",
+      "mode": "Toggle selection mode"
     },
     "dialogs": {
       "deleteTitle_one": "Delete Item",
@@ -1244,15 +1302,26 @@
       "nameLabel": "Name",
       "createFolderTitle": "Create New Folder",
       "createFolderDescription": "Enter a name for the new folder",
-      "folderNameLabel": "Folder Name"
+      "folderNameLabel": "Folder Name",
+      "commandDeleteTitle": "Use Command Delete?",
+      "commandDeleteDescription": "Detected {{count}} item(s). Review or edit the command before deleting.",
+      "commandDeleteCount": "Scanned: {{items}} items, {{files}} files, {{folders}} folders",
+      "useSftpDelete": "Use SFTP Delete",
+      "useCommandDelete": "Use Command Delete"
     },
     "messages": {
       "deleteSuccess_one": "Deleted {{count}} item.",
       "deleteSuccess_other": "Deleted {{count}} items.",
       "deletePartialFailure": "Deleted {{successCount}} item(s). {{failureCount}} failed.",
       "deleteFailure": "Failed to delete selected items.",
+      "deleteFailedCount_one": "Failed to delete {{count}} item.",
+      "deleteFailedCount_other": "Failed to delete {{count}} items.",
+      "deleteUsedCommand": "Used remote command delete for a large folder.",
       "copyPathSuccess": "Full path copied.",
       "copyPathFailure": "Failed to copy full path."
+    },
+    "deleteProgress": {
+      "sftp": "Deleting files"
     },
     "prompts": {
       "newFolder": "New folder name",
@@ -1456,5 +1525,27 @@
     "deleteBackup": "Delete {{name}}",
     "deleteBackupConfirm": "Delete backup {{name}}? This cannot be undone.",
     "deleteBackupFailed": "Could not delete backup"
+  },
+  "window": {
+    "controls": "Window controls",
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "close": "Close"
+  },
+  "remoteFileEditor": {
+    "openFailed": "Failed to open remote file",
+    "closeUnsavedTitle": "Close unsaved remote file?",
+    "closeUnsavedDescription": "One or more remote file tabs have unsaved changes. Closing them will discard those changes.",
+    "closeUnsavedConfirm": "Discard",
+    "saving": "Saving...",
+    "loadingShort": "Loading...",
+    "unsaved": "Unsaved changes",
+    "saved": "Saved",
+    "saveSuccess": "Remote file saved",
+    "saveFailed": "Failed to save remote file",
+    "missingFile": "Remote file metadata is missing.",
+    "reload": "Reload",
+    "save": "Save",
+    "loading": "Loading remote file..."
   }
 }

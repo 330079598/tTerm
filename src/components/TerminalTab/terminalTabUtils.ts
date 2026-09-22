@@ -8,12 +8,17 @@ export const FALLBACK_TERMINAL_BACKGROUND = "#111827"
 export const TAB_ACTIVATE_REFIT_DELAY_MS = 32
 export const STATUS_CONNECTING = "[Connecting"
 
-export function getConnectionDisplay(connection?: TerminalTabProps["connection"]): string {
+type Translator = (key: string, options?: Record<string, unknown>) => string
+
+export function getConnectionDisplay(
+  connection: TerminalTabProps["connection"] | undefined,
+  t: Translator
+): string {
   if (!connection || connection.type === "terminal") {
-    return "Local shell"
+    return t("sessionHeader.localShell", { defaultValue: "Local shell" })
   }
 
-  const host = connection.host || "unknown-host"
+  const host = connection.host || t("sessionHeader.unknownHost", { defaultValue: "unknown-host" })
   const port = connection.port ?? 22
   const address = `${host}:${port}`
   return connection.username ? `${connection.username}@${address}` : address
@@ -36,8 +41,6 @@ export function getConnectionStateLabel(
       return t("sessionHeader.error", { defaultValue: "Error" })
   }
 }
-
-type Translator = (key: string, options?: Record<string, unknown>) => string
 
 export function getSshConnectionProgressLabel(
   progress: SshConnectionProgress,
@@ -68,31 +71,64 @@ export function getSshConnectionProgressLabel(
   }
 
   const address = progress.host ? `${progress.host}${progress.port ? `:${progress.port}` : ""}` : ""
+  const hopSuffix = address ? ` ${address}` : ""
+  const forAddress = address ? ` for ${address}` : ""
+  const asUsername = progress.username ? ` as ${progress.username}` : ""
   const hop = progress.hopIndex
-    ? `jump host #${progress.hopIndex}${progress.totalHops ? `/${progress.totalHops}` : ""}`
-    : "jump host"
+    ? t("sessionHeader.jumpHostIndexed", {
+        index: progress.hopIndex,
+        totalSuffix: progress.totalHops ? `/${progress.totalHops}` : "",
+        defaultValue: "jump host #{{index}}{{totalSuffix}}",
+      })
+    : t("sessionHeader.jumpHostFallback", { defaultValue: "jump host" })
 
   switch (progress.phase) {
     case "resolving_credentials":
-      return "Resolving saved credentials"
+      return t("sessionHeader.resolvingCredentials", {
+        defaultValue: "Resolving saved credentials",
+      })
     case "jump_connecting":
-      return `Connecting to ${hop}${address ? ` ${address}` : ""}`
+      return t("sessionHeader.jumpConnecting", {
+        hop,
+        address: hopSuffix,
+        defaultValue: "Connecting to {{hop}}{{address}}",
+      })
     case "jump_host_key_checking":
-      return `Checking ${hop} fingerprint${address ? ` for ${address}` : ""}`
+      return t("sessionHeader.jumpHostKeyChecking", {
+        hop,
+        forAddress,
+        defaultValue: "Checking {{hop}} fingerprint{{forAddress}}",
+      })
     case "jump_authenticating":
-      return `Authenticating ${hop}${progress.username ? ` as ${progress.username}` : ""}`
+      return t("sessionHeader.jumpAuthenticating", {
+        hop,
+        asUsername,
+        defaultValue: "Authenticating {{hop}}{{asUsername}}",
+      })
     case "jump_connected":
-      return `${hop} connected`
+      return t("sessionHeader.jumpConnected", { hop, defaultValue: "{{hop}} connected" })
     case "tunnel_opening":
-      return `Opening tunnel${address ? ` to ${address}` : ""}`
+      return t("sessionHeader.tunnelOpening", {
+        toAddress: address ? ` to ${address}` : "",
+        defaultValue: "Opening tunnel{{toAddress}}",
+      })
     case "target_connecting":
-      return `Connecting to target${address ? ` ${address}` : ""}`
+      return t("sessionHeader.targetConnecting", {
+        address: hopSuffix,
+        defaultValue: "Connecting to target{{address}}",
+      })
     case "target_host_key_checking":
-      return `Checking target fingerprint${address ? ` for ${address}` : ""}`
+      return t("sessionHeader.targetHostKeyChecking", {
+        forAddress,
+        defaultValue: "Checking target fingerprint{{forAddress}}",
+      })
     case "target_authenticating":
-      return `Authenticating target${progress.username ? ` as ${progress.username}` : ""}`
+      return t("sessionHeader.targetAuthenticating", {
+        asUsername,
+        defaultValue: "Authenticating target{{asUsername}}",
+      })
     case "ready":
-      return "Connection ready"
+      return t("sessionHeader.connectionReady", { defaultValue: "Connection ready" })
     default:
       return progress.phase.replace(/_/g, " ")
   }
