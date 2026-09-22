@@ -26,6 +26,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     port: profile.port ?? 22,
     username: profile.username ?? "",
     authMethod,
+    agentForward: profile.agent_forward === true,
     privateKeyPath: profile.private_key_path ?? "",
     keepaliveIntervalSecs: profile.keepalive_interval_secs,
     keepaliveCountMax: profile.keepalive_count_max,

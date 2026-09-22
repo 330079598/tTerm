@@ -97,6 +97,7 @@ pub fn import_ssh_config_profiles(
             ignore_saved_password: false,
             remember_password: false,
             auth_method: Some(host.auth_method),
+            agent_forward: false,
             private_key_path: host.private_key_path,
             private_key_passphrase: None,
             keepalive_interval_secs: host.keepalive_interval_secs,
@@ -488,6 +489,7 @@ pub async fn test_connection(
         },
         private_key_passphrase: profile.private_key_passphrase.clone(),
         use_agent: profile.auth_method.as_deref() == Some("agent"),
+        agent_forward: false,
         terminal_shell: None,
         keepalive_interval_secs: profile.keepalive_interval_secs as u16,
         keepalive_count_max: profile.keepalive_count_max as u16,
@@ -684,6 +686,9 @@ fn test_connection_handler(
         status_options: ConnectionStatusOptions::SILENT,
         host_key_verification_mode,
         forwarded_tcpip_tx: None,
+        // A test connection just probes auth; it never keeps the session
+        // around long enough for agent forwarding to matter.
+        agent_forward_enabled: false,
     }
 }
 

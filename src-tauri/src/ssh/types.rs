@@ -252,10 +252,43 @@ pub struct SshClientHandler {
     /// Receives channels the server opens for remote port forwards. `None`
     /// for sessions that never request one; such channels are dropped.
     pub forwarded_tcpip_tx: Option<tokio::sync::mpsc::UnboundedSender<ForwardedTcpIp>>,
+    /// Whether this session requested SSH-agent forwarding (`use_agent &&
+    /// agent_forward` on the resolved plan). Gates
+    /// [`server_channel_open_agent_forward`](russh::client::Handler::server_channel_open_agent_forward):
+    /// a server could open an `auth-agent@openssh.com` channel even when we
+    /// never asked for one, and bridging it unconditionally would let an
+    /// untrusted host sign challenges through the local agent it was never
+    /// granted access to.
+    pub agent_forward_enabled: bool,
 }
 
 impl russh::client::Handler for SshClientHandler {
     type Error = russh::Error;
+
+    async fn server_channel_open_agent_forward(
+        &mut self,
+        channel: russh::Channel<russh::client::Msg>,
+        _session: &mut russh::client::Session,
+    ) -> Result<(), Self::Error> {
+        if !self.agent_forward_enabled {
+            let _ = channel.close().await;
+            return Ok(());
+        }
+
+        tokio::spawn(async move {
+            let mut agent_stream = match crate::ssh::agent::connect_local_agent_socket().await {
+                Ok(stream) => stream,
+                Err(_) => {
+                    let _ = channel.close().await;
+                    return;
+                }
+            };
+            let mut channel_stream = channel.into_stream();
+            let _ = tokio::io::copy_bidirectional(&mut channel_stream, &mut agent_stream).await;
+        });
+
+        Ok(())
+    }
 
     async fn server_channel_open_forwarded_tcpip(
         &mut self,

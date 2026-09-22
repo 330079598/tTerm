@@ -34,6 +34,7 @@ export interface ConnectionForm {
   port: number
   username: string
   authMethod: "password" | "key" | "agent"
+  agentForward: boolean
   password: string
   rememberPassword: boolean
   privateKeyPath: string
@@ -72,6 +73,7 @@ export const defaultForm: ConnectionForm = {
   port: 22,
   username: "",
   authMethod: "password",
+  agentForward: false,
   password: "",
   rememberPassword: false,
   privateKeyPath: "",

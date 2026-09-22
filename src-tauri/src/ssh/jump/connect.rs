@@ -526,6 +526,7 @@ pub async fn open_target_ssh_session(
     target_private_key_passphrase: Option<&str>,
     target_password: Option<&str>,
     target_use_agent: bool,
+    target_agent_forward: bool,
     keepalive_interval_secs: u16,
     keepalive_count_max: u16,
     jump_plans: &[JumpHostPlan],
@@ -545,6 +546,7 @@ pub async fn open_target_ssh_session(
         target_private_key_passphrase,
         target_password,
         target_use_agent,
+        target_agent_forward,
         keepalive_interval_secs,
         keepalive_count_max,
         jump_plans,
@@ -568,6 +570,7 @@ pub async fn open_target_ssh_session_with_forwarding(
     target_private_key_passphrase: Option<&str>,
     target_password: Option<&str>,
     target_use_agent: bool,
+    target_agent_forward: bool,
     keepalive_interval_secs: u16,
     keepalive_count_max: u16,
     jump_plans: &[JumpHostPlan],
@@ -593,6 +596,7 @@ pub async fn open_target_ssh_session_with_forwarding(
         status_options,
         host_key_verification_mode,
         forwarded_tcpip_tx,
+        agent_forward_enabled: target_use_agent && target_agent_forward,
     };
     let host_key_rejected = handler.user_rejected_host_key.clone();
 

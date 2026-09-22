@@ -10,6 +10,7 @@ export interface SavedProfile {
   ignore_saved_password?: boolean
   remember_password: boolean
   auth_method?: string
+  agent_forward?: boolean
   private_key_path?: string
   private_key_passphrase?: string
   keepalive_interval_secs: number
@@ -101,6 +102,7 @@ export interface Tab {
     keepaliveCountMax?: number
     serverMonitorVisible?: boolean
     authMethod?: "password" | "key" | "agent"
+    agentForward?: boolean
     privateKeyPath?: string
     privateKeyPassphrase?: string
     terminalShell?: TerminalShellType

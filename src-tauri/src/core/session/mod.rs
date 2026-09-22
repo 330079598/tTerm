@@ -59,6 +59,7 @@ pub fn normalize_connection(
             private_key_path: None,
             private_key_passphrase: None,
             use_agent: false,
+            agent_forward: false,
             terminal_shell,
             jump_hosts: Vec::new(),
         }),
@@ -90,6 +91,7 @@ pub fn normalize_connection(
                 .filter(|v| !v.is_empty());
 
             let use_agent = connection.auth_method.as_deref() == Some("agent");
+            let agent_forward = use_agent && connection.agent_forward;
             let password = if use_agent {
                 None
             } else {
@@ -129,6 +131,7 @@ pub fn normalize_connection(
                 private_key_path,
                 private_key_passphrase,
                 use_agent,
+                agent_forward,
                 terminal_shell: None,
                 jump_hosts,
             })

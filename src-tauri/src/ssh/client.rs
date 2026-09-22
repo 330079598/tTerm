@@ -128,6 +128,7 @@ pub async fn run_single_ssh_connection(
         plan.private_key_passphrase.as_deref(),
         plan.password.as_deref(),
         plan.use_agent,
+        plan.agent_forward,
         plan.keepalive_interval_secs,
         plan.keepalive_count_max,
         &plan.jump_hosts,
@@ -169,6 +170,14 @@ pub async fn run_single_ssh_connection(
         .elapsed()
         .as_millis()
         .min(u64::MAX as u128) as u64;
+
+    if plan.use_agent && plan.agent_forward {
+        // Best-effort: a server with agent forwarding disabled just won't
+        // open a channel back later, which isn't worth failing the session over.
+        if let Err(err) = channel.agent_forward(false).await {
+            eprintln!("SSH agent forwarding request failed: {err}");
+        }
+    }
 
     if let Err(err) = channel
         .request_pty(false, "xterm-256color", cols as u32, rows as u32, 0, 0, &[])

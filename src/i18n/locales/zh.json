@@ -1044,6 +1044,8 @@
     "sshKey": "SSH 密钥",
     "sshAgent": "SSH Agent",
     "sshAgentHint": "使用本机 SSH Agent（ssh-add）中已加载的密钥登录，包括 YubiKey、FIDO2 安全密钥等硬件密钥。",
+    "agentForward": "转发 SSH Agent",
+    "agentForwardDesc": "让本机 Agent 中的密钥在这台主机上也可用，便于从这里继续跳转到其他服务器而无需复制密钥。请仅在你信任的主机上启用。",
     "privateKeyPath": "私钥路径",
     "privateKeyPassphrase": "密码短语（可选）",
     "browseKey": "浏览"

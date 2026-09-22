@@ -1053,6 +1053,8 @@
     "sshKey": "SSH Key",
     "sshAgent": "SSH Agent",
     "sshAgentHint": "Signs in using keys already loaded in your local SSH agent (ssh-add), including hardware-backed keys such as YubiKey or FIDO2 security keys.",
+    "agentForward": "Forward SSH agent",
+    "agentForwardDesc": "Makes your local agent's keys available on this host too, so you can hop to further servers from here without copying keys. Only enable this on hosts you trust.",
     "privateKeyPath": "Private Key Path",
     "privateKeyPassphrase": "Passphrase (optional)",
     "browseKey": "Browse"

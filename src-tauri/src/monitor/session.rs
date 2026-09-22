@@ -98,6 +98,7 @@ pub(crate) async fn get_or_open_monitor_session(
         plan.private_key_passphrase.as_deref(),
         plan.password.as_deref(),
         plan.use_agent,
+        plan.agent_forward,
         plan.keepalive_interval_secs,
         plan.keepalive_count_max,
         &plan.jump_hosts,

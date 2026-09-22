@@ -275,9 +275,26 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
       )}
 
       {form.authMethod === "agent" && (
-        <p className="text-muted-foreground rounded-md border px-3 py-2 text-xs">
-          {t("ssh.sshAgentHint")}
-        </p>
+        <>
+          <p className="text-muted-foreground rounded-md border px-3 py-2 text-xs">
+            {t("ssh.sshAgentHint")}
+          </p>
+          <div className="flex items-start gap-2 rounded-md border px-3 py-2">
+            <Checkbox
+              id="conn-agent-forward"
+              checked={form.agentForward}
+              onCheckedChange={(checked) =>
+                setForm((current) => ({ ...current, agentForward: checked }))
+              }
+            />
+            <div className="space-y-0.5">
+              <Label htmlFor="conn-agent-forward" className="text-sm font-normal">
+                {t("ssh.agentForward")}
+              </Label>
+              <p className="text-muted-foreground text-xs">{t("ssh.agentForwardDesc")}</p>
+            </div>
+          </div>
+        </>
       )}
 
       {canRememberPasswords && (
