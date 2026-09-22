@@ -805,7 +805,11 @@ export const TTermApp: React.FC = () => {
   }, [broadcastSource, stopLiveBroadcast, tabs, terminalRuntimeStates])
 
   useEffect(() => {
-    if (isLoaded) {
+    // i18next re-emits `languageChanged` (forcing every useTranslation()
+    // consumer to re-render) even when called with the language it's
+    // already on, so guard this to avoid a redundant second app-wide
+    // re-render right after SettingsDialog's own changeLanguage call.
+    if (isLoaded && i18n.language !== config.language) {
       i18n.changeLanguage(config.language)
     }
   }, [isLoaded, config.language, i18n])
@@ -857,7 +861,11 @@ export const TTermApp: React.FC = () => {
     return () => {
       cancelled = true
     }
-  }, [addTab, getPreloadedSession, isLoaded, restoreSession, t])
+    // `t` is intentionally omitted: including it re-runs this effect on every
+    // language change, which re-restores the stale startup session snapshot
+    // and wipes out tabs (e.g. Settings) opened since then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addTab, getPreloadedSession, isLoaded, restoreSession])
 
   useEffect(() => {
     if (!sessionRestored) {

@@ -25,7 +25,8 @@ export function reportError(error: unknown, options: ReportErrorOptions = {}): s
 
   if (!options.silent) {
     toast({
-      title: options.title ?? i18n.t("errors.operationFailed", { defaultValue: "Operation failed" }),
+      title:
+        options.title ?? i18n.t("errors.operationFailed", { defaultValue: "Operation failed" }),
       description: options.userMessage ?? message,
       variant: "destructive",
     })
