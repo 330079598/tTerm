@@ -97,6 +97,7 @@ mod tests {
             reconnect_max_attempts: 0,
             private_key_path: None,
             private_key_passphrase: None,
+            use_agent: false,
             terminal_shell: None,
             jump_hosts: Vec::new(),
         }
@@ -123,6 +124,7 @@ mod tests {
             password: None,
             private_key_path: None,
             private_key_passphrase: None,
+            use_agent: false,
         });
 
         let mut second = ssh_plan("target", "user", "profile");
@@ -133,6 +135,7 @@ mod tests {
             password: None,
             private_key_path: None,
             private_key_passphrase: None,
+            use_agent: false,
         });
 
         assert_ne!(

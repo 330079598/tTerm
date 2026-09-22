@@ -57,7 +57,9 @@ pub(crate) fn write_profiles_to_disk(profiles: &[SavedProfile]) -> Result<(), St
 pub(crate) fn profile_secret_summaries(profile: &SavedProfile) -> Vec<SavedSecretSummary> {
     let mut summaries = Vec::new();
 
-    if profile.connection_type == "ssh" && profile.auth_method.as_deref() != Some("key") {
+    if profile.connection_type == "ssh"
+        && !matches!(profile.auth_method.as_deref(), Some("key") | Some("agent"))
+    {
         summaries.push(SavedSecretSummary {
             key: profile.id.clone(),
             profile_id: profile.id.clone(),
@@ -77,7 +79,7 @@ pub(crate) fn profile_secret_summaries(profile: &SavedProfile) -> Vec<SavedSecre
     }
 
     for jump in &profile.jump_hosts {
-        if jump.auth_method == "key" {
+        if matches!(jump.auth_method.as_str(), "key" | "agent") {
             continue;
         }
 

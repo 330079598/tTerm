@@ -70,7 +70,7 @@ export interface JumpHostConnection {
   host: string
   port: number
   username: string
-  authMethod: "password" | "key"
+  authMethod: "password" | "key" | "agent"
   password?: string
   privateKeyPath?: string
   privateKeyPassphrase?: string
@@ -100,6 +100,7 @@ export interface Tab {
     keepaliveIntervalSecs?: number
     keepaliveCountMax?: number
     serverMonitorVisible?: boolean
+    authMethod?: "password" | "key" | "agent"
     privateKeyPath?: string
     privateKeyPassphrase?: string
     terminalShell?: TerminalShellType

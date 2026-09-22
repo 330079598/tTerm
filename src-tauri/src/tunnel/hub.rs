@@ -581,6 +581,7 @@ mod tests {
             reconnect_max_attempts: 0,
             private_key_path: None,
             private_key_passphrase: None,
+            use_agent: false,
             terminal_shell: None,
             jump_hosts: Vec::new(),
         };

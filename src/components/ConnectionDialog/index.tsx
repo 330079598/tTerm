@@ -53,8 +53,8 @@ type TestConnectionResultState = {
   message: string
 }
 
-const normalizeJumpAuthMethod = (value: string | undefined): "password" | "key" =>
-  value === "key" ? "key" : "password"
+const normalizeJumpAuthMethod = (value: string | undefined): "password" | "key" | "agent" =>
+  value === "key" ? "key" : value === "agent" ? "agent" : "password"
 
 const getJumpHostPasswordLookupKey = (
   jump: Pick<JumpHostConnection, "host" | "port" | "username">
@@ -425,6 +425,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
           form.authMethod === "password" && form.password.length > 0 ? form.password : undefined,
         ignoreSavedPassword,
         rememberPassword: form.rememberPassword,
+        authMethod: form.authMethod,
         privateKeyPath: form.authMethod === "key" ? form.privateKeyPath : undefined,
         privateKeyPassphrase: form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
         keepaliveIntervalSecs: form.keepaliveIntervalSecs,

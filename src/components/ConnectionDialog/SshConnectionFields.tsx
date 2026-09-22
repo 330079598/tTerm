@@ -164,6 +164,18 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
           >
             {t("ssh.sshKey")}
           </Button>
+          <Button
+            type="button"
+            variant={form.authMethod === "agent" ? "default" : "outline"}
+            className={cn(
+              "flex-1",
+              form.authMethod === "agent" ? "shadow-none" : "text-muted-foreground"
+            )}
+            onClick={() => setForm((current) => ({ ...current, authMethod: "agent" }))}
+            aria-pressed={form.authMethod === "agent"}
+          >
+            {t("ssh.sshAgent")}
+          </Button>
         </div>
       </div>
 
@@ -260,6 +272,12 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
             />
           </div>
         </>
+      )}
+
+      {form.authMethod === "agent" && (
+        <p className="text-muted-foreground rounded-md border px-3 py-2 text-xs">
+          {t("ssh.sshAgentHint")}
+        </p>
       )}
 
       {canRememberPasswords && (

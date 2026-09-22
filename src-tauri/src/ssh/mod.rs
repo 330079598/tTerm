@@ -1,4 +1,5 @@
 mod client;
+pub mod agent;
 pub mod jump;
 pub mod secret_commands;
 mod secret_store;

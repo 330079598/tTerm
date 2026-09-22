@@ -445,7 +445,11 @@ pub async fn test_connection(
                 host: j.host,
                 port: j.port,
                 username: j.username,
-                password: j.password,
+                password: if j.auth_method == "agent" {
+                    None
+                } else {
+                    j.password
+                },
                 private_key_path: if j.auth_method == "key" {
                     j.private_key_path
                 } else {
@@ -456,6 +460,7 @@ pub async fn test_connection(
                 } else {
                     None
                 },
+                use_agent: j.auth_method == "agent",
             })
             .collect::<Vec<_>>()
     } else {
@@ -469,7 +474,11 @@ pub async fn test_connection(
         host: Some(host.clone()),
         port,
         username: Some(username.clone()),
-        password: profile.password.clone(),
+        password: if profile.auth_method.as_deref() == Some("agent") {
+            None
+        } else {
+            profile.password.clone()
+        },
         ignore_saved_password: profile.ignore_saved_password,
         remember_password: false,
         private_key_path: if profile.auth_method.as_deref() == Some("key") {
@@ -478,6 +487,7 @@ pub async fn test_connection(
             None
         },
         private_key_passphrase: profile.private_key_passphrase.clone(),
+        use_agent: profile.auth_method.as_deref() == Some("agent"),
         terminal_shell: None,
         keepalive_interval_secs: profile.keepalive_interval_secs as u16,
         keepalive_count_max: profile.keepalive_count_max as u16,
@@ -682,6 +692,13 @@ async fn authenticate_test_connection<H: russh::client::Handler>(
     username: &str,
     plan: &crate::core::session::SessionPlan,
 ) -> Result<russh::client::AuthResult, String> {
+    if plan.use_agent {
+        return crate::ssh::agent::authenticate_via_agent(session, username)
+            .await
+            .map(|_| russh::client::AuthResult::Success)
+            .map_err(|e| e.to_string());
+    }
+
     if let Some(key_path) = &plan.private_key_path {
         let key_data = std::fs::read_to_string(key_path)
             .map_err(|e| format!("Failed to read private key: {}", e))?;

@@ -826,6 +826,7 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
                 plan.private_key_path.as_deref(),
                 plan.private_key_passphrase.as_deref(),
                 plan.password.as_deref(),
+                plan.use_agent,
                 keepalive_interval_secs,
                 keepalive_count_max,
                 &plan.jump_hosts,

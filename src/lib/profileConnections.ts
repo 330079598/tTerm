@@ -16,6 +16,12 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
       host: profile.host,
       port: profile.port,
       username: profile.username,
+      authMethod:
+        profile.auth_method === "key"
+          ? "key"
+          : profile.auth_method === "agent"
+            ? "agent"
+            : "password",
       privateKeyPath: profile.auth_method === "key" ? profile.private_key_path : undefined,
       keepaliveIntervalSecs: profile.keepalive_interval_secs,
       keepaliveCountMax: profile.keepalive_count_max,
@@ -26,7 +32,12 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
               host: jump.host,
               port: jump.port,
               username: jump.username,
-              authMethod: jump.auth_method === "key" ? "key" : "password",
+              authMethod:
+                jump.auth_method === "key"
+                  ? "key"
+                  : jump.auth_method === "agent"
+                    ? "agent"
+                    : "password",
               privateKeyPath: jump.private_key_path,
             }))
           : undefined,

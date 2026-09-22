@@ -29,13 +29,14 @@ function Tooltip({ children }: { children: React.ReactNode }) {
 
 type TooltipTriggerProps = Omit<
   React.ComponentProps<"span">,
-  "onBlur" | "onFocus" | "onMouseEnter" | "onMouseLeave"
+  "onBlur" | "onFocus" | "onMouseEnter" | "onMouseLeave" | "onClick"
 > & {
   asChild?: boolean
   onBlur?: React.FocusEventHandler<HTMLElement>
   onFocus?: React.FocusEventHandler<HTMLElement>
   onMouseEnter?: React.MouseEventHandler<HTMLElement>
   onMouseLeave?: React.MouseEventHandler<HTMLElement>
+  onClick?: React.MouseEventHandler<HTMLElement>
 }
 
 function composeEventHandlers<E extends React.SyntheticEvent>(
@@ -58,6 +59,7 @@ function TooltipTrigger({
   onFocus,
   onMouseEnter,
   onMouseLeave,
+  onClick,
   ...props
 }: TooltipTriggerProps) {
   const context = React.useContext(TooltipContext)
@@ -95,6 +97,17 @@ function TooltipTrigger({
     }
   }
 
+  // A click means the interaction moved from "hover" to "activate" (often
+  // navigating away, e.g. connecting a profile). The trigger's mouse never
+  // technically "leaves" in that case, so mouseleave never fires and the
+  // portaled tooltip is left stuck open over whatever renders next.
+  const handleClick: React.MouseEventHandler<HTMLElement> = (event) => {
+    onClick?.(event)
+    if (!event.defaultPrevented) {
+      context.setOpen(false)
+    }
+  }
+
   if (asChild && React.isValidElement(children)) {
     const childProps = children.props as Record<string, unknown>
     return React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
@@ -116,6 +129,10 @@ function TooltipTrigger({
         childProps.onMouseLeave as React.MouseEventHandler<HTMLElement> | undefined,
         handleMouseLeave
       ),
+      onClick: composeEventHandlers(
+        childProps.onClick as React.MouseEventHandler<HTMLElement> | undefined,
+        handleClick
+      ),
     })
   }
 
@@ -126,6 +143,7 @@ function TooltipTrigger({
       onFocus={handleFocus}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onClick={handleClick}
       {...props}
     >
       {children}

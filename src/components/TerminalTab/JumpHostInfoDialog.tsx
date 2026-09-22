@@ -181,7 +181,9 @@ export const JumpHostInfoDialog: React.FC<JumpHostInfoDialogProps> = ({
                   <ShieldCheck size={13} />
                   {jump.authMethod === "key"
                     ? t("jumpHostInfo.keyAuth", { defaultValue: "Key auth" })
-                    : t("jumpHostInfo.passwordAuth", { defaultValue: "Password auth" })}
+                    : jump.authMethod === "agent"
+                      ? t("jumpHostInfo.agentAuth", { defaultValue: "Agent auth" })
+                      : t("jumpHostInfo.passwordAuth", { defaultValue: "Password auth" })}
                 </span>
               </div>
               <div className="jump-host-info-hop-address">{buildJumpHostAddress(jump)}</div>

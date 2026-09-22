@@ -24,8 +24,13 @@ async fn authenticate_session(
     private_key_path: Option<&str>,
     private_key_passphrase: Option<&str>,
     password: Option<&str>,
+    use_agent: bool,
 ) -> Result<(), SshConnectError> {
     const AUTH_TIMEOUT: Duration = Duration::from_secs(30);
+
+    if use_agent {
+        return crate::ssh::agent::authenticate_via_agent(session, username).await;
+    }
 
     let auth_result = if let Some(key_path) = private_key_path {
         let key_pair = russh::keys::load_secret_key(Path::new(key_path), private_key_passphrase)
@@ -211,6 +216,7 @@ async fn connect_jump_direct(
         jump_plan.private_key_path.as_deref(),
         jump_plan.private_key_passphrase.as_deref(),
         jump_plan.password.as_deref(),
+        jump_plan.use_agent,
     )
     .await
     .map_err(|e| e.with_prefix(&format!("Jump host #{hop_index}: ")))?;
@@ -312,6 +318,7 @@ where
         jump_plan.private_key_path.as_deref(),
         jump_plan.private_key_passphrase.as_deref(),
         jump_plan.password.as_deref(),
+        jump_plan.use_agent,
     )
     .await
     .map_err(|e| e.with_prefix(&format!("Jump host #{hop_index}: ")))?;
@@ -518,6 +525,7 @@ pub async fn open_target_ssh_session(
     target_private_key_path: Option<&str>,
     target_private_key_passphrase: Option<&str>,
     target_password: Option<&str>,
+    target_use_agent: bool,
     keepalive_interval_secs: u16,
     keepalive_count_max: u16,
     jump_plans: &[JumpHostPlan],
@@ -536,6 +544,7 @@ pub async fn open_target_ssh_session(
         target_private_key_path,
         target_private_key_passphrase,
         target_password,
+        target_use_agent,
         keepalive_interval_secs,
         keepalive_count_max,
         jump_plans,
@@ -558,6 +567,7 @@ pub async fn open_target_ssh_session_with_forwarding(
     target_private_key_path: Option<&str>,
     target_private_key_passphrase: Option<&str>,
     target_password: Option<&str>,
+    target_use_agent: bool,
     keepalive_interval_secs: u16,
     keepalive_count_max: u16,
     jump_plans: &[JumpHostPlan],
@@ -639,6 +649,18 @@ pub async fn open_target_ssh_session_with_forwarding(
     );
 
     const TARGET_AUTH_TIMEOUT: Duration = Duration::from_secs(30);
+
+    if target_use_agent {
+        if let Err(e) =
+            crate::ssh::agent::authenticate_via_agent(&mut target_session, target_username).await
+        {
+            let _ = target_session
+                .disconnect(Disconnect::ByApplication, "Authentication failed", "en")
+                .await;
+            return Err(e);
+        }
+        return Ok((jump_chain_opt, target_session));
+    }
 
     let auth_result = if let Some(key_path) = target_private_key_path {
         let key_pair =

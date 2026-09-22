@@ -352,6 +352,18 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                   >
                     {t("ssh.sshKey")}
                   </Button>
+                  <Button
+                    type="button"
+                    variant={jump.authMethod === "agent" ? "default" : "outline"}
+                    className={cn(
+                      "flex-1",
+                      jump.authMethod === "agent" ? "shadow-none" : "text-muted-foreground"
+                    )}
+                    onClick={() => updateJumpHost(setForm, jump.id, { authMethod: "agent" })}
+                    aria-pressed={jump.authMethod === "agent"}
+                  >
+                    {t("ssh.sshAgent")}
+                  </Button>
                 </div>
               </div>
 
@@ -480,6 +492,12 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                     />
                   </div>
                 </>
+              )}
+
+              {jump.authMethod === "agent" && (
+                <p className="text-muted-foreground rounded-md border px-3 py-2 text-xs">
+                  {t("ssh.sshAgentHint")}
+                </p>
               )}
             </div>
           ))}

@@ -20,7 +20,7 @@ export interface JumpHostForm {
   host: string
   port: number
   username: string
-  authMethod: "password" | "key"
+  authMethod: "password" | "key" | "agent"
   password: string
   privateKeyPath: string
   privateKeyPassphrase: string
@@ -33,7 +33,7 @@ export interface ConnectionForm {
   host: string
   port: number
   username: string
-  authMethod: "password" | "key"
+  authMethod: "password" | "key" | "agent"
   password: string
   rememberPassword: boolean
   privateKeyPath: string

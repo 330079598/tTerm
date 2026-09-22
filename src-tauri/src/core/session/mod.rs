@@ -58,6 +58,7 @@ pub fn normalize_connection(
             reconnect_max_attempts: 0,
             private_key_path: None,
             private_key_passphrase: None,
+            use_agent: false,
             terminal_shell,
             jump_hosts: Vec::new(),
         }),
@@ -88,12 +89,24 @@ pub fn normalize_connection(
                 .map(|v| v.trim().to_string())
                 .filter(|v| !v.is_empty());
 
-            let password = connection.password.filter(|v| !v.is_empty());
+            let use_agent = connection.auth_method.as_deref() == Some("agent");
+            let password = if use_agent {
+                None
+            } else {
+                connection.password.filter(|v| !v.is_empty())
+            };
             let ignore_saved_password = connection.ignore_saved_password;
             let remember_password = connection.remember_password.unwrap_or(false);
-            let private_key_path = connection.private_key_path.filter(|v| !v.is_empty());
-            let private_key_passphrase =
-                connection.private_key_passphrase.filter(|v| !v.is_empty());
+            let private_key_path = if use_agent {
+                None
+            } else {
+                connection.private_key_path.filter(|v| !v.is_empty())
+            };
+            let private_key_passphrase = if use_agent {
+                None
+            } else {
+                connection.private_key_passphrase.filter(|v| !v.is_empty())
+            };
 
             let jump_hosts = normalize_jump_hosts(connection.jump_hosts)?;
             let (reconnect_enabled, reconnect_max_attempts) =
@@ -115,6 +128,7 @@ pub fn normalize_connection(
                 reconnect_max_attempts,
                 private_key_path,
                 private_key_passphrase,
+                use_agent,
                 terminal_shell: None,
                 jump_hosts,
             })
@@ -154,6 +168,7 @@ fn normalize_jump_host(opts: JumpHostOptions) -> Result<JumpHostPlan, String> {
         .to_string();
 
     let use_key = opts.auth_method.as_deref() == Some("key");
+    let use_agent = opts.auth_method.as_deref() == Some("agent");
     let private_key_path = if use_key {
         opts.private_key_path.filter(|v| !v.is_empty())
     } else {
@@ -164,7 +179,7 @@ fn normalize_jump_host(opts: JumpHostOptions) -> Result<JumpHostPlan, String> {
     } else {
         None
     };
-    let password = if use_key {
+    let password = if use_key || use_agent {
         None
     } else {
         opts.password.filter(|v| !v.is_empty())
@@ -177,6 +192,7 @@ fn normalize_jump_host(opts: JumpHostOptions) -> Result<JumpHostPlan, String> {
         password,
         private_key_path,
         private_key_passphrase,
+        use_agent,
     })
 }
 
@@ -282,7 +298,7 @@ pub fn resolve_ssh_password(
         return Ok(());
     }
 
-    if plan.private_key_path.is_none() {
+    if plan.private_key_path.is_none() && !plan.use_agent {
         if let Some(password) = plan.password.clone() {
             let secret_key = plan
                 .profile_id
@@ -339,7 +355,7 @@ fn resolve_jump_host_passwords(
     let allow_legacy_fallback = plan.jump_hosts.len() == 1;
 
     for jump in plan.jump_hosts.iter_mut() {
-        if jump.private_key_path.is_some() {
+        if jump.private_key_path.is_some() || jump.use_agent {
             continue;
         }
 

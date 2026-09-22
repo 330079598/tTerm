@@ -74,6 +74,8 @@ pub struct JumpHostPlan {
     pub password: Option<String>,
     pub private_key_path: Option<String>,
     pub private_key_passphrase: Option<String>,
+    /// Authenticate through the local SSH agent instead of a password or key file.
+    pub use_agent: bool,
 }
 
 pub fn jump_host_secret_key(profile_id: Option<&str>, profile_name: &str) -> String {
@@ -109,6 +111,8 @@ pub struct PtyConnectionOptions {
     pub keepalive_count_max: Option<u16>,
     pub private_key_path: Option<String>,
     pub private_key_passphrase: Option<String>,
+    #[serde(default, alias = "authMethod")]
+    pub auth_method: Option<String>,
     /// Ordered jump host chain to tunnel through before reaching the target.
     pub jump_hosts: Vec<JumpHostOptions>,
     #[cfg(target_os = "windows")]
@@ -147,6 +151,8 @@ pub(crate) struct RawPtyConnectionOptions {
     private_key_path: Option<String>,
     #[serde(default, alias = "privateKeyPassphrase")]
     private_key_passphrase: Option<String>,
+    #[serde(default, alias = "authMethod")]
+    auth_method: Option<String>,
     #[serde(default, alias = "jumpHost")]
     legacy_jump_host: Option<JumpHostOptions>,
     #[serde(default, alias = "jumpHosts")]
@@ -184,6 +190,7 @@ impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
             keepalive_count_max: raw.keepalive_count_max,
             private_key_path: raw.private_key_path,
             private_key_passphrase: raw.private_key_passphrase,
+            auth_method: raw.auth_method,
             jump_hosts,
             #[cfg(target_os = "windows")]
             terminal_shell: raw.terminal_shell,
@@ -211,6 +218,7 @@ impl Default for PtyConnectionOptions {
             keepalive_count_max: None,
             private_key_path: None,
             private_key_passphrase: None,
+            auth_method: None,
             jump_hosts: Vec::new(),
             #[cfg(target_os = "windows")]
             terminal_shell: None,
@@ -243,6 +251,8 @@ pub struct SessionPlan {
     pub reconnect_max_attempts: u32,
     pub private_key_path: Option<String>,
     pub private_key_passphrase: Option<String>,
+    /// Authenticate through the local SSH agent instead of a password or key file.
+    pub use_agent: bool,
     pub terminal_shell: Option<TerminalShellConfig>,
     /// Ordered resolved jump host chain; empty means direct connection.
     pub jump_hosts: Vec<JumpHostPlan>,

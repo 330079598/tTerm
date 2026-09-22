@@ -83,6 +83,8 @@ const buildMetaItems = (
 
   if (profile.auth_method === "key") {
     items.push(t("profiles.authMethodKey"))
+  } else if (profile.auth_method === "agent") {
+    items.push(t("profiles.authMethodAgent"))
   } else if (profile.auth_method === "password") {
     items.push(t("profiles.authMethodPassword"))
   }

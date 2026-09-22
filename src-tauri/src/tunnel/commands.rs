@@ -167,6 +167,7 @@ fn connection_options_for_profile(profile: &SavedProfile) -> Result<PtyConnectio
         keepalive_interval_secs: Some(profile.keepalive_interval_secs.min(u16::MAX as u32) as u16),
         keepalive_count_max: Some(profile.keepalive_count_max.min(u16::MAX as u32) as u16),
         private_key_path: uses_key.then(|| profile.private_key_path.clone()).flatten(),
+        auth_method: profile.auth_method.clone(),
         jump_hosts,
         ..PtyConnectionOptions::default()
     })

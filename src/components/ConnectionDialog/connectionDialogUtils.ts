@@ -14,7 +14,8 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
   }
 
   const jumpHosts = profile.jump_hosts ?? []
-  const authMethod = profile.auth_method === "key" ? "key" : "password"
+  const authMethod =
+    profile.auth_method === "key" ? "key" : profile.auth_method === "agent" ? "agent" : "password"
 
   return {
     ...defaultForm,
@@ -34,7 +35,8 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
       host: jump.host ?? "",
       port: jump.port ?? 22,
       username: jump.username ?? "",
-      authMethod: jump.auth_method === "key" ? "key" : "password",
+      authMethod:
+        jump.auth_method === "key" ? "key" : jump.auth_method === "agent" ? "agent" : "password",
       privateKeyPath: jump.private_key_path ?? "",
     })),
   }

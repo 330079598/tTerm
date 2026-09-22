@@ -83,6 +83,8 @@ impl SftpConnectionKey {
                                 jump.username,
                                 if jump.private_key_path.is_some() {
                                     "key"
+                                } else if jump.use_agent {
+                                    "agent"
                                 } else {
                                     "password"
                                 }
