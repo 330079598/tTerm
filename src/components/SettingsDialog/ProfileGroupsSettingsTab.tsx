@@ -21,6 +21,7 @@ import { SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -294,16 +295,20 @@ const ProfileGroupCard: React.FC<ProfileGroupCardProps> = ({
 
 interface ProfileDragRowProps {
   profile: SavedProfile
+  isSelected: boolean
   onConnectProfile?: (connection: Omit<Tab, "id" | "isActive">) => void
   onDeleteProfile: (profile: SavedProfile) => void
   onEditProfile?: (profile: SavedProfile) => void
+  onToggleSelected: (profileId: string) => void
 }
 
 const ProfileDragRow: React.FC<ProfileDragRowProps> = ({
   profile,
+  isSelected,
   onConnectProfile,
   onDeleteProfile,
   onEditProfile,
+  onToggleSelected,
 }) => {
   const { t } = useTranslation()
   const { ref: draggableRef, isDragging } = useDraggable({ id: profileDragId(profile.id) })
@@ -322,11 +327,24 @@ const ProfileDragRow: React.FC<ProfileDragRowProps> = ({
       className={cn(
         "group border-border/70 bg-background/70 hover:bg-muted/35 focus-visible:ring-ring/50 flex cursor-grab items-start gap-3 rounded-md border px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-[3px]",
         isDragging && "cursor-grabbing opacity-60",
-        isDropTarget && "border-primary/70 bg-primary/5"
+        isDropTarget && "border-primary/70 bg-primary/5",
+        isSelected && "border-primary/70 bg-primary/5"
       )}
       role="listitem"
       tabIndex={0}
     >
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => onToggleSelected(profile.id)}
+            onClick={(event) => event.stopPropagation()}
+            aria-label={t("profiles.selectConnection", { name: profile.name })}
+            className="mt-0.5 shrink-0"
+          />
+        </TooltipTrigger>
+        <TooltipContent>{t("profiles.selectConnection", { name: profile.name })}</TooltipContent>
+      </Tooltip>
       <GripVertical size={15} className="text-muted-foreground mt-0.5 shrink-0" />
       <Icon size={15} className="text-muted-foreground mt-0.5 shrink-0" />
       <div className="min-w-0 flex-1">
@@ -425,6 +443,8 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
   const [editingGroupName, setEditingGroupName] = React.useState<string | null>(null)
   const [editingGroupDraft, setEditingGroupDraft] = React.useState("")
   const [groupBusy, setGroupBusy] = React.useState(false)
+  const [selectedProfileIds, setSelectedProfileIds] = React.useState<Set<string>>(new Set())
+  const [profileSelectionBusy, setProfileSelectionBusy] = React.useState(false)
   const collapsedGroupKeySet = React.useMemo(
     () => new Set(config.collapsed_profile_group_keys),
     [config.collapsed_profile_group_keys]
@@ -450,6 +470,14 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
   React.useEffect(() => {
     void refreshProfileGroups()
   }, [refreshKey, refreshProfileGroups])
+
+  React.useEffect(() => {
+    const knownIds = new Set(profiles.map((profile) => profile.id))
+    setSelectedProfileIds((current) => {
+      const next = new Set([...current].filter((id) => knownIds.has(id)))
+      return next.size === current.size ? current : next
+    })
+  }, [profiles])
 
   const showGroupError = React.useCallback(
     (error: unknown) => {
@@ -595,6 +623,70 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
     },
     [confirm, profiles, showGroupError, t]
   )
+
+  const toggleProfileSelected = React.useCallback((profileId: string) => {
+    setSelectedProfileIds((current) => {
+      const next = new Set(current)
+      if (next.has(profileId)) {
+        next.delete(profileId)
+      } else {
+        next.add(profileId)
+      }
+      return next
+    })
+  }, [])
+
+  const clearProfileSelection = React.useCallback(() => {
+    setSelectedProfileIds(new Set())
+  }, [])
+
+  const handleDeleteSelectedProfiles = React.useCallback(async () => {
+    const ids = Array.from(selectedProfileIds)
+    if (ids.length === 0) return
+
+    const tunnelLists = await Promise.all(ids.map((id) => findTunnelsUsingProfile(id)))
+    const tunnels = tunnelLists.flat()
+    const tunnelNote =
+      tunnels.length > 0
+        ? `\n\n${t("tunnels.profileInUse", {
+            count: tunnels.length,
+            names: summarizeTunnelNames(tunnels),
+            defaultValue:
+              "{{count}} port-forwarding tunnel(s) use this host and will be stopped: {{names}}. Their rules are kept; choose another host for them afterwards.",
+          })}`
+        : ""
+
+    const confirmed = await confirm({
+      title: t("profiles.deleteSelected", { defaultValue: "Delete selected connections" }),
+      description: `${t("profiles.deleteSelectedConfirm", {
+        count: ids.length,
+        defaultValue: "Delete these {{count}} connections?",
+      })}${tunnelNote}`,
+      confirmText: t("profiles.deleteSelected", { defaultValue: "Delete selected" }),
+      cancelText: t("common.cancel"),
+      variant: "destructive",
+    })
+
+    if (!confirmed) return
+
+    setProfileSelectionBusy(true)
+    try {
+      await invoke("delete_profiles", { ids })
+      const deleted = new Set(ids)
+      setProfiles((current) => current.filter((item) => !deleted.has(item.id)))
+      setSelectedProfileIds(new Set())
+    } catch (error) {
+      toast({
+        title: t("profiles.deleteSelectedFailed", {
+          defaultValue: "Failed to delete selected connections",
+        }),
+        description: toErrorMessage(error),
+        variant: "destructive",
+      })
+    } finally {
+      setProfileSelectionBusy(false)
+    }
+  }, [confirm, selectedProfileIds, t, toast])
 
   const handleDeleteProfile = React.useCallback(
     async (profile: SavedProfile) => {
@@ -778,6 +870,38 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
               </div>
             </div>
 
+            {selectedProfileIds.size > 0 && (
+              <div className="bg-muted/40 flex items-center justify-between rounded-md border px-4 py-2">
+                <span className="text-sm font-medium">
+                  {t("profiles.selectedCount", {
+                    count: selectedProfileIds.size,
+                    defaultValue: "{{count}} connections selected",
+                  })}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearProfileSelection}
+                    disabled={profileSelectionBusy}
+                  >
+                    {t("profiles.clearSelection", { defaultValue: "Clear selection" })}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDeleteSelectedProfiles}
+                    disabled={profileSelectionBusy}
+                  >
+                    <Trash2 size={14} />
+                    {t("profiles.deleteSelected", { defaultValue: "Delete selected" })}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <DragDropProvider onDragEnd={handleDragEnd}>
               <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
                 {groupColumns.map((group) => (
@@ -808,9 +932,11 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
                           <ProfileDragRow
                             key={profile.id}
                             profile={profile}
+                            isSelected={selectedProfileIds.has(profile.id)}
                             onConnectProfile={onConnectProfile}
                             onDeleteProfile={handleDeleteProfile}
                             onEditProfile={onEditProfile}
+                            onToggleSelected={toggleProfileSelected}
                           />
                         ))}
                       </div>

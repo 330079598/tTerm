@@ -197,6 +197,7 @@ pub fn run() {
             profiles::move_profile_to_group,
             profiles::save_profile,
             profiles::delete_profile,
+            profiles::delete_profiles,
             profiles::set_profile_server_monitor_visible,
             profiles::test_connection,
             tunnel::list_tunnels,

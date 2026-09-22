@@ -380,6 +380,29 @@ pub async fn delete_profile(
 }
 
 #[tauri::command]
+pub async fn delete_profiles(
+    app: tauri::AppHandle,
+    secret_state: tauri::State<'_, crate::ssh::SecretStoreState>,
+    tunnels: tauri::State<'_, crate::tunnel::TunnelManager>,
+    ids: Vec<String>,
+) -> Result<(), String> {
+    let ids: HashSet<String> = ids.into_iter().collect();
+    if ids.is_empty() {
+        return Ok(());
+    }
+
+    let mut profiles = load_profiles_from_disk()?;
+    for profile in profiles.iter().filter(|p| ids.contains(&p.id)) {
+        tunnels.stop_for_profile(&profile.id).await;
+        let mut profile = profile.clone();
+        normalize_profile(&mut profile);
+        delete_profile_secrets(&app, &secret_state, &profile)?;
+    }
+    profiles.retain(|p| !ids.contains(&p.id));
+    write_profiles_to_disk(&profiles)
+}
+
+#[tauri::command]
 pub fn set_profile_server_monitor_visible(id: String, visible: bool) -> Result<(), String> {
     let mut profiles = load_profiles_from_disk()?;
     if let Some(profile) = profiles.iter_mut().find(|profile| profile.id == id) {

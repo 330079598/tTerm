@@ -779,7 +779,15 @@
     "collapseGroup": "Collapse {{group}}",
     "expandGroup": "Expand {{group}}",
     "importSshConfig": "Import SSH Config",
-    "importSshConfigTooltip": "Import hosts from ~/.ssh/config or another SSH config file"
+    "importSshConfigTooltip": "Import hosts from ~/.ssh/config or another SSH config file",
+    "selectConnection": "Select connection {{name}}",
+    "selectedCount_one": "{{count}} connection selected",
+    "selectedCount_other": "{{count}} connections selected",
+    "clearSelection": "Clear selection",
+    "deleteSelected": "Delete selected",
+    "deleteSelectedConfirm_one": "Delete this {{count}} connection?",
+    "deleteSelectedConfirm_other": "Delete these {{count}} connections?",
+    "deleteSelectedFailed": "Failed to delete selected connections"
   },
   "commandLibrary": {
     "title": "Command Library",

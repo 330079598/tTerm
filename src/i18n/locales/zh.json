@@ -770,7 +770,15 @@
     "collapseGroup": "折叠 {{group}}",
     "expandGroup": "展开 {{group}}",
     "importSshConfig": "导入 SSH 配置",
-    "importSshConfigTooltip": "从 ~/.ssh/config 或其他 SSH 配置文件导入主机"
+    "importSshConfigTooltip": "从 ~/.ssh/config 或其他 SSH 配置文件导入主机",
+    "selectConnection": "选择连接 {{name}}",
+    "selectedCount_one": "已选择 {{count}} 个连接",
+    "selectedCount_other": "已选择 {{count}} 个连接",
+    "clearSelection": "取消选择",
+    "deleteSelected": "删除所选",
+    "deleteSelectedConfirm_one": "确定删除这 {{count}} 个连接吗？",
+    "deleteSelectedConfirm_other": "确定删除这 {{count}} 个连接吗？",
+    "deleteSelectedFailed": "删除所选连接失败"
   },
   "commandLibrary": {
     "title": "命令库",
