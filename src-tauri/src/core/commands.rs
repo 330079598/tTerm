@@ -1,17 +1,25 @@
 use super::session::{normalize_connection, resolve_ssh_password};
 use super::state::{
     ActiveSession, AtomicTerminalSize, HostPromptMap, PtyMap, PtySession, SessionExitSignal,
+    ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap,
 };
 use super::supervisor::{spawn_ssh_attempt, spawn_supervisor};
 use crate::terminal;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tauri::{AppHandle, State};
 use tokio::sync::{mpsc, watch, Mutex as TokioMutex};
 
-fn stop_pty_session(session: PtySession) {
+fn stop_pty_session(
+    tab_id: &str,
+    session: PtySession,
+    zmodem_state: &ZmodemMap,
+    zmodem_armed_send_state: &ZmodemArmedSendMap,
+    zmodem_manual_detect_state: &ZmodemManualDetectMap,
+) {
     let _ = session.stop_tx.send(true);
 
     if let Some(active) = session.active.blocking_lock().take() {
@@ -24,6 +32,12 @@ fn stop_pty_session(session: PtySession) {
             }
         }
     }
+
+    // The peer's rz/sz process (if any) dies with this channel; a ZMODEM
+    // session can't meaningfully survive it.
+    zmodem_state.write().unwrap().remove(tab_id);
+    zmodem_armed_send_state.lock().unwrap().remove(tab_id);
+    zmodem_manual_detect_state.lock().unwrap().remove(tab_id);
 
     session.supervisor.abort();
 }
@@ -42,6 +56,9 @@ pub fn create_pty(
     prompt_state: State<'_, HostPromptMap>,
     runtime_state: State<'_, crate::TokioRuntimeState>,
     secret_state: State<'_, crate::ssh::SecretStoreState>,
+    zmodem_state: State<'_, ZmodemMap>,
+    zmodem_armed_send_state: State<'_, ZmodemArmedSendMap>,
+    zmodem_manual_detect_state: State<'_, ZmodemManualDetectMap>,
 ) -> Result<u32, String> {
     let output_channel: tauri::ipc::Channel<tauri::ipc::InvokeResponseBody> =
         output_channel.channel_on(webview);
@@ -74,7 +91,13 @@ pub fn create_pty(
     }
 
     if let Some(session) = sessions.remove(&tab_id) {
-        stop_pty_session(session);
+        stop_pty_session(
+            &tab_id,
+            session,
+            zmodem_state.inner(),
+            zmodem_armed_send_state.inner(),
+            zmodem_manual_detect_state.inner(),
+        );
     }
 
     crate::session_log::start_session(&app, &tab_id, session_nonce, &plan)?;
@@ -83,6 +106,15 @@ pub fn create_pty(
     let active = Arc::new(TokioMutex::new(None));
     let (stop_tx, stop_rx) = watch::channel(false);
     let size = Arc::new(AtomicTerminalSize::new(rows, cols));
+    // Lives for the tab's whole lifetime (unlike `ZmodemMap`, only present
+    // while a transfer is in flight) so the manual "Send/Receive Files via
+    // ZMODEM" keymap actions can force detection on later, even across a
+    // reconnect.
+    let zmodem_manual_override = Arc::new(AtomicBool::new(false));
+    zmodem_manual_detect_state
+        .lock()
+        .unwrap()
+        .insert(tab_id.clone(), zmodem_manual_override.clone());
 
     let runtime_handle = runtime_state.runtime.handle().clone();
 
@@ -97,17 +129,26 @@ pub fn create_pty(
 
             let sender =
                 crate::terminal::TerminalOutputSender::spawn(&tab_id, output_channel.clone());
+            let zmodem_config = crate::config::load_config_file().unwrap_or_default();
             terminal::spawn_reader_thread(
                 reader,
                 app.clone(),
                 tab_id.clone(),
+                session_nonce,
                 exit_tx.clone(),
                 Some(sender),
+                active.clone(),
+                zmodem_state.inner().clone(),
+                zmodem_armed_send_state.inner().clone(),
+                zmodem_config.zmodem_auto_detect_enabled,
+                crate::zmodem::session::resolve_download_dir(&zmodem_config.zmodem_download_directory),
+                zmodem_manual_override.clone(),
             );
 
             (pid, ActiveSession::Local(pty))
         }
         crate::core::SessionKind::Ssh => {
+            let zmodem_config = crate::config::load_config_file().unwrap_or_default();
             let ssh = spawn_ssh_attempt(
                 app.clone(),
                 tab_id.clone(),
@@ -119,6 +160,13 @@ pub fn create_pty(
                 exit_tx.clone(),
                 output_channel.clone(),
                 runtime_handle.clone(),
+                session_nonce,
+                zmodem_state.inner().clone(),
+                zmodem_armed_send_state.inner().clone(),
+                zmodem_config.zmodem_auto_detect_enabled,
+                crate::zmodem::session::resolve_download_dir(&zmodem_config.zmodem_download_directory),
+                active.clone(),
+                zmodem_manual_override.clone(),
             );
 
             (0, ActiveSession::Ssh(ssh))
@@ -142,6 +190,10 @@ pub fn create_pty(
         size.clone(),
         output_channel,
         runtime_handle.clone(),
+        session_nonce,
+        zmodem_state.inner().clone(),
+        zmodem_armed_send_state.inner().clone(),
+        zmodem_manual_override,
     );
 
     let session = PtySession {
@@ -158,6 +210,44 @@ pub fn create_pty(
     Ok(pid)
 }
 
+/// While a ZMODEM transfer occupies `tab_id`'s channel, ordinary keystrokes
+/// must not reach it (they'd corrupt the binary stream) — except Ctrl-C,
+/// which this treats as "cancel" the same way it would abort any other
+/// foreground program: flags the transfer so the reader thread/task cleans
+/// up on its next read, and best-effort writes the standard abort sequence
+/// straight to the peer. Returns `true` if the input was handled here (the
+/// caller's normal write must be skipped either way).
+fn intercept_zmodem_input(
+    zmodem_state: &ZmodemMap,
+    tab_id: &str,
+    session_nonce: u32,
+    data: &[u8],
+    active: &Arc<TokioMutex<Option<ActiveSession>>>,
+) -> bool {
+    let cancel_requested = {
+        let map = zmodem_state.read().unwrap();
+        let handle = match map.get(tab_id) {
+            Some(handle) if handle.session_nonce == session_nonce => handle,
+            _ => return false,
+        };
+        data.contains(&0x03).then(|| handle.cancel_requested.clone())
+    };
+    if let Some(cancel_requested) = cancel_requested {
+        cancel_requested.store(true, std::sync::atomic::Ordering::Relaxed);
+        let mut guard = active.blocking_lock();
+        match guard.as_mut() {
+            Some(ActiveSession::Local(local)) => {
+                let _ = local.writer.write_all(&crate::zmodem::session::abort_sequence());
+            }
+            Some(ActiveSession::Ssh(ssh)) => {
+                let _ = ssh.input_tx.send(crate::zmodem::session::abort_sequence());
+            }
+            None => {}
+        }
+    }
+    true
+}
+
 #[tauri::command]
 pub fn write_pty(
     app: AppHandle,
@@ -165,6 +255,7 @@ pub fn write_pty(
     session_nonce: u32,
     data: String,
     state: State<'_, PtyMap>,
+    zmodem_state: State<'_, ZmodemMap>,
 ) -> Result<(), String> {
     let map = state.blocking_read();
     let session = map
@@ -174,12 +265,16 @@ pub fn write_pty(
         return Ok(());
     }
 
+    let input = data.into_bytes();
+    if intercept_zmodem_input(&zmodem_state, &tab_id, session_nonce, &input, &session.active) {
+        return Ok(());
+    }
+
     let mut active_guard = session.active.blocking_lock();
     let active = active_guard
         .as_mut()
         .ok_or_else(|| format!("PTY session {} is reconnecting", tab_id))?;
 
-    let input = data.into_bytes();
     let result = match active {
         ActiveSession::Local(local) => local
             .writer
@@ -568,6 +663,9 @@ pub fn kill_pty(
     tab_id: String,
     session_nonce: u32,
     state: State<'_, PtyMap>,
+    zmodem_state: State<'_, ZmodemMap>,
+    zmodem_armed_send_state: State<'_, ZmodemArmedSendMap>,
+    zmodem_manual_detect_state: State<'_, ZmodemManualDetectMap>,
 ) -> Result<(), String> {
     let session = {
         let mut sessions = state.blocking_write();
@@ -582,7 +680,13 @@ pub fn kill_pty(
     };
 
     if let Some(session) = session {
-        stop_pty_session(session);
+        stop_pty_session(
+            &tab_id,
+            session,
+            zmodem_state.inner(),
+            zmodem_armed_send_state.inner(),
+            zmodem_manual_detect_state.inner(),
+        );
         crate::session_log::end_session(&app, &tab_id);
     }
 

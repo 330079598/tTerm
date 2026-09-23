@@ -22,6 +22,8 @@ import {
   PanelBottom,
   Search,
   Star,
+  Upload,
+  Download,
 } from "lucide-react"
 import { TabContextMenuAction } from "@/types/tab"
 import { cn } from "@/lib/utils"
@@ -80,6 +82,10 @@ const getActionIcon = (icon?: string) => {
       return <PanelBottom size={14} aria-hidden="true" />
     case "split-above":
       return <PanelTop size={14} aria-hidden="true" />
+    case "upload":
+      return <Upload size={14} aria-hidden="true" />
+    case "download":
+      return <Download size={14} aria-hidden="true" />
     default:
       return null
   }

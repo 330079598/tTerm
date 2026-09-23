@@ -151,6 +151,8 @@ export interface AppConfig {
   sftp_transfer_parallelism: number
   reconnect_enabled: boolean
   reconnect_max_attempts: number
+  zmodem_auto_detect_enabled: boolean
+  zmodem_download_directory: string
   keymap: KeymapConfig
 }
 
@@ -202,6 +204,8 @@ const defaultConfig: AppConfig = {
   sftp_transfer_parallelism: 4,
   reconnect_enabled: true,
   reconnect_max_attempts: 5,
+  zmodem_auto_detect_enabled: true,
+  zmodem_download_directory: "",
   keymap: { ...DEFAULT_KEYMAP_CONFIG, bindings: {} },
 }
 
@@ -356,6 +360,9 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     sftp_transfer_parallelism: normalizeSftpTransferParallelism(config.sftp_transfer_parallelism),
     reconnect_enabled: config.reconnect_enabled !== false,
     reconnect_max_attempts: normalizeReconnectMaxAttempts(config.reconnect_max_attempts),
+    zmodem_auto_detect_enabled: config.zmodem_auto_detect_enabled !== false,
+    zmodem_download_directory:
+      typeof config.zmodem_download_directory === "string" ? config.zmodem_download_directory : "",
     ui_scale_percent: normalizeUiScalePercent(config.ui_scale_percent),
     keymap: normalizeKeymap(config.keymap),
   }

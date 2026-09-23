@@ -615,6 +615,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     await saveSettings({ sftp_paste_upload_enabled: checked })
   }
 
+  const handleZmodemAutoDetectEnabledChange = async (checked: boolean) => {
+    await saveSettings({ zmodem_auto_detect_enabled: checked })
+  }
+
+  const handleZmodemDownloadDirectoryChange = async (directory: string) => {
+    await saveSettings({ zmodem_download_directory: directory })
+  }
+
   const handleSftpTransferParallelismChange = async (value: number) => {
     if (!Number.isFinite(value)) {
       return
@@ -928,11 +936,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleSftpPasteUploadEnabledChange={handleSftpPasteUploadEnabledChange}
               handleSftpTransferParallelismChange={handleSftpTransferParallelismChange}
               handleEnableDevtoolsChange={handleEnableDevtoolsChange}
+              handleZmodemAutoDetectEnabledChange={handleZmodemAutoDetectEnabledChange}
+              handleZmodemDownloadDirectoryChange={handleZmodemDownloadDirectoryChange}
               i18nLanguage={i18n.language}
               languages={languages}
               restoreAllSessionConnections={config.startup_session_restore_mode === "all"}
               sftpPasteUploadEnabled={config.sftp_paste_upload_enabled}
               sftpTransferParallelism={config.sftp_transfer_parallelism}
+              zmodemAutoDetectEnabled={config.zmodem_auto_detect_enabled}
+              zmodemDownloadDirectory={config.zmodem_download_directory}
             />
           </TabsContent>
 

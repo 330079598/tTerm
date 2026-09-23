@@ -42,6 +42,8 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   "sftp.selectAll": "mod+a",
   "sftp.focusPath": "mod+l",
   "sftp.pasteUpload": "mod+v",
+  "zmodem.sendFiles": null,
+  "zmodem.receiveFiles": null,
   "editor.save": "mod+s",
 }
 

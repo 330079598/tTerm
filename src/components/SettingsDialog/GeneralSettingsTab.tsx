@@ -1,5 +1,17 @@
 import React from "react"
-import { Bug, Check, ClipboardPaste, Info, Languages, PlugZap, Trash2, Wrench } from "lucide-react"
+import {
+  ArrowLeftRight,
+  Bug,
+  Check,
+  ClipboardPaste,
+  FolderOpen,
+  Info,
+  Languages,
+  PlugZap,
+  Trash2,
+  Wrench,
+} from "lucide-react"
+import { open as openDirectoryDialog } from "@tauri-apps/plugin-dialog"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -23,11 +35,15 @@ interface GeneralSettingsTabProps {
   handleSftpPasteUploadEnabledChange: (checked: boolean) => Promise<void>
   handleSftpTransferParallelismChange: (value: number) => Promise<void>
   handleEnableDevtoolsChange: () => Promise<void>
+  handleZmodemAutoDetectEnabledChange: (checked: boolean) => Promise<void>
+  handleZmodemDownloadDirectoryChange: (directory: string) => Promise<void>
   i18nLanguage: string
   languages: LanguageOption[]
   restoreAllSessionConnections: boolean
   sftpPasteUploadEnabled: boolean
   sftpTransferParallelism: number
+  zmodemAutoDetectEnabled: boolean
+  zmodemDownloadDirectory: string
 }
 
 export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
@@ -38,13 +54,27 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   handleSftpPasteUploadEnabledChange,
   handleSftpTransferParallelismChange,
   handleEnableDevtoolsChange,
+  handleZmodemAutoDetectEnabledChange,
+  handleZmodemDownloadDirectoryChange,
   i18nLanguage,
   languages,
   restoreAllSessionConnections,
   sftpPasteUploadEnabled,
   sftpTransferParallelism,
+  zmodemAutoDetectEnabled,
+  zmodemDownloadDirectory,
 }) => {
   const { t } = useTranslation()
+
+  const chooseZmodemDownloadDirectory = async () => {
+    const selected = await openDirectoryDialog({
+      directory: true,
+      multiple: false,
+      defaultPath: zmodemDownloadDirectory || undefined,
+    }).catch(() => null)
+    if (typeof selected !== "string") return
+    await handleZmodemDownloadDirectoryChange(selected)
+  }
 
   return (
     <ScrollArea className="h-full pr-4">
@@ -124,6 +154,55 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               />
             }
           />
+        </SettingsSection>
+
+        <SettingsSection
+          icon={<ArrowLeftRight size={16} />}
+          title={t("settings.zmodem", { defaultValue: "ZMODEM" })}
+          description={t("settings.zmodemDesc", {
+            defaultValue:
+              "Detect rz/sz file transfers inside an active shell session, the way SecureCRT/Xshell do.",
+          })}
+        >
+          <SettingsRow
+            title={t("settings.zmodemAutoDetect", { defaultValue: "Auto-detect ZMODEM transfers" })}
+            description={t("settings.zmodemAutoDetectDesc", {
+              defaultValue:
+                "Watch terminal output for rz/sz and start the transfer automatically. Turn off if you never use ZMODEM and prefer not to scan output at all.",
+            })}
+            action={
+              <Switch
+                checked={zmodemAutoDetectEnabled}
+                onCheckedChange={handleZmodemAutoDetectEnabledChange}
+              />
+            }
+          />
+          <SettingsRow
+            title={t("settings.zmodemDownloadDirectory", { defaultValue: "Download directory" })}
+            description={t("settings.zmodemDownloadDirectoryDesc", {
+              defaultValue: "Where auto-detected ZMODEM downloads are saved. Defaults to Downloads.",
+            })}
+          >
+            <div className="flex min-w-0 gap-2">
+              <Input
+                value={zmodemDownloadDirectory}
+                readOnly
+                placeholder={t("settings.zmodemDownloadDirectoryPlaceholder", {
+                  defaultValue: "Platform Downloads folder",
+                })}
+                aria-label={t("settings.zmodemDownloadDirectory", { defaultValue: "Download directory" })}
+                className="min-w-0 flex-1 font-mono text-xs"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void chooseZmodemDownloadDirectory()}
+              >
+                <FolderOpen />
+                {t("terminalLogging.choose")}
+              </Button>
+            </div>
+          </SettingsRow>
         </SettingsSection>
 
         <SettingsSection

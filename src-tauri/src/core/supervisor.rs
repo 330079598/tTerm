@@ -63,6 +63,13 @@ pub(crate) fn spawn_ssh_attempt(
     exit_tx: mpsc::UnboundedSender<SessionExitSignal>,
     output_channel: tauri::ipc::Channel<tauri::ipc::InvokeResponseBody>,
     runtime_handle: tokio::runtime::Handle,
+    session_nonce: u32,
+    zmodem_map: crate::core::ZmodemMap,
+    zmodem_armed_send_map: crate::core::ZmodemArmedSendMap,
+    zmodem_auto_detect_enabled: bool,
+    zmodem_download_dir: std::path::PathBuf,
+    active: Arc<TokioMutex<Option<ActiveSession>>>,
+    zmodem_manual_override: Arc<std::sync::atomic::AtomicBool>,
 ) -> ActiveSsh {
     let (input_tx, input_rx) = mpsc::unbounded_channel::<Vec<u8>>();
     let (resize_tx, resize_rx) = mpsc::unbounded_channel::<(u16, u16)>();
@@ -80,6 +87,13 @@ pub(crate) fn spawn_ssh_attempt(
             input_rx,
             resize_rx,
             Some(sender),
+            session_nonce,
+            zmodem_map,
+            zmodem_armed_send_map,
+            zmodem_auto_detect_enabled,
+            zmodem_download_dir,
+            active,
+            zmodem_manual_override,
         )
         .await;
         let _ = exit_tx.send(map_ssh_exit_signal(result));
@@ -141,6 +155,10 @@ pub fn spawn_supervisor(
     size: Arc<super::state::AtomicTerminalSize>,
     output_channel: tauri::ipc::Channel<tauri::ipc::InvokeResponseBody>,
     runtime_handle: tokio::runtime::Handle,
+    session_nonce: u32,
+    zmodem_map: crate::core::ZmodemMap,
+    zmodem_armed_send_map: crate::core::ZmodemArmedSendMap,
+    zmodem_manual_override: Arc<std::sync::atomic::AtomicBool>,
 ) -> tokio::task::JoinHandle<()> {
     runtime_handle.clone().spawn(async move {
         let reconnect_enabled = plan.reconnect_enabled && plan.kind == SessionKind::Ssh;
@@ -156,6 +174,10 @@ pub fn spawn_supervisor(
                 let mut guard = active.lock().await;
                 *guard = None;
             }
+            // The peer's rz/sz process (if any) dies with the old channel; a
+            // ZMODEM session can't meaningfully survive a reconnect.
+            zmodem_map.write().unwrap().remove(&tab_id);
+            zmodem_armed_send_map.lock().unwrap().remove(&tab_id);
 
             let recoverable_info = match &signal {
                 SessionExitSignal::Recoverable {
@@ -234,6 +256,9 @@ pub fn spawn_supervisor(
             }
 
             let (rows, cols) = size.load();
+            // Re-read on every reconnect (not just the initial spawn) so a
+            // settings change takes effect without needing a fresh tab.
+            let zmodem_config = crate::config::load_config_file().unwrap_or_default();
             let next = spawn_ssh_attempt(
                 app.clone(),
                 tab_id.clone(),
@@ -245,6 +270,13 @@ pub fn spawn_supervisor(
                 exit_tx.clone(),
                 output_channel.clone(),
                 runtime_handle.clone(),
+                session_nonce,
+                zmodem_map.clone(),
+                zmodem_armed_send_map.clone(),
+                zmodem_config.zmodem_auto_detect_enabled,
+                crate::zmodem::session::resolve_download_dir(&zmodem_config.zmodem_download_directory),
+                active.clone(),
+                zmodem_manual_override.clone(),
             );
             {
                 let mut guard = active.lock().await;

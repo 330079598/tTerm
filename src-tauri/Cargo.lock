@@ -5438,6 +5438,7 @@ dependencies = [
  "crc32fast",
  "flate2",
  "keyring",
+ "libc",
  "portable-pty",
  "rand 0.8.5",
  "rusqlite",

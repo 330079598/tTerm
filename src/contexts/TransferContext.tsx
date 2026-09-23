@@ -79,8 +79,13 @@ export const TransferProvider: React.FC<React.PropsWithChildren> = ({ children }
     async (id: string) => {
       updateTransfer(id, { status: "cancelled", endTime: Date.now() })
 
+      const transfer = transfersRef.current.find((item) => item.id === id)
       try {
-        await invoke("sftp_cancel_upload", { transferId: id })
+        if (transfer?.cancel) {
+          await transfer.cancel()
+        } else {
+          await invoke("sftp_cancel_upload", { transferId: id })
+        }
       } catch (invokeError) {
         console.warn("Failed to cancel transfer on backend:", invokeError)
       }

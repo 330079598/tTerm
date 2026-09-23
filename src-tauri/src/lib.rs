@@ -14,6 +14,7 @@ mod ssh;
 mod terminal;
 mod tunnel;
 mod updater;
+mod zmodem;
 
 use core::PtyMap;
 use std::sync::Arc;
@@ -106,6 +107,12 @@ pub fn run() {
         Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
     let transfer_cancel_map: sftp::TransferCancelMap =
         Arc::new(RwLock::new(std::collections::HashMap::new()));
+    let zmodem_map: core::ZmodemMap =
+        Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
+    let zmodem_armed_send_map: core::ZmodemArmedSendMap =
+        Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
+    let zmodem_manual_detect_map: core::ZmodemManualDetectMap =
+        Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(tokio_worker_threads())
         .enable_all()
@@ -140,6 +147,9 @@ pub fn run() {
         .manage(sftp_pool)
         .manage(monitor_sessions)
         .manage(transfer_cancel_map)
+        .manage(zmodem_map)
+        .manage(zmodem_armed_send_map)
+        .manage(zmodem_manual_detect_map)
         .manage(TokioRuntimeState { runtime })
         .manage(updater::PendingUpdateDownloads::default())
         .manage(secret_store)
@@ -183,6 +193,9 @@ pub fn run() {
             core::commands::has_saved_password,
             core::commands::has_saved_jump_host_password,
             core::commands::write_saved_password_for_sudo,
+            zmodem::commands::zmodem_cancel,
+            zmodem::commands::zmodem_start_send,
+            zmodem::commands::zmodem_arm_manual_detect,
             terminal::list_available_terminal_shells,
             fonts::list_fonts,
             monitor::get_server_metrics_snapshot,

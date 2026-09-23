@@ -98,6 +98,14 @@ pub struct AppConfig {
     /// How many automatic reconnect attempts to make before giving up.
     #[serde(default = "default_reconnect_max_attempts")]
     pub reconnect_max_attempts: u32,
+    /// Passively watch interactive shell sessions for a ZMODEM (`rz`/`sz`)
+    /// invite and auto-start the transfer, mirroring SecureCRT/Xshell.
+    #[serde(default = "default_zmodem_auto_detect_enabled")]
+    pub zmodem_auto_detect_enabled: bool,
+    /// Where auto-detected ZMODEM downloads are saved; empty resolves to the
+    /// platform Downloads directory at time of use.
+    #[serde(default)]
+    pub zmodem_download_directory: String,
     #[serde(default = "default_keymap")]
     pub keymap: KeymapConfig,
 }
@@ -291,6 +299,10 @@ fn default_reconnect_max_attempts() -> u32 {
     5
 }
 
+fn default_zmodem_auto_detect_enabled() -> bool {
+    true
+}
+
 fn deserialize_tab_width_mode<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,
@@ -352,6 +364,8 @@ impl Default for AppConfig {
             sftp_transfer_parallelism: default_sftp_transfer_parallelism(),
             reconnect_enabled: default_reconnect_enabled(),
             reconnect_max_attempts: default_reconnect_max_attempts(),
+            zmodem_auto_detect_enabled: default_zmodem_auto_detect_enabled(),
+            zmodem_download_directory: String::new(),
             keymap: default_keymap(),
         }
     }

@@ -54,6 +54,8 @@ export interface TransferTask {
   parallelism?: number
   /** Re-run the transfer, resuming from its checkpoint when possible. */
   retry?: () => void
+  /** Cancel this transfer. Falls back to the SFTP cancel command when unset. */
+  cancel?: () => void | Promise<void>
 }
 
 export type TerminalShellType =

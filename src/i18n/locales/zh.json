@@ -203,6 +203,13 @@
     "sftpPasteUploadDesc": "开启后，在 SFTP 面板按 Ctrl+V 或 Cmd+V 会上传系统剪贴板中的本地文件和文件夹；剪贴板文本会被忽略。",
     "sftpTransferParallelism": "并行传输通道数",
     "sftpTransferParallelismDesc": "每个可续传任务使用的 SFTP 通道数量（1-16，默认 4）。设置为 1 可使用单通道顺序传输，适用于并发写入会导致存储卡顿的服务器。",
+    "zmodem": "ZMODEM",
+    "zmodemDesc": "在终端会话中自动识别 rz/sz 文件传输，与 SecureCRT/Xshell 的行为一致。",
+    "zmodemAutoDetect": "自动识别 ZMODEM 传输",
+    "zmodemAutoDetectDesc": "监听终端输出，检测到 rz/sz 时自动开始传输。如果你从不使用 ZMODEM 且不希望扫描终端输出，可以关闭此项。",
+    "zmodemDownloadDirectory": "下载目录",
+    "zmodemDownloadDirectoryDesc": "自动识别的 ZMODEM 下载文件保存位置，默认使用系统下载目录。",
+    "zmodemDownloadDirectoryPlaceholder": "系统下载目录",
     "jumpHost": "跳板机",
     "connectionDesc": "管理连接相关提示和链路信息显示。",
     "profileGroups": "分组",
@@ -243,6 +250,7 @@
       "tabs": "标签页",
       "terminal": "终端",
       "sftp": "SFTP",
+      "zmodem": "ZMODEM",
       "editor": "编辑器"
     },
     "actions": {
@@ -273,6 +281,10 @@
         "selectAll": "选择全部文件",
         "focusPath": "聚焦远程路径",
         "pasteUpload": "上传已复制的文件"
+      },
+      "zmodem": {
+        "sendFiles": "使用 ZMODEM 发送文件 (rz)",
+        "receiveFiles": "使用 ZMODEM 接收文件 (sz)"
       },
       "editor": {
         "save": "保存远程文件"
@@ -1154,7 +1166,9 @@
     "copyFailedTitle": "复制失败",
     "copyFailedDescription": "无法复制当前终端选中的内容。",
     "pasteFailedTitle": "粘贴失败",
-    "pasteFailedDescription": "无法将剪贴板内容粘贴到终端。"
+    "pasteFailedDescription": "无法将剪贴板内容粘贴到终端。",
+    "zmodemSend": "使用 ZMODEM 发送文件 (rz)",
+    "zmodemReceive": "使用 ZMODEM 接收文件 (sz)"
   },
   "secretStorage": {
     "title": "密钥存储",
@@ -1257,6 +1271,18 @@
     "completedShort": "已完成",
     "failedShort": "失败",
     "cancelledShort": "已取消"
+  },
+  "zmodem": {
+    "actions": {
+      "sendFilesDialogTitle": "通过 ZMODEM 发送文件"
+    },
+    "manual": {
+      "sendArmedTitle": "已准备好通过 ZMODEM 发送",
+      "sendArmedDescription": "请在此终端中运行 rz，启动后会弹出文件选择框。",
+      "receiveArmedTitle": "已准备好通过 ZMODEM 接收",
+      "receiveArmedDescription": "请在此终端中运行 sz <文件>，文件将保存到 ZMODEM 下载目录。",
+      "armFailedTitle": "无法启动 ZMODEM"
+    }
   },
   "sftp": {
     "transfers": "传输",

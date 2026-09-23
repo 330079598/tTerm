@@ -3,11 +3,14 @@ use super::types::{
     SshConnectionProgressPayload,
 };
 use crate::core::session::SessionPlan;
-use crate::core::state::HostPromptMap;
+use crate::core::state::{ActiveSession, HostPromptMap};
+use crate::core::{ZmodemArmedSendMap, ZmodemMap};
+use crate::zmodem::session::ZmodemReceiveDriver;
 use russh::{ChannelMsg, Disconnect};
 use tauri::Emitter;
 use tokio::io::AsyncWriteExt;
-use tokio::sync::{mpsc, watch};
+use tokio::sync::{mpsc, watch, Mutex as TokioMutex};
+use std::sync::Arc;
 
 const LATENCY_PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
@@ -71,6 +74,7 @@ fn emit_pty_output(app: &tauri::AppHandle, tab_id: &str, payload: String) {
     let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_single_ssh_connection(
     app: tauri::AppHandle,
     tab_id: String,
@@ -82,6 +86,13 @@ pub async fn run_single_ssh_connection(
     mut input_rx: mpsc::UnboundedReceiver<Vec<u8>>,
     mut resize_rx: mpsc::UnboundedReceiver<(u16, u16)>,
     mut sender: Option<crate::terminal::TerminalOutputSender>,
+    session_nonce: u32,
+    zmodem_map: ZmodemMap,
+    zmodem_armed_send_map: ZmodemArmedSendMap,
+    zmodem_auto_detect_enabled: bool,
+    zmodem_download_dir: std::path::PathBuf,
+    active: Arc<TokioMutex<Option<ActiveSession>>>,
+    zmodem_manual_override: Arc<std::sync::atomic::AtomicBool>,
 ) -> SshExitSignal {
     macro_rules! finish_output {
         () => {
@@ -219,6 +230,19 @@ pub async fn run_single_ssh_connection(
     let mut writer_stream = writer.make_writer();
     let mut ssh_query_pending = Vec::new();
     let connected_at = std::time::Instant::now();
+    let mut zmodem_driver = ZmodemReceiveDriver::new(
+        app.clone(),
+        tab_id.clone(),
+        session_nonce,
+        zmodem_map.clone(),
+        zmodem_auto_detect_enabled,
+        zmodem_download_dir,
+        zmodem_manual_override,
+    );
+    // Once a `rz`-style trigger arms this tab for the send direction, every
+    // subsequent byte is piped here instead of through `zmodem_driver` —
+    // see `ZmodemSendPipe`'s doc comment.
+    let mut zmodem_send_pipe = crate::zmodem::ZmodemSendPipe::default();
 
     loop {
         tokio::select! {
@@ -266,6 +290,11 @@ pub async fn run_single_ssh_connection(
                 match event {
                     Some(ChannelMsg::Data { data }) => {
                         crate::session_log::record_output(&app, &tab_id, data.as_ref());
+
+                        if zmodem_send_pipe.try_forward(data.as_ref()) {
+                            continue;
+                        }
+
                         // Process terminal queries (vim t_u7, t_RV, etc.) before forwarding to UI
                         // This is critical for SSH connections where vim waits for responses
                         let processed = crate::terminal::process_ssh_output_for_ui(
@@ -274,16 +303,42 @@ pub async fn run_single_ssh_connection(
                             &mut writer_stream,
                         ).await;
 
-                        match processed {
-                            Ok(bytes) => {
-                                if !bytes.is_empty() {
-                                    deliver_output(&app, &tab_id, sender.as_ref(), bytes);
+                        let bytes = match processed {
+                            Ok(bytes) => bytes,
+                            Err(e) => {
+                                // Fallback: use raw data if processing fails
+                                eprintln!("SSH output processing failed: {}", e);
+                                data.as_ref().to_vec()
+                            }
+                        };
+                        if !bytes.is_empty() {
+                            let outcome = zmodem_driver.process(&bytes);
+                            if !outcome.outgoing.is_empty() {
+                                if let Err(err) = writer_stream.write_all(&outcome.outgoing).await {
+                                    finish_output!();
+                                    return SshExitSignal {
+                                        terminated: false,
+                                        recoverable: true,
+                                        reason: Some(format!("SSH write failed: {err}")),
+                                        connected_duration: Some(connected_at.elapsed()),
+                                    };
                                 }
                             }
-                            Err(e) => {
-                                // Fallback: send raw data if processing fails
-                                eprintln!("SSH output processing failed: {}", e);
-                                deliver_output(&app, &tab_id, sender.as_ref(), data.as_ref().to_vec());
+                            if let Some(remainder) = outcome.send_requested {
+                                let tx = crate::zmodem::arm_send(
+                                    &app,
+                                    &tab_id,
+                                    session_nonce,
+                                    &zmodem_map,
+                                    &zmodem_armed_send_map,
+                                    &active,
+                                    remainder,
+                                );
+                                zmodem_send_pipe.arm(tx);
+                                continue;
+                            }
+                            if !outcome.passthrough.is_empty() {
+                                deliver_output(&app, &tab_id, sender.as_ref(), outcome.passthrough);
                             }
                         }
                     }

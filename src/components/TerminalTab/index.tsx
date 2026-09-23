@@ -15,6 +15,7 @@ import { ServerMonitorBar } from "@/components/TerminalTab/ServerMonitorBar"
 import { TerminalSearchBar } from "@/components/TerminalTab/TerminalSearchBar"
 import { useTerminalSearch } from "@/components/TerminalTab/useTerminalSearch"
 import { useTerminalLifecycle } from "@/components/TerminalTab/useTerminalLifecycle"
+import { useZmodemTransfers } from "@/components/TerminalTab/useZmodemTransfers"
 import { TAB_ACTIVATE_REFIT_DELAY_MS } from "@/components/TerminalTab/terminalTabUtils"
 import type {
   ConnectionState,
@@ -322,6 +323,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     waitingForReconnectRef,
   })
 
+  useZmodemTransfers({ tabId, sessionNonce })
+
   const lastAppliedFontRef = useRef<{ family: string; size: number } | null>(null)
 
   useEffect(() => {
@@ -584,8 +587,36 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     term.focus()
   }, [])
 
+  const armZmodemManualTrigger = useCallback(
+    async (direction: "send" | "receive") => {
+      try {
+        await invoke("zmodem_arm_manual_detect", { tabId, sessionNonce })
+        toast({
+          title: t(`zmodem.manual.${direction}ArmedTitle`),
+          description: t(`zmodem.manual.${direction}ArmedDescription`),
+        })
+      } catch (error) {
+        console.error("Failed to arm ZMODEM manual trigger:", error)
+        toast({
+          title: t("zmodem.manual.armFailedTitle"),
+          description: String(error),
+          variant: "destructive",
+        })
+      }
+    },
+    [sessionNonce, t, tabId]
+  )
+
   const handleTerminalMenuAction = useCallback(
     async (action: string) => {
+      if (action === "zmodem-send") {
+        await armZmodemManualTrigger("send")
+        return
+      }
+      if (action === "zmodem-receive") {
+        await armZmodemManualTrigger("receive")
+        return
+      }
       const term = termRef.current
       const selection = terminalContextMenu?.selection.trim() ?? ""
       if (action === "clear-history") {
@@ -632,7 +663,15 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         }
       }
     },
-    [clearTerminalHistory, connection, onOpenCommandLibrary, onSaveCommand, t, terminalContextMenu]
+    [
+      armZmodemManualTrigger,
+      clearTerminalHistory,
+      connection,
+      onOpenCommandLibrary,
+      onSaveCommand,
+      t,
+      terminalContextMenu,
+    ]
   )
 
   const terminalMenuActions: TabContextMenuAction[] = [
@@ -651,6 +690,9 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     { separator: true, action: "separator", label: "" },
     { action: "paste", label: t("terminalContext.paste"), icon: "paste" },
     { action: "find", label: t("terminalContext.findCommand"), icon: "search" },
+    { separator: true, action: "separator", label: "" },
+    { action: "zmodem-send", label: t("terminalContext.zmodemSend"), icon: "upload" },
+    { action: "zmodem-receive", label: t("terminalContext.zmodemReceive"), icon: "download" },
     { separator: true, action: "separator", label: "" },
     {
       action: "clear-history",
@@ -672,6 +714,14 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       if (!isActiveRef.current) return false
       handleToggleSftpDrawer()
     })
+    const unregisterZmodemSend = registerHandler("zmodem.sendFiles", () => {
+      if (!isActiveRef.current) return false
+      void armZmodemManualTrigger("send")
+    })
+    const unregisterZmodemReceive = registerHandler("zmodem.receiveFiles", () => {
+      if (!isActiveRef.current) return false
+      void armZmodemManualTrigger("receive")
+    })
     const unregisterSaveSelection = registerHandler("terminal.saveSelection", () => {
       if (!isActiveRef.current) return false
       if (!containerRef.current?.contains(document.activeElement)) return false
@@ -688,9 +738,12 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       unregisterFind()
       unregisterClear()
       unregisterToggleSftp()
+      unregisterZmodemSend()
+      unregisterZmodemReceive()
       unregisterSaveSelection()
     }
   }, [
+    armZmodemManualTrigger,
     clearTerminalHistory,
     connectionRef,
     handleToggleSftpDrawer,

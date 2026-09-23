@@ -212,6 +212,13 @@
     "sftpPasteUploadDesc": "When enabled, Ctrl+V or Cmd+V in the SFTP panel uploads copied local files and folders. Clipboard text is ignored.",
     "sftpTransferParallelism": "Parallel transfer channels",
     "sftpTransferParallelismDesc": "Number of SFTP channels used per resumable transfer (1-16, default 4). Set to 1 for single-stream sequential transfers, which is the compatible choice for servers whose storage stalls under concurrent writes.",
+    "zmodem": "ZMODEM",
+    "zmodemDesc": "Detect rz/sz file transfers inside an active shell session, the way SecureCRT/Xshell do.",
+    "zmodemAutoDetect": "Auto-detect ZMODEM transfers",
+    "zmodemAutoDetectDesc": "Watch terminal output for rz/sz and start the transfer automatically. Turn off if you never use ZMODEM and prefer not to scan output at all.",
+    "zmodemDownloadDirectory": "Download directory",
+    "zmodemDownloadDirectoryDesc": "Where auto-detected ZMODEM downloads are saved. Defaults to Downloads.",
+    "zmodemDownloadDirectoryPlaceholder": "Platform Downloads folder",
     "jumpHost": "Jump hosts",
     "connectionDesc": "Control connection-related prompts and route details.",
     "profileGroups": "Groups",
@@ -252,6 +259,7 @@
       "tabs": "Tabs",
       "terminal": "Terminal",
       "sftp": "SFTP",
+      "zmodem": "ZMODEM",
       "editor": "Editor"
     },
     "actions": {
@@ -282,6 +290,10 @@
         "selectAll": "Select all files",
         "focusPath": "Focus remote path",
         "pasteUpload": "Upload copied files"
+      },
+      "zmodem": {
+        "sendFiles": "Send files with ZMODEM (rz)",
+        "receiveFiles": "Receive files with ZMODEM (sz)"
       },
       "editor": {
         "save": "Save remote file"
@@ -1163,7 +1175,9 @@
     "copyFailedTitle": "Copy failed",
     "copyFailedDescription": "Unable to copy the current terminal selection.",
     "pasteFailedTitle": "Paste failed",
-    "pasteFailedDescription": "Unable to paste clipboard contents into the terminal."
+    "pasteFailedDescription": "Unable to paste clipboard contents into the terminal.",
+    "zmodemSend": "Send files with ZMODEM (rz)",
+    "zmodemReceive": "Receive files with ZMODEM (sz)"
   },
   "secretStorage": {
     "title": "Secret Storage",
@@ -1266,6 +1280,18 @@
     "completedShort": "done",
     "failedShort": "failed",
     "cancelledShort": "cancelled"
+  },
+  "zmodem": {
+    "actions": {
+      "sendFilesDialogTitle": "Send Files via ZMODEM"
+    },
+    "manual": {
+      "sendArmedTitle": "Ready to send with ZMODEM",
+      "sendArmedDescription": "Run rz in this terminal; a file picker will open when it starts.",
+      "receiveArmedTitle": "Ready to receive with ZMODEM",
+      "receiveArmedDescription": "Run sz <file> in this terminal; files are saved to the ZMODEM download directory.",
+      "armFailedTitle": "Unable to start ZMODEM"
+    }
   },
   "sftp": {
     "transfers": "Transfers",

@@ -1,6 +1,6 @@
 /** Central registry of every user-bindable action in the app. */
 
-export type KeymapActionGroup = "workspace" | "tabs" | "terminal" | "sftp" | "editor"
+export type KeymapActionGroup = "workspace" | "tabs" | "terminal" | "sftp" | "zmodem" | "editor"
 
 export type KeymapActionId =
   // workspace
@@ -23,6 +23,9 @@ export type KeymapActionId =
   | "sftp.selectAll"
   | "sftp.focusPath"
   | "sftp.pasteUpload"
+  // zmodem
+  | "zmodem.sendFiles"
+  | "zmodem.receiveFiles"
   // editor
   | "editor.save"
 
@@ -54,6 +57,8 @@ export const KEYMAP_ACTIONS: KeymapActionDefinition[] = [
   { id: "sftp.selectAll", group: "sftp", allowInEditable: false },
   { id: "sftp.focusPath", group: "sftp", allowInEditable: false },
   { id: "sftp.pasteUpload", group: "sftp", allowInEditable: false },
+  { id: "zmodem.sendFiles", group: "zmodem", allowInEditable: true },
+  { id: "zmodem.receiveFiles", group: "zmodem", allowInEditable: true },
   { id: "editor.save", group: "editor", allowInEditable: true },
 ]
 
@@ -71,6 +76,7 @@ export const KEYMAP_ACTION_GROUPS: KeymapActionGroup[] = [
   "tabs",
   "terminal",
   "sftp",
+  "zmodem",
   "editor",
 ]
 

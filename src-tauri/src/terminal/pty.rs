@@ -1,13 +1,14 @@
 use super::types::ActivePty;
 use portable_pty::{CommandBuilder, PtySize};
 use serde::Serialize;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 #[cfg(target_os = "macos")]
 use std::sync::OnceLock;
+use std::sync::Arc;
 use std::thread;
 use tauri::{AppHandle, Emitter};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Mutex as TokioMutex};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -74,12 +75,20 @@ where
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_reader_thread(
     reader: Box<dyn Read + Send>,
     app: AppHandle,
     tab_id: String,
+    session_nonce: u32,
     exit_tx: mpsc::UnboundedSender<super::super::core::state::SessionExitSignal>,
     sender: Option<super::io_batcher::TerminalOutputSender>,
+    active: Arc<TokioMutex<Option<super::super::core::state::ActiveSession>>>,
+    zmodem_map: super::super::core::ZmodemMap,
+    zmodem_armed_send_map: super::super::core::ZmodemArmedSendMap,
+    zmodem_auto_detect_enabled: bool,
+    zmodem_download_dir: PathBuf,
+    zmodem_manual_override: Arc<std::sync::atomic::AtomicBool>,
 ) {
     thread::spawn(move || {
         // Shared between the deliver closure and the final flush: the sender
@@ -87,13 +96,65 @@ pub fn spawn_reader_thread(
         let sender = std::sync::Mutex::new(sender);
         let log_app = app.clone();
         let log_tab_id = tab_id.clone();
+        // Owned solely by this thread: detection state and, once triggered,
+        // the protocol engine + open destination file. Only the thin
+        // `ZmodemTabHandle` published into `zmodem_map` is ever touched from
+        // another thread (a manual cancel, or `write_pty` checking whether
+        // to suppress keystrokes).
+        let mut zmodem_driver = crate::zmodem::session::ZmodemReceiveDriver::new(
+            app.clone(),
+            tab_id.clone(),
+            session_nonce,
+            zmodem_map.clone(),
+            zmodem_auto_detect_enabled,
+            zmodem_download_dir,
+            zmodem_manual_override,
+        );
+        // Once a `rz`-style trigger arms this tab for the send direction,
+        // every subsequent byte is piped here instead of through
+        // `zmodem_driver` — see `ZmodemSendPipe`'s doc comment.
+        let mut zmodem_send_pipe = crate::zmodem::ZmodemSendPipe::default();
 
         let outcome = run_pty_reader(
             reader,
             |chunk| crate::session_log::record_output(&log_app, &log_tab_id, chunk),
-            |chunk| match sender.lock().expect("pty sender lock").as_mut() {
-                Some(sender) => sender.send(chunk.to_vec()),
-                None => emit_pty_output(&app, &tab_id, String::from_utf8_lossy(chunk).into_owned()),
+            |chunk| {
+                if zmodem_send_pipe.try_forward(chunk) {
+                    return;
+                }
+                let step = zmodem_driver.process(chunk);
+                if !step.outgoing.is_empty() {
+                    let mut guard = active.blocking_lock();
+                    if let Some(super::super::core::state::ActiveSession::Local(local)) =
+                        guard.as_mut()
+                    {
+                        let _ = local.writer.write_all(&step.outgoing);
+                    }
+                }
+                if let Some(remainder) = step.send_requested {
+                    let tx = crate::zmodem::arm_send(
+                        &app,
+                        &tab_id,
+                        session_nonce,
+                        &zmodem_map,
+                        &zmodem_armed_send_map,
+                        &active,
+                        remainder,
+                    );
+                    zmodem_send_pipe.arm(tx);
+                    return;
+                }
+                if step.passthrough.is_empty() {
+                    return;
+                }
+                match sender.lock().expect("pty sender lock").as_mut() {
+                    Some(sender) => sender.send(step.passthrough),
+                    None => emit_pty_output(
+                        &app,
+                        &tab_id,
+                        String::from_utf8_lossy(&step.passthrough).into_owned(),
+                    ),
+                }
             },
             || {
                 if let Some(sender) = sender.lock().expect("pty sender lock").as_mut() {
