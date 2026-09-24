@@ -3,6 +3,7 @@ mod clipboard_files;
 pub mod command_library;
 mod config;
 mod core;
+mod db;
 mod fonts;
 mod migrate;
 mod monitor;
@@ -265,18 +266,22 @@ pub fn run() {
             let app_handle = app.handle().clone();
             config::init_config_dir(&app_handle)?;
 
-            let command_library_state = command_library::CommandLibraryState::initialize();
-            if let Some(error) = command_library_state.initialization_error() {
-                eprintln!("Failed to initialize command library: {error}");
-            }
-            app.manage(command_library_state);
-
             if let Err(err) = updater::cleanup_stale_pending_update_files(&app_handle) {
                 eprintln!("Failed to clean stale update cache files: {}", err);
             }
 
+            if let Err(error) = db::init() {
+                eprintln!("Failed to open database: {error}");
+            }
+
             if let Err(err) = migrate::migrate_legacy_config_files(&app_handle) {
                 eprintln!("Failed to migrate legacy config files: {}", err);
+            }
+
+            // After the legacy config merge so data from the old config
+            // directory is imported along with everything else.
+            if let Err(error) = db::import_legacy_json_files() {
+                eprintln!("Failed to import JSON data into the database: {error}");
             }
 
             if let Err(err) = migrate::migrate_legacy_ssh_passwords(&app_handle) {

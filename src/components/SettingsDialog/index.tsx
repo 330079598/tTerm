@@ -36,6 +36,7 @@ import {
   languages,
   SettingsDialogProps,
   SettingsPanelProps,
+  VaultAction,
 } from "@/components/SettingsDialog/types"
 import type { UpdateChannel, UpdateCheckFrequency } from "@/lib/updater"
 
@@ -214,6 +215,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [confirmPassword, setConfirmPassword] = useState("")
   const [secretError, setSecretError] = useState<string | null>(null)
   const [secretBusy, setSecretBusy] = useState(false)
+  const [vaultAction, setVaultAction] = useState<VaultAction | null>(null)
   const [savedSecrets, setSavedSecrets] = useState<SavedSecretEntry[]>([])
 
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null)
@@ -509,27 +511,43 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   const handleUnlock = async () => {
     setSecretBusy(true)
+    setVaultAction("unlock")
     setSecretError(null)
     try {
       const shouldEnable = config.secret_storage_mode === "hybrid" || config.secret_vault_enabled
-      await unlockSecretVault(password, shouldEnable)
+      const status = await unlockSecretVault(password, shouldEnable)
       setPassword("")
+      toast({
+        title: t("secretStorage.vaultUnlocked"),
+        description:
+          status.storageMode === "hybrid"
+            ? t("secretStorage.vaultUnlockedHybridDesc")
+            : t("secretStorage.vaultUnlockedDesc"),
+        variant: "success",
+      })
     } catch (error) {
       setSecretError(toErrorMessage(error))
     } finally {
       setSecretBusy(false)
+      setVaultAction(null)
     }
   }
 
   const handleLock = async () => {
     setSecretBusy(true)
+    setVaultAction("lock")
     setSecretError(null)
     try {
       await lockSecretVault()
+      toast({
+        title: t("secretStorage.vaultLocked"),
+        description: t("secretStorage.vaultLockedDesc"),
+      })
     } catch (error) {
       setSecretError(toErrorMessage(error))
     } finally {
       setSecretBusy(false)
+      setVaultAction(null)
     }
   }
 
@@ -542,6 +560,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       return
     }
     setSecretBusy(true)
+    setVaultAction("changePassword")
     setSecretError(null)
     try {
       await changeVaultPassword(currentPassword, newPassword)
@@ -561,6 +580,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       })
     } finally {
       setSecretBusy(false)
+      setVaultAction(null)
     }
   }
 
@@ -909,6 +929,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               confirmPassword={confirmPassword}
               promptUnlockVaultOnStartup={config.prompt_unlock_vault_on_startup}
               secretBusy={secretBusy}
+              vaultAction={vaultAction}
               secretError={secretError}
               savedSecrets={savedSecrets}
               secretStatus={secretStatus}

@@ -1,6 +1,7 @@
 use super::secret_store::{
     ChangeVaultPasswordInput, SecretBackendStatus, SecretStoreState, VaultPasswordInput,
 };
+use crate::core::blocking::run_blocking;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 
@@ -53,12 +54,14 @@ pub fn get_secret_backend_status(
 }
 
 #[tauri::command]
-pub fn unlock_secret_vault(
+pub async fn unlock_secret_vault(
     app: AppHandle,
     input: VaultPasswordInput,
     secret_state: State<'_, SecretStoreState>,
 ) -> Result<SecretBackendStatus, String> {
-    secret_state.unlock_vault(&app, input)
+    // Key derivation takes a noticeable moment; keep it off the main thread.
+    let secret_state = secret_state.inner().clone();
+    run_blocking(move || secret_state.unlock_vault(&app, input)).await
 }
 
 #[tauri::command]
@@ -69,12 +72,13 @@ pub fn lock_secret_vault(
 }
 
 #[tauri::command]
-pub fn change_vault_password(
+pub async fn change_vault_password(
     app: AppHandle,
     input: ChangeVaultPasswordInput,
     secret_state: State<'_, SecretStoreState>,
 ) -> Result<SecretBackendStatus, String> {
-    secret_state.change_vault_password(&app, input)
+    let secret_state = secret_state.inner().clone();
+    run_blocking(move || secret_state.change_vault_password(&app, input)).await
 }
 
 #[tauri::command]

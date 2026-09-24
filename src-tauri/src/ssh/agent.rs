@@ -73,6 +73,16 @@ pub async fn connect_local_agent_socket(
     }
 }
 
+#[cfg(target_os = "macos")]
+const EMPTY_AGENT_MESSAGE: &str = "The SSH agent has no keys loaded. Add one with \
+`ssh-add --apple-use-keychain ~/.ssh/<key>` (add `AddKeysToAgent yes` and `UseKeychain yes` \
+to ~/.ssh/config to load it automatically after a restart), or switch this host to \
+key-file authentication.";
+
+#[cfg(not(target_os = "macos"))]
+const EMPTY_AGENT_MESSAGE: &str = "The SSH agent has no keys loaded. Add one with \
+`ssh-add ~/.ssh/<key>`, or switch this host to key-file authentication.";
+
 /// Authenticate `session` as `username` by trying every identity held by the
 /// local SSH agent, in order, until one is accepted.
 ///
@@ -94,9 +104,7 @@ where
     })?;
 
     if identities.is_empty() {
-        return Err(SshConnectError::Permanent(
-            "The SSH agent has no loaded identities (run `ssh-add` first)".to_string(),
-        ));
+        return Err(SshConnectError::Permanent(EMPTY_AGENT_MESSAGE.to_string()));
     }
 
     // RSA identities default to the legacy SHA-1 `ssh-rsa` signature algorithm

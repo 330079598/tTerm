@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { Lock, Unlock } from "lucide-react"
+import { Loader2, Lock, Unlock } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useConfig } from "@/contexts/ConfigContext"
+import { useToast } from "@/hooks/use-toast"
 import { toErrorMessage } from "@/lib/utils"
 
 interface VaultStartupUnlockDialogProps {
@@ -27,6 +28,7 @@ export const VaultStartupUnlockDialog: React.FC<VaultStartupUnlockDialogProps> =
 }) => {
   const { t } = useTranslation()
   const { unlockSecretVault } = useConfig()
+  const { toast } = useToast()
   const [password, setPassword] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -40,9 +42,17 @@ export const VaultStartupUnlockDialog: React.FC<VaultStartupUnlockDialogProps> =
     setBusy(true)
     setError(null)
     try {
-      await unlockSecretVault(password, true)
+      const status = await unlockSecretVault(password, true)
       setPassword("")
       onClose()
+      toast({
+        title: t("secretStorage.vaultUnlocked"),
+        description:
+          status.storageMode === "hybrid"
+            ? t("secretStorage.vaultUnlockedHybridDesc")
+            : t("secretStorage.vaultUnlockedDesc"),
+        variant: "success",
+      })
     } catch (error) {
       setError(toErrorMessage(error))
     } finally {
@@ -85,8 +95,12 @@ export const VaultStartupUnlockDialog: React.FC<VaultStartupUnlockDialogProps> =
               {t("secretStorage.skipStartupUnlock")}
             </Button>
             <Button type="submit" disabled={busy || password.length === 0}>
-              <Unlock size={14} className="mr-2" />
-              {t("secretStorage.unlockVault")}
+              {busy ? (
+                <Loader2 size={14} className="mr-2 animate-spin" />
+              ) : (
+                <Unlock size={14} className="mr-2" />
+              )}
+              {busy ? t("secretStorage.unlocking") : t("secretStorage.unlockVault")}
             </Button>
           </DialogFooter>
         </form>

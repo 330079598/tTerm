@@ -1,4 +1,4 @@
-use super::storage::load_profiles_from_disk;
+use super::storage::load_profiles;
 use super::types::{
     default_keepalive_count, default_keepalive_interval, RawSshHost, SavedJumpHost,
     SshConfigDefaults, SshConfigImportHost, SshConfigImportPreview,
@@ -722,7 +722,7 @@ pub(crate) fn build_ssh_config_import_preview(
         read_ssh_config_with_includes(&source, &mut HashSet::new(), 0)?;
     let (raw_hosts, defaults, mut warnings) = parse_ssh_config(&content);
     warnings.extend(include_warnings);
-    let existing_profiles = load_profiles_from_disk()?;
+    let existing_profiles = load_profiles()?;
     let hosts = raw_hosts
         .into_iter()
         .map(|raw| build_import_host(raw, &defaults, &existing_profiles))

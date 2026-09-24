@@ -87,7 +87,9 @@ fn check_key(path: &str, passphrase: Option<&str>) -> Result<KeyCheck, String> {
         Err(keys::Error::SshKey(ssh_key::Error::Crypto)) if passphrase.is_some() => {
             Ok(KeyCheck::NeedsPassphrase { incorrect: true })
         }
-        Err(err) => Err(format!("Cannot use SSH key '{path}': {err}")),
+        Err(err) => Err(crate::ssh::key_file::describe_key_error(
+            "SSH key", path, &err,
+        )),
     }
 }
 

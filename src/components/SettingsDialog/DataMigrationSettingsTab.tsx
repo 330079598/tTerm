@@ -12,6 +12,7 @@ import {
   FolderOpen,
   History,
   KeyRound,
+  Loader2,
   RefreshCw,
   Save,
   Trash2,
@@ -170,14 +171,26 @@ function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+type BusyAction =
+  | "export"
+  | "inspect"
+  | "verify"
+  | "import"
+  | "saveSettings"
+  | "backupNow"
+  | "deleteHistory"
+
 export const DataMigrationSettingsTab: React.FC = () => {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [selection, setSelection] = useState<BackupSelection>(defaultSelection)
   const [backupPassword, setBackupPassword] = useState("")
+  const [importPassword, setImportPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
-  const [busy, setBusy] = useState(false)
+  // Which long-running action is in progress; its button shows a spinner.
+  const [busyAction, setBusyAction] = useState<BusyAction | null>(null)
+  const busy = busyAction !== null
   const [activeView, setActiveView] = useState<MigrationView>("backup")
   const [importPath, setImportPath] = useState("")
   const [inspectResult, setInspectResult] = useState<BackupInspectResult | null>(null)
@@ -261,7 +274,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
     })
     if (!outputPath) return
 
-    setBusy(true)
+    setBusyAction("export")
     setExportResult(null)
     try {
       const result = await invoke<BackupExportResult>("export_backup", {
@@ -283,7 +296,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
         variant: "destructive",
       })
     } finally {
-      setBusy(false)
+      setBusyAction(null)
     }
   }
 
@@ -302,9 +315,9 @@ export const DataMigrationSettingsTab: React.FC = () => {
       filters: [{ name: "tTerm Backup", extensions: ["tterm-backup"] }],
     })
     if (!selected || Array.isArray(selected)) return
-    setBusy(true)
+    setBusyAction("inspect")
     setImportPath(selected)
-    setBackupPassword("")
+    setImportPassword("")
     setImportResult(null)
     try {
       await inspect(selected, "")
@@ -316,15 +329,15 @@ export const DataMigrationSettingsTab: React.FC = () => {
         variant: "destructive",
       })
     } finally {
-      setBusy(false)
+      setBusyAction(null)
     }
   }
 
   const handleVerifyPassword = async () => {
     if (!importPath) return
-    setBusy(true)
+    setBusyAction("verify")
     try {
-      await inspect(importPath, backupPassword)
+      await inspect(importPath, importPassword)
       toast({ title: t("dataMigration.passwordVerified") })
     } catch (error) {
       toast({
@@ -333,7 +346,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
         variant: "destructive",
       })
     } finally {
-      setBusy(false)
+      setBusyAction(null)
     }
   }
 
@@ -345,22 +358,33 @@ export const DataMigrationSettingsTab: React.FC = () => {
     }
     if (!window.confirm(t("dataMigration.importConfirm"))) return
 
-    setBusy(true)
+    setBusyAction("import")
     try {
       const result = await invoke<BackupImportResult>("import_backup", {
         inputPath: importPath,
         options: {
           selection,
-          backupPassword: backupPassword || null,
+          backupPassword: importPassword || null,
           conflictStrategy,
           secretDestination,
         },
       })
       restoreFrontendState(result.frontendState)
       setImportResult(result)
-      setBackupPassword("")
-      setConfirmPassword("")
+      // The backup password stays until another file is chosen, so the same
+      // backup can be imported again (e.g. merge, then replace) without
+      // re-entering it; the password field is hidden once it is verified.
       toast({ title: t("dataMigration.importSuccess") })
+      try {
+        // Refresh the diff against the data as it is now; keep the selection.
+        setInspectResult(
+          await invoke<BackupInspectResult>("inspect_backup", {
+            input: { inputPath: importPath, backupPassword: importPassword || null },
+          })
+        )
+      } catch {
+        // The import succeeded; a stale diff is not worth an error.
+      }
     } catch (error) {
       toast({
         title: t("dataMigration.importFailed"),
@@ -368,7 +392,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
         variant: "destructive",
       })
     } finally {
-      setBusy(false)
+      setBusyAction(null)
     }
   }
 
@@ -381,7 +405,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
 
   const handleSaveAutomaticSettings = async () => {
     if (!automaticSettings) return
-    setBusy(true)
+    setBusyAction("saveSettings")
     try {
       const saved = await invoke<AutomaticBackupSettings>("save_automatic_backup_settings", {
         settings: automaticSettings,
@@ -395,13 +419,13 @@ export const DataMigrationSettingsTab: React.FC = () => {
         variant: "destructive",
       })
     } finally {
-      setBusy(false)
+      setBusyAction(null)
     }
   }
 
   const handleBackupNow = async () => {
     if (!automaticSettings) return
-    setBusy(true)
+    setBusyAction("backupNow")
     try {
       await invoke("save_automatic_backup_settings", { settings: automaticSettings })
       await invoke("run_due_automatic_backup", {
@@ -417,13 +441,13 @@ export const DataMigrationSettingsTab: React.FC = () => {
         variant: "destructive",
       })
     } finally {
-      setBusy(false)
+      setBusyAction(null)
     }
   }
 
   const handleDeleteHistory = async (entry: BackupHistoryEntry) => {
     if (!window.confirm(t("dataMigration.deleteBackupConfirm", { name: entry.fileName }))) return
-    setBusy(true)
+    setBusyAction("deleteHistory")
     try {
       await invoke("delete_backup_history_entry", { path: entry.path })
       await refreshBackupManagement()
@@ -434,15 +458,15 @@ export const DataMigrationSettingsTab: React.FC = () => {
         variant: "destructive",
       })
     } finally {
-      setBusy(false)
+      setBusyAction(null)
     }
   }
 
   const handleUseHistory = async (entry: BackupHistoryEntry) => {
-    setBusy(true)
+    setBusyAction("inspect")
     setActiveView("import")
     setImportPath(entry.path)
-    setBackupPassword("")
+    setImportPassword("")
     setImportResult(null)
     try {
       await inspect(entry.path, "")
@@ -453,7 +477,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
         variant: "destructive",
       })
     } finally {
-      setBusy(false)
+      setBusyAction(null)
     }
   }
 
@@ -615,8 +639,14 @@ export const DataMigrationSettingsTab: React.FC = () => {
                   {t("common.save")}
                 </Button>
                 <Button variant="outline" disabled={busy} onClick={handleBackupNow}>
-                  <Archive size={16} />
-                  {t("dataMigration.backupNow")}
+                  {busyAction === "backupNow" ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : (
+                    <Archive size={16} />
+                  )}
+                  {busyAction === "backupNow"
+                    ? t("dataMigration.backingUp")
+                    : t("dataMigration.backupNow")}
                 </Button>
               </div>
             </CardContent>
@@ -764,8 +794,14 @@ export const DataMigrationSettingsTab: React.FC = () => {
                 disabled={busy || !Object.values(selection).some(Boolean)}
                 onClick={handleExport}
               >
-                <Download size={16} />
-                {busy ? t("common.loading") : t("dataMigration.exportAction")}
+                {busyAction === "export" ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <Download size={16} />
+                )}
+                {busyAction === "export"
+                  ? t("dataMigration.exporting")
+                  : t("dataMigration.exportAction")}
               </Button>
 
               {exportResult && (
@@ -803,8 +839,14 @@ export const DataMigrationSettingsTab: React.FC = () => {
               </div>
 
               <Button type="button" variant="outline" disabled={busy} onClick={handleChooseImport}>
-                <FileSearch size={16} />
-                {t("dataMigration.chooseBackup")}
+                {busyAction === "inspect" ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <FileSearch size={16} />
+                )}
+                {busyAction === "inspect"
+                  ? t("dataMigration.inspecting")
+                  : t("dataMigration.chooseBackup")}
               </Button>
               {importPath && (
                 <p className="text-muted-foreground text-xs break-all">{importPath}</p>
@@ -857,16 +899,21 @@ export const DataMigrationSettingsTab: React.FC = () => {
                         <Input
                           id="import-backup-password"
                           type={showPassword ? "text" : "password"}
-                          value={backupPassword}
+                          value={importPassword}
                           disabled={busy}
-                          onChange={(event) => setBackupPassword(event.target.value)}
+                          onChange={(event) => setImportPassword(event.target.value)}
                         />
                         <Button
                           variant="outline"
-                          disabled={busy || !backupPassword}
+                          disabled={busy || !importPassword}
                           onClick={handleVerifyPassword}
                         >
-                          {t("dataMigration.verify")}
+                          {busyAction === "verify" && (
+                            <Loader2 className="animate-spin" size={16} />
+                          )}
+                          {busyAction === "verify"
+                            ? t("dataMigration.verifying")
+                            : t("dataMigration.verify")}
                         </Button>
                       </div>
                     </div>
@@ -938,8 +985,14 @@ export const DataMigrationSettingsTab: React.FC = () => {
                     }
                     onClick={handleImport}
                   >
-                    <Upload size={16} />
-                    {t("dataMigration.importAction")}
+                    {busyAction === "import" ? (
+                      <Loader2 className="animate-spin" size={16} />
+                    ) : (
+                      <Upload size={16} />
+                    )}
+                    {busyAction === "import"
+                      ? t("dataMigration.importing")
+                      : t("dataMigration.importAction")}
                   </Button>
                 </>
               )}

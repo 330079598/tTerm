@@ -26,7 +26,13 @@ pub fn migrate_legacy_config_files(app: &tauri::AppHandle) -> Result<(), String>
         return Ok(());
     }
 
+    // Once the database holds this data, copying the old files over would only
+    // leave files nothing reads.
+    let database_holds_data = crate::db::legacy_json_imported();
     for name in MIGRATED_CONFIG_FILES {
+        if database_holds_data && crate::db::LEGACY_JSON_FILES.contains(name) {
+            continue;
+        }
         let old_path = old_dir.join(name);
         if !old_path.exists() {
             continue;

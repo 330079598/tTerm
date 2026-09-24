@@ -1,5 +1,6 @@
-use crate::command_library::{CommandLibraryState, CommandRepository, SavedCommand};
+use crate::command_library::{CommandRepository, SavedCommand};
 use crate::config::{self, AppConfig};
+use crate::core::blocking::run_blocking;
 use crate::profiles::SavedProfile;
 use crate::session::SessionData;
 use crate::sftp::store::SftpDirectoryStore;
@@ -285,12 +286,51 @@ struct DecodedBundle {
 }
 
 #[tauri::command]
-pub fn export_backup(
+pub async fn export_backup(
+    app: AppHandle,
+    output_path: String,
+    options: BackupExportOptions,
+    secret_state: State<'_, SecretStoreState>,
+) -> Result<BackupExportResult, String> {
+    let secret_state = secret_state.inner().clone();
+    run_blocking(move || export_backup_blocking(app, output_path, options, &secret_state)).await
+}
+
+#[tauri::command]
+pub async fn inspect_backup(input: BackupInspectInput) -> Result<BackupInspectResult, String> {
+    run_blocking(move || inspect_backup_blocking(input)).await
+}
+
+#[tauri::command]
+pub async fn import_backup(
+    app: AppHandle,
+    input_path: String,
+    options: BackupImportOptions,
+    secret_state: State<'_, SecretStoreState>,
+) -> Result<BackupImportResult, String> {
+    let secret_state = secret_state.inner().clone();
+    run_blocking(move || import_backup_blocking(app, input_path, options, &secret_state)).await
+}
+
+#[tauri::command]
+pub async fn run_due_automatic_backup(
+    app: AppHandle,
+    frontend_state: Option<Value>,
+    force: bool,
+    secret_state: State<'_, SecretStoreState>,
+) -> Result<Option<BackupExportResult>, String> {
+    let secret_state = secret_state.inner().clone();
+    run_blocking(move || {
+        run_due_automatic_backup_blocking(app, frontend_state, force, &secret_state)
+    })
+    .await
+}
+
+fn export_backup_blocking(
     app: AppHandle,
     output_path: String,
     mut options: BackupExportOptions,
-    command_state: State<'_, CommandLibraryState>,
-    secret_state: State<'_, SecretStoreState>,
+    secret_state: &SecretStoreState,
 ) -> Result<BackupExportResult, String> {
     validate_export_options(&options)?;
     let output = normalized_backup_path(&output_path)?;
@@ -298,8 +338,7 @@ pub fn export_backup(
         &app,
         &options.selection,
         options.frontend_state.take(),
-        command_state.inner(),
-        secret_state.inner(),
+        secret_state,
     )?;
     let profile_count = value_array_len(payload.profiles.as_ref());
     let command_count = payload.commands.as_ref().map_or(0, Vec::len);
@@ -331,20 +370,13 @@ pub fn export_backup(
     })
 }
 
-#[tauri::command]
-pub fn inspect_backup(
-    input: BackupInspectInput,
-    command_state: State<'_, CommandLibraryState>,
-) -> Result<BackupInspectResult, String> {
+fn inspect_backup_blocking(input: BackupInspectInput) -> Result<BackupInspectResult, String> {
     let bundle = decode_archive(
         Path::new(&input.input_path),
         input.backup_password.as_deref(),
     )?;
     let payload = bundle.payload.as_ref();
-    let diff = payload
-        .map(|payload| calculate_diff(payload, command_state.inner()))
-        .transpose()?
-        .unwrap_or_default();
+    let diff = payload.map(calculate_diff).transpose()?.unwrap_or_default();
     Ok(BackupInspectResult {
         requires_password: bundle.manifest.encrypted,
         password_verified: payload.is_some(),
@@ -362,13 +394,11 @@ pub fn inspect_backup(
     })
 }
 
-#[tauri::command]
-pub fn import_backup(
+fn import_backup_blocking(
     app: AppHandle,
     input_path: String,
     mut options: BackupImportOptions,
-    command_state: State<'_, CommandLibraryState>,
-    secret_state: State<'_, SecretStoreState>,
+    secret_state: &SecretStoreState,
 ) -> Result<BackupImportResult, String> {
     if !options.selection.any() {
         return Err("Select at least one data category to import.".to_string());
@@ -385,10 +415,12 @@ pub fn import_backup(
     validate_payload(payload)?;
 
     let mut hybrid_snapshot = None;
+    let current_mode = config::load_config_file()?.secret_storage_mode;
     let destination = if options.selection.secrets {
         Some(resolve_secret_destination(
-            secret_state.inner(),
+            secret_state,
             &options.secret_destination,
+            &current_mode,
         )?)
     } else {
         None
@@ -404,7 +436,10 @@ pub fn import_backup(
     } else {
         None
     };
-    if destination.as_deref() == Some("hybrid") {
+    // A device already in hybrid mode with its vault unlocked needs no setup;
+    // checking its keyring master would only cost a keychain prompt.
+    let already_hybrid = current_mode == "hybrid" && secret_state.vault_unlocked()?;
+    if destination.as_deref() == Some("hybrid") && !already_hybrid {
         if !secret_state.vault_unlocked()? {
             let password = options
                 .backup_password
@@ -425,20 +460,16 @@ pub fn import_backup(
         }
     }
 
-    let pre_import_backup_path = match create_pre_import_backup(
-        &app,
-        &options.selection,
-        command_state.inner(),
-        secret_state.inner(),
-    ) {
-        Ok(path) => path,
-        Err(error) => {
-            if let Some(snapshot) = hybrid_snapshot.take() {
-                let _ = secret_state.rollback_migration_hybrid(snapshot);
+    let pre_import_backup_path =
+        match create_pre_import_backup(&app, &options.selection, secret_state) {
+            Ok(path) => path,
+            Err(error) => {
+                if let Some(snapshot) = hybrid_snapshot.take() {
+                    let _ = secret_state.rollback_migration_hybrid(snapshot);
+                }
+                return Err(error);
             }
-            return Err(error);
-        }
-    };
+        };
     let file_snapshot = match capture_file_snapshot(&options.selection, payload) {
         Ok(snapshot) => snapshot,
         Err(error) => {
@@ -448,8 +479,17 @@ pub fn import_backup(
             return Err(error);
         }
     };
+    let database_snapshot = match capture_database_snapshot(&options.selection) {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            if let Some(snapshot) = hybrid_snapshot.take() {
+                let _ = secret_state.rollback_migration_hybrid(snapshot);
+            }
+            return Err(error);
+        }
+    };
     let command_snapshot = if options.selection.command_library {
-        let database = match command_state.database() {
+        let database = match crate::db::get() {
             Ok(database) => database,
             Err(error) => {
                 if let Some(snapshot) = hybrid_snapshot.take() {
@@ -471,7 +511,7 @@ pub fn import_backup(
         None
     };
     let secret_snapshot = if let Some(destination) = destination.as_deref() {
-        match capture_secret_snapshot(&app, secret_state.inner(), &payload.secrets, destination) {
+        match capture_secret_snapshot(&app, secret_state, &payload.secrets, destination) {
             Ok(snapshot) => snapshot,
             Err(error) => {
                 if let Some(snapshot) = hybrid_snapshot.take() {
@@ -489,8 +529,7 @@ pub fn import_backup(
         payload,
         &options,
         destination.as_deref(),
-        command_state.inner(),
-        secret_state.inner(),
+        secret_state,
     );
     let (profiles_imported, commands_imported, secrets_imported) = match apply_result {
         Ok(counts) => counts,
@@ -510,6 +549,9 @@ pub fn import_backup(
             if let Err(err) = restore_file_snapshot(&file_snapshot) {
                 rollback_errors.push(err);
             }
+            if let Err(err) = restore_database_snapshot(&database_snapshot) {
+                rollback_errors.push(err);
+            }
             if !had_hybrid_snapshot || hybrid_rollback_failed {
                 if let Some((path, bytes)) = config_snapshot.as_ref() {
                     if let Err(err) = config::atomic_write_private(path, bytes) {
@@ -519,18 +561,15 @@ pub fn import_backup(
                 }
             }
             if let Some(commands) = command_snapshot.as_ref() {
-                if let Err(err) = replace_commands(command_state.inner(), commands) {
+                if let Err(err) = replace_commands(commands) {
                     rollback_errors.push(err);
                 }
             }
             if !had_hybrid_snapshot {
                 if let Some(destination) = destination.as_deref() {
-                    if let Err(err) = restore_secret_snapshot(
-                        &app,
-                        secret_state.inner(),
-                        &secret_snapshot,
-                        destination,
-                    ) {
+                    if let Err(err) =
+                        restore_secret_snapshot(&app, secret_state, &secret_snapshot, destination)
+                    {
                         rollback_errors.push(err);
                     }
                 }
@@ -582,13 +621,11 @@ pub fn save_automatic_backup_settings(
     Ok(settings)
 }
 
-#[tauri::command]
-pub fn run_due_automatic_backup(
+fn run_due_automatic_backup_blocking(
     app: AppHandle,
     frontend_state: Option<Value>,
     force: bool,
-    command_state: State<'_, CommandLibraryState>,
-    secret_state: State<'_, SecretStoreState>,
+    secret_state: &SecretStoreState,
 ) -> Result<Option<BackupExportResult>, String> {
     let mut settings = load_automatic_backup_settings()?;
     validate_automatic_backup_settings(&settings)?;
@@ -602,13 +639,7 @@ pub fn run_due_automatic_backup(
         "automatic-{}.tterm-backup",
         Utc::now().format("%Y%m%d-%H%M%S-%3f")
     ));
-    let payload = collect_payload(
-        &app,
-        &settings.selection,
-        frontend_state,
-        command_state.inner(),
-        secret_state.inner(),
-    )?;
+    let payload = collect_payload(&app, &settings.selection, frontend_state, secret_state)?;
     let profile_count = value_array_len(payload.profiles.as_ref());
     let command_count = payload.commands.as_ref().map_or(0, Vec::len);
     let archive = build_archive(&app, &settings.selection, &payload, None)?;
@@ -747,7 +778,6 @@ fn collect_payload(
     _app: &AppHandle,
     selection: &BackupSelection,
     frontend_state: Option<Value>,
-    command_state: &CommandLibraryState,
     secret_state: &SecretStoreState,
 ) -> Result<BackupPayload, String> {
     if selection.secrets {
@@ -758,14 +788,23 @@ fn collect_payload(
     }
     let mut payload = BackupPayload {
         config: read_selected_json(selection.settings, "config.json")?,
-        profiles: read_selected_json(selection.profiles, "profiles.json")?,
-        profile_groups: read_selected_json(selection.profiles, "profile_groups.json")?,
-        tunnels: read_selected_json(selection.profiles, "tunnels.json")?,
+        profiles: read_selected_data(selection.profiles, crate::profiles::list_saved_profiles)?,
+        profile_groups: read_selected_data(
+            selection.profiles,
+            crate::profiles::configured_profile_groups,
+        )?,
+        tunnels: read_selected_data(selection.profiles, crate::tunnel::list_tunnel_rules)?,
         session: read_selected_json(selection.session, "session.json")?,
-        known_hosts: read_selected_json(selection.known_hosts, "ssh_known_hosts.json")?,
-        sftp_directories: read_selected_json(selection.sftp_directories, "sftp_directories.json")?,
+        known_hosts: read_selected_data(
+            selection.known_hosts,
+            crate::ssh::store::list_known_hosts,
+        )?,
+        sftp_directories: read_selected_data(
+            selection.sftp_directories,
+            crate::sftp::store::list_sftp_directories,
+        )?,
         commands: if selection.command_library {
-            Some(CommandRepository::new(command_state.database()?).list()?)
+            Some(CommandRepository::new(crate::db::get()?).list()?)
         } else {
             None
         },
@@ -825,6 +864,19 @@ fn collect_payload(
     }
     validate_payload(&payload)?;
     Ok(payload)
+}
+
+fn read_selected_data<T: Serialize>(
+    selected: bool,
+    read: impl FnOnce(&rusqlite::Connection) -> Result<T, String>,
+) -> Result<Option<Value>, String> {
+    if !selected {
+        return Ok(None);
+    }
+    let data = crate::db::read(read)?;
+    serde_json::to_value(data)
+        .map(Some)
+        .map_err(|error| format!("Failed to serialize backup data: {error}"))
 }
 
 fn read_selected_json(selected: bool, name: &str) -> Result<Option<Value>, String> {
@@ -1213,19 +1265,44 @@ fn ensure_selection_available(
     Ok(())
 }
 
-fn resolve_secret_destination(state: &SecretStoreState, requested: &str) -> Result<String, String> {
+fn resolve_secret_destination(
+    state: &SecretStoreState,
+    requested: &str,
+    current_mode: &str,
+) -> Result<String, String> {
+    choose_secret_destination(
+        requested,
+        current_mode,
+        || state.keyring_available(),
+        state.vault_unlocked()?,
+    )
+}
+
+/// Picks where imported passwords go. `auto` keeps the device's current
+/// storage mode, so an import never moves passwords out of the vault into the
+/// system store (one keychain prompt per password on macOS) or switches the
+/// mode behind the user's back. The keyring is only probed when needed.
+fn choose_secret_destination(
+    requested: &str,
+    current_mode: &str,
+    keyring_available: impl Fn() -> Result<bool, String>,
+    vault_unlocked: bool,
+) -> Result<String, String> {
+    let requested = match (requested, current_mode) {
+        ("auto", "system" | "vault" | "hybrid") => current_mode,
+        (requested, _) => requested,
+    };
     match requested {
-        "system" if state.keyring_available()? => Ok("system".to_string()),
+        "system" if keyring_available()? => Ok("system".to_string()),
         "system" => Err("System credential store is unavailable.".to_string()),
-        "vault" if state.vault_unlocked()? => Ok("vault".to_string()),
+        "vault" if vault_unlocked => Ok("vault".to_string()),
         "vault" => Err("Unlock the app vault before importing passwords.".to_string()),
-        "hybrid" if state.keyring_available()? => Ok("hybrid".to_string()),
+        "hybrid" if keyring_available()? => Ok("hybrid".to_string()),
         "hybrid" => Err("Hybrid credential storage requires the system credential store.".to_string()),
-        // Automatic import must remain compatible with existing vaults. An
-        // unlocked vault can be selected explicitly as hybrid; auto uses the
-        // system store whenever it is available, as older versions did.
-        "auto" if state.keyring_available()? => Ok("system".to_string()),
-        "auto" if state.vault_unlocked()? => Ok("vault".to_string()),
+        // Devices in `auto` or `memory` mode: the system store when available,
+        // as older versions did, else an unlocked vault.
+        "auto" if keyring_available()? => Ok("system".to_string()),
+        "auto" if vault_unlocked => Ok("vault".to_string()),
         "auto" => Err(
             "No persistent credential store is ready. Enable system credentials or unlock the app vault."
                 .to_string(),
@@ -1239,7 +1316,6 @@ fn apply_payload(
     payload: &BackupPayload,
     options: &BackupImportOptions,
     destination: Option<&str>,
-    command_state: &CommandLibraryState,
     secret_state: &SecretStoreState,
 ) -> Result<(usize, usize, usize), String> {
     let directory = config::ensure_config_dir()?;
@@ -1265,73 +1341,10 @@ fn apply_payload(
         config::save_config_file(&imported)?;
     }
 
-    let mut profiles_imported = 0;
-    if options.selection.profiles {
-        if let Some(incoming) = payload.profiles.as_ref() {
-            let incoming_profiles = serde_json::from_value::<Vec<SavedProfile>>(incoming.clone())
-                .map_err(|error| format!("Invalid profiles: {error}"))?;
-            let safe_incoming = serde_json::to_value(incoming_profiles)
-                .map_err(|error| format!("Failed to sanitize profiles: {error}"))?;
-            let incoming_count = value_array_len_one(&safe_incoming);
-            let final_value = if options.conflict_strategy == "merge" {
-                merge_json_array_file(&directory.join("profiles.json"), &safe_incoming, &["id"])?
-            } else {
-                safe_incoming
-            };
-            profiles_imported = incoming_count;
-            write_json_value(&directory.join("profiles.json"), &final_value)?;
-        }
-        if let Some(incoming) = payload.profile_groups.as_ref() {
-            let final_value = if options.conflict_strategy == "merge" {
-                merge_string_arrays(
-                    read_json_value(&directory.join("profile_groups.json"))?,
-                    incoming.clone(),
-                )?
-            } else {
-                incoming.clone()
-            };
-            write_json_value(&directory.join("profile_groups.json"), &final_value)?;
-        }
-        // Backups made before tunnels existed carry none; keep the current rules then.
-        if let Some(incoming) = payload.tunnels.as_ref() {
-            let final_value = if options.conflict_strategy == "merge" {
-                merge_json_array_file(&directory.join("tunnels.json"), incoming, &["id"])?
-            } else {
-                incoming.clone()
-            };
-            write_json_value(&directory.join("tunnels.json"), &final_value)?;
-        }
-    }
+    let profiles_imported =
+        crate::db::write(|transaction| apply_database_payload(transaction, payload, options))?;
     if options.selection.session {
         write_optional_json(&directory.join("session.json"), payload.session.as_ref())?;
-    }
-    if options.selection.known_hosts {
-        if let Some(incoming) = payload.known_hosts.as_ref() {
-            let final_value = if options.conflict_strategy == "merge" {
-                merge_object_entries(
-                    read_json_value(&directory.join("ssh_known_hosts.json"))?,
-                    incoming.clone(),
-                    &["host", "port", "algorithm", "fingerprint"],
-                )?
-            } else {
-                incoming.clone()
-            };
-            write_json_value(&directory.join("ssh_known_hosts.json"), &final_value)?;
-        }
-    }
-    if options.selection.sftp_directories {
-        if let Some(incoming) = payload.sftp_directories.as_ref() {
-            let final_value = if options.conflict_strategy == "merge" {
-                merge_object_entries(
-                    read_json_value(&directory.join("sftp_directories.json"))?,
-                    incoming.clone(),
-                    &["host", "port", "username"],
-                )?
-            } else {
-                incoming.clone()
-            };
-            write_json_value(&directory.join("sftp_directories.json"), &final_value)?;
-        }
     }
     if options.selection.logs {
         restore_log_files(&payload.logs)?;
@@ -1340,9 +1353,9 @@ fn apply_payload(
     let commands_imported = if options.selection.command_library {
         let incoming = payload.commands.as_deref().unwrap_or(&[]);
         if options.conflict_strategy == "replace" {
-            replace_commands(command_state, incoming)?;
+            replace_commands(incoming)?;
         } else {
-            let repository = CommandRepository::new(command_state.database()?);
+            let repository = CommandRepository::new(crate::db::get()?);
             for command in incoming {
                 repository.save(command)?;
             }
@@ -1368,8 +1381,158 @@ fn apply_payload(
     Ok((profiles_imported, commands_imported, secrets_imported))
 }
 
-fn replace_commands(state: &CommandLibraryState, commands: &[SavedCommand]) -> Result<(), String> {
-    let repository = CommandRepository::new(state.database()?);
+/// Applies the categories stored in the database. Returns how many profiles
+/// the backup carried.
+fn apply_database_payload(
+    transaction: &rusqlite::Connection,
+    payload: &BackupPayload,
+    options: &BackupImportOptions,
+) -> Result<usize, String> {
+    let merge = options.conflict_strategy == "merge";
+    let mut profiles_imported = 0;
+    if options.selection.profiles {
+        if let Some(incoming) = payload.profiles.as_ref() {
+            let incoming_profiles = serde_json::from_value::<Vec<SavedProfile>>(incoming.clone())
+                .map_err(|error| format!("Invalid profiles: {error}"))?;
+            profiles_imported = incoming_profiles.len();
+            let profiles = if merge {
+                let safe_incoming = to_backup_value(&incoming_profiles)?;
+                let existing =
+                    to_backup_value(&crate::profiles::list_saved_profiles(transaction)?)?;
+                from_backup_value(merge_arrays_by_keys(existing, safe_incoming, &["id"])?)?
+            } else {
+                incoming_profiles
+            };
+            crate::profiles::replace_profiles(transaction, &profiles)?;
+        }
+        if let Some(incoming) = payload.profile_groups.as_ref() {
+            let groups = if merge {
+                let existing =
+                    to_backup_value(&crate::profiles::configured_profile_groups(transaction)?)?;
+                merge_string_arrays(existing, incoming.clone())?
+            } else {
+                incoming.clone()
+            };
+            crate::profiles::replace_profile_groups(
+                transaction,
+                &from_backup_value::<Vec<String>>(groups)?,
+            )?;
+        }
+        // Backups made before tunnels existed carry none; keep the current rules then.
+        if let Some(incoming) = payload.tunnels.as_ref() {
+            let tunnels = if merge {
+                let existing = to_backup_value(&crate::tunnel::list_tunnel_rules(transaction)?)?;
+                merge_arrays_by_keys(existing, incoming.clone(), &["id"])?
+            } else {
+                incoming.clone()
+            };
+            crate::tunnel::replace_tunnels(
+                transaction,
+                &from_backup_value::<Vec<TunnelRule>>(tunnels)?,
+            )?;
+        }
+    }
+    if options.selection.known_hosts {
+        if let Some(incoming) = payload.known_hosts.as_ref() {
+            let incoming = from_backup_value::<KnownHostStore>(incoming.clone())?;
+            if merge {
+                for entry in &incoming.entries {
+                    crate::ssh::store::merge_known_host(transaction, entry)?;
+                }
+            } else {
+                crate::ssh::store::replace_known_hosts(transaction, &incoming)?;
+            }
+        }
+    }
+    if options.selection.sftp_directories {
+        if let Some(incoming) = payload.sftp_directories.as_ref() {
+            let store = if merge {
+                let existing =
+                    to_backup_value(&crate::sftp::store::list_sftp_directories(transaction)?)?;
+                merge_object_entries(existing, incoming.clone(), &["host", "port", "username"])?
+            } else {
+                incoming.clone()
+            };
+            crate::sftp::store::replace_sftp_directories(
+                transaction,
+                &from_backup_value::<SftpDirectoryStore>(store)?,
+            )?;
+        }
+    }
+    Ok(profiles_imported)
+}
+
+fn to_backup_value<T: Serialize>(value: &T) -> Result<Value, String> {
+    serde_json::to_value(value).map_err(|error| format!("Failed to serialize backup data: {error}"))
+}
+
+fn from_backup_value<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, String> {
+    serde_json::from_value(value).map_err(|error| format!("Invalid backup data: {error}"))
+}
+
+/// Database-held data a failed import restores.
+#[derive(Default)]
+struct DatabaseSnapshot {
+    profiles: Option<(Vec<SavedProfile>, Vec<String>, Vec<TunnelRule>)>,
+    known_hosts: Option<KnownHostStore>,
+    sftp_directories: Option<SftpDirectoryStore>,
+}
+
+fn capture_database_snapshot(selection: &BackupSelection) -> Result<DatabaseSnapshot, String> {
+    crate::db::read(|connection| snapshot_database(connection, selection))
+}
+
+fn snapshot_database(
+    connection: &rusqlite::Connection,
+    selection: &BackupSelection,
+) -> Result<DatabaseSnapshot, String> {
+    Ok(DatabaseSnapshot {
+        profiles: if selection.profiles {
+            Some((
+                crate::profiles::list_saved_profiles(connection)?,
+                crate::profiles::configured_profile_groups(connection)?,
+                crate::tunnel::list_tunnel_rules(connection)?,
+            ))
+        } else {
+            None
+        },
+        known_hosts: if selection.known_hosts {
+            Some(crate::ssh::store::list_known_hosts(connection)?)
+        } else {
+            None
+        },
+        sftp_directories: if selection.sftp_directories {
+            Some(crate::sftp::store::list_sftp_directories(connection)?)
+        } else {
+            None
+        },
+    })
+}
+
+fn restore_database_snapshot(snapshot: &DatabaseSnapshot) -> Result<(), String> {
+    crate::db::write(|transaction| restore_database(transaction, snapshot))
+}
+
+fn restore_database(
+    transaction: &rusqlite::Connection,
+    snapshot: &DatabaseSnapshot,
+) -> Result<(), String> {
+    if let Some((profiles, groups, tunnels)) = snapshot.profiles.as_ref() {
+        crate::profiles::replace_profiles(transaction, profiles)?;
+        crate::profiles::replace_profile_groups(transaction, groups)?;
+        crate::tunnel::replace_tunnels(transaction, tunnels)?;
+    }
+    if let Some(store) = snapshot.known_hosts.as_ref() {
+        crate::ssh::store::replace_known_hosts(transaction, store)?;
+    }
+    if let Some(store) = snapshot.sftp_directories.as_ref() {
+        crate::sftp::store::replace_sftp_directories(transaction, store)?;
+    }
+    Ok(())
+}
+
+fn replace_commands(commands: &[SavedCommand]) -> Result<(), String> {
+    let repository = CommandRepository::new(crate::db::get()?);
     for existing in repository.list()? {
         repository.delete(&existing.id)?;
     }
@@ -1400,10 +1563,6 @@ fn read_json_value(path: &Path) -> Result<Value, String> {
         fs::read(path).map_err(|error| format!("Failed to read '{}': {error}", path.display()))?;
     serde_json::from_slice(&bytes)
         .map_err(|error| format!("Failed to parse '{}': {error}", path.display()))
-}
-
-fn merge_json_array_file(path: &Path, incoming: &Value, keys: &[&str]) -> Result<Value, String> {
-    merge_arrays_by_keys(read_json_value(path)?, incoming.clone(), keys)
 }
 
 fn merge_arrays_by_keys(existing: Value, incoming: Value, keys: &[&str]) -> Result<Value, String> {
@@ -1483,11 +1642,8 @@ fn merge_string_arrays(existing: Value, incoming: Value) -> Result<Value, String
     Ok(Value::Array(result))
 }
 
-fn calculate_diff(
-    payload: &BackupPayload,
-    command_state: &CommandLibraryState,
-) -> Result<BackupDiff, String> {
-    let existing_profiles = read_json_value(&config::get_config_path()?.join("profiles.json"))?;
+fn calculate_diff(payload: &BackupPayload) -> Result<BackupDiff, String> {
+    let existing_profiles = to_backup_value(&crate::profiles::load_profiles()?)?;
     let profiles = calculate_json_array_diff(
         existing_profiles
             .as_array()
@@ -1502,7 +1658,7 @@ fn calculate_diff(
         &["id"],
     )?;
 
-    let existing_commands = CommandRepository::new(command_state.database()?).list()?;
+    let existing_commands = CommandRepository::new(crate::db::get()?).list()?;
     let existing_by_id = existing_commands
         .into_iter()
         .map(|command| (command.id.clone(), command))
@@ -1660,17 +1816,8 @@ fn capture_file_snapshot(
     if selection.settings {
         names.push("config.json");
     }
-    if selection.profiles {
-        names.extend(["profiles.json", "profile_groups.json", "tunnels.json"]);
-    }
     if selection.session {
         names.push("session.json");
-    }
-    if selection.known_hosts {
-        names.push("ssh_known_hosts.json");
-    }
-    if selection.sftp_directories {
-        names.push("sftp_directories.json");
     }
     let mut snapshot = names
         .into_iter()
@@ -1769,7 +1916,6 @@ fn restore_secret_snapshot(
 fn create_pre_import_backup(
     app: &AppHandle,
     selection: &BackupSelection,
-    command_state: &CommandLibraryState,
     secret_state: &SecretStoreState,
 ) -> Result<PathBuf, String> {
     let backup_dir = config::ensure_config_dir()?.join("backups");
@@ -1780,7 +1926,7 @@ fn create_pre_import_backup(
         Utc::now().format("%Y%m%d-%H%M%S-%3f")
     ));
     let safe_selection = selection.without_secrets();
-    let payload = collect_payload(app, &safe_selection, None, command_state, secret_state)?;
+    let payload = collect_payload(app, &safe_selection, None, secret_state)?;
     let archive = build_archive(app, &safe_selection, &payload, None)?;
     config::atomic_write_private(&path, archive)?;
     Ok(path)
@@ -1909,6 +2055,429 @@ fn value_array_len_one(value: &Value) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn db_profile(id: &str, name: &str, group: &str) -> Value {
+        serde_json::json!({
+            "id": id, "name": name, "group": group, "connection_type": "ssh",
+            "host": format!("{id}.example"), "port": 22, "username": "root",
+            "auth_method": "password", "private_key_path": null
+        })
+    }
+
+    fn db_known_host(host: &str, fingerprint: &str) -> Value {
+        serde_json::json!({
+            "profile_id": null, "profile_name": host, "host": host, "port": 22,
+            "algorithm": "ssh-ed25519", "fingerprint": fingerprint, "trusted_at": 1
+        })
+    }
+
+    fn database_selection() -> BackupSelection {
+        BackupSelection {
+            profiles: true,
+            known_hosts: true,
+            sftp_directories: true,
+            ..BackupSelection::default()
+        }
+    }
+
+    fn import_options(strategy: &str) -> BackupImportOptions {
+        BackupImportOptions {
+            selection: database_selection(),
+            backup_password: None,
+            conflict_strategy: strategy.to_string(),
+            secret_destination: default_secret_destination(),
+        }
+    }
+
+    /// Seeds the database with profiles a and b, group "ops", tunnel t1, a
+    /// known host and an SFTP directory.
+    fn seed_database(connection: &rusqlite::Connection) {
+        let payload = {
+            let mut payload = BackupPayload::default();
+            payload.profiles = Some(serde_json::json!([
+                db_profile("a", "Alpha", "ops"),
+                db_profile("b", "Beta", "")
+            ]));
+            payload.profile_groups = Some(serde_json::json!(["ops"]));
+            payload.tunnels = Some(serde_json::json!([{
+                "id": "t1", "name": "db", "profileId": "a", "kind": "local",
+                "bindHost": "127.0.0.1", "bindPort": 5432,
+                "destHost": "db", "destPort": 5432
+            }]));
+            payload.known_hosts =
+                Some(serde_json::json!({ "entries": [db_known_host("a.example", "old")] }));
+            payload.sftp_directories = Some(serde_json::json!({ "entries": [
+                { "host": "a.example", "port": 22, "username": "root", "last_path": "/a" }
+            ]}));
+            payload
+        };
+        apply_database_payload(connection, &payload, &import_options("replace")).expect("seed");
+    }
+
+    fn incoming_payload() -> BackupPayload {
+        let mut payload = BackupPayload::default();
+        payload.profiles = Some(serde_json::json!([
+            db_profile("b", "Beta renamed", "dev"),
+            db_profile("c", "Gamma", "dev")
+        ]));
+        payload.profile_groups = Some(serde_json::json!(["dev"]));
+        payload.known_hosts = Some(serde_json::json!({ "entries": [
+            db_known_host("a.example", "old"),
+            db_known_host("c.example", "new")
+        ]}));
+        payload.sftp_directories = Some(serde_json::json!({ "entries": [
+            { "host": "a.example", "port": 22, "username": "root", "last_path": "/b" }
+        ]}));
+        payload
+    }
+
+    fn profile_summary(connection: &rusqlite::Connection) -> Vec<(String, String, String)> {
+        crate::profiles::list_saved_profiles(connection)
+            .unwrap()
+            .into_iter()
+            .map(|p| (p.id, p.name, p.group))
+            .collect()
+    }
+
+    fn owned(rows: &[(&str, &str, &str)]) -> Vec<(String, String, String)> {
+        rows.iter()
+            .map(|(a, b, c)| (a.to_string(), b.to_string(), c.to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn merge_import_keeps_existing_data_and_updates_by_key() {
+        let database = crate::db::Database::open_in_memory().unwrap();
+        database
+            .write(|connection| {
+                seed_database(connection);
+                let imported = apply_database_payload(
+                    connection,
+                    &incoming_payload(),
+                    &import_options("merge"),
+                )?;
+                assert_eq!(imported, 2);
+                assert_eq!(
+                    profile_summary(connection),
+                    owned(&[
+                        ("a", "Alpha", "ops"),
+                        ("b", "Beta renamed", "dev"),
+                        ("c", "Gamma", "dev")
+                    ])
+                );
+                assert_eq!(
+                    crate::profiles::configured_profile_groups(connection)?,
+                    ["dev", "ops"]
+                );
+                // Tunnels missing from an old backup are left alone.
+                assert_eq!(crate::tunnel::list_tunnel_rules(connection)?.len(), 1);
+                let hosts = crate::ssh::store::list_known_hosts(connection)?.entries;
+                assert_eq!(
+                    hosts.len(),
+                    2,
+                    "the duplicate known host is not added twice"
+                );
+                let dirs = crate::sftp::store::list_sftp_directories(connection)?.entries;
+                assert_eq!(dirs.len(), 1);
+                assert_eq!(dirs[0].last_path, "/b");
+                Ok(())
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn merge_import_keeps_known_hosts_of_profiles_sharing_a_host_key() {
+        let entry = |profile_id: Option<&str>, name: &str| {
+            serde_json::json!({
+                "profile_id": profile_id, "profile_name": name,
+                "host": "10.0.0.1", "port": 7006,
+                "algorithm": "ssh-ed25519", "fingerprint": "SHA256:same", "trusted_at": 1
+            })
+        };
+        let mut payload = BackupPayload::default();
+        payload.known_hosts = Some(serde_json::json!({ "entries": [
+            entry(Some("p-ubuntu"), "ubuntu"),
+            entry(Some("p-test"), "test"),
+            entry(None, "jump:10.0.0.1:7006"),
+            // Written before profile ids were recorded: no `profile_id` key.
+            {
+                "profile_name": "legacy", "host": "10.0.0.1", "port": 7006,
+                "algorithm": "ssh-ed25519", "fingerprint": "SHA256:same", "trusted_at": 1
+            }
+        ]}));
+        let mut options = import_options("merge");
+        options.selection = BackupSelection {
+            known_hosts: true,
+            ..BackupSelection::default()
+        };
+        let database = crate::db::Database::open_in_memory().unwrap();
+        database
+            .write(|connection| {
+                apply_database_payload(connection, &payload, &options)?;
+                apply_database_payload(connection, &payload, &options)?;
+                let names = crate::ssh::store::list_known_hosts(connection)?
+                    .entries
+                    .into_iter()
+                    .map(|entry| entry.profile_name)
+                    .collect::<Vec<_>>();
+                assert_eq!(names, ["ubuntu", "test", "jump:10.0.0.1:7006", "legacy"]);
+                Ok(())
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn merge_import_never_lets_a_name_only_entry_replace_a_profile_entry() {
+        let mut payload = BackupPayload::default();
+        payload.known_hosts = Some(serde_json::json!({ "entries": [
+            {
+                "profile_id": "p1", "profile_name": "K8s-master", "host": "10.0.0.31",
+                "port": 22, "algorithm": "ssh-ed25519", "fingerprint": "SHA256:current",
+                "trusted_at": 2
+            },
+            {
+                "profile_id": null, "profile_name": "K8s-master", "host": "10.0.0.31",
+                "port": 22, "algorithm": "ssh-ed25519", "fingerprint": "SHA256:stale",
+                "trusted_at": 1
+            }
+        ]}));
+        let mut options = import_options("merge");
+        options.selection = BackupSelection {
+            known_hosts: true,
+            ..BackupSelection::default()
+        };
+        let database = crate::db::Database::open_in_memory().unwrap();
+        database
+            .write(|connection| {
+                apply_database_payload(connection, &payload, &options)?;
+                let entries = crate::ssh::store::list_known_hosts(connection)?.entries;
+                assert_eq!(entries.len(), 2);
+                assert_eq!(entries[0].profile_id.as_deref(), Some("p1"));
+                assert_eq!(entries[0].fingerprint, "SHA256:current");
+                Ok(())
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn auto_secret_destination_keeps_the_current_storage_mode() {
+        let keyring = |available: bool| move || Ok(available);
+        let no_probe = || -> Result<bool, String> { panic!("keyring must not be probed") };
+
+        // A hybrid or vault device keeps its passwords in the vault.
+        assert_eq!(
+            choose_secret_destination("auto", "hybrid", keyring(true), true).unwrap(),
+            "hybrid"
+        );
+        assert_eq!(
+            choose_secret_destination("auto", "vault", no_probe, true).unwrap(),
+            "vault"
+        );
+        assert!(choose_secret_destination("auto", "vault", no_probe, false)
+            .unwrap_err()
+            .contains("Unlock the app vault"));
+        assert_eq!(
+            choose_secret_destination("auto", "system", keyring(true), false).unwrap(),
+            "system"
+        );
+        // Devices without a fixed mode keep the old preference.
+        assert_eq!(
+            choose_secret_destination("auto", "auto", keyring(true), true).unwrap(),
+            "system"
+        );
+        assert_eq!(
+            choose_secret_destination("auto", "memory", keyring(false), true).unwrap(),
+            "vault"
+        );
+        // An explicit choice wins over the current mode.
+        assert_eq!(
+            choose_secret_destination("system", "hybrid", keyring(true), true).unwrap(),
+            "system"
+        );
+    }
+
+    #[test]
+    fn replace_import_drops_data_missing_from_the_backup() {
+        let database = crate::db::Database::open_in_memory().unwrap();
+        database
+            .write(|connection| {
+                seed_database(connection);
+                apply_database_payload(
+                    connection,
+                    &incoming_payload(),
+                    &import_options("replace"),
+                )?;
+                assert_eq!(
+                    profile_summary(connection),
+                    owned(&[("b", "Beta renamed", "dev"), ("c", "Gamma", "dev")])
+                );
+                assert_eq!(
+                    crate::profiles::configured_profile_groups(connection)?,
+                    ["dev"]
+                );
+                assert_eq!(crate::tunnel::list_tunnel_rules(connection)?.len(), 1);
+                assert_eq!(
+                    crate::ssh::store::list_known_hosts(connection)?
+                        .entries
+                        .len(),
+                    2
+                );
+                Ok(())
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn unselected_categories_are_not_touched() {
+        let database = crate::db::Database::open_in_memory().unwrap();
+        database
+            .write(|connection| {
+                seed_database(connection);
+                let mut options = import_options("replace");
+                options.selection = BackupSelection {
+                    known_hosts: true,
+                    ..BackupSelection::default()
+                };
+                apply_database_payload(connection, &incoming_payload(), &options)?;
+                assert_eq!(profile_summary(connection).len(), 2);
+                assert_eq!(
+                    crate::sftp::store::list_sftp_directories(connection)?.entries[0].last_path,
+                    "/a"
+                );
+                Ok(())
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn database_snapshot_undoes_an_import() {
+        let database = crate::db::Database::open_in_memory().unwrap();
+        database
+            .write(|connection| {
+                seed_database(connection);
+                let before = snapshot_database(connection, &database_selection())?;
+                let before_json = |s: &DatabaseSnapshot| {
+                    serde_json::json!({
+                        "profiles": s.profiles.as_ref().map(|(p, g, t)| serde_json::json!([p, g, t])),
+                        "known_hosts": s.known_hosts,
+                        "sftp": s.sftp_directories,
+                    })
+                };
+                apply_database_payload(connection, &incoming_payload(), &import_options("replace"))?;
+                restore_database(connection, &before)?;
+                let after = snapshot_database(connection, &database_selection())?;
+                assert_eq!(before_json(&after), before_json(&before));
+                Ok(())
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn exported_data_imports_back_unchanged() {
+        let source = crate::db::Database::open_in_memory().unwrap();
+        source
+            .write(|connection| {
+                seed_database(connection);
+                Ok(())
+            })
+            .unwrap();
+        let payload = source
+            .read(|connection| {
+                Ok({
+                    let mut payload = BackupPayload::default();
+                    payload.profiles = Some(to_backup_value(
+                        &crate::profiles::list_saved_profiles(connection)?,
+                    )?);
+                    payload.profile_groups = Some(to_backup_value(
+                        &crate::profiles::configured_profile_groups(connection)?,
+                    )?);
+                    payload.tunnels = Some(to_backup_value(&crate::tunnel::list_tunnel_rules(
+                        connection,
+                    )?)?);
+                    payload.known_hosts = Some(to_backup_value(
+                        &crate::ssh::store::list_known_hosts(connection)?,
+                    )?);
+                    payload.sftp_directories = Some(to_backup_value(
+                        &crate::sftp::store::list_sftp_directories(connection)?,
+                    )?);
+                    payload
+                })
+            })
+            .unwrap();
+        validate_payload(&payload).expect("exported payload validates");
+
+        let target = crate::db::Database::open_in_memory().unwrap();
+        target
+            .write(|connection| {
+                apply_database_payload(connection, &payload, &import_options("replace"))?;
+                let copied = snapshot_database(connection, &database_selection())?;
+                let original = source.read(|c| snapshot_database(c, &database_selection()))?;
+                assert_eq!(
+                    serde_json::to_value(copied.profiles).unwrap(),
+                    serde_json::to_value(original.profiles).unwrap()
+                );
+                Ok(())
+            })
+            .unwrap();
+    }
+
+    /// Imports real backup files made before the database existed. Set
+    /// `TTERM_BACKUP_FIXTURES` to a `:`-separated list of copies.
+    #[test]
+    #[ignore]
+    fn real_pre_database_backups_import() {
+        let paths = std::env::var("TTERM_BACKUP_FIXTURES").expect("TTERM_BACKUP_FIXTURES");
+        for path in paths.split(':') {
+            let bundle = decode_archive(Path::new(path), None).expect("decode backup");
+            eprintln!("{path}: manifest {:?}", bundle.manifest.selection);
+            let Some(payload) = bundle.payload.as_ref() else {
+                eprintln!("  encrypted, skipped");
+                continue;
+            };
+            validate_payload(payload).expect("old backup validates");
+            let expected_profiles = payload
+                .profiles
+                .as_ref()
+                .map(|value| {
+                    serde_json::from_value::<Vec<SavedProfile>>(value.clone())
+                        .unwrap()
+                        .len()
+                })
+                .unwrap_or(0);
+            for strategy in ["replace", "merge"] {
+                let database = crate::db::Database::open_in_memory().unwrap();
+                database
+                    .write(|connection| {
+                        let mut options = import_options(strategy);
+                        options.selection = BackupSelection {
+                            profiles: payload.profiles.is_some(),
+                            known_hosts: payload.known_hosts.is_some(),
+                            sftp_directories: payload.sftp_directories.is_some(),
+                            ..BackupSelection::default()
+                        };
+                        // Merging twice must not duplicate anything.
+                        apply_database_payload(connection, payload, &options)?;
+                        apply_database_payload(connection, payload, &options)?;
+                        let profiles = crate::profiles::list_saved_profiles(connection)?.len();
+                        let known = crate::ssh::store::list_known_hosts(connection)?.entries.len();
+                        let sftp = crate::sftp::store::list_sftp_directories(connection)?
+                            .entries
+                            .len();
+                        eprintln!(
+                            "  {strategy}: {profiles} profiles, {known} known hosts, {sftp} SFTP dirs, tunnels in backup: {}",
+                            payload.tunnels.is_some()
+                        );
+                        assert_eq!(profiles, expected_profiles);
+                        if let Some(value) = payload.known_hosts.as_ref() {
+                            let expected = value["entries"].as_array().map_or(0, Vec::len);
+                            assert_eq!(known, expected, "{strategy} keeps every known host");
+                        }
+                        Ok(())
+                    })
+                    .unwrap();
+            }
+        }
+    }
 
     #[test]
     fn encrypted_payload_round_trip_and_rejects_wrong_password() {

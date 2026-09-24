@@ -1,8 +1,8 @@
 use super::parser::build_ssh_config_import_preview;
 use super::storage::{
-    delete_profile_secrets, load_all_profile_groups, load_configured_profile_groups,
-    load_profiles_from_disk, normalize_group_name, normalize_profile, push_unique_group,
-    sanitize_profile, write_profile_groups_to_disk, write_profiles_to_disk,
+    add_profile_group, all_profile_groups, delete_profile_secrets, get_profile, load_profiles,
+    normalize_group_name, normalize_profile, regroup_profiles, remove_profile_group,
+    sanitize_profile, upsert_profile,
 };
 use super::types::{
     SavedProfile, SshConfigImportOptions, SshConfigImportPreview, SshConfigImportResult,
@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 #[tauri::command]
 pub fn list_profiles() -> Result<Vec<SavedProfile>, String> {
-    let mut profiles = load_profiles_from_disk()?;
+    let mut profiles = load_profiles()?;
     for profile in &mut profiles {
         sanitize_profile(profile);
     }
@@ -48,12 +48,13 @@ pub fn import_ssh_config_profiles(
             .as_deref()
             .unwrap_or("Imported from SSH config"),
     );
-    let mut profiles = load_profiles_from_disk()?;
+    let mut profiles = load_profiles()?;
     let mut imported = 0;
     let mut updated = 0;
     let mut skipped = 0;
     // (profile id, profile name, forwards) for hosts whose forwards to import.
     let mut forward_sources: Vec<(String, String, Vec<crate::tunnel::ForwardSpec>)> = Vec::new();
+    let mut changed_profiles = Vec::new();
 
     for host in preview.hosts {
         if host.skipped || (!import_all && !selected_hosts.contains(&host.host_pattern)) {
@@ -111,24 +112,21 @@ pub fn import_ssh_config_profiles(
         forward_sources.push((profile.id.clone(), profile.name.clone(), host.forwards));
 
         if let Some(index) = existing_index {
-            profiles[index] = profile;
+            profiles[index] = profile.clone();
             updated += 1;
         } else {
-            profiles.push(profile);
+            profiles.push(profile.clone());
             imported += 1;
         }
+        changed_profiles.push(profile);
     }
 
-    for profile in &mut profiles {
-        sanitize_profile(profile);
-    }
-    write_profiles_to_disk(&profiles)?;
-
-    if !group.is_empty() {
-        let mut groups = load_configured_profile_groups()?;
-        push_unique_group(&mut groups, group);
-        write_profile_groups_to_disk(&groups)?;
-    }
+    crate::db::write(|transaction| {
+        for profile in &changed_profiles {
+            upsert_profile(transaction, profile)?;
+        }
+        add_profile_group(transaction, &group)
+    })?;
 
     let (tunnels_imported, tunnels_skipped) = if options.import_forwards {
         let rules = forward_sources
@@ -232,9 +230,8 @@ pub fn save_profile(
 
     sanitize_profile(&mut profile);
 
-    let mut profiles = load_profiles_from_disk()?;
-    if let Some(pos) = profiles.iter().position(|p| p.id == profile.id) {
-        let mut previous = profiles[pos].clone();
+    if let Some(mut previous) = crate::db::read(|connection| get_profile(connection, &profile.id))?
+    {
         normalize_profile(&mut previous);
         for summary in super::storage::profile_secret_summaries(&previous) {
             if !super::storage::profile_secret_summaries(&profile)
@@ -244,19 +241,13 @@ pub fn save_profile(
                 let _ = secret_state.delete_password(&app, &summary.key);
             }
         }
-        profiles[pos] = profile;
-    } else {
-        profiles.push(profile);
     }
-    for existing in &mut profiles {
-        sanitize_profile(existing);
-    }
-    write_profiles_to_disk(&profiles)
+    crate::db::write(|transaction| upsert_profile(transaction, &profile))
 }
 
 #[tauri::command]
 pub fn list_profile_groups() -> Result<Vec<String>, String> {
-    load_all_profile_groups()
+    crate::db::read(all_profile_groups)
 }
 
 #[tauri::command]
@@ -266,10 +257,10 @@ pub fn save_profile_group(name: String) -> Result<Vec<String>, String> {
         return Err("Group name is required".to_string());
     }
 
-    let mut groups = load_all_profile_groups()?;
-    push_unique_group(&mut groups, name);
-    write_profile_groups_to_disk(&groups)?;
-    load_all_profile_groups()
+    crate::db::write(|transaction| {
+        add_profile_group(transaction, &name)?;
+        all_profile_groups(transaction)
+    })
 }
 
 #[tauri::command]
@@ -280,25 +271,12 @@ pub fn rename_profile_group(old_name: String, new_name: String) -> Result<Vec<St
         return Err("Group name is required".to_string());
     }
 
-    let mut profiles = load_profiles_from_disk()?;
-    let mut profiles_changed = false;
-    for profile in &mut profiles {
-        if normalize_group_name(&profile.group) == old_name {
-            profile.group = new_name.clone();
-            profiles_changed = true;
-        }
-    }
-    if profiles_changed {
-        write_profiles_to_disk(&profiles)?;
-    }
-
-    let mut groups = load_configured_profile_groups()?
-        .into_iter()
-        .filter(|group| normalize_group_name(group) != old_name)
-        .collect::<Vec<_>>();
-    push_unique_group(&mut groups, new_name);
-    write_profile_groups_to_disk(&groups)?;
-    load_all_profile_groups()
+    crate::db::write(|transaction| {
+        regroup_profiles(transaction, &old_name, &new_name)?;
+        remove_profile_group(transaction, &old_name)?;
+        add_profile_group(transaction, &new_name)?;
+        all_profile_groups(transaction)
+    })
 }
 
 #[tauri::command]
@@ -308,24 +286,11 @@ pub fn delete_profile_group(name: String) -> Result<Vec<String>, String> {
         return Err("Group name is required".to_string());
     }
 
-    let mut profiles = load_profiles_from_disk()?;
-    let mut profiles_changed = false;
-    for profile in &mut profiles {
-        if normalize_group_name(&profile.group) == name {
-            profile.group = String::new();
-            profiles_changed = true;
-        }
-    }
-    if profiles_changed {
-        write_profiles_to_disk(&profiles)?;
-    }
-
-    let groups = load_configured_profile_groups()?
-        .into_iter()
-        .filter(|group| normalize_group_name(group) != name)
-        .collect::<Vec<_>>();
-    write_profile_groups_to_disk(&groups)?;
-    load_all_profile_groups()
+    crate::db::write(|transaction| {
+        regroup_profiles(transaction, &name, "")?;
+        remove_profile_group(transaction, &name)?;
+        all_profile_groups(transaction)
+    })
 }
 
 #[tauri::command]
@@ -335,27 +300,10 @@ pub fn move_profile_to_group(
     target_id: Option<String>,
 ) -> Result<(), String> {
     let group = normalize_group_name(&group);
-    let mut profiles = load_profiles_from_disk()?;
-    let Some(source_index) = profiles.iter().position(|profile| profile.id == id) else {
-        return Err("Profile not found".to_string());
-    };
-
-    let mut profile = profiles.remove(source_index);
-    profile.group = group.clone();
-    let insert_index = target_id
-        .as_deref()
-        .and_then(|target_id| profiles.iter().position(|profile| profile.id == target_id))
-        .unwrap_or(profiles.len());
-    profiles.insert(insert_index, profile);
-    write_profiles_to_disk(&profiles)?;
-
-    if !group.is_empty() {
-        let mut groups = load_configured_profile_groups()?;
-        push_unique_group(&mut groups, group);
-        write_profile_groups_to_disk(&groups)?;
-    }
-
-    Ok(())
+    crate::db::write(|transaction| {
+        super::storage::move_profile(transaction, &id, &group, target_id.as_deref())?;
+        add_profile_group(transaction, &group)
+    })
 }
 
 #[tauri::command]
@@ -370,14 +318,12 @@ pub async fn delete_profile(
     // point it at another host.
     tunnels.stop_for_profile(&id).await;
 
-    let mut profiles = load_profiles_from_disk()?;
-    if let Some(profile) = profiles.iter().find(|p| p.id == id).cloned() {
-        let mut profile = profile;
+    if let Some(mut profile) = crate::db::read(|connection| get_profile(connection, &id))? {
         normalize_profile(&mut profile);
         delete_profile_secrets(&app, &secret_state, &profile)?;
     }
-    profiles.retain(|p| p.id != id);
-    write_profiles_to_disk(&profiles)
+    crate::db::write(|transaction| super::storage::delete_profiles(transaction, &[id]))?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -392,25 +338,27 @@ pub async fn delete_profiles(
         return Ok(());
     }
 
-    let mut profiles = load_profiles_from_disk()?;
+    let profiles = load_profiles()?;
     for profile in profiles.iter().filter(|p| ids.contains(&p.id)) {
         tunnels.stop_for_profile(&profile.id).await;
         let mut profile = profile.clone();
         normalize_profile(&mut profile);
         delete_profile_secrets(&app, &secret_state, &profile)?;
     }
-    profiles.retain(|p| !ids.contains(&p.id));
-    write_profiles_to_disk(&profiles)
+    let ids = ids.into_iter().collect::<Vec<_>>();
+    crate::db::write(|transaction| super::storage::delete_profiles(transaction, &ids))?;
+    Ok(())
 }
 
 #[tauri::command]
 pub fn set_profile_server_monitor_visible(id: String, visible: bool) -> Result<(), String> {
-    let mut profiles = load_profiles_from_disk()?;
-    if let Some(profile) = profiles.iter_mut().find(|profile| profile.id == id) {
-        profile.server_monitor_visible = visible;
-        write_profiles_to_disk(&profiles)?;
-    }
-    Ok(())
+    crate::db::write(|transaction| {
+        if let Some(mut profile) = get_profile(transaction, &id)? {
+            profile.server_monitor_visible = visible;
+            upsert_profile(transaction, &profile)?;
+        }
+        Ok(())
+    })
 }
 
 #[derive(serde::Serialize)]
@@ -705,16 +653,11 @@ async fn authenticate_test_connection<H: russh::client::Handler>(
     }
 
     if let Some(key_path) = &plan.private_key_path {
-        let key_data = std::fs::read_to_string(key_path)
-            .map_err(|e| format!("Failed to read private key: {}", e))?;
-
-        let key = if let Some(passphrase) = &plan.private_key_passphrase {
-            russh::keys::decode_secret_key(&key_data, Some(passphrase))
-                .map_err(|e| format!("Failed to decode private key: {}", e))?
-        } else {
-            russh::keys::decode_secret_key(&key_data, None)
-                .map_err(|e| format!("Failed to decode private key: {}", e))?
-        };
+        let key = crate::ssh::key_file::load_private_key(
+            key_path,
+            plan.private_key_passphrase.as_deref(),
+            "SSH key",
+        )?;
 
         session
             .authenticate_publickey(

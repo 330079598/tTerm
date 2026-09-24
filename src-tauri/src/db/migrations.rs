@@ -17,6 +17,11 @@ const MIGRATIONS: &[Migration] = &[
         name: "command_tag_catalog",
         sql: include_str!("../../migrations/0002_command_tag_catalog.sql"),
     },
+    Migration {
+        version: 3,
+        name: "app_data",
+        sql: include_str!("../../migrations/0003_app_data.sql"),
+    },
 ];
 
 pub(super) fn apply(connection: &mut Connection) -> Result<(), String> {
@@ -40,7 +45,7 @@ pub(super) fn apply(connection: &mut Connection) -> Result<(), String> {
 
     if current_version > MIGRATIONS.last().map_or(0, |migration| migration.version) {
         return Err(format!(
-            "Command database schema version {current_version} is newer than this application supports"
+            "Database schema version {current_version} is newer than this application supports"
         ));
     }
 
@@ -99,7 +104,7 @@ mod tests {
                 row.get(0)
             })
             .expect("read schema version");
-        assert_eq!(version, 2);
+        assert_eq!(version, 3);
 
         let table_count: i64 = connection
             .query_row(

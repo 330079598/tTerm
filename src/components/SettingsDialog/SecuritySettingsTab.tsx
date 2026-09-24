@@ -4,6 +4,7 @@ import {
   ArrowLeftRight,
   Eye,
   EyeOff,
+  Loader2,
   Lock,
   Shield,
   Trash2,
@@ -22,7 +23,7 @@ import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
-import { SecretStatusState } from "@/components/SettingsDialog/types"
+import { SecretStatusState, VaultAction } from "@/components/SettingsDialog/types"
 import type { SavedSecretEntry, SecretStorageMode } from "@/contexts/ConfigContext"
 
 interface SecuritySettingsTabProps {
@@ -44,6 +45,7 @@ interface SecuritySettingsTabProps {
   promptUnlockVaultOnStartup: boolean
   savedSecrets: SavedSecretEntry[]
   secretBusy: boolean
+  vaultAction: VaultAction | null
   secretError: string | null
   secretStatus: SecretStatusState
   secretStorageMode: SecretStorageMode
@@ -72,6 +74,7 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
   promptUnlockVaultOnStartup,
   savedSecrets,
   secretBusy,
+  vaultAction,
   secretError,
   secretStatus,
   secretStorageMode,
@@ -272,15 +275,25 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
               <div className="flex gap-2">
                 {!secretStatus.vaultUnlocked ? (
                   <Button onClick={handleUnlock} disabled={secretBusy || password.length === 0}>
-                    <Unlock size={14} className="mr-2" />
-                    {isHybrid
-                      ? t("secretStorage.setVaultPassword")
-                      : t("secretStorage.unlockVault")}
+                    {vaultAction === "unlock" ? (
+                      <Loader2 size={14} className="mr-2 animate-spin" />
+                    ) : (
+                      <Unlock size={14} className="mr-2" />
+                    )}
+                    {vaultAction === "unlock"
+                      ? t("secretStorage.unlocking")
+                      : isHybrid
+                        ? t("secretStorage.setVaultPassword")
+                        : t("secretStorage.unlockVault")}
                   </Button>
                 ) : (
                   <>
                     <Button variant="outline" onClick={handleLockAndClear} disabled={secretBusy}>
-                      <Lock size={14} className="mr-2" />
+                      {vaultAction === "lock" ? (
+                        <Loader2 size={14} className="mr-2 animate-spin" />
+                      ) : (
+                        <Lock size={14} className="mr-2" />
+                      )}
                       {t("secretStorage.lockVault")}
                     </Button>
                     {isHybrid && (
@@ -428,8 +441,14 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({
                   confirmPassword.length === 0
                 }
               >
-                <Lock size={14} className="mr-2" />
-                {t("secretStorage.changeVaultPassword")}
+                {vaultAction === "changePassword" ? (
+                  <Loader2 size={14} className="mr-2 animate-spin" />
+                ) : (
+                  <Lock size={14} className="mr-2" />
+                )}
+                {vaultAction === "changePassword"
+                  ? t("secretStorage.changingPassword")
+                  : t("secretStorage.changeVaultPassword")}
               </Button>
             </CardContent>
           </Card>

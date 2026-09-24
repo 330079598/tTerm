@@ -1,7 +1,7 @@
 use super::credentials::{apply_credentials, collect_requests, StartOutcome, TunnelCredentials};
 use super::hub::{SessionHub, SshConnection};
 use super::runtime::{run_tunnel, RunContext, TunnelReporter};
-use super::storage::{load_tunnels_from_disk, write_tunnels_to_disk};
+use super::storage::{delete_tunnel as delete_tunnel_rule, load_tunnels, upsert_tunnel};
 use super::types::{TunnelRule, TunnelState, TunnelStatus};
 use crate::core::session::{
     load_saved_jump_host_password, load_saved_ssh_password, normalize_connection,
@@ -60,7 +60,7 @@ impl TunnelManager {
 
     /// Stops every running tunnel that connects through `profile_id`.
     pub async fn stop_for_profile(&self, profile_id: &str) {
-        let ids = load_tunnels_from_disk()
+        let ids = load_tunnels()
             .unwrap_or_default()
             .into_iter()
             .filter(|rule| rule.profile_id == profile_id)
@@ -174,9 +174,7 @@ fn connection_options_for_profile(profile: &SavedProfile) -> Result<PtyConnectio
 }
 
 fn find_profile(profile_id: &str) -> Result<SavedProfile, String> {
-    let mut profile = crate::profiles::load_profiles_from_disk()?
-        .into_iter()
-        .find(|profile| profile.id == profile_id)
+    let mut profile = crate::profiles::find_profile(profile_id)?
         .ok_or_else(|| "The host for this tunnel no longer exists".to_string())?;
     crate::profiles::normalize_profile(&mut profile);
     Ok(profile)
@@ -184,14 +182,14 @@ fn find_profile(profile_id: &str) -> Result<SavedProfile, String> {
 
 #[tauri::command]
 pub fn list_tunnels() -> Result<Vec<TunnelRule>, String> {
-    load_tunnels_from_disk()
+    load_tunnels()
 }
 
 #[tauri::command]
 pub fn list_tunnel_statuses(
     manager: State<'_, TunnelManager>,
 ) -> Result<Vec<TunnelStatus>, String> {
-    Ok(load_tunnels_from_disk()?
+    Ok(load_tunnels()?
         .iter()
         .map(|rule| manager.status_of(&rule.id))
         .collect())
@@ -203,12 +201,7 @@ pub fn save_tunnel(mut tunnel: TunnelRule) -> Result<TunnelRule, String> {
     let profile = find_profile(&tunnel.profile_id)?;
     connection_options_for_profile(&profile)?;
 
-    let mut tunnels = load_tunnels_from_disk()?;
-    match tunnels.iter_mut().find(|existing| existing.id == tunnel.id) {
-        Some(existing) => *existing = tunnel.clone(),
-        None => tunnels.push(tunnel.clone()),
-    }
-    write_tunnels_to_disk(&tunnels)?;
+    crate::db::write(|transaction| upsert_tunnel(transaction, &tunnel))?;
     Ok(tunnel)
 }
 
@@ -220,9 +213,7 @@ pub async fn delete_tunnel(id: String, manager: State<'_, TunnelManager>) -> Res
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .remove(&id);
-    let mut tunnels = load_tunnels_from_disk()?;
-    tunnels.retain(|tunnel| tunnel.id != id);
-    write_tunnels_to_disk(&tunnels)
+    crate::db::write(|transaction| delete_tunnel_rule(transaction, &id))
 }
 
 /// Resolves a rule's connection, asking for missing secrets instead of
@@ -237,7 +228,7 @@ async fn start_rule(
     credentials: &TunnelCredentials,
     auto: bool,
 ) -> Result<StartOutcome, String> {
-    let all_rules = load_tunnels_from_disk()?;
+    let all_rules = load_tunnels()?;
     let rule = all_rules
         .iter()
         .find(|rule| rule.id == id)
@@ -352,10 +343,7 @@ pub async fn auto_start_tunnels(
     if manager.auto_started.swap(true, Ordering::SeqCst) {
         return Ok(());
     }
-    for rule in load_tunnels_from_disk()?
-        .into_iter()
-        .filter(|rule| rule.auto_start)
-    {
+    for rule in load_tunnels()?.into_iter().filter(|rule| rule.auto_start) {
         let result = start_rule(
             &app,
             &manager,

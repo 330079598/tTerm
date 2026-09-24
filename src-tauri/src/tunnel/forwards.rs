@@ -1,7 +1,7 @@
 //! OpenSSH `LocalForward` / `RemoteForward` / `DynamicForward` support for
 //! importing an ssh_config: parsing their values and turning them into rules.
 
-use super::storage::{load_tunnels_from_disk, write_tunnels_to_disk};
+use super::storage::{list_tunnel_rules, upsert_tunnel};
 use super::types::{TunnelKind, TunnelRule};
 use serde::Serialize;
 
@@ -143,12 +143,15 @@ pub(crate) fn add_rules(candidates: Vec<TunnelRule>) -> Result<(usize, usize), S
     if candidates.is_empty() {
         return Ok((0, 0));
     }
-    let mut rules = load_tunnels_from_disk()?;
-    let counts = merge_new_rules(&mut rules, candidates);
-    if counts.0 > 0 {
-        write_tunnels_to_disk(&rules)?;
-    }
-    Ok(counts)
+    crate::db::write(|transaction| {
+        let mut rules = list_tunnel_rules(transaction)?;
+        let existing = rules.len();
+        let counts = merge_new_rules(&mut rules, candidates);
+        for rule in &rules[existing..] {
+            upsert_tunnel(transaction, rule)?;
+        }
+        Ok(counts)
+    })
 }
 
 #[cfg(test)]

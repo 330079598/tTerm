@@ -1,21 +1,18 @@
-use super::{CommandDatabase, CommandVariable, SavedCommand};
+use super::{CommandVariable, SavedCommand};
+use crate::db::Database;
 use rusqlite::{params, OptionalExtension, Row, Transaction};
 
 pub struct CommandRepository<'a> {
-    database: &'a CommandDatabase,
+    database: &'a Database,
 }
 
 impl<'a> CommandRepository<'a> {
-    pub fn new(database: &'a CommandDatabase) -> Self {
+    pub fn new(database: &'a Database) -> Self {
         Self { database }
     }
 
     pub fn list(&self) -> Result<Vec<SavedCommand>, String> {
-        let connection = self
-            .database
-            .connection
-            .lock()
-            .map_err(|_| "Command database lock was poisoned".to_string())?;
+        let connection = self.database.lock()?;
         let mut statement = connection
             .prepare(
                 "SELECT id, name, command_text, description, scope_type, scope_id, shell_type, \
@@ -40,11 +37,7 @@ impl<'a> CommandRepository<'a> {
     }
 
     pub fn get(&self, id: &str) -> Result<Option<SavedCommand>, String> {
-        let connection = self
-            .database
-            .connection
-            .lock()
-            .map_err(|_| "Command database lock was poisoned".to_string())?;
+        let connection = self.database.lock()?;
         let mut command = connection
             .query_row(
                 "SELECT id, name, command_text, description, scope_type, scope_id, shell_type, \
@@ -64,11 +57,7 @@ impl<'a> CommandRepository<'a> {
 
     pub fn save(&self, command: &SavedCommand) -> Result<(), String> {
         validate(command)?;
-        let mut connection = self
-            .database
-            .connection
-            .lock()
-            .map_err(|_| "Command database lock was poisoned".to_string())?;
+        let mut connection = self.database.lock()?;
         let transaction = connection
             .transaction()
             .map_err(database_error("start command save transaction"))?;
@@ -117,11 +106,7 @@ impl<'a> CommandRepository<'a> {
     }
 
     pub fn delete(&self, id: &str) -> Result<bool, String> {
-        let mut connection = self
-            .database
-            .connection
-            .lock()
-            .map_err(|_| "Command database lock was poisoned".to_string())?;
+        let mut connection = self.database.lock()?;
         let transaction = connection
             .transaction()
             .map_err(database_error("start command delete transaction"))?;
@@ -141,11 +126,7 @@ impl<'a> CommandRepository<'a> {
     }
 
     pub fn record_use(&self, id: &str, used_at: i64) -> Result<bool, String> {
-        let connection = self
-            .database
-            .connection
-            .lock()
-            .map_err(|_| "Command database lock was poisoned".to_string())?;
+        let connection = self.database.lock()?;
         let affected = connection
             .execute(
                 "UPDATE saved_commands \
@@ -158,11 +139,7 @@ impl<'a> CommandRepository<'a> {
     }
 
     pub fn list_tags(&self) -> Result<Vec<String>, String> {
-        let connection = self
-            .database
-            .connection
-            .lock()
-            .map_err(|_| "Command database lock was poisoned".to_string())?;
+        let connection = self.database.lock()?;
         let mut statement = connection
             .prepare("SELECT tag FROM command_tag_catalog ORDER BY normalized_tag")
             .map_err(database_error("prepare tag list"))?;
@@ -180,11 +157,7 @@ impl<'a> CommandRepository<'a> {
             return Err("Tag must contain between 1 and 64 characters".to_string());
         }
         let normalized = tag.to_lowercase();
-        let connection = self
-            .database
-            .connection
-            .lock()
-            .map_err(|_| "Command database lock was poisoned".to_string())?;
+        let connection = self.database.lock()?;
         connection
             .execute(
                 "INSERT OR IGNORE INTO command_tag_catalog (normalized_tag, tag) VALUES (?1, ?2)",
@@ -207,11 +180,7 @@ impl<'a> CommandRepository<'a> {
             return Err("Tag must contain between 1 and 64 characters".to_string());
         }
         let normalized = new.to_lowercase();
-        let mut connection = self
-            .database
-            .connection
-            .lock()
-            .map_err(|_| "Command database lock was poisoned".to_string())?;
+        let mut connection = self.database.lock()?;
         let transaction = connection
             .transaction()
             .map_err(database_error("start tag rename"))?;
@@ -248,11 +217,7 @@ impl<'a> CommandRepository<'a> {
 
     pub fn delete_tag(&self, tag: &str) -> Result<Vec<String>, String> {
         let normalized = tag.trim().to_lowercase();
-        let mut connection = self
-            .database
-            .connection
-            .lock()
-            .map_err(|_| "Command database lock was poisoned".to_string())?;
+        let mut connection = self.database.lock()?;
         let transaction = connection
             .transaction()
             .map_err(database_error("start tag delete"))?;
@@ -521,7 +486,7 @@ mod tests {
 
     #[test]
     fn saves_reads_and_updates_a_command_with_relations() {
-        let database = CommandDatabase::open_in_memory().expect("open database");
+        let database = Database::open_in_memory().expect("open database");
         let repository = CommandRepository::new(&database);
         let mut command = sample_command();
 
@@ -547,7 +512,7 @@ mod tests {
 
     #[test]
     fn delete_cascades_relations_and_search_index() {
-        let database = CommandDatabase::open_in_memory().expect("open database");
+        let database = Database::open_in_memory().expect("open database");
         let repository = CommandRepository::new(&database);
         let command = sample_command();
         repository.save(&command).expect("save command");
@@ -561,7 +526,7 @@ mod tests {
             None
         );
 
-        let connection = database.connection.lock().expect("lock database");
+        let connection = database.lock().expect("lock database");
         for table in ["command_tags", "command_variables", "saved_commands_fts"] {
             let count: i64 = connection
                 .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
@@ -574,7 +539,7 @@ mod tests {
 
     #[test]
     fn rejects_secret_defaults_before_writing() {
-        let database = CommandDatabase::open_in_memory().expect("open database");
+        let database = Database::open_in_memory().expect("open database");
         let repository = CommandRepository::new(&database);
         let mut command = sample_command();
         command.variables[0].value_type = "secret".to_string();
@@ -603,14 +568,14 @@ mod tests {
         let command = sample_command();
 
         {
-            let database = CommandDatabase::open(&path).expect("open file database");
+            let database = Database::open(&path).expect("open file database");
             CommandRepository::new(&database)
                 .save(&command)
                 .expect("save command");
         }
 
         {
-            let database = CommandDatabase::open(&path).expect("reopen file database");
+            let database = Database::open(&path).expect("reopen file database");
             let saved = CommandRepository::new(&database)
                 .get(&command.id)
                 .expect("read command");
@@ -622,7 +587,7 @@ mod tests {
 
     #[test]
     fn records_command_use_without_changing_content() {
-        let database = CommandDatabase::open_in_memory().expect("open database");
+        let database = Database::open_in_memory().expect("open database");
         let repository = CommandRepository::new(&database);
         let command = sample_command();
         repository.save(&command).expect("save command");

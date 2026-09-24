@@ -1,8 +1,6 @@
+use crate::db::sql_error;
+use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::PathBuf;
-
-use crate::config::ensure_config_dir;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SftpLastDirectory {
@@ -18,35 +16,61 @@ pub struct SftpDirectoryStore {
     pub entries: Vec<SftpLastDirectory>,
 }
 
-fn sftp_directory_store_path() -> Result<PathBuf, String> {
-    Ok(ensure_config_dir()?.join("sftp_directories.json"))
+pub(crate) fn list_sftp_directories(connection: &Connection) -> Result<SftpDirectoryStore, String> {
+    let mut statement = connection
+        .prepare("SELECT host, port, username, last_path FROM sftp_last_directories ORDER BY rowid")
+        .map_err(sql_error("Failed to read SFTP directories"))?;
+    let entries = statement
+        .query_map([], |row| {
+            Ok(SftpLastDirectory {
+                host: row.get(0)?,
+                port: row.get(1)?,
+                username: row.get(2)?,
+                last_path: row.get(3)?,
+            })
+        })
+        .and_then(Iterator::collect)
+        .map_err(sql_error("Failed to read SFTP directories"))?;
+    Ok(SftpDirectoryStore { entries })
 }
 
-pub fn load_sftp_directory_store() -> Result<SftpDirectoryStore, String> {
-    let path = sftp_directory_store_path()?;
-    if !path.exists() {
-        return Ok(SftpDirectoryStore::default());
+fn upsert_sftp_directory(connection: &Connection, entry: &SftpLastDirectory) -> Result<(), String> {
+    connection
+        .execute(
+            "INSERT INTO sftp_last_directories (host, port, username, last_path) \
+             VALUES (?1, ?2, ?3, ?4) \
+             ON CONFLICT(host, port, username) DO UPDATE SET last_path = excluded.last_path",
+            params![entry.host, entry.port, entry.username, entry.last_path],
+        )
+        .map_err(sql_error("Failed to save SFTP directory"))?;
+    Ok(())
+}
+
+pub(crate) fn replace_sftp_directories(
+    connection: &Connection,
+    store: &SftpDirectoryStore,
+) -> Result<(), String> {
+    connection
+        .execute("DELETE FROM sftp_last_directories", [])
+        .map_err(sql_error("Failed to clear SFTP directories"))?;
+    for entry in &store.entries {
+        upsert_sftp_directory(connection, entry)?;
     }
-    let content = fs::read_to_string(&path)
-        .map_err(|e| format!("Failed to read SFTP directory store: {}", e))?;
-    serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse SFTP directory store: {}", e))
-}
-
-pub fn save_sftp_directory_store(store: &SftpDirectoryStore) -> Result<(), String> {
-    let path = sftp_directory_store_path()?;
-    let content = serde_json::to_string_pretty(store)
-        .map_err(|e| format!("Failed to serialize SFTP directory store: {}", e))?;
-    crate::config::atomic_write(&path, content)
+    Ok(())
 }
 
 pub fn get_last_directory(host: &str, port: u16, username: &str) -> Result<Option<String>, String> {
-    let store = load_sftp_directory_store()?;
-    Ok(store
-        .entries
-        .iter()
-        .find(|entry| entry.host == host && entry.port == port && entry.username == username)
-        .map(|entry| entry.last_path.clone()))
+    crate::db::read(|connection| {
+        connection
+            .query_row(
+                "SELECT last_path FROM sftp_last_directories \
+                 WHERE host = ?1 AND port = ?2 AND username = ?3",
+                params![host, port, username],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(sql_error("Failed to read SFTP directory"))
+    })
 }
 
 pub fn save_last_directory(
@@ -55,22 +79,11 @@ pub fn save_last_directory(
     username: &str,
     last_path: &str,
 ) -> Result<(), String> {
-    let mut store = load_sftp_directory_store()?;
-
-    if let Some(existing) = store
-        .entries
-        .iter_mut()
-        .find(|entry| entry.host == host && entry.port == port && entry.username == username)
-    {
-        existing.last_path = last_path.to_string();
-    } else {
-        store.entries.push(SftpLastDirectory {
-            host: host.to_string(),
-            port,
-            username: username.to_string(),
-            last_path: last_path.to_string(),
-        });
-    }
-
-    save_sftp_directory_store(&store)
+    let entry = SftpLastDirectory {
+        host: host.to_string(),
+        port,
+        username: username.to_string(),
+        last_path: last_path.to_string(),
+    };
+    crate::db::write(|transaction| upsert_sftp_directory(transaction, &entry))
 }

@@ -8,7 +8,6 @@ use crate::ssh::types::{
 };
 use russh::keys::PrivateKeyWithHashAlg;
 use russh::{client, Disconnect};
-use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -33,10 +32,12 @@ async fn authenticate_session(
     }
 
     let auth_result = if let Some(key_path) = private_key_path {
-        let key_pair = russh::keys::load_secret_key(Path::new(key_path), private_key_passphrase)
-            .map_err(|e| {
-                SshConnectError::Permanent(format!("Failed to load jump host SSH key: {e}"))
-            })?;
+        let key_pair = crate::ssh::key_file::load_private_key(
+            key_path,
+            private_key_passphrase,
+            "Jump host SSH key",
+        )
+        .map_err(SshConnectError::Permanent)?;
 
         tokio::time::timeout(
             AUTH_TIMEOUT,
@@ -667,9 +668,12 @@ pub async fn open_target_ssh_session_with_forwarding(
     }
 
     let auth_result = if let Some(key_path) = target_private_key_path {
-        let key_pair =
-            russh::keys::load_secret_key(Path::new(key_path), target_private_key_passphrase)
-                .map_err(|e| SshConnectError::Permanent(format!("Failed to load SSH key: {e}")))?;
+        let key_pair = crate::ssh::key_file::load_private_key(
+            key_path,
+            target_private_key_passphrase,
+            "SSH key",
+        )
+        .map_err(SshConnectError::Permanent)?;
 
         tokio::time::timeout(
             TARGET_AUTH_TIMEOUT,

@@ -1,8 +1,7 @@
-use super::{CommandLibraryState, CommandRepository, SavedCommand};
+use super::{CommandRepository, SavedCommand};
 use chrono::Utc;
 use serde::Deserialize;
 use std::collections::HashSet;
-use tauri::State;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,69 +25,47 @@ fn default_scope_type() -> String {
 }
 
 #[tauri::command]
-pub fn list_saved_commands(
-    state: State<'_, CommandLibraryState>,
-) -> Result<Vec<SavedCommand>, String> {
-    CommandRepository::new(state.database()?).list()
+pub fn list_saved_commands() -> Result<Vec<SavedCommand>, String> {
+    CommandRepository::new(crate::db::get()?).list()
 }
 
 #[tauri::command]
-pub fn list_command_tags(state: State<'_, CommandLibraryState>) -> Result<Vec<String>, String> {
-    CommandRepository::new(state.database()?).list_tags()
+pub fn list_command_tags() -> Result<Vec<String>, String> {
+    CommandRepository::new(crate::db::get()?).list_tags()
 }
 
 #[tauri::command]
-pub fn create_command_tag(
-    state: State<'_, CommandLibraryState>,
-    tag: String,
-) -> Result<String, String> {
-    CommandRepository::new(state.database()?).create_tag(&tag)
+pub fn create_command_tag(tag: String) -> Result<String, String> {
+    CommandRepository::new(crate::db::get()?).create_tag(&tag)
 }
 
 #[tauri::command]
-pub fn rename_command_tag(
-    state: State<'_, CommandLibraryState>,
-    old_tag: String,
-    new_tag: String,
-) -> Result<Vec<String>, String> {
-    CommandRepository::new(state.database()?).rename_tag(&old_tag, &new_tag)
+pub fn rename_command_tag(old_tag: String, new_tag: String) -> Result<Vec<String>, String> {
+    CommandRepository::new(crate::db::get()?).rename_tag(&old_tag, &new_tag)
 }
 
 #[tauri::command]
-pub fn delete_command_tag(
-    state: State<'_, CommandLibraryState>,
-    tag: String,
-) -> Result<Vec<String>, String> {
-    CommandRepository::new(state.database()?).delete_tag(&tag)
+pub fn delete_command_tag(tag: String) -> Result<Vec<String>, String> {
+    CommandRepository::new(crate::db::get()?).delete_tag(&tag)
 }
 
 #[tauri::command]
-pub fn save_saved_command(
-    state: State<'_, CommandLibraryState>,
-    input: SaveCommandInput,
-) -> Result<SavedCommand, String> {
+pub fn save_saved_command(input: SaveCommandInput) -> Result<SavedCommand, String> {
     save(
-        &CommandRepository::new(state.database()?),
+        &CommandRepository::new(crate::db::get()?),
         input,
         Utc::now().timestamp_millis(),
     )
 }
 
 #[tauri::command]
-pub fn delete_saved_command(
-    state: State<'_, CommandLibraryState>,
-    id: String,
-) -> Result<bool, String> {
-    CommandRepository::new(state.database()?).delete(id.trim())
+pub fn delete_saved_command(id: String) -> Result<bool, String> {
+    CommandRepository::new(crate::db::get()?).delete(id.trim())
 }
 
 #[tauri::command]
-pub fn set_saved_command_favorite(
-    state: State<'_, CommandLibraryState>,
-    id: String,
-    favorite: bool,
-) -> Result<SavedCommand, String> {
-    let repository = CommandRepository::new(state.database()?);
+pub fn set_saved_command_favorite(id: String, favorite: bool) -> Result<SavedCommand, String> {
+    let repository = CommandRepository::new(crate::db::get()?);
     let mut command = repository
         .get(id.trim())?
         .ok_or_else(|| "Saved command not found".to_string())?;
@@ -99,11 +76,8 @@ pub fn set_saved_command_favorite(
 }
 
 #[tauri::command]
-pub fn record_saved_command_use(
-    state: State<'_, CommandLibraryState>,
-    id: String,
-) -> Result<(), String> {
-    let updated = CommandRepository::new(state.database()?)
+pub fn record_saved_command_use(id: String) -> Result<(), String> {
+    let updated = CommandRepository::new(crate::db::get()?)
         .record_use(id.trim(), Utc::now().timestamp_millis())?;
     if updated {
         Ok(())
@@ -184,7 +158,8 @@ fn normalize_tags(tags: Vec<String>) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command_library::{CommandDatabase, CommandVariable};
+    use crate::command_library::CommandVariable;
+    use crate::db::Database;
 
     fn create_input() -> SaveCommandInput {
         SaveCommandInput {
@@ -205,7 +180,7 @@ mod tests {
 
     #[test]
     fn creates_and_normalizes_user_input() {
-        let database = CommandDatabase::open_in_memory().expect("open database");
+        let database = Database::open_in_memory().expect("open database");
         let repository = CommandRepository::new(&database);
 
         let saved = save(&repository, create_input(), 100).expect("save command");
@@ -219,7 +194,7 @@ mod tests {
 
     #[test]
     fn updates_preserve_server_owned_and_future_fields() {
-        let database = CommandDatabase::open_in_memory().expect("open database");
+        let database = Database::open_in_memory().expect("open database");
         let repository = CommandRepository::new(&database);
         let mut original = save(&repository, create_input(), 100).expect("create command");
         original.use_count = 7;
@@ -250,7 +225,7 @@ mod tests {
 
     #[test]
     fn update_requires_an_existing_id() {
-        let database = CommandDatabase::open_in_memory().expect("open database");
+        let database = Database::open_in_memory().expect("open database");
         let repository = CommandRepository::new(&database);
         let mut input = create_input();
         input.id = Some("missing".to_string());
@@ -263,7 +238,7 @@ mod tests {
 
     #[test]
     fn rejects_whitespace_only_command_text() {
-        let database = CommandDatabase::open_in_memory().expect("open database");
+        let database = Database::open_in_memory().expect("open database");
         let repository = CommandRepository::new(&database);
         let mut input = create_input();
         input.command_text = "  \n  ".to_string();
