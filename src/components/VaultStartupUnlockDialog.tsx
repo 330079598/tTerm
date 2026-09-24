@@ -27,7 +27,7 @@ export const VaultStartupUnlockDialog: React.FC<VaultStartupUnlockDialogProps> =
   onClose,
 }) => {
   const { t } = useTranslation()
-  const { unlockSecretVault } = useConfig()
+  const { secretStatus, unlockSecretVault } = useConfig()
   const { toast } = useToast()
   const [password, setPassword] = useState("")
   const [busy, setBusy] = useState(false)
@@ -42,15 +42,13 @@ export const VaultStartupUnlockDialog: React.FC<VaultStartupUnlockDialogProps> =
     setBusy(true)
     setError(null)
     try {
-      const status = await unlockSecretVault(password, true)
+      const wasPending = secretStatus.migrationPending
+      await unlockSecretVault(password)
       setPassword("")
       onClose()
       toast({
-        title: t("secretStorage.vaultUnlocked"),
-        description:
-          status.storageMode === "hybrid"
-            ? t("secretStorage.vaultUnlockedHybridDesc")
-            : t("secretStorage.vaultUnlockedDesc"),
+        title: wasPending ? t("secretStorage.migrated") : t("secretStorage.unlocked"),
+        description: wasPending ? t("secretStorage.migratedDesc") : t("secretStorage.unlockedDesc"),
         variant: "success",
       })
     } catch (error) {
@@ -69,17 +67,23 @@ export const VaultStartupUnlockDialog: React.FC<VaultStartupUnlockDialogProps> =
               <Lock className="size-4" />
               {t("secretStorage.startupUnlockTitle")}
             </DialogTitle>
-            <DialogDescription>{t("secretStorage.startupUnlockDesc")}</DialogDescription>
+            <DialogDescription>
+              {secretStatus.migrationPending
+                ? t("secretStorage.migrationDesc")
+                : secretStatus.storageMode === "system"
+                  ? t("secretStorage.startupRecoveryDesc")
+                  : t("secretStorage.startupUnlockDesc")}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2">
-            <Label htmlFor="startup-vault-password">{t("secretStorage.vaultPassword")}</Label>
+            <Label htmlFor="startup-vault-password">{t("secretStorage.masterPassword")}</Label>
             <Input
               id="startup-vault-password"
               autoFocus
               type="password"
               value={password}
-              placeholder={t("secretStorage.vaultPasswordPlaceholder")}
+              placeholder={t("secretStorage.masterPasswordPlaceholder")}
               disabled={busy}
               onChange={(event) => setPassword(event.target.value)}
             />
@@ -100,7 +104,13 @@ export const VaultStartupUnlockDialog: React.FC<VaultStartupUnlockDialogProps> =
               ) : (
                 <Unlock size={14} className="mr-2" />
               )}
-              {busy ? t("secretStorage.unlocking") : t("secretStorage.unlockVault")}
+              {busy
+                ? secretStatus.migrationPending
+                  ? t("secretStorage.migrating")
+                  : t("secretStorage.unlocking")
+                : secretStatus.migrationPending
+                  ? t("secretStorage.migrate")
+                  : t("secretStorage.unlock")}
             </Button>
           </DialogFooter>
         </form>

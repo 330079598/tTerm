@@ -22,6 +22,11 @@ const MIGRATIONS: &[Migration] = &[
         name: "app_data",
         sql: include_str!("../../migrations/0003_app_data.sql"),
     },
+    Migration {
+        version: 4,
+        name: "secrets",
+        sql: include_str!("../../migrations/0004_secrets.sql"),
+    },
 ];
 
 pub(super) fn apply(connection: &mut Connection) -> Result<(), String> {
@@ -104,7 +109,7 @@ mod tests {
                 row.get(0)
             })
             .expect("read schema version");
-        assert_eq!(version, 3);
+        assert_eq!(version, 4);
 
         let table_count: i64 = connection
             .query_row(

@@ -1,37 +1,135 @@
+//! Saved passwords, stored encrypted in the database.
+//!
+//! One data key encrypts every secret. It is kept wrapped by a key in the OS
+//! credential store (`system` mode, unlocks at startup with one credential
+//! store read) and/or by a key derived from the user's master password
+//! (`password` mode, or a recovery path in `system` mode).
+
+mod crypto;
 mod keyring_backend;
+mod legacy;
+mod migration;
+mod store;
 mod types;
-mod vault;
 
 use crate::config::{load_config_file, save_config_file};
-use keyring_backend::{delete_keyring_secret, read_keyring_secret, write_keyring_secret};
-use rand::RngCore;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
-use tauri::AppHandle;
-use types::{
-    SecretStorageMode, SecretStoreRuntime, VaultRuntime, DERIVED_KEY_LEN, KEYRING_PROBE_SECRET,
-    PROBE_ACCOUNT, VAULT_MASTER_ACCOUNT,
-};
-use vault::{
-    decrypt_secret, delete_vault_secret, derive_or_initialize_vault_key, encrypt_secret,
-    load_vault_file, save_vault_file, vault_config_path, vault_path, verify_or_initialize_vault,
-};
-use zeroize::{Zeroize, Zeroizing};
+use crate::db::Database;
+use crypto::{KdfParams, SecretKey};
+use keyring_backend::DATA_KEY_ACCOUNT;
+use migration::{LegacySources, NEEDS_VAULT_PASSWORD};
+use std::sync::{Arc, Mutex, MutexGuard};
+use store::{WRAP_PASSWORD, WRAP_SYSTEM};
+use tauri::{AppHandle, Manager};
+use types::{SecretStorageMode, SecretStoreRuntime};
+use zeroize::Zeroizing;
 
+pub(crate) use crypto::SecretKey as DataKey;
+pub(crate) use store::{get_secret, put_secret, restore_secrets, snapshot_secrets, SecretRow};
 pub use types::{
     ChangeVaultPasswordInput, SecretBackendStatus, SecretLocation, SecretStoreState,
     VaultPasswordInput,
 };
 
-pub(crate) struct MigrationHybridSnapshot {
-    previous_config: crate::config::AppConfig,
-    config_path: std::path::PathBuf,
-    config_bytes: Option<Vec<u8>>,
-    config_existed: bool,
-    vault_path: std::path::PathBuf,
-    vault_bytes: Option<Vec<u8>>,
-    vault_existed: bool,
-    keyring_master: Option<String>,
+const MISSING_SYSTEM_KEY: &str = "The key for saved passwords is missing from the system credential store. Enter the master password to restore it.";
+const WRONG_SYSTEM_KEY: &str = "The key in the system credential store does not match saved passwords. Enter the master password to restore it.";
+const WRONG_MASTER_PASSWORD: &str = "Incorrect master password.";
+const LOCKED: &str = "Saved passwords are locked. Unlock them first.";
+
+/// The OS credential store, behind a trait so the logic can be tested.
+pub(crate) trait CredentialStore {
+    fn read(&self, account: &str) -> Result<Option<Zeroizing<String>>, String>;
+    fn write(&self, account: &str, value: &str) -> Result<(), String>;
+    fn delete(&self, account: &str) -> Result<bool, String>;
+    fn list_accounts(&self) -> Option<Vec<String>>;
+}
+
+struct OsCredentials;
+
+impl CredentialStore for OsCredentials {
+    fn read(&self, account: &str) -> Result<Option<Zeroizing<String>>, String> {
+        keyring_backend::read(account)
+    }
+
+    fn write(&self, account: &str, value: &str) -> Result<(), String> {
+        keyring_backend::write(account, value)
+    }
+
+    fn delete(&self, account: &str) -> Result<bool, String> {
+        keyring_backend::delete(account)
+    }
+
+    fn list_accounts(&self) -> Option<Vec<String>> {
+        keyring_backend::list_accounts()
+    }
+}
+
+/// Unwraps the data key with the key in the credential store. `Ok(None)`
+/// means this database has no credential store wrap. The credential store is
+/// read outside the database lock since it may wait on an unlock prompt.
+fn open_with_system_key(
+    database: &Database,
+    credentials: &dyn CredentialStore,
+) -> Result<Option<SecretKey>, String> {
+    let Some(wrap) = database.read(|connection| store::load_wrap(connection, WRAP_SYSTEM))? else {
+        return Ok(None);
+    };
+    let encoded = credentials
+        .read(DATA_KEY_ACCOUNT)?
+        .ok_or_else(|| MISSING_SYSTEM_KEY.to_string())?;
+    let system_key = SecretKey::from_base64(&encoded).map_err(|_| WRONG_SYSTEM_KEY.to_string())?;
+    crypto::unwrap_data_key(&system_key, WRAP_SYSTEM, &wrap.nonce, &wrap.wrapped_key)
+        .map(Some)
+        .ok_or_else(|| WRONG_SYSTEM_KEY.to_string())
+}
+
+/// Unwraps the data key with the master password. `Ok(None)` means no master
+/// password is set. Key derivation runs outside the database lock.
+fn open_with_password(database: &Database, password: &str) -> Result<Option<SecretKey>, String> {
+    let Some(wrap) = database.read(|connection| store::load_wrap(connection, WRAP_PASSWORD))?
+    else {
+        return Ok(None);
+    };
+    let kdf = wrap
+        .kdf
+        .ok_or_else(|| "Master password settings are missing.".to_string())?;
+    let password_key = kdf.derive(password)?;
+    crypto::unwrap_data_key(&password_key, WRAP_PASSWORD, &wrap.nonce, &wrap.wrapped_key)
+        .map(Some)
+        .ok_or_else(|| WRONG_MASTER_PASSWORD.to_string())
+}
+
+/// Puts a fresh key in the credential store and wraps the data key with it.
+fn create_system_wrap(
+    database: &Database,
+    credentials: &dyn CredentialStore,
+    data_key: &SecretKey,
+) -> Result<(), String> {
+    let system_key = SecretKey::generate();
+    credentials.write(DATA_KEY_ACCOUNT, &system_key.to_base64())?;
+    database.write(|transaction| {
+        store::save_wrap(transaction, WRAP_SYSTEM, None, &system_key, data_key)
+    })
+}
+
+fn create_password_wrap(
+    database: &Database,
+    password: &str,
+    data_key: &SecretKey,
+) -> Result<(), String> {
+    if password.is_empty() {
+        return Err("Master password cannot be empty.".to_string());
+    }
+    let kdf = KdfParams::generate();
+    let password_key = kdf.derive(password)?;
+    database.write(|transaction| {
+        store::save_wrap(
+            transaction,
+            WRAP_PASSWORD,
+            Some(&kdf),
+            &password_key,
+            data_key,
+        )
+    })
 }
 
 impl SecretStoreState {
@@ -41,1081 +139,563 @@ impl SecretStoreState {
         }
     }
 
-    pub fn get_status(&self) -> Result<SecretBackendStatus, String> {
-        let vault_unlocked = self
-            .inner
+    fn runtime(&self) -> Result<MutexGuard<'_, SecretStoreRuntime>, String> {
+        self.inner
             .lock()
-            .map_err(|_| "Secret store state is poisoned".to_string())?
-            .vault
-            .is_some();
-        let keyring_available = self.keyring_available()?;
-        let config = load_config_file()?;
-        let mode = SecretStorageMode::from_config_value(&config.secret_storage_mode);
-        let active_backend = match mode {
-            SecretStorageMode::System if keyring_available => "system",
-            SecretStorageMode::Vault if config.secret_vault_enabled && vault_unlocked => "vault",
-            SecretStorageMode::Hybrid if config.secret_vault_enabled && vault_unlocked => "vault",
-            SecretStorageMode::Auto if keyring_available => "system",
-            SecretStorageMode::Auto if config.secret_vault_enabled && vault_unlocked => "vault",
-            _ => "memory",
-        };
-        let persistence_available = match mode {
-            SecretStorageMode::System => keyring_available,
-            SecretStorageMode::Vault => config.secret_vault_enabled && vault_unlocked,
-            SecretStorageMode::Hybrid => config.secret_vault_enabled && vault_unlocked,
-            SecretStorageMode::Memory => false,
-            SecretStorageMode::Auto => {
-                keyring_available || (config.secret_vault_enabled && vault_unlocked)
-            }
-        };
-        let message = match mode {
-            SecretStorageMode::System if !keyring_available => {
-                Some("System credential store is unavailable.".to_string())
-            }
-            SecretStorageMode::Vault if !config.secret_vault_enabled => Some(
-                "App vault mode is selected. Unlock the vault before saving passwords.".to_string(),
-            ),
-            SecretStorageMode::Vault if !vault_unlocked => {
-                Some("App vault mode is selected. Unlock the vault to persist secrets.".to_string())
-            }
-            SecretStorageMode::Hybrid if !config.secret_vault_enabled => Some(
-                "Hybrid mode requires the app vault. Set a vault password to enable it."
+            .map_err(|_| "Secret store state is poisoned".to_string())
+    }
+
+    fn set_data_key(&self, data_key: Option<SecretKey>) -> Result<(), String> {
+        let mut runtime = self.runtime()?;
+        runtime.data_key = data_key;
+        runtime.notice = None;
+        Ok(())
+    }
+
+    fn set_notice(&self, notice: String) {
+        if let Ok(mut runtime) = self.runtime() {
+            runtime.notice = Some(notice);
+        }
+    }
+
+    fn mode() -> Result<SecretStorageMode, String> {
+        Ok(SecretStorageMode::from_config_value(
+            &load_config_file()?.secret_storage_mode,
+        ))
+    }
+
+    fn save_mode(mode: SecretStorageMode) -> Result<(), String> {
+        let mut config = load_config_file()?;
+        if config.secret_storage_mode == mode.as_str() {
+            return Ok(());
+        }
+        // A master password is useless unless it is asked for, so turn the
+        // startup prompt on when switching to it.
+        if mode == SecretStorageMode::Password
+            && SecretStorageMode::from_config_value(&config.secret_storage_mode) != mode
+        {
+            config.prompt_unlock_vault_on_startup = true;
+        }
+        config.secret_storage_mode = mode.as_str().to_string();
+        save_config_file(&config)
+    }
+
+    pub fn keyring_available(&self) -> Result<bool, String> {
+        if let Some(value) = self.runtime()?.keyring_available {
+            return Ok(value);
+        }
+        let available = keyring_backend::probe();
+        self.runtime()?.keyring_available = Some(available);
+        Ok(available)
+    }
+
+    pub fn unlocked(&self) -> Result<bool, String> {
+        Ok(self.runtime()?.data_key.is_some())
+    }
+
+    /// The data key, for writing many secrets in one transaction.
+    pub(crate) fn data_key(&self) -> Result<SecretKey, String> {
+        if Self::mode()? == SecretStorageMode::Memory {
+            return Err(
+                "Passwords are not saved in this storage mode. Choose another mode in Settings > Security."
                     .to_string(),
-            ),
-            SecretStorageMode::Hybrid if !vault_unlocked => Some(
-                "Hybrid mode requires an unlocked vault. Enter the vault password.".to_string(),
-            ),
+            );
+        }
+        self.runtime()?
+            .data_key
+            .clone()
+            .ok_or_else(|| LOCKED.to_string())
+    }
+
+    fn unlocked_key(&self) -> Result<Option<SecretKey>, String> {
+        if Self::mode()? == SecretStorageMode::Memory {
+            return Ok(None);
+        }
+        Ok(self.runtime()?.data_key.clone())
+    }
+
+    pub fn get_status(&self) -> Result<SecretBackendStatus, String> {
+        let mode = Self::mode()?;
+        let keyring_available = self.keyring_available()?;
+        let (unlocked, notice) = {
+            let runtime = self.runtime()?;
+            (runtime.data_key.is_some(), runtime.notice.clone())
+        };
+        // A database that failed to open reports its error instead of
+        // failing the whole settings page.
+        let (migrated, has_master_password, notice) = match crate::db::read(|connection| {
+            Ok((
+                store::migrated(connection)?,
+                store::has_wrap(connection, WRAP_PASSWORD)?,
+            ))
+        }) {
+            Ok((migrated, has_master_password)) => (migrated, has_master_password, notice),
+            Err(error) => (true, false, notice.or(Some(error))),
+        };
+        let migration_pending = !migrated;
+        let persistence_available = unlocked && mode != SecretStorageMode::Memory;
+        let message = notice.or_else(|| match mode {
+            _ if migration_pending => Some(NEEDS_VAULT_PASSWORD.to_string()),
             SecretStorageMode::Memory => {
                 Some("Passwords are only kept for the current app session.".to_string())
             }
-            SecretStorageMode::Auto
-                if !keyring_available && config.secret_vault_enabled && !vault_unlocked =>
-            {
-                Some(
-                    "System keyring unavailable. Unlock the app vault to persist secrets."
-                        .to_string(),
-                )
-            }
-            SecretStorageMode::Auto if !keyring_available && !config.secret_vault_enabled => Some(
-                "System keyring unavailable. Enable and unlock the app vault to persist secrets."
+            SecretStorageMode::System if !keyring_available => Some(
+                "The system credential store is unavailable. Use a master password instead."
                     .to_string(),
             ),
+            SecretStorageMode::Password if !has_master_password => {
+                Some("Set a master password to save passwords.".to_string())
+            }
+            _ if !unlocked => {
+                Some("Enter the master password to unlock saved passwords.".to_string())
+            }
             _ => None,
-        };
+        });
 
         Ok(SecretBackendStatus {
-            active_backend: active_backend.to_string(),
             storage_mode: mode.as_str().to_string(),
             keyring_available,
-            vault_enabled: config.secret_vault_enabled,
-            vault_unlocked,
+            unlocked,
+            has_master_password,
             persistence_available,
+            migration_pending,
             message,
         })
     }
 
-    pub fn keyring_available(&self) -> Result<bool, String> {
-        {
-            let guard = self
-                .inner
-                .lock()
-                .map_err(|_| "Secret store state is poisoned".to_string())?;
-            if let Some(value) = guard.cached_keyring_available {
-                return Ok(value);
+    /// Runs at startup: moves passwords saved by older versions into the
+    /// database once, then unlocks from the credential store in `system` mode.
+    pub fn initialize(&self, app: &AppHandle) {
+        let result = crate::db::get().and_then(|database| {
+            if database.read(store::migrated)? {
+                if Self::mode()? == SecretStorageMode::System {
+                    self.unlock_with_system_key(database)?;
+                }
+                Ok(())
+            } else {
+                self.migrate_legacy(app, database, None)
+            }
+        });
+        if let Err(error) = result {
+            eprintln!("Saved passwords: {error}");
+            if error != NEEDS_VAULT_PASSWORD {
+                self.set_notice(error);
             }
         }
-
-        let available = Self::probe_keyring();
-        let mut guard = self
-            .inner
-            .lock()
-            .map_err(|_| "Secret store state is poisoned".to_string())?;
-        guard.cached_keyring_available = Some(available);
-        Ok(available)
     }
 
-    fn probe_keyring() -> bool {
-        let entry = match keyring::Entry::new(types::SERVICE_NAME, PROBE_ACCOUNT) {
-            Ok(entry) => entry,
-            Err(_) => return false,
-        };
-
-        if entry.set_password(KEYRING_PROBE_SECRET).is_err() {
-            return false;
+    fn unlock_with_system_key(&self, database: &Database) -> Result<(), String> {
+        if !self.keyring_available()? {
+            return Err("The system credential store is unavailable.".to_string());
         }
-
-        let ok = matches!(entry.get_password(), Ok(value) if value == KEYRING_PROBE_SECRET);
-        let _ = entry.delete_credential();
-        ok
+        match open_with_system_key(database, &OsCredentials)? {
+            Some(data_key) => self.set_data_key(Some(data_key)),
+            None if database.read(|connection| store::has_wrap(connection, WRAP_PASSWORD))? => {
+                Err("Enter the master password to unlock saved passwords.".to_string())
+            }
+            None => {
+                // No key at all yet (e.g. the database was reset): start over.
+                let data_key = SecretKey::generate();
+                database.write(|transaction| {
+                    transaction
+                        .execute("DELETE FROM secrets", [])
+                        .map(|_| ())
+                        .map_err(crate::db::sql_error("Failed to reset saved passwords"))
+                })?;
+                create_system_wrap(database, &OsCredentials, &data_key)?;
+                self.set_data_key(Some(data_key))
+            }
+        }
     }
 
-    pub fn unlock_vault(
+    fn migrate_legacy(
+        &self,
+        app: &AppHandle,
+        database: &Database,
+        password: Option<&str>,
+    ) -> Result<(), String> {
+        let secrets_dir = app
+            .path()
+            .app_data_dir()
+            .map_err(|e| format!("Failed to resolve app data dir: {e}"))?
+            .join("secrets");
+        let vault = legacy::LegacyVault::load(&secrets_dir)?;
+        let old_mode = load_config_file()?.secret_storage_mode;
+        let plaintext = crate::ssh::load_legacy_password_store()?
+            .profiles
+            .into_iter()
+            .map(|record| (record.profile_name, Zeroizing::new(record.password)))
+            .collect::<Vec<_>>();
+        let mut candidate_keys = crate::profiles::saved_secret_keys()?;
+        candidate_keys.extend(plaintext.iter().map(|(key, _)| key.clone()));
+        candidate_keys.sort();
+        candidate_keys.dedup();
+
+        let migration = migration::migrate(
+            database,
+            &OsCredentials,
+            LegacySources {
+                old_mode: &old_mode,
+                keyring_available: self.keyring_available()?,
+                vault: &vault,
+                password,
+                plaintext,
+                candidate_keys,
+            },
+        )?;
+        eprintln!(
+            "Moved {} saved passwords into the database ({} mode)",
+            migration.migrated,
+            migration.mode.as_str()
+        );
+        Self::save_mode(migration.mode)?;
+        self.set_data_key(migration.data_key)?;
+
+        // The database now holds everything; the rest is tidying up.
+        let cleanup = migration.cleanup;
+        for account in &cleanup.keyring_accounts {
+            if let Err(error) = OsCredentials.delete(account) {
+                eprintln!("Failed to delete old credential '{account}': {error}");
+            }
+        }
+        if cleanup.retire_vault {
+            if let Err(error) = vault.retire() {
+                eprintln!("Failed to retire the old vault files: {error}");
+            }
+        }
+        if cleanup.remove_plaintext {
+            if let Err(error) = crate::ssh::remove_legacy_password_store() {
+                eprintln!("Failed to remove the old password file: {error}");
+            }
+        }
+        if !cleanup.unreadable_accounts.is_empty() {
+            self.set_notice(format!(
+                "{} saved passwords could not be read from the system credential store and were left there.",
+                cleanup.unreadable_accounts.len()
+            ));
+        }
+        Ok(())
+    }
+
+    /// Unlocks with the master password. Also finishes a migration waiting
+    /// for the old vault password, sets the first master password in
+    /// `password` mode, and restores the credential store key in `system` mode.
+    pub fn unlock(
         &self,
         app: &AppHandle,
         input: VaultPasswordInput,
     ) -> Result<SecretBackendStatus, String> {
-        if input.password.is_empty() {
-            return Err("Vault password cannot be empty".to_string());
+        let password = Zeroizing::new(input.password);
+        if password.is_empty() {
+            return Err("Password cannot be empty.".to_string());
+        }
+        let database = crate::db::get()?;
+        if !database.read(store::migrated)? {
+            self.migrate_legacy(app, database, Some(&password))?;
+            return self.get_status();
         }
 
-        let mut config = load_config_file()?;
-        if input.enable_vault && !config.secret_vault_enabled {
-            config.secret_vault_enabled = true;
-            save_config_file(&config)?;
-        }
-
-        if !config.secret_vault_enabled {
-            return Err(
-                "Vault fallback is disabled. Enable it first before unlocking.".to_string(),
-            );
-        }
-
-        let key = derive_or_initialize_vault_key(app, input.password.as_bytes())?;
-        let runtime = VaultRuntime { key };
-        verify_or_initialize_vault(app, &runtime)?;
-        let vault_file = Arc::new(RwLock::new(load_vault_file(&vault_path(app)?)?));
-
-        let mode = SecretStorageMode::from_config_value(&config.secret_storage_mode);
-        if mode == SecretStorageMode::Hybrid {
-            if !self.keyring_available()? {
-                return Err(
-                    "Hybrid mode requires the system credential store to save the vault master password."
-                        .to_string(),
-                );
+        let mode = Self::mode()?;
+        let data_key = match open_with_password(database, &password)? {
+            Some(data_key) => data_key,
+            None if mode == SecretStorageMode::Password => {
+                // First master password. Keep the current data key when there
+                // is one so saved passwords stay readable.
+                let data_key = match self.runtime()?.data_key.clone() {
+                    Some(data_key) => data_key,
+                    None => match open_with_system_key(database, &OsCredentials) {
+                        Ok(Some(data_key)) => data_key,
+                        _ => SecretKey::generate(),
+                    },
+                };
+                create_password_wrap(database, &password, &data_key)?;
+                data_key
             }
-            write_keyring_secret(VAULT_MASTER_ACCOUNT, "master", &input.password)?;
-        }
-
-        let gate = {
-            let guard = self
-                .inner
-                .lock()
-                .map_err(|_| "Secret store state is poisoned".to_string())?;
-            Arc::clone(&guard.vault_gate)
+            None => return Err("No master password is set.".to_string()),
         };
-        let _gate = gate
-            .write()
-            .map_err(|_| "Vault state is poisoned".to_string())?;
-        let mut guard = self
-            .inner
-            .lock()
-            .map_err(|_| "Secret store state is poisoned".to_string())?;
-        if let Some(old) = &mut guard.vault {
-            old.key.zeroize();
-        }
-        guard.vault = Some(runtime);
-        guard.vault_file = Some(vault_file);
-        drop(guard);
 
+        if mode == SecretStorageMode::System && self.keyring_available()? {
+            let system_key_works =
+                matches!(open_with_system_key(database, &OsCredentials), Ok(Some(_)));
+            if !system_key_works {
+                create_system_wrap(database, &OsCredentials, &data_key)?;
+            }
+        }
+        self.set_data_key(Some(data_key))?;
         self.get_status()
     }
 
-    pub fn change_vault_password(
+    pub fn lock(&self) -> Result<SecretBackendStatus, String> {
+        self.set_data_key(None)?;
+        self.get_status()
+    }
+
+    pub fn change_master_password(
         &self,
-        app: &AppHandle,
         input: ChangeVaultPasswordInput,
     ) -> Result<SecretBackendStatus, String> {
-        if input.current_password.is_empty() || input.new_password.is_empty() {
-            return Err("Passwords cannot be empty".to_string());
+        let current = Zeroizing::new(input.current_password);
+        let new = Zeroizing::new(input.new_password);
+        if new.is_empty() {
+            return Err("Master password cannot be empty.".to_string());
         }
-
-        let gate = {
-            let guard = self
-                .inner
-                .lock()
-                .map_err(|_| "Secret store state is poisoned".to_string())?;
-            Arc::clone(&guard.vault_gate)
-        };
-        let _gate = gate
-            .write()
-            .map_err(|_| "Vault state is poisoned".to_string())?;
-
-        let mut stored_key = {
-            let guard = self
-                .inner
-                .lock()
-                .map_err(|_| "Secret store state is poisoned".to_string())?;
-            match &guard.vault {
-                Some(rt) => rt.key,
-                None => {
-                    return Err("Vault must be unlocked before changing the password.".to_string())
-                }
-            }
-        };
-        let old_runtime = VaultRuntime { key: stored_key };
-
-        let mut derived_key =
-            derive_or_initialize_vault_key(app, input.current_password.as_bytes())?;
-        if derived_key != old_runtime.key {
-            return Err("Current password is incorrect.".to_string());
-        }
-        derived_key.zeroize();
-
-        let path = vault_path(app)?;
-        let cached_vault = {
-            let guard = self
-                .inner
-                .lock()
-                .map_err(|_| "Secret store state is poisoned".to_string())?;
-            guard.vault_file.as_ref().map(Arc::clone)
-        };
-        let vault = if let Some(cached_vault) = cached_vault {
-            cached_vault
-                .read()
-                .map_err(|_| "Vault data is poisoned".to_string())?
-                .clone()
-        } else {
-            load_vault_file(&path)?
-        };
-
-        let mut decrypted: Vec<(String, String, String, i64)> = Vec::new();
-        for record in &vault.secrets {
-            let plaintext = decrypt_secret(&old_runtime, record)?;
-            decrypted.push((
-                record.profile_id.clone(),
-                record.kind.clone(),
-                plaintext,
-                record.updated_at,
-            ));
-        }
-
-        let mut salt = [0u8; DERIVED_KEY_LEN];
-        rand::thread_rng().fill_bytes(&mut salt);
-        let new_config = types::VaultConfigFile {
-            salt_b64: base64::Engine::encode(&base64::engine::general_purpose::STANDARD, salt),
-            version: types::default_vault_config_version(),
-            algorithm: types::default_vault_algorithm(),
-            kdf: types::default_vault_kdf(),
-            memory_kib: types::default_vault_memory_kib(),
-            iterations: types::default_vault_iterations(),
-            parallelism: types::default_vault_parallelism(),
-        };
-
-        let config_path = vault_config_path(app)?;
-        let content = serde_json::to_string_pretty(&new_config)
-            .map_err(|e| format!("Failed to serialize vault config: {}", e))?;
-        crate::config::atomic_write(&config_path, content)?;
-
-        let salt_bytes = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            new_config.salt_b64.as_bytes(),
-        )
-        .map_err(|e| format!("Failed to decode vault salt: {}", e))?;
-        let params = argon2::Params::new(
-            new_config.memory_kib,
-            new_config.iterations,
-            new_config.parallelism,
-            Some(DERIVED_KEY_LEN),
-        )
-        .map_err(|e| format!("Failed to build Argon2 params: {}", e))?;
-        let argon2 =
-            argon2::Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
-        let mut new_key = [0u8; DERIVED_KEY_LEN];
-        argon2
-            .hash_password_into(input.new_password.as_bytes(), &salt_bytes, &mut new_key)
-            .map_err(|e| format!("Failed to derive vault key: {}", e))?;
-
-        let new_runtime = VaultRuntime { key: new_key };
-
-        let mut new_records: Vec<types::VaultSecretRecord> = Vec::new();
-        for (profile_id, kind, plaintext, updated_at) in &decrypted {
-            let (nonce_b64, ciphertext_b64) = encrypt_secret(&new_runtime, plaintext)?;
-            new_records.push(types::VaultSecretRecord {
-                profile_id: profile_id.clone(),
-                kind: kind.clone(),
-                nonce_b64,
-                ciphertext_b64,
-                updated_at: *updated_at,
-            });
-        }
-
-        let new_vault = types::VaultFile {
-            secrets: new_records,
-        };
-        save_vault_file(&path, &new_vault)?;
-
-        stored_key.zeroize();
-
-        let mut guard = self
-            .inner
-            .lock()
-            .map_err(|_| "Secret store state is poisoned".to_string())?;
-        if let Some(old) = &mut guard.vault {
-            old.key.zeroize();
-        }
-        guard.vault = Some(new_runtime);
-        guard.vault_file = Some(Arc::new(RwLock::new(new_vault)));
-        drop(guard);
-
-        let config = load_config_file()?;
-        let mode = SecretStorageMode::from_config_value(&config.secret_storage_mode);
-        if mode == SecretStorageMode::Hybrid {
-            write_keyring_secret(VAULT_MASTER_ACCOUNT, "master", &input.new_password)?;
-        }
-
-        self.get_status()
-    }
-
-    pub fn lock_vault(&self) -> Result<SecretBackendStatus, String> {
-        let gate = {
-            let guard = self
-                .inner
-                .lock()
-                .map_err(|_| "Secret store state is poisoned".to_string())?;
-            Arc::clone(&guard.vault_gate)
-        };
-        let _gate = gate
-            .write()
-            .map_err(|_| "Vault state is poisoned".to_string())?;
-        let mut guard = self
-            .inner
-            .lock()
-            .map_err(|_| "Secret store state is poisoned".to_string())?;
-        if let Some(runtime) = &mut guard.vault {
-            runtime.key.zeroize();
-        }
-        guard.vault = None;
-        guard.vault_file = None;
-        drop(guard);
-        self.get_status()
-    }
-
-    pub fn set_vault_enabled(&self, enabled: bool) -> Result<SecretBackendStatus, String> {
-        let mut config = load_config_file()?;
-        if !enabled {
-            self.delete_vault_master_password_from_keyring()?;
-        }
-
-        config.secret_vault_enabled = enabled;
-        if enabled && config.secret_storage_mode == "memory" {
-            config.secret_storage_mode = "auto".to_string();
-        }
-        if !enabled && config.secret_storage_mode == "vault" {
-            config.secret_storage_mode = "auto".to_string();
-        }
-        if !enabled && config.secret_storage_mode == "hybrid" {
-            config.secret_storage_mode = "auto".to_string();
-        }
-        save_config_file(&config)?;
-
-        if !enabled {
-            let gate = {
-                let guard = self
-                    .inner
-                    .lock()
-                    .map_err(|_| "Secret store state is poisoned".to_string())?;
-                Arc::clone(&guard.vault_gate)
-            };
-            let _gate = gate
-                .write()
-                .map_err(|_| "Vault state is poisoned".to_string())?;
-            let mut guard = self
-                .inner
-                .lock()
-                .map_err(|_| "Secret store state is poisoned".to_string())?;
-            if let Some(runtime) = &mut guard.vault {
-                runtime.key.zeroize();
-            }
-            guard.vault = None;
-            guard.vault_file = None;
-        }
-
-        self.get_status()
-    }
-
-    pub fn set_storage_mode(&self, mode: &str) -> Result<SecretBackendStatus, String> {
-        let mode = SecretStorageMode::from_config_value(mode);
-        let mut config = load_config_file()?;
-        let previous_mode = SecretStorageMode::from_config_value(&config.secret_storage_mode);
-        if previous_mode == SecretStorageMode::Hybrid && mode != SecretStorageMode::Hybrid {
-            self.delete_vault_master_password_from_keyring()?;
-        }
-
-        config.secret_storage_mode = mode.as_str().to_string();
-        config.secret_vault_enabled = config.secret_vault_enabled
-            || mode == SecretStorageMode::Vault
-            || mode == SecretStorageMode::Hybrid;
-        save_config_file(&config)?;
-        self.get_status()
-    }
-
-    pub fn vault_unlocked(&self) -> Result<bool, String> {
-        Ok(self
-            .inner
-            .lock()
-            .map_err(|_| "Secret store state is poisoned".to_string())?
-            .vault
-            .is_some())
-    }
-
-    pub(crate) fn hybrid_master_available(&self) -> Result<bool, String> {
-        if !self.keyring_available()? {
-            return Ok(false);
-        }
-        read_keyring_secret(VAULT_MASTER_ACCOUNT, "master")
-            .map(|value| value.is_some())
-            .map_err(|error| format!("Failed to read keyring vault master entry: {error}"))
-    }
-
-    /// Initialize or unlock the vault for a cross-device migration. The migration
-    /// password is already supplied by the user and is never persisted outside the
-    /// normal hybrid keyring entry.
-    pub(crate) fn prepare_migration_hybrid(
-        &self,
-        app: &AppHandle,
-        password: &str,
-    ) -> Result<MigrationHybridSnapshot, String> {
-        let mut config = load_config_file()?;
-        let previous_config = config.clone();
-
-        // Snapshot on-disk artifacts that unlock_vault may mutate, so we can
-        // restore them if initialization fails. Without this, a failed migration
-        // on a fresh device would leave a vault silently initialized with the
-        // backup password and a stale keyring master entry.
-        let config_path = match vault_config_path(app) {
-            Ok(path) => path,
-            Err(error) => {
-                let _ = save_config_file(&previous_config);
-                return Err(error);
-            }
-        };
-        let vault_config_existed = config_path.exists();
-        let vault_config_snapshot = std::fs::read(&config_path)
-            .map(Some)
-            .or_else(|error| {
-                if error.kind() == std::io::ErrorKind::NotFound {
-                    Ok(None)
+        let database = crate::db::get()?;
+        let data_key = open_with_password(database, &current)?
+            .ok_or_else(|| "No master password is set.".to_string())
+            .map_err(|error| {
+                if current.is_empty() {
+                    WRONG_MASTER_PASSWORD.to_string()
                 } else {
-                    Err(error)
+                    error
                 }
-            })
-            .map_err(|error| format!("Failed to snapshot vault config: {error}"))?;
-
-        let vault_file_path = match vault_path(app) {
-            Ok(path) => path,
-            Err(error) => {
-                let _ = save_config_file(&previous_config);
-                return Err(error);
-            }
-        };
-        let vault_existed = vault_file_path.exists();
-        let vault_snapshot = std::fs::read(&vault_file_path)
-            .map(Some)
-            .or_else(|error| {
-                if error.kind() == std::io::ErrorKind::NotFound {
-                    Ok(None)
-                } else {
-                    Err(error)
-                }
-            })
-            .map_err(|error| format!("Failed to snapshot vault file: {error}"))?;
-
-        let keyring_master_snapshot = read_keyring_secret(VAULT_MASTER_ACCOUNT, "master")
-            .map_err(|error| format!("Failed to snapshot keyring vault master entry: {error}"))?;
-
-        config.secret_vault_enabled = true;
-        config.secret_storage_mode = "hybrid".to_string();
-        save_config_file(&config)?;
-
-        if let Err(error) = self.unlock_vault(
-            app,
-            types::VaultPasswordInput {
-                password: password.to_string(),
-                enable_vault: true,
-            },
-        ) {
-            let mut errors = vec![error];
-
-            if let Err(restore_err) = save_config_file(&previous_config) {
-                errors.push(format!(
-                    "Failed to restore config after migration rollback: {restore_err}"
-                ));
-            }
-
-            match (vault_config_snapshot.as_deref(), vault_config_existed) {
-                (Some(original), _) => {
-                    if let Err(restore_err) =
-                        crate::config::atomic_write_private(&config_path, original)
-                    {
-                        errors.push(format!(
-                            "Failed to restore vault config after rollback: {restore_err}"
-                        ));
-                    }
-                }
-                (None, false) => {
-                    if config_path.exists() {
-                        if let Err(remove_err) = std::fs::remove_file(&config_path) {
-                            errors.push(format!(
-                                "Failed to remove newly created vault config: {remove_err}"
-                            ));
-                        }
-                    }
-                }
-                (None, true) => {}
-            }
-
-            match (vault_snapshot.as_deref(), vault_existed) {
-                (Some(original), _) => {
-                    if let Err(restore_err) =
-                        crate::config::atomic_write_private(&vault_file_path, original)
-                    {
-                        errors.push(format!(
-                            "Failed to restore vault file after rollback: {restore_err}"
-                        ));
-                    }
-                }
-                (None, false) => {
-                    if vault_file_path.exists() {
-                        if let Err(remove_err) = std::fs::remove_file(&vault_file_path) {
-                            errors.push(format!(
-                                "Failed to remove newly created vault file: {remove_err}"
-                            ));
-                        }
-                    }
-                }
-                (None, true) => {}
-            }
-
-            if let Some(original) = keyring_master_snapshot.as_deref() {
-                if let Err(restore_err) =
-                    write_keyring_secret(VAULT_MASTER_ACCOUNT, "master", original)
-                {
-                    errors.push(format!(
-                        "Failed to restore keyring vault master entry after rollback: {restore_err}"
-                    ));
-                }
-            } else if let Err(restore_err) = delete_keyring_secret(VAULT_MASTER_ACCOUNT, "master") {
-                errors.push(format!(
-                    "Failed to remove newly created keyring vault master entry: {restore_err}"
-                ));
-            }
-
-            return Err(errors.join(" | "));
-        }
-        Ok(MigrationHybridSnapshot {
-            previous_config,
-            config_path,
-            config_bytes: vault_config_snapshot,
-            config_existed: vault_config_existed,
-            vault_path: vault_file_path,
-            vault_bytes: vault_snapshot,
-            vault_existed,
-            keyring_master: keyring_master_snapshot,
-        })
+            })?;
+        create_password_wrap(database, &new, &data_key)?;
+        self.set_data_key(Some(data_key))?;
+        self.get_status()
     }
 
-    pub(crate) fn rollback_migration_hybrid(
-        &self,
-        snapshot: MigrationHybridSnapshot,
-    ) -> Result<(), String> {
-        let mut errors = Vec::new();
-        if let Err(error) = save_config_file(&snapshot.previous_config) {
-            errors.push(error);
+    /// Adds a master password while unlocked, e.g. as a recovery password in
+    /// `system` mode.
+    pub fn set_master_password(&self, password: &str) -> Result<SecretBackendStatus, String> {
+        let database = crate::db::get()?;
+        if database.read(|connection| store::has_wrap(connection, WRAP_PASSWORD))? {
+            return Err("A master password is already set. Change it instead.".to_string());
         }
-        let restore = |path: &std::path::Path,
-                       bytes: &Option<Vec<u8>>,
-                       existed: bool,
-                       errors: &mut Vec<String>| {
-            let result = match (bytes.as_deref(), existed) {
-                (Some(bytes), _) => crate::config::atomic_write_private(path, bytes),
-                (None, false) if path.exists() => {
-                    std::fs::remove_file(path).map_err(|e| e.to_string())
-                }
-                _ => Ok(()),
-            };
-            if let Err(error) = result {
-                errors.push(format!("Failed to restore '{}': {error}", path.display()));
-            }
-        };
-        restore(
-            &snapshot.config_path,
-            &snapshot.config_bytes,
-            snapshot.config_existed,
-            &mut errors,
-        );
-        restore(
-            &snapshot.vault_path,
-            &snapshot.vault_bytes,
-            snapshot.vault_existed,
-            &mut errors,
-        );
-        let keyring_result = match snapshot.keyring_master.as_deref() {
-            Some(value) => write_keyring_secret(VAULT_MASTER_ACCOUNT, "master", value),
-            None => delete_keyring_secret(VAULT_MASTER_ACCOUNT, "master").map(|_| ()),
-        };
-        if let Err(error) = keyring_result {
-            errors.push(error);
-        }
-        if let Err(error) = self.lock_vault() {
-            errors.push(error);
-        }
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(errors.join("; "))
-        }
+        let data_key = self
+            .runtime()?
+            .data_key
+            .clone()
+            .ok_or_else(|| LOCKED.to_string())?;
+        create_password_wrap(database, password, &data_key)?;
+        self.get_status()
     }
 
-    pub fn get_password(
-        &self,
-        app: &AppHandle,
-        profile_id: &str,
-    ) -> Result<Option<String>, String> {
-        match SecretStorageMode::from_config_value(&load_config_file()?.secret_storage_mode) {
-            SecretStorageMode::System => self.get_password_from_keyring(profile_id),
-            SecretStorageMode::Vault | SecretStorageMode::Hybrid => {
-                self.get_password_from_vault(app, profile_id)
-            }
-            SecretStorageMode::Memory => Ok(None),
-            SecretStorageMode::Auto => {
-                if self.keyring_available()? {
-                    return self.get_password_from_keyring(profile_id);
-                }
-                self.get_password_from_vault(app, profile_id)
-            }
+    /// Drops the master password in `system` mode, which then relies on the
+    /// credential store alone.
+    pub fn remove_master_password(&self) -> Result<SecretBackendStatus, String> {
+        if Self::mode()? != SecretStorageMode::System {
+            return Err("The master password is required in this storage mode.".to_string());
         }
+        let database = crate::db::get()?;
+        if !database.read(|connection| store::has_wrap(connection, WRAP_SYSTEM))? {
+            return Err(
+                "Unlock saved passwords with the system credential store first.".to_string(),
+            );
+        }
+        database.write(|transaction| store::delete_wrap(transaction, WRAP_PASSWORD))?;
+        self.get_status()
     }
 
-    pub(crate) fn get_passwords_for_migration(
+    pub fn set_storage_mode(
         &self,
-        profile_ids: &[String],
-    ) -> Result<HashMap<String, Zeroizing<String>>, String> {
-        let mode = SecretStorageMode::from_config_value(&load_config_file()?.secret_storage_mode);
-        let vault_passwords = self.get_cached_vault_passwords(profile_ids)?;
-        let mut passwords = HashMap::new();
-        for profile_id in profile_ids {
-            let password = if matches!(mode, SecretStorageMode::Vault | SecretStorageMode::Hybrid) {
-                if let Some(password) = vault_passwords.get(profile_id) {
-                    Some((**password).clone())
-                } else {
-                    self.get_password_from_keyring(profile_id)?
-                }
-            } else {
-                self.get_password_from_keyring(profile_id)?.or_else(|| {
-                    vault_passwords
-                        .get(profile_id)
-                        .map(|password| (**password).clone())
-                })
-            };
-            if let Some(password) = password {
-                passwords.insert(profile_id.clone(), Zeroizing::new(password));
-            }
+        mode: &str,
+        password: Option<&str>,
+    ) -> Result<SecretBackendStatus, String> {
+        let mode = SecretStorageMode::parse(mode)?;
+        let database = crate::db::get()?;
+        if !database.read(store::migrated)? {
+            return Err(NEEDS_VAULT_PASSWORD.to_string());
         }
-        Ok(passwords)
-    }
-
-    fn get_cached_vault_passwords(
-        &self,
-        profile_ids: &[String],
-    ) -> Result<HashMap<String, Zeroizing<String>>, String> {
-        let gate = {
-            let guard = self
-                .inner
-                .lock()
-                .map_err(|_| "Secret store state is poisoned".to_string())?;
-            Arc::clone(&guard.vault_gate)
-        };
-        let _gate = gate
-            .read()
-            .map_err(|_| "Vault state is poisoned".to_string())?;
-        let guard = self
-            .inner
-            .lock()
-            .map_err(|_| "Secret store state is poisoned".to_string())?;
-        let (Some(runtime), Some(vault_file)) = (&guard.vault, &guard.vault_file) else {
-            return Ok(HashMap::new());
-        };
-        let key = runtime.key;
-        let vault_file = Arc::clone(vault_file);
-        drop(guard);
-        let vault = vault_file
-            .read()
-            .map_err(|_| "Vault data is poisoned".to_string())?;
-        let wanted = profile_ids.iter().collect::<std::collections::HashSet<_>>();
-        let runtime = VaultRuntime { key };
-        let mut result = HashMap::new();
-        for record in vault.secrets.iter().filter(|record| {
-            record.kind == types::SECRET_KIND_PASSWORD && wanted.contains(&record.profile_id)
-        }) {
-            if !result.contains_key(&record.profile_id) {
-                result.insert(
-                    record.profile_id.clone(),
-                    Zeroizing::new(decrypt_secret(&runtime, record)?),
-                );
-            }
-        }
-        Ok(result)
-    }
-
-    pub(crate) fn read_migration_destination(
-        &self,
-        app: &AppHandle,
-        profile_id: &str,
-        destination: &str,
-    ) -> Result<Option<String>, String> {
-        match destination {
-            "system" => self.get_password_from_keyring(profile_id),
-            "vault" | "hybrid" => self.get_password_from_vault(app, profile_id),
-            _ => Err("Unsupported secret migration destination".to_string()),
-        }
-    }
-
-    pub(crate) fn write_migration_destination(
-        &self,
-        app: &AppHandle,
-        profile_id: &str,
-        password: &str,
-        destination: &str,
-    ) -> Result<(), String> {
-        match destination {
-            "system" => {
+        match mode {
+            SecretStorageMode::System => {
                 if !self.keyring_available()? {
-                    return Err("System credential store is unavailable.".to_string());
+                    return Err("The system credential store is unavailable.".to_string());
                 }
-                write_keyring_secret(profile_id, types::SECRET_KIND_PASSWORD, password)
+                let data_key = self.data_key_for_mode_change(database)?;
+                create_system_wrap(database, &OsCredentials, &data_key)?;
+                self.set_data_key(Some(data_key))?;
             }
-            "vault" | "hybrid" => self
-                .write_cached_vault_secret(app, profile_id, types::SECRET_KIND_PASSWORD, password)
-                .and_then(|written| {
-                    if written {
-                        Ok(())
-                    } else {
-                        Err("Unlock the app vault before importing passwords.".to_string())
-                    }
-                }),
-            _ => Err("Unsupported secret migration destination".to_string()),
+            SecretStorageMode::Password => {
+                let data_key = self.data_key_for_mode_change(database)?;
+                if !database.read(|connection| store::has_wrap(connection, WRAP_PASSWORD))? {
+                    let password = password
+                        .filter(|password| !password.is_empty())
+                        .ok_or_else(|| "Choose a master password first.".to_string())?;
+                    create_password_wrap(database, password, &data_key)?;
+                }
+                database.write(|transaction| store::delete_wrap(transaction, WRAP_SYSTEM))?;
+                if let Err(error) = OsCredentials.delete(DATA_KEY_ACCOUNT) {
+                    eprintln!("Failed to delete the credential store key: {error}");
+                }
+                self.set_data_key(Some(data_key))?;
+            }
+            // Saved passwords stay in the database, unused until the mode
+            // is switched back.
+            SecretStorageMode::Memory => self.set_data_key(None)?,
+        }
+        Self::save_mode(mode)?;
+        self.get_status()
+    }
+
+    fn data_key_for_mode_change(&self, database: &Database) -> Result<SecretKey, String> {
+        if let Some(data_key) = self.runtime()?.data_key.clone() {
+            return Ok(data_key);
+        }
+        if self.keyring_available()? {
+            if let Ok(Some(data_key)) = open_with_system_key(database, &OsCredentials) {
+                return Ok(data_key);
+            }
+        }
+        let has_any_wrap = database.read(|connection| {
+            Ok(store::has_wrap(connection, WRAP_SYSTEM)?
+                || store::has_wrap(connection, WRAP_PASSWORD)?)
+        })?;
+        if has_any_wrap {
+            Err("Enter the master password to unlock saved passwords first.".to_string())
+        } else {
+            Ok(SecretKey::generate())
         }
     }
 
-    pub(crate) fn delete_migration_destination(
-        &self,
-        app: &AppHandle,
-        profile_id: &str,
-        destination: &str,
-    ) -> Result<(), String> {
-        match destination {
-            "system" => delete_keyring_secret(profile_id, types::SECRET_KIND_PASSWORD).map(|_| ()),
-            "vault" | "hybrid" => self
-                .delete_cached_vault_secret(app, profile_id, types::SECRET_KIND_PASSWORD)
-                .map(|_| ()),
-            _ => Err("Unsupported secret migration destination".to_string()),
-        }
-    }
-
-    fn get_password_from_keyring(&self, profile_id: &str) -> Result<Option<String>, String> {
-        if !self.keyring_available()? {
-            return Ok(None);
-        }
-        read_keyring_secret(profile_id, types::SECRET_KIND_PASSWORD)
-            .map_err(|err| format!("Failed to read system credential store: {}", err))
-    }
-
-    fn get_password_from_vault(
-        &self,
-        _app: &AppHandle,
-        profile_id: &str,
-    ) -> Result<Option<String>, String> {
-        let gate = {
-            let guard = self
-                .inner
-                .lock()
-                .map_err(|_| "Secret store state is poisoned".to_string())?;
-            Arc::clone(&guard.vault_gate)
-        };
-        let _gate = gate
-            .read()
-            .map_err(|_| "Vault state is poisoned".to_string())?;
-        let guard = self
-            .inner
-            .lock()
-            .map_err(|_| "Secret store state is poisoned".to_string())?;
-        let Some(runtime) = guard.vault.as_ref() else {
+    pub fn get_password(&self, _app: &AppHandle, key: &str) -> Result<Option<String>, String> {
+        let Some(data_key) = self.unlocked_key()? else {
             return Ok(None);
         };
-        let Some(vault_file) = guard.vault_file.as_ref() else {
-            return Ok(None);
-        };
-        let key = runtime.key;
-        let vault_file = Arc::clone(vault_file);
-        drop(guard);
-        let vault = vault_file
-            .read()
-            .map_err(|_| "Vault data is poisoned".to_string())?;
-        let Some(record) = vault.secrets.iter().find(|record| {
-            record.profile_id == profile_id && record.kind == types::SECRET_KIND_PASSWORD
-        }) else {
-            return Ok(None);
-        };
-        decrypt_secret(&VaultRuntime { key }, record).map(Some)
+        crate::db::read(|connection| store::get_secret(connection, &data_key, key))
+            .map(|value| value.map(|value| value.to_string()))
     }
 
     pub fn save_password(
         &self,
-        app: &AppHandle,
-        profile_id: &str,
+        _app: &AppHandle,
+        key: &str,
         password: &str,
     ) -> Result<SecretLocation, String> {
-        match SecretStorageMode::from_config_value(&load_config_file()?.secret_storage_mode) {
-            SecretStorageMode::System => self.save_password_to_keyring(profile_id, password),
-            SecretStorageMode::Vault | SecretStorageMode::Hybrid => {
-                self.save_password_to_vault(app, profile_id, password)
-            }
-            SecretStorageMode::Memory => Ok(SecretLocation::Memory),
-            SecretStorageMode::Auto => {
-                if self.keyring_available()? {
-                    return self.save_password_to_keyring(profile_id, password);
-                }
-                self.save_password_to_vault(app, profile_id, password)
-            }
-        }
-    }
-
-    fn save_password_to_keyring(
-        &self,
-        profile_id: &str,
-        password: &str,
-    ) -> Result<SecretLocation, String> {
-        if !self.keyring_available()? {
+        let Some(data_key) = self.unlocked_key()? else {
             return Ok(SecretLocation::Memory);
-        }
-        write_keyring_secret(profile_id, types::SECRET_KIND_PASSWORD, password)?;
-        Ok(SecretLocation::Keyring)
+        };
+        crate::db::write(|transaction| store::put_secret(transaction, &data_key, key, password))?;
+        Ok(SecretLocation::Database)
     }
 
-    fn save_password_to_vault(
-        &self,
-        app: &AppHandle,
-        profile_id: &str,
-        password: &str,
-    ) -> Result<SecretLocation, String> {
-        let written =
-            self.write_cached_vault_secret(app, profile_id, types::SECRET_KIND_PASSWORD, password)?;
-        Ok(if written {
-            SecretLocation::Vault
-        } else {
-            SecretLocation::Memory
-        })
+    /// Keys with a saved password, readable while locked.
+    pub(crate) fn saved_keys(&self) -> Result<Vec<String>, String> {
+        crate::db::read(store::secret_keys)
     }
 
-    fn write_cached_vault_secret(
-        &self,
-        app: &AppHandle,
-        profile_id: &str,
-        kind: &str,
-        plaintext: &str,
-    ) -> Result<bool, String> {
-        let gate = {
-            let guard = self
-                .inner
-                .lock()
-                .map_err(|_| "Secret store state is poisoned".to_string())?;
-            Arc::clone(&guard.vault_gate)
-        };
-        let _gate = gate
-            .write()
-            .map_err(|_| "Vault state is poisoned".to_string())?;
-        let guard = self
-            .inner
-            .lock()
-            .map_err(|_| "Secret store state is poisoned".to_string())?;
-        let Some(runtime) = guard.vault.as_ref() else {
-            return Ok(false);
-        };
-        let Some(vault_file) = guard.vault_file.as_ref() else {
-            return Ok(false);
-        };
-        let key = runtime.key;
-        let vault_file = Arc::clone(vault_file);
-        drop(guard);
-        let path = vault_path(app)?;
-
-        let (nonce_b64, ciphertext_b64) = encrypt_secret(&VaultRuntime { key }, plaintext)?;
-        let mut vault = vault_file
-            .write()
-            .map_err(|_| "Vault data is poisoned".to_string())?;
-        let previous = vault.clone();
-        if let Some(record) = vault
-            .secrets
-            .iter_mut()
-            .find(|record| record.profile_id == profile_id && record.kind == kind)
-        {
-            record.nonce_b64 = nonce_b64;
-            record.ciphertext_b64 = ciphertext_b64;
-            record.updated_at = crate::ssh::now_unix_ms();
-        } else {
-            vault.secrets.push(types::VaultSecretRecord {
-                profile_id: profile_id.to_string(),
-                kind: kind.to_string(),
-                nonce_b64,
-                ciphertext_b64,
-                updated_at: crate::ssh::now_unix_ms(),
-            });
-        }
-        if let Err(error) = save_vault_file(&path, &vault) {
-            *vault = previous;
-            return Err(error);
-        }
-        Ok(true)
-    }
-
-    pub fn has_password(&self, app: &AppHandle, profile_id: &str) -> Result<bool, String> {
-        Ok(self.get_password(app, profile_id)?.is_some())
-    }
-
-    pub fn delete_password(&self, app: &AppHandle, profile_id: &str) -> Result<bool, String> {
-        let mut deleted = false;
-        if self.keyring_available()? {
-            deleted |= delete_keyring_secret(profile_id, types::SECRET_KIND_PASSWORD)?;
-        }
-        deleted |= self.delete_cached_vault_secret(app, profile_id, types::SECRET_KIND_PASSWORD)?;
-        Ok(deleted)
-    }
-
-    fn delete_cached_vault_secret(
-        &self,
-        app: &AppHandle,
-        profile_id: &str,
-        kind: &str,
-    ) -> Result<bool, String> {
-        let gate = {
-            let guard = self
-                .inner
-                .lock()
-                .map_err(|_| "Secret store state is poisoned".to_string())?;
-            Arc::clone(&guard.vault_gate)
-        };
-        let _gate = gate
-            .write()
-            .map_err(|_| "Vault state is poisoned".to_string())?;
-        let guard = self
-            .inner
-            .lock()
-            .map_err(|_| "Secret store state is poisoned".to_string())?;
-        let Some(vault_file) = guard.vault_file.as_ref() else {
-            drop(guard);
-            return delete_vault_secret(app, profile_id, kind);
-        };
-        let vault_file = Arc::clone(vault_file);
-        drop(guard);
-        let path = vault_path(app)?;
-        let mut vault = vault_file
-            .write()
-            .map_err(|_| "Vault data is poisoned".to_string())?;
-        let previous = vault.clone();
-        let before = vault.secrets.len();
-        vault
-            .secrets
-            .retain(|record| !(record.profile_id == profile_id && record.kind == kind));
-        if vault.secrets.len() == before {
-            return Ok(false);
-        }
-        if let Err(error) = save_vault_file(&path, &vault) {
-            *vault = previous;
-            return Err(error);
-        }
-        Ok(true)
-    }
-
-    pub fn copy_password(
-        &self,
-        app: &AppHandle,
-        profile_id: &str,
-        from: &str,
-        to: &str,
-    ) -> Result<bool, String> {
-        if matches!(
-            SecretStorageMode::from_config_value(from),
-            SecretStorageMode::Vault | SecretStorageMode::Hybrid
-        ) && !self.vault_unlocked()?
-        {
-            return Err("Unlock the app vault before copying passwords from it.".to_string());
-        }
-        if matches!(
-            SecretStorageMode::from_config_value(to),
-            SecretStorageMode::Vault | SecretStorageMode::Hybrid
-        ) && !self.vault_unlocked()?
-        {
-            return Err("Unlock the app vault before copying passwords to it.".to_string());
-        }
-
-        let password = match SecretStorageMode::from_config_value(from) {
-            SecretStorageMode::System => self.get_password_from_keyring(profile_id)?,
-            SecretStorageMode::Vault | SecretStorageMode::Hybrid => {
-                self.get_password_from_vault(app, profile_id)?
-            }
-            SecretStorageMode::Auto | SecretStorageMode::Memory => None,
-        };
-        let Some(password) = password else {
-            return Ok(false);
-        };
-
-        let location = match SecretStorageMode::from_config_value(to) {
-            SecretStorageMode::System => self.save_password_to_keyring(profile_id, &password)?,
-            SecretStorageMode::Vault | SecretStorageMode::Hybrid => {
-                self.save_password_to_vault(app, profile_id, &password)?
-            }
-            SecretStorageMode::Auto | SecretStorageMode::Memory => SecretLocation::Memory,
-        };
-
-        Ok(!matches!(location, SecretLocation::Memory))
-    }
-
-    pub fn try_auto_unlock_hybrid(&self, app: &AppHandle) -> Result<bool, String> {
-        if !self.keyring_available()? {
-            return Ok(false);
-        }
-
-        let config = load_config_file()?;
-        if !config.secret_vault_enabled {
-            return Ok(false);
-        }
-
-        let Some(password) = read_keyring_secret(VAULT_MASTER_ACCOUNT, "master")
-            .map_err(|e| format!("Failed to read keyring: {}", e))?
-        else {
-            return Ok(false);
-        };
-
-        let key = derive_or_initialize_vault_key(app, password.as_bytes())?;
-        let runtime = VaultRuntime { key };
-        verify_or_initialize_vault(app, &runtime)?;
-        let vault_file = Arc::new(RwLock::new(load_vault_file(&vault_path(app)?)?));
-
-        let gate = {
-            let guard = self
-                .inner
-                .lock()
-                .map_err(|_| "Secret store state is poisoned".to_string())?;
-            Arc::clone(&guard.vault_gate)
-        };
-        let _gate = gate
-            .write()
-            .map_err(|_| "Vault state is poisoned".to_string())?;
-        let mut guard = self
-            .inner
-            .lock()
-            .map_err(|_| "Secret store state is poisoned".to_string())?;
-        if let Some(old) = &mut guard.vault {
-            old.key.zeroize();
-        }
-        guard.vault = Some(runtime);
-        guard.vault_file = Some(vault_file);
-
-        Ok(true)
-    }
-
-    fn delete_vault_master_password_from_keyring(&self) -> Result<bool, String> {
-        if !self.keyring_available()? {
-            return Ok(false);
-        }
-        delete_keyring_secret(VAULT_MASTER_ACCOUNT, "master")
+    pub fn delete_password(&self, _app: &AppHandle, key: &str) -> Result<bool, String> {
+        crate::db::write(|transaction| store::delete_secret(transaction, key))
     }
 }
 
-impl Drop for SecretStoreRuntime {
-    fn drop(&mut self) {
-        if let Some(runtime) = &mut self.vault {
-            runtime.key.zeroize();
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::*;
+    use std::cell::RefCell;
+    use std::collections::{BTreeMap, HashSet};
+
+    /// An in-memory credential store that records reads.
+    #[derive(Default)]
+    pub(crate) struct MemoryCredentials {
+        items: RefCell<BTreeMap<String, String>>,
+        denied: RefCell<HashSet<String>>,
+        reads: RefCell<Vec<String>>,
+    }
+
+    impl MemoryCredentials {
+        pub(crate) fn with(items: &[(&str, &str)]) -> Self {
+            let credentials = Self::default();
+            for (account, value) in items {
+                credentials
+                    .items
+                    .borrow_mut()
+                    .insert(account.to_string(), value.to_string());
+            }
+            credentials
         }
+
+        pub(crate) fn deny(&self, account: &str) {
+            self.denied.borrow_mut().insert(account.to_string());
+        }
+
+        pub(crate) fn reads(&self) -> Vec<String> {
+            self.reads.borrow().clone()
+        }
+
+        pub(crate) fn get(&self, account: &str) -> Option<String> {
+            self.items.borrow().get(account).cloned()
+        }
+    }
+
+    impl CredentialStore for MemoryCredentials {
+        fn read(&self, account: &str) -> Result<Option<Zeroizing<String>>, String> {
+            self.reads.borrow_mut().push(account.to_string());
+            if self.denied.borrow().contains(account) {
+                return Err("User canceled the operation.".to_string());
+            }
+            Ok(self.get(account).map(Zeroizing::new))
+        }
+
+        fn write(&self, account: &str, value: &str) -> Result<(), String> {
+            self.items
+                .borrow_mut()
+                .insert(account.to_string(), value.to_string());
+            Ok(())
+        }
+
+        fn delete(&self, account: &str) -> Result<bool, String> {
+            Ok(self.items.borrow_mut().remove(account).is_some())
+        }
+
+        fn list_accounts(&self) -> Option<Vec<String>> {
+            Some(self.items.borrow().keys().cloned().collect())
+        }
+    }
+
+    #[test]
+    fn a_lost_credential_store_key_is_reported_and_recoverable_by_password() {
+        let database = Database::open_in_memory().unwrap();
+        let credentials = MemoryCredentials::default();
+        let data_key = SecretKey::generate();
+        create_system_wrap(&database, &credentials, &data_key).unwrap();
+        create_password_wrap(&database, "recovery", &data_key).unwrap();
+        database
+            .write(|c| store::put_secret(c, &data_key, "p1", "secret"))
+            .unwrap();
+
+        credentials.delete(DATA_KEY_ACCOUNT).unwrap();
+        let error = open_with_system_key(&database, &credentials).unwrap_err();
+        assert_eq!(error, MISSING_SYSTEM_KEY);
+
+        credentials
+            .write(DATA_KEY_ACCOUNT, &SecretKey::generate().to_base64())
+            .unwrap();
+        let error = open_with_system_key(&database, &credentials).unwrap_err();
+        assert_eq!(error, WRONG_SYSTEM_KEY);
+
+        let recovered = open_with_password(&database, "recovery").unwrap().unwrap();
+        create_system_wrap(&database, &credentials, &recovered).unwrap();
+        let reopened = open_with_system_key(&database, &credentials)
+            .unwrap()
+            .unwrap();
+        let value = database
+            .read(|c| store::get_secret(c, &reopened, "p1"))
+            .unwrap()
+            .unwrap();
+        assert_eq!(value.as_str(), "secret");
+    }
+
+    #[test]
+    fn changing_the_master_password_keeps_secrets_readable() {
+        let database = Database::open_in_memory().unwrap();
+        let data_key = SecretKey::generate();
+        create_password_wrap(&database, "old", &data_key).unwrap();
+        database
+            .write(|c| store::put_secret(c, &data_key, "p1", "secret"))
+            .unwrap();
+
+        let unlocked = open_with_password(&database, "old").unwrap().unwrap();
+        create_password_wrap(&database, "new", &unlocked).unwrap();
+
+        assert_eq!(
+            open_with_password(&database, "old").unwrap_err(),
+            WRONG_MASTER_PASSWORD
+        );
+        let reopened = open_with_password(&database, "new").unwrap().unwrap();
+        let value = database
+            .read(|c| store::get_secret(c, &reopened, "p1"))
+            .unwrap()
+            .unwrap();
+        assert_eq!(value.as_str(), "secret");
     }
 }

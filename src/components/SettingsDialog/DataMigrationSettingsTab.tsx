@@ -103,7 +103,6 @@ interface BackupImportResult {
   profilesImported: number
   commandsImported: number
   secretsImported: number
-  secretDestination: "system" | "vault" | "hybrid" | null
   frontendState: {
     customThemes?: unknown[]
     recentCommands?: unknown[]
@@ -195,7 +194,6 @@ export const DataMigrationSettingsTab: React.FC = () => {
   const [importPath, setImportPath] = useState("")
   const [inspectResult, setInspectResult] = useState<BackupInspectResult | null>(null)
   const [conflictStrategy, setConflictStrategy] = useState("merge")
-  const [secretDestination, setSecretDestination] = useState("auto")
   const [exportResult, setExportResult] = useState<BackupExportResult | null>(null)
   const [importResult, setImportResult] = useState<BackupImportResult | null>(null)
   const [automaticSettings, setAutomaticSettings] = useState<AutomaticBackupSettings | null>(null)
@@ -366,7 +364,6 @@ export const DataMigrationSettingsTab: React.FC = () => {
           selection,
           backupPassword: importPassword || null,
           conflictStrategy,
-          secretDestination,
         },
       })
       restoreFrontendState(result.frontendState)
@@ -951,30 +948,6 @@ export const DataMigrationSettingsTab: React.FC = () => {
                         <option value="replace">{t("dataMigration.replace")}</option>
                       </Select>
                     </div>
-                    {selection.secrets && (
-                      <div>
-                        <Label htmlFor="migration-secret-destination">
-                          {t("dataMigration.secretDestination")}
-                        </Label>
-                        <Select
-                          id="migration-secret-destination"
-                          className="mt-1.5"
-                          value={secretDestination}
-                          disabled={busy}
-                          onChange={(event) => setSecretDestination(event.target.value)}
-                        >
-                          <option value="auto">{t("dataMigration.destinationAuto")}</option>
-                          <option value="system">{t("dataMigration.destinationSystem")}</option>
-                          <option value="vault">{t("dataMigration.destinationVault")}</option>
-                          <option value="hybrid">{t("dataMigration.destinationHybrid")}</option>
-                        </Select>
-                        {secretDestination === "hybrid" && (
-                          <p className="text-muted-foreground mt-1.5 text-xs">
-                            {t("dataMigration.hybridPasswordNotice")}
-                          </p>
-                        )}
-                      </div>
-                    )}
                   </div>
 
                   <Button

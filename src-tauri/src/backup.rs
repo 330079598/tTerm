@@ -4,6 +4,9 @@ use crate::core::blocking::run_blocking;
 use crate::profiles::SavedProfile;
 use crate::session::SessionData;
 use crate::sftp::store::SftpDirectoryStore;
+use crate::ssh::secret_store::{
+    get_secret, put_secret, restore_secrets, snapshot_secrets, DataKey, SecretRow,
+};
 use crate::ssh::store::KnownHostStore;
 use crate::ssh::SecretStoreState;
 use crate::tunnel::TunnelRule;
@@ -103,16 +106,10 @@ pub struct BackupImportOptions {
     pub backup_password: Option<String>,
     #[serde(default = "default_conflict_strategy")]
     pub conflict_strategy: String,
-    #[serde(default = "default_secret_destination")]
-    pub secret_destination: String,
 }
 
 fn default_conflict_strategy() -> String {
     "merge".to_string()
-}
-
-fn default_secret_destination() -> String {
-    "auto".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -231,7 +228,6 @@ pub struct BackupImportResult {
     pub profiles_imported: usize,
     pub commands_imported: usize,
     pub secrets_imported: usize,
-    pub secret_destination: Option<String>,
     pub frontend_state: Option<Value>,
     pub pre_import_backup_path: String,
     pub requires_restart: bool,
@@ -414,185 +410,57 @@ fn import_backup_blocking(
     ensure_selection_available(&options.selection, &bundle.manifest.selection)?;
     validate_payload(payload)?;
 
-    let mut hybrid_snapshot = None;
-    let current_mode = config::load_config_file()?.secret_storage_mode;
-    let destination = if options.selection.secrets {
-        Some(resolve_secret_destination(
-            secret_state,
-            &options.secret_destination,
-            &current_mode,
-        )?)
+    // Passwords are encrypted with the data key inside the same transaction
+    // as the profiles they belong to, so the store must be unlocked first.
+    let data_key = if options.selection.secrets {
+        Some(secret_state.data_key()?)
     } else {
         None
     };
-    // Capture the original application config before hybrid initialization changes it.
-    let config_snapshot = if destination.is_some() && !options.selection.settings {
-        let config_path = config::get_config_path()?.join("config.json");
-        Some((
-            config_path.clone(),
-            fs::read(&config_path)
-                .map_err(|error| format!("Failed to snapshot secret storage config: {error}"))?,
-        ))
-    } else {
-        None
-    };
-    // A device already in hybrid mode with its vault unlocked needs no setup;
-    // checking its keyring master would only cost a keychain prompt.
-    let already_hybrid = current_mode == "hybrid" && secret_state.vault_unlocked()?;
-    if destination.as_deref() == Some("hybrid") && !already_hybrid {
-        if !secret_state.vault_unlocked()? {
-            let password = options
-                .backup_password
-                .as_deref()
-                .filter(|p| !p.is_empty())
-                .ok_or_else(|| {
-                    "A backup password is required to initialize the target vault.".to_string()
-                })?;
-            hybrid_snapshot = Some(secret_state.prepare_migration_hybrid(&app, password)?);
-        } else {
-            // An already-unlocked vault can only be switched to hybrid if it
-            // already has a master password in the system credential store.
-            // The import password is the backup password, not necessarily the
-            // existing vault password.
-            if !secret_state.hybrid_master_available()? {
-                return Err("Hybrid migration requires the existing vault password to be configured for system auto-unlock.".to_string());
-            }
-        }
-    }
 
-    let pre_import_backup_path =
-        match create_pre_import_backup(&app, &options.selection, secret_state) {
-            Ok(path) => path,
-            Err(error) => {
-                if let Some(snapshot) = hybrid_snapshot.take() {
-                    let _ = secret_state.rollback_migration_hybrid(snapshot);
-                }
-                return Err(error);
-            }
-        };
-    let file_snapshot = match capture_file_snapshot(&options.selection, payload) {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            if let Some(snapshot) = hybrid_snapshot.take() {
-                let _ = secret_state.rollback_migration_hybrid(snapshot);
-            }
-            return Err(error);
-        }
-    };
-    let database_snapshot = match capture_database_snapshot(&options.selection) {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            if let Some(snapshot) = hybrid_snapshot.take() {
-                let _ = secret_state.rollback_migration_hybrid(snapshot);
-            }
-            return Err(error);
-        }
-    };
+    let pre_import_backup_path = create_pre_import_backup(&app, &options.selection, secret_state)?;
+    let file_snapshot = capture_file_snapshot(&options.selection, payload)?;
+    let database_snapshot = capture_database_snapshot(&options.selection)?;
     let command_snapshot = if options.selection.command_library {
-        let database = match crate::db::get() {
-            Ok(database) => database,
-            Err(error) => {
-                if let Some(snapshot) = hybrid_snapshot.take() {
-                    let _ = secret_state.rollback_migration_hybrid(snapshot);
-                }
-                return Err(error);
-            }
-        };
-        match CommandRepository::new(database).list() {
-            Ok(commands) => Some(commands),
-            Err(error) => {
-                if let Some(snapshot) = hybrid_snapshot.take() {
-                    let _ = secret_state.rollback_migration_hybrid(snapshot);
-                }
-                return Err(error);
-            }
-        }
+        Some(CommandRepository::new(crate::db::get()?).list()?)
     } else {
         None
     };
-    let secret_snapshot = if let Some(destination) = destination.as_deref() {
-        match capture_secret_snapshot(&app, secret_state, &payload.secrets, destination) {
-            Ok(snapshot) => snapshot,
-            Err(error) => {
-                if let Some(snapshot) = hybrid_snapshot.take() {
-                    let _ = secret_state.rollback_migration_hybrid(snapshot);
-                }
-                return Err(error);
-            }
-        }
-    } else {
-        Vec::new()
-    };
 
-    let apply_result = apply_payload(
-        &app,
-        payload,
-        &options,
-        destination.as_deref(),
-        secret_state,
-    );
-    let (profiles_imported, commands_imported, secrets_imported) = match apply_result {
-        Ok(counts) => counts,
-        Err(error) => {
-            let mut rollback_errors = Vec::new();
-            let had_hybrid_snapshot = hybrid_snapshot.is_some();
-            let mut hybrid_rollback_failed = false;
-            if let Some(snapshot) = hybrid_snapshot.take() {
-                match secret_state.rollback_migration_hybrid(snapshot) {
-                    Ok(()) => {}
-                    Err(err) => {
-                        hybrid_rollback_failed = true;
-                        rollback_errors.push(err);
-                    }
-                }
-            }
-            if let Err(err) = restore_file_snapshot(&file_snapshot) {
-                rollback_errors.push(err);
-            }
-            if let Err(err) = restore_database_snapshot(&database_snapshot) {
-                rollback_errors.push(err);
-            }
-            if !had_hybrid_snapshot || hybrid_rollback_failed {
-                if let Some((path, bytes)) = config_snapshot.as_ref() {
-                    if let Err(err) = config::atomic_write_private(path, bytes) {
-                        rollback_errors
-                            .push(format!("Failed to restore secret storage config: {err}"));
-                    }
-                }
-            }
-            if let Some(commands) = command_snapshot.as_ref() {
-                if let Err(err) = replace_commands(commands) {
+    let (profiles_imported, commands_imported, secrets_imported) =
+        match apply_payload(payload, &options, data_key.as_ref()) {
+            Ok(counts) => counts,
+            Err(error) => {
+                let mut rollback_errors = Vec::new();
+                if let Err(err) = restore_file_snapshot(&file_snapshot) {
                     rollback_errors.push(err);
                 }
-            }
-            if !had_hybrid_snapshot {
-                if let Some(destination) = destination.as_deref() {
-                    if let Err(err) =
-                        restore_secret_snapshot(&app, secret_state, &secret_snapshot, destination)
-                    {
+                if let Err(err) = restore_database_snapshot(&database_snapshot) {
+                    rollback_errors.push(err);
+                }
+                if let Some(commands) = command_snapshot.as_ref() {
+                    if let Err(err) = replace_commands(commands) {
                         rollback_errors.push(err);
                     }
                 }
+                if rollback_errors.is_empty() {
+                    return Err(format!("Import failed and was rolled back: {error}"));
+                }
+                return Err(format!(
+                    "Import failed: {error}. Rollback also reported: {}",
+                    rollback_errors.join("; ")
+                ));
             }
-            if rollback_errors.is_empty() {
-                return Err(format!("Import failed and was rolled back: {error}"));
-            }
-            return Err(format!(
-                "Import failed: {error}. Rollback also reported: {}",
-                rollback_errors.join("; ")
-            ));
-        }
-    };
+        };
 
     if let Some(password) = options.backup_password.as_mut() {
         password.zeroize();
     }
-    let imported_secrets = destination.is_some();
+    let imported_secrets = data_key.is_some();
     Ok(BackupImportResult {
         profiles_imported,
         commands_imported,
         secrets_imported,
-        secret_destination: destination,
         frontend_state: if options.selection.themes || options.selection.settings {
             payload.frontend_state.take()
         } else {
@@ -780,12 +648,11 @@ fn collect_payload(
     frontend_state: Option<Value>,
     secret_state: &SecretStoreState,
 ) -> Result<BackupPayload, String> {
-    if selection.secrets {
-        let status = secret_state.get_status()?;
-        if matches!(status.storage_mode.as_str(), "vault" | "hybrid") && !status.vault_unlocked {
-            return Err("Unlock the app vault before exporting all saved passwords.".to_string());
-        }
-    }
+    let data_key = if selection.secrets {
+        Some(secret_state.data_key()?)
+    } else {
+        None
+    };
     let mut payload = BackupPayload {
         config: read_selected_json(selection.settings, "config.json")?,
         profiles: read_selected_data(selection.profiles, crate::profiles::list_saved_profiles)?,
@@ -832,35 +699,22 @@ fn collect_payload(
         payload.session = Some(strip_sensitive_fields(value));
     }
 
-    if selection.secrets {
+    if let Some(data_key) = data_key.as_ref() {
         let mut keys = crate::profiles::saved_secret_keys()?;
         keys.sort();
         keys.dedup();
-        let passwords = secret_state.get_passwords_for_migration(&keys)?;
-        for key in keys {
-            if let Some(password) = passwords.get(&key) {
-                payload.secrets.push(MigrationSecretRecord {
-                    key,
-                    password: (**password).clone(),
-                });
+        payload.secrets = crate::db::read(|connection| {
+            let mut secrets = Vec::new();
+            for key in keys {
+                if let Some(password) = get_secret(connection, data_key, &key)? {
+                    secrets.push(MigrationSecretRecord {
+                        key,
+                        password: password.to_string(),
+                    });
+                }
             }
-        }
-        // Older installations may still have the legacy plaintext store when the
-        // system keyring was unavailable during startup. Include it in the encrypted
-        // migration instead of silently dropping those accounts.
-        let exported_keys = payload
-            .secrets
-            .iter()
-            .map(|secret| secret.key.clone())
-            .collect::<HashSet<_>>();
-        for record in crate::ssh::load_legacy_password_store()?.profiles {
-            if !record.password.is_empty() && !exported_keys.contains(&record.profile_name) {
-                payload.secrets.push(MigrationSecretRecord {
-                    key: record.profile_name,
-                    password: record.password,
-                });
-            }
-        }
+            Ok(secrets)
+        })?;
     }
     validate_payload(&payload)?;
     Ok(payload)
@@ -1265,66 +1119,18 @@ fn ensure_selection_available(
     Ok(())
 }
 
-fn resolve_secret_destination(
-    state: &SecretStoreState,
-    requested: &str,
-    current_mode: &str,
-) -> Result<String, String> {
-    choose_secret_destination(
-        requested,
-        current_mode,
-        || state.keyring_available(),
-        state.vault_unlocked()?,
-    )
-}
-
-/// Picks where imported passwords go. `auto` keeps the device's current
-/// storage mode, so an import never moves passwords out of the vault into the
-/// system store (one keychain prompt per password on macOS) or switches the
-/// mode behind the user's back. The keyring is only probed when needed.
-fn choose_secret_destination(
-    requested: &str,
-    current_mode: &str,
-    keyring_available: impl Fn() -> Result<bool, String>,
-    vault_unlocked: bool,
-) -> Result<String, String> {
-    let requested = match (requested, current_mode) {
-        ("auto", "system" | "vault" | "hybrid") => current_mode,
-        (requested, _) => requested,
-    };
-    match requested {
-        "system" if keyring_available()? => Ok("system".to_string()),
-        "system" => Err("System credential store is unavailable.".to_string()),
-        "vault" if vault_unlocked => Ok("vault".to_string()),
-        "vault" => Err("Unlock the app vault before importing passwords.".to_string()),
-        "hybrid" if keyring_available()? => Ok("hybrid".to_string()),
-        "hybrid" => Err("Hybrid credential storage requires the system credential store.".to_string()),
-        // Devices in `auto` or `memory` mode: the system store when available,
-        // as older versions did, else an unlocked vault.
-        "auto" if keyring_available()? => Ok("system".to_string()),
-        "auto" if vault_unlocked => Ok("vault".to_string()),
-        "auto" => Err(
-            "No persistent credential store is ready. Enable system credentials or unlock the app vault."
-                .to_string(),
-        ),
-        _ => Err("Secret destination must be auto, system, vault, or hybrid.".to_string()),
-    }
-}
-
 fn apply_payload(
-    app: &AppHandle,
     payload: &BackupPayload,
     options: &BackupImportOptions,
-    destination: Option<&str>,
-    secret_state: &SecretStoreState,
+    data_key: Option<&DataKey>,
 ) -> Result<(usize, usize, usize), String> {
     let directory = config::ensure_config_dir()?;
     if options.selection.settings {
         if let Some(value) = payload.config.as_ref() {
             let mut imported = serde_json::from_value::<AppConfig>(value.clone())
                 .map_err(|error| format!("Invalid settings: {error}"))?;
-            // Secret backends are device-local. Never let a Windows `system` or
-            // another source-device mode overwrite the destination policy.
+            // How passwords are unlocked is device-local; never take it from
+            // the source device.
             let current = config::load_config_file()?;
             imported.secret_storage_mode = current.secret_storage_mode;
             imported.secret_vault_enabled = current.secret_vault_enabled;
@@ -1332,17 +1138,20 @@ fn apply_payload(
             config::save_config_file(&imported)?;
         }
     }
-    if let Some(destination) = destination {
-        let mut imported = config::load_config_file()?;
-        imported.secret_storage_mode = destination.to_string();
-        if matches!(destination, "vault" | "hybrid") {
-            imported.secret_vault_enabled = true;
-        }
-        config::save_config_file(&imported)?;
-    }
 
-    let profiles_imported =
-        crate::db::write(|transaction| apply_database_payload(transaction, payload, options))?;
+    let (profiles_imported, secrets_imported) = crate::db::write(|transaction| {
+        let profiles_imported = apply_database_payload(transaction, payload, options)?;
+        let secrets_imported = match data_key {
+            Some(data_key) => {
+                for secret in &payload.secrets {
+                    put_secret(transaction, data_key, &secret.key, &secret.password)?;
+                }
+                payload.secrets.len()
+            }
+            None => 0,
+        };
+        Ok((profiles_imported, secrets_imported))
+    })?;
     if options.selection.session {
         write_optional_json(&directory.join("session.json"), payload.session.as_ref())?;
     }
@@ -1361,20 +1170,6 @@ fn apply_payload(
             }
         }
         incoming.len()
-    } else {
-        0
-    };
-
-    let secrets_imported = if let Some(destination) = destination {
-        for secret in &payload.secrets {
-            secret_state.write_migration_destination(
-                app,
-                &secret.key,
-                &secret.password,
-                destination,
-            )?;
-        }
-        payload.secrets.len()
     } else {
         0
     };
@@ -1474,6 +1269,9 @@ fn from_backup_value<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, 
 #[derive(Default)]
 struct DatabaseSnapshot {
     profiles: Option<(Vec<SavedProfile>, Vec<String>, Vec<TunnelRule>)>,
+    /// Ciphertext as stored. Taken with profiles too: replacing profiles
+    /// deletes the passwords of the removed ones.
+    secrets: Option<Vec<SecretRow>>,
     known_hosts: Option<KnownHostStore>,
     sftp_directories: Option<SftpDirectoryStore>,
 }
@@ -1493,6 +1291,11 @@ fn snapshot_database(
                 crate::profiles::configured_profile_groups(connection)?,
                 crate::tunnel::list_tunnel_rules(connection)?,
             ))
+        } else {
+            None
+        },
+        secrets: if selection.profiles || selection.secrets {
+            Some(snapshot_secrets(connection)?)
         } else {
             None
         },
@@ -1521,6 +1324,9 @@ fn restore_database(
         crate::profiles::replace_profiles(transaction, profiles)?;
         crate::profiles::replace_profile_groups(transaction, groups)?;
         crate::tunnel::replace_tunnels(transaction, tunnels)?;
+    }
+    if let Some(secrets) = snapshot.secrets.as_ref() {
+        restore_secrets(transaction, secrets)?;
     }
     if let Some(store) = snapshot.known_hosts.as_ref() {
         crate::ssh::store::replace_known_hosts(transaction, store)?;
@@ -1873,46 +1679,6 @@ fn restore_file_snapshot(snapshot: &[(PathBuf, Option<Vec<u8>>)]) -> Result<(), 
     }
 }
 
-fn capture_secret_snapshot(
-    app: &AppHandle,
-    state: &SecretStoreState,
-    secrets: &[MigrationSecretRecord],
-    destination: &str,
-) -> Result<Vec<(String, Option<String>)>, String> {
-    secrets
-        .iter()
-        .map(|secret| {
-            state
-                .read_migration_destination(app, &secret.key, destination)
-                .map(|value| (secret.key.clone(), value))
-        })
-        .collect()
-}
-
-fn restore_secret_snapshot(
-    app: &AppHandle,
-    state: &SecretStoreState,
-    snapshot: &[(String, Option<String>)],
-    destination: &str,
-) -> Result<(), String> {
-    let mut errors = Vec::new();
-    for (key, value) in snapshot {
-        let result = if let Some(password) = value {
-            state.write_migration_destination(app, key, password, destination)
-        } else {
-            state.delete_migration_destination(app, key, destination)
-        };
-        if let Err(error) = result {
-            errors.push(error);
-        }
-    }
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(errors.join("; "))
-    }
-}
-
 fn create_pre_import_backup(
     app: &AppHandle,
     selection: &BackupSelection,
@@ -2085,7 +1851,6 @@ mod tests {
             selection: database_selection(),
             backup_password: None,
             conflict_strategy: strategy.to_string(),
-            secret_destination: default_secret_destination(),
         }
     }
 
@@ -2260,40 +2025,46 @@ mod tests {
     }
 
     #[test]
-    fn auto_secret_destination_keeps_the_current_storage_mode() {
-        let keyring = |available: bool| move || Ok(available);
-        let no_probe = || -> Result<bool, String> { panic!("keyring must not be probed") };
+    fn replacing_profiles_keeps_passwords_of_profiles_that_stay() {
+        let database = crate::db::Database::open_in_memory().unwrap();
+        let data_key = DataKey::generate();
+        let profile = |id: &str| -> SavedProfile {
+            serde_json::from_value(serde_json::json!({
+                "id": id,
+                "name": id,
+                "connection_type": "ssh",
+                "host": "example.com",
+                "port": 22,
+                "username": "root",
+                "auth_method": "password",
+            }))
+            .unwrap()
+        };
+        let keys = |connection: &rusqlite::Connection| -> Vec<String> {
+            snapshot_secrets(connection)
+                .unwrap()
+                .into_iter()
+                .map(|row| row.key)
+                .collect()
+        };
+        database
+            .write(|connection| {
+                crate::profiles::replace_profiles(connection, &[profile("keep"), profile("gone")])?;
+                put_secret(connection, &data_key, "keep", "k")?;
+                put_secret(connection, &data_key, "gone", "g")?;
+                let before = snapshot_database(connection, &database_selection())?;
 
-        // A hybrid or vault device keeps its passwords in the vault.
-        assert_eq!(
-            choose_secret_destination("auto", "hybrid", keyring(true), true).unwrap(),
-            "hybrid"
-        );
-        assert_eq!(
-            choose_secret_destination("auto", "vault", no_probe, true).unwrap(),
-            "vault"
-        );
-        assert!(choose_secret_destination("auto", "vault", no_probe, false)
-            .unwrap_err()
-            .contains("Unlock the app vault"));
-        assert_eq!(
-            choose_secret_destination("auto", "system", keyring(true), false).unwrap(),
-            "system"
-        );
-        // Devices without a fixed mode keep the old preference.
-        assert_eq!(
-            choose_secret_destination("auto", "auto", keyring(true), true).unwrap(),
-            "system"
-        );
-        assert_eq!(
-            choose_secret_destination("auto", "memory", keyring(false), true).unwrap(),
-            "vault"
-        );
-        // An explicit choice wins over the current mode.
-        assert_eq!(
-            choose_secret_destination("system", "hybrid", keyring(true), true).unwrap(),
-            "system"
-        );
+                crate::profiles::replace_profiles(connection, &[profile("keep"), profile("new")])?;
+                assert_eq!(keys(connection), ["keep"]);
+
+                // Undoing the import brings the removed profile's password back.
+                restore_database(connection, &before)?;
+                assert_eq!(keys(connection), ["gone", "keep"]);
+                let restored = get_secret(connection, &data_key, "gone")?.unwrap();
+                assert_eq!(restored.as_str(), "g");
+                Ok(())
+            })
+            .unwrap();
     }
 
     #[test]

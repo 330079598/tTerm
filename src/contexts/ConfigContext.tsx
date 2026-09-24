@@ -16,16 +16,19 @@ import type { UpdateCheckFrequency } from "@/lib/updater"
 import { DEFAULT_KEYMAP_CONFIG, normalizeKeymap, type KeymapConfig } from "@/lib/keymap/keymap"
 
 export interface SecretBackendStatus {
-  activeBackend: "system" | "vault" | "memory"
   storageMode: SecretStorageMode
   keyringAvailable: boolean
-  vaultEnabled: boolean
-  vaultUnlocked: boolean
+  /** Saved passwords can be read and written right now. */
+  unlocked: boolean
+  hasMasterPassword: boolean
   persistenceAvailable: boolean
+  /** Passwords in the old app vault wait for its password to be moved. */
+  migrationPending: boolean
   message?: string | null
 }
 
-export type SecretStorageMode = "auto" | "system" | "vault" | "hybrid" | "memory"
+/** Where the key that unlocks saved passwords comes from. */
+export type SecretStorageMode = "system" | "password" | "memory"
 export type TabWidthMode = "adaptive" | "standard"
 export type TerminalLogFormat = "raw" | "plain" | "both"
 export type TerminalRenderer = "webgl" | "canvas"
@@ -95,13 +98,11 @@ export function getDefaultTerminalRenderer(): TerminalRenderer {
   return getDetectedPlatform() === "macos" ? "canvas" : "webgl"
 }
 
-function getDefaultSecretStorageMode(): SecretStorageMode {
-  return getDetectedPlatform() === "windows" ? "system" : "hybrid"
-}
-
-export interface CopySecretStoreResult {
-  copied: number
-  skipped: number
+/** Also accepts the modes used before passwords moved into the database. */
+function normalizeSecretStorageMode(mode: unknown): SecretStorageMode {
+  if (mode === "password" || mode === "vault") return "password"
+  if (mode === "memory") return "memory"
+  return "system"
 }
 
 export interface SavedSecretEntry {
@@ -176,7 +177,7 @@ const defaultConfig: AppConfig = {
   terminal_shell_custom_path: "",
   terminal_shell_custom_args: "",
   secret_vault_enabled: true,
-  secret_storage_mode: getDefaultSecretStorageMode(),
+  secret_storage_mode: "system",
   prompt_unlock_vault_on_startup: false,
   scrollback_lines: 10000,
   terminal_renderer: getDefaultTerminalRenderer(),
@@ -314,13 +315,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     startup_session_restore_mode: config.startup_session_restore_mode === "all" ? "all" : "active",
     show_jump_host_connection_info: config.show_jump_host_connection_info !== false,
     sftp_paste_upload_enabled: config.sftp_paste_upload_enabled === true,
-    secret_storage_mode:
-      config.secret_storage_mode === "system" ||
-      config.secret_storage_mode === "vault" ||
-      config.secret_storage_mode === "hybrid" ||
-      config.secret_storage_mode === "memory"
-        ? config.secret_storage_mode
-        : getDefaultSecretStorageMode(),
+    secret_storage_mode: normalizeSecretStorageMode(config.secret_storage_mode),
     prompt_unlock_vault_on_startup: config.prompt_unlock_vault_on_startup === true,
     terminal_renderer:
       config.terminal_renderer === "canvas" || config.terminal_renderer === "webgl"
@@ -369,12 +364,12 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
 }
 
 const defaultSecretStatus: SecretBackendStatus = {
-  activeBackend: "memory",
-  storageMode: "auto",
+  storageMode: "system",
   keyringAvailable: false,
-  vaultEnabled: false,
-  vaultUnlocked: false,
+  unlocked: false,
+  hasMasterPassword: false,
   persistenceAvailable: false,
+  migrationPending: false,
   message: null,
 }
 
@@ -387,15 +382,15 @@ interface ConfigContextType {
   saveConfig: (newConfig: Partial<AppConfig>) => Promise<void>
   loadConfig: () => Promise<void>
   refreshSecretStatus: () => Promise<SecretBackendStatus>
-  setSecretVaultEnabled: (enabled: boolean) => Promise<SecretBackendStatus>
-  setSecretStorageMode: (mode: SecretStorageMode) => Promise<SecretBackendStatus>
-  unlockSecretVault: (password: string, enableVault?: boolean) => Promise<SecretBackendStatus>
+  setSecretStorageMode: (mode: SecretStorageMode, password?: string) => Promise<SecretBackendStatus>
+  unlockSecretVault: (password: string) => Promise<SecretBackendStatus>
   lockSecretVault: () => Promise<SecretBackendStatus>
   changeVaultPassword: (
     currentPassword: string,
     newPassword: string
   ) => Promise<SecretBackendStatus>
-  copySecretStore: (direction: "systemToVault" | "vaultToSystem") => Promise<CopySecretStoreResult>
+  setMasterPassword: (password: string) => Promise<SecretBackendStatus>
+  removeMasterPassword: () => Promise<SecretBackendStatus>
   listSavedSecrets: () => Promise<SavedSecretEntry[]>
   getSavedSecret: (key: string) => Promise<string>
   deleteSavedSecret: (key: string) => Promise<boolean>
@@ -405,12 +400,12 @@ const ConfigContext = createContext<ConfigContextType | undefined>(undefined)
 
 function normalizeSecretStatus(status?: Partial<SecretBackendStatus>): SecretBackendStatus {
   return {
-    activeBackend: (status?.activeBackend as SecretBackendStatus["activeBackend"]) ?? "memory",
-    storageMode: (status?.storageMode as SecretStorageMode) ?? "auto",
+    storageMode: normalizeSecretStorageMode(status?.storageMode),
     keyringAvailable: status?.keyringAvailable ?? false,
-    vaultEnabled: status?.vaultEnabled ?? false,
-    vaultUnlocked: status?.vaultUnlocked ?? false,
+    unlocked: status?.unlocked ?? false,
+    hasMasterPassword: status?.hasMasterPassword ?? false,
     persistenceAvailable: status?.persistenceAvailable ?? false,
+    migrationPending: status?.migrationPending ?? false,
     message: status?.message ?? null,
   }
 }
@@ -497,73 +492,68 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     return save
   }, [])
 
-  const setSecretVaultEnabled = useCallback(
-    async (enabled: boolean) => {
-      const status = await invoke<SecretBackendStatus>("set_secret_vault_enabled", { enabled })
+  const applySecretStatus = useCallback(
+    (status: SecretBackendStatus) => {
       const normalized = normalizeSecretStatus(status)
       setSecretStatus(normalized)
-      updateConfigState((prev) => ({
-        ...prev,
-        secret_storage_mode: normalized.storageMode,
-        secret_vault_enabled: normalized.vaultEnabled,
-      }))
+      updateConfigState((prev) => ({ ...prev, secret_storage_mode: normalized.storageMode }))
       return normalized
     },
     [updateConfigState]
   )
 
   const setSecretStorageMode = useCallback(
-    async (mode: SecretStorageMode) => {
-      const status = await invoke<SecretBackendStatus>("set_secret_storage_mode", {
-        input: { mode },
-      })
-      const normalized = normalizeSecretStatus(status)
-      setSecretStatus(normalized)
-      updateConfigState((prev) => ({
-        ...prev,
-        secret_storage_mode: normalized.storageMode,
-        secret_vault_enabled: normalized.vaultEnabled,
-      }))
-      return normalized
+    async (mode: SecretStorageMode, password?: string) => {
+      const switchingToPassword =
+        mode === "password" && configRef.current.secret_storage_mode !== "password"
+      const status = applySecretStatus(
+        await invoke<SecretBackendStatus>("set_secret_storage_mode", {
+          input: { mode, password: password || null },
+        })
+      )
+      if (switchingToPassword) {
+        // The backend turns the startup prompt on with master password mode.
+        updateConfigState((prev) => ({ ...prev, prompt_unlock_vault_on_startup: true }))
+      }
+      return status
     },
-    [updateConfigState]
+    [applySecretStatus, updateConfigState]
   )
 
   const unlockSecretVault = useCallback(
-    async (password: string, enableVault = false) => {
-      const status = await invoke<SecretBackendStatus>("unlock_secret_vault", {
-        input: { password, enableVault },
-      })
-      const normalized = normalizeSecretStatus(status)
-      setSecretStatus(normalized)
-      if (enableVault) {
-        updateConfigState((prev) => ({ ...prev, secret_vault_enabled: true }))
-      }
-      return normalized
-    },
-    [updateConfigState]
+    async (password: string) =>
+      applySecretStatus(
+        await invoke<SecretBackendStatus>("unlock_secret_vault", { input: { password } })
+      ),
+    [applySecretStatus]
   )
 
-  const lockSecretVault = useCallback(async () => {
-    const status = await invoke<SecretBackendStatus>("lock_secret_vault")
-    const normalized = normalizeSecretStatus(status)
-    setSecretStatus(normalized)
-    return normalized
-  }, [])
+  const lockSecretVault = useCallback(
+    async () => applySecretStatus(await invoke<SecretBackendStatus>("lock_secret_vault")),
+    [applySecretStatus]
+  )
 
-  const changeVaultPassword = useCallback(async (currentPassword: string, newPassword: string) => {
-    const status = await invoke<SecretBackendStatus>("change_vault_password", {
-      input: { currentPassword, newPassword },
-    })
-    const normalized = normalizeSecretStatus(status)
-    setSecretStatus(normalized)
-    return normalized
-  }, [])
+  const changeVaultPassword = useCallback(
+    async (currentPassword: string, newPassword: string) =>
+      applySecretStatus(
+        await invoke<SecretBackendStatus>("change_vault_password", {
+          input: { currentPassword, newPassword },
+        })
+      ),
+    [applySecretStatus]
+  )
 
-  const copySecretStore = useCallback(
-    async (direction: "systemToVault" | "vaultToSystem") =>
-      invoke<CopySecretStoreResult>("copy_secret_store", { input: { direction } }),
-    []
+  const setMasterPassword = useCallback(
+    async (password: string) =>
+      applySecretStatus(
+        await invoke<SecretBackendStatus>("set_master_password", { input: { password } })
+      ),
+    [applySecretStatus]
+  )
+
+  const removeMasterPassword = useCallback(
+    async () => applySecretStatus(await invoke<SecretBackendStatus>("remove_master_password")),
+    [applySecretStatus]
   )
 
   const listSavedSecrets = useCallback(
@@ -609,12 +599,12 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       saveConfig,
       loadConfig,
       refreshSecretStatus,
-      setSecretVaultEnabled,
       setSecretStorageMode,
       unlockSecretVault,
       lockSecretVault,
       changeVaultPassword,
-      copySecretStore,
+      setMasterPassword,
+      removeMasterPassword,
       listSavedSecrets,
       getSavedSecret,
       deleteSavedSecret,
@@ -628,12 +618,12 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       saveConfig,
       loadConfig,
       refreshSecretStatus,
-      setSecretVaultEnabled,
       setSecretStorageMode,
       unlockSecretVault,
       lockSecretVault,
       changeVaultPassword,
-      copySecretStore,
+      setMasterPassword,
+      removeMasterPassword,
       listSavedSecrets,
       getSavedSecret,
       deleteSavedSecret,

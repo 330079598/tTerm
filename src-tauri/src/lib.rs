@@ -250,9 +250,9 @@ pub fn run() {
             ssh::secret_commands::unlock_secret_vault,
             ssh::secret_commands::lock_secret_vault,
             ssh::secret_commands::change_vault_password,
-            ssh::secret_commands::set_secret_vault_enabled,
+            ssh::secret_commands::set_master_password,
+            ssh::secret_commands::remove_master_password,
             ssh::secret_commands::set_secret_storage_mode,
-            ssh::secret_commands::copy_secret_store,
             ssh::secret_commands::list_saved_secrets,
             ssh::secret_commands::get_saved_secret,
             ssh::secret_commands::delete_saved_secret,
@@ -284,28 +284,16 @@ pub fn run() {
                 eprintln!("Failed to import JSON data into the database: {error}");
             }
 
-            if let Err(err) = migrate::migrate_legacy_ssh_passwords(&app_handle) {
-                eprintln!("Failed to migrate legacy SSH passwords: {}", err);
-            }
+            // Moves passwords saved by older versions into the database once,
+            // then unlocks them from the system credential store.
+            app_handle
+                .state::<ssh::SecretStoreState>()
+                .initialize(&app_handle);
 
-            // Auto-unlock vault from keyring when hybrid mode is active
             if let Ok(cfg) = config::load_config_file() {
                 let log_state = app_handle.state::<session_log::SessionLogState>();
                 if let Err(err) = log_state.apply_config(&app_handle, &cfg) {
                     eprintln!("Failed to initialize terminal logging: {}", err);
-                }
-
-                if cfg.secret_storage_mode == "hybrid" && cfg.secret_vault_enabled {
-                    let secret_state = app_handle.state::<ssh::SecretStoreState>();
-                    match secret_state.try_auto_unlock_hybrid(&app_handle) {
-                        Ok(true) => {}
-                        Ok(false) => {
-                            eprintln!("Hybrid auto-unlock: no saved master password in keyring");
-                        }
-                        Err(err) => {
-                            eprintln!("Hybrid auto-unlock failed: {}", err);
-                        }
-                    }
                 }
             }
 

@@ -8,12 +8,7 @@ import { useTranslation } from "react-i18next"
 import { useConfirmDialog, useInfoDialog, usePromptDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
-import {
-  SavedSecretEntry,
-  type TabWidthMode,
-  type TerminalRenderer,
-  useConfig,
-} from "@/contexts/ConfigContext"
+import { type TabWidthMode, type TerminalRenderer, useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
@@ -36,7 +31,6 @@ import {
   languages,
   SettingsDialogProps,
   SettingsPanelProps,
-  VaultAction,
 } from "@/components/SettingsDialog/types"
 import type { UpdateChannel, UpdateCheckFrequency } from "@/lib/updater"
 
@@ -151,22 +145,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const mountStartRef = useRef(getPerfNow())
   const isMountedRef = useRef(true)
   const { t, i18n } = useTranslation()
-  const {
-    config,
-    saveConfig,
-    updateLanguage,
-    secretStatus,
-    refreshSecretStatus,
-    setSecretVaultEnabled,
-    setSecretStorageMode,
-    unlockSecretVault,
-    lockSecretVault,
-    changeVaultPassword,
-    copySecretStore,
-    listSavedSecrets,
-    getSavedSecret,
-    deleteSavedSecret,
-  } = useConfig()
+  const { config, saveConfig, updateLanguage, refreshSecretStatus } = useConfig()
   const {
     currentTheme,
     presetThemes,
@@ -208,15 +187,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [fontsLoaded, setFontsLoaded] = useState(cachedSystemFonts !== null)
   const [loadingFonts, setLoadingFonts] = useState(false)
   const [fontLoadError, setFontLoadError] = useState<string | null>(null)
-
-  const [password, setPassword] = useState("")
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [secretError, setSecretError] = useState<string | null>(null)
-  const [secretBusy, setSecretBusy] = useState(false)
-  const [vaultAction, setVaultAction] = useState<VaultAction | null>(null)
-  const [savedSecrets, setSavedSecrets] = useState<SavedSecretEntry[]>([])
 
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null)
   const [creatingFromTheme, setCreatingFromTheme] = useState<string | null>(null)
@@ -277,18 +247,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
 
     refreshSecretStatusCached(refreshSecretStatus)
-    listSavedSecrets()
-      .then((entries) => {
-        if (isMountedRef.current) {
-          setSavedSecrets(entries)
-        }
-      })
-      .catch(() => {
-        if (isMountedRef.current) {
-          setSavedSecrets([])
-        }
-      })
-  }, [activeTab, listSavedSecrets, refreshSecretStatus])
+  }, [activeTab, refreshSecretStatus])
 
   const handleFontSave = async () => {
     if (savingFontRef.current) {
@@ -439,180 +398,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
   }
 
-  const handleEnableVault = async (checked: boolean) => {
-    setSecretBusy(true)
-    setSecretError(null)
-    try {
-      await setSecretVaultEnabled(checked)
-      if (!checked) {
-        setPassword("")
-      }
-    } catch (error) {
-      setSecretError(toErrorMessage(error))
-    } finally {
-      setSecretBusy(false)
-    }
-  }
-
-  const handleSecretStorageModeChange = async (mode: typeof config.secret_storage_mode) => {
-    setSecretBusy(true)
-    setSecretError(null)
-    try {
-      await setSecretStorageMode(mode)
-      toast({
-        title: t("secretStorage.modeSaved"),
-        description: t(`secretStorage.modeDescriptions.${mode}`),
-      })
-    } catch (error) {
-      setSecretError(toErrorMessage(error))
-    } finally {
-      setSecretBusy(false)
-    }
-  }
-
-  const handleCopySecretStore = async (direction: "systemToVault" | "vaultToSystem") => {
-    setSecretBusy(true)
-    setSecretError(null)
-    try {
-      const result = await copySecretStore(direction)
-      toast({
-        title: t("secretStorage.copyComplete"),
-        description: t("secretStorage.copyCompleteDesc", {
-          copied: result.copied,
-          skipped: result.skipped,
-        }),
-      })
-      await refreshSecretStatus()
-      setSavedSecrets(await listSavedSecrets())
-    } catch (error) {
-      setSecretError(toErrorMessage(error))
-    } finally {
-      setSecretBusy(false)
-    }
-  }
-
-  const handlePromptUnlockOnStartupChange = async (checked: boolean) => {
-    setSecretBusy(true)
-    setSecretError(null)
-    try {
-      await saveConfig({ prompt_unlock_vault_on_startup: checked })
-      toast({
-        title: t("secretStorage.startupPromptSaved"),
-        description: checked
-          ? t("secretStorage.startupPromptEnabledDesc")
-          : t("secretStorage.startupPromptDisabledDesc"),
-      })
-    } catch (error) {
-      setSecretError(toErrorMessage(error))
-    } finally {
-      setSecretBusy(false)
-    }
-  }
-
-  const handleUnlock = async () => {
-    setSecretBusy(true)
-    setVaultAction("unlock")
-    setSecretError(null)
-    try {
-      const shouldEnable = config.secret_storage_mode === "hybrid" || config.secret_vault_enabled
-      const status = await unlockSecretVault(password, shouldEnable)
-      setPassword("")
-      toast({
-        title: t("secretStorage.vaultUnlocked"),
-        description:
-          status.storageMode === "hybrid"
-            ? t("secretStorage.vaultUnlockedHybridDesc")
-            : t("secretStorage.vaultUnlockedDesc"),
-        variant: "success",
-      })
-    } catch (error) {
-      setSecretError(toErrorMessage(error))
-    } finally {
-      setSecretBusy(false)
-      setVaultAction(null)
-    }
-  }
-
-  const handleLock = async () => {
-    setSecretBusy(true)
-    setVaultAction("lock")
-    setSecretError(null)
-    try {
-      await lockSecretVault()
-      toast({
-        title: t("secretStorage.vaultLocked"),
-        description: t("secretStorage.vaultLockedDesc"),
-      })
-    } catch (error) {
-      setSecretError(toErrorMessage(error))
-    } finally {
-      setSecretBusy(false)
-      setVaultAction(null)
-    }
-  }
-
-  const handleChangePassword = async () => {
-    if (newPassword !== confirmPassword) {
-      await info({
-        title: t("secretStorage.changeVaultPassword"),
-        description: t("secretStorage.passwordMismatch"),
-      })
-      return
-    }
-    setSecretBusy(true)
-    setVaultAction("changePassword")
-    setSecretError(null)
-    try {
-      await changeVaultPassword(currentPassword, newPassword)
-      setCurrentPassword("")
-      setNewPassword("")
-      setConfirmPassword("")
-      toast({
-        title: t("secretStorage.passwordChanged"),
-        description: t("secretStorage.passwordChangedDesc"),
-        variant: "success",
-      })
-    } catch (error) {
-      const message = toErrorMessage(error)
-      await info({
-        title: t("secretStorage.changeVaultPassword"),
-        description: message,
-      })
-    } finally {
-      setSecretBusy(false)
-      setVaultAction(null)
-    }
-  }
-
-  const handleDeleteSavedSecret = async (entry: SavedSecretEntry) => {
-    const confirmed = await confirm({
-      title: t("secretStorage.deleteSavedSecret"),
-      description: t("secretStorage.deleteSavedSecretConfirm", { label: entry.label }),
-      confirmText: t("secretStorage.deleteSavedSecret"),
-      cancelText: t("common.cancel"),
-      variant: "destructive",
-    })
-
-    if (!confirmed) {
-      return
-    }
-
-    setSecretBusy(true)
-    setSecretError(null)
-    try {
-      await deleteSavedSecret(entry.key)
-      setSavedSecrets(await listSavedSecrets())
-      toast({
-        title: t("secretStorage.savedSecretDeleted"),
-        description: t("secretStorage.savedSecretDeletedDesc", { label: entry.label }),
-      })
-    } catch (error) {
-      setSecretError(toErrorMessage(error))
-    } finally {
-      setSecretBusy(false)
-    }
-  }
-
   const handleClearSession = async () => {
     const confirmed = await confirm({
       title: t("settings.clearSession"),
@@ -750,13 +535,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       closeText: t("common.close"),
     })
   }
-
-  const backendLabel =
-    secretStatus.activeBackend === "system"
-      ? t("secretStorage.backends.system")
-      : secretStatus.activeBackend === "vault"
-        ? t("secretStorage.backends.vault")
-        : t("secretStorage.backends.memory")
 
   return (
     <>
@@ -911,34 +689,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             tabIndex={0}
             className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
           >
-            <SecuritySettingsTab
-              backendLabel={backendLabel}
-              configSecretVaultEnabled={config.secret_vault_enabled}
-              handleCopySecretStore={handleCopySecretStore}
-              handleEnableVault={handleEnableVault}
-              handleLock={handleLock}
-              handleChangePassword={handleChangePassword}
-              handlePromptUnlockOnStartupChange={handlePromptUnlockOnStartupChange}
-              handleSecretStorageModeChange={handleSecretStorageModeChange}
-              handleDeleteSavedSecret={handleDeleteSavedSecret}
-              handleRevealSavedSecret={getSavedSecret}
-              handleUnlock={handleUnlock}
-              password={password}
-              currentPassword={currentPassword}
-              newPassword={newPassword}
-              confirmPassword={confirmPassword}
-              promptUnlockVaultOnStartup={config.prompt_unlock_vault_on_startup}
-              secretBusy={secretBusy}
-              vaultAction={vaultAction}
-              secretError={secretError}
-              savedSecrets={savedSecrets}
-              secretStatus={secretStatus}
-              secretStorageMode={config.secret_storage_mode}
-              setPassword={setPassword}
-              setCurrentPassword={setCurrentPassword}
-              setNewPassword={setNewPassword}
-              setConfirmPassword={setConfirmPassword}
-            />
+            <SecuritySettingsTab confirm={confirm} info={info} />
           </TabsContent>
 
           <TabsContent

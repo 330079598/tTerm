@@ -291,28 +291,3 @@ fn same_path(left: &Path, right: &Path) -> bool {
 fn normalize_path(path: &Path) -> PathBuf {
     std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
 }
-
-pub fn migrate_legacy_ssh_passwords(app: &tauri::AppHandle) -> Result<(), String> {
-    let secret_state = app.state::<ssh::SecretStoreState>();
-    let store = ssh::load_legacy_password_store()?;
-    if store.profiles.is_empty() {
-        return Ok(());
-    }
-
-    if !secret_state.keyring_available()? {
-        return Ok(());
-    }
-
-    for record in store.profiles {
-        if record.password.is_empty() {
-            continue;
-        }
-        let password = secret_state.get_password(app, &record.profile_name)?;
-        if password.is_none() {
-            secret_state.save_password(app, &record.profile_name, &record.password)?;
-        }
-    }
-
-    ssh::remove_legacy_password_store()?;
-    Ok(())
-}

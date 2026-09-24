@@ -76,14 +76,23 @@ pub(crate) fn delete_profiles(connection: &Connection, ids: &[String]) -> Result
 }
 
 /// Replaces every profile, keeping the order given. A later duplicate id
-/// replaces the earlier one, as merging JSON arrays by id used to.
+/// replaces the earlier one, as merging JSON arrays by id used to. Profiles
+/// that stay are updated in place so their saved passwords are kept; only
+/// removed ones are deleted (with their passwords).
 pub(crate) fn replace_profiles(
     connection: &Connection,
     profiles: &[SavedProfile],
 ) -> Result<(), String> {
-    connection
-        .execute("DELETE FROM profiles", [])
-        .map_err(sql_error("Failed to clear profiles"))?;
+    let kept = profiles
+        .iter()
+        .map(|profile| profile.id.as_str())
+        .collect::<std::collections::HashSet<_>>();
+    let removed = list_saved_profiles(connection)?
+        .into_iter()
+        .map(|profile| profile.id)
+        .filter(|id| !kept.contains(id.as_str()))
+        .collect::<Vec<_>>();
+    delete_profiles(connection, &removed)?;
     let mut statement = connection
         .prepare(
             "INSERT INTO profiles (id, position, data) VALUES (?1, ?2, ?3) \

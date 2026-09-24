@@ -1,32 +1,22 @@
+use super::crypto::SecretKey;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex};
 
 pub(crate) const SERVICE_NAME: &str = "tterm";
-pub(crate) const VAULT_FILE_NAME: &str = "secret_vault.json";
-pub(crate) const VAULT_CONFIG_FILE_NAME: &str = "secret_vault_config.json";
-pub(crate) const SECRET_KIND_PASSWORD: &str = "password";
-pub(crate) const SECRET_KIND_VERIFIER: &str = "verifier";
-pub(crate) const VERIFIER_PROFILE_ID: &str = "__vault_verifier__";
-pub(crate) const VAULT_MASTER_ACCOUNT: &str = "__vault_master__";
-pub(crate) const VAULT_VERIFIER_PLAINTEXT: &str = "tterm-vault-verifier-v1";
-pub(crate) const PROBE_ACCOUNT: &str = "__probe__";
-pub(crate) const KEYRING_PROBE_SECRET: &str = "tterm-keyring-probe";
-pub(crate) const SALT_LEN: usize = 16;
-pub(crate) const NONCE_LEN: usize = 12;
-pub(crate) const DERIVED_KEY_LEN: usize = 32;
-pub(crate) const PBKDF_ITERATIONS: u32 = 3;
-pub(crate) const PBKDF_MEMORY_KIB: u32 = 19_456;
-pub(crate) const PBKDF_PARALLELISM: u32 = 1;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SecretBackendStatus {
-    pub active_backend: String,
+    /// `system`, `password` or `memory`.
     pub storage_mode: String,
     pub keyring_available: bool,
-    pub vault_enabled: bool,
-    pub vault_unlocked: bool,
+    /// Whether saved passwords can be read and written right now.
+    pub unlocked: bool,
+    pub has_master_password: bool,
     pub persistence_available: bool,
+    /// Passwords from the old app vault are waiting for its password to be
+    /// moved into the database.
+    pub migration_pending: bool,
     pub message: Option<String>,
 }
 
@@ -34,8 +24,6 @@ pub struct SecretBackendStatus {
 #[serde(rename_all = "camelCase")]
 pub struct VaultPasswordInput {
     pub password: String,
-    #[serde(default)]
-    pub enable_vault: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -47,124 +35,81 @@ pub struct ChangeVaultPasswordInput {
 
 #[derive(Debug, Clone)]
 pub struct SecretStoreState {
-    pub(crate) inner: std::sync::Arc<std::sync::Mutex<SecretStoreRuntime>>,
+    pub(crate) inner: Arc<Mutex<SecretStoreRuntime>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct SecretStoreRuntime {
-    pub cached_keyring_available: Option<bool>,
-    pub vault: Option<VaultRuntime>,
-    pub vault_file: Option<Arc<RwLock<VaultFile>>>,
-    pub vault_gate: Arc<RwLock<()>>,
-}
-
-impl Default for SecretStoreRuntime {
-    fn default() -> Self {
-        Self {
-            cached_keyring_available: None,
-            vault: None,
-            vault_file: None,
-            vault_gate: Arc::new(RwLock::new(())),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct VaultRuntime {
-    pub key: [u8; DERIVED_KEY_LEN],
-}
-
-#[derive(Debug, Clone)]
-pub enum SecretLocation {
-    Keyring,
-    Vault,
-    Memory,
+    pub keyring_available: Option<bool>,
+    /// The unwrapped data key while saved passwords are unlocked.
+    pub data_key: Option<SecretKey>,
+    /// A startup problem to show in the status, e.g. a failed migration.
+    pub notice: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SecretLocation {
+    Database,
+    Memory,
+}
+
+/// Where the key that unlocks saved passwords comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SecretStorageMode {
-    Auto,
+    /// The OS credential store; unlocks automatically.
     System,
-    Vault,
-    Hybrid,
+    /// A master password typed by the user.
+    Password,
+    /// Nothing is saved.
     Memory,
 }
 
 impl SecretStorageMode {
+    /// Also accepts the modes from before the database: `auto` and `hybrid`
+    /// unlocked without a password like `system`, `vault` needed one.
     pub(crate) fn from_config_value(value: &str) -> Self {
         match value {
-            "system" => Self::System,
-            "vault" => Self::Vault,
-            "hybrid" => Self::Hybrid,
+            "password" | "vault" => Self::Password,
             "memory" => Self::Memory,
-            _ => Self::Auto,
+            _ => Self::System,
+        }
+    }
+
+    pub(crate) fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "system" => Ok(Self::System),
+            "password" => Ok(Self::Password),
+            "memory" => Ok(Self::Memory),
+            _ => Err("Storage mode must be system, password, or memory.".to_string()),
         }
     }
 
     pub(crate) fn as_str(self) -> &'static str {
         match self {
-            Self::Auto => "auto",
             Self::System => "system",
-            Self::Vault => "vault",
-            Self::Hybrid => "hybrid",
+            Self::Password => "password",
             Self::Memory => "memory",
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-pub(crate) struct VaultConfigFile {
-    #[serde(default)]
-    pub salt_b64: String,
-    #[serde(default = "default_vault_config_version")]
-    pub version: u16,
-    #[serde(default = "default_vault_algorithm")]
-    pub algorithm: String,
-    #[serde(default = "default_vault_kdf")]
-    pub kdf: String,
-    #[serde(default = "default_vault_memory_kib")]
-    pub memory_kib: u32,
-    #[serde(default = "default_vault_iterations")]
-    pub iterations: u32,
-    #[serde(default = "default_vault_parallelism")]
-    pub parallelism: u32,
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub(crate) struct VaultFile {
-    #[serde(default)]
-    pub secrets: Vec<VaultSecretRecord>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub(crate) struct VaultSecretRecord {
-    pub profile_id: String,
-    pub kind: String,
-    pub nonce_b64: String,
-    pub ciphertext_b64: String,
-    pub updated_at: i64,
-}
-
-pub(crate) fn default_vault_config_version() -> u16 {
-    1
-}
-
-pub(crate) fn default_vault_algorithm() -> String {
-    "AES-256-GCM".to_string()
-}
-
-pub(crate) fn default_vault_kdf() -> String {
-    "Argon2id-v1.3".to_string()
-}
-
-pub(crate) fn default_vault_memory_kib() -> u32 {
-    PBKDF_MEMORY_KIB
-}
-
-pub(crate) fn default_vault_iterations() -> u32 {
-    PBKDF_ITERATIONS
-}
-
-pub(crate) fn default_vault_parallelism() -> u32 {
-    PBKDF_PARALLELISM
+    #[test]
+    fn old_modes_map_onto_the_new_ones() {
+        for (old, new) in [
+            ("auto", SecretStorageMode::System),
+            ("system", SecretStorageMode::System),
+            ("hybrid", SecretStorageMode::System),
+            ("vault", SecretStorageMode::Password),
+            ("password", SecretStorageMode::Password),
+            ("memory", SecretStorageMode::Memory),
+            ("", SecretStorageMode::System),
+        ] {
+            assert_eq!(SecretStorageMode::from_config_value(old), new, "{old}");
+        }
+        assert!(SecretStorageMode::parse("hybrid").is_err());
+    }
 }

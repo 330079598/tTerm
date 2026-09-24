@@ -3,7 +3,7 @@ pub mod agent;
 pub mod jump;
 pub(crate) mod key_file;
 pub mod secret_commands;
-mod secret_store;
+pub(crate) mod secret_store;
 pub(crate) mod store;
 mod types;
 

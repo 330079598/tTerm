@@ -215,15 +215,17 @@ export const TTermApp: React.FC = () => {
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const settingsTabTitle = t("settings.title", { defaultValue: SETTINGS_TAB_TITLE })
   const tunnelsTabTitle = t("tunnels.title", { defaultValue: "Port Forwarding" })
+  // Ask for the password when saved passwords are locked but one can unlock
+  // them: the old vault's password to finish moving it, the master password,
+  // or the recovery password when the system credential store key is lost.
   const shouldPromptStartupVaultUnlock =
     isLoaded &&
-    config.secret_vault_enabled &&
-    (config.secret_storage_mode === "vault" ||
-      config.secret_storage_mode === "auto" ||
-      config.secret_storage_mode === "hybrid") &&
-    (config.prompt_unlock_vault_on_startup || config.secret_storage_mode === "hybrid") &&
-    !secretStatus.vaultUnlocked &&
-    !startupVaultUnlockDismissed
+    !secretStatus.unlocked &&
+    !startupVaultUnlockDismissed &&
+    (secretStatus.migrationPending ||
+      (secretStatus.hasMasterPassword &&
+        (secretStatus.storageMode === "system" ||
+          (secretStatus.storageMode === "password" && config.prompt_unlock_vault_on_startup))))
   const startupConnectionsReady = !shouldPromptStartupVaultUnlock
   useTunnelAutoStart(isLoaded && startupConnectionsReady)
   useTunnelQuitGuard(confirm)

@@ -208,6 +208,8 @@ fn default_terminal_shell() -> String {
     "auto".to_string()
 }
 
+/// Older versions' default. It tells the one-time password migration where
+/// passwords were kept; afterwards `hybrid` means the same as `system`.
 fn default_secret_storage_mode() -> String {
     if cfg!(target_os = "windows") {
         "system".to_string()
@@ -450,6 +452,10 @@ pub fn save_config(
     config: AppConfig,
     log_state: tauri::State<'_, crate::session_log::SessionLogState>,
 ) -> Result<(), String> {
+    let mut config = config;
+    // The storage mode changes only through the secret store commands, which
+    // also move the keys; a stale value from the UI must not overwrite it.
+    config.secret_storage_mode = load_config_file()?.secret_storage_mode;
     log_state.validate_config(&config)?;
     save_config_file(&config)?;
     log_state.apply_config(&app, &config)

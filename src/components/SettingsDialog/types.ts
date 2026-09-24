@@ -24,7 +24,6 @@ export type SecretStatusState = ReturnType<typeof useConfig>["secretStatus"]
 export type SaveConfig = ReturnType<typeof useConfig>["saveConfig"]
 export type UpdateLanguage = ReturnType<typeof useConfig>["updateLanguage"]
 export type RefreshSecretStatus = ReturnType<typeof useConfig>["refreshSecretStatus"]
-export type SetSecretVaultEnabled = ReturnType<typeof useConfig>["setSecretVaultEnabled"]
 export type UnlockSecretVault = ReturnType<typeof useConfig>["unlockSecretVault"]
 export type LockSecretVault = ReturnType<typeof useConfig>["lockSecretVault"]
 
@@ -44,5 +43,12 @@ export const languages = [
   { code: "zh", label: "中文", nativeLabel: "Chinese" },
 ]
 
-/** A vault operation in progress, shown as a spinner on its button. */
-export type VaultAction = "unlock" | "lock" | "changePassword"
+/** A saved-password operation in progress, shown as a spinner on its button. */
+export type VaultAction =
+  | "unlock"
+  | "lock"
+  | "changePassword"
+  | "setPassword"
+  | "removePassword"
+  | "mode"
+  | "delete"

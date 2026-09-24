@@ -5444,6 +5444,7 @@ dependencies = [
  "rusqlite",
  "russh",
  "russh-sftp",
+ "security-framework 3.7.0",
  "serde",
  "serde_json",
  "sha2 0.10.9",
