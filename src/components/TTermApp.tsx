@@ -64,6 +64,7 @@ import type {
   TerminalInputRequest,
   TerminalRuntimeState,
 } from "@/types/broadcast"
+import { notifySavedPasswordNotSent } from "@/components/TerminalTab/savedPasswordNotice"
 import type { ConnectionState } from "@/components/TerminalTab/types"
 
 const SETTINGS_TAB_TITLE = "Settings"
@@ -143,7 +144,9 @@ export const TTermApp: React.FC = () => {
   const [isBroadcastPreparing, setIsBroadcastPreparing] = useState(false)
   const broadcastWriteQueueRef = useRef(Promise.resolve())
   const broadcastGenerationRef = useRef(0)
-  const savedPasswordPromptTargetsRef = useRef<Map<string, number>>(new Map())
+  const savedPasswordPromptTargetsRef = useRef<
+    Map<string, { sessionNonce: number; prompt: string }>
+  >(new Map())
   const liveSourceRef = useRef<{ tabId: string; sessionNonce: number } | null>(null)
   const liveStateRef = useRef<LiveBroadcastState>(liveBroadcastState)
   const runtimeStatesRef = useRef(terminalRuntimeStates)
@@ -469,7 +472,7 @@ export const TTermApp: React.FC = () => {
         liveSourceRef.current.sessionNonce === sessionNonce
 
       if (kind === "saved-password") {
-        const source = { tabId, sessionNonce }
+        const source = { tabId, sessionNonce, prompt: data }
         const targets = resolveSavedPasswordInjectionTargets(
           source,
           isLiveSource && liveStateRef.current === "active",
@@ -477,24 +480,28 @@ export const TTermApp: React.FC = () => {
           savedPasswordPromptTargetsRef.current
         )
 
-        await Promise.all(
+        const written = await Promise.all(
           targets.map(async (target) => {
             const tab = tabsRef.current.find((candidate) => candidate.id === target.tabId)
-            if (!tab) return
+            if (!tab) return false
 
             try {
-              await invoke("write_saved_password_for_sudo", {
+              return await invoke<boolean>("write_saved_password_for_sudo", {
                 tabId: target.tabId,
                 sessionNonce: target.sessionNonce,
                 profileId: tab.connection?.profileId,
                 profileName: tab.connection?.profileName,
+                prompt: target.prompt,
               })
             } catch (error) {
               console.error(`Failed to inject saved password into terminal ${target.tabId}`, error)
+              return false
             }
           })
         )
-        return
+        // targets[0] is always the source terminal.
+        if (!written[0]) notifySavedPasswordNotSent(t)
+        return written[0]
       }
 
       if (!isLiveSource) {
@@ -719,10 +726,10 @@ export const TTermApp: React.FC = () => {
   )
 
   const handleTerminalSavedPasswordPromptChange = useCallback(
-    (tabId: string, sessionNonce: number, active: boolean) => {
-      if (active) {
-        savedPasswordPromptTargetsRef.current.set(tabId, sessionNonce)
-      } else if (savedPasswordPromptTargetsRef.current.get(tabId) === sessionNonce) {
+    (tabId: string, sessionNonce: number, prompt: string | null) => {
+      if (prompt !== null) {
+        savedPasswordPromptTargetsRef.current.set(tabId, { sessionNonce, prompt })
+      } else if (savedPasswordPromptTargetsRef.current.get(tabId)?.sessionNonce === sessionNonce) {
         savedPasswordPromptTargetsRef.current.delete(tabId)
       }
     },

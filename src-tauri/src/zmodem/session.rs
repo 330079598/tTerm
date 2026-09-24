@@ -98,7 +98,7 @@ pub struct ZmodemReceiveDriver {
     /// time-limited — simpler, and this is an explicit, rare, user-initiated
     /// action, not passive background scanning.
     manual_override: Arc<AtomicBool>,
-    detect_carry: Vec<u8>,
+    detect_state: detect::DetectState,
     transfer: Option<InFlightTransfer>,
 }
 
@@ -169,7 +169,7 @@ impl ZmodemReceiveDriver {
             download_dir,
             auto_detect_enabled,
             manual_override,
-            detect_carry: Vec::new(),
+            detect_state: detect::DetectState::default(),
             transfer: None,
         }
     }
@@ -206,7 +206,7 @@ impl ZmodemReceiveDriver {
                     send_requested: None,
                 };
             }
-            let scan = detect::scan(&mut self.detect_carry, chunk);
+            let scan = detect::scan(&mut self.detect_state, chunk);
             let mut outcome = ZmodemStepOutcome {
                 passthrough: scan.passthrough,
                 outgoing: Vec::new(),

@@ -47,6 +47,10 @@ export interface ConnectionForm {
   // Jump host chain fields
   useJumpHost: boolean
   jumpHosts: JumpHostForm[]
+  // Sudo password autofill
+  sudoAutofill: boolean
+  sudoPassword: string
+  clearSudoPassword: boolean
 }
 
 export const createDefaultJumpHost = (): JumpHostForm => ({
@@ -85,6 +89,9 @@ export const defaultForm: ConnectionForm = {
   terminalShellCustomArgs: "",
   useJumpHost: false,
   jumpHosts: [],
+  sudoAutofill: true,
+  sudoPassword: "",
+  clearSudoPassword: false,
 }
 
 export const connectionTypes = [

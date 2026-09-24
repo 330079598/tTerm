@@ -460,6 +460,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     await saveSettings({ show_jump_host_connection_info: checked })
   }
 
+  const handleSudoPromptPatternsChange = async (patterns: string[]) => {
+    await saveSettings({ sudo_prompt_patterns: patterns })
+  }
+
   const handleMonitorRefreshIntervalChange = async (seconds: number) => {
     await saveSettings({ monitor_refresh_interval_secs: seconds })
   }
@@ -625,11 +629,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleReconnectEnabledChange={handleReconnectEnabledChange}
               handleReconnectMaxAttemptsChange={handleReconnectMaxAttemptsChange}
               handleShowJumpHostConnectionInfoChange={handleShowJumpHostConnectionInfoChange}
+              handleSudoPromptPatternsChange={handleSudoPromptPatternsChange}
               monitorRefreshIntervalSecs={config.monitor_refresh_interval_secs}
               monitorVisibleMetrics={config.monitor_visible_metrics}
               reconnectEnabled={config.reconnect_enabled}
               reconnectMaxAttempts={config.reconnect_max_attempts}
               showJumpHostConnectionInfo={config.show_jump_host_connection_info}
+              sudoPromptPatterns={config.sudo_prompt_patterns}
             />
           </TabsContent>
 

@@ -194,6 +194,8 @@ pub fn run() {
             core::commands::has_saved_password,
             core::commands::has_saved_jump_host_password,
             core::commands::write_saved_password_for_sudo,
+            core::commands::get_sudo_password_source,
+            core::commands::has_saved_sudo_password,
             zmodem::commands::zmodem_cancel,
             zmodem::commands::zmodem_start_send,
             zmodem::commands::zmodem_arm_manual_detect,

@@ -174,7 +174,7 @@ fn pump_engine(child: &mut Child, expected_direction: ZmodemDirection) -> Vec<u8
     // either: production always routes bytes through `detect::scan` first
     // and only constructs an engine once it reports a trigger. Mirror that
     // here instead of assuming the child's very first byte is a header.
-    let mut carry = Vec::new();
+    let mut detect_state = crate::zmodem::detect::DetectState::default();
     let mut engine: Option<ZmodemEngine> = None;
     loop {
         let n = child_stdout.read(&mut buf).unwrap_or(0);
@@ -184,7 +184,7 @@ fn pump_engine(child: &mut Child, expected_direction: ZmodemDirection) -> Vec<u8
         let result = match engine.as_mut() {
             Some(e) => e.feed(&buf[..n]),
             None => {
-                let outcome = crate::zmodem::detect::scan(&mut carry, &buf[..n]);
+                let outcome = crate::zmodem::detect::scan(&mut detect_state, &buf[..n]);
                 match outcome.triggered {
                     Some((direction, remainder)) => {
                         assert_eq!(

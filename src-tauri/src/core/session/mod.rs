@@ -1,8 +1,8 @@
 mod types;
 
 pub use types::{
-    jump_host_identity_secret_key, jump_host_secret_key, JumpHostOptions, JumpHostPlan,
-    PtyConnectionOptions, SessionPlan, TerminalShellConfig, MAX_JUMP_HOSTS,
+    jump_host_identity_secret_key, jump_host_secret_key, sudo_secret_key, JumpHostOptions,
+    JumpHostPlan, PtyConnectionOptions, SessionPlan, TerminalShellConfig, MAX_JUMP_HOSTS,
 };
 
 use crate::core::state::SessionKind;
@@ -224,6 +224,42 @@ pub fn load_saved_ssh_password(
     }
 
     Ok(None)
+}
+
+/// Which saved password answers a sudo prompt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SudoPasswordSource {
+    /// The profile's dedicated sudo password.
+    Sudo,
+    /// The SSH login password, used when no sudo password is saved.
+    Login,
+}
+
+/// The saved password for a sudo prompt, or `None` when the profile turned
+/// sudo autofill off or has no usable password.
+pub fn load_saved_sudo_password(
+    app: &tauri::AppHandle,
+    secret_state: &crate::ssh::SecretStoreState,
+    profile_id: Option<&str>,
+    profile_name: Option<&str>,
+) -> Result<Option<(zeroize::Zeroizing<String>, SudoPasswordSource)>, String> {
+    let profile_id = profile_id.map(str::trim).filter(|v| !v.is_empty());
+
+    if let Some(profile_id) = profile_id {
+        if crate::profiles::profile_sudo_autofill(profile_id)? == Some(false) {
+            return Ok(None);
+        }
+        let sudo_key = sudo_secret_key(profile_id);
+        if let Some(password) = secret_state.get_password(app, &sudo_key)? {
+            return Ok(Some((password.into(), SudoPasswordSource::Sudo)));
+        }
+    }
+
+    Ok(
+        load_saved_ssh_password(app, secret_state, profile_id, profile_name)?
+            .map(|password| (password.into(), SudoPasswordSource::Login)),
+    )
 }
 
 pub fn load_saved_jump_host_password(

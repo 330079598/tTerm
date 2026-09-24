@@ -21,7 +21,7 @@ describe("isTerminalConnectionUnavailable", () => {
 })
 
 describe("resolveSavedPasswordInjectionTargets", () => {
-  const source = { tabId: "source", sessionNonce: 1 }
+  const source = { tabId: "source", sessionNonce: 1, prompt: "[sudo] password for a:" }
   const targets = [
     { tabId: "ready", sessionNonce: 2 },
     { tabId: "not-prompting", sessionNonce: 3 },
@@ -30,13 +30,13 @@ describe("resolveSavedPasswordInjectionTargets", () => {
 
   it("includes only linked terminals waiting for a saved password", () => {
     const prompts = new Map([
-      ["ready", 2],
-      ["stale", 3],
+      ["ready", { sessionNonce: 2, prompt: "[sudo] password for b:" }],
+      ["stale", { sessionNonce: 3, prompt: "[sudo] password for c:" }],
     ])
 
     expect(resolveSavedPasswordInjectionTargets(source, true, targets, prompts)).toEqual([
       source,
-      targets[0],
+      { ...targets[0], prompt: "[sudo] password for b:" },
     ])
   })
 
@@ -46,7 +46,12 @@ describe("resolveSavedPasswordInjectionTargets", () => {
         source,
         false,
         targets,
-        new Map(targets.map((target) => [target.tabId, target.sessionNonce]))
+        new Map(
+          targets.map((target) => [
+            target.tabId,
+            { sessionNonce: target.sessionNonce, prompt: "Password:" },
+          ])
+        )
       )
     ).toEqual([source])
   })

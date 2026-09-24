@@ -19,11 +19,13 @@ export interface TerminalTabProps {
     sessionNonce: number,
     state: ConnectionState | null
   ) => void
-  onInput?: (request: TerminalInputRequest) => Promise<void>
+  /** Resolves true for a "saved-password" request whose password was written. */
+  onInput?: (request: TerminalInputRequest) => Promise<boolean | void>
   onCommandExecuted?: (command: ExecutedCommand) => void
   onOpenCommandLibrary?: (query?: string) => void
   onSaveCommand?: (commandText: string, profile?: { id: string; name: string }) => void
-  onSavedPasswordPromptChange?: (tabId: string, sessionNonce: number, active: boolean) => void
+  /** Reports the prompt a saved password can answer, or null once it is gone. */
+  onSavedPasswordPromptChange?: (tabId: string, sessionNonce: number, prompt: string | null) => void
   onSessionUnavailable?: (tabId: string, sessionNonce: number, unexpected: boolean) => void
   onSensitivePrompt?: (tabId: string) => void
   onReconnectRequest?: () => void
@@ -40,6 +42,23 @@ export interface TerminalTabProps {
   onPauseBroadcast?: () => void
   onResumeBroadcast?: () => void
   onStopBroadcast?: () => void
+}
+
+/** Which saved password answers a sudo prompt (see `get_sudo_password_source`). */
+export type SudoPasswordSource = "sudo" | "login"
+
+export type SavedPasswordPromptState =
+  | { status: "available"; prompt: string; user: string | null; source: SudoPasswordSource }
+  /** The saved password was just refused; autofill is paused for the session. */
+  | { status: "rejected"; prompt: string; user: string | null }
+
+export type SavedPasswordPromptActions = {
+  /** Sends the saved password; false when no prompt is on offer. */
+  fill: () => boolean
+  /** Hides the offer for the current prompt. */
+  dismiss: () => void
+  /** True while the cursor sits on a password prompt, offered or not. */
+  atPasswordPrompt: () => boolean
 }
 
 export type ConnectionState = "connecting" | "connected" | "disconnected" | "reconnecting" | "error"

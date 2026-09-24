@@ -1530,3 +1530,108 @@ button.server-monitor-metric.is-clickable:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+/* Saved-password offer for a sudo prompt. Drawn outside the xterm canvas so
+   remote output cannot imitate it. */
+.terminal-password-prompt {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(520px, calc(100% - 24px));
+  padding: 8px 8px 8px 12px;
+  border: 1px solid hsl(var(--primary) / 0.45);
+  border-radius: var(--radius);
+  color: hsl(var(--foreground));
+  background: hsl(var(--card));
+  box-shadow: 0 6px 20px hsl(var(--foreground) / 0.12);
+  font-size: calc(12px * var(--ui-font-scale, 1));
+}
+
+.terminal-password-prompt > svg {
+  flex-shrink: 0;
+  color: hsl(var(--primary));
+}
+
+.terminal-password-prompt.is-rejected {
+  border-color: hsl(var(--warning) / 0.5);
+}
+
+.terminal-password-prompt.is-rejected > svg {
+  color: hsl(var(--warning));
+}
+
+.terminal-password-prompt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.terminal-password-prompt-text strong {
+  font-weight: 600;
+}
+
+.terminal-password-prompt-text span {
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.terminal-password-prompt button {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 28px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  cursor: pointer;
+  font: inherit;
+}
+
+.terminal-password-prompt button.primary {
+  padding: 4px 10px;
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
+  font-weight: 600;
+}
+
+.terminal-password-prompt button.primary:hover {
+  background: hsl(var(--primary) / 0.9);
+}
+
+.terminal-password-prompt button.icon {
+  width: 28px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+
+.terminal-password-prompt button.icon:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--muted));
+}
+
+.terminal-password-prompt button:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.terminal-password-prompt kbd {
+  padding: 0 4px;
+  border-radius: calc(var(--radius) - 2px);
+  background: hsl(var(--primary-foreground) / 0.18);
+  font-family: inherit;
+  font-size: 0.9em;
+  font-weight: 500;
+}

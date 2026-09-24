@@ -31,6 +31,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     keepaliveIntervalSecs: profile.keepalive_interval_secs,
     keepaliveCountMax: profile.keepalive_count_max,
     useJumpHost: profile.use_jump_host ?? jumpHosts.length > 0,
+    sudoAutofill: profile.sudo_autofill !== false,
     jumpHosts: jumpHosts.map((jump) => ({
       ...createDefaultJumpHost(),
       host: jump.host ?? "",

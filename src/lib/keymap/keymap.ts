@@ -38,6 +38,7 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   "terminal.find": "mod+f",
   "terminal.clear": "mod+shift+k",
   "terminal.saveSelection": "mod+shift+s",
+  "terminal.fillSavedPassword": "mod+shift+enter",
   "sftp.toggle": "ctrl+t",
   "sftp.selectAll": "mod+a",
   "sftp.focusPath": "mod+l",

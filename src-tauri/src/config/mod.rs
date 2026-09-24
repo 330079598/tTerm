@@ -106,6 +106,10 @@ pub struct AppConfig {
     /// platform Downloads directory at time of use.
     #[serde(default)]
     pub zmodem_download_directory: String,
+    /// Extra sudo password prompt patterns (JavaScript regular expressions)
+    /// matched by the frontend on top of the built-in ones.
+    #[serde(default)]
+    pub sudo_prompt_patterns: Vec<String>,
     #[serde(default = "default_keymap")]
     pub keymap: KeymapConfig,
 }
@@ -368,6 +372,7 @@ impl Default for AppConfig {
             reconnect_max_attempts: default_reconnect_max_attempts(),
             zmodem_auto_detect_enabled: default_zmodem_auto_detect_enabled(),
             zmodem_download_directory: String::new(),
+            sudo_prompt_patterns: Vec::new(),
             keymap: default_keymap(),
         }
     }
@@ -433,7 +438,12 @@ pub fn resolve_reconnect_settings() -> (bool, u32) {
 
     let settings = load_config_file()
         .map(|config| (config.reconnect_enabled, config.reconnect_max_attempts))
-        .unwrap_or_else(|_| (default_reconnect_enabled(), default_reconnect_max_attempts()));
+        .unwrap_or_else(|_| {
+            (
+                default_reconnect_enabled(),
+                default_reconnect_max_attempts(),
+            )
+        });
 
     if let Ok(mut cache) = RECONNECT_SETTINGS_CACHE.write() {
         *cache = Some((mtime, settings.0, settings.1));
@@ -547,9 +557,10 @@ mod tests {
 
     #[test]
     fn keymap_config_ignores_removed_preset_field() {
-        let config: AppConfig =
-            serde_json::from_str(r#"{"theme":"default","keymap":{"preset":"vscode","bindings":{}}}"#)
-                .unwrap();
+        let config: AppConfig = serde_json::from_str(
+            r#"{"theme":"default","keymap":{"preset":"vscode","bindings":{}}}"#,
+        )
+        .unwrap();
 
         assert!(config.keymap.bindings.is_empty());
         assert!(!serde_json::to_string(&config).unwrap().contains("preset"));

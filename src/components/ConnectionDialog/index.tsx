@@ -29,6 +29,7 @@ import {
 } from "@/components/ConnectionDialog/connectionDialogUtils"
 import { JumpHostFields } from "@/components/ConnectionDialog/JumpHostFields"
 import { SshConnectionFields } from "@/components/ConnectionDialog/SshConnectionFields"
+import { SudoAutofillFields } from "@/components/ConnectionDialog/SudoAutofillFields"
 import { TerminalConnectionFields } from "@/components/ConnectionDialog/TerminalConnectionFields"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
 import { getSshConnectionProgressLabel } from "@/components/TerminalTab/terminalTabUtils"
@@ -189,6 +190,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const [testResult, setTestResult] = useState<TestConnectionResultState | null>(null)
   const [testHostKeyPrompt, setTestHostKeyPrompt] = useState<HostKeyPromptState | null>(null)
   const [savedPasswordAvailable, setSavedPasswordAvailable] = useState(false)
+  const [savedSudoPasswordAvailable, setSavedSudoPasswordAvailable] = useState(false)
   const [savedJumpPasswordKeys, setSavedJumpPasswordKeys] = useState<Set<string>>(() => new Set())
   const [jumpHostErrors, setJumpHostErrors] = useState<Record<string, string>>({})
   const loadedJumpPasswordsForProfile = useRef<string | null>(null)
@@ -261,6 +263,23 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
       cancelled = true
     }
   }, [editProfile, form.authMethod, form.type])
+
+  useEffect(() => {
+    if (!editProfile || form.type !== "ssh") {
+      return
+    }
+
+    let cancelled = false
+    invoke<boolean>("has_saved_sudo_password", { profileId: editProfile.id })
+      .then((hasPassword) => {
+        if (!cancelled) setSavedSudoPasswordAvailable(hasPassword)
+      })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
+  }, [editProfile, form.type])
 
   useEffect(() => {
     if (!editProfile || form.type !== "ssh" || !form.useJumpHost) {
@@ -381,6 +400,10 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         server_monitor_visible: editProfile?.server_monitor_visible === true,
         use_jump_host: form.useJumpHost,
         jump_hosts: profileJumpHostsPayload,
+        sudo_autofill: form.sudoAutofill,
+        sudo_password:
+          form.sudoAutofill && form.sudoPassword.length > 0 ? form.sudoPassword : undefined,
+        clear_sudo_password: form.clearSudoPassword,
       }
       const result = await invokeSafe<void>(
         "save_profile",
@@ -674,6 +697,11 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
                     return remaining
                   })
                 }
+              />
+              <SudoAutofillFields
+                form={form}
+                setForm={setForm}
+                savedSudoPasswordAvailable={savedSudoPasswordAvailable}
               />
             </>
           )}

@@ -70,6 +70,8 @@ pub struct ActiveSsh {
     pub input_tx: mpsc::UnboundedSender<Vec<u8>>,
     pub resize_tx: mpsc::UnboundedSender<(u16, u16)>,
     pub task: tokio::task::JoinHandle<()>,
+    /// Recent output of this connection attempt, for saved-password writes.
+    pub output_tail: Arc<crate::terminal::OutputTail>,
 }
 
 /// Lock-free atomic storage for terminal dimensions (rows, cols).

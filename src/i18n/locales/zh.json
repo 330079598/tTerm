@@ -229,7 +229,12 @@
     "tabWidthStandard": "标准宽度",
     "tabStandardWidth": "标准宽度",
     "tabStandardWidthRange": "80-300px",
-    "interface": "界面"
+    "interface": "界面",
+    "sudoAutofill": "sudo 密码自动填充",
+    "sudoAutofillDesc": "识别可以用已保存密码回答的密码提示。",
+    "sudoPromptPatterns": "自定义提示符规则",
+    "sudoPromptPatternsDesc": "每行一个 JavaScript 正则表达式，匹配去除首尾空白后的提示行，提示必须以冒号结尾。命名分组 (?<user>...) 会要求与连接用户一致。已内置：各语言的 sudo、sudo-rs、doas。",
+    "sudoPromptPatternsInvalid": "无效的正则表达式：{{pattern}}"
   },
   "keymap": {
     "title": "键盘快捷键",
@@ -274,7 +279,8 @@
       "terminal": {
         "find": "在终端中查找",
         "clear": "清空终端",
-        "saveSelection": "将选中文本收藏为命令"
+        "saveSelection": "将选中文本收藏为命令",
+        "fillSavedPassword": "在 sudo 提示时填入已保存密码"
       },
       "sftp": {
         "toggle": "切换 SFTP 面板",
@@ -980,7 +986,16 @@
       "wsl": "Windows Subsystem for Linux (WSL)",
       "gitBash": "Git Bash",
       "custom": "自定义可执行文件"
-    }
+    },
+    "sudoAutofill": "sudo 提示时提供已保存的密码",
+    "sudoAutofillDesc": "sudo 请求该用户的密码时，显示一个提示条，可点击或用快捷键填入。不会自动发送。",
+    "sudoPassword": "sudo 密码",
+    "sudoPasswordPlaceholder": "可选",
+    "sudoPasswordLoginFallbackPlaceholder": "可选，留空则使用登录密码",
+    "sudoPasswordSavedPlaceholder": "已保存，留空保持不变",
+    "sudoPasswordHint": "随连接配置保存（保存并连接）。适用于密钥或 Agent 登录的主机。",
+    "sudoPasswordClear": "清除",
+    "sudoPasswordClearHint": "保存连接配置时将删除已保存的 sudo 密码。"
   },
   "rename": {
     "title": "重命名标签页",
@@ -1265,7 +1280,8 @@
     "revealSavedSecretFailed": "无法显示已保存密码，请先解锁。",
     "secretKinds": {
       "ssh": "SSH 密码",
-      "jumpHost": "跳板机密码"
+      "jumpHost": "跳板机密码",
+      "sudo": "sudo 密码"
     }
   },
   "transfer": {
@@ -1596,5 +1612,17 @@
     "reload": "重新加载",
     "save": "保存",
     "loading": "正在加载远程文件..."
+  },
+  "sudoAutofill": {
+    "promptForUser": "sudo 正在请求 {{user}} 的密码",
+    "promptGeneric": "检测到密码提示",
+    "sourceSudo": "使用「{{profile}}」保存的 sudo 密码 · {{target}}",
+    "sourceLogin": "使用「{{profile}}」的登录密码 · {{target}}",
+    "fill": "填入",
+    "dismiss": "忽略",
+    "rejectedTitle": "已保存的密码被拒绝",
+    "rejectedDescription": "本次会话已暂停自动填充。请手动输入，或在连接配置中更新密码。",
+    "notSentTitle": "密码未发送",
+    "notSentDescription": "密码提示已不在等待输入，因此没有发送已保存的密码。"
   }
 }

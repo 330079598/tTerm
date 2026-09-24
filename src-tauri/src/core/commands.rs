@@ -493,6 +493,7 @@ mod batch_write_tests {
                 input_tx,
                 resize_tx,
                 task: runtime.spawn(async {}),
+                output_tail: Default::default(),
             },
         ))));
         (
@@ -749,6 +750,37 @@ pub fn has_saved_jump_host_password(
     .is_some())
 }
 
+/// The saved password a sudo prompt in this profile would be answered with.
+#[tauri::command]
+pub fn get_sudo_password_source(
+    app: AppHandle,
+    profile_id: Option<String>,
+    profile_name: Option<String>,
+    secret_state: State<'_, crate::ssh::SecretStoreState>,
+) -> Result<Option<super::session::SudoPasswordSource>, String> {
+    Ok(super::session::load_saved_sudo_password(
+        &app,
+        &secret_state,
+        profile_id.as_deref(),
+        profile_name.as_deref(),
+    )?
+    .map(|(_, source)| source))
+}
+
+#[tauri::command]
+pub fn has_saved_sudo_password(
+    app: AppHandle,
+    profile_id: String,
+    secret_state: State<'_, crate::ssh::SecretStoreState>,
+) -> Result<bool, String> {
+    Ok(secret_state
+        .get_password(&app, &super::session::sudo_secret_key(profile_id.trim()))?
+        .is_some())
+}
+
+/// Writes the saved sudo password to an SSH session, but only while `prompt`
+/// is still the session's last output line. Returns false when there is no
+/// saved password, the session moved on, or the prompt is no longer waiting.
 #[tauri::command]
 pub fn write_saved_password_for_sudo(
     app: AppHandle,
@@ -756,19 +788,10 @@ pub fn write_saved_password_for_sudo(
     session_nonce: u32,
     profile_id: Option<String>,
     profile_name: Option<String>,
+    prompt: String,
     state: State<'_, PtyMap>,
     secret_state: State<'_, crate::ssh::SecretStoreState>,
 ) -> Result<bool, String> {
-    let Some(password) = super::session::load_saved_ssh_password(
-        &app,
-        &secret_state,
-        profile_id.as_deref(),
-        profile_name.as_deref(),
-    )?
-    else {
-        return Ok(false);
-    };
-
     let map = state.blocking_read();
     let session = map
         .get(&tab_id)
@@ -781,22 +804,31 @@ pub fn write_saved_password_for_sudo(
     let active = active_guard
         .as_mut()
         .ok_or_else(|| format!("PTY session {} is reconnecting", tab_id))?;
+    let ActiveSession::Ssh(ssh) = active else {
+        return Err("Saved SSH password cannot be written to a local terminal.".to_string());
+    };
+    if !ssh.output_tail.awaits_prompt(&prompt) {
+        return Ok(false);
+    }
 
-    let mut data = password.into_bytes();
+    let Some((password, _)) = super::session::load_saved_sudo_password(
+        &app,
+        &secret_state,
+        profile_id.as_deref(),
+        profile_name.as_deref(),
+    )?
+    else {
+        return Ok(false);
+    };
+
+    // The channel takes ownership, so only this copy can be wiped here.
+    let mut data = zeroize::Zeroizing::new(Vec::with_capacity(password.len() + 1));
+    data.extend_from_slice(password.as_bytes());
     data.push(b'\n');
 
-    let result = match active {
-        ActiveSession::Local(_) => {
-            Err("Saved SSH password cannot be written to a local terminal.".to_string())
-        }
-        ActiveSession::Ssh(ssh) => ssh
-            .input_tx
-            .send(data)
-            .map(|_| true)
-            .map_err(|_| format!("PTY session {} is not writable", tab_id)),
-    };
-    if matches!(result, Ok(true)) {
-        crate::session_log::record_credential_injection(&app, &tab_id);
-    }
-    result
+    ssh.input_tx
+        .send(data.to_vec())
+        .map_err(|_| format!("PTY session {} is not writable", tab_id))?;
+    crate::session_log::record_credential_injection(&app, &tab_id);
+    Ok(true)
 }

@@ -16,9 +16,13 @@ import { getConnectionDisplay } from "@/components/TerminalTab/terminalTabUtils"
 import type {
   ConnectionState,
   HostKeyPromptState,
+  SavedPasswordPromptActions,
+  SavedPasswordPromptState,
   SshConnectionProgress,
+  SudoPasswordSource,
   TerminalTabProps,
 } from "@/components/TerminalTab/types"
+import { notifySavedPasswordNotSent } from "@/components/TerminalTab/savedPasswordNotice"
 import { resolveScrollbackLines } from "@/lib/scrollback"
 import type { TerminalRenderer } from "@/contexts/ConfigContext"
 import { safePreloadFont, updateCanvasFontHostFont } from "@/lib/canvasFontHost"
@@ -28,6 +32,7 @@ import {
   scanTerminalOutput,
   type TerminalOutputScanState,
 } from "@/lib/terminalOutputScanner"
+import { matchPasswordPrompt, readCursorLine, type PasswordPromptMatch } from "@/lib/sudoPrompt"
 import {
   captureTerminalInput,
   EMPTY_COMMAND_CAPTURE_STATE,
@@ -71,7 +76,9 @@ type UseTerminalLifecycleOptions = {
   >
   onSessionUnavailableRef: React.MutableRefObject<TerminalTabProps["onSessionUnavailable"]>
   onSensitivePromptRef: React.MutableRefObject<TerminalTabProps["onSensitivePrompt"]>
-  passwordPromptActiveRef: React.MutableRefObject<boolean>
+  savedPasswordPromptActionsRef: React.MutableRefObject<SavedPasswordPromptActions | null>
+  setSavedPasswordPrompt: (value: SavedPasswordPromptState | null) => void
+  sudoPromptPatternsRef: React.MutableRefObject<readonly RegExp[]>
   resizeObserverRef: React.MutableRefObject<ResizeObserver | null>
   resizePtySyncTimerRef: React.MutableRefObject<number | null>
   resizeRafRef: React.MutableRefObject<number | null>
@@ -108,6 +115,12 @@ function isLinkOpenModifierPressed(event: MouseEvent) {
   return LINK_MODIFIER_IS_CMD ? event.metaKey : event.ctrlKey
 }
 
+/**
+ * The same prompt returning this soon after a fill means the password was
+ * refused; sudo's failure delay is about two seconds.
+ */
+const PASSWORD_REJECT_WINDOW_MS = 20_000
+
 export function useTerminalLifecycle({
   activateFitTimerRef,
   connectionRef,
@@ -137,7 +150,9 @@ export function useTerminalLifecycle({
   onSavedPasswordPromptChangeRef,
   onSessionUnavailableRef,
   onSensitivePromptRef,
-  passwordPromptActiveRef,
+  savedPasswordPromptActionsRef,
+  setSavedPasswordPrompt,
+  sudoPromptPatternsRef,
   resizeObserverRef,
   resizePtySyncTimerRef,
   resizeRafRef,
@@ -241,7 +256,7 @@ export function useTerminalLifecycle({
     const onSavedPasswordPromptChange = onSavedPasswordPromptChangeRef.current
     initializedRef.current = true
     waitingForReconnectRef.current = false
-    passwordPromptActiveRef.current = false
+    setSavedPasswordPrompt(null)
 
     // Ensure WebKit resolves the local font on the canvas font host and container before warmUp
     updateCanvasFontHostFont(fontFamilyRef.current, fontSizeRef.current)
@@ -344,8 +359,22 @@ export function useTerminalLifecycle({
     let commandCaptureSuspended = false
     let lastEmittedCommand: { text: string; at: number } | null = null
     let outputScanState: TerminalOutputScanState = EMPTY_OUTPUT_SCAN_STATE
-    let activeSudoPromptUser: string | null = null
     let lastConnectionState: ConnectionState = "connecting"
+    // Line feeds seen so far: a prompt printed again after a newline (sudo
+    // retrying) gets a new key even when it lands on the same screen row.
+    let lineFeedCount = 0
+    // Key of the password prompt at the cursor, so each prompt is offered once.
+    let currentPromptKey: string | null = null
+    // Key of the prompt the user already answered (typed, dismissed, or
+    // filled). sudo-rs echoes `*` per key, so erasing them brings the bare
+    // prompt line back; that is the same prompt and must not be offered again.
+    let answeredPromptKey: string | null = null
+    let offeredPrompt: { prompt: string; user: string | null; source: SudoPasswordSource } | null =
+      null
+    let lastPasswordFill: { prompt: string; at: number } | null = null
+    // Set once a filled password is refused; stays for this session so a
+    // stale password cannot burn through the remote's lockout budget.
+    let savedPasswordRejected = false
 
     // Every state change in this effect must go through these two helpers so
     // lastConnectionState stays in sync; otherwise the output-driven
@@ -360,43 +389,122 @@ export function useTerminalLifecycle({
       applyConnectionState(next)
     }
 
-    const handleSudoPrompt = (promptUsername: string) => {
-      const currentPasswordPromptCheckId = ++passwordPromptCheckId
+    const clearSavedPasswordOffer = () => {
+      // Invalidates any in-flight source lookup so it cannot revive the offer.
+      passwordPromptCheckId += 1
+      if (offeredPrompt) {
+        offeredPrompt = null
+        onSavedPasswordPromptChange?.(tabId, sessionNonce, null)
+      }
+      setSavedPasswordPrompt(null)
+    }
+
+    const answerCurrentPrompt = () => {
+      if (currentPromptKey !== null) answeredPromptKey = currentPromptKey
+      clearSavedPasswordOffer()
+    }
+
+    const handlePasswordPrompt = (match: PasswordPromptMatch) => {
       commandCaptureSuspended = true
       commandCaptureState = EMPTY_COMMAND_CAPTURE_STATE
-      const savedUsername = connectionRef.current?.username
-      const profileId = connectionRef.current?.profileId
-      const profileName = connectionRef.current?.profileName
+      const connection = connectionRef.current
+      const profileId = connection?.profileId
+      const profileName = connection?.profileName
 
-      if (savedUsername && promptUsername === savedUsername && profileName) {
-        passwordPromptActiveRef.current = true
-        invoke<boolean>("has_saved_password", {
-          profileId,
-          profileName,
-        })
-          .then((hasPassword) => {
-            if (disposed || currentPasswordPromptCheckId !== passwordPromptCheckId) return
-            if (hasPassword) {
-              passwordPromptActiveRef.current = true
-              onSavedPasswordPromptChange?.(tabId, sessionNonce, true)
-              const pasteHint =
-                "\x1b[100m\x1b[36m tTerm \x1b[0m " +
-                "\x1b[90mPress Enter to paste saved password\x1b[0m"
-              term.write(pasteHint)
-            } else {
-              passwordPromptActiveRef.current = false
-              onSensitivePromptRef.current?.(tabId)
-            }
-          })
-          .catch((err) => {
-            if (disposed || currentPasswordPromptCheckId !== passwordPromptCheckId) return
-            passwordPromptActiveRef.current = false
-            console.error("Failed to get saved password:", err)
-            onSensitivePromptRef.current?.(tabId)
-          })
-      } else {
+      const fill = lastPasswordFill
+      lastPasswordFill = null
+      if (
+        fill &&
+        fill.prompt === match.prompt &&
+        Date.now() - fill.at < PASSWORD_REJECT_WINDOW_MS
+      ) {
+        savedPasswordRejected = true
+        setSavedPasswordPrompt({ status: "rejected", prompt: match.prompt, user: match.user })
         onSensitivePromptRef.current?.(tabId)
+        return
       }
+
+      // A prompt naming another account (su, sudo -u with targetpw, a nested
+      // login) must never receive this profile's password.
+      const userMatches = match.user === null || match.user === connection?.username
+      if (savedPasswordRejected || !userMatches || !(profileId || profileName)) {
+        onSensitivePromptRef.current?.(tabId)
+        return
+      }
+
+      const checkId = ++passwordPromptCheckId
+      invoke<SudoPasswordSource | null>("get_sudo_password_source", { profileId, profileName })
+        .then((source) => {
+          if (disposed || checkId !== passwordPromptCheckId) return
+          if (!source) {
+            onSensitivePromptRef.current?.(tabId)
+            return
+          }
+          offeredPrompt = { prompt: match.prompt, user: match.user, source }
+          onSavedPasswordPromptChange?.(tabId, sessionNonce, match.prompt)
+          setSavedPasswordPrompt({ status: "available", ...offeredPrompt })
+        })
+        .catch((err) => {
+          if (disposed || checkId !== passwordPromptCheckId) return
+          console.error("Failed to look up saved sudo password:", err)
+          onSensitivePromptRef.current?.(tabId)
+        })
+    }
+
+    // Runs after each output chunk is parsed, on the line under the cursor, so
+    // escape sequences, split chunks, and tmux redraws are already resolved.
+    const checkPasswordPrompt = () => {
+      if (disposed || connectionRef.current?.type !== "ssh") return
+      const line = readCursorLine(term.buffer.active)
+      const match = matchPasswordPrompt(
+        line,
+        connectionRef.current.username,
+        sudoPromptPatternsRef.current
+      )
+      const key = match ? `${lineFeedCount}:${match.prompt}` : null
+      if (key === currentPromptKey) return
+      currentPromptKey = key
+      clearSavedPasswordOffer()
+      if (match && key !== answeredPromptKey) handlePasswordPrompt(match)
+    }
+
+    const fillSavedPassword = (): boolean => {
+      const offer = offeredPrompt
+      if (!offer) return false
+      answerCurrentPrompt()
+      commandCaptureState = EMPTY_COMMAND_CAPTURE_STATE
+      commandCaptureSuspended = false
+
+      // Only a write the backend accepted can be refused by the remote.
+      const onWritten = (written: boolean | void) => {
+        if (written && !disposed) lastPasswordFill = { prompt: offer.prompt, at: Date.now() }
+      }
+      const onInput = onInputRef.current
+      if (onInput) {
+        onInput({ tabId, sessionNonce, data: offer.prompt, kind: "saved-password" })
+          .then(onWritten)
+          .catch(console.error)
+      } else {
+        invoke<boolean>("write_saved_password_for_sudo", {
+          tabId,
+          sessionNonce,
+          profileId: connectionRef.current?.profileId,
+          profileName: connectionRef.current?.profileName,
+          prompt: offer.prompt,
+        })
+          .then((written) => {
+            if (!written) notifySavedPasswordNotSent(translationRef.current)
+            onWritten(written)
+          })
+          .catch(console.error)
+      }
+      return true
+    }
+
+    savedPasswordPromptActionsRef.current = {
+      fill: fillSavedPassword,
+      dismiss: answerCurrentPrompt,
+      atPasswordPrompt: () => currentPromptKey !== null,
     }
 
     const emitExecutedCommand = (commandText: string) => {
@@ -404,6 +512,8 @@ export function useTerminalLifecycle({
       if (!normalized) return
       const now = Date.now()
       if (lastEmittedCommand?.text === normalized && now - lastEmittedCommand.at < 1500) return
+      // A new command means the last fill's sudo run is over.
+      lastPasswordFill = null
       lastEmittedCommand = { text: normalized, at: now }
       const connection = connectionRef.current
       onCommandExecutedRef.current?.({
@@ -422,6 +532,10 @@ export function useTerminalLifecycle({
       })
     )
 
+    const lineFeedDisposable = term.onLineFeed(() => {
+      lineFeedCount += 1
+    })
+
     term.onData((data) => {
       if (waitingForReconnectRef.current) {
         waitingForReconnectRef.current = false
@@ -430,35 +544,9 @@ export function useTerminalLifecycle({
         return
       }
 
-      if (passwordPromptActiveRef.current) {
-        passwordPromptCheckId += 1
-        term.write("\r\x1b[K")
-        passwordPromptActiveRef.current = false
-        activeSudoPromptUser = null
-        onSavedPasswordPromptChange?.(tabId, sessionNonce, false)
-
-        if (data === "\r") {
-          commandCaptureState = EMPTY_COMMAND_CAPTURE_STATE
-          commandCaptureSuspended = false
-          const onInput = onInputRef.current
-          if (onInput) {
-            void onInput({ tabId, sessionNonce, data: "", kind: "saved-password" }).catch(
-              console.error
-            )
-          } else {
-            invoke("write_saved_password_for_sudo", {
-              tabId,
-              sessionNonce,
-              profileId: connectionRef.current?.profileId,
-              profileName: connectionRef.current?.profileName,
-            }).catch(console.error)
-          }
-          return
-        }
-
-        invoke("write_pty", { tabId, sessionNonce, data }).catch(console.error)
-        return
-      }
+      // Typing at the prompt means the user answers it; replies the terminal
+      // itself sends (focus, cursor reports) start with ESC and do not count.
+      if (!data.startsWith("\x1b")) answerCurrentPrompt()
 
       if (commandCaptureSuspended) {
         if (data.includes("\r") || data.includes("\n") || data.includes("\x03")) {
@@ -521,27 +609,7 @@ export function useTerminalLifecycle({
         setConnectionStateIfChanged("connected")
       }
 
-      if (scanned.sudoPromptUser !== null) {
-        // A \r or \n in this chunk means the prompt line started fresh in it
-        // (e.g. sudo retrying after a wrong password), so re-arm even for the
-        // same user; without it, only a username change re-triggers.
-        const promptLineStartedInChunk = /[\r\n]/.test(text)
-        if (scanned.sudoPromptUser !== activeSudoPromptUser || promptLineStartedInChunk) {
-          handleSudoPrompt(scanned.sudoPromptUser)
-        }
-        activeSudoPromptUser = scanned.sudoPromptUser
-      } else if (activeSudoPromptUser !== null) {
-        activeSudoPromptUser = null
-        // Invalidate any in-flight has_saved_password reply so it cannot
-        // revive the prompt after the output stream moved past it.
-        passwordPromptCheckId += 1
-        if (passwordPromptActiveRef.current) {
-          passwordPromptActiveRef.current = false
-          onSavedPasswordPromptChange?.(tabId, sessionNonce, false)
-        }
-      }
-
-      term.write(text)
+      term.write(text, checkPasswordPrompt)
     }
 
     const outputChannel = new Channel<ArrayBuffer>(handleTerminalOutput)
@@ -678,6 +746,8 @@ export function useTerminalLifecycle({
     return () => {
       disposed = true
       passwordPromptCheckId += 1
+      savedPasswordPromptActionsRef.current = null
+      lineFeedDisposable.dispose()
 
       resizeObserver.disconnect()
       resizeObserverRef.current = null
@@ -724,8 +794,8 @@ export function useTerminalLifecycle({
       lastPtySizeRef.current = null
       creatingPtyRef.current = false
       waitingForReconnectRef.current = false
-      passwordPromptActiveRef.current = false
-      onSavedPasswordPromptChange?.(tabId, sessionNonce, false)
+      setSavedPasswordPrompt(null)
+      onSavedPasswordPromptChange?.(tabId, sessionNonce, null)
       for (const disposable of scrollbackDisposables) disposable.dispose()
       for (const disposable of shellIntegrationDisposables) disposable.dispose()
       container.classList.remove("xterm-has-scrollback")
@@ -752,7 +822,9 @@ export function useTerminalLifecycle({
     onSavedPasswordPromptChangeRef,
     onSessionUnavailableRef,
     onSensitivePromptRef,
-    passwordPromptActiveRef,
+    savedPasswordPromptActionsRef,
+    setSavedPasswordPrompt,
+    sudoPromptPatternsRef,
     rendererRef,
     resizeObserverRef,
     resizePtySyncTimerRef,

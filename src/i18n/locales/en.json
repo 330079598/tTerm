@@ -238,7 +238,12 @@
     "tabWidthStandard": "Standard width",
     "tabStandardWidth": "Standard width",
     "tabStandardWidthRange": "80-300px",
-    "interface": "Interface"
+    "interface": "Interface",
+    "sudoAutofill": "Sudo password autofill",
+    "sudoAutofillDesc": "Recognize password prompts that a saved password can answer.",
+    "sudoPromptPatterns": "Custom prompt patterns",
+    "sudoPromptPatternsDesc": "One JavaScript regular expression per line, matched against the prompt line (trimmed). The prompt must end with a colon. A named group (?<user>...) restricts it to the profile's user. Built in: sudo in any locale, sudo-rs, doas.",
+    "sudoPromptPatternsInvalid": "Invalid regular expression: {{pattern}}"
   },
   "keymap": {
     "title": "Keyboard shortcuts",
@@ -283,7 +288,8 @@
       "terminal": {
         "find": "Find in terminal",
         "clear": "Clear terminal",
-        "saveSelection": "Save selected text as command"
+        "saveSelection": "Save selected text as command",
+        "fillSavedPassword": "Fill saved password at sudo prompt"
       },
       "sftp": {
         "toggle": "Toggle SFTP panel",
@@ -989,7 +995,16 @@
       "wsl": "Windows Subsystem for Linux (WSL)",
       "gitBash": "Git Bash",
       "custom": "Custom executable"
-    }
+    },
+    "sudoAutofill": "Offer saved password at sudo prompts",
+    "sudoAutofillDesc": "When sudo asks for this user's password, show a bar to fill it with one click or a shortcut. Nothing is sent automatically.",
+    "sudoPassword": "Sudo password",
+    "sudoPasswordPlaceholder": "Optional",
+    "sudoPasswordLoginFallbackPlaceholder": "Optional, the login password is used if empty",
+    "sudoPasswordSavedPlaceholder": "Saved, leave empty to keep it",
+    "sudoPasswordHint": "Saved with the profile (Save & connect). Useful for key or agent logins.",
+    "sudoPasswordClear": "Clear",
+    "sudoPasswordClearHint": "The saved sudo password will be removed when the profile is saved."
   },
   "rename": {
     "title": "Rename Tab",
@@ -1274,7 +1289,8 @@
     "revealSavedSecretFailed": "Unable to show the saved password. Unlock saved passwords first.",
     "secretKinds": {
       "ssh": "SSH password",
-      "jumpHost": "Jump host password"
+      "jumpHost": "Jump host password",
+      "sudo": "Sudo password"
     }
   },
   "transfer": {
@@ -1606,5 +1622,17 @@
     "reload": "Reload",
     "save": "Save",
     "loading": "Loading remote file..."
+  },
+  "sudoAutofill": {
+    "promptForUser": "sudo is asking for {{user}}'s password",
+    "promptGeneric": "Password prompt detected",
+    "sourceSudo": "Use the sudo password saved in “{{profile}}” · {{target}}",
+    "sourceLogin": "Use the login password of “{{profile}}” · {{target}}",
+    "fill": "Fill",
+    "dismiss": "Dismiss",
+    "rejectedTitle": "Saved password was rejected",
+    "rejectedDescription": "Autofill is paused for this session. Type the password, or update it in the connection settings.",
+    "notSentTitle": "Password not sent",
+    "notSentDescription": "The password prompt was no longer waiting for input, so the saved password was not sent."
   }
 }

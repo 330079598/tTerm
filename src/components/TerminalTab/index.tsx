@@ -11,6 +11,7 @@ import { SftpDrawer } from "@/components/SftpDrawer"
 import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
 import { JumpHostInfoDialog } from "@/components/TerminalTab/JumpHostInfoDialog"
+import { SavedPasswordPromptBar } from "@/components/TerminalTab/SavedPasswordPromptBar"
 import { ServerMonitorBar } from "@/components/TerminalTab/ServerMonitorBar"
 import { TerminalSearchBar } from "@/components/TerminalTab/TerminalSearchBar"
 import { useTerminalSearch } from "@/components/TerminalTab/useTerminalSearch"
@@ -20,6 +21,8 @@ import { TAB_ACTIVATE_REFIT_DELAY_MS } from "@/components/TerminalTab/terminalTa
 import type {
   ConnectionState,
   HostKeyPromptState,
+  SavedPasswordPromptActions,
+  SavedPasswordPromptState,
   SshConnectionProgress,
   TerminalTabProps,
 } from "@/components/TerminalTab/types"
@@ -31,6 +34,7 @@ import { useTheme } from "@/contexts/ThemeContext"
 import { useStableRef } from "@/hooks/useStableRef"
 import { resolveScrollbackLines } from "@/lib/scrollback"
 import { safePreloadFont, updateCanvasFontHostFont } from "@/lib/canvasFontHost"
+import { compilePromptPatterns } from "@/lib/sudoPrompt"
 import { toErrorMessage } from "@/lib/utils"
 import type { TabContextMenuAction } from "@/types/tab"
 
@@ -98,7 +102,15 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const configTerminalRendererRef = useStableRef<TerminalRenderer>(config.terminal_renderer)
   const sessionResetKey = `${tabId}:${sessionNonce}:${connection?.type ?? "terminal"}`
   const defaultConnectionState: ConnectionState = "connecting"
-  const passwordPromptActiveRef = useRef(false)
+  const savedPasswordPromptActionsRef = useRef<SavedPasswordPromptActions | null>(null)
+  const [savedPasswordPrompt, setSavedPasswordPrompt] = useState<SavedPasswordPromptState | null>(
+    null
+  )
+  const sudoPromptPatterns = useMemo(
+    () => compilePromptPatterns(config.sudo_prompt_patterns),
+    [config.sudo_prompt_patterns]
+  )
+  const sudoPromptPatternsRef = useStableRef(sudoPromptPatterns)
   const lastJumpHostReadyKeyRef = useRef<string | null>(null)
 
   const [hostKeyPromptState, setHostKeyPromptState] = useState<{
@@ -148,7 +160,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     termRef,
   })
 
-  const { registerHandler } = useKeymap()
+  const { bindings, registerHandler } = useKeymap()
 
   const hostKeyPrompt =
     hostKeyPromptState?.sessionKey === sessionResetKey ? hostKeyPromptState.value : null
@@ -304,7 +316,9 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     onSavedPasswordPromptChangeRef,
     onSessionUnavailableRef,
     onSensitivePromptRef,
-    passwordPromptActiveRef,
+    savedPasswordPromptActionsRef,
+    setSavedPasswordPrompt,
+    sudoPromptPatternsRef,
     resizeObserverRef,
     resizePtySyncTimerRef,
     resizeRafRef,
@@ -722,6 +736,18 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       if (!isActiveRef.current) return false
       void armZmodemManualTrigger("receive")
     })
+    const unregisterFillSavedPassword = registerHandler("terminal.fillSavedPassword", () => {
+      if (!isActiveRef.current) return false
+      const actions = savedPasswordPromptActionsRef.current
+      if (!actions) return false
+      if (actions.fill()) {
+        termRef.current?.focus()
+        return
+      }
+      // Declining would let xterm send the combo as Enter, submitting a
+      // half-typed password; at a password prompt the chord is a no-op.
+      if (!actions.atPasswordPrompt()) return false
+    })
     const unregisterSaveSelection = registerHandler("terminal.saveSelection", () => {
       if (!isActiveRef.current) return false
       if (!containerRef.current?.contains(document.activeElement)) return false
@@ -741,6 +767,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       unregisterZmodemSend()
       unregisterZmodemReceive()
       unregisterSaveSelection()
+      unregisterFillSavedPassword()
     }
   }, [
     armZmodemManualTrigger,
@@ -874,6 +901,22 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
             actions={terminalMenuActions}
             onAction={(action) => void handleTerminalMenuAction(action)}
             onClose={() => setTerminalContextMenu(null)}
+          />
+        )}
+
+        {savedPasswordPrompt && (
+          <SavedPasswordPromptBar
+            connection={connection}
+            fillShortcut={bindings["terminal.fillSavedPassword"]?.[0]}
+            onDismiss={() => {
+              savedPasswordPromptActionsRef.current?.dismiss()
+              termRef.current?.focus()
+            }}
+            onFill={() => {
+              savedPasswordPromptActionsRef.current?.fill()
+              termRef.current?.focus()
+            }}
+            state={savedPasswordPrompt}
           />
         )}
 

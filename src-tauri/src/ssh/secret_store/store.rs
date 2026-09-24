@@ -113,8 +113,8 @@ pub(crate) fn get_secret(
         .transpose()
 }
 
-/// Saves a secret. A key that names an existing profile (its id, or a jump
-/// host key starting with it) is linked to the profile so it is deleted with it.
+/// Saves a secret. A key that names an existing profile (its id, a jump
+/// host key starting with it, or its `:sudo` key) is linked to the profile so it is deleted with it.
 pub(crate) fn put_secret(
     connection: &Connection,
     data_key: &SecretKey,
@@ -130,7 +130,8 @@ pub(crate) fn put_secret(
         .execute(
             "INSERT INTO secrets (key, profile_id, nonce, ciphertext, updated_at) \
              VALUES (?1, (SELECT id FROM profiles WHERE id IN (?1, \
-                 CASE WHEN instr(?1, ':jump:') > 0 THEN substr(?1, 1, instr(?1, ':jump:') - 1) END)), \
+                 CASE WHEN instr(?1, ':jump:') > 0 THEN substr(?1, 1, instr(?1, ':jump:') - 1) END, \
+                 CASE WHEN substr(?1, -5) = ':sudo' THEN substr(?1, 1, length(?1) - 5) END)), \
                  ?2, ?3, ?4) \
              ON CONFLICT(key) DO UPDATE SET profile_id = excluded.profile_id, \
              nonce = excluded.nonce, ciphertext = excluded.ciphertext, updated_at = excluded.updated_at",
@@ -268,7 +269,9 @@ mod tests {
                 insert_profile(connection, "p1");
                 put_secret(connection, &data_key, "p1", "target")?;
                 put_secret(connection, &data_key, "p1:jump:bastion:22:root", "jump")?;
+                put_secret(connection, &data_key, "p1:sudo", "sudo")?;
                 put_secret(connection, &data_key, "legacy-name", "old")?;
+                assert_eq!(profile_of(connection, "p1:sudo").as_deref(), Some("p1"));
                 assert_eq!(profile_of(connection, "p1").as_deref(), Some("p1"));
                 assert_eq!(
                     profile_of(connection, "p1:jump:bastion:22:root").as_deref(),
@@ -297,8 +300,12 @@ mod tests {
             .write(|connection| {
                 put_secret(connection, &data_key, "p2", "pw")?;
                 put_secret(connection, &data_key, "p2:jump:h:22:u", "pw")?;
+                put_secret(connection, &data_key, "p2:sudo", "pw")?;
                 put_secret(connection, &data_key, "p20", "other profile")?;
+                put_secret(connection, &data_key, "p20:sudo", "other profile")?;
                 insert_profile(connection, "p2");
+                assert_eq!(profile_of(connection, "p2:sudo").as_deref(), Some("p2"));
+                assert_eq!(profile_of(connection, "p20:sudo"), None);
                 assert_eq!(profile_of(connection, "p2").as_deref(), Some("p2"));
                 assert_eq!(
                     profile_of(connection, "p2:jump:h:22:u").as_deref(),

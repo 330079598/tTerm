@@ -733,7 +733,9 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
                         <div className="text-muted-foreground truncate text-xs">
                           {entry.kind.includes("jump")
                             ? t("secretStorage.secretKinds.jumpHost")
-                            : t("secretStorage.secretKinds.ssh")}
+                            : entry.kind === "sudo"
+                              ? t("secretStorage.secretKinds.sudo")
+                              : t("secretStorage.secretKinds.ssh")}
                         </div>
                         {revealed && revealedPassword !== null && (
                           <div className="bg-muted/60 mt-1 rounded-sm px-2 py-1 font-mono text-xs break-all">

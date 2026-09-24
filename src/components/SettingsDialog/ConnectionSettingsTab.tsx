@@ -8,6 +8,7 @@ import {
   Gauge,
   GripVertical,
   HardDrive,
+  KeyRound,
   type LucideIcon,
   MemoryStick,
   Network,
@@ -32,6 +33,7 @@ import {
   RECONNECT_MAX_ATTEMPTS_MIN,
   type MonitorMetricId,
 } from "@/contexts/ConfigContext"
+import { isValidPromptPattern } from "@/lib/sudoPrompt"
 import { cn } from "@/lib/utils"
 
 const monitorMetricDragId = (id: MonitorMetricId) => `monitor-metric:${id}:drag`
@@ -147,11 +149,20 @@ interface ConnectionSettingsTabProps {
   handleShowJumpHostConnectionInfoChange: (checked: boolean) => Promise<void>
   handleMonitorRefreshIntervalChange: (seconds: number) => Promise<void>
   handleMonitorVisibleMetricsChange: (metrics: MonitorMetricId[]) => Promise<void>
+  handleSudoPromptPatternsChange: (patterns: string[]) => Promise<void>
   monitorRefreshIntervalSecs: number
   monitorVisibleMetrics: MonitorMetricId[]
   reconnectEnabled: boolean
   reconnectMaxAttempts: number
   showJumpHostConnectionInfo: boolean
+  sudoPromptPatterns: string[]
+}
+
+function parsePromptPatterns(draft: string): string[] {
+  return draft
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
 }
 
 export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
@@ -160,13 +171,33 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
   handleShowJumpHostConnectionInfoChange,
   handleMonitorRefreshIntervalChange,
   handleMonitorVisibleMetricsChange,
+  handleSudoPromptPatternsChange,
   monitorRefreshIntervalSecs,
   monitorVisibleMetrics,
   reconnectEnabled,
   reconnectMaxAttempts,
   showJumpHostConnectionInfo,
+  sudoPromptPatterns,
 }) => {
   const { t } = useTranslation()
+  const [sudoPromptPatternsDraft, setSudoPromptPatternsDraft] = React.useState(
+    sudoPromptPatterns.join("\n")
+  )
+  const invalidSudoPromptPatterns = parsePromptPatterns(sudoPromptPatternsDraft).filter(
+    (pattern) => !isValidPromptPattern(pattern)
+  )
+
+  React.useEffect(() => {
+    setSudoPromptPatternsDraft(sudoPromptPatterns.join("\n"))
+  }, [sudoPromptPatterns])
+
+  const commitSudoPromptPatterns = React.useCallback(() => {
+    const patterns = parsePromptPatterns(sudoPromptPatternsDraft)
+    if (patterns.some((pattern) => !isValidPromptPattern(pattern))) return
+    if (patterns.join("\n") !== sudoPromptPatterns.join("\n")) {
+      void handleSudoPromptPatternsChange(patterns)
+    }
+  }, [handleSudoPromptPatternsChange, sudoPromptPatterns, sudoPromptPatternsDraft])
   const [monitorRefreshDraft, setMonitorRefreshDraft] = React.useState(
     String(monitorRefreshIntervalSecs)
   )
@@ -366,6 +397,42 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
               />
             }
           />
+        </SettingsSection>
+
+        <SettingsSection
+          icon={<KeyRound size={16} />}
+          title={t("settings.sudoAutofill")}
+          description={t("settings.sudoAutofillDesc")}
+        >
+          <SettingsRow
+            icon={<KeyRound size={16} />}
+            title={t("settings.sudoPromptPatterns")}
+            description={t("settings.sudoPromptPatternsDesc")}
+          >
+            <textarea
+              aria-invalid={invalidSudoPromptPatterns.length > 0}
+              aria-label={t("settings.sudoPromptPatterns")}
+              autoCapitalize="none"
+              autoCorrect="off"
+              className={cn(
+                "border-input placeholder:text-muted-foreground dark:bg-input/30 min-h-20 w-full rounded-md border bg-transparent px-3 py-2 font-mono text-xs shadow-xs outline-none",
+                "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+                "aria-invalid:border-destructive"
+              )}
+              onBlur={commitSudoPromptPatterns}
+              onChange={(event) => setSudoPromptPatternsDraft(event.target.value)}
+              placeholder={"^Password for (?<user>\\S+) on \\S+:$"}
+              spellCheck={false}
+              value={sudoPromptPatternsDraft}
+            />
+            {invalidSudoPromptPatterns.length > 0 && (
+              <p className="text-destructive mt-1 text-xs">
+                {t("settings.sudoPromptPatternsInvalid", {
+                  pattern: invalidSudoPromptPatterns[0],
+                })}
+              </p>
+            )}
+          </SettingsRow>
         </SettingsSection>
 
         <SettingsSection

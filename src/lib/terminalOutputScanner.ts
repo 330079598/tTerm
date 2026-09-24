@@ -1,9 +1,9 @@
 import { STATUS_CONNECTING } from "@/components/TerminalTab/terminalTabUtils"
 
 /**
- * Rolling scan of decoded terminal output. Prompt-like patterns can span
- * chunk boundaries, so only a bounded tail of the stream is kept; the per-chunk
- * cost is O(tail size) instead of O(chunk size) for full-payload regex scans.
+ * Rolling scan of decoded terminal output for the cold-path "[Connecting"
+ * status line. The marker can span chunk boundaries, so a carry of
+ * marker-length-minus-one chars is kept between chunks.
  */
 export interface TerminalOutputScanState {
   tail: string
@@ -11,15 +11,11 @@ export interface TerminalOutputScanState {
 
 export interface TerminalOutputScanResult {
   state: TerminalOutputScanState
-  /** The sudo prompt username, when a sudo password prompt was detected. */
-  sudoPromptUser: string | null
   /** True when a cold-path "[Connecting" status line was seen in this chunk. */
   connecting: boolean
 }
 
-const SUDO_PASSWORD_PROMPT = /^\[sudo\] password for ([^:]+?):?[ \t]*$/
-/** A sudo prompt is at most ~200 bytes and always arrives as one line tail. */
-const MAX_TAIL_CHARS = 512
+const CONNECTING_CARRY_CHARS = STATUS_CONNECTING.length - 1
 
 export const EMPTY_OUTPUT_SCAN_STATE: TerminalOutputScanState = { tail: "" }
 
@@ -27,25 +23,13 @@ export function scanTerminalOutput(
   current: TerminalOutputScanState,
   chunk: string
 ): TerminalOutputScanResult {
-  const tail = current.tail ? current.tail + chunk : chunk
-  const boundedTail = tail.length > MAX_TAIL_CHARS ? tail.slice(tail.length - MAX_TAIL_CHARS) : tail
-
-  const state = { tail: boundedTail }
-  // Only the final line can be an active prompt; CR, LF, and CRLF all end it.
-  const lastLine = boundedTail.slice(boundedTail.lastIndexOf("\n") + 1)
-  const effectiveLine = lastLine.slice(lastLine.lastIndexOf("\r") + 1)
-  const match = effectiveLine.match(SUDO_PASSWORD_PROMPT)
-  // The connecting marker must reflect the live stream: searching the whole
-  // rolling tail would also flag historical output that merely contains the
-  // marker (echoed commands, `grep` hits) long after the status line passed.
-  // A carry of marker-length-minus-one chars keeps split markers detectable.
-  const connectingCarry = current.tail.slice(-(STATUS_CONNECTING.length - 1))
-  const connecting = (connectingCarry + chunk).includes(STATUS_CONNECTING)
-
+  // The marker must reflect the live stream: only the carry joins the chunk,
+  // so historical output that merely contains the marker (echoed commands,
+  // `grep` hits) cannot flag it again.
+  const window = current.tail + chunk
   return {
-    state,
-    sudoPromptUser: match ? match[1].trim() : null,
-    connecting,
+    state: { tail: window.slice(-CONNECTING_CARRY_CHARS) },
+    connecting: window.includes(STATUS_CONNECTING),
   }
 }
 

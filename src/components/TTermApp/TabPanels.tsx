@@ -131,14 +131,14 @@ interface TabPanelsProps {
     sessionNonce: number,
     state: ConnectionState | null
   ) => void
-  onTerminalInput: (request: TerminalInputRequest) => Promise<void>
+  onTerminalInput: (request: TerminalInputRequest) => Promise<boolean | void>
   onTerminalCommandExecuted?: (command: ExecutedCommand) => void
   onOpenCommandLibrary?: (query?: string) => void
   onSaveCommand?: (commandText: string, profile?: { id: string; name: string }) => void
   onTerminalSavedPasswordPromptChange: (
     tabId: string,
     sessionNonce: number,
-    active: boolean
+    prompt: string | null
   ) => void
   onTerminalSessionUnavailable: (tabId: string, sessionNonce: number, unexpected: boolean) => void
   onTerminalSensitivePrompt: (tabId: string) => void

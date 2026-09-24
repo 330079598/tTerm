@@ -107,6 +107,9 @@ pub fn import_ssh_config_profiles(
             use_jump_host: Some(!host.jump_hosts.is_empty()),
             legacy_jump_host: None,
             jump_hosts: host.jump_hosts,
+            sudo_autofill: existing_index.is_none_or(|index| profiles[index].sudo_autofill),
+            sudo_password: None,
+            clear_sudo_password: false,
         };
 
         forward_sources.push((profile.id.clone(), profile.name.clone(), host.forwards));
@@ -224,6 +227,25 @@ pub fn save_profile(
                     &jump.username,
                 );
                 let _ = secret_state.delete_password(&app, &name_key);
+            }
+        }
+    }
+
+    if profile.connection_type == "ssh" {
+        let sudo_key = crate::core::session::sudo_secret_key(&profile.id);
+        if profile.clear_sudo_password {
+            let _ = secret_state.delete_password(&app, &sudo_key);
+        } else if let Some(password) = profile
+            .sudo_password
+            .as_deref()
+            .filter(|value| !value.is_empty())
+        {
+            let location = secret_state.save_password(&app, &sudo_key, password)?;
+            if matches!(location, SecretLocation::Memory) {
+                return Err(
+                    "Sudo password persistence is unavailable. Enable the app vault or use a supported system credential store."
+                        .to_string(),
+                );
             }
         }
     }

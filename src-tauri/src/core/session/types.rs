@@ -93,6 +93,12 @@ pub fn jump_host_identity_secret_key(
     format!("{profile_key}:jump:{host}:{port}:{username}")
 }
 
+/// Secret key of a profile's dedicated sudo password, kept apart from the
+/// login password so key- and agent-authenticated profiles can have one.
+pub fn sudo_secret_key(profile_id: &str) -> String {
+    format!("{profile_id}:sudo")
+}
+
 pub const MAX_JUMP_HOSTS: usize = 8;
 
 #[derive(Debug, Deserialize, Clone)]

@@ -18,22 +18,29 @@ export function isTerminalConnectionUnavailable(
   )
 }
 
+/** A terminal waiting at a password prompt that a saved password can answer. */
+export type SavedPasswordPromptTarget = TerminalSessionTarget & {
+  /** The prompt text; the backend only writes while it is still waiting. */
+  prompt: string
+}
+
 export function resolveSavedPasswordInjectionTargets(
-  source: TerminalSessionTarget,
+  source: SavedPasswordPromptTarget,
   liveInputActive: boolean,
   broadcastTargets: TerminalSessionTarget[],
-  savedPasswordPrompts: ReadonlyMap<string, number>
-): TerminalSessionTarget[] {
+  savedPasswordPrompts: ReadonlyMap<string, { sessionNonce: number; prompt: string }>
+): SavedPasswordPromptTarget[] {
   if (!liveInputActive) return [source]
 
-  return [
-    source,
-    ...broadcastTargets.filter(
-      (target) =>
-        target.tabId !== source.tabId &&
-        savedPasswordPrompts.get(target.tabId) === target.sessionNonce
-    ),
-  ]
+  const linked: SavedPasswordPromptTarget[] = []
+  for (const target of broadcastTargets) {
+    if (target.tabId === source.tabId) continue
+    const waiting = savedPasswordPrompts.get(target.tabId)
+    if (waiting?.sessionNonce === target.sessionNonce) {
+      linked.push({ ...target, prompt: waiting.prompt })
+    }
+  }
+  return [source, ...linked]
 }
 
 export function buildTabFromConnection(

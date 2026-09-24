@@ -18,6 +18,12 @@ export interface SavedProfile {
   server_monitor_visible?: boolean
   use_jump_host?: boolean
   jump_hosts?: SavedJumpHost[]
+  /** Offer a saved password at sudo prompts; missing means enabled. */
+  sudo_autofill?: boolean
+  /** Write-only: a new dedicated sudo password to store. */
+  sudo_password?: string
+  /** Write-only: remove the stored sudo password. */
+  clear_sudo_password?: boolean
 }
 
 export interface SavedJumpHost {

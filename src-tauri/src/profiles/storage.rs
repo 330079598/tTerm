@@ -46,6 +46,13 @@ pub(crate) fn get_profile(
         .transpose()
 }
 
+/// Whether a saved profile offers sudo password autofill; `None` when no
+/// saved profile has this id (a connection that was never saved).
+pub fn profile_sudo_autofill(profile_id: &str) -> Result<Option<bool>, String> {
+    crate::db::read(|connection| get_profile(connection, profile_id))
+        .map(|profile| profile.map(|profile| profile.sudo_autofill))
+}
+
 /// Updates the profile in place, or appends it after the last profile.
 pub(crate) fn upsert_profile(
     connection: &Connection,
@@ -194,6 +201,8 @@ pub(crate) fn sanitize_profile(profile: &mut SavedProfile) {
     profile.password = None;
     profile.ignore_saved_password = false;
     profile.private_key_passphrase = None;
+    profile.sudo_password = None;
+    profile.clear_sudo_password = false;
     if let Some(jump) = &mut profile.legacy_jump_host {
         jump.password = None;
         jump.private_key_passphrase = None;
@@ -206,6 +215,16 @@ pub(crate) fn sanitize_profile(profile: &mut SavedProfile) {
 
 pub(crate) fn profile_secret_summaries(profile: &SavedProfile) -> Vec<SavedSecretSummary> {
     let mut summaries = Vec::new();
+
+    if profile.connection_type == "ssh" {
+        summaries.push(SavedSecretSummary {
+            key: crate::core::session::sudo_secret_key(&profile.id),
+            profile_id: profile.id.clone(),
+            profile_name: profile.name.clone(),
+            label: profile.name.clone(),
+            kind: "sudo".to_string(),
+        });
+    }
 
     if profile.connection_type == "ssh"
         && !matches!(profile.auth_method.as_deref(), Some("key") | Some("agent"))

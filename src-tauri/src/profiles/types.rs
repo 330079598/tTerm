@@ -5,6 +5,10 @@ fn default_auth_method() -> String {
     "password".to_string()
 }
 
+fn default_sudo_autofill() -> bool {
+    true
+}
+
 /// Jump host configuration stored as part of a saved profile.
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct SavedJumpHost {
@@ -61,6 +65,15 @@ pub struct SavedProfile {
     /// Ordered jump host chain used throughout the app and for all new saves.
     #[serde(default)]
     pub jump_hosts: Vec<SavedJumpHost>,
+    /// Offer to fill a saved password when a sudo prompt appears.
+    #[serde(default = "default_sudo_autofill")]
+    pub sudo_autofill: bool,
+    /// Dedicated sudo password to store; write-only, never read back.
+    #[serde(default, skip_serializing)]
+    pub sudo_password: Option<String>,
+    /// Remove the stored sudo password on save.
+    #[serde(default, skip_serializing)]
+    pub clear_sudo_password: bool,
 }
 
 impl SavedProfile {

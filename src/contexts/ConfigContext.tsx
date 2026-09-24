@@ -154,6 +154,8 @@ export interface AppConfig {
   reconnect_max_attempts: number
   zmodem_auto_detect_enabled: boolean
   zmodem_download_directory: string
+  /** Extra sudo password prompt regexes; an optional `user` group names the account. */
+  sudo_prompt_patterns: string[]
   keymap: KeymapConfig
 }
 
@@ -207,6 +209,7 @@ const defaultConfig: AppConfig = {
   reconnect_max_attempts: 5,
   zmodem_auto_detect_enabled: true,
   zmodem_download_directory: "",
+  sudo_prompt_patterns: [],
   keymap: { ...DEFAULT_KEYMAP_CONFIG, bindings: {} },
 }
 
@@ -358,6 +361,11 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     zmodem_auto_detect_enabled: config.zmodem_auto_detect_enabled !== false,
     zmodem_download_directory:
       typeof config.zmodem_download_directory === "string" ? config.zmodem_download_directory : "",
+    sudo_prompt_patterns: Array.isArray(config.sudo_prompt_patterns)
+      ? config.sudo_prompt_patterns.filter(
+          (pattern): pattern is string => typeof pattern === "string" && pattern.trim() !== ""
+        )
+      : [],
     ui_scale_percent: normalizeUiScalePercent(config.ui_scale_percent),
     keymap: normalizeKeymap(config.keymap),
   }

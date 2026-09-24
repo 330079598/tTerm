@@ -1,4 +1,6 @@
+use super::output_tail::OutputTail;
 use std::sync::mpsc::{Receiver, RecvError, RecvTimeoutError, SyncSender, TryRecvError};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::ipc::{Channel, InvokeResponseBody};
 
@@ -60,6 +62,7 @@ pub struct TerminalOutputSender {
     tx: Option<SyncSender<Vec<u8>>>,
     worker: Option<std::thread::JoinHandle<()>>,
     closed: bool,
+    tail: Option<Arc<OutputTail>>,
 }
 
 impl TerminalOutputSender {
@@ -74,7 +77,14 @@ impl TerminalOutputSender {
             tx: Some(tx),
             worker: Some(worker),
             closed: false,
+            tail: None,
         }
+    }
+
+    /// Also records every sent byte into `tail`.
+    pub fn with_output_tail(mut self, tail: Arc<OutputTail>) -> Self {
+        self.tail = Some(tail);
+        self
     }
 
     /// Enqueues raw bytes; blocks once the bounded queue is full. No-op after
@@ -82,6 +92,9 @@ impl TerminalOutputSender {
     pub fn send(&self, data: Vec<u8>) {
         if data.is_empty() || self.closed {
             return;
+        }
+        if let Some(tail) = &self.tail {
+            tail.record(&data);
         }
         if let Some(tx) = &self.tx {
             let _ = tx.send(data);
