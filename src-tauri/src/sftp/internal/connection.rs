@@ -84,7 +84,9 @@ pub async fn connect_authenticated_ssh(
         plan.keepalive_count_max,
         &plan.jump_hosts,
         prompts,
-        ConnectionStatusOptions::SILENT,
+        // Progress events share the terminal tab's channel; emitting them
+        // would flip an already-connected terminal back to "connecting".
+        ConnectionStatusOptions::QUIET,
         crate::ssh::HostKeyVerificationMode::PromptAndPersist,
     )
     .await

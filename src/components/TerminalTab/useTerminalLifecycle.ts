@@ -347,10 +347,17 @@ export function useTerminalLifecycle({
     let activeSudoPromptUser: string | null = null
     let lastConnectionState: ConnectionState = "connecting"
 
-    const setConnectionStateIfChanged = (next: ConnectionState) => {
-      if (next === lastConnectionState) return
+    // Every state change in this effect must go through these two helpers so
+    // lastConnectionState stays in sync; otherwise the output-driven
+    // "connected" update is skipped as a no-op and the tab stays stuck.
+    const applyConnectionState = (next: ConnectionState) => {
       lastConnectionState = next
       setConnectionState(next)
+    }
+
+    const setConnectionStateIfChanged = (next: ConnectionState) => {
+      if (next === lastConnectionState) return
+      applyConnectionState(next)
     }
 
     const handleSudoPrompt = (promptUsername: string) => {
@@ -418,7 +425,7 @@ export function useTerminalLifecycle({
     term.onData((data) => {
       if (waitingForReconnectRef.current) {
         waitingForReconnectRef.current = false
-        setConnectionState("connecting")
+        applyConnectionState("connecting")
         onReconnectRequestRef.current?.()
         return
       }
@@ -552,19 +559,22 @@ export function useTerminalLifecycle({
           term.writeln("\x1b[36mPress any key to reconnect\x1b[0m")
 
           if (reason) {
-            setConnectionState("error")
+            applyConnectionState("error")
           } else {
-            setConnectionState("disconnected")
+            applyConnectionState("disconnected")
           }
           waitingForReconnectRef.current = true
         } else {
           term.writeln("\r\n\x1b[33m[Process exited]\x1b[0m")
-          setConnectionState("disconnected")
+          applyConnectionState("disconnected")
         }
       }),
       listen<HostKeyPromptState>(`ssh-hostkey-prompt-${tabId}`, async (event) => {
+        // No state change here: the terminal's own connection always emits a
+        // *_host_key_checking progress event first, which already sets
+        // "connecting". A prompt from a side connection (SFTP) sharing this
+        // tab id must leave the terminal's state alone.
         setHostKeyPrompt(event.payload)
-        setConnectionState("connecting")
       }),
       listen<SshConnectionProgress>(`ssh-connection-progress-${tabId}`, (event) => {
         setConnectionProgress(event.payload)
@@ -576,10 +586,10 @@ export function useTerminalLifecycle({
             })
             term.write(`\r\n\x1b[32m[${banner}]\x1b[0m\r\n`)
           }
-          setConnectionState("connected")
+          applyConnectionState("connected")
         } else if (event.payload.phase === "retrying") {
           sawRetryingPhase = true
-          setConnectionState("reconnecting")
+          applyConnectionState("reconnecting")
         } else if (event.payload.phase === "retry_exhausted") {
           // The supervisor emits pty-exit right after this; the localized
           // give-up line goes to the terminal here because the backend no
@@ -592,7 +602,7 @@ export function useTerminalLifecycle({
           })
           term.write(`\r\n\x1b[31m[${giveUp}]\x1b[0m\r\n`)
         } else if (event.payload.phase !== "failed") {
-          setConnectionState("connecting")
+          applyConnectionState("connecting")
         }
       }),
     ])
@@ -644,7 +654,7 @@ export function useTerminalLifecycle({
       .catch((error) => {
         if (disposed) return
         if (connectionRef.current?.type === "ssh") {
-          setConnectionState("error")
+          applyConnectionState("error")
         }
         term.writeln(`\x1b[31mFailed to start terminal: ${error}\x1b[0m`)
       })
