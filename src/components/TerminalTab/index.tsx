@@ -841,7 +841,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
               </button>
             )}
             <button type="button" className="destructive" onClick={onStopBroadcast}>
-              <Square size={13} aria-hidden="true" />
+              <Square size={13} fill="currentColor" aria-hidden="true" />
               {t("broadcast.stopLive")}
             </button>
           </div>

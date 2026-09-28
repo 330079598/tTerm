@@ -164,11 +164,20 @@ const TunnelCard = React.memo(function TunnelCard({
           <Button
             type="button"
             size="sm"
-            variant={active ? "outline" : "default"}
+            variant={active ? "destructive" : "ghost"}
+            className={
+              active
+                ? "dark:bg-destructive dark:hover:bg-destructive/90"
+                : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary dark:hover:bg-primary/20 border"
+            }
             disabled={hostMissing && !active}
             onClick={() => onToggle(rule, status)}
           >
-            {active ? <Square className="size-3" /> : <Play className="size-3" />}
+            {active ? (
+              <Square className="size-3" fill="currentColor" />
+            ) : (
+              <Play className="size-3" fill="currentColor" />
+            )}
             {active
               ? t("tunnels.stop", { defaultValue: "Stop" })
               : t("tunnels.start", { defaultValue: "Start" })}

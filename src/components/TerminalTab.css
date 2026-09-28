@@ -76,21 +76,27 @@
   gap: 5px;
   min-height: 28px;
   padding: 4px 9px;
-  border: 1px solid hsl(var(--border));
+  border: 1px solid hsl(var(--foreground) / 0.14);
   border-radius: var(--radius);
   color: hsl(var(--foreground));
-  background: hsl(var(--background));
+  background: hsl(var(--foreground) / 0.06);
   cursor: pointer;
   font: inherit;
+  transition: background-color 120ms ease;
 }
 
 .terminal-broadcast-controls button:hover {
-  background: hsl(var(--muted));
+  background: hsl(var(--foreground) / 0.12);
 }
 
 .terminal-broadcast-controls button.destructive {
-  border-color: hsl(var(--destructive) / 0.45);
-  color: hsl(var(--destructive));
+  border-color: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+  background: hsl(var(--destructive));
+}
+
+.terminal-broadcast-controls button.destructive:hover {
+  background: hsl(var(--destructive) / 0.88);
 }
 
 .terminal-broadcast-controls button:focus-visible {

@@ -433,6 +433,10 @@
   background: hsl(var(--destructive));
 }
 
+.broadcast-live-controls button:hover:not(:disabled) {
+  background: hsl(var(--destructive) / 0.88);
+}
+
 .broadcast-live-controls button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
