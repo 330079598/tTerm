@@ -30,6 +30,7 @@ import { TunnelHostKeyPrompt } from "@/components/TunnelsPanel/TunnelHostKeyProm
 import { useTunnelAutoStart } from "@/components/TunnelsPanel/useTunnelAutoStart"
 import { useTunnelNotifications } from "@/components/TunnelsPanel/useTunnelNotifications"
 import { useTunnelQuitGuard } from "@/components/TunnelsPanel/useTunnelQuitGuard"
+import { useRunningTunnelCount } from "@/components/TunnelsPanel/useRunningTunnelCount"
 import { VaultStartupUnlockDialog } from "@/components/VaultStartupUnlockDialog"
 import { formatBytes, MAX_EDIT_FILE_BYTES } from "@/components/SftpDrawer/sftpDrawerUtils"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
@@ -233,6 +234,7 @@ export const TTermApp: React.FC = () => {
   useTunnelAutoStart(isLoaded && startupConnectionsReady)
   useTunnelQuitGuard(confirm)
   useTunnelNotifications()
+  const runningTunnelCount = useRunningTunnelCount()
 
   const stopLiveBroadcast = useCallback(() => {
     broadcastGenerationRef.current += 1
@@ -1381,6 +1383,15 @@ export const TTermApp: React.FC = () => {
     openSettingsTab(settingsTabTitle)
   }, [openSettingsTab, settingsTabTitle])
 
+  const tunnelsButtonLabel =
+    runningTunnelCount > 0
+      ? t("tunnels.runningCountLabel", {
+          title: tunnelsTabTitle,
+          count: runningTunnelCount,
+          defaultValue: "{{title}} ({{count}} running)",
+        })
+      : tunnelsTabTitle
+
   const handleTunnelsClick = useCallback(() => {
     openTunnelsTab(tunnelsTabTitle)
   }, [openTunnelsTab, tunnelsTabTitle])
@@ -1673,12 +1684,17 @@ export const TTermApp: React.FC = () => {
 
         <div className="title-bar-right" style={{ paddingRight: `${nativeControlsReservePx}px` }}>
           <button
-            className="tab-action settings-button"
+            className="tab-action settings-button tunnels-trigger"
             onClick={handleTunnelsClick}
-            aria-label={tunnelsTabTitle}
-            title={tunnelsTabTitle}
+            aria-label={tunnelsButtonLabel}
+            title={tunnelsButtonLabel}
           >
             <Waypoints size={16} />
+            {runningTunnelCount > 0 && (
+              <span className="tunnels-running-badge">
+                {runningTunnelCount > 99 ? "99+" : runningTunnelCount}
+              </span>
+            )}
           </button>
           <button
             className="tab-action settings-button"

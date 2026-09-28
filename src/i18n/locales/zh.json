@@ -713,6 +713,7 @@
     "quitConfirmTitle": "隧道仍在运行，确定退出吗？",
     "quitConfirmDescription": "有 {{count}} 个端口转发隧道正在运行，退出 tTerm 后将会停止。",
     "quitConfirm": "退出",
+    "runningCountLabel": "{{title}}（{{count}} 个运行中）",
     "profileInUse": "有 {{count}} 个端口转发隧道使用此主机，将被停止：{{names}}。隧道规则会保留，之后可为它们重新选择主机。",
     "profileEditedTitle": "运行中的隧道未更新",
     "profileEditedDescription": "{{names}} 会继续使用旧的连接设置，重启后才会生效。",

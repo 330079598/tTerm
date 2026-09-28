@@ -722,6 +722,7 @@
     "quitConfirmTitle": "Quit while tunnels are running?",
     "quitConfirmDescription": "{{count}} port-forwarding tunnel(s) are running and will stop when tTerm quits.",
     "quitConfirm": "Quit",
+    "runningCountLabel": "{{title}} ({{count}} running)",
     "profileInUse": "{{count}} port-forwarding tunnel(s) use this host and will be stopped: {{names}}. Their rules are kept; choose another host for them afterwards.",
     "profileEditedTitle": "Running tunnels not updated",
     "profileEditedDescription": "{{names}} keep the previous connection settings until you restart them.",
