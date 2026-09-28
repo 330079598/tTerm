@@ -133,6 +133,9 @@ fn transfer_options() -> TransferOptions {
         chunk_size: transfer::DEFAULT_CHUNK_SIZE,
         progress_interval_bytes: transfer::DEFAULT_PROGRESS_INTERVAL_BYTES,
         pipeline_window: transfer::PIPELINE_WINDOW,
+        rate_limiter: Some(crate::sftp::internal::api::transfer_rate_limiter(
+            transfer::TransferDirection::Download,
+        )),
     }
 }
 

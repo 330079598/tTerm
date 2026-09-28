@@ -92,6 +92,12 @@ pub struct AppConfig {
     pub terminal_log_compress: bool,
     #[serde(default = "default_sftp_transfer_parallelism")]
     pub sftp_transfer_parallelism: u16,
+    /// SFTP upload bandwidth cap in KiB/s shared by all transfers; 0 = none.
+    #[serde(default)]
+    pub sftp_upload_limit_kib: u32,
+    /// SFTP download bandwidth cap in KiB/s shared by all transfers; 0 = none.
+    #[serde(default)]
+    pub sftp_download_limit_kib: u32,
     /// Automatically re-establish dropped SSH sessions with capped backoff.
     #[serde(default = "default_reconnect_enabled")]
     pub reconnect_enabled: bool,
@@ -368,6 +374,8 @@ impl Default for AppConfig {
             terminal_log_max_file_size_mb: default_terminal_log_max_file_size_mb(),
             terminal_log_compress: false,
             sftp_transfer_parallelism: default_sftp_transfer_parallelism(),
+            sftp_upload_limit_kib: 0,
+            sftp_download_limit_kib: 0,
             reconnect_enabled: default_reconnect_enabled(),
             reconnect_max_attempts: default_reconnect_max_attempts(),
             zmodem_auto_detect_enabled: default_zmodem_auto_detect_enabled(),
@@ -468,6 +476,7 @@ pub fn save_config(
     config.secret_storage_mode = load_config_file()?.secret_storage_mode;
     log_state.validate_config(&config)?;
     save_config_file(&config)?;
+    crate::sftp::internal::api::apply_bandwidth_limits(&config);
     log_state.apply_config(&app, &config)
 }
 
@@ -500,6 +509,20 @@ mod tests {
             serde_json::from_str(r#"{"theme":"default","sftp_transfer_parallelism":6}"#).unwrap();
 
         assert_eq!(config.sftp_transfer_parallelism, 6);
+    }
+
+    #[test]
+    fn sftp_bandwidth_limits_default_to_unlimited_and_round_trip() {
+        let legacy: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+        assert_eq!(legacy.sftp_upload_limit_kib, 0);
+        assert_eq!(legacy.sftp_download_limit_kib, 0);
+
+        let config: AppConfig = serde_json::from_str(
+            r#"{"theme":"default","sftp_upload_limit_kib":512,"sftp_download_limit_kib":2048}"#,
+        )
+        .unwrap();
+        assert_eq!(config.sftp_upload_limit_kib, 512);
+        assert_eq!(config.sftp_download_limit_kib, 2048);
     }
 
     #[test]

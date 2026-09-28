@@ -51,10 +51,13 @@ use crate::core::state::HostPromptMap;
 use crate::sftp::internal::connection::{
     evict_connection, get_or_create_sftp_connection, open_sftp_raw_session,
 };
-use crate::sftp::internal::transfer::{RemoteChannels, DEFAULT_PARALLELISM, MAX_PARALLELISM};
+use crate::sftp::internal::transfer::rate_limit::RateLimiter;
+use crate::sftp::internal::transfer::{
+    RemoteChannels, TransferDirection, DEFAULT_PARALLELISM, MAX_PARALLELISM,
+};
 use crate::sftp::internal::types::{SftpConnectionKey, SftpConnectionPool};
 use russh_sftp::client::SftpSession;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 use std::time::SystemTime;
 use tauri::AppHandle;
 
@@ -100,6 +103,27 @@ pub fn resolve_transfer_parallelism() -> usize {
         *cache = Some((mtime, parallelism));
     }
     parallelism
+}
+
+/// Process-wide bandwidth budgets, one per direction: every transfer of a
+/// direction draws from the same limiter, so the configured limit caps the
+/// sum of all concurrent transfers rather than each of them.
+static UPLOAD_LIMITER: LazyLock<Arc<RateLimiter>> = LazyLock::new(|| Arc::new(RateLimiter::new(0)));
+static DOWNLOAD_LIMITER: LazyLock<Arc<RateLimiter>> =
+    LazyLock::new(|| Arc::new(RateLimiter::new(0)));
+
+pub fn transfer_rate_limiter(direction: TransferDirection) -> Arc<RateLimiter> {
+    match direction {
+        TransferDirection::Upload => UPLOAD_LIMITER.clone(),
+        TransferDirection::Download => DOWNLOAD_LIMITER.clone(),
+    }
+}
+
+/// Applies the configured SFTP bandwidth limits (KiB/s, 0 = unlimited). Takes
+/// effect immediately, including for transfers already running.
+pub fn apply_bandwidth_limits(config: &crate::config::AppConfig) {
+    UPLOAD_LIMITER.set_rate(u64::from(config.sftp_upload_limit_kib) * 1024);
+    DOWNLOAD_LIMITER.set_rate(u64::from(config.sftp_download_limit_kib) * 1024);
 }
 
 /// Ensure a pooled connection exists, then open `parallelism` SFTP channels

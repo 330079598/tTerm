@@ -150,6 +150,10 @@ export interface AppConfig {
   terminal_log_max_file_size_mb: number
   terminal_log_compress: boolean
   sftp_transfer_parallelism: number
+  /** SFTP upload bandwidth cap in KiB/s shared by all transfers; 0 = unlimited. */
+  sftp_upload_limit_kib: number
+  /** SFTP download bandwidth cap in KiB/s shared by all transfers; 0 = unlimited. */
+  sftp_download_limit_kib: number
   reconnect_enabled: boolean
   reconnect_max_attempts: number
   zmodem_auto_detect_enabled: boolean
@@ -205,6 +209,8 @@ const defaultConfig: AppConfig = {
   terminal_log_max_file_size_mb: 50,
   terminal_log_compress: false,
   sftp_transfer_parallelism: 4,
+  sftp_upload_limit_kib: 0,
+  sftp_download_limit_kib: 0,
   reconnect_enabled: true,
   reconnect_max_attempts: 5,
   zmodem_auto_detect_enabled: true,
@@ -284,6 +290,16 @@ function normalizeSftpTransferParallelism(
   return Math.min(Math.max(Math.round(value), 1), 16)
 }
 
+/** Upper bound for an SFTP bandwidth limit (10 GB/s), well inside `u32` KiB. */
+export const MAX_BANDWIDTH_LIMIT_KIB = 10 * 1024 * 1024
+
+function normalizeBandwidthLimitKib(value: Partial<AppConfig>["sftp_upload_limit_kib"]): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 0
+  }
+  return Math.min(Math.max(Math.round(value), 0), MAX_BANDWIDTH_LIMIT_KIB)
+}
+
 export const RECONNECT_MAX_ATTEMPTS_MIN = 1
 export const RECONNECT_MAX_ATTEMPTS_MAX = 99
 
@@ -356,6 +372,8 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     ),
     terminal_log_compress: config.terminal_log_compress === true,
     sftp_transfer_parallelism: normalizeSftpTransferParallelism(config.sftp_transfer_parallelism),
+    sftp_upload_limit_kib: normalizeBandwidthLimitKib(config.sftp_upload_limit_kib),
+    sftp_download_limit_kib: normalizeBandwidthLimitKib(config.sftp_download_limit_kib),
     reconnect_enabled: config.reconnect_enabled !== false,
     reconnect_max_attempts: normalizeReconnectMaxAttempts(config.reconnect_max_attempts),
     zmodem_auto_detect_enabled: config.zmodem_auto_detect_enabled !== false,

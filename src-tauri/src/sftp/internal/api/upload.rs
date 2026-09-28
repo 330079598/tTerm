@@ -417,6 +417,9 @@ async fn upload_single_file_with_progress(
         chunk_size: transfer::DEFAULT_CHUNK_SIZE,
         progress_interval_bytes: transfer::DEFAULT_PROGRESS_INTERVAL_BYTES,
         pipeline_window: transfer::PIPELINE_WINDOW,
+        rate_limiter: Some(crate::sftp::internal::api::transfer_rate_limiter(
+            transfer::TransferDirection::Upload,
+        )),
     };
 
     let result = transfer::upload_file(

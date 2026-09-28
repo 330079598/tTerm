@@ -435,6 +435,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     await saveSettings({ sftp_transfer_parallelism: Math.min(Math.max(Math.round(value), 1), 16) })
   }
 
+  const handleSftpUploadLimitChange = async (kib: number) => {
+    await saveSettings({ sftp_upload_limit_kib: kib })
+  }
+
+  const handleSftpDownloadLimitChange = async (kib: number) => {
+    await saveSettings({ sftp_download_limit_kib: kib })
+  }
+
   const handleEnableDevtoolsChange = async () => {
     try {
       await invoke("toggle_devtools", { enable: true })
@@ -713,6 +721,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleRestoreAllSessionConnectionsChange={handleRestoreAllSessionConnectionsChange}
               handleSftpPasteUploadEnabledChange={handleSftpPasteUploadEnabledChange}
               handleSftpTransferParallelismChange={handleSftpTransferParallelismChange}
+              handleSftpUploadLimitChange={handleSftpUploadLimitChange}
+              handleSftpDownloadLimitChange={handleSftpDownloadLimitChange}
               handleEnableDevtoolsChange={handleEnableDevtoolsChange}
               handleZmodemAutoDetectEnabledChange={handleZmodemAutoDetectEnabledChange}
               handleZmodemDownloadDirectoryChange={handleZmodemDownloadDirectoryChange}
@@ -721,6 +731,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               restoreAllSessionConnections={config.startup_session_restore_mode === "all"}
               sftpPasteUploadEnabled={config.sftp_paste_upload_enabled}
               sftpTransferParallelism={config.sftp_transfer_parallelism}
+              sftpUploadLimitKib={config.sftp_upload_limit_kib}
+              sftpDownloadLimitKib={config.sftp_download_limit_kib}
               zmodemAutoDetectEnabled={config.zmodem_auto_detect_enabled}
               zmodemDownloadDirectory={config.zmodem_download_directory}
             />

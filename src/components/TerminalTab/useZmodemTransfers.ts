@@ -74,7 +74,9 @@ export function useZmodemTransfers({ tabId, sessionNonce }: UseZmodemTransfersPa
           const selection = await openFileDialog({
             directory: false,
             multiple: true,
-            title: t("zmodem.actions.sendFilesDialogTitle", { defaultValue: "Send Files via ZMODEM" }),
+            title: t("zmodem.actions.sendFilesDialogTitle", {
+              defaultValue: "Send Files via ZMODEM",
+            }),
           }).catch(() => null)
           const paths = selection ? (Array.isArray(selection) ? selection : [selection]) : []
           await startSend(paths)
@@ -95,18 +97,24 @@ export function useZmodemTransfers({ tabId, sessionNonce }: UseZmodemTransfersPa
           transferId
         )
       }),
-      appWindow.listen<ZmodemTransferProgressEvent>(`zmodem-transfer-progress-${tabId}`, (event) => {
-        const { transferId, transferred, speed } = event.payload
-        updateTransfer(transferId, { transferred, speed, status: "transferring" })
-      }),
-      appWindow.listen<ZmodemTransferCompleteEvent>(`zmodem-transfer-complete-${tabId}`, (event) => {
-        const { transferId, success, cancelled, error } = event.payload
-        updateTransfer(transferId, {
-          status: cancelled ? "cancelled" : success ? "completed" : "failed",
-          endTime: Date.now(),
-          error,
-        })
-      }),
+      appWindow.listen<ZmodemTransferProgressEvent>(
+        `zmodem-transfer-progress-${tabId}`,
+        (event) => {
+          const { transferId, transferred, speed } = event.payload
+          updateTransfer(transferId, { transferred, speed, status: "transferring" })
+        }
+      ),
+      appWindow.listen<ZmodemTransferCompleteEvent>(
+        `zmodem-transfer-complete-${tabId}`,
+        (event) => {
+          const { transferId, success, cancelled, error } = event.payload
+          updateTransfer(transferId, {
+            status: cancelled ? "cancelled" : success ? "completed" : "failed",
+            endTime: Date.now(),
+            error,
+          })
+        }
+      ),
     ]).then((created) => {
       if (disposed) {
         created.forEach((unlisten) => unlisten())

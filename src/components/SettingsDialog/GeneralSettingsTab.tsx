@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
+import { BandwidthLimitInput } from "@/components/SettingsDialog/BandwidthLimitInput"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
 
 interface LanguageOption {
@@ -34,6 +35,8 @@ interface GeneralSettingsTabProps {
   handleRestoreAllSessionConnectionsChange: (checked: boolean) => Promise<void>
   handleSftpPasteUploadEnabledChange: (checked: boolean) => Promise<void>
   handleSftpTransferParallelismChange: (value: number) => Promise<void>
+  handleSftpUploadLimitChange: (kib: number) => Promise<void>
+  handleSftpDownloadLimitChange: (kib: number) => Promise<void>
   handleEnableDevtoolsChange: () => Promise<void>
   handleZmodemAutoDetectEnabledChange: (checked: boolean) => Promise<void>
   handleZmodemDownloadDirectoryChange: (directory: string) => Promise<void>
@@ -42,6 +45,8 @@ interface GeneralSettingsTabProps {
   restoreAllSessionConnections: boolean
   sftpPasteUploadEnabled: boolean
   sftpTransferParallelism: number
+  sftpUploadLimitKib: number
+  sftpDownloadLimitKib: number
   zmodemAutoDetectEnabled: boolean
   zmodemDownloadDirectory: string
 }
@@ -53,6 +58,8 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   handleRestoreAllSessionConnectionsChange,
   handleSftpPasteUploadEnabledChange,
   handleSftpTransferParallelismChange,
+  handleSftpUploadLimitChange,
+  handleSftpDownloadLimitChange,
   handleEnableDevtoolsChange,
   handleZmodemAutoDetectEnabledChange,
   handleZmodemDownloadDirectoryChange,
@@ -61,6 +68,8 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   restoreAllSessionConnections,
   sftpPasteUploadEnabled,
   sftpTransferParallelism,
+  sftpUploadLimitKib,
+  sftpDownloadLimitKib,
   zmodemAutoDetectEnabled,
   zmodemDownloadDirectory,
 }) => {
@@ -154,6 +163,36 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               />
             }
           />
+          <SettingsRow
+            title={t("settings.sftpUploadLimit", { defaultValue: "Upload speed limit" })}
+            description={t("settings.sftpUploadLimitDesc", {
+              defaultValue:
+                "Caps the combined speed of all SFTP uploads, so large transfers leave room for interactive sessions. 0 means unlimited. Changes apply to running transfers immediately.",
+            })}
+            action={
+              <BandwidthLimitInput
+                aria-label={t("settings.sftpUploadLimit", { defaultValue: "Upload speed limit" })}
+                value={sftpUploadLimitKib}
+                onChange={handleSftpUploadLimitChange}
+              />
+            }
+          />
+          <SettingsRow
+            title={t("settings.sftpDownloadLimit", { defaultValue: "Download speed limit" })}
+            description={t("settings.sftpDownloadLimitDesc", {
+              defaultValue:
+                "Caps the combined speed of all SFTP downloads. 0 means unlimited. Changes apply to running transfers immediately.",
+            })}
+            action={
+              <BandwidthLimitInput
+                aria-label={t("settings.sftpDownloadLimit", {
+                  defaultValue: "Download speed limit",
+                })}
+                value={sftpDownloadLimitKib}
+                onChange={handleSftpDownloadLimitChange}
+              />
+            }
+          />
         </SettingsSection>
 
         <SettingsSection
@@ -180,7 +219,8 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
           <SettingsRow
             title={t("settings.zmodemDownloadDirectory", { defaultValue: "Download directory" })}
             description={t("settings.zmodemDownloadDirectoryDesc", {
-              defaultValue: "Where auto-detected ZMODEM downloads are saved. Defaults to Downloads.",
+              defaultValue:
+                "Where auto-detected ZMODEM downloads are saved. Defaults to Downloads.",
             })}
           >
             <div className="flex min-w-0 gap-2">
@@ -190,7 +230,9 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                 placeholder={t("settings.zmodemDownloadDirectoryPlaceholder", {
                   defaultValue: "Platform Downloads folder",
                 })}
-                aria-label={t("settings.zmodemDownloadDirectory", { defaultValue: "Download directory" })}
+                aria-label={t("settings.zmodemDownloadDirectory", {
+                  defaultValue: "Download directory",
+                })}
                 className="min-w-0 flex-1 font-mono text-xs"
               />
               <Button

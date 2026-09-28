@@ -295,6 +295,7 @@ pub fn run() {
                 .initialize(&app_handle);
 
             if let Ok(cfg) = config::load_config_file() {
+                sftp::internal::api::apply_bandwidth_limits(&cfg);
                 let log_state = app_handle.state::<session_log::SessionLogState>();
                 if let Err(err) = log_state.apply_config(&app_handle, &cfg) {
                     eprintln!("Failed to initialize terminal logging: {}", err);

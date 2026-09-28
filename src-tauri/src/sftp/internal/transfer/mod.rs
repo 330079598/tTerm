@@ -43,6 +43,7 @@ use tokio::sync::mpsc;
 use tokio::sync::{watch, Mutex};
 use tokio::task::JoinSet;
 
+pub mod rate_limit;
 #[cfg(test)]
 pub(crate) mod test_server;
 #[cfg(test)]
@@ -116,6 +117,9 @@ pub struct TransferOptions {
     /// request at a time, in ascending offset order, the way plain
     /// `sftp`/`scp` write.
     pub pipeline_window: usize,
+    /// Bandwidth budget this transfer draws from; `None` is unlimited. Shared
+    /// across transfers so a limit caps their sum, not each of them.
+    pub rate_limiter: Option<Arc<rate_limit::RateLimiter>>,
 }
 
 impl Default for TransferOptions {
@@ -125,6 +129,7 @@ impl Default for TransferOptions {
             chunk_size: DEFAULT_CHUNK_SIZE,
             progress_interval_bytes: DEFAULT_PROGRESS_INTERVAL_BYTES,
             pipeline_window: PIPELINE_WINDOW,
+            rate_limiter: None,
         }
     }
 }
@@ -1280,6 +1285,7 @@ async fn execute_parallel(
         checkpointing: run.checkpointing,
         pipeline_window: run.pipeline_window,
         checkpoint_tx: checkpoint.and_then(|writer| writer.sender()),
+        rate_limiter: options.rate_limiter.clone(),
     });
 
     let mut join_set = tokio::task::JoinSet::new();
@@ -1351,6 +1357,7 @@ struct LaneShared {
     checkpointing: bool,
     pipeline_window: usize,
     checkpoint_tx: Option<mpsc::Sender<CheckpointSnapshot>>,
+    rate_limiter: Option<Arc<rate_limit::RateLimiter>>,
 }
 
 async fn lane_worker(
@@ -1612,6 +1619,25 @@ async fn transfer_chunk(
     (index, result)
 }
 
+/// Largest request the bandwidth limit allows right now; unbounded without one.
+fn max_throttled_request(shared: &LaneShared) -> u64 {
+    shared
+        .rate_limiter
+        .as_ref()
+        .and_then(|limiter| limiter.max_request())
+        .map_or(u64::MAX, |max| max.max(1))
+}
+
+/// Waits for the bandwidth budget of one request, if a limit is set.
+async fn throttle(shared: &LaneShared, bytes: u64) -> Result<(), TransferError> {
+    match shared.rate_limiter.as_ref() {
+        Some(limiter) if !limiter.acquire(bytes, &shared.cancel).await => {
+            Err(TransferError::Cancelled)
+        }
+        _ => Ok(()),
+    }
+}
+
 async fn upload_chunk(
     shared: &LaneShared,
     session: &RawSftpSession,
@@ -1626,7 +1652,9 @@ async fn upload_chunk(
         if *shared.cancel.borrow() {
             return Err(TransferError::Cancelled);
         }
-        let want = (len - pos).min(shared.write_step) as usize;
+        let want = (len - pos)
+            .min(shared.write_step)
+            .min(max_throttled_request(shared)) as usize;
         {
             // Lock only for the positioned local read; the network write
             // below happens without the lock so sibling chunk tasks keep
@@ -1646,6 +1674,7 @@ async fn upload_chunk(
                     ))
                 })?;
         }
+        throttle(shared, want as u64).await?;
         session
             .write(handle, offset + pos, buffer[..want].to_vec())
             .await
@@ -1675,7 +1704,8 @@ async fn download_chunk(
         if *shared.cancel.borrow() {
             return Err(TransferError::Cancelled);
         }
-        let request = (len - pos).min(step) as u32;
+        let request = (len - pos).min(step).min(max_throttled_request(shared)) as u32;
+        throttle(shared, u64::from(request)).await?;
         let data = session
             .read(handle, offset + pos, request)
             .await

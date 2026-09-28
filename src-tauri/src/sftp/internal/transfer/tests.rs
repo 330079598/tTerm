@@ -22,6 +22,7 @@ fn options(chunk_size: u64, parallelism: usize) -> TransferOptions {
         chunk_size,
         progress_interval_bytes: 0,
         pipeline_window: PIPELINE_WINDOW,
+        rate_limiter: None,
     }
 }
 
@@ -1240,3 +1241,150 @@ async fn step_level_progress_emits_before_chunk_completes() {
     assert_eq!(*recorded.last().unwrap(), chunk_size);
 }
 
+/// A shared limiter caps the transfer as a whole, across all of its lanes, in
+/// both directions — and a cancel still gets through while a lane is throttled.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn rate_limiter_caps_both_directions_across_lanes() {
+    let server = TestServer::start(ServerOptions {
+        limits: Some(server_limits()),
+        ..Default::default()
+    })
+    .await;
+    let rate = 1024 * 1024u64;
+    let limiter = Arc::new(rate_limit::RateLimiter::new(rate));
+    let limited = |chunk_size| TransferOptions {
+        rate_limiter: Some(limiter.clone()),
+        ..options(chunk_size, 4)
+    };
+    // 1.5 MiB at 1 MiB/s: at least ~1.25 s after the free initial bucket.
+    let data = content(1536 * 1024);
+    let min_elapsed = Duration::from_millis(1100);
+
+    let local_path = server.local_dir().join("limited-source.bin");
+    write_local(&local_path, &data).await;
+    let started = Instant::now();
+    upload_file(
+        server.channels(4).await,
+        local_path,
+        "limited.bin".to_string(),
+        limited(64 * 1024),
+        watch::channel(false).1,
+        noop_progress(),
+    )
+    .await
+    .unwrap();
+    let elapsed = started.elapsed();
+    assert!(elapsed >= min_elapsed, "upload took {elapsed:?}");
+    assert_eq!(
+        std::fs::read(server.root().join("limited.bin")).unwrap(),
+        data
+    );
+
+    let download_path = server.local_dir().join("limited-download.bin");
+    let started = Instant::now();
+    download_file(
+        server.channels(4).await,
+        download_path.clone(),
+        "limited.bin".to_string(),
+        limited(64 * 1024),
+        watch::channel(false).1,
+        noop_progress(),
+    )
+    .await
+    .unwrap();
+    let elapsed = started.elapsed();
+    assert!(elapsed >= min_elapsed, "download took {elapsed:?}");
+    assert_eq!(std::fs::read(&download_path).unwrap(), data);
+
+    // Throttled to a crawl, a cancel must still end the transfer promptly.
+    limiter.set_rate(1024);
+    let (cancel_tx, cancel_rx) = watch::channel(false);
+    let cancel = tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        cancel_tx.send(true).unwrap();
+        cancel_tx
+    });
+    let started = Instant::now();
+    let result = download_file(
+        server.channels(4).await,
+        server.local_dir().join("cancelled-download.bin"),
+        "limited.bin".to_string(),
+        limited(64 * 1024),
+        cancel_rx,
+        noop_progress(),
+    )
+    .await;
+    assert!(matches!(result, Err(TransferError::Cancelled)));
+    assert!(started.elapsed() < Duration::from_secs(3));
+    drop(cancel.await.unwrap());
+}
+
+/// Progress must never run ahead of the budget: at every moment the bytes
+/// moved stay within one bucket of `rate × elapsed`. A request larger than
+/// the bucket used to go out unthrottled and be paid for afterwards, which
+/// made the reported average (bytes ÷ time) overshoot the limit — at
+/// 30 KiB/s with 255 KiB writes the UI showed ~40 KiB/s.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn rate_limited_progress_never_runs_ahead_of_the_budget() {
+    let server = TestServer::start(ServerOptions {
+        limits: Some(server_limits()),
+        ..Default::default()
+    })
+    .await;
+    // A 16 KiB bucket, half the server's 32 KiB write/read step.
+    let rate = 64 * 1024u64;
+    let bucket = rate / 4;
+    let data = content(96 * 1024);
+    let local_path = server.local_dir().join("budget-source.bin");
+    write_local(&local_path, &data).await;
+
+    for direction in [TransferDirection::Upload, TransferDirection::Download] {
+        let samples = Arc::new(std::sync::Mutex::new(Vec::<(Duration, u64)>::new()));
+        let started = Instant::now();
+        let progress: ProgressSink = {
+            let samples = samples.clone();
+            Arc::new(move |update: TransferProgress| {
+                samples
+                    .lock()
+                    .unwrap()
+                    .push((started.elapsed(), update.transferred));
+            })
+        };
+        let options = TransferOptions {
+            rate_limiter: Some(Arc::new(rate_limit::RateLimiter::new(rate))),
+            ..options(64 * 1024, 2)
+        };
+        match direction {
+            TransferDirection::Upload => upload_file(
+                server.channels(2).await,
+                local_path.clone(),
+                "budget.bin".to_string(),
+                options,
+                watch::channel(false).1,
+                progress,
+            )
+            .await
+            .unwrap(),
+            TransferDirection::Download => download_file(
+                server.channels(2).await,
+                server.local_dir().join("budget-download.bin"),
+                "budget.bin".to_string(),
+                options,
+                watch::channel(false).1,
+                progress,
+            )
+            .await
+            .unwrap(),
+        };
+
+        let samples = samples.lock().unwrap().clone();
+        assert!(!samples.is_empty());
+        for (elapsed, transferred) in samples {
+            let budget = bucket as f64 + rate as f64 * elapsed.as_secs_f64();
+            assert!(
+                transferred as f64 <= budget + 1.0,
+                "{direction:?}: {transferred} bytes after {elapsed:?} exceeds the {budget:.0}-byte budget"
+            );
+        }
+    }
+}
