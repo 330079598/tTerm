@@ -36,6 +36,15 @@ export interface ForwardSpec {
   destPort: number
 }
 
+/** Traffic a tunnel has carried across runs, kept in the database. */
+export interface TunnelTraffic {
+  bytesUp: number
+  bytesDown: number
+  connections: number
+  /** Unix ms when counting began: the first run counted or the last reset. */
+  since: number | null
+}
+
 export interface TunnelStatus {
   id: string
   state: TunnelState
@@ -52,6 +61,8 @@ export interface TunnelStatus {
   retryAttempt: number
   /** Why the latest forwarded connection failed; the tunnel itself may still be up. */
   lastFailure: TunnelFailure | null
+  /** Totals across every run, including the current one. */
+  lifetime: TunnelTraffic
 }
 
 /** A secret the backend needs before it can connect. */

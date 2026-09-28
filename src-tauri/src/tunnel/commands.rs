@@ -1,8 +1,11 @@
 use super::credentials::{apply_credentials, collect_requests, StartOutcome, TunnelCredentials};
 use super::hub::{SessionHub, SshConnection};
 use super::runtime::{run_tunnel, RunContext, TunnelReporter};
-use super::storage::{delete_tunnel as delete_tunnel_rule, load_tunnels, upsert_tunnel};
-use super::types::{TunnelRule, TunnelState, TunnelStatus};
+use super::storage::{
+    delete_tunnel as delete_tunnel_rule, list_tunnel_traffic, load_tunnels, reset_tunnel_traffic,
+    upsert_tunnel,
+};
+use super::types::{TunnelRule, TunnelState, TunnelStatus, TunnelTraffic};
 use crate::core::session::{
     load_saved_jump_host_password, load_saved_ssh_password, normalize_connection,
     resolve_ssh_password, JumpHostOptions, PtyConnectionOptions,
@@ -49,13 +52,35 @@ impl TunnelManager {
             .clone()
     }
 
-    fn status_of(&self, id: &str) -> TunnelStatus {
+    fn reporter(&self, id: &str) -> Option<Arc<TunnelReporter>> {
         self.reporters
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .get(id)
+            .cloned()
+    }
+
+    /// `saved` is the rule's traffic in the database, used when the rule has
+    /// not run since launch.
+    fn status_of(&self, id: &str, saved: TunnelTraffic) -> TunnelStatus {
+        self.reporter(id)
             .map(|reporter| reporter.snapshot())
-            .unwrap_or_else(|| TunnelStatus::stopped(id))
+            .unwrap_or_else(|| TunnelStatus::stopped(id, saved))
+    }
+
+    /// Saves the traffic every tunnel carried since its last save. Called
+    /// when the app exits, while tunnels may still be running.
+    pub fn save_traffic(&self) {
+        let reporters = self
+            .reporters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .values()
+            .cloned()
+            .collect::<Vec<_>>();
+        for reporter in reporters {
+            reporter.save_traffic();
+        }
     }
 
     /// Stops every running tunnel that connects through `profile_id`.
@@ -118,12 +143,7 @@ impl TunnelManager {
         let mut task = running.task;
         if tokio::time::timeout(STOP_TIMEOUT, &mut task).await.is_err() {
             task.abort();
-            if let Some(reporter) = self
-                .reporters
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .get(id)
-            {
+            if let Some(reporter) = self.reporter(id) {
                 reporter.set_state(TunnelState::Stopped, None);
             }
         }
@@ -189,10 +209,27 @@ pub fn list_tunnels() -> Result<Vec<TunnelRule>, String> {
 pub fn list_tunnel_statuses(
     manager: State<'_, TunnelManager>,
 ) -> Result<Vec<TunnelStatus>, String> {
-    Ok(load_tunnels()?
+    let rules = load_tunnels()?;
+    let saved = crate::db::read(list_tunnel_traffic)?;
+    Ok(rules
         .iter()
-        .map(|rule| manager.status_of(&rule.id))
+        .map(|rule| manager.status_of(&rule.id, saved.get(&rule.id).copied().unwrap_or_default()))
         .collect())
+}
+
+/// Zeroes a tunnel's lifetime traffic and starts counting again from now.
+#[tauri::command]
+pub fn reset_tunnel_traffic_totals(
+    id: String,
+    manager: State<'_, TunnelManager>,
+) -> Result<(), String> {
+    match manager.reporter(&id) {
+        Some(reporter) => reporter.reset_traffic(),
+        None => {
+            let now = crate::ssh::now_unix_ms().max(0) as u64;
+            crate::db::write(|transaction| reset_tunnel_traffic(transaction, &id, now))
+        }
+    }
 }
 
 #[tauri::command]

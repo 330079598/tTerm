@@ -148,6 +148,31 @@ pub struct TunnelStatus {
     /// Why the most recent forwarded connection failed, kept while the tunnel
     /// itself stays up so a refused destination is not invisible.
     pub last_failure: Option<TunnelFailure>,
+    /// Totals across every run, including the current one.
+    pub lifetime: TunnelTraffic,
+}
+
+/// Traffic a tunnel has carried across runs, saved in the database.
+#[derive(Debug, Serialize, Clone, Copy, Default, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct TunnelTraffic {
+    pub bytes_up: u64,
+    pub bytes_down: u64,
+    pub connections: u64,
+    /// Unix ms when counting began: the first run counted or the last reset.
+    pub since: Option<u64>,
+}
+
+impl TunnelTraffic {
+    /// These totals with `delta` (up, down, connections) added.
+    pub fn plus(self, (up, down, connections): (u64, u64, u64)) -> Self {
+        Self {
+            bytes_up: self.bytes_up.saturating_add(up),
+            bytes_down: self.bytes_down.saturating_add(down),
+            connections: self.connections.saturating_add(connections),
+            since: self.since,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq, Eq)]
@@ -159,7 +184,7 @@ pub struct TunnelFailure {
 }
 
 impl TunnelStatus {
-    pub fn stopped(id: &str) -> Self {
+    pub fn stopped(id: &str, lifetime: TunnelTraffic) -> Self {
         Self {
             id: id.to_string(),
             state: TunnelState::Stopped,
@@ -173,6 +198,7 @@ impl TunnelStatus {
             connected_at: None,
             retry_attempt: 0,
             last_failure: None,
+            lifetime,
         }
     }
 }

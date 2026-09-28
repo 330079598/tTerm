@@ -11,6 +11,7 @@ import {
   Pencil,
   Play,
   Plus,
+  RotateCcw,
   Square,
   Trash2,
   Waypoints,
@@ -30,6 +31,7 @@ import type {
   TunnelRule,
   TunnelState,
   TunnelStatus,
+  TunnelTraffic,
 } from "@/types/tunnel"
 import { CredentialsDialog } from "@/components/TunnelsPanel/CredentialsDialog"
 import { TunnelDialog } from "@/components/TunnelsPanel/TunnelDialog"
@@ -54,6 +56,61 @@ const STATUS_DOT: Record<TunnelState, string> = {
   needsCredentials: "bg-warning",
 }
 
+function TrafficAmounts({ up, down }: { up: number; down: number }) {
+  const { t } = useTranslation()
+  return (
+    <>
+      <span className="inline-flex items-center gap-0.5">
+        <ArrowUp className="size-3" aria-label={t("tunnels.stats.up", { defaultValue: "Sent" })} />
+        {formatBytes(up)}
+      </span>
+      <span className="inline-flex items-center gap-0.5">
+        <ArrowDown
+          className="size-3"
+          aria-label={t("tunnels.stats.down", { defaultValue: "Received" })}
+        />
+        {formatBytes(down)}
+      </span>
+    </>
+  )
+}
+
+function LifetimeTraffic({ traffic, onReset }: { traffic: TunnelTraffic; onReset: () => void }) {
+  const { t, i18n } = useTranslation()
+  return (
+    <span className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
+      <span>{t("tunnels.stats.lifetime", { defaultValue: "All time" })}</span>
+      <TrafficAmounts up={traffic.bytesUp} down={traffic.bytesDown} />
+      <span>
+        {t("tunnels.stats.lifetimeConnections", {
+          count: traffic.connections,
+          defaultValue: "{{count}} connections",
+        })}
+        {traffic.since != null && (
+          <>
+            {" · "}
+            {t("tunnels.stats.since", {
+              date: new Date(traffic.since).toLocaleDateString(i18n.language),
+              defaultValue: "since {{date}}",
+            })}
+          </>
+        )}
+      </span>
+      <Button
+        type="button"
+        size="icon-xs"
+        variant="ghost"
+        className="-my-1"
+        aria-label={t("tunnels.stats.reset", { defaultValue: "Reset totals" })}
+        title={t("tunnels.stats.reset", { defaultValue: "Reset totals" })}
+        onClick={onReset}
+      >
+        <RotateCcw />
+      </Button>
+    </span>
+  )
+}
+
 interface TunnelsPanelProps {
   profilesRefreshKey?: number
 }
@@ -69,6 +126,7 @@ interface TunnelCardProps {
   onOpen: (url: string) => void
   onEdit: (rule: TunnelRule) => void
   onDelete: (rule: TunnelRule) => void
+  onResetTraffic: (rule: TunnelRule) => void
 }
 
 const TunnelCard = React.memo(function TunnelCard({
@@ -82,6 +140,7 @@ const TunnelCard = React.memo(function TunnelCard({
   onOpen,
   onEdit,
   onDelete,
+  onResetTraffic,
 }: TunnelCardProps) {
   const { t } = useTranslation()
   const active = isTunnelActive(status.state)
@@ -90,6 +149,15 @@ const TunnelCard = React.memo(function TunnelCard({
   const running = status.state === "running"
   const clientAddress = running ? tunnelClientAddress(rule, status.boundPort) : null
   const browserUrl = running ? tunnelBrowserUrl(rule, status.boundPort) : null
+  const lifetime = status.lifetime
+  const hasLifetime =
+    lifetime.since != null ||
+    lifetime.bytesUp > 0 ||
+    lifetime.bytesDown > 0 ||
+    lifetime.connections > 0
+  const lifetimeTraffic = hasLifetime ? (
+    <LifetimeTraffic traffic={lifetime} onReset={() => onResetTraffic(rule)} />
+  ) : null
 
   return (
     <article
@@ -230,21 +298,9 @@ const TunnelCard = React.memo(function TunnelCard({
                   defaultValue: "{{count}} total",
                 })}
               </span>
-              <span className="inline-flex items-center gap-0.5">
-                <ArrowUp
-                  className="size-3"
-                  aria-label={t("tunnels.stats.up", { defaultValue: "Sent" })}
-                />
-                {formatBytes(status.bytesUp)}
-              </span>
-              <span className="inline-flex items-center gap-0.5">
-                <ArrowDown
-                  className="size-3"
-                  aria-label={t("tunnels.stats.down", { defaultValue: "Received" })}
-                />
-                {formatBytes(status.bytesDown)}
-              </span>
+              <TrafficAmounts up={status.bytesUp} down={status.bytesDown} />
             </span>
+            {lifetimeTraffic}
             {status.lastFailure && (
               <span
                 className="text-warning flex items-start gap-1 break-all"
@@ -267,7 +323,9 @@ const TunnelCard = React.memo(function TunnelCard({
               </span>
             )}
           </div>
-        ) : null}
+        ) : (
+          lifetimeTraffic
+        )}
       </footer>
     </article>
   )
@@ -460,6 +518,32 @@ export const TunnelsPanel: React.FC<TunnelsPanelProps> = ({ profilesRefreshKey }
     [confirm, reload, reportError, t]
   )
 
+  const handleResetTraffic = useCallback(
+    async (rule: TunnelRule) => {
+      const confirmed = await confirm({
+        title: t("tunnels.stats.resetConfirmTitle", { defaultValue: "Reset traffic totals?" }),
+        description: t("tunnels.stats.resetConfirmDescription", {
+          name: rule.name,
+          defaultValue: "The all-time traffic of “{{name}}” will be set to zero.",
+        }),
+        confirmText: t("tunnels.stats.reset", { defaultValue: "Reset totals" }),
+        variant: "destructive",
+      })
+      if (!confirmed) return
+      try {
+        await invoke("reset_tunnel_traffic_totals", { id: rule.id })
+        // A running tunnel reports its new totals itself; a stopped one does not.
+        await reload()
+      } catch (error) {
+        reportError(
+          t("tunnels.stats.resetFailed", { defaultValue: "Could not reset the traffic totals" }),
+          error
+        )
+      }
+    },
+    [confirm, reload, reportError, t]
+  )
+
   const handleCopy = useCallback(
     async (address: string) => {
       try {
@@ -563,6 +647,7 @@ export const TunnelsPanel: React.FC<TunnelsPanelProps> = ({ profilesRefreshKey }
                   onOpen={handleOpen}
                   onEdit={openEdit}
                   onDelete={handleDelete}
+                  onResetTraffic={handleResetTraffic}
                 />
               )
             })}

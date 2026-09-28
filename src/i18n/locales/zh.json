@@ -743,7 +743,14 @@
       "up": "已发送",
       "down": "已接收",
       "failed": "{{count}} 次失败",
-      "ago": "{{time}}前"
+      "ago": "{{time}}前",
+      "lifetime": "历史累计",
+      "lifetimeConnections": "{{count}} 次连接",
+      "since": "自 {{date}} 起",
+      "reset": "清零累计",
+      "resetConfirmTitle": "清零累计流量？",
+      "resetConfirmDescription": "“{{name}}”的历史累计流量将被清零。",
+      "resetFailed": "无法清零累计流量"
     },
     "errors": {
       "nameRequired": "请为隧道起个名字。",

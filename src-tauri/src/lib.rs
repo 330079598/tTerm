@@ -222,6 +222,7 @@ pub fn run() {
             tunnel::delete_tunnel,
             tunnel::start_tunnel,
             tunnel::stop_tunnel,
+            tunnel::reset_tunnel_traffic_totals,
             tunnel::auto_start_tunnels,
             tunnel::confirm_quit_app,
             tunnel::cancel_quit_prompt,
@@ -309,16 +310,20 @@ pub fn run() {
         .run(|app, event| {
             // Cmd+Q and the like skip the window-close path. An exit with a
             // code is one the app requested itself and is never held back.
-            if let tauri::RunEvent::ExitRequested {
-                api, code: None, ..
-            } = event
-            {
-                if app
-                    .state::<tunnel::TunnelManager>()
-                    .hold_exit_for_confirmation(app)
-                {
-                    api.prevent_exit();
+            match event {
+                tauri::RunEvent::ExitRequested {
+                    api, code: None, ..
+                } => {
+                    if app
+                        .state::<tunnel::TunnelManager>()
+                        .hold_exit_for_confirmation(app)
+                    {
+                        api.prevent_exit();
+                    }
                 }
+                // Tunnels may still be running; keep what they carried.
+                tauri::RunEvent::Exit => app.state::<tunnel::TunnelManager>().save_traffic(),
+                _ => {}
             }
         });
 }

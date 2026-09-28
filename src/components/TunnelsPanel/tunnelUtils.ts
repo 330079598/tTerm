@@ -186,6 +186,7 @@ export function stoppedStatus(id: string): TunnelStatus {
     connectedAt: null,
     retryAttempt: 0,
     lastFailure: null,
+    lifetime: { bytesUp: 0, bytesDown: 0, connections: 0, since: null },
   }
 }
 

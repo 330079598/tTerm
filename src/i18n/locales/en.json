@@ -752,7 +752,14 @@
       "up": "Sent",
       "down": "Received",
       "failed": "{{count}} failed",
-      "ago": "{{time}} ago"
+      "ago": "{{time}} ago",
+      "lifetime": "All time",
+      "lifetimeConnections": "{{count}} connections",
+      "since": "since {{date}}",
+      "reset": "Reset totals",
+      "resetConfirmTitle": "Reset traffic totals?",
+      "resetConfirmDescription": "The all-time traffic of “{{name}}” will be set to zero.",
+      "resetFailed": "Could not reset the traffic totals"
     },
     "errors": {
       "nameRequired": "Give the tunnel a name.",
