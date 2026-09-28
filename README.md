@@ -2,127 +2,148 @@
 
 English | [简体中文](./README.zh-CN.md)
 
-`tTerm` is a desktop terminal app for developers, operators, and anyone who works with remote servers. It brings **local terminals, SSH sessions, SFTP file management, transfer progress tracking, session restore, and secure password storage** into one lightweight application.
+`tTerm` is a desktop terminal app for developers, operators, and anyone who works with remote servers. It brings **local terminals, SSH sessions, split panes, SFTP file management, port forwarding, server monitoring, and encrypted credential storage** into one lightweight application.
 
-If you often connect to servers, move files between local and remote machines, or juggle multiple terminal sessions, tTerm is designed to be the tool you can open and start working with immediately.
+If you often connect to servers, move files between local and remote machines, or juggle many terminal sessions at once, tTerm is designed to be the tool you can open and start working with immediately.
 
 ![main-overview](./docs/screenshot/main-overview.png)
 
 ## Why tTerm?
 
-- **Terminal and file management in one place**: Open the SFTP drawer from an SSH session and browse, upload, download, rename, or delete remote files without switching apps.
-- **Built for multitasking**: Use multiple tabs, reorder them with drag and drop, and restore previous sessions after restarting the app.
-- **ZMODEM (rz/sz) transfers**: On devices or jump hosts without SFTP, run `rz`/`sz` right in the terminal. Transfers are auto-detected, the same way SecureCRT/Xshell work.
-- **Visible transfer progress**: Uploads, downloads, and batch operations expose clear task status and progress feedback.
+- **Terminal and files in one place**: Open the SFTP drawer from an SSH session to browse, transfer, and edit remote files without switching apps.
+- **Built for many servers at once**: Split the workspace into panes, broadcast a command to several terminals, and keep frequently used commands in a searchable library.
+- **Fast, resumable transfers**: Parallel SFTP channels, resume after interruption, conflict handling, and bandwidth limits. ZMODEM (`rz`/`sz`) covers hosts without SFTP.
 - **Visual port forwarding**: Manage local, remote, and dynamic (SOCKS5) SSH tunnels from a dedicated page, with live status, traffic counters, and automatic reconnects.
-- **Safer SSH workflow**: Confirm host keys, save reusable connection profiles, and store sensitive credentials with system keyring or an encrypted local vault.
-- **Modern desktop experience**: Built with Tauri for a lightweight, fast, cross-platform app with themes, font settings, and internationalization.
+- **See the server at a glance**: A monitor bar under each SSH session shows CPU, memory, network, disk, and latency, with nothing to install on the server.
+- **Safer SSH workflow**: Host key confirmation, SSH agent and jump-host support, and saved passwords encrypted locally with AES-256-GCM.
+- **Modern desktop experience**: Built with Tauri for a lightweight, fast, cross-platform app with themes, customizable shortcuts, and English/Chinese UI.
 
 ## Key Features
 
-### Terminal Experience
+### Workspace and Tabs
 
-![terminal-search](./docs/screenshot/terminal-search.png)
+- Multiple tabs with drag-and-drop reordering, duplicate, rename, and close others / left / right
+- Split panes: split any tab left, right, up, or down, drag tabs between groups, and maximize a group
+- Tab search and overview when many tabs are open; adaptive or fixed tab width
+- Session and layout restore after restart, optionally connecting only the active tab at startup
+- Confirmation before closing tabs with active transfers or quitting with running tunnels
 
-- Local shell terminal with configurable shell (auto-detect, or choose from system shells)
-- Terminal search with real-time highlighting
-- Multi-tab session management with duplicate, rename, close-others, and close-to-right
-- Drag-and-drop tab reordering
-- Responsive terminal resizing
-- Web link detection
-- Session restore after app restart
+### Terminal
 
-### SSH Connection Management
+- Local shell with auto-detection, or pick one (on Windows: cmd, PowerShell, PowerShell 7, WSL, Git Bash, or a custom executable)
+- Search with real-time highlighting
+- WebGL or Canvas renderer, configurable scrollback (10,000 lines by default)
+- Web link detection and clear-history action
+- Fully customizable keyboard shortcuts with conflict detection, including warnings when a binding would shadow common shell keys such as `Ctrl+A` or `Ctrl+R`
+- Optional session logging: raw and/or plain-text logs, file name templates, size-based rotation, and gzip compression of closed files
 
-- Remote SSH terminal sessions
-- Password or private-key authentication
-- Saved and reusable connection profiles
-- Connection testing
-- SSH host key confirmation
-- Known-host management
-- Per-tab connection info bar with pinning
+### Broadcast Input
+
+Run the same thing on several servers at once (`Cmd/Ctrl+Shift+B`). The screenshot at the top shows live mode typing into three split panes:
+
+- **Command mode**: type a command once and send it to the selected terminals, with a confirmation for multi-line input
+- **Live mode**: keystrokes and pastes from a primary terminal are mirrored to every target in real time
+- Per-target delivery status, and disconnected targets can be reconnected before sending
+- Live mode stops automatically when a password prompt appears, so passwords stay in the source terminal
+
+### Command Library
+
+![command-library](./docs/screenshot/command-library.png)
+
+- Save commands with a name, description, tags, and favorites (`Cmd/Ctrl+Shift+P` to open)
+- Scope a command to all connections or to a single saved connection
+- Recently executed commands are captured automatically
+- Insert a command into the current terminal without executing it, or save the selected terminal text as a new command
+- Tag management: create, rename, and delete
+
+### SSH Connections
+
+![saved-connections](./docs/screenshot/saved-connections.png)
+
+- Password, private key (with passphrase), or SSH agent authentication, including hardware-backed keys (YubiKey, FIDO2) loaded into the agent
+- Optional SSH agent forwarding per connection
+- Jump-host chains, opened in order like OpenSSH `ProxyJump`
+- Import hosts from `~/.ssh/config` with a preview, including `LocalForward` / `RemoteForward` / `DynamicForward` rules as tunnels
+- Connection groups with drag-and-drop, search, and bulk delete
+- Host key confirmation and known-host management
+- Automatic reconnect with capped backoff and a configurable attempt limit
+- Per-tab connection header with pinning
+- **Sudo password autofill**: when `sudo` or `doas` asks for a password, a bar outside the terminal offers to fill the saved password with one click or `Cmd/Ctrl+Shift+Enter`. Prompts are recognized in English, Chinese, and other locales, and you can add custom patterns. A dedicated sudo password can be saved per connection, which is useful for key or agent logins. Autofill pauses for the session if the password is rejected.
+
+### Server Monitor
+
+- Compact status bar under each SSH session: CPU, memory, network throughput, disk, load, uptime, server IP, and SSH latency. Choose which metrics to show and in what order.
+- Expandable detail panel with Overview, CPU, Memory, Network, and Disk tabs and recent trends
+- Metrics are read over the existing SSH connection from `/proc`; nothing is installed on the server. Linux hosts only.
+- Refresh interval from 1 to 60 seconds
 
 ### Built-in SFTP File Manager
 
 ![sftp-browser](./docs/screenshot/sftp-browser.png)
 
-- Browse remote directories
-- Create folders
-- Rename files and directories
-- Delete files and directories
-- Batch delete with preview before confirmation
-- Upload and download files
-- Drag-and-drop upload for local files and folders
-- Transfer cancellation and status tracking
-- Clipboard support for file path copying
-
-### ZMODEM File Transfer (rz / sz)
-
-When SFTP isn't available (network-equipment consoles, serial/embedded targets, bastion hosts that only expose an interactive shell), you can move files right inside the terminal with `rz` / `sz`, just like SecureCRT / Xshell. It works in both local terminals and SSH sessions with no extra setup.
-
-> The remote side needs `lrzsz` installed (e.g. `apt install lrzsz`, `yum install lrzsz`; for local terminals on macOS, `brew install lrzsz`).
-
-**Download (remote → local)**
-
-```bash
-sz file.tar.gz            # one file
-sz a.log b.log c.log      # several files, transferred in sequence
-```
-
-tTerm detects the transfer and starts receiving immediately, with no dialog. Files are saved to the ZMODEM download directory (the system Downloads folder by default). Existing files are never overwritten; a name clash becomes `file (1).tar.gz`.
-
-**Upload (local → remote)**
-
-```bash
-rz
-```
-
-When tTerm sees `rz` start, it opens a file picker (multi-select). The chosen files are uploaded into the remote working directory. Cancelling the picker tells the remote `rz` to exit cleanly.
-
-**Progress and cancellation**
-
-- Progress, speed, and results appear in the Transfer Manager, alongside SFTP tasks.
-- To cancel, click cancel in the Transfer Manager or press `Ctrl+C` in the terminal. Both send the standard abort sequence, so the remote `rz`/`sz` exits right away instead of timing out.
-- While a transfer is running, keystrokes other than `Ctrl+C` are held back so they can't corrupt the data stream.
-- If an SSH session reconnects, any unfinished transfer is cleaned up, since the remote process ended with the old connection.
-
-**Settings and manual trigger**
-
-- **Settings → General → ZMODEM**:
-  - **Auto-detect ZMODEM transfers** (on by default): when off, tTerm stops scanning terminal output for rz/sz trigger sequences.
-  - **Download directory**: where received files are saved. Leave empty to use the system Downloads folder.
-- **Manual trigger**: if auto-detect is off or doesn't fire, choose **"Send files with ZMODEM (rz)"** or **"Receive files with ZMODEM (sz)"** from the terminal context menu, then run `rz` or `sz <file>`. You can also bind shortcuts to both actions under **Settings → Keyboard shortcuts → ZMODEM** (unbound by default). A manual trigger applies only to the next transfer in the current tab.
-
-**SFTP or ZMODEM?**
-
-They don't conflict, and there's no choice to make at connect time. SFTP runs on its own SSH subchannel and is better for browsing and for bulk or large transfers. ZMODEM rides the terminal stream itself, so it works where there's no SFTP subsystem, through multi-hop jumps, `su`, or `docker exec`, or when you just want to grab one file from the shell's current directory. Prefer SFTP when the server supports it.
+- Browse remote directories, jump to a path by typing it, resize columns, and see owner/group and permissions
+- Filter the current folder by text, glob, or regular expression
+- Create folders, rename, and delete; batch delete with preview, and a reviewed remote command for very large folders
+- Upload and download files and folders, drag and drop from the desktop, or paste copied local files with `Ctrl+V` / `Cmd+V`
+- **Remote file editor**: open a remote file in a built-in editor with syntax highlighting and save it back
+- Copy full remote paths
 
 ### Transfer Manager
 
-- View upload and download tasks
-- Expand batch transfer groups
-- Track progress, speed, and status
-- Clear completed tasks
+- Parallel SFTP channels per transfer (1–16, default 4)
+- Resume or retry interrupted transfers from where they stopped
+- Conflict handling when files already exist: overwrite only if newer, overwrite all, skip, or keep both
+- Separate upload and download bandwidth limits that also apply to running transfers
+- Progress, speed, and status for every task, with expandable batch/folder groups and a history view
+- ZMODEM transfers show up here alongside SFTP tasks
 
-### Personalization and Usability
+### ZMODEM File Transfer (rz / sz)
+
+When SFTP isn't available (network-equipment consoles, embedded targets, bastion hosts that only expose an interactive shell), run `rz` / `sz` right in the terminal, just like SecureCRT / Xshell. Transfers are detected automatically in both local terminals and SSH sessions, and can also be triggered manually from the context menu.
+
+See [docs/zmodem.md](./docs/zmodem.md) for usage, settings, and implementation details.
+
+### Port Forwarding
+
+![port-forwarding](./docs/screenshot/port-forwarding.png)
+
+- Local, remote, and dynamic (SOCKS5) forwards built on your saved SSH connections, including jump hosts
+- Tunnels to the same host share one SSH connection
+- Live status, active and total connections, and bytes sent/received
+- Automatic reconnect with notifications when a tunnel drops or comes back
+- Start tunnels when tTerm opens (skipped when a password would need to be typed)
+- Shows the equivalent OpenSSH command, and warns when a tunnel listens on an address reachable from your network
+- Copy the listening address or open it in the browser
+
+### Personalization
 
 ![theme-editor](./docs/screenshot/theme-editor.png)
 
-- Built-in themes
-- Custom theme editor with live preview
+- Built-in themes and a custom theme editor with live preview
 - Terminal palette preview with 16-color swatches
-- Font settings with system font picker
-- Cursor style picker
-- English and Chinese UI with auto language detection
+- Font settings with a system font picker, and cursor style picker
+- Interface text scale from 80% to 200%
+- English and Chinese UI with automatic language detection
 - Windows, macOS, and Linux desktop support
-- Automatic config migration between versions
 
-### Security
+### Security and Data
 
-- System keyring integration
-- Optional encrypted password vault
-- Legacy SSH password data migration
-- Local-first sensitive data storage
+- **Encrypted saved passwords**: SSH, jump-host, and sudo passwords are encrypted with AES-256-GCM in tTerm's local database. Choose how the key is unlocked:
+  - **System credential store** (Keychain on macOS, Credential Manager on Windows, Secret Service on Linux)
+  - **Master password** (Argon2id), with an optional unlock prompt at startup
+  - **Don't save passwords**: keep them for the current session only
+- Optional recovery password in case the system credential store loses the key
+- View or delete saved passwords from settings
+- **Backup and migration**: export exactly the data you choose (settings, connections and tunnels, workspace, known hosts, commands, themes, logs). Passwords are only included in password-protected backups (Argon2id + AES-256-GCM). Imports are previewed first, can merge or replace, and create a recovery snapshot automatically.
+- Scheduled local backups (daily or weekly) with a retention limit. These never contain passwords.
+- Data from older versions (JSON config files and the old password vault) is migrated automatically
+- Everything stays on your machine; there is no cloud service
+
+### Updates
+
+- Built-in updater with **Stable** and **Beta Dev** channels
+- Optional background download, configurable check frequency, and release notes in the app
+- Warns before a restart would interrupt active sessions
 
 ## Getting Started
 
@@ -138,7 +159,7 @@ Pre-built binaries are available on the [Releases](https://github.com/330079598/
 
 - Node.js 18+
 - pnpm
-- Rust 1.70+
+- Rust (latest stable)
 - Tauri 2 system dependencies
 
 Platform-specific requirements:
@@ -182,7 +203,8 @@ Tauri writes platform-specific bundles under `src-tauri/target`.
 GitHub Actions workflows are included for automated builds:
 
 - **release-main.yml** — Triggered on push to `main` or `v*` tags. Builds for macOS (aarch64 + x86_64), Ubuntu 24.04, and Windows. Creates draft GitHub releases.
-- **release-dev-beta.yml** — Dev/beta release workflow.
+- **release-dev-beta.yml** — Triggered on push to `dev-beta`. Builds beta pre-releases for the Beta Dev update channel.
+- **sync-release-notes.yml** — Manually triggered. Syncs release notes into the updater manifest for a channel.
 
 ## Common Scripts
 
@@ -205,6 +227,9 @@ pnpm tauri:dev:linux
 # Build the desktop application
 pnpm tauri build
 
+# Run frontend tests (Vitest)
+pnpm test
+
 # Run ESLint
 pnpm lint
 
@@ -226,20 +251,24 @@ pnpm format:check
 - TypeScript
 - Vite
 - TanStack Router
-- xterm.js
+- xterm.js (WebGL and Canvas renderers)
+- dockview (split-pane workspace)
+- CodeMirror 6 (remote file editor)
+- dnd-kit
 - i18next / react-i18next
-- Radix UI Toast
+- Radix UI
 - lucide-react
 - Tailwind CSS 4
 
 ### Desktop and Backend
 
-- Tauri 2
+- Tauri 2 (updater, dialog, clipboard, OS plugins)
 - Rust 2021
 - portable-pty
 - russh
 - russh-sftp
 - Tokio
+- SQLite (rusqlite)
 - keyring
 - aes-gcm / argon2 / zeroize
 
@@ -247,71 +276,60 @@ pnpm format:check
 
 ```text
 .
-├── src/                 # React frontend application
-│   ├── components/      # Terminal, SFTP, settings, theme, and UI components
-│   ├── contexts/        # Global config, theme, and transfer state
-│   ├── hooks/           # Tabs, connections, session restore, and feature hooks
-│   ├── i18n/            # English and Chinese locale resources
-│   ├── lib/             # Theme, startup, and utility helpers
-│   ├── routes/          # TanStack Router pages
-│   └── types/           # Frontend type definitions
-├── src-tauri/           # Tauri / Rust backend
-│   ├── src/config/      # App configuration and paths
-│   ├── src/core/        # PTY, commands, and app state
-│   ├── src/fonts/       # System font support
-│   ├── src/profiles/    # Connection profile management
-│   ├── src/session/     # Session persistence
-│   ├── src/sftp/        # SFTP connections, file operations, and transfers
-│   ├── src/ssh/         # SSH client, host keys, and credential storage
-│   ├── src/terminal/    # Terminal types and interactions
-│   └── src/zmodem/      # ZMODEM (rz/sz) protocol engine, trigger detection, send/receive
-├── public/              # Static assets
-└── dist/                # Frontend build output
+├── src/                      # React frontend application
+│   ├── components/           # Terminal, SFTP, tunnels, broadcast, settings, theme, and UI components
+│   ├── contexts/             # Global config, theme, keymap, and transfer state
+│   ├── hooks/                # Tabs, connections, session restore, and feature hooks
+│   ├── i18n/                 # English and Chinese locale resources
+│   ├── lib/                  # Keymap, theme, startup, prompt detection, and utility helpers
+│   ├── routes/               # TanStack Router pages
+│   └── types/                # Frontend type definitions
+├── src-tauri/                # Tauri / Rust backend
+│   ├── src/backup.rs         # Backup export/import and scheduled backups
+│   ├── src/command_library/  # Saved commands and tags
+│   ├── src/config/           # App configuration and paths
+│   ├── src/core/             # PTY, commands, and app state
+│   ├── src/db/               # SQLite schema, migrations, and legacy JSON import
+│   ├── src/fonts/            # System font support
+│   ├── src/monitor/          # Server monitor metrics over SSH
+│   ├── src/profiles/         # Connection profiles and SSH config import
+│   ├── src/session/          # Session persistence
+│   ├── src/session_log.rs    # Terminal session logging
+│   ├── src/sftp/             # SFTP connections, file operations, and transfers
+│   ├── src/ssh/              # SSH client, agent, jump hosts, host keys, and encrypted secret store
+│   ├── src/terminal/         # Terminal types and I/O
+│   ├── src/tunnel/           # Port forwarding, SOCKS5, and the shared-connection hub
+│   ├── src/updater.rs        # In-app updates
+│   └── src/zmodem/           # ZMODEM (rz/sz) protocol engine, trigger detection, send/receive
+├── docs/                     # Documentation and screenshots
+├── public/                   # Static assets
+└── dist/                     # Frontend build output
 ```
 
 ## Use Cases
 
 - Maintain several servers and switch between SSH sessions quickly
-- Upload and download files between local and remote machines often
+- Run the same command on a group of servers at once
+- Upload and download files between local and remote machines often, including large or interrupted transfers
+- Reach private databases and web services through SSH tunnels
 - Work with terminals and remote files in a single desktop window
 - Move files with `rz`/`sz` on network gear, embedded devices, or shell-only bastion hosts
-- Save frequently used connection profiles while keeping credentials local and secure
+- Save frequently used connection profiles while keeping credentials local and encrypted
 - Use a lighter, modern, themeable alternative to heavier terminal clients
 
 ## Development Notes
 
-tTerm's frontend calls Rust backend commands through Tauri `invoke`. Terminal support is powered by `portable-pty`, SSH and SFTP are powered by `russh` and `russh-sftp`, and sensitive data is handled through the system keyring or a local encrypted vault.
+tTerm's frontend calls Rust backend commands through Tauri `invoke`. Terminal support is powered by `portable-pty`, and SSH and SFTP are powered by `russh` and `russh-sftp`. Settings stay in `config.json`; connections, tunnels, known hosts, commands, and encrypted secrets live in a local SQLite database (`tterm.db`). Saved passwords use envelope encryption: each secret is encrypted with a data key, and only that key is protected by the system credential store or a master password.
 
 When developing, pay special attention to:
 
-- Whether frontend interactions work well for multi-tab and multi-task workflows
+- Whether frontend interactions work well for multi-tab, split-pane, and multi-task workflows
 - Whether Rust commands return clear errors that can be shown in the UI
 - Whether file transfers expose complete progress, cancellation, and failure states
 - Whether password, key, and host-fingerprint flows remain local, safe, and explicit
-- Whether config migration between versions handles all data types (profiles, sessions, known hosts, passwords, SFTP stores)
+- Whether new data is covered by a database migration (`src-tauri/src/db/migrations.rs`) and by backup/import
 
-### ZMODEM Implementation
-
-The ZMODEM protocol lives entirely in the Rust backend (`src-tauri/src/zmodem/`). The frontend only handles settings, file picking, and progress display.
-
-- **Custom push-based engine**: the existing `zmodem` crate isn't used (it does blocking synchronous I/O, supports a single file only, and is unmaintained). `protocol/engine.rs` is a pure state machine, `feed(bytes) -> { outgoing, actions, passthrough }`, that owns no I/O handle. That's required because `portable-pty` allows `take_writer()` only once, so each caller (the local PTY reader thread or the SSH reader task) writes `outgoing` back through the handle it already holds.
-- **Protocol coverage**: CRC16 and CRC32 (CRC32 when sending), ZDLE escaping, hex and binary headers, `ZRPOS` resends, and multi-file batch receive. All wire formats were checked against real `lrzsz` captures.
-- **Trigger detection**: `detect.rs` scans terminal output for `**\x18B00` (remote ran `sz`, so we receive) and `**\x18B01` (remote ran `rz`, so we send). It keeps a small carry buffer so a trigger split across two reads is still caught.
-- **Data path**: the local PTY and SSH byte pipelines are already binary-safe, so ZMODEM data never goes through UTF-8 conversion. Once a transfer starts, terminal output goes to the engine instead of xterm. Leftover bytes after the transfer (such as the next shell prompt) still reach xterm.
-- **Receive**: handled inline on the reader thread or task. Files go to the download directory, and filenames are sanitized to block path traversal.
-- **Send**: runs on a dedicated OS thread (`send.rs`), because the sender has to stream chunks without waiting for a per-chunk ack.
-  - The reader forwards peer bytes to that thread over `std::sync::mpsc`. When the thread finishes, the channel closes and the reader goes back to normal handling.
-  - During local PTY sends, the terminal is switched to raw mode (`cfmakeraw`) so echo and XON/XOFF flow control can't corrupt binary frames.
-  - As a fallback, the `ZFILE` header is resent on `ZNAK` or a repeated `ZRINIT`. Over SSH this is the only protection, since the remote terminal mode is outside our control.
-- **State**: per-tab state lives in `ZmodemMap`, `ZmodemArmedSendMap`, and `ZmodemManualDetectMap` (`core/state.rs`), guarded by `session_nonce` so a stale session can't reuse it. These maps are touched from both OS threads and async tasks, so they use `std::sync` locks, not tokio locks' `blocking_*` methods.
-- **Frontend**: `useZmodemTransfers.ts` listens for the `zmodem-send-requested-{tabId}` and `zmodem-transfer-start/progress/complete-{tabId}` events and feeds the existing Transfer Manager. `TransferTask.cancel` lets ZMODEM tasks use their own cancel path.
-
-Besides unit tests, there are 8 integration tests that need real tools (`#[ignore]` by default). They run real `sz`/`rz` over plain pipes, a local PTY, and a throwaway userspace `sshd`, covering both upload and download:
-
-```bash
-brew install lrzsz   # or your platform's lrzsz package
-cd src-tauri && cargo test --lib zmodem::real -- --ignored --test-threads=1
-```
+For how ZMODEM is implemented and how to run its integration tests against real `lrzsz`, see [docs/zmodem.md](./docs/zmodem.md#implementation).
 
 ## Contributing
 
@@ -320,6 +338,7 @@ Issues and pull requests are welcome. Before submitting changes, run:
 ```bash
 pnpm lint
 pnpm format:check
+pnpm test
 pnpm build
 ```
 
@@ -327,6 +346,7 @@ If your changes touch the Rust/Tauri backend, also run:
 
 ```bash
 cargo check --manifest-path src-tauri/Cargo.toml
+cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
 ## License
