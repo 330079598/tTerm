@@ -6,7 +6,12 @@ import { useTranslation } from "react-i18next"
 
 import type { TransferTask, Tab } from "@/types/tab"
 
-import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
+import type {
+  ConflictPolicy,
+  ConflictReport,
+  PromptConflictPolicy,
+  SftpDirectoryEntry,
+} from "@/components/SftpDrawer/types"
 
 interface UseSftpDownloadsParams {
   addTransfer: (
@@ -14,6 +19,7 @@ interface UseSftpDownloadsParams {
     id?: string
   ) => string
   connection?: Tab["connection"]
+  promptConflictPolicy: PromptConflictPolicy
   tabId: string
   transfersRef: React.MutableRefObject<TransferTask[]>
   updateTransfer: (id: string, updates: Partial<TransferTask>) => void
@@ -70,6 +76,7 @@ interface UseSftpDownloadsReturn {
 export function useSftpDownloads({
   addTransfer,
   connection,
+  promptConflictPolicy,
   tabId,
   transfersRef,
   updateTransfer,
@@ -143,6 +150,7 @@ export function useSftpDownloads({
       transferId: string,
       remotePath: string,
       localParentPath: string,
+      conflictPolicy: ConflictPolicy,
       skipExisting = false
     ) => {
       transferStartTimesRef.current.set(transferId, Date.now())
@@ -160,6 +168,7 @@ export function useSftpDownloads({
           transferId,
           remotePath,
           localParentPath,
+          conflictPolicy,
           skipExisting,
         })
         lastProgressUpdateRef.current.delete(transferId)
@@ -272,6 +281,7 @@ export function useSftpDownloads({
                 fileSize: completedFileSize,
                 speed,
                 status: "completed",
+                skipped: skipped || undefined,
                 transferred: completedFileSize,
               })
               return
@@ -386,6 +396,41 @@ export function useSftpDownloads({
           return
         }
 
+        // A single file goes through the native save dialog, which already
+        // confirms overwriting; a folder merges into an existing one, so its
+        // files are checked here.
+        let conflictPolicy: ConflictPolicy = "overwrite"
+        try {
+          const report = await invoke<ConflictReport>("sftp_check_download_conflicts", {
+            connection,
+            localParentPath: targetPath,
+            remotePath: entry.path,
+            tabId,
+          })
+          if (report.total > 0) {
+            const chosen = await promptConflictPolicy(report, "download")
+            if (!chosen) return
+            conflictPolicy = chosen
+          }
+        } catch (invokeError) {
+          console.warn("Failed to check SFTP download conflicts:", invokeError)
+          const transferId = addTransfer({
+            tabId,
+            direction: "download",
+            localPath: targetPath,
+            remotePath: entry.path,
+            fileName: entry.name,
+            fileSize: entry.size || 0,
+            speed: 0,
+          })
+          updateTransfer(transferId, {
+            endTime: Date.now(),
+            error: String(invokeError),
+            status: "failed",
+          })
+          return
+        }
+
         const transferId = addTransfer({
           tabId,
           direction: "download",
@@ -400,11 +445,11 @@ export function useSftpDownloads({
           retry: () => {
             // A retry re-runs the whole folder: files the previous attempt
             // already finished are skipped instead of fetched again.
-            void runDownloadDirectory(transferId, entry.path, targetPath, true)
+            void runDownloadDirectory(transferId, entry.path, targetPath, conflictPolicy, true)
           },
         })
 
-        await runDownloadDirectory(transferId, entry.path, targetPath)
+        await runDownloadDirectory(transferId, entry.path, targetPath, conflictPolicy)
         return
       }
 
@@ -434,7 +479,16 @@ export function useSftpDownloads({
 
       await runDownloadFile(transferId, entry.path, targetPath)
     },
-    [addTransfer, runDownloadDirectory, runDownloadFile, t, tabId, updateTransfer]
+    [
+      addTransfer,
+      connection,
+      promptConflictPolicy,
+      runDownloadDirectory,
+      runDownloadFile,
+      t,
+      tabId,
+      updateTransfer,
+    ]
   )
 
   return {

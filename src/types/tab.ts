@@ -58,6 +58,8 @@ export interface TransferTask {
   resumedFrom?: number
   /** Number of parallel SFTP channels used for this transfer. */
   parallelism?: number
+  /** Completed without moving bytes: the destination was kept as it was. */
+  skipped?: boolean
   /** Re-run the transfer, resuming from its checkpoint when possible. */
   retry?: () => void
   /** Cancel this transfer. Falls back to the SFTP cancel command when unset. */

@@ -13,6 +13,23 @@ const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }))
 const { listeners } = vi.hoisted(() => ({ listeners: new Map<string, Listener>() }))
 const { openDialog } = vi.hoisted(() => ({ openDialog: vi.fn() }))
 
+const noConflicts = { conflicts: [], fileCount: 0, total: 0 }
+const oneConflict = {
+  conflicts: [
+    {
+      sourcePath: "/remote/folder/a.log",
+      sourceSize: 10,
+      sourceMtime: 200,
+      targetIsDir: false,
+      targetPath: "/local/target/folder/a.log",
+      targetSize: 12,
+      targetMtime: 100,
+    },
+  ],
+  fileCount: 3,
+  total: 1,
+}
+
 vi.mock("@tauri-apps/api/core", () => ({ invoke }))
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
@@ -78,7 +95,11 @@ async function startFolderDownload(
   openDialog.mockResolvedValue("/local/target")
   // The download stays in flight: the batch completion event arrives while the
   // invoke is still pending, exactly as the backend emits it.
-  invoke.mockReturnValue(new Promise(() => {}))
+  invoke.mockImplementation((command: string) =>
+    command === "sftp_check_download_conflicts"
+      ? Promise.resolve(noConflicts)
+      : new Promise(() => {})
+  )
   await act(async () => {
     void downloadEntry(folder)
   })
@@ -100,6 +121,7 @@ describe("useSftpDownloads", () => {
       useSftpDownloads({
         addTransfer,
         connection: undefined,
+        promptConflictPolicy: vi.fn(),
         tabId: "tab-1",
         transfersRef: { current: transfers },
         updateTransfer,
@@ -130,6 +152,7 @@ describe("useSftpDownloads", () => {
       useSftpDownloads({
         addTransfer,
         connection: undefined,
+        promptConflictPolicy: vi.fn(),
         tabId: "tab-1",
         transfersRef: { current: transfers },
         updateTransfer,
@@ -160,6 +183,7 @@ describe("useSftpDownloads", () => {
       useSftpDownloads({
         addTransfer,
         connection: undefined,
+        promptConflictPolicy: vi.fn(),
         tabId: "tab-1",
         transfersRef: { current: transfers },
         updateTransfer,
@@ -191,6 +215,7 @@ describe("useSftpDownloads", () => {
       useSftpDownloads({
         addTransfer,
         connection: undefined,
+        promptConflictPolicy: vi.fn(),
         tabId: "tab-1",
         transfersRef: { current: transfers },
         updateTransfer,
@@ -247,5 +272,103 @@ describe("useSftpDownloads", () => {
     const skipped = transfers.find((item) => item.id === "item-2")
     expect(skipped?.status).toBe("completed")
     expect(skipped?.speed).toBe(0)
+  })
+
+  it("downloads a folder under the policy chosen for its local conflicts", async () => {
+    const { addTransfer, transfers, updateTransfer } = createTransferStore()
+    const promptConflictPolicy = vi.fn().mockResolvedValue("rename")
+    const { result } = renderHook(() =>
+      useSftpDownloads({
+        addTransfer,
+        connection: undefined,
+        promptConflictPolicy,
+        tabId: "tab-1",
+        transfersRef: { current: transfers },
+        updateTransfer,
+      })
+    )
+    openDialog.mockResolvedValue("/local/target")
+    invoke.mockImplementation((command: string) =>
+      command === "sftp_check_download_conflicts"
+        ? Promise.resolve(oneConflict)
+        : Promise.resolve(undefined)
+    )
+
+    await act(async () => {
+      await result.current.downloadEntry(folder)
+    })
+
+    expect(promptConflictPolicy).toHaveBeenCalledWith(oneConflict, "download")
+    expect(invoke).toHaveBeenCalledWith(
+      "sftp_download_directory",
+      expect.objectContaining({ conflictPolicy: "rename", skipExisting: false })
+    )
+
+    // A retry keeps the policy and skips what the first attempt finished.
+    invoke.mockClear()
+    const batch = transfers.find((item) => item.remotePath === folder.path)
+    await act(async () => {
+      batch?.retry?.()
+    })
+    expect(invoke).toHaveBeenCalledWith(
+      "sftp_download_directory",
+      expect.objectContaining({ conflictPolicy: "rename", skipExisting: true })
+    )
+    expect(promptConflictPolicy).toHaveBeenCalledTimes(1)
+  })
+
+  it("starts nothing when the conflict prompt is cancelled", async () => {
+    const { addTransfer, transfers, updateTransfer } = createTransferStore()
+    const promptConflictPolicy = vi.fn().mockResolvedValue(null)
+    const { result } = renderHook(() =>
+      useSftpDownloads({
+        addTransfer,
+        connection: undefined,
+        promptConflictPolicy,
+        tabId: "tab-1",
+        transfersRef: { current: transfers },
+        updateTransfer,
+      })
+    )
+    openDialog.mockResolvedValue("/local/target")
+    invoke.mockResolvedValue(oneConflict)
+
+    await act(async () => {
+      await result.current.downloadEntry(folder)
+    })
+
+    expect(invoke).not.toHaveBeenCalledWith("sftp_download_directory", expect.anything())
+    expect(transfers).toHaveLength(0)
+  })
+
+  it("does not prompt when nothing collides", async () => {
+    const { addTransfer, transfers, updateTransfer } = createTransferStore()
+    const promptConflictPolicy = vi.fn()
+    const { result } = renderHook(() =>
+      useSftpDownloads({
+        addTransfer,
+        connection: undefined,
+        promptConflictPolicy,
+        tabId: "tab-1",
+        transfersRef: { current: transfers },
+        updateTransfer,
+      })
+    )
+    openDialog.mockResolvedValue("/local/target")
+    invoke.mockImplementation((command: string) =>
+      command === "sftp_check_download_conflicts"
+        ? Promise.resolve(noConflicts)
+        : Promise.resolve(undefined)
+    )
+
+    await act(async () => {
+      await result.current.downloadEntry(folder)
+    })
+
+    expect(promptConflictPolicy).not.toHaveBeenCalled()
+    expect(invoke).toHaveBeenCalledWith(
+      "sftp_download_directory",
+      expect.objectContaining({ conflictPolicy: "overwrite" })
+    )
   })
 })

@@ -215,7 +215,12 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
       (transfer.direction === "upload" || transfer.direction === "download") &&
       childTransfers.length > 0
     const isExpanded = expandedBatchIds.has(transfer.id)
-    const completedChildren = childTransfers.filter((child) => child.status === "completed").length
+    const completedChildren = childTransfers.filter(
+      (child) => child.status === "completed" && !child.skipped
+    ).length
+    const skippedChildren = childTransfers.filter(
+      (child) => child.status === "completed" && child.skipped
+    ).length
     const failedChildren = childTransfers.filter((child) => child.status === "failed").length
     const cancelledChildren = childTransfers.filter((child) => child.status === "cancelled").length
     const canRetry =
@@ -365,9 +370,13 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
 
         {transfer.status === "completed" && (
           <div className="text-muted-foreground mt-2 flex items-center gap-3 text-[10px]">
-            <span className="text-green-600 dark:text-green-400">
-              {t("transfer.completed", { defaultValue: "Completed" })}
-            </span>
+            {transfer.skipped ? (
+              <span>{t("transfer.skipped", { defaultValue: "Skipped (already exists)" })}</span>
+            ) : (
+              <span className="text-green-600 dark:text-green-400">
+                {t("transfer.completed", { defaultValue: "Completed" })}
+              </span>
+            )}
             <span>{formatDuration(duration)}</span>
             <span>
               {isDelete ? formatItems(transfer.fileSize, t) : formatBytes(transfer.fileSize)}
@@ -404,6 +413,11 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
               {completedChildren > 0 && (
                 <span className="text-green-600 dark:text-green-400">
                   {completedChildren} {t("transfer.completedShort", { defaultValue: "done" })}
+                </span>
+              )}
+              {skippedChildren > 0 && (
+                <span>
+                  {skippedChildren} {t("transfer.skippedShort", { defaultValue: "skipped" })}
                 </span>
               )}
               {failedChildren > 0 && (

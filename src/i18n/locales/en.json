@@ -1315,7 +1315,9 @@
     "folderItems_other": "{{count}} files",
     "completedShort": "done",
     "failedShort": "failed",
-    "cancelledShort": "cancelled"
+    "cancelledShort": "cancelled",
+    "skipped": "Skipped (already exists)",
+    "skippedShort": "skipped"
   },
   "zmodem": {
     "actions": {
@@ -1436,6 +1438,30 @@
       "edit": "Enter remote path",
       "go": "Go to path",
       "cancel": "Cancel path edit"
+    },
+    "conflicts": {
+      "title_one": "{{count}} file already exists",
+      "title_other": "{{count}} files already exist",
+      "uploadDescription": "{{count}} of the {{fileCount}} file(s) to upload already exist on the server.",
+      "downloadDescription": "{{count}} of the {{fileCount}} file(s) to download already exist locally.",
+      "local": "Local",
+      "remote": "Remote",
+      "newer": "newer",
+      "targetIsFolder": "A folder with this name",
+      "more": "and {{count}} more",
+      "policyLabel": "For existing files",
+      "policies": {
+        "overwriteIfNewer": "Overwrite only if newer",
+        "overwriteIfNewerDesc": "Replace a file only when the incoming one was modified later; skip the rest.",
+        "overwrite": "Overwrite all",
+        "overwriteDesc": "Replace every existing file with the incoming one.",
+        "skip": "Skip all",
+        "skipDesc": "Keep existing files and transfer only the rest.",
+        "rename": "Keep both",
+        "renameDesc": "Save incoming files under a new name such as \"name (1).ext\"."
+      },
+      "cancel": "Cancel transfer",
+      "continue": "Continue"
     }
   },
   "terminalSearch": {

@@ -1,3 +1,4 @@
+import { useSftpConflictDialog } from "@/components/SftpDrawer/SftpConflictDialog"
 import { useSftpDownloads } from "@/components/SftpDrawer/useSftpDownloads"
 import { useSftpUploads } from "@/components/SftpDrawer/useSftpUploads"
 import type { LoadSftpDirectory, SftpDirectoryListing } from "@/components/SftpDrawer/types"
@@ -16,6 +17,8 @@ interface UseSftpTransfersReturn {
   addTransfer: ReturnType<typeof useTransferManager>["addTransfer"]
   cancelTransfer: (id: string) => Promise<void>
   clearCompletedTransfers: () => void
+  /** Conflict prompt shared by uploads and downloads; render it once. */
+  conflictDialog: React.ReactNode
   downloadEntry: (
     entry: import("@/components/SftpDrawer/types").SftpDirectoryEntry
   ) => Promise<void>
@@ -45,10 +48,12 @@ export function useSftpTransfers({
     transfersRef,
     updateTransfer,
   } = useTransferManager()
+  const { conflictDialog, promptConflictPolicy } = useSftpConflictDialog()
 
   const { downloadEntry } = useSftpDownloads({
     addTransfer,
     connection,
+    promptConflictPolicy,
     tabId,
     transfersRef,
     updateTransfer,
@@ -60,6 +65,7 @@ export function useSftpTransfers({
     lastProgressUpdateRef,
     listing,
     loadDirectory,
+    promptConflictPolicy,
     setError,
     tabId,
     transfersRef,
@@ -86,6 +92,7 @@ export function useSftpTransfers({
     addTransfer,
     cancelTransfer,
     clearCompletedTransfers,
+    conflictDialog,
     downloadEntry,
     handleUploadDialog,
     handleUploadFolderDialog,

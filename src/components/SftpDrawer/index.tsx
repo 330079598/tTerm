@@ -152,6 +152,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
 
   const {
     addTransfer,
+    conflictDialog,
     downloadEntry,
     handleUploadDialog,
     handleUploadFolderDialog,
@@ -659,6 +660,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         handleSftpDeleteConfirm={handleSftpDeleteConfirm}
         isDeleting={isDeleting}
       />
+      {conflictDialog}
     </div>
   )
 }

@@ -6,7 +6,13 @@ import { useTranslation } from "react-i18next"
 
 import type { TransferTask, TransferStatus, Tab } from "@/types/tab"
 
-import type { LoadSftpDirectory, SftpDirectoryListing } from "@/components/SftpDrawer/types"
+import type {
+  ConflictPolicy,
+  ConflictReport,
+  LoadSftpDirectory,
+  PromptConflictPolicy,
+  SftpDirectoryListing,
+} from "@/components/SftpDrawer/types"
 
 interface UploadItemStartEvent {
   batchId?: string
@@ -45,6 +51,7 @@ interface UploadBatchStartEvent {
   localPath: string
   localPaths: string[]
   remoteBasePath: string
+  conflictPolicy: ConflictPolicy
 }
 
 interface UploadBatchCompleteEvent {
@@ -59,6 +66,16 @@ interface UploadBatchResult {
   cancelled: boolean
   failed: number
   succeeded: number
+}
+
+interface RunUploadOptions {
+  /** Set by a batch retry: skip files an earlier attempt already finished. */
+  skipExisting?: boolean
+  /**
+   * Policy for destination files that already exist. When unset, the remote
+   * is checked first and the user is asked if anything collides.
+   */
+  conflictPolicy?: ConflictPolicy
 }
 
 interface BatchChildProgress {
@@ -77,6 +94,7 @@ interface UseSftpUploadsParams {
   lastProgressUpdateRef: React.MutableRefObject<Map<string, number>>
   listing: SftpDirectoryListing | null
   loadDirectory: LoadSftpDirectory
+  promptConflictPolicy: PromptConflictPolicy
   setError: React.Dispatch<React.SetStateAction<string | null>>
   tabId: string
   transfersRef: React.MutableRefObject<TransferTask[]>
@@ -95,6 +113,7 @@ export function useSftpUploads({
   lastProgressUpdateRef,
   listing,
   loadDirectory,
+  promptConflictPolicy,
   setError,
   tabId,
   transfersRef,
@@ -104,7 +123,7 @@ export function useSftpUploads({
   const batchTransferIdsRef = useRef(new Map<string, Set<string>>())
   const batchProgressRef = useRef(new Map<string, Map<string, BatchChildProgress>>())
   const uploadPathsRunnerRef = useRef<
-    ((paths: string[], remoteBasePath: string, skipExisting?: boolean) => void) | null
+    ((paths: string[], remoteBasePath: string, options: RunUploadOptions) => void) | null
   >(null)
 
   const syncBatchTransfer = useCallback(
@@ -181,7 +200,8 @@ export function useSftpUploads({
     const setupListeners = async () => {
       const nextUnlisteners = await Promise.all([
         appWindow.listen<UploadBatchStartEvent>(`sftp-upload-batch-start-${tabId}`, (event) => {
-          const { batchId, displayName, localPath, localPaths, remoteBasePath } = event.payload
+          const { batchId, conflictPolicy, displayName, localPath, localPaths, remoteBasePath } =
+            event.payload
           addTransfer(
             {
               tabId,
@@ -208,9 +228,13 @@ export function useSftpUploads({
             // exactly this batch, and anything stored in a map that is cleaned
             // up when the batch completes would be gone by the time the user
             // can click retry. `skipExisting` lets the backend pass over files
-            // an earlier attempt already finished instead of re-uploading them.
+            // an earlier attempt already finished instead of re-uploading them,
+            // and the batch keeps the conflict policy it was started with.
             retry: () => {
-              uploadPathsRunnerRef.current?.(localPaths, remoteBasePath, true)
+              uploadPathsRunnerRef.current?.(localPaths, remoteBasePath, {
+                conflictPolicy,
+                skipExisting: true,
+              })
             },
           })
         }),
@@ -392,6 +416,7 @@ export function useSftpUploads({
               fileSize: completedFileSize,
               speed,
               status: "completed",
+              skipped: skipped || undefined,
               transferred: completedFileSize,
             })
             return
@@ -440,7 +465,7 @@ export function useSftpUploads({
   ])
 
   const runUploadPaths = useCallback(
-    async (paths: string[], remoteBasePath: string, skipExisting = false) => {
+    async (paths: string[], remoteBasePath: string, options: RunUploadOptions = {}) => {
       const validPaths = paths.filter((path) => typeof path === "string" && path.length > 0)
       if (validPaths.length === 0) {
         setError(
@@ -453,12 +478,33 @@ export function useSftpUploads({
 
       setError(null)
 
+      let conflictPolicy = options.conflictPolicy
+      if (!conflictPolicy) {
+        try {
+          const report = await invoke<ConflictReport>("sftp_check_upload_conflicts", {
+            connection,
+            localPaths: validPaths,
+            remoteBasePath,
+            tabId,
+          })
+          if (report.total > 0) {
+            const chosen = await promptConflictPolicy(report, "upload")
+            if (!chosen) return
+            conflictPolicy = chosen
+          }
+        } catch (invokeError) {
+          setError(String(invokeError))
+          return
+        }
+      }
+
       try {
         const result = await invoke<UploadBatchResult>("sftp_upload_paths", {
           connection,
+          conflictPolicy: conflictPolicy ?? "overwrite",
           localPaths: validPaths,
           remoteBasePath,
-          skipExisting,
+          skipExisting: options.skipExisting ?? false,
           tabId,
         })
 
@@ -488,14 +534,14 @@ export function useSftpUploads({
         await loadDirectory(remoteBasePath)
       }
     },
-    [connection, loadDirectory, setError, t, tabId]
+    [connection, loadDirectory, promptConflictPolicy, setError, t, tabId]
   )
 
   // Assign in an effect (not during render) so a discarded concurrent render
   // can never leave an uncommitted closure in the ref for retry to pick up.
   useEffect(() => {
-    uploadPathsRunnerRef.current = (paths, remoteBasePath, skipExisting) => {
-      void runUploadPaths(paths, remoteBasePath, skipExisting)
+    uploadPathsRunnerRef.current = (paths, remoteBasePath, options) => {
+      void runUploadPaths(paths, remoteBasePath, options)
     }
   }, [runUploadPaths])
 

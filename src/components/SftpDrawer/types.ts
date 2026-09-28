@@ -110,3 +110,36 @@ export interface DeleteBatchCompleteEvent extends SftpDeleteProgressState {
   cancelled: boolean
   error?: string
 }
+
+/** How a transfer treats a destination file that already exists. */
+export type ConflictPolicy = "overwrite" | "skip" | "overwriteIfNewer" | "rename"
+
+export interface TransferConflict {
+  sourcePath: string
+  targetPath: string
+  sourceSize: number
+  /** Seconds since the Unix epoch. */
+  sourceMtime?: number | null
+  targetSize: number
+  /** Seconds since the Unix epoch. */
+  targetMtime?: number | null
+  targetIsDir: boolean
+}
+
+export interface ConflictReport {
+  /** Every conflicting file, including those beyond `conflicts`. */
+  total: number
+  /** Files the whole transfer would write. */
+  fileCount: number
+  /** A bounded prefix of the conflicts, in transfer order. */
+  conflicts: TransferConflict[]
+}
+
+/**
+ * Asks how to resolve the conflicts of a pending transfer. Resolves to the
+ * chosen policy, or null when the user cancels the transfer.
+ */
+export type PromptConflictPolicy = (
+  report: ConflictReport,
+  direction: "upload" | "download"
+) => Promise<ConflictPolicy | null>

@@ -1,50 +1,139 @@
 use super::*;
 use crate::core::session::PtyConnectionOptions;
 use crate::core::state::HostPromptMap;
+use crate::sftp::internal::api::conflict::{
+    self, CandidateDecision, ConflictPolicy, ConflictReport, SourceStat, TransferConflict,
+};
 use crate::sftp::internal::api::prepare_transfer;
 use crate::sftp::internal::connection::ensure_ssh_plan;
 use crate::sftp::internal::types::{SftpConnectionPool, TransferCancelMap};
 use crate::ssh::SecretStoreState;
+use std::collections::HashMap;
 use tauri::{AppHandle, Emitter, State};
 use tokio::sync::watch;
 
-/// Seconds since the Unix epoch for a local file's mtime.
-async fn local_mtime_secs(path: &str) -> Option<i64> {
-    let modified = fs::metadata(path).await.ok()?.modified().ok()?;
-    Some(
-        modified
-            .duration_since(std::time::UNIX_EPOCH)
-            .ok()?
-            .as_secs() as i64,
-    )
+/// Where a planned upload should land under `policy`, or `None` to skip it.
+///
+/// `skip_existing` is set by a batch retry, so files an earlier attempt
+/// already finished are passed over instead of re-sent (see
+/// [`conflict::decide_candidate`]). A stat error is treated as "nothing
+/// there" and the transfer itself surfaces the real problem.
+async fn resolve_upload_target(
+    sftp: &SftpSession,
+    plan_item: &UploadFilePlanItem,
+    policy: ConflictPolicy,
+    skip_existing: bool,
+) -> Result<Option<String>, String> {
+    // The historical behaviour needs no stat round trip at all.
+    if policy == ConflictPolicy::Overwrite && !skip_existing {
+        return Ok(Some(plan_item.remote_path.clone()));
+    }
+
+    let source = SourceStat {
+        size: plan_item.file_size,
+        mtime: fs::metadata(&plan_item.local_path)
+            .await
+            .ok()
+            .and_then(|metadata| conflict::local_mtime_secs(&metadata)),
+    };
+
+    for attempt in 0..=conflict::MAX_RENAME_ATTEMPTS {
+        let candidate = if attempt == 0 {
+            plan_item.remote_path.clone()
+        } else {
+            crate::sftp::internal::paths::join_remote_path(
+                &plan_item.remote_dir,
+                &conflict::candidate_file_name(&plan_item.file_name, attempt),
+            )
+        };
+        let target = conflict::remote_target_stat(sftp, &candidate).await;
+        match conflict::decide_candidate(policy, source, target, skip_existing) {
+            CandidateDecision::Use => return Ok(Some(candidate)),
+            CandidateDecision::Skip => return Ok(None),
+            CandidateDecision::NextName => {}
+        }
+    }
+
+    Err(format!(
+        "No free name left for '{}' in '{}'",
+        plan_item.file_name, plan_item.remote_dir
+    ))
 }
 
-/// Whether the remote copy provably already holds this file's bytes: an
-/// identical length and a remote mtime at least as new as the local one.
-///
-/// Only consulted for a run that explicitly opted into skipping existing
-/// files (a batch retry). A size match alone is not evidence: an edited file
-/// that kept its length would be reported as uploaded while the remote still
-/// holds stale bytes. Clock skew between client and server can only make this
-/// check stricter (an apparently older remote copy is simply re-transferred).
-///
-/// Two caveats inherent to the mtime+size evidence: uploads do not setstat
-/// the local mtime, so a finished upload's remote mtime is the server-side
-/// upload time — which is what makes it compare as current here. And a local
-/// rewrite that keeps the length while restoring an older mtime (sync tools,
-/// `git checkout`, `touch -d`) wrongly compares as already uploaded, the
-/// same blind spot rsync's quick check has.
-async fn remote_already_holds_source(sftp: &SftpSession, plan_item: &UploadFilePlanItem) -> bool {
-    let Some(local_mtime) = local_mtime_secs(&plan_item.local_path).await else {
-        return false;
+/// Pre-flight for `sftp_upload_paths`: which planned files already exist on
+/// the remote. Each destination directory is listed once rather than every
+/// file being stat'ed, so a large folder costs as many round trips as the
+/// upload spends creating its directories.
+#[tauri::command]
+pub async fn sftp_check_upload_conflicts(
+    app: AppHandle,
+    tab_id: String,
+    connection: Option<PtyConnectionOptions>,
+    local_paths: Vec<String>,
+    remote_base_path: String,
+    prompt_state: State<'_, HostPromptMap>,
+    secret_state: State<'_, SecretStoreState>,
+    pool_state: State<'_, SftpConnectionPool>,
+) -> Result<ConflictReport, String> {
+    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let upload_plan = collect_upload_plan(&local_paths, &remote_base_path, None).await?;
+
+    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
+        Ok(collect_upload_conflicts(sftp, &upload_plan).await)
+    })
+}
+
+async fn collect_upload_conflicts(sftp: &SftpSession, upload_plan: &UploadPlan) -> ConflictReport {
+    let mut report = ConflictReport {
+        file_count: upload_plan.files.len(),
+        ..ConflictReport::default()
     };
-    let Ok(attrs) = sftp.metadata(&plan_item.remote_path).await else {
-        return false;
-    };
-    attrs.size == Some(plan_item.file_size)
-        && attrs
-            .mtime
-            .is_some_and(|remote_mtime| i64::from(remote_mtime) >= local_mtime)
+    let mut listings: HashMap<String, HashMap<String, conflict::TargetStat>> = HashMap::new();
+
+    for plan_item in &upload_plan.files {
+        if !listings.contains_key(&plan_item.remote_dir) {
+            // A directory that does not exist yet (or cannot be listed)
+            // holds nothing to collide with.
+            let mut entries = HashMap::new();
+            if let Ok(read_dir) = sftp.read_dir(&plan_item.remote_dir).await {
+                for entry in read_dir {
+                    let metadata = entry.metadata();
+                    entries.insert(
+                        entry.file_name(),
+                        conflict::TargetStat {
+                            size: metadata.size.unwrap_or(0),
+                            mtime: metadata.mtime.map(i64::from),
+                            is_dir: metadata.is_dir(),
+                        },
+                    );
+                }
+            }
+            listings.insert(plan_item.remote_dir.clone(), entries);
+        }
+
+        let Some(target) = listings
+            .get(&plan_item.remote_dir)
+            .and_then(|entries| entries.get(&plan_item.file_name))
+        else {
+            continue;
+        };
+
+        let source_mtime = fs::metadata(&plan_item.local_path)
+            .await
+            .ok()
+            .and_then(|metadata| conflict::local_mtime_secs(&metadata));
+        report.push(TransferConflict {
+            source_path: plan_item.local_path.clone(),
+            target_path: plan_item.remote_path.clone(),
+            source_size: plan_item.file_size,
+            source_mtime,
+            target_size: target.size,
+            target_mtime: target.mtime,
+            target_is_dir: target.is_dir,
+        });
+    }
+
+    report
 }
 
 #[tauri::command]
@@ -70,6 +159,8 @@ pub async fn sftp_upload_file(
         file_name,
         file_size: metadata.len(),
         local_path,
+        remote_dir: crate::sftp::internal::paths::parent_remote_path(&remote_path)
+            .unwrap_or_default(),
         remote_path,
     };
 
@@ -102,6 +193,7 @@ pub async fn sftp_upload_paths(
     local_paths: Vec<String>,
     remote_base_path: String,
     skip_existing: Option<bool>,
+    conflict_policy: Option<ConflictPolicy>,
     prompt_state: State<'_, HostPromptMap>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
@@ -128,6 +220,7 @@ pub async fn sftp_upload_paths(
                 local_path: root_summary.local_path.clone(),
                 local_paths: local_paths.clone(),
                 remote_base_path: remote_base_path.clone(),
+                conflict_policy: conflict_policy.unwrap_or_default(),
             },
         );
     }
@@ -181,6 +274,7 @@ pub async fn sftp_upload_paths(
             let files = upload_plan.files.clone();
             let mut batch_cancel_rx = batch_cancel_rx.clone();
             let batch_enabled = root_summary.has_directories;
+            let policy = conflict_policy.unwrap_or_default();
 
             async move {
                 let mut succeeded = 0usize;
@@ -213,6 +307,23 @@ pub async fn sftp_upload_paths(
                         }
 
                         let transfer_id = next_transfer_id();
+                        let resolved = resolve_upload_target(
+                            &sftp,
+                            &plan_item,
+                            policy,
+                            skip_existing.unwrap_or(false),
+                        )
+                        .await;
+                        // The start event already carries the resolved name, so
+                        // the transfer list and a per-item retry both use the
+                        // path the file actually lands on.
+                        let plan_item = match &resolved {
+                            Ok(Some(remote_path)) => UploadFilePlanItem {
+                                remote_path: remote_path.clone(),
+                                ..plan_item
+                            },
+                            _ => plan_item,
+                        };
                         let _ = app.emit(
                             &format!("sftp-upload-item-start-{}", tab_id),
                             UploadItemStartEvent {
@@ -229,16 +340,27 @@ pub async fn sftp_upload_paths(
                             },
                         );
 
-                        // Skipping is opt-in (a batch retry re-runs the whole
-                        // batch) and even then only when the remote copy
-                        // provably holds the local bytes. A plain size match
-                        // is not enough: an edited file that kept its length
-                        // would be reported as uploaded while the remote still
-                        // has the old bytes. A stat error is treated as "not
-                        // uploaded" and simply re-transfers.
-                        let already_uploaded = skip_existing.unwrap_or(false)
-                            && remote_already_holds_source(&sftp, &plan_item).await;
-                        if already_uploaded {
+                        let resolved = match resolved {
+                            Ok(resolved) => resolved,
+                            Err(error) => {
+                                failed += 1;
+                                let _ = app.emit(
+                                    &format!("sftp-upload-item-complete-{}", tab_id),
+                                    UploadItemCompleteEvent {
+                                        transfer_id,
+                                        error: Some(error),
+                                        local_path: plan_item.local_path,
+                                        remote_path: plan_item.remote_path,
+                                        cancelled: false,
+                                        success: false,
+                                        skipped: false,
+                                    },
+                                );
+                                continue;
+                            }
+                        };
+
+                        if resolved.is_none() {
                             succeeded += 1;
                             let _ = app.emit(
                                 &format!("sftp-upload-item-complete-{}", tab_id),
@@ -358,5 +480,145 @@ pub async fn sftp_cancel_upload(
         Ok(())
     } else {
         Err("Transfer not found or already completed".to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
+    use std::time::{Duration, SystemTime};
+
+    fn write_with_mtime(path: &Path, contents: &[u8], mtime: SystemTime) {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, contents).unwrap();
+        std::fs::File::options()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_modified(mtime)
+            .unwrap();
+    }
+
+    fn plan_item(local: &Path, remote_dir: &str, name: &str) -> UploadFilePlanItem {
+        UploadFilePlanItem {
+            file_name: name.to_string(),
+            file_size: std::fs::metadata(local).unwrap().len(),
+            local_path: local.to_string_lossy().into_owned(),
+            remote_dir: remote_dir.to_string(),
+            remote_path: format!("{remote_dir}/{name}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn preflight_reports_only_files_that_exist_remotely() {
+        let server = TestServer::start(ServerOptions::default()).await;
+        let sftp = server.sftp_session().await;
+        let now = SystemTime::now();
+
+        write_with_mtime(&server.root().join("dst/nginx.conf"), b"remote", now);
+        write_with_mtime(&server.root().join("dst/site/index.html"), b"remote", now);
+        let local = server.local_dir();
+        write_with_mtime(&local.join("nginx.conf"), b"local!", now);
+        write_with_mtime(&local.join("site/index.html"), b"local!", now);
+        write_with_mtime(&local.join("site/new.txt"), b"new", now);
+
+        let upload_plan = collect_upload_plan(
+            &[
+                local.join("nginx.conf").to_string_lossy().into_owned(),
+                local.join("site").to_string_lossy().into_owned(),
+            ],
+            "/dst",
+            None,
+        )
+        .await
+        .unwrap();
+        let report = collect_upload_conflicts(&sftp, &upload_plan).await;
+
+        assert_eq!(report.file_count, 3);
+        assert_eq!(report.total, 2);
+        let mut targets: Vec<_> = report
+            .conflicts
+            .iter()
+            .map(|conflict| conflict.target_path.as_str())
+            .collect();
+        targets.sort();
+        assert_eq!(targets, ["/dst/nginx.conf", "/dst/site/index.html"]);
+        let conflict = &report.conflicts[0];
+        assert_eq!(conflict.source_size, 6);
+        assert_eq!(conflict.target_size, 6);
+        assert!(conflict.source_mtime.is_some() && conflict.target_mtime.is_some());
+    }
+
+    #[tokio::test]
+    async fn policies_resolve_against_a_live_sftp_server() {
+        let server = TestServer::start(ServerOptions::default()).await;
+        let sftp = server.sftp_session().await;
+        let now = SystemTime::now();
+        let hour = Duration::from_secs(3600);
+
+        // The server's copy was edited an hour ago.
+        write_with_mtime(
+            &server.root().join("dst/app.conf"),
+            b"server edit",
+            now - hour,
+        );
+        let local = server.local_dir().join("app.conf");
+
+        // A local copy older than the server's must not replace it.
+        write_with_mtime(&local, b"stale local", now - hour * 2);
+        let item = plan_item(&local, "/dst", "app.conf");
+        let resolve = |policy, skip_existing| {
+            let sftp = &sftp;
+            let item = &item;
+            async move {
+                resolve_upload_target(sftp, item, policy, skip_existing)
+                    .await
+                    .unwrap()
+            }
+        };
+        assert_eq!(resolve(ConflictPolicy::OverwriteIfNewer, false).await, None);
+        assert_eq!(resolve(ConflictPolicy::Skip, false).await, None);
+        assert_eq!(
+            resolve(ConflictPolicy::Overwrite, false).await.as_deref(),
+            Some("/dst/app.conf")
+        );
+        assert_eq!(
+            resolve(ConflictPolicy::Rename, false).await.as_deref(),
+            Some("/dst/app (1).conf")
+        );
+
+        // Edited locally after the server's copy: "newer" now overwrites.
+        write_with_mtime(&local, b"fresh local", now);
+        let item = plan_item(&local, "/dst", "app.conf");
+        assert_eq!(
+            resolve_upload_target(&sftp, &item, ConflictPolicy::OverwriteIfNewer, false)
+                .await
+                .unwrap()
+                .as_deref(),
+            Some("/dst/app.conf")
+        );
+
+        // A retry of a "keep both" batch whose copy already made it: the
+        // finished copy is recognised and no "app (2).conf" is created.
+        write_with_mtime(
+            &server.root().join("dst/app (1).conf"),
+            b"fresh local",
+            now + hour,
+        );
+        assert_eq!(
+            resolve_upload_target(&sftp, &item, ConflictPolicy::Rename, true)
+                .await
+                .unwrap(),
+            None
+        );
+        // Without the retry flag the next free name is taken instead.
+        assert_eq!(
+            resolve_upload_target(&sftp, &item, ConflictPolicy::Rename, false)
+                .await
+                .unwrap()
+                .as_deref(),
+            Some("/dst/app (2).conf")
+        );
     }
 }

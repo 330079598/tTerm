@@ -44,7 +44,7 @@ use tokio::sync::{watch, Mutex};
 use tokio::task::JoinSet;
 
 #[cfg(test)]
-mod test_server;
+pub(crate) mod test_server;
 #[cfg(test)]
 mod tests;
 

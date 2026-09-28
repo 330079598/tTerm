@@ -16,6 +16,8 @@ struct UploadFilePlanItem {
     file_name: String,
     file_size: u64,
     local_path: String,
+    /// Directory the file lands in; a renamed copy stays next to the original.
+    remote_dir: String,
     remote_path: String,
 }
 
@@ -46,6 +48,8 @@ struct UploadBatchStartEvent {
     /// this batch instead of whatever batch happens to be the latest one.
     local_paths: Vec<String>,
     remote_base_path: String,
+    /// Echoed back so a retry re-runs the batch under the same policy.
+    conflict_policy: super::conflict::ConflictPolicy,
 }
 
 #[derive(Clone, Serialize)]
@@ -188,6 +192,7 @@ async fn collect_upload_plan(
                 file_name: root_name.clone(),
                 file_size: metadata.len(),
                 local_path: root_path.to_string_lossy().into_owned(),
+                remote_dir: remote_base_path.to_string(),
                 remote_path: crate::sftp::internal::paths::join_remote_path(
                     remote_base_path,
                     &root_name,
@@ -268,6 +273,7 @@ fn collect_directory_upload_plan<'a>(
                 file_name,
                 file_size: metadata.len(),
                 local_path: path.to_string_lossy().into_owned(),
+                remote_dir: current_remote_path.to_string(),
                 remote_path,
             });
         }

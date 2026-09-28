@@ -1306,7 +1306,9 @@
     "folderItems_other": "{{count}} 个文件",
     "completedShort": "已完成",
     "failedShort": "失败",
-    "cancelledShort": "已取消"
+    "cancelledShort": "已取消",
+    "skipped": "已跳过（目标已存在）",
+    "skippedShort": "已跳过"
   },
   "zmodem": {
     "actions": {
@@ -1427,6 +1429,30 @@
       "edit": "输入远程路径",
       "go": "跳转路径",
       "cancel": "取消路径编辑"
+    },
+    "conflicts": {
+      "title_one": "{{count}} 个文件已存在",
+      "title_other": "{{count}} 个文件已存在",
+      "uploadDescription": "要上传的 {{fileCount}} 个文件中，有 {{count}} 个在服务器上已存在同名文件。",
+      "downloadDescription": "要下载的 {{fileCount}} 个文件中，有 {{count}} 个在本地已存在同名文件。",
+      "local": "本地",
+      "remote": "远程",
+      "newer": "较新",
+      "targetIsFolder": "同名文件夹",
+      "more": "另有 {{count}} 个未列出",
+      "policyLabel": "已存在的文件",
+      "policies": {
+        "overwriteIfNewer": "仅当较新时覆盖",
+        "overwriteIfNewerDesc": "只替换修改时间更早的已有文件，其余跳过。",
+        "overwrite": "全部覆盖",
+        "overwriteDesc": "用传入的文件替换所有同名文件。",
+        "skip": "全部跳过",
+        "skipDesc": "保留已有文件，只传输不冲突的文件。",
+        "rename": "保留两者",
+        "renameDesc": "传入的文件自动改名保存，例如“name (1).ext”。"
+      },
+      "cancel": "取消传输",
+      "continue": "继续"
     }
   },
   "terminalSearch": {

@@ -37,7 +37,24 @@ function emit(event: string, payload: unknown) {
   act(() => listener({ payload }))
 }
 
-function renderUploadsHook() {
+const noConflicts = { conflicts: [], fileCount: 1, total: 0 }
+const oneConflict = {
+  conflicts: [
+    {
+      sourcePath: "/local/nginx.conf",
+      sourceSize: 10,
+      sourceMtime: 100,
+      targetIsDir: false,
+      targetPath: "/remote/nginx.conf",
+      targetSize: 12,
+      targetMtime: 200,
+    },
+  ],
+  fileCount: 1,
+  total: 1,
+}
+
+function renderUploadsHook(promptConflictPolicy = vi.fn()) {
   const transfers: TransferTask[] = []
   const addTransfer = vi.fn(
     (transfer: Omit<TransferTask, "id" | "startTime" | "status" | "transferred">, id?: string) => {
@@ -59,13 +76,14 @@ function renderUploadsHook() {
     if (index >= 0) transfers[index] = { ...transfers[index], ...updates }
   })
 
-  renderHook(() =>
+  const { result } = renderHook(() =>
     useSftpUploads({
       addTransfer,
       connection: undefined,
       lastProgressUpdateRef: { current: new Map<string, number>() },
       listing: { currentPath: "/remote", entries: [] },
       loadDirectory: vi.fn().mockResolvedValue(undefined),
+      promptConflictPolicy,
       setError: vi.fn(),
       tabId: "tab-1",
       transfersRef: { current: transfers },
@@ -73,7 +91,7 @@ function renderUploadsHook() {
     })
   )
 
-  return { transfers }
+  return { result, transfers }
 }
 
 describe("useSftpUploads", () => {
@@ -89,6 +107,7 @@ describe("useSftpUploads", () => {
 
     emit(batchStartEvent, {
       batchId: "batch-1",
+      conflictPolicy: "skip",
       displayName: "folder",
       localPath: "/local/folder",
       localPaths: ["/local/folder"],
@@ -115,6 +134,7 @@ describe("useSftpUploads", () => {
       expect(invoke).toHaveBeenCalledWith(
         "sftp_upload_paths",
         expect.objectContaining({
+          conflictPolicy: "skip",
           localPaths: ["/local/folder"],
           remoteBasePath: "/remote",
           skipExisting: true,
@@ -122,6 +142,8 @@ describe("useSftpUploads", () => {
         })
       )
     )
+    // A retry re-runs under the batch's policy without asking again.
+    expect(invoke).not.toHaveBeenCalledWith("sftp_check_upload_conflicts", expect.anything())
   })
 
   it("excludes resumed bytes from the completion speed", async () => {
@@ -180,5 +202,78 @@ describe("useSftpUploads", () => {
     const transfer = transfers.find((item) => item.id === "item-2")
     expect(transfer?.status).toBe("completed")
     expect(transfer?.speed).toBe(0)
+  })
+
+  it("uploads under the policy chosen for existing remote files", async () => {
+    const promptConflictPolicy = vi.fn().mockResolvedValue("overwriteIfNewer")
+    const { result } = renderUploadsHook(promptConflictPolicy)
+    invoke.mockImplementation((command: string) =>
+      command === "sftp_check_upload_conflicts"
+        ? Promise.resolve(oneConflict)
+        : Promise.resolve({ cancelled: false, failed: 0, succeeded: 1 })
+    )
+
+    await act(async () => {
+      await result.current.uploadPaths(["/local/nginx.conf"])
+    })
+
+    expect(promptConflictPolicy).toHaveBeenCalledWith(oneConflict, "upload")
+    expect(invoke).toHaveBeenCalledWith(
+      "sftp_upload_paths",
+      expect.objectContaining({ conflictPolicy: "overwriteIfNewer", skipExisting: false })
+    )
+  })
+
+  it("uploads nothing when the conflict prompt is cancelled", async () => {
+    const promptConflictPolicy = vi.fn().mockResolvedValue(null)
+    const { result } = renderUploadsHook(promptConflictPolicy)
+    invoke.mockResolvedValue(oneConflict)
+
+    await act(async () => {
+      await result.current.uploadPaths(["/local/nginx.conf"])
+    })
+
+    expect(invoke).not.toHaveBeenCalledWith("sftp_upload_paths", expect.anything())
+  })
+
+  it("does not prompt when nothing collides", async () => {
+    const promptConflictPolicy = vi.fn()
+    const { result } = renderUploadsHook(promptConflictPolicy)
+    invoke.mockImplementation((command: string) =>
+      command === "sftp_check_upload_conflicts"
+        ? Promise.resolve(noConflicts)
+        : Promise.resolve({ cancelled: false, failed: 0, succeeded: 1 })
+    )
+
+    await act(async () => {
+      await result.current.uploadPaths(["/local/new.conf"])
+    })
+
+    expect(promptConflictPolicy).not.toHaveBeenCalled()
+    expect(invoke).toHaveBeenCalledWith(
+      "sftp_upload_paths",
+      expect.objectContaining({ conflictPolicy: "overwrite" })
+    )
+  })
+
+  it("marks an item the conflict policy skipped", async () => {
+    const { transfers } = renderUploadsHook()
+    await waitFor(() => expect(listeners.has(itemStartEvent)).toBe(true))
+
+    emit(itemStartEvent, {
+      fileName: "nginx.conf",
+      fileSize: 10,
+      localPath: "/local/nginx.conf",
+      remotePath: "/remote/nginx.conf",
+      transferId: "item-3",
+    })
+    emit(itemCompleteEvent, {
+      cancelled: false,
+      skipped: true,
+      success: true,
+      transferId: "item-3",
+    })
+
+    expect(transfers.find((item) => item.id === "item-3")?.skipped).toBe(true)
   })
 })

@@ -473,6 +473,22 @@ impl TestServer {
         self.client_dir.path()
     }
 
+    /// Open a high-level SFTP session, as the drawer's commands use.
+    pub async fn sftp_session(&self) -> russh_sftp::client::SftpSession {
+        let channel = self
+            .handle
+            .channel_open_session()
+            .await
+            .expect("open channel");
+        channel
+            .request_subsystem(true, "sftp")
+            .await
+            .expect("request sftp subsystem");
+        russh_sftp::client::SftpSession::new(channel.into_stream())
+            .await
+            .expect("sftp session")
+    }
+
     /// Open `count` SFTP subsystem channels over the same SSH connection.
     pub async fn channels(&self, count: usize) -> RemoteChannels {
         let mut sessions = Vec::new();

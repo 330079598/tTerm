@@ -1,5 +1,8 @@
 use crate::core::session::PtyConnectionOptions;
 use crate::core::state::HostPromptMap;
+use crate::sftp::internal::api::conflict::{
+    self, CandidateDecision, ConflictPolicy, ConflictReport, SourceStat, TransferConflict,
+};
 use crate::sftp::internal::api::prepare_transfer;
 use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error};
 use crate::sftp::internal::transfer::{
@@ -80,36 +83,48 @@ fn next_transfer_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
 
-/// Whether the local file provably already holds the remote file's bytes: an
-/// identical length and a local mtime at least as new as the remote one.
+/// Where a remote file should land locally under `policy`, or `None` to
+/// skip it.
 ///
-/// Only consulted for a run that explicitly opted into skipping existing
-/// files (a directory-download retry). A size match alone is not evidence: a
-/// local file that changed in place keeps its length and would otherwise
-/// never be refreshed from the remote. Clock skew between client and server
-/// can only make this check stricter (an apparently older local copy is
-/// simply re-downloaded).
-///
-/// The known blind spot of every mtime+size check (rsync has it too): a
-/// local rewrite that keeps the length and carries a fresh mtime compares as
-/// current and is kept, so a retry does not restore the remote copy over
-/// such an edit.
-async fn local_already_holds_source(path: &Path, item: &DirectoryDownloadItem) -> bool {
-    let Some(remote_mtime) = item.mtime else {
-        return false;
-    };
-    let Ok(metadata) = tokio::fs::metadata(path).await else {
-        return false;
-    };
-    if !metadata.is_file() || metadata.len() != item.size {
-        return false;
+/// `skip_existing` is set by a directory-download retry, so files an earlier
+/// attempt already finished are passed over instead of fetched again (see
+/// [`conflict::decide_candidate`]).
+async fn resolve_download_target(
+    local_path: &Path,
+    item: &DirectoryDownloadItem,
+    policy: ConflictPolicy,
+    skip_existing: bool,
+) -> Result<Option<PathBuf>, String> {
+    // The historical behaviour needs no stat at all.
+    if policy == ConflictPolicy::Overwrite && !skip_existing {
+        return Ok(Some(local_path.to_path_buf()));
     }
-    metadata
-        .modified()
-        .ok()
-        .and_then(|modified| modified.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|modified| modified.as_secs() as i64 >= remote_mtime)
-        .unwrap_or(false)
+
+    let source = SourceStat {
+        size: item.size,
+        mtime: item.mtime,
+    };
+    let local_dir = local_path.parent().unwrap_or_else(|| Path::new(""));
+
+    for attempt in 0..=conflict::MAX_RENAME_ATTEMPTS {
+        let candidate = if attempt == 0 {
+            local_path.to_path_buf()
+        } else {
+            local_dir.join(conflict::candidate_file_name(&item.file_name, attempt))
+        };
+        let target = conflict::local_target_stat(&candidate).await;
+        match conflict::decide_candidate(policy, source, target, skip_existing) {
+            CandidateDecision::Use => return Ok(Some(candidate)),
+            CandidateDecision::Skip => return Ok(None),
+            CandidateDecision::NextName => {}
+        }
+    }
+
+    Err(format!(
+        "No free name left for '{}' in '{}'",
+        item.file_name,
+        local_dir.display()
+    ))
 }
 
 fn transfer_options() -> TransferOptions {
@@ -389,6 +404,7 @@ async fn download_directory_with_progress(
     remote_path: &str,
     local_parent_path: &str,
     skip_existing: Option<bool>,
+    policy: ConflictPolicy,
 ) -> Result<(), String> {
     let (cancel_tx, mut cancel_rx) = watch::channel(false);
     cancel_map
@@ -443,6 +459,16 @@ async fn download_directory_with_progress(
             }
 
             let item_transfer_id = next_transfer_id();
+            let resolved =
+                resolve_download_target(&local_path, item, policy, skip_existing.unwrap_or(false))
+                    .await;
+            // The start event already carries the resolved name, so the
+            // transfer list and a per-item retry both use the path the file
+            // actually lands on.
+            let local_path = match &resolved {
+                Ok(Some(resolved_path)) => resolved_path.clone(),
+                _ => local_path,
+            };
             let local_path_string = local_path.display().to_string();
             let _ = app.emit(
                 &format!("sftp-download-item-start-{}", tab_id),
@@ -456,12 +482,28 @@ async fn download_directory_with_progress(
                 },
             );
 
-            // Skipping is opt-in (a retry re-runs the whole batch) and even
-            // then only when the local file provably holds the remote bytes:
-            // an unchanged size on its own would silently keep a stale local
-            // copy in place.
-            if skip_existing.unwrap_or(false) && local_already_holds_source(&local_path, item).await
-            {
+            let resolved = match resolved {
+                Ok(resolved) => resolved,
+                Err(error) => {
+                    let _ = app.emit(
+                        &format!("sftp-download-item-complete-{}", tab_id),
+                        DownloadItemCompleteEvent {
+                            transfer_id: item_transfer_id,
+                            error: Some(error.clone()),
+                            local_path: local_path_string,
+                            remote_path: item.remote_path.clone(),
+                            cancelled: false,
+                            success: false,
+                            skipped: false,
+                        },
+                    );
+                    return Err(error);
+                }
+            };
+
+            // Skipped by the conflict policy, or by a retry because the local
+            // file provably already holds the remote bytes.
+            if resolved.is_none() {
                 aggregate_transferred = aggregate_transferred.saturating_add(item.size);
                 skipped_bytes = skipped_bytes.saturating_add(item.size);
                 let _ = app.emit(
@@ -652,6 +694,7 @@ pub async fn sftp_download_directory(
     remote_path: String,
     local_parent_path: String,
     skip_existing: Option<bool>,
+    conflict_policy: Option<ConflictPolicy>,
     prompt_state: State<'_, HostPromptMap>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
@@ -678,8 +721,60 @@ pub async fn sftp_download_directory(
         &remote_path,
         &local_parent_path,
         skip_existing,
+        conflict_policy.unwrap_or_default(),
     )
     .await
+}
+
+/// Pre-flight for `sftp_download_directory`: which files of the remote folder
+/// already exist locally. A folder that does not exist locally yet cannot
+/// collide, so the remote tree is only walked when it does.
+#[tauri::command]
+pub async fn sftp_check_download_conflicts(
+    app: AppHandle,
+    tab_id: String,
+    connection: Option<PtyConnectionOptions>,
+    remote_path: String,
+    local_parent_path: String,
+    prompt_state: State<'_, HostPromptMap>,
+    secret_state: State<'_, SecretStoreState>,
+    pool_state: State<'_, SftpConnectionPool>,
+) -> Result<ConflictReport, String> {
+    let root_name = remote_basename(&remote_path)?;
+    let local_parent = PathBuf::from(&local_parent_path);
+    if tokio::fs::metadata(local_parent.join(&root_name))
+        .await
+        .is_err()
+    {
+        return Ok(ConflictReport::default());
+    }
+
+    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
+        let download_plan = collect_directory_download_plan(sftp, &remote_path, &root_name).await?;
+        let mut report = ConflictReport {
+            file_count: download_plan.files.len(),
+            ..ConflictReport::default()
+        };
+
+        for item in &download_plan.files {
+            let local_path = local_parent.join(&item.relative_path);
+            let Some(target) = conflict::local_target_stat(&local_path).await else {
+                continue;
+            };
+            report.push(TransferConflict {
+                source_path: item.remote_path.clone(),
+                target_path: local_path.display().to_string(),
+                source_size: item.size,
+                source_mtime: item.mtime,
+                target_size: target.size,
+                target_mtime: target.mtime,
+                target_is_dir: target.is_dir,
+            });
+        }
+
+        Ok(report)
+    })
 }
 
 #[tauri::command]
@@ -691,4 +786,93 @@ pub async fn get_file_size(local_path: String) -> Result<u64, String> {
     })
     .await
     .map_err(|err| format!("Task join error: {err}"))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn item(name: &str, size: u64, mtime: i64) -> DirectoryDownloadItem {
+        DirectoryDownloadItem {
+            remote_path: format!("/remote/{name}"),
+            relative_path: PathBuf::from(name),
+            file_name: name.to_string(),
+            size,
+            mtime: Some(mtime),
+        }
+    }
+
+    fn temp_dir() -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("tterm-conflict-test-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[tokio::test]
+    async fn rename_takes_the_first_free_copy_name() {
+        let dir = temp_dir();
+        std::fs::write(dir.join("app.log"), b"old").unwrap();
+        std::fs::write(dir.join("app (1).log"), b"older").unwrap();
+
+        let resolved = resolve_download_target(
+            &dir.join("app.log"),
+            &item("app.log", 10, 0),
+            ConflictPolicy::Rename,
+            false,
+        )
+        .await
+        .unwrap();
+        assert_eq!(resolved, Some(dir.join("app (2).log")));
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn rename_retry_skips_the_copy_an_earlier_attempt_finished() {
+        let dir = temp_dir();
+        std::fs::write(dir.join("app.log"), b"someone else's file").unwrap();
+        // The earlier attempt already wrote the whole file to the copy name;
+        // its fresh mtime is newer than the remote's.
+        std::fs::write(dir.join("app (1).log"), b"0123456789").unwrap();
+
+        let resolved = resolve_download_target(
+            &dir.join("app.log"),
+            &item("app.log", 10, 0),
+            ConflictPolicy::Rename,
+            true,
+        )
+        .await
+        .unwrap();
+        assert_eq!(resolved, None);
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn skip_and_overwrite_if_newer_keep_a_newer_local_file() {
+        let dir = temp_dir();
+        std::fs::write(dir.join("app.log"), b"edited locally").unwrap();
+        let local = dir.join("app.log");
+
+        for policy in [ConflictPolicy::Skip, ConflictPolicy::OverwriteIfNewer] {
+            let resolved = resolve_download_target(&local, &item("app.log", 10, 0), policy, false)
+                .await
+                .unwrap();
+            assert_eq!(resolved, None, "{policy:?}");
+        }
+
+        // A remote copy stamped in the far future is newer than the local one.
+        let resolved = resolve_download_target(
+            &local,
+            &item("app.log", 10, i64::MAX / 2),
+            ConflictPolicy::OverwriteIfNewer,
+            false,
+        )
+        .await
+        .unwrap();
+        assert_eq!(resolved, Some(local.clone()));
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 }
