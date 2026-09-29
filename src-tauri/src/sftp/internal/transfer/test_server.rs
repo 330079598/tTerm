@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use russh::server::{Auth, Msg, Session};
+use russh::server::{Auth, ChannelOpenHandle, Msg, Session};
 use russh::{Channel, ChannelId};
 use russh_sftp::extensions::LimitsExtension;
 use russh_sftp::protocol::{
@@ -87,13 +87,15 @@ impl russh::server::Handler for SshSession {
     async fn channel_open_session(
         &mut self,
         channel: Channel<Msg>,
+        reply: ChannelOpenHandle,
         _session: &mut Session,
-    ) -> Result<bool, Self::Error> {
+    ) -> Result<(), Self::Error> {
         self.channels
             .lock()
             .expect("channels lock")
             .insert(channel.id(), channel);
-        Ok(true)
+        reply.accept().await;
+        Ok(())
     }
 
     async fn subsystem_request(
@@ -429,7 +431,7 @@ impl TestServer {
 
         let server_config = Arc::new(russh::server::Config {
             keys: vec![russh::keys::PrivateKey::random(
-                &mut russh::keys::ssh_key::rand_core::OsRng,
+                &mut rand::rng(),
                 russh::keys::ssh_key::Algorithm::Ed25519,
             )
             .expect("host key")],
@@ -511,7 +513,7 @@ impl russh::client::Handler for TestClient {
 
     async fn check_server_key(
         &mut self,
-        _server_public_key: &russh::keys::ssh_key::PublicKey,
+        _server_public_key: &russh::keys::PublicKeyOrCertificate,
     ) -> Result<bool, Self::Error> {
         Ok(true)
     }

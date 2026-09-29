@@ -11,11 +11,11 @@ use crate::ssh::store::KnownHostStore;
 use crate::ssh::SecretStoreState;
 use crate::tunnel::TunnelRule;
 use aes_gcm::aead::{Aead, KeyInit, Payload as AeadPayload};
-use aes_gcm::{Aes256Gcm, Key, Nonce};
+use aes_gcm::{Aes256Gcm, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use chrono::Utc;
-use rand::RngCore;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -1010,13 +1010,13 @@ fn encrypt_payload(plaintext: &[u8], password: &str) -> Result<(Vec<u8>, BackupC
     let parallelism = 1;
     let mut salt = [0u8; 16];
     let mut nonce = [0u8; 12];
-    rand::thread_rng().fill_bytes(&mut salt);
-    rand::thread_rng().fill_bytes(&mut nonce);
+    rand::rng().fill_bytes(&mut salt);
+    rand::rng().fill_bytes(&mut nonce);
     let mut key_bytes = derive_key(password, &salt, memory_kib, iterations, parallelism)?;
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key_bytes));
+    let cipher = Aes256Gcm::new_from_slice(&key_bytes).expect("backup keys are 32 bytes");
     let ciphertext = cipher
         .encrypt(
-            Nonce::from_slice(&nonce),
+            &Nonce::from(nonce),
             AeadPayload {
                 msg: plaintext,
                 aad: BACKUP_AAD,
@@ -1052,9 +1052,10 @@ fn decrypt_payload(
     let nonce = BASE64
         .decode(&crypto.nonce_b64)
         .map_err(|_| "Backup nonce is invalid.".to_string())?;
-    if salt.len() != 16 || nonce.len() != 12 {
-        return Err("Backup encryption metadata is invalid.".to_string());
-    }
+    let nonce = Nonce::try_from(nonce.as_slice())
+        .ok()
+        .filter(|_| salt.len() == 16)
+        .ok_or_else(|| "Backup encryption metadata is invalid.".to_string())?;
     let mut key_bytes = derive_key(
         password,
         &salt,
@@ -1062,10 +1063,10 @@ fn decrypt_payload(
         crypto.iterations,
         crypto.parallelism,
     )?;
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key_bytes));
+    let cipher = Aes256Gcm::new_from_slice(&key_bytes).expect("backup keys are 32 bytes");
     let result = cipher
         .decrypt(
-            Nonce::from_slice(&nonce),
+            &nonce,
             AeadPayload {
                 msg: ciphertext,
                 aad: BACKUP_AAD,

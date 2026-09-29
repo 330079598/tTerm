@@ -179,7 +179,7 @@ mod tests {
     static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
     fn write_key(passphrase: Option<&str>) -> String {
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = rand::rng();
         let mut key = PrivateKey::random(&mut rng, Algorithm::Ed25519).unwrap();
         if let Some(passphrase) = passphrase {
             key = key.encrypt(&mut rng, passphrase).unwrap();

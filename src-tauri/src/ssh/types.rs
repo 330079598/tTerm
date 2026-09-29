@@ -268,13 +268,18 @@ impl russh::client::Handler for SshClientHandler {
     async fn server_channel_open_agent_forward(
         &mut self,
         channel: russh::Channel<russh::client::Msg>,
+        open: russh::client::ChannelOpenHandle,
         _session: &mut russh::client::Session,
     ) -> Result<(), Self::Error> {
         if !self.agent_forward_enabled {
-            let _ = channel.close().await;
+            open.reject(russh::ChannelOpenFailure::AdministrativelyProhibited)
+                .await;
             return Ok(());
         }
 
+        // Since russh 0.60 an unanswered open is rejected on drop, so it must
+        // be confirmed explicitly before the channel is bridged.
+        open.accept().await;
         tokio::spawn(async move {
             let mut agent_stream = match crate::ssh::agent::connect_local_agent_socket().await {
                 Ok(stream) => stream,
@@ -297,23 +302,42 @@ impl russh::client::Handler for SshClientHandler {
         connected_port: u32,
         _originator_address: &str,
         _originator_port: u32,
+        open: russh::client::ChannelOpenHandle,
         _session: &mut russh::client::Session,
     ) -> Result<(), Self::Error> {
-        if let Some(tx) = &self.forwarded_tcpip_tx {
-            let _ = tx.send(ForwardedTcpIp {
-                channel,
-                connected_port: u16::try_from(connected_port).unwrap_or(0),
-            });
-        }
+        let Some(tx) = &self.forwarded_tcpip_tx else {
+            open.reject(russh::ChannelOpenFailure::AdministrativelyProhibited)
+                .await;
+            return Ok(());
+        };
+        open.accept().await;
+        let _ = tx.send(ForwardedTcpIp {
+            channel,
+            connected_port: u16::try_from(connected_port).unwrap_or(0),
+        });
         Ok(())
     }
 
     async fn check_server_key(
         &mut self,
-        server_public_key: &russh::keys::ssh_key::PublicKey,
+        server_public_key: &russh::keys::PublicKeyOrCertificate,
     ) -> Result<bool, Self::Error> {
         use russh::keys::ssh_key::HashAlg;
         use tokio::sync::oneshot;
+
+        // Host certificate algorithms are never advertised, so a compliant
+        // server always presents a bare key; a certificate has no trust anchor.
+        let russh::keys::PublicKeyOrCertificate::PublicKey {
+            key: server_public_key,
+            ..
+        } = server_public_key
+        else {
+            self.emit_status(
+                "31",
+                "SSH host presented a host certificate, which is not supported",
+            );
+            return Ok(false);
+        };
 
         let algorithm = server_public_key.algorithm().to_string();
         let fingerprint = server_public_key.fingerprint(HashAlg::Sha256).to_string();

@@ -3,7 +3,7 @@
 
 use super::crypto::{self, SecretKey};
 use aes_gcm::aead::{Aead, KeyInit};
-use aes_gcm::{Aes256Gcm, Key, Nonce};
+use aes_gcm::{Aes256Gcm, Nonce};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use serde::Deserialize;
 use std::fs;
@@ -161,12 +161,12 @@ fn decrypt(key: &SecretKey, record: &VaultSecretRecord) -> Result<Zeroizing<Stri
     let ciphertext = BASE64
         .decode(record.ciphertext_b64.as_bytes())
         .map_err(|e| format!("Failed to decode vault secret: {e}"))?;
-    if nonce.len() != crypto::NONCE_LEN {
-        return Err("Vault record has an invalid nonce".to_string());
-    }
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key.expose()));
+    let nonce = Nonce::try_from(nonce.as_slice())
+        .map_err(|_| "Vault record has an invalid nonce".to_string())?;
+    let cipher = Aes256Gcm::new_from_slice(key.expose())
+        .map_err(|_| "Vault key has the wrong length".to_string())?;
     let plaintext = cipher
-        .decrypt(Nonce::from_slice(&nonce), ciphertext.as_ref())
+        .decrypt(&nonce, ciphertext.as_ref())
         .map(Zeroizing::new)
         .map_err(|_| wrong_password())?;
     String::from_utf8(plaintext.to_vec())
@@ -177,12 +177,12 @@ fn decrypt(key: &SecretKey, record: &VaultSecretRecord) -> Result<Zeroizing<Stri
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use rand::RngCore;
+    use rand::Rng;
 
     /// Writes a vault in the pre-database format, as the old code did.
     pub(crate) fn write_legacy_vault(directory: &Path, password: &str, secrets: &[(&str, &str)]) {
         let mut salt = [0u8; 16];
-        rand::thread_rng().fill_bytes(&mut salt);
+        rand::rng().fill_bytes(&mut salt);
         // Cheap parameters keep the tests fast; the reader honors the file.
         let (memory_kib, iterations, parallelism) = (64, 1, 1);
         fs::create_dir_all(directory).unwrap();
@@ -208,12 +208,12 @@ pub(crate) mod tests {
             parallelism,
         )
         .unwrap();
-        let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key.expose()));
+        let cipher = Aes256Gcm::new_from_slice(key.expose()).unwrap();
         let record = |profile_id: &str, kind: &str, plaintext: &str| {
             let mut nonce = [0u8; 12];
-            rand::thread_rng().fill_bytes(&mut nonce);
+            rand::rng().fill_bytes(&mut nonce);
             let ciphertext = cipher
-                .encrypt(Nonce::from_slice(&nonce), plaintext.as_bytes())
+                .encrypt(&Nonce::from(nonce), plaintext.as_bytes())
                 .unwrap();
             serde_json::json!({
                 "profile_id": profile_id,

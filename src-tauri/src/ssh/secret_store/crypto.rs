@@ -3,10 +3,10 @@
 //! key (from the OS credential store or derived from the master password).
 
 use aes_gcm::aead::{Aead, KeyInit, Payload};
-use aes_gcm::{Aes256Gcm, Key, Nonce};
+use aes_gcm::{Aes256Gcm, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
-use rand::RngCore;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, Zeroizing};
 
@@ -23,7 +23,7 @@ pub(crate) struct SecretKey(Zeroizing<[u8; KEY_LEN]>);
 impl SecretKey {
     pub(crate) fn generate() -> Self {
         let mut bytes = Zeroizing::new([0u8; KEY_LEN]);
-        rand::thread_rng().fill_bytes(&mut bytes[..]);
+        rand::rng().fill_bytes(&mut bytes[..]);
         Self(bytes)
     }
 
@@ -52,7 +52,7 @@ impl SecretKey {
     }
 
     fn cipher(&self) -> Aes256Gcm {
-        Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&self.0[..]))
+        Aes256Gcm::new_from_slice(&self.0[..]).expect("SecretKey is always KEY_LEN bytes")
     }
 }
 
@@ -69,11 +69,11 @@ pub(crate) struct Sealed {
 
 fn seal(key: &SecretKey, aad: &[u8], plaintext: &[u8]) -> Result<Sealed, String> {
     let mut nonce = [0u8; NONCE_LEN];
-    rand::thread_rng().fill_bytes(&mut nonce);
+    rand::rng().fill_bytes(&mut nonce);
     let ciphertext = key
         .cipher()
         .encrypt(
-            Nonce::from_slice(&nonce),
+            &Nonce::from(nonce),
             Payload {
                 msg: plaintext,
                 aad,
@@ -97,7 +97,7 @@ fn open(
     }
     key.cipher()
         .decrypt(
-            Nonce::from_slice(nonce),
+            &Nonce::try_from(nonce).ok()?,
             Payload {
                 msg: ciphertext,
                 aad,
@@ -172,7 +172,7 @@ pub(crate) struct KdfParams {
 impl KdfParams {
     pub(crate) fn generate() -> Self {
         let mut salt = [0u8; SALT_LEN];
-        rand::thread_rng().fill_bytes(&mut salt);
+        rand::rng().fill_bytes(&mut salt);
         Self {
             algorithm: "argon2id-v19".to_string(),
             salt: BASE64.encode(salt),

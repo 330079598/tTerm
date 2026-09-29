@@ -35,8 +35,20 @@ impl client::Handler for JumpHostHandler {
 
     async fn check_server_key(
         &mut self,
-        server_public_key: &russh::keys::ssh_key::PublicKey,
+        server_public_key: &russh::keys::PublicKeyOrCertificate,
     ) -> Result<bool, Self::Error> {
+        // Host certificate algorithms are never advertised, so a compliant
+        // server always presents a bare key; a certificate has no trust anchor.
+        let russh::keys::PublicKeyOrCertificate::PublicKey {
+            key: server_public_key,
+            ..
+        } = server_public_key
+        else {
+            let reason = "Jump host presented an SSH host certificate, which is not supported";
+            self.set_failure_reason(reason.to_string());
+            self.emit_status("31", reason);
+            return Ok(false);
+        };
         let algorithm = server_public_key.algorithm().to_string();
         let fingerprint = server_public_key.fingerprint(HashAlg::Sha256).to_string();
 

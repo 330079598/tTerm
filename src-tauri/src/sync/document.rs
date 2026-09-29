@@ -5,12 +5,12 @@
 
 use super::merge::Collection;
 use aes_gcm::aead::{Aead, KeyInit, Payload};
-use aes_gcm::{Aes256Gcm, Key, Nonce};
+use aes_gcm::{Aes256Gcm, Nonce};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use rand::RngCore;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -41,7 +41,7 @@ pub(crate) struct KdfSpec {
 impl KdfSpec {
     fn generate() -> Self {
         let mut salt = [0u8; 16];
-        rand::thread_rng().fill_bytes(&mut salt);
+        rand::rng().fill_bytes(&mut salt);
         Self {
             salt_b64: BASE64.encode(salt),
             memory_kib: 65_536,
@@ -172,10 +172,11 @@ pub(crate) fn encode(
     );
     let key = key_for(password, &kdf)?;
     let mut nonce = [0u8; 12];
-    rand::thread_rng().fill_bytes(&mut nonce);
-    let ciphertext = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key[..]))
+    rand::rng().fill_bytes(&mut nonce);
+    let ciphertext = Aes256Gcm::new_from_slice(&key[..])
+        .map_err(|_| "Failed to encrypt sync data.".to_string())?
         .encrypt(
-            Nonce::from_slice(&nonce),
+            &Nonce::from(nonce),
             Payload {
                 msg: &compressed,
                 aad: AAD,
@@ -216,16 +217,17 @@ pub(crate) fn decode(bytes: &[u8], password: &str) -> Result<Decoded, String> {
     let nonce = BASE64
         .decode(&envelope.nonce_b64)
         .ok()
-        .filter(|nonce| nonce.len() == 12)
+        .and_then(|nonce| Nonce::try_from(nonce.as_slice()).ok())
         .ok_or_else(|| "The remote sync file is damaged.".to_string())?;
     let ciphertext = BASE64
         .decode(&envelope.ciphertext_b64)
         .map_err(|_| "The remote sync file is damaged.".to_string())?;
     let key = key_for(password, &envelope.kdf)?;
     let compressed = Zeroizing::new(
-        Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key[..]))
+        Aes256Gcm::new_from_slice(&key[..])
+            .map_err(|_| "The remote sync file is damaged.".to_string())?
             .decrypt(
-                Nonce::from_slice(&nonce),
+                &nonce,
                 Payload {
                     msg: &ciphertext,
                     aad: AAD,

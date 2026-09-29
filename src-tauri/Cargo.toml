@@ -29,22 +29,22 @@ tauri-plugin-clipboard-manager = "2.3.2"
 portable-pty = "0.9"
 uuid = { version = "1", features = ["v4"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "io-util", "fs", "net"] }
-russh = { version = "0.58", default-features = false, features = ["ring"] }
-russh-sftp = "2.1.1"
+russh = { version = "0.63", default-features = false, features = ["ring"] }
+russh-sftp = "3"
 async-trait = "0.1"
-aes-gcm = "0.10"
-argon2 = "0.5"
+aes-gcm = "0.11"
+argon2 = "0.6"
 base64 = "0.23"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 crc32fast = "1"
 flate2 = "1"
-sha2 = "0.10"
+sha2 = "0.11"
 zip = { version = "8", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 quick-xml = "0.42"
 percent-encoding = "2"
-rand = "0.8"
+rand = "0.10"
 vte = "0.15"
 zeroize = "1"
 sys-locale = "0.3"

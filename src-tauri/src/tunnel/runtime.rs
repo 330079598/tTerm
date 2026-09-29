@@ -1130,7 +1130,7 @@ mod tests {
             ChannelFailure::ResourceShortage
         );
         assert!(matches!(
-            classify(Reason::Unknown),
+            classify(Reason::UnknownChannelType),
             ChannelFailure::Other(_)
         ));
 
