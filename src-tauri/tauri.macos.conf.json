@@ -6,6 +6,8 @@
       {
         "title": "tTerm",
         "label": "main",
+        "create": false,
+        "backgroundColor": "#1b1d23",
         "hiddenTitle": true,
         "titleBarStyle": "Overlay"
       }

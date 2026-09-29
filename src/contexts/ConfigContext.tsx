@@ -33,6 +33,8 @@ export type SecretStorageMode = "system" | "password" | "memory"
 export type TabWidthMode = "adaptive" | "standard"
 export type TerminalLogFormat = "raw" | "plain" | "both"
 export type TerminalRenderer = "webgl" | "canvas"
+/** What WebKit does with the page while the window is hidden (macOS 14+). */
+export type BackgroundThrottling = "throttle" | "disabled" | "suspend"
 export type MonitorMetricId =
   "cpu" | "memory" | "network" | "ip" | "latency" | "disk" | "load" | "uptime"
 
@@ -155,6 +157,7 @@ export interface AppConfig {
   /** Extra sudo password prompt regexes; an optional `user` group names the account. */
   sudo_prompt_patterns: string[]
   keymap: KeymapConfig
+  background_throttling: BackgroundThrottling
 }
 
 const defaultUpdateChannel = /-(alpha|beta|rc|dev)(\.|$)/.test(
@@ -211,6 +214,7 @@ const defaultConfig: AppConfig = {
   zmodem_download_directory: "",
   sudo_prompt_patterns: [],
   keymap: { ...DEFAULT_KEYMAP_CONFIG, bindings: {} },
+  background_throttling: "throttle",
 }
 
 function normalizeUpdateCheckFrequency(
@@ -380,7 +384,21 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
       : [],
     ui_scale_percent: normalizeUiScalePercent(config.ui_scale_percent),
     keymap: normalizeKeymap(config.keymap),
+    background_throttling:
+      config.background_throttling === "disabled" || config.background_throttling === "suspend"
+        ? config.background_throttling
+        : "throttle",
   }
+}
+
+let launchBackgroundThrottling: BackgroundThrottling | null = null
+
+/**
+ * The policy the window was created with. The backend reads it only when it
+ * builds the window, so a saved value that differs takes a restart.
+ */
+export function getLaunchBackgroundThrottling(): BackgroundThrottling | null {
+  return launchBackgroundThrottling
 }
 
 const defaultSecretStatus: SecretBackendStatus = {
@@ -475,11 +493,13 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         invoke<SecretBackendStatus>("get_secret_backend_status"),
       ])
       const normalizedConfig = normalizeConfig(loadedConfig)
+      launchBackgroundThrottling ??= normalizedConfig.background_throttling
       configRef.current = normalizedConfig
       setConfig(normalizedConfig)
       setSecretStatus(normalizeSecretStatus(loadedSecretStatus))
     } catch (error) {
       console.error("Failed to load config:", error)
+      launchBackgroundThrottling ??= defaultConfig.background_throttling
       configRef.current = defaultConfig
       setConfig(defaultConfig)
       setSecretStatus(defaultSecretStatus)

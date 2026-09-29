@@ -118,6 +118,11 @@ pub struct AppConfig {
     pub sudo_prompt_patterns: Vec<String>,
     #[serde(default = "default_keymap")]
     pub keymap: KeymapConfig,
+    /// What WebKit does with the page while the window is hidden (macOS 14+):
+    /// "throttle", "disabled" or "suspend". Read once when the window is
+    /// created, so a change applies after restart.
+    #[serde(default = "default_background_throttling")]
+    pub background_throttling: String,
 }
 
 /// User-configurable keyboard shortcut overrides. `bindings` maps action ids
@@ -311,6 +316,10 @@ fn default_reconnect_max_attempts() -> u32 {
     5
 }
 
+fn default_background_throttling() -> String {
+    "throttle".to_string()
+}
+
 fn default_zmodem_auto_detect_enabled() -> bool {
     true
 }
@@ -382,6 +391,7 @@ impl Default for AppConfig {
             zmodem_download_directory: String::new(),
             sudo_prompt_patterns: Vec::new(),
             keymap: default_keymap(),
+            background_throttling: default_background_throttling(),
         }
     }
 }

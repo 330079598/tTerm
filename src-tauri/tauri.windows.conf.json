@@ -6,6 +6,7 @@
       {
         "title": "tTerm",
         "label": "main",
+        "create": false,
         "decorations": false,
         "transparent": true,
         "visibleOnAllWorkspaces": true

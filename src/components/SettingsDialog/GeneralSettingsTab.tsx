@@ -7,7 +7,9 @@ import {
   FolderOpen,
   Info,
   Languages,
+  Moon,
   PlugZap,
+  RotateCw,
   Trash2,
   Wrench,
 } from "lucide-react"
@@ -17,7 +19,14 @@ import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { useAppActivity } from "@/contexts/AppActivityContext"
+import {
+  type BackgroundThrottling,
+  getDetectedPlatform,
+  getLaunchBackgroundThrottling,
+} from "@/contexts/ConfigContext"
 import { cn } from "@/lib/utils"
 import { BandwidthLimitInput } from "@/components/SettingsDialog/BandwidthLimitInput"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
@@ -29,7 +38,9 @@ interface LanguageOption {
 }
 
 interface GeneralSettingsTabProps {
+  backgroundThrottling: BackgroundThrottling
   handleAbout: () => void
+  handleBackgroundThrottlingChange: (policy: BackgroundThrottling) => Promise<void>
   handleClearSession: () => Promise<void>
   handleLanguageChange: (langCode: string) => Promise<void>
   handleRestoreAllSessionConnectionsChange: (checked: boolean) => Promise<void>
@@ -52,7 +63,9 @@ interface GeneralSettingsTabProps {
 }
 
 export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
+  backgroundThrottling,
   handleAbout,
+  handleBackgroundThrottlingChange,
   handleClearSession,
   handleLanguageChange,
   handleRestoreAllSessionConnectionsChange,
@@ -74,6 +87,10 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   zmodemDownloadDirectory,
 }) => {
   const { t } = useTranslation()
+  const { requestAppRestart } = useAppActivity()
+  const launchBackgroundThrottling = getLaunchBackgroundThrottling()
+  const backgroundThrottlingNeedsRestart =
+    launchBackgroundThrottling !== null && launchBackgroundThrottling !== backgroundThrottling
 
   const chooseZmodemDownloadDirectory = async () => {
     const selected = await openDirectoryDialog({
@@ -262,6 +279,64 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             }
           />
         </SettingsSection>
+
+        {getDetectedPlatform() === "macos" && (
+          <SettingsSection
+            icon={<Moon size={16} />}
+            title={t("settings.background", { defaultValue: "Background" })}
+          >
+            <SettingsRow
+              title={t("settings.backgroundThrottling", {
+                defaultValue: "While the window is hidden",
+              })}
+              description={t("settings.backgroundThrottlingDesc", {
+                defaultValue:
+                  "Throttle keeps terminals processing output at reduced priority. Suspend frees the most power but pauses the page after about 5 minutes, which delays redraw when you come back. Requires macOS 14 or later; applies after restart.",
+              })}
+              action={
+                <Select
+                  aria-label={t("settings.backgroundThrottling", {
+                    defaultValue: "While the window is hidden",
+                  })}
+                  value={backgroundThrottling}
+                  onChange={(event) =>
+                    void handleBackgroundThrottlingChange(
+                      event.target.value as BackgroundThrottling
+                    )
+                  }
+                  className="w-44"
+                >
+                  <option value="throttle">
+                    {t("settings.backgroundThrottlingThrottle", {
+                      defaultValue: "Throttle (recommended)",
+                    })}
+                  </option>
+                  <option value="disabled">
+                    {t("settings.backgroundThrottlingDisabled", {
+                      defaultValue: "Keep running",
+                    })}
+                  </option>
+                  <option value="suspend">
+                    {t("settings.backgroundThrottlingSuspend", {
+                      defaultValue: "Suspend (saves power)",
+                    })}
+                  </option>
+                </Select>
+              }
+            />
+            {backgroundThrottlingNeedsRestart && (
+              <SettingsRow
+                title={t("settings.restartToApply", { defaultValue: "Restart to apply" })}
+                action={
+                  <Button type="button" variant="outline" onClick={() => void requestAppRestart()}>
+                    <RotateCw />
+                    {t("settings.restartNow", { defaultValue: "Restart now" })}
+                  </Button>
+                }
+              />
+            )}
+          </SettingsSection>
+        )}
 
         <SettingsSection
           icon={<Bug size={16} />}

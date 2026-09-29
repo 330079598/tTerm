@@ -1,3 +1,6 @@
+import { isTauri } from "@tauri-apps/api/core"
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
+import { getDetectedPlatform } from "@/contexts/ConfigContext"
 import { getPresetTheme } from "@/lib/themeDefinitions"
 import type { CustomTheme, ThemeColors, Theme as AppTheme } from "@/types/theme"
 import { THEME_COLOR_KEYS } from "@/types/theme"
@@ -132,7 +135,36 @@ export function resolveThemeCache(themeId: string, customThemes: CustomTheme[]):
   }
 }
 
+let nativeBackground = ""
+
+/**
+ * Paint the native window and webview in the theme background. WebKit drops a
+ * hidden page's layers; until it repaints after the window comes back,
+ * whatever is behind the page shows, which is white unless set here. Not on
+ * Windows: that window is transparent and must stay that way.
+ */
+function syncNativeBackground(): void {
+  if (!isTauri() || getDetectedPlatform() === "windows") return
+  const match = getComputedStyle(document.body).backgroundColor.match(/\d+(\.\d+)?/g)
+  if (!match || match.length < 3) return
+  const [r, g, b] = match.slice(0, 3).map((channel) => Math.round(Number(channel)))
+  const key = `${r},${g},${b}`
+  if (key === nativeBackground) return
+  nativeBackground = key
+  getCurrentWebviewWindow()
+    .setBackgroundColor([r, g, b, 255])
+    .catch((error: unknown) => {
+      nativeBackground = ""
+      console.error("[ThemePreloader] Failed to set native background:", error)
+    })
+}
+
 export function applyThemeToDom(themeCache: ThemeCache): void {
+  applyThemeColors(themeCache)
+  syncNativeBackground()
+}
+
+function applyThemeColors(themeCache: ThemeCache): void {
   clearCustomThemeColors()
 
   if (themeCache.isCustom && themeCache.colors) {

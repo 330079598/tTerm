@@ -20,7 +20,8 @@ mod zmodem;
 
 use core::PtyMap;
 use std::sync::Arc;
-use tauri::Manager;
+use tauri::utils::config::BackgroundThrottlingPolicy;
+use tauri::{Manager, WebviewWindowBuilder};
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 use tauri_plugin_frame::FramePluginBuilder;
 use tokio::sync::RwLock;
@@ -41,6 +42,32 @@ fn toggle_devtools(app: tauri::AppHandle, enable: bool) -> Result<(), String> {
         window.close_devtools();
     }
 
+    Ok(())
+}
+
+fn background_throttling_policy(value: &str) -> BackgroundThrottlingPolicy {
+    match value {
+        "disabled" => BackgroundThrottlingPolicy::Disabled,
+        "suspend" => BackgroundThrottlingPolicy::Suspend,
+        _ => BackgroundThrottlingPolicy::Throttle,
+    }
+}
+
+/// The main window is declared with `create: false` so it is built here: the
+/// background throttling policy is a user setting and WebKit only takes it
+/// when the webview is created.
+fn create_main_window(app: &tauri::App, background_throttling: &str) -> tauri::Result<()> {
+    let window_config = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|window| window.label == "main")
+        .cloned()
+        .expect("main window missing from tauri.conf.json");
+    WebviewWindowBuilder::from_config(app.handle(), &window_config)?
+        .background_throttling(background_throttling_policy(background_throttling))
+        .build()?;
     Ok(())
 }
 
@@ -71,6 +98,31 @@ fn tokio_worker_threads() -> usize {
         std::env::var("TTERM_TOKIO_WORKERS").ok().as_deref(),
         available_parallelism,
     )
+}
+
+#[cfg(test)]
+mod background_throttling_tests {
+    use super::{background_throttling_policy, BackgroundThrottlingPolicy};
+
+    #[test]
+    fn unknown_values_fall_back_to_throttle() {
+        assert!(matches!(
+            background_throttling_policy("disabled"),
+            BackgroundThrottlingPolicy::Disabled
+        ));
+        assert!(matches!(
+            background_throttling_policy("suspend"),
+            BackgroundThrottlingPolicy::Suspend
+        ));
+        assert!(matches!(
+            background_throttling_policy("throttle"),
+            BackgroundThrottlingPolicy::Throttle
+        ));
+        assert!(matches!(
+            background_throttling_policy(""),
+            BackgroundThrottlingPolicy::Throttle
+        ));
+    }
 }
 
 #[cfg(test)]
@@ -307,13 +359,20 @@ pub fn run() {
                 .state::<ssh::SecretStoreState>()
                 .initialize(&app_handle);
 
-            if let Ok(cfg) = config::load_config_file() {
-                sftp::internal::api::apply_bandwidth_limits(&cfg);
+            let cfg = config::load_config_file().ok();
+            if let Some(cfg) = &cfg {
+                sftp::internal::api::apply_bandwidth_limits(cfg);
                 let log_state = app_handle.state::<session_log::SessionLogState>();
-                if let Err(err) = log_state.apply_config(&app_handle, &cfg) {
+                if let Err(err) = log_state.apply_config(&app_handle, cfg) {
                     eprintln!("Failed to initialize terminal logging: {}", err);
                 }
             }
+
+            create_main_window(
+                app,
+                cfg.as_ref()
+                    .map_or("throttle", |cfg| cfg.background_throttling.as_str()),
+            )?;
 
             Ok(())
         })

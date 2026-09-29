@@ -5,6 +5,8 @@
       {
         "title": "tTerm",
         "label": "main",
+        "create": false,
+        "backgroundColor": "#1b1d23",
         "decorations": false,
         "transparent": false,
         "visibleOnAllWorkspaces": false

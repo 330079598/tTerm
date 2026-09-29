@@ -8,7 +8,12 @@ import { useTranslation } from "react-i18next"
 import { useConfirmDialog, useInfoDialog, usePromptDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
-import { type TabWidthMode, type TerminalRenderer, useConfig } from "@/contexts/ConfigContext"
+import {
+  type BackgroundThrottling,
+  type TabWidthMode,
+  type TerminalRenderer,
+  useConfig,
+} from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
@@ -428,6 +433,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     await saveSettings({ zmodem_download_directory: directory })
   }
 
+  const handleBackgroundThrottlingChange = async (policy: BackgroundThrottling) => {
+    await saveSettings({ background_throttling: policy })
+  }
+
   const handleSftpTransferParallelismChange = async (value: number) => {
     if (!Number.isFinite(value)) {
       return
@@ -715,7 +724,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
           >
             <GeneralSettingsTab
+              backgroundThrottling={config.background_throttling}
               handleAbout={handleAbout}
+              handleBackgroundThrottlingChange={handleBackgroundThrottlingChange}
               handleClearSession={handleClearSession}
               handleLanguageChange={handleLanguageChange}
               handleRestoreAllSessionConnectionsChange={handleRestoreAllSessionConnectionsChange}
