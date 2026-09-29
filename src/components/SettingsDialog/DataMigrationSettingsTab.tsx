@@ -5,6 +5,7 @@ import { relaunch } from "@tauri-apps/plugin-process"
 import {
   Archive,
   CheckCircle2,
+  Cloud,
   Download,
   Eye,
   EyeOff,
@@ -29,20 +30,16 @@ import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+import { readBackupFrontendState } from "@/lib/backupFrontendState"
 import { RECENT_COMMANDS_STORAGE_KEY } from "@/lib/recentCommands"
 import { toErrorMessage } from "@/lib/utils"
-
-interface BackupSelection {
-  settings: boolean
-  profiles: boolean
-  session: boolean
-  knownHosts: boolean
-  sftpDirectories: boolean
-  commandLibrary: boolean
-  themes: boolean
-  secrets: boolean
-  logs: boolean
-}
+import { WebDavBackupPanel } from "@/components/SettingsDialog/WebDavBackupPanel"
+import {
+  formatFileSize,
+  withSelection,
+  type BackupSelection,
+  type SelectionKey,
+} from "@/components/SettingsDialog/backupShared"
 
 interface CategoryDiff {
   added: number
@@ -112,8 +109,7 @@ interface BackupImportResult {
   requiresRestart: boolean
 }
 
-type SelectionKey = keyof BackupSelection
-type MigrationView = "backup" | "import" | "history"
+type MigrationView = "backup" | "webdav" | "import" | "history"
 
 const defaultSelection: BackupSelection = {
   settings: true,
@@ -131,27 +127,6 @@ function cloneAvailableSelection(selection: BackupSelection): BackupSelection {
   return { ...selection }
 }
 
-function readFrontendState() {
-  const read = (key: string, fallback: unknown) => {
-    try {
-      return JSON.parse(localStorage.getItem(key) ?? JSON.stringify(fallback)) as unknown
-    } catch {
-      return fallback
-    }
-  }
-  const customThemes = read("custom-themes", [])
-  const recentCommands = read(RECENT_COMMANDS_STORAGE_KEY, [])
-  try {
-    return {
-      customThemes: Array.isArray(customThemes) ? customThemes : [],
-      recentCommands: Array.isArray(recentCommands) ? recentCommands : [],
-      sftpColumnWidths: read("tterm.sftp.columnWidths", null),
-    }
-  } catch {
-    return { customThemes: [], recentCommands: [], sftpColumnWidths: null }
-  }
-}
-
 function restoreFrontendState(state: BackupImportResult["frontendState"]) {
   if (state && Array.isArray(state.customThemes)) {
     localStorage.setItem("custom-themes", JSON.stringify(state.customThemes))
@@ -162,12 +137,6 @@ function restoreFrontendState(state: BackupImportResult["frontendState"]) {
   if (state && state.sftpColumnWidths !== undefined && state.sftpColumnWidths !== null) {
     localStorage.setItem("tterm.sftp.columnWidths", JSON.stringify(state.sftpColumnWidths))
   }
-}
-
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 type BusyAction =
@@ -233,12 +202,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
   }, [refreshBackupManagement])
 
   const updateSelection = (key: SelectionKey, checked: boolean) => {
-    setSelection((current) => {
-      const next = { ...current, [key]: checked }
-      if (key === "secrets" && checked) next.profiles = true
-      if (key === "profiles" && !checked) next.secrets = false
-      return next
-    })
+    setSelection((current) => withSelection(current, key, checked))
   }
 
   const updateAutomaticSelection = (key: SelectionKey, checked: boolean) => {
@@ -280,7 +244,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
         options: {
           selection,
           backupPassword: backupPassword || null,
-          frontendState: readFrontendState(),
+          frontendState: readBackupFrontendState(),
         },
       })
       setExportResult(result)
@@ -426,7 +390,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
     try {
       await invoke("save_automatic_backup_settings", { settings: automaticSettings })
       await invoke("run_due_automatic_backup", {
-        frontendState: readFrontendState(),
+        frontendState: readBackupFrontendState(),
         force: true,
       })
       await refreshBackupManagement()
@@ -459,14 +423,15 @@ export const DataMigrationSettingsTab: React.FC = () => {
     }
   }
 
-  const handleUseHistory = async (entry: BackupHistoryEntry) => {
+  const openForImport = async (path: string) => {
     setBusyAction("inspect")
     setActiveView("import")
-    setImportPath(entry.path)
+    setImportPath(path)
     setImportPassword("")
     setImportResult(null)
+    setInspectResult(null)
     try {
-      await inspect(entry.path, "")
+      await inspect(path, "")
     } catch (error) {
       toast({
         title: t("dataMigration.inspectFailed"),
@@ -492,7 +457,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
         </div>
 
         <div
-          className="bg-muted/40 grid grid-cols-3 gap-1 rounded-md p-1"
+          className="bg-muted/40 grid grid-cols-4 gap-1 rounded-md p-1"
           role="group"
           aria-label={t("dataMigration.title")}
         >
@@ -505,6 +470,16 @@ export const DataMigrationSettingsTab: React.FC = () => {
           >
             <Archive size={14} />
             {t("dataMigration.backupTab", { defaultValue: "Backup" })}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={activeView === "webdav" ? "default" : "ghost"}
+            aria-pressed={activeView === "webdav"}
+            onClick={() => setActiveView("webdav")}
+          >
+            <Cloud size={14} />
+            {t("dataMigration.webdavTab")}
           </Button>
           <Button
             type="button"
@@ -650,6 +625,10 @@ export const DataMigrationSettingsTab: React.FC = () => {
           </Card>
         )}
 
+        {activeView === "webdav" && (
+          <WebDavBackupPanel selectionItems={selectionItems} onRestore={openForImport} />
+        )}
+
         {activeView === "history" && (
           <Card>
             <CardContent className="space-y-4 p-4">
@@ -683,7 +662,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
                           variant="ghost"
                           size="icon"
                           disabled={busy}
-                          onClick={() => handleUseHistory(entry)}
+                          onClick={() => openForImport(entry.path)}
                           aria-label={t("dataMigration.useBackup", { name: entry.fileName })}
                         >
                           <Upload size={16} />

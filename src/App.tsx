@@ -4,10 +4,12 @@ import { invoke } from "@tauri-apps/api/core"
 import { useEffect } from "react"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { Toaster } from "@/components/ui/toaster"
-import { RECENT_COMMANDS_STORAGE_KEY } from "@/lib/recentCommands"
+import { readBackupFrontendState } from "@/lib/backupFrontendState"
 
 // Import the generated route tree
 import { routeTree } from "@/routeTree.gen"
+
+const WEBDAV_BACKUP_CHECK_INTERVAL_MS = 30 * 60 * 1_000
 
 // Create a new router instance
 const router = createRouter({ routeTree })
@@ -21,31 +23,25 @@ declare module "@tanstack/react-router" {
 
 function App() {
   useEffect(() => {
+    const runWebDavBackup = () =>
+      invoke("run_webdav_backup", {
+        frontendState: readBackupFrontendState(),
+        force: false,
+      }).catch((error) => console.error("WebDAV backup failed:", error))
     const timer = window.setTimeout(() => {
-      let customThemes: unknown[] = []
-      let recentCommands: unknown[] = []
-      let sftpColumnWidths: unknown = null
-      try {
-        const stored = JSON.parse(localStorage.getItem("custom-themes") ?? "[]") as unknown
-        customThemes = Array.isArray(stored) ? stored : []
-        const recent = JSON.parse(
-          localStorage.getItem(RECENT_COMMANDS_STORAGE_KEY) ?? "[]"
-        ) as unknown
-        recentCommands = Array.isArray(recent) ? recent : []
-        sftpColumnWidths = JSON.parse(
-          localStorage.getItem("tterm.sftp.columnWidths") ?? "null"
-        ) as unknown
-      } catch {
-        customThemes = []
-        recentCommands = []
-        sftpColumnWidths = null
-      }
       invoke("run_due_automatic_backup", {
-        frontendState: { customThemes, recentCommands, sftpColumnWidths },
+        frontendState: readBackupFrontendState(),
         force: false,
       }).catch((error) => console.error("Automatic backup failed:", error))
+      void runWebDavBackup()
     }, 2_000)
-    return () => window.clearTimeout(timer)
+    // Checked again while the app stays open, which also catches a run that
+    // was skipped because saved passwords were still locked.
+    const interval = window.setInterval(runWebDavBackup, WEBDAV_BACKUP_CHECK_INTERVAL_MS)
+    return () => {
+      window.clearTimeout(timer)
+      window.clearInterval(interval)
+    }
   }, [])
 
   return (

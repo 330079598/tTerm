@@ -24,7 +24,9 @@ use types::{SecretStorageMode, SecretStoreRuntime};
 use zeroize::Zeroizing;
 
 pub(crate) use crypto::SecretKey as DataKey;
-pub(crate) use store::{get_secret, put_secret, restore_secrets, snapshot_secrets, SecretRow};
+pub(crate) use store::{
+    delete_secret, get_secret, put_secret, restore_secrets, snapshot_secrets, SecretRow,
+};
 pub use types::{
     ChangeVaultPasswordInput, SecretBackendStatus, SecretLocation, SecretStoreState,
     VaultPasswordInput,

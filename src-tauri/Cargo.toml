@@ -40,6 +40,9 @@ crc32fast = "1"
 flate2 = "1"
 sha2 = "0.10"
 zip = { version = "2", default-features = false, features = ["deflate"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+quick-xml = "0.38"
+percent-encoding = "2"
 rand = "0.8"
 vte = "0.14"
 zeroize = "1"
