@@ -1,6 +1,6 @@
 use super::{CommandVariable, SavedCommand};
 use crate::db::Database;
-use rusqlite::{params, OptionalExtension, Row, Transaction};
+use rusqlite::{params, Connection, OptionalExtension, Row, Transaction};
 
 pub struct CommandRepository<'a> {
     database: &'a Database,
@@ -13,27 +13,7 @@ impl<'a> CommandRepository<'a> {
 
     pub fn list(&self) -> Result<Vec<SavedCommand>, String> {
         let connection = self.database.lock()?;
-        let mut statement = connection
-            .prepare(
-                "SELECT id, name, command_text, description, scope_type, scope_id, shell_type, \
-                        platform, is_favorite, confirm_before_run, sort_order, use_count, \
-                        last_used_at, created_at, updated_at \
-                 FROM saved_commands \
-                 ORDER BY is_favorite DESC, sort_order ASC, updated_at DESC",
-            )
-            .map_err(database_error("prepare command list"))?;
-        let rows = statement
-            .query_map([], map_command)
-            .map_err(database_error("query commands"))?;
-        let mut commands = rows
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(database_error("read commands"))?;
-        drop(statement);
-
-        for command in &mut commands {
-            load_relations(&connection, command)?;
-        }
-        Ok(commands)
+        list_commands(&connection)
     }
 
     pub fn get(&self, id: &str) -> Result<Option<SavedCommand>, String> {
@@ -56,50 +36,11 @@ impl<'a> CommandRepository<'a> {
     }
 
     pub fn save(&self, command: &SavedCommand) -> Result<(), String> {
-        validate(command)?;
         let mut connection = self.database.lock()?;
         let transaction = connection
             .transaction()
             .map_err(database_error("start command save transaction"))?;
-
-        transaction
-            .execute(
-                "INSERT INTO saved_commands (
-                    id, name, command_text, description, scope_type, scope_id, shell_type, \
-                    platform, is_favorite, confirm_before_run, sort_order, use_count, \
-                    last_used_at, created_at, updated_at
-                 ) VALUES (
-                    ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15
-                 ) ON CONFLICT(id) DO UPDATE SET
-                    name = excluded.name, command_text = excluded.command_text,
-                    description = excluded.description, scope_type = excluded.scope_type,
-                    scope_id = excluded.scope_id, shell_type = excluded.shell_type,
-                    platform = excluded.platform, is_favorite = excluded.is_favorite,
-                    confirm_before_run = excluded.confirm_before_run,
-                    sort_order = excluded.sort_order, use_count = excluded.use_count,
-                    last_used_at = excluded.last_used_at, updated_at = excluded.updated_at",
-                params![
-                    command.id,
-                    command.name,
-                    command.command_text,
-                    command.description,
-                    command.scope_type,
-                    command.scope_id,
-                    command.shell_type,
-                    command.platform,
-                    command.is_favorite,
-                    command.confirm_before_run,
-                    command.sort_order,
-                    command.use_count,
-                    command.last_used_at,
-                    command.created_at,
-                    command.updated_at,
-                ],
-            )
-            .map_err(database_error("save command"))?;
-
-        replace_relations(&transaction, command)?;
-        refresh_search_index(&transaction, command)?;
+        save_command(&transaction, command)?;
         transaction
             .commit()
             .map_err(database_error("commit command save"))
@@ -110,19 +51,11 @@ impl<'a> CommandRepository<'a> {
         let transaction = connection
             .transaction()
             .map_err(database_error("start command delete transaction"))?;
-        transaction
-            .execute(
-                "DELETE FROM saved_commands_fts WHERE command_id = ?1",
-                params![id],
-            )
-            .map_err(database_error("delete command search index"))?;
-        let affected = transaction
-            .execute("DELETE FROM saved_commands WHERE id = ?1", params![id])
-            .map_err(database_error("delete command"))?;
+        let deleted = delete_command(&transaction, id)?;
         transaction
             .commit()
             .map_err(database_error("commit command delete"))?;
-        Ok(affected > 0)
+        Ok(deleted)
     }
 
     pub fn record_use(&self, id: &str, used_at: i64) -> Result<bool, String> {
@@ -239,6 +172,91 @@ impl<'a> CommandRepository<'a> {
         drop(connection);
         self.list_tags()
     }
+}
+
+/// Every command, for callers that already hold the connection.
+pub(crate) fn list_commands(connection: &Connection) -> Result<Vec<SavedCommand>, String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, name, command_text, description, scope_type, scope_id, shell_type, \
+                    platform, is_favorite, confirm_before_run, sort_order, use_count, \
+                    last_used_at, created_at, updated_at \
+             FROM saved_commands \
+             ORDER BY is_favorite DESC, sort_order ASC, updated_at DESC",
+        )
+        .map_err(database_error("prepare command list"))?;
+    let rows = statement
+        .query_map([], map_command)
+        .map_err(database_error("query commands"))?;
+    let mut commands = rows
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(database_error("read commands"))?;
+    drop(statement);
+
+    for command in &mut commands {
+        load_relations(connection, command)?;
+    }
+    Ok(commands)
+}
+
+/// Saves a command inside the caller's transaction.
+pub(crate) fn save_command(
+    transaction: &Transaction<'_>,
+    command: &SavedCommand,
+) -> Result<(), String> {
+    validate(command)?;
+    transaction
+        .execute(
+            "INSERT INTO saved_commands (
+                id, name, command_text, description, scope_type, scope_id, shell_type, \
+                platform, is_favorite, confirm_before_run, sort_order, use_count, \
+                last_used_at, created_at, updated_at
+             ) VALUES (
+                ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15
+             ) ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name, command_text = excluded.command_text,
+                description = excluded.description, scope_type = excluded.scope_type,
+                scope_id = excluded.scope_id, shell_type = excluded.shell_type,
+                platform = excluded.platform, is_favorite = excluded.is_favorite,
+                confirm_before_run = excluded.confirm_before_run,
+                sort_order = excluded.sort_order, use_count = excluded.use_count,
+                last_used_at = excluded.last_used_at, updated_at = excluded.updated_at",
+            params![
+                command.id,
+                command.name,
+                command.command_text,
+                command.description,
+                command.scope_type,
+                command.scope_id,
+                command.shell_type,
+                command.platform,
+                command.is_favorite,
+                command.confirm_before_run,
+                command.sort_order,
+                command.use_count,
+                command.last_used_at,
+                command.created_at,
+                command.updated_at,
+            ],
+        )
+        .map_err(database_error("save command"))?;
+
+    replace_relations(transaction, command)?;
+    refresh_search_index(transaction, command)
+}
+
+/// Deletes a command inside the caller's transaction.
+pub(crate) fn delete_command(transaction: &Transaction<'_>, id: &str) -> Result<bool, String> {
+    transaction
+        .execute(
+            "DELETE FROM saved_commands_fts WHERE command_id = ?1",
+            params![id],
+        )
+        .map_err(database_error("delete command search index"))?;
+    let affected = transaction
+        .execute("DELETE FROM saved_commands WHERE id = ?1", params![id])
+        .map_err(database_error("delete command"))?;
+    Ok(affected > 0)
 }
 
 fn map_command(row: &Row<'_>) -> rusqlite::Result<SavedCommand> {

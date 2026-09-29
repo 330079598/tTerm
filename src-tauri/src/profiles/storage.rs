@@ -11,7 +11,7 @@ pub(crate) fn find_profile(id: &str) -> Result<Option<SavedProfile>, String> {
     crate::db::read(|connection| get_profile(connection, id))
 }
 
-fn encode_profile(profile: &SavedProfile) -> Result<String, String> {
+pub(crate) fn encode_profile(profile: &SavedProfile) -> Result<String, String> {
     let mut profile = profile.clone();
     sanitize_profile(&mut profile);
     serde_json::to_string(&profile).map_err(|e| format!("Failed to serialize profile: {e}"))

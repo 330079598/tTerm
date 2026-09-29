@@ -54,6 +54,8 @@ import {
   loadRecentCommands,
   saveRecentCommands,
 } from "@/lib/recentCommands"
+import { onSyncApplied } from "@/lib/sync"
+import { useWebDavSync } from "@/hooks/useWebDavSync"
 import { getAdjacentTabId, getTabIdsForCloseAction } from "@/lib/tabClosing"
 import { getSiblingTabId, getTabIdAtPosition } from "@/lib/tabNavigation"
 import { isPageTab, Tab } from "@/types/tab"
@@ -202,6 +204,13 @@ export const TTermApp: React.FC = () => {
   useEffect(() => {
     setActiveTerminalSessionCount(activeTerminalSessionCount)
   }, [activeTerminalSessionCount, setActiveTerminalSessionCount])
+
+  useWebDavSync()
+  useEffect(
+    () =>
+      onSyncApplied(["profiles", "profileGroups"], () => setProfilesRefreshKey((key) => key + 1)),
+    []
+  )
 
   useEffect(
     () => () => {

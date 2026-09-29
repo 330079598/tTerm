@@ -22,6 +22,7 @@ import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
+import { onSyncApplied } from "@/lib/sync"
 import { cn, toErrorMessage } from "@/lib/utils"
 import type { SavedProfile } from "@/types/tab"
 import type {
@@ -402,6 +403,14 @@ export const TunnelsPanel: React.FC<TunnelsPanelProps> = ({ profilesRefreshKey }
       unlisteners.forEach((off) => off())
     }
   }, [applyStatus, reload, t, toast])
+
+  useEffect(
+    () =>
+      onSyncApplied(["tunnels"], () => {
+        reload().catch((error) => console.error("Failed to reload tunnels:", error))
+      }),
+    [reload]
+  )
 
   useEffect(() => {
     invoke<SavedProfile[]>("list_profiles")

@@ -6,7 +6,7 @@ use percent_encoding::percent_decode_str;
 use quick_xml::escape::resolve_predefined_entity;
 use quick_xml::events::Event;
 use quick_xml::Reader;
-use reqwest::header::{CONTENT_LENGTH, CONTENT_TYPE};
+use reqwest::header::{CONTENT_LENGTH, CONTENT_TYPE, ETAG, IF_MATCH, IF_NONE_MATCH};
 use reqwest::{Client, Method, RequestBuilder, Response, StatusCode, Url};
 use std::error::Error as _;
 use std::time::Duration;
@@ -19,7 +19,7 @@ const MAX_LISTING_SIZE: u64 = 8 * 1024 * 1024;
 const MAX_DIRECTORY_DEPTH: usize = 8;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct DavEntry {
+pub(crate) struct DavEntry {
     pub name: String,
     pub is_collection: bool,
     pub size: u64,
@@ -27,7 +27,7 @@ pub(super) struct DavEntry {
     pub modified_at: Option<i64>,
 }
 
-pub(super) struct WebDavClient {
+pub(crate) struct WebDavClient {
     http: Client,
     base: Url,
     username: String,
@@ -132,6 +132,62 @@ impl WebDavClient {
         .await
     }
 
+    /// Downloads a file unless its ETag still matches `etag`.
+    pub async fn get_if_changed(
+        &self,
+        directory: &[String],
+        name: &str,
+        etag: Option<&str>,
+        limit: u64,
+    ) -> Result<Fetched, String> {
+        let mut request = self.request(Method::GET, self.file_url(directory, name)?);
+        if let Some(etag) = etag {
+            request = request.header(IF_NONE_MATCH, etag);
+        }
+        let response = self.send(request).await?;
+        match response.status() {
+            StatusCode::NOT_MODIFIED => Ok(Fetched::NotModified),
+            StatusCode::NOT_FOUND => Ok(Fetched::NotFound),
+            status if status.is_success() => {
+                let etag = etag_of(&response);
+                let data =
+                    read_limited(response, limit, "The remote sync file is too large.").await?;
+                Ok(Fetched::Found { data, etag })
+            }
+            status => Err(status_error("download the sync file", status)),
+        }
+    }
+
+    /// Uploads a file only if it still has the ETag it was read with, so
+    /// another device's upload in between is not overwritten.
+    pub async fn put_if_match(
+        &self,
+        directory: &[String],
+        name: &str,
+        data: Vec<u8>,
+        etag: Option<&str>,
+    ) -> Result<Stored, String> {
+        let mut request = self
+            .request(Method::PUT, self.file_url(directory, name)?)
+            .header(CONTENT_TYPE, "application/octet-stream")
+            .header(CONTENT_LENGTH, data.len())
+            .body(data);
+        // A weak ETag (Apache sends one for a file changed within the last
+        // second) never matches `If-Match`, which compares strongly.
+        if let Some(etag) = etag.filter(|etag| !etag.starts_with("W/")) {
+            request = request.header(IF_MATCH, etag);
+        }
+        let response = self.send(request).await?;
+        match response.status() {
+            // 423: another upload of the same file is in progress (rclone).
+            StatusCode::PRECONDITION_FAILED | StatusCode::LOCKED => Ok(Stored::Conflict),
+            status if status.is_success() => Ok(Stored::Stored {
+                etag: etag_of(&response),
+            }),
+            status => Err(status_error("upload the sync file", status)),
+        }
+    }
+
     /// Deletes a file; one that is already gone counts as deleted.
     pub async fn delete(&self, directory: &[String], name: &str) -> Result<(), String> {
         let status = self
@@ -215,11 +271,33 @@ impl WebDavClient {
     }
 }
 
+pub(crate) enum Fetched {
+    NotModified,
+    NotFound,
+    Found { data: Vec<u8>, etag: Option<String> },
+}
+
+pub(crate) enum Stored {
+    Stored {
+        etag: Option<String>,
+    },
+    /// The file changed since it was read, or is being written right now.
+    Conflict,
+}
+
+fn etag_of(response: &Response) -> Option<String> {
+    response
+        .headers()
+        .get(ETAG)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string)
+}
+
 fn method(name: &'static [u8]) -> Method {
     Method::from_bytes(name).unwrap_or(Method::GET)
 }
 
-pub(super) fn parse_server_url(value: &str) -> Result<Url, String> {
+pub(crate) fn parse_server_url(value: &str) -> Result<Url, String> {
     let url = Url::parse(value.trim()).map_err(|_| "WebDAV server URL is invalid.".to_string())?;
     if !matches!(url.scheme(), "http" | "https") {
         return Err("WebDAV server URL must start with https:// or http://.".to_string());
@@ -239,7 +317,7 @@ pub(super) fn parse_server_url(value: &str) -> Result<Url, String> {
 }
 
 /// Splits a remote directory such as `tTerm/backups` into path segments.
-pub(super) fn split_remote_directory(value: &str) -> Result<Vec<String>, String> {
+pub(crate) fn split_remote_directory(value: &str) -> Result<Vec<String>, String> {
     let mut segments = Vec::new();
     for segment in value.split('/').map(str::trim).filter(|s| !s.is_empty()) {
         if segment == "."
@@ -260,7 +338,7 @@ pub(super) fn split_remote_directory(value: &str) -> Result<Vec<String>, String>
 /// Parses a PROPFIND multistatus body into the entries inside `directory`,
 /// leaving out the directory itself. Element prefixes vary by server
 /// (`d:`, `D:`, `ns0:` or none), so elements are matched by local name.
-pub(super) fn parse_multistatus(body: &str, directory: &Url) -> Result<Vec<DavEntry>, String> {
+pub(crate) fn parse_multistatus(body: &str, directory: &Url) -> Result<Vec<DavEntry>, String> {
     #[derive(Default)]
     struct Raw {
         href: String,
@@ -610,6 +688,100 @@ mod tests {
         );
 
         client.delete_directory(&[root]).await.unwrap();
+    }
+
+    /// Conditional requests the sync relies on:
+    /// `TTERM_WEBDAV_URL=... TTERM_WEBDAV_USER=... TTERM_WEBDAV_PASSWORD=... cargo test live_conditional -- --ignored`
+    #[tokio::test]
+    #[ignore]
+    async fn live_conditional_requests() {
+        let env = |name: &str| std::env::var(name).unwrap_or_else(|_| panic!("{name} is not set"));
+        let client = WebDavClient::new(
+            &env("TTERM_WEBDAV_URL"),
+            &env("TTERM_WEBDAV_USER"),
+            Zeroizing::new(env("TTERM_WEBDAV_PASSWORD")),
+            "tTerm-test",
+        )
+        .unwrap();
+        let directory = vec![format!("tterm-cond-{}", std::process::id())];
+        client.ensure_directory(&directory).await.unwrap();
+        let name = "tterm-sync.enc";
+        assert!(matches!(
+            client
+                .get_if_changed(&directory, name, None, 1 << 20)
+                .await
+                .unwrap(),
+            Fetched::NotFound
+        ));
+
+        let Stored::Stored { .. } = client
+            .put_if_match(&directory, name, b"one".to_vec(), None)
+            .await
+            .unwrap()
+        else {
+            panic!("first upload conflicted");
+        };
+        let Fetched::Found { data, etag } = client
+            .get_if_changed(&directory, name, None, 1 << 20)
+            .await
+            .unwrap()
+        else {
+            panic!("uploaded file not found");
+        };
+        assert_eq!(data, b"one");
+        // Servers differ here; the sync works either way, only less
+        // efficiently (no 304) or relying on revision history (no 412).
+        let Some(etag) = etag else {
+            eprintln!("no ETag: every sync downloads the file");
+            client.delete_directory(&directory).await.unwrap();
+            return;
+        };
+        let not_modified = matches!(
+            client
+                .get_if_changed(&directory, name, Some(&etag), 1 << 20)
+                .await
+                .unwrap(),
+            Fetched::NotModified
+        );
+        // Another device uploads in between...
+        tokio::time::sleep(Duration::from_millis(1100)).await;
+        client
+            .put_if_match(&directory, name, b"two".to_vec(), None)
+            .await
+            .unwrap();
+        // ...so an upload based on the old ETag should be refused.
+        let refused = matches!(
+            client
+                .put_if_match(&directory, name, b"three".to_vec(), Some(&etag))
+                .await
+                .unwrap(),
+            Stored::Conflict
+        );
+        let Fetched::Found { data, .. } = client
+            .get_if_changed(&directory, name, Some(&etag), 1 << 20)
+            .await
+            .unwrap()
+        else {
+            panic!("changed file reported unchanged");
+        };
+        assert_eq!(
+            data,
+            if refused {
+                b"two".to_vec()
+            } else {
+                b"three".to_vec()
+            }
+        );
+        eprintln!(
+            "ETag {etag}: If-None-Match {}, If-Match {}",
+            if not_modified { "honored" } else { "ignored" },
+            if refused || etag.starts_with("W/") {
+                "honored or skipped (weak)"
+            } else {
+                "ignored"
+            },
+        );
+        client.delete_directory(&directory).await.unwrap();
     }
 
     #[test]

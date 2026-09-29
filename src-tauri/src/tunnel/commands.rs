@@ -83,6 +83,15 @@ impl TunnelManager {
         }
     }
 
+    /// Stops a rule that is being deleted and forgets its status.
+    pub async fn discard(&self, id: &str) {
+        self.stop(id).await;
+        self.reporters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(id);
+    }
+
     /// Stops every running tunnel that connects through `profile_id`.
     pub async fn stop_for_profile(&self, profile_id: &str) {
         let ids = load_tunnels()
@@ -244,12 +253,7 @@ pub fn save_tunnel(mut tunnel: TunnelRule) -> Result<TunnelRule, String> {
 
 #[tauri::command]
 pub async fn delete_tunnel(id: String, manager: State<'_, TunnelManager>) -> Result<(), String> {
-    manager.stop(&id).await;
-    manager
-        .reporters
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .remove(&id);
+    manager.discard(&id).await;
     crate::db::write(|transaction| delete_tunnel_rule(transaction, &id))
 }
 

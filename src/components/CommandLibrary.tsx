@@ -40,6 +40,7 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import type { CommandDraft, RecentCommand, SaveCommandInput, SavedCommand } from "@/types/command"
 import { createCommandDraft } from "@/lib/recentCommands"
+import { onSyncApplied } from "@/lib/sync"
 
 interface ActiveProfile {
   id: string
@@ -505,6 +506,11 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
       setIsLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!open) return
+    return onSyncApplied(["commands"], () => void loadCommands())
+  }, [open])
 
   useEffect(() => {
     if (!open) return

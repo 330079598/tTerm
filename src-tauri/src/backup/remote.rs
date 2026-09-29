@@ -446,6 +446,58 @@ async fn connect(
     Ok((client, directory))
 }
 
+/// The configured WebDAV folder, as the sync uses it.
+pub(crate) struct SyncTarget {
+    pub client: WebDavClient,
+    pub directory: Vec<String>,
+    /// Server, user and folder; a sync base only applies to the same target.
+    pub key: String,
+    /// Encrypts the sync file, like remote backups.
+    pub password: Zeroizing<String>,
+    pub device: String,
+    pub app_version: String,
+}
+
+/// `None` when WebDAV is not set up. Needs the saved passwords unlocked.
+pub(crate) async fn sync_target(
+    app: &AppHandle,
+    secret_state: &SecretStoreState,
+) -> Result<Option<SyncTarget>, String> {
+    let secret_state = secret_state.clone();
+    let loaded = run_blocking(move || {
+        let settings = load_settings()?;
+        if !is_configured(&settings) {
+            return Ok(None);
+        }
+        let password = saved_secret(&secret_state, PASSWORD_KEY)?;
+        let backup_password = saved_secret(&secret_state, BACKUP_PASSWORD_KEY)?;
+        Ok(password
+            .zip(backup_password)
+            .map(|passwords| (settings, passwords)))
+    })
+    .await?;
+    let Some((settings, (password, backup_password))) = loaded else {
+        return Ok(None);
+    };
+    let settings = normalized_settings(settings)?;
+    Ok(Some(SyncTarget {
+        client: WebDavClient::new(
+            &settings.url,
+            &settings.username,
+            password,
+            &user_agent(app),
+        )?,
+        directory: split_remote_directory(&settings.remote_directory)?,
+        key: format!(
+            "{}\n{}\n{}",
+            settings.url, settings.username, settings.remote_directory
+        ),
+        password: backup_password,
+        device: device_name(),
+        app_version: app.package_info().version.to_string(),
+    }))
+}
+
 fn status(secret_state: &SecretStoreState) -> Result<WebDavBackupStatus, String> {
     let saved = secret_state.saved_keys()?;
     Ok(WebDavBackupStatus {

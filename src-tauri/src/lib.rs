@@ -12,6 +12,7 @@ mod session;
 mod session_log;
 mod sftp;
 mod ssh;
+mod sync;
 mod terminal;
 mod tunnel;
 mod updater;
@@ -184,6 +185,10 @@ pub fn run() {
             backup::remote::list_webdav_backups,
             backup::remote::download_webdav_backup,
             backup::remote::delete_webdav_backup,
+            sync::get_sync_status,
+            sync::save_sync_settings,
+            sync::reset_sync,
+            sync::run_sync,
             config::load_config,
             config::save_config,
             session_log::get_terminal_log_status,

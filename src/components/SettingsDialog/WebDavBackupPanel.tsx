@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+import { WebDavSyncCard } from "@/components/SettingsDialog/WebDavSyncCard"
 import { readBackupFrontendState } from "@/lib/backupFrontendState"
 import { toErrorMessage } from "@/lib/utils"
 import {
@@ -512,6 +513,8 @@ export const WebDavBackupPanel: React.FC<WebDavBackupPanelProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {configured && <WebDavSyncCard />}
 
       {configured && (
         <Card>

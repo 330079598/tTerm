@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next"
 
 import { useConfig } from "@/contexts/ConfigContext"
 import { announceThemeReady } from "@/lib/startup"
+import { onSyncApplied } from "@/lib/sync"
 import { getPresetTheme, PRESET_THEMES, resolveThemeDefinition } from "@/lib/themeDefinitions"
 import { applyThemeToDom, cacheTheme, resolveThemeCache } from "@/lib/themePreloader"
 import type { CustomTheme, PresetTheme, PresetThemeId, Theme, TerminalPalette } from "@/types/theme"
@@ -123,7 +124,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return themeCache.id
   }, [])
 
-  useEffect(() => {
+  const loadStoredThemes = useCallback(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
       if (stored) {
@@ -139,6 +140,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  useEffect(() => {
+    loadStoredThemes()
+    return onSyncApplied(["themes"], loadStoredThemes)
+  }, [loadStoredThemes])
+
   const saveCustomThemes = useCallback((themes: CustomTheme[]) => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(themes))
@@ -152,14 +158,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useLayoutEffect(() => {
     if (!isLoaded || !themesLoaded) return
 
-    const resolvedThemeId = applyAndCacheTheme(config.theme || "default", customThemes)
-
-    if (resolvedThemeId !== (config.theme || "default")) {
-      void updateTheme(resolvedThemeId)
-    }
+    // An unknown theme shows the fallback without saving it: sync can deliver
+    // the theme setting and the custom theme it names in separate steps, or
+    // to a device that does not sync themes, and saving the fallback would
+    // send it back to every other device.
+    applyAndCacheTheme(config.theme || "default", customThemes)
 
     announceThemeReady()
-  }, [applyAndCacheTheme, config.theme, customThemes, isLoaded, themesLoaded, updateTheme])
+  }, [applyAndCacheTheme, config.theme, customThemes, isLoaded, themesLoaded])
 
   const setTheme = useCallback(
     async (themeId: string): Promise<void> => {

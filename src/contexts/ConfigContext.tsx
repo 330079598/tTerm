@@ -12,6 +12,7 @@ import { platform } from "@tauri-apps/plugin-os"
 
 import { detectSystemLanguage } from "@/i18n/language"
 import { markConfigReady } from "@/lib/startup"
+import { onSyncApplied } from "@/lib/sync"
 import type { UpdateCheckFrequency } from "@/lib/updater"
 import { DEFAULT_KEYMAP_CONFIG, normalizeKeymap, type KeymapConfig } from "@/lib/keymap/keymap"
 
@@ -614,6 +615,8 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     loadConfig()
   }, [loadConfig])
+
+  useEffect(() => onSyncApplied(["settings"], () => void loadConfig()), [loadConfig])
 
   const contextValue = useMemo<ConfigContextType>(
     () => ({

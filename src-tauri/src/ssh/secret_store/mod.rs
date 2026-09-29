@@ -23,7 +23,7 @@ use tauri::{AppHandle, Manager};
 use types::{SecretStorageMode, SecretStoreRuntime};
 use zeroize::Zeroizing;
 
-pub(crate) use crypto::SecretKey as DataKey;
+pub(crate) use crypto::{decrypt_secret, encrypt_secret, SecretKey as DataKey};
 pub(crate) use store::{
     delete_secret, get_secret, put_secret, restore_secrets, snapshot_secrets, SecretRow,
 };

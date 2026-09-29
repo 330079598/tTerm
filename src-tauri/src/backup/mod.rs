@@ -29,7 +29,7 @@ use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
 pub mod remote;
-mod webdav;
+pub(crate) mod webdav;
 
 const FORMAT_NAME: &str = "tterm-backup";
 const FORMAT_VERSION: u32 = 1;
@@ -517,7 +517,7 @@ fn run_due_automatic_backup_blocking(
     config::atomic_write_private(&path, archive)?;
     settings.last_backup_at = Some(Utc::now().timestamp_millis());
     save_automatic_backup_settings_file(&settings)?;
-    enforce_retention(&directory, settings.retention_count as usize)?;
+    enforce_retention(&directory, "automatic-", settings.retention_count as usize)?;
     Ok(Some(BackupExportResult {
         output_path: path.to_string_lossy().into_owned(),
         profile_count,
@@ -566,7 +566,7 @@ pub fn list_backup_history() -> Result<Vec<BackupHistoryEntry>, String> {
                 .to_string();
             let kind = if file_name.starts_with("automatic-") {
                 "automatic"
-            } else if file_name.starts_with("pre-import-") {
+            } else if file_name.starts_with("pre-import-") || file_name.starts_with("pre-sync-") {
                 "recovery"
             } else {
                 "manual"
@@ -1076,7 +1076,7 @@ fn decrypt_payload(
     result
 }
 
-fn derive_key(
+pub(crate) fn derive_key(
     password: &str,
     salt: &[u8],
     memory_kib: u32,
@@ -1701,6 +1701,38 @@ fn create_pre_import_backup(
     Ok(path)
 }
 
+/// Saves a recovery point named `<prefix>-<time>.tterm-backup` in the
+/// managed backup folder, without passwords, and keeps the newest `keep` of
+/// that prefix. Used before a sync changes local data.
+pub(crate) fn create_recovery_backup(
+    app: &AppHandle,
+    prefix: &str,
+    frontend_state: Option<Value>,
+    secret_state: &SecretStoreState,
+    keep: usize,
+) -> Result<PathBuf, String> {
+    let backup_dir = config::ensure_config_dir()?.join("backups");
+    fs::create_dir_all(&backup_dir)
+        .map_err(|error| format!("Failed to create backup directory: {error}"))?;
+    let path = backup_dir.join(format!(
+        "{prefix}-{}.tterm-backup",
+        Utc::now().format("%Y%m%d-%H%M%S-%3f")
+    ));
+    let selection = BackupSelection {
+        settings: true,
+        profiles: true,
+        known_hosts: true,
+        command_library: true,
+        themes: true,
+        ..BackupSelection::default()
+    };
+    let payload = collect_payload(app, &selection, frontend_state, secret_state)?;
+    let archive = build_archive(app, &selection, &payload, None)?;
+    config::atomic_write_private(&path, archive)?;
+    enforce_retention(&backup_dir, &format!("{prefix}-"), keep)?;
+    Ok(path)
+}
+
 fn automatic_backup_settings_path() -> Result<PathBuf, String> {
     Ok(config::ensure_config_dir()?.join("backup_settings.json"))
 }
@@ -1769,13 +1801,14 @@ fn automatic_backup_due(settings: &AutomaticBackupSettings) -> bool {
         .is_none_or(|last| Utc::now().timestamp_millis().saturating_sub(last) >= interval_ms)
 }
 
-fn enforce_retention(directory: &Path, retention: usize) -> Result<(), String> {
+/// Keeps the newest `retention` backups whose names start with `prefix`.
+fn enforce_retention(directory: &Path, prefix: &str, retention: usize) -> Result<(), String> {
     let mut backups = fs::read_dir(directory)
-        .map_err(|error| format!("Failed to read automatic backup directory: {error}"))?
+        .map_err(|error| format!("Failed to read backup directory: {error}"))?
         .filter_map(Result::ok)
         .filter_map(|entry| {
             let name = entry.file_name().to_string_lossy().into_owned();
-            if !name.starts_with("automatic-") || !name.ends_with(".tterm-backup") {
+            if !name.starts_with(prefix) || !name.ends_with(".tterm-backup") {
                 return None;
             }
             let metadata = entry.metadata().ok()?;
