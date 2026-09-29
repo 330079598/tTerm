@@ -29,7 +29,7 @@ export function captureTerminalInput(
   const state = { ...current }
   const commands: string[] = []
 
-  for (let index = 0; index < data.length; ) {
+  for (let index = 0; index < data.length;) {
     if (data.startsWith("\x1b[200~", index)) {
       state.bracketedPaste = true
       index += 6

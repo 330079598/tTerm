@@ -14,12 +14,7 @@ export interface TunnelRule {
 }
 
 export type TunnelState =
-  | "stopped"
-  | "starting"
-  | "running"
-  | "reconnecting"
-  | "error"
-  | "needsCredentials"
+  "stopped" | "starting" | "running" | "reconnecting" | "error" | "needsCredentials"
 
 export interface TunnelFailure {
   message: string
@@ -77,8 +72,7 @@ export interface CredentialRequest {
 }
 
 export type StartOutcome =
-  | { status: "started" }
-  | { status: "needsCredentials"; requests: CredentialRequest[] }
+  { status: "started" } | { status: "needsCredentials"; requests: CredentialRequest[] }
 
 export interface TunnelCredentials {
   password?: string

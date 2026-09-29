@@ -67,13 +67,7 @@ export interface TransferTask {
 }
 
 export type TerminalShellType =
-  | "auto"
-  | "cmd"
-  | "powershell"
-  | "pwsh"
-  | "wsl"
-  | "git-bash"
-  | "custom"
+  "auto" | "cmd" | "powershell" | "pwsh" | "wsl" | "git-bash" | "custom"
 export type ConnectionType = "terminal" | "ssh"
 export type TabType = ConnectionType | "settings" | "tunnels" | "remote-file-editor"
 

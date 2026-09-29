@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { defineConfig, type PluginOption } from "vite";
-import packageJson from "./package.json";
+import packageJson from "./package.json" with { type: "json" };
 import react from "@vitejs/plugin-react";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 // @ts-expect-error process is a nodejs global

@@ -34,14 +34,7 @@ export type TabWidthMode = "adaptive" | "standard"
 export type TerminalLogFormat = "raw" | "plain" | "both"
 export type TerminalRenderer = "webgl" | "canvas"
 export type MonitorMetricId =
-  | "cpu"
-  | "memory"
-  | "network"
-  | "ip"
-  | "latency"
-  | "disk"
-  | "load"
-  | "uptime"
+  "cpu" | "memory" | "network" | "ip" | "latency" | "disk" | "load" | "uptime"
 
 export const DEFAULT_MONITOR_VISIBLE_METRICS: MonitorMetricId[] = [
   "cpu",

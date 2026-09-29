@@ -140,13 +140,7 @@ function restoreFrontendState(state: BackupImportResult["frontendState"]) {
 }
 
 type BusyAction =
-  | "export"
-  | "inspect"
-  | "verify"
-  | "import"
-  | "saveSettings"
-  | "backupNow"
-  | "deleteHistory"
+  "export" | "inspect" | "verify" | "import" | "saveSettings" | "backupNow" | "deleteHistory"
 
 export const DataMigrationSettingsTab: React.FC = () => {
   const { t } = useTranslation()
