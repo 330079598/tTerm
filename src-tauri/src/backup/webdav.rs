@@ -41,6 +41,12 @@ impl WebDavClient {
         password: Zeroizing<String>,
         user_agent: &str,
     ) -> Result<Self, String> {
+        // reqwest is built with `rustls-no-provider` (matching
+        // tauri-plugin-updater) and panics without a process default, so
+        // install ring unless another caller already did.
+        if rustls::crypto::CryptoProvider::get_default().is_none() {
+            let _ = rustls::crypto::ring::default_provider().install_default();
+        }
         let http = Client::builder()
             .connect_timeout(Duration::from_secs(15))
             .timeout(Duration::from_secs(300))
@@ -359,7 +365,7 @@ pub(crate) fn parse_multistatus(body: &str, directory: &Url) -> Result<Vec<DavEn
                 if element
                     .local_name()
                     .as_ref()
-                    .eq_ignore_ascii_case(b"response")
+                    .eq_ignore_ascii_case("response")
                 {
                     current = Some(Raw::default());
                 }
@@ -369,33 +375,32 @@ pub(crate) fn parse_multistatus(body: &str, directory: &Url) -> Result<Vec<DavEn
                 if element
                     .local_name()
                     .as_ref()
-                    .eq_ignore_ascii_case(b"collection")
+                    .eq_ignore_ascii_case("collection")
                 {
                     if let Some(raw) = current.as_mut() {
                         raw.is_collection = true;
                     }
                 }
             }
-            Event::Text(value) => text.push_str(&value.decode().map_err(|e| invalid(&e))?),
-            Event::CData(value) => text.push_str(&value.decode().map_err(|e| invalid(&e))?),
+            Event::Text(value) => text.push_str(&value.xml10_content()),
+            Event::CData(value) => text.push_str(&value.xml10_content()),
             Event::GeneralRef(reference) => {
                 if let Some(ch) = reference.resolve_char_ref().map_err(|e| invalid(&e))? {
                     text.push(ch);
                 } else {
-                    let name = reference.decode().map_err(|e| invalid(&e))?;
-                    text.push_str(resolve_predefined_entity(&name).unwrap_or_default());
+                    text.push_str(resolve_predefined_entity(&reference).unwrap_or_default());
                 }
             }
             Event::End(element) => {
                 let name = element.local_name();
                 let name = name.as_ref().to_ascii_lowercase();
                 if let Some(raw) = current.as_mut() {
-                    match name.as_slice() {
-                        b"href" => raw.href = text.trim().to_string(),
-                        b"collection" => raw.is_collection = true,
-                        b"getcontentlength" => raw.size = text.trim().parse().unwrap_or(0),
-                        b"getlastmodified" => raw.modified_at = parse_http_date(text.trim()),
-                        b"response" => {
+                    match name.as_str() {
+                        "href" => raw.href = text.trim().to_string(),
+                        "collection" => raw.is_collection = true,
+                        "getcontentlength" => raw.size = text.trim().parse().unwrap_or(0),
+                        "getlastmodified" => raw.modified_at = parse_http_date(text.trim()),
+                        "response" => {
                             if let Some(raw) = current.take() {
                                 if let Some(name) =
                                     entry_name(&raw.href, directory, &directory_path)
