@@ -111,7 +111,11 @@ where
     // unless told otherwise, and most modern servers (OpenSSH 8.8+) reject
     // that. Negotiate the best RFC 8332 rsa-sha2-* algorithm the server
     // advertises up front so RSA keys aren't silently rejected.
-    let rsa_hash_alg = session.best_supported_rsa_hash().await.unwrap_or(None).flatten();
+    let rsa_hash_alg = session
+        .best_supported_rsa_hash()
+        .await
+        .unwrap_or(None)
+        .flatten();
 
     for identity in identities {
         let public_key = identity.public_key().into_owned();

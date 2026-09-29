@@ -683,7 +683,8 @@ impl SessionLogState {
                     &config,
                     entry.metadata.clone(),
                 )?));
-                lock_session_writer(&writer).record_event("logging_enabled", serde_json::json!({}))?;
+                lock_session_writer(&writer)
+                    .record_event("logging_enabled", serde_json::json!({}))?;
                 entry.writer = Some(writer);
             }
         }
@@ -712,9 +713,12 @@ impl SessionLogState {
         let writer = match manager.config.as_ref() {
             Some(config) if config.enabled => {
                 let writer = Arc::new(Mutex::new(SessionWriter::create(
-                    app, config, metadata.clone(),
+                    app,
+                    config,
+                    metadata.clone(),
                 )?));
-                lock_session_writer(&writer).record_event("session_start", serde_json::json!({}))?;
+                lock_session_writer(&writer)
+                    .record_event("session_start", serde_json::json!({}))?;
                 Some(writer)
             }
             _ => None,

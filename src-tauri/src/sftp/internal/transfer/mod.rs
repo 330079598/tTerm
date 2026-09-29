@@ -959,8 +959,9 @@ async fn run_transfer(
         // fast failure into another minute of waiting. A dropped snapshot only
         // re-sends those chunks on the next attempt, it cannot corrupt anything.
         if let Some(writer) = checkpoint.as_ref() {
-            let _ = tokio::time::timeout(CHECKPOINT_TEARDOWN_TIMEOUT, flush_checkpoint(&run, writer))
-                .await;
+            let _ =
+                tokio::time::timeout(CHECKPOINT_TEARDOWN_TIMEOUT, flush_checkpoint(&run, writer))
+                    .await;
         }
         if let Some(writer) = checkpoint {
             let _ = tokio::time::timeout(CHECKPOINT_TEARDOWN_TIMEOUT, writer.finish()).await;

@@ -141,7 +141,9 @@ pub fn create_pty(
                 zmodem_state.inner().clone(),
                 zmodem_armed_send_state.inner().clone(),
                 zmodem_config.zmodem_auto_detect_enabled,
-                crate::zmodem::session::resolve_download_dir(&zmodem_config.zmodem_download_directory),
+                crate::zmodem::session::resolve_download_dir(
+                    &zmodem_config.zmodem_download_directory,
+                ),
                 zmodem_manual_override.clone(),
             );
 
@@ -164,7 +166,9 @@ pub fn create_pty(
                 zmodem_state.inner().clone(),
                 zmodem_armed_send_state.inner().clone(),
                 zmodem_config.zmodem_auto_detect_enabled,
-                crate::zmodem::session::resolve_download_dir(&zmodem_config.zmodem_download_directory),
+                crate::zmodem::session::resolve_download_dir(
+                    &zmodem_config.zmodem_download_directory,
+                ),
                 active.clone(),
                 zmodem_manual_override.clone(),
             );
@@ -230,14 +234,17 @@ fn intercept_zmodem_input(
             Some(handle) if handle.session_nonce == session_nonce => handle,
             _ => return false,
         };
-        data.contains(&0x03).then(|| handle.cancel_requested.clone())
+        data.contains(&0x03)
+            .then(|| handle.cancel_requested.clone())
     };
     if let Some(cancel_requested) = cancel_requested {
         cancel_requested.store(true, std::sync::atomic::Ordering::Relaxed);
         let mut guard = active.blocking_lock();
         match guard.as_mut() {
             Some(ActiveSession::Local(local)) => {
-                let _ = local.writer.write_all(&crate::zmodem::session::abort_sequence());
+                let _ = local
+                    .writer
+                    .write_all(&crate::zmodem::session::abort_sequence());
             }
             Some(ActiveSession::Ssh(ssh)) => {
                 let _ = ssh.input_tx.send(crate::zmodem::session::abort_sequence());
@@ -266,7 +273,13 @@ pub fn write_pty(
     }
 
     let input = data.into_bytes();
-    if intercept_zmodem_input(&zmodem_state, &tab_id, session_nonce, &input, &session.active) {
+    if intercept_zmodem_input(
+        &zmodem_state,
+        &tab_id,
+        session_nonce,
+        &input,
+        &session.active,
+    ) {
         return Ok(());
     }
 

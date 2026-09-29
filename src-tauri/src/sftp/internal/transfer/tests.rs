@@ -1235,7 +1235,9 @@ async fn step_level_progress_emits_before_chunk_completes() {
     let recorded = recorded_progress.lock().unwrap().clone();
     // Must have intermediate progress events before the final chunk completes
     assert!(
-        recorded.iter().any(|&bytes| bytes > 0 && bytes < chunk_size),
+        recorded
+            .iter()
+            .any(|&bytes| bytes > 0 && bytes < chunk_size),
         "expected step-level progress before full chunk completion, got {recorded:?}"
     );
     assert_eq!(*recorded.last().unwrap(), chunk_size);

@@ -3,9 +3,9 @@ use portable_pty::{CommandBuilder, PtySize};
 use serde::Serialize;
 use std::io::{Read, Write};
 use std::path::PathBuf;
+use std::sync::Arc;
 #[cfg(target_os = "macos")]
 use std::sync::OnceLock;
-use std::sync::Arc;
 use std::thread;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::{mpsc, Mutex as TokioMutex};

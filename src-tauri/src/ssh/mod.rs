@@ -1,5 +1,5 @@
-mod client;
 pub mod agent;
+mod client;
 pub mod jump;
 pub(crate) mod key_file;
 pub mod secret_commands;

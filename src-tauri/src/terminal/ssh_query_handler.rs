@@ -247,10 +247,7 @@ mod tests {
     /// Feeds `data` through the processor in fixed-size slices, as SSH data
     /// packets would, and returns the concatenated display output plus every
     /// byte written back through the channel.
-    async fn process_in_chunks(
-        data: &[u8],
-        chunk_size: usize,
-    ) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+    async fn process_in_chunks(data: &[u8], chunk_size: usize) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
         let mut pending = Vec::new();
         let mut replies = Vec::new();
         let mut output = Vec::new();
@@ -303,8 +300,7 @@ mod tests {
     #[tokio::test]
     async fn incomplete_sequence_tail_is_deferred_to_pending() {
         // A CSI cut off by a packet boundary must wait for the next packet.
-        let (first_output, replies, pending) =
-            process_in_chunks(b"hi\x1b[", 16).await;
+        let (first_output, replies, pending) = process_in_chunks(b"hi\x1b[", 16).await;
         assert_eq!(first_output, b"hi".to_vec());
         assert!(replies.is_empty());
         assert_eq!(pending, b"\x1b[".to_vec());

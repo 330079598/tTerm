@@ -277,7 +277,9 @@ pub fn spawn_supervisor(
                 zmodem_map.clone(),
                 zmodem_armed_send_map.clone(),
                 zmodem_config.zmodem_auto_detect_enabled,
-                crate::zmodem::session::resolve_download_dir(&zmodem_config.zmodem_download_directory),
+                crate::zmodem::session::resolve_download_dir(
+                    &zmodem_config.zmodem_download_directory,
+                ),
                 active.clone(),
                 zmodem_manual_override.clone(),
             );

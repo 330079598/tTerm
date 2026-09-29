@@ -121,12 +121,9 @@ async fn connect_sftp(
 ) -> Result<ConnectedSftp, String> {
     let (jump_chain, ssh) = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
 
-    let sftp = tokio::time::timeout(
-        SFTP_CHANNEL_SETUP_TIMEOUT,
-        open_control_sftp_session(&ssh),
-    )
-    .await
-    .map_err(|_| "Timed out opening SFTP channel".to_string())??;
+    let sftp = tokio::time::timeout(SFTP_CHANNEL_SETUP_TIMEOUT, open_control_sftp_session(&ssh))
+        .await
+        .map_err(|_| "Timed out opening SFTP channel".to_string())??;
 
     Ok(ConnectedSftp {
         jump_chain,

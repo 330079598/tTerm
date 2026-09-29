@@ -7,10 +7,10 @@ use crate::core::state::{ActiveSession, HostPromptMap};
 use crate::core::{ZmodemArmedSendMap, ZmodemMap};
 use crate::zmodem::session::ZmodemReceiveDriver;
 use russh::{ChannelMsg, Disconnect};
+use std::sync::Arc;
 use tauri::Emitter;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{mpsc, watch, Mutex as TokioMutex};
-use std::sync::Arc;
 
 const LATENCY_PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
