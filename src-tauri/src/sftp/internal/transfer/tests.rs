@@ -880,9 +880,20 @@ async fn small_file_without_limits_shrinks_chunks_and_resumes() {
         "chunk must shrink to one write step"
     );
     assert_eq!(sidecar.total_size, data.len() as u64);
+    // With several chunks in flight the checkpoint can trail `threshold`: a
+    // chunk whose final write was acked (counted in `transferred`) but not
+    // yet joined by its lane is never marked once the cancel lands. At least
+    // the chunk whose completion fired the cancelling progress is marked.
+    let chunk_count = sidecar.total_size.div_ceil(sidecar.chunk_size) as usize;
+    let checkpointed = completed_bytes(
+        &decode_bitmap(&sidecar.completed, chunk_count).unwrap(),
+        sidecar.chunk_size,
+        sidecar.total_size,
+        chunk_count,
+    );
     assert!(
-        sidecar.completed.len() > 2,
-        "more than a single chunk must have been checkpointed"
+        checkpointed >= sidecar.chunk_size,
+        "at least one chunk must have been checkpointed"
     );
 
     let outcome = upload_file(
@@ -896,7 +907,7 @@ async fn small_file_without_limits_shrinks_chunks_and_resumes() {
     .await
     .unwrap();
 
-    assert!(outcome.resumed_from >= threshold);
+    assert_eq!(outcome.resumed_from, checkpointed);
     assert_eq!(std::fs::read(server.root().join(relative)).unwrap(), data);
     assert!(!server.root().join(part_path(relative)).exists());
     assert!(!server.root().join(sidecar_path(relative)).exists());
