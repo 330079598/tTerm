@@ -1,4 +1,4 @@
-import { isTauri } from "@tauri-apps/api/core"
+import { invoke, isTauri } from "@tauri-apps/api/core"
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
 import { getDetectedPlatform } from "@/contexts/ConfigContext"
 import { getPresetTheme } from "@/lib/themeDefinitions"
@@ -141,22 +141,26 @@ let nativeBackground = ""
  * Paint the native window and webview in the theme background. WebKit drops a
  * hidden page's layers; until it repaints after the window comes back,
  * whatever is behind the page shows, which is white unless set here. Not on
- * Windows: that window is transparent and must stay that way.
+ * Windows: that window is transparent and must stay that way. The color is
+ * also saved so the next launch starts in it.
  */
 function syncNativeBackground(): void {
-  if (!isTauri() || getDetectedPlatform() === "windows") return
+  if (!isTauri()) return
   const match = getComputedStyle(document.body).backgroundColor.match(/\d+(\.\d+)?/g)
   if (!match || match.length < 3) return
   const [r, g, b] = match.slice(0, 3).map((channel) => Math.round(Number(channel)))
   const key = `${r},${g},${b}`
   if (key === nativeBackground) return
   nativeBackground = key
-  getCurrentWebviewWindow()
-    .setBackgroundColor([r, g, b, 255])
-    .catch((error: unknown) => {
-      nativeBackground = ""
-      console.error("[ThemePreloader] Failed to set native background:", error)
-    })
+  const onError = (error: unknown) => {
+    nativeBackground = ""
+    console.error("[ThemePreloader] Failed to sync native background:", error)
+  }
+  const hex = `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`
+  invoke("save_window_background", { color: hex }).catch(onError)
+  if (getDetectedPlatform() !== "windows") {
+    getCurrentWebviewWindow().setBackgroundColor([r, g, b, 255]).catch(onError)
+  }
 }
 
 export function applyThemeToDom(themeCache: ThemeCache): void {

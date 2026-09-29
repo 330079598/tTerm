@@ -1,8 +1,10 @@
 mod atomic;
 mod paths;
+pub mod window_background;
 
 pub use atomic::{atomic_write, atomic_write_private};
 pub use paths::{ensure_config_dir, get_config_path, init_config_dir, legacy_config_path};
+pub use window_background::load_window_background;
 
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fs;

@@ -55,7 +55,8 @@ fn background_throttling_policy(value: &str) -> BackgroundThrottlingPolicy {
 
 /// The main window is declared with `create: false` so it is built here: the
 /// background throttling policy is a user setting and WebKit only takes it
-/// when the webview is created.
+/// when the webview is created. The first frame is painted in the last theme
+/// background; `index.html` picks it up through `--boot-bg`.
 fn create_main_window(app: &tauri::App, background_throttling: &str) -> tauri::Result<()> {
     let window_config = app
         .config()
@@ -65,9 +66,20 @@ fn create_main_window(app: &tauri::App, background_throttling: &str) -> tauri::R
         .find(|window| window.label == "main")
         .cloned()
         .expect("main window missing from tauri.conf.json");
-    WebviewWindowBuilder::from_config(app.handle(), &window_config)?
-        .background_throttling(background_throttling_policy(background_throttling))
-        .build()?;
+    let mut builder = WebviewWindowBuilder::from_config(app.handle(), &window_config)?
+        .background_throttling(background_throttling_policy(background_throttling));
+    if let Some((r, g, b)) = config::load_window_background() {
+        builder = builder.initialization_script(format!(
+            "try{{const s=new CSSStyleSheet();s.replaceSync(':root{{--boot-bg:#{r:02x}{g:02x}{b:02x}}}');\
+             document.adoptedStyleSheets=[...document.adoptedStyleSheets,s]}}catch{{}}"
+        ));
+        // The Windows window is transparent and must stay that way.
+        #[cfg(not(target_os = "windows"))]
+        {
+            builder = builder.background_color(tauri::window::Color(r, g, b, 255));
+        }
+    }
+    builder.build()?;
     Ok(())
 }
 
@@ -242,6 +254,7 @@ pub fn run() {
             sync::run_sync,
             config::load_config,
             config::save_config,
+            config::window_background::save_window_background,
             session_log::get_terminal_log_status,
             session_log::open_terminal_log_directory,
             session_log::retry_terminal_logging,

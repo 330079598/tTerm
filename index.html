@@ -11,8 +11,9 @@
         margin: 0;
         padding: 0;
         overflow: hidden;
-        /* Default theme background - will be overridden by preloadTheme */
-        background-color: hsl(220 13% 12%);
+        /* Last theme background (injected by the backend), default theme until
+           there is one; preloadTheme then applies the full theme */
+        background-color: var(--boot-bg, hsl(220 13% 12%));
       }
 
       #splash-screen {
