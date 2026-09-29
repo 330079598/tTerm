@@ -47,6 +47,8 @@ percent-encoding = "2"
 rand = "0.10"
 vte = "0.15"
 zeroize = "1"
+# `v1` (default) picks Keychain / Credential Manager / Secret Service per platform.
+keyring = "4"
 sys-locale = "0.3"
 ttf-parser = "0.25"
 tauri-plugin-updater = "2"
@@ -54,19 +56,14 @@ tauri-plugin-process = "2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 tauri-plugin-frame = "1.1.6"
-keyring = { version = "3.6.3", features = ["windows-native"] }
 windows = { version = "0.62", features = ["Win32_Graphics_Gdi", "Win32_Foundation", "Win32_System_DataExchange", "Win32_UI_Shell"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri-plugin-frame = "1.1.6"
-keyring = { version = "3.6.3", features = ["apple-native"] }
 security-framework = "3"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
-
-[target.'cfg(target_os = "linux")'.dependencies]
-keyring = { version = "3.6.3", features = ["sync-secret-service"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util"] }
