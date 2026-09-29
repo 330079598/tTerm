@@ -536,11 +536,12 @@ async fn open_raw_session(
         .is_some_and(|value| value == "1")
     {
         let extension = session.limits().await.expect("limits");
-        session.set_limits(Arc::new(russh_sftp::client::rawsession::Limits {
+        session.set_limits(russh_sftp::client::rawsession::Limits {
+            packet_len: None,
             read_len: (extension.max_read_len > 0).then_some(extension.max_read_len),
             write_len: (extension.max_write_len > 0).then_some(extension.max_write_len),
             open_handles: None,
-        }));
+        });
         Some(extension)
     } else {
         None

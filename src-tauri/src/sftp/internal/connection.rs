@@ -109,7 +109,7 @@ async fn open_control_sftp_session(
     let sftp = SftpSession::new(channel.into_stream())
         .await
         .map_err(map_sftp_error)?;
-    sftp.set_timeout(SFTP_REQUEST_TIMEOUT_SECS).await;
+    sftp.set_timeout(SFTP_REQUEST_TIMEOUT_SECS);
     Ok(Arc::new(sftp))
 }
 
@@ -233,7 +233,7 @@ async fn open_sftp_raw_session_inner(
         .await
         .map_err(|err| format!("Failed to initialize SFTP channel: {err}"))?;
 
-    session.set_timeout(SFTP_REQUEST_TIMEOUT_SECS).await;
+    session.set_timeout(SFTP_REQUEST_TIMEOUT_SECS);
 
     let limits = if version
         .extensions
@@ -244,11 +244,12 @@ async fn open_sftp_raw_session_inner(
             .limits()
             .await
             .map_err(|err| format!("Failed to query server SFTP limits: {err}"))?;
-        session.set_limits(Arc::new(Limits {
+        session.set_limits(Limits {
+            packet_len: None,
             read_len: (extension.max_read_len > 0).then_some(extension.max_read_len),
             write_len: (extension.max_write_len > 0).then_some(extension.max_write_len),
             open_handles: None,
-        }));
+        });
         Some(extension)
     } else {
         None
