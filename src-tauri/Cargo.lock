@@ -5319,6 +5319,7 @@ dependencies = [
  "flate2",
  "keyring",
  "libc",
+ "objc2",
  "percent-encoding",
  "portable-pty",
  "quick-xml 0.42.0",

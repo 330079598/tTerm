@@ -24,6 +24,7 @@ import type {
 } from "@/components/TerminalTab/types"
 import { notifySavedPasswordNotSent } from "@/components/TerminalTab/savedPasswordNotice"
 import { resolveScrollbackLines } from "@/lib/scrollback"
+import { isTransparentTerminalTheme } from "@/lib/terminalPalette"
 import type { TerminalRenderer } from "@/contexts/ConfigContext"
 import { safePreloadFont, updateCanvasFontHostFont } from "@/lib/canvasFontHost"
 import {
@@ -276,7 +277,7 @@ export function useTerminalLifecycle({
       letterSpacing: 0,
       lineHeight: 1.0,
       theme: themeRef.current,
-      allowTransparency: false,
+      allowTransparency: isTransparentTerminalTheme(themeRef.current),
       allowProposedApi: true,
     })
 

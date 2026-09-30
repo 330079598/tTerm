@@ -27,7 +27,8 @@ import type {
   TerminalTabProps,
 } from "@/components/TerminalTab/types"
 import { toast } from "@/hooks/use-toast"
-import { useConfig } from "@/contexts/ConfigContext"
+import { isWindowBlurEnabled, useConfig } from "@/contexts/ConfigContext"
+import { isTransparentTerminalTheme, withWindowBlur } from "@/lib/terminalPalette"
 import type { TerminalRenderer } from "@/contexts/ConfigContext"
 import { useKeymap } from "@/contexts/KeymapContext"
 import { useTheme } from "@/contexts/ThemeContext"
@@ -192,14 +193,14 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     [sessionResetKey]
   )
 
-  const resolveTerminalTheme = useCallback(() => {
-    return { ...(getTheme(currentTheme)?.terminal ?? getTheme("default")!.terminal) }
-  }, [currentTheme, getTheme])
-
-  const terminalTheme = useMemo(
-    () => ({ ...(getTheme(currentTheme)?.terminal ?? getTheme("default")!.terminal) }),
-    [currentTheme, getTheme]
+  const windowBlur = isWindowBlurEnabled(config)
+  const resolveTerminalTheme = useCallback(
+    () =>
+      withWindowBlur(getTheme(currentTheme)?.terminal ?? getTheme("default")!.terminal, windowBlur),
+    [currentTheme, getTheme, windowBlur]
   )
+
+  const terminalTheme = useMemo(() => resolveTerminalTheme(), [resolveTerminalTheme])
   const terminalThemeRef = useStableRef(terminalTheme)
 
   const fitTerminalOnly = useCallback(() => {
@@ -405,8 +406,10 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     const term = termRef.current
     if (!term) return
 
-    term.options.theme = resolveTerminalTheme()
-  }, [currentTheme, resolveTerminalTheme, sessionNonce])
+    const theme = resolveTerminalTheme()
+    term.options.allowTransparency = isTransparentTerminalTheme(theme)
+    term.options.theme = theme
+  }, [resolveTerminalTheme, sessionNonce])
 
   useEffect(() => {
     onConnectionStateChange?.(tabId, sessionNonce, connectionState)
@@ -890,7 +893,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
             width: "100%",
             height: "100%",
             overflow: "hidden",
-            backgroundColor: "hsl(var(--background))",
+            backgroundColor: windowBlur ? "transparent" : "hsl(var(--background))",
           }}
         />
 

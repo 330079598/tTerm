@@ -125,6 +125,22 @@ pub struct AppConfig {
     /// created, so a change applies after restart.
     #[serde(default = "default_background_throttling")]
     pub background_throttling: String,
+    /// Blur whatever is behind the window (macOS) and tint it with the theme
+    /// background instead of painting that background solid.
+    #[serde(default)]
+    pub window_blur: bool,
+    /// Blur radius in points.
+    #[serde(
+        default = "default_window_blur_radius",
+        deserialize_with = "deserialize_window_blur_radius"
+    )]
+    pub window_blur_radius: u8,
+    /// Opacity of the theme tint over the blur, in percent.
+    #[serde(
+        default = "default_window_opacity_percent",
+        deserialize_with = "deserialize_window_opacity_percent"
+    )]
+    pub window_opacity_percent: u8,
 }
 
 /// User-configurable keyboard shortcut overrides. `bindings` maps action ids
@@ -215,6 +231,30 @@ where
 {
     let value = f64::deserialize(deserializer)?;
     Ok(((value / 10.0).round() * 10.0).clamp(80.0, 200.0) as u16)
+}
+
+fn default_window_blur_radius() -> u8 {
+    20
+}
+
+fn deserialize_window_blur_radius<'de, D>(deserializer: D) -> Result<u8, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = f64::deserialize(deserializer)?;
+    Ok(value.round().clamp(1.0, 60.0) as u8)
+}
+
+fn default_window_opacity_percent() -> u8 {
+    70
+}
+
+fn deserialize_window_opacity_percent<'de, D>(deserializer: D) -> Result<u8, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = f64::deserialize(deserializer)?;
+    Ok(value.round().clamp(30.0, 95.0) as u8)
 }
 
 fn default_cursor_style() -> String {
@@ -394,6 +434,9 @@ impl Default for AppConfig {
             sudo_prompt_patterns: Vec::new(),
             keymap: default_keymap(),
             background_throttling: default_background_throttling(),
+            window_blur: false,
+            window_blur_radius: default_window_blur_radius(),
+            window_opacity_percent: default_window_opacity_percent(),
         }
     }
 }
@@ -649,5 +692,31 @@ mod tests {
         assert_eq!(rounded.ui_scale_percent, 150);
         assert_eq!(minimum.ui_scale_percent, 80);
         assert_eq!(maximum.ui_scale_percent, 200);
+    }
+
+    #[test]
+    fn window_blur_config_is_clamped() {
+        let parse = |field: &str, value: &str| -> AppConfig {
+            serde_json::from_str(&format!(r#"{{"theme":"default","{field}":{value}}}"#)).unwrap()
+        };
+
+        assert_eq!(
+            parse("window_opacity_percent", "62.4").window_opacity_percent,
+            62
+        );
+        assert_eq!(
+            parse("window_opacity_percent", "10").window_opacity_percent,
+            30
+        );
+        assert_eq!(
+            parse("window_opacity_percent", "100").window_opacity_percent,
+            95
+        );
+        assert_eq!(parse("window_blur_radius", "0").window_blur_radius, 1);
+        assert_eq!(parse("window_blur_radius", "200").window_blur_radius, 60);
+        let missing: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+        assert!(!missing.window_blur);
+        assert_eq!(missing.window_blur_radius, 20);
+        assert_eq!(missing.window_opacity_percent, 70);
     }
 }

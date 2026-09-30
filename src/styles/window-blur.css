@@ -1,0 +1,77 @@
+/* Blur behind the window (macOS, `html.window-blur`). Each surface paints its
+   own theme color over the blur instead of one tint for the whole window. The
+   title bar and the content area are siblings and tint the blur directly;
+   chips and headers inside them sit on an already tinted parent and use their
+   opacity as an overlay. Layers that would repaint their parent's color go
+   clear. Dialogs, menus and overlays stay opaque for legibility.
+
+   Bars sit halfway between the content opacity and opaque. At one shared
+   opacity the bars' contrast with the content shrinks with it, and at low
+   values the tab bar would blend into the terminal. */
+html.window-blur {
+  --window-bar-opacity: calc(var(--window-opacity) + (1 - var(--window-opacity)) / 2);
+}
+
+/* Until the app mounts, the page itself is the tint. */
+html.window-blur body {
+  background-color: hsl(var(--background) / var(--window-opacity)) !important;
+}
+
+html.window-blur body:has(.app) {
+  background-color: transparent !important;
+}
+
+html.window-blur .title-bar {
+  background-color: hsl(var(--titlebar) / var(--window-bar-opacity));
+}
+
+html.window-blur .content-area {
+  background-color: hsl(var(--background) / var(--window-opacity));
+}
+
+html.window-blur .terminal-tab-shell,
+html.window-blur .workspace-panel,
+html.window-blur .workspace-dock .dv-dockview,
+html.window-blur .workspace-dock .dv-groupview,
+html.window-blur .xterm .xterm-viewport {
+  background: transparent;
+}
+
+html.window-blur .workspace-dock {
+  --dv-group-view-background-color: transparent;
+  --dv-tabs-and-actions-container-background-color: hsl(
+    var(--titlebar) / var(--window-bar-opacity)
+  );
+  --dv-activegroup-visiblepanel-tab-background-color: hsl(
+    var(--tab-active, var(--background)) / var(--window-opacity)
+  );
+  --dv-activegroup-hiddenpanel-tab-background-color: hsl(
+    var(--tab-background) / var(--window-opacity)
+  );
+  --dv-inactivegroup-visiblepanel-tab-background-color: hsl(
+    var(--tab-active, var(--background)) / var(--window-opacity)
+  );
+  --dv-inactivegroup-hiddenpanel-tab-background-color: hsl(
+    var(--tab-background) / var(--window-opacity)
+  );
+}
+
+html.window-blur .workspace-dock .dv-tabs-and-actions-container {
+  background-color: hsl(var(--titlebar) / var(--window-bar-opacity));
+}
+
+html.window-blur .tab-item,
+html.window-blur .workspace-tab {
+  background-color: hsl(var(--tab-background) / var(--window-opacity));
+}
+
+html.window-blur .tab-item:not(.active):not(.drop-target):hover,
+html.window-blur .workspace-tab:hover {
+  background-color: hsl(var(--tab-hover) / var(--window-opacity));
+}
+
+html.window-blur .tab-item.active,
+html.window-blur .tab-item.active.drop-target,
+html.window-blur .workspace-tab.active {
+  background-color: hsl(var(--tab-active, var(--background)) / var(--window-opacity));
+}

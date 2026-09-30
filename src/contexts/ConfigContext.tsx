@@ -13,6 +13,7 @@ import { platform } from "@tauri-apps/plugin-os"
 import { detectSystemLanguage } from "@/i18n/language"
 import { markConfigReady } from "@/lib/startup"
 import { onSyncApplied } from "@/lib/sync"
+import { setWindowBlur } from "@/lib/themePreloader"
 import type { UpdateCheckFrequency } from "@/lib/updater"
 import { DEFAULT_KEYMAP_CONFIG, normalizeKeymap, type KeymapConfig } from "@/lib/keymap/keymap"
 
@@ -158,6 +159,12 @@ export interface AppConfig {
   sudo_prompt_patterns: string[]
   keymap: KeymapConfig
   background_throttling: BackgroundThrottling
+  /** Blur what is behind the window (macOS), tinted with the theme background. */
+  window_blur: boolean
+  /** Blur radius in points. */
+  window_blur_radius: number
+  /** Opacity of that tint in percent. */
+  window_opacity_percent: number
 }
 
 const defaultUpdateChannel = /-(alpha|beta|rc|dev)(\.|$)/.test(
@@ -215,6 +222,9 @@ const defaultConfig: AppConfig = {
   sudo_prompt_patterns: [],
   keymap: { ...DEFAULT_KEYMAP_CONFIG, bindings: {} },
   background_throttling: "throttle",
+  window_blur: false,
+  window_blur_radius: 20,
+  window_opacity_percent: 70,
 }
 
 function normalizeUpdateCheckFrequency(
@@ -321,6 +331,26 @@ export function normalizeUiScalePercent(value: Partial<AppConfig>["ui_scale_perc
   return Math.min(Math.max(Math.round(value / 10) * 10, 80), 200)
 }
 
+export const WINDOW_OPACITY_PERCENT_RANGE = { min: 30, max: 95 } as const
+export const WINDOW_BLUR_RADIUS_RANGE = { min: 1, max: 60 } as const
+
+function normalizeRoundedInRange(
+  value: unknown,
+  range: { min: number; max: number },
+  fallback: number
+): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback
+  }
+
+  return Math.min(Math.max(Math.round(value), range.min), range.max)
+}
+
+/** The blur is only implemented for the macOS window. */
+export function isWindowBlurEnabled(config: Pick<AppConfig, "window_blur">): boolean {
+  return config.window_blur && getDetectedPlatform() === "macos"
+}
+
 function normalizeConfig(config: Partial<AppConfig>): AppConfig {
   const collapsedProfileGroupKeys = Array.isArray(config.collapsed_profile_group_keys)
     ? config.collapsed_profile_group_keys.filter((item): item is string => typeof item === "string")
@@ -388,6 +418,17 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
       config.background_throttling === "disabled" || config.background_throttling === "suspend"
         ? config.background_throttling
         : "throttle",
+    window_blur: config.window_blur === true,
+    window_blur_radius: normalizeRoundedInRange(
+      config.window_blur_radius,
+      WINDOW_BLUR_RADIUS_RANGE,
+      20
+    ),
+    window_opacity_percent: normalizeRoundedInRange(
+      config.window_opacity_percent,
+      WINDOW_OPACITY_PERCENT_RANGE,
+      70
+    ),
   }
 }
 
@@ -472,6 +513,18 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [config.ui_scale_percent])
+
+  // Not before the config loads: the page starts with whatever the window was
+  // created with, and the defaults would switch the blur off in between.
+  const windowBlurEnabled = isWindowBlurEnabled(config)
+  useEffect(() => {
+    if (!isLoaded) return
+    setWindowBlur({
+      enabled: windowBlurEnabled,
+      radius: config.window_blur_radius,
+      opacity: config.window_opacity_percent / 100,
+    })
+  }, [config.window_blur_radius, config.window_opacity_percent, isLoaded, windowBlurEnabled])
 
   const refreshSecretStatus = useCallback(async (): Promise<SecretBackendStatus> => {
     try {

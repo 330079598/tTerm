@@ -16,6 +16,7 @@ mod sync;
 mod terminal;
 mod tunnel;
 mod updater;
+mod window_blur;
 mod zmodem;
 
 use core::PtyMap;
@@ -56,8 +57,10 @@ fn background_throttling_policy(value: &str) -> BackgroundThrottlingPolicy {
 /// The main window is declared with `create: false` so it is built here: the
 /// background throttling policy is a user setting and WebKit only takes it
 /// when the webview is created. The first frame is painted in the last theme
-/// background; `index.html` picks it up through `--boot-bg`.
-fn create_main_window(app: &tauri::App, background_throttling: &str) -> tauri::Result<()> {
+/// background; `index.html` picks it up through `--boot-bg`. With the blur on
+/// (macOS) that background is a translucent tint over it, and the page learns
+/// its opacity from `__TTERM_WINDOW_BLUR__` before the config loads.
+fn create_main_window(app: &tauri::App, cfg: Option<&config::AppConfig>) -> tauri::Result<()> {
     let window_config = app
         .config()
         .app
@@ -66,20 +69,32 @@ fn create_main_window(app: &tauri::App, background_throttling: &str) -> tauri::R
         .find(|window| window.label == "main")
         .cloned()
         .expect("main window missing from tauri.conf.json");
+    let background_throttling = cfg.map_or("throttle", |cfg| cfg.background_throttling.as_str());
     let mut builder = WebviewWindowBuilder::from_config(app.handle(), &window_config)?
         .background_throttling(background_throttling_policy(background_throttling));
+    let blur = cfg.filter(|cfg| cfg!(target_os = "macos") && cfg.window_blur);
+    let blur_opacity = blur.map(|cfg| f64::from(cfg.window_opacity_percent) / 100.0);
+    if let Some(opacity) = blur_opacity {
+        builder = builder
+            .background_color(tauri::window::Color(0, 0, 0, 0))
+            .initialization_script(format!("window.__TTERM_WINDOW_BLUR__={opacity};"));
+    }
     if let Some((r, g, b)) = config::load_window_background() {
+        let alpha = blur_opacity.map_or(String::new(), |opacity| format!("/{opacity}"));
         builder = builder.initialization_script(format!(
-            "try{{const s=new CSSStyleSheet();s.replaceSync(':root{{--boot-bg:#{r:02x}{g:02x}{b:02x}}}');\
+            "try{{const s=new CSSStyleSheet();s.replaceSync(':root{{--boot-bg:rgb({r} {g} {b}{alpha})}}');\
              document.adoptedStyleSheets=[...document.adoptedStyleSheets,s]}}catch{{}}"
         ));
         // The Windows window is transparent and must stay that way.
         #[cfg(not(target_os = "windows"))]
-        {
+        if blur_opacity.is_none() {
             builder = builder.background_color(tauri::window::Color(r, g, b, 255));
         }
     }
-    builder.build()?;
+    let window = builder.build()?;
+    if let Some(cfg) = blur {
+        window_blur::apply_window_blur(&window, u32::from(cfg.window_blur_radius))?;
+    }
     Ok(())
 }
 
@@ -255,6 +270,7 @@ pub fn run() {
             config::load_config,
             config::save_config,
             config::window_background::save_window_background,
+            window_blur::set_window_blur,
             session_log::get_terminal_log_status,
             session_log::open_terminal_log_directory,
             session_log::retry_terminal_logging,
@@ -381,11 +397,7 @@ pub fn run() {
                 }
             }
 
-            create_main_window(
-                app,
-                cfg.as_ref()
-                    .map_or("throttle", |cfg| cfg.background_throttling.as_str()),
-            )?;
+            create_main_window(app, cfg.as_ref())?;
 
             Ok(())
         })

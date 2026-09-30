@@ -8,6 +8,7 @@
         "label": "main",
         "create": false,
         "backgroundColor": "#1b1d23",
+        "transparent": true,
         "hiddenTitle": true,
         "titleBarStyle": "Overlay"
       }

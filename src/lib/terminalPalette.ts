@@ -1,5 +1,16 @@
 import type { TerminalPalette, ThemeColors } from "@/types/theme"
 
+const TRANSPARENT_BACKGROUND = "rgba(0, 0, 0, 0)"
+
+/** With the window blur on, the page tints the blur and the terminal lets it show. */
+export function withWindowBlur<T extends { background?: string }>(palette: T, blur: boolean): T {
+  return blur ? { ...palette, background: TRANSPARENT_BACKGROUND } : { ...palette }
+}
+
+export function isTransparentTerminalTheme(palette: { background?: string }): boolean {
+  return palette.background === TRANSPARENT_BACKGROUND
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }

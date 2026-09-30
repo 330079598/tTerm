@@ -329,6 +329,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   const handleUiScaleChange = (scale: number) => saveSettings({ ui_scale_percent: scale })
 
+  const handleWindowBlurChange = (enabled: boolean) => saveSettings({ window_blur: enabled })
+
+  const handleWindowBlurRadiusChange = (radius: number) =>
+    saveSettings({ window_blur_radius: radius })
+
+  const handleWindowOpacityChange = (percent: number) =>
+    saveSettings({ window_opacity_percent: percent })
+
   const handleDeleteTheme = async (themeId: string) => {
     const confirmed = await confirm({
       title: t("themeEditor.delete"),
@@ -583,6 +591,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleTabStandardWidthChange={handleTabStandardWidthChange}
               handleTabWidthModeChange={handleTabWidthModeChange}
               handleUiScaleChange={handleUiScaleChange}
+              handleWindowBlurChange={handleWindowBlurChange}
+              handleWindowBlurRadiusChange={handleWindowBlurRadiusChange}
+              handleWindowOpacityChange={handleWindowOpacityChange}
               presetThemes={presetThemes}
               presetThemeOverrides={presetThemeOverrides}
               setCreatingFromTheme={setCreatingFromTheme}
@@ -590,6 +601,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               tabStandardWidth={config.tab_standard_width}
               tabWidthMode={config.tab_width_mode}
               uiScalePercent={config.ui_scale_percent}
+              windowBlur={config.window_blur}
+              windowBlurRadius={config.window_blur_radius}
+              windowOpacityPercent={config.window_opacity_percent}
             />
           </TabsContent>
 

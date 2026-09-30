@@ -135,21 +135,93 @@ export function resolveThemeCache(themeId: string, customThemes: CustomTheme[]):
   }
 }
 
+export interface WindowBlur {
+  enabled: boolean
+  /** Blur radius in points. */
+  radius: number
+  /** Opacity of the theme tint over the blur, 0-1. */
+  opacity: number
+}
+
+declare global {
+  interface Window {
+    /** Tint opacity, set by the backend when the window was created with the blur on. */
+    __TTERM_WINDOW_BLUR__?: number
+  }
+}
+
+function readLaunchBlur(): WindowBlur {
+  const opacity = typeof window === "undefined" ? undefined : window.__TTERM_WINDOW_BLUR__
+  // The backend already applied the configured radius; 0 here only means the
+  // page does not know it until the config loads.
+  return typeof opacity === "number"
+    ? { enabled: true, radius: 0, opacity }
+    : { enabled: false, radius: 0, opacity: 1 }
+}
+
+let windowBlur = readLaunchBlur()
 let nativeBackground = ""
+// Radius the native window currently has; null until the page first sets it.
+let nativeBlurRadius: number | null = windowBlur.enabled ? null : 0
+
+function applyWindowBlurToDom(): void {
+  const root = document.documentElement
+  root.classList.toggle("window-blur", windowBlur.enabled)
+  if (windowBlur.enabled) {
+    root.style.setProperty("--window-opacity", String(windowBlur.opacity))
+  } else {
+    root.style.removeProperty("--window-opacity")
+  }
+}
+
+function syncNativeBlurRadius(): void {
+  if (!isTauri() || getDetectedPlatform() !== "macos") return
+  const radius = windowBlur.enabled ? windowBlur.radius : 0
+  if (radius === nativeBlurRadius || (windowBlur.enabled && radius === 0)) return
+  nativeBlurRadius = radius
+  invoke("set_window_blur", { radius }).catch((error: unknown) => {
+    nativeBlurRadius = null
+    console.error("[ThemePreloader] Failed to set window blur:", error)
+  })
+}
+
+/**
+ * Switch the blur behind the window. The page tints it with the theme
+ * background at `opacity`; the native window drops its own background so the
+ * blur shows through.
+ */
+export function setWindowBlur(next: WindowBlur): void {
+  const enabled = next.enabled && getDetectedPlatform() === "macos"
+  const radius = enabled ? next.radius : 0
+  const opacity = enabled ? next.opacity : 1
+  if (
+    enabled === windowBlur.enabled &&
+    radius === windowBlur.radius &&
+    opacity === windowBlur.opacity
+  ) {
+    return
+  }
+  windowBlur = { enabled, radius, opacity }
+  applyWindowBlurToDom()
+  syncNativeBackground()
+  syncNativeBlurRadius()
+}
 
 /**
  * Paint the native window and webview in the theme background. WebKit drops a
  * hidden page's layers; until it repaints after the window comes back,
  * whatever is behind the page shows, which is white unless set here. Not on
  * Windows: that window is transparent and must stay that way. The color is
- * also saved so the next launch starts in it.
+ * also saved so the next launch starts in it. With the blur on, the window
+ * stays clear so the blur shows through.
  */
 function syncNativeBackground(): void {
   if (!isTauri()) return
   const match = getComputedStyle(document.body).backgroundColor.match(/\d+(\.\d+)?/g)
   if (!match || match.length < 3) return
   const [r, g, b] = match.slice(0, 3).map((channel) => Math.round(Number(channel)))
-  const key = `${r},${g},${b}`
+  const blur = windowBlur.enabled
+  const key = `${r},${g},${b},${blur}`
   if (key === nativeBackground) return
   nativeBackground = key
   const onError = (error: unknown) => {
@@ -159,7 +231,9 @@ function syncNativeBackground(): void {
   const hex = `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`
   invoke("save_window_background", { color: hex }).catch(onError)
   if (getDetectedPlatform() !== "windows") {
-    getCurrentWebviewWindow().setBackgroundColor([r, g, b, 255]).catch(onError)
+    getCurrentWebviewWindow()
+      .setBackgroundColor([r, g, b, blur ? 0 : 255])
+      .catch(onError)
   }
 }
 
@@ -231,6 +305,7 @@ function isThemeCacheValid(cache: unknown): cache is ThemeCache {
  * @returns ThemeCache if successfully loaded, null otherwise
  */
 export function preloadTheme(): ThemeCache | null {
+  applyWindowBlurToDom()
   try {
     if (!isCacheValid()) {
       console.warn("[ThemePreloader] Cache version mismatch, using default theme")
