@@ -98,7 +98,7 @@ pub fn import_ssh_config_profiles(
             ignore_saved_password: false,
             remember_password: false,
             auth_method: Some(host.auth_method),
-            agent_forward: false,
+            agent_forward: host.agent_forward,
             private_key_path: host.private_key_path,
             private_key_passphrase: None,
             keepalive_interval_secs: host.keepalive_interval_secs,

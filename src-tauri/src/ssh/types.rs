@@ -252,8 +252,8 @@ pub struct SshClientHandler {
     /// Receives channels the server opens for remote port forwards. `None`
     /// for sessions that never request one; such channels are dropped.
     pub forwarded_tcpip_tx: Option<tokio::sync::mpsc::UnboundedSender<ForwardedTcpIp>>,
-    /// Whether this session requested SSH-agent forwarding (`use_agent &&
-    /// agent_forward` on the resolved plan). Gates
+    /// Whether this session requested SSH-agent forwarding (`agent_forward`
+    /// on the resolved plan, independent of the auth method). Gates
     /// [`server_channel_open_agent_forward`](russh::client::Handler::server_channel_open_agent_forward):
     /// a server could open an `auth-agent@openssh.com` channel even when we
     /// never asked for one, and bridging it unconditionally would let an

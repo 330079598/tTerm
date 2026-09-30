@@ -597,7 +597,7 @@ pub async fn open_target_ssh_session_with_forwarding(
         status_options,
         host_key_verification_mode,
         forwarded_tcpip_tx,
-        agent_forward_enabled: target_use_agent && target_agent_forward,
+        agent_forward_enabled: target_agent_forward,
     };
     let host_key_rejected = handler.user_rejected_host_key.clone();
 

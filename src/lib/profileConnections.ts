@@ -22,7 +22,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
           : profile.auth_method === "agent"
             ? "agent"
             : "password",
-      agentForward: profile.auth_method === "agent" && profile.agent_forward === true,
+      agentForward: profile.agent_forward === true,
       privateKeyPath: profile.auth_method === "key" ? profile.private_key_path : undefined,
       keepaliveIntervalSecs: profile.keepalive_interval_secs,
       keepaliveCountMax: profile.keepalive_count_max,

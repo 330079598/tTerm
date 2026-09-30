@@ -47,6 +47,7 @@ interface SshConfigImportHost {
   username?: string
   authMethod: string
   privateKeyPath?: string
+  agentForward: boolean
   keepaliveIntervalSecs: number
   keepaliveCountMax: number
   jumpHosts: SavedJumpHost[]
@@ -396,6 +397,7 @@ export const SshConfigImportDialog: React.FC<SshConfigImportDialogProps> = ({
                     host.authMethod === "key"
                       ? t("profiles.authMethodKey")
                       : t("profiles.authMethodPassword"),
+                    host.agentForward ? t("ssh.agentForward") : null,
                     host.jumpHosts.length > 0
                       ? t("jumpHost.viaCount", { count: host.jumpHosts.length })
                       : null,

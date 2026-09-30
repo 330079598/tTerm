@@ -182,7 +182,7 @@ pub async fn run_single_ssh_connection(
         .as_millis()
         .min(u64::MAX as u128) as u64;
 
-    if plan.use_agent && plan.agent_forward {
+    if plan.agent_forward {
         // Best-effort: a server with agent forwarding disabled just won't
         // open a channel back later, which isn't worth failing the session over.
         if let Err(err) = channel.agent_forward(false).await {

@@ -118,6 +118,8 @@ pub struct SshConfigImportHost {
     pub username: Option<String>,
     pub auth_method: String,
     pub private_key_path: Option<String>,
+    /// `ForwardAgent yes`.
+    pub agent_forward: bool,
     pub keepalive_interval_secs: u32,
     pub keepalive_count_max: u32,
     pub jump_hosts: Vec<SavedJumpHost>,
@@ -156,6 +158,7 @@ pub(crate) struct SshConfigDefaults {
     pub identity_file: Option<String>,
     pub server_alive_interval: Option<u32>,
     pub server_alive_count_max: Option<u32>,
+    pub forward_agent: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]

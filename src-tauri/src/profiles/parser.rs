@@ -382,6 +382,25 @@ fn parse_u32_option(value: Option<String>) -> Option<u32> {
     value.and_then(|value| value.parse::<u32>().ok())
 }
 
+/// OpenSSH also accepts a socket path or `$ENV_VAR` here; tTerm only forwards
+/// the agent behind `SSH_AUTH_SOCK`, so those aren't enabled rather than
+/// silently exposing a different agent's keys.
+fn parse_forward_agent(value: Option<String>, warnings: &mut Vec<String>) -> bool {
+    let Some(value) = value else {
+        return false;
+    };
+    match value.trim().to_ascii_lowercase().as_str() {
+        "yes" | "true" => true,
+        "no" | "false" => false,
+        _ => {
+            warnings.push(format!(
+                "ForwardAgent '{value}' was not enabled: only the default agent (SSH_AUTH_SOCK) can be forwarded."
+            ));
+            false
+        }
+    }
+}
+
 fn is_wildcard_host(pattern: &str) -> bool {
     pattern.contains('*') || pattern.contains('?') || pattern.contains('!')
 }
@@ -398,6 +417,7 @@ pub(crate) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefa
         "serveralivecountmax",
         "preferredauthentications",
         "identitiesonly",
+        "forwardagent",
         "localforward",
         "remoteforward",
         "dynamicforward",
@@ -412,7 +432,6 @@ pub(crate) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefa
         "remotecommand",
         "sendenv",
         "setenv",
-        "forwardagent",
         "forwardx11",
         "hostkeyalias",
         "stricthostkeychecking",
@@ -502,6 +521,7 @@ pub(crate) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefa
                 "serveralivecountmax" => {
                     defaults.server_alive_count_max = value.parse::<u32>().ok()
                 }
+                "forwardagent" => defaults.forward_agent = Some(value),
                 _ => {}
             }
             continue;
@@ -658,6 +678,10 @@ pub(crate) fn build_import_host(
     } else {
         "password".to_string()
     };
+    let agent_forward = parse_forward_agent(
+        first_option(&raw.options, "forwardagent").or_else(|| defaults.forward_agent.clone()),
+        &mut warnings,
+    );
     let keepalive_interval_secs =
         parse_u32_option(first_option(&raw.options, "serveraliveinterval"))
             .or(defaults.server_alive_interval)
@@ -702,6 +726,7 @@ pub(crate) fn build_import_host(
         username,
         auth_method,
         private_key_path,
+        agent_forward,
         keepalive_interval_secs,
         keepalive_count_max,
         jump_hosts,
@@ -864,6 +889,43 @@ Host prod
             host.unsupported_options.is_empty(),
             "forwards are supported now"
         );
+    }
+
+    #[test]
+    fn parse_ssh_config_imports_forward_agent_independent_of_auth() {
+        let config = r#"
+Host *
+  ForwardAgent yes
+
+Host keyed
+  HostName keyed.example.com
+  IdentityFile ~/.ssh/id_ed25519
+
+Host opted-out
+  HostName out.example.com
+  ForwardAgent no
+
+Host custom-sock
+  HostName sock.example.com
+  ForwardAgent ~/.1password/agent.sock
+"#;
+
+        let (raw_hosts, defaults, _) = parse_ssh_config(config);
+        let hosts: Vec<_> = raw_hosts
+            .into_iter()
+            .map(|raw| build_import_host(raw, &defaults, &[]))
+            .collect();
+
+        assert_eq!(hosts[0].auth_method, "key");
+        assert!(hosts[0].agent_forward, "Host * default applies to key auth");
+        assert!(!hosts[1].agent_forward, "host-level no overrides Host *");
+        assert!(!hosts[2].agent_forward);
+        assert!(hosts[2]
+            .warnings
+            .iter()
+            .any(|warning| warning
+                .contains("ForwardAgent '~/.1password/agent.sock' was not enabled")));
+        assert!(hosts.iter().all(|host| host.unsupported_options.is_empty()));
     }
 
     #[test]
