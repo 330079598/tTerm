@@ -21,6 +21,8 @@ export interface SftpDirectoryEntry {
   size?: number
   modifiedAt?: number
   permissions?: string
+  /** Permission bits without the file type, e.g. `0o644`. */
+  mode?: number | null
   owner?: string
   group?: string
 }

@@ -373,6 +373,33 @@ body.sftp-column-resizing * {
   white-space: nowrap;
 }
 
+.sftp-header-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.sftp-header-sort:hover,
+.sftp-header-sort:focus-visible,
+.sftp-header-cell[aria-sort] .sftp-header-sort {
+  color: hsl(var(--foreground));
+}
+
+.sftp-header-sort:focus-visible {
+  outline: 2px solid hsl(var(--ring) / 0.5);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .sftp-column-resizer {
   position: absolute;
   top: -4px;

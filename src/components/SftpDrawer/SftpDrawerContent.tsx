@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
-import { AlertCircle, ArrowUpFromLine, File, FolderPlus, Loader2, RefreshCcw } from "lucide-react"
+import {
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpFromLine,
+  File,
+  FolderPlus,
+  Loader2,
+  RefreshCcw,
+} from "lucide-react"
 import type { TFunction } from "i18next"
 import { useTranslation } from "react-i18next"
 
@@ -11,6 +20,11 @@ import { cn } from "@/lib/utils"
 import { SftpEntryIcon } from "@/components/SftpDrawer/SftpEntryIcon"
 import { formatBytes, formatTimestamp } from "@/components/SftpDrawer/sftpDrawerUtils"
 import type { SftpSearchMatcher } from "@/components/SftpDrawer/sftpSearch"
+import {
+  SFTP_SORT_COLUMNS,
+  type SftpSort,
+  type SftpSortColumn,
+} from "@/components/SftpDrawer/sftpView"
 import type {
   LoadSftpDirectory,
   SftpContextMenuState,
@@ -113,9 +127,11 @@ interface SftpDrawerContentProps {
   isSelectionMode: boolean
   listing: SftpDirectoryListing | null
   loadDirectory: LoadSftpDirectory
+  onSortColumn: (column: SftpSortColumn) => void
   searchMatcher: SftpSearchMatcher
   selectedPaths: string[]
   setContextMenu: React.Dispatch<React.SetStateAction<SftpContextMenuState | null>>
+  sort: SftpSort
 }
 
 export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
@@ -134,9 +150,11 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
   isSelectionMode,
   listing,
   loadDirectory,
+  onSortColumn,
   searchMatcher,
   selectedPaths,
   setContextMenu,
+  sort,
 }) => {
   const { t } = useTranslation()
   const [isPointerSelecting, setIsPointerSelecting] = useState(false)
@@ -367,41 +385,68 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
               t("sftp.columns.kind", { defaultValue: "Kind" }),
               t("sftp.columns.permissions", { defaultValue: "Permissions" }),
               resultSummary ?? t("sftp.columns.owner"),
-            ].map((label, index) => (
-              <span
-                key={index}
-                className={cn(
-                  "sftp-header-cell",
-                  index === SFTP_COLUMN_DEFAULT_WEIGHTS.length - 1 && "sftp-header-summary"
-                )}
-                aria-live={index === SFTP_COLUMN_DEFAULT_WEIGHTS.length - 1 ? "polite" : undefined}
-              >
-                {label}
-                {index < SFTP_COLUMN_DEFAULT_WEIGHTS.length - 1 && (
-                  <span
-                    className="sftp-column-resizer"
-                    role="separator"
-                    tabIndex={0}
-                    aria-orientation="vertical"
-                    aria-valuenow={Math.round(columnWeights[index])}
-                    aria-label={t("sftp.columns.resize", {
-                      column: label,
-                      defaultValue: `Resize ${label}`,
-                    })}
-                    onMouseDown={(event) => startColumnResize(index, event)}
-                    onKeyDown={(event) => {
-                      if (event.key === "ArrowLeft") {
-                        event.preventDefault()
-                        adjustColumnWidth(index, -12)
-                      } else if (event.key === "ArrowRight") {
-                        event.preventDefault()
-                        adjustColumnWidth(index, 12)
-                      }
-                    }}
-                  />
-                )}
-              </span>
-            ))}
+            ].map((label, index) => {
+              const column = SFTP_SORT_COLUMNS[index]
+              const isLast = index === SFTP_COLUMN_DEFAULT_WEIGHTS.length - 1
+              // The last cell doubles as the result summary, which is not a column title.
+              const sortable = !(isLast && resultSummary)
+              const sorted = sortable && sort.column === column
+              return (
+                <span
+                  key={index}
+                  className={cn("sftp-header-cell", isLast && "sftp-header-summary")}
+                  aria-live={isLast ? "polite" : undefined}
+                  aria-sort={
+                    sorted ? (sort.direction === "asc" ? "ascending" : "descending") : undefined
+                  }
+                >
+                  {sortable ? (
+                    <button
+                      type="button"
+                      className="sftp-header-sort"
+                      onClick={() => onSortColumn(column)}
+                      title={t("sftp.columns.sortBy", {
+                        column: label,
+                        defaultValue: `Sort by ${label}`,
+                      })}
+                    >
+                      <span className="truncate">{label}</span>
+                      {sorted &&
+                        (sort.direction === "asc" ? (
+                          <ArrowUp className="size-3 shrink-0" aria-hidden="true" />
+                        ) : (
+                          <ArrowDown className="size-3 shrink-0" aria-hidden="true" />
+                        ))}
+                    </button>
+                  ) : (
+                    label
+                  )}
+                  {index < SFTP_COLUMN_DEFAULT_WEIGHTS.length - 1 && (
+                    <span
+                      className="sftp-column-resizer"
+                      role="separator"
+                      tabIndex={0}
+                      aria-orientation="vertical"
+                      aria-valuenow={Math.round(columnWeights[index])}
+                      aria-label={t("sftp.columns.resize", {
+                        column: label,
+                        defaultValue: `Resize ${label}`,
+                      })}
+                      onMouseDown={(event) => startColumnResize(index, event)}
+                      onKeyDown={(event) => {
+                        if (event.key === "ArrowLeft") {
+                          event.preventDefault()
+                          adjustColumnWidth(index, -12)
+                        } else if (event.key === "ArrowRight") {
+                          event.preventDefault()
+                          adjustColumnWidth(index, 12)
+                        }
+                      }}
+                    />
+                  )}
+                </span>
+              )
+            })}
           </div>
         )}
         <ScrollArea

@@ -44,6 +44,7 @@ pub mod conflict;
 pub mod delete;
 pub mod download;
 pub mod edit;
+pub mod permissions;
 pub mod upload;
 
 use crate::core::session::SessionPlan;

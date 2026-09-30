@@ -74,6 +74,9 @@ async fn read_directory_entries(
                 permissions: metadata
                     .permissions
                     .map(|_| metadata.permissions().to_string()),
+                mode: metadata
+                    .permissions
+                    .map(|mode| mode & super::permissions::PERMISSION_MASK),
                 owner: metadata
                     .user
                     .clone()

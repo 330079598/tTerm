@@ -316,9 +316,21 @@ impl russh_sftp::server::Handler for SftpHandler {
     async fn setstat(
         &mut self,
         id: u32,
-        _path: String,
-        _attrs: FileAttributes,
+        path: String,
+        attrs: FileAttributes,
     ) -> Result<Status, Self::Error> {
+        let real_path = self.real_path(&path);
+        if !real_path.exists() {
+            return Err(StatusCode::NoSuchFile);
+        }
+        #[cfg(unix)]
+        if let Some(mode) = attrs.permissions {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&real_path, std::fs::Permissions::from_mode(mode & 0o7777))
+                .map_err(|_| StatusCode::PermissionDenied)?;
+        }
+        #[cfg(not(unix))]
+        let _ = attrs;
         Ok(self.ok(id))
     }
 

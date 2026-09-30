@@ -354,6 +354,7 @@ pub fn run() {
             sftp::internal::api::delete::commands::sftp_delete_entries,
             sftp::internal::api::delete::commands::sftp_preview_delete_entries,
             sftp::internal::api::base::sftp_rename_entry,
+            sftp::internal::api::permissions::sftp_set_permissions,
             sftp::internal::api::edit::sftp_open_file_for_edit,
             sftp::internal::api::edit::sftp_save_edited_file,
             sftp::internal::api::upload::commands::sftp_upload_file,

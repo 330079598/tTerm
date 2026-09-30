@@ -1414,7 +1414,8 @@
       "owner": "所有者/组",
       "kind": "类型",
       "permissions": "权限",
-      "resize": "调整{{column}}列宽"
+      "resize": "调整{{column}}列宽",
+      "sortBy": "按{{column}}排序"
     },
     "kinds": {
       "file": "文件",
@@ -1429,6 +1430,9 @@
       "downloadFolder": "下载文件夹",
       "copyPath": "复制完整路径",
       "rename": "重命名",
+      "permissions": "权限…",
+      "showHidden": "显示隐藏文件",
+      "hideHidden": "隐藏以 . 开头的文件",
       "edit": "编辑",
       "delete": "删除",
       "deleteSelected": "删除选择",
@@ -1536,6 +1540,20 @@
       },
       "cancel": "取消传输",
       "continue": "继续"
+    },
+    "permissions": {
+      "title": "权限",
+      "multiple": "{{count}} 个项目",
+      "owner": "所有者",
+      "group": "用户组",
+      "others": "其他人",
+      "read": "读取",
+      "write": "写入",
+      "execute": "执行",
+      "octal": "八进制权限",
+      "octalHint": "三位数字，例如 644 或 755。不会递归修改文件夹内的内容。",
+      "specialHint": "第一位数字用于设置 setuid（4）、setgid（2）和粘滞位（1）。",
+      "apply": "应用"
     }
   },
   "terminalSearch": {

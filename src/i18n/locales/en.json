@@ -1423,7 +1423,8 @@
       "owner": "Owner/Group",
       "kind": "Kind",
       "permissions": "Permissions",
-      "resize": "Resize {{column}}"
+      "resize": "Resize {{column}}",
+      "sortBy": "Sort by {{column}}"
     },
     "kinds": {
       "file": "File",
@@ -1438,6 +1439,9 @@
       "downloadFolder": "Download Folder",
       "copyPath": "Copy Full Path",
       "rename": "Rename",
+      "permissions": "Permissions…",
+      "showHidden": "Show hidden files",
+      "hideHidden": "Hide hidden files",
       "edit": "Edit",
       "delete": "Delete",
       "deleteSelected": "Delete Selection",
@@ -1545,6 +1549,21 @@
       },
       "cancel": "Cancel transfer",
       "continue": "Continue"
+    },
+    "permissions": {
+      "title": "Permissions",
+      "multiple_one": "{{count}} item",
+      "multiple_other": "{{count}} items",
+      "owner": "Owner",
+      "group": "Group",
+      "others": "Others",
+      "read": "Read",
+      "write": "Write",
+      "execute": "Execute",
+      "octal": "Octal mode",
+      "octalHint": "Three digits such as 644 or 755. Folders are not changed recursively.",
+      "specialHint": "The leading digit sets setuid (4), setgid (2) and sticky (1).",
+      "apply": "Apply"
     }
   },
   "terminalSearch": {

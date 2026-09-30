@@ -3,6 +3,8 @@ import {
   ArrowUpFromLine,
   Check,
   ChevronRight,
+  Eye,
+  EyeOff,
   FolderInput,
   FolderUp,
   FolderPlus,
@@ -45,6 +47,8 @@ interface SftpDrawerHeaderProps {
   setSearchQuery: (query: string) => void
   toggleSearchOption: (option: keyof SftpSearchOptions) => void
   toggleSelectionMode: () => void
+  showHidden: boolean
+  toggleShowHidden: () => void
 }
 
 export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
@@ -68,6 +72,8 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   setSearchQuery,
   toggleSearchOption,
   toggleSelectionMode,
+  showHidden,
+  toggleShowHidden,
 }) => {
   const { t } = useTranslation()
   const { registerHandler } = useKeymap()
@@ -474,6 +480,24 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
             </TooltipTrigger>
             <TooltipContent>
               {t("sftp.actions.newFolder", { defaultValue: "New Folder" })}
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={toggleShowHidden}
+                aria-pressed={showHidden}
+                aria-label={t("sftp.actions.showHidden", { defaultValue: "Show hidden files" })}
+              >
+                {showHidden ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {showHidden
+                ? t("sftp.actions.hideHidden", { defaultValue: "Hide hidden files" })
+                : t("sftp.actions.showHidden", { defaultValue: "Show hidden files" })}
             </TooltipContent>
           </Tooltip>
           <Tooltip>

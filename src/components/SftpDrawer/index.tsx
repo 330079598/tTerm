@@ -14,6 +14,7 @@ import { SftpDrawerContent } from "@/components/SftpDrawer/SftpDrawerContent"
 import { SftpDrawerHeader } from "@/components/SftpDrawer/SftpDrawerHeader"
 import { SftpDialogs } from "@/components/SftpDrawer/SftpDialogs"
 import { SftpEntryContextMenu } from "@/components/SftpDrawer/SftpEntryContextMenu"
+import { SftpPermissionsDialog } from "@/components/SftpDrawer/SftpPermissionsDialog"
 import { useSftpDragDrop } from "@/components/SftpDrawer/useSftpDragDrop"
 import { useSftpPasteUpload } from "@/components/SftpDrawer/useSftpPasteUpload"
 import { useSftpSelection } from "@/components/SftpDrawer/useSftpSelection"
@@ -34,6 +35,14 @@ import type {
   SftpDrawerProps,
 } from "@/components/SftpDrawer/types"
 import { useSftpTransfers } from "@/components/SftpDrawer/useSftpTransfers"
+import {
+  applySftpView,
+  loadSftpViewPreferences,
+  nextSftpSort,
+  saveSftpViewPreferences,
+  type SftpSortColumn,
+  type SftpViewPreferences,
+} from "@/components/SftpDrawer/sftpView"
 
 function sftpDialogReducer(state: SftpDialogState, action: SftpDialogAction): SftpDialogState {
   switch (action.action) {
@@ -104,6 +113,9 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<SftpContextMenuState | null>(null)
   const [dialog, dispatchDialog] = useReducer(sftpDialogReducer, { type: "none" })
+  const [permissionEntries, setPermissionEntries] =
+    useState<SftpDirectoryEntry[]>(EMPTY_SFTP_ENTRIES)
+  const [viewPreferences, setViewPreferences] = useState(loadSftpViewPreferences)
   const listingCurrentPath = listing?.currentPath ?? null
   const createFolderName = dialog.type === "createFolder" ? dialog.folderName : ""
   const renameEntry = dialog.type === "rename" ? dialog.entry : null
@@ -190,16 +202,49 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     [searchOptions, searchQuery]
   )
 
+  const updateViewPreferences = useCallback(
+    (update: (current: SftpViewPreferences) => SftpViewPreferences) => {
+      setViewPreferences((current) => {
+        const next = update(current)
+        saveSftpViewPreferences(next)
+        return next
+      })
+    },
+    []
+  )
+
+  const handleSortColumn = useCallback(
+    (column: SftpSortColumn) => {
+      updateViewPreferences((current) => ({
+        ...current,
+        sort: nextSftpSort(current.sort, column),
+      }))
+    },
+    [updateViewPreferences]
+  )
+
+  const toggleShowHidden = useCallback(() => {
+    updateViewPreferences((current) => ({ ...current, showHidden: !current.showHidden }))
+  }, [updateViewPreferences])
+
+  // The listing as shown: hidden entries dropped, rows in sort order. Range
+  // selection, select-all and the table all follow this order.
+  const viewListing = useMemo(
+    () =>
+      listing ? { ...listing, entries: applySftpView(listing.entries, viewPreferences) } : listing,
+    [listing, viewPreferences]
+  )
+
   const filteredListing = useMemo(() => {
-    if (!listing || !searchMatcher.hasQuery) {
-      return listing
+    if (!viewListing || !searchMatcher.hasQuery) {
+      return viewListing
     }
 
     return {
-      ...listing,
-      entries: listing.entries.filter(searchMatcher.matches),
+      ...viewListing,
+      entries: viewListing.entries.filter(searchMatcher.matches),
     }
-  }, [listing, searchMatcher])
+  }, [viewListing, searchMatcher])
 
   const toggleSearchOption = useCallback((option: keyof SftpSearchOptions) => {
     setSearchOptions((current) => ({
@@ -515,6 +560,33 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     onOpenRemoteFile?.(entry, tabId, connection)
   }, [activeEntry, connection, contextMenuEntry, onOpenRemoteFile, tabId])
 
+  const handlePermissions = useCallback(() => {
+    const entries =
+      contextMenuEntry &&
+      selectedPaths.includes(contextMenuEntry.path) &&
+      selectedEntries.length > 0
+        ? selectedEntries
+        : contextMenuEntry
+          ? [contextMenuEntry]
+          : activeEntry
+            ? [activeEntry]
+            : []
+    setPermissionEntries(entries)
+  }, [activeEntry, contextMenuEntry, selectedEntries, selectedPaths])
+
+  const handleApplyPermissions = useCallback(
+    async (entries: SftpDirectoryEntry[], mode: number) => {
+      await invoke("sftp_set_permissions", {
+        tabId,
+        connection,
+        paths: entries.map((entry) => entry.path),
+        mode,
+      })
+      await loadDirectory(currentPath)
+    },
+    [connection, currentPath, loadDirectory, tabId]
+  )
+
   const handleCopyPath = useCallback(async () => {
     const entry = contextMenuEntry ?? activeEntry
     if (!entry) {
@@ -608,6 +680,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         setSearchQuery={setSearchQuery}
         toggleSearchOption={toggleSearchOption}
         toggleSelectionMode={toggleSelectionMode}
+        showHidden={viewPreferences.showHidden}
+        toggleShowHidden={toggleShowHidden}
       />
 
       {error && (
@@ -631,8 +705,10 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         handleToggleEntrySelection={handleToggleEntrySelection}
         isDragActive={isDragActive}
         isLoading={isLoading}
-        listing={listing}
+        listing={viewListing}
         loadDirectory={loadDirectory}
+        onSortColumn={handleSortColumn}
+        sort={viewPreferences.sort}
         searchMatcher={searchMatcher}
         selectedPaths={selectedPaths}
         setContextMenu={setContextMenu}
@@ -645,6 +721,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         handleDelete={handleDelete}
         handleDownload={handleDownload}
         handleEdit={handleEdit}
+        handlePermissions={handlePermissions}
         handleRename={handleRename}
         isDeleting={isDeleting}
         onClose={() => setContextMenu(null)}
@@ -660,6 +737,11 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         handleRenameConfirm={handleRenameConfirm}
         handleSftpDeleteConfirm={handleSftpDeleteConfirm}
         isDeleting={isDeleting}
+      />
+      <SftpPermissionsDialog
+        entries={permissionEntries}
+        onApply={handleApplyPermissions}
+        onClose={() => setPermissionEntries(EMPTY_SFTP_ENTRIES)}
       />
       {conflictDialog}
     </div>

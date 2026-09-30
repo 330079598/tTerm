@@ -86,8 +86,10 @@ Run the same thing on several servers at once (`Cmd/Ctrl+Shift+B`). The screensh
 ![sftp-browser](./docs/screenshot/sftp-browser.png)
 
 - Browse remote directories, jump to a path by typing it, resize columns, and see owner/group and permissions
+- Click a column header to sort by name, modified date, size, kind, permissions, or owner; hide dotfiles when you don't need them
 - Filter the current folder by text, glob, or regular expression
 - Create folders, rename, and delete; batch delete with preview, and a reviewed remote command for very large folders
+- Change permissions (chmod) with read/write/execute checkboxes or an octal mode, for one item or the whole selection
 - Upload and download files and folders, drag and drop from the desktop, or paste copied local files with `Ctrl+V` / `Cmd+V`
 - **Remote file editor**: open a remote file in a built-in editor with syntax highlighting and save it back
 - Copy full remote paths
