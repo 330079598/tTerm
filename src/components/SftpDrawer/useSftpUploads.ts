@@ -91,13 +91,13 @@ interface UseSftpUploadsParams {
     id?: string
   ) => string
   connection?: Tab["connection"]
-  lastProgressUpdateRef: React.MutableRefObject<Map<string, number>>
+  lastProgressUpdateRef: React.RefObject<Map<string, number>>
   listing: SftpDirectoryListing | null
   loadDirectory: LoadSftpDirectory
   promptConflictPolicy: PromptConflictPolicy
   setError: React.Dispatch<React.SetStateAction<string | null>>
   tabId: string
-  transfersRef: React.MutableRefObject<TransferTask[]>
+  transfersRef: React.RefObject<TransferTask[]>
   updateTransfer: (id: string, updates: Partial<TransferTask>) => void
 }
 

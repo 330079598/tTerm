@@ -373,7 +373,7 @@ const ColorSlider: React.FC<ColorSliderProps> = ({
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     const step = event.shiftKey ? 10 : 1
     const roundedValue = Math.round(value)
-    let nextValue = roundedValue
+    let nextValue: number
 
     if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
       nextValue = roundedValue - step

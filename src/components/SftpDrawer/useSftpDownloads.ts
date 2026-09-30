@@ -21,7 +21,7 @@ interface UseSftpDownloadsParams {
   connection?: Tab["connection"]
   promptConflictPolicy: PromptConflictPolicy
   tabId: string
-  transfersRef: React.MutableRefObject<TransferTask[]>
+  transfersRef: React.RefObject<TransferTask[]>
   updateTransfer: (id: string, updates: Partial<TransferTask>) => void
 }
 

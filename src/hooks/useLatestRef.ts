@@ -1,4 +1,4 @@
-import type { MutableRefObject } from "react"
+import type { RefObject } from "react"
 
 /**
  * Keeps `ref.current` equal to the value from the latest render, for
@@ -10,6 +10,6 @@ import type { MutableRefObject } from "react"
  * render, so a child's mount/layout effect that calls back into the owner
  * already sees the new value.
  */
-export function useLatestRef<T>(ref: MutableRefObject<T>, value: T): void {
+export function useLatestRef<T>(ref: RefObject<T>, value: T): void {
   ref.current = value
 }

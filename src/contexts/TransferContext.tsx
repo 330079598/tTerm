@@ -18,11 +18,11 @@ interface TransferContextValue {
   ) => string
   cancelTransfer: (id: string) => Promise<void>
   clearCompletedTransfers: () => void
-  lastProgressUpdateRef: React.MutableRefObject<Map<string, number>>
+  lastProgressUpdateRef: React.RefObject<Map<string, number>>
   removeTransfer: (id: string) => void
   retryTransfer: (id: string) => void
   transfers: TransferTask[]
-  transfersRef: React.MutableRefObject<TransferTask[]>
+  transfersRef: React.RefObject<TransferTask[]>
   updateTransfer: (id: string, updates: Partial<TransferTask>) => void
 }
 

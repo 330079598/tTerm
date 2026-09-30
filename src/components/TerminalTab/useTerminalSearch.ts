@@ -10,11 +10,11 @@ import {
 } from "@/components/TerminalTab/searchTypes"
 
 type UseTerminalSearchOptions = {
-  isActiveRef: React.MutableRefObject<boolean>
-  searchAddonRef: React.MutableRefObject<SearchAddon | null>
+  isActiveRef: React.RefObject<boolean>
+  searchAddonRef: React.RefObject<SearchAddon | null>
   setShowSftpDrawer: React.Dispatch<React.SetStateAction<boolean>>
-  surfaceRef: React.RefObject<HTMLDivElement>
-  termRef: React.MutableRefObject<Terminal | null>
+  surfaceRef: React.RefObject<HTMLDivElement | null>
+  termRef: React.RefObject<Terminal | null>
 }
 
 type SearchDecorationDisposable = {

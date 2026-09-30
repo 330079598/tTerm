@@ -599,9 +599,11 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
   const [networkHistory, setNetworkHistory] = useState<NetworkHistorySample[]>([])
   const [panelExpanded, setPanelExpanded] = useState(false)
   const [panelHeight, setPanelHeight] = useState(228)
-  const previousCpuTimesRef = useRef<CpuTimes | undefined>()
-  const previousCpuCoreTimesRef = useRef<CpuCoreTimes[] | undefined>()
-  const previousNetworkRef = useRef<{ metrics: NetworkMetrics; capturedAt: number } | undefined>()
+  const previousCpuTimesRef = useRef<CpuTimes | undefined>(undefined)
+  const previousCpuCoreTimesRef = useRef<CpuCoreTimes[] | undefined>(undefined)
+  const previousNetworkRef = useRef<{ metrics: NetworkMetrics; capturedAt: number } | undefined>(
+    undefined
+  )
   const requestIdRef = useRef(0)
   const monitorSessionNonce = normalizeSessionNonce(sessionNonce)
   const refreshIntervalMs = useMemo(() => {

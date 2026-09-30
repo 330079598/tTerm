@@ -23,7 +23,7 @@ type TerminalSearchBarProps = {
   onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void
   onRunSearch: (direction: "next" | "previous") => void
   onToggleOption: (option: keyof SearchOptionsState) => void
-  searchInputRef: React.RefObject<HTMLInputElement>
+  searchInputRef: React.RefObject<HTMLInputElement | null>
   searchOptions: SearchOptionsState
   searchPosition: { x: number; y: number }
   searchQuery: string

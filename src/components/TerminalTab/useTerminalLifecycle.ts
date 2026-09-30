@@ -45,55 +45,53 @@ type ActiveRendererAddon = (WebglAddon | CanvasAddon) & {
 }
 
 type UseTerminalLifecycleOptions = {
-  activateFitTimerRef: React.MutableRefObject<number | null>
-  connectionRef: React.MutableRefObject<TerminalTabProps["connection"]>
-  containerRef: React.RefObject<HTMLDivElement>
-  creatingPtyRef: React.MutableRefObject<boolean>
-  fitAddonRef: React.MutableRefObject<FitAddon | null>
+  activateFitTimerRef: React.RefObject<number | null>
+  connectionRef: React.RefObject<TerminalTabProps["connection"]>
+  containerRef: React.RefObject<HTMLDivElement | null>
+  creatingPtyRef: React.RefObject<boolean>
+  fitAddonRef: React.RefObject<FitAddon | null>
   fitTerminalOnly: () => boolean
-  initializedRef: React.MutableRefObject<boolean>
-  configCursorStyleRef?: React.MutableRefObject<Terminal["options"]["cursorStyle"]>
-  configFontFamilyRef?: React.MutableRefObject<string>
-  configFontSizeRef?: React.MutableRefObject<number>
-  configScrollbackLinesRef?: React.MutableRefObject<number>
-  configTerminalRendererRef?: React.MutableRefObject<TerminalRenderer>
-  terminalThemeRef?: React.MutableRefObject<NonNullable<Terminal["options"]["theme"]>>
-  initialCursorStyle?: React.MutableRefObject<Terminal["options"]["cursorStyle"]>
-  initialFontFamily?: React.MutableRefObject<string>
-  initialFontSize?: React.MutableRefObject<number>
-  initialScrollbackLines?: React.MutableRefObject<number>
-  initialTerminalRenderer?: React.MutableRefObject<TerminalRenderer>
-  initialTerminalThemeRef?: React.MutableRefObject<NonNullable<Terminal["options"]["theme"]>>
+  initializedRef: React.RefObject<boolean>
+  configCursorStyleRef?: React.RefObject<Terminal["options"]["cursorStyle"]>
+  configFontFamilyRef?: React.RefObject<string>
+  configFontSizeRef?: React.RefObject<number>
+  configScrollbackLinesRef?: React.RefObject<number>
+  configTerminalRendererRef?: React.RefObject<TerminalRenderer>
+  terminalThemeRef?: React.RefObject<NonNullable<Terminal["options"]["theme"]>>
+  initialCursorStyle?: React.RefObject<Terminal["options"]["cursorStyle"]>
+  initialFontFamily?: React.RefObject<string>
+  initialFontSize?: React.RefObject<number>
+  initialScrollbackLines?: React.RefObject<number>
+  initialTerminalRenderer?: React.RefObject<TerminalRenderer>
+  initialTerminalThemeRef?: React.RefObject<NonNullable<Terminal["options"]["theme"]>>
   terminalRenderer?: TerminalRenderer
-  isActiveRef: React.MutableRefObject<boolean>
-  lastPtySizeRef: React.MutableRefObject<{ rows: number; cols: number } | null>
-  onPidChangeRef: React.MutableRefObject<TerminalTabProps["onPidChange"]>
-  onInputRef: React.MutableRefObject<TerminalTabProps["onInput"]>
-  onCommandExecutedRef: React.MutableRefObject<TerminalTabProps["onCommandExecuted"]>
-  onReconnectRequestRef: React.MutableRefObject<TerminalTabProps["onReconnectRequest"]>
-  onSavedPasswordPromptChangeRef: React.MutableRefObject<
-    TerminalTabProps["onSavedPasswordPromptChange"]
-  >
-  onSessionUnavailableRef: React.MutableRefObject<TerminalTabProps["onSessionUnavailable"]>
-  onSensitivePromptRef: React.MutableRefObject<TerminalTabProps["onSensitivePrompt"]>
-  savedPasswordPromptActionsRef: React.MutableRefObject<SavedPasswordPromptActions | null>
+  isActiveRef: React.RefObject<boolean>
+  lastPtySizeRef: React.RefObject<{ rows: number; cols: number } | null>
+  onPidChangeRef: React.RefObject<TerminalTabProps["onPidChange"]>
+  onInputRef: React.RefObject<TerminalTabProps["onInput"]>
+  onCommandExecutedRef: React.RefObject<TerminalTabProps["onCommandExecuted"]>
+  onReconnectRequestRef: React.RefObject<TerminalTabProps["onReconnectRequest"]>
+  onSavedPasswordPromptChangeRef: React.RefObject<TerminalTabProps["onSavedPasswordPromptChange"]>
+  onSessionUnavailableRef: React.RefObject<TerminalTabProps["onSessionUnavailable"]>
+  onSensitivePromptRef: React.RefObject<TerminalTabProps["onSensitivePrompt"]>
+  savedPasswordPromptActionsRef: React.RefObject<SavedPasswordPromptActions | null>
   setSavedPasswordPrompt: (value: SavedPasswordPromptState | null) => void
-  sudoPromptPatternsRef: React.MutableRefObject<readonly RegExp[]>
-  resizeObserverRef: React.MutableRefObject<ResizeObserver | null>
-  resizePtySyncTimerRef: React.MutableRefObject<number | null>
-  resizeRafRef: React.MutableRefObject<number | null>
+  sudoPromptPatternsRef: React.RefObject<readonly RegExp[]>
+  resizeObserverRef: React.RefObject<ResizeObserver | null>
+  resizePtySyncTimerRef: React.RefObject<number | null>
+  resizeRafRef: React.RefObject<number | null>
   scheduleFitDuringResize: () => void
-  surfaceRef: React.RefObject<HTMLDivElement>
-  searchAddonRef: React.MutableRefObject<SearchAddon | null>
-  searchResultsDisposableRef: React.MutableRefObject<IDisposable | null>
+  surfaceRef: React.RefObject<HTMLDivElement | null>
+  searchAddonRef: React.RefObject<SearchAddon | null>
+  searchResultsDisposableRef: React.RefObject<IDisposable | null>
   setConnectionState: (value: ConnectionState) => void
   setHostKeyPrompt: (value: HostKeyPromptState | null) => void
   setConnectionProgress: (value: SshConnectionProgress | null) => void
   setSearchResults: React.Dispatch<React.SetStateAction<ISearchResultChangeEvent>>
   sessionNonce: number
   tabId: string
-  termRef: React.MutableRefObject<Terminal | null>
-  waitingForReconnectRef: React.MutableRefObject<boolean>
+  termRef: React.RefObject<Terminal | null>
+  waitingForReconnectRef: React.RefObject<boolean>
 }
 
 const LINK_MODIFIER_IS_CMD = (() => {

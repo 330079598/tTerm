@@ -14,13 +14,6 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
-      // Disallow relative imports, enforce @ alias usage
-      "no-restricted-imports": ["error", {
-        patterns: [{
-          group: ["../*", "./*"],
-          message: "Use @ path alias instead of relative paths (e.g., @/types/tab instead of ../types/tab)"
-        }]
-      }],
       // Enforce space after comment markers (// or /*)
       "spaced-comment": ["error", "always", {
         "markers": ["/"],           // Allow /// for doc comments
@@ -28,6 +21,20 @@ export default tseslint.config(
         "block": {
           "balanced": true          // Require space in /* comment */
         }
+      }],
+    },
+  },
+  {
+    // The @ alias maps to src/, so root config files (vite.config.ts, ...)
+    // can't use it and keep relative imports.
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      // Disallow relative imports, enforce @ alias usage
+      "no-restricted-imports": ["error", {
+        patterns: [{
+          group: ["../*", "./*"],
+          message: "Use @ path alias instead of relative paths (e.g., @/types/tab instead of ../types/tab)"
+        }]
       }],
     },
   }

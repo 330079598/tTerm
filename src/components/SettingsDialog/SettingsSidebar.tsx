@@ -75,7 +75,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ activeTab, onT
   const items = groups.flatMap((group) => group.items)
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
-    let nextIndex = index
+    let nextIndex: number
     if (event.key === "ArrowDown") nextIndex = (index + 1) % items.length
     else if (event.key === "ArrowUp") nextIndex = (index - 1 + items.length) % items.length
     else if (event.key === "Home") nextIndex = 0

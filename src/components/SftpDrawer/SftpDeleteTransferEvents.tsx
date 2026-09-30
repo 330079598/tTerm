@@ -22,7 +22,7 @@ type SftpDeleteTransferEventsProps = {
   setIsDeleting: (isDeleting: boolean) => void
   t: TFunction
   tabId: string
-  transfersRef: React.MutableRefObject<TransferTask[]>
+  transfersRef: React.RefObject<TransferTask[]>
   updateTransfer: (id: string, updates: Partial<TransferTask>) => void
 }
 

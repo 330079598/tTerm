@@ -141,7 +141,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         const message = String(invokeError)
         setError(message)
         if (options?.throwOnError) {
-          throw new Error(message)
+          throw new Error(message, { cause: invokeError })
         }
       } finally {
         setIsLoading(false)

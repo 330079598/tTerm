@@ -26,7 +26,7 @@ interface UseSftpTransfersReturn {
   handleUploadFolderDialog: () => Promise<void>
   removeTransfer: (id: string) => void
   transfers: import("@/types/tab").TransferTask[]
-  transfersRef: React.MutableRefObject<import("@/types/tab").TransferTask[]>
+  transfersRef: React.RefObject<import("@/types/tab").TransferTask[]>
   updateTransfer: ReturnType<typeof useTransferManager>["updateTransfer"]
   uploadPaths: (paths: string[]) => Promise<void>
 }

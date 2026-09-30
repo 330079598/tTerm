@@ -58,7 +58,7 @@ function sanitizeTabForPersistence(tab: Tab, activeTabId: string | null): Tab {
 
 export function useSessionPersistence() {
   const { t } = useTranslation()
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const lastActiveContentTabIdRef = useRef<string | null>(null)
   const lastSaveErrorToastAtRef = useRef(0)
 
