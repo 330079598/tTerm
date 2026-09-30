@@ -12,6 +12,7 @@ import {
   type BackgroundThrottling,
   type TabWidthMode,
   type TerminalRenderer,
+  type WindowBlurMaterial,
   useConfig,
 } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
@@ -331,6 +332,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   const handleWindowBlurChange = (enabled: boolean) => saveSettings({ window_blur: enabled })
 
+  const handleWindowBlurMaterialChange = (material: WindowBlurMaterial) =>
+    saveSettings({ window_blur_material: material })
+
   const handleWindowBlurRadiusChange = (radius: number) =>
     saveSettings({ window_blur_radius: radius })
 
@@ -592,6 +596,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleTabWidthModeChange={handleTabWidthModeChange}
               handleUiScaleChange={handleUiScaleChange}
               handleWindowBlurChange={handleWindowBlurChange}
+              handleWindowBlurMaterialChange={handleWindowBlurMaterialChange}
               handleWindowBlurRadiusChange={handleWindowBlurRadiusChange}
               handleWindowOpacityChange={handleWindowOpacityChange}
               presetThemes={presetThemes}
@@ -602,6 +607,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               tabWidthMode={config.tab_width_mode}
               uiScalePercent={config.ui_scale_percent}
               windowBlur={config.window_blur}
+              windowBlurMaterial={config.window_blur_material}
               windowBlurRadius={config.window_blur_radius}
               windowOpacityPercent={config.window_opacity_percent}
             />

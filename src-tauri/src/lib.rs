@@ -58,8 +58,9 @@ fn background_throttling_policy(value: &str) -> BackgroundThrottlingPolicy {
 /// background throttling policy is a user setting and WebKit only takes it
 /// when the webview is created. The first frame is painted in the last theme
 /// background; `index.html` picks it up through `--boot-bg`. With the blur on
-/// (macOS) that background is a translucent tint over it, and the page learns
-/// its opacity from `__TTERM_WINDOW_BLUR__` before the config loads.
+/// (macOS, Windows) that background is a translucent tint over it, and the
+/// page learns its opacity from `__TTERM_WINDOW_BLUR__` before the config
+/// loads.
 fn create_main_window(app: &tauri::App, cfg: Option<&config::AppConfig>) -> tauri::Result<()> {
     let window_config = app
         .config()
@@ -72,14 +73,27 @@ fn create_main_window(app: &tauri::App, cfg: Option<&config::AppConfig>) -> taur
     let background_throttling = cfg.map_or("throttle", |cfg| cfg.background_throttling.as_str());
     let mut builder = WebviewWindowBuilder::from_config(app.handle(), &window_config)?
         .background_throttling(background_throttling_policy(background_throttling));
-    let blur = cfg.filter(|cfg| cfg!(target_os = "macos") && cfg.window_blur);
-    let blur_opacity = blur.map(|cfg| f64::from(cfg.window_opacity_percent) / 100.0);
+    let background = config::load_window_background();
+    let blur_cfg = cfg.filter(|cfg| cfg!(any(target_os = "macos", windows)) && cfg.window_blur);
+    let blur = blur_cfg.map(|cfg| {
+        let dark = background.is_none_or(window_blur::is_dark_background);
+        window_blur::WindowBlur::from_config(cfg, dark)
+    });
+    let blur_opacity = blur_cfg.map(|cfg| f64::from(cfg.window_opacity_percent) / 100.0);
     if let Some(opacity) = blur_opacity {
-        builder = builder
-            .background_color(tauri::window::Color(0, 0, 0, 0))
-            .initialization_script(format!("window.__TTERM_WINDOW_BLUR__={opacity};"));
+        builder = builder.initialization_script(format!("window.__TTERM_WINDOW_BLUR__={opacity};"));
     }
-    if let Some((r, g, b)) = config::load_window_background() {
+    #[cfg(target_os = "macos")]
+    if blur.is_some() {
+        builder = builder.background_color(tauri::window::Color(0, 0, 0, 0));
+    }
+    #[cfg(windows)]
+    if let Some(blur) = blur {
+        builder = builder
+            .effects(window_blur::windows_effects(blur))
+            .theme(Some(window_blur::windows_theme(blur)));
+    }
+    if let Some((r, g, b)) = background {
         let alpha = blur_opacity.map_or(String::new(), |opacity| format!("/{opacity}"));
         builder = builder.initialization_script(format!(
             "try{{const s=new CSSStyleSheet();s.replaceSync(':root{{--boot-bg:rgb({r} {g} {b}{alpha})}}');\
@@ -87,14 +101,18 @@ fn create_main_window(app: &tauri::App, cfg: Option<&config::AppConfig>) -> taur
         ));
         // The Windows window is transparent and must stay that way.
         #[cfg(not(target_os = "windows"))]
-        if blur_opacity.is_none() {
+        if blur.is_none() {
             builder = builder.background_color(tauri::window::Color(r, g, b, 255));
         }
     }
     let window = builder.build()?;
-    if let Some(cfg) = blur {
-        window_blur::apply_window_blur(&window, u32::from(cfg.window_blur_radius))?;
+    // The macOS blur is set on the built window; Windows took it above.
+    #[cfg(target_os = "macos")]
+    if blur.is_some() {
+        window_blur::apply_window_blur(&window, blur)?;
     }
+    #[cfg(not(target_os = "macos"))]
+    let _ = window;
     Ok(())
 }
 

@@ -125,11 +125,11 @@ pub struct AppConfig {
     /// created, so a change applies after restart.
     #[serde(default = "default_background_throttling")]
     pub background_throttling: String,
-    /// Blur whatever is behind the window (macOS) and tint it with the theme
-    /// background instead of painting that background solid.
+    /// Blur whatever is behind the window (macOS, Windows) and tint it with
+    /// the theme background instead of painting that background solid.
     #[serde(default)]
     pub window_blur: bool,
-    /// Blur radius in points.
+    /// Blur radius in points (macOS; Windows has no radius).
     #[serde(
         default = "default_window_blur_radius",
         deserialize_with = "deserialize_window_blur_radius"
@@ -141,6 +141,10 @@ pub struct AppConfig {
         deserialize_with = "deserialize_window_opacity_percent"
     )]
     pub window_opacity_percent: u8,
+    /// Windows backdrop: "acrylic" blurs what is behind the window, "mica"
+    /// tints it with the desktop wallpaper (Windows 11).
+    #[serde(default = "default_window_blur_material")]
+    pub window_blur_material: String,
 }
 
 /// User-configurable keyboard shortcut overrides. `bindings` maps action ids
@@ -243,6 +247,10 @@ where
 {
     let value = f64::deserialize(deserializer)?;
     Ok(value.round().clamp(1.0, 60.0) as u8)
+}
+
+fn default_window_blur_material() -> String {
+    "acrylic".to_string()
 }
 
 fn default_window_opacity_percent() -> u8 {
@@ -437,6 +445,7 @@ impl Default for AppConfig {
             window_blur: false,
             window_blur_radius: default_window_blur_radius(),
             window_opacity_percent: default_window_opacity_percent(),
+            window_blur_material: default_window_blur_material(),
         }
     }
 }
@@ -718,5 +727,6 @@ mod tests {
         assert!(!missing.window_blur);
         assert_eq!(missing.window_blur_radius, 20);
         assert_eq!(missing.window_opacity_percent, 70);
+        assert_eq!(missing.window_blur_material, "acrylic");
     }
 }

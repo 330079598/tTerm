@@ -1,6 +1,10 @@
 import { invoke, isTauri } from "@tauri-apps/api/core"
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
-import { getDetectedPlatform } from "@/contexts/ConfigContext"
+import {
+  getDetectedPlatform,
+  isWindowBlurSupported,
+  type WindowBlurMaterial,
+} from "@/contexts/ConfigContext"
 import { getPresetTheme } from "@/lib/themeDefinitions"
 import type { CustomTheme, ThemeColors, Theme as AppTheme } from "@/types/theme"
 import { THEME_COLOR_KEYS } from "@/types/theme"
@@ -137,8 +141,10 @@ export function resolveThemeCache(themeId: string, customThemes: CustomTheme[]):
 
 export interface WindowBlur {
   enabled: boolean
-  /** Blur radius in points. */
+  /** Blur radius in points (macOS). */
   radius: number
+  /** Windows backdrop. */
+  material: WindowBlurMaterial
   /** Opacity of the theme tint over the blur, 0-1. */
   opacity: number
 }
@@ -152,17 +158,17 @@ declare global {
 
 function readLaunchBlur(): WindowBlur {
   const opacity = typeof window === "undefined" ? undefined : window.__TTERM_WINDOW_BLUR__
-  // The backend already applied the configured radius; 0 here only means the
-  // page does not know it until the config loads.
   return typeof opacity === "number"
-    ? { enabled: true, radius: 0, opacity }
-    : { enabled: false, radius: 0, opacity: 1 }
+    ? { enabled: true, radius: 0, material: "acrylic", opacity }
+    : { enabled: false, radius: 0, material: "acrylic", opacity: 1 }
 }
 
 let windowBlur = readLaunchBlur()
+// The backend applied the configured blur at launch; the page only learns the
+// details once the config loads and leaves the native window alone until then.
+let windowBlurKnown = !windowBlur.enabled
 let nativeBackground = ""
-// Radius the native window currently has; null until the page first sets it.
-let nativeBlurRadius: number | null = windowBlur.enabled ? null : 0
+let nativeBlur = windowBlur.enabled ? "" : "off"
 
 function applyWindowBlurToDom(): void {
   const root = document.documentElement
@@ -174,37 +180,65 @@ function applyWindowBlurToDom(): void {
   }
 }
 
-function syncNativeBlurRadius(): void {
-  if (!isTauri() || getDetectedPlatform() !== "macos") return
-  const radius = windowBlur.enabled ? windowBlur.radius : 0
-  if (radius === nativeBlurRadius || (windowBlur.enabled && radius === 0)) return
-  nativeBlurRadius = radius
-  invoke("set_window_blur", { radius }).catch((error: unknown) => {
-    nativeBlurRadius = null
+/**
+ * The theme background as RGB. The theme sets it inline on the body; the
+ * computed color is only a fallback because the blur styles clear it.
+ */
+function readThemeBackground(): [number, number, number] | null {
+  const color =
+    document.body.style.backgroundColor || getComputedStyle(document.body).backgroundColor
+  const match = color.match(/\d+(\.\d+)?/g)
+  if (!match || match.length < 3) return null
+  const [r, g, b] = match.slice(0, 3).map((channel) => Math.round(Number(channel)))
+  return [r, g, b]
+}
+
+function isDarkBackground([r, g, b]: [number, number, number]): boolean {
+  return 0.299 * r + 0.587 * g + 0.114 * b <= 128
+}
+
+/** Windows backdrops follow the window theme, so it tracks the page's. */
+function syncNativeBlur(): void {
+  const detected = getDetectedPlatform()
+  if (!isTauri() || !windowBlurKnown || (detected !== "macos" && detected !== "windows")) return
+  const background = readThemeBackground()
+  const dark = background ? isDarkBackground(background) : true
+  const { enabled, radius, material } = windowBlur
+  const key = !enabled
+    ? "off"
+    : detected === "macos"
+      ? `radius:${radius}`
+      : `${material}:${dark ? "dark" : "light"}`
+  if (key === nativeBlur) return
+  nativeBlur = key
+  invoke("set_window_blur", { enabled, radius, material, dark }).catch((error: unknown) => {
+    nativeBlur = ""
     console.error("[ThemePreloader] Failed to set window blur:", error)
   })
 }
 
 /**
  * Switch the blur behind the window. The page tints it with the theme
- * background at `opacity`; the native window drops its own background so the
- * blur shows through.
+ * background at `opacity`; on macOS the native window drops its own
+ * background so the blur shows through (the Windows window is always clear).
  */
 export function setWindowBlur(next: WindowBlur): void {
-  const enabled = next.enabled && getDetectedPlatform() === "macos"
-  const radius = enabled ? next.radius : 0
-  const opacity = enabled ? next.opacity : 1
-  if (
-    enabled === windowBlur.enabled &&
-    radius === windowBlur.radius &&
-    opacity === windowBlur.opacity
-  ) {
-    return
-  }
-  windowBlur = { enabled, radius, opacity }
+  const enabled = next.enabled && isWindowBlurSupported()
+  const blur: WindowBlur = enabled
+    ? { ...next, enabled }
+    : { enabled: false, radius: 0, material: next.material, opacity: 1 }
+  const unchanged =
+    windowBlurKnown &&
+    blur.enabled === windowBlur.enabled &&
+    blur.radius === windowBlur.radius &&
+    blur.material === windowBlur.material &&
+    blur.opacity === windowBlur.opacity
+  windowBlur = blur
+  windowBlurKnown = true
+  if (unchanged) return
   applyWindowBlurToDom()
   syncNativeBackground()
-  syncNativeBlurRadius()
+  syncNativeBlur()
 }
 
 /**
@@ -217,9 +251,9 @@ export function setWindowBlur(next: WindowBlur): void {
  */
 function syncNativeBackground(): void {
   if (!isTauri()) return
-  const match = getComputedStyle(document.body).backgroundColor.match(/\d+(\.\d+)?/g)
-  if (!match || match.length < 3) return
-  const [r, g, b] = match.slice(0, 3).map((channel) => Math.round(Number(channel)))
+  const background = readThemeBackground()
+  if (!background) return
+  const [r, g, b] = background
   const blur = windowBlur.enabled
   const key = `${r},${g},${b},${blur}`
   if (key === nativeBackground) return
@@ -240,6 +274,7 @@ function syncNativeBackground(): void {
 export function applyThemeToDom(themeCache: ThemeCache): void {
   applyThemeColors(themeCache)
   syncNativeBackground()
+  syncNativeBlur()
 }
 
 function applyThemeColors(themeCache: ThemeCache): void {

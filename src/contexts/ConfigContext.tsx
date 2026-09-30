@@ -36,6 +36,7 @@ export type TerminalLogFormat = "raw" | "plain" | "both"
 export type TerminalRenderer = "webgl" | "canvas"
 /** What WebKit does with the page while the window is hidden (macOS 14+). */
 export type BackgroundThrottling = "throttle" | "disabled" | "suspend"
+export type WindowBlurMaterial = "acrylic" | "mica"
 export type MonitorMetricId =
   "cpu" | "memory" | "network" | "ip" | "latency" | "disk" | "load" | "uptime"
 
@@ -159,10 +160,12 @@ export interface AppConfig {
   sudo_prompt_patterns: string[]
   keymap: KeymapConfig
   background_throttling: BackgroundThrottling
-  /** Blur what is behind the window (macOS), tinted with the theme background. */
+  /** Blur what is behind the window (macOS, Windows), tinted with the theme background. */
   window_blur: boolean
-  /** Blur radius in points. */
+  /** Blur radius in points (macOS). */
   window_blur_radius: number
+  /** Windows backdrop: acrylic blurs what is behind, mica tints with the wallpaper. */
+  window_blur_material: WindowBlurMaterial
   /** Opacity of that tint in percent. */
   window_opacity_percent: number
 }
@@ -225,6 +228,7 @@ const defaultConfig: AppConfig = {
   window_blur: false,
   window_blur_radius: 20,
   window_opacity_percent: 70,
+  window_blur_material: "acrylic",
 }
 
 function normalizeUpdateCheckFrequency(
@@ -346,9 +350,14 @@ function normalizeRoundedInRange(
   return Math.min(Math.max(Math.round(value), range.min), range.max)
 }
 
-/** The blur is only implemented for the macOS window. */
+/** The blur needs the window system's help; Linux leaves it to the compositor. */
+export function isWindowBlurSupported(): boolean {
+  const detected = getDetectedPlatform()
+  return detected === "macos" || detected === "windows"
+}
+
 export function isWindowBlurEnabled(config: Pick<AppConfig, "window_blur">): boolean {
-  return config.window_blur && getDetectedPlatform() === "macos"
+  return config.window_blur && isWindowBlurSupported()
 }
 
 function normalizeConfig(config: Partial<AppConfig>): AppConfig {
@@ -429,6 +438,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
       WINDOW_OPACITY_PERCENT_RANGE,
       70
     ),
+    window_blur_material: config.window_blur_material === "mica" ? "mica" : "acrylic",
   }
 }
 
@@ -522,9 +532,16 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     setWindowBlur({
       enabled: windowBlurEnabled,
       radius: config.window_blur_radius,
+      material: config.window_blur_material,
       opacity: config.window_opacity_percent / 100,
     })
-  }, [config.window_blur_radius, config.window_opacity_percent, isLoaded, windowBlurEnabled])
+  }, [
+    config.window_blur_material,
+    config.window_blur_radius,
+    config.window_opacity_percent,
+    isLoaded,
+    windowBlurEnabled,
+  ])
 
   const refreshSecretStatus = useCallback(async (): Promise<SecretBackendStatus> => {
     try {

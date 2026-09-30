@@ -9,7 +9,7 @@ import {
   Palette,
   Plus,
   RotateCcw,
-  AppWindowMac,
+  AppWindow,
   Trash2,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -26,9 +26,11 @@ import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/Settin
 import {
   applyUiScalePercent,
   getDetectedPlatform,
+  isWindowBlurSupported,
   WINDOW_BLUR_RADIUS_RANGE,
   WINDOW_OPACITY_PERCENT_RANGE,
   type TabWidthMode,
+  type WindowBlurMaterial,
 } from "@/contexts/ConfigContext"
 import { setWindowBlur } from "@/lib/themePreloader"
 import { useSyncedState } from "@/hooks/useSyncedState"
@@ -45,6 +47,7 @@ interface AppearanceSettingsTabProps {
   handleTabWidthModeChange: (mode: TabWidthMode) => Promise<void>
   handleUiScaleChange: (scale: number) => Promise<boolean>
   handleWindowBlurChange: (enabled: boolean) => Promise<boolean>
+  handleWindowBlurMaterialChange: (material: WindowBlurMaterial) => Promise<boolean>
   handleWindowBlurRadiusChange: (radius: number) => Promise<boolean>
   handleWindowOpacityChange: (percent: number) => Promise<boolean>
   presetThemes: PresetTheme[]
@@ -56,6 +59,7 @@ interface AppearanceSettingsTabProps {
   uiScalePercent: number
   windowOpacityPercent: number
   windowBlur: boolean
+  windowBlurMaterial: WindowBlurMaterial
   windowBlurRadius: number
 }
 
@@ -70,6 +74,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
   handleTabWidthModeChange,
   handleUiScaleChange,
   handleWindowBlurChange,
+  handleWindowBlurMaterialChange,
   handleWindowBlurRadiusChange,
   handleWindowOpacityChange,
   presetThemes,
@@ -81,6 +86,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
   uiScalePercent,
   windowOpacityPercent,
   windowBlur,
+  windowBlurMaterial,
   windowBlurRadius,
 }) => {
   const { t } = useTranslation()
@@ -127,11 +133,21 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
 
   const [blurRadiusDraft, setBlurRadiusDraft] = useSyncedState(windowBlurRadius)
   const [opacityDraft, setOpacityDraft] = useSyncedState(windowOpacityPercent)
-  const savedWindowBlurRef = React.useRef({ windowBlur, windowBlurRadius, windowOpacityPercent })
+  const savedWindowBlurRef = React.useRef({
+    windowBlur,
+    windowBlurMaterial,
+    windowBlurRadius,
+    windowOpacityPercent,
+  })
 
   React.useEffect(() => {
-    savedWindowBlurRef.current = { windowBlur, windowBlurRadius, windowOpacityPercent }
-  }, [windowBlur, windowBlurRadius, windowOpacityPercent])
+    savedWindowBlurRef.current = {
+      windowBlur,
+      windowBlurMaterial,
+      windowBlurRadius,
+      windowOpacityPercent,
+    }
+  }, [windowBlur, windowBlurMaterial, windowBlurRadius, windowOpacityPercent])
 
   // Undo a slider preview that was never saved.
   React.useEffect(
@@ -140,6 +156,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
       setWindowBlur({
         enabled: saved.windowBlur,
         radius: saved.windowBlurRadius,
+        material: saved.windowBlurMaterial,
         opacity: saved.windowOpacityPercent / 100,
       })
     },
@@ -150,9 +167,14 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
     (radius: number, opacityPercent: number) => {
       setBlurRadiusDraft(radius)
       setOpacityDraft(opacityPercent)
-      setWindowBlur({ enabled: true, radius, opacity: opacityPercent / 100 })
+      setWindowBlur({
+        enabled: true,
+        radius,
+        material: windowBlurMaterial,
+        opacity: opacityPercent / 100,
+      })
     },
-    [setBlurRadiusDraft, setOpacityDraft]
+    [setBlurRadiusDraft, setOpacityDraft, windowBlurMaterial]
   )
 
   const commitWindowBlurRadius = React.useCallback(async () => {
@@ -469,9 +491,9 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
           </SettingsRow>
         </SettingsSection>
 
-        {getDetectedPlatform() === "macos" && (
+        {isWindowBlurSupported() && (
           <SettingsSection
-            icon={<AppWindowMac size={16} />}
+            icon={<AppWindow size={16} />}
             title={t("settings.window", { defaultValue: "Window" })}
           >
             <SettingsRow
@@ -488,35 +510,63 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
                 />
               }
             />
+            {windowBlur && getDetectedPlatform() === "windows" && (
+              <SettingsRow
+                title={t("settings.windowBlurMaterial", { defaultValue: "Material" })}
+                description={t("settings.windowBlurMaterialDesc", {
+                  defaultValue:
+                    "Acrylic blurs what is behind the window; on Windows 10 and early Windows 11 the window can lag while dragged. Mica tints with the desktop wallpaper instead and needs Windows 11.",
+                })}
+                action={
+                  <Select
+                    aria-label={t("settings.windowBlurMaterial", { defaultValue: "Material" })}
+                    value={windowBlurMaterial}
+                    onChange={(event) =>
+                      void handleWindowBlurMaterialChange(event.target.value as WindowBlurMaterial)
+                    }
+                    className="w-44"
+                  >
+                    <option value="acrylic">
+                      {t("settings.windowBlurMaterialAcrylic", { defaultValue: "Acrylic" })}
+                    </option>
+                    <option value="mica">
+                      {t("settings.windowBlurMaterialMica", { defaultValue: "Mica" })}
+                    </option>
+                  </Select>
+                }
+              />
+            )}
             {windowBlur && (
               <>
-                <SettingsRow
-                  title={t("settings.windowBlurRadius", { defaultValue: "Blur radius" })}
-                  description={t("settings.windowBlurRadiusDesc", {
-                    defaultValue: "Higher values blur the background more.",
-                  })}
-                >
-                  <div className="flex w-full max-w-sm items-center gap-3">
-                    <input
-                      type="range"
-                      min={WINDOW_BLUR_RADIUS_RANGE.min}
-                      max={WINDOW_BLUR_RADIUS_RANGE.max}
-                      step={1}
-                      value={blurRadiusDraft}
-                      aria-label={t("settings.windowBlurRadius", { defaultValue: "Blur radius" })}
-                      onChange={(event) =>
-                        previewWindowBlur(Number(event.target.value), opacityDraft)
-                      }
-                      onPointerUp={() => void commitWindowBlurRadius()}
-                      onKeyUp={() => void commitWindowBlurRadius()}
-                      onBlur={() => void commitWindowBlurRadius()}
-                      className="accent-primary min-w-0 flex-1 cursor-pointer"
-                    />
-                    <output className="w-12 text-right text-sm font-medium" aria-live="polite">
-                      {blurRadiusDraft}
-                    </output>
-                  </div>
-                </SettingsRow>
+                {getDetectedPlatform() === "macos" && (
+                  <SettingsRow
+                    title={t("settings.windowBlurRadius", { defaultValue: "Blur radius" })}
+                    description={t("settings.windowBlurRadiusDesc", {
+                      defaultValue: "Higher values blur the background more.",
+                    })}
+                  >
+                    <div className="flex w-full max-w-sm items-center gap-3">
+                      <input
+                        type="range"
+                        min={WINDOW_BLUR_RADIUS_RANGE.min}
+                        max={WINDOW_BLUR_RADIUS_RANGE.max}
+                        step={1}
+                        value={blurRadiusDraft}
+                        aria-label={t("settings.windowBlurRadius", { defaultValue: "Blur radius" })}
+                        onChange={(event) =>
+                          previewWindowBlur(Number(event.target.value), opacityDraft)
+                        }
+                        onPointerUp={() => void commitWindowBlurRadius()}
+                        onKeyUp={() => void commitWindowBlurRadius()}
+                        onBlur={() => void commitWindowBlurRadius()}
+                        className="accent-primary min-w-0 flex-1 cursor-pointer"
+                      />
+                      <output className="w-12 text-right text-sm font-medium" aria-live="polite">
+                        {blurRadiusDraft}
+                      </output>
+                    </div>
+                  </SettingsRow>
+                )}
                 <SettingsRow
                   title={t("settings.windowOpacity", { defaultValue: "Background opacity" })}
                   description={t("settings.windowOpacityDesc", {
