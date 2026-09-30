@@ -886,6 +886,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
         <div
           ref={containerRef}
+          className="terminal-host"
           data-allow-context-menu
           onMouseDown={() => {
             termRef.current?.focus()

@@ -591,7 +591,7 @@ export const TunnelsPanel: React.FC<TunnelsPanelProps> = ({ profilesRefreshKey }
   const runningCount = rules.filter((rule) => statuses[rule.id]?.state === "running").length
 
   return (
-    <section className="bg-background flex h-full min-h-0 flex-col">
+    <section className="flex h-full min-h-0 flex-col">
       <header className="border-border/80 flex items-start justify-between gap-4 border-b px-6 py-4">
         <div className="min-w-0">
           <h2 className="text-base font-semibold tracking-[-0.02em]">

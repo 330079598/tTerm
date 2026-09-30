@@ -1,9 +1,9 @@
 /* Blur behind the window (macOS, `html.window-blur`). Each surface paints its
    own theme color over the blur instead of one tint for the whole window. The
    title bar and the content area are siblings and tint the blur directly;
-   chips and headers inside them sit on an already tinted parent and use their
-   opacity as an overlay. Layers that would repaint their parent's color go
-   clear. Dialogs, menus and overlays stay opaque for legibility.
+   chips, cards and headers inside them sit on an already tinted parent and use
+   their opacity as an overlay. Layers that would repaint their parent's color
+   go clear. Dialogs and menus stay opaque for legibility.
 
    Bars sit halfway between the content opacity and opaque. At one shared
    opacity the bars' contrast with the content shrinks with it, and at low
@@ -30,11 +30,40 @@ html.window-blur .content-area {
 }
 
 html.window-blur .terminal-tab-shell,
+html.window-blur .server-monitor-panel,
+html.window-blur .remote-file-editor,
+html.window-blur .remote-file-editor-code,
+html.window-blur .remote-file-editor .cm-editor,
 html.window-blur .workspace-panel,
 html.window-blur .workspace-dock .dv-dockview,
 html.window-blur .workspace-dock .dv-groupview,
 html.window-blur .xterm .xterm-viewport {
   background: transparent;
+}
+
+/* Cards on the settings and tunnels pages. */
+html.window-blur .workspace-panel .bg-card {
+  background-color: hsl(var(--card) / var(--window-opacity));
+}
+
+/* The SFTP drawer lies over the terminal. The terminal is cut away beneath it
+   (the drawer starts 5% down the terminal surface, bottom padding included) so
+   the drawer shows the blur instead of the terminal's text. */
+html.window-blur .sftp-drawer {
+  background: transparent;
+}
+
+html.window-blur .sftp-drawer-header {
+  background: hsl(var(--card) / var(--window-opacity));
+}
+
+html.window-blur .sftp-drawer.is-open ~ .terminal-host {
+  clip-path: inset(0 0 calc(95% - 0.05 * var(--terminal-padding-bottom, 0px)) 0);
+}
+
+/* The floating pin button would show through the drawer's header. */
+html.window-blur .terminal-tab-shell:has(.sftp-drawer.is-open) .connection-header-restore {
+  visibility: hidden;
 }
 
 html.window-blur .workspace-dock {
@@ -56,7 +85,9 @@ html.window-blur .workspace-dock {
   );
 }
 
-html.window-blur .workspace-dock .dv-tabs-and-actions-container {
+html.window-blur .workspace-dock .dv-tabs-and-actions-container,
+html.window-blur .server-monitor-bar,
+html.window-blur .server-monitor-panel-header {
   background-color: hsl(var(--titlebar) / var(--window-bar-opacity));
 }
 

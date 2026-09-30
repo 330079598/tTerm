@@ -568,7 +568,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   return (
     <>
-      <div className={cn("bg-background flex h-full min-h-0 flex-col", className)}>
+      <div className={cn("flex h-full min-h-0 flex-col", className)}>
         <DialogHeader className="border-border border-b px-6 pt-6 pb-4">
           <DialogTitle className="flex items-center gap-2">
             <Settings size={18} />

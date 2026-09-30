@@ -320,7 +320,7 @@
   min-height: 26px;
   max-height: 26px;
   border-top: 1px solid hsl(var(--border) / 0.72);
-  background: hsl(var(--card) / 0.82);
+  background: hsl(var(--titlebar));
   color: hsl(var(--muted-foreground));
   flex-shrink: 0;
   font-size: calc(11px * var(--ui-font-scale, 1));
@@ -729,6 +729,7 @@ button.server-monitor-metric.is-clickable:focus-visible {
   justify-content: space-between;
   padding: 5px 8px 0;
   border-bottom: 1px solid hsl(var(--border) / 0.72);
+  background: hsl(var(--titlebar));
 }
 
 .server-monitor-panel-header::before {
