@@ -3,6 +3,7 @@ import { open as openFileDialog } from "@tauri-apps/plugin-dialog"
 import { Plus, Route, Server, Trash2, ArrowDown, ArrowUp } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { AuthMethodPicker } from "@/components/ConnectionDialog/AuthMethodPicker"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -11,7 +12,6 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
-import { cn } from "@/lib/utils"
 
 import {
   ConnectionForm,
@@ -325,47 +325,10 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                 )}
               </div>
 
-              <div>
-                <Label className="mb-1.5 block">{t("ssh.authMethod")}</Label>
-                <div className="flex gap-2" aria-label={t("ssh.authMethod")}>
-                  <Button
-                    type="button"
-                    variant={jump.authMethod === "password" ? "default" : "outline"}
-                    className={cn(
-                      "flex-1",
-                      jump.authMethod === "password" ? "shadow-none" : "text-muted-foreground"
-                    )}
-                    onClick={() => updateJumpHost(setForm, jump.id, { authMethod: "password" })}
-                    aria-pressed={jump.authMethod === "password"}
-                  >
-                    {t("ssh.password")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={jump.authMethod === "key" ? "default" : "outline"}
-                    className={cn(
-                      "flex-1",
-                      jump.authMethod === "key" ? "shadow-none" : "text-muted-foreground"
-                    )}
-                    onClick={() => updateJumpHost(setForm, jump.id, { authMethod: "key" })}
-                    aria-pressed={jump.authMethod === "key"}
-                  >
-                    {t("ssh.sshKey")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={jump.authMethod === "agent" ? "default" : "outline"}
-                    className={cn(
-                      "flex-1",
-                      jump.authMethod === "agent" ? "shadow-none" : "text-muted-foreground"
-                    )}
-                    onClick={() => updateJumpHost(setForm, jump.id, { authMethod: "agent" })}
-                    aria-pressed={jump.authMethod === "agent"}
-                  >
-                    {t("ssh.sshAgent")}
-                  </Button>
-                </div>
-              </div>
+              <AuthMethodPicker
+                value={jump.authMethod}
+                onChange={(authMethod) => updateJumpHost(setForm, jump.id, { authMethod })}
+              />
 
               {jump.authMethod === "password" && (
                 <div>
@@ -497,6 +460,12 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
               {jump.authMethod === "agent" && (
                 <p className="text-muted-foreground rounded-md border px-3 py-2 text-xs">
                   {t("ssh.sshAgentHint")}
+                </p>
+              )}
+
+              {jump.authMethod === "interactive" && (
+                <p className="text-muted-foreground rounded-md border px-3 py-2 text-xs">
+                  {t("ssh.interactiveHint")}
                 </p>
               )}
             </div>

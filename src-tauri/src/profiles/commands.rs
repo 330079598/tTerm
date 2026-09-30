@@ -416,7 +416,7 @@ pub async fn test_connection(
                 host: j.host,
                 port: j.port,
                 username: j.username,
-                password: if j.auth_method == "agent" {
+                password: if matches!(j.auth_method.as_str(), "agent" | "interactive") {
                     None
                 } else {
                     j.password
@@ -432,6 +432,7 @@ pub async fn test_connection(
                     None
                 },
                 use_agent: j.auth_method == "agent",
+                keyboard_interactive: j.auth_method == "interactive",
             })
             .collect::<Vec<_>>()
     } else {
@@ -445,7 +446,10 @@ pub async fn test_connection(
         host: Some(host.clone()),
         port,
         username: Some(username.clone()),
-        password: if profile.auth_method.as_deref() == Some("agent") {
+        password: if matches!(
+            profile.auth_method.as_deref(),
+            Some("agent" | "interactive")
+        ) {
             None
         } else {
             profile.password.clone()
@@ -459,6 +463,7 @@ pub async fn test_connection(
         },
         private_key_passphrase: profile.private_key_passphrase.clone(),
         use_agent: profile.auth_method.as_deref() == Some("agent"),
+        keyboard_interactive: profile.auth_method.as_deref() == Some("interactive"),
         agent_forward: false,
         terminal_shell: None,
         keepalive_interval_secs: profile.keepalive_interval_secs as u16,
@@ -469,6 +474,8 @@ pub async fn test_connection(
     };
 
     let test_tab_id = format!("test-{}", profile.id);
+    // The connection dialog listens on the test tab id while the test runs.
+    let auth_prompter = crate::ssh::AuthPrompter::tab(&app, &test_tab_id);
     crate::core::session::resolve_ssh_password(&app, &secret_state, &mut plan)?;
 
     crate::ssh::emit_connection_progress(
@@ -509,6 +516,7 @@ pub async fn test_connection(
             prompt_state.inner().clone(),
             ConnectionStatusOptions::SILENT,
             HostKeyVerificationMode::TrustUnknownForSession,
+            &auth_prompter,
         )
         .await?;
 
@@ -524,27 +532,28 @@ pub async fn test_connection(
             .username(username.clone()),
         );
 
-        let auth_result =
-            authenticate_test_connection(&mut target_session, &username, &plan).await?;
-
-        match auth_result {
-            russh::client::AuthResult::Success => {
-                network_latency_ms = crate::ssh::measure_ssh_latency(&target_session).await.ok();
-                crate::ssh::emit_connection_progress(
-                    &app,
-                    &test_tab_id,
-                    ConnectionStatusOptions::SILENT,
-                    SshConnectionProgressPayload::new(
-                        "ready",
-                        format!("Successfully connected to {}@{}:{}", username, host, port),
-                    )
-                    .host(host.clone(), port)
-                    .username(username.clone())
-                    .network_latency(network_latency_ms),
-                );
-            }
-            _ => return Err("Authentication failed".to_string()),
-        }
+        authenticate_test_connection(
+            &mut target_session,
+            &host,
+            port,
+            &username,
+            &plan,
+            &auth_prompter,
+        )
+        .await?;
+        network_latency_ms = crate::ssh::measure_ssh_latency(&target_session).await.ok();
+        crate::ssh::emit_connection_progress(
+            &app,
+            &test_tab_id,
+            ConnectionStatusOptions::SILENT,
+            SshConnectionProgressPayload::new(
+                "ready",
+                format!("Successfully connected to {}@{}:{}", username, host, port),
+            )
+            .host(host.clone(), port)
+            .username(username.clone())
+            .network_latency(network_latency_ms),
+        );
 
         let _ = target_session
             .disconnect(russh::Disconnect::ByApplication, "", "")
@@ -602,26 +611,21 @@ pub async fn test_connection(
             .username(username.clone()),
         );
 
-        let auth_result = authenticate_test_connection(&mut session, &username, &plan).await?;
-
-        match auth_result {
-            russh::client::AuthResult::Success => {
-                network_latency_ms = crate::ssh::measure_ssh_latency(&session).await.ok();
-                crate::ssh::emit_connection_progress(
-                    &app,
-                    &test_tab_id,
-                    ConnectionStatusOptions::SILENT,
-                    SshConnectionProgressPayload::new(
-                        "ready",
-                        format!("Successfully connected to {}@{}:{}", username, host, port),
-                    )
-                    .host(host.clone(), port)
-                    .username(username.clone())
-                    .network_latency(network_latency_ms),
-                );
-            }
-            _ => return Err("Authentication failed".to_string()),
-        }
+        authenticate_test_connection(&mut session, &host, port, &username, &plan, &auth_prompter)
+            .await?;
+        network_latency_ms = crate::ssh::measure_ssh_latency(&session).await.ok();
+        crate::ssh::emit_connection_progress(
+            &app,
+            &test_tab_id,
+            ConnectionStatusOptions::SILENT,
+            SshConnectionProgressPayload::new(
+                "ready",
+                format!("Successfully connected to {}@{}:{}", username, host, port),
+            )
+            .host(host.clone(), port)
+            .username(username.clone())
+            .network_latency(network_latency_ms),
+        );
 
         session
             .disconnect(russh::Disconnect::ByApplication, "", "")
@@ -664,35 +668,29 @@ fn test_connection_handler(
 
 async fn authenticate_test_connection<H: russh::client::Handler>(
     session: &mut russh::client::Handle<H>,
+    host: &str,
+    port: u16,
     username: &str,
     plan: &crate::core::session::SessionPlan,
-) -> Result<russh::client::AuthResult, String> {
-    if plan.use_agent {
-        return crate::ssh::agent::authenticate_via_agent(session, username)
-            .await
-            .map(|_| russh::client::AuthResult::Success)
-            .map_err(|e| e.to_string());
-    }
-
-    if let Some(key_path) = &plan.private_key_path {
-        let key = crate::ssh::key_file::load_private_key(
-            key_path,
+    auth_prompter: &crate::ssh::AuthPrompter,
+) -> Result<(), String> {
+    crate::ssh::auth::authenticate(
+        session,
+        &crate::ssh::auth::AuthTarget {
+            host,
+            port,
+            username,
+            hop: None,
+        },
+        crate::ssh::auth::AuthMethod::from_plan(
+            plan.use_agent,
+            plan.keyboard_interactive,
+            plan.private_key_path.as_deref(),
             plan.private_key_passphrase.as_deref(),
-            "SSH key",
-        )?;
-
-        session
-            .authenticate_publickey(
-                username,
-                russh::keys::PrivateKeyWithHashAlg::new(std::sync::Arc::new(key), None),
-            )
-            .await
-            .map_err(|e| format!("Authentication failed: {}", e))
-    } else {
-        let password = plan.password.as_deref().ok_or("Password is required")?;
-        session
-            .authenticate_password(username, password)
-            .await
-            .map_err(|e| format!("Authentication failed: {}", e))
-    }
+            plan.password.as_deref(),
+        ),
+        auth_prompter,
+    )
+    .await
+    .map_err(String::from)
 }

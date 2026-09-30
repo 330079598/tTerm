@@ -10,6 +10,7 @@ import { ContextMenu } from "@/components/ContextMenu"
 import { SftpDrawer } from "@/components/SftpDrawer"
 import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
+import { SshAuthPromptDialog } from "@/components/TerminalTab/SshAuthPromptDialog"
 import { JumpHostInfoDialog } from "@/components/TerminalTab/JumpHostInfoDialog"
 import { SavedPasswordPromptBar } from "@/components/TerminalTab/SavedPasswordPromptBar"
 import { ServerMonitorBar } from "@/components/TerminalTab/ServerMonitorBar"
@@ -924,6 +925,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         )}
 
         <HostKeyPromptDialog hostKeyPrompt={hostKeyPrompt} setHostKeyPrompt={setHostKeyPrompt} />
+        <SshAuthPromptDialog tabId={tabId} />
         <JumpHostInfoDialog
           connection={connection}
           dontShowAgain={dontShowJumpHostInfoAgain}

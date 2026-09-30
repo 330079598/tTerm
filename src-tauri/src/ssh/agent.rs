@@ -4,7 +4,7 @@
 //! up hardware-backed keys (YubiKey, FIDO2/`sk-*`, PIV) transparently,
 //! since the agent process handles PIN/touch prompts itself.
 
-use russh::client;
+use russh::client::{self, AuthResult};
 use russh::keys::agent::client::AgentClient;
 
 use crate::ssh::types::SshConnectError;
@@ -84,7 +84,9 @@ const EMPTY_AGENT_MESSAGE: &str = "The SSH agent has no keys loaded. Add one wit
 `ssh-add ~/.ssh/<key>`, or switch this host to key-file authentication.";
 
 /// Authenticate `session` as `username` by trying every identity held by the
-/// local SSH agent, in order, until one is accepted.
+/// local SSH agent, in order, until one is accepted. The result is a failure
+/// with `partial_success` when the server took a key but wants another
+/// method on top of it.
 ///
 /// Signing can involve a hardware touch/PIN prompt handled by the agent
 /// itself, so each attempt gets a generous timeout rather than the shorter
@@ -92,7 +94,7 @@ const EMPTY_AGENT_MESSAGE: &str = "The SSH agent has no keys loaded. Add one wit
 pub async fn authenticate_via_agent<H>(
     session: &mut client::Handle<H>,
     username: &str,
-) -> Result<(), SshConnectError>
+) -> Result<AuthResult, SshConnectError>
 where
     H: client::Handler,
 {
@@ -130,7 +132,13 @@ where
         .await;
 
         match attempt {
-            Ok(Ok(result)) if result.success() => return Ok(()),
+            Ok(Ok(
+                result @ (AuthResult::Success
+                | AuthResult::Failure {
+                    partial_success: true,
+                    ..
+                }),
+            )) => return Ok(result),
             _ => continue,
         }
     }

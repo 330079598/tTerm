@@ -76,6 +76,8 @@ pub struct JumpHostPlan {
     pub private_key_passphrase: Option<String>,
     /// Authenticate through the local SSH agent instead of a password or key file.
     pub use_agent: bool,
+    /// Authenticate by answering the server's prompts; nothing is stored.
+    pub keyboard_interactive: bool,
 }
 
 pub fn jump_host_secret_key(profile_id: Option<&str>, profile_name: &str) -> String {
@@ -119,8 +121,7 @@ pub struct PtyConnectionOptions {
     pub private_key_passphrase: Option<String>,
     #[serde(default, alias = "authMethod")]
     pub auth_method: Option<String>,
-    /// Forward the local SSH agent to the target host (only meaningful with
-    /// `auth_method == "agent"`).
+    /// Forward the local SSH agent to the target host, whatever `auth_method` is.
     #[serde(default, alias = "agentForward")]
     pub agent_forward: bool,
     /// Ordered jump host chain to tunnel through before reaching the target.
@@ -267,10 +268,12 @@ pub struct SessionPlan {
     pub private_key_passphrase: Option<String>,
     /// Authenticate through the local SSH agent instead of a password or key file.
     pub use_agent: bool,
+    /// Authenticate by answering the server's prompts; nothing is stored.
+    pub keyboard_interactive: bool,
     /// Forward the local SSH agent to the target host so the user's keys can
-    /// be used for further SSH hops from there. Only meaningful with
-    /// `use_agent`; the target's `SshClientHandler` only bridges a
-    /// server-opened forwarding channel when this is set.
+    /// be used for further SSH hops from there, whatever the auth method.
+    /// The target's `SshClientHandler` only bridges a server-opened
+    /// forwarding channel when this is set.
     pub agent_forward: bool,
     pub terminal_shell: Option<TerminalShellConfig>,
     /// Ordered resolved jump host chain; empty means direct connection.

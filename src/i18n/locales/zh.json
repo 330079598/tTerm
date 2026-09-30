@@ -815,6 +815,7 @@
     "localBadge": "本地",
     "authMethodKey": "密钥认证",
     "authMethodAgent": "Agent 认证",
+    "authMethodInteractive": "键盘交互认证",
     "authMethodPassword": "密码认证",
     "portDisplay": "端口 {{port}}",
     "connectionDetailsUnavailable": "连接信息不可用",
@@ -1143,11 +1144,21 @@
     "sshKey": "SSH 密钥",
     "sshAgent": "SSH Agent",
     "sshAgentHint": "使用本机 SSH Agent（ssh-add）中已加载的密钥登录，包括 YubiKey、FIDO2 安全密钥等硬件密钥。",
+    "interactive": "键盘交互",
+    "interactiveHint": "不保存任何凭据。连接时服务器问什么，tTerm 就弹窗问你什么：密码、动态口令、MFA 验证码等。适用于只接受键盘交互登录的主机；如果只是在已保存的密码或密钥之后再要一个验证码，用原来的方式即可。",
     "agentForward": "转发 SSH Agent",
     "agentForwardDesc": "让本机 SSH Agent 中的密钥在这台主机上也可用，便于从这里继续跳转到其他服务器而无需复制密钥。转发的是本机 Agent（SSH_AUTH_SOCK），与上面选择的认证方式无关。请仅在你信任的主机上启用。",
     "privateKeyPath": "私钥路径",
     "privateKeyPassphrase": "密码短语（可选）",
-    "browseKey": "浏览"
+    "browseKey": "浏览",
+    "authPrompt": {
+      "title": "需要验证身份",
+      "jumpHost": "跳板机 #{{index}} · {{endpoint}}",
+      "password": "密码",
+      "response": "回答",
+      "hint": "填写的内容只会发送给服务器，不会保存。",
+      "submit": "继续"
+    }
   },
   "jumpHost": {
     "enable": "通过跳板机（堡垒机）连接",
@@ -1547,6 +1558,7 @@
     "hop": "跳板机 #{{index}}",
     "keyAuth": "密钥认证",
     "agentAuth": "Agent 认证",
+    "interactiveAuth": "键盘交互认证",
     "passwordAuth": "密码认证",
     "privateKey": "私钥",
     "target": "目标主机",

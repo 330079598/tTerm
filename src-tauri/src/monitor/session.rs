@@ -4,9 +4,48 @@ use crate::core::session::SessionPlan;
 use crate::core::state::HostPromptMap;
 use crate::ssh::{open_target_ssh_session, ConnectionStatusOptions};
 use russh::ChannelMsg;
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, LazyLock};
 use tokio::sync::Mutex;
 use tokio::time::Instant;
+
+/// A monitor connection that was refused for a reason retrying cannot fix:
+/// rejected credentials, a prompt nobody can answer, a rejected host key.
+struct RefusedConnection {
+    session_nonce: u32,
+    fingerprint: String,
+    message: String,
+}
+
+/// Refusals by tab id. The status bar polls every few seconds, and without
+/// this each poll would be another failed login on the server; enough of
+/// those get the user's address banned. An entry lasts until the tab's
+/// monitor session is released (reconnect, profile change, bar hidden).
+static REFUSED: LazyLock<std::sync::Mutex<HashMap<String, RefusedConnection>>> =
+    LazyLock::new(Default::default);
+
+fn refused() -> std::sync::MutexGuard<'static, HashMap<String, RefusedConnection>> {
+    REFUSED.lock().unwrap_or_else(|poison| poison.into_inner())
+}
+
+/// The remembered refusal for exactly this connection, if any.
+fn remembered_refusal(tab_id: &str, session_nonce: u32, fingerprint: &str) -> Option<String> {
+    refused()
+        .get(tab_id)
+        .filter(|entry| entry.session_nonce == session_nonce && entry.fingerprint == fingerprint)
+        .map(|entry| entry.message.clone())
+}
+
+fn remember_refusal(tab_id: &str, session_nonce: u32, fingerprint: &str, message: &str) {
+    refused().insert(
+        tab_id.to_string(),
+        RefusedConnection {
+            session_nonce,
+            fingerprint: fingerprint.to_string(),
+            message: message.to_string(),
+        },
+    );
+}
 
 pub(crate) fn monitor_connection_fingerprint(plan: &SessionPlan) -> Result<String, String> {
     let host = plan
@@ -55,6 +94,18 @@ pub(crate) async fn get_or_open_monitor_session(
     prompts: HostPromptMap,
     monitor_sessions: MonitorSessionMap,
 ) -> Result<Arc<Mutex<MonitorSession>>, String> {
+    if let Some(message) = remembered_refusal(tab_id, session_nonce, fingerprint) {
+        return Err(message);
+    }
+    if plan.keyboard_interactive || plan.jump_hosts.iter().any(|jump| jump.keyboard_interactive) {
+        // Known up front, so not even one login attempt is spent on it.
+        return Err(
+            "Monitoring needs its own SSH connection, and this host's interactive login \
+             cannot be answered in the background"
+                .to_string(),
+        );
+    }
+
     let existing_session = {
         let sessions = monitor_sessions.lock().await;
         sessions.get(tab_id).cloned()
@@ -98,6 +149,7 @@ pub(crate) async fn get_or_open_monitor_session(
         plan.private_key_passphrase.as_deref(),
         plan.password.as_deref(),
         plan.use_agent,
+        plan.keyboard_interactive,
         plan.agent_forward,
         plan.keepalive_interval_secs,
         plan.keepalive_count_max,
@@ -105,8 +157,16 @@ pub(crate) async fn get_or_open_monitor_session(
         prompts,
         ConnectionStatusOptions::QUIET,
         crate::ssh::HostKeyVerificationMode::PromptAndPersist,
+        // Monitoring starts on its own; a prompt would appear out of nowhere.
+        &crate::ssh::AuthPrompter::Unavailable,
     )
-    .await?;
+    .await
+    .map_err(|error| {
+        if !error.is_retryable() {
+            remember_refusal(tab_id, session_nonce, fingerprint, error.message());
+        }
+        String::from(error)
+    })?;
 
     let cached_session = Arc::new(Mutex::new(MonitorSession {
         session_nonce,
@@ -269,6 +329,7 @@ pub(crate) async fn release_monitor_session_inner(
     session_nonce: Option<u32>,
     reason: &'static str,
 ) {
+    refused().remove(tab_id);
     let session = {
         let mut sessions = monitor_sessions.lock().await;
         sessions.remove(tab_id)
@@ -309,5 +370,28 @@ async fn close_monitor_session(session: Option<Arc<Mutex<MonitorSession>>>, reas
             eprintln!("Failed to disconnect monitor session ({reason}): {err}");
         }
         drop(session.jump_chain.take());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{refused, remember_refusal, remembered_refusal};
+
+    #[test]
+    fn a_refusal_is_remembered_for_the_same_connection_only() {
+        let tab_id = "monitor-refusal-test-tab";
+        remember_refusal(tab_id, 3, "fingerprint", "SSH authentication failed");
+
+        assert_eq!(
+            remembered_refusal(tab_id, 3, "fingerprint").as_deref(),
+            Some("SSH authentication failed")
+        );
+        // A reconnect (new nonce) or an edited profile gets a fresh attempt.
+        assert_eq!(remembered_refusal(tab_id, 4, "fingerprint"), None);
+        assert_eq!(remembered_refusal(tab_id, 3, "other"), None);
+        assert_eq!(remembered_refusal("another-tab", 3, "fingerprint"), None);
+
+        refused().remove(tab_id);
+        assert_eq!(remembered_refusal(tab_id, 3, "fingerprint"), None);
     }
 }

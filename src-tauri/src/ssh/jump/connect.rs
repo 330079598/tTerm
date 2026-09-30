@@ -2,80 +2,44 @@ use super::config::compatibility_client_config;
 use super::handler::JumpHostHandler;
 use crate::core::session::JumpHostPlan;
 use crate::core::state::HostPromptMap;
+use crate::ssh::auth::{authenticate, AuthMethod, AuthPrompter, AuthTarget};
 use crate::ssh::types::{
     emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode, SshClientHandler,
     SshConnectError, SshConnectionProgressPayload,
 };
-use russh::keys::PrivateKeyWithHashAlg;
 use russh::{client, Disconnect};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
-/// Authenticate a russh session using either a private key or a password.
-///
-/// Every failure here is classified [`SshConnectError::Permanent`]: bad
-/// credentials or an unusable key cannot be fixed by retrying.
-async fn authenticate_session(
+/// Authenticates one hop of the chain with its configured method.
+async fn authenticate_jump_host(
     session: &mut client::Handle<JumpHostHandler>,
-    username: &str,
-    private_key_path: Option<&str>,
-    private_key_passphrase: Option<&str>,
-    password: Option<&str>,
-    use_agent: bool,
+    jump_plan: &JumpHostPlan,
+    hop_index: usize,
+    total_hops: usize,
+    auth_prompter: &AuthPrompter,
 ) -> Result<(), SshConnectError> {
-    const AUTH_TIMEOUT: Duration = Duration::from_secs(30);
-
-    if use_agent {
-        return crate::ssh::agent::authenticate_via_agent(session, username).await;
-    }
-
-    let auth_result = if let Some(key_path) = private_key_path {
-        let key_pair = crate::ssh::key_file::load_private_key(
-            key_path,
-            private_key_passphrase,
-            "Jump host SSH key",
-        )
-        .map_err(SshConnectError::Permanent)?;
-
-        tokio::time::timeout(
-            AUTH_TIMEOUT,
-            session.authenticate_publickey(
-                username,
-                PrivateKeyWithHashAlg::new(Arc::new(key_pair), None),
-            ),
-        )
-        .await
-        .map_err(|_| {
-            SshConnectError::Permanent("Jump host key authentication timed out".to_string())
-        })?
-        .map_err(|e| {
-            SshConnectError::Permanent(format!("Jump host key authentication failed: {e}"))
-        })?
-    } else {
-        let pw = password.ok_or_else(|| {
-            SshConnectError::Permanent("Jump host password is required".to_string())
-        })?;
-        tokio::time::timeout(AUTH_TIMEOUT, session.authenticate_password(username, pw))
-            .await
-            .map_err(|_| {
-                SshConnectError::Permanent(
-                    "Jump host password authentication timed out".to_string(),
-                )
-            })?
-            .map_err(|e| {
-                SshConnectError::Permanent(format!("Jump host password authentication failed: {e}"))
-            })?
-    };
-
-    if !auth_result.success() {
-        return Err(SshConnectError::Permanent(
-            "Jump host authentication failed".to_string(),
-        ));
-    }
-
-    Ok(())
+    authenticate(
+        session,
+        &AuthTarget {
+            host: &jump_plan.host,
+            port: jump_plan.port,
+            username: &jump_plan.username,
+            hop: Some((hop_index, total_hops)),
+        },
+        AuthMethod::from_plan(
+            jump_plan.use_agent,
+            jump_plan.keyboard_interactive,
+            jump_plan.private_key_path.as_deref(),
+            jump_plan.private_key_passphrase.as_deref(),
+            jump_plan.password.as_deref(),
+        ),
+        auth_prompter,
+    )
+    .await
+    .map_err(|e| e.with_prefix(&format!("Jump host #{hop_index}: ")))
 }
 
 fn format_jump_host_connect_error(error: &russh::Error) -> String {
@@ -145,6 +109,7 @@ async fn connect_jump_direct(
     prompts: HostPromptMap,
     status_options: ConnectionStatusOptions,
     host_key_verification_mode: HostKeyVerificationMode,
+    auth_prompter: &AuthPrompter,
 ) -> Result<client::Handle<JumpHostHandler>, SshConnectError> {
     let jump_handler = build_jump_handler(
         app,
@@ -211,16 +176,14 @@ async fn connect_jump_direct(
         .hop(hop_index, total_hops),
     );
 
-    authenticate_session(
+    authenticate_jump_host(
         &mut session,
-        &jump_plan.username,
-        jump_plan.private_key_path.as_deref(),
-        jump_plan.private_key_passphrase.as_deref(),
-        jump_plan.password.as_deref(),
-        jump_plan.use_agent,
+        jump_plan,
+        hop_index,
+        total_hops,
+        auth_prompter,
     )
-    .await
-    .map_err(|e| e.with_prefix(&format!("Jump host #{hop_index}: ")))?;
+    .await?;
 
     emit_connection_progress(
         app,
@@ -248,6 +211,7 @@ async fn connect_jump_over_stream<S>(
     prompts: HostPromptMap,
     status_options: ConnectionStatusOptions,
     host_key_verification_mode: HostKeyVerificationMode,
+    auth_prompter: &AuthPrompter,
 ) -> Result<client::Handle<JumpHostHandler>, SshConnectError>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
@@ -313,16 +277,14 @@ where
         .hop(hop_index, total_hops),
     );
 
-    authenticate_session(
+    authenticate_jump_host(
         &mut session,
-        &jump_plan.username,
-        jump_plan.private_key_path.as_deref(),
-        jump_plan.private_key_passphrase.as_deref(),
-        jump_plan.password.as_deref(),
-        jump_plan.use_agent,
+        jump_plan,
+        hop_index,
+        total_hops,
+        auth_prompter,
     )
-    .await
-    .map_err(|e| e.with_prefix(&format!("Jump host #{hop_index}: ")))?;
+    .await?;
 
     emit_connection_progress(
         app,
@@ -365,6 +327,7 @@ pub async fn connect_via_jump_chain<H>(
     prompts: HostPromptMap,
     status_options: ConnectionStatusOptions,
     host_key_verification_mode: HostKeyVerificationMode,
+    auth_prompter: &AuthPrompter,
 ) -> Result<(JumpChain, client::Handle<H>), SshConnectError>
 where
     H: client::Handler + Send + 'static,
@@ -388,6 +351,7 @@ where
         prompts.clone(),
         status_options,
         host_key_verification_mode,
+        auth_prompter,
     )
     .await?;
     sessions.push(first);
@@ -447,6 +411,7 @@ where
             prompts.clone(),
             status_options,
             host_key_verification_mode,
+            auth_prompter,
         )
         .await?;
         sessions.push(next);
@@ -527,6 +492,7 @@ pub async fn open_target_ssh_session(
     target_private_key_passphrase: Option<&str>,
     target_password: Option<&str>,
     target_use_agent: bool,
+    target_keyboard_interactive: bool,
     target_agent_forward: bool,
     keepalive_interval_secs: u16,
     keepalive_count_max: u16,
@@ -534,6 +500,7 @@ pub async fn open_target_ssh_session(
     prompts: HostPromptMap,
     status_options: ConnectionStatusOptions,
     host_key_verification_mode: HostKeyVerificationMode,
+    auth_prompter: &AuthPrompter,
 ) -> Result<(Option<JumpChain>, client::Handle<SshClientHandler>), SshConnectError> {
     open_target_ssh_session_with_forwarding(
         app,
@@ -547,6 +514,7 @@ pub async fn open_target_ssh_session(
         target_private_key_passphrase,
         target_password,
         target_use_agent,
+        target_keyboard_interactive,
         target_agent_forward,
         keepalive_interval_secs,
         keepalive_count_max,
@@ -554,6 +522,7 @@ pub async fn open_target_ssh_session(
         prompts,
         status_options,
         host_key_verification_mode,
+        auth_prompter,
         None,
     )
     .await
@@ -571,6 +540,7 @@ pub async fn open_target_ssh_session_with_forwarding(
     target_private_key_passphrase: Option<&str>,
     target_password: Option<&str>,
     target_use_agent: bool,
+    target_keyboard_interactive: bool,
     target_agent_forward: bool,
     keepalive_interval_secs: u16,
     keepalive_count_max: u16,
@@ -578,6 +548,7 @@ pub async fn open_target_ssh_session_with_forwarding(
     prompts: HostPromptMap,
     status_options: ConnectionStatusOptions,
     host_key_verification_mode: HostKeyVerificationMode,
+    auth_prompter: &AuthPrompter,
     forwarded_tcpip_tx: Option<tokio::sync::mpsc::UnboundedSender<crate::ssh::ForwardedTcpIp>>,
 ) -> Result<(Option<JumpChain>, client::Handle<SshClientHandler>), SshConnectError> {
     let target_config = Arc::new(compatibility_client_config(
@@ -636,6 +607,7 @@ pub async fn open_target_ssh_session_with_forwarding(
             prompts,
             status_options,
             host_key_verification_mode,
+            auth_prompter,
         )
         .await?;
         (Some(chain), target_sess)
@@ -653,59 +625,29 @@ pub async fn open_target_ssh_session_with_forwarding(
         .username(target_username.to_string()),
     );
 
-    const TARGET_AUTH_TIMEOUT: Duration = Duration::from_secs(30);
-
-    if target_use_agent {
-        if let Err(e) =
-            crate::ssh::agent::authenticate_via_agent(&mut target_session, target_username).await
-        {
-            let _ = target_session
-                .disconnect(Disconnect::ByApplication, "Authentication failed", "en")
-                .await;
-            return Err(e);
-        }
-        return Ok((jump_chain_opt, target_session));
-    }
-
-    let auth_result = if let Some(key_path) = target_private_key_path {
-        let key_pair = crate::ssh::key_file::load_private_key(
-            key_path,
+    let auth_result = authenticate(
+        &mut target_session,
+        &AuthTarget {
+            host: target_host,
+            port: target_port,
+            username: target_username,
+            hop: None,
+        },
+        AuthMethod::from_plan(
+            target_use_agent,
+            target_keyboard_interactive,
+            target_private_key_path,
             target_private_key_passphrase,
-            "SSH key",
-        )
-        .map_err(SshConnectError::Permanent)?;
-
-        tokio::time::timeout(
-            TARGET_AUTH_TIMEOUT,
-            target_session.authenticate_publickey(
-                target_username,
-                PrivateKeyWithHashAlg::new(Arc::new(key_pair), None),
-            ),
-        )
-        .await
-        .map_err(|_| SshConnectError::Permanent("SSH key authentication timed out".to_string()))?
-        .map_err(|e| SshConnectError::Permanent(format!("SSH key authentication failed: {e}")))?
-    } else {
-        let pw = target_password
-            .ok_or_else(|| SshConnectError::Permanent("SSH password is required".to_string()))?;
-        tokio::time::timeout(
-            TARGET_AUTH_TIMEOUT,
-            target_session.authenticate_password(target_username, pw),
-        )
-        .await
-        .map_err(|_| {
-            SshConnectError::Permanent("SSH password authentication timed out".to_string())
-        })?
-        .map_err(|e| SshConnectError::Permanent(format!("SSH authentication failed: {e}")))?
-    };
-
-    if !auth_result.success() {
+            target_password,
+        ),
+        auth_prompter,
+    )
+    .await;
+    if let Err(error) = auth_result {
         let _ = target_session
             .disconnect(Disconnect::ByApplication, "Authentication failed", "en")
             .await;
-        return Err(SshConnectError::Permanent(
-            "SSH authentication failed".to_string(),
-        ));
+        return Err(error);
     }
 
     Ok((jump_chain_opt, target_session))

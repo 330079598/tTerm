@@ -63,6 +63,7 @@
 ![saved-connections](./docs/screenshot/saved-connections.png)
 
 - 密码、私钥（支持密码短语）或 SSH Agent 认证，Agent 中加载的硬件密钥（YubiKey、FIDO2）同样可用
+- **键盘交互认证与多步登录**：服务器要求动态口令、MFA 验证码或“密钥 + 验证码”这类多步认证时，会在标签内弹出提示逐项询问；已保存的密码会自动回答服务器的密码提问。也可以选择“键盘交互”方式，不保存任何凭据
 - 可按连接开启 SSH Agent 转发
 - 跳板机链，按顺序逐级连接，与 OpenSSH `ProxyJump` 一致
 - 从 `~/.ssh/config` 导入主机，导入前可预览，`LocalForward` / `RemoteForward` / `DynamicForward` 规则可一并导入为隧道

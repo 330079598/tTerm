@@ -242,6 +242,7 @@ pub fn run() {
     builder
         .manage(pty_map)
         .manage(host_prompt_map)
+        .manage(ssh::AuthPromptMap::default())
         .manage(sftp_pool)
         .manage(monitor_sessions)
         .manage(transfer_cancel_map)
@@ -302,6 +303,7 @@ pub fn run() {
             core::commands::resize_pty,
             core::commands::kill_pty,
             core::commands::respond_ssh_host_key_prompt,
+            ssh::auth::respond_ssh_auth_prompt,
             core::commands::has_saved_password,
             core::commands::has_saved_jump_host_password,
             core::commands::write_saved_password_for_sudo,

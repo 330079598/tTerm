@@ -824,6 +824,7 @@
     "localBadge": "Local",
     "authMethodKey": "Key auth",
     "authMethodAgent": "Agent auth",
+    "authMethodInteractive": "Interactive auth",
     "authMethodPassword": "Password auth",
     "portDisplay": "Port {{port}}",
     "connectionDetailsUnavailable": "Connection details unavailable",
@@ -1152,11 +1153,21 @@
     "sshKey": "SSH Key",
     "sshAgent": "SSH Agent",
     "sshAgentHint": "Signs in using keys already loaded in your local SSH agent (ssh-add), including hardware-backed keys such as YubiKey or FIDO2 security keys.",
+    "interactive": "Interactive",
+    "interactiveHint": "Nothing is stored. When you connect, tTerm asks you whatever the server asks: a password, a one-time code, an MFA token. Pick this for hosts that only accept keyboard-interactive logins. Hosts that want a one-time code after a saved password or a key work with those methods too.",
     "agentForward": "Forward SSH agent",
     "agentForwardDesc": "Makes your local SSH agent's keys available on this host too, so you can hop to further servers from here without copying keys. This forwards the local agent (SSH_AUTH_SOCK) regardless of the authentication method above. Only enable this on hosts you trust.",
     "privateKeyPath": "Private Key Path",
     "privateKeyPassphrase": "Passphrase (optional)",
-    "browseKey": "Browse"
+    "browseKey": "Browse",
+    "authPrompt": {
+      "title": "Authentication required",
+      "jumpHost": "Jump host #{{index}} · {{endpoint}}",
+      "password": "Password",
+      "response": "Response",
+      "hint": "Your answers are sent to the server and are not saved.",
+      "submit": "Continue"
+    }
   },
   "jumpHost": {
     "enable": "Connect via jump hosts (bastions)",
@@ -1556,6 +1567,7 @@
     "hop": "Jump #{{index}}",
     "keyAuth": "Key auth",
     "agentAuth": "Agent auth",
+    "interactiveAuth": "Interactive auth",
     "passwordAuth": "Password auth",
     "privateKey": "Private key",
     "target": "Target",

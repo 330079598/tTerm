@@ -139,6 +139,7 @@ pub async fn run_single_ssh_connection(
         plan.private_key_passphrase.as_deref(),
         plan.password.as_deref(),
         plan.use_agent,
+        plan.keyboard_interactive,
         plan.agent_forward,
         plan.keepalive_interval_secs,
         plan.keepalive_count_max,
@@ -146,6 +147,7 @@ pub async fn run_single_ssh_connection(
         prompts,
         ConnectionStatusOptions::VERBOSE,
         crate::ssh::HostKeyVerificationMode::PromptAndPersist,
+        &crate::ssh::AuthPrompter::tab(&app, &tab_id),
     )
     .await
     {

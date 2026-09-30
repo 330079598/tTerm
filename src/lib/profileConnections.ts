@@ -1,4 +1,9 @@
-import type { ConnectionType, SavedProfile, Tab } from "@/types/tab"
+import type { ConnectionType, SavedProfile, SshAuthMethod, Tab } from "@/types/tab"
+
+/** The auth method of a saved profile or jump host; anything unknown is a password login. */
+export function normalizeSshAuthMethod(value: string | null | undefined): SshAuthMethod {
+  return value === "key" || value === "agent" || value === "interactive" ? value : "password"
+}
 
 export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id" | "isActive"> {
   const connectionType = profile.connection_type as ConnectionType
@@ -16,12 +21,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
       host: profile.host,
       port: profile.port,
       username: profile.username,
-      authMethod:
-        profile.auth_method === "key"
-          ? "key"
-          : profile.auth_method === "agent"
-            ? "agent"
-            : "password",
+      authMethod: normalizeSshAuthMethod(profile.auth_method),
       agentForward: profile.agent_forward === true,
       privateKeyPath: profile.auth_method === "key" ? profile.private_key_path : undefined,
       keepaliveIntervalSecs: profile.keepalive_interval_secs,
@@ -33,12 +33,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
               host: jump.host,
               port: jump.port,
               username: jump.username,
-              authMethod:
-                jump.auth_method === "key"
-                  ? "key"
-                  : jump.auth_method === "agent"
-                    ? "agent"
-                    : "password",
+              authMethod: normalizeSshAuthMethod(jump.auth_method),
               privateKeyPath: jump.private_key_path,
             }))
           : undefined,

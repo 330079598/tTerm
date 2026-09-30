@@ -2,13 +2,13 @@ import React from "react"
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog"
 import { useTranslation } from "react-i18next"
 
+import { AuthMethodPicker } from "@/components/ConnectionDialog/AuthMethodPicker"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { cn } from "@/lib/utils"
 
 import { normalizeKeepalive } from "@/components/ConnectionDialog/connectionDialogUtils"
 import {
@@ -143,47 +143,10 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
         />
       </div>
 
-      <div>
-        <Label className="mb-1.5 block">{t("ssh.authMethod")}</Label>
-        <div className="flex gap-2" aria-label={t("ssh.authMethod")}>
-          <Button
-            type="button"
-            variant={form.authMethod === "password" ? "default" : "outline"}
-            className={cn(
-              "flex-1",
-              form.authMethod === "password" ? "shadow-none" : "text-muted-foreground"
-            )}
-            onClick={() => setForm((current) => ({ ...current, authMethod: "password" }))}
-            aria-pressed={form.authMethod === "password"}
-          >
-            {t("ssh.password")}
-          </Button>
-          <Button
-            type="button"
-            variant={form.authMethod === "key" ? "default" : "outline"}
-            className={cn(
-              "flex-1",
-              form.authMethod === "key" ? "shadow-none" : "text-muted-foreground"
-            )}
-            onClick={() => setForm((current) => ({ ...current, authMethod: "key" }))}
-            aria-pressed={form.authMethod === "key"}
-          >
-            {t("ssh.sshKey")}
-          </Button>
-          <Button
-            type="button"
-            variant={form.authMethod === "agent" ? "default" : "outline"}
-            className={cn(
-              "flex-1",
-              form.authMethod === "agent" ? "shadow-none" : "text-muted-foreground"
-            )}
-            onClick={() => setForm((current) => ({ ...current, authMethod: "agent" }))}
-            aria-pressed={form.authMethod === "agent"}
-          >
-            {t("ssh.sshAgent")}
-          </Button>
-        </div>
-      </div>
+      <AuthMethodPicker
+        value={form.authMethod}
+        onChange={(authMethod) => setForm((current) => ({ ...current, authMethod }))}
+      />
 
       {form.authMethod === "password" && (
         <>
@@ -283,6 +246,12 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
       {form.authMethod === "agent" && (
         <p className="text-muted-foreground rounded-md border px-3 py-2 text-xs">
           {t("ssh.sshAgentHint")}
+        </p>
+      )}
+
+      {form.authMethod === "interactive" && (
+        <p className="text-muted-foreground rounded-md border px-3 py-2 text-xs">
+          {t("ssh.interactiveHint")}
         </p>
       )}
 

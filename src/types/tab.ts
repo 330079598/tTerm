@@ -71,11 +71,17 @@ export type TerminalShellType =
 export type ConnectionType = "terminal" | "ssh"
 export type TabType = ConnectionType | "settings" | "tunnels" | "remote-file-editor"
 
+/**
+ * How an SSH host is authenticated. `interactive` stores nothing: the server's
+ * prompts (password, one-time code) are answered when connecting.
+ */
+export type SshAuthMethod = "password" | "key" | "agent" | "interactive"
+
 export interface JumpHostConnection {
   host: string
   port: number
   username: string
-  authMethod: "password" | "key" | "agent"
+  authMethod: SshAuthMethod
   password?: string
   privateKeyPath?: string
   privateKeyPassphrase?: string
@@ -105,7 +111,7 @@ export interface Tab {
     keepaliveIntervalSecs?: number
     keepaliveCountMax?: number
     serverMonitorVisible?: boolean
-    authMethod?: "password" | "key" | "agent"
+    authMethod?: SshAuthMethod
     agentForward?: boolean
     privateKeyPath?: string
     privateKeyPassphrase?: string

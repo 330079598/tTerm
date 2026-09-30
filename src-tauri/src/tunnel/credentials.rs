@@ -112,8 +112,9 @@ pub fn collect_requests(
         plan.port,
     );
 
-    if plan.use_agent {
-        // Nothing to prompt for: the local SSH agent supplies the signature.
+    if plan.use_agent || plan.keyboard_interactive {
+        // Nothing to collect up front: the agent signs, and keyboard-interactive
+        // answers cannot be known before the server asks.
     } else if let Some(key_path) = plan.private_key_path.clone() {
         if let KeyCheck::NeedsPassphrase { incorrect } =
             check_key(&key_path, plan.private_key_passphrase.as_deref())?
@@ -140,8 +141,8 @@ pub fn collect_requests(
     for index in 0..plan.jump_hosts.len() {
         let jump = &plan.jump_hosts[index];
         let jump_label = label(&jump.username, &jump.host, jump.port);
-        if jump.use_agent {
-            // Nothing to prompt for: the local SSH agent supplies the signature.
+        if jump.use_agent || jump.keyboard_interactive {
+            // Nothing to collect up front, as for the target above.
         } else if let Some(key_path) = jump.private_key_path.clone() {
             if let KeyCheck::NeedsPassphrase { incorrect } =
                 check_key(&key_path, jump.private_key_passphrase.as_deref())?

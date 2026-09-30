@@ -1,6 +1,6 @@
 import { SavedProfile } from "@/components/ProfilesPanel"
 import { useConfig } from "@/contexts/ConfigContext"
-import { Tab, TerminalShellType } from "@/types/tab"
+import { SshAuthMethod, Tab, TerminalShellType } from "@/types/tab"
 
 export interface ConnectionDialogProps {
   isOpen: boolean
@@ -20,7 +20,7 @@ export interface JumpHostForm {
   host: string
   port: number
   username: string
-  authMethod: "password" | "key" | "agent"
+  authMethod: SshAuthMethod
   password: string
   privateKeyPath: string
   privateKeyPassphrase: string
@@ -33,7 +33,7 @@ export interface ConnectionForm {
   host: string
   port: number
   username: string
-  authMethod: "password" | "key" | "agent"
+  authMethod: SshAuthMethod
   agentForward: boolean
   password: string
   rememberPassword: boolean

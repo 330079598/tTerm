@@ -227,7 +227,10 @@ pub(crate) fn profile_secret_summaries(profile: &SavedProfile) -> Vec<SavedSecre
     }
 
     if profile.connection_type == "ssh"
-        && !matches!(profile.auth_method.as_deref(), Some("key") | Some("agent"))
+        && !matches!(
+            profile.auth_method.as_deref(),
+            Some("key" | "agent" | "interactive")
+        )
     {
         summaries.push(SavedSecretSummary {
             key: profile.id.clone(),
@@ -248,7 +251,7 @@ pub(crate) fn profile_secret_summaries(profile: &SavedProfile) -> Vec<SavedSecre
     }
 
     for jump in &profile.jump_hosts {
-        if matches!(jump.auth_method.as_str(), "key" | "agent") {
+        if matches!(jump.auth_method.as_str(), "key" | "agent" | "interactive") {
             continue;
         }
 

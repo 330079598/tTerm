@@ -98,6 +98,7 @@ mod tests {
             private_key_path: None,
             private_key_passphrase: None,
             use_agent: false,
+            keyboard_interactive: false,
             agent_forward: false,
             terminal_shell: None,
             jump_hosts: Vec::new(),
@@ -126,6 +127,7 @@ mod tests {
             private_key_path: None,
             private_key_passphrase: None,
             use_agent: false,
+            keyboard_interactive: false,
         });
 
         let mut second = ssh_plan("target", "user", "profile");
@@ -137,6 +139,7 @@ mod tests {
             private_key_path: None,
             private_key_passphrase: None,
             use_agent: false,
+            keyboard_interactive: false,
         });
 
         assert_ne!(

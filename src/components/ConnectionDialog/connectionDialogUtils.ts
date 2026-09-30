@@ -1,4 +1,5 @@
 import { SavedProfile } from "@/components/ProfilesPanel"
+import { normalizeSshAuthMethod } from "@/lib/profileConnections"
 
 import {
   ConfigState,
@@ -16,8 +17,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
   }
 
   const jumpHosts = profile.jump_hosts ?? []
-  const authMethod =
-    profile.auth_method === "key" ? "key" : profile.auth_method === "agent" ? "agent" : "password"
+  const authMethod = normalizeSshAuthMethod(profile.auth_method)
 
   return {
     ...defaultForm,
@@ -39,8 +39,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
       host: jump.host ?? "",
       port: jump.port ?? 22,
       username: jump.username ?? "",
-      authMethod:
-        jump.auth_method === "key" ? "key" : jump.auth_method === "agent" ? "agent" : "password",
+      authMethod: normalizeSshAuthMethod(jump.auth_method),
       privateKeyPath: jump.private_key_path ?? "",
     })),
   }

@@ -79,6 +79,7 @@ pub async fn connect_authenticated_ssh(
         plan.private_key_passphrase.as_deref(),
         plan.password.as_deref(),
         plan.use_agent,
+        plan.keyboard_interactive,
         plan.agent_forward,
         plan.keepalive_interval_secs,
         plan.keepalive_count_max,
@@ -88,6 +89,7 @@ pub async fn connect_authenticated_ssh(
         // would flip an already-connected terminal back to "connecting".
         ConnectionStatusOptions::QUIET,
         crate::ssh::HostKeyVerificationMode::PromptAndPersist,
+        &crate::ssh::AuthPrompter::tab(app, tab_id),
     )
     .await
     .map_err(String::from)

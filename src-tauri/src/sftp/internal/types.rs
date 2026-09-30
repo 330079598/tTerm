@@ -85,6 +85,8 @@ impl SftpConnectionKey {
                                     "key"
                                 } else if jump.use_agent {
                                     "agent"
+                                } else if jump.keyboard_interactive {
+                                    "interactive"
                                 } else {
                                     "password"
                                 }

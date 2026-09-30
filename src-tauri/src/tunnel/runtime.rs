@@ -931,6 +931,7 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
                 plan.private_key_passphrase.as_deref(),
                 plan.password.as_deref(),
                 plan.use_agent,
+                plan.keyboard_interactive,
                 plan.agent_forward,
                 keepalive_interval_secs,
                 keepalive_count_max,
@@ -938,6 +939,9 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
                 prompts.clone(),
                 ConnectionStatusOptions::QUIET,
                 HostKeyVerificationMode::PromptAndPersist,
+                // Tunnels reconnect on their own, so there is no moment at
+                // which a prompt is expected.
+                &crate::ssh::AuthPrompter::Unavailable,
                 Some(forwarded_tx),
             )
             .await?;

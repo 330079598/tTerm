@@ -63,6 +63,7 @@ Run the same thing on several servers at once (`Cmd/Ctrl+Shift+B`). The screensh
 ![saved-connections](./docs/screenshot/saved-connections.png)
 
 - Password, private key (with passphrase), or SSH agent authentication, including hardware-backed keys (YubiKey, FIDO2) loaded into the agent
+- **Keyboard-interactive and multi-step logins**: when a server asks for a one-time code, an MFA token, or a second step after a key, the tab prompts for each answer; a saved password answers the server's password prompt on its own. An "Interactive" method stores no credentials at all
 - Optional SSH agent forwarding per connection
 - Jump-host chains, opened in order like OpenSSH `ProxyJump`
 - Import hosts from `~/.ssh/config` with a preview, including `LocalForward` / `RemoteForward` / `DynamicForward` rules as tunnels

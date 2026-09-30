@@ -20,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useConfig } from "@/contexts/ConfigContext"
 import { useToast } from "@/hooks/use-toast"
 import { invokeSafe, reportError } from "@/lib/errors"
+import { normalizeSshAuthMethod } from "@/lib/profileConnections"
 import { cn } from "@/lib/utils"
 import { Tab, type JumpHostConnection, type SavedJumpHost } from "@/types/tab"
 
@@ -33,6 +34,7 @@ import { SshConnectionFields } from "@/components/ConnectionDialog/SshConnection
 import { SudoAutofillFields } from "@/components/ConnectionDialog/SudoAutofillFields"
 import { TerminalConnectionFields } from "@/components/ConnectionDialog/TerminalConnectionFields"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
+import { SshAuthPromptDialog } from "@/components/TerminalTab/SshAuthPromptDialog"
 import { getSshConnectionProgressLabel } from "@/components/TerminalTab/terminalTabUtils"
 import { HostKeyPromptState, SshConnectionProgress } from "@/components/TerminalTab/types"
 import {
@@ -54,9 +56,6 @@ type TestConnectionResultState = {
   status: "success" | "error"
   message: string
 }
-
-const normalizeJumpAuthMethod = (value: string | undefined): "password" | "key" | "agent" =>
-  value === "key" ? "key" : value === "agent" ? "agent" : "password"
 
 const getJumpHostPasswordLookupKey = (
   jump: Pick<JumpHostConnection, "host" | "port" | "username">
@@ -129,7 +128,7 @@ function buildJumpHostsPayload(
 
   if (keyCase === "snake") {
     return form.jumpHosts.map((jump) => {
-      const authMethod = normalizeJumpAuthMethod(jump.authMethod)
+      const authMethod = normalizeSshAuthMethod(jump.authMethod)
       const privateKeyPath = authMethod === "key" ? jump.privateKeyPath || undefined : undefined
       const privateKeyPassphrase =
         authMethod === "key" ? jump.privateKeyPassphrase || undefined : undefined
@@ -146,7 +145,7 @@ function buildJumpHostsPayload(
   }
 
   return form.jumpHosts.map((jump) => {
-    const authMethod = normalizeJumpAuthMethod(jump.authMethod)
+    const authMethod = normalizeSshAuthMethod(jump.authMethod)
     const savedPasswordAvailable = savedJumpPasswordKeys.has(getJumpHostPasswordLookupKey(jump))
     return {
       host: jump.host.trim(),
@@ -779,6 +778,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         hostKeyPrompt={testHostKeyPrompt}
         setHostKeyPrompt={setTestHostKeyPrompt}
       />
+      <SshAuthPromptDialog tabId={`test-${sshProfileId}`} />
     </>
   )
 }
