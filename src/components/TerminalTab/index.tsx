@@ -100,6 +100,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const configFontFamilyRef = useStableRef(config.font_family)
   const configFontSizeRef = useStableRef(config.font_size)
   const configCursorStyleRef = useStableRef(config.cursor_style)
+  const configMacOptionIsMetaRef = useStableRef(config.mac_option_is_meta)
   const configScrollbackLinesRef = useStableRef(config.scrollback_lines)
   const configTerminalRendererRef = useStableRef<TerminalRenderer>(config.terminal_renderer)
   const sessionResetKey = `${tabId}:${sessionNonce}:${connection?.type ?? "terminal"}`
@@ -304,6 +305,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     fitTerminalOnly,
     initializedRef,
     configCursorStyleRef,
+    configMacOptionIsMetaRef,
     configFontFamilyRef,
     configFontSizeRef,
     configScrollbackLinesRef,
@@ -348,6 +350,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     if (!term) return
 
     term.options.cursorStyle = config.cursor_style
+    term.options.macOptionIsMeta = config.mac_option_is_meta
 
     const fontChanged =
       !lastAppliedFontRef.current ||
@@ -377,6 +380,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     }
   }, [
     config.cursor_style,
+    config.mac_option_is_meta,
     config.font_family,
     config.font_size,
     isActiveRef,

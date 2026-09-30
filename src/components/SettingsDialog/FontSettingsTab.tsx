@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Switch } from "@/components/ui/switch"
 import {
   DEFAULT_SCROLLBACK_LINES,
   MAX_EXPLICIT_SCROLLBACK_LINES,
@@ -31,6 +32,8 @@ interface FontSettingsTabProps {
   fontFamily: string
   fontSize: number
   cursorStyle: "bar" | "block" | "underline"
+  macOptionIsMeta: boolean
+  setMacOptionIsMeta: (value: boolean) => void
   fontLoadError: string | null
   handleFontSave: () => Promise<void>
   savingFont?: boolean
@@ -56,6 +59,8 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
   fontFamily,
   fontSize,
   cursorStyle,
+  macOptionIsMeta,
+  setMacOptionIsMeta,
   fontLoadError,
   handleFontSave,
   savingFont = false,
@@ -300,6 +305,24 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
             </Label>
             <CursorStylePicker value={cursorStyle} onChange={setCursorStyle} />
           </div>
+
+          {getDetectedPlatform() === "macos" && (
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <Label htmlFor="terminal-option-is-meta" className="mb-1 block">
+                  {t("fontSettings.macOptionIsMeta")}
+                </Label>
+                <p className="text-muted-foreground text-xs leading-5">
+                  {t("fontSettings.macOptionIsMetaDesc")}
+                </p>
+              </div>
+              <Switch
+                id="terminal-option-is-meta"
+                checked={macOptionIsMeta}
+                onCheckedChange={setMacOptionIsMeta}
+              />
+            </div>
+          )}
 
           <div>
             <Label className="mb-2 block">

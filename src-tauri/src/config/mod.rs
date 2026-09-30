@@ -118,6 +118,10 @@ pub struct AppConfig {
     /// matched by the frontend on top of the built-in ones.
     #[serde(default)]
     pub sudo_prompt_patterns: Vec<String>,
+    /// Send Option+key as Meta (ESC prefix) in the terminal instead of typing
+    /// the macOS alternate character. Only read on macOS.
+    #[serde(default)]
+    pub mac_option_is_meta: bool,
     #[serde(default = "default_keymap")]
     pub keymap: KeymapConfig,
     /// What WebKit does with the page while the window is hidden (macOS 14+):
@@ -440,6 +444,7 @@ impl Default for AppConfig {
             zmodem_auto_detect_enabled: default_zmodem_auto_detect_enabled(),
             zmodem_download_directory: String::new(),
             sudo_prompt_patterns: Vec::new(),
+            mac_option_is_meta: false,
             keymap: default_keymap(),
             background_throttling: default_background_throttling(),
             window_blur: false,

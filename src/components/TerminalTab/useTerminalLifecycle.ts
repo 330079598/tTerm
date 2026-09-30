@@ -54,6 +54,8 @@ type UseTerminalLifecycleOptions = {
   fitTerminalOnly: () => boolean
   initializedRef: React.RefObject<boolean>
   configCursorStyleRef?: React.RefObject<Terminal["options"]["cursorStyle"]>
+  /** macOS: Option+key sends Meta instead of the alternate character. */
+  configMacOptionIsMetaRef?: React.RefObject<boolean>
   configFontFamilyRef?: React.RefObject<string>
   configFontSizeRef?: React.RefObject<number>
   configScrollbackLinesRef?: React.RefObject<number>
@@ -129,6 +131,7 @@ export function useTerminalLifecycle({
   fitTerminalOnly,
   initializedRef,
   configCursorStyleRef,
+  configMacOptionIsMetaRef,
   configFontFamilyRef,
   configFontSizeRef,
   configScrollbackLinesRef,
@@ -269,6 +272,7 @@ export function useTerminalLifecycle({
     const term = new Terminal({
       cursorBlink: true,
       cursorStyle: cursorStyleRef.current,
+      macOptionIsMeta: configMacOptionIsMetaRef?.current ?? false,
       scrollback: resolveScrollbackLines(scrollbackLinesRef.current),
       fontSize: fontSizeRef.current,
       fontFamily: fontFamilyRef.current,
@@ -804,6 +808,7 @@ export function useTerminalLifecycle({
     activateFitTimerRef,
     connectionRef,
     containerRef,
+    configMacOptionIsMetaRef,
     creatingPtyRef,
     cursorStyleRef,
     fitAddonRef,

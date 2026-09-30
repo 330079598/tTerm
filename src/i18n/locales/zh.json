@@ -1108,6 +1108,8 @@
     "saveFailed": "保存失败",
     "scrollbackLines": "回滚行数",
     "cursorStyle": "光标样式",
+    "macOptionIsMeta": "将 Option 键用作 Meta 键",
+    "macOptionIsMetaDesc": "开启后，Option+B、Option+F、Option+. 等组合会发送 Meta 键（ESC 前缀），即 shell 行编辑、Emacs、tmux 里的 Alt 快捷键。关闭时 Option 输入 macOS 的特殊字符。",
     "terminalPadding": "终端边距",
     "terminalPaddingLeft": "左侧",
     "terminalPaddingRight": "右侧",

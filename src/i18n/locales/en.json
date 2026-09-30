@@ -1117,6 +1117,8 @@
     "saveFailed": "Failed to save",
     "scrollbackLines": "Scrollback Lines",
     "cursorStyle": "Cursor Style",
+    "macOptionIsMeta": "Use Option as Meta key",
+    "macOptionIsMetaDesc": "Option+B, Option+F, Option+. and the like send Meta (an ESC prefix), which is what shell line editing, Emacs and tmux expect from Alt. When off, Option types macOS's alternate characters.",
     "terminalPadding": "Terminal Padding",
     "terminalPaddingLeft": "Left",
     "terminalPaddingRight": "Right",

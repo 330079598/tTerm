@@ -158,6 +158,8 @@ export interface AppConfig {
   zmodem_download_directory: string
   /** Extra sudo password prompt regexes; an optional `user` group names the account. */
   sudo_prompt_patterns: string[]
+  /** macOS: Option+key sends Meta (ESC prefix) instead of the alternate character. */
+  mac_option_is_meta: boolean
   keymap: KeymapConfig
   background_throttling: BackgroundThrottling
   /** Blur what is behind the window (macOS, Windows), tinted with the theme background. */
@@ -223,6 +225,7 @@ const defaultConfig: AppConfig = {
   zmodem_auto_detect_enabled: true,
   zmodem_download_directory: "",
   sudo_prompt_patterns: [],
+  mac_option_is_meta: false,
   keymap: { ...DEFAULT_KEYMAP_CONFIG, bindings: {} },
   background_throttling: "throttle",
   window_blur: false,
@@ -422,6 +425,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
         )
       : [],
     ui_scale_percent: normalizeUiScalePercent(config.ui_scale_percent),
+    mac_option_is_meta: config.mac_option_is_meta === true,
     keymap: normalizeKeymap(config.keymap),
     background_throttling:
       config.background_throttling === "disabled" || config.background_throttling === "suspend"

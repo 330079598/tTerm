@@ -35,6 +35,7 @@ If you often connect to servers, move files between local and remote machines, o
 - WebGL or Canvas renderer, configurable scrollback (10,000 lines by default)
 - Web link detection and clear-history action
 - Fully customizable keyboard shortcuts with conflict detection, including warnings when a binding would shadow common shell keys such as `Ctrl+A` or `Ctrl+R`
+- On macOS, Option can act as the Meta key (Alt shortcuts in the shell, Emacs, and tmux)
 - Optional session logging: raw and/or plain-text logs, file name templates, size-based rotation, and gzip compression of closed files
 
 ### Broadcast Input
