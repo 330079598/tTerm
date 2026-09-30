@@ -42,8 +42,7 @@ pub struct SavedProfile {
     #[serde(default)]
     pub remember_password: bool,
     pub auth_method: Option<String>,
-    /// Forward the local SSH agent to the target host. Only meaningful when
-    /// `auth_method == "agent"`.
+    /// Forward the local SSH agent to the target host, whatever `auth_method` is.
     #[serde(default)]
     pub agent_forward: bool,
     pub private_key_path: Option<String>,

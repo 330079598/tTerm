@@ -126,6 +126,7 @@ See [docs/zmodem.md](./docs/zmodem.md) for usage, settings, and implementation d
 - Terminal palette preview with 16-color swatches
 - Font settings with a system font picker, and cursor style picker
 - Interface text scale from 80% to 200%
+- Window background blur (macOS, Windows) with adjustable blur and opacity; acrylic or mica material on Windows
 - English and Chinese UI with automatic language detection
 - Windows, macOS, and Linux desktop support
 
@@ -139,8 +140,10 @@ See [docs/zmodem.md](./docs/zmodem.md) for usage, settings, and implementation d
 - View or delete saved passwords from settings
 - **Backup and migration**: export exactly the data you choose (settings, connections and tunnels, workspace, known hosts, commands, themes, logs). Passwords are only included in password-protected backups (Argon2id + AES-256-GCM). Imports are previewed first, can merge or replace, and create a recovery snapshot automatically.
 - Scheduled local backups (daily or weekly) with a retention limit. These never contain passwords.
+- **WebDAV remote backup**: upload encrypted backups to a WebDAV service (Nextcloud, Synology, AList, Jianguoyun, ...) and restore them on any device
+- **Multi-device sync**: devices that share a WebDAV folder merge each other's changes to connections, passwords, commands, known hosts, settings, and themes automatically. The sync file is encrypted before upload, and you choose what is synced.
 - Data from older versions (JSON config files and the old password vault) is migrated automatically
-- Everything stays on your machine; there is no cloud service
+- Data stays on your machine unless you set up WebDAV yourself; tTerm has no cloud service of its own
 
 ### Updates
 
@@ -250,7 +253,7 @@ pnpm format:check
 
 ### Frontend
 
-- React 18
+- React 19
 - TypeScript
 - Vite
 - TanStack Router
@@ -288,7 +291,7 @@ pnpm format:check
 │   ├── routes/               # TanStack Router pages
 │   └── types/                # Frontend type definitions
 ├── src-tauri/                # Tauri / Rust backend
-│   ├── src/backup.rs         # Backup export/import and scheduled backups
+│   ├── src/backup/           # Backup export/import, scheduled backups, and WebDAV remote backup
 │   ├── src/command_library/  # Saved commands and tags
 │   ├── src/config/           # App configuration and paths
 │   ├── src/core/             # PTY, commands, and app state
@@ -300,9 +303,11 @@ pnpm format:check
 │   ├── src/session_log.rs    # Terminal session logging
 │   ├── src/sftp/             # SFTP connections, file operations, and transfers
 │   ├── src/ssh/              # SSH client, agent, jump hosts, host keys, and encrypted secret store
+│   ├── src/sync/             # Multi-device sync over WebDAV (three-way merge)
 │   ├── src/terminal/         # Terminal types and I/O
 │   ├── src/tunnel/           # Port forwarding, SOCKS5, and the shared-connection hub
 │   ├── src/updater.rs        # In-app updates
+│   ├── src/window_blur.rs    # Window background blur (macOS / Windows)
 │   └── src/zmodem/           # ZMODEM (rz/sz) protocol engine, trigger detection, send/receive
 ├── docs/                     # Documentation and screenshots
 ├── public/                   # Static assets

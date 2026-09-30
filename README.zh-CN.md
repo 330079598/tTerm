@@ -126,6 +126,7 @@
 - 终端配色预览，展示 16 色色板
 - 字体设置支持选择系统字体，可选光标样式
 - 界面文字缩放 80%–200%
+- 窗口背景模糊（macOS、Windows）：模糊程度和不透明度可调，Windows 可选亚克力或云母材质
 - 中英文界面，自动识别系统语言
 - 支持 Windows、macOS、Linux 桌面环境
 
@@ -139,8 +140,10 @@
 - 可在设置中查看或删除已保存的密码
 - **备份与迁移**：按需选择导出的数据（设置、连接与隧道、工作区、已知主机、命令、主题、日志）。密码只会包含在设置了备份密码的加密备份中（Argon2id + AES-256-GCM）。导入前可预览，支持合并或替换，并自动创建恢复快照。
 - 定时本地备份（每天或每周），可设置保留份数；定时备份不包含密码
+- **WebDAV 远程备份**：把加密备份上传到坚果云、Nextcloud、群晖、AList 等 WebDAV 服务，可在任意设备上下载恢复
+- **多设备同步**：使用同一个 WebDAV 目录的设备会自动合并连接、密码、命令、已知主机、设置和主题的改动；同步文件在上传前加密，同步哪些数据可自行选择
 - 旧版本的数据（JSON 配置文件和旧的密码保险库）会自动迁移
-- 所有数据都保存在本机，不依赖任何云服务
+- 数据默认只保存在本机；只有你自己配置了 WebDAV 后才会上传，tTerm 没有自己的云服务
 
 ### 应用更新
 
@@ -250,7 +253,7 @@ pnpm format:check
 
 ### 前端
 
-- React 18
+- React 19
 - TypeScript
 - Vite
 - TanStack Router
@@ -288,7 +291,7 @@ pnpm format:check
 │   ├── routes/               # TanStack Router 页面
 │   └── types/                # 前端类型定义
 ├── src-tauri/                # Tauri / Rust 后端
-│   ├── src/backup.rs         # 备份导出/导入与定时备份
+│   ├── src/backup/           # 备份导出/导入、定时备份与 WebDAV 远程备份
 │   ├── src/command_library/  # 命令库与标签
 │   ├── src/config/           # 应用配置与路径
 │   ├── src/core/             # PTY、命令和应用状态
@@ -300,9 +303,11 @@ pnpm format:check
 │   ├── src/session_log.rs    # 终端会话日志
 │   ├── src/sftp/             # SFTP 连接、文件操作和传输
 │   ├── src/ssh/              # SSH 客户端、Agent、跳板机、主机密钥、加密凭据存储
+│   ├── src/sync/             # 基于 WebDAV 的多设备同步（三方合并）
 │   ├── src/terminal/         # 终端类型与 I/O
 │   ├── src/tunnel/           # 端口转发、SOCKS5 与共享连接 Hub
 │   ├── src/updater.rs        # 应用内更新
+│   ├── src/window_blur.rs    # 窗口背景模糊（macOS / Windows）
 │   └── src/zmodem/           # ZMODEM（rz/sz）协议引擎、触发检测与收发
 ├── docs/                     # 文档与截图
 ├── public/                   # 静态资源
