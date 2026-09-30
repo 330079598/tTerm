@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 
 import React from "react"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { invoke } from "@tauri-apps/api/core"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import {
   addCommandTags,
   collectCommandTags,
+  CommandEditorDialog,
   CommandLibrary,
   filterSavedCommands,
   parseCommandTags,
@@ -32,6 +33,8 @@ beforeEach(() => {
     throw new Error(`Unexpected command: ${command}`)
   })
 })
+
+afterEach(cleanup)
 
 const commands: SavedCommand[] = [
   {
@@ -157,6 +160,181 @@ describe("recent command favorites", () => {
           scopeId: "production",
           isFavorite: true,
         }),
+      })
+    )
+  })
+})
+
+describe("command variables", () => {
+  const sshCommand: SavedCommand = {
+    ...commands[0],
+    id: "3",
+    name: "SSH",
+    commandText: "ssh {{user}}@{{host}} '{{end}}'",
+    variables: [
+      {
+        name: "user",
+        label: "Login",
+        valueType: "text",
+        defaultValue: "root",
+        isRequired: true,
+        position: 0,
+      },
+      { name: "host", label: "Host", valueType: "text", isRequired: true, position: 1 },
+    ],
+  }
+
+  function mockLibrary(saved: SavedCommand[]) {
+    mockedInvoke.mockImplementation(async (command, args) => {
+      if (command === "list_saved_commands") return saved
+      if (command === "list_command_tags") return []
+      if (command === "record_saved_command_use") return undefined
+      if (command === "save_saved_command") {
+        return { ...commands[0], ...(args as { input: object }).input, id: "saved" }
+      }
+      throw new Error(`Unexpected command: ${command}`)
+    })
+  }
+
+  it("asks for the values and inserts the filled-in command", async () => {
+    mockLibrary([sshCommand])
+    const onInsert = vi.fn(async () => true)
+    render(
+      React.createElement(CommandLibrary, {
+        open: true,
+        onOpenChange: vi.fn(),
+        canInsert: true,
+        onInsert,
+        onInsertRecent: vi.fn(async () => true),
+        recentCommands: [],
+      })
+    )
+
+    fireEvent.click(await screen.findByRole("button", { name: "commandLibrary.insert" }))
+    const host = await screen.findByLabelText("Host")
+    expect(screen.getByLabelText("Login")).toHaveProperty("value", "root")
+    const form = host.closest("form")!
+
+    fireEvent.submit(form)
+    expect(screen.getByRole("alert").textContent).toBe(
+      "commandLibrary.variables.valueErrors.required"
+    )
+    expect(onInsert).not.toHaveBeenCalled()
+
+    fireEvent.change(host, { target: { value: "example.com" } })
+    fireEvent.submit(form)
+
+    await waitFor(() =>
+      expect(onInsert).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "3", commandText: "ssh root@example.com '{{end}}'" })
+      )
+    )
+    expect(mockedInvoke).toHaveBeenCalledWith("record_saved_command_use", { id: "3" })
+  })
+
+  it("asks before inserting a command that wants confirmation", async () => {
+    mockLibrary([{ ...commands[0], confirmBeforeRun: true }])
+    const onInsert = vi.fn(async () => true)
+    render(
+      React.createElement(CommandLibrary, {
+        open: true,
+        onOpenChange: vi.fn(),
+        canInsert: true,
+        onInsert,
+        onInsertRecent: vi.fn(async () => true),
+        recentCommands: [],
+      })
+    )
+
+    fireEvent.click(await screen.findByRole("button", { name: "commandLibrary.insert" }))
+    await screen.findByText("commandLibrary.confirmInsertTitle")
+    expect(onInsert).not.toHaveBeenCalled()
+
+    const insertButtons = screen.getAllByRole("button", { name: "commandLibrary.insert" })
+    fireEvent.click(insertButtons[insertButtons.length - 1])
+    await waitFor(() =>
+      expect(onInsert).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "1", commandText: "docker logs -f api" })
+      )
+    )
+  })
+
+  it("saves placeholders typed in the editor as variables", async () => {
+    mockLibrary([])
+    render(
+      React.createElement(CommandEditorDialog, {
+        open: true,
+        command: null,
+        availableTags: [],
+        onOpenChange: vi.fn(),
+        onSaved: vi.fn(),
+      })
+    )
+
+    const name = screen.getByLabelText("commandLibrary.form.name")
+    fireEvent.change(name, { target: { value: "Ping" } })
+    fireEvent.change(screen.getByLabelText("commandLibrary.form.command"), {
+      target: { value: "ping -c {{count}} {{host}}" },
+    })
+    expect(
+      screen.getAllByRole("checkbox", { name: "commandLibrary.variables.askFor" })
+    ).toHaveLength(2)
+
+    fireEvent.change(screen.getAllByLabelText("commandLibrary.variables.type")[0], {
+      target: { value: "number" },
+    })
+    fireEvent.change(screen.getAllByLabelText("commandLibrary.variables.defaultValue")[0], {
+      target: { value: "4" },
+    })
+    fireEvent.submit(name.closest("form")!)
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("save_saved_command", {
+        input: expect.objectContaining({
+          commandText: "ping -c {{count}} {{host}}",
+          confirmBeforeRun: false,
+          variables: [
+            expect.objectContaining({
+              name: "count",
+              label: "count",
+              valueType: "number",
+              defaultValue: "4",
+              position: 0,
+            }),
+            expect.objectContaining({ name: "host", valueType: "text", position: 1 }),
+          ],
+        }),
+      })
+    )
+  })
+
+  it("keeps placeholders of a captured command literal until they are enabled", async () => {
+    mockLibrary([])
+    render(
+      React.createElement(CommandEditorDialog, {
+        open: true,
+        command: null,
+        draft: {
+          name: "Pods",
+          commandText: "kubectl get pods -o go-template='{{end}}'",
+          description: "",
+          tags: [],
+          scopeType: "global",
+          isFavorite: false,
+        },
+        availableTags: [],
+        onOpenChange: vi.fn(),
+        onSaved: vi.fn(),
+      })
+    )
+
+    const toggle = screen.getByRole("checkbox", { name: "commandLibrary.variables.askFor" })
+    expect(toggle.getAttribute("aria-checked")).toBe("false")
+    fireEvent.submit(screen.getByLabelText("commandLibrary.form.name").closest("form")!)
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("save_saved_command", {
+        input: expect.objectContaining({ variables: [] }),
       })
     )
   })

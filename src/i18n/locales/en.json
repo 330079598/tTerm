@@ -883,6 +883,9 @@
     "insert": "Insert into current terminal",
     "inserting": "Inserting...",
     "selectTerminalHint": "Select a connected terminal first.",
+    "confirmInsertTitle": "Insert this command?",
+    "confirmInsertDescription": "\"{{name}}\" asks for confirmation before it is inserted.",
+    "confirmEnabled": "On",
     "selectHint": "Select a command to view its details",
     "backToList": "Back to commands",
     "tags": {
@@ -922,7 +925,9 @@
       "scope": "Scope",
       "savedConnection": "Previously saved connection",
       "favorite": "Add to favorites",
-      "favoriteHint": "Favorite commands appear first in the list."
+      "favoriteHint": "Favorite commands appear first in the list.",
+      "confirmBeforeRun": "Confirm before inserting",
+      "confirmBeforeRunHint": "Shows the full command and asks before it goes to the terminal. Useful for destructive or multi-line commands."
     },
     "messages": {
       "created": "Command saved",
@@ -936,6 +941,38 @@
       "favoriteRemoved": "Command removed from favorites",
       "insertFailed": "Unable to insert command",
       "terminalUnavailable": "The current terminal is disconnected or reconnecting."
+    },
+    "variables": {
+      "title": "Variables",
+      "hint": "Write a placeholder such as {{example}} in the command to be asked for its value each time you insert it.",
+      "askFor": "Ask for {{placeholder}} on insert",
+      "askOnInsert": "Asked on insert",
+      "keepLiteral": "Inserted as written",
+      "label": "Display name",
+      "type": "Type",
+      "types": {
+        "text": "Text",
+        "number": "Number",
+        "choice": "Choice",
+        "secret": "Secret"
+      },
+      "options": "Options (one per line)",
+      "optionsPlaceholder": "One option per line",
+      "defaultValue": "Default value (optional)",
+      "noDefault": "No default",
+      "secretHint": "Typed into a password field and never stored. Once inserted, the value is still visible on the command line.",
+      "required": "Required",
+      "optional": "(optional)",
+      "noValue": "Leave empty",
+      "fillDescription": "Fill in the variables. The command is inserted into the current terminal and is not executed automatically.",
+      "errors": {
+        "options": "Add at least one option.",
+        "number": "The default value must be a number."
+      },
+      "valueErrors": {
+        "required": "This value is required.",
+        "number": "Enter a number."
+      }
     }
   },
   "sshConfigImport": {

@@ -19,6 +19,16 @@ import {
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
+import { CommandVariablesDialog } from "@/components/CommandVariablesDialog"
+import {
+  CommandVariablesEditor,
+  DEFAULT_VARIABLE_DRAFT,
+  draftFromVariable,
+  validateVariableDraft,
+  variableFromDraft,
+  type VariableDraft,
+  type VariableDraftError,
+} from "@/components/CommandVariablesEditor"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -37,6 +47,7 @@ import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { useToast } from "@/hooks/use-toast"
+import { activeVariables, extractPlaceholderNames, formatPlaceholder } from "@/lib/commandVariables"
 import { cn } from "@/lib/utils"
 import type { CommandDraft, RecentCommand, SaveCommandInput, SavedCommand } from "@/types/command"
 import { createCommandDraft } from "@/lib/recentCommands"
@@ -144,6 +155,15 @@ export function CommandEditorDialog({
   const [tagDraft, setTagDraft] = useState("")
   const [scopeType, setScopeType] = useState<"global" | "profile">("global")
   const [isFavorite, setIsFavorite] = useState(false)
+  const [confirmBeforeRun, setConfirmBeforeRun] = useState(false)
+  const [variableDrafts, setVariableDrafts] = useState<Record<string, VariableDraft>>({})
+  // Placeholders inserted as written. Those already in the text when the form
+  // opens start here unless they were saved as variables, so existing commands
+  // with template syntax keep working; ones typed afterwards become variables.
+  const [literalNames, setLiteralNames] = useState<string[]>([])
+  const [variableErrors, setVariableErrors] = useState<
+    Record<string, VariableDraftError | undefined>
+  >({})
   const [isSaving, setIsSaving] = useState(false)
   const [errors, setErrors] = useState<{ name?: string; commandText?: string }>({})
   const source = command ?? draft
@@ -167,6 +187,19 @@ export function CommandEditorDialog({
       setTagDraft("")
       setScopeType(source?.scopeType ?? "global")
       setIsFavorite(source?.isFavorite ?? false)
+      setConfirmBeforeRun(source?.confirmBeforeRun ?? false)
+      const savedVariables = source?.variables ?? []
+      setVariableDrafts(
+        Object.fromEntries(
+          savedVariables.map((variable) => [variable.name, draftFromVariable(variable)])
+        )
+      )
+      setLiteralNames(
+        extractPlaceholderNames(source?.commandText ?? "").filter(
+          (placeholder) => !savedVariables.some((variable) => variable.name === placeholder)
+        )
+      )
+      setVariableErrors({})
       setErrors({})
       setIsSaving(false)
     }
@@ -177,13 +210,26 @@ export function CommandEditorDialog({
     requestAnimationFrame(() => nameInputRef.current?.focus())
   }, [open, source])
 
+  const placeholderNames = useMemo(() => extractPlaceholderNames(commandText), [commandText])
+  const variableNames = placeholderNames.filter(
+    (placeholder) => !literalNames.includes(placeholder)
+  )
+
   const validate = () => {
     const nextErrors: typeof errors = {}
     if (!name.trim()) nextErrors.name = t("commandLibrary.form.nameRequired")
     if (!commandText.trim()) nextErrors.commandText = t("commandLibrary.form.commandRequired")
     setErrors(nextErrors)
     if (nextErrors.name) nameInputRef.current?.focus()
-    return Object.keys(nextErrors).length === 0
+
+    const nextVariableErrors: typeof variableErrors = {}
+    for (const variableName of variableNames) {
+      const error = validateVariableDraft(variableDrafts[variableName] ?? DEFAULT_VARIABLE_DRAFT)
+      if (error) nextVariableErrors[variableName] = error
+    }
+    setVariableErrors(nextVariableErrors)
+
+    return Object.keys(nextErrors).length === 0 && Object.keys(nextVariableErrors).length === 0
   }
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -199,6 +245,14 @@ export function CommandEditorDialog({
       scopeType,
       scopeId: scopeType === "profile" ? profileScopeId : undefined,
       isFavorite,
+      confirmBeforeRun,
+      variables: variableNames.map((variableName, position) =>
+        variableFromDraft(
+          variableName,
+          variableDrafts[variableName] ?? DEFAULT_VARIABLE_DRAFT,
+          position
+        )
+      ),
     }
 
     setIsSaving(true)
@@ -311,6 +365,32 @@ export function CommandEditorDialog({
               </p>
             )}
           </div>
+
+          <CommandVariablesEditor
+            names={placeholderNames}
+            drafts={variableDrafts}
+            literalNames={literalNames}
+            errors={variableErrors}
+            onDraftChange={(variableName, patch) => {
+              setVariableDrafts((current) => ({
+                ...current,
+                [variableName]: {
+                  ...(current[variableName] ?? DEFAULT_VARIABLE_DRAFT),
+                  ...patch,
+                },
+              }))
+              if (variableErrors[variableName]) {
+                setVariableErrors((current) => ({ ...current, [variableName]: undefined }))
+              }
+            }}
+            onLiteralChange={(variableName, literal) =>
+              setLiteralNames((current) =>
+                literal
+                  ? [...current, variableName]
+                  : current.filter((candidate) => candidate !== variableName)
+              )
+            }
+          />
 
           <div className="space-y-2">
             <Label htmlFor="saved-command-description">
@@ -440,6 +520,22 @@ export function CommandEditorDialog({
             </span>
           </label>
 
+          <label className="hover:bg-muted/40 flex min-h-11 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 transition-colors">
+            <Checkbox
+              checked={confirmBeforeRun}
+              onCheckedChange={setConfirmBeforeRun}
+              aria-label={t("commandLibrary.form.confirmBeforeRun")}
+            />
+            <span className="flex min-w-0 flex-col gap-1">
+              <span className="text-sm font-medium">
+                {t("commandLibrary.form.confirmBeforeRun")}
+              </span>
+              <span className="text-muted-foreground text-xs">
+                {t("commandLibrary.form.confirmBeforeRunHint")}
+              </span>
+            </span>
+          </label>
+
           <DialogFooter>
             <Button
               type="button"
@@ -485,6 +581,7 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
   const [editingCommand, setEditingCommand] = useState<SavedCommand | null>(null)
   const [favoritePendingId, setFavoritePendingId] = useState<string | null>(null)
   const [isInserting, setIsInserting] = useState(false)
+  const [fillCommand, setFillCommand] = useState<SavedCommand | null>(null)
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const [rawSelectedRecentId, setSelectedRecentId] = useState<string | null>(null)
   const [recentPendingId, setRecentPendingId] = useState<string | null>(null)
@@ -574,6 +671,10 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
       : (filteredRecentCommands[0]?.id ?? null)
   const selectedCommand = commands.find((command) => command.id === selectedId) ?? null
   const selectedRecent = recentCommands.find((command) => command.id === selectedRecentId) ?? null
+  const selectedVariables = useMemo(
+    () => (selectedCommand ? activeVariables(selectedCommand) : []),
+    [selectedCommand]
+  )
   const hasSelectedItem = mode === "recent" ? Boolean(selectedRecent) : Boolean(selectedCommand)
 
   const handleSaved = (saved: SavedCommand) => {
@@ -691,11 +792,12 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
     if (!nextOpen) onOpenChange(true)
   }
 
-  const handleInsert = async (command: SavedCommand) => {
+  /** Inserts `commandText` (the command's text, variables filled in) and counts the use. */
+  const insertCommandText = async (command: SavedCommand, commandText: string) => {
     setIsInserting(true)
     try {
-      const inserted = await onInsert(command)
-      if (!inserted) return
+      const inserted = await onInsert({ ...command, commandText })
+      if (!inserted) return false
       void invoke("record_saved_command_use", { id: command.id }).catch(console.error)
       setCommands((current) =>
         current.map((candidate) =>
@@ -704,10 +806,54 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
             : candidate
         )
       )
-      onOpenChange(false)
+      return true
     } finally {
       setIsInserting(false)
     }
+  }
+
+  const handleInsert = async (command: SavedCommand) => {
+    // The variables dialog shows the final command, so it doubles as the confirmation.
+    if (activeVariables(command).length > 0) {
+      onOpenChange(false)
+      setFillCommand(command)
+      return
+    }
+
+    if (command.confirmBeforeRun) {
+      onOpenChange(false)
+      const confirmed = await confirm({
+        title: t("commandLibrary.confirmInsertTitle"),
+        description: (
+          <>
+            {t("commandLibrary.confirmInsertDescription", { name: command.name })}
+            <code className="bg-muted text-foreground mt-2 block max-h-40 overflow-auto rounded-md px-2 py-1.5 font-mono text-xs break-all whitespace-pre-wrap">
+              {command.commandText}
+            </code>
+          </>
+        ),
+        confirmText: t("commandLibrary.insert"),
+        cancelText: t("common.cancel"),
+        defaultAction: "cancel",
+      })
+      if (!confirmed || !(await insertCommandText(command, command.commandText))) {
+        onOpenChange(true)
+      }
+      return
+    }
+
+    if (await insertCommandText(command, command.commandText)) onOpenChange(false)
+  }
+
+  const handleFillCancel = () => {
+    setFillCommand(null)
+    onOpenChange(true)
+  }
+
+  const handleFillSubmit = async (commandText: string) => {
+    if (!fillCommand) return
+    // On failure the dialog stays open so the entered values are not lost.
+    if (await insertCommandText(fillCommand, commandText)) setFillCommand(null)
   }
 
   const isFiltering = searchQuery.trim().length > 0 || mode === "favorites"
@@ -1246,6 +1392,33 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
                         {t("commandLibrary.usedCount", { count: selectedCommand.useCount })}
                       </dd>
                     </div>
+                    {selectedVariables.length > 0 && (
+                      <div className="col-span-2">
+                        <dt className="text-muted-foreground text-xs">
+                          {t("commandLibrary.variables.title")}
+                        </dt>
+                        <dd className="mt-1.5 flex flex-wrap gap-2">
+                          {selectedVariables.map((variable) => (
+                            <Badge
+                              key={variable.name}
+                              variant="outline"
+                              className="rounded-md font-mono"
+                              title={`${variable.label} · ${t(`commandLibrary.variables.types.${variable.valueType}`)}`}
+                            >
+                              {formatPlaceholder(variable.name)}
+                            </Badge>
+                          ))}
+                        </dd>
+                      </div>
+                    )}
+                    {selectedCommand.confirmBeforeRun && (
+                      <div className="col-span-2">
+                        <dt className="text-muted-foreground text-xs">
+                          {t("commandLibrary.form.confirmBeforeRun")}
+                        </dt>
+                        <dd className="mt-1 font-medium">{t("commandLibrary.confirmEnabled")}</dd>
+                      </div>
+                    )}
                   </dl>
 
                   <section
@@ -1426,6 +1599,12 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
         activeProfile={activeProfile}
         onOpenChange={handleEditorOpenChange}
         onSaved={handleSaved}
+      />
+      <CommandVariablesDialog
+        command={fillCommand}
+        isInserting={isInserting}
+        onCancel={handleFillCancel}
+        onSubmit={(commandText) => void handleFillSubmit(commandText)}
       />
       <ConfirmDialog />
     </>

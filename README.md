@@ -54,6 +54,8 @@ Run the same thing on several servers at once (`Cmd/Ctrl+Shift+B`). The screensh
 - Scope a command to all connections or to a single saved connection
 - Recently executed commands are captured automatically
 - Insert a command into the current terminal without executing it, or save the selected terminal text as a new command
+- **Command variables**: write a placeholder such as `{{host}}` in a command and a form asks for its value on insert. Text, number, choice, and secret types, with optional defaults and required flags
+- Optional "confirm before inserting" for destructive commands, which shows the full command first
 - Tag management: create, rename, and delete
 
 ### SSH Connections

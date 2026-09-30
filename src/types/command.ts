@@ -2,8 +2,9 @@ export interface SavedCommandVariable {
   name: string
   label: string
   valueType: "text" | "number" | "choice" | "secret"
-  defaultValue?: string
-  optionsJson?: string
+  defaultValue?: string | null
+  /** JSON array of strings; only for `choice`. */
+  optionsJson?: string | null
   isRequired: boolean
   position: number
 }
@@ -37,6 +38,10 @@ export interface SaveCommandInput {
   scopeType: "global" | "profile"
   scopeId?: string
   isFavorite: boolean
+  /** Left out to keep the stored value. */
+  confirmBeforeRun?: boolean
+  /** Left out to keep the stored variables. */
+  variables?: SavedCommandVariable[]
 }
 
 export type CommandDraft = Omit<SaveCommandInput, "id">

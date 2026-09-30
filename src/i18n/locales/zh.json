@@ -871,6 +871,9 @@
     "insert": "插入当前终端",
     "inserting": "正在插入...",
     "selectTerminalHint": "请先选择一个已连接的终端。",
+    "confirmInsertTitle": "插入这条命令？",
+    "confirmInsertDescription": "“{{name}}”设置了插入前确认。",
+    "confirmEnabled": "已开启",
     "selectHint": "选择一条命令查看详情",
     "backToList": "返回命令列表",
     "tags": {
@@ -910,7 +913,9 @@
       "scope": "适用范围",
       "savedConnection": "原保存连接",
       "favorite": "添加到收藏",
-      "favoriteHint": "收藏命令会优先显示在列表顶部。"
+      "favoriteHint": "收藏命令会优先显示在列表顶部。",
+      "confirmBeforeRun": "插入前确认",
+      "confirmBeforeRunHint": "插入终端前先显示完整命令并要求确认，适合危险命令或多行命令。"
     },
     "tagsLabel": "标签",
     "editTags": "编辑标签",
@@ -927,6 +932,38 @@
       "favoriteRemoved": "已取消收藏",
       "insertFailed": "无法插入命令",
       "terminalUnavailable": "当前终端尚未连接或正在重连。"
+    },
+    "variables": {
+      "title": "变量",
+      "hint": "在命令中写 {{example}} 这样的占位符，每次插入时会先询问它的值。",
+      "askFor": "插入时询问 {{placeholder}}",
+      "askOnInsert": "插入时询问",
+      "keepLiteral": "按原文插入",
+      "label": "显示名称",
+      "type": "类型",
+      "types": {
+        "text": "文本",
+        "number": "数字",
+        "choice": "选项",
+        "secret": "密文"
+      },
+      "options": "选项（每行一个）",
+      "optionsPlaceholder": "每行填写一个选项",
+      "defaultValue": "默认值（可选）",
+      "noDefault": "无默认值",
+      "secretHint": "填写时使用密码框，不会保存。插入终端后，内容仍会显示在命令行中。",
+      "required": "必填",
+      "optional": "（可选）",
+      "noValue": "不填写",
+      "fillDescription": "填写变量后，命令会插入当前终端，不会自动执行。",
+      "errors": {
+        "options": "请至少填写一个选项。",
+        "number": "默认值必须是数字。"
+      },
+      "valueErrors": {
+        "required": "请填写此项。",
+        "number": "请输入数字。"
+      }
     }
   },
   "sshConfigImport": {
