@@ -1,47 +1,47 @@
 {
-  "version": "0.4.2-beta.6",
-  "notes": "## Changes since `v0.4.2-beta.5`\n\n### Features\n\n- implement window background color persistence and update theme handling ([38110d0d](https://github.com/330079598/tTerm/commit/38110d0d8d5651d04bd2aeeb37ce04888c2b09fb))\n- add background throttling settings for macOS and update UI components ([846e0e73](https://github.com/330079598/tTerm/commit/846e0e736444050c3c5b62daead9acb753ca2465))\n\n### Other changes\n\n- upgrade frontend deps (vite 8.3, tailwind 4.3, prettier 3.9, tanstack router, dnd-kit 0.5) ([31e63e10](https://github.com/330079598/tTerm/commit/31e63e10fdf11f54154129d74593bfe89e90c763))\n\n**Full comparison:** [v0.4.2-beta.5...v0.4.2-beta.6](https://github.com/330079598/tTerm/compare/v0.4.2-beta.5...v0.4.2-beta.6)\n",
-  "pub_date": "2026-09-29T09:02:52.092Z",
+  "version": "0.4.2-beta.7",
+  "notes": "## Changes since `v0.4.2-beta.6`\n\n### Features\n\n- enhance window blur support for Windows with configurable materials and update related settings ([271c4da1](https://github.com/330079598/tTerm/commit/271c4da16acbdbbb87ba2ad4a2253e0ca2cc793c))\n- add macOS window background blur feature with configurable radius and opacity ([81910db4](https://github.com/330079598/tTerm/commit/81910db4040d059fc6f07fe6ad6cab66983b75cc))\n- implement SSH agent forwarding support and update related configurations ([bba30110](https://github.com/330079598/tTerm/commit/bba30110eb6b7b438e27ca7bd6aa27ac308ffde3))\n\n### Other changes\n\n- upgrade frontend majors (react 19, typescript 6, eslint 10, vitest 5, i18next 26, lucide 1, dockview 8) ([d89e31e4](https://github.com/330079598/tTerm/commit/d89e31e4c8a0f5d4b3e72137d65741e285803c6f))\n- upgrade eslint-plugin-react-hooks to 7.1.1 and fix its violations ([f81daec1](https://github.com/330079598/tTerm/commit/f81daec1dbc98563f35135fb2fd3eed643b07dfa))\n\n**Full comparison:** [v0.4.2-beta.6...v0.4.2-beta.7](https://github.com/330079598/tTerm/compare/v0.4.2-beta.6...v0.4.2-beta.7)\n",
+  "pub_date": "2026-09-30T05:43:23.879Z",
   "platforms": {
-    "darwin-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM3N6M3ppL0VSWjdSVVQzbVVxNzdJSzZOUnppdy91MFRLVUU1REQzd25PMndiZEFuU0UrdEVlMXpLdzBUaFlZVzlvL25EMnJwUmNETzRIZ0NFRWsrR1FVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNjcyMzM0CWZpbGU6dFRlcm0uYXBwLnRhci5negl2ZXJzaW9uOjAuNC4yLWJldGEuNgpYQkF4aE9LUHB0aWR3TU1HNDFnMGtCaFp0ZGZRQXlnL0ZlWURmeVlOZHlqK2s5NzVmdjU1cis0ZUNBblBtb1ZpNnpvaXNtNG5wUFJPbVNvd1hpbmtBdz09Cg==",
-      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.6/tTerm_x64.app.tar.gz"
-    },
-    "darwin-x86_64-app": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM3N6M3ppL0VSWjdSVVQzbVVxNzdJSzZOUnppdy91MFRLVUU1REQzd25PMndiZEFuU0UrdEVlMXpLdzBUaFlZVzlvL25EMnJwUmNETzRIZ0NFRWsrR1FVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNjcyMzM0CWZpbGU6dFRlcm0uYXBwLnRhci5negl2ZXJzaW9uOjAuNC4yLWJldGEuNgpYQkF4aE9LUHB0aWR3TU1HNDFnMGtCaFp0ZGZRQXlnL0ZlWURmeVlOZHlqK2s5NzVmdjU1cis0ZUNBblBtb1ZpNnpvaXNtNG5wUFJPbVNvd1hpbmtBdz09Cg==",
-      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.6/tTerm_x64.app.tar.gz"
-    },
     "linux-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM2d3TyswLzdIVm5kY2FnTjBXK1ZPbVVSWnFBUksvWVFwa1hxU1YrVHlKUmhXYWpuQlBsQ3E2MHpKUTEwOHlsUUFtSC8ra2ZGU1pWK2FPM1hDWjJtYVFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNjcyMzc1CWZpbGU6dFRlcm1fMC40LjItYmV0YS42X2FtZDY0LkFwcEltYWdlCXZlcnNpb246MC40LjItYmV0YS42CkJ3ZUtLRWQzblVqdlFjSjBaT3AzZUNTZWs5ZVFSQk55djI3bzBpczZpZmlTa2Judm9OaUhubVR4MHBPU1B5QVBvM00zUVNPRVFEY0RlRStrWmgxTkNRPT0K",
-      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.6/tTerm_0.4.2-beta.6_amd64.AppImage"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM2k3QUk3V09PRTNKOWozTmQ2SW43RHZOUmhxVXpCSkx2UnFTbE9SLzVEaGNzSVJUN1dJeG1oRnRWOWRkWkd0MmsrOXNabkt1OHRMSCs3QVFFOVVuTmdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNzQ2ODc1CWZpbGU6dFRlcm1fMC40LjItYmV0YS43X2FtZDY0LkFwcEltYWdlCXZlcnNpb246MC40LjItYmV0YS43ClRMbTFOcEVoaHBGSkJ1WFNYOFFMTkFtWU5WM2tlamRpcnViMUp5TmRKK0JCNzBRQ0F4N1JaNG5XYzVkeVVzRlBnVE1uWlpDNTVMdGlCTVFlZWlwSkJBPT0K",
+      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.7/tTerm_0.4.2-beta.7_amd64.AppImage"
     },
     "linux-x86_64-appimage": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM2d3TyswLzdIVm5kY2FnTjBXK1ZPbVVSWnFBUksvWVFwa1hxU1YrVHlKUmhXYWpuQlBsQ3E2MHpKUTEwOHlsUUFtSC8ra2ZGU1pWK2FPM1hDWjJtYVFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNjcyMzc1CWZpbGU6dFRlcm1fMC40LjItYmV0YS42X2FtZDY0LkFwcEltYWdlCXZlcnNpb246MC40LjItYmV0YS42CkJ3ZUtLRWQzblVqdlFjSjBaT3AzZUNTZWs5ZVFSQk55djI3bzBpczZpZmlTa2Judm9OaUhubVR4MHBPU1B5QVBvM00zUVNPRVFEY0RlRStrWmgxTkNRPT0K",
-      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.6/tTerm_0.4.2-beta.6_amd64.AppImage"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM2k3QUk3V09PRTNKOWozTmQ2SW43RHZOUmhxVXpCSkx2UnFTbE9SLzVEaGNzSVJUN1dJeG1oRnRWOWRkWkd0MmsrOXNabkt1OHRMSCs3QVFFOVVuTmdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNzQ2ODc1CWZpbGU6dFRlcm1fMC40LjItYmV0YS43X2FtZDY0LkFwcEltYWdlCXZlcnNpb246MC40LjItYmV0YS43ClRMbTFOcEVoaHBGSkJ1WFNYOFFMTkFtWU5WM2tlamRpcnViMUp5TmRKK0JCNzBRQ0F4N1JaNG5XYzVkeVVzRlBnVE1uWlpDNTVMdGlCTVFlZWlwSkJBPT0K",
+      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.7/tTerm_0.4.2-beta.7_amd64.AppImage"
     },
     "linux-x86_64-deb": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM3NFaU5ZQmFRVGY0a3IyVmc2ZllGbTRqMlcvNWM3MXNvVUltbjZneXBVdzhPS05lUVIzYTN4Z3dpZDRzVnRRT2tRd1hYV3JmaFg3a3ptZmtNL3ZJblFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNjcyMzc1CWZpbGU6dFRlcm1fMC40LjItYmV0YS42X2FtZDY0LmRlYgl2ZXJzaW9uOjAuNC4yLWJldGEuNgpSQk13ZFZnS3p2SXlvdWxCcUVxWFdBeHRiWWNqdGdycEpkeDdzNE1udVdUVlYxRUZHd2xyY0swTWZleW50d3VwR0NIYSsyTnB5emMzTEVHQVQ2RFZDUT09Cg==",
-      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.6/tTerm_0.4.2-beta.6_amd64.deb"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM3ZMb21nblprd3AxN1ZWelVTV3FoTUFLcnlXbmJRMXRkMzI3ajB6UjNXRVZxMm1pcE1uckw5eXdXOGU5QmhGVmxvQUdYdEdWOS9CR0FQYzhIVmZJaFFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNzQ2ODc2CWZpbGU6dFRlcm1fMC40LjItYmV0YS43X2FtZDY0LmRlYgl2ZXJzaW9uOjAuNC4yLWJldGEuNwpCL0RjbHd5NDVLZmVlT3V0cWZmZExKS1QwakVzNDBmYmdDMjZ5MXF4OG16WHlBLzZ0M2UvSjEyVEJZTlJYcjBTZVhsOVBja1lzZVhJMVFJSjdLSEpBdz09Cg==",
+      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.7/tTerm_0.4.2-beta.7_amd64.deb"
     },
     "linux-x86_64-rpm": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM21ubStWQy9Ecjk5ZEI0QnJpNkVjMHNsMlRyZ3RXQzNpL0xDNnorRHNiUUw1cE4xMVZObWNoNU9MWndPSDV0RUYwUjI4ZnlZMERTRnhNZ2RXR0hPWVFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNjcyMzc1CWZpbGU6dFRlcm0tMC40LjItYmV0YS42LTEueDg2XzY0LnJwbQl2ZXJzaW9uOjAuNC4yLWJldGEuNgphSU1IaThGYjdXS3VpS1NyMjlQNUtLTzZmbFR6dG5UcEJ1dHBIRWlVck8vSzNMN3JRZHVScndvQXRraGRDSzJQa2txblVIOWJWSkNuSkQ3dWs1Nk5BZz09Cg==",
-      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.6/tTerm-0.4.2-beta.6-1.x86_64.rpm"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM3N2WGtKZUttYldnM2JwTlpZM0hVWjhqVW1FVVFEM1BUM2w3R1NJSVRpeDhjcERXM3pna3pkN1pXTElIM0I2VGYzZG9QYTBpUkw0eTFVWnFOSkZEY0FJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNzQ2ODc2CWZpbGU6dFRlcm0tMC40LjItYmV0YS43LTEueDg2XzY0LnJwbQl2ZXJzaW9uOjAuNC4yLWJldGEuNwpOUEpsTGQ4R0p4QWpHdDh5TjFtbTUwSUtRVFdQQWo4TGxaYnpBQWUvQVArOGdCWnRtbnVUNVpWQXc2d0JHdXBJcURYNGpWL3F6c1JYYnFVUWZPU3hCZz09Cg==",
+      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.7/tTerm-0.4.2-beta.7-1.x86_64.rpm"
+    },
+    "darwin-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM2dWeXhzOExFdGlha3h0UUpHb0FtMnB1T05yY1BsaEpOa0dZRjl5cmpCTThtejBkVnBrbW9xZ0dJWkJDT0Fud3RtQzhVUG5RYUpOSEJ4T3FKOHFtR0FzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNzQ2ODk1CWZpbGU6dFRlcm0uYXBwLnRhci5negl2ZXJzaW9uOjAuNC4yLWJldGEuNwpKMitTOFBaQUlVamkrZEZKbjQvUkxvQmlUQld0clYwenJVU0J0NllLVm1PUG93T20ycXJlaDN6VjlpcHdaNldheXpSWTBEL1kvTkxsRWlZVkkwaUJCUT09Cg==",
+      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.7/tTerm_x64.app.tar.gz"
+    },
+    "darwin-x86_64-app": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM2dWeXhzOExFdGlha3h0UUpHb0FtMnB1T05yY1BsaEpOa0dZRjl5cmpCTThtejBkVnBrbW9xZ0dJWkJDT0Fud3RtQzhVUG5RYUpOSEJ4T3FKOHFtR0FzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNzQ2ODk1CWZpbGU6dFRlcm0uYXBwLnRhci5negl2ZXJzaW9uOjAuNC4yLWJldGEuNwpKMitTOFBaQUlVamkrZEZKbjQvUkxvQmlUQld0clYwenJVU0J0NllLVm1PUG93T20ycXJlaDN6VjlpcHdaNldheXpSWTBEL1kvTkxsRWlZVkkwaUJCUT09Cg==",
+      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.7/tTerm_x64.app.tar.gz"
     },
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM2pYMUtJZ2J1cTZJZWZjbkd5VUNOUHFzV0lLOTM2M2lhaXNwbTYxakhTWlFwNzZtZ2J1M0t2N3czRmIvOVdiV2svWm13aVlNRXRwOUJDbklsZTJneHdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNjcyNDM2CWZpbGU6dFRlcm1fMC40LjItYmV0YS42X3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjQuMi1iZXRhLjYKckRxWWliN3ltZzlJSndTb3pydjM0eEZVK3F3Z1pmUXNXaFdtZmFhaEcxYXVGOXFZQkZydUZvSWVMcXpsQ2ZGS1ducUtzWjNDMlZKdUNQWk1seTNBRFE9PQo=",
-      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.6/tTerm_0.4.2-beta.6_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM25GdVVTZkdIOEZkNWYzVDQ4eUtNLzBjV0Rta0k5ZUJJUEJTcERSZUFyU2UvTHJ4NVJ5b1VONWRqNVhnQzJhVmtnQ3VndGViRFdxK1A0VExBeGpSTWdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNzQ2OTM5CWZpbGU6dFRlcm1fMC40LjItYmV0YS43X3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjQuMi1iZXRhLjcKTzR0WEpaS05jQzVoTDA0WlViRHYzZEtDZ0FGc0ZvY0xrK0ZYM0VPd1NKZTJMSlpONTgzMTBnN0RTbjBrN0RjZk9Yb0ZWeFF0MUZuLzJ4eU5SUUtvQ2c9PQo=",
+      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.7/tTerm_0.4.2-beta.7_x64-setup.exe"
     },
     "windows-x86_64-nsis": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM2pYMUtJZ2J1cTZJZWZjbkd5VUNOUHFzV0lLOTM2M2lhaXNwbTYxakhTWlFwNzZtZ2J1M0t2N3czRmIvOVdiV2svWm13aVlNRXRwOUJDbklsZTJneHdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNjcyNDM2CWZpbGU6dFRlcm1fMC40LjItYmV0YS42X3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjQuMi1iZXRhLjYKckRxWWliN3ltZzlJSndTb3pydjM0eEZVK3F3Z1pmUXNXaFdtZmFhaEcxYXVGOXFZQkZydUZvSWVMcXpsQ2ZGS1ducUtzWjNDMlZKdUNQWk1seTNBRFE9PQo=",
-      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.6/tTerm_0.4.2-beta.6_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM25GdVVTZkdIOEZkNWYzVDQ4eUtNLzBjV0Rta0k5ZUJJUEJTcERSZUFyU2UvTHJ4NVJ5b1VONWRqNVhnQzJhVmtnQ3VndGViRFdxK1A0VExBeGpSTWdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNzQ2OTM5CWZpbGU6dFRlcm1fMC40LjItYmV0YS43X3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjQuMi1iZXRhLjcKTzR0WEpaS05jQzVoTDA0WlViRHYzZEtDZ0FGc0ZvY0xrK0ZYM0VPd1NKZTJMSlpONTgzMTBnN0RTbjBrN0RjZk9Yb0ZWeFF0MUZuLzJ4eU5SUUtvQ2c9PQo=",
+      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.7/tTerm_0.4.2-beta.7_x64-setup.exe"
     },
     "darwin-aarch64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM3BadkN5VHJOeGxINHJpVFNkdm1taDFRMDZRT2xkOWRuNmc1M1g4L3psckkrbjZoT21EN1F0djZtUlBZU2NXalhOamFuenpUOEplZHRyVU5FUVJpZXc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNjcyNTY3CWZpbGU6dFRlcm0uYXBwLnRhci5negl2ZXJzaW9uOjAuNC4yLWJldGEuNgpmSUNDSVU5L3FKa3RIQXZPRjdqdUhHTmZtci8zVHR2SkFkWmtMcjVxQjJaZlN3UjM0ekNZQk5vQ09pZE9GZU9qSU1oMkJ3SXpCVk01WmI2blRqNnVDUT09Cg==",
-      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.6/tTerm_aarch64.app.tar.gz"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM3BGMmhUbW1NcjBab0tHUVI2MGFWMXR0UDNRSldjK3BYME1wUmh3TWVtNERzNHhLVGtGdWkwbTJYUEh3UGVuWXhENThjdW9PZXhsRDdMa0xrK0oyTVEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNzQ2OTk5CWZpbGU6dFRlcm0uYXBwLnRhci5negl2ZXJzaW9uOjAuNC4yLWJldGEuNwpRSmkreEkzTGJ4cy9sVWN6bU90N0ZYeXRHakozNXVXVW5XRnlSS3lGK0tBZnYrQlZ4RVZNM3FzT3B5aFBZWUQybEgxQzJxcTdQdnBLSHhocWZ0eWZBdz09Cg==",
+      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.7/tTerm_aarch64.app.tar.gz"
     },
     "darwin-aarch64-app": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM3BadkN5VHJOeGxINHJpVFNkdm1taDFRMDZRT2xkOWRuNmc1M1g4L3psckkrbjZoT21EN1F0djZtUlBZU2NXalhOamFuenpUOEplZHRyVU5FUVJpZXc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNjcyNTY3CWZpbGU6dFRlcm0uYXBwLnRhci5negl2ZXJzaW9uOjAuNC4yLWJldGEuNgpmSUNDSVU5L3FKa3RIQXZPRjdqdUhHTmZtci8zVHR2SkFkWmtMcjVxQjJaZlN3UjM0ekNZQk5vQ09pZE9GZU9qSU1oMkJ3SXpCVk01WmI2blRqNnVDUT09Cg==",
-      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.6/tTerm_aarch64.app.tar.gz"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUYldMTFVaZzBJM3BGMmhUbW1NcjBab0tHUVI2MGFWMXR0UDNRSldjK3BYME1wUmh3TWVtNERzNHhLVGtGdWkwbTJYUEh3UGVuWXhENThjdW9PZXhsRDdMa0xrK0oyTVEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNzQ2OTk5CWZpbGU6dFRlcm0uYXBwLnRhci5negl2ZXJzaW9uOjAuNC4yLWJldGEuNwpRSmkreEkzTGJ4cy9sVWN6bU90N0ZYeXRHakozNXVXVW5XRnlSS3lGK0tBZnYrQlZ4RVZNM3FzT3B5aFBZWUQybEgxQzJxcTdQdnBLSHhocWZ0eWZBdz09Cg==",
+      "url": "https://github.com/330079598/tTerm/releases/download/v0.4.2-beta.7/tTerm_aarch64.app.tar.gz"
     }
   }
 }
