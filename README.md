@@ -65,7 +65,7 @@ Run the same thing on several servers at once (`Cmd/Ctrl+Shift+B`). The screensh
 - Jump-host chains, opened in order like OpenSSH `ProxyJump`
 - Import hosts from `~/.ssh/config` with a preview, including `LocalForward` / `RemoteForward` / `DynamicForward` rules as tunnels
 - Connection groups with drag-and-drop, search, and bulk delete
-- Host key confirmation and known-host management
+- Host key confirmation; review and remove trusted hosts under Settings → Security
 - Automatic reconnect with capped backoff and a configurable attempt limit
 - Per-connection keepalive interval and missed-reply limit
 - Per-tab connection header with pinning

@@ -1771,5 +1771,23 @@
     "rejectedDescription": "本次会话已暂停自动填充。请手动输入，或在连接配置中更新密码。",
     "notSentTitle": "密码未发送",
     "notSentDescription": "密码提示已不在等待输入，因此没有发送已保存的密码。"
+  },
+  "knownHosts": {
+    "title": "已知主机",
+    "description": "你已信任的主机密钥。删除后，下次连接该主机时会重新要求确认指纹。",
+    "count": "{{count}} 台",
+    "empty": "还没有已信任的主机。",
+    "noMatches": "没有匹配的主机。",
+    "searchPlaceholder": "搜索主机、连接名称或指纹",
+    "jumpHost": "跳板机",
+    "trustedAt": "信任于 {{date}}",
+    "delete": "删除",
+    "deleteLabel": "删除 {{host}} 的主机密钥",
+    "deleteTitle": "删除已知主机？",
+    "deleteConfirm": "确定删除 {{host}} 的已信任主机密钥吗？下次连接时会重新要求确认指纹。",
+    "deleted": "已删除已知主机",
+    "deletedDesc": "下次连接 {{host}} 时会重新验证主机密钥。",
+    "deleteFailed": "删除已知主机失败",
+    "loadFailed": "无法加载已知主机：{{error}}"
   }
 }

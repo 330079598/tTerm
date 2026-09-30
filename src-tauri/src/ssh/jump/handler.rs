@@ -1,6 +1,7 @@
 use crate::core::state::HostPromptMap;
 use crate::ssh::store::{
     load_known_host, now_unix_ms, save_known_host_entry, KnownHostRecord, SshHostKeyPromptPayload,
+    JUMP_HOST_PROFILE_PREFIX,
 };
 use crate::ssh::types::{
     emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode,
@@ -67,7 +68,7 @@ impl client::Handler for JumpHostHandler {
             .hop(self.hop_index, self.total_hops),
         );
 
-        let synthetic_name = format!("jump:{}:{}", self.host, self.port);
+        let synthetic_name = format!("{JUMP_HOST_PROFILE_PREFIX}{}:{}", self.host, self.port);
 
         let known = match load_known_host(&synthetic_name, None, &self.host, self.port) {
             Ok(value) => value,

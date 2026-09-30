@@ -1781,5 +1781,24 @@
     "rejectedDescription": "Autofill is paused for this session. Type the password, or update it in the connection settings.",
     "notSentTitle": "Password not sent",
     "notSentDescription": "The password prompt was no longer waiting for input, so the saved password was not sent."
+  },
+  "knownHosts": {
+    "title": "Known hosts",
+    "description": "Host keys you have trusted. After you remove one, the next connection to that host asks you to confirm its fingerprint again.",
+    "count_one": "{{count}} host",
+    "count_other": "{{count}} hosts",
+    "empty": "No trusted hosts yet.",
+    "noMatches": "No hosts match your search.",
+    "searchPlaceholder": "Search host, connection name, or fingerprint",
+    "jumpHost": "Jump host",
+    "trustedAt": "trusted {{date}}",
+    "delete": "Remove",
+    "deleteLabel": "Remove host key of {{host}}",
+    "deleteTitle": "Remove known host?",
+    "deleteConfirm": "Remove the trusted host key of {{host}}? You will be asked to confirm its fingerprint the next time you connect.",
+    "deleted": "Known host removed",
+    "deletedDesc": "{{host}} will be verified again on the next connection.",
+    "deleteFailed": "Failed to remove known host",
+    "loadFailed": "Failed to load known hosts: {{error}}"
   }
 }

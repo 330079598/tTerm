@@ -103,6 +103,71 @@ pub(crate) fn list_known_hosts(connection: &Connection) -> Result<KnownHostStore
     Ok(KnownHostStore { entries })
 }
 
+/// Prefix of the synthetic profile name jump hosts are trusted under.
+pub(crate) const JUMP_HOST_PROFILE_PREFIX: &str = "jump:";
+
+/// A trusted host key as listed in the settings.
+#[derive(Debug, Serialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct KnownHostEntry {
+    pub id: i64,
+    /// The profile's current name; the name recorded at trust time when the
+    /// profile is gone or the entry predates profile ids. `None` for jump hosts.
+    pub profile_name: Option<String>,
+    pub is_jump_host: bool,
+    pub host: String,
+    pub port: u16,
+    pub algorithm: String,
+    pub fingerprint: String,
+    pub trusted_at: i64,
+}
+
+pub(crate) fn list_known_host_entries(
+    connection: &Connection,
+) -> Result<Vec<KnownHostEntry>, String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT known_hosts.id, coalesce(profiles.name, known_hosts.profile_name), \
+                    known_hosts.profile_id IS NULL AND known_hosts.profile_name LIKE ?1, \
+                    known_hosts.host, known_hosts.port, known_hosts.algorithm, \
+                    known_hosts.fingerprint, known_hosts.trusted_at \
+             FROM known_hosts LEFT JOIN profiles ON profiles.id = known_hosts.profile_id \
+             ORDER BY known_hosts.host COLLATE NOCASE, known_hosts.port, known_hosts.id",
+        )
+        .map_err(sql_error("Failed to read known hosts"))?;
+    let entries = statement
+        .query_map(params![format!("{JUMP_HOST_PROFILE_PREFIX}%")], |row| {
+            let is_jump_host: bool = row.get(2)?;
+            Ok(KnownHostEntry {
+                id: row.get(0)?,
+                profile_name: if is_jump_host { None } else { row.get(1)? },
+                is_jump_host,
+                host: row.get(3)?,
+                port: row.get(4)?,
+                algorithm: row.get(5)?,
+                fingerprint: row.get(6)?,
+                trusted_at: row.get(7)?,
+            })
+        })
+        .and_then(Iterator::collect)
+        .map_err(sql_error("Failed to read known hosts"))?;
+    Ok(entries)
+}
+
+/// Forgets the given entries; the next connection to those hosts asks again.
+pub(crate) fn delete_known_host_entries(
+    connection: &Connection,
+    ids: &[i64],
+) -> Result<usize, String> {
+    let mut deleted = 0;
+    for id in ids {
+        deleted += connection
+            .execute("DELETE FROM known_hosts WHERE id = ?1", params![id])
+            .map_err(sql_error("Failed to delete known host"))?;
+    }
+    Ok(deleted)
+}
+
 fn insert_known_host(connection: &Connection, entry: &KnownHostRecord) -> Result<(), String> {
     connection
         .execute(
@@ -271,7 +336,8 @@ fn save_known_host(connection: &Connection, entry: &KnownHostRecord) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::{
-        find_known_host_entry, list_known_hosts, save_known_host, KnownHostRecord, KnownHostStore,
+        delete_known_host_entries, find_known_host_entry, list_known_host_entries,
+        list_known_hosts, save_known_host, KnownHostRecord, KnownHostStore,
     };
     use crate::db::Database;
 
@@ -313,6 +379,67 @@ mod tests {
                 Ok(())
             })
             .expect("save known hosts");
+    }
+
+    #[test]
+    fn listing_shows_current_profile_names_and_deleting_forgets_entries() {
+        let database = Database::open_in_memory().expect("open database");
+        database
+            .write(|connection| {
+                connection
+                    .execute(
+                        "INSERT INTO profiles (id, position, data) \
+                         VALUES ('p1', 0, json_object('name', 'renamed'))",
+                        [],
+                    )
+                    .map_err(|error| error.to_string())?;
+                save_known_host(
+                    connection,
+                    &record(Some("p1"), "prod", "b.example.com", 22, "by-id"),
+                )?;
+                save_known_host(
+                    connection,
+                    &record(Some("gone"), "deleted", "c.example.com", 22, "orphan"),
+                )?;
+                save_known_host(
+                    connection,
+                    &record(
+                        None,
+                        "jump:a.example.com:2222",
+                        "a.example.com",
+                        2222,
+                        "jump",
+                    ),
+                )?;
+
+                let entries = list_known_host_entries(connection)?;
+                let summary = entries
+                    .iter()
+                    .map(|entry| {
+                        (
+                            entry.host.as_str(),
+                            entry.profile_name.as_deref(),
+                            entry.is_jump_host,
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    summary,
+                    [
+                        ("a.example.com", None, true),
+                        ("b.example.com", Some("renamed"), false),
+                        ("c.example.com", Some("deleted"), false),
+                    ]
+                );
+
+                let ids = [entries[0].id, entries[2].id, 9_999];
+                assert_eq!(delete_known_host_entries(connection, &ids)?, 2);
+                let remaining = list_known_hosts(connection)?.entries;
+                assert_eq!(remaining.len(), 1);
+                assert_eq!(remaining[0].fingerprint, "by-id");
+                Ok(())
+            })
+            .expect("list and delete known hosts");
     }
 
     fn record(

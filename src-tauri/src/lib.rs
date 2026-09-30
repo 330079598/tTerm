@@ -372,6 +372,8 @@ pub fn run() {
             ssh::secret_commands::list_saved_secrets,
             ssh::secret_commands::get_saved_secret,
             ssh::secret_commands::delete_saved_secret,
+            ssh::known_host_commands::list_known_hosts,
+            ssh::known_host_commands::delete_known_hosts,
             updater::check_app_update,
             updater::download_app_update,
             updater::install_downloaded_app_update,

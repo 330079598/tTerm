@@ -22,6 +22,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 
+import { KnownHostsCard } from "@/components/SettingsDialog/KnownHostsCard"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
 import type { VaultAction } from "@/components/SettingsDialog/types"
 import type { useConfirmDialog, useInfoDialog } from "@/components/ui/app-dialog"
@@ -779,6 +780,8 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
             )}
           </CardContent>
         </Card>
+
+        <KnownHostsCard confirm={confirm} />
       </div>
     </ScrollArea>
   )
