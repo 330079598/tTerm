@@ -194,3 +194,30 @@ async fn real_sshd_accepts_a_pem_rsa_key_file() {
     .await
     .expect("PEM RSA key authentication");
 }
+
+/// A server with nothing but an RSA host key cannot be verified in this
+/// build (russh's `rsa` feature is off), and the failure must say so rather
+/// than "Wrong server signature".
+#[tokio::test]
+#[ignore = "spawns a real sshd; run with --ignored real_sshd"]
+async fn real_sshd_with_only_an_rsa_host_key_is_explained() {
+    let sshd =
+        TestSshd::spawn_with_host_key(12316, &["-t", "rsa", "-b", "3072"], &["-t", "ed25519"], "")
+            .await;
+
+    let error = russh::client::connect(
+        Arc::new(crate::ssh::jump::compatibility_client_config(15, 3)),
+        ("127.0.0.1", sshd.port),
+        crate::ssh::test_sshd::AcceptAnyServerKey,
+    )
+    .await
+    .err()
+    .expect("an RSA-only host cannot be verified");
+
+    let explained = crate::ssh::jump::unverifiable_host_key_error(&error)
+        .unwrap_or_else(|| panic!("unexplained failure: {error}"));
+    assert!(
+        explained.to_string().contains("RSA host key"),
+        "{explained}"
+    );
+}

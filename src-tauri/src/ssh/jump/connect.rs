@@ -1,4 +1,4 @@
-use super::config::compatibility_client_config;
+use super::config::{compatibility_client_config, unverifiable_host_key_error};
 use super::handler::JumpHostHandler;
 use crate::core::session::JumpHostPlan;
 use crate::core::state::HostPromptMap;
@@ -86,6 +86,9 @@ fn map_jump_connect_error(
     // classified correctly even though the handler also records a reason.
     if host_key_rejected.load(Ordering::Relaxed) {
         return SshConnectError::HostKeyRejected;
+    }
+    if let Some(unverifiable) = unverifiable_host_key_error(&error) {
+        return unverifiable.with_prefix(&format!("Jump host #{hop_index}: "));
     }
 
     if let Ok(mut reason) = failure_reason.lock() {
@@ -330,8 +333,7 @@ pub async fn connect_via_jump_chain<H>(
     auth_prompter: &AuthPrompter,
 ) -> Result<(JumpChain, client::Handle<H>), SshConnectError>
 where
-    H: client::Handler + Send + 'static,
-    H::Error: std::fmt::Display,
+    H: client::Handler<Error = russh::Error> + Send + 'static,
 {
     if jump_plans.is_empty() {
         return Err(SshConnectError::Permanent(
@@ -467,9 +469,11 @@ where
         client::connect_stream(target_config, tunnel_channel.into_stream(), target_handler)
             .await
             .map_err(|e| {
-                SshConnectError::Network(format!(
-                    "Failed to establish SSH session through jump chain: {e}"
-                ))
+                unverifiable_host_key_error(&e).unwrap_or_else(|| {
+                    SshConnectError::Network(format!(
+                        "Failed to establish SSH session through jump chain: {e}"
+                    ))
+                })
             })?;
 
     Ok((JumpChain { sessions }, target_session))
@@ -589,6 +593,8 @@ pub async fn open_target_ssh_session_with_forwarding(
             .map_err(|e| {
                 if host_key_rejected.load(Ordering::Relaxed) {
                     SshConnectError::HostKeyRejected
+                } else if let Some(unverifiable) = unverifiable_host_key_error(&e) {
+                    unverifiable
                 } else {
                     SshConnectError::Network(format!("SSH connect failed: {e}"))
                 }

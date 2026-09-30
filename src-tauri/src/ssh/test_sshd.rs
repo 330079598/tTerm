@@ -58,13 +58,24 @@ impl TestSshd {
     /// (`ssh-keygen -t` arguments). `extra_config` goes first, because sshd
     /// keeps the first value it sees for a keyword.
     pub(crate) async fn spawn(port: u16, key_type: &[&str], extra_config: &str) -> Self {
+        Self::spawn_with_host_key(port, &["-t", "ed25519"], key_type, extra_config).await
+    }
+
+    /// Like [`Self::spawn`], with a host key of `host_key_type` as the
+    /// server's only identity.
+    pub(crate) async fn spawn_with_host_key(
+        port: u16,
+        host_key_type: &[&str],
+        key_type: &[&str],
+        extra_config: &str,
+    ) -> Self {
         let sshd_path = absolute_path("sshd");
         let keygen = absolute_path("ssh-keygen");
         let dir = TempDir::new();
         let host_key = dir.path.join("host_key");
         let client_key = dir.path.join("client_key");
 
-        for (key_type, path) in [(&["-t", "ed25519"][..], &host_key), (key_type, &client_key)] {
+        for (key_type, path) in [(host_key_type, &host_key), (key_type, &client_key)] {
             let status = Command::new(&keygen)
                 .args(key_type)
                 .args(["-N", "", "-q", "-f"])

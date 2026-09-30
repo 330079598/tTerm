@@ -597,7 +597,12 @@ pub async fn test_connection(
         )
         .await
         .map_err(|_| "Connection timeout".to_string())?
-        .map_err(|e| format!("Connection failed: {}", e))?;
+        .map_err(
+            |e| match crate::ssh::jump::unverifiable_host_key_error(&e) {
+                Some(unverifiable) => unverifiable.to_string(),
+                None => format!("Connection failed: {}", e),
+            },
+        )?;
 
         crate::ssh::emit_connection_progress(
             &app,
