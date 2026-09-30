@@ -1027,7 +1027,10 @@
     "sudoPasswordSavedPlaceholder": "已保存，留空保持不变",
     "sudoPasswordHint": "随连接配置保存（保存并连接）。适用于密钥或 Agent 登录的主机。",
     "sudoPasswordClear": "清除",
-    "sudoPasswordClearHint": "保存连接配置时将删除已保存的 sudo 密码。"
+    "sudoPasswordClearHint": "保存连接配置时将删除已保存的 sudo 密码。",
+    "keepaliveInterval": "心跳间隔（秒）",
+    "keepaliveCountMax": "判定断线的无响应次数",
+    "keepaliveDesc": "每 {{interval}} 秒发送一次心跳，连续 {{count}} 次无响应（约 {{timeout}} 秒）后判定连接已断开。"
   },
   "rename": {
     "title": "重命名标签页",

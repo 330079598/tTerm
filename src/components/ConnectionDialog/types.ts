@@ -94,6 +94,9 @@ export const defaultForm: ConnectionForm = {
   clearSudoPassword: false,
 }
 
+export const KEEPALIVE_INTERVAL_RANGE = { min: 5, max: 3600, fallback: 15 } as const
+export const KEEPALIVE_COUNT_RANGE = { min: 1, max: 100, fallback: 3 } as const
+
 export const connectionTypes = [
   { type: "terminal" as const, label: "OS terminal" },
   { type: "ssh" as const, label: "SSH Connection" },

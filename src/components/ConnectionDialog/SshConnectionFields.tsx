@@ -10,7 +10,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 
-import { ConnectionForm } from "@/components/ConnectionDialog/types"
+import { normalizeKeepalive } from "@/components/ConnectionDialog/connectionDialogUtils"
+import {
+  ConnectionForm,
+  KEEPALIVE_COUNT_RANGE,
+  KEEPALIVE_INTERVAL_RANGE,
+} from "@/components/ConnectionDialog/types"
 
 const SAVED_PASSWORD_MASK = "********"
 
@@ -43,6 +48,7 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
   const canRememberPasswords =
     form.authMethod === "password" ||
     (form.useJumpHost && form.jumpHosts.some((jump) => jump.authMethod === "password"))
+  const keepalive = normalizeKeepalive(form)
 
   return (
     <>
@@ -315,6 +321,60 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
           </div>
         </div>
       )}
+
+      <div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor="conn-keepalive-interval" className="mb-1.5 block">
+              {t("connection.keepaliveInterval")}
+            </Label>
+            <Input
+              id="conn-keepalive-interval"
+              type="number"
+              min={KEEPALIVE_INTERVAL_RANGE.min}
+              max={KEEPALIVE_INTERVAL_RANGE.max}
+              value={form.keepaliveIntervalSecs || ""}
+              onChange={(e) =>
+                setForm((current) => ({
+                  ...current,
+                  keepaliveIntervalSecs: Number(e.target.value),
+                }))
+              }
+              onBlur={() =>
+                setForm((current) => ({
+                  ...current,
+                  keepaliveIntervalSecs: keepalive.intervalSecs,
+                }))
+              }
+            />
+          </div>
+          <div>
+            <Label htmlFor="conn-keepalive-count" className="mb-1.5 block">
+              {t("connection.keepaliveCountMax")}
+            </Label>
+            <Input
+              id="conn-keepalive-count"
+              type="number"
+              min={KEEPALIVE_COUNT_RANGE.min}
+              max={KEEPALIVE_COUNT_RANGE.max}
+              value={form.keepaliveCountMax || ""}
+              onChange={(e) =>
+                setForm((current) => ({ ...current, keepaliveCountMax: Number(e.target.value) }))
+              }
+              onBlur={() =>
+                setForm((current) => ({ ...current, keepaliveCountMax: keepalive.countMax }))
+              }
+            />
+          </div>
+        </div>
+        <p className="text-muted-foreground mt-1 text-xs">
+          {t("connection.keepaliveDesc", {
+            interval: keepalive.intervalSecs,
+            count: keepalive.countMax,
+            timeout: keepalive.intervalSecs * keepalive.countMax,
+          })}
+        </p>
+      </div>
     </>
   )
 }

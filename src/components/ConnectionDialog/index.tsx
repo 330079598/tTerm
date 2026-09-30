@@ -26,6 +26,7 @@ import { Tab, type JumpHostConnection, type SavedJumpHost } from "@/types/tab"
 import {
   buildInitialForm,
   getDefaultTitle,
+  normalizeKeepalive,
 } from "@/components/ConnectionDialog/connectionDialogUtils"
 import { JumpHostFields } from "@/components/ConnectionDialog/JumpHostFields"
 import { SshConnectionFields } from "@/components/ConnectionDialog/SshConnectionFields"
@@ -319,6 +320,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const keepalive = normalizeKeepalive(form)
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null
     const shouldSave = submitter?.dataset.action === "save"
     setNameError(null)
@@ -382,8 +384,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         auth_method: form.authMethod,
         agent_forward: form.agentForward,
         private_key_path: form.authMethod === "key" ? form.privateKeyPath : undefined,
-        keepalive_interval_secs: form.keepaliveIntervalSecs,
-        keepalive_count_max: form.keepaliveCountMax,
+        keepalive_interval_secs: keepalive.intervalSecs,
+        keepalive_count_max: keepalive.countMax,
         server_monitor_visible: editProfile?.server_monitor_visible === true,
         use_jump_host: form.useJumpHost,
         jump_hosts: profileJumpHostsPayload,
@@ -440,8 +442,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         agentForward: form.agentForward,
         privateKeyPath: form.authMethod === "key" ? form.privateKeyPath : undefined,
         privateKeyPassphrase: form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
-        keepaliveIntervalSecs: form.keepaliveIntervalSecs,
-        keepaliveCountMax: form.keepaliveCountMax,
+        keepaliveIntervalSecs: keepalive.intervalSecs,
+        keepaliveCountMax: keepalive.countMax,
         serverMonitorVisible: editProfile?.server_monitor_visible === true,
         jumpHosts: connectionJumpHostsPayload,
       }
@@ -481,6 +483,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
 
   const handleTestConnection = async () => {
     if (form.type !== "ssh") return
+    const keepalive = normalizeKeepalive(form)
 
     const jumpErrors = getJumpHostValidationErrors(form)
     setJumpHostErrors(jumpErrors)
@@ -541,8 +544,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         auth_method: form.authMethod,
         private_key_path: form.authMethod === "key" ? form.privateKeyPath : undefined,
         private_key_passphrase: form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
-        keepalive_interval_secs: form.keepaliveIntervalSecs,
-        keepalive_count_max: form.keepaliveCountMax,
+        keepalive_interval_secs: keepalive.intervalSecs,
+        keepalive_count_max: keepalive.countMax,
         server_monitor_visible: editProfile?.server_monitor_visible === true,
         remember_password: false,
         use_jump_host: form.useJumpHost,

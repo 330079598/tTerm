@@ -6,6 +6,8 @@ import {
   ConnectionType,
   createDefaultJumpHost,
   defaultForm,
+  KEEPALIVE_COUNT_RANGE,
+  KEEPALIVE_INTERVAL_RANGE,
 } from "@/components/ConnectionDialog/types"
 
 export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionForm {
@@ -57,6 +59,24 @@ export function buildInitialForm(
   }
 
   return form
+}
+
+function clampToRange(
+  value: number,
+  range: { min: number; max: number; fallback: number }
+): number {
+  if (!Number.isFinite(value) || value <= 0) return range.fallback
+  return Math.min(range.max, Math.max(range.min, Math.round(value)))
+}
+
+/** Keepalive settings as the backend accepts them; an empty field falls back to the default. */
+export function normalizeKeepalive(
+  form: Pick<ConnectionForm, "keepaliveIntervalSecs" | "keepaliveCountMax">
+): { intervalSecs: number; countMax: number } {
+  return {
+    intervalSecs: clampToRange(form.keepaliveIntervalSecs, KEEPALIVE_INTERVAL_RANGE),
+    countMax: clampToRange(form.keepaliveCountMax, KEEPALIVE_COUNT_RANGE),
+  }
 }
 
 export function getDefaultTitle(type: ConnectionType, form: ConnectionForm): string {

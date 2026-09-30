@@ -67,6 +67,7 @@ Run the same thing on several servers at once (`Cmd/Ctrl+Shift+B`). The screensh
 - Connection groups with drag-and-drop, search, and bulk delete
 - Host key confirmation and known-host management
 - Automatic reconnect with capped backoff and a configurable attempt limit
+- Per-connection keepalive interval and missed-reply limit
 - Per-tab connection header with pinning
 - **Sudo password autofill**: when `sudo` or `doas` asks for a password, a bar outside the terminal offers to fill the saved password with one click or `Cmd/Ctrl+Shift+Enter`. Prompts are recognized in English, Chinese, and other locales, and you can add custom patterns. A dedicated sudo password can be saved per connection, which is useful for key or agent logins. Autofill pauses for the session if the password is rejected.
 

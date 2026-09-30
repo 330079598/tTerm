@@ -1036,7 +1036,10 @@
     "sudoPasswordSavedPlaceholder": "Saved, leave empty to keep it",
     "sudoPasswordHint": "Saved with the profile (Save & connect). Useful for key or agent logins.",
     "sudoPasswordClear": "Clear",
-    "sudoPasswordClearHint": "The saved sudo password will be removed when the profile is saved."
+    "sudoPasswordClearHint": "The saved sudo password will be removed when the profile is saved.",
+    "keepaliveInterval": "Keepalive interval (seconds)",
+    "keepaliveCountMax": "Missed replies before disconnect",
+    "keepaliveDesc": "A keepalive is sent every {{interval}} s. After {{count}} in a row go unanswered (about {{timeout}} s), the connection is treated as lost."
   },
   "rename": {
     "title": "Rename Tab",

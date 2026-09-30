@@ -169,8 +169,9 @@ pub(crate) struct RawSshHost {
     pub warnings: Vec<String>,
 }
 
+/// Matches the connection dialog's default and `normalize_connection`'s fallback.
 pub(crate) fn default_keepalive_interval() -> u32 {
-    30
+    15
 }
 pub(crate) fn default_keepalive_count() -> u32 {
     3
