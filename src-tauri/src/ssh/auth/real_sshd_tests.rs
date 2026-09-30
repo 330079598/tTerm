@@ -2,11 +2,14 @@
 //! [`crate::ssh::test_sshd`]).
 //!
 //! The in-process `russh` server used by the other tests cannot signal
-//! partial success for a public key, so that, and PAM's keyboard-interactive
-//! prompts, are checked here.
+//! partial success for a public key and says nothing about which RSA
+//! signature algorithms a real server accepts, so those behaviours, and PAM's
+//! keyboard-interactive prompts, are checked here.
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
+
+use russh::keys::{load_secret_key, PrivateKeyWithHashAlg};
 
 use super::{authenticate, AuthMethod, AuthPrompter, AuthTarget, ScriptedPrompts};
 use crate::ssh::test_sshd::{current_user, TestSshd};
@@ -18,6 +21,41 @@ fn target<'a>(username: &'a str, port: u16) -> AuthTarget<'a> {
         username,
         hop: None,
     }
+}
+
+#[tokio::test]
+#[ignore = "spawns a real sshd; run with --ignored real_sshd"]
+async fn real_sshd_accepts_an_rsa_key_file() {
+    let sshd = TestSshd::spawn(12311, &["-t", "rsa", "-b", "3072"], "").await;
+    let username = current_user();
+
+    // The legacy SHA-1 signature is what key-file auth used to send, and what
+    // a current OpenSSH turns down.
+    let mut legacy = sshd.connect().await;
+    let key = load_secret_key(&sshd.client_key, None).expect("load client key");
+    let legacy_result = legacy
+        .authenticate_publickey(
+            username.as_str(),
+            PrivateKeyWithHashAlg::new(Arc::new(key), None),
+        )
+        .await
+        .expect("legacy auth exchange");
+    assert!(
+        !legacy_result.success(),
+        "this sshd still accepts ssh-rsa, so the test proves nothing"
+    );
+
+    // tTerm signs with rsa-sha2 through `ring`, whether or not `russh` was
+    // built with its own RSA support.
+    let mut session = sshd.connect().await;
+    authenticate(
+        &mut session,
+        &target(&username, sshd.port),
+        sshd.key_method(),
+        &AuthPrompter::Unavailable,
+    )
+    .await
+    .expect("RSA key authentication");
 }
 
 #[tokio::test]
@@ -135,4 +173,24 @@ async fn real_sshd_pam_prompts_reach_the_user() {
     .expect_err("the stored password is wrong");
     assert_eq!(error.to_string(), "SSH authentication failed");
     assert!(unused.lock().unwrap().asked.is_empty());
+}
+
+/// Keys made before OpenSSH 7.8 are PKCS#1 PEM (`BEGIN RSA PRIVATE KEY`).
+#[tokio::test]
+#[ignore = "spawns a real sshd; run with --ignored real_sshd"]
+async fn real_sshd_accepts_a_pem_rsa_key_file() {
+    let sshd = TestSshd::spawn(12315, &["-t", "rsa", "-b", "2048", "-m", "PEM"], "").await;
+    let username = current_user();
+    let pem = std::fs::read_to_string(&sshd.client_key).expect("read key");
+    assert!(pem.starts_with("-----BEGIN RSA PRIVATE KEY-----"), "{pem}");
+
+    let mut session = sshd.connect().await;
+    authenticate(
+        &mut session,
+        &target(&username, sshd.port),
+        sshd.key_method(),
+        &AuthPrompter::Unavailable,
+    )
+    .await
+    .expect("PEM RSA key authentication");
 }

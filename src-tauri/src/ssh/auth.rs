@@ -11,12 +11,14 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use russh::client::{self, AuthResult, KeyboardInteractiveAuthResponse};
-use russh::keys::PrivateKeyWithHashAlg;
+use russh::keys::ssh_key::private::KeypairData;
+use russh::keys::{HashAlg, PrivateKeyWithHashAlg};
 use russh::{MethodKind, MethodSet};
 use serde::Serialize;
 use tauri::{Emitter, Manager};
 use tokio::sync::oneshot;
 
+use crate::ssh::rsa_signer::RingRsaSigner;
 use crate::ssh::types::SshConnectError;
 
 /// Budget for one request/response exchange with the server.
@@ -469,19 +471,67 @@ async fn publickey<H>(
 where
     H: client::Handler,
 {
-    let subject = format!("{} key", target.subject());
-    let key = crate::ssh::key_file::load_private_key(path, passphrase, &subject)
-        .map_err(SshConnectError::Permanent)?;
+    const WHAT: &str = "key authentication";
 
-    exchange(
-        target,
-        "key authentication",
-        session.authenticate_publickey(
+    let subject = target.subject();
+    let key_error =
+        |reason: String| SshConnectError::Permanent(format!("{subject} key {path}: {reason}"));
+
+    // RSA is signed by `ring` (see `rsa_signer`); every other key by `russh`.
+    let (mut signer, public_key) =
+        match crate::ssh::key_file::load_private_key(path, passphrase, &format!("{subject} key")) {
+            Ok(key) => match key.key_data() {
+                KeypairData::Rsa(rsa_keypair) => (
+                    RingRsaSigner::new(rsa_keypair).map_err(key_error)?,
+                    key.public_key().clone(),
+                ),
+                _ => {
+                    return exchange(
+                        target,
+                        WHAT,
+                        session.authenticate_publickey(
+                            target.username,
+                            PrivateKeyWithHashAlg::new(Arc::new(key), None),
+                        ),
+                    )
+                    .await
+                }
+            },
+            // Old PEM-format RSA keys are beyond `russh` in this build.
+            Err(load_error) => std::fs::read_to_string(path)
+                .ok()
+                .and_then(|pem| RingRsaSigner::from_pem(&pem))
+                .ok_or(SshConnectError::Permanent(load_error))?
+                .map_err(key_error)?,
+        };
+
+    // Use the best rsa-sha2-* the server advertises. Plain `ssh-rsa` is
+    // SHA-1, which OpenSSH 8.8+ rejects and `ring` does not produce.
+    let hash_alg = match session.best_supported_rsa_hash().await.unwrap_or(None) {
+        Some(Some(hash_alg)) => hash_alg,
+        Some(None) => {
+            return Err(SshConnectError::Permanent(format!(
+                "{subject} server only accepts SHA-1 signatures for RSA keys, which tTerm \
+                 does not produce. Use an Ed25519 or ECDSA key for this host."
+            )))
+        }
+        // Not advertised (servers older than OpenSSH 7.2): those that know
+        // rsa-sha2 at all accept SHA-256.
+        None => HashAlg::Sha256,
+    };
+
+    tokio::time::timeout(
+        EXCHANGE_TIMEOUT,
+        session.authenticate_publickey_with(
             target.username,
-            PrivateKeyWithHashAlg::new(Arc::new(key), None),
+            public_key,
+            Some(hash_alg),
+            &mut signer,
         ),
     )
     .await
+    .map_err(|_| SshConnectError::Permanent(format!("{subject} {WHAT} timed out")))?
+    .map_err(|error| SshConnectError::Permanent(format!("{subject} {WHAT} failed: {error}")))
 }
 
 /// Runs one keyboard-interactive attempt to its verdict. A hidden prompt for

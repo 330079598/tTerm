@@ -31,6 +31,10 @@ uuid = { version = "1", features = ["v4"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "io-util", "fs", "net"] }
 russh = { version = "0.63", default-features = false, features = ["ring"] }
 russh-sftp = "3"
+# Both are already linked through russh and rustls; named here because RSA key
+# files are signed with ring instead of the `rsa` crate (see ssh/rsa_signer.rs).
+ring = "0.17"
+num-bigint = "0.5"
 async-trait = "0.1"
 aes-gcm = "0.11"
 argon2 = "0.6"
