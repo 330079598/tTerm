@@ -151,6 +151,7 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
 
   useEffect(() => {
     isMountedRef.current = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after await; false positive fixed upstream in facebook/react#36734
     void reloadSavedSecrets()
     return () => {
       isMountedRef.current = false

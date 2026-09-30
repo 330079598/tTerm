@@ -41,6 +41,7 @@ import { useKeymap } from "@/contexts/KeymapContext"
 import { useAppActivity } from "@/contexts/AppActivityContext"
 import { useTransferManager } from "@/contexts/TransferContext"
 import { useConnectionManager } from "@/hooks/useConnectionManager"
+import { useLatestRef } from "@/hooks/useLatestRef"
 import { usePreloadedSession } from "@/hooks/usePreloadedSession"
 import { useSessionPersistence } from "@/hooks/useSessionPersistence"
 import { useTabContextMenu } from "@/hooks/useTabContextMenu"
@@ -161,10 +162,10 @@ export const TTermApp: React.FC = () => {
     resolve: (targets: Array<{ tabId: string; sessionNonce: number }>) => void
     targets: Map<string, number>
   } | null>(null)
-  runtimeStatesRef.current = terminalRuntimeStates
-  targetIdsRef.current = broadcastTargetIds
-  unavailableTargetIdsRef.current = unavailableBroadcastTargetIds
-  liveStateRef.current = liveBroadcastState
+  useLatestRef(runtimeStatesRef, terminalRuntimeStates)
+  useLatestRef(targetIdsRef, broadcastTargetIds)
+  useLatestRef(unavailableTargetIdsRef, unavailableBroadcastTargetIds)
+  useLatestRef(liveStateRef, liveBroadcastState)
   const workspaceRef = useRef<TabPanelsHandle>(null)
 
   const {
@@ -185,8 +186,8 @@ export const TTermApp: React.FC = () => {
   } = useTabs()
   const tabsRef = useRef(tabs)
   const activeTabIdRef = useRef(activeTabId)
-  tabsRef.current = tabs
-  activeTabIdRef.current = activeTabId
+  useLatestRef(tabsRef, tabs)
+  useLatestRef(activeTabIdRef, activeTabId)
 
   const activeTerminalSessionCount = tabs.reduce((count, tab) => {
     if (tab.type !== "terminal" && tab.type !== "ssh") {
@@ -801,7 +802,11 @@ export const TTermApp: React.FC = () => {
     }
   }, [stopLiveBroadcast])
 
-  useEffect(() => {
+  // Drop broadcast targets whose tabs were closed. Done during render so no
+  // commit ever sees the stale ids.
+  const [broadcastTargetsTabs, setBroadcastTargetsTabs] = useState(tabs)
+  if (broadcastTargetsTabs !== tabs) {
+    setBroadcastTargetsTabs(tabs)
     const validIds = new Set(
       tabs.filter((tab) => tab.type === "terminal" || tab.type === "ssh").map((tab) => tab.id)
     )
@@ -809,7 +814,9 @@ export const TTermApp: React.FC = () => {
       const next = current.filter((id) => validIds.has(id))
       return next.length === current.length ? current : next
     })
+  }
 
+  useEffect(() => {
     if (!broadcastSource) return
     const sourceTab = tabs.find((tab) => tab.id === broadcastSource.tabId)
     const runtime = terminalRuntimeStates[broadcastSource.tabId]
@@ -820,6 +827,9 @@ export const TTermApp: React.FC = () => {
         (runtime.sessionNonce !== broadcastSource.sessionNonce ||
           isTerminalConnectionUnavailable(runtime.connectionState)))
     ) {
+      // Also resets refs the live input path reads (generation, source), so it
+      // can't move into render; closed tabs / dropped sessions are external.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       stopLiveBroadcast()
     }
   }, [broadcastSource, stopLiveBroadcast, tabs, terminalRuntimeStates])

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React from "react"
 import { useTranslation } from "react-i18next"
 import { Edit2 } from "lucide-react"
 import {
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useSyncedState } from "@/hooks/useSyncedState"
 import { Label } from "@/components/ui/label"
 
 interface RenameDialogProps {
@@ -26,11 +27,7 @@ export const RenameDialog: React.FC<RenameDialogProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation()
-  const [name, setName] = useState(currentName)
-
-  useEffect(() => {
-    setName(currentName)
-  }, [currentName])
+  const [name, setName] = useSyncedState(currentName)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

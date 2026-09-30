@@ -136,10 +136,13 @@ export const SshConfigImportDialog: React.FC<SshConfigImportDialogProps> = ({
     return message
   }
 
-  const loadPreview = async (path: string) => {
+  const loadPreview = (path: string) => {
     setLoadingPreview(true)
     setError(null)
+    return fetchPreview(path)
+  }
 
+  const fetchPreview = async (path: string) => {
     try {
       const result = await invoke<SshConfigImportPreview>("preview_ssh_config_import", {
         sourcePath: path.trim() || undefined,
@@ -158,12 +161,21 @@ export const SshConfigImportDialog: React.FC<SshConfigImportDialogProps> = ({
     }
   }
 
+  const [previewOpen, setPreviewOpen] = useState(false)
+  if (previewOpen !== open) {
+    setPreviewOpen(open)
+    if (open) {
+      setLoadingPreview(true)
+      setError(null)
+    }
+  }
+
   useEffect(() => {
     if (!open) {
       return
     }
 
-    void loadPreview(sourcePath)
+    void fetchPreview(sourcePath)
     // Run only when the dialog opens; manual path edits are previewed by the Preview button.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])

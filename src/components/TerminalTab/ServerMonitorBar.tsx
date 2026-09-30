@@ -619,6 +619,19 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
     () => Math.max(12000, refreshIntervalMs * 2 + 2000),
     [refreshIntervalMs]
   )
+  // Flag the sample as stale once no newer one arrives within staleAfterMs.
+  // A timer is needed: nothing re-renders while a snapshot request hangs.
+  const readyCollectedAt = state.status === "ready" ? state.collectedAt : null
+  const [staleCollectedAt, setStaleCollectedAt] = useState<number | null>(null)
+  useEffect(() => {
+    if (readyCollectedAt === null) return
+    const timeoutId = window.setTimeout(
+      () => setStaleCollectedAt(readyCollectedAt),
+      Math.max(0, readyCollectedAt + staleAfterMs - Date.now())
+    )
+    return () => window.clearTimeout(timeoutId)
+  }, [readyCollectedAt, staleAfterMs])
+  const stale = readyCollectedAt !== null && staleCollectedAt === readyCollectedAt
 
   const copyIpAddress = useCallback(
     async (ipAddress: string) => {
@@ -666,8 +679,6 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
     previousCpuTimesRef.current = undefined
     previousCpuCoreTimesRef.current = undefined
     previousNetworkRef.current = undefined
-    setCpuHistory([])
-    setNetworkHistory([])
 
     const refresh = async () => {
       const requestId = requestIdRef.current + 1
@@ -719,7 +730,6 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
       }
     }
 
-    setState((current) => (current.status === "ready" ? current : { status: "loading" }))
     refresh()
 
     return () => {
@@ -728,6 +738,11 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         window.clearTimeout(timeoutId)
       }
       void invoke("release_server_monitor_session", { tabId, sessionNonce: monitorSessionNonce })
+      // Reset on stop rather than on (re)start, so the next run begins clean
+      // without a synchronous setState in the effect body.
+      setCpuHistory([])
+      setNetworkHistory([])
+      setState((current) => (current.status === "ready" ? current : { status: "loading" }))
     }
   }, [connection, connectionState, monitorSessionNonce, refreshIntervalMs, t, tabId, visible])
 
@@ -752,7 +767,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
       return <span className="server-monitor-message is-error">{state.message}</span>
     }
 
-    const { snapshot, cpuPercent, networkRate, collectedAt } = state
+    const { snapshot, cpuPercent, networkRate } = state
     if (!snapshot.supported) {
       return (
         <span className="server-monitor-message">
@@ -764,7 +779,6 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
 
     const distroId = normalizeDistroId(snapshot)
     const distroLabel = getDistroLabel(snapshot)
-    const stale = Date.now() - collectedAt > staleAfterMs
     const primaryDisk = selectMostUsedDisk(snapshot.disks) ?? snapshot.disk
     const memoryValue = snapshot.memory
       ? `${formatKib(snapshot.memory.usedKib)}/${formatKib(snapshot.memory.totalKib)}`
@@ -914,15 +928,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         )}
       </>
     )
-  }, [
-    config.monitor_visible_metrics,
-    connectionState,
-    copyIpAddress,
-    cpuHistory,
-    staleAfterMs,
-    state,
-    t,
-  ])
+  }, [config.monitor_visible_metrics, connectionState, copyIpAddress, cpuHistory, stale, state, t])
 
   if (!visible || connection?.type !== "ssh") {
     return null

@@ -118,6 +118,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
   const [position, setPosition] = useState({ left: x, top: y })
 
   React.useLayoutEffect(() => {
+    // Measure-then-reposition before paint; needs the rendered size.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPosition(adjustPosition())
   }, [adjustPosition])
 

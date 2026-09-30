@@ -16,7 +16,7 @@ import {
   Trash2,
   X,
 } from "lucide-react"
-import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
@@ -153,17 +153,27 @@ export function CommandEditorDialog({
       ? t("commandLibrary.form.savedConnection")
       : activeProfile?.name
 
+  // Reset the form whenever the dialog opens or its source changes.
+  const [formOpen, setFormOpen] = useState(false)
+  const [formSource, setFormSource] = useState(source)
+  if (formOpen !== open || formSource !== source) {
+    setFormOpen(open)
+    setFormSource(source)
+    if (open) {
+      setName(source?.name ?? "")
+      setCommandText(source?.commandText ?? "")
+      setDescription(source?.description ?? "")
+      setSelectedTags(parseCommandTags(source?.tags.join("\n") ?? ""))
+      setTagDraft("")
+      setScopeType(source?.scopeType ?? "global")
+      setIsFavorite(source?.isFavorite ?? false)
+      setErrors({})
+      setIsSaving(false)
+    }
+  }
+
   useEffect(() => {
     if (!open) return
-    setName(source?.name ?? "")
-    setCommandText(source?.commandText ?? "")
-    setDescription(source?.description ?? "")
-    setSelectedTags(parseCommandTags(source?.tags.join("\n") ?? ""))
-    setTagDraft("")
-    setScopeType(source?.scopeType ?? "global")
-    setIsFavorite(source?.isFavorite ?? false)
-    setErrors({})
-    setIsSaving(false)
     requestAnimationFrame(() => nameInputRef.current?.focus())
   }, [open, source])
 
@@ -465,7 +475,7 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [commands, setCommands] = useState<SavedCommand[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [rawSelectedId, setSelectedId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const deferredQuery = useDeferredValue(searchQuery)
   const [mode, setMode] = useState<ListMode>("all")
@@ -476,7 +486,7 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
   const [favoritePendingId, setFavoritePendingId] = useState<string | null>(null)
   const [isInserting, setIsInserting] = useState(false)
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
-  const [selectedRecentId, setSelectedRecentId] = useState<string | null>(null)
+  const [rawSelectedRecentId, setSelectedRecentId] = useState<string | null>(null)
   const [recentPendingId, setRecentPendingId] = useState<string | null>(null)
   const [tags, setTags] = useState<string[]>([])
   const [tagManagerOpen, setTagManagerOpen] = useState(false)
@@ -484,9 +494,7 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
   const [editingTag, setEditingTag] = useState<string | null>(null)
   const [tagMutationPending, setTagMutationPending] = useState(false)
 
-  const loadCommands = async () => {
-    setIsLoading(true)
-    setLoadError(null)
+  const fetchCommands = useCallback(async () => {
     try {
       const [loaded, loadedTags] = await Promise.all([
         invoke<SavedCommand[]>("list_saved_commands"),
@@ -505,20 +513,36 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
+
+  const loadCommands = useCallback(async () => {
+    setIsLoading(true)
+    setLoadError(null)
+    await fetchCommands()
+  }, [fetchCommands])
 
   useEffect(() => {
     if (!open) return
     return onSyncApplied(["commands"], () => void loadCommands())
-  }, [open])
+  }, [loadCommands, open])
+
+  const [openedWith, setOpenedWith] = useState({ open: false, query: "" })
+  if (openedWith.open !== open || openedWith.query !== initialSearchQuery) {
+    setOpenedWith({ open, query: initialSearchQuery })
+    if (open) {
+      setSearchQuery(initialSearchQuery)
+      if (initialSearchQuery) setMode("all")
+      setIsLoading(true)
+      setLoadError(null)
+    }
+  }
 
   useEffect(() => {
     if (!open) return
-    setSearchQuery(initialSearchQuery)
-    if (initialSearchQuery) setMode("all")
-    void loadCommands()
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after await; false positive fixed upstream in facebook/react#36734
+    void fetchCommands()
     requestAnimationFrame(() => searchInputRef.current?.focus())
-  }, [initialSearchQuery, open])
+  }, [fetchCommands, initialSearchQuery, open])
 
   const filteredCommands = useMemo(
     () => (mode === "recent" ? [] : filterSavedCommands(commands, deferredQuery, mode)),
@@ -536,26 +560,21 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
     )
   }, [deferredQuery, recentCommands])
   const availableTags = tags
+  // Fall back to the first visible item while the chosen one is filtered out.
+  const selectedId =
+    mode === "recent" ||
+    (rawSelectedId && filteredCommands.some((command) => command.id === rawSelectedId))
+      ? rawSelectedId
+      : (filteredCommands[0]?.id ?? null)
+  const selectedRecentId =
+    mode !== "recent" ||
+    (rawSelectedRecentId &&
+      filteredRecentCommands.some((command) => command.id === rawSelectedRecentId))
+      ? rawSelectedRecentId
+      : (filteredRecentCommands[0]?.id ?? null)
   const selectedCommand = commands.find((command) => command.id === selectedId) ?? null
   const selectedRecent = recentCommands.find((command) => command.id === selectedRecentId) ?? null
   const hasSelectedItem = mode === "recent" ? Boolean(selectedRecent) : Boolean(selectedCommand)
-
-  useEffect(() => {
-    if (mode === "recent") return
-    if (selectedId && filteredCommands.some((command) => command.id === selectedId)) return
-    setSelectedId(filteredCommands[0]?.id ?? null)
-  }, [filteredCommands, mode, selectedId])
-
-  useEffect(() => {
-    if (mode !== "recent") return
-    if (
-      selectedRecentId &&
-      filteredRecentCommands.some((command) => command.id === selectedRecentId)
-    ) {
-      return
-    }
-    setSelectedRecentId(filteredRecentCommands[0]?.id ?? null)
-  }, [filteredRecentCommands, mode, selectedRecentId])
 
   const handleSaved = (saved: SavedCommand) => {
     setCommands((current) => {

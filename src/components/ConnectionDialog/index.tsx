@@ -180,7 +180,9 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     }
     return initialForm
   })
-  const [draftProfileId, setDraftProfileId] = useState(() => editProfile?.id ?? crypto.randomUUID())
+  // The parent keys this component by profile/mode, so a different profile
+  // remounts it with fresh form state instead of resetting in an effect.
+  const [draftProfileId] = useState(() => editProfile?.id ?? crypto.randomUUID())
   const [existingGroups, setExistingGroups] = useState<string[]>([])
   const [showGroupDropdown, setShowGroupDropdown] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
@@ -213,21 +215,6 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
       })
       .catch(() => {})
   }, [])
-
-  useEffect(() => {
-    loadedJumpPasswordsForProfile.current = null
-    setSavedPasswordAvailable(false)
-    setSavedJumpPasswordKeys(new Set())
-    const initialForm = buildInitialForm(editProfile ?? duplicateProfile, config)
-    if (duplicateProfile) {
-      initialForm.title = t("profiles.copyName", { name: duplicateProfile.name })
-    }
-    setForm(initialForm)
-  }, [editProfile, duplicateProfile, config, t])
-
-  useEffect(() => {
-    setDraftProfileId(editProfile?.id ?? crypto.randomUUID())
-  }, [editProfile])
 
   useEffect(() => {
     if (!editProfile || form.type !== "ssh" || form.authMethod !== "password") {

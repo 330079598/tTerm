@@ -468,16 +468,19 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
   }, [t])
 
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after await; false positive fixed upstream in facebook/react#36734
     void refreshProfileGroups()
   }, [refreshKey, refreshProfileGroups])
 
-  React.useEffect(() => {
+  const [selectionProfiles, setSelectionProfiles] = React.useState(profiles)
+  if (selectionProfiles !== profiles) {
+    setSelectionProfiles(profiles)
     const knownIds = new Set(profiles.map((profile) => profile.id))
     setSelectedProfileIds((current) => {
       const next = new Set([...current].filter((id) => knownIds.has(id)))
       return next.size === current.size ? current : next
     })
-  }, [profiles])
+  }
 
   const showGroupError = React.useCallback(
     (error: unknown) => {

@@ -190,6 +190,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after await; false positive fixed upstream in facebook/react#36734
     refreshBackupManagement().catch((error) => {
       console.error("Failed to load backup management settings:", error)
     })

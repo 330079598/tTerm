@@ -22,6 +22,7 @@ import { Select } from "@/components/ui/select"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
 import { applyUiScalePercent, type TabWidthMode } from "@/contexts/ConfigContext"
+import { useSyncedState } from "@/hooks/useSyncedState"
 import type { CustomTheme, PresetTheme, PresetThemeId } from "@/types/theme"
 
 interface AppearanceSettingsTabProps {
@@ -62,8 +63,8 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
   uiScalePercent,
 }) => {
   const { t } = useTranslation()
-  const [tabWidthDraft, setTabWidthDraft] = React.useState(String(tabStandardWidth))
-  const [uiScaleDraft, setUiScaleDraft] = React.useState(uiScalePercent)
+  const [tabWidthDraft, setTabWidthDraft] = useSyncedState(String(tabStandardWidth))
+  const [uiScaleDraft, setUiScaleDraft] = useSyncedState(uiScalePercent)
   const [savingUiScale, setSavingUiScale] = React.useState(false)
   const [showAllPresetThemes, setShowAllPresetThemes] = React.useState(false)
   const savingUiScaleRef = React.useRef(false)
@@ -71,11 +72,6 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
   const mountedRef = React.useRef(true)
 
   React.useEffect(() => {
-    setTabWidthDraft(String(tabStandardWidth))
-  }, [tabStandardWidth])
-
-  React.useEffect(() => {
-    setUiScaleDraft(uiScalePercent)
     savedUiScaleRef.current = uiScalePercent
   }, [uiScalePercent])
 
@@ -87,10 +83,13 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
     []
   )
 
-  const previewUiScale = React.useCallback((scale: number) => {
-    setUiScaleDraft(scale)
-    applyUiScalePercent(scale)
-  }, [])
+  const previewUiScale = React.useCallback(
+    (scale: number) => {
+      setUiScaleDraft(scale)
+      applyUiScalePercent(scale)
+    },
+    [setUiScaleDraft]
+  )
 
   const commitUiScale = React.useCallback(async () => {
     if (uiScaleDraft === uiScalePercent || savingUiScaleRef.current) return
@@ -120,7 +119,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
         setTabWidthDraft(String(tabStandardWidth))
       }
     }
-  }, [handleTabStandardWidthChange, tabStandardWidth, tabWidthDraft])
+  }, [handleTabStandardWidthChange, setTabWidthDraft, tabStandardWidth, tabWidthDraft])
   const getPresetTone = (themeId: PresetThemeId) => {
     if (themeId === "default" || themeId === "light") {
       return {

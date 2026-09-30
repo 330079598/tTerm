@@ -33,6 +33,7 @@ import {
   RECONNECT_MAX_ATTEMPTS_MIN,
   type MonitorMetricId,
 } from "@/contexts/ConfigContext"
+import { useSyncedState } from "@/hooks/useSyncedState"
 import { isValidPromptPattern } from "@/lib/sudoPrompt"
 import { cn } from "@/lib/utils"
 
@@ -180,16 +181,12 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
   sudoPromptPatterns,
 }) => {
   const { t } = useTranslation()
-  const [sudoPromptPatternsDraft, setSudoPromptPatternsDraft] = React.useState(
+  const [sudoPromptPatternsDraft, setSudoPromptPatternsDraft] = useSyncedState(
     sudoPromptPatterns.join("\n")
   )
   const invalidSudoPromptPatterns = parsePromptPatterns(sudoPromptPatternsDraft).filter(
     (pattern) => !isValidPromptPattern(pattern)
   )
-
-  React.useEffect(() => {
-    setSudoPromptPatternsDraft(sudoPromptPatterns.join("\n"))
-  }, [sudoPromptPatterns])
 
   const commitSudoPromptPatterns = React.useCallback(() => {
     const patterns = parsePromptPatterns(sudoPromptPatternsDraft)
@@ -198,26 +195,14 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
       void handleSudoPromptPatternsChange(patterns)
     }
   }, [handleSudoPromptPatternsChange, sudoPromptPatterns, sudoPromptPatternsDraft])
-  const [monitorRefreshDraft, setMonitorRefreshDraft] = React.useState(
+  const [monitorRefreshDraft, setMonitorRefreshDraft] = useSyncedState(
     String(monitorRefreshIntervalSecs)
   )
-  const [reconnectMaxAttemptsDraft, setReconnectMaxAttemptsDraft] = React.useState(
+  const [reconnectMaxAttemptsDraft, setReconnectMaxAttemptsDraft] = useSyncedState(
     String(reconnectMaxAttempts)
   )
   const [monitorVisibleMetricsDraft, setMonitorVisibleMetricsDraft] =
-    React.useState(monitorVisibleMetrics)
-
-  React.useEffect(() => {
-    setMonitorRefreshDraft(String(monitorRefreshIntervalSecs))
-  }, [monitorRefreshIntervalSecs])
-
-  React.useEffect(() => {
-    setReconnectMaxAttemptsDraft(String(reconnectMaxAttempts))
-  }, [reconnectMaxAttempts])
-
-  React.useEffect(() => {
-    setMonitorVisibleMetricsDraft(monitorVisibleMetrics)
-  }, [monitorVisibleMetrics])
+    useSyncedState(monitorVisibleMetrics)
 
   const commitMonitorRefreshInterval = React.useCallback(() => {
     const value = parseInt(monitorRefreshDraft, 10)
@@ -231,7 +216,12 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
     if (normalizedValue !== monitorRefreshIntervalSecs) {
       void handleMonitorRefreshIntervalChange(normalizedValue)
     }
-  }, [handleMonitorRefreshIntervalChange, monitorRefreshDraft, monitorRefreshIntervalSecs])
+  }, [
+    handleMonitorRefreshIntervalChange,
+    monitorRefreshDraft,
+    monitorRefreshIntervalSecs,
+    setMonitorRefreshDraft,
+  ])
 
   const commitReconnectMaxAttempts = React.useCallback(() => {
     const value = parseInt(reconnectMaxAttemptsDraft, 10)
@@ -248,7 +238,12 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
     if (normalizedValue !== reconnectMaxAttempts) {
       void handleReconnectMaxAttemptsChange(normalizedValue)
     }
-  }, [handleReconnectMaxAttemptsChange, reconnectMaxAttempts, reconnectMaxAttemptsDraft])
+  }, [
+    handleReconnectMaxAttemptsChange,
+    reconnectMaxAttempts,
+    reconnectMaxAttemptsDraft,
+    setReconnectMaxAttemptsDraft,
+  ])
 
   const monitorMetrics = React.useMemo(
     () => [
@@ -274,7 +269,7 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
         void handleMonitorVisibleMetricsChange(nextMetrics)
       }
     },
-    [handleMonitorVisibleMetricsChange, monitorVisibleMetricsDraft]
+    [handleMonitorVisibleMetricsChange, monitorVisibleMetricsDraft, setMonitorVisibleMetricsDraft]
   )
 
   const orderedMonitorMetrics = React.useMemo(() => {
@@ -301,7 +296,7 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
         void handleMonitorVisibleMetricsChange(reordered)
       }
     },
-    [handleMonitorVisibleMetricsChange, monitorVisibleMetricsDraft]
+    [handleMonitorVisibleMetricsChange, monitorVisibleMetricsDraft, setMonitorVisibleMetricsDraft]
   )
 
   return (

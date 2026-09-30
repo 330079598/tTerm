@@ -236,17 +236,18 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     })
   }, [])
 
+  const currentPath = listing?.currentPath ?? null
   const runAndRefresh = useCallback(
     async (action: () => Promise<void>) => {
       setError(null)
       try {
         await action()
-        await loadDirectory(listing?.currentPath ?? null)
+        await loadDirectory(currentPath)
       } catch (invokeError) {
         setError(String(invokeError))
       }
     },
-    [listing?.currentPath, loadDirectory]
+    [currentPath, loadDirectory]
   )
   const {
     activeEntry,

@@ -90,11 +90,24 @@ function normalizeCustomTheme(rawTheme: unknown): CustomTheme | null {
   }
 }
 
+/** `null` when nothing is stored or it can't be read, so callers keep what they have. */
+function readStoredThemes(): CustomTheme[] | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (!stored) return null
+    return (JSON.parse(stored) as unknown[])
+      .map(normalizeCustomTheme)
+      .filter((theme): theme is CustomTheme => theme !== null)
+  } catch (error) {
+    console.error("Failed to load custom themes:", error)
+    return null
+  }
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation()
   const { config, updateTheme, isLoaded } = useConfig()
-  const [customThemes, setCustomThemes] = useState<CustomTheme[]>([])
-  const [themesLoaded, setThemesLoaded] = useState(false)
+  const [customThemes, setCustomThemes] = useState<CustomTheme[]>(() => readStoredThemes() ?? [])
 
   const presetThemeOverrides = useMemo(
     () => customThemes.filter((theme) => isPresetThemeId(theme.id)),
@@ -124,26 +137,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return themeCache.id
   }, [])
 
-  const loadStoredThemes = useCallback(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) {
-        const themes = (JSON.parse(stored) as unknown[])
-          .map(normalizeCustomTheme)
-          .filter((theme): theme is CustomTheme => theme !== null)
-        setCustomThemes(themes)
-      }
-    } catch (error) {
-      console.error("Failed to load custom themes:", error)
-    } finally {
-      setThemesLoaded(true)
-    }
-  }, [])
-
-  useEffect(() => {
-    loadStoredThemes()
-    return onSyncApplied(["themes"], loadStoredThemes)
-  }, [loadStoredThemes])
+  useEffect(
+    () =>
+      onSyncApplied(["themes"], () => {
+        const themes = readStoredThemes()
+        if (themes) setCustomThemes(themes)
+      }),
+    []
+  )
 
   const saveCustomThemes = useCallback((themes: CustomTheme[]) => {
     try {
@@ -156,7 +157,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useLayoutEffect(() => {
-    if (!isLoaded || !themesLoaded) return
+    if (!isLoaded) return
 
     // An unknown theme shows the fallback without saving it: sync can deliver
     // the theme setting and the custom theme it names in separate steps, or
@@ -165,7 +166,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     applyAndCacheTheme(config.theme || "default", customThemes)
 
     announceThemeReady()
-  }, [applyAndCacheTheme, config.theme, customThemes, isLoaded, themesLoaded])
+  }, [applyAndCacheTheme, config.theme, customThemes, isLoaded])
 
   const setTheme = useCallback(
     async (themeId: string): Promise<void> => {

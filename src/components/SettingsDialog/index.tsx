@@ -17,6 +17,7 @@ import {
 import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
+import { useSyncedState } from "@/hooks/useSyncedState"
 import { normalizeScrollbackConfig } from "@/lib/scrollback"
 import { cn, toErrorMessage } from "@/lib/utils"
 import type { PresetThemeId } from "@/types/theme"
@@ -163,7 +164,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   } = useTheme()
   const { toast } = useToast()
   const { saveSettings } = useSettingsSave()
-  const [activeTab, setActiveTab] = useState(() => normalizeSettingsTab(defaultTab))
+  const [activeTab, setActiveTab] = useSyncedState(normalizeSettingsTab(defaultTab))
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const { prompt, PromptDialog } = usePromptDialog()
   const { info, InfoDialog } = useInfoDialog()
@@ -190,15 +191,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const savingFontRef = useRef(false)
   const [systemFonts, setSystemFonts] = useState<string[]>(() => cachedSystemFonts ?? [])
   const [fontsLoaded, setFontsLoaded] = useState(cachedSystemFonts !== null)
-  const [loadingFonts, setLoadingFonts] = useState(false)
   const [fontLoadError, setFontLoadError] = useState<string | null>(null)
 
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null)
   const [creatingFromTheme, setCreatingFromTheme] = useState<string | null>(null)
-
-  useEffect(() => {
-    setActiveTab(normalizeSettingsTab(defaultTab))
-  }, [defaultTab])
 
   useEffect(() => {
     return () => {
@@ -211,13 +207,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   }, [activeTab])
 
   useEffect(() => {
-    if (activeTab !== "terminal" || fontsLoaded || loadingFonts) {
+    if (activeTab !== "terminal" || fontsLoaded) {
       return
     }
 
-    setLoadingFonts(true)
-    setFontLoadError(null)
-
+    // loadSystemFontsCached shares one in-flight request, so re-running this
+    // (e.g. leaving and re-entering the tab mid-load) doesn't refetch.
     loadSystemFontsCached()
       .then((fonts) => {
         if (!isMountedRef.current) {
@@ -242,9 +237,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           return
         }
         setFontsLoaded(true)
-        setLoadingFonts(false)
       })
-  }, [activeTab, fontsLoaded, loadingFonts, t])
+  }, [activeTab, fontsLoaded, t])
+  const loadingFonts = activeTab === "terminal" && !fontsLoaded
 
   useEffect(() => {
     if (activeTab !== "security") {

@@ -298,8 +298,13 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const collapsedGroupKeySet = useMemo(() => new Set(collapsedGroupKeys), [collapsedGroupKeys])
 
-  useEffect(() => {
+  const [loadingRefreshKey, setLoadingRefreshKey] = useState(refreshKey)
+  if (loadingRefreshKey !== refreshKey) {
+    setLoadingRefreshKey(refreshKey)
     setIsLoading(true)
+  }
+
+  useEffect(() => {
     invoke<SavedProfile[]>("list_profiles")
       .then((result) => {
         setProfiles(result)
