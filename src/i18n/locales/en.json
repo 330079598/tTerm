@@ -1659,7 +1659,7 @@
     "importTitle": "Import backup",
     "importDescription": "Inspect a backup before applying it. A local recovery snapshot is created automatically.",
     "categories": {
-      "settings": "Application settings",
+      "settings": "Application settings, backup and sync setup",
       "profiles": "Connection profiles, groups, and port-forwarding tunnels",
       "session": "Session and workspace layout",
       "knownHosts": "SSH known hosts",
@@ -1703,6 +1703,8 @@
     "importSuccess": "Migration completed",
     "importFailed": "Migration failed",
     "importSummary": "{{profiles}} profiles, {{commands}} commands, and {{secrets}} credentials imported.",
+    "missingKeyFiles": "These private key files are not on this device",
+    "missingKeyFilesDesc": "A backup keeps the path of a private key, not the file. Copy each file to the same path, or choose it again in the connection profile.",
     "restartNow": "Restart tTerm now",
     "profileChanges": "Profiles: {{added}} new, {{updated}} updated",
     "commandChanges": "Commands: {{added}} new, {{updated}} updated",

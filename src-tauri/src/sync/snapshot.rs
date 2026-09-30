@@ -104,7 +104,7 @@ impl SyncSelection {
 }
 
 /// Secrets that belong to this device's setup rather than to profiles.
-fn is_local_secret(key: &str) -> bool {
+pub(crate) fn is_local_secret(key: &str) -> bool {
     key.starts_with("webdav:") || key.starts_with("sync:")
 }
 

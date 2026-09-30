@@ -19,7 +19,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::io::{Cursor, Read, Write};
 use std::path::{Component, Path, PathBuf};
@@ -39,6 +39,7 @@ const ENCRYPTED_PAYLOAD_ENTRY: &str = "payload.enc";
 const MAX_BACKUP_SIZE: u64 = 128 * 1024 * 1024;
 const MAX_PAYLOAD_SIZE: u64 = 64 * 1024 * 1024;
 const BACKUP_AAD: &[u8] = b"tterm-backup-v1";
+const AUTOMATIC_SETTINGS_FILE: &str = "backup_settings.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -171,6 +172,14 @@ struct BackupPayload {
     sftp_directories: Option<Value>,
     commands: Option<Vec<SavedCommand>>,
     frontend_state: Option<Value>,
+    /// The WebDAV server, the local backup schedule and the sync preferences
+    /// travel with `config`; the WebDAV passwords are among `secrets`.
+    #[serde(default)]
+    webdav_backup: Option<remote::WebDavBackupSettings>,
+    #[serde(default)]
+    automatic_backup: Option<AutomaticBackupSettings>,
+    #[serde(default)]
+    sync: Option<crate::sync::SyncSettings>,
     #[serde(default)]
     secrets: Vec<MigrationSecretRecord>,
     #[serde(default)]
@@ -234,6 +243,17 @@ pub struct BackupImportResult {
     pub frontend_state: Option<Value>,
     pub pre_import_backup_path: String,
     pub requires_restart: bool,
+    pub missing_key_files: Vec<MissingKeyFile>,
+}
+
+/// A private key file imported profiles log in with that is not on this
+/// device: a backup carries the path, not the file.
+#[derive(Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MissingKeyFile {
+    pub path: String,
+    /// Names of the profiles that use it.
+    pub profiles: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -460,7 +480,15 @@ fn import_backup_blocking(
         password.zeroize();
     }
     let imported_secrets = data_key.is_some();
+    let missing_key_files = payload
+        .profiles
+        .as_ref()
+        .filter(|_| options.selection.profiles)
+        .and_then(|profiles| from_backup_value::<Vec<SavedProfile>>(profiles.clone()).ok())
+        .map(|profiles| missing_key_files(&profiles))
+        .unwrap_or_default();
     Ok(BackupImportResult {
+        missing_key_files,
         profiles_imported,
         commands_imported,
         secrets_imported,
@@ -656,6 +684,19 @@ fn collect_payload(
     } else {
         None
     };
+    let (webdav_backup, automatic_backup, sync) = if selection.settings {
+        (
+            remote::settings_for_backup()?,
+            // When the last backup ran stays on the device.
+            Some(AutomaticBackupSettings {
+                last_backup_at: None,
+                ..load_automatic_backup_settings()?
+            }),
+            Some(crate::sync::load_settings()?),
+        )
+    } else {
+        (None, None, None)
+    };
     let mut payload = BackupPayload {
         config: read_selected_json(selection.settings, "config.json")?,
         profiles: read_selected_data(selection.profiles, crate::profiles::list_saved_profiles)?,
@@ -679,6 +720,9 @@ fn collect_payload(
             None
         },
         frontend_state: filter_frontend_state(selection, frontend_state),
+        webdav_backup,
+        automatic_backup,
+        sync,
         secrets: Vec::new(),
         logs: if selection.logs {
             collect_log_files()?
@@ -703,9 +747,11 @@ fn collect_payload(
     }
 
     if let Some(data_key) = data_key.as_ref() {
-        let mut keys = crate::profiles::saved_secret_keys()?;
-        keys.sort();
-        keys.dedup();
+        // Every saved password travels, as in a sync, so one stored under an
+        // older key naming is not left behind.
+        let with_webdav = payload.webdav_backup.is_some();
+        let mut keys = secret_state.saved_keys()?;
+        keys.retain(|key| secret_travels(key, with_webdav));
         payload.secrets = crate::db::read(|connection| {
             let mut secrets = Vec::new();
             for key in keys {
@@ -721,6 +767,16 @@ fn collect_payload(
     }
     validate_payload(&payload)?;
     Ok(payload)
+}
+
+/// Whether a backup carries the saved password `key`. The WebDAV passwords
+/// go with the WebDAV settings; other secrets of a device's own setup stay.
+fn secret_travels(key: &str, with_webdav: bool) -> bool {
+    if remote::SECRET_KEYS.contains(&key) {
+        with_webdav
+    } else {
+        !crate::sync::is_local_secret(key)
+    }
 }
 
 fn read_selected_data<T: Serialize>(
@@ -760,7 +816,7 @@ fn filter_frontend_state(selection: &BackupSelection, state: Option<Value>) -> O
         }
     }
     if selection.settings {
-        for key in ["recentCommands", "sftpColumnWidths"] {
+        for key in ["recentCommands", "sftpColumnWidths", "sftpView"] {
             if let Some(value) = source.get(key) {
                 filtered.insert(key.to_string(), value.clone());
             }
@@ -1123,6 +1179,66 @@ fn ensure_selection_available(
     Ok(())
 }
 
+fn missing_key_files(profiles: &[SavedProfile]) -> Vec<MissingKeyFile> {
+    let mut missing = BTreeMap::<&str, Vec<String>>::new();
+    for profile in profiles.iter().filter(|p| p.connection_type == "ssh") {
+        let own = (profile.auth_method.as_deref() == Some("key"))
+            .then_some(profile.private_key_path.as_deref())
+            .flatten();
+        let jumps = profile
+            .jump_hosts
+            .iter()
+            .filter(|jump| profile.uses_jump_host() && jump.auth_method == "key")
+            .filter_map(|jump| jump.private_key_path.as_deref());
+        for path in own.into_iter().chain(jumps).map(str::trim) {
+            if path.is_empty() || Path::new(path).is_file() {
+                continue;
+            }
+            let users = missing.entry(path).or_default();
+            if !users.contains(&profile.name) {
+                users.push(profile.name.clone());
+            }
+        }
+    }
+    missing
+        .into_iter()
+        .map(|(path, profiles)| MissingKeyFile {
+            path: path.to_string(),
+            profiles,
+        })
+        .collect()
+}
+
+/// Whether an imported folder setting can be used here: empty means the
+/// default folder, which every device has.
+fn is_default_or_existing_directory(value: &str) -> bool {
+    let directory = Path::new(value.trim());
+    directory.as_os_str().is_empty() || (directory.is_absolute() && directory.is_dir())
+}
+
+/// Keeps what belongs to this device in imported settings: how passwords are
+/// unlocked, and folders and a custom shell that do not exist here.
+fn keep_device_settings(imported: &mut AppConfig, current: AppConfig) {
+    imported.secret_storage_mode = current.secret_storage_mode;
+    imported.secret_vault_enabled = current.secret_vault_enabled;
+    imported.prompt_unlock_vault_on_startup = current.prompt_unlock_vault_on_startup;
+    if !is_default_or_existing_directory(&imported.terminal_log_directory) {
+        imported.terminal_log_directory = current.terminal_log_directory;
+    }
+    if !is_default_or_existing_directory(&imported.zmodem_download_directory) {
+        imported.zmodem_download_directory = current.zmodem_download_directory;
+    }
+    // A bare command name is looked up on the PATH and may well exist here.
+    let shell = Path::new(imported.terminal_shell_custom_path.trim());
+    if shell.is_absolute() && !shell.is_file() {
+        if imported.terminal_shell == "custom" {
+            imported.terminal_shell = current.terminal_shell;
+        }
+        imported.terminal_shell_custom_path = current.terminal_shell_custom_path;
+        imported.terminal_shell_custom_args = current.terminal_shell_custom_args;
+    }
+}
+
 fn apply_payload(
     payload: &BackupPayload,
     options: &BackupImportOptions,
@@ -1133,24 +1249,35 @@ fn apply_payload(
         if let Some(value) = payload.config.as_ref() {
             let mut imported = serde_json::from_value::<AppConfig>(value.clone())
                 .map_err(|error| format!("Invalid settings: {error}"))?;
-            // How passwords are unlocked is device-local; never take it from
-            // the source device.
-            let current = config::load_config_file()?;
-            imported.secret_storage_mode = current.secret_storage_mode;
-            imported.secret_vault_enabled = current.secret_vault_enabled;
-            imported.prompt_unlock_vault_on_startup = current.prompt_unlock_vault_on_startup;
+            keep_device_settings(&mut imported, config::load_config_file()?);
             config::save_config_file(&imported)?;
+        }
+        if let Some(settings) = payload.webdav_backup.clone() {
+            remote::restore_settings(settings)?;
+        }
+        if let Some(settings) = payload.automatic_backup.clone() {
+            restore_automatic_backup_settings(settings)?;
+        }
+        if let Some(settings) = payload.sync.as_ref() {
+            crate::sync::restore_settings(settings)?;
         }
     }
 
+    // The WebDAV passwords are only taken together with their server.
+    let webdav_restored = options.selection.settings && payload.webdav_backup.is_some();
     let (profiles_imported, secrets_imported) = crate::db::write(|transaction| {
         let profiles_imported = apply_database_payload(transaction, payload, options)?;
         let secrets_imported = match data_key {
             Some(data_key) => {
+                let mut imported = 0;
                 for secret in &payload.secrets {
+                    if !secret_travels(&secret.key, webdav_restored) {
+                        continue;
+                    }
                     put_secret(transaction, data_key, &secret.key, &secret.password)?;
+                    imported += 1;
                 }
-                payload.secrets.len()
+                imported
             }
             None => 0,
         };
@@ -1624,7 +1751,12 @@ fn capture_file_snapshot(
     let directory = config::ensure_config_dir()?;
     let mut names = Vec::new();
     if selection.settings {
-        names.push("config.json");
+        names.extend([
+            "config.json",
+            remote::SETTINGS_FILE,
+            AUTOMATIC_SETTINGS_FILE,
+            crate::sync::SETTINGS_FILE,
+        ]);
     }
     if selection.session {
         names.push("session.json");
@@ -1735,7 +1867,28 @@ pub(crate) fn create_recovery_backup(
 }
 
 fn automatic_backup_settings_path() -> Result<PathBuf, String> {
-    Ok(config::ensure_config_dir()?.join("backup_settings.json"))
+    Ok(config::ensure_config_dir()?.join(AUTOMATIC_SETTINGS_FILE))
+}
+
+/// Applies the schedule a backup carries.
+fn restore_automatic_backup_settings(settings: AutomaticBackupSettings) -> Result<(), String> {
+    let settings = adopt_automatic_backup_settings(settings, load_automatic_backup_settings()?);
+    validate_automatic_backup_settings(&settings)?;
+    save_automatic_backup_settings_file(&settings)
+}
+
+/// A backup's schedule as this device keeps it. Its folder is only taken
+/// when it exists here; otherwise this device's folder stays, as does when
+/// the last backup ran.
+fn adopt_automatic_backup_settings(
+    mut imported: AutomaticBackupSettings,
+    current: AutomaticBackupSettings,
+) -> AutomaticBackupSettings {
+    if !is_default_or_existing_directory(&imported.directory) {
+        imported.directory = current.directory;
+    }
+    imported.last_backup_at = current.last_backup_at;
+    imported
 }
 
 fn load_automatic_backup_settings() -> Result<AutomaticBackupSettings, String> {
@@ -2359,11 +2512,183 @@ mod tests {
     }
 
     #[test]
+    fn imported_schedule_keeps_this_devices_folder_unless_the_backups_exists() {
+        let existing = std::env::temp_dir().to_string_lossy().into_owned();
+        let current = AutomaticBackupSettings {
+            directory: existing.clone(),
+            last_backup_at: Some(7),
+            ..AutomaticBackupSettings::default()
+        };
+        let adopt = |directory: &str| {
+            let imported = AutomaticBackupSettings {
+                frequency: "weekly".to_string(),
+                directory: directory.to_string(),
+                ..AutomaticBackupSettings::default()
+            };
+            adopt_automatic_backup_settings(imported, current.clone())
+        };
+        let missing = std::env::temp_dir().join("tterm-no-such-backup-folder");
+        let adopted = adopt(&missing.to_string_lossy());
+        assert_eq!(adopted.directory, existing);
+        assert_eq!(adopted.frequency, "weekly");
+        assert_eq!(adopted.last_backup_at, Some(7));
+        assert_eq!(adopt("relative/folder").directory, existing);
+        // The default folder is valid on every device.
+        assert_eq!(adopt("").directory, "");
+        assert_eq!(adopt(&existing).directory, existing);
+    }
+
+    #[test]
+    fn imported_settings_keep_this_devices_unlock_mode_and_missing_paths() {
+        let existing = std::env::temp_dir().to_string_lossy().into_owned();
+        let missing = std::env::temp_dir()
+            .join("tterm-no-such-path")
+            .to_string_lossy()
+            .into_owned();
+        let current = AppConfig {
+            secret_storage_mode: "this-device".to_string(),
+            terminal_log_directory: existing.clone(),
+            zmodem_download_directory: existing.clone(),
+            terminal_shell: "pwsh".to_string(),
+            ..AppConfig::default()
+        };
+        let mut imported = AppConfig {
+            secret_storage_mode: "other-device".to_string(),
+            terminal_log_directory: missing.clone(),
+            zmodem_download_directory: String::new(),
+            terminal_shell: "custom".to_string(),
+            terminal_shell_custom_path: missing,
+            terminal_shell_custom_args: "--login".to_string(),
+            font_size: 21,
+            ..AppConfig::default()
+        };
+        keep_device_settings(&mut imported, current.clone());
+        assert_eq!(imported.secret_storage_mode, "this-device");
+        assert_eq!(imported.terminal_log_directory, existing);
+        assert_eq!(imported.zmodem_download_directory, "");
+        assert_eq!(imported.terminal_shell, "pwsh");
+        assert_eq!(imported.terminal_shell_custom_path, "");
+        assert_eq!(imported.terminal_shell_custom_args, "");
+        assert_eq!(imported.font_size, 21);
+
+        // A shell found through the PATH is taken as it is.
+        let mut imported = AppConfig {
+            terminal_shell: "custom".to_string(),
+            terminal_shell_custom_path: "nu.exe".to_string(),
+            ..AppConfig::default()
+        };
+        keep_device_settings(&mut imported, current);
+        assert_eq!(imported.terminal_shell, "custom");
+        assert_eq!(imported.terminal_shell_custom_path, "nu.exe");
+    }
+
+    #[test]
+    fn missing_key_files_are_listed_once_with_the_profiles_using_them() {
+        let present = std::env::current_exe().unwrap();
+        let present = present.to_string_lossy();
+        let profile = |name: &str, auth: &str, key: &str| {
+            serde_json::json!({
+                "id": name, "name": name, "connection_type": "ssh", "host": "example.com",
+                "port": 22, "username": "root", "auth_method": auth, "private_key_path": key
+            })
+        };
+        let mut through_jump = profile("via-jump", "password", "");
+        through_jump["jump_hosts"] = serde_json::json!([{
+            "host": "bastion", "port": 22, "username": "root",
+            "auth_method": "key", "private_key_path": "/keys/jump"
+        }]);
+        let mut unused_jump = through_jump.clone();
+        unused_jump["name"] = "jump-off".into();
+        unused_jump["use_jump_host"] = false.into();
+        let profiles: Vec<SavedProfile> = serde_json::from_value(serde_json::json!([
+            profile("one", "key", "/keys/shared"),
+            profile("two", "key", " /keys/shared "),
+            profile("has-key", "key", &present),
+            // A path left over from before the profile switched to a password.
+            profile("password", "password", "/keys/stale"),
+            through_jump,
+            unused_jump,
+        ]))
+        .unwrap();
+        assert_eq!(
+            missing_key_files(&profiles),
+            [
+                MissingKeyFile {
+                    path: "/keys/jump".to_string(),
+                    profiles: vec!["via-jump".to_string()],
+                },
+                MissingKeyFile {
+                    path: "/keys/shared".to_string(),
+                    profiles: vec!["one".to_string(), "two".to_string()],
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn device_setup_secrets_stay_unless_webdav_settings_travel() {
+        assert!(secret_travels("profile-id", false));
+        assert!(secret_travels("profile-id:jump", false));
+        assert!(secret_travels("Old name:jump", false));
+        assert!(!secret_travels("sync:base", true));
+        for key in remote::SECRET_KEYS {
+            assert!(secret_travels(key, true));
+            assert!(!secret_travels(key, false));
+        }
+    }
+
+    #[test]
+    fn backup_and_sync_setup_round_trips_with_its_passwords() {
+        let selection = BackupSelection {
+            settings: true,
+            profiles: true,
+            secrets: true,
+            ..BackupSelection::default()
+        };
+        let mut payload = BackupPayload::default();
+        payload.webdav_backup = Some(remote::WebDavBackupSettings {
+            url: "https://dav.example.com/dav/".to_string(),
+            username: "stone".to_string(),
+            ..remote::WebDavBackupSettings::default()
+        });
+        payload.automatic_backup = Some(AutomaticBackupSettings::default());
+        payload.sync = Some(crate::sync::SyncSettings {
+            enabled: true,
+            ..crate::sync::SyncSettings::default()
+        });
+        for key in remote::SECRET_KEYS {
+            payload.secrets.push(MigrationSecretRecord {
+                key: key.to_string(),
+                password: "dav-secret".to_string(),
+            });
+        }
+        let archive = build_archive_for_version("test", &selection, &payload, Some("password123"))
+            .expect("build encrypted archive");
+        let path = std::env::temp_dir().join(format!(
+            "tterm-backup-setup-test-{}-{}.tterm-backup",
+            std::process::id(),
+            Utc::now().timestamp_nanos_opt().unwrap_or_default()
+        ));
+        fs::write(&path, archive).expect("write archive");
+        let decoded = decode_archive(&path, Some("password123")).expect("decode archive");
+        fs::remove_file(path).expect("remove archive");
+        let decoded = decoded.payload.unwrap();
+        assert_eq!(
+            decoded.webdav_backup.as_ref().unwrap().url,
+            "https://dav.example.com/dav/"
+        );
+        assert_eq!(decoded.automatic_backup.as_ref().unwrap().frequency, "off");
+        assert!(decoded.sync.as_ref().unwrap().enabled);
+        assert_eq!(decoded.secrets.len(), 2);
+    }
+
+    #[test]
     fn frontend_state_is_filtered_by_selected_category() {
         let state = serde_json::json!({
             "customThemes": [{"id":"theme"}],
             "recentCommands": [{"id":"recent"}],
             "sftpColumnWidths": [1, 2],
+            "sftpView": {"showHidden": false},
             "untrusted": "ignored"
         });
         let mut selection = BackupSelection::default();
@@ -2371,6 +2696,7 @@ mod tests {
         let filtered = filter_frontend_state(&selection, Some(state)).unwrap();
         assert!(filtered.get("customThemes").is_none());
         assert!(filtered.get("recentCommands").is_some());
+        assert!(filtered.get("sftpView").is_some());
         assert!(filtered.get("untrusted").is_none());
     }
 

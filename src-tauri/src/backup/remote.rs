@@ -18,10 +18,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, State};
 use zeroize::Zeroizing;
 
-const SETTINGS_FILE: &str = "webdav_backup_settings.json";
+pub(crate) const SETTINGS_FILE: &str = "webdav_backup_settings.json";
 const DOWNLOAD_DIRECTORY: &str = "webdav-downloads";
 const PASSWORD_KEY: &str = "webdav:password";
 const BACKUP_PASSWORD_KEY: &str = "webdav:backup-password";
+/// The saved passwords that belong to the WebDAV settings.
+pub(crate) const SECRET_KEYS: [&str; 2] = [PASSWORD_KEY, BACKUP_PASSWORD_KEY];
 const FILE_PREFIX: &str = "tterm-";
 const FILE_EXTENSION: &str = ".tterm-backup";
 const TIMESTAMP_FORMAT: &str = "%Y%m%d-%H%M%S";
@@ -148,7 +150,7 @@ pub async fn save_webdav_backup_settings(
     let password = non_empty(password).map(Zeroizing::new);
     let backup_password = non_empty(backup_password).map(Zeroizing::new);
     run_blocking(move || {
-        let mut settings = normalized_settings(settings)?;
+        let settings = normalized_settings(settings)?;
         if backup_password
             .as_deref()
             .is_some_and(|value| value.chars().count() < 8)
@@ -174,15 +176,7 @@ pub async fn save_webdav_backup_settings(
                 Ok(())
             })?;
         }
-        // Upload history is not the form's to change, but an error about
-        // another server no longer applies.
-        let current = load_settings()?;
-        settings.last_backup_at = current.last_backup_at;
-        let same_target = settings.url == current.url
-            && settings.username == current.username
-            && settings.remote_directory == current.remote_directory;
-        settings.last_error = current.last_error.filter(|_| same_target);
-        save_settings(&settings)?;
+        save_keeping_history(settings)?;
         status(&secret_state)
     })
     .await
@@ -576,6 +570,34 @@ fn save_settings(settings: &WebDavBackupSettings) -> Result<(), String> {
     let bytes = serde_json::to_vec_pretty(settings)
         .map_err(|error| format!("Failed to serialize WebDAV backup settings: {error}"))?;
     config::atomic_write(&settings_path()?, bytes)
+}
+
+/// Saves settings that came from the form or a backup. Upload history is
+/// not theirs to change, but an error about another server no longer applies.
+fn save_keeping_history(mut settings: WebDavBackupSettings) -> Result<(), String> {
+    let current = load_settings()?;
+    settings.last_backup_at = current.last_backup_at;
+    let same_target = settings.url == current.url
+        && settings.username == current.username
+        && settings.remote_directory == current.remote_directory;
+    settings.last_error = current.last_error.filter(|_| same_target);
+    save_settings(&settings)
+}
+
+/// The settings as a backup carries them, without this device's upload
+/// history. `None` when WebDAV is not set up.
+pub(crate) fn settings_for_backup() -> Result<Option<WebDavBackupSettings>, String> {
+    let settings = load_settings()?;
+    Ok(is_configured(&settings).then_some(WebDavBackupSettings {
+        last_backup_at: None,
+        last_error: None,
+        ..settings
+    }))
+}
+
+/// Applies the settings a backup carries.
+pub(crate) fn restore_settings(settings: WebDavBackupSettings) -> Result<(), String> {
+    save_keeping_history(normalized_settings(settings)?)
 }
 
 fn now_ms() -> i64 {

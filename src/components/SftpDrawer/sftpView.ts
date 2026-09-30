@@ -28,7 +28,7 @@ export const DEFAULT_SFTP_VIEW_PREFERENCES: SftpViewPreferences = {
   showHidden: true,
 }
 
-const SFTP_VIEW_STORAGE_KEY = "tterm.sftp.view"
+export const SFTP_VIEW_STORAGE_KEY = "tterm.sftp.view"
 
 const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" })
 

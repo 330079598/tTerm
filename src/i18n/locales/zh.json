@@ -1649,7 +1649,7 @@
     "importTitle": "导入备份",
     "importDescription": "应用前先检查备份内容，导入时会自动创建本机恢复快照。",
     "categories": {
-      "settings": "应用设置",
+      "settings": "应用设置（含备份与同步配置）",
       "profiles": "连接配置、分组和端口转发隧道",
       "session": "会话和工作区布局",
       "knownHosts": "SSH 已知主机",
@@ -1693,6 +1693,8 @@
     "importSuccess": "数据迁移完成",
     "importFailed": "数据迁移失败",
     "importSummary": "已导入 {{profiles}} 个连接、{{commands}} 条命令和 {{secrets}} 个凭据。",
+    "missingKeyFiles": "本机找不到以下私钥文件",
+    "missingKeyFilesDesc": "备份只保存私钥的路径，不包含私钥文件。请把文件复制到相同路径，或在连接配置中重新选择。",
     "restartNow": "立即重启 tTerm",
     "profileChanges": "连接变化：新增 {{added}} 个，更新 {{updated}} 个",
     "commandChanges": "命令变化：新增 {{added}} 条，更新 {{updated}} 条",

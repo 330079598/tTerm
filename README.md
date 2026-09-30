@@ -142,7 +142,7 @@ See [docs/zmodem.md](./docs/zmodem.md) for usage, settings, and implementation d
   - **Don't save passwords**: keep them for the current session only
 - Optional recovery password in case the system credential store loses the key
 - View or delete saved passwords from settings
-- **Backup and migration**: export exactly the data you choose (settings, connections and tunnels, workspace, known hosts, commands, themes, logs). Passwords are only included in password-protected backups (Argon2id + AES-256-GCM). Imports are previewed first, can merge or replace, and create a recovery snapshot automatically.
+- **Backup and migration**: export exactly the data you choose (settings, connections and tunnels, workspace, known hosts, commands, themes, logs). Passwords are only included in password-protected backups (Argon2id + AES-256-GCM). Settings carry the WebDAV, scheduled-backup and sync setup, and the WebDAV passwords travel with the other passwords, so a restored device backs up and syncs again without being set up. Private key files are never included; an import lists the ones missing on the device. Imports are previewed first, can merge or replace, and create a recovery snapshot automatically.
 - Scheduled local backups (daily or weekly) with a retention limit. These never contain passwords.
 - **WebDAV remote backup**: upload encrypted backups to a WebDAV service (Nextcloud, Synology, AList, Jianguoyun, ...) and restore them on any device
 - **Multi-device sync**: devices that share a WebDAV folder merge each other's changes to connections, passwords, commands, known hosts, settings, and themes automatically. The sync file is encrypted before upload, and you choose what is synced.

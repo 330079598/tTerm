@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core"
 import { open as openFileDialog, save as saveFileDialog } from "@tauri-apps/plugin-dialog"
 import { relaunch } from "@tauri-apps/plugin-process"
 import {
+  AlertTriangle,
   Archive,
   CheckCircle2,
   Cloud,
@@ -33,6 +34,7 @@ import { useToast } from "@/hooks/use-toast"
 import { readBackupFrontendState } from "@/lib/backupFrontendState"
 import { RECENT_COMMANDS_STORAGE_KEY } from "@/lib/recentCommands"
 import { toErrorMessage } from "@/lib/utils"
+import { SFTP_VIEW_STORAGE_KEY } from "@/components/SftpDrawer/sftpView"
 import { WebDavBackupPanel } from "@/components/SettingsDialog/WebDavBackupPanel"
 import {
   formatFileSize,
@@ -104,9 +106,12 @@ interface BackupImportResult {
     customThemes?: unknown[]
     recentCommands?: unknown[]
     sftpColumnWidths?: unknown
+    sftpView?: unknown
   } | null
   preImportBackupPath: string
   requiresRestart: boolean
+  /** Key files imported profiles use that are not on this device. */
+  missingKeyFiles: { path: string; profiles: string[] }[]
 }
 
 type MigrationView = "backup" | "webdav" | "import" | "history"
@@ -136,6 +141,9 @@ function restoreFrontendState(state: BackupImportResult["frontendState"]) {
   }
   if (state && state.sftpColumnWidths !== undefined && state.sftpColumnWidths !== null) {
     localStorage.setItem("tterm.sftp.columnWidths", JSON.stringify(state.sftpColumnWidths))
+  }
+  if (state && state.sftpView !== undefined && state.sftpView !== null) {
+    localStorage.setItem(SFTP_VIEW_STORAGE_KEY, JSON.stringify(state.sftpView))
   }
 }
 
@@ -338,6 +346,8 @@ export const DataMigrationSettingsTab: React.FC = () => {
             input: { inputPath: importPath, backupPassword: importPassword || null },
           })
         )
+        // The import may have brought its own backup schedule.
+        await refreshBackupManagement()
       } catch {
         // The import succeeded; a stale diff is not worth an error.
       }
@@ -958,6 +968,28 @@ export const DataMigrationSettingsTab: React.FC = () => {
                         })}
                       </AlertDescription>
                     </div>
+                    {importResult.missingKeyFiles.length > 0 && (
+                      <div className="text-sm">
+                        <div className="flex items-center gap-1.5 font-medium">
+                          <AlertTriangle size={14} className="text-amber-500" />
+                          {t("dataMigration.missingKeyFiles")}
+                        </div>
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          {t("dataMigration.missingKeyFilesDesc")}
+                        </p>
+                        <ul className="mt-2 space-y-1 text-xs">
+                          {importResult.missingKeyFiles.map((file) => (
+                            <li key={file.path} className="break-all">
+                              <code>{file.path}</code>
+                              <span className="text-muted-foreground">
+                                {" · "}
+                                {file.profiles.join(", ")}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                     {importResult.requiresRestart && (
                       <Button size="sm" onClick={() => void relaunch()}>
                         <RefreshCw size={14} />

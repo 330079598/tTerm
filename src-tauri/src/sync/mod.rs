@@ -27,9 +27,10 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, State};
 
+pub(crate) use snapshot::is_local_secret;
 pub use snapshot::SyncSelection;
 
-const SETTINGS_FILE: &str = "sync_settings.json";
+pub(crate) const SETTINGS_FILE: &str = "sync_settings.json";
 /// Uploads retried after another device uploaded in between.
 const MAX_ATTEMPTS: u32 = 4;
 const RECOVERY_PREFIX: &str = "pre-sync";
@@ -578,7 +579,13 @@ fn settings_path() -> Result<PathBuf, String> {
     Ok(config::ensure_config_dir()?.join(SETTINGS_FILE))
 }
 
-fn load_settings() -> Result<SyncSettings, String> {
+/// Applies the settings a backup carries.
+pub(crate) fn restore_settings(settings: &SyncSettings) -> Result<(), String> {
+    settings.validate()?;
+    save_settings(settings)
+}
+
+pub(crate) fn load_settings() -> Result<SyncSettings, String> {
     let path = settings_path()?;
     if !path.exists() {
         return Ok(SyncSettings::default());
