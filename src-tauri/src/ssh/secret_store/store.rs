@@ -225,6 +225,11 @@ pub(crate) fn migrated(connection: &Connection) -> Result<bool, String> {
         .map_err(sql_error("Failed to read the database state"))
 }
 
+/// When the passwords of older versions were moved (unix ms).
+pub(crate) fn migrated_at(connection: &Connection) -> Result<Option<i64>, String> {
+    crate::db::meta::get(connection, MIGRATED_MARKER)
+}
+
 pub(crate) fn mark_migrated(connection: &Connection) -> Result<(), String> {
     connection
         .execute(

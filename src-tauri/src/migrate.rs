@@ -29,8 +29,12 @@ pub fn migrate_legacy_config_files(app: &tauri::AppHandle) -> Result<(), String>
     // Once the database holds this data, copying the old files over would only
     // leave files nothing reads.
     let database_holds_data = crate::db::legacy_json_imported();
+    let database_holds_session = session::file_imported();
     for name in MIGRATED_CONFIG_FILES {
         if database_holds_data && crate::db::LEGACY_JSON_FILES.contains(name) {
+            continue;
+        }
+        if database_holds_session && *name == "session.json" {
             continue;
         }
         let old_path = old_dir.join(name);
@@ -63,6 +67,74 @@ pub fn migrate_legacy_config_files(app: &tauri::AppHandle) -> Result<(), String>
     migrate_legacy_secret_vault(app)?;
 
     Ok(())
+}
+
+/// Where older versions kept the app vault.
+fn secrets_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    Ok(app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to resolve app data dir: {}", e))?
+        .join("secrets"))
+}
+
+/// How long the `*.migrated` copies of files whose data moved into the
+/// database are kept, in case something needs recovering.
+const RETIRED_FILE_KEEP_MS: i64 = 30 * 24 * 60 * 60 * 1_000;
+
+/// Deletes the `*.migrated` copies kept once their data has been in the
+/// database long enough, and the vault folder once it is empty.
+pub fn remove_retired_files(app: &tauri::AppHandle) -> Result<(), String> {
+    let now = chrono::Utc::now().timestamp_millis();
+    let mut errors = remove_retired(
+        &config::get_config_path()?,
+        crate::db::LEGACY_JSON_FILES,
+        crate::db::legacy_json_imported_at(),
+        now,
+    );
+    let secrets_dir = secrets_dir(app)?;
+    let secrets_migrated_at = crate::db::read(ssh::secret_store::migrated_at).unwrap_or(None);
+    errors.extend(remove_retired(
+        &secrets_dir,
+        &[
+            ssh::secret_store::VAULT_FILE_NAME,
+            ssh::secret_store::VAULT_CONFIG_FILE_NAME,
+        ],
+        secrets_migrated_at,
+        now,
+    ));
+    // Only removed when empty, so a vault still waiting for its password stays.
+    if std::fs::read_dir(&secrets_dir).is_ok_and(|mut entries| entries.next().is_none()) {
+        if let Err(error) = std::fs::remove_dir(&secrets_dir) {
+            errors.push(format!("'{}': {error}", secrets_dir.display()));
+        }
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("; "))
+    }
+}
+
+/// Deletes `<name>.migrated` in `dir` for each of `names` when `retired_at`
+/// lies at least [`RETIRED_FILE_KEEP_MS`] before `now`. Returns the errors.
+fn remove_retired(dir: &Path, names: &[&str], retired_at: Option<i64>, now: i64) -> Vec<String> {
+    let Some(retired_at) = retired_at else {
+        return Vec::new();
+    };
+    if now.saturating_sub(retired_at) < RETIRED_FILE_KEEP_MS {
+        return Vec::new();
+    }
+    names
+        .iter()
+        .map(|name| dir.join(format!("{name}.migrated")))
+        .filter(|path| path.exists())
+        .filter_map(|path| {
+            std::fs::remove_file(&path)
+                .err()
+                .map(|error| format!("'{}': {error}", path.display()))
+        })
+        .collect()
 }
 
 fn merge_migrated_config_file(name: &str, old_path: &Path, new_path: &Path) -> Result<(), String> {
@@ -243,20 +315,14 @@ where
 }
 
 fn migrate_legacy_secret_vault(app: &tauri::AppHandle) -> Result<(), String> {
-    let new_secret_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to resolve app data dir: {}", e))?
-        .join("secrets");
-
-    if !new_secret_dir.exists() {
-        std::fs::create_dir_all(&new_secret_dir)
-            .map_err(|e| format!("Failed to create secret dir: {}", e))?;
-    }
-
+    let new_secret_dir = secrets_dir(app)?;
     let old_secret_dir = config::legacy_config_path()?.join("secrets");
     if same_path(&new_secret_dir, &old_secret_dir) || !old_secret_dir.exists() {
         return Ok(());
+    }
+    if !new_secret_dir.exists() {
+        std::fs::create_dir_all(&new_secret_dir)
+            .map_err(|e| format!("Failed to create secret dir: {}", e))?;
     }
 
     for name in ["secret_vault.json", "secret_vault_config.json"] {
@@ -290,4 +356,37 @@ fn same_path(left: &Path, right: &Path) -> bool {
 
 fn normalize_path(path: &Path) -> PathBuf {
     std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+#[cfg(test)]
+mod retired_file_tests {
+    use super::*;
+
+    const DAY_MS: i64 = 24 * 60 * 60 * 1_000;
+
+    #[test]
+    fn retired_copies_go_once_kept_long_enough() {
+        let dir = std::env::temp_dir().join(format!("tterm-retired-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        for name in [
+            "profiles.json.migrated",
+            "tunnels.json.migrated",
+            "profiles.json",
+        ] {
+            std::fs::write(dir.join(name), "{}").unwrap();
+        }
+        let names = ["profiles.json", "tunnels.json", "missing.json"];
+        let now = 100 * DAY_MS;
+        let present = |name: &str| dir.join(name).exists();
+
+        assert!(remove_retired(&dir, &names, None, now).is_empty());
+        assert!(remove_retired(&dir, &names, Some(now - 29 * DAY_MS), now).is_empty());
+        assert!(present("profiles.json.migrated") && present("tunnels.json.migrated"));
+
+        assert!(remove_retired(&dir, &names, Some(now - 30 * DAY_MS), now).is_empty());
+        assert!(!present("profiles.json.migrated") && !present("tunnels.json.migrated"));
+        // Only the `.migrated` copies are touched.
+        assert!(present("profiles.json"));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 }

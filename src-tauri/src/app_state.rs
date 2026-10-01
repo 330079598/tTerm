@@ -15,7 +15,7 @@ pub struct AppState {
     pub collapsed_profile_group_keys: Vec<String>,
 }
 
-fn load(connection: &rusqlite::Connection) -> Result<AppState, String> {
+pub(crate) fn load(connection: &rusqlite::Connection) -> Result<AppState, String> {
     Ok(AppState {
         last_update_check_at: meta::get(connection, LAST_UPDATE_CHECK_AT)?,
         collapsed_profile_group_keys: meta::get(connection, COLLAPSED_PROFILE_GROUP_KEYS)?
@@ -36,9 +36,13 @@ fn save(connection: &rusqlite::Connection, state: &AppState) -> Result<(), Strin
 }
 
 /// Moves the state older versions kept in `config.json` into the database.
-pub fn import_from_config_file() -> Result<(), String> {
+pub(crate) fn import_from_config_file(
+    database: &crate::db::Database,
+    config_dir: &std::path::Path,
+) -> Result<(), String> {
     meta::move_file_fields(
-        &crate::config::get_config_path()?.join("config.json"),
+        database,
+        &config_dir.join("config.json"),
         &[
             ("last_update_check_at", LAST_UPDATE_CHECK_AT),
             ("collapsed_profile_group_keys", COLLAPSED_PROFILE_GROUP_KEYS),

@@ -40,9 +40,10 @@ const ENCRYPTED_PAYLOAD_ENTRY: &str = "payload.enc";
 const MAX_BACKUP_SIZE: u64 = 128 * 1024 * 1024;
 const MAX_PAYLOAD_SIZE: u64 = 64 * 1024 * 1024;
 const BACKUP_AAD: &[u8] = b"tterm-backup-v1";
+const AUTOMATIC_SETTINGS_KEY: &str = "settings.automatic_backup";
+/// Where older versions kept the automatic backup settings.
 const AUTOMATIC_SETTINGS_FILE: &str = "backup_settings.json";
-/// When the last automatic backup ran, kept in the database rather than the
-/// settings file.
+/// When the last automatic backup ran, kept apart from the settings.
 const AUTOMATIC_LAST_BACKUP_AT_KEY: &str = "backup.automatic.last_backup_at";
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -513,17 +514,20 @@ fn import_backup_blocking(
 }
 
 #[tauri::command]
-pub fn get_automatic_backup_settings() -> Result<AutomaticBackupSettings, String> {
-    load_automatic_backup_settings()
+pub async fn get_automatic_backup_settings() -> Result<AutomaticBackupSettings, String> {
+    run_blocking(load_automatic_backup_settings).await
 }
 
 #[tauri::command]
-pub fn save_automatic_backup_settings(
+pub async fn save_automatic_backup_settings(
     settings: AutomaticBackupSettings,
 ) -> Result<AutomaticBackupSettings, String> {
-    validate_automatic_backup_settings(&settings)?;
-    save_automatic_backup_settings_file(&settings)?;
-    load_automatic_backup_settings()
+    run_blocking(move || {
+        validate_automatic_backup_settings(&settings)?;
+        crate::db::write(|transaction| write_automatic_backup_settings(transaction, &settings))?;
+        load_automatic_backup_settings()
+    })
+    .await
 }
 
 fn run_due_automatic_backup_blocking(
@@ -716,7 +720,13 @@ fn collect_payload(
             crate::profiles::configured_profile_groups,
         )?,
         tunnels: read_selected_data(selection.profiles, crate::tunnel::list_tunnel_rules)?,
-        session: read_selected_json(selection.session, "session.json")?,
+        session: if selection.session {
+            crate::db::read(crate::session::read_session)?
+                .map(|session| to_backup_value(&session))
+                .transpose()?
+        } else {
+            None
+        },
         known_hosts: read_selected_data(
             selection.known_hosts,
             crate::ssh::store::list_known_hosts,
@@ -1286,22 +1296,12 @@ fn apply_payload(
     options: &BackupImportOptions,
     data_key: Option<&DataKey>,
 ) -> Result<(usize, usize, usize), String> {
-    let directory = config::ensure_config_dir()?;
     if options.selection.settings {
         if let Some(value) = payload.config.as_ref() {
             let mut imported = serde_json::from_value::<AppConfig>(value.clone())
                 .map_err(|error| format!("Invalid settings: {error}"))?;
             keep_device_settings(&mut imported, config::load_config_file()?);
             config::save_config_file(&imported)?;
-        }
-        if let Some(settings) = payload.webdav_backup.clone() {
-            remote::restore_settings(settings)?;
-        }
-        if let Some(settings) = payload.automatic_backup.clone() {
-            restore_automatic_backup_settings(settings)?;
-        }
-        if let Some(settings) = payload.sync.as_ref() {
-            crate::sync::restore_settings(settings)?;
         }
     }
 
@@ -1325,9 +1325,6 @@ fn apply_payload(
         };
         Ok((profiles_imported, secrets_imported))
     })?;
-    if options.selection.session {
-        write_optional_json(&directory.join("session.json"), payload.session.as_ref())?;
-    }
     if options.selection.logs {
         restore_log_files(&payload.logs)?;
     }
@@ -1357,6 +1354,22 @@ fn apply_database_payload(
     options: &BackupImportOptions,
 ) -> Result<usize, String> {
     let merge = options.conflict_strategy == "merge";
+    if options.selection.settings {
+        if let Some(settings) = payload.webdav_backup.clone() {
+            remote::restore_settings(transaction, settings)?;
+        }
+        if let Some(settings) = payload.automatic_backup.clone() {
+            restore_automatic_backup_settings(transaction, settings)?;
+        }
+        if let Some(settings) = payload.sync.as_ref() {
+            crate::sync::restore_settings(transaction, settings)?;
+        }
+    }
+    if options.selection.session {
+        if let Some(session) = payload.session.clone() {
+            crate::session::write_session(transaction, from_backup_value(session)?)?;
+        }
+    }
     let mut profiles_imported = 0;
     if options.selection.profiles {
         if let Some(incoming) = payload.profiles.as_ref() {
@@ -1470,6 +1483,25 @@ struct DatabaseSnapshot {
     known_hosts: Option<KnownHostStore>,
     sftp_directories: Option<SftpDirectoryStore>,
     themes: Option<Vec<Value>>,
+    /// The `app_meta` values an import may change: settings and the session.
+    meta: Vec<(&'static str, Option<String>)>,
+}
+
+/// The `app_meta` keys an import of `selection` may change.
+fn imported_meta_keys(selection: &BackupSelection) -> Vec<&'static str> {
+    let mut keys = Vec::new();
+    if selection.settings {
+        keys.extend([
+            AUTOMATIC_SETTINGS_KEY,
+            remote::SETTINGS_KEY,
+            remote::LAST_ERROR_KEY,
+            crate::sync::SETTINGS_KEY,
+        ]);
+    }
+    if selection.session {
+        keys.push(crate::session::SESSION_KEY);
+    }
+    keys
 }
 
 fn capture_database_snapshot(selection: &BackupSelection) -> Result<DatabaseSnapshot, String> {
@@ -1510,6 +1542,10 @@ fn snapshot_database(
         } else {
             None
         },
+        meta: imported_meta_keys(selection)
+            .into_iter()
+            .map(|key| Ok((key, meta::get_raw(connection, key)?)))
+            .collect::<Result<_, String>>()?,
     })
 }
 
@@ -1538,6 +1574,9 @@ fn restore_database(
     if let Some(themes) = snapshot.themes.as_ref() {
         crate::themes::replace_themes(transaction, themes)?;
     }
+    for (key, value) in &snapshot.meta {
+        meta::put_raw(transaction, key, value.as_deref())?;
+    }
     Ok(())
 }
 
@@ -1550,19 +1589,6 @@ fn replace_commands(commands: &[SavedCommand]) -> Result<(), String> {
         repository.save(command)?;
     }
     Ok(())
-}
-
-fn write_optional_json(path: &Path, value: Option<&Value>) -> Result<(), String> {
-    if let Some(value) = value {
-        write_json_value(path, value)?;
-    }
-    Ok(())
-}
-
-fn write_json_value(path: &Path, value: &Value) -> Result<(), String> {
-    let bytes = serde_json::to_vec_pretty(value)
-        .map_err(|error| format!("Failed to serialize '{}': {error}", path.display()))?;
-    config::atomic_write(path, bytes)
 }
 
 fn read_json_value(path: &Path) -> Result<Value, String> {
@@ -1824,15 +1850,7 @@ fn capture_file_snapshot(
     let directory = config::ensure_config_dir()?;
     let mut names = Vec::new();
     if selection.settings {
-        names.extend([
-            "config.json",
-            remote::SETTINGS_FILE,
-            AUTOMATIC_SETTINGS_FILE,
-            crate::sync::SETTINGS_FILE,
-        ]);
-    }
-    if selection.session {
-        names.push("session.json");
+        names.push("config.json");
     }
     let mut snapshot = names
         .into_iter()
@@ -1939,15 +1957,15 @@ pub(crate) fn create_recovery_backup(
     Ok(path)
 }
 
-fn automatic_backup_settings_path() -> Result<PathBuf, String> {
-    Ok(config::ensure_config_dir()?.join(AUTOMATIC_SETTINGS_FILE))
-}
-
 /// Applies the schedule a backup carries.
-fn restore_automatic_backup_settings(settings: AutomaticBackupSettings) -> Result<(), String> {
-    let settings = adopt_automatic_backup_settings(settings, load_automatic_backup_settings()?);
+fn restore_automatic_backup_settings(
+    connection: &rusqlite::Connection,
+    settings: AutomaticBackupSettings,
+) -> Result<(), String> {
+    let settings =
+        adopt_automatic_backup_settings(settings, read_automatic_backup_settings(connection)?);
     validate_automatic_backup_settings(&settings)?;
-    save_automatic_backup_settings_file(&settings)
+    write_automatic_backup_settings(connection, &settings)
 }
 
 /// A backup's schedule as this device keeps it. Its folder is only taken
@@ -1964,37 +1982,56 @@ fn adopt_automatic_backup_settings(
 
 /// The saved schedule with when the last automatic backup ran.
 fn load_automatic_backup_settings() -> Result<AutomaticBackupSettings, String> {
-    let path = automatic_backup_settings_path()?;
-    let mut settings = if path.exists() {
-        let bytes = fs::read(&path)
-            .map_err(|error| format!("Failed to read automatic backup settings: {error}"))?;
-        serde_json::from_slice::<AutomaticBackupSettings>(&bytes)
-            .map_err(|error| format!("Failed to parse automatic backup settings: {error}"))?
-    } else {
-        AutomaticBackupSettings::default()
-    };
-    settings.last_backup_at =
-        crate::db::read(|connection| meta::get(connection, AUTOMATIC_LAST_BACKUP_AT_KEY))?;
-    Ok(settings)
+    crate::db::read(read_automatic_backup_settings)
 }
 
-fn save_automatic_backup_settings_file(settings: &AutomaticBackupSettings) -> Result<(), String> {
-    let bytes = serde_json::to_vec_pretty(&AutomaticBackupSettings {
-        last_backup_at: None,
-        ..settings.clone()
+pub(crate) fn read_automatic_backup_settings(
+    connection: &rusqlite::Connection,
+) -> Result<AutomaticBackupSettings, String> {
+    Ok(AutomaticBackupSettings {
+        last_backup_at: meta::get(connection, AUTOMATIC_LAST_BACKUP_AT_KEY)?,
+        ..meta::get(connection, AUTOMATIC_SETTINGS_KEY)?.unwrap_or_default()
     })
-    .map_err(|error| format!("Failed to serialize automatic backup settings: {error}"))?;
-    config::atomic_write(&automatic_backup_settings_path()?, bytes)
 }
 
-/// Moves when backups last ran, which older versions kept in the settings
-/// files, into the database.
-pub(crate) fn import_state_from_settings_files() -> Result<(), String> {
-    meta::move_file_fields(
-        &automatic_backup_settings_path()?,
-        &[("lastBackupAt", AUTOMATIC_LAST_BACKUP_AT_KEY)],
-    )?;
-    remote::import_state_from_settings_file()
+fn write_automatic_backup_settings(
+    connection: &rusqlite::Connection,
+    settings: &AutomaticBackupSettings,
+) -> Result<(), String> {
+    meta::set(
+        connection,
+        AUTOMATIC_SETTINGS_KEY,
+        &AutomaticBackupSettings {
+            last_backup_at: None,
+            ..settings.clone()
+        },
+    )
+}
+
+/// Moves the backup settings files of older versions into the database,
+/// with when backups last ran kept apart from the settings.
+pub(crate) fn import_settings_files(
+    database: &crate::db::Database,
+    config_dir: &Path,
+) -> Result<(), String> {
+    let automatic = meta::import_file(
+        database,
+        &config_dir.join(AUTOMATIC_SETTINGS_FILE),
+        import_automatic_backup_settings,
+    );
+    let webdav = remote::import_settings_file(database, config_dir);
+    automatic.and(webdav)
+}
+
+fn import_automatic_backup_settings(
+    connection: &rusqlite::Connection,
+    bytes: &[u8],
+) -> Result<(), String> {
+    let mut settings = meta::parse_file::<AutomaticBackupSettings>(bytes)?;
+    if let Some(at) = settings.last_backup_at.take() {
+        meta::set_if_absent(connection, AUTOMATIC_LAST_BACKUP_AT_KEY, &at)?;
+    }
+    meta::set_if_absent(connection, AUTOMATIC_SETTINGS_KEY, &settings)
 }
 
 fn validate_automatic_backup_settings(settings: &AutomaticBackupSettings) -> Result<(), String> {
@@ -2187,6 +2224,142 @@ mod tests {
         rows.iter()
             .map(|(a, b, c)| (a.to_string(), b.to_string(), c.to_string()))
             .collect()
+    }
+
+    fn webdav_settings(url: &str) -> remote::WebDavBackupSettings {
+        remote::WebDavBackupSettings {
+            url: url.to_string(),
+            username: "me".to_string(),
+            ..remote::WebDavBackupSettings::default()
+        }
+    }
+
+    fn settings_and_session_selection() -> BackupSelection {
+        BackupSelection {
+            settings: true,
+            session: true,
+            themes: true,
+            ..BackupSelection::default()
+        }
+    }
+
+    /// Settings, upload history, a session and a theme as this device has them.
+    fn seed_settings(connection: &rusqlite::Connection) -> Result<(), String> {
+        write_automatic_backup_settings(
+            connection,
+            &AutomaticBackupSettings {
+                frequency: "weekly".to_string(),
+                ..AutomaticBackupSettings::default()
+            },
+        )?;
+        meta::set(connection, AUTOMATIC_LAST_BACKUP_AT_KEY, &7_i64)?;
+        remote::restore_settings(connection, webdav_settings("https://a.example/dav"))?;
+        meta::set(connection, "backup.webdav.last_backup_at", &8_i64)?;
+        meta::set(connection, remote::LAST_ERROR_KEY, &"timeout")?;
+        crate::sync::restore_settings(
+            connection,
+            &crate::sync::SyncSettings {
+                enabled: true,
+                ..crate::sync::SyncSettings::default()
+            },
+        )?;
+        crate::session::write_session(
+            connection,
+            crate::session::SessionData {
+                active_tab_id: Some("mine".to_string()),
+                ..crate::session::SessionData::default()
+            },
+        )?;
+        crate::themes::replace_themes(connection, &[serde_json::json!({"id": "mine"})])
+    }
+
+    fn settings_summary(connection: &rusqlite::Connection) -> Value {
+        let automatic = read_automatic_backup_settings(connection).unwrap();
+        let webdav = remote::read_settings(connection).unwrap();
+        serde_json::json!({
+            "automatic": [automatic.frequency, automatic.last_backup_at],
+            "webdav": [webdav.url, webdav.last_backup_at, webdav.last_error],
+            "sync": crate::sync::read_settings(connection).unwrap().enabled,
+            "session": crate::session::read_session(connection).unwrap().and_then(|s| s.active_tab_id),
+            "themes": crate::themes::list_themes(connection).unwrap(),
+        })
+    }
+
+    #[test]
+    fn imported_settings_and_session_land_in_the_database_and_roll_back() {
+        let database = crate::db::Database::open_in_memory().unwrap();
+        database
+            .write(|connection| {
+                seed_settings(connection)?;
+                let before = settings_summary(connection);
+                let snapshot = snapshot_database(connection, &settings_and_session_selection())?;
+
+                let mut payload = BackupPayload::default();
+                payload.automatic_backup = Some(AutomaticBackupSettings {
+                    frequency: "daily".to_string(),
+                    // Another device's history never replaces this one's.
+                    last_backup_at: Some(1),
+                    ..AutomaticBackupSettings::default()
+                });
+                payload.webdav_backup = Some(remote::WebDavBackupSettings {
+                    last_backup_at: Some(1),
+                    last_error: Some("theirs".to_string()),
+                    ..webdav_settings("https://b.example/dav")
+                });
+                payload.sync = Some(crate::sync::SyncSettings::default());
+                payload.session = Some(serde_json::json!({
+                    "tabs": [], "active_tab_id": "theirs", "last_saved": 2
+                }));
+                payload.frontend_state =
+                    Some(serde_json::json!({"customThemes": [{"id": "theirs"}]}));
+                let options = BackupImportOptions {
+                    selection: settings_and_session_selection(),
+                    backup_password: None,
+                    conflict_strategy: "replace".to_string(),
+                };
+                apply_database_payload(connection, &payload, &options)?;
+
+                assert_eq!(
+                    settings_summary(connection),
+                    serde_json::json!({
+                        "automatic": ["daily", 7],
+                        // A new server: the old server's error no longer applies.
+                        "webdav": ["https://b.example/dav", 8, null],
+                        "sync": false,
+                        "session": "theirs",
+                        "themes": [{"id": "theirs"}],
+                    })
+                );
+                // Saved settings never carry the upload history.
+                let saved: Value = meta::get(connection, AUTOMATIC_SETTINGS_KEY)?.unwrap();
+                assert!(saved.get("lastBackupAt").is_none());
+                let saved: Value = meta::get(connection, remote::SETTINGS_KEY)?.unwrap();
+                assert!(saved.get("lastBackupAt").is_none() && saved.get("lastError").is_none());
+
+                restore_database(connection, &snapshot)?;
+                assert_eq!(settings_summary(connection), before);
+                Ok(())
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn unselected_settings_and_session_are_not_touched() {
+        let database = crate::db::Database::open_in_memory().unwrap();
+        database
+            .write(|connection| {
+                seed_settings(connection)?;
+                let before = settings_summary(connection);
+                let mut payload = BackupPayload::default();
+                payload.sync = Some(crate::sync::SyncSettings::default());
+                payload.session = Some(serde_json::json!({
+                    "tabs": [], "active_tab_id": "theirs", "last_saved": 2
+                }));
+                apply_database_payload(connection, &payload, &import_options("replace"))?;
+                assert_eq!(settings_summary(connection), before);
+                Ok(())
+            })
+            .unwrap();
     }
 
     #[test]

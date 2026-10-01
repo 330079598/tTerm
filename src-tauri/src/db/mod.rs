@@ -105,6 +105,18 @@ pub(crate) fn legacy_json_imported() -> bool {
         .unwrap_or(false)
 }
 
+/// Moves the settings files and state older versions kept beside
+/// `config.json` into the database.
+pub(crate) fn import_settings_files() -> Result<(), String> {
+    legacy_import::import_settings_files(get()?, &ensure_config_dir()?)
+}
+
+/// When the legacy JSON files were imported (unix ms); `None` before that
+/// or when the database is unavailable.
+pub(crate) fn legacy_json_imported_at() -> Option<i64> {
+    read(legacy_import::imported_at).ok().flatten()
+}
+
 /// Imports the JSON files that held app data before the database, once.
 pub(crate) fn import_legacy_json_files() -> Result<(), String> {
     let database = init()?;

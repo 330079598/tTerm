@@ -11,21 +11,23 @@ use crate::db::meta;
 use crate::ssh::secret_store::{get_secret, put_secret};
 use crate::ssh::SecretStoreState;
 use chrono::{DateTime, NaiveDateTime, Utc};
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, State};
 use zeroize::Zeroizing;
 
-pub(crate) const SETTINGS_FILE: &str = "webdav_backup_settings.json";
+pub(crate) const SETTINGS_KEY: &str = "settings.webdav_backup";
+/// Where older versions kept the settings.
+const SETTINGS_FILE: &str = "webdav_backup_settings.json";
 const DOWNLOAD_DIRECTORY: &str = "webdav-downloads";
 const PASSWORD_KEY: &str = "webdav:password";
 const BACKUP_PASSWORD_KEY: &str = "webdav:backup-password";
-/// Upload history, kept in the database rather than the settings file.
+/// Upload history, kept apart from the settings.
 const LAST_BACKUP_AT_KEY: &str = "backup.webdav.last_backup_at";
-const LAST_ERROR_KEY: &str = "backup.webdav.last_error";
+pub(crate) const LAST_ERROR_KEY: &str = "backup.webdav.last_error";
 /// The saved passwords that belong to the WebDAV settings.
 pub(crate) const SECRET_KEYS: [&str; 2] = [PASSWORD_KEY, BACKUP_PASSWORD_KEY];
 const FILE_PREFIX: &str = "tterm-";
@@ -170,19 +172,23 @@ pub async fn save_webdav_backup_settings(
         if backup_password.is_none() && !saved.iter().any(|key| key == BACKUP_PASSWORD_KEY) {
             return Err("Enter a backup password to encrypt WebDAV backups.".to_string());
         }
-        if password.is_some() || backup_password.is_some() {
-            let data_key = secret_state.data_key()?;
-            crate::db::write(|transaction| {
+        let data_key = if password.is_some() || backup_password.is_some() {
+            Some(secret_state.data_key()?)
+        } else {
+            None
+        };
+        // The server and its passwords are saved together or not at all.
+        crate::db::write(|transaction| {
+            if let Some(data_key) = data_key.as_ref() {
                 if let Some(password) = password.as_deref() {
-                    put_secret(transaction, &data_key, PASSWORD_KEY, password)?;
+                    put_secret(transaction, data_key, PASSWORD_KEY, password)?;
                 }
                 if let Some(password) = backup_password.as_deref() {
-                    put_secret(transaction, &data_key, BACKUP_PASSWORD_KEY, password)?;
+                    put_secret(transaction, data_key, BACKUP_PASSWORD_KEY, password)?;
                 }
-                Ok(())
-            })?;
-        }
-        save_keeping_history(settings)?;
+            }
+            save_keeping_history(transaction, settings)
+        })?;
         status(&secret_state)
     })
     .await
@@ -195,17 +201,7 @@ pub async fn clear_webdav_backup_settings(
 ) -> Result<WebDavBackupStatus, String> {
     let secret_state = secret_state.inner().clone();
     run_blocking(move || {
-        crate::db::write(|transaction| {
-            crate::ssh::secret_store::delete_secret(transaction, PASSWORD_KEY)?;
-            crate::ssh::secret_store::delete_secret(transaction, BACKUP_PASSWORD_KEY)?;
-            meta::remove(transaction, LAST_BACKUP_AT_KEY)?;
-            meta::remove(transaction, LAST_ERROR_KEY)
-        })?;
-        let path = settings_path()?;
-        if path.exists() {
-            fs::remove_file(&path)
-                .map_err(|error| format!("Failed to delete WebDAV backup settings: {error}"))?;
-        }
+        crate::db::write(|transaction| clear_settings(transaction))?;
         status(&secret_state)
     })
     .await
@@ -555,60 +551,72 @@ fn backup_due(settings: &WebDavBackupSettings, now: i64) -> bool {
         .is_none_or(|last| now.saturating_sub(last) >= interval_ms)
 }
 
-fn settings_path() -> Result<PathBuf, String> {
-    Ok(config::ensure_config_dir()?.join(SETTINGS_FILE))
-}
-
 /// The saved settings with this device's upload history.
 fn load_settings() -> Result<WebDavBackupSettings, String> {
-    let path = settings_path()?;
-    let mut settings = if path.exists() {
-        let bytes = fs::read(&path)
-            .map_err(|error| format!("Failed to read WebDAV backup settings: {error}"))?;
-        serde_json::from_slice(&bytes)
-            .map_err(|error| format!("Failed to parse WebDAV backup settings: {error}"))?
-    } else {
-        WebDavBackupSettings::default()
-    };
-    (settings.last_backup_at, settings.last_error) = crate::db::read(|connection| {
-        Ok((
-            meta::get(connection, LAST_BACKUP_AT_KEY)?,
-            meta::get(connection, LAST_ERROR_KEY)?,
-        ))
-    })?;
-    Ok(settings)
+    crate::db::read(read_settings)
+}
+
+pub(crate) fn read_settings(connection: &Connection) -> Result<WebDavBackupSettings, String> {
+    Ok(WebDavBackupSettings {
+        last_backup_at: meta::get(connection, LAST_BACKUP_AT_KEY)?,
+        last_error: meta::get(connection, LAST_ERROR_KEY)?,
+        ..meta::get(connection, SETTINGS_KEY)?.unwrap_or_default()
+    })
 }
 
 /// Saves settings that came from the form or a backup. Upload history is
 /// not theirs to change, but an error about another server no longer applies.
-fn save_keeping_history(settings: WebDavBackupSettings) -> Result<(), String> {
-    let current = load_settings()?;
+fn save_keeping_history(
+    connection: &Connection,
+    settings: WebDavBackupSettings,
+) -> Result<(), String> {
+    let current = read_settings(connection)?;
     let same_target = settings.url == current.url
         && settings.username == current.username
         && settings.remote_directory == current.remote_directory;
-    let bytes = serde_json::to_vec_pretty(&WebDavBackupSettings {
-        last_backup_at: None,
-        last_error: None,
-        ..settings
-    })
-    .map_err(|error| format!("Failed to serialize WebDAV backup settings: {error}"))?;
-    config::atomic_write(&settings_path()?, bytes)?;
+    meta::set(
+        connection,
+        SETTINGS_KEY,
+        &WebDavBackupSettings {
+            last_backup_at: None,
+            last_error: None,
+            ..settings
+        },
+    )?;
     if !same_target {
-        crate::db::write(|transaction| meta::remove(transaction, LAST_ERROR_KEY))?;
+        meta::remove(connection, LAST_ERROR_KEY)?;
     }
     Ok(())
 }
 
-/// Moves the upload history older versions kept in the settings file into
-/// the database.
-pub(crate) fn import_state_from_settings_file() -> Result<(), String> {
-    meta::move_file_fields(
-        &settings_path()?,
-        &[
-            ("lastBackupAt", LAST_BACKUP_AT_KEY),
-            ("lastError", LAST_ERROR_KEY),
-        ],
-    )
+/// Forgets the server, its passwords and the upload history.
+fn clear_settings(connection: &Connection) -> Result<(), String> {
+    crate::ssh::secret_store::delete_secret(connection, PASSWORD_KEY)?;
+    crate::ssh::secret_store::delete_secret(connection, BACKUP_PASSWORD_KEY)?;
+    for key in [SETTINGS_KEY, LAST_BACKUP_AT_KEY, LAST_ERROR_KEY] {
+        meta::remove(connection, key)?;
+    }
+    Ok(())
+}
+
+/// Moves `webdav_backup_settings.json` from older versions into the
+/// database, its upload history apart from the settings.
+pub(crate) fn import_settings_file(
+    database: &crate::db::Database,
+    config_dir: &std::path::Path,
+) -> Result<(), String> {
+    meta::import_file(database, &config_dir.join(SETTINGS_FILE), import_settings)
+}
+
+fn import_settings(connection: &Connection, bytes: &[u8]) -> Result<(), String> {
+    let mut settings = meta::parse_file::<WebDavBackupSettings>(bytes)?;
+    if let Some(at) = settings.last_backup_at.take() {
+        meta::set_if_absent(connection, LAST_BACKUP_AT_KEY, &at)?;
+    }
+    if let Some(error) = settings.last_error.take() {
+        meta::set_if_absent(connection, LAST_ERROR_KEY, &error)?;
+    }
+    meta::set_if_absent(connection, SETTINGS_KEY, &settings)
 }
 
 /// The settings as a backup carries them, without this device's upload
@@ -623,8 +631,11 @@ pub(crate) fn settings_for_backup() -> Result<Option<WebDavBackupSettings>, Stri
 }
 
 /// Applies the settings a backup carries.
-pub(crate) fn restore_settings(settings: WebDavBackupSettings) -> Result<(), String> {
-    save_keeping_history(normalized_settings(settings)?)
+pub(crate) fn restore_settings(
+    connection: &Connection,
+    settings: WebDavBackupSettings,
+) -> Result<(), String> {
+    save_keeping_history(connection, normalized_settings(settings)?)
 }
 
 fn now_ms() -> i64 {
@@ -735,6 +746,49 @@ fn validate_file_name(name: &str) -> Result<(), String> {
 mod tests {
     use super::*;
     use chrono::TimeZone;
+
+    #[test]
+    fn saving_settings_keeps_history_and_clearing_forgets_everything() {
+        let database = crate::db::Database::open_in_memory().unwrap();
+        database
+            .write(|connection| {
+                let settings = |url: &str| WebDavBackupSettings {
+                    url: url.to_string(),
+                    username: "me".to_string(),
+                    ..WebDavBackupSettings::default()
+                };
+                save_keeping_history(connection, settings("https://a.example/dav"))?;
+                meta::set(connection, LAST_BACKUP_AT_KEY, &5_i64)?;
+                meta::set(connection, LAST_ERROR_KEY, &"timeout")?;
+
+                // The UI sends back what it was shown; that is ignored.
+                save_keeping_history(
+                    connection,
+                    WebDavBackupSettings {
+                        frequency: "weekly".to_string(),
+                        last_backup_at: Some(1),
+                        last_error: None,
+                        ..settings("https://a.example/dav")
+                    },
+                )?;
+                let saved = read_settings(connection)?;
+                assert_eq!(saved.frequency, "weekly");
+                assert_eq!(saved.last_backup_at, Some(5));
+                assert_eq!(saved.last_error.as_deref(), Some("timeout"));
+
+                save_keeping_history(connection, settings("https://b.example/dav"))?;
+                let saved = read_settings(connection)?;
+                assert_eq!(saved.last_backup_at, Some(5));
+                assert_eq!(saved.last_error, None);
+
+                clear_settings(connection)?;
+                let cleared = read_settings(connection)?;
+                assert!(cleared.url.is_empty());
+                assert_eq!((cleared.last_backup_at, cleared.last_error), (None, None));
+                Ok(())
+            })
+            .unwrap();
+    }
 
     fn file(name: &str) -> DavEntry {
         DavEntry {

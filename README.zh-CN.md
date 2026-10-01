@@ -331,7 +331,7 @@ pnpm format:check
 
 ## 开发说明
 
-tTerm 的前端通过 Tauri `invoke` 调用 Rust 后端命令。终端能力由 `portable-pty` 提供，SSH/SFTP 能力由 `russh` 和 `russh-sftp` 提供。应用设置保存在 `config.json`；连接、隧道、已知主机、命令库和加密凭据保存在本地 SQLite 数据库（`tterm.db`）中。已保存的密码采用信封加密：每条密码用数据密钥加密，只有这把数据密钥由系统凭据存储或主密码保护。
+tTerm 的前端通过 Tauri `invoke` 调用 Rust 后端命令。终端能力由 `portable-pty` 提供，SSH/SFTP 能力由 `russh` 和 `russh-sftp` 提供。应用设置保存在 `config.json`；其余数据（连接、隧道、已知主机、命令库、自定义主题、恢复用的会话、备份与同步设置以及加密凭据）都保存在本地 SQLite 数据库（`tterm.db`）中。已保存的密码采用信封加密：每条密码用数据密钥加密，只有这把数据密钥由系统凭据存储或主密码保护。
 
 开发时建议同时关注：
 

@@ -1,6 +1,16 @@
-use crate::config::{atomic_write, get_config_path};
+//! The open tabs and layout, restored on the next launch. Kept in the
+//! database; older versions kept them in `session.json`.
+
+use crate::core::blocking::run_blocking;
+use crate::db::meta;
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use std::fs;
+
+pub(crate) const SESSION_KEY: &str = "session";
+/// Set once `session.json` was moved into the database, so the merge of the
+/// legacy config folder stops bringing the file back.
+const FILE_IMPORTED_KEY: &str = "session_file_imported_at";
+const FILE_NAME: &str = "session.json";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SessionData {
@@ -85,47 +95,135 @@ fn sanitize_jump_host_value(value: serde_json::Value) -> serde_json::Value {
     }
 }
 
-#[tauri::command]
-pub fn load_session() -> Result<SessionData, String> {
-    let config_dir = get_config_path()?;
-    let session_file = config_dir.join("session.json");
-    if !session_file.exists() {
-        return Ok(SessionData::default());
-    }
-    let content = fs::read_to_string(&session_file)
-        .map_err(|e| format!("Failed to read session file: {}", e))?;
-    let mut session = serde_json::from_str::<SessionData>(&content)
-        .map_err(|e| format!("Failed to parse session: {}", e))?;
-    // Clean older session files as they are loaded so stale plaintext secrets are dropped immediately.
-    session.tabs = sanitize_session_tabs(session.tabs);
-    Ok(session)
+/// The saved session; `None` when there is none.
+pub(crate) fn read_session(connection: &Connection) -> Result<Option<SessionData>, String> {
+    Ok(
+        meta::get::<SessionData>(connection, SESSION_KEY)?.map(|mut session| {
+            // Clean older sessions as they are loaded so stale plaintext secrets are dropped.
+            session.tabs = sanitize_session_tabs(session.tabs);
+            session
+        }),
+    )
 }
 
-#[tauri::command]
-pub fn save_session(mut session: SessionData) -> Result<(), String> {
-    let config_dir = crate::config::ensure_config_dir()?;
-    let session_file = config_dir.join("session.json");
+pub(crate) fn write_session(
+    connection: &Connection,
+    mut session: SessionData,
+) -> Result<(), String> {
     // Keep a backend-side guard even if the frontend payload changes in the future.
     session.tabs = sanitize_session_tabs(session.tabs);
-    let content = serde_json::to_string_pretty(&session)
-        .map_err(|e| format!("Failed to serialize session: {}", e))?;
-    atomic_write(&session_file, content)
+    meta::set(connection, SESSION_KEY, &session)
+}
+
+fn clear(connection: &Connection) -> Result<(), String> {
+    meta::remove(connection, SESSION_KEY)
 }
 
 #[tauri::command]
-pub fn clear_session() -> Result<(), String> {
-    let config_dir = get_config_path()?;
-    let session_file = config_dir.join("session.json");
-    if session_file.exists() {
-        fs::remove_file(&session_file)
-            .map_err(|e| format!("Failed to remove session file: {}", e))?;
+pub async fn load_session() -> Result<SessionData, String> {
+    run_blocking(|| crate::db::read(read_session).map(Option::unwrap_or_default)).await
+}
+
+#[tauri::command]
+pub async fn save_session(session: SessionData) -> Result<(), String> {
+    run_blocking(move || crate::db::write(|transaction| write_session(transaction, session))).await
+}
+
+#[tauri::command]
+pub async fn clear_session() -> Result<(), String> {
+    run_blocking(|| crate::db::write(|transaction| clear(transaction))).await
+}
+
+/// Moves `session.json` from older versions into the database.
+pub(crate) fn import_file(
+    database: &crate::db::Database,
+    config_dir: &std::path::Path,
+) -> Result<(), String> {
+    meta::import_file(database, &config_dir.join(FILE_NAME), import_session)?;
+    database.write(|transaction| {
+        meta::set_if_absent(
+            transaction,
+            FILE_IMPORTED_KEY,
+            &chrono::Utc::now().timestamp_millis(),
+        )
+    })
+}
+
+/// Whether `session.json` was moved into the database.
+pub(crate) fn file_imported() -> bool {
+    crate::db::read(|connection| meta::contains(connection, FILE_IMPORTED_KEY)).unwrap_or(false)
+}
+
+fn import_session(connection: &Connection, bytes: &[u8]) -> Result<(), String> {
+    match meta::parse_file::<SessionData>(bytes) {
+        Ok(session) if !meta::contains(connection, SESSION_KEY)? => {
+            write_session(connection, session)
+        }
+        Ok(_) => Ok(()),
+        // A session is not worth keeping a broken file around for.
+        Err(error) => {
+            eprintln!("Dropping unreadable session.json: {error}");
+            Ok(())
+        }
     }
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{sanitize_session_tabs, SessionData};
+    use super::*;
+    use crate::db::Database;
+
+    #[test]
+    fn sessions_round_trip_without_secrets() {
+        let database = Database::open_in_memory().unwrap();
+        database
+            .write(|connection| {
+                assert!(read_session(connection)?.is_none());
+                let session: SessionData = serde_json::from_value(serde_json::json!({
+                    "tabs": [{"id": "1", "connection": {"host": "h", "password": "secret"}}],
+                    "active_tab_id": "1",
+                    "last_saved": 5
+                }))
+                .unwrap();
+                write_session(connection, session)?;
+                let saved = read_session(connection)?.unwrap();
+                assert_eq!(saved.active_tab_id.as_deref(), Some("1"));
+                assert_eq!(saved.last_saved, 5);
+                assert_eq!(saved.tabs[0]["connection"]["host"], "h");
+                assert!(saved.tabs[0]["connection"].get("password").is_none());
+                clear(connection)?;
+                assert!(read_session(connection)?.is_none());
+                Ok(())
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn importing_a_session_file_keeps_a_newer_one_and_drops_a_broken_one() {
+        let database = Database::open_in_memory().unwrap();
+        database
+            .write(|connection| {
+                let file = br#"{"tabs":[{"id":"old"}],"active_tab_id":"old","last_saved":1}"#;
+                import_session(connection, file)?;
+                assert_eq!(
+                    read_session(connection)?.unwrap().active_tab_id.as_deref(),
+                    Some("old")
+                );
+                let newer = SessionData {
+                    active_tab_id: Some("new".to_string()),
+                    ..SessionData::default()
+                };
+                write_session(connection, newer)?;
+                import_session(connection, file)?;
+                assert_eq!(
+                    read_session(connection)?.unwrap().active_tab_id.as_deref(),
+                    Some("new")
+                );
+                import_session(connection, b"{ not json")?;
+                Ok(())
+            })
+            .unwrap();
+    }
 
     #[test]
     fn legacy_session_without_layout_uses_defaults() {

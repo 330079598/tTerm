@@ -13,8 +13,8 @@ mod snapshot;
 mod state;
 
 use crate::backup::webdav::{Fetched, Stored, WebDavClient};
-use crate::config;
 use crate::core::blocking::run_blocking;
+use crate::db::meta;
 use crate::ssh::SecretStoreState;
 use crate::tunnel::TunnelManager;
 use document::{Collections, MAX_DOCUMENT_SIZE, SYNC_FILE_NAME};
@@ -22,15 +22,15 @@ use merge::{merge_collection, same_data};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use snapshot::{removed_ids, SETTINGS, TUNNELS};
-use std::fs;
-use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, State};
 
 pub(crate) use snapshot::is_local_secret;
 pub use snapshot::SyncSelection;
 
-pub(crate) const SETTINGS_FILE: &str = "sync_settings.json";
+pub(crate) const SETTINGS_KEY: &str = "settings.sync";
+/// Where older versions kept the settings.
+const SETTINGS_FILE: &str = "sync_settings.json";
 /// Uploads retried after another device uploaded in between.
 const MAX_ATTEMPTS: u32 = 4;
 const RECOVERY_PREFIX: &str = "pre-sync";
@@ -122,7 +122,7 @@ pub async fn get_sync_status() -> Result<SyncStatus, String> {
 pub async fn save_sync_settings(settings: SyncSettings) -> Result<SyncStatus, String> {
     run_blocking(move || {
         settings.validate()?;
-        save_settings(&settings)?;
+        crate::db::write(|transaction| write_settings(transaction, &settings))?;
         status()
     })
     .await
@@ -572,31 +572,46 @@ fn set_last_error(error: Option<String>) {
     }
 }
 
-fn settings_path() -> Result<PathBuf, String> {
-    Ok(config::ensure_config_dir()?.join(SETTINGS_FILE))
-}
-
 /// Applies the settings a backup carries.
-pub(crate) fn restore_settings(settings: &SyncSettings) -> Result<(), String> {
+pub(crate) fn restore_settings(
+    connection: &rusqlite::Connection,
+    settings: &SyncSettings,
+) -> Result<(), String> {
     settings.validate()?;
-    save_settings(settings)
+    write_settings(connection, settings)
 }
 
 pub(crate) fn load_settings() -> Result<SyncSettings, String> {
-    let path = settings_path()?;
-    if !path.exists() {
-        return Ok(SyncSettings::default());
-    }
-    let bytes =
-        fs::read(&path).map_err(|error| format!("Failed to read sync settings: {error}"))?;
-    serde_json::from_slice(&bytes)
-        .map_err(|error| format!("Failed to parse sync settings: {error}"))
+    crate::db::read(read_settings)
 }
 
-fn save_settings(settings: &SyncSettings) -> Result<(), String> {
-    let bytes = serde_json::to_vec_pretty(settings)
-        .map_err(|error| format!("Failed to serialize sync settings: {error}"))?;
-    config::atomic_write(&settings_path()?, bytes)
+pub(crate) fn read_settings(connection: &rusqlite::Connection) -> Result<SyncSettings, String> {
+    Ok(meta::get(connection, SETTINGS_KEY)?.unwrap_or_default())
+}
+
+fn write_settings(
+    connection: &rusqlite::Connection,
+    settings: &SyncSettings,
+) -> Result<(), String> {
+    meta::set(connection, SETTINGS_KEY, settings)
+}
+
+/// Moves `sync_settings.json` from older versions into the database.
+pub(crate) fn import_settings_file(
+    database: &crate::db::Database,
+    config_dir: &std::path::Path,
+) -> Result<(), String> {
+    meta::import_file(
+        database,
+        &config_dir.join(SETTINGS_FILE),
+        |connection, bytes| {
+            meta::set_if_absent(
+                connection,
+                SETTINGS_KEY,
+                &meta::parse_file::<SyncSettings>(bytes)?,
+            )
+        },
+    )
 }
 
 #[cfg(test)]

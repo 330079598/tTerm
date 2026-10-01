@@ -25,6 +25,11 @@ pub(crate) const IMPORTED_FILES: &[&str] = &[
     "sftp_directories.json",
 ];
 
+/// When the JSON files were imported (unix ms); `None` before that.
+pub(crate) fn imported_at(connection: &Connection) -> Result<Option<i64>, String> {
+    super::meta::get(connection, IMPORTED_MARKER)
+}
+
 pub(crate) fn legacy_json_imported(database: &Database) -> Result<bool, String> {
     database.read(is_imported)
 }
@@ -76,6 +81,27 @@ pub(crate) fn import_legacy_json_files(
         }
     }
     Ok(imported)
+}
+
+/// Moves the settings files and state that older versions kept beside
+/// `config.json` into the database. Each file is done on its own; one that
+/// fails stays in place and is tried again on the next launch.
+pub(crate) fn import_settings_files(database: &Database, config_dir: &Path) -> Result<(), String> {
+    let errors: Vec<String> = [
+        crate::app_state::import_from_config_file(database, config_dir),
+        crate::session::import_file(database, config_dir),
+        crate::config::window_background::import_file(database, config_dir),
+        crate::backup::import_settings_files(database, config_dir),
+        crate::sync::import_settings_file(database, config_dir),
+    ]
+    .into_iter()
+    .filter_map(Result::err)
+    .collect();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("; "))
+    }
 }
 
 fn import_files(connection: &Connection, config_dir: &Path) -> Result<(), String> {
@@ -249,6 +275,189 @@ mod tests {
         );
 
         fs::remove_dir_all(dir).ok();
+    }
+
+    fn file_names(dir: &Path) -> Vec<String> {
+        let mut names: Vec<String> = fs::read_dir(dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        names
+    }
+
+    fn selection_json() -> serde_json::Value {
+        serde_json::json!({
+            "settings": true, "profiles": true, "session": true, "knownHosts": true,
+            "sftpDirectories": true, "commandLibrary": true, "themes": true,
+            "secrets": false, "logs": false
+        })
+    }
+
+    fn write_settings_files(dir: &Path) {
+        write(
+            dir,
+            "config.json",
+            serde_json::json!({
+                "theme": "dark", "language": "zh",
+                "last_update_check_at": 123,
+                "collapsed_profile_group_keys": ["ops"]
+            }),
+        );
+        write(
+            dir,
+            "session.json",
+            serde_json::json!({
+                "tabs": [{"id": "1", "connection": {"host": "h", "password": "pw"}}],
+                "active_tab_id": "1", "last_saved": 9
+            }),
+        );
+        fs::write(dir.join("window-background"), "#112233\n").unwrap();
+        write(
+            dir,
+            "backup_settings.json",
+            serde_json::json!({
+                "frequency": "weekly", "directory": "", "retentionCount": 5,
+                "selection": selection_json(), "lastBackupAt": 77
+            }),
+        );
+        write(
+            dir,
+            "webdav_backup_settings.json",
+            serde_json::json!({
+                "url": "https://dav.example/remote.php", "username": "me",
+                "remoteDirectory": "tTerm", "frequency": "daily", "retentionCount": 10,
+                "selection": selection_json(), "lastBackupAt": 88, "lastError": "boom"
+            }),
+        );
+        write(
+            dir,
+            "sync_settings.json",
+            serde_json::json!({
+                "enabled": true, "selection": {"profiles": true, "secrets": false,
+                "commands": true, "knownHosts": true, "settings": true, "themes": true},
+                "pushIntervalSecs": 60, "pullIntervalMins": 15
+            }),
+        );
+    }
+
+    #[test]
+    fn settings_files_move_into_the_database_leaving_only_config_json() {
+        let dir = temp_dir("settings-files");
+        let database = Database::open_in_memory().unwrap();
+        write_settings_files(&dir);
+
+        import_settings_files(&database, &dir).unwrap();
+
+        assert_eq!(file_names(&dir), ["config.json"]);
+        let config: serde_json::Value =
+            serde_json::from_slice(&fs::read(dir.join("config.json")).unwrap()).unwrap();
+        assert_eq!(
+            config,
+            serde_json::json!({"theme": "dark", "language": "zh"})
+        );
+        database
+            .read(|connection| {
+                let state = crate::app_state::load(connection)?;
+                assert_eq!(state.last_update_check_at, Some(123));
+                assert_eq!(state.collapsed_profile_group_keys, ["ops"]);
+
+                let session = crate::session::read_session(connection)?.unwrap();
+                assert_eq!(session.active_tab_id.as_deref(), Some("1"));
+                assert_eq!(session.last_saved, 9);
+                assert!(session.tabs[0]["connection"].get("password").is_none());
+
+                assert_eq!(
+                    crate::config::window_background::read(connection)?,
+                    Some((0x11, 0x22, 0x33))
+                );
+
+                let automatic = crate::backup::read_automatic_backup_settings(connection)?;
+                assert_eq!(automatic.frequency, "weekly");
+                assert_eq!(automatic.retention_count, 5);
+                assert_eq!(automatic.last_backup_at, Some(77));
+
+                let webdav = crate::backup::remote::read_settings(connection)?;
+                assert_eq!(webdav.url, "https://dav.example/remote.php");
+                assert_eq!(webdav.username, "me");
+                assert_eq!(webdav.last_backup_at, Some(88));
+                assert_eq!(webdav.last_error.as_deref(), Some("boom"));
+
+                let sync = crate::sync::read_settings(connection)?;
+                assert!(sync.enabled);
+                assert!(!sync.selection.secrets);
+                assert_eq!((sync.push_interval_secs, sync.pull_interval_mins), (60, 15));
+                Ok(())
+            })
+            .unwrap();
+
+        // Nothing left to do on the next launch.
+        import_settings_files(&database, &dir).unwrap();
+        assert_eq!(file_names(&dir), ["config.json"]);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn files_written_again_by_an_older_version_do_not_overwrite_the_database() {
+        let dir = temp_dir("settings-files-again");
+        let database = Database::open_in_memory().unwrap();
+        write_settings_files(&dir);
+        import_settings_files(&database, &dir).unwrap();
+        database
+            .write(|connection| {
+                crate::session::write_session(
+                    connection,
+                    crate::session::SessionData {
+                        active_tab_id: Some("newer".to_string()),
+                        ..crate::session::SessionData::default()
+                    },
+                )
+            })
+            .unwrap();
+
+        write_settings_files(&dir);
+        fs::write(dir.join("window-background"), "#ffffff").unwrap();
+        import_settings_files(&database, &dir).unwrap();
+
+        assert_eq!(file_names(&dir), ["config.json"]);
+        database
+            .read(|connection| {
+                let session = crate::session::read_session(connection)?.unwrap();
+                assert_eq!(session.active_tab_id.as_deref(), Some("newer"));
+                assert_eq!(
+                    crate::config::window_background::read(connection)?,
+                    Some((0x11, 0x22, 0x33))
+                );
+                Ok(())
+            })
+            .unwrap();
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn an_unreadable_settings_file_stays_while_the_others_move() {
+        let dir = temp_dir("settings-files-corrupt");
+        let database = Database::open_in_memory().unwrap();
+        write_settings_files(&dir);
+        fs::write(dir.join("sync_settings.json"), "{ not json").unwrap();
+        fs::write(dir.join("session.json"), "{ not json").unwrap();
+
+        let error = import_settings_files(&database, &dir).unwrap_err();
+        assert!(error.contains("sync_settings.json"), "{error}");
+        // A broken session is dropped rather than kept.
+        assert_eq!(file_names(&dir), ["config.json", "sync_settings.json"]);
+        database
+            .read(|connection| {
+                assert!(crate::session::read_session(connection)?.is_none());
+                assert!(!crate::sync::read_settings(connection)?.enabled);
+                assert_eq!(
+                    crate::backup::remote::read_settings(connection)?.last_backup_at,
+                    Some(88)
+                );
+                Ok(())
+            })
+            .unwrap();
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

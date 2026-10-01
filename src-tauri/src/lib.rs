@@ -411,12 +411,9 @@ pub fn run() {
                 eprintln!("Failed to import JSON data into the database: {error}");
             }
 
-            // State older versions kept in the settings files.
-            if let Err(error) = app_state::import_from_config_file() {
-                eprintln!("Failed to move app state into the database: {error}");
-            }
-            if let Err(error) = backup::import_state_from_settings_files() {
-                eprintln!("Failed to move backup state into the database: {error}");
+            // Settings files and state older versions kept beside config.json.
+            if let Err(error) = db::import_settings_files() {
+                eprintln!("Failed to move settings files into the database: {error}");
             }
 
             // Moves passwords saved by older versions into the database once,
@@ -424,6 +421,10 @@ pub fn run() {
             app_handle
                 .state::<ssh::SecretStoreState>()
                 .initialize(&app_handle);
+
+            if let Err(error) = migrate::remove_retired_files(&app_handle) {
+                eprintln!("Failed to remove retired files: {error}");
+            }
 
             let cfg = config::load_config_file().ok();
             if let Some(cfg) = &cfg {

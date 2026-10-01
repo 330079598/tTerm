@@ -24,8 +24,10 @@ use types::{SecretStorageMode, SecretStoreRuntime};
 use zeroize::Zeroizing;
 
 pub(crate) use crypto::{decrypt_secret, encrypt_secret, SecretKey as DataKey};
+pub(crate) use legacy::{VAULT_CONFIG_FILE_NAME, VAULT_FILE_NAME};
 pub(crate) use store::{
-    delete_secret, get_secret, put_secret, restore_secrets, snapshot_secrets, SecretRow,
+    delete_secret, get_secret, migrated_at, put_secret, restore_secrets, snapshot_secrets,
+    SecretRow,
 };
 pub use types::{
     ChangeVaultPasswordInput, SecretBackendStatus, SecretLocation, SecretStoreState,

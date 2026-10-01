@@ -331,7 +331,7 @@ pnpm format:check
 
 ## Development Notes
 
-tTerm's frontend calls Rust backend commands through Tauri `invoke`. Terminal support is powered by `portable-pty`, and SSH and SFTP are powered by `russh` and `russh-sftp`. Settings stay in `config.json`; connections, tunnels, known hosts, commands, and encrypted secrets live in a local SQLite database (`tterm.db`). Saved passwords use envelope encryption: each secret is encrypted with a data key, and only that key is protected by the system credential store or a master password.
+tTerm's frontend calls Rust backend commands through Tauri `invoke`. Terminal support is powered by `portable-pty`, and SSH and SFTP are powered by `russh` and `russh-sftp`. Settings stay in `config.json`; everything else (connections, tunnels, known hosts, commands, custom themes, the restored session, backup and sync settings, and encrypted secrets) lives in a local SQLite database (`tterm.db`). Saved passwords use envelope encryption: each secret is encrypted with a data key, and only that key is protected by the system credential store or a master password.
 
 When developing, pay special attention to:
 
