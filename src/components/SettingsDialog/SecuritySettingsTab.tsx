@@ -16,8 +16,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PasswordInput } from "@/components/ui/password-input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
@@ -57,37 +57,20 @@ const PasswordField: React.FC<PasswordFieldProps> = ({
   autoFocus,
 }) => {
   const { t } = useTranslation()
-  const [visible, setVisible] = useState(false)
-  const toggleLabel = t(visible ? "secretStorage.hidePassword" : "secretStorage.showPassword")
   return (
     <div>
       <Label htmlFor={id} className="mb-1.5 block">
         {label}
       </Label>
-      <div className="relative">
-        <Input
-          id={id}
-          type={visible ? "text" : "password"}
-          autoComplete={autoComplete}
-          autoFocus={autoFocus}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={t("secretStorage.masterPasswordPlaceholder")}
-          disabled={disabled}
-          className="pr-9"
-        />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => setVisible((current) => !current)}
-          className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1 -translate-y-1/2"
-          aria-label={toggleLabel}
-          title={toggleLabel}
-        >
-          {visible ? <EyeOff size={16} /> : <Eye size={16} />}
-        </Button>
-      </div>
+      <PasswordInput
+        id={id}
+        autoComplete={autoComplete}
+        autoFocus={autoFocus}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={t("secretStorage.masterPasswordPlaceholder")}
+        disabled={disabled}
+      />
     </div>
   )
 }

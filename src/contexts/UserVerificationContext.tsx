@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import {
   SYSTEM_VERIFICATION_CANCELED,
@@ -136,10 +136,9 @@ export function UserVerificationProvider({ children }: { children: React.ReactNo
               <Label htmlFor="user-verification-password">
                 {t("secretStorage.masterPassword")}
               </Label>
-              <Input
+              <PasswordInput
                 id="user-verification-password"
                 autoFocus
-                type="password"
                 autoComplete="current-password"
                 value={password}
                 placeholder={t("secretStorage.masterPasswordPlaceholder")}

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 
 import { ConnectionForm } from "@/components/ConnectionDialog/types"
@@ -57,9 +57,8 @@ export const SudoAutofillFields: React.FC<SudoAutofillFieldsProps> = ({
             )}
           </div>
           <div className="flex gap-2">
-            <Input
+            <PasswordInput
               id="conn-sudo-password"
-              type="password"
               autoComplete="new-password"
               value={form.sudoPassword}
               onChange={(e) =>
@@ -70,7 +69,7 @@ export const SudoAutofillFields: React.FC<SudoAutofillFieldsProps> = ({
                 }))
               }
               placeholder={placeholder}
-              className="flex-1"
+              containerClassName="flex-1"
             />
             {savedSudoPasswordAvailable && (
               <Button

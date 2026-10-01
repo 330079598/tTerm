@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useToast } from "@/hooks/use-toast"
@@ -78,10 +78,9 @@ export const VaultStartupUnlockDialog: React.FC<VaultStartupUnlockDialogProps> =
 
           <div className="space-y-2">
             <Label htmlFor="startup-vault-password">{t("secretStorage.masterPassword")}</Label>
-            <Input
+            <PasswordInput
               id="startup-vault-password"
               autoFocus
-              type="password"
               value={password}
               placeholder={t("secretStorage.masterPasswordPlaceholder")}
               disabled={busy}

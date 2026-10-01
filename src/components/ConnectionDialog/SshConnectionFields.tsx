@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 
 import { normalizeKeepalive } from "@/components/ConnectionDialog/connectionDialogUtils"
@@ -159,9 +160,9 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
                 </Badge>
               )}
             </div>
-            <Input
+            <PasswordInput
               id="conn-password"
-              type="password"
+              revealable={!savedPasswordMasked}
               value={savedPasswordMasked ? SAVED_PASSWORD_MASK : form.password}
               onChange={(e) => {
                 const value = e.target.value
@@ -230,9 +231,8 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
             <Label htmlFor="conn-key-pass" className="mb-1.5 block">
               {t("ssh.privateKeyPassphrase")}
             </Label>
-            <Input
+            <PasswordInput
               id="conn-key-pass"
-              type="password"
               value={form.privateKeyPassphrase}
               onChange={(e) =>
                 setForm((current) => ({ ...current, privateKeyPassphrase: e.target.value }))

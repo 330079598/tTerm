@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import type { CredentialRequest } from "@/types/tunnel"
 import { credentialFieldKey } from "@/components/TunnelsPanel/tunnelUtils"
@@ -88,10 +88,9 @@ export const CredentialsDialog: React.FC<CredentialsDialogProps> = ({
                         defaultValue: "Key passphrase for {{label}}",
                       })}
                 </Label>
-                <Input
+                <PasswordInput
                   id={id}
-                  className="mt-1.5"
-                  type="password"
+                  containerClassName="mt-1.5"
                   autoFocus={index === 0}
                   autoComplete="off"
                   disabled={busy}

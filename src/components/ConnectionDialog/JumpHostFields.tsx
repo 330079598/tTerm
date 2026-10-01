@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -349,9 +350,9 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                             </Badge>
                           )}
                         </div>
-                        <Input
+                        <PasswordInput
                           id={`jump-password-${jump.id}`}
-                          type="password"
+                          revealable={!savedPasswordMasked}
                           value={savedPasswordMasked ? SAVED_PASSWORD_MASK : jump.password}
                           onChange={(e) => {
                             const value = e.target.value
@@ -444,9 +445,8 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                     <Label htmlFor={`jump-key-pass-${jump.id}`} className="mb-1.5 block">
                       {t("ssh.privateKeyPassphrase")}
                     </Label>
-                    <Input
+                    <PasswordInput
                       id={`jump-key-pass-${jump.id}`}
-                      type="password"
                       value={jump.privateKeyPassphrase}
                       onChange={(e) =>
                         updateJumpHost(setForm, jump.id, { privateKeyPassphrase: e.target.value })

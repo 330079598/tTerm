@@ -29,6 +29,12 @@ body {
   background: hsl(var(--muted-foreground) / 0.8);
 }
 
+/* Hide WebView2's built-in password reveal button; password fields provide their own toggle */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
 /* Utility */
 .sr-only {
   position: absolute;
