@@ -733,7 +733,6 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   )
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after invoke() resolves or rejects
     loadConfig()
   }, [loadConfig])
 

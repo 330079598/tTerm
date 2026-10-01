@@ -185,6 +185,9 @@ struct BackupPayload {
     automatic_backup: Option<AutomaticBackupSettings>,
     #[serde(default)]
     sync: Option<crate::sync::SyncSettings>,
+    /// Which profile groups the sidebar shows collapsed; travels with `config`.
+    #[serde(default)]
+    collapsed_profile_group_keys: Option<Vec<String>>,
     #[serde(default)]
     secrets: Vec<MigrationSecretRecord>,
     #[serde(default)]
@@ -747,6 +750,13 @@ fn collect_payload(
         webdav_backup,
         automatic_backup,
         sync,
+        collapsed_profile_group_keys: if selection.settings {
+            Some(crate::db::read(
+                crate::app_state::collapsed_profile_group_keys,
+            )?)
+        } else {
+            None
+        },
         secrets: Vec::new(),
         logs: if selection.logs {
             collect_log_files()?
@@ -1364,6 +1374,19 @@ fn apply_database_payload(
         if let Some(settings) = payload.sync.as_ref() {
             crate::sync::restore_settings(transaction, settings)?;
         }
+        if let Some(incoming) = payload.collapsed_profile_group_keys.as_ref() {
+            let mut keys = if merge {
+                crate::app_state::collapsed_profile_group_keys(transaction)?
+            } else {
+                Vec::new()
+            };
+            for key in incoming {
+                if !keys.contains(key) {
+                    keys.push(key.clone());
+                }
+            }
+            crate::app_state::set_collapsed_profile_group_keys(transaction, &keys)?;
+        }
     }
     if options.selection.session {
         if let Some(session) = payload.session.clone() {
@@ -1496,6 +1519,7 @@ fn imported_meta_keys(selection: &BackupSelection) -> Vec<&'static str> {
             remote::SETTINGS_KEY,
             remote::LAST_ERROR_KEY,
             crate::sync::SETTINGS_KEY,
+            crate::app_state::COLLAPSED_PROFILE_GROUP_KEYS,
         ]);
     }
     if selection.session {
@@ -2270,6 +2294,7 @@ mod tests {
                 ..crate::session::SessionData::default()
             },
         )?;
+        crate::app_state::set_collapsed_profile_group_keys(connection, &["mine".to_string()])?;
         crate::themes::replace_themes(connection, &[serde_json::json!({"id": "mine"})])
     }
 
@@ -2282,6 +2307,7 @@ mod tests {
             "sync": crate::sync::read_settings(connection).unwrap().enabled,
             "session": crate::session::read_session(connection).unwrap().and_then(|s| s.active_tab_id),
             "themes": crate::themes::list_themes(connection).unwrap(),
+            "collapsed": crate::app_state::collapsed_profile_group_keys(connection).unwrap(),
         })
     }
 
@@ -2312,6 +2338,7 @@ mod tests {
                 }));
                 payload.frontend_state =
                     Some(serde_json::json!({"customThemes": [{"id": "theirs"}]}));
+                payload.collapsed_profile_group_keys = Some(vec!["theirs".to_string()]);
                 let options = BackupImportOptions {
                     selection: settings_and_session_selection(),
                     backup_password: None,
@@ -2328,6 +2355,7 @@ mod tests {
                         "sync": false,
                         "session": "theirs",
                         "themes": [{"id": "theirs"}],
+                        "collapsed": ["theirs"],
                     })
                 );
                 // Saved settings never carry the upload history.
@@ -2355,8 +2383,43 @@ mod tests {
                 payload.session = Some(serde_json::json!({
                     "tabs": [], "active_tab_id": "theirs", "last_saved": 2
                 }));
+                payload.collapsed_profile_group_keys = Some(vec!["theirs".to_string()]);
                 apply_database_payload(connection, &payload, &import_options("replace"))?;
                 assert_eq!(settings_summary(connection), before);
+                Ok(())
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn merged_collapsed_groups_add_to_this_devices() {
+        let database = crate::db::Database::open_in_memory().unwrap();
+        database
+            .write(|connection| {
+                crate::app_state::set_collapsed_profile_group_keys(
+                    connection,
+                    &["ops".to_string(), "dev".to_string()],
+                )?;
+                let mut payload = BackupPayload::default();
+                payload.collapsed_profile_group_keys =
+                    Some(vec!["dev".to_string(), "prod".to_string()]);
+                let options = BackupImportOptions {
+                    selection: settings_and_session_selection(),
+                    backup_password: None,
+                    conflict_strategy: "merge".to_string(),
+                };
+                apply_database_payload(connection, &payload, &options)?;
+                assert_eq!(
+                    crate::app_state::collapsed_profile_group_keys(connection)?,
+                    ["ops", "dev", "prod"]
+                );
+
+                // Backups made before the field existed leave the state alone.
+                apply_database_payload(connection, &BackupPayload::default(), &options)?;
+                assert_eq!(
+                    crate::app_state::collapsed_profile_group_keys(connection)?,
+                    ["ops", "dev", "prod"]
+                );
                 Ok(())
             })
             .unwrap();

@@ -1,12 +1,13 @@
 //! State the app keeps for itself rather than settings the user chose, so it
-//! stays out of `config.json` (and so out of backups and sync).
+//! stays out of `config.json` and sync. Backups carry the collapsed profile
+//! groups with the settings; the last update check stays on the device.
 
 use crate::core::blocking::run_blocking;
 use crate::db::meta;
 use serde::{Deserialize, Serialize};
 
 const LAST_UPDATE_CHECK_AT: &str = "state.last_update_check_at";
-const COLLAPSED_PROFILE_GROUP_KEYS: &str = "state.collapsed_profile_group_keys";
+pub(crate) const COLLAPSED_PROFILE_GROUP_KEYS: &str = "state.collapsed_profile_group_keys";
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -18,9 +19,21 @@ pub struct AppState {
 pub(crate) fn load(connection: &rusqlite::Connection) -> Result<AppState, String> {
     Ok(AppState {
         last_update_check_at: meta::get(connection, LAST_UPDATE_CHECK_AT)?,
-        collapsed_profile_group_keys: meta::get(connection, COLLAPSED_PROFILE_GROUP_KEYS)?
-            .unwrap_or_default(),
+        collapsed_profile_group_keys: collapsed_profile_group_keys(connection)?,
     })
+}
+
+pub(crate) fn collapsed_profile_group_keys(
+    connection: &rusqlite::Connection,
+) -> Result<Vec<String>, String> {
+    Ok(meta::get(connection, COLLAPSED_PROFILE_GROUP_KEYS)?.unwrap_or_default())
+}
+
+pub(crate) fn set_collapsed_profile_group_keys(
+    connection: &rusqlite::Connection,
+    keys: &[String],
+) -> Result<(), String> {
+    meta::set(connection, COLLAPSED_PROFILE_GROUP_KEYS, keys)
 }
 
 fn save(connection: &rusqlite::Connection, state: &AppState) -> Result<(), String> {
@@ -28,11 +41,7 @@ fn save(connection: &rusqlite::Connection, state: &AppState) -> Result<(), Strin
         Some(at) => meta::set(connection, LAST_UPDATE_CHECK_AT, &at)?,
         None => meta::remove(connection, LAST_UPDATE_CHECK_AT)?,
     }
-    meta::set(
-        connection,
-        COLLAPSED_PROFILE_GROUP_KEYS,
-        &state.collapsed_profile_group_keys,
-    )
+    set_collapsed_profile_group_keys(connection, &state.collapsed_profile_group_keys)
 }
 
 /// Moves the state older versions kept in `config.json` into the database.
