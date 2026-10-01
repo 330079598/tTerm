@@ -1,0 +1,10 @@
+# tTerm shell integration for zsh. tTerm points ZDOTDIR here; each startup
+# file runs the user's own copy (from TTERM_USER_ZDOTDIR, empty = $HOME) with
+# their ZDOTDIR in place, then switches back so zsh keeps reading from here.
+__tterm_zdotdir=$ZDOTDIR
+if [[ -n ${TTERM_USER_ZDOTDIR-} ]]; then ZDOTDIR=$TTERM_USER_ZDOTDIR; else unset ZDOTDIR; fi
+[[ -r ${ZDOTDIR:-$HOME}/.zshenv ]] && builtin source ${ZDOTDIR:-$HOME}/.zshenv
+# The user's .zshenv may move ZDOTDIR; the later files live there then.
+TTERM_USER_ZDOTDIR=${ZDOTDIR-}
+ZDOTDIR=$__tterm_zdotdir
+unset __tterm_zdotdir

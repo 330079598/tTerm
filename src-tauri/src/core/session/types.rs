@@ -1,17 +1,18 @@
 use crate::core::state::SessionKind;
 use serde::Deserialize;
 
-#[cfg(target_os = "windows")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TerminalShellConfig {
+    #[cfg(target_os = "windows")]
     pub shell: String,
+    #[cfg(target_os = "windows")]
     pub custom_path: Option<String>,
+    #[cfg(target_os = "windows")]
     pub custom_args: Option<String>,
+    /// Directory the shell last reported; the next start resumes there when
+    /// it still exists.
+    pub cwd: Option<String>,
 }
-
-#[cfg(not(target_os = "windows"))]
-#[derive(Debug, Clone)]
-pub struct TerminalShellConfig;
 
 /// Jump host (bastion) connection parameters deserialized from the frontend.
 #[derive(Debug, Deserialize, Clone)]
@@ -132,6 +133,8 @@ pub struct PtyConnectionOptions {
     pub terminal_shell_custom_path: Option<String>,
     #[cfg(target_os = "windows")]
     pub terminal_shell_custom_args: Option<String>,
+    /// Local terminal: directory to start in, as last reported by the shell.
+    pub cwd: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -179,6 +182,8 @@ pub(crate) struct RawPtyConnectionOptions {
     #[cfg(target_os = "windows")]
     #[serde(default, alias = "terminalShellCustomArgs")]
     terminal_shell_custom_args: Option<String>,
+    #[serde(default)]
+    cwd: Option<String>,
 }
 
 impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
@@ -212,6 +217,7 @@ impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
             terminal_shell_custom_path: raw.terminal_shell_custom_path,
             #[cfg(target_os = "windows")]
             terminal_shell_custom_args: raw.terminal_shell_custom_args,
+            cwd: raw.cwd,
         }
     }
 }
@@ -241,6 +247,7 @@ impl Default for PtyConnectionOptions {
             terminal_shell_custom_path: None,
             #[cfg(target_os = "windows")]
             terminal_shell_custom_args: None,
+            cwd: None,
         }
     }
 }

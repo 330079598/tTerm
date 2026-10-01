@@ -118,6 +118,8 @@ export interface Tab {
     terminalShell?: TerminalShellType
     terminalShellCustomPath?: string
     terminalShellCustomArgs?: string
+    /** Local terminal: last directory the shell reported; a restart resumes there. */
+    cwd?: string
     /** Ordered jump host chain to tunnel through. */
     jumpHosts?: JumpHostConnection[]
   }

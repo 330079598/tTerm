@@ -14,6 +14,8 @@ export interface TerminalTabProps {
   connectionHeaderPinned?: boolean
   connection?: Tab["connection"]
   onPidChange?: (pid: number) => void
+  /** A local shell reported a new working directory. */
+  onCwdChange?: (cwd: string) => void
   onConnectionStateChange?: (
     tabId: string,
     sessionNonce: number,

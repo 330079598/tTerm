@@ -59,6 +59,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   onOpenCommandLibrary,
   onSaveCommand,
   onPidChange,
+  onCwdChange,
   onReconnectRequest,
   onSavedPasswordPromptChange,
   onSessionUnavailable,
@@ -88,6 +89,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const creatingPtyRef = useRef(false)
   const waitingForReconnectRef = useRef(false)
   const onPidChangeRef = useStableRef(onPidChange)
+  const onCwdChangeRef = useStableRef(onCwdChange)
   const onInputRef = useStableRef(onInput)
   const onCommandExecutedRef = useStableRef(onCommandExecuted)
   const onReconnectRequestRef = useStableRef(onReconnectRequest)
@@ -314,6 +316,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     isActiveRef,
     lastPtySizeRef,
     onPidChangeRef,
+    onCwdChangeRef,
     onInputRef,
     onCommandExecutedRef,
     onReconnectRequestRef,

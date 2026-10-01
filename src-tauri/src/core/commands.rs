@@ -147,6 +147,15 @@ pub fn create_pty(
                 zmodem_manual_override.clone(),
             );
 
+            #[cfg(unix)]
+            terminal::spawn_cwd_watcher(
+                app.clone(),
+                tab_id.clone(),
+                session_nonce,
+                pid,
+                stop_rx.clone(),
+            );
+
             (pid, ActiveSession::Local(pty))
         }
         crate::core::SessionKind::Ssh => {

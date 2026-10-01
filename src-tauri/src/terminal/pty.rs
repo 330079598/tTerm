@@ -1,3 +1,5 @@
+#[cfg(target_os = "windows")]
+use super::shell_integration::{self, ShellKind};
 use super::types::ActivePty;
 use portable_pty::{CommandBuilder, PtySize};
 use serde::Serialize;
@@ -176,36 +178,40 @@ pub fn spawn_reader_thread(
 }
 
 pub fn build_terminal_command(
-    #[cfg(target_os = "windows")] shell_config: Option<crate::core::session::TerminalShellConfig>,
-    #[cfg(not(target_os = "windows"))] _shell_config: Option<
-        crate::core::session::TerminalShellConfig,
-    >,
+    shell_config: Option<crate::core::session::TerminalShellConfig>,
 ) -> Result<CommandBuilder, String> {
-    #[cfg(target_os = "windows")]
-    let mut cmd = {
-        let config = shell_config.unwrap_or(crate::core::session::TerminalShellConfig {
-            shell: "auto".to_string(),
-            custom_path: None,
-            custom_args: None,
-        });
+    let config = shell_config.unwrap_or_default();
+    let home = resolve_home_dir();
+    let start_dir = resolve_start_dir(config.cwd.as_deref()).unwrap_or_else(|| home.clone());
 
-        build_windows_command(config)?
-    };
+    #[cfg(target_os = "windows")]
+    let mut cmd = build_windows_command(&config, &home)?;
 
     #[cfg(not(target_os = "windows"))]
-    let mut cmd = { CommandBuilder::new_default_prog() };
+    let mut cmd = CommandBuilder::new_default_prog();
 
     #[cfg(target_os = "macos")]
     apply_macos_login_shell_env(&mut cmd);
 
-    let home = resolve_home_dir();
     cmd.env("TERM", "xterm-256color");
     cmd.env("HOME", &home);
     if std::env::var_os("LANG").is_none() {
         cmd.env("LANG", "en_US.UTF-8");
     }
-    cmd.cwd(&home);
+    cmd.cwd(&start_dir);
     Ok(cmd)
+}
+
+/// The restored directory when it is an absolute path that still exists.
+fn resolve_start_dir(cwd: Option<&str>) -> Option<String> {
+    let cwd = cwd?;
+    // Git Bash reports `/c/dir`, where any Windows shell can start.
+    #[cfg(target_os = "windows")]
+    let cwd = shell_integration::msys_drive_path(cwd).unwrap_or_else(|| cwd.to_string());
+    #[cfg(not(target_os = "windows"))]
+    let cwd = cwd.to_string();
+    let path = std::path::Path::new(&cwd);
+    (path.is_absolute() && path.is_dir()).then_some(cwd)
 }
 
 #[cfg(target_os = "macos")]
@@ -291,7 +297,8 @@ fn resolve_macos_path(path: Option<&std::ffi::OsStr>) -> String {
 
 #[cfg(target_os = "windows")]
 fn build_windows_command(
-    config: crate::core::session::TerminalShellConfig,
+    config: &crate::core::session::TerminalShellConfig,
+    home: &str,
 ) -> Result<CommandBuilder, String> {
     let shell = config.shell.trim().to_ascii_lowercase();
 
@@ -322,9 +329,46 @@ fn build_windows_command(
         _ => resolve_windows_auto_shell(),
     };
 
+    // Integration that adds arguments stays out of the way of arguments the
+    // user chose for a custom shell; environment-only integration is harmless.
+    let user_args = shell == "custom" && !args.is_empty();
+    let mut args = args;
+    let mut env: Vec<(String, String)> = Vec::new();
+
+    match ShellKind::from_program(&program) {
+        ShellKind::Cmd => {
+            let user_prompt = std::env::var("PROMPT").ok();
+            env.push((
+                "PROMPT".to_string(),
+                shell_integration::cmd_prompt(user_prompt.as_deref()),
+            ));
+        }
+        ShellKind::PowerShell if !user_args => {
+            args.extend(shell_integration::powershell_args());
+        }
+        ShellKind::Bash => {
+            let user_prompt_command = std::env::var("PROMPT_COMMAND").ok();
+            env.extend(shell_integration::bash_env(user_prompt_command.as_deref()));
+        }
+        ShellKind::Wsl if !user_args => {
+            // The WSL shell has to change into a Linux directory itself.
+            if let Some(dir) = shell_integration::install() {
+                args.extend(shell_integration::wsl_args(
+                    &dir,
+                    config.cwd.as_deref(),
+                    home,
+                ));
+            }
+        }
+        _ => {}
+    }
+
     let mut cmd = CommandBuilder::new(&program);
     if !args.is_empty() {
         cmd.args(args);
+    }
+    for (key, value) in env {
+        cmd.env(key, value);
     }
     Ok(cmd)
 }

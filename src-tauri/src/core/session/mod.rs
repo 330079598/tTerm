@@ -19,6 +19,11 @@ pub fn normalize_connection(
     let keepalive_interval_secs = connection.keepalive_interval_secs.unwrap_or(15).max(5);
     let keepalive_count_max = connection.keepalive_count_max.unwrap_or(3).max(1);
 
+    let cwd = connection
+        .cwd
+        .clone()
+        .filter(|value| !value.trim().is_empty());
+
     #[cfg(target_os = "windows")]
     let terminal_shell = Some(TerminalShellConfig {
         shell: connection
@@ -36,10 +41,11 @@ pub fn normalize_connection(
             .as_ref()
             .map(|v| v.trim().to_string())
             .filter(|v| !v.is_empty()),
+        cwd,
     });
 
     #[cfg(not(target_os = "windows"))]
-    let terminal_shell = None;
+    let terminal_shell = Some(TerminalShellConfig { cwd });
 
     match kind {
         SessionKind::Terminal => Ok(SessionPlan {

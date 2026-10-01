@@ -34,6 +34,7 @@ import {
   type TerminalOutputScanState,
 } from "@/lib/terminalOutputScanner"
 import { matchPasswordPrompt, readCursorLine, type PasswordPromptMatch } from "@/lib/sudoPrompt"
+import { CWD_REPORT_OSC_CODES, parseCwdReport } from "@/lib/terminalCwd"
 import {
   captureTerminalInput,
   EMPTY_COMMAND_CAPTURE_STATE,
@@ -71,6 +72,7 @@ type UseTerminalLifecycleOptions = {
   isActiveRef: React.RefObject<boolean>
   lastPtySizeRef: React.RefObject<{ rows: number; cols: number } | null>
   onPidChangeRef: React.RefObject<TerminalTabProps["onPidChange"]>
+  onCwdChangeRef: React.RefObject<TerminalTabProps["onCwdChange"]>
   onInputRef: React.RefObject<TerminalTabProps["onInput"]>
   onCommandExecutedRef: React.RefObject<TerminalTabProps["onCommandExecuted"]>
   onReconnectRequestRef: React.RefObject<TerminalTabProps["onReconnectRequest"]>
@@ -146,6 +148,7 @@ export function useTerminalLifecycle({
   isActiveRef,
   lastPtySizeRef,
   onPidChangeRef,
+  onCwdChangeRef,
   onInputRef,
   onCommandExecutedRef,
   onReconnectRequestRef,
@@ -535,6 +538,31 @@ export function useTerminalLifecycle({
       })
     )
 
+    // A local shell's directory, for the tab to restart in. Windows shells
+    // report it themselves (OSC 7 / OSC 9;9); on macOS and Linux the backend
+    // reads it from the shell process.
+    let lastReportedCwd: string | null = null
+    const reportCwd = (cwd: string) => {
+      if (cwd === lastReportedCwd) return
+      lastReportedCwd = cwd
+      onCwdChangeRef.current?.(cwd)
+    }
+    const cwdReportDisposables = CWD_REPORT_OSC_CODES.map((osc) =>
+      term.parser.registerOscHandler(osc, (data) => {
+        // Over SSH these reports come from the remote host.
+        if (connectionRef.current?.type === "ssh") return false
+        const cwd = parseCwdReport(osc, data)
+        if (cwd) reportCwd(cwd)
+        return false
+      })
+    )
+    const unlistenCwd = listen<{ sessionNonce: number; cwd: string }>(
+      `pty-cwd-${tabId}`,
+      (event) => {
+        if (event.payload.sessionNonce === sessionNonce) reportCwd(event.payload.cwd)
+      }
+    )
+
     const lineFeedDisposable = term.onLineFeed(() => {
       lineFeedCount += 1
     })
@@ -774,6 +802,7 @@ export function useTerminalLifecycle({
       unlistenExit?.()
       unlistenHostPrompt?.()
       unlistenConnectionProgress?.()
+      void unlistenCwd.then((unlisten) => unlisten())
       invoke("kill_pty", { tabId, sessionNonce }).catch(console.error)
       searchResultsDisposableRef.current?.dispose()
       searchResultsDisposableRef.current = null
@@ -801,6 +830,7 @@ export function useTerminalLifecycle({
       onSavedPasswordPromptChange?.(tabId, sessionNonce, null)
       for (const disposable of scrollbackDisposables) disposable.dispose()
       for (const disposable of shellIntegrationDisposables) disposable.dispose()
+      for (const disposable of cwdReportDisposables) disposable.dispose()
       container.classList.remove("xterm-has-scrollback")
       container.replaceChildren()
     }
@@ -820,6 +850,7 @@ export function useTerminalLifecycle({
     lastPtySizeRef,
     loadTerminalRenderer,
     onPidChangeRef,
+    onCwdChangeRef,
     onInputRef,
     onCommandExecutedRef,
     onReconnectRequestRef,

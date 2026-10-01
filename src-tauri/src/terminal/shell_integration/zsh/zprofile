@@ -1,0 +1,7 @@
+# tTerm shell integration for zsh; see .zshenv.
+__tterm_zdotdir=$ZDOTDIR
+if [[ -n ${TTERM_USER_ZDOTDIR-} ]]; then ZDOTDIR=$TTERM_USER_ZDOTDIR; else unset ZDOTDIR; fi
+[[ -r ${ZDOTDIR:-$HOME}/.zprofile ]] && builtin source ${ZDOTDIR:-$HOME}/.zprofile
+TTERM_USER_ZDOTDIR=${ZDOTDIR-}
+ZDOTDIR=$__tterm_zdotdir
+unset __tterm_zdotdir

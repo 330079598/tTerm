@@ -1,0 +1,22 @@
+# tTerm shell integration for zsh; see .zshenv.
+__tterm_zdotdir=$ZDOTDIR
+if [[ -n ${TTERM_USER_ZDOTDIR-} ]]; then ZDOTDIR=$TTERM_USER_ZDOTDIR; else unset ZDOTDIR; fi
+# A global zshrc (macOS /etc/zshrc) derives HISTFILE from ZDOTDIR, which
+# pointed here while it ran.
+[[ ${HISTFILE-} == $__tterm_zdotdir/* ]] && HISTFILE=${ZDOTDIR:-$HOME}/.zsh_history
+[[ -r ${ZDOTDIR:-$HOME}/.zshrc ]] && builtin source ${ZDOTDIR:-$HOME}/.zshrc
+if [[ -o login ]]; then
+  # .zlogin still has to be read from here.
+  TTERM_USER_ZDOTDIR=${ZDOTDIR-}
+  ZDOTDIR=$__tterm_zdotdir
+else
+  unset TTERM_USER_ZDOTDIR
+fi
+unset __tterm_zdotdir
+
+# Report the working directory before every prompt (OSC 7). Only `%` needs
+# escaping for tTerm's parser.
+__tterm_report_cwd() {
+  builtin printf '\033]7;file://%s\033\\' "${PWD//\%/%25}"
+}
+autoload -Uz add-zsh-hook && add-zsh-hook precmd __tterm_report_cwd

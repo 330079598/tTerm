@@ -1,0 +1,5 @@
+# tTerm shell integration for zsh; see .zshenv. Last startup file of a login
+# shell, so ZDOTDIR goes back to the user's for good.
+if [[ -n ${TTERM_USER_ZDOTDIR-} ]]; then ZDOTDIR=$TTERM_USER_ZDOTDIR; else unset ZDOTDIR; fi
+unset TTERM_USER_ZDOTDIR
+[[ -r ${ZDOTDIR:-$HOME}/.zlogin ]] && builtin source ${ZDOTDIR:-$HOME}/.zlogin

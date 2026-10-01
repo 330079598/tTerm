@@ -391,6 +391,16 @@ const WorkspacePanel = React.memo(function WorkspacePanel({
               onPauseBroadcast={workspace.onPauseBroadcast}
               onResumeBroadcast={workspace.onResumeBroadcast}
               onStopBroadcast={workspace.onStopBroadcast}
+              onCwdChange={(cwd) =>
+                workspace.updateTab(tab.id, (current) =>
+                  current.connection?.cwd === cwd
+                    ? current
+                    : {
+                        ...current,
+                        connection: { ...(current.connection ?? { type: "terminal" }), cwd },
+                      }
+                )
+              }
               onConnectionStateChange={workspace.onTerminalConnectionStateChange}
               onInput={workspace.onTerminalInput}
               onCommandExecuted={workspace.onTerminalCommandExecuted}
