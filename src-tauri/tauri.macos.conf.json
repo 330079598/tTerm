@@ -1,7 +1,6 @@
 {
   "identifier": "com.stone.tTerm",
   "app": {
-    "macOSPrivateApi": true,
     "windows": [
       {
         "title": "tTerm",

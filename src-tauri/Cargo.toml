@@ -18,7 +18,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [ "devtools"] }
+tauri = { version = "2", features = ["macos-private-api", "devtools"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -62,6 +62,7 @@ tauri-plugin-process = "2"
 tauri-plugin-frame = "1.1.6"
 windows = { version = "0.62", features = ["Win32_Graphics_Gdi", "Win32_Foundation", "Win32_System_DataExchange", "Win32_UI_Shell", "Win32_System_WinRT", "Security_Credentials_UI"] }
 # Names the async result type of Windows Hello prompts (see ssh/secret_store/os_verifier.rs).
+# Must be the version `windows` itself uses (0.62 -> 0.3); upgrade the two together.
 windows-future = "0.3"
 
 [target.'cfg(target_os = "macos")'.dependencies]
