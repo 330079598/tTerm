@@ -66,10 +66,6 @@ pub struct AppConfig {
     pub auto_download_updates: bool,
     #[serde(default = "default_update_check_frequency")]
     pub update_check_frequency: String,
-    #[serde(default)]
-    pub last_update_check_at: Option<i64>,
-    #[serde(default)]
-    pub collapsed_profile_group_keys: Vec<String>,
     #[serde(
         default = "default_tab_width_mode",
         deserialize_with = "deserialize_tab_width_mode"
@@ -426,8 +422,6 @@ impl Default for AppConfig {
             update_channel: default_update_channel(),
             auto_download_updates: default_auto_download_updates(),
             update_check_frequency: default_update_check_frequency(),
-            last_update_check_at: None,
-            collapsed_profile_group_keys: Vec::new(),
             tab_width_mode: default_tab_width_mode(),
             tab_standard_width: default_tab_standard_width(),
             terminal_log_enabled: false,

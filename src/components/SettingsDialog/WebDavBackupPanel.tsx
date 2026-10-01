@@ -44,8 +44,9 @@ interface WebDavBackupSettings {
   frequency: "off" | "daily" | "weekly"
   retentionCount: number
   selection: BackupSelection
-  lastBackupAt: number | null
-  lastError: string | null
+  /** Upload history, sent by the backend and ignored when saved. */
+  lastBackupAt?: number | null
+  lastError?: string | null
 }
 
 interface WebDavBackupStatus {

@@ -1,6 +1,7 @@
 use crate::command_library::{CommandRepository, SavedCommand};
 use crate::config::{self, AppConfig};
 use crate::core::blocking::run_blocking;
+use crate::db::meta;
 use crate::profiles::SavedProfile;
 use crate::session::SessionData;
 use crate::sftp::store::SftpDirectoryStore;
@@ -40,6 +41,9 @@ const MAX_BACKUP_SIZE: u64 = 128 * 1024 * 1024;
 const MAX_PAYLOAD_SIZE: u64 = 64 * 1024 * 1024;
 const BACKUP_AAD: &[u8] = b"tterm-backup-v1";
 const AUTOMATIC_SETTINGS_FILE: &str = "backup_settings.json";
+/// When the last automatic backup ran, kept in the database rather than the
+/// settings file.
+const AUTOMATIC_LAST_BACKUP_AT_KEY: &str = "backup.automatic.last_backup_at";
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -263,7 +267,9 @@ pub struct AutomaticBackupSettings {
     pub directory: String,
     pub retention_count: u16,
     pub selection: BackupSelection,
-    #[serde(default)]
+    /// From the database. Never saved with the settings, and a value sent
+    /// back by the UI is ignored.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_backup_at: Option<i64>,
 }
 
@@ -517,7 +523,7 @@ pub fn save_automatic_backup_settings(
 ) -> Result<AutomaticBackupSettings, String> {
     validate_automatic_backup_settings(&settings)?;
     save_automatic_backup_settings_file(&settings)?;
-    Ok(settings)
+    load_automatic_backup_settings()
 }
 
 fn run_due_automatic_backup_blocking(
@@ -526,7 +532,7 @@ fn run_due_automatic_backup_blocking(
     force: bool,
     secret_state: &SecretStoreState,
 ) -> Result<Option<BackupExportResult>, String> {
-    let mut settings = load_automatic_backup_settings()?;
+    let settings = load_automatic_backup_settings()?;
     validate_automatic_backup_settings(&settings)?;
     if !force && !automatic_backup_due(&settings) {
         return Ok(None);
@@ -543,8 +549,13 @@ fn run_due_automatic_backup_blocking(
     let command_count = payload.commands.as_ref().map_or(0, Vec::len);
     let archive = build_archive(&app, &settings.selection, &payload, None)?;
     config::atomic_write_private(&path, archive)?;
-    settings.last_backup_at = Some(Utc::now().timestamp_millis());
-    save_automatic_backup_settings_file(&settings)?;
+    crate::db::write(|transaction| {
+        meta::set(
+            transaction,
+            AUTOMATIC_LAST_BACKUP_AT_KEY,
+            &Utc::now().timestamp_millis(),
+        )
+    })?;
     enforce_retention(&directory, "automatic-", settings.retention_count as usize)?;
     Ok(Some(BackupExportResult {
         output_path: path.to_string_lossy().into_owned(),
@@ -719,7 +730,10 @@ fn collect_payload(
         } else {
             None
         },
-        frontend_state: filter_frontend_state(selection, frontend_state),
+        frontend_state: with_saved_themes(
+            selection,
+            filter_frontend_state(selection, frontend_state),
+        )?,
         webdav_backup,
         automatic_backup,
         sync,
@@ -805,6 +819,34 @@ fn read_selected_json(selected: bool, name: &str) -> Result<Option<Value>, Strin
     serde_json::from_slice(&bytes)
         .map(Some)
         .map_err(|error| format!("Failed to parse '{}': {error}", path.display()))
+}
+
+/// Puts the saved themes into the web view's state, where backups have
+/// always carried them. Before the web view handed its themes over to the
+/// database, the ones it sent are kept.
+fn with_saved_themes(
+    selection: &BackupSelection,
+    state: Option<Value>,
+) -> Result<Option<Value>, String> {
+    if !selection.themes {
+        return Ok(state);
+    }
+    let themes = crate::db::read(|connection| {
+        if crate::themes::themes_imported(connection)? {
+            crate::themes::list_themes(connection).map(Some)
+        } else {
+            Ok(None)
+        }
+    })?;
+    let Some(themes) = themes else {
+        return Ok(state);
+    };
+    let mut fields = match state {
+        Some(Value::Object(fields)) => fields,
+        _ => serde_json::Map::new(),
+    };
+    fields.insert("customThemes".to_string(), Value::Array(themes));
+    Ok(Some(Value::Object(fields)))
 }
 
 fn filter_frontend_state(selection: &BackupSelection, state: Option<Value>) -> Option<Value> {
@@ -1370,6 +1412,28 @@ fn apply_database_payload(
             }
         }
     }
+    if options.selection.themes {
+        let incoming = payload
+            .frontend_state
+            .as_ref()
+            .and_then(|state| state.get("customThemes"))
+            .and_then(Value::as_array);
+        if let Some(incoming) = incoming {
+            // Merging into nothing still drops duplicate ids.
+            let existing = if merge {
+                Value::Array(crate::themes::list_themes(transaction)?)
+            } else {
+                Value::Null
+            };
+            let themes = from_backup_value::<Vec<Value>>(merge_arrays_by_keys(
+                existing,
+                Value::Array(incoming.clone()),
+                &["id"],
+            )?)?;
+            crate::themes::replace_themes(transaction, &themes)?;
+            crate::themes::mark_themes_imported(transaction)?;
+        }
+    }
     if options.selection.sftp_directories {
         if let Some(incoming) = payload.sftp_directories.as_ref() {
             let store = if merge {
@@ -1405,6 +1469,7 @@ struct DatabaseSnapshot {
     secrets: Option<Vec<SecretRow>>,
     known_hosts: Option<KnownHostStore>,
     sftp_directories: Option<SftpDirectoryStore>,
+    themes: Option<Vec<Value>>,
 }
 
 fn capture_database_snapshot(selection: &BackupSelection) -> Result<DatabaseSnapshot, String> {
@@ -1440,6 +1505,11 @@ fn snapshot_database(
         } else {
             None
         },
+        themes: if selection.themes {
+            Some(crate::themes::list_themes(connection)?)
+        } else {
+            None
+        },
     })
 }
 
@@ -1464,6 +1534,9 @@ fn restore_database(
     }
     if let Some(store) = snapshot.sftp_directories.as_ref() {
         crate::sftp::store::replace_sftp_directories(transaction, store)?;
+    }
+    if let Some(themes) = snapshot.themes.as_ref() {
+        crate::themes::replace_themes(transaction, themes)?;
     }
     Ok(())
 }
@@ -1878,8 +1951,7 @@ fn restore_automatic_backup_settings(settings: AutomaticBackupSettings) -> Resul
 }
 
 /// A backup's schedule as this device keeps it. Its folder is only taken
-/// when it exists here; otherwise this device's folder stays, as does when
-/// the last backup ran.
+/// when it exists here; otherwise this device's folder stays.
 fn adopt_automatic_backup_settings(
     mut imported: AutomaticBackupSettings,
     current: AutomaticBackupSettings,
@@ -1887,25 +1959,42 @@ fn adopt_automatic_backup_settings(
     if !is_default_or_existing_directory(&imported.directory) {
         imported.directory = current.directory;
     }
-    imported.last_backup_at = current.last_backup_at;
     imported
 }
 
+/// The saved schedule with when the last automatic backup ran.
 fn load_automatic_backup_settings() -> Result<AutomaticBackupSettings, String> {
     let path = automatic_backup_settings_path()?;
-    if !path.exists() {
-        return Ok(AutomaticBackupSettings::default());
-    }
-    let bytes = fs::read(&path)
-        .map_err(|error| format!("Failed to read automatic backup settings: {error}"))?;
-    serde_json::from_slice(&bytes)
-        .map_err(|error| format!("Failed to parse automatic backup settings: {error}"))
+    let mut settings = if path.exists() {
+        let bytes = fs::read(&path)
+            .map_err(|error| format!("Failed to read automatic backup settings: {error}"))?;
+        serde_json::from_slice::<AutomaticBackupSettings>(&bytes)
+            .map_err(|error| format!("Failed to parse automatic backup settings: {error}"))?
+    } else {
+        AutomaticBackupSettings::default()
+    };
+    settings.last_backup_at =
+        crate::db::read(|connection| meta::get(connection, AUTOMATIC_LAST_BACKUP_AT_KEY))?;
+    Ok(settings)
 }
 
 fn save_automatic_backup_settings_file(settings: &AutomaticBackupSettings) -> Result<(), String> {
-    let bytes = serde_json::to_vec_pretty(settings)
-        .map_err(|error| format!("Failed to serialize automatic backup settings: {error}"))?;
+    let bytes = serde_json::to_vec_pretty(&AutomaticBackupSettings {
+        last_backup_at: None,
+        ..settings.clone()
+    })
+    .map_err(|error| format!("Failed to serialize automatic backup settings: {error}"))?;
     config::atomic_write(&automatic_backup_settings_path()?, bytes)
+}
+
+/// Moves when backups last ran, which older versions kept in the settings
+/// files, into the database.
+pub(crate) fn import_state_from_settings_files() -> Result<(), String> {
+    meta::move_file_fields(
+        &automatic_backup_settings_path()?,
+        &[("lastBackupAt", AUTOMATIC_LAST_BACKUP_AT_KEY)],
+    )?;
+    remote::import_state_from_settings_file()
 }
 
 fn validate_automatic_backup_settings(settings: &AutomaticBackupSettings) -> Result<(), String> {
@@ -2516,7 +2605,6 @@ mod tests {
         let existing = std::env::temp_dir().to_string_lossy().into_owned();
         let current = AutomaticBackupSettings {
             directory: existing.clone(),
-            last_backup_at: Some(7),
             ..AutomaticBackupSettings::default()
         };
         let adopt = |directory: &str| {
@@ -2531,7 +2619,6 @@ mod tests {
         let adopted = adopt(&missing.to_string_lossy());
         assert_eq!(adopted.directory, existing);
         assert_eq!(adopted.frequency, "weekly");
-        assert_eq!(adopted.last_backup_at, Some(7));
         assert_eq!(adopt("relative/folder").directory, existing);
         // The default folder is valid on every device.
         assert_eq!(adopt("").directory, "");

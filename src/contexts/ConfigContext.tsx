@@ -137,8 +137,6 @@ export interface AppConfig {
   update_channel: "stable" | "beta-dev"
   auto_download_updates: boolean
   update_check_frequency: UpdateCheckFrequency
-  last_update_check_at: number | null
-  collapsed_profile_group_keys: string[]
   tab_width_mode: TabWidthMode
   tab_standard_width: number
   terminal_log_enabled: boolean
@@ -207,8 +205,6 @@ const defaultConfig: AppConfig = {
   update_channel: defaultUpdateChannel,
   auto_download_updates: true,
   update_check_frequency: "daily",
-  last_update_check_at: null,
-  collapsed_profile_group_keys: [],
   tab_width_mode: "adaptive",
   tab_standard_width: 120,
   terminal_log_enabled: false,
@@ -364,10 +360,6 @@ export function isWindowBlurEnabled(config: Pick<AppConfig, "window_blur">): boo
 }
 
 function normalizeConfig(config: Partial<AppConfig>): AppConfig {
-  const collapsedProfileGroupKeys = Array.isArray(config.collapsed_profile_group_keys)
-    ? config.collapsed_profile_group_keys.filter((item): item is string => typeof item === "string")
-    : []
-
   return {
     ...defaultConfig,
     ...config,
@@ -390,9 +382,6 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     terminal_padding_right_px: normalizeTerminalPadding(config.terminal_padding_right_px, 0),
     terminal_padding_bottom_px: normalizeTerminalPadding(config.terminal_padding_bottom_px, 0),
     update_check_frequency: normalizeUpdateCheckFrequency(config.update_check_frequency),
-    last_update_check_at:
-      typeof config.last_update_check_at === "number" ? config.last_update_check_at : null,
-    collapsed_profile_group_keys: collapsedProfileGroupKeys,
     tab_width_mode: config.tab_width_mode === "standard" ? "standard" : "adaptive",
     tab_standard_width: normalizeTabStandardWidth(config.tab_standard_width),
     terminal_log_enabled: config.terminal_log_enabled === true,
@@ -446,6 +435,26 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
   }
 }
 
+/** State the app keeps for itself rather than settings the user chose. */
+export interface AppState {
+  lastUpdateCheckAt: number | null
+  collapsedProfileGroupKeys: string[]
+}
+
+const defaultAppState: AppState = {
+  lastUpdateCheckAt: null,
+  collapsedProfileGroupKeys: [],
+}
+
+function normalizeAppState(state: Partial<AppState>): AppState {
+  return {
+    lastUpdateCheckAt: typeof state.lastUpdateCheckAt === "number" ? state.lastUpdateCheckAt : null,
+    collapsedProfileGroupKeys: Array.isArray(state.collapsedProfileGroupKeys)
+      ? state.collapsedProfileGroupKeys.filter((item): item is string => typeof item === "string")
+      : [],
+  }
+}
+
 let launchBackgroundThrottling: BackgroundThrottling | null = null
 
 /**
@@ -468,11 +477,13 @@ const defaultSecretStatus: SecretBackendStatus = {
 
 interface ConfigContextType {
   config: AppConfig
+  appState: AppState
   isLoaded: boolean
   secretStatus: SecretBackendStatus
   updateTheme: (theme: string) => Promise<void>
   updateLanguage: (language: string) => Promise<void>
   saveConfig: (newConfig: Partial<AppConfig>) => Promise<void>
+  saveAppState: (update: Partial<AppState>) => Promise<void>
   loadConfig: () => Promise<void>
   refreshSecretStatus: () => Promise<SecretBackendStatus>
   setSecretStorageMode: (mode: SecretStorageMode, password?: string) => Promise<SecretBackendStatus>
@@ -507,6 +518,9 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfig] = useState<AppConfig>(defaultConfig)
   const configRef = useRef(config)
   const configSaveQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const [appState, setAppState] = useState<AppState>(defaultAppState)
+  const appStateRef = useRef(appState)
+  const appStateSaveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const [secretStatus, setSecretStatus] = useState<SecretBackendStatus>(defaultSecretStatus)
   const [isLoaded, setIsLoaded] = useState(false)
 
@@ -562,10 +576,18 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
 
   const loadConfig = useCallback(async (): Promise<void> => {
     try {
-      const [loadedConfig, loadedSecretStatus] = await Promise.all([
+      const [loadedConfig, loadedSecretStatus, loadedAppState] = await Promise.all([
         invoke<AppConfig>("load_config"),
         invoke<SecretBackendStatus>("get_secret_backend_status"),
+        // The app still works on defaults when its state cannot be read.
+        invoke<AppState>("load_app_state").catch((error) => {
+          console.error("Failed to load app state:", error)
+          return appStateRef.current
+        }),
       ])
+      const normalizedAppState = normalizeAppState(loadedAppState)
+      appStateRef.current = normalizedAppState
+      setAppState(normalizedAppState)
       const normalizedConfig = normalizeConfig(loadedConfig)
       launchBackgroundThrottling ??= normalizedConfig.background_throttling
       configRef.current = normalizedConfig
@@ -603,6 +625,17 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       }
     })
     configSaveQueueRef.current = save.catch(() => undefined)
+    return save
+  }, [])
+
+  const saveAppState = useCallback(async (update: Partial<AppState>) => {
+    const save = appStateSaveQueueRef.current.then(async () => {
+      const updatedState = normalizeAppState({ ...appStateRef.current, ...update })
+      await invoke("save_app_state", { state: updatedState })
+      appStateRef.current = updatedState
+      setAppState(updatedState)
+    })
+    appStateSaveQueueRef.current = save.catch(() => undefined)
     return save
   }, [])
 
@@ -709,11 +742,13 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const contextValue = useMemo<ConfigContextType>(
     () => ({
       config,
+      appState,
       isLoaded,
       secretStatus,
       updateTheme,
       updateLanguage,
       saveConfig,
+      saveAppState,
       loadConfig,
       refreshSecretStatus,
       setSecretStorageMode,
@@ -728,11 +763,13 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       config,
+      appState,
       isLoaded,
       secretStatus,
       updateTheme,
       updateLanguage,
       saveConfig,
+      saveAppState,
       loadConfig,
       refreshSecretStatus,
       setSecretStorageMode,

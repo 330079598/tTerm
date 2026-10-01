@@ -1,9 +1,11 @@
 import { SFTP_VIEW_STORAGE_KEY } from "@/components/SftpDrawer/sftpView"
 import { RECENT_COMMANDS_STORAGE_KEY } from "@/lib/recentCommands"
 
-/** Data kept in localStorage that backups carry alongside the backend's. */
+/**
+ * Data kept in localStorage that backups carry alongside the backend's. The
+ * backend adds the custom themes, which it stores itself.
+ */
 export interface BackupFrontendState {
-  customThemes: unknown[]
   recentCommands: unknown[]
   sftpColumnWidths: unknown
   sftpView: unknown
@@ -17,10 +19,8 @@ export function readBackupFrontendState(): BackupFrontendState {
       return fallback
     }
   }
-  const customThemes = read("custom-themes", [])
   const recentCommands = read(RECENT_COMMANDS_STORAGE_KEY, [])
   return {
-    customThemes: Array.isArray(customThemes) ? customThemes : [],
     recentCommands: Array.isArray(recentCommands) ? recentCommands : [],
     sftpColumnWidths: read("tterm.sftp.columnWidths", null),
     sftpView: read(SFTP_VIEW_STORAGE_KEY, null),

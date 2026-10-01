@@ -21,7 +21,7 @@ use document::{Collections, MAX_DOCUMENT_SIZE, SYNC_FILE_NAME};
 use merge::{merge_collection, same_data};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use snapshot::{removed_ids, SETTINGS, THEMES, TUNNELS};
+use snapshot::{removed_ids, SETTINGS, TUNNELS};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -100,8 +100,6 @@ pub struct SyncOutcome {
     /// Categories whose local data changed.
     pub changed: Vec<String>,
     pub uploaded: bool,
-    /// The custom theme list to store, when themes changed.
-    pub custom_themes: Option<Value>,
     /// The recovery point saved before local data was changed.
     pub recovery_backup: Option<String>,
 }
@@ -144,7 +142,8 @@ pub async fn reset_sync() -> Result<SyncStatus, String> {
 }
 
 /// Syncs when this device has changes, or always when `check_remote` is
-/// set. `frontend_state` carries the custom themes kept in the web view.
+/// set. `frontend_state` is what the web view keeps, for the recovery backup
+/// made before a sync deletes anything.
 #[tauri::command]
 pub async fn run_sync(
     app: AppHandle,
@@ -189,17 +188,18 @@ async fn sync(
     let Some(target) = crate::backup::remote::sync_target(app, secret_state).await? else {
         return Ok(SyncOutcome::skipped("disabled"));
     };
-    let categories = settings.selection.categories(frontend_state.is_some());
-
-    let (local, base) = {
+    let (categories, local, base) = {
         let data_key = data_key.clone();
-        let categories = categories.clone();
-        let frontend_state = frontend_state.clone();
         let target_key = target.key.clone();
         run_blocking(move || {
             crate::db::read(|connection| {
+                let categories = settings
+                    .selection
+                    .categories(crate::themes::themes_imported(connection)?);
+                let local = snapshot::collect(connection, &data_key, &categories)?;
                 Ok((
-                    snapshot::collect(connection, &data_key, &categories, frontend_state.as_ref())?,
+                    categories,
+                    local,
                     state::load(connection, &data_key, &target_key)?,
                 ))
             })
@@ -463,9 +463,6 @@ async fn apply(
             tunnels.discard(&id).await;
         }
     }
-    if changed.contains(&THEMES) {
-        outcome.custom_themes = Some(snapshot::themes_value(&normalized[THEMES]));
-    }
 
     run_blocking(move || {
         crate::db::write(|transaction| {
@@ -475,7 +472,7 @@ async fn apply(
                 snapshot::apply_settings(&normalized[SETTINGS])?;
             }
             for &category in &changed {
-                if category != SETTINGS && category != THEMES {
+                if category != SETTINGS {
                     snapshot::apply_database(
                         transaction,
                         &data_key,
@@ -604,7 +601,7 @@ fn save_settings(settings: &SyncSettings) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::snapshot::{COMMANDS, KNOWN_HOSTS, PROFILES, PROFILE_GROUPS, SECRETS};
+    use super::snapshot::{COMMANDS, KNOWN_HOSTS, PROFILES, PROFILE_GROUPS, SECRETS, THEMES};
     use super::*;
     use crate::command_library::{CommandRepository, SavedCommand};
     use crate::db::Database;
@@ -612,13 +609,14 @@ mod tests {
     use crate::ssh::store::KnownHostRecord;
     use serde_json::json;
 
-    const CATEGORIES: [&str; 6] = [
+    const CATEGORIES: [&str; 7] = [
         PROFILES,
         PROFILE_GROUPS,
         TUNNELS,
         SECRETS,
         COMMANDS,
         KNOWN_HOSTS,
+        THEMES,
     ];
 
     /// The server's file: collections and revision history.
@@ -645,7 +643,7 @@ mod tests {
 
         fn collect(&self) -> Collections {
             self.database
-                .read(|connection| snapshot::collect(connection, &self.key, &CATEGORIES, None))
+                .read(|connection| snapshot::collect(connection, &self.key, &CATEGORIES))
                 .unwrap()
         }
 
@@ -742,6 +740,16 @@ mod tests {
                 .unwrap();
         }
 
+        fn save_themes(&self, themes: &[Value]) {
+            self.database
+                .write(|transaction| crate::themes::replace_themes(transaction, themes))
+                .unwrap();
+        }
+
+        fn themes(&self) -> Vec<Value> {
+            self.database.read(crate::themes::list_themes).unwrap()
+        }
+
         fn profile(&self, id: &str) -> Option<crate::profiles::SavedProfile> {
             self.database
                 .read(|connection| crate::profiles::get_profile(connection, id))
@@ -829,6 +837,34 @@ mod tests {
         assert!(a.sync(&mut remote).is_empty());
         assert!(b.sync(&mut remote).is_empty());
         assert!(same_collections(&a.collect(), &b.collect()));
+    }
+
+    #[test]
+    fn themes_sync_with_their_order_edits_and_deletions() {
+        let mut remote = None;
+        let (mut a, mut b) = (Device::new(), Device::new());
+        let dark = json!({"id": "custom-dark", "name": "Dark", "colors": {"bg": "#000"}});
+        let light = json!({"id": "custom-light", "name": "Light", "colors": {"bg": "#fff"}});
+        a.save_themes(&[dark.clone(), light.clone()]);
+        assert_eq!(a.sync(&mut remote), Vec::<&str>::new());
+        assert_eq!(b.sync(&mut remote), [THEMES]);
+        assert_eq!(b.themes(), [dark.clone(), light.clone()]);
+
+        // B renames one and reorders; A receives both.
+        let renamed = json!({"id": "custom-light", "name": "Paper", "colors": {"bg": "#fff"}});
+        b.save_themes(&[renamed.clone(), dark.clone()]);
+        b.sync(&mut remote);
+        assert_eq!(a.sync(&mut remote), [THEMES]);
+        assert_eq!(a.themes(), [renamed.clone(), dark.clone()]);
+
+        // A deletes one; B receives the deletion.
+        a.save_themes(std::slice::from_ref(&renamed));
+        a.sync(&mut remote);
+        b.sync(&mut remote);
+        assert_eq!(b.themes(), [renamed]);
+
+        assert!(a.sync(&mut remote).is_empty());
+        assert!(b.sync(&mut remote).is_empty());
     }
 
     #[test]

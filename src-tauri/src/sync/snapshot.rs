@@ -81,9 +81,9 @@ impl Default for SyncSelection {
 }
 
 impl SyncSelection {
-    /// The collections this device syncs. Themes live in the web view and
-    /// only sync when it sent them.
-    pub fn categories(&self, has_frontend_state: bool) -> Vec<&'static str> {
+    /// The collections this device syncs. Themes wait until the web view
+    /// handed over the ones it kept, so they are not mistaken for deleted.
+    pub fn categories(&self, themes_ready: bool) -> Vec<&'static str> {
         let mut categories = Vec::new();
         if self.profiles {
             categories.extend([PROFILES, PROFILE_GROUPS, TUNNELS]);
@@ -93,7 +93,7 @@ impl SyncSelection {
             (self.commands, COMMANDS),
             (self.known_hosts, KNOWN_HOSTS),
             (self.settings, SETTINGS),
-            (self.themes && has_frontend_state, THEMES),
+            (self.themes && themes_ready, THEMES),
         ] {
             if enabled {
                 categories.push(category);
@@ -112,7 +112,6 @@ pub(crate) fn collect(
     connection: &Connection,
     data_key: &DataKey,
     categories: &[&str],
-    frontend_state: Option<&Value>,
 ) -> Result<Collections, String> {
     let mut collections = Collections::new();
     for &category in categories {
@@ -130,7 +129,7 @@ pub(crate) fn collect(
                 .collect::<Result<_, String>>()?,
             KNOWN_HOSTS => collect_known_hosts(connection)?,
             SETTINGS => collect_settings()?,
-            THEMES => collect_themes(frontend_state)?,
+            THEMES => collect_rows(connection, "custom_themes", |value| Ok(value.clone()))?,
             other => return Err(format!("Unknown sync category '{other}'.")),
         };
         collections.insert(category.to_string(), collection);
@@ -239,26 +238,6 @@ fn collect_settings() -> Result<Collection, String> {
                 .map(|value| (key.to_string(), SyncRecord::new(value.clone(), None)))
         })
         .collect())
-}
-
-fn collect_themes(frontend_state: Option<&Value>) -> Result<Collection, String> {
-    let themes = frontend_state
-        .and_then(|state| state.get("customThemes"))
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    let mut collection = Collection::new();
-    for (position, theme) in themes.into_iter().enumerate() {
-        let Value::Object(mut fields) = theme else {
-            continue;
-        };
-        let Some(id) = fields.get("id").and_then(Value::as_str).map(str::to_string) else {
-            continue;
-        };
-        fields.insert(POSITION.to_string(), position.into());
-        collection.insert(id, SyncRecord::new(Value::Object(fields), None));
-    }
-    Ok(collection)
 }
 
 /// Runs each record of `collection` through the app's model for `category`.
@@ -472,6 +451,15 @@ pub(crate) fn apply_database(
                 .collect::<Result<Vec<_>, _>>()?;
             crate::ssh::store::replace_known_hosts(transaction, &KnownHostStore { entries })?;
         }
+        THEMES => {
+            for id in &removed {
+                crate::themes::delete_theme(transaction, id)?;
+            }
+            for (_, record) in changed(local, merged) {
+                let (theme, position) = take_position(&record.data);
+                crate::themes::upsert_theme(transaction, &theme, position)?;
+            }
+        }
         SECRETS => {
             for key in removed.iter().filter(|key| !is_local_secret(key)) {
                 delete_secret(transaction, key)?;
@@ -523,17 +511,4 @@ pub(crate) fn apply_settings(merged: &Collection) -> Result<(), String> {
     let config = serde_json::from_value::<AppConfig>(config)
         .map_err(|error| format!("Synced settings are invalid: {error}"))?;
     crate::config::save_config_file(&config)
-}
-
-/// The custom theme list the web view should store.
-pub(crate) fn themes_value(merged: &Collection) -> Value {
-    let mut themes: Vec<(i64, &String, Value)> = merged
-        .iter()
-        .map(|(id, record)| {
-            let (data, position) = take_position(&record.data);
-            (position, id, data)
-        })
-        .collect();
-    themes.sort_by(|left, right| (left.0, left.1).cmp(&(right.0, right.1)));
-    Value::Array(themes.into_iter().map(|(_, _, data)| data).collect())
 }

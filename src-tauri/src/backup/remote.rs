@@ -7,6 +7,7 @@ use super::webdav::{split_remote_directory, DavEntry, WebDavClient};
 use super::{build_archive, collect_payload, value_array_len, BackupSelection, MAX_BACKUP_SIZE};
 use crate::config;
 use crate::core::blocking::run_blocking;
+use crate::db::meta;
 use crate::ssh::secret_store::{get_secret, put_secret};
 use crate::ssh::SecretStoreState;
 use chrono::{DateTime, NaiveDateTime, Utc};
@@ -22,6 +23,9 @@ pub(crate) const SETTINGS_FILE: &str = "webdav_backup_settings.json";
 const DOWNLOAD_DIRECTORY: &str = "webdav-downloads";
 const PASSWORD_KEY: &str = "webdav:password";
 const BACKUP_PASSWORD_KEY: &str = "webdav:backup-password";
+/// Upload history, kept in the database rather than the settings file.
+const LAST_BACKUP_AT_KEY: &str = "backup.webdav.last_backup_at";
+const LAST_ERROR_KEY: &str = "backup.webdav.last_error";
 /// The saved passwords that belong to the WebDAV settings.
 pub(crate) const SECRET_KEYS: [&str; 2] = [PASSWORD_KEY, BACKUP_PASSWORD_KEY];
 const FILE_PREFIX: &str = "tterm-";
@@ -49,10 +53,12 @@ pub struct WebDavBackupSettings {
     pub retention_count: u16,
     #[serde(default = "default_selection")]
     pub selection: BackupSelection,
-    #[serde(default)]
+    /// This device's upload history, from the database. Never saved with
+    /// the settings, and values sent back by the UI are ignored.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_backup_at: Option<i64>,
     /// Why the last scheduled or manual upload failed; cleared on success.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_error: Option<String>,
 }
 
@@ -192,7 +198,8 @@ pub async fn clear_webdav_backup_settings(
         crate::db::write(|transaction| {
             crate::ssh::secret_store::delete_secret(transaction, PASSWORD_KEY)?;
             crate::ssh::secret_store::delete_secret(transaction, BACKUP_PASSWORD_KEY)?;
-            Ok(())
+            meta::remove(transaction, LAST_BACKUP_AT_KEY)?;
+            meta::remove(transaction, LAST_ERROR_KEY)
         })?;
         let path = settings_path()?;
         if path.exists() {
@@ -288,16 +295,13 @@ async fn run_webdav_backup_locked(
     let result = upload(&app, &settings, frontend_state, secret_state).await;
     let message = result.as_ref().err().cloned();
     run_blocking(move || {
-        // Reload so a save made during the upload is kept.
-        let mut settings = load_settings()?;
-        match message {
-            Some(message) => settings.last_error = Some(message),
+        crate::db::write(|transaction| match message {
+            Some(message) => meta::set(transaction, LAST_ERROR_KEY, &message),
             None => {
-                settings.last_backup_at = Some(now_ms());
-                settings.last_error = None;
+                meta::set(transaction, LAST_BACKUP_AT_KEY, &now_ms())?;
+                meta::remove(transaction, LAST_ERROR_KEY)
             }
-        }
-        save_settings(&settings)
+        })
     })
     .await?;
     result.map(Some)
@@ -555,33 +559,56 @@ fn settings_path() -> Result<PathBuf, String> {
     Ok(config::ensure_config_dir()?.join(SETTINGS_FILE))
 }
 
+/// The saved settings with this device's upload history.
 fn load_settings() -> Result<WebDavBackupSettings, String> {
     let path = settings_path()?;
-    if !path.exists() {
-        return Ok(WebDavBackupSettings::default());
-    }
-    let bytes = fs::read(&path)
-        .map_err(|error| format!("Failed to read WebDAV backup settings: {error}"))?;
-    serde_json::from_slice(&bytes)
-        .map_err(|error| format!("Failed to parse WebDAV backup settings: {error}"))
-}
-
-fn save_settings(settings: &WebDavBackupSettings) -> Result<(), String> {
-    let bytes = serde_json::to_vec_pretty(settings)
-        .map_err(|error| format!("Failed to serialize WebDAV backup settings: {error}"))?;
-    config::atomic_write(&settings_path()?, bytes)
+    let mut settings = if path.exists() {
+        let bytes = fs::read(&path)
+            .map_err(|error| format!("Failed to read WebDAV backup settings: {error}"))?;
+        serde_json::from_slice(&bytes)
+            .map_err(|error| format!("Failed to parse WebDAV backup settings: {error}"))?
+    } else {
+        WebDavBackupSettings::default()
+    };
+    (settings.last_backup_at, settings.last_error) = crate::db::read(|connection| {
+        Ok((
+            meta::get(connection, LAST_BACKUP_AT_KEY)?,
+            meta::get(connection, LAST_ERROR_KEY)?,
+        ))
+    })?;
+    Ok(settings)
 }
 
 /// Saves settings that came from the form or a backup. Upload history is
 /// not theirs to change, but an error about another server no longer applies.
-fn save_keeping_history(mut settings: WebDavBackupSettings) -> Result<(), String> {
+fn save_keeping_history(settings: WebDavBackupSettings) -> Result<(), String> {
     let current = load_settings()?;
-    settings.last_backup_at = current.last_backup_at;
     let same_target = settings.url == current.url
         && settings.username == current.username
         && settings.remote_directory == current.remote_directory;
-    settings.last_error = current.last_error.filter(|_| same_target);
-    save_settings(&settings)
+    let bytes = serde_json::to_vec_pretty(&WebDavBackupSettings {
+        last_backup_at: None,
+        last_error: None,
+        ..settings
+    })
+    .map_err(|error| format!("Failed to serialize WebDAV backup settings: {error}"))?;
+    config::atomic_write(&settings_path()?, bytes)?;
+    if !same_target {
+        crate::db::write(|transaction| meta::remove(transaction, LAST_ERROR_KEY))?;
+    }
+    Ok(())
+}
+
+/// Moves the upload history older versions kept in the settings file into
+/// the database.
+pub(crate) fn import_state_from_settings_file() -> Result<(), String> {
+    meta::move_file_fields(
+        &settings_path()?,
+        &[
+            ("lastBackupAt", LAST_BACKUP_AT_KEY),
+            ("lastError", LAST_ERROR_KEY),
+        ],
+    )
 }
 
 /// The settings as a backup carries them, without this device's upload

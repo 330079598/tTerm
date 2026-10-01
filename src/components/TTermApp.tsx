@@ -223,7 +223,7 @@ export const TTermApp: React.FC = () => {
   const { saveSession, loadSession } = useSessionPersistence()
   const getPreloadedSession = usePreloadedSession(loadSession)
   const { cleanupConnection } = useConnectionManager()
-  const { config, isLoaded, saveConfig, secretStatus } = useConfig()
+  const { appState, config, isLoaded, saveAppState, secretStatus } = useConfig()
   const { cancelTransfer, clearCompletedTransfers, removeTransfer, retryTransfer, transfers } =
     useTransferManager()
   const { confirm, ConfirmDialog } = useConfirmDialog()
@@ -1557,18 +1557,18 @@ export const TTermApp: React.FC = () => {
 
   const handleCollapsedProfileGroupKeysChange = useCallback(
     (groups: string[]) => {
-      saveConfig({ collapsed_profile_group_keys: groups }).catch((error) => {
+      saveAppState({ collapsedProfileGroupKeys: groups }).catch((error) => {
         console.error("Failed to save collapsed profile groups:", error)
       })
     },
-    [saveConfig]
+    [saveAppState]
   )
 
   const renderTabContent = () => {
     if (tabs.length === 0) {
       return (
         <EmptyState
-          collapsedProfileGroupKeys={config.collapsed_profile_group_keys}
+          collapsedProfileGroupKeys={appState.collapsedProfileGroupKeys}
           handleConnect={handleConnect}
           handleNewTab={handleNewTab}
           onCollapsedProfileGroupKeysChange={handleCollapsedProfileGroupKeysChange}
@@ -1777,7 +1777,7 @@ export const TTermApp: React.FC = () => {
         >
           <ProfilesPanel
             refreshKey={profilesRefreshKey}
-            collapsedGroupKeys={config.collapsed_profile_group_keys}
+            collapsedGroupKeys={appState.collapsedProfileGroupKeys}
             surface="panel"
             onCollapsedGroupKeysChange={handleCollapsedProfileGroupKeysChange}
             onClose={() => setShowProfilesPanel(false)}

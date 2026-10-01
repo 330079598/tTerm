@@ -152,7 +152,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const mountStartRef = useRef(getPerfNow())
   const isMountedRef = useRef(true)
   const { t, i18n } = useTranslation()
-  const { config, saveConfig, updateLanguage, refreshSecretStatus } = useConfig()
+  const { appState, config, saveAppState, saveConfig, updateLanguage, refreshSecretStatus } =
+    useConfig()
   const {
     currentTheme,
     presetThemes,
@@ -782,11 +783,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleUpdateCheckFrequencyChange={handleUpdateCheckFrequencyChange}
               handleUpdateChannelChange={handleUpdateChannelChange}
               handleUpdateCheckComplete={(checkedAt) =>
-                saveConfig({ last_update_check_at: checkedAt })
+                saveAppState({ lastUpdateCheckAt: checkedAt })
               }
               updateChannel={config.update_channel}
               updateCheckFrequency={config.update_check_frequency}
-              lastUpdateCheckAt={config.last_update_check_at}
+              lastUpdateCheckAt={appState.lastUpdateCheckAt}
             />
           </TabsContent>
         </Tabs>

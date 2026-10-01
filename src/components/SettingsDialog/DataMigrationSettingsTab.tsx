@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select } from "@/components/ui/select"
+import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
 import { readBackupFrontendState } from "@/lib/backupFrontendState"
 import { RECENT_COMMANDS_STORAGE_KEY } from "@/lib/recentCommands"
@@ -79,7 +80,8 @@ interface AutomaticBackupSettings {
   directory: string
   retentionCount: number
   selection: BackupSelection
-  lastBackupAt: number | null
+  /** When the last automatic backup ran; absent before the first. */
+  lastBackupAt?: number | null
 }
 
 interface BackupHistoryEntry {
@@ -103,7 +105,6 @@ interface BackupImportResult {
   commandsImported: number
   secretsImported: number
   frontendState: {
-    customThemes?: unknown[]
     recentCommands?: unknown[]
     sftpColumnWidths?: unknown
     sftpView?: unknown
@@ -132,10 +133,8 @@ function cloneAvailableSelection(selection: BackupSelection): BackupSelection {
   return { ...selection }
 }
 
+/** Restores what the web view keeps; the backend restored the themes. */
 function restoreFrontendState(state: BackupImportResult["frontendState"]) {
-  if (state && Array.isArray(state.customThemes)) {
-    localStorage.setItem("custom-themes", JSON.stringify(state.customThemes))
-  }
   if (state && Array.isArray(state.recentCommands)) {
     localStorage.setItem(RECENT_COMMANDS_STORAGE_KEY, JSON.stringify(state.recentCommands))
   }
@@ -153,6 +152,7 @@ type BusyAction =
 export const DataMigrationSettingsTab: React.FC = () => {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { reloadCustomThemes } = useTheme()
   const [selection, setSelection] = useState<BackupSelection>(defaultSelection)
   const [backupPassword, setBackupPassword] = useState("")
   const [importPassword, setImportPassword] = useState("")
@@ -334,6 +334,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
         },
       })
       restoreFrontendState(result.frontendState)
+      if (selection.themes) void reloadCustomThemes()
       setImportResult(result)
       // The backup password stays until another file is chosen, so the same
       // backup can be imported again (e.g. merge, then replace) without

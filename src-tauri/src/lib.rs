@@ -1,3 +1,4 @@
+mod app_state;
 mod backup;
 mod clipboard_files;
 pub mod command_library;
@@ -14,6 +15,7 @@ mod sftp;
 mod ssh;
 mod sync;
 mod terminal;
+mod themes;
 mod tunnel;
 mod updater;
 mod window_blur;
@@ -288,6 +290,10 @@ pub fn run() {
             sync::run_sync,
             config::load_config,
             config::save_config,
+            app_state::load_app_state,
+            app_state::save_app_state,
+            themes::load_custom_themes,
+            themes::save_custom_themes,
             config::window_background::save_window_background,
             window_blur::set_window_blur,
             session_log::get_terminal_log_status,
@@ -403,6 +409,14 @@ pub fn run() {
             // directory is imported along with everything else.
             if let Err(error) = db::import_legacy_json_files() {
                 eprintln!("Failed to import JSON data into the database: {error}");
+            }
+
+            // State older versions kept in the settings files.
+            if let Err(error) = app_state::import_from_config_file() {
+                eprintln!("Failed to move app state into the database: {error}");
+            }
+            if let Err(error) = backup::import_state_from_settings_files() {
+                eprintln!("Failed to move backup state into the database: {error}");
             }
 
             // Moves passwords saved by older versions into the database once,

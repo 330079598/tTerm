@@ -5,6 +5,7 @@
 //! in-memory database, and reach the app database through [`get`].
 
 mod legacy_import;
+pub(crate) mod meta;
 mod migrations;
 
 pub(crate) use legacy_import::IMPORTED_FILES as LEGACY_JSON_FILES;

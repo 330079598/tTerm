@@ -435,7 +435,7 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
 }) => {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const { config, saveConfig } = useConfig()
+  const { appState, saveAppState } = useConfig()
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const [profileGroups, setProfileGroups] = React.useState<string[]>([])
   const [profiles, setProfiles] = React.useState<SavedProfile[]>([])
@@ -446,8 +446,8 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
   const [selectedProfileIds, setSelectedProfileIds] = React.useState<Set<string>>(new Set())
   const [profileSelectionBusy, setProfileSelectionBusy] = React.useState(false)
   const collapsedGroupKeySet = React.useMemo(
-    () => new Set(config.collapsed_profile_group_keys),
-    [config.collapsed_profile_group_keys]
+    () => new Set(appState.collapsedProfileGroupKeys),
+    [appState.collapsedProfileGroupKeys]
   )
 
   const refreshProfileGroups = React.useCallback(async () => {
@@ -802,7 +802,7 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
         next.add(groupKey)
       }
 
-      saveConfig({ collapsed_profile_group_keys: Array.from(next) }).catch((error) => {
+      saveAppState({ collapsedProfileGroupKeys: Array.from(next) }).catch((error) => {
         toast({
           title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
           description: toErrorMessage(error),
@@ -810,7 +810,7 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
         })
       })
     },
-    [collapsedGroupKeySet, saveConfig, t, toast]
+    [collapsedGroupKeySet, saveAppState, t, toast]
   )
 
   const handleDragEnd = React.useCallback(

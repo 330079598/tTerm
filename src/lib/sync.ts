@@ -17,7 +17,6 @@ export interface SyncOutcome {
   state: "disabled" | "locked" | "busy" | "unchanged" | "synced"
   changed: SyncCategory[]
   uploaded: boolean
-  customThemes: unknown[] | null
   recoveryBackup: string | null
 }
 
@@ -49,8 +48,6 @@ export const SYNC_APPLIED_EVENT = "tterm:sync-applied"
 /** Dispatched on `window` after every sync attempt, for status displays. */
 export const SYNC_STATUS_EVENT = "tterm:sync-status"
 
-const CUSTOM_THEMES_STORAGE_KEY = "custom-themes"
-
 /**
  * Runs one sync. Without `checkRemote` the backend returns early unless this
  * device has changes. Views reload through {@link onSyncApplied}.
@@ -61,9 +58,6 @@ export async function runSync(checkRemote: boolean): Promise<SyncOutcome> {
       frontendState: readBackupFrontendState(),
       checkRemote,
     })
-    if (outcome.customThemes) {
-      localStorage.setItem(CUSTOM_THEMES_STORAGE_KEY, JSON.stringify(outcome.customThemes))
-    }
     if (outcome.changed.length > 0) {
       window.dispatchEvent(
         new CustomEvent<SyncCategory[]>(SYNC_APPLIED_EVENT, { detail: outcome.changed })

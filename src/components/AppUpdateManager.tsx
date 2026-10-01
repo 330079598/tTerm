@@ -34,7 +34,7 @@ const UpdateReleaseNotes = lazy(() =>
 export function AppUpdateManager() {
   const { t } = useTranslation()
   const { requestAppRestart } = useAppActivity()
-  const { config, isLoaded, saveConfig } = useConfig()
+  const { appState, config, isLoaded, saveAppState } = useConfig()
   const [updateState, setUpdateState] = useState<UpdateState | null>(null)
   const [dismissedStatusKey, setDismissedStatusKey] = useState<string | null>(null)
   const notificationRef = useRef<ReturnType<typeof toast> | null>(null)
@@ -177,21 +177,21 @@ export function AppUpdateManager() {
       config.update_channel,
       config.auto_download_updates,
       config.update_check_frequency,
-      config.last_update_check_at,
+      appState.lastUpdateCheckAt,
       (checkedAt) => {
-        saveConfig({ last_update_check_at: checkedAt }).catch((error) => {
+        saveAppState({ lastUpdateCheckAt: checkedAt }).catch((error) => {
           console.error("Failed to save update check timestamp:", error)
         })
       }
     )
     return stopBackgroundUpdateChecks
   }, [
+    appState.lastUpdateCheckAt,
     config.auto_download_updates,
-    config.last_update_check_at,
     config.update_channel,
     config.update_check_frequency,
     isLoaded,
-    saveConfig,
+    saveAppState,
   ])
 
   const statusKey = updateState ? `${updateState.status}:${updateState.latestVersion ?? ""}` : null
