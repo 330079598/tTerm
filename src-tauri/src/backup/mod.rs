@@ -9,7 +9,7 @@ use crate::ssh::secret_store::{
     get_secret, put_secret, restore_secrets, snapshot_secrets, DataKey, SecretRow,
 };
 use crate::ssh::store::KnownHostStore;
-use crate::ssh::SecretStoreState;
+use crate::ssh::{SecretStoreState, VerificationPurpose};
 use crate::tunnel::TunnelRule;
 use aes_gcm::aead::{Aead, KeyInit, Payload as AeadPayload};
 use aes_gcm::{Aes256Gcm, Nonce};
@@ -362,6 +362,10 @@ fn export_backup_blocking(
     secret_state: &SecretStoreState,
 ) -> Result<BackupExportResult, String> {
     validate_export_options(&options)?;
+    // The file is readable by whoever chose its password.
+    if options.selection.secrets {
+        secret_state.require_verification(VerificationPurpose::Sensitive)?;
+    }
     let output = normalized_backup_path(&output_path)?;
     let mut payload = collect_payload(
         &app,
@@ -442,6 +446,9 @@ fn import_backup_blocking(
         .ok_or_else(|| "This backup is encrypted. Enter its backup password.".to_string())?;
     ensure_selection_available(&options.selection, &bundle.manifest.selection)?;
     validate_payload(payload)?;
+    if import_redirects_webdav(payload, &options.selection)? {
+        secret_state.require_verification(VerificationPurpose::Sensitive)?;
+    }
 
     // Passwords are encrypted with the data key inside the same transaction
     // as the profiles they belong to, so the store must be unlocked first.
@@ -801,6 +808,28 @@ fn collect_payload(
     }
     validate_payload(&payload)?;
     Ok(payload)
+}
+
+/// Whether importing hands the WebDAV settings to another server or backup
+/// password, which scheduled uploads and sync would then send saved
+/// passwords to.
+fn import_redirects_webdav(
+    payload: &BackupPayload,
+    selection: &BackupSelection,
+) -> Result<bool, String> {
+    let Some(settings) = payload
+        .webdav_backup
+        .as_ref()
+        .filter(|_| selection.settings)
+    else {
+        return Ok(false);
+    };
+    let replaces_backup_password = selection.secrets
+        && payload
+            .secrets
+            .iter()
+            .any(|secret| remote::SECRET_KEYS.contains(&secret.key.as_str()));
+    Ok(replaces_backup_password || remote::restore_changes_account(settings)?)
 }
 
 /// Whether a backup carries the saved password `key`. The WebDAV passwords

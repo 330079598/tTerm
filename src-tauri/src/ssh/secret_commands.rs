@@ -1,5 +1,6 @@
 use super::secret_store::{
     ChangeVaultPasswordInput, SecretBackendStatus, SecretStoreState, VaultPasswordInput,
+    VerificationPurpose,
 };
 use crate::core::blocking::run_blocking;
 use serde::{Deserialize, Serialize};
@@ -19,6 +20,15 @@ pub struct SecretStorageModeInput {
 #[serde(rename_all = "camelCase")]
 pub struct MasterPasswordInput {
     pub password: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyUserInput {
+    pub purpose: VerificationPurpose,
+    /// The master password, when that is how this device verifies.
+    #[serde(default)]
+    pub password: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -110,6 +120,23 @@ pub async fn set_secret_storage_mode(
     .await
 }
 
+/// Confirms it is the user before saved passwords are shown or sent
+/// somewhere new; the operation that asked for it is then retried.
+#[tauri::command]
+pub async fn verify_user(
+    app: AppHandle,
+    input: VerifyUserInput,
+    secret_state: State<'_, SecretStoreState>,
+) -> Result<(), String> {
+    // Waits on the Windows Hello prompt or on key derivation.
+    let secret_state = secret_state.inner().clone();
+    run_blocking(move || {
+        let password = input.password.map(Zeroizing::new);
+        secret_state.verify_user(&app, input.purpose, password.as_deref().map(String::as_str))
+    })
+    .await
+}
+
 #[tauri::command]
 pub fn list_saved_secrets(
     secret_state: State<'_, SecretStoreState>,
@@ -163,6 +190,7 @@ pub fn get_saved_secret(
     if !secret_state.unlocked()? {
         return Err("Saved passwords are locked. Unlock them first.".to_string());
     }
+    secret_state.require_verification(VerificationPurpose::Reveal)?;
     secret_state
         .get_password(&app, key)?
         .ok_or_else(|| "Saved password is no longer available.".to_string())

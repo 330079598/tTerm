@@ -31,9 +31,11 @@ import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select } from "@/components/ui/select"
 import { useTheme } from "@/contexts/ThemeContext"
+import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { useToast } from "@/hooks/use-toast"
 import { readBackupFrontendState } from "@/lib/backupFrontendState"
 import { RECENT_COMMANDS_STORAGE_KEY } from "@/lib/recentCommands"
+import { isVerificationCanceled } from "@/lib/userVerification"
 import { toErrorMessage } from "@/lib/utils"
 import { SFTP_VIEW_STORAGE_KEY } from "@/components/SftpDrawer/sftpView"
 import { WebDavBackupPanel } from "@/components/SettingsDialog/WebDavBackupPanel"
@@ -152,6 +154,7 @@ type BusyAction =
 export const DataMigrationSettingsTab: React.FC = () => {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { withVerification } = useUserVerification()
   const { reloadCustomThemes } = useTheme()
   const [selection, setSelection] = useState<BackupSelection>(defaultSelection)
   const [backupPassword, setBackupPassword] = useState("")
@@ -242,19 +245,22 @@ export const DataMigrationSettingsTab: React.FC = () => {
     setBusyAction("export")
     setExportResult(null)
     try {
-      const result = await invoke<BackupExportResult>("export_backup", {
-        outputPath,
-        options: {
-          selection,
-          backupPassword: backupPassword || null,
-          frontendState: readBackupFrontendState(),
-        },
-      })
+      const result = await withVerification("sensitive", () =>
+        invoke<BackupExportResult>("export_backup", {
+          outputPath,
+          options: {
+            selection,
+            backupPassword: backupPassword || null,
+            frontendState: readBackupFrontendState(),
+          },
+        })
+      )
       setExportResult(result)
       setBackupPassword("")
       setConfirmPassword("")
       toast({ title: t("dataMigration.exportSuccess") })
     } catch (error) {
+      if (isVerificationCanceled(error)) return
       toast({
         title: t("dataMigration.exportFailed"),
         description: toErrorMessage(error),
@@ -325,14 +331,18 @@ export const DataMigrationSettingsTab: React.FC = () => {
 
     setBusyAction("import")
     try {
-      const result = await invoke<BackupImportResult>("import_backup", {
-        inputPath: importPath,
-        options: {
-          selection,
-          backupPassword: importPassword || null,
-          conflictStrategy,
-        },
-      })
+      // Taking another WebDAV server or backup password from the file asks
+      // for verification first.
+      const result = await withVerification("sensitive", () =>
+        invoke<BackupImportResult>("import_backup", {
+          inputPath: importPath,
+          options: {
+            selection,
+            backupPassword: importPassword || null,
+            conflictStrategy,
+          },
+        })
+      )
       restoreFrontendState(result.frontendState)
       if (selection.themes) void reloadCustomThemes()
       setImportResult(result)
@@ -353,6 +363,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
         // The import succeeded; a stale diff is not worth an error.
       }
     } catch (error) {
+      if (isVerificationCanceled(error)) return
       toast({
         title: t("dataMigration.importFailed"),
         description: toErrorMessage(error),

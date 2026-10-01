@@ -25,9 +25,11 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
+import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { useToast } from "@/hooks/use-toast"
 import { WebDavSyncCard } from "@/components/SettingsDialog/WebDavSyncCard"
 import { readBackupFrontendState } from "@/lib/backupFrontendState"
+import { isVerificationCanceled } from "@/lib/userVerification"
 import { toErrorMessage } from "@/lib/utils"
 import {
   formatFileSize,
@@ -87,6 +89,7 @@ export const WebDavBackupPanel: React.FC<WebDavBackupPanelProps> = ({
 }) => {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { withVerification } = useUserVerification()
   const [status, setStatus] = useState<WebDavBackupStatus | null>(null)
   const [form, setForm] = useState<WebDavBackupSettings | null>(null)
   const [password, setPassword] = useState("")
@@ -132,8 +135,10 @@ export const WebDavBackupPanel: React.FC<WebDavBackupPanelProps> = ({
 
   const update = (patch: Partial<WebDavBackupSettings>) => setForm({ ...form, ...patch })
 
-  const fail = (title: string, error: unknown) =>
+  const fail = (title: string, error: unknown) => {
+    if (isVerificationCanceled(error)) return
     toast({ title, description: toErrorMessage(error), variant: "destructive" })
+  }
 
   /** Saves the form; returns false (after telling the user) when it could not. */
   const save = async () => {
@@ -142,12 +147,15 @@ export const WebDavBackupPanel: React.FC<WebDavBackupPanelProps> = ({
       return false
     }
     try {
+      // Another server, account or backup password asks for verification.
       applyStatus(
-        await invoke<WebDavBackupStatus>("save_webdav_backup_settings", {
-          settings: form,
-          password: password || null,
-          backupPassword: backupPassword || null,
-        })
+        await withVerification("sensitive", () =>
+          invoke<WebDavBackupStatus>("save_webdav_backup_settings", {
+            settings: form,
+            password: password || null,
+            backupPassword: backupPassword || null,
+          })
+        )
       )
       setPassword("")
       setBackupPassword("")

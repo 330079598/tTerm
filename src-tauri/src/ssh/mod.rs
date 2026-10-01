@@ -16,7 +16,7 @@ pub use auth::{AuthPromptMap, AuthPrompter};
 pub use client::{measure_ssh_latency, run_single_ssh_connection, SshExitSignal};
 pub(crate) use rsa_signer::pem_key_file_is_usable;
 pub use jump::{open_target_ssh_session, open_target_ssh_session_with_forwarding, JumpChain};
-pub use secret_store::{SecretLocation, SecretStoreState};
+pub use secret_store::{SecretLocation, SecretStoreState, VerificationPurpose};
 pub use store::{load_legacy_password_store, now_unix_ms, remove_legacy_password_store};
 pub use types::{
     emit_connection_progress, ConnectionStatusOptions, ForwardedTcpIp, HostKeyVerificationMode,

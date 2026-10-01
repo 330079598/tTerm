@@ -1369,6 +1369,19 @@
       "sudo": "sudo 密码"
     }
   },
+  "userVerification": {
+    "title": "验证身份",
+    "revealDesc": "输入主密码以显示已保存的密码。",
+    "sensitiveDesc": "这项操作会让已保存的密码离开 tTerm（导出到文件或发往新的 WebDAV 服务器）。输入主密码以继续。",
+    "verify": "验证",
+    "wrongPassword": "主密码不正确。",
+    "canceled": "已取消身份验证。",
+    "methods": {
+      "system": "显示或导出密码前，需要通过 Windows Hello 验证身份。",
+      "masterPassword": "显示或导出密码前，需要输入主密码验证身份。",
+      "none": "这台设备没有可用的系统身份验证（如 Windows Hello），显示或导出密码时不会验证身份。设置恢复密码后，会改为要求输入它。"
+    }
+  },
   "transfer": {
     "title": "传输",
     "active": "进行中",

@@ -17,6 +17,9 @@ pub struct SecretBackendStatus {
     /// Passwords from the old app vault are waiting for its password to be
     /// moved into the database.
     pub migration_pending: bool,
+    /// How showing or exporting saved passwords is confirmed: `system`
+    /// (Windows Hello), `masterPassword`, or `none`.
+    pub verification_method: String,
     pub message: Option<String>,
 }
 
@@ -45,6 +48,11 @@ pub(crate) struct SecretStoreRuntime {
     pub data_key: Option<SecretKey>,
     /// A startup problem to show in the status, e.g. a failed migration.
     pub notice: Option<String>,
+    pub os_verifier_available: Option<bool>,
+    /// Until when showing saved passwords needs no new verification.
+    pub reveal_verified_until: Option<std::time::Instant>,
+    /// Until when the next sensitive operation may run; used up by it.
+    pub sensitive_verified_until: Option<std::time::Instant>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

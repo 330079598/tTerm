@@ -9,8 +9,10 @@ mod crypto;
 mod keyring_backend;
 mod legacy;
 mod migration;
+mod os_verifier;
 mod store;
 mod types;
+mod verification;
 
 use crate::config::{load_config_file, save_config_file};
 use crate::db::Database;
@@ -33,6 +35,8 @@ pub use types::{
     ChangeVaultPasswordInput, SecretBackendStatus, SecretLocation, SecretStoreState,
     VaultPasswordInput,
 };
+use verification::VerificationMethod;
+pub use verification::VerificationPurpose;
 
 const MISSING_SYSTEM_KEY: &str = "The key for saved passwords is missing from the system credential store. Enter the master password to restore it.";
 const WRONG_SYSTEM_KEY: &str = "The key in the system credential store does not match saved passwords. Enter the master password to restore it.";
@@ -237,6 +241,8 @@ impl SecretStoreState {
             Err(error) => (true, false, notice.or(Some(error))),
         };
         let migration_pending = !migrated;
+        let verification_method =
+            VerificationMethod::choose(mode, self.os_verifier_available()?, has_master_password);
         let persistence_available = unlocked && mode != SecretStorageMode::Memory;
         let message = notice.or_else(|| match mode {
             _ if migration_pending => Some(NEEDS_VAULT_PASSWORD.to_string()),
@@ -263,6 +269,7 @@ impl SecretStoreState {
             has_master_password,
             persistence_available,
             migration_pending,
+            verification_method: verification_method.as_str().to_string(),
             message,
         })
     }
@@ -270,6 +277,13 @@ impl SecretStoreState {
     /// Runs at startup: moves passwords saved by older versions into the
     /// database once, then unlocks from the credential store in `system` mode.
     pub fn initialize(&self, app: &AppHandle) {
+        // Looking for Windows Hello can take a moment; do it off the main
+        // thread before the status is first asked for.
+        let state = self.clone();
+        std::thread::spawn(move || {
+            let _ = state.os_verifier_available();
+        });
+
         let result = crate::db::get().and_then(|database| {
             if database.read(store::migrated)? {
                 if Self::mode()? == SecretStorageMode::System {
@@ -431,6 +445,7 @@ impl SecretStoreState {
 
     pub fn lock(&self) -> Result<SecretBackendStatus, String> {
         self.set_data_key(None)?;
+        self.runtime()?.clear_grants();
         self.get_status()
     }
 
@@ -486,6 +501,9 @@ impl SecretStoreState {
                 "Unlock saved passwords with the system credential store first.".to_string(),
             );
         }
+        // Without Windows Hello the recovery password is what guards showing
+        // and exporting saved passwords.
+        self.require_verification(VerificationPurpose::Sensitive)?;
         database.write(|transaction| store::delete_wrap(transaction, WRAP_PASSWORD))?;
         self.get_status()
     }

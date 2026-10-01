@@ -9,7 +9,7 @@ use crate::config;
 use crate::core::blocking::run_blocking;
 use crate::db::meta;
 use crate::ssh::secret_store::{get_secret, put_secret};
-use crate::ssh::SecretStoreState;
+use crate::ssh::{SecretStoreState, VerificationPurpose};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
@@ -172,6 +172,12 @@ pub async fn save_webdav_backup_settings(
         if backup_password.is_none() && !saved.iter().any(|key| key == BACKUP_PASSWORD_KEY) {
             return Err("Enter a backup password to encrypt WebDAV backups.".to_string());
         }
+        // Scheduled uploads and sync send saved passwords to this server,
+        // encrypted with this backup password: whoever picks either can
+        // read them.
+        if !same_account(&settings, &load_settings()?) || backup_password.is_some() {
+            secret_state.require_verification(VerificationPurpose::Sensitive)?;
+        }
         let data_key = if password.is_some() || backup_password.is_some() {
             Some(secret_state.data_key()?)
         } else {
@@ -222,6 +228,10 @@ pub async fn test_webdav_connection(
         let settings = normalized_settings(settings)?;
         let password = match password {
             Some(password) => password,
+            // The saved password only goes to the server it was saved for.
+            None if !same_account(&settings, &load_settings()?) => {
+                return Err("Enter the WebDAV password.".to_string())
+            }
             None => saved_secret(&secret_state, PASSWORD_KEY)?
                 .ok_or_else(|| "Enter the WebDAV password.".to_string())?,
         };
@@ -512,6 +522,21 @@ fn saved_secret(
 
 fn non_empty(value: Option<String>) -> Option<String> {
     value.filter(|value| !value.is_empty())
+}
+
+/// The same server and account, so the saved WebDAV password applies.
+fn same_account(a: &WebDavBackupSettings, b: &WebDavBackupSettings) -> bool {
+    a.url == b.url && a.username == b.username
+}
+
+/// Whether restoring `settings` from a backup points uploads at another
+/// server or account than the one set up now.
+pub(crate) fn restore_changes_account(settings: &WebDavBackupSettings) -> Result<bool, String> {
+    // Settings that cannot be restored fail the import later anyway.
+    let Ok(settings) = normalized_settings(settings.clone()) else {
+        return Ok(false);
+    };
+    Ok(!same_account(&settings, &load_settings()?))
 }
 
 fn is_configured(settings: &WebDavBackupSettings) -> bool {

@@ -1378,6 +1378,19 @@
       "sudo": "Sudo password"
     }
   },
+  "userVerification": {
+    "title": "Verify it's you",
+    "revealDesc": "Enter the master password to show saved passwords.",
+    "sensitiveDesc": "This sends saved passwords out of tTerm (to a file or a new WebDAV server). Enter the master password to continue.",
+    "verify": "Verify",
+    "wrongPassword": "Incorrect master password.",
+    "canceled": "Verification was canceled.",
+    "methods": {
+      "system": "Windows Hello is required before saved passwords are shown or exported.",
+      "masterPassword": "The master password is required before saved passwords are shown or exported.",
+      "none": "This device has no system verification (such as Windows Hello), so showing or exporting passwords is not verified. Set a recovery password to require it instead."
+    }
+  },
   "transfer": {
     "title": "Transfers",
     "active": "Active",

@@ -27,7 +27,9 @@ import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/Settin
 import type { VaultAction } from "@/components/SettingsDialog/types"
 import type { useConfirmDialog, useInfoDialog } from "@/components/ui/app-dialog"
 import { useConfig, type SavedSecretEntry, type SecretStorageMode } from "@/contexts/ConfigContext"
+import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { useToast } from "@/hooks/use-toast"
+import { isVerificationCanceled } from "@/lib/userVerification"
 import { toErrorMessage } from "@/lib/utils"
 
 interface SecuritySettingsTabProps {
@@ -110,6 +112,7 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
     getSavedSecret,
     deleteSavedSecret,
   } = useConfig()
+  const { withVerification } = useUserVerification()
 
   const [password, setPassword] = useState("")
   const [currentPassword, setCurrentPassword] = useState("")
@@ -122,7 +125,7 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
   const [savedSecrets, setSavedSecrets] = useState<SavedSecretEntry[]>([])
   const [revealedSecretKey, setRevealedSecretKey] = useState<string | null>(null)
   const [revealedPassword, setRevealedPassword] = useState<string | null>(null)
-  const [revealError, setRevealError] = useState(false)
+  const [revealError, setRevealError] = useState<string | null>(null)
   const revealTimerRef = useRef<number | null>(null)
   const revealRequestRef = useRef(0)
   const isMountedRef = useRef(true)
@@ -176,7 +179,9 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
     try {
       await work()
     } catch (caught) {
-      if (isMountedRef.current) setError(toErrorMessage(caught))
+      if (isMountedRef.current && !isVerificationCanceled(caught)) {
+        setError(toErrorMessage(caught))
+      }
     } finally {
       if (isMountedRef.current) setAction(null)
     }
@@ -291,7 +296,7 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
     })
     if (!confirmed) return
     await run("removePassword", async () => {
-      await removeMasterPassword()
+      await withVerification("sensitive", removeMasterPassword)
       toast({ title: t("secretStorage.recoveryRemoved") })
     })
   }
@@ -315,16 +320,17 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
     }
     const requestId = revealRequestRef.current + 1
     revealRequestRef.current = requestId
-    setRevealError(false)
+    setRevealError(null)
     clearRevealedPassword()
     try {
-      const value = await getSavedSecret(entry.key)
+      const value = await withVerification("reveal", () => getSavedSecret(entry.key))
       if (revealRequestRef.current !== requestId) return
       setRevealedSecretKey(entry.key)
       setRevealedPassword(value)
       revealTimerRef.current = window.setTimeout(clearRevealedPassword, 10_000)
-    } catch {
-      if (revealRequestRef.current === requestId) setRevealError(true)
+    } catch (caught) {
+      if (revealRequestRef.current !== requestId || isVerificationCanceled(caught)) return
+      setRevealError(unlocked ? toErrorMessage(caught) : t("secretStorage.revealSavedSecretFailed"))
     }
   }
 
@@ -708,6 +714,11 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
                 <div className="text-muted-foreground mt-1 text-xs leading-5">
                   {t("secretStorage.savedPasswordsDesc")}
                 </div>
+                {mode !== "memory" && (
+                  <div className="text-muted-foreground mt-1 text-xs leading-5">
+                    {t(`userVerification.methods.${secretStatus.verificationMethod}`)}
+                  </div>
+                )}
               </div>
               <Badge variant="secondary">
                 {t("secretStorage.savedPasswordCount", { count: savedSecrets.length })}
@@ -773,11 +784,7 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
                 })}
               </div>
             )}
-            {revealError && (
-              <p className="text-destructive text-xs leading-5">
-                {t("secretStorage.revealSavedSecretFailed")}
-              </p>
-            )}
+            {revealError && <p className="text-destructive text-xs leading-5">{revealError}</p>}
           </CardContent>
         </Card>
 

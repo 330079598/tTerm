@@ -380,6 +380,7 @@ pub fn run() {
             ssh::secret_commands::set_secret_storage_mode,
             ssh::secret_commands::list_saved_secrets,
             ssh::secret_commands::get_saved_secret,
+            ssh::secret_commands::verify_user,
             ssh::secret_commands::delete_saved_secret,
             ssh::known_host_commands::list_known_hosts,
             ssh::known_host_commands::delete_known_hosts,

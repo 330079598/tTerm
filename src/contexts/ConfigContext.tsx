@@ -14,6 +14,7 @@ import { detectSystemLanguage } from "@/i18n/language"
 import { markConfigReady } from "@/lib/startup"
 import { onSyncApplied } from "@/lib/sync"
 import { setWindowBlur } from "@/lib/themePreloader"
+import { normalizeVerificationMethod, type VerificationMethod } from "@/lib/userVerification"
 import type { UpdateCheckFrequency } from "@/lib/updater"
 import { DEFAULT_KEYMAP_CONFIG, normalizeKeymap, type KeymapConfig } from "@/lib/keymap/keymap"
 
@@ -26,6 +27,8 @@ export interface SecretBackendStatus {
   persistenceAvailable: boolean
   /** Passwords in the old app vault wait for its password to be moved. */
   migrationPending: boolean
+  /** How showing or exporting saved passwords is confirmed. */
+  verificationMethod: VerificationMethod
   message?: string | null
 }
 
@@ -472,6 +475,7 @@ const defaultSecretStatus: SecretBackendStatus = {
   hasMasterPassword: false,
   persistenceAvailable: false,
   migrationPending: false,
+  verificationMethod: "none",
   message: null,
 }
 
@@ -510,6 +514,7 @@ function normalizeSecretStatus(status?: Partial<SecretBackendStatus>): SecretBac
     hasMasterPassword: status?.hasMasterPassword ?? false,
     persistenceAvailable: status?.persistenceAvailable ?? false,
     migrationPending: status?.migrationPending ?? false,
+    verificationMethod: normalizeVerificationMethod(status?.verificationMethod),
     message: status?.message ?? null,
   }
 }

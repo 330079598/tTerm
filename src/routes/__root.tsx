@@ -8,6 +8,7 @@ import { KeymapProvider } from "@/contexts/KeymapContext"
 import { AppActivityProvider } from "@/contexts/AppActivityContext"
 import { ThemeProvider } from "@/contexts/ThemeContext"
 import { TransferProvider } from "@/contexts/TransferContext"
+import { UserVerificationProvider } from "@/contexts/UserVerificationContext"
 
 const TanStackRouterDevtools = import.meta.env.DEV
   ? lazy(() =>
@@ -20,17 +21,19 @@ const TanStackRouterDevtools = import.meta.env.DEV
 const RootLayout = () => {
   return (
     <ConfigProvider>
-      <KeymapProvider>
-        <ThemeProvider>
-          <TransferProvider>
-            <AppActivityProvider>
-              <TTermApp />
-              <AppUpdateManager />
-            </AppActivityProvider>
-            <TanStackRouterDevtools />
-          </TransferProvider>
-        </ThemeProvider>
-      </KeymapProvider>
+      <UserVerificationProvider>
+        <KeymapProvider>
+          <ThemeProvider>
+            <TransferProvider>
+              <AppActivityProvider>
+                <TTermApp />
+                <AppUpdateManager />
+              </AppActivityProvider>
+              <TanStackRouterDevtools />
+            </TransferProvider>
+          </ThemeProvider>
+        </KeymapProvider>
+      </UserVerificationProvider>
     </ConfigProvider>
   )
 }
