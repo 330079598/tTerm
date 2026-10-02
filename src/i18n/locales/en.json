@@ -236,6 +236,12 @@
     "zmodemDownloadDirectoryDesc": "Where auto-detected ZMODEM downloads are saved. Defaults to Downloads.",
     "zmodemDownloadDirectoryPlaceholder": "Platform Downloads folder",
     "background": "Background",
+    "closeBehavior": "When closing the main window",
+    "closeBehaviorDesc": "In the background, SSH sessions and port forwarding keep running. Bring the window back from the tray icon (the menu bar on macOS) or by launching tTerm again.",
+    "closeBehaviorLinuxNote": "Some Linux desktops, such as GNOME without an AppIndicator extension, do not show tray icons.",
+    "closeBehaviorAsk": "Ask every time",
+    "closeBehaviorTray": "Run in background",
+    "closeBehaviorQuit": "Quit tTerm",
     "backgroundThrottling": "While the window is hidden",
     "backgroundThrottlingDesc": "Throttle keeps terminals processing output at reduced priority. Suspend frees the most power but pauses the page after about 5 minutes, which delays redraw when you come back. Requires macOS 14 or later; applies after restart.",
     "backgroundThrottlingThrottle": "Throttle (recommended)",
@@ -645,6 +651,14 @@
     "diskUsage": "Directory usage",
     "writeFailed": "Terminal log write failed",
     "retry": "Retry"
+  },
+  "closeRequest": {
+    "title": "Close the tTerm window?",
+    "description": "tTerm can keep running in the background with an icon in the system tray (the menu bar on macOS), so SSH sessions and port forwarding stay connected.",
+    "tunnelsRunning": "{{count}} port-forwarding tunnel(s) are running. They keep running in the background and stop if tTerm quits.",
+    "remember": "Remember my choice (change it in Settings > General)",
+    "quit": "Quit",
+    "background": "Run in background"
   },
   "common": {
     "cancel": "Cancel",

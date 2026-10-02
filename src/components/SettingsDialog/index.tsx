@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import {
   type BackgroundThrottling,
+  type CloseBehavior,
   type TabWidthMode,
   type TerminalRenderer,
   type WindowBlurMaterial,
@@ -447,6 +448,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     await saveSettings({ background_throttling: policy })
   }
 
+  const handleCloseBehaviorChange = async (behavior: CloseBehavior) => {
+    await saveSettings({ close_behavior: behavior })
+  }
+
   const handleSftpTransferParallelismChange = async (value: number) => {
     if (!Number.isFinite(value)) {
       return
@@ -745,8 +750,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           >
             <GeneralSettingsTab
               backgroundThrottling={config.background_throttling}
+              closeBehavior={config.close_behavior}
               handleAbout={handleAbout}
               handleBackgroundThrottlingChange={handleBackgroundThrottlingChange}
+              handleCloseBehaviorChange={handleCloseBehaviorChange}
               handleClearSession={handleClearSession}
               handleLanguageChange={handleLanguageChange}
               handleRestoreAllSessionConnectionsChange={handleRestoreAllSessionConnectionsChange}

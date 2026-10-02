@@ -145,6 +145,10 @@ pub struct AppConfig {
     /// tints it with the desktop wallpaper (Windows 11).
     #[serde(default = "default_window_blur_material")]
     pub window_blur_material: String,
+    /// What closing the main window does: "ask", "tray" (keep running in the
+    /// background behind a tray icon) or "quit".
+    #[serde(default = "default_close_behavior")]
+    pub close_behavior: String,
 }
 
 /// User-configurable keyboard shortcut overrides. `bindings` maps action ids
@@ -370,6 +374,10 @@ fn default_background_throttling() -> String {
     "throttle".to_string()
 }
 
+fn default_close_behavior() -> String {
+    "ask".to_string()
+}
+
 fn default_zmodem_auto_detect_enabled() -> bool {
     true
 }
@@ -445,6 +453,7 @@ impl Default for AppConfig {
             window_blur_radius: default_window_blur_radius(),
             window_opacity_percent: default_window_opacity_percent(),
             window_blur_material: default_window_blur_material(),
+            close_behavior: default_close_behavior(),
         }
     }
 }
@@ -540,6 +549,7 @@ pub fn save_config(
     log_state.validate_config(&config)?;
     save_config_file(&config)?;
     crate::sftp::internal::api::apply_bandwidth_limits(&config);
+    crate::background::apply_config(&app, &config);
     log_state.apply_config(&app, &config)
 }
 

@@ -39,6 +39,8 @@ export type TerminalLogFormat = "raw" | "plain" | "both"
 export type TerminalRenderer = "webgl" | "canvas"
 /** What WebKit does with the page while the window is hidden (macOS 14+). */
 export type BackgroundThrottling = "throttle" | "disabled" | "suspend"
+/** What closing the main window does; "tray" keeps tTerm running in the background. */
+export type CloseBehavior = "ask" | "tray" | "quit"
 export type WindowBlurMaterial = "acrylic" | "mica"
 export type MonitorMetricId =
   "cpu" | "memory" | "network" | "ip" | "latency" | "disk" | "load" | "uptime"
@@ -171,6 +173,7 @@ export interface AppConfig {
   window_blur_material: WindowBlurMaterial
   /** Opacity of that tint in percent. */
   window_opacity_percent: number
+  close_behavior: CloseBehavior
 }
 
 const defaultUpdateChannel = /-(alpha|beta|rc|dev)(\.|$)/.test(
@@ -231,6 +234,7 @@ const defaultConfig: AppConfig = {
   window_blur_radius: 20,
   window_opacity_percent: 70,
   window_blur_material: "acrylic",
+  close_behavior: "ask",
 }
 
 function normalizeUpdateCheckFrequency(
@@ -435,6 +439,10 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
       70
     ),
     window_blur_material: config.window_blur_material === "mica" ? "mica" : "acrylic",
+    close_behavior:
+      config.close_behavior === "tray" || config.close_behavior === "quit"
+        ? config.close_behavior
+        : "ask",
   }
 }
 

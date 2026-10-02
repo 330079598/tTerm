@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next"
 import { ConnectionDialog } from "@/components/ConnectionDialog"
 import { CommandEditorDialog, CommandLibrary } from "@/components/CommandLibrary"
 import { BroadcastManager } from "@/components/BroadcastManager"
+import { CloseRequestDialog } from "@/components/CloseRequestDialog"
 import { ContextMenu } from "@/components/ContextMenu"
 import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
 import { RenameDialog } from "@/components/RenameDialog"
@@ -1838,6 +1839,7 @@ export const TTermApp: React.FC = () => {
       )}
 
       <ConfirmDialog />
+      <CloseRequestDialog runningTunnelCount={runningTunnelCount} />
 
       <RenameDialog
         isOpen={renameDialogState.isOpen}

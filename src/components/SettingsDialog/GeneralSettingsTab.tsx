@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch"
 import { useAppActivity } from "@/contexts/AppActivityContext"
 import {
   type BackgroundThrottling,
+  type CloseBehavior,
   getDetectedPlatform,
   getLaunchBackgroundThrottling,
 } from "@/contexts/ConfigContext"
@@ -39,8 +40,10 @@ interface LanguageOption {
 
 interface GeneralSettingsTabProps {
   backgroundThrottling: BackgroundThrottling
+  closeBehavior: CloseBehavior
   handleAbout: () => void
   handleBackgroundThrottlingChange: (policy: BackgroundThrottling) => Promise<void>
+  handleCloseBehaviorChange: (behavior: CloseBehavior) => Promise<void>
   handleClearSession: () => Promise<void>
   handleLanguageChange: (langCode: string) => Promise<void>
   handleRestoreAllSessionConnectionsChange: (checked: boolean) => Promise<void>
@@ -64,8 +67,10 @@ interface GeneralSettingsTabProps {
 
 export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   backgroundThrottling,
+  closeBehavior,
   handleAbout,
   handleBackgroundThrottlingChange,
+  handleCloseBehaviorChange,
   handleClearSession,
   handleLanguageChange,
   handleRestoreAllSessionConnectionsChange,
@@ -88,6 +93,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
 }) => {
   const { t } = useTranslation()
   const { requestAppRestart } = useAppActivity()
+  const detectedPlatform = getDetectedPlatform()
   const launchBackgroundThrottling = getLaunchBackgroundThrottling()
   const backgroundThrottlingNeedsRestart =
     launchBackgroundThrottling !== null && launchBackgroundThrottling !== backgroundThrottling
@@ -280,11 +286,49 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
           />
         </SettingsSection>
 
-        {getDetectedPlatform() === "macos" && (
-          <SettingsSection
-            icon={<Moon size={16} />}
-            title={t("settings.background", { defaultValue: "Background" })}
-          >
+        <SettingsSection
+          icon={<Moon size={16} />}
+          title={t("settings.background", { defaultValue: "Background" })}
+        >
+          <SettingsRow
+            title={t("settings.closeBehavior", { defaultValue: "When closing the main window" })}
+            description={
+              t("settings.closeBehaviorDesc", {
+                defaultValue:
+                  "In the background, SSH sessions and port forwarding keep running. Bring the window back from the tray icon (the menu bar on macOS) or by launching tTerm again.",
+              }) +
+              (detectedPlatform === "linux"
+                ? " " +
+                  t("settings.closeBehaviorLinuxNote", {
+                    defaultValue:
+                      "Some Linux desktops, such as GNOME without an AppIndicator extension, do not show tray icons.",
+                  })
+                : "")
+            }
+            action={
+              <Select
+                aria-label={t("settings.closeBehavior", {
+                  defaultValue: "When closing the main window",
+                })}
+                value={closeBehavior}
+                onChange={(event) =>
+                  void handleCloseBehaviorChange(event.target.value as CloseBehavior)
+                }
+                className="w-44"
+              >
+                <option value="ask">
+                  {t("settings.closeBehaviorAsk", { defaultValue: "Ask every time" })}
+                </option>
+                <option value="tray">
+                  {t("settings.closeBehaviorTray", { defaultValue: "Run in background" })}
+                </option>
+                <option value="quit">
+                  {t("settings.closeBehaviorQuit", { defaultValue: "Quit tTerm" })}
+                </option>
+              </Select>
+            }
+          />
+          {detectedPlatform === "macos" && (
             <SettingsRow
               title={t("settings.backgroundThrottling", {
                 defaultValue: "While the window is hidden",
@@ -324,19 +368,19 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                 </Select>
               }
             />
-            {backgroundThrottlingNeedsRestart && (
-              <SettingsRow
-                title={t("settings.restartToApply", { defaultValue: "Restart to apply" })}
-                action={
-                  <Button type="button" variant="outline" onClick={() => void requestAppRestart()}>
-                    <RotateCw />
-                    {t("settings.restartNow", { defaultValue: "Restart now" })}
-                  </Button>
-                }
-              />
-            )}
-          </SettingsSection>
-        )}
+          )}
+          {detectedPlatform === "macos" && backgroundThrottlingNeedsRestart && (
+            <SettingsRow
+              title={t("settings.restartToApply", { defaultValue: "Restart to apply" })}
+              action={
+                <Button type="button" variant="outline" onClick={() => void requestAppRestart()}>
+                  <RotateCw />
+                  {t("settings.restartNow", { defaultValue: "Restart now" })}
+                </Button>
+              }
+            />
+          )}
+        </SettingsSection>
 
         <SettingsSection
           icon={<Bug size={16} />}

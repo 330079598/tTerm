@@ -227,6 +227,12 @@
     "zmodemDownloadDirectoryDesc": "自动识别的 ZMODEM 下载文件保存位置，默认使用系统下载目录。",
     "zmodemDownloadDirectoryPlaceholder": "系统下载目录",
     "background": "后台运行",
+    "closeBehavior": "关闭主窗口时",
+    "closeBehaviorDesc": "在后台运行时，SSH 会话和端口转发会保持连接。可通过系统托盘图标（macOS 为菜单栏图标）或再次启动 tTerm 恢复窗口。",
+    "closeBehaviorLinuxNote": "部分 Linux 桌面（如未安装 AppIndicator 扩展的 GNOME）不显示托盘图标。",
+    "closeBehaviorAsk": "每次询问",
+    "closeBehaviorTray": "最小化到托盘",
+    "closeBehaviorQuit": "退出 tTerm",
     "backgroundThrottling": "窗口隐藏时",
     "backgroundThrottlingDesc": "节流：终端继续以较低优先级处理输出。挂起：最省电，但窗口隐藏约 5 分钟后页面会被暂停，切回时需要等待重绘。需要 macOS 14 及以上，重启后生效。",
     "backgroundThrottlingThrottle": "节流（推荐）",
@@ -636,6 +642,14 @@
     "diskUsage": "目录占用",
     "writeFailed": "终端日志写入失败",
     "retry": "重试"
+  },
+  "closeRequest": {
+    "title": "关闭 tTerm 窗口？",
+    "description": "tTerm 可以在后台继续运行并在系统托盘（macOS 为菜单栏）显示图标，SSH 会话和端口转发会保持连接。",
+    "tunnelsRunning": "有 {{count}} 个端口转发隧道正在运行。最小化到托盘后会继续运行，退出 tTerm 则会停止。",
+    "remember": "记住我的选择（可在 设置 > 通用 中修改）",
+    "quit": "退出",
+    "background": "最小化到托盘"
   },
   "common": {
     "cancel": "取消",

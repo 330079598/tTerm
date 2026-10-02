@@ -122,6 +122,10 @@ impl TunnelManager {
             .count()
     }
 
+    pub fn has_active(&self) -> bool {
+        self.active_count() > 0
+    }
+
     fn should_hold_exit(&self, active: usize) -> bool {
         if active == 0 || self.quit_confirmed.load(Ordering::SeqCst) {
             return false;

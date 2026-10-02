@@ -1,4 +1,5 @@
 mod app_state;
+mod background;
 mod backup;
 mod clipboard_files;
 pub mod command_library;
@@ -226,11 +227,7 @@ pub fn run() {
         // Registered first so a second launch exits before touching the
         // database, tunnels or migrations the running instance owns.
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
+            background::show_main_window(app);
         }))
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
@@ -265,13 +262,10 @@ pub fn run() {
         .manage(secret_store)
         .manage(session_log_state)
         .manage(tunnel::TunnelManager::default())
+        .manage(background::CloseBehaviorState::default())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                let app = window.app_handle();
-                if app
-                    .state::<tunnel::TunnelManager>()
-                    .hold_exit_for_confirmation(app)
-                {
+                if background::on_close_requested(window) {
                     api.prevent_close();
                 }
             }
@@ -354,6 +348,7 @@ pub fn run() {
             tunnel::auto_start_tunnels,
             tunnel::confirm_quit_app,
             tunnel::cancel_quit_prompt,
+            background::resolve_close_request,
             command_library::list_saved_commands,
             command_library::list_command_tags,
             command_library::create_command_tag,
@@ -446,6 +441,7 @@ pub fn run() {
             }
 
             create_main_window(app, cfg.as_ref())?;
+            background::apply_config(&app_handle, &cfg.unwrap_or_default());
 
             Ok(())
         })
@@ -467,6 +463,13 @@ pub fn run() {
                 }
                 // Tunnels may still be running; keep what they carried.
                 tauri::RunEvent::Exit => app.state::<tunnel::TunnelManager>().save_traffic(),
+                // Clicking the Dock icon brings back a window closed to the
+                // background.
+                #[cfg(target_os = "macos")]
+                tauri::RunEvent::Reopen {
+                    has_visible_windows: false,
+                    ..
+                } => background::show_main_window(app),
                 _ => {}
             }
         });
