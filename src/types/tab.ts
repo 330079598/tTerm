@@ -98,6 +98,8 @@ export interface Tab {
   pid?: number
   sessionNonce?: number
   connectionHeaderPinned?: boolean
+  /** Set on a duplicated tab: the name its "-N" copies are numbered from. Cleared on rename. */
+  duplicateBaseTitle?: string
   connection?: {
     type?: ConnectionType
     profileId?: string

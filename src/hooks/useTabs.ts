@@ -97,6 +97,16 @@ function ensureTabDefaults(tab: Tab): Tab {
   }
 }
 
+// "web" -> "web-2" -> "web-3", taking the first free index.
+export function getDuplicateTabTitle(base: string, existingTitles: string[]): string {
+  const titles = new Set(existingTitles)
+  let index = 2
+  while (titles.has(`${base}-${index}`)) {
+    index++
+  }
+  return `${base}-${index}`
+}
+
 function nextSessionNonce(sessionNonce?: number) {
   return ((sessionNonce ?? 0) + 1) >>> 0
 }
@@ -186,6 +196,7 @@ function tabsReducer(state: TabsState, action: TabsAction): TabsState {
         return state
       }
       const { id: _id, isActive: _isActive, ...tabData } = sourceTab
+      const baseTitle = sourceTab.duplicateBaseTitle ?? sourceTab.title
       const newTab: Tab = ensureTabDefaults({
         ...tabData,
         connection: tabData.connection ?? {
@@ -193,7 +204,11 @@ function tabsReducer(state: TabsState, action: TabsAction): TabsState {
         },
         sessionNonce: nextSessionNonce(sourceTab.sessionNonce),
         id: action.newId,
-        title: `${sourceTab.title} (Copy)`,
+        title: getDuplicateTabTitle(
+          baseTitle,
+          state.tabs.map((tab) => tab.title)
+        ),
+        duplicateBaseTitle: baseTitle,
         isActive: true,
         hasConnected: true,
       })
@@ -206,7 +221,9 @@ function tabsReducer(state: TabsState, action: TabsAction): TabsState {
       return {
         ...state,
         tabs: state.tabs.map((tab) =>
-          tab.id === action.id ? { ...tab, title: action.title } : tab
+          tab.id === action.id
+            ? { ...tab, title: action.title, duplicateBaseTitle: undefined }
+            : tab
         ),
       }
     case "update":

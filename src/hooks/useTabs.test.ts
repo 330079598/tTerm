@@ -3,7 +3,7 @@
 import { act, renderHook } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
-import { removeTabsFromState, useTabs } from "@/hooks/useTabs"
+import { getDuplicateTabTitle, removeTabsFromState, useTabs } from "@/hooks/useTabs"
 import type { Tab } from "@/types/tab"
 
 function createTabs(ids: string[], activeTabId: string): Tab[] {
@@ -60,6 +60,72 @@ describe("removeTabsFromState", () => {
 
     expect(result).toEqual({ tabs, activeTabId: "b" })
     expect(result.tabs).toBe(tabs)
+  })
+})
+
+describe("getDuplicateTabTitle", () => {
+  it("appends the first free index", () => {
+    expect(getDuplicateTabTitle("web", ["web"])).toBe("web-2")
+    expect(getDuplicateTabTitle("web", ["web", "web-2", "web-4"])).toBe("web-3")
+  })
+})
+
+describe("useTabs duplicateTab", () => {
+  function setup(ids: string[]) {
+    const hook = renderHook(() => useTabs())
+    act(() => {
+      hook.result.current.restoreSession(createTabs(ids, ids[0]), ids[0])
+    })
+    return hook
+  }
+
+  function duplicate(result: { current: ReturnType<typeof useTabs> }, title: string) {
+    const tab = result.current.tabs.find((candidate) => candidate.title === title)
+    let newId: string | null = null
+    act(() => {
+      newId = result.current.duplicateTab(tab!.id)
+    })
+    return newId!
+  }
+
+  const titles = (result: { current: ReturnType<typeof useTabs> }) =>
+    result.current.tabs.map((tab) => tab.title)
+
+  it("names duplicates with incrementing indexes", () => {
+    const { result } = setup(["web"])
+    duplicate(result, "web")
+    duplicate(result, "web")
+
+    expect(titles(result)).toEqual(["web", "web-2", "web-3"])
+  })
+
+  it("numbers a copy of a copy from the original name, even after it is closed", () => {
+    const { result } = setup(["web"])
+    duplicate(result, "web")
+    act(() => {
+      result.current.removeTabs(["web"])
+    })
+    duplicate(result, "web-2")
+
+    expect(titles(result)).toEqual(["web-2", "web-3"])
+  })
+
+  it("treats a numeric suffix in the original name as part of the name", () => {
+    const { result } = setup(["web", "web-2"])
+    duplicate(result, "web-2")
+
+    expect(titles(result)).toEqual(["web", "web-2", "web-2-2"])
+  })
+
+  it("numbers from the new name once a copy is renamed", () => {
+    const { result } = setup(["web"])
+    const copyId = duplicate(result, "web")
+    act(() => {
+      result.current.renameTab(copyId, "db")
+    })
+    duplicate(result, "db")
+
+    expect(titles(result)).toEqual(["web", "db", "db-2"])
   })
 })
 
