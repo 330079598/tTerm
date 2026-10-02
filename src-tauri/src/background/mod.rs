@@ -2,19 +2,17 @@
 //! background behind a tray icon (the menu bar on macOS), as the user chose in
 //! `close_behavior`. "ask" lets the UI decide on each close.
 
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
-use std::sync::Once;
+mod tray;
 
-use tauri::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem};
-use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+
 use tauri::{AppHandle, Emitter, Manager, State, Window};
 
 use crate::config::AppConfig;
 use crate::tunnel::TunnelManager;
 
-const TRAY_ID: &str = "main";
-const MENU_SHOW: &str = "tray-show";
-const MENU_QUIT: &str = "tray-quit";
+pub use tray::{refresh_tunnels, TrayState};
+
 const CLOSE_REQUESTED_EVENT: &str = "close-requested";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -87,71 +85,10 @@ pub fn apply_config(app: &AppHandle, cfg: &AppConfig) {
 
 fn sync_tray(app: &AppHandle, behavior: CloseBehavior, language: &str) -> tauri::Result<()> {
     if behavior == CloseBehavior::Quit {
-        app.remove_tray_by_id(TRAY_ID);
+        tray::hide(app);
         return Ok(());
     }
-    // A tray's own menu handler outlives the tray, so one built again after
-    // being removed would answer each click twice; this one is app-wide.
-    static MENU_HANDLER: Once = Once::new();
-    MENU_HANDLER.call_once(|| app.on_menu_event(on_menu_event));
-    let menu = tray_menu(app, language)?;
-    if let Some(tray) = app.tray_by_id(TRAY_ID) {
-        return tray.set_menu(Some(menu));
-    }
-    let mut builder = TrayIconBuilder::with_id(TRAY_ID)
-        .tooltip("tTerm")
-        .menu(&menu)
-        // macOS opens the menu on a click, like every menu bar item; elsewhere
-        // a click brings the window back and the menu is on right click.
-        .show_menu_on_left_click(cfg!(target_os = "macos"))
-        .on_tray_icon_event(on_tray_icon_event);
-    if let Some(icon) = app.default_window_icon() {
-        builder = builder.icon(icon.clone());
-    }
-    builder.build(app)?;
-    Ok(())
-}
-
-fn tray_menu(app: &AppHandle, language: &str) -> tauri::Result<Menu<tauri::Wry>> {
-    let (show, quit) = if language == "zh" {
-        ("显示 tTerm", "退出")
-    } else {
-        ("Show tTerm", "Quit")
-    };
-    Menu::with_items(
-        app,
-        &[
-            &MenuItem::with_id(app, MENU_SHOW, show, true, None::<&str>)?,
-            &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, MENU_QUIT, quit, true, None::<&str>)?,
-        ],
-    )
-}
-
-fn on_menu_event(app: &AppHandle, event: MenuEvent) {
-    match event.id().as_ref() {
-        MENU_SHOW => show_main_window(app),
-        MENU_QUIT => request_quit(app),
-        _ => {}
-    }
-}
-
-fn on_tray_icon_event(tray: &TrayIcon, event: TrayIconEvent) {
-    let show = match event {
-        TrayIconEvent::Click {
-            button: MouseButton::Left,
-            button_state: MouseButtonState::Up,
-            ..
-        } => !cfg!(target_os = "macos"),
-        TrayIconEvent::DoubleClick {
-            button: MouseButton::Left,
-            ..
-        } => true,
-        _ => false,
-    };
-    if show {
-        show_main_window(tray.app_handle());
-    }
+    tray::show(app, language)
 }
 
 /// Brings the main window back, whether it is hidden, minimized or behind
@@ -180,11 +117,27 @@ fn request_quit(app: &AppHandle) {
 /// not be created, e.g. no tray on this Linux desktop) the window is only
 /// minimized so it can still be found.
 fn send_to_background(window: &Window) {
-    if window.app_handle().tray_by_id(TRAY_ID).is_some() {
+    if window.app_handle().tray_by_id(tray::TRAY_ID).is_some() {
         let _ = window.hide();
     } else {
         let _ = window.minimize();
     }
+}
+
+/// Shows the window when something running in the background needs an
+/// answer from the user (a host key or a login prompt). Callable from any
+/// thread.
+pub fn reveal_for_prompt(app: &AppHandle) {
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        let Some(window) = handle.get_webview_window("main") else {
+            return;
+        };
+        let hidden = !window.is_visible().unwrap_or(true) || window.is_minimized().unwrap_or(false);
+        if hidden {
+            show_main_window(&handle);
+        }
+    });
 }
 
 /// Handles a request to close the main window. Returns `true` when the close

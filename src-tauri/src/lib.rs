@@ -263,6 +263,7 @@ pub fn run() {
         .manage(session_log_state)
         .manage(tunnel::TunnelManager::default())
         .manage(background::CloseBehaviorState::default())
+        .manage(background::TrayState::default())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if background::on_close_requested(window) {

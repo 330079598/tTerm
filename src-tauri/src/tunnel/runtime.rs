@@ -238,6 +238,7 @@ impl TunnelReporter {
             self.save_traffic();
         }
         self.emit();
+        crate::background::refresh_tunnels(&self.app);
     }
 
     fn set_retry_attempt(&self, attempt: u32) {

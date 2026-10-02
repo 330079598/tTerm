@@ -1416,6 +1416,23 @@ export const TTermApp: React.FC = () => {
     openTunnelsTab(tunnelsTabTitle)
   }, [openTunnelsTab, tunnelsTabTitle])
 
+  // The tray menu opens the page itself, and after a tunnel it could not
+  // start so the user sees why.
+  const handleTunnelsClickRef = useRef(handleTunnelsClick)
+  useLatestRef(handleTunnelsClickRef, handleTunnelsClick)
+  useEffect(() => {
+    let disposed = false
+    let unlisten: (() => void) | undefined
+    void listen("tray-open-tunnels", () => handleTunnelsClickRef.current()).then((cleanup) => {
+      if (disposed) cleanup()
+      else unlisten = cleanup
+    })
+    return () => {
+      disposed = true
+      unlisten?.()
+    }
+  }, [])
+
   const activeTerminalTab = useMemo(() => {
     const tab = tabs.find((candidate) => candidate.id === activeTabId)
     return tab?.type === "terminal" || tab?.type === "ssh" ? tab : null

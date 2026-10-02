@@ -760,7 +760,7 @@
       "restored": "「{{name}}」已恢复连接",
       "failed": "「{{name}}」已停止"
     },
-    "needsCredentialsHint": "未自动启动 —— 点击“启动”并输入缺少的密码。",
+    "needsCredentialsHint": "缺少密码 —— 点击“启动”输入。",
     "stopFailed": "无法停止隧道",
     "credentials": {
       "title": "需要凭据",

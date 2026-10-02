@@ -186,6 +186,7 @@ impl AuthPrompter {
 
                 let event_name = format!("ssh-auth-prompt-{tab_id}");
                 let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
+                crate::background::reveal_for_prompt(app);
 
                 match tokio::time::timeout(PROMPT_TIMEOUT, rx).await {
                     Ok(Ok(Some(answers))) => Ok(answers),

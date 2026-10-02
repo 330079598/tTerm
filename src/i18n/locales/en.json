@@ -769,7 +769,7 @@
       "restored": "“{{name}}” is back online",
       "failed": "“{{name}}” stopped"
     },
-    "needsCredentialsHint": "Not started automatically — press Start to enter the missing password.",
+    "needsCredentialsHint": "A password is missing — press Start to enter it.",
     "stopFailed": "Could not stop the tunnel",
     "credentials": {
       "title": "Credentials required",

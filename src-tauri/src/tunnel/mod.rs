@@ -9,6 +9,8 @@ mod types;
 
 pub use commands::*;
 pub(crate) use forwards::{add_rules, parse_forward, rule_from_spec, ForwardSpec};
-pub(crate) use storage::{delete_tunnel as delete_tunnel_rule, list_tunnel_rules, replace_tunnels};
-pub(crate) use types::TunnelKind;
+pub(crate) use storage::{
+    delete_tunnel as delete_tunnel_rule, list_tunnel_rules, load_tunnels, replace_tunnels,
+};
 pub use types::TunnelRule;
+pub(crate) use types::{TunnelKind, TunnelState};

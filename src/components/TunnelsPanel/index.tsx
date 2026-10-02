@@ -274,8 +274,7 @@ const TunnelCard = React.memo(function TunnelCard({
         ) : status.state === "needsCredentials" ? (
           <span className="text-warning">
             {t("tunnels.needsCredentialsHint", {
-              defaultValue:
-                "Not started automatically — press Start to enter the missing password.",
+              defaultValue: "A password is missing — press Start to enter it.",
             })}
           </span>
         ) : status.message && (status.state === "error" || status.state === "reconnecting") ? (

@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::{watch, Mutex};
 use tokio::task::JoinHandle;
 
@@ -113,7 +113,13 @@ impl TunnelManager {
             .is_some_and(|reporter| reporter.state().is_active())
     }
 
-    fn active_count(&self) -> usize {
+    /// The tunnel's state, `Stopped` when it has not run since launch.
+    pub(crate) fn state_of(&self, id: &str) -> TunnelState {
+        self.reporter(id)
+            .map_or(TunnelState::Stopped, |reporter| reporter.state())
+    }
+
+    pub(crate) fn active_count(&self) -> usize {
         self.reporters
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -147,7 +153,7 @@ impl TunnelManager {
         hold
     }
 
-    async fn stop(&self, id: &str) {
+    pub(crate) async fn stop(&self, id: &str) {
         let running = self.running.lock().await.remove(id);
         let Some(running) = running else {
             return;
@@ -246,19 +252,26 @@ pub fn reset_tunnel_traffic_totals(
 }
 
 #[tauri::command]
-pub fn save_tunnel(mut tunnel: TunnelRule) -> Result<TunnelRule, String> {
+pub fn save_tunnel(app: AppHandle, mut tunnel: TunnelRule) -> Result<TunnelRule, String> {
     tunnel.validate()?;
     let profile = find_profile(&tunnel.profile_id)?;
     connection_options_for_profile(&profile)?;
 
     crate::db::write(|transaction| upsert_tunnel(transaction, &tunnel))?;
+    crate::background::refresh_tunnels(&app);
     Ok(tunnel)
 }
 
 #[tauri::command]
-pub async fn delete_tunnel(id: String, manager: State<'_, TunnelManager>) -> Result<(), String> {
+pub async fn delete_tunnel(
+    app: AppHandle,
+    id: String,
+    manager: State<'_, TunnelManager>,
+) -> Result<(), String> {
     manager.discard(&id).await;
-    crate::db::write(|transaction| delete_tunnel_rule(transaction, &id))
+    crate::db::write(|transaction| delete_tunnel_rule(transaction, &id))?;
+    crate::background::refresh_tunnels(&app);
+    Ok(())
 }
 
 /// Resolves a rule's connection, asking for missing secrets instead of
@@ -376,34 +389,47 @@ pub async fn start_tunnel(
     .await
 }
 
+/// Starts a rule with no one at the tunnels page to ask (on launch, or from
+/// the tray menu): a missing secret or an error is left on its status for the
+/// page to show. Returns whether the tunnel is starting.
+pub(crate) async fn start_unattended(app: &AppHandle, id: &str) -> bool {
+    let manager = app.state::<TunnelManager>();
+    let secret_state = app.state::<crate::ssh::SecretStoreState>();
+    let prompts = app.state::<HostPromptMap>();
+    let result = start_rule(
+        app,
+        &manager,
+        &secret_state,
+        prompts.inner(),
+        id,
+        &TunnelCredentials::default(),
+        true,
+    )
+    .await;
+    match result {
+        Ok(StartOutcome::Started) => true,
+        Ok(StartOutcome::NeedsCredentials { .. }) => false,
+        Err(message) => {
+            manager
+                .reporter_for(app, id)
+                .set_state(TunnelState::Error, Some(message));
+            false
+        }
+    }
+}
+
 /// Starts every rule flagged `auto_start`. Runs once per app launch so that
 /// reloading the window does not revive tunnels the user stopped.
 #[tauri::command]
 pub async fn auto_start_tunnels(
     app: AppHandle,
     manager: State<'_, TunnelManager>,
-    secret_state: State<'_, crate::ssh::SecretStoreState>,
-    prompts: State<'_, HostPromptMap>,
 ) -> Result<(), String> {
     if manager.auto_started.swap(true, Ordering::SeqCst) {
         return Ok(());
     }
     for rule in load_tunnels()?.into_iter().filter(|rule| rule.auto_start) {
-        let result = start_rule(
-            &app,
-            &manager,
-            &secret_state,
-            prompts.inner(),
-            &rule.id,
-            &TunnelCredentials::default(),
-            true,
-        )
-        .await;
-        if let Err(message) = result {
-            manager
-                .reporter_for(&app, &rule.id)
-                .set_state(TunnelState::Error, Some(message));
-        }
+        start_unattended(&app, &rule.id).await;
     }
     Ok(())
 }

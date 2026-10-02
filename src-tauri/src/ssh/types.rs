@@ -429,6 +429,7 @@ impl russh::client::Handler for SshClientHandler {
         let _ = self
             .app
             .emit_to(tauri::EventTarget::any(), &event_name, payload);
+        crate::background::reveal_for_prompt(&self.app);
 
         self.emit_status(
             "33",
