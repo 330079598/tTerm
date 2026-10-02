@@ -12,6 +12,7 @@ import { listen } from "@tauri-apps/api/event"
 import { openUrl } from "@tauri-apps/plugin-opener"
 import { platform } from "@tauri-apps/plugin-os"
 
+import { installImeCursorGuard } from "@/components/TerminalTab/imeCursorGuard"
 import { getConnectionDisplay } from "@/components/TerminalTab/terminalTabUtils"
 import type {
   ConnectionState,
@@ -316,6 +317,7 @@ export function useTerminalLifecycle({
 
     container.replaceChildren()
     term.open(container)
+    const imeCursorGuard = installImeCursorGuard(term)
 
     const effectiveRenderer = terminalRenderer ?? rendererRef.current
     loadTerminalRenderer(effectiveRenderer, term)
@@ -819,6 +821,7 @@ export function useTerminalLifecycle({
         activeRendererAddonRef.current = null
       }
       lastRendererRef.current = null
+      imeCursorGuard.dispose()
       term.dispose()
       termRef.current = null
       fitAddonRef.current = null
