@@ -223,6 +223,15 @@ pub fn run() {
     let session_log_state = session_log::SessionLogState::default();
 
     let builder = tauri::Builder::default()
+        // Registered first so a second launch exits before touching the
+        // database, tunnels or migrations the running instance owns.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
