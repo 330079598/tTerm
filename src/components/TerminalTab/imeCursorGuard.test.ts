@@ -123,6 +123,55 @@ describe("installImeCursorGuard", () => {
     expect(cellOf(textarea)).toEqual({ col: 3, row: 20 })
   })
 
+  it("places the textarea on screen as soon as it is installed", () => {
+    const { textarea } = setup()
+    expect(textarea.style.left).toBe("0px")
+    expect(textarea.style.top).toBe("0px")
+    expect(textarea.style.width).toBe(`${CELL_WIDTH}px`)
+    expect(textarea.style.height).toBe(`${CELL_HEIGHT}px`)
+  })
+
+  it("follows a cursor hidden for long so it rests where a composition would anchor", async () => {
+    const { term, textarea } = setup()
+    await write(term, moveTo(5, 7))
+    clock = 1000
+    await write(term, HIDE_CURSOR + moveTo(20, 3))
+    expect(cellOf(textarea)).toEqual({ col: 7, row: 5 })
+    clock += TRANSIENT_CURSOR_HIDE_MS
+    await write(term, moveTo(15, 2))
+    expect(cellOf(textarea)).toEqual({ col: 2, row: 15 })
+  })
+
+  it("re-places the textarea once a hide turns long without further moves", async () => {
+    const { term, textarea } = setup()
+    await write(term, moveTo(5, 7))
+    clock = 1000
+    await write(term, HIDE_CURSOR + moveTo(20, 3))
+    clock += TRANSIENT_CURSOR_HIDE_MS
+    await new Promise((resolve) => setTimeout(resolve, TRANSIENT_CURSOR_HIDE_MS + 20))
+    expect(cellOf(textarea)).toEqual({ col: 3, row: 20 })
+  })
+
+  it("re-places the textarea on focus", async () => {
+    const { term, textarea } = setup()
+    await write(term, moveTo(5, 7))
+    textarea.style.left = "-9999em"
+    textarea.dispatchEvent(new FocusEvent("focus"))
+    expect(cellOf(textarea)).toEqual({ col: 7, row: 5 })
+  })
+
+  it("re-places the textarea on resize", async () => {
+    const { term, core, textarea } = setup()
+    await write(term, moveTo(5, 7))
+    Object.defineProperty(core._renderService, "dimensions", {
+      configurable: true,
+      value: { css: { cell: { width: 12, height: 24 } } },
+    })
+    term.resize(100, 30)
+    expect(textarea.style.left).toBe(`${7 * 12}px`)
+    expect(textarea.style.top).toBe(`${5 * 24}px`)
+  })
+
   it("restores xterm's default behaviour when disposed", async () => {
     const { term, textarea } = setup()
     guard!.dispose()

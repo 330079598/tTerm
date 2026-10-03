@@ -9,12 +9,19 @@ import type { IDisposable, Terminal } from "@xterm/xterm"
  * cursor, draw their own, and move the real one across the screen on every
  * redraw, so the candidate window jumps with spinners and status lines.
  *
- * The guard changes two things:
+ * The guard changes three things:
  *  1. A composition stays anchored to the cell it started at until it ends.
  *  2. While the cursor is hidden the textarea stops following it. A composition
  *     that starts during a brief hide (a redraw in flight) anchors to the last
  *     visible cursor position; after a long hide (the app draws its own cursor)
  *     no visible position is meaningful, so it anchors to the current cursor.
+ *  3. The textarea always rests where the next composition will anchor. On
+ *     Windows the IME places its candidate window from the caret rect Chromium
+ *     reported before compositionstart, so positioning it only once composing
+ *     starts is too late. xterm only moves the textarea on visible cursor moves
+ *     and otherwise leaves it at its CSS default (left: -9999em, top: 0), which
+ *     puts the candidate window in the top-left corner. It is now also placed
+ *     on install, focus, resize, cell-size changes and once a hide turns long.
  *
  * It patches xterm 6 private members on the instance; if any are missing the
  * guard is a no-op and xterm keeps its default behaviour.
@@ -43,7 +50,10 @@ interface CoreInternals {
   rows: number
   buffer: { x: number; y: number; isCursorInViewport: boolean }
   coreService: { isCursorHidden: boolean }
-  _renderService?: { dimensions: { css: { cell: { width: number; height: number } } } }
+  _renderService?: {
+    dimensions: { css: { cell: { width: number; height: number } } }
+    onDimensionsChange?: (listener: () => void) => IDisposable
+  }
   _compositionHelper?: CompositionHelperInternals
   _syncTextArea?: () => void
 }
@@ -105,19 +115,44 @@ export function installImeCursorGuard(
     return cell
   }
 
-  const syncTextArea = () => {
-    if (core.coreService.isCursorHidden) return
-    originalSyncTextArea.call(core)
-    if (!helper.isComposing && core.buffer.isCursorInViewport) {
-      lastVisibleCursor = currentCursor()
-    }
-  }
-
   const pickCompositionAnchor = (): CellPosition => {
     if (!core.coreService.isCursorHidden) return currentCursor()
     const hiddenFor = hiddenSince === null ? Infinity : now() - hiddenSince
     if (lastVisibleCursor && hiddenFor < TRANSIENT_CURSOR_HIDE_MS) return lastVisibleCursor
     return currentCursor()
+  }
+
+  const syncTextArea = () => {
+    if (helper.isComposing) return
+    if (!core.coreService.isCursorHidden && core.buffer.isCursorInViewport) {
+      lastVisibleCursor = currentCursor()
+    }
+    const textarea = helper._textarea
+    const cell = cellSize()
+    // Before the first measurement every cell would collapse onto the top-left
+    // corner; wait for the dimensions-change re-sync instead.
+    if (!cell || cell.width <= 0 || cell.height <= 0) return
+    placeAt(textarea, pickCompositionAnchor())
+    textarea.style.width = `${cell.width}px`
+    textarea.style.height = `${cell.height}px`
+    textarea.style.lineHeight = `${cell.height}px`
+    // A right-click raises the textarea under the mouse; put it back behind.
+    textarea.style.zIndex = "-5"
+  }
+
+  // A hide that outlasts the transient window changes where a composition
+  // would anchor, but nothing else re-syncs if the cursor stops moving.
+  let longHideTimer: ReturnType<typeof setTimeout> | null = null
+  const clearLongHideTimer = () => {
+    if (longHideTimer !== null) clearTimeout(longHideTimer)
+    longHideTimer = null
+  }
+  const scheduleLongHideSync = () => {
+    clearLongHideTimer()
+    longHideTimer = setTimeout(() => {
+      longHideTimer = null
+      syncTextArea()
+    }, TRANSIENT_CURSOR_HIDE_MS)
   }
 
   const compositionStart = () => {
@@ -173,12 +208,14 @@ export function installImeCursorGuard(
       // Runs before xterm applies the mode, so this reads the previous state.
       if (includesCursorMode(params) && !core.coreService.isCursorHidden) {
         hiddenSince = now()
+        scheduleLongHideSync()
       }
       return false
     }),
     term.parser.registerCsiHandler({ prefix: "?", final: "h" }, (params) => {
       if (includesCursorMode(params)) {
         hiddenSince = null
+        clearLongHideTimer()
         // Showing the cursor without moving it fires no cursor-move event, so
         // re-sync once xterm has applied the mode change.
         queueMicrotask(syncTextArea)
@@ -187,8 +224,22 @@ export function installImeCursorGuard(
     }),
   ]
 
+  // xterm itself only re-syncs on cursor moves, so a resize, a font change or
+  // a tab coming back into view would otherwise leave the textarea stale.
+  const textarea = helper._textarea
+  textarea.addEventListener("focus", syncTextArea)
+  const resyncDisposables: IDisposable[] = [
+    term.onResize(syncTextArea),
+    core._renderService?.onDimensionsChange?.(syncTextArea) ?? NOOP_DISPOSABLE,
+  ]
+  if (hiddenSince !== null) scheduleLongHideSync()
+  syncTextArea()
+
   return {
     dispose: () => {
+      clearLongHideTimer()
+      textarea.removeEventListener("focus", syncTextArea)
+      for (const disposable of resyncDisposables) disposable.dispose()
       for (const handler of cursorModeHandlers) handler.dispose()
       if (core._syncTextArea === syncTextArea) core._syncTextArea = originalSyncTextArea
       if (helper.compositionstart === compositionStart) {
