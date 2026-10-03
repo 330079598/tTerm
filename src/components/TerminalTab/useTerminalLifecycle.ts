@@ -13,6 +13,7 @@ import { openUrl } from "@tauri-apps/plugin-opener"
 import { platform } from "@tauri-apps/plugin-os"
 
 import { installImeCursorGuard } from "@/components/TerminalTab/imeCursorGuard"
+import { installImeFocusRepair } from "@/components/TerminalTab/imeFocusRepair"
 import { getConnectionDisplay } from "@/components/TerminalTab/terminalTabUtils"
 import type {
   ConnectionState,
@@ -112,6 +113,15 @@ const LINK_MODIFIER_IS_CMD = (() => {
     }
 
     return false
+  }
+})()
+
+// The IME focus loss it repairs is specific to WebView2.
+const IS_WINDOWS = (() => {
+  try {
+    return platform() === "windows"
+  } catch {
+    return typeof navigator !== "undefined" && /windows/i.test(navigator.userAgent)
   }
 })()
 
@@ -318,6 +328,9 @@ export function useTerminalLifecycle({
     container.replaceChildren()
     term.open(container)
     const imeCursorGuard = installImeCursorGuard(term)
+    const imeFocusRepair = IS_WINDOWS
+      ? installImeFocusRepair(term, () => invoke("repair_ime_focus"))
+      : null
 
     const effectiveRenderer = terminalRenderer ?? rendererRef.current
     loadTerminalRenderer(effectiveRenderer, term)
@@ -822,6 +835,7 @@ export function useTerminalLifecycle({
       }
       lastRendererRef.current = null
       imeCursorGuard.dispose()
+      imeFocusRepair?.dispose()
       term.dispose()
       termRef.current = null
       fitAddonRef.current = null

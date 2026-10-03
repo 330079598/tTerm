@@ -7,6 +7,7 @@ mod config;
 mod core;
 mod db;
 mod fonts;
+mod ime_focus;
 mod migrate;
 mod monitor;
 mod profiles;
@@ -395,6 +396,7 @@ pub fn run() {
             updater::install_downloaded_app_update,
             updater::download_install_app_update,
             toggle_devtools,
+            ime_focus::repair_ime_focus,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
