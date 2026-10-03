@@ -351,6 +351,7 @@ export function useTerminalLifecycle({
 
     let disposed = false
 
+    let createdPtySize: { rows: number; cols: number } | null = null
     const waitForStableFit = async () => {
       let stableFrames = 0
       for (let frame = 0; frame < 60 && stableFrames < 4; frame += 1) {
@@ -741,16 +742,16 @@ export function useTerminalLifecycle({
         }
 
         creatingPtyRef.current = true
-        return waitForStableFit().then(() =>
-          invoke<number>("create_pty", {
+        return waitForStableFit().then(() => {
+          createdPtySize = { rows: term.rows, cols: term.cols }
+          return invoke<number>("create_pty", {
             tabId,
             sessionNonce,
-            rows: term.rows,
-            cols: term.cols,
+            ...createdPtySize,
             connection: connectionRef.current,
             outputChannel,
           })
-        )
+        })
       })
       .then((pid) => {
         if (pid == null) return
@@ -758,6 +759,14 @@ export function useTerminalLifecycle({
         if (disposed) {
           invoke("kill_pty", { tabId, sessionNonce }).catch(console.error)
           return
+        }
+
+        // Resizes are held back until the PTY exists; catch up on any that
+        // happened while it was being created.
+        const size = { rows: term.rows, cols: term.cols }
+        lastPtySizeRef.current = size
+        if (createdPtySize?.rows !== size.rows || createdPtySize.cols !== size.cols) {
+          invoke("resize_pty", { tabId, sessionNonce, ...size }).catch(console.error)
         }
 
         if (connectionRef.current?.type !== "ssh") {

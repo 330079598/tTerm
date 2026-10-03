@@ -229,12 +229,9 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
       const nextSize = { rows: term.rows, cols: term.cols }
       const prevSize = lastPtySizeRef.current
-      if (
-        !force &&
-        prevSize &&
-        prevSize.rows === nextSize.rows &&
-        prevSize.cols === nextSize.cols
-      ) {
+      // No PTY yet: create_pty sends the size itself, and catches up after.
+      if (!prevSize) return
+      if (!force && prevSize.rows === nextSize.rows && prevSize.cols === nextSize.cols) {
         return
       }
 
