@@ -1115,7 +1115,6 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
           watermarkComponent={WorkspaceWatermark}
           defaultRenderer="always"
           dndStrategy="pointer"
-          keyboardNavigation
           disableFloatingGroups
           noPanelsOverlay="watermark"
           onReady={handleReady}
