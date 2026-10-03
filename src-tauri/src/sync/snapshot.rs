@@ -35,6 +35,10 @@ const COMMAND_LOCAL_FIELDS: [&str; 3] = ["useCount", "lastUsedAt", "updatedAt"];
 /// logging and update preferences stay per device.
 pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "theme",
+    "theme_follow_system",
+    "theme_light",
+    "theme_dark",
+    "favorite_themes",
     "language",
     "font_size",
     "cursor_style",

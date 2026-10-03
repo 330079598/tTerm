@@ -15,6 +15,17 @@ use sys_locale::get_locale;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppConfig {
     pub theme: String,
+    /// Switch between `theme_light` and `theme_dark` with the system's
+    /// appearance instead of showing `theme`.
+    #[serde(default)]
+    pub theme_follow_system: bool,
+    #[serde(default = "default_theme_light")]
+    pub theme_light: String,
+    #[serde(default = "default_theme_dark")]
+    pub theme_dark: String,
+    /// Theme ids starred in the theme library.
+    #[serde(default)]
+    pub favorite_themes: Vec<String>,
     #[serde(default = "default_language")]
     pub language: String,
     #[serde(default = "default_font_family")]
@@ -406,6 +417,10 @@ impl Default for AppConfig {
     fn default() -> Self {
         Self {
             theme: "default".to_string(),
+            theme_follow_system: false,
+            theme_light: default_theme_light(),
+            theme_dark: default_theme_dark(),
+            favorite_themes: Vec::new(),
             language: default_language(),
             font_family: default_font_family(),
             font_size: default_font_size(),
@@ -456,6 +471,14 @@ impl Default for AppConfig {
             close_behavior: default_close_behavior(),
         }
     }
+}
+
+fn default_theme_light() -> String {
+    "light".to_string()
+}
+
+fn default_theme_dark() -> String {
+    "default".to_string()
 }
 
 fn config_file_path() -> Result<std::path::PathBuf, String> {
@@ -556,6 +579,17 @@ pub fn save_config(
 #[cfg(test)]
 mod tests {
     use super::AppConfig;
+
+    #[test]
+    fn legacy_config_shows_its_one_theme() {
+        let config: AppConfig = serde_json::from_str(r#"{"theme":"catalog:Nord"}"#).unwrap();
+
+        assert_eq!(config.theme, "catalog:Nord");
+        assert!(!config.theme_follow_system);
+        assert_eq!(config.theme_light, "light");
+        assert_eq!(config.theme_dark, "default");
+        assert!(config.favorite_themes.is_empty());
+    }
 
     #[test]
     fn legacy_config_uses_adaptive_tab_width_defaults() {

@@ -15,7 +15,10 @@ export type ThemeColorItem = {
 }
 
 export type TerminalColorItem = {
-  key: keyof TerminalPalette
+  /** The editor covers the colors every palette has. */
+  key: {
+    [Key in keyof TerminalPalette]-?: undefined extends TerminalPalette[Key] ? never : Key
+  }[keyof TerminalPalette]
   labelKey: string
 }
 

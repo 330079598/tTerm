@@ -97,7 +97,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const onSessionUnavailableRef = useStableRef(onSessionUnavailable)
   const onSensitivePromptRef = useStableRef(onSensitivePrompt)
   const { config, saveConfig } = useConfig()
-  const { currentTheme, getTheme } = useTheme()
+  const { displayedTheme, getTheme } = useTheme()
   const { t } = useTranslation()
   const configFontFamilyRef = useStableRef(config.font_family)
   const configFontSizeRef = useStableRef(config.font_size)
@@ -200,8 +200,11 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const windowBlur = isWindowBlurEnabled(config)
   const resolveTerminalTheme = useCallback(
     () =>
-      withWindowBlur(getTheme(currentTheme)?.terminal ?? getTheme("default")!.terminal, windowBlur),
-    [currentTheme, getTheme, windowBlur]
+      withWindowBlur(
+        getTheme(displayedTheme)?.terminal ?? getTheme("default")!.terminal,
+        windowBlur
+      ),
+    [displayedTheme, getTheme, windowBlur]
   )
 
   const terminalTheme = useMemo(() => resolveTerminalTheme(), [resolveTerminalTheme])

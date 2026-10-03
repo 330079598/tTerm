@@ -300,6 +300,7 @@ pub fn run() {
             themes::save_custom_themes,
             config::window_background::save_window_background,
             window_blur::set_window_blur,
+            window_blur::system_prefers_dark,
             session_log::get_terminal_log_status,
             session_log::open_terminal_log_directory,
             session_log::retry_terminal_logging,

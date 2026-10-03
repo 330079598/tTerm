@@ -61,7 +61,7 @@ tauri-plugin-single-instance = "2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 tauri-plugin-frame = "1.1.6"
-windows = { version = "0.62", features = ["Win32_Graphics_Gdi", "Win32_Foundation", "Win32_System_DataExchange", "Win32_UI_Shell", "Win32_System_WinRT", "Security_Credentials_UI"] }
+windows = { version = "0.62", features = ["Win32_Graphics_Gdi", "Win32_Foundation", "Win32_System_DataExchange", "Win32_System_Registry", "Win32_UI_Shell", "Win32_System_WinRT", "Security_Credentials_UI"] }
 # Names the async result type of Windows Hello prompts (see ssh/secret_store/os_verifier.rs).
 # Must be the version `windows` itself uses (0.62 -> 0.3); upgrade the two together.
 windows-future = "0.3"

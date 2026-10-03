@@ -6,6 +6,8 @@ import type { TerminalPalette } from "@/types/theme"
 
 interface TerminalPalettePreviewProps {
   className?: string
+  /** Focus the preview to show its cursor; off where another control keeps the keyboard. */
+  focus?: boolean
   palette: TerminalPalette
 }
 
@@ -28,19 +30,14 @@ const PREVIEW_LINES = [
 ] as const
 
 function writePreview(term: Terminal) {
-  term.reset()
-  term.clear()
-
-  PREVIEW_LINES.forEach((line, index) => {
-    term.write(line)
-    if (index < PREVIEW_LINES.length - 1) {
-      term.write("\r\n")
-    }
-  })
+  // Reset through the write queue (ESC c): `term.reset()` takes effect at
+  // once, before earlier queued writes, which would then pile up.
+  term.write(`\x1bc${PREVIEW_LINES.join("\r\n")}`)
 }
 
 export const TerminalPalettePreview: React.FC<TerminalPalettePreviewProps> = ({
   className,
+  focus = true,
   palette,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -48,6 +45,7 @@ export const TerminalPalettePreview: React.FC<TerminalPalettePreviewProps> = ({
   const fitAddonRef = useRef<FitAddon | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const initialPaletteRef = useRef(palette)
+  const initialFocusRef = useRef(focus)
 
   useEffect(() => {
     const container = containerRef.current
@@ -76,10 +74,13 @@ export const TerminalPalettePreview: React.FC<TerminalPalettePreviewProps> = ({
     term.open(container)
     fitAddon.fit()
     writePreview(term)
-    term.focus()
+    if (initialFocusRef.current) term.focus()
 
     const resizeObserver = new ResizeObserver(() => {
+      const { cols, rows } = term
       fitAddonRef.current?.fit()
+      // Lines written at the old size stay wrapped and scrolled; start over.
+      if (term.cols !== cols || term.rows !== rows) writePreview(term)
     })
     resizeObserver.observe(container)
     resizeObserverRef.current = resizeObserver
@@ -98,10 +99,11 @@ export const TerminalPalettePreview: React.FC<TerminalPalettePreviewProps> = ({
     if (!term) return
 
     term.options.theme = palette
-    writePreview(term)
+    // Fit first: lines written at the old size would stay wrapped.
     fitAddonRef.current?.fit()
-    term.focus()
-  }, [palette])
+    writePreview(term)
+    if (focus) term.focus()
+  }, [focus, palette])
 
   return (
     <div

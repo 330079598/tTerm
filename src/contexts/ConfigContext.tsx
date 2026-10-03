@@ -118,6 +118,12 @@ export interface SavedSecretEntry {
 
 export interface AppConfig {
   theme: string
+  /** Show `theme_light` or `theme_dark` with the system's appearance instead of `theme`. */
+  theme_follow_system: boolean
+  theme_light: string
+  theme_dark: string
+  /** Theme ids starred in the theme library. */
+  favorite_themes: string[]
   language: string
   font_family: string
   font_size: number
@@ -187,6 +193,10 @@ export const DEFAULT_TERMINAL_FONT_FAMILY =
 
 const defaultConfig: AppConfig = {
   theme: "default",
+  theme_follow_system: false,
+  theme_light: "light",
+  theme_dark: "default",
+  favorite_themes: [],
   language: detectSystemLanguage(),
   font_family: DEFAULT_TERMINAL_FONT_FAMILY,
   font_size: 14,
@@ -370,6 +380,14 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
   return {
     ...defaultConfig,
     ...config,
+    theme_follow_system: config.theme_follow_system === true,
+    theme_light:
+      typeof config.theme_light === "string" && config.theme_light ? config.theme_light : "light",
+    theme_dark:
+      typeof config.theme_dark === "string" && config.theme_dark ? config.theme_dark : "default",
+    favorite_themes: Array.isArray(config.favorite_themes)
+      ? [...new Set(config.favorite_themes.filter((id) => typeof id === "string" && id))]
+      : [],
     startup_session_restore_mode: config.startup_session_restore_mode === "all" ? "all" : "active",
     show_jump_host_connection_info: config.show_jump_host_connection_info !== false,
     sftp_paste_upload_enabled: config.sftp_paste_upload_enabled === true,

@@ -5,6 +5,8 @@ import {
   Copy,
   Edit,
   GalleryHorizontal,
+  Import,
+  Library,
   MonitorCog,
   Palette,
   Plus,
@@ -23,6 +25,10 @@ import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
+import {
+  FollowSystemThemeSetting,
+  LibraryThemeCards,
+} from "@/components/SettingsDialog/ThemeLibrarySettings"
 import {
   applyUiScalePercent,
   getDetectedPlatform,
@@ -50,6 +56,8 @@ interface AppearanceSettingsTabProps {
   handleWindowBlurMaterialChange: (material: WindowBlurMaterial) => Promise<boolean>
   handleWindowBlurRadiusChange: (radius: number) => Promise<boolean>
   handleWindowOpacityChange: (percent: number) => Promise<boolean>
+  onOpenThemeGallery: () => void
+  onOpenThemeImport: () => void
   presetThemes: PresetTheme[]
   presetThemeOverrides: CustomTheme[]
   setCreatingFromTheme: React.Dispatch<React.SetStateAction<string | null>>
@@ -77,6 +85,8 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
   handleWindowBlurMaterialChange,
   handleWindowBlurRadiusChange,
   handleWindowOpacityChange,
+  onOpenThemeGallery,
+  onOpenThemeImport,
   presetThemes,
   presetThemeOverrides,
   setCreatingFromTheme,
@@ -251,6 +261,8 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
             defaultValue: "Choose the UI and terminal palette used across tTerm.",
           })}
         >
+          <FollowSystemThemeSetting />
+
           <div className="mb-4">
             <h4 className="text-muted-foreground mb-2 text-xs font-medium">
               {t("themeEditor.presetThemes")}
@@ -352,6 +364,12 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
             )}
           </div>
 
+          <LibraryThemeCards
+            currentTheme={currentTheme}
+            onCopy={(themeId) => void handleDuplicateTheme(themeId)}
+            onSelect={(themeId) => void handleThemeChange(themeId)}
+          />
+
           {customThemes.length > 0 && (
             <div>
               <h4 className="text-muted-foreground mb-2 text-xs font-medium">
@@ -422,14 +440,20 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
             </div>
           )}
 
-          <Button
-            variant="outline"
-            className="mt-3 w-full"
-            onClick={() => setCreatingFromTheme("default")}
-          >
-            <Plus size={16} className="mr-2" />
-            {t("themeEditor.createNew")}
-          </Button>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <Button variant="outline" onClick={onOpenThemeGallery}>
+              <Library size={16} />
+              {t("themeGallery.open", { defaultValue: "Browse theme library" })}
+            </Button>
+            <Button variant="outline" onClick={onOpenThemeImport}>
+              <Import size={16} />
+              {t("themeImport.open", { defaultValue: "Import theme" })}
+            </Button>
+            <Button variant="outline" onClick={() => setCreatingFromTheme("default")}>
+              <Plus size={16} />
+              {t("themeEditor.createNew")}
+            </Button>
+          </div>
         </SettingsSection>
 
         <SettingsSection

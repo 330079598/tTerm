@@ -165,7 +165,7 @@ export function readableTextHex(backgroundHex: string): string {
   return luminance > 0.58 ? "#111827" : "#ffffff"
 }
 
-function relativeLuminance(hex: string): number | null {
+export function relativeLuminance(hex: string): number | null {
   const rgb = hexToRgb(hex)
   if (!rgb) return null
   const channel = (value: number) => {

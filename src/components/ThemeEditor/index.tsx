@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useTheme } from "@/contexts/ThemeContext"
 import { generateTerminalPaletteFromColors } from "@/lib/terminalPalette"
+import { deriveThemeColors } from "@/lib/themeDerivation"
 import type { PresetThemeId, TerminalPalette, ThemeColors } from "@/types/theme"
 import { PRESET_THEME_IDS } from "@/types/theme"
 
@@ -101,6 +102,11 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
   const handleGenerateTerminalPalette = () => {
     if (!colors) return
     setTerminal(generateTerminalPaletteFromColors(colors))
+  }
+
+  const handleDeriveColors = () => {
+    if (!terminal) return
+    setColors(deriveThemeColors(terminal))
   }
 
   const handleSave = async () => {
@@ -266,6 +272,18 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
                   <Button type="button" variant="outline" onClick={handleGenerateTerminalPalette}>
                     <Sparkles size={14} className="mr-2" />
                     {t("themeEditor.generatePalette")}
+                  </Button>
+                </div>
+                <div className="bg-muted/40 border-border flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">{t("themeEditor.deriveColors")}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {t("themeEditor.deriveColorsDesc")}
+                    </p>
+                  </div>
+                  <Button type="button" variant="outline" onClick={handleDeriveColors}>
+                    <Sparkles size={14} className="mr-2" />
+                    {t("themeEditor.deriveColorsAction")}
                   </Button>
                 </div>
                 {TERMINAL_GROUPS.map((group) => (

@@ -127,6 +127,9 @@ See [docs/zmodem.md](./docs/zmodem.md) for usage, settings, and implementation d
 ![theme-editor](./docs/screenshot/theme-editor.png)
 
 - Built-in themes and a custom theme editor with live preview
+- A theme library of nearly 700 themes, the collection Ghostty ships: search it, browse with the arrow keys while the whole app previews each one, star favorites, and copy any into the editor
+- Follow the system appearance with a light and a dark theme of your choice
+- Import themes from Ghostty, Windows Terminal, iTerm2 (`.itermcolors`), Alacritty, and kitty; tTerm builds matching interface colors from the terminal palette
 - Terminal palette preview with 16-color swatches
 - Font settings with a system font picker, and cursor style picker
 - Interface text scale from 80% to 200%
@@ -251,6 +254,9 @@ pnpm format
 
 # Check formatting
 pnpm format:check
+
+# Refresh the theme library from iTerm2-Color-Schemes (optionally at a given commit)
+pnpm themes:update
 ```
 
 ## Tech Stack
@@ -364,3 +370,5 @@ cargo test --manifest-path src-tauri/Cargo.toml
 ## License
 
 MIT
+
+The theme library comes from [iTerm2-Color-Schemes](https://github.com/mbadolato/iTerm2-Color-Schemes) (MIT, see `src/assets/themes/LICENSE`); each theme belongs to its author, credited in `src/assets/themes/CREDITS.md`.

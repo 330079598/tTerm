@@ -127,6 +127,9 @@
 ![theme-editor](./docs/screenshot/theme-editor.png)
 
 - 内置主题，以及支持实时预览的自定义主题编辑器
+- 近 700 个主题的主题库（与 Ghostty 自带的主题相同）：可搜索，用方向键浏览时整个应用实时预览，可收藏，任一主题都可复制到编辑器中修改
+- 可跟随系统明暗，在你选定的浅色主题和深色主题之间自动切换
+- 支持导入 Ghostty、Windows Terminal、iTerm2（`.itermcolors`）、Alacritty 和 kitty 的主题，并根据终端色板自动生成相配的界面颜色
 - 终端配色预览，展示 16 色色板
 - 字体设置支持选择系统字体，可选光标样式
 - 界面文字缩放 80%–200%
@@ -251,6 +254,9 @@ pnpm format
 
 # 检查格式化
 pnpm format:check
+
+# 从 iTerm2-Color-Schemes 更新主题库（可指定 commit）
+pnpm themes:update
 ```
 
 ## 技术栈
@@ -364,3 +370,5 @@ cargo test --manifest-path src-tauri/Cargo.toml
 ## License
 
 MIT
+
+主题库来自 [iTerm2-Color-Schemes](https://github.com/mbadolato/iTerm2-Color-Schemes)（MIT 协议，见 `src/assets/themes/LICENSE`），各主题版权归原作者所有，致谢清单见 `src/assets/themes/CREDITS.md`。

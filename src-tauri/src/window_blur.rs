@@ -96,6 +96,43 @@ pub fn set_window_blur(
     apply_window_blur(&window, blur).map_err(|error| error.to_string())
 }
 
+/// Whether the system uses dark mode, on Windows; `None` elsewhere, where the
+/// web view's `prefers-color-scheme` tells. On Windows the web view follows
+/// the window's theme, which the blur pins to the page's.
+#[tauri::command]
+pub fn system_prefers_dark() -> Option<bool> {
+    #[cfg(windows)]
+    {
+        windows_prefers_dark()
+    }
+    #[cfg(not(windows))]
+    {
+        None
+    }
+}
+
+#[cfg(windows)]
+fn windows_prefers_dark() -> Option<bool> {
+    use windows::core::w;
+    use windows::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
+
+    let mut light: u32 = 0;
+    let mut size = std::mem::size_of::<u32>() as u32;
+    // SAFETY: `light` and `size` outlive the call, which writes at most `size` bytes.
+    let status = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            w!(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"),
+            w!("AppsUseLightTheme"),
+            RRF_RT_REG_DWORD,
+            None,
+            Some(std::ptr::from_mut(&mut light).cast()),
+            Some(&mut size),
+        )
+    };
+    status.is_ok().then_some(light == 0)
+}
+
 #[cfg(target_os = "macos")]
 mod macos {
     use std::ffi::c_void;

@@ -13,7 +13,8 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "format": "prettier --write src",
-    "format:check": "prettier --check src"
+    "format:check": "prettier --check src",
+    "themes:update": "node scripts/update-themes.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

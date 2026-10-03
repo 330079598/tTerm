@@ -6,7 +6,13 @@ import {
   type WindowBlurMaterial,
 } from "@/contexts/ConfigContext"
 import { getPresetTheme } from "@/lib/themeDefinitions"
-import type { CustomTheme, ThemeColors, Theme as AppTheme } from "@/types/theme"
+import type {
+  CatalogTheme,
+  CustomTheme,
+  TerminalPalette,
+  ThemeColors,
+  Theme as AppTheme,
+} from "@/types/theme"
 import { THEME_COLOR_KEYS } from "@/types/theme"
 
 /**
@@ -25,8 +31,11 @@ import { THEME_COLOR_KEYS } from "@/types/theme"
 
 export interface ThemeCache {
   id: string
+  /** The colors come with the cache rather than from a preset. */
   isCustom: boolean
   colors?: ThemeColors
+  /** Kept for library themes, whose palette is unknown until the library loads. */
+  terminal?: TerminalPalette
   timestamp?: number
 }
 
@@ -116,13 +125,27 @@ function applyPresetTheme(themeId: AppTheme["id"]): void {
   document.body.style.backgroundColor = toCssColor(preset.colors.background)
 }
 
-export function resolveThemeCache(themeId: string, customThemes: CustomTheme[]): ThemeCache {
+export function resolveThemeCache(
+  themeId: string,
+  customThemes: CustomTheme[],
+  catalogThemes: CatalogTheme[] = []
+): ThemeCache {
   const customTheme = customThemes.find((theme) => theme.id === themeId)
   if (customTheme) {
     return {
       id: customTheme.id,
       isCustom: true,
       colors: customTheme.colors,
+    }
+  }
+
+  const catalogTheme = catalogThemes.find((theme) => theme.id === themeId)
+  if (catalogTheme) {
+    return {
+      id: catalogTheme.id,
+      isCustom: true,
+      colors: catalogTheme.colors,
+      terminal: catalogTheme.terminal,
     }
   }
 
@@ -331,6 +354,18 @@ function isThemeCacheValid(cache: unknown): cache is ThemeCache {
   if (!themeCache.isCustom && !isLegacyTheme(themeCache.id)) return false
 
   return true
+}
+
+/** The theme the last session cached, or `null`. */
+export function readCachedTheme(): ThemeCache | null {
+  try {
+    if (!isCacheValid()) return null
+    const cached = localStorage.getItem(THEME_CACHE_KEY)
+    const themeCache = cached ? (JSON.parse(cached) as unknown) : null
+    return isThemeCacheValid(themeCache) ? themeCache : null
+  } catch {
+    return null
+  }
 }
 
 /**

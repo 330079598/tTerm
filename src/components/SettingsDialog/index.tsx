@@ -22,7 +22,8 @@ import { useSettingsSave } from "@/hooks/useSettingsSave"
 import { useSyncedState } from "@/hooks/useSyncedState"
 import { normalizeScrollbackConfig } from "@/lib/scrollback"
 import { cn, toErrorMessage } from "@/lib/utils"
-import type { PresetThemeId } from "@/types/theme"
+import { isCatalogTheme } from "@/lib/themeCatalog"
+import type { CustomTheme, PresetThemeId } from "@/types/theme"
 import { AppearanceSettingsTab } from "@/components/SettingsDialog/AppearanceSettingsTab"
 import { ConnectionSettingsTab } from "@/components/SettingsDialog/ConnectionSettingsTab"
 import { DataMigrationSettingsTab } from "@/components/SettingsDialog/DataMigrationSettingsTab"
@@ -45,6 +46,18 @@ import type { UpdateChannel, UpdateCheckFrequency } from "@/lib/updater"
 const ThemeEditor = React.lazy(() =>
   import("@/components/ThemeEditor").then((module) => ({
     default: module.ThemeEditor,
+  }))
+)
+
+const ThemeGallery = React.lazy(() =>
+  import("@/components/ThemeGallery").then((module) => ({
+    default: module.ThemeGallery,
+  }))
+)
+
+const ThemeImportDialog = React.lazy(() =>
+  import("@/components/ThemeImportDialog").then((module) => ({
+    default: module.ThemeImportDialog,
   }))
 )
 
@@ -164,6 +177,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     deleteCustomTheme,
     resetPresetTheme,
     duplicateTheme,
+    getTheme,
+    systemPrefersDark,
   } = useTheme()
   const { toast } = useToast()
   const { saveSettings } = useSettingsSave()
@@ -199,6 +214,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null)
   const [creatingFromTheme, setCreatingFromTheme] = useState<string | null>(null)
+  const [themeGalleryOpen, setThemeGalleryOpen] = useState(false)
+  const [themeImportOpen, setThemeImportOpen] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -312,7 +329,24 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   const handleThemeChange = async (themeId: string) => {
     try {
-      await setTheme(themeId)
+      const slot = await setTheme(themeId)
+      // Following the system, a theme for the other appearance waits for it.
+      if (slot && (slot === "dark") !== systemPrefersDark) {
+        toast({
+          title:
+            slot === "dark"
+              ? t("theme.savedForDark", { defaultValue: "Set as the dark mode theme" })
+              : t("theme.savedForLight", { defaultValue: "Set as the light mode theme" }),
+          description:
+            slot === "dark"
+              ? t("theme.savedForDarkDesc", {
+                  defaultValue: "It shows when the system switches to dark mode.",
+                })
+              : t("theme.savedForLightDesc", {
+                  defaultValue: "It shows when the system switches to light mode.",
+                }),
+        })
+      }
     } catch (error) {
       console.error("Failed to save theme:", error)
       toast({
@@ -370,33 +404,69 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
   }
 
-  const handleDuplicateTheme = async (themeId: string) => {
-    const sourceName =
-      presetThemes.find((theme) => theme.id === themeId)?.name ||
-      customThemes.find((theme) => theme.id === themeId)?.name ||
-      "Theme"
+  /** Asks for a name and copies the theme; `null` when cancelled or failed. */
+  const duplicateWithName = async (
+    themeId: string,
+    defaultName: string
+  ): Promise<CustomTheme | null> => {
     const newName = await prompt({
       title: t("themeEditor.duplicate"),
       label: t("themeEditor.duplicateName"),
-      defaultValue: `${sourceName} Copy`,
+      defaultValue: defaultName,
       confirmText: t("themeEditor.duplicate"),
       cancelText: t("common.cancel"),
     })
 
-    if (newName && newName.trim()) {
-      try {
-        await duplicateTheme(themeId, newName.trim())
-      } catch (error) {
-        console.error("Failed to duplicate theme:", error)
-        toast({
-          title: t("common.error", { defaultValue: "Error" }),
-          description: t("themeEditor.duplicateFailed", {
-            defaultValue: "Failed to duplicate theme.",
-          }),
-          variant: "destructive",
-        })
-      }
+    if (!newName || !newName.trim()) return null
+    try {
+      return await duplicateTheme(themeId, newName.trim())
+    } catch (error) {
+      console.error("Failed to duplicate theme:", error)
+      toast({
+        title: t("common.error", { defaultValue: "Error" }),
+        description: t("themeEditor.duplicateFailed", {
+          defaultValue: "Failed to duplicate theme.",
+        }),
+        variant: "destructive",
+      })
+      return null
     }
+  }
+
+  const handleDuplicateTheme = async (themeId: string) => {
+    if (isCatalogTheme(getTheme(themeId))) {
+      await handleCopyCatalogTheme(themeId)
+      return
+    }
+    const sourceName =
+      presetThemes.find((theme) => theme.id === themeId)?.name ||
+      customThemes.find((theme) => theme.id === themeId)?.name ||
+      "Theme"
+    await duplicateWithName(themeId, `${sourceName} Copy`)
+  }
+
+  /** A library theme becomes a custom one, chosen and opened in the editor. */
+  const handleCopyCatalogTheme = async (themeId: string) => {
+    const copy = await duplicateWithName(themeId, getTheme(themeId)?.name ?? "Theme")
+    if (!copy) return
+    await handleThemeChange(copy.id)
+    setThemeGalleryOpen(false)
+    setEditingThemeId(copy.id)
+  }
+
+  const handleGalleryApply = async (themeId: string) => {
+    await handleThemeChange(themeId)
+    setThemeGalleryOpen(false)
+  }
+
+  const handleThemesImported = async (themes: CustomTheme[]) => {
+    await handleThemeChange(themes[0].id)
+    toast({
+      title: t("themeImport.imported", {
+        defaultValue: "Imported {{count}} themes",
+        count: themes.length,
+      }),
+    })
   }
 
   const handleResetPresetTheme = async (themeId: PresetThemeId) => {
@@ -609,6 +679,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleWindowOpacityChange={handleWindowOpacityChange}
               presetThemes={presetThemes}
               presetThemeOverrides={presetThemeOverrides}
+              onOpenThemeGallery={() => setThemeGalleryOpen(true)}
+              onOpenThemeImport={() => setThemeImportOpen(true)}
               setCreatingFromTheme={setCreatingFromTheme}
               setEditingThemeId={setEditingThemeId}
               tabStandardWidth={config.tab_standard_width}
@@ -809,6 +881,25 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       {creatingFromTheme && (
         <React.Suspense fallback={null}>
           <ThemeEditor baseThemeId={creatingFromTheme} onClose={() => setCreatingFromTheme(null)} />
+        </React.Suspense>
+      )}
+
+      {themeGalleryOpen && (
+        <React.Suspense fallback={null}>
+          <ThemeGallery
+            onApply={handleGalleryApply}
+            onCopy={handleCopyCatalogTheme}
+            onClose={() => setThemeGalleryOpen(false)}
+          />
+        </React.Suspense>
+      )}
+
+      {themeImportOpen && (
+        <React.Suspense fallback={null}>
+          <ThemeImportDialog
+            onImported={handleThemesImported}
+            onClose={() => setThemeImportOpen(false)}
+          />
         </React.Suspense>
       )}
       <ConfirmDialog />

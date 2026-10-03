@@ -35,7 +35,11 @@ export interface TerminalPalette {
   background: string
   foreground: string
   cursor: string
+  /** Text under a block cursor; xterm picks one when unset. */
+  cursorAccent?: string
   selectionBackground: string
+  /** Selected text; unset keeps each cell's own color. */
+  selectionForeground?: string
   black: string
   red: string
   green: string
@@ -93,6 +97,8 @@ interface ThemeDefinition {
   terminal: TerminalPalette
 }
 
+export type ColorsAndPalette = Pick<ThemeDefinition, "colors" | "terminal">
+
 export interface CustomTheme extends ThemeDefinition {
   baseTheme?: string // Which preset theme this is based on
   isCustom: true
@@ -104,7 +110,17 @@ export interface PresetTheme extends ThemeDefinition {
   isCustom: false
 }
 
-export type Theme = PresetTheme | CustomTheme
+/** A theme from the bundled theme library (see `@/lib/themeCatalog`). */
+export interface CatalogTheme extends ThemeDefinition {
+  isCustom: false
+  isCatalog: true
+  isDark: boolean
+}
+
+export type Theme = PresetTheme | CustomTheme | CatalogTheme
+
+/** Which system appearance a theme is shown in, when themes follow the system. */
+export type ThemeSlot = "light" | "dark"
 
 export const PRESET_THEME_IDS = ["default", "light", "ocean", "forest", "sunset", "ubuntu"] as const
 
