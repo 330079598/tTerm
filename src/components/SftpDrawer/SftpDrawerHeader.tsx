@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import {
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
   ArrowUpFromLine,
   Check,
   ChevronRight,
@@ -28,9 +31,15 @@ import type { SftpSearchOptions } from "@/components/SftpDrawer/sftpSearch"
 
 interface SftpDrawerHeaderProps {
   breadcrumbs: Array<{ label: string; path: string }>
+  canGoBack: boolean
+  canGoForward: boolean
+  canGoUp: boolean
   clearSelection: () => void
   handleCreateDirectory: () => void
   handleDeleteSelection: () => void
+  goBack: () => void
+  goForward: () => void
+  goUp: () => void
   handleUploadDialog: () => Promise<void>
   handleUploadFolderDialog: () => Promise<void>
   isDeleting: boolean
@@ -53,9 +62,15 @@ interface SftpDrawerHeaderProps {
 
 export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   breadcrumbs,
+  canGoBack,
+  canGoForward,
+  canGoUp,
   clearSelection,
   handleCreateDirectory,
   handleDeleteSelection,
+  goBack,
+  goForward,
+  goUp,
   handleUploadDialog,
   handleUploadFolderDialog,
   isDeleting,
@@ -177,6 +192,17 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
     })
   }, [isLoading, listingCurrentPath, openPathEditor, registerHandler, visible])
 
+  const navigationButtons = [
+    { key: "back", Icon: ArrowLeft, enabled: canGoBack, onClick: goBack },
+    { key: "forward", Icon: ArrowRight, enabled: canGoForward, onClick: goForward },
+    { key: "up", Icon: ArrowUp, enabled: canGoUp, onClick: goUp },
+  ] as const
+  const navigationLabels = {
+    back: t("sftp.actions.back", { defaultValue: "Back" }),
+    forward: t("sftp.actions.forward", { defaultValue: "Forward" }),
+    up: t("sftp.actions.up", { defaultValue: "Parent Folder" }),
+  }
+
   const selectionLabel = t("sftp.selection.selectedCount", {
     count: selectedCount,
     defaultValue: "{{count}} selected",
@@ -186,6 +212,25 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
     <div className="sftp-drawer-header">
       <div className="sftp-header-left">
         <span className="sftp-drawer-eyebrow">SFTP</span>
+        <div className="sftp-nav-group">
+          {navigationButtons.map(({ key, Icon, enabled, onClick }) => (
+            <Tooltip key={key}>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={onClick}
+                  disabled={!enabled || isLoading}
+                  aria-label={navigationLabels[key]}
+                >
+                  <Icon className="size-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{navigationLabels[key]}</TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
         {isPathEditing ? (
           <div className="sftp-path-editor">
             <FolderInput className="sftp-path-icon" />

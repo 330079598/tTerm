@@ -325,7 +325,10 @@
         "toggle": "Toggle SFTP panel",
         "selectAll": "Select all files",
         "focusPath": "Focus remote path",
-        "pasteUpload": "Upload copied files"
+        "pasteUpload": "Upload copied files",
+        "back": "Go back",
+        "forward": "Go forward",
+        "up": "Go to parent folder"
       },
       "zmodem": {
         "sendFiles": "Send files with ZMODEM (rz)",
@@ -1531,6 +1534,9 @@
       "delete": "Delete",
       "deleteSelected": "Delete Selection",
       "newFolder": "New Folder",
+      "back": "Back",
+      "forward": "Forward",
+      "up": "Parent Folder",
       "refresh": "Refresh",
       "close": "Close"
     },

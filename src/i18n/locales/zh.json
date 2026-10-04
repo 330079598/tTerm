@@ -316,7 +316,10 @@
         "toggle": "切换 SFTP 面板",
         "selectAll": "选择全部文件",
         "focusPath": "聚焦远程路径",
-        "pasteUpload": "上传已复制的文件"
+        "pasteUpload": "上传已复制的文件",
+        "back": "后退",
+        "forward": "前进",
+        "up": "转到上一级目录"
       },
       "zmodem": {
         "sendFiles": "使用 ZMODEM 发送文件 (rz)",
@@ -1518,6 +1521,9 @@
       "delete": "删除",
       "deleteSelected": "删除选择",
       "newFolder": "新建文件夹",
+      "back": "后退",
+      "forward": "前进",
+      "up": "上一级目录",
       "refresh": "刷新",
       "close": "关闭"
     },

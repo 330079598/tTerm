@@ -67,6 +67,13 @@
   white-space: nowrap;
 }
 
+.sftp-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
 .sftp-path-display,
 .sftp-path-editor {
   display: flex;

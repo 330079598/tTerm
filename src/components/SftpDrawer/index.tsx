@@ -27,6 +27,7 @@ import {
 import type {
   DeleteBatchStartResult,
   DeletePreviewResult,
+  LoadSftpDirectory,
   SftpContextMenuState,
   SftpDialogAction,
   SftpDialogState,
@@ -35,6 +36,7 @@ import type {
   SftpDrawerProps,
 } from "@/components/SftpDrawer/types"
 import { useSftpTransfers } from "@/components/SftpDrawer/useSftpTransfers"
+import { useSftpHistory, useSftpHistoryNavigation } from "@/components/SftpDrawer/useSftpHistory"
 import {
   applySftpView,
   loadSftpViewPreferences,
@@ -116,6 +118,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   const [permissionEntries, setPermissionEntries] =
     useState<SftpDirectoryEntry[]>(EMPTY_SFTP_ENTRIES)
   const [viewPreferences, setViewPreferences] = useState(loadSftpViewPreferences)
+  const { history, recordFailed, recordLoaded } = useSftpHistory()
   const listingCurrentPath = listing?.currentPath ?? null
   const createFolderName = dialog.type === "createFolder" ? dialog.folderName : ""
   const renameEntry = dialog.type === "rename" ? dialog.entry : null
@@ -124,8 +127,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   const commandDeleteEntries = dialog.type === "commandDelete" ? dialog.entries : EMPTY_SFTP_ENTRIES
   const commandDeleteCommand = dialog.type === "commandDelete" ? dialog.command : ""
 
-  const loadDirectory = useCallback(
-    async (path?: string | null, options?: { throwOnError?: boolean }) => {
+  const loadDirectory = useCallback<LoadSftpDirectory>(
+    async (path, options) => {
       if (!connection) {
         const message = t("sftp.errors.missingConnection", {
           defaultValue: "SSH connection is missing",
@@ -146,12 +149,14 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
           path: path ?? undefined,
         })
         setListing(nextListing)
+        recordLoaded(nextListing.currentPath, options?.historyIndex)
         setActivePath(null)
         setSelectedPaths([])
         setSearchQuery("")
       } catch (invokeError) {
         const message = String(invokeError)
         setError(message)
+        recordFailed(options?.historyIndex)
         if (options?.throwOnError) {
           throw new Error(message, { cause: invokeError })
         }
@@ -159,7 +164,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         setIsLoading(false)
       }
     },
-    [connection, t, tabId]
+    [connection, recordFailed, recordLoaded, t, tabId]
   )
 
   const {
@@ -282,6 +287,19 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   }, [])
 
   const currentPath = listing?.currentPath ?? null
+  const { canGoBack, canGoForward, canGoUp, goBack, goForward, goUp, handleSideButton } =
+    useSftpHistoryNavigation({
+      contextMenuOpen: contextMenu !== null,
+      dialogOpen: dialog.type !== "none",
+      drawerRef,
+      history,
+      isGlobalShortcutTarget,
+      isLoading,
+      loadDirectory,
+      parentPath: listing?.parentPath ?? null,
+      visible,
+    })
+
   const runAndRefresh = useCallback(
     async (action: () => Promise<void>) => {
       setError(null)
@@ -639,6 +657,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       className={`sftp-drawer ${visible ? "is-open" : ""}`}
       aria-hidden={!visible}
       ref={drawerRef}
+      onMouseDown={handleSideButton}
+      onMouseUp={handleSideButton}
       style={
         {
           "--sftp-font-size": `calc(${Math.max(config.font_size - 2, 10)}px * var(--ui-font-scale, 1))`,
@@ -661,6 +681,12 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       />
       <SftpDrawerHeader
         breadcrumbs={breadcrumbs}
+        canGoBack={canGoBack}
+        canGoForward={canGoForward}
+        canGoUp={canGoUp}
+        goBack={goBack}
+        goForward={goForward}
+        goUp={goUp}
         clearSelection={handleClearSelection}
         handleCreateDirectory={handleCreateDirectory}
         handleDeleteSelection={handleDeleteSelection}

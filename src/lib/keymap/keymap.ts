@@ -43,6 +43,12 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   "sftp.selectAll": "mod+a",
   "sftp.focusPath": "mod+l",
   "sftp.pasteUpload": "mod+v",
+  // Alt+Arrow follows Windows Explorer and Linux file managers; Mod+[ / Mod+]
+  // is the macOS Finder chord, which mouse utilities there often map side
+  // buttons to.
+  "sftp.back": ["alt+arrowleft", "mod+["],
+  "sftp.forward": ["alt+arrowright", "mod+]"],
+  "sftp.up": "alt+arrowup",
   "zmodem.sendFiles": null,
   "zmodem.receiveFiles": null,
   "editor.save": "mod+s",

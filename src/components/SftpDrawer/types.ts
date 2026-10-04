@@ -35,7 +35,11 @@ export interface SftpDirectoryListing {
 
 export type LoadSftpDirectory = (
   path?: string | null,
-  options?: { throwOnError?: boolean }
+  options?: {
+    throwOnError?: boolean
+    /** Back/forward navigation: the history entry being loaded. */
+    historyIndex?: number
+  }
 ) => Promise<void>
 
 export interface SftpContextMenuState {

@@ -24,6 +24,9 @@ export type KeymapActionId =
   | "sftp.selectAll"
   | "sftp.focusPath"
   | "sftp.pasteUpload"
+  | "sftp.back"
+  | "sftp.forward"
+  | "sftp.up"
   // zmodem
   | "zmodem.sendFiles"
   | "zmodem.receiveFiles"
@@ -59,6 +62,9 @@ export const KEYMAP_ACTIONS: KeymapActionDefinition[] = [
   { id: "sftp.selectAll", group: "sftp", allowInEditable: false },
   { id: "sftp.focusPath", group: "sftp", allowInEditable: false },
   { id: "sftp.pasteUpload", group: "sftp", allowInEditable: false },
+  { id: "sftp.back", group: "sftp", allowInEditable: false },
+  { id: "sftp.forward", group: "sftp", allowInEditable: false },
+  { id: "sftp.up", group: "sftp", allowInEditable: false },
   { id: "zmodem.sendFiles", group: "zmodem", allowInEditable: true },
   { id: "zmodem.receiveFiles", group: "zmodem", allowInEditable: true },
   { id: "editor.save", group: "editor", allowInEditable: true },
