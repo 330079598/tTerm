@@ -32,6 +32,7 @@
 
 - 本地 Shell 自动检测，也可手动选择（Windows 下支持 cmd、PowerShell、PowerShell 7、WSL、Git Bash 或自定义程序）
 - 终端内搜索，实时高亮匹配结果
+- **命令标记**（Shell 集成，OSC 133）：按 `Ctrl/Cmd+↑/↓` 在命令之间跳转，一键复制上一条命令的输出，滚动条上标出成功和失败的命令。Windows 本地 shell 自动启用；远程服务器可在设置中复制脚本，加到 `~/.bashrc`、`~/.zshrc` 或 fish 的 `config.fish`
 - WebGL / Canvas 渲染器可切换，回滚行数可配置（默认 10,000 行）
 - Web 链接识别，一键清空终端历史
 - 快捷键可完全自定义，带冲突检测；绑定会遮挡常用 Shell 按键（如 `Ctrl+A`、`Ctrl+R`）时会提示

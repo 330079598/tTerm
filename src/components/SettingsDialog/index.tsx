@@ -196,6 +196,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [macOptionIsMeta, setMacOptionIsMeta] = useState(config.mac_option_is_meta)
   const [confirmMultilinePaste, setConfirmMultilinePaste] = useState(config.confirm_multiline_paste)
   const [copyOnSelect, setCopyOnSelect] = useState(config.copy_on_select)
+  const [commandMarks, setCommandMarks] = useState(config.command_marks)
   const [rightClickPaste, setRightClickPaste] = useState(config.right_click_paste)
   const [scrollbackLines, setScrollbackLines] = useState(() =>
     normalizeScrollbackLines(config.scrollback_lines)
@@ -293,6 +294,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         confirm_multiline_paste: confirmMultilinePaste,
         copy_on_select: copyOnSelect,
         right_click_paste: rightClickPaste,
+        command_marks: commandMarks,
         scrollback_lines: scrollbackLines,
         terminal_renderer: terminalRenderer,
         terminal_padding_left_px: terminalPaddingLeftPx,
@@ -724,6 +726,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               setCopyOnSelect={setCopyOnSelect}
               rightClickPaste={rightClickPaste}
               setRightClickPaste={setRightClickPaste}
+              commandMarks={commandMarks}
+              setCommandMarks={setCommandMarks}
               lineHeight={lineHeight}
               setLineHeight={setLineHeight}
               letterSpacing={letterSpacing}

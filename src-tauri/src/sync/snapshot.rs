@@ -46,6 +46,7 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "cursor_style",
     "copy_on_select",
     "right_click_paste",
+    "command_marks",
     "scrollback_lines",
     "terminal_padding_left_px",
     "terminal_padding_right_px",

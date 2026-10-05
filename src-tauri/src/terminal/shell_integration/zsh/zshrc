@@ -20,3 +20,19 @@ __tterm_report_cwd() {
   builtin printf '\033]7;file://%s\033\\' "${PWD//\%/%25}"
 }
 autoload -Uz add-zsh-hook && add-zsh-hook precmd __tterm_report_cwd
+
+# Command marks (OSC 133), unless turned off in tTerm's settings: how the last
+# command ended and where the prompt starts (D, A) before each prompt, where
+# the output starts (C) before each command. First in precmd_functions so $?
+# is still the command's.
+if [[ -n ${TTERM_COMMAND_MARKS-} ]]; then
+  __tterm_mark_prompt() {
+    builtin printf '\033]133;D;%s\033\\\033]133;A\033\\' $?
+  }
+  __tterm_mark_output() {
+    builtin printf '\033]133;C\033\\'
+  }
+  precmd_functions=(__tterm_mark_prompt $precmd_functions)
+  add-zsh-hook preexec __tterm_mark_output
+fi
+unset TTERM_COMMAND_MARKS

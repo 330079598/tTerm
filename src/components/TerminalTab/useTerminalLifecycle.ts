@@ -12,6 +12,7 @@ import { listen } from "@tauri-apps/api/event"
 import { openUrl } from "@tauri-apps/plugin-opener"
 import { platform } from "@tauri-apps/plugin-os"
 
+import { CommandMarks, COMMAND_MARK_OSC_CODES } from "@/components/TerminalTab/commandMarks"
 import { installImeCursorGuard } from "@/components/TerminalTab/imeCursorGuard"
 import { installImeFocusRepair } from "@/components/TerminalTab/imeFocusRepair"
 import { getConnectionDisplay } from "@/components/TerminalTab/terminalTabUtils"
@@ -51,6 +52,8 @@ type ActiveRendererAddon = (WebglAddon | CanvasAddon) & {
 
 type UseTerminalLifecycleOptions = {
   activateFitTimerRef: React.RefObject<number | null>
+  commandMarksRef: React.RefObject<CommandMarks | null>
+  commandMarksEnabledRef: React.RefObject<boolean>
   connectionRef: React.RefObject<TerminalTabProps["connection"]>
   containerRef: React.RefObject<HTMLDivElement | null>
   creatingPtyRef: React.RefObject<boolean>
@@ -140,6 +143,8 @@ const PASSWORD_REJECT_WINDOW_MS = 20_000
 
 export function useTerminalLifecycle({
   activateFitTimerRef,
+  commandMarksRef,
+  commandMarksEnabledRef,
   connectionRef,
   containerRef,
   creatingPtyRef,
@@ -302,6 +307,8 @@ export function useTerminalLifecycle({
       theme: themeRef.current,
       allowTransparency: isTransparentTerminalTheme(themeRef.current),
       allowProposedApi: true,
+      // Under the 10px scrollbar (TerminalTab.css): search matches, commands.
+      overviewRuler: { width: 10 },
     })
 
     const fitAddon = new FitAddon()
@@ -576,8 +583,13 @@ export function useTerminalLifecycle({
       })
     }
 
-    const shellIntegrationDisposables = [133, 633].map((osc) =>
+    const commandMarks = new CommandMarks(term)
+    commandMarks.setEnabled(commandMarksEnabledRef.current)
+    commandMarksRef.current = commandMarks
+
+    const shellIntegrationDisposables = COMMAND_MARK_OSC_CODES.map((osc) =>
       term.parser.registerOscHandler(osc, (data) => {
+        commandMarks.handleMark(data)
         const command = parseShellIntegrationCommand(data)
         if (command) emitExecutedCommand(command)
         return false
@@ -628,6 +640,8 @@ export function useTerminalLifecycle({
         if (currentPromptKey === null) stopLoginScript()
         answerCurrentPrompt()
       }
+
+      if (data.includes("\r")) commandMarks.handleEnter()
 
       if (commandCaptureSuspended) {
         if (data.includes("\r") || data.includes("\n") || data.includes("\x03")) {
@@ -898,12 +912,16 @@ export function useTerminalLifecycle({
       onSavedPasswordPromptChange?.(tabId, sessionNonce, null)
       for (const disposable of scrollbackDisposables) disposable.dispose()
       for (const disposable of shellIntegrationDisposables) disposable.dispose()
+      commandMarks.dispose()
+      commandMarksRef.current = null
       for (const disposable of cwdReportDisposables) disposable.dispose()
       container.classList.remove("xterm-has-scrollback")
       container.replaceChildren()
     }
   }, [
     activateFitTimerRef,
+    commandMarksEnabledRef,
+    commandMarksRef,
     connectionRef,
     containerRef,
     configLetterSpacingRef,

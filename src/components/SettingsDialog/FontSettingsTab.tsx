@@ -1,5 +1,6 @@
 import React from "react"
-import { Eye, ListRestart, Type } from "lucide-react"
+import { invoke } from "@tauri-apps/api/core"
+import { Copy, Eye, ListRestart, Type } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -14,6 +15,8 @@ import {
   UNLIMITED_SCROLLBACK_SENTINEL,
   isUnlimitedScrollback,
 } from "@/lib/scrollback"
+import { toast } from "@/hooks/use-toast"
+import { FISH_SHELL_INTEGRATION, POSIX_SHELL_INTEGRATION } from "@/lib/remoteShellIntegration"
 import { cn } from "@/lib/utils"
 import { CursorStylePicker } from "@/components/SettingsDialog/CursorStylePicker"
 import { SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
@@ -43,6 +46,8 @@ interface FontSettingsTabProps {
   setConfirmMultilinePaste: (value: boolean) => void
   copyOnSelect: boolean
   setCopyOnSelect: (value: boolean) => void
+  commandMarks: boolean
+  setCommandMarks: (value: boolean) => void
   rightClickPaste: boolean
   setRightClickPaste: (value: boolean) => void
   lineHeight: number
@@ -80,6 +85,8 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
   setConfirmMultilinePaste,
   copyOnSelect,
   setCopyOnSelect,
+  commandMarks,
+  setCommandMarks,
   rightClickPaste,
   setRightClickPaste,
   lineHeight,
@@ -107,6 +114,14 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
   fontSizeOptions,
 }) => {
   const { t } = useTranslation()
+  const copyShellIntegration = (script: string) => {
+    invoke("plugin:clipboard-manager|write_text", { text: script })
+      .then(() => toast({ title: t("fontSettings.integrationCopied") }))
+      .catch((error) => {
+        console.error("Failed to copy shell integration script:", error)
+        toast({ title: t("terminalContext.copyFailedTitle"), variant: "destructive" })
+      })
+  }
   const [fontSearchQuery, setFontSearchQuery] = React.useState("")
   const [showNerdFontsOnly, setShowNerdFontsOnly] = React.useState(false)
 
@@ -444,6 +459,45 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
               id="terminal-right-click-paste"
               checked={rightClickPaste}
               onCheckedChange={setRightClickPaste}
+            />
+          </div>
+
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <Label htmlFor="terminal-command-marks" className="mb-1 block">
+                {t("fontSettings.commandMarks")}
+              </Label>
+              <p className="text-muted-foreground text-xs leading-5">
+                {t("fontSettings.commandMarksDesc")}
+              </p>
+              <p className="text-muted-foreground mt-2 text-xs leading-5">
+                {t("fontSettings.commandMarksRemote")}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={() => copyShellIntegration(POSIX_SHELL_INTEGRATION)}
+                >
+                  <Copy aria-hidden="true" />
+                  {t("fontSettings.copyPosixIntegration")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={() => copyShellIntegration(FISH_SHELL_INTEGRATION)}
+                >
+                  <Copy aria-hidden="true" />
+                  {t("fontSettings.copyFishIntegration")}
+                </Button>
+              </div>
+            </div>
+            <Switch
+              id="terminal-command-marks"
+              checked={commandMarks}
+              onCheckedChange={setCommandMarks}
             />
           </div>
 

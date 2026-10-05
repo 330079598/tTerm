@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next"
 import { Keyboard, Pause, Play, Square } from "lucide-react"
 import { ContextMenu } from "@/components/ContextMenu"
 import { SftpDrawer } from "@/components/SftpDrawer"
+import type { CommandMarks } from "@/components/TerminalTab/commandMarks"
 import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
 import { SshAuthPromptDialog } from "@/components/TerminalTab/SshAuthPromptDialog"
@@ -112,6 +113,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const sessionResetKey = `${tabId}:${sessionNonce}:${connection?.type ?? "terminal"}`
   const defaultConnectionState: ConnectionState = "connecting"
   const savedPasswordPromptActionsRef = useRef<SavedPasswordPromptActions | null>(null)
+  const commandMarksRef = useRef<CommandMarks | null>(null)
+  const commandMarksEnabledRef = useStableRef(config.command_marks)
   const [savedPasswordPrompt, setSavedPasswordPrompt] = useState<SavedPasswordPromptState | null>(
     null
   )
@@ -144,6 +147,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     x: number
     y: number
     selection: string
+    hasCommandOutput: boolean
   } | null>(null)
 
   const {
@@ -209,11 +213,14 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   useCatalogFor([connectionThemeId])
   const connectionPalette = connectionThemeId ? getTheme(connectionThemeId)?.terminal : undefined
   const resolveTerminalTheme = useCallback(
-    () =>
-      withWindowBlur(
+    () => ({
+      ...withWindowBlur(
         connectionPalette ?? getTheme(displayedTheme)?.terminal ?? getTheme("default")!.terminal,
         windowBlur
       ),
+      // The overview ruler under the scrollbar shows its marks only.
+      overviewRulerBorder: "#00000000",
+    }),
     [connectionPalette, displayedTheme, getTheme, windowBlur]
   )
 
@@ -310,6 +317,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
   useTerminalLifecycle({
     activateFitTimerRef,
+    commandMarksRef,
+    commandMarksEnabledRef,
     connectionRef,
     containerRef,
     creatingPtyRef,
@@ -415,6 +424,10 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     isActiveRef,
     scheduleFitDuringResize,
   ])
+
+  useEffect(() => {
+    commandMarksRef.current?.setEnabled(config.command_marks)
+  }, [config.command_marks, sessionNonce])
 
   useEffect(() => {
     const term = termRef.current
@@ -741,6 +754,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         x: event.clientX,
         y: event.clientY,
         selection: term?.hasSelection() ? term.getSelection() : "",
+        hasCommandOutput: commandMarksRef.current?.lastOutputRange() != null,
       })
     },
     [config.right_click_paste, pasteFromClipboard, showSftpDrawer]
@@ -755,6 +769,29 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     term.clearSelection()
     term.focus()
   }, [])
+
+  /** Selects and copies the output of the last command the shell marked. */
+  const copyLastCommandOutput = useCallback(async () => {
+    const marks = commandMarksRef.current
+    const text = marks?.lastOutputText()
+    if (!marks || text == null) return false
+    if (!text) {
+      toast({ title: t("terminalContext.commandOutputEmpty") })
+      return true
+    }
+    marks.selectLastOutput()
+    try {
+      await invoke("plugin:clipboard-manager|write_text", { text })
+    } catch (error) {
+      console.error("Failed to copy command output:", error)
+      toast({
+        title: t("terminalContext.copyFailedTitle"),
+        description: t("terminalContext.copyFailedDescription"),
+        variant: "destructive",
+      })
+    }
+    return true
+  }, [t])
 
   const armZmodemManualTrigger = useCallback(
     async (direction: "send" | "receive") => {
@@ -792,6 +829,10 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         clearTerminalHistory()
         return
       }
+      if (action === "copy-command-output") {
+        await copyLastCommandOutput()
+        return
+      }
       if (action === "copy" && selection) {
         try {
           await invoke("plugin:clipboard-manager|write_text", { text: selection })
@@ -826,6 +867,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       armZmodemManualTrigger,
       clearTerminalHistory,
       connection,
+      copyLastCommandOutput,
       onOpenCommandLibrary,
       onSaveCommand,
       pasteFromClipboard,
@@ -840,6 +882,12 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       label: t("terminalContext.copy"),
       icon: "copy",
       disabled: !terminalContextMenu?.selection,
+    },
+    {
+      action: "copy-command-output",
+      label: t("terminalContext.copyCommandOutput"),
+      icon: "copy",
+      disabled: !terminalContextMenu?.hasCommandOutput,
     },
     {
       action: "save",
@@ -894,6 +942,18 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       // half-typed password; at a password prompt the chord is a no-op.
       if (!actions.atPasswordPrompt()) return false
     })
+    const unregisterPreviousCommand = registerHandler("terminal.previousCommand", () => {
+      if (!isActiveRef.current) return false
+      return commandMarksRef.current?.scrollToPreviousPrompt() ?? false
+    })
+    const unregisterNextCommand = registerHandler("terminal.nextCommand", () => {
+      if (!isActiveRef.current) return false
+      return commandMarksRef.current?.scrollToNextPrompt() ?? false
+    })
+    const unregisterCopyCommandOutput = registerHandler("terminal.copyLastCommandOutput", () => {
+      if (!isActiveRef.current || !commandMarksRef.current?.lastOutputRange()) return false
+      void copyLastCommandOutput()
+    })
     const unregisterSaveSelection = registerHandler("terminal.saveSelection", () => {
       if (!isActiveRef.current) return false
       if (!containerRef.current?.contains(document.activeElement)) return false
@@ -914,11 +974,15 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       unregisterZmodemReceive()
       unregisterSaveSelection()
       unregisterFillSavedPassword()
+      unregisterPreviousCommand()
+      unregisterNextCommand()
+      unregisterCopyCommandOutput()
     }
   }, [
     armZmodemManualTrigger,
     clearTerminalHistory,
     connectionRef,
+    copyLastCommandOutput,
     handleToggleSftpDrawer,
     isActiveRef,
     onSaveCommand,

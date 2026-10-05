@@ -141,6 +141,11 @@ pub struct AppConfig {
     /// (Shift+right-click still opens it).
     #[serde(default)]
     pub right_click_paste: bool,
+    /// Local shells mark their prompts and commands (OSC 133), so the
+    /// terminal can jump between commands, copy a command's output and show
+    /// commands on the scrollbar.
+    #[serde(default = "default_command_marks")]
+    pub command_marks: bool,
     /// Terminal line height as a multiple of the font's cell height.
     #[serde(
         default = "default_terminal_line_height",
@@ -402,6 +407,10 @@ fn default_confirm_multiline_paste() -> bool {
     true
 }
 
+fn default_command_marks() -> bool {
+    true
+}
+
 fn default_terminal_line_height() -> f64 {
     1.0
 }
@@ -510,6 +519,7 @@ impl Default for AppConfig {
             confirm_multiline_paste: default_confirm_multiline_paste(),
             copy_on_select: false,
             right_click_paste: false,
+            command_marks: default_command_marks(),
             terminal_line_height: default_terminal_line_height(),
             terminal_letter_spacing: 0,
             keymap: default_keymap(),

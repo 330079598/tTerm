@@ -31,6 +31,13 @@ describe("resolveEffectiveKeymap", () => {
     expect(effective["terminal.zoomReset"]).toEqual(["mod+0", "mod+numpad0"])
   })
 
+  it("binds command jumps to Ctrl/Cmd+Up and Down and leaves copying output unbound", () => {
+    const effective = resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG)
+    expect(effective["terminal.previousCommand"]).toEqual(["mod+arrowup"])
+    expect(effective["terminal.nextCommand"]).toEqual(["mod+arrowdown"])
+    expect(effective["terminal.copyLastCommandOutput"]).toBeNull()
+  })
+
   it("supports multiple chords for one action (nth tab switching)", () => {
     const effective = resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG)
     expect(effective["tabs.switchToNth"]).toHaveLength(9)

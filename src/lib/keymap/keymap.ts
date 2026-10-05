@@ -43,6 +43,10 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   "terminal.zoomIn": ["mod+=", "mod+shift+=", "mod+numpadadd"],
   "terminal.zoomOut": ["mod+-", "mod+numpadsubtract"],
   "terminal.zoomReset": ["mod+0", "mod+numpad0"],
+  // Only taken from the shell once it has marked a prompt (OSC 133).
+  "terminal.previousCommand": "mod+arrowup",
+  "terminal.nextCommand": "mod+arrowdown",
+  "terminal.copyLastCommandOutput": null,
   "sftp.toggle": "ctrl+t",
   "sftp.selectAll": "mod+a",
   "sftp.focusPath": "mod+l",

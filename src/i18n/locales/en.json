@@ -322,7 +322,10 @@
         "fillSavedPassword": "Fill saved password at sudo prompt",
         "zoomIn": "Increase font size",
         "zoomOut": "Decrease font size",
-        "zoomReset": "Reset font size"
+        "zoomReset": "Reset font size",
+        "previousCommand": "Scroll to previous command",
+        "nextCommand": "Scroll to next command",
+        "copyLastCommandOutput": "Copy last command output"
       },
       "sftp": {
         "toggle": "Toggle SFTP panel",
@@ -1222,6 +1225,12 @@
     "copyOnSelectDesc": "Copy selected text to the clipboard as soon as you release the mouse button.",
     "rightClickPaste": "Right-click to paste",
     "rightClickPasteDesc": "Right-clicking the terminal pastes the clipboard. Shift+right-click still opens the menu.",
+    "commandMarks": "Mark commands (shell integration)",
+    "commandMarksRemote": "tTerm doesn't change shells on remote hosts. To use this over SSH, add the script to the end of ~/.bashrc or ~/.zshrc on the server (~/.config/fish/config.fish for fish); new sessions pick it up.",
+    "copyPosixIntegration": "Copy bash / zsh script",
+    "copyFishIntegration": "Copy fish script",
+    "integrationCopied": "Script copied",
+    "commandMarksDesc": "Local Windows shells mark each command's prompt and output (OSC 133), so Ctrl+Up/Down jumps between commands, the last command's output can be copied, and the scrollbar shows succeeded and failed commands in green and red. Applies to new tabs.",
     "lineHeight": "Line height",
     "letterSpacing": "Letter spacing (px)",
     "spacingDesc": "Line height is a multiple of the font's height (1.0–2.0); letter spacing adds pixels between characters (-5 to 10).",
@@ -1380,6 +1389,8 @@
   },
   "terminalContext": {
     "copy": "Copy",
+    "copyCommandOutput": "Copy last command output",
+    "commandOutputEmpty": "The last command printed nothing",
     "paste": "Paste",
     "saveCommand": "Save selected command",
     "findCommand": "Find in Command Library",

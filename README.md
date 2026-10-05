@@ -32,6 +32,7 @@ If you often connect to servers, move files between local and remote machines, o
 
 - Local shell with auto-detection, or pick one (on Windows: cmd, PowerShell, PowerShell 7, WSL, Git Bash, or a custom executable)
 - Search with real-time highlighting
+- **Command marks** (shell integration, OSC 133): jump between commands with `Ctrl/Cmd+Up` and `Down`, copy the last command's output, and see succeeded and failed commands on the scrollbar. Local Windows shells are set up automatically; for remote hosts, Settings has a script to add to `~/.bashrc`, `~/.zshrc`, or fish's `config.fish`
 - WebGL or Canvas renderer, configurable scrollback (10,000 lines by default)
 - Web link detection and clear-history action
 - Fully customizable keyboard shortcuts with conflict detection, including warnings when a binding would shadow common shell keys such as `Ctrl+A` or `Ctrl+R`

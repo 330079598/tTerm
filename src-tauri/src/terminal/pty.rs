@@ -334,21 +334,28 @@ fn build_windows_command(
     let user_args = shell == "custom" && !args.is_empty();
     let mut args = args;
     let mut env: Vec<(String, String)> = Vec::new();
+    let marks = crate::config::load_config_file()
+        .map(|config| config.command_marks)
+        .unwrap_or(true);
 
     match ShellKind::from_program(&program) {
         ShellKind::Cmd => {
             let user_prompt = std::env::var("PROMPT").ok();
             env.push((
                 "PROMPT".to_string(),
-                shell_integration::cmd_prompt(user_prompt.as_deref()),
+                shell_integration::cmd_prompt(user_prompt.as_deref(), marks),
             ));
         }
         ShellKind::PowerShell if !user_args => {
             args.extend(shell_integration::powershell_args());
+            env.extend(shell_integration::powershell_env(marks));
         }
         ShellKind::Bash => {
             let user_prompt_command = std::env::var("PROMPT_COMMAND").ok();
-            env.extend(shell_integration::bash_env(user_prompt_command.as_deref()));
+            env.extend(shell_integration::bash_env(
+                user_prompt_command.as_deref(),
+                marks,
+            ));
         }
         ShellKind::Wsl if !user_args => {
             // The WSL shell has to change into a Linux directory itself.
@@ -357,6 +364,7 @@ fn build_windows_command(
                     &dir,
                     config.cwd.as_deref(),
                     home,
+                    marks,
                 ));
             }
         }
