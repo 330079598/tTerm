@@ -60,6 +60,9 @@ export interface ConnectionForm {
   keepaliveIntervalSecs: number
   keepaliveCountMax: number
   encoding: TerminalEncoding
+  /** Theme id for this connection's terminal colors; empty follows the app theme. */
+  terminalTheme: string
+  loginScript: string
   terminalShell: TerminalShellType
   terminalShellCustomPath: string
   terminalShellCustomArgs: string
@@ -104,6 +107,8 @@ export const defaultForm: ConnectionForm = {
   keepaliveIntervalSecs: 15,
   keepaliveCountMax: 3,
   encoding: DEFAULT_TERMINAL_ENCODING,
+  terminalTheme: "",
+  loginScript: "",
   terminalShell: "auto",
   terminalShellCustomPath: "",
   terminalShellCustomArgs: "",

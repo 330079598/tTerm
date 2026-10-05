@@ -28,6 +28,8 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
       keepaliveCountMax: profile.keepalive_count_max,
       serverMonitorVisible: profile.server_monitor_visible === true,
       encoding: profile.encoding,
+      terminalTheme: profile.terminal_theme,
+      loginScript: profile.login_script,
       jumpHosts:
         useJumpHost && jumpHosts.length > 0
           ? jumpHosts.map((jump) => ({

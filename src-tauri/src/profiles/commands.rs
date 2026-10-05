@@ -111,6 +111,9 @@ pub fn import_ssh_config_profiles(
             sudo_password: None,
             clear_sudo_password: false,
             encoding: existing_index.and_then(|index| profiles[index].encoding.clone()),
+            terminal_theme: existing_index
+                .and_then(|index| profiles[index].terminal_theme.clone()),
+            login_script: existing_index.and_then(|index| profiles[index].login_script.clone()),
         };
 
         forward_sources.push((profile.id.clone(), profile.name.clone(), host.forwards));

@@ -36,6 +36,7 @@ import {
   type TerminalOutputScanState,
 } from "@/lib/terminalOutputScanner"
 import { matchPasswordPrompt, readCursorLine, type PasswordPromptMatch } from "@/lib/sudoPrompt"
+import { LoginScriptRunner, parseLoginScript } from "@/lib/loginScript"
 import { CWD_REPORT_OSC_CODES, parseCwdReport } from "@/lib/terminalCwd"
 import {
   captureTerminalInput,
@@ -397,6 +398,8 @@ export function useTerminalLifecycle({
     // Set once a filled password is refused; stays for this session so a
     // stale password cannot burn through the remote's lockout budget.
     let savedPasswordRejected = false
+    // Types the connection's login script; restarted on every (re)connect.
+    let loginScriptRunner: LoginScriptRunner | null = null
 
     // Every state change in this effect must go through these two helpers so
     // lastConnectionState stays in sync; otherwise the output-driven
@@ -488,6 +491,29 @@ export function useTerminalLifecycle({
       currentPromptKey = key
       clearSavedPasswordOffer()
       if (match && key !== answeredPromptKey) handlePasswordPrompt(match)
+    }
+
+    const stopLoginScript = () => {
+      loginScriptRunner?.stop()
+      loginScriptRunner = null
+    }
+
+    const startLoginScript = () => {
+      stopLoginScript()
+      const connection = connectionRef.current
+      if (connection?.type !== "ssh") return
+      const lines = parseLoginScript(connection.loginScript)
+      if (lines.length === 0) return
+      loginScriptRunner = new LoginScriptRunner({
+        lines,
+        // Written straight to this session: a login script is never broadcast.
+        send: (line) => {
+          if (disposed) return
+          invoke("write_pty", { tabId, sessionNonce, data: `${line}\r` }).catch(console.error)
+        },
+        readCursorLine: () => readCursorLine(term.buffer.active),
+        isAtPasswordPrompt: () => currentPromptKey !== null,
+      })
     }
 
     const fillSavedPassword = (): boolean => {
@@ -593,7 +619,11 @@ export function useTerminalLifecycle({
 
       // Typing at the prompt means the user answers it; replies the terminal
       // itself sends (focus, cursor reports) start with ESC and do not count.
-      if (!data.startsWith("\x1b")) answerCurrentPrompt()
+      if (!data.startsWith("\x1b")) {
+        // Typing anywhere else means the user takes over from the login script.
+        if (currentPromptKey === null) stopLoginScript()
+        answerCurrentPrompt()
+      }
 
       if (commandCaptureSuspended) {
         if (data.includes("\r") || data.includes("\n") || data.includes("\x03")) {
@@ -656,7 +686,10 @@ export function useTerminalLifecycle({
         setConnectionStateIfChanged("connected")
       }
 
-      term.write(text, checkPasswordPrompt)
+      term.write(text, () => {
+        checkPasswordPrompt()
+        loginScriptRunner?.noteOutput()
+      })
     }
 
     const outputChannel = new Channel<ArrayBuffer>(handleTerminalOutput)
@@ -666,6 +699,7 @@ export function useTerminalLifecycle({
         handleTerminalOutput(event.payload)
       }),
       listen(`pty-exit-${tabId}`, (event) => {
+        stopLoginScript()
         onSessionUnavailableRef.current?.(tabId, sessionNonce, true)
         const reason = event.payload as string | null | undefined
         if (connectionRef.current?.type === "ssh") {
@@ -702,7 +736,10 @@ export function useTerminalLifecycle({
             term.write(`\r\n\x1b[32m[${banner}]\x1b[0m\r\n`)
           }
           applyConnectionState("connected")
+          // Each attempt opens a new shell, so the script runs again.
+          startLoginScript()
         } else if (event.payload.phase === "retrying") {
+          stopLoginScript()
           sawRetryingPhase = true
           applyConnectionState("reconnecting")
         } else if (event.payload.phase === "retry_exhausted") {
@@ -801,6 +838,7 @@ export function useTerminalLifecycle({
     return () => {
       disposed = true
       passwordPromptCheckId += 1
+      stopLoginScript()
       savedPasswordPromptActionsRef.current = null
       lineFeedDisposable.dispose()
 

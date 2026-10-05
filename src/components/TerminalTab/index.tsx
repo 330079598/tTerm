@@ -33,7 +33,7 @@ import { isWindowBlurEnabled, useConfig } from "@/contexts/ConfigContext"
 import { isTransparentTerminalTheme, withWindowBlur } from "@/lib/terminalPalette"
 import type { TerminalRenderer } from "@/contexts/ConfigContext"
 import { useKeymap } from "@/contexts/KeymapContext"
-import { useTheme } from "@/contexts/ThemeContext"
+import { useCatalogFor, useTheme } from "@/contexts/ThemeContext"
 import { useStableRef } from "@/hooks/useStableRef"
 import { resolveScrollbackLines } from "@/lib/scrollback"
 import { safePreloadFont, updateCanvasFontHostFont } from "@/lib/canvasFontHost"
@@ -200,13 +200,19 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   )
 
   const windowBlur = isWindowBlurEnabled(config)
+  // A connection's own colors win over the app theme; one that no longer
+  // exists falls back to the app theme.
+  const connectionThemeId = connection?.type === "ssh" ? connection.terminalTheme : undefined
+  // A library theme resolves once the library has loaded.
+  useCatalogFor([connectionThemeId])
+  const connectionPalette = connectionThemeId ? getTheme(connectionThemeId)?.terminal : undefined
   const resolveTerminalTheme = useCallback(
     () =>
       withWindowBlur(
-        getTheme(displayedTheme)?.terminal ?? getTheme("default")!.terminal,
+        connectionPalette ?? getTheme(displayedTheme)?.terminal ?? getTheme("default")!.terminal,
         windowBlur
       ),
-    [displayedTheme, getTheme, windowBlur]
+    [connectionPalette, displayedTheme, getTheme, windowBlur]
   )
 
   const terminalTheme = useMemo(() => resolveTerminalTheme(), [resolveTerminalTheme])
@@ -931,7 +937,15 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         </div>
       )}
 
-      <div ref={surfaceRef} className="terminal-surface" style={terminalPaddingStyle}>
+      <div
+        ref={surfaceRef}
+        className="terminal-surface"
+        style={{
+          ...terminalPaddingStyle,
+          // The padding around the grid takes the connection's background too.
+          ...(connectionPalette && !windowBlur ? { background: connectionPalette.background } : {}),
+        }}
+      >
         <SftpDrawer
           tabId={tabId}
           visible={showSftpDrawer}
@@ -974,7 +988,9 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
             width: "100%",
             height: "100%",
             overflow: "hidden",
-            backgroundColor: windowBlur ? "transparent" : "hsl(var(--background))",
+            backgroundColor: windowBlur
+              ? "transparent"
+              : (connectionPalette?.background ?? "hsl(var(--background))"),
           }}
         />
 

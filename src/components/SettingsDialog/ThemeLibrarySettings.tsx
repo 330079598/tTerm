@@ -1,4 +1,4 @@
-import React, { useEffect } from "react"
+import React from "react"
 import { useTranslation } from "react-i18next"
 import { Copy, Moon, Star, Sun } from "lucide-react"
 
@@ -9,23 +9,11 @@ import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { useTheme } from "@/contexts/ThemeContext"
+import { useCatalogFor, useTheme } from "@/contexts/ThemeContext"
 import { toast } from "@/hooks/use-toast"
 import { catalogThemeName, isCatalogTheme, isCatalogThemeId } from "@/lib/themeCatalog"
 import type { Theme, ThemeSlot } from "@/types/theme"
 import { PRESET_THEME_IDS, type PresetThemeId } from "@/types/theme"
-
-/** Loads the theme library when one of `themeIds` comes from it. */
-function useCatalogFor(themeIds: string[]) {
-  const { catalogThemes, loadCatalogThemes } = useTheme()
-  const needed = catalogThemes === null && themeIds.some(isCatalogThemeId)
-  useEffect(() => {
-    if (!needed) return
-    loadCatalogThemes().catch((error: unknown) => {
-      console.error("Failed to load the theme library:", error)
-    })
-  }, [loadCatalogThemes, needed])
-}
 
 /** Runs a settings save, telling the user when it fails. */
 function useSave() {

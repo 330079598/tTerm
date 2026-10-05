@@ -1151,7 +1151,14 @@
       "windows-1252": "Windows-1252（西欧）",
       "windows-1251": "Windows-1251（西里尔文）",
       "koi8-r": "KOI8-R（西里尔文）"
-    }
+    },
+    "terminalTheme": "终端配色",
+    "terminalThemeFollowApp": "与应用主题一致",
+    "terminalThemeMissing": "{{id}}（未找到，使用应用主题）",
+    "terminalThemeDesc": "仅用于这个连接的终端配色，例如给生产环境用红色主题以便区分。对之后打开的标签页生效。",
+    "loginScript": "登录后执行",
+    "loginScriptPlaceholder": "cd /var/www/app\nsudo -i",
+    "loginScriptDesc": "shell 就绪后逐行输入，每行在上一条命令结束后再发送。遇到密码提示时会等你（或 sudo 自动填充）输入；你自己开始输入后剩余的行不再执行。重连后会再次执行。"
   },
   "rename": {
     "title": "重命名标签页",

@@ -1,5 +1,6 @@
 import { SavedProfile } from "@/components/ProfilesPanel"
 import { normalizeSshAuthMethod } from "@/lib/profileConnections"
+import type { TerminalPalette } from "@/types/theme"
 
 import {
   ConfigState,
@@ -36,6 +37,8 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     keepaliveIntervalSecs: profile.keepalive_interval_secs,
     keepaliveCountMax: profile.keepalive_count_max,
     encoding: normalizeTerminalEncoding(profile.encoding),
+    terminalTheme: profile.terminal_theme ?? "",
+    loginScript: profile.login_script ?? "",
     useJumpHost: profile.use_jump_host ?? jumpHosts.length > 0,
     sudoAutofill: profile.sudo_autofill !== false,
     jumpHosts: jumpHosts.map((jump) => ({
@@ -58,6 +61,37 @@ export function normalizeTerminalEncoding(value: string | null | undefined): Ter
 /** The charset to store or send: omitted for UTF-8, the default. */
 export function encodingPayload(encoding: TerminalEncoding): string | undefined {
   return encoding === DEFAULT_TERMINAL_ENCODING ? undefined : encoding
+}
+
+export interface ThemePickerGroup {
+  /** Heading of the group; `null` for entries listed above every group. */
+  label: string | null
+  themes: Array<{ id: string; label: string; palette?: TerminalPalette }>
+}
+
+/**
+ * The themes whose name holds every word of `query`, ignoring case; groups
+ * left empty are dropped.
+ */
+export function filterThemeGroups(
+  groups: readonly ThemePickerGroup[],
+  query: string
+): ThemePickerGroup[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+  return groups
+    .map((group) => ({
+      ...group,
+      themes: group.themes.filter((theme) => {
+        const name = theme.label.toLowerCase()
+        return words.every((word) => name.includes(word))
+      }),
+    }))
+    .filter((group) => group.themes.length > 0)
+}
+
+/** The login script to store or send: omitted when it has no commands. */
+export function loginScriptPayload(script: string): string | undefined {
+  return script.trim() ? script : undefined
 }
 
 export function buildInitialForm(

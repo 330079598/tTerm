@@ -76,6 +76,12 @@ pub struct SavedProfile {
     /// Charset label of the remote shell (`gbk`, `big5`, ...); UTF-8 when unset.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub encoding: Option<String>,
+    /// Theme whose terminal colors this connection's tabs use; the app theme when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub terminal_theme: Option<String>,
+    /// Commands typed into the remote shell once it is ready, one per line.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub login_script: Option<String>,
 }
 
 impl SavedProfile {

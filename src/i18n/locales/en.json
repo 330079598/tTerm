@@ -1164,7 +1164,14 @@
       "windows-1252": "Windows-1252 (Western European)",
       "windows-1251": "Windows-1251 (Cyrillic)",
       "koi8-r": "KOI8-R (Cyrillic)"
-    }
+    },
+    "terminalTheme": "Terminal colors",
+    "terminalThemeFollowApp": "Same as the app theme",
+    "terminalThemeMissing": "{{id}} (not found, using the app theme)",
+    "terminalThemeDesc": "Colors for this connection's terminal only, e.g. a red theme to tell production apart. Applies to tabs opened afterwards.",
+    "loginScript": "Run after login",
+    "loginScriptPlaceholder": "cd /var/www/app\nsudo -i",
+    "loginScriptDesc": "Typed into the shell one line at a time once it is ready, each after the previous command finishes. A password prompt is left for you (or sudo autofill) to answer; typing yourself stops the rest. Runs again after a reconnect."
   },
   "rename": {
     "title": "Rename Tab",

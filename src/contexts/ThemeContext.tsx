@@ -637,5 +637,18 @@ export function useTheme() {
   return context
 }
 
+/** Loads the theme library when one of `themeIds` comes from it. */
+export function useCatalogFor(themeIds: readonly (string | undefined)[]) {
+  const { catalogThemes, loadCatalogThemes } = useTheme()
+  const needed =
+    catalogThemes === null && themeIds.some((themeId) => !!themeId && isCatalogThemeId(themeId))
+  useEffect(() => {
+    if (!needed) return
+    loadCatalogThemes().catch((error: unknown) => {
+      console.error("Failed to load the theme library:", error)
+    })
+  }, [loadCatalogThemes, needed])
+}
+
 export type { Theme, CustomTheme, PresetTheme, PresetThemeId } from "@/types/theme"
 export { PRESET_THEMES }

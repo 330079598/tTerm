@@ -28,10 +28,12 @@ import {
   buildInitialForm,
   encodingPayload,
   getDefaultTitle,
+  loginScriptPayload,
   normalizeKeepalive,
 } from "@/components/ConnectionDialog/connectionDialogUtils"
 import { JumpHostFields } from "@/components/ConnectionDialog/JumpHostFields"
 import { SshConnectionFields } from "@/components/ConnectionDialog/SshConnectionFields"
+import { SessionCustomizationFields } from "@/components/ConnectionDialog/SessionCustomizationFields"
 import { SudoAutofillFields } from "@/components/ConnectionDialog/SudoAutofillFields"
 import { TerminalConnectionFields } from "@/components/ConnectionDialog/TerminalConnectionFields"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
@@ -388,6 +390,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         keepalive_count_max: keepalive.countMax,
         server_monitor_visible: editProfile?.server_monitor_visible === true,
         encoding: encodingPayload(form.encoding),
+        terminal_theme: form.terminalTheme || undefined,
+        login_script: loginScriptPayload(form.loginScript),
         use_jump_host: form.useJumpHost,
         jump_hosts: profileJumpHostsPayload,
         sudo_autofill: form.sudoAutofill,
@@ -447,6 +451,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         keepaliveCountMax: keepalive.countMax,
         serverMonitorVisible: editProfile?.server_monitor_visible === true,
         encoding: encodingPayload(form.encoding),
+        terminalTheme: form.terminalTheme || undefined,
+        loginScript: loginScriptPayload(form.loginScript),
         jumpHosts: connectionJumpHostsPayload,
       }
     } else {
@@ -695,6 +701,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
                 setForm={setForm}
                 savedSudoPasswordAvailable={savedSudoPasswordAvailable}
               />
+              <SessionCustomizationFields form={form} setForm={setForm} />
             </>
           )}
 

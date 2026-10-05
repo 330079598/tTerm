@@ -26,6 +26,10 @@ export interface SavedProfile {
   clear_sudo_password?: boolean
   /** Charset of the remote shell; missing means UTF-8. */
   encoding?: string
+  /** Theme whose terminal colors the connection's tabs use; missing means the app theme. */
+  terminal_theme?: string
+  /** Commands typed into the shell once it is ready, one per line. */
+  login_script?: string
 }
 
 export interface SavedJumpHost {
@@ -128,6 +132,10 @@ export interface Tab {
     jumpHosts?: JumpHostConnection[]
     /** SSH: charset of the remote shell; missing means UTF-8. */
     encoding?: string
+    /** SSH: theme whose terminal colors this tab uses; missing means the app theme. */
+    terminalTheme?: string
+    /** SSH: commands typed into the shell once it is ready, one per line. */
+    loginScript?: string
   }
   remoteFile?: {
     sourceTabId: string
