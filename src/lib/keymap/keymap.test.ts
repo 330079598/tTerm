@@ -24,6 +24,13 @@ describe("resolveEffectiveKeymap", () => {
     expect(effective["tabs.next"]).toEqual(["ctrl+tab"])
   })
 
+  it("binds the font zoom actions to Ctrl/Cmd +, - and 0", () => {
+    const effective = resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG)
+    expect(effective["terminal.zoomIn"]).toEqual(["mod+=", "mod+shift+=", "mod+numpadadd"])
+    expect(effective["terminal.zoomOut"]).toEqual(["mod+-", "mod+numpadsubtract"])
+    expect(effective["terminal.zoomReset"]).toEqual(["mod+0", "mod+numpad0"])
+  })
+
   it("supports multiple chords for one action (nth tab switching)", () => {
     const effective = resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG)
     expect(effective["tabs.switchToNth"]).toHaveLength(9)

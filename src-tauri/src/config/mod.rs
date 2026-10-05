@@ -133,6 +133,23 @@ pub struct AppConfig {
     /// each line as it arrives (one without bracketed paste mode).
     #[serde(default = "default_confirm_multiline_paste")]
     pub confirm_multiline_paste: bool,
+    /// Copy the terminal selection to the clipboard when the mouse button is
+    /// released, as PuTTY and Xshell do.
+    #[serde(default)]
+    pub copy_on_select: bool,
+    /// Right-clicking the terminal pastes instead of opening the context menu
+    /// (Shift+right-click still opens it).
+    #[serde(default)]
+    pub right_click_paste: bool,
+    /// Terminal line height as a multiple of the font's cell height.
+    #[serde(
+        default = "default_terminal_line_height",
+        deserialize_with = "deserialize_terminal_line_height"
+    )]
+    pub terminal_line_height: f64,
+    /// Extra pixels between terminal characters; may be negative.
+    #[serde(default, deserialize_with = "deserialize_terminal_letter_spacing")]
+    pub terminal_letter_spacing: i8,
     #[serde(default = "default_keymap")]
     pub keymap: KeymapConfig,
     /// What WebKit does with the page while the window is hidden (macOS 14+):
@@ -385,6 +402,26 @@ fn default_confirm_multiline_paste() -> bool {
     true
 }
 
+fn default_terminal_line_height() -> f64 {
+    1.0
+}
+
+fn deserialize_terminal_line_height<'de, D>(deserializer: D) -> Result<f64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = f64::deserialize(deserializer)?;
+    Ok(((value * 100.0).round() / 100.0).clamp(1.0, 2.0))
+}
+
+fn deserialize_terminal_letter_spacing<'de, D>(deserializer: D) -> Result<i8, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = f64::deserialize(deserializer)?;
+    Ok(value.round().clamp(-5.0, 10.0) as i8)
+}
+
 fn default_reconnect_max_attempts() -> u32 {
     5
 }
@@ -471,6 +508,10 @@ impl Default for AppConfig {
             sudo_prompt_patterns: Vec::new(),
             mac_option_is_meta: false,
             confirm_multiline_paste: default_confirm_multiline_paste(),
+            copy_on_select: false,
+            right_click_paste: false,
+            terminal_line_height: default_terminal_line_height(),
+            terminal_letter_spacing: 0,
             keymap: default_keymap(),
             background_throttling: default_background_throttling(),
             window_blur: false,
@@ -739,6 +780,23 @@ mod tests {
 
         assert_eq!(config.tab_width_mode, "adaptive");
         assert_eq!(config.tab_standard_width, 80);
+    }
+
+    #[test]
+    fn terminal_line_height_and_letter_spacing_are_clamped() {
+        let config: AppConfig = serde_json::from_str(
+            r#"{"theme":"default","terminal_line_height":1.234,"terminal_letter_spacing":-1.6}"#,
+        )
+        .unwrap();
+        assert_eq!(config.terminal_line_height, 1.23);
+        assert_eq!(config.terminal_letter_spacing, -2);
+
+        let config: AppConfig = serde_json::from_str(
+            r#"{"theme":"default","terminal_line_height":0.5,"terminal_letter_spacing":40}"#,
+        )
+        .unwrap();
+        assert_eq!(config.terminal_line_height, 1.0);
+        assert_eq!(config.terminal_letter_spacing, 10);
     }
 
     #[test]

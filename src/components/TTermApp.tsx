@@ -47,6 +47,7 @@ import { usePreloadedSession } from "@/hooks/usePreloadedSession"
 import { useSessionPersistence } from "@/hooks/useSessionPersistence"
 import { useTabContextMenu } from "@/hooks/useTabContextMenu"
 import { useTabs } from "@/hooks/useTabs"
+import { useTerminalFontZoom } from "@/hooks/useTerminalFontZoom"
 import { toast } from "@/hooks/use-toast"
 import { useWindowControls } from "@/hooks/useWindowControls"
 import { markSessionReady } from "@/lib/startup"
@@ -1273,6 +1274,8 @@ export const TTermApp: React.FC = () => {
       unregisterSplitBelow()
     }
   }, [registerHandler, handleSplitTab, activeTabId])
+
+  useTerminalFontZoom()
 
   const {
     nativeControlsReservePx,

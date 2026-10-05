@@ -188,10 +188,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const { info, InfoDialog } = useInfoDialog()
 
   const [fontFamily, setFontFamily] = useState(config.font_family)
-  const [fontSize, setFontSize] = useState(config.font_size)
+  // Follows the zoom shortcuts while the settings are open.
+  const [fontSize, setFontSize] = useSyncedState(config.font_size)
+  const [lineHeight, setLineHeight] = useState(config.terminal_line_height)
+  const [letterSpacing, setLetterSpacing] = useState(config.terminal_letter_spacing)
   const [cursorStyle, setCursorStyle] = useState(config.cursor_style)
   const [macOptionIsMeta, setMacOptionIsMeta] = useState(config.mac_option_is_meta)
   const [confirmMultilinePaste, setConfirmMultilinePaste] = useState(config.confirm_multiline_paste)
+  const [copyOnSelect, setCopyOnSelect] = useState(config.copy_on_select)
+  const [rightClickPaste, setRightClickPaste] = useState(config.right_click_paste)
   const [scrollbackLines, setScrollbackLines] = useState(() =>
     normalizeScrollbackLines(config.scrollback_lines)
   )
@@ -281,9 +286,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       await saveConfig({
         font_family: fontFamily,
         font_size: fontSize,
+        terminal_line_height: lineHeight,
+        terminal_letter_spacing: letterSpacing,
         cursor_style: cursorStyle,
         mac_option_is_meta: macOptionIsMeta,
         confirm_multiline_paste: confirmMultilinePaste,
+        copy_on_select: copyOnSelect,
+        right_click_paste: rightClickPaste,
         scrollback_lines: scrollbackLines,
         terminal_renderer: terminalRenderer,
         terminal_padding_left_px: terminalPaddingLeftPx,
@@ -711,6 +720,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               setMacOptionIsMeta={setMacOptionIsMeta}
               confirmMultilinePaste={confirmMultilinePaste}
               setConfirmMultilinePaste={setConfirmMultilinePaste}
+              copyOnSelect={copyOnSelect}
+              setCopyOnSelect={setCopyOnSelect}
+              rightClickPaste={rightClickPaste}
+              setRightClickPaste={setRightClickPaste}
+              lineHeight={lineHeight}
+              setLineHeight={setLineHeight}
+              letterSpacing={letterSpacing}
+              setLetterSpacing={setLetterSpacing}
               fontLoadError={fontLoadError}
               handleFontSave={handleFontSave}
               savingFont={savingFont}

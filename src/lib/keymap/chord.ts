@@ -70,6 +70,9 @@ const KEY_ALIAS_DISPLAY: Record<string, string> = {
   arrowdown: "↓",
   arrowleft: "←",
   arrowright: "→",
+  numpadadd: "Num+",
+  numpadsubtract: "Num-",
+  numpad0: "Num0",
 }
 
 const NAMED_KEY_RE = /^[a-z][a-z0-9]*$/

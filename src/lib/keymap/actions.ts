@@ -19,6 +19,9 @@ export type KeymapActionId =
   | "terminal.clear"
   | "terminal.saveSelection"
   | "terminal.fillSavedPassword"
+  | "terminal.zoomIn"
+  | "terminal.zoomOut"
+  | "terminal.zoomReset"
   // sftp
   | "sftp.toggle"
   | "sftp.selectAll"
@@ -58,6 +61,9 @@ export const KEYMAP_ACTIONS: KeymapActionDefinition[] = [
   { id: "terminal.clear", group: "terminal", allowInEditable: true },
   { id: "terminal.saveSelection", group: "terminal", allowInEditable: true },
   { id: "terminal.fillSavedPassword", group: "terminal", allowInEditable: true },
+  { id: "terminal.zoomIn", group: "terminal", allowInEditable: true },
+  { id: "terminal.zoomOut", group: "terminal", allowInEditable: true },
+  { id: "terminal.zoomReset", group: "terminal", allowInEditable: true },
   { id: "sftp.toggle", group: "sftp", allowInEditable: true },
   { id: "sftp.selectAll", group: "sftp", allowInEditable: false },
   { id: "sftp.focusPath", group: "sftp", allowInEditable: false },

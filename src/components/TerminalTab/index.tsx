@@ -103,6 +103,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const { t } = useTranslation()
   const configFontFamilyRef = useStableRef(config.font_family)
   const configFontSizeRef = useStableRef(config.font_size)
+  const configLineHeightRef = useStableRef(config.terminal_line_height)
+  const configLetterSpacingRef = useStableRef(config.terminal_letter_spacing)
   const configCursorStyleRef = useStableRef(config.cursor_style)
   const configMacOptionIsMetaRef = useStableRef(config.mac_option_is_meta)
   const configScrollbackLinesRef = useStableRef(config.scrollback_lines)
@@ -318,6 +320,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     configMacOptionIsMetaRef,
     configFontFamilyRef,
     configFontSizeRef,
+    configLineHeightRef,
+    configLetterSpacingRef,
     configScrollbackLinesRef,
     configTerminalRendererRef,
     terminalThemeRef,
@@ -354,7 +358,12 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
   useZmodemTransfers({ tabId, sessionNonce })
 
-  const lastAppliedFontRef = useRef<{ family: string; size: number } | null>(null)
+  const lastAppliedFontRef = useRef<{
+    family: string
+    size: number
+    lineHeight: number
+    letterSpacing: number
+  } | null>(null)
 
   useEffect(() => {
     const term = termRef.current
@@ -363,19 +372,26 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     term.options.cursorStyle = config.cursor_style
     term.options.macOptionIsMeta = config.mac_option_is_meta
 
+    const lastFont = lastAppliedFontRef.current
     const fontChanged =
-      !lastAppliedFontRef.current ||
-      lastAppliedFontRef.current.family !== config.font_family ||
-      lastAppliedFontRef.current.size !== config.font_size
+      !lastFont ||
+      lastFont.family !== config.font_family ||
+      lastFont.size !== config.font_size ||
+      lastFont.lineHeight !== config.terminal_line_height ||
+      lastFont.letterSpacing !== config.terminal_letter_spacing
 
     if (fontChanged) {
       lastAppliedFontRef.current = {
         family: config.font_family,
         size: config.font_size,
+        lineHeight: config.terminal_line_height,
+        letterSpacing: config.terminal_letter_spacing,
       }
       updateCanvasFontHostFont(config.font_family, config.font_size)
       term.options.fontFamily = config.font_family
       term.options.fontSize = config.font_size
+      term.options.lineHeight = config.terminal_line_height
+      term.options.letterSpacing = config.terminal_letter_spacing
 
       if (isActiveRef.current) {
         scheduleFitDuringResize()
@@ -394,6 +410,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     config.mac_option_is_meta,
     config.font_family,
     config.font_size,
+    config.terminal_letter_spacing,
+    config.terminal_line_height,
     isActiveRef,
     scheduleFitDuringResize,
   ])
@@ -662,19 +680,70 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     return () => document.removeEventListener("paste", handlePaste, true)
   }, [pasteIntoTerminal, pasteNeedsConfirm])
 
+  const pasteFromClipboard = useCallback(async () => {
+    try {
+      const clipboardText = await invoke<string>("plugin:clipboard-manager|read_text")
+      if (clipboardText) await pasteIntoTerminal(clipboardText)
+    } catch (error) {
+      console.error("Failed to paste into terminal:", error)
+      toast({
+        title: t("terminalContext.pasteFailedTitle"),
+        description: t("terminalContext.pasteFailedDescription"),
+        variant: "destructive",
+      })
+    }
+  }, [pasteIntoTerminal, t])
+
+  // Copy on select: the selection is final once the mouse button that made
+  // it is released, which may happen outside the terminal.
+  useEffect(() => {
+    const container = containerRef.current
+    if (!config.copy_on_select || !container) return
+
+    let copyTimer: number | null = null
+    const copySelection = () => {
+      copyTimer = window.setTimeout(() => {
+        copyTimer = null
+        const term = termRef.current
+        const selection = term?.hasSelection() ? term.getSelection() : ""
+        if (!selection) return
+        invoke("plugin:clipboard-manager|write_text", { text: selection }).catch((error) => {
+          console.error("Failed to copy terminal selection:", error)
+        })
+      }, 0)
+    }
+    const handleMouseDown = (event: MouseEvent) => {
+      if (event.button !== 0) return
+      document.removeEventListener("mouseup", copySelection, true)
+      document.addEventListener("mouseup", copySelection, { capture: true, once: true })
+    }
+
+    container.addEventListener("mousedown", handleMouseDown, true)
+    return () => {
+      container.removeEventListener("mousedown", handleMouseDown, true)
+      document.removeEventListener("mouseup", copySelection, true)
+      if (copyTimer !== null) window.clearTimeout(copyTimer)
+    }
+  }, [config.copy_on_select])
+
   const handleTerminalContextMenu = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       event.preventDefault()
       const term = termRef.current
       term?.focus()
       if (showSftpDrawer) setShowSftpDrawer(false)
+      // Shift+right-click still opens the menu.
+      if (config.right_click_paste && !event.shiftKey) {
+        void pasteFromClipboard()
+        return
+      }
       setTerminalContextMenu({
         x: event.clientX,
         y: event.clientY,
         selection: term?.hasSelection() ? term.getSelection() : "",
       })
     },
-    [showSftpDrawer]
+    [config.right_click_paste, pasteFromClipboard, showSftpDrawer]
   )
 
   const clearTerminalHistory = useCallback(() => {
@@ -750,17 +819,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         return
       }
       if (action === "paste") {
-        try {
-          const clipboardText = await invoke<string>("plugin:clipboard-manager|read_text")
-          if (clipboardText) await pasteIntoTerminal(clipboardText)
-        } catch (error) {
-          console.error("Failed to paste into terminal:", error)
-          toast({
-            title: t("terminalContext.pasteFailedTitle"),
-            description: t("terminalContext.pasteFailedDescription"),
-            variant: "destructive",
-          })
-        }
+        await pasteFromClipboard()
       }
     },
     [
@@ -769,7 +828,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       connection,
       onOpenCommandLibrary,
       onSaveCommand,
-      pasteIntoTerminal,
+      pasteFromClipboard,
       t,
       terminalContextMenu,
     ]

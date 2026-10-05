@@ -310,7 +310,10 @@
         "find": "在终端中查找",
         "clear": "清空终端",
         "saveSelection": "将选中文本收藏为命令",
-        "fillSavedPassword": "在 sudo 提示时填入已保存密码"
+        "fillSavedPassword": "在 sudo 提示时填入已保存密码",
+        "zoomIn": "增大字号",
+        "zoomOut": "减小字号",
+        "zoomReset": "重置字号"
       },
       "sftp": {
         "toggle": "切换 SFTP 面板",
@@ -1202,6 +1205,13 @@
     "macOptionIsMetaDesc": "开启后，Option+B、Option+F、Option+. 等组合会发送 Meta 键（ESC 前缀），即 shell 行编辑、Emacs、tmux 里的 Alt 快捷键。关闭时 Option 输入 macOS 的特殊字符。",
     "confirmMultilinePaste": "多行粘贴前确认",
     "confirmMultilinePasteDesc": "粘贴含换行的内容前先显示内容并询问，因为 shell 收到每一行就会立即执行。若 shell 或程序支持 bracketed paste（粘贴内容会等你按回车才执行），则不再询问。",
+    "copyOnSelect": "选中即复制",
+    "copyOnSelectDesc": "松开鼠标时自动将选中的文本复制到剪贴板。",
+    "rightClickPaste": "右键粘贴",
+    "rightClickPasteDesc": "在终端中右键直接粘贴剪贴板内容。按住 Shift 右键仍可打开菜单。",
+    "lineHeight": "行高",
+    "letterSpacing": "字间距（px）",
+    "spacingDesc": "行高为字体高度的倍数（1.0–2.0）；字间距为字符之间额外增加的像素（-5 到 10）。",
     "terminalPadding": "终端边距",
     "terminalPaddingLeft": "左侧",
     "terminalPaddingRight": "右侧",

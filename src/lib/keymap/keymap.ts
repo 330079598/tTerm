@@ -39,6 +39,10 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   "terminal.clear": "mod+shift+k",
   "terminal.saveSelection": "mod+shift+s",
   "terminal.fillSavedPassword": "mod+shift+enter",
+  // Shift+= is "+" on US layouts, so Ctrl++ zooms in as well.
+  "terminal.zoomIn": ["mod+=", "mod+shift+=", "mod+numpadadd"],
+  "terminal.zoomOut": ["mod+-", "mod+numpadsubtract"],
+  "terminal.zoomReset": ["mod+0", "mod+numpad0"],
   "sftp.toggle": "ctrl+t",
   "sftp.selectAll": "mod+a",
   "sftp.focusPath": "mod+l",

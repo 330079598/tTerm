@@ -17,7 +17,12 @@ import {
 import { cn } from "@/lib/utils"
 import { CursorStylePicker } from "@/components/SettingsDialog/CursorStylePicker"
 import { SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
-import { getDetectedPlatform, type TerminalRenderer } from "@/contexts/ConfigContext"
+import {
+  getDetectedPlatform,
+  TERMINAL_LETTER_SPACING_RANGE,
+  TERMINAL_LINE_HEIGHT_RANGE,
+  type TerminalRenderer,
+} from "@/contexts/ConfigContext"
 
 const SCROLLBACK_PRESETS = [1000, 5000, DEFAULT_SCROLLBACK_LINES, 50000, 100000] as const
 
@@ -36,6 +41,14 @@ interface FontSettingsTabProps {
   setMacOptionIsMeta: (value: boolean) => void
   confirmMultilinePaste: boolean
   setConfirmMultilinePaste: (value: boolean) => void
+  copyOnSelect: boolean
+  setCopyOnSelect: (value: boolean) => void
+  rightClickPaste: boolean
+  setRightClickPaste: (value: boolean) => void
+  lineHeight: number
+  setLineHeight: (value: number) => void
+  letterSpacing: number
+  setLetterSpacing: (value: number) => void
   fontLoadError: string | null
   handleFontSave: () => Promise<void>
   savingFont?: boolean
@@ -65,6 +78,14 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
   setMacOptionIsMeta,
   confirmMultilinePaste,
   setConfirmMultilinePaste,
+  copyOnSelect,
+  setCopyOnSelect,
+  rightClickPaste,
+  setRightClickPaste,
+  lineHeight,
+  setLineHeight,
+  letterSpacing,
+  setLetterSpacing,
   fontLoadError,
   handleFontSave,
   savingFont = false,
@@ -210,6 +231,56 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
             </div>
           </div>
 
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="terminal-line-height">{t("fontSettings.lineHeight")}</Label>
+              <Input
+                id="terminal-line-height"
+                type="number"
+                min={TERMINAL_LINE_HEIGHT_RANGE.min}
+                max={TERMINAL_LINE_HEIGHT_RANGE.max}
+                step={0.05}
+                value={lineHeight}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value)
+                  if (
+                    !isNaN(value) &&
+                    value >= TERMINAL_LINE_HEIGHT_RANGE.min &&
+                    value <= TERMINAL_LINE_HEIGHT_RANGE.max
+                  ) {
+                    setLineHeight(Math.round(value * 100) / 100)
+                  }
+                }}
+                className="h-8"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="terminal-letter-spacing">{t("fontSettings.letterSpacing")}</Label>
+              <Input
+                id="terminal-letter-spacing"
+                type="number"
+                min={TERMINAL_LETTER_SPACING_RANGE.min}
+                max={TERMINAL_LETTER_SPACING_RANGE.max}
+                step={1}
+                value={letterSpacing}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value, 10)
+                  if (
+                    !isNaN(value) &&
+                    value >= TERMINAL_LETTER_SPACING_RANGE.min &&
+                    value <= TERMINAL_LETTER_SPACING_RANGE.max
+                  ) {
+                    setLetterSpacing(value)
+                  }
+                }}
+                className="h-8"
+              />
+            </div>
+            <p className="text-muted-foreground text-xs sm:col-span-2">
+              {t("fontSettings.spacingDesc")}
+            </p>
+          </div>
+
           <div>
             <Label className="mb-2 block">{t("fontSettings.fontFamily")}</Label>
             <Input
@@ -344,6 +415,38 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
             />
           </div>
 
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <Label htmlFor="terminal-copy-on-select" className="mb-1 block">
+                {t("fontSettings.copyOnSelect")}
+              </Label>
+              <p className="text-muted-foreground text-xs leading-5">
+                {t("fontSettings.copyOnSelectDesc")}
+              </p>
+            </div>
+            <Switch
+              id="terminal-copy-on-select"
+              checked={copyOnSelect}
+              onCheckedChange={setCopyOnSelect}
+            />
+          </div>
+
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <Label htmlFor="terminal-right-click-paste" className="mb-1 block">
+                {t("fontSettings.rightClickPaste")}
+              </Label>
+              <p className="text-muted-foreground text-xs leading-5">
+                {t("fontSettings.rightClickPasteDesc")}
+              </p>
+            </div>
+            <Switch
+              id="terminal-right-click-paste"
+              checked={rightClickPaste}
+              onCheckedChange={setRightClickPaste}
+            />
+          </div>
+
           <div>
             <Label className="mb-2 block">
               {t("fontSettings.scrollbackLines", { defaultValue: "Scrollback Lines" })}
@@ -462,7 +565,12 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
             <Label className="mb-2 block">{t("fontSettings.preview")}</Label>
             <div
               className="bg-secondary text-foreground border-border rounded-lg border px-4 py-3"
-              style={{ fontFamily, fontSize: `${fontSize}px` }}
+              style={{
+                fontFamily,
+                fontSize: `${fontSize}px`,
+                lineHeight,
+                letterSpacing: `${letterSpacing}px`,
+              }}
             >
               The quick brown fox jumps over the lazy dog 0123456789
             </div>

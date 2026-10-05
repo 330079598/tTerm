@@ -319,7 +319,10 @@
         "find": "Find in terminal",
         "clear": "Clear terminal",
         "saveSelection": "Save selected text as command",
-        "fillSavedPassword": "Fill saved password at sudo prompt"
+        "fillSavedPassword": "Fill saved password at sudo prompt",
+        "zoomIn": "Increase font size",
+        "zoomOut": "Decrease font size",
+        "zoomReset": "Reset font size"
       },
       "sftp": {
         "toggle": "Toggle SFTP panel",
@@ -1215,6 +1218,13 @@
     "macOptionIsMetaDesc": "Option+B, Option+F, Option+. and the like send Meta (an ESC prefix), which is what shell line editing, Emacs and tmux expect from Alt. When off, Option types macOS's alternate characters.",
     "confirmMultilinePaste": "Confirm multiline paste",
     "confirmMultilinePasteDesc": "Show the text and ask before pasting anything with line breaks, since a shell runs each line as soon as it arrives. Not asked when the shell or program supports bracketed paste, which holds the text until you press Enter.",
+    "copyOnSelect": "Copy on select",
+    "copyOnSelectDesc": "Copy selected text to the clipboard as soon as you release the mouse button.",
+    "rightClickPaste": "Right-click to paste",
+    "rightClickPasteDesc": "Right-clicking the terminal pastes the clipboard. Shift+right-click still opens the menu.",
+    "lineHeight": "Line height",
+    "letterSpacing": "Letter spacing (px)",
+    "spacingDesc": "Line height is a multiple of the font's height (1.0–2.0); letter spacing adds pixels between characters (-5 to 10).",
     "terminalPadding": "Terminal Padding",
     "terminalPaddingLeft": "Left",
     "terminalPaddingRight": "Right",

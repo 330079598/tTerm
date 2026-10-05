@@ -171,6 +171,14 @@ export interface AppConfig {
   mac_option_is_meta: boolean
   /** Ask before pasting multiple lines into a shell without bracketed paste mode. */
   confirm_multiline_paste: boolean
+  /** Copy the terminal selection to the clipboard when the mouse button is released. */
+  copy_on_select: boolean
+  /** Right-click pastes instead of opening the menu; Shift+right-click still opens it. */
+  right_click_paste: boolean
+  /** Multiple of the font's cell height. */
+  terminal_line_height: number
+  /** Extra pixels between characters; may be negative. */
+  terminal_letter_spacing: number
   keymap: KeymapConfig
   background_throttling: BackgroundThrottling
   /** Blur what is behind the window (macOS, Windows), tinted with the theme background. */
@@ -190,6 +198,8 @@ const defaultUpdateChannel = /-(alpha|beta|rc|dev)(\.|$)/.test(
   ? "beta-dev"
   : "stable"
 
+export const DEFAULT_TERMINAL_FONT_SIZE = 14
+
 export const DEFAULT_TERMINAL_FONT_FAMILY =
   '"JetBrains Mono Nerd Font", "JetBrainsMono Nerd Font", "JetBrains Mono", "Fira Code", Menlo, Monaco, monospace'
 
@@ -201,7 +211,7 @@ const defaultConfig: AppConfig = {
   favorite_themes: [],
   language: detectSystemLanguage(),
   font_family: DEFAULT_TERMINAL_FONT_FAMILY,
-  font_size: 14,
+  font_size: DEFAULT_TERMINAL_FONT_SIZE,
   ui_scale_percent: 100,
   cursor_style: "block",
   terminal_shell: "auto",
@@ -241,6 +251,10 @@ const defaultConfig: AppConfig = {
   sudo_prompt_patterns: [],
   mac_option_is_meta: false,
   confirm_multiline_paste: true,
+  copy_on_select: false,
+  right_click_paste: false,
+  terminal_line_height: 1,
+  terminal_letter_spacing: 0,
   keymap: { ...DEFAULT_KEYMAP_CONFIG, bindings: {} },
   background_throttling: "throttle",
   window_blur: false,
@@ -354,6 +368,20 @@ export function normalizeUiScalePercent(value: Partial<AppConfig>["ui_scale_perc
   return Math.min(Math.max(Math.round(value / 10) * 10, 80), 200)
 }
 
+export const TERMINAL_FONT_SIZE_RANGE = { min: 6, max: 72 } as const
+export const TERMINAL_LINE_HEIGHT_RANGE = { min: 1, max: 2 } as const
+export const TERMINAL_LETTER_SPACING_RANGE = { min: -5, max: 10 } as const
+
+export function normalizeTerminalLineHeight(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 1
+  }
+  return Math.min(
+    Math.max(Math.round(value * 100) / 100, TERMINAL_LINE_HEIGHT_RANGE.min),
+    TERMINAL_LINE_HEIGHT_RANGE.max
+  )
+}
+
 export const WINDOW_OPACITY_PERCENT_RANGE = { min: 30, max: 95 } as const
 export const WINDOW_BLUR_RADIUS_RANGE = { min: 1, max: 60 } as const
 
@@ -444,6 +472,14 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     ui_scale_percent: normalizeUiScalePercent(config.ui_scale_percent),
     mac_option_is_meta: config.mac_option_is_meta === true,
     confirm_multiline_paste: config.confirm_multiline_paste !== false,
+    copy_on_select: config.copy_on_select === true,
+    right_click_paste: config.right_click_paste === true,
+    terminal_line_height: normalizeTerminalLineHeight(config.terminal_line_height),
+    terminal_letter_spacing: normalizeRoundedInRange(
+      config.terminal_letter_spacing,
+      TERMINAL_LETTER_SPACING_RANGE,
+      0
+    ),
     keymap: normalizeKeymap(config.keymap),
     background_throttling:
       config.background_throttling === "disabled" || config.background_throttling === "suspend"

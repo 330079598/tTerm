@@ -62,6 +62,8 @@ type UseTerminalLifecycleOptions = {
   configMacOptionIsMetaRef?: React.RefObject<boolean>
   configFontFamilyRef?: React.RefObject<string>
   configFontSizeRef?: React.RefObject<number>
+  configLineHeightRef?: React.RefObject<number>
+  configLetterSpacingRef?: React.RefObject<number>
   configScrollbackLinesRef?: React.RefObject<number>
   configTerminalRendererRef?: React.RefObject<TerminalRenderer>
   terminalThemeRef?: React.RefObject<NonNullable<Terminal["options"]["theme"]>>
@@ -148,6 +150,8 @@ export function useTerminalLifecycle({
   configMacOptionIsMetaRef,
   configFontFamilyRef,
   configFontSizeRef,
+  configLineHeightRef,
+  configLetterSpacingRef,
   configScrollbackLinesRef,
   configTerminalRendererRef,
   terminalThemeRef,
@@ -293,8 +297,8 @@ export function useTerminalLifecycle({
       fontFamily: fontFamilyRef.current,
       fontWeight: "normal",
       fontWeightBold: "bold",
-      letterSpacing: 0,
-      lineHeight: 1.0,
+      letterSpacing: configLetterSpacingRef?.current ?? 0,
+      lineHeight: configLineHeightRef?.current ?? 1,
       theme: themeRef.current,
       allowTransparency: isTransparentTerminalTheme(themeRef.current),
       allowProposedApi: true,
@@ -902,6 +906,8 @@ export function useTerminalLifecycle({
     activateFitTimerRef,
     connectionRef,
     containerRef,
+    configLetterSpacingRef,
+    configLineHeightRef,
     configMacOptionIsMetaRef,
     creatingPtyRef,
     cursorStyleRef,
