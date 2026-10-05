@@ -1,7 +1,15 @@
 use serde::Serialize;
+use std::future::Future;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use tauri::{ipc::Channel, Manager};
 use tauri_plugin_updater::UpdaterExt;
+
+const UPDATE_CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
+// Resets after every chunk, so a slow but steady download is never cut off; only a stall is.
+const UPDATE_READ_TIMEOUT: Duration = Duration::from_secs(30);
+const UPDATE_MAX_ATTEMPTS: u32 = 3;
+const UPDATE_RETRY_BASE_DELAY: Duration = Duration::from_secs(2);
 
 #[derive(Default)]
 pub struct PendingUpdateDownloads(
@@ -11,6 +19,9 @@ pub struct PendingUpdateDownloads(
 #[derive(Clone)]
 pub struct PendingUpdateDownload {
     path: PathBuf,
+    // The metadata the bytes were downloaded and signature-checked against, so installing
+    // needs no network and always applies exactly the downloaded release.
+    update: tauri_plugin_updater::Update,
 }
 
 #[derive(Clone, Serialize)]
@@ -43,6 +54,34 @@ fn update_endpoint(channel: &str) -> &'static str {
     }
 }
 
+fn is_retryable_update_error(err: &tauri_plugin_updater::Error) -> bool {
+    matches!(
+        err,
+        tauri_plugin_updater::Error::Reqwest(_)
+            | tauri_plugin_updater::Error::Network(_)
+            // The check reports a non-2xx manifest response as ReleaseNotFound.
+            | tauri_plugin_updater::Error::ReleaseNotFound
+    )
+}
+
+async fn retry_update_request<T, F, Fut>(mut request: F) -> Result<T, tauri_plugin_updater::Error>
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Result<T, tauri_plugin_updater::Error>>,
+{
+    let mut attempt = 1;
+    loop {
+        match request().await {
+            Err(err) if attempt < UPDATE_MAX_ATTEMPTS && is_retryable_update_error(&err) => {
+                eprintln!("Update request failed (attempt {attempt}/{UPDATE_MAX_ATTEMPTS}): {err}");
+                tokio::time::sleep(UPDATE_RETRY_BASE_DELAY * attempt).await;
+                attempt += 1;
+            }
+            result => return result,
+        }
+    }
+}
+
 async fn find_app_update(
     app: &tauri::AppHandle,
     channel: &str,
@@ -50,14 +89,47 @@ async fn find_app_update(
     let endpoint = tauri::Url::parse(update_endpoint(channel))
         .map_err(|e| format!("Invalid update endpoint: {e}"))?;
 
-    app.updater_builder()
+    let updater = app
+        .updater_builder()
         .endpoints(vec![endpoint])
         .map_err(|e| e.to_string())?
+        .configure_client(|client| {
+            client
+                .connect_timeout(UPDATE_CONNECT_TIMEOUT)
+                .read_timeout(UPDATE_READ_TIMEOUT)
+        })
         .build()
-        .map_err(|e| e.to_string())?
-        .check()
+        .map_err(|e| e.to_string())?;
+
+    retry_update_request(|| updater.check())
         .await
         .map_err(|e| e.to_string())
+}
+
+async fn download_update_bytes(
+    update: &tauri_plugin_updater::Update,
+    on_event: &Channel<AppUpdateDownloadEvent>,
+) -> Result<Vec<u8>, String> {
+    retry_update_request(|| async move {
+        // Every attempt restarts from zero, so the frontend resets its byte count on Started.
+        let mut started = false;
+        update
+            .download(
+                |chunk_length, content_length| {
+                    if !started {
+                        let _ = on_event.send(AppUpdateDownloadEvent::Started { content_length });
+                        started = true;
+                    }
+                    let _ = on_event.send(AppUpdateDownloadEvent::Progress { chunk_length });
+                },
+                || {
+                    let _ = on_event.send(AppUpdateDownloadEvent::Finished);
+                },
+            )
+            .await
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -86,46 +158,28 @@ pub async fn download_app_update(
         return Ok(false);
     };
 
-    let mut started = false;
-    let bytes = update
-        .download(
-            |chunk_length, content_length| {
-                if !started {
-                    let _ = on_event.send(AppUpdateDownloadEvent::Started { content_length });
-                    started = true;
-                }
-                let _ = on_event.send(AppUpdateDownloadEvent::Progress { chunk_length });
-            },
-            || {
-                let _ = on_event.send(AppUpdateDownloadEvent::Finished);
-            },
-        )
-        .await
-        .map_err(|e| e.to_string())?;
+    let bytes = download_update_bytes(&update, &on_event).await?;
 
     let update_path = pending_update_download_path(&app, &channel)?;
     write_pending_update_download(&channel, &update_path, &bytes).await?;
 
-    let previous_download = downloads
-        .0
-        .write()
-        .await
-        .insert(channel, PendingUpdateDownload { path: update_path });
+    let previous_download = downloads.0.write().await.insert(
+        channel,
+        PendingUpdateDownload {
+            path: update_path,
+            update,
+        },
+    );
     remove_pending_update_download(previous_download).await;
     Ok(true)
 }
 
 #[tauri::command]
 pub async fn install_downloaded_app_update(
-    app: tauri::AppHandle,
     downloads: tauri::State<'_, PendingUpdateDownloads>,
     channel: String,
 ) -> Result<bool, String> {
     let Some(download) = downloads.0.read().await.get(&channel).cloned() else {
-        return Ok(false);
-    };
-    let Some(update) = find_app_update(&app, &channel).await? else {
-        remove_cached_update(downloads.inner(), &channel).await;
         return Ok(false);
     };
 
@@ -141,7 +195,7 @@ pub async fn install_downloaded_app_update(
         }
     };
     let app_bundle_path = current_macos_app_bundle_path();
-    update.install(bytes).map_err(|e| e.to_string())?;
+    download.update.install(bytes).map_err(|e| e.to_string())?;
     clear_macos_quarantine_after_update(app_bundle_path.as_deref());
     remove_cached_update(downloads.inner(), &channel).await;
     Ok(true)
@@ -158,23 +212,9 @@ pub async fn download_install_app_update(
         return Ok(false);
     };
 
-    let mut started = false;
+    let bytes = download_update_bytes(&update, &on_event).await?;
     let app_bundle_path = current_macos_app_bundle_path();
-    update
-        .download_and_install(
-            |chunk_length, content_length| {
-                if !started {
-                    let _ = on_event.send(AppUpdateDownloadEvent::Started { content_length });
-                    started = true;
-                }
-                let _ = on_event.send(AppUpdateDownloadEvent::Progress { chunk_length });
-            },
-            || {
-                let _ = on_event.send(AppUpdateDownloadEvent::Finished);
-            },
-        )
-        .await
-        .map_err(|e| e.to_string())?;
+    update.install(bytes).map_err(|e| e.to_string())?;
 
     clear_macos_quarantine_after_update(app_bundle_path.as_deref());
     remove_cached_update(downloads.inner(), &channel).await;
@@ -376,4 +416,54 @@ pub fn cleanup_stale_pending_update_files(app: &tauri::AppHandle) -> Result<(), 
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    #[tokio::test(start_paused = true)]
+    async fn retries_network_errors_until_success() {
+        let calls = AtomicU32::new(0);
+        let result = retry_update_request(|| async {
+            if calls.fetch_add(1, Ordering::SeqCst) < UPDATE_MAX_ATTEMPTS - 1 {
+                Err(tauri_plugin_updater::Error::Network("reset".into()))
+            } else {
+                Ok(7)
+            }
+        })
+        .await;
+
+        assert_eq!(result.unwrap(), 7);
+        assert_eq!(calls.load(Ordering::SeqCst), UPDATE_MAX_ATTEMPTS);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn stops_after_max_attempts() {
+        let calls = AtomicU32::new(0);
+        let result: Result<(), _> = retry_update_request(|| async {
+            calls.fetch_add(1, Ordering::SeqCst);
+            Err(tauri_plugin_updater::Error::Network("reset".into()))
+        })
+        .await;
+
+        assert!(result.is_err());
+        assert_eq!(calls.load(Ordering::SeqCst), UPDATE_MAX_ATTEMPTS);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn does_not_retry_non_network_errors() {
+        let calls = AtomicU32::new(0);
+        let result: Result<(), _> = retry_update_request(|| async {
+            calls.fetch_add(1, Ordering::SeqCst);
+            Err(tauri_plugin_updater::Error::TargetNotFound(
+                "windows-x86_64".into(),
+            ))
+        })
+        .await;
+
+        assert!(result.is_err());
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+    }
 }

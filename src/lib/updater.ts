@@ -195,6 +195,8 @@ async function runDownloadAppUpdate(channel: UpdateChannel, publishDownloaded: b
       const onEvent = new Channel<DownloadEvent>()
       onEvent.onmessage = (event) => {
         if (event.event === "Started") {
+          // The backend sends Started again when it retries a failed download from scratch.
+          downloadedBytes = 0
           totalBytes = event.data.contentLength ?? undefined
           publish({ downloadedBytes, totalBytes })
           return

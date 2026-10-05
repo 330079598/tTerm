@@ -68,6 +68,34 @@ describe("app updater state transitions", () => {
     unsubscribe()
   })
 
+  it("restarts the progress count when the backend retries a download", async () => {
+    mocks.invoke.mockImplementation(
+      async (command: string, args?: { onEvent?: { onmessage?: (event: unknown) => void } }) => {
+        if (command === "check_app_update") return update
+        if (command === "download_app_update") {
+          const send = args?.onEvent?.onmessage
+          send?.({ event: "Started", data: { contentLength: 100 } })
+          send?.({ event: "Progress", data: { chunkLength: 60 } })
+          send?.({ event: "Started", data: { contentLength: 100 } })
+          send?.({ event: "Progress", data: { chunkLength: 100 } })
+          send?.({ event: "Finished" })
+          return true
+        }
+        throw new Error(`Unexpected command: ${command}`)
+      }
+    )
+    const updater = await loadUpdater()
+    await updater.checkForAppUpdate("stable")
+
+    await updater.downloadAppUpdate("stable")
+
+    expect(updater.getUpdaterState()).toMatchObject({
+      status: "downloaded",
+      downloadedBytes: 100,
+      totalBytes: 100,
+    })
+  })
+
   it("coalesces repeated download and install requests", async () => {
     const updater = await loadUpdater()
     await updater.checkForAppUpdate("stable")
