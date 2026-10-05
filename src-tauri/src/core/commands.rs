@@ -304,7 +304,7 @@ pub fn write_pty(
             .map_err(|e| format!("Failed to write to PTY: {}", e)),
         ActiveSession::Ssh(ssh) => ssh
             .input_tx
-            .send(input.clone())
+            .send(ssh.encoding.encode_input(&input).into_owned())
             .map_err(|_| format!("PTY session {} is not writable", tab_id)),
     };
     if result.is_ok() {
@@ -393,7 +393,7 @@ fn write_active_session(tab_id: String, active: &mut ActiveSession, data: &[u8])
         ActiveSession::Local(local) => local.writer.write_all(data),
         ActiveSession::Ssh(ssh) => ssh
             .input_tx
-            .send(data.to_vec())
+            .send(ssh.encoding.encode_input(data).into_owned())
             .map_err(|_| std::io::Error::other("SSH input channel is closed")),
     };
 
@@ -516,6 +516,7 @@ mod batch_write_tests {
                 resize_tx,
                 task: runtime.spawn(async {}),
                 output_tail: Default::default(),
+                encoding: Default::default(),
             },
         ))));
         (
@@ -844,9 +845,13 @@ pub fn write_saved_password_for_sudo(
     };
 
     // The channel takes ownership, so only this copy can be wiped here.
-    let mut data = zeroize::Zeroizing::new(Vec::with_capacity(password.len() + 1));
-    data.extend_from_slice(password.as_bytes());
+    let encoded = ssh.encoding.encode_input(password.as_bytes());
+    let mut data = zeroize::Zeroizing::new(Vec::with_capacity(encoded.len() + 1));
+    data.extend_from_slice(&encoded);
     data.push(b'\n');
+    if let std::borrow::Cow::Owned(mut converted) = encoded {
+        zeroize::Zeroize::zeroize(&mut converted);
+    }
 
     ssh.input_tx
         .send(data.to_vec())

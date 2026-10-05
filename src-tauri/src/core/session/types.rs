@@ -127,6 +127,8 @@ pub struct PtyConnectionOptions {
     pub agent_forward: bool,
     /// Ordered jump host chain to tunnel through before reaching the target.
     pub jump_hosts: Vec<JumpHostOptions>,
+    /// SSH: charset label of the remote shell (`gbk`, `big5`, ...); UTF-8 when unset.
+    pub encoding: Option<String>,
     #[cfg(target_os = "windows")]
     pub terminal_shell: Option<String>,
     #[cfg(target_os = "windows")]
@@ -173,6 +175,8 @@ pub(crate) struct RawPtyConnectionOptions {
     legacy_jump_host: Option<JumpHostOptions>,
     #[serde(default, alias = "jumpHosts")]
     jump_hosts: Vec<JumpHostOptions>,
+    #[serde(default)]
+    encoding: Option<String>,
     #[cfg(target_os = "windows")]
     #[serde(default, alias = "terminalShell")]
     terminal_shell: Option<String>,
@@ -211,6 +215,7 @@ impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
             auth_method: raw.auth_method,
             agent_forward: raw.agent_forward,
             jump_hosts,
+            encoding: raw.encoding,
             #[cfg(target_os = "windows")]
             terminal_shell: raw.terminal_shell,
             #[cfg(target_os = "windows")]
@@ -241,6 +246,7 @@ impl Default for PtyConnectionOptions {
             auth_method: None,
             agent_forward: false,
             jump_hosts: Vec::new(),
+            encoding: None,
             #[cfg(target_os = "windows")]
             terminal_shell: None,
             #[cfg(target_os = "windows")]
@@ -285,4 +291,6 @@ pub struct SessionPlan {
     pub terminal_shell: Option<TerminalShellConfig>,
     /// Ordered resolved jump host chain; empty means direct connection.
     pub jump_hosts: Vec<JumpHostPlan>,
+    /// Charset of the remote shell; output is decoded and input encoded with it.
+    pub encoding: crate::terminal::TerminalEncoding,
 }

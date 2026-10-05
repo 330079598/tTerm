@@ -102,6 +102,7 @@ mod tests {
             agent_forward: false,
             terminal_shell: None,
             jump_hosts: Vec::new(),
+            encoding: Default::default(),
         }
     }
 

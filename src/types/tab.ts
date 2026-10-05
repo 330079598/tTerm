@@ -24,6 +24,8 @@ export interface SavedProfile {
   sudo_password?: string
   /** Write-only: remove the stored sudo password. */
   clear_sudo_password?: boolean
+  /** Charset of the remote shell; missing means UTF-8. */
+  encoding?: string
 }
 
 export interface SavedJumpHost {
@@ -124,6 +126,8 @@ export interface Tab {
     cwd?: string
     /** Ordered jump host chain to tunnel through. */
     jumpHosts?: JumpHostConnection[]
+    /** SSH: charset of the remote shell; missing means UTF-8. */
+    encoding?: string
   }
   remoteFile?: {
     sourceTabId: string

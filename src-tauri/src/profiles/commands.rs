@@ -110,6 +110,7 @@ pub fn import_ssh_config_profiles(
             sudo_autofill: existing_index.is_none_or(|index| profiles[index].sudo_autofill),
             sudo_password: None,
             clear_sudo_password: false,
+            encoding: existing_index.and_then(|index| profiles[index].encoding.clone()),
         };
 
         forward_sources.push((profile.id.clone(), profile.name.clone(), host.forwards));
@@ -482,6 +483,7 @@ pub async fn test_connection(
         reconnect_enabled: false,
         reconnect_max_attempts: 0,
         jump_hosts,
+        encoding: Default::default(),
     };
 
     let test_tab_id = format!("test-{}", profile.id);

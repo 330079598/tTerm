@@ -69,6 +69,7 @@ pub fn normalize_connection(
             agent_forward: false,
             terminal_shell,
             jump_hosts: Vec::new(),
+            encoding: Default::default(),
         }),
         SessionKind::Ssh => {
             let host = connection
@@ -145,6 +146,9 @@ pub fn normalize_connection(
                 agent_forward,
                 terminal_shell: None,
                 jump_hosts,
+                encoding: crate::terminal::TerminalEncoding::from_label(
+                    connection.encoding.as_deref(),
+                ),
             })
         }
     }

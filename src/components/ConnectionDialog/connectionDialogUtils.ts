@@ -6,9 +6,12 @@ import {
   ConnectionForm,
   ConnectionType,
   createDefaultJumpHost,
+  DEFAULT_TERMINAL_ENCODING,
   defaultForm,
   KEEPALIVE_COUNT_RANGE,
   KEEPALIVE_INTERVAL_RANGE,
+  TERMINAL_ENCODINGS,
+  TerminalEncoding,
 } from "@/components/ConnectionDialog/types"
 
 export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionForm {
@@ -32,6 +35,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     privateKeyPath: profile.private_key_path ?? "",
     keepaliveIntervalSecs: profile.keepalive_interval_secs,
     keepaliveCountMax: profile.keepalive_count_max,
+    encoding: normalizeTerminalEncoding(profile.encoding),
     useJumpHost: profile.use_jump_host ?? jumpHosts.length > 0,
     sudoAutofill: profile.sudo_autofill !== false,
     jumpHosts: jumpHosts.map((jump) => ({
@@ -43,6 +47,17 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
       privateKeyPath: jump.private_key_path ?? "",
     })),
   }
+}
+
+/** A saved charset label as one the dialog offers; anything else is UTF-8. */
+export function normalizeTerminalEncoding(value: string | null | undefined): TerminalEncoding {
+  const label = value?.trim().toLowerCase()
+  return TERMINAL_ENCODINGS.find((encoding) => encoding === label) ?? DEFAULT_TERMINAL_ENCODING
+}
+
+/** The charset to store or send: omitted for UTF-8, the default. */
+export function encodingPayload(encoding: TerminalEncoding): string | undefined {
+  return encoding === DEFAULT_TERMINAL_ENCODING ? undefined : encoding
 }
 
 export function buildInitialForm(

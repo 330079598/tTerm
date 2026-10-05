@@ -1,5 +1,6 @@
 #[cfg(unix)]
 mod cwd_watch;
+mod encoding;
 mod io_batcher;
 mod output_tail;
 mod pty;
@@ -10,6 +11,7 @@ mod types;
 
 #[cfg(unix)]
 pub use cwd_watch::spawn_cwd_watcher;
+pub use encoding::{OutputDecoder, TerminalEncoding};
 pub use io_batcher::TerminalOutputSender;
 pub use output_tail::OutputTail;
 pub use pty::{

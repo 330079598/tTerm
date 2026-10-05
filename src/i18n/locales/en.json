@@ -1150,7 +1150,21 @@
     "sudoPasswordClearHint": "The saved sudo password will be removed when the profile is saved.",
     "keepaliveInterval": "Keepalive interval (seconds)",
     "keepaliveCountMax": "Missed replies before disconnect",
-    "keepaliveDesc": "A keepalive is sent every {{interval}} s. After {{count}} in a row go unanswered (about {{timeout}} s), the connection is treated as lost."
+    "keepaliveDesc": "A keepalive is sent every {{interval}} s. After {{count}} in a row go unanswered (about {{timeout}} s), the connection is treated as lost.",
+    "encoding": "Character encoding",
+    "encodingDesc": "The character set the remote shell uses. Change it when non-English text shows up garbled, as on older network devices. SFTP file names are not affected. Takes effect on the next connect.",
+    "encodingOptions": {
+      "utf-8": "UTF-8 (default)",
+      "gbk": "GBK (Simplified Chinese)",
+      "gb18030": "GB18030 (Simplified Chinese)",
+      "big5": "Big5 (Traditional Chinese)",
+      "shift_jis": "Shift_JIS (Japanese)",
+      "euc-jp": "EUC-JP (Japanese)",
+      "euc-kr": "EUC-KR (Korean)",
+      "windows-1252": "Windows-1252 (Western European)",
+      "windows-1251": "Windows-1251 (Cyrillic)",
+      "koi8-r": "KOI8-R (Cyrillic)"
+    }
   },
   "rename": {
     "title": "Rename Tab",

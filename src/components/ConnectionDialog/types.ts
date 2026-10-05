@@ -15,6 +15,24 @@ export type ConnectionType = "terminal" | "ssh"
 export type ConfigState = ReturnType<typeof useConfig>["config"]
 export type SaveConfig = ReturnType<typeof useConfig>["saveConfig"]
 
+/** Charsets offered for SSH sessions, as WHATWG labels the backend resolves. */
+export const TERMINAL_ENCODINGS = [
+  "utf-8",
+  "gbk",
+  "gb18030",
+  "big5",
+  "shift_jis",
+  "euc-jp",
+  "euc-kr",
+  "windows-1252",
+  "windows-1251",
+  "koi8-r",
+] as const
+
+export type TerminalEncoding = (typeof TERMINAL_ENCODINGS)[number]
+
+export const DEFAULT_TERMINAL_ENCODING: TerminalEncoding = "utf-8"
+
 export interface JumpHostForm {
   id: string
   host: string
@@ -41,6 +59,7 @@ export interface ConnectionForm {
   privateKeyPassphrase: string
   keepaliveIntervalSecs: number
   keepaliveCountMax: number
+  encoding: TerminalEncoding
   terminalShell: TerminalShellType
   terminalShellCustomPath: string
   terminalShellCustomArgs: string
@@ -84,6 +103,7 @@ export const defaultForm: ConnectionForm = {
   privateKeyPassphrase: "",
   keepaliveIntervalSecs: 15,
   keepaliveCountMax: 3,
+  encoding: DEFAULT_TERMINAL_ENCODING,
   terminalShell: "auto",
   terminalShellCustomPath: "",
   terminalShellCustomArgs: "",

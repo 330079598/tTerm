@@ -73,6 +73,9 @@ pub struct SavedProfile {
     /// Remove the stored sudo password on save.
     #[serde(default, skip_serializing)]
     pub clear_sudo_password: bool,
+    /// Charset label of the remote shell (`gbk`, `big5`, ...); UTF-8 when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encoding: Option<String>,
 }
 
 impl SavedProfile {

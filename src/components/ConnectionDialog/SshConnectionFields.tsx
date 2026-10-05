@@ -10,12 +10,17 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
+import { Select } from "@/components/ui/select"
 
-import { normalizeKeepalive } from "@/components/ConnectionDialog/connectionDialogUtils"
+import {
+  normalizeKeepalive,
+  normalizeTerminalEncoding,
+} from "@/components/ConnectionDialog/connectionDialogUtils"
 import {
   ConnectionForm,
   KEEPALIVE_COUNT_RANGE,
   KEEPALIVE_INTERVAL_RANGE,
+  TERMINAL_ENCODINGS,
 } from "@/components/ConnectionDialog/types"
 
 const SAVED_PASSWORD_MASK = "********"
@@ -290,6 +295,29 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
           </div>
         </div>
       )}
+
+      <div>
+        <Label htmlFor="conn-encoding" className="mb-1.5 block">
+          {t("connection.encoding")}
+        </Label>
+        <Select
+          id="conn-encoding"
+          value={form.encoding}
+          onChange={(e) =>
+            setForm((current) => ({
+              ...current,
+              encoding: normalizeTerminalEncoding(e.target.value),
+            }))
+          }
+        >
+          {TERMINAL_ENCODINGS.map((encoding) => (
+            <option key={encoding} value={encoding}>
+              {t(`connection.encodingOptions.${encoding}`)}
+            </option>
+          ))}
+        </Select>
+        <p className="text-muted-foreground mt-1 text-xs">{t("connection.encodingDesc")}</p>
+      </div>
 
       <div>
         <div className="grid grid-cols-2 gap-3">

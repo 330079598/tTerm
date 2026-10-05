@@ -259,6 +259,7 @@ fn wired_send_uploads_a_file_to_real_rz_over_a_real_ssh_channel() {
                 resize_tx,
                 task: tokio::spawn(async {}),
                 output_tail: Default::default(),
+                encoding: Default::default(),
             }),
         )));
 

@@ -54,13 +54,27 @@ fn run_blocking<T>(f: impl FnOnce() -> T) -> T {
     }
 }
 
-/// Forwards one output batch to the webview.
+/// Forwards one output batch to the webview, converted to UTF-8 when the
+/// session uses another charset.
 fn deliver_output(
     app: &tauri::AppHandle,
     tab_id: &str,
     sender: Option<&crate::terminal::TerminalOutputSender>,
+    decoder: Option<&mut crate::terminal::OutputDecoder>,
     payload: Vec<u8>,
 ) {
+    let payload = match decoder {
+        Some(decoder) => {
+            let decoded = decoder.decode(&payload);
+            // Logged after decoding (see `record_raw_output`).
+            crate::session_log::record_output(app, tab_id, &decoded);
+            decoded
+        }
+        None => payload,
+    };
+    if payload.is_empty() {
+        return;
+    }
     match sender {
         Some(sender) => run_blocking(|| sender.send(payload)),
         None => {
@@ -245,6 +259,11 @@ pub async fn run_single_ssh_connection(
     // subsequent byte is piped here instead of through `zmodem_driver` —
     // see `ZmodemSendPipe`'s doc comment.
     let mut zmodem_send_pipe = crate::zmodem::ZmodemSendPipe::default();
+    let mut output_decoder = plan.encoding.output_decoder();
+    // A UTF-8 session logs output as received. A transcoded one logs it in
+    // `deliver_output` instead, since bytes in a foreign charset would be
+    // unreadable in a plain-text log.
+    let record_raw_output = output_decoder.is_none();
 
     loop {
         tokio::select! {
@@ -291,7 +310,9 @@ pub async fn run_single_ssh_connection(
             event = reader.wait() => {
                 match event {
                     Some(ChannelMsg::Data { data }) => {
-                        crate::session_log::record_output(&app, &tab_id, data.as_ref());
+                        if record_raw_output {
+                            crate::session_log::record_output(&app, &tab_id, data.as_ref());
+                        }
 
                         if zmodem_send_pipe.try_forward(data.as_ref()) {
                             continue;
@@ -340,13 +361,27 @@ pub async fn run_single_ssh_connection(
                                 continue;
                             }
                             if !outcome.passthrough.is_empty() {
-                                deliver_output(&app, &tab_id, sender.as_ref(), outcome.passthrough);
+                                deliver_output(
+                                    &app,
+                                    &tab_id,
+                                    sender.as_ref(),
+                                    output_decoder.as_mut(),
+                                    outcome.passthrough,
+                                );
                             }
                         }
                     }
                     Some(ChannelMsg::ExtendedData { data, .. }) => {
-                        crate::session_log::record_output(&app, &tab_id, data.as_ref());
-                        deliver_output(&app, &tab_id, sender.as_ref(), data.as_ref().to_vec());
+                        if record_raw_output {
+                            crate::session_log::record_output(&app, &tab_id, data.as_ref());
+                        }
+                        deliver_output(
+                            &app,
+                            &tab_id,
+                            sender.as_ref(),
+                            output_decoder.as_mut(),
+                            data.as_ref().to_vec(),
+                        );
                     }
                     Some(ChannelMsg::ExitStatus { .. }) => {
                         let _ = session.disconnect(Disconnect::ByApplication, "Shell exited", "en").await;

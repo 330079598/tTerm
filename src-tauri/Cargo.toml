@@ -50,6 +50,7 @@ quick-xml = "0.42"
 percent-encoding = "2"
 rand = "0.10"
 vte = "0.15"
+encoding_rs = "0.8"
 zeroize = "1"
 # `v1` (default) picks Keychain / Credential Manager / Secret Service per platform.
 keyring = "4"

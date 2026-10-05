@@ -26,6 +26,7 @@ import { Tab, type JumpHostConnection, type SavedJumpHost } from "@/types/tab"
 
 import {
   buildInitialForm,
+  encodingPayload,
   getDefaultTitle,
   normalizeKeepalive,
 } from "@/components/ConnectionDialog/connectionDialogUtils"
@@ -386,6 +387,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         keepalive_interval_secs: keepalive.intervalSecs,
         keepalive_count_max: keepalive.countMax,
         server_monitor_visible: editProfile?.server_monitor_visible === true,
+        encoding: encodingPayload(form.encoding),
         use_jump_host: form.useJumpHost,
         jump_hosts: profileJumpHostsPayload,
         sudo_autofill: form.sudoAutofill,
@@ -444,6 +446,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         keepaliveIntervalSecs: keepalive.intervalSecs,
         keepaliveCountMax: keepalive.countMax,
         serverMonitorVisible: editProfile?.server_monitor_visible === true,
+        encoding: encodingPayload(form.encoding),
         jumpHosts: connectionJumpHostsPayload,
       }
     } else {

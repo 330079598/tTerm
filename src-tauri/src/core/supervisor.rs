@@ -74,6 +74,7 @@ pub(crate) fn spawn_ssh_attempt(
     let (input_tx, input_rx) = mpsc::unbounded_channel::<Vec<u8>>();
     let (resize_tx, resize_rx) = mpsc::unbounded_channel::<(u16, u16)>();
     let output_tail = Arc::new(crate::terminal::OutputTail::default());
+    let encoding = plan.encoding;
     let sender = crate::terminal::TerminalOutputSender::spawn(&tab_id, output_channel)
         .with_output_tail(output_tail.clone());
 
@@ -106,6 +107,7 @@ pub(crate) fn spawn_ssh_attempt(
         resize_tx,
         task,
         output_tail,
+        encoding,
     }
 }
 

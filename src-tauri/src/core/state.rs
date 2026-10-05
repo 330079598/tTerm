@@ -72,6 +72,9 @@ pub struct ActiveSsh {
     pub task: tokio::task::JoinHandle<()>,
     /// Recent output of this connection attempt, for saved-password writes.
     pub output_tail: Arc<crate::terminal::OutputTail>,
+    /// Charset typed text is encoded to before it is sent; ZMODEM bytes,
+    /// which share `input_tx`, are sent as they are.
+    pub encoding: crate::terminal::TerminalEncoding,
 }
 
 /// Lock-free atomic storage for terminal dimensions (rows, cols).

@@ -27,6 +27,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
       keepaliveIntervalSecs: profile.keepalive_interval_secs,
       keepaliveCountMax: profile.keepalive_count_max,
       serverMonitorVisible: profile.server_monitor_visible === true,
+      encoding: profile.encoding,
       jumpHosts:
         useJumpHost && jumpHosts.length > 0
           ? jumpHosts.map((jump) => ({

@@ -1137,7 +1137,21 @@
     "sudoPasswordClearHint": "保存连接配置时将删除已保存的 sudo 密码。",
     "keepaliveInterval": "心跳间隔（秒）",
     "keepaliveCountMax": "判定断线的无响应次数",
-    "keepaliveDesc": "每 {{interval}} 秒发送一次心跳，连续 {{count}} 次无响应（约 {{timeout}} 秒）后判定连接已断开。"
+    "keepaliveDesc": "每 {{interval}} 秒发送一次心跳，连续 {{count}} 次无响应（约 {{timeout}} 秒）后判定连接已断开。",
+    "encoding": "字符编码",
+    "encodingDesc": "远程 shell 使用的字符集。中文等非英文字符显示为乱码时（常见于较旧的网络设备）请修改此项。不影响 SFTP 文件名。下次连接时生效。",
+    "encodingOptions": {
+      "utf-8": "UTF-8（默认）",
+      "gbk": "GBK（简体中文）",
+      "gb18030": "GB18030（简体中文）",
+      "big5": "Big5（繁体中文）",
+      "shift_jis": "Shift_JIS（日文）",
+      "euc-jp": "EUC-JP（日文）",
+      "euc-kr": "EUC-KR（韩文）",
+      "windows-1252": "Windows-1252（西欧）",
+      "windows-1251": "Windows-1251（西里尔文）",
+      "koi8-r": "KOI8-R（西里尔文）"
+    }
   },
   "rename": {
     "title": "重命名标签页",
