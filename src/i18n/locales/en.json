@@ -1460,8 +1460,9 @@
     "canceled": "Verification was canceled.",
     "methods": {
       "system": "Windows Hello is required before saved passwords are shown or exported.",
+      "systemMac": "Touch ID or the login password is required before saved passwords are shown or exported.",
       "masterPassword": "The master password is required before saved passwords are shown or exported.",
-      "none": "This device has no system verification (such as Windows Hello), so showing or exporting passwords is not verified. Set a recovery password to require it instead."
+      "none": "This device has no system verification (such as Windows Hello or Touch ID), so showing or exporting passwords is not verified. Set a recovery password to require it instead."
     }
   },
   "transfer": {

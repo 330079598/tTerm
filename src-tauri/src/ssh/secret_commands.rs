@@ -128,7 +128,7 @@ pub async fn verify_user(
     input: VerifyUserInput,
     secret_state: State<'_, SecretStoreState>,
 ) -> Result<(), String> {
-    // Waits on the Windows Hello prompt or on key derivation.
+    // Waits on the OS prompt or on key derivation.
     let secret_state = secret_state.inner().clone();
     run_blocking(move || {
         let password = input.password.map(Zeroizing::new);

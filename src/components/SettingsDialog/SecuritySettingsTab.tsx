@@ -26,7 +26,12 @@ import { KnownHostsCard } from "@/components/SettingsDialog/KnownHostsCard"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
 import type { VaultAction } from "@/components/SettingsDialog/types"
 import type { useConfirmDialog, useInfoDialog } from "@/components/ui/app-dialog"
-import { useConfig, type SavedSecretEntry, type SecretStorageMode } from "@/contexts/ConfigContext"
+import {
+  getDetectedPlatform,
+  useConfig,
+  type SavedSecretEntry,
+  type SecretStorageMode,
+} from "@/contexts/ConfigContext"
 import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { useToast } from "@/hooks/use-toast"
 import { isVerificationCanceled } from "@/lib/userVerification"
@@ -699,7 +704,12 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
                 </div>
                 {mode !== "memory" && (
                   <div className="text-muted-foreground mt-1 text-xs leading-5">
-                    {t(`userVerification.methods.${secretStatus.verificationMethod}`)}
+                    {t(
+                      secretStatus.verificationMethod === "system" &&
+                        getDetectedPlatform() === "macos"
+                        ? "userVerification.methods.systemMac"
+                        : `userVerification.methods.${secretStatus.verificationMethod}`
+                    )}
                   </div>
                 )}
               </div>

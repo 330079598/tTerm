@@ -3,8 +3,8 @@
 //! to a newly chosen WebDAV server. The check runs here rather than in the
 //! web view, so a script there cannot skip it.
 //!
-//! Windows Hello is used when the OS offers it, else the master password.
-//! Without either (e.g. Linux in `system` mode with no recovery password)
+//! Windows Hello or Touch ID is used when the OS offers it, else the master
+//! password. Without either (e.g. Linux in `system` mode with no recovery password)
 //! there is nothing to check against and the operations run as before.
 
 use super::types::{SecretStorageMode, SecretStoreRuntime};
@@ -95,7 +95,7 @@ impl SecretStoreRuntime {
 }
 
 impl SecretStoreState {
-    /// Checked once per run; a failed Windows Hello prompt checks again.
+    /// Checked once per run; a failed OS prompt checks again.
     pub(super) fn os_verifier_available(&self) -> Result<bool, String> {
         if let Some(value) = self.runtime()?.os_verifier_available {
             return Ok(value);
@@ -127,8 +127,8 @@ impl SecretStoreState {
         }
     }
 
-    /// Asks for Windows Hello or checks `password` against the master
-    /// password, then allows `purpose` for a short while. Blocks.
+    /// Asks the OS (Windows Hello, Touch ID) or checks `password` against the
+    /// master password, then allows `purpose` for a short while. Blocks.
     pub fn verify_user(
         &self,
         app: &AppHandle,
@@ -139,7 +139,7 @@ impl SecretStoreState {
             VerificationMethod::System => {
                 if let Err(error) = os_verifier::verify(app, prompt_message(purpose)) {
                     if error != os_verifier::CANCELED {
-                        // Windows Hello may have been turned off since.
+                        // The OS check may have been turned off since.
                         self.runtime()?.os_verifier_available = None;
                     }
                     return Err(error);
@@ -160,9 +160,18 @@ impl SecretStoreState {
     }
 }
 
-/// Shown by Windows in its own prompt, in the app's language.
+/// Shown by the OS in its own prompt, in the app's language. macOS words it
+/// as "tTerm is trying to <reason>".
 fn prompt_message(purpose: VerificationPurpose) -> &'static str {
     let chinese = crate::config::load_config_file().is_ok_and(|config| config.language == "zh");
+    if cfg!(target_os = "macos") {
+        return match (purpose, chinese) {
+            (VerificationPurpose::Reveal, true) => "显示已保存的密码",
+            (VerificationPurpose::Reveal, false) => "show a saved password",
+            (VerificationPurpose::Sensitive, true) => "访问已保存的密码",
+            (VerificationPurpose::Sensitive, false) => "access saved passwords",
+        };
+    }
     match (purpose, chinese) {
         (VerificationPurpose::Reveal, true) => "tTerm 需要验证你的身份才能显示已保存的密码。",
         (VerificationPurpose::Reveal, false) => {

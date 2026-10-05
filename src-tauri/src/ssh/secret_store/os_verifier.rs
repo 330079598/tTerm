@@ -1,6 +1,59 @@
 //! The operating system's own check that the person at the keyboard is the
-//! signed-in user (Windows Hello: PIN, fingerprint or face). Other platforms
-//! have none tTerm can rely on, so they fall back to the master password.
+//! signed-in user (Windows Hello: PIN, fingerprint or face; macOS: Touch ID
+//! or the login password). Linux has none tTerm can rely on, so it falls back
+//! to the master password.
+
+#[cfg(target_os = "macos")]
+mod platform {
+    use block2::RcBlock;
+    use objc2::runtime::Bool;
+    use objc2_foundation::{NSError, NSString};
+    use objc2_local_authentication::{LAContext, LAError, LAPolicy};
+    use std::sync::mpsc;
+    use tauri::AppHandle;
+
+    /// Touch ID when the Mac has it set up, else the login password.
+    const POLICY: LAPolicy = LAPolicy::DeviceOwnerAuthentication;
+
+    pub(crate) fn available() -> bool {
+        let context = unsafe { LAContext::new() };
+        unsafe { context.canEvaluatePolicy_error(POLICY) }.is_ok()
+    }
+
+    /// Shows the system prompt and waits for it. Blocks, so it must not run
+    /// on the main thread.
+    pub(crate) fn verify(_app: &AppHandle, message: &str) -> Result<(), String> {
+        let context = unsafe { LAContext::new() };
+        let (sender, receiver) = mpsc::channel();
+        let reply = RcBlock::new(move |success: Bool, error: *mut NSError| {
+            let code = unsafe { error.as_ref() }.map(|error| error.code());
+            let _ = sender.send((success.as_bool(), code));
+        });
+        unsafe {
+            context.evaluatePolicy_localizedReason_reply(
+                POLICY,
+                &NSString::from_str(message),
+                &reply,
+            )
+        };
+        let (success, code) = receiver
+            .recv()
+            .map_err(|_| "Touch ID did not answer.".to_string())?;
+        if success {
+            return Ok(());
+        }
+        match code.map(LAError) {
+            Some(LAError::UserCancel | LAError::SystemCancel | LAError::AppCancel) => {
+                Err(super::CANCELED.to_string())
+            }
+            Some(LAError::PasscodeNotSet) => Err("This Mac has no login password set.".to_string()),
+            Some(LAError::BiometryLockout) => {
+                Err("Too many failed attempts. Try again later.".to_string())
+            }
+            _ => Err("macOS could not verify you.".to_string()),
+        }
+    }
+}
 
 #[cfg(target_os = "windows")]
 mod platform {
@@ -60,7 +113,7 @@ mod platform {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 mod platform {
     use tauri::AppHandle;
 

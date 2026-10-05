@@ -18,7 +18,7 @@ pub struct SecretBackendStatus {
     /// moved into the database.
     pub migration_pending: bool,
     /// How showing or exporting saved passwords is confirmed: `system`
-    /// (Windows Hello), `masterPassword`, or `none`.
+    /// (Windows Hello, Touch ID), `masterPassword`, or `none`.
     pub verification_method: String,
     pub message: Option<String>,
 }

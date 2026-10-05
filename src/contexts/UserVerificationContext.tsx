@@ -28,7 +28,7 @@ const WRONG_MASTER_PASSWORD = "Incorrect master password."
 interface UserVerificationContextValue {
   /**
    * Runs `action`; when the backend asks for verification first, verifies
-   * the user (Windows Hello or the master password) and runs it once more.
+   * the user (Windows Hello, Touch ID or the master password) and runs it once more.
    * Throws `UserVerificationCanceledError` when the user backs out.
    */
   withVerification: <T>(purpose: VerificationPurpose, action: () => Promise<T>) => Promise<T>

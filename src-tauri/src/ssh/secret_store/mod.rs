@@ -277,8 +277,8 @@ impl SecretStoreState {
     /// Runs at startup: moves passwords saved by older versions into the
     /// database once, then unlocks from the credential store in `system` mode.
     pub fn initialize(&self, app: &AppHandle) {
-        // Looking for Windows Hello can take a moment; do it off the main
-        // thread before the status is first asked for.
+        // Looking for Windows Hello or Touch ID can take a moment; do it off
+        // the main thread before the status is first asked for.
         let state = self.clone();
         std::thread::spawn(move || {
             let _ = state.os_verifier_available();
@@ -501,7 +501,7 @@ impl SecretStoreState {
                 "Unlock saved passwords with the system credential store first.".to_string(),
             );
         }
-        // Without Windows Hello the recovery password is what guards showing
+        // Without an OS check the recovery password is what guards showing
         // and exporting saved passwords.
         self.require_verification(VerificationPurpose::Sensitive)?;
         database.write(|transaction| store::delete_wrap(transaction, WRAP_PASSWORD))?;

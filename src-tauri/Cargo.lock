@@ -3350,6 +3350,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc2-local-authentication"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e48e0b8b339e0d9d2ed4416b7f93f9d4daadff7d4dd797f89867cde11aeac607"
+dependencies = [
+ "block2",
+ "objc2",
+ "objc2-foundation",
+]
+
+[[package]]
 name = "objc2-osa-kit"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5314,6 +5325,7 @@ dependencies = [
  "argon2",
  "async-trait",
  "base64 0.23.1",
+ "block2",
  "chrono",
  "crc32fast",
  "flate2",
@@ -5321,6 +5333,8 @@ dependencies = [
  "libc",
  "num-bigint 0.5.1",
  "objc2",
+ "objc2-foundation",
+ "objc2-local-authentication",
  "percent-encoding",
  "portable-pty",
  "quick-xml 0.42.0",
