@@ -39,6 +39,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     encoding: normalizeTerminalEncoding(profile.encoding),
     terminalTheme: profile.terminal_theme ?? "",
     loginScript: profile.login_script ?? "",
+    shellIntegration: profile.shell_integration === true,
     useJumpHost: profile.use_jump_host ?? jumpHosts.length > 0,
     sudoAutofill: profile.sudo_autofill !== false,
     jumpHosts: jumpHosts.map((jump) => ({

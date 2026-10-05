@@ -82,6 +82,9 @@ pub struct SavedProfile {
     /// Commands typed into the remote shell once it is ready, one per line.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub login_script: Option<String>,
+    /// Install tTerm's shell integration on the host so its shell marks commands.
+    #[serde(default)]
+    pub shell_integration: bool,
 }
 
 impl SavedProfile {

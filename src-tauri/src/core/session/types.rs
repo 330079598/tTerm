@@ -129,6 +129,8 @@ pub struct PtyConnectionOptions {
     pub jump_hosts: Vec<JumpHostOptions>,
     /// SSH: charset label of the remote shell (`gbk`, `big5`, ...); UTF-8 when unset.
     pub encoding: Option<String>,
+    /// SSH: install tTerm's shell integration on the host so its shell marks commands.
+    pub shell_integration: bool,
     #[cfg(target_os = "windows")]
     pub terminal_shell: Option<String>,
     #[cfg(target_os = "windows")]
@@ -177,6 +179,8 @@ pub(crate) struct RawPtyConnectionOptions {
     jump_hosts: Vec<JumpHostOptions>,
     #[serde(default)]
     encoding: Option<String>,
+    #[serde(default, alias = "shellIntegration")]
+    shell_integration: bool,
     #[cfg(target_os = "windows")]
     #[serde(default, alias = "terminalShell")]
     terminal_shell: Option<String>,
@@ -216,6 +220,7 @@ impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
             agent_forward: raw.agent_forward,
             jump_hosts,
             encoding: raw.encoding,
+            shell_integration: raw.shell_integration,
             #[cfg(target_os = "windows")]
             terminal_shell: raw.terminal_shell,
             #[cfg(target_os = "windows")]
@@ -247,6 +252,7 @@ impl Default for PtyConnectionOptions {
             agent_forward: false,
             jump_hosts: Vec::new(),
             encoding: None,
+            shell_integration: false,
             #[cfg(target_os = "windows")]
             terminal_shell: None,
             #[cfg(target_os = "windows")]
@@ -293,4 +299,7 @@ pub struct SessionPlan {
     pub jump_hosts: Vec<JumpHostPlan>,
     /// Charset of the remote shell; output is decoded and input encoded with it.
     pub encoding: crate::terminal::TerminalEncoding,
+    /// SSH: start the remote shell with tTerm's shell integration (command
+    /// marks) when the host supports it; see `crate::ssh::shell_integration`.
+    pub shell_integration: bool,
 }

@@ -88,6 +88,33 @@ fn emit_pty_output(app: &tauri::AppHandle, tab_id: &str, payload: String) {
     let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
 }
 
+/// Opens a session channel with a PTY, ready for a shell or command.
+async fn open_terminal_channel(
+    session: &russh::client::Handle<SshClientHandler>,
+    plan: &SessionPlan,
+    rows: u16,
+    cols: u16,
+) -> Result<russh::Channel<russh::client::Msg>, String> {
+    let channel = session
+        .channel_open_session()
+        .await
+        .map_err(|err| format!("Failed to open SSH channel: {err}"))?;
+
+    if plan.agent_forward {
+        // Best-effort: a server with agent forwarding disabled just won't
+        // open a channel back later, which isn't worth failing the session over.
+        if let Err(err) = channel.agent_forward(false).await {
+            eprintln!("SSH agent forwarding request failed: {err}");
+        }
+    }
+
+    channel
+        .request_pty(false, "xterm-256color", cols as u32, rows as u32, 0, 0, &[])
+        .await
+        .map_err(|err| format!("Failed to request SSH PTY: {err}"))?;
+    Ok(channel)
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn run_single_ssh_connection(
     app: tauri::AppHandle,
@@ -180,15 +207,22 @@ pub async fn run_single_ssh_connection(
         }
     };
 
+    let shell_integration = if plan.shell_integration && crate::config::command_marks_enabled() {
+        let target = format!("{username}@{host}:{}", plan.port);
+        super::shell_integration::prepare(&session, &target).await
+    } else {
+        None
+    };
+
     let channel_open_started_at = tokio::time::Instant::now();
-    let channel = match session.channel_open_session().await {
+    let mut channel = match open_terminal_channel(&session, &plan, rows, cols).await {
         Ok(channel) => channel,
-        Err(err) => {
+        Err(reason) => {
             finish_output!();
             return SshExitSignal {
                 terminated: false,
                 recoverable: true,
-                reason: Some(format!("Failed to open SSH channel: {err}")),
+                reason: Some(reason),
                 connected_duration: None,
             };
         }
@@ -198,35 +232,38 @@ pub async fn run_single_ssh_connection(
         .as_millis()
         .min(u64::MAX as u128) as u64;
 
-    if plan.agent_forward {
-        // Best-effort: a server with agent forwarding disabled just won't
-        // open a channel back later, which isn't worth failing the session over.
-        if let Err(err) = channel.agent_forward(false).await {
-            eprintln!("SSH agent forwarding request failed: {err}");
+    // With shell integration: what the shell printed before the server
+    // confirmed it started. `None` means a plain shell.
+    let mut early_output = None;
+    if let Some(command) = shell_integration {
+        early_output = super::shell_integration::start(&mut channel, &command).await;
+        if early_output.is_none() {
+            // That channel is closed; the plain shell gets a fresh one.
+            channel = match open_terminal_channel(&session, &plan, rows, cols).await {
+                Ok(channel) => channel,
+                Err(reason) => {
+                    finish_output!();
+                    return SshExitSignal {
+                        terminated: false,
+                        recoverable: true,
+                        reason: Some(reason),
+                        connected_duration: None,
+                    };
+                }
+            };
         }
     }
 
-    if let Err(err) = channel
-        .request_pty(false, "xterm-256color", cols as u32, rows as u32, 0, 0, &[])
-        .await
-    {
-        finish_output!();
-        return SshExitSignal {
-            terminated: false,
-            recoverable: true,
-            reason: Some(format!("Failed to request SSH PTY: {err}")),
-            connected_duration: None,
-        };
-    }
-
-    if let Err(err) = channel.request_shell(false).await {
-        finish_output!();
-        return SshExitSignal {
-            terminated: false,
-            recoverable: true,
-            reason: Some(format!("Failed to request SSH shell: {err}")),
-            connected_duration: None,
-        };
+    if early_output.is_none() {
+        if let Err(err) = channel.request_shell(false).await {
+            finish_output!();
+            return SshExitSignal {
+                terminated: false,
+                recoverable: true,
+                reason: Some(format!("Failed to request SSH shell: {err}")),
+                connected_duration: None,
+            };
+        }
     }
 
     emit_connection_progress(
@@ -264,6 +301,19 @@ pub async fn run_single_ssh_connection(
     // `deliver_output` instead, since bytes in a foreign charset would be
     // unreadable in a plain-text log.
     let record_raw_output = output_decoder.is_none();
+
+    if let Some(output) = early_output.filter(|output| !output.is_empty()) {
+        if record_raw_output {
+            crate::session_log::record_output(&app, &tab_id, &output);
+        }
+        deliver_output(
+            &app,
+            &tab_id,
+            sender.as_ref(),
+            output_decoder.as_mut(),
+            output,
+        );
+    }
 
     loop {
         tokio::select! {

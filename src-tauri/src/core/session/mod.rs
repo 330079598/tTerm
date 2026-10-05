@@ -70,6 +70,7 @@ pub fn normalize_connection(
             terminal_shell,
             jump_hosts: Vec::new(),
             encoding: Default::default(),
+            shell_integration: false,
         }),
         SessionKind::Ssh => {
             let host = connection
@@ -149,6 +150,7 @@ pub fn normalize_connection(
                 encoding: crate::terminal::TerminalEncoding::from_label(
                     connection.encoding.as_deref(),
                 ),
+                shell_integration: connection.shell_integration,
             })
         }
     }

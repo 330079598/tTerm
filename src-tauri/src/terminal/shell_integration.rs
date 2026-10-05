@@ -13,37 +13,21 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Exported as a bash function (`BASH_FUNC_<name>%%`) for Git Bash and WSL bash.
-const BASH_REPORT_CWD: &str = include_str!("shell_integration/bash/report-cwd.bash");
-/// The directory report plus command marks (OSC 133 D and A).
-const BASH_PROMPT: &str = include_str!("shell_integration/bash/prompt.bash");
+use super::shell_scripts::{lf, BASH_PROMPT, BASH_REPORT_CWD, UNIX_SCRIPTS};
+
 /// bash prints `PS0` after reading a command and before running it.
 const BASH_PS0: &str = r"\e]133;C\e\\";
 
 /// Makes the PowerShell, zsh and fish scripts mark commands.
 const COMMAND_MARKS_ENV: &str = "TTERM_COMMAND_MARKS";
 
+const WSL_LAUNCH: &str = include_str!("shell_integration/wsl/launch.sh");
+
 /// The WSL launcher and the shell scripts it loads, written under
 /// `<config dir>/shell-integration` by relative path.
-const SCRIPTS: &[(&str, &str)] = &[
-    (
-        "wsl/launch.sh",
-        include_str!("shell_integration/wsl/launch.sh"),
-    ),
-    ("bash/report-cwd.bash", BASH_REPORT_CWD),
-    ("bash/prompt.bash", BASH_PROMPT),
-    ("zsh/.zshenv", include_str!("shell_integration/zsh/zshenv")),
-    (
-        "zsh/.zprofile",
-        include_str!("shell_integration/zsh/zprofile"),
-    ),
-    ("zsh/.zshrc", include_str!("shell_integration/zsh/zshrc")),
-    ("zsh/.zlogin", include_str!("shell_integration/zsh/zlogin")),
-    (
-        "fish/tterm.fish",
-        include_str!("shell_integration/fish/tterm.fish"),
-    ),
-];
+fn scripts() -> impl Iterator<Item = (&'static str, &'static str)> {
+    std::iter::once(("wsl/launch.sh", WSL_LAUNCH)).chain(UNIX_SCRIPTS.iter().copied())
+}
 
 const POWERSHELL_PROMPT: &str = include_str!("shell_integration/prompt.ps1");
 
@@ -59,7 +43,7 @@ pub fn install() -> Option<PathBuf> {
 }
 
 fn install_into(dir: &Path) -> std::io::Result<()> {
-    for (relative, content) in SCRIPTS {
+    for (relative, content) in scripts() {
         let content = lf(content);
         let path = dir.join(relative);
         if fs::read_to_string(&path).is_ok_and(|existing| existing == content) {
@@ -71,11 +55,6 @@ fn install_into(dir: &Path) -> std::io::Result<()> {
         fs::write(&path, content)?;
     }
     Ok(())
-}
-
-/// A CRLF checkout must not reach the shells as CRLF.
-fn lf(content: &str) -> String {
-    content.replace("\r\n", "\n")
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -231,7 +210,7 @@ mod tests {
         let dir =
             std::env::temp_dir().join(format!("tterm-shell-integration-{}", uuid::Uuid::new_v4()));
         install_into(&dir).unwrap();
-        for (relative, _) in SCRIPTS {
+        for (relative, _) in scripts() {
             let content = fs::read_to_string(dir.join(relative)).unwrap();
             assert!(!content.contains('\r'), "{relative} has CR line endings");
         }

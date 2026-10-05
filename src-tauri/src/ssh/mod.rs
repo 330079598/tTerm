@@ -7,6 +7,7 @@ pub(crate) mod key_file;
 mod rsa_signer;
 pub mod secret_commands;
 pub(crate) mod secret_store;
+pub(crate) mod shell_integration;
 pub(crate) mod store;
 #[cfg(all(test, unix))]
 pub(crate) mod test_sshd;

@@ -581,6 +581,14 @@ fn reconnect_settings_cache_hit(
         .map(|(_, enabled, max_attempts)| (enabled, max_attempts))
 }
 
+/// Whether shells mark their commands (OSC 133); on when the config file is
+/// missing or unreadable.
+pub fn command_marks_enabled() -> bool {
+    load_config_file()
+        .map(|config| config.command_marks)
+        .unwrap_or_else(|_| default_command_marks())
+}
+
 /// Resolve the automatic SSH reconnect settings (enabled, max attempts).
 /// Falls back to the built-in defaults when the config file is missing or
 /// unreadable.

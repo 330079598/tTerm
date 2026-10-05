@@ -1,6 +1,7 @@
 import React from "react"
 import { useTranslation } from "react-i18next"
 
+import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useTheme } from "@/contexts/ThemeContext"
@@ -74,6 +75,22 @@ export const SessionCustomizationFields: React.FC<SessionCustomizationFieldsProp
           rows={3}
         />
         <p className="text-muted-foreground mt-1 text-xs">{t("connection.loginScriptDesc")}</p>
+      </div>
+
+      <div className="flex items-start gap-2">
+        <Checkbox
+          id="conn-shell-integration"
+          checked={form.shellIntegration}
+          onCheckedChange={(checked) =>
+            setForm((current) => ({ ...current, shellIntegration: checked }))
+          }
+        />
+        <div className="space-y-0.5">
+          <Label htmlFor="conn-shell-integration" className="text-sm font-normal">
+            {t("connection.shellIntegration")}
+          </Label>
+          <p className="text-muted-foreground text-xs">{t("connection.shellIntegrationDesc")}</p>
+        </div>
       </div>
     </div>
   )

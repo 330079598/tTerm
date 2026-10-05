@@ -30,6 +30,8 @@ export interface SavedProfile {
   terminal_theme?: string
   /** Commands typed into the shell once it is ready, one per line. */
   login_script?: string
+  /** Install tTerm's shell integration on the host so its shell marks commands. */
+  shell_integration?: boolean
 }
 
 export interface SavedJumpHost {
@@ -136,6 +138,8 @@ export interface Tab {
     terminalTheme?: string
     /** SSH: commands typed into the shell once it is ready, one per line. */
     loginScript?: string
+    /** SSH: start the shell with tTerm's shell integration when the host supports it. */
+    shellIntegration?: boolean
   }
   remoteFile?: {
     sourceTabId: string

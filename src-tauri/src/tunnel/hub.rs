@@ -587,6 +587,7 @@ mod tests {
             terminal_shell: None,
             jump_hosts: Vec::new(),
             encoding: Default::default(),
+            shell_integration: false,
         };
         let (a, b) = (
             SessionKey::for_plan(&plan("x")),

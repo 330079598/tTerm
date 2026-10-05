@@ -63,6 +63,8 @@ export interface ConnectionForm {
   /** Theme id for this connection's terminal colors; empty follows the app theme. */
   terminalTheme: string
   loginScript: string
+  /** Install tTerm's shell integration on the host so its shell marks commands. */
+  shellIntegration: boolean
   terminalShell: TerminalShellType
   terminalShellCustomPath: string
   terminalShellCustomArgs: string
@@ -109,6 +111,7 @@ export const defaultForm: ConnectionForm = {
   encoding: DEFAULT_TERMINAL_ENCODING,
   terminalTheme: "",
   loginScript: "",
+  shellIntegration: false,
   terminalShell: "auto",
   terminalShellCustomPath: "",
   terminalShellCustomArgs: "",

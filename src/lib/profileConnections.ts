@@ -30,6 +30,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
       encoding: profile.encoding,
       terminalTheme: profile.terminal_theme,
       loginScript: profile.login_script,
+      shellIntegration: profile.shell_integration === true,
       jumpHosts:
         useJumpHost && jumpHosts.length > 0
           ? jumpHosts.map((jump) => ({

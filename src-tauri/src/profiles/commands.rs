@@ -114,6 +114,8 @@ pub fn import_ssh_config_profiles(
             terminal_theme: existing_index
                 .and_then(|index| profiles[index].terminal_theme.clone()),
             login_script: existing_index.and_then(|index| profiles[index].login_script.clone()),
+            shell_integration: existing_index
+                .is_some_and(|index| profiles[index].shell_integration),
         };
 
         forward_sources.push((profile.id.clone(), profile.name.clone(), host.forwards));
@@ -487,6 +489,7 @@ pub async fn test_connection(
         reconnect_max_attempts: 0,
         jump_hosts,
         encoding: Default::default(),
+        shell_integration: false,
     };
 
     let test_tab_id = format!("test-{}", profile.id);

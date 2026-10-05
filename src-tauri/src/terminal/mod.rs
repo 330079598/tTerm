@@ -6,6 +6,7 @@ mod output_tail;
 mod pty;
 #[cfg(target_os = "windows")]
 mod shell_integration;
+pub(crate) mod shell_scripts;
 mod ssh_query_handler;
 mod types;
 

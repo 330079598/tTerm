@@ -334,9 +334,7 @@ fn build_windows_command(
     let user_args = shell == "custom" && !args.is_empty();
     let mut args = args;
     let mut env: Vec<(String, String)> = Vec::new();
-    let marks = crate::config::load_config_file()
-        .map(|config| config.command_marks)
-        .unwrap_or(true);
+    let marks = crate::config::command_marks_enabled();
 
     match ShellKind::from_program(&program) {
         ShellKind::Cmd => {
