@@ -510,6 +510,8 @@ interface ConfigContextType {
   appState: AppState
   isLoaded: boolean
   secretStatus: SecretBackendStatus
+  /** Startup has unlocked saved passwords, or found it cannot, and `secretStatus` says which. */
+  isSecretStatusLoaded: boolean
   updateTheme: (theme: string) => Promise<void>
   updateLanguage: (language: string) => Promise<void>
   saveConfig: (newConfig: Partial<AppConfig>) => Promise<void>
@@ -553,6 +555,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const appStateRef = useRef(appState)
   const appStateSaveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const [secretStatus, setSecretStatus] = useState<SecretBackendStatus>(defaultSecretStatus)
+  const [isSecretStatusLoaded, setIsSecretStatusLoaded] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
 
   const updateConfigState = useCallback((update: (current: AppConfig) => AppConfig) => {
@@ -602,14 +605,15 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       console.error("Failed to load secret backend status:", error)
       setSecretStatus(defaultSecretStatus)
       return defaultSecretStatus
+    } finally {
+      setIsSecretStatusLoaded(true)
     }
   }, [])
 
   const loadConfig = useCallback(async (): Promise<void> => {
     try {
-      const [loadedConfig, loadedSecretStatus, loadedAppState] = await Promise.all([
+      const [loadedConfig, loadedAppState] = await Promise.all([
         invoke<AppConfig>("load_config"),
-        invoke<SecretBackendStatus>("get_secret_backend_status"),
         // The app still works on defaults when its state cannot be read.
         invoke<AppState>("load_app_state").catch((error) => {
           console.error("Failed to load app state:", error)
@@ -623,18 +627,19 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       launchBackgroundThrottling ??= normalizedConfig.background_throttling
       configRef.current = normalizedConfig
       setConfig(normalizedConfig)
-      setSecretStatus(normalizeSecretStatus(loadedSecretStatus))
     } catch (error) {
       console.error("Failed to load config:", error)
       launchBackgroundThrottling ??= defaultConfig.background_throttling
       configRef.current = defaultConfig
       setConfig(defaultConfig)
-      setSecretStatus(defaultSecretStatus)
     } finally {
       setIsLoaded(true)
       markConfigReady()
+      // Not awaited: the backend answers once startup has unlocked saved
+      // passwords, which may wait on a credential store prompt.
+      void refreshSecretStatus()
     }
-  }, [])
+  }, [refreshSecretStatus])
 
   const saveConfig = useCallback(async (newConfig: Partial<AppConfig>) => {
     const save = configSaveQueueRef.current.then(async () => {
@@ -775,6 +780,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       appState,
       isLoaded,
       secretStatus,
+      isSecretStatusLoaded,
       updateTheme,
       updateLanguage,
       saveConfig,
@@ -796,6 +802,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       appState,
       isLoaded,
       secretStatus,
+      isSecretStatusLoaded,
       updateTheme,
       updateLanguage,
       saveConfig,

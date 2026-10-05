@@ -1,6 +1,6 @@
 use super::crypto::SecretKey;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 
 pub(crate) const SERVICE_NAME: &str = "tterm";
 
@@ -39,6 +39,8 @@ pub struct ChangeVaultPasswordInput {
 #[derive(Debug, Clone)]
 pub struct SecretStoreState {
     pub(crate) inner: Arc<Mutex<SecretStoreRuntime>>,
+    /// True while startup unlocks or migrates saved passwords.
+    pub(crate) starting: Arc<(Mutex<bool>, Condvar)>,
 }
 
 #[derive(Debug, Default)]

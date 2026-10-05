@@ -54,10 +54,13 @@ pub struct SavedSecretEntry {
 }
 
 #[tauri::command]
-pub fn get_secret_backend_status(
+pub async fn get_secret_backend_status(
     secret_state: State<'_, SecretStoreState>,
 ) -> Result<SecretBackendStatus, String> {
-    secret_state.get_status()
+    // Waits for startup to unlock saved passwords, which may sit on a
+    // credential store prompt; keep that off the main thread.
+    let secret_state = secret_state.inner().clone();
+    run_blocking(move || secret_state.get_status()).await
 }
 
 #[tauri::command]
@@ -72,10 +75,12 @@ pub async fn unlock_secret_vault(
 }
 
 #[tauri::command]
-pub fn lock_secret_vault(
+pub async fn lock_secret_vault(
     secret_state: State<'_, SecretStoreState>,
 ) -> Result<SecretBackendStatus, String> {
-    secret_state.lock()
+    // Waits for startup to unlock saved passwords; keep that off the main thread.
+    let secret_state = secret_state.inner().clone();
+    run_blocking(move || secret_state.lock()).await
 }
 
 #[tauri::command]
@@ -101,10 +106,12 @@ pub async fn set_master_password(
 }
 
 #[tauri::command]
-pub fn remove_master_password(
+pub async fn remove_master_password(
     secret_state: State<'_, SecretStoreState>,
 ) -> Result<SecretBackendStatus, String> {
-    secret_state.remove_master_password()
+    // Waits for startup to unlock saved passwords; keep that off the main thread.
+    let secret_state = secret_state.inner().clone();
+    run_blocking(move || secret_state.remove_master_password()).await
 }
 
 #[tauri::command]

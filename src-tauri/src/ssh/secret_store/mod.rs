@@ -19,7 +19,7 @@ use crate::db::Database;
 use crypto::{KdfParams, SecretKey};
 use keyring_backend::DATA_KEY_ACCOUNT;
 use migration::{LegacySources, NEEDS_VAULT_PASSWORD};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 use store::{WRAP_PASSWORD, WRAP_SYSTEM};
 use tauri::{AppHandle, Manager};
 use types::{SecretStorageMode, SecretStoreRuntime};
@@ -140,10 +140,22 @@ fn create_password_wrap(
     })
 }
 
+/// Ends startup when dropped, also when it panicked.
+struct StartupFinished(Arc<(Mutex<bool>, Condvar)>);
+
+impl Drop for StartupFinished {
+    fn drop(&mut self) {
+        let (starting, finished) = &*self.0;
+        *starting.lock().unwrap_or_else(PoisonError::into_inner) = false;
+        finished.notify_all();
+    }
+}
+
 impl SecretStoreState {
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(SecretStoreRuntime::default())),
+            starting: Arc::new((Mutex::new(false), Condvar::new())),
         }
     }
 
@@ -151,6 +163,18 @@ impl SecretStoreState {
         self.inner
             .lock()
             .map_err(|_| "Secret store state is poisoned".to_string())
+    }
+
+    /// Whatever changes saved passwords or reports their status waits for
+    /// startup, which may sit on a credential store unlock prompt, so it
+    /// neither sees them locked nor races the migration. Reads don't wait:
+    /// until startup is done they find saved passwords locked.
+    fn wait_for_startup(&self) {
+        let (starting, finished) = &*self.starting;
+        let starting = starting.lock().unwrap_or_else(PoisonError::into_inner);
+        let _starting = finished
+            .wait_while(starting, |starting| *starting)
+            .unwrap_or_else(PoisonError::into_inner);
     }
 
     fn set_data_key(&self, data_key: Option<SecretKey>) -> Result<(), String> {
@@ -203,6 +227,7 @@ impl SecretStoreState {
 
     /// The data key, for writing many secrets in one transaction.
     pub(crate) fn data_key(&self) -> Result<SecretKey, String> {
+        self.wait_for_startup();
         if Self::mode()? == SecretStorageMode::Memory {
             return Err(
                 "Passwords are not saved in this storage mode. Choose another mode in Settings > Security."
@@ -223,6 +248,7 @@ impl SecretStoreState {
     }
 
     pub fn get_status(&self) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
         let mode = Self::mode()?;
         let keyring_available = self.keyring_available()?;
         let (unlocked, notice) = {
@@ -274,8 +300,10 @@ impl SecretStoreState {
         })
     }
 
-    /// Runs at startup: moves passwords saved by older versions into the
+    /// Starts at startup: moves passwords saved by older versions into the
     /// database once, then unlocks from the credential store in `system` mode.
+    /// Runs on its own thread since the credential store may wait on an
+    /// unlock prompt (Secret Service on Linux) or not answer for a while.
     pub fn initialize(&self, app: &AppHandle) {
         // Looking for Windows Hello or Touch ID can take a moment; do it off
         // the main thread before the status is first asked for.
@@ -284,6 +312,16 @@ impl SecretStoreState {
             let _ = state.os_verifier_available();
         });
 
+        let (starting, _) = &*self.starting;
+        *starting.lock().unwrap_or_else(PoisonError::into_inner) = true;
+        let (state, app) = (self.clone(), app.clone());
+        std::thread::spawn(move || {
+            let _finished = StartupFinished(state.starting.clone());
+            state.start(&app);
+        });
+    }
+
+    fn start(&self, app: &AppHandle) {
         let result = crate::db::get().and_then(|database| {
             if database.read(store::migrated)? {
                 if Self::mode()? == SecretStorageMode::System {
@@ -403,6 +441,7 @@ impl SecretStoreState {
         app: &AppHandle,
         input: VaultPasswordInput,
     ) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
         let password = Zeroizing::new(input.password);
         if password.is_empty() {
             return Err("Password cannot be empty.".to_string());
@@ -444,6 +483,7 @@ impl SecretStoreState {
     }
 
     pub fn lock(&self) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
         self.set_data_key(None)?;
         self.runtime()?.clear_grants();
         self.get_status()
@@ -453,6 +493,7 @@ impl SecretStoreState {
         &self,
         input: ChangeVaultPasswordInput,
     ) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
         let current = Zeroizing::new(input.current_password);
         let new = Zeroizing::new(input.new_password);
         if new.is_empty() {
@@ -476,6 +517,7 @@ impl SecretStoreState {
     /// Adds a master password while unlocked, e.g. as a recovery password in
     /// `system` mode.
     pub fn set_master_password(&self, password: &str) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
         let database = crate::db::get()?;
         if database.read(|connection| store::has_wrap(connection, WRAP_PASSWORD))? {
             return Err("A master password is already set. Change it instead.".to_string());
@@ -492,6 +534,7 @@ impl SecretStoreState {
     /// Drops the master password in `system` mode, which then relies on the
     /// credential store alone.
     pub fn remove_master_password(&self) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
         if Self::mode()? != SecretStorageMode::System {
             return Err("The master password is required in this storage mode.".to_string());
         }
@@ -513,6 +556,7 @@ impl SecretStoreState {
         mode: &str,
         password: Option<&str>,
     ) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
         let mode = SecretStorageMode::parse(mode)?;
         let database = crate::db::get()?;
         if !database.read(store::migrated)? {
@@ -583,6 +627,7 @@ impl SecretStoreState {
         key: &str,
         password: &str,
     ) -> Result<SecretLocation, String> {
+        self.wait_for_startup();
         let Some(data_key) = self.unlocked_key()? else {
             return Ok(SecretLocation::Memory);
         };

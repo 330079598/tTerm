@@ -161,9 +161,20 @@ pub fn import_ssh_config_profiles(
 }
 
 #[tauri::command]
-pub fn save_profile(
+pub async fn save_profile(
     app: tauri::AppHandle,
     secret_state: tauri::State<'_, crate::ssh::SecretStoreState>,
+    profile: SavedProfile,
+) -> Result<(), String> {
+    // Saving its passwords waits for startup to unlock saved passwords, which
+    // may sit on a credential store prompt; keep that off the main thread.
+    let secret_state = secret_state.inner().clone();
+    crate::core::blocking::run_blocking(move || store_profile(app, secret_state, profile)).await
+}
+
+fn store_profile(
+    app: tauri::AppHandle,
+    secret_state: crate::ssh::SecretStoreState,
     mut profile: SavedProfile,
 ) -> Result<(), String> {
     normalize_profile(&mut profile);

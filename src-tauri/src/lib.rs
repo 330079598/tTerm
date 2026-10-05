@@ -426,7 +426,8 @@ pub fn run() {
             }
 
             // Moves passwords saved by older versions into the database once,
-            // then unlocks them from the system credential store.
+            // then unlocks them from the system credential store, in the
+            // background.
             app_handle
                 .state::<ssh::SecretStoreState>()
                 .initialize(&app_handle);

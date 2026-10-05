@@ -224,7 +224,8 @@ export const TTermApp: React.FC = () => {
   const { saveSession, loadSession } = useSessionPersistence()
   const getPreloadedSession = usePreloadedSession(loadSession)
   const { cleanupConnection } = useConnectionManager()
-  const { appState, config, isLoaded, saveAppState, secretStatus } = useConfig()
+  const { appState, config, isLoaded, isSecretStatusLoaded, saveAppState, secretStatus } =
+    useConfig()
   const { cancelTransfer, clearCompletedTransfers, removeTransfer, retryTransfer, transfers } =
     useTransferManager()
   const { confirm, ConfirmDialog } = useConfirmDialog()
@@ -241,7 +242,8 @@ export const TTermApp: React.FC = () => {
       (secretStatus.hasMasterPassword &&
         (secretStatus.storageMode === "system" ||
           (secretStatus.storageMode === "password" && config.prompt_unlock_vault_on_startup))))
-  const startupConnectionsReady = !shouldPromptStartupVaultUnlock
+  // SSH connections wait for startup to unlock saved passwords, then for the prompt.
+  const startupConnectionsReady = isSecretStatusLoaded && !shouldPromptStartupVaultUnlock
   useTunnelAutoStart(isLoaded && startupConnectionsReady)
   useTunnelQuitGuard(confirm)
   useTunnelNotifications()
