@@ -129,6 +129,10 @@ pub struct AppConfig {
     /// the macOS alternate character. Only read on macOS.
     #[serde(default)]
     pub mac_option_is_meta: bool,
+    /// Ask before pasting text with line breaks into a shell that would run
+    /// each line as it arrives (one without bracketed paste mode).
+    #[serde(default = "default_confirm_multiline_paste")]
+    pub confirm_multiline_paste: bool,
     #[serde(default = "default_keymap")]
     pub keymap: KeymapConfig,
     /// What WebKit does with the page while the window is hidden (macOS 14+):
@@ -377,6 +381,10 @@ fn default_reconnect_enabled() -> bool {
     true
 }
 
+fn default_confirm_multiline_paste() -> bool {
+    true
+}
+
 fn default_reconnect_max_attempts() -> u32 {
     5
 }
@@ -462,6 +470,7 @@ impl Default for AppConfig {
             zmodem_download_directory: String::new(),
             sudo_prompt_patterns: Vec::new(),
             mac_option_is_meta: false,
+            confirm_multiline_paste: default_confirm_multiline_paste(),
             keymap: default_keymap(),
             background_throttling: default_background_throttling(),
             window_blur: false,

@@ -34,6 +34,8 @@ interface FontSettingsTabProps {
   cursorStyle: "bar" | "block" | "underline"
   macOptionIsMeta: boolean
   setMacOptionIsMeta: (value: boolean) => void
+  confirmMultilinePaste: boolean
+  setConfirmMultilinePaste: (value: boolean) => void
   fontLoadError: string | null
   handleFontSave: () => Promise<void>
   savingFont?: boolean
@@ -61,6 +63,8 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
   cursorStyle,
   macOptionIsMeta,
   setMacOptionIsMeta,
+  confirmMultilinePaste,
+  setConfirmMultilinePaste,
   fontLoadError,
   handleFontSave,
   savingFont = false,
@@ -323,6 +327,22 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
               />
             </div>
           )}
+
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <Label htmlFor="terminal-confirm-multiline-paste" className="mb-1 block">
+                {t("fontSettings.confirmMultilinePaste")}
+              </Label>
+              <p className="text-muted-foreground text-xs leading-5">
+                {t("fontSettings.confirmMultilinePasteDesc")}
+              </p>
+            </div>
+            <Switch
+              id="terminal-confirm-multiline-paste"
+              checked={confirmMultilinePaste}
+              onCheckedChange={setConfirmMultilinePaste}
+            />
+          </div>
 
           <div>
             <Label className="mb-2 block">

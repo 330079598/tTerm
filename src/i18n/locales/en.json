@@ -1206,6 +1206,8 @@
     "cursorStyle": "Cursor Style",
     "macOptionIsMeta": "Use Option as Meta key",
     "macOptionIsMetaDesc": "Option+B, Option+F, Option+. and the like send Meta (an ESC prefix), which is what shell line editing, Emacs and tmux expect from Alt. When off, Option types macOS's alternate characters.",
+    "confirmMultilinePaste": "Confirm multiline paste",
+    "confirmMultilinePasteDesc": "Show the text and ask before pasting anything with line breaks, since a shell runs each line as soon as it arrives. Not asked when the shell or program supports bracketed paste, which holds the text until you press Enter.",
     "terminalPadding": "Terminal Padding",
     "terminalPaddingLeft": "Left",
     "terminalPaddingRight": "Right",
@@ -1352,6 +1354,12 @@
     "primaryDisk": "Status bar",
     "filesystem": "Filesystem",
     "noDisks": "No physical filesystems found"
+  },
+  "terminalPaste": {
+    "multilineTitle": "Paste multiple lines?",
+    "multilineDescription": "The shell runs each of these {{count}} lines as soon as it is pasted.",
+    "trailingLineBreakDescription": "This text ends with a line break, so the shell runs it as soon as it is pasted.",
+    "pasteAnyway": "Paste"
   },
   "terminalContext": {
     "copy": "Copy",

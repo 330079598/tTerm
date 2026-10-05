@@ -1193,6 +1193,8 @@
     "cursorStyle": "光标样式",
     "macOptionIsMeta": "将 Option 键用作 Meta 键",
     "macOptionIsMetaDesc": "开启后，Option+B、Option+F、Option+. 等组合会发送 Meta 键（ESC 前缀），即 shell 行编辑、Emacs、tmux 里的 Alt 快捷键。关闭时 Option 输入 macOS 的特殊字符。",
+    "confirmMultilinePaste": "多行粘贴前确认",
+    "confirmMultilinePasteDesc": "粘贴含换行的内容前先显示内容并询问，因为 shell 收到每一行就会立即执行。若 shell 或程序支持 bracketed paste（粘贴内容会等你按回车才执行），则不再询问。",
     "terminalPadding": "终端边距",
     "terminalPaddingLeft": "左侧",
     "terminalPaddingRight": "右侧",
@@ -1339,6 +1341,12 @@
     "primaryDisk": "底栏",
     "filesystem": "文件系统",
     "noDisks": "未发现可监控的真实文件系统"
+  },
+  "terminalPaste": {
+    "multilineTitle": "粘贴多行内容？",
+    "multilineDescription": "粘贴后，shell 会立即逐行执行这 {{count}} 行内容。",
+    "trailingLineBreakDescription": "这段内容以换行结尾，粘贴后 shell 会立即执行。",
+    "pasteAnyway": "粘贴"
   },
   "terminalContext": {
     "copy": "复制",

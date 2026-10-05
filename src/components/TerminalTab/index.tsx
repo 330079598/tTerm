@@ -27,6 +27,7 @@ import type {
   SshConnectionProgress,
   TerminalTabProps,
 } from "@/components/TerminalTab/types"
+import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { toast } from "@/hooks/use-toast"
 import { isWindowBlurEnabled, useConfig } from "@/contexts/ConfigContext"
 import { isTransparentTerminalTheme, withWindowBlur } from "@/lib/terminalPalette"
@@ -36,6 +37,7 @@ import { useTheme } from "@/contexts/ThemeContext"
 import { useStableRef } from "@/hooks/useStableRef"
 import { resolveScrollbackLines } from "@/lib/scrollback"
 import { safePreloadFont, updateCanvasFontHostFont } from "@/lib/canvasFontHost"
+import { pasteNeedsConfirmation, summarizePaste } from "@/lib/pasteGuard"
 import { compilePromptPatterns } from "@/lib/sudoPrompt"
 import { toErrorMessage } from "@/lib/utils"
 import type { TabContextMenuAction } from "@/types/tab"
@@ -587,6 +589,73 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     [closeSearch, runSearch, searchInputRef]
   )
 
+  const { confirm: confirmPaste, ConfirmDialog: PasteConfirmDialog } = useConfirmDialog()
+  const confirmMultilinePasteRef = useStableRef(config.confirm_multiline_paste)
+  // A live broadcast source asks on its own before a multiline paste goes out.
+  const broadcastConfirmsPasteRef = useStableRef(
+    isBroadcastSource && liveBroadcastState === "active"
+  )
+
+  const pasteNeedsConfirm = useCallback(
+    (term: Terminal, text: string) =>
+      !broadcastConfirmsPasteRef.current &&
+      pasteNeedsConfirmation(text, {
+        enabled: confirmMultilinePasteRef.current,
+        bracketedPasteMode: term.modes.bracketedPasteMode,
+      }),
+    [broadcastConfirmsPasteRef, confirmMultilinePasteRef]
+  )
+
+  /** Pastes into the terminal, first asking when a line break would run a command. */
+  const pasteIntoTerminal = useCallback(
+    async (text: string) => {
+      const term = termRef.current
+      if (!term || !text) return
+      if (pasteNeedsConfirm(term, text)) {
+        const { lineCount, preview } = summarizePaste(text)
+        const confirmed = await confirmPaste({
+          title: t("terminalPaste.multilineTitle"),
+          description: (
+            <>
+              {lineCount > 1
+                ? t("terminalPaste.multilineDescription", { count: lineCount })
+                : t("terminalPaste.trailingLineBreakDescription")}
+              <span className="bg-muted text-foreground mt-3 block max-h-48 overflow-auto rounded-md border px-2 py-1.5 font-mono text-xs whitespace-pre">
+                {preview}
+              </span>
+            </>
+          ),
+          confirmText: t("terminalPaste.pasteAnyway"),
+          defaultAction: "confirm",
+        })
+        // The terminal may have been recreated while the dialog was open.
+        if (termRef.current !== term) return
+        term.focus()
+        if (!confirmed) return
+      }
+      term.paste(text)
+    },
+    [confirmPaste, pasteNeedsConfirm, t]
+  )
+
+  // Keyboard and menu-bar pastes reach xterm as DOM paste events; hold back
+  // the ones that need confirmation before xterm sends them.
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      const container = containerRef.current
+      const term = termRef.current
+      if (!container || !term) return
+      if (!(event.target instanceof Node) || !container.contains(event.target)) return
+      const text = event.clipboardData?.getData("text/plain") ?? ""
+      if (!pasteNeedsConfirm(term, text)) return
+      event.preventDefault()
+      event.stopPropagation()
+      void pasteIntoTerminal(text)
+    }
+    document.addEventListener("paste", handlePaste, true)
+    return () => document.removeEventListener("paste", handlePaste, true)
+  }, [pasteIntoTerminal, pasteNeedsConfirm])
+
   const handleTerminalContextMenu = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       event.preventDefault()
@@ -677,7 +746,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       if (action === "paste") {
         try {
           const clipboardText = await invoke<string>("plugin:clipboard-manager|read_text")
-          if (clipboardText) term?.paste(clipboardText)
+          if (clipboardText) await pasteIntoTerminal(clipboardText)
         } catch (error) {
           console.error("Failed to paste into terminal:", error)
           toast({
@@ -694,6 +763,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       connection,
       onOpenCommandLibrary,
       onSaveCommand,
+      pasteIntoTerminal,
       t,
       terminalContextMenu,
     ]
@@ -934,6 +1004,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
         <HostKeyPromptDialog hostKeyPrompt={hostKeyPrompt} setHostKeyPrompt={setHostKeyPrompt} />
         <SshAuthPromptDialog tabId={tabId} />
+        <PasteConfirmDialog />
         <JumpHostInfoDialog
           connection={connection}
           dontShowAgain={dontShowJumpHostInfoAgain}

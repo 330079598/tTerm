@@ -191,6 +191,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [fontSize, setFontSize] = useState(config.font_size)
   const [cursorStyle, setCursorStyle] = useState(config.cursor_style)
   const [macOptionIsMeta, setMacOptionIsMeta] = useState(config.mac_option_is_meta)
+  const [confirmMultilinePaste, setConfirmMultilinePaste] = useState(config.confirm_multiline_paste)
   const [scrollbackLines, setScrollbackLines] = useState(() =>
     normalizeScrollbackLines(config.scrollback_lines)
   )
@@ -282,6 +283,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         font_size: fontSize,
         cursor_style: cursorStyle,
         mac_option_is_meta: macOptionIsMeta,
+        confirm_multiline_paste: confirmMultilinePaste,
         scrollback_lines: scrollbackLines,
         terminal_renderer: terminalRenderer,
         terminal_padding_left_px: terminalPaddingLeftPx,
@@ -707,6 +709,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               cursorStyle={cursorStyle}
               macOptionIsMeta={macOptionIsMeta}
               setMacOptionIsMeta={setMacOptionIsMeta}
+              confirmMultilinePaste={confirmMultilinePaste}
+              setConfirmMultilinePaste={setConfirmMultilinePaste}
               fontLoadError={fontLoadError}
               handleFontSave={handleFontSave}
               savingFont={savingFont}

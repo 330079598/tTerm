@@ -169,6 +169,8 @@ export interface AppConfig {
   sudo_prompt_patterns: string[]
   /** macOS: Option+key sends Meta (ESC prefix) instead of the alternate character. */
   mac_option_is_meta: boolean
+  /** Ask before pasting multiple lines into a shell without bracketed paste mode. */
+  confirm_multiline_paste: boolean
   keymap: KeymapConfig
   background_throttling: BackgroundThrottling
   /** Blur what is behind the window (macOS, Windows), tinted with the theme background. */
@@ -238,6 +240,7 @@ const defaultConfig: AppConfig = {
   zmodem_download_directory: "",
   sudo_prompt_patterns: [],
   mac_option_is_meta: false,
+  confirm_multiline_paste: true,
   keymap: { ...DEFAULT_KEYMAP_CONFIG, bindings: {} },
   background_throttling: "throttle",
   window_blur: false,
@@ -440,6 +443,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
       : [],
     ui_scale_percent: normalizeUiScalePercent(config.ui_scale_percent),
     mac_option_is_meta: config.mac_option_is_meta === true,
+    confirm_multiline_paste: config.confirm_multiline_paste !== false,
     keymap: normalizeKeymap(config.keymap),
     background_throttling:
       config.background_throttling === "disabled" || config.background_throttling === "suspend"
