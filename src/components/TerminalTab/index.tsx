@@ -905,25 +905,27 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
             <Keyboard size={13} aria-hidden="true" />
             <strong>{t("broadcast.primaryInput")}</strong>
             <span aria-hidden="true">·</span>
-            {liveBroadcastState === "paused"
-              ? t("broadcast.livePaused")
-              : t("broadcast.liveActive")}
+            <span>
+              {liveBroadcastState === "paused"
+                ? t("broadcast.livePaused")
+                : t("broadcast.liveActive")}
+            </span>
           </span>
           <div>
             {liveBroadcastState === "paused" ? (
               <button type="button" onClick={onResumeBroadcast}>
                 <Play size={13} aria-hidden="true" />
-                {t("broadcast.resumeLive")}
+                <span>{t("broadcast.resumeLive")}</span>
               </button>
             ) : (
               <button type="button" onClick={onPauseBroadcast}>
                 <Pause size={13} aria-hidden="true" />
-                {t("broadcast.pauseLive")}
+                <span>{t("broadcast.pauseLive")}</span>
               </button>
             )}
             <button type="button" className="destructive" onClick={onStopBroadcast}>
               <Square size={13} fill="currentColor" aria-hidden="true" />
-              {t("broadcast.stopLive")}
+              <span>{t("broadcast.stopLive")}</span>
             </button>
           </div>
         </div>

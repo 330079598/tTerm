@@ -71,6 +71,18 @@
   font-weight: 700;
 }
 
+.terminal-broadcast-controls svg {
+  flex-shrink: 0;
+}
+
+/* The bar uses the terminal font, whose ascent/descent are rarely symmetric;
+   trim labels to cap height so flex centering lines the letters up with the icons. */
+.terminal-broadcast-controls > span > :not(svg),
+.terminal-broadcast-controls button > span {
+  line-height: 1;
+  text-box: trim-both cap alphabetic;
+}
+
 .terminal-broadcast-controls button {
   justify-content: center;
   gap: 5px;
