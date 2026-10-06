@@ -32,7 +32,7 @@ export function joinBufferLines(
   return text.replace(/\s+$/, "")
 }
 
-/** Scrollbar colors for a finished command. */
+/** Colors of a finished command, on the scrollbar and beside its prompt. */
 const SUCCEEDED_COLOR = "#22c55e"
 const FAILED_COLOR = "#ef4444"
 
@@ -55,7 +55,7 @@ type CommandEntry = {
 /**
  * Tracks the prompts and commands of one terminal and acts on them: jumping
  * between prompts, copying a command's output, coloring finished commands on
- * the scrollbar.
+ * the scrollbar and beside their prompts.
  */
 export class CommandMarks implements IDisposable {
   private entries: CommandEntry[] = []
@@ -234,13 +234,18 @@ export class CommandMarks implements IDisposable {
     // with no output mark; its status is the previous command's.
     if (!entry.output || exitCode === undefined) return
     entry.exitCode = exitCode
-    entry.decoration = this.term.registerDecoration({
+    const color = exitCode === 0 ? SUCCEEDED_COLOR : FAILED_COLOR
+    const decoration = this.term.registerDecoration({
       marker: entry.prompt,
-      overviewRulerOptions: {
-        color: exitCode === 0 ? SUCCEEDED_COLOR : FAILED_COLOR,
-        position: "left",
-      },
+      overviewRulerOptions: { color, position: "left" },
     })
+    // The scrollbar merges nearby marks of one color; a dot in the left
+    // padding beside each prompt keeps every command apart (TerminalTab.css).
+    decoration?.onRender((element) => {
+      element.classList.add("command-mark-dot")
+      element.style.color = color
+    })
+    entry.decoration = decoration
   }
 
   private end(entry: CommandEntry) {

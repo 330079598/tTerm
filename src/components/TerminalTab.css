@@ -1109,6 +1109,25 @@ button.server-monitor-metric.is-clickable:focus-visible {
   left: 0;
 }
 
+/* A finished command's status beside its prompt (commandMarks.ts): the
+   decoration covers the prompt's first cell, the dot sits centered in the
+   terminal's left padding. */
+.terminal-surface .xterm-decoration.command-mark-dot {
+  pointer-events: none;
+}
+
+.terminal-surface .xterm-decoration.command-mark-dot::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: calc(var(--terminal-padding-left, 6px) / -2 - 2px);
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
 /* Protect fallback DOM renderer against global CSS resets */
 .terminal-surface .xterm .xterm-rows {
   font-family: inherit;
