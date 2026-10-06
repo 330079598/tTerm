@@ -69,7 +69,7 @@ describe("SshAuthPromptDialog", () => {
 
     fireEvent.change(username, { target: { value: "alice" } })
     fireEvent.change(code, { target: { value: "123456" } })
-    fireEvent.submit(screen.getByRole("dialog"))
+    fireEvent.submit(screen.getByRole("dialog").querySelector("form")!)
 
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("respond_ssh_auth_prompt", {

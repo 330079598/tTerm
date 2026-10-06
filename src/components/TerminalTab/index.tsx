@@ -1167,7 +1167,11 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         )}
 
         <HostKeyPromptDialog hostKeyPrompt={hostKeyPrompt} setHostKeyPrompt={setHostKeyPrompt} />
-        <SshAuthPromptDialog tabId={tabId} />
+        <SshAuthPromptDialog
+          tabId={tabId}
+          visible={isActive}
+          remembersPasswords={connection?.authMethod === "auto"}
+        />
         <PasteConfirmDialog />
         <JumpHostInfoDialog
           connection={connection}

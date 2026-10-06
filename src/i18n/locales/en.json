@@ -1311,6 +1311,7 @@
       "password": "Password",
       "response": "Response",
       "hint": "Your answers are sent to the server and are not saved.",
+      "hintRemembered": "Your answers go only to the server. A password typed here is also kept in memory until this tab closes, so its SFTP and reconnects do not ask again.",
       "submit": "Continue"
     }
   },

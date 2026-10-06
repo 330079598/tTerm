@@ -41,9 +41,11 @@ html.window-blur .xterm .xterm-viewport {
   background: transparent;
 }
 
-/* Prompts over a terminal (host key, authentication) blur it without adding
-   their own tint, so the window keeps the configured opacity behind them. */
-html.window-blur .host-key-dialog-overlay {
+/* Prompts over a terminal (host key, authentication) add no tint or blur of
+   their own, so the window keeps the configured opacity behind them. A
+   backdrop-filter here also turns the whole window opaque on Windows. */
+html.window-blur .host-key-dialog-overlay,
+html.window-blur .ssh-auth-prompt-backdrop {
   background-color: transparent;
   backdrop-filter: none;
 }
