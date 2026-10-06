@@ -41,6 +41,13 @@ html.window-blur .xterm .xterm-viewport {
   background: transparent;
 }
 
+/* Prompts over a terminal (host key, authentication) blur it without adding
+   their own tint, so the window keeps the configured opacity behind them. */
+html.window-blur .host-key-dialog-overlay {
+  background-color: transparent;
+  backdrop-filter: none;
+}
+
 /* Cards on the settings and tunnels pages. */
 html.window-blur .workspace-panel .bg-card {
   background-color: hsl(var(--card) / var(--window-opacity));
