@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { ConnectionDialog } from "@/components/ConnectionDialog"
+import type { ProfileSavedOptions } from "@/components/ConnectionDialog/types"
 import { CommandEditorDialog, CommandLibrary } from "@/components/CommandLibrary"
 import { BroadcastManager } from "@/components/BroadcastManager"
 import { CloseRequestDialog } from "@/components/CloseRequestDialog"
@@ -60,7 +61,7 @@ import {
   saveRecentCommands,
 } from "@/lib/recentCommands"
 import { onSyncApplied } from "@/lib/sync"
-import { buildConnectionFromProfile } from "@/lib/profileConnections"
+import { applyProfileToTab, buildConnectionFromProfile } from "@/lib/profileConnections"
 import {
   addRecentQuickConnection,
   applyQuickConnectAuth,
@@ -150,6 +151,8 @@ export const TTermApp: React.FC = () => {
     typeof window === "undefined" ? [] : loadRecentCommands(window.localStorage)
   )
   const [editingProfile, setEditingProfile] = useState<SavedProfile | null>(null)
+  // The tab whose profile is being edited, which can be reconnected once it is saved.
+  const [editingProfileTabId, setEditingProfileTabId] = useState<string | null>(null)
   const [duplicatingProfile, setDuplicatingProfile] = useState<SavedProfile | null>(null)
   const [profilesRefreshKey, setProfilesRefreshKey] = useState(0)
   const [sessionRestored, setSessionRestored] = useState(false)
@@ -1001,14 +1004,14 @@ export const TTermApp: React.FC = () => {
     [updateQuickConnectRecents]
   )
 
-  const openSaveQuickConnectDialog = useCallback((tab: Tab) => {
-    setEditingProfile(null)
-    setDuplicatingProfile(null)
   const handleClearQuickConnectRecents = useCallback(
     () => updateQuickConnectRecents(() => []),
     [updateQuickConnectRecents]
   )
 
+  const openSaveQuickConnectDialog = useCallback((tab: Tab) => {
+    setEditingProfile(null)
+    setDuplicatingProfile(null)
     setDraftProfile(draftProfileFromTab(tab))
     setSavingQuickConnectTabId(tab.id)
     setShowConnectionDialog(true)
@@ -1094,6 +1097,7 @@ export const TTermApp: React.FC = () => {
   const handleEditProfile = useCallback((profile: SavedProfile) => {
     setDuplicatingProfile(null)
     setEditingProfile(profile)
+    setEditingProfileTabId(null)
     setShowConnectionDialog(true)
   }, [])
 
@@ -1145,6 +1149,7 @@ export const TTermApp: React.FC = () => {
         }
 
         handleEditProfile(profile)
+        setEditingProfileTabId(tab.id)
       } catch (error) {
         console.error("Failed to load connection profile:", error)
         toast({
@@ -1474,6 +1479,81 @@ export const TTermApp: React.FC = () => {
       }))
     },
     [updateTab]
+  )
+
+  const handleProfileSaved = useCallback(
+    (profile: SavedProfile, { reconnect }: ProfileSavedOptions) => {
+      if (savingQuickConnectTabId) {
+        handleQuickConnectSaved(profile)
+        return
+      }
+
+      // Open tabs of the profile reconnect with what was saved; their sessions keep running.
+      const profileTabs = tabsRef.current.filter(
+        (tab) => tab.type === "ssh" && tab.connection?.profileId === profile.id
+      )
+      profileTabs.forEach((tab) =>
+        updateTab(tab.id, (current) => applyProfileToTab(current, profile))
+      )
+
+      const reconnectTabId =
+        reconnect && profileTabs.some((tab) => tab.id === editingProfileTabId)
+          ? editingProfileTabId
+          : null
+      if (reconnectTabId) handleReconnectTab(reconnectTabId)
+
+      const isLive = (tab: Tab) => {
+        const runtime = runtimeStatesRef.current[tab.id]
+        return (
+          runtime?.sessionNonce === (tab.sessionNonce ?? 0) &&
+          (runtime.connectionState === "connected" ||
+            runtime.connectionState === "connecting" ||
+            runtime.connectionState === "reconnecting")
+        )
+      }
+      const liveTabIds = profileTabs
+        .filter((tab) => tab.id !== reconnectTabId && isLive(tab))
+        .map((tab) => tab.id)
+      if (liveTabIds.length === 0) return
+
+      toast({
+        title: t("profiles.openTabsNotUpdatedTitle"),
+        description: t("profiles.openTabsNotUpdatedDescription", { count: liveTabIds.length }),
+        duration: 10_000,
+        action: (
+          <ToastAction
+            altText={t("profiles.reconnectNow")}
+            onClick={async () => {
+              const targets = tabsRef.current.filter(
+                (tab) =>
+                  liveTabIds.includes(tab.id) &&
+                  tab.connection?.profileId === profile.id &&
+                  isLive(tab)
+              )
+              if (targets.length === 0) return
+              const confirmed = await confirm({
+                title: t("profiles.reconnectConfirmTitle", { count: targets.length }),
+                description: t("profiles.reconnectConfirmDescription"),
+                confirmText: t("profiles.reconnectConfirmAction"),
+                variant: "destructive",
+              })
+              if (confirmed) targets.forEach((tab) => handleReconnectTab(tab.id))
+            }}
+          >
+            {t("profiles.reconnectNow")}
+          </ToastAction>
+        ),
+      })
+    },
+    [
+      confirm,
+      editingProfileTabId,
+      handleQuickConnectSaved,
+      handleReconnectTab,
+      savingQuickConnectTabId,
+      t,
+      updateTab,
+    ]
   )
 
   const pauseLiveBroadcast = useCallback(() => {
@@ -1946,6 +2026,7 @@ export const TTermApp: React.FC = () => {
           onClose={() => {
             setShowConnectionDialog(false)
             setEditingProfile(null)
+            setEditingProfileTabId(null)
             setDuplicatingProfile(null)
             setDraftProfile(null)
             setSavingQuickConnectTabId(null)
@@ -1956,8 +2037,9 @@ export const TTermApp: React.FC = () => {
           duplicateProfile={duplicatingProfile}
           draftProfile={draftProfile}
           saveOnly={savingQuickConnectTabId !== null}
-          onSaved={handleQuickConnectSaved}
+          onSaved={handleProfileSaved}
           typedPasswordTabId={savingQuickConnectTabId ?? undefined}
+          canReconnect={editingProfileTabId !== null}
         />
       )}
 
@@ -1969,6 +2051,7 @@ export const TTermApp: React.FC = () => {
         onOpenConnectionDialog={handleOpenConnectionDialogFromLauncher}
         recents={quickConnectRecents}
         onForgetRecent={handleForgetQuickConnectRecent}
+        onClearRecents={handleClearQuickConnectRecents}
       />
 
       <Dialog open={showProfilesPanel} onOpenChange={setShowProfilesPanel}>
@@ -2051,7 +2134,6 @@ export const TTermApp: React.FC = () => {
       <TunnelHostKeyPrompt />
       <VaultStartupUnlockDialog
         open={shouldPromptStartupVaultUnlock}
-        onClearRecents={handleClearQuickConnectRecents}
         onClose={() => setStartupVaultUnlockDismissed(true)}
       />
     </div>

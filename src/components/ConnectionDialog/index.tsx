@@ -172,9 +172,10 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   editProfile,
   duplicateProfile,
   draftProfile,
-  saveOnly = false,
+  saveOnly: saveOnlyProp = false,
   onSaved,
   typedPasswordTabId,
+  canReconnect = false,
   config,
   saveConfig,
 }) => {
@@ -209,6 +210,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     group.toLowerCase().includes(form.group.toLowerCase())
   )
   const sshProfileId = editProfile?.id ?? draftProfileId
+  // Editing a profile changes what its tabs connect with; it never opens another tab.
+  const saveOnly = saveOnlyProp || Boolean(editProfile)
 
   useEffect(() => {
     Promise.all([invoke<SavedProfile[]>("list_profiles"), invoke<string[]>("list_profile_groups")])
@@ -365,7 +368,9 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     event.preventDefault()
     const keepalive = normalizeKeepalive(form)
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null
-    const shouldSave = submitter?.dataset.action === "save"
+    const submitAction = submitter?.dataset.action
+    const shouldReconnect = submitAction === "save-reconnect"
+    const shouldSave = submitAction === "save" || shouldReconnect
     setNameError(null)
 
     const jumpErrors = getJumpHostValidationErrors(form)
@@ -452,11 +457,6 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
       if (!result.ok) {
         return
       }
-      if (saveOnly) {
-        onSaved?.(profile)
-        onClose()
-        return
-      }
       if (editProfile) {
         const running = await findActiveTunnelsUsingProfile(profile.id)
         if (running.length > 0) {
@@ -469,6 +469,11 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
             }),
           })
         }
+      }
+      if (saveOnly) {
+        onSaved?.(profile, { reconnect: shouldReconnect })
+        onClose()
+        return
       }
     }
 
@@ -664,10 +669,10 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
       >
         <DialogHeader>
           <DialogTitle>
-            {saveOnly
-              ? t("quickConnect.saveTitle")
-              : editProfile
-                ? t("profiles.editTitle")
+            {editProfile
+              ? t("profiles.editTitle")
+              : saveOnly
+                ? t("quickConnect.saveTitle")
                 : duplicateProfile
                   ? t("profiles.copyTitle")
                   : t("connection.newConnection")}
@@ -816,10 +821,27 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
             )}
             <TooltipProvider>
               {saveOnly ? (
-                <Button type="submit" data-action="save">
-                  <Save size={14} />
-                  {t("quickConnect.save")}
-                </Button>
+                <>
+                  {canReconnect && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="submit"
+                          variant="outline"
+                          data-action="save-reconnect"
+                          disabled={!form.host.trim()}
+                        >
+                          {t("profiles.saveAndReconnect")}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t("profiles.saveAndReconnectDescription")}</TooltipContent>
+                    </Tooltip>
+                  )}
+                  <Button type="submit" data-action="save" disabled={!form.host.trim()}>
+                    <Save size={14} />
+                    {t("quickConnect.save")}
+                  </Button>
+                </>
               ) : (
                 <>
                   {isSsh && (
@@ -866,6 +888,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
   saveOnly,
   onSaved,
   typedPasswordTabId,
+  canReconnect,
 }) => {
   const { config, saveConfig } = useConfig()
   const dialogKey = [
@@ -894,6 +917,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
           saveOnly={saveOnly}
           onSaved={onSaved}
           typedPasswordTabId={typedPasswordTabId}
+          canReconnect={canReconnect}
           config={config}
           saveConfig={saveConfig}
         />

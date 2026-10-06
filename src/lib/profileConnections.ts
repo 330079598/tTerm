@@ -44,3 +44,38 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
     },
   }
 }
+
+/**
+ * An open tab of an edited profile, now connecting with what was saved. A
+ * password typed for the tab is kept only while it still signs in to the
+ * same account; the title follows a rename unless the tab was renamed itself.
+ */
+export function applyProfileToTab(tab: Tab, profile: SavedProfile): Tab {
+  const previous = tab.connection ?? {}
+  const next = buildConnectionFromProfile(profile).connection ?? {}
+  const sameAccount =
+    previous.host === next.host &&
+    previous.port === next.port &&
+    previous.username === next.username &&
+    previous.authMethod === next.authMethod &&
+    previous.privateKeyPath === next.privateKeyPath
+  const connection = { ...previous, ...next }
+  if (!sameAccount) {
+    connection.password = undefined
+    connection.privateKeyPassphrase = undefined
+    connection.ignoreSavedPassword = undefined
+  }
+
+  const oldName = previous.profileName
+  let { title, duplicateBaseTitle } = tab
+  if (oldName && oldName !== profile.name) {
+    if (title === oldName) {
+      title = profile.name
+    } else if (duplicateBaseTitle === oldName && title.startsWith(oldName)) {
+      title = profile.name + title.slice(oldName.length)
+      duplicateBaseTitle = profile.name
+    }
+  }
+
+  return { ...tab, title, duplicateBaseTitle, connection }
+}

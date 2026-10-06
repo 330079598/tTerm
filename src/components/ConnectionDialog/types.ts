@@ -10,11 +10,18 @@ export interface ConnectionDialogProps {
   duplicateProfile?: SavedProfile | null
   /** A new profile's starting values, e.g. from a quick connection. */
   draftProfile?: SavedProfile | null
-  /** Only save the profile; nothing is connected. */
+  /** Only save the profile; nothing is connected. Editing a profile always only saves. */
   saveOnly?: boolean
   /** The quick connection tab being saved, whose typed passwords can be stored. */
   typedPasswordTabId?: string
-  onSaved?: (profile: SavedProfile) => void
+  /** Offer to reconnect the tab the profile was edited from once it is saved. */
+  canReconnect?: boolean
+  onSaved?: (profile: SavedProfile, options: ProfileSavedOptions) => void
+}
+
+export interface ProfileSavedOptions {
+  /** Reconnect the tab the dialog was opened from with the saved profile. */
+  reconnect: boolean
 }
 
 export type ConnectionType = "terminal" | "ssh"
