@@ -146,9 +146,9 @@ pub fn bash_env(user_prompt_command: Option<&str>, marks: bool) -> Vec<(String, 
 }
 
 /// `wsl.exe` arguments that start the user's shell through `wsl/launch.sh`,
-/// in `cwd` when it exists there and in `fallback_dir` (a Windows path)
-/// otherwise; with `marks` the shell marks its commands.
-pub fn wsl_args(dir: &Path, cwd: Option<&str>, fallback_dir: &str, marks: bool) -> Vec<String> {
+/// in `cwd` when it exists there and in the Linux home otherwise; with
+/// `marks` the shell marks its commands.
+pub fn wsl_args(dir: &Path, cwd: Option<&str>, marks: bool) -> Vec<String> {
     vec![
         "--cd".to_string(),
         dir.to_string_lossy().into_owned(),
@@ -156,7 +156,6 @@ pub fn wsl_args(dir: &Path, cwd: Option<&str>, fallback_dir: &str, marks: bool) 
         "sh".to_string(),
         "./wsl/launch.sh".to_string(),
         cwd.unwrap_or_default().to_string(),
-        fallback_dir.to_string(),
         if marks { "1" } else { "0" }.to_string(),
     ]
 }
@@ -274,9 +273,9 @@ mod tests {
 
     #[test]
     fn wsl_args_end_with_the_marks_switch() {
-        let args = wsl_args(Path::new("dir"), None, r"C:\Users\me", true);
-        assert_eq!(args[args.len() - 3..], ["", r"C:\Users\me", "1"]);
-        let args = wsl_args(Path::new("dir"), Some("/home/me"), r"C:\Users\me", false);
+        let args = wsl_args(Path::new("dir"), None, true);
+        assert_eq!(args[args.len() - 2..], ["", "1"]);
+        let args = wsl_args(Path::new("dir"), Some("/home/me"), false);
         assert_eq!(args.last().map(String::as_str), Some("0"));
     }
 

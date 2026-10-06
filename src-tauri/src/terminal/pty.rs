@@ -185,7 +185,7 @@ pub fn build_terminal_command(
     let start_dir = resolve_start_dir(config.cwd.as_deref()).unwrap_or_else(|| home.clone());
 
     #[cfg(target_os = "windows")]
-    let mut cmd = build_windows_command(&config, &home)?;
+    let mut cmd = build_windows_command(&config)?;
 
     #[cfg(not(target_os = "windows"))]
     let mut cmd = CommandBuilder::new_default_prog();
@@ -298,7 +298,6 @@ fn resolve_macos_path(path: Option<&std::ffi::OsStr>) -> String {
 #[cfg(target_os = "windows")]
 fn build_windows_command(
     config: &crate::core::session::TerminalShellConfig,
-    home: &str,
 ) -> Result<CommandBuilder, String> {
     let shell = config.shell.trim().to_ascii_lowercase();
 
@@ -361,9 +360,11 @@ fn build_windows_command(
                 args.extend(shell_integration::wsl_args(
                     &dir,
                     config.cwd.as_deref(),
-                    home,
                     marks,
                 ));
+            } else {
+                // Start in the Linux home, as Windows Terminal does.
+                args.extend(["--cd".to_string(), "~".to_string()]);
             }
         }
         _ => {}
