@@ -148,6 +148,44 @@ describe("CommandMarks", () => {
     expect(marks.selectLastOutput()).toBe(false)
   })
 
+  it("knows when the shell waits at a prompt", async () => {
+    const { marks, write } = setup()
+    await write(`${PROMPT}$ cat big.bin\r\n${OUTPUT}`)
+    expect(marks.isAtPrompt()).toBe(false)
+    await write(`junk\r\n${done(0)}${PROMPT}$ `)
+    expect(marks.isAtPrompt()).toBe(true)
+    // Typing a command keeps it at the prompt until it runs.
+    await write("vim")
+    expect(marks.isAtPrompt()).toBe(true)
+    await write(`\r\n${OUTPUT}\x1b[?1049h`)
+    expect(marks.isAtPrompt()).toBe(false)
+  })
+
+  it("knows the prompt from Enter when the shell sends no C (PowerShell)", async () => {
+    const { marks, write } = setup()
+    await write(`${PROMPT}PS> dir\r\nout\r\n${done(0)}${PROMPT}PS> python`)
+    expect(marks.isAtPrompt()).toBe(true)
+    marks.handleEnter()
+    await write("\r\n>>> ")
+    expect(marks.isAtPrompt()).toBe(false)
+  })
+
+  it("does not claim a prompt for shells without D marks (cmd)", async () => {
+    const { marks, write } = setup()
+    await write(`${PROMPT}C:\\> dir`)
+    marks.handleEnter()
+    await write(`\r\nfiles\r\n\r\n${PROMPT}C:\\> `)
+    expect(marks.isAtPrompt()).toBe(false)
+  })
+
+  it("does not claim a prompt before any mark or when turned off", async () => {
+    const { marks, write } = setup()
+    expect(marks.isAtPrompt()).toBe(false)
+    await write(`${PROMPT}$ ls\r\n${OUTPUT}a\r\n${done(0)}${PROMPT}$ `)
+    marks.setEnabled(false)
+    expect(marks.isAtPrompt()).toBe(false)
+  })
+
   it("forgets everything when turned off", async () => {
     const { marks, write } = setup()
     marks.setEnabled(false)

@@ -37,6 +37,7 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   "tabs.closeActive": "mod+shift+w",
   "terminal.find": "mod+f",
   "terminal.clear": "mod+shift+k",
+  "terminal.reset": null,
   "terminal.saveSelection": "mod+shift+s",
   "terminal.fillSavedPassword": "mod+shift+enter",
   // Shift+= is "+" on US layouts, so Ctrl++ zooms in as well.

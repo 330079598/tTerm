@@ -41,6 +41,7 @@ import { useKeymap } from "@/contexts/KeymapContext"
 import { useCatalogFor, useTheme } from "@/contexts/ThemeContext"
 import { useStableRef } from "@/hooks/useStableRef"
 import { resolveScrollbackLines } from "@/lib/scrollback"
+import { resetTerminalState } from "@/components/TerminalTab/terminalReset"
 import { safePreloadFont, updateCanvasFontHostFont } from "@/lib/canvasFontHost"
 import { pasteNeedsConfirmation, summarizePaste } from "@/lib/pasteGuard"
 import { compilePromptPatterns } from "@/lib/sudoPrompt"
@@ -793,6 +794,49 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     term.focus()
   }, [])
 
+  const resetTerminal = useCallback(async () => {
+    const term = termRef.current
+    if (!term) return
+
+    // Checked before anything is written: only a shell waiting at its prompt
+    // takes Ctrl+L as "redraw" rather than as input.
+    const atPrompt = commandMarksRef.current?.isAtPrompt() ?? false
+    resetTerminalState(term)
+    term.scrollToBottom()
+    term.focus()
+    try {
+      // A local Windows shell's console translates output before xterm sees
+      // it, so it needs a reset of its own (the backend skips everything
+      // else). It must land before the redraw, or that would be garbled too.
+      await invoke("reset_pty_console", { tabId, sessionNonce })
+    } catch (error) {
+      console.error("Failed to reset the shell's console:", error)
+      toast({
+        title: t("terminalContext.resetFailedTitle"),
+        description: String(error),
+        variant: "destructive",
+      })
+      return
+    }
+    // Characters already on screen were translated when printed, so a reset
+    // cannot change them; the shell's redraw replaces them instead.
+    if (atPrompt) {
+      invoke("write_pty", { tabId, sessionNonce, data: "\x0c" }).catch(console.error)
+    } else {
+      // Without shell integration an SSH session can never tell it is at a
+      // prompt; say where to turn it on.
+      const currentConnection = connectionRef.current
+      const withoutIntegration =
+        currentConnection?.type === "ssh" && !currentConnection.shellIntegration
+      toast({
+        title: t("terminalContext.resetDoneTitle"),
+        description: withoutIntegration
+          ? `${t("terminalContext.resetDoneDescription")} ${t("terminalContext.resetShellIntegrationHint")}`
+          : t("terminalContext.resetDoneDescription"),
+      })
+    }
+  }, [connectionRef, sessionNonce, t, tabId])
+
   /** Selects and copies the output of the last command the shell marked. */
   const copyLastCommandOutput = useCallback(async () => {
     const marks = commandMarksRef.current
@@ -852,6 +896,10 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         clearTerminalHistory()
         return
       }
+      if (action === "reset-terminal") {
+        await resetTerminal()
+        return
+      }
       if (action === "copy-command-output") {
         await copyLastCommandOutput()
         return
@@ -894,6 +942,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       onOpenCommandLibrary,
       onSaveCommand,
       pasteFromClipboard,
+      resetTerminal,
       t,
       terminalContextMenu,
     ]
@@ -926,6 +975,11 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     { action: "zmodem-receive", label: t("terminalContext.zmodemReceive"), icon: "download" },
     { separator: true, action: "separator", label: "" },
     {
+      action: "reset-terminal",
+      label: t("terminalContext.resetTerminal"),
+      icon: "rotate-ccw",
+    },
+    {
       action: "clear-history",
       label: t("terminalContext.clearHistory"),
       icon: "x",
@@ -940,6 +994,10 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     const unregisterClear = registerHandler("terminal.clear", () => {
       if (!isActiveRef.current) return false
       clearTerminalHistory()
+    })
+    const unregisterReset = registerHandler("terminal.reset", () => {
+      if (!isActiveRef.current) return false
+      void resetTerminal()
     })
     const unregisterToggleSftp = registerHandler("sftp.toggle", () => {
       if (!isActiveRef.current) return false
@@ -992,6 +1050,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     return () => {
       unregisterFind()
       unregisterClear()
+      unregisterReset()
       unregisterToggleSftp()
       unregisterZmodemSend()
       unregisterZmodemReceive()
@@ -1011,6 +1070,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     onSaveCommand,
     openSearch,
     registerHandler,
+    resetTerminal,
   ])
 
   const searchResultText = searchQuery

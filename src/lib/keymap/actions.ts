@@ -17,6 +17,7 @@ export type KeymapActionId =
   // terminal
   | "terminal.find"
   | "terminal.clear"
+  | "terminal.reset"
   | "terminal.saveSelection"
   | "terminal.fillSavedPassword"
   | "terminal.zoomIn"
@@ -62,6 +63,7 @@ export const KEYMAP_ACTIONS: KeymapActionDefinition[] = [
   { id: "tabs.closeActive", group: "tabs", allowInEditable: true },
   { id: "terminal.find", group: "terminal", allowInEditable: true },
   { id: "terminal.clear", group: "terminal", allowInEditable: true },
+  { id: "terminal.reset", group: "terminal", allowInEditable: true },
   { id: "terminal.saveSelection", group: "terminal", allowInEditable: true },
   { id: "terminal.fillSavedPassword", group: "terminal", allowInEditable: true },
   { id: "terminal.zoomIn", group: "terminal", allowInEditable: true },

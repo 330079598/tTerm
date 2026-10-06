@@ -199,6 +199,13 @@ mod tokio_worker_tests {
     }
 }
 
+/// Runs tTerm's console reset helper instead of the app when started as one
+/// (see `terminal::console_reset`); returns its exit code.
+#[cfg(target_os = "windows")]
+pub fn run_console_reset_helper() -> Option<i32> {
+    terminal::console_reset::run_helper_if_requested()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let pty_map: PtyMap = Arc::new(RwLock::new(std::collections::HashMap::new()));
@@ -312,6 +319,7 @@ pub fn run() {
             core::commands::create_pty,
             core::commands::write_pty,
             core::commands::ack_pty_output,
+            core::commands::reset_pty_console,
             core::commands::write_pty_batch,
             core::commands::resize_pty,
             core::commands::kill_pty,

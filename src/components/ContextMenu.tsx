@@ -24,6 +24,7 @@ import {
   Star,
   Upload,
   Download,
+  RotateCcw,
 } from "lucide-react"
 import { TabContextMenuAction } from "@/types/tab"
 import { cn } from "@/lib/utils"
@@ -84,6 +85,8 @@ const getActionIcon = (icon?: string) => {
       return <PanelTop size={14} aria-hidden="true" />
     case "upload":
       return <Upload size={14} aria-hidden="true" />
+    case "rotate-ccw":
+      return <RotateCcw size={14} aria-hidden="true" />
     case "download":
       return <Download size={14} aria-hidden="true" />
     default:

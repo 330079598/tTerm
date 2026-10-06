@@ -61,6 +61,8 @@ export class CommandMarks implements IDisposable {
   private entries: CommandEntry[] = []
   /** The shell sends C marks, so Enter need not stand in for them. */
   private sendsOutputMarks = false
+  /** The shell sends D marks when commands finish (all but cmd). */
+  private sendsDoneMarks = false
   private enabled = true
   /** The prompt the last jump went to, while the view still shows it there. */
   private jumped: { prompt: IMarker; viewportY: number } | null = null
@@ -79,7 +81,24 @@ export class CommandMarks implements IDisposable {
     if (!mark) return
     if (mark.kind === "prompt") this.startPrompt()
     else if (mark.kind === "output") this.startOutput()
-    else this.finishCommand(mark.exitCode)
+    else {
+      this.sendsDoneMarks = true
+      this.finishCommand(mark.exitCode)
+    }
+  }
+
+  /**
+   * The shell is waiting at a prompt, so input reaches its line editor rather
+   * than a running program. Only known for shells that mark finished commands:
+   * bash, zsh, fish and PowerShell, whose editors also redraw on Ctrl+L
+   * (unlike cmd).
+   */
+  isAtPrompt(): boolean {
+    if (!this.enabled || !this.sendsDoneMarks || this.term.buffer.active.type !== "normal") {
+      return false
+    }
+    const entry = this.current()
+    return entry !== undefined && !entry.output && !entry.end
   }
 
   /**

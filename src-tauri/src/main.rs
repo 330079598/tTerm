@@ -2,5 +2,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
+    #[cfg(target_os = "windows")]
+    if let Some(code) = t_term_lib::run_console_reset_helper() {
+        std::process::exit(code);
+    }
     t_term_lib::run()
 }

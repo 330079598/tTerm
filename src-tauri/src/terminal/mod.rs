@@ -1,3 +1,5 @@
+#[cfg(target_os = "windows")]
+pub mod console_reset;
 #[cfg(unix)]
 mod cwd_watch;
 mod encoding;

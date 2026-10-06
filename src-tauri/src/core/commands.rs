@@ -316,6 +316,37 @@ pub fn write_pty(
     result
 }
 
+/// Soft-resets the console behind a local Windows session, which interprets
+/// the shell's output before xterm.js sees it (see `console_reset`). A no-op
+/// for SSH sessions and on other platforms, where xterm.js holds all state.
+#[tauri::command]
+pub async fn reset_pty_console(
+    tab_id: String,
+    session_nonce: u32,
+    state: State<'_, PtyMap>,
+) -> Result<(), String> {
+    let pid = {
+        let map = state.read().await;
+        let Some(session) = map.get(&tab_id) else {
+            return Ok(());
+        };
+        if session.session_nonce != session_nonce
+            || !matches!(*session.active.lock().await, Some(ActiveSession::Local(_)))
+        {
+            return Ok(());
+        }
+        session.pid
+    };
+    #[cfg(target_os = "windows")]
+    if pid != 0 {
+        return tokio::task::spawn_blocking(move || terminal::console_reset::reset_console(pid))
+            .await
+            .map_err(|err| format!("Console reset task failed: {err}"))?;
+    }
+    let _ = pid;
+    Ok(())
+}
+
 /// Reports output bytes xterm.js has finished parsing, letting a paused
 /// output sender continue. Async so it runs off the main thread.
 #[tauri::command]
