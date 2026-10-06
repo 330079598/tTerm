@@ -191,8 +191,11 @@ pnpm install
 ### 开发模式运行
 
 ```bash
-pnpm tauri dev
+pnpm tauri:dev
 ```
+
+该命令以 `tTerm Dev`（`com.stone.tTerm.dev`）身份运行，可以和已安装的 tTerm 同时打开，
+并使用独立的数据库、配置和 WebView 存储。
 
 在 Linux 上，如果 Wayland 后端因 GDK 协议错误退出，或者 WebKitGTK 报告 GBM
 缓冲区错误，可以使用兼容 XWayland 的开发命令：
@@ -232,8 +235,8 @@ pnpm build
 # 预览前端构建结果
 pnpm preview
 
-# 启动 Tauri 开发模式
-pnpm tauri dev
+# 启动 Tauri 开发模式（独立的 tTerm Dev 身份与数据）
+pnpm tauri:dev
 
 # 在 Linux 上通过 XWayland 启动（Wayland/GBM 兼容模式）
 pnpm tauri:dev:linux

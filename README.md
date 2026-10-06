@@ -191,8 +191,11 @@ pnpm install
 ### Run in Development Mode
 
 ```bash
-pnpm tauri dev
+pnpm tauri:dev
 ```
+
+This runs the app as `tTerm Dev` (`com.stone.tTerm.dev`), so it can run next to
+an installed tTerm and keeps its own database, settings and WebView storage.
 
 On Linux, if the Wayland backend exits with a GDK protocol error or WebKitGTK
 reports GBM buffer errors, use the XWayland-compatible development command:
@@ -232,8 +235,8 @@ pnpm build
 # Preview the frontend build
 pnpm preview
 
-# Start Tauri development mode
-pnpm tauri dev
+# Start Tauri development mode (separate tTerm Dev identity and data)
+pnpm tauri:dev
 
 # Start Tauri on Linux through XWayland (Wayland/GBM compatibility mode)
 pnpm tauri:dev:linux
