@@ -907,7 +907,12 @@ fn filter_frontend_state(selection: &BackupSelection, state: Option<Value>) -> O
         }
     }
     if selection.settings {
-        for key in ["recentCommands", "sftpColumnWidths", "sftpView"] {
+        for key in [
+            "recentCommands",
+            "recentQuickConnections",
+            "sftpColumnWidths",
+            "sftpView",
+        ] {
             if let Some(value) = source.get(key) {
                 filtered.insert(key.to_string(), value.clone());
             }
@@ -3039,6 +3044,7 @@ mod tests {
         let state = serde_json::json!({
             "customThemes": [{"id":"theme"}],
             "recentCommands": [{"id":"recent"}],
+            "recentQuickConnections": [{"host":"example.com"}],
             "sftpColumnWidths": [1, 2],
             "sftpView": {"showHidden": false},
             "untrusted": "ignored"
@@ -3048,6 +3054,7 @@ mod tests {
         let filtered = filter_frontend_state(&selection, Some(state)).unwrap();
         assert!(filtered.get("customThemes").is_none());
         assert!(filtered.get("recentCommands").is_some());
+        assert!(filtered.get("recentQuickConnections").is_some());
         assert!(filtered.get("sftpView").is_some());
         assert!(filtered.get("untrusted").is_none());
     }

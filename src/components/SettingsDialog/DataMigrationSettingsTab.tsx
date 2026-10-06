@@ -34,6 +34,7 @@ import { useTheme } from "@/contexts/ThemeContext"
 import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { useToast } from "@/hooks/use-toast"
 import { readBackupFrontendState } from "@/lib/backupFrontendState"
+import { QUICK_CONNECT_RECENTS_STORAGE_KEY } from "@/lib/quickConnect"
 import { RECENT_COMMANDS_STORAGE_KEY } from "@/lib/recentCommands"
 import { isVerificationCanceled } from "@/lib/userVerification"
 import { toErrorMessage } from "@/lib/utils"
@@ -108,6 +109,7 @@ interface BackupImportResult {
   secretsImported: number
   frontendState: {
     recentCommands?: unknown[]
+    recentQuickConnections?: unknown[]
     sftpColumnWidths?: unknown
     sftpView?: unknown
   } | null
@@ -139,6 +141,12 @@ function cloneAvailableSelection(selection: BackupSelection): BackupSelection {
 function restoreFrontendState(state: BackupImportResult["frontendState"]) {
   if (state && Array.isArray(state.recentCommands)) {
     localStorage.setItem(RECENT_COMMANDS_STORAGE_KEY, JSON.stringify(state.recentCommands))
+  }
+  if (state && Array.isArray(state.recentQuickConnections)) {
+    localStorage.setItem(
+      QUICK_CONNECT_RECENTS_STORAGE_KEY,
+      JSON.stringify(state.recentQuickConnections)
+    )
   }
   if (state && state.sftpColumnWidths !== undefined && state.sftpColumnWidths !== null) {
     localStorage.setItem("tterm.sftp.columnWidths", JSON.stringify(state.sftpColumnWidths))
