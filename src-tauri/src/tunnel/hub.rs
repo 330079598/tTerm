@@ -583,6 +583,7 @@ mod tests {
             private_key_passphrase: None,
             use_agent: false,
             keyboard_interactive: false,
+            auto_auth: false,
             agent_forward: false,
             terminal_shell: None,
             jump_hosts: Vec::new(),

@@ -29,6 +29,8 @@ interface SshConnectionFieldsProps {
   form: ConnectionForm
   setForm: React.Dispatch<React.SetStateAction<ConnectionForm>>
   savedPasswordAvailable: boolean
+  /** The available password is the one typed while connecting, not yet saved. */
+  savedPasswordTyped?: boolean
   matchingGroups: string[]
   nameError: string | null
   setNameError: React.Dispatch<React.SetStateAction<string | null>>
@@ -41,6 +43,7 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
   form,
   setForm,
   savedPasswordAvailable,
+  savedPasswordTyped = false,
   matchingGroups,
   nameError,
   setNameError,
@@ -161,7 +164,9 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
               <Label htmlFor="conn-password">{t("connection.password")}</Label>
               {savedPasswordMasked && (
                 <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
-                  {t("connection.savedPasswordBadge")}
+                  {savedPasswordTyped
+                    ? t("quickConnect.typedPasswordBadge")
+                    : t("connection.savedPasswordBadge")}
                 </Badge>
               )}
             </div>
@@ -192,7 +197,9 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
             />
             {savedPasswordMasked && (
               <p className="text-muted-foreground mt-1 text-xs">
-                {t("connection.savedPasswordHint")}
+                {savedPasswordTyped
+                  ? t("quickConnect.typedPasswordHint")
+                  : t("connection.savedPasswordHint")}
               </p>
             )}
           </div>

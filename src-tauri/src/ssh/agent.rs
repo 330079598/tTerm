@@ -6,6 +6,8 @@
 
 use russh::client::{self, AuthResult};
 use russh::keys::agent::client::AgentClient;
+use russh::keys::agent::AgentIdentity;
+use russh::keys::PublicKey;
 
 use crate::ssh::types::SshConnectError;
 
@@ -87,10 +89,6 @@ const EMPTY_AGENT_MESSAGE: &str = "The SSH agent has no keys loaded. Add one wit
 /// local SSH agent, in order, until one is accepted. The result is a failure
 /// with `partial_success` when the server took a key but wants another
 /// method on top of it.
-///
-/// Signing can involve a hardware touch/PIN prompt handled by the agent
-/// itself, so each attempt gets a generous timeout rather than the shorter
-/// budget used for password/key-file auth.
 pub async fn authenticate_via_agent<H>(
     session: &mut client::Handle<H>,
     username: &str,
@@ -98,8 +96,6 @@ pub async fn authenticate_via_agent<H>(
 where
     H: client::Handler,
 {
-    const SIGN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
-
     let mut agent = connect_local_agent().await?;
     let identities = agent.request_identities().await.map_err(|e| {
         SshConnectError::Permanent(format!("Failed to list SSH agent identities: {e}"))
@@ -108,6 +104,51 @@ where
     if identities.is_empty() {
         return Err(SshConnectError::Permanent(EMPTY_AGENT_MESSAGE.to_string()));
     }
+
+    offer_identities(session, username, &mut agent, identities, &mut Vec::new())
+        .await
+        .ok_or_else(|| {
+            SshConnectError::Permanent(
+                "None of the SSH agent's identities were accepted by the server".to_string(),
+            )
+        })
+}
+
+/// The agent step of automatic authentication: like
+/// [`authenticate_via_agent`], but an agent that is not running or holds no
+/// keys just yields `None`. Every key offered is added to `offered`, so a
+/// key file holding the same key is not offered a second time.
+pub async fn try_agent_identities<H>(
+    session: &mut client::Handle<H>,
+    username: &str,
+    offered: &mut Vec<PublicKey>,
+) -> Option<AuthResult>
+where
+    H: client::Handler,
+{
+    let mut agent = connect_local_agent().await.ok()?;
+    let identities = agent.request_identities().await.ok()?;
+    offer_identities(session, username, &mut agent, identities, offered).await
+}
+
+/// Offers each identity in turn and returns the first verdict that is not a
+/// plain rejection.
+///
+/// Signing can involve a hardware touch/PIN prompt handled by the agent
+/// itself, so each attempt gets a generous timeout rather than the shorter
+/// budget used for password/key-file auth.
+async fn offer_identities<H, S>(
+    session: &mut client::Handle<H>,
+    username: &str,
+    agent: &mut AgentClient<S>,
+    identities: Vec<AgentIdentity>,
+    offered: &mut Vec<PublicKey>,
+) -> Option<AuthResult>
+where
+    H: client::Handler,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + 'static,
+{
+    const SIGN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 
     // RSA identities default to the legacy SHA-1 `ssh-rsa` signature algorithm
     // unless told otherwise, and most modern servers (OpenSSH 8.8+) reject
@@ -121,13 +162,14 @@ where
 
     for identity in identities {
         let public_key = identity.public_key().into_owned();
+        offered.push(public_key.clone());
         let hash_alg = match public_key.algorithm() {
             russh::keys::Algorithm::Rsa { .. } => rsa_hash_alg,
             _ => None,
         };
         let attempt = tokio::time::timeout(
             SIGN_TIMEOUT,
-            session.authenticate_publickey_with(username, public_key, hash_alg, &mut agent),
+            session.authenticate_publickey_with(username, public_key, hash_alg, agent),
         )
         .await;
 
@@ -138,12 +180,10 @@ where
                     partial_success: true,
                     ..
                 }),
-            )) => return Ok(result),
+            )) => return Some(result),
             _ => continue,
         }
     }
 
-    Err(SshConnectError::Permanent(
-        "None of the SSH agent's identities were accepted by the server".to_string(),
-    ))
+    None
 }

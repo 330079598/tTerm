@@ -51,6 +51,7 @@
     "splitAbove": "Split Above",
     "renameTab": "Rename Tab",
     "editConnection": "Edit Connection Configuration",
+    "saveConnection": "Save as Connection Configuration",
     "pinConnectionHeader": "Pin Connection Header",
     "unpinConnectionHeader": "Unpin Connection Header",
     "closeTab": "Close Tab",
@@ -1256,6 +1257,31 @@
     "hint": "This is where the {{type}} interface will be rendered.",
     "implementation": "You can implement your own terminal/SSH component here."
   },
+  "quickConnect": {
+    "placeholder": "user@host[:port], an ssh command, or search connections",
+    "connectTo": "Connect to {{target}}",
+    "addUser": "add a user name",
+    "localTerminal": "Local terminal",
+    "defaultShell": "Default",
+    "newConnection": "New connection…",
+    "newConnectionDetail": "SSH or a custom shell, with every option",
+    "newConnectionPrefilled": "all options, filled in from what you typed",
+    "sections": {
+      "localTerminal": "Local terminal",
+      "recent": "Recent",
+      "profiles": "Saved connections",
+      "sshConfig": "SSH config"
+    },
+    "forgetRecent": "Remove from recent",
+    "hint": "↑↓ choose · Enter open · Tries the SSH agent and ~/.ssh keys, then asks for a password",
+    "connectedTitle": "Connected to {{target}}",
+    "connectedDescription": "Save it as a connection profile to open it again from the profile list.",
+    "saveAsProfile": "Save as profile",
+    "typedPasswordBadge": "Typed when connecting",
+    "typedPasswordHint": "The password you typed when connecting will be saved. Type a new one to replace it.",
+    "saveTitle": "Save Connection",
+    "save": "Save"
+  },
   "ssh": {
     "hostKeyMismatch": "Host key mismatch detected",
     "unknownHostKey": "Unknown host key",
@@ -1744,6 +1770,7 @@
     "agentAuth": "Agent auth",
     "interactiveAuth": "Interactive auth",
     "passwordAuth": "Password auth",
+    "autoAuth": "Automatic auth",
     "privateKey": "Private key",
     "target": "Target",
     "method": "Method",

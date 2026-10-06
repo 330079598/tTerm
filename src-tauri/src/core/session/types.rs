@@ -79,6 +79,21 @@ pub struct JumpHostPlan {
     pub use_agent: bool,
     /// Authenticate by answering the server's prompts; nothing is stored.
     pub keyboard_interactive: bool,
+    /// No method configured: try the agent, key files, then prompts.
+    pub auto_auth: bool,
+}
+
+impl JumpHostPlan {
+    pub fn auth_method(&self) -> crate::ssh::AuthMethod<'_> {
+        crate::ssh::AuthMethod::from_plan(
+            self.auto_auth,
+            self.use_agent,
+            self.keyboard_interactive,
+            self.private_key_path.as_deref(),
+            self.private_key_passphrase.as_deref(),
+            self.password.as_deref(),
+        )
+    }
 }
 
 pub fn jump_host_secret_key(profile_id: Option<&str>, profile_name: &str) -> String {
@@ -289,6 +304,9 @@ pub struct SessionPlan {
     pub use_agent: bool,
     /// Authenticate by answering the server's prompts; nothing is stored.
     pub keyboard_interactive: bool,
+    /// No method configured (quick connect): try the agent, key files, then
+    /// prompts. `private_key_path` is then only the first key file to try.
+    pub auto_auth: bool,
     /// Forward the local SSH agent to the target host so the user's keys can
     /// be used for further SSH hops from there, whatever the auth method.
     /// The target's `SshClientHandler` only bridges a server-opened
@@ -302,4 +320,18 @@ pub struct SessionPlan {
     /// SSH: start the remote shell with tTerm's shell integration (command
     /// marks) when the host supports it; see `crate::ssh::shell_integration`.
     pub shell_integration: bool,
+}
+
+impl SessionPlan {
+    /// How to authenticate to the target host.
+    pub fn auth_method(&self) -> crate::ssh::AuthMethod<'_> {
+        crate::ssh::AuthMethod::from_plan(
+            self.auto_auth,
+            self.use_agent,
+            self.keyboard_interactive,
+            self.private_key_path.as_deref(),
+            self.private_key_passphrase.as_deref(),
+            self.password.as_deref(),
+        )
+    }
 }

@@ -8,6 +8,13 @@ export interface ConnectionDialogProps {
   onConnect: (connection: Omit<Tab, "id" | "isActive">) => void
   editProfile?: SavedProfile | null
   duplicateProfile?: SavedProfile | null
+  /** A new profile's starting values, e.g. from a quick connection. */
+  draftProfile?: SavedProfile | null
+  /** Only save the profile; nothing is connected. */
+  saveOnly?: boolean
+  /** The quick connection tab being saved, whose typed passwords can be stored. */
+  typedPasswordTabId?: string
+  onSaved?: (profile: SavedProfile) => void
 }
 
 export type ConnectionType = "terminal" | "ssh"

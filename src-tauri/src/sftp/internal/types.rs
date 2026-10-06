@@ -84,7 +84,9 @@ impl SftpConnectionKey {
                                 jump.host,
                                 jump.port,
                                 jump.username,
-                                if jump.private_key_path.is_some() {
+                                if jump.auto_auth {
+                                    "auto"
+                                } else if jump.private_key_path.is_some() {
                                     "key"
                                 } else if jump.use_agent {
                                     "agent"

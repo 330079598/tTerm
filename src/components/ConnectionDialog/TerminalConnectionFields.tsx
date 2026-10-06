@@ -6,15 +6,14 @@ import { useTranslation } from "react-i18next"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
+import {
+  isDetectedCustomShell,
+  terminalShellLabel,
+  type TerminalShellProfile,
+} from "@/lib/terminalShells"
 import { TerminalShellType } from "@/types/tab"
 
 import { ConnectionForm } from "@/components/ConnectionDialog/types"
-
-interface TerminalShellProfile {
-  shell: TerminalShellType
-  label: string
-  source: string
-}
 
 type TerminalShellOption = TerminalShellProfile & {
   value: string
@@ -48,16 +47,6 @@ function getFallbackTerminalShellProfiles(): TerminalShellProfile[] {
   } catch {
     return unixFallbackTerminalShellProfiles
   }
-}
-
-const terminalShellTranslationKeys: Record<TerminalShellType, string> = {
-  auto: "auto",
-  cmd: "cmd",
-  powershell: "powershell",
-  pwsh: "pwsh",
-  wsl: "wsl",
-  "git-bash": "gitBash",
-  custom: "custom",
 }
 
 function toShellOption(profile: TerminalShellProfile): TerminalShellOption {
@@ -125,30 +114,19 @@ export const TerminalConnectionFields: React.FC<TerminalConnectionFieldsProps> =
             const selectedProfile = visibleShellOptions.find(
               (profile) => profile.value === selectedValue
             )
-            const isDetectedCustomShell =
-              selectedProfile?.shell === "custom" &&
-              selectedProfile.source !== "manual path" &&
-              selectedProfile.source !== "$SHELL"
-
             setForm((current) => ({
               ...current,
               terminalShell: selectedProfile?.shell ?? (selectedValue as TerminalShellType),
-              terminalShellCustomPath: isDetectedCustomShell
-                ? selectedProfile.source
-                : current.terminalShellCustomPath,
+              terminalShellCustomPath:
+                selectedProfile && isDetectedCustomShell(selectedProfile)
+                  ? selectedProfile.source
+                  : current.terminalShellCustomPath,
             }))
           }}
         >
           {visibleShellOptions.map((profile) => (
             <option key={profile.value} value={profile.value}>
-              {profile.shell === "custom" &&
-              profile.source !== "manual path" &&
-              profile.source !== "$SHELL"
-                ? profile.label
-                : t(
-                    `connection.terminalShellOptions.${terminalShellTranslationKeys[profile.shell]}`,
-                    profile.label
-                  )}
+              {terminalShellLabel(profile, t)}
             </option>
           ))}
         </Select>

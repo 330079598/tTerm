@@ -147,10 +147,13 @@ const TabItem = React.memo(function TabItem({
               }
           : null
 
+      // A tab without a profile (quick connect, or connected without saving) can be saved as one.
       const editConnectionAction: TabContextMenuAction | null =
-        tab.type === "ssh" && tab.connection?.profileId
-          ? { label: t("contextMenu.editConnection"), action: "edit-connection", icon: "edit" }
-          : null
+        tab.type !== "ssh"
+          ? null
+          : tab.connection?.profileId
+            ? { label: t("contextMenu.editConnection"), action: "edit-connection", icon: "edit" }
+            : { label: t("contextMenu.saveConnection"), action: "edit-connection", icon: "edit" }
 
       const actions: TabContextMenuAction[] = [
         { label: t("contextMenu.newTab"), action: "new", icon: "plus" },

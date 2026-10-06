@@ -16,6 +16,7 @@ use tauri::{AppHandle, Emitter};
 /// Authenticates one hop of the chain with its configured method.
 async fn authenticate_jump_host(
     session: &mut client::Handle<JumpHostHandler>,
+    tab_id: &str,
     jump_plan: &JumpHostPlan,
     hop_index: usize,
     total_hops: usize,
@@ -29,16 +30,11 @@ async fn authenticate_jump_host(
             username: &jump_plan.username,
             hop: Some((hop_index, total_hops)),
         },
-        AuthMethod::from_plan(
-            jump_plan.use_agent,
-            jump_plan.keyboard_interactive,
-            jump_plan.private_key_path.as_deref(),
-            jump_plan.private_key_passphrase.as_deref(),
-            jump_plan.password.as_deref(),
-        ),
+        jump_plan.auth_method().for_tab(tab_id),
         auth_prompter,
     )
     .await
+    .map(|_| ())
     .map_err(|e| e.with_prefix(&format!("Jump host #{hop_index}: ")))
 }
 
@@ -181,6 +177,7 @@ async fn connect_jump_direct(
 
     authenticate_jump_host(
         &mut session,
+        tab_id,
         jump_plan,
         hop_index,
         total_hops,
@@ -282,6 +279,7 @@ where
 
     authenticate_jump_host(
         &mut session,
+        tab_id,
         jump_plan,
         hop_index,
         total_hops,
@@ -492,11 +490,7 @@ pub async fn open_target_ssh_session(
     target_host: &str,
     target_port: u16,
     target_username: &str,
-    target_private_key_path: Option<&str>,
-    target_private_key_passphrase: Option<&str>,
-    target_password: Option<&str>,
-    target_use_agent: bool,
-    target_keyboard_interactive: bool,
+    target_auth: AuthMethod<'_>,
     target_agent_forward: bool,
     keepalive_interval_secs: u16,
     keepalive_count_max: u16,
@@ -514,11 +508,7 @@ pub async fn open_target_ssh_session(
         target_host,
         target_port,
         target_username,
-        target_private_key_path,
-        target_private_key_passphrase,
-        target_password,
-        target_use_agent,
-        target_keyboard_interactive,
+        target_auth,
         target_agent_forward,
         keepalive_interval_secs,
         keepalive_count_max,
@@ -540,11 +530,7 @@ pub async fn open_target_ssh_session_with_forwarding(
     target_host: &str,
     target_port: u16,
     target_username: &str,
-    target_private_key_path: Option<&str>,
-    target_private_key_passphrase: Option<&str>,
-    target_password: Option<&str>,
-    target_use_agent: bool,
-    target_keyboard_interactive: bool,
+    target_auth: AuthMethod<'_>,
     target_agent_forward: bool,
     keepalive_interval_secs: u16,
     keepalive_count_max: u16,
@@ -639,21 +625,32 @@ pub async fn open_target_ssh_session_with_forwarding(
             username: target_username,
             hop: None,
         },
-        AuthMethod::from_plan(
-            target_use_agent,
-            target_keyboard_interactive,
-            target_private_key_path,
-            target_private_key_passphrase,
-            target_password,
-        ),
+        target_auth.for_tab(tab_id),
         auth_prompter,
     )
     .await;
-    if let Err(error) = auth_result {
-        let _ = target_session
-            .disconnect(Disconnect::ByApplication, "Authentication failed", "en")
-            .await;
-        return Err(error);
+    let used = match auth_result {
+        Ok(used) => used,
+        Err(error) => {
+            let _ = target_session
+                .disconnect(Disconnect::ByApplication, "Authentication failed", "en")
+                .await;
+            return Err(error);
+        }
+    };
+    if matches!(target_auth, AuthMethod::Auto { .. }) {
+        emit_connection_progress(
+            app,
+            tab_id,
+            status_options,
+            SshConnectionProgressPayload::new(
+                "target_authenticated",
+                format!("Authenticated target as {}", target_username),
+            )
+            .host(target_host.to_string(), target_port)
+            .username(target_username.to_string())
+            .auth_used(&used),
+        );
     }
 
     Ok((jump_chain_opt, target_session))

@@ -66,6 +66,7 @@ pub fn normalize_connection(
             private_key_passphrase: None,
             use_agent: false,
             keyboard_interactive: false,
+            auto_auth: false,
             agent_forward: false,
             terminal_shell,
             jump_hosts: Vec::new(),
@@ -101,10 +102,12 @@ pub fn normalize_connection(
 
             let use_agent = connection.auth_method.as_deref() == Some("agent");
             let keyboard_interactive = connection.auth_method.as_deref() == Some("interactive");
+            let auto_auth = connection.auth_method.as_deref() == Some("auto");
             // Neither method stores a password or reads a key file.
             let stores_nothing = use_agent || keyboard_interactive;
             let agent_forward = connection.agent_forward;
-            let password = if stores_nothing {
+            // Automatic authentication asks for the password and passphrase it needs.
+            let password = if stores_nothing || auto_auth {
                 None
             } else {
                 connection.password.filter(|v| !v.is_empty())
@@ -116,7 +119,7 @@ pub fn normalize_connection(
             } else {
                 connection.private_key_path.filter(|v| !v.is_empty())
             };
-            let private_key_passphrase = if stores_nothing {
+            let private_key_passphrase = if stores_nothing || auto_auth {
                 None
             } else {
                 connection.private_key_passphrase.filter(|v| !v.is_empty())
@@ -144,6 +147,7 @@ pub fn normalize_connection(
                 private_key_passphrase,
                 use_agent,
                 keyboard_interactive,
+                auto_auth,
                 agent_forward,
                 terminal_shell: None,
                 jump_hosts,
@@ -190,7 +194,8 @@ fn normalize_jump_host(opts: JumpHostOptions) -> Result<JumpHostPlan, String> {
     let use_key = opts.auth_method.as_deref() == Some("key");
     let use_agent = opts.auth_method.as_deref() == Some("agent");
     let keyboard_interactive = opts.auth_method.as_deref() == Some("interactive");
-    let private_key_path = if use_key {
+    let auto_auth = opts.auth_method.as_deref() == Some("auto");
+    let private_key_path = if use_key || auto_auth {
         opts.private_key_path.filter(|v| !v.is_empty())
     } else {
         None
@@ -200,7 +205,7 @@ fn normalize_jump_host(opts: JumpHostOptions) -> Result<JumpHostPlan, String> {
     } else {
         None
     };
-    let password = if use_key || use_agent || keyboard_interactive {
+    let password = if use_key || use_agent || keyboard_interactive || auto_auth {
         None
     } else {
         opts.password.filter(|v| !v.is_empty())
@@ -215,6 +220,7 @@ fn normalize_jump_host(opts: JumpHostOptions) -> Result<JumpHostPlan, String> {
         private_key_passphrase,
         use_agent,
         keyboard_interactive,
+        auto_auth,
     })
 }
 
@@ -356,7 +362,11 @@ pub fn resolve_ssh_password(
         return Ok(());
     }
 
-    if plan.private_key_path.is_none() && !plan.use_agent && !plan.keyboard_interactive {
+    if plan.private_key_path.is_none()
+        && !plan.use_agent
+        && !plan.keyboard_interactive
+        && !plan.auto_auth
+    {
         if let Some(password) = plan.password.clone() {
             let secret_key = plan
                 .profile_id
@@ -413,7 +423,11 @@ fn resolve_jump_host_passwords(
     let allow_legacy_fallback = plan.jump_hosts.len() == 1;
 
     for jump in plan.jump_hosts.iter_mut() {
-        if jump.private_key_path.is_some() || jump.use_agent || jump.keyboard_interactive {
+        if jump.private_key_path.is_some()
+            || jump.use_agent
+            || jump.keyboard_interactive
+            || jump.auto_auth
+        {
             continue;
         }
 

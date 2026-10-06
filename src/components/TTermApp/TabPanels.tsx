@@ -47,7 +47,7 @@ import type { TerminalInputRequest } from "@/types/broadcast"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
 import type { LiveBroadcastState } from "@/types/broadcast"
 import type { ExecutedCommand } from "@/types/command"
-import type { ConnectionState } from "@/components/TerminalTab/types"
+import type { ConnectionState, SshConnectionProgress } from "@/components/TerminalTab/types"
 
 const workspaceDockTheme = {
   ...themeDark,
@@ -142,6 +142,7 @@ interface TabPanelsProps {
   ) => void
   onTerminalSessionUnavailable: (tabId: string, sessionNonce: number, unexpected: boolean) => void
   onTerminalSensitivePrompt: (tabId: string) => void
+  onTerminalConnectionProgress?: (tabId: string, progress: SshConnectionProgress) => void
   profilesRefreshKey?: number
   startupConnectionsReady: boolean
   startupSessionRestoreMode: "active" | "all"
@@ -415,6 +416,9 @@ const WorkspacePanel = React.memo(function WorkspacePanel({
                 workspace.handleServerMonitorVisibilityChange(tab.id, visible)
               }
               onSensitivePrompt={workspace.onTerminalSensitivePrompt}
+              onConnectionProgress={(progress) =>
+                workspace.onTerminalConnectionProgress?.(tab.id, progress)
+              }
               onUnpinConnectionHeader={() => workspace.handleUnpinConnectionHeader(tab.id)}
             />
           </ErrorBoundary>
@@ -542,6 +546,7 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
     onTerminalSavedPasswordPromptChange,
     onTerminalSessionUnavailable,
     onTerminalSensitivePrompt,
+    onTerminalConnectionProgress,
     profilesRefreshKey,
     startupConnectionsReady,
     startupSessionRestoreMode,
@@ -1058,6 +1063,7 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
       onTerminalSavedPasswordPromptChange,
       onTerminalSessionUnavailable,
       onTerminalSensitivePrompt,
+      onTerminalConnectionProgress,
       profilesRefreshKey,
       splitTab,
       startupConnectionsReady,
@@ -1092,6 +1098,7 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
       onTerminalSavedPasswordPromptChange,
       onTerminalSessionUnavailable,
       onTerminalSensitivePrompt,
+      onTerminalConnectionProgress,
       profilesRefreshKey,
       splitTab,
       startupConnectionsReady,

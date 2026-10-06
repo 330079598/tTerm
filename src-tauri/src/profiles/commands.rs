@@ -111,8 +111,7 @@ pub fn import_ssh_config_profiles(
             sudo_password: None,
             clear_sudo_password: false,
             encoding: existing_index.and_then(|index| profiles[index].encoding.clone()),
-            terminal_theme: existing_index
-                .and_then(|index| profiles[index].terminal_theme.clone()),
+            terminal_theme: existing_index.and_then(|index| profiles[index].terminal_theme.clone()),
             login_script: existing_index.and_then(|index| profiles[index].login_script.clone()),
             shell_integration: existing_index
                 .is_some_and(|index| profiles[index].shell_integration),
@@ -170,12 +169,42 @@ pub fn import_ssh_config_profiles(
 pub async fn save_profile(
     app: tauri::AppHandle,
     secret_state: tauri::State<'_, crate::ssh::SecretStoreState>,
-    profile: SavedProfile,
+    mut profile: SavedProfile,
+    typed_password_tab_id: Option<String>,
 ) -> Result<(), String> {
+    if let Some(tab_id) = typed_password_tab_id.as_deref() {
+        if profile.remember_password {
+            fill_typed_passwords(&mut profile, tab_id);
+        }
+    }
     // Saving its passwords waits for startup to unlock saved passwords, which
     // may sit on a credential store prompt; keep that off the main thread.
     let secret_state = secret_state.inner().clone();
     crate::core::blocking::run_blocking(move || store_profile(app, secret_state, profile)).await
+}
+
+/// A profile saved (or tested) from a quick connection tab uses the
+/// passwords typed there, unless new ones were entered in the dialog.
+fn fill_typed_passwords(profile: &mut SavedProfile, tab_id: &str) {
+    let typed = |host: &str, port: u16, username: &str| {
+        crate::ssh::typed_passwords::get(tab_id, host, port, username)
+            .map(|password| password.to_string())
+    };
+    let uses_password = !matches!(
+        profile.auth_method.as_deref(),
+        Some("key" | "agent" | "interactive")
+    );
+    if uses_password && profile.password.as_deref().is_none_or(str::is_empty) {
+        if let (Some(host), Some(username)) = (profile.host.as_deref(), profile.username.as_deref())
+        {
+            profile.password = typed(host, profile.port.unwrap_or(22), username);
+        }
+    }
+    for jump in &mut profile.jump_hosts {
+        if jump.auth_method == "password" && jump.password.as_deref().is_none_or(str::is_empty) {
+            jump.password = typed(&jump.host, jump.port, &jump.username);
+        }
+    }
 }
 
 fn store_profile(
@@ -410,19 +439,22 @@ pub struct TestConnectionResult {
 #[tauri::command]
 pub async fn test_connection(
     app: tauri::AppHandle,
-    profile: SavedProfile,
+    mut profile: SavedProfile,
+    typed_password_tab_id: Option<String>,
     prompt_state: tauri::State<'_, HostPromptMap>,
     secret_state: tauri::State<'_, crate::ssh::SecretStoreState>,
 ) -> Result<TestConnectionResult, String> {
     if profile.connection_type != "ssh" {
         return Err("Only SSH connections can be tested".to_string());
     }
+    if let Some(tab_id) = typed_password_tab_id.as_deref() {
+        fill_typed_passwords(&mut profile, tab_id);
+    }
 
     let host = profile.host.clone().ok_or("Host is required")?;
     let username = profile.username.clone().ok_or("Username is required")?;
     let port = profile.port.unwrap_or(22);
 
-    let mut profile = profile;
     normalize_profile(&mut profile);
 
     let jump_hosts = if profile.uses_jump_host() {
@@ -449,6 +481,7 @@ pub async fn test_connection(
                     None
                 },
                 use_agent: j.auth_method == "agent",
+                auto_auth: j.auth_method == "auto",
                 keyboard_interactive: j.auth_method == "interactive",
             })
             .collect::<Vec<_>>()
@@ -480,6 +513,7 @@ pub async fn test_connection(
         },
         private_key_passphrase: profile.private_key_passphrase.clone(),
         use_agent: profile.auth_method.as_deref() == Some("agent"),
+        auto_auth: profile.auth_method.as_deref() == Some("auto"),
         keyboard_interactive: profile.auth_method.as_deref() == Some("interactive"),
         agent_forward: false,
         terminal_shell: None,
@@ -706,15 +740,57 @@ async fn authenticate_test_connection<H: russh::client::Handler>(
             username,
             hop: None,
         },
-        crate::ssh::auth::AuthMethod::from_plan(
-            plan.use_agent,
-            plan.keyboard_interactive,
-            plan.private_key_path.as_deref(),
-            plan.private_key_passphrase.as_deref(),
-            plan.password.as_deref(),
-        ),
+        plan.auth_method(),
         auth_prompter,
     )
     .await
+    .map(|_| ())
     .map_err(String::from)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn quick_profile() -> SavedProfile {
+        serde_json::from_value(serde_json::json!({
+            "id": "",
+            "name": "root@db",
+            "connection_type": "ssh",
+            "host": "db",
+            "port": 22,
+            "username": "root",
+            "auth_method": "password",
+            "remember_password": true,
+            "keepalive_interval_secs": 15,
+            "keepalive_count_max": 3,
+            "jump_hosts": [
+                { "host": "bastion", "port": 22, "username": "ops", "auth_method": "password" }
+            ]
+        }))
+        .expect("profile fixture")
+    }
+
+    #[test]
+    fn saving_a_quick_connection_fills_in_the_passwords_typed_in_its_tab() {
+        const TAB: &str = "profile-test-typed";
+        crate::ssh::typed_passwords::remember(TAB, "db", 22, "root", "target-secret");
+        crate::ssh::typed_passwords::remember(TAB, "bastion", 22, "ops", "jump-secret");
+
+        let mut profile = quick_profile();
+        fill_typed_passwords(&mut profile, TAB);
+        assert_eq!(profile.password.as_deref(), Some("target-secret"));
+        assert_eq!(
+            profile.jump_hosts[0].password.as_deref(),
+            Some("jump-secret")
+        );
+
+        // One typed in the dialog wins.
+        let mut profile = quick_profile();
+        profile.password = Some("new-secret".to_string());
+        fill_typed_passwords(&mut profile, TAB);
+        assert_eq!(profile.password.as_deref(), Some("new-secret"));
+
+        crate::ssh::typed_passwords::forget_typed_passwords(TAB.to_string());
+    }
 }

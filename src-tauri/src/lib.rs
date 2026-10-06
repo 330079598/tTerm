@@ -316,6 +316,8 @@ pub fn run() {
             core::commands::kill_pty,
             core::commands::respond_ssh_host_key_prompt,
             ssh::auth::respond_ssh_auth_prompt,
+            ssh::typed_passwords::has_typed_password,
+            ssh::typed_passwords::forget_typed_passwords,
             core::commands::has_saved_password,
             core::commands::has_saved_jump_host_password,
             core::commands::write_saved_password_for_sudo,

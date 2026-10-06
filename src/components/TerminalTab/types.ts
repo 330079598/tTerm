@@ -1,4 +1,4 @@
-import type { Tab } from "@/types/tab"
+import type { SshAuthUsed, Tab } from "@/types/tab"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import type { DockviewPanelApi } from "dockview-react"
 import type { TerminalInputRequest } from "@/types/broadcast"
@@ -30,6 +30,8 @@ export interface TerminalTabProps {
   onSavedPasswordPromptChange?: (tabId: string, sessionNonce: number, prompt: string | null) => void
   onSessionUnavailable?: (tabId: string, sessionNonce: number, unexpected: boolean) => void
   onSensitivePrompt?: (tabId: string) => void
+  /** Every progress event of the tab's own SSH connection. */
+  onConnectionProgress?: (progress: SshConnectionProgress) => void
   onReconnectRequest?: () => void
   onOpenRemoteFile?: (
     entry: SftpDirectoryEntry,
@@ -90,6 +92,8 @@ export type SshConnectionProgress = {
   reason?: string
   /** `ready` phase of a connection with shell integration turned on. */
   shellIntegration?: ShellIntegrationStatus
+  /** `target_authenticated` phase of a quick connection: what got the user in. */
+  auth?: SshAuthUsed
 }
 
 export type HostKeyPromptState = {

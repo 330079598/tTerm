@@ -9,9 +9,11 @@ use std::time::Duration;
 use russh::server::{Auth, Response};
 use russh::{MethodKind, MethodSet};
 
+use crate::ssh::typed_passwords;
+
 use super::{
     authenticate, is_password_prompt, AuthMethod, AuthPromptField, AuthPrompter, AuthTarget,
-    ScriptedPrompts,
+    AuthUsed, ScriptedPrompts,
 };
 
 const USER: &str = "ops";
@@ -36,6 +38,8 @@ struct Script {
     rounds: Vec<Round>,
     /// Verdict once every round was answered correctly.
     keyboard_interactive: fn() -> Auth,
+    /// Methods the server offers; `None` keeps russh's default of all of them.
+    methods: Option<Vec<MethodKind>>,
 }
 
 impl Default for Script {
@@ -46,6 +50,7 @@ impl Default for Script {
             publickey: Auth::reject,
             rounds: Vec::new(),
             keyboard_interactive: || Auth::Accept,
+            methods: None,
         }
     }
 }
@@ -164,7 +169,13 @@ impl Harness {
     async fn start(script: Script, answers: Vec<Option<Vec<&str>>>) -> Self {
         let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
         let log = Arc::new(Mutex::new(Vec::new()));
+        let methods = script
+            .methods
+            .as_deref()
+            .map(MethodSet::from)
+            .unwrap_or_else(MethodSet::server_supported);
         let server_config = Arc::new(russh::server::Config {
+            methods,
             keys: vec![russh::keys::PrivateKey::random(
                 &mut rand::rng(),
                 russh::keys::ssh_key::Algorithm::Ed25519,
@@ -206,7 +217,7 @@ impl Harness {
         }
     }
 
-    async fn authenticate(&mut self, method: AuthMethod<'_>) -> Result<(), String> {
+    async fn authenticate(&mut self, method: AuthMethod<'_>) -> Result<AuthUsed, String> {
         self.authenticate_with(method, AuthPrompter::Scripted(self.prompts.clone()))
             .await
     }
@@ -215,7 +226,7 @@ impl Harness {
         &mut self,
         method: AuthMethod<'_>,
         prompter: AuthPrompter,
-    ) -> Result<(), String> {
+    ) -> Result<AuthUsed, String> {
         let target = AuthTarget {
             host: "example.com",
             port: 22,
@@ -487,10 +498,20 @@ async fn a_wrong_code_is_rejected() {
 
 /// Writes a fresh Ed25519 key to a temp file and returns its path.
 fn write_client_key() -> std::path::PathBuf {
+    write_client_key_with(None)
+}
+
+/// Like [`write_client_key`], encrypted with `passphrase` when given.
+fn write_client_key_with(passphrase: Option<&str>) -> std::path::PathBuf {
     let path = std::env::temp_dir().join(format!("tterm-auth-key-{}", uuid::Uuid::new_v4()));
-    let key =
+    let mut key =
         russh::keys::PrivateKey::random(&mut rand::rng(), russh::keys::ssh_key::Algorithm::Ed25519)
             .expect("client key");
+    if let Some(passphrase) = passphrase {
+        key = key
+            .encrypt(&mut rand::rng(), passphrase)
+            .expect("encrypt key");
+    }
     std::fs::write(
         &path,
         key.to_openssh(russh::keys::ssh_key::LineEnding::LF)
@@ -608,8 +629,16 @@ fn password_prompts_are_told_apart_from_code_prompts() {
 #[test]
 fn plan_fields_pick_the_method_in_precedence_order() {
     let method = |agent, interactive, key, password| {
-        AuthMethod::from_plan(agent, interactive, key, Some("phrase"), password)
+        AuthMethod::from_plan(false, agent, interactive, key, Some("phrase"), password)
     };
+    assert!(matches!(
+        AuthMethod::from_plan(true, true, true, Some("/k"), Some("phrase"), Some("p")),
+        AuthMethod::Auto {
+            key_path: Some("/k"),
+            local_identities: true,
+            tab_id: None
+        }
+    ));
     assert!(matches!(
         method(true, true, Some("/k"), Some("p")),
         AuthMethod::Agent
@@ -629,4 +658,261 @@ fn plan_fields_pick_the_method_in_precedence_order() {
         method(false, false, None, Some("p")),
         AuthMethod::Password(Some("p"))
     ));
+}
+
+fn auto(key_path: Option<&str>) -> AuthMethod<'_> {
+    AuthMethod::Auto {
+        key_path,
+        local_identities: false,
+        tab_id: None,
+    }
+}
+
+#[tokio::test]
+async fn auto_signs_in_with_the_key_file_and_names_it() {
+    let mut harness = Harness::start(
+        Script {
+            publickey: || Auth::Accept,
+            ..Script::default()
+        },
+        vec![],
+    )
+    .await;
+
+    let key_path = write_client_key();
+    let path = key_path.to_str().expect("utf-8 path");
+    let result = harness.authenticate(auto(Some(path))).await;
+    std::fs::remove_file(&key_path).ok();
+
+    assert_eq!(
+        result.expect("authenticate"),
+        AuthUsed::Key {
+            path: path.to_string(),
+            passphrase_typed: false
+        }
+    );
+    assert_eq!(harness.log(), ["publickey"]);
+    assert!(harness.asked().is_empty());
+}
+
+#[tokio::test]
+async fn auto_unlocks_an_encrypted_key_with_the_typed_passphrase() {
+    let mut harness = Harness::start(
+        Script {
+            publickey: || Auth::Accept,
+            ..Script::default()
+        },
+        vec![Some(vec!["wrong"]), Some(vec!["secret"])],
+    )
+    .await;
+
+    let key_path = write_client_key_with(Some("secret"));
+    let path = key_path.to_str().expect("utf-8 path");
+    let result = harness.authenticate(auto(Some(path))).await;
+    std::fs::remove_file(&key_path).ok();
+
+    assert_eq!(
+        result.expect("authenticate"),
+        AuthUsed::Key {
+            path: path.to_string(),
+            passphrase_typed: true
+        }
+    );
+    let asked = harness.prompts.lock().unwrap().asked.clone();
+    assert_eq!(asked.len(), 2);
+    assert!(asked.iter().all(|payload| payload.kind == "passphrase"));
+    assert!(asked[1].instructions.starts_with("Wrong passphrase"));
+    assert_eq!(harness.log(), ["publickey"]);
+}
+
+#[tokio::test]
+async fn auto_skips_a_key_whose_passphrase_is_cancelled() {
+    let mut harness = Harness::start(
+        Script {
+            password: || Auth::Accept,
+            publickey: || Auth::Accept,
+            methods: Some(vec![MethodKind::PublicKey, MethodKind::Password]),
+            ..Script::default()
+        },
+        vec![None, Some(vec![PASSWORD])],
+    )
+    .await;
+
+    let key_path = write_client_key_with(Some("secret"));
+    let result = harness
+        .authenticate(auto(Some(key_path.to_str().expect("utf-8 path"))))
+        .await;
+    std::fs::remove_file(&key_path).ok();
+
+    assert_eq!(result.expect("authenticate"), AuthUsed::Password);
+    assert_eq!(harness.log(), [format!("password:{PASSWORD}")]);
+}
+
+#[tokio::test]
+async fn auto_asks_for_the_password_again_after_a_wrong_one() {
+    let mut harness = Harness::start(
+        Script {
+            password: || Auth::Accept,
+            after_wrong_password: Some(vec![MethodKind::Password]),
+            methods: Some(vec![MethodKind::Password]),
+            ..Script::default()
+        },
+        vec![Some(vec!["wrong"]), Some(vec![PASSWORD])],
+    )
+    .await;
+
+    let used = harness
+        .authenticate(auto(None))
+        .await
+        .expect("authenticate");
+    assert_eq!(used, AuthUsed::Password);
+    assert_eq!(
+        harness.log(),
+        ["password:wrong".to_string(), format!("password:{PASSWORD}")]
+    );
+    let asked = harness.prompts.lock().unwrap().asked.clone();
+    assert_eq!(asked[0].kind, "password");
+    assert_eq!(asked[0].instructions, "");
+    assert_eq!(
+        asked[1].instructions,
+        "Permission denied, please try again."
+    );
+}
+
+#[tokio::test]
+async fn auto_answers_keyboard_interactive_prompts_through_the_user() {
+    let mut harness = Harness::start(
+        Script {
+            rounds: vec![code_round()],
+            methods: Some(vec![MethodKind::KeyboardInteractive, MethodKind::Password]),
+            ..Script::default()
+        },
+        vec![Some(vec!["123456"])],
+    )
+    .await;
+
+    let used = harness
+        .authenticate(auto(None))
+        .await
+        .expect("authenticate");
+    assert_eq!(used, AuthUsed::KeyboardInteractive);
+    assert_eq!(harness.asked(), [vec![field("Verification code: ", false)]]);
+}
+
+#[tokio::test]
+async fn auto_explains_a_server_that_takes_only_unaccepted_keys() {
+    let mut harness = Harness::start(
+        Script {
+            methods: Some(vec![MethodKind::PublicKey]),
+            ..Script::default()
+        },
+        vec![],
+    )
+    .await;
+
+    let key_path = write_client_key();
+    let result = harness
+        .authenticate(auto(Some(key_path.to_str().expect("utf-8 path"))))
+        .await;
+    std::fs::remove_file(&key_path).ok();
+
+    let error = result.expect_err("no accepted key");
+    assert!(
+        error.contains("no key from the SSH agent or ~/.ssh was accepted"),
+        "{error}"
+    );
+    assert!(error.contains("publickey"), "{error}");
+    assert!(harness.asked().is_empty());
+}
+
+/// The password remembered for `tab_id` on the harness's target.
+fn remembered(tab_id: &str) -> Option<String> {
+    typed_passwords::get(tab_id, "example.com", 22, USER).map(|password| password.to_string())
+}
+
+fn password_only_script() -> Script {
+    Script {
+        password: || Auth::Accept,
+        after_wrong_password: Some(vec![MethodKind::Password]),
+        methods: Some(vec![MethodKind::Password]),
+        ..Script::default()
+    }
+}
+
+#[tokio::test]
+async fn auto_remembers_a_typed_password_and_signs_in_with_it_next_time() {
+    const TAB: &str = "auth-test-remembers";
+    let mut harness = Harness::start(password_only_script(), vec![Some(vec![PASSWORD])]).await;
+    harness
+        .authenticate(auto(None).for_tab(TAB))
+        .await
+        .expect("authenticate");
+    assert_eq!(remembered(TAB).as_deref(), Some(PASSWORD));
+
+    // The tab's next connection (SFTP, a reconnect) does not ask.
+    let mut next = Harness::start(password_only_script(), vec![]).await;
+    let used = next
+        .authenticate(auto(None).for_tab(TAB))
+        .await
+        .expect("authenticate");
+    assert_eq!(used, AuthUsed::Password);
+    assert!(next.asked().is_empty());
+    assert_eq!(next.log(), [format!("password:{PASSWORD}")]);
+
+    typed_passwords::forget_typed_passwords(TAB.to_string());
+}
+
+#[tokio::test]
+async fn a_remembered_password_the_server_refuses_is_replaced_by_the_typed_one() {
+    const TAB: &str = "auth-test-refused";
+    typed_passwords::remember(TAB, "example.com", 22, USER, "old");
+    let mut harness = Harness::start(password_only_script(), vec![Some(vec![PASSWORD])]).await;
+    harness
+        .authenticate(auto(None).for_tab(TAB))
+        .await
+        .expect("authenticate");
+    assert_eq!(
+        harness.log(),
+        ["password:old".to_string(), format!("password:{PASSWORD}")]
+    );
+    assert_eq!(remembered(TAB).as_deref(), Some(PASSWORD));
+
+    typed_passwords::forget_typed_passwords(TAB.to_string());
+}
+
+#[tokio::test]
+async fn a_password_typed_at_a_pam_prompt_is_remembered_as_the_password() {
+    const TAB: &str = "auth-test-pam";
+    let mut harness = Harness::start(
+        Script {
+            rounds: vec![password_round()],
+            methods: Some(vec![MethodKind::KeyboardInteractive]),
+            ..Script::default()
+        },
+        vec![Some(vec![PASSWORD])],
+    )
+    .await;
+    let used = harness
+        .authenticate(auto(None).for_tab(TAB))
+        .await
+        .expect("authenticate");
+    assert_eq!(used, AuthUsed::Password);
+    assert_eq!(remembered(TAB).as_deref(), Some(PASSWORD));
+
+    typed_passwords::forget_typed_passwords(TAB.to_string());
+}
+
+#[tokio::test]
+async fn a_failed_login_remembers_nothing() {
+    const TAB: &str = "auth-test-failed";
+    let mut harness = Harness::start(
+        password_only_script(),
+        vec![Some(vec!["a"]), Some(vec!["b"]), Some(vec!["c"])],
+    )
+    .await;
+    harness
+        .authenticate(auto(None).for_tab(TAB))
+        .await
+        .expect_err("every password is wrong");
+    assert!(remembered(TAB).is_none());
 }

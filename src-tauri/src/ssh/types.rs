@@ -157,6 +157,21 @@ pub struct SshConnectionProgressPayload {
     /// that turned it on.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shell_integration: Option<super::shell_integration::ShellIntegrationStatus>,
+    /// What automatic authentication found to work, for the
+    /// `target_authenticated` phase.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth: Option<AuthUsedPayload>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthUsedPayload {
+    /// The `auth_method` a profile would store for it.
+    pub method: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub private_key_path: Option<String>,
+    /// Connecting the same way again needs nothing typed.
+    pub reusable: bool,
 }
 
 impl SshConnectionProgressPayload {
@@ -175,7 +190,17 @@ impl SshConnectionProgressPayload {
             retry_max_attempts: None,
             reason: None,
             shell_integration: None,
+            auth: None,
         }
+    }
+
+    pub fn auth_used(mut self, used: &super::auth::AuthUsed) -> Self {
+        self.auth = Some(AuthUsedPayload {
+            method: used.method_name(),
+            private_key_path: used.key_path().map(str::to_string),
+            reusable: used.reusable(),
+        });
+        self
     }
 
     pub fn host(mut self, host: impl Into<String>, port: u16) -> Self {

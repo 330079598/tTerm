@@ -4,6 +4,7 @@ mod storage;
 mod types;
 
 pub use commands::*;
+pub(crate) use parser::{expand_home_path, home_dir};
 pub(crate) use storage::{
     configured_profile_groups, delete_profiles as delete_profile_rows, encode_profile,
     find_profile, list_saved_profiles, load_profiles, normalize_profile, replace_profile_groups,

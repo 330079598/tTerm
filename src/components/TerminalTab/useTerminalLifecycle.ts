@@ -87,6 +87,7 @@ type UseTerminalLifecycleOptions = {
   onSavedPasswordPromptChangeRef: React.RefObject<TerminalTabProps["onSavedPasswordPromptChange"]>
   onSessionUnavailableRef: React.RefObject<TerminalTabProps["onSessionUnavailable"]>
   onSensitivePromptRef: React.RefObject<TerminalTabProps["onSensitivePrompt"]>
+  onConnectionProgressRef: React.RefObject<TerminalTabProps["onConnectionProgress"]>
   savedPasswordPromptActionsRef: React.RefObject<SavedPasswordPromptActions | null>
   setSavedPasswordPrompt: (value: SavedPasswordPromptState | null) => void
   sudoPromptPatternsRef: React.RefObject<readonly RegExp[]>
@@ -176,6 +177,7 @@ export function useTerminalLifecycle({
   onSavedPasswordPromptChangeRef,
   onSessionUnavailableRef,
   onSensitivePromptRef,
+  onConnectionProgressRef,
   savedPasswordPromptActionsRef,
   setSavedPasswordPrompt,
   sudoPromptPatternsRef,
@@ -745,6 +747,7 @@ export function useTerminalLifecycle({
       }),
       listen<SshConnectionProgress>(`ssh-connection-progress-${tabId}`, (event) => {
         setConnectionProgress(event.payload)
+        onConnectionProgressRef.current?.(event.payload)
         if (event.payload.phase === "ready") {
           if (sawRetryingPhase) {
             sawRetryingPhase = false
@@ -945,6 +948,7 @@ export function useTerminalLifecycle({
     onSavedPasswordPromptChangeRef,
     onSessionUnavailableRef,
     onSensitivePromptRef,
+    onConnectionProgressRef,
     savedPasswordPromptActionsRef,
     setSavedPasswordPrompt,
     sudoPromptPatternsRef,

@@ -171,13 +171,17 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   onConnect,
   editProfile,
   duplicateProfile,
+  draftProfile,
+  saveOnly = false,
+  onSaved,
+  typedPasswordTabId,
   config,
   saveConfig,
 }) => {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [form, setForm] = useState<ConnectionForm>(() => {
-    const initialForm = buildInitialForm(editProfile ?? duplicateProfile, config)
+    const initialForm = buildInitialForm(editProfile ?? duplicateProfile ?? draftProfile, config)
     if (duplicateProfile) {
       initialForm.title = t("profiles.copyName", { name: duplicateProfile.name })
     }
@@ -195,6 +199,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const [testResult, setTestResult] = useState<TestConnectionResultState | null>(null)
   const [testHostKeyPrompt, setTestHostKeyPrompt] = useState<HostKeyPromptState | null>(null)
   const [savedPasswordAvailable, setSavedPasswordAvailable] = useState(false)
+  // The password typed while the quick connection being saved signed in.
+  const [typedPasswordAvailable, setTypedPasswordAvailable] = useState(false)
   const [savedSudoPasswordAvailable, setSavedSudoPasswordAvailable] = useState(false)
   const [savedJumpPasswordKeys, setSavedJumpPasswordKeys] = useState<Set<string>>(() => new Set())
   const [jumpHostErrors, setJumpHostErrors] = useState<Record<string, string>>({})
@@ -253,6 +259,41 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
       cancelled = true
     }
   }, [editProfile, form.authMethod, form.type])
+
+  // Offer to store what was typed while the quick connection signed in. The
+  // passwords stay in the backend; saving names the tab to take them from.
+  useEffect(() => {
+    if (!typedPasswordTabId || !draftProfile) return
+    const hasTyped = (account: { host: string; port: number; username: string }) =>
+      invoke<boolean>("has_typed_password", { tabId: typedPasswordTabId, ...account }).catch(
+        () => false
+      )
+    const { host, username } = draftProfile
+    const passwordJumps = (draftProfile.jump_hosts ?? []).filter(
+      (jump) => jump.auth_method === "password"
+    )
+    let cancelled = false
+    Promise.all([
+      draftProfile.auth_method === "password" && host && username
+        ? hasTyped({ host, port: draftProfile.port ?? 22, username })
+        : false,
+      Promise.all(passwordJumps.map((jump) => hasTyped(jump))),
+    ]).then(([targetTyped, jumpsTyped]) => {
+      if (cancelled || !(targetTyped || jumpsTyped.some(Boolean))) return
+      setTypedPasswordAvailable(targetTyped)
+      setSavedJumpPasswordKeys(
+        new Set(
+          passwordJumps
+            .filter((_, index) => jumpsTyped[index])
+            .map((jump) => getJumpHostPasswordLookupKey(jump))
+        )
+      )
+      setForm((current) => ({ ...current, rememberPassword: true }))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [draftProfile, typedPasswordTabId])
 
   useEffect(() => {
     if (!editProfile || form.type !== "ssh") {
@@ -402,13 +443,18 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
       }
       const result = await invokeSafe<void>(
         "save_profile",
-        { profile },
+        { profile, typedPasswordTabId },
         {
           context: "save_profile",
           title: t("errors.profileSaveFailed"),
         }
       )
       if (!result.ok) {
+        return
+      }
+      if (saveOnly) {
+        onSaved?.(profile)
+        onClose()
         return
       }
       if (editProfile) {
@@ -425,6 +471,9 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         }
       }
     }
+
+    // Nothing was saved (no host yet); a save-only dialog never connects.
+    if (saveOnly) return
 
     const connection: Omit<Tab, "id" | "isActive"> = {
       title,
@@ -564,7 +613,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
 
       const result = await invoke<{ message: string; networkLatencyMs: number | null }>(
         "test_connection",
-        { profile }
+        { profile, typedPasswordTabId }
       )
       const target = `${form.username}@${form.host}:${form.port}`
       const successMessage =
@@ -615,16 +664,18 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
       >
         <DialogHeader>
           <DialogTitle>
-            {editProfile
-              ? t("profiles.editTitle")
-              : duplicateProfile
-                ? t("profiles.copyTitle")
-                : t("connection.newConnection")}
+            {saveOnly
+              ? t("quickConnect.saveTitle")
+              : editProfile
+                ? t("profiles.editTitle")
+                : duplicateProfile
+                  ? t("profiles.copyTitle")
+                  : t("connection.newConnection")}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex-1 space-y-5 overflow-y-auto px-1">
-          <div>
+          <div hidden={saveOnly}>
             <Label className="mb-2 block">{t("connection.type")}</Label>
             <div className="grid grid-cols-2 gap-2">
               {connectionTypes.map(({ type, label }) => {
@@ -649,7 +700,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
             </div>
           </div>
 
-          <Separator />
+          {!saveOnly && <Separator />}
 
           {!isSsh && (
             <div>
@@ -676,7 +727,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
               <SshConnectionFields
                 form={form}
                 setForm={setForm}
-                savedPasswordAvailable={savedPasswordAvailable}
+                savedPasswordAvailable={savedPasswordAvailable || typedPasswordAvailable}
+                savedPasswordTyped={typedPasswordAvailable}
                 matchingGroups={matchingGroups}
                 nameError={nameError}
                 setNameError={setNameError}
@@ -763,25 +815,34 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
               </Button>
             )}
             <TooltipProvider>
-              {isSsh && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button type="submit" variant="outline" data-action="save">
-                      <Save size={14} />
-                      {t("connection.saveAndConnect")}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t("connection.saveAndConnectDescription")}</TooltipContent>
-                </Tooltip>
+              {saveOnly ? (
+                <Button type="submit" data-action="save">
+                  <Save size={14} />
+                  {t("quickConnect.save")}
+                </Button>
+              ) : (
+                <>
+                  {isSsh && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button type="submit" variant="outline" data-action="save">
+                          <Save size={14} />
+                          {t("connection.saveAndConnect")}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t("connection.saveAndConnectDescription")}</TooltipContent>
+                    </Tooltip>
+                  )}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button type="submit" data-action="connect">
+                        {t("connection.connect")}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("connection.connectDescription")}</TooltipContent>
+                  </Tooltip>
+                </>
               )}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button type="submit" data-action="connect">
-                    {t("connection.connect")}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t("connection.connectDescription")}</TooltipContent>
-              </Tooltip>
             </TooltipProvider>
           </DialogFooter>
         </form>
@@ -801,11 +862,15 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
   onConnect,
   editProfile,
   duplicateProfile,
+  draftProfile,
+  saveOnly,
+  onSaved,
+  typedPasswordTabId,
 }) => {
   const { config, saveConfig } = useConfig()
   const dialogKey = [
     editProfile?.id ?? duplicateProfile?.id ?? "new",
-    duplicateProfile ? "duplicate" : "edit",
+    duplicateProfile ? "duplicate" : draftProfile ? `draft:${draftProfile.name}` : "edit",
     config.terminal_shell,
     config.terminal_shell_custom_path,
     config.terminal_shell_custom_args,
@@ -825,6 +890,10 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
           onConnect={onConnect}
           editProfile={editProfile}
           duplicateProfile={duplicateProfile}
+          draftProfile={draftProfile}
+          saveOnly={saveOnly}
+          onSaved={onSaved}
+          typedPasswordTabId={typedPasswordTabId}
           config={config}
           saveConfig={saveConfig}
         />

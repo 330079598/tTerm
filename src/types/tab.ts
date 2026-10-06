@@ -85,11 +85,25 @@ export type TabType = ConnectionType | "settings" | "tunnels" | "remote-file-edi
  */
 export type SshAuthMethod = "password" | "key" | "agent" | "interactive"
 
+/**
+ * How a connection authenticates: a profile's method, or `auto` for a quick
+ * connection, which tries the agent, key files, then asks.
+ */
+export type ConnectionAuthMethod = SshAuthMethod | "auto"
+
+/** The method automatic authentication found to work. */
+export interface SshAuthUsed {
+  method: SshAuthMethod
+  privateKeyPath?: string
+  /** Connecting the same way again needs nothing typed. */
+  reusable: boolean
+}
+
 export interface JumpHostConnection {
   host: string
   port: number
   username: string
-  authMethod: SshAuthMethod
+  authMethod: ConnectionAuthMethod
   password?: string
   privateKeyPath?: string
   privateKeyPassphrase?: string
@@ -108,6 +122,13 @@ export interface Tab {
   connectionHeaderPinned?: boolean
   /** Set on a duplicated tab: the name its "-N" copies are numbered from. Cleared on rename. */
   duplicateBaseTitle?: string
+  /**
+   * Opened from the launcher by typing a host and not connected yet: its
+   * first connection is remembered as recent and offered for saving.
+   */
+  quickConnect?: boolean
+  /** Quick connection: the method that got the user in, once known. */
+  quickConnectAuth?: SshAuthUsed
   connection?: {
     type?: ConnectionType
     profileId?: string
@@ -121,7 +142,7 @@ export interface Tab {
     keepaliveIntervalSecs?: number
     keepaliveCountMax?: number
     serverMonitorVisible?: boolean
-    authMethod?: SshAuthMethod
+    authMethod?: ConnectionAuthMethod
     agentForward?: boolean
     privateKeyPath?: string
     privateKeyPassphrase?: string

@@ -51,6 +51,7 @@
     "splitAbove": "向上分屏",
     "renameTab": "重命名标签页",
     "editConnection": "修改连接配置",
+    "saveConnection": "保存为连接配置",
     "pinConnectionHeader": "固定连接信息栏",
     "unpinConnectionHeader": "取消固定连接信息栏",
     "closeTab": "关闭标签页",
@@ -1243,6 +1244,31 @@
     "hint": "这里将渲染 {{type}} 界面。",
     "implementation": "您可以在这里实现自己的终端/SSH 组件。"
   },
+  "quickConnect": {
+    "placeholder": "user@host[:port]、ssh 命令，或搜索已保存的连接",
+    "connectTo": "连接到 {{target}}",
+    "addUser": "需要填写用户名",
+    "localTerminal": "本地终端",
+    "defaultShell": "默认",
+    "newConnection": "新建连接…",
+    "newConnectionDetail": "SSH 或自定义 shell，可设置全部选项",
+    "newConnectionPrefilled": "打开完整设置，并填入已输入的内容",
+    "sections": {
+      "localTerminal": "本地终端",
+      "recent": "最近",
+      "profiles": "已保存的连接",
+      "sshConfig": "SSH 配置"
+    },
+    "forgetRecent": "从最近列表中移除",
+    "hint": "↑↓ 选择 · Enter 打开 · 依次尝试 SSH agent 和 ~/.ssh 下的密钥，最后询问密码",
+    "connectedTitle": "已连接 {{target}}",
+    "connectedDescription": "保存为连接配置后，可以从配置列表中再次打开。",
+    "saveAsProfile": "保存为配置",
+    "typedPasswordBadge": "连接时输入",
+    "typedPasswordHint": "将保存连接时输入的密码。输入新密码可替换。",
+    "saveTitle": "保存连接",
+    "save": "保存"
+  },
   "ssh": {
     "hostKeyMismatch": "检测到主机密钥不匹配",
     "unknownHostKey": "未知主机密钥",
@@ -1730,6 +1756,7 @@
     "agentAuth": "Agent 认证",
     "interactiveAuth": "键盘交互认证",
     "passwordAuth": "密码认证",
+    "autoAuth": "自动认证",
     "privateKey": "私钥",
     "target": "目标主机",
     "method": "连接方式",

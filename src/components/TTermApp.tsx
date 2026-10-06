@@ -12,6 +12,7 @@ import { CommandEditorDialog, CommandLibrary } from "@/components/CommandLibrary
 import { BroadcastManager } from "@/components/BroadcastManager"
 import { CloseRequestDialog } from "@/components/CloseRequestDialog"
 import { ContextMenu } from "@/components/ContextMenu"
+import { NewTabLauncher, type LocalShellChoice } from "@/components/NewTabLauncher"
 import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
 import { RenameDialog } from "@/components/RenameDialog"
 import { TabBar } from "@/components/TabBar"
@@ -36,6 +37,7 @@ import { VaultStartupUnlockDialog } from "@/components/VaultStartupUnlockDialog"
 import { formatBytes, MAX_EDIT_FILE_BYTES } from "@/components/SftpDrawer/sftpDrawerUtils"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { ToastAction } from "@/components/ui/toast"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useKeymap } from "@/contexts/KeymapContext"
@@ -58,6 +60,19 @@ import {
   saveRecentCommands,
 } from "@/lib/recentCommands"
 import { onSyncApplied } from "@/lib/sync"
+import { buildConnectionFromProfile } from "@/lib/profileConnections"
+import {
+  addRecentQuickConnection,
+  applyQuickConnectAuth,
+  draftProfileFromInput,
+  draftProfileFromTab,
+  loadRecentQuickConnections,
+  quickConnectionFromTab,
+  removeRecentQuickConnection,
+  saveRecentQuickConnections,
+  type RecentQuickConnection,
+  type SshConfigHost,
+} from "@/lib/quickConnect"
 import { useWebDavSync } from "@/hooks/useWebDavSync"
 import { getAdjacentTabId, getTabIdsForCloseAction } from "@/lib/tabClosing"
 import { getSiblingTabId, getTabIdAtPosition } from "@/lib/tabNavigation"
@@ -71,7 +86,7 @@ import type {
   TerminalRuntimeState,
 } from "@/types/broadcast"
 import { notifySavedPasswordNotSent } from "@/components/TerminalTab/savedPasswordNotice"
-import type { ConnectionState } from "@/components/TerminalTab/types"
+import type { ConnectionState, SshConnectionProgress } from "@/components/TerminalTab/types"
 
 const SETTINGS_TAB_TITLE = "Settings"
 
@@ -117,6 +132,13 @@ export const TTermApp: React.FC = () => {
   const isLinux = os === "linux"
   const isWindows = os === "windows"
   const [showConnectionDialog, setShowConnectionDialog] = useState(false)
+  const [showNewTabLauncher, setShowNewTabLauncher] = useState(false)
+  const [quickConnectRecents, setQuickConnectRecents] = useState<RecentQuickConnection[]>(() =>
+    typeof window === "undefined" ? [] : loadRecentQuickConnections(window.localStorage)
+  )
+  // Starting values of a new profile, and the quick connect tab it is saved for.
+  const [draftProfile, setDraftProfile] = useState<SavedProfile | null>(null)
+  const [savingQuickConnectTabId, setSavingQuickConnectTabId] = useState<string | null>(null)
   const [showProfilesPanel, setShowProfilesPanel] = useState(false)
   const [showCommandLibrary, setShowCommandLibrary] = useState(false)
   const [commandLibrarySearchQuery, setCommandLibrarySearchQuery] = useState("")
@@ -921,8 +943,141 @@ export const TTermApp: React.FC = () => {
   }, [])
 
   const handleNewTab = useCallback(() => {
+    setShowNewTabLauncher(true)
+  }, [])
+
+  const handleOpenLocalTerminal = useCallback(
+    (choice?: LocalShellChoice) => {
+      const shell = choice?.shell ?? config.terminal_shell
+      const custom = shell === "custom"
+      addTab({
+        title: "OS terminal",
+        type: "terminal",
+        isModified: false,
+        connection: {
+          type: "terminal",
+          terminalShell: shell,
+          // A chosen shell is a detected executable; the default comes with the configured arguments.
+          terminalShellCustomPath: custom
+            ? (choice?.customPath ?? config.terminal_shell_custom_path.trim())
+            : undefined,
+          terminalShellCustomArgs:
+            custom && !choice ? config.terminal_shell_custom_args.trim() : undefined,
+        },
+      })
+    },
+    [
+      addTab,
+      config.terminal_shell,
+      config.terminal_shell_custom_args,
+      config.terminal_shell_custom_path,
+    ]
+  )
+
+  const handleOpenConnectionDialogFromLauncher = useCallback(
+    (input: string, configHosts: readonly SshConfigHost[]) => {
+      setEditingProfile(null)
+      setDuplicatingProfile(null)
+      setDraftProfile(draftProfileFromInput(input, configHosts))
+      setShowConnectionDialog(true)
+    },
+    []
+  )
+
+  const updateQuickConnectRecents = useCallback(
+    (update: (recents: RecentQuickConnection[]) => RecentQuickConnection[]) => {
+      setQuickConnectRecents((current) => {
+        const next = update(current)
+        saveRecentQuickConnections(window.localStorage, next)
+        return next
+      })
+    },
+    []
+  )
+
+  const handleForgetQuickConnectRecent = useCallback(
+    (recent: RecentQuickConnection) =>
+      updateQuickConnectRecents((current) => removeRecentQuickConnection(current, recent)),
+    [updateQuickConnectRecents]
+  )
+
+  const openSaveQuickConnectDialog = useCallback((tab: Tab) => {
+    setEditingProfile(null)
+    setDuplicatingProfile(null)
+    setDraftProfile(draftProfileFromTab(tab))
+    setSavingQuickConnectTabId(tab.id)
     setShowConnectionDialog(true)
   }, [])
+
+  const handleQuickConnectSaved = useCallback(
+    (profile: SavedProfile) => {
+      const tabId = savingQuickConnectTabId
+      if (!tabId) return
+      // The tab now belongs to the profile, so its SFTP and reconnects use what was saved.
+      const profileConnection = buildConnectionFromProfile(profile).connection
+      updateTab(tabId, (tab) => {
+        // A tab still signing in automatically keeps doing so: it reuses the
+        // password typed in it, whether or not the profile stored it.
+        const keepAuto = tab.connection?.authMethod === "auto"
+        return {
+          ...tab,
+          title: profile.name,
+          quickConnect: false,
+          quickConnectAuth: undefined,
+          connection: {
+            ...tab.connection,
+            ...profileConnection,
+            ...(keepAuto && {
+              authMethod: "auto" as const,
+              privateKeyPath: tab.connection?.privateKeyPath,
+              jumpHosts: tab.connection?.jumpHosts,
+            }),
+          },
+        }
+      })
+    },
+    [savingQuickConnectTabId, updateTab]
+  )
+
+  const handleTerminalConnectionProgress = useCallback(
+    (tabId: string, progress: SshConnectionProgress) => {
+      const auth = progress.auth
+      if (progress.phase === "target_authenticated" && auth) {
+        updateTab(tabId, (tab) => applyQuickConnectAuth(tab, auth))
+        return
+      }
+
+      if (progress.phase !== "ready") return
+      const tab = tabsRef.current.find((candidate) => candidate.id === tabId)
+      if (!tab?.quickConnect || tab.connection?.profileId) return
+      // Only the first connection is offered for saving; reconnects and restored sessions are not.
+      updateTab(tabId, (current) => ({ ...current, quickConnect: false }))
+
+      const connection = quickConnectionFromTab(tab)
+      if (connection) {
+        updateQuickConnectRecents((current) =>
+          addRecentQuickConnection(current, connection, Date.now())
+        )
+      }
+      toast({
+        title: t("quickConnect.connectedTitle", { target: tab.title }),
+        description: t("quickConnect.connectedDescription"),
+        duration: 10_000,
+        action: (
+          <ToastAction
+            altText={t("quickConnect.saveAsProfile")}
+            onClick={() => {
+              const current = tabsRef.current.find((candidate) => candidate.id === tabId)
+              if (current) openSaveQuickConnectDialog(current)
+            }}
+          >
+            {t("quickConnect.saveAsProfile")}
+          </ToastAction>
+        ),
+      })
+    },
+    [openSaveQuickConnectDialog, t, updateQuickConnectRecents, updateTab]
+  )
 
   const handleConnect = useCallback(
     (connection: Omit<Tab, "id" | "isActive">) => {
@@ -966,6 +1121,7 @@ export const TTermApp: React.FC = () => {
     async (tab: Tab) => {
       const profileId = tab.connection?.profileId
       if (!profileId) {
+        if (tab.type === "ssh") openSaveQuickConnectDialog(tab)
         return
       }
 
@@ -995,7 +1151,7 @@ export const TTermApp: React.FC = () => {
         })
       }
     },
-    [handleEditProfile, t]
+    [handleEditProfile, openSaveQuickConnectDialog, t]
   )
 
   const handleOpenRemoteFile = useCallback(
@@ -1633,6 +1789,7 @@ export const TTermApp: React.FC = () => {
         onTerminalSavedPasswordPromptChange={handleTerminalSavedPasswordPromptChange}
         onTerminalSessionUnavailable={handleTerminalSessionUnavailable}
         onTerminalSensitivePrompt={handleTerminalSensitivePrompt}
+        onTerminalConnectionProgress={handleTerminalConnectionProgress}
         profilesRefreshKey={profilesRefreshKey}
         startupConnectionsReady={startupConnectionsReady}
         startupSessionRestoreMode={config.startup_session_restore_mode}
@@ -1785,13 +1942,29 @@ export const TTermApp: React.FC = () => {
             setShowConnectionDialog(false)
             setEditingProfile(null)
             setDuplicatingProfile(null)
+            setDraftProfile(null)
+            setSavingQuickConnectTabId(null)
             setProfilesRefreshKey((key) => key + 1)
           }}
           onConnect={handleConnect}
           editProfile={editingProfile}
           duplicateProfile={duplicatingProfile}
+          draftProfile={draftProfile}
+          saveOnly={savingQuickConnectTabId !== null}
+          onSaved={handleQuickConnectSaved}
+          typedPasswordTabId={savingQuickConnectTabId ?? undefined}
         />
       )}
+
+      <NewTabLauncher
+        open={showNewTabLauncher}
+        onClose={() => setShowNewTabLauncher(false)}
+        onConnect={handleConnect}
+        onOpenLocalTerminal={handleOpenLocalTerminal}
+        onOpenConnectionDialog={handleOpenConnectionDialogFromLauncher}
+        recents={quickConnectRecents}
+        onForgetRecent={handleForgetQuickConnectRecent}
+      />
 
       <Dialog open={showProfilesPanel} onOpenChange={setShowProfilesPanel}>
         <DialogContent

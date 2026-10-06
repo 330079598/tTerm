@@ -71,6 +71,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   onSavedPasswordPromptChange,
   onSessionUnavailable,
   onSensitivePrompt,
+  onConnectionProgress,
   onOpenRemoteFile,
   onPinConnectionHeader,
   onPauseBroadcast,
@@ -103,6 +104,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const onSavedPasswordPromptChangeRef = useStableRef(onSavedPasswordPromptChange)
   const onSessionUnavailableRef = useStableRef(onSessionUnavailable)
   const onSensitivePromptRef = useStableRef(onSensitivePrompt)
+  const onConnectionProgressRef = useStableRef(onConnectionProgress)
   const { config, saveConfig } = useConfig()
   const { displayedTheme, getTheme } = useTheme()
   const { t } = useTranslation()
@@ -348,6 +350,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     onSavedPasswordPromptChangeRef,
     onSessionUnavailableRef,
     onSensitivePromptRef,
+    onConnectionProgressRef,
     savedPasswordPromptActionsRef,
     setSavedPasswordPrompt,
     sudoPromptPatternsRef,
