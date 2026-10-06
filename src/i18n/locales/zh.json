@@ -1270,7 +1270,12 @@
     "save": "保存"
   },
   "ssh": {
+    "clearRecents": "清空",
+    "clearRecentsTitle": "清空最近连接？",
+    "clearRecentsDescription_one": "将从列表中移除这条最近连接，已保存的连接不受影响。",
+    "clearRecentsDescription_other": "将从列表中移除全部 {{count}} 条最近连接，已保存的连接不受影响。",
     "hostKeyMismatch": "检测到主机密钥不匹配",
+    "hintRecent": "↑↓ 选择 · Enter 打开 · Shift+Delete 从最近列表中移除",
     "unknownHostKey": "未知主机密钥",
     "host": "主机",
     "algorithm": "算法",

@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { useConfig } from "@/contexts/ConfigContext"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
@@ -76,6 +77,7 @@ interface NewTabLauncherProps {
   onOpenConnectionDialog: (input: string, configHosts: readonly SshConfigHost[]) => void
   recents: readonly RecentQuickConnection[]
   onForgetRecent: (recent: RecentQuickConnection) => void
+  onClearRecents: () => void
 }
 
 function describeConnection(connection: QuickConnection): string {
@@ -97,9 +99,11 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
   onOpenConnectionDialog,
   recents,
   onForgetRecent,
+  onClearRecents,
 }) => {
   const { t } = useTranslation()
   const { config } = useConfig()
+  const { confirm, ConfirmDialog } = useConfirmDialog()
   const [input, setInput] = useState("")
   const [selected, setSelected] = useState(0)
   const [profiles, setProfiles] = useState<SavedProfile[]>([])
@@ -357,7 +361,25 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
       event.preventDefault()
       const item = items[selectedIndex]
       if (item) run(item)
+    } else if (event.key === "Delete" && event.shiftKey) {
+      // Like a browser's address bar: Shift+Delete forgets the chosen recent.
+      const recent = items[selectedIndex]?.recent
+      if (!recent) return
+      event.preventDefault()
+      onForgetRecent(recent)
     }
+  }
+
+  const clearRecents = async () => {
+    const confirmed = await confirm({
+      title: t("quickConnect.clearRecentsTitle"),
+      description: t("quickConnect.clearRecentsDescription", { count: recents.length }),
+      confirmText: t("quickConnect.clearRecents"),
+      cancelText: t("common.cancel"),
+      variant: "destructive",
+    })
+    if (confirmed) onClearRecents()
+    inputRef.current?.focus()
   }
 
   const sectionLabels: Record<LauncherSection, string> = {
@@ -416,8 +438,20 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
             return (
               <React.Fragment key={item.key}>
                 {showSection && item.section && (
-                  <div className="text-muted-foreground px-2 pt-2 pb-1 text-[11px] font-medium tracking-wide uppercase">
-                    {sectionLabels[item.section]}
+                  <div className="text-muted-foreground flex items-center px-2 pt-2 pb-1 text-[11px] font-medium tracking-wide uppercase">
+                    <span className="flex-1">{sectionLabels[item.section]}</span>
+                    {/* Filtered, the list may not show every recent the button clears. */}
+                    {item.section === "recent" && !input.trim() && (
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => void clearRecents()}
+                        className="hover:text-foreground rounded px-1 normal-case"
+                      >
+                        {t("quickConnect.clearRecents")}
+                      </button>
+                    )}
                   </div>
                 )}
                 <div
@@ -448,12 +482,15 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
                       type="button"
                       tabIndex={-1}
                       aria-label={t("quickConnect.forgetRecent")}
-                      title={t("quickConnect.forgetRecent")}
+                      title={`${t("quickConnect.forgetRecent")} (Shift+Delete)`}
                       onClick={(event) => {
                         event.stopPropagation()
                         if (item.recent) onForgetRecent(item.recent)
                       }}
-                      className="text-muted-foreground hover:text-foreground invisible rounded p-0.5 group-hover:visible"
+                      className={cn(
+                        "text-muted-foreground hover:text-foreground rounded p-0.5",
+                        index === selectedIndex ? "visible" : "invisible group-hover:visible"
+                      )}
                     >
                       <X size={13} />
                     </button>
@@ -467,8 +504,10 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
           })}
         </div>
         <div className="text-muted-foreground border-t px-3 py-1.5 text-[11px]">
-          {t("quickConnect.hint")}
+          {items[selectedIndex]?.recent ? t("quickConnect.hintRecent") : t("quickConnect.hint")}
         </div>
+        {/* Inside the launcher, so Escape and outside clicks close only the confirmation. */}
+        <ConfirmDialog />
       </DialogContent>
     </Dialog>
   )

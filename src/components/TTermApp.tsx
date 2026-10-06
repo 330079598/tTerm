@@ -1004,6 +1004,11 @@ export const TTermApp: React.FC = () => {
   const openSaveQuickConnectDialog = useCallback((tab: Tab) => {
     setEditingProfile(null)
     setDuplicatingProfile(null)
+  const handleClearQuickConnectRecents = useCallback(
+    () => updateQuickConnectRecents(() => []),
+    [updateQuickConnectRecents]
+  )
+
     setDraftProfile(draftProfileFromTab(tab))
     setSavingQuickConnectTabId(tab.id)
     setShowConnectionDialog(true)
@@ -2046,6 +2051,7 @@ export const TTermApp: React.FC = () => {
       <TunnelHostKeyPrompt />
       <VaultStartupUnlockDialog
         open={shouldPromptStartupVaultUnlock}
+        onClearRecents={handleClearQuickConnectRecents}
         onClose={() => setStartupVaultUnlockDismissed(true)}
       />
     </div>

@@ -1283,7 +1283,12 @@
     "save": "Save"
   },
   "ssh": {
+    "clearRecents": "Clear",
+    "clearRecentsTitle": "Clear recent connections?",
+    "clearRecentsDescription_one": "Removes the recent connection from this list. Saved connections are not affected.",
+    "clearRecentsDescription_other": "Removes all {{count}} recent connections from this list. Saved connections are not affected.",
     "hostKeyMismatch": "Host key mismatch detected",
+    "hintRecent": "↑↓ choose · Enter open · Shift+Delete remove from recent",
     "unknownHostKey": "Unknown host key",
     "host": "Host",
     "algorithm": "Algorithm",
