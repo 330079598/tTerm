@@ -1166,7 +1166,7 @@
     "loginScriptPlaceholder": "cd /var/www/app\nsudo -i",
     "loginScriptDesc": "shell 就绪后逐行输入，每行在上一条命令结束后再发送。遇到密码提示时会等你（或 sudo 自动填充）输入；你自己开始输入后剩余的行不再执行。重连后会再次执行。",
     "shellIntegration": "Shell 集成（实验性）",
-    "shellIntegrationDesc": "连接时在服务器的 ~/.cache/tterm 下放几个小脚本，让 bash、zsh、fish 标记每条命令：可以在命令之间跳转、复制上一条命令的输出、在滚动条上看到成功和失败。其他 shell 或不支持的服务器照常打开普通 shell。开启后登录欢迎信息（motd）暂不显示。需要在设置中打开「标记命令」。"
+    "shellIntegrationDesc": "连接时在服务器的 ~/.cache/tterm 下放几个小脚本，让 bash、zsh、fish 标记每条命令：可以在命令之间跳转、复制上一条命令的输出、在滚动条上看到成功和失败。其他 shell 或不支持的服务器照常打开普通 shell。需要在设置中打开「标记命令」。"
   },
   "rename": {
     "title": "重命名标签页",
@@ -1292,6 +1292,18 @@
     "viaCount": "经由 {{count}} 个跳板机"
   },
   "sessionHeader": {
+    "shellIntegrationFallback": "{{connection}}：Shell 集成未生效，已使用普通 shell",
+    "shellIntegrationReasons": {
+      "marksOff": "设置中的「标记命令」已关闭",
+      "shell": "登录 shell 是 {{shell}}，只支持 bash、zsh、fish",
+      "noReply": "服务器没有运行安装脚本（没有 POSIX sh，或是网络设备、Windows 服务器、强制命令）",
+      "writeFailed": "无法写入 ~/.cache/tterm",
+      "path": "缓存目录的路径含有单引号",
+      "rejected": "服务器拒绝启动集成脚本",
+      "timedOut": "安装或启动超时",
+      "failed": "SSH 通道出错"
+    },
+    "unknownShell": "未知",
     "connecting": "连接中",
     "connected": "已连接",
     "reconnecting": "重新连接中",

@@ -1,3 +1,4 @@
+use super::shell_integration::{ShellIntegrationStatus, UnavailableReason};
 use super::types::{
     emit_connection_progress, ConnectionStatusOptions, SshClientHandler,
     SshConnectionProgressPayload,
@@ -207,11 +208,19 @@ pub async fn run_single_ssh_connection(
         }
     };
 
-    let shell_integration = if plan.shell_integration && crate::config::command_marks_enabled() {
-        let target = format!("{username}@{host}:{}", plan.port);
-        super::shell_integration::prepare(&session, &target).await
+    // The command that starts the shell with shell integration, and how
+    // integration went for the connection header.
+    let unavailable = |reason| Some(ShellIntegrationStatus::Unavailable { reason });
+    let (shell_integration, mut shell_integration_status) = if !plan.shell_integration {
+        (None, None)
+    } else if !crate::config::command_marks_enabled() {
+        (None, unavailable(UnavailableReason::MarksOff))
     } else {
-        None
+        let target = format!("{username}@{host}:{}", plan.port);
+        match super::shell_integration::prepare(&session, &target).await {
+            Ok(command) => (Some(command), None),
+            Err(reason) => (None, unavailable(reason)),
+        }
     };
 
     let channel_open_started_at = tokio::time::Instant::now();
@@ -236,7 +245,13 @@ pub async fn run_single_ssh_connection(
     // confirmed it started. `None` means a plain shell.
     let mut early_output = None;
     if let Some(command) = shell_integration {
-        early_output = super::shell_integration::start(&mut channel, &command).await;
+        match super::shell_integration::start(&mut channel, &command).await {
+            Ok(output) => {
+                early_output = Some(output);
+                shell_integration_status = Some(ShellIntegrationStatus::Active);
+            }
+            Err(reason) => shell_integration_status = unavailable(reason),
+        }
         if early_output.is_none() {
             // That channel is closed; the plain shell gets a fresh one.
             channel = match open_terminal_channel(&session, &plan, rows, cols).await {
@@ -276,7 +291,8 @@ pub async fn run_single_ssh_connection(
         )
         .host(host.clone(), plan.port)
         .username(username.clone())
-        .network_latency(Some(network_latency_ms)),
+        .network_latency(Some(network_latency_ms))
+        .shell_integration(shell_integration_status),
     );
 
     let (mut reader, writer) = channel.split();

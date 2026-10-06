@@ -153,6 +153,10 @@ pub struct SshConnectionProgressPayload {
     /// localized retry status from the structured fields, not `message`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    /// How shell integration went, for the `ready` phase of a connection
+    /// that turned it on.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shell_integration: Option<super::shell_integration::ShellIntegrationStatus>,
 }
 
 impl SshConnectionProgressPayload {
@@ -170,6 +174,7 @@ impl SshConnectionProgressPayload {
             retry_delay_secs: None,
             retry_max_attempts: None,
             reason: None,
+            shell_integration: None,
         }
     }
 
@@ -192,6 +197,14 @@ impl SshConnectionProgressPayload {
 
     pub fn network_latency(mut self, network_latency_ms: Option<u64>) -> Self {
         self.network_latency_ms = network_latency_ms;
+        self
+    }
+
+    pub fn shell_integration(
+        mut self,
+        status: Option<super::shell_integration::ShellIntegrationStatus>,
+    ) -> Self {
+        self.shell_integration = status;
         self
     }
 

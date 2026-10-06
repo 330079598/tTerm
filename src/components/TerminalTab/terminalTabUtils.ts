@@ -1,5 +1,6 @@
 import {
   ConnectionState,
+  ShellIntegrationUnavailableReason,
   SshConnectionProgress,
   TerminalTabProps,
 } from "@/components/TerminalTab/types"
@@ -40,6 +41,32 @@ export function getConnectionStateLabel(
     case "error":
       return t("sessionHeader.error", { defaultValue: "Error" })
   }
+}
+
+const SHELL_INTEGRATION_REASONS: Record<ShellIntegrationUnavailableReason["code"], string> = {
+  marksOff: "Mark commands is turned off in Settings",
+  shell: "The login shell is {{shell}}; only bash, zsh and fish are supported",
+  noReply:
+    "The server did not run the installer (no POSIX sh, or a network device, Windows server or forced command)",
+  writeFailed: "~/.cache/tterm could not be written",
+  path: "The cache directory's path contains a single quote",
+  rejected: "The server refused to start the integration script",
+  timedOut: "Installing or starting timed out",
+  failed: "The SSH channel failed",
+}
+
+/** Why a session with shell integration turned on got a plain shell, for its notice. */
+export function getShellIntegrationFallbackReason(
+  reason: ShellIntegrationUnavailableReason,
+  t: Translator
+): string {
+  return t(`sessionHeader.shellIntegrationReasons.${reason.code}`, {
+    shell:
+      reason.code === "shell" && reason.shell
+        ? reason.shell
+        : t("sessionHeader.unknownShell", { defaultValue: "unknown" }),
+    defaultValue: SHELL_INTEGRATION_REASONS[reason.code],
+  })
 }
 
 export function getSshConnectionProgressLabel(

@@ -1178,7 +1178,7 @@
     "loginScript": "Run after login",
     "loginScriptPlaceholder": "cd /var/www/app\nsudo -i",
     "shellIntegration": "Shell integration (experimental)",
-    "shellIntegrationDesc": "When connecting, puts a few small scripts under ~/.cache/tterm on the server so bash, zsh and fish mark each command: jump between commands, copy the last command's output, and see succeeded and failed commands on the scrollbar. Other shells and unsupported servers get a plain shell as before. The login banner (motd) is not shown for now. Needs Mark commands turned on in Settings.",
+    "shellIntegrationDesc": "When connecting, puts a few small scripts under ~/.cache/tterm on the server so bash, zsh and fish mark each command: jump between commands, copy the last command's output, and see succeeded and failed commands on the scrollbar. Other shells and unsupported servers get a plain shell as before. Needs Mark commands turned on in Settings.",
     "loginScriptDesc": "Typed into the shell one line at a time once it is ready, each after the previous command finishes. A password prompt is left for you (or sudo autofill) to answer; typing yourself stops the rest. Runs again after a reconnect."
   },
   "rename": {
@@ -1305,6 +1305,18 @@
     "viaCount": "via {{count}} jumps"
   },
   "sessionHeader": {
+    "shellIntegrationFallback": "{{connection}}: shell integration did not start, using a plain shell",
+    "shellIntegrationReasons": {
+      "marksOff": "Mark commands is turned off in Settings",
+      "shell": "The login shell is {{shell}}; only bash, zsh and fish are supported",
+      "noReply": "The server did not run the installer (no POSIX sh, or a network device, Windows server or forced command)",
+      "writeFailed": "~/.cache/tterm could not be written",
+      "path": "The cache directory's path contains a single quote",
+      "rejected": "The server refused to start the integration script",
+      "timedOut": "Installing or starting timed out",
+      "failed": "The SSH channel failed"
+    },
+    "unknownShell": "unknown",
     "connecting": "Connecting",
     "connected": "Connected",
     "reconnecting": "Reconnecting",

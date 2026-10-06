@@ -65,6 +65,16 @@ export type SavedPasswordPromptActions = {
 
 export type ConnectionState = "connecting" | "connected" | "disconnected" | "reconnecting" | "error"
 
+/** Why an SSH session with shell integration turned on got a plain shell. */
+export type ShellIntegrationUnavailableReason =
+  | { code: "shell"; shell: string }
+  | {
+      code: "marksOff" | "noReply" | "writeFailed" | "path" | "rejected" | "timedOut" | "failed"
+    }
+
+export type ShellIntegrationStatus =
+  { status: "active" } | { status: "unavailable"; reason: ShellIntegrationUnavailableReason }
+
 export type SshConnectionProgress = {
   phase: string
   message: string
@@ -78,6 +88,8 @@ export type SshConnectionProgress = {
   retryDelaySecs?: number
   retryMaxAttempts?: number
   reason?: string
+  /** `ready` phase of a connection with shell integration turned on. */
+  shellIntegration?: ShellIntegrationStatus
 }
 
 export type HostKeyPromptState = {

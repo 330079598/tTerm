@@ -1,9 +1,19 @@
 # Starts the user's shell as a login shell with tTerm's shell integration
 # from $tterm_dir: it reports its working directory (OSC 7) at every prompt
 # and, unless $tterm_marks is 0, marks its prompts and commands (OSC 133).
-# wsl/launch.sh sources it; an SSH session runs `exec sh <dir>/unix/start.sh`.
+# wsl/launch.sh sources it; an SSH session runs
+# `exec sh <dir>/unix/start.sh --motd`.
 [ -n "${tterm_dir:-}" ] || tterm_dir=${0%/*}/..
 tterm_marks=${tterm_marks:-1}
+
+# sshd shows the login banner only when asked for a plain shell, so an SSH
+# session prints it here: the dynamic part pam_motd builds on Debian and
+# Ubuntu, then /etc/motd. ~/.hushlogin turns it off, as it does for sshd.
+if [ "${1:-}" = --motd ] && [ ! -e "$HOME/.hushlogin" ]; then
+    for tterm_motd in /run/motd.dynamic /etc/motd; do
+        [ -r "$tterm_motd" ] && cat "$tterm_motd"
+    done
+fi
 
 shell=${SHELL:-}
 [ -x "$shell" ] || shell=$(getent passwd "$(id -un)" 2>/dev/null | cut -d: -f7)

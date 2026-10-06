@@ -19,7 +19,11 @@ import { TerminalSearchBar } from "@/components/TerminalTab/TerminalSearchBar"
 import { useTerminalSearch } from "@/components/TerminalTab/useTerminalSearch"
 import { useTerminalLifecycle } from "@/components/TerminalTab/useTerminalLifecycle"
 import { useZmodemTransfers } from "@/components/TerminalTab/useZmodemTransfers"
-import { TAB_ACTIVATE_REFIT_DELAY_MS } from "@/components/TerminalTab/terminalTabUtils"
+import {
+  getConnectionDisplay,
+  getShellIntegrationFallbackReason,
+  TAB_ACTIVATE_REFIT_DELAY_MS,
+} from "@/components/TerminalTab/terminalTabUtils"
 import type {
   ConnectionState,
   HostKeyPromptState,
@@ -513,6 +517,22 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       activateFitTimerRef.current = null
     }
   }, [isActive, scheduleFitDuringResize])
+
+  // Once per tab: reconnects that fall back again for the same reason stay quiet.
+  const shellIntegrationNoticeShownRef = useRef(false)
+  const shellIntegration = connectionProgress?.shellIntegration
+  useEffect(() => {
+    if (shellIntegration?.status !== "unavailable" || shellIntegrationNoticeShownRef.current) {
+      return
+    }
+    shellIntegrationNoticeShownRef.current = true
+    toast({
+      title: t("sessionHeader.shellIntegrationFallback", {
+        connection: getConnectionDisplay(connectionRef.current, t),
+      }),
+      description: getShellIntegrationFallbackReason(shellIntegration.reason, t),
+    })
+  }, [connectionRef, shellIntegration, t])
 
   const jumpHostCount = connection?.jumpHosts?.length ?? 0
 

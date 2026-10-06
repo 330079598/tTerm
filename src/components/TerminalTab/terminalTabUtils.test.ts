@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   getConnectionStateLabel,
+  getShellIntegrationFallbackReason,
   getSshConnectionProgressLabel,
 } from "@/components/TerminalTab/terminalTabUtils"
 import type { ConnectionState, SshConnectionProgress } from "@/components/TerminalTab/types"
@@ -11,6 +12,23 @@ const t = (key: string, options?: Record<string, unknown>) => {
   if (!options) return template
   return template.replace(/\{\{(\w+)\}\}/g, (_, name) => String(options[name] ?? ""))
 }
+
+describe("getShellIntegrationFallbackReason", () => {
+  it("names the login shell it does not support", () => {
+    expect(getShellIntegrationFallbackReason({ code: "shell", shell: "tcsh" }, t)).toBe(
+      "The login shell is tcsh; only bash, zsh and fish are supported"
+    )
+    expect(getShellIntegrationFallbackReason({ code: "shell", shell: "" }, t)).toContain(
+      "The login shell is unknown"
+    )
+  })
+
+  it("explains every other reason", () => {
+    expect(getShellIntegrationFallbackReason({ code: "noReply" }, t)).toContain(
+      "did not run the installer"
+    )
+  })
+})
 
 describe("getConnectionStateLabel", () => {
   it("returns a label for every connection state", () => {
