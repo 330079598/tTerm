@@ -84,3 +84,22 @@ libc = "0.2"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util"] }
+
+# Dev-build settings for dependencies only; tTerm itself keeps the default
+# profile (full debuginfo, no optimization), so the debugger still sees locals
+# and types in our own code.
+# - Line tables only: per-crate .pdb files on MSVC are what balloons
+#   target/deps to tens of GB, and backtraces through dependencies still show
+#   file names and line numbers.
+# - opt-level 2: unoptimized argon2, ring, aes-gcm and russh make unlocking and
+#   connecting painfully slow in dev builds. Dependencies rarely rebuild, so
+#   this only costs time on a full build.
+[profile.dev.package."*"]
+debug = "line-tables-only"
+opt-level = 2
+
+# To step into one dependency with its locals, give just that crate full
+# debuginfo instead of dropping the section above:
+# [profile.dev.package.russh]
+# debug = 2
+# opt-level = 0
