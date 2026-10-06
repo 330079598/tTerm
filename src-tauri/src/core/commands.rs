@@ -21,6 +21,8 @@ fn stop_pty_session(
     zmodem_manual_detect_state: &ZmodemManualDetectMap,
 ) {
     let _ = session.stop_tx.send(true);
+    // Nobody will acknowledge this channel's output again.
+    session.output_flow.close();
 
     if let Some(active) = session.active.blocking_lock().take() {
         match active {
@@ -60,8 +62,8 @@ pub fn create_pty(
     zmodem_armed_send_state: State<'_, ZmodemArmedSendMap>,
     zmodem_manual_detect_state: State<'_, ZmodemManualDetectMap>,
 ) -> Result<u32, String> {
-    let output_channel: tauri::ipc::Channel<tauri::ipc::InvokeResponseBody> =
-        output_channel.channel_on(webview);
+    let output_channel = terminal::TerminalOutput::new(output_channel.channel_on(webview));
+    let output_flow = output_channel.flow().clone();
     let mut plan = normalize_connection(connection)?;
     resolve_ssh_password(&app, &secret_state, &mut plan)?;
 
@@ -216,6 +218,7 @@ pub fn create_pty(
         stop_tx,
         supervisor,
         size,
+        output_flow,
     };
 
     sessions.insert(tab_id, session);
@@ -311,6 +314,24 @@ pub fn write_pty(
         crate::session_log::record_input(&app, &tab_id, &input);
     }
     result
+}
+
+/// Reports output bytes xterm.js has finished parsing, letting a paused
+/// output sender continue. Async so it runs off the main thread.
+#[tauri::command]
+pub async fn ack_pty_output(
+    tab_id: String,
+    session_nonce: u32,
+    bytes: usize,
+    state: State<'_, PtyMap>,
+) -> Result<(), String> {
+    let map = state.read().await;
+    if let Some(session) = map.get(&tab_id) {
+        if session.session_nonce == session_nonce {
+            session.output_flow.ack(bytes);
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
@@ -498,6 +519,7 @@ mod batch_write_tests {
             stop_tx,
             supervisor: runtime.spawn(async {}),
             size: Arc::new(AtomicTerminalSize::new(24, 80)),
+            output_flow: Arc::default(),
         }
     }
 

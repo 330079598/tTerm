@@ -311,6 +311,7 @@ pub fn run() {
             session::clear_session,
             core::commands::create_pty,
             core::commands::write_pty,
+            core::commands::ack_pty_output,
             core::commands::write_pty_batch,
             core::commands::resize_pty,
             core::commands::kill_pty,

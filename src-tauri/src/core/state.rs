@@ -106,6 +106,9 @@ pub struct PtySession {
     /// Latest terminal dimensions, kept so an automatic reconnect can re-open
     /// the SSH channel at the current size instead of the original one.
     pub size: Arc<AtomicTerminalSize>,
+    /// Flow control for the frontend's output channel; acknowledged by
+    /// `ack_pty_output` as xterm.js parses.
+    pub output_flow: Arc<crate::terminal::OutputFlow>,
 }
 
 pub enum SessionExitSignal {

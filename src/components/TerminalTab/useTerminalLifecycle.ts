@@ -15,6 +15,7 @@ import { platform } from "@tauri-apps/plugin-os"
 import { CommandMarks, COMMAND_MARK_OSC_CODES } from "@/components/TerminalTab/commandMarks"
 import { installImeCursorGuard } from "@/components/TerminalTab/imeCursorGuard"
 import { installImeFocusRepair } from "@/components/TerminalTab/imeFocusRepair"
+import { OutputAcker } from "@/components/TerminalTab/outputAck"
 import { getConnectionDisplay } from "@/components/TerminalTab/terminalTabUtils"
 import type {
   ConnectionState,
@@ -681,18 +682,27 @@ export function useTerminalLifecycle({
     // localized re-established banner instead of the plain connected state.
     let sawRetryingPhase = false
 
+    const outputAcker = new OutputAcker((bytes) => {
+      invoke("ack_pty_output", { tabId, sessionNonce, bytes }).catch(console.error)
+    })
+
     // Hot-path terminal output. Binary chunks arrive through a Tauri Channel
     // (raw bytes, ordered, no JSON escaping); the legacy pty-output event
     // still carries cold-path status lines from jump-host connection setup.
     const handleTerminalOutput = (payload: unknown) => {
       if (disposed) return
       let text: string
+      // Channel bytes are flow-controlled by the backend and must be
+      // acknowledged once parsed; event strings are not.
+      let channelBytes = 0
       if (typeof payload === "string") {
         text = payload
       } else if (payload instanceof Uint8Array) {
         text = decodeOutputChunk(payload)
+        channelBytes = payload.byteLength
       } else if (payload instanceof ArrayBuffer) {
         text = decodeOutputChunk(new Uint8Array(payload))
+        channelBytes = payload.byteLength
       } else {
         return
       }
@@ -707,6 +717,7 @@ export function useTerminalLifecycle({
       }
 
       term.write(text, () => {
+        outputAcker.parsed(channelBytes)
         checkPasswordPrompt()
         loginScriptRunner?.noteOutput()
       })
@@ -858,6 +869,7 @@ export function useTerminalLifecycle({
 
     return () => {
       disposed = true
+      outputAcker.dispose()
       passwordPromptCheckId += 1
       stopLoginScript()
       savedPasswordPromptActionsRef.current = null
