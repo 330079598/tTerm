@@ -131,7 +131,8 @@ export function normalizeKeepalive(
 export function getDefaultTitle(type: ConnectionType, form: ConnectionForm): string {
   switch (type) {
     case "terminal":
-      return "OS terminal"
+      // Unnamed local tabs are named after their shell.
+      return "Shell name"
     case "ssh":
       return form.host ? `${form.username}@${form.host}` : "SSH Connection"
   }

@@ -18,8 +18,10 @@ pub use encoding::{OutputDecoder, TerminalEncoding};
 pub use io_batcher::{OutputFlow, TerminalOutput, TerminalOutputSender};
 pub use output_tail::OutputTail;
 pub use pty::{
-    __cmd__list_available_terminal_shells, __tauri_command_name_list_available_terminal_shells,
-    list_available_terminal_shells,
+    __cmd__list_available_terminal_shells, __cmd__local_terminal_shell_name,
+    __tauri_command_name_list_available_terminal_shells,
+    __tauri_command_name_local_terminal_shell_name, list_available_terminal_shells,
+    local_terminal_shell_name,
 };
 pub use pty::{spawn_local_pty, spawn_reader_thread};
 pub use ssh_query_handler::process_ssh_output_for_ui;

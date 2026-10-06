@@ -41,7 +41,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
             type="button"
             onClick={() =>
               handleConnect({
-                title: t("profiles.localTerminal", { defaultValue: "Local terminal" }),
+                title: "",
                 type: "terminal",
                 isModified: false,
                 connection: { type: "terminal" },

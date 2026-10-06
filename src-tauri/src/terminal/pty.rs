@@ -542,6 +542,50 @@ pub fn list_available_terminal_shells() -> Vec<TerminalShellProfile> {
     }
 }
 
+/// The name of the shell a local tab with this choice starts (`cmd`, `pwsh`,
+/// `zsh`), for the tab's title.
+#[tauri::command]
+pub fn local_terminal_shell_name(
+    shell: Option<String>,
+    custom_path: Option<String>,
+) -> Option<String> {
+    #[cfg(target_os = "windows")]
+    {
+        let program = match shell
+            .unwrap_or_default()
+            .trim()
+            .to_ascii_lowercase()
+            .as_str()
+        {
+            "cmd" => "cmd.exe".to_string(),
+            "powershell" => "powershell.exe".to_string(),
+            "pwsh" => "pwsh.exe".to_string(),
+            "wsl" => return Some("WSL".to_string()),
+            "git-bash" => return Some("Git Bash".to_string()),
+            "custom" => custom_path.filter(|path| !path.trim().is_empty())?,
+            _ => resolve_windows_auto_shell().0,
+        };
+        shell_program_name(&program)
+    }
+
+    // Local tabs outside Windows always start the user's default shell.
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (shell, custom_path);
+        shell_program_name(&std::env::var("SHELL").ok()?)
+    }
+}
+
+fn shell_program_name(program: &str) -> Option<String> {
+    let name = std::path::Path::new(program.trim()).file_stem()?.to_str()?;
+    match name.to_ascii_lowercase().as_str() {
+        "" => None,
+        "powershell" => Some("PowerShell".to_string()),
+        "cmd" | "pwsh" => Some(name.to_ascii_lowercase()),
+        _ => Some(name.to_string()),
+    }
+}
+
 #[cfg(target_os = "windows")]
 fn list_windows_terminal_shells() -> Vec<TerminalShellProfile> {
     let mut profiles = vec![TerminalShellProfile {
@@ -722,4 +766,21 @@ pub fn spawn_local_pty(
 fn emit_pty_output(app: &AppHandle, tab_id: &str, payload: String) {
     let event_name = format!("pty-output-{}", tab_id);
     let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::shell_program_name;
+
+    #[test]
+    fn names_shells_by_program() {
+        assert_eq!(shell_program_name("/bin/zsh").as_deref(), Some("zsh"));
+        assert_eq!(shell_program_name("pwsh.exe").as_deref(), Some("pwsh"));
+        assert_eq!(shell_program_name("CMD.EXE").as_deref(), Some("cmd"));
+        assert_eq!(
+            shell_program_name("powershell.exe").as_deref(),
+            Some("PowerShell")
+        );
+        assert_eq!(shell_program_name("  ").as_deref(), None);
+    }
 }

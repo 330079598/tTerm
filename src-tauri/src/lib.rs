@@ -336,6 +336,7 @@ pub fn run() {
             zmodem::commands::zmodem_start_send,
             zmodem::commands::zmodem_arm_manual_detect,
             terminal::list_available_terminal_shells,
+            terminal::local_terminal_shell_name,
             fonts::list_fonts,
             monitor::get_server_metrics_snapshot,
             monitor::release_server_monitor_session,

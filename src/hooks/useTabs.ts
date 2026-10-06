@@ -107,6 +107,20 @@ export function getDuplicateTabTitle(base: string, existingTitles: string[]): st
   return `${base}-${index}`
 }
 
+// A tab opened with a generated name (a local tab's shell) is numbered when
+// another tab already has it, and its copies are numbered from that name.
+function numberTitle(tab: Tab, otherTabs: Tab[]): Tab {
+  if (!tab.numberTitle) return tab
+  const taken = otherTabs.map((other) => other.title)
+  const base = tab.title
+  return {
+    ...tab,
+    title: taken.includes(base) ? getDuplicateTabTitle(base, taken) : base,
+    duplicateBaseTitle: base,
+    numberTitle: undefined,
+  }
+}
+
 function nextSessionNonce(sessionNonce?: number) {
   return ((sessionNonce ?? 0) + 1) >>> 0
 }
@@ -128,23 +142,26 @@ function activateTabInState(state: TabsState, id: string): TabsState {
 
 function tabsReducer(state: TabsState, action: TabsAction): TabsState {
   switch (action.type) {
-    case "restore":
-      return {
-        activeTabId: action.activeTabId,
-        tabs: action.tabs.map((tab) =>
-          ensureTabDefaults({
-            ...tab,
-            isActive: tab.id === action.activeTabId,
-            hasConnected: tab.id === action.activeTabId,
-          })
-        ),
+    case "restore": {
+      // Generated names are numbered in order, around the names kept as saved.
+      const keptTabs = action.tabs.filter((tab) => !tab.numberTitle)
+      const tabs: Tab[] = []
+      for (const tab of action.tabs) {
+        const restored = ensureTabDefaults({
+          ...tab,
+          isActive: tab.id === action.activeTabId,
+          hasConnected: tab.id === action.activeTabId,
+        })
+        tabs.push(numberTitle(restored, [...keptTabs, ...tabs]))
       }
+      return { activeTabId: action.activeTabId, tabs }
+    }
     case "add":
       return {
         activeTabId: action.tab.id,
         tabs: [
           ...state.tabs.map((tab) => ({ ...tab, isActive: false })),
-          { ...action.tab, isActive: true, hasConnected: true },
+          numberTitle({ ...action.tab, isActive: true, hasConnected: true }, state.tabs),
         ],
       }
     case "open-page": {

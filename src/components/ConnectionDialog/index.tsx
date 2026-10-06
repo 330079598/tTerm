@@ -392,7 +392,9 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
       return
     }
 
-    const title = form.title.trim() || getDefaultTitle(form.type, form)
+    // An unnamed local tab is named after its shell when it opens.
+    const title =
+      form.title.trim() || (form.type === "terminal" ? "" : getDefaultTitle(form.type, form))
     const group = form.group.trim()
     const shouldPersistProfile = shouldSave
     const profileId =

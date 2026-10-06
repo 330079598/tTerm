@@ -53,6 +53,7 @@ import { useTabs } from "@/hooks/useTabs"
 import { useTerminalFontZoom } from "@/hooks/useTerminalFontZoom"
 import { toast } from "@/hooks/use-toast"
 import { useWindowControls } from "@/hooks/useWindowControls"
+import { nameLocalTab, renameLegacyLocalTabs } from "@/lib/localTabTitle"
 import { markSessionReady } from "@/lib/startup"
 import {
   addRecentCommand,
@@ -896,16 +897,18 @@ export const TTermApp: React.FC = () => {
         }
 
         if (savedSession && savedSession.tabs.length > 0) {
+          const restoredTabs = await renameLegacyLocalTabs(savedSession.tabs)
+          if (cancelled) {
+            return
+          }
           setWorkspaceLayout(savedSession.layout)
-          restoreSession(savedSession.tabs, savedSession.activeTabId)
+          restoreSession(restoredTabs, savedSession.activeTabId)
         } else {
-          addTab(
-            buildTabFromConnection({
-              title: t("settings.terminal", { defaultValue: "Terminal" }),
-              type: "terminal",
-              isModified: false,
-            })
-          )
+          const tab = await nameLocalTab({ title: "", type: "terminal", isModified: false })
+          if (cancelled) {
+            return
+          }
+          addTab(buildTabFromConnection(tab))
         }
       } finally {
         if (!cancelled) {
@@ -920,10 +923,6 @@ export const TTermApp: React.FC = () => {
     return () => {
       cancelled = true
     }
-    // `t` is intentionally omitted: including it re-runs this effect on every
-    // language change, which re-restores the stale startup session snapshot
-    // and wipes out tabs (e.g. Settings) opened since then.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addTab, getPreloadedSession, isLoaded, restoreSession])
 
   useEffect(() => {
@@ -953,8 +952,8 @@ export const TTermApp: React.FC = () => {
     (choice?: LocalShellChoice) => {
       const shell = choice?.shell ?? config.terminal_shell
       const custom = shell === "custom"
-      addTab({
-        title: "OS terminal",
+      void nameLocalTab({
+        title: "",
         type: "terminal",
         isModified: false,
         connection: {
@@ -967,7 +966,7 @@ export const TTermApp: React.FC = () => {
           terminalShellCustomArgs:
             custom && !choice ? config.terminal_shell_custom_args.trim() : undefined,
         },
-      })
+      }).then(addTab)
     },
     [
       addTab,
@@ -1089,6 +1088,10 @@ export const TTermApp: React.FC = () => {
 
   const handleConnect = useCallback(
     (connection: Omit<Tab, "id" | "isActive">) => {
+      if (connection.type === "terminal" && !connection.title) {
+        void nameLocalTab(connection).then((tab) => addTab(buildTabFromConnection(tab)))
+        return
+      }
       addTab(buildTabFromConnection(connection))
     },
     [addTab]

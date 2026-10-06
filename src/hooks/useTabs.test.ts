@@ -154,3 +154,46 @@ describe("useTabs atomic state updates", () => {
     expect(result.current.tabs.filter((tab) => tab.isActive).map((tab) => tab.id)).toEqual(["c"])
   })
 })
+
+describe("useTabs generated titles", () => {
+  const titles = (result: { current: ReturnType<typeof useTabs> }) =>
+    result.current.tabs.map((tab) => tab.title)
+
+  const shellTab = (title: string): Omit<Tab, "id" | "isActive"> => ({
+    title,
+    numberTitle: true,
+    type: "terminal",
+  })
+
+  it("numbers a repeated shell name, and copies from it", () => {
+    const { result } = renderHook(() => useTabs())
+    let second = ""
+    act(() => {
+      result.current.addTab(shellTab("pwsh"))
+      second = result.current.addTab(shellTab("pwsh"))
+      result.current.addTab(shellTab("cmd"))
+    })
+    act(() => {
+      result.current.duplicateTab(second)
+    })
+
+    expect(titles(result)).toEqual(["pwsh", "pwsh-2", "cmd", "pwsh-3"])
+    expect(result.current.tabs.every((tab) => tab.numberTitle === undefined)).toBe(true)
+  })
+
+  it("numbers restored tabs around the names kept as saved", () => {
+    const { result } = renderHook(() => useTabs())
+    act(() => {
+      result.current.restoreSession(
+        [
+          { id: "tab-1", type: "terminal", isActive: true, title: "cmd", numberTitle: true },
+          { id: "tab-2", type: "terminal", isActive: false, title: "cmd-2" },
+          { id: "tab-3", type: "terminal", isActive: false, title: "cmd", numberTitle: true },
+        ],
+        "tab-1"
+      )
+    })
+
+    expect(titles(result)).toEqual(["cmd", "cmd-2", "cmd-3"])
+  })
+})
