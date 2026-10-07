@@ -454,6 +454,21 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
     rowRefs.current[activeProfileId]?.scrollIntoView({ block: "nearest" })
   }, [activeProfileId])
 
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing || flatProfiles.length === 0) return
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault()
+      const step = event.key === "ArrowDown" ? 1 : -1
+      const index = flatProfiles.findIndex((profile) => profile.id === activeProfileId)
+      const next = (flatProfiles.length + index + step) % flatProfiles.length
+      setSelectedProfileId(flatProfiles[next].id)
+    } else if (event.key === "Enter") {
+      event.preventDefault()
+      const profile = flatProfiles.find((item) => item.id === activeProfileId)
+      if (profile) handleConnect(profile)
+    }
+  }
+
   const hasProfiles = profiles.length > 0
   const hasFilteredResults = groupedProfiles.length > 0
   const isFiltering = searchQuery.trim().length > 0
@@ -525,7 +540,11 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
             ref={searchInputRef}
             type="search"
             value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
+            onChange={(event) => {
+              setSearchQuery(event.target.value)
+              setSelectedProfileId(null)
+            }}
+            onKeyDown={handleSearchKeyDown}
             placeholder={t("profiles.searchPlaceholder")}
             className="pl-9"
           />
