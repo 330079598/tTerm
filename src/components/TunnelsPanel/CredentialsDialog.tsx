@@ -16,6 +16,7 @@ import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import type { CredentialRequest } from "@/types/tunnel"
 import { credentialFieldKey } from "@/components/TunnelsPanel/tunnelUtils"
+import { isImeKeyEvent } from "@/lib/ime"
 
 interface CredentialsDialogProps {
   tunnelName: string
@@ -96,7 +97,7 @@ export const CredentialsDialog: React.FC<CredentialsDialogProps> = ({
                   disabled={busy}
                   onKeyDown={(event) => {
                     // Do not rely on implicit form submission; WebKit skips hidden submit buttons.
-                    if (event.key === "Enter") {
+                    if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent)) {
                       event.preventDefault()
                       submit()
                     }

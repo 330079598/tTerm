@@ -12,6 +12,7 @@ import type {
 } from "@/types/broadcast"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useKeymap } from "@/contexts/KeymapContext"
+import { isImeKeyEvent } from "@/lib/ime"
 
 type BroadcastManagerProps = {
   activeTabId: string | null
@@ -352,7 +353,11 @@ export function BroadcastManager({
                     style={{ fontFamily: config.font_family }}
                     onChange={(event) => setCommand(event.target.value)}
                     onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
+                      if (
+                        event.key === "Enter" &&
+                        !event.shiftKey &&
+                        !isImeKeyEvent(event.nativeEvent)
+                      ) {
                         event.preventDefault()
                         void submitCommand()
                       }

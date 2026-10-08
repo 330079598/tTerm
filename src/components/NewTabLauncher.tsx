@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { useConfig } from "@/contexts/ConfigContext"
+import { isImeKeyEvent } from "@/lib/ime"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
 import {
   buildQuickConnectTab,
@@ -352,7 +353,7 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.nativeEvent.isComposing) return
+    if (isImeKeyEvent(event.nativeEvent)) return
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault()
       const step = event.key === "ArrowDown" ? 1 : -1

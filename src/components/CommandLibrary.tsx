@@ -48,6 +48,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { activeVariables, extractPlaceholderNames, formatPlaceholder } from "@/lib/commandVariables"
+import { isImeKeyEvent } from "@/lib/ime"
 import { cn } from "@/lib/utils"
 import type { CommandDraft, RecentCommand, SaveCommandInput, SavedCommand } from "@/types/command"
 import { createCommandDraft } from "@/lib/recentCommands"
@@ -440,6 +441,7 @@ export function CommandEditorDialog({
                 placeholder={t("commandLibrary.form.tagsPlaceholder")}
                 aria-describedby="saved-command-tags-hint"
                 onKeyDown={(event) => {
+                  if (isImeKeyEvent(event.nativeEvent)) return
                   if (event.key !== "Enter" && event.key !== "," && event.key !== "，") return
                   event.preventDefault()
                   commitTagDraft()
@@ -1512,7 +1514,7 @@ export const CommandLibrary: React.FC<CommandLibraryProps> = ({
               aria-label={t("commandLibrary.tags.name")}
               onChange={(event) => setManagedTagDraft(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter") {
+                if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent)) {
                   event.preventDefault()
                   void saveManagedTag()
                 }

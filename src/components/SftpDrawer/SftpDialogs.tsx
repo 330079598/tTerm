@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import type { SftpDialogAction, SftpDialogState } from "@/components/SftpDrawer/types"
+import { isImeKeyEvent } from "@/lib/ime"
 
 interface SftpDialogsProps {
   dialog: SftpDialogState
@@ -189,7 +190,7 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
                   dispatchDialog({ action: "updateRenameNewName", newName: event.target.value })
                 }
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") {
+                  if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent)) {
                     event.preventDefault()
                     handleRenameConfirm()
                   }
@@ -236,7 +237,7 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
                   })
                 }
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") {
+                  if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent)) {
                     event.preventDefault()
                     handleCreateDirectoryConfirm()
                   }

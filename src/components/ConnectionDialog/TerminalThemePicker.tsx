@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 
 import { Input } from "@/components/ui/input"
 import { useTheme } from "@/contexts/ThemeContext"
+import { isImeKeyEvent } from "@/lib/ime"
 import { catalogThemeName, isCatalogThemeId } from "@/lib/themeCatalog"
 import { cn } from "@/lib/utils"
 import { PRESET_THEME_IDS, type TerminalPalette, type Theme } from "@/types/theme"
@@ -149,6 +150,7 @@ export const TerminalThemePicker: React.FC<TerminalThemePickerProps> = ({
   }, [highlightedEntryKey, open])
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (isImeKeyEvent(event.nativeEvent)) return
     if (event.key === "Escape") {
       // Closes the list, not the dialog around it.
       event.preventDefault()

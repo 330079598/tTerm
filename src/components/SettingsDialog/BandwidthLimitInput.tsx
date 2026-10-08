@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { MAX_BANDWIDTH_LIMIT_KIB } from "@/contexts/ConfigContext"
+import { isImeKeyEvent } from "@/lib/ime"
 
 export type BandwidthUnit = "KB" | "MB"
 
@@ -81,7 +82,7 @@ export const BandwidthLimitInput: React.FC<BandwidthLimitInputProps> = ({
         onChange={(event) => setDraft(event.target.value)}
         onBlur={commit}
         onKeyDown={(event) => {
-          if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+          if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent)) {
             event.preventDefault()
             commit()
           }

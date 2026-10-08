@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { isPageTab, Tab, TabContextMenuAction } from "@/types/tab"
+import { isImeKeyEvent } from "@/lib/ime"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
 
 const TAB_OVERFLOW_THRESHOLD = 16
@@ -649,7 +650,7 @@ export const TabBar: React.FC<TabBarProps> = ({
 
   const handleSearchKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === "Enter" && filteredTabs.length > 0) {
+      if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent) && filteredTabs.length > 0) {
         handleSelectTab(filteredTabs[0].id)
       }
     },

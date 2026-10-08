@@ -34,6 +34,7 @@ import {
   type MonitorMetricId,
 } from "@/contexts/ConfigContext"
 import { useSyncedState } from "@/hooks/useSyncedState"
+import { isImeKeyEvent } from "@/lib/ime"
 import { isValidPromptPattern } from "@/lib/sudoPrompt"
 import { cn } from "@/lib/utils"
 
@@ -358,7 +359,7 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
                   }}
                   onBlur={commitReconnectMaxAttempts}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter") {
+                    if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent)) {
                       event.currentTarget.blur()
                     }
                   }}
@@ -470,7 +471,7 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
                   }}
                   onBlur={commitMonitorRefreshInterval}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter") {
+                    if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent)) {
                       event.currentTarget.blur()
                     }
                   }}

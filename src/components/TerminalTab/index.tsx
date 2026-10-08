@@ -35,6 +35,7 @@ import type {
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { toast } from "@/hooks/use-toast"
 import { isWindowBlurEnabled, useConfig } from "@/contexts/ConfigContext"
+import { isImeKeyEvent } from "@/lib/ime"
 import { isTransparentTerminalTheme, withWindowBlur } from "@/lib/terminalPalette"
 import type { TerminalRenderer } from "@/contexts/ConfigContext"
 import { useKeymap } from "@/contexts/KeymapContext"
@@ -635,6 +636,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
   const handleSearchKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (isImeKeyEvent(event.nativeEvent)) return
       if (event.key === "Escape") {
         event.preventDefault()
         event.stopPropagation()

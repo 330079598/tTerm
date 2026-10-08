@@ -38,6 +38,7 @@ import {
   type TabWidthMode,
   type WindowBlurMaterial,
 } from "@/contexts/ConfigContext"
+import { isImeKeyEvent } from "@/lib/ime"
 import { setWindowBlur } from "@/lib/themePreloader"
 import { useSyncedState } from "@/hooks/useSyncedState"
 import type { CustomTheme, PresetTheme, PresetThemeId } from "@/types/theme"
@@ -678,7 +679,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
                       onChange={(event) => setTabWidthDraft(event.target.value)}
                       onBlur={() => void commitTabStandardWidth()}
                       onKeyDown={(event) => {
-                        if (event.key === "Enter") {
+                        if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent)) {
                           event.currentTarget.blur()
                         }
                       }}

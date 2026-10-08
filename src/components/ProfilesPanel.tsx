@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { SshConfigImportDialog } from "@/components/SshConfigImportDialog"
+import { isImeKeyEvent } from "@/lib/ime"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
 import { cn } from "@/lib/utils"
 import { Tab, type ConnectionType, type SavedProfile } from "@/types/tab"
@@ -455,7 +456,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
   }, [activeProfileId])
 
   const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.nativeEvent.isComposing || flatProfiles.length === 0) return
+    if (isImeKeyEvent(event.nativeEvent) || flatProfiles.length === 0) return
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault()
       const step = event.key === "ArrowDown" ? 1 : -1

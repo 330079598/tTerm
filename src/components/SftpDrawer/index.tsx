@@ -45,6 +45,7 @@ import {
   type SftpSortColumn,
   type SftpViewPreferences,
 } from "@/components/SftpDrawer/sftpView"
+import { isImeKeyEvent } from "@/lib/ime"
 
 function sftpDialogReducer(state: SftpDialogState, action: SftpDialogAction): SftpDialogState {
   switch (action.action) {
@@ -295,7 +296,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented || event.isComposing) {
+      if (event.key !== "Escape" || event.defaultPrevented || isImeKeyEvent(event)) {
         return
       }
 

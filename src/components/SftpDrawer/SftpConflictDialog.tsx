@@ -18,6 +18,7 @@ import type {
   PromptConflictPolicy,
   TransferConflict,
 } from "@/components/SftpDrawer/types"
+import { isImeKeyEvent } from "@/lib/ime"
 
 type Direction = "upload" | "download"
 
@@ -173,7 +174,7 @@ export function useSftpConflictDialog() {
         <DialogContent
           className="sm:max-w-lg"
           onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+            if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent)) {
               event.preventDefault()
               close(policy)
             }

@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button"
 import { useKeymap } from "@/contexts/KeymapContext"
 import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { isImeKeyEvent } from "@/lib/ime"
 import { cn } from "@/lib/utils"
 import type { LoadSftpDirectory } from "@/components/SftpDrawer/types"
 import type { SftpSearchOptions } from "@/components/SftpDrawer/sftpSearch"
@@ -154,6 +155,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   }
 
   const handlePathKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (isImeKeyEvent(event.nativeEvent)) return
     if (event.key === "Enter") {
       event.preventDefault()
       void submitPath()

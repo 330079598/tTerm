@@ -28,6 +28,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useConfig } from "@/contexts/ConfigContext"
 import { useToast } from "@/hooks/use-toast"
 import { invokeSafe } from "@/lib/errors"
+import { isImeKeyEvent } from "@/lib/ime"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
 import { cn, toErrorMessage } from "@/lib/utils"
 import type { SavedProfile, Tab } from "@/types/tab"
@@ -185,6 +186,7 @@ const ProfileGroupCard: React.FC<ProfileGroupCardProps> = ({
               value={editingGroupDraft}
               onChange={(event) => setEditingGroupDraft(event.target.value)}
               onKeyDown={(event) => {
+                if (isImeKeyEvent(event.nativeEvent)) return
                 if (event.key === "Enter") {
                   event.preventDefault()
                   onRenameGroup(group.name)
@@ -852,7 +854,7 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
                   value={newGroupName}
                   onChange={(event) => setNewGroupName(event.target.value)}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter") {
+                    if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent)) {
                       event.preventDefault()
                       void handleAddGroup()
                     }

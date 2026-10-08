@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useLatestRef } from "@/hooks/useLatestRef"
 import { toast } from "@/hooks/use-toast"
+import { isImeKeyEvent } from "@/lib/ime"
 import { THEME_CATALOG_SOURCE } from "@/lib/themeCatalog"
 import { cn } from "@/lib/utils"
 import type { CatalogTheme } from "@/types/theme"
@@ -127,7 +128,7 @@ export const ThemeGallery: React.FC<ThemeGalleryProps> = ({ onApply, onCopy, onC
   )
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (visibleThemes.length === 0) return
+    if (visibleThemes.length === 0 || isImeKeyEvent(event.nativeEvent)) return
     const index = visibleThemes.findIndex((theme) => theme.id === selectedId)
     const last = visibleThemes.length - 1
     const target = {

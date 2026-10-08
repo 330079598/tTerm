@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { isImeKeyEvent } from "@/lib/ime"
 
 interface ConfirmDialogOptions {
   title: React.ReactNode
@@ -81,7 +82,7 @@ export function useConfirmDialog() {
         <DialogContent
           className="sm:max-w-md"
           onKeyDown={(event) => {
-            if (state.defaultAction && event.key === "Enter" && !event.nativeEvent.isComposing) {
+            if (state.defaultAction && event.key === "Enter" && !isImeKeyEvent(event.nativeEvent)) {
               event.preventDefault()
               close(state.defaultAction === "confirm")
             }
