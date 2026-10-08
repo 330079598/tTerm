@@ -2,8 +2,13 @@
 //! passwords moved into the database, only the key that unwraps the data key
 //! is kept here; the other accounts are read once when migrating.
 
-use super::types::SERVICE_NAME;
+use std::sync::OnceLock;
 use zeroize::Zeroizing;
+
+/// The installed app's identifier, which keeps the original service name.
+const APP_IDENTIFIER: &str = "com.stone.tTerm";
+const SERVICE_NAME: &str = "tterm";
+static SERVICE: OnceLock<String> = OnceLock::new();
 
 /// Holds the key that unwraps the database's data key.
 pub(crate) const DATA_KEY_ACCOUNT: &str = "key::__secret_data_key__";
@@ -14,8 +19,28 @@ pub(crate) const LEGACY_PASSWORD_PREFIX: &str = "password::";
 const PROBE_ACCOUNT: &str = "__probe__";
 const PROBE_SECRET: &str = "tterm-keyring-probe";
 
+/// The service for an app identifier. Builds with another identifier, such
+/// as `pnpm tauri:dev`, keep their own items: they have their own database,
+/// and sharing the data key item would let each one replace the other's.
+fn service_for(identifier: &str) -> String {
+    if identifier == APP_IDENTIFIER {
+        SERVICE_NAME.to_string()
+    } else {
+        format!("{SERVICE_NAME} ({identifier})")
+    }
+}
+
+/// Picks the service for this app before the credential store is first used.
+pub(crate) fn init_service(identifier: &str) {
+    let _ = SERVICE.set(service_for(identifier));
+}
+
+fn service() -> &'static str {
+    SERVICE.get().map_or(SERVICE_NAME, String::as_str)
+}
+
 fn entry(account: &str) -> Result<keyring::Entry, String> {
-    keyring::Entry::new(SERVICE_NAME, account)
+    keyring::Entry::new(service(), account)
         .map_err(|e| format!("Failed to open system credential store entry: {e}"))
 }
 
@@ -44,7 +69,7 @@ pub(crate) fn delete(account: &str) -> Result<bool, String> {
 }
 
 pub(crate) fn probe() -> bool {
-    let Ok(entry) = keyring::Entry::new(SERVICE_NAME, PROBE_ACCOUNT) else {
+    let Ok(entry) = keyring::Entry::new(service(), PROBE_ACCOUNT) else {
         return false;
     };
     if entry.set_password(PROBE_SECRET).is_err() {
@@ -64,7 +89,7 @@ pub(crate) fn list_accounts() -> Option<Vec<String>> {
     const ERR_SEC_ITEM_NOT_FOUND: i32 = -25300;
     match ItemSearchOptions::new()
         .class(ItemClass::generic_password())
-        .service(SERVICE_NAME)
+        .service(service())
         .load_attributes(true)
         .limit(Limit::All)
         .search()
@@ -90,6 +115,15 @@ pub(crate) fn list_accounts() -> Option<Vec<String>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn only_the_installed_app_uses_the_original_service() {
+        assert_eq!(super::service_for("com.stone.tTerm"), "tterm");
+        assert_eq!(
+            super::service_for("com.stone.tTerm.dev"),
+            "tterm (com.stone.tTerm.dev)"
+        );
+    }
+
     /// Lists the real credential store's account names (no secrets are read,
     /// so no unlock prompt): `cargo test list_real_accounts -- --ignored --nocapture`
     #[test]

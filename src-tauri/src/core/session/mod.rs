@@ -391,18 +391,23 @@ pub fn resolve_ssh_password(
             ));
         } else {
             // Try to get password from secret store
-            let password = load_saved_ssh_password(
+            let Some(password) = load_saved_ssh_password(
                 app,
                 secret_state,
                 plan.profile_id.as_deref(),
                 Some(plan.profile_name.as_str()),
             )?
-            .ok_or_else(|| {
-                format!(
+            else {
+                let keys = [plan.profile_id.as_deref(), Some(plan.profile_name.as_str())];
+                let keys: Vec<&str> = keys.into_iter().flatten().collect();
+                if let Some(reason) = secret_state.unreadable_reason(&keys)? {
+                    return Err(reason.to_string());
+                }
+                return Err(format!(
                     "No password provided and no saved password found for profile '{}'",
                     plan.profile_name
-                )
-            })?;
+                ));
+            };
 
             plan.password = Some(password);
         }
@@ -464,6 +469,28 @@ fn resolve_jump_host_passwords(
             allow_legacy_fallback,
         )? {
             jump.password = Some(pw);
+            continue;
+        }
+
+        let name_identity_key = jump_host_identity_secret_key(
+            None,
+            plan.profile_name.as_str(),
+            &jump.host,
+            jump.port,
+            &jump.username,
+        );
+        let mut keys = vec![secret_key.as_str(), name_identity_key.as_str()];
+        let legacy_keys = [
+            plan.profile_id
+                .as_deref()
+                .map(|profile_id| jump_host_secret_key(Some(profile_id), "")),
+            Some(jump_host_secret_key(None, plan.profile_name.as_str())),
+        ];
+        if allow_legacy_fallback {
+            keys.extend(legacy_keys.iter().flatten().map(String::as_str));
+        }
+        if let Some(reason) = secret_state.unreadable_reason(&keys)? {
+            return Err(reason.to_string());
         }
     }
 

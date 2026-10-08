@@ -42,6 +42,7 @@ const MISSING_SYSTEM_KEY: &str = "The key for saved passwords is missing from th
 const WRONG_SYSTEM_KEY: &str = "The key in the system credential store does not match saved passwords. Enter the master password to restore it.";
 const WRONG_MASTER_PASSWORD: &str = "Incorrect master password.";
 const LOCKED: &str = "Saved passwords are locked. Unlock them first.";
+const STARTING: &str = "Saved passwords are still being unlocked. Try again in a moment.";
 
 /// The OS credential store, behind a trait so the logic can be tested.
 pub(crate) trait CredentialStore {
@@ -106,14 +107,25 @@ fn open_with_password(database: &Database, password: &str) -> Result<Option<Secr
         .ok_or_else(|| WRONG_MASTER_PASSWORD.to_string())
 }
 
-/// Puts a fresh key in the credential store and wraps the data key with it.
+/// Wraps the data key with the key in the credential store, putting a fresh
+/// one there only when it has none. A key already there is kept since another
+/// database may still be wrapped with it.
 fn create_system_wrap(
     database: &Database,
     credentials: &dyn CredentialStore,
     data_key: &SecretKey,
 ) -> Result<(), String> {
-    let system_key = SecretKey::generate();
-    credentials.write(DATA_KEY_ACCOUNT, &system_key.to_base64())?;
+    let existing = credentials
+        .read(DATA_KEY_ACCOUNT)?
+        .and_then(|encoded| SecretKey::from_base64(&encoded).ok());
+    let system_key = match existing {
+        Some(system_key) => system_key,
+        None => {
+            let system_key = SecretKey::generate();
+            credentials.write(DATA_KEY_ACCOUNT, &system_key.to_base64())?;
+            system_key
+        }
+    };
     database.write(|transaction| {
         store::save_wrap(transaction, WRAP_SYSTEM, None, &system_key, data_key)
     })
@@ -305,6 +317,7 @@ impl SecretStoreState {
     /// Runs on its own thread since the credential store may wait on an
     /// unlock prompt (Secret Service on Linux) or not answer for a while.
     pub fn initialize(&self, app: &AppHandle) {
+        keyring_backend::init_service(&app.config().identifier);
         // Looking for Windows Hello or Touch ID can take a moment; do it off
         // the main thread before the status is first asked for.
         let state = self.clone();
@@ -635,6 +648,29 @@ impl SecretStoreState {
         Ok(SecretLocation::Database)
     }
 
+    /// Why saved passwords under `keys` can't be read right now: they are
+    /// still being unlocked at startup, or they are locked. `None` when there
+    /// are none under `keys` or they are readable, so a connection reports
+    /// this instead of a missing password.
+    pub(crate) fn unreadable_reason(&self, keys: &[&str]) -> Result<Option<&'static str>, String> {
+        if self.unlocked_key()?.is_some() || Self::mode()? == SecretStorageMode::Memory {
+            return Ok(None);
+        }
+        let saved = self.saved_keys()?;
+        if !keys
+            .iter()
+            .any(|key| saved.iter().any(|saved| saved == key))
+        {
+            return Ok(None);
+        }
+        let starting = *self
+            .starting
+            .0
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        Ok(Some(if starting { STARTING } else { LOCKED }))
+    }
+
     /// Keys with a saved password, readable while locked.
     pub(crate) fn saved_keys(&self) -> Result<Vec<String>, String> {
         crate::db::read(store::secret_keys)
@@ -740,6 +776,22 @@ pub(crate) mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(value.as_str(), "secret");
+    }
+
+    #[test]
+    fn a_second_database_keeps_the_credential_store_key_of_the_first() {
+        let credentials = MemoryCredentials::default();
+        let first = Database::open_in_memory().unwrap();
+        let first_key = SecretKey::generate();
+        create_system_wrap(&first, &credentials, &first_key).unwrap();
+        let stored = credentials.get(DATA_KEY_ACCOUNT).unwrap();
+
+        let second = Database::open_in_memory().unwrap();
+        create_system_wrap(&second, &credentials, &SecretKey::generate()).unwrap();
+
+        assert_eq!(credentials.get(DATA_KEY_ACCOUNT).unwrap(), stored);
+        assert!(open_with_system_key(&first, &credentials).unwrap().is_some());
+        assert!(open_with_system_key(&second, &credentials).unwrap().is_some());
     }
 
     #[test]

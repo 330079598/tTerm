@@ -2,8 +2,6 @@ use super::crypto::SecretKey;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Condvar, Mutex};
 
-pub(crate) const SERVICE_NAME: &str = "tterm";
-
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SecretBackendStatus {
