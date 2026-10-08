@@ -57,6 +57,14 @@ const folder: SftpDirectoryEntry = {
   size: 0,
 }
 
+const file: SftpDirectoryEntry = {
+  isDir: false,
+  isSymlink: false,
+  name: "a.log",
+  path: "/remote/a.log",
+  size: 10,
+}
+
 function emit(event: string, payload: unknown) {
   const listener = listeners.get(event)
   if (!listener) throw new Error(`No listener registered for ${event}`)
@@ -88,7 +96,7 @@ function createTransferStore() {
 
 /** Starts a folder download and returns the id of its (parent) transfer. */
 async function startFolderDownload(
-  downloadEntry: (entry: SftpDirectoryEntry) => Promise<void>,
+  downloadEntries: (entries: SftpDirectoryEntry[]) => Promise<void>,
   transfers: TransferTask[]
 ) {
   await waitFor(() => expect(listeners.has(batchCompleteEvent)).toBe(true))
@@ -101,7 +109,7 @@ async function startFolderDownload(
       : new Promise(() => {})
   )
   await act(async () => {
-    void downloadEntry(folder)
+    void downloadEntries([folder])
   })
   await waitFor(() => expect(transfers.some((item) => item.remotePath === folder.path)).toBe(true))
   return transfers.find((item) => item.remotePath === folder.path)!.id
@@ -128,7 +136,7 @@ describe("useSftpDownloads", () => {
       })
     )
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_000_000)
-    const batchId = await startFolderDownload(result.current.downloadEntry, transfers)
+    const batchId = await startFolderDownload(result.current.downloadEntries, transfers)
 
     nowSpy.mockReturnValue(1_000_000 + 10_000)
     emit(batchCompleteEvent, {
@@ -159,7 +167,7 @@ describe("useSftpDownloads", () => {
       })
     )
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_000_000)
-    const batchId = await startFolderDownload(result.current.downloadEntry, transfers)
+    const batchId = await startFolderDownload(result.current.downloadEntries, transfers)
 
     nowSpy.mockReturnValue(1_000_000 + 10_000)
     emit(batchCompleteEvent, {
@@ -190,7 +198,7 @@ describe("useSftpDownloads", () => {
       })
     )
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_000_000)
-    const batchId = await startFolderDownload(result.current.downloadEntry, transfers)
+    const batchId = await startFolderDownload(result.current.downloadEntries, transfers)
 
     nowSpy.mockReturnValue(1_000_000 + 10_000)
     emit(batchCompleteEvent, {
@@ -295,12 +303,12 @@ describe("useSftpDownloads", () => {
     )
 
     await act(async () => {
-      await result.current.downloadEntry(folder)
+      await result.current.downloadEntries([folder])
     })
 
     expect(promptConflictPolicy).toHaveBeenCalledWith(oneConflict, "download")
     expect(invoke).toHaveBeenCalledWith(
-      "sftp_download_directory",
+      "sftp_download_paths",
       expect.objectContaining({ conflictPolicy: "rename", skipExisting: false })
     )
 
@@ -311,7 +319,7 @@ describe("useSftpDownloads", () => {
       batch?.retry?.()
     })
     expect(invoke).toHaveBeenCalledWith(
-      "sftp_download_directory",
+      "sftp_download_paths",
       expect.objectContaining({ conflictPolicy: "rename", skipExisting: true })
     )
     expect(promptConflictPolicy).toHaveBeenCalledTimes(1)
@@ -334,10 +342,10 @@ describe("useSftpDownloads", () => {
     invoke.mockResolvedValue(oneConflict)
 
     await act(async () => {
-      await result.current.downloadEntry(folder)
+      await result.current.downloadEntries([folder])
     })
 
-    expect(invoke).not.toHaveBeenCalledWith("sftp_download_directory", expect.anything())
+    expect(invoke).not.toHaveBeenCalledWith("sftp_download_paths", expect.anything())
     expect(transfers).toHaveLength(0)
   })
 
@@ -362,13 +370,57 @@ describe("useSftpDownloads", () => {
     )
 
     await act(async () => {
-      await result.current.downloadEntry(folder)
+      await result.current.downloadEntries([folder])
     })
 
     expect(promptConflictPolicy).not.toHaveBeenCalled()
     expect(invoke).toHaveBeenCalledWith(
-      "sftp_download_directory",
+      "sftp_download_paths",
       expect.objectContaining({ conflictPolicy: "overwrite" })
     )
+  })
+
+  it("downloads a multi-selection into one folder as a single batch", async () => {
+    const { addTransfer, transfers, updateTransfer } = createTransferStore()
+    const promptConflictPolicy = vi.fn().mockResolvedValue("skip")
+    const { result } = renderHook(() =>
+      useSftpDownloads({
+        addTransfer,
+        connection: undefined,
+        promptConflictPolicy,
+        tabId: "tab-1",
+        transfersRef: { current: transfers },
+        updateTransfer,
+      })
+    )
+    openDialog.mockResolvedValue("/local/target")
+    invoke.mockImplementation((command: string) =>
+      command === "sftp_check_download_conflicts"
+        ? Promise.resolve(oneConflict)
+        : Promise.resolve(undefined)
+    )
+
+    await act(async () => {
+      await result.current.downloadEntries([file, folder])
+    })
+
+    expect(openDialog).toHaveBeenCalledWith(expect.objectContaining({ directory: true }))
+    expect(invoke).toHaveBeenCalledWith(
+      "sftp_check_download_conflicts",
+      expect.objectContaining({
+        localParentPath: "/local/target",
+        remotePaths: [file.path, folder.path],
+      })
+    )
+    expect(invoke).toHaveBeenCalledWith(
+      "sftp_download_paths",
+      expect.objectContaining({
+        conflictPolicy: "skip",
+        localParentPath: "/local/target",
+        remotePaths: [file.path, folder.path],
+      })
+    )
+    expect(transfers).toHaveLength(1)
+    expect(transfers[0]).toMatchObject({ fileName: "sftp.itemSummary", localPath: "/local/target" })
   })
 })

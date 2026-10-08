@@ -170,7 +170,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   const {
     addTransfer,
     conflictDialog,
-    downloadEntry,
+    downloadEntries,
     handleUploadDialog,
     handleUploadFolderDialog,
     transfersRef,
@@ -604,13 +604,22 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   }, [commandDeleteEntries, isDeleting, startDeleteBatch])
 
   const handleDownload = useCallback(async () => {
-    const entry = contextMenuEntry ?? activeEntry
-    if (!entry) {
-      return
-    }
+    const entries =
+      contextMenuEntry &&
+      selectedPaths.includes(contextMenuEntry.path) &&
+      selectedEntries.length > 0
+        ? selectedEntries
+        : contextMenuEntry
+          ? [contextMenuEntry]
+          : activeEntry
+            ? [activeEntry]
+            : []
+    await downloadEntries(entries)
+  }, [activeEntry, contextMenuEntry, downloadEntries, selectedEntries, selectedPaths])
 
-    await downloadEntry(entry)
-  }, [activeEntry, contextMenuEntry, downloadEntry])
+  const handleDownloadSelection = useCallback(async () => {
+    await downloadEntries(selectedEntries)
+  }, [downloadEntries, selectedEntries])
 
   const handleOpenEntry = useCallback(
     async (entry: SftpDirectoryEntry) => {
@@ -745,6 +754,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         clearSelection={handleClearSelection}
         handleCreateDirectory={handleCreateDirectory}
         handleDeleteSelection={handleDeleteSelection}
+        handleDownloadSelection={handleDownloadSelection}
         handleUploadDialog={handleUploadDialog}
         handleUploadFolderDialog={handleUploadFolderDialog}
         isDeleting={isDeleting}

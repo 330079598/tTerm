@@ -19,8 +19,8 @@ interface UseSftpTransfersReturn {
   clearCompletedTransfers: () => void
   /** Conflict prompt shared by uploads and downloads; render it once. */
   conflictDialog: React.ReactNode
-  downloadEntry: (
-    entry: import("@/components/SftpDrawer/types").SftpDirectoryEntry
+  downloadEntries: (
+    entries: import("@/components/SftpDrawer/types").SftpDirectoryEntry[]
   ) => Promise<void>
   handleUploadDialog: () => Promise<void>
   handleUploadFolderDialog: () => Promise<void>
@@ -50,7 +50,7 @@ export function useSftpTransfers({
   } = useTransferManager()
   const { conflictDialog, promptConflictPolicy } = useSftpConflictDialog()
 
-  const { downloadEntry } = useSftpDownloads({
+  const { downloadEntries } = useSftpDownloads({
     addTransfer,
     connection,
     promptConflictPolicy,
@@ -93,7 +93,7 @@ export function useSftpTransfers({
     cancelTransfer,
     clearCompletedTransfers,
     conflictDialog,
-    downloadEntry,
+    downloadEntries,
     handleUploadDialog,
     handleUploadFolderDialog,
     removeTransfer,

@@ -233,7 +233,7 @@ fn remote_basename(path: &str) -> Result<String, String> {
         .next()
         .filter(|name| !name.is_empty() && *name != "." && *name != "..")
         .map(ToString::to_string)
-        .ok_or_else(|| format!("Failed to determine folder name for remote path '{path}'"))
+        .ok_or_else(|| format!("Failed to determine the name of remote path '{path}'"))
 }
 
 fn push_local_path_component(path: &mut PathBuf, component: &str) -> Result<(), String> {
@@ -250,14 +250,50 @@ fn push_local_path_component(path: &mut PathBuf, component: &str) -> Result<(), 
     Ok(())
 }
 
+/// Plans one download of every remote root into the same local folder: a
+/// folder brings its whole tree, a file just itself.
+async fn collect_download_plan(
+    sftp: &SftpSession,
+    remote_roots: &[String],
+) -> Result<DirectoryDownloadPlan, String> {
+    let mut plan = DirectoryDownloadPlan {
+        directories: Vec::new(),
+        files: Vec::new(),
+        total_size: 0,
+    };
+
+    for remote_root in remote_roots {
+        let root_name = remote_basename(remote_root)?;
+        let metadata = sftp.metadata(remote_root).await.map_err(map_sftp_error)?;
+        if metadata.is_dir() {
+            collect_directory_download_plan(sftp, remote_root, &root_name, &mut plan).await?;
+        } else {
+            let size = metadata.size.unwrap_or(0);
+            plan.total_size = plan.total_size.saturating_add(size);
+            plan.files.push(DirectoryDownloadItem {
+                remote_path: remote_root.clone(),
+                relative_path: PathBuf::from(&root_name),
+                file_name: root_name,
+                size,
+                mtime: metadata.mtime.map(|mtime| mtime as i64),
+            });
+        }
+    }
+
+    Ok(plan)
+}
+
 async fn collect_directory_download_plan(
     sftp: &SftpSession,
     remote_root: &str,
     root_name: &str,
-) -> Result<DirectoryDownloadPlan, String> {
-    let mut directories = Vec::new();
-    let mut files = Vec::new();
-    let mut total_size = 0u64;
+    plan: &mut DirectoryDownloadPlan,
+) -> Result<(), String> {
+    let DirectoryDownloadPlan {
+        directories,
+        files,
+        total_size,
+    } = plan;
     let mut stack = vec![(remote_root.to_string(), PathBuf::from(root_name))];
 
     while let Some((remote_dir, relative_dir)) = stack.pop() {
@@ -275,7 +311,7 @@ async fn collect_directory_download_plan(
                 stack.push((remote_path, relative_path));
             } else {
                 let size = metadata.size.unwrap_or(0);
-                total_size = total_size.saturating_add(size);
+                *total_size = total_size.saturating_add(size);
                 files.push(DirectoryDownloadItem {
                     remote_path,
                     relative_path,
@@ -287,11 +323,7 @@ async fn collect_directory_download_plan(
         }
     }
 
-    Ok(DirectoryDownloadPlan {
-        directories,
-        files,
-        total_size,
-    })
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -404,7 +436,7 @@ async fn download_directory_with_progress(
     channels: &RemoteChannels,
     cancel_map: &TransferCancelMap,
     transfer_id: &str,
-    remote_path: &str,
+    remote_paths: &[String],
     local_parent_path: &str,
     skip_existing: Option<bool>,
     policy: ConflictPolicy,
@@ -426,8 +458,7 @@ async fn download_directory_with_progress(
     let mut resumed_bytes = 0u64;
 
     let result = async {
-        let root_name = remote_basename(remote_path)?;
-        let plan = collect_directory_download_plan(sftp, remote_path, &root_name).await?;
+        let plan = collect_download_plan(sftp, remote_paths).await?;
         final_total = plan.total_size;
         let local_parent = PathBuf::from(local_parent_path);
 
@@ -602,13 +633,16 @@ async fn download_directory_with_progress(
         }
         final_transferred = aggregate_transferred;
 
-        let root_local_path = local_parent.join(&root_name);
+        let (root_local_path, root_remote_path) = match remote_paths {
+            [only] => (local_parent.join(remote_basename(only)?), only.clone()),
+            _ => (local_parent.clone(), remote_paths.join(", ")),
+        };
         let _ = app.emit(
             &format!("sftp-download-progress-{}", tab_id),
             DownloadProgressEvent {
                 transfer_id: transfer_id.to_string(),
                 local_path: root_local_path.display().to_string(),
-                remote_path: remote_path.to_string(),
+                remote_path: root_remote_path,
                 transferred: aggregate_transferred,
                 total: plan.total_size,
                 progress: 100,
@@ -688,13 +722,15 @@ pub async fn sftp_download_file(
     .await
 }
 
+/// Downloads remote files and folders, as one transfer, into
+/// `local_parent_path`.
 #[tauri::command]
-pub async fn sftp_download_directory(
+pub async fn sftp_download_paths(
     app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     transfer_id: String,
-    remote_path: String,
+    remote_paths: Vec<String>,
     local_parent_path: String,
     skip_existing: Option<bool>,
     conflict_policy: Option<ConflictPolicy>,
@@ -721,7 +757,7 @@ pub async fn sftp_download_directory(
         &channels,
         cancel_map.inner(),
         &transfer_id,
-        &remote_path,
+        &remote_paths,
         &local_parent_path,
         skip_existing,
         conflict_policy.unwrap_or_default(),
@@ -729,32 +765,39 @@ pub async fn sftp_download_directory(
     .await
 }
 
-/// Pre-flight for `sftp_download_directory`: which files of the remote folder
-/// already exist locally. A folder that does not exist locally yet cannot
-/// collide, so the remote tree is only walked when it does.
+/// Pre-flight for `sftp_download_paths`: which of the files to download
+/// already exist locally. Nothing can collide unless one of the remote roots
+/// already exists locally, so the remote trees are only walked when one does.
 #[tauri::command]
 pub async fn sftp_check_download_conflicts(
     app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
-    remote_path: String,
+    remote_paths: Vec<String>,
     local_parent_path: String,
     prompt_state: State<'_, HostPromptMap>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<ConflictReport, String> {
-    let root_name = remote_basename(&remote_path)?;
     let local_parent = PathBuf::from(&local_parent_path);
-    if tokio::fs::metadata(local_parent.join(&root_name))
-        .await
-        .is_err()
-    {
+    let mut any_root_exists = false;
+    for remote_path in &remote_paths {
+        let root_name = remote_basename(remote_path)?;
+        if tokio::fs::metadata(local_parent.join(&root_name))
+            .await
+            .is_ok()
+        {
+            any_root_exists = true;
+            break;
+        }
+    }
+    if !any_root_exists {
         return Ok(ConflictReport::default());
     }
 
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
     with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-        let download_plan = collect_directory_download_plan(sftp, &remote_path, &root_name).await?;
+        let download_plan = collect_download_plan(sftp, &remote_paths).await?;
         let mut report = ConflictReport {
             file_count: download_plan.files.len(),
             ..ConflictReport::default()
@@ -850,6 +893,100 @@ mod tests {
         assert_eq!(resolved, None);
 
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    fn plan_paths(plan: &DirectoryDownloadPlan) -> (Vec<PathBuf>, Vec<(PathBuf, u64)>) {
+        let mut directories = plan.directories.clone();
+        directories.sort();
+        let mut files: Vec<_> = plan
+            .files
+            .iter()
+            .map(|item| (item.relative_path.clone(), item.size))
+            .collect();
+        files.sort();
+        (directories, files)
+    }
+
+    /// Lays out `report.txt` and `logs/{a.log,nested/b.log}` under `root`.
+    fn write_mixed_selection(root: &Path) {
+        std::fs::write(root.join("report.txt"), b"12345").unwrap();
+        std::fs::create_dir_all(root.join("logs/nested")).unwrap();
+        std::fs::write(root.join("logs/a.log"), b"abc").unwrap();
+        std::fs::write(root.join("logs/nested/b.log"), b"de").unwrap();
+    }
+
+    fn assert_mixed_selection_plan(plan: &DirectoryDownloadPlan) {
+        assert_eq!(plan.total_size, 10);
+        assert_eq!(
+            plan_paths(plan),
+            (
+                vec![PathBuf::from("logs"), PathBuf::from("logs/nested")],
+                vec![
+                    (PathBuf::from("logs/a.log"), 3),
+                    (PathBuf::from("logs/nested/b.log"), 2),
+                    (PathBuf::from("report.txt"), 5),
+                ],
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn plans_files_and_folders_of_a_selection_side_by_side() {
+        use crate::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
+
+        let server = TestServer::start(ServerOptions::default()).await;
+        write_mixed_selection(server.root());
+        let sftp = server.sftp_session().await;
+
+        let plan = collect_download_plan(&sftp, &["/report.txt".into(), "/logs".into()])
+            .await
+            .unwrap();
+        assert_mixed_selection_plan(&plan);
+    }
+
+    /// The same plan against OpenSSH's own `sftp-server`.
+    #[tokio::test]
+    #[ignore = "spawns a real sshd; run with --ignored real_sshd"]
+    async fn real_sshd_plans_files_and_folders_of_a_selection() {
+        use crate::ssh::auth::{authenticate, AuthPrompter, AuthTarget};
+        use crate::ssh::test_sshd::{current_user, TempDir, TestSshd};
+
+        let sshd =
+            TestSshd::spawn(12322, &["-t", "ed25519"], "Subsystem sftp internal-sftp\n").await;
+        let username = current_user();
+        let mut session = sshd.connect().await;
+        authenticate(
+            &mut session,
+            &AuthTarget {
+                host: "127.0.0.1",
+                port: sshd.port,
+                username: &username,
+                hop: None,
+            },
+            sshd.key_method(),
+            &AuthPrompter::Unavailable,
+        )
+        .await
+        .expect("authenticate");
+        let channel = session.channel_open_session().await.expect("open channel");
+        channel
+            .request_subsystem(true, "sftp")
+            .await
+            .expect("sftp subsystem");
+        let sftp = SftpSession::new(channel.into_stream())
+            .await
+            .expect("sftp session");
+
+        let dir = TempDir::new();
+        write_mixed_selection(&dir.path);
+        let root = dir.path.to_string_lossy().into_owned();
+        let plan = collect_download_plan(
+            &sftp,
+            &[format!("{root}/report.txt"), format!("{root}/logs")],
+        )
+        .await
+        .unwrap();
+        assert_mixed_selection_plan(&plan);
     }
 
     #[tokio::test]

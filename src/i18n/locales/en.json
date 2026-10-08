@@ -1638,6 +1638,7 @@
       "uploadFolder": "Upload Folder",
       "download": "Download File",
       "downloadFolder": "Download Folder",
+      "downloadSelected": "Download Selection",
       "copyPath": "Copy Full Path",
       "rename": "Rename",
       "permissions": "Permissions…",

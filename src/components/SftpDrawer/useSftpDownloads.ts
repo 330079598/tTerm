@@ -70,7 +70,7 @@ interface DownloadBatchCompleteEvent {
 }
 
 interface UseSftpDownloadsReturn {
-  downloadEntry: (entry: SftpDirectoryEntry) => Promise<void>
+  downloadEntries: (entries: SftpDirectoryEntry[]) => Promise<void>
 }
 
 export function useSftpDownloads({
@@ -145,10 +145,10 @@ export function useSftpDownloads({
     [connection, tabId, transfersRef, updateTransfer]
   )
 
-  const runDownloadDirectory = useCallback(
+  const runDownloadPaths = useCallback(
     async (
       transferId: string,
-      remotePath: string,
+      remotePaths: string[],
       localParentPath: string,
       conflictPolicy: ConflictPolicy,
       skipExisting = false
@@ -162,11 +162,11 @@ export function useSftpDownloads({
       })
 
       try {
-        await invoke("sftp_download_directory", {
+        await invoke("sftp_download_paths", {
           tabId,
           connection,
           transferId,
-          remotePath,
+          remotePaths,
           localParentPath,
           conflictPolicy,
           skipExisting,
@@ -384,11 +384,21 @@ export function useSftpDownloads({
     }
   }, [addTransfer, runDownloadFile, tabId, transfersRef, updateTransfer])
 
-  const downloadEntry = useCallback(
-    async (entry: SftpDirectoryEntry) => {
-      if (entry.isDir) {
+  const downloadEntries = useCallback(
+    async (entries: SftpDirectoryEntry[]) => {
+      const [entry] = entries
+      if (!entry) {
+        return
+      }
+
+      // Folders and multiple items all land in one picked folder as a single
+      // batch; a lone file goes through the native save dialog below.
+      if (entries.length > 1 || entry.isDir) {
+        const isSingle = entries.length === 1
         const targetPath = await openDialog({
-          title: t("sftp.actions.downloadFolder", { defaultValue: "Download Folder" }),
+          title: isSingle
+            ? t("sftp.actions.downloadFolder", { defaultValue: "Download Folder" })
+            : t("sftp.actions.downloadSelected", { defaultValue: "Download Selection" }),
           directory: true,
           multiple: false,
         })
@@ -396,15 +406,31 @@ export function useSftpDownloads({
           return
         }
 
+        const remotePaths = entries.map((entry) => entry.path)
+        const batch = {
+          tabId,
+          direction: "download" as const,
+          localPath: targetPath,
+          remotePath: isSingle ? entry.path : remotePaths.join(", "),
+          fileName: isSingle
+            ? entry.name
+            : t("sftp.itemSummary", {
+                count: entries.length,
+                defaultValue: `${entries.length} items`,
+              }),
+          fileSize: isSingle ? entry.size || 0 : 0,
+          speed: 0,
+        }
+
         // A single file goes through the native save dialog, which already
-        // confirms overwriting; a folder merges into an existing one, so its
+        // confirms overwriting; a batch merges into the picked folder, so its
         // files are checked here.
         let conflictPolicy: ConflictPolicy = "overwrite"
         try {
           const report = await invoke<ConflictReport>("sftp_check_download_conflicts", {
             connection,
             localParentPath: targetPath,
-            remotePath: entry.path,
+            remotePaths,
             tabId,
           })
           if (report.total > 0) {
@@ -414,15 +440,7 @@ export function useSftpDownloads({
           }
         } catch (invokeError) {
           console.warn("Failed to check SFTP download conflicts:", invokeError)
-          const transferId = addTransfer({
-            tabId,
-            direction: "download",
-            localPath: targetPath,
-            remotePath: entry.path,
-            fileName: entry.name,
-            fileSize: entry.size || 0,
-            speed: 0,
-          })
+          const transferId = addTransfer(batch)
           updateTransfer(transferId, {
             endTime: Date.now(),
             error: String(invokeError),
@@ -431,25 +449,17 @@ export function useSftpDownloads({
           return
         }
 
-        const transferId = addTransfer({
-          tabId,
-          direction: "download",
-          localPath: targetPath,
-          remotePath: entry.path,
-          fileName: entry.name,
-          fileSize: entry.size || 0,
-          speed: 0,
-        })
+        const transferId = addTransfer(batch)
 
         updateTransfer(transferId, {
           retry: () => {
-            // A retry re-runs the whole folder: files the previous attempt
+            // A retry re-runs the whole batch: files the previous attempt
             // already finished are skipped instead of fetched again.
-            void runDownloadDirectory(transferId, entry.path, targetPath, conflictPolicy, true)
+            void runDownloadPaths(transferId, remotePaths, targetPath, conflictPolicy, true)
           },
         })
 
-        await runDownloadDirectory(transferId, entry.path, targetPath, conflictPolicy)
+        await runDownloadPaths(transferId, remotePaths, targetPath, conflictPolicy)
         return
       }
 
@@ -483,8 +493,8 @@ export function useSftpDownloads({
       addTransfer,
       connection,
       promptConflictPolicy,
-      runDownloadDirectory,
       runDownloadFile,
+      runDownloadPaths,
       t,
       tabId,
       updateTransfer,
@@ -492,6 +502,6 @@ export function useSftpDownloads({
   )
 
   return {
-    downloadEntry,
+    downloadEntries,
   }
 }

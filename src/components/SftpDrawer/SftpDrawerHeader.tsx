@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  ArrowDownToLine,
   ArrowUpFromLine,
   Check,
   ChevronRight,
@@ -37,6 +38,7 @@ interface SftpDrawerHeaderProps {
   clearSelection: () => void
   handleCreateDirectory: () => void
   handleDeleteSelection: () => void
+  handleDownloadSelection: () => Promise<void>
   goBack: () => void
   goForward: () => void
   goUp: () => void
@@ -68,6 +70,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   clearSelection,
   handleCreateDirectory,
   handleDeleteSelection,
+  handleDownloadSelection,
   goBack,
   goForward,
   goUp,
@@ -457,6 +460,23 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
               </TooltipTrigger>
               <TooltipContent>
                 {t("sftp.selection.clear", { defaultValue: "Clear selection" })}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => void handleDownloadSelection()}
+                  aria-label={t("sftp.actions.downloadSelected", {
+                    defaultValue: "Download Selection",
+                  })}
+                >
+                  <ArrowDownToLine className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {t("sftp.actions.downloadSelected", { defaultValue: "Download Selection" })}
               </TooltipContent>
             </Tooltip>
             <Tooltip>

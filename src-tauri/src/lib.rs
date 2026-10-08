@@ -387,7 +387,7 @@ pub fn run() {
             sftp::internal::api::upload::commands::sftp_check_upload_conflicts,
             sftp::internal::api::upload::commands::sftp_cancel_upload,
             sftp::internal::api::download::sftp_download_file,
-            sftp::internal::api::download::sftp_download_directory,
+            sftp::internal::api::download::sftp_download_paths,
             sftp::internal::api::download::sftp_check_download_conflicts,
             sftp::internal::api::download::get_file_size,
             ssh::secret_commands::get_secret_backend_status,

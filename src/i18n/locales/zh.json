@@ -1625,6 +1625,7 @@
       "uploadFolder": "上传文件夹",
       "download": "下载文件",
       "downloadFolder": "下载文件夹",
+      "downloadSelected": "下载选择",
       "copyPath": "复制完整路径",
       "rename": "重命名",
       "permissions": "权限…",
