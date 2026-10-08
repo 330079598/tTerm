@@ -2,7 +2,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 import { Terminal } from "@xterm/xterm"
 
-import { installImeModifierInputFix } from "@/components/TerminalTab/imeModifierInput"
+import { installImeEarlyInputFix } from "@/components/TerminalTab/imeEarlyInput"
 
 let term: Terminal | null = null
 let fix: { dispose: () => void } | null = null
@@ -13,7 +13,7 @@ function setup({ install = true } = {}) {
   document.body.appendChild(container)
   term = new Terminal({ cols: 80, rows: 24 })
   term.open(container)
-  if (install) fix = installImeModifierInputFix(term)
+  if (install) fix = installImeEarlyInputFix(term)
   const textarea = term.textarea!
   textarea.focus()
   const sent: string[] = []
@@ -42,16 +42,22 @@ function imeInsert(textarea: HTMLTextAreaElement, data: string) {
 
 const SHIFT = { key: "Shift", code: "ShiftLeft", shiftKey: true }
 const BANG = { key: "!", code: "Digit1", shiftKey: true }
+const COMMA = { key: ",", code: "Comma" }
+const PERIOD = { key: ".", code: "Period" }
 
 // The order WKWebView reports: the IME's input lands before the keystroke's keydown.
-function typeWebKit(textarea: HTMLTextAreaElement, data: string) {
+function pressWebKit(textarea: HTMLTextAreaElement, data: string, init: KeyboardEventInit) {
   imeInsert(textarea, data)
-  key(textarea, "keydown", BANG, 229)
+  key(textarea, "keydown", init, 229)
   vi.advanceTimersByTime(0)
+}
+
+function typeWebKit(textarea: HTMLTextAreaElement, data: string) {
+  pressWebKit(textarea, data, BANG)
   key(textarea, "keyup", BANG, 49)
 }
 
-describe("installImeModifierInputFix", () => {
+describe("installImeEarlyInputFix", () => {
   beforeAll(() => {
     window.matchMedia ||= () =>
       ({ matches: false, addListener() {}, removeListener() {} }) as unknown as MediaQueryList
@@ -95,6 +101,23 @@ describe("installImeModifierInputFix", () => {
     vi.advanceTimersByTime(0)
     key(textarea, "keyup", BANG, 49)
     expect(sent).toEqual(["！"])
+  })
+
+  it("sends punctuation typed before the previous key is released", () => {
+    const { textarea, sent } = setup()
+    pressWebKit(textarea, "，", COMMA)
+    pressWebKit(textarea, "。", PERIOD)
+    key(textarea, "keyup", COMMA, 188)
+    key(textarea, "keyup", PERIOD, 190)
+    expect(sent).toEqual(["，", "。"])
+  })
+
+  it("sends punctuation typed while Caps Lock is on", () => {
+    const { textarea, sent } = setup()
+    // macOS sends no keyup until Caps Lock is turned off again.
+    key(textarea, "keydown", { key: "CapsLock", code: "CapsLock" }, 20)
+    pressWebKit(textarea, "，", COMMA)
+    expect(sent).toEqual(["，"])
   })
 
   it("stops once disposed", () => {
