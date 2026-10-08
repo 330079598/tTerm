@@ -15,6 +15,7 @@ import { platform } from "@tauri-apps/plugin-os"
 import { CommandMarks, COMMAND_MARK_OSC_CODES } from "@/components/TerminalTab/commandMarks"
 import { installImeCursorGuard } from "@/components/TerminalTab/imeCursorGuard"
 import { installImeFocusRepair } from "@/components/TerminalTab/imeFocusRepair"
+import { installImeModifierInputFix } from "@/components/TerminalTab/imeModifierInput"
 import { OutputAcker } from "@/components/TerminalTab/outputAck"
 import { getConnectionDisplay } from "@/components/TerminalTab/terminalTabUtils"
 import type {
@@ -343,6 +344,7 @@ export function useTerminalLifecycle({
     container.replaceChildren()
     term.open(container)
     const imeCursorGuard = installImeCursorGuard(term)
+    const imeModifierInputFix = installImeModifierInputFix(term)
     const imeFocusRepair = IS_WINDOWS
       ? installImeFocusRepair(term, () => invoke("repair_ime_focus"))
       : null
@@ -915,6 +917,7 @@ export function useTerminalLifecycle({
       }
       lastRendererRef.current = null
       imeCursorGuard.dispose()
+      imeModifierInputFix.dispose()
       imeFocusRepair?.dispose()
       term.dispose()
       termRef.current = null
