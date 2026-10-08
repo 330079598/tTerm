@@ -191,7 +191,11 @@ let windowBlur = readLaunchBlur()
 // details once the config loads and leaves the native window alone until then.
 let windowBlurKnown = !windowBlur.enabled
 let nativeBackground = ""
+let savedBackground = ""
 let nativeBlur = windowBlur.enabled ? "" : "off"
+// The native window carries the blur tint itself while the page may not be
+// on screen; see watchPageVisibility.
+let windowTinted = false
 
 function applyWindowBlurToDom(): void {
   const root = document.documentElement
@@ -270,15 +274,15 @@ export function setWindowBlur(next: WindowBlur): void {
  * whatever is behind the page shows, which is white unless set here. Not on
  * Windows: that window is transparent and must stay that way. The color is
  * also saved so the next launch starts in it. With the blur on, the window
- * stays clear so the blur shows through.
+ * stays clear so the blur shows through, except while it is tinted.
  */
 function syncNativeBackground(): void {
   if (!isTauri()) return
   const background = readThemeBackground()
   if (!background) return
   const [r, g, b] = background
-  const blur = windowBlur.enabled
-  const key = `${r},${g},${b},${blur}`
+  const alpha = !windowBlur.enabled ? 255 : windowTinted ? Math.round(windowBlur.opacity * 255) : 0
+  const key = `${r},${g},${b},${alpha}`
   if (key === nativeBackground) return
   nativeBackground = key
   const onError = (error: unknown) => {
@@ -286,18 +290,62 @@ function syncNativeBackground(): void {
     console.error("[ThemePreloader] Failed to sync native background:", error)
   }
   const hex = `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`
-  invoke("save_window_background", { color: hex }).catch(onError)
-  if (getDetectedPlatform() !== "windows") {
-    getCurrentWebviewWindow()
-      .setBackgroundColor([r, g, b, blur ? 0 : 255])
-      .catch(onError)
+  if (hex !== savedBackground) {
+    savedBackground = hex
+    invoke("save_window_background", { color: hex }).catch((error: unknown) => {
+      savedBackground = ""
+      onError(error)
+    })
   }
+  if (getDetectedPlatform() !== "windows") {
+    getCurrentWebviewWindow().setBackgroundColor([r, g, b, alpha]).catch(onError)
+  }
+}
+
+function setWindowTinted(tinted: boolean): void {
+  if (tinted === windowTinted) return
+  windowTinted = tinted
+  syncNativeBackground()
+}
+
+let watchingPageVisibility = false
+
+/**
+ * With the blur on, the window has no background of its own. WebKit drops a
+ * hidden page's layers, so when the window comes back (a Dock click after
+ * minutes minimized) it would show only its traffic lights until the page
+ * repaints. While the page is hidden the native window carries the tint; it
+ * goes clear again once the page has drawn a frame. The two overlap for that
+ * frame, which only darkens the tint for a moment.
+ */
+function watchPageVisibility(): void {
+  if (watchingPageVisibility) return
+  watchingPageVisibility = true
+  let generation = 0
+  const update = () => {
+    generation += 1
+    if (document.visibilityState === "hidden") {
+      setWindowTinted(true)
+      return
+    }
+    const shown = generation
+    // The second callback runs once the first visible frame has been drawn.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (shown === generation) setWindowTinted(false)
+      })
+    )
+  }
+  document.addEventListener("visibilitychange", update)
+  if (document.visibilityState === "hidden") setWindowTinted(true)
 }
 
 export function applyThemeToDom(themeCache: ThemeCache): void {
   applyThemeColors(themeCache)
   syncNativeBackground()
   syncNativeBlur()
+  // After the first theme, so the tint is never read from an unthemed page.
+  watchPageVisibility()
 }
 
 function applyThemeColors(themeCache: ThemeCache): void {
