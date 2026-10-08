@@ -10,10 +10,9 @@
 //! (OSC 133): A where a prompt starts, C where a command's output starts, D
 //! with its exit status once it ends. cmd sends only A, PowerShell A and D.
 
-use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::shell_scripts::{lf, BASH_PROMPT, BASH_REPORT_CWD, UNIX_SCRIPTS};
+use super::shell_scripts::{lf, write_scripts, BASH_PROMPT, BASH_REPORT_CWD, UNIX_SCRIPTS};
 
 /// bash prints `PS0` after reading a command and before running it.
 const BASH_PS0: &str = r"\e]133;C\e\\";
@@ -43,18 +42,7 @@ pub fn install() -> Option<PathBuf> {
 }
 
 fn install_into(dir: &Path) -> std::io::Result<()> {
-    for (relative, content) in scripts() {
-        let content = lf(content);
-        let path = dir.join(relative);
-        if fs::read_to_string(&path).is_ok_and(|existing| existing == content) {
-            continue;
-        }
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(&path, content)?;
-    }
-    Ok(())
+    write_scripts(dir, scripts())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -180,6 +168,7 @@ pub fn msys_drive_path(path: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn detects_shells_by_executable_name() {

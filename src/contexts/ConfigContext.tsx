@@ -177,6 +177,8 @@ export interface AppConfig {
   right_click_paste: boolean
   /** Local shells mark their prompts and commands (OSC 133) for jumping and copying output. */
   command_marks: boolean
+  /** macOS and Linux: local bash, zsh and fish start through tTerm's shell integration. */
+  local_shell_integration: boolean
   /** Multiple of the font's cell height. */
   terminal_line_height: number
   /** Extra pixels between characters; may be negative. */
@@ -256,6 +258,7 @@ const defaultConfig: AppConfig = {
   copy_on_select: false,
   right_click_paste: false,
   command_marks: true,
+  local_shell_integration: false,
   terminal_line_height: 1,
   terminal_letter_spacing: 0,
   keymap: { ...DEFAULT_KEYMAP_CONFIG, bindings: {} },
@@ -478,6 +481,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     copy_on_select: config.copy_on_select === true,
     right_click_paste: config.right_click_paste === true,
     command_marks: config.command_marks !== false,
+    local_shell_integration: config.local_shell_integration === true,
     terminal_line_height: normalizeTerminalLineHeight(config.terminal_line_height),
     terminal_letter_spacing: normalizeRoundedInRange(
       config.terminal_letter_spacing,

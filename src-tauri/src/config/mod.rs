@@ -146,6 +146,11 @@ pub struct AppConfig {
     /// commands on the scrollbar.
     #[serde(default = "default_command_marks")]
     pub command_marks: bool,
+    /// macOS and Linux: local bash, zsh and fish start through tTerm's shell
+    /// integration, so they mark their commands as well. Off by default, as
+    /// it changes how the shell starts; Windows shells always have it.
+    #[serde(default)]
+    pub local_shell_integration: bool,
     /// Terminal line height as a multiple of the font's cell height.
     #[serde(
         default = "default_terminal_line_height",
@@ -520,6 +525,7 @@ impl Default for AppConfig {
             copy_on_select: false,
             right_click_paste: false,
             command_marks: default_command_marks(),
+            local_shell_integration: false,
             terminal_line_height: default_terminal_line_height(),
             terminal_letter_spacing: 0,
             keymap: default_keymap(),
@@ -587,6 +593,12 @@ pub fn command_marks_enabled() -> bool {
     load_config_file()
         .map(|config| config.command_marks)
         .unwrap_or_else(|_| default_command_marks())
+}
+
+/// Whether local shells on macOS and Linux start through tTerm's shell
+/// integration; off when the config file is missing or unreadable.
+pub fn local_shell_integration_enabled() -> bool {
+    load_config_file().is_ok_and(|config| config.local_shell_integration)
 }
 
 /// Resolve the automatic SSH reconnect settings (enabled, max attempts).

@@ -48,6 +48,7 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "right_click_paste",
     "confirm_multiline_paste",
     "command_marks",
+    "local_shell_integration",
     "scrollback_lines",
     "terminal_padding_left_px",
     "terminal_padding_right_px",

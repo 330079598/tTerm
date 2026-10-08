@@ -4,6 +4,8 @@ pub mod console_reset;
 mod cwd_watch;
 mod encoding;
 mod io_batcher;
+#[cfg(unix)]
+mod local_integration;
 mod output_tail;
 mod pty;
 #[cfg(target_os = "windows")]

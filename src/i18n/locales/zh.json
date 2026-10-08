@@ -1232,6 +1232,8 @@
     "copyFishIntegration": "复制 fish 脚本",
     "integrationCopied": "脚本已复制",
     "commandMarksDesc": "Windows 本地 shell 会标出每条命令的提示符和输出（OSC 133），用于按 Ctrl+↑/↓ 在命令之间跳转、复制上一条命令的输出，并在滚动条上用绿色和红色标出成功和失败的命令。对新打开的标签页生效。",
+    "localShellIntegration": "本地 shell 的 Shell 集成",
+    "localShellIntegrationDesc": "本地的 bash、zsh、fish 改由 tTerm 的脚本启动（仍会照常加载你自己的配置文件），这样也能标记命令；其他 shell 照常启动。需要打开「标记命令」，对新打开的标签页生效。",
     "lineHeight": "行高",
     "letterSpacing": "字间距（px）",
     "spacingDesc": "行高为字体高度的倍数（1.0–2.0）；字间距为字符之间额外增加的像素（-5 到 10）。",

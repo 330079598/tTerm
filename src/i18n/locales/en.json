@@ -1245,6 +1245,8 @@
     "copyFishIntegration": "Copy fish script",
     "integrationCopied": "Script copied",
     "commandMarksDesc": "Local Windows shells mark each command's prompt and output (OSC 133), so Ctrl+Up/Down jumps between commands, the last command's output can be copied, and the scrollbar shows succeeded and failed commands in green and red. Applies to new tabs.",
+    "localShellIntegration": "Shell integration for local shells",
+    "localShellIntegrationDesc": "Local bash, zsh and fish start through tTerm's scripts (your own startup files still load as usual), so they mark their commands too; other shells start as before. Needs Mark commands on; applies to new tabs.",
     "lineHeight": "Line height",
     "letterSpacing": "Letter spacing (px)",
     "spacingDesc": "Line height is a multiple of the font's height (1.0–2.0); letter spacing adds pixels between characters (-5 to 10).",

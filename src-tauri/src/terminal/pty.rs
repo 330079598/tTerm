@@ -193,6 +193,10 @@ pub fn build_terminal_command(
     #[cfg(target_os = "macos")]
     apply_macos_login_shell_env(&mut cmd);
 
+    // After the macOS login environment, which tells which shell starts.
+    #[cfg(unix)]
+    super::local_integration::apply(&mut cmd);
+
     cmd.env("TERM", "xterm-256color");
     cmd.env("HOME", &home);
     if std::env::var_os("LANG").is_none() {

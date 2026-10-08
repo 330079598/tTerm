@@ -48,6 +48,8 @@ interface FontSettingsTabProps {
   setCopyOnSelect: (value: boolean) => void
   commandMarks: boolean
   setCommandMarks: (value: boolean) => void
+  localShellIntegration: boolean
+  setLocalShellIntegration: (value: boolean) => void
   rightClickPaste: boolean
   setRightClickPaste: (value: boolean) => void
   lineHeight: number
@@ -87,6 +89,8 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
   setCopyOnSelect,
   commandMarks,
   setCommandMarks,
+  localShellIntegration,
+  setLocalShellIntegration,
   rightClickPaste,
   setRightClickPaste,
   lineHeight,
@@ -500,6 +504,25 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
               onCheckedChange={setCommandMarks}
             />
           </div>
+
+          {getDetectedPlatform() !== "windows" && (
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <Label htmlFor="terminal-local-shell-integration" className="mb-1 block">
+                  {t("fontSettings.localShellIntegration")}
+                </Label>
+                <p className="text-muted-foreground text-xs leading-5">
+                  {t("fontSettings.localShellIntegrationDesc")}
+                </p>
+              </div>
+              <Switch
+                id="terminal-local-shell-integration"
+                checked={localShellIntegration}
+                disabled={!commandMarks}
+                onCheckedChange={setLocalShellIntegration}
+              />
+            </div>
+          )}
 
           <div>
             <Label className="mb-2 block">
