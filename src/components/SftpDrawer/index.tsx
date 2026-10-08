@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useConfig } from "@/contexts/ConfigContext"
-import { useKeymap } from "@/contexts/KeymapContext"
+import { hasOpenShortcutBlockingLayer, useKeymap } from "@/contexts/KeymapContext"
 import { toast } from "@/hooks/use-toast"
 
 import { SftpDeleteTransferEvents } from "@/components/SftpDrawer/SftpDeleteTransferEvents"
@@ -275,16 +275,71 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     })
   }, [dialog.type, error, filteredListing?.entries, isLoading, registerHandler, visible])
 
-  const toggleSelectionMode = useCallback(() => {
-    setIsSelectionMode((current) => {
-      if (current) {
-        setSelectedPaths([])
-        setContextMenu(null)
+  const enterSelectionMode = useCallback(() => {
+    setIsSelectionMode(true)
+  }, [])
+
+  const exitSelectionMode = useCallback(() => {
+    setIsSelectionMode(false)
+    setSelectedPaths([])
+    setContextMenu(null)
+  }, [])
+
+  // Escape leaves selection mode wherever focus is: WebKit does not focus
+  // buttons on click and a drag can leave focus on the covered terminal, so a
+  // drawer-level key handler only fires some of the time. Captured on window
+  // so the terminal does not also receive it.
+  useEffect(() => {
+    if (!visible || !isGlobalShortcutTarget || !isSelectionMode) {
+      return
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented || event.isComposing) {
+        return
       }
 
-      return !current
-    })
-  }, [])
+      if (
+        dialog.type !== "none" ||
+        contextMenu !== null ||
+        hasOpenShortcutBlockingLayer(document)
+      ) {
+        return
+      }
+
+      // The filter and path fields inside the drawer close themselves first.
+      const target = event.target as HTMLElement | null
+      if (
+        target &&
+        drawerRef.current?.contains(target) &&
+        target.closest("input, textarea, [contenteditable='true']")
+      ) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+      exitSelectionMode()
+    }
+
+    window.addEventListener("keydown", handleKeyDown, true)
+    return () => window.removeEventListener("keydown", handleKeyDown, true)
+  }, [
+    contextMenu,
+    dialog.type,
+    exitSelectionMode,
+    isGlobalShortcutTarget,
+    isSelectionMode,
+    visible,
+  ])
+
+  const toggleSelectionMode = useCallback(() => {
+    if (isSelectionMode) {
+      exitSelectionMode()
+    } else {
+      enterSelectionMode()
+    }
+  }, [enterSelectionMode, exitSelectionMode, isSelectionMode])
 
   const currentPath = listing?.currentPath ?? null
   const { canGoBack, canGoForward, canGoUp, goBack, goForward, goUp, handleSideButton } =
@@ -727,6 +782,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         handleDrop={handleDrop}
         handleOpenEntry={handleOpenEntry}
         handleSelectRange={handleSelectRange}
+        enterSelectionMode={enterSelectionMode}
+        exitSelectionMode={exitSelectionMode}
         isSelectionMode={isSelectionMode}
         handleToggleEntrySelection={handleToggleEntrySelection}
         isDragActive={isDragActive}

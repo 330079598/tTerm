@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { isMacPlatform } from "@/lib/keymap/chord"
 import { cn } from "@/lib/utils"
 
 import { SftpEntryIcon } from "@/components/SftpDrawer/SftpEntryIcon"
@@ -113,7 +114,9 @@ function getInitialColumnWeights() {
 
 interface SftpDrawerContentProps {
   activePath: string | null
+  enterSelectionMode: () => void
   error: string | null
+  exitSelectionMode: () => void
   handleActivateEntry: (path: string) => void
   handleDragEnter: (event: React.DragEvent<HTMLDivElement>) => void
   handleDragLeave: (event: React.DragEvent<HTMLDivElement>) => void
@@ -136,7 +139,9 @@ interface SftpDrawerContentProps {
 
 export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
   activePath,
+  enterSelectionMode,
   error,
+  exitSelectionMode,
   handleActivateEntry,
   handleDragEnter,
   handleDragLeave,
@@ -161,6 +166,9 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
   const [columnWeights, setColumnWeights] = useState(getInitialColumnWeights)
   const pointerAnchorRef = useRef<string | null>(null)
   const pointerMovedRef = useRef(false)
+  // Set when a press starts on the empty space below the rows, so a plain
+  // click there (no rows swept) can clear the selection on release.
+  const pointerFromBlankRef = useRef(false)
   const resizeStateRef = useRef<ResizeState | null>(null)
   const rowRefs = useRef(new Map<string, HTMLDivElement>())
   const tableShellRef = useRef<HTMLDivElement>(null)
@@ -242,8 +250,12 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
         return
       }
 
+      // Sweeping a row starts a multi-selection from any mode, so no toolbar
+      // toggle is needed first. A press that stays on one row is still a click.
       if (!pointerAnchorRef.current) {
         pointerAnchorRef.current = hoveredEntry.path
+        pointerMovedRef.current = true
+        enterSelectionMode()
         handleActivateEntry(hoveredEntry.path)
         handleSelectRange(hoveredEntry.path, hoveredEntry.path)
         return
@@ -254,9 +266,10 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
       }
 
       pointerMovedRef.current = true
+      enterSelectionMode()
       handleSelectRange(pointerAnchorRef.current, hoveredEntry.path)
     },
-    [filteredEntries, handleActivateEntry, handleSelectRange]
+    [enterSelectionMode, filteredEntries, handleActivateEntry, handleSelectRange]
   )
 
   const startColumnResize = React.useCallback(
@@ -326,8 +339,13 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
     }
 
     const stopSelection = () => {
+      if (pointerFromBlankRef.current && !pointerMovedRef.current) {
+        exitSelectionMode()
+      }
+
       setIsPointerSelecting(false)
       pointerAnchorRef.current = null
+      pointerFromBlankRef.current = false
       document.body.classList.remove("sftp-no-select")
       window.setTimeout(() => {
         pointerMovedRef.current = false
@@ -342,7 +360,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
       window.removeEventListener("mousemove", handleMouseMove)
       window.removeEventListener("mouseup", stopSelection)
     }
-  }, [isPointerSelecting, updateSelectionFromPointer])
+  }, [exitSelectionMode, isPointerSelecting, updateSelectionFromPointer])
 
   return (
     <div
@@ -450,9 +468,10 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
           </div>
         )}
         <ScrollArea
-          className="flex-1"
+          className="flex-1 outline-none"
+          tabIndex={-1}
           onMouseDown={(event) => {
-            if (!isSelectionMode || event.button !== 0) {
+            if (event.button !== 0) {
               return
             }
 
@@ -461,10 +480,24 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
               return
             }
 
+            // A press on the native scrollbar lands on the scroll container
+            // itself, past its client width; dragging it must not select rows.
+            if (
+              target === event.currentTarget &&
+              event.nativeEvent.offsetX >= event.currentTarget.clientWidth
+            ) {
+              return
+            }
+
             pointerAnchorRef.current = null
+            pointerFromBlankRef.current = true
             pointerMovedRef.current = false
             setIsPointerSelecting(true)
+            // Cancelling the press (no text selection while dragging) also
+            // cancels its focus change, which would leave keys going to the
+            // covered terminal; take focus here as a plain click would.
             event.preventDefault()
+            event.currentTarget.focus({ preventScroll: true })
           }}
         >
           {isLoading && (
@@ -517,7 +550,9 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
                   tabIndex={0}
                   aria-pressed={isSelectionMode ? isSelected : isActive}
                   onMouseDown={(event) => {
-                    if (!isSelectionMode || event.button !== 0) {
+                    // Modifier clicks are handled in onClick; on macOS a
+                    // Control-click is a right click and opens the menu.
+                    if (event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey) {
                       return
                     }
 
@@ -530,6 +565,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
 
                     pointerAnchorRef.current = entry.path
                     pointerMovedRef.current = false
+                    pointerFromBlankRef.current = false
                     setIsPointerSelecting(true)
                     handleActivateEntry(entry.path)
                   }}
@@ -537,6 +573,33 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
                     if (pointerMovedRef.current) {
                       event.preventDefault()
                       event.stopPropagation()
+                      return
+                    }
+
+                    // Shift extends from the last clicked row, which stays the
+                    // anchor; Cmd (Ctrl elsewhere) toggles one row. Either one
+                    // enters selection mode, keeping the row highlighted
+                    // before it as part of the selection.
+                    if (event.shiftKey) {
+                      enterSelectionMode()
+                      handleSelectRange(activePath ?? entry.path, entry.path)
+                      setContextMenu(null)
+                      return
+                    }
+
+                    if (isMacPlatform() ? event.metaKey : event.ctrlKey) {
+                      if (
+                        !isSelectionMode &&
+                        activePath &&
+                        activePath !== entry.path &&
+                        !selectedPaths.includes(activePath)
+                      ) {
+                        handleToggleEntrySelection(activePath, true)
+                      }
+                      enterSelectionMode()
+                      handleToggleEntrySelection(entry.path, !isSelected)
+                      handleActivateEntry(entry.path)
+                      setContextMenu(null)
                       return
                     }
 
