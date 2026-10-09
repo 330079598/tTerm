@@ -375,6 +375,7 @@ const WorkspacePanel = React.memo(function WorkspacePanel({
           <React.Suspense fallback={null}>
             <RemoteFileEditor
               isVisible={isVisible}
+              isGlobalShortcutTarget={isActive}
               tab={tab}
               onTabUpdate={(updater) => workspace.updateTab(tab.id, updater)}
             />

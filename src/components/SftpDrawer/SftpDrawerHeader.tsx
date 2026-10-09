@@ -51,6 +51,8 @@ interface SftpDrawerHeaderProps {
   listingCurrentPath?: string | null
   loadDirectory: LoadSftpDirectory
   onClose: () => void
+  /** The pane is the focused one: shortcuts are its own. */
+  isGlobalShortcutTarget: boolean
   visible: boolean
   searchError: string | null
   searchOptions: SftpSearchOptions
@@ -83,6 +85,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   listingCurrentPath,
   loadDirectory,
   onClose,
+  isGlobalShortcutTarget,
   visible,
   searchError,
   searchOptions,
@@ -192,10 +195,17 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
 
   useEffect(() => {
     return registerHandler("sftp.focusPath", () => {
-      if (!visible || !listingCurrentPath || isLoading) return false
+      if (!visible || !isGlobalShortcutTarget || !listingCurrentPath || isLoading) return false
       openPathEditor()
     })
-  }, [isLoading, listingCurrentPath, openPathEditor, registerHandler, visible])
+  }, [
+    isGlobalShortcutTarget,
+    isLoading,
+    listingCurrentPath,
+    openPathEditor,
+    registerHandler,
+    visible,
+  ])
 
   const navigationButtons = [
     { key: "back", Icon: ArrowLeft, enabled: canGoBack, onClick: goBack },

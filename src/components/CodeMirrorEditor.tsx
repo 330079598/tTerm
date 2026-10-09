@@ -30,6 +30,8 @@ import React, { useEffect, useMemo, useRef } from "react"
 interface CodeMirrorEditorProps {
   className?: string
   fileName?: string
+  /** Takes the keyboard when this turns true, unless focus is already inside. */
+  focused?: boolean
   onChange: (value: string) => void
   value: string
 }
@@ -155,6 +157,7 @@ function codeMirrorCspNonceExtension(): Extension {
 export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
   className,
   fileName,
+  focused = false,
   onChange,
   value,
 }) => {
@@ -211,6 +214,14 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
       viewRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!focused || !view || view.hasFocus) {
+      return
+    }
+    view.focus()
+  }, [focused])
 
   useEffect(() => {
     const view = viewRef.current

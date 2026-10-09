@@ -12,6 +12,8 @@ import type { Tab } from "@/types/tab"
 
 interface RemoteFileEditorProps {
   isVisible: boolean
+  /** The pane is the focused one: shortcuts and typing go to it. */
+  isGlobalShortcutTarget: boolean
   tab: Tab
   onTabUpdate: (updater: (tab: Tab) => Tab) => void
 }
@@ -31,6 +33,7 @@ interface SftpSaveEditedFileResult {
 
 export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({
   isVisible,
+  isGlobalShortcutTarget,
   tab,
   onTabUpdate,
 }) => {
@@ -163,10 +166,12 @@ export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({
 
   useEffect(() => {
     return registerHandler("editor.save", () => {
-      if (!isVisible || !remoteFile || !baseline || isSaving) return false
+      if (!isVisible || !isGlobalShortcutTarget || !remoteFile || !baseline || isSaving) {
+        return false
+      }
       void saveFile()
     })
-  }, [baseline, isSaving, isVisible, registerHandler, remoteFile, saveFile])
+  }, [baseline, isGlobalShortcutTarget, isSaving, isVisible, registerHandler, remoteFile, saveFile])
 
   if (!remoteFile) {
     return (
@@ -223,6 +228,7 @@ export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({
       ) : (
         <CodeMirrorEditor
           className="remote-file-editor-code"
+          focused={isVisible && isGlobalShortcutTarget}
           fileName={remoteFile.fileName}
           value={content}
           onChange={setContent}

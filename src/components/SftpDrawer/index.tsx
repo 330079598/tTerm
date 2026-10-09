@@ -261,7 +261,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
 
   useEffect(() => {
     return registerHandler("sftp.selectAll", () => {
-      if (!visible || dialog.type !== "none") return false
+      if (!visible || !isGlobalShortcutTarget || dialog.type !== "none") return false
       const entries = filteredListing?.entries ?? []
       if (entries.length === 0 || isLoading || error) {
         return false
@@ -274,7 +274,15 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       )
       setContextMenu(null)
     })
-  }, [dialog.type, error, filteredListing?.entries, isLoading, registerHandler, visible])
+  }, [
+    dialog.type,
+    error,
+    filteredListing?.entries,
+    isGlobalShortcutTarget,
+    isLoading,
+    registerHandler,
+    visible,
+  ])
 
   const enterSelectionMode = useCallback(() => {
     setIsSelectionMode(true)
@@ -746,6 +754,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       />
       <SftpDrawerHeader
         breadcrumbs={breadcrumbs}
+        isGlobalShortcutTarget={isGlobalShortcutTarget}
         canGoBack={canGoBack}
         canGoForward={canGoForward}
         canGoUp={canGoUp}

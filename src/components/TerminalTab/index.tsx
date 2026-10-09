@@ -93,6 +93,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const surfaceRef = useRef<HTMLDivElement>(null)
+  const shellRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
   const searchAddonRef = useRef<SearchAddon | null>(null)
@@ -104,6 +105,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const lastPtySizeRef = useRef<{ rows: number; cols: number } | null>(null)
   const connectionRef = useStableRef(connection)
   const isActiveRef = useStableRef(isActive)
+  // Shortcuts serve the focused pane only: every pane of a split is active.
+  const isShortcutTargetRef = useStableRef(isGlobalShortcutTarget)
   const initializedRef = useRef(false)
   const creatingPtyRef = useRef(false)
   const waitingForReconnectRef = useRef(false)
@@ -571,6 +574,16 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   }, [isActive, tabId])
 
   useEffect(() => registerTerminalFocus(tabId, () => termRef.current?.focus()), [tabId])
+
+  // Focusing a pane already in sight, from the tab bar, a shortcut or a
+  // closed tab, moves no keyboard focus by itself. Focus the user put in the
+  // tab, in its SFTP drawer or search bar, stays there.
+  useEffect(() => {
+    if (!isGlobalShortcutTarget || !isActive) return
+    const focused = document.activeElement
+    if (focused && shellRef.current?.contains(focused)) return
+    termRef.current?.focus()
+  }, [isActive, isGlobalShortcutTarget])
 
   // A pane in sight next to the focused one is announced until focused.
   useEffect(() => {
@@ -1054,31 +1067,31 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
   useEffect(() => {
     const unregisterFind = registerHandler("terminal.find", () => {
-      if (!isActiveRef.current) return false
+      if (!isShortcutTargetRef.current) return false
       openSearch()
     })
     const unregisterClear = registerHandler("terminal.clear", () => {
-      if (!isActiveRef.current) return false
+      if (!isShortcutTargetRef.current) return false
       clearTerminalHistory()
     })
     const unregisterReset = registerHandler("terminal.reset", () => {
-      if (!isActiveRef.current) return false
+      if (!isShortcutTargetRef.current) return false
       void resetTerminal()
     })
     const unregisterToggleSftp = registerHandler("sftp.toggle", () => {
-      if (!isActiveRef.current) return false
+      if (!isShortcutTargetRef.current) return false
       handleToggleSftpDrawer()
     })
     const unregisterZmodemSend = registerHandler("zmodem.sendFiles", () => {
-      if (!isActiveRef.current) return false
+      if (!isShortcutTargetRef.current) return false
       void armZmodemManualTrigger("send")
     })
     const unregisterZmodemReceive = registerHandler("zmodem.receiveFiles", () => {
-      if (!isActiveRef.current) return false
+      if (!isShortcutTargetRef.current) return false
       void armZmodemManualTrigger("receive")
     })
     const unregisterFillSavedPassword = registerHandler("terminal.fillSavedPassword", () => {
-      if (!isActiveRef.current) return false
+      if (!isShortcutTargetRef.current) return false
       const actions = savedPasswordPromptActionsRef.current
       if (!actions) return false
       if (actions.fill()) {
@@ -1090,19 +1103,19 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       if (!actions.atPasswordPrompt()) return false
     })
     const unregisterPreviousCommand = registerHandler("terminal.previousCommand", () => {
-      if (!isActiveRef.current) return false
+      if (!isShortcutTargetRef.current) return false
       return commandMarksRef.current?.scrollToPreviousPrompt() ?? false
     })
     const unregisterNextCommand = registerHandler("terminal.nextCommand", () => {
-      if (!isActiveRef.current) return false
+      if (!isShortcutTargetRef.current) return false
       return commandMarksRef.current?.scrollToNextPrompt() ?? false
     })
     const unregisterCopyCommandOutput = registerHandler("terminal.copyLastCommandOutput", () => {
-      if (!isActiveRef.current || !commandMarksRef.current?.lastOutputRange()) return false
+      if (!isShortcutTargetRef.current || !commandMarksRef.current?.lastOutputRange()) return false
       void copyLastCommandOutput()
     })
     const unregisterSaveSelection = registerHandler("terminal.saveSelection", () => {
-      if (!isActiveRef.current) return false
+      if (!isShortcutTargetRef.current) return false
       if (!containerRef.current?.contains(document.activeElement)) return false
       const selection = termRef.current?.hasSelection() ? termRef.current.getSelection().trim() : ""
       if (!selection) return false
@@ -1132,7 +1145,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     connectionRef,
     copyLastCommandOutput,
     handleToggleSftpDrawer,
-    isActiveRef,
+    isShortcutTargetRef,
     onSaveCommand,
     openSearch,
     registerHandler,
@@ -1157,6 +1170,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
   return (
     <div
+      ref={shellRef}
       className={`terminal-tab-shell ${isActive ? "is-active" : ""} ${isBroadcastSource ? "is-broadcast-source" : ""}`}
       aria-label={isBroadcastSource ? t("broadcast.sourceTerminal") : undefined}
     >
