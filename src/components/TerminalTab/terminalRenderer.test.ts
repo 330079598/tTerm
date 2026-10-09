@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeAll } from "vitest"
+import { describe, it, expect, beforeAll, vi } from "vitest"
 import { Terminal, type ITerminalAddon } from "@xterm/xterm"
 import { CanvasAddon } from "@xterm/addon-canvas"
 import { WebglAddon } from "@xterm/addon-webgl"
+
+import { disposeRendererAddon, renderAllRowsNow } from "@/components/TerminalTab/rendererRelease"
 
 describe("Terminal Renderer Addon & Canvas Lifecycle", () => {
   beforeAll(() => {
@@ -192,6 +194,64 @@ describe("Terminal Renderer Addon & Canvas Lifecycle", () => {
     expect(() => activeRenderer?.clearTextureAtlas?.()).not.toThrow()
 
     activeRenderer.dispose()
+    term.dispose()
+    container.remove()
+  })
+
+  it("frees the canvases of a released renderer and leaves the terminal's own", () => {
+    const container = document.createElement("div")
+    document.body.appendChild(container)
+
+    const term = new Terminal({ allowProposedApi: true })
+    term.open(container)
+    const canvasAddon = new CanvasAddon()
+    term.loadAddon(canvasAddon)
+
+    const screen = container.querySelector(".xterm-screen")!
+    const layers = Array.from(screen.querySelectorAll("canvas"))
+    expect(layers.length).toBeGreaterThan(0)
+    const ownCanvas = document.createElement("canvas")
+    ownCanvas.width = 20
+    ownCanvas.height = 30
+    screen.appendChild(ownCanvas)
+
+    disposeRendererAddon(term, canvasAddon)
+
+    for (const layer of layers) {
+      expect(layer.isConnected).toBe(false)
+      expect(layer.width).toBe(0)
+      expect(layer.height).toBe(0)
+    }
+    expect(ownCanvas.width).toBe(20)
+    expect(ownCanvas.height).toBe(30)
+
+    term.dispose()
+    container.remove()
+  })
+
+  it("draws every row of a reloaded renderer at once, even while xterm is paused", () => {
+    const container = document.createElement("div")
+    document.body.appendChild(container)
+
+    const term = new Terminal({ allowProposedApi: true, rows: 12 })
+    term.open(container)
+    const canvasAddon = new CanvasAddon()
+    term.loadAddon(canvasAddon)
+    const renderService = (
+      term as unknown as {
+        _core: {
+          _renderService: { _isPaused: boolean; _renderRows: (s: number, e: number) => void }
+        }
+      }
+    )._core._renderService
+    renderService._isPaused = true
+    const renderRows = vi.spyOn(renderService, "_renderRows")
+
+    renderAllRowsNow(term)
+
+    expect(renderRows).toHaveBeenCalledWith(0, 11)
+
+    canvasAddon.dispose()
     term.dispose()
     container.remove()
   })

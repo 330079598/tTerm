@@ -25,6 +25,7 @@ import {
   TERMINAL_LETTER_SPACING_RANGE,
   TERMINAL_LINE_HEIGHT_RANGE,
   type TerminalRenderer,
+  HIDDEN_RENDERER_RELEASE_SECS_OPTIONS,
 } from "@/contexts/ConfigContext"
 
 const SCROLLBACK_PRESETS = [1000, 5000, DEFAULT_SCROLLBACK_LINES, 50000, 100000] as const
@@ -62,6 +63,7 @@ interface FontSettingsTabProps {
   loadingFonts: boolean
   scrollbackLines: number
   terminalRenderer: TerminalRenderer
+  hiddenRendererReleaseSecs: number
   terminalPaddingLeftPx: number
   terminalPaddingRightPx: number
   terminalPaddingBottomPx: number
@@ -70,6 +72,7 @@ interface FontSettingsTabProps {
   setCursorStyle: React.Dispatch<React.SetStateAction<"bar" | "block" | "underline">>
   setScrollbackLines: React.Dispatch<React.SetStateAction<number>>
   setTerminalRenderer: React.Dispatch<React.SetStateAction<TerminalRenderer>>
+  setHiddenRendererReleaseSecs: React.Dispatch<React.SetStateAction<number>>
   setTerminalPaddingLeftPx: React.Dispatch<React.SetStateAction<number>>
   setTerminalPaddingRightPx: React.Dispatch<React.SetStateAction<number>>
   setTerminalPaddingBottomPx: React.Dispatch<React.SetStateAction<number>>
@@ -103,6 +106,7 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
   loadingFonts,
   scrollbackLines,
   terminalRenderer,
+  hiddenRendererReleaseSecs,
   terminalPaddingLeftPx,
   terminalPaddingRightPx,
   terminalPaddingBottomPx,
@@ -111,6 +115,7 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
   setCursorStyle,
   setScrollbackLines,
   setTerminalRenderer,
+  setHiddenRendererReleaseSecs,
   setTerminalPaddingLeftPx,
   setTerminalPaddingRightPx,
   setTerminalPaddingBottomPx,
@@ -186,38 +191,53 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
               value={terminalRenderer}
               onChange={(event) => setTerminalRenderer(event.target.value as TerminalRenderer)}
             >
-              {getDetectedPlatform() === "macos" ? (
-                <>
-                  <option value="canvas">
-                    {t("fontSettings.rendererCanvasMac", {
-                      defaultValue: "Canvas (recommended for macOS)",
-                    })}
-                  </option>
-                  <option value="webgl">
-                    {t("fontSettings.rendererWebglMac", { defaultValue: "WebGL" })}
-                  </option>
-                </>
-              ) : (
-                <>
-                  <option value="webgl">
-                    {t("fontSettings.rendererWebgl", { defaultValue: "WebGL (recommended)" })}
-                  </option>
-                  <option value="canvas">
-                    {t("fontSettings.rendererCanvas", { defaultValue: "Canvas (lower memory)" })}
-                  </option>
-                </>
-              )}
+              <option value="webgl">
+                {t("fontSettings.rendererWebgl", { defaultValue: "WebGL (recommended)" })}
+              </option>
+              <option value="canvas">
+                {t("fontSettings.rendererCanvas", { defaultValue: "Canvas" })}
+              </option>
             </Select>
             <p className="text-muted-foreground mt-1.5 text-xs">
-              {getDetectedPlatform() === "macos"
-                ? t("fontSettings.rendererDescMac", {
-                    defaultValue:
-                      "Canvas renderer is recommended on macOS for sharp text and maximum stability; WebGL is suitable for high-throughput output.",
-                  })
-                : t("fontSettings.rendererDesc", {
-                    defaultValue:
-                      "WebGL is faster for heavy output; Canvas can use less GPU memory.",
-                  })}
+              {t("fontSettings.rendererDesc", {
+                defaultValue:
+                  "WebGL draws each terminal on one canvas and uses far less memory; Canvas keeps four full-size layers per terminal and is the fallback when WebGL is unavailable.",
+              })}
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="hidden-renderer-release" className="mb-2 block">
+              {t("fontSettings.rendererRelease", {
+                defaultValue: "Release renderer of hidden terminals",
+              })}
+            </Label>
+            <Select
+              id="hidden-renderer-release"
+              value={String(hiddenRendererReleaseSecs)}
+              onChange={(event) => setHiddenRendererReleaseSecs(Number(event.target.value))}
+            >
+              {HIDDEN_RENDERER_RELEASE_SECS_OPTIONS.map((secs) => (
+                <option key={secs} value={secs}>
+                  {secs === 0
+                    ? t("fontSettings.rendererReleaseNever", { defaultValue: "Never" })
+                    : secs < 60
+                      ? t("fontSettings.rendererReleaseSeconds", {
+                          count: secs,
+                          defaultValue: "After {{count}} seconds",
+                        })
+                      : t("fontSettings.rendererReleaseMinutes", {
+                          count: secs / 60,
+                          defaultValue: "After {{count}} minutes",
+                        })}
+                </option>
+              ))}
+            </Select>
+            <p className="text-muted-foreground mt-1.5 text-xs">
+              {t("fontSettings.rendererReleaseDesc", {
+                defaultValue:
+                  "A terminal out of sight this long gives back its renderer's memory and loads it again when shown. Never switches tabs fastest, but every background tab keeps its renderer's memory, and with WebGL more than about 16 open terminals exceed WebKit's limit on live contexts, so the oldest fall back to Canvas.",
+              })}
             </p>
           </div>
 

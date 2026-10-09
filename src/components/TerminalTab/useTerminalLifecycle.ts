@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { CanvasAddon } from "@xterm/addon-canvas"
 import { FitAddon } from "@xterm/addon-fit"
@@ -21,6 +21,7 @@ import { installImeCursorGuard } from "@/components/TerminalTab/imeCursorGuard"
 import { installImeEarlyInputFix } from "@/components/TerminalTab/imeEarlyInput"
 import { installImeFocusRepair } from "@/components/TerminalTab/imeFocusRepair"
 import { OutputAcker } from "@/components/TerminalTab/outputAck"
+import { disposeRendererAddon, renderAllRowsNow } from "@/components/TerminalTab/rendererRelease"
 import { createScrollbackMemory } from "@/components/TerminalTab/scrollbackMemory"
 import { getConnectionDisplay } from "@/components/TerminalTab/terminalTabUtils"
 import type {
@@ -94,6 +95,13 @@ type UseTerminalLifecycleOptions = {
   initialTerminalRenderer?: React.RefObject<TerminalRenderer>
   initialTerminalThemeRef?: React.RefObject<NonNullable<Terminal["options"]["theme"]>>
   terminalRenderer?: TerminalRenderer
+  /**
+   * Seconds a terminal stays out of sight before its renderer is released, so
+   * switching back and forth between tabs keeps it and a tab left in the
+   * background gives back its canvases; 0 keeps it.
+   */
+  hiddenRendererReleaseSecs: number
+  isActive: boolean
   isActiveRef: React.RefObject<boolean>
   lastPtySizeRef: React.RefObject<{ rows: number; cols: number } | null>
   onPidChangeRef: React.RefObject<TerminalTabProps["onPidChange"]>
@@ -188,6 +196,8 @@ export function useTerminalLifecycle({
   initialScrollbackLines,
   initialTerminalRenderer,
   initialTerminalThemeRef,
+  hiddenRendererReleaseSecs,
+  isActive,
   isActiveRef,
   lastPtySizeRef,
   onPidChangeRef,
@@ -223,6 +233,9 @@ export function useTerminalLifecycle({
 }: UseTerminalLifecycleOptions) {
   const activeRendererAddonRef = useRef<ActiveRendererAddon | null>(null)
   const lastRendererRef = useRef<TerminalRenderer | null>(null)
+  // Out of sight long enough to have its renderer released; showing the
+  // terminal again loads it back.
+  const rendererSuspendedRef = useRef(false)
 
   // Kept in a ref so event-time terminal banners translate with the active
   // language without re-running the terminal-creation effect.
@@ -246,7 +259,7 @@ export function useTerminalLifecycle({
 
       if (activeRendererAddonRef.current) {
         try {
-          activeRendererAddonRef.current.dispose()
+          disposeRendererAddon(term, activeRendererAddonRef.current)
         } catch (error) {
           console.error("Failed to dispose active terminal renderer addon:", error)
         }
@@ -371,8 +384,12 @@ export function useTerminalLifecycle({
       ? installImeFocusRepair(term, () => invoke("repair_ime_focus"))
       : null
 
-    const effectiveRenderer = terminalRenderer ?? rendererRef.current
-    loadTerminalRenderer(effectiveRenderer, term)
+    // A tab restored in the background draws nothing until it is shown.
+    if (isActiveRef.current) {
+      loadTerminalRenderer(terminalRenderer ?? rendererRef.current, term)
+    } else {
+      rendererSuspendedRef.current = true
+    }
 
     const updateScrollbackState = () => {
       container.classList.toggle("xterm-has-scrollback", term.buffer.active.baseY > 0)
@@ -988,13 +1005,14 @@ export function useTerminalLifecycle({
       }
       if (activeRendererAddonRef.current) {
         try {
-          activeRendererAddonRef.current.dispose()
+          disposeRendererAddon(term, activeRendererAddonRef.current)
         } catch (disposeErr) {
           console.warn("Failed to dispose active renderer addon during unmount:", disposeErr)
         }
         activeRendererAddonRef.current = null
       }
       lastRendererRef.current = null
+      rendererSuspendedRef.current = false
       imeCursorGuard.dispose()
       imeEarlyInputFix.dispose()
       imeFocusRepair?.dispose()
@@ -1077,7 +1095,7 @@ export function useTerminalLifecycle({
     const term = termRef.current
     if (!term || !initializedRef.current) return
     const targetRenderer = terminalRenderer ?? rendererRef.current
-    if (lastRendererRef.current === targetRenderer) return
+    if (rendererSuspendedRef.current || lastRendererRef.current === targetRenderer) return
 
     loadTerminalRenderer(targetRenderer, term)
     if (isActiveRef.current) {
@@ -1090,6 +1108,45 @@ export function useTerminalLifecycle({
     isActiveRef,
     loadTerminalRenderer,
     rendererRef,
+    termRef,
+    terminalRenderer,
+  ])
+
+  // Before paint, so a terminal coming into sight never shows a frame without
+  // its renderer.
+  useLayoutEffect(() => {
+    const term = termRef.current
+    if (!term || !initializedRef.current) return
+
+    if (isActive) {
+      if (!rendererSuspendedRef.current) return
+      rendererSuspendedRef.current = false
+      loadTerminalRenderer(terminalRenderer ?? rendererRef.current, term)
+      renderAllRowsNow(term)
+      return
+    }
+    if (hiddenRendererReleaseSecs <= 0) return
+
+    const timer = window.setTimeout(() => {
+      const addon = activeRendererAddonRef.current
+      if (!addon || termRef.current !== term) return
+      try {
+        disposeRendererAddon(term, addon)
+      } catch (error) {
+        console.warn("Failed to release the renderer of a hidden terminal:", error)
+      }
+      activeRendererAddonRef.current = null
+      lastRendererRef.current = null
+      rendererSuspendedRef.current = true
+    }, hiddenRendererReleaseSecs * 1000)
+    return () => window.clearTimeout(timer)
+  }, [
+    hiddenRendererReleaseSecs,
+    initializedRef,
+    isActive,
+    loadTerminalRenderer,
+    rendererRef,
+    sessionNonce,
     termRef,
     terminalRenderer,
   ])

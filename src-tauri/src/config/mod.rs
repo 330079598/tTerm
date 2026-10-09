@@ -55,6 +55,9 @@ pub struct AppConfig {
     pub scrollback_lines: u32,
     #[serde(default = "default_terminal_renderer")]
     pub terminal_renderer: String,
+    /// Seconds a terminal stays out of sight before its renderer is released; 0 keeps it.
+    #[serde(default = "default_hidden_renderer_release_secs")]
+    pub hidden_renderer_release_secs: u32,
     #[serde(default = "default_terminal_padding_left_px")]
     pub terminal_padding_left_px: u16,
     #[serde(default)]
@@ -380,11 +383,11 @@ fn default_scrollback_lines() -> u32 {
 }
 
 fn default_terminal_renderer() -> String {
-    if cfg!(target_os = "macos") {
-        "canvas".to_string()
-    } else {
-        "webgl".to_string()
-    }
+    "webgl".to_string()
+}
+
+fn default_hidden_renderer_release_secs() -> u32 {
+    10
 }
 
 fn default_terminal_padding_left_px() -> u16 {
@@ -567,6 +570,7 @@ impl Default for AppConfig {
             prompt_unlock_vault_on_startup: false,
             scrollback_lines: default_scrollback_lines(),
             terminal_renderer: default_terminal_renderer(),
+            hidden_renderer_release_secs: default_hidden_renderer_release_secs(),
             terminal_padding_left_px: default_terminal_padding_left_px(),
             terminal_padding_right_px: 0,
             terminal_padding_bottom_px: 0,

@@ -384,6 +384,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     configScrollbackLinesRef,
     configTerminalRendererRef,
     terminalThemeRef,
+    hiddenRendererReleaseSecs: config.hidden_renderer_release_secs,
+    isActive,
     isActiveRef,
     lastPtySizeRef,
     onPidChangeRef,

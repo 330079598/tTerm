@@ -100,7 +100,17 @@ export function getDetectedPlatform(): string {
 }
 
 export function getDefaultTerminalRenderer(): TerminalRenderer {
-  return getDetectedPlatform() === "macos" ? "canvas" : "webgl"
+  return "webgl"
+}
+
+/** How long a hidden terminal keeps its renderer; 0 keeps it for good. */
+export const HIDDEN_RENDERER_RELEASE_SECS_OPTIONS = [0, 10, 30, 60, 300] as const
+const DEFAULT_HIDDEN_RENDERER_RELEASE_SECS = 10
+
+function normalizeHiddenRendererReleaseSecs(value: unknown): number {
+  return (HIDDEN_RENDERER_RELEASE_SECS_OPTIONS as readonly unknown[]).includes(value)
+    ? (value as number)
+    : DEFAULT_HIDDEN_RENDERER_RELEASE_SECS
 }
 
 /** Also accepts the modes used before passwords moved into the database. */
@@ -139,6 +149,7 @@ export interface AppConfig {
   prompt_unlock_vault_on_startup: boolean
   scrollback_lines: number
   terminal_renderer: TerminalRenderer
+  hidden_renderer_release_secs: number
   terminal_padding_left_px: number
   terminal_padding_right_px: number
   terminal_padding_bottom_px: number
@@ -248,6 +259,7 @@ const defaultConfig: AppConfig = {
   prompt_unlock_vault_on_startup: false,
   scrollback_lines: 10000,
   terminal_renderer: getDefaultTerminalRenderer(),
+  hidden_renderer_release_secs: DEFAULT_HIDDEN_RENDERER_RELEASE_SECS,
   terminal_padding_left_px: 6,
   terminal_padding_right_px: 0,
   terminal_padding_bottom_px: 0,
@@ -483,6 +495,9 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
       config.terminal_renderer === "canvas" || config.terminal_renderer === "webgl"
         ? config.terminal_renderer
         : getDefaultTerminalRenderer(),
+    hidden_renderer_release_secs: normalizeHiddenRendererReleaseSecs(
+      config.hidden_renderer_release_secs
+    ),
     monitor_refresh_interval_secs: normalizeMonitorRefreshInterval(
       config.monitor_refresh_interval_secs
     ),

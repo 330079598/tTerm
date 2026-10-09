@@ -206,6 +206,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [terminalRenderer, setTerminalRenderer] = useState<TerminalRenderer>(
     config.terminal_renderer
   )
+  const [hiddenRendererReleaseSecs, setHiddenRendererReleaseSecs] = useState(
+    config.hidden_renderer_release_secs
+  )
   const [terminalPaddingLeftPx, setTerminalPaddingLeftPx] = useState(
     config.terminal_padding_left_px
   )
@@ -300,6 +303,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         local_shell_integration: localShellIntegration,
         scrollback_lines: scrollbackLines,
         terminal_renderer: terminalRenderer,
+        hidden_renderer_release_secs: hiddenRendererReleaseSecs,
         terminal_padding_left_px: terminalPaddingLeftPx,
         terminal_padding_right_px: terminalPaddingRightPx,
         terminal_padding_bottom_px: terminalPaddingBottomPx,
@@ -743,6 +747,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               loadingFonts={loadingFonts}
               scrollbackLines={scrollbackLines}
               terminalRenderer={terminalRenderer}
+              hiddenRendererReleaseSecs={hiddenRendererReleaseSecs}
               terminalPaddingLeftPx={terminalPaddingLeftPx}
               terminalPaddingRightPx={terminalPaddingRightPx}
               terminalPaddingBottomPx={terminalPaddingBottomPx}
@@ -751,6 +756,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               setCursorStyle={setCursorStyle}
               setScrollbackLines={setScrollbackLines}
               setTerminalRenderer={setTerminalRenderer}
+              setHiddenRendererReleaseSecs={setHiddenRendererReleaseSecs}
               setTerminalPaddingLeftPx={setTerminalPaddingLeftPx}
               setTerminalPaddingRightPx={setTerminalPaddingRightPx}
               setTerminalPaddingBottomPx={setTerminalPaddingBottomPx}
