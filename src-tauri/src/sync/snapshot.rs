@@ -71,6 +71,7 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "notify_agent_waiting",
     "notify_agent_done",
     "bell_notify",
+    "toast_max_visible",
     "notify_sound",
     "bell_style",
 ];

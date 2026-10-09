@@ -14,7 +14,9 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
-      "fixed top-[calc(env(safe-area-inset-top,0px)+1rem)] left-1/2 z-[9999] flex max-h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-2rem)] w-[calc(100%-2rem)] max-w-[420px] -translate-x-1/2 flex-col gap-2 overflow-y-auto",
+      // Top right, under the tab bar: clear of the tabs a toast points at and
+      // of the prompt, over output that is usually old.
+      "fixed top-[calc(var(--toast-viewport-top,0px)+0.75rem)] right-3 z-[9999] flex max-h-[calc(100dvh-var(--toast-viewport-top,0px)-1.5rem)] w-[calc(100%-1.5rem)] max-w-[380px] flex-col gap-2 overflow-y-auto",
       className
     )}
     {...props}

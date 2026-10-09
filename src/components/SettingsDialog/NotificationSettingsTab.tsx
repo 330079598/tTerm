@@ -1,6 +1,15 @@
 import React, { useCallback, useEffect, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
-import { Bell, BellRing, CircleAlert, MessageSquareText, Send, Timer, Volume2 } from "lucide-react"
+import {
+  Bell,
+  BellRing,
+  CircleAlert,
+  Layers,
+  MessageSquareText,
+  Send,
+  Timer,
+  Volume2,
+} from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { AgentIntegrationSection } from "@/components/SettingsDialog/AgentIntegrationSection"
@@ -12,7 +21,12 @@ import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { type BellStyle, NOTIFY_COMMAND_MIN_SECS_RANGE, useConfig } from "@/contexts/ConfigContext"
+import {
+  type BellStyle,
+  NOTIFY_COMMAND_MIN_SECS_RANGE,
+  TOAST_MAX_VISIBLE_RANGE,
+  useConfig,
+} from "@/contexts/ConfigContext"
 import { toast } from "@/hooks/use-toast"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
 import { useSyncedState } from "@/hooks/useSyncedState"
@@ -109,6 +123,30 @@ export const NotificationSettingsTab: React.FC = () => {
                 onCheckedChange={(checked) => void saveSettings({ notify_sound: checked })}
                 aria-label={t("notifications.sound")}
               />
+            }
+          />
+          <SettingsRow
+            icon={<Layers size={16} />}
+            title={t("notifications.toastMaxVisible")}
+            description={t("notifications.toastMaxVisibleDesc")}
+            action={
+              <Select
+                aria-label={t("notifications.toastMaxVisible")}
+                value={String(config.toast_max_visible)}
+                onChange={(event) =>
+                  void saveSettings({ toast_max_visible: Number(event.target.value) })
+                }
+                className="w-36"
+              >
+                {Array.from(
+                  { length: TOAST_MAX_VISIBLE_RANGE.max - TOAST_MAX_VISIBLE_RANGE.min + 1 },
+                  (_, index) => TOAST_MAX_VISIBLE_RANGE.min + index
+                ).map((count) => (
+                  <option key={count} value={count}>
+                    {t("notifications.toastCount", { count })}
+                  </option>
+                ))}
+              </Select>
             }
           />
           <SettingsRow

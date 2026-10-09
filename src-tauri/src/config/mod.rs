@@ -221,6 +221,12 @@ pub struct AppConfig {
     /// Announce a bell in a terminal the user is not looking at.
     #[serde(default)]
     pub bell_notify: bool,
+    /// In-app toasts stacked at once; a new one closes the oldest past this.
+    #[serde(
+        default = "default_toast_max_visible",
+        deserialize_with = "deserialize_toast_max_visible"
+    )]
+    pub toast_max_visible: u8,
     /// System notifications play the system sound.
     #[serde(default = "default_true")]
     pub notify_sound: bool,
@@ -500,6 +506,18 @@ where
     Ok(value.round().clamp(1.0, 3600.0) as u16)
 }
 
+fn default_toast_max_visible() -> u8 {
+    3
+}
+
+fn deserialize_toast_max_visible<'de, D>(deserializer: D) -> Result<u8, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = f64::deserialize(deserializer)?;
+    Ok(value.round().clamp(1.0, 5.0) as u8)
+}
+
 fn default_bell_style() -> String {
     "visual".to_string()
 }
@@ -599,6 +617,7 @@ impl Default for AppConfig {
             notify_agent_done: true,
             agent_config_dirs: Default::default(),
             bell_notify: false,
+            toast_max_visible: default_toast_max_visible(),
             notify_sound: true,
             bell_style: default_bell_style(),
         }

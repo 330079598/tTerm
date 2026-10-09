@@ -48,6 +48,7 @@ import type { TerminalRenderer } from "@/contexts/ConfigContext"
 import { useKeymap } from "@/contexts/KeymapContext"
 import { useCatalogFor, useTheme } from "@/contexts/ThemeContext"
 import { useStableRef } from "@/hooks/useStableRef"
+import { dismissTabToast } from "@/hooks/useTerminalNotifications"
 import { resetTerminalState } from "@/components/TerminalTab/terminalReset"
 import { safePreloadFont, updateCanvasFontHostFont } from "@/lib/canvasFontHost"
 import { pasteNeedsConfirmation, summarizePaste } from "@/lib/pasteGuard"
@@ -566,12 +567,14 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     if (!isActive) return
     hasBeenActiveRef.current = true
     clearTabAttention(tabId)
+    dismissTabToast(tabId)
   }, [isActive, tabId])
 
   useEffect(
     () => () => {
       if (bellFlashTimerRef.current !== null) window.clearTimeout(bellFlashTimerRef.current)
       clearTabAttention(tabId)
+      dismissTabToast(tabId)
     },
     [tabId]
   )

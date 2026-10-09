@@ -2,7 +2,10 @@ import * as React from "react"
 
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
 
-const TOAST_LIMIT = 1
+// The toasts stacked at once (`toast_max_visible`); a new one closes the oldest.
+let toastLimit = 3
+// Radix closes a toast after this long, pausing while the pointer or focus is
+// on it and while the window is in the background.
 const TOAST_DURATION = 3000 // 3 seconds
 
 type ToasterToast = ToastProps & {
@@ -41,65 +44,19 @@ interface State {
   toasts: ToasterToast[]
 }
 
-const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
-
-const clearToastTimeout = (toastId: string) => {
-  const timeout = toastTimeouts.get(toastId)
-  if (!timeout) {
-    return
-  }
-
-  clearTimeout(timeout)
-  toastTimeouts.delete(toastId)
-}
-
-const scheduleToastRemoval = (toastId: string, duration: number) => {
-  clearToastTimeout(toastId)
-
-  if (!Number.isFinite(duration) || duration <= 0) {
-    return
-  }
-
-  const timeout = setTimeout(() => {
-    toastTimeouts.delete(toastId)
-    dispatch({ type: "REMOVE_TOAST", toastId })
-  }, duration)
-
-  toastTimeouts.set(toastId, timeout)
-}
-
 export const reducer = (state: State, action: Action): State => {
   switch (action.type) {
     case "ADD_TOAST": {
-      const nextToasts = [action.toast, ...state.toasts].slice(0, TOAST_LIMIT)
-      const removedToasts = state.toasts.filter(
-        (toast) => !nextToasts.some((nextToast) => nextToast.id === toast.id)
-      )
-
-      removedToasts.forEach((toast) => {
-        clearToastTimeout(toast.id)
-      })
-      scheduleToastRemoval(action.toast.id, action.toast.duration ?? TOAST_DURATION)
-
       return {
         ...state,
-        toasts: nextToasts,
+        toasts: [action.toast, ...state.toasts].slice(0, toastLimit),
       }
     }
 
     case "UPDATE_TOAST": {
-      const nextToasts = state.toasts.map((t) =>
-        t.id === action.toast.id ? { ...t, ...action.toast } : t
-      )
-      const updatedToast = nextToasts.find((t) => t.id === action.toast.id)
-
-      if (updatedToast) {
-        scheduleToastRemoval(updatedToast.id, updatedToast.duration ?? TOAST_DURATION)
-      }
-
       return {
         ...state,
-        toasts: nextToasts,
+        toasts: state.toasts.map((t) => (t.id === action.toast.id ? { ...t, ...action.toast } : t)),
       }
     }
 
@@ -108,16 +65,12 @@ export const reducer = (state: State, action: Action): State => {
       const { toastId } = action
 
       if (toastId === undefined) {
-        state.toasts.forEach((toast) => {
-          clearToastTimeout(toast.id)
-        })
         return {
           ...state,
           toasts: [],
         }
       }
 
-      clearToastTimeout(toastId)
       return {
         ...state,
         toasts: state.toasts.filter((t) => t.id !== toastId),
@@ -135,6 +88,17 @@ function dispatch(action: Action) {
   listeners.forEach((listener) => {
     listener(memoryState)
   })
+}
+
+/** Stacks up to `limit` toasts, closing the oldest ones past it right away. */
+function setToastLimit(limit: number) {
+  toastLimit = Math.max(1, Math.floor(limit))
+  if (memoryState.toasts.length > toastLimit) {
+    memoryState = { ...memoryState, toasts: memoryState.toasts.slice(0, toastLimit) }
+    listeners.forEach((listener) => {
+      listener(memoryState)
+    })
+  }
 }
 
 type Toast = Omit<ToasterToast, "id">
@@ -186,4 +150,4 @@ function useToast() {
   }
 }
 
-export { useToast, toast }
+export { useToast, toast, setToastLimit }

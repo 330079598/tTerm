@@ -211,6 +211,8 @@ export interface AppConfig {
   agent_config_dirs: Record<string, string>
   /** Announce a bell in the background with a system notification. */
   bell_notify: boolean
+  /** In-app toasts stacked at once; a new one closes the oldest past this. */
+  toast_max_visible: number
   /** System notifications play the system sound. */
   notify_sound: boolean
   bell_style: BellStyle
@@ -296,6 +298,7 @@ const defaultConfig: AppConfig = {
   notify_agent_done: true,
   agent_config_dirs: {},
   bell_notify: false,
+  toast_max_visible: 3,
   notify_sound: true,
   bell_style: "visual",
 }
@@ -435,6 +438,7 @@ export function normalizeTerminalLineHeight(value: unknown): number {
 export const WINDOW_OPACITY_PERCENT_RANGE = { min: 30, max: 95 } as const
 export const WINDOW_BLUR_RADIUS_RANGE = { min: 1, max: 60 } as const
 export const NOTIFY_COMMAND_MIN_SECS_RANGE = { min: 1, max: 3600 } as const
+export const TOAST_MAX_VISIBLE_RANGE = { min: 1, max: 5 } as const
 
 function normalizeRoundedInRange(
   value: unknown,
@@ -566,6 +570,11 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     notify_agent_done: config.notify_agent_done !== false,
     agent_config_dirs: normalizeAgentConfigDirs(config.agent_config_dirs),
     bell_notify: config.bell_notify === true,
+    toast_max_visible: normalizeRoundedInRange(
+      config.toast_max_visible,
+      TOAST_MAX_VISIBLE_RANGE,
+      3
+    ),
     notify_sound: config.notify_sound !== false,
     bell_style:
       config.bell_style === "sound" || config.bell_style === "none" ? config.bell_style : "visual",

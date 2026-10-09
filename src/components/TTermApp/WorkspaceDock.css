@@ -115,6 +115,11 @@
   display: none;
 }
 
+/* Split panes have headers of their own under the title bar. */
+:root:has(.workspace-dock.multi-group) {
+  --toast-viewport-top: calc(var(--title-bar-height) + 34px);
+}
+
 .workspace-dock .dv-resize-container {
   transition: background-color 160ms ease;
 }

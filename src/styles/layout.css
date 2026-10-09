@@ -6,8 +6,14 @@
 }
 
 /* Title bar */
+:root {
+  --title-bar-height: 36px;
+  /* Toasts stay clear of the bars across the top of the window. */
+  --toast-viewport-top: var(--title-bar-height);
+}
+
 .title-bar {
-  height: 36px;
+  height: var(--title-bar-height);
   background-color: hsl(var(--titlebar));
   display: flex;
   align-items: stretch;

@@ -7,7 +7,7 @@ import type { TFunction } from "i18next"
 
 import { ToastAction } from "@/components/ui/toast"
 import { useConfig } from "@/contexts/ConfigContext"
-import { toast } from "@/hooks/use-toast"
+import { setToastLimit, toast } from "@/hooks/use-toast"
 import { agentDisplayName } from "@/lib/agentStatus"
 import { markTabAttention } from "@/lib/tabAttention"
 import {
@@ -35,6 +35,17 @@ const MIN_INTERVAL_MS = 2000
 /** A program ringing over and over announces it once in this long. */
 const BELL_MIN_INTERVAL_MS = 30_000
 const MAX_COMMAND_LENGTH = 80
+
+/** The toast each tab raised last, which looking at the tab takes down. */
+const tabToastDismissers = new Map<string, () => void>()
+
+/** Closes the toast a tab raised, once the user is looking at the tab. */
+export function dismissTabToast(tabId: string) {
+  const dismiss = tabToastDismissers.get(tabId)
+  if (!dismiss) return
+  tabToastDismissers.delete(tabId)
+  dismiss()
+}
 
 function describeEvent(
   event: TerminalAttentionEvent,
@@ -92,6 +103,11 @@ export function useTerminalNotifications({
   const lastAnnouncedRef = useRef(new Map<string, number>())
   const tabsRef = useRef(tabs)
   const activateTabRef = useRef(activateTab)
+  // The toaster sits outside the config provider, so the limit comes from here.
+  useEffect(() => {
+    setToastLimit(config.toast_max_visible)
+  }, [config.toast_max_visible])
+
   useEffect(() => {
     tabsRef.current = tabs
     activateTabRef.current = activateTab
@@ -157,7 +173,9 @@ export function useTerminalNotifications({
         return
       }
 
-      toast({
+      // One toast per tab: its latest news replaces the earlier.
+      dismissTabToast(tabId)
+      const { dismiss } = toast({
         title: text.subtitle ? `${text.title} · ${text.subtitle}` : text.title,
         description: text.body,
         variant:
@@ -170,7 +188,11 @@ export function useTerminalNotifications({
             {t("notifications.showTab")}
           </ToastAction>
         ),
+        onOpenChange: (open) => {
+          if (!open && tabToastDismissers.get(tabId) === dismiss) tabToastDismissers.delete(tabId)
+        },
       })
+      tabToastDismissers.set(tabId, dismiss)
     },
     [activateTab, config, getVisibleTabIds, t]
   )
