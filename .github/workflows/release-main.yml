@@ -135,6 +135,10 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+          # Each matrix job would otherwise download, merge, delete and re-upload the
+          # release's latest.json at the same time, failing with 404 or dropping
+          # platforms; the manifest job builds it once after every platform is up.
+          includeUpdaterJson: false
 
   publish-stable-manifest:
     needs:
@@ -149,26 +153,23 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Download updater manifest from stable release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
-        shell: bash
-        run: |
-          mkdir -p updater-manifest
-          gh release download "$RELEASE_TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --pattern latest.json \
-            --dir updater-manifest \
-            --clobber
+      - name: Test updater manifest builder
+        run: node --test .github/scripts/build-updater-manifest.test.mjs
 
-      - name: Sync release notes into updater manifest
-        id: sync_notes
+      - name: Build updater manifest from stable release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
-          STRICT_VERSION_MATCH: "true"
-        run: node .github/scripts/sync-updater-manifest-notes.mjs updater-manifest/latest.json
+        run: node .github/scripts/build-updater-manifest.mjs updater-manifest/latest.json
+
+      - name: Upload updater manifest to stable release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+        run: |
+          gh release upload "$RELEASE_TAG" updater-manifest/latest.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
 
       - name: Checkout GitHub Pages branch
         env:
