@@ -170,6 +170,10 @@ function isLinkOpenModifierPressed(event: MouseEvent) {
  * refused; sudo's failure delay is about two seconds.
  */
 const PASSWORD_REJECT_WINDOW_MS = 20_000
+/** Wait after a lost WebGL context before trying WebGL again. */
+const WEBGL_RETRY_DELAY_MS = 30_000
+/** WebGL retries per terminal after lost contexts. */
+const MAX_WEBGL_RETRIES = 3
 
 export function useTerminalLifecycle({
   activateFitTimerRef,
@@ -236,6 +240,8 @@ export function useTerminalLifecycle({
   // Out of sight long enough to have its renderer released; showing the
   // terminal again loads it back.
   const rendererSuspendedRef = useRef(false)
+  const webglRetriesRef = useRef(0)
+  const webglRetryTimerRef = useRef<number | null>(null)
 
   // Kept in a ref so event-time terminal banners translate with the active
   // language without re-running the terminal-creation effect.
@@ -267,37 +273,72 @@ export function useTerminalLifecycle({
       }
 
       if (targetRenderer === "webgl") {
-        try {
-          const webglAddon = new WebglAddon()
-          webglAddon.onContextLoss(() => {
-            console.warn("WebGL context lost; falling back to canvas renderer")
-            try {
-              webglAddon.dispose()
-            } catch (disposeErr) {
-              console.warn("Failed to dispose WebGL addon on context loss:", disposeErr)
-            }
-            if (activeRendererAddonRef.current === webglAddon) {
-              activeRendererAddonRef.current = null
-            }
-            try {
-              const canvasAddon = new CanvasAddon()
-              term.loadAddon(canvasAddon)
-              activeRendererAddonRef.current = canvasAddon
-              lastRendererRef.current = "canvas"
-            } catch (canvasErr) {
-              console.error("Failed to load canvas fallback after WebGL context loss:", canvasErr)
-            }
-          })
-          term.loadAddon(webglAddon)
-          activeRendererAddonRef.current = webglAddon
-          lastRendererRef.current = "webgl"
-          return
-        } catch (error) {
-          console.warn(
-            "WebGL not supported in this environment; falling back to canvas renderer",
-            error
-          )
+        const loadWebgl = (): boolean => {
+          try {
+            const webglAddon = new WebglAddon()
+            webglAddon.onContextLoss(() => {
+              console.warn("WebGL context lost; falling back to canvas renderer")
+              try {
+                webglAddon.dispose()
+              } catch (disposeErr) {
+                console.warn("Failed to dispose WebGL addon on context loss:", disposeErr)
+              }
+              if (activeRendererAddonRef.current === webglAddon) {
+                activeRendererAddonRef.current = null
+              }
+              let canvasAddon: CanvasAddon
+              try {
+                canvasAddon = new CanvasAddon()
+                term.loadAddon(canvasAddon)
+                activeRendererAddonRef.current = canvasAddon
+                lastRendererRef.current = "canvas"
+              } catch (canvasErr) {
+                console.error("Failed to load canvas fallback after WebGL context loss:", canvasErr)
+                return
+              }
+              // The canvas fallback keeps four full-size layers, so go back to
+              // WebGL once the GPU may have recovered (a GPU switch or reset).
+              // A terminal released while hidden gets WebGL back when shown;
+              // the retries are capped so a page over WebKit's context limit
+              // does not keep evicting other terminals' contexts.
+              if (webglRetriesRef.current >= MAX_WEBGL_RETRIES) return
+              webglRetriesRef.current += 1
+              webglRetryTimerRef.current = window.setTimeout(() => {
+                webglRetryTimerRef.current = null
+                if (activeRendererAddonRef.current !== canvasAddon) return
+                try {
+                  disposeRendererAddon(term, canvasAddon)
+                } catch (disposeErr) {
+                  console.warn("Failed to dispose canvas fallback before WebGL retry:", disposeErr)
+                }
+                activeRendererAddonRef.current = null
+                lastRendererRef.current = null
+                if (!loadWebgl()) {
+                  try {
+                    const fallback = new CanvasAddon()
+                    term.loadAddon(fallback)
+                    activeRendererAddonRef.current = fallback
+                    lastRendererRef.current = "canvas"
+                  } catch (canvasErr) {
+                    console.error("Failed to reload canvas renderer after WebGL retry:", canvasErr)
+                  }
+                }
+                renderAllRowsNow(term)
+              }, WEBGL_RETRY_DELAY_MS)
+            })
+            term.loadAddon(webglAddon)
+            activeRendererAddonRef.current = webglAddon
+            lastRendererRef.current = "webgl"
+            return true
+          } catch (error) {
+            console.warn(
+              "WebGL not supported in this environment; falling back to canvas renderer",
+              error
+            )
+            return false
+          }
         }
+        if (loadWebgl()) return
       }
 
       // "canvas" mode or fallback from failed WebGL
@@ -1013,6 +1054,10 @@ export function useTerminalLifecycle({
       }
       lastRendererRef.current = null
       rendererSuspendedRef.current = false
+      if (webglRetryTimerRef.current !== null) {
+        window.clearTimeout(webglRetryTimerRef.current)
+        webglRetryTimerRef.current = null
+      }
       imeCursorGuard.dispose()
       imeEarlyInputFix.dispose()
       imeFocusRepair?.dispose()
