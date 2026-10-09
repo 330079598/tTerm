@@ -40,6 +40,9 @@ import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { toast } from "@/hooks/use-toast"
 import { isWindowBlurEnabled, useConfig } from "@/contexts/ConfigContext"
 import { isImeKeyEvent } from "@/lib/ime"
+import { playBellSound } from "@/lib/bellSound"
+import { clearTabAttention, markTabAttention } from "@/lib/tabAttention"
+import type { TerminalAttentionEvent } from "@/lib/terminalNotifications"
 import { isTransparentTerminalTheme, withWindowBlur } from "@/lib/terminalPalette"
 import type { TerminalRenderer } from "@/contexts/ConfigContext"
 import { useKeymap } from "@/contexts/KeymapContext"
@@ -77,6 +80,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   onSessionUnavailable,
   onSensitivePrompt,
   onConnectionProgress,
+  onAttention,
   onOpenRemoteFile,
   onPinConnectionHeader,
   onPauseBroadcast,
@@ -111,6 +115,36 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const onSensitivePromptRef = useStableRef(onSensitivePrompt)
   const onConnectionProgressRef = useStableRef(onConnectionProgress)
   const { config, saveConfig } = useConfig()
+  const bellStyleRef = useStableRef(config.bell_style)
+  // Output of a tab never looked at (restored in the background) is not news.
+  const hasBeenActiveRef = useRef(isActive)
+  const bellFlashTimerRef = useRef<number | null>(null)
+  const onAttentionRef = useStableRef((event: TerminalAttentionEvent) => {
+    if (event.kind === "bell") {
+      const bellStyle = bellStyleRef.current
+      if (bellStyle === "none") return
+      if (bellStyle === "sound") {
+        playBellSound()
+      } else if (isActiveRef.current) {
+        const surface = surfaceRef.current
+        if (surface) {
+          surface.classList.remove("terminal-bell-flash")
+          // Restarts the animation for a bell during the previous flash.
+          void surface.offsetWidth
+          surface.classList.add("terminal-bell-flash")
+          if (bellFlashTimerRef.current !== null) window.clearTimeout(bellFlashTimerRef.current)
+          bellFlashTimerRef.current = window.setTimeout(() => {
+            bellFlashTimerRef.current = null
+            surface.classList.remove("terminal-bell-flash")
+          }, 200)
+        }
+      }
+    }
+    onAttention?.(tabId, event)
+  })
+  const onBackgroundOutputRef = useStableRef(() => {
+    if (hasBeenActiveRef.current) markTabAttention(tabId, "activity")
+  })
   const { displayedTheme, getTheme } = useTheme()
   const { t } = useTranslation()
   const configFontFamilyRef = useStableRef(config.font_family)
@@ -356,6 +390,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     onSessionUnavailableRef,
     onSensitivePromptRef,
     onConnectionProgressRef,
+    onAttentionRef,
+    onBackgroundOutputRef,
     savedPasswordPromptActionsRef,
     setSavedPasswordPrompt,
     sudoPromptPatternsRef,
@@ -524,6 +560,21 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       activateFitTimerRef.current = null
     }
   }, [isActive, scheduleFitDuringResize])
+
+  // Looking at the tab answers whatever it wanted attention for.
+  useEffect(() => {
+    if (!isActive) return
+    hasBeenActiveRef.current = true
+    clearTabAttention(tabId)
+  }, [isActive, tabId])
+
+  useEffect(
+    () => () => {
+      if (bellFlashTimerRef.current !== null) window.clearTimeout(bellFlashTimerRef.current)
+      clearTabAttention(tabId)
+    },
+    [tabId]
+  )
 
   // Once per tab: reconnects that fall back again for the same reason stay quiet.
   const shellIntegrationNoticeShownRef = useRef(false)

@@ -191,6 +191,31 @@ pub struct AppConfig {
     /// background behind a tray icon) or "quit".
     #[serde(default = "default_close_behavior")]
     pub close_behavior: String,
+    /// Announce terminal events (finished commands, notifications programs
+    /// ask for, bells) while the user looks elsewhere.
+    #[serde(default = "default_true")]
+    pub notifications_enabled: bool,
+    /// Announce commands that ran at least `notify_command_min_secs`; needs
+    /// shell integration to know when a command starts and ends.
+    #[serde(default = "default_true")]
+    pub notify_command_finished: bool,
+    #[serde(
+        default = "default_notify_command_min_secs",
+        deserialize_with = "deserialize_notify_command_min_secs"
+    )]
+    pub notify_command_min_secs: u16,
+    /// Announce notifications programs send (OSC 9, OSC 777, OSC 99).
+    #[serde(default = "default_true")]
+    pub notify_terminal_requests: bool,
+    /// Announce a bell in a terminal the user is not looking at.
+    #[serde(default)]
+    pub bell_notify: bool,
+    /// System notifications play the system sound.
+    #[serde(default = "default_true")]
+    pub notify_sound: bool,
+    /// What the terminal bell does: "visual", "sound" or "none".
+    #[serde(default = "default_bell_style")]
+    pub bell_style: String,
 }
 
 /// User-configurable keyboard shortcut overrides. `bindings` maps action ids
@@ -448,6 +473,26 @@ fn default_close_behavior() -> String {
     "ask".to_string()
 }
 
+fn default_true() -> bool {
+    true
+}
+
+fn default_notify_command_min_secs() -> u16 {
+    10
+}
+
+fn deserialize_notify_command_min_secs<'de, D>(deserializer: D) -> Result<u16, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = f64::deserialize(deserializer)?;
+    Ok(value.round().clamp(1.0, 3600.0) as u16)
+}
+
+fn default_bell_style() -> String {
+    "visual".to_string()
+}
+
 fn default_zmodem_auto_detect_enabled() -> bool {
     true
 }
@@ -535,6 +580,13 @@ impl Default for AppConfig {
             window_opacity_percent: default_window_opacity_percent(),
             window_blur_material: default_window_blur_material(),
             close_behavior: default_close_behavior(),
+            notifications_enabled: true,
+            notify_command_finished: true,
+            notify_command_min_secs: default_notify_command_min_secs(),
+            notify_terminal_requests: true,
+            bell_notify: false,
+            notify_sound: true,
+            bell_style: default_bell_style(),
         }
     }
 }

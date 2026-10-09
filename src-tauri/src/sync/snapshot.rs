@@ -64,6 +64,13 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "reconnect_max_attempts",
     "zmodem_auto_detect_enabled",
     "sudo_prompt_patterns",
+    "notifications_enabled",
+    "notify_command_finished",
+    "notify_command_min_secs",
+    "notify_terminal_requests",
+    "bell_notify",
+    "notify_sound",
+    "bell_style",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

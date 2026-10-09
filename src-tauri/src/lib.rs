@@ -10,6 +10,7 @@ mod fonts;
 mod ime_focus;
 mod migrate;
 mod monitor;
+mod notification;
 mod profiles;
 mod session;
 mod session_log;
@@ -409,6 +410,8 @@ pub fn run() {
             updater::download_install_app_update,
             toggle_devtools,
             ime_focus::repair_ime_focus,
+            notification::show_notification,
+            notification::notification_permission,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
@@ -457,6 +460,7 @@ pub fn run() {
                 }
             }
 
+            notification::init(&app_handle);
             create_main_window(app, cfg.as_ref())?;
             background::apply_config(&app_handle, &cfg.unwrap_or_default());
 

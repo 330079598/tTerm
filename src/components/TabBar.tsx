@@ -11,6 +11,7 @@ import {
   Waypoints,
   X,
 } from "lucide-react"
+import { TabAttentionDot } from "@/components/TabAttentionDot"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { isPageTab, Tab, TabContextMenuAction } from "@/types/tab"
 import { isImeKeyEvent } from "@/lib/ime"
@@ -225,6 +226,7 @@ const TabItem = React.memo(function TabItem({
           <span className="tab-number">{index + 1}</span>
           {tab.type === "settings" && <Settings className="tab-icon" size={13} />}
           {tab.type === "tunnels" && <Waypoints className="tab-icon" size={13} />}
+          <TabAttentionDot tabId={tab.id} />
           <span className="tab-title">{tab.title}</span>
           <button
             className="tab-close"
@@ -777,6 +779,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                         <span className="tab-overflow-number">{tabIndex + 1}</span>
                         {tab.type === "settings" && <Settings className="tab-icon" size={13} />}
                         {tab.type === "tunnels" && <Waypoints className="tab-icon" size={13} />}
+                        <TabAttentionDot tabId={tab.id} />
                         <span className="tab-overflow-title">{tab.title}</span>
                         {connectionMeta.primary && (
                           <span className="tab-overflow-meta">

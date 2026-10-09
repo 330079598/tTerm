@@ -12,7 +12,11 @@ import { listen } from "@tauri-apps/api/event"
 import { openUrl } from "@tauri-apps/plugin-opener"
 import { platform } from "@tauri-apps/plugin-os"
 
-import { CommandMarks, COMMAND_MARK_OSC_CODES } from "@/components/TerminalTab/commandMarks"
+import {
+  CommandMarks,
+  COMMAND_MARK_OSC_CODES,
+  parseCommandMark,
+} from "@/components/TerminalTab/commandMarks"
 import { installImeCursorGuard } from "@/components/TerminalTab/imeCursorGuard"
 import { installImeEarlyInputFix } from "@/components/TerminalTab/imeEarlyInput"
 import { installImeFocusRepair } from "@/components/TerminalTab/imeFocusRepair"
@@ -42,6 +46,14 @@ import {
 import { matchPasswordPrompt, readCursorLine, type PasswordPromptMatch } from "@/lib/sudoPrompt"
 import { LoginScriptRunner, parseLoginScript } from "@/lib/loginScript"
 import { CWD_REPORT_OSC_CODES, parseCwdReport } from "@/lib/terminalCwd"
+import {
+  CommandTimer,
+  KittyNotificationAssembler,
+  NOTIFICATION_OSC_CODES,
+  parseOsc777Notification,
+  parseOsc9Notification,
+  type TerminalAttentionEvent,
+} from "@/lib/terminalNotifications"
 import {
   captureTerminalInput,
   EMPTY_COMMAND_CAPTURE_STATE,
@@ -91,6 +103,10 @@ type UseTerminalLifecycleOptions = {
   onSessionUnavailableRef: React.RefObject<TerminalTabProps["onSessionUnavailable"]>
   onSensitivePromptRef: React.RefObject<TerminalTabProps["onSensitivePrompt"]>
   onConnectionProgressRef: React.RefObject<TerminalTabProps["onConnectionProgress"]>
+  /** A finished command, a notification request or a bell. */
+  onAttentionRef: React.RefObject<(event: TerminalAttentionEvent) => void>
+  /** Output arrived while the tab was out of sight. */
+  onBackgroundOutputRef: React.RefObject<() => void>
   savedPasswordPromptActionsRef: React.RefObject<SavedPasswordPromptActions | null>
   setSavedPasswordPrompt: (value: SavedPasswordPromptState | null) => void
   sudoPromptPatternsRef: React.RefObject<readonly RegExp[]>
@@ -181,6 +197,8 @@ export function useTerminalLifecycle({
   onSessionUnavailableRef,
   onSensitivePromptRef,
   onConnectionProgressRef,
+  onAttentionRef,
+  onBackgroundOutputRef,
   savedPasswordPromptActionsRef,
   setSavedPasswordPrompt,
   sudoPromptPatternsRef,
@@ -573,9 +591,21 @@ export function useTerminalLifecycle({
       atPasswordPrompt: () => currentPromptKey !== null,
     }
 
+    const commandTimer = new CommandTimer()
+    const timeCommand = (data: string) => {
+      const mark = parseCommandMark(data)
+      if (mark?.kind === "prompt") commandTimer.prompt()
+      else if (mark?.kind === "output") commandTimer.start(Date.now())
+      else if (mark?.kind === "done") {
+        const finished = commandTimer.finish(mark.exitCode, Date.now())
+        if (finished) onAttentionRef.current?.({ kind: "command", ...finished })
+      }
+    }
+
     const emitExecutedCommand = (commandText: string) => {
       const normalized = commandText.trim()
       if (!normalized) return
+      commandTimer.setCommand(normalized)
       const now = Date.now()
       if (lastEmittedCommand?.text === normalized && now - lastEmittedCommand.at < 1500) return
       // A new command means the last fill's sudo run is over.
@@ -597,11 +627,29 @@ export function useTerminalLifecycle({
     const shellIntegrationDisposables = COMMAND_MARK_OSC_CODES.map((osc) =>
       term.parser.registerOscHandler(osc, (data) => {
         commandMarks.handleMark(data)
+        timeCommand(data)
         const command = parseShellIntegrationCommand(data)
         if (command) emitExecutedCommand(command)
         return false
       })
     )
+
+    // Programs asking for a notification. Returns false like the directory
+    // reports below, so an OSC 9 reaches both handlers.
+    const kittyNotifications = new KittyNotificationAssembler()
+    const notificationDisposables = NOTIFICATION_OSC_CODES.map((osc) =>
+      term.parser.registerOscHandler(osc, (data) => {
+        const request =
+          osc === 9
+            ? parseOsc9Notification(data)
+            : osc === 777
+              ? parseOsc777Notification(data)
+              : kittyNotifications.handle(data)
+        if (request) onAttentionRef.current?.({ kind: "request", ...request })
+        return false
+      })
+    )
+    const bellDisposable = term.onBell(() => onAttentionRef.current?.({ kind: "bell" }))
 
     // A local shell's directory, for the tab to restart in. Windows shells
     // report it themselves (OSC 7 / OSC 9;9); on macOS and Linux the backend
@@ -648,7 +696,11 @@ export function useTerminalLifecycle({
         answerCurrentPrompt()
       }
 
-      if (data.includes("\r")) commandMarks.handleEnter()
+      if (data.includes("\r")) {
+        // Shells that send no C mark start their command here.
+        if (commandMarks.isAtPrompt()) commandTimer.start(Date.now())
+        commandMarks.handleEnter()
+      }
 
       if (commandCaptureSuspended) {
         if (data.includes("\r") || data.includes("\n") || data.includes("\x03")) {
@@ -719,6 +771,8 @@ export function useTerminalLifecycle({
       } else if (connectionRef.current?.type === "ssh" && text.length > 0) {
         setConnectionStateIfChanged("connected")
       }
+
+      if (!isActiveRef.current && text.length > 0) onBackgroundOutputRef.current?.()
 
       const reservedLines = scrollbackMemory.reserve(text)
       term.write(text, () => {
@@ -935,6 +989,8 @@ export function useTerminalLifecycle({
       onSavedPasswordPromptChange?.(tabId, sessionNonce, null)
       for (const disposable of scrollbackDisposables) disposable.dispose()
       for (const disposable of shellIntegrationDisposables) disposable.dispose()
+      for (const disposable of notificationDisposables) disposable.dispose()
+      bellDisposable.dispose()
       commandMarks.dispose()
       commandMarksRef.current = null
       for (const disposable of cwdReportDisposables) disposable.dispose()
@@ -968,6 +1024,8 @@ export function useTerminalLifecycle({
     onSavedPasswordPromptChangeRef,
     onSessionUnavailableRef,
     onSensitivePromptRef,
+    onAttentionRef,
+    onBackgroundOutputRef,
     onConnectionProgressRef,
     savedPasswordPromptActionsRef,
     setSavedPasswordPrompt,

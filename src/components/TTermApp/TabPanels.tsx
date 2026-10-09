@@ -39,6 +39,7 @@ import {
 import { useTranslation } from "react-i18next"
 
 import { ErrorBoundary } from "@/components/ErrorBoundary"
+import { TabAttentionDot } from "@/components/TabAttentionDot"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { TerminalTab } from "@/components/TerminalTab"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -47,6 +48,7 @@ import type { TerminalInputRequest } from "@/types/broadcast"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
 import type { LiveBroadcastState } from "@/types/broadcast"
 import type { ExecutedCommand } from "@/types/command"
+import type { TerminalAttentionEvent } from "@/lib/terminalNotifications"
 import type { ConnectionState, SshConnectionProgress } from "@/components/TerminalTab/types"
 
 const workspaceDockTheme = {
@@ -133,6 +135,7 @@ interface TabPanelsProps {
   ) => void
   onTerminalInput: (request: TerminalInputRequest) => Promise<boolean | void>
   onTerminalCommandExecuted?: (command: ExecutedCommand) => void
+  onTerminalAttention?: (tabId: string, event: TerminalAttentionEvent) => void
   onOpenCommandLibrary?: (query?: string) => void
   onSaveCommand?: (commandText: string, profile?: { id: string; name: string }) => void
   onTerminalSavedPasswordPromptChange: (
@@ -304,6 +307,7 @@ const WorkspaceTab = React.memo(function WorkspaceTab({
     >
       {tab.type === "settings" && <Settings size={13} aria-hidden="true" />}
       {tab.type === "tunnels" && <Waypoints size={13} aria-hidden="true" />}
+      <TabAttentionDot tabId={tab.id} />
       <span className="workspace-tab-title">{tab.title}</span>
       <button
         type="button"
@@ -405,6 +409,7 @@ const WorkspacePanel = React.memo(function WorkspacePanel({
               onConnectionStateChange={workspace.onTerminalConnectionStateChange}
               onInput={workspace.onTerminalInput}
               onCommandExecuted={workspace.onTerminalCommandExecuted}
+              onAttention={workspace.onTerminalAttention}
               onOpenCommandLibrary={workspace.onOpenCommandLibrary}
               onSaveCommand={workspace.onSaveCommand}
               onSavedPasswordPromptChange={workspace.onTerminalSavedPasswordPromptChange}
@@ -540,6 +545,7 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
     onTabClose,
     onTabContextMenu,
     onTerminalCommandExecuted,
+    onTerminalAttention,
     onTerminalConnectionStateChange,
     onTerminalInput,
     onSaveCommand,
@@ -1057,6 +1063,7 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
       onTabClose,
       onTabContextMenu,
       onTerminalCommandExecuted,
+      onTerminalAttention,
       onTerminalConnectionStateChange,
       onTerminalInput,
       onSaveCommand,
@@ -1092,6 +1099,7 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
       onTabClose,
       onTabContextMenu,
       onTerminalCommandExecuted,
+      onTerminalAttention,
       onTerminalConnectionStateChange,
       onTerminalInput,
       onSaveCommand,

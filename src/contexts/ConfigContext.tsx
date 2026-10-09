@@ -42,6 +42,8 @@ export type BackgroundThrottling = "throttle" | "disabled" | "suspend"
 /** What closing the main window does; "tray" keeps tTerm running in the background. */
 export type CloseBehavior = "ask" | "tray" | "quit"
 export type WindowBlurMaterial = "acrylic" | "mica"
+/** What the terminal bell does: flash the terminal, play a tone, or nothing. */
+export type BellStyle = "visual" | "sound" | "none"
 export type MonitorMetricId =
   "cpu" | "memory" | "network" | "ip" | "latency" | "disk" | "load" | "uptime"
 
@@ -194,6 +196,18 @@ export interface AppConfig {
   /** Opacity of that tint in percent. */
   window_opacity_percent: number
   close_behavior: CloseBehavior
+  /** Announce terminal events while the user is elsewhere (system or in-app). */
+  notifications_enabled: boolean
+  /** Announce commands that ran at least `notify_command_min_secs` (needs shell integration). */
+  notify_command_finished: boolean
+  notify_command_min_secs: number
+  /** Announce notifications programs ask for (OSC 9, 777, 99). */
+  notify_terminal_requests: boolean
+  /** Announce a bell in the background with a system notification. */
+  bell_notify: boolean
+  /** System notifications play the system sound. */
+  notify_sound: boolean
+  bell_style: BellStyle
 }
 
 const defaultUpdateChannel = /-(alpha|beta|rc|dev)(\.|$)/.test(
@@ -268,6 +282,13 @@ const defaultConfig: AppConfig = {
   window_opacity_percent: 70,
   window_blur_material: "acrylic",
   close_behavior: "ask",
+  notifications_enabled: true,
+  notify_command_finished: true,
+  notify_command_min_secs: 10,
+  notify_terminal_requests: true,
+  bell_notify: false,
+  notify_sound: true,
+  bell_style: "visual",
 }
 
 function normalizeUpdateCheckFrequency(
@@ -390,6 +411,7 @@ export function normalizeTerminalLineHeight(value: unknown): number {
 
 export const WINDOW_OPACITY_PERCENT_RANGE = { min: 30, max: 95 } as const
 export const WINDOW_BLUR_RADIUS_RANGE = { min: 1, max: 60 } as const
+export const NOTIFY_COMMAND_MIN_SECS_RANGE = { min: 1, max: 3600 } as const
 
 function normalizeRoundedInRange(
   value: unknown,
@@ -509,6 +531,18 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
       config.close_behavior === "tray" || config.close_behavior === "quit"
         ? config.close_behavior
         : "ask",
+    notifications_enabled: config.notifications_enabled !== false,
+    notify_command_finished: config.notify_command_finished !== false,
+    notify_command_min_secs: normalizeRoundedInRange(
+      config.notify_command_min_secs,
+      NOTIFY_COMMAND_MIN_SECS_RANGE,
+      10
+    ),
+    notify_terminal_requests: config.notify_terminal_requests !== false,
+    bell_notify: config.bell_notify === true,
+    notify_sound: config.notify_sound !== false,
+    bell_style:
+      config.bell_style === "sound" || config.bell_style === "none" ? config.bell_style : "visual",
   }
 }
 

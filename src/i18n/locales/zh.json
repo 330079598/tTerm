@@ -2062,5 +2062,52 @@
     "deletedDesc": "下次连接 {{host}} 时会重新验证主机密钥。",
     "deleteFailed": "删除已知主机失败",
     "loadFailed": "无法加载已知主机：{{error}}"
+  },
+  "notifications": {
+    "sidebar": "通知",
+    "title": "通知",
+    "description": "在你看别处时，告诉你终端里发生了什么。正在看的标签不会打扰你，其他标签会显示一个圆点。",
+    "enabled": "在后台时通知",
+    "enabledDesc": "tTerm 窗口不在前台时发系统通知；窗口在前台但标签不可见时在应用内提示。点击通知会跳到对应标签。",
+    "sound": "通知声音",
+    "soundDesc": "系统通知播放系统提示音。",
+    "test": "测试通知",
+    "testDesc": "立即发送一条系统通知。macOS 第一次会请求通知权限。",
+    "testDescFallback": "立即发送一条系统通知。当前开发版不是 App 包，通知通过 AppleScript 显示，点击后不会跳回标签。",
+    "testButton": "发送测试",
+    "testTitle": "tTerm 通知已可用",
+    "testBody": "长命令在后台执行完成时，你会看到这样的通知。",
+    "testFailed": "无法显示通知",
+    "deniedTitle": "tTerm 的通知已被关闭",
+    "deniedDesc": "请在“系统设置 → 通知 → tTerm”中允许通知。",
+    "events": "事件",
+    "eventsDesc": "哪些事件会通知你。",
+    "commandFinishedSetting": "长命令执行完成",
+    "commandFinishedSettingDesc": "需要 Shell 集成来判断命令的开始和结束：Windows 本地 Shell、开启了 Shell 集成的 macOS / Linux 本地 Shell，以及在配置中启用了 Shell 集成的 SSH 主机。",
+    "commandMinSecs": "最短耗时（秒）",
+    "commandMinSecsRange": "1-3600 秒",
+    "terminalRequests": "程序发出的通知",
+    "terminalRequestsDesc": "程序通过 OSC 9、OSC 777 或 OSC 99 发出的通知，例如 Claude Code 等待输入时。",
+    "bellSection": "响铃",
+    "bellStyle": "响铃方式",
+    "bellStyleDesc": "程序响铃时终端的反应。",
+    "bellStyles": {
+      "visual": "闪烁",
+      "sound": "声音",
+      "none": "忽略"
+    },
+    "bellNotify": "后台响铃时通知",
+    "bellNotifyDesc": "你没在看的终端响铃时发系统通知，每个标签 30 秒内最多一次。",
+    "bell": "终端响铃",
+    "aCommand": "命令",
+    "commandSucceeded": "“{{command}}” 已完成，用时 {{duration}}",
+    "commandFailed": "“{{command}}” 失败（退出码 {{code}}），用时 {{duration}}",
+    "commandFinished": "“{{command}}” 已结束，用时 {{duration}}",
+    "showTab": "查看",
+    "attention": {
+      "activity": "有新输出",
+      "bell": "响铃",
+      "notification": "通知"
+    }
   }
 }

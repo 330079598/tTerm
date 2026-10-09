@@ -526,3 +526,24 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* A tab with news (TabAttentionDot): new output, a bell, a notification. */
+.tab-attention {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: hsl(var(--muted-foreground) / 0.7);
+}
+
+.tab-attention[data-level="bell"] {
+  background: hsl(var(--warning));
+}
+
+.tab-attention[data-level="notification"] {
+  background: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.25);
+}

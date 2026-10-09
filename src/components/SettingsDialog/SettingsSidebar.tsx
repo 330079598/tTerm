@@ -1,5 +1,6 @@
 import React from "react"
 import {
+  Bell,
   FileClock,
   FolderTree,
   HardDriveDownload,
@@ -49,6 +50,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ activeTab, onT
           label: t("settings.terminal", { defaultValue: "Terminal" }),
           icon: SquareTerminal,
         },
+        { value: "notifications", label: t("notifications.sidebar"), icon: Bell },
         { value: "keymap", label: t("settings.keymap"), icon: Keyboard },
       ],
     },

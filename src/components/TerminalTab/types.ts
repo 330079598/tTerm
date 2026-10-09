@@ -4,6 +4,7 @@ import type { DockviewPanelApi } from "dockview-react"
 import type { TerminalInputRequest } from "@/types/broadcast"
 import type { LiveBroadcastState } from "@/types/broadcast"
 import type { ExecutedCommand } from "@/types/command"
+import type { TerminalAttentionEvent } from "@/lib/terminalNotifications"
 
 export interface TerminalTabProps {
   tabId: string
@@ -32,6 +33,8 @@ export interface TerminalTabProps {
   onSensitivePrompt?: (tabId: string) => void
   /** Every progress event of the tab's own SSH connection. */
   onConnectionProgress?: (progress: SshConnectionProgress) => void
+  /** A finished command, a notification request or a bell in this tab. */
+  onAttention?: (tabId: string, event: TerminalAttentionEvent) => void
   onReconnectRequest?: () => void
   onOpenRemoteFile?: (
     entry: SftpDirectoryEntry,

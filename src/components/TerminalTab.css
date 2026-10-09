@@ -1673,3 +1673,23 @@ button.server-monitor-metric.is-clickable:focus-visible {
   font-size: 0.9em;
   font-weight: 500;
 }
+
+/* The visual bell: the terminal flashes briefly. */
+.terminal-surface.terminal-bell-flash::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: hsl(var(--foreground) / 0.12);
+  animation: terminal-bell-flash 200ms ease-out forwards;
+}
+
+@keyframes terminal-bell-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

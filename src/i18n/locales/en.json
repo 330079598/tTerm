@@ -2078,5 +2078,52 @@
     "deletedDesc": "{{host}} will be verified again on the next connection.",
     "deleteFailed": "Failed to remove known host",
     "loadFailed": "Failed to load known hosts: {{error}}"
+  },
+  "notifications": {
+    "sidebar": "Notifications",
+    "title": "Notifications",
+    "description": "Hear about what terminals want while you are looking elsewhere. Nothing is announced for the tab in front of you; other tabs get a dot.",
+    "enabled": "Announce in the background",
+    "enabledDesc": "A system notification while the tTerm window is not in front, a message in the app while it is but the tab is not. Clicking one shows the tab.",
+    "sound": "Notification sound",
+    "soundDesc": "System notifications play the system sound.",
+    "test": "Test notification",
+    "testDesc": "Shows a system notification now. macOS asks for permission the first time.",
+    "testDescFallback": "Shows a system notification now. This development build is not an app bundle, so it appears through AppleScript and clicking it does not lead back to a tab.",
+    "testButton": "Send test",
+    "testTitle": "tTerm notifications work",
+    "testBody": "You will see this when a long command finishes in the background.",
+    "testFailed": "Couldn't show a notification",
+    "deniedTitle": "Notifications are turned off for tTerm",
+    "deniedDesc": "Allow them in System Settings → Notifications → tTerm.",
+    "events": "Events",
+    "eventsDesc": "What is announced.",
+    "commandFinishedSetting": "Long commands finishing",
+    "commandFinishedSettingDesc": "Needs shell integration to know when a command starts and ends: local shells on Windows, local shells on macOS and Linux with shell integration on, and SSH hosts with it enabled in their profile.",
+    "commandMinSecs": "Minimum duration (seconds)",
+    "commandMinSecsRange": "1-3600s",
+    "terminalRequests": "Notifications programs send",
+    "terminalRequestsDesc": "Programs that send OSC 9, OSC 777 or OSC 99 notifications, such as Claude Code waiting for input.",
+    "bellSection": "Bell",
+    "bellStyle": "Bell",
+    "bellStyleDesc": "What the terminal does when a program rings the bell.",
+    "bellStyles": {
+      "visual": "Flash",
+      "sound": "Sound",
+      "none": "Ignore"
+    },
+    "bellNotify": "Announce bells in the background",
+    "bellNotifyDesc": "A system notification when a terminal you are not looking at rings, at most once every 30 seconds per tab.",
+    "bell": "The terminal rang its bell",
+    "aCommand": "A command",
+    "commandSucceeded": "“{{command}}” finished in {{duration}}",
+    "commandFailed": "“{{command}}” failed with exit code {{code}} after {{duration}}",
+    "commandFinished": "“{{command}}” ended after {{duration}}",
+    "showTab": "Show",
+    "attention": {
+      "activity": "New output",
+      "bell": "Bell",
+      "notification": "Notification"
+    }
   }
 }

@@ -51,6 +51,7 @@ import { useSessionPersistence } from "@/hooks/useSessionPersistence"
 import { useTabContextMenu } from "@/hooks/useTabContextMenu"
 import { useTabs } from "@/hooks/useTabs"
 import { useTerminalFontZoom } from "@/hooks/useTerminalFontZoom"
+import { useTerminalNotifications } from "@/hooks/useTerminalNotifications"
 import { toast } from "@/hooks/use-toast"
 import { useWindowControls } from "@/hooks/useWindowControls"
 import { nameLocalTab, renameLegacyLocalTabs } from "@/lib/localTabTitle"
@@ -1747,6 +1748,16 @@ export const TTermApp: React.FC = () => {
     [handleInsertCommandText]
   )
 
+  const getVisibleTerminalTabIds = useCallback(
+    () => workspaceRef.current?.getVisibleTerminalTabIds() ?? [],
+    []
+  )
+  const handleTerminalAttention = useTerminalNotifications({
+    tabs,
+    activateTab: setActiveTab,
+    getVisibleTabIds: getVisibleTerminalTabIds,
+  })
+
   const handleTerminalCommandExecuted = useCallback((command: ExecutedCommand) => {
     setRecentCommands((current) => {
       const next = addRecentCommand(current, command)
@@ -1871,6 +1882,7 @@ export const TTermApp: React.FC = () => {
         onTabContextMenu={handleTabContextMenu}
         onTerminalConnectionStateChange={handleTerminalConnectionStateChange}
         onTerminalCommandExecuted={handleTerminalCommandExecuted}
+        onTerminalAttention={handleTerminalAttention}
         onTerminalInput={handleTerminalInput}
         onOpenCommandLibrary={handleOpenCommandLibrary}
         onSaveCommand={handleSaveCommand}

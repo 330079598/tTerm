@@ -30,6 +30,7 @@ import { DataMigrationSettingsTab } from "@/components/SettingsDialog/DataMigrat
 import { FontSettingsTab } from "@/components/SettingsDialog/FontSettingsTab"
 import { GeneralSettingsTab } from "@/components/SettingsDialog/GeneralSettingsTab"
 import { LoggingSettingsTab } from "@/components/SettingsDialog/LoggingSettingsTab"
+import { NotificationSettingsTab } from "@/components/SettingsDialog/NotificationSettingsTab"
 import { KeymapSettingsTab } from "@/components/SettingsDialog/KeymapSettingsTab"
 import { ProfileGroupsSettingsTab } from "@/components/SettingsDialog/ProfileGroupsSettingsTab"
 import { SecuritySettingsTab } from "@/components/SettingsDialog/SecuritySettingsTab"
@@ -756,6 +757,17 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               systemFonts={systemFonts}
               fontSizeOptions={FONT_SIZE_OPTIONS}
             />
+          </TabsContent>
+
+          <TabsContent
+            value="notifications"
+            id="settings-panel-notifications"
+            role="tabpanel"
+            aria-labelledby="settings-tab-notifications"
+            tabIndex={0}
+            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
+          >
+            <NotificationSettingsTab />
           </TabsContent>
 
           <TabsContent
