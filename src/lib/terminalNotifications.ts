@@ -180,23 +180,30 @@ export interface AttentionDecision {
   mark: TabAttentionLevel | null
   /** A system notification: the window is not in front. */
   system: boolean
-  /** An in-app toast: the window is in front but the tab is out of sight. */
+  /** An in-app toast: the window is in front but the user works elsewhere in
+   *  it, in another tab or in another pane of a split. */
   toast: boolean
 }
 
 const NOTHING: AttentionDecision = { mark: null, system: false, toast: false }
 
 /**
- * What an event leads to. Nothing interrupts a user who is looking at the
- * tab; otherwise the tab is marked, and the event is announced in the app or
- * by the system depending on whether the window is in front.
+ * What an event leads to. Nothing interrupts a user working in the tab; a tab
+ * out of sight is marked, and the event is announced in the app or by the
+ * system depending on whether the window is in front. A pane in sight but
+ * without focus is announced unmarked: next to the pane the user types in, it
+ * is easily missed.
  */
 export function decideAttention(
   event: TerminalAttentionEvent,
   settings: NotificationSettings,
-  { windowFocused, tabVisible }: { windowFocused: boolean; tabVisible: boolean }
+  {
+    windowFocused,
+    tabVisible,
+    tabFocused,
+  }: { windowFocused: boolean; tabVisible: boolean; tabFocused: boolean }
 ): AttentionDecision {
-  if (windowFocused && tabVisible) return NOTHING
+  if (windowFocused && tabFocused) return NOTHING
   const mark = tabVisible ? null : event.kind === "bell" ? "bell" : "notification"
 
   let announce: boolean

@@ -1754,6 +1754,7 @@ export const TTermApp: React.FC = () => {
   )
   const handleTerminalAttention = useTerminalNotifications({
     tabs,
+    activeTabId,
     activateTab: setActiveTab,
     getVisibleTabIds: getVisibleTerminalTabIds,
   })

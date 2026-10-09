@@ -10,6 +10,7 @@ import { useConfig } from "@/contexts/ConfigContext"
 import { setToastLimit, toast } from "@/hooks/use-toast"
 import { agentDisplayName } from "@/lib/agentStatus"
 import { markTabAttention } from "@/lib/tabAttention"
+import { focusTerminal } from "@/lib/terminalFocus"
 import {
   decideAttention,
   formatCommandDuration,
@@ -81,19 +82,30 @@ function describeEvent(
   return { title: tabTitle, body }
 }
 
+/** Shows a tab and puts the keyboard in it, which activating a pane already
+ *  in sight beside the focused one does not. */
+function showTab(activateTab: (tabId: string) => void, tabId: string) {
+  activateTab(tabId)
+  // After a closing toast has handed the focus to its viewport.
+  window.setTimeout(() => focusTerminal(tabId), 0)
+}
+
 interface UseTerminalNotificationsOptions {
   tabs: Tab[]
+  /** The tab the user works in: the focused pane when split. */
+  activeTabId: string | null
   activateTab: (tabId: string) => void
   getVisibleTabIds: () => string[]
 }
 
 /**
  * Announces what terminals want attention for: marks tabs out of sight,
- * toasts while the window is in front, system notifications while it is
- * not. Clicking a notification shows its tab. Mounted once at the app level.
+ * toasts while the window is in front and the user works in another tab or
+ * pane, system notifications while it is not. Clicking a notification shows its tab. Mounted once at the app level.
  */
 export function useTerminalNotifications({
   tabs,
+  activeTabId,
   activateTab,
   getVisibleTabIds,
 }: UseTerminalNotificationsOptions) {
@@ -102,6 +114,7 @@ export function useTerminalNotifications({
   const windowFocusedRef = useRef(typeof document === "undefined" || document.hasFocus())
   const lastAnnouncedRef = useRef(new Map<string, number>())
   const tabsRef = useRef(tabs)
+  const activeTabIdRef = useRef(activeTabId)
   const activateTabRef = useRef(activateTab)
   // The toaster sits outside the config provider, so the limit comes from here.
   useEffect(() => {
@@ -110,8 +123,9 @@ export function useTerminalNotifications({
 
   useEffect(() => {
     tabsRef.current = tabs
+    activeTabIdRef.current = activeTabId
     activateTabRef.current = activateTab
-  }, [tabs, activateTab])
+  }, [tabs, activeTabId, activateTab])
 
   useEffect(() => {
     let disposed = false
@@ -138,7 +152,7 @@ export function useTerminalNotifications({
     void listen<{ tabId?: string | null }>("notification-activated", (event) => {
       const tabId = event.payload.tabId
       if (tabId && tabsRef.current.some((tab) => tab.id === tabId)) {
-        activateTabRef.current(tabId)
+        showTab(activateTabRef.current, tabId)
       }
     })
       .then(keep)
@@ -154,7 +168,8 @@ export function useTerminalNotifications({
     (tabId: string, event: TerminalAttentionEvent) => {
       const windowFocused = windowFocusedRef.current && document.visibilityState !== "hidden"
       const tabVisible = getVisibleTabIds().includes(tabId)
-      const decision = decideAttention(event, config, { windowFocused, tabVisible })
+      const tabFocused = tabVisible && activeTabIdRef.current === tabId
+      const decision = decideAttention(event, config, { windowFocused, tabVisible, tabFocused })
       if (decision.mark) markTabAttention(tabId, decision.mark)
       if (!decision.system && !decision.toast) return
 
@@ -184,7 +199,10 @@ export function useTerminalNotifications({
             ? "destructive"
             : "default",
         action: (
-          <ToastAction altText={t("notifications.showTab")} onClick={() => activateTab(tabId)}>
+          <ToastAction
+            altText={t("notifications.showTab")}
+            onClick={() => showTab(activateTab, tabId)}
+          >
             {t("notifications.showTab")}
           </ToastAction>
         ),

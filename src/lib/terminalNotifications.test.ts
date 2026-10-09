@@ -126,9 +126,29 @@ describe("decideAttention", () => {
   const request = { kind: "request", body: "hi" } as const
   const bell = { kind: "bell" } as const
 
+  it("announces a pane in sight while the user works in another", () => {
+    const besideFocus = { windowFocused: true, tabVisible: true, tabFocused: false }
+    expect(decideAttention(request, settings, besideFocus)).toEqual({
+      mark: null,
+      system: false,
+      toast: true,
+    })
+    expect(decideAttention(bell, settings, besideFocus)).toEqual({
+      mark: null,
+      system: false,
+      toast: false,
+    })
+  })
+
   it("leaves a user looking at the tab alone", () => {
     for (const event of [longCommand, request, bell]) {
-      expect(decideAttention(event, settings, { windowFocused: true, tabVisible: true })).toEqual({
+      expect(
+        decideAttention(event, settings, {
+          windowFocused: true,
+          tabVisible: true,
+          tabFocused: true,
+        })
+      ).toEqual({
         mark: null,
         system: false,
         toast: false,
@@ -138,15 +158,23 @@ describe("decideAttention", () => {
 
   it("notifies the system while the window is in the background", () => {
     expect(
-      decideAttention(longCommand, settings, { windowFocused: false, tabVisible: true })
+      decideAttention(longCommand, settings, {
+        windowFocused: false,
+        tabVisible: true,
+        tabFocused: true,
+      })
     ).toEqual({ mark: null, system: true, toast: false })
-    expect(decideAttention(request, settings, { windowFocused: false, tabVisible: false })).toEqual(
-      { mark: "notification", system: true, toast: false }
-    )
+    expect(
+      decideAttention(request, settings, {
+        windowFocused: false,
+        tabVisible: false,
+        tabFocused: false,
+      })
+    ).toEqual({ mark: "notification", system: true, toast: false })
   })
 
   it("announces agents by their own switches", () => {
-    const hidden = { windowFocused: false, tabVisible: false }
+    const hidden = { windowFocused: false, tabVisible: false, tabFocused: false }
     const waiting = { kind: "agent", agent: "claude", state: "waiting" } as const
     const done = { kind: "agent", agent: "claude", state: "done" } as const
     const error = { kind: "agent", agent: "claude", state: "error" } as const
@@ -165,7 +193,13 @@ describe("decideAttention", () => {
   })
 
   it("toasts and marks a hidden tab in a focused window", () => {
-    expect(decideAttention(request, settings, { windowFocused: true, tabVisible: false })).toEqual({
+    expect(
+      decideAttention(request, settings, {
+        windowFocused: true,
+        tabVisible: false,
+        tabFocused: false,
+      })
+    ).toEqual({
       mark: "notification",
       system: false,
       toast: true,
@@ -173,7 +207,7 @@ describe("decideAttention", () => {
   })
 
   it("ignores short commands and turned off events", () => {
-    const hidden = { windowFocused: false, tabVisible: false }
+    const hidden = { windowFocused: false, tabVisible: false, tabFocused: false }
     const short = { ...longCommand, durationMs: 9_999 }
     expect(decideAttention(short, settings, hidden).mark).toBeNull()
     expect(
@@ -189,24 +223,35 @@ describe("decideAttention", () => {
       decideAttention(
         request,
         { ...settings, notifications_enabled: false },
-        { windowFocused: false, tabVisible: false }
+        { windowFocused: false, tabVisible: false, tabFocused: false }
       )
     ).toEqual({ mark: "notification", system: false, toast: false })
   })
 
   it("marks a bell and announces it only when asked to, never as a toast", () => {
-    expect(decideAttention(bell, settings, { windowFocused: false, tabVisible: false })).toEqual({
+    expect(
+      decideAttention(bell, settings, {
+        windowFocused: false,
+        tabVisible: false,
+        tabFocused: false,
+      })
+    ).toEqual({
       mark: "bell",
       system: false,
       toast: false,
     })
     const withBell = { ...settings, bell_notify: true }
     expect(
-      decideAttention(bell, withBell, { windowFocused: false, tabVisible: false }).system
+      decideAttention(bell, withBell, {
+        windowFocused: false,
+        tabVisible: false,
+        tabFocused: false,
+      }).system
     ).toBe(true)
-    expect(decideAttention(bell, withBell, { windowFocused: true, tabVisible: false }).toast).toBe(
-      false
-    )
+    expect(
+      decideAttention(bell, withBell, { windowFocused: true, tabVisible: false, tabFocused: false })
+        .toast
+    ).toBe(false)
   })
 })
 

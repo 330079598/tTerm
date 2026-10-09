@@ -42,6 +42,7 @@ import { isWindowBlurEnabled, useConfig } from "@/contexts/ConfigContext"
 import { isImeKeyEvent } from "@/lib/ime"
 import { playBellSound } from "@/lib/bellSound"
 import { clearTabAttention, markTabAttention } from "@/lib/tabAttention"
+import { registerTerminalFocus } from "@/lib/terminalFocus"
 import type { TerminalAttentionEvent } from "@/lib/terminalNotifications"
 import { isTransparentTerminalTheme, withWindowBlur } from "@/lib/terminalPalette"
 import type { TerminalRenderer } from "@/contexts/ConfigContext"
@@ -567,8 +568,14 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     if (!isActive) return
     hasBeenActiveRef.current = true
     clearTabAttention(tabId)
-    dismissTabToast(tabId)
   }, [isActive, tabId])
+
+  useEffect(() => registerTerminalFocus(tabId, () => termRef.current?.focus()), [tabId])
+
+  // A pane in sight next to the focused one is announced until focused.
+  useEffect(() => {
+    if (isGlobalShortcutTarget) dismissTabToast(tabId)
+  }, [isGlobalShortcutTarget, tabId])
 
   useEffect(
     () => () => {
