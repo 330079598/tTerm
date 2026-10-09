@@ -18,8 +18,10 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useConfig } from "@/contexts/ConfigContext"
+import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { useToast } from "@/hooks/use-toast"
 import { invokeSafe, reportError } from "@/lib/errors"
+import { isVerificationCanceled } from "@/lib/userVerification"
 import { normalizeSshAuthMethod } from "@/lib/profileConnections"
 import { cn } from "@/lib/utils"
 import { Tab, type JumpHostConnection, type SavedJumpHost } from "@/types/tab"
@@ -181,6 +183,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
 }) => {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { withVaultUnlock } = useUserVerification()
   const [form, setForm] = useState<ConnectionForm>(() => {
     const initialForm = buildInitialForm(editProfile ?? duplicateProfile ?? draftProfile, config)
     if (duplicateProfile) {
@@ -618,9 +621,11 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         jump_hosts: jumpHostsPayload,
       }
 
-      const result = await invoke<{ message: string; networkLatencyMs: number | null }>(
-        "test_connection",
-        { profile, typedPasswordTabId }
+      const result = await withVaultUnlock(() =>
+        invoke<{ message: string; networkLatencyMs: number | null }>("test_connection", {
+          profile,
+          typedPasswordTabId,
+        })
       )
       const target = `${form.username}@${form.host}:${form.port}`
       const successMessage =
@@ -642,6 +647,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         duration: 2500,
       })
     } catch (error) {
+      if (isVerificationCanceled(error)) return
       const errorMessage = String(error)
       setTestResult({ status: "error", message: errorMessage })
       toast({

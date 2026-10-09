@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useConfig } from "@/contexts/ConfigContext"
 import { hasOpenShortcutBlockingLayer, useKeymap } from "@/contexts/KeymapContext"
+import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { toast } from "@/hooks/use-toast"
 
 import { SftpDeleteTransferEvents } from "@/components/SftpDrawer/SftpDeleteTransferEvents"
@@ -103,6 +104,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
 }) => {
   const { t } = useTranslation()
   const { config } = useConfig()
+  const { withVaultUnlock } = useUserVerification()
   const { registerHandler } = useKeymap()
   const drawerRef = useRef<HTMLDivElement>(null)
   const [listing, setListing] = useState<SftpDirectoryListing | null>(null)
@@ -153,11 +155,13 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       setIsLoading(true)
       setError(null)
       try {
-        const nextListing = await invoke<SftpDirectoryListing>("sftp_list_directory", {
-          tabId,
-          connection,
-          path: path ?? undefined,
-        })
+        const nextListing = await withVaultUnlock(() =>
+          invoke<SftpDirectoryListing>("sftp_list_directory", {
+            tabId,
+            connection,
+            path: path ?? undefined,
+          })
+        )
         setListing(nextListing)
         recordLoaded(nextListing.currentPath, options?.historyIndex)
         setActivePath(null)
@@ -174,7 +178,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         setIsLoading(false)
       }
     },
-    [connection, recordFailed, recordLoaded, t, tabId]
+    [connection, recordFailed, recordLoaded, t, tabId, withVaultUnlock]
   )
 
   const {

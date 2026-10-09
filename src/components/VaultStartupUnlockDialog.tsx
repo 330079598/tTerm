@@ -20,11 +20,17 @@ import { toErrorMessage } from "@/lib/utils"
 interface VaultStartupUnlockDialogProps {
   open: boolean
   onClose: () => void
+  /** Called instead of `onClose` once unlocked. */
+  onUnlocked?: () => void
+  /** "action" asks on behalf of something the user just did, which then carries on. */
+  variant?: "startup" | "action"
 }
 
 export const VaultStartupUnlockDialog: React.FC<VaultStartupUnlockDialogProps> = ({
   open,
   onClose,
+  onUnlocked,
+  variant = "startup",
 }) => {
   const { t } = useTranslation()
   const { secretStatus, unlockSecretVault } = useConfig()
@@ -45,7 +51,8 @@ export const VaultStartupUnlockDialog: React.FC<VaultStartupUnlockDialogProps> =
       const wasPending = secretStatus.migrationPending
       await unlockSecretVault(password)
       setPassword("")
-      onClose()
+      if (onUnlocked) onUnlocked()
+      else onClose()
       toast({
         title: wasPending ? t("secretStorage.migrated") : t("secretStorage.unlocked"),
         description: wasPending ? t("secretStorage.migratedDesc") : t("secretStorage.unlockedDesc"),
@@ -72,7 +79,9 @@ export const VaultStartupUnlockDialog: React.FC<VaultStartupUnlockDialogProps> =
                 ? t("secretStorage.migrationDesc")
                 : secretStatus.storageMode === "system"
                   ? t("secretStorage.startupRecoveryDesc")
-                  : t("secretStorage.startupUnlockDesc")}
+                  : variant === "action"
+                    ? t("secretStorage.actionUnlockDesc")
+                    : t("secretStorage.startupUnlockDesc")}
             </DialogDescription>
           </DialogHeader>
 
@@ -95,7 +104,7 @@ export const VaultStartupUnlockDialog: React.FC<VaultStartupUnlockDialogProps> =
 
           <DialogFooter>
             <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
-              {t("secretStorage.skipStartupUnlock")}
+              {variant === "action" ? t("common.cancel") : t("secretStorage.skipStartupUnlock")}
             </Button>
             <Button type="submit" disabled={busy || password.length === 0}>
               {busy ? (

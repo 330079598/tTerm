@@ -4,7 +4,10 @@
 //! so scheduled uploads can include credentials and need no prompt.
 
 use super::webdav::{split_remote_directory, DavEntry, WebDavClient};
-use super::{build_archive, collect_payload, value_array_len, BackupSelection, MAX_BACKUP_SIZE};
+use super::{
+    build_archive, collect_payload, normalized_backup_path, value_array_len, BackupSelection,
+    MAX_BACKUP_SIZE,
+};
 use crate::config;
 use crate::core::blocking::run_blocking;
 use crate::db::meta;
@@ -125,6 +128,14 @@ pub struct WebDavUploadResult {
     pub secret_count: usize,
     /// Old uploads that could not be deleted; the upload itself succeeded.
     pub prune_error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WebDavDeleteResult {
+    pub deleted: Vec<String>,
+    /// The first failure; the other files were still tried.
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -423,6 +434,49 @@ pub async fn delete_webdav_backup(
     validate_file_name(&file_name)?;
     let (client, directory) = connect(&app, secret_state.inner()).await?;
     client.delete(&directory, &file_name).await
+}
+
+/// Deletes several remote backups, carrying on past a file that fails.
+#[tauri::command]
+pub async fn delete_webdav_backups(
+    app: AppHandle,
+    file_names: Vec<String>,
+    secret_state: State<'_, SecretStoreState>,
+) -> Result<WebDavDeleteResult, String> {
+    for file_name in &file_names {
+        validate_file_name(file_name)?;
+    }
+    let (client, directory) = connect(&app, secret_state.inner()).await?;
+    let mut deleted = Vec::new();
+    let mut error = None;
+    for file_name in file_names {
+        match client.delete(&directory, &file_name).await {
+            Ok(()) => deleted.push(file_name),
+            Err(failure) => {
+                error.get_or_insert(failure);
+            }
+        }
+    }
+    Ok(WebDavDeleteResult { deleted, error })
+}
+
+/// Saves a remote backup to a path the user picked. Returns that path.
+#[tauri::command]
+pub async fn save_webdav_backup(
+    app: AppHandle,
+    file_name: String,
+    output_path: String,
+    secret_state: State<'_, SecretStoreState>,
+) -> Result<String, String> {
+    validate_file_name(&file_name)?;
+    let output = normalized_backup_path(&output_path)?;
+    let (client, directory) = connect(&app, secret_state.inner()).await?;
+    let data = client.get(&directory, &file_name, MAX_BACKUP_SIZE).await?;
+    run_blocking(move || {
+        config::atomic_write_private(&output, data)?;
+        Ok(output.to_string_lossy().into_owned())
+    })
+    .await
 }
 
 async fn connect(

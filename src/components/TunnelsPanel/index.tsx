@@ -21,7 +21,9 @@ import { useTranslation } from "react-i18next"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { useToast } from "@/hooks/use-toast"
+import { isVerificationCanceled } from "@/lib/userVerification"
 import { onSyncApplied } from "@/lib/sync"
 import { cn, toErrorMessage } from "@/lib/utils"
 import type { SavedProfile } from "@/types/tab"
@@ -334,6 +336,7 @@ const TunnelCard = React.memo(function TunnelCard({
 export const TunnelsPanel: React.FC<TunnelsPanelProps> = ({ profilesRefreshKey }) => {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { withVaultUnlock } = useUserVerification()
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const [rules, setRules] = useState<TunnelRule[]>([])
   const [profiles, setProfiles] = useState<SavedProfile[]>([])
@@ -438,10 +441,9 @@ export const TunnelsPanel: React.FC<TunnelsPanelProps> = ({ profilesRefreshKey }
   const startTunnel = useCallback(
     async (rule: TunnelRule, entered: TunnelCredentials = {}) => {
       try {
-        const outcome = await invoke<StartOutcome>("start_tunnel", {
-          id: rule.id,
-          credentials: entered,
-        })
+        const outcome = await withVaultUnlock(() =>
+          invoke<StartOutcome>("start_tunnel", { id: rule.id, credentials: entered })
+        )
         setCredentialFlow(
           outcome.status === "needsCredentials"
             ? { rule, requests: outcome.requests, entered, busy: false }
@@ -449,10 +451,11 @@ export const TunnelsPanel: React.FC<TunnelsPanelProps> = ({ profilesRefreshKey }
         )
       } catch (error) {
         setCredentialFlow(null)
+        if (isVerificationCanceled(error)) return
         reportError(t("tunnels.startFailed", { defaultValue: "Could not start the tunnel" }), error)
       }
     },
-    [reportError, t]
+    [reportError, t, withVaultUnlock]
   )
 
   const handleCredentialsSubmit = useCallback(

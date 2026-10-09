@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { useToast } from "@/hooks/use-toast"
 import {
   runSync,
@@ -33,6 +34,7 @@ type BusyAction = "save" | "sync" | "reset"
 export const WebDavSyncCard: React.FC = () => {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { requestVaultUnlock } = useUserVerification()
   const [status, setStatus] = useState<SyncStatus | null>(null)
   const [busyAction, setBusyAction] = useState<BusyAction | null>(null)
   const busy = busyAction !== null
@@ -54,10 +56,13 @@ export const WebDavSyncCard: React.FC = () => {
 
   const syncNow = async () => {
     setBusyAction("sync")
+    let unlocked = false
     try {
       const outcome = await runSync(true)
       if (outcome.state === "locked") {
-        toast({ title: t("dataMigration.sync.locked"), variant: "destructive" })
+        // The prompt is skipped when only Settings > Security can unlock.
+        unlocked = await requestVaultUnlock()
+        if (!unlocked) toast({ title: t("dataMigration.sync.locked"), variant: "destructive" })
       } else if (outcome.state === "busy") {
         toast({ title: t("dataMigration.sync.busy") })
       } else if (outcome.state === "synced") {
@@ -82,6 +87,7 @@ export const WebDavSyncCard: React.FC = () => {
     } finally {
       setBusyAction(null)
     }
+    if (unlocked) await syncNow()
   }
 
   const save = async (next: SyncSettings) => {

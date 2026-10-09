@@ -35,6 +35,7 @@ import type {
 } from "@/components/TerminalTab/types"
 import { notifySavedPasswordNotSent } from "@/components/TerminalTab/savedPasswordNotice"
 import { startingScrollbackLines } from "@/lib/scrollback"
+import { isVaultLocked, reportVaultLocked } from "@/lib/vaultLock"
 import { isTransparentTerminalTheme } from "@/lib/terminalPalette"
 import type { TerminalRenderer } from "@/contexts/ConfigContext"
 import { safePreloadFont, updateCanvasFontHostFont } from "@/lib/canvasFontHost"
@@ -986,6 +987,13 @@ export function useTerminalLifecycle({
         if (disposed) return
         if (connectionRef.current?.type === "ssh") {
           applyConnectionState("error")
+          if (isVaultLocked(error)) {
+            reportVaultLocked(() => {
+              if (disposed) return
+              applyConnectionState("connecting")
+              onReconnectRequestRef.current?.()
+            })
+          }
         }
         term.writeln(`\x1b[31mFailed to start terminal: ${error}\x1b[0m`)
       })
