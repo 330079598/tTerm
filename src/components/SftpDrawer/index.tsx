@@ -128,6 +128,15 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   const commandDeleteEntries = dialog.type === "commandDelete" ? dialog.entries : EMPTY_SFTP_ENTRIES
   const commandDeleteCommand = dialog.type === "commandDelete" ? dialog.command : ""
 
+  // The drawer lives as long as its tab, so unmounting means the tab closed:
+  // let the backend close the tab's pooled SFTP connections.
+  useEffect(
+    () => () => {
+      void invoke("sftp_release_tab_connections", { tabId }).catch(console.error)
+    },
+    [tabId]
+  )
+
   const loadDirectory = useCallback<LoadSftpDirectory>(
     async (path, options) => {
       if (!connection) {

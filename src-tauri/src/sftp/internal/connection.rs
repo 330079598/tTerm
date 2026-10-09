@@ -18,6 +18,8 @@ use crate::ssh::ConnectionStatusOptions;
 use crate::ssh::{open_target_ssh_session, JumpChain, SecretStoreState, SshClientHandler};
 
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(300);
+/// How often the pool is checked for idle connections to close.
+const REAP_INTERVAL: Duration = Duration::from_secs(60);
 const SFTP_REQUEST_TIMEOUT_SECS: u64 = 120;
 /// Bound on opening an SSH channel and negotiating the SFTP subsystem on it.
 /// `russh_sftp` only times out its own protocol requests (via
@@ -159,24 +161,11 @@ pub async fn get_or_create_sftp_connection(
     let mut pool_guard = pool.write().await;
     if let Some(cached) = pool_guard.get_mut(&key) {
         cached.last_used = now;
+        cached.released = false;
         return Ok(());
     }
-
-    let expired_keys: Vec<_> = pool_guard
-        .iter()
-        .filter(|(_, cached)| now.duration_since(cached.last_used) > CONNECTION_TIMEOUT)
-        .map(|(key, _)| key.clone())
-        .collect();
-
-    for expired_key in expired_keys {
-        if let Some(cached) = pool_guard.remove(&expired_key) {
-            tokio::spawn(async move {
-                close_sftp(cached.connection).await;
-            });
-        }
-    }
-
     drop(pool_guard);
+
     let connection = connect_sftp(app, tab_id, plan, prompts).await?;
 
     let mut pool_guard = pool.write().await;
@@ -185,10 +174,74 @@ pub async fn get_or_create_sftp_connection(
         CachedSftpConnection {
             connection,
             last_used: now,
+            released: false,
         },
     );
 
     Ok(())
+}
+
+/// An operation holds a clone of the session handles while it runs
+/// (`with_sftp!`, transfers); closing the connection then would cut it off.
+fn in_use(connection: &ConnectedSftp) -> bool {
+    Arc::strong_count(&connection.sftp) > 1 || Arc::strong_count(&connection.ssh) > 1
+}
+
+fn is_reapable(released: bool, idle: Duration, in_use: bool) -> bool {
+    !in_use && (released || idle > CONNECTION_TIMEOUT)
+}
+
+/// Closes the pooled connections no operation is using that have sat idle
+/// past `CONNECTION_TIMEOUT` or whose tab has closed.
+pub async fn reap_idle_connections(pool: &SftpConnectionPool) {
+    let now = Instant::now();
+    let mut pool_guard = pool.write().await;
+    let reapable: Vec<_> = pool_guard
+        .iter()
+        .filter(|(_, cached)| {
+            is_reapable(
+                cached.released,
+                now.duration_since(cached.last_used),
+                in_use(&cached.connection),
+            )
+        })
+        .map(|(key, _)| key.clone())
+        .collect();
+
+    for key in reapable {
+        if let Some(cached) = pool_guard.remove(&key) {
+            tokio::spawn(async move {
+                close_sftp(cached.connection).await;
+            });
+        }
+    }
+}
+
+/// Closes a closed tab's pooled connections: right away when idle, otherwise
+/// on the first reap after the running operation finishes.
+pub async fn release_tab_connections(pool: &SftpConnectionPool, tab_id: &str) {
+    {
+        let mut pool_guard = pool.write().await;
+        for (key, cached) in pool_guard.iter_mut() {
+            if key.tab_id == tab_id {
+                cached.released = true;
+            }
+        }
+    }
+    reap_idle_connections(pool).await;
+}
+
+/// Reaps the pool every `REAP_INTERVAL` for the life of the app, so idle
+/// connections close even when no new SFTP connection is opened.
+pub fn spawn_idle_reaper(pool: SftpConnectionPool) {
+    tauri::async_runtime::spawn(async move {
+        let mut interval = tokio::time::interval(REAP_INTERVAL);
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        loop {
+            interval.tick().await;
+            reap_idle_connections(&pool).await;
+        }
+    });
 }
 
 /// Remove a pooled connection (used when it is known to be broken) and close
@@ -254,4 +307,23 @@ async fn open_sftp_raw_session_inner(
     };
 
     Ok((Arc::new(session), limits))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn released_connections_close_once_unused() {
+        assert!(is_reapable(true, Duration::ZERO, false));
+        assert!(!is_reapable(true, Duration::ZERO, true));
+    }
+
+    #[test]
+    fn idle_connections_close_after_the_timeout_unless_in_use() {
+        let past_timeout = CONNECTION_TIMEOUT + Duration::from_secs(1);
+        assert!(!is_reapable(false, CONNECTION_TIMEOUT, false));
+        assert!(is_reapable(false, past_timeout, false));
+        assert!(!is_reapable(false, past_timeout, true));
+    }
 }

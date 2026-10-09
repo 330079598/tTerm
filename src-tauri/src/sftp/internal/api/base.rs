@@ -1,6 +1,6 @@
 use crate::core::session::{PtyConnectionOptions, SessionPlan};
 use crate::core::state::HostPromptMap;
-use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error};
+use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error, release_tab_connections};
 use crate::sftp::internal::types::{SftpConnectionPool, SftpDirectoryEntry, SftpDirectoryListing};
 use crate::sftp::store;
 use crate::ssh::SecretStoreState;
@@ -91,6 +91,16 @@ async fn read_directory_entries(
 
     crate::sftp::internal::paths::sort_entries(&mut entries);
     Ok(entries)
+}
+
+/// Called when a tab's SFTP drawer unmounts, i.e. the tab has closed.
+#[tauri::command]
+pub async fn sftp_release_tab_connections(
+    tab_id: String,
+    pool_state: State<'_, SftpConnectionPool>,
+) -> Result<(), String> {
+    release_tab_connections(pool_state.inner(), &tab_id).await;
+    Ok(())
 }
 
 #[tauri::command]

@@ -376,6 +376,7 @@ pub fn run() {
             command_library::set_saved_command_favorite,
             command_library::record_saved_command_use,
             sftp::internal::api::base::sftp_list_directory,
+            sftp::internal::api::base::sftp_release_tab_connections,
             sftp::internal::api::base::sftp_create_directory,
             sftp::internal::api::delete::commands::sftp_delete_entry,
             sftp::internal::api::delete::commands::sftp_delete_entries,
@@ -464,6 +465,12 @@ pub fn run() {
                 }
             }
 
+            sftp::internal::connection::spawn_idle_reaper(
+                app_handle
+                    .state::<sftp::SftpConnectionPool>()
+                    .inner()
+                    .clone(),
+            );
             notification::init(&app_handle);
             create_main_window(app, cfg.as_ref())?;
             background::apply_config(&app_handle, &cfg.unwrap_or_default());

@@ -51,6 +51,9 @@ pub struct ConnectedSftp {
 pub struct CachedSftpConnection {
     pub connection: ConnectedSftp,
     pub last_used: Instant,
+    /// Set once the owning tab has closed: the connection closes as soon as
+    /// no operation is using it.
+    pub released: bool,
 }
 
 #[derive(Hash, Eq, PartialEq, Clone)]
