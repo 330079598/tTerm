@@ -1442,7 +1442,7 @@
   },
   "terminalPaste": {
     "multilineTitle": "Paste multiple lines?",
-    "multilineDescription": "The shell runs each of these {{count}} lines as soon as it is pasted.",
+    "multilineDescription": "Each line break acts as Enter, so the shell runs these {{count}} lines as soon as they are pasted.",
     "trailingLineBreakDescription": "This text ends with a line break, so the shell runs it as soon as it is pasted.",
     "pasteAnyway": "Paste"
   },
