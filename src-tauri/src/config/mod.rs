@@ -519,7 +519,7 @@ where
 }
 
 fn default_bell_style() -> String {
-    "visual".to_string()
+    "none".to_string()
 }
 
 fn default_zmodem_auto_detect_enabled() -> bool {

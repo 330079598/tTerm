@@ -300,7 +300,7 @@ const defaultConfig: AppConfig = {
   bell_notify: false,
   toast_max_visible: 3,
   notify_sound: true,
-  bell_style: "visual",
+  bell_style: "none",
 }
 
 function normalizeUpdateCheckFrequency(
@@ -577,7 +577,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     ),
     notify_sound: config.notify_sound !== false,
     bell_style:
-      config.bell_style === "sound" || config.bell_style === "none" ? config.bell_style : "visual",
+      config.bell_style === "visual" || config.bell_style === "sound" ? config.bell_style : "none",
   }
 }
 
