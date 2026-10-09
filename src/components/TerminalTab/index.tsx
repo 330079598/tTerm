@@ -14,6 +14,10 @@ import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialo
 import { SshAuthPromptDialog } from "@/components/TerminalTab/SshAuthPromptDialog"
 import { JumpHostInfoDialog } from "@/components/TerminalTab/JumpHostInfoDialog"
 import { SavedPasswordPromptBar } from "@/components/TerminalTab/SavedPasswordPromptBar"
+import {
+  releaseClearedScrollback,
+  scrollbackForSetting,
+} from "@/components/TerminalTab/scrollbackMemory"
 import { ServerMonitorBar } from "@/components/TerminalTab/ServerMonitorBar"
 import { TerminalSearchBar } from "@/components/TerminalTab/TerminalSearchBar"
 import { useTerminalSearch } from "@/components/TerminalTab/useTerminalSearch"
@@ -41,7 +45,6 @@ import type { TerminalRenderer } from "@/contexts/ConfigContext"
 import { useKeymap } from "@/contexts/KeymapContext"
 import { useCatalogFor, useTheme } from "@/contexts/ThemeContext"
 import { useStableRef } from "@/hooks/useStableRef"
-import { resolveScrollbackLines } from "@/lib/scrollback"
 import { resetTerminalState } from "@/components/TerminalTab/terminalReset"
 import { safePreloadFont, updateCanvasFontHostFont } from "@/lib/canvasFontHost"
 import { pasteNeedsConfirmation, summarizePaste } from "@/lib/pasteGuard"
@@ -442,8 +445,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     const term = termRef.current
     if (!term) return
 
-    // 0 = unlimited in settings; resolveScrollbackLines maps it for xterm.
-    term.options.scrollback = resolveScrollbackLines(config.scrollback_lines)
+    term.options.scrollback = scrollbackForSetting(term, config.scrollback_lines)
   }, [config.scrollback_lines, sessionNonce])
 
   useEffect(() => {
@@ -791,10 +793,11 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     if (!term) return
 
     term.clear()
+    releaseClearedScrollback(term, configScrollbackLinesRef.current)
     term.scrollToBottom()
     term.clearSelection()
     term.focus()
-  }, [])
+  }, [configScrollbackLinesRef])
 
   const resetTerminal = useCallback(async () => {
     const term = termRef.current

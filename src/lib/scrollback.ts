@@ -49,3 +49,37 @@ export function resolveScrollbackLines(value: number | undefined): number {
 export function isUnlimitedScrollback(value: number | undefined): boolean {
   return normalizeScrollbackConfig(value) === UNLIMITED_SCROLLBACK_SENTINEL
 }
+
+/**
+ * Room unlimited scrollback starts with. xterm allocates its line ring at the
+ * full scrollback size, so starting at {@link UNLIMITED_SCROLLBACK_BUFFER}
+ * would cost ~80 MB per terminal before any output, and again on every resize
+ * that changes the row count.
+ */
+export const UNLIMITED_SCROLLBACK_INITIAL = 10_000
+
+/** Scrollback to hand xterm for a setting; unlimited starts small and grows. */
+export function startingScrollbackLines(value: number | undefined): number {
+  return isUnlimitedScrollback(value) ? UNLIMITED_SCROLLBACK_INITIAL : resolveScrollbackLines(value)
+}
+
+/** Line feeds xterm executes for `text` (LF, VT and FF all advance a line). */
+export function countLineFeeds(text: string): number {
+  let count = 0
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i)
+    if (code === 0x0a || code === 0x0b || code === 0x0c) count++
+  }
+  return count
+}
+
+/**
+ * Capacity unlimited scrollback grows to so `lines` fit with as many again to
+ * spare, or `null` while the current capacity still leaves that room.
+ */
+export function grownScrollbackCapacity(capacity: number, lines: number): number | null {
+  if (lines * 2 <= capacity) return null
+  let next = Math.max(capacity, UNLIMITED_SCROLLBACK_INITIAL)
+  while (next < lines * 2) next *= 2
+  return Math.min(next, UNLIMITED_SCROLLBACK_BUFFER)
+}

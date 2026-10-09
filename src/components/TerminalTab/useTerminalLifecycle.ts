@@ -17,6 +17,7 @@ import { installImeCursorGuard } from "@/components/TerminalTab/imeCursorGuard"
 import { installImeEarlyInputFix } from "@/components/TerminalTab/imeEarlyInput"
 import { installImeFocusRepair } from "@/components/TerminalTab/imeFocusRepair"
 import { OutputAcker } from "@/components/TerminalTab/outputAck"
+import { createScrollbackMemory } from "@/components/TerminalTab/scrollbackMemory"
 import { getConnectionDisplay } from "@/components/TerminalTab/terminalTabUtils"
 import type {
   ConnectionState,
@@ -28,7 +29,7 @@ import type {
   TerminalTabProps,
 } from "@/components/TerminalTab/types"
 import { notifySavedPasswordNotSent } from "@/components/TerminalTab/savedPasswordNotice"
-import { resolveScrollbackLines } from "@/lib/scrollback"
+import { startingScrollbackLines } from "@/lib/scrollback"
 import { isTransparentTerminalTheme } from "@/lib/terminalPalette"
 import type { TerminalRenderer } from "@/contexts/ConfigContext"
 import { safePreloadFont, updateCanvasFontHostFont } from "@/lib/canvasFontHost"
@@ -301,7 +302,7 @@ export function useTerminalLifecycle({
       cursorBlink: true,
       cursorStyle: cursorStyleRef.current,
       macOptionIsMeta: configMacOptionIsMetaRef?.current ?? false,
-      scrollback: resolveScrollbackLines(scrollbackLinesRef.current),
+      scrollback: startingScrollbackLines(scrollbackLinesRef.current),
       fontSize: fontSizeRef.current,
       fontFamily: fontFamilyRef.current,
       fontWeight: "normal",
@@ -345,6 +346,7 @@ export function useTerminalLifecycle({
     term.open(container)
     const imeCursorGuard = installImeCursorGuard(term)
     const imeEarlyInputFix = installImeEarlyInputFix(term)
+    const scrollbackMemory = createScrollbackMemory(term, () => scrollbackLinesRef.current)
     const imeFocusRepair = IS_WINDOWS
       ? installImeFocusRepair(term, () => invoke("repair_ime_focus"))
       : null
@@ -718,7 +720,9 @@ export function useTerminalLifecycle({
         setConnectionStateIfChanged("connected")
       }
 
+      const reservedLines = scrollbackMemory.reserve(text)
       term.write(text, () => {
+        scrollbackMemory.settle(reservedLines)
         outputAcker.parsed(channelBytes)
         checkPasswordPrompt()
         loginScriptRunner?.noteOutput()
@@ -919,6 +923,7 @@ export function useTerminalLifecycle({
       imeCursorGuard.dispose()
       imeEarlyInputFix.dispose()
       imeFocusRepair?.dispose()
+      scrollbackMemory.dispose()
       term.dispose()
       termRef.current = null
       fitAddonRef.current = null
