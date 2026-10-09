@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core"
 import { Bell, BellRing, CircleAlert, MessageSquareText, Send, Timer, Volume2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { AgentIntegrationSection } from "@/components/SettingsDialog/AgentIntegrationSection"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -197,6 +198,8 @@ export const NotificationSettingsTab: React.FC = () => {
             }
           />
         </SettingsSection>
+
+        <AgentIntegrationSection />
 
         <SettingsSection icon={<BellRing size={16} />} title={t("notifications.bellSection")}>
           <SettingsRow

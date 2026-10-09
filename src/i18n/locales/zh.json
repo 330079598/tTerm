@@ -2087,7 +2087,7 @@
     "commandMinSecs": "最短耗时（秒）",
     "commandMinSecsRange": "1-3600 秒",
     "terminalRequests": "程序发出的通知",
-    "terminalRequestsDesc": "程序通过 OSC 9、OSC 777 或 OSC 99 发出的通知，例如 Claude Code 等待输入时。",
+    "terminalRequestsDesc": "程序通过 OSC 9、OSC 777 或 OSC 99 发出的通知。",
     "bellSection": "响铃",
     "bellStyle": "响铃方式",
     "bellStyleDesc": "程序响铃时终端的反应。",
@@ -2108,6 +2108,53 @@
       "activity": "有新输出",
       "bell": "响铃",
       "notification": "通知"
+    },
+    "agent": {
+      "waiting": "{{agent}} 在等你确认",
+      "done": "{{agent}} 已完成",
+      "error": "{{agent}} 因错误中断"
+    },
+    "agentActivity": {
+      "processing": "{{agent}} 运行中",
+      "waiting": "{{agent}} 在等你确认"
+    },
+    "agents": {
+      "title": "AI 编程助手",
+      "description": "让 AI 编程助手把自己的状态告诉 tTerm：标签上显示运行中和等待确认，需要你或完成时发出通知。在 tmux 中使用需要 set -g allow-passthrough on。",
+      "states": {
+        "installed": "已安装",
+        "outdated": "需要更新"
+      },
+      "install": "安装",
+      "update": "更新",
+      "uninstall": "移除",
+      "notInstalledDesc": "向 {{path}} 添加 hook，让 {{agent}} 报告运行中、等待确认和完成。",
+      "notInstalledPluginDesc": "在 {{path}} 安装 tTerm 的插件，让 {{agent}} 报告运行中、等待确认和完成。",
+      "notDetectedDesc": "这台电脑上还没有 {{agent}} 的配置目录。仍可安装，之后运行 {{agent}} 即生效。",
+      "installedDesc": "{{agent}} 会把状态报告给 tTerm。已在运行的 {{agent}} 需要重启才会生效。",
+      "outdatedDesc": "{{path}} 里 tTerm 写入的内容与当前版本不同，更新后生效。",
+      "readFailed": "无法读取配置：{{error}}",
+      "installFailed": "安装失败",
+      "uninstallFailed": "移除失败",
+      "configSources": {
+        "setting": "使用手动指定的配置目录。",
+        "environment": "配置目录来自 CLAUDE_CONFIG_DIR。",
+        "default": "使用默认配置目录。"
+      },
+      "chooseConfigDir": "更改目录…",
+      "resetConfigDir": "恢复默认",
+      "showChanges": "查看写入内容",
+      "hideChanges": "收起",
+      "changesDesc": "tTerm 会把下面的 hook 合并进 {{path}}，其他设置保持不变，原文件备份为 .tterm-bak。SSH 主机上可以手动把它合并进远端的同名文件。",
+      "changesPluginDesc": "tTerm 会写入下面这个文件，它只属于 tTerm，移除时删除。SSH 主机上可以手动把它放到远端的同一位置。",
+      "notifyWaiting": "等待确认时通知",
+      "notifyWaitingDesc": "助手请求权限或需要你输入并等了几秒时通知你。",
+      "notifyDone": "完成时通知",
+      "notifyDoneDesc": "助手完成一轮回答或因错误中断时通知你。",
+      "notes": {
+        "codex": "Codex 只运行审核过的 hook：下次启动 Codex 时按提示信任它们（也可以运行 /hooks），更新后需要重新信任。",
+        "openCode": "需要 OpenCode 2。"
+      }
     }
   }
 }

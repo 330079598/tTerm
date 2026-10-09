@@ -68,6 +68,8 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "notify_command_finished",
     "notify_command_min_secs",
     "notify_terminal_requests",
+    "notify_agent_waiting",
+    "notify_agent_done",
     "bell_notify",
     "notify_sound",
     "bell_style",

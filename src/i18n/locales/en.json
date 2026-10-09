@@ -2103,7 +2103,7 @@
     "commandMinSecs": "Minimum duration (seconds)",
     "commandMinSecsRange": "1-3600s",
     "terminalRequests": "Notifications programs send",
-    "terminalRequestsDesc": "Programs that send OSC 9, OSC 777 or OSC 99 notifications, such as Claude Code waiting for input.",
+    "terminalRequestsDesc": "Notifications programs send with OSC 9, OSC 777 or OSC 99.",
     "bellSection": "Bell",
     "bellStyle": "Bell",
     "bellStyleDesc": "What the terminal does when a program rings the bell.",
@@ -2124,6 +2124,53 @@
       "activity": "New output",
       "bell": "Bell",
       "notification": "Notification"
+    },
+    "agent": {
+      "waiting": "{{agent}} is waiting for you",
+      "done": "{{agent}} finished",
+      "error": "{{agent}} stopped on an error"
+    },
+    "agentActivity": {
+      "processing": "{{agent}} is working",
+      "waiting": "{{agent}} is waiting for you"
+    },
+    "agents": {
+      "title": "AI coding agents",
+      "description": "Let AI coding agents tell tTerm what they are doing: tabs show when one is working or waiting for you, and you are notified when it needs you or finishes. Inside tmux this needs set -g allow-passthrough on.",
+      "states": {
+        "installed": "Installed",
+        "outdated": "Needs update"
+      },
+      "install": "Install",
+      "update": "Update",
+      "uninstall": "Remove",
+      "notInstalledDesc": "Adds hooks to {{path}} so {{agent}} reports when it works, waits for you and finishes.",
+      "notInstalledPluginDesc": "Installs tTerm's plugin at {{path}} so {{agent}} reports when it works, waits for you and finishes.",
+      "notDetectedDesc": "{{agent}} has no config directory on this computer yet. You can still install; it takes effect once you run {{agent}}.",
+      "installedDesc": "{{agent}} reports its state to tTerm. Restart running {{agent}} sessions for this to take effect.",
+      "outdatedDesc": "What tTerm wrote to {{path}} differs from this version; update it to take effect.",
+      "readFailed": "Cannot read the settings: {{error}}",
+      "installFailed": "Failed to install",
+      "uninstallFailed": "Failed to remove",
+      "configSources": {
+        "setting": "Using the config directory you chose.",
+        "environment": "Config directory from CLAUDE_CONFIG_DIR.",
+        "default": "Using the default config directory."
+      },
+      "chooseConfigDir": "Change directory…",
+      "resetConfigDir": "Use default",
+      "showChanges": "Show what is added",
+      "hideChanges": "Hide",
+      "changesDesc": "tTerm merges these hooks into {{path}}, leaves your other settings alone and keeps the previous file as .tterm-bak. On an SSH host you can merge them into the same file yourself.",
+      "changesPluginDesc": "tTerm writes this file, which belongs to tTerm alone and is deleted on removal. On an SSH host you can put it in the same place yourself.",
+      "notifyWaiting": "Notify when waiting",
+      "notifyWaitingDesc": "When an agent asks for permission or input and has waited a few seconds.",
+      "notifyDone": "Notify when finished",
+      "notifyDoneDesc": "When an agent finishes its turn or stops on an error.",
+      "notes": {
+        "codex": "Codex runs only hooks you have reviewed: trust them when Codex asks at its next start (or run /hooks), and again after an update.",
+        "openCode": "Requires OpenCode 2."
+      }
     }
   }
 }

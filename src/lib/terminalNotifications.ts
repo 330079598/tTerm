@@ -1,5 +1,8 @@
-// Notifications programs in the terminal ask for, and the end of long
-// commands, which tTerm reports when the user is not looking at the tab.
+// Notifications programs in the terminal ask for, the end of long commands
+// and what AI agents report, which tTerm announces when the user is not
+// looking at the tab.
+
+import type { AgentAnnouncement } from "@/lib/agentStatus"
 
 /** OSC codes that carry a notification: iTerm2's 9, urxvt's 777, kitty's 99. */
 export const NOTIFICATION_OSC_CODES = [9, 777, 99] as const
@@ -15,6 +18,7 @@ export interface TerminalNotificationRequest {
 export type TerminalAttentionEvent =
   | { kind: "command"; command?: string; exitCode?: number; durationMs: number }
   | ({ kind: "request" } & TerminalNotificationRequest)
+  | ({ kind: "agent" } & AgentAnnouncement)
   | { kind: "bell" }
 
 const MAX_TITLE_LENGTH = 256
@@ -166,6 +170,8 @@ export interface NotificationSettings {
   notify_command_finished: boolean
   notify_command_min_secs: number
   notify_terminal_requests: boolean
+  notify_agent_waiting: boolean
+  notify_agent_done: boolean
   bell_notify: boolean
 }
 
@@ -204,6 +210,11 @@ export function decideAttention(
     announce = settings.notifications_enabled
   } else if (event.kind === "request") {
     if (!settings.notify_terminal_requests) return NOTHING
+    announce = settings.notifications_enabled
+  } else if (event.kind === "agent") {
+    const wanted =
+      event.state === "waiting" ? settings.notify_agent_waiting : settings.notify_agent_done
+    if (!wanted) return NOTHING
     announce = settings.notifications_enabled
   } else {
     // A bell marks its tab even when it announces nothing.

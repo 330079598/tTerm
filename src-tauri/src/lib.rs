@@ -1,3 +1,4 @@
+mod agent_integration;
 mod app_state;
 mod background;
 mod backup;
@@ -412,6 +413,9 @@ pub fn run() {
             ime_focus::repair_ime_focus,
             notification::show_notification,
             notification::notification_permission,
+            agent_integration::agent_integration_status,
+            agent_integration::install_agent_integration,
+            agent_integration::uninstall_agent_integration,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();

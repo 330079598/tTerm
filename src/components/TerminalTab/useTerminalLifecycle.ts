@@ -46,6 +46,8 @@ import {
 import { matchPasswordPrompt, readCursorLine, type PasswordPromptMatch } from "@/lib/sudoPrompt"
 import { LoginScriptRunner, parseLoginScript } from "@/lib/loginScript"
 import { CWD_REPORT_OSC_CODES, parseCwdReport } from "@/lib/terminalCwd"
+import { AgentTracker, parseAgentReport } from "@/lib/agentStatus"
+import { setTabAgentStatus } from "@/lib/tabAttention"
 import {
   CommandTimer,
   KittyNotificationAssembler,
@@ -103,7 +105,7 @@ type UseTerminalLifecycleOptions = {
   onSessionUnavailableRef: React.RefObject<TerminalTabProps["onSessionUnavailable"]>
   onSensitivePromptRef: React.RefObject<TerminalTabProps["onSensitivePrompt"]>
   onConnectionProgressRef: React.RefObject<TerminalTabProps["onConnectionProgress"]>
-  /** A finished command, a notification request or a bell. */
+  /** A finished command, a notification request, an agent's report or a bell. */
   onAttentionRef: React.RefObject<(event: TerminalAttentionEvent) => void>
   /** Output arrived while the tab was out of sight. */
   onBackgroundOutputRef: React.RefObject<() => void>
@@ -591,11 +593,20 @@ export function useTerminalLifecycle({
       atPasswordPrompt: () => currentPromptKey !== null,
     }
 
+    // An AI agent reporting through tTerm's hooks; its marks on the tab go
+    // with this session.
+    const agentTracker = new AgentTracker({
+      onStatus: (status) => setTabAgentStatus(tabId, status),
+      onAnnounce: (announcement) => onAttentionRef.current?.({ kind: "agent", ...announcement }),
+    })
+
     const commandTimer = new CommandTimer()
     const timeCommand = (data: string) => {
       const mark = parseCommandMark(data)
-      if (mark?.kind === "prompt") commandTimer.prompt()
-      else if (mark?.kind === "output") commandTimer.start(Date.now())
+      if (mark?.kind === "prompt") {
+        commandTimer.prompt()
+        agentTracker.reset()
+      } else if (mark?.kind === "output") commandTimer.start(Date.now())
       else if (mark?.kind === "done") {
         const finished = commandTimer.finish(mark.exitCode, Date.now())
         if (finished) onAttentionRef.current?.({ kind: "command", ...finished })
@@ -639,6 +650,13 @@ export function useTerminalLifecycle({
     const kittyNotifications = new KittyNotificationAssembler()
     const notificationDisposables = NOTIFICATION_OSC_CODES.map((osc) =>
       term.parser.registerOscHandler(osc, (data) => {
+        const report = osc === 777 ? parseAgentReport(data) : null
+        if (report) {
+          agentTracker.report(report)
+          return false
+        }
+        // An agent's own notifications repeat what its reports say.
+        if (agentTracker.speaksForAgent) return false
         const request =
           osc === 9
             ? parseOsc9Notification(data)
@@ -687,6 +705,8 @@ export function useTerminalLifecycle({
         onReconnectRequestRef.current?.()
         return
       }
+
+      if (data === "\x1b" || data.includes("\x03")) agentTracker.interrupt()
 
       // Typing at the prompt means the user answers it; replies the terminal
       // itself sends (focus, cursor reports) start with ESC and do not count.
@@ -791,6 +811,7 @@ export function useTerminalLifecycle({
       }),
       listen(`pty-exit-${tabId}`, (event) => {
         stopLoginScript()
+        agentTracker.reset()
         onSessionUnavailableRef.current?.(tabId, sessionNonce, true)
         const reason = event.payload as string | null | undefined
         if (connectionRef.current?.type === "ssh") {
@@ -991,6 +1012,7 @@ export function useTerminalLifecycle({
       for (const disposable of shellIntegrationDisposables) disposable.dispose()
       for (const disposable of notificationDisposables) disposable.dispose()
       bellDisposable.dispose()
+      agentTracker.reset()
       commandMarks.dispose()
       commandMarksRef.current = null
       for (const disposable of cwdReportDisposables) disposable.dispose()

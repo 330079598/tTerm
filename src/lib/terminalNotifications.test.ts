@@ -16,6 +16,8 @@ const settings: NotificationSettings = {
   notify_command_finished: true,
   notify_command_min_secs: 10,
   notify_terminal_requests: true,
+  notify_agent_waiting: true,
+  notify_agent_done: true,
   bell_notify: false,
 }
 
@@ -141,6 +143,25 @@ describe("decideAttention", () => {
     expect(decideAttention(request, settings, { windowFocused: false, tabVisible: false })).toEqual(
       { mark: "notification", system: true, toast: false }
     )
+  })
+
+  it("announces agents by their own switches", () => {
+    const hidden = { windowFocused: false, tabVisible: false }
+    const waiting = { kind: "agent", agent: "claude", state: "waiting" } as const
+    const done = { kind: "agent", agent: "claude", state: "done" } as const
+    const error = { kind: "agent", agent: "claude", state: "error" } as const
+    expect(decideAttention(waiting, settings, hidden)).toEqual({
+      mark: "notification",
+      system: true,
+      toast: false,
+    })
+    const noWaiting = { ...settings, notify_agent_waiting: false }
+    expect(decideAttention(waiting, noWaiting, hidden).mark).toBeNull()
+    expect(decideAttention(done, noWaiting, hidden).system).toBe(true)
+    const noDone = { ...settings, notify_agent_done: false }
+    expect(decideAttention(done, noDone, hidden).mark).toBeNull()
+    expect(decideAttention(error, noDone, hidden).mark).toBeNull()
+    expect(decideAttention(waiting, noDone, hidden).system).toBe(true)
   })
 
   it("toasts and marks a hidden tab in a focused window", () => {

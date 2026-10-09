@@ -207,6 +207,17 @@ pub struct AppConfig {
     /// Announce notifications programs send (OSC 9, OSC 777, OSC 99).
     #[serde(default = "default_true")]
     pub notify_terminal_requests: bool,
+    /// Announce an AI agent waiting for the user (tTerm's agent hooks).
+    #[serde(default = "default_true")]
+    pub notify_agent_waiting: bool,
+    /// Announce an AI agent finishing its turn, or stopping on an error.
+    #[serde(default = "default_true")]
+    pub notify_agent_done: bool,
+    /// AI agents' config directories chosen by hand, by agent (`claudeCode`,
+    /// `codex`, `openCode`, `pi`); others are found from the agent's variable
+    /// or its default.
+    #[serde(default)]
+    pub agent_config_dirs: std::collections::BTreeMap<String, String>,
     /// Announce a bell in a terminal the user is not looking at.
     #[serde(default)]
     pub bell_notify: bool,
@@ -584,6 +595,9 @@ impl Default for AppConfig {
             notify_command_finished: true,
             notify_command_min_secs: default_notify_command_min_secs(),
             notify_terminal_requests: true,
+            notify_agent_waiting: true,
+            notify_agent_done: true,
+            agent_config_dirs: Default::default(),
             bell_notify: false,
             notify_sound: true,
             bell_style: default_bell_style(),

@@ -203,6 +203,12 @@ export interface AppConfig {
   notify_command_min_secs: number
   /** Announce notifications programs ask for (OSC 9, 777, 99). */
   notify_terminal_requests: boolean
+  /** Announce an AI agent waiting for the user (tTerm's agent hooks). */
+  notify_agent_waiting: boolean
+  /** Announce an AI agent finishing its turn or stopping on an error. */
+  notify_agent_done: boolean
+  /** AI agents' config directories chosen by hand, by agent; others are found. */
+  agent_config_dirs: Record<string, string>
   /** Announce a bell in the background with a system notification. */
   bell_notify: boolean
   /** System notifications play the system sound. */
@@ -286,6 +292,9 @@ const defaultConfig: AppConfig = {
   notify_command_finished: true,
   notify_command_min_secs: 10,
   notify_terminal_requests: true,
+  notify_agent_waiting: true,
+  notify_agent_done: true,
+  agent_config_dirs: {},
   bell_notify: false,
   notify_sound: true,
   bell_style: "visual",
@@ -320,6 +329,20 @@ function normalizeMonitorRefreshInterval(
   }
 
   return Math.min(Math.max(Math.round(value), 1), 60)
+}
+
+function normalizeAgentConfigDirs(
+  value: Partial<AppConfig>["agent_config_dirs"]
+): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string" && entry[1] !== ""
+    )
+  )
 }
 
 function normalizeMonitorVisibleMetrics(
@@ -539,6 +562,9 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
       10
     ),
     notify_terminal_requests: config.notify_terminal_requests !== false,
+    notify_agent_waiting: config.notify_agent_waiting !== false,
+    notify_agent_done: config.notify_agent_done !== false,
+    agent_config_dirs: normalizeAgentConfigDirs(config.agent_config_dirs),
     bell_notify: config.bell_notify === true,
     notify_sound: config.notify_sound !== false,
     bell_style:

@@ -5358,6 +5358,7 @@ dependencies = [
  "crc32fast",
  "encoding_rs",
  "flate2",
+ "indexmap 2.14.2",
  "keyring",
  "libc",
  "num-bigint 0.5.1",

@@ -8,6 +8,7 @@ import type { TFunction } from "i18next"
 import { ToastAction } from "@/components/ui/toast"
 import { useConfig } from "@/contexts/ConfigContext"
 import { toast } from "@/hooks/use-toast"
+import { agentDisplayName } from "@/lib/agentStatus"
 import { markTabAttention } from "@/lib/tabAttention"
 import {
   decideAttention,
@@ -48,6 +49,10 @@ function describeEvent(
   }
   if (event.kind === "bell") {
     return { title: tabTitle, body: t("notifications.bell") }
+  }
+  if (event.kind === "agent") {
+    const agent = agentDisplayName(event.agent)
+    return { title: tabTitle, body: t(`notifications.agent.${event.state}`, { agent }) }
   }
 
   const command =
@@ -156,7 +161,8 @@ export function useTerminalNotifications({
         title: text.subtitle ? `${text.title} · ${text.subtitle}` : text.title,
         description: text.body,
         variant:
-          event.kind === "command" && event.exitCode !== undefined && event.exitCode !== 0
+          (event.kind === "command" && event.exitCode !== undefined && event.exitCode !== 0) ||
+          (event.kind === "agent" && event.state === "error")
             ? "destructive"
             : "default",
         action: (

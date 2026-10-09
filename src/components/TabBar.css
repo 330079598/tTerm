@@ -547,3 +547,44 @@
   background: hsl(var(--primary));
   box-shadow: 0 0 0 2px hsl(var(--primary) / 0.25);
 }
+
+/* An AI agent in the tab (TabAttentionDot): at work, or waiting for the user. */
+.tab-agent {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 50%;
+}
+
+.tab-agent[data-activity="processing"] {
+  border: 1.5px solid hsl(var(--primary) / 0.25);
+  border-top-color: hsl(var(--primary));
+  animation: tab-agent-spin 0.9s linear infinite;
+}
+
+.tab-agent[data-activity="waiting"] {
+  background: hsl(var(--warning));
+  animation: tab-agent-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes tab-agent-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes tab-agent-pulse {
+  50% {
+    box-shadow: 0 0 0 3px hsl(var(--warning) / 0.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-agent {
+    animation: none;
+  }
+}

@@ -1324,6 +1324,12 @@ fn keep_device_settings(imported: &mut AppConfig, current: AppConfig) {
     if !is_default_or_existing_directory(&imported.zmodem_download_directory) {
         imported.zmodem_download_directory = current.zmodem_download_directory;
     }
+    imported
+        .agent_config_dirs
+        .retain(|_, dir| is_default_or_existing_directory(dir));
+    for (agent, dir) in current.agent_config_dirs {
+        imported.agent_config_dirs.entry(agent).or_insert(dir);
+    }
     // A bare command name is looked up on the PATH and may well exist here.
     let shell = Path::new(imported.terminal_shell_custom_path.trim());
     if shell.is_absolute() && !shell.is_file() {
