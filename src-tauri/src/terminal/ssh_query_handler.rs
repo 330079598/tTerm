@@ -172,13 +172,30 @@ where
     Ok(output)
 }
 
+/// Longest tail held back waiting for the rest of a query. The queries
+/// answered here are a few dozen bytes at most; anything still unterminated
+/// past this is ordinary output that xterm.js parses across chunks itself.
+/// Without the cap, an unterminated `ESC ]` (truncated output, a binary
+/// `cat`) would hold back everything after it until a stray BEL showed up.
+const MAX_DEFERRED_QUERY_BYTES: usize = 64;
+
+/// OSC sequences answered here; every other OSC (titles, hyperlinks, OSC 52
+/// clipboard, inline images) passes straight through to the terminal.
+const OSC_COLOR_QUERIES: [&[u8]; 2] = [b"\x1b]10;?", b"\x1b]11;?"];
+
 fn is_incomplete_query(rest: &[u8]) -> bool {
+    if rest.len() >= MAX_DEFERRED_QUERY_BYTES {
+        return false;
+    }
+
     if rest.starts_with(b"\x1bP+q") {
         return find_dcs_end(rest).is_none();
     }
 
     if rest.starts_with(b"\x1b]") {
-        return find_osc_end(rest).is_none();
+        return OSC_COLOR_QUERIES.iter().any(|query| {
+            query.starts_with(rest) || (rest.starts_with(query) && find_osc_end(rest).is_none())
+        });
     }
 
     if rest.starts_with(b"\x1b[>") {
@@ -313,5 +330,55 @@ mod tests {
         assert!(replies.is_empty());
         assert!(pending.is_empty());
         assert_eq!(second, b"\x1b[31m".to_vec());
+    }
+
+    #[tokio::test]
+    async fn color_query_split_across_packets_is_answered() {
+        let (output, replies, pending) = process_in_chunks(b"a\x1b]11;?\x1b\\b", 3).await;
+        assert_eq!(replies, b"\x1b]11;rgb:1111/1111/1111\x1b\\".to_vec());
+        assert_eq!(output, b"ab".to_vec());
+        assert!(pending.is_empty());
+    }
+
+    #[tokio::test]
+    async fn unterminated_osc_does_not_hold_back_later_output() {
+        // A truncated title sequence followed by ordinary output, none of it
+        // containing BEL or ST: the output must reach the terminal now.
+        let data = b"\x1b]0;half a title\r\nls output\r\n$ ";
+        let (output, replies, pending) = process_in_chunks(data, 8).await;
+        assert!(replies.is_empty());
+        assert!(pending.is_empty());
+        assert_eq!(output, data.to_vec());
+    }
+
+    #[tokio::test]
+    async fn large_osc_streams_through_without_buffering() {
+        // An inline image (OSC 1337) spread over many packets.
+        let mut data = b"\x1b]1337;File=inline=1:".to_vec();
+        data.extend(std::iter::repeat_n(b'A', 256 * 1024));
+        data.push(0x07);
+        let mut pending = Vec::new();
+        let mut replies = Vec::new();
+        let mut output = Vec::new();
+        for chunk in data.chunks(4096) {
+            output.extend(
+                process_ssh_output_for_ui(chunk, &mut pending, &mut replies)
+                    .await
+                    .expect("process chunk"),
+            );
+            assert!(pending.len() < MAX_DEFERRED_QUERY_BYTES);
+        }
+        assert!(replies.is_empty());
+        assert_eq!(output, data);
+    }
+
+    #[tokio::test]
+    async fn unterminated_dcs_query_is_released_past_the_cap() {
+        let mut data = b"\x1bP+q".to_vec();
+        data.extend(std::iter::repeat_n(b'4', MAX_DEFERRED_QUERY_BYTES));
+        let (output, replies, pending) = process_in_chunks(&data, 16).await;
+        assert!(replies.is_empty());
+        assert!(pending.is_empty());
+        assert_eq!(output, data);
     }
 }
