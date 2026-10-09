@@ -1,0 +1,4 @@
+# `cargo run` (and so `tauri dev`) starts tTerm from inside an app bundle on
+# macOS, where notifications work; see the script.
+[target.'cfg(target_os = "macos")']
+runner = "../scripts/macos-dev-bundle.sh"
