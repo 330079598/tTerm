@@ -1,14 +1,21 @@
+import { colorToHex } from "@/components/ThemeEditor/colorUtils"
 import type { TerminalPalette, ThemeColors } from "@/types/theme"
 
-const TRANSPARENT_BACKGROUND = "rgba(0, 0, 0, 0)"
-
-/** With the window blur on, the page tints the blur and the terminal lets it show. */
+/**
+ * With the window blur on, the page tints the blur and the terminal lets it
+ * show. The background keeps the theme's color at zero alpha: xterm blends
+ * colors with the background's RGB and ignores its alpha, so the WebGL
+ * renderer's selection, which it paints opaque, would otherwise come out as
+ * the selection color darkened over black.
+ */
 export function withWindowBlur<T extends { background?: string }>(palette: T, blur: boolean): T {
-  return blur ? { ...palette, background: TRANSPARENT_BACKGROUND } : { ...palette }
+  if (!blur) return { ...palette }
+  const hex = (palette.background && colorToHex(palette.background)) || "#000000"
+  return { ...palette, background: `${hex}00` }
 }
 
 export function isTransparentTerminalTheme(palette: { background?: string }): boolean {
-  return palette.background === TRANSPARENT_BACKGROUND
+  return /^#[\da-f]{6}00$/i.test(palette.background ?? "")
 }
 
 function clamp(value: number, min: number, max: number): number {
