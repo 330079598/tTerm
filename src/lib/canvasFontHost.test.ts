@@ -91,7 +91,7 @@ describe("canvasFontHost", () => {
     // Simulate an xterm-created canvas with pinned attribute
     const xtermCanvas = document.createElement("canvas")
     xtermCanvas.setAttribute("data-pinned-font-host", "true")
-    xtermCanvas.getContext("2d")
+    xtermCanvas.getContext("2d", { alpha: true, willReadFrequently: true })
 
     // Now flood with unpinned canvases up to and past MAX_HOST_CANVASES
     for (let i = 0; i < MAX_HOST_CANVASES + 5; i++) {
@@ -106,7 +106,7 @@ describe("canvasFontHost", () => {
     expect(xtermCanvas.isConnected).toBe(true)
   })
 
-  it("refreshes LRU position when getContext('2d') is invoked", () => {
+  it("refreshes LRU position when a glyph rasterizing 2d context is requested", () => {
     initCanvasFontHost()
     const host = document.getElementById(HOST_ELEMENT_ID)!
 
@@ -117,11 +117,26 @@ describe("canvasFontHost", () => {
     expect(host.firstElementChild).toBe(canvasA)
     expect(host.lastElementChild).toBe(canvasB)
 
-    // Touch canvasA by requesting 2d context
-    canvasA.getContext("2d")
+    // Touch canvasA the way xterm opens its atlas scratch canvas
+    canvasA.getContext("2d", { alpha: true, willReadFrequently: true })
 
     // canvasA is now moved to the end of host children
     expect(host.lastElementChild).toBe(canvasA)
+  })
+
+  it("releases 2d canvases that never rasterize glyphs, such as atlas pages", () => {
+    initCanvasFontHost()
+    const host = document.getElementById(HOST_ELEMENT_ID)!
+
+    const page = document.createElement("canvas")
+    expect(page.parentElement).toBe(host)
+
+    page.getContext("2d", { alpha: true })
+    expect(page.parentElement).toBeNull()
+
+    const plain = document.createElement("canvas")
+    plain.getContext("2d")
+    expect(plain.parentElement).toBeNull()
   })
 
   it("detaches canvas from host when requesting a WebGL context to prevent throttling", () => {

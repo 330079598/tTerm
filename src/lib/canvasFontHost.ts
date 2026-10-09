@@ -21,9 +21,12 @@
  *    Excess/orphaned scratch canvases are evicted and released for garbage collection.
  * 2. Pinned xterm canvases: Canvases created by xterm TextureAtlas/CharAtlas are pinned
  *    and immune to normal LRU eviction so that long-lived terminal sessions never lose font protection.
- * 3. Activity refreshing: Calling getContext("2d") marks the canvas and refreshes its LRU position.
- * 4. WebGL Context decoupling: Requesting a "webgl" / "webgl2" / "bitmaprenderer" context
+ * 3. Activity refreshing: Calling getContext("2d", { willReadFrequently: true }) — the glyph
+ *    rasterizing scratch canvas — marks the canvas and refreshes its LRU position.
+ * 4. Context decoupling: Requesting a "webgl" / "webgl2" / "bitmaprenderer" context
  *    immediately detaches the canvas from the host to prevent WKWebView visibility throttling.
+ *    So does any other "2d" context: atlas pages never draw text, and xterm replaces them as its
+ *    atlas grows, so pinning them in the host would keep every discarded page alive.
  * 5. Automatic reparenting: When xterm or any other component calls `parent.appendChild(canvas)`,
  *    the browser automatically moves it to the target container.
  */
@@ -39,6 +42,18 @@ export const MAX_HOST_CANVASES = 512
  */
 const XTERM_INTERNAL_STACK_PATTERN =
   /(TextureAtlas|CharAtlas|@xterm[/_-]|node_modules[\\/]xterm[/_-])/
+
+/**
+ * xterm draws glyphs with fillText only on its atlas scratch canvas, which it
+ * reads back with getImageData and therefore opens with willReadFrequently.
+ */
+function rasterizesGlyphs(options: unknown): boolean {
+  return (
+    typeof options === "object" &&
+    options !== null &&
+    (options as CanvasRenderingContext2DSettings).willReadFrequently === true
+  )
+}
 
 let originalCreateElement: typeof document.createElement | null = null
 let originalGetContext: typeof HTMLCanvasElement.prototype.getContext | null = null
@@ -200,13 +215,22 @@ export function initCanvasFontHost(): void {
           } catch {
             // Ignore if already detached
           }
-        } else if (contextId === "2d") {
+        } else if (contextId === "2d" && rasterizesGlyphs(args[0])) {
           try {
             this.setAttribute("data-has-2d-context", "true")
             // Refresh LRU position by re-appending to the end of host children
             hostElement.appendChild(this)
           } catch {
             // Ignore attachment errors
+          }
+        } else if (contextId === "2d") {
+          // Atlas pages only receive glyphs already rasterized elsewhere, and
+          // xterm drops them whenever it grows or merges its atlas. Kept in
+          // the host they could never be collected.
+          try {
+            hostElement.removeChild(this)
+          } catch {
+            // Ignore if already detached
           }
         }
       }
