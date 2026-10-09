@@ -268,7 +268,7 @@ function DialogContentComponent(
           role="dialog"
           tabIndex={-1}
           className={cn(
-            "bg-background pointer-events-auto fixed top-[50%] left-[50%] z-[200] grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg outline-none sm:max-w-lg",
+            "bg-background pointer-events-auto fixed top-[50%] left-[50%] z-[200] grid w-full grid-cols-1 max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg outline-none sm:max-w-lg",
             className
           )}
           {...props}
