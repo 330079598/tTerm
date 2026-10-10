@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { keepFocusOnMouseDown, refocusTerminalIfFocusLost } from "@/lib/terminalFocus"
 import { cn } from "@/lib/utils"
 
 interface TransferManagerProps {
@@ -153,6 +154,7 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
       return () => {
         document.removeEventListener("mousedown", handleClickOutside)
         document.removeEventListener("keydown", handleKeyDown)
+        refocusTerminalIfFocusLost()
       }
     }
   }, [isOpen])
@@ -456,6 +458,7 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
       <Button
         variant="ghost"
         size="sm"
+        onMouseDown={keepFocusOnMouseDown}
         onClick={() => setIsOpen(!isOpen)}
         className={cn("gap-1.5 px-2 shadow-none", hasActive && "text-primary")}
       >

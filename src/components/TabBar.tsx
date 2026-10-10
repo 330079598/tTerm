@@ -17,6 +17,11 @@ import { TabLogIndicator } from "@/components/TabLogIndicator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { isPageTab, Tab, TabContextMenuAction } from "@/types/tab"
 import { isImeKeyEvent } from "@/lib/ime"
+import {
+  focusActiveTerminal,
+  keepFocusOnMouseDown,
+  refocusTerminalIfFocusLost,
+} from "@/lib/terminalFocus"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
 import { getTabLogMenuActions } from "@/lib/terminalLogRecording"
 
@@ -227,6 +232,7 @@ const TabItem = React.memo(function TabItem({
           onClick={() => onTabClick(tab.id)}
           onContextMenu={handleContextMenu}
           onKeyDown={handleKeyDown}
+          onMouseDown={keepFocusOnMouseDown}
           onPointerDown={(event) => onPointerDown(event, tab.id)}
         >
           <span className="tab-number">{index + 1}</span>
@@ -413,6 +419,7 @@ export const TabBar: React.FC<TabBarProps> = ({
     return () => {
       document.removeEventListener("mousedown", handlePointerDown)
       document.removeEventListener("keydown", handleKeyDown)
+      refocusTerminalIfFocusLost()
     }
   }, [closeOverflowMenu, isOverflowMenuOpen])
 
@@ -572,8 +579,11 @@ export const TabBar: React.FC<TabBarProps> = ({
       }
 
       onTabClick(id)
+      // Switching tabs focuses the new one's terminal; clicking the tab
+      // already in sight is a way back to its terminal too.
+      if (id === activeTabId) focusActiveTerminal()
     },
-    [onTabClick]
+    [activeTabId, onTabClick]
   )
 
   const handleSelectTab = useCallback(
@@ -673,6 +683,7 @@ export const TabBar: React.FC<TabBarProps> = ({
         <button
           type="button"
           className="tab-action tab-scroll-button tab-scroll-left"
+          onMouseDown={keepFocusOnMouseDown}
           aria-label={t("tabs.scrollLeft", { defaultValue: "Scroll tabs left" })}
           disabled={!scrollState.canScrollLeft}
           onClick={() => scrollTabs("left")}
@@ -709,6 +720,7 @@ export const TabBar: React.FC<TabBarProps> = ({
         <button
           type="button"
           className="tab-action tab-scroll-button tab-scroll-right"
+          onMouseDown={keepFocusOnMouseDown}
           aria-label={t("tabs.scrollRight", { defaultValue: "Scroll tabs right" })}
           disabled={!scrollState.canScrollRight}
           onClick={() => scrollTabs("right")}
@@ -723,6 +735,7 @@ export const TabBar: React.FC<TabBarProps> = ({
             ref={overflowTriggerRef}
             type="button"
             className="tab-action tab-overflow-trigger"
+            onMouseDown={keepFocusOnMouseDown}
             aria-expanded={isOverflowMenuOpen}
             aria-label={t("tabs.showAll", { defaultValue: "Show all tabs" })}
             onClick={() => {

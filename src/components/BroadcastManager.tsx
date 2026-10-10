@@ -13,6 +13,7 @@ import type {
 import { useConfig } from "@/contexts/ConfigContext"
 import { useKeymap } from "@/contexts/KeymapContext"
 import { isImeKeyEvent } from "@/lib/ime"
+import { keepFocusOnMouseDown, refocusTerminalIfFocusLost } from "@/lib/terminalFocus"
 
 type BroadcastManagerProps = {
   activeTabId: string | null
@@ -102,7 +103,10 @@ export function BroadcastManager({
       }
     }
     document.addEventListener("keydown", onKeyDown)
-    return () => document.removeEventListener("keydown", onKeyDown)
+    return () => {
+      document.removeEventListener("keydown", onKeyDown)
+      refocusTerminalIfFocusLost()
+    }
   }, [open, close])
 
   const handleOverlayClick = useCallback(
@@ -128,6 +132,7 @@ export function BroadcastManager({
         className={`tab-action broadcast-trigger ${isLiveRunning ? "is-live" : open ? "is-open" : ""}`}
         aria-label={t("broadcast.title")}
         aria-expanded={open}
+        onMouseDown={keepFocusOnMouseDown}
         onClick={() => setOpen((current) => !current)}
       >
         <RadioTower size={16} />

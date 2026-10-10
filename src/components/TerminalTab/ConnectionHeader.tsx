@@ -13,6 +13,7 @@ import {
   SshConnectionProgress,
   TerminalTabProps,
 } from "@/components/TerminalTab/types"
+import { keepFocusOnMouseDown } from "@/lib/terminalFocus"
 
 function getConnectionProtocolLabel(
   connection: TerminalTabProps["connection"] | undefined,
@@ -101,7 +102,12 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
   return (
     <>
       {showPinnedToggle && (
-        <button type="button" className="connection-header-restore" onClick={onPinConnectionHeader}>
+        <button
+          type="button"
+          className="connection-header-restore"
+          onMouseDown={keepFocusOnMouseDown}
+          onClick={onPinConnectionHeader}
+        >
           <Pin size={14} />
           <span>{t("sessionHeader.connectionInfo", { defaultValue: "Connection" })}</span>
         </button>
@@ -165,17 +171,28 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
                 </TooltipContent>
               </Tooltip>
             )}
-            <button type="button" className="connection-action" onClick={onReconnect}>
+            <button
+              type="button"
+              className="connection-action"
+              onMouseDown={keepFocusOnMouseDown}
+              onClick={onReconnect}
+            >
               <RefreshCcw size={14} />
               <span>{t("sessionHeader.reconnect", { defaultValue: "Reconnect" })}</span>
             </button>
-            <button type="button" className="connection-action" onClick={onToggleSftpDrawer}>
+            <button
+              type="button"
+              className="connection-action"
+              onMouseDown={keepFocusOnMouseDown}
+              onClick={onToggleSftpDrawer}
+            >
               <Globe size={14} />
               <span>{t("sessionHeader.sftp", { defaultValue: "SFTP" })}</span>
             </button>
             <button
               type="button"
               className={`connection-action ${serverMonitorVisible ? "is-active" : ""}`}
+              onMouseDown={keepFocusOnMouseDown}
               onClick={onToggleServerMonitor}
               aria-pressed={serverMonitorVisible}
             >
@@ -186,7 +203,12 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
                   : t("sessionHeader.showMonitor", { defaultValue: "Monitor" })}
               </span>
             </button>
-            <button type="button" className="connection-action" onClick={onUnpinConnectionHeader}>
+            <button
+              type="button"
+              className="connection-action"
+              onMouseDown={keepFocusOnMouseDown}
+              onClick={onUnpinConnectionHeader}
+            >
               <PinOff size={14} />
               <span>{t("sessionHeader.unpin", { defaultValue: "Unpin" })}</span>
             </button>

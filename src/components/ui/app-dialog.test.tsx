@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { markActiveTerminal, registerTerminalFocus } from "@/lib/terminalFocus"
 
 afterEach(cleanup)
 
@@ -181,5 +182,40 @@ describe("useConfirmDialog", () => {
 
     const dialog = await screen.findByRole("dialog")
     expect(document.activeElement).toBe(dialog)
+  })
+
+  it("gives the focus back to the opener after an autoFocus input took it", async () => {
+    render(<AutoFocusDialogHarness />)
+    const opener = screen.getByRole("button", { name: "Open auto focus dialog" })
+    opener.focus()
+    fireEvent.click(opener)
+
+    await screen.findByRole("textbox", { name: "Auto focused input" })
+    fireEvent.keyDown(document, { key: "Escape" })
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    expect(document.activeElement).toBe(opener)
+  })
+
+  it("focuses the terminal in sight when the dialog was opened from nowhere", async () => {
+    const terminal = document.createElement("textarea")
+    document.body.append(terminal)
+    const unregister = registerTerminalFocus("tab-1", () => terminal.focus())
+    const unmark = markActiveTerminal("tab-1")
+    try {
+      render(<AutoFocusDialogHarness />)
+      ;(document.activeElement as HTMLElement | null)?.blur()
+      fireEvent.click(screen.getByRole("button", { name: "Open auto focus dialog" }))
+
+      await screen.findByRole("textbox", { name: "Auto focused input" })
+      fireEvent.keyDown(document, { key: "Escape" })
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+      expect(document.activeElement).toBe(terminal)
+    } finally {
+      unmark()
+      unregister()
+      terminal.remove()
+    }
   })
 })

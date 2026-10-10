@@ -3,6 +3,7 @@ import { createPortal } from "react-dom"
 import { XIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { restoreFocus } from "@/lib/terminalFocus"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
@@ -159,6 +160,16 @@ function DialogContentComponent(
   const { open, setOpen } = useDialogContext("DialogContent")
   const { t } = useTranslation()
   const contentRef = React.useRef<HTMLDivElement | null>(null)
+  // Read while rendering the open dialog: by the time an effect runs, an
+  // autoFocus input inside it has already taken the focus.
+  const [openedFrom, setOpenedFrom] = React.useState<Element | null>(() =>
+    open ? document.activeElement : null
+  )
+  const [wasOpen, setWasOpen] = React.useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) setOpenedFrom(document.activeElement)
+  }
 
   React.useEffect(() => {
     if (!open) {
@@ -194,8 +205,6 @@ function DialogContentComponent(
       return undefined
     }
 
-    const previouslyFocusedElement =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null
     const initialFocusElement = contentRef.current?.querySelector<HTMLElement>(
       "[data-dialog-initial-focus]"
     )
@@ -221,12 +230,8 @@ function DialogContentComponent(
       contentRef.current
     )?.focus()
 
-    return () => {
-      if (previouslyFocusedElement?.isConnected) {
-        previouslyFocusedElement.focus()
-      }
-    }
-  }, [open])
+    return () => restoreFocus(openedFrom)
+  }, [open, openedFrom])
 
   if (!open) {
     return null

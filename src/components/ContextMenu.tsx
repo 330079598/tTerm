@@ -31,6 +31,7 @@ import {
   ScrollText,
 } from "lucide-react"
 import { TabContextMenuAction } from "@/types/tab"
+import { restoreFocus } from "@/lib/terminalFocus"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -120,6 +121,18 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
   const menuRef = useRef<HTMLDivElement>(null)
   const enabledIndices = getMenuItemIndices(actions)
   const [focusIndex, setFocusIndex] = useState(() => enabledIndices[0] ?? -1)
+  // Read before the menu takes the focus.
+  const [openedFrom] = useState(() => document.activeElement)
+
+  // Closing removes the focused item. Unless the chosen action put the focus
+  // somewhere, such as a dialog's input, it goes back where it was.
+  useEffect(
+    () => () => {
+      const focused = document.activeElement
+      if (!focused || focused === document.body) restoreFocus(openedFrom)
+    },
+    [openedFrom]
+  )
 
   const adjustPosition = useCallback(() => {
     if (!menuRef.current) return { left: x, top: y }

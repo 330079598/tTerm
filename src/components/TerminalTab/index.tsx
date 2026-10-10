@@ -44,7 +44,7 @@ import { isWindowBlurEnabled, useConfig } from "@/contexts/ConfigContext"
 import { isImeKeyEvent } from "@/lib/ime"
 import { playBellSound } from "@/lib/bellSound"
 import { clearTabAttention, markTabAttention } from "@/lib/tabAttention"
-import { registerTerminalFocus } from "@/lib/terminalFocus"
+import { markActiveTerminal, registerTerminalFocus } from "@/lib/terminalFocus"
 import type { TerminalAttentionEvent } from "@/lib/terminalNotifications"
 import { isTransparentTerminalTheme, withWindowBlur } from "@/lib/terminalPalette"
 import type { TerminalRenderer } from "@/contexts/ConfigContext"
@@ -579,6 +579,11 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
   useEffect(() => registerTerminalFocus(tabId, () => termRef.current?.focus()), [tabId])
 
+  useEffect(() => {
+    if (!isGlobalShortcutTarget || !isActive) return
+    return markActiveTerminal(tabId)
+  }, [isActive, isGlobalShortcutTarget, tabId])
+
   // Focusing a pane already in sight, from the tab bar, a shortcut or a
   // closed tab, moves no keyboard focus by itself. Focus the user put in the
   // tab, in its SFTP drawer or search bar, stays there.
@@ -705,6 +710,18 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   const handleToggleSftpDrawer = useCallback(() => {
     setShowSftpDrawer((current) => !current)
   }, [])
+
+  // Closing the SFTP drawer makes it inert, which drops the focus held in it.
+  const sftpDrawerWasShownRef = useRef(showSftpDrawer)
+  useEffect(() => {
+    const wasShown = sftpDrawerWasShownRef.current
+    sftpDrawerWasShownRef.current = showSftpDrawer
+    if (!wasShown || showSftpDrawer || !isActive) return
+    const focused = document.activeElement
+    if (!focused || focused === document.body || focused.closest(".sftp-drawer")) {
+      termRef.current?.focus()
+    }
+  }, [isActive, showSftpDrawer])
 
   const handleToggleServerMonitor = useCallback(() => {
     setShowServerMonitor((current) => {

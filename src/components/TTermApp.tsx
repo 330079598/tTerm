@@ -82,6 +82,7 @@ import { setRecordingTabIds, type TerminalLogStatus } from "@/lib/terminalLogRec
 import { handleAppPageRequests } from "@/lib/appNavigation"
 import { toErrorMessage } from "@/lib/utils"
 import { getSiblingTabId, getTabIdAtPosition } from "@/lib/tabNavigation"
+import { keepFocusOnMouseDown } from "@/lib/terminalFocus"
 import { isPageTab, Tab } from "@/types/tab"
 import type { CommandDraft, ExecutedCommand, RecentCommand, SavedCommand } from "@/types/command"
 import type {
@@ -1976,6 +1977,7 @@ export const TTermApp: React.FC = () => {
             <div className="tab-add-button">
               <button
                 className="tab-action"
+                onMouseDown={keepFocusOnMouseDown}
                 onClick={handleNewTab}
                 aria-label={t("tabs.newTab", { defaultValue: "New tab" })}
               >
@@ -1983,6 +1985,7 @@ export const TTermApp: React.FC = () => {
               </button>
               <button
                 className="tab-action"
+                onMouseDown={keepFocusOnMouseDown}
                 onClick={() => setShowProfilesPanel(true)}
                 aria-label={t("profiles.title", { defaultValue: "Profiles" })}
               >
@@ -1990,6 +1993,7 @@ export const TTermApp: React.FC = () => {
               </button>
               <button
                 className="tab-action"
+                onMouseDown={keepFocusOnMouseDown}
                 onClick={() => handleOpenCommandLibrary()}
                 aria-label={t("commandLibrary.title")}
               >
@@ -2032,6 +2036,7 @@ export const TTermApp: React.FC = () => {
         <div className="title-bar-right" style={{ paddingRight: `${nativeControlsReservePx}px` }}>
           <button
             className="tab-action settings-button tunnels-trigger"
+            onMouseDown={keepFocusOnMouseDown}
             onClick={handleTunnelsClick}
             aria-label={tunnelsButtonLabel}
             title={tunnelsButtonLabel}
@@ -2045,6 +2050,7 @@ export const TTermApp: React.FC = () => {
           </button>
           <button
             className="tab-action settings-button"
+            onMouseDown={keepFocusOnMouseDown}
             onClick={handleSettingsClick}
             aria-label={settingsTabTitle}
           >
