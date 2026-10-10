@@ -102,7 +102,7 @@ pub fn create_pty(
         );
     }
 
-    crate::session_log::start_session(&app, &tab_id, session_nonce, &plan, rows, cols)?;
+    crate::session_log::start_session(&app, &tab_id, session_nonce, &plan, rows, cols);
 
     let (exit_tx, exit_rx) = mpsc::unbounded_channel::<SessionExitSignal>();
     let active = Arc::new(TokioMutex::new(None));

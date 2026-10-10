@@ -421,9 +421,12 @@ export const TTermApp: React.FC = () => {
     let disposed = false
     const cleanups: Array<() => void> = []
     void Promise.all([
-      listen<{ message?: string }>("terminal-log-error", (event) => {
+      listen<{ message?: string; phase?: string }>("terminal-log-error", (event) => {
         toast({
-          title: t("terminalLogging.writeFailed"),
+          title:
+            event.payload.phase === "start"
+              ? t("terminalLogging.sessionLogFailed")
+              : t("terminalLogging.writeFailed"),
           description: event.payload.message ?? t("terminalLogging.writeFailed"),
           variant: "destructive",
         })

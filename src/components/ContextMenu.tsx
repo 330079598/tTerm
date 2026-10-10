@@ -28,6 +28,7 @@ import {
   CircleDot,
   Square,
   FileDown,
+  ScrollText,
 } from "lucide-react"
 import { TabContextMenuAction } from "@/types/tab"
 import { cn } from "@/lib/utils"
@@ -98,6 +99,8 @@ const getActionIcon = (icon?: string) => {
       return <Square size={14} aria-hidden="true" />
     case "file-down":
       return <FileDown size={14} aria-hidden="true" />
+    case "scroll-text":
+      return <ScrollText size={14} aria-hidden="true" />
     default:
       return null
   }

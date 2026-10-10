@@ -18,7 +18,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { isPageTab, Tab, TabContextMenuAction } from "@/types/tab"
 import { isImeKeyEvent } from "@/lib/ime"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
-import { getTabLogMenuAction } from "@/lib/terminalLogRecording"
+import { getTabLogMenuActions } from "@/lib/terminalLogRecording"
 
 const TAB_OVERFLOW_THRESHOLD = 16
 const OVERFLOW_PANEL_MAX_WIDTH = 320
@@ -160,7 +160,7 @@ const TabItem = React.memo(function TabItem({
             ? { label: t("contextMenu.editConnection"), action: "edit-connection", icon: "edit" }
             : { label: t("contextMenu.saveConnection"), action: "edit-connection", icon: "edit" }
 
-      const logAction = getTabLogMenuAction(tab, t)
+      const logActions = getTabLogMenuActions(tab, t)
 
       const actions: TabContextMenuAction[] = [
         { label: t("contextMenu.newTab"), action: "new", icon: "plus" },
@@ -192,7 +192,7 @@ const TabItem = React.memo(function TabItem({
         { label: t("contextMenu.renameTab"), action: "rename", icon: "edit" },
         ...(editConnectionAction ? [editConnectionAction] : []),
         ...(pinAction ? [pinAction] : []),
-        ...(logAction ? [logAction] : []),
+        ...logActions,
         { separator: true, label: "", action: "" },
         ...closeActions,
       ]

@@ -279,6 +279,8 @@ impl Drop for RotatingFile {
 }
 
 struct SessionWriter {
+    /// The base name of the log's files: its id in the log library.
+    id: String,
     started: Instant,
     sequence: u64,
     closed: bool,
@@ -553,14 +555,15 @@ impl SessionWriter {
             .map_err(|err| format!("Failed to serialize terminal log header: {err}"))?,
         );
         let plain_header = format!(
-            "{}\n# type={} profile={} host={} port={} username={} startedAt={}\n",
+            "{}\n# type={} profile={} host={} port={} username={} startedAt={} tab={}\n",
             library::PLAIN_HEADER,
             metadata.session_type,
             metadata.profile,
             metadata.host,
             metadata.port,
             metadata.username,
-            metadata.started_at_ms
+            metadata.started_at_ms,
+            metadata.tab_id
         );
         let raw = if files.wants_raw() {
             Some(RotatingFile::create(
@@ -590,6 +593,7 @@ impl SessionWriter {
         };
 
         Ok(Self {
+            id: base_name,
             started: Instant::now(),
             sequence: 0,
             closed: false,
@@ -742,6 +746,9 @@ struct LogManager {
     /// Tabs the user started or stopped logging for by hand; the choice
     /// outlasts a reconnect.
     manual: HashMap<String, bool>,
+    /// The logs each tab has written since tTerm started, oldest first. Tab
+    /// ids are reused across runs, so this is what ties a tab to its logs.
+    logged: HashMap<String, Vec<String>>,
     last_error: Option<String>,
 }
 
@@ -750,6 +757,11 @@ impl LogManager {
         self.config
             .as_ref()
             .is_some_and(|config| config.records(policy, self.manual.get(tab_id).copied()))
+    }
+
+    fn remember_log(&mut self, tab_id: &str, writer: &Arc<Mutex<SessionWriter>>) {
+        let id = lock_session_writer(writer).id.clone();
+        self.logged.entry(tab_id.to_string()).or_default().push(id);
     }
 
     fn has_writers(&self) -> bool {
@@ -877,6 +889,7 @@ impl SessionLogState {
             if records && manager.sessions[&tab_id].writer.is_none() {
                 match manager.create_writer(app, &manager.sessions[&tab_id], "logging_enabled") {
                     Ok(writer) => {
+                        manager.remember_log(&tab_id, &writer);
                         manager
                             .sessions
                             .get_mut(&tab_id)
@@ -897,6 +910,8 @@ impl SessionLogState {
         error.map_or(Ok(()), Err)
     }
 
+    /// Tracks a new session and starts its log if it is logged. A log that
+    /// cannot start is reported but never stops the session from connecting.
     fn start_session(
         &self,
         app: &AppHandle,
@@ -905,7 +920,7 @@ impl SessionLogState {
         plan: &SessionPlan,
         rows: u16,
         cols: u16,
-    ) -> Result<(), String> {
+    ) {
         let entry = SessionEntry {
             metadata: SessionMetadata::new(tab_id, session_nonce, plan),
             policy: plan.session_log,
@@ -913,14 +928,31 @@ impl SessionLogState {
             cols,
             writer: None,
         };
-        let mut manager = self.lock_manager()?;
+        let mut manager = match self.lock_manager() {
+            Ok(manager) => manager,
+            Err(err) => {
+                emit_start_error(app, tab_id, &err);
+                return;
+            }
+        };
         if let Some(previous) = manager.sessions.remove(tab_id) {
             if let Some(writer) = previous.writer {
                 let _ = lock_session_writer(&writer).finish();
             }
         }
+        let mut failure = None;
         let writer = if manager.records(tab_id, entry.policy) {
-            Some(manager.create_writer(app, &entry, "session_start")?)
+            match manager.create_writer(app, &entry, "session_start") {
+                Ok(writer) => {
+                    manager.remember_log(tab_id, &writer);
+                    Some(writer)
+                }
+                Err(err) => {
+                    manager.last_error = Some(err.clone());
+                    failure = Some(err);
+                    None
+                }
+            }
         } else {
             None
         };
@@ -929,8 +961,10 @@ impl SessionLogState {
             .insert(tab_id.to_string(), SessionEntry { writer, ..entry });
         self.sync_active(&manager);
         drop(manager);
+        if let Some(err) = failure {
+            emit_start_error(app, tab_id, &err);
+        }
         emit_status(app, self);
-        Ok(())
     }
 
     fn writer(&self, app: &AppHandle, tab_id: &str) -> Option<Arc<Mutex<SessionWriter>>> {
@@ -1012,6 +1046,7 @@ impl SessionLogState {
             (true, Some(None)) => {
                 match manager.create_writer(app, &manager.sessions[tab_id], "logging_started") {
                     Ok(writer) => {
+                        manager.remember_log(tab_id, &writer);
                         manager
                             .sessions
                             .get_mut(tab_id)
@@ -1185,7 +1220,7 @@ pub fn start_session(
     plan: &SessionPlan,
     rows: u16,
     cols: u16,
-) -> Result<(), String> {
+) {
     app.state::<SessionLogState>()
         .start_session(app, tab_id, session_nonce, plan, rows, cols)
 }
@@ -1223,6 +1258,20 @@ pub fn get_terminal_log_status(
     state: State<'_, SessionLogState>,
 ) -> Result<TerminalLogStatus, String> {
     state.status()
+}
+
+/// The logs a tab has written since tTerm started, oldest first.
+#[tauri::command]
+pub fn terminal_log_ids_for_tab(
+    state: State<'_, SessionLogState>,
+    tab_id: String,
+) -> Result<Vec<String>, String> {
+    Ok(state
+        .lock_manager()?
+        .logged
+        .get(&tab_id)
+        .cloned()
+        .unwrap_or_default())
 }
 
 /// Starts or stops logging one tab, whatever the settings say, until the
@@ -1516,6 +1565,15 @@ fn emit_error(app: &AppHandle, tab_id: &str, message: &str) {
         tauri::EventTarget::any(),
         "terminal-log-error",
         serde_json::json!({ "tabId": tab_id, "message": message }),
+    );
+}
+
+/// A session's log could not start; the session runs without one.
+fn emit_start_error(app: &AppHandle, tab_id: &str, message: &str) {
+    let _ = app.emit_to(
+        tauri::EventTarget::any(),
+        "terminal-log-error",
+        serde_json::json!({ "tabId": tab_id, "message": message, "phase": "start" }),
     );
 }
 

@@ -2,6 +2,7 @@ import { useCallback, useState } from "react"
 
 import type { ContextMenuState, RenameDialogState } from "@/components/TTermApp/types"
 import type { WorkspaceSplitDirection } from "@/components/TTermApp/TabPanels"
+import { showLogsForTab } from "@/lib/appNavigation"
 import type { Tab, TabContextMenuAction } from "@/types/tab"
 
 interface UseTabContextMenuDeps {
@@ -113,6 +114,15 @@ export function useTabContextMenu({
           break
         case "log-stop":
           setTabLogRecording(tab.id, false)
+          break
+        case "view-logs":
+          showLogsForTab({
+            tabId: tab.id,
+            sessionType: tab.type === "ssh" ? "ssh" : "local",
+            host: tab.connection?.host,
+            port: tab.connection?.port,
+            username: tab.connection?.username,
+          })
           break
         case "close":
           handleRemoveTab(tab.id)

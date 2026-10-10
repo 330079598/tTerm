@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
+import { type LogsTabRequest, onLogsTabRequest, takeLogsTabRequest } from "@/lib/appNavigation"
 import { formatLogSize } from "@/lib/terminalLogRecording"
 import { cn, toErrorMessage } from "@/lib/utils"
 
@@ -23,6 +24,8 @@ export interface LogSession {
   host: string
   port: number
   username: string
+  /** The tab the session ran in; empty for plain-only logs from older versions. */
+  tabId: string
   startedAtMs: number
   modifiedAtMs: number
   rawBytes: number
@@ -49,6 +52,31 @@ export function logSessionTarget(session: LogSession): string | null {
   const host =
     session.port && session.port !== 22 ? `${session.host}:${session.port}` : session.host
   return session.username ? `${session.username}@${host}` : host
+}
+
+/**
+ * The newest log of a tab: one it wrote since tTerm started, else, for a
+ * tab restored from an earlier run, one with its id and connection. Tab ids
+ * are reused across runs, so a local tab only matches its own run's logs.
+ */
+export function findTabLog(
+  sessions: readonly LogSession[],
+  request: LogsTabRequest,
+  loggedIds: readonly string[]
+): LogSession | undefined {
+  for (let index = loggedIds.length - 1; index >= 0; index--) {
+    const logged = sessions.find((session) => session.id === loggedIds[index])
+    if (logged) return logged
+  }
+  if (request.sessionType !== "ssh") return undefined
+  return sessions.find(
+    (session) =>
+      session.tabId === request.tabId &&
+      session.sessionType === "ssh" &&
+      session.host === request.host &&
+      session.port === (request.port ?? 22) &&
+      session.username === (request.username ?? "")
+  )
 }
 
 export function matchesLogFilter(session: LogSession, filter: string): boolean {
@@ -102,14 +130,28 @@ export const LogsPanel: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [view, setView] = useState<LogView>("replay")
 
+  const [notice, setNotice] = useState<string | null>(null)
+
   const refresh = useCallback(async () => {
     try {
-      setSessions(await invoke<LogSession[]>("list_terminal_logs"))
+      const list = await invoke<LogSession[]>("list_terminal_logs")
+      setSessions(list)
       setListError(null)
+      // A tab menu asked for a tab's logs: show its newest session.
+      const request = takeLogsTabRequest()
+      if (request !== null) {
+        const loggedIds = await invoke<string[]>("terminal_log_ids_for_tab", {
+          tabId: request.tabId,
+        })
+        const newest = findTabLog(list, request, loggedIds)
+        setFilter("")
+        setSelectedId(newest?.id ?? null)
+        setNotice(newest ? null : t("terminalLogs.noLogsForTab"))
+      }
     } catch (error) {
       setListError(toErrorMessage(error))
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     let disposed = false
@@ -117,6 +159,7 @@ export const LogsPanel: React.FC = () => {
     let unlisten: (() => void) | undefined
     // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after await; false positive fixed upstream in facebook/react#36734
     void refresh()
+    const stopRequests = onLogsTabRequest(() => void refresh())
     // A session starting or stopping a log changes the list.
     void listen("terminal-log-status", () => {
       window.clearTimeout(timer)
@@ -128,6 +171,7 @@ export const LogsPanel: React.FC = () => {
     return () => {
       disposed = true
       window.clearTimeout(timer)
+      stopRequests()
       unlisten?.()
     }
   }, [refresh])
@@ -248,7 +292,10 @@ export const LogsPanel: React.FC = () => {
                 type="button"
                 role="option"
                 aria-selected={session.id === selectedId}
-                onClick={() => setSelectedId(session.id)}
+                onClick={() => {
+                  setSelectedId(session.id)
+                  setNotice(null)
+                }}
                 className={cn(
                   "hover:bg-muted/60 w-full rounded-md px-3 py-2 text-left",
                   session.id === selectedId && "bg-muted"
@@ -279,7 +326,7 @@ export const LogsPanel: React.FC = () => {
         <div className="flex min-w-0 flex-1 flex-col">
           {!selected ? (
             <div className="text-muted-foreground flex flex-1 items-center justify-center p-6 text-sm">
-              {t("terminalLogs.selectSession")}
+              {notice ?? t("terminalLogs.selectSession")}
             </div>
           ) : (
             <>

@@ -48,7 +48,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { isPageTab, type SavedProfile, type Tab, type TabContextMenuAction } from "@/types/tab"
 import type { TerminalInputRequest } from "@/types/broadcast"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
-import { getTabLogMenuAction } from "@/lib/terminalLogRecording"
+import { getTabLogMenuActions } from "@/lib/terminalLogRecording"
 import type { LiveBroadcastState } from "@/types/broadcast"
 import type { ExecutedCommand } from "@/types/command"
 import type { TerminalAttentionEvent } from "@/lib/terminalNotifications"
@@ -247,7 +247,7 @@ function getTabActions(
       ? { label: t("contextMenu.editConnection"), action: "edit-connection", icon: "edit" }
       : null
   const canSplit = tab.type === "terminal" || tab.type === "ssh"
-  const logAction = getTabLogMenuAction(tab, t)
+  const logActions = getTabLogMenuActions(tab, t)
 
   return [
     ...commonStart,
@@ -279,7 +279,7 @@ function getTabActions(
     { label: t("contextMenu.renameTab"), action: "rename", icon: "edit" },
     ...(editConnectionAction ? [editConnectionAction] : []),
     ...(pinAction ? [pinAction] : []),
-    ...(logAction ? [logAction] : []),
+    ...logActions,
     ...commonEnd,
   ]
 }

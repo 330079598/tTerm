@@ -317,6 +317,7 @@ pub fn run() {
             session_log::get_terminal_log_status,
             session_log::set_terminal_log_recording,
             session_log::list_terminal_logs,
+            session_log::terminal_log_ids_for_tab,
             session_log::load_terminal_log_recording,
             session_log::load_terminal_log_text,
             session_log::export_terminal_log_asciicast,

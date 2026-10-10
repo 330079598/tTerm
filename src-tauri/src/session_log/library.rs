@@ -84,6 +84,9 @@ pub(super) struct LogMetadata {
     pub port: u16,
     pub username: String,
     pub started_at_ms: u64,
+    /// The tab the session ran in; logs from before it was recorded in the
+    /// plain header have none there.
+    pub tab_id: String,
 }
 
 #[derive(Deserialize)]
@@ -115,18 +118,19 @@ pub(super) fn read_metadata(path: &Path) -> Option<LogMetadata> {
     (header.kind == "header").then_some(header.metadata.metadata)
 }
 
-/// `# type=ssh profile=prod host=10.0.0.8 port=22 username=root startedAt=…`;
+/// `# type=ssh profile=prod host=10.0.0.8 port=22 username=root startedAt=… tab=…`;
 /// values may contain spaces, so each runs up to the next key.
 fn parse_plain_metadata(line: &str) -> LogMetadata {
-    const KEYS: [&str; 6] = [
+    const KEYS: [&str; 7] = [
         "type=",
         " profile=",
         " host=",
         " port=",
         " username=",
         " startedAt=",
+        " tab=",
     ];
-    let mut values = [""; 6];
+    let mut values = [""; 7];
     let Some(mut rest) = line.strip_prefix("# ") else {
         return LogMetadata::default();
     };
@@ -148,6 +152,7 @@ fn parse_plain_metadata(line: &str) -> LogMetadata {
         port: values[3].parse().unwrap_or(0),
         username: values[4].to_string(),
         started_at_ms: values[5].parse().unwrap_or(0),
+        tab_id: values[6].to_string(),
     }
 }
 
@@ -160,6 +165,7 @@ pub struct LogSession {
     host: String,
     port: u16,
     username: String,
+    tab_id: String,
     started_at_ms: u64,
     modified_at_ms: u64,
     raw_bytes: u64,
@@ -223,6 +229,7 @@ pub(super) fn list(directory: &Path, in_use: &HashSet<PathBuf>) -> Result<Vec<Lo
             host: metadata.host,
             port: metadata.port,
             username: metadata.username,
+            tab_id: metadata.tab_id,
             started_at_ms: metadata.started_at_ms,
             modified_at_ms: 0,
             raw_bytes: 0,
@@ -636,7 +643,7 @@ mod tests {
     }
 
     const RAW_HEADER: &str = r#"{"metadata":{"host":"10.0.0.8","port":22,"profile":"prod api","sessionNonce":1,"sessionType":"ssh","startedAtMs":1700000000000,"tabId":"t","username":"root"},"type":"header","version":1}"#;
-    const PLAIN_HEAD: &str = "# tTerm session log\n# type=ssh profile=prod api host=10.0.0.8 port=22 username=root startedAt=1700000000000\n";
+    const PLAIN_HEAD: &str = "# tTerm session log\n# type=ssh profile=prod api host=10.0.0.8 port=22 username=root startedAt=1700000000000 tab=t\n";
 
     fn data(at_us: u64, bytes: &[u8]) -> String {
         format!(
@@ -696,9 +703,22 @@ mod tests {
             port: 22,
             username: "root".into(),
             started_at_ms: 1_700_000_000_000,
+            tab_id: "t".into(),
         };
         assert_eq!(read_metadata(&raw), Some(expected.clone()));
-        assert_eq!(read_metadata(&plain), Some(expected));
+        assert_eq!(read_metadata(&plain), Some(expected.clone()));
+        // Plain headers from before the tab was recorded.
+        let old = dir.write(
+            "c.log",
+            "# tTerm session log\n# type=ssh profile=prod api host=10.0.0.8 port=22 username=root startedAt=1700000000000\n",
+        );
+        assert_eq!(
+            read_metadata(&old),
+            Some(LogMetadata {
+                tab_id: String::new(),
+                ..expected
+            })
+        );
         assert_eq!(read_metadata(&foreign), None);
     }
 

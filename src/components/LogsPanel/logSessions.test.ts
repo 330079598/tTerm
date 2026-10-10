@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  findTabLog,
   type LogSession,
   logSessionTarget,
   logSessionTitle,
@@ -14,6 +15,7 @@ const ssh: LogSession = {
   host: "10.0.0.8",
   port: 2222,
   username: "root",
+  tabId: "tab-1",
   startedAtMs: 1,
   modifiedAtMs: 1,
   rawBytes: 1,
@@ -42,5 +44,30 @@ describe("log sessions", () => {
     expect(matchesLogFilter(ssh, "root")).toBe(true)
     expect(matchesLogFilter(ssh, "staging")).toBe(false)
     expect(matchesLogFilter(ssh, "  ")).toBe(true)
+  })
+
+  it("finds a tab's newest log, from this run or a restored tab's earlier run", () => {
+    const older = { ...ssh, id: "older", tabId: "tab-3" }
+    const newer = { ...ssh, id: "newer", tabId: "tab-3" }
+    const other = { ...ssh, id: "other", tabId: "tab-3", host: "10.0.0.9" }
+    const sessions = [newer, other, older] // newest first, as listed
+    const request = {
+      tabId: "tab-3",
+      sessionType: "ssh" as const,
+      host: "10.0.0.8",
+      port: 2222,
+      username: "root",
+    }
+
+    expect(findTabLog(sessions, request, ["older"])?.id).toBe("older")
+    expect(findTabLog(sessions, request, ["gone", "older"])?.id).toBe("older")
+    expect(findTabLog(sessions, request, [])?.id).toBe("newer")
+    expect(findTabLog(sessions, { ...request, host: "10.0.0.7" }, [])).toBeUndefined()
+    // A local tab id reused from an earlier run is not trusted.
+    const localLog = { ...local, id: "local", tabId: "tab-3" }
+    expect(findTabLog([localLog], { tabId: "tab-3", sessionType: "local" }, [])).toBeUndefined()
+    expect(findTabLog([localLog], { tabId: "tab-3", sessionType: "local" }, ["local"])?.id).toBe(
+      "local"
+    )
   })
 })

@@ -40,15 +40,18 @@ export function useTabLogRecording(tabId: string): boolean {
   return useSyncExternalStore(subscribe, () => recording.has(tabId))
 }
 
-/** The tab menu item that starts or stops logging a terminal tab's session. */
-export function getTabLogMenuAction(
+/** The tab menu items that start or stop logging a terminal tab and show its logs. */
+export function getTabLogMenuActions(
   tab: Pick<Tab, "id" | "type">,
   t: ReturnType<typeof useTranslation>["t"]
-): TabContextMenuAction | null {
-  if (tab.type !== "terminal" && tab.type !== "ssh") return null
-  return isTabLogRecording(tab.id)
-    ? { label: t("contextMenu.stopLogging"), action: "log-stop", icon: "record-stop" }
-    : { label: t("contextMenu.startLogging"), action: "log-start", icon: "record" }
+): TabContextMenuAction[] {
+  if (tab.type !== "terminal" && tab.type !== "ssh") return []
+  return [
+    isTabLogRecording(tab.id)
+      ? { label: t("contextMenu.stopLogging"), action: "log-stop", icon: "record-stop" }
+      : { label: t("contextMenu.startLogging"), action: "log-start", icon: "record" },
+    { label: t("contextMenu.viewLogs"), action: "view-logs", icon: "scroll-text" },
+  ]
 }
 
 /** A size in bytes as the logging pages show it. */
