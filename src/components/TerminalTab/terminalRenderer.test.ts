@@ -229,6 +229,63 @@ describe("Terminal Renderer Addon & Canvas Lifecycle", () => {
     container.remove()
   })
 
+  it("frees a released WebGL canvas only after a frame has shown it at one pixel", () => {
+    const container = document.createElement("div")
+    document.body.appendChild(container)
+
+    const term = new Terminal({ allowProposedApi: true })
+    term.open(container)
+    const screen = container.querySelector(".xterm-screen")!
+
+    const loseContext = vi.fn()
+    const gl = {
+      FRAMEBUFFER: 1,
+      SCISSOR_TEST: 2,
+      COLOR_BUFFER_BIT: 4,
+      isContextLost: () => false,
+      bindFramebuffer: vi.fn(),
+      disable: vi.fn(),
+      viewport: vi.fn(),
+      colorMask: vi.fn(),
+      clearColor: vi.fn(),
+      clear: vi.fn(),
+      getExtension: (name: string) => (name === "WEBGL_lose_context" ? { loseContext } : null),
+    }
+    const canvas = document.createElement("canvas")
+    canvas.width = 5076
+    canvas.height = 2618
+    canvas.getContext = ((type: string) =>
+      type === "webgl2" ? gl : null) as unknown as typeof canvas.getContext
+    screen.appendChild(canvas)
+
+    const frames: FrameRequestCallback[] = []
+    const raf = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => frames.push(callback))
+    const addon = { dispose: () => canvas.remove() }
+
+    disposeRendererAddon(term, addon)
+
+    const lot = canvas.parentElement!
+    expect(lot.hasAttribute("data-tterm-webgl-release")).toBe(true)
+    expect(lot.style.visibility).toBe("hidden")
+    expect(canvas.width).toBe(1)
+    expect(canvas.height).toBe(1)
+    expect(gl.clear).toHaveBeenCalledWith(gl.COLOR_BUFFER_BIT)
+    expect(loseContext).not.toHaveBeenCalled()
+
+    frames.shift()!(0)
+    expect(canvas.isConnected).toBe(true)
+    frames.shift()!(0)
+    expect(canvas.isConnected).toBe(false)
+    expect(loseContext).toHaveBeenCalledOnce()
+    expect(lot.isConnected).toBe(false)
+
+    raf.mockRestore()
+    term.dispose()
+    container.remove()
+  })
+
   it("draws every row of a reloaded renderer at once, even while xterm is paused", () => {
     const container = document.createElement("div")
     document.body.appendChild(container)
