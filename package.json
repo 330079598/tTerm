@@ -4,8 +4,8 @@
   "version": "0.5.4",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "node scripts/gen-licenses.mjs && vite",
+    "build": "node scripts/gen-licenses.mjs && tsc && vite build",
     "test": "vitest run src",
     "preview": "vite preview",
     "tauri": "tauri",
@@ -15,7 +15,8 @@
     "lint:fix": "eslint src --fix",
     "format": "prettier --write src",
     "format:check": "prettier --check src",
-    "themes:update": "node scripts/update-themes.mjs"
+    "themes:update": "node scripts/update-themes.mjs",
+    "licenses": "node scripts/gen-licenses.mjs --force"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",
@@ -79,6 +80,7 @@
     "postcss": "^8.5.28",
     "prettier": "^3.9.9",
     "prettier-plugin-tailwindcss": "^0.8.1",
+    "spdx-license-list": "6.12.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.0",

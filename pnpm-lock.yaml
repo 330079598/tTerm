@@ -186,6 +186,9 @@ importers:
       prettier-plugin-tailwindcss:
         specifier: ^0.8.1
         version: 0.8.1(prettier@3.9.9)
+      spdx-license-list:
+        specifier: 6.12.0
+        version: 6.12.0
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
@@ -2474,6 +2477,10 @@ packages:
 
   space-separated-tokens@2.0.2:
     resolution: {integrity: sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q==}
+
+  spdx-license-list@6.12.0:
+    resolution: {integrity: sha512-+nUYqm3aZMSHbjsthK+i/HHI2okTElCvqwUd4k8QcSk+FTGgjq+fsdFj2wZOaX6XmR2JdWhf/NeflNnvKOjcnQ==}
+    engines: {node: '>=8'}
 
   std-env@4.2.0:
     resolution: {integrity: sha512-oCUKSupKTHX53EyjDtuZQ64pjLJ6yYCtpmEw0goYxtjG9KpbRe8KAsl2tBUGU9DyMcJ0RwJ8GqJAFzMXcXW1Rw==}
@@ -5166,6 +5173,8 @@ snapshots:
   source-map-js@1.2.1: {}
 
   space-separated-tokens@2.0.2: {}
+
+  spdx-license-list@6.12.0: {}
 
   std-env@4.2.0: {}
 

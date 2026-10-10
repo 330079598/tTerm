@@ -2,8 +2,37 @@
   "app": {
     "title": "tTerm",
     "subtitle": "现代终端模拟器",
-    "version": "版本 {{version}}",
-    "builtWith": "使用 Tauri + React 构建"
+    "version": "版本 {{version}}"
+  },
+  "about": {
+    "acknowledgements": "致谢",
+    "acknowledgementsDesc": "tTerm 建立在这些开源项目之上，感谢它们的作者与贡献者。",
+    "licenses": "开源许可",
+    "licensesDesc": "tTerm 包含以下 {{count}} 个第三方组件，各自遵循其许可证。",
+    "licensesSearch": "搜索组件或许可证",
+    "filterAll": "全部",
+    "filterOther": "其他",
+    "noResults": "没有匹配的组件",
+    "loadFailed": "无法加载许可证列表",
+    "standardText": "标准文本",
+    "homepage": "项目主页",
+    "back": "返回",
+    "projects": {
+      "tauri": "跨平台桌面应用框架",
+      "xterm": "终端渲染与输入",
+      "russh": "SSH 与 SFTP 协议",
+      "react": "界面框架",
+      "codemirror": "文件编辑器",
+      "dockview": "分屏与标签布局",
+      "portablePty": "本地伪终端",
+      "tokio": "异步运行时",
+      "rustls": "TLS 与加密",
+      "sqlite": "本地数据存储",
+      "tailwind": "界面样式",
+      "lucide": "界面图标",
+      "materialIcons": "文件类型图标",
+      "colorSchemes": "终端配色主题库"
+    }
   },
   "errors": {
     "boundaryTitle": "出现错误",

@@ -2,8 +2,37 @@
   "app": {
     "title": "tTerm",
     "subtitle": "Modern Terminal Emulator",
-    "version": "Version {{version}}",
-    "builtWith": "Built with Tauri + React"
+    "version": "Version {{version}}"
+  },
+  "about": {
+    "acknowledgements": "Acknowledgements",
+    "acknowledgementsDesc": "tTerm is built on these open source projects. Thanks to their authors and contributors.",
+    "licenses": "Open Source Licenses",
+    "licensesDesc": "tTerm includes the following {{count}} third-party components, each under its own license.",
+    "licensesSearch": "Search components or licenses",
+    "filterAll": "All",
+    "filterOther": "Other",
+    "noResults": "No matching components",
+    "loadFailed": "Couldn't load the license list",
+    "standardText": "standard text",
+    "homepage": "Project page",
+    "back": "Back",
+    "projects": {
+      "tauri": "Cross-platform app framework",
+      "xterm": "Terminal rendering and input",
+      "russh": "SSH and SFTP protocols",
+      "react": "UI framework",
+      "codemirror": "File editor",
+      "dockview": "Split panes and tabs",
+      "portablePty": "Local pseudo-terminals",
+      "tokio": "Async runtime",
+      "rustls": "TLS and cryptography",
+      "sqlite": "Local data storage",
+      "tailwind": "UI styling",
+      "lucide": "UI icons",
+      "materialIcons": "File type icons",
+      "colorSchemes": "Terminal color schemes"
+    }
   },
   "errors": {
     "boundaryTitle": "Something went wrong",
