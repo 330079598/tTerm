@@ -94,6 +94,35 @@ interface WebDavBackupPanelProps {
   onRestore: (localPath: string, entry: RemoteBackupEntry) => Promise<void>
 }
 
+/**
+ * Where uploads go: the folder's segments appended to the server URL, the
+ * way the backend joins them, so a leading "/" stays under the server path.
+ */
+function backupLocation(serverUrl: string, directory: string): string | null {
+  let url: URL
+  try {
+    url = new URL(serverUrl.trim())
+  } catch {
+    return null
+  }
+  if ((url.protocol !== "http:" && url.protocol !== "https:") || !url.hostname) return null
+  const segments = directory
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+  if (segments.some((segment) => segment === "." || segment === ".." || segment.includes("\\"))) {
+    return null
+  }
+  const basePath = url.pathname.endsWith("/") ? url.pathname.slice(0, -1) : url.pathname
+  let path = [basePath, ...segments].join("/") + "/"
+  try {
+    path = decodeURI(path)
+  } catch {
+    // Shown as typed when it is not valid percent-encoding.
+  }
+  return `${url.origin}${path}`
+}
+
 export const WebDavBackupPanel: React.FC<WebDavBackupPanelProps> = ({
   selectionItems,
   onRestore,
@@ -166,6 +195,7 @@ export const WebDavBackupPanel: React.FC<WebDavBackupPanelProps> = ({
   if (!status || !form) return null
 
   const update = (patch: Partial<WebDavBackupSettings>) => setForm({ ...form, ...patch })
+  const location = backupLocation(form.url, form.remoteDirectory)
 
   const fail = (title: string, error: unknown) => {
     if (isVerificationCanceled(error)) return
@@ -487,6 +517,11 @@ export const WebDavBackupPanel: React.FC<WebDavBackupPanelProps> = ({
               spellCheck={false}
               onChange={(event) => update({ remoteDirectory: event.target.value })}
             />
+            {location && (
+              <p className="text-muted-foreground mt-1 text-xs break-all">
+                {t("dataMigration.webdav.locationPreview", { location })}
+              </p>
+            )}
           </div>
 
           <Alert className="border-amber-500/40 bg-amber-500/10">

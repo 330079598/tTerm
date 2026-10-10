@@ -1971,6 +1971,7 @@
       "password": "Password",
       "passwordSaved": "Saved — leave empty to keep",
       "remoteDirectory": "Remote folder",
+      "locationPreview": "Backups go to {{location}}",
       "encryptionTitle": "Remote backups are always encrypted",
       "encryptionDescription": "The backup password is needed to restore on another device and cannot be recovered. tTerm keeps it with your saved passwords so scheduled uploads can include credentials.",
       "retentionHint": "Only older backups uploaded by this device ({{device}}) are deleted.",

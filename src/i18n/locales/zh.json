@@ -1954,6 +1954,7 @@
       "password": "密码",
       "passwordSaved": "已保存，留空则不修改",
       "remoteDirectory": "远程目录",
+      "locationPreview": "备份位置：{{location}}",
       "encryptionTitle": "远程备份始终加密",
       "encryptionDescription": "在其他设备上恢复时需要此备份密码，遗失后无法找回。tTerm 会将它与已保存的密码一同保管，使定时上传也能包含凭据。",
       "retentionHint": "只会清理本机（{{device}}）上传的旧备份。",
