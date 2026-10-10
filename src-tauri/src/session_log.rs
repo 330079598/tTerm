@@ -69,6 +69,7 @@ struct LogFiles {
     name_template: String,
     max_file_size_bytes: u64,
     compress: bool,
+    plain_timestamps: bool,
 }
 
 impl LogFiles {
@@ -105,6 +106,12 @@ impl LogConfig {
         if name_template.chars().count() > 180 {
             return Err("Terminal log file name is too long".to_string());
         }
+        if template_parts(name_template).count() > library::MAX_FOLDER_DEPTH + 1 {
+            return Err(format!(
+                "Terminal log file name can have at most {} folders",
+                library::MAX_FOLDER_DEPTH
+            ));
+        }
 
         let size_mb = config
             .terminal_log_max_file_size_mb
@@ -124,6 +131,7 @@ impl LogConfig {
                 name_template: name_template.to_string(),
                 max_file_size_bytes: u64::from(size_mb) * 1024 * 1024,
                 compress: config.terminal_log_compress,
+                plain_timestamps: config.terminal_log_plain_timestamps,
             },
             retention: Retention {
                 max_age_days: config.terminal_log_retention_days.min(MAX_RETENTION_DAYS),
@@ -297,20 +305,42 @@ struct PlainLog {
     input: InputStream,
     output: OutputLog,
     queue: VecDeque<(DateTime<Local>, String)>,
+    timestamps: bool,
 }
 
 impl PlainLog {
-    fn new(rows: u16, cols: u16) -> Self {
+    fn new(rows: u16, cols: u16, timestamps: bool) -> Self {
         Self {
             input: InputStream::new(),
             output: OutputLog::new(rows, cols),
             queue: VecDeque::new(),
+            timestamps,
         }
+    }
+
+    /// `[time] [OUTPUT] text`, or without the time just the text; typed lines
+    /// and events keep their tag either way.
+    fn line(&self, at: DateTime<Local>, direction: &str, text: &str) -> String {
+        match (self.timestamps, direction) {
+            (true, _) => format!("[{}] [{direction}] {text}\n", plain_timestamp(at)),
+            (false, "OUTPUT") => format!("{text}\n"),
+            (false, _) => format!("[{direction}] {text}\n"),
+        }
+    }
+
+    fn event_line(
+        &self,
+        at: DateTime<Local>,
+        event_type: &str,
+        detail: &serde_json::Value,
+    ) -> String {
+        self.line(at, "EVENT", &format!("{event_type} {detail}"))
     }
 
     fn input(&mut self, at: DateTime<Local>, data: &[u8]) -> Vec<String> {
         for line in self.input.advance(data) {
-            self.queue.push_back((at, plain_line(at, "INPUT", &line)));
+            let line = self.line(at, "INPUT", &line);
+            self.queue.push_back((at, line));
         }
         self.settle(Vec::new())
     }
@@ -327,8 +357,8 @@ impl PlainLog {
         event_type: &str,
         detail: &serde_json::Value,
     ) -> Vec<String> {
-        self.queue
-            .push_back((at, plain_event(at, event_type, detail)));
+        let line = self.event_line(at, event_type, detail);
+        self.queue.push_back((at, line));
         self.settle(Vec::new())
     }
 
@@ -341,7 +371,8 @@ impl PlainLog {
     /// Everything left: the line being typed and what is still on screen.
     fn finish(&mut self, at: DateTime<Local>) -> Vec<String> {
         for line in self.input.finish() {
-            self.queue.push_back((at, plain_line(at, "INPUT", &line)));
+            let line = self.line(at, "INPUT", &line);
+            self.queue.push_back((at, line));
         }
         let lines = self.output.finish();
         let ready = self.place(lines);
@@ -370,12 +401,13 @@ impl PlainLog {
                     ready.push(if text.is_empty() {
                         "\n".to_string()
                     } else {
-                        plain_line(at, "OUTPUT", &text)
+                        self.line(at, "OUTPUT", &text)
                     });
                 }
-                ScreenLine::Event { at, name } => self
-                    .queue
-                    .push_back((at, plain_event(at, name, &serde_json::json!({})))),
+                ScreenLine::Event { at, name } => {
+                    let line = self.event_line(at, name, &serde_json::json!({}));
+                    self.queue.push_back((at, line));
+                }
             }
         }
         ready
@@ -546,6 +578,14 @@ impl SessionWriter {
         })?;
         let rendered_name = render_name(&files.name_template, &metadata);
         let base_name = unique_base_name(&files.directory, &rendered_name, files);
+        if let Some(folder) = library::join_relative(&files.directory, &base_name).parent() {
+            fs::create_dir_all(folder).map_err(|err| {
+                format!(
+                    "Failed to create terminal log folder '{}': {err}",
+                    folder.display()
+                )
+            })?;
+        }
         let raw_header = with_newline(
             serde_json::to_vec(&serde_json::json!({
                 "type": "header",
@@ -600,7 +640,7 @@ impl SessionWriter {
             record_input: config.record_input,
             raw,
             plain,
-            plain_lines: PlainLog::new(rows, cols),
+            plain_lines: PlainLog::new(rows, cols, files.plain_timestamps),
         })
     }
 
@@ -716,19 +756,6 @@ impl SessionWriter {
 
 fn plain_timestamp(at: DateTime<Local>) -> impl std::fmt::Display {
     at.format("%Y-%m-%d %H:%M:%S%.3f")
-}
-
-fn plain_line(at: DateTime<Local>, direction: &str, text: &str) -> String {
-    format!("[{}] [{}] {}\n", plain_timestamp(at), direction, text)
-}
-
-fn plain_event(at: DateTime<Local>, event_type: &str, detail: &serde_json::Value) -> String {
-    format!(
-        "[{}] [EVENT] {} {}\n",
-        plain_timestamp(at),
-        event_type,
-        detail
-    )
 }
 
 struct SessionEntry {
@@ -1330,6 +1357,20 @@ pub async fn delete_terminal_log(app: AppHandle, id: String) -> Result<(), Strin
     Ok(())
 }
 
+/// Deletes several sessions; one that cannot be deleted (such as one still
+/// being logged) is reported and does not stop the rest.
+#[tauri::command]
+pub async fn delete_terminal_logs(
+    app: AppHandle,
+    ids: Vec<String>,
+) -> Result<library::DeleteReport, String> {
+    let state = app.state::<SessionLogState>();
+    let (directory, _, in_use) = state.directory_state()?;
+    let report = run_blocking(move || Ok(library::delete_many(&directory, &ids, &in_use))).await?;
+    emit_status(&app, &state);
+    Ok(report)
+}
+
 #[tauri::command]
 pub async fn reveal_terminal_log(app: AppHandle, id: String) -> Result<(), String> {
     let (directory, _, _) = app.state::<SessionLogState>().directory_state()?;
@@ -1399,25 +1440,61 @@ fn validate_directory(directory: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// The template's parts: folders, then the file name. `/` and `\\` both
+/// separate them; empty parts are dropped.
+fn template_parts(template: &str) -> impl Iterator<Item = &str> {
+    template
+        .split(['/', '\\'])
+        .filter(|part| !part.trim().is_empty())
+}
+
+/// The base name of a session's files, relative to the log directory: the
+/// template's folders and file name with their variables filled in, joined
+/// by `/`. A folder that comes out empty is left out.
 fn render_name(template: &str, metadata: &SessionMetadata) -> String {
     let now = Local::now();
-    let rendered = template
-        .replace("{profile}", &metadata.profile)
-        .replace("{host}", &metadata.host)
-        .replace("{port}", &metadata.port.to_string())
-        .replace("{username}", &metadata.username)
-        .replace("{type}", &metadata.session_type)
-        .replace("{date}", &now.format("%Y%m%d").to_string())
-        .replace("{time}", &now.format("%H%M%S").to_string())
-        .replace(
-            "{yyyyMMdd-HHmmss}",
-            &now.format("%Y%m%d-%H%M%S").to_string(),
-        )
-        .replace("{sessionId}", &metadata.tab_id);
-    sanitize_file_name(&rendered)
+    let render = |part: &str| {
+        part.replace("{profile}", &metadata.profile)
+            .replace("{host}", &metadata.host)
+            .replace("{port}", &metadata.port.to_string())
+            .replace("{username}", &metadata.username)
+            .replace("{type}", &metadata.session_type)
+            .replace("{year}", &now.format("%Y").to_string())
+            .replace("{month}", &now.format("%m").to_string())
+            .replace("{day}", &now.format("%d").to_string())
+            .replace("{date}", &now.format("%Y%m%d").to_string())
+            .replace("{time}", &now.format("%H%M%S").to_string())
+            .replace(
+                "{yyyyMMdd-HHmmss}",
+                &now.format("%Y%m%d-%H%M%S").to_string(),
+            )
+            .replace("{sessionId}", &metadata.tab_id)
+    };
+    let mut parts: Vec<&str> = template_parts(template).collect();
+    let file = parts.pop().unwrap_or_default();
+    let mut rendered: Vec<String> = parts
+        .into_iter()
+        .filter_map(|folder| {
+            let name = sanitize_name_part(&render(folder));
+            (!name.is_empty()).then_some(name)
+        })
+        .collect();
+    rendered.push(sanitize_file_name(&render(file)));
+    rendered.join("/")
 }
 
 fn sanitize_file_name(value: &str) -> String {
+    let name = sanitize_name_part(value);
+    if name.is_empty() {
+        "terminal-session".to_string()
+    } else {
+        name
+    }
+}
+
+/// `value` as one file or folder name on every platform; empty if nothing is
+/// left of it.
+fn sanitize_name_part(value: &str) -> String {
     let sanitized: String = value
         .chars()
         .map(|character| {
@@ -1433,12 +1510,13 @@ fn sanitize_file_name(value: &str) -> String {
             }
         })
         .collect();
-    let trimmed = sanitized.trim().trim_matches('.').trim();
-    if trimmed.is_empty() {
-        "terminal-session".to_string()
-    } else {
-        trimmed.chars().take(180).collect()
-    }
+    sanitized
+        .trim()
+        .trim_matches('.')
+        .trim()
+        .chars()
+        .take(180)
+        .collect()
 }
 
 fn unique_base_name(directory: &Path, requested: &str, files: &LogFiles) -> String {
@@ -1467,11 +1545,12 @@ fn compressed_path(path: &Path) -> PathBuf {
     PathBuf::from(format!("{}.gz", path.to_string_lossy()))
 }
 
+/// A log file's path; `base_name` may start with folders, joined by `/`.
 fn part_path(directory: &Path, base_name: &str, extension: &str, part: u32) -> PathBuf {
     if part == 0 {
-        directory.join(format!("{base_name}.{extension}"))
+        library::join_relative(directory, &format!("{base_name}.{extension}"))
     } else {
-        directory.join(format!("{base_name}.{part:03}.{extension}"))
+        library::join_relative(directory, &format!("{base_name}.{part:03}.{extension}"))
     }
 }
 
@@ -1614,6 +1693,52 @@ mod tests {
     }
 
     #[test]
+    fn renders_folders_from_the_template() {
+        let metadata = SessionMetadata {
+            tab_id: "tab-1".to_string(),
+            session_nonce: 1,
+            session_type: "ssh".to_string(),
+            profile: "prod/api".to_string(),
+            host: "10.0.0.1".to_string(),
+            port: 22,
+            username: String::new(),
+            started_at_ms: 0,
+        };
+        let year = Local::now().format("%Y").to_string();
+        assert_eq!(
+            render_name("{year}/{profile}/{host}-{sessionId}", &metadata),
+            format!("{year}/prod_api/10.0.0.1-tab-1")
+        );
+        // Backslashes separate folders too; empty and dot-only folders are dropped.
+        assert_eq!(
+            render_name("/logs\\{username}//../{host}", &metadata),
+            "logs/10.0.0.1"
+        );
+        assert_eq!(render_name("{type}/", &metadata), "ssh");
+    }
+
+    #[test]
+    fn limits_how_deep_the_template_goes() {
+        let mut config = AppConfig {
+            terminal_log_directory: std::env::temp_dir().to_string_lossy().into_owned(),
+            ..AppConfig::default()
+        };
+        config.terminal_log_name_template = "a/b/c/d/e/{host}".to_string();
+        assert_eq!(LogConfig::from_app_config(&config).err(), None);
+        config.terminal_log_name_template = "a/b/c/d/e/f/{host}".to_string();
+        assert!(LogConfig::from_app_config(&config).is_err());
+    }
+
+    #[test]
+    fn part_paths_follow_folders() {
+        let directory = Path::new("/logs");
+        assert_eq!(
+            part_path(directory, "2026/prod-1", "tlog", 2),
+            directory.join("2026").join("prod-1.002.tlog")
+        );
+    }
+
+    #[test]
     fn compression_preserves_content() {
         let directory =
             std::env::temp_dir().join(format!("tterm-log-test-{}", uuid::Uuid::new_v4()));
@@ -1685,7 +1810,7 @@ mod tests {
 
     #[test]
     fn plain_log_puts_typed_lines_between_the_output_around_them() {
-        let mut log = PlainLog::new(10, 40);
+        let mut log = PlainLog::new(10, 40, true);
         let mut lines = log.output(b"$ ");
         tick();
         lines.extend(log.input(tick(), b"ls\r"));
@@ -1701,15 +1826,37 @@ mod tests {
     }
 
     #[test]
+    fn plain_log_without_timestamps_keeps_output_bare() {
+        let mut log = PlainLog::new(10, 40, false);
+        let mut lines = log.event(tick(), "session_start", &serde_json::json!({}));
+        lines.extend(log.output(b"$ "));
+        lines.extend(log.input(tick(), b"ls\r"));
+        tick();
+        lines.extend(log.output(b"ls\r\nfile\r\n\r\n$ "));
+        lines.extend(log.finish(tick()));
+        assert_eq!(
+            lines,
+            vec![
+                "[EVENT] session_start {}\n",
+                "$ ls\n",
+                "[INPUT] ls\n",
+                "file\n",
+                "\n",
+                "$\n",
+            ]
+        );
+    }
+
+    #[test]
     fn plain_log_writes_events_right_away_on_an_empty_screen() {
-        let mut log = PlainLog::new(10, 40);
+        let mut log = PlainLog::new(10, 40, true);
         let lines = log.event(Local::now(), "session_start", &serde_json::json!({}));
         assert_eq!(untimed(lines), vec!["EVENT session_start {}"]);
     }
 
     #[test]
     fn plain_log_notes_full_screen_programs_in_order() {
-        let mut log = PlainLog::new(10, 40);
+        let mut log = PlainLog::new(10, 40, true);
         let mut lines = log.output(b"$ vim\r\n");
         tick();
         lines.extend(log.output(b"\x1b[?1049h\x1b[2Jtext\x1b[?1049l"));
@@ -1738,6 +1885,7 @@ mod tests {
                 name_template: "x".to_string(),
                 max_file_size_bytes: 1,
                 compress: false,
+                plain_timestamps: true,
             },
             retention: Retention::default(),
         };

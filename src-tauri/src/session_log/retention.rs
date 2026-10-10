@@ -1,7 +1,8 @@
 //! Automatic cleanup of old terminal logs. Only files tTerm wrote are
 //! touched: the log directory can be any folder the user picked, so a file
 //! is removed only when its name looks like a terminal log and it starts
-//! with a tTerm log header.
+//! with a tTerm log header. Logs in folders below the log directory count
+//! too, and a folder a removed log leaves empty is removed with it.
 
 use std::collections::HashSet;
 use std::fs;
@@ -53,27 +54,16 @@ pub(super) fn clean(
     if retention.is_off() {
         return Ok(report);
     }
-    let entries = match fs::read_dir(directory) {
-        Ok(entries) => entries,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(report),
-        Err(error) => {
-            return Err(format!(
-                "Failed to read terminal log directory '{}': {error}",
-                directory.display()
-            ))
-        }
-    };
-
     let mut total: u64 = 0;
     let mut removable = Vec::new();
-    for entry in entries.filter_map(Result::ok) {
-        let path = entry.path();
-        let Ok(metadata) = entry.metadata() else {
-            continue;
-        };
-        if !metadata.is_file() || !has_log_suffix(&path) {
+    for found in super::library::walk(directory)? {
+        if !has_log_suffix(&found.name) {
             continue;
         }
+        let path = found.path;
+        let Ok(metadata) = fs::metadata(&path) else {
+            continue;
+        };
         let modified = metadata.modified().unwrap_or(now);
         let held =
             in_use.contains(&path) || now.duration_since(modified).unwrap_or_default() < RECENT;
@@ -106,6 +96,9 @@ pub(super) fn clean(
                 total = total.saturating_sub(file.size);
                 report.removed += 1;
                 report.freed_bytes += file.size;
+                if let Some(folder) = file.path.parent() {
+                    super::library::remove_empty_folders(directory, folder);
+                }
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(error) => {
@@ -119,10 +112,8 @@ pub(super) fn clean(
     Ok(report)
 }
 
-fn has_log_suffix(path: &Path) -> bool {
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| LOG_SUFFIXES.iter().any(|suffix| name.ends_with(suffix)))
+fn has_log_suffix(name: &str) -> bool {
+    LOG_SUFFIXES.iter().any(|suffix| name.ends_with(suffix))
 }
 
 #[cfg(test)]
@@ -240,6 +231,30 @@ mod tests {
         assert_eq!(report.removed, 1);
         assert!(!oldest.exists());
         assert!(middle.exists() && newest.exists());
+    }
+
+    #[test]
+    fn cleans_logs_in_folders_and_removes_emptied_folders() {
+        let dir = TempDir::new();
+        fs::create_dir_all(dir.0.join("2026/09")).unwrap();
+        fs::create_dir_all(dir.0.join("2026/10")).unwrap();
+        let old = dir.file("2026/09/a.log", PLAIN, days(30));
+        let fresh = dir.file("2026/10/b.log", PLAIN, days(1));
+
+        let report = clean(
+            &dir.0,
+            Retention {
+                max_age_days: 7,
+                max_total_bytes: 0,
+            },
+            &HashSet::new(),
+            SystemTime::now(),
+        )
+        .unwrap();
+
+        assert_eq!(report.removed, 1);
+        assert!(!old.exists() && !dir.0.join("2026/09").exists());
+        assert!(fresh.exists());
     }
 
     #[test]

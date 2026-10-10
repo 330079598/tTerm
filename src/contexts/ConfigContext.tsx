@@ -169,6 +169,8 @@ export interface AppConfig {
   terminal_log_name_template: string
   terminal_log_max_file_size_mb: number
   terminal_log_compress: boolean
+  /** Start each line of the plain-text log with when it appeared. */
+  terminal_log_plain_timestamps: boolean
   /** Also log what is typed, including passwords at prompts that do not echo. */
   terminal_log_record_input: boolean
   /** Remove logs last written more than this many days ago; 0 keeps them. */
@@ -285,6 +287,7 @@ const defaultConfig: AppConfig = {
   terminal_log_name_template: "{profile}-{host}-{yyyyMMdd-HHmmss}-{sessionId}",
   terminal_log_max_file_size_mb: 50,
   terminal_log_compress: false,
+  terminal_log_plain_timestamps: true,
   terminal_log_record_input: false,
   terminal_log_retention_days: 0,
   terminal_log_max_total_mb: 0,
@@ -548,6 +551,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
       config.terminal_log_max_file_size_mb
     ),
     terminal_log_compress: config.terminal_log_compress === true,
+    terminal_log_plain_timestamps: config.terminal_log_plain_timestamps !== false,
     terminal_log_record_input: config.terminal_log_record_input === true,
     terminal_log_retention_days: normalizeTerminalLogLimit(
       config.terminal_log_retention_days,

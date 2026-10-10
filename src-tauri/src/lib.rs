@@ -322,6 +322,7 @@ pub fn run() {
             session_log::load_terminal_log_text,
             session_log::export_terminal_log_asciicast,
             session_log::delete_terminal_log,
+            session_log::delete_terminal_logs,
             session_log::reveal_terminal_log,
             session_log::save_terminal_contents,
             session_log::open_terminal_log_directory,

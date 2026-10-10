@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   CircleAlert,
   CircleDot,
+  Clock,
   Eraser,
   FileClock,
   FileText,
@@ -47,6 +48,14 @@ function parseLimit(value: string, max: number): number | null {
   return Number.isInteger(parsed) && parsed >= 0 && parsed <= max ? parsed : null
 }
 
+/** Folders a name template may put logs in, as the backend allows. */
+const MAX_LOG_FOLDERS = 5
+
+/** The template's folders and file name; `/` and `\\` both separate them. */
+function templateParts(template: string) {
+  return template.split(/[/\\]/).filter((part) => part.trim())
+}
+
 function renderExample(template: string) {
   return [
     ["{profile}", "production"],
@@ -54,11 +63,17 @@ function renderExample(template: string) {
     ["{port}", "22"],
     ["{username}", "root"],
     ["{type}", "ssh"],
+    ["{year}", "2026"],
+    ["{month}", "07"],
+    ["{day}", "29"],
     ["{date}", "20260729"],
     ["{time}", "153012"],
     ["{yyyyMMdd-HHmmss}", "20260729-153012"],
     ["{sessionId}", "a83f"],
-  ].reduce((value, [token, replacement]) => value.split(token).join(replacement), template)
+  ].reduce(
+    (value, [token, replacement]) => value.split(token).join(replacement),
+    templateParts(template).join("/")
+  )
 }
 
 export const LoggingSettingsTab: React.FC<LoggingSettingsTabProps> = ({
@@ -148,6 +163,10 @@ export const LoggingSettingsTab: React.FC<LoggingSettingsTabProps> = ({
     }
     if (trimmed.length > 180) {
       setNameError(t("terminalLogging.nameTooLong"))
+      return
+    }
+    if (templateParts(trimmed).length > MAX_LOG_FOLDERS + 1) {
+      setNameError(t("terminalLogging.nameTooDeep", { max: MAX_LOG_FOLDERS }))
       return
     }
     setNameError(null)
@@ -329,6 +348,23 @@ export const LoggingSettingsTab: React.FC<LoggingSettingsTabProps> = ({
               ))}
             </div>
           </SettingsRow>
+
+          <SettingsRow
+            icon={<Clock size={16} />}
+            title={t("terminalLogging.plainTimestamps")}
+            description={t("terminalLogging.plainTimestampsDesc")}
+            action={
+              <Switch
+                checked={config.terminal_log_plain_timestamps}
+                disabled={config.terminal_log_format === "raw"}
+                onCheckedChange={async (checked) => {
+                  if (await saveSettings({ terminal_log_plain_timestamps: checked }))
+                    void refreshStatus()
+                }}
+                aria-label={t("terminalLogging.plainTimestamps")}
+              />
+            }
+          />
 
           <SettingsRow
             icon={<FileText size={16} />}

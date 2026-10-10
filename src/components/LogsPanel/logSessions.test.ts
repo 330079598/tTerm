@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest"
 
 import {
   findTabLog,
+  idRange,
+  logBaseName,
+  logFolder,
   type LogSession,
   logSessionTarget,
   logSessionTitle,
@@ -69,5 +72,20 @@ describe("log sessions", () => {
     expect(findTabLog([localLog], { tabId: "tab-3", sessionType: "local" }, ["local"])?.id).toBe(
       "local"
     )
+  })
+
+  it("splits a session id into its folders and base name", () => {
+    expect(logFolder("2026/10/prod-1")).toBe("2026/10")
+    expect(logBaseName("2026/10/prod-1")).toBe("prod-1")
+    expect(logFolder("prod-1")).toBe("")
+    expect(logBaseName("prod-1")).toBe("prod-1")
+  })
+
+  it("picks the ids between a shift-click and the last click", () => {
+    const ids = ["a", "b", "c", "d"]
+    expect(idRange(ids, "b", "d")).toEqual(["b", "c", "d"])
+    expect(idRange(ids, "d", "b")).toEqual(["b", "c", "d"])
+    expect(idRange(ids, null, "c")).toEqual(["c"])
+    expect(idRange(ids, "gone", "c")).toEqual(["c"])
   })
 })

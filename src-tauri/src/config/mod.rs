@@ -102,6 +102,9 @@ pub struct AppConfig {
     pub terminal_log_max_file_size_mb: u32,
     #[serde(default)]
     pub terminal_log_compress: bool,
+    /// Start each line of the plain-text log with when it appeared.
+    #[serde(default = "default_true")]
+    pub terminal_log_plain_timestamps: bool,
     /// Also log what is typed, including passwords at prompts that do not echo.
     #[serde(default)]
     pub terminal_log_record_input: bool,
@@ -600,6 +603,7 @@ impl Default for AppConfig {
             terminal_log_name_template: default_terminal_log_name_template(),
             terminal_log_max_file_size_mb: default_terminal_log_max_file_size_mb(),
             terminal_log_compress: false,
+            terminal_log_plain_timestamps: true,
             terminal_log_record_input: false,
             terminal_log_retention_days: 0,
             terminal_log_max_total_mb: 0,
@@ -783,6 +787,7 @@ mod tests {
         assert!(!config.terminal_log_enabled);
         assert_eq!(config.terminal_log_format, "both");
         assert_eq!(config.terminal_log_max_file_size_mb, 50);
+        assert!(config.terminal_log_plain_timestamps);
         assert_eq!(
             config.monitor_visible_metrics,
             ["cpu", "memory", "network", "ip", "latency", "disk"]

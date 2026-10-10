@@ -1,7 +1,9 @@
-//! The log directory as a list of sessions. A session is every file that
-//! shares a base name: its raw (`.tlog`) and plain (`.log`) logs, each split
-//! into parts once it reaches the size limit, any of them gzipped. Only files
-//! whose header shows tTerm wrote them are listed or touched.
+//! The log directory as a list of sessions. A session is every file in one
+//! folder that shares a base name: its raw (`.tlog`) and plain (`.log`) logs,
+//! each split into parts once it reaches the size limit, any of them gzipped.
+//! The name template may put logs in folders below the log directory; a
+//! session's id is its folders and base name joined by `/`. Only files whose
+//! header shows tTerm wrote them are listed or touched.
 
 use base64::Engine;
 use flate2::read::GzDecoder;
@@ -20,6 +22,9 @@ const MAX_REPLAY_BYTES: usize = 256 * 1024 * 1024;
 /// Plain text the viewer may load at once.
 const MAX_TEXT_BYTES: u64 = 64 * 1024 * 1024;
 const DEFAULT_SIZE: (u16, u16) = (80, 24);
+/// How many folders deep below the log directory logs are looked for; the
+/// name template may not go deeper.
+pub(super) const MAX_FOLDER_DEPTH: usize = 5;
 
 const FRAME_OUTPUT: u8 = 0;
 const FRAME_RESIZE: u8 = 1;
@@ -181,11 +186,47 @@ struct LogFile {
     part: u32,
 }
 
-/// The files of each session in `directory`, ordered by kind then part.
-fn session_files(directory: &Path) -> Result<BTreeMap<String, Vec<LogFile>>, String> {
-    let entries = match fs::read_dir(directory) {
+/// A file in the log directory or one of its folders.
+pub(super) struct FoundFile {
+    pub path: PathBuf,
+    /// The folders between the log directory and the file, joined by `/`;
+    /// empty for a file at the top.
+    pub folder: String,
+    pub name: String,
+}
+
+/// The files and the folders directly in `path`. Symbolic links, hidden
+/// folders and names that are not UTF-8 are left out.
+fn read_folder(path: &Path, folder: &str) -> std::io::Result<(Vec<FoundFile>, Vec<String>)> {
+    let mut files = Vec::new();
+    let mut folders = Vec::new();
+    for entry in fs::read_dir(path)?.filter_map(Result::ok) {
+        let Some(name) = entry.file_name().to_str().map(str::to_string) else {
+            continue;
+        };
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        if file_type.is_file() {
+            files.push(FoundFile {
+                path: entry.path(),
+                folder: folder.to_string(),
+                name,
+            });
+        } else if file_type.is_dir() && !name.starts_with('.') {
+            folders.push(name);
+        }
+    }
+    Ok((files, folders))
+}
+
+/// Every file in `directory` and its folders, down to `MAX_FOLDER_DEPTH`
+/// folders deep. A folder that cannot be read is skipped; only the log
+/// directory itself must be readable, and a missing one has no files.
+pub(super) fn walk(directory: &Path) -> Result<Vec<FoundFile>, String> {
+    let (mut found, folders) = match read_folder(directory, "") {
         Ok(entries) => entries,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeMap::new()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
         Err(error) => {
             return Err(format!(
                 "Failed to read terminal log directory '{}': {error}",
@@ -193,32 +234,79 @@ fn session_files(directory: &Path) -> Result<BTreeMap<String, Vec<LogFile>>, Str
             ))
         }
     };
-    let mut sessions: BTreeMap<String, Vec<LogFile>> = BTreeMap::new();
-    for entry in entries.filter_map(Result::ok) {
-        let Some(name) = entry.file_name().to_str().map(str::to_string) else {
+    let mut pending: Vec<(String, usize)> = folders.into_iter().map(|name| (name, 1)).collect();
+    while let Some((folder, depth)) = pending.pop() {
+        let Ok((files, folders)) = read_folder(&join_relative(directory, &folder), &folder) else {
             continue;
         };
-        let Some(parsed) = parse_file_name(&name) else {
-            continue;
-        };
-        if !entry.file_type().is_ok_and(|kind| kind.is_file()) {
-            continue;
+        found.extend(files);
+        if depth < MAX_FOLDER_DEPTH {
+            pending.extend(
+                folders
+                    .into_iter()
+                    .map(|name| (format!("{folder}/{name}"), depth + 1)),
+            );
         }
-        sessions.entry(parsed.base).or_default().push(LogFile {
-            path: entry.path(),
-            kind: parsed.kind,
-            part: parsed.part,
-        });
+    }
+    Ok(found)
+}
+
+/// `relative`'s `/`-separated parts joined onto `directory`.
+pub(super) fn join_relative(directory: &Path, relative: &str) -> PathBuf {
+    relative
+        .split('/')
+        .fold(directory.to_path_buf(), |path, part| path.join(part))
+}
+
+/// Removes `from` and the folders above it that are left empty, up to but not
+/// including `root`.
+pub(super) fn remove_empty_folders(root: &Path, from: &Path) {
+    let mut current = from;
+    while current != root && current.starts_with(root) {
+        if fs::remove_dir(current).is_err() {
+            break;
+        }
+        match current.parent() {
+            Some(parent) => current = parent,
+            None => break,
+        }
+    }
+}
+
+fn session_id(folder: &str, base: &str) -> String {
+    if folder.is_empty() {
+        base.to_string()
+    } else {
+        format!("{folder}/{base}")
+    }
+}
+
+/// Groups log files into sessions by folder and base name, each session's
+/// files ordered by kind then part.
+fn group_sessions(found: Vec<FoundFile>) -> BTreeMap<String, Vec<LogFile>> {
+    let mut sessions: BTreeMap<String, Vec<LogFile>> = BTreeMap::new();
+    for file in found {
+        let Some(parsed) = parse_file_name(&file.name) else {
+            continue;
+        };
+        sessions
+            .entry(session_id(&file.folder, &parsed.base))
+            .or_default()
+            .push(LogFile {
+                path: file.path,
+                kind: parsed.kind,
+                part: parsed.part,
+            });
     }
     for files in sessions.values_mut() {
         files.sort_by_key(|file| (file.kind, file.part));
     }
-    Ok(sessions)
+    sessions
 }
 
 pub(super) fn list(directory: &Path, in_use: &HashSet<PathBuf>) -> Result<Vec<LogSession>, String> {
     let mut sessions = Vec::new();
-    for (id, files) in session_files(directory)? {
+    for (id, files) in group_sessions(walk(directory)?) {
         let Some(metadata) = files.iter().find_map(|file| read_metadata(&file.path)) else {
             continue;
         };
@@ -270,13 +358,36 @@ pub(super) fn list(directory: &Path, in_use: &HashSet<PathBuf>) -> Result<Vec<Lo
     Ok(sessions)
 }
 
+/// The folder and base name an id names, if it could name a session: parts
+/// that stay inside the log directory and that tTerm could have written.
+fn parse_id(id: &str) -> Option<(&str, &str)> {
+    let parts: Vec<&str> = id.split('/').collect();
+    if parts.len() > MAX_FOLDER_DEPTH + 1
+        || parts.iter().any(|part| {
+            part.is_empty() || *part == "." || *part == ".." || part.contains(['\\', ':'])
+        })
+    {
+        return None;
+    }
+    Some(match id.rsplit_once('/') {
+        Some((folder, base)) => (folder, base),
+        None => ("", id),
+    })
+}
+
 /// The files of one session, after checking `id` names one.
 fn files_of(directory: &Path, id: &str) -> Result<Vec<LogFile>, String> {
-    if id.is_empty() || id.contains(['/', '\\']) || id == "." || id == ".." {
-        return Err("Invalid terminal log".to_string());
-    }
-    let files = session_files(directory)?
-        .remove(id)
+    let (folder, base) = parse_id(id).ok_or("Invalid terminal log")?;
+    let path = if folder.is_empty() {
+        directory.to_path_buf()
+    } else {
+        join_relative(directory, folder)
+    };
+    let found = read_folder(&path, folder)
+        .map(|(files, _)| files)
+        .unwrap_or_default();
+    let files = group_sessions(found)
+        .remove(&session_id(folder, base))
         .filter(|files| files.iter().any(|file| read_metadata(&file.path).is_some()))
         .ok_or("The terminal log no longer exists")?;
     Ok(files)
@@ -575,13 +686,14 @@ fn seconds(at_us: u64) -> f64 {
     at_us as f64 / 1_000_000.0
 }
 
-/// Deletes every file of a session that is not being written.
+/// Deletes every file of a session that is not being written, and the
+/// folders the session leaves empty.
 pub(super) fn delete(directory: &Path, id: &str, in_use: &HashSet<PathBuf>) -> Result<(), String> {
     let files = files_of(directory, id)?;
     if files.iter().any(|file| in_use.contains(&file.path)) {
         return Err("This session is still being logged; stop logging it first".to_string());
     }
-    for file in files {
+    for file in &files {
         match fs::remove_file(&file.path) {
             Ok(()) => {}
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -593,7 +705,43 @@ pub(super) fn delete(directory: &Path, id: &str, in_use: &HashSet<PathBuf>) -> R
             }
         }
     }
+    if let Some(folder) = files.first().and_then(|file| file.path.parent()) {
+        remove_empty_folders(directory, folder);
+    }
     Ok(())
+}
+
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteReport {
+    deleted: Vec<String>,
+    failed: Vec<DeleteFailure>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DeleteFailure {
+    id: String,
+    message: String,
+}
+
+/// Deletes each session as `delete` does; one that cannot be deleted does not
+/// stop the rest.
+pub(super) fn delete_many(
+    directory: &Path,
+    ids: &[String],
+    in_use: &HashSet<PathBuf>,
+) -> DeleteReport {
+    let mut report = DeleteReport::default();
+    for id in ids {
+        match delete(directory, id, in_use) {
+            Ok(()) => report.deleted.push(id.clone()),
+            Err(message) => report.failed.push(DeleteFailure {
+                id: id.clone(),
+                message,
+            }),
+        }
+    }
+    report
 }
 
 /// The file to show in the file manager for a session.
@@ -846,10 +994,86 @@ mod tests {
     }
 
     #[test]
+    fn lists_sessions_in_folders() {
+        let dir = TempDir::new();
+        fs::create_dir_all(dir.0.join("2026/10")).unwrap();
+        fs::create_dir_all(dir.0.join(".hidden")).unwrap();
+        dir.write("top.log", PLAIN_HEAD);
+        dir.write("2026/10/s.tlog", &raw_log(&[data(1, b"hi")]));
+        dir.write("2026/10/s.log", PLAIN_HEAD);
+        dir.write(".hidden/h.log", PLAIN_HEAD);
+
+        let sessions = list(&dir.0, &HashSet::new()).unwrap();
+        let mut ids: Vec<&str> = sessions.iter().map(|session| session.id.as_str()).collect();
+        ids.sort();
+        assert_eq!(ids, ["2026/10/s", "top"]);
+        let nested = sessions
+            .iter()
+            .find(|session| session.id == "2026/10/s")
+            .unwrap();
+        assert!(nested.has_raw && nested.has_plain);
+        assert!(load_recording(&dir.0, "2026/10/s").is_ok());
+    }
+
+    #[test]
+    fn looks_only_as_deep_as_a_template_may_go() {
+        let dir = TempDir::new();
+        let deep = ["a", "b", "c", "d", "e"].join("/");
+        let too_deep = format!("{deep}/f");
+        fs::create_dir_all(dir.0.join(&too_deep)).unwrap();
+        dir.write(&format!("{deep}/s.log"), PLAIN_HEAD);
+        dir.write(&format!("{too_deep}/s.log"), PLAIN_HEAD);
+        let sessions = list(&dir.0, &HashSet::new()).unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].id, format!("{deep}/s"));
+    }
+
+    #[test]
+    fn deleting_removes_folders_left_empty() {
+        let dir = TempDir::new();
+        fs::create_dir_all(dir.0.join("2026/10")).unwrap();
+        fs::create_dir_all(dir.0.join("2026/11")).unwrap();
+        dir.write("2026/10/s.log", PLAIN_HEAD);
+        dir.write("2026/11/t.log", PLAIN_HEAD);
+        delete(&dir.0, "2026/10/s", &HashSet::new()).unwrap();
+        assert!(!dir.0.join("2026/10").exists());
+        assert!(dir.0.join("2026/11/t.log").exists());
+        delete(&dir.0, "2026/11/t", &HashSet::new()).unwrap();
+        assert!(!dir.0.join("2026").exists());
+        assert!(dir.0.exists());
+    }
+
+    #[test]
+    fn deletes_many_and_reports_the_ones_it_could_not() {
+        let dir = TempDir::new();
+        dir.write("a.log", PLAIN_HEAD);
+        let open = dir.write("b.log", PLAIN_HEAD);
+        dir.write("c.log", PLAIN_HEAD);
+        let report = delete_many(
+            &dir.0,
+            &["a".into(), "b".into(), "c".into(), "../x".into()],
+            &HashSet::from([open.clone()]),
+        );
+        assert_eq!(report.deleted, ["a", "c"]);
+        let failed: Vec<&str> = report
+            .failed
+            .iter()
+            .map(|failure| failure.id.as_str())
+            .collect();
+        assert_eq!(failed, ["b", "../x"]);
+        assert!(open.exists());
+        assert!(!dir.0.join("a.log").exists() && !dir.0.join("c.log").exists());
+    }
+
+    #[test]
     fn rejects_ids_that_are_not_sessions() {
         let dir = TempDir::new();
         dir.write("x.log", "not ours\n");
         assert!(files_of(&dir.0, "../etc").is_err());
+        assert!(files_of(&dir.0, "a/../x").is_err());
+        assert!(files_of(&dir.0, "/x").is_err());
+        assert!(files_of(&dir.0, "a\\x").is_err());
+        assert!(files_of(&dir.0, "C:/x").is_err());
         assert!(files_of(&dir.0, "x").is_err());
         assert!(files_of(&dir.0, "missing").is_err());
     }

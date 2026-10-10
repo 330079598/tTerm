@@ -10,6 +10,7 @@ import { LogReplayer } from "@/components/LogsPanel/LogReplayer"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { type LogsTabRequest, onLogsTabRequest, takeLogsTabRequest } from "@/lib/appNavigation"
@@ -36,6 +37,12 @@ export interface LogSession {
 }
 
 type LogView = "replay" | "text"
+
+/** What `delete_terminal_logs` did. */
+interface DeleteReport {
+  deleted: string[]
+  failed: Array<{ id: string; message: string }>
+}
 
 /** Refreshes after logging changes come in, at most this often. */
 const REFRESH_DELAY_MS = 500
@@ -77,6 +84,28 @@ export function findTabLog(
       session.port === (request.port ?? 22) &&
       session.username === (request.username ?? "")
   )
+}
+
+/** The folders a session's logs are in below the log directory, or "" at the top. */
+export function logFolder(id: string): string {
+  const slash = id.lastIndexOf("/")
+  return slash < 0 ? "" : id.slice(0, slash)
+}
+
+/** A session's base file name, without its folders. */
+export function logBaseName(id: string): string {
+  return id.slice(id.lastIndexOf("/") + 1)
+}
+
+/**
+ * The ids from `anchor` to `target` in `ids`, both included, for a shift-click;
+ * just `target` when the anchor is not in the list.
+ */
+export function idRange(ids: readonly string[], anchor: string | null, target: string): string[] {
+  const from = anchor === null ? -1 : ids.indexOf(anchor)
+  const to = ids.indexOf(target)
+  if (from < 0 || to < 0) return [target]
+  return ids.slice(Math.min(from, to), Math.max(from, to) + 1)
 }
 
 export function matchesLogFilter(session: LogSession, filter: string): boolean {
@@ -131,6 +160,10 @@ export const LogsPanel: React.FC = () => {
   const [view, setView] = useState<LogView>("replay")
 
   const [notice, setNotice] = useState<string | null>(null)
+  /** Sessions ticked for deleting together. */
+  const [checked, setChecked] = useState<ReadonlySet<string>>(() => new Set())
+  const [checkAnchor, setCheckAnchor] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const refresh = useCallback(async () => {
     try {
@@ -181,6 +214,17 @@ export const LogsPanel: React.FC = () => {
     [filter, sessions]
   )
   const selected = sessions?.find((session) => session.id === selectedId) ?? null
+  // Only what the filter shows can be deleted together, and a session being
+  // logged cannot be deleted at all.
+  const checkable = useMemo(
+    () => filtered.filter((session) => !session.recording).map((session) => session.id),
+    [filtered]
+  )
+  const checkedShown = useMemo(
+    () => filtered.filter((session) => checked.has(session.id) && !session.recording),
+    [checked, filtered]
+  )
+  const allChecked = checkable.length > 0 && checkedShown.length === checkable.length
   // A session with only one kind of log shows that one.
   const shownView: LogView | null = !selected
     ? null
@@ -194,7 +238,7 @@ export const LogsPanel: React.FC = () => {
 
   const exportCast = async (session: LogSession) => {
     const path = await saveFileDialog({
-      defaultPath: `${session.id}.cast`,
+      defaultPath: `${logBaseName(session.id)}.cast`,
       filters: [{ name: "asciicast", extensions: ["cast"] }],
     }).catch(() => null)
     if (!path) return
@@ -236,6 +280,7 @@ export const LogsPanel: React.FC = () => {
     try {
       await invoke("delete_terminal_log", { id: session.id })
       setSelectedId(null)
+      setChecked((current) => new Set([...current].filter((id) => id !== session.id)))
       await refresh()
     } catch (error) {
       toast({
@@ -243,6 +288,67 @@ export const LogsPanel: React.FC = () => {
         description: toErrorMessage(error),
         variant: "destructive",
       })
+    }
+  }
+
+  const toggleChecked = (id: string, extend: boolean) => {
+    const ids = extend ? idRange(checkable, checkAnchor, id) : [id]
+    const next = new Set(checked)
+    const on = !checked.has(id)
+    for (const each of ids) {
+      if (on) next.add(each)
+      else next.delete(each)
+    }
+    setChecked(next)
+    setCheckAnchor(id)
+  }
+
+  const toggleAll = () => {
+    setChecked(allChecked ? new Set() : new Set(checkable))
+    setCheckAnchor(null)
+  }
+
+  const removeChecked = async () => {
+    const targets = checkedShown
+    if (targets.length === 0) return
+    const confirmed = await confirm({
+      title: t("terminalLogs.deleteManyTitle", { count: targets.length }),
+      description: t("terminalLogs.deleteManyDescription", {
+        size: formatLogSize(
+          targets.reduce((total, session) => total + session.rawBytes + session.plainBytes, 0)
+        ),
+      }),
+      confirmText: t("common.delete"),
+      cancelText: t("common.cancel"),
+      variant: "destructive",
+    })
+    if (!confirmed) return
+    setDeleting(true)
+    try {
+      const report = await invoke<DeleteReport>("delete_terminal_logs", {
+        ids: targets.map((session) => session.id),
+      })
+      const deleted = new Set(report.deleted)
+      setChecked((current) => new Set([...current].filter((id) => !deleted.has(id))))
+      if (selectedId !== null && deleted.has(selectedId)) setSelectedId(null)
+      if (report.failed.length > 0) {
+        toast({
+          title: t("terminalLogs.deleteManyPartial", { count: report.failed.length }),
+          description: report.failed[0].message,
+          variant: "destructive",
+        })
+      } else {
+        toast({ title: t("terminalLogs.deletedMany", { count: report.deleted.length }) })
+      }
+    } catch (error) {
+      toast({
+        title: t("terminalLogs.deleteFailed"),
+        description: toErrorMessage(error),
+        variant: "destructive",
+      })
+    } finally {
+      setDeleting(false)
+      await refresh()
     }
   }
 
@@ -274,6 +380,31 @@ export const LogsPanel: React.FC = () => {
               className="pl-8"
             />
           </div>
+          {filtered.length > 0 && (
+            <div className="flex items-center gap-2 px-5 pb-2">
+              <Checkbox
+                checked={allChecked}
+                disabled={checkable.length === 0}
+                onCheckedChange={toggleAll}
+                aria-label={t("terminalLogs.selectAll")}
+              />
+              <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs">
+                {checkedShown.length > 0
+                  ? t("terminalLogs.selectedCount", { count: checkedShown.length })
+                  : t("terminalLogs.selectAll")}
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={checkedShown.length === 0 || deleting}
+                onClick={() => void removeChecked()}
+              >
+                <Trash2 />
+                {t("terminalLogs.deleteSelected")}
+              </Button>
+            </div>
+          )}
           <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3" role="listbox">
             {listError && (
               <p role="alert" className="text-destructive px-2 text-xs">
@@ -287,38 +418,55 @@ export const LogsPanel: React.FC = () => {
               </div>
             )}
             {filtered.map((session) => (
-              <button
+              <div
                 key={session.id}
-                type="button"
-                role="option"
-                aria-selected={session.id === selectedId}
-                onClick={() => {
-                  setSelectedId(session.id)
-                  setNotice(null)
-                }}
                 className={cn(
-                  "hover:bg-muted/60 w-full rounded-md px-3 py-2 text-left",
+                  "hover:bg-muted/60 flex items-start gap-2 rounded-md pl-3",
                   session.id === selectedId && "bg-muted"
                 )}
               >
-                <div className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {logSessionTitle(session, t("terminalLogs.local"))}
-                  </span>
-                  {session.recording && (
-                    <Badge variant="destructive">{t("terminalLogs.recording")}</Badge>
-                  )}
-                </div>
-                {logSessionTarget(session) && (
-                  <div className="text-muted-foreground truncate text-xs">
-                    {logSessionTarget(session)}
+                <Checkbox
+                  className="mt-2.5"
+                  checked={checked.has(session.id) && !session.recording}
+                  disabled={session.recording}
+                  title={session.recording ? t("terminalLogs.deleteRecording") : undefined}
+                  aria-label={t("terminalLogs.select", {
+                    name: logSessionTitle(session, t("terminalLogs.local")),
+                  })}
+                  onClick={(event) => {
+                    event.preventDefault()
+                    toggleChecked(session.id, event.shiftKey)
+                  }}
+                />
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={session.id === selectedId}
+                  onClick={() => {
+                    setSelectedId(session.id)
+                    setNotice(null)
+                  }}
+                  className="min-w-0 flex-1 py-2 pr-3 text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                      {logSessionTitle(session, t("terminalLogs.local"))}
+                    </span>
+                    {session.recording && (
+                      <Badge variant="destructive">{t("terminalLogs.recording")}</Badge>
+                    )}
                   </div>
-                )}
-                <div className="text-muted-foreground mt-0.5 flex justify-between gap-2 text-xs tabular-nums">
-                  <span className="truncate">{formatTime(session.startedAtMs)}</span>
-                  <span>{formatLogSize(session.rawBytes + session.plainBytes)}</span>
-                </div>
-              </button>
+                  {logSessionTarget(session) && (
+                    <div className="text-muted-foreground truncate text-xs">
+                      {logSessionTarget(session)}
+                    </div>
+                  )}
+                  <div className="text-muted-foreground mt-0.5 flex justify-between gap-2 text-xs tabular-nums">
+                    <span className="truncate">{formatTime(session.startedAtMs)}</span>
+                    <span>{formatLogSize(session.rawBytes + session.plainBytes)}</span>
+                  </div>
+                </button>
+              </div>
             ))}
           </div>
         </aside>
@@ -338,6 +486,7 @@ export const LogsPanel: React.FC = () => {
                   <div className="text-muted-foreground truncate text-xs">
                     {[
                       logSessionTarget(selected),
+                      logFolder(selected.id),
                       formatTime(selected.startedAtMs),
                       formatLogSize(selected.rawBytes + selected.plainBytes),
                     ]
