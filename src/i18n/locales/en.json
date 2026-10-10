@@ -1261,7 +1261,7 @@
     "terminalPaddingDesc": "Adjust left, right, and bottom spacing in pixels. Bottom spacing lifts the last terminal line away from the window edge.",
     "scrollbackLinesDesc": "Default: 10,000 lines. Unlimited history can use significant memory.",
     "scrollbackLinesPlaceholder": "Default 10000, or pick a preset",
-    "scrollbackUnlimitedWarning": "Heavy output or many tabs may slow the app or use a lot of memory.",
+    "scrollbackUnlimitedWarning": "Unlimited is not truly unlimited: history keeps growing up to {{max}} lines and is only freed when you clear the screen. Memory per line grows with the window width; at 120 columns, 1 million lines take about 1.5 GB. All tabs share one interface process, and if their total memory goes past the limit the system allows it (about 16 GB on machines with plenty of RAM, less on smaller ones), the window may crash and every tab loses its scrollback. To keep output long term, turn on Terminal session logging.",
     "unlimited": "Unlimited",
     "cursorStyles": {
       "bar": "Bar",

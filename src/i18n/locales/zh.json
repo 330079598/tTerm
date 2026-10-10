@@ -1246,7 +1246,7 @@
     "terminalPaddingDesc": "调整终端左侧、右侧和底部的像素间距。底部间距可以让最后一行远离窗口边缘。",
     "scrollbackLinesDesc": "默认 10,000 行；无限制历史可能占用较多内存。",
     "scrollbackLinesPlaceholder": "默认 10000，或选择预设",
-    "scrollbackUnlimitedWarning": "大量输出或多标签可能导致内存占用高、应用变慢。",
+    "scrollbackUnlimitedWarning": "无限制并非真正无限：历史会一直增长到 {{max}} 行，只有清屏时才会释放。每行占用的内存与窗口宽度成正比，120 列时 100 万行约 1.5 GB。所有标签共用同一个界面进程，内存总量超过系统给它的上限（大内存机器约 16 GB，内存较小的机器更低）时，窗口可能崩溃，所有标签的回滚历史都会丢失。需要长期保留输出时，请开启「终端会话日志」。",
     "unlimited": "无限制",
     "cursorStyles": {
       "bar": "竖线",

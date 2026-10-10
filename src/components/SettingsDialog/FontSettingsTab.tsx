@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import {
   DEFAULT_SCROLLBACK_LINES,
   MAX_EXPLICIT_SCROLLBACK_LINES,
+  UNLIMITED_SCROLLBACK_BUFFER,
   UNLIMITED_SCROLLBACK_SENTINEL,
   isUnlimitedScrollback,
 } from "@/lib/scrollback"
@@ -580,8 +581,9 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
               {isUnlimitedScrollback(scrollbackLines) && (
                 <p className="text-xs text-amber-600 dark:text-amber-500">
                   {t("fontSettings.scrollbackUnlimitedWarning", {
+                    max: UNLIMITED_SCROLLBACK_BUFFER.toLocaleString(),
                     defaultValue:
-                      "Heavy output or many tabs may slow the app or use a lot of memory.",
+                      "Unlimited is not truly unlimited: history keeps growing up to {{max}} lines and is only freed when you clear the screen. Memory per line grows with the window width; at 120 columns, 1 million lines take about 1.5 GB. All tabs share one interface process, and if their total memory goes past the limit the system allows it (about 16 GB on machines with plenty of RAM, less on smaller ones), the window may crash and every tab loses its scrollback. To keep output long term, turn on Terminal session logging.",
                   })}
                 </p>
               )}
