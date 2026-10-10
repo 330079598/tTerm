@@ -703,6 +703,7 @@ pub fn command_marks_enabled() -> bool {
 
 /// Whether local shells on macOS and Linux start through tTerm's shell
 /// integration; off when the config file is missing or unreadable.
+#[cfg(unix)]
 pub fn local_shell_integration_enabled() -> bool {
     load_config_file().is_ok_and(|config| config.local_shell_integration)
 }
