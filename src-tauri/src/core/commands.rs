@@ -124,10 +124,11 @@ pub fn create_pty(
         crate::core::SessionKind::Terminal => {
             let (pid, pty) = terminal::spawn_local_pty(rows, cols, plan.terminal_shell.clone())?;
 
-            let reader = pty
-                .master
-                .try_clone_reader()
-                .map_err(|e| format!("Failed to clone reader: {}", e))?;
+            let reader = pty.input.track_output(
+                pty.master
+                    .try_clone_reader()
+                    .map_err(|e| format!("Failed to clone reader: {}", e))?,
+            );
 
             let sender =
                 crate::terminal::TerminalOutputSender::spawn(&tab_id, output_channel.clone());
@@ -302,8 +303,8 @@ pub fn write_pty(
 
     let result = match active {
         ActiveSession::Local(local) => local
-            .writer
-            .write_all(&input)
+            .input
+            .send(input.clone())
             .map_err(|e| format!("Failed to write to PTY: {}", e)),
         ActiveSession::Ssh(ssh) => ssh
             .input_tx
@@ -442,7 +443,7 @@ fn snapshot_batch_targets(
 
 fn write_active_session(tab_id: String, active: &mut ActiveSession, data: &[u8]) -> PtyWriteResult {
     let write_result = match active {
-        ActiveSession::Local(local) => local.writer.write_all(data),
+        ActiveSession::Local(local) => local.input.send(data.to_vec()),
         ActiveSession::Ssh(ssh) => ssh
             .input_tx
             .send(ssh.encoding.encode_input(data).into_owned())

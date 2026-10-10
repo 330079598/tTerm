@@ -759,11 +759,7 @@ pub fn spawn_local_pty(
         .take_writer()
         .map_err(|e| format!("Failed to take writer: {}", e))?;
 
-    let active = ActivePty {
-        writer,
-        master: pair.master,
-        child,
-    };
+    let active = ActivePty::new(writer, pair.master, child);
 
     Ok((pid, active))
 }

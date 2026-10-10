@@ -99,11 +99,7 @@ fn wired_send_uploads_a_file_to_real_rz_over_a_real_pty() {
     let mut reader = pair.master.try_clone_reader().expect("clone pty reader");
     let writer = pair.master.take_writer().expect("take pty writer");
 
-    let active_pty = ActivePty {
-        writer,
-        master: pair.master,
-        child,
-    };
+    let active_pty = ActivePty::new(writer, pair.master, child);
     let active: Arc<TokioMutex<Option<ActiveSession>>> =
         Arc::new(TokioMutex::new(Some(ActiveSession::Local(active_pty))));
 
