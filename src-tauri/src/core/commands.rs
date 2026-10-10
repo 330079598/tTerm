@@ -307,7 +307,7 @@ pub fn write_pty(
             .send(input.clone())
             .map_err(|e| format!("Failed to write to PTY: {}", e)),
         ActiveSession::Ssh(ssh) => ssh
-            .input_tx
+            .input
             .send(ssh.encoding.encode_input(&input).into_owned())
             .map_err(|_| format!("PTY session {} is not writable", tab_id)),
     };
@@ -444,10 +444,7 @@ fn snapshot_batch_targets(
 fn write_active_session(tab_id: String, active: &mut ActiveSession, data: &[u8]) -> PtyWriteResult {
     let write_result = match active {
         ActiveSession::Local(local) => local.input.send(data.to_vec()),
-        ActiveSession::Ssh(ssh) => ssh
-            .input_tx
-            .send(ssh.encoding.encode_input(data).into_owned())
-            .map_err(|_| std::io::Error::other("SSH input channel is closed")),
+        ActiveSession::Ssh(ssh) => ssh.input.send(ssh.encoding.encode_input(data).into_owned()),
     };
 
     match write_result {
@@ -566,6 +563,7 @@ mod batch_write_tests {
         let (resize_tx, _) = mpsc::unbounded_channel();
         let active = Arc::new(TokioMutex::new(Some(ActiveSession::Ssh(
             super::super::state::ActiveSsh {
+                input: crate::terminal::PtyInput::over_channel(input_tx.clone()),
                 input_tx,
                 resize_tx,
                 task: runtime.spawn(async {}),
@@ -685,7 +683,8 @@ mod batch_write_tests {
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].status, PtyWriteStatus::Written);
         assert!(guard_active.blocking_lock().is_some());
-        assert_eq!(input_rx.try_recv().expect("guard input"), b"input");
+        // Typed input reaches the channel from the session's input thread.
+        assert_eq!(input_rx.blocking_recv().expect("guard input"), b"input");
     }
 }
 
@@ -907,7 +906,8 @@ pub fn write_saved_password_for_sudo(
         zeroize::Zeroize::zeroize(&mut converted);
     }
 
-    ssh.input_tx
+    // Behind any paste still being sent, like the keys typed before it.
+    ssh.input
         .send(data.to_vec())
         .map_err(|_| format!("PTY session {} is not writable", tab_id))?;
     crate::session_log::record_credential_injection(&app, &tab_id);

@@ -68,6 +68,9 @@ pub enum ActiveSession {
 
 pub struct ActiveSsh {
     pub input_tx: mpsc::UnboundedSender<Vec<u8>>,
+    /// Typed and pasted input, paced and cancelled like a local shell's; it
+    /// reaches `input_tx` in order, while ZMODEM writes there directly.
+    pub input: crate::terminal::PtyInput,
     pub resize_tx: mpsc::UnboundedSender<(u16, u16)>,
     pub task: tokio::task::JoinHandle<()>,
     /// Recent output of this connection attempt, for saved-password writes.

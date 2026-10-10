@@ -134,6 +134,20 @@ impl PtyInput {
         }
     }
 
+    /// Input for a shell reached through a channel, an SSH session's, whose
+    /// output is counted with [`PtyInput::output_counter`].
+    pub fn over_channel(tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>) -> Self {
+        Self::spawn(
+            PtyWriter(Arc::new(Mutex::new(Box::new(ChannelWriter(tx))))),
+            0,
+        )
+    }
+
+    /// Counts the shell's output; each byte it writes adds one.
+    pub fn output_counter(&self) -> Arc<AtomicU64> {
+        self.output.clone()
+    }
+
     /// Wraps the PTY's reader so pastes are paced by the shell's output.
     pub fn track_output(&self, reader: Box<dyn Read + Send>) -> Box<dyn Read + Send> {
         Box::new(OutputCounter {
@@ -190,6 +204,22 @@ impl Pace {
                 thread::sleep(Duration::from_millis(1));
             }
         }
+    }
+}
+
+/// Hands input to the task that sends it over an SSH channel.
+struct ChannelWriter(tokio::sync::mpsc::UnboundedSender<Vec<u8>>);
+
+impl Write for ChannelWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0
+            .send(buf.to_vec())
+            .map_err(|_| io::Error::other("SSH input channel is closed"))?;
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
     }
 }
 

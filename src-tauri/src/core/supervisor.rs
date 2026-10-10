@@ -75,8 +75,10 @@ pub(crate) fn spawn_ssh_attempt(
     let (resize_tx, resize_rx) = mpsc::unbounded_channel::<(u16, u16)>();
     let output_tail = Arc::new(crate::terminal::OutputTail::default());
     let encoding = plan.encoding;
+    let input = crate::terminal::PtyInput::over_channel(input_tx.clone());
     let sender = crate::terminal::TerminalOutputSender::spawn(&tab_id, output_channel)
-        .with_output_tail(output_tail.clone());
+        .with_output_tail(output_tail.clone())
+        .with_output_counter(input.output_counter());
 
     let task = runtime_handle.spawn(async move {
         let result = crate::ssh::run_single_ssh_connection(
@@ -104,6 +106,7 @@ pub(crate) fn spawn_ssh_attempt(
 
     ActiveSsh {
         input_tx,
+        input,
         resize_tx,
         task,
         output_tail,

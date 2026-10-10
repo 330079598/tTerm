@@ -27,4 +27,4 @@ pub use pty::{
 };
 pub use pty::{spawn_local_pty, spawn_reader_thread};
 pub use ssh_query_handler::process_ssh_output_for_ui;
-pub use types::ActivePty;
+pub use types::{ActivePty, PtyInput};

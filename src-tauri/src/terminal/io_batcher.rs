@@ -1,4 +1,5 @@
 use super::output_tail::OutputTail;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, RecvError, RecvTimeoutError, SyncSender, TryRecvError};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
@@ -164,6 +165,7 @@ pub struct TerminalOutputSender {
     worker: Option<std::thread::JoinHandle<()>>,
     closed: bool,
     tail: Option<Arc<OutputTail>>,
+    output_counter: Option<Arc<AtomicU64>>,
 }
 
 impl TerminalOutputSender {
@@ -179,6 +181,7 @@ impl TerminalOutputSender {
             worker: Some(worker),
             closed: false,
             tail: None,
+            output_counter: None,
         }
     }
 
@@ -190,9 +193,18 @@ impl TerminalOutputSender {
 
     /// Enqueues raw bytes; blocks once the bounded queue is full. No-op after
     /// the worker has stopped so a dying webview cannot wedge the reader.
+    /// Counts every byte sent, which paces pastes (see `PtyInput`).
+    pub fn with_output_counter(mut self, counter: Arc<AtomicU64>) -> Self {
+        self.output_counter = Some(counter);
+        self
+    }
+
     pub fn send(&self, data: Vec<u8>) {
         if data.is_empty() || self.closed {
             return;
+        }
+        if let Some(counter) = &self.output_counter {
+            counter.fetch_add(data.len() as u64, Ordering::SeqCst);
         }
         if let Some(tail) = &self.tail {
             tail.record(&data);
