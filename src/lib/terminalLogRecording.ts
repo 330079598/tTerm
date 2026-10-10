@@ -50,3 +50,12 @@ export function getTabLogMenuAction(
     ? { label: t("contextMenu.stopLogging"), action: "log-stop", icon: "record-stop" }
     : { label: t("contextMenu.startLogging"), action: "log-start", icon: "record" }
 }
+
+/** A size in bytes as the logging pages show it. */
+export function formatLogSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B"
+  const units = ["B", "KiB", "MiB", "GiB", "TiB"]
+  const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  const value = bytes / 1024 ** unitIndex
+  return `${value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`
+}

@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ScrollText,
   Search,
   Settings,
   Waypoints,
@@ -231,6 +232,7 @@ const TabItem = React.memo(function TabItem({
           <span className="tab-number">{index + 1}</span>
           {tab.type === "settings" && <Settings className="tab-icon" size={13} />}
           {tab.type === "tunnels" && <Waypoints className="tab-icon" size={13} />}
+          {tab.type === "logs" && <ScrollText className="tab-icon" size={13} />}
           <TabAttentionDot tabId={tab.id} />
           <TabLogIndicator tabId={tab.id} />
           <span className="tab-title">{tab.title}</span>
@@ -785,6 +787,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                         <span className="tab-overflow-number">{tabIndex + 1}</span>
                         {tab.type === "settings" && <Settings className="tab-icon" size={13} />}
                         {tab.type === "tunnels" && <Waypoints className="tab-icon" size={13} />}
+                        {tab.type === "logs" && <ScrollText className="tab-icon" size={13} />}
                         <TabAttentionDot tabId={tab.id} />
                         <span className="tab-overflow-title">{tab.title}</span>
                         {connectionMeta.primary && (
@@ -820,6 +823,7 @@ export const TabBar: React.FC<TabBarProps> = ({
           <div ref={dragGhostRef} className="tab-drag-ghost" aria-hidden="true">
             {dragGhostTab.type === "settings" && <Settings className="tab-icon" size={13} />}
             {dragGhostTab.type === "tunnels" && <Waypoints className="tab-icon" size={13} />}
+            {dragGhostTab.type === "logs" && <ScrollText className="tab-icon" size={13} />}
             <span className="tab-drag-ghost-title">{dragGhostTab.title}</span>
           </div>,
           document.body

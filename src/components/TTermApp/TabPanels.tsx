@@ -34,6 +34,7 @@ import {
   Rows2,
   Settings,
   Waypoints,
+  ScrollText,
   X,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -67,6 +68,12 @@ const RemoteFileEditor = React.lazy(() =>
 const TunnelsPanel = React.lazy(() =>
   import("@/components/TunnelsPanel").then((module) => ({
     default: module.TunnelsPanel,
+  }))
+)
+
+const LogsPanel = React.lazy(() =>
+  import("@/components/LogsPanel").then((module) => ({
+    default: module.LogsPanel,
   }))
 )
 
@@ -311,6 +318,7 @@ const WorkspaceTab = React.memo(function WorkspaceTab({
     >
       {tab.type === "settings" && <Settings size={13} aria-hidden="true" />}
       {tab.type === "tunnels" && <Waypoints size={13} aria-hidden="true" />}
+      {tab.type === "logs" && <ScrollText size={13} aria-hidden="true" />}
       <TabAttentionDot tabId={tab.id} />
       <TabLogIndicator tabId={tab.id} />
       <span className="workspace-tab-title">{tab.title}</span>
@@ -373,6 +381,12 @@ const WorkspacePanel = React.memo(function WorkspacePanel({
         <ErrorBoundary resetKey={tab.id} scope="tunnels">
           <React.Suspense fallback={null}>
             <TunnelsPanel profilesRefreshKey={workspace.profilesRefreshKey} />
+          </React.Suspense>
+        </ErrorBoundary>
+      ) : tab.type === "logs" ? (
+        <ErrorBoundary resetKey={tab.id} scope="logs">
+          <React.Suspense fallback={null}>
+            <LogsPanel />
           </React.Suspense>
         </ErrorBoundary>
       ) : tab.type === "remote-file-editor" ? (

@@ -79,6 +79,7 @@ import {
 import { useWebDavSync } from "@/hooks/useWebDavSync"
 import { getAdjacentTabId, getTabIdsForCloseAction } from "@/lib/tabClosing"
 import { setRecordingTabIds, type TerminalLogStatus } from "@/lib/terminalLogRecording"
+import { handleAppPageRequests } from "@/lib/appNavigation"
 import { toErrorMessage } from "@/lib/utils"
 import { getSiblingTabId, getTabIdAtPosition } from "@/lib/tabNavigation"
 import { isPageTab, Tab } from "@/types/tab"
@@ -207,6 +208,8 @@ export const TTermApp: React.FC = () => {
     renameSettingsTab,
     openTunnelsTab,
     renameTunnelsTab,
+    openLogsTab,
+    renameLogsTab,
     removeTabs,
     setActiveTab,
     moveTab,
@@ -261,6 +264,7 @@ export const TTermApp: React.FC = () => {
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const settingsTabTitle = t("settings.title", { defaultValue: SETTINGS_TAB_TITLE })
   const tunnelsTabTitle = t("tunnels.title", { defaultValue: "Port Forwarding" })
+  const logsTabTitle = t("terminalLogs.title")
   // Ask for the password when saved passwords are locked but one can unlock
   // them: the old vault's password to finish moving it, the master password,
   // or the recovery password when the system credential store key is lost.
@@ -909,6 +913,18 @@ export const TTermApp: React.FC = () => {
   useEffect(() => {
     renameTunnelsTab(tunnelsTabTitle)
   }, [renameTunnelsTab, tunnelsTabTitle])
+
+  useEffect(() => {
+    renameLogsTab(logsTabTitle)
+  }, [renameLogsTab, logsTabTitle])
+
+  useEffect(
+    () =>
+      handleAppPageRequests((page) => {
+        if (page === "terminal-logs") openLogsTab(logsTabTitle)
+      }),
+    [logsTabTitle, openLogsTab]
+  )
 
   useEffect(() => {
     if (!isLoaded) {

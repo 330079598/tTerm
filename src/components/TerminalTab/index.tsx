@@ -4,6 +4,7 @@ import { FitAddon } from "@xterm/addon-fit"
 import { SearchAddon } from "@xterm/addon-search"
 import { type IDisposable, Terminal } from "@xterm/xterm"
 import { invoke } from "@tauri-apps/api/core"
+import { save as saveFileDialog } from "@tauri-apps/plugin-dialog"
 import { useTranslation } from "react-i18next"
 import { Keyboard, Pause, Play, Square } from "lucide-react"
 import { ContextMenu } from "@/components/ContextMenu"
@@ -38,6 +39,7 @@ import type {
 } from "@/components/TerminalTab/types"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { toast } from "@/hooks/use-toast"
+import { terminalBufferText, terminalTextFileName } from "@/lib/terminalText"
 import { isWindowBlurEnabled, useConfig } from "@/contexts/ConfigContext"
 import { isImeKeyEvent } from "@/lib/ime"
 import { playBellSound } from "@/lib/bellSound"
@@ -941,6 +943,30 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     return true
   }, [t])
 
+  /** Saves the terminal's text, scrollback included, to a file the user picks. */
+  const saveTerminalContents = useCallback(async () => {
+    const term = termRef.current
+    if (!term) return
+    const contents = terminalBufferText(term.buffer.normal)
+    const name =
+      connection?.profileName || connection?.host || t("terminalContext.contentsFileName")
+    const path = await saveFileDialog({
+      defaultPath: terminalTextFileName(name, new Date()),
+      filters: [{ name: t("terminalContext.textFiles"), extensions: ["txt", "log"] }],
+    }).catch(() => null)
+    if (!path) return
+    try {
+      await invoke("save_terminal_contents", { path, contents })
+      toast({ title: t("terminalContext.contentsSaved"), description: path })
+    } catch (error) {
+      toast({
+        title: t("terminalContext.contentsSaveFailed"),
+        description: toErrorMessage(error),
+        variant: "destructive",
+      })
+    }
+  }, [connection?.host, connection?.profileName, t])
+
   const armZmodemManualTrigger = useCallback(
     async (direction: "send" | "receive") => {
       try {
@@ -985,6 +1011,10 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         await copyLastCommandOutput()
         return
       }
+      if (action === "save-contents") {
+        await saveTerminalContents()
+        return
+      }
       if (action === "copy" && selection) {
         try {
           await invoke("plugin:clipboard-manager|write_text", { text: selection })
@@ -1024,6 +1054,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       onSaveCommand,
       pasteFromClipboard,
       resetTerminal,
+      saveTerminalContents,
       t,
       terminalContextMenu,
     ]
@@ -1055,6 +1086,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     { action: "zmodem-send", label: t("terminalContext.zmodemSend"), icon: "upload" },
     { action: "zmodem-receive", label: t("terminalContext.zmodemReceive"), icon: "download" },
     { separator: true, action: "separator", label: "" },
+    { action: "save-contents", label: t("terminalContext.saveContents"), icon: "file-down" },
     {
       action: "reset-terminal",
       label: t("terminalContext.resetTerminal"),

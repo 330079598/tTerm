@@ -82,7 +82,7 @@ export interface TransferTask {
 export type TerminalShellType =
   "auto" | "cmd" | "powershell" | "pwsh" | "wsl" | "git-bash" | "custom"
 export type ConnectionType = "terminal" | "ssh"
-export type TabType = ConnectionType | "settings" | "tunnels" | "remote-file-editor"
+export type TabType = ConnectionType | "settings" | "tunnels" | "logs" | "remote-file-editor"
 
 /**
  * How an SSH host is authenticated. `interactive` stores nothing: the server's
@@ -186,10 +186,10 @@ export interface Tab {
 }
 
 /** Singleton app pages that live in a tab but have no connection or session. */
-export type PageTabType = Extract<TabType, "settings" | "tunnels">
+export type PageTabType = Extract<TabType, "settings" | "tunnels" | "logs">
 
 export function isPageTab(tab: Pick<Tab, "type"> | null | undefined): boolean {
-  return tab?.type === "settings" || tab?.type === "tunnels"
+  return tab?.type === "settings" || tab?.type === "tunnels" || tab?.type === "logs"
 }
 
 export interface TabContextMenuAction {

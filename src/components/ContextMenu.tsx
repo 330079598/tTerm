@@ -27,6 +27,7 @@ import {
   RotateCcw,
   CircleDot,
   Square,
+  FileDown,
 } from "lucide-react"
 import { TabContextMenuAction } from "@/types/tab"
 import { cn } from "@/lib/utils"
@@ -95,6 +96,8 @@ const getActionIcon = (icon?: string) => {
       return <CircleDot size={14} aria-hidden="true" />
     case "record-stop":
       return <Square size={14} aria-hidden="true" />
+    case "file-down":
+      return <FileDown size={14} aria-hidden="true" />
     default:
       return null
   }

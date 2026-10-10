@@ -14,6 +14,7 @@ import {
   FolderOpen,
   HardDrive,
   Keyboard,
+  ScrollText,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -31,7 +32,8 @@ import {
   useConfig,
 } from "@/contexts/ConfigContext"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
-import type { TerminalLogStatus } from "@/lib/terminalLogRecording"
+import { requestAppPage } from "@/lib/appNavigation"
+import { formatLogSize, type TerminalLogStatus } from "@/lib/terminalLogRecording"
 import { cn, toErrorMessage } from "@/lib/utils"
 
 interface LoggingSettingsTabProps {
@@ -43,14 +45,6 @@ interface LoggingSettingsTabProps {
 function parseLimit(value: string, max: number): number | null {
   const parsed = Number(value)
   return Number.isInteger(parsed) && parsed >= 0 && parsed <= max ? parsed : null
-}
-
-function formatBytes(bytes: number) {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B"
-  const units = ["B", "KiB", "MiB", "GiB", "TiB"]
-  const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-  const value = bytes / 1024 ** unitIndex
-  return `${value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`
 }
 
 function renderExample(template: string) {
@@ -249,6 +243,20 @@ export const LoggingSettingsTab: React.FC<LoggingSettingsTabProps> = ({
                 onCheckedChange={(checked) => void handleRecordInputChange(checked)}
                 aria-label={t("terminalLogging.recordInput")}
               />
+            }
+          />
+          <SettingsRow
+            icon={<ScrollText size={16} />}
+            title={t("terminalLogging.browse")}
+            description={t("terminalLogging.browseDesc")}
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => requestAppPage("terminal-logs")}
+              >
+                {t("terminalLogging.browseButton")}
+              </Button>
             }
           />
         </SettingsSection>
@@ -494,7 +502,7 @@ export const LoggingSettingsTab: React.FC<LoggingSettingsTabProps> = ({
             <div>
               <div className="text-muted-foreground text-xs">{t("terminalLogging.diskUsage")}</div>
               <div className="mt-1 font-medium tabular-nums">
-                {formatBytes(status?.totalSizeBytes ?? 0)}
+                {formatLogSize(status?.totalSizeBytes ?? 0)}
               </div>
             </div>
           </div>

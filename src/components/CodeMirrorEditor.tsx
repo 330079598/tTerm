@@ -32,7 +32,9 @@ interface CodeMirrorEditorProps {
   fileName?: string
   /** Takes the keyboard when this turns true, unless focus is already inside. */
   focused?: boolean
-  onChange: (value: string) => void
+  onChange?: (value: string) => void
+  /** Show the text without letting it be edited; search still works. */
+  readOnly?: boolean
   value: string
 }
 
@@ -159,12 +161,14 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
   fileName,
   focused = false,
   onChange,
+  readOnly = false,
   value,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<EditorView | null>(null)
   const initialFileNameRef = useRef(fileName)
   const initialValueRef = useRef(value)
+  const initialReadOnlyRef = useRef(readOnly)
   const onChangeRef = useRef(onChange)
   const languageExtension = useMemo(() => extensionForFileName(fileName), [fileName])
 
@@ -195,9 +199,10 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
         languageCompartment.of(initialLanguageExtension),
         themeCompartment.of(editorTheme()),
         EditorView.lineWrapping,
+        EditorState.readOnly.of(initialReadOnlyRef.current),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
-            onChangeRef.current(update.state.doc.toString())
+            onChangeRef.current?.(update.state.doc.toString())
           }
         }),
       ],

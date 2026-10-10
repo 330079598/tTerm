@@ -9,6 +9,8 @@ export interface UseTabsReturn {
   renameSettingsTab: (title: string) => void
   openTunnelsTab: (title: string) => void
   renameTunnelsTab: (title: string) => void
+  openLogsTab: (title: string) => void
+  renameLogsTab: (title: string) => void
   removeTabs: (ids: string[], options?: RemoveTabsOptions) => void
   setActiveTab: (id: string) => void
   moveTab: (fromIndex: number, toIndex: number) => void
@@ -333,6 +335,11 @@ export function useTabs(): UseTabsReturn {
     (title: string) => renamePageTab("tunnels", title),
     [renamePageTab]
   )
+  const openLogsTab = useCallback((title: string) => openPageTab("logs", title), [openPageTab])
+  const renameLogsTab = useCallback(
+    (title: string) => renamePageTab("logs", title),
+    [renamePageTab]
+  )
 
   const removeTabs = useCallback((ids: string[], options?: RemoveTabsOptions) => {
     if (ids.length === 0) return
@@ -377,6 +384,8 @@ export function useTabs(): UseTabsReturn {
     renameSettingsTab,
     openTunnelsTab,
     renameTunnelsTab,
+    openLogsTab,
+    renameLogsTab,
     removeTabs,
     setActiveTab,
     moveTab,

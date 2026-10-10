@@ -1,7 +1,9 @@
+mod library;
 mod retention;
 mod screen;
 
 use crate::config::AppConfig;
+use crate::core::blocking::run_blocking;
 use crate::core::session::SessionPlan;
 use crate::core::state::SessionKind;
 use base64::Engine;
@@ -18,6 +20,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Mutex, MutexGuard};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tauri::ipc::Response;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 use vte::{Params, Perform};
@@ -550,7 +553,8 @@ impl SessionWriter {
             .map_err(|err| format!("Failed to serialize terminal log header: {err}"))?,
         );
         let plain_header = format!(
-            "# tTerm session log\n# type={} profile={} host={} port={} username={} startedAt={}\n",
+            "{}\n# type={} profile={} host={} port={} username={} startedAt={}\n",
+            library::PLAIN_HEADER,
             metadata.session_type,
             metadata.profile,
             metadata.host,
@@ -769,7 +773,11 @@ impl LogManager {
             entry.rows,
             entry.cols,
         )?));
-        lock_session_writer(&writer).record_event(event, serde_json::json!({}))?;
+        // The size lets a replay start at the size the session had.
+        lock_session_writer(&writer).record_event(
+            event,
+            serde_json::json!({ "rows": entry.rows, "cols": entry.cols }),
+        )?;
         Ok(writer)
     }
 }
@@ -1119,29 +1127,41 @@ impl SessionLogState {
         });
     }
 
-    fn clean_now(&self, app: &AppHandle) {
-        let Ok((directory, retention, writers)) = self.lock_manager().map(|manager| {
-            let Some(config) = manager.config.as_ref() else {
-                return (PathBuf::new(), Retention::default(), Vec::new());
+    /// The log directory, the retention settings, and the files no one may
+    /// touch: those being written or compressed.
+    fn directory_state(&self) -> Result<(PathBuf, Retention, HashSet<PathBuf>), String> {
+        let (directory, retention, writers) = {
+            let manager = self.lock_manager()?;
+            let (directory, retention) = match manager.config.as_ref() {
+                Some(config) => (config.files.directory.clone(), config.retention),
+                None => (
+                    crate::config::get_config_path()?.join("logs"),
+                    Retention::default(),
+                ),
             };
             let writers: Vec<_> = manager
                 .sessions
                 .values()
                 .filter_map(|entry| entry.writer.clone())
                 .collect();
-            (config.files.directory.clone(), config.retention, writers)
-        }) else {
-            return;
+            (directory, retention, writers)
         };
-        if retention.is_off() {
-            return;
-        }
         let mut in_use: HashSet<PathBuf> = writers
             .iter()
             .flat_map(|writer| lock_session_writer(writer).open_paths().collect::<Vec<_>>())
             .collect();
         if let Ok(compressing) = COMPRESSING.lock() {
             in_use.extend(compressing.iter().cloned());
+        }
+        Ok((directory, retention, in_use))
+    }
+
+    fn clean_now(&self, app: &AppHandle) {
+        let Ok((directory, retention, in_use)) = self.directory_state() else {
+            return;
+        };
+        if retention.is_off() {
+            return;
         }
         match retention::clean(&directory, retention, &in_use, SystemTime::now()) {
             Ok(report) if report.removed > 0 => emit_status(app, self),
@@ -1215,6 +1235,68 @@ pub fn set_terminal_log_recording(
     recording: bool,
 ) -> Result<TerminalLogStatus, String> {
     state.set_recording(&app, &tab_id, recording)
+}
+
+/// The saved sessions in the log directory, newest first.
+#[tauri::command]
+pub async fn list_terminal_logs(app: AppHandle) -> Result<Vec<library::LogSession>, String> {
+    let (directory, _, in_use) = app.state::<SessionLogState>().directory_state()?;
+    run_blocking(move || library::list(&directory, &in_use)).await
+}
+
+/// A session's raw log as replay frames (see `library::load_recording`).
+#[tauri::command]
+pub async fn load_terminal_log_recording(app: AppHandle, id: String) -> Result<Response, String> {
+    let (directory, _, _) = app.state::<SessionLogState>().directory_state()?;
+    run_blocking(move || library::load_recording(&directory, &id))
+        .await
+        .map(Response::new)
+}
+
+/// A session's plain-text log as UTF-8 bytes.
+#[tauri::command]
+pub async fn load_terminal_log_text(app: AppHandle, id: String) -> Result<Response, String> {
+    let (directory, _, _) = app.state::<SessionLogState>().directory_state()?;
+    run_blocking(move || library::load_text(&directory, &id))
+        .await
+        .map(Response::new)
+}
+
+#[tauri::command]
+pub async fn export_terminal_log_asciicast(
+    app: AppHandle,
+    id: String,
+    path: String,
+) -> Result<(), String> {
+    let (directory, _, _) = app.state::<SessionLogState>().directory_state()?;
+    run_blocking(move || library::export_asciicast(&directory, &id, Path::new(&path))).await
+}
+
+#[tauri::command]
+pub async fn delete_terminal_log(app: AppHandle, id: String) -> Result<(), String> {
+    let state = app.state::<SessionLogState>();
+    let (directory, _, in_use) = state.directory_state()?;
+    run_blocking(move || library::delete(&directory, &id, &in_use)).await?;
+    emit_status(&app, &state);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn reveal_terminal_log(app: AppHandle, id: String) -> Result<(), String> {
+    let (directory, _, _) = app.state::<SessionLogState>().directory_state()?;
+    let path = run_blocking(move || library::first_file(&directory, &id)).await?;
+    app.opener()
+        .reveal_item_in_dir(path)
+        .map_err(|error| format!("Failed to show terminal log: {error}"))
+}
+
+/// Saves what a terminal shows (its text) to a file the user picked.
+#[tauri::command]
+pub async fn save_terminal_contents(path: String, contents: String) -> Result<(), String> {
+    run_blocking(move || {
+        fs::write(&path, contents).map_err(|error| format!("Failed to save '{path}': {error}"))
+    })
+    .await
 }
 
 #[tauri::command]
