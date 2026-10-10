@@ -410,12 +410,9 @@ pub async fn download_webdav_backup(
     let (client, directory) = connect(&app, secret_state.inner()).await?;
     let data = client.get(&directory, &file_name, MAX_BACKUP_SIZE).await?;
     run_blocking(move || {
-        let downloads = config::ensure_config_dir()?.join(DOWNLOAD_DIRECTORY);
         // Only the backup being restored is kept.
-        if downloads.exists() {
-            fs::remove_dir_all(&downloads)
-                .map_err(|error| format!("Failed to clear old WebDAV downloads: {error}"))?;
-        }
+        clear_downloads()?;
+        let downloads = config::ensure_config_dir()?.join(DOWNLOAD_DIRECTORY);
         fs::create_dir_all(&downloads)
             .map_err(|error| format!("Failed to create the WebDAV download folder: {error}"))?;
         let path = downloads.join(&file_name);
@@ -423,6 +420,22 @@ pub async fn download_webdav_backup(
         Ok(path.to_string_lossy().into_owned())
     })
     .await
+}
+
+/// Deletes the downloaded backup once the import view lets go of it.
+#[tauri::command]
+pub async fn discard_webdav_download() -> Result<(), String> {
+    run_blocking(clear_downloads).await
+}
+
+/// Removes downloaded backups; also run at startup for any a quit left behind.
+pub(crate) fn clear_downloads() -> Result<(), String> {
+    let downloads = config::ensure_config_dir()?.join(DOWNLOAD_DIRECTORY);
+    if downloads.exists() {
+        fs::remove_dir_all(&downloads)
+            .map_err(|error| format!("Failed to clear old WebDAV downloads: {error}"))?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -593,11 +606,38 @@ fn same_account(a: &WebDavBackupSettings, b: &WebDavBackupSettings) -> bool {
 /// Whether restoring `settings` from a backup points uploads at another
 /// server or account than the one set up now.
 pub(crate) fn restore_changes_account(settings: &WebDavBackupSettings) -> Result<bool, String> {
+    Ok(account_change(settings)?.is_some())
+}
+
+/// The WebDAV account a backup's settings would replace, shown before import.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WebDavAccountChange {
+    /// `None` when no server is set up now.
+    pub from: Option<String>,
+    pub to: String,
+}
+
+/// The account change restoring `settings` makes, if any.
+pub(crate) fn account_change(
+    settings: &WebDavBackupSettings,
+) -> Result<Option<WebDavAccountChange>, String> {
     // Settings that cannot be restored fail the import later anyway.
     let Ok(settings) = normalized_settings(settings.clone()) else {
-        return Ok(false);
+        return Ok(None);
     };
-    Ok(!same_account(&settings, &load_settings()?))
+    let current = load_settings()?;
+    if same_account(&settings, &current) {
+        return Ok(None);
+    }
+    Ok(Some(WebDavAccountChange {
+        from: is_configured(&current).then(|| account_label(&current)),
+        to: account_label(&settings),
+    }))
+}
+
+fn account_label(settings: &WebDavBackupSettings) -> String {
+    format!("{} · {}", settings.username, settings.url)
 }
 
 fn is_configured(settings: &WebDavBackupSettings) -> bool {

@@ -297,6 +297,7 @@ pub fn run() {
             backup::remote::run_webdav_backup,
             backup::remote::list_webdav_backups,
             backup::remote::download_webdav_backup,
+            backup::remote::discard_webdav_download,
             backup::remote::delete_webdav_backup,
             backup::remote::delete_webdav_backups,
             backup::remote::save_webdav_backup,
@@ -428,6 +429,10 @@ pub fn run() {
 
             if let Err(err) = updater::cleanup_stale_pending_update_files(&app_handle) {
                 eprintln!("Failed to clean stale update cache files: {}", err);
+            }
+
+            if let Err(error) = backup::remote::clear_downloads() {
+                eprintln!("Failed to clear WebDAV downloads: {error}");
             }
 
             if let Err(error) = db::init() {

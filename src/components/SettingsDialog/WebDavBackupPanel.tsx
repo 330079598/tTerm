@@ -273,6 +273,10 @@ export const WebDavBackupPanel: React.FC<WebDavBackupPanelProps> = ({
       const localPath = await withVaultUnlock(() =>
         invoke<string>("download_webdav_backup", { fileName: entry.fileName })
       )
+      toast({
+        title: t("dataMigration.webdav.restoreDownloaded", { name: entry.fileName }),
+        description: t("dataMigration.webdav.restoreInspecting"),
+      })
       await onRestore(localPath, entry)
     } catch (error) {
       fail(t("dataMigration.webdav.downloadFailed"), error)

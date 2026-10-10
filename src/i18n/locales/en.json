@@ -1881,6 +1881,9 @@
     "exportTitle": "Export backup",
     "exportDescription": "Choose exactly which data should be included in the portable backup.",
     "importTitle": "Import backup",
+    "webdavAccountChangeTitle": "Importing settings switches the WebDAV account",
+    "webdavAccountChangeDescription": "Backups and sync on this device will use the account from the backup. Clear \"Application settings\" to keep the current one.",
+    "webdavAccountNone": "Not set up",
     "importDescription": "Inspect a backup before applying it. A local recovery snapshot is created automatically.",
     "categories": {
       "settings": "Application settings, backup and sync setup",
@@ -1994,6 +1997,8 @@
       "empty": "No backups on the server yet.",
       "notConfigured": "Enter the server address, user name and password and click Save to see the backups on the server here.",
       "thisDevice": "This device",
+      "restoreDownloaded": "Downloaded {{name}}",
+      "restoreInspecting": "Checking its contents in Import…",
       "importSource": "Downloaded from WebDAV",
       "backToBackups": "Back to WebDAV backups",
       "savedPasswordUsed": "Unlocked with the saved backup password",

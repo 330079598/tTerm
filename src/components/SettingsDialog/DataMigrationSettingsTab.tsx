@@ -81,6 +81,7 @@ interface BackupInspectResult {
     profiles: CategoryDiff
     commands: CategoryDiff
     settingsChanged: boolean
+    webdavAccount: { from: string | null; to: string } | null
   }
 }
 
@@ -222,6 +223,28 @@ export const DataMigrationSettingsTab: React.FC = () => {
       console.error("Failed to load backup management settings:", error)
     })
   }, [refreshBackupManagement])
+
+  // A backup downloaded from WebDAV lives only while the import view shows it.
+  const fromWebDav = importSource !== null
+  useEffect(() => {
+    if (!fromWebDav) return
+    return () => {
+      invoke("discard_webdav_download").catch((error) => {
+        console.error("Failed to delete the downloaded WebDAV backup:", error)
+      })
+    }
+  }, [fromWebDav])
+
+  const showView = (view: MigrationView) => {
+    if (view !== "import" && importSource) {
+      setImportSource(null)
+      setImportPath("")
+      setImportPassword("")
+      setInspectResult(null)
+      setImportResult(null)
+    }
+    setActiveView(view)
+  }
 
   const updateSelection = (key: SelectionKey, checked: boolean) => {
     setSelection((current) => withSelection(current, key, checked))
@@ -510,7 +533,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
             size="sm"
             variant={activeView === "backup" ? "default" : "ghost"}
             aria-pressed={activeView === "backup"}
-            onClick={() => setActiveView("backup")}
+            onClick={() => showView("backup")}
           >
             <Archive size={14} />
             {t("dataMigration.backupTab", { defaultValue: "Backup" })}
@@ -520,7 +543,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
             size="sm"
             variant={activeView === "webdav" ? "default" : "ghost"}
             aria-pressed={activeView === "webdav"}
-            onClick={() => setActiveView("webdav")}
+            onClick={() => showView("webdav")}
           >
             <Cloud size={14} />
             {t("dataMigration.webdavTab")}
@@ -530,7 +553,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
             size="sm"
             variant={activeView === "import" ? "default" : "ghost"}
             aria-pressed={activeView === "import"}
-            onClick={() => setActiveView("import")}
+            onClick={() => showView("import")}
           >
             <Upload size={14} />
             {t("dataMigration.importTab", { defaultValue: "Import" })}
@@ -540,7 +563,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
             size="sm"
             variant={activeView === "history" ? "default" : "ghost"}
             aria-pressed={activeView === "history"}
-            onClick={() => setActiveView("history")}
+            onClick={() => showView("history")}
           >
             <History size={14} />
             {t("dataMigration.historyTab", { defaultValue: "History" })}
@@ -898,7 +921,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
                     size="sm"
                     className="shrink-0"
                     disabled={busy}
-                    onClick={() => setActiveView("webdav")}
+                    onClick={() => showView("webdav")}
                   >
                     <ArrowLeft size={14} />
                     {t("dataMigration.webdav.backToBackups")}
@@ -998,6 +1021,24 @@ export const DataMigrationSettingsTab: React.FC = () => {
                       </label>
                     ))}
                   </div>
+
+                  {selection.settings && inspectResult.diff.webdavAccount && (
+                    <Alert className="border-amber-500/40 bg-amber-500/10">
+                      <AlertTriangle size={16} className="absolute top-3.5 left-4 text-amber-500" />
+                      <div className="space-y-1 pl-6">
+                        <AlertTitle>{t("dataMigration.webdavAccountChangeTitle")}</AlertTitle>
+                        <AlertDescription className="space-y-1">
+                          <p className="break-all">
+                            {inspectResult.diff.webdavAccount.from ??
+                              t("dataMigration.webdavAccountNone")}
+                            {" → "}
+                            {inspectResult.diff.webdavAccount.to}
+                          </p>
+                          <p>{t("dataMigration.webdavAccountChangeDescription")}</p>
+                        </AlertDescription>
+                      </div>
+                    </Alert>
+                  )}
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>

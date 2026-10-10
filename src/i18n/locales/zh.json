@@ -1865,6 +1865,9 @@
     "exportTitle": "导出备份",
     "exportDescription": "选择要写入可迁移备份文件的数据。",
     "importTitle": "导入备份",
+    "webdavAccountChangeTitle": "导入设置会更换 WebDAV 账号",
+    "webdavAccountChangeDescription": "本机之后的备份和同步都会改用备份里的账号。如需保留当前账号，请取消勾选「应用设置」。",
+    "webdavAccountNone": "未设置",
     "importDescription": "应用前先检查备份内容，导入时会自动创建本机恢复快照。",
     "categories": {
       "settings": "应用设置（含备份与同步配置）",
@@ -1977,6 +1980,8 @@
       "empty": "服务器上还没有备份。",
       "notConfigured": "先填写服务器地址、用户名和密码并点击「保存」，即可在这里查看服务器上的备份。",
       "thisDevice": "本机",
+      "restoreDownloaded": "已下载 {{name}}",
+      "restoreInspecting": "正在「导入」中检查备份内容…",
       "importSource": "从 WebDAV 下载",
       "backToBackups": "返回 WebDAV 备份",
       "savedPasswordUsed": "已用保存的备份密码解锁",

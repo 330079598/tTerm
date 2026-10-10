@@ -238,6 +238,8 @@ pub struct BackupDiff {
     pub profiles: CategoryDiff,
     pub commands: CategoryDiff,
     pub settings_changed: bool,
+    /// The WebDAV account importing the settings would switch to.
+    pub webdav_account: Option<remote::WebDavAccountChange>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1822,10 +1824,15 @@ fn calculate_diff(payload: &BackupPayload) -> Result<BackupDiff, String> {
         }
         None => false,
     };
+    let webdav_account = match payload.webdav_backup.as_ref() {
+        Some(settings) => remote::account_change(settings)?,
+        None => None,
+    };
     Ok(BackupDiff {
         profiles,
         commands,
         settings_changed,
+        webdav_account,
     })
 }
 
