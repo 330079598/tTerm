@@ -653,6 +653,10 @@ interface ConfigContextType {
   setSecretStorageMode: (mode: SecretStorageMode, password?: string) => Promise<SecretBackendStatus>
   unlockSecretVault: (password: string) => Promise<SecretBackendStatus>
   lockSecretVault: () => Promise<SecretBackendStatus>
+  /** Tries the system credential store again when it did not unlock at startup. */
+  retrySystemUnlock: () => Promise<SecretBackendStatus>
+  /** Deletes saved passwords that can no longer be unlocked and starts over. */
+  resetSavedPasswords: () => Promise<SecretBackendStatus>
   changeVaultPassword: (
     currentPassword: string,
     newPassword: string
@@ -848,6 +852,16 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     [applySecretStatus]
   )
 
+  const retrySystemUnlock = useCallback(
+    async () => applySecretStatus(await invoke<SecretBackendStatus>("retry_system_unlock")),
+    [applySecretStatus]
+  )
+
+  const resetSavedPasswords = useCallback(
+    async () => applySecretStatus(await invoke<SecretBackendStatus>("reset_saved_passwords")),
+    [applySecretStatus]
+  )
+
   const changeVaultPassword = useCallback(
     async (currentPassword: string, newPassword: string) =>
       applySecretStatus(
@@ -922,6 +936,8 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       setSecretStorageMode,
       unlockSecretVault,
       lockSecretVault,
+      retrySystemUnlock,
+      resetSavedPasswords,
       changeVaultPassword,
       setMasterPassword,
       removeMasterPassword,
@@ -944,6 +960,8 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       setSecretStorageMode,
       unlockSecretVault,
       lockSecretVault,
+      retrySystemUnlock,
+      resetSavedPasswords,
       changeVaultPassword,
       setMasterPassword,
       removeMasterPassword,

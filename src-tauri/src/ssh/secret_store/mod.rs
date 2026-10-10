@@ -115,20 +115,45 @@ fn create_system_wrap(
     credentials: &dyn CredentialStore,
     data_key: &SecretKey,
 ) -> Result<(), String> {
-    let existing = credentials
-        .read(DATA_KEY_ACCOUNT)?
-        .and_then(|encoded| SecretKey::from_base64(&encoded).ok());
-    let system_key = match existing {
-        Some(system_key) => system_key,
-        None => {
-            let system_key = SecretKey::generate();
-            credentials.write(DATA_KEY_ACCOUNT, &system_key.to_base64())?;
-            system_key
-        }
-    };
+    let system_key = system_key(credentials)?;
     database.write(|transaction| {
         store::save_wrap(transaction, WRAP_SYSTEM, None, &system_key, data_key)
     })
+}
+
+/// The key in the credential store, put there first when it has none.
+fn system_key(credentials: &dyn CredentialStore) -> Result<SecretKey, String> {
+    let existing = credentials
+        .read(DATA_KEY_ACCOUNT)?
+        .and_then(|encoded| SecretKey::from_base64(&encoded).ok());
+    match existing {
+        Some(system_key) => Ok(system_key),
+        None => {
+            let system_key = SecretKey::generate();
+            credentials.write(DATA_KEY_ACCOUNT, &system_key.to_base64())?;
+            Ok(system_key)
+        }
+    }
+}
+
+/// Starts saved passwords over with a new data key wrapped by the credential
+/// store, for when the old one cannot be unwrapped. Saved passwords and the
+/// master password go with it, all in one transaction, and only once the
+/// credential store has answered.
+fn reset_with_system_key(
+    database: &Database,
+    credentials: &dyn CredentialStore,
+) -> Result<SecretKey, String> {
+    let system_key = system_key(credentials)?;
+    let data_key = SecretKey::generate();
+    database.write(|transaction| {
+        transaction
+            .execute("DELETE FROM secrets", [])
+            .map_err(crate::db::sql_error("Failed to reset saved passwords"))?;
+        store::delete_wrap(transaction, WRAP_PASSWORD)?;
+        store::save_wrap(transaction, WRAP_SYSTEM, None, &system_key, &data_key)
+    })?;
+    Ok(data_key)
 }
 
 fn create_password_wrap(
@@ -364,17 +389,62 @@ impl SecretStoreState {
             }
             None => {
                 // No key at all yet (e.g. the database was reset): start over.
-                let data_key = SecretKey::generate();
-                database.write(|transaction| {
-                    transaction
-                        .execute("DELETE FROM secrets", [])
-                        .map(|_| ())
-                        .map_err(crate::db::sql_error("Failed to reset saved passwords"))
-                })?;
-                create_system_wrap(database, &OsCredentials, &data_key)?;
+                let data_key = reset_with_system_key(database, &OsCredentials)?;
                 self.set_data_key(Some(data_key))
             }
         }
+    }
+
+    /// Tries the credential store again after startup could not unlock with
+    /// it, e.g. when it did not answer in time.
+    pub fn retry_system_unlock(&self) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
+        if Self::mode()? != SecretStorageMode::System {
+            return Err(
+                "Saved passwords are not unlocked by the system credential store.".to_string(),
+            );
+        }
+        if !self.unlocked()? {
+            // The credential store may have come up since it was checked.
+            self.runtime()?.keyring_available = None;
+            let database = crate::db::get()?;
+            if !database.read(store::migrated)? {
+                return Err(NEEDS_VAULT_PASSWORD.to_string());
+            }
+            if let Err(error) = self.unlock_with_system_key(database) {
+                self.set_notice(error.clone());
+                return Err(error);
+            }
+        }
+        self.get_status()
+    }
+
+    /// Deletes saved passwords that can no longer be unlocked and starts over
+    /// with a new key in the credential store. Only while locked in `system`
+    /// mode: the old key is lost (or its recovery password forgotten), so
+    /// nothing readable is thrown away.
+    pub fn reset_saved_passwords(&self) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
+        if Self::mode()? != SecretStorageMode::System {
+            return Err(
+                "Saved passwords are not unlocked by the system credential store.".to_string(),
+            );
+        }
+        if self.unlocked()? {
+            return Err("Saved passwords are already unlocked.".to_string());
+        }
+        let database = crate::db::get()?;
+        if !database.read(store::migrated)? {
+            return Err(NEEDS_VAULT_PASSWORD.to_string());
+        }
+        self.runtime()?.keyring_available = None;
+        if !self.keyring_available()? {
+            return Err("The system credential store is unavailable.".to_string());
+        }
+        let data_key = reset_with_system_key(database, &OsCredentials)?;
+        self.set_data_key(Some(data_key))?;
+        self.runtime()?.clear_grants();
+        self.get_status()
     }
 
     fn migrate_legacy(
@@ -779,6 +849,52 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn resetting_drops_unreadable_secrets_and_unlocks_with_the_credential_store() {
+        let database = Database::open_in_memory().unwrap();
+        let credentials = MemoryCredentials::default();
+        let lost_key = SecretKey::generate();
+        create_system_wrap(&database, &credentials, &lost_key).unwrap();
+        create_password_wrap(&database, "forgotten", &lost_key).unwrap();
+        database
+            .write(|c| store::put_secret(c, &lost_key, "p1", "secret"))
+            .unwrap();
+        // The database came from another computer, whose key is not here.
+        credentials
+            .write(DATA_KEY_ACCOUNT, &SecretKey::generate().to_base64())
+            .unwrap();
+        assert_eq!(
+            open_with_system_key(&database, &credentials).unwrap_err(),
+            WRONG_SYSTEM_KEY
+        );
+
+        let data_key = reset_with_system_key(&database, &credentials).unwrap();
+
+        let reopened = open_with_system_key(&database, &credentials)
+            .unwrap()
+            .unwrap();
+        assert_eq!(reopened.to_base64(), data_key.to_base64());
+        assert!(database.read(store::secret_keys).unwrap().is_empty());
+        assert!(!database
+            .read(|c| store::has_wrap(c, WRAP_PASSWORD))
+            .unwrap());
+    }
+
+    #[test]
+    fn resetting_keeps_everything_when_the_credential_store_fails() {
+        let database = Database::open_in_memory().unwrap();
+        let credentials = MemoryCredentials::default();
+        let data_key = SecretKey::generate();
+        create_system_wrap(&database, &credentials, &data_key).unwrap();
+        database
+            .write(|c| store::put_secret(c, &data_key, "p1", "secret"))
+            .unwrap();
+        credentials.deny(DATA_KEY_ACCOUNT);
+
+        assert!(reset_with_system_key(&database, &credentials).is_err());
+        assert_eq!(database.read(store::secret_keys).unwrap(), vec!["p1"]);
+    }
+
+    #[test]
     fn a_second_database_keeps_the_credential_store_key_of_the_first() {
         let credentials = MemoryCredentials::default();
         let first = Database::open_in_memory().unwrap();
@@ -790,8 +906,12 @@ pub(crate) mod tests {
         create_system_wrap(&second, &credentials, &SecretKey::generate()).unwrap();
 
         assert_eq!(credentials.get(DATA_KEY_ACCOUNT).unwrap(), stored);
-        assert!(open_with_system_key(&first, &credentials).unwrap().is_some());
-        assert!(open_with_system_key(&second, &credentials).unwrap().is_some());
+        assert!(open_with_system_key(&first, &credentials)
+            .unwrap()
+            .is_some());
+        assert!(open_with_system_key(&second, &credentials)
+            .unwrap()
+            .is_some());
     }
 
     #[test]

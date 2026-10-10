@@ -45,4 +45,12 @@ export const languages = [
 
 /** A saved-password operation in progress, shown as a spinner on its button. */
 export type VaultAction =
-  "unlock" | "lock" | "changePassword" | "setPassword" | "removePassword" | "mode" | "delete"
+  | "unlock"
+  | "lock"
+  | "retry"
+  | "reset"
+  | "changePassword"
+  | "setPassword"
+  | "removePassword"
+  | "mode"
+  | "delete"

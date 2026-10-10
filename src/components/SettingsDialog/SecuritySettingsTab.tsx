@@ -6,6 +6,8 @@ import {
   KeyRound,
   Loader2,
   Lock,
+  RefreshCw,
+  RotateCcw,
   Shield,
   Trash2,
   Unlock,
@@ -93,6 +95,8 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
     setSecretStorageMode,
     unlockSecretVault,
     lockSecretVault,
+    retrySystemUnlock,
+    resetSavedPasswords,
     changeVaultPassword,
     setMasterPassword,
     removeMasterPassword,
@@ -248,6 +252,39 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
     })
   }
 
+  const handleRetrySystemUnlock = async () => {
+    await run("retry", async () => {
+      await retrySystemUnlock()
+      toast({
+        title: t("secretStorage.unlocked"),
+        description: t("secretStorage.unlockedDesc"),
+        variant: "success",
+      })
+      await reloadSavedSecrets()
+    })
+  }
+
+  const handleResetSavedPasswords = async () => {
+    const confirmed = await confirm({
+      title: t("secretStorage.resetTitle"),
+      description: t("secretStorage.resetConfirm"),
+      confirmText: t("secretStorage.reset"),
+      cancelText: t("common.cancel"),
+      variant: "destructive",
+    })
+    if (!confirmed) return
+    clearRevealedPassword()
+    await run("reset", async () => {
+      await resetSavedPasswords()
+      toast({
+        title: t("secretStorage.resetDone"),
+        description: t("secretStorage.resetDoneDesc"),
+        variant: "success",
+      })
+      await reloadSavedSecrets()
+    })
+  }
+
   const handleChangePassword = async () => {
     if (!(await newPasswordsMatch())) return
     await run("changePassword", async () => {
@@ -360,6 +397,10 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
         : mode === "system" && !unlocked && hasMasterPassword
           ? "recover"
           : null
+  // Locked in automatic mode: the credential store key is missing, does not
+  // match, or did not answer. Without the recovery password nothing else here
+  // can unlock, so offer to try again or start over.
+  const systemUnlockFailed = !pending && mode === "system" && !unlocked
   const showMasterPasswordCard = !pending && !choosingPasswordMode && unlocked && mode !== "memory"
 
   return (
@@ -548,6 +589,47 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
                         : t("secretStorage.unlock")}
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {systemUnlockFailed && (
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              <div>
+                <div className="text-sm font-medium">
+                  {hasMasterPassword
+                    ? t("secretStorage.resetForgotRecoveryTitle")
+                    : t("secretStorage.systemUnlockFailedTitle")}
+                </div>
+                <div className="text-muted-foreground mt-1 text-xs leading-5">
+                  {t("secretStorage.systemUnlockFailedDesc")}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => void handleRetrySystemUnlock()}
+                >
+                  <ActionIcon
+                    busy={action === "retry"}
+                    icon={<RefreshCw size={14} className="mr-2" />}
+                  />
+                  {t("secretStorage.retrySystemUnlock")}
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={busy || !secretStatus.keyringAvailable}
+                  onClick={() => void handleResetSavedPasswords()}
+                >
+                  <ActionIcon
+                    busy={action === "reset"}
+                    icon={<RotateCcw size={14} className="mr-2" />}
+                  />
+                  {t("secretStorage.reset")}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

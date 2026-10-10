@@ -84,6 +84,23 @@ pub async fn lock_secret_vault(
 }
 
 #[tauri::command]
+pub async fn retry_system_unlock(
+    secret_state: State<'_, SecretStoreState>,
+) -> Result<SecretBackendStatus, String> {
+    // The credential store may sit on a prompt; keep that off the main thread.
+    let secret_state = secret_state.inner().clone();
+    run_blocking(move || secret_state.retry_system_unlock()).await
+}
+
+#[tauri::command]
+pub async fn reset_saved_passwords(
+    secret_state: State<'_, SecretStoreState>,
+) -> Result<SecretBackendStatus, String> {
+    let secret_state = secret_state.inner().clone();
+    run_blocking(move || secret_state.reset_saved_passwords()).await
+}
+
+#[tauri::command]
 pub async fn change_vault_password(
     input: ChangeVaultPasswordInput,
     secret_state: State<'_, SecretStoreState>,

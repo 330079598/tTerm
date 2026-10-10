@@ -398,6 +398,8 @@ pub fn run() {
             ssh::secret_commands::get_secret_backend_status,
             ssh::secret_commands::unlock_secret_vault,
             ssh::secret_commands::lock_secret_vault,
+            ssh::secret_commands::retry_system_unlock,
+            ssh::secret_commands::reset_saved_passwords,
             ssh::secret_commands::change_vault_password,
             ssh::secret_commands::set_master_password,
             ssh::secret_commands::remove_master_password,
