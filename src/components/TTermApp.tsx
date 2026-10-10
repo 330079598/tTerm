@@ -1808,16 +1808,18 @@ export const TTermApp: React.FC = () => {
   })
 
   const handleTerminalCommandExecuted = useCallback((command: ExecutedCommand) => {
-    setRecentCommands((current) => {
-      const next = addRecentCommand(current, command)
-      try {
-        saveRecentCommands(window.localStorage, next)
-      } catch (error) {
-        console.error("Failed to persist recent commands:", error)
-      }
-      return next
-    })
+    setRecentCommands((current) => addRecentCommand(current, command))
   }, [])
+
+  // Saved once per change rather than per command: a pasted script reports
+  // every line as a command at once.
+  useEffect(() => {
+    try {
+      saveRecentCommands(window.localStorage, recentCommands)
+    } catch (error) {
+      console.error("Failed to persist recent commands:", error)
+    }
+  }, [recentCommands])
 
   const handleSaveCommand = useCallback(
     (commandText: string, profile?: { id: string; name: string }) => {

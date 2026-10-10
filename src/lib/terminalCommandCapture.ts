@@ -17,6 +17,13 @@ export const EMPTY_COMMAND_CAPTURE_STATE: TerminalCommandCaptureState = {
   valid: true,
 }
 
+/** Characters that are inserted as typed, so a run of them goes in at once. */
+// eslint-disable-next-line no-control-regex
+const PLAIN_TEXT = /[^\x00-\x1f\x7f]+/y
+/** Inside bracketed paste line breaks are inserted too, each as a newline. */
+// eslint-disable-next-line no-control-regex
+const BRACKETED_PLAIN_TEXT = /[^\x00-\x09\x0b\x0c\x0e-\x1f\x7f]+/y
+
 function insertAtCursor(state: TerminalCommandCaptureState, value: string) {
   state.text = `${state.text.slice(0, state.cursor)}${value}${state.text.slice(state.cursor)}`
   state.cursor += value.length
@@ -65,6 +72,17 @@ export function captureTerminalInput(
         state.valid = false
       }
       index += sequence.length
+      continue
+    }
+
+    // Insert a run of plain text at once: one character at a time copies the
+    // whole line per character, which froze the window on a large paste.
+    const plainText = state.bracketedPaste ? BRACKETED_PLAIN_TEXT : PLAIN_TEXT
+    plainText.lastIndex = index
+    const run = plainText.exec(data)
+    if (run) {
+      insertAtCursor(state, state.bracketedPaste ? run[0].replace(/\r/g, "\n") : run[0])
+      index += run[0].length
       continue
     }
 

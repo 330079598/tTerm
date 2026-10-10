@@ -27,6 +27,22 @@ describe("terminal command capture", () => {
     expect(captureTerminalInput(pasted.state, "\r").commands).toEqual(["printf 'a'\nprintf 'b'"])
   })
 
+  it("captures a large bracketed paste in one pass", () => {
+    const lines = Array.from({ length: 20_000 }, (_, index) => `echo line ${index}`)
+    const pasted = captureTerminalInput(
+      EMPTY_COMMAND_CAPTURE_STATE,
+      `\x1b[200~${lines.join("\r")}\x1b[201~`
+    )
+    expect(captureTerminalInput(pasted.state, "\r").commands).toEqual([lines.join("\n")])
+  })
+
+  it("inserts pasted text at the cursor", () => {
+    let result = captureTerminalInput(EMPTY_COMMAND_CAPTURE_STATE, "git  -s")
+    result = captureTerminalInput(result.state, "\x1b[D\x1b[D\x1b[D")
+    result = captureTerminalInput(result.state, "\x1b[200~status\x1b[201~")
+    expect(captureTerminalInput(result.state, "\r").commands).toEqual(["git status -s"])
+  })
+
   it("does not invent commands after shell-history navigation", () => {
     const navigated = captureTerminalInput(EMPTY_COMMAND_CAPTURE_STATE, "\x1b[A\r")
     expect(navigated.commands).toEqual([])
