@@ -78,7 +78,7 @@ interface WebDavDeleteResult {
   error: string | null
 }
 
-interface RemoteBackupEntry {
+export interface RemoteBackupEntry {
   fileName: string
   sizeBytes: number
   createdAt: number | null
@@ -91,7 +91,7 @@ type BusyAction = "save" | "test" | "upload" | "list" | "download" | "delete" | 
 interface WebDavBackupPanelProps {
   selectionItems: SelectionItem[]
   /** Opens a downloaded backup in the import view. */
-  onRestore: (localPath: string) => Promise<void>
+  onRestore: (localPath: string, entry: RemoteBackupEntry) => Promise<void>
 }
 
 export const WebDavBackupPanel: React.FC<WebDavBackupPanelProps> = ({
@@ -273,7 +273,7 @@ export const WebDavBackupPanel: React.FC<WebDavBackupPanelProps> = ({
       const localPath = await withVaultUnlock(() =>
         invoke<string>("download_webdav_backup", { fileName: entry.fileName })
       )
-      await onRestore(localPath)
+      await onRestore(localPath, entry)
     } catch (error) {
       fail(t("dataMigration.webdav.downloadFailed"), error)
     } finally {

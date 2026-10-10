@@ -574,6 +574,13 @@ fn saved_secret(
     crate::db::read(|connection| get_secret(connection, &data_key, key))
 }
 
+/// The saved backup password, which opens backups this account uploaded.
+pub(crate) fn saved_backup_password(
+    secret_state: &SecretStoreState,
+) -> Result<Option<Zeroizing<String>>, String> {
+    saved_secret(secret_state, BACKUP_PASSWORD_KEY)
+}
+
 fn non_empty(value: Option<String>) -> Option<String> {
     value.filter(|value| !value.is_empty())
 }

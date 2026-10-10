@@ -105,6 +105,9 @@ pub struct BackupInspectInput {
     pub input_path: String,
     #[serde(default)]
     pub backup_password: Option<String>,
+    /// Without a typed password, try the saved WebDAV backup password.
+    #[serde(default)]
+    pub use_webdav_password: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -113,6 +116,9 @@ pub struct BackupImportOptions {
     pub selection: BackupSelection,
     #[serde(default)]
     pub backup_password: Option<String>,
+    /// Without a typed password, try the saved WebDAV backup password.
+    #[serde(default)]
+    pub use_webdav_password: bool,
     #[serde(default = "default_conflict_strategy")]
     pub conflict_strategy: String,
 }
@@ -208,6 +214,8 @@ pub struct BackupInspectResult {
     pub manifest: BackupManifest,
     pub requires_password: bool,
     pub password_verified: bool,
+    /// The saved WebDAV backup password opened it.
+    pub webdav_password_used: bool,
     pub profile_count: usize,
     pub command_count: usize,
     pub secret_count: usize,
@@ -326,8 +334,12 @@ pub async fn export_backup(
 }
 
 #[tauri::command]
-pub async fn inspect_backup(input: BackupInspectInput) -> Result<BackupInspectResult, String> {
-    run_blocking(move || inspect_backup_blocking(input)).await
+pub async fn inspect_backup(
+    input: BackupInspectInput,
+    secret_state: State<'_, SecretStoreState>,
+) -> Result<BackupInspectResult, String> {
+    let secret_state = secret_state.inner().clone();
+    run_blocking(move || inspect_backup_blocking(input, &secret_state)).await
 }
 
 #[tauri::command]
@@ -403,16 +415,22 @@ fn export_backup_blocking(
     })
 }
 
-fn inspect_backup_blocking(input: BackupInspectInput) -> Result<BackupInspectResult, String> {
-    let bundle = decode_archive(
+fn inspect_backup_blocking(
+    input: BackupInspectInput,
+    secret_state: &SecretStoreState,
+) -> Result<BackupInspectResult, String> {
+    let (bundle, webdav_password_used) = decode_with_password(
         Path::new(&input.input_path),
         input.backup_password.as_deref(),
+        input.use_webdav_password,
+        secret_state,
     )?;
     let payload = bundle.payload.as_ref();
     let diff = payload.map(calculate_diff).transpose()?.unwrap_or_default();
     Ok(BackupInspectResult {
         requires_password: bundle.manifest.encrypted,
         password_verified: payload.is_some(),
+        webdav_password_used,
         profile_count: payload
             .and_then(|p| p.profiles.as_ref())
             .map_or(0, value_array_len_one),
@@ -439,7 +457,12 @@ fn import_backup_blocking(
     if !matches!(options.conflict_strategy.as_str(), "merge" | "replace") {
         return Err("Conflict strategy must be 'merge' or 'replace'.".to_string());
     }
-    let mut bundle = decode_archive(Path::new(&input_path), options.backup_password.as_deref())?;
+    let (mut bundle, _) = decode_with_password(
+        Path::new(&input_path),
+        options.backup_password.as_deref(),
+        options.use_webdav_password,
+        secret_state,
+    )?;
     let payload = bundle
         .payload
         .as_mut()
@@ -1007,6 +1030,27 @@ fn build_archive_for_version(
         .into_inner();
     payload_bytes.zeroize();
     Ok(archive)
+}
+
+/// Decodes with the typed password or, when none was typed and
+/// `use_webdav_password` is set, with the saved WebDAV backup password if it
+/// opens the backup. Returns whether the saved password was used.
+fn decode_with_password(
+    path: &Path,
+    typed: Option<&str>,
+    use_webdav_password: bool,
+    secret_state: &SecretStoreState,
+) -> Result<(DecodedBundle, bool), String> {
+    let typed = typed.filter(|password| !password.is_empty());
+    if typed.is_none() && use_webdav_password {
+        // A locked store or another device's password just asks for it.
+        let saved = remote::saved_backup_password(secret_state).ok().flatten();
+        if let Some(Ok(bundle)) = saved.map(|saved| decode_archive(path, Some(&saved))) {
+            let used = bundle.manifest.encrypted;
+            return Ok((bundle, used));
+        }
+    }
+    Ok((decode_archive(path, typed)?, false))
 }
 
 fn decode_archive(path: &Path, password: Option<&str>) -> Result<DecodedBundle, String> {
@@ -2230,6 +2274,7 @@ mod tests {
         BackupImportOptions {
             selection: database_selection(),
             backup_password: None,
+            use_webdav_password: false,
             conflict_strategy: strategy.to_string(),
         }
     }
@@ -2382,6 +2427,7 @@ mod tests {
                 let options = BackupImportOptions {
                     selection: settings_and_session_selection(),
                     backup_password: None,
+                    use_webdav_password: false,
                     conflict_strategy: "replace".to_string(),
                 };
                 apply_database_payload(connection, &payload, &options)?;
@@ -2446,6 +2492,7 @@ mod tests {
                 let options = BackupImportOptions {
                     selection: settings_and_session_selection(),
                     backup_password: None,
+                    use_webdav_password: false,
                     conflict_strategy: "merge".to_string(),
                 };
                 apply_database_payload(connection, &payload, &options)?;

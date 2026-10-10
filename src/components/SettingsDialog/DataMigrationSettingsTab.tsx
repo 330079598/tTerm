@@ -5,6 +5,7 @@ import { relaunch } from "@tauri-apps/plugin-process"
 import {
   AlertTriangle,
   Archive,
+  ArrowLeft,
   CheckCircle2,
   Cloud,
   Download,
@@ -39,7 +40,11 @@ import { RECENT_COMMANDS_STORAGE_KEY } from "@/lib/recentCommands"
 import { isVerificationCanceled } from "@/lib/userVerification"
 import { toErrorMessage } from "@/lib/utils"
 import { SFTP_VIEW_STORAGE_KEY } from "@/components/SftpDrawer/sftpView"
-import { WebDavBackupPanel } from "@/components/SettingsDialog/WebDavBackupPanel"
+import { Badge } from "@/components/ui/badge"
+import {
+  type RemoteBackupEntry,
+  WebDavBackupPanel,
+} from "@/components/SettingsDialog/WebDavBackupPanel"
 import {
   formatFileSize,
   withSelection,
@@ -66,6 +71,7 @@ interface BackupInspectResult {
   manifest: BackupManifest
   requiresPassword: boolean
   passwordVerified: boolean
+  webdavPasswordUsed: boolean
   profileCount: number
   commandCount: number
   secretCount: number
@@ -174,6 +180,8 @@ export const DataMigrationSettingsTab: React.FC = () => {
   const busy = busyAction !== null
   const [activeView, setActiveView] = useState<MigrationView>("backup")
   const [importPath, setImportPath] = useState("")
+  // The WebDAV backup the import file was downloaded from.
+  const [importSource, setImportSource] = useState<RemoteBackupEntry | null>(null)
   const [inspectResult, setInspectResult] = useState<BackupInspectResult | null>(null)
   const [conflictStrategy, setConflictStrategy] = useState("merge")
   const [exportResult, setExportResult] = useState<BackupExportResult | null>(null)
@@ -279,9 +287,13 @@ export const DataMigrationSettingsTab: React.FC = () => {
     }
   }
 
-  const inspect = async (path: string, password: string) => {
+  const inspect = async (path: string, password: string, fromWebDav = importSource !== null) => {
     const result = await invoke<BackupInspectResult>("inspect_backup", {
-      input: { inputPath: path, backupPassword: password || null },
+      input: {
+        inputPath: path,
+        backupPassword: password || null,
+        useWebdavPassword: fromWebDav,
+      },
     })
     setInspectResult(result)
     setSelection(cloneAvailableSelection(result.manifest.selection))
@@ -296,10 +308,11 @@ export const DataMigrationSettingsTab: React.FC = () => {
     if (!selected || Array.isArray(selected)) return
     setBusyAction("inspect")
     setImportPath(selected)
+    setImportSource(null)
     setImportPassword("")
     setImportResult(null)
     try {
-      await inspect(selected, "")
+      await inspect(selected, "", false)
     } catch (error) {
       setInspectResult(null)
       toast({
@@ -347,6 +360,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
           options: {
             selection,
             backupPassword: importPassword || null,
+            useWebdavPassword: importSource !== null,
             conflictStrategy,
           },
         })
@@ -362,7 +376,11 @@ export const DataMigrationSettingsTab: React.FC = () => {
         // Refresh the diff against the data as it is now; keep the selection.
         setInspectResult(
           await invoke<BackupInspectResult>("inspect_backup", {
-            input: { inputPath: importPath, backupPassword: importPassword || null },
+            input: {
+              inputPath: importPath,
+              backupPassword: importPassword || null,
+              useWebdavPassword: importSource !== null,
+            },
           })
         )
         // The import may have brought its own backup schedule.
@@ -448,15 +466,16 @@ export const DataMigrationSettingsTab: React.FC = () => {
     }
   }
 
-  const openForImport = async (path: string) => {
+  const openForImport = async (path: string, source: RemoteBackupEntry | null = null) => {
     setBusyAction("inspect")
     setActiveView("import")
     setImportPath(path)
+    setImportSource(source)
     setImportPassword("")
     setImportResult(null)
     setInspectResult(null)
     try {
-      await inspect(path, "")
+      await inspect(path, "", source !== null)
     } catch (error) {
       toast({
         title: t("dataMigration.inspectFailed"),
@@ -849,8 +868,46 @@ export const DataMigrationSettingsTab: React.FC = () => {
                   ? t("dataMigration.inspecting")
                   : t("dataMigration.chooseBackup")}
               </Button>
-              {importPath && (
-                <p className="text-muted-foreground text-xs break-all">{importPath}</p>
+              {importSource ? (
+                <div className="border-border flex items-center justify-between gap-3 rounded-md border p-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Cloud size={14} className="text-muted-foreground shrink-0" />
+                      <span className="truncate text-sm font-medium" title={importSource.fileName}>
+                        {importSource.fileName}
+                      </span>
+                      {importSource.currentDevice ? (
+                        <Badge variant="secondary">{t("dataMigration.webdav.thisDevice")}</Badge>
+                      ) : (
+                        importSource.device && (
+                          <Badge variant="outline">{importSource.device}</Badge>
+                        )
+                      )}
+                    </div>
+                    <div className="text-muted-foreground mt-1 text-xs">
+                      {t("dataMigration.webdav.importSource")}
+                      {importSource.createdAt
+                        ? ` · ${new Date(importSource.createdAt).toLocaleString()}`
+                        : ""}
+                      {` · ${formatFileSize(importSource.sizeBytes)}`}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    disabled={busy}
+                    onClick={() => setActiveView("webdav")}
+                  >
+                    <ArrowLeft size={14} />
+                    {t("dataMigration.webdav.backToBackups")}
+                  </Button>
+                </div>
+              ) : (
+                importPath && (
+                  <p className="text-muted-foreground text-xs break-all">{importPath}</p>
+                )
               )}
 
               {inspectResult && (
@@ -888,6 +945,12 @@ export const DataMigrationSettingsTab: React.FC = () => {
                     )}
                     {inspectResult.diff.settingsChanged && (
                       <span>{t("dataMigration.settingsWillChange")}</span>
+                    )}
+                    {inspectResult.webdavPasswordUsed && (
+                      <span className="flex items-center gap-1">
+                        <KeyRound size={12} />
+                        {t("dataMigration.webdav.savedPasswordUsed")}
+                      </span>
                     )}
                   </div>
 
