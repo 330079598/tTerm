@@ -169,6 +169,12 @@ export interface AppConfig {
   terminal_log_name_template: string
   terminal_log_max_file_size_mb: number
   terminal_log_compress: boolean
+  /** Also log what is typed, including passwords at prompts that do not echo. */
+  terminal_log_record_input: boolean
+  /** Remove logs last written more than this many days ago; 0 keeps them. */
+  terminal_log_retention_days: number
+  /** Remove the oldest logs while all of them take more than this many MiB; 0 is no limit. */
+  terminal_log_max_total_mb: number
   sftp_transfer_parallelism: number
   /** SFTP upload bandwidth cap in KiB/s shared by all transfers; 0 = unlimited. */
   sftp_upload_limit_kib: number
@@ -279,6 +285,9 @@ const defaultConfig: AppConfig = {
   terminal_log_name_template: "{profile}-{host}-{yyyyMMdd-HHmmss}-{sessionId}",
   terminal_log_max_file_size_mb: 50,
   terminal_log_compress: false,
+  terminal_log_record_input: false,
+  terminal_log_retention_days: 0,
+  terminal_log_max_total_mb: 0,
   sftp_transfer_parallelism: 4,
   sftp_upload_limit_kib: 0,
   sftp_download_limit_kib: 0,
@@ -391,6 +400,14 @@ function normalizeTerminalLogFileSize(
   return Math.min(Math.max(Math.round(value), 1), 1024)
 }
 
+/** A whole number in `0..=max`; anything else is 0 (off). */
+function normalizeTerminalLogLimit(value: number | undefined, max: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return 0
+  }
+  return Math.min(Math.round(value), max)
+}
+
 function normalizeSftpTransferParallelism(
   value: Partial<AppConfig>["sftp_transfer_parallelism"]
 ): number {
@@ -401,6 +418,11 @@ function normalizeSftpTransferParallelism(
 }
 
 /** Upper bound for an SFTP bandwidth limit (10 GB/s), well inside `u32` KiB. */
+/** Longest log retention the settings accept, in days (matches the backend). */
+export const TERMINAL_LOG_MAX_RETENTION_DAYS = 3650
+/** Largest log directory size limit the settings accept, in MiB (matches the backend). */
+export const TERMINAL_LOG_MAX_TOTAL_MB = 1024 * 1024
+
 export const MAX_BANDWIDTH_LIMIT_KIB = 10 * 1024 * 1024
 
 function normalizeBandwidthLimitKib(value: Partial<AppConfig>["sftp_upload_limit_kib"]): number {
@@ -526,6 +548,15 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
       config.terminal_log_max_file_size_mb
     ),
     terminal_log_compress: config.terminal_log_compress === true,
+    terminal_log_record_input: config.terminal_log_record_input === true,
+    terminal_log_retention_days: normalizeTerminalLogLimit(
+      config.terminal_log_retention_days,
+      TERMINAL_LOG_MAX_RETENTION_DAYS
+    ),
+    terminal_log_max_total_mb: normalizeTerminalLogLimit(
+      config.terminal_log_max_total_mb,
+      TERMINAL_LOG_MAX_TOTAL_MB
+    ),
     sftp_transfer_parallelism: normalizeSftpTransferParallelism(config.sftp_transfer_parallelism),
     sftp_upload_limit_kib: normalizeBandwidthLimitKib(config.sftp_upload_limit_kib),
     sftp_download_limit_kib: normalizeBandwidthLimitKib(config.sftp_download_limit_kib),

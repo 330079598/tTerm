@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next"
 
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useTheme } from "@/contexts/ThemeContext"
 import type { TerminalPalette } from "@/types/theme"
@@ -75,6 +76,30 @@ export const SessionCustomizationFields: React.FC<SessionCustomizationFieldsProp
           rows={3}
         />
         <p className="text-muted-foreground mt-1 text-xs">{t("connection.loginScriptDesc")}</p>
+      </div>
+
+      <div>
+        <Label htmlFor="conn-session-log" className="mb-1.5 block">
+          {t("connection.sessionLog")}
+        </Label>
+        <Select
+          id="conn-session-log"
+          value={form.sessionLog}
+          onChange={(e) => {
+            const value = e.target.value
+            setForm((current) => ({
+              ...current,
+              sessionLog: value === "always" || value === "never" ? value : "default",
+            }))
+          }}
+        >
+          {(["default", "always", "never"] as const).map((option) => (
+            <option key={option} value={option}>
+              {t(`connection.sessionLogOptions.${option}`)}
+            </option>
+          ))}
+        </Select>
+        <p className="text-muted-foreground mt-1 text-xs">{t("connection.sessionLogDesc")}</p>
       </div>
 
       <div className="flex items-start gap-2">

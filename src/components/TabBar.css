@@ -548,6 +548,20 @@
   box-shadow: 0 0 0 2px hsl(var(--primary) / 0.25);
 }
 
+/* A tab whose session is being logged (TabLogIndicator). */
+.tab-log-recording {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border: 1.5px solid hsl(var(--destructive));
+  border-radius: 50%;
+  background: radial-gradient(circle, hsl(var(--destructive)) 0 45%, transparent 50%);
+}
+
 /* An AI agent in the tab (TabAttentionDot): at work, or waiting for the user. */
 .tab-agent {
   position: relative;

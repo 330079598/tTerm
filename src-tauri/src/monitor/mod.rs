@@ -105,6 +105,7 @@ mod tests {
             jump_hosts: Vec::new(),
             encoding: Default::default(),
             shell_integration: false,
+            session_log: Default::default(),
         }
     }
 

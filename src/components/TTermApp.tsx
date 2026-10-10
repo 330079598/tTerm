@@ -78,6 +78,8 @@ import {
 } from "@/lib/quickConnect"
 import { useWebDavSync } from "@/hooks/useWebDavSync"
 import { getAdjacentTabId, getTabIdsForCloseAction } from "@/lib/tabClosing"
+import { setRecordingTabIds, type TerminalLogStatus } from "@/lib/terminalLogRecording"
+import { toErrorMessage } from "@/lib/utils"
 import { getSiblingTabId, getTabIdAtPosition } from "@/lib/tabNavigation"
 import { isPageTab, Tab } from "@/types/tab"
 import type { CommandDraft, ExecutedCommand, RecentCommand, SavedCommand } from "@/types/command"
@@ -413,22 +415,47 @@ export const TTermApp: React.FC = () => {
 
   useEffect(() => {
     let disposed = false
-    let unlisten: (() => void) | undefined
-    void listen<{ message?: string }>("terminal-log-error", (event) => {
-      toast({
-        title: t("terminalLogging.writeFailed"),
-        description: event.payload.message ?? t("terminalLogging.writeFailed"),
-        variant: "destructive",
-      })
-    }).then((cleanup) => {
-      if (disposed) cleanup()
-      else unlisten = cleanup
+    const cleanups: Array<() => void> = []
+    void Promise.all([
+      listen<{ message?: string }>("terminal-log-error", (event) => {
+        toast({
+          title: t("terminalLogging.writeFailed"),
+          description: event.payload.message ?? t("terminalLogging.writeFailed"),
+          variant: "destructive",
+        })
+      }),
+      listen<TerminalLogStatus>("terminal-log-status", (event) => {
+        setRecordingTabIds(event.payload.recordingTabIds)
+      }),
+    ]).then((unlisteners) => {
+      if (disposed) unlisteners.forEach((cleanup) => cleanup())
+      else cleanups.push(...unlisteners)
     })
+    void invoke<TerminalLogStatus>("get_terminal_log_status")
+      .then((status) => {
+        if (!disposed) setRecordingTabIds(status.recordingTabIds)
+      })
+      .catch(console.error)
     return () => {
       disposed = true
-      unlisten?.()
+      cleanups.forEach((cleanup) => cleanup())
     }
   }, [t])
+
+  const handleSetTabLogRecording = useCallback(
+    (tabId: string, recording: boolean) => {
+      invoke<TerminalLogStatus>("set_terminal_log_recording", { tabId, recording })
+        .then((status) => setRecordingTabIds(status.recordingTabIds))
+        .catch((error) => {
+          toast({
+            title: recording ? t("terminalLogging.startFailed") : t("terminalLogging.stopFailed"),
+            description: toErrorMessage(error),
+            variant: "destructive",
+          })
+        })
+    },
+    [t]
+  )
 
   const ensureBroadcastTargetsConnected = useCallback(async () => {
     if (broadcastPreparingRef.current) return null
@@ -1473,6 +1500,7 @@ export const TTermApp: React.FC = () => {
     updateTab,
     renameTab,
     editTabProfile: handleEditTabProfile,
+    setTabLogRecording: handleSetTabLogRecording,
   })
 
   const handleReconnectTab = useCallback(

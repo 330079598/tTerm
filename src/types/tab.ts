@@ -32,7 +32,12 @@ export interface SavedProfile {
   login_script?: string
   /** Install tTerm's shell integration on the host so its shell marks commands. */
   shell_integration?: boolean
+  /** Whether the connection's sessions are logged; missing follows the logging setting. */
+  session_log?: SessionLogPolicy
 }
+
+/** A connection's logging choice; `default` follows the logging setting. */
+export type SessionLogPolicy = "always" | "never"
 
 export interface SavedJumpHost {
   host: string
@@ -163,6 +168,8 @@ export interface Tab {
     loginScript?: string
     /** SSH: start the shell with tTerm's shell integration when the host supports it. */
     shellIntegration?: boolean
+    /** Whether this tab's sessions are logged; missing follows the logging setting. */
+    sessionLog?: SessionLogPolicy
   }
   remoteFile?: {
     sourceTabId: string

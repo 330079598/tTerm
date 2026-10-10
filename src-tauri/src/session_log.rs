@@ -1,18 +1,23 @@
+mod retention;
+mod screen;
+
 use crate::config::AppConfig;
 use crate::core::session::SessionPlan;
 use crate::core::state::SessionKind;
 use base64::Engine;
-use chrono::Local;
+use chrono::{DateTime, Local};
 use flate2::write::GzEncoder;
 use flate2::Compression;
+use retention::Retention;
+use screen::{OutputLog, ScreenLine};
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::sync::{Arc, LazyLock, Mutex, MutexGuard};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 use vte::{Params, Perform};
@@ -22,15 +27,64 @@ const LOG_FORMAT_PLAIN: &str = "plain";
 const LOG_FORMAT_BOTH: &str = "both";
 const MIN_FILE_SIZE_MB: u32 = 1;
 const MAX_FILE_SIZE_MB: u32 = 1024;
+const MAX_RETENTION_DAYS: u32 = 3650;
+const MAX_TOTAL_SIZE_MB: u32 = 1024 * 1024;
+/// Input lines and events wait for the output lines that came before them;
+/// past this many, the oldest are written anyway.
+const MAX_QUEUED_PLAIN_LINES: usize = 10_000;
+/// Cleanup after a log closes runs at most this often.
+const CLEANUP_INTERVAL: Duration = Duration::from_secs(60);
 
+/// Logs being compressed; cleanup leaves them (and their archives) alone.
+static COMPRESSING: LazyLock<Mutex<HashSet<PathBuf>>> = LazyLock::new(Default::default);
+
+/// Whether a connection's sessions are logged.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SessionLogPolicy {
+    /// As the logging setting says.
+    #[default]
+    Default,
+    Always,
+    Never,
+}
+
+impl SessionLogPolicy {
+    pub fn from_label(label: Option<&str>) -> Self {
+        match label.map(str::trim) {
+            Some("always") => Self::Always,
+            Some("never") => Self::Never,
+            _ => Self::Default,
+        }
+    }
+}
+
+/// Where and how log files are written; changing any of it starts new files.
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct LogConfig {
-    enabled: bool,
+struct LogFiles {
     directory: PathBuf,
     format: String,
     name_template: String,
     max_file_size_bytes: u64,
     compress: bool,
+}
+
+impl LogFiles {
+    fn wants_raw(&self) -> bool {
+        self.format == LOG_FORMAT_RAW || self.format == LOG_FORMAT_BOTH
+    }
+
+    fn wants_plain(&self) -> bool {
+        self.format == LOG_FORMAT_PLAIN || self.format == LOG_FORMAT_BOTH
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct LogConfig {
+    /// Log sessions whose connection does not say otherwise.
+    record_by_default: bool,
+    record_input: bool,
+    files: LogFiles,
+    retention: Retention,
 }
 
 impl LogConfig {
@@ -59,21 +113,32 @@ impl LogConfig {
         };
 
         Ok(Self {
-            enabled: config.terminal_log_enabled,
-            directory,
-            format,
-            name_template: name_template.to_string(),
-            max_file_size_bytes: u64::from(size_mb) * 1024 * 1024,
-            compress: config.terminal_log_compress,
+            record_by_default: config.terminal_log_enabled,
+            record_input: config.terminal_log_record_input,
+            files: LogFiles {
+                directory,
+                format,
+                name_template: name_template.to_string(),
+                max_file_size_bytes: u64::from(size_mb) * 1024 * 1024,
+                compress: config.terminal_log_compress,
+            },
+            retention: Retention {
+                max_age_days: config.terminal_log_retention_days.min(MAX_RETENTION_DAYS),
+                max_total_bytes: u64::from(config.terminal_log_max_total_mb.min(MAX_TOTAL_SIZE_MB))
+                    * 1024
+                    * 1024,
+            },
         })
     }
 
-    fn wants_raw(&self) -> bool {
-        self.format == LOG_FORMAT_RAW || self.format == LOG_FORMAT_BOTH
-    }
-
-    fn wants_plain(&self) -> bool {
-        self.format == LOG_FORMAT_PLAIN || self.format == LOG_FORMAT_BOTH
+    /// Whether a session is logged: what the user chose for its tab, else
+    /// what its connection says, else the default.
+    fn records(&self, policy: SessionLogPolicy, manual: Option<bool>) -> bool {
+        manual.unwrap_or(match policy {
+            SessionLogPolicy::Always => true,
+            SessionLogPolicy::Never => false,
+            SessionLogPolicy::Default => self.record_by_default,
+        })
     }
 }
 
@@ -176,6 +241,9 @@ impl RotatingFile {
             .map_err(|err| format!("Failed to write terminal log header: {err}"))?;
         self.file = Some(file);
         self.bytes_written = self.header.len() as u64;
+        self.app
+            .state::<SessionLogState>()
+            .schedule_cleanup(&self.app, false);
         Ok(())
     }
 
@@ -195,6 +263,10 @@ impl RotatingFile {
         }
         Ok(())
     }
+
+    fn open_path(&self) -> Option<&Path> {
+        self.file.as_ref().map(|_| self.path.as_path())
+    }
 }
 
 impl Drop for RotatingFile {
@@ -207,74 +279,160 @@ struct SessionWriter {
     started: Instant,
     sequence: u64,
     closed: bool,
+    record_input: bool,
     raw: Option<RotatingFile>,
     plain: Option<RotatingFile>,
-    plain_input: PlainStream,
-    plain_output: PlainStream,
+    plain_lines: PlainLog,
 }
 
-struct PlainStream {
+/// The plain-text log's lines in the order things happened. An output line
+/// is known only once it leaves the screen, so typed lines and events wait
+/// until every output line that started before them has been written.
+struct PlainLog {
+    input: InputStream,
+    output: OutputLog,
+    queue: VecDeque<(DateTime<Local>, String)>,
+}
+
+impl PlainLog {
+    fn new(rows: u16, cols: u16) -> Self {
+        Self {
+            input: InputStream::new(),
+            output: OutputLog::new(rows, cols),
+            queue: VecDeque::new(),
+        }
+    }
+
+    fn input(&mut self, at: DateTime<Local>, data: &[u8]) -> Vec<String> {
+        for line in self.input.advance(data) {
+            self.queue.push_back((at, plain_line(at, "INPUT", &line)));
+        }
+        self.settle(Vec::new())
+    }
+
+    fn output(&mut self, data: &[u8]) -> Vec<String> {
+        let lines = self.output.advance(data);
+        let ready = self.place(lines);
+        self.settle(ready)
+    }
+
+    fn event(
+        &mut self,
+        at: DateTime<Local>,
+        event_type: &str,
+        detail: &serde_json::Value,
+    ) -> Vec<String> {
+        self.queue
+            .push_back((at, plain_event(at, event_type, detail)));
+        self.settle(Vec::new())
+    }
+
+    fn resize(&mut self, rows: u16, cols: u16) -> Vec<String> {
+        let lines = self.output.resize(rows, cols);
+        let ready = self.place(lines);
+        self.settle(ready)
+    }
+
+    /// Everything left: the line being typed and what is still on screen.
+    fn finish(&mut self, at: DateTime<Local>) -> Vec<String> {
+        for line in self.input.finish() {
+            self.queue.push_back((at, plain_line(at, "INPUT", &line)));
+        }
+        let lines = self.output.finish();
+        let ready = self.place(lines);
+        self.settle(ready)
+    }
+
+    /// Takes queued lines from the front while `due` says so, or while the
+    /// queue is over its limit.
+    fn take_queued(&mut self, ready: &mut Vec<String>, due: impl Fn(DateTime<Local>) -> bool) {
+        while let Some((at, _)) = self.queue.front() {
+            if !due(*at) && self.queue.len() <= MAX_QUEUED_PLAIN_LINES {
+                break;
+            }
+            let (_, line) = self.queue.pop_front().expect("front checked");
+            ready.push(line);
+        }
+    }
+
+    /// Output lines in order, each after the queued lines older than it.
+    fn place(&mut self, lines: Vec<ScreenLine>) -> Vec<String> {
+        let mut ready = Vec::new();
+        for line in lines {
+            match line {
+                ScreenLine::Text { at, text } => {
+                    self.take_queued(&mut ready, |queued| queued <= at);
+                    ready.push(if text.is_empty() {
+                        "\n".to_string()
+                    } else {
+                        plain_line(at, "OUTPUT", &text)
+                    });
+                }
+                ScreenLine::Event { at, name } => self
+                    .queue
+                    .push_back((at, plain_event(at, name, &serde_json::json!({})))),
+            }
+        }
+        ready
+    }
+
+    /// Adds the queued lines that no output line still on screen can precede.
+    fn settle(&mut self, mut ready: Vec<String>) -> Vec<String> {
+        match self.output.oldest_pending() {
+            Some(oldest) => self.take_queued(&mut ready, |queued| queued < oldest),
+            None => self.take_queued(&mut ready, |_| true),
+        }
+        ready
+    }
+}
+
+/// The submitted lines in keyboard input.
+struct InputStream {
     parser: vte::Parser,
-    screen: PlainScreen,
+    line: InputLine,
 }
 
-impl PlainStream {
-    fn new(commit_on_cr: bool) -> Self {
+impl InputStream {
+    fn new() -> Self {
         Self {
             parser: vte::Parser::new(),
-            screen: PlainScreen::new(commit_on_cr),
+            line: InputLine::default(),
         }
     }
 
     fn advance(&mut self, data: &[u8]) -> Vec<String> {
-        self.parser.advance(&mut self.screen, data);
-        std::mem::take(&mut self.screen.completed)
+        self.parser.advance(&mut self.line, data);
+        std::mem::take(&mut self.line.completed)
     }
 
     fn finish(&mut self) -> Vec<String> {
         if self
-            .screen
             .line
+            .text
             .iter()
             .any(|character| !character.is_whitespace())
         {
-            self.screen.complete_line();
+            self.line.complete();
         }
-        std::mem::take(&mut self.screen.completed)
+        std::mem::take(&mut self.line.completed)
     }
 }
 
-struct PlainScreen {
-    line: Vec<char>,
+/// The line being typed, edited by the keys that edit it.
+#[derive(Default)]
+struct InputLine {
+    text: Vec<char>,
     cursor: usize,
     completed: Vec<String>,
-    commit_on_cr: bool,
     just_committed_cr: bool,
 }
 
-impl PlainScreen {
-    fn new(commit_on_cr: bool) -> Self {
-        Self {
-            line: Vec::new(),
-            cursor: 0,
-            completed: Vec::new(),
-            commit_on_cr,
-            just_committed_cr: false,
-        }
-    }
-
-    fn complete_line(&mut self) {
-        let line = self.line.iter().collect::<String>();
+impl InputLine {
+    fn complete(&mut self) {
+        let line = self.text.iter().collect::<String>();
         self.completed.push(line.trim_end().to_string());
-        self.line.clear();
+        self.text.clear();
         self.cursor = 0;
-    }
-
-    fn move_cursor_forward(&mut self, count: usize) {
-        self.cursor = self.cursor.saturating_add(count);
-        if self.cursor > self.line.len() {
-            self.line.resize(self.cursor, ' ');
-        }
     }
 
     fn first_param(params: &Params, default: u16) -> usize {
@@ -288,54 +446,55 @@ impl PlainScreen {
     }
 }
 
-impl Perform for PlainScreen {
+impl InputLine {
+    fn backspace(&mut self) {
+        if self.cursor > 0 {
+            self.cursor -= 1;
+            if self.cursor < self.text.len() {
+                self.text.remove(self.cursor);
+            }
+        }
+    }
+}
+
+impl Perform for InputLine {
     fn print(&mut self, character: char) {
         self.just_committed_cr = false;
-        if self.cursor < self.line.len() {
-            self.line[self.cursor] = character;
+        // The parser hands DEL, the usual Backspace key, over as printable.
+        if character == '\x7f' {
+            self.backspace();
+            return;
+        }
+        if self.cursor < self.text.len() {
+            self.text[self.cursor] = character;
         } else {
-            self.line.resize(self.cursor, ' ');
-            self.line.push(character);
+            self.text.resize(self.cursor, ' ');
+            self.text.push(character);
         }
         self.cursor = self.cursor.saturating_add(1);
     }
 
     fn execute(&mut self, byte: u8) {
         match byte {
-            b'\n' if self.commit_on_cr && self.just_committed_cr => {
-                self.just_committed_cr = false;
-            }
-            b'\n' => self.complete_line(),
-            b'\r' if self.commit_on_cr => {
-                if self.line.is_empty() {
+            b'\n' if self.just_committed_cr => self.just_committed_cr = false,
+            b'\n' => self.complete(),
+            b'\r' => {
+                if self.text.is_empty() {
                     self.completed.push("<Enter>".to_string());
                 } else {
-                    self.complete_line();
+                    self.complete();
                 }
                 self.just_committed_cr = true;
             }
-            b'\r' => self.cursor = 0,
-            0x08 | 0x7f if self.commit_on_cr => {
-                if self.cursor > 0 {
-                    self.cursor -= 1;
-                    if self.cursor < self.line.len() {
-                        self.line.remove(self.cursor);
-                    }
-                }
-            }
-            0x08 | 0x7f => self.cursor = self.cursor.saturating_sub(1),
-            b'\t' => {
-                let spaces = 8 - (self.cursor % 8);
-                self.move_cursor_forward(spaces);
-            }
-            0x03 if self.commit_on_cr => {
-                if !self.line.is_empty() {
-                    self.complete_line();
+            0x08 => self.backspace(),
+            0x03 => {
+                if !self.text.is_empty() {
+                    self.complete();
                 }
                 self.completed.push("<Ctrl+C>".to_string());
             }
-            0x04 if self.commit_on_cr => self.completed.push("<Ctrl+D>".to_string()),
-            0x0c if self.commit_on_cr => self.completed.push("<Ctrl+L>".to_string()),
+            0x04 => self.completed.push("<Ctrl+D>".to_string()),
+            0x0c => self.completed.push("<Ctrl+L>".to_string()),
             _ => {}
         }
     }
@@ -348,58 +507,16 @@ impl Perform for PlainScreen {
         action: char,
     ) {
         match action {
-            'C' | 'a' => self.move_cursor_forward(Self::first_param(params, 1)),
-            'D' => {
-                self.cursor = self.cursor.saturating_sub(Self::first_param(params, 1));
+            'C' => {
+                self.cursor = (self.cursor + Self::first_param(params, 1)).min(self.text.len());
             }
-            'G' | '`' => {
-                self.cursor = Self::first_param(params, 1).saturating_sub(1);
-            }
-            'H' | 'f' => {
-                let column = params
-                    .iter()
-                    .nth(1)
-                    .and_then(|param| param.first())
-                    .copied()
-                    .filter(|value| *value != 0)
-                    .unwrap_or(1);
-                self.cursor = usize::from(column.saturating_sub(1));
-            }
-            'J' => {
-                let mode = params
-                    .iter()
-                    .next()
-                    .and_then(|param| param.first())
-                    .copied()
-                    .unwrap_or(0);
-                if mode == 2 || mode == 3 {
-                    self.line.clear();
-                    self.cursor = 0;
-                } else if mode == 0 {
-                    self.line.truncate(self.cursor);
-                }
-            }
-            'K' => {
-                let mode = params
-                    .iter()
-                    .next()
-                    .and_then(|param| param.first())
-                    .copied()
-                    .unwrap_or(0);
-                match mode {
-                    0 => self.line.truncate(self.cursor),
-                    1 => {
-                        let end = self.cursor.min(self.line.len().saturating_sub(1));
-                        self.line
-                            .iter_mut()
-                            .take(end + 1)
-                            .for_each(|value| *value = ' ');
-                    }
-                    2 => {
-                        self.line.clear();
-                        self.cursor = 0;
-                    }
-                    _ => {}
+            'D' => self.cursor = self.cursor.saturating_sub(Self::first_param(params, 1)),
+            'H' => self.cursor = 0,
+            'F' => self.cursor = self.text.len(),
+            // Delete.
+            '~' if Self::first_param(params, 0) == 3 => {
+                if self.cursor < self.text.len() {
+                    self.text.remove(self.cursor);
                 }
             }
             _ => {}
@@ -412,15 +529,18 @@ impl SessionWriter {
         app: &AppHandle,
         config: &LogConfig,
         metadata: SessionMetadata,
+        rows: u16,
+        cols: u16,
     ) -> Result<Self, String> {
-        fs::create_dir_all(&config.directory).map_err(|err| {
+        let files = &config.files;
+        fs::create_dir_all(&files.directory).map_err(|err| {
             format!(
                 "Failed to create terminal log directory '{}': {err}",
-                config.directory.display()
+                files.directory.display()
             )
         })?;
-        let rendered_name = render_name(&config.name_template, &metadata);
-        let base_name = unique_base_name(&config.directory, &rendered_name, config);
+        let rendered_name = render_name(&files.name_template, &metadata);
+        let base_name = unique_base_name(&files.directory, &rendered_name, files);
         let raw_header = with_newline(
             serde_json::to_vec(&serde_json::json!({
                 "type": "header",
@@ -438,47 +558,50 @@ impl SessionWriter {
             metadata.username,
             metadata.started_at_ms
         );
-        let raw = if config.wants_raw() {
+        let raw = if files.wants_raw() {
             Some(RotatingFile::create(
                 app,
-                &config.directory,
+                &files.directory,
                 &base_name,
                 "tlog",
-                config.max_file_size_bytes,
-                config.compress,
+                files.max_file_size_bytes,
+                files.compress,
                 &raw_header,
             )?)
         } else {
             None
         };
-        let plain = if config.wants_plain() {
+        let plain = if files.wants_plain() {
             Some(RotatingFile::create(
                 app,
-                &config.directory,
+                &files.directory,
                 &base_name,
                 "log",
-                config.max_file_size_bytes,
-                config.compress,
+                files.max_file_size_bytes,
+                files.compress,
                 plain_header.as_bytes(),
             )?)
         } else {
             None
         };
 
-        let writer = Self {
+        Ok(Self {
             started: Instant::now(),
             sequence: 0,
             closed: false,
+            record_input: config.record_input,
             raw,
             plain,
-            plain_input: PlainStream::new(true),
-            plain_output: PlainStream::new(false),
-        };
-        Ok(writer)
+            plain_lines: PlainLog::new(rows, cols),
+        })
     }
 
     fn record_bytes(&mut self, direction: &str, data: &[u8]) -> Result<(), String> {
         if self.closed || data.is_empty() {
+            return Ok(());
+        }
+        let is_input = direction == "input";
+        if is_input && !self.record_input {
             return Ok(());
         }
         self.sequence = self.sequence.saturating_add(1);
@@ -498,13 +621,13 @@ impl SessionWriter {
             .map_err(|err| format!("Failed to serialize terminal log event: {err}"))?;
             raw.write_event(&with_newline(event))?;
         }
-        if let Some(plain) = self.plain.as_mut() {
-            let lines = if direction == "input" {
-                self.plain_input.advance(data)
+        if self.plain.is_some() {
+            let lines = if is_input {
+                self.plain_lines.input(Local::now(), data)
             } else {
-                self.plain_output.advance(data)
+                self.plain_lines.output(data)
             };
-            write_plain_lines(plain, direction, lines)?;
+            self.write_plain(lines)?;
         }
         Ok(())
     }
@@ -526,14 +649,28 @@ impl SessionWriter {
             .map_err(|err| format!("Failed to serialize terminal log event: {err}"))?;
             raw.write_event(&with_newline(event))?;
         }
-        if let Some(plain) = self.plain.as_mut() {
-            let event = format!(
-                "[{}] [EVENT] {} {}\n",
-                Local::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-                event_type,
-                detail
-            );
-            plain.write_event(event.as_bytes())?;
+        if self.plain.is_some() {
+            let lines = self.plain_lines.event(Local::now(), event_type, &detail);
+            self.write_plain(lines)?;
+        }
+        Ok(())
+    }
+
+    fn resize(&mut self, rows: u16, cols: u16) -> Result<(), String> {
+        self.record_event("resize", serde_json::json!({ "rows": rows, "cols": cols }))?;
+        if self.plain.is_some() && !self.closed {
+            let lines = self.plain_lines.resize(rows, cols);
+            self.write_plain(lines)?;
+        }
+        Ok(())
+    }
+
+    fn write_plain(&mut self, lines: Vec<String>) -> Result<(), String> {
+        let Some(plain) = self.plain.as_mut() else {
+            return Ok(());
+        };
+        for line in lines {
+            plain.write_event(line.as_bytes())?;
         }
         Ok(())
     }
@@ -542,9 +679,9 @@ impl SessionWriter {
         if self.closed {
             return Ok(());
         }
-        if let Some(plain) = self.plain.as_mut() {
-            write_plain_lines(plain, "input", self.plain_input.finish())?;
-            write_plain_lines(plain, "output", self.plain_output.finish())?;
+        if self.plain.is_some() {
+            let lines = self.plain_lines.finish(Local::now());
+            self.write_plain(lines)?;
         }
         self.record_event(event_type, serde_json::json!({}))?;
         self.closed = true;
@@ -560,54 +697,92 @@ impl SessionWriter {
     fn finish(&mut self) -> Result<(), String> {
         self.close_with("session_end")
     }
+
+    fn open_paths(&self) -> impl Iterator<Item = PathBuf> + '_ {
+        [self.raw.as_ref(), self.plain.as_ref()]
+            .into_iter()
+            .flatten()
+            .filter_map(|file| file.open_path().map(Path::to_path_buf))
+    }
 }
 
-fn write_plain_lines(
-    plain: &mut RotatingFile,
-    direction: &str,
-    lines: Vec<String>,
-) -> Result<(), String> {
-    for line in lines {
-        if line.is_empty() {
-            plain.write_event(b"\n")?;
-            continue;
-        }
-        let event = format!(
-            "[{}] [{}] {}\n",
-            Local::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-            direction.to_ascii_uppercase(),
-            line
-        );
-        plain.write_event(event.as_bytes())?;
-    }
-    Ok(())
+fn plain_timestamp(at: DateTime<Local>) -> impl std::fmt::Display {
+    at.format("%Y-%m-%d %H:%M:%S%.3f")
+}
+
+fn plain_line(at: DateTime<Local>, direction: &str, text: &str) -> String {
+    format!("[{}] [{}] {}\n", plain_timestamp(at), direction, text)
+}
+
+fn plain_event(at: DateTime<Local>, event_type: &str, detail: &serde_json::Value) -> String {
+    format!(
+        "[{}] [EVENT] {} {}\n",
+        plain_timestamp(at),
+        event_type,
+        detail
+    )
 }
 
 struct SessionEntry {
     metadata: SessionMetadata,
+    policy: SessionLogPolicy,
+    rows: u16,
+    cols: u16,
     writer: Option<Arc<Mutex<SessionWriter>>>,
 }
 
+#[derive(Default)]
 struct LogManager {
     config: Option<LogConfig>,
     sessions: HashMap<String, SessionEntry>,
+    /// Tabs the user started or stopped logging for by hand; the choice
+    /// outlasts a reconnect.
+    manual: HashMap<String, bool>,
     last_error: Option<String>,
 }
 
-impl Default for LogManager {
-    fn default() -> Self {
-        Self {
-            config: None,
-            sessions: HashMap::new(),
-            last_error: None,
-        }
+impl LogManager {
+    fn records(&self, tab_id: &str, policy: SessionLogPolicy) -> bool {
+        self.config
+            .as_ref()
+            .is_some_and(|config| config.records(policy, self.manual.get(tab_id).copied()))
+    }
+
+    fn has_writers(&self) -> bool {
+        self.sessions.values().any(|entry| entry.writer.is_some())
+    }
+
+    fn create_writer(
+        &self,
+        app: &AppHandle,
+        entry: &SessionEntry,
+        event: &str,
+    ) -> Result<Arc<Mutex<SessionWriter>>, String> {
+        let config = self
+            .config
+            .as_ref()
+            .ok_or("Terminal logging is not configured")?;
+        let writer = Arc::new(Mutex::new(SessionWriter::create(
+            app,
+            config,
+            entry.metadata.clone(),
+            entry.rows,
+            entry.cols,
+        )?));
+        lock_session_writer(&writer).record_event(event, serde_json::json!({}))?;
+        Ok(writer)
     }
 }
 
 #[derive(Default)]
 pub struct SessionLogState {
     manager: Mutex<LogManager>,
-    enabled: AtomicBool,
+    /// Some session is being logged; lets output skip the manager lock when
+    /// none is.
+    active: AtomicBool,
+    last_cleanup: Mutex<Option<Instant>>,
+    cleanup_running: AtomicBool,
+    cleanup_again: AtomicBool,
 }
 
 fn lock_session_writer(writer: &Arc<Mutex<SessionWriter>>) -> MutexGuard<'_, SessionWriter> {
@@ -620,9 +795,11 @@ fn lock_session_writer(writer: &Arc<Mutex<SessionWriter>>) -> MutexGuard<'_, Ses
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TerminalLogStatus {
+    /// Sessions are logged unless their connection or tab says otherwise.
     enabled: bool,
     directory: String,
     active_sessions: usize,
+    recording_tab_ids: Vec<String>,
     total_size_bytes: u64,
     last_error: Option<String>,
 }
@@ -634,63 +811,82 @@ impl SessionLogState {
         }
     }
 
+    fn lock_manager(&self) -> Result<MutexGuard<'_, LogManager>, String> {
+        self.manager
+            .lock()
+            .map_err(|_| "Terminal log state is unavailable".to_string())
+    }
+
+    fn sync_active(&self, manager: &LogManager) {
+        self.active.store(manager.has_writers(), Ordering::Relaxed);
+    }
+
     pub fn validate_config(&self, config: &AppConfig) -> Result<(), String> {
         let config = LogConfig::from_app_config(config)?;
-        if config.enabled {
-            validate_directory(&config.directory)?;
+        if config.record_by_default {
+            validate_directory(&config.files.directory)?;
         }
         Ok(())
     }
 
     pub fn apply_config(&self, app: &AppHandle, app_config: &AppConfig) -> Result<(), String> {
         let config = LogConfig::from_app_config(app_config)?;
-        if config.enabled {
-            validate_directory(&config.directory)?;
+        if config.record_by_default {
+            validate_directory(&config.files.directory)?;
         }
 
-        let mut manager = self
-            .manager
-            .lock()
-            .map_err(|_| "Terminal log state is unavailable")?;
+        let mut manager = self.lock_manager()?;
         if manager.config.as_ref() == Some(&config) {
             return Ok(());
         }
-        if config.enabled {
-            self.enabled.store(true, Ordering::Relaxed);
-        }
-        let close_event = if config.enabled {
-            "logging_reconfigured"
-        } else {
-            "logging_disabled"
-        };
-        let mut close_error = None;
-        for entry in manager.sessions.values_mut() {
+        let previous = manager.config.replace(config.clone());
+        let files_changed =
+            previous.as_ref().map(|previous| &previous.files) != Some(&config.files);
+        let retention_changed =
+            previous.as_ref().map(|previous| previous.retention) != Some(config.retention);
+
+        let mut error = None;
+        let tab_ids: Vec<String> = manager.sessions.keys().cloned().collect();
+        for tab_id in tab_ids {
+            let policy = manager.sessions[&tab_id].policy;
+            let records = manager.records(&tab_id, policy);
+            let entry = manager.sessions.get_mut(&tab_id).expect("listed above");
             if let Some(writer) = entry.writer.take() {
-                if let Err(err) = lock_session_writer(&writer).close_with(close_event) {
-                    close_error = Some(err);
+                if records && !files_changed {
+                    lock_session_writer(&writer).record_input = config.record_input;
+                    entry.writer = Some(writer);
+                } else {
+                    let event = if records {
+                        "logging_reconfigured"
+                    } else {
+                        "logging_disabled"
+                    };
+                    if let Err(err) = lock_session_writer(&writer).close_with(event) {
+                        error = Some(err);
+                    }
+                }
+            }
+            if records && manager.sessions[&tab_id].writer.is_none() {
+                match manager.create_writer(app, &manager.sessions[&tab_id], "logging_enabled") {
+                    Ok(writer) => {
+                        manager
+                            .sessions
+                            .get_mut(&tab_id)
+                            .expect("listed above")
+                            .writer = Some(writer)
+                    }
+                    Err(err) => error = Some(err),
                 }
             }
         }
-        if !config.enabled {
-            self.enabled.store(false, Ordering::Relaxed);
-        }
-        manager.config = Some(config.clone());
-        manager.last_error = close_error;
-        if config.enabled {
-            for entry in manager.sessions.values_mut() {
-                let writer = Arc::new(Mutex::new(SessionWriter::create(
-                    app,
-                    &config,
-                    entry.metadata.clone(),
-                )?));
-                lock_session_writer(&writer)
-                    .record_event("logging_enabled", serde_json::json!({}))?;
-                entry.writer = Some(writer);
-            }
-        }
+        manager.last_error = error.clone();
+        self.sync_active(&manager);
         drop(manager);
         emit_status(app, self);
-        Ok(())
+        if files_changed || retention_changed {
+            self.schedule_cleanup(app, true);
+        }
+        error.map_or(Ok(()), Err)
     }
 
     fn start_session(
@@ -699,129 +895,266 @@ impl SessionLogState {
         tab_id: &str,
         session_nonce: u32,
         plan: &SessionPlan,
+        rows: u16,
+        cols: u16,
     ) -> Result<(), String> {
-        let metadata = SessionMetadata::new(tab_id, session_nonce, plan);
-        let mut manager = self
-            .manager
-            .lock()
-            .map_err(|_| "Terminal log state is unavailable")?;
+        let entry = SessionEntry {
+            metadata: SessionMetadata::new(tab_id, session_nonce, plan),
+            policy: plan.session_log,
+            rows,
+            cols,
+            writer: None,
+        };
+        let mut manager = self.lock_manager()?;
         if let Some(previous) = manager.sessions.remove(tab_id) {
             if let Some(writer) = previous.writer {
                 let _ = lock_session_writer(&writer).finish();
             }
         }
-        let writer = match manager.config.as_ref() {
-            Some(config) if config.enabled => {
-                let writer = Arc::new(Mutex::new(SessionWriter::create(
-                    app,
-                    config,
-                    metadata.clone(),
-                )?));
-                lock_session_writer(&writer)
-                    .record_event("session_start", serde_json::json!({}))?;
-                Some(writer)
-            }
-            _ => None,
+        let writer = if manager.records(tab_id, entry.policy) {
+            Some(manager.create_writer(app, &entry, "session_start")?)
+        } else {
+            None
         };
         manager
             .sessions
-            .insert(tab_id.to_string(), SessionEntry { metadata, writer });
+            .insert(tab_id.to_string(), SessionEntry { writer, ..entry });
+        self.sync_active(&manager);
         drop(manager);
         emit_status(app, self);
         Ok(())
     }
 
-    fn record_bytes(&self, app: &AppHandle, tab_id: &str, direction: &str, data: &[u8]) {
-        if !self.enabled.load(Ordering::Relaxed) {
-            return;
-        }
-        let writer = match self.manager.lock() {
+    fn writer(&self, app: &AppHandle, tab_id: &str) -> Option<Arc<Mutex<SessionWriter>>> {
+        match self.manager.lock() {
             Ok(manager) => manager
                 .sessions
                 .get(tab_id)
                 .and_then(|entry| entry.writer.clone()),
             Err(_) => {
                 emit_error(app, tab_id, "Terminal log state is unavailable");
-                return;
+                None
             }
-        };
-        let Some(writer) = writer else {
+        }
+    }
+
+    fn report(&self, app: &AppHandle, tab_id: &str, result: Result<(), String>) {
+        if let Err(err) = result {
+            self.set_error(err.clone());
+            emit_error(app, tab_id, &err);
+        }
+    }
+
+    fn record_bytes(&self, app: &AppHandle, tab_id: &str, direction: &str, data: &[u8]) {
+        if !self.active.load(Ordering::Relaxed) {
+            return;
+        }
+        let Some(writer) = self.writer(app, tab_id) else {
             return;
         };
         let result = lock_session_writer(&writer).record_bytes(direction, data);
-        if let Err(err) = result {
-            self.set_error(err.clone());
-            emit_error(app, tab_id, &err);
-        }
+        self.report(app, tab_id, result);
     }
 
     fn record_event(&self, app: &AppHandle, tab_id: &str, event: &str, detail: serde_json::Value) {
-        if !self.enabled.load(Ordering::Relaxed) {
+        if !self.active.load(Ordering::Relaxed) {
             return;
         }
-        let writer = match self.manager.lock() {
-            Ok(manager) => manager
-                .sessions
-                .get(tab_id)
-                .and_then(|entry| entry.writer.clone()),
-            Err(_) => {
-                emit_error(app, tab_id, "Terminal log state is unavailable");
-                return;
-            }
-        };
-        let Some(writer) = writer else {
+        let Some(writer) = self.writer(app, tab_id) else {
             return;
         };
         let result = lock_session_writer(&writer).record_event(event, detail);
-        if let Err(err) = result {
-            self.set_error(err.clone());
-            emit_error(app, tab_id, &err);
+        self.report(app, tab_id, result);
+    }
+
+    fn resize(&self, app: &AppHandle, tab_id: &str, rows: u16, cols: u16) {
+        let writer = match self.manager.lock() {
+            Ok(mut manager) => manager.sessions.get_mut(tab_id).and_then(|entry| {
+                entry.rows = rows;
+                entry.cols = cols;
+                entry.writer.clone()
+            }),
+            Err(_) => return,
+        };
+        if let Some(writer) = writer {
+            let result = lock_session_writer(&writer).resize(rows, cols);
+            self.report(app, tab_id, result);
         }
     }
 
+    fn set_recording(
+        &self,
+        app: &AppHandle,
+        tab_id: &str,
+        recording: bool,
+    ) -> Result<TerminalLogStatus, String> {
+        let mut manager = self.lock_manager()?;
+        if manager.config.is_none() {
+            return Err("Terminal logging is not configured".to_string());
+        }
+        let previous = manager.manual.insert(tab_id.to_string(), recording);
+        let mut result = Ok(());
+        match (
+            recording,
+            manager
+                .sessions
+                .get(tab_id)
+                .map(|entry| entry.writer.clone()),
+        ) {
+            (true, Some(None)) => {
+                match manager.create_writer(app, &manager.sessions[tab_id], "logging_started") {
+                    Ok(writer) => {
+                        manager
+                            .sessions
+                            .get_mut(tab_id)
+                            .expect("found above")
+                            .writer = Some(writer);
+                    }
+                    Err(err) => result = Err(err),
+                }
+            }
+            (false, Some(Some(writer))) => {
+                manager
+                    .sessions
+                    .get_mut(tab_id)
+                    .expect("found above")
+                    .writer = None;
+                result = lock_session_writer(&writer).close_with("logging_stopped");
+            }
+            _ => {}
+        }
+        if result.is_err() && recording {
+            match previous {
+                Some(previous) => manager.manual.insert(tab_id.to_string(), previous),
+                None => manager.manual.remove(tab_id),
+            };
+        }
+        self.sync_active(&manager);
+        drop(manager);
+        emit_status(app, self);
+        result?;
+        self.status()
+    }
+
     fn end_session(&self, app: &AppHandle, tab_id: &str) {
-        let writer = self
-            .manager
-            .lock()
-            .ok()
-            .and_then(|mut manager| manager.sessions.remove(tab_id))
-            .and_then(|entry| entry.writer);
+        let writer = self.manager.lock().ok().and_then(|mut manager| {
+            let writer = manager
+                .sessions
+                .remove(tab_id)
+                .and_then(|entry| entry.writer);
+            self.sync_active(&manager);
+            writer
+        });
         if let Some(writer) = writer {
             if let Err(err) = lock_session_writer(&writer).finish() {
                 emit_error(app, tab_id, &err);
             }
         }
         emit_status(app, self);
+        self.schedule_cleanup(app, false);
     }
 
     fn status(&self) -> Result<TerminalLogStatus, String> {
-        let (config, active_sessions, last_error) = {
-            let manager = self
-                .manager
-                .lock()
-                .map_err(|_| "Terminal log state is unavailable")?;
-            let config = manager.config.clone().unwrap_or(LogConfig {
-                enabled: false,
-                directory: crate::config::get_config_path()?.join("logs"),
-                format: LOG_FORMAT_BOTH.to_string(),
-                name_template: String::new(),
-                max_file_size_bytes: 50 * 1024 * 1024,
-                compress: false,
-            });
-            let active_sessions = manager
+        let (enabled, directory, mut recording_tab_ids, last_error) = {
+            let manager = self.lock_manager()?;
+            let (enabled, directory) = match manager.config.as_ref() {
+                Some(config) => (config.record_by_default, config.files.directory.clone()),
+                None => (false, crate::config::get_config_path()?.join("logs")),
+            };
+            let recording: Vec<String> = manager
                 .sessions
-                .values()
-                .filter(|entry| entry.writer.is_some())
-                .count();
-            (config, active_sessions, manager.last_error.clone())
+                .iter()
+                .filter(|(_, entry)| entry.writer.is_some())
+                .map(|(tab_id, _)| tab_id.clone())
+                .collect();
+            (enabled, directory, recording, manager.last_error.clone())
         };
+        recording_tab_ids.sort();
         Ok(TerminalLogStatus {
-            enabled: config.enabled,
-            directory: config.directory.to_string_lossy().into_owned(),
-            active_sessions,
-            total_size_bytes: directory_size(&config.directory),
+            enabled,
+            directory: directory.to_string_lossy().into_owned(),
+            active_sessions: recording_tab_ids.len(),
+            recording_tab_ids,
+            total_size_bytes: directory_size(&directory),
             last_error,
         })
+    }
+
+    /// Removes logs the retention settings no longer keep, on a background
+    /// thread. Unless `force`d, runs at most once per `CLEANUP_INTERVAL`.
+    /// Never takes the manager lock on the caller's thread, so it is safe to
+    /// call while a log is closing.
+    fn schedule_cleanup(&self, app: &AppHandle, force: bool) {
+        {
+            let mut last = match self.last_cleanup.lock() {
+                Ok(last) => last,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            if !force && last.is_some_and(|last| last.elapsed() < CLEANUP_INTERVAL) {
+                return;
+            }
+            *last = Some(Instant::now());
+        }
+        if self.cleanup_running.swap(true, Ordering::AcqRel) {
+            self.cleanup_again.store(true, Ordering::Release);
+            return;
+        }
+        let app = app.clone();
+        std::thread::spawn(move || {
+            let state = app.state::<SessionLogState>();
+            loop {
+                state.clean_now(&app);
+                if state.cleanup_again.swap(false, Ordering::AcqRel) {
+                    continue;
+                }
+                state.cleanup_running.store(false, Ordering::Release);
+                // A request that came in just before the flag dropped.
+                if state.cleanup_again.swap(false, Ordering::AcqRel)
+                    && !state.cleanup_running.swap(true, Ordering::AcqRel)
+                {
+                    continue;
+                }
+                break;
+            }
+        });
+    }
+
+    fn clean_now(&self, app: &AppHandle) {
+        let Ok((directory, retention, writers)) = self.lock_manager().map(|manager| {
+            let Some(config) = manager.config.as_ref() else {
+                return (PathBuf::new(), Retention::default(), Vec::new());
+            };
+            let writers: Vec<_> = manager
+                .sessions
+                .values()
+                .filter_map(|entry| entry.writer.clone())
+                .collect();
+            (config.files.directory.clone(), config.retention, writers)
+        }) else {
+            return;
+        };
+        if retention.is_off() {
+            return;
+        }
+        let mut in_use: HashSet<PathBuf> = writers
+            .iter()
+            .flat_map(|writer| lock_session_writer(writer).open_paths().collect::<Vec<_>>())
+            .collect();
+        if let Ok(compressing) = COMPRESSING.lock() {
+            in_use.extend(compressing.iter().cloned());
+        }
+        match retention::clean(&directory, retention, &in_use, SystemTime::now()) {
+            Ok(report) if report.removed > 0 => emit_status(app, self),
+            Ok(_) => {}
+            Err(message) => {
+                self.set_error(message.clone());
+                let _ = app.emit_to(
+                    tauri::EventTarget::any(),
+                    "terminal-log-error",
+                    serde_json::json!({ "tabId": null, "message": message }),
+                );
+            }
+        }
     }
 }
 
@@ -830,9 +1163,11 @@ pub fn start_session(
     tab_id: &str,
     session_nonce: u32,
     plan: &SessionPlan,
+    rows: u16,
+    cols: u16,
 ) -> Result<(), String> {
     app.state::<SessionLogState>()
-        .start_session(app, tab_id, session_nonce, plan)
+        .start_session(app, tab_id, session_nonce, plan, rows, cols)
 }
 
 pub fn record_input(app: &AppHandle, tab_id: &str, data: &[u8]) {
@@ -846,12 +1181,8 @@ pub fn record_output(app: &AppHandle, tab_id: &str, data: &[u8]) {
 }
 
 pub fn record_resize(app: &AppHandle, tab_id: &str, rows: u16, cols: u16) {
-    app.state::<SessionLogState>().record_event(
-        app,
-        tab_id,
-        "resize",
-        serde_json::json!({ "rows": rows, "cols": cols }),
-    );
+    app.state::<SessionLogState>()
+        .resize(app, tab_id, rows, cols);
 }
 
 pub fn record_credential_injection(app: &AppHandle, tab_id: &str) {
@@ -874,20 +1205,29 @@ pub fn get_terminal_log_status(
     state.status()
 }
 
+/// Starts or stops logging one tab, whatever the settings say, until the
+/// tab closes.
+#[tauri::command]
+pub fn set_terminal_log_recording(
+    app: AppHandle,
+    state: State<'_, SessionLogState>,
+    tab_id: String,
+    recording: bool,
+) -> Result<TerminalLogStatus, String> {
+    state.set_recording(&app, &tab_id, recording)
+}
+
 #[tauri::command]
 pub fn open_terminal_log_directory(
     app: AppHandle,
     state: State<'_, SessionLogState>,
 ) -> Result<(), String> {
     let directory = {
-        let manager = state
-            .manager
-            .lock()
-            .map_err(|_| "Terminal log state is unavailable")?;
+        let manager = state.lock_manager()?;
         manager
             .config
             .as_ref()
-            .map(|config| config.directory.clone())
+            .map(|config| config.files.directory.clone())
             .unwrap_or(crate::config::get_config_path()?.join("logs"))
     };
 
@@ -905,10 +1245,7 @@ pub fn retry_terminal_logging(
 ) -> Result<TerminalLogStatus, String> {
     let config = crate::config::load_config_file()?;
     {
-        let mut manager = state
-            .manager
-            .lock()
-            .map_err(|_| "Terminal log state is unavailable")?;
+        let mut manager = state.lock_manager()?;
         manager.config = None;
     }
     state.apply_config(&app, &config)?;
@@ -973,16 +1310,16 @@ fn sanitize_file_name(value: &str) -> String {
     }
 }
 
-fn unique_base_name(directory: &Path, requested: &str, config: &LogConfig) -> String {
+fn unique_base_name(directory: &Path, requested: &str, files: &LogFiles) -> String {
     for index in 0u32.. {
         let candidate = if index == 0 {
             requested.to_string()
         } else {
             format!("{requested}-{index}")
         };
-        let raw_exists = config.wants_raw()
+        let raw_exists = files.wants_raw()
             && path_or_compressed_exists(&part_path(directory, &candidate, "tlog", 0));
-        let plain_exists = config.wants_plain()
+        let plain_exists = files.wants_plain()
             && path_or_compressed_exists(&part_path(directory, &candidate, "log", 0));
         if !raw_exists && !plain_exists {
             return candidate;
@@ -992,7 +1329,11 @@ fn unique_base_name(directory: &Path, requested: &str, config: &LogConfig) -> St
 }
 
 fn path_or_compressed_exists(path: &Path) -> bool {
-    path.exists() || PathBuf::from(format!("{}.gz", path.to_string_lossy())).exists()
+    path.exists() || compressed_path(path).exists()
+}
+
+fn compressed_path(path: &Path) -> PathBuf {
+    PathBuf::from(format!("{}.gz", path.to_string_lossy()))
 }
 
 fn part_path(directory: &Path, base_name: &str, extension: &str, part: u32) -> PathBuf {
@@ -1017,8 +1358,18 @@ fn with_newline(mut data: Vec<u8>) -> Vec<u8> {
 }
 
 fn spawn_compression(app: AppHandle, path: PathBuf) {
+    let held = [path.clone(), compressed_path(&path)];
+    if let Ok(mut compressing) = COMPRESSING.lock() {
+        compressing.extend(held.iter().cloned());
+    }
     std::thread::spawn(move || {
-        if let Err(err) = compress_file(&path) {
+        let result = compress_file(&path);
+        if let Ok(mut compressing) = COMPRESSING.lock() {
+            for path in &held {
+                compressing.remove(path);
+            }
+        }
+        if let Err(err) = result {
             let message = format!(
                 "Failed to compress terminal log '{}': {err}",
                 path.display()
@@ -1035,7 +1386,7 @@ fn spawn_compression(app: AppHandle, path: PathBuf) {
 
 fn compress_file(path: &Path) -> Result<(), String> {
     let mut source = File::open(path).map_err(|err| err.to_string())?;
-    let target_path = PathBuf::from(format!("{}.gz", path.to_string_lossy()));
+    let target_path = compressed_path(path);
     let target = OpenOptions::new()
         .create_new(true)
         .write(true)
@@ -1153,33 +1504,8 @@ mod tests {
     }
 
     #[test]
-    fn plain_output_reconstructs_terminal_redraws() {
-        let mut stream = PlainStream::new(false);
-
-        assert!(stream
-            .advance(b"\r\x1b[0m\x1b[32m> \x1b[36m~\x1b[0m \x1b[K")
-            .is_empty());
-        assert!(stream.advance(b"l").is_empty());
-        assert!(stream.advance(b"\x08ll").is_empty());
-        assert!(stream
-            .advance(b"\x08\x08\x1b[32ml\x1b[32ml\x1b[39m")
-            .is_empty());
-
-        assert_eq!(stream.advance(b"\x1b[?1l\x1b>\r\r\n"), vec!["> ~ ll"]);
-    }
-
-    #[test]
-    fn plain_stream_ignores_ansi_only_chunks() {
-        let mut stream = PlainStream::new(false);
-
-        assert!(stream.advance(b"\x1b[?1h\x1b=").is_empty());
-        assert!(stream.advance(b"\x1b]2;user@host:~\x07").is_empty());
-        assert!(stream.finish().is_empty());
-    }
-
-    #[test]
-    fn plain_input_combines_keystrokes_into_submitted_commands() {
-        let mut stream = PlainStream::new(true);
+    fn input_combines_keystrokes_into_submitted_commands() {
+        let mut stream = InputStream::new();
 
         assert!(stream.advance(b"fast").is_empty());
         for byte in b"fetch" {
@@ -1189,5 +1515,120 @@ mod tests {
         assert!(stream.advance(b"\n").is_empty());
         assert_eq!(stream.advance(b"\x0c"), vec!["<Ctrl+L>"]);
         assert_eq!(stream.advance(b"\r"), vec!["<Enter>"]);
+    }
+
+    #[test]
+    fn input_follows_line_editing_keys() {
+        let mut stream = InputStream::new();
+        // Type "lss", move left, delete the extra "s", go home, insert nothing.
+        assert!(stream.advance(b"lss\x1b[D\x1b[3~\x1b[H").is_empty());
+        assert_eq!(stream.advance(b"\r"), vec!["ls"]);
+        assert!(stream.advance(b"pwdx\x7f").is_empty());
+        assert_eq!(stream.finish(), vec!["pwd"]);
+    }
+
+    /// The log lines without their timestamps.
+    fn untimed(lines: Vec<String>) -> Vec<String> {
+        lines
+            .into_iter()
+            .map(|line| match line.split_once("] ") {
+                Some((_, rest)) => rest.trim_end().replacen("[", "", 1).replacen("]", "", 1),
+                None => line.trim_end().to_string(),
+            })
+            .collect()
+    }
+
+    fn tick() -> DateTime<Local> {
+        std::thread::sleep(Duration::from_millis(2));
+        Local::now()
+    }
+
+    #[test]
+    fn plain_log_puts_typed_lines_between_the_output_around_them() {
+        let mut log = PlainLog::new(10, 40);
+        let mut lines = log.output(b"$ ");
+        tick();
+        lines.extend(log.input(tick(), b"ls\r"));
+        // The prompt is still on screen, so the typed line waits for it.
+        assert!(lines.is_empty());
+        tick();
+        lines.extend(log.output(b"ls\r\nfile\r\n$ "));
+        lines.extend(log.finish(tick()));
+        assert_eq!(
+            untimed(lines),
+            vec!["OUTPUT $ ls", "INPUT ls", "OUTPUT file", "OUTPUT $"]
+        );
+    }
+
+    #[test]
+    fn plain_log_writes_events_right_away_on_an_empty_screen() {
+        let mut log = PlainLog::new(10, 40);
+        let lines = log.event(Local::now(), "session_start", &serde_json::json!({}));
+        assert_eq!(untimed(lines), vec!["EVENT session_start {}"]);
+    }
+
+    #[test]
+    fn plain_log_notes_full_screen_programs_in_order() {
+        let mut log = PlainLog::new(10, 40);
+        let mut lines = log.output(b"$ vim\r\n");
+        tick();
+        lines.extend(log.output(b"\x1b[?1049h\x1b[2Jtext\x1b[?1049l"));
+        tick();
+        lines.extend(log.output(b"$ ls\r\n"));
+        lines.extend(log.finish(tick()));
+        assert_eq!(
+            untimed(lines),
+            vec![
+                "OUTPUT $ vim",
+                "EVENT fullscreen_start {}",
+                "EVENT fullscreen_end {}",
+                "OUTPUT $ ls",
+            ]
+        );
+    }
+
+    #[test]
+    fn policy_and_manual_choice_decide_recording() {
+        let config = |record_by_default| LogConfig {
+            record_by_default,
+            record_input: false,
+            files: LogFiles {
+                directory: PathBuf::new(),
+                format: LOG_FORMAT_BOTH.to_string(),
+                name_template: "x".to_string(),
+                max_file_size_bytes: 1,
+                compress: false,
+            },
+            retention: Retention::default(),
+        };
+        let off = config(false);
+        let on = config(true);
+
+        assert!(!off.records(SessionLogPolicy::Default, None));
+        assert!(on.records(SessionLogPolicy::Default, None));
+        assert!(off.records(SessionLogPolicy::Always, None));
+        assert!(!on.records(SessionLogPolicy::Never, None));
+        assert!(off.records(SessionLogPolicy::Never, Some(true)));
+        assert!(!on.records(SessionLogPolicy::Always, Some(false)));
+    }
+
+    #[test]
+    fn policy_reads_profile_labels() {
+        assert_eq!(
+            SessionLogPolicy::from_label(Some("always")),
+            SessionLogPolicy::Always
+        );
+        assert_eq!(
+            SessionLogPolicy::from_label(Some("never")),
+            SessionLogPolicy::Never
+        );
+        assert_eq!(
+            SessionLogPolicy::from_label(None),
+            SessionLogPolicy::Default
+        );
+        assert_eq!(
+            SessionLogPolicy::from_label(Some("other")),
+            SessionLogPolicy::Default
+        );
     }
 }

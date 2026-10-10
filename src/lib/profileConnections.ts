@@ -1,8 +1,21 @@
-import type { ConnectionType, SavedProfile, SshAuthMethod, Tab } from "@/types/tab"
+import type {
+  ConnectionType,
+  SavedProfile,
+  SessionLogPolicy,
+  SshAuthMethod,
+  Tab,
+} from "@/types/tab"
 
 /** The auth method of a saved profile or jump host; anything unknown is a password login. */
 export function normalizeSshAuthMethod(value: string | null | undefined): SshAuthMethod {
   return value === "key" || value === "agent" || value === "interactive" ? value : "password"
+}
+
+/** A stored logging choice; anything unknown follows the logging setting. */
+export function normalizeSessionLogPolicy(
+  value: string | null | undefined
+): SessionLogPolicy | undefined {
+  return value === "always" || value === "never" ? value : undefined
 }
 
 export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id" | "isActive"> {
@@ -31,6 +44,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
       terminalTheme: profile.terminal_theme,
       loginScript: profile.login_script,
       shellIntegration: profile.shell_integration === true,
+      sessionLog: normalizeSessionLogPolicy(profile.session_log),
       jumpHosts:
         useJumpHost && jumpHosts.length > 0
           ? jumpHosts.map((jump) => ({

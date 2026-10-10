@@ -12,10 +12,12 @@ import {
   X,
 } from "lucide-react"
 import { TabAttentionDot } from "@/components/TabAttentionDot"
+import { TabLogIndicator } from "@/components/TabLogIndicator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { isPageTab, Tab, TabContextMenuAction } from "@/types/tab"
 import { isImeKeyEvent } from "@/lib/ime"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
+import { getTabLogMenuAction } from "@/lib/terminalLogRecording"
 
 const TAB_OVERFLOW_THRESHOLD = 16
 const OVERFLOW_PANEL_MAX_WIDTH = 320
@@ -157,6 +159,8 @@ const TabItem = React.memo(function TabItem({
             ? { label: t("contextMenu.editConnection"), action: "edit-connection", icon: "edit" }
             : { label: t("contextMenu.saveConnection"), action: "edit-connection", icon: "edit" }
 
+      const logAction = getTabLogMenuAction(tab, t)
+
       const actions: TabContextMenuAction[] = [
         { label: t("contextMenu.newTab"), action: "new", icon: "plus" },
         { label: t("contextMenu.duplicateTab"), action: "duplicate", icon: "copy" },
@@ -187,6 +191,7 @@ const TabItem = React.memo(function TabItem({
         { label: t("contextMenu.renameTab"), action: "rename", icon: "edit" },
         ...(editConnectionAction ? [editConnectionAction] : []),
         ...(pinAction ? [pinAction] : []),
+        ...(logAction ? [logAction] : []),
         { separator: true, label: "", action: "" },
         ...closeActions,
       ]
@@ -227,6 +232,7 @@ const TabItem = React.memo(function TabItem({
           {tab.type === "settings" && <Settings className="tab-icon" size={13} />}
           {tab.type === "tunnels" && <Waypoints className="tab-icon" size={13} />}
           <TabAttentionDot tabId={tab.id} />
+          <TabLogIndicator tabId={tab.id} />
           <span className="tab-title">{tab.title}</span>
           <button
             className="tab-close"

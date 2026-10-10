@@ -1,6 +1,6 @@
 import { SavedProfile } from "@/components/ProfilesPanel"
 import { useConfig } from "@/contexts/ConfigContext"
-import { SshAuthMethod, Tab, TerminalShellType } from "@/types/tab"
+import { SessionLogPolicy, SshAuthMethod, Tab, TerminalShellType } from "@/types/tab"
 
 export interface ConnectionDialogProps {
   isOpen: boolean
@@ -79,6 +79,8 @@ export interface ConnectionForm {
   loginScript: string
   /** Install tTerm's shell integration on the host so its shell marks commands. */
   shellIntegration: boolean
+  /** Whether the connection's sessions are logged; `default` follows the logging setting. */
+  sessionLog: SessionLogPolicy | "default"
   terminalShell: TerminalShellType
   terminalShellCustomPath: string
   terminalShellCustomArgs: string
@@ -126,6 +128,7 @@ export const defaultForm: ConnectionForm = {
   terminalTheme: "",
   loginScript: "",
   shellIntegration: false,
+  sessionLog: "default",
   terminalShell: "auto",
   terminalShellCustomPath: "",
   terminalShellCustomArgs: "",

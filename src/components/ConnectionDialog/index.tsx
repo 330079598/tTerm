@@ -32,6 +32,7 @@ import {
   getDefaultTitle,
   loginScriptPayload,
   normalizeKeepalive,
+  sessionLogPayload,
 } from "@/components/ConnectionDialog/connectionDialogUtils"
 import { JumpHostFields } from "@/components/ConnectionDialog/JumpHostFields"
 import { SshConnectionFields } from "@/components/ConnectionDialog/SshConnectionFields"
@@ -444,6 +445,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         terminal_theme: form.terminalTheme || undefined,
         login_script: loginScriptPayload(form.loginScript),
         shell_integration: form.shellIntegration,
+        session_log: sessionLogPayload(form.sessionLog),
         use_jump_host: form.useJumpHost,
         jump_hosts: profileJumpHostsPayload,
         sudo_autofill: form.sudoAutofill,
@@ -514,6 +516,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         terminalTheme: form.terminalTheme || undefined,
         loginScript: loginScriptPayload(form.loginScript),
         shellIntegration: form.shellIntegration,
+        sessionLog: sessionLogPayload(form.sessionLog),
         jumpHosts: connectionJumpHostsPayload,
       }
     } else {

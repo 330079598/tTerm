@@ -1,5 +1,6 @@
 import { SavedProfile } from "@/components/ProfilesPanel"
-import { normalizeSshAuthMethod } from "@/lib/profileConnections"
+import { normalizeSessionLogPolicy, normalizeSshAuthMethod } from "@/lib/profileConnections"
+import type { SessionLogPolicy } from "@/types/tab"
 import type { TerminalPalette } from "@/types/theme"
 
 import {
@@ -40,6 +41,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     terminalTheme: profile.terminal_theme ?? "",
     loginScript: profile.login_script ?? "",
     shellIntegration: profile.shell_integration === true,
+    sessionLog: normalizeSessionLogPolicy(profile.session_log) ?? "default",
     useJumpHost: profile.use_jump_host ?? jumpHosts.length > 0,
     sudoAutofill: profile.sudo_autofill !== false,
     jumpHosts: jumpHosts.map((jump) => ({
@@ -93,6 +95,13 @@ export function filterThemeGroups(
 /** The login script to store or send: omitted when it has no commands. */
 export function loginScriptPayload(script: string): string | undefined {
   return script.trim() ? script : undefined
+}
+
+/** The form's logging choice as stored: unset follows the logging setting. */
+export function sessionLogPayload(
+  value: SessionLogPolicy | "default"
+): SessionLogPolicy | undefined {
+  return value === "default" ? undefined : value
 }
 
 export function buildInitialForm(

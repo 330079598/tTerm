@@ -609,6 +609,19 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     await saveSettings({ terminal_log_enabled: enabled })
   }
 
+  const handleTerminalLogRecordInputChange = async (recordInput: boolean) => {
+    if (recordInput) {
+      const confirmed = await confirm({
+        title: t("terminalLogging.recordInputConfirmTitle"),
+        description: t("terminalLogging.recordInputConfirmDescription"),
+        confirmText: t("terminalLogging.recordInputConfirm"),
+        cancelText: t("common.cancel"),
+      })
+      if (!confirmed) return
+    }
+    await saveSettings({ terminal_log_record_input: recordInput })
+  }
+
   const handleUpdateChannelChange = async (channel: UpdateChannel) => {
     await saveSettings({ update_channel: channel })
   }
@@ -808,7 +821,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             tabIndex={0}
             className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
           >
-            <LoggingSettingsTab handleEnabledChange={handleTerminalLogEnabledChange} />
+            <LoggingSettingsTab
+              handleEnabledChange={handleTerminalLogEnabledChange}
+              handleRecordInputChange={handleTerminalLogRecordInputChange}
+            />
           </TabsContent>
 
           <TabsContent

@@ -4,8 +4,11 @@ import { listen } from "@tauri-apps/api/event"
 import { open as openDirectoryDialog } from "@tauri-apps/plugin-dialog"
 import {
   Archive,
+  CalendarClock,
   CheckCircle2,
   CircleAlert,
+  CircleDot,
+  Eraser,
   FileClock,
   FileText,
   FolderOpen,
@@ -21,20 +24,25 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
-import { type TerminalLogFormat, useConfig } from "@/contexts/ConfigContext"
+import {
+  TERMINAL_LOG_MAX_RETENTION_DAYS,
+  TERMINAL_LOG_MAX_TOTAL_MB,
+  type TerminalLogFormat,
+  useConfig,
+} from "@/contexts/ConfigContext"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
+import type { TerminalLogStatus } from "@/lib/terminalLogRecording"
 import { cn, toErrorMessage } from "@/lib/utils"
-
-export interface TerminalLogStatus {
-  enabled: boolean
-  directory: string
-  activeSessions: number
-  totalSizeBytes: number
-  lastError?: string | null
-}
 
 interface LoggingSettingsTabProps {
   handleEnabledChange: (enabled: boolean) => Promise<void>
+  handleRecordInputChange: (recordInput: boolean) => Promise<void>
+}
+
+/** A whole number in `0..=max` typed into a field, or null. */
+function parseLimit(value: string, max: number): number | null {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= max ? parsed : null
 }
 
 function formatBytes(bytes: number) {
@@ -59,7 +67,10 @@ function renderExample(template: string) {
   ].reduce((value, [token, replacement]) => value.split(token).join(replacement), template)
 }
 
-export const LoggingSettingsTab: React.FC<LoggingSettingsTabProps> = ({ handleEnabledChange }) => {
+export const LoggingSettingsTab: React.FC<LoggingSettingsTabProps> = ({
+  handleEnabledChange,
+  handleRecordInputChange,
+}) => {
   const { t } = useTranslation()
   const { config } = useConfig()
   const { saveSettings } = useSettingsSave()
@@ -69,6 +80,10 @@ export const LoggingSettingsTab: React.FC<LoggingSettingsTabProps> = ({ handleEn
   const [nameError, setNameError] = useState<string | null>(null)
   const [maxFileSize, setMaxFileSize] = useState(String(config.terminal_log_max_file_size_mb))
   const [sizeError, setSizeError] = useState<string | null>(null)
+  const [retentionDays, setRetentionDays] = useState(String(config.terminal_log_retention_days))
+  const [retentionError, setRetentionError] = useState<string | null>(null)
+  const [maxTotal, setMaxTotal] = useState(String(config.terminal_log_max_total_mb))
+  const [maxTotalError, setMaxTotalError] = useState<string | null>(null)
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -116,7 +131,6 @@ export const LoggingSettingsTab: React.FC<LoggingSettingsTabProps> = ({ handleEn
 
   const resolvedDirectory = status?.directory || config.terminal_log_directory
   const exampleName = useMemo(() => renderExample(nameTemplate), [nameTemplate])
-  const controlsDisabled = !config.terminal_log_enabled
 
   const saveFormat = async (format: TerminalLogFormat) => {
     if (await saveSettings({ terminal_log_format: format })) void refreshStatus()
@@ -162,6 +176,40 @@ export const LoggingSettingsTab: React.FC<LoggingSettingsTabProps> = ({ handleEn
     }
   }
 
+  const saveRetentionDays = async () => {
+    const value = parseLimit(retentionDays, TERMINAL_LOG_MAX_RETENTION_DAYS)
+    if (value === null) {
+      setRetentionError(
+        t("terminalLogging.retentionDaysRange", { max: TERMINAL_LOG_MAX_RETENTION_DAYS })
+      )
+      return
+    }
+    setRetentionError(null)
+    if (value === config.terminal_log_retention_days) return
+    if (await saveSettings({ terminal_log_retention_days: value })) {
+      setRetentionDays(String(value))
+      void refreshStatus()
+    }
+  }
+
+  const saveMaxTotal = async () => {
+    const value = parseLimit(maxTotal, TERMINAL_LOG_MAX_TOTAL_MB)
+    if (value === null) {
+      setMaxTotalError(
+        t("terminalLogging.maxTotalSizeRange", {
+          max: TERMINAL_LOG_MAX_TOTAL_MB.toLocaleString(),
+        })
+      )
+      return
+    }
+    setMaxTotalError(null)
+    if (value === config.terminal_log_max_total_mb) return
+    if (await saveSettings({ terminal_log_max_total_mb: value })) {
+      setMaxTotal(String(value))
+      void refreshStatus()
+    }
+  }
+
   const retryLogging = async () => {
     try {
       setStatus(await invoke<TerminalLogStatus>("retry_terminal_logging"))
@@ -180,7 +228,7 @@ export const LoggingSettingsTab: React.FC<LoggingSettingsTabProps> = ({ handleEn
           description={t("terminalLogging.description")}
         >
           <SettingsRow
-            icon={<Keyboard size={16} />}
+            icon={<CircleDot size={16} />}
             title={t("terminalLogging.enabled")}
             description={t("terminalLogging.enabledDesc")}
             action={
@@ -191,175 +239,250 @@ export const LoggingSettingsTab: React.FC<LoggingSettingsTabProps> = ({ handleEn
               />
             }
           />
+          <SettingsRow
+            icon={<Keyboard size={16} />}
+            title={t("terminalLogging.recordInput")}
+            description={t("terminalLogging.recordInputDesc")}
+            action={
+              <Switch
+                checked={config.terminal_log_record_input}
+                onCheckedChange={(checked) => void handleRecordInputChange(checked)}
+                aria-label={t("terminalLogging.recordInput")}
+              />
+            }
+          />
         </SettingsSection>
 
-        {config.terminal_log_enabled && (
-          <>
-            <Alert className="border-amber-500/40 bg-amber-500/5">
-              <CircleAlert className="absolute top-3.5 left-4 size-4 text-amber-500" />
-              <div className="pl-6">
-                <AlertTitle>{t("terminalLogging.securityTitle")}</AlertTitle>
-                <AlertDescription>{t("terminalLogging.securityDescription")}</AlertDescription>
-              </div>
-            </Alert>
+        <Alert className="border-amber-500/40 bg-amber-500/5">
+          <CircleAlert className="absolute top-3.5 left-4 size-4 text-amber-500" />
+          <div className="pl-6">
+            <AlertTitle>{t("terminalLogging.securityTitle")}</AlertTitle>
+            <AlertDescription>
+              {config.terminal_log_record_input
+                ? t("terminalLogging.securityDescriptionInput")
+                : t("terminalLogging.securityDescription")}
+            </AlertDescription>
+          </div>
+        </Alert>
 
-            <SettingsSection icon={<HardDrive size={16} />} title={t("terminalLogging.storage")}>
-              <SettingsRow
-                icon={<FolderOpen size={16} />}
-                title={t("terminalLogging.directory")}
-                description={t("terminalLogging.directoryDesc")}
-              >
-                <div className="flex min-w-0 gap-2">
-                  <Input
-                    value={resolvedDirectory}
-                    readOnly
-                    disabled={controlsDisabled}
-                    aria-label={t("terminalLogging.directory")}
-                    className="min-w-0 flex-1 font-mono text-xs"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={controlsDisabled}
-                    onClick={() => void chooseDirectory()}
-                  >
-                    <FolderOpen />
-                    {t("terminalLogging.choose")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={!resolvedDirectory}
-                    onClick={() =>
-                      void invoke("open_terminal_log_directory").catch((error) =>
-                        setStatusError(toErrorMessage(error))
-                      )
-                    }
-                  >
-                    <FolderOpen />
-                    {t("terminalLogging.openDirectory")}
-                  </Button>
-                </div>
-              </SettingsRow>
-
-              <SettingsRow
-                icon={<FileText size={16} />}
-                title={t("terminalLogging.format")}
-                description={t("terminalLogging.formatDesc")}
-              >
-                <div
-                  className="grid grid-cols-3 gap-2"
-                  role="group"
-                  aria-label={t("terminalLogging.format")}
-                >
-                  {(["raw", "plain", "both"] as const).map((format) => (
-                    <Button
-                      key={format}
-                      type="button"
-                      variant={config.terminal_log_format === format ? "default" : "outline"}
-                      disabled={controlsDisabled}
-                      aria-pressed={config.terminal_log_format === format}
-                      onClick={() => void saveFormat(format)}
-                    >
-                      {t(`terminalLogging.formats.${format}`)}
-                    </Button>
-                  ))}
-                </div>
-              </SettingsRow>
-
-              <SettingsRow
-                icon={<FileText size={16} />}
-                title={t("terminalLogging.nameTemplate")}
-                description={t("terminalLogging.nameTemplateDesc")}
-              >
-                <Label htmlFor="terminal-log-name" className="sr-only">
-                  {t("terminalLogging.nameTemplate")}
-                </Label>
-                <Input
-                  id="terminal-log-name"
-                  value={nameTemplate}
-                  disabled={controlsDisabled}
-                  aria-invalid={Boolean(nameError)}
-                  aria-describedby="terminal-log-name-help"
-                  onChange={(event) => {
-                    setNameTemplate(event.target.value)
-                    setNameError(null)
-                  }}
-                  onBlur={() => void saveNameTemplate()}
-                  className="font-mono text-xs"
-                />
-                <p
-                  id="terminal-log-name-help"
-                  role={nameError ? "alert" : undefined}
-                  className={cn(
-                    "mt-2 text-xs",
-                    nameError ? "text-destructive" : "text-muted-foreground"
-                  )}
-                >
-                  {nameError ?? t("terminalLogging.nameExample", { name: exampleName })}
-                </p>
-              </SettingsRow>
-
-              <SettingsRow
-                icon={<HardDrive size={16} />}
-                title={t("terminalLogging.maxFileSize")}
-                description={t("terminalLogging.maxFileSizeDesc")}
-              >
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="terminal-log-size" className="sr-only">
-                    {t("terminalLogging.maxFileSize")}
-                  </Label>
-                  <Input
-                    id="terminal-log-size"
-                    type="number"
-                    min={1}
-                    max={1024}
-                    step={1}
-                    value={maxFileSize}
-                    disabled={controlsDisabled}
-                    aria-invalid={Boolean(sizeError)}
-                    onChange={(event) => {
-                      setMaxFileSize(event.target.value)
-                      setSizeError(null)
-                    }}
-                    onBlur={() => void saveMaxFileSize()}
-                    className="w-32"
-                  />
-                  <span className="text-muted-foreground text-sm">MiB</span>
-                </div>
-                {sizeError && (
-                  <p role="alert" className="text-destructive mt-2 text-xs">
-                    {sizeError}
-                  </p>
-                )}
-              </SettingsRow>
-
-              <SettingsRow
-                icon={<Archive size={16} />}
-                title={t("terminalLogging.compress")}
-                description={t("terminalLogging.compressDesc")}
-                action={
-                  <Switch
-                    checked={config.terminal_log_compress}
-                    disabled={controlsDisabled}
-                    onCheckedChange={async (checked) => {
-                      if (await saveSettings({ terminal_log_compress: checked }))
-                        void refreshStatus()
-                    }}
-                    aria-label={t("terminalLogging.compress")}
-                  />
-                }
+        <SettingsSection icon={<HardDrive size={16} />} title={t("terminalLogging.storage")}>
+          <SettingsRow
+            icon={<FolderOpen size={16} />}
+            title={t("terminalLogging.directory")}
+            description={t("terminalLogging.directoryDesc")}
+          >
+            <div className="flex min-w-0 gap-2">
+              <Input
+                value={resolvedDirectory}
+                readOnly
+                aria-label={t("terminalLogging.directory")}
+                className="min-w-0 flex-1 font-mono text-xs"
               />
-            </SettingsSection>
-          </>
-        )}
+              <Button type="button" variant="outline" onClick={() => void chooseDirectory()}>
+                <FolderOpen />
+                {t("terminalLogging.choose")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!resolvedDirectory}
+                onClick={() =>
+                  void invoke("open_terminal_log_directory").catch((error) =>
+                    setStatusError(toErrorMessage(error))
+                  )
+                }
+              >
+                <FolderOpen />
+                {t("terminalLogging.openDirectory")}
+              </Button>
+            </div>
+          </SettingsRow>
+
+          <SettingsRow
+            icon={<FileText size={16} />}
+            title={t("terminalLogging.format")}
+            description={t("terminalLogging.formatDesc")}
+          >
+            <div
+              className="grid grid-cols-3 gap-2"
+              role="group"
+              aria-label={t("terminalLogging.format")}
+            >
+              {(["raw", "plain", "both"] as const).map((format) => (
+                <Button
+                  key={format}
+                  type="button"
+                  variant={config.terminal_log_format === format ? "default" : "outline"}
+                  aria-pressed={config.terminal_log_format === format}
+                  onClick={() => void saveFormat(format)}
+                >
+                  {t(`terminalLogging.formats.${format}`)}
+                </Button>
+              ))}
+            </div>
+          </SettingsRow>
+
+          <SettingsRow
+            icon={<FileText size={16} />}
+            title={t("terminalLogging.nameTemplate")}
+            description={t("terminalLogging.nameTemplateDesc")}
+          >
+            <Label htmlFor="terminal-log-name" className="sr-only">
+              {t("terminalLogging.nameTemplate")}
+            </Label>
+            <Input
+              id="terminal-log-name"
+              value={nameTemplate}
+              aria-invalid={Boolean(nameError)}
+              aria-describedby="terminal-log-name-help"
+              onChange={(event) => {
+                setNameTemplate(event.target.value)
+                setNameError(null)
+              }}
+              onBlur={() => void saveNameTemplate()}
+              className="font-mono text-xs"
+            />
+            <p
+              id="terminal-log-name-help"
+              role={nameError ? "alert" : undefined}
+              className={cn(
+                "mt-2 text-xs",
+                nameError ? "text-destructive" : "text-muted-foreground"
+              )}
+            >
+              {nameError ?? t("terminalLogging.nameExample", { name: exampleName })}
+            </p>
+          </SettingsRow>
+
+          <SettingsRow
+            icon={<HardDrive size={16} />}
+            title={t("terminalLogging.maxFileSize")}
+            description={t("terminalLogging.maxFileSizeDesc")}
+          >
+            <div className="flex items-center gap-2">
+              <Label htmlFor="terminal-log-size" className="sr-only">
+                {t("terminalLogging.maxFileSize")}
+              </Label>
+              <Input
+                id="terminal-log-size"
+                type="number"
+                min={1}
+                max={1024}
+                step={1}
+                value={maxFileSize}
+                aria-invalid={Boolean(sizeError)}
+                onChange={(event) => {
+                  setMaxFileSize(event.target.value)
+                  setSizeError(null)
+                }}
+                onBlur={() => void saveMaxFileSize()}
+                className="w-32"
+              />
+              <span className="text-muted-foreground text-sm">MiB</span>
+            </div>
+            {sizeError && (
+              <p role="alert" className="text-destructive mt-2 text-xs">
+                {sizeError}
+              </p>
+            )}
+          </SettingsRow>
+
+          <SettingsRow
+            icon={<Archive size={16} />}
+            title={t("terminalLogging.compress")}
+            description={t("terminalLogging.compressDesc")}
+            action={
+              <Switch
+                checked={config.terminal_log_compress}
+                onCheckedChange={async (checked) => {
+                  if (await saveSettings({ terminal_log_compress: checked })) void refreshStatus()
+                }}
+                aria-label={t("terminalLogging.compress")}
+              />
+            }
+          />
+        </SettingsSection>
+
+        <SettingsSection
+          icon={<Eraser size={16} />}
+          title={t("terminalLogging.cleanup")}
+          description={t("terminalLogging.cleanupDesc")}
+        >
+          <SettingsRow
+            icon={<CalendarClock size={16} />}
+            title={t("terminalLogging.retentionDays")}
+            description={t("terminalLogging.retentionDaysDesc")}
+          >
+            <div className="flex items-center gap-2">
+              <Label htmlFor="terminal-log-retention" className="sr-only">
+                {t("terminalLogging.retentionDays")}
+              </Label>
+              <Input
+                id="terminal-log-retention"
+                type="number"
+                min={0}
+                max={TERMINAL_LOG_MAX_RETENTION_DAYS}
+                step={1}
+                value={retentionDays}
+                aria-invalid={Boolean(retentionError)}
+                onChange={(event) => {
+                  setRetentionDays(event.target.value)
+                  setRetentionError(null)
+                }}
+                onBlur={() => void saveRetentionDays()}
+                className="w-32"
+              />
+              <span className="text-muted-foreground text-sm">{t("terminalLogging.daysUnit")}</span>
+            </div>
+            {retentionError && (
+              <p role="alert" className="text-destructive mt-2 text-xs">
+                {retentionError}
+              </p>
+            )}
+          </SettingsRow>
+
+          <SettingsRow
+            icon={<HardDrive size={16} />}
+            title={t("terminalLogging.maxTotalSize")}
+            description={t("terminalLogging.maxTotalSizeDesc")}
+          >
+            <div className="flex items-center gap-2">
+              <Label htmlFor="terminal-log-max-total" className="sr-only">
+                {t("terminalLogging.maxTotalSize")}
+              </Label>
+              <Input
+                id="terminal-log-max-total"
+                type="number"
+                min={0}
+                max={TERMINAL_LOG_MAX_TOTAL_MB}
+                step={1}
+                value={maxTotal}
+                aria-invalid={Boolean(maxTotalError)}
+                onChange={(event) => {
+                  setMaxTotal(event.target.value)
+                  setMaxTotalError(null)
+                }}
+                onBlur={() => void saveMaxTotal()}
+                className="w-32"
+              />
+              <span className="text-muted-foreground text-sm">MiB</span>
+            </div>
+            {maxTotalError && (
+              <p role="alert" className="text-destructive mt-2 text-xs">
+                {maxTotalError}
+              </p>
+            )}
+          </SettingsRow>
+        </SettingsSection>
 
         <SettingsSection icon={<CheckCircle2 size={16} />} title={t("terminalLogging.status")}>
           <div className="border-border bg-muted/20 grid grid-cols-2 gap-4 rounded-md border p-4 text-sm sm:grid-cols-3">
             <div>
               <div className="text-muted-foreground text-xs">{t("terminalLogging.state")}</div>
               <div className="mt-1 font-medium">
-                {status?.enabled ? t("terminalLogging.recording") : t("terminalLogging.stopped")}
+                {status?.activeSessions
+                  ? t("terminalLogging.recording")
+                  : t("terminalLogging.stopped")}
               </div>
             </div>
             <div>

@@ -25,6 +25,8 @@ import {
   Upload,
   Download,
   RotateCcw,
+  CircleDot,
+  Square,
 } from "lucide-react"
 import { TabContextMenuAction } from "@/types/tab"
 import { cn } from "@/lib/utils"
@@ -89,6 +91,10 @@ const getActionIcon = (icon?: string) => {
       return <RotateCcw size={14} aria-hidden="true" />
     case "download":
       return <Download size={14} aria-hidden="true" />
+    case "record":
+      return <CircleDot size={14} aria-hidden="true" />
+    case "record-stop":
+      return <Square size={14} aria-hidden="true" />
     default:
       return null
   }

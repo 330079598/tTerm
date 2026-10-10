@@ -15,6 +15,7 @@ interface UseTabContextMenuDeps {
   updateTab: (id: string, updater: (tab: Tab) => Tab) => void
   renameTab: (id: string, newName: string) => void
   editTabProfile: (tab: Tab) => void
+  setTabLogRecording: (tabId: string, recording: boolean) => void
 }
 
 export function useTabContextMenu({
@@ -28,6 +29,7 @@ export function useTabContextMenu({
   updateTab,
   renameTab,
   editTabProfile,
+  setTabLogRecording,
 }: UseTabContextMenuDeps) {
   const [renameDialogState, setRenameDialogState] = useState<RenameDialogState>({
     isOpen: false,
@@ -106,6 +108,12 @@ export function useTabContextMenu({
             connectionHeaderPinned: false,
           }))
           break
+        case "log-start":
+          setTabLogRecording(tab.id, true)
+          break
+        case "log-stop":
+          setTabLogRecording(tab.id, false)
+          break
         case "close":
           handleRemoveTab(tab.id)
           break
@@ -135,6 +143,7 @@ export function useTabContextMenu({
       handleCloseTabsToLeft,
       updateTab,
       editTabProfile,
+      setTabLogRecording,
     ]
   )
 

@@ -17,6 +17,8 @@ pub fn normalize_connection(
     };
 
     let keepalive_interval_secs = connection.keepalive_interval_secs.unwrap_or(15).max(5);
+    let session_log =
+        crate::session_log::SessionLogPolicy::from_label(connection.session_log.as_deref());
     let keepalive_count_max = connection.keepalive_count_max.unwrap_or(3).max(1);
 
     let cwd = connection
@@ -72,6 +74,7 @@ pub fn normalize_connection(
             jump_hosts: Vec::new(),
             encoding: Default::default(),
             shell_integration: false,
+            session_log,
         }),
         SessionKind::Ssh => {
             let host = connection
@@ -155,6 +158,7 @@ pub fn normalize_connection(
                     connection.encoding.as_deref(),
                 ),
                 shell_integration: connection.shell_integration,
+                session_log,
             })
         }
     }

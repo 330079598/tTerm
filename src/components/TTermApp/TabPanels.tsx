@@ -40,12 +40,14 @@ import { useTranslation } from "react-i18next"
 
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { TabAttentionDot } from "@/components/TabAttentionDot"
+import { TabLogIndicator } from "@/components/TabLogIndicator"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { TerminalTab } from "@/components/TerminalTab"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { isPageTab, type SavedProfile, type Tab, type TabContextMenuAction } from "@/types/tab"
 import type { TerminalInputRequest } from "@/types/broadcast"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
+import { getTabLogMenuAction } from "@/lib/terminalLogRecording"
 import type { LiveBroadcastState } from "@/types/broadcast"
 import type { ExecutedCommand } from "@/types/command"
 import type { TerminalAttentionEvent } from "@/lib/terminalNotifications"
@@ -238,6 +240,7 @@ function getTabActions(
       ? { label: t("contextMenu.editConnection"), action: "edit-connection", icon: "edit" }
       : null
   const canSplit = tab.type === "terminal" || tab.type === "ssh"
+  const logAction = getTabLogMenuAction(tab, t)
 
   return [
     ...commonStart,
@@ -269,6 +272,7 @@ function getTabActions(
     { label: t("contextMenu.renameTab"), action: "rename", icon: "edit" },
     ...(editConnectionAction ? [editConnectionAction] : []),
     ...(pinAction ? [pinAction] : []),
+    ...(logAction ? [logAction] : []),
     ...commonEnd,
   ]
 }
@@ -308,6 +312,7 @@ const WorkspaceTab = React.memo(function WorkspaceTab({
       {tab.type === "settings" && <Settings size={13} aria-hidden="true" />}
       {tab.type === "tunnels" && <Waypoints size={13} aria-hidden="true" />}
       <TabAttentionDot tabId={tab.id} />
+      <TabLogIndicator tabId={tab.id} />
       <span className="workspace-tab-title">{tab.title}</span>
       <button
         type="button"

@@ -146,6 +146,9 @@ pub struct PtyConnectionOptions {
     pub encoding: Option<String>,
     /// SSH: install tTerm's shell integration on the host so its shell marks commands.
     pub shell_integration: bool,
+    /// Whether this connection is logged: `always`, `never`, or as the
+    /// logging setting says when unset.
+    pub session_log: Option<String>,
     #[cfg(target_os = "windows")]
     pub terminal_shell: Option<String>,
     #[cfg(target_os = "windows")]
@@ -196,6 +199,8 @@ pub(crate) struct RawPtyConnectionOptions {
     encoding: Option<String>,
     #[serde(default, alias = "shellIntegration")]
     shell_integration: bool,
+    #[serde(default, alias = "sessionLog")]
+    session_log: Option<String>,
     #[cfg(target_os = "windows")]
     #[serde(default, alias = "terminalShell")]
     terminal_shell: Option<String>,
@@ -236,6 +241,7 @@ impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
             jump_hosts,
             encoding: raw.encoding,
             shell_integration: raw.shell_integration,
+            session_log: raw.session_log,
             #[cfg(target_os = "windows")]
             terminal_shell: raw.terminal_shell,
             #[cfg(target_os = "windows")]
@@ -268,6 +274,7 @@ impl Default for PtyConnectionOptions {
             jump_hosts: Vec::new(),
             encoding: None,
             shell_integration: false,
+            session_log: None,
             #[cfg(target_os = "windows")]
             terminal_shell: None,
             #[cfg(target_os = "windows")]
@@ -320,6 +327,8 @@ pub struct SessionPlan {
     /// SSH: start the remote shell with tTerm's shell integration (command
     /// marks) when the host supports it; see `crate::ssh::shell_integration`.
     pub shell_integration: bool,
+    /// Whether this session is logged, before the user's choice for its tab.
+    pub session_log: crate::session_log::SessionLogPolicy,
 }
 
 impl SessionPlan {

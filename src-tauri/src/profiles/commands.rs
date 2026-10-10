@@ -115,6 +115,7 @@ pub fn import_ssh_config_profiles(
             login_script: existing_index.and_then(|index| profiles[index].login_script.clone()),
             shell_integration: existing_index
                 .is_some_and(|index| profiles[index].shell_integration),
+            session_log: existing_index.and_then(|index| profiles[index].session_log.clone()),
         };
 
         forward_sources.push((profile.id.clone(), profile.name.clone(), host.forwards));
@@ -524,6 +525,7 @@ pub async fn test_connection(
         jump_hosts,
         encoding: Default::default(),
         shell_integration: false,
+        session_log: Default::default(),
     };
 
     let test_tab_id = format!("test-{}", profile.id);

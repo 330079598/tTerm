@@ -102,6 +102,16 @@ pub struct AppConfig {
     pub terminal_log_max_file_size_mb: u32,
     #[serde(default)]
     pub terminal_log_compress: bool,
+    /// Also log what is typed, including passwords at prompts that do not echo.
+    #[serde(default)]
+    pub terminal_log_record_input: bool,
+    /// Remove logs last written more than this many days ago; 0 keeps them.
+    #[serde(default)]
+    pub terminal_log_retention_days: u32,
+    /// Remove the oldest logs while all of them take more than this many
+    /// MiB; 0 is no limit.
+    #[serde(default)]
+    pub terminal_log_max_total_mb: u32,
     #[serde(default = "default_sftp_transfer_parallelism")]
     pub sftp_transfer_parallelism: u16,
     /// SFTP upload bandwidth cap in KiB/s shared by all transfers; 0 = none.
@@ -590,6 +600,9 @@ impl Default for AppConfig {
             terminal_log_name_template: default_terminal_log_name_template(),
             terminal_log_max_file_size_mb: default_terminal_log_max_file_size_mb(),
             terminal_log_compress: false,
+            terminal_log_record_input: false,
+            terminal_log_retention_days: 0,
+            terminal_log_max_total_mb: 0,
             sftp_transfer_parallelism: default_sftp_transfer_parallelism(),
             sftp_upload_limit_kib: 0,
             sftp_download_limit_kib: 0,

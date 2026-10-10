@@ -85,6 +85,10 @@ pub struct SavedProfile {
     /// Install tTerm's shell integration on the host so its shell marks commands.
     #[serde(default)]
     pub shell_integration: bool,
+    /// Whether this connection's sessions are logged: `always`, `never`, or
+    /// as the logging setting says when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_log: Option<String>,
 }
 
 impl SavedProfile {
