@@ -133,12 +133,14 @@ function normalizeExpression(expression) {
 function collectRustPackages() {
   const packages = new Map()
   for (const target of RUST_TARGETS) {
+    // Not --locked: the beta release rewrites the version in Cargo.toml without
+    // touching Cargo.lock, and cargo only has to update tTerm's own entry there,
+    // as the cargo build that follows does anyway.
     const metadata = JSON.parse(
       run("cargo", [
         "metadata",
         "--format-version",
         "1",
-        "--locked",
         "--filter-platform",
         target,
         "--manifest-path",
