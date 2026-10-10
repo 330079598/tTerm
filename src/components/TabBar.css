@@ -574,15 +574,35 @@
   border-radius: 50%;
 }
 
+/* A half-lit disc turning. */
 .tab-agent[data-activity="processing"] {
-  border: 1.5px solid hsl(var(--primary) / 0.25);
-  border-top-color: hsl(var(--primary));
-  animation: tab-agent-spin 0.9s linear infinite;
+  background: linear-gradient(90deg, hsl(var(--primary)) 50%, hsl(var(--primary) / 0.22) 50%);
+  animation: tab-agent-spin 1.2s linear infinite;
 }
 
+/* Pause bars: the agent has stopped and waits on the user. Unlike a dot they
+   can't be taken for a bell's. */
 .tab-agent[data-activity="waiting"] {
+  border-radius: 1px;
+  background: linear-gradient(
+    90deg,
+    hsl(var(--warning)) 0 2.5px,
+    transparent 2.5px 5.5px,
+    hsl(var(--warning)) 5.5px
+  );
+}
+
+/* Only transform and opacity animate, so the badges run on the compositor;
+   an animated box-shadow repainted every frame and cost ~15% CPU. The ripple
+   plays a few times only, since a waiting agent may sit for hours. */
+.tab-agent[data-activity="waiting"]::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
   background: hsl(var(--warning));
-  animation: tab-agent-pulse 1.6s ease-in-out infinite;
+  opacity: 0;
+  animation: tab-agent-ripple 1.4s cubic-bezier(0, 0, 0.2, 1) 3;
 }
 
 @keyframes tab-agent-spin {
@@ -591,14 +611,20 @@
   }
 }
 
-@keyframes tab-agent-pulse {
-  50% {
-    box-shadow: 0 0 0 3px hsl(var(--warning) / 0.3);
+@keyframes tab-agent-ripple {
+  from {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  to {
+    transform: scale(2.8);
+    opacity: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tab-agent {
+  .tab-agent,
+  .tab-agent::after {
     animation: none;
   }
 }
