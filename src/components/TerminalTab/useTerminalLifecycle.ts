@@ -776,6 +776,7 @@ export function useTerminalLifecycle({
       }
 
       if (data.includes("\r")) {
+        agentTracker.submit()
         // Shells that send no C mark start their command here.
         if (commandMarks.isAtPrompt()) commandTimer.start(Date.now())
         commandMarks.handleEnter()

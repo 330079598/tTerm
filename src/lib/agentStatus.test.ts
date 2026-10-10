@@ -4,7 +4,9 @@ import {
   AgentTracker,
   agentDisplayName,
   parseAgentReport,
+  AGENT_CLAIM_WINDOW_MS,
   type AgentAnnouncement,
+  type AgentReportState,
   type AgentStatus,
 } from "@/lib/agentStatus"
 
@@ -20,6 +22,14 @@ describe("parseAgentReport", () => {
     })
   })
 
+  it("reads the session a report names", () => {
+    expect(parseAgentReport("tterm-agent;codex;done;01a12490-4b68-76d0")).toEqual({
+      agent: "codex",
+      state: "done",
+      session: "01a12490-4b68-76d0",
+    })
+  })
+
   it("leaves other OSC 777 commands alone", () => {
     expect(parseAgentReport("notify;tterm-agent;done")).toBeNull()
     expect(parseAgentReport("precmd")).toBeNull()
@@ -29,7 +39,9 @@ describe("parseAgentReport", () => {
     expect(parseAgentReport("tterm-agent;claude;sleeping")).toBeNull()
     expect(parseAgentReport("tterm-agent;Claude;done")).toBeNull()
     expect(parseAgentReport("tterm-agent;;done")).toBeNull()
-    expect(parseAgentReport("tterm-agent;claude;done;x")).toBeNull()
+    expect(parseAgentReport("tterm-agent;claude;done;x;y")).toBeNull()
+    expect(parseAgentReport("tterm-agent;claude;done;")).toBeNull()
+    expect(parseAgentReport("tterm-agent;claude;done;a b")).toBeNull()
     expect(parseAgentReport("tterm-agent;claude")).toBeNull()
   })
 })
@@ -135,5 +147,79 @@ describe("AgentTracker", () => {
     tracker.reset()
     expect(statuses[statuses.length - 1]).toBeNull()
     expect(tracker.speaksForAgent).toBe(false)
+  })
+})
+
+describe("AgentTracker sessions told to every terminal", () => {
+  let statuses: Array<AgentStatus | null>[]
+  let announcements: AgentAnnouncement[][]
+  let trackers: AgentTracker[]
+
+  const tracker = (index: number) => {
+    statuses[index] = []
+    announcements[index] = []
+    return new AgentTracker({
+      onStatus: (status) => statuses[index].push(status),
+      onAnnounce: (announcement) => announcements[index].push(announcement),
+    })
+  }
+  // A report as the shared server's hook sends it, to every terminal.
+  const broadcast = (state: AgentReportState, session: string) => {
+    for (const each of trackers) each.report({ agent: "codex", state, session })
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    statuses = []
+    announcements = []
+    trackers = [tracker(0), tracker(1)]
+  })
+
+  afterEach(() => {
+    for (const each of trackers) each.dispose()
+    vi.useRealTimers()
+  })
+
+  it("belongs to the terminal it was submitted from", () => {
+    trackers[1].submit()
+    vi.advanceTimersByTime(1500)
+    broadcast("processing", "s1")
+    expect(statuses[0]).toEqual([])
+    expect(statuses[1]).toEqual([{ agent: "codex", activity: "processing" }])
+
+    // Typing in the other terminal does not take it over.
+    trackers[0].submit()
+    broadcast("done", "s1")
+    expect(announcements[0]).toEqual([])
+    expect(announcements[1]).toEqual([{ agent: "codex", state: "done" }])
+  })
+
+  it("is nobody's without a recent Enter", () => {
+    trackers[0].submit()
+    vi.advanceTimersByTime(AGENT_CLAIM_WINDOW_MS + 1)
+    broadcast("processing", "s1")
+    expect(statuses).toEqual([[], []])
+  })
+
+  it("takes one session per Enter", () => {
+    trackers[0].submit()
+    broadcast("processing", "s1")
+    broadcast("processing", "s2")
+    expect(statuses[0]).toEqual([{ agent: "codex", activity: "processing" }])
+    expect(statuses[1]).toEqual([])
+  })
+
+  it("is free again once it ends or its terminal resets", () => {
+    trackers[0].submit()
+    broadcast("processing", "s1")
+    broadcast("ended", "s1")
+    trackers[1].submit()
+    broadcast("processing", "s1")
+    expect(statuses[1]).toEqual([{ agent: "codex", activity: "processing" }])
+
+    trackers[1].reset()
+    trackers[0].submit()
+    broadcast("done", "s1")
+    expect(announcements[0]).toEqual([{ agent: "codex", state: "done" }])
   })
 })
