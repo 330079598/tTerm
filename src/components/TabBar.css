@@ -65,6 +65,9 @@
 }
 
 .tab-list {
+  /* Makes the list the tabs' offsetParent, so their offsetLeft is measured in
+     the list's scrolled content, which is what tab dragging works in. */
+  position: relative;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -333,7 +336,9 @@
   transition:
     background-color 0.15s ease,
     color 0.15s ease,
-    box-shadow 0.15s ease;
+    box-shadow 0.15s ease,
+    opacity 0.15s ease,
+    transform 0.2s cubic-bezier(0.2, 0, 0, 1);
   -webkit-app-region: no-drag;
 }
 
@@ -343,7 +348,7 @@
   max-width: var(--tab-standard-width);
 }
 
-.tab-item:not(.active):not(.drop-target):hover {
+.tab-list:not(.sorting) .tab-item:not(.active):hover {
   background-color: hsl(var(--tab-hover));
   color: hsl(var(--foreground) / 0.92);
 }
@@ -377,22 +382,26 @@
   display: none;
 }
 
-.tab-item.drop-target {
-  background-color: hsl(var(--accent) / 0.22);
-  box-shadow:
-    inset 0 2px 0 hsl(var(--accent)),
-    inset 0 0 0 1px hsl(var(--accent) / 0.28);
-}
-
-.tab-item.active.drop-target {
-  background-color: hsl(var(--tab-active, var(--background)));
-}
-
+/* The dragged tab rides on top of its neighbours and follows the pointer
+   directly, so its transform must not lag behind through a transition. */
 .tab-item.dragging {
-  opacity: 0.48;
-  background: hsl(var(--muted) / 0.7);
-  box-shadow: inset 0 -2px 0 hsl(var(--primary));
+  z-index: 3;
   cursor: grabbing;
+  box-shadow: 0 4px 14px hsl(var(--foreground) / 0.2);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.tab-item.dragging:not(.active) {
+  background-color: hsl(var(--tab-hover));
+}
+
+/* Dragged off the list: the ghost stands in for the tab, and its neighbours
+   close the gap it left. */
+.tab-list.detached .tab-item.dragging {
+  opacity: 0;
 }
 
 .tab-number {
@@ -498,22 +507,43 @@
   align-items: center;
   gap: 6px;
   max-width: 220px;
-  padding: 5px 10px;
+  height: 30px;
+  padding: 0 10px;
   border-radius: 5px;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--popover) / 0.96);
+  border: 1px solid hsl(var(--border) / 0.7);
+  background-color: hsl(var(--tab-active, var(--background)));
+  background-image: linear-gradient(
+    hsl(var(--tab-active-border, var(--primary))),
+    hsl(var(--tab-active-border, var(--primary)))
+  );
+  background-position: top center;
+  background-size: calc(100% - 10px) 2.5px;
+  background-repeat: no-repeat;
   color: hsl(var(--foreground));
   font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.2;
-  box-shadow: 0 8px 20px hsl(var(--foreground) / 0.22);
+  box-shadow: 0 10px 24px hsl(var(--foreground) / 0.24);
   pointer-events: none;
   user-select: none;
   white-space: nowrap;
   /* Offset from the cursor so the ghost doesn't sit under the pointer.
      Uses the independent `translate` property so it composes with the
-     JS-driven `transform: translate(x, y)` set on pointermove. */
+     JS-driven `transform: translate(x, y)` set on pointermove; the entrance
+     animates `scale` for the same reason. */
   translate: 12px 12px;
   will-change: transform;
+  animation: tab-drag-ghost-in 0.14s cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes tab-drag-ghost-in {
+  from {
+    opacity: 0;
+    scale: 0.9;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
 }
 
 .tab-drag-ghost .tab-icon {
@@ -624,7 +654,15 @@
 
 @media (prefers-reduced-motion: reduce) {
   .tab-agent,
-  .tab-agent::after {
+  .tab-agent::after,
+  .tab-drag-ghost {
     animation: none;
+  }
+
+  .tab-item {
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease,
+      box-shadow 0.15s ease;
   }
 }

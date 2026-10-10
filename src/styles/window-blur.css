@@ -105,13 +105,21 @@ html.window-blur .workspace-tab {
   background-color: hsl(var(--tab-background) / var(--window-opacity));
 }
 
-html.window-blur .tab-item:not(.active):not(.drop-target):hover,
+html.window-blur .tab-list:not(.sorting) .tab-item:not(.active):hover,
 html.window-blur .workspace-tab:hover {
   background-color: hsl(var(--tab-hover) / var(--window-opacity));
 }
 
 html.window-blur .tab-item.active,
-html.window-blur .tab-item.active.drop-target,
 html.window-blur .workspace-tab.active {
   background-color: hsl(var(--tab-active, var(--background)) / var(--window-opacity));
+}
+
+/* Opaque while dragged, so the tabs it slides over don't show through. */
+html.window-blur .tab-item.dragging {
+  background-color: hsl(var(--tab-hover));
+}
+
+html.window-blur .tab-item.active.dragging {
+  background-color: hsl(var(--tab-active, var(--background)));
 }
