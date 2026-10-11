@@ -14,6 +14,8 @@
 //! device to write to. The hook runs tTerm itself there, which finds the
 //! console the same way (see `console_report`).
 
+use std::path::Path;
+
 use super::hooks::HookSet;
 use super::REPORT_ARG;
 
@@ -37,11 +39,58 @@ pub(super) const HOOKS: HookSet = HookSet {
     },
 };
 
-/// tTerm's own executable run as the hook; none if it cannot be located,
-/// which leaves Windows without reports as before.
+/// tTerm's own executable run as the hook; none if it cannot be located or
+/// named without quotes, which leaves Windows without reports as before.
+///
+/// Codex hands the command to `cmd /C` as one argument, quoted the way Rust
+/// quotes arguments, so a `"` in it reaches cmd as `\"` and cmd looks for a
+/// program named `\"C:\...`, failing every hook. The path goes in unquoted
+/// instead: as it is when cmd reads it as one word, or else by its short name.
 fn windows_hook_command(state: &str) -> Option<String> {
-    let exe = std::env::current_exe().ok()?;
-    Some(format!(r#""{}" {REPORT_ARG} codex {state}"#, exe.display()))
+    let exe = cmd_word(&std::env::current_exe().ok()?)?;
+    Some(format!("{exe} {REPORT_ARG} codex {state}"))
+}
+
+/// The path as one word cmd reads verbatim, if it or its short name is one.
+fn cmd_word(path: &Path) -> Option<String> {
+    let long = path.to_str()?;
+    if is_cmd_word(long) {
+        return Some(long.to_string());
+    }
+    short_path(path).filter(|short| is_cmd_word(short))
+}
+
+/// Whether cmd reads `text` as one word without changing it: no spaces,
+/// separators (`,;=`), quotes, or characters it expands or escapes.
+fn is_cmd_word(text: &str) -> bool {
+    !text.is_empty()
+        && text
+            .chars()
+            .all(|c| c.is_alphanumeric() || r"\:._-~+#$@[]{}'".contains(c))
+}
+
+/// The 8.3 name of an existing path, which has no spaces unless the volume
+/// does not keep short names.
+#[cfg(windows)]
+fn short_path(path: &Path) -> Option<String> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PCWSTR;
+    use windows::Win32::Storage::FileSystem::GetShortPathNameW;
+
+    let wide: Vec<u16> = path.as_os_str().encode_wide().chain([0]).collect();
+    let needed = unsafe { GetShortPathNameW(PCWSTR(wide.as_ptr()), None) };
+    let mut buffer = vec![0u16; usize::try_from(needed).ok()?];
+    let length = unsafe { GetShortPathNameW(PCWSTR(wide.as_ptr()), Some(&mut buffer)) };
+    let length = usize::try_from(length).ok()?;
+    if length == 0 || length >= buffer.len() {
+        return None;
+    }
+    String::from_utf16(&buffer[..length]).ok()
+}
+
+#[cfg(not(windows))]
+fn short_path(_path: &Path) -> Option<String> {
+    None
 }
 
 /// A POSIX script under `sh -c`, so it runs the same whatever login shell
@@ -221,7 +270,23 @@ mod windows_tests {
         let exe = std::env::current_exe().unwrap();
         assert_eq!(
             handler.get("commandWindows").and_then(Json::as_str),
-            Some(format!(r#""{}" --agent-report codex waiting"#, exe.display()).as_str())
+            Some(format!("{} --agent-report codex waiting", exe.display()).as_str())
         );
+    }
+
+    #[test]
+    fn hook_path_never_needs_quotes() {
+        assert!(is_cmd_word(r"C:\Users\张三\AppData\Local\tTerm\tTerm.exe"));
+        assert!(!is_cmd_word(r"C:\Program Files\tTerm\tTerm.exe"));
+        assert!(!is_cmd_word(r#""C:\tTerm\tTerm.exe""#));
+        assert!(!is_cmd_word(r"C:\A&B\tTerm.exe"));
+        assert!(!is_cmd_word(r"C:\%PATH%\tTerm.exe"));
+
+        // The volume may not keep short names; then there is no command.
+        let dir = std::env::temp_dir().join("tterm hook path");
+        std::fs::create_dir_all(&dir).unwrap();
+        let word = cmd_word(&dir);
+        std::fs::remove_dir(&dir).unwrap();
+        assert!(word.is_none_or(|word| is_cmd_word(&word)));
     }
 }
