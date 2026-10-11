@@ -117,28 +117,11 @@ fn create_pty_blocking(
     let runtime_state = app.state::<crate::TokioRuntimeState>();
 
     let mut sessions = state.blocking_write();
-    if let Some(session) = sessions.get(&tab_id) {
-        if session.session_nonce == session_nonce {
-            session.size.store(rows, cols);
-            let mut active_guard = session.active.blocking_lock();
-            if let Some(active) = active_guard.as_mut() {
-                match active {
-                    ActiveSession::Local(local) => {
-                        let _ = local.master.resize(portable_pty::PtySize {
-                            rows,
-                            cols,
-                            pixel_width: 0,
-                            pixel_height: 0,
-                        });
-                    }
-                    ActiveSession::Ssh(ssh) => {
-                        let _ = ssh.resize_tx.send((rows, cols));
-                    }
-                }
-
-                return Ok(session.pid);
-            }
-        }
+    let reattached = sessions
+        .get(&tab_id)
+        .and_then(|session| session.reattach(session_nonce, rows, cols));
+    if let Some(pid) = reattached {
+        return Ok(pid);
     }
 
     if let Some(session) = sessions.remove(&tab_id) {

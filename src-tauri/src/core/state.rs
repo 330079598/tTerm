@@ -114,6 +114,33 @@ pub struct PtySession {
     pub output_flow: Arc<crate::terminal::OutputFlow>,
 }
 
+impl PtySession {
+    /// Takes a running session over for a page that creates it again:
+    /// resizes it. Returns its pid, or `None` when the session is a different
+    /// one or has nothing running.
+    pub fn reattach(&self, session_nonce: u32, rows: u16, cols: u16) -> Option<u32> {
+        if self.session_nonce != session_nonce {
+            return None;
+        }
+        self.size.store(rows, cols);
+        let mut active_guard = self.active.blocking_lock();
+        match active_guard.as_mut()? {
+            ActiveSession::Local(local) => {
+                let _ = local.master.resize(portable_pty::PtySize {
+                    rows,
+                    cols,
+                    pixel_width: 0,
+                    pixel_height: 0,
+                });
+            }
+            ActiveSession::Ssh(ssh) => {
+                let _ = ssh.resize_tx.send((rows, cols));
+            }
+        }
+        Some(self.pid)
+    }
+}
+
 pub enum SessionExitSignal {
     Terminated,
     Recoverable {

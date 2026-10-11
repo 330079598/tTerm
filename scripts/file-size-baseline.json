@@ -1,6 +1,6 @@
 {
   "src-tauri/src/backup/remote.rs": 1135,
-  "src-tauri/src/core/commands.rs": 975,
+  "src-tauri/src/core/commands.rs": 958,
   "src-tauri/src/profiles/commands.rs": 811,
   "src-tauri/src/profiles/parser.rs": 996,
   "src-tauri/src/session_log.rs": 1922,
