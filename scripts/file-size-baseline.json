@@ -17,7 +17,7 @@
   "src/components/LogsPanel/index.tsx": 568,
   "src/components/NewTabLauncher.tsx": 515,
   "src/components/ProfilesPanel.tsx": 669,
-  "src/components/SettingsDialog/AppearanceSettingsTab.tsx": 700,
+  "src/components/SettingsDialog/AppearanceSettingsTab.tsx": 619,
   "src/components/SettingsDialog/ConnectionSettingsTab.tsx": 530,
   "src/components/SettingsDialog/DataMigrationSettingsTab.tsx": 1132,
   "src/components/SettingsDialog/FontSettingsTab.tsx": 700,
