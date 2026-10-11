@@ -48,6 +48,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { isPageTab, type SavedProfile, type Tab, type TabContextMenuAction } from "@/types/tab"
 import type { TerminalInputRequest } from "@/types/broadcast"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
+import { getTabSplitMenuActions } from "@/lib/tabSplitting"
 import { getTabLogMenuActions } from "@/lib/terminalLogRecording"
 import type { LiveBroadcastState } from "@/types/broadcast"
 import type { ExecutedCommand } from "@/types/command"
@@ -246,36 +247,12 @@ function getTabActions(
     tab.type === "ssh" && tab.connection?.profileId
       ? { label: t("contextMenu.editConnection"), action: "edit-connection", icon: "edit" }
       : null
-  const canSplit = tab.type === "terminal" || tab.type === "ssh"
   const logActions = getTabLogMenuActions(tab, t)
 
   return [
     ...commonStart,
     { label: t("contextMenu.duplicateTab"), action: "duplicate", icon: "copy" },
-    ...(canSplit
-      ? [
-          {
-            label: t("contextMenu.splitRight", { defaultValue: "Split Right" }),
-            action: "split-right",
-            icon: "split-right",
-          },
-          {
-            label: t("contextMenu.splitLeft", { defaultValue: "Split Left" }),
-            action: "split-left",
-            icon: "split-left",
-          },
-          {
-            label: t("contextMenu.splitDown", { defaultValue: "Split Down" }),
-            action: "split-down",
-            icon: "split-down",
-          },
-          {
-            label: t("contextMenu.splitAbove", { defaultValue: "Split Above" }),
-            action: "split-above",
-            icon: "split-above",
-          },
-        ]
-      : []),
+    ...getTabSplitMenuActions(tab, t),
     { label: t("contextMenu.renameTab"), action: "rename", icon: "edit" },
     ...(editConnectionAction ? [editConnectionAction] : []),
     ...(pinAction ? [pinAction] : []),

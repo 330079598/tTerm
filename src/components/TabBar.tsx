@@ -23,6 +23,7 @@ import {
   refocusTerminalIfFocusLost,
 } from "@/lib/terminalFocus"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
+import { getTabSplitMenuActions } from "@/lib/tabSplitting"
 import { getTabLogMenuActions } from "@/lib/terminalLogRecording"
 
 const TAB_OVERFLOW_THRESHOLD = 16
@@ -186,30 +187,7 @@ const TabItem = React.memo(function TabItem({
       const actions: TabContextMenuAction[] = [
         { label: t("contextMenu.newTab"), action: "new", icon: "plus" },
         { label: t("contextMenu.duplicateTab"), action: "duplicate", icon: "copy" },
-        ...(tab.type === "terminal" || tab.type === "ssh"
-          ? [
-              {
-                label: t("contextMenu.splitRight", { defaultValue: "Split Right" }),
-                action: "split-right",
-                icon: "split-right",
-              },
-              {
-                label: t("contextMenu.splitLeft", { defaultValue: "Split Left" }),
-                action: "split-left",
-                icon: "split-left",
-              },
-              {
-                label: t("contextMenu.splitDown", { defaultValue: "Split Down" }),
-                action: "split-down",
-                icon: "split-down",
-              },
-              {
-                label: t("contextMenu.splitAbove", { defaultValue: "Split Above" }),
-                action: "split-above",
-                icon: "split-above",
-              },
-            ]
-          : []),
+        ...getTabSplitMenuActions(tab, t),
         { label: t("contextMenu.renameTab"), action: "rename", icon: "edit" },
         ...(editConnectionAction ? [editConnectionAction] : []),
         ...(pinAction ? [pinAction] : []),
