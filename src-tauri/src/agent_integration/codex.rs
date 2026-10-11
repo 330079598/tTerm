@@ -8,8 +8,14 @@
 //! every terminal running Codex, with the session's id, for tTerm to keep the
 //! report in the tab the session was submitted from. Codex runs a hook only
 //! once the user has trusted it in `/hooks`, and again after it changes.
+//!
+//! On Windows Codex runs `commandWindows` instead, through `cmd /C` and with
+//! a hidden console of its own, where there is neither `ps` nor a terminal
+//! device to write to. The hook runs tTerm itself there, which finds the
+//! console the same way (see `console_report`).
 
 use super::hooks::HookSet;
+use super::REPORT_ARG;
 
 /// `Interrupt` (Esc or Ctrl+C) leaves Codex waiting for the user without
 /// finishing anything.
@@ -24,7 +30,19 @@ pub(super) const HOOKS: HookSet = HookSet {
         ("SessionEnd", "ended"),
     ],
     command: hook_command,
+    command_windows: if cfg!(windows) {
+        Some(windows_hook_command)
+    } else {
+        None
+    },
 };
+
+/// tTerm's own executable run as the hook; none if it cannot be located,
+/// which leaves Windows without reports as before.
+fn windows_hook_command(state: &str) -> Option<String> {
+    let exe = std::env::current_exe().ok()?;
+    Some(format!(r#""{}" {REPORT_ARG} codex {state}"#, exe.display()))
+}
 
 /// A POSIX script under `sh -c`, so it runs the same whatever login shell
 /// Codex starts it with. Its escapes are printf's: fish would read `\\` in
@@ -174,5 +192,36 @@ mod tests {
         );
         // Without a session to name, no terminal could tell it is its own.
         assert_eq!(run_hook("processing", "{}", table), []);
+    }
+}
+
+#[cfg(all(test, windows))]
+mod windows_tests {
+    use super::super::json::Json;
+    use super::*;
+
+    #[test]
+    fn hook_on_windows_runs_tterm_itself() {
+        let preview = HOOKS.preview();
+        let Some(Json::Object(hooks)) = preview.get("hooks") else {
+            panic!()
+        };
+        let Some(Json::Array(groups)) = hooks.get("PermissionRequest") else {
+            panic!()
+        };
+        let Json::Object(group) = &groups[0] else {
+            panic!()
+        };
+        let Some(Json::Array(handlers)) = group.get("hooks") else {
+            panic!()
+        };
+        let Json::Object(handler) = &handlers[0] else {
+            panic!()
+        };
+        let exe = std::env::current_exe().unwrap();
+        assert_eq!(
+            handler.get("commandWindows").and_then(Json::as_str),
+            Some(format!(r#""{}" --agent-report codex waiting"#, exe.display()).as_str())
+        );
     }
 }

@@ -10,6 +10,8 @@
 
 mod claude_code;
 mod codex;
+#[cfg(windows)]
+pub mod console_report;
 mod hooks;
 mod json;
 mod login_shell;
@@ -25,6 +27,9 @@ use plugin_file::PluginFile;
 /// Every hook command and plugin tTerm installs contains this, and nothing
 /// else should.
 const REPORT_MARKER: &str = "]777;tterm-agent;";
+
+/// Runs tTerm as an agent's hook on Windows: `--agent-report <agent> <state>`.
+const REPORT_ARG: &str = "--agent-report";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

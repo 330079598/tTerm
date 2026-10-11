@@ -14,6 +14,8 @@ pub(super) struct HookSet {
     pub events: &'static [(&'static str, &'static str)],
     /// The handler's command reporting a state.
     pub command: fn(&str) -> String,
+    /// The command that replaces it on Windows, for agents that read one.
+    pub command_windows: Option<fn(&str) -> Option<String>>,
 }
 
 impl HookSet {
@@ -21,6 +23,9 @@ impl HookSet {
         let mut handler = Object::new();
         handler.insert("type".to_string(), Json::String("command".to_string()));
         handler.insert("command".to_string(), Json::String((self.command)(state)));
+        if let Some(command) = self.command_windows.and_then(|command| command(state)) {
+            handler.insert("commandWindows".to_string(), Json::String(command));
+        }
         let mut group = Object::new();
         group.insert(
             "hooks".to_string(),

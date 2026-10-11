@@ -3,7 +3,7 @@
 
 fn main() {
     #[cfg(target_os = "windows")]
-    if let Some(code) = t_term_lib::run_console_reset_helper() {
+    if let Some(code) = t_term_lib::run_console_helper() {
         std::process::exit(code);
     }
     t_term_lib::run()

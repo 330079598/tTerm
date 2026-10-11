@@ -27,6 +27,7 @@ pub(super) const HOOKS: HookSet = HookSet {
         ("SessionEnd", "ended"),
     ],
     command: hook_command,
+    command_windows: None,
 };
 
 /// `printf '%s'` so no shell interprets the `\u` escapes, which have to reach

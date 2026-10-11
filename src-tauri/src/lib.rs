@@ -201,11 +201,13 @@ mod tokio_worker_tests {
     }
 }
 
-/// Runs tTerm's console reset helper instead of the app when started as one
-/// (see `terminal::console_reset`); returns its exit code.
+/// Runs one of tTerm's console helpers instead of the app when started as one
+/// (see `terminal::console_reset` and `agent_integration::console_report`);
+/// returns its exit code.
 #[cfg(target_os = "windows")]
-pub fn run_console_reset_helper() -> Option<i32> {
+pub fn run_console_helper() -> Option<i32> {
     terminal::console_reset::run_helper_if_requested()
+        .or_else(agent_integration::console_report::run_helper_if_requested)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
