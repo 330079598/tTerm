@@ -47,7 +47,12 @@ pub(super) const HOOKS: HookSet = HookSet {
 /// program named `\"C:\...`, failing every hook. The path goes in unquoted
 /// instead: as it is when cmd reads it as one word, or else by its short name.
 fn windows_hook_command(state: &str) -> Option<String> {
-    let exe = cmd_word(&std::env::current_exe().ok()?)?;
+    report_command(&std::env::current_exe().ok()?, state)
+}
+
+/// The command running `exe` to report `state` for Codex.
+fn report_command(exe: &Path, state: &str) -> Option<String> {
+    let exe = cmd_word(exe)?;
     Some(format!("{exe} {REPORT_ARG} codex {state}"))
 }
 
@@ -281,12 +286,41 @@ mod windows_tests {
         assert!(!is_cmd_word(r#""C:\tTerm\tTerm.exe""#));
         assert!(!is_cmd_word(r"C:\A&B\tTerm.exe"));
         assert!(!is_cmd_word(r"C:\%PATH%\tTerm.exe"));
+    }
 
-        // The volume may not keep short names; then there is no command.
-        let dir = std::env::temp_dir().join("tterm hook path");
-        std::fs::create_dir_all(&dir).unwrap();
-        let word = cmd_word(&dir);
-        std::fs::remove_dir(&dir).unwrap();
-        assert!(word.is_none_or(|word| is_cmd_word(&word)));
+    /// Checking the command's text let a quoted path through that cmd could
+    /// not run, so this runs it the way Codex does: as one argument to
+    /// `cmd /C`, quoted by Rust's `Command`. A batch file stands in for
+    /// tTerm and echoes the arguments it was given.
+    #[test]
+    fn cmd_runs_the_hook_as_codex_starts_it() {
+        let id = std::process::id();
+        for name in [format!("tterm-hook-{id}"), format!("tterm hook {id}")] {
+            let dir = std::env::temp_dir().join(name);
+            std::fs::create_dir_all(&dir).unwrap();
+            let exe = dir.join("tTerm.cmd");
+            std::fs::write(&exe, "@echo %*\r\n").unwrap();
+            // Without short names a path with spaces gets no command at all.
+            let output = report_command(&exe, "waiting").map(|command| {
+                std::process::Command::new("cmd")
+                    .arg("/C")
+                    .arg(command)
+                    .output()
+                    .unwrap()
+            });
+            std::fs::remove_dir_all(&dir).unwrap();
+            let Some(output) = output else {
+                continue;
+            };
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert_eq!(
+                String::from_utf8_lossy(&output.stdout).trim(),
+                "--agent-report codex waiting"
+            );
+        }
     }
 }
