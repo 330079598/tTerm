@@ -92,19 +92,28 @@ fn run_helper(action: &str, pid: u32) -> Result<(), String> {
 }
 
 fn write_soft_reset(pid: u32) -> windows::core::Result<()> {
-    with_console(pid, w!("CONOUT$"), |output| unsafe {
+    with_console(pid, w!("CONOUT$"), |output| {
+        write_sequence(output, SOFT_RESET)
+    })
+}
+
+/// Writes an escape sequence to a console's output buffer for the console to
+/// interpret and forward.
+pub(crate) fn write_sequence(output: HANDLE, sequence: &str) -> windows::core::Result<()> {
+    let text: Vec<u16> = sequence.encode_utf16().collect();
+    unsafe {
         let mut mode = CONSOLE_MODE(0);
+        GetConsoleMode(output, &mut mode)?;
+        if mode.contains(ENABLE_VIRTUAL_TERMINAL_PROCESSING) {
+            return WriteConsoleW(output, &text, None, None);
+        }
         // The mode belongs to the shell's screen buffer: enable VT only
         // for this write and put back exactly what was there.
-        GetConsoleMode(output, &mut mode)?;
-        let written =
-            SetConsoleMode(output, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING).and_then(|()| {
-                let text: Vec<u16> = SOFT_RESET.encode_utf16().collect();
-                WriteConsoleW(output, &text, None, None)
-            });
+        let written = SetConsoleMode(output, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+            .and_then(|()| WriteConsoleW(output, &text, None, None));
         let _ = SetConsoleMode(output, mode);
         written
-    })
+    }
 }
 
 fn flush_input(pid: u32) -> windows::core::Result<()> {
@@ -115,7 +124,7 @@ fn flush_input(pid: u32) -> windows::core::Result<()> {
 
 /// Attaches to the console of process `pid` and runs `f` on its input or
 /// output buffer, `name` being `CONIN$` or `CONOUT$`.
-fn with_console(
+pub(crate) fn with_console(
     pid: u32,
     name: PCWSTR,
     f: impl FnOnce(HANDLE) -> windows::core::Result<()>,
