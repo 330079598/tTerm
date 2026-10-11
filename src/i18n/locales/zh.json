@@ -1297,7 +1297,8 @@
     "title": "重命名标签页",
     "newName": "标签页名称",
     "cancel": "取消",
-    "confirm": "重命名"
+    "confirm": "重命名",
+    "useAutoTitle": "恢复自动命名"
   },
   "fontSettings": {
     "title": "字体设置",

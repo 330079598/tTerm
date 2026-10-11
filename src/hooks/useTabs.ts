@@ -109,20 +109,6 @@ export function getDuplicateTabTitle(base: string, existingTitles: string[]): st
   return `${base}-${index}`
 }
 
-// A tab opened with a generated name (a local tab's shell) is numbered when
-// another tab already has it, and its copies are numbered from that name.
-function numberTitle(tab: Tab, otherTabs: Tab[]): Tab {
-  if (!tab.numberTitle) return tab
-  const taken = otherTabs.map((other) => other.title)
-  const base = tab.title
-  return {
-    ...tab,
-    title: taken.includes(base) ? getDuplicateTabTitle(base, taken) : base,
-    duplicateBaseTitle: base,
-    numberTitle: undefined,
-  }
-}
-
 function nextSessionNonce(sessionNonce?: number) {
   return ((sessionNonce ?? 0) + 1) >>> 0
 }
@@ -144,26 +130,23 @@ function activateTabInState(state: TabsState, id: string): TabsState {
 
 function tabsReducer(state: TabsState, action: TabsAction): TabsState {
   switch (action.type) {
-    case "restore": {
-      // Generated names are numbered in order, around the names kept as saved.
-      const keptTabs = action.tabs.filter((tab) => !tab.numberTitle)
-      const tabs: Tab[] = []
-      for (const tab of action.tabs) {
-        const restored = ensureTabDefaults({
-          ...tab,
-          isActive: tab.id === action.activeTabId,
-          hasConnected: tab.id === action.activeTabId,
-        })
-        tabs.push(numberTitle(restored, [...keptTabs, ...tabs]))
+    case "restore":
+      return {
+        activeTabId: action.activeTabId,
+        tabs: action.tabs.map((tab) =>
+          ensureTabDefaults({
+            ...tab,
+            isActive: tab.id === action.activeTabId,
+            hasConnected: tab.id === action.activeTabId,
+          })
+        ),
       }
-      return { activeTabId: action.activeTabId, tabs }
-    }
     case "add":
       return {
         activeTabId: action.tab.id,
         tabs: [
           ...state.tabs.map((tab) => ({ ...tab, isActive: false })),
-          numberTitle({ ...action.tab, isActive: true, hasConnected: true }, state.tabs),
+          { ...action.tab, isActive: true, hasConnected: true },
         ],
       }
     case "open-page": {
@@ -215,7 +198,11 @@ function tabsReducer(state: TabsState, action: TabsAction): TabsState {
         return state
       }
       const { id: _id, isActive: _isActive, ...tabData } = sourceTab
-      const baseTitle = sourceTab.duplicateBaseTitle ?? sourceTab.title
+      // A copy named automatically starts in the same directory, under the
+      // same name; the tab numbers tell them apart.
+      const baseTitle = sourceTab.autoTitle
+        ? undefined
+        : (sourceTab.duplicateBaseTitle ?? sourceTab.title)
       const newTab: Tab = ensureTabDefaults({
         ...tabData,
         connection: tabData.connection ?? {
@@ -223,10 +210,13 @@ function tabsReducer(state: TabsState, action: TabsAction): TabsState {
         },
         sessionNonce: nextSessionNonce(sourceTab.sessionNonce),
         id: action.newId,
-        title: getDuplicateTabTitle(
-          baseTitle,
-          state.tabs.map((tab) => tab.title)
-        ),
+        title:
+          baseTitle === undefined
+            ? sourceTab.title
+            : getDuplicateTabTitle(
+                baseTitle,
+                state.tabs.map((tab) => tab.title)
+              ),
         duplicateBaseTitle: baseTitle,
         isActive: true,
         hasConnected: true,
@@ -241,7 +231,7 @@ function tabsReducer(state: TabsState, action: TabsAction): TabsState {
         ...state,
         tabs: state.tabs.map((tab) =>
           tab.id === action.id
-            ? { ...tab, title: action.title, duplicateBaseTitle: undefined }
+            ? { ...tab, title: action.title, duplicateBaseTitle: undefined, autoTitle: undefined }
             : tab
         ),
       }

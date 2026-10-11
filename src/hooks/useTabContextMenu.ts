@@ -3,6 +3,7 @@ import { useCallback, useState } from "react"
 import type { ContextMenuState, RenameDialogState } from "@/components/TTermApp/types"
 import type { WorkspaceSplitDirection } from "@/components/TTermApp/TabPanels"
 import { showLogsForTab } from "@/lib/appNavigation"
+import { nameLocalTab } from "@/lib/localTabTitle"
 import type { Tab, TabContextMenuAction } from "@/types/tab"
 
 interface UseTabContextMenuDeps {
@@ -92,6 +93,7 @@ export function useTabContextMenu({
             isOpen: true,
             tabId: tab.id,
             currentName: tab.title,
+            autoTitleTab: tab.type === "terminal" && !tab.autoTitle ? tab : undefined,
           })
           break
         case "edit-connection":
@@ -178,13 +180,30 @@ export function useTabContextMenu({
     })
   }, [])
 
+  const autoTitleTab = renameDialogState.autoTitleTab
+  const handleUseAutoTitle = useCallback(() => {
+    if (!autoTitleTab) return
+    void nameLocalTab({ ...autoTitleTab, title: "" }).then(({ title }) =>
+      updateTab(autoTitleTab.id, (current) => ({
+        ...current,
+        title,
+        autoTitle: true,
+        duplicateBaseTitle: undefined,
+      }))
+    )
+  }, [autoTitleTab, updateTab])
+
   return {
     contextMenu,
-    renameDialogState,
+    renameDialog: {
+      isOpen: renameDialogState.isOpen,
+      currentName: renameDialogState.currentName,
+      onConfirm: handleRenameConfirm,
+      onClose: handleRenameClose,
+      onUseAutoTitle: autoTitleTab ? handleUseAutoTitle : undefined,
+    },
     handleTabContextMenu,
     handleContextMenuAction,
     handleCloseContextMenu,
-    handleRenameConfirm,
-    handleRenameClose,
   }
 }

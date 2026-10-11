@@ -119,6 +119,20 @@ describe("CommandTimer", () => {
     timer.start(20)
     expect(timer.finish(0, 30)?.command).toBeUndefined()
   })
+
+  it("reports the first command started after the prompt until the prompt is back", () => {
+    const running: (string | null)[] = []
+    const timer = new CommandTimer((command) => running.push(command))
+    timer.setCommand("ls")
+    timer.mark({ kind: "prompt" }, 0)
+    timer.start(10)
+    timer.setCommand("python")
+    timer.setCommand("print(1)")
+    timer.mark({ kind: "output" }, 20)
+    expect(timer.mark({ kind: "done", exitCode: 0 }, 30)).toMatchObject({ exitCode: 0 })
+    timer.mark({ kind: "prompt" }, 40)
+    expect(running).toEqual(["python", null])
+  })
 })
 
 describe("decideAttention", () => {

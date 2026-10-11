@@ -49,7 +49,7 @@ import {
 import { matchPasswordPrompt, readCursorLine, type PasswordPromptMatch } from "@/lib/sudoPrompt"
 import { LoginScriptRunner, parseLoginScript } from "@/lib/loginScript"
 import { AgentTracker, parseAgentReport } from "@/lib/agentStatus"
-import { setTabAgentStatus } from "@/lib/tabAttention"
+import { setTabAgentStatus, setTabRunningCommand } from "@/lib/tabAttention"
 import {
   CommandTimer,
   KittyNotificationAssembler,
@@ -659,17 +659,12 @@ export function useTerminalLifecycle({
       onAnnounce: (announcement) => onAttentionRef.current?.({ kind: "agent", ...announcement }),
     })
 
-    const commandTimer = new CommandTimer()
+    const commandTimer = new CommandTimer((command) => setTabRunningCommand(tabId, command))
     const timeCommand = (data: string) => {
       const mark = parseCommandMark(data)
-      if (mark?.kind === "prompt") {
-        commandTimer.prompt()
-        agentTracker.reset()
-      } else if (mark?.kind === "output") commandTimer.start(Date.now())
-      else if (mark?.kind === "done") {
-        const finished = commandTimer.finish(mark.exitCode, Date.now())
-        if (finished) onAttentionRef.current?.({ kind: "command", ...finished })
-      }
+      if (mark?.kind === "prompt") agentTracker.reset()
+      const finished = mark && commandTimer.mark(mark, Date.now())
+      if (finished) onAttentionRef.current?.({ kind: "command", ...finished })
     }
 
     const emitExecutedCommand = (commandText: string) => {
@@ -855,6 +850,7 @@ export function useTerminalLifecycle({
       listen(`pty-exit-${tabId}`, (event) => {
         stopLoginScript()
         agentTracker.reset()
+        commandTimer.prompt()
         onSessionUnavailableRef.current?.(tabId, sessionNonce, true)
         const reason = event.payload as string | null | undefined
         if (connectionRef.current?.type === "ssh") {
@@ -1067,6 +1063,7 @@ export function useTerminalLifecycle({
       for (const disposable of notificationDisposables) disposable.dispose()
       bellDisposable.dispose()
       agentTracker.reset()
+      commandTimer.prompt()
       commandMarks.dispose()
       commandMarksRef.current = null
       cwdReports.dispose()

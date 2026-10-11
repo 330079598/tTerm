@@ -2,6 +2,7 @@
 // and what AI agents report, which tTerm announces when the user is not
 // looking at the tab.
 
+import type { CommandMark } from "@/components/TerminalTab/commandMarks"
 import type { AgentAnnouncement } from "@/lib/agentStatus"
 
 /** OSC codes that carry a notification: iTerm2's 9, urxvt's 777, kitty's 99. */
@@ -126,18 +127,43 @@ export interface FinishedCommand {
 export class CommandTimer {
   private startedAt: number | null = null
   private command: string | undefined
+  private running: string | null = null
+
+  /** `onRunning` hears the command the shell starts, and null once it is over. */
+  constructor(private readonly onRunning?: (command: string | null) => void) {}
 
   prompt() {
     this.startedAt = null
     this.command = undefined
+    if (this.running === null) return
+    this.running = null
+    this.onRunning?.(null)
   }
 
   start(now: number) {
     if (this.startedAt === null) this.startedAt = now
+    this.reportRunning()
   }
 
   setCommand(command: string) {
     this.command = command
+    this.reportRunning()
+  }
+
+  /** Follows a shell integration mark; returns the command a done mark ends. */
+  mark(mark: CommandMark, now: number): FinishedCommand | null {
+    if (mark.kind === "done") return this.finish(mark.exitCode, now)
+    if (mark.kind === "prompt") this.prompt()
+    else this.start(now)
+    return null
+  }
+
+  // The first command after the prompt is what runs. Lines typed into it
+  // later, such as a REPL's, do not rename it.
+  private reportRunning() {
+    if (this.running !== null || this.startedAt === null || !this.command) return
+    this.running = this.command
+    this.onRunning?.(this.command)
   }
 
   finish(exitCode: number | undefined, now: number): FinishedCommand | null {

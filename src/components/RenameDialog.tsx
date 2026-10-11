@@ -18,6 +18,8 @@ interface RenameDialogProps {
   currentName: string
   onConfirm: (newName: string) => void
   onClose: () => void
+  /** Given for a local tab the user named: names it automatically again. */
+  onUseAutoTitle?: () => void
 }
 
 export const RenameDialog: React.FC<RenameDialogProps> = ({
@@ -25,6 +27,7 @@ export const RenameDialog: React.FC<RenameDialogProps> = ({
   currentName,
   onConfirm,
   onClose,
+  onUseAutoTitle,
 }) => {
   const { t } = useTranslation()
   const [name, setName] = useSyncedState(currentName)
@@ -63,6 +66,19 @@ export const RenameDialog: React.FC<RenameDialogProps> = ({
           </div>
 
           <DialogFooter className="mt-4">
+            {onUseAutoTitle && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="sm:mr-auto"
+                onClick={() => {
+                  onUseAutoTitle()
+                  onClose()
+                }}
+              >
+                {t("rename.useAutoTitle")}
+              </Button>
+            )}
             <Button type="button" variant="ghost" onClick={onClose}>
               {t("rename.cancel")}
             </Button>

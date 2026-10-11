@@ -155,45 +155,46 @@ describe("useTabs atomic state updates", () => {
   })
 })
 
-describe("useTabs generated titles", () => {
+describe("useTabs automatic titles", () => {
   const titles = (result: { current: ReturnType<typeof useTabs> }) =>
     result.current.tabs.map((tab) => tab.title)
 
-  const shellTab = (title: string): Omit<Tab, "id" | "isActive"> => ({
+  const localTab = (title: string): Omit<Tab, "id" | "isActive"> => ({
     title,
-    numberTitle: true,
+    autoTitle: true,
     type: "terminal",
+    connection: { type: "terminal", cwd: "/work/tTerm" },
   })
 
-  it("numbers a repeated shell name, and copies from it", () => {
+  it("leaves repeated automatic titles and their copies unnumbered", () => {
     const { result } = renderHook(() => useTabs())
     let second = ""
     act(() => {
-      result.current.addTab(shellTab("pwsh"))
-      second = result.current.addTab(shellTab("pwsh"))
-      result.current.addTab(shellTab("cmd"))
+      result.current.addTab(localTab("tTerm"))
+      second = result.current.addTab(localTab("tTerm"))
     })
     act(() => {
       result.current.duplicateTab(second)
     })
 
-    expect(titles(result)).toEqual(["pwsh", "pwsh-2", "cmd", "pwsh-3"])
-    expect(result.current.tabs.every((tab) => tab.numberTitle === undefined)).toBe(true)
+    expect(titles(result)).toEqual(["tTerm", "tTerm", "tTerm"])
+    expect(result.current.tabs[2]).toMatchObject({ autoTitle: true, duplicateBaseTitle: undefined })
   })
 
-  it("numbers restored tabs around the names kept as saved", () => {
+  it("stops following the shell once the user renames the tab", () => {
     const { result } = renderHook(() => useTabs())
+    let id = ""
     act(() => {
-      result.current.restoreSession(
-        [
-          { id: "tab-1", type: "terminal", isActive: true, title: "cmd", numberTitle: true },
-          { id: "tab-2", type: "terminal", isActive: false, title: "cmd-2" },
-          { id: "tab-3", type: "terminal", isActive: false, title: "cmd", numberTitle: true },
-        ],
-        "tab-1"
-      )
+      id = result.current.addTab(localTab("tTerm"))
+    })
+    act(() => {
+      result.current.renameTab(id, "builds")
+    })
+    act(() => {
+      result.current.duplicateTab(id)
     })
 
-    expect(titles(result)).toEqual(["cmd", "cmd-2", "cmd-3"])
+    expect(titles(result)).toEqual(["builds", "builds-2"])
+    expect(result.current.tabs.every((tab) => !tab.autoTitle)).toBe(true)
   })
 })

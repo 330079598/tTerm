@@ -42,11 +42,13 @@ import { useTranslation } from "react-i18next"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { TabAttentionDot } from "@/components/TabAttentionDot"
 import { TabLogIndicator } from "@/components/TabLogIndicator"
+import { TabTitle } from "@/components/TabTitle"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { TerminalTab } from "@/components/TerminalTab"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { isPageTab, type SavedProfile, type Tab, type TabContextMenuAction } from "@/types/tab"
 import type { TerminalInputRequest } from "@/types/broadcast"
+import { withLocalCwd } from "@/lib/localTabTitle"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
 import { getTabPinMenuAction, getTabSplitMenuActions } from "@/lib/tabMenuActions"
 import { getTabLogMenuActions } from "@/lib/terminalLogRecording"
@@ -288,7 +290,7 @@ const WorkspaceTab = React.memo(function WorkspaceTab({
       {tab.type === "logs" && <ScrollText size={13} aria-hidden="true" />}
       <TabAttentionDot tabId={tab.id} />
       <TabLogIndicator tabId={tab.id} />
-      <span className="workspace-tab-title">{tab.title}</span>
+      <TabTitle tab={tab} className="workspace-tab-title" />
       <button
         type="button"
         className="workspace-tab-close"
@@ -384,14 +386,7 @@ const WorkspacePanel = React.memo(function WorkspacePanel({
               onResumeBroadcast={workspace.onResumeBroadcast}
               onStopBroadcast={workspace.onStopBroadcast}
               onCwdChange={(cwd) =>
-                workspace.updateTab(tab.id, (current) =>
-                  current.connection?.cwd === cwd
-                    ? current
-                    : {
-                        ...current,
-                        connection: { ...(current.connection ?? { type: "terminal" }), cwd },
-                      }
-                )
+                workspace.updateTab(tab.id, (current) => withLocalCwd(current, cwd))
               }
               onConnectionStateChange={workspace.onTerminalConnectionStateChange}
               onInput={workspace.onTerminalInput}

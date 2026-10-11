@@ -1503,12 +1503,10 @@ export const TTermApp: React.FC = () => {
 
   const {
     contextMenu,
-    renameDialogState,
+    renameDialog,
     handleTabContextMenu,
     handleContextMenuAction,
     handleCloseContextMenu,
-    handleRenameConfirm,
-    handleRenameClose,
   } = useTabContextMenu({
     handleNewTab,
     duplicateTab,
@@ -2195,12 +2193,7 @@ export const TTermApp: React.FC = () => {
       <ConfirmDialog />
       <CloseRequestDialog runningTunnelCount={runningTunnelCount} />
 
-      <RenameDialog
-        isOpen={renameDialogState.isOpen}
-        currentName={renameDialogState.currentName}
-        onConfirm={handleRenameConfirm}
-        onClose={handleRenameClose}
-      />
+      <RenameDialog {...renameDialog} />
 
       <TunnelHostKeyPrompt />
       <VaultStartupUnlockDialog

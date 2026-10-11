@@ -1313,7 +1313,8 @@
     "title": "Rename Tab",
     "newName": "Tab Name",
     "cancel": "Cancel",
-    "confirm": "Rename"
+    "confirm": "Rename",
+    "useAutoTitle": "Use automatic name"
   },
   "fontSettings": {
     "title": "Font Settings",

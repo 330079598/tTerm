@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import { TabAttentionDot } from "@/components/TabAttentionDot"
 import { TabLogIndicator } from "@/components/TabLogIndicator"
+import { TabTitle } from "@/components/TabTitle"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { isPageTab, Tab, TabContextMenuAction } from "@/types/tab"
 import { isImeKeyEvent } from "@/lib/ime"
@@ -22,6 +23,7 @@ import {
   keepFocusOnMouseDown,
   refocusTerminalIfFocusLost,
 } from "@/lib/terminalFocus"
+import { tabTooltip } from "@/lib/localTabTitle"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
 import { getTabPinMenuAction, getTabSplitMenuActions } from "@/lib/tabMenuActions"
 import { getTabLogMenuActions } from "@/lib/terminalLogRecording"
@@ -222,7 +224,7 @@ const TabItem = React.memo(function TabItem({
           {tab.type === "logs" && <ScrollText className="tab-icon" size={13} />}
           <TabAttentionDot tabId={tab.id} />
           <TabLogIndicator tabId={tab.id} />
-          <span className="tab-title">{tab.title}</span>
+          <TabTitle tab={tab} className="tab-title" />
           <button
             className="tab-close"
             aria-label={t("contextMenu.closeTab", { defaultValue: "Close tab" })}
@@ -237,7 +239,7 @@ const TabItem = React.memo(function TabItem({
           </button>
         </div>
       </TooltipTrigger>
-      <TooltipContent>{`${tab.title}${tab.connection ? ` (${tab.connection.host})` : ""}`}</TooltipContent>
+      <TooltipContent>{tabTooltip(tab)}</TooltipContent>
     </Tooltip>
   )
 })

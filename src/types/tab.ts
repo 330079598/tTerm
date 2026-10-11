@@ -127,8 +127,11 @@ export interface Tab {
   connectionHeaderPinned?: boolean
   /** Set on a duplicated tab: the name its "-N" copies are numbered from. Cleared on rename. */
   duplicateBaseTitle?: string
-  /** The title is a generated name (a local tab's shell): numbered when another tab has it. Cleared once added. */
-  numberTitle?: boolean
+  /**
+   * A local tab named automatically: its title follows its shell's directory
+   * and shows the command the shell runs. Cleared when the user renames it.
+   */
+  autoTitle?: boolean
   /**
    * Opened from the launcher by typing a host and not connected yet: its
    * first connection is remembered as recent and offered for saving.
