@@ -160,15 +160,21 @@ export function builtInShellIcon(key: string): ResolvedTabIcon {
   return BUILT_IN[key] ?? PLAIN
 }
 
-/** The shells the settings list: those of this platform, then any other with a choice saved. */
-export function shellsForSettings(platform: string, config: TabIconConfig): string[] {
-  const own = platform === "windows" ? WINDOWS_SHELLS : UNIX_SHELLS
-  return [
-    ...own,
-    ...Object.keys(config.shells)
-      .filter((key) => !own.includes(key))
-      .sort(),
-  ]
+/**
+ * The shells the settings list: those of this platform, then the ones found
+ * on this machine (its default shell), then any other with a choice saved.
+ */
+export function shellsForSettings(
+  platform: string,
+  config: TabIconConfig,
+  found: (string | null)[] = []
+): string[] {
+  const keys = platform === "windows" ? [...WINDOWS_SHELLS] : [...UNIX_SHELLS]
+  for (const key of found.map((name) => shellKey(name ?? undefined))) {
+    if (key && !keys.includes(key)) keys.push(key)
+  }
+  const saved = Object.keys(config.shells).filter((key) => !keys.includes(key))
+  return [...keys, ...saved.sort()]
 }
 
 /** A style laid over another: each choice the top one makes wins. */

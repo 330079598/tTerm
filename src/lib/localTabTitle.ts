@@ -33,17 +33,24 @@ function loadHome(): Promise<void> {
   return homeLoaded
 }
 
-/** The name of the shell a local tab starts (`cmd`, `pwsh`, `zsh`), for its title. */
-export async function localShellName(connection: Tab["connection"]): Promise<string> {
+/** The name of the shell a local tab starts (`cmd`, `pwsh`, `zsh`), or null when unknown. */
+export async function detectLocalShellName(
+  connection: Pick<NonNullable<Tab["connection"]>, "terminalShell" | "terminalShellCustomPath">
+): Promise<string | null> {
   try {
     const name = await invoke<string | null>("local_terminal_shell_name", {
-      shell: connection?.terminalShell ?? null,
-      customPath: connection?.terminalShellCustomPath ?? null,
+      shell: connection.terminalShell ?? null,
+      customPath: connection.terminalShellCustomPath ?? null,
     })
-    return name || FALLBACK_TITLE
+    return name || null
   } catch {
-    return FALLBACK_TITLE
+    return null
   }
+}
+
+/** The name of the shell a local tab starts, for its title. */
+export async function localShellName(connection: Tab["connection"]): Promise<string> {
+  return (await detectLocalShellName(connection ?? {})) ?? FALLBACK_TITLE
 }
 
 // Git Bash reports `/c/Users`, which is `C:/Users` on Windows.

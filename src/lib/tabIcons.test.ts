@@ -86,6 +86,18 @@ describe("shellsForSettings", () => {
     expect(shellsForSettings("macos", icons)).toEqual(["zsh", "bash", "fish", "sh", "nu"])
     expect(shellsForSettings("windows", config())).toContain("git bash")
   })
+
+  it("adds the shells found on this machine after the platform's", () => {
+    expect(shellsForSettings("linux", config(), ["Nu", null, "zsh"])).toEqual([
+      "zsh",
+      "bash",
+      "fish",
+      "sh",
+      "nu",
+    ])
+    const icons = config({ shells: { nu: { icon: "box" }, elvish: { icon: "star" } } })
+    expect(shellsForSettings("windows", icons, ["nu"]).slice(-2)).toEqual(["nu", "elvish"])
+  })
 })
 
 describe("shellTabIcon", () => {

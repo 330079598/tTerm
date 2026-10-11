@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { getDetectedPlatform, useConfig } from "@/contexts/ConfigContext"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
 import { useSyncedState } from "@/hooks/useSyncedState"
+import { detectLocalShellName } from "@/lib/localTabTitle"
 import {
   applyTabIconStyle,
   builtInShellIcon,
@@ -30,6 +31,8 @@ export function TabIconSettings() {
   const { saveSettings } = useSettingsSave()
   const [icons, setIcons] = useSyncedState(config.tab_icons)
   const [editing, setEditing] = React.useState<string | null>(null)
+  const [defaultShell, setDefaultShell] = React.useState<string | null>(null)
+  const { terminal_shell: terminalShell, terminal_shell_custom_path: customPath } = config
   const pendingRef = React.useRef<{ timer: number; next: TabIconConfig } | null>(null)
 
   const flush = React.useCallback(() => {
@@ -41,6 +44,20 @@ export function TabIconSettings() {
   }, [saveSettings])
 
   React.useEffect(() => flush, [flush])
+
+  // The default shell may be one the built-in list leaves out, such as nu or xonsh.
+  React.useEffect(() => {
+    let current = true
+    void detectLocalShellName({
+      terminalShell,
+      terminalShellCustomPath: customPath,
+    }).then((name) => {
+      if (current) setDefaultShell(name)
+    })
+    return () => {
+      current = false
+    }
+  }, [customPath, terminalShell])
 
   const save = (next: TabIconConfig) => {
     setIcons(next)
@@ -68,7 +85,7 @@ export function TabIconSettings() {
       {icons.enabled && (
         <SettingsRow title={t("tabIcons.byShell")} description={t("tabIcons.byShellDescription")}>
           <div className="divide-border divide-y">
-            {shellsForSettings(getDetectedPlatform(), icons).map((key) => {
+            {shellsForSettings(getDetectedPlatform(), icons, [defaultShell]).map((key) => {
               const builtIn = builtInShellIcon(key)
               const style = icons.shells[key]
               const open = editing === key
