@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { getTabPinMenuAction, getTabSplitMenuActions } from "@/lib/tabMenuActions"
+import {
+  getTabPinMenuAction,
+  getTabSplitMenuActions,
+  getWorkspaceTabMenuActions,
+} from "@/lib/tabMenuActions"
 
 const t = ((key: string) => key) as Parameters<typeof getTabSplitMenuActions>[1]
 
@@ -24,5 +28,22 @@ describe("getTabPinMenuAction", () => {
     expect(actions({ type: "ssh", connectionHeaderPinned: false })).toEqual(["pin-header"])
     expect(actions({ type: "ssh" })).toEqual(["unpin-header"])
     expect(actions({ type: "terminal" })).toEqual([])
+  })
+})
+
+describe("getWorkspaceTabMenuActions", () => {
+  const actions = (tab: Parameters<typeof getWorkspaceTabMenuActions>[0], ids = [tab.id]) =>
+    getWorkspaceTabMenuActions(tab, ids, t).map((item) => item.action)
+
+  it("offers a page only a new tab and closing", () => {
+    const page = actions({ id: "a", title: "Settings", type: "settings", isActive: true })
+    expect(page.slice(0, 3)).toEqual(["new", "", "close"])
+    expect(page).not.toContain("rename")
+  })
+
+  it("offers a terminal its copies, splits, renaming and logging", () => {
+    expect(actions({ id: "a", title: "tTerm", type: "terminal", isActive: true })).toEqual(
+      expect.arrayContaining(["duplicate", "split-right", "rename", "close"])
+    )
   })
 })

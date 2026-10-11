@@ -47,9 +47,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { isPageTab, type SavedProfile, type Tab, type TabContextMenuAction } from "@/types/tab"
 import type { TerminalInputRequest } from "@/types/broadcast"
 import { withLocalCwd } from "@/lib/localTabTitle"
-import { getTabCloseMenuActions } from "@/lib/tabClosing"
-import { getTabPinMenuAction, getTabSplitMenuActions } from "@/lib/tabMenuActions"
-import { getTabLogMenuActions } from "@/lib/terminalLogRecording"
+import { getWorkspaceTabMenuActions } from "@/lib/tabMenuActions"
 import type { LiveBroadcastState } from "@/types/broadcast"
 import type { ExecutedCommand } from "@/types/command"
 import type { TerminalAttentionEvent } from "@/lib/terminalNotifications"
@@ -211,46 +209,6 @@ function useDockPanelState(api: IDockviewPanelProps["api"]) {
   return state
 }
 
-function getTabActions(
-  tab: Tab,
-  tabIds: string[],
-  t: ReturnType<typeof useTranslation>["t"]
-): TabContextMenuAction[] {
-  const commonStart: TabContextMenuAction[] = [
-    { label: t("contextMenu.newTab"), action: "new", icon: "plus" },
-  ]
-  const commonEnd: TabContextMenuAction[] = [
-    { separator: true, label: "", action: "" },
-    ...getTabCloseMenuActions(tabIds, tab.id, {
-      closeTab: t("contextMenu.closeTab"),
-      closeOtherTabs: t("contextMenu.closeOtherTabs"),
-      closeTabsToLeft: t("contextMenu.closeTabsToLeft"),
-      closeTabsToRight: t("contextMenu.closeTabsToRight"),
-    }),
-  ]
-
-  if (isPageTab(tab)) {
-    return [...commonStart, ...commonEnd]
-  }
-
-  const editConnectionAction: TabContextMenuAction | null =
-    tab.type === "ssh" && tab.connection?.profileId
-      ? { label: t("contextMenu.editConnection"), action: "edit-connection", icon: "edit" }
-      : null
-  const logActions = getTabLogMenuActions(tab, t)
-
-  return [
-    ...commonStart,
-    { label: t("contextMenu.duplicateTab"), action: "duplicate", icon: "copy" },
-    ...getTabSplitMenuActions(tab, t),
-    { label: t("contextMenu.renameTab"), action: "rename", icon: "edit" },
-    ...(editConnectionAction ? [editConnectionAction] : []),
-    ...getTabPinMenuAction(tab, t),
-    ...logActions,
-    ...commonEnd,
-  ]
-}
-
 const WorkspaceTab = React.memo(function WorkspaceTab({
   api,
   params,
@@ -275,7 +233,7 @@ const WorkspaceTab = React.memo(function WorkspaceTab({
         onTabContextMenu(
           event,
           tab,
-          getTabActions(
+          getWorkspaceTabMenuActions(
             tab,
             api.group.panels.map((panel) => panel.id),
             t
