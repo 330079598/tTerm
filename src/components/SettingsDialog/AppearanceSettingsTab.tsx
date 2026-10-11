@@ -33,9 +33,9 @@ import {
   isWindowBlurSupported,
   WINDOW_BLUR_RADIUS_RANGE,
   WINDOW_OPACITY_PERCENT_RANGE,
-  type TabWidthMode,
   type WindowBlurMaterial,
 } from "@/contexts/ConfigContext"
+import type { TabWidthMode } from "@/lib/tabSettings"
 import { setWindowBlur } from "@/lib/themePreloader"
 import { useSyncedState } from "@/hooks/useSyncedState"
 import type { CustomTheme, PresetTheme, PresetThemeId } from "@/types/theme"

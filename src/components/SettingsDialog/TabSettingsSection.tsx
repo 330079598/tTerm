@@ -6,9 +6,9 @@ import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/Settin
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
-import type { TabWidthMode } from "@/contexts/ConfigContext"
 import { useSyncedState } from "@/hooks/useSyncedState"
 import { isImeKeyEvent } from "@/lib/ime"
+import type { TabWidthMode } from "@/lib/tabSettings"
 
 interface TabSettingsSectionProps {
   handleTabStandardWidthChange: (width: number) => Promise<boolean>

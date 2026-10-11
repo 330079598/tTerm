@@ -10,11 +10,11 @@ import { Tabs, TabsContent } from "@/components/ui/tabs"
 import {
   type BackgroundThrottling,
   type CloseBehavior,
-  type TabWidthMode,
   type TerminalRenderer,
   type WindowBlurMaterial,
   useConfig,
 } from "@/contexts/ConfigContext"
+import type { TabWidthMode } from "@/lib/tabSettings"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
 import { useSettingsSave } from "@/hooks/useSettingsSave"

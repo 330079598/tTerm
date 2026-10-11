@@ -22,6 +22,7 @@ import {
   normalizeMonitorVisibleMetrics,
   type MonitorMetricId,
 } from "@/lib/monitorMetrics"
+import { DEFAULT_TAB_SETTINGS, normalizeTabSettings, type TabSettings } from "@/lib/tabSettings"
 
 export interface SecretBackendStatus {
   storageMode: SecretStorageMode
@@ -39,7 +40,6 @@ export interface SecretBackendStatus {
 
 /** Where the key that unlocks saved passwords comes from. */
 export type SecretStorageMode = "system" | "password" | "memory"
-export type TabWidthMode = "adaptive" | "standard"
 export type TerminalLogFormat = "raw" | "plain" | "both"
 export type TerminalRenderer = "webgl" | "canvas"
 /** What WebKit does with the page while the window is hidden (macOS 14+). */
@@ -115,7 +115,7 @@ export interface SavedSecretEntry {
   kind: string
 }
 
-export interface AppConfig {
+export interface AppConfig extends TabSettings {
   theme: string
   /** Show `theme_light` or `theme_dark` with the system's appearance instead of `theme`. */
   theme_follow_system: boolean
@@ -148,8 +148,6 @@ export interface AppConfig {
   update_channel: "stable" | "beta-dev"
   auto_download_updates: boolean
   update_check_frequency: UpdateCheckFrequency
-  tab_width_mode: TabWidthMode
-  tab_standard_width: number
   terminal_log_enabled: boolean
   terminal_log_directory: string
   terminal_log_format: TerminalLogFormat
@@ -266,8 +264,7 @@ const defaultConfig: AppConfig = {
   update_channel: defaultUpdateChannel,
   auto_download_updates: true,
   update_check_frequency: "daily",
-  tab_width_mode: "adaptive",
-  tab_standard_width: 120,
+  ...DEFAULT_TAB_SETTINGS,
   terminal_log_enabled: false,
   terminal_log_directory: "",
   terminal_log_format: "both",
@@ -357,14 +354,6 @@ function normalizeAgentConfigDirs(
       (entry): entry is [string, string] => typeof entry[1] === "string" && entry[1] !== ""
     )
   )
-}
-
-function normalizeTabStandardWidth(value: Partial<AppConfig>["tab_standard_width"]): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 120
-  }
-
-  return Math.min(Math.max(Math.round(value), 80), 300)
 }
 
 function normalizeTerminalLogFileSize(
@@ -506,8 +495,7 @@ function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     terminal_padding_right_px: normalizeTerminalPadding(config.terminal_padding_right_px, 0),
     terminal_padding_bottom_px: normalizeTerminalPadding(config.terminal_padding_bottom_px, 0),
     update_check_frequency: normalizeUpdateCheckFrequency(config.update_check_frequency),
-    tab_width_mode: config.tab_width_mode === "standard" ? "standard" : "adaptive",
-    tab_standard_width: normalizeTabStandardWidth(config.tab_standard_width),
+    ...normalizeTabSettings(config),
     terminal_log_enabled: config.terminal_log_enabled === true,
     terminal_log_directory:
       typeof config.terminal_log_directory === "string" ? config.terminal_log_directory : "",

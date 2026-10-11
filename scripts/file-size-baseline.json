@@ -44,6 +44,6 @@
   "src/components/TTermApp.tsx": 2205,
   "src/components/TTermApp/TabPanels.tsx": 1098,
   "src/components/TunnelsPanel/index.tsx": 691,
-  "src/contexts/ConfigContext.tsx": 991,
+  "src/contexts/ConfigContext.tsx": 979,
   "src/contexts/ThemeContext.tsx": 654
 }
