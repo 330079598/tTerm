@@ -126,7 +126,7 @@ fn key_for(password: &str, kdf: &KdfSpec) -> Result<Zeroizing<[u8; 32]>, String>
     let salt = BASE64
         .decode(&kdf.salt_b64)
         .map_err(|_| "Sync file key salt is invalid.".to_string())?;
-    let key = Zeroizing::new(crate::backup::derive_key(
+    let key = Zeroizing::new(crate::backup::archive::derive_key(
         password,
         &salt,
         kdf.memory_kib,

@@ -3,11 +3,11 @@
 //! password and the server password are kept with the other saved passwords,
 //! so scheduled uploads can include credentials and need no prompt.
 
+use super::archive::build_archive;
+use super::diff::value_array_len;
+use super::export::collect_payload;
 use super::webdav::{split_remote_directory, DavEntry, WebDavClient};
-use super::{
-    build_archive, collect_payload, normalized_backup_path, value_array_len, BackupSelection,
-    MAX_BACKUP_SIZE,
-};
+use super::{normalized_backup_path, BackupSelection, MAX_BACKUP_SIZE};
 use crate::config;
 use crate::core::blocking::run_blocking;
 use crate::db::meta;
@@ -930,9 +930,8 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn live_archive_upload_prune_and_restore() {
-        use super::super::{
-            build_archive_for_version, decode_archive, BackupPayload, MigrationSecretRecord,
-        };
+        use super::super::archive::{build_archive_for_version, decode_archive};
+        use super::super::{BackupPayload, MigrationSecretRecord};
 
         let env = |name: &str| std::env::var(name).unwrap_or_else(|_| panic!("{name} is not set"));
         let client = WebDavClient::new(

@@ -91,7 +91,7 @@ pub(crate) fn import_settings_files(database: &Database, config_dir: &Path) -> R
         crate::app_state::import_from_config_file(database, config_dir),
         crate::session::import_file(database, config_dir),
         crate::config::window_background::import_file(database, config_dir),
-        crate::backup::import_settings_files(database, config_dir),
+        crate::backup::automatic::import_settings_files(database, config_dir),
         crate::sync::import_settings_file(database, config_dir),
     ]
     .into_iter()
@@ -372,7 +372,8 @@ mod tests {
                     Some((0x11, 0x22, 0x33))
                 );
 
-                let automatic = crate::backup::read_automatic_backup_settings(connection)?;
+                let automatic =
+                    crate::backup::automatic::read_automatic_backup_settings(connection)?;
                 assert_eq!(automatic.frequency, "weekly");
                 assert_eq!(automatic.retention_count, 5);
                 assert_eq!(automatic.last_backup_at, Some(77));

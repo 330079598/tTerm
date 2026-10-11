@@ -447,7 +447,7 @@ async fn apply(
     if !changed.is_empty() && (union || deletes) {
         let (app, secret_state) = (app.clone(), secret_state.clone());
         let path = run_blocking(move || {
-            crate::backup::create_recovery_backup(
+            crate::backup::automatic::create_recovery_backup(
                 &app,
                 RECOVERY_PREFIX,
                 frontend_state,
