@@ -753,6 +753,23 @@ fn imported_settings_keep_this_devices_unlock_mode_and_missing_paths() {
 }
 
 #[test]
+fn imported_settings_bring_their_tab_icons_along() {
+    let mut imported = AppConfig::default();
+    imported.tab_icons.enabled = false;
+    imported.tab_icons.shells.insert(
+        "pwsh".to_string(),
+        crate::config::tab_icons::TabIconStyle {
+            icon: Some("rocket".to_string()),
+            color: Some("#e5534b".to_string()),
+        },
+    );
+    let expected = imported.tab_icons.clone();
+
+    keep_device_settings(&mut imported, AppConfig::default());
+    assert_eq!(imported.tab_icons, expected);
+}
+
+#[test]
 fn missing_key_files_are_listed_once_with_the_profiles_using_them() {
     let present = std::env::current_exe().unwrap();
     let present = present.to_string_lossy();

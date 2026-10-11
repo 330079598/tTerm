@@ -534,3 +534,18 @@ pub(crate) fn apply_settings(merged: &Collection) -> Result<(), String> {
         .map_err(|error| format!("Synced settings are invalid: {error}"))?;
     crate::config::save_config_file(&config)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::SYNCED_SETTINGS;
+    use crate::config::AppConfig;
+
+    #[test]
+    fn every_synced_setting_names_a_config_field() {
+        let config = serde_json::to_value(AppConfig::default()).unwrap();
+        for key in SYNCED_SETTINGS {
+            assert!(config.get(key).is_some(), "{key} is not a config field");
+        }
+        assert!(SYNCED_SETTINGS.contains(&"tab_icons"));
+    }
+}
