@@ -15,6 +15,7 @@
     "lint:fix": "eslint src --fix",
     "format": "prettier --write src",
     "format:check": "prettier --check src",
+    "typecheck": "tsc --noEmit",
     "check:size": "node scripts/check-file-size.mjs",
     "themes:update": "node scripts/update-themes.mjs",
     "licenses": "node scripts/gen-licenses.mjs --force"
