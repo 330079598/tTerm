@@ -20,6 +20,7 @@ import {
 import { installImeCursorGuard } from "@/components/TerminalTab/imeCursorGuard"
 import { installImeEarlyInputFix } from "@/components/TerminalTab/imeEarlyInput"
 import { installImeFocusRepair } from "@/components/TerminalTab/imeFocusRepair"
+import { watchAttentionReports } from "@/components/TerminalTab/attentionReports"
 import { watchCwdReports } from "@/components/TerminalTab/cwdReports"
 import { OutputAcker } from "@/components/TerminalTab/outputAck"
 import { disposeRendererAddon, renderAllRowsNow } from "@/components/TerminalTab/rendererRelease"
@@ -48,16 +49,9 @@ import {
 } from "@/lib/terminalOutputScanner"
 import { matchPasswordPrompt, readCursorLine, type PasswordPromptMatch } from "@/lib/sudoPrompt"
 import { LoginScriptRunner, parseLoginScript } from "@/lib/loginScript"
-import { AgentTracker, parseAgentReport } from "@/lib/agentStatus"
+import { AgentTracker } from "@/lib/agentStatus"
 import { setTabAgentStatus, setTabRunningCommand } from "@/lib/tabAttention"
-import {
-  CommandTimer,
-  KittyNotificationAssembler,
-  NOTIFICATION_OSC_CODES,
-  parseOsc777Notification,
-  parseOsc9Notification,
-  type TerminalAttentionEvent,
-} from "@/lib/terminalNotifications"
+import { CommandTimer, type TerminalAttentionEvent } from "@/lib/terminalNotifications"
 import {
   captureTerminalInput,
   EMPTY_COMMAND_CAPTURE_STATE,
@@ -699,29 +693,10 @@ export function useTerminalLifecycle({
       })
     )
 
-    // Programs asking for a notification. Returns false like the directory
-    // reports below, so an OSC 9 reaches both handlers.
-    const kittyNotifications = new KittyNotificationAssembler()
-    const notificationDisposables = NOTIFICATION_OSC_CODES.map((osc) =>
-      term.parser.registerOscHandler(osc, (data) => {
-        const report = osc === 777 ? parseAgentReport(data) : null
-        if (report) {
-          agentTracker.report(report)
-          return false
-        }
-        // An agent's own notifications repeat what its reports say.
-        if (agentTracker.speaksForAgent) return false
-        const request =
-          osc === 9
-            ? parseOsc9Notification(data)
-            : osc === 777
-              ? parseOsc777Notification(data)
-              : kittyNotifications.handle(data)
-        if (request) onAttentionRef.current?.({ kind: "request", ...request })
-        return false
-      })
-    )
-    const bellDisposable = term.onBell(() => onAttentionRef.current?.({ kind: "bell" }))
+    const attentionReports = watchAttentionReports(term, {
+      agentTracker,
+      onAttention: (event) => onAttentionRef.current?.(event),
+    })
 
     // A local shell's directory, for the tab to restart in.
     const cwdReports = watchCwdReports(term, {
@@ -1060,8 +1035,7 @@ export function useTerminalLifecycle({
       onSavedPasswordPromptChange?.(tabId, sessionNonce, null)
       for (const disposable of scrollbackDisposables) disposable.dispose()
       for (const disposable of shellIntegrationDisposables) disposable.dispose()
-      for (const disposable of notificationDisposables) disposable.dispose()
-      bellDisposable.dispose()
+      attentionReports.dispose()
       agentTracker.reset()
       commandTimer.prompt()
       commandMarks.dispose()
