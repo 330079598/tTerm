@@ -17,6 +17,11 @@ import { setWindowBlur } from "@/lib/themePreloader"
 import { normalizeVerificationMethod, type VerificationMethod } from "@/lib/userVerification"
 import type { UpdateCheckFrequency } from "@/lib/updater"
 import { DEFAULT_KEYMAP_CONFIG, normalizeKeymap, type KeymapConfig } from "@/lib/keymap/keymap"
+import {
+  DEFAULT_MONITOR_VISIBLE_METRICS,
+  normalizeMonitorVisibleMetrics,
+  type MonitorMetricId,
+} from "@/lib/monitorMetrics"
 
 export interface SecretBackendStatus {
   storageMode: SecretStorageMode
@@ -44,24 +49,6 @@ export type CloseBehavior = "ask" | "tray" | "quit"
 export type WindowBlurMaterial = "acrylic" | "mica"
 /** What the terminal bell does: flash the terminal, play a tone, or nothing. */
 export type BellStyle = "visual" | "sound" | "none"
-export type MonitorMetricId =
-  "cpu" | "memory" | "network" | "ip" | "latency" | "disk" | "load" | "uptime"
-
-export const DEFAULT_MONITOR_VISIBLE_METRICS: MonitorMetricId[] = [
-  "cpu",
-  "memory",
-  "network",
-  "ip",
-  "latency",
-  "disk",
-]
-
-const MONITOR_METRIC_IDS = new Set<MonitorMetricId>([
-  ...DEFAULT_MONITOR_VISIBLE_METRICS,
-  "load",
-  "uptime",
-])
-
 export function applyUiScalePercent(scale: number) {
   const rootStyle = document.documentElement.style
   const factor = scale / 100
@@ -370,20 +357,6 @@ function normalizeAgentConfigDirs(
       (entry): entry is [string, string] => typeof entry[1] === "string" && entry[1] !== ""
     )
   )
-}
-
-function normalizeMonitorVisibleMetrics(
-  value: Partial<AppConfig>["monitor_visible_metrics"]
-): MonitorMetricId[] {
-  if (!Array.isArray(value)) {
-    return [...DEFAULT_MONITOR_VISIBLE_METRICS]
-  }
-
-  const metrics = value.filter(
-    (item, index): item is MonitorMetricId =>
-      MONITOR_METRIC_IDS.has(item as MonitorMetricId) && value.indexOf(item) === index
-  )
-  return metrics.length > 0 ? metrics : [...DEFAULT_MONITOR_VISIBLE_METRICS]
 }
 
 function normalizeTabStandardWidth(value: Partial<AppConfig>["tab_standard_width"]): number {

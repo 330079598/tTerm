@@ -27,12 +27,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
-import {
-  DEFAULT_MONITOR_VISIBLE_METRICS,
-  RECONNECT_MAX_ATTEMPTS_MAX,
-  RECONNECT_MAX_ATTEMPTS_MIN,
-  type MonitorMetricId,
-} from "@/contexts/ConfigContext"
+import { RECONNECT_MAX_ATTEMPTS_MAX, RECONNECT_MAX_ATTEMPTS_MIN } from "@/contexts/ConfigContext"
+import { DEFAULT_MONITOR_VISIBLE_METRICS, type MonitorMetricId } from "@/lib/monitorMetrics"
 import { useSyncedState } from "@/hooks/useSyncedState"
 import { isImeKeyEvent } from "@/lib/ime"
 import { isValidPromptPattern } from "@/lib/sudoPrompt"

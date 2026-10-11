@@ -18,7 +18,7 @@ import type { TFunction } from "i18next"
 import type { TerminalTabProps } from "@/components/TerminalTab/types"
 import { ServerMonitorPanel } from "@/components/TerminalTab/ServerMonitorPanel"
 import { useConfig } from "@/contexts/ConfigContext"
-import type { MonitorMetricId } from "@/contexts/ConfigContext"
+import type { MonitorMetricId } from "@/lib/monitorMetrics"
 import { useToast } from "@/hooks/use-toast"
 import { toErrorMessage } from "@/lib/utils"
 

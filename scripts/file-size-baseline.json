@@ -18,7 +18,7 @@
   "src/components/NewTabLauncher.tsx": 515,
   "src/components/ProfilesPanel.tsx": 669,
   "src/components/SettingsDialog/AppearanceSettingsTab.tsx": 700,
-  "src/components/SettingsDialog/ConnectionSettingsTab.tsx": 534,
+  "src/components/SettingsDialog/ConnectionSettingsTab.tsx": 530,
   "src/components/SettingsDialog/DataMigrationSettingsTab.tsx": 1132,
   "src/components/SettingsDialog/FontSettingsTab.tsx": 700,
   "src/components/SettingsDialog/index.tsx": 953,
@@ -44,6 +44,6 @@
   "src/components/TTermApp.tsx": 2205,
   "src/components/TTermApp/TabPanels.tsx": 1140,
   "src/components/TunnelsPanel/index.tsx": 691,
-  "src/contexts/ConfigContext.tsx": 1018,
+  "src/contexts/ConfigContext.tsx": 991,
   "src/contexts/ThemeContext.tsx": 654
 }
