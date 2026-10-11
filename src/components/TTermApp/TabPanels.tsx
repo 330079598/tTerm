@@ -32,15 +32,13 @@ import {
   PanelTop,
   PanelsTopLeft,
   Rows2,
-  Settings,
-  Waypoints,
-  ScrollText,
   X,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { TabAttentionDot } from "@/components/TabAttentionDot"
+import { TabIcon } from "@/components/TabIcon"
 import { TabLogIndicator } from "@/components/TabLogIndicator"
 import { TabTitle } from "@/components/TabTitle"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
@@ -285,9 +283,7 @@ const WorkspaceTab = React.memo(function WorkspaceTab({
         )
       }
     >
-      {tab.type === "settings" && <Settings size={13} aria-hidden="true" />}
-      {tab.type === "tunnels" && <Waypoints size={13} aria-hidden="true" />}
-      {tab.type === "logs" && <ScrollText size={13} aria-hidden="true" />}
+      <TabIcon tab={tab} />
       <TabAttentionDot tabId={tab.id} />
       <TabLogIndicator tabId={tab.id} />
       <TabTitle tab={tab} className="workspace-tab-title" />

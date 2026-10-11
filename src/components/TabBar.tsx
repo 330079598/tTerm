@@ -2,17 +2,9 @@ import "@/components/TabBar.css"
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useTranslation } from "react-i18next"
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ScrollText,
-  Search,
-  Settings,
-  Waypoints,
-  X,
-} from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, Search, X } from "lucide-react"
 import { TabAttentionDot } from "@/components/TabAttentionDot"
+import { TabIcon } from "@/components/TabIcon"
 import { TabLogIndicator } from "@/components/TabLogIndicator"
 import { TabTitle } from "@/components/TabTitle"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -219,9 +211,7 @@ const TabItem = React.memo(function TabItem({
           onPointerDown={(event) => onPointerDown(event, tab.id)}
         >
           <span className="tab-number">{index + 1}</span>
-          {tab.type === "settings" && <Settings className="tab-icon" size={13} />}
-          {tab.type === "tunnels" && <Waypoints className="tab-icon" size={13} />}
-          {tab.type === "logs" && <ScrollText className="tab-icon" size={13} />}
+          <TabIcon tab={tab} className="tab-icon" />
           <TabAttentionDot tabId={tab.id} />
           <TabLogIndicator tabId={tab.id} />
           <TabTitle tab={tab} className="tab-title" />
@@ -1053,9 +1043,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                         onClick={() => handleSelectTab(tab.id)}
                       >
                         <span className="tab-overflow-number">{tabIndex + 1}</span>
-                        {tab.type === "settings" && <Settings className="tab-icon" size={13} />}
-                        {tab.type === "tunnels" && <Waypoints className="tab-icon" size={13} />}
-                        {tab.type === "logs" && <ScrollText className="tab-icon" size={13} />}
+                        <TabIcon tab={tab} className="tab-icon" />
                         <TabAttentionDot tabId={tab.id} />
                         <span className="tab-overflow-title">{tab.title}</span>
                         {connectionMeta.primary && (
@@ -1089,9 +1077,7 @@ export const TabBar: React.FC<TabBarProps> = ({
       {dragGhostTab &&
         createPortal(
           <div ref={dragGhostRef} className="tab-drag-ghost" aria-hidden="true">
-            {dragGhostTab.type === "settings" && <Settings className="tab-icon" size={13} />}
-            {dragGhostTab.type === "tunnels" && <Waypoints className="tab-icon" size={13} />}
-            {dragGhostTab.type === "logs" && <ScrollText className="tab-icon" size={13} />}
+            <TabIcon tab={dragGhostTab} className="tab-icon" />
             <span className="tab-drag-ghost-title">{dragGhostTab.title}</span>
           </div>,
           document.body
