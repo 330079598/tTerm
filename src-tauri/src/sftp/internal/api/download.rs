@@ -945,6 +945,7 @@ mod tests {
     }
 
     /// The same plan against OpenSSH's own `sftp-server`.
+    #[cfg(unix)]
     #[tokio::test]
     #[ignore = "spawns a real sshd; run with --ignored real_sshd"]
     async fn real_sshd_plans_files_and_folders_of_a_selection() {
