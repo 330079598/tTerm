@@ -392,7 +392,7 @@ pub(crate) fn all_profile_groups(connection: &Connection) -> Result<Vec<String>,
     for profile in list_saved_profiles(connection)? {
         push_unique_group(&mut groups, normalize_group_name(&profile.group));
     }
-    groups.sort_by(|left, right| left.to_lowercase().cmp(&right.to_lowercase()));
+    groups.sort_by_key(|group| group.to_lowercase());
     Ok(groups)
 }
 

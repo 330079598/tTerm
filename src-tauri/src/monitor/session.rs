@@ -2,7 +2,7 @@ use super::metrics::parse_metrics_output;
 use super::types::{MonitorSession, MonitorSessionMap, MONITOR_SESSION_IDLE_TIMEOUT};
 use crate::core::session::SessionPlan;
 use crate::core::state::HostPromptMap;
-use crate::ssh::{open_target_ssh_session, ConnectionStatusOptions};
+use crate::ssh::{open_target_ssh_session, ConnectContext, ConnectionStatusOptions, SshTarget};
 use russh::ChannelMsg;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
@@ -138,23 +138,16 @@ pub(crate) async fn get_or_open_monitor_session(
         .ok_or_else(|| "SSH username is required".to_string())?;
 
     let (jump_chain, ssh) = open_target_ssh_session(
-        &app,
-        tab_id,
-        plan.profile_id.as_deref(),
-        &plan.profile_name,
-        &host,
-        plan.port,
-        &username,
-        plan.auth_method(),
-        plan.agent_forward,
-        plan.keepalive_interval_secs,
-        plan.keepalive_count_max,
-        &plan.jump_hosts,
-        prompts,
-        ConnectionStatusOptions::QUIET,
-        crate::ssh::HostKeyVerificationMode::PromptAndPersist,
-        // Monitoring starts on its own; a prompt would appear out of nowhere.
-        &crate::ssh::AuthPrompter::Unavailable,
+        ConnectContext {
+            app,
+            tab_id,
+            prompts: &prompts,
+            status_options: ConnectionStatusOptions::QUIET,
+            host_key_verification_mode: crate::ssh::HostKeyVerificationMode::PromptAndPersist,
+            // Monitoring starts on its own; a prompt would appear out of nowhere.
+            auth_prompter: &crate::ssh::AuthPrompter::Unavailable,
+        },
+        SshTarget::from_plan(plan, &host, &username),
     )
     .await
     .map_err(|error| {

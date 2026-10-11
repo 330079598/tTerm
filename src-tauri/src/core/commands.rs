@@ -48,6 +48,10 @@ fn stop_pty_session(
 /// waiting for the session map, and starting the shell (ConPTY, or the login
 /// shell environment on macOS) would otherwise freeze the window.
 #[tauri::command]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a Tauri command's arguments are its IPC fields and injected state"
+)]
 pub async fn create_pty(
     app: AppHandle,
     webview: tauri::Webview,
@@ -597,13 +601,14 @@ mod batch_write_tests {
         }
     }
 
-    fn writable_ssh_target(
-        runtime: &tokio::runtime::Runtime,
-    ) -> (
+    /// A broadcast target, its session slot, and what it receives as input.
+    type WritableTarget = (
         BatchTarget,
         Arc<TokioMutex<Option<ActiveSession>>>,
         mpsc::UnboundedReceiver<Vec<u8>>,
-    ) {
+    );
+
+    fn writable_ssh_target(runtime: &tokio::runtime::Runtime) -> WritableTarget {
         let (input_tx, input_rx) = mpsc::unbounded_channel();
         let (resize_tx, _) = mpsc::unbounded_channel();
         let active = Arc::new(TokioMutex::new(Some(ActiveSession::Ssh(
@@ -848,6 +853,10 @@ pub fn has_saved_password(
 }
 
 #[tauri::command]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a Tauri command's arguments are its IPC fields and injected state"
+)]
 pub fn has_saved_jump_host_password(
     app: AppHandle,
     profile_id: Option<String>,
@@ -861,11 +870,13 @@ pub fn has_saved_jump_host_password(
     Ok(super::session::load_saved_jump_host_password(
         &app,
         &secret_state,
-        profile_id.as_deref(),
-        profile_name.as_deref(),
-        host.as_deref(),
-        port,
-        username.as_deref(),
+        super::session::JumpHostSecretOwner {
+            profile_id: profile_id.as_deref(),
+            profile_name: profile_name.as_deref(),
+            host: host.as_deref(),
+            port,
+            username: username.as_deref(),
+        },
         allow_legacy_fallback.unwrap_or(false),
     )?
     .is_some())
@@ -903,6 +914,10 @@ pub fn has_saved_sudo_password(
 /// is still the session's last output line. Returns false when there is no
 /// saved password, the session moved on, or the prompt is no longer waiting.
 #[tauri::command]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a Tauri command's arguments are its IPC fields and injected state"
+)]
 pub fn write_saved_password_for_sudo(
     app: AppHandle,
     tab_id: String,

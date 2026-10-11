@@ -1,6 +1,6 @@
 use super::config::{compatibility_client_config, unverifiable_host_key_error};
 use super::handler::JumpHostHandler;
-use crate::core::session::JumpHostPlan;
+use crate::core::session::{JumpHostPlan, SessionPlan};
 use crate::core::state::HostPromptMap;
 use crate::ssh::auth::{authenticate, AuthMethod, AuthPrompter, AuthTarget};
 use crate::ssh::types::{
@@ -12,6 +12,53 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
+
+/// What every hop of one connection shares: where it reports progress and how
+/// it asks the user about host keys and credentials.
+#[derive(Clone, Copy)]
+pub struct ConnectContext<'a> {
+    pub app: &'a AppHandle,
+    pub tab_id: &'a str,
+    pub prompts: &'a HostPromptMap,
+    pub status_options: ConnectionStatusOptions,
+    pub host_key_verification_mode: HostKeyVerificationMode,
+    pub auth_prompter: &'a AuthPrompter,
+}
+
+/// The host a connection ends at, how to log in to it, and the jump hosts on
+/// the way there.
+#[derive(Clone, Copy)]
+pub struct SshTarget<'a> {
+    pub profile_id: Option<&'a str>,
+    pub profile_name: &'a str,
+    pub host: &'a str,
+    pub port: u16,
+    pub username: &'a str,
+    pub auth: AuthMethod<'a>,
+    pub agent_forward: bool,
+    pub keepalive_interval_secs: u16,
+    pub keepalive_count_max: u16,
+    pub jump_hosts: &'a [JumpHostPlan],
+}
+
+impl<'a> SshTarget<'a> {
+    /// The target `plan` connects to. The plan leaves host and username
+    /// optional, so the caller passes them in once it has checked them.
+    pub fn from_plan(plan: &'a SessionPlan, host: &'a str, username: &'a str) -> Self {
+        Self {
+            profile_id: plan.profile_id.as_deref(),
+            profile_name: &plan.profile_name,
+            host,
+            port: plan.port,
+            username,
+            auth: plan.auth_method(),
+            agent_forward: plan.agent_forward,
+            keepalive_interval_secs: plan.keepalive_interval_secs,
+            keepalive_count_max: plan.keepalive_count_max,
+            jump_hosts: &plan.jump_hosts,
+        }
+    }
+}
 
 /// Authenticates one hop of the chain with its configured method.
 async fn authenticate_jump_host(
@@ -48,27 +95,23 @@ fn format_jump_host_connect_error(error: &russh::Error) -> String {
 }
 
 fn build_jump_handler(
-    app: &AppHandle,
-    tab_id: &str,
+    ctx: ConnectContext<'_>,
     jump_plan: &JumpHostPlan,
     hop_index: usize,
     total_hops: usize,
-    prompts: HostPromptMap,
-    status_options: ConnectionStatusOptions,
-    host_key_verification_mode: HostKeyVerificationMode,
 ) -> JumpHostHandler {
     JumpHostHandler {
-        app: app.clone(),
-        tab_id: tab_id.to_string(),
+        app: ctx.app.clone(),
+        tab_id: ctx.tab_id.to_string(),
         host: jump_plan.host.clone(),
         port: jump_plan.port,
         hop_index,
         total_hops,
-        prompts,
+        prompts: ctx.prompts.clone(),
         user_rejected_host_key: Arc::new(AtomicBool::new(false)),
         failure_reason: Arc::new(Mutex::new(None)),
-        status_options,
-        host_key_verification_mode,
+        status_options: ctx.status_options,
+        host_key_verification_mode: ctx.host_key_verification_mode,
     }
 }
 
@@ -100,26 +143,19 @@ fn map_jump_connect_error(
 }
 
 async fn connect_jump_direct(
-    app: &AppHandle,
-    tab_id: &str,
+    ctx: ConnectContext<'_>,
     jump_plan: &JumpHostPlan,
     hop_index: usize,
     total_hops: usize,
-    prompts: HostPromptMap,
-    status_options: ConnectionStatusOptions,
-    host_key_verification_mode: HostKeyVerificationMode,
-    auth_prompter: &AuthPrompter,
 ) -> Result<client::Handle<JumpHostHandler>, SshConnectError> {
-    let jump_handler = build_jump_handler(
+    let ConnectContext {
         app,
         tab_id,
-        jump_plan,
-        hop_index,
-        total_hops,
-        prompts,
         status_options,
-        host_key_verification_mode,
-    );
+        auth_prompter,
+        ..
+    } = ctx;
+    let jump_handler = build_jump_handler(ctx, jump_plan, hop_index, total_hops);
     let host_key_rejected = jump_handler.user_rejected_host_key.clone();
     let failure_reason = jump_handler.failure_reason.clone();
     let jump_config = Arc::new(compatibility_client_config(15, 3));
@@ -202,30 +238,23 @@ async fn connect_jump_direct(
 }
 
 async fn connect_jump_over_stream<S>(
-    app: &AppHandle,
-    tab_id: &str,
+    ctx: ConnectContext<'_>,
     jump_plan: &JumpHostPlan,
     hop_index: usize,
     total_hops: usize,
     stream: S,
-    prompts: HostPromptMap,
-    status_options: ConnectionStatusOptions,
-    host_key_verification_mode: HostKeyVerificationMode,
-    auth_prompter: &AuthPrompter,
 ) -> Result<client::Handle<JumpHostHandler>, SshConnectError>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
-    let jump_handler = build_jump_handler(
+    let ConnectContext {
         app,
         tab_id,
-        jump_plan,
-        hop_index,
-        total_hops,
-        prompts,
         status_options,
-        host_key_verification_mode,
-    );
+        auth_prompter,
+        ..
+    } = ctx;
+    let jump_handler = build_jump_handler(ctx, jump_plan, hop_index, total_hops);
     let host_key_rejected = jump_handler.user_rejected_host_key.clone();
     let failure_reason = jump_handler.failure_reason.clone();
     let jump_config = Arc::new(compatibility_client_config(15, 3));
@@ -318,21 +347,22 @@ impl Drop for JumpChain {
 /// on top of the final direct-tcpip stream. The returned `JumpChain` must stay
 /// alive for as long as the target session is used.
 pub async fn connect_via_jump_chain<H>(
-    app: &AppHandle,
-    tab_id: &str,
+    ctx: ConnectContext<'_>,
     jump_plans: &[JumpHostPlan],
     target_host: &str,
     target_port: u16,
     target_handler: H,
     target_config: Arc<client::Config>,
-    prompts: HostPromptMap,
-    status_options: ConnectionStatusOptions,
-    host_key_verification_mode: HostKeyVerificationMode,
-    auth_prompter: &AuthPrompter,
 ) -> Result<(JumpChain, client::Handle<H>), SshConnectError>
 where
     H: client::Handler<Error = russh::Error> + Send + 'static,
 {
+    let ConnectContext {
+        app,
+        tab_id,
+        status_options,
+        ..
+    } = ctx;
     if jump_plans.is_empty() {
         return Err(SshConnectError::Permanent(
             "Jump host chain is empty".to_string(),
@@ -342,18 +372,7 @@ where
     let total_hops = jump_plans.len();
     let mut sessions = Vec::with_capacity(total_hops);
 
-    let first = connect_jump_direct(
-        app,
-        tab_id,
-        &jump_plans[0],
-        1,
-        total_hops,
-        prompts.clone(),
-        status_options,
-        host_key_verification_mode,
-        auth_prompter,
-    )
-    .await?;
+    let first = connect_jump_direct(ctx, &jump_plans[0], 1, total_hops).await?;
     sessions.push(first);
 
     for (index, jump_plan) in jump_plans.iter().enumerate().skip(1) {
@@ -402,16 +421,11 @@ where
             })?;
 
         let next = connect_jump_over_stream(
-            app,
-            tab_id,
+            ctx,
             jump_plan,
             hop_index,
             total_hops,
             tunnel_channel.into_stream(),
-            prompts.clone(),
-            status_options,
-            host_key_verification_mode,
-            auth_prompter,
         )
         .await?;
         sessions.push(next);
@@ -483,86 +497,54 @@ where
 /// Returns `(Option<jump_chain>, target_session)`.  The jump chain must be kept
 /// alive alongside the target session.
 pub async fn open_target_ssh_session(
-    app: &AppHandle,
-    tab_id: &str,
-    profile_id: Option<&str>,
-    profile_name: &str,
-    target_host: &str,
-    target_port: u16,
-    target_username: &str,
-    target_auth: AuthMethod<'_>,
-    target_agent_forward: bool,
-    keepalive_interval_secs: u16,
-    keepalive_count_max: u16,
-    jump_plans: &[JumpHostPlan],
-    prompts: HostPromptMap,
-    status_options: ConnectionStatusOptions,
-    host_key_verification_mode: HostKeyVerificationMode,
-    auth_prompter: &AuthPrompter,
+    ctx: ConnectContext<'_>,
+    target: SshTarget<'_>,
 ) -> Result<(Option<JumpChain>, client::Handle<SshClientHandler>), SshConnectError> {
-    open_target_ssh_session_with_forwarding(
-        app,
-        tab_id,
-        profile_id,
-        profile_name,
-        target_host,
-        target_port,
-        target_username,
-        target_auth,
-        target_agent_forward,
-        keepalive_interval_secs,
-        keepalive_count_max,
-        jump_plans,
-        prompts,
-        status_options,
-        host_key_verification_mode,
-        auth_prompter,
-        None,
-    )
-    .await
+    open_target_ssh_session_with_forwarding(ctx, target, None).await
 }
 
 pub async fn open_target_ssh_session_with_forwarding(
-    app: &AppHandle,
-    tab_id: &str,
-    profile_id: Option<&str>,
-    profile_name: &str,
-    target_host: &str,
-    target_port: u16,
-    target_username: &str,
-    target_auth: AuthMethod<'_>,
-    target_agent_forward: bool,
-    keepalive_interval_secs: u16,
-    keepalive_count_max: u16,
-    jump_plans: &[JumpHostPlan],
-    prompts: HostPromptMap,
-    status_options: ConnectionStatusOptions,
-    host_key_verification_mode: HostKeyVerificationMode,
-    auth_prompter: &AuthPrompter,
+    ctx: ConnectContext<'_>,
+    target: SshTarget<'_>,
     forwarded_tcpip_tx: Option<tokio::sync::mpsc::UnboundedSender<crate::ssh::ForwardedTcpIp>>,
 ) -> Result<(Option<JumpChain>, client::Handle<SshClientHandler>), SshConnectError> {
+    let ConnectContext {
+        app,
+        tab_id,
+        status_options,
+        auth_prompter,
+        ..
+    } = ctx;
+    let SshTarget {
+        host: target_host,
+        port: target_port,
+        username: target_username,
+        auth: target_auth,
+        ..
+    } = target;
+
     let target_config = Arc::new(compatibility_client_config(
-        keepalive_interval_secs as u64,
-        keepalive_count_max as usize,
+        target.keepalive_interval_secs as u64,
+        target.keepalive_count_max as usize,
     ));
 
     let handler = SshClientHandler {
         app: app.clone(),
         tab_id: tab_id.to_string(),
-        profile_id: profile_id.map(str::to_string),
-        profile_name: profile_name.to_string(),
+        profile_id: target.profile_id.map(str::to_string),
+        profile_name: target.profile_name.to_string(),
         host: target_host.to_string(),
         port: target_port,
-        prompts: prompts.clone(),
+        prompts: ctx.prompts.clone(),
         user_rejected_host_key: Arc::new(AtomicBool::new(false)),
         status_options,
-        host_key_verification_mode,
+        host_key_verification_mode: ctx.host_key_verification_mode,
         forwarded_tcpip_tx,
-        agent_forward_enabled: target_agent_forward,
+        agent_forward_enabled: target.agent_forward,
     };
     let host_key_rejected = handler.user_rejected_host_key.clone();
 
-    let (jump_chain_opt, mut target_session) = if jump_plans.is_empty() {
+    let (jump_chain_opt, mut target_session) = if target.jump_hosts.is_empty() {
         emit_connection_progress(
             app,
             tab_id,
@@ -589,17 +571,12 @@ pub async fn open_target_ssh_session_with_forwarding(
         (None, sess)
     } else {
         let (chain, target_sess) = connect_via_jump_chain(
-            app,
-            tab_id,
-            jump_plans,
+            ctx,
+            target.jump_hosts,
             target_host,
             target_port,
             handler,
             target_config,
-            prompts,
-            status_options,
-            host_key_verification_mode,
-            auth_prompter,
         )
         .await?;
         (Some(chain), target_sess)

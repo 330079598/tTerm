@@ -560,8 +560,14 @@ pub async fn test_connection(
         ));
 
         let (jump_chain, mut target_session) = crate::ssh::jump::connect_via_jump_chain(
-            &app,
-            &test_tab_id,
+            crate::ssh::ConnectContext {
+                app: &app,
+                tab_id: &test_tab_id,
+                prompts: prompt_state.inner(),
+                status_options: ConnectionStatusOptions::SILENT,
+                host_key_verification_mode: HostKeyVerificationMode::TrustUnknownForSession,
+                auth_prompter: &auth_prompter,
+            },
             &plan.jump_hosts,
             &host,
             port,
@@ -575,10 +581,6 @@ pub async fn test_connection(
                 HostKeyVerificationMode::TrustUnknownForSession,
             ),
             target_config,
-            prompt_state.inner().clone(),
-            ConnectionStatusOptions::SILENT,
-            HostKeyVerificationMode::TrustUnknownForSession,
-            &auth_prompter,
         )
         .await?;
 

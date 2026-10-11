@@ -170,22 +170,15 @@ pub async fn run_single_ssh_connection(
 
     // Use open_target_ssh_session for connection + auth (supports jump hosts)
     let (jump_chain, session) = match crate::ssh::open_target_ssh_session(
-        &app,
-        &tab_id,
-        plan.profile_id.as_deref(),
-        &plan.profile_name,
-        &host,
-        plan.port,
-        &username,
-        plan.auth_method(),
-        plan.agent_forward,
-        plan.keepalive_interval_secs,
-        plan.keepalive_count_max,
-        &plan.jump_hosts,
-        prompts,
-        ConnectionStatusOptions::VERBOSE,
-        crate::ssh::HostKeyVerificationMode::PromptAndPersist,
-        &crate::ssh::AuthPrompter::tab(&app, &tab_id),
+        crate::ssh::ConnectContext {
+            app: &app,
+            tab_id: &tab_id,
+            prompts: &prompts,
+            status_options: ConnectionStatusOptions::VERBOSE,
+            host_key_verification_mode: crate::ssh::HostKeyVerificationMode::PromptAndPersist,
+            auth_prompter: &crate::ssh::AuthPrompter::tab(&app, &tab_id),
+        },
+        crate::ssh::SshTarget::from_plan(&plan, &host, &username),
     )
     .await
     {

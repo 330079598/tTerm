@@ -34,6 +34,10 @@ pub(crate) async fn set_permissions(
 }
 
 #[tauri::command]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a Tauri command's arguments are its IPC fields and injected state"
+)]
 pub async fn sftp_set_permissions(
     app: AppHandle,
     tab_id: String,

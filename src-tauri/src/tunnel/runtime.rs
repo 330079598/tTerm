@@ -5,8 +5,8 @@ use super::types::{TunnelKind, TunnelRule, TunnelState, TunnelStats, TunnelStatu
 use crate::core::session::SessionPlan;
 use crate::core::state::HostPromptMap;
 use crate::ssh::{
-    open_target_ssh_session_with_forwarding, ConnectionStatusOptions, ForwardedTcpIp,
-    HostKeyVerificationMode,
+    open_target_ssh_session_with_forwarding, ConnectContext, ConnectionStatusOptions,
+    ForwardedTcpIp, HostKeyVerificationMode, SshTarget,
 };
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::pin::Pin;
@@ -921,24 +921,25 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
         // opens it for the others to join.
         let connect = hub.acquire(&session_key, |forwarded_tx| async {
             let (jump_chain, handle) = open_target_ssh_session_with_forwarding(
-                &app,
-                TUNNEL_EVENT_TAB_ID,
-                plan.profile_id.as_deref(),
-                &plan.profile_name,
-                plan.host.as_deref().unwrap_or_default(),
-                plan.port,
-                plan.username.as_deref().unwrap_or_default(),
-                plan.auth_method(),
-                plan.agent_forward,
-                keepalive_interval_secs,
-                keepalive_count_max,
-                &plan.jump_hosts,
-                prompts.clone(),
-                ConnectionStatusOptions::QUIET,
-                HostKeyVerificationMode::PromptAndPersist,
-                // Tunnels reconnect on their own, so there is no moment at
-                // which a prompt is expected.
-                &crate::ssh::AuthPrompter::Unavailable,
+                ConnectContext {
+                    app: &app,
+                    tab_id: TUNNEL_EVENT_TAB_ID,
+                    prompts: &prompts,
+                    status_options: ConnectionStatusOptions::QUIET,
+                    host_key_verification_mode: HostKeyVerificationMode::PromptAndPersist,
+                    // Tunnels reconnect on their own, so there is no moment at
+                    // which a prompt is expected.
+                    auth_prompter: &crate::ssh::AuthPrompter::Unavailable,
+                },
+                SshTarget {
+                    keepalive_interval_secs,
+                    keepalive_count_max,
+                    ..SshTarget::from_plan(
+                        &plan,
+                        plan.host.as_deref().unwrap_or_default(),
+                        plan.username.as_deref().unwrap_or_default(),
+                    )
+                },
                 Some(forwarded_tx),
             )
             .await?;

@@ -190,6 +190,10 @@ pub async fn sftp_open_file_for_edit(
 }
 
 #[tauri::command]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a Tauri command's arguments are its IPC fields and injected state"
+)]
 pub async fn sftp_save_edited_file(
     app: AppHandle,
     tab_id: String,

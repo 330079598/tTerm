@@ -230,10 +230,10 @@ mod tests {
         }
     }
 
-    fn none_saved() -> (
-        impl FnMut(&SessionPlan) -> Result<Option<String>, String>,
-        impl FnMut(&SessionPlan, &JumpHostPlan) -> Result<Option<String>, String>,
-    ) {
+    type SavedTargetPassword = fn(&SessionPlan) -> Result<Option<String>, String>;
+    type SavedJumpPassword = fn(&SessionPlan, &JumpHostPlan) -> Result<Option<String>, String>;
+
+    fn none_saved() -> (SavedTargetPassword, SavedJumpPassword) {
         (
             |_: &SessionPlan| Ok(None),
             |_: &SessionPlan, _: &JumpHostPlan| Ok(None),

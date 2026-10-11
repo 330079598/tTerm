@@ -8,7 +8,7 @@ use super::storage::{
 use super::types::{TunnelRule, TunnelState, TunnelStatus, TunnelTraffic};
 use crate::core::session::{
     load_saved_jump_host_password, load_saved_ssh_password, normalize_connection,
-    resolve_ssh_password, JumpHostOptions, PtyConnectionOptions,
+    resolve_ssh_password, JumpHostOptions, JumpHostSecretOwner, PtyConnectionOptions,
 };
 use crate::core::state::HostPromptMap;
 use crate::profiles::SavedProfile;
@@ -321,11 +321,13 @@ async fn start_rule(
             load_saved_jump_host_password(
                 app,
                 secret_state,
-                plan.profile_id.as_deref(),
-                Some(plan.profile_name.as_str()),
-                Some(jump.host.as_str()),
-                Some(jump.port),
-                Some(jump.username.as_str()),
+                JumpHostSecretOwner {
+                    profile_id: plan.profile_id.as_deref(),
+                    profile_name: Some(plan.profile_name.as_str()),
+                    host: Some(jump.host.as_str()),
+                    port: Some(jump.port),
+                    username: Some(jump.username.as_str()),
+                },
                 plan.jump_hosts.len() == 1,
             )
         },

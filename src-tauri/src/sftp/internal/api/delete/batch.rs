@@ -85,21 +85,29 @@ async fn build_delete_plan(
 }
 
 async fn run_remote_delete_command(
-    app: &AppHandle,
-    tab_id: &str,
-    plan: &crate::core::session::SessionPlan,
-    prompts: HostPromptMap,
-    batch_id: &str,
-    entries: &[DeleteEntryRequest],
+    batch: &DeleteBatch,
     stats: &DeleteStats,
-    custom_command: Option<String>,
 ) -> Result<DeleteProgress, String> {
+    let DeleteBatch {
+        app,
+        tab_id,
+        plan,
+        prompts,
+        batch_id,
+        entries,
+        options,
+        ..
+    } = batch;
     let paths = entries
         .iter()
         .map(|entry| entry.path.clone())
         .collect::<Vec<_>>();
-    let command = custom_command.unwrap_or_else(|| command_delete_script(&paths));
-    let (_jump_session, ssh) = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
+    let command = options
+        .command
+        .clone()
+        .unwrap_or_else(|| command_delete_script(&paths));
+    let (_jump_session, ssh) =
+        connect_authenticated_ssh(app, tab_id, plan, prompts.clone()).await?;
     let mut channel = ssh
         .channel_open_session()
         .await
@@ -300,30 +308,45 @@ fn delete_directory_recursive_with_progress<'a>(
     })
 }
 
-pub(super) async fn run_delete_batch(
-    app: AppHandle,
-    tab_id: String,
-    plan: crate::core::session::SessionPlan,
-    prompts: HostPromptMap,
-    pool: SftpConnectionPool,
-    batch_id: String,
-    entries: Vec<DeleteEntryRequest>,
-    options: DeleteOptions,
-) {
+/// One delete the user started: what to delete, how, and on which connection.
+pub(super) struct DeleteBatch {
+    pub(super) app: AppHandle,
+    pub(super) tab_id: String,
+    pub(super) plan: crate::core::session::SessionPlan,
+    pub(super) prompts: HostPromptMap,
+    pub(super) pool: SftpConnectionPool,
+    pub(super) batch_id: String,
+    pub(super) entries: Vec<DeleteEntryRequest>,
+    pub(super) options: DeleteOptions,
+}
+
+pub(super) async fn run_delete_batch(batch: DeleteBatch) {
     let mut method = DeleteMethod::Sftp;
     let mut stats = DeleteStats::default();
     let mut progress = DeleteProgress::default();
     let result: Result<(), String> = async {
-        let sftp = get_or_create_delete_sftp(&app, &tab_id, &plan, prompts.clone(), &pool).await?;
-        let delete_plan = build_delete_plan(&sftp, &entries, options.use_command_delete).await?;
+        let sftp = get_or_create_delete_sftp(
+            &batch.app,
+            &batch.tab_id,
+            &batch.plan,
+            batch.prompts.clone(),
+            &batch.pool,
+        )
+        .await?;
+        let delete_plan =
+            build_delete_plan(&sftp, &batch.entries, batch.options.use_command_delete).await?;
         method = delete_plan.method;
         stats = delete_plan.stats;
 
-        let _ = app.emit(
-            &format!("sftp-delete-batch-start-{tab_id}"),
+        let _ = batch.app.emit(
+            &format!("sftp-delete-batch-start-{}", batch.tab_id),
             DeleteBatchStartEvent {
-                batch_id: batch_id.clone(),
-                entries: entries.iter().map(|entry| entry.name.clone()).collect(),
+                batch_id: batch.batch_id.clone(),
+                entries: batch
+                    .entries
+                    .iter()
+                    .map(|entry| entry.name.clone())
+                    .collect(),
                 method,
                 total_directories: stats.directories,
                 total_entries: stats.entries,
@@ -333,21 +356,17 @@ pub(super) async fn run_delete_batch(
         );
 
         progress = match method {
-            DeleteMethod::Command => {
-                run_remote_delete_command(
-                    &app,
-                    &tab_id,
-                    &plan,
-                    prompts,
-                    &batch_id,
-                    &entries,
-                    &stats,
-                    options.command.clone(),
-                )
-                .await?
-            }
+            DeleteMethod::Command => run_remote_delete_command(&batch, &stats).await?,
             DeleteMethod::Sftp => {
-                delete_entries_with_sftp(&app, &tab_id, &sftp, &batch_id, &entries, &stats).await
+                delete_entries_with_sftp(
+                    &batch.app,
+                    &batch.tab_id,
+                    &sftp,
+                    &batch.batch_id,
+                    &batch.entries,
+                    &stats,
+                )
+                .await
             }
         };
 
@@ -360,9 +379,9 @@ pub(super) async fn run_delete_batch(
         progress.failed += 1;
     }
 
-    let _ = app.emit(
-        &format!("sftp-delete-batch-complete-{tab_id}"),
-        build_delete_complete_event(batch_id, method, &stats, &progress, false, error),
+    let _ = batch.app.emit(
+        &format!("sftp-delete-batch-complete-{}", batch.tab_id),
+        build_delete_complete_event(batch.batch_id, method, &stats, &progress, false, error),
     );
 }
 

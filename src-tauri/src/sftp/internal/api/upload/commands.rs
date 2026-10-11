@@ -65,6 +65,10 @@ async fn resolve_upload_target(
 /// file being stat'ed, so a large folder costs as many round trips as the
 /// upload spends creating its directories.
 #[tauri::command]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a Tauri command's arguments are its IPC fields and injected state"
+)]
 pub async fn sftp_check_upload_conflicts(
     app: AppHandle,
     tab_id: String,
@@ -137,6 +141,10 @@ async fn collect_upload_conflicts(sftp: &SftpSession, upload_plan: &UploadPlan) 
 }
 
 #[tauri::command]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a Tauri command's arguments are its IPC fields and injected state"
+)]
 pub async fn sftp_upload_file(
     app: AppHandle,
     tab_id: String,
@@ -186,6 +194,10 @@ pub async fn sftp_upload_file(
 }
 
 #[tauri::command]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a Tauri command's arguments are its IPC fields and injected state"
+)]
 pub async fn sftp_upload_paths(
     app: AppHandle,
     tab_id: String,

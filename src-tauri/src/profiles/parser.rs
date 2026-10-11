@@ -533,10 +533,10 @@ pub(crate) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefa
 
         if supported.contains(key.as_str()) {
             push_option(&mut host.options, &key, value);
-        } else if unsupported_tracked.contains(key.as_str()) {
-            if !host.unsupported_options.iter().any(|item| item == &key) {
-                host.unsupported_options.push(key.clone());
-            }
+        } else if unsupported_tracked.contains(key.as_str())
+            && !host.unsupported_options.iter().any(|item| item == &key)
+        {
+            host.unsupported_options.push(key.clone());
         }
     }
 

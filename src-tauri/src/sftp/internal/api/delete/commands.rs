@@ -1,4 +1,4 @@
-use super::batch::{preview_delete_entries, run_delete_batch};
+use super::batch::{preview_delete_entries, run_delete_batch, DeleteBatch};
 use super::*;
 use crate::core::session::PtyConnectionOptions;
 use crate::core::state::HostPromptMap;
@@ -36,6 +36,10 @@ pub async fn sftp_preview_delete_entries(
 }
 
 #[tauri::command]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a Tauri command's arguments are its IPC fields and injected state"
+)]
 pub async fn sftp_delete_entries(
     app: AppHandle,
     tab_id: String,
@@ -58,21 +62,25 @@ pub async fn sftp_delete_entries(
 
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
     let batch_id = next_delete_batch_id();
-    tokio::spawn(run_delete_batch(
-        app.clone(),
+    tokio::spawn(run_delete_batch(DeleteBatch {
+        app: app.clone(),
         tab_id,
         plan,
-        prompt_state.inner().clone(),
-        pool_state.inner().clone(),
-        batch_id.clone(),
+        prompts: prompt_state.inner().clone(),
+        pool: pool_state.inner().clone(),
+        batch_id: batch_id.clone(),
         entries,
         options,
-    ));
+    }));
 
     Ok(DeleteBatchStartResult { batch_id })
 }
 
 #[tauri::command]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a Tauri command's arguments are its IPC fields and injected state"
+)]
 pub async fn sftp_delete_entry(
     app: AppHandle,
     tab_id: String,

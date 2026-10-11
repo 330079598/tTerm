@@ -291,16 +291,30 @@ pub fn load_saved_sudo_password(
     )
 }
 
+/// Whose saved jump host password to look up: the profile it was saved under
+/// and the hop's address. Missing or blank fields narrow the lookup.
+#[derive(Debug, Clone, Copy)]
+pub struct JumpHostSecretOwner<'a> {
+    pub profile_id: Option<&'a str>,
+    pub profile_name: Option<&'a str>,
+    pub host: Option<&'a str>,
+    pub port: Option<u16>,
+    pub username: Option<&'a str>,
+}
+
 pub fn load_saved_jump_host_password(
     app: &tauri::AppHandle,
     secret_state: &crate::ssh::SecretStoreState,
-    profile_id: Option<&str>,
-    profile_name: Option<&str>,
-    host: Option<&str>,
-    port: Option<u16>,
-    username: Option<&str>,
+    owner: JumpHostSecretOwner<'_>,
     allow_legacy_fallback: bool,
 ) -> Result<Option<String>, String> {
+    let JumpHostSecretOwner {
+        profile_id,
+        profile_name,
+        host,
+        port,
+        username,
+    } = owner;
     let profile_id = profile_id.map(str::trim).filter(|v| !v.is_empty());
     let profile_name = profile_name.map(str::trim).filter(|v| !v.is_empty());
     let host = host.map(str::trim).filter(|v| !v.is_empty());
@@ -465,11 +479,13 @@ fn resolve_jump_host_passwords(
         if let Some(pw) = load_saved_jump_host_password(
             app,
             secret_state,
-            plan.profile_id.as_deref(),
-            Some(plan.profile_name.as_str()),
-            Some(jump.host.as_str()),
-            Some(jump.port),
-            Some(jump.username.as_str()),
+            JumpHostSecretOwner {
+                profile_id: plan.profile_id.as_deref(),
+                profile_name: Some(plan.profile_name.as_str()),
+                host: Some(jump.host.as_str()),
+                port: Some(jump.port),
+                username: Some(jump.username.as_str()),
+            },
             allow_legacy_fallback,
         )? {
             jump.password = Some(pw);

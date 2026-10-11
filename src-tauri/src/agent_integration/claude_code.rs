@@ -35,11 +35,10 @@ fn hook_command(state: &str) -> String {
     format!(r#"printf '%s' '{{"terminalSequence":"\u001b]777;tterm-agent;claude;{state}\u0007"}}'"#)
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
 
-    #[cfg(unix)]
     #[test]
     fn hook_prints_the_json_claude_code_expects() {
         let output = std::process::Command::new("sh")

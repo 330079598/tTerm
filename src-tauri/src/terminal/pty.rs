@@ -522,10 +522,7 @@ fn command_exists_on_path(executable: &str) -> bool {
 }
 
 fn find_executable_on_path(executable: &str) -> Option<PathBuf> {
-    let path_var = std::env::var_os("PATH");
-    let Some(path_var) = path_var else {
-        return None;
-    };
+    let path_var = std::env::var_os("PATH")?;
 
     for dir in std::env::split_paths(&path_var) {
         let candidate = dir.join(executable);
@@ -548,7 +545,7 @@ fn env_path(key: &str) -> Option<PathBuf> {
 pub fn list_available_terminal_shells() -> Vec<TerminalShellProfile> {
     #[cfg(target_os = "windows")]
     {
-        return list_windows_terminal_shells();
+        list_windows_terminal_shells()
     }
 
     #[cfg(not(target_os = "windows"))]

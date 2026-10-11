@@ -15,7 +15,10 @@ use crate::sftp::internal::types::{
     CachedSftpConnection, ConnectedSftp, SftpConnectionKey, SftpConnectionPool,
 };
 use crate::ssh::ConnectionStatusOptions;
-use crate::ssh::{open_target_ssh_session, JumpChain, SecretStoreState, SshClientHandler};
+use crate::ssh::{
+    open_target_ssh_session, ConnectContext, JumpChain, SecretStoreState, SshClientHandler,
+    SshTarget,
+};
 
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(300);
 /// How often the pool is checked for idle connections to close.
@@ -70,24 +73,17 @@ pub async fn connect_authenticated_ssh(
         .ok_or_else(|| "SSH username is required".to_string())?;
 
     open_target_ssh_session(
-        app,
-        tab_id,
-        plan.profile_id.as_deref(),
-        &plan.profile_name,
-        &host,
-        plan.port,
-        &username,
-        plan.auth_method(),
-        plan.agent_forward,
-        plan.keepalive_interval_secs,
-        plan.keepalive_count_max,
-        &plan.jump_hosts,
-        prompts,
-        // Progress events share the terminal tab's channel; emitting them
-        // would flip an already-connected terminal back to "connecting".
-        ConnectionStatusOptions::QUIET,
-        crate::ssh::HostKeyVerificationMode::PromptAndPersist,
-        &crate::ssh::AuthPrompter::tab(app, tab_id),
+        ConnectContext {
+            app,
+            tab_id,
+            prompts: &prompts,
+            // Progress events share the terminal tab's channel; emitting them
+            // would flip an already-connected terminal back to "connecting".
+            status_options: ConnectionStatusOptions::QUIET,
+            host_key_verification_mode: crate::ssh::HostKeyVerificationMode::PromptAndPersist,
+            auth_prompter: &crate::ssh::AuthPrompter::tab(app, tab_id),
+        },
+        SshTarget::from_plan(plan, &host, &username),
     )
     .await
     .map_err(String::from)

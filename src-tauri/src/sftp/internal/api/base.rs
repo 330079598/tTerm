@@ -157,6 +157,10 @@ pub async fn sftp_create_directory(
 }
 
 #[tauri::command]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a Tauri command's arguments are its IPC fields and injected state"
+)]
 pub async fn sftp_rename_entry(
     app: AppHandle,
     tab_id: String,

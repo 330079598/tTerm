@@ -165,7 +165,7 @@ fn merge_profile_groups_file(old_path: &Path, new_path: &Path) -> Result<(), Str
     }
 
     if changed {
-        new_groups.sort_by(|left, right| left.to_lowercase().cmp(&right.to_lowercase()));
+        new_groups.sort_by_key(|group| group.to_lowercase());
         write_json_file(new_path, &new_groups, "profile groups")?;
     }
 

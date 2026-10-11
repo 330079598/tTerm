@@ -509,6 +509,21 @@ impl russh::client::Handler for SshClientHandler {
     }
 }
 
+impl SshClientHandler {
+    fn emit_status(&self, color: &str, message: &str) {
+        if !self.status_options.emit_terminal_output {
+            return;
+        }
+
+        let payload = format!("\r\n\x1b[{}m[{}]\x1b[0m\r\n", color, message);
+        crate::session_log::record_output(&self.app, &self.tab_id, payload.as_bytes());
+        let event_name = format!("pty-output-{}", self.tab_id);
+        let _ = self
+            .app
+            .emit_to(tauri::EventTarget::any(), &event_name, payload);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -592,20 +607,5 @@ mod tests {
         assert!(SshConnectError::HostKeyRejected
             .with_prefix("ignored: ")
             .is_host_key_rejected());
-    }
-}
-
-impl SshClientHandler {
-    fn emit_status(&self, color: &str, message: &str) {
-        if !self.status_options.emit_terminal_output {
-            return;
-        }
-
-        let payload = format!("\r\n\x1b[{}m[{}]\x1b[0m\r\n", color, message);
-        crate::session_log::record_output(&self.app, &self.tab_id, payload.as_bytes());
-        let event_name = format!("pty-output-{}", self.tab_id);
-        let _ = self
-            .app
-            .emit_to(tauri::EventTarget::any(), &event_name, payload);
     }
 }
