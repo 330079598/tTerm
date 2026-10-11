@@ -232,7 +232,9 @@ export function useSftpDownloads({
             event.payload
           const now = Date.now()
           const lastUpdate = lastProgressUpdateRef.current.get(transferId) || 0
-          if (now - lastUpdate < 100 && progress < 100) {
+          // The backend already sends at most one update per 100 ms; this only
+          // guards against bursts, kept below that so delivery jitter drops none.
+          if (now - lastUpdate < 50 && progress < 100) {
             return
           }
 

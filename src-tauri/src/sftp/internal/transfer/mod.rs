@@ -28,7 +28,7 @@
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, PoisonError};
 use std::time::{Duration, Instant};
 
 use base64::engine::general_purpose::STANDARD as BASE64;
@@ -54,7 +54,10 @@ pub const SIDECAR_SUFFIX: &str = ".tterm.part.json";
 pub const PART_SUFFIX: &str = ".tterm.part";
 pub const DEFAULT_CHUNK_SIZE: u64 = 4 * 1024 * 1024;
 pub const DEFAULT_PARALLELISM: usize = 4;
-pub const DEFAULT_PROGRESS_INTERVAL_BYTES: u64 = 64 * 1024;
+/// Minimum gap between progress reports of one transfer. A step finishes
+/// every couple of milliseconds on a fast link, and each report is serialized
+/// and sent to the webview, which only redraws a few times a second anyway.
+pub const DEFAULT_PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
 const MIN_CHUNK_SIZE: u64 = 4 * 1024;
 /// Fallback step for a single SFTP read/write when the server does not
 /// advertise `limits@openssh.com` (mirrors russh-sftp's own default).
@@ -111,7 +114,8 @@ pub enum TransferDirection {
 pub struct TransferOptions {
     pub parallelism: usize,
     pub chunk_size: u64,
-    pub progress_interval_bytes: u64,
+    /// Minimum gap between progress reports; the final one always goes out.
+    pub progress_interval: Duration,
     /// Chunk requests one lane keeps in flight (clamped to
     /// [`PIPELINE_WINDOW`]). `1` makes a lane strictly sequential — one
     /// request at a time, in ascending offset order, the way plain
@@ -127,7 +131,7 @@ impl Default for TransferOptions {
         Self {
             parallelism: DEFAULT_PARALLELISM,
             chunk_size: DEFAULT_CHUNK_SIZE,
-            progress_interval_bytes: DEFAULT_PROGRESS_INTERVAL_BYTES,
+            progress_interval: DEFAULT_PROGRESS_INTERVAL,
             pipeline_window: PIPELINE_WINDOW,
             rate_limiter: None,
         }
@@ -1265,7 +1269,7 @@ async fn execute_parallel(
     let shared = Arc::new(LaneShared {
         queue: queue.clone(),
         transferred: Arc::new(AtomicU64::new(run.resumed_from)),
-        last_progress: Arc::new(AtomicU64::new(run.resumed_from)),
+        last_progress_at: std::sync::Mutex::new(None),
         completed_chunks: Arc::new(AtomicU64::new(run.initial_completed_chunks)),
         progress: progress.clone(),
         cancel: cancel.clone(),
@@ -1274,7 +1278,7 @@ async fn execute_parallel(
         chunk_count: run.chunk_count,
         resumed_from: run.resumed_from,
         parallelism: options.parallelism,
-        progress_interval: options.progress_interval_bytes,
+        progress_interval: options.progress_interval,
         sidecar_state: run.sidecar_state.clone(),
         local_source: paths.local_path.clone(),
         local_part: PathBuf::from(&paths.part_path),
@@ -1337,7 +1341,9 @@ type LocalLaneFile = Arc<Mutex<tokio::fs::File>>;
 struct LaneShared {
     queue: Arc<Mutex<VecDeque<usize>>>,
     transferred: Arc<AtomicU64>,
-    last_progress: Arc<AtomicU64>,
+    /// When progress was last reported; held while reporting so reports
+    /// from different lanes go out one at a time.
+    last_progress_at: std::sync::Mutex<Option<Instant>>,
     completed_chunks: Arc<AtomicU64>,
     progress: ProgressSink,
     cancel: watch::Receiver<bool>,
@@ -1346,7 +1352,7 @@ struct LaneShared {
     chunk_count: usize,
     resumed_from: u64,
     parallelism: usize,
-    progress_interval: u64,
+    progress_interval: Duration,
     sidecar_state: Arc<Mutex<SidecarState>>,
     local_source: PathBuf,
     local_part: PathBuf,
@@ -1470,30 +1476,31 @@ fn record_transfer_progress(shared: &LaneShared, step_bytes: u64) {
         return;
     }
     let total = shared.transferred.fetch_add(step_bytes, Ordering::SeqCst) + step_bytes;
-    let mut last = shared.last_progress.load(Ordering::Relaxed);
-    while total.saturating_sub(last) >= shared.progress_interval || total >= shared.total_size {
-        match shared.last_progress.compare_exchange_weak(
-            last,
-            total,
-            Ordering::SeqCst,
-            Ordering::Relaxed,
-        ) {
-            Ok(_) => {
-                (shared.progress)(TransferProgress {
-                    transferred: total.min(shared.total_size),
-                    total: shared.total_size,
-                    resumed_from: shared.resumed_from,
-                    parallelism: shared.parallelism,
-                    completed_chunks: shared.completed_chunks.load(Ordering::SeqCst),
-                    chunk_count: shared.chunk_count as u64,
-                });
-                break;
-            }
-            Err(actual) => {
-                last = actual;
-            }
-        }
+    report_progress(shared, total, total >= shared.total_size);
+}
+
+/// Reports progress at most once per `progress_interval`, except for the
+/// final report, which always goes out so the transfer reaches 100%.
+fn report_progress(shared: &LaneShared, total: u64, finished: bool) {
+    let mut last_progress_at = shared
+        .last_progress_at
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
+    let now = Instant::now();
+    if !finished
+        && last_progress_at.is_some_and(|at| now.duration_since(at) < shared.progress_interval)
+    {
+        return;
     }
+    *last_progress_at = Some(now);
+    (shared.progress)(TransferProgress {
+        transferred: total.min(shared.total_size),
+        total: shared.total_size,
+        resumed_from: shared.resumed_from,
+        parallelism: shared.parallelism,
+        completed_chunks: shared.completed_chunks.load(Ordering::SeqCst),
+        chunk_count: shared.chunk_count as u64,
+    });
 }
 
 /// Move one acknowledged chunk into the bitmap (throttled checkpoint) and
@@ -1542,33 +1549,9 @@ async fn record_chunk_completion(shared: &LaneShared, index: usize) {
     }
 
     let total = shared.transferred.load(Ordering::SeqCst);
-    let mut last = shared.last_progress.load(Ordering::Relaxed);
-    while total.saturating_sub(last) >= shared.progress_interval
-        || total >= shared.total_size
-        || shared.completed_chunks.load(Ordering::SeqCst) >= shared.chunk_count as u64
-    {
-        match shared.last_progress.compare_exchange_weak(
-            last,
-            total,
-            Ordering::SeqCst,
-            Ordering::Relaxed,
-        ) {
-            Ok(_) => {
-                (shared.progress)(TransferProgress {
-                    transferred: total.min(shared.total_size),
-                    total: shared.total_size,
-                    resumed_from: shared.resumed_from,
-                    parallelism: shared.parallelism,
-                    completed_chunks: shared.completed_chunks.load(Ordering::SeqCst),
-                    chunk_count: shared.chunk_count as u64,
-                });
-                break;
-            }
-            Err(actual) => {
-                last = actual;
-            }
-        }
-    }
+    let finished = total >= shared.total_size
+        || shared.completed_chunks.load(Ordering::SeqCst) >= shared.chunk_count as u64;
+    report_progress(shared, total, finished);
 }
 
 /// Whether a checkpoint save is due: either the unsaved byte threshold is

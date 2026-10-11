@@ -20,7 +20,7 @@ fn options(chunk_size: u64, parallelism: usize) -> TransferOptions {
     TransferOptions {
         parallelism,
         chunk_size,
-        progress_interval_bytes: 0,
+        progress_interval: Duration::ZERO,
         pipeline_window: PIPELINE_WINDOW,
         rate_limiter: None,
     }
@@ -1230,7 +1230,7 @@ async fn step_level_progress_emits_before_chunk_completes() {
     };
 
     let mut opts = options(chunk_size, 1);
-    opts.progress_interval_bytes = 0; // Emit on every step
+    opts.progress_interval = Duration::ZERO; // Emit on every step
 
     upload_file(
         server.channels(1).await,
