@@ -5,6 +5,7 @@ import {
   directoryTitle,
   distinctLocalTitles,
   hasLegacyLocalTitle,
+  runningCommandTitle,
   tabTooltip,
   withLocalCwd,
 } from "@/lib/localTabTitle"
@@ -177,5 +178,40 @@ describe("tabTooltip with a shell", () => {
       connection: { cwd: "D:\\code\\tTerm" },
     }
     expect(tabTooltip(tab)).toBe("tTerm (D:\\code\\tTerm · pwsh)")
+  })
+})
+
+describe("runningCommandTitle", () => {
+  const local = (id: string, title: string, fields: Partial<Tab> = {}): Tab => ({
+    id,
+    title,
+    type: "terminal",
+    isActive: false,
+    autoTitle: true,
+    ...fields,
+  })
+  const commands = (running: Record<string, string>) => new Map(Object.entries(running))
+
+  it("shows a running command alone while no other tab runs the same", () => {
+    const running = commands({ "1": "claude", "2": "codex --yolo" })
+    expect(runningCommandTitle(local("1", "tTerm"), running)).toBe("claude")
+    expect(runningCommandTitle(local("2", "web"), running)).toBe("codex --yolo")
+    expect(runningCommandTitle(local("3", "api"), running)).toBeNull()
+  })
+
+  it("adds the tab's title while another tab runs a command of the same title", () => {
+    const running = commands({
+      "1": "claude",
+      "2": "claude --dangerously-skip-permissions",
+      "3": "codex",
+    })
+    expect(runningCommandTitle(local("1", "tTerm"), running)).toBe("claude · tTerm")
+    expect(runningCommandTitle(local("2", "web/src"), running)).toBe("claude · web/src")
+    expect(runningCommandTitle(local("3", "api"), running)).toBe("codex")
+  })
+
+  it("leaves a tab the user named to its name", () => {
+    const named = local("1", "Agent", { autoTitle: undefined })
+    expect(runningCommandTitle(named, commands({ "1": "claude" }))).toBeNull()
   })
 })

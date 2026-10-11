@@ -86,6 +86,7 @@ export function useTabAgentStatus(tabId: string): AgentStatus | undefined {
   return useSyncExternalStore(subscribe, () => agentStatuses.get(tabId))
 }
 
-export function useTabRunningCommand(tabId: string): string | undefined {
-  return useSyncExternalStore(subscribe, () => runningCommands.get(tabId))
+/** The command each tab's shell runs, by tab id. */
+export function useRunningCommands(): ReadonlyMap<string, string> {
+  return useSyncExternalStore(subscribe, () => runningCommands)
 }

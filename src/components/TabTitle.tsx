@@ -1,5 +1,5 @@
-import { commandTitle } from "@/lib/localTabTitle"
-import { useTabRunningCommand } from "@/lib/tabAttention"
+import { runningCommandTitle } from "@/lib/localTabTitle"
+import { useRunningCommands } from "@/lib/tabAttention"
 import type { Tab } from "@/types/tab"
 
 /**
@@ -7,7 +7,6 @@ import type { Tab } from "@/types/tab"
  * runs instead, for as long as it runs.
  */
 export function TabTitle({ tab, className }: { tab: Tab; className: string }) {
-  const command = useTabRunningCommand(tab.id)
-  const title = (tab.autoTitle && command && commandTitle(command)) || tab.title
-  return <span className={className}>{title}</span>
+  const commands = useRunningCommands()
+  return <span className={className}>{runningCommandTitle(tab, commands) || tab.title}</span>
 }

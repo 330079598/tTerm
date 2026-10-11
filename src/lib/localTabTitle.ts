@@ -95,6 +95,25 @@ export function commandTitle(command: string): string | null {
   return whole.length <= MAX_COMMAND_TITLE_LENGTH ? whole : program
 }
 
+/**
+ * What a local tab named automatically shows while its shell runs a command:
+ * the command's title, followed by the tab's own title while another tab runs
+ * a command of the same title, as several agents at once do (`claude · web`,
+ * `claude · api`). `commands` holds the command each tab's shell runs.
+ */
+export function runningCommandTitle(
+  tab: Tab,
+  commands: ReadonlyMap<string, string>
+): string | null {
+  const command = tab.autoTitle ? commands.get(tab.id) : undefined
+  const title = command && commandTitle(command)
+  if (!title) return null
+  for (const [tabId, other] of commands) {
+    if (tabId !== tab.id && commandTitle(other) === title) return `${title} · ${tab.title}`
+  }
+  return title
+}
+
 /** A local tab's title while its shell sits in `cwd`, once the home directory is known. */
 function cwdTitle(cwd: string | undefined): string | null {
   return cwd ? directoryTitle(cwd, home) : null

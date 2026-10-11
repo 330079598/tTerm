@@ -6,7 +6,7 @@ import { act, renderHook } from "@testing-library/react"
 import {
   RUNNING_COMMAND_DELAY_MS,
   setTabRunningCommand,
-  useTabRunningCommand,
+  useRunningCommands,
 } from "@/lib/tabAttention"
 
 describe("setTabRunningCommand", () => {
@@ -17,7 +17,7 @@ describe("setTabRunningCommand", () => {
 
   it("shows a command once it has run a moment, and hides it when it ends", () => {
     vi.useFakeTimers()
-    const { result } = renderHook(() => useTabRunningCommand("tab-1"))
+    const { result } = renderHook(() => useRunningCommands().get("tab-1"))
 
     act(() => setTabRunningCommand("tab-1", "npm run dev"))
     expect(result.current).toBeUndefined()
@@ -30,7 +30,7 @@ describe("setTabRunningCommand", () => {
 
   it("never shows a command that ends at once", () => {
     vi.useFakeTimers()
-    const { result } = renderHook(() => useTabRunningCommand("tab-1"))
+    const { result } = renderHook(() => useRunningCommands().get("tab-1"))
 
     act(() => setTabRunningCommand("tab-1", "cd src"))
     act(() => setTabRunningCommand("tab-1", null))
