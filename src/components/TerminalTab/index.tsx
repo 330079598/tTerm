@@ -1373,6 +1373,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         />
       </div>
       <ServerMonitorBar
+        active={isActive}
         connection={connection}
         connectionState={connectionState}
         sessionNonce={sessionNonce}

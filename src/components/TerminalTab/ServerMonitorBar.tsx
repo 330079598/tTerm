@@ -138,6 +138,8 @@ type MonitorState =
   | { status: "error"; message: string }
 
 interface ServerMonitorBarProps {
+  /** Whether the tab is in view; polling pauses while it is not. */
+  active: boolean
   connection?: TerminalTabProps["connection"]
   connectionState: string
   sessionNonce: number
@@ -585,6 +587,7 @@ const MetricItem = React.memo(function MetricItem({
 })
 
 export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
+  active,
   connection,
   connectionState,
   sessionNonce,
@@ -605,6 +608,8 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
     undefined
   )
   const requestIdRef = useRef(0)
+  const activeRef = useRef(active)
+  const resumeRef = useRef<(() => void) | null>(null)
   const monitorSessionNonce = normalizeSessionNonce(sessionNonce)
   const refreshIntervalMs = useMemo(() => {
     const configuredMs = config.monitor_refresh_interval_secs * 1000
@@ -671,6 +676,11 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
   )
 
   useEffect(() => {
+    activeRef.current = active
+    if (active) resumeRef.current?.()
+  }, [active])
+
+  useEffect(() => {
     if (!visible || connection?.type !== "ssh" || connectionState !== "connected") {
       return
     }
@@ -678,6 +688,13 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
     let cancelled = false
     let timeoutId: number | undefined
     let usedInitialCpuSampleDelay = false
+    // Set while the tab is out of view: polling stops, but the monitor
+    // connection stays open (the backend drops it after a few idle minutes),
+    // so switching back does not log in again.
+    let paused = false
+    // The first sample after a pause only sets new baselines, so the bar
+    // keeps its last values instead of showing an average over the pause.
+    let resuming = false
     previousCpuTimesRef.current = undefined
     previousCpuCoreTimesRef.current = undefined
     previousNetworkRef.current = undefined
@@ -696,6 +713,16 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         if (cancelled || requestId !== requestIdRef.current) return
 
         const capturedAt = Date.now()
+        if (resuming) {
+          resuming = false
+          previousCpuTimesRef.current = snapshot.cpuTimes
+          previousCpuCoreTimesRef.current = snapshot.cpuCoreTimes
+          previousNetworkRef.current = snapshot.network
+            ? { metrics: snapshot.network, capturedAt }
+            : undefined
+          nextRefreshDelayMs = Math.min(INITIAL_CPU_SAMPLE_DELAY_MS, refreshIntervalMs)
+          return
+        }
         const hadCpuBaseline = previousCpuTimesRef.current !== undefined
         const cpuPercent = calculateCpuPercent(previousCpuTimesRef.current, snapshot.cpuTimes)
         const cpuCorePercents = calculateCpuCorePercents(
@@ -727,15 +754,33 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         })
       } finally {
         if (!cancelled) {
-          timeoutId = window.setTimeout(refresh, nextRefreshDelayMs)
+          if (activeRef.current) {
+            timeoutId = window.setTimeout(refresh, nextRefreshDelayMs)
+          } else {
+            paused = true
+          }
         }
       }
     }
 
-    refresh()
+    resumeRef.current = () => {
+      if (!paused) return
+      paused = false
+      // A tab never seen yet has no baselines to keep.
+      resuming = previousCpuTimesRef.current !== undefined
+      void refresh()
+    }
+
+    // A tab restored in the background connects only once it is shown.
+    if (activeRef.current) {
+      void refresh()
+    } else {
+      paused = true
+    }
 
     return () => {
       cancelled = true
+      resumeRef.current = null
       if (timeoutId !== undefined) {
         window.clearTimeout(timeoutId)
       }
