@@ -559,6 +559,10 @@ where
 /// [`AuthMethod::Auto`]: what `ssh user@host` tries, in its order. Returns
 /// the first verdict that is not a plain rejection, with what produced it
 /// and the password the user typed for it, if any.
+#[expect(
+    clippy::too_many_lines,
+    reason = "predates the 150-line limit; split it when it next changes"
+)]
 async fn auto<H>(
     session: &mut client::Handle<H>,
     target: &AuthTarget<'_>,

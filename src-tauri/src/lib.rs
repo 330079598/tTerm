@@ -209,6 +209,10 @@ pub fn run_console_reset_helper() -> Option<i32> {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one builder chain registers every plugin and Tauri command"
+)]
 pub fn run() {
     let pty_map: PtyMap = Arc::new(RwLock::new(std::collections::HashMap::new()));
     let host_prompt_map: core::HostPromptMap =

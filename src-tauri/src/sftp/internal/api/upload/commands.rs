@@ -198,6 +198,10 @@ pub async fn sftp_upload_file(
     clippy::too_many_arguments,
     reason = "a Tauri command's arguments are its IPC fields and injected state"
 )]
+#[expect(
+    clippy::too_many_lines,
+    reason = "predates the 150-line limit; split it when it next changes"
+)]
 pub async fn sftp_upload_paths(
     app: AppHandle,
     tab_id: String,

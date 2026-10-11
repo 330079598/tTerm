@@ -445,6 +445,10 @@ pub struct TestConnectionResult {
 }
 
 #[tauri::command]
+#[expect(
+    clippy::too_many_lines,
+    reason = "predates the 150-line limit; split it when it next changes"
+)]
 pub async fn test_connection(
     app: tauri::AppHandle,
     mut profile: SavedProfile,

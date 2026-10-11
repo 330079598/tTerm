@@ -429,6 +429,10 @@ async fn download_file_into_directory(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "predates the 150-line limit; split it when it next changes"
+)]
 async fn download_directory_with_progress(
     app: &AppHandle,
     tab_id: &str,

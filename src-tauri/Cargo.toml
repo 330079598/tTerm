@@ -14,6 +14,11 @@ edition = "2021"
 name = "t_term_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[lints.clippy]
+# Threshold in clippy.toml. Older functions over it carry an `expect` that
+# fails once they are split, so the marker cannot outlive the debt.
+too_many_lines = "warn"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

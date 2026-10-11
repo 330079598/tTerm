@@ -117,6 +117,10 @@ async fn open_terminal_channel(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "predates the 150-line limit; split it when it next changes"
+)]
 pub async fn run_single_ssh_connection(
     app: tauri::AppHandle,
     tab_id: String,
