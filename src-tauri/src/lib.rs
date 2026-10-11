@@ -255,7 +255,9 @@ pub fn run() {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     let builder = builder.plugin(
         FramePluginBuilder::new()
-            .titlebar_height(32)
+            // Matches `--title-bar-height` in layout.css, so the native window
+            // buttons share the app's centre line and their hover fills the bar.
+            .titlebar_height(36)
             .button_width(46)
             .auto_titlebar(true)
             .close_hover_bg("rgba(196,43,28,1)")
