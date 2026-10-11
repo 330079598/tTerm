@@ -15,6 +15,7 @@ import { SftpDrawerContent } from "@/components/SftpDrawer/SftpDrawerContent"
 import { SftpDrawerHeader } from "@/components/SftpDrawer/SftpDrawerHeader"
 import { SftpDialogs } from "@/components/SftpDrawer/SftpDialogs"
 import { SftpEntryContextMenu } from "@/components/SftpDrawer/SftpEntryContextMenu"
+import { preloadMaterialIcons } from "@/components/SftpDrawer/SftpEntryIcon"
 import { SftpPermissionsDialog } from "@/components/SftpDrawer/SftpPermissionsDialog"
 import { useSftpDragDrop } from "@/components/SftpDrawer/useSftpDragDrop"
 import { useSftpPasteUpload } from "@/components/SftpDrawer/useSftpPasteUpload"
@@ -733,6 +734,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
 
     if (visible) {
       drawer.removeAttribute("inert")
+      // Usually done before the first directory listing arrives.
+      preloadMaterialIcons().catch(console.error)
     } else {
       drawer.setAttribute("inert", "")
     }
