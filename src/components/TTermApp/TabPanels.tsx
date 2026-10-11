@@ -48,7 +48,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { isPageTab, type SavedProfile, type Tab, type TabContextMenuAction } from "@/types/tab"
 import type { TerminalInputRequest } from "@/types/broadcast"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
-import { getTabSplitMenuActions } from "@/lib/tabSplitting"
+import { getTabPinMenuAction, getTabSplitMenuActions } from "@/lib/tabMenuActions"
 import { getTabLogMenuActions } from "@/lib/terminalLogRecording"
 import type { LiveBroadcastState } from "@/types/broadcast"
 import type { ExecutedCommand } from "@/types/command"
@@ -233,16 +233,6 @@ function getTabActions(
     return [...commonStart, ...commonEnd]
   }
 
-  const pinAction: TabContextMenuAction | null =
-    tab.type === "ssh"
-      ? tab.connectionHeaderPinned === false
-        ? { label: t("contextMenu.pinConnectionHeader"), action: "pin-header", icon: "pin" }
-        : {
-            label: t("contextMenu.unpinConnectionHeader"),
-            action: "unpin-header",
-            icon: "pin-off",
-          }
-      : null
   const editConnectionAction: TabContextMenuAction | null =
     tab.type === "ssh" && tab.connection?.profileId
       ? { label: t("contextMenu.editConnection"), action: "edit-connection", icon: "edit" }
@@ -255,7 +245,7 @@ function getTabActions(
     ...getTabSplitMenuActions(tab, t),
     { label: t("contextMenu.renameTab"), action: "rename", icon: "edit" },
     ...(editConnectionAction ? [editConnectionAction] : []),
-    ...(pinAction ? [pinAction] : []),
+    ...getTabPinMenuAction(tab, t),
     ...logActions,
     ...commonEnd,
   ]

@@ -35,7 +35,7 @@
   "src/components/SftpDrawer/useSftpUploads.ts": 597,
   "src/components/SshConfigImportDialog.tsx": 510,
   "src/components/TabBar.css": 668,
-  "src/components/TabBar.tsx": 1112,
+  "src/components/TabBar.tsx": 1101,
   "src/components/TerminalTab.css": 1695,
   "src/components/TerminalTab/index.tsx": 1386,
   "src/components/TerminalTab/ServerMonitorBar.tsx": 1024,
@@ -43,7 +43,7 @@
   "src/components/TransferManager.tsx": 534,
   "src/components/TTermApp.css": 629,
   "src/components/TTermApp.tsx": 2212,
-  "src/components/TTermApp/TabPanels.tsx": 1159,
+  "src/components/TTermApp/TabPanels.tsx": 1149,
   "src/components/TunnelsPanel/index.tsx": 691,
   "src/contexts/ConfigContext.tsx": 1018,
   "src/contexts/ThemeContext.tsx": 654

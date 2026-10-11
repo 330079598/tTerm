@@ -21,3 +21,14 @@ export function getTabSplitMenuActions(
     icon: action,
   }))
 }
+
+/** The item that pins or unpins an SSH tab's connection header, none for other tabs. */
+export function getTabPinMenuAction(
+  tab: Pick<Tab, "type" | "connectionHeaderPinned">,
+  t: ReturnType<typeof useTranslation>["t"]
+): TabContextMenuAction[] {
+  if (tab.type !== "ssh") return []
+  return tab.connectionHeaderPinned === false
+    ? [{ label: t("contextMenu.pinConnectionHeader"), action: "pin-header", icon: "pin" }]
+    : [{ label: t("contextMenu.unpinConnectionHeader"), action: "unpin-header", icon: "pin-off" }]
+}

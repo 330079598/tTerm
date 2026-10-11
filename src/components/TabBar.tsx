@@ -23,7 +23,7 @@ import {
   refocusTerminalIfFocusLost,
 } from "@/lib/terminalFocus"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
-import { getTabSplitMenuActions } from "@/lib/tabSplitting"
+import { getTabPinMenuAction, getTabSplitMenuActions } from "@/lib/tabMenuActions"
 import { getTabLogMenuActions } from "@/lib/terminalLogRecording"
 
 const TAB_OVERFLOW_THRESHOLD = 16
@@ -163,17 +163,6 @@ const TabItem = React.memo(function TabItem({
         return
       }
 
-      const pinAction: TabContextMenuAction | null =
-        tab.type === "ssh"
-          ? tab.connectionHeaderPinned === false
-            ? { label: t("contextMenu.pinConnectionHeader"), action: "pin-header", icon: "pin" }
-            : {
-                label: t("contextMenu.unpinConnectionHeader"),
-                action: "unpin-header",
-                icon: "pin-off",
-              }
-          : null
-
       // A tab without a profile (quick connect, or connected without saving) can be saved as one.
       const editConnectionAction: TabContextMenuAction | null =
         tab.type !== "ssh"
@@ -190,7 +179,7 @@ const TabItem = React.memo(function TabItem({
         ...getTabSplitMenuActions(tab, t),
         { label: t("contextMenu.renameTab"), action: "rename", icon: "edit" },
         ...(editConnectionAction ? [editConnectionAction] : []),
-        ...(pinAction ? [pinAction] : []),
+        ...getTabPinMenuAction(tab, t),
         ...logActions,
         { separator: true, label: "", action: "" },
         ...closeActions,
