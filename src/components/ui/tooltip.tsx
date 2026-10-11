@@ -151,16 +151,37 @@ function TooltipTrigger({
   )
 }
 
+type TooltipSide = "top" | "bottom"
+
 type TooltipContentProps = React.ComponentProps<"span"> & {
-  side?: "top" | "bottom"
+  side?: TooltipSide
 }
 
 const TOOLTIP_VIEWPORT_PADDING = 8
+/** Between the trigger and the tooltip: the 0.5rem of the translate classes. */
+const TOOLTIP_GAP = 8
+
+/**
+ * The side a tooltip goes on: the one asked for, unless the tooltip would
+ * leave the window there and fits on the other, as one above a tab in the
+ * title bar would.
+ */
+function placeTooltip(side: TooltipSide, trigger: DOMRect, height: number): TooltipSide {
+  const fitsAbove = trigger.top - TOOLTIP_GAP - height >= TOOLTIP_VIEWPORT_PADDING
+  const fitsBelow =
+    trigger.bottom + TOOLTIP_GAP + height <= window.innerHeight - TOOLTIP_VIEWPORT_PADDING
+  if (side === "top") return fitsAbove || !fitsBelow ? "top" : "bottom"
+  return fitsBelow || !fitsAbove ? "bottom" : "top"
+}
 
 function TooltipContent({ children, className, side = "top", ...props }: TooltipContentProps) {
   const context = React.useContext(TooltipContext)
   const contentRef = React.useRef<HTMLSpanElement>(null)
-  const [position, setPosition] = React.useState<{ left: number; top: number } | null>(null)
+  const [position, setPosition] = React.useState<{
+    left: number
+    top: number
+    side: TooltipSide
+  } | null>(null)
 
   if (!context) {
     throw new Error("TooltipContent must be used within Tooltip")
@@ -171,17 +192,21 @@ function TooltipContent({ children, className, side = "top", ...props }: Tooltip
     if (!rect) return
 
     const preferredLeft = rect.left + rect.width / 2
-    const tooltipWidth = contentRef.current?.getBoundingClientRect().width ?? 0
+    const content = contentRef.current?.getBoundingClientRect()
+    const tooltipWidth = content?.width ?? 0
     const halfTooltipWidth = tooltipWidth / 2
     const minLeft = TOOLTIP_VIEWPORT_PADDING + halfTooltipWidth
     const maxLeft = window.innerWidth - TOOLTIP_VIEWPORT_PADDING - halfTooltipWidth
     const left = tooltipWidth
       ? Math.min(Math.max(preferredLeft, minLeft), Math.max(minLeft, maxLeft))
       : preferredLeft
-    const top = side === "top" ? rect.top : rect.bottom
+    const placement = placeTooltip(side, rect, content?.height ?? 0)
+    const top = placement === "top" ? rect.top : rect.bottom
 
     setPosition((current) =>
-      current?.left === left && current.top === top ? current : { left, top }
+      current?.left === left && current.top === top && current.side === placement
+        ? current
+        : { left, top, side: placement }
     )
   }, [context.triggerElement, side])
 
@@ -217,7 +242,7 @@ function TooltipContent({ children, className, side = "top", ...props }: Tooltip
       style={{ left: position.left, top: position.top }}
       className={cn(
         "bg-popover text-popover-foreground pointer-events-none fixed z-[300] w-max max-w-[min(16rem,calc(100vw-1rem))] -translate-x-1/2 rounded-md border px-3 py-1.5 text-xs leading-relaxed shadow-md",
-        side === "top" ? "-translate-y-[calc(100%+0.5rem)]" : "translate-y-2",
+        position.side === "top" ? "-translate-y-[calc(100%+0.5rem)]" : "translate-y-2",
         className
       )}
       {...props}
