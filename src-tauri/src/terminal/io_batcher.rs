@@ -1,7 +1,7 @@
 use super::output_tail::OutputTail;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, RecvError, RecvTimeoutError, SyncSender, TryRecvError};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 use tauri::ipc::{Channel, InvokeResponseBody};
 
@@ -67,6 +67,13 @@ impl OutputFlow {
         self.acked.notify_all();
     }
 
+    /// Forgets the outstanding bytes: a new page acknowledges only what it
+    /// receives itself.
+    fn reset(&self) {
+        self.state.lock().unwrap().unacked = 0;
+        self.acked.notify_all();
+    }
+
     /// Stops waiting for acknowledgements for good, so a session being torn
     /// down can never wedge its sender (and the reader blocked behind it).
     pub fn close(&self) {
@@ -91,10 +98,11 @@ impl OutputFlow {
 }
 
 /// The frontend's output channel plus the flow control shared by every
-/// sender writing to it.
+/// sender writing to it. Clones share the channel, so a session moved to a
+/// new page (see [`TerminalOutput::move_to`]) keeps every sender writing.
 #[derive(Clone)]
 pub struct TerminalOutput {
-    channel: Channel<InvokeResponseBody>,
+    channel: Arc<Mutex<Channel<InvokeResponseBody>>>,
     flow: Arc<OutputFlow>,
 }
 
@@ -104,7 +112,25 @@ impl TerminalOutput {
     }
 
     fn with_flow(channel: Channel<InvokeResponseBody>, flow: Arc<OutputFlow>) -> Self {
-        Self { channel, flow }
+        Self {
+            channel: Arc::new(Mutex::new(channel)),
+            flow,
+        }
+    }
+
+    /// Sends from now on to `other`'s channel, the one a reloaded page
+    /// listens on; the old page and its acknowledgements are gone.
+    pub fn move_to(&self, other: &TerminalOutput) {
+        let channel = other.current_channel();
+        *self.channel.lock().unwrap_or_else(PoisonError::into_inner) = channel;
+        self.flow.reset();
+    }
+
+    fn current_channel(&self) -> Channel<InvokeResponseBody> {
+        self.channel
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 
     pub fn flow(&self) -> &Arc<OutputFlow> {
@@ -114,7 +140,7 @@ impl TerminalOutput {
     /// Sends one chunk once the webview has room for it.
     fn send(&self, chunk: Vec<u8>) -> tauri::Result<()> {
         self.flow.reserve(chunk.len());
-        self.channel.send(InvokeResponseBody::Raw(chunk))
+        self.current_channel().send(InvokeResponseBody::Raw(chunk))
     }
 }
 
@@ -479,6 +505,34 @@ mod tests {
         flow.close();
         feeder.join().unwrap();
         assert_eq!(delivered(&chunks), total);
+    }
+
+    #[test]
+    fn moving_to_a_new_page_resumes_output_there() {
+        // The old page stopped acknowledging; the sender waits on it.
+        let (output, old_page) = unacked_output(Duration::from_secs(60));
+        let (new_output, new_page) = unacked_output(Duration::from_secs(60));
+        let total = HIGH_WATERMARK_BYTES * 2;
+        let feeder = feed(
+            TerminalOutputSender::spawn("flow-move", output.clone()),
+            total,
+        );
+        std::thread::sleep(Duration::from_millis(100));
+        let stranded = delivered(&old_page);
+        assert!(stranded < total);
+
+        output.move_to(&new_output);
+        let flow = output.flow().clone();
+        let mut acked = 0;
+        while !feeder.is_finished() {
+            let now = delivered(&new_page);
+            flow.ack(now - acked);
+            acked = now;
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        feeder.join().unwrap();
+        assert_eq!(delivered(&old_page), stranded);
+        assert_eq!(stranded + delivered(&new_page), total);
     }
 
     #[test]

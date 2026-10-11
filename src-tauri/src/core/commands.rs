@@ -22,7 +22,7 @@ fn stop_pty_session(
 ) {
     let _ = session.stop_tx.send(true);
     // Nobody will acknowledge this channel's output again.
-    session.output_flow.close();
+    session.output.flow().close();
 
     if let Some(active) = session.active.blocking_lock().take() {
         match active {
@@ -111,7 +111,6 @@ fn create_pty_blocking(
     zmodem_armed_send_state: ZmodemArmedSendMap,
     zmodem_manual_detect_state: ZmodemManualDetectMap,
 ) -> Result<u32, String> {
-    let output_flow = output_channel.flow().clone();
     let mut plan = normalize_connection(connection)?;
     resolve_ssh_password(&app, &secret_state, &mut plan)?;
     let runtime_state = app.state::<crate::TokioRuntimeState>();
@@ -119,7 +118,7 @@ fn create_pty_blocking(
     let mut sessions = state.blocking_write();
     let reattached = sessions
         .get(&tab_id)
-        .and_then(|session| session.reattach(session_nonce, rows, cols));
+        .and_then(|session| session.reattach(session_nonce, rows, cols, &output_channel));
     if let Some(pid) = reattached {
         return Ok(pid);
     }
@@ -236,7 +235,7 @@ fn create_pty_blocking(
         stop_rx.clone(),
         prompt_state.clone(),
         size.clone(),
-        output_channel,
+        output_channel.clone(),
         runtime_handle.clone(),
         session_nonce,
         zmodem_state.clone(),
@@ -251,7 +250,7 @@ fn create_pty_blocking(
         stop_tx,
         supervisor,
         size,
-        output_flow,
+        output: output_channel,
     };
 
     sessions.insert(tab_id, session);
@@ -392,7 +391,7 @@ pub async fn ack_pty_output(
     let map = state.read().await;
     if let Some(session) = map.get(&tab_id) {
         if session.session_nonce == session_nonce {
-            session.output_flow.ack(bytes);
+            session.output.flow().ack(bytes);
         }
     }
     Ok(())
@@ -580,7 +579,7 @@ mod batch_write_tests {
             stop_tx,
             supervisor: runtime.spawn(async {}),
             size: Arc::new(AtomicTerminalSize::new(24, 80)),
-            output_flow: Arc::default(),
+            output: crate::terminal::TerminalOutput::new(tauri::ipc::Channel::new(|_| Ok(()))),
         }
     }
 

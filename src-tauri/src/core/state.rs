@@ -109,16 +109,23 @@ pub struct PtySession {
     /// Latest terminal dimensions, kept so an automatic reconnect can re-open
     /// the SSH channel at the current size instead of the original one.
     pub size: Arc<AtomicTerminalSize>,
-    /// Flow control for the frontend's output channel; acknowledged by
+    /// The frontend's output channel. Its flow control is acknowledged by
     /// `ack_pty_output` as xterm.js parses.
-    pub output_flow: Arc<crate::terminal::OutputFlow>,
+    pub output: crate::terminal::TerminalOutput,
 }
 
 impl PtySession {
-    /// Takes a running session over for a page that creates it again:
-    /// resizes it. Returns its pid, or `None` when the session is a different
-    /// one or has nothing running.
-    pub fn reattach(&self, session_nonce: u32, rows: u16, cols: u16) -> Option<u32> {
+    /// Takes a running session over for a page that creates it again, as a
+    /// reloaded page does with its restored tabs: resizes it and sends its
+    /// output to the new page's channel. Returns its pid, or `None` when the
+    /// session is a different one or has nothing running.
+    pub fn reattach(
+        &self,
+        session_nonce: u32,
+        rows: u16,
+        cols: u16,
+        output: &crate::terminal::TerminalOutput,
+    ) -> Option<u32> {
         if self.session_nonce != session_nonce {
             return None;
         }
@@ -137,6 +144,7 @@ impl PtySession {
                 let _ = ssh.resize_tx.send((rows, cols));
             }
         }
+        self.output.move_to(output);
         Some(self.pid)
     }
 }

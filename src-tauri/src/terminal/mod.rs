@@ -17,7 +17,7 @@ mod types;
 #[cfg(unix)]
 pub use cwd_watch::spawn_cwd_watcher;
 pub use encoding::{OutputDecoder, TerminalEncoding};
-pub use io_batcher::{OutputFlow, TerminalOutput, TerminalOutputSender};
+pub use io_batcher::{TerminalOutput, TerminalOutputSender};
 pub use output_tail::OutputTail;
 #[cfg(target_os = "macos")]
 pub use pty::preload_login_shell_env;
