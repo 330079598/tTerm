@@ -139,9 +139,7 @@ const TabItem = React.memo(function TabItem({
   const { t } = useTranslation()
 
   const setNodeRef = (node: HTMLDivElement | null) => {
-    if (isActive && setActiveNode) {
-      setActiveNode(node)
-    }
+    if (isActive) setActiveNode?.(node)
   }
 
   const handleContextMenu = useCallback(
