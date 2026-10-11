@@ -2,10 +2,8 @@ import "dockview-react/dist/styles/dockview.css"
 import "@/components/TTermApp/WorkspaceDock.css"
 
 import React, {
-  createContext,
   forwardRef,
   useCallback,
-  useContext,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -17,9 +15,7 @@ import {
   type DockviewApi,
   type DockviewReadyEvent,
   type IDockviewHeaderActionsProps,
-  type IDockviewPanelHeaderProps,
   type IDockviewPanelProps,
-  type SerializedDockview,
   themeDark,
 } from "dockview-react"
 import {
@@ -32,26 +28,24 @@ import {
   PanelTop,
   PanelsTopLeft,
   Rows2,
-  X,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { ErrorBoundary } from "@/components/ErrorBoundary"
-import { TabAttentionDot } from "@/components/TabAttentionDot"
-import { TabIcon } from "@/components/TabIcon"
-import { TabLogIndicator } from "@/components/TabLogIndicator"
-import { TabTitle } from "@/components/TabTitle"
-import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { TerminalTab } from "@/components/TerminalTab"
+import {
+  useDockPanelState,
+  useWorkspace,
+  WorkspaceContext,
+  type TabPanelsProps,
+  type WorkspaceContextValue,
+  type WorkspacePanelParams,
+  type WorkspaceSplitDirection,
+} from "@/components/TTermApp/workspaceContext"
+import { WorkspaceTab } from "@/components/TTermApp/WorkspaceTab"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { isPageTab, type SavedProfile, type Tab, type TabContextMenuAction } from "@/types/tab"
-import type { TerminalInputRequest } from "@/types/broadcast"
+import { isPageTab, type Tab } from "@/types/tab"
 import { withLocalCwd } from "@/lib/localTabTitle"
-import { getWorkspaceTabMenuActions } from "@/lib/tabMenuActions"
-import type { LiveBroadcastState } from "@/types/broadcast"
-import type { ExecutedCommand } from "@/types/command"
-import type { TerminalAttentionEvent } from "@/lib/terminalNotifications"
-import type { ConnectionState, SshConnectionProgress } from "@/components/TerminalTab/types"
 
 const workspaceDockTheme = {
   ...themeDark,
@@ -82,12 +76,6 @@ const SettingsPanel = React.lazy(() =>
   }))
 )
 
-type WorkspacePanelParams = {
-  tabId: string
-}
-
-export type WorkspaceSplitDirection = "left" | "right" | "above" | "below"
-
 export interface TabPanelsHandle {
   activateTab: (tabId: string) => void
   clearTabDrop: () => void
@@ -116,149 +104,6 @@ type PendingSplit = {
   sourceTabId: string
   tabId: string
 }
-
-interface TabPanelsProps {
-  activeTabId: string | null
-  duplicateTab: (id: string) => string | null
-  handlePinConnectionHeader: (tabId: string) => void
-  handleReconnectTab: (tabId: string) => void
-  handleServerMonitorVisibilityChange: (tabId: string, visible: boolean) => void
-  handleUnpinConnectionHeader: (tabId: string) => void
-  initialLayout: SerializedDockview | null
-  onActiveTabChange: (tabId: string) => void
-  onLayoutChange: (layout: SerializedDockview) => void
-  onOpenRemoteFile: (
-    entry: SftpDirectoryEntry,
-    sourceTabId: string,
-    connection?: Tab["connection"]
-  ) => void
-  onConnectProfile: (connection: Omit<Tab, "id" | "isActive">) => void
-  onEditProfile: (profile: SavedProfile) => void
-  onTabClose: (tabId: string) => void
-  onTabContextMenu: (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => void
-  onTerminalConnectionStateChange: (
-    tabId: string,
-    sessionNonce: number,
-    state: ConnectionState | null
-  ) => void
-  onTerminalInput: (request: TerminalInputRequest) => Promise<boolean | void>
-  onTerminalCommandExecuted?: (command: ExecutedCommand) => void
-  onTerminalAttention?: (tabId: string, event: TerminalAttentionEvent) => void
-  onOpenCommandLibrary?: (query?: string) => void
-  onSaveCommand?: (commandText: string, profile?: { id: string; name: string }) => void
-  onTerminalSavedPasswordPromptChange: (
-    tabId: string,
-    sessionNonce: number,
-    prompt: string | null
-  ) => void
-  onTerminalSessionUnavailable: (tabId: string, sessionNonce: number, unexpected: boolean) => void
-  onTerminalSensitivePrompt: (tabId: string) => void
-  onTerminalConnectionProgress?: (tabId: string, progress: SshConnectionProgress) => void
-  profilesRefreshKey?: number
-  startupConnectionsReady: boolean
-  startupSessionRestoreMode: "active" | "all"
-  tabs: Tab[]
-  broadcastSourceTabId: string | null
-  liveBroadcastState: LiveBroadcastState
-  onPauseBroadcast: () => void
-  onResumeBroadcast: () => void
-  onStopBroadcast: () => void
-  updateTab: (id: string, updater: (tab: Tab) => Tab) => void
-}
-
-type WorkspaceContextValue = Omit<
-  TabPanelsProps,
-  "activeTabId" | "initialLayout" | "onActiveTabChange" | "onLayoutChange"
-> & {
-  collapseToSingleGroup: (tabId: string) => void
-  groupCount: number
-  maximizedGroupId: string | null
-  splitTab: (tabId: string, direction: WorkspaceSplitDirection) => void
-}
-
-const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
-
-function useWorkspace() {
-  const value = useContext(WorkspaceContext)
-  if (!value) {
-    throw new Error("Workspace components must be rendered inside TabPanels")
-  }
-  return value
-}
-
-function useDockPanelState(api: IDockviewPanelProps["api"]) {
-  const [state, setState] = useState(() => ({
-    hasBeenVisible: api.isVisible,
-    isActive: api.isActive,
-    isVisible: api.isVisible,
-  }))
-
-  useEffect(() => {
-    const update = () => {
-      setState((current) => ({
-        hasBeenVisible: current.hasBeenVisible || api.isVisible,
-        isActive: api.isActive,
-        isVisible: api.isVisible,
-      }))
-    }
-    const disposables = [api.onDidActiveChange(update), api.onDidVisibilityChange(update)]
-    update()
-    return () => disposables.forEach((disposable) => disposable.dispose())
-  }, [api])
-
-  return state
-}
-
-const WorkspaceTab = React.memo(function WorkspaceTab({
-  api,
-  params,
-}: IDockviewPanelHeaderProps<WorkspacePanelParams>) {
-  const { t } = useTranslation()
-  const { onTabClose, onTabContextMenu, tabs } = useWorkspace()
-  const { isVisible } = useDockPanelState(api)
-  const tab = tabs.find((candidate) => candidate.id === params.tabId)
-
-  if (!tab) {
-    return null
-  }
-
-  return (
-    <div
-      className={`workspace-tab ${isVisible ? "active" : ""} ${tab.isModified ? "modified" : ""}`}
-      role="tab"
-      aria-selected={isVisible}
-      data-allow-context-menu
-      onClick={() => api.setActive()}
-      onContextMenu={(event) =>
-        onTabContextMenu(
-          event,
-          tab,
-          getWorkspaceTabMenuActions(
-            tab,
-            api.group.panels.map((panel) => panel.id),
-            t
-          )
-        )
-      }
-    >
-      <TabIcon tab={tab} />
-      <TabAttentionDot tabId={tab.id} />
-      <TabLogIndicator tabId={tab.id} />
-      <TabTitle tab={tab} className="workspace-tab-title" />
-      <button
-        type="button"
-        className="workspace-tab-close"
-        aria-label={t("contextMenu.closeTab", { defaultValue: "Close tab" })}
-        onClick={(event) => {
-          event.stopPropagation()
-          onTabClose(tab.id)
-        }}
-      >
-        <X size={12} aria-hidden="true" />
-      </button>
-    </div>
-  )
-})
 
 const WorkspacePanel = React.memo(function WorkspacePanel({
   api,

@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react"
 
 import type { ContextMenuState, RenameDialogState } from "@/components/TTermApp/types"
-import type { WorkspaceSplitDirection } from "@/components/TTermApp/TabPanels"
+import type { WorkspaceSplitDirection } from "@/components/TTermApp/workspaceContext"
 import { showLogsForTab } from "@/lib/appNavigation"
 import { nameLocalTab } from "@/lib/localTabTitle"
 import type { TabIconStyle } from "@/lib/tabIcons"

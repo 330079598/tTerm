@@ -41,8 +41,8 @@
   "src/components/TerminalTab/useTerminalLifecycle.ts": 1194,
   "src/components/TransferManager.tsx": 534,
   "src/components/TTermApp.css": 629,
-  "src/components/TTermApp.tsx": 2205,
-  "src/components/TTermApp/TabPanels.tsx": 1098,
+  "src/components/TTermApp.tsx": 2202,
+  "src/components/TTermApp/TabPanels.tsx": 943,
   "src/components/TunnelsPanel/index.tsx": 691,
   "src/contexts/ConfigContext.tsx": 979,
   "src/contexts/ThemeContext.tsx": 654

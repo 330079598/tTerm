@@ -19,11 +19,8 @@ import { RenameDialog } from "@/components/RenameDialog"
 import { TabBar } from "@/components/TabBar"
 import { TransferManager } from "@/components/TransferManager"
 import { EmptyState } from "@/components/TTermApp/EmptyState"
-import {
-  TabPanels,
-  type TabPanelsHandle,
-  type WorkspaceSplitDirection,
-} from "@/components/TTermApp/TabPanels"
+import { TabPanels, type TabPanelsHandle } from "@/components/TTermApp/TabPanels"
+import type { WorkspaceSplitDirection } from "@/components/TTermApp/workspaceContext"
 import {
   buildTabFromConnection,
   isTerminalConnectionUnavailable,
