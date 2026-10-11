@@ -12,6 +12,9 @@ use super::NotificationRequest;
 /// How long to wait for a click before letting `notify-send` go.
 const CLICK_WAIT: Duration = Duration::from_secs(30 * 60);
 const DEFAULT_ACTION: &str = "default";
+/// The freedesktop sound theme's name for a new message, played by
+/// notification servers that honour the `sound-name` hint.
+const SOUND_HINT: &str = "--hint=string:sound-name:message-new-instant";
 
 pub fn show(app: &AppHandle, request: NotificationRequest) -> Result<(), String> {
     // Fails here rather than silently in the thread when libnotify is missing.
@@ -29,12 +32,14 @@ pub fn show(app: &AppHandle, request: NotificationRequest) -> Result<(), String>
         Some(subtitle) => format!("{subtitle}\n{}", request.body),
         None => request.body.clone(),
     };
+    let sound = request.sound.then_some(SOUND_HINT);
     let app = app.clone();
     std::thread::spawn(move || {
         let clickable = Command::new("notify-send")
             .arg("--app-name=tTerm")
             .arg(format!("--action={DEFAULT_ACTION}=Open"))
             .arg("--wait")
+            .args(sound)
             .arg("--")
             .arg(&summary)
             .arg(&body)
@@ -78,6 +83,7 @@ pub fn show(app: &AppHandle, request: NotificationRequest) -> Result<(), String>
             Some(_) => {
                 let _ = Command::new("notify-send")
                     .arg("--app-name=tTerm")
+                    .args(sound)
                     .arg("--")
                     .arg(&summary)
                     .arg(&body)
