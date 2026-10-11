@@ -8,10 +8,19 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { TabIconPicker } from "@/components/TabIconPicker"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useSyncedState } from "@/hooks/useSyncedState"
+import { useConfig } from "@/contexts/ConfigContext"
+import { shellTabIcon, type TabIconStyle } from "@/lib/tabIcons"
 import { Label } from "@/components/ui/label"
+
+/** A local tab's own icon, edited beside its name. */
+interface TabIconEdit {
+  shellName?: string
+  value: TabIconStyle | undefined
+  onChange: (value: TabIconStyle | undefined) => void
+}
 
 interface RenameDialogProps {
   isOpen: boolean
@@ -20,17 +29,44 @@ interface RenameDialogProps {
   onClose: () => void
   /** Given for a local tab the user named: names it automatically again. */
   onUseAutoTitle?: () => void
+  /** Given for a local tab, whose icon can be chosen too. */
+  icon?: TabIconEdit
 }
 
-export const RenameDialog: React.FC<RenameDialogProps> = ({
-  isOpen,
+function sameStyle(a: TabIconStyle | undefined, b: TabIconStyle | undefined) {
+  return a?.icon === b?.icon && a?.color === b?.color
+}
+
+export const RenameDialog: React.FC<RenameDialogProps> = ({ isOpen, onClose, ...props }) => {
+  const { config } = useConfig()
+  const showIcon = props.icon !== undefined && config.tab_icons.enabled
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className={showIcon ? "sm:max-w-md" : "sm:max-w-sm"}>
+        <RenameForm {...props} onClose={onClose} showIcon={showIcon} />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// Mounted while the dialog is open, so each opening starts from the tab as it is.
+function RenameForm({
   currentName,
   onConfirm,
   onClose,
   onUseAutoTitle,
-}) => {
+  icon,
+  showIcon,
+}: Omit<RenameDialogProps, "isOpen"> & { showIcon: boolean }) {
   const { t } = useTranslation()
-  const [name, setName] = useSyncedState(currentName)
+  const { config } = useConfig()
+  const [name, setName] = React.useState(currentName)
+  const [iconStyle, setIconStyle] = React.useState(icon?.value)
+
+  const commitIcon = () => {
+    if (icon && !sameStyle(iconStyle, icon.value)) icon.onChange(iconStyle)
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,56 +74,67 @@ export const RenameDialog: React.FC<RenameDialogProps> = ({
     if (trimmedName && trimmedName !== currentName) {
       onConfirm(trimmedName)
     }
+    commitIcon()
     onClose()
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Edit2 size={16} />
-            {t("rename.title")}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          <Edit2 size={16} />
+          {icon ? t("rename.editTitle") : t("rename.title")}
+        </DialogTitle>
+      </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit}>
+        <div className="py-2">
+          <Label htmlFor="rename-input" className="mb-2 block">
+            {t("rename.newName")}
+          </Label>
+          <Input
+            id="rename-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={currentName}
+            autoFocus
+          />
+        </div>
+
+        {showIcon && icon && (
           <div className="py-2">
-            <Label htmlFor="rename-input" className="mb-2 block">
-              {t("rename.newName")}
-            </Label>
-            <Input
-              id="rename-input"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={currentName}
-              autoFocus
+            <TabIconPicker
+              value={iconStyle}
+              inherited={shellTabIcon(config.tab_icons, icon.shellName)}
+              resetLabel={t("tabIcons.resetTab")}
+              onChange={setIconStyle}
             />
           </div>
+        )}
 
-          <DialogFooter className="mt-4">
-            {onUseAutoTitle && (
-              <Button
-                type="button"
-                variant="ghost"
-                className="sm:mr-auto"
-                onClick={() => {
-                  onUseAutoTitle()
-                  onClose()
-                }}
-              >
-                {t("rename.useAutoTitle")}
-              </Button>
-            )}
-            <Button type="button" variant="ghost" onClick={onClose}>
-              {t("rename.cancel")}
+        <DialogFooter className="mt-4">
+          {onUseAutoTitle && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="sm:mr-auto"
+              onClick={() => {
+                onUseAutoTitle()
+                commitIcon()
+                onClose()
+              }}
+            >
+              {t("rename.useAutoTitle")}
             </Button>
-            <Button type="submit" disabled={!name.trim()}>
-              {t("rename.confirm")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          )}
+          <Button type="button" variant="ghost" onClick={onClose}>
+            {t("rename.cancel")}
+          </Button>
+          <Button type="submit" disabled={!name.trim()}>
+            {icon ? t("rename.save") : t("rename.confirm")}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
   )
 }

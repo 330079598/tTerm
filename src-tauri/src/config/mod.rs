@@ -1,5 +1,6 @@
 mod atomic;
 mod paths;
+pub mod tab_icons;
 pub mod window_background;
 
 pub use atomic::{atomic_write, atomic_write_private};
@@ -249,6 +250,9 @@ pub struct AppConfig {
     /// What the terminal bell does: "visual", "sound" or "none".
     #[serde(default = "default_bell_style")]
     pub bell_style: String,
+    /// How local terminal tabs show their shell's icon.
+    #[serde(default)]
+    pub tab_icons: tab_icons::TabIconConfig,
 }
 
 /// User-configurable keyboard shortcut overrides. `bindings` maps action ids
@@ -641,6 +645,7 @@ impl Default for AppConfig {
             toast_max_visible: default_toast_max_visible(),
             notify_sound: true,
             bell_style: default_bell_style(),
+            tab_icons: tab_icons::TabIconConfig::default(),
         }
     }
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   getTabPinMenuAction,
+  getTabRenameMenuAction,
   getTabSplitMenuActions,
   getWorkspaceTabMenuActions,
 } from "@/lib/tabMenuActions"
@@ -45,5 +46,12 @@ describe("getWorkspaceTabMenuActions", () => {
     expect(actions({ id: "a", title: "tTerm", type: "terminal", isActive: true })).toEqual(
       expect.arrayContaining(["duplicate", "split-right", "rename", "close"])
     )
+  })
+})
+
+describe("getTabRenameMenuAction", () => {
+  it("edits a local tab and renames others", () => {
+    expect(getTabRenameMenuAction({ type: "terminal" }, t).label).toBe("contextMenu.editTab")
+    expect(getTabRenameMenuAction({ type: "ssh" }, t).label).toBe("contextMenu.renameTab")
   })
 })

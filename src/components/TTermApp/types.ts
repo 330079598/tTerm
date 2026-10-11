@@ -12,8 +12,8 @@ export interface RenameDialogState {
   isOpen: boolean
   tabId: string | null
   currentName: string
-  /** A local tab the user named, which can go back to being named automatically. */
-  autoTitleTab?: Tab
+  /** A local terminal tab: its icon can be chosen, and once named it can go back to an automatic name. */
+  localTab?: Tab
 }
 
 export interface TabPanelsProps {

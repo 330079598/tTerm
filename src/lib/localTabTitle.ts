@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core"
 import { homeDir } from "@tauri-apps/api/path"
 
+import { normalizeTabIconStyle } from "@/lib/tabIcons"
 import type { Tab } from "@/types/tab"
 
 // Titles local tabs were opened with before they were named after their shell.
@@ -202,15 +203,17 @@ async function hasGeneratedTitle(tab: Tab): Promise<boolean> {
 
 /**
  * Saved local tabs brought up to date: those still showing a generated name
- * are named automatically from now on, and each learns its shell's name.
+ * are named automatically from now on, each learns its shell's name, and a
+ * tab's own icon is checked.
  */
 export async function refreshSavedLocalTabs(tabs: Tab[]): Promise<Tab[]> {
   await loadHome()
   return Promise.all(
     tabs.map(async (tab) => {
       if (tab.type !== "terminal") return tab
-      if (await hasGeneratedTitle(tab)) return nameLocalTab({ ...tab, title: "" })
-      return tab.shellName ? tab : { ...tab, shellName: await localShellName(tab.connection) }
+      const saved = { ...tab, iconStyle: normalizeTabIconStyle(tab.iconStyle) }
+      if (await hasGeneratedTitle(saved)) return nameLocalTab({ ...saved, title: "" })
+      return saved.shellName ? saved : { ...saved, shellName: await localShellName(tab.connection) }
     })
   )
 }

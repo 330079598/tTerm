@@ -209,3 +209,26 @@ fn window_blur_config_is_clamped() {
     assert_eq!(missing.window_opacity_percent, 70);
     assert_eq!(missing.window_blur_material, "acrylic");
 }
+
+#[test]
+fn tab_icons_default_to_shown_with_built_in_looks() {
+    let config: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+
+    assert!(config.tab_icons.enabled);
+    assert!(config.tab_icons.shells.is_empty());
+}
+
+#[test]
+fn tab_icons_keep_each_shells_choice() {
+    let config: AppConfig = serde_json::from_str(
+        r##"{"theme":"default","tab_icons":{"enabled":false,"shells":{"pwsh":{"color":"#ff0000"}}}}"##,
+    )
+    .unwrap();
+
+    assert!(!config.tab_icons.enabled);
+    let pwsh = &config.tab_icons.shells["pwsh"];
+    assert_eq!(pwsh.icon, None);
+    assert_eq!(pwsh.color.as_deref(), Some("#ff0000"));
+    let saved = serde_json::to_string(&config.tab_icons).unwrap();
+    assert!(saved.contains(r##""pwsh":{"color":"#ff0000"}"##));
+}

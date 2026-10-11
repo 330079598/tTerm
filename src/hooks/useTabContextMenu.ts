@@ -4,6 +4,7 @@ import type { ContextMenuState, RenameDialogState } from "@/components/TTermApp/
 import type { WorkspaceSplitDirection } from "@/components/TTermApp/TabPanels"
 import { showLogsForTab } from "@/lib/appNavigation"
 import { nameLocalTab } from "@/lib/localTabTitle"
+import type { TabIconStyle } from "@/lib/tabIcons"
 import type { Tab, TabContextMenuAction } from "@/types/tab"
 
 interface UseTabContextMenuDeps {
@@ -93,7 +94,7 @@ export function useTabContextMenu({
             isOpen: true,
             tabId: tab.id,
             currentName: tab.title,
-            autoTitleTab: tab.type === "terminal" && !tab.autoTitle ? tab : undefined,
+            localTab: tab.type === "terminal" ? tab : undefined,
           })
           break
         case "edit-connection":
@@ -180,18 +181,25 @@ export function useTabContextMenu({
     })
   }, [])
 
-  const autoTitleTab = renameDialogState.autoTitleTab
+  const localTab = renameDialogState.localTab
   const handleUseAutoTitle = useCallback(() => {
-    if (!autoTitleTab) return
-    void nameLocalTab({ ...autoTitleTab, title: "" }).then(({ title }) =>
-      updateTab(autoTitleTab.id, (current) => ({
+    if (!localTab) return
+    void nameLocalTab({ ...localTab, title: "" }).then(({ title }) =>
+      updateTab(localTab.id, (current) => ({
         ...current,
         title,
         autoTitle: true,
         duplicateBaseTitle: undefined,
       }))
     )
-  }, [autoTitleTab, updateTab])
+  }, [localTab, updateTab])
+
+  const handleIconStyleChange = useCallback(
+    (iconStyle: TabIconStyle | undefined) => {
+      if (localTab) updateTab(localTab.id, (current) => ({ ...current, iconStyle }))
+    },
+    [localTab, updateTab]
+  )
 
   return {
     contextMenu,
@@ -200,7 +208,12 @@ export function useTabContextMenu({
       currentName: renameDialogState.currentName,
       onConfirm: handleRenameConfirm,
       onClose: handleRenameClose,
-      onUseAutoTitle: autoTitleTab ? handleUseAutoTitle : undefined,
+      onUseAutoTitle: localTab && !localTab.autoTitle ? handleUseAutoTitle : undefined,
+      icon: localTab && {
+        shellName: localTab.shellName,
+        value: localTab.iconStyle,
+        onChange: handleIconStyleChange,
+      },
     },
     handleTabContextMenu,
     handleContextMenuAction,

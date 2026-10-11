@@ -1,3 +1,5 @@
+import type { TabIconStyle } from "@/lib/tabIcons"
+
 export interface SavedProfile {
   id: string
   name: string
@@ -134,6 +136,8 @@ export interface Tab {
   autoTitle?: boolean
   /** The shell a local tab runs (`pwsh`, `cmd`, `WSL`, `zsh`), for its icon and tooltip. */
   shellName?: string
+  /** A local tab's own icon and color, over those of its shell. */
+  iconStyle?: TabIconStyle
   /**
    * Opened from the launcher by typing a host and not connected yet: its
    * first connection is remembered as recent and offered for saving.

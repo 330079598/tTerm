@@ -13,6 +13,8 @@ vi.mock("@/components/TerminalTab", () => ({
   TerminalTab: ({ tabId }: { tabId: string }) => <div data-testid={`terminal-${tabId}`} />,
 }))
 
+vi.mock("@/components/TabIcon", () => ({ TabIcon: () => null }))
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, options?: { defaultValue?: string }) => options?.defaultValue ?? key,

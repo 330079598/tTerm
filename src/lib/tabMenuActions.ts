@@ -24,6 +24,15 @@ export function getTabSplitMenuActions(
   }))
 }
 
+/** The item that renames a tab; a local tab's also picks its icon. */
+export function getTabRenameMenuAction(
+  tab: Pick<Tab, "type">,
+  t: ReturnType<typeof useTranslation>["t"]
+): TabContextMenuAction {
+  const label = tab.type === "terminal" ? t("contextMenu.editTab") : t("contextMenu.renameTab")
+  return { label, action: "rename", icon: "edit" }
+}
+
 /** The item that pins or unpins an SSH tab's connection header, none for other tabs. */
 export function getTabPinMenuAction(
   tab: Pick<Tab, "type" | "connectionHeaderPinned">,
@@ -68,7 +77,7 @@ export function getWorkspaceTabMenuActions(
     ...commonStart,
     { label: t("contextMenu.duplicateTab"), action: "duplicate", icon: "copy" },
     ...getTabSplitMenuActions(tab, t),
-    { label: t("contextMenu.renameTab"), action: "rename", icon: "edit" },
+    getTabRenameMenuAction(tab, t),
     ...(editConnectionAction ? [editConnectionAction] : []),
     ...getTabPinMenuAction(tab, t),
     ...logActions,

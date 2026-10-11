@@ -1,64 +1,42 @@
-import {
-  Fish,
-  GitBranch,
-  ScrollText,
-  Settings,
-  SquareChevronRight,
-  SquareTerminal,
-  Terminal,
-  Waypoints,
-  type LucideIcon,
-} from "lucide-react"
+import { ScrollText, Settings, Waypoints } from "lucide-react"
 
+import { TAB_ICON_GLYPHS } from "@/components/TabIconPicker/glyphs"
+import { useConfig } from "@/contexts/ConfigContext"
+import { resolveTabIcon, type ResolvedTabIcon } from "@/lib/tabIcons"
 import type { Tab } from "@/types/tab"
 
 const PAGE_ICONS = { settings: Settings, tunnels: Waypoints, logs: ScrollText } as const
 
-interface IconChoice {
-  icon: LucideIcon
-  /** A hint of the shell's own color, readable on light and dark tabs alike. */
-  color?: string
-}
-
-// Keyed by the lowercased names local_terminal_shell_name gives.
-const SHELL_ICONS: Record<string, IconChoice> = {
-  pwsh: { icon: SquareChevronRight, color: "#3b9ae1" },
-  powershell: { icon: SquareChevronRight, color: "#3b9ae1" },
-  cmd: { icon: SquareTerminal },
-  "git bash": { icon: GitBranch, color: "#f05133" },
-  wsl: { icon: Terminal, color: "#e9853a" },
-  bash: { icon: Terminal, color: "#4caf7a" },
-  zsh: { icon: Terminal, color: "#4caf7a" },
-  sh: { icon: Terminal, color: "#4caf7a" },
-  fish: { icon: Fish, color: "#4caf7a" },
-}
-
-function tabIcon(tab: Pick<Tab, "type" | "shellName">): IconChoice | null {
-  if (tab.type in PAGE_ICONS) return { icon: PAGE_ICONS[tab.type as keyof typeof PAGE_ICONS] }
-  if (tab.type !== "terminal") return null
-  return SHELL_ICONS[tab.shellName?.toLowerCase() ?? ""] ?? { icon: Terminal }
+/** An icon a local tab can show, drawn in its color, or the text color for none. */
+export function TabIconGlyph({ icon, className }: { icon: ResolvedTabIcon; className?: string }) {
+  const Glyph = TAB_ICON_GLYPHS[icon.icon]
+  return (
+    <Glyph
+      className={className}
+      size={13}
+      style={icon.color ? { color: icon.color } : undefined}
+      aria-hidden="true"
+    />
+  )
 }
 
 /**
  * The icon in front of a tab's title: an app page's, or for a local terminal
- * its shell's, so tabs named after their directory still tell shells apart.
+ * its own or its shell's, so tabs named after their directory still tell
+ * shells apart.
  */
 export function TabIcon({
   tab,
   className,
 }: {
-  tab: Pick<Tab, "type" | "shellName">
+  tab: Pick<Tab, "type" | "shellName" | "iconStyle">
   className?: string
 }) {
-  const choice = tabIcon(tab)
-  if (!choice) return null
-  const { icon: Icon, color } = choice
-  return (
-    <Icon
-      className={className}
-      size={13}
-      style={color ? { color } : undefined}
-      aria-hidden="true"
-    />
-  )
+  const { config } = useConfig()
+  if (tab.type in PAGE_ICONS) {
+    const Icon = PAGE_ICONS[tab.type as keyof typeof PAGE_ICONS]
+    return <Icon className={className} size={13} aria-hidden="true" />
+  }
+  const icon = resolveTabIcon(tab, config.tab_icons)
+  return icon && <TabIconGlyph icon={icon} className={className} />
 }

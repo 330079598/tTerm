@@ -9,7 +9,11 @@ import { TabTitle } from "@/components/TabTitle"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { tabTooltip } from "@/lib/localTabTitle"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
-import { getTabPinMenuAction, getTabSplitMenuActions } from "@/lib/tabMenuActions"
+import {
+  getTabPinMenuAction,
+  getTabRenameMenuAction,
+  getTabSplitMenuActions,
+} from "@/lib/tabMenuActions"
 import { keepFocusOnMouseDown } from "@/lib/terminalFocus"
 import { getTabLogMenuActions } from "@/lib/terminalLogRecording"
 import { isPageTab, type Tab, type TabContextMenuAction } from "@/types/tab"
@@ -79,7 +83,7 @@ export const TabItem = React.memo(function TabItem({
         { label: t("contextMenu.newTab"), action: "new", icon: "plus" },
         { label: t("contextMenu.duplicateTab"), action: "duplicate", icon: "copy" },
         ...getTabSplitMenuActions(tab, t),
-        { label: t("contextMenu.renameTab"), action: "rename", icon: "edit" },
+        getTabRenameMenuAction(tab, t),
         ...(editConnectionAction ? [editConnectionAction] : []),
         ...getTabPinMenuAction(tab, t),
         ...logActions,
