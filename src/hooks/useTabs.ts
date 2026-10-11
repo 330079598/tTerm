@@ -1,4 +1,5 @@
 import { useCallback, useReducer, useRef } from "react"
+import { withDistinctLocalTitles } from "@/lib/localTabTitle"
 import { isPageTab, type PageTabType, Tab } from "@/types/tab"
 
 export interface UseTabsReturn {
@@ -128,7 +129,7 @@ function activateTabInState(state: TabsState, id: string): TabsState {
   }
 }
 
-function tabsReducer(state: TabsState, action: TabsAction): TabsState {
+function applyTabsAction(state: TabsState, action: TabsAction): TabsState {
   switch (action.type) {
     case "restore":
       return {
@@ -247,6 +248,15 @@ function tabsReducer(state: TabsState, action: TabsAction): TabsState {
         }),
       }
   }
+}
+
+// Automatic titles depend on the other tabs, so every change is followed by a
+// pass that sets apart local tabs in different directories of the same name.
+function tabsReducer(state: TabsState, action: TabsAction): TabsState {
+  const next = applyTabsAction(state, action)
+  if (next.tabs === state.tabs) return next
+  const tabs = withDistinctLocalTitles(next.tabs)
+  return tabs === next.tabs ? next : { ...next, tabs }
 }
 
 export function useTabs(): UseTabsReturn {

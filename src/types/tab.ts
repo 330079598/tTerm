@@ -132,6 +132,8 @@ export interface Tab {
    * and shows the command the shell runs. Cleared when the user renames it.
    */
   autoTitle?: boolean
+  /** The shell a local tab runs (`pwsh`, `cmd`, `WSL`, `zsh`), for its icon and tooltip. */
+  shellName?: string
   /**
    * Opened from the launcher by typing a host and not connected yet: its
    * first connection is remembered as recent and offered for saving.

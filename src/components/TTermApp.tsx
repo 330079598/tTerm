@@ -54,7 +54,7 @@ import { useTerminalFontZoom } from "@/hooks/useTerminalFontZoom"
 import { useTerminalNotifications } from "@/hooks/useTerminalNotifications"
 import { toast } from "@/hooks/use-toast"
 import { useWindowControls } from "@/hooks/useWindowControls"
-import { nameLocalTab, renameLegacyLocalTabs } from "@/lib/localTabTitle"
+import { nameLocalTab, refreshSavedLocalTabs } from "@/lib/localTabTitle"
 import { markSessionReady } from "@/lib/startup"
 import {
   addRecentCommand,
@@ -945,7 +945,7 @@ export const TTermApp: React.FC = () => {
         }
 
         if (savedSession && savedSession.tabs.length > 0) {
-          const restoredTabs = await renameLegacyLocalTabs(savedSession.tabs)
+          const restoredTabs = await refreshSavedLocalTabs(savedSession.tabs)
           if (cancelled) {
             return
           }
@@ -1136,7 +1136,7 @@ export const TTermApp: React.FC = () => {
 
   const handleConnect = useCallback(
     (connection: Omit<Tab, "id" | "isActive">) => {
-      if (connection.type === "terminal" && !connection.title) {
+      if (connection.type === "terminal") {
         void nameLocalTab(connection).then((tab) => addTab(buildTabFromConnection(tab)))
         return
       }

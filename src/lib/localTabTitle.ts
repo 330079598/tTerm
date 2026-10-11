@@ -103,10 +103,70 @@ export function withLocalCwd(tab: Tab, cwd: string): Tab {
   return { ...tab, title, connection: { ...(tab.connection ?? { type: "terminal" }), cwd } }
 }
 
-/** A tab's tooltip: its title with the host it reaches, or a local shell's directory. */
+// A path's directories, without empty parts or a trailing separator.
+function pathSegments(path: string): string[] {
+  return path.split(/[\\/]+/).filter(Boolean)
+}
+
+/**
+ * Titles for local tabs named automatically, set apart where shells sit in
+ * different directories of the same name: `web/src` and `api/src`, with as
+ * many parent directories as it takes. Tabs in the very same directory keep
+ * the same title. Returns the same array when no title changes.
+ */
+export function distinctLocalTitles(tabs: Tab[], homeDirectory: string | null): Tab[] {
+  const groups = new Map<string, { tab: Tab; cwd: string }[]>()
+  for (const tab of tabs) {
+    const cwd = tab.connection?.cwd
+    const base = tab.autoTitle && cwd ? directoryTitle(cwd, homeDirectory) : null
+    if (cwd && base) groups.set(base, [...(groups.get(base) ?? []), { tab, cwd }])
+  }
+
+  const titles = new Map<string, string>()
+  for (const [base, members] of groups) {
+    const paths = [...new Set(members.map(({ cwd }) => comparablePath(cwd)))]
+    for (const { tab, cwd } of members) {
+      const own = comparablePath(cwd)
+      const others = paths.filter((path) => path !== own).map(pathSegments)
+      titles.set(tab.id, others.length ? distinctSuffix(cwd, others) : base)
+    }
+  }
+
+  let changed = false
+  const next = tabs.map((tab) => {
+    const title = titles.get(tab.id)
+    if (title === undefined || title === tab.title) return tab
+    changed = true
+    return { ...tab, title }
+  })
+  return changed ? next : tabs
+}
+
+// The fewest trailing directories of `cwd` that no other path ends with.
+function distinctSuffix(cwd: string, others: string[][]): string {
+  const segments = pathSegments(cwd)
+  const comparable = pathSegments(comparablePath(cwd))
+  const separator = cwd.includes("\\") ? "\\" : "/"
+  for (let count = 2; count <= segments.length; count++) {
+    const suffix = comparable.slice(-count).join("/")
+    if (others.every((other) => other.slice(-count).join("/") !== suffix)) {
+      return segments.slice(-count).join(separator)
+    }
+  }
+  return cwd.trim()
+}
+
+/** {@link distinctLocalTitles} with the user's home directory, for the tab list. */
+export function withDistinctLocalTitles(tabs: Tab[]): Tab[] {
+  return distinctLocalTitles(tabs, home)
+}
+
+/** A tab's tooltip: its title with the host it reaches, or a local shell's directory and name. */
 export function tabTooltip(tab: Tab): string {
-  const detail = tab.type === "terminal" ? tab.connection?.cwd : tab.connection?.host
-  return detail && detail !== tab.title ? `${tab.title} (${detail})` : tab.title
+  const details =
+    tab.type === "terminal" ? [tab.connection?.cwd, tab.shellName] : [tab.connection?.host]
+  const detail = details.filter((part) => part && part !== tab.title).join(" · ")
+  return detail ? `${tab.title} (${detail})` : tab.title
 }
 
 /** A local tab saved with one of the old default names, to be named automatically instead. */
@@ -115,14 +175,16 @@ export function hasLegacyLocalTitle(tab: Pick<Tab, "type" | "title">): boolean {
 }
 
 /**
- * A local tab opened without a name is named automatically: after its
- * directory, or after its shell until the shell reports one.
+ * A local tab with its shell's name. One opened without a name is named
+ * automatically: after its directory, or after its shell until the shell
+ * reports one.
  */
 export async function nameLocalTab<T extends Omit<Tab, "id" | "isActive">>(tab: T): Promise<T> {
-  if (tab.type !== "terminal" || tab.title) return tab
-  await loadHome()
-  const title = cwdTitle(tab.connection?.cwd) ?? (await localShellName(tab.connection))
-  return { ...tab, title, autoTitle: true, duplicateBaseTitle: undefined }
+  if (tab.type !== "terminal") return tab
+  const [shellName] = await Promise.all([localShellName(tab.connection), loadHome()])
+  if (tab.title) return { ...tab, shellName }
+  const title = cwdTitle(tab.connection?.cwd) ?? shellName
+  return { ...tab, title, shellName, autoTitle: true, duplicateBaseTitle: undefined }
 }
 
 // Before titles followed the directory, a local tab was named after its shell
@@ -138,11 +200,17 @@ async function hasGeneratedTitle(tab: Tab): Promise<boolean> {
   return base === (await localShellName(tab.connection))
 }
 
-/** Saved local tabs still showing a generated name, named automatically from now on. */
-export function renameLegacyLocalTabs(tabs: Tab[]): Promise<Tab[]> {
+/**
+ * Saved local tabs brought up to date: those still showing a generated name
+ * are named automatically from now on, and each learns its shell's name.
+ */
+export async function refreshSavedLocalTabs(tabs: Tab[]): Promise<Tab[]> {
+  await loadHome()
   return Promise.all(
-    tabs.map(async (tab) =>
-      (await hasGeneratedTitle(tab)) ? nameLocalTab({ ...tab, title: "" }) : tab
-    )
+    tabs.map(async (tab) => {
+      if (tab.type !== "terminal") return tab
+      if (await hasGeneratedTitle(tab)) return nameLocalTab({ ...tab, title: "" })
+      return tab.shellName ? tab : { ...tab, shellName: await localShellName(tab.connection) }
+    })
   )
 }

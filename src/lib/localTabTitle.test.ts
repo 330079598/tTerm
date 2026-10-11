@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   commandTitle,
   directoryTitle,
+  distinctLocalTitles,
   hasLegacyLocalTitle,
   tabTooltip,
   withLocalCwd,
@@ -109,5 +110,72 @@ describe("tabTooltip", () => {
         connection: { host: "10.0.0.1" },
       })
     ).toBe("prod (10.0.0.1)")
+  })
+})
+
+describe("distinctLocalTitles", () => {
+  const local = (id: string, cwd: string, fields: Partial<Tab> = {}): Tab => ({
+    id,
+    title: "",
+    type: "terminal",
+    isActive: false,
+    autoTitle: true,
+    connection: { type: "terminal", cwd },
+    ...fields,
+  })
+  const titles = (tabs: Tab[], home: string | null = null) =>
+    distinctLocalTitles(tabs, home).map((tab) => tab.title)
+
+  it("adds parent directories until same-named directories differ", () => {
+    expect(
+      titles([
+        local("1", "/work/web/src"),
+        local("2", "/work/api/src"),
+        local("3", "/home/me/api/src"),
+      ])
+    ).toEqual(["web/src", "work/api/src", "me/api/src"])
+  })
+
+  it("keeps the plain name for tabs in the very same directory", () => {
+    const tabs = [local("1", "D:\\code\\tTerm"), local("2", "d:/code/tTerm/")]
+    expect(titles(tabs)).toEqual(["tTerm", "tTerm"])
+  })
+
+  it("separates Windows paths with backslashes", () => {
+    expect(titles([local("1", "C:\\a\\src"), local("2", "C:\\b\\src")])).toEqual([
+      "a\\src",
+      "b\\src",
+    ])
+  })
+
+  it("falls back to the whole path when one directory ends the other", () => {
+    expect(titles([local("1", "/src"), local("2", "/a/src")])).toEqual(["/src", "a/src"])
+  })
+
+  it("leaves tabs the user named, and returns the same array when nothing changes", () => {
+    const tabs = [
+      local("1", "/a/src", { title: "src" }),
+      local("2", "/b/src", { autoTitle: undefined, title: "mine" }),
+    ]
+    expect(titles(tabs)).toEqual(["src", "mine"])
+    expect(distinctLocalTitles(tabs, null)).toBe(tabs)
+  })
+
+  it("shows the home directory as ~", () => {
+    expect(titles([local("1", "/home/me")], "/home/me")).toEqual(["~"])
+  })
+})
+
+describe("tabTooltip with a shell", () => {
+  it("names the shell after the directory", () => {
+    const tab: Tab = {
+      id: "1",
+      title: "tTerm",
+      type: "terminal",
+      isActive: true,
+      shellName: "pwsh",
+      connection: { cwd: "D:\\code\\tTerm" },
+    }
+    expect(tabTooltip(tab)).toBe("tTerm (D:\\code\\tTerm · pwsh)")
   })
 })

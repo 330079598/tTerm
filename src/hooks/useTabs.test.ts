@@ -181,6 +181,23 @@ describe("useTabs automatic titles", () => {
     expect(result.current.tabs[2]).toMatchObject({ autoTitle: true, duplicateBaseTitle: undefined })
   })
 
+  it("sets apart tabs in different directories of the same name", () => {
+    const { result } = renderHook(() => useTabs())
+    let second = ""
+    act(() => {
+      result.current.addTab(localTab("tTerm"))
+      second = result.current.addTab(localTab("tTerm"))
+    })
+    act(() => {
+      result.current.updateTab(second, (tab) => ({
+        ...tab,
+        connection: { type: "terminal", cwd: "/backup/tTerm" },
+      }))
+    })
+
+    expect(titles(result)).toEqual(["work/tTerm", "backup/tTerm"])
+  })
+
   it("stops following the shell once the user renames the tab", () => {
     const { result } = renderHook(() => useTabs())
     let id = ""
