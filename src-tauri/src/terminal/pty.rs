@@ -229,6 +229,16 @@ fn apply_macos_login_shell_env(cmd: &mut CommandBuilder) {
     cmd.env("PATH", resolve_macos_path(cmd.get_env("PATH")));
 }
 
+/// Loads the login shell's environment in the background, so the first local
+/// tab does not wait for `$SHELL -l` (which can take seconds with a heavy
+/// profile). A tab opened before it finishes waits for the same load.
+#[cfg(target_os = "macos")]
+pub fn preload_login_shell_env() {
+    thread::spawn(|| {
+        macos_login_shell_env();
+    });
+}
+
 #[cfg(target_os = "macos")]
 fn macos_login_shell_env() -> &'static [(String, String)] {
     static LOGIN_SHELL_ENV: OnceLock<Vec<(String, String)>> = OnceLock::new();

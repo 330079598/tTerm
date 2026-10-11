@@ -26,14 +26,21 @@ pub fn list_profiles() -> Result<Vec<SavedProfile>, String> {
 }
 
 #[tauri::command]
-pub fn preview_ssh_config_import(
+pub async fn preview_ssh_config_import(
     source_path: Option<String>,
 ) -> Result<SshConfigImportPreview, String> {
-    build_ssh_config_import_preview(source_path)
+    // Reads the config and every file it includes; keep that off the main thread.
+    crate::core::blocking::run_blocking(move || build_ssh_config_import_preview(source_path)).await
 }
 
 #[tauri::command]
-pub fn import_ssh_config_profiles(
+pub async fn import_ssh_config_profiles(
+    options: SshConfigImportOptions,
+) -> Result<SshConfigImportResult, String> {
+    crate::core::blocking::run_blocking(move || import_ssh_config_profiles_blocking(options)).await
+}
+
+fn import_ssh_config_profiles_blocking(
     options: SshConfigImportOptions,
 ) -> Result<SshConfigImportResult, String> {
     let preview = build_ssh_config_import_preview(options.source_path)?;

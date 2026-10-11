@@ -606,7 +606,12 @@ fn run_due_automatic_backup_blocking(
 }
 
 #[tauri::command]
-pub fn list_backup_history() -> Result<Vec<BackupHistoryEntry>, String> {
+pub async fn list_backup_history() -> Result<Vec<BackupHistoryEntry>, String> {
+    // The automatic backup directory may be on a slow or network drive.
+    run_blocking(list_backup_history_blocking).await
+}
+
+fn list_backup_history_blocking() -> Result<Vec<BackupHistoryEntry>, String> {
     let settings = load_automatic_backup_settings()?;
     let mut directories = vec![config::ensure_config_dir()?.join("backups")];
     let automatic = automatic_backup_directory(&settings)?;
@@ -669,7 +674,11 @@ pub fn list_backup_history() -> Result<Vec<BackupHistoryEntry>, String> {
 }
 
 #[tauri::command]
-pub fn delete_backup_history_entry(path: String) -> Result<bool, String> {
+pub async fn delete_backup_history_entry(path: String) -> Result<bool, String> {
+    run_blocking(move || delete_backup_history_entry_blocking(path)).await
+}
+
+fn delete_backup_history_entry_blocking(path: String) -> Result<bool, String> {
     let requested = PathBuf::from(path.trim());
     if requested.extension().and_then(|value| value.to_str()) != Some("tterm-backup")
         || !requested.exists()

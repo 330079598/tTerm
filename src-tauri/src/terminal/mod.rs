@@ -19,6 +19,8 @@ pub use cwd_watch::spawn_cwd_watcher;
 pub use encoding::{OutputDecoder, TerminalEncoding};
 pub use io_batcher::{OutputFlow, TerminalOutput, TerminalOutputSender};
 pub use output_tail::OutputTail;
+#[cfg(target_os = "macos")]
+pub use pty::preload_login_shell_env;
 pub use pty::{
     __cmd__list_available_terminal_shells, __cmd__local_terminal_shell_name,
     __tauri_command_name_list_available_terminal_shells,

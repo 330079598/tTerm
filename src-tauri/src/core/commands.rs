@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use tokio::sync::{mpsc, watch, Mutex as TokioMutex};
 
 fn stop_pty_session(
@@ -44,8 +44,11 @@ fn stop_pty_session(
     session.supervisor.abort();
 }
 
+/// Async so the work below runs off the main thread: reading saved passwords,
+/// waiting for the session map, and starting the shell (ConPTY, or the login
+/// shell environment on macOS) would otherwise freeze the window.
 #[tauri::command]
-pub fn create_pty(
+pub async fn create_pty(
     app: AppHandle,
     webview: tauri::Webview,
     tab_id: String,
@@ -56,16 +59,58 @@ pub fn create_pty(
     output_channel: tauri::ipc::JavaScriptChannelId,
     state: State<'_, PtyMap>,
     prompt_state: State<'_, HostPromptMap>,
-    runtime_state: State<'_, crate::TokioRuntimeState>,
     secret_state: State<'_, crate::ssh::SecretStoreState>,
     zmodem_state: State<'_, ZmodemMap>,
     zmodem_armed_send_state: State<'_, ZmodemArmedSendMap>,
     zmodem_manual_detect_state: State<'_, ZmodemManualDetectMap>,
 ) -> Result<u32, String> {
     let output_channel = terminal::TerminalOutput::new(output_channel.channel_on(webview));
+    let state = state.inner().clone();
+    let prompt_state = prompt_state.inner().clone();
+    let secret_state = secret_state.inner().clone();
+    let zmodem_state = zmodem_state.inner().clone();
+    let zmodem_armed_send_state = zmodem_armed_send_state.inner().clone();
+    let zmodem_manual_detect_state = zmodem_manual_detect_state.inner().clone();
+    super::blocking::run_blocking(move || {
+        create_pty_blocking(
+            app,
+            tab_id,
+            session_nonce,
+            rows,
+            cols,
+            connection,
+            output_channel,
+            state,
+            prompt_state,
+            secret_state,
+            zmodem_state,
+            zmodem_armed_send_state,
+            zmodem_manual_detect_state,
+        )
+    })
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+fn create_pty_blocking(
+    app: AppHandle,
+    tab_id: String,
+    session_nonce: u32,
+    rows: u16,
+    cols: u16,
+    connection: Option<super::session::PtyConnectionOptions>,
+    output_channel: terminal::TerminalOutput,
+    state: PtyMap,
+    prompt_state: HostPromptMap,
+    secret_state: crate::ssh::SecretStoreState,
+    zmodem_state: ZmodemMap,
+    zmodem_armed_send_state: ZmodemArmedSendMap,
+    zmodem_manual_detect_state: ZmodemManualDetectMap,
+) -> Result<u32, String> {
     let output_flow = output_channel.flow().clone();
     let mut plan = normalize_connection(connection)?;
     resolve_ssh_password(&app, &secret_state, &mut plan)?;
+    let runtime_state = app.state::<crate::TokioRuntimeState>();
 
     let mut sessions = state.blocking_write();
     if let Some(session) = sessions.get(&tab_id) {
@@ -96,9 +141,9 @@ pub fn create_pty(
         stop_pty_session(
             &tab_id,
             session,
-            zmodem_state.inner(),
-            zmodem_armed_send_state.inner(),
-            zmodem_manual_detect_state.inner(),
+            &zmodem_state,
+            &zmodem_armed_send_state,
+            &zmodem_manual_detect_state,
         );
     }
 
@@ -141,8 +186,8 @@ pub fn create_pty(
                 exit_tx.clone(),
                 Some(sender),
                 active.clone(),
-                zmodem_state.inner().clone(),
-                zmodem_armed_send_state.inner().clone(),
+                zmodem_state.clone(),
+                zmodem_armed_send_state.clone(),
                 zmodem_config.zmodem_auto_detect_enabled,
                 crate::zmodem::session::resolve_download_dir(
                     &zmodem_config.zmodem_download_directory,
@@ -169,14 +214,14 @@ pub fn create_pty(
                 rows,
                 cols,
                 plan.clone(),
-                prompt_state.inner().clone(),
+                prompt_state.clone(),
                 stop_rx.clone(),
                 exit_tx.clone(),
                 output_channel.clone(),
                 runtime_handle.clone(),
                 session_nonce,
-                zmodem_state.inner().clone(),
-                zmodem_armed_send_state.inner().clone(),
+                zmodem_state.clone(),
+                zmodem_armed_send_state.clone(),
                 zmodem_config.zmodem_auto_detect_enabled,
                 crate::zmodem::session::resolve_download_dir(
                     &zmodem_config.zmodem_download_directory,
@@ -202,13 +247,13 @@ pub fn create_pty(
         exit_tx.clone(),
         active.clone(),
         stop_rx.clone(),
-        prompt_state.inner().clone(),
+        prompt_state.clone(),
         size.clone(),
         output_channel,
         runtime_handle.clone(),
         session_nonce,
-        zmodem_state.inner().clone(),
-        zmodem_armed_send_state.inner().clone(),
+        zmodem_state.clone(),
+        zmodem_armed_send_state.clone(),
         zmodem_manual_override,
     );
 

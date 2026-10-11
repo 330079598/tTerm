@@ -491,6 +491,8 @@ pub fn run() {
                     .clone(),
             );
             notification::init(&app_handle);
+            #[cfg(target_os = "macos")]
+            terminal::preload_login_shell_env();
             create_main_window(app, cfg.as_ref())?;
             background::apply_config(&app_handle, &cfg.unwrap_or_default());
 
