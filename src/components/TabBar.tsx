@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 import { ChevronDown, ChevronLeft, ChevronRight, Search, X } from "lucide-react"
 import { TabAttentionDot } from "@/components/TabAttentionDot"
 import { getOverflowConnectionMeta } from "@/components/TabBar/overflowConnectionMeta"
+import { placeOverflowPanel, type OverflowPanelStyle } from "@/components/TabBar/overflowPanelStyle"
 import { TabItem } from "@/components/TabBar/TabItem"
 import { TabIcon } from "@/components/TabIcon"
 import type { Tab, TabContextMenuAction } from "@/types/tab"
@@ -16,19 +17,12 @@ import {
 } from "@/lib/terminalFocus"
 
 const TAB_OVERFLOW_THRESHOLD = 16
-const OVERFLOW_PANEL_MAX_WIDTH = 320
-const OVERFLOW_PANEL_VIEWPORT_RATIO = 0.7
-const OVERFLOW_PANEL_MARGIN = 8
 const TAB_DRAG_THRESHOLD = 6
 // How far the pointer may stray above or below the tab list before the tab
 // detaches from it and becomes a ghost that can be dropped on the workspace.
 const TAB_DRAG_DETACH_DISTANCE = 24
 const TAB_DRAG_AUTO_SCROLL_EDGE = 40
 const TAB_DRAG_AUTO_SCROLL_MAX_SPEED = 14
-
-type OverflowPanelStyle = React.CSSProperties & {
-  "--tab-overflow-panel-max-height"?: string
-}
 
 // A tab's offsetLeft counts from the list's content box, so pointer positions
 // are put on the same footing, independent of how far the list has scrolled.
@@ -172,28 +166,9 @@ export const TabBar: React.FC<TabBarProps> = ({
       return
     }
 
-    const triggerRect = trigger.getBoundingClientRect()
-    const viewportMargin = Math.min(OVERFLOW_PANEL_MARGIN, window.innerWidth / 2)
-    const availableWidth = Math.max(0, window.innerWidth - viewportMargin * 2)
-    const panelWidth = Math.min(
-      OVERFLOW_PANEL_MAX_WIDTH,
-      window.innerWidth * OVERFLOW_PANEL_VIEWPORT_RATIO,
-      availableWidth
+    setOverflowPanelStyle(
+      placeOverflowPanel(trigger.getBoundingClientRect(), window.innerWidth, window.innerHeight)
     )
-    const left = Math.min(
-      Math.max(viewportMargin, triggerRect.right - panelWidth),
-      window.innerWidth - panelWidth - viewportMargin
-    )
-    const top = triggerRect.bottom + 4
-    const maxHeight = Math.max(120, Math.min(420, window.innerHeight - top - viewportMargin))
-
-    setOverflowPanelStyle({
-      left,
-      top,
-      width: panelWidth,
-      maxHeight,
-      "--tab-overflow-panel-max-height": `${maxHeight}px`,
-    })
   }, [])
 
   const closeOverflowMenu = useCallback(() => {
