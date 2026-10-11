@@ -14,6 +14,7 @@ use crate::db::meta;
 use crate::ssh::SecretStoreState;
 use chrono::Utc;
 use serde_json::Value;
+use std::cmp::Reverse;
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -117,7 +118,7 @@ pub(super) fn list_backup_history_blocking() -> Result<Vec<BackupHistoryEntry>, 
             });
         }
     }
-    entries.sort_by(|left, right| right.modified_at.cmp(&left.modified_at));
+    entries.sort_by_key(|entry| Reverse(entry.modified_at));
     Ok(entries)
 }
 
@@ -344,7 +345,7 @@ fn enforce_retention(directory: &Path, prefix: &str, retention: usize) -> Result
             Some((modified, entry.path()))
         })
         .collect::<Vec<_>>();
-    backups.sort_by(|left, right| right.0.cmp(&left.0));
+    backups.sort_by_key(|(modified, _)| Reverse(*modified));
     for (_, path) in backups.into_iter().skip(retention) {
         fs::remove_file(&path).map_err(|error| {
             format!(

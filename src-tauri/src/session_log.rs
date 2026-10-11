@@ -551,10 +551,8 @@ impl Perform for InputLine {
             'H' => self.cursor = 0,
             'F' => self.cursor = self.text.len(),
             // Delete.
-            '~' if Self::first_param(params, 0) == 3 => {
-                if self.cursor < self.text.len() {
-                    self.text.remove(self.cursor);
-                }
+            '~' if Self::first_param(params, 0) == 3 && self.cursor < self.text.len() => {
+                self.text.remove(self.cursor);
             }
             _ => {}
         }

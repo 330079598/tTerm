@@ -47,10 +47,8 @@ fn parse_file_name(name: &str) -> Option<LogFileName> {
     let stem = name.strip_suffix(".gz").unwrap_or(name);
     let (stem, kind) = if let Some(stem) = stem.strip_suffix(".tlog") {
         (stem, Kind::Raw)
-    } else if let Some(stem) = stem.strip_suffix(".log") {
-        (stem, Kind::Plain)
     } else {
-        return None;
+        (stem.strip_suffix(".log")?, Kind::Plain)
     };
     let (base, part) = match stem.rsplit_once('.') {
         Some((base, part)) if part.len() >= 3 && part.bytes().all(|byte| byte.is_ascii_digit()) => {
