@@ -4,6 +4,7 @@ import { createPortal } from "react-dom"
 import { useTranslation } from "react-i18next"
 import { ChevronDown, ChevronLeft, ChevronRight, Search, X } from "lucide-react"
 import { TabAttentionDot } from "@/components/TabAttentionDot"
+import { getOverflowConnectionMeta } from "@/components/TabBar/overflowConnectionMeta"
 import { TabItem } from "@/components/TabBar/TabItem"
 import { TabIcon } from "@/components/TabIcon"
 import type { Tab, TabContextMenuAction } from "@/types/tab"
@@ -33,38 +34,6 @@ type OverflowPanelStyle = React.CSSProperties & {
 // are put on the same footing, independent of how far the list has scrolled.
 function getListContentX(list: HTMLElement, clientX: number): number {
   return clientX - list.getBoundingClientRect().left - list.clientLeft + list.scrollLeft
-}
-
-function getConnectionHostLabel(tab: Tab): string | undefined {
-  const host = tab.remoteFile?.host?.trim() || tab.connection?.host?.trim()
-  if (!host) {
-    return undefined
-  }
-
-  const port = tab.connection?.port
-  return port && port !== 22 ? `${host}:${port}` : host
-}
-
-function getOverflowConnectionMeta(tab: Tab): { primary?: string; secondary?: string } {
-  const hostLabel = getConnectionHostLabel(tab)
-
-  if (tab.type !== "remote-file-editor") {
-    return { primary: hostLabel }
-  }
-
-  const savedName =
-    tab.remoteFile?.profileName?.trim() ||
-    tab.connection?.profileName?.trim() ||
-    tab.remoteFile?.connectionLabel?.trim()
-
-  if (!savedName) {
-    return { primary: hostLabel }
-  }
-
-  return {
-    primary: savedName,
-    secondary: hostLabel && hostLabel !== savedName ? hostLabel : undefined,
-  }
 }
 
 interface TabBarProps {
