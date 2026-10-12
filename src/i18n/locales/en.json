@@ -1311,7 +1311,7 @@
     "terminalThemeDesc": "Colors for this connection's terminal only, e.g. a red theme to tell production apart. Applies to tabs opened afterwards.",
     "loginScript": "Run after login",
     "loginScriptPlaceholder": "cd /var/www/app\nsudo -i",
-    "shellIntegration": "Shell integration (experimental)",
+    "shellIntegration": "Shell integration",
     "shellIntegrationDesc": "When connecting, puts a few small scripts under ~/.cache/tterm on the server so bash, zsh and fish mark each command: jump between commands, copy the last command's output, and see succeeded and failed commands on the scrollbar. Other shells and unsupported servers get a plain shell as before. Needs Mark commands turned on in Settings.",
     "sessionLog": "Session logging",
     "sessionLogDesc": "Whether this connection's sessions are written to terminal logs. Follow settings uses the default in Settings > Logs.",
