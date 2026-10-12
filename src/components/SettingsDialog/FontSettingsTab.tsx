@@ -41,6 +41,8 @@ export interface FontSettingsTabProps {
   setLocalShellIntegration: (value: boolean) => void
   rightClickPaste: boolean
   setRightClickPaste: (value: boolean) => void
+  osc52ClipboardWrite: boolean
+  setOsc52ClipboardWrite: (value: boolean) => void
   lineHeight: number
   setLineHeight: (value: number) => void
   letterSpacing: number
@@ -84,6 +86,8 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
   setLocalShellIntegration,
   rightClickPaste,
   setRightClickPaste,
+  osc52ClipboardWrite,
+  setOsc52ClipboardWrite,
   lineHeight,
   setLineHeight,
   letterSpacing,
@@ -353,6 +357,22 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
               id="terminal-right-click-paste"
               checked={rightClickPaste}
               onCheckedChange={setRightClickPaste}
+            />
+          </div>
+
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <Label htmlFor="terminal-osc52-clipboard-write" className="mb-1 block">
+                {t("fontSettings.osc52ClipboardWrite")}
+              </Label>
+              <p className="text-muted-foreground text-xs leading-5">
+                {t("fontSettings.osc52ClipboardWriteDesc")}
+              </p>
+            </div>
+            <Switch
+              id="terminal-osc52-clipboard-write"
+              checked={osc52ClipboardWrite}
+              onCheckedChange={setOsc52ClipboardWrite}
             />
           </div>
 

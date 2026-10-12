@@ -116,6 +116,7 @@ export function useTerminalTabRefs({
   const configLetterSpacingRef = useStableRef(config.terminal_letter_spacing)
   const configCursorStyleRef = useStableRef(config.cursor_style)
   const configMacOptionIsMetaRef = useStableRef(config.mac_option_is_meta)
+  const configOsc52ClipboardWriteRef = useStableRef(config.osc52_clipboard_write)
   const configScrollbackLinesRef = useStableRef(config.scrollback_lines)
   const configTerminalRendererRef = useStableRef<TerminalRenderer>(config.terminal_renderer)
   const savedPasswordPromptActionsRef = useRef<SavedPasswordPromptActions | null>(null)
@@ -166,6 +167,7 @@ export function useTerminalTabRefs({
     configLetterSpacingRef,
     configCursorStyleRef,
     configMacOptionIsMetaRef,
+    configOsc52ClipboardWriteRef,
     configScrollbackLinesRef,
     configTerminalRendererRef,
     savedPasswordPromptActionsRef,

@@ -1348,6 +1348,8 @@
     "copyOnSelectDesc": "松开鼠标时自动将选中的文本复制到剪贴板。",
     "rightClickPaste": "右键粘贴",
     "rightClickPasteDesc": "在终端中右键直接粘贴剪贴板内容。按住 Shift 右键仍可打开菜单。",
+    "osc52ClipboardWrite": "允许程序复制到剪贴板",
+    "osc52ClipboardWriteDesc": "vim、neovim、tmux 等程序可以把文本复制到本机剪贴板（OSC 52），通过 SSH 也可以。程序永远无法读取剪贴板。",
     "commandMarks": "标记命令（Shell 集成）",
     "commandMarksRemote": "SSH 连接：可在连接设置中开启「Shell 集成」，由 tTerm 在连接时自动安装；也可以复制下面的脚本，加到服务器上 ~/.bashrc 或 ~/.zshrc 的末尾（fish 加到 ~/.config/fish/config.fish），之后新开的会话生效。",
     "copyPosixIntegration": "复制 bash / zsh 脚本",

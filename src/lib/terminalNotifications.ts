@@ -57,7 +57,8 @@ export function parseOsc777Notification(data: string): TerminalNotificationReque
   return request(title, body.join(";"))
 }
 
-function decodeBase64Utf8(text: string): string | null {
+/** Decodes base64 text as UTF-8, or null when it is not valid base64. */
+export function decodeBase64Utf8(text: string): string | null {
   try {
     const bytes = Uint8Array.from(atob(text), (char) => char.charCodeAt(0))
     return new TextDecoder().decode(bytes)

@@ -12,6 +12,7 @@ import { installImeCursorGuard } from "@/components/TerminalTab/imeCursorGuard"
 import { installImeEarlyInputFix } from "@/components/TerminalTab/imeEarlyInput"
 import { installImeFocusRepair } from "@/components/TerminalTab/imeFocusRepair"
 import { createScrollbackMemory } from "@/components/TerminalTab/scrollbackMemory"
+import { OSC52_CODE, parseOsc52Copy } from "@/lib/osc52"
 import { startingScrollbackLines } from "@/lib/scrollback"
 import { isTransparentTerminalTheme } from "@/lib/terminalPalette"
 import { updateCanvasFontHostFont } from "@/lib/canvasFontHost"
@@ -47,6 +48,7 @@ function isLinkOpenModifierPressed(event: MouseEvent) {
 type OpenTerminalOptions = Pick<
   UseTerminalLifecycleOptions,
   | "configMacOptionIsMetaRef"
+  | "configOsc52ClipboardWriteRef"
   | "configLetterSpacingRef"
   | "configLineHeightRef"
   | "termRef"
@@ -71,6 +73,7 @@ export function openTerminal({
   container,
   cursorStyleRef,
   configMacOptionIsMetaRef,
+  configOsc52ClipboardWriteRef,
   scrollbackLinesRef,
   fontSizeRef,
   fontFamilyRef,
@@ -128,6 +131,17 @@ export function openTerminal({
   )
   term.loadAddon(new Unicode11Addon())
   term.unicode.activeVersion = "11"
+  // Disposed with the terminal.
+  term.parser.registerOscHandler(OSC52_CODE, (data) => {
+    if (configOsc52ClipboardWriteRef?.current === false) return true
+    const text = parseOsc52Copy(data)
+    if (text) {
+      invoke("plugin:clipboard-manager|write_text", { text }).catch((error) => {
+        console.error("Failed to copy text sent with OSC 52:", error)
+      })
+    }
+    return true
+  })
 
   termRef.current = term
   fitAddonRef.current = fitAddon

@@ -157,6 +157,11 @@ pub struct AppConfig {
     /// (Shift+right-click still opens it).
     #[serde(default)]
     pub right_click_paste: bool,
+    /// Let programs in the terminal copy text to the clipboard with OSC 52,
+    /// which is how vim, neovim and tmux copy over SSH. Reading the clipboard
+    /// that way is never allowed.
+    #[serde(default = "default_osc52_clipboard_write")]
+    pub osc52_clipboard_write: bool,
     /// Local shells mark their prompts and commands (OSC 133), so the
     /// terminal can jump between commands, copy a command's output and show
     /// commands on the scrollbar.
@@ -473,6 +478,10 @@ fn default_confirm_multiline_paste() -> bool {
     true
 }
 
+fn default_osc52_clipboard_write() -> bool {
+    true
+}
+
 fn default_command_marks() -> bool {
     true
 }
@@ -622,6 +631,7 @@ impl Default for AppConfig {
             confirm_multiline_paste: default_confirm_multiline_paste(),
             copy_on_select: false,
             right_click_paste: false,
+            osc52_clipboard_write: default_osc52_clipboard_write(),
             command_marks: default_command_marks(),
             local_shell_integration: false,
             terminal_line_height: default_terminal_line_height(),

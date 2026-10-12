@@ -113,6 +113,8 @@ export interface AppConfig extends TabSettings {
   copy_on_select: boolean
   /** Right-click pastes instead of opening the menu; Shift+right-click still opens it. */
   right_click_paste: boolean
+  /** Programs may copy to the clipboard with OSC 52; they may never read it. */
+  osc52_clipboard_write: boolean
   /** Local shells mark their prompts and commands (OSC 133) for jumping and copying output. */
   command_marks: boolean
   /** macOS and Linux: local bash, zsh and fish start through tTerm's shell integration. */
@@ -219,6 +221,7 @@ export const defaultConfig: AppConfig = {
   confirm_multiline_paste: true,
   copy_on_select: false,
   right_click_paste: false,
+  osc52_clipboard_write: true,
   command_marks: true,
   local_shell_integration: false,
   terminal_line_height: 1,

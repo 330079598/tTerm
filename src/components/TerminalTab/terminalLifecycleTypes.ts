@@ -31,6 +31,8 @@ export type UseTerminalLifecycleOptions = {
   configCursorStyleRef?: React.RefObject<Terminal["options"]["cursorStyle"]>
   /** macOS: Option+key sends Meta instead of the alternate character. */
   configMacOptionIsMetaRef?: React.RefObject<boolean>
+  /** Programs may copy to the clipboard with OSC 52. */
+  configOsc52ClipboardWriteRef?: React.RefObject<boolean>
   configFontFamilyRef?: React.RefObject<string>
   configFontSizeRef?: React.RefObject<number>
   configLineHeightRef?: React.RefObject<number>

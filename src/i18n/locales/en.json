@@ -1366,6 +1366,8 @@
     "copyOnSelectDesc": "Copy selected text to the clipboard as soon as you release the mouse button.",
     "rightClickPaste": "Right-click to paste",
     "rightClickPasteDesc": "Right-clicking the terminal pastes the clipboard. Shift+right-click still opens the menu.",
+    "osc52ClipboardWrite": "Let programs copy to the clipboard",
+    "osc52ClipboardWriteDesc": "Programs such as vim, neovim and tmux can copy text to your clipboard (OSC 52), including over SSH. They can never read it.",
     "commandMarks": "Mark commands (shell integration)",
     "commandMarksRemote": "SSH connections: turn on Shell integration in a connection's settings and tTerm installs it when connecting, or copy a script below to the end of ~/.bashrc or ~/.zshrc on the server (~/.config/fish/config.fish for fish); new sessions pick it up.",
     "copyPosixIntegration": "Copy bash / zsh script",

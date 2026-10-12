@@ -48,6 +48,7 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "cursor_style",
     "copy_on_select",
     "right_click_paste",
+    "osc52_clipboard_write",
     "confirm_multiline_paste",
     "command_marks",
     "local_shell_integration",
