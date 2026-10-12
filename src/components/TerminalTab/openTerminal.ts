@@ -99,6 +99,9 @@ export function openTerminal({
     cursorBlink: true,
     cursorStyle: cursorStyleRef.current,
     macOptionIsMeta: configMacOptionIsMetaRef?.current ?? false,
+    // Option+drag selects text even while a program such as vim or tmux has
+    // the mouse, as in iTerm2; elsewhere Shift+drag already does.
+    macOptionClickForcesSelection: true,
     scrollback: startingScrollbackLines(scrollbackLinesRef.current),
     fontSize: fontSizeRef.current,
     fontFamily: fontFamilyRef.current,
