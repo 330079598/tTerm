@@ -1,11 +1,12 @@
 use super::blocking::run_blocking;
 use super::session::{normalize_connection, resolve_ssh_password};
 use super::state::{
-    ActiveSession, AtomicTerminalSize, HostPromptMap, PtyMap, PtySession, SessionExitSignal,
-    ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap,
+    ActiveSession, AtomicTerminalSize, ChannelContext, HostPromptMap, PtyMap, PtySession,
+    SessionExitSignal, TabZmodem, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap,
 };
-use super::supervisor::{spawn_ssh_attempt, spawn_supervisor};
+use super::supervisor::{spawn_ssh_attempt, spawn_supervisor, TabConnection};
 use crate::terminal;
+use crate::zmodem::session::ZmodemSettings;
 use batch_write::{
     snapshot_batch_targets, write_guarded_batch, PtyWriteResult, PtyWriteStatus, PtyWriteTarget,
 };
@@ -65,21 +66,9 @@ pub async fn create_pty(
     cols: u16,
     connection: Option<super::session::PtyConnectionOptions>,
     output_channel: tauri::ipc::JavaScriptChannelId,
-    state: State<'_, PtyMap>,
-    prompt_state: State<'_, HostPromptMap>,
-    secret_state: State<'_, crate::ssh::SecretStoreState>,
-    zmodem_state: State<'_, ZmodemMap>,
-    zmodem_armed_send_state: State<'_, ZmodemArmedSendMap>,
-    zmodem_manual_detect_state: State<'_, ZmodemManualDetectMap>,
 ) -> Result<u32, String> {
     let output_channel = terminal::TerminalOutput::new(output_channel.channel_on(webview));
-    let state = state.inner().clone();
-    let prompt_state = prompt_state.inner().clone();
-    let secret_state = secret_state.inner().clone();
-    let zmodem_state = zmodem_state.inner().clone();
-    let zmodem_armed_send_state = zmodem_armed_send_state.inner().clone();
-    let zmodem_manual_detect_state = zmodem_manual_detect_state.inner().clone();
-    super::blocking::run_blocking(move || {
+    run_blocking(move || {
         create_pty_blocking(
             app,
             tab_id,
@@ -88,18 +77,11 @@ pub async fn create_pty(
             cols,
             connection,
             output_channel,
-            state,
-            prompt_state,
-            secret_state,
-            zmodem_state,
-            zmodem_armed_send_state,
-            zmodem_manual_detect_state,
         )
     })
     .await
 }
 
-#[allow(clippy::too_many_arguments)]
 fn create_pty_blocking(
     app: AppHandle,
     tab_id: String,
@@ -108,13 +90,13 @@ fn create_pty_blocking(
     cols: u16,
     connection: Option<super::session::PtyConnectionOptions>,
     output_channel: terminal::TerminalOutput,
-    state: PtyMap,
-    prompt_state: HostPromptMap,
-    secret_state: crate::ssh::SecretStoreState,
-    zmodem_state: ZmodemMap,
-    zmodem_armed_send_state: ZmodemArmedSendMap,
-    zmodem_manual_detect_state: ZmodemManualDetectMap,
 ) -> Result<u32, String> {
+    let state = app.state::<PtyMap>().inner().clone();
+    let prompt_state = app.state::<HostPromptMap>().inner().clone();
+    let secret_state = app.state::<crate::ssh::SecretStoreState>().inner().clone();
+    let zmodem_state = app.state::<ZmodemMap>().inner().clone();
+    let zmodem_armed_send_state = app.state::<ZmodemArmedSendMap>().inner().clone();
+    let zmodem_manual_detect_state = app.state::<ZmodemManualDetectMap>().inner().clone();
     let mut plan = normalize_connection(connection)?;
     resolve_ssh_password(&app, &secret_state, &mut plan)?;
     let runtime_state = app.state::<crate::TokioRuntimeState>();
@@ -154,6 +136,25 @@ fn create_pty_blocking(
         .insert(tab_id.clone(), zmodem_manual_override.clone());
 
     let runtime_handle = runtime_state.runtime.handle().clone();
+    let tab = TabConnection {
+        channel: ChannelContext {
+            app: app.clone(),
+            tab_id: tab_id.clone(),
+            session_nonce,
+            active: active.clone(),
+            zmodem: TabZmodem {
+                map: zmodem_state.clone(),
+                armed_send_map: zmodem_armed_send_state.clone(),
+                manual_override: zmodem_manual_override,
+            },
+        },
+        plan: plan.clone(),
+        prompt_state,
+        stop_rx: stop_rx.clone(),
+        exit_tx,
+        output_channel: output_channel.clone(),
+        runtime_handle,
+    };
 
     let (pid, initial_active) = match plan.kind {
         crate::core::SessionKind::Terminal => {
@@ -167,22 +168,12 @@ fn create_pty_blocking(
 
             let sender =
                 crate::terminal::TerminalOutputSender::spawn(&tab_id, output_channel.clone());
-            let zmodem_config = crate::config::load_config_file().unwrap_or_default();
             terminal::spawn_reader_thread(
                 reader,
-                app.clone(),
-                tab_id.clone(),
-                session_nonce,
-                exit_tx.clone(),
+                tab.channel.clone(),
+                tab.exit_tx.clone(),
                 Some(sender),
-                active.clone(),
-                zmodem_state.clone(),
-                zmodem_armed_send_state.clone(),
-                zmodem_config.zmodem_auto_detect_enabled,
-                crate::zmodem::session::resolve_download_dir(
-                    &zmodem_config.zmodem_download_directory,
-                ),
-                zmodem_manual_override.clone(),
+                ZmodemSettings::load(),
             );
 
             #[cfg(unix)]
@@ -197,28 +188,7 @@ fn create_pty_blocking(
             (pid, ActiveSession::Local(pty))
         }
         crate::core::SessionKind::Ssh => {
-            let zmodem_config = crate::config::load_config_file().unwrap_or_default();
-            let ssh = spawn_ssh_attempt(
-                app.clone(),
-                tab_id.clone(),
-                rows,
-                cols,
-                plan.clone(),
-                prompt_state.clone(),
-                stop_rx.clone(),
-                exit_tx.clone(),
-                output_channel.clone(),
-                runtime_handle.clone(),
-                session_nonce,
-                zmodem_state.clone(),
-                zmodem_armed_send_state.clone(),
-                zmodem_config.zmodem_auto_detect_enabled,
-                crate::zmodem::session::resolve_download_dir(
-                    &zmodem_config.zmodem_download_directory,
-                ),
-                active.clone(),
-                zmodem_manual_override.clone(),
-            );
+            let ssh = spawn_ssh_attempt(tab.clone(), rows, cols, ZmodemSettings::load());
 
             (0, ActiveSession::Ssh(ssh))
         }
@@ -229,23 +199,7 @@ fn create_pty_blocking(
         *guard = Some(initial_active);
     }
 
-    let supervisor = spawn_supervisor(
-        app.clone(),
-        tab_id.clone(),
-        plan.clone(),
-        exit_rx,
-        exit_tx.clone(),
-        active.clone(),
-        stop_rx.clone(),
-        prompt_state.clone(),
-        size.clone(),
-        output_channel.clone(),
-        runtime_handle.clone(),
-        session_nonce,
-        zmodem_state.clone(),
-        zmodem_armed_send_state.clone(),
-        zmodem_manual_override,
-    );
+    let supervisor = spawn_supervisor(tab, exit_rx, size.clone());
 
     let session = PtySession {
         pid,

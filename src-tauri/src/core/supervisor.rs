@@ -1,12 +1,16 @@
 use super::session::SessionPlan;
-use super::state::{ActiveSession, ActiveSsh, HostPromptMap, SessionExitSignal, SessionKind};
+use super::state::{
+    ActiveSession, ActiveSsh, ChannelContext, HostPromptMap, SessionExitSignal, SessionKind,
+};
+use crate::ssh::client::SshChannelIo;
 use crate::ssh::{
     emit_connection_progress, ConnectionStatusOptions, SshConnectionProgressPayload, SshExitSignal,
 };
+use crate::zmodem::session::ZmodemSettings;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
-use tokio::sync::{mpsc, watch, Mutex as TokioMutex};
+use tokio::sync::{mpsc, watch};
 
 /// Nominal delay before the first reconnect attempt.
 const RECONNECT_INITIAL_DELAY_SECS: u64 = 1;
@@ -47,58 +51,61 @@ pub(crate) fn map_ssh_exit_signal(result: SshExitSignal) -> SessionExitSignal {
     }
 }
 
+/// What every connection attempt of one tab shares, from the first one
+/// through each automatic reconnect.
+#[derive(Clone)]
+pub(crate) struct TabConnection {
+    pub channel: ChannelContext,
+    pub plan: SessionPlan,
+    pub prompt_state: HostPromptMap,
+    pub stop_rx: watch::Receiver<bool>,
+    pub exit_tx: mpsc::UnboundedSender<SessionExitSignal>,
+    pub output_channel: crate::terminal::TerminalOutput,
+    pub runtime_handle: tokio::runtime::Handle,
+}
+
 /// Spawn one SSH connection attempt, returning the live handle for `active`.
 /// Used for the first attempt and again for every automatic reconnect — the
 /// output `Channel` is cloned per attempt because `TerminalOutputSender` closes
 /// its worker on drop.
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_ssh_attempt(
-    app: AppHandle,
-    tab_id: String,
+    tab: TabConnection,
     rows: u16,
     cols: u16,
-    plan: SessionPlan,
-    prompt_state: HostPromptMap,
-    stop_rx: watch::Receiver<bool>,
-    exit_tx: mpsc::UnboundedSender<SessionExitSignal>,
-    output_channel: crate::terminal::TerminalOutput,
-    runtime_handle: tokio::runtime::Handle,
-    session_nonce: u32,
-    zmodem_map: crate::core::ZmodemMap,
-    zmodem_armed_send_map: crate::core::ZmodemArmedSendMap,
-    zmodem_auto_detect_enabled: bool,
-    zmodem_download_dir: std::path::PathBuf,
-    active: Arc<TokioMutex<Option<ActiveSession>>>,
-    zmodem_manual_override: Arc<std::sync::atomic::AtomicBool>,
+    settings: ZmodemSettings,
 ) -> ActiveSsh {
+    let TabConnection {
+        channel,
+        plan,
+        prompt_state,
+        stop_rx,
+        exit_tx,
+        output_channel,
+        runtime_handle,
+    } = tab;
     let (input_tx, input_rx) = mpsc::unbounded_channel::<Vec<u8>>();
     let (resize_tx, resize_rx) = mpsc::unbounded_channel::<(u16, u16)>();
     let output_tail = Arc::new(crate::terminal::OutputTail::default());
     let encoding = plan.encoding;
     let input = crate::terminal::PtyInput::over_channel(input_tx.clone());
-    let sender = crate::terminal::TerminalOutputSender::spawn(&tab_id, output_channel)
+    let sender = crate::terminal::TerminalOutputSender::spawn(&channel.tab_id, output_channel)
         .with_output_tail(output_tail.clone())
         .with_output_counter(input.output_counter());
 
     let task = runtime_handle.spawn(async move {
         let result = crate::ssh::run_single_ssh_connection(
-            app,
-            tab_id,
-            rows,
-            cols,
+            channel,
+            settings,
             plan,
             prompt_state,
-            stop_rx,
-            input_rx,
-            resize_rx,
-            Some(sender),
-            session_nonce,
-            zmodem_map,
-            zmodem_armed_send_map,
-            zmodem_auto_detect_enabled,
-            zmodem_download_dir,
-            active,
-            zmodem_manual_override,
+            rows,
+            cols,
+            SshChannelIo {
+                stop_rx,
+                input_rx,
+                resize_rx,
+                sender: Some(sender),
+            },
         )
         .await;
         let _ = exit_tx.send(map_ssh_exit_signal(result));
@@ -150,25 +157,23 @@ fn equal_jitter(nominal_secs: u64) -> Duration {
     Duration::from_millis(half_ms + extra_ms)
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Watches one tab's connection attempts and starts a new one, with backoff,
+/// after each recoverable drop.
 pub fn spawn_supervisor(
-    app: AppHandle,
-    tab_id: String,
-    plan: SessionPlan,
+    tab: TabConnection,
     mut exit_rx: mpsc::UnboundedReceiver<SessionExitSignal>,
-    exit_tx: mpsc::UnboundedSender<SessionExitSignal>,
-    active: Arc<TokioMutex<Option<ActiveSession>>>,
-    mut stop_rx: watch::Receiver<bool>,
-    prompt_state: HostPromptMap,
     size: Arc<super::state::AtomicTerminalSize>,
-    output_channel: crate::terminal::TerminalOutput,
-    runtime_handle: tokio::runtime::Handle,
-    session_nonce: u32,
-    zmodem_map: crate::core::ZmodemMap,
-    zmodem_armed_send_map: crate::core::ZmodemArmedSendMap,
-    zmodem_manual_override: Arc<std::sync::atomic::AtomicBool>,
 ) -> tokio::task::JoinHandle<()> {
-    runtime_handle.clone().spawn(async move {
+    tab.runtime_handle.clone().spawn(async move {
+        let ChannelContext {
+            app,
+            tab_id,
+            active,
+            zmodem,
+            ..
+        } = tab.channel.clone();
+        let plan = &tab.plan;
+        let mut stop_rx = tab.stop_rx.clone();
         let reconnect_enabled = plan.reconnect_enabled && plan.kind == SessionKind::Ssh;
         let max_attempts = plan.reconnect_max_attempts;
         let mut attempt: u32 = 0;
@@ -184,8 +189,8 @@ pub fn spawn_supervisor(
             }
             // The peer's rz/sz process (if any) dies with the old channel; a
             // ZMODEM session can't meaningfully survive a reconnect.
-            zmodem_map.write().unwrap().remove(&tab_id);
-            zmodem_armed_send_map.lock().unwrap().remove(&tab_id);
+            zmodem.map.write().unwrap().remove(&tab_id);
+            zmodem.armed_send_map.lock().unwrap().remove(&tab_id);
 
             let recoverable_info = match &signal {
                 SessionExitSignal::Recoverable {
@@ -266,27 +271,14 @@ pub fn spawn_supervisor(
             let (rows, cols) = size.load();
             // Re-read on every reconnect (not just the initial spawn) so a
             // settings change takes effect without needing a fresh tab.
-            let zmodem_config = crate::config::load_config_file().unwrap_or_default();
             let next = spawn_ssh_attempt(
-                app.clone(),
-                tab_id.clone(),
+                TabConnection {
+                    stop_rx: stop_rx.clone(),
+                    ..tab.clone()
+                },
                 rows,
                 cols,
-                plan.clone(),
-                prompt_state.clone(),
-                stop_rx.clone(),
-                exit_tx.clone(),
-                output_channel.clone(),
-                runtime_handle.clone(),
-                session_nonce,
-                zmodem_map.clone(),
-                zmodem_armed_send_map.clone(),
-                zmodem_config.zmodem_auto_detect_enabled,
-                crate::zmodem::session::resolve_download_dir(
-                    &zmodem_config.zmodem_download_directory,
-                ),
-                active.clone(),
-                zmodem_manual_override.clone(),
+                ZmodemSettings::load(),
             );
             {
                 let mut guard = active.lock().await;

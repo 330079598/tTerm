@@ -9,6 +9,4 @@ pub mod engine;
 pub mod frame;
 
 pub use consts::ZmodemDirection;
-#[allow(unused_imports)]
-pub use engine::ZmodemFeedResult;
 pub use engine::{ZmodemAction, ZmodemEngine};

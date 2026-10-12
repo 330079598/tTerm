@@ -76,7 +76,6 @@ struct TestSshd {
     child: Child,
     // Never read directly; keeps the config/host-key/authorized_keys files
     // sshd references alive (via `Drop`) for as long as the server runs.
-    #[allow(dead_code)]
     dir: TempDir,
     client_key_path: PathBuf,
     port: u16,

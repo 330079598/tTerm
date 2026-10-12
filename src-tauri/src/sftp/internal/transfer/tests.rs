@@ -58,14 +58,13 @@ fn write_file_blocking(path: &Path, bytes: &[u8]) {
     std::fs::write(path, bytes).unwrap();
 }
 
-#[allow(clippy::too_many_arguments)]
+/// A sidecar for a source of `size` bytes, which is also the transfer's total.
 fn build_sidecar(
     direction: TransferDirection,
     final_path: &str,
     part_path: &str,
     chunk_size: u64,
-    total_size: u64,
-    source_size: u64,
+    size: u64,
     source_mtime: Option<i64>,
     bits: &[u8],
 ) -> TransferSidecar {
@@ -75,8 +74,8 @@ fn build_sidecar(
         final_path: final_path.to_string(),
         part_path: part_path.to_string(),
         chunk_size,
-        total_size,
-        source_size,
+        total_size: size,
+        source_size: size,
         source_mtime,
         completed: encode_bitmap(bits),
         updated_at_ms: now_unix_ms(),
@@ -206,7 +205,7 @@ fn bitmap_round_trips_and_rehomes() {
 #[test]
 fn checkpoint_cadence_ignores_chunk_counts_below_byte_threshold() {
     let mut state = SidecarState {
-        sidecar: build_sidecar(TransferDirection::Upload, "f", "p", 4096, 0, 0, None, &[]),
+        sidecar: build_sidecar(TransferDirection::Upload, "f", "p", 4096, 0, None, &[]),
         bits: Vec::new(),
         unsaved_chunks: 8,
         unsaved_bytes: 8 * 4096,
@@ -254,7 +253,6 @@ async fn upload_fills_bitmap_holes_and_is_byte_identical() {
         relative,
         &part,
         chunk_size,
-        data.len() as u64,
         data.len() as u64,
         mtime,
         &bits,
@@ -370,7 +368,6 @@ async fn download_resume_from_partial_local_part() {
         &part.to_string_lossy(),
         chunk_size,
         data.len() as u64,
-        data.len() as u64,
         mtime,
         &bits,
     );
@@ -429,7 +426,6 @@ async fn upload_mtime_or_size_mismatch_retransmits() {
             &part,
             chunk_size,
             fingerprint_size,
-            fingerprint_size,
             if label == "mtime" {
                 fingerprint_mtime
             } else {
@@ -487,7 +483,6 @@ async fn complete_checkpoint_with_missing_part_retransmits() {
         &part,
         chunk_size,
         data.len() as u64,
-        data.len() as u64,
         mtime,
         &bits,
     );
@@ -537,7 +532,6 @@ async fn partial_checkpoint_with_missing_part_retransmits() {
         relative,
         &part,
         chunk_size,
-        data.len() as u64,
         data.len() as u64,
         mtime,
         &bits,
@@ -598,7 +592,6 @@ async fn remote_sidecar_tmp_fallback_recovers_checkpoint() {
         relative,
         &part,
         chunk_size,
-        data.len() as u64,
         data.len() as u64,
         mtime,
         &bits,
@@ -949,7 +942,6 @@ async fn checkpoint_with_oversized_part_retransmits() {
         relative,
         &part,
         chunk_size,
-        data.len() as u64,
         data.len() as u64,
         mtime,
         &bits,

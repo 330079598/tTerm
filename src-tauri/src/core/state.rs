@@ -55,6 +55,26 @@ pub type ZmodemArmedSendMap = Arc<StdMutex<HashMap<String, ZmodemArmedSend>>>;
 /// way to reach it is through shared state like this).
 pub type ZmodemManualDetectMap = Arc<StdMutex<HashMap<String, Arc<AtomicBool>>>>;
 
+/// One tab's ZMODEM state, shared by every reader of its channel.
+#[derive(Clone)]
+pub struct TabZmodem {
+    pub map: ZmodemMap,
+    pub armed_send_map: ZmodemArmedSendMap,
+    /// This tab's entry in `ZmodemManualDetectMap`.
+    pub manual_override: Arc<AtomicBool>,
+}
+
+/// What the reader of one tab's channel needs: where it reports, the live
+/// session it writes ZMODEM replies into, and the tab's ZMODEM state.
+#[derive(Clone)]
+pub struct ChannelContext {
+    pub app: tauri::AppHandle,
+    pub tab_id: String,
+    pub session_nonce: u32,
+    pub active: Arc<TokioMutex<Option<ActiveSession>>>,
+    pub zmodem: TabZmodem,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SessionKind {
     Terminal,

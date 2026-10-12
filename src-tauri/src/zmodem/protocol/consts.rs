@@ -3,10 +3,9 @@
 //! other through a pair of FIFOs and inspecting the raw bytes) rather than
 //! transcribed from documentation alone.
 //!
-//! The full frame-type table is kept even where tTerm never emits or
-//! handles a given type, so the byte values stay documented in one place.
-#![allow(dead_code)]
-
+//! Frame types and capability bits tTerm never emits or handles are listed
+//! in comments where they would sit, so the byte values stay documented in
+//! one place without leaving unused constants behind.
 /// Pad character that opens every header (`*`). Real senders sometimes emit
 /// it more than once as a resync aid; scanning must tolerate that.
 pub const ZPAD: u8 = b'*';
@@ -28,7 +27,7 @@ pub const ZBIN32: u8 = b'C'; // Binary header, 32-bit CRC.
 /// Frame types (the first byte of every header's 5-byte payload).
 pub const ZRQINIT: u8 = 0;
 pub const ZRINIT: u8 = 1;
-pub const ZSINIT: u8 = 2;
+// ZSINIT = 2, unused.
 pub const ZACK: u8 = 3;
 pub const ZFILE: u8 = 4;
 pub const ZSKIP: u8 = 5;
@@ -38,14 +37,14 @@ pub const ZFIN: u8 = 8;
 pub const ZRPOS: u8 = 9;
 pub const ZDATA: u8 = 10;
 pub const ZEOF: u8 = 11;
-pub const ZFERR: u8 = 12;
-pub const ZCRC: u8 = 13;
-pub const ZCHALLENGE: u8 = 14;
-pub const ZCOMPL: u8 = 15;
+// ZFERR = 12, unused.
+// ZCRC = 13, unused.
+// ZCHALLENGE = 14, unused.
+// ZCOMPL = 15, unused.
 pub const ZCAN: u8 = 16;
-pub const ZFREECNT: u8 = 17;
-pub const ZCOMMAND: u8 = 18;
-pub const ZSTDERR: u8 = 19;
+// ZFREECNT = 17, unused.
+// ZCOMMAND = 18, unused.
+// ZSTDERR = 19, unused.
 
 /// Data-subpacket terminators: sent as `ZDLE <one of these>` right after the
 /// subpacket's payload bytes, then covered (together with the payload) by
@@ -58,7 +57,7 @@ pub const ZCRCW: u8 = b'k'; // End of frame, ZACK expected.
 /// `ZRINIT` capability bits, carried in the 4th header data byte (index 3).
 pub const CANFDX: u8 = 0x01;
 pub const CANOVIO: u8 = 0x02;
-pub const CANBRK: u8 = 0x04;
+// CANBRK = 0x04, unused.
 pub const CANFC32: u8 = 0x20; // Receiver accepts ZBIN32 (CRC-32) headers/subpackets.
 
 /// Literal byte sequences that mark the start of a ZMODEM session inside an

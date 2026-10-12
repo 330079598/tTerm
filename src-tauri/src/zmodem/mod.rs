@@ -10,10 +10,9 @@ use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 use tauri::Emitter;
-use tokio::sync::Mutex as TokioMutex;
 
-use crate::core::state::ActiveSession;
-use crate::core::{ZmodemArmedSend, ZmodemArmedSendMap, ZmodemMap, ZmodemTabHandle};
+use crate::core::state::ChannelContext;
+use crate::core::{ZmodemArmedSend, ZmodemTabHandle};
 
 pub mod commands;
 pub mod detect;
@@ -69,18 +68,18 @@ impl ZmodemSendPipe {
 /// need, notifies the frontend to prompt for local files, and returns the
 /// `Sender` half the caller should keep forwarding this tab's raw bytes to
 /// via `ZmodemSendPipe` from now on.
-pub fn arm_send(
-    app: &tauri::AppHandle,
-    tab_id: &str,
-    session_nonce: u32,
-    zmodem_map: &ZmodemMap,
-    armed_send_map: &ZmodemArmedSendMap,
-    active: &Arc<TokioMutex<Option<ActiveSession>>>,
-    trigger_bytes: Vec<u8>,
-) -> Sender<Vec<u8>> {
+pub fn arm_send(channel: &ChannelContext, trigger_bytes: Vec<u8>) -> Sender<Vec<u8>> {
+    let ChannelContext {
+        app,
+        tab_id,
+        session_nonce,
+        active,
+        zmodem,
+    } = channel;
+    let session_nonce = *session_nonce;
     let (tx, rx) = std::sync::mpsc::channel();
     let cancel_requested = Arc::new(AtomicBool::new(false));
-    zmodem_map.write().unwrap().insert(
+    zmodem.map.write().unwrap().insert(
         tab_id.to_string(),
         ZmodemTabHandle {
             session_nonce,
@@ -89,7 +88,7 @@ pub fn arm_send(
             cancel_requested,
         },
     );
-    armed_send_map.lock().unwrap().insert(
+    zmodem.armed_send_map.lock().unwrap().insert(
         tab_id.to_string(),
         ZmodemArmedSend {
             session_nonce,

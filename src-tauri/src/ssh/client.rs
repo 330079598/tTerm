@@ -4,14 +4,12 @@ use super::types::{
     SshConnectionProgressPayload,
 };
 use crate::core::session::SessionPlan;
-use crate::core::state::{ActiveSession, HostPromptMap};
-use crate::core::{ZmodemArmedSendMap, ZmodemMap};
-use crate::zmodem::session::ZmodemReceiveDriver;
+use crate::core::state::{ChannelContext, HostPromptMap};
+use crate::zmodem::session::{ZmodemReceiveDriver, ZmodemSettings};
 use russh::{ChannelMsg, Disconnect};
-use std::sync::Arc;
 use tauri::Emitter;
 use tokio::io::AsyncWriteExt;
-use tokio::sync::{mpsc, watch, Mutex as TokioMutex};
+use tokio::sync::{mpsc, watch};
 
 const LATENCY_PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
@@ -116,30 +114,35 @@ async fn open_terminal_channel(
     Ok(channel)
 }
 
-#[allow(clippy::too_many_arguments)]
+/// The channels a connection attempt is driven through.
+pub struct SshChannelIo {
+    pub stop_rx: watch::Receiver<bool>,
+    pub input_rx: mpsc::UnboundedReceiver<Vec<u8>>,
+    pub resize_rx: mpsc::UnboundedReceiver<(u16, u16)>,
+    pub sender: Option<crate::terminal::TerminalOutputSender>,
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "predates the 150-line limit; split it when it next changes"
 )]
 pub async fn run_single_ssh_connection(
-    app: tauri::AppHandle,
-    tab_id: String,
-    rows: u16,
-    cols: u16,
+    tab: ChannelContext,
+    settings: ZmodemSettings,
     plan: SessionPlan,
     prompts: HostPromptMap,
-    mut stop_rx: watch::Receiver<bool>,
-    mut input_rx: mpsc::UnboundedReceiver<Vec<u8>>,
-    mut resize_rx: mpsc::UnboundedReceiver<(u16, u16)>,
-    mut sender: Option<crate::terminal::TerminalOutputSender>,
-    session_nonce: u32,
-    zmodem_map: ZmodemMap,
-    zmodem_armed_send_map: ZmodemArmedSendMap,
-    zmodem_auto_detect_enabled: bool,
-    zmodem_download_dir: std::path::PathBuf,
-    active: Arc<TokioMutex<Option<ActiveSession>>>,
-    zmodem_manual_override: Arc<std::sync::atomic::AtomicBool>,
+    rows: u16,
+    cols: u16,
+    io: SshChannelIo,
 ) -> SshExitSignal {
+    let SshChannelIo {
+        mut stop_rx,
+        mut input_rx,
+        mut resize_rx,
+        mut sender,
+    } = io;
+    let app = tab.app.clone();
+    let tab_id = tab.tab_id.clone();
     macro_rules! finish_output {
         () => {
             if let Some(sender) = sender.as_mut() {
@@ -292,15 +295,7 @@ pub async fn run_single_ssh_connection(
     let mut writer_stream = writer.make_writer();
     let mut ssh_query_pending = Vec::new();
     let connected_at = std::time::Instant::now();
-    let mut zmodem_driver = ZmodemReceiveDriver::new(
-        app.clone(),
-        tab_id.clone(),
-        session_nonce,
-        zmodem_map.clone(),
-        zmodem_auto_detect_enabled,
-        zmodem_download_dir,
-        zmodem_manual_override,
-    );
+    let mut zmodem_driver = ZmodemReceiveDriver::new(&tab, settings);
     // Once a `rz`-style trigger arms this tab for the send direction, every
     // subsequent byte is piped here instead of through `zmodem_driver` —
     // see `ZmodemSendPipe`'s doc comment.
@@ -407,15 +402,7 @@ pub async fn run_single_ssh_connection(
                                 }
                             }
                             if let Some(remainder) = outcome.send_requested {
-                                let tx = crate::zmodem::arm_send(
-                                    &app,
-                                    &tab_id,
-                                    session_nonce,
-                                    &zmodem_map,
-                                    &zmodem_armed_send_map,
-                                    &active,
-                                    remainder,
-                                );
+                                let tx = crate::zmodem::arm_send(&tab, remainder);
                                 zmodem_send_pipe.arm(tx);
                                 continue;
                             }

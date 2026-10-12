@@ -171,25 +171,57 @@ async fn collect_directory_download_plan(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Where a download reports: the tab's events and the transfer cancel map.
+#[derive(Clone, Copy)]
+pub(super) struct DownloadTarget<'a> {
+    pub app: &'a AppHandle,
+    pub tab_id: &'a str,
+    pub cancel_map: &'a TransferCancelMap,
+}
+
+/// What to download into a local directory, and how to treat files that
+/// already exist there.
+pub(super) struct DirectoryDownloadRequest<'a> {
+    pub transfer_id: &'a str,
+    pub remote_paths: &'a [String],
+    pub local_parent_path: &'a str,
+    pub skip_existing: Option<bool>,
+    pub policy: ConflictPolicy,
+}
+
+/// Where one file of a batch sits in the batch's aggregate progress.
+#[derive(Clone, Copy)]
+struct BatchProgress<'a> {
+    batch_transfer_id: &'a str,
+    total_size: u64,
+    aggregate_base: u64,
+    /// Bytes already on disk before this item started (earlier skipped files
+    /// plus resumed bytes of earlier files). Reported as part of the aggregate
+    /// event's `resumed_from` so the UI measures throughput from the bytes
+    /// this run actually fetched.
+    existing_base: u64,
+}
+
 async fn download_file_into_directory(
-    app: &AppHandle,
-    tab_id: &str,
+    target: DownloadTarget<'_>,
     channels: RemoteChannels,
-    cancel_map: &TransferCancelMap,
     batch_cancel_rx: Option<watch::Receiver<bool>>,
-    batch_transfer_id: &str,
+    batch: BatchProgress<'_>,
     item_transfer_id: &str,
     item: &DirectoryDownloadItem,
     local_path: &Path,
-    total_size: u64,
-    aggregate_base: u64,
-    // Bytes already on disk before this item started (earlier skipped files
-    // plus resumed bytes of earlier files). Reported as part of the aggregate
-    // event's `resumed_from` so the UI measures throughput from the bytes this
-    // run actually fetched.
-    existing_base: u64,
 ) -> Result<u64, String> {
+    let DownloadTarget {
+        app,
+        tab_id,
+        cancel_map,
+    } = target;
+    let BatchProgress {
+        batch_transfer_id,
+        total_size,
+        aggregate_base,
+        existing_base,
+    } = batch;
     let (cancel_tx, cancel_rx) = watch::channel(false);
     cancel_map
         .write()
@@ -273,23 +305,28 @@ async fn download_file_into_directory(
     transfer_outcome(result).map(|outcome| outcome.resumed_from)
 }
 
-#[allow(clippy::too_many_arguments)]
 #[expect(
     clippy::too_many_lines,
     reason = "predates the 150-line limit; split it when it next changes"
 )]
 pub(super) async fn download_directory_with_progress(
-    app: &AppHandle,
-    tab_id: &str,
+    target: DownloadTarget<'_>,
     sftp: &SftpSession,
     channels: &RemoteChannels,
-    cancel_map: &TransferCancelMap,
-    transfer_id: &str,
-    remote_paths: &[String],
-    local_parent_path: &str,
-    skip_existing: Option<bool>,
-    policy: ConflictPolicy,
+    request: DirectoryDownloadRequest<'_>,
 ) -> Result<(), String> {
+    let DownloadTarget {
+        app,
+        tab_id,
+        cancel_map,
+    } = target;
+    let DirectoryDownloadRequest {
+        transfer_id,
+        remote_paths,
+        local_parent_path,
+        skip_existing,
+        policy,
+    } = request;
     let (cancel_tx, mut cancel_rx) = watch::channel(false);
     cancel_map
         .write()
@@ -430,18 +467,18 @@ pub(super) async fn download_directory_with_progress(
             }
 
             let item_result = download_file_into_directory(
-                app,
-                tab_id,
+                target,
                 channels.instance(),
-                cancel_map,
                 Some(cancel_rx.clone()),
-                transfer_id,
+                BatchProgress {
+                    batch_transfer_id: transfer_id,
+                    total_size: plan.total_size,
+                    aggregate_base: aggregate_transferred,
+                    existing_base: skipped_bytes.saturating_add(resumed_bytes),
+                },
                 &item_transfer_id,
                 item,
                 &local_path,
-                plan.total_size,
-                aggregate_transferred,
-                skipped_bytes.saturating_add(resumed_bytes),
             )
             .await;
 

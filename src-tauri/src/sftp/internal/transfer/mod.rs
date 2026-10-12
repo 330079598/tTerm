@@ -167,12 +167,13 @@ pub struct TransferProgress {
 pub type ProgressSink = Arc<dyn Fn(TransferProgress) + Send + Sync>;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct TransferOutcome {
     pub resumed_from: u64,
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "only the transfer tests check how much moved")
+    )]
     pub transferred: u64,
-    pub total: u64,
-    pub parallelism: usize,
 }
 
 #[derive(Debug)]
@@ -249,7 +250,6 @@ pub struct TransferSidecar {
 }
 
 impl TransferSidecar {
-    #[allow(clippy::too_many_arguments)]
     fn matches_source(
         &self,
         direction: TransferDirection,

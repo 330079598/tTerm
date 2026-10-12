@@ -1,6 +1,6 @@
 pub mod agent;
 pub mod auth;
-mod client;
+pub(crate) mod client;
 pub mod jump;
 pub(crate) mod key_file;
 pub mod known_host_commands;

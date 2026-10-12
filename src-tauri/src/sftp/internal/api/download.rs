@@ -18,7 +18,10 @@ use tokio::sync::watch;
 
 mod directory;
 
-use directory::{collect_download_plan, download_directory_with_progress, remote_basename};
+use directory::{
+    collect_download_plan, download_directory_with_progress, remote_basename,
+    DirectoryDownloadRequest, DownloadTarget,
+};
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -114,7 +117,6 @@ fn transfer_result_message(
     transfer_outcome(result).map(|_| ())
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn download_file_with_progress(
     app: &AppHandle,
     tab_id: &str,
@@ -245,16 +247,20 @@ pub async fn sftp_download_paths(
     .await?;
 
     download_directory_with_progress(
-        &app,
-        &tab_id,
+        DownloadTarget {
+            app: &app,
+            tab_id: &tab_id,
+            cancel_map: cancel_map.inner(),
+        },
         &sftp,
         &channels,
-        cancel_map.inner(),
-        &transfer_id,
-        &remote_paths,
-        &local_parent_path,
-        skip_existing,
-        conflict_policy.unwrap_or_default(),
+        DirectoryDownloadRequest {
+            transfer_id: &transfer_id,
+            remote_paths: &remote_paths,
+            local_parent_path: &local_parent_path,
+            skip_existing,
+            policy: conflict_policy.unwrap_or_default(),
+        },
     )
     .await
 }

@@ -74,8 +74,7 @@ fn require_absolute_path(name: &str) -> PathBuf {
 
 struct TestSshd {
     child: Child,
-    #[allow(dead_code)]
-    dir: TempDir,
+    _dir: TempDir,
     client_key_path: PathBuf,
     port: u16,
 }
@@ -153,7 +152,7 @@ impl TestSshd {
 
         Self {
             child,
-            dir,
+            _dir: dir,
             client_key_path: client_key,
             port,
         }

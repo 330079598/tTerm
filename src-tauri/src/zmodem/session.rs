@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use tauri::{AppHandle, Emitter};
+use tauri::Emitter;
 
 use super::detect;
 use super::events::{
@@ -20,6 +20,7 @@ use super::events::{
 };
 use super::protocol::consts::ZDLE;
 use super::protocol::{ZmodemAction, ZmodemDirection, ZmodemEngine};
+use crate::core::state::ChannelContext;
 use crate::core::{ZmodemMap, ZmodemTabHandle};
 
 /// How often (at most) a data chunk triggers a progress event, so a fast
@@ -103,35 +104,26 @@ pub struct ZmodemReceiveDriver {
 }
 
 impl ZmodemReceiveDriver {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        app: AppHandle,
-        tab_id: String,
-        session_nonce: u32,
-        zmodem_map: ZmodemMap,
-        auto_detect_enabled: bool,
-        download_dir: PathBuf,
-        manual_override: Arc<AtomicBool>,
-    ) -> Self {
-        let emit_tab_id = tab_id.clone();
+    pub fn new(channel: &ChannelContext, settings: ZmodemSettings) -> Self {
+        let app = channel.app.clone();
+        let emit_tab_id = channel.tab_id.clone();
         Self::with_emit(
             Box::new(move |kind, payload| {
                 let event = format!("zmodem-{kind}-{emit_tab_id}");
                 let _ = app.emit_to(tauri::EventTarget::any(), &event, payload);
             }),
-            tab_id,
-            session_nonce,
-            zmodem_map,
-            auto_detect_enabled,
-            download_dir,
-            manual_override,
+            channel.tab_id.clone(),
+            channel.session_nonce,
+            channel.zmodem.map.clone(),
+            settings.auto_detect_enabled,
+            settings.download_dir,
+            channel.zmodem.manual_override.clone(),
         )
     }
 
     /// Test-only entry point: same driving logic, but notifications go to an
     /// injected closure instead of a real `AppHandle`/webview.
     #[cfg(test)]
-    #[allow(clippy::too_many_arguments)]
     pub fn with_test_emit(
         emit: impl Fn(&str, serde_json::Value) + Send + 'static,
         tab_id: String,
@@ -151,7 +143,6 @@ impl ZmodemReceiveDriver {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn with_emit(
         emit: EmitFn,
         tab_id: String,
@@ -416,6 +407,24 @@ impl ZmodemReceiveDriver {
         }
         self.zmodem_map.write().unwrap().remove(&self.tab_id);
         self.transfer = None;
+    }
+}
+
+/// The ZMODEM settings a connection attempt starts with. They are read again
+/// for every attempt, so a settings change applies from the next reconnect.
+pub struct ZmodemSettings {
+    pub auto_detect_enabled: bool,
+    pub download_dir: PathBuf,
+}
+
+impl ZmodemSettings {
+    /// Reads the current settings, or the defaults when the config can't be read.
+    pub fn load() -> Self {
+        let config = crate::config::load_config_file().unwrap_or_default();
+        Self {
+            auto_detect_enabled: config.zmodem_auto_detect_enabled,
+            download_dir: resolve_download_dir(&config.zmodem_download_directory),
+        }
     }
 }
 

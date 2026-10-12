@@ -363,7 +363,6 @@ async fn inspect_upload_roots(local_paths: &[String]) -> Result<UploadRootSummar
     })
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn upload_single_file_with_progress(
     app: &AppHandle,
     tab_id: &str,

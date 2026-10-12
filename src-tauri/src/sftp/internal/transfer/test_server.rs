@@ -424,8 +424,7 @@ impl russh_sftp::server::Handler for SftpHandler {
 /// A running in-process SSH+SFTP server with a connected client.
 pub struct TestServer {
     pub root: PathBuf,
-    #[allow(dead_code)]
-    server_task:
+    _server_task:
         tokio::task::JoinHandle<Result<russh::server::RunningSession<SshSession>, russh::Error>>,
     pub handle: russh::client::Handle<TestClient>,
     _server_dir: TempDir,
@@ -472,7 +471,7 @@ impl TestServer {
 
         Self {
             root,
-            server_task,
+            _server_task: server_task,
             handle,
             _server_dir: server_dir,
             client_dir,

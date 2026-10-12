@@ -159,16 +159,13 @@ pub fn run(params: ZmodemSendParams) {
         if cancel_requested.load(Ordering::Relaxed) {
             break;
         }
-        if !send_one_file(
-            &mut engine,
-            &incoming,
-            &active,
-            &cancel_requested,
-            &emit,
-            &zmodem_map,
-            &tab_id,
-            path,
-        ) {
+        let link = SendLink {
+            incoming: &incoming,
+            active: &active,
+            cancel_requested: &cancel_requested,
+            emit: &emit,
+        };
+        if !send_one_file(&mut engine, link, &zmodem_map, &tab_id, path) {
             zmodem_map.write().unwrap().remove(&tab_id);
             return;
         }
@@ -193,20 +190,32 @@ pub fn run(params: ZmodemSendParams) {
     zmodem_map.write().unwrap().remove(&tab_id);
 }
 
+/// What every file of a send session goes through: the peer's bytes in, the
+/// channel replies are written to, the cancel flag and the event sink.
+#[derive(Clone, Copy)]
+struct SendLink<'a> {
+    incoming: &'a Receiver<Vec<u8>>,
+    active: &'a Arc<TokioMutex<Option<ActiveSession>>>,
+    cancel_requested: &'a AtomicBool,
+    emit: &'a EmitFn,
+}
+
 /// Sends one file: waits for the peer to be ready for it, announces it,
 /// waits for the peer's starting position, then streams it. Returns `false`
 /// if the whole session should stop (cancelled, peer aborted/timed out).
-#[allow(clippy::too_many_arguments)]
 fn send_one_file(
     engine: &mut ZmodemEngine,
-    incoming: &Receiver<Vec<u8>>,
-    active: &Arc<TokioMutex<Option<ActiveSession>>>,
-    cancel_requested: &AtomicBool,
-    emit: &EmitFn,
+    link: SendLink<'_>,
     zmodem_map: &ZmodemMap,
     tab_id: &str,
     path: &Path,
 ) -> bool {
+    let SendLink {
+        incoming,
+        active,
+        cancel_requested,
+        emit,
+    } = link;
     let file_name = path
         .file_name()
         .and_then(|s| s.to_str())
@@ -261,16 +270,7 @@ fn send_one_file(
         return false;
     };
 
-    match push_file(
-        engine,
-        active,
-        &mut file,
-        offset,
-        file_size,
-        &transfer_id,
-        emit,
-        cancel_requested,
-    ) {
+    match push_file(engine, link, &mut file, offset, file_size, &transfer_id) {
         Some(_) => {
             events::emit(
                 emit,
@@ -306,17 +306,20 @@ fn send_one_file(
 /// stream, so mid-file corruption requiring a resend isn't expected; a
 /// resend request is still honored at the *start* of each file via
 /// `feed_until_pos`). Returns the final offset sent, or `None` if cancelled.
-#[allow(clippy::too_many_arguments)]
 fn push_file(
     engine: &mut ZmodemEngine,
-    active: &Arc<TokioMutex<Option<ActiveSession>>>,
+    link: SendLink<'_>,
     file: &mut File,
     mut offset: u64,
     file_size: u64,
     transfer_id: &str,
-    emit: &EmitFn,
-    cancel_requested: &AtomicBool,
 ) -> Option<u64> {
+    let SendLink {
+        active,
+        cancel_requested,
+        emit,
+        ..
+    } = link;
     let _ = file.seek(SeekFrom::Start(offset));
     let started_at = Instant::now();
     let mut last_progress_at = started_at;

@@ -71,7 +71,6 @@ fn build_paths(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 #[expect(
     clippy::too_many_lines,
     reason = "predates the 150-line limit; split it when it next changes"
@@ -235,8 +234,6 @@ pub(super) async fn run_transfer(
         return Ok(TransferOutcome {
             resumed_from,
             transferred: resumed_from,
-            total: total_size,
-            parallelism: options.parallelism,
         });
     }
 
@@ -345,12 +342,9 @@ pub(super) async fn run_transfer(
     Ok(TransferOutcome {
         resumed_from,
         transferred,
-        total: total_size,
-        parallelism: options.parallelism,
     })
 }
 
-#[allow(clippy::too_many_arguments)]
 fn emit_progress(
     progress: &ProgressSink,
     total: u64,
