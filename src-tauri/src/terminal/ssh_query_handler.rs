@@ -121,6 +121,8 @@ where
                 if hex_query == b"436f" || hex_query == b"436F" {
                     // Respond with 256 colors: 1+r436f3d323536 = "Co=256"
                     writer.write_all(b"\x1bP1+r436f3d323536\x1b\\").await?;
+                } else if hex_query.eq_ignore_ascii_case(b"4d73") {
+                    writer.write_all(XTGETTCAP_MS_REPLY).await?;
                 } else {
                     // Unknown capability - respond with failure
                     writer.write_all(b"\x1bP0+r").await?;
@@ -178,6 +180,12 @@ where
 /// Without the cap, an unterminated `ESC ]` (truncated output, a binary
 /// `cat`) would hold back everything after it until a stray BEL showed up.
 const MAX_DEFERRED_QUERY_BYTES: usize = 64;
+
+/// XTGETTCAP answer for "Ms", the terminfo string that sets the clipboard
+/// with OSC 52 (`\E]52;%p1%s;%p2%s\007`, hex-encoded). Neovim asks for it
+/// before it copies that way. It is answered even when the setting that lets
+/// programs copy is off, since the frontend then drops what arrives.
+const XTGETTCAP_MS_REPLY: &[u8] = b"\x1bP1+r4d73=5c455d35323b25703125733b25703225735c303037\x1b\\";
 
 /// OSC sequences answered here; every other OSC (titles, hyperlinks, OSC 52
 /// clipboard, inline images) passes straight through to the terminal.
@@ -370,6 +378,15 @@ mod tests {
         }
         assert!(replies.is_empty());
         assert_eq!(output, data);
+    }
+
+    #[tokio::test]
+    async fn clipboard_capability_query_reports_osc_52() {
+        for query in [b"\x1bP+q4d73\x1b\\", b"\x1bP+q4D73\x1b\\"] {
+            let (output, replies, _) = process_in_chunks(query, 64).await;
+            assert!(output.is_empty());
+            assert_eq!(replies, XTGETTCAP_MS_REPLY.to_vec());
+        }
     }
 
     #[tokio::test]
