@@ -40,10 +40,12 @@ struct LogFileName {
     base: String,
     kind: Kind,
     part: u32,
+    compressed: bool,
 }
 
 /// `name.tlog`, `name.001.log`, `name.log.gz` and so on.
 fn parse_file_name(name: &str) -> Option<LogFileName> {
+    let compressed = name.ends_with(".gz");
     let stem = name.strip_suffix(".gz").unwrap_or(name);
     let (stem, kind) = if let Some(stem) = stem.strip_suffix(".tlog") {
         (stem, Kind::Raw)
@@ -60,6 +62,7 @@ fn parse_file_name(name: &str) -> Option<LogFileName> {
         base: base.to_string(),
         kind,
         part,
+        compressed,
     })
 }
 
@@ -182,6 +185,7 @@ struct LogFile {
     path: PathBuf,
     kind: Kind,
     part: u32,
+    compressed: bool,
 }
 
 /// A file in the log directory or one of its folders.
@@ -294,10 +298,11 @@ fn group_sessions(found: Vec<FoundFile>) -> BTreeMap<String, Vec<LogFile>> {
                 path: file.path,
                 kind: parsed.kind,
                 part: parsed.part,
+                compressed: parsed.compressed,
             });
     }
     for files in sessions.values_mut() {
-        files.sort_by_key(|file| (file.kind, file.part));
+        files.sort_by_key(|file| (file.kind, file.part, file.compressed));
     }
     sessions
 }
@@ -391,8 +396,13 @@ fn files_of(directory: &Path, id: &str) -> Result<Vec<LogFile>, String> {
     Ok(files)
 }
 
+/// The parts of one kind to read, in order. A part left both plain and
+/// compressed by an interrupted compression is read from the plain file,
+/// which is always complete.
 fn files_of_kind(files: Vec<LogFile>, kind: Kind) -> Vec<LogFile> {
-    files.into_iter().filter(|file| file.kind == kind).collect()
+    let mut files: Vec<LogFile> = files.into_iter().filter(|file| file.kind == kind).collect();
+    files.dedup_by_key(|file| file.part);
+    files
 }
 
 #[derive(Debug, PartialEq, Eq)]

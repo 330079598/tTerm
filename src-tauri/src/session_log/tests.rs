@@ -1,6 +1,6 @@
 use super::naming::{part_path, path_or_compressed_exists, render_name, sanitize_file_name};
 use super::plain::{InputStream, PlainLog};
-use super::rotating::compress_file;
+use super::rotating::{compress_file, recover_compression};
 use super::*;
 use chrono::{DateTime, Local};
 use std::fs::File;
@@ -91,6 +91,51 @@ fn compression_preserves_content() {
     let mut content = String::new();
     decoder.read_to_string(&mut content).unwrap();
     assert_eq!(content, "terminal output");
+    fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn compression_leaves_no_unfinished_archive() {
+    let directory = std::env::temp_dir().join(format!("tterm-log-test-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(&directory).unwrap();
+    let source_path = directory.join("session.log");
+    fs::write(&source_path, b"terminal output").unwrap();
+    // A stale unfinished archive from an earlier crash is replaced.
+    fs::write(directory.join("session.log.gz.partial"), b"junk").unwrap();
+    compress_file(&source_path).unwrap();
+    let mut names: Vec<String> = fs::read_dir(&directory)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    assert_eq!(names, vec!["session.log.gz"]);
+    fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn recovery_keeps_the_log_when_its_compression_was_cut_short() {
+    let directory = std::env::temp_dir().join(format!("tterm-log-test-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(&directory).unwrap();
+    let header = "# tTerm session log\n# type=ssh\nhello\n";
+    fs::write(directory.join("a.log"), header).unwrap();
+    fs::write(directory.join("a.log.gz"), b"truncated").unwrap();
+    fs::write(directory.join("b.tlog.gz.partial"), b"unfinished").unwrap();
+    fs::write(directory.join("c.log.gz"), b"archive without a log").unwrap();
+    // Not tTerm's: left alone.
+    fs::write(directory.join("other.log"), b"kernel: boot\n").unwrap();
+    fs::write(directory.join("other.log.gz"), b"archive").unwrap();
+
+    recover_compression(&directory);
+
+    let mut names: Vec<String> = fs::read_dir(&directory)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    assert_eq!(
+        names,
+        vec!["a.log", "c.log.gz", "other.log", "other.log.gz"]
+    );
     fs::remove_dir_all(directory).unwrap();
 }
 

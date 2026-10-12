@@ -1,7 +1,8 @@
 //! Background upkeep of the log directory: removing logs the retention
-//! settings no longer keep and measuring how much space the directory takes.
+//! settings no longer keep, measuring how much space the directory takes,
+//! and cleaning up after compression a quit cut short.
 
-use super::{emit_status, retention, SessionLogState, CLEANUP_INTERVAL};
+use super::{emit_status, retention, rotating, SessionLogState, CLEANUP_INTERVAL};
 use std::fs;
 use std::path::Path;
 use std::sync::atomic::Ordering;
@@ -59,6 +60,7 @@ impl SessionLogState {
         let Ok((directory, retention, in_use)) = self.directory_state() else {
             return;
         };
+        self.recover_once(&directory);
         let mut removed = 0;
         if !retention.is_off() && self.cleanup_due() {
             match retention::clean(&directory, retention, &in_use, SystemTime::now()) {
@@ -88,6 +90,18 @@ impl SessionLogState {
         }
         *last = Some(Instant::now());
         true
+    }
+
+    /// Cleans up after interrupted compression, once per log directory.
+    fn recover_once(&self, directory: &Path) {
+        {
+            let mut recovered = lock(&self.recovered_directory);
+            if recovered.as_deref() == Some(directory) {
+                return;
+            }
+            *recovered = Some(directory.to_path_buf());
+        }
+        rotating::recover_compression(directory);
     }
 }
 

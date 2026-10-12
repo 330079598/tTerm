@@ -1,7 +1,7 @@
 //! A log file that moves on to a new part once it is full, and compresses
 //! the parts it finishes.
 
-use super::naming::{compressed_path, part_path};
+use super::naming::{compressed_path, part_path, partial_path};
 use super::SessionLogState;
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -12,8 +12,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
 use tauri::{AppHandle, Emitter, Manager};
 
-/// Logs being written or compressed, and the archives being written; cleanup
-/// and deletion leave them alone. A file is added before it is
+/// Logs being written or compressed, and the archives being written; cleanup,
+/// deletion and recovery leave them alone. A file is added before it is
 /// opened and removed only once nothing will touch it again, so there is no
 /// moment when a log in use is missing from it.
 static IN_USE: LazyLock<Mutex<HashSet<PathBuf>>> = LazyLock::new(Default::default);
@@ -178,8 +178,9 @@ fn open_part(path: &Path, header: &[u8]) -> Result<BufWriter<File>, String> {
 /// its archive is held too until the work is done.
 fn spawn_compression(app: AppHandle, path: PathBuf) {
     let archive = compressed_path(&path);
-    hold(&[&archive]);
-    let held = [path.clone(), archive];
+    let partial = partial_path(&archive);
+    hold(&[&archive, &partial]);
+    let held = [path.clone(), archive, partial];
     let spawned = std::thread::Builder::new()
         .name("tterm-log-compress".to_string())
         .spawn({
@@ -209,18 +210,58 @@ fn spawn_compression(app: AppHandle, path: PathBuf) {
     }
 }
 
+/// Compresses a log to `<log>.gz` and removes the log. The archive is written
+/// under another name and renamed once complete, and the log is removed only
+/// after that, so a quit or crash part way leaves the log whole.
 pub(super) fn compress_file(path: &Path) -> Result<(), String> {
-    let mut source = File::open(path).map_err(|err| err.to_string())?;
-    let target_path = compressed_path(path);
-    let target = OpenOptions::new()
-        .create_new(true)
-        .write(true)
-        .open(&target_path)
-        .map_err(|err| err.to_string())?;
-    let mut encoder = GzEncoder::new(target, Compression::default());
-    std::io::copy(&mut source, &mut encoder).map_err(|err| err.to_string())?;
-    let target = encoder.finish().map_err(|err| err.to_string())?;
-    target.sync_all().map_err(|err| err.to_string())?;
-    fs::remove_file(path).map_err(|err| err.to_string())?;
-    Ok(())
+    let archive = compressed_path(path);
+    let partial = partial_path(&archive);
+    let result = (|| {
+        let mut source = File::open(path).map_err(|err| err.to_string())?;
+        let target = File::create(&partial).map_err(|err| err.to_string())?;
+        let mut encoder = GzEncoder::new(target, Compression::default());
+        std::io::copy(&mut source, &mut encoder).map_err(|err| err.to_string())?;
+        let target = encoder.finish().map_err(|err| err.to_string())?;
+        target.sync_all().map_err(|err| err.to_string())?;
+        drop(target);
+        fs::rename(&partial, &archive).map_err(|err| err.to_string())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&partial);
+    }
+    result?;
+    fs::remove_file(path).map_err(|err| err.to_string())
+}
+
+/// Cleans up after compression a quit or crash cut short: an unfinished
+/// archive is removed, and so is an archive whose log is still there. A log
+/// is removed only after its archive is complete, so when both are left the
+/// log is the copy to keep. Files in use are left alone.
+pub(super) fn recover_compression(directory: &Path) {
+    let Ok(found) = super::library::walk(directory) else {
+        return;
+    };
+    let in_use = in_use();
+    let is_log_name = |name: &str| name.ends_with(".log") || name.ends_with(".tlog");
+    for file in found {
+        if in_use.contains(&file.path) {
+            continue;
+        }
+        if let Some(archive) = file.name.strip_suffix(".partial") {
+            if archive.strip_suffix(".gz").is_some_and(is_log_name) {
+                let _ = fs::remove_file(&file.path);
+            }
+        } else if let Some(log_name) = file.name.strip_suffix(".gz") {
+            if !is_log_name(log_name) {
+                continue;
+            }
+            let log = file.path.with_file_name(log_name);
+            if log.is_file()
+                && !in_use.contains(&log)
+                && super::library::read_metadata(&log).is_some()
+            {
+                let _ = fs::remove_file(&file.path);
+            }
+        }
+    }
 }

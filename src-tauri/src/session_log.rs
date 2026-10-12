@@ -197,6 +197,8 @@ pub struct SessionLogState {
     force_cleanup: AtomicBool,
     maintenance_running: AtomicBool,
     maintenance_again: AtomicBool,
+    /// The log directory last checked for interrupted compression.
+    recovered_directory: Mutex<Option<PathBuf>>,
 }
 
 #[derive(Clone, Debug, Serialize)]

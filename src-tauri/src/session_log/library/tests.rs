@@ -64,7 +64,8 @@ fn parses_log_file_names() {
         Some(LogFileName {
             base: "prod-1".into(),
             kind: Kind::Raw,
-            part: 0
+            part: 0,
+            compressed: false,
         })
     );
     assert_eq!(
@@ -72,7 +73,8 @@ fn parses_log_file_names() {
         Some(LogFileName {
             base: "a.b".into(),
             kind: Kind::Plain,
-            part: 2
+            part: 2,
+            compressed: true,
         })
     );
     assert_eq!(parse_file_name("x.12.log").unwrap().base, "x.12");
@@ -191,6 +193,18 @@ fn plain_text_joins_parts_without_repeated_headers() {
     dir.write_gz("s.001.log.gz", &format!("{PLAIN_HEAD}line 2\n"));
     let text = String::from_utf8(load_text(&dir.0, "s").unwrap()).unwrap();
     assert_eq!(text, format!("{PLAIN_HEAD}line 1\nline 2\n"));
+}
+
+#[test]
+fn reads_the_plain_copy_of_a_part_also_left_compressed() {
+    let dir = TempDir::new();
+    dir.write("s.log", &format!("{PLAIN_HEAD}line 1\n"));
+    // A compression cut short: a truncated archive beside the whole log.
+    let archive = dir.write_gz("s.log.gz", &format!("{PLAIN_HEAD}line 1\n"));
+    let whole = fs::read(&archive).unwrap();
+    fs::write(&archive, &whole[..whole.len() / 2]).unwrap();
+    let text = String::from_utf8(load_text(&dir.0, "s").unwrap()).unwrap();
+    assert_eq!(text, format!("{PLAIN_HEAD}line 1\n"));
 }
 
 #[test]

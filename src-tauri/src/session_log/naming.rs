@@ -110,6 +110,12 @@ pub(super) fn compressed_path(path: &Path) -> PathBuf {
     PathBuf::from(format!("{}.gz", path.to_string_lossy()))
 }
 
+/// Where an archive is written until it is complete; the name is not a log
+/// name, so an unfinished archive is never read as one.
+pub(super) fn partial_path(archive: &Path) -> PathBuf {
+    PathBuf::from(format!("{}.partial", archive.to_string_lossy()))
+}
+
 /// A log file's path; `base_name` may start with folders, joined by `/`.
 pub(super) fn part_path(directory: &Path, base_name: &str, extension: &str, part: u32) -> PathBuf {
     if part == 0 {
