@@ -13,6 +13,7 @@ use batch_write::{
 use std::io::Write;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::sync::PoisonError;
 use tauri::{AppHandle, Manager, State};
 use tokio::sync::{mpsc, watch, Mutex as TokioMutex};
 
@@ -42,9 +43,18 @@ fn stop_pty_session(
 
     // The peer's rz/sz process (if any) dies with this channel; a ZMODEM
     // session can't meaningfully survive it.
-    zmodem_state.write().unwrap().remove(tab_id);
-    zmodem_armed_send_state.lock().unwrap().remove(tab_id);
-    zmodem_manual_detect_state.lock().unwrap().remove(tab_id);
+    zmodem_state
+        .write()
+        .unwrap_or_else(PoisonError::into_inner)
+        .remove(tab_id);
+    zmodem_armed_send_state
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .remove(tab_id);
+    zmodem_manual_detect_state
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .remove(tab_id);
 
     session.supervisor.abort();
 }
@@ -238,7 +248,7 @@ fn intercept_zmodem_input(
     active: &Arc<TokioMutex<Option<ActiveSession>>>,
 ) -> bool {
     let cancel_requested = {
-        let map = zmodem_state.read().unwrap();
+        let map = zmodem_state.read().unwrap_or_else(PoisonError::into_inner);
         let handle = match map.get(tab_id) {
             Some(handle) if handle.session_nonce == session_nonce => handle,
             _ => return false,

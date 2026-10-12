@@ -9,6 +9,7 @@ use crate::ssh::{
 };
 use crate::zmodem::session::ZmodemSettings;
 use std::sync::Arc;
+use std::sync::PoisonError;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::{mpsc, watch};
@@ -191,8 +192,16 @@ pub fn spawn_supervisor(
             }
             // The peer's rz/sz process (if any) dies with the old channel; a
             // ZMODEM session can't meaningfully survive a reconnect.
-            zmodem.map.write().unwrap().remove(&tab_id);
-            zmodem.armed_send_map.lock().unwrap().remove(&tab_id);
+            zmodem
+                .map
+                .write()
+                .unwrap_or_else(PoisonError::into_inner)
+                .remove(&tab_id);
+            zmodem
+                .armed_send_map
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .remove(&tab_id);
 
             let recoverable_info = match &signal {
                 SessionExitSignal::Recoverable {

@@ -8,6 +8,7 @@
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
+use std::sync::PoisonError;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::core::state::ActiveSession;
@@ -31,7 +32,7 @@ pub fn zmodem_cancel(
     armed_send_state: State<'_, ZmodemArmedSendMap>,
 ) -> Result<(), String> {
     {
-        let map = zmodem_state.read().unwrap();
+        let map = zmodem_state.read().unwrap_or_else(PoisonError::into_inner);
         match map.get(&tab_id) {
             Some(handle) if handle.session_nonce == session_nonce => {
                 handle.cancel_requested.store(true, Ordering::Relaxed);
@@ -41,13 +42,18 @@ pub fn zmodem_cancel(
     }
 
     {
-        let mut armed = armed_send_state.lock().unwrap();
+        let mut armed = armed_send_state
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
         if armed
             .get(&tab_id)
             .is_some_and(|entry| entry.session_nonce == session_nonce)
         {
             armed.remove(&tab_id);
-            zmodem_state.write().unwrap().remove(&tab_id);
+            zmodem_state
+                .write()
+                .unwrap_or_else(PoisonError::into_inner)
+                .remove(&tab_id);
         }
     }
 
@@ -85,7 +91,7 @@ pub fn zmodem_start_send(
     armed_send_state: State<'_, ZmodemArmedSendMap>,
 ) -> Result<(), String> {
     let cancel_requested = {
-        let map = zmodem_state.read().unwrap();
+        let map = zmodem_state.read().unwrap_or_else(PoisonError::into_inner);
         match map.get(&tab_id) {
             Some(handle) if handle.session_nonce == session_nonce => {
                 handle.cancel_requested.clone()
@@ -95,7 +101,9 @@ pub fn zmodem_start_send(
     };
 
     let armed = {
-        let mut map = armed_send_state.lock().unwrap();
+        let mut map = armed_send_state
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
         match map.remove(&tab_id) {
             Some(armed) if armed.session_nonce == session_nonce => armed,
             _ => return Err(format!("No armed ZMODEM send session for tab {tab_id}")),
@@ -145,7 +153,11 @@ pub fn zmodem_arm_manual_detect(
         _ => return Err(format!("PTY session {tab_id} not found")),
     }
 
-    if let Some(flag) = manual_detect_state.lock().unwrap().get(&tab_id) {
+    if let Some(flag) = manual_detect_state
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .get(&tab_id)
+    {
         flag.store(true, Ordering::Relaxed);
     }
 

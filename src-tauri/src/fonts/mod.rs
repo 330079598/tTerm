@@ -105,7 +105,10 @@ fn get_windows_fonts() -> Result<HashSet<String>, Box<dyn std::error::Error>> {
                 let name = String::from_utf16_lossy(&logfont.lfFaceName);
                 let name = name.trim_end_matches('\0').to_string();
                 if !name.is_empty() && !name.starts_with('@') {
-                    fonts.lock().unwrap().insert(name);
+                    fonts
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .insert(name);
                 }
             }
             1 // Continue enumeration
@@ -122,7 +125,9 @@ fn get_windows_fonts() -> Result<HashSet<String>, Box<dyn std::error::Error>> {
         let _ = DeleteDC(hdc);
     }
 
-    Ok(fonts.into_inner().unwrap())
+    Ok(fonts
+        .into_inner()
+        .unwrap_or_else(std::sync::PoisonError::into_inner))
 }
 
 fn collect_fonts_from_dir(dir: &Path, names: &mut HashSet<String>) {

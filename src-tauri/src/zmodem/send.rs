@@ -23,6 +23,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
+use std::sync::PoisonError;
 use std::time::{Duration, Instant};
 
 use tokio::sync::Mutex as TokioMutex;
@@ -166,7 +167,10 @@ pub fn run(params: ZmodemSendParams) {
             emit: &emit,
         };
         if !send_one_file(&mut engine, link, &zmodem_map, &tab_id, path) {
-            zmodem_map.write().unwrap().remove(&tab_id);
+            zmodem_map
+                .write()
+                .unwrap_or_else(PoisonError::into_inner)
+                .remove(&tab_id);
             return;
         }
     }
@@ -187,7 +191,10 @@ pub fn run(params: ZmodemSendParams) {
         }
     }
 
-    zmodem_map.write().unwrap().remove(&tab_id);
+    zmodem_map
+        .write()
+        .unwrap_or_else(PoisonError::into_inner)
+        .remove(&tab_id);
 }
 
 /// What every file of a send session goes through: the peer's bytes in, the
@@ -241,7 +248,11 @@ fn send_one_file(
     // A multi-file batch reuses the same tab-level handle (and its
     // `cancel_requested`) across files, only rotating the displayed
     // transfer id — mirrors the receive driver's `on_file_complete`.
-    if let Some(handle) = zmodem_map.write().unwrap().get_mut(tab_id) {
+    if let Some(handle) = zmodem_map
+        .write()
+        .unwrap_or_else(PoisonError::into_inner)
+        .get_mut(tab_id)
+    {
         handle.transfer_id = transfer_id.clone();
     }
     events::emit(

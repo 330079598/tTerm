@@ -10,6 +10,7 @@ use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::PoisonError;
 use std::time::{Duration, Instant};
 
 use tauri::Emitter;
@@ -251,14 +252,17 @@ impl ZmodemReceiveDriver {
     fn start_transfer(&mut self, direction: ZmodemDirection) {
         let transfer_id = events::new_transfer_id();
         let cancel_requested = Arc::new(AtomicBool::new(false));
-        self.zmodem_map.write().unwrap().insert(
-            self.tab_id.clone(),
-            ZmodemTabHandle {
-                session_nonce: self.session_nonce,
-                transfer_id: transfer_id.clone(),
-                cancel_requested: cancel_requested.clone(),
-            },
-        );
+        self.zmodem_map
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(
+                self.tab_id.clone(),
+                ZmodemTabHandle {
+                    session_nonce: self.session_nonce,
+                    transfer_id: transfer_id.clone(),
+                    cancel_requested: cancel_requested.clone(),
+                },
+            );
         self.transfer = Some(InFlightTransfer {
             engine: ZmodemEngine::new(direction),
             transfer_id,
@@ -352,7 +356,12 @@ impl ZmodemReceiveDriver {
         // fresh UI row per file.
         let next_id = events::new_transfer_id();
         transfer.transfer_id = next_id.clone();
-        if let Some(handle) = self.zmodem_map.write().unwrap().get_mut(&self.tab_id) {
+        if let Some(handle) = self
+            .zmodem_map
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get_mut(&self.tab_id)
+        {
             handle.transfer_id = next_id;
         }
         if let Some(transfer_id) = completed_transfer_id {
@@ -369,7 +378,10 @@ impl ZmodemReceiveDriver {
     }
 
     fn on_session_ended(&mut self) {
-        self.zmodem_map.write().unwrap().remove(&self.tab_id);
+        self.zmodem_map
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(&self.tab_id);
         self.transfer = None;
     }
 
@@ -387,7 +399,10 @@ impl ZmodemReceiveDriver {
                 );
             }
         }
-        self.zmodem_map.write().unwrap().remove(&self.tab_id);
+        self.zmodem_map
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(&self.tab_id);
         self.transfer = None;
     }
 
@@ -405,7 +420,10 @@ impl ZmodemReceiveDriver {
                 );
             }
         }
-        self.zmodem_map.write().unwrap().remove(&self.tab_id);
+        self.zmodem_map
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(&self.tab_id);
         self.transfer = None;
     }
 }

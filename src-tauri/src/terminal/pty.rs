@@ -9,6 +9,7 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 #[cfg(target_os = "macos")]
 use std::sync::OnceLock;
+use std::sync::PoisonError;
 use std::thread;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc;
@@ -127,7 +128,11 @@ pub fn spawn_reader_thread(
                 if step.passthrough.is_empty() {
                     return;
                 }
-                match sender.lock().expect("pty sender lock").as_mut() {
+                match sender
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .as_mut()
+                {
                     Some(sender) => sender.send(step.passthrough),
                     None => emit_pty_output(
                         &channel.app,
@@ -137,7 +142,11 @@ pub fn spawn_reader_thread(
                 }
             },
             || {
-                if let Some(sender) = sender.lock().expect("pty sender lock").as_mut() {
+                if let Some(sender) = sender
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .as_mut()
+                {
                     sender.finish();
                 }
             },

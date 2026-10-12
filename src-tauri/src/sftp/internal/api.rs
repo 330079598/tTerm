@@ -58,6 +58,7 @@ use crate::sftp::internal::transfer::{
 };
 use crate::sftp::internal::types::{SftpConnectionKey, SftpConnectionPool};
 use russh_sftp::client::SftpSession;
+use std::sync::PoisonError;
 use std::sync::{Arc, LazyLock, RwLock};
 use std::time::SystemTime;
 use tauri::AppHandle;
@@ -88,7 +89,9 @@ pub fn resolve_transfer_parallelism() -> usize {
         .and_then(|path| std::fs::metadata(path).ok())
         .and_then(|metadata| metadata.modified().ok());
     if let Some(cached) = parallelism_cache_hit(
-        *PARALLELISM_CACHE.read().expect("parallelism cache read"),
+        *PARALLELISM_CACHE
+            .read()
+            .unwrap_or_else(PoisonError::into_inner),
         mtime,
     ) {
         return cached;

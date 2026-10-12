@@ -62,7 +62,7 @@ impl OutputFlow {
 
     /// Records `bytes` as parsed by the frontend.
     pub fn ack(&self, bytes: usize) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         state.unacked = state.unacked.saturating_sub(bytes);
         self.acked.notify_all();
     }
@@ -70,24 +70,33 @@ impl OutputFlow {
     /// Forgets the outstanding bytes: a new page acknowledges only what it
     /// receives itself.
     fn reset(&self) {
-        self.state.lock().unwrap().unacked = 0;
+        self.state
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .unacked = 0;
         self.acked.notify_all();
     }
 
     /// Stops waiting for acknowledgements for good, so a session being torn
     /// down can never wedge its sender (and the reader blocked behind it).
     pub fn close(&self) {
-        self.state.lock().unwrap().closed = true;
+        self.state
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .closed = true;
         self.acked.notify_all();
     }
 
     /// Blocks while the webview is too far behind, then counts `bytes` as
     /// outstanding.
     fn reserve(&self, bytes: usize) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         while !state.closed && state.unacked >= HIGH_WATERMARK_BYTES {
             let before = state.unacked;
-            let (next, wait) = self.acked.wait_timeout(state, self.stall_timeout).unwrap();
+            let (next, wait) = self
+                .acked
+                .wait_timeout(state, self.stall_timeout)
+                .unwrap_or_else(PoisonError::into_inner);
             state = next;
             if wait.timed_out() && state.unacked == before {
                 state.unacked = 0;

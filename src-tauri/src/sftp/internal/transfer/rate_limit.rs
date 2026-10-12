@@ -19,6 +19,7 @@
 //! at 30 KiB/s with 255 KiB writes that showed as ~40 KiB/s for minutes.
 
 use std::sync::Mutex;
+use std::sync::PoisonError;
 use std::time::Duration;
 
 use tokio::sync::watch;
@@ -83,20 +84,23 @@ impl RateLimiter {
 
     #[cfg(test)]
     pub fn rate(&self) -> u64 {
-        self.bucket.lock().expect("rate limiter lock").bytes_per_sec
+        self.bucket
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .bytes_per_sec
     }
 
     /// Largest request that can be sent without running ahead of the rate
     /// (the bucket size), or `None` when unlimited. Read per request, so a
     /// changed rate also changes the request size of running transfers.
     pub fn max_request(&self) -> Option<u64> {
-        let bucket = self.bucket.lock().expect("rate limiter lock");
+        let bucket = self.bucket.lock().unwrap_or_else(PoisonError::into_inner);
         (bucket.bytes_per_sec != 0).then(|| bucket.capacity() as u64)
     }
 
     /// Changes the rate for every transfer, including those in flight.
     pub fn set_rate(&self, bytes_per_sec: u64) {
-        let mut bucket = self.bucket.lock().expect("rate limiter lock");
+        let mut bucket = self.bucket.lock().unwrap_or_else(PoisonError::into_inner);
         if bucket.bytes_per_sec == bytes_per_sec {
             return;
         }
@@ -123,7 +127,7 @@ impl RateLimiter {
         let mut cancel = cancel.clone();
         loop {
             let wait = {
-                let mut bucket = self.bucket.lock().expect("rate limiter lock");
+                let mut bucket = self.bucket.lock().unwrap_or_else(PoisonError::into_inner);
                 if bucket.bytes_per_sec == 0 {
                     return true;
                 }
