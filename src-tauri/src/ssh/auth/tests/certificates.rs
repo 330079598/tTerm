@@ -1,5 +1,6 @@
-//! OpenSSH certificates offered from the agent.
+//! OpenSSH certificates, offered from beside a key file and from the agent.
 
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use russh::keys::agent::client::AgentClient;
@@ -7,11 +8,11 @@ use russh::keys::agent::AgentIdentity;
 use russh::keys::signature::Signer;
 use russh::keys::ssh_key::certificate::{Builder, CertType};
 use russh::keys::ssh_key::Algorithm;
-use russh::keys::{Certificate, PrivateKey, PublicKey};
+use russh::keys::{load_secret_key, Certificate, PrivateKey, PublicKey};
 use russh::server::Auth;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
-use super::{Harness, Script, USER};
+use super::{auto, write_client_key, AuthMethod, AuthUsed, Harness, Script, USER};
 use crate::ssh::agent::{offer_identities, offered_before};
 
 /// Signs a user certificate for `key` with a throwaway certificate authority.
@@ -27,6 +28,121 @@ fn certify(key: &PublicKey) -> Certificate {
     builder.key_id("tterm-test").expect("key id");
     builder.valid_principal(USER).expect("principal");
     builder.sign(&ca).expect("sign certificate")
+}
+
+fn certificate_path(key: &Path) -> PathBuf {
+    PathBuf::from(format!("{}-cert.pub", key.display()))
+}
+
+/// Writes a fresh key file with a certificate beside it, for `certified` or
+/// for the key itself when `None`.
+fn write_certified_key(certified: Option<&PublicKey>) -> PathBuf {
+    let path = write_client_key();
+    let key = load_secret_key(&path, None).expect("load client key");
+    let certificate = certify(certified.unwrap_or(key.public_key()));
+    std::fs::write(
+        certificate_path(&path),
+        certificate.to_openssh().expect("encode certificate"),
+    )
+    .expect("write certificate");
+    path
+}
+
+fn remove_key(path: &Path) {
+    std::fs::remove_file(path).ok();
+    std::fs::remove_file(certificate_path(path)).ok();
+}
+
+fn key_method(path: &Path) -> AuthMethod<'_> {
+    AuthMethod::Key {
+        path: path.to_str().expect("utf-8 path"),
+        passphrase: None,
+    }
+}
+
+#[tokio::test]
+async fn key_file_method_signs_in_with_the_certificate_beside_the_key() {
+    let mut harness = Harness::start(
+        Script {
+            certificate: || Auth::Accept,
+            ..Script::default()
+        },
+        vec![],
+    )
+    .await;
+
+    let key_path = write_certified_key(None);
+    let result = harness.authenticate(key_method(&key_path)).await;
+    remove_key(&key_path);
+
+    result.expect("authenticate");
+    assert_eq!(harness.log(), ["certificate"]);
+}
+
+#[tokio::test]
+async fn a_refused_certificate_falls_back_to_the_bare_key() {
+    let mut harness = Harness::start(
+        Script {
+            publickey: || Auth::Accept,
+            ..Script::default()
+        },
+        vec![],
+    )
+    .await;
+
+    let key_path = write_certified_key(None);
+    let result = harness.authenticate(key_method(&key_path)).await;
+    remove_key(&key_path);
+
+    result.expect("authenticate");
+    assert_eq!(harness.log(), ["certificate", "publickey"]);
+}
+
+#[tokio::test]
+async fn a_certificate_for_another_key_is_not_offered() {
+    let mut harness = Harness::start(
+        Script {
+            publickey: || Auth::Accept,
+            certificate: || Auth::Accept,
+            ..Script::default()
+        },
+        vec![],
+    )
+    .await;
+
+    let other = PrivateKey::random(&mut rand::rng(), Algorithm::Ed25519).expect("other key");
+    let key_path = write_certified_key(Some(other.public_key()));
+    let result = harness.authenticate(key_method(&key_path)).await;
+    remove_key(&key_path);
+
+    result.expect("authenticate");
+    assert_eq!(harness.log(), ["publickey"]);
+}
+
+#[tokio::test]
+async fn auto_signs_in_with_the_certificate_beside_the_key_file() {
+    let mut harness = Harness::start(
+        Script {
+            certificate: || Auth::Accept,
+            ..Script::default()
+        },
+        vec![],
+    )
+    .await;
+
+    let key_path = write_certified_key(None);
+    let path = key_path.to_str().expect("utf-8 path");
+    let result = harness.authenticate(auto(Some(path))).await;
+    remove_key(&key_path);
+
+    assert_eq!(
+        result.expect("authenticate"),
+        AuthUsed::Key {
+            path: path.to_string(),
+            passphrase_typed: false
+        }
+    );
+    assert_eq!(harness.log(), ["certificate"]);
 }
 
 fn put_string(buffer: &mut Vec<u8>, bytes: &[u8]) {

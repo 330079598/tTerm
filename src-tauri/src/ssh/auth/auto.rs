@@ -1,8 +1,8 @@
 //! [`AuthMethod::Auto`]: what a plain `ssh user@host` would try.
 
 use super::methods::{
-    exchange, keyboard_interactive, keyboard_interactive_capturing, password_method,
-    prompt_payload, publickey, sign_in_with_key,
+    exchange, key_file_identities, keyboard_interactive, keyboard_interactive_capturing,
+    password_method, prompt_payload, publickey, sign_in_with_key,
 };
 use super::{
     AuthPromptField, AuthPrompter, AuthTarget, AuthUsed, DEFAULT_IDENTITY_FILES, TYPING_ATTEMPTS,
@@ -220,8 +220,9 @@ pub(super) fn identity_files(key_path: Option<&str>, local_identities: bool) -> 
     files
 }
 
-/// Offers one key file, unless its key was offered already (by the agent).
-/// The user unlocks a key that has a passphrase; cancelling skips the key.
+/// Offers one key file, and the certificate beside it, unless the agent
+/// offered both already. The user unlocks a key that has a passphrase;
+/// cancelling skips the key.
 /// `None` when the key was skipped or cannot be read; otherwise the verdict
 /// and whether a passphrase was typed.
 async fn try_key_file<H>(
@@ -245,14 +246,15 @@ where
         return Ok(verdict.map(|verdict| (verdict, false)));
     };
 
-    let identity = AgentIdentity::from(key.public_key().clone());
-    if offered_before(offered, &identity) {
+    if key_file_identities(&display, key.public_key())
+        .iter()
+        .all(|identity| offered_before(offered, identity))
+    {
         return Ok(None);
     }
-    offered.push(identity);
 
     if !key.is_encrypted() {
-        let verdict = sign_in_with_key(session, target, &display, key).await?;
+        let verdict = sign_in_with_key(session, target, &display, key, offered).await?;
         return Ok(Some((verdict, false)));
     }
 
@@ -278,7 +280,7 @@ where
         };
         let passphrase = answers.into_iter().next().unwrap_or_default();
         if let Ok(decrypted) = key.decrypt(passphrase.as_bytes()) {
-            let verdict = sign_in_with_key(session, target, &display, decrypted).await?;
+            let verdict = sign_in_with_key(session, target, &display, decrypted, offered).await?;
             return Ok(Some((verdict, true)));
         }
     }

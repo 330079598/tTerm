@@ -3,12 +3,14 @@
 use super::{
     AuthPromptField, AuthPromptPayload, AuthPrompter, AuthTarget, EXCHANGE_TIMEOUT, MAX_STEPS,
 };
+use crate::ssh::agent::offered_before;
 use crate::ssh::rsa_signer::RingRsaSigner;
 use crate::ssh::types::SshConnectError;
-use russh::client;
 use russh::client::{AuthResult, KeyboardInteractiveAuthResponse};
+use russh::keys::agent::AgentIdentity;
 use russh::keys::ssh_key::private::KeypairData;
-use russh::keys::{HashAlg, PrivateKey, PrivateKeyWithHashAlg, PublicKey};
+use russh::keys::{Certificate, HashAlg, PrivateKey, PrivateKeyWithHashAlg, PublicKey};
+use russh::{client, MethodKind};
 use std::sync::Arc;
 use zeroize::Zeroizing;
 
@@ -65,10 +67,10 @@ pub(super) fn prompt_payload(
     }
 }
 
-pub(super) async fn exchange<T>(
+pub(super) async fn exchange<T, E: std::fmt::Display>(
     target: &AuthTarget<'_>,
     what: &str,
-    future: impl std::future::Future<Output = Result<T, russh::Error>>,
+    future: impl std::future::Future<Output = Result<T, E>>,
 ) -> Result<T, SshConnectError> {
     let subject = target.subject();
     tokio::time::timeout(EXCHANGE_TIMEOUT, future)
@@ -107,7 +109,7 @@ where
         |reason: String| SshConnectError::Permanent(format!("{subject} key {path}: {reason}"));
 
     match crate::ssh::key_file::load_private_key(path, passphrase, &format!("{subject} key")) {
-        Ok(key) => sign_in_with_key(session, target, path, key).await,
+        Ok(key) => sign_in_with_key(session, target, path, key, &mut Vec::new()).await,
         // Old PEM-format RSA keys are beyond `russh` in this build.
         Err(load_error) => {
             let (mut signer, public_key) = std::fs::read_to_string(path)
@@ -115,63 +117,133 @@ where
                 .and_then(|pem| RingRsaSigner::from_pem(&pem))
                 .ok_or(SshConnectError::Permanent(load_error))?
                 .map_err(key_error)?;
-            sign_in_with_rsa(session, target, &mut signer, public_key).await
+            let identities = key_file_identities(path, &public_key);
+            let mut offered = Vec::new();
+            sign_in_with_rsa(session, target, &mut signer, path, identities, &mut offered).await
         }
     }
 }
 
-/// Authenticates with a loaded, decrypted key.
+/// What a key file offers the server, in `ssh`'s order: the OpenSSH
+/// certificate stored beside it as `<key>-cert.pub`, then the key itself.
+///
+/// Servers that trust a certificate authority (`TrustedUserCAKeys`) list no
+/// user keys, so the certificate is what gets the user in. A certificate that
+/// cannot be read, or that certifies another key, is left out, as `ssh` does.
+pub(super) fn key_file_identities(path: &str, public_key: &PublicKey) -> Vec<AgentIdentity> {
+    let certificate = std::fs::read_to_string(format!("{path}-cert.pub"))
+        .ok()
+        .and_then(|text| Certificate::from_openssh(text.trim()).ok())
+        .filter(|certificate| certificate.public_key() == public_key.key_data());
+    certificate
+        .map(AgentIdentity::from)
+        .into_iter()
+        .chain([AgentIdentity::from(public_key.clone())])
+        .collect()
+}
+
+/// Whether the server turned an identity down but still takes another one.
+fn offer_next(verdict: &AuthResult) -> bool {
+    matches!(
+        verdict,
+        AuthResult::Failure {
+            remaining_methods,
+            partial_success: false,
+        } if remaining_methods.contains(&MethodKind::PublicKey)
+    )
+}
+
+/// The error for a key whose identities were all offered before. Callers
+/// that keep an `offered` list skip such a key instead of signing with it.
+fn already_offered(target: &AuthTarget<'_>, path: &str) -> SshConnectError {
+    SshConnectError::Permanent(format!(
+        "{} key {path} was already offered",
+        target.subject()
+    ))
+}
+
+/// Authenticates with a loaded, decrypted key, offering each of its
+/// [`key_file_identities`] that is not in `offered` yet. Every identity
+/// offered is added to `offered`. Returns the first verdict that is not a
+/// plain rejection, or the last rejection.
 pub(super) async fn sign_in_with_key<H>(
     session: &mut client::Handle<H>,
     target: &AuthTarget<'_>,
     path: &str,
     key: PrivateKey,
+    offered: &mut Vec<AgentIdentity>,
 ) -> Result<AuthResult, SshConnectError>
 where
     H: client::Handler,
 {
+    let identities = key_file_identities(path, key.public_key())
+        .into_iter()
+        .filter(|identity| !offered_before(offered, identity))
+        .collect::<Vec<_>>();
+
     // RSA is signed by `ring` (see `rsa_signer`); every other key by `russh`.
-    match key.key_data() {
-        KeypairData::Rsa(rsa_keypair) => {
-            let mut signer = RingRsaSigner::new(rsa_keypair).map_err(|reason| {
-                SshConnectError::Permanent(format!("{} key {path}: {reason}", target.subject()))
-            })?;
-            sign_in_with_rsa(session, target, &mut signer, key.public_key().clone()).await
-        }
-        _ => {
-            exchange(
-                target,
-                "key authentication",
-                session.authenticate_publickey(
-                    target.username,
-                    PrivateKeyWithHashAlg::new(Arc::new(key), None),
-                ),
-            )
-            .await
-        }
+    if let KeypairData::Rsa(rsa_keypair) = key.key_data() {
+        let mut signer = RingRsaSigner::new(rsa_keypair).map_err(|reason| {
+            SshConnectError::Permanent(format!("{} key {path}: {reason}", target.subject()))
+        })?;
+        return sign_in_with_rsa(session, target, &mut signer, path, identities, offered).await;
     }
+
+    let key = Arc::new(key);
+    let mut verdict = None;
+    for identity in identities {
+        offered.push(identity.clone());
+        let result = match identity {
+            AgentIdentity::Certificate { certificate, .. } => {
+                exchange(
+                    target,
+                    "certificate authentication",
+                    session.authenticate_openssh_cert(target.username, key.clone(), certificate),
+                )
+                .await?
+            }
+            AgentIdentity::PublicKey { .. } => {
+                exchange(
+                    target,
+                    "key authentication",
+                    session.authenticate_publickey(
+                        target.username,
+                        PrivateKeyWithHashAlg::new(key.clone(), None),
+                    ),
+                )
+                .await?
+            }
+        };
+        if !offer_next(&result) {
+            return Ok(result);
+        }
+        verdict = Some(result);
+    }
+    verdict.ok_or_else(|| already_offered(target, path))
 }
 
-pub(super) async fn sign_in_with_rsa<H>(
+/// [`sign_in_with_key`] for an RSA key, whose `identities` are signed by
+/// `signer`.
+async fn sign_in_with_rsa<H>(
     session: &mut client::Handle<H>,
     target: &AuthTarget<'_>,
     signer: &mut RingRsaSigner,
-    public_key: PublicKey,
+    path: &str,
+    identities: Vec<AgentIdentity>,
+    offered: &mut Vec<AgentIdentity>,
 ) -> Result<AuthResult, SshConnectError>
 where
     H: client::Handler,
 {
-    const WHAT: &str = "key authentication";
-    let subject = target.subject();
-
     // Use the best rsa-sha2-* the server advertises. Plain `ssh-rsa` is
     // SHA-1, which OpenSSH 8.8+ rejects and `ring` does not produce.
     let hash_alg = match session.best_supported_rsa_hash().await.unwrap_or(None) {
         Some(Some(hash_alg)) => hash_alg,
         Some(None) => {
             return Err(SshConnectError::Permanent(format!(
-                "{subject} server only accepts SHA-1 signatures for RSA keys, which tTerm \
-                 does not produce. Use an Ed25519 or ECDSA key for this host."
+                "{} server only accepts SHA-1 signatures for RSA keys, which tTerm \
+                 does not produce. Use an Ed25519 or ECDSA key for this host.",
+                target.subject()
             )))
         }
         // Not advertised (servers older than OpenSSH 7.2): those that know
@@ -179,13 +251,43 @@ where
         None => HashAlg::Sha256,
     };
 
-    tokio::time::timeout(
-        EXCHANGE_TIMEOUT,
-        session.authenticate_publickey_with(target.username, public_key, Some(hash_alg), signer),
-    )
-    .await
-    .map_err(|_| SshConnectError::Permanent(format!("{subject} {WHAT} timed out")))?
-    .map_err(|error| SshConnectError::Permanent(format!("{subject} {WHAT} failed: {error}")))
+    let mut verdict = None;
+    for identity in identities {
+        offered.push(identity.clone());
+        let result = match identity {
+            AgentIdentity::Certificate { certificate, .. } => {
+                exchange(
+                    target,
+                    "certificate authentication",
+                    session.authenticate_certificate_with(
+                        target.username,
+                        certificate,
+                        Some(hash_alg),
+                        signer,
+                    ),
+                )
+                .await?
+            }
+            AgentIdentity::PublicKey { key, .. } => {
+                exchange(
+                    target,
+                    "key authentication",
+                    session.authenticate_publickey_with(
+                        target.username,
+                        key,
+                        Some(hash_alg),
+                        signer,
+                    ),
+                )
+                .await?
+            }
+        };
+        if !offer_next(&result) {
+            return Ok(result);
+        }
+        verdict = Some(result);
+    }
+    verdict.ok_or_else(|| already_offered(target, path))
 }
 
 /// Runs one keyboard-interactive attempt to its verdict. A hidden prompt for

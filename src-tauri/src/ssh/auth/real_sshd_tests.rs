@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use russh::keys::{load_secret_key, PrivateKeyWithHashAlg};
 
 use super::{authenticate, AuthMethod, AuthPrompter, AuthTarget, ScriptedPrompts};
-use crate::ssh::test_sshd::{current_user, TestSshd};
+use crate::ssh::test_sshd::{current_user, TempDir, TestSshd};
 
 fn target<'a>(username: &'a str, port: u16) -> AuthTarget<'a> {
     AuthTarget {
@@ -220,4 +220,69 @@ async fn real_sshd_with_only_an_rsa_host_key_is_explained() {
         explained.to_string().contains("RSA host key"),
         "{explained}"
     );
+}
+
+/// Starts `sshd` with no `authorized_keys`, trusting a fresh certificate
+/// authority instead, and certifies the client key with it as `ssh-keygen -s`
+/// does, which leaves the certificate beside the key. The authority's
+/// directory is returned too: sshd reads the key from it at every login.
+async fn spawn_trusting_a_certificate_authority(
+    port: u16,
+    key_type: &[&str],
+) -> (TestSshd, TempDir) {
+    let ca_dir = TempDir::new();
+    let ca_key = ca_dir.path.join("ca");
+    let ca_key = ca_key.to_str().expect("utf-8 path");
+    let ssh_keygen = |args: &[&str]| {
+        let status = std::process::Command::new("ssh-keygen")
+            .args(args)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .expect("run ssh-keygen");
+        assert!(status.success(), "ssh-keygen {args:?} failed");
+    };
+    ssh_keygen(&["-t", "ed25519", "-N", "", "-q", "-f", ca_key]);
+
+    let sshd = TestSshd::spawn(
+        port,
+        key_type,
+        &format!("AuthorizedKeysFile none\nTrustedUserCAKeys {ca_key}.pub\n"),
+    )
+    .await;
+    let client_public_key = format!("{}.pub", sshd.client_key.display());
+    let username = current_user();
+    ssh_keygen(&[
+        "-s",
+        ca_key,
+        "-I",
+        "tterm-test",
+        "-n",
+        &username,
+        "-q",
+        &client_public_key,
+    ]);
+    (sshd, ca_dir)
+}
+
+#[tokio::test]
+#[ignore = "spawns a real sshd; run with --ignored real_sshd"]
+async fn real_sshd_accepts_the_certificate_beside_a_key_file() {
+    for (port, key_type) in [
+        (12317, &["-t", "ed25519"][..]),
+        (12318, &["-t", "rsa", "-b", "3072"][..]),
+    ] {
+        let (sshd, _ca_dir) = spawn_trusting_a_certificate_authority(port, key_type).await;
+        let username = current_user();
+
+        let mut session = sshd.connect().await;
+        authenticate(
+            &mut session,
+            &target(&username, sshd.port),
+            sshd.key_method(),
+            &AuthPrompter::Unavailable,
+        )
+        .await
+        .unwrap_or_else(|error| panic!("{key_type:?} certificate authentication: {error}"));
+    }
 }
