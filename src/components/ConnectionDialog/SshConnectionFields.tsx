@@ -123,7 +123,7 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
             id="conn-host"
             value={form.host}
             onChange={(e) => setForm((current) => ({ ...current, host: e.target.value }))}
-            placeholder="hostname or IP"
+            placeholder={t("connection.hostPlaceholder")}
             required
           />
         </div>
@@ -148,7 +148,7 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
           id="conn-user"
           value={form.username}
           onChange={(e) => setForm((current) => ({ ...current, username: e.target.value }))}
-          placeholder="username"
+          placeholder={t("connection.usernamePlaceholder")}
         />
       </div>
 
@@ -249,7 +249,7 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
               onChange={(e) =>
                 setForm((current) => ({ ...current, privateKeyPassphrase: e.target.value }))
               }
-              placeholder="passphrase"
+              placeholder={t("connection.passphrasePlaceholder")}
             />
           </div>
         </>

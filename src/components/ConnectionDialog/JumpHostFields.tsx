@@ -307,7 +307,7 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                     onClearError(jump.id, "username")
                     updateJumpHost(setForm, jump.id, { username: e.target.value })
                   }}
-                  placeholder="username"
+                  placeholder={t("connection.usernamePlaceholder")}
                   aria-invalid={!!errors[errorKey(jump.id, "username")]}
                   aria-describedby={
                     errors[errorKey(jump.id, "username")]
@@ -451,7 +451,7 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                       onChange={(e) =>
                         updateJumpHost(setForm, jump.id, { privateKeyPassphrase: e.target.value })
                       }
-                      placeholder="passphrase"
+                      placeholder={t("connection.passphrasePlaceholder")}
                     />
                   </div>
                 </>
