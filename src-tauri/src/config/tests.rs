@@ -17,6 +17,7 @@ fn legacy_config_uses_adaptive_tab_width_defaults() {
 
     assert_eq!(config.tab_width_mode, "adaptive");
     assert_eq!(config.tab_standard_width, 120);
+    assert!(!config.tab_hover_tooltip);
     assert_eq!(config.ui_scale_percent, 100);
     assert!(!config.terminal_log_enabled);
     assert_eq!(config.terminal_log_format, "both");

@@ -14,6 +14,9 @@ vi.mock("@/components/TerminalTab", () => ({
 }))
 
 vi.mock("@/components/TabIcon", () => ({ TabIcon: () => null }))
+vi.mock("@/components/TabTooltip", () => ({
+  TabTooltip: ({ children }: { children: React.ReactNode }) => children,
+}))
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({

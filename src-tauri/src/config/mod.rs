@@ -90,6 +90,9 @@ pub struct AppConfig {
         deserialize_with = "deserialize_tab_standard_width"
     )]
     pub tab_standard_width: u16,
+    /// Show a tab's full title and connection in a tooltip on hover.
+    #[serde(default)]
+    pub tab_hover_tooltip: bool,
     #[serde(default)]
     pub terminal_log_enabled: bool,
     #[serde(default)]
@@ -609,6 +612,7 @@ impl Default for AppConfig {
             update_check_frequency: default_update_check_frequency(),
             tab_width_mode: default_tab_width_mode(),
             tab_standard_width: default_tab_standard_width(),
+            tab_hover_tooltip: false,
             terminal_log_enabled: false,
             terminal_log_directory: String::new(),
             terminal_log_format: default_terminal_log_format(),

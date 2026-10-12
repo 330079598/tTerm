@@ -16,6 +16,11 @@ describe("normalizeTabSettings", () => {
     expect(width(999)).toBe(300)
   })
 
+  it("shows the hover tooltip only when turned on", () => {
+    expect(normalizeTabSettings({ tab_hover_tooltip: true }).tab_hover_tooltip).toBe(true)
+    expect(normalizeTabSettings({ tab_hover_tooltip: "yes" }).tab_hover_tooltip).toBe(false)
+  })
+
   it("fills in the defaults", () => {
     expect(normalizeTabSettings({})).toEqual(DEFAULT_TAB_SETTINGS)
   })

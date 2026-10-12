@@ -1,5 +1,5 @@
 import React from "react"
-import { GalleryHorizontal } from "lucide-react"
+import { GalleryHorizontal, MessageSquareText } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
@@ -7,6 +7,9 @@ import { TabIconSettings } from "@/components/SettingsDialog/TabIconSettings"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { useConfig } from "@/contexts/ConfigContext"
+import { useSettingsSave } from "@/hooks/useSettingsSave"
 import { useSyncedState } from "@/hooks/useSyncedState"
 import { isImeKeyEvent } from "@/lib/ime"
 import type { TabWidthMode } from "@/lib/tabSettings"
@@ -18,7 +21,7 @@ interface TabSettingsSectionProps {
   tabWidthMode: TabWidthMode
 }
 
-/** Appearance settings for the tabs: how wide they are and the icons local tabs show. */
+/** Appearance settings for the tabs: how wide they are, their hover tooltip and the icons local tabs show. */
 export function TabSettingsSection({
   handleTabStandardWidthChange,
   handleTabWidthModeChange,
@@ -26,6 +29,8 @@ export function TabSettingsSection({
   tabWidthMode,
 }: TabSettingsSectionProps) {
   const { t } = useTranslation()
+  const { config } = useConfig()
+  const { saveSettings } = useSettingsSave()
   const [tabWidthDraft, setTabWidthDraft] = useSyncedState(String(tabStandardWidth))
 
   const commitTabStandardWidth = React.useCallback(async () => {
@@ -113,6 +118,23 @@ export function TabSettingsSection({
             )}
           </div>
         </SettingsRow>
+      </SettingsSection>
+      <SettingsSection
+        icon={<MessageSquareText size={16} />}
+        title={t("settings.tabHoverTooltip")}
+        description={t("settings.tabHoverTooltipDesc")}
+      >
+        <SettingsRow
+          title={t("settings.tabHoverTooltipShow")}
+          description={t("settings.tabHoverTooltipShowDesc")}
+          action={
+            <Switch
+              checked={config.tab_hover_tooltip}
+              aria-label={t("settings.tabHoverTooltipShow")}
+              onCheckedChange={(checked) => void saveSettings({ tab_hover_tooltip: checked })}
+            />
+          }
+        />
       </SettingsSection>
       <TabIconSettings />
     </>

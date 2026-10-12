@@ -63,6 +63,7 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "monitor_visible_metrics",
     "tab_width_mode",
     "tab_standard_width",
+    "tab_hover_tooltip",
     "tab_icons",
     "reconnect_enabled",
     "reconnect_max_attempts",

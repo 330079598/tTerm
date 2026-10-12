@@ -7,12 +7,15 @@ export type TabWidthMode = "adaptive" | "standard"
 export interface TabSettings {
   tab_width_mode: TabWidthMode
   tab_standard_width: number
+  /** Show a tab's full title and connection in a tooltip on hover. */
+  tab_hover_tooltip: boolean
   tab_icons: TabIconConfig
 }
 
 export const DEFAULT_TAB_SETTINGS: TabSettings = {
   tab_width_mode: "adaptive",
   tab_standard_width: 120,
+  tab_hover_tooltip: false,
   tab_icons: DEFAULT_TAB_ICON_CONFIG,
 }
 
@@ -23,6 +26,7 @@ export function normalizeTabSettings(
   return {
     tab_width_mode: config.tab_width_mode === "standard" ? "standard" : "adaptive",
     tab_standard_width: normalizeTabStandardWidth(config.tab_standard_width),
+    tab_hover_tooltip: config.tab_hover_tooltip === true,
     tab_icons: normalizeTabIconConfig(config.tab_icons),
   }
 }

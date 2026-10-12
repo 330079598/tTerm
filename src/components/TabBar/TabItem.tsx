@@ -6,8 +6,7 @@ import { TabAttentionDot } from "@/components/TabAttentionDot"
 import { TabIcon } from "@/components/TabIcon"
 import { TabLogIndicator } from "@/components/TabLogIndicator"
 import { TabTitle } from "@/components/TabTitle"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { tabTooltip } from "@/lib/localTabTitle"
+import { TabTooltip } from "@/components/TabTooltip"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
 import {
   getTabPinMenuAction,
@@ -108,40 +107,37 @@ export const TabItem = React.memo(function TabItem({
   )
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div
-          ref={setNodeRef}
-          className={`tab-item ${isActive ? "active" : ""} ${tab.isModified ? "modified" : ""} ${isDragging ? "dragging" : ""}`}
-          role="tab"
-          tabIndex={0}
-          aria-selected={isActive}
-          data-tab-id={tab.id}
-          data-allow-context-menu
-          onClick={() => onTabClick(tab.id)}
-          onContextMenu={handleContextMenu}
-          onKeyDown={handleKeyDown}
-          onMouseDown={keepFocusOnMouseDown}
-          onPointerDown={(event) => onPointerDown(event, tab.id)}
+    <TabTooltip tab={tab}>
+      <div
+        ref={setNodeRef}
+        className={`tab-item ${isActive ? "active" : ""} ${tab.isModified ? "modified" : ""} ${isDragging ? "dragging" : ""}`}
+        role="tab"
+        tabIndex={0}
+        aria-selected={isActive}
+        data-tab-id={tab.id}
+        data-allow-context-menu
+        onClick={() => onTabClick(tab.id)}
+        onContextMenu={handleContextMenu}
+        onKeyDown={handleKeyDown}
+        onMouseDown={keepFocusOnMouseDown}
+        onPointerDown={(event) => onPointerDown(event, tab.id)}
+      >
+        <span className="tab-number">{index + 1}</span>
+        <TabIcon tab={tab} className="tab-icon" />
+        <TabAttentionDot tabId={tab.id} />
+        <TabLogIndicator tabId={tab.id} />
+        <TabTitle tab={tab} className="tab-title" />
+        <button
+          className="tab-close"
+          aria-label={t("contextMenu.closeTab", { defaultValue: "Close tab" })}
+          onClick={(e) => {
+            e.stopPropagation()
+            onTabClose(tab.id)
+          }}
         >
-          <span className="tab-number">{index + 1}</span>
-          <TabIcon tab={tab} className="tab-icon" />
-          <TabAttentionDot tabId={tab.id} />
-          <TabLogIndicator tabId={tab.id} />
-          <TabTitle tab={tab} className="tab-title" />
-          <button
-            className="tab-close"
-            aria-label={t("contextMenu.closeTab", { defaultValue: "Close tab" })}
-            onClick={(e) => {
-              e.stopPropagation()
-              onTabClose(tab.id)
-            }}
-          >
-            <X size={12} />
-          </button>
-        </div>
-      </TooltipTrigger>
-      <TooltipContent>{tabTooltip(tab)}</TooltipContent>
-    </Tooltip>
+          <X size={12} />
+        </button>
+      </div>
+    </TabTooltip>
   )
 })
