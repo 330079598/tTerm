@@ -1,6 +1,6 @@
-mod types;
+pub(crate) mod types;
 
-pub use types::{
+use types::{
     jump_host_identity_secret_key, jump_host_secret_key, sudo_secret_key, JumpHostOptions,
     JumpHostPlan, PtyConnectionOptions, SessionPlan, TerminalShellConfig, MAX_JUMP_HOSTS,
 };
@@ -154,7 +154,7 @@ pub fn normalize_connection(
                 agent_forward,
                 terminal_shell: None,
                 jump_hosts,
-                encoding: crate::terminal::TerminalEncoding::from_label(
+                encoding: crate::terminal::encoding::TerminalEncoding::from_label(
                     connection.encoding.as_deref(),
                 ),
                 shell_integration: connection.shell_integration,
@@ -230,7 +230,7 @@ fn normalize_jump_host(opts: JumpHostOptions) -> Result<JumpHostPlan, String> {
 
 pub fn load_saved_ssh_password(
     app: &tauri::AppHandle,
-    secret_state: &crate::ssh::SecretStoreState,
+    secret_state: &crate::ssh::secret_store::types::SecretStoreState,
     profile_id: Option<&str>,
     profile_name: Option<&str>,
 ) -> Result<Option<String>, String> {
@@ -269,14 +269,14 @@ pub enum SudoPasswordSource {
 /// sudo autofill off or has no usable password.
 pub fn load_saved_sudo_password(
     app: &tauri::AppHandle,
-    secret_state: &crate::ssh::SecretStoreState,
+    secret_state: &crate::ssh::secret_store::types::SecretStoreState,
     profile_id: Option<&str>,
     profile_name: Option<&str>,
 ) -> Result<Option<(zeroize::Zeroizing<String>, SudoPasswordSource)>, String> {
     let profile_id = profile_id.map(str::trim).filter(|v| !v.is_empty());
 
     if let Some(profile_id) = profile_id {
-        if crate::profiles::profile_sudo_autofill(profile_id)? == Some(false) {
+        if crate::profiles::storage::profile_sudo_autofill(profile_id)? == Some(false) {
             return Ok(None);
         }
         let sudo_key = sudo_secret_key(profile_id);
@@ -304,7 +304,7 @@ pub struct JumpHostSecretOwner<'a> {
 
 pub fn load_saved_jump_host_password(
     app: &tauri::AppHandle,
-    secret_state: &crate::ssh::SecretStoreState,
+    secret_state: &crate::ssh::secret_store::types::SecretStoreState,
     owner: JumpHostSecretOwner<'_>,
     allow_legacy_fallback: bool,
 ) -> Result<Option<String>, String> {
@@ -373,7 +373,7 @@ pub fn load_saved_jump_host_password(
 
 pub fn resolve_ssh_password(
     app: &tauri::AppHandle,
-    secret_state: &crate::ssh::SecretStoreState,
+    secret_state: &crate::ssh::secret_store::types::SecretStoreState,
     plan: &mut SessionPlan,
 ) -> Result<(), String> {
     if !matches!(plan.kind, SessionKind::Ssh) {
@@ -394,7 +394,11 @@ pub fn resolve_ssh_password(
             // Persist only when the user explicitly enabled "remember password".
             if plan.remember_password {
                 let location = secret_state.save_password(app, secret_key, &password)?;
-                if plan.remember_password && matches!(location, crate::ssh::SecretLocation::Memory)
+                if plan.remember_password
+                    && matches!(
+                        location,
+                        crate::ssh::secret_store::types::SecretLocation::Memory
+                    )
                 {
                     return Err(
                         "Password persistence is unavailable. Enable the app vault or use a supported system credential store."
@@ -440,7 +444,7 @@ pub fn resolve_ssh_password(
 /// Resolve jump host passwords from the secret store when not already provided.
 fn resolve_jump_host_passwords(
     app: &tauri::AppHandle,
-    secret_state: &crate::ssh::SecretStoreState,
+    secret_state: &crate::ssh::secret_store::types::SecretStoreState,
     plan: &mut SessionPlan,
 ) -> Result<(), String> {
     let allow_legacy_fallback = plan.jump_hosts.len() == 1;
@@ -465,7 +469,11 @@ fn resolve_jump_host_passwords(
         if let Some(pw) = &jump.password {
             if plan.remember_password {
                 let location = secret_state.save_password(app, &secret_key, pw)?;
-                if plan.remember_password && matches!(location, crate::ssh::SecretLocation::Memory)
+                if plan.remember_password
+                    && matches!(
+                        location,
+                        crate::ssh::secret_store::types::SecretLocation::Memory
+                    )
                 {
                     return Err(
                         "Jump host password persistence is unavailable. Enable the app vault or use a supported system credential store."

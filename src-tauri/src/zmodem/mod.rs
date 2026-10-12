@@ -12,7 +12,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 
 use crate::core::state::ChannelContext;
-use crate::core::{ZmodemArmedSend, ZmodemTabHandle};
+use crate::core::{state::ZmodemArmedSend, state::ZmodemTabHandle};
 
 pub mod commands;
 pub mod detect;

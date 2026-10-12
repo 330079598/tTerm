@@ -1,16 +1,18 @@
 mod metrics;
 mod session;
-mod types;
+pub(crate) mod types;
 
-use crate::core::session::{normalize_connection, resolve_ssh_password, PtyConnectionOptions};
+use crate::core::session::{
+    normalize_connection, resolve_ssh_password, types::PtyConnectionOptions,
+};
 use crate::core::state::HostPromptMap;
-use crate::ssh::SecretStoreState;
+use crate::ssh::secret_store::types::SecretStoreState;
 use session::{
     collect_metrics_snapshot, get_or_open_monitor_session, monitor_connection_fingerprint,
     reap_idle_monitor_sessions, release_monitor_session_inner,
 };
 use tauri::{AppHandle, State};
-pub use types::MonitorSessionMap;
+use types::MonitorSessionMap;
 use types::ServerMetricsSnapshot;
 
 #[tauri::command]
@@ -77,7 +79,7 @@ pub async fn release_server_monitor_session(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::session::{JumpHostPlan, SessionPlan};
+    use crate::core::session::{types::JumpHostPlan, types::SessionPlan};
     use crate::core::state::SessionKind;
 
     fn ssh_plan(host: &str, username: &str, profile_name: &str) -> SessionPlan {

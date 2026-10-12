@@ -5,8 +5,11 @@
 //! one host therefore lease a single session from the hub; the last tunnel to
 //! let go closes it.
 
-use crate::core::session::SessionPlan;
-use crate::ssh::{ForwardedTcpIp, JumpChain, SshClientHandler, SshConnectError};
+use crate::core::session::types::SessionPlan;
+use crate::ssh::{
+    jump::connect::JumpChain, types::ForwardedTcpIp, types::SshClientHandler,
+    types::SshConnectError,
+};
 use russh::client::Handle;
 use russh::Disconnect;
 use std::collections::hash_map::DefaultHasher;

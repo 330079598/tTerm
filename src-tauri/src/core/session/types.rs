@@ -84,8 +84,8 @@ pub struct JumpHostPlan {
 }
 
 impl JumpHostPlan {
-    pub fn auth_method(&self) -> crate::ssh::AuthMethod<'_> {
-        crate::ssh::AuthMethod::from_plan(
+    pub fn auth_method(&self) -> crate::ssh::auth::AuthMethod<'_> {
+        crate::ssh::auth::AuthMethod::from_plan(
             self.auto_auth,
             self.use_agent,
             self.keyboard_interactive,
@@ -323,7 +323,7 @@ pub struct SessionPlan {
     /// Ordered resolved jump host chain; empty means direct connection.
     pub jump_hosts: Vec<JumpHostPlan>,
     /// Charset of the remote shell; output is decoded and input encoded with it.
-    pub encoding: crate::terminal::TerminalEncoding,
+    pub encoding: crate::terminal::encoding::TerminalEncoding,
     /// SSH: start the remote shell with tTerm's shell integration (command
     /// marks) when the host supports it; see `crate::ssh::shell_integration`.
     pub shell_integration: bool,
@@ -333,8 +333,8 @@ pub struct SessionPlan {
 
 impl SessionPlan {
     /// How to authenticate to the target host.
-    pub fn auth_method(&self) -> crate::ssh::AuthMethod<'_> {
-        crate::ssh::AuthMethod::from_plan(
+    pub fn auth_method(&self) -> crate::ssh::auth::AuthMethod<'_> {
+        crate::ssh::auth::AuthMethod::from_plan(
             self.auto_auth,
             self.use_agent,
             self.keyboard_interactive,

@@ -7,6 +7,3 @@ pub mod consts;
 pub mod crc;
 pub mod engine;
 pub mod frame;
-
-pub use consts::ZmodemDirection;
-pub use engine::{ZmodemAction, ZmodemEngine};

@@ -160,7 +160,7 @@ pub(crate) fn move_file_fields(
     })?;
     let content = serde_json::to_vec_pretty(&Value::Object(object))
         .map_err(|error| format!("Failed to encode '{}': {error}", path.display()))?;
-    crate::config::atomic_write(path, content)
+    crate::config::atomic::atomic_write(path, content)
 }
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-use crate::core::session::PtyConnectionOptions;
+use crate::core::session::types::PtyConnectionOptions;
 use crate::core::state::HostPromptMap;
 use crate::sftp::internal::api::conflict::{
     self, ConflictPolicy, ConflictReport, TransferConflict,
@@ -9,7 +9,7 @@ use crate::sftp::internal::transfer::{
     self, ProgressSink, RemoteChannels, TransferError, TransferOptions, TransferProgress,
 };
 use crate::sftp::internal::types::{SftpConnectionPool, TransferCancelMap};
-use crate::ssh::SecretStoreState;
+use crate::ssh::secret_store::types::SecretStoreState;
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Arc;

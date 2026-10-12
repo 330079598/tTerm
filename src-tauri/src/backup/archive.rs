@@ -8,12 +8,12 @@ use super::{
     MAX_PAYLOAD_SIZE, PAYLOAD_ENTRY,
 };
 use crate::config::AppConfig;
-use crate::profiles::SavedProfile;
+use crate::profiles::types::SavedProfile;
 use crate::session::SessionData;
 use crate::sftp::store::SftpDirectoryStore;
+use crate::ssh::secret_store::types::SecretStoreState;
 use crate::ssh::store::KnownHostStore;
-use crate::ssh::SecretStoreState;
-use crate::tunnel::TunnelRule;
+use crate::tunnel::types::TunnelRule;
 use aes_gcm::aead::{Aead, KeyInit, Payload as AeadPayload};
 use aes_gcm::{Aes256Gcm, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};

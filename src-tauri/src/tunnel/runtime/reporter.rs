@@ -101,7 +101,7 @@ impl TunnelReporter {
         if delta == (0, 0, 0) {
             return;
         }
-        let now = crate::ssh::now_unix_ms().max(0) as u64;
+        let now = crate::ssh::store::now_unix_ms().max(0) as u64;
         match crate::db::write(|transaction| add_tunnel_traffic(transaction, &self.id, delta, now))
         {
             Ok(()) => {
@@ -123,7 +123,7 @@ impl TunnelReporter {
     pub fn reset_traffic(&self) -> Result<(), String> {
         {
             let mut ledger = self.ledger();
-            let now = crate::ssh::now_unix_ms().max(0) as u64;
+            let now = crate::ssh::store::now_unix_ms().max(0) as u64;
             crate::db::write(|transaction| reset_tunnel_traffic(transaction, &self.id, now))?;
             ledger.saved = TunnelTraffic {
                 since: Some(now),
@@ -202,7 +202,7 @@ impl TunnelReporter {
             self.save_traffic();
         }
         self.emit();
-        crate::background::refresh_tunnels(&self.app);
+        crate::background::tray::refresh_tunnels(&self.app);
     }
 
     pub(super) fn set_retry_attempt(&self, attempt: u32) {
@@ -224,7 +224,7 @@ impl TunnelReporter {
             let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             inner.state = TunnelState::Running;
             inner.message = None;
-            inner.connected_at = Some(crate::ssh::now_unix_ms().max(0) as u64);
+            inner.connected_at = Some(crate::ssh::store::now_unix_ms().max(0) as u64);
         }
         self.emit();
     }

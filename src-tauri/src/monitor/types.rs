@@ -1,4 +1,4 @@
-use crate::ssh::JumpChain;
+use crate::ssh::jump::connect::JumpChain;
 use russh::client;
 use serde::Serialize;
 use std::sync::Arc;
@@ -16,7 +16,7 @@ pub struct MonitorSession {
     pub fingerprint: String,
     pub last_used_at: Instant,
     pub jump_chain: Option<JumpChain>,
-    pub ssh: client::Handle<crate::ssh::SshClientHandler>,
+    pub ssh: client::Handle<crate::ssh::types::SshClientHandler>,
 }
 
 #[derive(Debug, Clone, Serialize)]

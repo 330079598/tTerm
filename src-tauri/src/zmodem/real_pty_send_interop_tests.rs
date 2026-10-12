@@ -24,8 +24,8 @@ use portable_pty::{CommandBuilder, PtySize};
 use tokio::sync::Mutex as TokioMutex;
 
 use crate::core::state::ActiveSession;
-use crate::core::ZmodemMap;
-use crate::terminal::ActivePty;
+use crate::core::state::ZmodemMap;
+use crate::terminal::types::ActivePty;
 use crate::zmodem::send::{run, ZmodemSendParams};
 
 struct TempDir {

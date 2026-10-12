@@ -18,7 +18,7 @@ use std::time::{Duration, Instant};
 
 use portable_pty::{CommandBuilder, PtySize};
 
-use crate::core::ZmodemMap;
+use crate::core::state::ZmodemMap;
 use crate::zmodem::session::ZmodemReceiveDriver;
 
 struct TempDir {

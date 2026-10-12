@@ -82,7 +82,7 @@ pub(crate) fn save_wrap(
                 kdf,
                 sealed.nonce,
                 sealed.ciphertext,
-                crate::ssh::now_unix_ms()
+                crate::ssh::store::now_unix_ms()
             ],
         )
         .map_err(sql_error("Failed to save the saved password key"))?;
@@ -135,7 +135,7 @@ pub(crate) fn put_secret(
                  ?2, ?3, ?4) \
              ON CONFLICT(key) DO UPDATE SET profile_id = excluded.profile_id, \
              nonce = excluded.nonce, ciphertext = excluded.ciphertext, updated_at = excluded.updated_at",
-            params![key, sealed.nonce, sealed.ciphertext, crate::ssh::now_unix_ms()],
+            params![key, sealed.nonce, sealed.ciphertext, crate::ssh::store::now_unix_ms()],
         )
         .map_err(sql_error("Failed to save password"))?;
     Ok(())

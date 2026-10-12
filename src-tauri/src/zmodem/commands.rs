@@ -11,7 +11,9 @@ use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::core::state::ActiveSession;
-use crate::core::{PtyMap, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap};
+use crate::core::{
+    state::PtyMap, state::ZmodemArmedSendMap, state::ZmodemManualDetectMap, state::ZmodemMap,
+};
 
 /// Cancels an in-progress or armed-but-not-yet-started ZMODEM transfer for
 /// `tab_id`: flags it so a running send/receive loop stops treating further

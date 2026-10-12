@@ -11,7 +11,9 @@ fn session(session_nonce: u32, runtime: &tokio::runtime::Runtime) -> PtySession 
         stop_tx,
         supervisor: runtime.spawn(async {}),
         size: Arc::new(AtomicTerminalSize::new(24, 80)),
-        output: crate::terminal::TerminalOutput::new(tauri::ipc::Channel::new(|_| Ok(()))),
+        output: crate::terminal::io_batcher::TerminalOutput::new(tauri::ipc::Channel::new(|_| {
+            Ok(())
+        })),
     }
 }
 
@@ -27,7 +29,7 @@ fn writable_ssh_target(runtime: &tokio::runtime::Runtime) -> WritableTarget {
     let (resize_tx, _) = mpsc::unbounded_channel();
     let active = Arc::new(TokioMutex::new(Some(ActiveSession::Ssh(
         crate::core::state::ActiveSsh {
-            input: crate::terminal::PtyInput::over_channel(input_tx.clone()),
+            input: crate::terminal::types::PtyInput::over_channel(input_tx.clone()),
             input_tx,
             resize_tx,
             task: runtime.spawn(async {}),

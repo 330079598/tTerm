@@ -1,7 +1,7 @@
 //! Accepting and forwarding a tunnel's connections.
 
 use super::{CHANNEL_OPEN_TIMEOUT, DEST_CONNECT_TIMEOUT, MAX_CONNECTIONS, SOCKS_HANDSHAKE_TIMEOUT};
-use crate::ssh::ForwardedTcpIp;
+use crate::ssh::types::ForwardedTcpIp;
 use crate::tunnel::hub::SshHandle;
 use crate::tunnel::socks5;
 use crate::tunnel::socks5::ConnectOutcome;

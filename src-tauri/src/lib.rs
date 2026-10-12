@@ -25,7 +25,7 @@ mod updater;
 mod window_blur;
 mod zmodem;
 
-use core::PtyMap;
+use core::state::PtyMap;
 use std::sync::Arc;
 use tauri::utils::config::BackgroundThrottlingPolicy;
 use tauri::{Manager, WebviewWindowBuilder};
@@ -79,7 +79,7 @@ fn create_main_window(app: &tauri::App, cfg: Option<&config::AppConfig>) -> taur
     let background_throttling = cfg.map_or("throttle", |cfg| cfg.background_throttling.as_str());
     let mut builder = WebviewWindowBuilder::from_config(app.handle(), &window_config)?
         .background_throttling(background_throttling_policy(background_throttling));
-    let background = config::load_window_background();
+    let background = config::window_background::load_window_background();
     let blur_cfg = cfg.filter(|cfg| cfg!(any(target_os = "macos", windows)) && cfg.window_blur);
     let blur = blur_cfg.map(|cfg| {
         let dark = background.is_none_or(window_blur::is_dark_background);
@@ -217,26 +217,26 @@ pub fn run_console_helper() -> Option<i32> {
 )]
 pub fn run() {
     let pty_map: PtyMap = Arc::new(RwLock::new(std::collections::HashMap::new()));
-    let host_prompt_map: core::HostPromptMap =
+    let host_prompt_map: core::state::HostPromptMap =
         Arc::new(RwLock::new(std::collections::HashMap::new()));
-    let sftp_pool: sftp::SftpConnectionPool =
+    let sftp_pool: sftp::internal::types::SftpConnectionPool =
         Arc::new(RwLock::new(std::collections::HashMap::new()));
-    let monitor_sessions: monitor::MonitorSessionMap =
+    let monitor_sessions: monitor::types::MonitorSessionMap =
         Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
-    let transfer_cancel_map: sftp::TransferCancelMap =
+    let transfer_cancel_map: sftp::internal::types::TransferCancelMap =
         Arc::new(RwLock::new(std::collections::HashMap::new()));
-    let zmodem_map: core::ZmodemMap =
+    let zmodem_map: core::state::ZmodemMap =
         Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
-    let zmodem_armed_send_map: core::ZmodemArmedSendMap =
+    let zmodem_armed_send_map: core::state::ZmodemArmedSendMap =
         Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
-    let zmodem_manual_detect_map: core::ZmodemManualDetectMap =
+    let zmodem_manual_detect_map: core::state::ZmodemManualDetectMap =
         Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(tokio_worker_threads())
         .enable_all()
         .build()
         .expect("failed to build tokio runtime");
-    let secret_store = ssh::SecretStoreState::new();
+    let secret_store = ssh::secret_store::types::SecretStoreState::new();
     let session_log_state = session_log::SessionLogState::default();
 
     let builder = tauri::Builder::default()
@@ -268,7 +268,7 @@ pub fn run() {
     builder
         .manage(pty_map)
         .manage(host_prompt_map)
-        .manage(ssh::AuthPromptMap::default())
+        .manage(ssh::auth::AuthPromptMap::default())
         .manage(sftp_pool)
         .manage(monitor_sessions)
         .manage(transfer_cancel_map)
@@ -279,9 +279,9 @@ pub fn run() {
         .manage(updater::PendingUpdateDownloads::default())
         .manage(secret_store)
         .manage(session_log_state)
-        .manage(tunnel::TunnelManager::default())
+        .manage(tunnel::commands::TunnelManager::default())
         .manage(background::CloseBehaviorState::default())
-        .manage(background::TrayState::default())
+        .manage(background::tray::TrayState::default())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if background::on_close_requested(window) {
@@ -358,44 +358,44 @@ pub fn run() {
             zmodem::commands::zmodem_cancel,
             zmodem::commands::zmodem_start_send,
             zmodem::commands::zmodem_arm_manual_detect,
-            terminal::list_available_terminal_shells,
-            terminal::local_terminal_shell_name,
+            terminal::pty::list_available_terminal_shells,
+            terminal::pty::local_terminal_shell_name,
             fonts::list_fonts,
             monitor::get_server_metrics_snapshot,
             monitor::release_server_monitor_session,
-            profiles::list_profiles,
-            profiles::preview_ssh_config_import,
-            profiles::import_ssh_config_profiles,
-            profiles::list_profile_groups,
-            profiles::save_profile_group,
-            profiles::rename_profile_group,
-            profiles::delete_profile_group,
-            profiles::move_profile_to_group,
-            profiles::save_profile,
-            profiles::delete_profile,
-            profiles::delete_profiles,
-            profiles::set_profile_server_monitor_visible,
-            profiles::test_connection,
-            tunnel::list_tunnels,
-            tunnel::list_tunnel_statuses,
-            tunnel::save_tunnel,
-            tunnel::delete_tunnel,
-            tunnel::start_tunnel,
-            tunnel::stop_tunnel,
-            tunnel::reset_tunnel_traffic_totals,
-            tunnel::auto_start_tunnels,
-            tunnel::confirm_quit_app,
-            tunnel::cancel_quit_prompt,
+            profiles::commands::list_profiles,
+            profiles::commands::preview_ssh_config_import,
+            profiles::commands::import_ssh_config_profiles,
+            profiles::commands::list_profile_groups,
+            profiles::commands::save_profile_group,
+            profiles::commands::rename_profile_group,
+            profiles::commands::delete_profile_group,
+            profiles::commands::move_profile_to_group,
+            profiles::commands::save_profile,
+            profiles::commands::delete_profile,
+            profiles::commands::delete_profiles,
+            profiles::commands::set_profile_server_monitor_visible,
+            profiles::commands::test_connection,
+            tunnel::commands::list_tunnels,
+            tunnel::commands::list_tunnel_statuses,
+            tunnel::commands::save_tunnel,
+            tunnel::commands::delete_tunnel,
+            tunnel::commands::start_tunnel,
+            tunnel::commands::stop_tunnel,
+            tunnel::commands::reset_tunnel_traffic_totals,
+            tunnel::commands::auto_start_tunnels,
+            tunnel::commands::confirm_quit_app,
+            tunnel::commands::cancel_quit_prompt,
             background::resolve_close_request,
-            command_library::list_saved_commands,
-            command_library::list_command_tags,
-            command_library::create_command_tag,
-            command_library::rename_command_tag,
-            command_library::delete_command_tag,
-            command_library::save_saved_command,
-            command_library::delete_saved_command,
-            command_library::set_saved_command_favorite,
-            command_library::record_saved_command_use,
+            command_library::commands::list_saved_commands,
+            command_library::commands::list_command_tags,
+            command_library::commands::create_command_tag,
+            command_library::commands::rename_command_tag,
+            command_library::commands::delete_command_tag,
+            command_library::commands::save_saved_command,
+            command_library::commands::delete_saved_command,
+            command_library::commands::set_saved_command_favorite,
+            command_library::commands::record_saved_command_use,
             sftp::internal::api::base::sftp_list_directory,
             sftp::internal::api::base::sftp_release_tab_connections,
             sftp::internal::api::base::sftp_create_directory,
@@ -443,7 +443,7 @@ pub fn run() {
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
-            config::init_config_dir(&app_handle)?;
+            config::paths::init_config_dir(&app_handle)?;
 
             if let Err(err) = updater::cleanup_stale_pending_update_files(&app_handle) {
                 eprintln!("Failed to clean stale update cache files: {}", err);
@@ -476,7 +476,7 @@ pub fn run() {
             // then unlocks them from the system credential store, in the
             // background.
             app_handle
-                .state::<ssh::SecretStoreState>()
+                .state::<ssh::secret_store::types::SecretStoreState>()
                 .initialize(&app_handle);
 
             if let Err(error) = migrate::remove_retired_files(&app_handle) {
@@ -494,13 +494,13 @@ pub fn run() {
 
             sftp::internal::connection::spawn_idle_reaper(
                 app_handle
-                    .state::<sftp::SftpConnectionPool>()
+                    .state::<sftp::internal::types::SftpConnectionPool>()
                     .inner()
                     .clone(),
             );
             notification::init(&app_handle);
             #[cfg(target_os = "macos")]
-            terminal::preload_login_shell_env();
+            terminal::pty::preload_login_shell_env();
             create_main_window(app, cfg.as_ref())?;
             background::apply_config(&app_handle, &cfg.unwrap_or_default());
 
@@ -516,14 +516,16 @@ pub fn run() {
                     api, code: None, ..
                 } => {
                     if app
-                        .state::<tunnel::TunnelManager>()
+                        .state::<tunnel::commands::TunnelManager>()
                         .hold_exit_for_confirmation(app)
                     {
                         api.prevent_exit();
                     }
                 }
                 // Tunnels may still be running; keep what they carried.
-                tauri::RunEvent::Exit => app.state::<tunnel::TunnelManager>().save_traffic(),
+                tauri::RunEvent::Exit => app
+                    .state::<tunnel::commands::TunnelManager>()
+                    .save_traffic(),
                 // Clicking the Dock icon brings back a window closed to the
                 // background.
                 #[cfg(target_os = "macos")]

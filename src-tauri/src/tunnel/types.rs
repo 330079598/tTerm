@@ -229,7 +229,7 @@ impl TunnelStats {
         self.failed_connections.fetch_add(1, Ordering::Relaxed);
         *self.last_failure.lock().unwrap_or_else(|e| e.into_inner()) = Some(TunnelFailure {
             message,
-            at: crate::ssh::now_unix_ms().max(0) as u64,
+            at: crate::ssh::store::now_unix_ms().max(0) as u64,
         });
     }
 

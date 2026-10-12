@@ -18,7 +18,9 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 
-use crate::zmodem::protocol::{ZmodemAction, ZmodemDirection, ZmodemEngine};
+use crate::zmodem::protocol::{
+    consts::ZmodemDirection, engine::ZmodemAction, engine::ZmodemEngine,
+};
 
 struct TempDir {
     path: PathBuf,

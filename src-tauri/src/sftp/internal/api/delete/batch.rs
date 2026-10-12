@@ -13,7 +13,7 @@ use tauri::{AppHandle, Emitter};
 pub(super) async fn preview_delete_entries(
     app: &AppHandle,
     tab_id: &str,
-    plan: &crate::core::session::SessionPlan,
+    plan: &crate::core::session::types::SessionPlan,
     prompts: HostPromptMap,
     pool: &SftpConnectionPool,
     entries: &[DeleteEntryRequest],
@@ -312,7 +312,7 @@ fn delete_directory_recursive_with_progress<'a>(
 pub(super) struct DeleteBatch {
     pub(super) app: AppHandle,
     pub(super) tab_id: String,
-    pub(super) plan: crate::core::session::SessionPlan,
+    pub(super) plan: crate::core::session::types::SessionPlan,
     pub(super) prompts: HostPromptMap,
     pub(super) pool: SftpConnectionPool,
     pub(super) batch_id: String,
@@ -388,7 +388,7 @@ pub(super) async fn run_delete_batch(batch: DeleteBatch) {
 async fn get_or_create_delete_sftp(
     app: &AppHandle,
     tab_id: &str,
-    plan: &crate::core::session::SessionPlan,
+    plan: &crate::core::session::types::SessionPlan,
     prompts: HostPromptMap,
     pool: &SftpConnectionPool,
 ) -> Result<Arc<SftpSession>, String> {

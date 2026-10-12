@@ -11,7 +11,9 @@ use super::snapshot::{restore_database, snapshot_database, DatabaseSnapshot};
 use super::*;
 use crate::config::AppConfig;
 use crate::db::meta;
-use crate::ssh::secret_store::{get_secret, put_secret, snapshot_secrets, DataKey};
+use crate::ssh::secret_store::{
+    crypto::SecretKey as DataKey, store::get_secret, store::put_secret, store::snapshot_secrets,
+};
 use chrono::Utc;
 use std::fs;
 
@@ -91,7 +93,7 @@ fn incoming_payload() -> BackupPayload {
 }
 
 fn profile_summary(connection: &rusqlite::Connection) -> Vec<(String, String, String)> {
-    crate::profiles::list_saved_profiles(connection)
+    crate::profiles::storage::list_saved_profiles(connection)
         .unwrap()
         .into_iter()
         .map(|p| (p.id, p.name, p.group))
@@ -298,11 +300,14 @@ fn merge_import_keeps_existing_data_and_updates_by_key() {
                 ])
             );
             assert_eq!(
-                crate::profiles::configured_profile_groups(connection)?,
+                crate::profiles::storage::configured_profile_groups(connection)?,
                 ["dev", "ops"]
             );
             // Tunnels missing from an old backup are left alone.
-            assert_eq!(crate::tunnel::list_tunnel_rules(connection)?.len(), 1);
+            assert_eq!(
+                crate::tunnel::storage::list_tunnel_rules(connection)?.len(),
+                1
+            );
             let hosts = crate::ssh::store::list_known_hosts(connection)?.entries;
             assert_eq!(
                 hosts.len(),
@@ -416,12 +421,18 @@ fn replacing_profiles_keeps_passwords_of_profiles_that_stay() {
     };
     database
         .write(|connection| {
-            crate::profiles::replace_profiles(connection, &[profile("keep"), profile("gone")])?;
+            crate::profiles::storage::replace_profiles(
+                connection,
+                &[profile("keep"), profile("gone")],
+            )?;
             put_secret(connection, &data_key, "keep", "k")?;
             put_secret(connection, &data_key, "gone", "g")?;
             let before = snapshot_database(connection, &database_selection())?;
 
-            crate::profiles::replace_profiles(connection, &[profile("keep"), profile("new")])?;
+            crate::profiles::storage::replace_profiles(
+                connection,
+                &[profile("keep"), profile("new")],
+            )?;
             assert_eq!(keys(connection), ["keep"]);
 
             // Undoing the import brings the removed profile's password back.
@@ -446,10 +457,13 @@ fn replace_import_drops_data_missing_from_the_backup() {
                 owned(&[("b", "Beta renamed", "dev"), ("c", "Gamma", "dev")])
             );
             assert_eq!(
-                crate::profiles::configured_profile_groups(connection)?,
+                crate::profiles::storage::configured_profile_groups(connection)?,
                 ["dev"]
             );
-            assert_eq!(crate::tunnel::list_tunnel_rules(connection)?.len(), 1);
+            assert_eq!(
+                crate::tunnel::storage::list_tunnel_rules(connection)?.len(),
+                1
+            );
             assert_eq!(
                 crate::ssh::store::list_known_hosts(connection)?
                     .entries
@@ -519,15 +533,15 @@ fn exported_data_imports_back_unchanged() {
         .read(|connection| {
             Ok({
                 let mut payload = BackupPayload::default();
-                payload.profiles = Some(to_backup_value(&crate::profiles::list_saved_profiles(
-                    connection,
-                )?)?);
-                payload.profile_groups = Some(to_backup_value(
-                    &crate::profiles::configured_profile_groups(connection)?,
+                payload.profiles = Some(to_backup_value(
+                    &crate::profiles::storage::list_saved_profiles(connection)?,
                 )?);
-                payload.tunnels = Some(to_backup_value(&crate::tunnel::list_tunnel_rules(
-                    connection,
-                )?)?);
+                payload.profile_groups = Some(to_backup_value(
+                    &crate::profiles::storage::configured_profile_groups(connection)?,
+                )?);
+                payload.tunnels = Some(to_backup_value(
+                    &crate::tunnel::storage::list_tunnel_rules(connection)?,
+                )?);
                 payload.known_hosts = Some(to_backup_value(&crate::ssh::store::list_known_hosts(
                     connection,
                 )?)?);
@@ -592,7 +606,7 @@ fn real_pre_database_backups_import() {
                     // Merging twice must not duplicate anything.
                     apply_database_payload(connection, payload, &options)?;
                     apply_database_payload(connection, payload, &options)?;
-                    let profiles = crate::profiles::list_saved_profiles(connection)?.len();
+                    let profiles = crate::profiles::storage::list_saved_profiles(connection)?.len();
                     let known = crate::ssh::store::list_known_hosts(connection)?.entries.len();
                     let sftp = crate::sftp::store::list_sftp_directories(connection)?
                         .entries

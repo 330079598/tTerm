@@ -1,10 +1,11 @@
-use super::session::SessionPlan;
+use super::session::types::SessionPlan;
 use super::state::{
     ActiveSession, ActiveSsh, ChannelContext, HostPromptMap, SessionExitSignal, SessionKind,
 };
 use crate::ssh::client::SshChannelIo;
 use crate::ssh::{
-    emit_connection_progress, ConnectionStatusOptions, SshConnectionProgressPayload, SshExitSignal,
+    client::SshExitSignal, types::emit_connection_progress, types::ConnectionStatusOptions,
+    types::SshConnectionProgressPayload,
 };
 use crate::zmodem::session::ZmodemSettings;
 use std::sync::Arc;
@@ -60,7 +61,7 @@ pub(crate) struct TabConnection {
     pub prompt_state: HostPromptMap,
     pub stop_rx: watch::Receiver<bool>,
     pub exit_tx: mpsc::UnboundedSender<SessionExitSignal>,
-    pub output_channel: crate::terminal::TerminalOutput,
+    pub output_channel: crate::terminal::io_batcher::TerminalOutput,
     pub runtime_handle: tokio::runtime::Handle,
 }
 
@@ -85,15 +86,16 @@ pub(crate) fn spawn_ssh_attempt(
     } = tab;
     let (input_tx, input_rx) = mpsc::unbounded_channel::<Vec<u8>>();
     let (resize_tx, resize_rx) = mpsc::unbounded_channel::<(u16, u16)>();
-    let output_tail = Arc::new(crate::terminal::OutputTail::default());
+    let output_tail = Arc::new(crate::terminal::output_tail::OutputTail::default());
     let encoding = plan.encoding;
-    let input = crate::terminal::PtyInput::over_channel(input_tx.clone());
-    let sender = crate::terminal::TerminalOutputSender::spawn(&channel.tab_id, output_channel)
-        .with_output_tail(output_tail.clone())
-        .with_output_counter(input.output_counter());
+    let input = crate::terminal::types::PtyInput::over_channel(input_tx.clone());
+    let sender =
+        crate::terminal::io_batcher::TerminalOutputSender::spawn(&channel.tab_id, output_channel)
+            .with_output_tail(output_tail.clone())
+            .with_output_counter(input.output_counter());
 
     let task = runtime_handle.spawn(async move {
-        let result = crate::ssh::run_single_ssh_connection(
+        let result = crate::ssh::client::run_single_ssh_connection(
             channel,
             settings,
             plan,

@@ -1,8 +1,10 @@
 use super::snapshot::{COMMANDS, KNOWN_HOSTS, PROFILES, PROFILE_GROUPS, SECRETS, THEMES};
 use super::*;
-use crate::command_library::{CommandRepository, SavedCommand};
+use crate::command_library::{models::SavedCommand, repository::CommandRepository};
 use crate::db::Database;
-use crate::ssh::secret_store::{get_secret, put_secret, DataKey};
+use crate::ssh::secret_store::{
+    crypto::SecretKey as DataKey, store::get_secret, store::put_secret,
+};
 use crate::ssh::store::KnownHostRecord;
 use serde_json::json;
 
@@ -133,7 +135,7 @@ impl Device {
         }))
         .unwrap();
         self.database
-            .write(|transaction| crate::profiles::upsert_profile(transaction, &profile))
+            .write(|transaction| crate::profiles::storage::upsert_profile(transaction, &profile))
             .unwrap();
     }
 
@@ -147,16 +149,16 @@ impl Device {
         self.database.read(crate::themes::list_themes).unwrap()
     }
 
-    fn profile(&self, id: &str) -> Option<crate::profiles::SavedProfile> {
+    fn profile(&self, id: &str) -> Option<crate::profiles::types::SavedProfile> {
         self.database
-            .read(|connection| crate::profiles::get_profile(connection, id))
+            .read(|connection| crate::profiles::storage::get_profile(connection, id))
             .unwrap()
     }
 
     fn delete_profile(&self, id: &str) {
         self.database
             .write(|transaction| {
-                crate::profiles::delete_profile_rows(transaction, &[id.to_string()])
+                crate::profiles::storage::delete_profiles(transaction, &[id.to_string()])
             })
             .unwrap();
     }
@@ -218,7 +220,7 @@ fn two_devices_converge_and_deletions_travel() {
     let mut edited = b.profile("p1").unwrap();
     edited.port = Some(2222);
     b.database
-        .write(|transaction| crate::profiles::upsert_profile(transaction, &edited))
+        .write(|transaction| crate::profiles::storage::upsert_profile(transaction, &edited))
         .unwrap();
     a.save_profile("p1", "renamed.example", "prod");
     a.sync(&mut remote);
@@ -393,15 +395,18 @@ fn commands_sync_but_usage_counts_stay_per_device() {
 fn groups_tunnels_and_known_hosts_sync() {
     let mut remote = None;
     let (mut a, mut b) = (Device::new(), Device::new());
-    let rule: crate::tunnel::TunnelRule = serde_json::from_value(json!({
+    let rule: crate::tunnel::types::TunnelRule = serde_json::from_value(json!({
         "id": "t1", "name": "db", "profileId": "p1", "kind": "local",
         "bindHost": "127.0.0.1", "bindPort": 8080, "destHost": "db", "destPort": 5432
     }))
     .unwrap();
     a.database
         .write(|transaction| {
-            crate::profiles::replace_profile_groups(transaction, &["Empty group".to_string()])?;
-            crate::tunnel::replace_tunnels(transaction, &[rule])?;
+            crate::profiles::storage::replace_profile_groups(
+                transaction,
+                &["Empty group".to_string()],
+            )?;
+            crate::tunnel::storage::replace_tunnels(transaction, &[rule])?;
             crate::ssh::store::merge_known_host(
                 transaction,
                 &KnownHostRecord {
@@ -421,11 +426,11 @@ fn groups_tunnels_and_known_hosts_sync() {
     b.database
         .read(|connection| {
             assert_eq!(
-                crate::profiles::configured_profile_groups(connection)?,
+                crate::profiles::storage::configured_profile_groups(connection)?,
                 ["Empty group"]
             );
             assert_eq!(
-                crate::tunnel::list_tunnel_rules(connection)?[0].dest_port,
+                crate::tunnel::storage::list_tunnel_rules(connection)?[0].dest_port,
                 5432
             );
             assert_eq!(
@@ -487,7 +492,7 @@ fn fields_from_a_newer_version_survive_an_older_device() {
     let mut edited = b.profile("p1").unwrap();
     edited.port = Some(2200);
     b.database
-        .write(|transaction| crate::profiles::upsert_profile(transaction, &edited))
+        .write(|transaction| crate::profiles::storage::upsert_profile(transaction, &edited))
         .unwrap();
     b.sync(&mut remote);
     let record = &remote.as_ref().unwrap().0[PROFILES]["p1"].data;
@@ -549,7 +554,7 @@ async fn live_devices_sync_through_a_server() {
     let mut edited = b.profile("p1").unwrap();
     edited.port = Some(2222);
     b.database
-        .write(|transaction| crate::profiles::upsert_profile(transaction, &edited))
+        .write(|transaction| crate::profiles::storage::upsert_profile(transaction, &edited))
         .unwrap();
     a.sync_live(&remote("a")).await;
     let merged = b.sync_live(&remote("b")).await;

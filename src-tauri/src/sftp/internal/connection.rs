@@ -8,16 +8,17 @@ use std::time::{Duration, Instant};
 use tauri::AppHandle;
 
 use crate::core::session::{
-    normalize_connection, resolve_ssh_password, PtyConnectionOptions, SessionPlan,
+    normalize_connection, resolve_ssh_password, types::PtyConnectionOptions, types::SessionPlan,
 };
 use crate::core::state::{HostPromptMap, SessionKind};
 use crate::sftp::internal::types::{
     CachedSftpConnection, ConnectedSftp, SftpConnectionKey, SftpConnectionPool,
 };
-use crate::ssh::ConnectionStatusOptions;
+use crate::ssh::types::ConnectionStatusOptions;
 use crate::ssh::{
-    open_target_ssh_session, ConnectContext, JumpChain, SecretStoreState, SshClientHandler,
-    SshTarget,
+    jump::connect::open_target_ssh_session, jump::connect::ConnectContext,
+    jump::connect::JumpChain, jump::connect::SshTarget, secret_store::types::SecretStoreState,
+    types::SshClientHandler,
 };
 
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(300);
@@ -80,8 +81,9 @@ pub async fn connect_authenticated_ssh(
             // Progress events share the terminal tab's channel; emitting them
             // would flip an already-connected terminal back to "connecting".
             status_options: ConnectionStatusOptions::QUIET,
-            host_key_verification_mode: crate::ssh::HostKeyVerificationMode::PromptAndPersist,
-            auth_prompter: &crate::ssh::AuthPrompter::tab(app, tab_id),
+            host_key_verification_mode:
+                crate::ssh::types::HostKeyVerificationMode::PromptAndPersist,
+            auth_prompter: &crate::ssh::auth::AuthPrompter::tab(app, tab_id),
         },
         SshTarget::from_plan(plan, &host, &username),
     )

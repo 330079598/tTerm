@@ -74,7 +74,7 @@ fn imports_every_file_once_and_renames_them() {
 
     database
         .read(|connection| {
-            let profiles = crate::profiles::list_saved_profiles(connection)?;
+            let profiles = crate::profiles::storage::list_saved_profiles(connection)?;
             assert_eq!(
                 profiles.iter().map(|p| p.id.as_str()).collect::<Vec<_>>(),
                 ["b", "a"],
@@ -97,11 +97,11 @@ fn imports_every_file_once_and_renames_them() {
             );
 
             assert_eq!(
-                crate::profiles::configured_profile_groups(connection)?,
+                crate::profiles::storage::configured_profile_groups(connection)?,
                 ["empty", "ops"]
             );
             assert_eq!(
-                crate::tunnel::list_tunnel_rules(connection)?[0].profile_id,
+                crate::tunnel::storage::list_tunnel_rules(connection)?[0].profile_id,
                 "b"
             );
             assert_eq!(
@@ -126,7 +126,7 @@ fn imports_every_file_once_and_renames_them() {
     assert!(!import_legacy_json_files(&database, &dir).expect("second run"));
     assert_eq!(
         database
-            .read(crate::profiles::list_saved_profiles)
+            .read(crate::profiles::storage::list_saved_profiles)
             .unwrap()
             .len(),
         2
@@ -329,7 +329,7 @@ fn corrupt_file_aborts_the_whole_import() {
     assert!(error.contains("tunnels.json"));
     assert!(!legacy_json_imported(&database).unwrap());
     assert!(database
-        .read(crate::profiles::configured_profile_groups)
+        .read(crate::profiles::storage::configured_profile_groups)
         .unwrap()
         .is_empty());
     assert!(
@@ -346,7 +346,7 @@ fn missing_files_import_as_empty() {
     let database = Database::open_in_memory().expect("open database");
     assert!(import_legacy_json_files(&database, &dir).expect("import"));
     assert!(database
-        .read(crate::profiles::list_saved_profiles)
+        .read(crate::profiles::storage::list_saved_profiles)
         .unwrap()
         .is_empty());
     fs::remove_dir_all(dir).ok();
@@ -367,7 +367,7 @@ fn imports_a_real_config_directory_copy() {
     let mut expected_profiles: Vec<SavedProfile> =
         serde_json::from_value(json("profiles.json")).unwrap();
     for profile in &mut expected_profiles {
-        crate::profiles::normalize_profile(profile);
+        crate::profiles::storage::normalize_profile(profile);
     }
     let expected_groups: Vec<String> = serde_json::from_value(json("profile_groups.json")).unwrap();
     let expected_tunnels = json("tunnels.json");
@@ -375,7 +375,7 @@ fn imports_a_real_config_directory_copy() {
     let expected_sftp = json("sftp_directories.json");
 
     let database = Database::open(&dir.join("tterm.db")).expect("open database copy");
-    let commands_before = crate::command_library::CommandRepository::new(&database)
+    let commands_before = crate::command_library::repository::CommandRepository::new(&database)
         .list()
         .unwrap()
         .len();
@@ -383,12 +383,12 @@ fn imports_a_real_config_directory_copy() {
 
     database
         .read(|connection| {
-            let profiles = crate::profiles::list_saved_profiles(connection)?;
+            let profiles = crate::profiles::storage::list_saved_profiles(connection)?;
             assert_eq!(
                 serde_json::to_value(&profiles).unwrap(),
                 serde_json::to_value(&expected_profiles).unwrap()
             );
-            let mut groups = crate::profiles::configured_profile_groups(connection)?;
+            let mut groups = crate::profiles::storage::configured_profile_groups(connection)?;
             let mut expected = expected_groups
                 .iter()
                 .map(|g| g.trim().to_string())
@@ -399,7 +399,8 @@ fn imports_a_real_config_directory_copy() {
             expected.dedup();
             assert_eq!(groups, expected);
             assert_eq!(
-                serde_json::to_value(crate::tunnel::list_tunnel_rules(connection)?).unwrap(),
+                serde_json::to_value(crate::tunnel::storage::list_tunnel_rules(connection)?)
+                    .unwrap(),
                 expected_tunnels
             );
             assert_eq!(
@@ -425,7 +426,7 @@ fn imports_a_real_config_directory_copy() {
         })
         .expect("verify import");
     assert_eq!(
-        crate::command_library::CommandRepository::new(&database)
+        crate::command_library::repository::CommandRepository::new(&database)
             .list()
             .unwrap()
             .len(),

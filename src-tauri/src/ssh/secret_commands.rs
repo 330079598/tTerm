@@ -1,6 +1,6 @@
 use super::secret_store::{
-    ChangeVaultPasswordInput, SecretBackendStatus, SecretStoreState, VaultPasswordInput,
-    VerificationPurpose,
+    types::ChangeVaultPasswordInput, types::SecretBackendStatus, types::SecretStoreState,
+    types::VaultPasswordInput, verification::VerificationPurpose,
 };
 use crate::core::blocking::run_blocking;
 use serde::{Deserialize, Serialize};
@@ -172,7 +172,7 @@ pub async fn list_saved_secrets(
             .into_iter()
             .collect::<std::collections::HashSet<_>>();
         let mut entries = Vec::new();
-        for summary in crate::profiles::saved_secret_summaries()? {
+        for summary in crate::profiles::storage::saved_secret_summaries()? {
             if saved.contains(&summary.key) {
                 entries.push(SavedSecretEntry {
                     key: summary.key,
@@ -210,7 +210,7 @@ pub async fn get_saved_secret(
             return Err("Secret key is required".to_string());
         }
 
-        let allowed = crate::profiles::saved_secret_keys()?
+        let allowed = crate::profiles::storage::saved_secret_keys()?
             .into_iter()
             .any(|candidate| candidate == key);
         if !allowed {
@@ -241,7 +241,7 @@ pub async fn delete_saved_secret(
             return Err("Secret key is required".to_string());
         }
 
-        let allowed = crate::profiles::saved_secret_keys()?
+        let allowed = crate::profiles::storage::saved_secret_keys()?
             .into_iter()
             .any(|candidate| candidate == key);
         if !allowed {

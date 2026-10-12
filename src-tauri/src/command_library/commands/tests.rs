@@ -1,5 +1,5 @@
 use super::*;
-use crate::command_library::CommandVariable;
+use crate::command_library::models::CommandVariable;
 use crate::db::Database;
 
 fn create_input() -> SaveCommandInput {

@@ -34,7 +34,7 @@ const POWERSHELL_PROMPT: &str = include_str!("shell_integration/prompt.ps1");
 /// directory, or `None` when they cannot be written; WSL then starts without
 /// integration.
 pub fn install() -> Option<PathBuf> {
-    let dir = crate::config::ensure_config_dir()
+    let dir = crate::config::paths::ensure_config_dir()
         .ok()?
         .join("shell-integration");
     install_into(&dir).ok()?;

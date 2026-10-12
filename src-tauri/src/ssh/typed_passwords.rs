@@ -1,4 +1,4 @@
-//! Passwords typed while a quick connection ([`super::AuthMethod::Auto`])
+//! Passwords typed while a quick connection ([`super::auth::AuthMethod::Auto`])
 //! signed in, kept in memory while its tab is open. The tab's SFTP,
 //! monitoring and reconnects sign in with them instead of asking again, and
 //! saving the tab as a profile can store them. They never reach the frontend.

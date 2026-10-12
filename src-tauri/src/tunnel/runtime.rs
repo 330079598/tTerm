@@ -1,10 +1,11 @@
 use super::hub::{Lease, RouteGuard, SessionHub, SessionKey, SshConnection, SshHandle};
 use super::types::{TunnelKind, TunnelRule, TunnelState};
-use crate::core::session::SessionPlan;
+use crate::core::session::types::SessionPlan;
 use crate::core::state::HostPromptMap;
 use crate::ssh::{
-    open_target_ssh_session_with_forwarding, ConnectContext, ConnectionStatusOptions,
-    ForwardedTcpIp, HostKeyVerificationMode, SshTarget,
+    jump::connect::open_target_ssh_session_with_forwarding, jump::connect::ConnectContext,
+    jump::connect::SshTarget, types::ConnectionStatusOptions, types::ForwardedTcpIp,
+    types::HostKeyVerificationMode,
 };
 use connections::{
     forward_local_connection, forward_remote_connection, forward_socks_connection,
@@ -347,7 +348,7 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
                     host_key_verification_mode: HostKeyVerificationMode::PromptAndPersist,
                     // Tunnels reconnect on their own, so there is no moment at
                     // which a prompt is expected.
-                    auth_prompter: &crate::ssh::AuthPrompter::Unavailable,
+                    auth_prompter: &crate::ssh::auth::AuthPrompter::Unavailable,
                 },
                 SshTarget {
                     keepalive_interval_secs,

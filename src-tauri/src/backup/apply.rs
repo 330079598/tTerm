@@ -5,13 +5,13 @@ use super::automatic::restore_automatic_backup_settings;
 use super::export::secret_travels;
 use super::remote;
 use super::{BackupImportOptions, BackupLogFile, BackupPayload, BackupSelection, MissingKeyFile};
-use crate::command_library::{CommandRepository, SavedCommand};
+use crate::command_library::{models::SavedCommand, repository::CommandRepository};
 use crate::config::{self, AppConfig};
-use crate::profiles::SavedProfile;
+use crate::profiles::types::SavedProfile;
 use crate::sftp::store::SftpDirectoryStore;
-use crate::ssh::secret_store::{put_secret, DataKey};
+use crate::ssh::secret_store::{crypto::SecretKey as DataKey, store::put_secret};
 use crate::ssh::store::KnownHostStore;
-use crate::tunnel::TunnelRule;
+use crate::tunnel::types::TunnelRule;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use serde::Serialize;
 use serde_json::Value;
@@ -229,22 +229,23 @@ pub(super) fn apply_database_payload(
             let profiles = if merge {
                 let safe_incoming = to_backup_value(&incoming_profiles)?;
                 let existing =
-                    to_backup_value(&crate::profiles::list_saved_profiles(transaction)?)?;
+                    to_backup_value(&crate::profiles::storage::list_saved_profiles(transaction)?)?;
                 from_backup_value(merge_arrays_by_keys(existing, safe_incoming, &["id"])?)?
             } else {
                 incoming_profiles
             };
-            crate::profiles::replace_profiles(transaction, &profiles)?;
+            crate::profiles::storage::replace_profiles(transaction, &profiles)?;
         }
         if let Some(incoming) = payload.profile_groups.as_ref() {
             let groups = if merge {
-                let existing =
-                    to_backup_value(&crate::profiles::configured_profile_groups(transaction)?)?;
+                let existing = to_backup_value(
+                    &crate::profiles::storage::configured_profile_groups(transaction)?,
+                )?;
                 merge_string_arrays(existing, incoming.clone())?
             } else {
                 incoming.clone()
             };
-            crate::profiles::replace_profile_groups(
+            crate::profiles::storage::replace_profile_groups(
                 transaction,
                 &from_backup_value::<Vec<String>>(groups)?,
             )?;
@@ -252,12 +253,13 @@ pub(super) fn apply_database_payload(
         // Backups made before tunnels existed carry none; keep the current rules then.
         if let Some(incoming) = payload.tunnels.as_ref() {
             let tunnels = if merge {
-                let existing = to_backup_value(&crate::tunnel::list_tunnel_rules(transaction)?)?;
+                let existing =
+                    to_backup_value(&crate::tunnel::storage::list_tunnel_rules(transaction)?)?;
                 merge_arrays_by_keys(existing, incoming.clone(), &["id"])?
             } else {
                 incoming.clone()
             };
-            crate::tunnel::replace_tunnels(
+            crate::tunnel::storage::replace_tunnels(
                 transaction,
                 &from_backup_value::<Vec<TunnelRule>>(tunnels)?,
             )?;
@@ -426,7 +428,9 @@ fn merge_string_arrays(existing: Value, incoming: Value) -> Result<Value, String
 }
 
 pub(super) fn imported_logs_root() -> Result<PathBuf, String> {
-    Ok(config::get_config_path()?.join("logs").join("imported"))
+    Ok(config::paths::get_config_path()?
+        .join("logs")
+        .join("imported"))
 }
 
 fn restore_log_files(logs: &[BackupLogFile]) -> Result<(), String> {
@@ -436,7 +440,7 @@ fn restore_log_files(logs: &[BackupLogFile]) -> Result<(), String> {
         let bytes = BASE64
             .decode(&log.data_b64)
             .map_err(|_| "Backup contains invalid terminal log data.".to_string())?;
-        config::atomic_write_private(&root.join(Path::new(&log.relative_path)), bytes)?;
+        config::atomic::atomic_write_private(&root.join(Path::new(&log.relative_path)), bytes)?;
     }
     Ok(())
 }

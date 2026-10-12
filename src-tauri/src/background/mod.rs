@@ -2,16 +2,14 @@
 //! background behind a tray icon (the menu bar on macOS), as the user chose in
 //! `close_behavior`. "ask" lets the UI decide on each close.
 
-mod tray;
+pub(crate) mod tray;
 
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
 use tauri::{AppHandle, Emitter, Manager, State, Window};
 
 use crate::config::AppConfig;
-use crate::tunnel::TunnelManager;
-
-pub use tray::{refresh_tunnels, TrayState};
+use crate::tunnel::commands::TunnelManager;
 
 const CLOSE_REQUESTED_EVENT: &str = "close-requested";
 

@@ -30,9 +30,9 @@ use tokio::sync::Mutex as TokioMutex;
 use super::events::{
     self, EmitFn, TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
 };
-use super::protocol::{ZmodemAction, ZmodemDirection, ZmodemEngine};
+use super::protocol::{consts::ZmodemDirection, engine::ZmodemAction, engine::ZmodemEngine};
 use crate::core::state::ActiveSession;
-use crate::core::ZmodemMap;
+use crate::core::state::ZmodemMap;
 
 /// Forces a local PTY into raw mode for the duration of a send session, and
 /// restores the original settings when the returned guard drops. Binary

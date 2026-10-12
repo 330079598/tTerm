@@ -11,8 +11,10 @@ use super::{normalized_backup_path, BackupSelection, MAX_BACKUP_SIZE};
 use crate::config;
 use crate::core::blocking::run_blocking;
 use crate::db::meta;
-use crate::ssh::secret_store::{get_secret, put_secret};
-use crate::ssh::{SecretStoreState, VerificationPurpose};
+use crate::ssh::secret_store::{store::get_secret, store::put_secret};
+use crate::ssh::{
+    secret_store::types::SecretStoreState, secret_store::verification::VerificationPurpose,
+};
 use chrono::Utc;
 use files::{
     backup_file_name, device_name, now_ms, remote_backups, stale_backups, user_agent,
@@ -418,11 +420,11 @@ pub async fn download_webdav_backup(
     run_blocking(move || {
         // Only the backup being restored is kept.
         clear_downloads()?;
-        let downloads = config::ensure_config_dir()?.join(DOWNLOAD_DIRECTORY);
+        let downloads = config::paths::ensure_config_dir()?.join(DOWNLOAD_DIRECTORY);
         fs::create_dir_all(&downloads)
             .map_err(|error| format!("Failed to create the WebDAV download folder: {error}"))?;
         let path = downloads.join(&file_name);
-        config::atomic_write_private(&path, data)?;
+        config::atomic::atomic_write_private(&path, data)?;
         Ok(path.to_string_lossy().into_owned())
     })
     .await
@@ -436,7 +438,7 @@ pub async fn discard_webdav_download() -> Result<(), String> {
 
 /// Removes downloaded backups; also run at startup for any a quit left behind.
 pub(crate) fn clear_downloads() -> Result<(), String> {
-    let downloads = config::ensure_config_dir()?.join(DOWNLOAD_DIRECTORY);
+    let downloads = config::paths::ensure_config_dir()?.join(DOWNLOAD_DIRECTORY);
     if downloads.exists() {
         fs::remove_dir_all(&downloads)
             .map_err(|error| format!("Failed to clear old WebDAV downloads: {error}"))?;
@@ -492,7 +494,7 @@ pub async fn save_webdav_backup(
     let (client, directory) = connect(&app, secret_state.inner()).await?;
     let data = client.get(&directory, &file_name, MAX_BACKUP_SIZE).await?;
     run_blocking(move || {
-        config::atomic_write_private(&output, data)?;
+        config::atomic::atomic_write_private(&output, data)?;
         Ok(output.to_string_lossy().into_owned())
     })
     .await
@@ -723,8 +725,8 @@ fn save_keeping_history(
 
 /// Forgets the server, its passwords and the upload history.
 fn clear_settings(connection: &Connection) -> Result<(), String> {
-    crate::ssh::secret_store::delete_secret(connection, PASSWORD_KEY)?;
-    crate::ssh::secret_store::delete_secret(connection, BACKUP_PASSWORD_KEY)?;
+    crate::ssh::secret_store::store::delete_secret(connection, PASSWORD_KEY)?;
+    crate::ssh::secret_store::store::delete_secret(connection, BACKUP_PASSWORD_KEY)?;
     for key in [SETTINGS_KEY, LAST_BACKUP_AT_KEY, LAST_ERROR_KEY] {
         meta::remove(connection, key)?;
     }

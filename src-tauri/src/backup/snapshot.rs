@@ -6,11 +6,11 @@ use super::remote;
 use super::{BackupPayload, BackupSelection, AUTOMATIC_SETTINGS_KEY};
 use crate::config;
 use crate::db::meta;
-use crate::profiles::SavedProfile;
+use crate::profiles::types::SavedProfile;
 use crate::sftp::store::SftpDirectoryStore;
-use crate::ssh::secret_store::{restore_secrets, snapshot_secrets, SecretRow};
+use crate::ssh::secret_store::{store::restore_secrets, store::snapshot_secrets, store::SecretRow};
 use crate::ssh::store::KnownHostStore;
-use crate::tunnel::TunnelRule;
+use crate::tunnel::types::TunnelRule;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -60,9 +60,9 @@ pub(super) fn snapshot_database(
     Ok(DatabaseSnapshot {
         profiles: if selection.profiles {
             Some((
-                crate::profiles::list_saved_profiles(connection)?,
-                crate::profiles::configured_profile_groups(connection)?,
-                crate::tunnel::list_tunnel_rules(connection)?,
+                crate::profiles::storage::list_saved_profiles(connection)?,
+                crate::profiles::storage::configured_profile_groups(connection)?,
+                crate::tunnel::storage::list_tunnel_rules(connection)?,
             ))
         } else {
             None
@@ -103,9 +103,9 @@ pub(super) fn restore_database(
     snapshot: &DatabaseSnapshot,
 ) -> Result<(), String> {
     if let Some((profiles, groups, tunnels)) = snapshot.profiles.as_ref() {
-        crate::profiles::replace_profiles(transaction, profiles)?;
-        crate::profiles::replace_profile_groups(transaction, groups)?;
-        crate::tunnel::replace_tunnels(transaction, tunnels)?;
+        crate::profiles::storage::replace_profiles(transaction, profiles)?;
+        crate::profiles::storage::replace_profile_groups(transaction, groups)?;
+        crate::tunnel::storage::replace_tunnels(transaction, tunnels)?;
     }
     if let Some(secrets) = snapshot.secrets.as_ref() {
         restore_secrets(transaction, secrets)?;
@@ -133,7 +133,7 @@ pub(super) fn capture_file_snapshot(
     selection: &BackupSelection,
     payload: &BackupPayload,
 ) -> Result<FileSnapshot, String> {
-    let directory = config::ensure_config_dir()?;
+    let directory = config::paths::ensure_config_dir()?;
     let mut names = Vec::new();
     if selection.settings {
         names.push("config.json");
@@ -176,7 +176,7 @@ pub(super) fn restore_file_snapshot(snapshot: &[(PathBuf, Option<Vec<u8>>)]) -> 
     let mut errors = Vec::new();
     for (path, content) in snapshot {
         let result = match content {
-            Some(bytes) => config::atomic_write(path, bytes),
+            Some(bytes) => config::atomic::atomic_write(path, bytes),
             None if path.exists() => fs::remove_file(path)
                 .map_err(|error| format!("Failed to remove '{}': {error}", path.display())),
             None => Ok(()),

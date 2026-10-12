@@ -1,11 +1,10 @@
-mod atomic;
-mod paths;
+pub(crate) mod atomic;
+pub(crate) mod paths;
 pub mod tab_icons;
 pub mod window_background;
 
-pub use atomic::{atomic_write, atomic_write_private};
-pub use paths::{ensure_config_dir, get_config_path, init_config_dir, legacy_config_path};
-pub use window_background::load_window_background;
+use atomic::atomic_write;
+use paths::{ensure_config_dir, get_config_path};
 
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fs;

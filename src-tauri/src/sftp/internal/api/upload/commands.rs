@@ -1,5 +1,5 @@
 use super::*;
-use crate::core::session::PtyConnectionOptions;
+use crate::core::session::types::PtyConnectionOptions;
 use crate::core::state::HostPromptMap;
 use crate::sftp::internal::api::conflict::{
     self, CandidateDecision, ConflictPolicy, ConflictReport, SourceStat, TransferConflict,
@@ -7,7 +7,7 @@ use crate::sftp::internal::api::conflict::{
 use crate::sftp::internal::api::prepare_transfer;
 use crate::sftp::internal::connection::ensure_ssh_plan;
 use crate::sftp::internal::types::{SftpConnectionPool, TransferCancelMap};
-use crate::ssh::SecretStoreState;
+use crate::ssh::secret_store::types::SecretStoreState;
 use std::collections::HashMap;
 use tauri::{AppHandle, Emitter, State};
 use tokio::sync::watch;

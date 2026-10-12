@@ -1,10 +1,10 @@
 use super::batch::{preview_delete_entries, run_delete_batch, DeleteBatch};
 use super::*;
-use crate::core::session::PtyConnectionOptions;
+use crate::core::session::types::PtyConnectionOptions;
 use crate::core::state::HostPromptMap;
 use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error};
 use crate::sftp::internal::types::SftpConnectionPool;
-use crate::ssh::SecretStoreState;
+use crate::ssh::secret_store::types::SecretStoreState;
 use russh_sftp::client::SftpSession;
 use std::future::Future;
 use std::pin::Pin;

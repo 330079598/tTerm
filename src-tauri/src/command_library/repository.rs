@@ -1,4 +1,4 @@
-use super::{CommandVariable, SavedCommand};
+use super::{models::CommandVariable, models::SavedCommand};
 use crate::db::Database;
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction};
 

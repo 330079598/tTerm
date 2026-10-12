@@ -1,4 +1,4 @@
-use crate::config::ensure_config_dir;
+use crate::config::paths::ensure_config_dir;
 use crate::db::sql_error;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};

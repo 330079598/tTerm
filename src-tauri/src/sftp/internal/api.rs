@@ -47,7 +47,7 @@ pub mod edit;
 pub mod permissions;
 pub mod upload;
 
-use crate::core::session::SessionPlan;
+use crate::core::session::types::SessionPlan;
 use crate::core::state::HostPromptMap;
 use crate::sftp::internal::connection::{
     evict_connection, get_or_create_sftp_connection, open_sftp_raw_session,
@@ -82,7 +82,7 @@ fn parallelism_cache_hit(
 
 /// Resolve the configured number of parallel SFTP channels (clamped safely).
 pub fn resolve_transfer_parallelism() -> usize {
-    let mtime = crate::config::get_config_path()
+    let mtime = crate::config::paths::get_config_path()
         .ok()
         .map(|dir| dir.join("config.json"))
         .and_then(|path| std::fs::metadata(path).ok())

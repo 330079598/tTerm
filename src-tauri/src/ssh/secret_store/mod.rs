@@ -5,14 +5,14 @@
 //! store read) and/or by a key derived from the user's master password
 //! (`password` mode, or a recovery path in `system` mode).
 
-mod crypto;
+pub(crate) mod crypto;
 mod keyring_backend;
-mod legacy;
+pub(crate) mod legacy;
 mod migration;
-mod os_verifier;
-mod store;
-mod types;
-mod verification;
+pub(crate) mod os_verifier;
+pub(crate) mod store;
+pub(crate) mod types;
+pub(crate) mod verification;
 
 use crate::config::{load_config_file, save_config_file};
 use crate::db::Database;
@@ -25,18 +25,12 @@ use tauri::{AppHandle, Manager};
 use types::{SecretStorageMode, SecretStoreRuntime};
 use zeroize::Zeroizing;
 
-pub(crate) use crypto::{decrypt_secret, encrypt_secret, SecretKey as DataKey};
-pub(crate) use legacy::{VAULT_CONFIG_FILE_NAME, VAULT_FILE_NAME};
-pub(crate) use store::{
-    delete_secret, get_secret, migrated_at, put_secret, restore_secrets, snapshot_secrets,
-    SecretRow,
-};
-pub use types::{
+use types::{
     ChangeVaultPasswordInput, SecretBackendStatus, SecretLocation, SecretStoreState,
     VaultPasswordInput,
 };
 use verification::VerificationMethod;
-pub use verification::VerificationPurpose;
+use verification::VerificationPurpose;
 
 const MISSING_SYSTEM_KEY: &str = "The key for saved passwords is missing from the system credential store. Enter the master password to restore it.";
 const WRONG_SYSTEM_KEY: &str = "The key in the system credential store does not match saved passwords. Enter the master password to restore it.";
@@ -460,12 +454,12 @@ impl SecretStoreState {
             .join("secrets");
         let vault = legacy::LegacyVault::load(&secrets_dir)?;
         let old_mode = load_config_file()?.secret_storage_mode;
-        let plaintext = crate::ssh::load_legacy_password_store()?
+        let plaintext = crate::ssh::store::load_legacy_password_store()?
             .profiles
             .into_iter()
             .map(|record| (record.profile_name, Zeroizing::new(record.password)))
             .collect::<Vec<_>>();
-        let mut candidate_keys = crate::profiles::saved_secret_keys()?;
+        let mut candidate_keys = crate::profiles::storage::saved_secret_keys()?;
         candidate_keys.extend(plaintext.iter().map(|(key, _)| key.clone()));
         candidate_keys.sort();
         candidate_keys.dedup();
@@ -503,7 +497,7 @@ impl SecretStoreState {
             }
         }
         if cleanup.remove_plaintext {
-            if let Err(error) = crate::ssh::remove_legacy_password_store() {
+            if let Err(error) = crate::ssh::store::remove_legacy_password_store() {
                 eprintln!("Failed to remove the old password file: {error}");
             }
         }

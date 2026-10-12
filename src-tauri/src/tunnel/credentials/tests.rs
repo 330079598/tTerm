@@ -1,5 +1,5 @@
 use super::*;
-use crate::core::session::{normalize_connection, JumpHostOptions};
+use crate::core::session::{normalize_connection, types::JumpHostOptions};
 use russh::keys::ssh_key::{Algorithm, LineEnding, PrivateKey};
 use std::sync::atomic::{AtomicUsize, Ordering};
 

@@ -9,8 +9,8 @@ use tauri::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, 
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::core::PtyMap;
-use crate::tunnel::{TunnelManager, TunnelState};
+use crate::core::state::PtyMap;
+use crate::tunnel::{commands::TunnelManager, types::TunnelState};
 
 pub(super) const TRAY_ID: &str = "main";
 const MENU_SHOW: &str = "tray-show";
@@ -168,7 +168,7 @@ fn invalidate(app: &AppHandle) {
 
 fn menu_tunnels(app: &AppHandle) -> Vec<MenuTunnel> {
     let manager = app.state::<TunnelManager>();
-    crate::tunnel::load_tunnels()
+    crate::tunnel::storage::load_tunnels()
         .unwrap_or_else(|error| {
             eprintln!("Failed to list tunnels for the tray menu: {error}");
             Vec::new()
@@ -266,7 +266,7 @@ fn toggle_tunnel(app: &AppHandle, id: String) {
         let manager = app.state::<TunnelManager>();
         if manager.state_of(&id).is_active() {
             manager.stop(&id).await;
-        } else if !crate::tunnel::start_unattended(&app, &id).await {
+        } else if !crate::tunnel::commands::start_unattended(&app, &id).await {
             open_tunnels_page(&app);
         }
         invalidate(&app);

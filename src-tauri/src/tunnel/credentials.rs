@@ -1,7 +1,7 @@
 //! Works out which secrets a tunnel still needs from the user before it can
 //! connect, so the UI can ask for them instead of failing.
 
-use crate::core::session::{JumpHostPlan, PtyConnectionOptions, SessionPlan};
+use crate::core::session::{types::JumpHostPlan, types::PtyConnectionOptions, types::SessionPlan};
 use russh::keys::{self, ssh_key};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -88,7 +88,7 @@ fn check_key(path: &str, passphrase: Option<&str>) -> Result<KeyCheck, String> {
             Ok(KeyCheck::NeedsPassphrase { incorrect: true })
         }
         // Old PEM-format RSA keys are loaded when connecting, not by `russh`.
-        Err(_) if crate::ssh::pem_key_file_is_usable(path) => Ok(KeyCheck::Usable),
+        Err(_) if crate::ssh::rsa_signer::pem_key_file_is_usable(path) => Ok(KeyCheck::Usable),
         Err(err) => Err(crate::ssh::key_file::describe_key_error(
             "SSH key", path, &err,
         )),

@@ -8,11 +8,11 @@ use super::{
     AutomaticBackupSettings, BackupExportOptions, BackupLogFile, BackupPayload, BackupSelection,
     MigrationSecretRecord,
 };
-use crate::command_library::CommandRepository;
+use crate::command_library::repository::CommandRepository;
 use crate::config;
-use crate::profiles::SavedProfile;
-use crate::ssh::secret_store::get_secret;
-use crate::ssh::SecretStoreState;
+use crate::profiles::types::SavedProfile;
+use crate::ssh::secret_store::store::get_secret;
+use crate::ssh::secret_store::types::SecretStoreState;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use serde::Serialize;
 use serde_json::Value;
@@ -72,12 +72,18 @@ pub(super) fn collect_payload(
     };
     let mut payload = BackupPayload {
         config: read_selected_json(selection.settings, "config.json")?,
-        profiles: read_selected_data(selection.profiles, crate::profiles::list_saved_profiles)?,
+        profiles: read_selected_data(
+            selection.profiles,
+            crate::profiles::storage::list_saved_profiles,
+        )?,
         profile_groups: read_selected_data(
             selection.profiles,
-            crate::profiles::configured_profile_groups,
+            crate::profiles::storage::configured_profile_groups,
         )?,
-        tunnels: read_selected_data(selection.profiles, crate::tunnel::list_tunnel_rules)?,
+        tunnels: read_selected_data(
+            selection.profiles,
+            crate::tunnel::storage::list_tunnel_rules,
+        )?,
         session: if selection.session {
             crate::db::read(crate::session::read_session)?
                 .map(|session| to_backup_value(&session))
@@ -164,7 +170,7 @@ pub(super) fn secret_travels(key: &str, with_webdav: bool) -> bool {
     if remote::SECRET_KEYS.contains(&key) {
         with_webdav
     } else {
-        !crate::sync::is_local_secret(key)
+        !crate::sync::snapshot::is_local_secret(key)
     }
 }
 
@@ -185,7 +191,7 @@ fn read_selected_json(selected: bool, name: &str) -> Result<Option<Value>, Strin
     if !selected {
         return Ok(None);
     }
-    let path = config::get_config_path()?.join(name);
+    let path = config::paths::get_config_path()?.join(name);
     if !path.exists() {
         return Ok(None);
     }
@@ -276,7 +282,7 @@ pub(super) fn strip_sensitive_fields(value: Value) -> Value {
 fn configured_log_root() -> Result<PathBuf, String> {
     let config_value = config::load_config_file()?;
     if config_value.terminal_log_directory.trim().is_empty() {
-        Ok(config::get_config_path()?.join("logs"))
+        Ok(config::paths::get_config_path()?.join("logs"))
     } else {
         Ok(PathBuf::from(config_value.terminal_log_directory.trim()))
     }

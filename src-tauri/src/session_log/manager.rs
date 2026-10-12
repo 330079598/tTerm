@@ -9,7 +9,7 @@ use super::{
     SessionMetadata, TerminalLogStatus, CLEANUP_INTERVAL,
 };
 use crate::config::AppConfig;
-use crate::core::session::SessionPlan;
+use crate::core::session::types::SessionPlan;
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::Write;
@@ -366,7 +366,7 @@ impl SessionLogState {
             let manager = self.lock_manager()?;
             let (enabled, directory) = match manager.config.as_ref() {
                 Some(config) => (config.record_by_default, config.files.directory.clone()),
-                None => (false, crate::config::get_config_path()?.join("logs")),
+                None => (false, crate::config::paths::get_config_path()?.join("logs")),
             };
             let recording: Vec<String> = manager
                 .sessions
@@ -434,7 +434,7 @@ impl SessionLogState {
             let (directory, retention) = match manager.config.as_ref() {
                 Some(config) => (config.files.directory.clone(), config.retention),
                 None => (
-                    crate::config::get_config_path()?.join("logs"),
+                    crate::config::paths::get_config_path()?.join("logs"),
                     Retention::default(),
                 ),
             };

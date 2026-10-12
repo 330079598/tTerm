@@ -1,4 +1,4 @@
-use super::{CommandRepository, CommandVariable, SavedCommand};
+use super::{models::CommandVariable, models::SavedCommand, repository::CommandRepository};
 use crate::core::blocking::run_blocking;
 use chrono::Utc;
 use serde::Deserialize;

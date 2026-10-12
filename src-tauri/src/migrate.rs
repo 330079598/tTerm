@@ -19,8 +19,8 @@ const MIGRATED_CONFIG_FILES: &[&str] = &[
 ];
 
 pub fn migrate_legacy_config_files(app: &tauri::AppHandle) -> Result<(), String> {
-    let new_dir = config::ensure_config_dir()?;
-    let old_dir = config::legacy_config_path()?;
+    let new_dir = config::paths::ensure_config_dir()?;
+    let old_dir = config::paths::legacy_config_path()?;
 
     if same_path(&new_dir, &old_dir) || !old_dir.exists() {
         return Ok(());
@@ -31,7 +31,7 @@ pub fn migrate_legacy_config_files(app: &tauri::AppHandle) -> Result<(), String>
     let database_holds_data = crate::db::legacy_json_imported();
     let database_holds_session = session::file_imported();
     for name in MIGRATED_CONFIG_FILES {
-        if database_holds_data && crate::db::LEGACY_JSON_FILES.contains(name) {
+        if database_holds_data && crate::db::legacy_import::IMPORTED_FILES.contains(name) {
             continue;
         }
         if database_holds_session && *name == "session.json" {
@@ -87,18 +87,19 @@ const RETIRED_FILE_KEEP_MS: i64 = 30 * 24 * 60 * 60 * 1_000;
 pub fn remove_retired_files(app: &tauri::AppHandle) -> Result<(), String> {
     let now = chrono::Utc::now().timestamp_millis();
     let mut errors = remove_retired(
-        &config::get_config_path()?,
-        crate::db::LEGACY_JSON_FILES,
+        &config::paths::get_config_path()?,
+        crate::db::legacy_import::IMPORTED_FILES,
         crate::db::legacy_json_imported_at(),
         now,
     );
     let secrets_dir = secrets_dir(app)?;
-    let secrets_migrated_at = crate::db::read(ssh::secret_store::migrated_at).unwrap_or(None);
+    let secrets_migrated_at =
+        crate::db::read(ssh::secret_store::store::migrated_at).unwrap_or(None);
     errors.extend(remove_retired(
         &secrets_dir,
         &[
-            ssh::secret_store::VAULT_FILE_NAME,
-            ssh::secret_store::VAULT_CONFIG_FILE_NAME,
+            ssh::secret_store::legacy::VAULT_FILE_NAME,
+            ssh::secret_store::legacy::VAULT_CONFIG_FILE_NAME,
         ],
         secrets_migrated_at,
         now,
@@ -173,8 +174,9 @@ fn merge_profile_groups_file(old_path: &Path, new_path: &Path) -> Result<(), Str
 }
 
 fn merge_profiles_file(old_path: &Path, new_path: &Path) -> Result<(), String> {
-    let old_profiles = read_json_file::<Vec<profiles::SavedProfile>>(old_path, "profiles")?;
-    let mut new_profiles = read_json_file::<Vec<profiles::SavedProfile>>(new_path, "profiles")?;
+    let old_profiles = read_json_file::<Vec<profiles::types::SavedProfile>>(old_path, "profiles")?;
+    let mut new_profiles =
+        read_json_file::<Vec<profiles::types::SavedProfile>>(new_path, "profiles")?;
     let mut changed = false;
 
     for profile in old_profiles {
@@ -310,13 +312,13 @@ where
             e
         )
     })?;
-    crate::config::atomic_write(path, content)
+    crate::config::atomic::atomic_write(path, content)
         .map_err(|e| format!("Failed to write {} file '{}': {}", label, path.display(), e))
 }
 
 fn migrate_legacy_secret_vault(app: &tauri::AppHandle) -> Result<(), String> {
     let new_secret_dir = secrets_dir(app)?;
-    let old_secret_dir = config::legacy_config_path()?.join("secrets");
+    let old_secret_dir = config::paths::legacy_config_path()?.join("secrets");
     if same_path(&new_secret_dir, &old_secret_dir) || !old_secret_dir.exists() {
         return Ok(());
     }

@@ -3,7 +3,7 @@ use super::types::{
     emit_connection_progress, ConnectionStatusOptions, SshClientHandler,
     SshConnectionProgressPayload,
 };
-use crate::core::session::SessionPlan;
+use crate::core::session::types::SessionPlan;
 use crate::core::state::{ChannelContext, HostPromptMap};
 use crate::zmodem::session::{ZmodemReceiveDriver, ZmodemSettings};
 use russh::{ChannelMsg, Disconnect};
@@ -58,8 +58,8 @@ fn run_blocking<T>(f: impl FnOnce() -> T) -> T {
 fn deliver_output(
     app: &tauri::AppHandle,
     tab_id: &str,
-    sender: Option<&crate::terminal::TerminalOutputSender>,
-    decoder: Option<&mut crate::terminal::OutputDecoder>,
+    sender: Option<&crate::terminal::io_batcher::TerminalOutputSender>,
+    decoder: Option<&mut crate::terminal::encoding::OutputDecoder>,
     payload: Vec<u8>,
 ) {
     let payload = match decoder {
@@ -119,7 +119,7 @@ pub struct SshChannelIo {
     pub stop_rx: watch::Receiver<bool>,
     pub input_rx: mpsc::UnboundedReceiver<Vec<u8>>,
     pub resize_rx: mpsc::UnboundedReceiver<(u16, u16)>,
-    pub sender: Option<crate::terminal::TerminalOutputSender>,
+    pub sender: Option<crate::terminal::io_batcher::TerminalOutputSender>,
 }
 
 #[expect(
@@ -176,16 +176,17 @@ pub async fn run_single_ssh_connection(
     };
 
     // Use open_target_ssh_session for connection + auth (supports jump hosts)
-    let (jump_chain, session) = match crate::ssh::open_target_ssh_session(
-        crate::ssh::ConnectContext {
+    let (jump_chain, session) = match crate::ssh::jump::connect::open_target_ssh_session(
+        crate::ssh::jump::connect::ConnectContext {
             app: &app,
             tab_id: &tab_id,
             prompts: &prompts,
             status_options: ConnectionStatusOptions::VERBOSE,
-            host_key_verification_mode: crate::ssh::HostKeyVerificationMode::PromptAndPersist,
-            auth_prompter: &crate::ssh::AuthPrompter::tab(&app, &tab_id),
+            host_key_verification_mode:
+                crate::ssh::types::HostKeyVerificationMode::PromptAndPersist,
+            auth_prompter: &crate::ssh::auth::AuthPrompter::tab(&app, &tab_id),
         },
-        crate::ssh::SshTarget::from_plan(&plan, &host, &username),
+        crate::ssh::jump::connect::SshTarget::from_plan(&plan, &host, &username),
     )
     .await
     {
@@ -374,7 +375,7 @@ pub async fn run_single_ssh_connection(
 
                         // Process terminal queries (vim t_u7, t_RV, etc.) before forwarding to UI
                         // This is critical for SSH connections where vim waits for responses
-                        let processed = crate::terminal::process_ssh_output_for_ui(
+                        let processed = crate::terminal::ssh_query_handler::process_ssh_output_for_ui(
                             data.as_ref(),
                             &mut ssh_query_pending,
                             &mut writer_stream,

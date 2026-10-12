@@ -9,14 +9,14 @@
 
 mod document;
 mod merge;
-mod snapshot;
+pub(crate) mod snapshot;
 mod state;
 
 use crate::backup::webdav::{Fetched, Stored, WebDavClient};
 use crate::core::blocking::run_blocking;
 use crate::db::meta;
-use crate::ssh::SecretStoreState;
-use crate::tunnel::TunnelManager;
+use crate::ssh::secret_store::types::SecretStoreState;
+use crate::tunnel::commands::TunnelManager;
 use document::{Collections, MAX_DOCUMENT_SIZE, SYNC_FILE_NAME};
 use merge::{merge_collection, same_data};
 use serde::{Deserialize, Serialize};
@@ -25,8 +25,7 @@ use snapshot::{removed_ids, SETTINGS, TUNNELS};
 use std::sync::Mutex;
 use tauri::{AppHandle, State};
 
-pub(crate) use snapshot::is_local_secret;
-pub use snapshot::SyncSelection;
+use snapshot::SyncSelection;
 
 pub(crate) const SETTINGS_KEY: &str = "settings.sync";
 /// Where older versions kept the settings.
@@ -389,7 +388,7 @@ async fn exchange(
 }
 
 struct ApplyInput {
-    data_key: crate::ssh::secret_store::DataKey,
+    data_key: crate::ssh::secret_store::crypto::SecretKey,
     target_key: String,
     categories: Vec<&'static str>,
     local: Collections,

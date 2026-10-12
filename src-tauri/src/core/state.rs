@@ -82,7 +82,7 @@ pub enum SessionKind {
 }
 
 pub enum ActiveSession {
-    Local(crate::terminal::ActivePty),
+    Local(crate::terminal::types::ActivePty),
     Ssh(ActiveSsh),
 }
 
@@ -90,14 +90,14 @@ pub struct ActiveSsh {
     pub input_tx: mpsc::UnboundedSender<Vec<u8>>,
     /// Typed and pasted input, paced and cancelled like a local shell's; it
     /// reaches `input_tx` in order, while ZMODEM writes there directly.
-    pub input: crate::terminal::PtyInput,
+    pub input: crate::terminal::types::PtyInput,
     pub resize_tx: mpsc::UnboundedSender<(u16, u16)>,
     pub task: tokio::task::JoinHandle<()>,
     /// Recent output of this connection attempt, for saved-password writes.
-    pub output_tail: Arc<crate::terminal::OutputTail>,
+    pub output_tail: Arc<crate::terminal::output_tail::OutputTail>,
     /// Charset typed text is encoded to before it is sent; ZMODEM bytes,
     /// which share `input_tx`, are sent as they are.
-    pub encoding: crate::terminal::TerminalEncoding,
+    pub encoding: crate::terminal::encoding::TerminalEncoding,
 }
 
 /// Lock-free atomic storage for terminal dimensions (rows, cols).
@@ -131,7 +131,7 @@ pub struct PtySession {
     pub size: Arc<AtomicTerminalSize>,
     /// The frontend's output channel. Its flow control is acknowledged by
     /// `ack_pty_output` as xterm.js parses.
-    pub output: crate::terminal::TerminalOutput,
+    pub output: crate::terminal::io_batcher::TerminalOutput,
 }
 
 impl PtySession {
@@ -144,7 +144,7 @@ impl PtySession {
         session_nonce: u32,
         rows: u16,
         cols: u16,
-        output: &crate::terminal::TerminalOutput,
+        output: &crate::terminal::io_batcher::TerminalOutput,
     ) -> Option<u32> {
         if self.session_nonce != session_nonce {
             return None;

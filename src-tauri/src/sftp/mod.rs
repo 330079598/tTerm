@@ -6,5 +6,3 @@ pub mod internal {
     pub mod transfer;
     pub mod types;
 }
-
-pub use internal::types::{SftpConnectionPool, TransferCancelMap};

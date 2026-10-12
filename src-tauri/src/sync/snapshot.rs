@@ -5,13 +5,15 @@
 
 use super::document::Collections;
 use super::merge::{Collection, SyncRecord};
-use crate::command_library::SavedCommand;
+use crate::command_library::models::SavedCommand;
 use crate::config::AppConfig;
 use crate::db::sql_error;
-use crate::profiles::SavedProfile;
-use crate::ssh::secret_store::{delete_secret, get_secret, put_secret, DataKey};
+use crate::profiles::types::SavedProfile;
+use crate::ssh::secret_store::{
+    crypto::SecretKey as DataKey, store::delete_secret, store::get_secret, store::put_secret,
+};
 use crate::ssh::store::{KnownHostRecord, KnownHostStore};
-use crate::tunnel::TunnelRule;
+use crate::tunnel::types::TunnelRule;
 use rusqlite::{params, Connection, Transaction};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -140,12 +142,12 @@ pub(crate) fn collect(
         let collection = match category {
             PROFILES => collect_rows(connection, "profiles", normalize_profile)?,
             TUNNELS => collect_rows(connection, "tunnels", normalize_tunnel)?,
-            PROFILE_GROUPS => crate::profiles::configured_profile_groups(connection)?
+            PROFILE_GROUPS => crate::profiles::storage::configured_profile_groups(connection)?
                 .into_iter()
                 .map(|name| (name, SyncRecord::new(Value::Bool(true), None)))
                 .collect(),
             SECRETS => collect_secrets(connection, data_key)?,
-            COMMANDS => crate::command_library::list_commands(connection)?
+            COMMANDS => crate::command_library::repository::list_commands(connection)?
                 .into_iter()
                 .map(|command| Ok((command.id.clone(), command_record(&command)?)))
                 .collect::<Result<_, String>>()?,
@@ -311,7 +313,7 @@ fn normalize_profile(value: &Value) -> Result<Value, String> {
     let (data, position) = take_position(value);
     let profile = serde_json::from_value::<SavedProfile>(data)
         .map_err(|error| format!("Synced profile is invalid: {error}"))?;
-    let encoded = crate::profiles::encode_profile(&profile)?;
+    let encoded = crate::profiles::storage::encode_profile(&profile)?;
     let value = serde_json::from_str(&encoded)
         .map_err(|error| format!("Failed to encode profile: {error}"))?;
     Ok(with_position(value, position))
@@ -417,7 +419,7 @@ pub(crate) fn apply_database(
     let removed = removed_ids(local, merged);
     match category {
         PROFILES => {
-            crate::profiles::delete_profile_rows(transaction, &removed)?;
+            crate::profiles::storage::delete_profiles(transaction, &removed)?;
             for (id, record) in changed(local, merged) {
                 let (data, position) = take_position(&record.data);
                 let mut profile = serde_json::from_value::<SavedProfile>(data)
@@ -428,13 +430,13 @@ pub(crate) fn apply_database(
                     "profiles",
                     id,
                     position,
-                    &crate::profiles::encode_profile(&profile)?,
+                    &crate::profiles::storage::encode_profile(&profile)?,
                 )?;
             }
         }
         TUNNELS => {
             for id in &removed {
-                crate::tunnel::delete_tunnel_rule(transaction, id)?;
+                crate::tunnel::storage::delete_tunnel(transaction, id)?;
             }
             for (id, record) in changed(local, merged) {
                 let (data, position) = take_position(&record.data);
@@ -447,15 +449,15 @@ pub(crate) fn apply_database(
             }
         }
         PROFILE_GROUPS => {
-            crate::profiles::replace_profile_groups(
+            crate::profiles::storage::replace_profile_groups(
                 transaction,
                 &merged.keys().cloned().collect::<Vec<_>>(),
             )?;
         }
         COMMANDS => {
-            let current = crate::command_library::list_commands(transaction)?;
+            let current = crate::command_library::repository::list_commands(transaction)?;
             for id in &removed {
-                crate::command_library::delete_command(transaction, id)?;
+                crate::command_library::repository::delete_command(transaction, id)?;
             }
             for (id, record) in changed(local, merged) {
                 let existing = current.iter().find(|command| &command.id == id);
@@ -463,7 +465,7 @@ pub(crate) fn apply_database(
                 command.updated_at = record
                     .updated_at
                     .unwrap_or_else(|| chrono::Utc::now().timestamp_millis());
-                crate::command_library::save_command(transaction, &command)?;
+                crate::command_library::repository::save_command(transaction, &command)?;
             }
         }
         KNOWN_HOSTS => {

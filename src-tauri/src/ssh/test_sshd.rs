@@ -156,7 +156,7 @@ impl TestSshd {
 
     pub(crate) async fn connect(&self) -> client::Handle<AcceptAnyServerKey> {
         client::connect(
-            Arc::new(crate::ssh::jump::compatibility_client_config(15, 3)),
+            Arc::new(crate::ssh::jump::config::compatibility_client_config(15, 3)),
             ("127.0.0.1", self.port),
             AcceptAnyServerKey,
         )

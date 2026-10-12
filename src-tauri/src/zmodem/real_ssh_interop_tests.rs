@@ -22,7 +22,7 @@ use russh::keys::{load_secret_key, PrivateKeyWithHashAlg};
 use russh::{client, ChannelMsg};
 use tokio::io::AsyncWriteExt;
 
-use crate::core::ZmodemMap;
+use crate::core::state::ZmodemMap;
 use crate::zmodem::session::ZmodemReceiveDriver;
 
 const TEST_PORT: u16 = 12299;

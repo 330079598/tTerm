@@ -1,9 +1,9 @@
-use crate::core::session::{PtyConnectionOptions, SessionPlan};
+use crate::core::session::{types::PtyConnectionOptions, types::SessionPlan};
 use crate::core::state::HostPromptMap;
 use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error, release_tab_connections};
 use crate::sftp::internal::types::{SftpConnectionPool, SftpDirectoryEntry, SftpDirectoryListing};
 use crate::sftp::store;
-use crate::ssh::SecretStoreState;
+use crate::ssh::secret_store::types::SecretStoreState;
 use russh_sftp::client::SftpSession;
 use tauri::{AppHandle, State};
 

@@ -5,10 +5,10 @@
 //! Imported files are renamed to `<name>.migrated` rather than deleted.
 
 use super::{sql_error, Database};
-use crate::profiles::SavedProfile;
+use crate::profiles::types::SavedProfile;
 use crate::sftp::store::SftpDirectoryStore;
 use crate::ssh::store::KnownHostStore;
-use crate::tunnel::TunnelRule;
+use crate::tunnel::types::TunnelRule;
 use rusqlite::{Connection, OptionalExtension};
 use serde::de::DeserializeOwned;
 use std::fs;
@@ -106,13 +106,13 @@ pub(crate) fn import_settings_files(database: &Database, config_dir: &Path) -> R
 
 fn import_files(connection: &Connection, config_dir: &Path) -> Result<(), String> {
     if let Some(profiles) = read_json::<Vec<SavedProfile>>(&config_dir.join("profiles.json"))? {
-        crate::profiles::replace_profiles(connection, &profiles)?;
+        crate::profiles::storage::replace_profiles(connection, &profiles)?;
     }
     if let Some(groups) = read_json::<Vec<String>>(&config_dir.join("profile_groups.json"))? {
-        crate::profiles::replace_profile_groups(connection, &groups)?;
+        crate::profiles::storage::replace_profile_groups(connection, &groups)?;
     }
     if let Some(tunnels) = read_json::<Vec<TunnelRule>>(&config_dir.join("tunnels.json"))? {
-        crate::tunnel::replace_tunnels(connection, &tunnels)?;
+        crate::tunnel::storage::replace_tunnels(connection, &tunnels)?;
     }
     if let Some(store) = read_json::<KnownHostStore>(&config_dir.join("ssh_known_hosts.json"))? {
         crate::ssh::store::replace_known_hosts(connection, &store)?;

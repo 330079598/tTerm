@@ -8,7 +8,7 @@
 //! there is nothing to check against and the operations run as before.
 
 use super::types::{SecretStorageMode, SecretStoreRuntime};
-use super::{open_with_password, os_verifier, store, SecretStoreState};
+use super::{open_with_password, os_verifier, store, types::SecretStoreState};
 use serde::Deserialize;
 use std::time::{Duration, Instant};
 use tauri::AppHandle;
@@ -100,7 +100,7 @@ impl SecretStoreState {
         if let Some(value) = self.runtime()?.os_verifier_available {
             return Ok(value);
         }
-        let available = os_verifier::available();
+        let available = os_verifier::platform::available();
         self.runtime()?.os_verifier_available = Some(available);
         Ok(available)
     }
@@ -137,7 +137,7 @@ impl SecretStoreState {
     ) -> Result<(), String> {
         match self.verification_method()? {
             VerificationMethod::System => {
-                if let Err(error) = os_verifier::verify(app, prompt_message(purpose)) {
+                if let Err(error) = os_verifier::platform::verify(app, prompt_message(purpose)) {
                     if error != os_verifier::CANCELED {
                         // The OS check may have been turned off since.
                         self.runtime()?.os_verifier_available = None;

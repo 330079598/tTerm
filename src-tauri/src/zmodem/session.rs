@@ -19,9 +19,9 @@ use super::events::{
     self, EmitFn, TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
 };
 use super::protocol::consts::ZDLE;
-use super::protocol::{ZmodemAction, ZmodemDirection, ZmodemEngine};
+use super::protocol::{consts::ZmodemDirection, engine::ZmodemAction, engine::ZmodemEngine};
 use crate::core::state::ChannelContext;
-use crate::core::{ZmodemMap, ZmodemTabHandle};
+use crate::core::{state::ZmodemMap, state::ZmodemTabHandle};
 
 /// How often (at most) a data chunk triggers a progress event, so a fast
 /// local transfer doesn't flood the frontend with one IPC message per

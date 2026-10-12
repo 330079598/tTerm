@@ -206,7 +206,7 @@ async fn real_sshd_with_only_an_rsa_host_key_is_explained() {
             .await;
 
     let error = russh::client::connect(
-        Arc::new(crate::ssh::jump::compatibility_client_config(15, 3)),
+        Arc::new(crate::ssh::jump::config::compatibility_client_config(15, 3)),
         ("127.0.0.1", sshd.port),
         crate::ssh::test_sshd::AcceptAnyServerKey,
     )
@@ -214,7 +214,7 @@ async fn real_sshd_with_only_an_rsa_host_key_is_explained() {
     .err()
     .expect("an RSA-only host cannot be verified");
 
-    let explained = crate::ssh::jump::unverifiable_host_key_error(&error)
+    let explained = crate::ssh::jump::config::unverifiable_host_key_error(&error)
         .unwrap_or_else(|| panic!("unexplained failure: {error}"));
     assert!(
         explained.to_string().contains("RSA host key"),

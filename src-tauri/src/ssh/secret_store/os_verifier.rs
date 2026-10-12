@@ -4,7 +4,7 @@
 //! to the master password.
 
 #[cfg(target_os = "macos")]
-mod platform {
+pub(crate) mod platform {
     use block2::RcBlock;
     use objc2::runtime::Bool;
     use objc2_foundation::{NSError, NSString};
@@ -56,7 +56,7 @@ mod platform {
 }
 
 #[cfg(target_os = "windows")]
-mod platform {
+pub(crate) mod platform {
     use tauri::{AppHandle, Manager};
     use windows::core::HSTRING;
     use windows::Security::Credentials::UI::{
@@ -114,7 +114,7 @@ mod platform {
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-mod platform {
+pub(crate) mod platform {
     use tauri::AppHandle;
 
     pub(crate) fn available() -> bool {
@@ -127,5 +127,3 @@ mod platform {
 }
 
 pub(crate) const CANCELED: &str = "Verification was canceled.";
-
-pub(crate) use platform::{available, verify};

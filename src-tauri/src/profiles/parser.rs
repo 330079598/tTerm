@@ -3,7 +3,7 @@ use super::types::{
     default_keepalive_count, default_keepalive_interval, RawSshHost, SavedJumpHost,
     SshConfigDefaults, SshConfigImportHost, SshConfigImportPreview,
 };
-use crate::tunnel::ForwardSpec;
+use crate::tunnel::forwards::ForwardSpec;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
@@ -636,7 +636,7 @@ fn parse_forwards(
     options: &HashMap<String, Vec<String>>,
     warnings: &mut Vec<String>,
 ) -> Vec<ForwardSpec> {
-    use crate::tunnel::{parse_forward, TunnelKind};
+    use crate::tunnel::{forwards::parse_forward, types::TunnelKind};
 
     let mut forwards = Vec::new();
     for (key, label, kind) in [

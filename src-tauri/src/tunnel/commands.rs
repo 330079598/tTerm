@@ -10,10 +10,10 @@ use super::types::{TunnelRule, TunnelState, TunnelStatus, TunnelTraffic};
 use crate::core::blocking::run_blocking;
 use crate::core::session::{
     load_saved_jump_host_password, load_saved_ssh_password, normalize_connection,
-    resolve_ssh_password, JumpHostOptions, JumpHostSecretOwner, PtyConnectionOptions,
+    resolve_ssh_password, types::JumpHostOptions, types::PtyConnectionOptions, JumpHostSecretOwner,
 };
 use crate::core::state::HostPromptMap;
-use crate::profiles::SavedProfile;
+use crate::profiles::types::SavedProfile;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -215,9 +215,9 @@ fn connection_options_for_profile(profile: &SavedProfile) -> Result<PtyConnectio
 }
 
 fn find_profile(profile_id: &str) -> Result<SavedProfile, String> {
-    let mut profile = crate::profiles::find_profile(profile_id)?
+    let mut profile = crate::profiles::storage::find_profile(profile_id)?
         .ok_or_else(|| "The host for this tunnel no longer exists".to_string())?;
-    crate::profiles::normalize_profile(&mut profile);
+    crate::profiles::storage::normalize_profile(&mut profile);
     Ok(profile)
 }
 
@@ -248,7 +248,7 @@ pub async fn reset_tunnel_traffic_totals(
     run_blocking(move || match reporter {
         Some(reporter) => reporter.reset_traffic(),
         None => {
-            let now = crate::ssh::now_unix_ms().max(0) as u64;
+            let now = crate::ssh::store::now_unix_ms().max(0) as u64;
             crate::db::write(|transaction| reset_tunnel_traffic(transaction, &id, now))
         }
     })
@@ -265,7 +265,7 @@ pub async fn save_tunnel(app: AppHandle, mut tunnel: TunnelRule) -> Result<Tunne
         Ok(tunnel)
     })
     .await?;
-    crate::background::refresh_tunnels(&app);
+    crate::background::tray::refresh_tunnels(&app);
     Ok(tunnel)
 }
 
@@ -277,7 +277,7 @@ pub async fn delete_tunnel(
 ) -> Result<(), String> {
     manager.discard(&id).await;
     crate::db::write(|transaction| delete_tunnel_rule(transaction, &id))?;
-    crate::background::refresh_tunnels(&app);
+    crate::background::tray::refresh_tunnels(&app);
     Ok(())
 }
 
@@ -287,7 +287,7 @@ pub async fn delete_tunnel(
 async fn start_rule(
     app: &AppHandle,
     manager: &TunnelManager,
-    secret_state: &crate::ssh::SecretStoreState,
+    secret_state: &crate::ssh::secret_store::types::SecretStoreState,
     prompts: &HostPromptMap,
     id: &str,
     credentials: &TunnelCredentials,
@@ -383,7 +383,7 @@ pub async fn start_tunnel(
     id: String,
     credentials: Option<TunnelCredentials>,
     manager: State<'_, TunnelManager>,
-    secret_state: State<'_, crate::ssh::SecretStoreState>,
+    secret_state: State<'_, crate::ssh::secret_store::types::SecretStoreState>,
     prompts: State<'_, HostPromptMap>,
 ) -> Result<StartOutcome, String> {
     start_rule(
@@ -403,7 +403,7 @@ pub async fn start_tunnel(
 /// page to show. Returns whether the tunnel is starting.
 pub(crate) async fn start_unattended(app: &AppHandle, id: &str) -> bool {
     let manager = app.state::<TunnelManager>();
-    let secret_state = app.state::<crate::ssh::SecretStoreState>();
+    let secret_state = app.state::<crate::ssh::secret_store::types::SecretStoreState>();
     let prompts = app.state::<HostPromptMap>();
     let result = start_rule(
         app,

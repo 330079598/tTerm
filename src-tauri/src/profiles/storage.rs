@@ -218,7 +218,7 @@ pub(crate) fn profile_secret_summaries(profile: &SavedProfile) -> Vec<SavedSecre
 
     if profile.connection_type == "ssh" {
         summaries.push(SavedSecretSummary {
-            key: crate::core::session::sudo_secret_key(&profile.id),
+            key: crate::core::session::types::sudo_secret_key(&profile.id),
             profile_id: profile.id.clone(),
             profile_name: profile.name.clone(),
             label: profile.name.clone(),
@@ -260,7 +260,7 @@ pub(crate) fn profile_secret_summaries(profile: &SavedProfile) -> Vec<SavedSecre
             profile.name, jump.username, jump.host, jump.port
         );
         summaries.push(SavedSecretSummary {
-            key: crate::core::session::jump_host_identity_secret_key(
+            key: crate::core::session::types::jump_host_identity_secret_key(
                 Some(profile.id.as_str()),
                 profile.name.as_str(),
                 &jump.host,
@@ -274,7 +274,7 @@ pub(crate) fn profile_secret_summaries(profile: &SavedProfile) -> Vec<SavedSecre
         });
         if !profile.name.trim().is_empty() {
             summaries.push(SavedSecretSummary {
-                key: crate::core::session::jump_host_identity_secret_key(
+                key: crate::core::session::types::jump_host_identity_secret_key(
                     None,
                     profile.name.as_str(),
                     &jump.host,
@@ -313,7 +313,7 @@ pub fn saved_secret_keys() -> Result<Vec<String>, String> {
 
 pub(crate) fn delete_profile_secrets(
     app: &tauri::AppHandle,
-    secret_state: &crate::ssh::SecretStoreState,
+    secret_state: &crate::ssh::secret_store::types::SecretStoreState,
     profile: &SavedProfile,
 ) -> Result<usize, String> {
     let mut deleted = 0;

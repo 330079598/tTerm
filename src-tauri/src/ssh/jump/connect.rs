@@ -1,6 +1,6 @@
 use super::config::{compatibility_client_config, unverifiable_host_key_error};
 use super::handler::JumpHostHandler;
-use crate::core::session::{JumpHostPlan, SessionPlan};
+use crate::core::session::{types::JumpHostPlan, types::SessionPlan};
 use crate::core::state::HostPromptMap;
 use crate::ssh::auth::{authenticate, AuthMethod, AuthPrompter, AuthTarget};
 use crate::ssh::types::{
@@ -506,7 +506,9 @@ pub async fn open_target_ssh_session(
 pub async fn open_target_ssh_session_with_forwarding(
     ctx: ConnectContext<'_>,
     target: SshTarget<'_>,
-    forwarded_tcpip_tx: Option<tokio::sync::mpsc::UnboundedSender<crate::ssh::ForwardedTcpIp>>,
+    forwarded_tcpip_tx: Option<
+        tokio::sync::mpsc::UnboundedSender<crate::ssh::types::ForwardedTcpIp>,
+    >,
 ) -> Result<(Option<JumpChain>, client::Handle<SshClientHandler>), SshConnectError> {
     let ConnectContext {
         app,

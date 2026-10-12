@@ -1,8 +1,11 @@
 use super::metrics::parse_metrics_output;
 use super::types::{MonitorSession, MonitorSessionMap, MONITOR_SESSION_IDLE_TIMEOUT};
-use crate::core::session::SessionPlan;
+use crate::core::session::types::SessionPlan;
 use crate::core::state::HostPromptMap;
-use crate::ssh::{open_target_ssh_session, ConnectContext, ConnectionStatusOptions, SshTarget};
+use crate::ssh::{
+    jump::connect::open_target_ssh_session, jump::connect::ConnectContext,
+    jump::connect::SshTarget, types::ConnectionStatusOptions,
+};
 use russh::ChannelMsg;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
@@ -143,9 +146,10 @@ pub(crate) async fn get_or_open_monitor_session(
             tab_id,
             prompts: &prompts,
             status_options: ConnectionStatusOptions::QUIET,
-            host_key_verification_mode: crate::ssh::HostKeyVerificationMode::PromptAndPersist,
+            host_key_verification_mode:
+                crate::ssh::types::HostKeyVerificationMode::PromptAndPersist,
             // Monitoring starts on its own; a prompt would appear out of nowhere.
-            auth_prompter: &crate::ssh::AuthPrompter::Unavailable,
+            auth_prompter: &crate::ssh::auth::AuthPrompter::Unavailable,
         },
         SshTarget::from_plan(plan, &host, &username),
     )

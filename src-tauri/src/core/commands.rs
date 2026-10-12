@@ -64,10 +64,11 @@ pub async fn create_pty(
     session_nonce: u32,
     rows: u16,
     cols: u16,
-    connection: Option<super::session::PtyConnectionOptions>,
+    connection: Option<super::session::types::PtyConnectionOptions>,
     output_channel: tauri::ipc::JavaScriptChannelId,
 ) -> Result<u32, String> {
-    let output_channel = terminal::TerminalOutput::new(output_channel.channel_on(webview));
+    let output_channel =
+        terminal::io_batcher::TerminalOutput::new(output_channel.channel_on(webview));
     run_blocking(move || {
         create_pty_blocking(
             app,
@@ -88,12 +89,15 @@ fn create_pty_blocking(
     session_nonce: u32,
     rows: u16,
     cols: u16,
-    connection: Option<super::session::PtyConnectionOptions>,
-    output_channel: terminal::TerminalOutput,
+    connection: Option<super::session::types::PtyConnectionOptions>,
+    output_channel: terminal::io_batcher::TerminalOutput,
 ) -> Result<u32, String> {
     let state = app.state::<PtyMap>().inner().clone();
     let prompt_state = app.state::<HostPromptMap>().inner().clone();
-    let secret_state = app.state::<crate::ssh::SecretStoreState>().inner().clone();
+    let secret_state = app
+        .state::<crate::ssh::secret_store::types::SecretStoreState>()
+        .inner()
+        .clone();
     let zmodem_state = app.state::<ZmodemMap>().inner().clone();
     let zmodem_armed_send_state = app.state::<ZmodemArmedSendMap>().inner().clone();
     let zmodem_manual_detect_state = app.state::<ZmodemManualDetectMap>().inner().clone();
@@ -157,8 +161,9 @@ fn create_pty_blocking(
     };
 
     let (pid, initial_active) = match plan.kind {
-        crate::core::SessionKind::Terminal => {
-            let (pid, pty) = terminal::spawn_local_pty(rows, cols, plan.terminal_shell.clone())?;
+        crate::core::state::SessionKind::Terminal => {
+            let (pid, pty) =
+                terminal::pty::spawn_local_pty(rows, cols, plan.terminal_shell.clone())?;
 
             let reader = pty.input.track_output(
                 pty.master
@@ -166,9 +171,11 @@ fn create_pty_blocking(
                     .map_err(|e| format!("Failed to clone reader: {}", e))?,
             );
 
-            let sender =
-                crate::terminal::TerminalOutputSender::spawn(&tab_id, output_channel.clone());
-            terminal::spawn_reader_thread(
+            let sender = crate::terminal::io_batcher::TerminalOutputSender::spawn(
+                &tab_id,
+                output_channel.clone(),
+            );
+            terminal::pty::spawn_reader_thread(
                 reader,
                 tab.channel.clone(),
                 tab.exit_tx.clone(),
@@ -177,7 +184,7 @@ fn create_pty_blocking(
             );
 
             #[cfg(unix)]
-            terminal::spawn_cwd_watcher(
+            terminal::cwd_watch::spawn_cwd_watcher(
                 app.clone(),
                 tab_id.clone(),
                 session_nonce,
@@ -187,7 +194,7 @@ fn create_pty_blocking(
 
             (pid, ActiveSession::Local(pty))
         }
-        crate::core::SessionKind::Ssh => {
+        crate::core::state::SessionKind::Ssh => {
             let ssh = spawn_ssh_attempt(tab.clone(), rows, cols, ZmodemSettings::load());
 
             (0, ActiveSession::Ssh(ssh))
@@ -492,7 +499,7 @@ pub async fn has_saved_password(
     app: AppHandle,
     profile_id: Option<String>,
     profile_name: Option<String>,
-    secret_state: State<'_, crate::ssh::SecretStoreState>,
+    secret_state: State<'_, crate::ssh::secret_store::types::SecretStoreState>,
 ) -> Result<bool, String> {
     let secret_state = secret_state.inner().clone();
     run_blocking(move || {
@@ -520,7 +527,7 @@ pub async fn has_saved_jump_host_password(
     port: Option<u16>,
     username: Option<String>,
     allow_legacy_fallback: Option<bool>,
-    secret_state: State<'_, crate::ssh::SecretStoreState>,
+    secret_state: State<'_, crate::ssh::secret_store::types::SecretStoreState>,
 ) -> Result<bool, String> {
     let secret_state = secret_state.inner().clone();
     run_blocking(move || {
@@ -547,7 +554,7 @@ pub async fn get_sudo_password_source(
     app: AppHandle,
     profile_id: Option<String>,
     profile_name: Option<String>,
-    secret_state: State<'_, crate::ssh::SecretStoreState>,
+    secret_state: State<'_, crate::ssh::secret_store::types::SecretStoreState>,
 ) -> Result<Option<super::session::SudoPasswordSource>, String> {
     let secret_state = secret_state.inner().clone();
     run_blocking(move || {
@@ -566,12 +573,15 @@ pub async fn get_sudo_password_source(
 pub async fn has_saved_sudo_password(
     app: AppHandle,
     profile_id: String,
-    secret_state: State<'_, crate::ssh::SecretStoreState>,
+    secret_state: State<'_, crate::ssh::secret_store::types::SecretStoreState>,
 ) -> Result<bool, String> {
     let secret_state = secret_state.inner().clone();
     run_blocking(move || {
         Ok(secret_state
-            .get_password(&app, &super::session::sudo_secret_key(profile_id.trim()))?
+            .get_password(
+                &app,
+                &super::session::types::sudo_secret_key(profile_id.trim()),
+            )?
             .is_some())
     })
     .await
@@ -615,7 +625,7 @@ fn write_saved_password_for_sudo_blocking(
     prompt: &str,
 ) -> Result<bool, String> {
     let state = app.state::<PtyMap>();
-    let secret_state = app.state::<crate::ssh::SecretStoreState>();
+    let secret_state = app.state::<crate::ssh::secret_store::types::SecretStoreState>();
     let map = state.blocking_read();
     let session = map
         .get(tab_id)

@@ -4,13 +4,11 @@
 //! functions that take a `&Connection` so tests can run them against an
 //! in-memory database, and reach the app database through [`get`].
 
-mod legacy_import;
+pub(crate) mod legacy_import;
 pub(crate) mod meta;
 mod migrations;
 
-pub(crate) use legacy_import::IMPORTED_FILES as LEGACY_JSON_FILES;
-
-use crate::config::ensure_config_dir;
+use crate::config::paths::ensure_config_dir;
 use rusqlite::{Connection, Transaction};
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard, OnceLock};

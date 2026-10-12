@@ -1,14 +1,16 @@
 //! The SSH session behind the profile dialog's connection test.
 
 use crate::core::state::HostPromptMap;
-use crate::ssh::{ConnectionStatusOptions, HostKeyVerificationMode, SshClientHandler};
+use crate::ssh::{
+    types::ConnectionStatusOptions, types::HostKeyVerificationMode, types::SshClientHandler,
+};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 pub(super) fn test_connection_handler(
     app: &tauri::AppHandle,
     tab_id: &str,
-    plan: &crate::core::session::SessionPlan,
+    plan: &crate::core::session::types::SessionPlan,
     host: &str,
     port: u16,
     prompts: HostPromptMap,
@@ -37,8 +39,8 @@ pub(super) async fn authenticate_test_connection<H: russh::client::Handler>(
     host: &str,
     port: u16,
     username: &str,
-    plan: &crate::core::session::SessionPlan,
-    auth_prompter: &crate::ssh::AuthPrompter,
+    plan: &crate::core::session::types::SessionPlan,
+    auth_prompter: &crate::ssh::auth::AuthPrompter,
 ) -> Result<(), String> {
     crate::ssh::auth::authenticate(
         session,

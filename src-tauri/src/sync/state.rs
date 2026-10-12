@@ -3,7 +3,9 @@
 
 use super::document::{Collections, KdfSpec};
 use crate::db::sql_error;
-use crate::ssh::secret_store::{decrypt_secret, encrypt_secret, DataKey};
+use crate::ssh::secret_store::{
+    crypto::decrypt_secret, crypto::encrypt_secret, crypto::SecretKey as DataKey,
+};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 

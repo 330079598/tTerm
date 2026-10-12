@@ -1,8 +1,10 @@
-use crate::command_library::{CommandRepository, SavedCommand};
+use crate::command_library::{models::SavedCommand, repository::CommandRepository};
 use crate::config;
 use crate::core::blocking::run_blocking;
-use crate::profiles::SavedProfile;
-use crate::ssh::{SecretStoreState, VerificationPurpose};
+use crate::profiles::types::SavedProfile;
+use crate::ssh::{
+    secret_store::types::SecretStoreState, secret_store::verification::VerificationPurpose,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -403,7 +405,7 @@ fn export_backup_blocking(
         &payload,
         options.backup_password.as_deref(),
     )?;
-    config::atomic_write_private(&output, archive)?;
+    config::atomic::atomic_write_private(&output, archive)?;
     if let Some(password) = options.backup_password.as_mut() {
         password.zeroize();
     }

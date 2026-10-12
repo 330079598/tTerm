@@ -7,7 +7,7 @@ use std::time::Instant;
 use tokio::sync::watch;
 use tokio::sync::RwLock;
 
-use crate::ssh::{JumpChain, SshClientHandler};
+use crate::ssh::{jump::connect::JumpChain, types::SshClientHandler};
 
 pub type CancelSender = watch::Sender<bool>;
 pub type TransferCancelMap = Arc<RwLock<HashMap<String, CancelSender>>>;
@@ -68,7 +68,7 @@ pub struct SftpConnectionKey {
 impl SftpConnectionKey {
     pub fn from_plan(
         tab_id: &str,
-        plan: &crate::core::session::SessionPlan,
+        plan: &crate::core::session::types::SessionPlan,
     ) -> Result<Self, String> {
         Ok(Self {
             tab_id: tab_id.to_string(),

@@ -156,7 +156,7 @@ pub fn spawn_reader_thread(
 }
 
 pub fn build_terminal_command(
-    shell_config: Option<crate::core::session::TerminalShellConfig>,
+    shell_config: Option<crate::core::session::types::TerminalShellConfig>,
 ) -> Result<CommandBuilder, String> {
     let config = shell_config.unwrap_or_default();
     let home = resolve_home_dir();
@@ -289,7 +289,7 @@ fn resolve_macos_path(path: Option<&std::ffi::OsStr>) -> String {
 
 #[cfg(target_os = "windows")]
 fn build_windows_command(
-    config: &crate::core::session::TerminalShellConfig,
+    config: &crate::core::session::types::TerminalShellConfig,
 ) -> Result<CommandBuilder, String> {
     let shell = config.shell.trim().to_ascii_lowercase();
 
@@ -718,7 +718,7 @@ fn resolve_home_dir() -> String {
 pub fn spawn_local_pty(
     rows: u16,
     cols: u16,
-    shell_config: Option<crate::core::session::TerminalShellConfig>,
+    shell_config: Option<crate::core::session::types::TerminalShellConfig>,
 ) -> Result<(u32, ActivePty), String> {
     let pty_system = portable_pty::native_pty_system();
     let pair = pty_system

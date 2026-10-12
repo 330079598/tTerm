@@ -9,8 +9,11 @@ use super::types::{
 };
 use crate::core::blocking::run_blocking;
 use crate::core::state::HostPromptMap;
-use crate::ssh::SshConnectionProgressPayload;
-use crate::ssh::{ConnectionStatusOptions, HostKeyVerificationMode, SecretLocation};
+use crate::ssh::types::SshConnectionProgressPayload;
+use crate::ssh::{
+    secret_store::types::SecretLocation, types::ConnectionStatusOptions,
+    types::HostKeyVerificationMode,
+};
 use connection_check::{authenticate_test_connection, test_connection_handler};
 use import::import_ssh_config_profiles_blocking;
 use std::collections::HashSet;
@@ -48,7 +51,7 @@ pub async fn import_ssh_config_profiles(
 #[tauri::command]
 pub async fn save_profile(
     app: tauri::AppHandle,
-    secret_state: tauri::State<'_, crate::ssh::SecretStoreState>,
+    secret_state: tauri::State<'_, crate::ssh::secret_store::types::SecretStoreState>,
     mut profile: SavedProfile,
     typed_password_tab_id: Option<String>,
 ) -> Result<(), String> {
@@ -89,7 +92,7 @@ fn fill_typed_passwords(profile: &mut SavedProfile, tab_id: &str) {
 
 fn store_profile(
     app: tauri::AppHandle,
-    secret_state: crate::ssh::SecretStoreState,
+    secret_state: crate::ssh::secret_store::types::SecretStoreState,
     mut profile: SavedProfile,
 ) -> Result<(), String> {
     normalize_profile(&mut profile);
@@ -120,7 +123,7 @@ fn store_profile(
     for jump in &profile.jump_hosts {
         if profile.remember_password && jump.auth_method != "key" {
             if let Some(password) = jump.password.as_deref().filter(|value| !value.is_empty()) {
-                let secret_key = crate::core::session::jump_host_identity_secret_key(
+                let secret_key = crate::core::session::types::jump_host_identity_secret_key(
                     Some(profile.id.as_str()),
                     profile.name.as_str(),
                     &jump.host,
@@ -136,7 +139,7 @@ fn store_profile(
                 }
             }
         } else {
-            let secret_key = crate::core::session::jump_host_identity_secret_key(
+            let secret_key = crate::core::session::types::jump_host_identity_secret_key(
                 Some(profile.id.as_str()),
                 profile.name.as_str(),
                 &jump.host,
@@ -145,7 +148,7 @@ fn store_profile(
             );
             let _ = secret_state.delete_password(&app, &secret_key);
             if !profile.name.trim().is_empty() {
-                let name_key = crate::core::session::jump_host_identity_secret_key(
+                let name_key = crate::core::session::types::jump_host_identity_secret_key(
                     None,
                     profile.name.as_str(),
                     &jump.host,
@@ -158,7 +161,7 @@ fn store_profile(
     }
 
     if profile.connection_type == "ssh" {
-        let sudo_key = crate::core::session::sudo_secret_key(&profile.id);
+        let sudo_key = crate::core::session::types::sudo_secret_key(&profile.id);
         if profile.clear_sudo_password {
             let _ = secret_state.delete_password(&app, &sudo_key);
         } else if let Some(password) = profile
@@ -272,8 +275,8 @@ pub async fn move_profile_to_group(
 #[tauri::command]
 pub async fn delete_profile(
     app: tauri::AppHandle,
-    secret_state: tauri::State<'_, crate::ssh::SecretStoreState>,
-    tunnels: tauri::State<'_, crate::tunnel::TunnelManager>,
+    secret_state: tauri::State<'_, crate::ssh::secret_store::types::SecretStoreState>,
+    tunnels: tauri::State<'_, crate::tunnel::commands::TunnelManager>,
     id: String,
 ) -> Result<(), String> {
     // A running tunnel holds the host's connection settings and would keep
@@ -292,8 +295,8 @@ pub async fn delete_profile(
 #[tauri::command]
 pub async fn delete_profiles(
     app: tauri::AppHandle,
-    secret_state: tauri::State<'_, crate::ssh::SecretStoreState>,
-    tunnels: tauri::State<'_, crate::tunnel::TunnelManager>,
+    secret_state: tauri::State<'_, crate::ssh::secret_store::types::SecretStoreState>,
+    tunnels: tauri::State<'_, crate::tunnel::commands::TunnelManager>,
     ids: Vec<String>,
 ) -> Result<(), String> {
     let ids: HashSet<String> = ids.into_iter().collect();
@@ -344,7 +347,7 @@ pub async fn test_connection(
     mut profile: SavedProfile,
     typed_password_tab_id: Option<String>,
     prompt_state: tauri::State<'_, HostPromptMap>,
-    secret_state: tauri::State<'_, crate::ssh::SecretStoreState>,
+    secret_state: tauri::State<'_, crate::ssh::secret_store::types::SecretStoreState>,
 ) -> Result<TestConnectionResult, String> {
     if profile.connection_type != "ssh" {
         return Err("Only SSH connections can be tested".to_string());
@@ -363,7 +366,7 @@ pub async fn test_connection(
         profile
             .jump_hosts
             .into_iter()
-            .map(|j| crate::core::session::JumpHostPlan {
+            .map(|j| crate::core::session::types::JumpHostPlan {
                 host: j.host,
                 port: j.port,
                 username: j.username,
@@ -391,8 +394,8 @@ pub async fn test_connection(
         Vec::new()
     };
 
-    let mut plan = crate::core::session::SessionPlan {
-        kind: crate::core::SessionKind::Ssh,
+    let mut plan = crate::core::session::types::SessionPlan {
+        kind: crate::core::state::SessionKind::Ssh,
         profile_id: Some(profile.id.clone()),
         profile_name: profile.name.clone(),
         host: Some(host.clone()),
@@ -431,10 +434,10 @@ pub async fn test_connection(
 
     let test_tab_id = format!("test-{}", profile.id);
     // The connection dialog listens on the test tab id while the test runs.
-    let auth_prompter = crate::ssh::AuthPrompter::tab(&app, &test_tab_id);
+    let auth_prompter = crate::ssh::auth::AuthPrompter::tab(&app, &test_tab_id);
     crate::core::session::resolve_ssh_password(&app, &secret_state, &mut plan)?;
 
-    crate::ssh::emit_connection_progress(
+    crate::ssh::types::emit_connection_progress(
         &app,
         &test_tab_id,
         ConnectionStatusOptions::SILENT,
@@ -448,13 +451,14 @@ pub async fn test_connection(
     let network_latency_ms;
 
     if !plan.jump_hosts.is_empty() {
-        let target_config = std::sync::Arc::new(crate::ssh::jump::compatibility_client_config(
-            plan.keepalive_interval_secs as u64,
-            plan.keepalive_count_max as usize,
-        ));
+        let target_config =
+            std::sync::Arc::new(crate::ssh::jump::config::compatibility_client_config(
+                plan.keepalive_interval_secs as u64,
+                plan.keepalive_count_max as usize,
+            ));
 
-        let (jump_chain, mut target_session) = crate::ssh::jump::connect_via_jump_chain(
-            crate::ssh::ConnectContext {
+        let (jump_chain, mut target_session) = crate::ssh::jump::connect::connect_via_jump_chain(
+            crate::ssh::jump::connect::ConnectContext {
                 app: &app,
                 tab_id: &test_tab_id,
                 prompts: prompt_state.inner(),
@@ -478,7 +482,7 @@ pub async fn test_connection(
         )
         .await?;
 
-        crate::ssh::emit_connection_progress(
+        crate::ssh::types::emit_connection_progress(
             &app,
             &test_tab_id,
             ConnectionStatusOptions::SILENT,
@@ -499,8 +503,10 @@ pub async fn test_connection(
             &auth_prompter,
         )
         .await?;
-        network_latency_ms = crate::ssh::measure_ssh_latency(&target_session).await.ok();
-        crate::ssh::emit_connection_progress(
+        network_latency_ms = crate::ssh::client::measure_ssh_latency(&target_session)
+            .await
+            .ok();
+        crate::ssh::types::emit_connection_progress(
             &app,
             &test_tab_id,
             ConnectionStatusOptions::SILENT,
@@ -520,12 +526,12 @@ pub async fn test_connection(
     } else {
         use russh::client;
 
-        let config = std::sync::Arc::new(crate::ssh::jump::compatibility_client_config(
+        let config = std::sync::Arc::new(crate::ssh::jump::config::compatibility_client_config(
             plan.keepalive_interval_secs as u64,
             plan.keepalive_count_max as usize,
         ));
 
-        crate::ssh::emit_connection_progress(
+        crate::ssh::types::emit_connection_progress(
             &app,
             &test_tab_id,
             ConnectionStatusOptions::SILENT,
@@ -556,13 +562,13 @@ pub async fn test_connection(
         .await
         .map_err(|_| "Connection timeout".to_string())?
         .map_err(
-            |e| match crate::ssh::jump::unverifiable_host_key_error(&e) {
+            |e| match crate::ssh::jump::config::unverifiable_host_key_error(&e) {
                 Some(unverifiable) => unverifiable.to_string(),
                 None => format!("Connection failed: {}", e),
             },
         )?;
 
-        crate::ssh::emit_connection_progress(
+        crate::ssh::types::emit_connection_progress(
             &app,
             &test_tab_id,
             ConnectionStatusOptions::SILENT,
@@ -576,8 +582,8 @@ pub async fn test_connection(
 
         authenticate_test_connection(&mut session, &host, port, &username, &plan, &auth_prompter)
             .await?;
-        network_latency_ms = crate::ssh::measure_ssh_latency(&session).await.ok();
-        crate::ssh::emit_connection_progress(
+        network_latency_ms = crate::ssh::client::measure_ssh_latency(&session).await.ok();
+        crate::ssh::types::emit_connection_progress(
             &app,
             &test_tab_id,
             ConnectionStatusOptions::SILENT,

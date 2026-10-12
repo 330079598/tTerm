@@ -141,7 +141,7 @@ pub struct SshConfigImportHost {
     pub warnings: Vec<String>,
     pub unsupported_options: Vec<String>,
     /// `LocalForward` / `RemoteForward` / `DynamicForward` entries.
-    pub forwards: Vec<crate::tunnel::ForwardSpec>,
+    pub forwards: Vec<crate::tunnel::forwards::ForwardSpec>,
     pub skipped: bool,
     pub skip_reason: Option<String>,
     pub existing_profile_id: Option<String>,
