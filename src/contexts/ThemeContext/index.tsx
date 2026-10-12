@@ -5,33 +5,18 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
-  useRef,
   useState,
 } from "react"
-import { invoke } from "@tauri-apps/api/core"
 import { useTranslation } from "react-i18next"
 
-import {
-  isPresetThemeId,
-  mergePresetThemeWithOverride,
-  normalizeCustomThemes,
-  readLegacyThemes,
-  removeLegacyThemes,
-} from "@/lib/customThemes"
 import { useConfig } from "@/contexts/ConfigContext"
 import type { AppConfig } from "@/lib/appConfig"
 import { useSystemPrefersDark } from "@/hooks/useSystemPrefersDark"
 import { announceThemeReady } from "@/lib/startup"
-import { onSyncApplied } from "@/lib/sync"
-import { createCatalogTheme, isCatalogThemeId, loadThemeCatalog } from "@/lib/themeCatalog"
-import { getPresetTheme, PRESET_THEMES } from "@/lib/themeDefinitions"
+import { isCatalogThemeId } from "@/lib/themeCatalog"
+import { getPresetTheme } from "@/lib/themeDefinitions"
 import { isDarkPalette } from "@/lib/themeDerivation"
-import {
-  applyThemeToDom,
-  cacheTheme,
-  readCachedTheme,
-  resolveThemeCache,
-} from "@/lib/themePreloader"
+import { applyThemeToDom, cacheTheme, resolveThemeCache } from "@/lib/themePreloader"
 import type {
   CatalogTheme,
   CustomTheme,
@@ -41,6 +26,9 @@ import type {
   ThemeSlot,
 } from "@/types/theme"
 import { useCustomThemeActions } from "@/contexts/ThemeContext/useCustomThemeActions"
+import { useCustomThemeStore } from "@/contexts/ThemeContext/useCustomThemeStore"
+import { useFavoriteThemes } from "@/contexts/ThemeContext/useFavoriteThemes"
+import { useThemeCatalog } from "@/contexts/ThemeContext/useThemeCatalog"
 
 interface ThemeContextType {
   currentTheme: string
@@ -87,21 +75,6 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation()
   const { config, saveConfig, isLoaded } = useConfig()
-  const [customThemes, setCustomThemes] = useState<CustomTheme[]>([])
-  // The latest themes for calls made right after a save, from callbacks that
-  // still hold the themes before it.
-  const customThemesRef = useRef<CustomTheme[]>([])
-  const [themesLoaded, setThemesLoaded] = useState(false)
-  const [catalogThemes, setCatalogThemes] = useState<CatalogTheme[] | null>(null)
-  const [catalogFailed, setCatalogFailed] = useState(false)
-  // The library theme the last session showed, rebuilt from its cached
-  // palette so a start in it never loads the library.
-  const [cachedCatalogTheme] = useState<CatalogTheme | null>(() => {
-    const cache = readCachedTheme()
-    return cache && isCatalogThemeId(cache.id) && cache.terminal
-      ? createCatalogTheme(cache.id, cache.terminal)
-      : null
-  })
   const [previewThemeId, setPreviewThemeId] = useState<string | null>(null)
   const followSystem = config.theme_follow_system
   const systemPrefersDark = useSystemPrefersDark(followSystem)
@@ -111,56 +84,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Which of the two themes to show is unknown until the system tells.
   const appearanceSettled = !followSystem || systemPrefersDark !== null
 
-  const knownCatalogThemes = useMemo(
-    () => catalogThemes ?? (cachedCatalogTheme ? [cachedCatalogTheme] : []),
-    [cachedCatalogTheme, catalogThemes]
-  )
-
-  const loadCatalogThemes = useCallback(async () => {
-    const themes = await loadThemeCatalog()
-    setCatalogThemes(themes)
-    setCatalogFailed(false)
-    return themes
-  }, [])
-
-  // Only a library theme the cache cannot stand in for needs the library;
-  // one the library lacks too shows the fallback once it has loaded.
-  const needsCatalog =
-    isCatalogThemeId(configuredThemeId) &&
-    catalogThemes === null &&
-    !knownCatalogThemes.some((theme) => theme.id === configuredThemeId)
-  useEffect(() => {
-    if (!needsCatalog) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set once the library loads or fails
-    loadCatalogThemes().catch((error: unknown) => {
-      console.error("Failed to load the theme library:", error)
-      setCatalogFailed(true)
-    })
-  }, [loadCatalogThemes, needsCatalog])
-
-  // Until then that theme is unknown.
-  const catalogSettled = !needsCatalog || catalogFailed
-
-  const presetThemeOverrides = useMemo(
-    () => customThemes.filter((theme) => isPresetThemeId(theme.id)),
-    [customThemes]
-  )
-
-  const standaloneCustomThemes = useMemo(
-    () => customThemes.filter((theme) => !isPresetThemeId(theme.id)),
-    [customThemes]
-  )
-
-  const presetThemes = useMemo(
-    () =>
-      PRESET_THEMES.map((theme) =>
-        mergePresetThemeWithOverride(
-          theme,
-          presetThemeOverrides.find((overrideTheme) => overrideTheme.id === theme.id)
-        )
-      ),
-    [presetThemeOverrides]
-  )
+  const { catalogThemes, knownCatalogThemes, loadCatalogThemes, catalogSettled } =
+    useThemeCatalog(configuredThemeId)
+  const {
+    customThemes,
+    customThemesRef,
+    themesLoaded,
+    presetThemeOverrides,
+    standaloneCustomThemes,
+    presetThemes,
+    loadCustomThemes,
+    saveCustomThemes,
+  } = useCustomThemeStore()
 
   const applyAndCacheTheme = useCallback(
     (themeId: string, themes: CustomTheme[]) => {
@@ -171,41 +106,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     },
     [knownCatalogThemes]
   )
-
-  const loadCustomThemes = useCallback(async () => {
-    try {
-      // The first load hands the themes kept in localStorage to the database.
-      const themes = await invoke<unknown[]>("load_custom_themes", { legacy: readLegacyThemes() })
-      customThemesRef.current = normalizeCustomThemes(themes)
-      setCustomThemes(customThemesRef.current)
-      removeLegacyThemes()
-    } catch (error) {
-      console.error("Failed to load custom themes:", error)
-      if (customThemesRef.current.length === 0) {
-        customThemesRef.current = readLegacyThemes() ?? []
-      }
-      setCustomThemes(customThemesRef.current)
-    } finally {
-      setThemesLoaded(true)
-    }
-  }, [])
-
-  useEffect(() => {
-    void loadCustomThemes()
-  }, [loadCustomThemes])
-
-  useEffect(() => onSyncApplied(["themes"], () => void loadCustomThemes()), [loadCustomThemes])
-
-  const saveCustomThemes = useCallback(async (themes: CustomTheme[]) => {
-    try {
-      await invoke("save_custom_themes", { themes })
-      customThemesRef.current = themes
-      setCustomThemes(themes)
-    } catch (error) {
-      console.error("Failed to save custom themes:", error)
-      throw error
-    }
-  }, [])
 
   useLayoutEffect(() => {
     // A custom theme is unknown until the themes load; applying it earlier
@@ -246,7 +146,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         getPresetTheme(themeId)
       return theme ? isDarkPalette(theme.terminal) : false
     },
-    [knownCatalogThemes]
+    [customThemesRef, knownCatalogThemes]
   )
 
   const setTheme = useCallback(
@@ -278,6 +178,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     },
     [
       applyAndCacheTheme,
+      customThemesRef,
       followSystem,
       isDarkTheme,
       knownCatalogThemes,
@@ -294,27 +195,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   )
 
   const favoriteThemes = config.favorite_themes
-  // Starring twice before the first save lands must not lose a star.
-  const favoritesRef = useRef(favoriteThemes)
-  useEffect(() => {
-    favoritesRef.current = favoriteThemes
-  }, [favoriteThemes])
-
-  const toggleFavoriteTheme = useCallback(
-    async (themeId: string) => {
-      const previous = favoritesRef.current
-      favoritesRef.current = previous.includes(themeId)
-        ? previous.filter((id) => id !== themeId)
-        : [...previous, themeId]
-      try {
-        await saveConfig({ favorite_themes: favoritesRef.current })
-      } catch (error) {
-        favoritesRef.current = previous
-        throw error
-      }
-    },
-    [saveConfig]
-  )
+  const toggleFavoriteTheme = useFavoriteThemes(favoriteThemes, saveConfig)
 
   const {
     createCustomThemes,
@@ -460,6 +341,3 @@ export function useCatalogFor(themeIds: readonly (string | undefined)[]) {
     })
   }, [loadCatalogThemes, needed])
 }
-
-export type { Theme, CustomTheme, PresetTheme, PresetThemeId } from "@/types/theme"
-export { PRESET_THEMES }

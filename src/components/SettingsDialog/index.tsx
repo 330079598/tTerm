@@ -2,25 +2,17 @@ import React, { useEffect, useRef, useState } from "react"
 import { Settings } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import {
-  ThemeEditor,
-  ThemeGallery,
-  ThemeImportDialog,
-} from "@/components/SettingsDialog/settingsLazy"
-import {
-  getPerfNow,
-  logPerf,
-  loadSystemFontsCached,
-  normalizeSettingsTab,
-  refreshSecretStatusCached,
-} from "@/components/SettingsDialog/settingsLoaders"
+import { normalizeSettingsTab } from "@/components/SettingsDialog/settingsLoaders"
+import { SettingsTabPanel } from "@/components/SettingsDialog/SettingsTabPanel"
+import { ThemeDialogs } from "@/components/SettingsDialog/ThemeDialogs"
+import { useSettingsTabLoaders } from "@/components/SettingsDialog/useSettingsTabLoaders"
 import { useTerminalSettingsDraft } from "@/components/SettingsDialog/useTerminalSettingsDraft"
 import { useThemeSettingsHandlers } from "@/components/SettingsDialog/useThemeSettingsHandlers"
 import { useSettingsHandlers } from "@/components/SettingsDialog/useSettingsHandlers"
 import { AboutDialog } from "@/components/AboutDialog"
 import { useConfirmDialog, useInfoDialog, usePromptDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Tabs, TabsContent } from "@/components/ui/tabs"
+import { Tabs } from "@/components/ui/tabs"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
@@ -53,7 +45,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onEditProfile,
   profilesRefreshKey,
 }) => {
-  const mountStartRef = useRef(getPerfNow())
   const isMountedRef = useRef(true)
   const { t, i18n } = useTranslation()
   const { appState, config, saveAppState, saveConfig, updateLanguage, refreshSecretStatus } =
@@ -91,52 +82,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
   }, [])
 
-  useEffect(() => {
-    logPerf("settings.open", mountStartRef.current, `tab=${activeTab}`)
-  }, [activeTab])
-
-  useEffect(() => {
-    if (activeTab !== "terminal" || fontsLoaded) {
-      return
-    }
-
-    // loadSystemFontsCached shares one in-flight request, so re-running this
-    // (e.g. leaving and re-entering the tab mid-load) doesn't refetch.
-    loadSystemFontsCached()
-      .then((fonts) => {
-        if (!isMountedRef.current) {
-          return
-        }
-        setSystemFonts(fonts)
-      })
-      .catch(() => {
-        if (!isMountedRef.current) {
-          return
-        }
-        setSystemFonts([])
-        setFontLoadError(
-          t("fontSettings.loadingFontsFailed", {
-            defaultValue:
-              "Couldn't load the system font list. You can still enter a font name manually.",
-          })
-        )
-      })
-      .finally(() => {
-        if (!isMountedRef.current) {
-          return
-        }
-        setFontsLoaded(true)
-      })
-  }, [activeTab, fontsLoaded, t, setFontLoadError, setFontsLoaded, setSystemFonts])
-  const loadingFonts = activeTab === "terminal" && !fontsLoaded
-
-  useEffect(() => {
-    if (activeTab !== "security") {
-      return
-    }
-
-    refreshSecretStatusCached(refreshSecretStatus)
-  }, [activeTab, refreshSecretStatus])
+  const { loadingFonts } = useSettingsTabLoaders({
+    activeTab,
+    isMountedRef,
+    fontsLoaded,
+    setSystemFonts,
+    setFontLoadError,
+    setFontsLoaded,
+    refreshSecretStatus,
+  })
 
   const themeHandlers = useThemeSettingsHandlers({
     setTheme,
@@ -186,14 +140,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1">
           <SettingsSidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-          <TabsContent
-            value="appearance"
-            id="settings-panel-appearance"
-            role="tabpanel"
-            aria-labelledby="settings-tab-appearance"
-            tabIndex={0}
-            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
-          >
+          <SettingsTabPanel value="appearance">
             <AppearanceSettingsTab
               currentTheme={currentTheme}
               customThemes={customThemes}
@@ -222,42 +169,21 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               windowBlurRadius={config.window_blur_radius}
               windowOpacityPercent={config.window_opacity_percent}
             />
-          </TabsContent>
+          </SettingsTabPanel>
 
-          <TabsContent
-            value="terminal"
-            id="settings-panel-terminal"
-            role="tabpanel"
-            aria-labelledby="settings-tab-terminal"
-            tabIndex={0}
-            className="m-0 min-w-0 flex-1 overflow-y-auto p-6"
-          >
+          <SettingsTabPanel value="terminal" scroll>
             <FontSettingsTab
               {...terminalDraft}
               loadingFonts={loadingFonts}
               fontSizeOptions={FONT_SIZE_OPTIONS}
             />
-          </TabsContent>
+          </SettingsTabPanel>
 
-          <TabsContent
-            value="notifications"
-            id="settings-panel-notifications"
-            role="tabpanel"
-            aria-labelledby="settings-tab-notifications"
-            tabIndex={0}
-            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
-          >
+          <SettingsTabPanel value="notifications">
             <NotificationSettingsTab />
-          </TabsContent>
+          </SettingsTabPanel>
 
-          <TabsContent
-            value="connection"
-            id="settings-panel-connection"
-            role="tabpanel"
-            aria-labelledby="settings-tab-connection"
-            tabIndex={0}
-            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
-          >
+          <SettingsTabPanel value="connection">
             <ConnectionSettingsTab
               handleMonitorRefreshIntervalChange={
                 settingsHandlers.handleMonitorRefreshIntervalChange
@@ -276,78 +202,36 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               showJumpHostConnectionInfo={config.show_jump_host_connection_info}
               sudoPromptPatterns={config.sudo_prompt_patterns}
             />
-          </TabsContent>
+          </SettingsTabPanel>
 
-          <TabsContent
-            value="logging"
-            id="settings-panel-logging"
-            role="tabpanel"
-            aria-labelledby="settings-tab-logging"
-            tabIndex={0}
-            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
-          >
+          <SettingsTabPanel value="logging">
             <LoggingSettingsTab
               handleEnabledChange={settingsHandlers.handleTerminalLogEnabledChange}
               handleRecordInputChange={settingsHandlers.handleTerminalLogRecordInputChange}
             />
-          </TabsContent>
+          </SettingsTabPanel>
 
-          <TabsContent
-            value="keymap"
-            id="settings-panel-keymap"
-            role="tabpanel"
-            aria-labelledby="settings-tab-keymap"
-            tabIndex={0}
-            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
-          >
+          <SettingsTabPanel value="keymap">
             <KeymapSettingsTab />
-          </TabsContent>
+          </SettingsTabPanel>
 
-          <TabsContent
-            value="profile-groups"
-            id="settings-panel-profile-groups"
-            role="tabpanel"
-            aria-labelledby="settings-tab-profile-groups"
-            tabIndex={0}
-            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
-          >
+          <SettingsTabPanel value="profile-groups">
             <ProfileGroupsSettingsTab
               onConnectProfile={onConnectProfile}
               onEditProfile={onEditProfile}
               refreshKey={profilesRefreshKey}
             />
-          </TabsContent>
+          </SettingsTabPanel>
 
-          <TabsContent
-            value="data-migration"
-            id="settings-panel-data-migration"
-            role="tabpanel"
-            aria-labelledby="settings-tab-data-migration"
-            tabIndex={0}
-            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
-          >
+          <SettingsTabPanel value="data-migration">
             <DataMigrationSettingsTab />
-          </TabsContent>
+          </SettingsTabPanel>
 
-          <TabsContent
-            value="security"
-            id="settings-panel-security"
-            role="tabpanel"
-            aria-labelledby="settings-tab-security"
-            tabIndex={0}
-            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
-          >
+          <SettingsTabPanel value="security">
             <SecuritySettingsTab confirm={confirm} info={info} />
-          </TabsContent>
+          </SettingsTabPanel>
 
-          <TabsContent
-            value="general"
-            id="settings-panel-general"
-            role="tabpanel"
-            aria-labelledby="settings-tab-general"
-            tabIndex={0}
-            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
-          >
+          <SettingsTabPanel value="general">
             <GeneralSettingsTab
               backgroundThrottling={config.background_throttling}
               closeBehavior={config.close_behavior}
@@ -384,16 +268,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               zmodemAutoDetectEnabled={config.zmodem_auto_detect_enabled}
               zmodemDownloadDirectory={config.zmodem_download_directory}
             />
-          </TabsContent>
+          </SettingsTabPanel>
 
-          <TabsContent
-            value="updates"
-            id="settings-panel-updates"
-            role="tabpanel"
-            aria-labelledby="settings-tab-updates"
-            tabIndex={0}
-            className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
-          >
+          <SettingsTabPanel value="updates">
             <UpdateSettingsTab
               autoDownloadUpdates={config.auto_download_updates}
               handleAutoDownloadUpdatesChange={settingsHandlers.handleAutoDownloadUpdatesChange}
@@ -406,40 +283,21 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               updateCheckFrequency={config.update_check_frequency}
               lastUpdateCheckAt={appState.lastUpdateCheckAt}
             />
-          </TabsContent>
+          </SettingsTabPanel>
         </Tabs>
       </div>
 
-      {editingThemeId && (
-        <React.Suspense fallback={null}>
-          <ThemeEditor themeId={editingThemeId} onClose={() => setEditingThemeId(null)} />
-        </React.Suspense>
-      )}
-
-      {creatingFromTheme && (
-        <React.Suspense fallback={null}>
-          <ThemeEditor baseThemeId={creatingFromTheme} onClose={() => setCreatingFromTheme(null)} />
-        </React.Suspense>
-      )}
-
-      {themeGalleryOpen && (
-        <React.Suspense fallback={null}>
-          <ThemeGallery
-            onApply={themeHandlers.handleGalleryApply}
-            onCopy={themeHandlers.handleCopyCatalogTheme}
-            onClose={() => setThemeGalleryOpen(false)}
-          />
-        </React.Suspense>
-      )}
-
-      {themeImportOpen && (
-        <React.Suspense fallback={null}>
-          <ThemeImportDialog
-            onImported={themeHandlers.handleThemesImported}
-            onClose={() => setThemeImportOpen(false)}
-          />
-        </React.Suspense>
-      )}
+      <ThemeDialogs
+        editingThemeId={editingThemeId}
+        setEditingThemeId={setEditingThemeId}
+        creatingFromTheme={creatingFromTheme}
+        setCreatingFromTheme={setCreatingFromTheme}
+        themeGalleryOpen={themeGalleryOpen}
+        setThemeGalleryOpen={setThemeGalleryOpen}
+        themeImportOpen={themeImportOpen}
+        setThemeImportOpen={setThemeImportOpen}
+        themeHandlers={themeHandlers}
+      />
       <ConfirmDialog />
       <PromptDialog />
       <InfoDialog />

@@ -1,6 +1,5 @@
 import "@/components/SftpDrawer.css"
-import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react"
-import { invoke } from "@tauri-apps/api/core"
+import React, { useCallback, useMemo, useReducer, useRef, useState } from "react"
 import { AlertCircle } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -10,39 +9,25 @@ import { useSftpEntryActions } from "@/components/SftpDrawer/useSftpEntryActions
 import { useSftpDeleteActions } from "@/components/SftpDrawer/useSftpDeleteActions"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useConfig } from "@/contexts/ConfigContext"
-import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { SftpDeleteTransferEvents } from "@/components/SftpDrawer/SftpDeleteTransferEvents"
 import { SftpDrawerContent } from "@/components/SftpDrawer/SftpDrawerContent"
 import { SftpDrawerHeader } from "@/components/SftpDrawer/SftpDrawerHeader"
 import { SftpDialogs } from "@/components/SftpDrawer/SftpDialogs"
 import { SftpEntryContextMenu } from "@/components/SftpDrawer/SftpEntryContextMenu"
-import { preloadMaterialIcons } from "@/components/SftpDrawer/SftpEntryIcon"
 import { SftpPermissionsDialog } from "@/components/SftpDrawer/SftpPermissionsDialog"
 import { useSftpDragDrop } from "@/components/SftpDrawer/useSftpDragDrop"
 import { useSftpPasteUpload } from "@/components/SftpDrawer/useSftpPasteUpload"
 import { useSftpSelection } from "@/components/SftpDrawer/useSftpSelection"
-import {
-  createSftpSearchMatcher,
-  DEFAULT_SFTP_SEARCH_OPTIONS,
-  type SftpSearchOptions,
-} from "@/components/SftpDrawer/sftpSearch"
+import { useSftpDirectoryLoader } from "@/components/SftpDrawer/useSftpDirectoryLoader"
+import { useSftpDrawerLifecycle } from "@/components/SftpDrawer/useSftpDrawerLifecycle"
+import { useSftpView } from "@/components/SftpDrawer/useSftpView"
 import type {
-  LoadSftpDirectory,
   SftpContextMenuState,
   SftpDirectoryEntry,
-  SftpDirectoryListing,
   SftpDrawerProps,
 } from "@/components/SftpDrawer/types"
 import { useSftpTransfers } from "@/components/SftpDrawer/useSftpTransfers"
 import { useSftpHistory, useSftpHistoryNavigation } from "@/components/SftpDrawer/useSftpHistory"
-import {
-  applySftpView,
-  loadSftpViewPreferences,
-  nextSftpSort,
-  saveSftpViewPreferences,
-  type SftpSortColumn,
-  type SftpViewPreferences,
-} from "@/components/SftpDrawer/sftpView"
 
 const EMPTY_SFTP_ENTRIES: SftpDirectoryEntry[] = []
 
@@ -56,24 +41,17 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
 }) => {
   const { t } = useTranslation()
   const { config } = useConfig()
-  const { withVaultUnlock } = useUserVerification()
   const drawerRef = useRef<HTMLDivElement>(null)
-  const [listing, setListing] = useState<SftpDirectoryListing | null>(null)
   const [activePath, setActivePath] = useState<string | null>(null)
   const [selectedPaths, setSelectedPaths] = useState<string[]>([])
   const [isSelectionMode, setIsSelectionMode] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchOptions, setSearchOptions] = useState<SftpSearchOptions>(DEFAULT_SFTP_SEARCH_OPTIONS)
-  const [isLoading, setIsLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<SftpContextMenuState | null>(null)
   const [dialog, dispatchDialog] = useReducer(sftpDialogReducer, { type: "none" })
   const [permissionEntries, setPermissionEntries] =
     useState<SftpDirectoryEntry[]>(EMPTY_SFTP_ENTRIES)
-  const [viewPreferences, setViewPreferences] = useState(loadSftpViewPreferences)
   const { history, recordFailed, recordLoaded } = useSftpHistory()
-  const listingCurrentPath = listing?.currentPath ?? null
+  const [searchQuery, setSearchQuery] = useState("")
   const createFolderName = dialog.type === "createFolder" ? dialog.folderName : ""
   const renameEntry = dialog.type === "rename" ? dialog.entry : null
   const renameNewName = dialog.type === "rename" ? dialog.newName : ""
@@ -81,56 +59,28 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   const commandDeleteEntries = dialog.type === "commandDelete" ? dialog.entries : EMPTY_SFTP_ENTRIES
   const commandDeleteCommand = dialog.type === "commandDelete" ? dialog.command : ""
 
-  // The drawer lives as long as its tab, so unmounting means the tab closed:
-  // let the backend close the tab's pooled SFTP connections.
-  useEffect(
-    () => () => {
-      void invoke("sftp_release_tab_connections", { tabId }).catch(console.error)
-    },
-    [tabId]
+  const { listing, setListing, isLoading, error, setError, loadDirectory } = useSftpDirectoryLoader(
+    {
+      tabId,
+      connection,
+      recordLoaded,
+      recordFailed,
+      setActivePath,
+      setSelectedPaths,
+      setSearchQuery,
+    }
   )
-
-  const loadDirectory = useCallback<LoadSftpDirectory>(
-    async (path, options) => {
-      if (!connection) {
-        const message = t("sftp.errors.missingConnection", {
-          defaultValue: "SSH connection is missing",
-        })
-        setError(message)
-        if (options?.throwOnError) {
-          throw new Error(message)
-        }
-        return
-      }
-
-      setIsLoading(true)
-      setError(null)
-      try {
-        const nextListing = await withVaultUnlock(() =>
-          invoke<SftpDirectoryListing>("sftp_list_directory", {
-            tabId,
-            connection,
-            path: path ?? undefined,
-          })
-        )
-        setListing(nextListing)
-        recordLoaded(nextListing.currentPath, options?.historyIndex)
-        setActivePath(null)
-        setSelectedPaths([])
-        setSearchQuery("")
-      } catch (invokeError) {
-        const message = String(invokeError)
-        setError(message)
-        recordFailed(options?.historyIndex)
-        if (options?.throwOnError) {
-          throw new Error(message, { cause: invokeError })
-        }
-      } finally {
-        setIsLoading(false)
-      }
-    },
-    [connection, recordFailed, recordLoaded, t, tabId, withVaultUnlock]
-  )
+  const listingCurrentPath = listing?.currentPath ?? null
+  const {
+    searchOptions,
+    toggleSearchOption,
+    searchMatcher,
+    viewPreferences,
+    handleSortColumn,
+    toggleShowHidden,
+    viewListing,
+    filteredListing,
+  } = useSftpView(listing, searchQuery)
 
   const {
     addTransfer,
@@ -166,62 +116,6 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     uploadPaths,
     visible,
   })
-
-  const searchMatcher = useMemo(
-    () => createSftpSearchMatcher(searchQuery, searchOptions),
-    [searchOptions, searchQuery]
-  )
-
-  const updateViewPreferences = useCallback(
-    (update: (current: SftpViewPreferences) => SftpViewPreferences) => {
-      setViewPreferences((current) => {
-        const next = update(current)
-        saveSftpViewPreferences(next)
-        return next
-      })
-    },
-    []
-  )
-
-  const handleSortColumn = useCallback(
-    (column: SftpSortColumn) => {
-      updateViewPreferences((current) => ({
-        ...current,
-        sort: nextSftpSort(current.sort, column),
-      }))
-    },
-    [updateViewPreferences]
-  )
-
-  const toggleShowHidden = useCallback(() => {
-    updateViewPreferences((current) => ({ ...current, showHidden: !current.showHidden }))
-  }, [updateViewPreferences])
-
-  // The listing as shown: hidden entries dropped, rows in sort order. Range
-  // selection, select-all and the table all follow this order.
-  const viewListing = useMemo(
-    () =>
-      listing ? { ...listing, entries: applySftpView(listing.entries, viewPreferences) } : listing,
-    [listing, viewPreferences]
-  )
-
-  const filteredListing = useMemo(() => {
-    if (!viewListing || !searchMatcher.hasQuery) {
-      return viewListing
-    }
-
-    return {
-      ...viewListing,
-      entries: viewListing.entries.filter(searchMatcher.matches),
-    }
-  }, [viewListing, searchMatcher])
-
-  const toggleSearchOption = useCallback((option: keyof SftpSearchOptions) => {
-    setSearchOptions((current) => ({
-      ...current,
-      [option]: !current[option],
-    }))
-  }, [])
 
   const { enterSelectionMode, exitSelectionMode, toggleSelectionMode } = useSftpSelectionMode({
     visible,
@@ -263,7 +157,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         setError(String(invokeError))
       }
     },
-    [currentPath, loadDirectory]
+    [currentPath, loadDirectory, setError]
   )
   const {
     activeEntry,
@@ -353,20 +247,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     return selectedPaths.includes(contextMenuEntry.path) ? selectedPaths.length : 1
   }, [contextMenuEntry, selectedPaths])
 
-  useEffect(() => {
-    const drawer = drawerRef.current
-    if (!drawer) {
-      return
-    }
-
-    if (visible) {
-      drawer.removeAttribute("inert")
-      // Usually done before the first directory listing arrives.
-      preloadMaterialIcons().catch(console.error)
-    } else {
-      drawer.setAttribute("inert", "")
-    }
-  }, [visible])
+  useSftpDrawerLifecycle(tabId, visible, drawerRef)
 
   return (
     <div

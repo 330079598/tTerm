@@ -1,5 +1,5 @@
 import "@/components/TerminalTab.css"
-import React, { useCallback, useEffect, useState } from "react"
+import React, { useCallback, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { useTerminalTabRefs } from "@/components/TerminalTab/useTerminalTabRefs"
@@ -26,9 +26,12 @@ import { TerminalSearchBar } from "@/components/TerminalTab/TerminalSearchBar"
 import { useTerminalSearch } from "@/components/TerminalTab/useTerminalSearch"
 import { useTerminalLifecycle } from "@/components/TerminalTab/useTerminalLifecycle"
 import { useZmodemTransfers } from "@/components/TerminalTab/useZmodemTransfers"
+import {
+  useConnectionStateReport,
+  useServerMonitorToggle,
+} from "@/components/TerminalTab/useTerminalTabStatus"
 import type { SavedPasswordPromptState, TerminalTabProps } from "@/components/TerminalTab/types"
 import { useConfig } from "@/contexts/ConfigContext"
-import { isImeKeyEvent } from "@/lib/ime"
 import { useKeymap } from "@/contexts/KeymapContext"
 
 export const TerminalTab: React.FC<TerminalTabProps> = ({
@@ -105,8 +108,9 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     setConnectionProgress,
   } = useSessionScopedState({ sessionResetKey })
   const [showSftpDrawer, setShowSftpDrawer] = useState(false)
-  const [showServerMonitor, setShowServerMonitor] = useState(
-    () => connection?.serverMonitorVisible === true
+  const { showServerMonitor, handleToggleServerMonitor } = useServerMonitorToggle(
+    connection,
+    onServerMonitorVisibilityChange
   )
 
   const {
@@ -174,14 +178,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     resolveTerminalTheme,
   })
 
-  useEffect(() => {
-    onConnectionStateChange?.(tabId, sessionNonce, connectionState)
-  }, [connectionState, onConnectionStateChange, sessionNonce, tabId])
-
-  useEffect(
-    () => () => onConnectionStateChange?.(tabId, sessionNonce, null),
-    [onConnectionStateChange, sessionNonce, tabId]
-  )
+  useConnectionStateReport({ tabId, sessionNonce, connectionState, onConnectionStateChange })
 
   useTerminalActivation({
     ...refs,
@@ -228,32 +225,6 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     setShowSftpDrawer,
   })
 
-  const handleToggleServerMonitor = useCallback(() => {
-    setShowServerMonitor((current) => {
-      const nextVisible = !current
-      onServerMonitorVisibilityChange?.(nextVisible)
-      return nextVisible
-    })
-  }, [onServerMonitorVisibilityChange])
-
-  const handleSearchKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (isImeKeyEvent(event.nativeEvent)) return
-      if (event.key === "Escape") {
-        event.preventDefault()
-        event.stopPropagation()
-        closeSearch()
-        return
-      }
-
-      if (event.key === "Enter" && event.target === searchInputRef.current) {
-        event.preventDefault()
-        runSearch(event.shiftKey ? "previous" : "next")
-      }
-    },
-    [closeSearch, runSearch, searchInputRef]
-  )
-
   const { PasteConfirmDialog, pasteFromClipboard } = useTerminalClipboard({
     ...refs,
     isBroadcastSource,
@@ -297,16 +268,6 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     armZmodemManualTrigger,
     copyLastCommandOutput,
   })
-
-  const searchResultText = searchQuery
-    ? searchResults.resultCount > 0
-      ? t("terminalSearch.results", {
-          current: searchResults.resultIndex >= 0 ? searchResults.resultIndex + 1 : 0,
-          total: searchResults.resultCount,
-          defaultValue: "{{current}} / {{total}}",
-        })
-      : t("terminalSearch.noResults", { defaultValue: "No results" })
-    : t("terminalSearch.ready", { defaultValue: "Find in terminal" })
 
   const terminalPaddingStyle = {
     "--terminal-padding-left": `${config.terminal_padding_left_px}px`,
@@ -366,14 +327,12 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
             isSearchDragging={isSearchDragging}
             onClose={closeSearch}
             onDragStart={handleSearchDragStart}
-            onKeyDown={handleSearchKeyDown}
             onRunSearch={(direction) => runSearch(direction)}
             onToggleOption={toggleSearchOption}
             searchInputRef={searchInputRef}
             searchOptions={searchOptions}
             searchPosition={searchPosition}
             searchQuery={searchQuery}
-            searchResultText={searchResultText}
             searchResults={searchResults}
             setSearchQuery={setSearchQuery}
             t={t}

@@ -18,13 +18,12 @@ import {
   defaultConfig,
   type AppState,
   defaultAppState,
-  defaultSecretStatus,
 } from "@/lib/appConfig"
-import { normalizeConfig, normalizeAppState, normalizeSecretStatus } from "@/lib/appConfigNormalize"
-import { applyUiScalePercent, isWindowBlurEnabled } from "@/lib/uiPlatform"
+import { normalizeConfig, normalizeAppState } from "@/lib/appConfigNormalize"
 import { markConfigReady } from "@/lib/startup"
 import { onSyncApplied } from "@/lib/sync"
-import { setWindowBlur } from "@/lib/themePreloader"
+import { useSecretStore } from "@/contexts/ConfigContext/useSecretStore"
+import { useWindowAppearance } from "@/contexts/ConfigContext/useWindowAppearance"
 
 let launchBackgroundThrottling: BackgroundThrottling | null = null
 
@@ -74,8 +73,6 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [appState, setAppState] = useState<AppState>(defaultAppState)
   const appStateRef = useRef(appState)
   const appStateSaveQueueRef = useRef<Promise<void>>(Promise.resolve())
-  const [secretStatus, setSecretStatus] = useState<SecretBackendStatus>(defaultSecretStatus)
-  const [isSecretStatusLoaded, setIsSecretStatusLoaded] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
 
   const updateConfigState = useCallback((update: (current: AppConfig) => AppConfig) => {
@@ -84,51 +81,24 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     setConfig(updatedConfig)
   }, [])
 
-  useEffect(() => {
-    applyUiScalePercent(config.ui_scale_percent)
-    return () => {
-      const rootStyle = document.documentElement.style
-      rootStyle.removeProperty("--ui-font-scale")
-      for (const size of ["xs", "sm", "base", "lg", "xl", "2xl", "3xl"]) {
-        rootStyle.removeProperty(`--text-${size}`)
-        rootStyle.removeProperty(`--text-${size}--line-height`)
-      }
-    }
-  }, [config.ui_scale_percent])
+  useWindowAppearance(config, isLoaded)
 
-  // Not before the config loads: the page starts with whatever the window was
-  // created with, and the defaults would switch the blur off in between.
-  const windowBlurEnabled = isWindowBlurEnabled(config)
-  useEffect(() => {
-    if (!isLoaded) return
-    setWindowBlur({
-      enabled: windowBlurEnabled,
-      radius: config.window_blur_radius,
-      material: config.window_blur_material,
-      opacity: config.window_opacity_percent / 100,
-    })
-  }, [
-    config.window_blur_material,
-    config.window_blur_radius,
-    config.window_opacity_percent,
-    isLoaded,
-    windowBlurEnabled,
-  ])
-
-  const refreshSecretStatus = useCallback(async (): Promise<SecretBackendStatus> => {
-    try {
-      const status = await invoke<SecretBackendStatus>("get_secret_backend_status")
-      const normalized = normalizeSecretStatus(status)
-      setSecretStatus(normalized)
-      return normalized
-    } catch (error) {
-      console.error("Failed to load secret backend status:", error)
-      setSecretStatus(defaultSecretStatus)
-      return defaultSecretStatus
-    } finally {
-      setIsSecretStatusLoaded(true)
-    }
-  }, [])
+  const {
+    secretStatus,
+    isSecretStatusLoaded,
+    refreshSecretStatus,
+    setSecretStorageMode,
+    unlockSecretVault,
+    lockSecretVault,
+    retrySystemUnlock,
+    resetSavedPasswords,
+    changeVaultPassword,
+    setMasterPassword,
+    removeMasterPassword,
+    listSavedSecrets,
+    getSavedSecret,
+    deleteSavedSecret,
+  } = useSecretStore({ configRef, updateConfigState })
 
   const loadConfig = useCallback(async (): Promise<void> => {
     try {
@@ -194,95 +164,6 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     appStateSaveQueueRef.current = save.catch(() => undefined)
     return save
   }, [])
-
-  const applySecretStatus = useCallback(
-    (status: SecretBackendStatus) => {
-      const normalized = normalizeSecretStatus(status)
-      setSecretStatus(normalized)
-      updateConfigState((prev) => ({ ...prev, secret_storage_mode: normalized.storageMode }))
-      return normalized
-    },
-    [updateConfigState]
-  )
-
-  const setSecretStorageMode = useCallback(
-    async (mode: SecretStorageMode, password?: string) => {
-      const switchingToPassword =
-        mode === "password" && configRef.current.secret_storage_mode !== "password"
-      const status = applySecretStatus(
-        await invoke<SecretBackendStatus>("set_secret_storage_mode", {
-          input: { mode, password: password || null },
-        })
-      )
-      if (switchingToPassword) {
-        // The backend turns the startup prompt on with master password mode.
-        updateConfigState((prev) => ({ ...prev, prompt_unlock_vault_on_startup: true }))
-      }
-      return status
-    },
-    [applySecretStatus, updateConfigState]
-  )
-
-  const unlockSecretVault = useCallback(
-    async (password: string) =>
-      applySecretStatus(
-        await invoke<SecretBackendStatus>("unlock_secret_vault", { input: { password } })
-      ),
-    [applySecretStatus]
-  )
-
-  const lockSecretVault = useCallback(
-    async () => applySecretStatus(await invoke<SecretBackendStatus>("lock_secret_vault")),
-    [applySecretStatus]
-  )
-
-  const retrySystemUnlock = useCallback(
-    async () => applySecretStatus(await invoke<SecretBackendStatus>("retry_system_unlock")),
-    [applySecretStatus]
-  )
-
-  const resetSavedPasswords = useCallback(
-    async () => applySecretStatus(await invoke<SecretBackendStatus>("reset_saved_passwords")),
-    [applySecretStatus]
-  )
-
-  const changeVaultPassword = useCallback(
-    async (currentPassword: string, newPassword: string) =>
-      applySecretStatus(
-        await invoke<SecretBackendStatus>("change_vault_password", {
-          input: { currentPassword, newPassword },
-        })
-      ),
-    [applySecretStatus]
-  )
-
-  const setMasterPassword = useCallback(
-    async (password: string) =>
-      applySecretStatus(
-        await invoke<SecretBackendStatus>("set_master_password", { input: { password } })
-      ),
-    [applySecretStatus]
-  )
-
-  const removeMasterPassword = useCallback(
-    async () => applySecretStatus(await invoke<SecretBackendStatus>("remove_master_password")),
-    [applySecretStatus]
-  )
-
-  const listSavedSecrets = useCallback(
-    async () => invoke<SavedSecretEntry[]>("list_saved_secrets"),
-    []
-  )
-
-  const getSavedSecret = useCallback(
-    async (key: string) => invoke<string>("get_saved_secret", { input: { key } }),
-    []
-  )
-
-  const deleteSavedSecret = useCallback(
-    async (key: string) => invoke<boolean>("delete_saved_secret", { input: { key } }),
-    []
-  )
 
   const updateTheme = useCallback(
     async (theme: string) => {

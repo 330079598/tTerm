@@ -1,17 +1,14 @@
 import "@/components/TTermApp.css"
-import { platform } from "@tauri-apps/plugin-os"
-import React, { useCallback, useEffect, useRef, useState } from "react"
+import React, { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { ConnectionDialog } from "@/components/ConnectionDialog"
-import { CommandLibrary } from "@/components/CommandLibrary"
-import { CommandEditorDialog } from "@/components/CommandLibrary/CommandEditorDialog"
 import { CloseRequestDialog } from "@/components/CloseRequestDialog"
 import { ContextMenu } from "@/components/ContextMenu"
 import { NewTabLauncher } from "@/components/NewTabLauncher"
-import { ProfilesPanel } from "@/components/ProfilesPanel"
 import { RenameDialog } from "@/components/RenameDialog"
 import { AppTitleBar } from "@/components/TTermApp/AppTitleBar"
+import { CommandLibraryDialogs } from "@/components/TTermApp/CommandLibraryDialogs"
+import { ProfileDialogs } from "@/components/TTermApp/ProfileDialogs"
 import { EmptyState } from "@/components/TTermApp/EmptyState"
 import { TabPanels, type TabPanelsHandle } from "@/components/TTermApp/TabPanels"
 import type { AppShell } from "@/components/TTermApp/appShell"
@@ -32,16 +29,19 @@ import { useWorkspaceSplits } from "@/components/TTermApp/useWorkspaceSplits"
 import { useTitleBarPages } from "@/components/TTermApp/useTitleBarPages"
 import { useCommandLibraryActions } from "@/components/TTermApp/useCommandLibraryActions"
 import { useTabKeymap } from "@/components/TTermApp/useTabKeymap"
+import { useActiveTerminalSessionCount } from "@/components/TTermApp/useActiveTerminalSessionCount"
+import {
+  useBlockNativeContextMenu,
+  useCollapsedProfileGroupsSaver,
+  useProfilesRefreshKey,
+  useRuntimePlatform,
+} from "@/components/TTermApp/useAppChrome"
+import { useStartupVaultUnlock } from "@/components/TTermApp/useStartupVaultUnlock"
 import { TunnelHostKeyPrompt } from "@/components/TunnelsPanel/TunnelHostKeyPrompt"
-import { useTunnelAutoStart } from "@/components/TunnelsPanel/useTunnelAutoStart"
-import { useTunnelNotifications } from "@/components/TunnelsPanel/useTunnelNotifications"
-import { useTunnelQuitGuard } from "@/components/TunnelsPanel/useTunnelQuitGuard"
-import { useRunningTunnelCount } from "@/components/TunnelsPanel/useRunningTunnelCount"
+import { useTunnelBackground } from "@/components/TunnelsPanel/useTunnelBackground"
 import { VaultStartupUnlockDialog } from "@/components/VaultStartupUnlockDialog"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { useConfig } from "@/contexts/ConfigContext"
-import { useAppActivity } from "@/contexts/AppActivityContext"
 import { useTransferManager } from "@/contexts/TransferContext"
 import { useConnectionManager } from "@/hooks/useConnectionManager"
 import { useLatestRef } from "@/hooks/useLatestRef"
@@ -52,30 +52,15 @@ import { useTabs } from "@/hooks/useTabs"
 import { useTerminalFontZoom } from "@/hooks/useTerminalFontZoom"
 import { useTerminalNotifications } from "@/hooks/useTerminalNotifications"
 import { useWindowControls } from "@/hooks/useWindowControls"
-import { onSyncApplied } from "@/lib/sync"
 import { useWebDavSync } from "@/hooks/useWebDavSync"
 const SETTINGS_TAB_TITLE = "Settings"
 
-function getRuntimePlatform() {
-  try {
-    return platform()
-  } catch {
-    return "windows"
-  }
-}
-
 export const TTermApp: React.FC = () => {
   const { t, i18n } = useTranslation()
-  const { setActiveTerminalSessionCount } = useAppActivity()
-  const [os] = useState<string>(getRuntimePlatform)
-  const isMacos = os === "macos"
-  const isLinux = os === "linux"
-  const isWindows = os === "windows"
+  const { isMacos, isLinux, isWindows } = useRuntimePlatform()
   const dialog = useProfileDialogState()
   const [showNewTabLauncher, setShowNewTabLauncher] = useState(false)
   const [showProfilesPanel, setShowProfilesPanel] = useState(false)
-  const [profilesRefreshKey, setProfilesRefreshKey] = useState(0)
-  const [startupVaultUnlockDismissed, setStartupVaultUnlockDismissed] = useState(false)
   const broadcast = useBroadcastState()
   const workspaceRef = useRef<TabPanelsHandle>(null)
 
@@ -86,65 +71,24 @@ export const TTermApp: React.FC = () => {
   useLatestRef(tabsRef, tabs)
   useLatestRef(activeTabIdRef, activeTabId)
 
-  const activeTerminalSessionCount = tabs.reduce((count, tab) => {
-    if (tab.type !== "terminal" && tab.type !== "ssh") {
-      return count
-    }
-
-    const connectionState = broadcast.terminalRuntimeStates[tab.id]?.connectionState
-    return connectionState === "connected" ||
-      connectionState === "connecting" ||
-      connectionState === "reconnecting"
-      ? count + 1
-      : count
-  }, 0)
-
-  useEffect(() => {
-    setActiveTerminalSessionCount(activeTerminalSessionCount)
-  }, [activeTerminalSessionCount, setActiveTerminalSessionCount])
+  useActiveTerminalSessionCount(tabs, broadcast.terminalRuntimeStates)
 
   useWebDavSync()
-  useEffect(
-    () =>
-      onSyncApplied(["profiles", "profileGroups"], () => setProfilesRefreshKey((key) => key + 1)),
-    []
-  )
-
-  useEffect(
-    () => () => {
-      setActiveTerminalSessionCount(0)
-    },
-    [setActiveTerminalSessionCount]
-  )
+  const { profilesRefreshKey, refreshProfiles } = useProfilesRefreshKey()
 
   const { saveSession, loadSession } = useSessionPersistence()
   const getPreloadedSession = usePreloadedSession(loadSession)
   const { cleanupConnection } = useConnectionManager()
-  const { appState, config, isLoaded, isSecretStatusLoaded, saveAppState, secretStatus } =
-    useConfig()
+  const { appState, config, isLoaded } = useConfig()
   const { cancelTransfer, clearCompletedTransfers, removeTransfer, retryTransfer, transfers } =
     useTransferManager()
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const settingsTabTitle = t("settings.title", { defaultValue: SETTINGS_TAB_TITLE })
   const tunnelsTabTitle = t("tunnels.title", { defaultValue: "Port Forwarding" })
   const logsTabTitle = t("terminalLogs.title")
-  // Ask for the password when saved passwords are locked but one can unlock
-  // them: the old vault's password to finish moving it, the master password,
-  // or the recovery password when the system credential store key is lost.
-  const shouldPromptStartupVaultUnlock =
-    isLoaded &&
-    !secretStatus.unlocked &&
-    !startupVaultUnlockDismissed &&
-    (secretStatus.migrationPending ||
-      (secretStatus.hasMasterPassword &&
-        (secretStatus.storageMode === "system" ||
-          (secretStatus.storageMode === "password" && config.prompt_unlock_vault_on_startup))))
-  // SSH connections wait for startup to unlock saved passwords, then for the prompt.
-  const startupConnectionsReady = isSecretStatusLoaded && !shouldPromptStartupVaultUnlock
-  useTunnelAutoStart(isLoaded && startupConnectionsReady)
-  useTunnelQuitGuard(confirm)
-  useTunnelNotifications()
-  const runningTunnelCount = useRunningTunnelCount()
+  const { shouldPromptStartupVaultUnlock, startupConnectionsReady, dismissStartupVaultUnlock } =
+    useStartupVaultUnlock()
+  const runningTunnelCount = useTunnelBackground(confirm, isLoaded && startupConnectionsReady)
 
   const shell: AppShell = {
     ...tabsApi,
@@ -167,16 +111,7 @@ export const TTermApp: React.FC = () => {
     saveSession,
   })
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement
-      if (!target.closest("[data-allow-context-menu]")) {
-        e.preventDefault()
-      }
-    }
-    document.addEventListener("contextmenu", handler)
-    return () => document.removeEventListener("contextmenu", handler)
-  }, [])
+  useBlockNativeContextMenu()
 
   const handleNewTab = useCallback(() => {
     setShowNewTabLauncher(true)
@@ -254,14 +189,7 @@ export const TTermApp: React.FC = () => {
   const commandLibrary = useCommandLibraryActions(shell, broadcast)
   useTabKeymap(shell, { handleNewTab, handleRemoveTab })
 
-  const handleCollapsedProfileGroupKeysChange = useCallback(
-    (groups: string[]) => {
-      saveAppState({ collapsedProfileGroupKeys: groups }).catch((error) => {
-        console.error("Failed to save collapsed profile groups:", error)
-      })
-    },
-    [saveAppState]
-  )
+  const handleCollapsedProfileGroupKeysChange = useCollapsedProfileGroupsSaver()
 
   const renderTabContent = () => {
     if (tabs.length === 0) {
@@ -367,29 +295,6 @@ export const TTermApp: React.FC = () => {
 
       <div className="content-area">{renderTabContent()}</div>
 
-      {dialog.showConnectionDialog && (
-        <ConnectionDialog
-          isOpen={dialog.showConnectionDialog}
-          onClose={() => {
-            dialog.setShowConnectionDialog(false)
-            dialog.setEditingProfile(null)
-            dialog.setEditingProfileTabId(null)
-            dialog.setDuplicatingProfile(null)
-            dialog.setDraftProfile(null)
-            dialog.setSavingQuickConnectTabId(null)
-            setProfilesRefreshKey((key) => key + 1)
-          }}
-          onConnect={handleConnect}
-          editProfile={dialog.editingProfile}
-          duplicateProfile={dialog.duplicatingProfile}
-          draftProfile={dialog.draftProfile}
-          saveOnly={dialog.savingQuickConnectTabId !== null}
-          onSaved={profileActions.handleProfileSaved}
-          typedPasswordTabId={dialog.savingQuickConnectTabId ?? undefined}
-          canReconnect={dialog.editingProfileTabId !== null}
-        />
-      )}
-
       <NewTabLauncher
         open={showNewTabLauncher}
         onClose={() => setShowNewTabLauncher(false)}
@@ -401,62 +306,19 @@ export const TTermApp: React.FC = () => {
         onClearRecents={quickConnect.handleClearQuickConnectRecents}
       />
 
-      <Dialog open={showProfilesPanel} onOpenChange={setShowProfilesPanel}>
-        <DialogContent
-          showCloseButton={false}
-          className="flex h-[min(720px,85vh)] flex-col overflow-hidden border-0 p-0 shadow-none sm:max-w-3xl"
-        >
-          <ProfilesPanel
-            refreshKey={profilesRefreshKey}
-            collapsedGroupKeys={appState.collapsedProfileGroupKeys}
-            surface="panel"
-            onCollapsedGroupKeysChange={handleCollapsedProfileGroupKeysChange}
-            onClose={() => setShowProfilesPanel(false)}
-            onCreate={() => {
-              dialog.setEditingProfile(null)
-              dialog.setDuplicatingProfile(null)
-              dialog.setShowConnectionDialog(true)
-              setShowProfilesPanel(false)
-            }}
-            onConnect={(connection) => {
-              handleConnect(connection)
-              setShowProfilesPanel(false)
-            }}
-            onEdit={(profile) => {
-              profileActions.handleEditProfile(profile)
-              setShowProfilesPanel(false)
-            }}
-            onDuplicate={(profile) => {
-              profileActions.handleDuplicateProfile(profile)
-              setShowProfilesPanel(false)
-            }}
-            onDeleteProfile={profileActions.handleDeleteProfile}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <CommandLibrary
-        open={commandLibrary.showCommandLibrary}
-        onOpenChange={commandLibrary.setShowCommandLibrary}
-        activeProfile={commandLibrary.activeCommandProfile}
-        canInsert={commandLibrary.canInsertSavedCommand}
-        onInsert={commandLibrary.handleInsertSavedCommand}
-        onInsertRecent={commandLibrary.handleInsertCommandText}
-        recentCommands={commandLibrary.recentCommands}
-        initialSearchQuery={commandLibrary.commandLibrarySearchQuery}
+      <ProfileDialogs
+        dialog={dialog}
+        profileActions={profileActions}
+        handleConnect={handleConnect}
+        profilesRefreshKey={profilesRefreshKey}
+        refreshProfiles={refreshProfiles}
+        showProfilesPanel={showProfilesPanel}
+        setShowProfilesPanel={setShowProfilesPanel}
+        collapsedGroupKeys={appState.collapsedProfileGroupKeys}
+        onCollapsedGroupKeysChange={handleCollapsedProfileGroupKeysChange}
       />
 
-      <CommandEditorDialog
-        open={Boolean(commandLibrary.quickSaveRequest)}
-        command={null}
-        draft={commandLibrary.quickSaveRequest?.draft}
-        availableTags={[]}
-        activeProfile={commandLibrary.quickSaveRequest?.profile}
-        onOpenChange={(open) => {
-          if (!open) commandLibrary.setQuickSaveRequest(null)
-        }}
-        onSaved={() => commandLibrary.setQuickSaveRequest(null)}
-      />
+      <CommandLibraryDialogs commandLibrary={commandLibrary} />
 
       {contextMenu.visible && (
         <ContextMenu
@@ -476,7 +338,7 @@ export const TTermApp: React.FC = () => {
       <TunnelHostKeyPrompt />
       <VaultStartupUnlockDialog
         open={shouldPromptStartupVaultUnlock}
-        onClose={() => setStartupVaultUnlockDismissed(true)}
+        onClose={dismissStartupVaultUnlock}
       />
     </div>
   )
