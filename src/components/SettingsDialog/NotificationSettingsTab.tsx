@@ -25,8 +25,8 @@ import {
   type BellStyle,
   NOTIFY_COMMAND_MIN_SECS_RANGE,
   TOAST_MAX_VISIBLE_RANGE,
-  useConfig,
-} from "@/contexts/ConfigContext"
+} from "@/lib/appConfig"
+import { useConfig } from "@/contexts/ConfigContext"
 import { toast } from "@/hooks/use-toast"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
 import { useSyncedState } from "@/hooks/useSyncedState"

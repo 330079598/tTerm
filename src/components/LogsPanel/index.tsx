@@ -5,7 +5,17 @@ import { save as saveFileDialog } from "@tauri-apps/plugin-dialog"
 import { FileDown, FolderOpen, RefreshCw, ScrollText, Search, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { CodeMirrorEditor } from "@/components/CodeMirrorEditor"
+import {
+  type LogSession,
+  logSessionTitle,
+  logSessionTarget,
+  findTabLog,
+  logFolder,
+  logBaseName,
+  idRange,
+  matchesLogFilter,
+} from "@/components/LogsPanel/logSessions"
+import { LogTextView } from "@/components/LogsPanel/LogTextView"
 import { LogReplayer } from "@/components/LogsPanel/LogReplayer"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Badge } from "@/components/ui/badge"
@@ -13,28 +23,9 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { type LogsTabRequest, onLogsTabRequest, takeLogsTabRequest } from "@/lib/appNavigation"
+import { onLogsTabRequest, takeLogsTabRequest } from "@/lib/appNavigation"
 import { formatLogSize } from "@/lib/terminalLogRecording"
 import { cn, toErrorMessage } from "@/lib/utils"
-
-/** A logged session, as `list_terminal_logs` reports it. */
-export interface LogSession {
-  id: string
-  sessionType: string
-  profile: string
-  host: string
-  port: number
-  username: string
-  /** The tab the session ran in; empty for plain-only logs from older versions. */
-  tabId: string
-  startedAtMs: number
-  modifiedAtMs: number
-  rawBytes: number
-  plainBytes: number
-  hasRaw: boolean
-  hasPlain: boolean
-  recording: boolean
-}
 
 type LogView = "replay" | "text"
 
@@ -46,108 +37,6 @@ interface DeleteReport {
 
 /** Refreshes after logging changes come in, at most this often. */
 const REFRESH_DELAY_MS = 500
-
-/** What the list calls a session: its connection, or `localLabel` for a local shell. */
-export function logSessionTitle(session: LogSession, localLabel: string): string {
-  if (session.sessionType !== "ssh") return localLabel
-  return session.profile || session.host || session.id
-}
-
-/** Where an SSH session went; nothing for a local shell. */
-export function logSessionTarget(session: LogSession): string | null {
-  if (session.sessionType !== "ssh") return null
-  const host =
-    session.port && session.port !== 22 ? `${session.host}:${session.port}` : session.host
-  return session.username ? `${session.username}@${host}` : host
-}
-
-/**
- * The newest log of a tab: one it wrote since tTerm started, else, for a
- * tab restored from an earlier run, one with its id and connection. Tab ids
- * are reused across runs, so a local tab only matches its own run's logs.
- */
-export function findTabLog(
-  sessions: readonly LogSession[],
-  request: LogsTabRequest,
-  loggedIds: readonly string[]
-): LogSession | undefined {
-  for (let index = loggedIds.length - 1; index >= 0; index--) {
-    const logged = sessions.find((session) => session.id === loggedIds[index])
-    if (logged) return logged
-  }
-  if (request.sessionType !== "ssh") return undefined
-  return sessions.find(
-    (session) =>
-      session.tabId === request.tabId &&
-      session.sessionType === "ssh" &&
-      session.host === request.host &&
-      session.port === (request.port ?? 22) &&
-      session.username === (request.username ?? "")
-  )
-}
-
-/** The folders a session's logs are in below the log directory, or "" at the top. */
-export function logFolder(id: string): string {
-  const slash = id.lastIndexOf("/")
-  return slash < 0 ? "" : id.slice(0, slash)
-}
-
-/** A session's base file name, without its folders. */
-export function logBaseName(id: string): string {
-  return id.slice(id.lastIndexOf("/") + 1)
-}
-
-/**
- * The ids from `anchor` to `target` in `ids`, both included, for a shift-click;
- * just `target` when the anchor is not in the list.
- */
-export function idRange(ids: readonly string[], anchor: string | null, target: string): string[] {
-  const from = anchor === null ? -1 : ids.indexOf(anchor)
-  const to = ids.indexOf(target)
-  if (from < 0 || to < 0) return [target]
-  return ids.slice(Math.min(from, to), Math.max(from, to) + 1)
-}
-
-export function matchesLogFilter(session: LogSession, filter: string): boolean {
-  const query = filter.trim().toLowerCase()
-  if (!query) return true
-  return [session.profile, session.host, session.username, session.id].some((value) =>
-    value.toLowerCase().includes(query)
-  )
-}
-
-const LogTextView: React.FC<{ sessionId: string }> = ({ sessionId }) => {
-  const [text, setText] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const { t } = useTranslation()
-
-  // The panel remounts the view for another session, so this loads once.
-  useEffect(() => {
-    let disposed = false
-    invoke<ArrayBuffer>("load_terminal_log_text", { id: sessionId })
-      .then((buffer) => {
-        if (!disposed) setText(new TextDecoder().decode(buffer))
-      })
-      .catch((reason) => {
-        if (!disposed) setError(toErrorMessage(reason))
-      })
-    return () => {
-      disposed = true
-    }
-  }, [sessionId])
-
-  if (error) {
-    return (
-      <div role="alert" className="text-destructive p-6 text-sm">
-        {error}
-      </div>
-    )
-  }
-  if (text === null) {
-    return <p className="text-muted-foreground p-6 text-sm">{t("terminalLogs.loading")}</p>
-  }
-  return <CodeMirrorEditor className="h-full min-h-0" value={text} readOnly />
-}
 
 export const LogsPanel: React.FC = () => {
   const { t, i18n } = useTranslation()

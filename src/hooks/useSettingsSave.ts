@@ -1,7 +1,8 @@
 import { useCallback } from "react"
 import { useTranslation } from "react-i18next"
 
-import { useConfig, type AppConfig } from "@/contexts/ConfigContext"
+import { useConfig } from "@/contexts/ConfigContext"
+import type { AppConfig } from "@/lib/appConfig"
 import { useToast } from "@/hooks/use-toast"
 import { toErrorMessage } from "@/lib/utils"
 

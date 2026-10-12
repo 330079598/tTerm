@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next"
 
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
-import { MAX_BANDWIDTH_LIMIT_KIB } from "@/contexts/ConfigContext"
+import { MAX_BANDWIDTH_LIMIT_KIB } from "@/lib/appConfig"
 import { isImeKeyEvent } from "@/lib/ime"
 
 export type BandwidthUnit = "KB" | "MB"

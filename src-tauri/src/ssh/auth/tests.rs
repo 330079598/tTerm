@@ -11,9 +11,9 @@ use russh::{MethodKind, MethodSet};
 
 use crate::ssh::typed_passwords;
 
+use super::methods::is_password_prompt;
 use super::{
-    authenticate, is_password_prompt, AuthMethod, AuthPromptField, AuthPrompter, AuthTarget,
-    AuthUsed, ScriptedPrompts,
+    authenticate, AuthMethod, AuthPromptField, AuthPrompter, AuthTarget, AuthUsed, ScriptedPrompts,
 };
 
 const USER: &str = "ops";

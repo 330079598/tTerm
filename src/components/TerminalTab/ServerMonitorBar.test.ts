@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest"
 
 import {
   calculateNetworkRate,
-  formatNetworkRate,
   selectMostUsedDisk,
   type DiskMetrics,
-} from "@/components/TerminalTab/ServerMonitorBar"
+} from "@/components/TerminalTab/serverMetrics"
+import { formatNetworkRate } from "@/components/TerminalTab/serverMonitorFormat"
 
 const network = {
   interface: "eth0",

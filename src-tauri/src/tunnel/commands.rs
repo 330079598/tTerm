@@ -1,6 +1,7 @@
 use super::credentials::{apply_credentials, collect_requests, StartOutcome, TunnelCredentials};
 use super::hub::{SessionHub, SshConnection};
-use super::runtime::{run_tunnel, RunContext, TunnelReporter};
+use super::runtime::reporter::TunnelReporter;
+use super::runtime::{run_tunnel, RunContext};
 use super::storage::{
     delete_tunnel as delete_tunnel_rule, list_tunnel_traffic, load_tunnels, reset_tunnel_traffic,
     upsert_tunnel,

@@ -1,7 +1,7 @@
 import ReactDOM from "react-dom/client"
 
 import App from "@/App"
-import { DEFAULT_TERMINAL_FONT_FAMILY } from "@/contexts/ConfigContext"
+import { DEFAULT_TERMINAL_FONT_FAMILY } from "@/lib/appConfig"
 import { initCanvasFontHost, updateCanvasFontHostFont } from "@/lib/canvasFontHost"
 import { onAppReady } from "@/lib/startup"
 import { preloadTheme } from "@/lib/themePreloader"

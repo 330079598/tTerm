@@ -1,0 +1,285 @@
+/* Tab list container integrated into title bar */
+.tab-list-container {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  overflow: visible;
+  flex: 1 1 auto;
+  -webkit-app-region: no-drag;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.tab-bar-shell {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  height: 100%;
+  flex: 1 1 auto;
+  position: relative;
+  --tab-scroll-control-width: 26px;
+}
+
+.tab-list-viewport {
+  position: relative;
+  min-width: 0;
+  height: 100%;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.tab-list-viewport::before,
+.tab-list-viewport::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 34px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 5;
+}
+
+.tab-list-viewport::before {
+  left: 0;
+  background: linear-gradient(to right, hsl(var(--titlebar)), hsl(var(--titlebar) / 0));
+}
+
+.tab-list-viewport::after {
+  right: 0;
+  background: linear-gradient(to left, hsl(var(--titlebar)), hsl(var(--titlebar) / 0));
+}
+
+.tab-list-viewport.can-scroll-left::before,
+.tab-list-viewport.can-scroll-right::after {
+  opacity: 1;
+}
+
+.tab-list-viewport.can-scroll-left .tab-list {
+  padding-left: calc(var(--tab-scroll-control-width) + 8px);
+}
+
+.tab-list-viewport.can-scroll-right .tab-list {
+  padding-right: calc(var(--tab-scroll-control-width) + 8px);
+}
+
+.tab-list {
+  /* Makes the list the tabs' offsetParent, so their offsetLeft is measured in
+     the list's scrolled content, which is what tab dragging works in. */
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  min-width: 0;
+  padding: 3px 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  transition: padding 0.15s ease;
+}
+
+.tab-list::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-overflow-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding-left: 1px;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+}
+
+.tab-overflow-trigger {
+  width: 26px;
+}
+
+.tab-scroll-button {
+  position: absolute;
+  top: 50%;
+  z-index: 8;
+  width: var(--tab-scroll-control-width);
+  height: 26px;
+  border: 1px solid hsl(var(--border) / 0.62);
+  border-radius: 5px;
+  background: hsl(var(--muted));
+  box-shadow: 0 4px 12px hsl(var(--foreground) / 0.12);
+  opacity: 0.92;
+  transform: translateY(-50%);
+}
+
+.tab-scroll-left {
+  left: 4px;
+}
+
+.tab-scroll-right {
+  right: 34px;
+}
+
+.tab-scroll-button:hover {
+  background: hsl(var(--muted));
+  opacity: 1;
+}
+
+.tab-scroll-button:disabled {
+  cursor: default;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tab-scroll-button:disabled:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.tab-overflow-panel {
+  position: fixed;
+  max-height: var(--tab-overflow-panel-max-height, min(420px, calc(100vh - 56px)));
+  padding: 4px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--popover));
+  box-shadow: 0 12px 28px hsl(var(--foreground) / 0.16);
+  z-index: 100;
+}
+
+.tab-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  padding: 6px 8px;
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) - 2px);
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--background));
+}
+
+.tab-search-input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font-size: calc(13px * var(--ui-font-scale, 1));
+}
+
+.tab-search-input::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.tab-search-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+}
+
+.tab-search-clear:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.tab-search-clear:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.tab-overflow-results {
+  max-height: calc(var(--tab-overflow-panel-max-height, min(420px, calc(100vh - 56px))) - 60px);
+  overflow-y: auto;
+}
+
+.tab-overflow-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 6px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  text-align: left;
+}
+
+.tab-overflow-item:hover {
+  background: hsl(var(--muted));
+}
+
+.tab-overflow-item:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: -2px;
+}
+
+.tab-overflow-item.active {
+  background: hsl(var(--accent));
+}
+
+.tab-overflow-number {
+  flex-shrink: 0;
+  min-width: 18px;
+  color: hsl(var(--muted-foreground));
+  font-size: calc(11px * var(--ui-font-scale, 1));
+}
+
+.tab-overflow-title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+}
+
+.tab-overflow-meta {
+  display: flex;
+  min-width: 0;
+  max-width: 128px;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.tab-overflow-meta-primary,
+.tab-overflow-meta-secondary {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-overflow-meta-primary {
+  color: hsl(var(--muted-foreground));
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  line-height: 1.15;
+}
+
+.tab-overflow-meta-secondary {
+  color: hsl(var(--muted-foreground) / 0.72);
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  line-height: 1.1;
+}
+
+.tab-overflow-empty {
+  padding: 14px 8px;
+  color: hsl(var(--muted-foreground));
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  text-align: center;
+}

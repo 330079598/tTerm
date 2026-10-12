@@ -1,0 +1,272 @@
+import { Channel, invoke } from "@tauri-apps/api/core"
+import { listen } from "@tauri-apps/api/event"
+
+import type { TerminalSessionContext } from "@/components/TerminalTab/terminalLifecycleTypes"
+import type { ConnectionStateUpdater } from "@/components/TerminalTab/connectionStateUpdater"
+import type { SavedPasswordPrompts } from "@/components/TerminalTab/savedPasswordPrompts"
+import type { CommandTracking } from "@/components/TerminalTab/commandTracking"
+import { OutputAcker } from "@/components/TerminalTab/outputAck"
+import { getConnectionDisplay } from "@/components/TerminalTab/terminalTabUtils"
+import type { HostKeyPromptState, SshConnectionProgress } from "@/components/TerminalTab/types"
+import { isVaultLocked, reportVaultLocked } from "@/lib/vaultLock"
+import {
+  decodeOutputChunk,
+  EMPTY_OUTPUT_SCAN_STATE,
+  scanTerminalOutput,
+  type TerminalOutputScanState,
+} from "@/lib/terminalOutputScanner"
+
+type PtySessionDeps = ConnectionStateUpdater &
+  Pick<SavedPasswordPrompts, "checkPasswordPrompt" | "stopLoginScript" | "startLoginScript"> &
+  Pick<CommandTracking, "agentTracker" | "commandTimer">
+
+/**
+ * Starts the session's PTY once the terminal has settled on its size, and
+ * follows its output, its exit and its connection's progress.
+ */
+export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDeps) {
+  const {
+    term,
+    session,
+    tabId,
+    sessionNonce,
+    fitTerminalOnly,
+    connectionRef,
+    isActiveRef,
+    onBackgroundOutputRef,
+    scrollbackMemory,
+    onSessionUnavailableRef,
+    translationRef,
+    setHostKeyPrompt,
+    setConnectionProgress,
+    onConnectionProgressRef,
+    creatingPtyRef,
+    lastPtySizeRef,
+    onPidChangeRef,
+    onReconnectRequestRef,
+    waitingForReconnectRef,
+  } = ctx
+  const {
+    applyConnectionState,
+    setConnectionStateIfChanged,
+    checkPasswordPrompt,
+    stopLoginScript,
+    startLoginScript,
+    agentTracker,
+    commandTimer,
+  } = deps
+  let createdPtySize: { rows: number; cols: number } | null = null
+  const waitForStableFit = async () => {
+    let stableFrames = 0
+    for (let frame = 0; frame < 60 && stableFrames < 4; frame += 1) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      if (session.disposed) return
+      if (fitTerminalOnly()) stableFrames += 1
+      else stableFrames = 0
+    }
+  }
+
+  let outputScanState: TerminalOutputScanState = EMPTY_OUTPUT_SCAN_STATE
+
+  let unlistenOutput: (() => void) | null = null
+  let unlistenExit: (() => void) | null = null
+  let unlistenHostPrompt: (() => void) | null = null
+  let unlistenConnectionProgress: (() => void) | null = null
+  // Set once a "retrying" progress arrives; the next "ready" then shows the
+  // localized re-established banner instead of the plain connected state.
+  let sawRetryingPhase = false
+
+  const outputAcker = new OutputAcker((bytes) => {
+    invoke("ack_pty_output", { tabId, sessionNonce, bytes }).catch(console.error)
+  })
+
+  // Hot-path terminal output. Binary chunks arrive through a Tauri Channel
+  // (raw bytes, ordered, no JSON escaping); the legacy pty-output event
+  // still carries cold-path status lines from jump-host connection setup.
+  const handleTerminalOutput = (payload: unknown) => {
+    if (session.disposed) return
+    let text: string
+    // Channel bytes are flow-controlled by the backend and must be
+    // acknowledged once parsed; event strings are not.
+    let channelBytes = 0
+    if (typeof payload === "string") {
+      text = payload
+    } else if (payload instanceof Uint8Array) {
+      text = decodeOutputChunk(payload)
+      channelBytes = payload.byteLength
+    } else if (payload instanceof ArrayBuffer) {
+      text = decodeOutputChunk(new Uint8Array(payload))
+      channelBytes = payload.byteLength
+    } else {
+      return
+    }
+
+    const scanned = scanTerminalOutput(outputScanState, text)
+    outputScanState = scanned.state
+
+    if (scanned.connecting) {
+      setConnectionStateIfChanged("connecting")
+    } else if (connectionRef.current?.type === "ssh" && text.length > 0) {
+      setConnectionStateIfChanged("connected")
+    }
+
+    if (!isActiveRef.current && text.length > 0) onBackgroundOutputRef.current?.()
+
+    const reservedLines = scrollbackMemory.reserve(text)
+    term.write(text, () => {
+      scrollbackMemory.settle(reservedLines)
+      outputAcker.parsed(channelBytes)
+      checkPasswordPrompt()
+      session.loginScriptRunner?.noteOutput()
+    })
+  }
+
+  const outputChannel = new Channel<ArrayBuffer>(handleTerminalOutput)
+
+  Promise.all([
+    listen<string>(`pty-output-${tabId}`, (event) => {
+      handleTerminalOutput(event.payload)
+    }),
+    listen(`pty-exit-${tabId}`, (event) => {
+      stopLoginScript()
+      agentTracker.reset()
+      commandTimer.prompt()
+      onSessionUnavailableRef.current?.(tabId, sessionNonce, true)
+      const reason = event.payload as string | null | undefined
+      if (connectionRef.current?.type === "ssh") {
+        const displayAddress = getConnectionDisplay(connectionRef.current, translationRef.current)
+        term.writeln(`\r\n\x1b[33m${displayAddress}: session closed\x1b[0m`)
+        term.writeln("\x1b[36mPress any key to reconnect\x1b[0m")
+
+        if (reason) {
+          applyConnectionState("error")
+        } else {
+          applyConnectionState("disconnected")
+        }
+        waitingForReconnectRef.current = true
+      } else {
+        term.writeln("\r\n\x1b[33m[Process exited]\x1b[0m")
+        applyConnectionState("disconnected")
+      }
+    }),
+    listen<HostKeyPromptState>(`ssh-hostkey-prompt-${tabId}`, async (event) => {
+      // No state change here: the terminal's own connection always emits a
+      // *_host_key_checking progress event first, which already sets
+      // "connecting". A prompt from a side connection (SFTP) sharing this
+      // tab id must leave the terminal's state alone.
+      setHostKeyPrompt(event.payload)
+    }),
+    listen<SshConnectionProgress>(`ssh-connection-progress-${tabId}`, (event) => {
+      setConnectionProgress(event.payload)
+      onConnectionProgressRef.current?.(event.payload)
+      if (event.payload.phase === "ready") {
+        if (sawRetryingPhase) {
+          sawRetryingPhase = false
+          const banner = translationRef.current("sessionHeader.reconnectRestored", {
+            defaultValue: "Connection re-established",
+          })
+          term.write(`\r\n\x1b[32m[${banner}]\x1b[0m\r\n`)
+        }
+        applyConnectionState("connected")
+        // Each attempt opens a new shell, so the script runs again.
+        startLoginScript()
+      } else if (event.payload.phase === "retrying") {
+        stopLoginScript()
+        sawRetryingPhase = true
+        applyConnectionState("reconnecting")
+      } else if (event.payload.phase === "retry_exhausted") {
+        // The supervisor emits pty-exit right after this; the localized
+        // give-up line goes to the terminal here because the backend no
+        // longer writes an English status line.
+        sawRetryingPhase = false
+        const giveUp = translationRef.current("sessionHeader.reconnectExhausted", {
+          count: event.payload.retryMaxAttempts ?? 0,
+          reason: event.payload.reason ?? "",
+          defaultValue: "Automatic reconnect failed after {{count}} attempts: {{reason}}",
+        })
+        term.write(`\r\n\x1b[31m[${giveUp}]\x1b[0m\r\n`)
+      } else if (event.payload.phase !== "failed") {
+        applyConnectionState("connecting")
+      }
+    }),
+  ])
+    .then(([unOut, unExit, unHostPrompt, unProgress]) => {
+      unlistenOutput = unOut
+      unlistenExit = unExit
+      unlistenHostPrompt = unHostPrompt
+      unlistenConnectionProgress = unProgress
+
+      if (session.disposed) {
+        unlistenOutput?.()
+        unlistenExit?.()
+        unlistenHostPrompt?.()
+        unlistenConnectionProgress?.()
+        return null
+      }
+
+      setConnectionStateIfChanged("connecting")
+
+      if (creatingPtyRef.current) {
+        return null
+      }
+
+      creatingPtyRef.current = true
+      return waitForStableFit().then(() => {
+        createdPtySize = { rows: term.rows, cols: term.cols }
+        return invoke<number>("create_pty", {
+          tabId,
+          sessionNonce,
+          ...createdPtySize,
+          connection: connectionRef.current,
+          outputChannel,
+        })
+      })
+    })
+    .then((pid) => {
+      if (pid == null) return
+
+      if (session.disposed) {
+        invoke("kill_pty", { tabId, sessionNonce }).catch(console.error)
+        return
+      }
+
+      // Resizes are held back until the PTY exists; catch up on any that
+      // happened while it was being created.
+      const size = { rows: term.rows, cols: term.cols }
+      lastPtySizeRef.current = size
+      if (createdPtySize?.rows !== size.rows || createdPtySize.cols !== size.cols) {
+        invoke("resize_pty", { tabId, sessionNonce, ...size }).catch(console.error)
+      }
+
+      if (connectionRef.current?.type !== "ssh") {
+        setConnectionStateIfChanged("connected")
+      }
+      onPidChangeRef.current?.(pid)
+    })
+    .catch((error) => {
+      if (session.disposed) return
+      if (connectionRef.current?.type === "ssh") {
+        applyConnectionState("error")
+        if (isVaultLocked(error)) {
+          reportVaultLocked(() => {
+            if (session.disposed) return
+            applyConnectionState("connecting")
+            onReconnectRequestRef.current?.()
+          })
+        }
+      }
+      term.writeln(`\x1b[31mFailed to start terminal: ${error}\x1b[0m`)
+    })
+    .finally(() => {
+      creatingPtyRef.current = false
+    })
+
+  const stopListening = () => {
+    unlistenOutput?.()
+    unlistenExit?.()
+    unlistenHostPrompt?.()
+    unlistenConnectionProgress?.()
+  }
+
+  return { outputAcker, stopListening }
+}

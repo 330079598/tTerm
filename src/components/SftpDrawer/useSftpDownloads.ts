@@ -4,8 +4,13 @@ import { getCurrentWindow } from "@tauri-apps/api/window"
 import { open as openDialog, save as saveFileDialog } from "@tauri-apps/plugin-dialog"
 import { useTranslation } from "react-i18next"
 
+import type {
+  DownloadProgressEvent,
+  DownloadItemStartEvent,
+  DownloadItemCompleteEvent,
+  DownloadBatchCompleteEvent,
+} from "@/components/SftpDrawer/downloadEvents"
 import type { TransferTask, Tab } from "@/types/tab"
-
 import type {
   ConflictPolicy,
   ConflictReport,
@@ -23,50 +28,6 @@ interface UseSftpDownloadsParams {
   tabId: string
   transfersRef: React.RefObject<TransferTask[]>
   updateTransfer: (id: string, updates: Partial<TransferTask>) => void
-}
-
-interface DownloadProgressEvent {
-  localPath: string
-  progress: number
-  remotePath: string
-  total: number
-  transferred: number
-  transferId: string
-  resumedFrom?: number
-  parallelism?: number
-  completedChunks?: number
-  chunkCount?: number
-}
-
-interface DownloadItemStartEvent {
-  batchId: string
-  fileName: string
-  fileSize: number
-  localPath: string
-  remotePath: string
-  transferId: string
-}
-
-interface DownloadItemCompleteEvent {
-  cancelled: boolean
-  error?: string
-  localPath: string
-  remotePath: string
-  success: boolean
-  transferId: string
-  skipped?: boolean
-}
-
-interface DownloadBatchCompleteEvent {
-  batchId: string
-  cancelled: boolean
-  error?: string
-  total: number
-  transferred: number
-  /** Bytes of files the run skipped because the local copy was current. */
-  skipped?: number
-  /** Bytes of files the run resumed from a previous partial attempt. */
-  resumed?: number
 }
 
 interface UseSftpDownloadsReturn {

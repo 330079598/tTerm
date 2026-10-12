@@ -9,7 +9,7 @@ import {
   logSessionTarget,
   logSessionTitle,
   matchesLogFilter,
-} from "@/components/LogsPanel"
+} from "@/components/LogsPanel/logSessions"
 
 const ssh: LogSession = {
   id: "prod-10.0.0.8-20261010-101010-a1",

@@ -1,0 +1,327 @@
+/* Terminal cursor animation */
+.cursor {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.terminal-tab-shell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  box-sizing: border-box;
+  background: hsl(var(--background));
+}
+
+.terminal-tab-shell.is-broadcast-source {
+  border: 2px solid hsl(var(--destructive) / 0.85);
+}
+
+.terminal-broadcast-controls,
+.terminal-broadcast-controls > div,
+.terminal-broadcast-controls button {
+  display: flex;
+  align-items: center;
+}
+
+.terminal-broadcast-controls {
+  flex-shrink: 0;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+  padding: 4px 10px 4px 12px;
+  border-bottom: 1px solid hsl(var(--destructive) / 0.35);
+  color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 0.1);
+  font-family: inherit;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 600;
+}
+
+.terminal-broadcast-controls.is-paused {
+  border-color: hsl(var(--warning) / 0.35);
+  color: hsl(var(--warning));
+  background: hsl(var(--warning) / 0.1);
+}
+
+.terminal-broadcast-controls > div {
+  gap: 6px;
+}
+
+.terminal-broadcast-controls > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.terminal-broadcast-controls > span strong {
+  color: hsl(var(--foreground));
+  font-weight: 700;
+}
+
+.terminal-broadcast-controls svg {
+  flex-shrink: 0;
+}
+
+/* The bar uses the terminal font, whose ascent/descent are rarely symmetric;
+   trim labels to cap height so flex centering lines the letters up with the icons. */
+.terminal-broadcast-controls > span > :not(svg),
+.terminal-broadcast-controls button > span {
+  line-height: 1;
+  text-box: trim-both cap alphabetic;
+}
+
+.terminal-broadcast-controls button {
+  justify-content: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 1px solid hsl(var(--foreground) / 0.14);
+  border-radius: var(--radius);
+  color: hsl(var(--foreground));
+  background: hsl(var(--foreground) / 0.06);
+  cursor: pointer;
+  font: inherit;
+  transition: background-color 120ms ease;
+}
+
+.terminal-broadcast-controls button:hover {
+  background: hsl(var(--foreground) / 0.12);
+}
+
+.terminal-broadcast-controls button.destructive {
+  border-color: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+  background: hsl(var(--destructive));
+}
+
+.terminal-broadcast-controls button.destructive:hover {
+  background: hsl(var(--destructive) / 0.88);
+}
+
+.terminal-broadcast-controls button:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.connection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
+  padding: 0 10px 0 12px;
+  background: transparent;
+  border-bottom: none;
+  flex-shrink: 0;
+}
+
+.connection-header-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.connection-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: none;
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+.connection-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.connection-status-pill.is-connecting,
+.connection-status-pill.is-reconnecting {
+  color: hsl(var(--warning));
+  background: transparent;
+}
+
+.connection-status-pill.is-connected {
+  color: hsl(var(--success));
+  background: transparent;
+}
+
+.connection-status-pill.is-disconnected,
+.connection-status-pill.is-error {
+  color: hsl(var(--destructive));
+  background: transparent;
+}
+
+.connection-meta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.connection-primary-row,
+.connection-secondary-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+}
+
+.connection-kind {
+  display: inline-flex;
+  align-items: center;
+  height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.connection-primary {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.connection-state-label {
+  flex-shrink: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-weight: 600;
+}
+
+.connection-state-label.is-connected {
+  color: hsl(var(--success));
+}
+
+.connection-state-label.is-connecting,
+.connection-state-label.is-reconnecting {
+  color: hsl(var(--warning));
+}
+
+.connection-state-label.is-disconnected,
+.connection-state-label.is-error {
+  color: hsl(var(--destructive));
+}
+
+.connection-progress-text {
+  max-width: min(460px, 48vw);
+  color: hsl(var(--muted-foreground));
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.connection-detail-item {
+  min-width: 0;
+  max-width: 160px;
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connection-detail-item + .connection-detail-item::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin: 0 7px 2px 0;
+  border-radius: 999px;
+  background: hsl(var(--muted-foreground) / 0.55);
+}
+
+.connection-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.connection-route-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-weight: 600;
+}
+
+.connection-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 500;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.connection-action:hover {
+  background: hsl(var(--muted));
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.connection-action.is-active {
+  background: hsl(var(--primary) / 0.12);
+  border-color: hsl(var(--primary) / 0.32);
+  color: hsl(var(--primary));
+}
+
+.terminal-surface {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding-right: var(--terminal-padding-right, 0px);
+  padding-bottom: var(--terminal-padding-bottom, 0px);
+  padding-left: var(--terminal-padding-left, 6px);
+}

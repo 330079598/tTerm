@@ -13,7 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { type CloseBehavior, useConfig } from "@/contexts/ConfigContext"
+import type { CloseBehavior } from "@/lib/appConfig"
+import { useConfig } from "@/contexts/ConfigContext"
 
 type CloseAction = Exclude<CloseBehavior, "ask"> | "cancel"
 

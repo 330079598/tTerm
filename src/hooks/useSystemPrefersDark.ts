@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react"
 import { invoke, isTauri } from "@tauri-apps/api/core"
 
-import { getDetectedPlatform } from "@/contexts/ConfigContext"
+import { getDetectedPlatform } from "@/lib/uiPlatform"
 
 const DARK_QUERY = "(prefers-color-scheme: dark)"
 /** How often Windows is asked; it tells the page nothing when its mode changes. */

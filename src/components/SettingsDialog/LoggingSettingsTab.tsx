@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react"
+import React, { useMemo, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
-import { listen } from "@tauri-apps/api/event"
 import { open as openDirectoryDialog } from "@tauri-apps/plugin-dialog"
 import {
   Archive,
@@ -19,6 +18,13 @@ import {
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import {
+  MAX_LOG_FOLDERS,
+  parseLimit,
+  renderExample,
+  templateParts,
+} from "@/components/SettingsDialog/logNameTemplate"
+import { useTerminalLogStatus } from "@/components/SettingsDialog/useTerminalLogStatus"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -30,8 +36,8 @@ import {
   TERMINAL_LOG_MAX_RETENTION_DAYS,
   TERMINAL_LOG_MAX_TOTAL_MB,
   type TerminalLogFormat,
-  useConfig,
-} from "@/contexts/ConfigContext"
+} from "@/lib/appConfig"
+import { useConfig } from "@/contexts/ConfigContext"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
 import { requestAppPage } from "@/lib/appNavigation"
 import { formatLogSize, type TerminalLogStatus } from "@/lib/terminalLogRecording"
@@ -42,40 +48,6 @@ interface LoggingSettingsTabProps {
   handleRecordInputChange: (recordInput: boolean) => Promise<void>
 }
 
-/** A whole number in `0..=max` typed into a field, or null. */
-function parseLimit(value: string, max: number): number | null {
-  const parsed = Number(value)
-  return Number.isInteger(parsed) && parsed >= 0 && parsed <= max ? parsed : null
-}
-
-/** Folders a name template may put logs in, as the backend allows. */
-const MAX_LOG_FOLDERS = 5
-
-/** The template's folders and file name; `/` and `\\` both separate them. */
-function templateParts(template: string) {
-  return template.split(/[/\\]/).filter((part) => part.trim())
-}
-
-function renderExample(template: string) {
-  return [
-    ["{profile}", "production"],
-    ["{host}", "10.0.0.8"],
-    ["{port}", "22"],
-    ["{username}", "root"],
-    ["{type}", "ssh"],
-    ["{year}", "2026"],
-    ["{month}", "07"],
-    ["{day}", "29"],
-    ["{date}", "20260729"],
-    ["{time}", "153012"],
-    ["{yyyyMMdd-HHmmss}", "20260729-153012"],
-    ["{sessionId}", "a83f"],
-  ].reduce(
-    (value, [token, replacement]) => value.split(token).join(replacement),
-    templateParts(template).join("/")
-  )
-}
-
 export const LoggingSettingsTab: React.FC<LoggingSettingsTabProps> = ({
   handleEnabledChange,
   handleRecordInputChange,
@@ -83,8 +55,7 @@ export const LoggingSettingsTab: React.FC<LoggingSettingsTabProps> = ({
   const { t } = useTranslation()
   const { config } = useConfig()
   const { saveSettings } = useSettingsSave()
-  const [status, setStatus] = useState<TerminalLogStatus | null>(null)
-  const [statusError, setStatusError] = useState<string | null>(null)
+  const { status, setStatus, statusError, setStatusError, refreshStatus } = useTerminalLogStatus()
   const [nameTemplate, setNameTemplate] = useState(config.terminal_log_name_template)
   const [nameError, setNameError] = useState<string | null>(null)
   const [maxFileSize, setMaxFileSize] = useState(String(config.terminal_log_max_file_size_mb))
@@ -93,50 +64,6 @@ export const LoggingSettingsTab: React.FC<LoggingSettingsTabProps> = ({
   const [retentionError, setRetentionError] = useState<string | null>(null)
   const [maxTotal, setMaxTotal] = useState(String(config.terminal_log_max_total_mb))
   const [maxTotalError, setMaxTotalError] = useState<string | null>(null)
-
-  const refreshStatus = useCallback(async () => {
-    try {
-      setStatus(await invoke<TerminalLogStatus>("get_terminal_log_status"))
-      setStatusError(null)
-    } catch (error) {
-      setStatusError(toErrorMessage(error))
-    }
-  }, [])
-
-  useEffect(() => {
-    let disposed = false
-    const cleanups: Array<() => void> = []
-    void invoke<TerminalLogStatus>("get_terminal_log_status")
-      .then((nextStatus) => {
-        if (!disposed) setStatus(nextStatus)
-      })
-      .catch((error) => {
-        if (!disposed) setStatusError(toErrorMessage(error))
-      })
-    void Promise.all([
-      listen<TerminalLogStatus>("terminal-log-status", (event) => {
-        if (!disposed) setStatus(event.payload)
-      }),
-      listen<{ message?: string }>("terminal-log-error", (event) => {
-        if (!disposed) {
-          setStatusError(event.payload.message ?? t("terminalLogging.writeFailed"))
-          void refreshStatus()
-        }
-      }),
-    ]).then((unlisteners) => {
-      if (disposed) {
-        unlisteners.forEach((unlisten) => unlisten())
-      } else {
-        cleanups.push(...unlisteners)
-      }
-    })
-    const statusInterval = window.setInterval(() => void refreshStatus(), 5_000)
-    return () => {
-      disposed = true
-      window.clearInterval(statusInterval)
-      cleanups.forEach((cleanup) => cleanup())
-    }
-  }, [refreshStatus, t])
 
   const resolvedDirectory = status?.directory || config.terminal_log_directory
   const exampleName = useMemo(() => renderExample(nameTemplate), [nameTemplate])

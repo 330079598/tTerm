@@ -1,0 +1,124 @@
+/* Host key verification dialog */
+.host-key-dialog-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: hsl(var(--background) / 0.9);
+  backdrop-filter: blur(4px);
+  z-index: 10;
+}
+
+.host-key-dialog-content {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 480px;
+  width: 90%;
+  color: hsl(var(--foreground));
+  box-shadow: 0 10px 40px hsl(var(--background) / 0.5);
+}
+
+@media (max-width: 350px) {
+  .connection-header {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+  }
+
+  .connection-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 760px) {
+  .server-monitor-distro {
+    max-width: 150px;
+  }
+
+  .server-monitor-panel-content.is-network-view {
+    grid-template-columns: 1fr;
+    align-content: start;
+  }
+
+  .server-monitor-network-chart-wrap,
+  .server-monitor-network-totals {
+    grid-column: 1;
+  }
+
+  .server-monitor-panel-overview {
+    grid-template-columns: repeat(2, minmax(110px, 1fr));
+  }
+
+  .server-monitor-memory-resources {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .server-monitor-disk-list {
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+
+  .server-monitor-panel-resource.is-disk-section .server-monitor-panel-resource-values {
+    grid-template-columns: 1fr;
+  }
+
+  .server-monitor-panel-resource.is-disk-section
+    .server-monitor-panel-resource-values
+    > span:last-child {
+    grid-column: auto;
+  }
+
+  .server-monitor-panel-resource.is-memory-section {
+    padding: 0;
+  }
+
+  .server-monitor-panel-resource.is-memory-section + .is-memory-section {
+    padding-top: 16px;
+    border-top: 1px solid hsl(var(--border) / 0.68);
+    border-left: 0;
+  }
+
+  .server-monitor-panel-stat:nth-child(3n) {
+    border-right: 1px solid hsl(var(--border) / 0.68);
+  }
+
+  .server-monitor-panel-stat:nth-child(2n) {
+    border-right: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .server-monitor-leading-icon,
+  .server-monitor-metric-label {
+    display: none;
+  }
+
+  .server-monitor-cpu-chart {
+    width: 52px;
+  }
+
+  .server-monitor-distro-name {
+    max-width: 82px;
+  }
+
+  .server-monitor-panel-tab {
+    padding: 0 7px;
+  }
+
+  .server-monitor-panel-content.is-chart-view {
+    grid-template-columns: 82px minmax(180px, 1fr);
+    gap: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .server-monitor-expand,
+  .server-monitor-panel-close,
+  .server-monitor-usage-track > span {
+    transition: none;
+  }
+}

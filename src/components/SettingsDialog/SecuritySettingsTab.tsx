@@ -1,39 +1,24 @@
 import React, { useCallback, useEffect, useRef, useState } from "react"
-import {
-  AlertTriangle,
-  Eye,
-  EyeOff,
-  KeyRound,
-  Loader2,
-  Lock,
-  RefreshCw,
-  RotateCcw,
-  Shield,
-  Trash2,
-  Unlock,
-} from "lucide-react"
+import { AlertTriangle, Lock } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { ActionIcon } from "@/components/SettingsDialog/SecretFields"
+import { UnlockVaultCard } from "@/components/SettingsDialog/UnlockVaultCard"
+import { SecretStorageSection } from "@/components/SettingsDialog/SecretStorageSection"
+import { ChoosePasswordModeCard } from "@/components/SettingsDialog/ChoosePasswordModeCard"
+import { SystemUnlockFailedCard } from "@/components/SettingsDialog/SystemUnlockFailedCard"
+import { MasterPasswordCard } from "@/components/SettingsDialog/MasterPasswordCard"
+import { SavedSecretsCard } from "@/components/SettingsDialog/SavedSecretsCard"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { PasswordInput } from "@/components/ui/password-input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-
 import { KnownHostsCard } from "@/components/SettingsDialog/KnownHostsCard"
-import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
 import type { VaultAction } from "@/components/SettingsDialog/types"
 import type { useConfirmDialog, useInfoDialog } from "@/components/ui/app-dialog"
-import {
-  getDetectedPlatform,
-  useConfig,
-  type SavedSecretEntry,
-  type SecretStorageMode,
-} from "@/contexts/ConfigContext"
+import { useConfig } from "@/contexts/ConfigContext"
+import type { SavedSecretEntry, SecretStorageMode } from "@/lib/appConfig"
 import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { useToast } from "@/hooks/use-toast"
 import { isVerificationCanceled } from "@/lib/userVerification"
@@ -43,47 +28,6 @@ interface SecuritySettingsTabProps {
   confirm: ReturnType<typeof useConfirmDialog>["confirm"]
   info: ReturnType<typeof useInfoDialog>["info"]
 }
-
-interface PasswordFieldProps {
-  id: string
-  label: string
-  value: string
-  onChange: (value: string) => void
-  disabled: boolean
-  autoComplete: "current-password" | "new-password"
-  autoFocus?: boolean
-}
-
-const PasswordField: React.FC<PasswordFieldProps> = ({
-  id,
-  label,
-  value,
-  onChange,
-  disabled,
-  autoComplete,
-  autoFocus,
-}) => {
-  const { t } = useTranslation()
-  return (
-    <div>
-      <Label htmlFor={id} className="mb-1.5 block">
-        {label}
-      </Label>
-      <PasswordInput
-        id={id}
-        autoComplete={autoComplete}
-        autoFocus={autoFocus}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={t("secretStorage.masterPasswordPlaceholder")}
-        disabled={disabled}
-      />
-    </div>
-  )
-}
-
-const ActionIcon: React.FC<{ busy: boolean; icon: React.ReactNode }> = ({ busy, icon }) =>
-  busy ? <Loader2 size={14} className="mr-2 animate-spin" /> : <>{icon}</>
 
 export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confirm, info }) => {
   const { t } = useTranslation()
@@ -406,41 +350,16 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
   return (
     <ScrollArea className="h-full pr-4">
       <div className="space-y-4">
-        <SettingsSection
-          icon={<Shield size={16} />}
-          title={t("secretStorage.title")}
-          description={t("secretStorage.description")}
-        >
-          <SettingsRow
-            title={t("secretStorage.status")}
-            description={secretStatus.message}
-            action={
-              <Badge variant={unlocked && mode !== "memory" ? "default" : "secondary"}>
-                {statusLabel}
-              </Badge>
-            }
-          />
-          <SettingsRow
-            title={t("secretStorage.storageMode")}
-            description={t(`secretStorage.modeDescriptions.${mode}`)}
-          >
-            <Label htmlFor="secret-storage-mode" className="sr-only">
-              {t("secretStorage.storageMode")}
-            </Label>
-            <Select
-              id="secret-storage-mode"
-              value={choosingPasswordMode ? "password" : mode}
-              disabled={busy || pending}
-              onChange={(event) => void handleModeChange(event.target.value as SecretStorageMode)}
-            >
-              <option value="system" disabled={!secretStatus.keyringAvailable}>
-                {t("secretStorage.modes.system")}
-              </option>
-              <option value="password">{t("secretStorage.modes.password")}</option>
-              <option value="memory">{t("secretStorage.modes.memory")}</option>
-            </Select>
-          </SettingsRow>
-        </SettingsSection>
+        <SecretStorageSection
+          busy={busy}
+          mode={mode}
+          unlocked={unlocked}
+          pending={pending}
+          handleModeChange={handleModeChange}
+          secretStatus={secretStatus}
+          choosingPasswordMode={choosingPasswordMode}
+          statusLabel={statusLabel}
+        />
 
         {!secretStatus.keyringAvailable && (
           <Alert className="border-amber-500/40 bg-amber-500/10">
@@ -457,181 +376,43 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
         )}
 
         {choosingPasswordMode && (
-          <Card>
-            <CardContent className="space-y-3 p-4">
-              <div>
-                <div className="text-sm font-medium">{t("secretStorage.choosePasswordTitle")}</div>
-                <div className="text-muted-foreground mt-1 text-xs leading-5">
-                  {t("secretStorage.choosePasswordDesc")}
-                </div>
-              </div>
-              <PasswordField
-                id="choose-master-password"
-                label={t("secretStorage.newPassword")}
-                value={newPassword}
-                onChange={setNewPassword}
-                disabled={busy}
-                autoComplete="new-password"
-                autoFocus
-              />
-              <PasswordField
-                id="choose-master-password-confirm"
-                label={t("secretStorage.confirmNewPassword")}
-                value={confirmPassword}
-                onChange={setConfirmPassword}
-                disabled={busy}
-                autoComplete="new-password"
-              />
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => void handleConfirmPasswordMode()}
-                  disabled={busy || newPassword.length === 0 || confirmPassword.length === 0}
-                >
-                  <ActionIcon
-                    busy={action === "mode"}
-                    icon={<KeyRound size={14} className="mr-2" />}
-                  />
-                  {t("secretStorage.switchToPassword")}
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => {
-                    setChoosingPasswordMode(false)
-                    clearPasswordFields()
-                  }}
-                >
-                  {t("secretStorage.cancel")}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <ChoosePasswordModeCard
+            busy={busy}
+            action={action}
+            newPassword={newPassword}
+            confirmPassword={confirmPassword}
+            setNewPassword={setNewPassword}
+            setConfirmPassword={setConfirmPassword}
+            handleConfirmPasswordMode={handleConfirmPasswordMode}
+            clearPasswordFields={clearPasswordFields}
+            setChoosingPasswordMode={setChoosingPasswordMode}
+          />
         )}
 
         {unlockPurpose && (
-          <Card>
-            <CardContent className="space-y-3 p-4">
-              <div>
-                <div className="text-sm font-medium">
-                  {unlockPurpose === "migrate"
-                    ? t("secretStorage.migrationTitle")
-                    : unlockPurpose === "setPassword"
-                      ? t("secretStorage.setMasterPasswordTitle")
-                      : t("secretStorage.unlockTitle")}
-                </div>
-                {unlockPurpose !== "unlock" && (
-                  <div className="text-muted-foreground mt-1 text-xs leading-5">
-                    {unlockPurpose === "migrate"
-                      ? t("secretStorage.migrationDesc")
-                      : unlockPurpose === "setPassword"
-                        ? t("secretStorage.setMasterPasswordDesc")
-                        : t("secretStorage.unlockRecoveryDesc")}
-                  </div>
-                )}
-              </div>
-              <form
-                className="space-y-3"
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  void handleUnlock()
-                }}
-              >
-                {unlockPurpose === "setPassword" ? (
-                  <>
-                    <PasswordField
-                      id="vault-new-password"
-                      label={t("secretStorage.newPassword")}
-                      value={newPassword}
-                      onChange={setNewPassword}
-                      disabled={busy}
-                      autoComplete="new-password"
-                    />
-                    <PasswordField
-                      id="vault-confirm-password"
-                      label={t("secretStorage.confirmNewPassword")}
-                      value={confirmPassword}
-                      onChange={setConfirmPassword}
-                      disabled={busy}
-                      autoComplete="new-password"
-                    />
-                  </>
-                ) : (
-                  <PasswordField
-                    id="vault-password"
-                    label={t("secretStorage.masterPassword")}
-                    value={password}
-                    onChange={setPassword}
-                    disabled={busy}
-                    autoComplete="current-password"
-                  />
-                )}
-                <Button
-                  type="submit"
-                  disabled={
-                    busy ||
-                    (unlockPurpose === "setPassword"
-                      ? newPassword.length === 0 || confirmPassword.length === 0
-                      : password.length === 0)
-                  }
-                >
-                  <ActionIcon
-                    busy={action === "unlock"}
-                    icon={<Unlock size={14} className="mr-2" />}
-                  />
-                  {action === "unlock"
-                    ? unlockPurpose === "migrate"
-                      ? t("secretStorage.migrating")
-                      : t("secretStorage.unlocking")
-                    : unlockPurpose === "migrate"
-                      ? t("secretStorage.migrate")
-                      : unlockPurpose === "setPassword"
-                        ? t("secretStorage.setPassword")
-                        : t("secretStorage.unlock")}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          <UnlockVaultCard
+            unlockPurpose={unlockPurpose}
+            busy={busy}
+            action={action}
+            password={password}
+            newPassword={newPassword}
+            confirmPassword={confirmPassword}
+            setPassword={setPassword}
+            setNewPassword={setNewPassword}
+            setConfirmPassword={setConfirmPassword}
+            handleUnlock={handleUnlock}
+          />
         )}
 
         {systemUnlockFailed && (
-          <Card>
-            <CardContent className="space-y-3 p-4">
-              <div>
-                <div className="text-sm font-medium">
-                  {hasMasterPassword
-                    ? t("secretStorage.resetForgotRecoveryTitle")
-                    : t("secretStorage.systemUnlockFailedTitle")}
-                </div>
-                <div className="text-muted-foreground mt-1 text-xs leading-5">
-                  {t("secretStorage.systemUnlockFailedDesc")}
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => void handleRetrySystemUnlock()}
-                >
-                  <ActionIcon
-                    busy={action === "retry"}
-                    icon={<RefreshCw size={14} className="mr-2" />}
-                  />
-                  {t("secretStorage.retrySystemUnlock")}
-                </Button>
-                <Button
-                  variant="destructive"
-                  disabled={busy || !secretStatus.keyringAvailable}
-                  onClick={() => void handleResetSavedPasswords()}
-                >
-                  <ActionIcon
-                    busy={action === "reset"}
-                    icon={<RotateCcw size={14} className="mr-2" />}
-                  />
-                  {t("secretStorage.reset")}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <SystemUnlockFailedCard
+            busy={busy}
+            action={action}
+            hasMasterPassword={hasMasterPassword}
+            handleRetrySystemUnlock={handleRetrySystemUnlock}
+            handleResetSavedPasswords={handleResetSavedPasswords}
+            secretStatus={secretStatus}
+          />
         )}
 
         {showMasterPasswordCard && mode === "password" && (
@@ -652,99 +433,21 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
         )}
 
         {showMasterPasswordCard && (hasMasterPassword || mode === "system") && (
-          <Card>
-            <CardContent className="space-y-3 p-4">
-              <div>
-                <div className="text-sm font-medium">
-                  {mode === "system"
-                    ? t("secretStorage.recoveryTitle")
-                    : t("secretStorage.changePassword")}
-                </div>
-                <div className="text-muted-foreground mt-1 text-xs leading-5">
-                  {mode === "system"
-                    ? t("secretStorage.recoveryDesc")
-                    : t("secretStorage.changePasswordDesc")}
-                </div>
-                {mode === "system" && hasMasterPassword && (
-                  <div className="mt-1 text-xs leading-5">{t("secretStorage.recoveryIsSet")}</div>
-                )}
-              </div>
-              {hasMasterPassword && (
-                <PasswordField
-                  id="current-password"
-                  label={t("secretStorage.currentPassword")}
-                  value={currentPassword}
-                  onChange={setCurrentPassword}
-                  disabled={busy}
-                  autoComplete="current-password"
-                />
-              )}
-              <PasswordField
-                id="new-password"
-                label={t("secretStorage.newPassword")}
-                value={newPassword}
-                onChange={setNewPassword}
-                disabled={busy}
-                autoComplete="new-password"
-              />
-              <PasswordField
-                id="confirm-password"
-                label={t("secretStorage.confirmNewPassword")}
-                value={confirmPassword}
-                onChange={setConfirmPassword}
-                disabled={busy}
-                autoComplete="new-password"
-              />
-              <div className="flex flex-wrap gap-2">
-                {hasMasterPassword ? (
-                  <Button
-                    onClick={() => void handleChangePassword()}
-                    disabled={
-                      busy ||
-                      currentPassword.length === 0 ||
-                      newPassword.length === 0 ||
-                      confirmPassword.length === 0
-                    }
-                  >
-                    <ActionIcon
-                      busy={action === "changePassword"}
-                      icon={<KeyRound size={14} className="mr-2" />}
-                    />
-                    {action === "changePassword"
-                      ? t("secretStorage.changingPassword")
-                      : t("secretStorage.changePassword")}
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={() => void handleSetRecovery()}
-                    disabled={busy || newPassword.length === 0 || confirmPassword.length === 0}
-                  >
-                    <ActionIcon
-                      busy={action === "setPassword"}
-                      icon={<KeyRound size={14} className="mr-2" />}
-                    />
-                    {action === "setPassword"
-                      ? t("secretStorage.settingPassword")
-                      : t("secretStorage.setRecovery")}
-                  </Button>
-                )}
-                {mode === "system" && hasMasterPassword && (
-                  <Button
-                    variant="outline"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => void handleRemoveRecovery()}
-                    disabled={busy}
-                  >
-                    <ActionIcon
-                      busy={action === "removePassword"}
-                      icon={<Trash2 size={14} className="mr-2" />}
-                    />
-                    {t("secretStorage.removeRecovery")}
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <MasterPasswordCard
+            busy={busy}
+            action={action}
+            mode={mode}
+            hasMasterPassword={hasMasterPassword}
+            currentPassword={currentPassword}
+            newPassword={newPassword}
+            confirmPassword={confirmPassword}
+            setCurrentPassword={setCurrentPassword}
+            setNewPassword={setNewPassword}
+            setConfirmPassword={setConfirmPassword}
+            handleChangePassword={handleChangePassword}
+            handleSetRecovery={handleSetRecovery}
+            handleRemoveRecovery={handleRemoveRecovery}
+          />
         )}
 
         {mode === "password" && hasMasterPassword && !pending && (
@@ -776,92 +479,18 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
           </Alert>
         )}
 
-        <Card>
-          <CardContent className="space-y-3 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-medium">{t("secretStorage.savedPasswords")}</div>
-                <div className="text-muted-foreground mt-1 text-xs leading-5">
-                  {t("secretStorage.savedPasswordsDesc")}
-                </div>
-                {mode !== "memory" && (
-                  <div className="text-muted-foreground mt-1 text-xs leading-5">
-                    {t(
-                      secretStatus.verificationMethod === "system" &&
-                        getDetectedPlatform() === "macos"
-                        ? "userVerification.methods.systemMac"
-                        : `userVerification.methods.${secretStatus.verificationMethod}`
-                    )}
-                  </div>
-                )}
-              </div>
-              <Badge variant="secondary">
-                {t("secretStorage.savedPasswordCount", { count: savedSecrets.length })}
-              </Badge>
-            </div>
-
-            {savedSecrets.length === 0 ? (
-              <p className="text-muted-foreground text-xs leading-5">
-                {t("secretStorage.noSavedPasswords")}
-              </p>
-            ) : (
-              <div className="border-border divide-border overflow-hidden rounded-md border">
-                {savedSecrets.map((entry) => {
-                  const revealed = revealedSecretKey === entry.key
-                  const revealLabel = revealed
-                    ? t("secretStorage.hideSavedSecret")
-                    : t("secretStorage.showSavedSecret")
-                  return (
-                    <div
-                      key={entry.key}
-                      className="flex items-center justify-between gap-3 px-3 py-2"
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate text-sm">{entry.label}</div>
-                        <div className="text-muted-foreground truncate text-xs">
-                          {entry.kind.includes("jump")
-                            ? t("secretStorage.secretKinds.jumpHost")
-                            : entry.kind === "sudo"
-                              ? t("secretStorage.secretKinds.sudo")
-                              : t("secretStorage.secretKinds.ssh")}
-                        </div>
-                        {revealed && revealedPassword !== null && (
-                          <div className="bg-muted/60 mt-1 rounded-sm px-2 py-1 font-mono text-xs break-all">
-                            {revealedPassword}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          disabled={busy || !unlocked}
-                          onClick={() => void handleRevealToggle(entry)}
-                          title={revealLabel}
-                          aria-label={revealLabel}
-                        >
-                          {revealed ? <EyeOff size={14} /> : <Eye size={14} />}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="text-destructive hover:text-destructive"
-                          disabled={busy}
-                          onClick={() => void handleDeleteSavedSecret(entry)}
-                          title={t("secretStorage.deleteSavedSecret")}
-                          aria-label={t("secretStorage.deleteSavedSecret")}
-                        >
-                          <Trash2 size={14} />
-                        </Button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-            {revealError && <p className="text-destructive text-xs leading-5">{revealError}</p>}
-          </CardContent>
-        </Card>
+        <SavedSecretsCard
+          busy={busy}
+          mode={mode}
+          unlocked={unlocked}
+          handleRevealToggle={handleRevealToggle}
+          handleDeleteSavedSecret={handleDeleteSavedSecret}
+          savedSecrets={savedSecrets}
+          revealedSecretKey={revealedSecretKey}
+          revealedPassword={revealedPassword}
+          revealError={revealError}
+          secretStatus={secretStatus}
+        />
 
         <KnownHostsCard confirm={confirm} />
       </div>

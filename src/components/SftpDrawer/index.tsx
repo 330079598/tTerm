@@ -4,12 +4,13 @@ import { invoke } from "@tauri-apps/api/core"
 import { AlertCircle } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { sftpDialogReducer } from "@/components/SftpDrawer/sftpDialogReducer"
+import { useSftpSelectionMode } from "@/components/SftpDrawer/useSftpSelectionMode"
+import { useSftpEntryActions } from "@/components/SftpDrawer/useSftpEntryActions"
+import { useSftpDeleteActions } from "@/components/SftpDrawer/useSftpDeleteActions"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useConfig } from "@/contexts/ConfigContext"
-import { hasOpenShortcutBlockingLayer, useKeymap } from "@/contexts/KeymapContext"
 import { useUserVerification } from "@/contexts/UserVerificationContext"
-import { toast } from "@/hooks/use-toast"
-
 import { SftpDeleteTransferEvents } from "@/components/SftpDrawer/SftpDeleteTransferEvents"
 import { SftpDrawerContent } from "@/components/SftpDrawer/SftpDrawerContent"
 import { SftpDrawerHeader } from "@/components/SftpDrawer/SftpDrawerHeader"
@@ -20,19 +21,14 @@ import { SftpPermissionsDialog } from "@/components/SftpDrawer/SftpPermissionsDi
 import { useSftpDragDrop } from "@/components/SftpDrawer/useSftpDragDrop"
 import { useSftpPasteUpload } from "@/components/SftpDrawer/useSftpPasteUpload"
 import { useSftpSelection } from "@/components/SftpDrawer/useSftpSelection"
-import { joinRemotePath } from "@/components/SftpDrawer/sftpDrawerUtils"
 import {
   createSftpSearchMatcher,
   DEFAULT_SFTP_SEARCH_OPTIONS,
   type SftpSearchOptions,
 } from "@/components/SftpDrawer/sftpSearch"
 import type {
-  DeleteBatchStartResult,
-  DeletePreviewResult,
   LoadSftpDirectory,
   SftpContextMenuState,
-  SftpDialogAction,
-  SftpDialogState,
   SftpDirectoryEntry,
   SftpDirectoryListing,
   SftpDrawerProps,
@@ -47,53 +43,8 @@ import {
   type SftpSortColumn,
   type SftpViewPreferences,
 } from "@/components/SftpDrawer/sftpView"
-import { isImeKeyEvent } from "@/lib/ime"
-
-function sftpDialogReducer(state: SftpDialogState, action: SftpDialogAction): SftpDialogState {
-  switch (action.action) {
-    case "close":
-      return { type: "none" }
-    case "openDelete":
-      return { type: "delete", entries: action.entries }
-    case "openCommandDelete":
-      return {
-        type: "commandDelete",
-        entries: action.entries,
-        command: action.command,
-        totalDirectories: action.totalDirectories,
-        totalEntries: action.totalEntries,
-        totalFiles: action.totalFiles,
-        totalTruncated: action.totalTruncated,
-      }
-    case "openRename":
-      return { type: "rename", entry: action.entry, newName: action.newName }
-    case "openCreateFolder":
-      return { type: "createFolder", folderName: "" }
-    case "updateRenameNewName":
-      if (state.type !== "rename") return state
-      return { ...state, newName: action.newName }
-    case "updateCreateFolderName":
-      if (state.type !== "createFolder") return state
-      return { ...state, folderName: action.folderName }
-    case "updateCommandDeleteCommand":
-      if (state.type !== "commandDelete") return state
-      return { ...state, command: action.command }
-    default:
-      return state
-  }
-}
 
 const EMPTY_SFTP_ENTRIES: SftpDirectoryEntry[] = []
-
-function isDeletedEntryPath(path: string, deletedPaths: Set<string>) {
-  for (const deletedPath of deletedPaths) {
-    if (path === deletedPath || path.startsWith(`${deletedPath}/`)) {
-      return true
-    }
-  }
-
-  return false
-}
 
 export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   tabId,
@@ -106,7 +57,6 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   const { t } = useTranslation()
   const { config } = useConfig()
   const { withVaultUnlock } = useUserVerification()
-  const { registerHandler } = useKeymap()
   const drawerRef = useRef<HTMLDivElement>(null)
   const [listing, setListing] = useState<SftpDirectoryListing | null>(null)
   const [activePath, setActivePath] = useState<string | null>(null)
@@ -273,96 +223,21 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     }))
   }, [])
 
-  useEffect(() => {
-    return registerHandler("sftp.selectAll", () => {
-      if (!visible || !isGlobalShortcutTarget || dialog.type !== "none") return false
-      const entries = filteredListing?.entries ?? []
-      if (entries.length === 0 || isLoading || error) {
-        return false
-      }
-
-      setIsSelectionMode(true)
-      setSelectedPaths(entries.map((entry) => entry.path))
-      setActivePath((current) =>
-        current && entries.some((entry) => entry.path === current) ? current : entries[0].path
-      )
-      setContextMenu(null)
-    })
-  }, [
-    dialog.type,
-    error,
-    filteredListing?.entries,
+  const { enterSelectionMode, exitSelectionMode, toggleSelectionMode } = useSftpSelectionMode({
+    visible,
     isGlobalShortcutTarget,
+    dialogType: dialog.type,
+    filteredListing,
     isLoading,
-    registerHandler,
-    visible,
-  ])
-
-  const enterSelectionMode = useCallback(() => {
-    setIsSelectionMode(true)
-  }, [])
-
-  const exitSelectionMode = useCallback(() => {
-    setIsSelectionMode(false)
-    setSelectedPaths([])
-    setContextMenu(null)
-  }, [])
-
-  // Escape leaves selection mode wherever focus is: WebKit does not focus
-  // buttons on click and a drag can leave focus on the covered terminal, so a
-  // drawer-level key handler only fires some of the time. Captured on window
-  // so the terminal does not also receive it.
-  useEffect(() => {
-    if (!visible || !isGlobalShortcutTarget || !isSelectionMode) {
-      return
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented || isImeKeyEvent(event)) {
-        return
-      }
-
-      if (
-        dialog.type !== "none" ||
-        contextMenu !== null ||
-        hasOpenShortcutBlockingLayer(document)
-      ) {
-        return
-      }
-
-      // The filter and path fields inside the drawer close themselves first.
-      const target = event.target as HTMLElement | null
-      if (
-        target &&
-        drawerRef.current?.contains(target) &&
-        target.closest("input, textarea, [contenteditable='true']")
-      ) {
-        return
-      }
-
-      event.preventDefault()
-      event.stopPropagation()
-      exitSelectionMode()
-    }
-
-    window.addEventListener("keydown", handleKeyDown, true)
-    return () => window.removeEventListener("keydown", handleKeyDown, true)
-  }, [
-    contextMenu,
-    dialog.type,
-    exitSelectionMode,
-    isGlobalShortcutTarget,
+    error,
     isSelectionMode,
-    visible,
-  ])
-
-  const toggleSelectionMode = useCallback(() => {
-    if (isSelectionMode) {
-      exitSelectionMode()
-    } else {
-      enterSelectionMode()
-    }
-  }, [enterSelectionMode, exitSelectionMode, isSelectionMode])
+    setIsSelectionMode,
+    setSelectedPaths,
+    setActivePath,
+    contextMenu,
+    setContextMenu,
+    drawerRef,
+  })
 
   const currentPath = listing?.currentPath ?? null
   const { canGoBack, canGoForward, canGoUp, goBack, goForward, goUp, handleSideButton } =
@@ -409,314 +284,66 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     setSelectedPaths,
   })
 
-  const handleCreateDirectory = useCallback(() => {
-    dispatchDialog({ action: "openCreateFolder" })
-  }, [])
+  const {
+    handleCreateDirectory,
+    handleCreateDirectoryConfirm,
+    handleRename,
+    handleRenameConfirm,
+    handleDownload,
+    handleDownloadSelection,
+    handleOpenEntry,
+    handleEdit,
+    handlePermissions,
+    handleApplyPermissions,
+    handleCopyPath,
+  } = useSftpEntryActions({
+    tabId,
+    connection,
+    t,
+    dispatchDialog,
+    createFolderName,
+    listingCurrentPath,
+    runAndRefresh,
+    contextMenuEntry,
+    activeEntry,
+    listing,
+    renameEntry,
+    renameNewName,
+    selectedEntries,
+    selectedPaths,
+    downloadEntries,
+    loadDirectory,
+    onOpenRemoteFile,
+    setPermissionEntries,
+    currentPath,
+  })
 
-  const handleCreateDirectoryConfirm = useCallback(() => {
-    const trimmedName = createFolderName.trim()
-    if (!trimmedName || !listingCurrentPath) {
-      return
-    }
-
-    void runAndRefresh(() =>
-      invoke("sftp_create_directory", {
-        tabId,
-        connection,
-        path: joinRemotePath(listingCurrentPath, trimmedName),
-      })
-    )
-    dispatchDialog({ action: "close" })
-  }, [connection, createFolderName, listingCurrentPath, runAndRefresh, tabId])
-
-  const handleRename = useCallback(() => {
-    const entry = contextMenuEntry ?? activeEntry
-    if (!entry || !listing) {
-      return
-    }
-
-    dispatchDialog({ action: "openRename", entry, newName: entry.name })
-  }, [activeEntry, contextMenuEntry, listing])
-
-  const handleRenameConfirm = useCallback(() => {
-    if (!renameEntry || !listingCurrentPath) {
-      return
-    }
-
-    const trimmedName = renameNewName.trim()
-    if (!trimmedName || trimmedName === renameEntry.name) {
-      dispatchDialog({ action: "close" })
-      return
-    }
-
-    void runAndRefresh(() =>
-      invoke("sftp_rename_entry", {
-        tabId,
-        connection,
-        oldPath: renameEntry.path,
-        newPath: joinRemotePath(listingCurrentPath, trimmedName),
-      })
-    )
-    dispatchDialog({ action: "close" })
-  }, [connection, listingCurrentPath, renameEntry, renameNewName, runAndRefresh, tabId])
-
-  const handleDeleteSelection = useCallback(() => {
-    if (isDeleting) {
-      return
-    }
-
-    if (selectedEntries.length === 0) {
-      return
-    }
-
-    dispatchDialog({ action: "openDelete", entries: selectedEntries })
-  }, [isDeleting, selectedEntries])
-
-  const handleDelete = useCallback(() => {
-    if (isDeleting) {
-      return
-    }
-
-    const entries =
-      contextMenuEntry &&
-      selectedPaths.includes(contextMenuEntry.path) &&
-      selectedEntries.length > 0
-        ? selectedEntries
-        : contextMenuEntry
-          ? [contextMenuEntry]
-          : activeEntry
-            ? [activeEntry]
-            : []
-    if (entries.length === 0) {
-      return
-    }
-
-    dispatchDialog({ action: "openDelete", entries })
-  }, [activeEntry, contextMenuEntry, isDeleting, selectedEntries, selectedPaths])
-
-  const startDeleteBatch = useCallback(
-    async (entries: SftpDirectoryEntry[], useCommandDelete: boolean, command?: string) => {
-      setIsDeleting(true)
-      setError(null)
-      dispatchDialog({ action: "close" })
-      setContextMenu(null)
-
-      try {
-        await invoke<DeleteBatchStartResult>("sftp_delete_entries", {
-          tabId,
-          connection,
-          entries: entries.map((entry) => ({
-            path: entry.path,
-            name: entry.name,
-            isDir: entry.isDir,
-          })),
-          options: {
-            command,
-            useCommandDelete,
-          },
-        })
-        const deletedPaths = new Set(entries.map((entry) => entry.path))
-        setListing((current) =>
-          current
-            ? {
-                ...current,
-                entries: current.entries.filter(
-                  (entry) => !isDeletedEntryPath(entry.path, deletedPaths)
-                ),
-              }
-            : current
-        )
-        setSelectedPaths((current) =>
-          current.filter((path) => !isDeletedEntryPath(path, deletedPaths))
-        )
-        setActivePath((current) =>
-          current && isDeletedEntryPath(current, deletedPaths) ? null : current
-        )
-      } catch (invokeError) {
-        const message = String(invokeError)
-        setIsDeleting(false)
-        setError(message)
-        toast({
-          variant: "destructive",
-          title: t("sftp.messages.deleteFailure", {
-            defaultValue: "Failed to delete selected items.",
-          }),
-          description: message,
-        })
-      }
-    },
-    [connection, t, tabId]
-  )
-
-  const handleDeleteConfirm = useCallback(() => {
-    if (isDeleting) {
-      return
-    }
-
-    if (deleteDialogEntries.length === 0) {
-      return
-    }
-
-    void (async () => {
-      setIsDeleting(true)
-      setError(null)
-      try {
-        const preview = await invoke<DeletePreviewResult>("sftp_preview_delete_entries", {
-          tabId,
-          connection,
-          entries: deleteDialogEntries.map((entry) => ({
-            path: entry.path,
-            name: entry.name,
-            isDir: entry.isDir,
-          })),
-        })
-
-        setIsDeleting(false)
-        if (preview.shouldPromptForCommand) {
-          dispatchDialog({
-            action: "openCommandDelete",
-            entries: deleteDialogEntries,
-            command: preview.command,
-            totalDirectories: preview.totalDirectories,
-            totalEntries: preview.totalEntries,
-            totalFiles: preview.totalFiles,
-            totalTruncated: preview.totalTruncated,
-          })
-          return
-        }
-
-        await startDeleteBatch(deleteDialogEntries, false)
-      } catch (invokeError) {
-        const message = String(invokeError)
-        setIsDeleting(false)
-        setError(message)
-        toast({
-          variant: "destructive",
-          title: t("sftp.messages.deleteFailure", {
-            defaultValue: "Failed to delete selected items.",
-          }),
-          description: message,
-        })
-      }
-    })()
-  }, [connection, deleteDialogEntries, isDeleting, startDeleteBatch, t, tabId])
-
-  const handleCommandDeleteConfirm = useCallback(() => {
-    if (isDeleting) {
-      return
-    }
-
-    const command = commandDeleteCommand.trim()
-    if (commandDeleteEntries.length === 0 || !command) {
-      return
-    }
-
-    void startDeleteBatch(commandDeleteEntries, true, command)
-  }, [commandDeleteCommand, commandDeleteEntries, isDeleting, startDeleteBatch])
-
-  const handleSftpDeleteConfirm = useCallback(() => {
-    if (isDeleting) {
-      return
-    }
-
-    if (commandDeleteEntries.length === 0) {
-      return
-    }
-
-    void startDeleteBatch(commandDeleteEntries, false)
-  }, [commandDeleteEntries, isDeleting, startDeleteBatch])
-
-  const handleDownload = useCallback(async () => {
-    const entries =
-      contextMenuEntry &&
-      selectedPaths.includes(contextMenuEntry.path) &&
-      selectedEntries.length > 0
-        ? selectedEntries
-        : contextMenuEntry
-          ? [contextMenuEntry]
-          : activeEntry
-            ? [activeEntry]
-            : []
-    await downloadEntries(entries)
-  }, [activeEntry, contextMenuEntry, downloadEntries, selectedEntries, selectedPaths])
-
-  const handleDownloadSelection = useCallback(async () => {
-    await downloadEntries(selectedEntries)
-  }, [downloadEntries, selectedEntries])
-
-  const handleOpenEntry = useCallback(
-    async (entry: SftpDirectoryEntry) => {
-      if (entry.isDir) {
-        await loadDirectory(entry.path)
-        return
-      }
-
-      onOpenRemoteFile?.(entry, tabId, connection)
-    },
-    [connection, loadDirectory, onOpenRemoteFile, tabId]
-  )
-
-  const handleEdit = useCallback(() => {
-    const entry = contextMenuEntry ?? activeEntry
-    if (!entry || entry.isDir) {
-      return
-    }
-
-    onOpenRemoteFile?.(entry, tabId, connection)
-  }, [activeEntry, connection, contextMenuEntry, onOpenRemoteFile, tabId])
-
-  const handlePermissions = useCallback(() => {
-    const entries =
-      contextMenuEntry &&
-      selectedPaths.includes(contextMenuEntry.path) &&
-      selectedEntries.length > 0
-        ? selectedEntries
-        : contextMenuEntry
-          ? [contextMenuEntry]
-          : activeEntry
-            ? [activeEntry]
-            : []
-    setPermissionEntries(entries)
-  }, [activeEntry, contextMenuEntry, selectedEntries, selectedPaths])
-
-  const handleApplyPermissions = useCallback(
-    async (entries: SftpDirectoryEntry[], mode: number) => {
-      await invoke("sftp_set_permissions", {
-        tabId,
-        connection,
-        paths: entries.map((entry) => entry.path),
-        mode,
-      })
-      await loadDirectory(currentPath)
-    },
-    [connection, currentPath, loadDirectory, tabId]
-  )
-
-  const handleCopyPath = useCallback(async () => {
-    const entry = contextMenuEntry ?? activeEntry
-    if (!entry) {
-      return
-    }
-
-    try {
-      await invoke("plugin:clipboard-manager|write_text", { text: entry.path })
-      toast({
-        title: t("sftp.messages.copyPathSuccess", {
-          defaultValue: "Full path copied.",
-        }),
-        description: entry.path,
-      })
-    } catch (invokeError) {
-      console.error("Failed to copy SFTP path:", invokeError)
-      toast({
-        variant: "destructive",
-        title: t("sftp.messages.copyPathFailure", {
-          defaultValue: "Failed to copy full path.",
-        }),
-        description: String(invokeError),
-      })
-    }
-  }, [activeEntry, contextMenuEntry, t])
+  const {
+    handleDeleteSelection,
+    handleDelete,
+    handleDeleteConfirm,
+    handleCommandDeleteConfirm,
+    handleSftpDeleteConfirm,
+  } = useSftpDeleteActions({
+    tabId,
+    connection,
+    t,
+    isDeleting,
+    setIsDeleting,
+    selectedEntries,
+    selectedPaths,
+    contextMenuEntry,
+    activeEntry,
+    dispatchDialog,
+    setError,
+    setContextMenu,
+    setListing,
+    setSelectedPaths,
+    setActivePath,
+    deleteDialogEntries,
+    commandDeleteEntries,
+    commandDeleteCommand,
+  })
 
   const contextSelectionCount = useMemo(() => {
     if (!contextMenuEntry) {

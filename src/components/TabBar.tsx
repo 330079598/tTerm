@@ -1,36 +1,20 @@
 import "@/components/TabBar.css"
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useTranslation } from "react-i18next"
-import { ChevronDown, ChevronLeft, ChevronRight, Search, X } from "lucide-react"
-import { TabAttentionDot } from "@/components/TabAttentionDot"
-import { getOverflowConnectionMeta } from "@/components/TabBar/overflowConnectionMeta"
-import { placeOverflowPanel, type OverflowPanelStyle } from "@/components/TabBar/overflowPanelStyle"
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
+
+import { useTabDrag } from "@/components/TabBar/useTabDrag"
+import { useTabDragState } from "@/components/TabBar/useTabDragState"
+import { useTabOverflowMenu } from "@/components/TabBar/useTabOverflowMenu"
+import { TabOverflowPanel } from "@/components/TabBar/TabOverflowPanel"
 import { TabItem } from "@/components/TabBar/TabItem"
 import { TabIcon } from "@/components/TabIcon"
 import type { Tab, TabContextMenuAction } from "@/types/tab"
-import { isImeKeyEvent } from "@/lib/ime"
-import {
-  focusActiveTerminal,
-  keepFocusOnMouseDown,
-  refocusTerminalIfFocusLost,
-} from "@/lib/terminalFocus"
+import { focusActiveTerminal, keepFocusOnMouseDown } from "@/lib/terminalFocus"
 
 const TAB_OVERFLOW_THRESHOLD = 16
-const TAB_DRAG_THRESHOLD = 6
-// How far the pointer may stray above or below the tab list before the tab
-// detaches from it and becomes a ghost that can be dropped on the workspace.
-const TAB_DRAG_DETACH_DISTANCE = 24
-const TAB_DRAG_AUTO_SCROLL_EDGE = 40
-const TAB_DRAG_AUTO_SCROLL_MAX_SPEED = 14
-
-// A tab's offsetLeft counts from the list's content box, so pointer positions
-// are put on the same footing, independent of how far the list has scrolled.
-function getListContentX(list: HTMLElement, clientX: number): number {
-  return clientX - list.getBoundingClientRect().left - list.clientLeft + list.scrollLeft
-}
-
-interface TabBarProps {
+export interface TabBarProps {
   tabs: Tab[]
   activeTabId: string | null
   onTabClick: (id: string) => void
@@ -42,24 +26,6 @@ interface TabBarProps {
   onTabDragCancel: () => void
   getTabContextIds: (tabId: string) => string[]
   onContextMenu: (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => void
-}
-
-type TabDragMode = "list" | "detached"
-
-type TabDragState = {
-  tabId: string
-  pointerId: number
-  startX: number
-  startY: number
-  dragging: boolean
-  mode: TabDragMode
-  sourceElement: HTMLDivElement
-  threshold: number
-  // Where the pointer grabbed the tab, measured from the tab's left edge.
-  grabOffsetX: number
-  gap: number
-  // The index the tab lands on if dropped now; null while detached.
-  toIndex: number | null
 }
 
 export const TabBar: React.FC<TabBarProps> = ({
@@ -78,38 +44,22 @@ export const TabBar: React.FC<TabBarProps> = ({
   const activeTabRef = useRef<HTMLDivElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const viewportRef = useRef<HTMLDivElement | null>(null)
-  const overflowMenuRef = useRef<HTMLDivElement | null>(null)
-  const overflowTriggerRef = useRef<HTMLButtonElement | null>(null)
-  const overflowPanelRef = useRef<HTMLDivElement | null>(null)
-  const searchInputRef = useRef<HTMLInputElement | null>(null)
-  const dragStateRef = useRef<TabDragState | null>(null)
-  const dragGhostRef = useRef<HTMLDivElement | null>(null)
-  const lastPointerPosRef = useRef<{ x: number; y: number } | null>(null)
-  const autoScrollRef = useRef<{ frame: number | null; speed: number }>({ frame: null, speed: 0 })
-  // Each tab's on-screen left edge as the drag ended, so the next layout can
-  // slide every tab from there into its slot instead of jumping (FLIP).
-  const pendingFlipRef = useRef<{ lefts: Map<string, number>; raisedTabId: string } | null>(null)
-  const tabsRef = useRef(tabs)
-  const suppressNextClickRef = useRef(false)
+  const {
+    dragStateRef,
+    dragGhostRef,
+    lastPointerPosRef,
+    autoScrollRef,
+    pendingFlipRef,
+    tabsRef,
+    suppressNextClickRef,
+    draggingTabId,
+    setDraggingTabId,
+    dragMode,
+    setDragMode,
+    dragGhostTab,
+    setDragGhostTab,
+  } = useTabDragState(tabs)
   const [scrollState, setScrollState] = useState({ canScrollLeft: false, canScrollRight: false })
-  const [isOverflowMenuOpen, setIsOverflowMenuOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [overflowPanelStyle, setOverflowPanelStyle] = useState<OverflowPanelStyle | null>(null)
-  const [draggingTabId, setDraggingTabId] = useState<string | null>(null)
-  const [dragMode, setDragMode] = useState<TabDragMode | null>(null)
-  const [dragGhostTab, setDragGhostTab] = useState<Tab | null>(null)
-
-  useEffect(() => {
-    tabsRef.current = tabs
-  }, [tabs])
-
-  useEffect(() => {
-    if (dragGhostTab && dragGhostRef.current && lastPointerPosRef.current) {
-      const { x, y } = lastPointerPosRef.current
-      dragGhostRef.current.style.transform = `translate(${x}px, ${y}px)`
-    }
-  }, [dragGhostTab])
-
   const updateScrollState = useCallback(() => {
     const list = listRef.current
     if (!list) {
@@ -160,425 +110,41 @@ export const TabBar: React.FC<TabBarProps> = ({
     }
   }, [updateScrollState])
 
-  const updateOverflowPanelPosition = useCallback(() => {
-    const trigger = overflowTriggerRef.current
-    if (!trigger) {
-      return
-    }
+  const {
+    overflowMenuRef,
+    overflowTriggerRef,
+    overflowPanelRef,
+    searchInputRef,
+    isOverflowMenuOpen,
+    setIsOverflowMenuOpen,
+    searchQuery,
+    setSearchQuery,
+    overflowPanelStyle,
+    updateOverflowPanelPosition,
+    closeOverflowMenu,
+    handleSelectTab,
+    filteredTabs,
+    handleSearchKeyDown,
+  } = useTabOverflowMenu({ tabs, onTabClick })
 
-    setOverflowPanelStyle(
-      placeOverflowPanel(trigger.getBoundingClientRect(), window.innerWidth, window.innerHeight)
-    )
-  }, [])
-
-  const closeOverflowMenu = useCallback(() => {
-    setIsOverflowMenuOpen(false)
-    setSearchQuery("")
-    setOverflowPanelStyle(null)
-  }, [])
-
-  useEffect(() => {
-    if (!isOverflowMenuOpen) {
-      return
-    }
-
-    searchInputRef.current?.focus()
-
-    const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target as Node
-      if (
-        !overflowMenuRef.current?.contains(target) &&
-        !overflowPanelRef.current?.contains(target)
-      ) {
-        closeOverflowMenu()
-      }
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeOverflowMenu()
-      }
-    }
-
-    document.addEventListener("mousedown", handlePointerDown)
-    document.addEventListener("keydown", handleKeyDown)
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown)
-      document.removeEventListener("keydown", handleKeyDown)
-      refocusTerminalIfFocusLost()
-    }
-  }, [closeOverflowMenu, isOverflowMenuOpen])
-
-  useEffect(() => {
-    if (!isOverflowMenuOpen) {
-      return
-    }
-
-    window.addEventListener("resize", updateOverflowPanelPosition)
-    window.addEventListener("scroll", updateOverflowPanelPosition, true)
-
-    return () => {
-      window.removeEventListener("resize", updateOverflowPanelPosition)
-      window.removeEventListener("scroll", updateOverflowPanelPosition, true)
-    }
-  }, [isOverflowMenuOpen, updateOverflowPanelPosition])
-
-  const getTabElements = useCallback(
-    () => Array.from(listRef.current?.querySelectorAll<HTMLElement>("[data-tab-id]") ?? []),
-    []
-  )
-
-  const captureTabPositions = useCallback(
-    (raisedTabId: string) => {
-      pendingFlipRef.current = {
-        lefts: new Map(
-          getTabElements().map((element) => [
-            element.dataset.tabId ?? "",
-            element.getBoundingClientRect().left,
-          ])
-        ),
-        raisedTabId,
-      }
-    },
-    [getTabElements]
-  )
-
-  useLayoutEffect(() => {
-    const pendingFlip = pendingFlipRef.current
-    if (!pendingFlip) {
-      return
-    }
-    pendingFlipRef.current = null
-    const previousLefts = pendingFlip.lefts
-
-    const elements = getTabElements()
-    for (const element of elements) {
-      element.style.transition = "none"
-      element.style.transform = ""
-    }
-    const offsets = elements.map((element) => {
-      const previousLeft = previousLefts.get(element.dataset.tabId ?? "")
-      return previousLeft === undefined ? 0 : previousLeft - element.getBoundingClientRect().left
-    })
-    elements.forEach((element, index) => {
-      if (Math.abs(offsets[index]) >= 0.5) {
-        element.style.transform = `translateX(${offsets[index]}px)`
-      }
-    })
-    // Commit the inverted positions before letting them transition back to 0.
-    void listRef.current?.offsetWidth
-    for (const element of elements) {
-      element.style.transition = ""
-      element.style.transform = ""
-    }
-
-    // The dropped tab has lost its dragging z-index by now; keep it above its
-    // neighbours (the active tab sits raised too) until it has settled.
-    const droppedTab = elements.find((element) => element.dataset.tabId === pendingFlip.raisedTabId)
-    if (droppedTab && typeof droppedTab.getAnimations === "function") {
-      const settling = droppedTab
-        .getAnimations()
-        .find(
-          (animation) =>
-            animation instanceof CSSTransition && animation.transitionProperty === "transform"
-        )
-      if (settling) {
-        droppedTab.style.zIndex = "3"
-        const lower = () => {
-          droppedTab.style.zIndex = ""
-        }
-        settling.finished.then(lower, lower)
-      }
-    }
+  const { layoutListDrag, handleTabPointerDown } = useTabDrag({
+    dragStateRef,
+    dragGhostRef,
+    lastPointerPosRef,
+    autoScrollRef,
+    pendingFlipRef,
+    tabsRef,
+    suppressNextClickRef,
+    setDraggingTabId,
+    setDragMode,
+    setDragGhostTab,
+    onTabDragMove,
+    onTabDrop,
+    onTabDragCancel,
+    onTabMove,
+    listRef,
+    viewportRef,
   })
-
-  const stopAutoScroll = useCallback(() => {
-    const autoScroll = autoScrollRef.current
-    if (autoScroll.frame !== null) {
-      cancelAnimationFrame(autoScroll.frame)
-    }
-    autoScroll.frame = null
-    autoScroll.speed = 0
-  }, [])
-
-  // Follows the pointer with the dragged tab inside the list, and slides the
-  // tabs it passes over out of the way by one tab width plus the gap.
-  const layoutListDrag = useCallback(
-    (dragState: TabDragState, clientX: number) => {
-      const list = listRef.current
-      const elements = getTabElements()
-      const source = dragState.sourceElement
-      const fromIndex = elements.indexOf(source)
-      if (!list || fromIndex < 0) {
-        return
-      }
-
-      const first = elements[0]
-      const last = elements[elements.length - 1]
-      const offset = Math.min(
-        Math.max(
-          getListContentX(list, clientX) - dragState.grabOffsetX - source.offsetLeft,
-          first.offsetLeft - source.offsetLeft
-        ),
-        last.offsetLeft + last.offsetWidth - source.offsetLeft - source.offsetWidth
-      )
-      source.style.transform = `translateX(${offset}px)`
-
-      // A tab is passed once the dragged tab's leading edge crosses its middle.
-      // Comparing centers instead would strand a wide tab that cannot travel
-      // past the narrower first or last tab, since the drag stops at the ends.
-      const draggedLeft = source.offsetLeft + offset
-      const draggedRight = draggedLeft + source.offsetWidth
-      let toIndex = 0
-      elements.forEach((element, index) => {
-        const elementCenter = element.offsetLeft + element.offsetWidth / 2
-        if (
-          (index < fromIndex && elementCenter <= draggedLeft) ||
-          (index > fromIndex && elementCenter < draggedRight)
-        ) {
-          toIndex += 1
-        }
-      })
-
-      const shift = source.offsetWidth + dragState.gap
-      elements.forEach((element, index) => {
-        if (index === fromIndex) {
-          return
-        }
-        const elementShift =
-          index > fromIndex && index <= toIndex
-            ? -shift
-            : index < fromIndex && index >= toIndex
-              ? shift
-              : 0
-        element.style.transform = elementShift ? `translateX(${elementShift}px)` : ""
-      })
-      dragState.toIndex = toIndex
-    },
-    [getTabElements]
-  )
-
-  // Closes the gap the detached tab left behind.
-  const layoutDetachedDrag = useCallback(
-    (dragState: TabDragState) => {
-      const elements = getTabElements()
-      const source = dragState.sourceElement
-      const fromIndex = elements.indexOf(source)
-      const shift = source.offsetWidth + dragState.gap
-      elements.forEach((element, index) => {
-        element.style.transform =
-          fromIndex >= 0 && index > fromIndex ? `translateX(${-shift}px)` : ""
-      })
-      dragState.toIndex = null
-    },
-    [getTabElements]
-  )
-
-  const updateAutoScroll = useCallback(
-    (clientX: number) => {
-      const list = listRef.current
-      const viewport = viewportRef.current
-      const autoScroll = autoScrollRef.current
-      if (!list || !viewport || list.scrollWidth <= list.clientWidth) {
-        stopAutoScroll()
-        return
-      }
-
-      const rect = viewport.getBoundingClientRect()
-      const edge = TAB_DRAG_AUTO_SCROLL_EDGE
-      const leftDepth = rect.left + edge - clientX
-      const rightDepth = clientX - (rect.right - edge)
-      autoScroll.speed =
-        leftDepth > 0
-          ? -Math.min(1, leftDepth / edge) * TAB_DRAG_AUTO_SCROLL_MAX_SPEED
-          : rightDepth > 0
-            ? Math.min(1, rightDepth / edge) * TAB_DRAG_AUTO_SCROLL_MAX_SPEED
-            : 0
-
-      if (autoScroll.speed === 0) {
-        stopAutoScroll()
-        return
-      }
-      if (autoScroll.frame !== null) {
-        return
-      }
-
-      const step = () => {
-        const dragState = dragStateRef.current
-        const pointer = lastPointerPosRef.current
-        if (!dragState || dragState.mode !== "list" || !pointer || autoScroll.speed === 0) {
-          autoScroll.frame = null
-          return
-        }
-        const scrollLeft = list.scrollLeft
-        list.scrollLeft += autoScroll.speed
-        if (list.scrollLeft !== scrollLeft) {
-          layoutListDrag(dragState, pointer.x)
-        }
-        autoScroll.frame = requestAnimationFrame(step)
-      }
-      autoScroll.frame = requestAnimationFrame(step)
-    },
-    [layoutListDrag, stopAutoScroll]
-  )
-
-  const resetTabDrag = useCallback(() => {
-    dragStateRef.current = null
-    stopAutoScroll()
-    setDraggingTabId(null)
-    setDragMode(null)
-    setDragGhostTab(null)
-    onTabDragCancel()
-  }, [onTabDragCancel, stopAutoScroll])
-
-  const cancelTabDrag = useCallback(() => {
-    const dragState = dragStateRef.current
-    if (!dragState) {
-      return
-    }
-
-    if (dragState.sourceElement.hasPointerCapture(dragState.pointerId)) {
-      dragState.sourceElement.releasePointerCapture(dragState.pointerId)
-    }
-    if (dragState.dragging) {
-      captureTabPositions(dragState.tabId)
-    }
-    resetTabDrag()
-  }, [captureTabPositions, resetTabDrag])
-
-  const handleTabPointerDown = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>, tabId: string) => {
-      const target = event.target
-      if (event.button !== 0 || !(target instanceof Element) || target.closest("button")) {
-        return
-      }
-
-      suppressNextClickRef.current = false
-      dragStateRef.current = {
-        tabId,
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        dragging: false,
-        mode: "list",
-        sourceElement: event.currentTarget,
-        threshold: TAB_DRAG_THRESHOLD * (window.devicePixelRatio || 1),
-        // Measured on screen rather than from offsetLeft, so a tab grabbed
-        // while still sliding into place stays under the pointer.
-        grabOffsetX: event.clientX - event.currentTarget.getBoundingClientRect().left,
-        gap: 0,
-        toIndex: null,
-      }
-      event.currentTarget.setPointerCapture(event.pointerId)
-    },
-    []
-  )
-
-  const updateTabDrag = useCallback(
-    (dragState: TabDragState, clientX: number, clientY: number) => {
-      const listRect = listRef.current?.getBoundingClientRect()
-      const mode: TabDragMode =
-        listRect &&
-        clientY >= listRect.top - TAB_DRAG_DETACH_DISTANCE &&
-        clientY <= listRect.bottom + TAB_DRAG_DETACH_DISTANCE
-          ? "list"
-          : "detached"
-
-      if (mode !== dragState.mode) {
-        dragState.mode = mode
-        setDragMode(mode)
-        if (mode === "detached") {
-          setDragGhostTab(tabsRef.current.find((tab) => tab.id === dragState.tabId) ?? null)
-        } else {
-          setDragGhostTab(null)
-          onTabDragCancel()
-        }
-      }
-
-      if (mode === "list") {
-        layoutListDrag(dragState, clientX)
-        updateAutoScroll(clientX)
-        return
-      }
-
-      stopAutoScroll()
-      layoutDetachedDrag(dragState)
-      const ghost = dragGhostRef.current
-      if (ghost) {
-        ghost.style.transform = `translate(${clientX}px, ${clientY}px)`
-      }
-      onTabDragMove(dragState.tabId, clientX, clientY)
-    },
-    [
-      layoutDetachedDrag,
-      layoutListDrag,
-      onTabDragCancel,
-      onTabDragMove,
-      stopAutoScroll,
-      updateAutoScroll,
-    ]
-  )
-
-  const handleTabPointerMove = useCallback(
-    (event: PointerEvent) => {
-      const dragState = dragStateRef.current
-      if (!dragState || dragState.pointerId !== event.pointerId) {
-        return
-      }
-
-      const deltaX = event.clientX - dragState.startX
-      const deltaY = event.clientY - dragState.startY
-      lastPointerPosRef.current = { x: event.clientX, y: event.clientY }
-
-      if (!dragState.dragging) {
-        if (Math.hypot(deltaX, deltaY) < dragState.threshold) {
-          return
-        }
-        dragState.dragging = true
-        dragState.gap = listRef.current
-          ? parseFloat(getComputedStyle(listRef.current).columnGap) || 0
-          : 0
-        suppressNextClickRef.current = true
-        setDraggingTabId(dragState.tabId)
-        setDragMode("list")
-      }
-
-      event.preventDefault()
-      updateTabDrag(dragState, event.clientX, event.clientY)
-    },
-    [updateTabDrag]
-  )
-
-  const finishTabDrag = useCallback(
-    (event: PointerEvent) => {
-      const dragState = dragStateRef.current
-      if (!dragState || dragState.pointerId !== event.pointerId) {
-        return
-      }
-
-      if (dragState.sourceElement.hasPointerCapture(event.pointerId)) {
-        dragState.sourceElement.releasePointerCapture(event.pointerId)
-      }
-
-      if (dragState.dragging) {
-        event.preventDefault()
-        if (dragState.mode === "detached") {
-          onTabDrop(dragState.tabId, event.clientX, event.clientY)
-        }
-
-        captureTabPositions(dragState.tabId)
-        const fromIndex = tabsRef.current.findIndex((tab) => tab.id === dragState.tabId)
-        const toIndex = dragState.toIndex
-        if (fromIndex >= 0 && toIndex !== null && fromIndex !== toIndex) {
-          onTabMove(fromIndex, toIndex)
-        }
-      }
-
-      resetTabDrag()
-    },
-    [captureTabPositions, onTabDrop, onTabMove, resetTabDrag]
-  )
 
   const handleTabListScroll = useCallback(() => {
     updateScrollState()
@@ -587,39 +153,7 @@ export const TabBar: React.FC<TabBarProps> = ({
     if (dragState?.dragging && dragState.mode === "list" && pointer) {
       layoutListDrag(dragState, pointer.x)
     }
-  }, [layoutListDrag, updateScrollState])
-
-  useEffect(() => {
-    const handlePointerCancel = (event: PointerEvent) => {
-      if (dragStateRef.current?.pointerId === event.pointerId) {
-        cancelTabDrag()
-      }
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && dragStateRef.current?.dragging) {
-        event.preventDefault()
-        event.stopPropagation()
-        cancelTabDrag()
-      }
-    }
-
-    window.addEventListener("pointermove", handleTabPointerMove, true)
-    window.addEventListener("pointerup", finishTabDrag, true)
-    window.addEventListener("pointercancel", handlePointerCancel, true)
-    window.addEventListener("keydown", handleKeyDown, true)
-    window.addEventListener("blur", cancelTabDrag)
-
-    return () => {
-      window.removeEventListener("pointermove", handleTabPointerMove, true)
-      window.removeEventListener("pointerup", finishTabDrag, true)
-      window.removeEventListener("pointercancel", handlePointerCancel, true)
-      window.removeEventListener("keydown", handleKeyDown, true)
-      window.removeEventListener("blur", cancelTabDrag)
-    }
-  }, [cancelTabDrag, finishTabDrag, handleTabPointerMove])
-
-  useEffect(() => stopAutoScroll, [stopAutoScroll])
+  }, [layoutListDrag, updateScrollState, dragStateRef, lastPointerPosRef])
 
   const handleTabClick = useCallback(
     (id: string) => {
@@ -633,15 +167,7 @@ export const TabBar: React.FC<TabBarProps> = ({
       // already in sight is a way back to its terminal too.
       if (id === activeTabId) focusActiveTerminal()
     },
-    [activeTabId, onTabClick]
-  )
-
-  const handleSelectTab = useCallback(
-    (id: string) => {
-      onTabClick(id)
-      closeOverflowMenu()
-    },
-    [closeOverflowMenu, onTabClick]
+    [activeTabId, onTabClick, suppressNextClickRef]
   )
 
   const hasOverflow = scrollState.canScrollLeft || scrollState.canScrollRight
@@ -692,40 +218,6 @@ export const TabBar: React.FC<TabBarProps> = ({
     list.addEventListener("wheel", handleTabListWheel, { passive: false })
     return () => list.removeEventListener("wheel", handleTabListWheel)
   }, [handleTabListWheel])
-
-  const normalizedSearchQuery = searchQuery.trim().toLowerCase()
-  const filteredTabs = normalizedSearchQuery
-    ? tabs.filter((tab, index) => {
-        const connection = tab.connection
-        const searchableText = [
-          String(index + 1),
-          tab.title,
-          tab.type,
-          connection?.host,
-          connection?.username,
-          connection?.profileName,
-          tab.remoteFile?.profileName,
-          tab.remoteFile?.connectionLabel,
-          tab.remoteFile?.host,
-          tab.remoteFile?.path,
-          connection?.port ? String(connection.port) : undefined,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-
-        return searchableText.includes(normalizedSearchQuery)
-      })
-    : tabs
-
-  const handleSearchKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent) && filteredTabs.length > 0) {
-        handleSelectTab(filteredTabs[0].id)
-      }
-    },
-    [filteredTabs, handleSelectTab]
-  )
 
   return (
     <div className="tab-bar-shell">
@@ -807,77 +299,18 @@ export const TabBar: React.FC<TabBarProps> = ({
 
           {isOverflowMenuOpen &&
             createPortal(
-              <div
-                ref={overflowPanelRef}
-                className="tab-overflow-panel"
-                role="dialog"
-                aria-label={t("tabs.searchTabs", { defaultValue: "Search tabs" })}
-                style={overflowPanelStyle ?? undefined}
-              >
-                <div className="tab-search-box">
-                  <Search size={14} />
-                  <input
-                    ref={searchInputRef}
-                    className="tab-search-input"
-                    value={searchQuery}
-                    placeholder={t("tabs.searchTabs", { defaultValue: "Search tabs" })}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    onKeyDown={handleSearchKeyDown}
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      className="tab-search-clear"
-                      aria-label={t("tabs.clearSearch", { defaultValue: "Clear search" })}
-                      onClick={() => {
-                        setSearchQuery("")
-                        searchInputRef.current?.focus()
-                      }}
-                    >
-                      <X size={13} />
-                    </button>
-                  )}
-                </div>
-
-                <div className="tab-overflow-results">
-                  {filteredTabs.map((tab) => {
-                    const tabIndex = tabs.findIndex((currentTab) => currentTab.id === tab.id)
-                    const connectionMeta = getOverflowConnectionMeta(tab)
-
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        className={`tab-overflow-item ${tab.id === activeTabId ? "active" : ""}`}
-                        onClick={() => handleSelectTab(tab.id)}
-                      >
-                        <span className="tab-overflow-number">{tabIndex + 1}</span>
-                        <TabIcon tab={tab} className="tab-icon" />
-                        <TabAttentionDot tabId={tab.id} />
-                        <span className="tab-overflow-title">{tab.title}</span>
-                        {connectionMeta.primary && (
-                          <span className="tab-overflow-meta">
-                            <span className="tab-overflow-meta-primary">
-                              {connectionMeta.primary}
-                            </span>
-                            {connectionMeta.secondary && (
-                              <span className="tab-overflow-meta-secondary">
-                                {connectionMeta.secondary}
-                              </span>
-                            )}
-                          </span>
-                        )}
-                      </button>
-                    )
-                  })}
-
-                  {filteredTabs.length === 0 && (
-                    <div className="tab-overflow-empty">
-                      {t("tabs.noMatchingTabs", { defaultValue: "No matching tabs" })}
-                    </div>
-                  )}
-                </div>
-              </div>,
+              <TabOverflowPanel
+                overflowPanelRef={overflowPanelRef}
+                overflowPanelStyle={overflowPanelStyle}
+                searchInputRef={searchInputRef}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                handleSearchKeyDown={handleSearchKeyDown}
+                filteredTabs={filteredTabs}
+                tabs={tabs}
+                activeTabId={activeTabId}
+                handleSelectTab={handleSelectTab}
+              />,
               document.body
             )}
         </div>

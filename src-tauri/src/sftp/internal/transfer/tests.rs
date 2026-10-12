@@ -7,6 +7,12 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::watch;
 
+use super::checkpoint::{checkpoint_due, SidecarState, SidecarStore};
+use super::chunks::{
+    bitmap_len, bitmap_set, completed_bytes, decode_bitmap, effective_chunk_size, encode_bitmap,
+    io_read_step, io_write_step,
+};
+use super::files::{local_fingerprint, now_unix_ms, remote_fingerprint};
 use super::test_server::{ServerOptions, TestLimits, TestServer};
 use super::*;
 

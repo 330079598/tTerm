@@ -1,48 +1,25 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
-import {
-  AlertCircle,
-  ArrowDown,
-  ArrowUp,
-  ArrowUpFromLine,
-  File,
-  FolderPlus,
-  Loader2,
-  RefreshCcw,
-} from "lucide-react"
+import { AlertCircle, ArrowUpFromLine, File, FolderPlus, Loader2, RefreshCcw } from "lucide-react"
 import type { TFunction } from "i18next"
 import { useTranslation } from "react-i18next"
 
+import { useSftpColumnWidths } from "@/components/SftpDrawer/useSftpColumnWidths"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { isMacPlatform } from "@/lib/keymap/chord"
 import { cn } from "@/lib/utils"
-
+import { SftpTableHeader } from "@/components/SftpDrawer/SftpTableHeader"
 import { SftpEntryIcon } from "@/components/SftpDrawer/SftpEntryIcon"
 import { formatBytes, formatTimestamp } from "@/components/SftpDrawer/sftpDrawerUtils"
 import type { SftpSearchMatcher } from "@/components/SftpDrawer/sftpSearch"
-import {
-  SFTP_SORT_COLUMNS,
-  type SftpSort,
-  type SftpSortColumn,
-} from "@/components/SftpDrawer/sftpView"
+import type { SftpSort, SftpSortColumn } from "@/components/SftpDrawer/sftpView"
 import type {
   LoadSftpDirectory,
   SftpContextMenuState,
   SftpDirectoryEntry,
   SftpDirectoryListing,
 } from "@/components/SftpDrawer/types"
-
-const SFTP_COLUMN_WIDTH_STORAGE_KEY = "tterm.sftp.columnWidths"
-const SFTP_COLUMN_DEFAULT_WEIGHTS = [300, 170, 100, 100, 126, 148] as const
-const SFTP_COLUMN_MIN_WEIGHTS = [180, 130, 78, 70, 92, 110] as const
-
-type ResizeState = {
-  index: number
-  startX: number
-  pxPerWeight: number
-  startWeights: number[]
-}
 
 function getEntryKindLabel(entry: SftpDirectoryEntry, t: TFunction) {
   if (entry.isSymlink) {
@@ -67,52 +44,7 @@ function getOwnerGroupLabel(entry: SftpDirectoryEntry) {
   return owner || group || "--"
 }
 
-function normalizeColumnWeight(weight: number) {
-  return Math.round(weight * 10) / 10
-}
-
-function resizeColumnPair(startWeights: number[], index: number, deltaWeight: number) {
-  const nextWeights = [...startWeights]
-  const leftMin = SFTP_COLUMN_MIN_WEIGHTS[index]
-  const rightMin = SFTP_COLUMN_MIN_WEIGHTS[index + 1]
-  const pairTotal = startWeights[index] + startWeights[index + 1]
-  const minLeft = Math.min(leftMin, pairTotal - rightMin)
-  const maxLeft = Math.max(minLeft, pairTotal - rightMin)
-  const requestedLeft = startWeights[index] + deltaWeight
-  const nextLeft = Math.min(Math.max(requestedLeft, minLeft), maxLeft)
-
-  nextWeights[index] = normalizeColumnWeight(nextLeft)
-  nextWeights[index + 1] = normalizeColumnWeight(pairTotal - nextLeft)
-  return nextWeights
-}
-
-function getInitialColumnWeights() {
-  try {
-    const storedWidths = window.localStorage.getItem(SFTP_COLUMN_WIDTH_STORAGE_KEY)
-    if (!storedWidths) {
-      return [...SFTP_COLUMN_DEFAULT_WEIGHTS]
-    }
-
-    const parsedWidths = JSON.parse(storedWidths)
-    if (
-      !Array.isArray(parsedWidths) ||
-      parsedWidths.length !== SFTP_COLUMN_DEFAULT_WEIGHTS.length
-    ) {
-      return [...SFTP_COLUMN_DEFAULT_WEIGHTS]
-    }
-
-    return SFTP_COLUMN_DEFAULT_WEIGHTS.map((defaultWidth, index) => {
-      const width = parsedWidths[index]
-      return typeof width === "number" && Number.isFinite(width)
-        ? Math.max(SFTP_COLUMN_MIN_WEIGHTS[index], normalizeColumnWeight(width))
-        : defaultWidth
-    })
-  } catch {
-    return [...SFTP_COLUMN_DEFAULT_WEIGHTS]
-  }
-}
-
-interface SftpDrawerContentProps {
+export interface SftpDrawerContentProps {
   activePath: string | null
   enterSelectionMode: () => void
   error: string | null
@@ -163,55 +95,14 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
 }) => {
   const { t } = useTranslation()
   const [isPointerSelecting, setIsPointerSelecting] = useState(false)
-  const [columnWeights, setColumnWeights] = useState(getInitialColumnWeights)
+  const { columnWeights, tableShellRef, tableGridStyle, startColumnResize, adjustColumnWidth } =
+    useSftpColumnWidths()
   const pointerAnchorRef = useRef<string | null>(null)
   const pointerMovedRef = useRef(false)
   // Set when a press starts on the empty space below the rows, so a plain
   // click there (no rows swept) can clear the selection on release.
   const pointerFromBlankRef = useRef(false)
-  const resizeStateRef = useRef<ResizeState | null>(null)
   const rowRefs = useRef(new Map<string, HTMLDivElement>())
-  const tableShellRef = useRef<HTMLDivElement>(null)
-  const gridTemplateColumns = useMemo(
-    () => columnWeights.map((width) => `minmax(0, ${width}fr)`).join(" "),
-    [columnWeights]
-  )
-  const compactGridTemplateColumns = useMemo(
-    () =>
-      columnWeights
-        .slice(0, 3)
-        .map((width) => `minmax(0, ${width}fr)`)
-        .join(" "),
-    [columnWeights]
-  )
-  const minimalGridTemplateColumns = useMemo(
-    () =>
-      columnWeights
-        .slice(0, 2)
-        .map((width) => `minmax(0, ${width}fr)`)
-        .join(" "),
-    [columnWeights]
-  )
-  const singleGridTemplateColumns = useMemo(
-    () => `minmax(0, ${columnWeights[0]}fr)`,
-    [columnWeights]
-  )
-  const tableGridStyle = useMemo(
-    () =>
-      ({
-        "--sftp-grid-template": gridTemplateColumns,
-        "--sftp-grid-template-compact": compactGridTemplateColumns,
-        "--sftp-grid-template-minimal": minimalGridTemplateColumns,
-        "--sftp-grid-template-single": singleGridTemplateColumns,
-      }) as React.CSSProperties,
-    [
-      compactGridTemplateColumns,
-      gridTemplateColumns,
-      minimalGridTemplateColumns,
-      singleGridTemplateColumns,
-    ]
-  )
-
   const filteredEntries = useMemo(() => {
     if (!searchMatcher.hasQuery) {
       return listing?.entries ?? []
@@ -271,62 +162,6 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
     },
     [enterSelectionMode, filteredEntries, handleActivateEntry, handleSelectRange]
   )
-
-  const startColumnResize = React.useCallback(
-    (index: number, event: React.MouseEvent<HTMLSpanElement>) => {
-      event.preventDefault()
-      event.stopPropagation()
-      const totalWeight = columnWeights.reduce((sum, width) => sum + width, 0)
-      const availableWidth = tableShellRef.current?.clientWidth ?? totalWeight
-      resizeStateRef.current = {
-        index,
-        startX: event.clientX,
-        pxPerWeight: Math.max(availableWidth / totalWeight, 0.1),
-        startWeights: columnWeights,
-      }
-      document.body.classList.add("sftp-column-resizing")
-    },
-    [columnWeights]
-  )
-
-  const adjustColumnWidth = React.useCallback((index: number, delta: number) => {
-    setColumnWeights((currentWeights) => resizeColumnPair(currentWeights, index, delta))
-  }, [])
-
-  useEffect(() => {
-    window.localStorage.setItem(SFTP_COLUMN_WIDTH_STORAGE_KEY, JSON.stringify(columnWeights))
-  }, [columnWeights])
-
-  useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
-      const resizeState = resizeStateRef.current
-      if (!resizeState) {
-        return
-      }
-
-      const delta = event.clientX - resizeState.startX
-      setColumnWeights(
-        resizeColumnPair(
-          resizeState.startWeights,
-          resizeState.index,
-          delta / resizeState.pxPerWeight
-        )
-      )
-    }
-
-    const stopResize = () => {
-      resizeStateRef.current = null
-      document.body.classList.remove("sftp-column-resizing")
-    }
-
-    window.addEventListener("mousemove", handleMouseMove)
-    window.addEventListener("mouseup", stopResize)
-    return () => {
-      document.body.classList.remove("sftp-column-resizing")
-      window.removeEventListener("mousemove", handleMouseMove)
-      window.removeEventListener("mouseup", stopResize)
-    }
-  }, [])
 
   useEffect(() => {
     if (!isPointerSelecting) {
@@ -390,82 +225,16 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
 
       <div className="sftp-table-shell" ref={tableShellRef}>
         {showTableHeader && (
-          <div
-            className={cn("sftp-table-header", isSelectionMode && "sftp-table-header-selection")}
-            role="row"
-            style={tableGridStyle}
-          >
-            {isSelectionMode && <span className="sftp-header-cell" aria-hidden="true" />}
-            {[
-              t("sftp.columns.name"),
-              t("sftp.columns.modified"),
-              t("sftp.columns.size"),
-              t("sftp.columns.kind", { defaultValue: "Kind" }),
-              t("sftp.columns.permissions", { defaultValue: "Permissions" }),
-              resultSummary ?? t("sftp.columns.owner"),
-            ].map((label, index) => {
-              const column = SFTP_SORT_COLUMNS[index]
-              const isLast = index === SFTP_COLUMN_DEFAULT_WEIGHTS.length - 1
-              // The last cell doubles as the result summary, which is not a column title.
-              const sortable = !(isLast && resultSummary)
-              const sorted = sortable && sort.column === column
-              return (
-                <span
-                  key={index}
-                  className={cn("sftp-header-cell", isLast && "sftp-header-summary")}
-                  aria-live={isLast ? "polite" : undefined}
-                  aria-sort={
-                    sorted ? (sort.direction === "asc" ? "ascending" : "descending") : undefined
-                  }
-                >
-                  {sortable ? (
-                    <button
-                      type="button"
-                      className="sftp-header-sort"
-                      onClick={() => onSortColumn(column)}
-                      title={t("sftp.columns.sortBy", {
-                        column: label,
-                        defaultValue: `Sort by ${label}`,
-                      })}
-                    >
-                      <span className="truncate">{label}</span>
-                      {sorted &&
-                        (sort.direction === "asc" ? (
-                          <ArrowUp className="size-3 shrink-0" aria-hidden="true" />
-                        ) : (
-                          <ArrowDown className="size-3 shrink-0" aria-hidden="true" />
-                        ))}
-                    </button>
-                  ) : (
-                    label
-                  )}
-                  {index < SFTP_COLUMN_DEFAULT_WEIGHTS.length - 1 && (
-                    <span
-                      className="sftp-column-resizer"
-                      role="separator"
-                      tabIndex={0}
-                      aria-orientation="vertical"
-                      aria-valuenow={Math.round(columnWeights[index])}
-                      aria-label={t("sftp.columns.resize", {
-                        column: label,
-                        defaultValue: `Resize ${label}`,
-                      })}
-                      onMouseDown={(event) => startColumnResize(index, event)}
-                      onKeyDown={(event) => {
-                        if (event.key === "ArrowLeft") {
-                          event.preventDefault()
-                          adjustColumnWidth(index, -12)
-                        } else if (event.key === "ArrowRight") {
-                          event.preventDefault()
-                          adjustColumnWidth(index, 12)
-                        }
-                      }}
-                    />
-                  )}
-                </span>
-              )
-            })}
-          </div>
+          <SftpTableHeader
+            isSelectionMode={isSelectionMode}
+            tableGridStyle={tableGridStyle}
+            resultSummary={resultSummary}
+            sort={sort}
+            onSortColumn={onSortColumn}
+            columnWeights={columnWeights}
+            startColumnResize={startColumnResize}
+            adjustColumnWidth={adjustColumnWidth}
+          />
         )}
         <ScrollArea
           className="flex-1 outline-none"

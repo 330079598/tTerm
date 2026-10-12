@@ -5,7 +5,7 @@ import { useSyncExternalStore } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext"
-import type { AppConfig } from "@/contexts/ConfigContext"
+import type { AppConfig } from "@/lib/appConfig"
 import { loadThemeCatalog } from "@/lib/themeCatalog"
 import { deriveThemeColors, terminalPaletteFromScheme } from "@/lib/themeDerivation"
 import type { CustomTheme } from "@/types/theme"
@@ -66,9 +66,11 @@ vi.mock("@/hooks/useSystemPrefersDark", () => ({
   useSystemPrefersDark: () => useSyncExternalStore(subscribe, () => config.systemDark),
 }))
 
-vi.mock("@/contexts/ConfigContext", () => ({
+vi.mock("@/lib/uiPlatform", () => ({
   getDetectedPlatform: () => "linux",
   isWindowBlurSupported: () => false,
+}))
+vi.mock("@/contexts/ConfigContext", () => ({
   useConfig: () => ({
     config: useSyncExternalStore(subscribe, () => config.current),
     isLoaded: true,

@@ -22,12 +22,9 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useAppActivity } from "@/contexts/AppActivityContext"
-import {
-  type BackgroundThrottling,
-  type CloseBehavior,
-  getDetectedPlatform,
-  getLaunchBackgroundThrottling,
-} from "@/contexts/ConfigContext"
+import type { BackgroundThrottling, CloseBehavior } from "@/lib/appConfig"
+import { getDetectedPlatform } from "@/lib/uiPlatform"
+import { getLaunchBackgroundThrottling } from "@/contexts/ConfigContext"
 import { cn } from "@/lib/utils"
 import { BandwidthLimitInput } from "@/components/SettingsDialog/BandwidthLimitInput"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"

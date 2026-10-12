@@ -240,7 +240,7 @@ export class CommandMarks implements IDisposable {
       overviewRulerOptions: { color, position: "left" },
     })
     // The scrollbar merges nearby marks of one color; a dot in the left
-    // padding beside each prompt keeps every command apart (TerminalTab.css).
+    // padding beside each prompt keeps every command apart (TerminalXterm.css).
     decoration?.onRender((element) => {
       element.classList.add("command-mark-dot")
       element.style.color = color

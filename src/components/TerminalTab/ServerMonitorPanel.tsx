@@ -18,7 +18,7 @@ import type {
   NetworkHistorySample,
   NetworkRate,
   ServerMetricsSnapshot,
-} from "@/components/TerminalTab/ServerMonitorBar"
+} from "@/components/TerminalTab/serverMetrics"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const MIN_PANEL_HEIGHT = 160

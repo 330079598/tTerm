@@ -1,0 +1,436 @@
+import { useCallback, useEffect, useRef } from "react"
+import { invoke } from "@tauri-apps/api/core"
+import { getCurrentWindow } from "@tauri-apps/api/window"
+import { useTranslation } from "react-i18next"
+
+import type { UseSftpUploadsParams, RunUploadOptions } from "@/components/SftpDrawer/useSftpUploads"
+import type { TransferStatus } from "@/types/tab"
+import type { ConflictPolicy } from "@/components/SftpDrawer/types"
+
+interface UploadItemStartEvent {
+  batchId?: string
+  fileName: string
+  fileSize: number
+  localPath: string
+  remotePath: string
+  transferId: string
+}
+
+interface UploadItemProgressEvent {
+  localPath: string
+  progress: number
+  total: number
+  transferred: number
+  transferId: string
+  resumedFrom?: number
+  parallelism?: number
+  completedChunks?: number
+  chunkCount?: number
+}
+
+interface UploadItemCompleteEvent {
+  cancelled: boolean
+  error?: string
+  localPath: string
+  remotePath: string
+  success: boolean
+  transferId: string
+  skipped?: boolean
+}
+
+interface UploadBatchStartEvent {
+  batchId: string
+  displayName: string
+  localPath: string
+  localPaths: string[]
+  remoteBasePath: string
+  conflictPolicy: ConflictPolicy
+}
+
+interface UploadBatchCompleteEvent {
+  batchId: string
+  cancelled: boolean
+  error?: string
+  failed: number
+  succeeded: number
+}
+
+interface BatchChildProgress {
+  fileSize: number
+  speed: number
+  status: TransferStatus
+  transferred: number
+}
+
+type UploadEventsOptions = Pick<
+  UseSftpUploadsParams,
+  | "addTransfer"
+  | "connection"
+  | "lastProgressUpdateRef"
+  | "tabId"
+  | "transfersRef"
+  | "updateTransfer"
+> & {
+  uploadPathsRunnerRef: React.RefObject<
+    ((paths: string[], remoteBasePath: string, options: RunUploadOptions) => void) | null
+  >
+}
+
+/**
+ * Follows the backend's upload events: adds each batch and file to the
+ * transfer list, keeps their progress, and lets a failed one be retried.
+ */
+export function useUploadEvents({
+  addTransfer,
+  connection,
+  lastProgressUpdateRef,
+  tabId,
+  transfersRef,
+  updateTransfer,
+  uploadPathsRunnerRef,
+}: UploadEventsOptions) {
+  const { t } = useTranslation()
+  const batchTransferIdsRef = useRef(new Map<string, Set<string>>())
+  const batchProgressRef = useRef(new Map<string, Map<string, BatchChildProgress>>())
+
+  const syncBatchTransfer = useCallback(
+    (batchId: string, fallbackStatus?: TransferStatus) => {
+      const children = batchProgressRef.current.get(batchId)
+      const childEntries = children ? Array.from(children.values()) : []
+      const fileSize = childEntries.reduce((sum, child) => sum + child.fileSize, 0)
+      const transferred = childEntries.reduce((sum, child) => sum + child.transferred, 0)
+      const speed = childEntries.reduce((sum, child) => sum + child.speed, 0)
+      const hasFailed = childEntries.some((child) => child.status === "failed")
+      const hasActive = childEntries.some(
+        (child) => child.status === "pending" || child.status === "transferring"
+      )
+
+      updateTransfer(batchId, {
+        fileSize,
+        speed,
+        status: fallbackStatus ?? (hasFailed ? "failed" : hasActive ? "transferring" : "pending"),
+        transferred,
+      })
+    },
+    [updateTransfer]
+  )
+
+  const runUploadFile = useCallback(
+    async (transferId: string, localPath: string, remotePath: string) => {
+      updateTransfer(transferId, {
+        status: "transferring",
+        error: undefined,
+        endTime: undefined,
+        speed: 0,
+        // Reset the clock so retry speed is measured from this attempt, not
+        // from the original (failed) one.
+        startTime: Date.now(),
+      })
+
+      try {
+        await invoke("sftp_upload_file", {
+          tabId,
+          connection,
+          localPath,
+          remotePath,
+          transferId,
+        })
+
+        const transfer = transfersRef.current.find((item) => item.id === transferId)
+        const completedSize = transfer?.fileSize || transfer?.transferred || 0
+        lastProgressUpdateRef.current.delete(transferId)
+        updateTransfer(transferId, {
+          status: "completed",
+          transferred: completedSize,
+          fileSize: completedSize,
+          endTime: Date.now(),
+        })
+      } catch (invokeError) {
+        const error = String(invokeError)
+        const cancelled = error.toLowerCase().includes("cancelled")
+        lastProgressUpdateRef.current.delete(transferId)
+        updateTransfer(transferId, {
+          status: cancelled ? "cancelled" : "failed",
+          error: cancelled ? undefined : error,
+          endTime: Date.now(),
+        })
+      }
+    },
+    [connection, lastProgressUpdateRef, tabId, transfersRef, updateTransfer]
+  )
+
+  useEffect(() => {
+    const appWindow = getCurrentWindow()
+    let disposed = false
+    const unlisteners: Array<() => void> = []
+
+    const setupListeners = async () => {
+      const nextUnlisteners = await Promise.all([
+        appWindow.listen<UploadBatchStartEvent>(`sftp-upload-batch-start-${tabId}`, (event) => {
+          const { batchId, conflictPolicy, displayName, localPath, localPaths, remoteBasePath } =
+            event.payload
+          addTransfer(
+            {
+              tabId,
+              direction: "upload",
+              fileName: displayName,
+              fileSize: 0,
+              localPath,
+              remotePath: remoteBasePath,
+              speed: 0,
+            },
+            batchId
+          )
+
+          batchTransferIdsRef.current.set(batchId, new Set())
+          batchProgressRef.current.set(batchId, new Map())
+
+          updateTransfer(batchId, {
+            error: undefined,
+            fileSize: 0,
+            speed: 0,
+            status: "pending",
+            transferred: 0,
+            // The batch's own paths are captured directly: a retry must re-run
+            // exactly this batch, and anything stored in a map that is cleaned
+            // up when the batch completes would be gone by the time the user
+            // can click retry. `skipExisting` lets the backend pass over files
+            // an earlier attempt already finished instead of re-uploading them,
+            // and the batch keeps the conflict policy it was started with.
+            retry: () => {
+              uploadPathsRunnerRef.current?.(localPaths, remoteBasePath, {
+                conflictPolicy,
+                skipExisting: true,
+              })
+            },
+          })
+        }),
+        appWindow.listen<UploadBatchCompleteEvent>(
+          `sftp-upload-batch-complete-${tabId}`,
+          (event) => {
+            const { batchId, cancelled, error, failed, succeeded } = event.payload
+            const childTransferIds = batchTransferIdsRef.current.get(batchId) ?? new Set<string>()
+            const transfer = transfersRef.current.find((item) => item.id === batchId)
+            const now = Date.now()
+
+            for (const transferId of childTransferIds) {
+              lastProgressUpdateRef.current.delete(transferId)
+            }
+            batchTransferIdsRef.current.delete(batchId)
+            batchProgressRef.current.delete(batchId)
+
+            if (cancelled) {
+              for (const transferId of childTransferIds) {
+                updateTransfer(transferId, {
+                  endTime: now,
+                  error: undefined,
+                  status: "cancelled",
+                })
+              }
+
+              updateTransfer(batchId, {
+                endTime: now,
+                error: undefined,
+                status: "cancelled",
+              })
+              return
+            }
+
+            if (error) {
+              updateTransfer(batchId, {
+                endTime: now,
+                error,
+                status: "failed",
+              })
+              return
+            }
+
+            const hasFailedChildren = Array.from(childTransferIds).some((transferId) => {
+              const childTransfer = transfersRef.current.find((item) => item.id === transferId)
+              return childTransfer?.status === "failed"
+            })
+
+            updateTransfer(batchId, {
+              endTime: now,
+              error: hasFailedChildren
+                ? t("sftp.errors.uploadPartialFailed", {
+                    failed,
+                    succeeded,
+                    defaultValue: `${succeeded} upload(s) succeeded, ${failed} failed`,
+                  })
+                : undefined,
+              fileSize: transfer?.fileSize ?? 0,
+              speed: 0,
+              status: hasFailedChildren ? "failed" : "completed",
+              transferred: transfer?.fileSize ?? transfer?.transferred ?? 0,
+            })
+          }
+        ),
+        appWindow.listen<UploadItemStartEvent>(`sftp-upload-item-start-${tabId}`, (event) => {
+          const { batchId, fileName, fileSize, localPath, remotePath, transferId } = event.payload
+
+          if (batchId) {
+            const nextIds = new Set(batchTransferIdsRef.current.get(batchId) ?? [])
+            nextIds.add(transferId)
+            batchTransferIdsRef.current.set(batchId, nextIds)
+
+            const nextBatchProgress = new Map(batchProgressRef.current.get(batchId) ?? [])
+            nextBatchProgress.set(transferId, {
+              fileSize,
+              speed: 0,
+              status: "transferring",
+              transferred: 0,
+            })
+            batchProgressRef.current.set(batchId, nextBatchProgress)
+            syncBatchTransfer(batchId, "transferring")
+          }
+
+          addTransfer(
+            {
+              batchId,
+              tabId,
+              direction: "upload",
+              fileName,
+              fileSize,
+              localPath,
+              remotePath,
+              speed: 0,
+            },
+            transferId
+          )
+
+          updateTransfer(transferId, {
+            batchId,
+            error: undefined,
+            fileSize,
+            speed: 0,
+            status: "transferring",
+            retry: () => {
+              void runUploadFile(transferId, localPath, remotePath)
+            },
+          })
+        }),
+        appWindow.listen<UploadItemProgressEvent>(`sftp-upload-progress-${tabId}`, (event) => {
+          const { progress, resumedFrom, parallelism, transferId, transferred } = event.payload
+          const now = Date.now()
+          const lastUpdate = lastProgressUpdateRef.current.get(transferId) || 0
+          // The backend already sends at most one update per 100 ms; this only
+          // guards against bursts, kept below that so delivery jitter drops none.
+          if (now - lastUpdate < 50 && progress < 100) {
+            return
+          }
+          lastProgressUpdateRef.current.set(transferId, now)
+
+          const transfer = transfersRef.current.find((item) => item.id === transferId)
+          const duration = now - (transfer?.startTime || now)
+          const measured = Math.max(0, transferred - (resumedFrom ?? 0))
+          const speed = duration > 0 ? (measured / duration) * 1000 : 0
+
+          updateTransfer(transferId, {
+            speed,
+            transferred,
+            resumedFrom: resumedFrom && resumedFrom > 0 ? resumedFrom : undefined,
+            parallelism: parallelism && parallelism > 0 ? parallelism : undefined,
+          })
+
+          if (transfer?.batchId) {
+            const nextBatchProgress = new Map(batchProgressRef.current.get(transfer.batchId) ?? [])
+            const previous = nextBatchProgress.get(transferId)
+            if (previous) {
+              nextBatchProgress.set(transferId, {
+                ...previous,
+                speed,
+                transferred,
+              })
+              batchProgressRef.current.set(transfer.batchId, nextBatchProgress)
+              syncBatchTransfer(transfer.batchId, "transferring")
+            }
+          }
+        }),
+        appWindow.listen<UploadItemCompleteEvent>(`sftp-upload-item-complete-${tabId}`, (event) => {
+          const { cancelled, error, skipped, success, transferId } = event.payload
+          const transfer = transfersRef.current.find((item) => item.id === transferId)
+          const now = Date.now()
+          const duration = now - (transfer?.startTime || now)
+          const completedFileSize = transfer?.fileSize || transfer?.transferred || 0
+          // Only the bytes moved in this attempt count towards the speed: a
+          // resumed transfer would otherwise report the whole file size over
+          // the final attempt's duration and spike on completion. A skipped
+          // item moved nothing at all in this run.
+          const transferredActual = skipped
+            ? 0
+            : Math.max(0, completedFileSize - (transfer?.resumedFrom ?? 0))
+          const speed = duration > 0 ? (transferredActual / duration) * 1000 : 0
+
+          lastProgressUpdateRef.current.delete(transferId)
+
+          if (transfer?.batchId) {
+            const nextBatchProgress = new Map(batchProgressRef.current.get(transfer.batchId) ?? [])
+            const previous = nextBatchProgress.get(transferId)
+            if (previous) {
+              nextBatchProgress.set(transferId, {
+                ...previous,
+                speed: 0,
+                status: success ? "completed" : cancelled ? "cancelled" : "failed",
+                transferred: success ? completedFileSize : previous.transferred,
+              })
+              batchProgressRef.current.set(transfer.batchId, nextBatchProgress)
+              syncBatchTransfer(transfer.batchId)
+            }
+          }
+
+          if (success) {
+            updateTransfer(transferId, {
+              endTime: now,
+              fileSize: completedFileSize,
+              speed,
+              status: "completed",
+              skipped: skipped || undefined,
+              transferred: completedFileSize,
+            })
+            return
+          }
+
+          if (cancelled) {
+            updateTransfer(transferId, {
+              endTime: now,
+              error: undefined,
+              status: "cancelled",
+            })
+            return
+          }
+
+          updateTransfer(transferId, {
+            endTime: now,
+            error: error || undefined,
+            status: "failed",
+          })
+        }),
+      ])
+
+      if (disposed) {
+        nextUnlisteners.forEach((unlisten) => unlisten())
+        return
+      }
+
+      unlisteners.push(...nextUnlisteners)
+    }
+
+    void setupListeners()
+
+    return () => {
+      disposed = true
+      unlisteners.forEach((unlisten) => unlisten())
+    }
+  }, [
+    addTransfer,
+    lastProgressUpdateRef,
+    runUploadFile,
+    syncBatchTransfer,
+    t,
+    tabId,
+    transfersRef,
+    updateTransfer,
+    uploadPathsRunnerRef,
+  ])
+}

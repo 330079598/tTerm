@@ -1,28 +1,32 @@
 import React, { useEffect, useRef, useState } from "react"
-import { invoke } from "@tauri-apps/api/core"
 import { Settings } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import {
+  ThemeEditor,
+  ThemeGallery,
+  ThemeImportDialog,
+} from "@/components/SettingsDialog/settingsLazy"
+import {
+  getPerfNow,
+  logPerf,
+  loadSystemFontsCached,
+  normalizeSettingsTab,
+  refreshSecretStatusCached,
+} from "@/components/SettingsDialog/settingsLoaders"
+import { useTerminalSettingsDraft } from "@/components/SettingsDialog/useTerminalSettingsDraft"
+import { useThemeSettingsHandlers } from "@/components/SettingsDialog/useThemeSettingsHandlers"
+import { useSettingsHandlers } from "@/components/SettingsDialog/useSettingsHandlers"
 import { AboutDialog } from "@/components/AboutDialog"
 import { useConfirmDialog, useInfoDialog, usePromptDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
-import {
-  type BackgroundThrottling,
-  type CloseBehavior,
-  type TerminalRenderer,
-  type WindowBlurMaterial,
-  useConfig,
-} from "@/contexts/ConfigContext"
-import type { TabWidthMode } from "@/lib/tabSettings"
+import { useConfig } from "@/contexts/ConfigContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useToast } from "@/hooks/use-toast"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
 import { useSyncedState } from "@/hooks/useSyncedState"
-import { normalizeScrollbackConfig } from "@/lib/scrollback"
-import { cn, toErrorMessage } from "@/lib/utils"
-import { isCatalogTheme } from "@/lib/themeCatalog"
-import type { CustomTheme, PresetThemeId } from "@/types/theme"
+import { cn } from "@/lib/utils"
 import { AppearanceSettingsTab } from "@/components/SettingsDialog/AppearanceSettingsTab"
 import { ConnectionSettingsTab } from "@/components/SettingsDialog/ConnectionSettingsTab"
 import { DataMigrationSettingsTab } from "@/components/SettingsDialog/DataMigrationSettingsTab"
@@ -41,118 +45,6 @@ import {
   SettingsDialogProps,
   SettingsPanelProps,
 } from "@/components/SettingsDialog/types"
-import type { UpdateChannel, UpdateCheckFrequency } from "@/lib/updater"
-
-const ThemeEditor = React.lazy(() =>
-  import("@/components/ThemeEditor").then((module) => ({
-    default: module.ThemeEditor,
-  }))
-)
-
-const ThemeGallery = React.lazy(() =>
-  import("@/components/ThemeGallery").then((module) => ({
-    default: module.ThemeGallery,
-  }))
-)
-
-const ThemeImportDialog = React.lazy(() =>
-  import("@/components/ThemeImportDialog").then((module) => ({
-    default: module.ThemeImportDialog,
-  }))
-)
-
-const SECRET_STATUS_CACHE_MS = 30_000
-const FONT_LOAD_TIMEOUT_MS = 5_000
-
-let cachedSystemFonts: string[] | null = null
-let systemFontsPromise: Promise<string[]> | null = null
-let lastSecretStatusRefreshAt = 0
-let secretStatusPromise: Promise<unknown> | null = null
-
-function normalizeSettingsTab(tab: string) {
-  return tab === "font" ? "terminal" : tab
-}
-
-function normalizeScrollbackLines(value: number | undefined) {
-  return normalizeScrollbackConfig(value)
-}
-
-function getPerfNow() {
-  return typeof performance === "undefined" ? 0 : performance.now()
-}
-
-function logPerf(label: string, startTime: number, detail?: string) {
-  if (!import.meta.env.DEV || typeof performance === "undefined") {
-    return
-  }
-
-  const duration = Math.round(performance.now() - startTime)
-  const suffix = detail ? ` ${detail}` : ""
-  console.info(`[perf] ${label}: ${duration}ms${suffix}`)
-}
-
-async function loadSystemFontsCached() {
-  if (cachedSystemFonts !== null) {
-    return cachedSystemFonts
-  }
-
-  if (systemFontsPromise) {
-    return systemFontsPromise
-  }
-
-  const startTime = getPerfNow()
-  const fontRequest = invoke<string[]>("list_fonts").then((fonts) => {
-    cachedSystemFonts = fonts
-    return fonts
-  })
-
-  systemFontsPromise = new Promise<string[]>((resolve, reject) => {
-    const timeoutId = window.setTimeout(() => {
-      reject(new Error("Timed out while loading system fonts"))
-    }, FONT_LOAD_TIMEOUT_MS)
-
-    fontRequest
-      .then((fonts) => {
-        window.clearTimeout(timeoutId)
-        resolve(fonts)
-      })
-      .catch((error) => {
-        window.clearTimeout(timeoutId)
-        reject(error)
-      })
-  }).finally(() => {
-    logPerf(
-      "settings.fonts",
-      startTime,
-      cachedSystemFonts ? `count=${cachedSystemFonts.length}` : ""
-    )
-    systemFontsPromise = null
-  })
-
-  return systemFontsPromise
-}
-
-function refreshSecretStatusCached(refreshSecretStatus: () => Promise<unknown>) {
-  const now = Date.now()
-  if (now - lastSecretStatusRefreshAt < SECRET_STATUS_CACHE_MS) {
-    return
-  }
-
-  if (secretStatusPromise) {
-    return
-  }
-
-  const startTime = getPerfNow()
-  secretStatusPromise = refreshSecretStatus()
-    .then(() => {
-      lastSecretStatusRefreshAt = Date.now()
-    })
-    .catch(() => {})
-    .finally(() => {
-      logPerf("settings.secret_status", startTime)
-      secretStatusPromise = null
-    })
-}
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   defaultTab = "general",
@@ -186,42 +78,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const { info, InfoDialog } = useInfoDialog()
   const [aboutOpen, setAboutOpen] = useState(false)
 
-  const [fontFamily, setFontFamily] = useState(config.font_family)
-  // Follows the zoom shortcuts while the settings are open.
-  const [fontSize, setFontSize] = useSyncedState(config.font_size)
-  const [lineHeight, setLineHeight] = useState(config.terminal_line_height)
-  const [letterSpacing, setLetterSpacing] = useState(config.terminal_letter_spacing)
-  const [cursorStyle, setCursorStyle] = useState(config.cursor_style)
-  const [macOptionIsMeta, setMacOptionIsMeta] = useState(config.mac_option_is_meta)
-  const [confirmMultilinePaste, setConfirmMultilinePaste] = useState(config.confirm_multiline_paste)
-  const [copyOnSelect, setCopyOnSelect] = useState(config.copy_on_select)
-  const [commandMarks, setCommandMarks] = useState(config.command_marks)
-  const [localShellIntegration, setLocalShellIntegration] = useState(config.local_shell_integration)
-  const [rightClickPaste, setRightClickPaste] = useState(config.right_click_paste)
-  const [scrollbackLines, setScrollbackLines] = useState(() =>
-    normalizeScrollbackLines(config.scrollback_lines)
-  )
-  const [terminalRenderer, setTerminalRenderer] = useState<TerminalRenderer>(
-    config.terminal_renderer
-  )
-  const [hiddenRendererReleaseSecs, setHiddenRendererReleaseSecs] = useState(
-    config.hidden_renderer_release_secs
-  )
-  const [terminalPaddingLeftPx, setTerminalPaddingLeftPx] = useState(
-    config.terminal_padding_left_px
-  )
-  const [terminalPaddingRightPx, setTerminalPaddingRightPx] = useState(
-    config.terminal_padding_right_px
-  )
-  const [terminalPaddingBottomPx, setTerminalPaddingBottomPx] = useState(
-    config.terminal_padding_bottom_px
-  )
-  const [savingFont, setSavingFont] = useState(false)
-  const savingFontRef = useRef(false)
-  const [systemFonts, setSystemFonts] = useState<string[]>(() => cachedSystemFonts ?? [])
-  const [fontsLoaded, setFontsLoaded] = useState(cachedSystemFonts !== null)
-  const [fontLoadError, setFontLoadError] = useState<string | null>(null)
-
+  const terminalDraft = useTerminalSettingsDraft({ config, saveConfig, toast, t, isMountedRef })
+  const { fontsLoaded, setSystemFonts, setFontLoadError, setFontsLoaded } = terminalDraft
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null)
   const [creatingFromTheme, setCreatingFromTheme] = useState<string | null>(null)
   const [themeGalleryOpen, setThemeGalleryOpen] = useState(false)
@@ -269,7 +127,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         }
         setFontsLoaded(true)
       })
-  }, [activeTab, fontsLoaded, t])
+  }, [activeTab, fontsLoaded, t, setFontLoadError, setFontsLoaded, setSystemFonts])
   const loadingFonts = activeTab === "terminal" && !fontsLoaded
 
   useEffect(() => {
@@ -280,54 +138,24 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     refreshSecretStatusCached(refreshSecretStatus)
   }, [activeTab, refreshSecretStatus])
 
-  const handleFontSave = async () => {
-    if (savingFontRef.current) {
-      return
-    }
-    savingFontRef.current = true
-    setSavingFont(true)
-    try {
-      await saveConfig({
-        font_family: fontFamily,
-        font_size: fontSize,
-        terminal_line_height: lineHeight,
-        terminal_letter_spacing: letterSpacing,
-        cursor_style: cursorStyle,
-        mac_option_is_meta: macOptionIsMeta,
-        confirm_multiline_paste: confirmMultilinePaste,
-        copy_on_select: copyOnSelect,
-        right_click_paste: rightClickPaste,
-        command_marks: commandMarks,
-        local_shell_integration: localShellIntegration,
-        scrollback_lines: scrollbackLines,
-        terminal_renderer: terminalRenderer,
-        hidden_renderer_release_secs: hiddenRendererReleaseSecs,
-        terminal_padding_left_px: terminalPaddingLeftPx,
-        terminal_padding_right_px: terminalPaddingRightPx,
-        terminal_padding_bottom_px: terminalPaddingBottomPx,
-      })
-      toast({
-        title: t("fontSettings.saved", { defaultValue: "Settings saved" }),
-        description: t("fontSettings.savedDesc", {
-          defaultValue:
-            "Terminal settings have been saved. New terminal tabs will use the updated configuration.",
-        }),
-        variant: "success",
-      })
-    } catch (error) {
-      console.error("Failed to save font settings:", error)
-      toast({
-        title: t("fontSettings.saveFailed", { defaultValue: "Failed to save" }),
-        description: toErrorMessage(error),
-        variant: "destructive",
-      })
-    } finally {
-      savingFontRef.current = false
-      if (isMountedRef.current) {
-        setSavingFont(false)
-      }
-    }
-  }
+  const themeHandlers = useThemeSettingsHandlers({
+    setTheme,
+    systemPrefersDark,
+    toast,
+    t,
+    saveSettings,
+    confirm,
+    deleteCustomTheme,
+    prompt,
+    duplicateTheme,
+    getTheme,
+    presetThemes,
+    customThemes,
+    setThemeGalleryOpen,
+    setEditingThemeId,
+    resetPresetTheme,
+  })
+  const settingsHandlers = useSettingsHandlers({ confirm, t, saveSettings, toast })
 
   const handleLanguageChange = async (langCode: string) => {
     try {
@@ -343,293 +171,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         variant: "destructive",
       })
     }
-  }
-
-  const handleThemeChange = async (themeId: string) => {
-    try {
-      const slot = await setTheme(themeId)
-      // Following the system, a theme for the other appearance waits for it.
-      if (slot && (slot === "dark") !== systemPrefersDark) {
-        toast({
-          title:
-            slot === "dark"
-              ? t("theme.savedForDark", { defaultValue: "Set as the dark mode theme" })
-              : t("theme.savedForLight", { defaultValue: "Set as the light mode theme" }),
-          description:
-            slot === "dark"
-              ? t("theme.savedForDarkDesc", {
-                  defaultValue: "It shows when the system switches to dark mode.",
-                })
-              : t("theme.savedForLightDesc", {
-                  defaultValue: "It shows when the system switches to light mode.",
-                }),
-        })
-      }
-    } catch (error) {
-      console.error("Failed to save theme:", error)
-      toast({
-        title: t("common.error", { defaultValue: "Error" }),
-        description: t("settings.themeChangeFailed", {
-          defaultValue: "Failed to save theme.",
-        }),
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleTabWidthModeChange = async (mode: TabWidthMode) => {
-    await saveSettings({ tab_width_mode: mode })
-  }
-
-  const handleTabStandardWidthChange = (width: number) =>
-    saveSettings({ tab_standard_width: width })
-
-  const handleUiScaleChange = (scale: number) => saveSettings({ ui_scale_percent: scale })
-
-  const handleWindowBlurChange = (enabled: boolean) => saveSettings({ window_blur: enabled })
-
-  const handleWindowBlurMaterialChange = (material: WindowBlurMaterial) =>
-    saveSettings({ window_blur_material: material })
-
-  const handleWindowBlurRadiusChange = (radius: number) =>
-    saveSettings({ window_blur_radius: radius })
-
-  const handleWindowOpacityChange = (percent: number) =>
-    saveSettings({ window_opacity_percent: percent })
-
-  const handleDeleteTheme = async (themeId: string) => {
-    const confirmed = await confirm({
-      title: t("themeEditor.delete"),
-      description: t("themeEditor.confirmDelete"),
-      confirmText: t("themeEditor.delete"),
-      cancelText: t("common.cancel"),
-      variant: "destructive",
-    })
-
-    if (!confirmed) return
-
-    try {
-      await deleteCustomTheme(themeId)
-    } catch (error) {
-      console.error("Failed to delete theme:", error)
-      toast({
-        title: t("common.error", { defaultValue: "Error" }),
-        description: t("themeEditor.deleteFailed", {
-          defaultValue: "Failed to delete theme.",
-        }),
-        variant: "destructive",
-      })
-    }
-  }
-
-  /** Asks for a name and copies the theme; `null` when cancelled or failed. */
-  const duplicateWithName = async (
-    themeId: string,
-    defaultName: string
-  ): Promise<CustomTheme | null> => {
-    const newName = await prompt({
-      title: t("themeEditor.duplicate"),
-      label: t("themeEditor.duplicateName"),
-      defaultValue: defaultName,
-      confirmText: t("themeEditor.duplicate"),
-      cancelText: t("common.cancel"),
-    })
-
-    if (!newName || !newName.trim()) return null
-    try {
-      return await duplicateTheme(themeId, newName.trim())
-    } catch (error) {
-      console.error("Failed to duplicate theme:", error)
-      toast({
-        title: t("common.error", { defaultValue: "Error" }),
-        description: t("themeEditor.duplicateFailed", {
-          defaultValue: "Failed to duplicate theme.",
-        }),
-        variant: "destructive",
-      })
-      return null
-    }
-  }
-
-  const handleDuplicateTheme = async (themeId: string) => {
-    if (isCatalogTheme(getTheme(themeId))) {
-      await handleCopyCatalogTheme(themeId)
-      return
-    }
-    const sourceName =
-      presetThemes.find((theme) => theme.id === themeId)?.name ||
-      customThemes.find((theme) => theme.id === themeId)?.name ||
-      "Theme"
-    await duplicateWithName(themeId, `${sourceName} Copy`)
-  }
-
-  /** A library theme becomes a custom one, chosen and opened in the editor. */
-  const handleCopyCatalogTheme = async (themeId: string) => {
-    const copy = await duplicateWithName(themeId, getTheme(themeId)?.name ?? "Theme")
-    if (!copy) return
-    await handleThemeChange(copy.id)
-    setThemeGalleryOpen(false)
-    setEditingThemeId(copy.id)
-  }
-
-  const handleGalleryApply = async (themeId: string) => {
-    await handleThemeChange(themeId)
-    setThemeGalleryOpen(false)
-  }
-
-  const handleThemesImported = async (themes: CustomTheme[]) => {
-    await handleThemeChange(themes[0].id)
-    toast({
-      title: t("themeImport.imported", {
-        defaultValue: "Imported {{count}} themes",
-        count: themes.length,
-      }),
-    })
-  }
-
-  const handleResetPresetTheme = async (themeId: PresetThemeId) => {
-    try {
-      await resetPresetTheme(themeId)
-    } catch (error) {
-      console.error("Failed to reset preset theme:", error)
-      toast({
-        title: t("common.error", { defaultValue: "Error" }),
-        description: t("themeEditor.resetFailed", {
-          defaultValue: "Failed to reset theme.",
-        }),
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleClearSession = async () => {
-    const confirmed = await confirm({
-      title: t("settings.clearSession"),
-      description: t("settings.clearSessionConfirm"),
-      confirmText: t("settings.clearSession"),
-      cancelText: t("common.cancel"),
-      variant: "destructive",
-    })
-
-    if (confirmed) {
-      window.location.reload()
-    }
-  }
-
-  const handleRestoreAllSessionConnectionsChange = async (checked: boolean) => {
-    await saveSettings({ startup_session_restore_mode: checked ? "all" : "active" })
-  }
-
-  const handleSftpPasteUploadEnabledChange = async (checked: boolean) => {
-    await saveSettings({ sftp_paste_upload_enabled: checked })
-  }
-
-  const handleZmodemAutoDetectEnabledChange = async (checked: boolean) => {
-    await saveSettings({ zmodem_auto_detect_enabled: checked })
-  }
-
-  const handleZmodemDownloadDirectoryChange = async (directory: string) => {
-    await saveSettings({ zmodem_download_directory: directory })
-  }
-
-  const handleBackgroundThrottlingChange = async (policy: BackgroundThrottling) => {
-    await saveSettings({ background_throttling: policy })
-  }
-
-  const handleCloseBehaviorChange = async (behavior: CloseBehavior) => {
-    await saveSettings({ close_behavior: behavior })
-  }
-
-  const handleSftpTransferParallelismChange = async (value: number) => {
-    if (!Number.isFinite(value)) {
-      return
-    }
-    await saveSettings({ sftp_transfer_parallelism: Math.min(Math.max(Math.round(value), 1), 16) })
-  }
-
-  const handleSftpUploadLimitChange = async (kib: number) => {
-    await saveSettings({ sftp_upload_limit_kib: kib })
-  }
-
-  const handleSftpDownloadLimitChange = async (kib: number) => {
-    await saveSettings({ sftp_download_limit_kib: kib })
-  }
-
-  const handleEnableDevtoolsChange = async () => {
-    try {
-      await invoke("toggle_devtools", { enable: true })
-    } catch (error) {
-      console.error("Failed to open devtools:", error)
-      toast({
-        title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
-        description: toErrorMessage(error),
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleReconnectEnabledChange = async (checked: boolean) => {
-    await saveSettings({ reconnect_enabled: checked })
-  }
-
-  const handleReconnectMaxAttemptsChange = async (attempts: number) => {
-    await saveSettings({ reconnect_max_attempts: attempts })
-  }
-
-  const handleShowJumpHostConnectionInfoChange = async (checked: boolean) => {
-    await saveSettings({ show_jump_host_connection_info: checked })
-  }
-
-  const handleSudoPromptPatternsChange = async (patterns: string[]) => {
-    await saveSettings({ sudo_prompt_patterns: patterns })
-  }
-
-  const handleMonitorRefreshIntervalChange = async (seconds: number) => {
-    await saveSettings({ monitor_refresh_interval_secs: seconds })
-  }
-
-  const handleMonitorVisibleMetricsChange = async (
-    metrics: typeof config.monitor_visible_metrics
-  ) => {
-    await saveSettings({ monitor_visible_metrics: metrics })
-  }
-
-  const handleTerminalLogEnabledChange = async (enabled: boolean) => {
-    if (enabled) {
-      const confirmed = await confirm({
-        title: t("terminalLogging.confirmTitle"),
-        description: t("terminalLogging.confirmDescription"),
-        confirmText: t("terminalLogging.enable"),
-        cancelText: t("common.cancel"),
-      })
-      if (!confirmed) return
-    }
-    await saveSettings({ terminal_log_enabled: enabled })
-  }
-
-  const handleTerminalLogRecordInputChange = async (recordInput: boolean) => {
-    if (recordInput) {
-      const confirmed = await confirm({
-        title: t("terminalLogging.recordInputConfirmTitle"),
-        description: t("terminalLogging.recordInputConfirmDescription"),
-        confirmText: t("terminalLogging.recordInputConfirm"),
-        cancelText: t("common.cancel"),
-      })
-      if (!confirmed) return
-    }
-    await saveSettings({ terminal_log_record_input: recordInput })
-  }
-
-  const handleUpdateChannelChange = async (channel: UpdateChannel) => {
-    await saveSettings({ update_channel: channel })
-  }
-
-  const handleAutoDownloadUpdatesChange = async (checked: boolean) => {
-    await saveSettings({ auto_download_updates: checked })
-  }
-
-  const handleUpdateCheckFrequencyChange = async (frequency: UpdateCheckFrequency) => {
-    await saveSettings({ update_check_frequency: frequency })
   }
 
   return (
@@ -656,17 +197,17 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <AppearanceSettingsTab
               currentTheme={currentTheme}
               customThemes={customThemes}
-              handleDeleteTheme={handleDeleteTheme}
-              handleDuplicateTheme={handleDuplicateTheme}
-              handleResetPresetTheme={handleResetPresetTheme}
-              handleThemeChange={handleThemeChange}
-              handleTabStandardWidthChange={handleTabStandardWidthChange}
-              handleTabWidthModeChange={handleTabWidthModeChange}
-              handleUiScaleChange={handleUiScaleChange}
-              handleWindowBlurChange={handleWindowBlurChange}
-              handleWindowBlurMaterialChange={handleWindowBlurMaterialChange}
-              handleWindowBlurRadiusChange={handleWindowBlurRadiusChange}
-              handleWindowOpacityChange={handleWindowOpacityChange}
+              handleDeleteTheme={themeHandlers.handleDeleteTheme}
+              handleDuplicateTheme={themeHandlers.handleDuplicateTheme}
+              handleResetPresetTheme={themeHandlers.handleResetPresetTheme}
+              handleThemeChange={themeHandlers.handleThemeChange}
+              handleTabStandardWidthChange={themeHandlers.handleTabStandardWidthChange}
+              handleTabWidthModeChange={themeHandlers.handleTabWidthModeChange}
+              handleUiScaleChange={themeHandlers.handleUiScaleChange}
+              handleWindowBlurChange={themeHandlers.handleWindowBlurChange}
+              handleWindowBlurMaterialChange={themeHandlers.handleWindowBlurMaterialChange}
+              handleWindowBlurRadiusChange={themeHandlers.handleWindowBlurRadiusChange}
+              handleWindowOpacityChange={themeHandlers.handleWindowOpacityChange}
               presetThemes={presetThemes}
               presetThemeOverrides={presetThemeOverrides}
               onOpenThemeGallery={() => setThemeGalleryOpen(true)}
@@ -692,45 +233,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             className="m-0 min-w-0 flex-1 overflow-y-auto p-6"
           >
             <FontSettingsTab
-              fontFamily={fontFamily}
-              fontSize={fontSize}
-              cursorStyle={cursorStyle}
-              macOptionIsMeta={macOptionIsMeta}
-              setMacOptionIsMeta={setMacOptionIsMeta}
-              confirmMultilinePaste={confirmMultilinePaste}
-              setConfirmMultilinePaste={setConfirmMultilinePaste}
-              copyOnSelect={copyOnSelect}
-              setCopyOnSelect={setCopyOnSelect}
-              rightClickPaste={rightClickPaste}
-              setRightClickPaste={setRightClickPaste}
-              commandMarks={commandMarks}
-              setCommandMarks={setCommandMarks}
-              localShellIntegration={localShellIntegration}
-              setLocalShellIntegration={setLocalShellIntegration}
-              lineHeight={lineHeight}
-              setLineHeight={setLineHeight}
-              letterSpacing={letterSpacing}
-              setLetterSpacing={setLetterSpacing}
-              fontLoadError={fontLoadError}
-              handleFontSave={handleFontSave}
-              savingFont={savingFont}
+              {...terminalDraft}
               loadingFonts={loadingFonts}
-              scrollbackLines={scrollbackLines}
-              terminalRenderer={terminalRenderer}
-              hiddenRendererReleaseSecs={hiddenRendererReleaseSecs}
-              terminalPaddingLeftPx={terminalPaddingLeftPx}
-              terminalPaddingRightPx={terminalPaddingRightPx}
-              terminalPaddingBottomPx={terminalPaddingBottomPx}
-              setFontFamily={setFontFamily}
-              setFontSize={setFontSize}
-              setCursorStyle={setCursorStyle}
-              setScrollbackLines={setScrollbackLines}
-              setTerminalRenderer={setTerminalRenderer}
-              setHiddenRendererReleaseSecs={setHiddenRendererReleaseSecs}
-              setTerminalPaddingLeftPx={setTerminalPaddingLeftPx}
-              setTerminalPaddingRightPx={setTerminalPaddingRightPx}
-              setTerminalPaddingBottomPx={setTerminalPaddingBottomPx}
-              systemFonts={systemFonts}
               fontSizeOptions={FONT_SIZE_OPTIONS}
             />
           </TabsContent>
@@ -755,12 +259,16 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
           >
             <ConnectionSettingsTab
-              handleMonitorRefreshIntervalChange={handleMonitorRefreshIntervalChange}
-              handleMonitorVisibleMetricsChange={handleMonitorVisibleMetricsChange}
-              handleReconnectEnabledChange={handleReconnectEnabledChange}
-              handleReconnectMaxAttemptsChange={handleReconnectMaxAttemptsChange}
-              handleShowJumpHostConnectionInfoChange={handleShowJumpHostConnectionInfoChange}
-              handleSudoPromptPatternsChange={handleSudoPromptPatternsChange}
+              handleMonitorRefreshIntervalChange={
+                settingsHandlers.handleMonitorRefreshIntervalChange
+              }
+              handleMonitorVisibleMetricsChange={settingsHandlers.handleMonitorVisibleMetricsChange}
+              handleReconnectEnabledChange={settingsHandlers.handleReconnectEnabledChange}
+              handleReconnectMaxAttemptsChange={settingsHandlers.handleReconnectMaxAttemptsChange}
+              handleShowJumpHostConnectionInfoChange={
+                settingsHandlers.handleShowJumpHostConnectionInfoChange
+              }
+              handleSudoPromptPatternsChange={settingsHandlers.handleSudoPromptPatternsChange}
               monitorRefreshIntervalSecs={config.monitor_refresh_interval_secs}
               monitorVisibleMetrics={config.monitor_visible_metrics}
               reconnectEnabled={config.reconnect_enabled}
@@ -779,8 +287,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             className="m-0 min-w-0 flex-1 overflow-hidden p-4 sm:p-6"
           >
             <LoggingSettingsTab
-              handleEnabledChange={handleTerminalLogEnabledChange}
-              handleRecordInputChange={handleTerminalLogRecordInputChange}
+              handleEnabledChange={settingsHandlers.handleTerminalLogEnabledChange}
+              handleRecordInputChange={settingsHandlers.handleTerminalLogRecordInputChange}
             />
           </TabsContent>
 
@@ -844,18 +352,28 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               backgroundThrottling={config.background_throttling}
               closeBehavior={config.close_behavior}
               handleAbout={() => setAboutOpen(true)}
-              handleBackgroundThrottlingChange={handleBackgroundThrottlingChange}
-              handleCloseBehaviorChange={handleCloseBehaviorChange}
-              handleClearSession={handleClearSession}
+              handleBackgroundThrottlingChange={settingsHandlers.handleBackgroundThrottlingChange}
+              handleCloseBehaviorChange={settingsHandlers.handleCloseBehaviorChange}
+              handleClearSession={settingsHandlers.handleClearSession}
               handleLanguageChange={handleLanguageChange}
-              handleRestoreAllSessionConnectionsChange={handleRestoreAllSessionConnectionsChange}
-              handleSftpPasteUploadEnabledChange={handleSftpPasteUploadEnabledChange}
-              handleSftpTransferParallelismChange={handleSftpTransferParallelismChange}
-              handleSftpUploadLimitChange={handleSftpUploadLimitChange}
-              handleSftpDownloadLimitChange={handleSftpDownloadLimitChange}
-              handleEnableDevtoolsChange={handleEnableDevtoolsChange}
-              handleZmodemAutoDetectEnabledChange={handleZmodemAutoDetectEnabledChange}
-              handleZmodemDownloadDirectoryChange={handleZmodemDownloadDirectoryChange}
+              handleRestoreAllSessionConnectionsChange={
+                settingsHandlers.handleRestoreAllSessionConnectionsChange
+              }
+              handleSftpPasteUploadEnabledChange={
+                settingsHandlers.handleSftpPasteUploadEnabledChange
+              }
+              handleSftpTransferParallelismChange={
+                settingsHandlers.handleSftpTransferParallelismChange
+              }
+              handleSftpUploadLimitChange={settingsHandlers.handleSftpUploadLimitChange}
+              handleSftpDownloadLimitChange={settingsHandlers.handleSftpDownloadLimitChange}
+              handleEnableDevtoolsChange={settingsHandlers.handleEnableDevtoolsChange}
+              handleZmodemAutoDetectEnabledChange={
+                settingsHandlers.handleZmodemAutoDetectEnabledChange
+              }
+              handleZmodemDownloadDirectoryChange={
+                settingsHandlers.handleZmodemDownloadDirectoryChange
+              }
               i18nLanguage={i18n.language}
               languages={languages}
               restoreAllSessionConnections={config.startup_session_restore_mode === "all"}
@@ -878,9 +396,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           >
             <UpdateSettingsTab
               autoDownloadUpdates={config.auto_download_updates}
-              handleAutoDownloadUpdatesChange={handleAutoDownloadUpdatesChange}
-              handleUpdateCheckFrequencyChange={handleUpdateCheckFrequencyChange}
-              handleUpdateChannelChange={handleUpdateChannelChange}
+              handleAutoDownloadUpdatesChange={settingsHandlers.handleAutoDownloadUpdatesChange}
+              handleUpdateCheckFrequencyChange={settingsHandlers.handleUpdateCheckFrequencyChange}
+              handleUpdateChannelChange={settingsHandlers.handleUpdateChannelChange}
               handleUpdateCheckComplete={(checkedAt) =>
                 saveAppState({ lastUpdateCheckAt: checkedAt })
               }
@@ -907,8 +425,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       {themeGalleryOpen && (
         <React.Suspense fallback={null}>
           <ThemeGallery
-            onApply={handleGalleryApply}
-            onCopy={handleCopyCatalogTheme}
+            onApply={themeHandlers.handleGalleryApply}
+            onCopy={themeHandlers.handleCopyCatalogTheme}
             onClose={() => setThemeGalleryOpen(false)}
           />
         </React.Suspense>
@@ -917,7 +435,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       {themeImportOpen && (
         <React.Suspense fallback={null}>
           <ThemeImportDialog
-            onImported={handleThemesImported}
+            onImported={themeHandlers.handleThemesImported}
             onClose={() => setThemeImportOpen(false)}
           />
         </React.Suspense>

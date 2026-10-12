@@ -2,7 +2,7 @@ import React from "react"
 import { useTranslation } from "react-i18next"
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { AppConfig } from "@/contexts/ConfigContext"
+import type { AppConfig } from "@/lib/appConfig"
 import { cn } from "@/lib/utils"
 import { CURSOR_STYLE_OPTIONS } from "@/components/SettingsDialog/types"
 

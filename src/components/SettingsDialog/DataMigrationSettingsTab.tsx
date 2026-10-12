@@ -1,170 +1,40 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { open as openFileDialog, save as saveFileDialog } from "@tauri-apps/plugin-dialog"
-import { relaunch } from "@tauri-apps/plugin-process"
-import {
-  AlertTriangle,
-  Archive,
-  ArrowLeft,
-  CheckCircle2,
-  Cloud,
-  Download,
-  Eye,
-  EyeOff,
-  FileSearch,
-  FolderOpen,
-  History,
-  KeyRound,
-  Loader2,
-  RefreshCw,
-  Save,
-  Trash2,
-  Upload,
-} from "lucide-react"
+import { Archive } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import {
+  type BackupInspectResult,
+  type AutomaticBackupSettings,
+  type BackupHistoryEntry,
+  type BackupExportResult,
+  type BackupImportResult,
+  type MigrationView,
+  defaultSelection,
+  cloneAvailableSelection,
+  restoreFrontendState,
+  type BusyAction,
+} from "@/components/SettingsDialog/dataMigration"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Select } from "@/components/ui/select"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { useToast } from "@/hooks/use-toast"
 import { readBackupFrontendState } from "@/lib/backupFrontendState"
-import { QUICK_CONNECT_RECENTS_STORAGE_KEY } from "@/lib/quickConnect"
-import { RECENT_COMMANDS_STORAGE_KEY } from "@/lib/recentCommands"
 import { isVerificationCanceled } from "@/lib/userVerification"
 import { toErrorMessage } from "@/lib/utils"
-import { SFTP_VIEW_STORAGE_KEY } from "@/components/SftpDrawer/sftpView"
-import { Badge } from "@/components/ui/badge"
+import type { RemoteBackupEntry } from "@/components/SettingsDialog/webdavBackup"
+import { WebDavBackupPanel } from "@/components/SettingsDialog/WebDavBackupPanel"
 import {
-  type RemoteBackupEntry,
-  WebDavBackupPanel,
-} from "@/components/SettingsDialog/WebDavBackupPanel"
-import {
-  formatFileSize,
   withSelection,
   type BackupSelection,
   type SelectionKey,
 } from "@/components/SettingsDialog/backupShared"
-
-interface CategoryDiff {
-  added: number
-  updated: number
-  unchanged: number
-}
-
-interface BackupManifest {
-  appVersion: string
-  createdAt: string
-  platform: string
-  selection: BackupSelection
-  encrypted: boolean
-  secretCount: number
-}
-
-interface BackupInspectResult {
-  manifest: BackupManifest
-  requiresPassword: boolean
-  passwordVerified: boolean
-  webdavPasswordUsed: boolean
-  profileCount: number
-  commandCount: number
-  secretCount: number
-  hasFrontendState: boolean
-  logFileCount: number
-  diff: {
-    profiles: CategoryDiff
-    commands: CategoryDiff
-    settingsChanged: boolean
-    webdavAccount: { from: string | null; to: string } | null
-  }
-}
-
-interface AutomaticBackupSettings {
-  frequency: "off" | "daily" | "weekly"
-  directory: string
-  retentionCount: number
-  selection: BackupSelection
-  /** When the last automatic backup ran; absent before the first. */
-  lastBackupAt?: number | null
-}
-
-interface BackupHistoryEntry {
-  path: string
-  fileName: string
-  sizeBytes: number
-  modifiedAt: number
-  kind: "automatic" | "recovery" | "manual"
-}
-
-interface BackupExportResult {
-  outputPath: string
-  profileCount: number
-  commandCount: number
-  secretCount: number
-  encrypted: boolean
-}
-
-interface BackupImportResult {
-  profilesImported: number
-  commandsImported: number
-  secretsImported: number
-  frontendState: {
-    recentCommands?: unknown[]
-    recentQuickConnections?: unknown[]
-    sftpColumnWidths?: unknown
-    sftpView?: unknown
-  } | null
-  preImportBackupPath: string
-  requiresRestart: boolean
-  /** Key files imported profiles use that are not on this device. */
-  missingKeyFiles: { path: string; profiles: string[] }[]
-}
-
-type MigrationView = "backup" | "webdav" | "import" | "history"
-
-const defaultSelection: BackupSelection = {
-  settings: true,
-  profiles: true,
-  session: true,
-  knownHosts: true,
-  sftpDirectories: true,
-  commandLibrary: true,
-  themes: true,
-  secrets: false,
-  logs: false,
-}
-
-function cloneAvailableSelection(selection: BackupSelection): BackupSelection {
-  return { ...selection }
-}
-
-/** Restores what the web view keeps; the backend restored the themes. */
-function restoreFrontendState(state: BackupImportResult["frontendState"]) {
-  if (state && Array.isArray(state.recentCommands)) {
-    localStorage.setItem(RECENT_COMMANDS_STORAGE_KEY, JSON.stringify(state.recentCommands))
-  }
-  if (state && Array.isArray(state.recentQuickConnections)) {
-    localStorage.setItem(
-      QUICK_CONNECT_RECENTS_STORAGE_KEY,
-      JSON.stringify(state.recentQuickConnections)
-    )
-  }
-  if (state && state.sftpColumnWidths !== undefined && state.sftpColumnWidths !== null) {
-    localStorage.setItem("tterm.sftp.columnWidths", JSON.stringify(state.sftpColumnWidths))
-  }
-  if (state && state.sftpView !== undefined && state.sftpView !== null) {
-    localStorage.setItem(SFTP_VIEW_STORAGE_KEY, JSON.stringify(state.sftpView))
-  }
-}
-
-type BusyAction =
-  "export" | "inspect" | "verify" | "import" | "saveSettings" | "backupNow" | "deleteHistory"
+import { AutomaticBackupCard } from "@/components/SettingsDialog/AutomaticBackupCard"
+import { BackupExportCard } from "@/components/SettingsDialog/BackupExportCard"
+import { BackupHistoryCard } from "@/components/SettingsDialog/BackupHistoryCard"
+import { BackupImportCard } from "@/components/SettingsDialog/BackupImportCard"
+import { MigrationViewTabs } from "@/components/SettingsDialog/MigrationViewTabs"
 
 export const DataMigrationSettingsTab: React.FC = () => {
   const { t } = useTranslation()
@@ -523,173 +393,20 @@ export const DataMigrationSettingsTab: React.FC = () => {
           </p>
         </div>
 
-        <div
-          className="bg-muted/40 grid grid-cols-4 gap-1 rounded-md p-1"
-          role="group"
-          aria-label={t("dataMigration.title")}
-        >
-          <Button
-            type="button"
-            size="sm"
-            variant={activeView === "backup" ? "default" : "ghost"}
-            aria-pressed={activeView === "backup"}
-            onClick={() => showView("backup")}
-          >
-            <Archive size={14} />
-            {t("dataMigration.backupTab", { defaultValue: "Backup" })}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={activeView === "webdav" ? "default" : "ghost"}
-            aria-pressed={activeView === "webdav"}
-            onClick={() => showView("webdav")}
-          >
-            <Cloud size={14} />
-            {t("dataMigration.webdavTab")}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={activeView === "import" ? "default" : "ghost"}
-            aria-pressed={activeView === "import"}
-            onClick={() => showView("import")}
-          >
-            <Upload size={14} />
-            {t("dataMigration.importTab", { defaultValue: "Import" })}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={activeView === "history" ? "default" : "ghost"}
-            aria-pressed={activeView === "history"}
-            onClick={() => showView("history")}
-          >
-            <History size={14} />
-            {t("dataMigration.historyTab", { defaultValue: "History" })}
-          </Button>
-        </div>
+        <MigrationViewTabs activeView={activeView} showView={showView} />
 
         {activeView === "backup" && automaticSettings && (
-          <Card>
-            <CardContent className="space-y-4 p-4">
-              <div>
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <RefreshCw size={16} />
-                  {t("dataMigration.automaticTitle")}
-                </div>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {t("dataMigration.automaticDescription")}
-                </p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <Label htmlFor="automatic-frequency">
-                    {t("dataMigration.automaticFrequency")}
-                  </Label>
-                  <Select
-                    id="automatic-frequency"
-                    className="mt-1.5"
-                    value={automaticSettings.frequency}
-                    disabled={busy}
-                    onChange={(event) =>
-                      setAutomaticSettings({
-                        ...automaticSettings,
-                        frequency: event.target.value as AutomaticBackupSettings["frequency"],
-                      })
-                    }
-                  >
-                    <option value="off">{t("dataMigration.frequencyOff")}</option>
-                    <option value="daily">{t("dataMigration.frequencyDaily")}</option>
-                    <option value="weekly">{t("dataMigration.frequencyWeekly")}</option>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="automatic-retention">{t("dataMigration.retentionCount")}</Label>
-                  <Input
-                    id="automatic-retention"
-                    className="mt-1.5"
-                    type="number"
-                    min={1}
-                    max={50}
-                    value={automaticSettings.retentionCount}
-                    disabled={busy}
-                    onChange={(event) =>
-                      setAutomaticSettings({
-                        ...automaticSettings,
-                        retentionCount: Number(event.target.value),
-                      })
-                    }
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="automatic-directory">{t("dataMigration.backupDirectory")}</Label>
-                <div className="mt-1.5 flex gap-2">
-                  <Input
-                    id="automatic-directory"
-                    readOnly
-                    value={automaticSettings.directory}
-                    placeholder={t("dataMigration.defaultBackupDirectory")}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    disabled={busy}
-                    onClick={handleChooseAutomaticDirectory}
-                    aria-label={t("dataMigration.chooseDirectory")}
-                  >
-                    <FolderOpen size={16} />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {selectionItems
-                  .filter((item) => item.key !== "secrets")
-                  .map((item) => (
-                    <label
-                      key={item.key}
-                      className="border-border flex min-h-10 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm"
-                    >
-                      <Checkbox
-                        checked={automaticSettings.selection[item.key]}
-                        disabled={busy}
-                        onCheckedChange={(checked) => updateAutomaticSelection(item.key, checked)}
-                      />
-                      <span>{item.label}</span>
-                    </label>
-                  ))}
-              </div>
-
-              <Alert>
-                <KeyRound size={16} className="absolute top-3.5 left-4" />
-                <AlertDescription className="pl-6">
-                  {t("dataMigration.automaticSecretsExcluded")}
-                </AlertDescription>
-              </Alert>
-
-              <div className="flex flex-wrap gap-2">
-                <Button disabled={busy} onClick={handleSaveAutomaticSettings}>
-                  <Save size={16} />
-                  {t("common.save")}
-                </Button>
-                <Button variant="outline" disabled={busy} onClick={handleBackupNow}>
-                  {busyAction === "backupNow" ? (
-                    <Loader2 className="animate-spin" size={16} />
-                  ) : (
-                    <Archive size={16} />
-                  )}
-                  {busyAction === "backupNow"
-                    ? t("dataMigration.backingUp")
-                    : t("dataMigration.backupNow")}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <AutomaticBackupCard
+            busyAction={busyAction}
+            busy={busy}
+            automaticSettings={automaticSettings}
+            setAutomaticSettings={setAutomaticSettings}
+            selectionItems={selectionItems}
+            updateAutomaticSelection={updateAutomaticSelection}
+            handleChooseAutomaticDirectory={handleChooseAutomaticDirectory}
+            handleSaveAutomaticSettings={handleSaveAutomaticSettings}
+            handleBackupNow={handleBackupNow}
+          />
         )}
 
         {activeView === "webdav" && (
@@ -697,434 +414,53 @@ export const DataMigrationSettingsTab: React.FC = () => {
         )}
 
         {activeView === "history" && (
-          <Card>
-            <CardContent className="space-y-4 p-4">
-              <div>
-                <div className="text-sm font-medium">{t("dataMigration.historyTitle")}</div>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {t("dataMigration.historyDescription")}
-                </p>
-              </div>
-              {backupHistory.length === 0 ? (
-                <p className="text-muted-foreground text-sm">{t("dataMigration.historyEmpty")}</p>
-              ) : (
-                <div className="space-y-2">
-                  {backupHistory.map((entry) => (
-                    <div
-                      key={entry.path}
-                      className="border-border flex items-center justify-between gap-3 rounded-md border p-3"
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium" title={entry.fileName}>
-                          {entry.fileName}
-                        </div>
-                        <div className="text-muted-foreground mt-1 text-xs">
-                          {new Date(entry.modifiedAt).toLocaleString()} ·{" "}
-                          {formatFileSize(entry.sizeBytes)}
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          disabled={busy}
-                          onClick={() => openForImport(entry.path)}
-                          aria-label={t("dataMigration.useBackup", { name: entry.fileName })}
-                        >
-                          <Upload size={16} />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          disabled={busy}
-                          onClick={() => handleDeleteHistory(entry)}
-                          aria-label={t("dataMigration.deleteBackup", { name: entry.fileName })}
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <BackupHistoryCard
+            busy={busy}
+            backupHistory={backupHistory}
+            handleDeleteHistory={handleDeleteHistory}
+            openForImport={openForImport}
+          />
         )}
 
         {activeView === "backup" && (
-          <Card>
-            <CardContent className="space-y-4 p-4">
-              <div>
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <Download size={16} />
-                  {t("dataMigration.exportTitle")}
-                </div>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {t("dataMigration.exportDescription")}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {selectionItems.map((item) => (
-                  <label
-                    key={item.key}
-                    className="border-border flex min-h-10 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm"
-                  >
-                    <Checkbox
-                      checked={selection[item.key]}
-                      disabled={busy}
-                      onCheckedChange={(checked) => updateSelection(item.key, checked)}
-                    />
-                    <span>{item.label}</span>
-                  </label>
-                ))}
-              </div>
-
-              {selection.secrets && (
-                <Alert className="border-amber-500/40 bg-amber-500/10">
-                  <KeyRound size={16} className="absolute top-3.5 left-4" />
-                  <div className="pl-6">
-                    <AlertTitle>{t("dataMigration.encryptedSecrets")}</AlertTitle>
-                    <AlertDescription>{t("dataMigration.encryptedSecretsDesc")}</AlertDescription>
-                  </div>
-                </Alert>
-              )}
-
-              {(selection.secrets || backupPassword) && (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <Label htmlFor="backup-password">{t("dataMigration.backupPassword")}</Label>
-                    <div className="relative mt-1.5">
-                      <Input
-                        id="backup-password"
-                        type={showPassword ? "text" : "password"}
-                        value={backupPassword}
-                        disabled={busy}
-                        onChange={(event) => setBackupPassword(event.target.value)}
-                        className="pr-10"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute top-0 right-0"
-                        onClick={() => setShowPassword((visible) => !visible)}
-                        aria-label={t("dataMigration.togglePassword")}
-                      >
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </Button>
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="backup-password-confirm">
-                      {t("dataMigration.confirmPassword")}
-                    </Label>
-                    <Input
-                      id="backup-password-confirm"
-                      className="mt-1.5"
-                      type={showPassword ? "text" : "password"}
-                      value={confirmPassword}
-                      disabled={busy}
-                      onChange={(event) => setConfirmPassword(event.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <Button
-                disabled={busy || !Object.values(selection).some(Boolean)}
-                onClick={handleExport}
-              >
-                {busyAction === "export" ? (
-                  <Loader2 className="animate-spin" size={16} />
-                ) : (
-                  <Download size={16} />
-                )}
-                {busyAction === "export"
-                  ? t("dataMigration.exporting")
-                  : t("dataMigration.exportAction")}
-              </Button>
-
-              {exportResult && (
-                <Alert>
-                  <CheckCircle2 size={16} className="absolute top-3.5 left-4 text-emerald-500" />
-                  <div className="pl-6">
-                    <AlertTitle>{t("dataMigration.exportSuccess")}</AlertTitle>
-                    <AlertDescription className="break-all">
-                      {exportResult.outputPath}
-                      <br />
-                      {t("dataMigration.exportSummary", {
-                        profiles: exportResult.profileCount,
-                        commands: exportResult.commandCount,
-                        secrets: exportResult.secretCount,
-                      })}
-                    </AlertDescription>
-                  </div>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
+          <BackupExportCard
+            selection={selection}
+            backupPassword={backupPassword}
+            confirmPassword={confirmPassword}
+            setBackupPassword={setBackupPassword}
+            setConfirmPassword={setConfirmPassword}
+            showPassword={showPassword}
+            setShowPassword={setShowPassword}
+            busyAction={busyAction}
+            busy={busy}
+            exportResult={exportResult}
+            selectionItems={selectionItems}
+            updateSelection={updateSelection}
+            handleExport={handleExport}
+          />
         )}
 
         {activeView === "import" && (
-          <Card>
-            <CardContent className="space-y-4 p-4">
-              <div>
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <Upload size={16} />
-                  {t("dataMigration.importTitle")}
-                </div>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {t("dataMigration.importDescription")}
-                </p>
-              </div>
-
-              <Button type="button" variant="outline" disabled={busy} onClick={handleChooseImport}>
-                {busyAction === "inspect" ? (
-                  <Loader2 className="animate-spin" size={16} />
-                ) : (
-                  <FileSearch size={16} />
-                )}
-                {busyAction === "inspect"
-                  ? t("dataMigration.inspecting")
-                  : t("dataMigration.chooseBackup")}
-              </Button>
-              {importSource ? (
-                <div className="border-border flex items-center justify-between gap-3 rounded-md border p-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Cloud size={14} className="text-muted-foreground shrink-0" />
-                      <span className="truncate text-sm font-medium" title={importSource.fileName}>
-                        {importSource.fileName}
-                      </span>
-                      {importSource.currentDevice ? (
-                        <Badge variant="secondary">{t("dataMigration.webdav.thisDevice")}</Badge>
-                      ) : (
-                        importSource.device && (
-                          <Badge variant="outline">{importSource.device}</Badge>
-                        )
-                      )}
-                    </div>
-                    <div className="text-muted-foreground mt-1 text-xs">
-                      {t("dataMigration.webdav.importSource")}
-                      {importSource.createdAt
-                        ? ` · ${new Date(importSource.createdAt).toLocaleString()}`
-                        : ""}
-                      {` · ${formatFileSize(importSource.sizeBytes)}`}
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0"
-                    disabled={busy}
-                    onClick={() => showView("webdav")}
-                  >
-                    <ArrowLeft size={14} />
-                    {t("dataMigration.webdav.backToBackups")}
-                  </Button>
-                </div>
-              ) : (
-                importPath && (
-                  <p className="text-muted-foreground text-xs break-all">{importPath}</p>
-                )
-              )}
-
-              {inspectResult && (
-                <>
-                  <div className="bg-muted/40 grid gap-2 rounded-md p-3 text-xs sm:grid-cols-2">
-                    <span>
-                      {t("dataMigration.createdAt")}:{" "}
-                      {new Date(inspectResult.manifest.createdAt).toLocaleString()}
-                    </span>
-                    <span>
-                      {t("dataMigration.sourceVersion")}: {inspectResult.manifest.appVersion}
-                    </span>
-                    <span>
-                      {t("dataMigration.profileCount")}: {inspectResult.profileCount}
-                    </span>
-                    <span>
-                      {t("dataMigration.secretCount")}: {inspectResult.secretCount}
-                    </span>
-                    <span>
-                      {t("dataMigration.profileChanges", {
-                        added: inspectResult.diff.profiles.added,
-                        updated: inspectResult.diff.profiles.updated,
-                      })}
-                    </span>
-                    <span>
-                      {t("dataMigration.commandChanges", {
-                        added: inspectResult.diff.commands.added,
-                        updated: inspectResult.diff.commands.updated,
-                      })}
-                    </span>
-                    {inspectResult.logFileCount > 0 && (
-                      <span>
-                        {t("dataMigration.logFileCount", { count: inspectResult.logFileCount })}
-                      </span>
-                    )}
-                    {inspectResult.diff.settingsChanged && (
-                      <span>{t("dataMigration.settingsWillChange")}</span>
-                    )}
-                    {inspectResult.webdavPasswordUsed && (
-                      <span className="flex items-center gap-1">
-                        <KeyRound size={12} />
-                        {t("dataMigration.webdav.savedPasswordUsed")}
-                      </span>
-                    )}
-                  </div>
-
-                  {inspectResult.requiresPassword && !inspectResult.passwordVerified && (
-                    <div className="space-y-2">
-                      <Label htmlFor="import-backup-password">
-                        {t("dataMigration.backupPassword")}
-                      </Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="import-backup-password"
-                          type={showPassword ? "text" : "password"}
-                          value={importPassword}
-                          disabled={busy}
-                          onChange={(event) => setImportPassword(event.target.value)}
-                        />
-                        <Button
-                          variant="outline"
-                          disabled={busy || !importPassword}
-                          onClick={handleVerifyPassword}
-                        >
-                          {busyAction === "verify" && (
-                            <Loader2 className="animate-spin" size={16} />
-                          )}
-                          {busyAction === "verify"
-                            ? t("dataMigration.verifying")
-                            : t("dataMigration.verify")}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {selectionItems.map((item) => (
-                      <label
-                        key={item.key}
-                        className="border-border flex min-h-10 items-center gap-3 rounded-md border px-3 py-2 text-sm"
-                      >
-                        <Checkbox
-                          checked={selection[item.key]}
-                          disabled={busy || !inspectResult.manifest.selection[item.key]}
-                          onCheckedChange={(checked) => updateSelection(item.key, checked)}
-                        />
-                        <span>{item.label}</span>
-                      </label>
-                    ))}
-                  </div>
-
-                  {selection.settings && inspectResult.diff.webdavAccount && (
-                    <Alert className="border-amber-500/40 bg-amber-500/10">
-                      <AlertTriangle size={16} className="absolute top-3.5 left-4 text-amber-500" />
-                      <div className="space-y-1 pl-6">
-                        <AlertTitle>{t("dataMigration.webdavAccountChangeTitle")}</AlertTitle>
-                        <AlertDescription className="space-y-1">
-                          <p className="break-all">
-                            {inspectResult.diff.webdavAccount.from ??
-                              t("dataMigration.webdavAccountNone")}
-                            {" → "}
-                            {inspectResult.diff.webdavAccount.to}
-                          </p>
-                          <p>{t("dataMigration.webdavAccountChangeDescription")}</p>
-                        </AlertDescription>
-                      </div>
-                    </Alert>
-                  )}
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <Label htmlFor="migration-conflict">
-                        {t("dataMigration.conflictStrategy")}
-                      </Label>
-                      <Select
-                        id="migration-conflict"
-                        className="mt-1.5"
-                        value={conflictStrategy}
-                        disabled={busy}
-                        onChange={(event) => setConflictStrategy(event.target.value)}
-                      >
-                        <option value="merge">{t("dataMigration.merge")}</option>
-                        <option value="replace">{t("dataMigration.replace")}</option>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <Button
-                    disabled={
-                      busy ||
-                      !Object.values(selection).some(Boolean) ||
-                      (inspectResult.requiresPassword && !inspectResult.passwordVerified)
-                    }
-                    onClick={handleImport}
-                  >
-                    {busyAction === "import" ? (
-                      <Loader2 className="animate-spin" size={16} />
-                    ) : (
-                      <Upload size={16} />
-                    )}
-                    {busyAction === "import"
-                      ? t("dataMigration.importing")
-                      : t("dataMigration.importAction")}
-                  </Button>
-                </>
-              )}
-
-              {importResult && (
-                <Alert className="border-emerald-500/40 bg-emerald-500/10">
-                  <CheckCircle2 size={16} className="absolute top-3.5 left-4 text-emerald-500" />
-                  <div className="space-y-3 pl-6">
-                    <div>
-                      <AlertTitle>{t("dataMigration.importSuccess")}</AlertTitle>
-                      <AlertDescription>
-                        {t("dataMigration.importSummary", {
-                          profiles: importResult.profilesImported,
-                          commands: importResult.commandsImported,
-                          secrets: importResult.secretsImported,
-                        })}
-                      </AlertDescription>
-                    </div>
-                    {importResult.missingKeyFiles.length > 0 && (
-                      <div className="text-sm">
-                        <div className="flex items-center gap-1.5 font-medium">
-                          <AlertTriangle size={14} className="text-amber-500" />
-                          {t("dataMigration.missingKeyFiles")}
-                        </div>
-                        <p className="text-muted-foreground mt-1 text-xs">
-                          {t("dataMigration.missingKeyFilesDesc")}
-                        </p>
-                        <ul className="mt-2 space-y-1 text-xs">
-                          {importResult.missingKeyFiles.map((file) => (
-                            <li key={file.path} className="break-all">
-                              <code>{file.path}</code>
-                              <span className="text-muted-foreground">
-                                {" · "}
-                                {file.profiles.join(", ")}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {importResult.requiresRestart && (
-                      <Button size="sm" onClick={() => void relaunch()}>
-                        <RefreshCw size={14} />
-                        {t("dataMigration.restartNow")}
-                      </Button>
-                    )}
-                  </div>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
+          <BackupImportCard
+            selection={selection}
+            importPassword={importPassword}
+            setImportPassword={setImportPassword}
+            showPassword={showPassword}
+            busyAction={busyAction}
+            busy={busy}
+            importPath={importPath}
+            importSource={importSource}
+            inspectResult={inspectResult}
+            conflictStrategy={conflictStrategy}
+            setConflictStrategy={setConflictStrategy}
+            importResult={importResult}
+            selectionItems={selectionItems}
+            showView={showView}
+            updateSelection={updateSelection}
+            handleChooseImport={handleChooseImport}
+            handleVerifyPassword={handleVerifyPassword}
+            handleImport={handleImport}
+          />
         )}
       </div>
     </ScrollArea>

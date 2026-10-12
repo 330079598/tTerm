@@ -1,7 +1,6 @@
 import "dockview-react/dist/styles/dockview.css"
 import "@/components/TTermApp/WorkspaceDock.css"
-
-import React, {
+import {
   forwardRef,
   useCallback,
   useEffect,
@@ -10,71 +9,30 @@ import React, {
   useRef,
   useState,
 } from "react"
-import {
-  DockviewReact,
-  type DockviewApi,
-  type DockviewReadyEvent,
-  type IDockviewHeaderActionsProps,
-  type IDockviewPanelProps,
-  themeDark,
-} from "dockview-react"
-import {
-  Columns2,
-  Maximize2,
-  Minimize2,
-  PanelBottom,
-  PanelLeft,
-  PanelRight,
-  PanelTop,
-  PanelsTopLeft,
-  Rows2,
-} from "lucide-react"
-import { useTranslation } from "react-i18next"
+import { DockviewReact, type DockviewApi, type DockviewReadyEvent, themeDark } from "dockview-react"
+import { Columns2, PanelsTopLeft, Rows2 } from "lucide-react"
 
-import { ErrorBoundary } from "@/components/ErrorBoundary"
-import { TerminalTab } from "@/components/TerminalTab"
+import { WorkspacePanel } from "@/components/TTermApp/WorkspacePanel"
 import {
-  useDockPanelState,
-  useWorkspace,
+  WorkspaceHeaderActions,
+  WorkspaceWatermark,
+} from "@/components/TTermApp/WorkspaceHeaderActions"
+import type { WorkspaceDropPreview, PendingSplit } from "@/components/TTermApp/workspaceDrop"
+import {
   WorkspaceContext,
   type TabPanelsProps,
   type WorkspaceContextValue,
-  type WorkspacePanelParams,
   type WorkspaceSplitDirection,
 } from "@/components/TTermApp/workspaceContext"
 import { WorkspaceTab } from "@/components/TTermApp/WorkspaceTab"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { isPageTab, type Tab } from "@/types/tab"
-import { withLocalCwd } from "@/lib/localTabTitle"
+import { useDockInteractionClasses } from "@/components/TTermApp/useDockInteractionClasses"
+import { useWorkspaceDrop } from "@/components/TTermApp/useWorkspaceDrop"
 
 const workspaceDockTheme = {
   ...themeDark,
   gap: 8,
 }
-
-const RemoteFileEditor = React.lazy(() =>
-  import("@/components/RemoteFileEditor").then((module) => ({
-    default: module.RemoteFileEditor,
-  }))
-)
-
-const TunnelsPanel = React.lazy(() =>
-  import("@/components/TunnelsPanel").then((module) => ({
-    default: module.TunnelsPanel,
-  }))
-)
-
-const LogsPanel = React.lazy(() =>
-  import("@/components/LogsPanel").then((module) => ({
-    default: module.LogsPanel,
-  }))
-)
-
-const SettingsPanel = React.lazy(() =>
-  import("@/components/SettingsDialog").then((module) => ({
-    default: module.SettingsPanel,
-  }))
-)
 
 export interface TabPanelsHandle {
   activateTab: (tabId: string) => void
@@ -85,219 +43,6 @@ export interface TabPanelsHandle {
   getVisibleTerminalTabIds: () => string[]
   previewTabDrop: (tabId: string, clientX: number, clientY: number) => boolean
   splitTab: (tabId: string, direction: WorkspaceSplitDirection) => void
-}
-
-type WorkspaceDropDirection = "left" | "right" | "above" | "below" | "center"
-
-type WorkspaceDropPreview = {
-  direction: WorkspaceDropDirection
-  sourceTabId: string
-  targetTabId: string
-  top: number
-  left: number
-  width: number
-  height: number
-}
-
-type PendingSplit = {
-  direction: WorkspaceSplitDirection
-  sourceTabId: string
-  tabId: string
-}
-
-const WorkspacePanel = React.memo(function WorkspacePanel({
-  api,
-  params,
-}: IDockviewPanelProps<WorkspacePanelParams>) {
-  const workspace = useWorkspace()
-  const { hasBeenVisible, isActive, isVisible } = useDockPanelState(api)
-  const tab = workspace.tabs.find((candidate) => candidate.id === params.tabId)
-  const isHiddenByMaximize =
-    workspace.maximizedGroupId !== null && api.group.id !== workspace.maximizedGroupId
-
-  if (!tab) {
-    return null
-  }
-
-  const isSshConnection = tab.connection?.type === "ssh" || tab.type === "ssh"
-  const shouldConnect =
-    !isPageTab(tab) &&
-    tab.type !== "remote-file-editor" &&
-    (workspace.startupConnectionsReady || !isSshConnection) &&
-    (workspace.startupSessionRestoreMode === "all" ||
-      isVisible ||
-      hasBeenVisible ||
-      tab.hasConnected === true)
-
-  return (
-    <div
-      className="workspace-panel"
-      data-maximized-hidden={isHiddenByMaximize || undefined}
-      data-workspace-panel-id={tab.id}
-    >
-      {tab.type === "settings" ? (
-        <ErrorBoundary resetKey={tab.id} scope="settings">
-          <React.Suspense fallback={null}>
-            <SettingsPanel
-              onConnectProfile={workspace.onConnectProfile}
-              onEditProfile={workspace.onEditProfile}
-              profilesRefreshKey={workspace.profilesRefreshKey}
-            />
-          </React.Suspense>
-        </ErrorBoundary>
-      ) : tab.type === "tunnels" ? (
-        <ErrorBoundary resetKey={tab.id} scope="tunnels">
-          <React.Suspense fallback={null}>
-            <TunnelsPanel profilesRefreshKey={workspace.profilesRefreshKey} />
-          </React.Suspense>
-        </ErrorBoundary>
-      ) : tab.type === "logs" ? (
-        <ErrorBoundary resetKey={tab.id} scope="logs">
-          <React.Suspense fallback={null}>
-            <LogsPanel />
-          </React.Suspense>
-        </ErrorBoundary>
-      ) : tab.type === "remote-file-editor" ? (
-        <ErrorBoundary resetKey={tab.id} scope="remote-file-editor">
-          <React.Suspense fallback={null}>
-            <RemoteFileEditor
-              isVisible={isVisible}
-              isGlobalShortcutTarget={isActive}
-              tab={tab}
-              onTabUpdate={(updater) => workspace.updateTab(tab.id, updater)}
-            />
-          </React.Suspense>
-        </ErrorBoundary>
-      ) : (
-        shouldConnect && (
-          <ErrorBoundary resetKey={`${tab.id}:${tab.sessionNonce ?? 0}`} scope="terminal-tab">
-            <TerminalTab
-              tabId={tab.id}
-              sessionNonce={tab.sessionNonce}
-              isActive={isVisible}
-              isGlobalShortcutTarget={isActive}
-              workspacePanelApi={api}
-              connectionHeaderPinned={tab.connectionHeaderPinned}
-              connection={tab.connection ?? { type: tab.type === "terminal" ? "terminal" : "ssh" }}
-              isBroadcastSource={workspace.broadcastSourceTabId === tab.id}
-              liveBroadcastState={workspace.liveBroadcastState}
-              onPauseBroadcast={workspace.onPauseBroadcast}
-              onResumeBroadcast={workspace.onResumeBroadcast}
-              onStopBroadcast={workspace.onStopBroadcast}
-              onCwdChange={(cwd) =>
-                workspace.updateTab(tab.id, (current) => withLocalCwd(current, cwd))
-              }
-              onConnectionStateChange={workspace.onTerminalConnectionStateChange}
-              onInput={workspace.onTerminalInput}
-              onCommandExecuted={workspace.onTerminalCommandExecuted}
-              onAttention={workspace.onTerminalAttention}
-              onOpenCommandLibrary={workspace.onOpenCommandLibrary}
-              onSaveCommand={workspace.onSaveCommand}
-              onSavedPasswordPromptChange={workspace.onTerminalSavedPasswordPromptChange}
-              onSessionUnavailable={workspace.onTerminalSessionUnavailable}
-              onReconnectRequest={() => workspace.handleReconnectTab(tab.id)}
-              onOpenRemoteFile={workspace.onOpenRemoteFile}
-              onPinConnectionHeader={() => workspace.handlePinConnectionHeader(tab.id)}
-              onServerMonitorVisibilityChange={(visible) =>
-                workspace.handleServerMonitorVisibilityChange(tab.id, visible)
-              }
-              onSensitivePrompt={workspace.onTerminalSensitivePrompt}
-              onConnectionProgress={(progress) =>
-                workspace.onTerminalConnectionProgress?.(tab.id, progress)
-              }
-              onUnpinConnectionHeader={() => workspace.handleUnpinConnectionHeader(tab.id)}
-            />
-          </ErrorBoundary>
-        )
-      )}
-    </div>
-  )
-})
-
-const WorkspaceHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({
-  activePanel,
-  isGroupActive,
-}) => {
-  const { t } = useTranslation()
-  const { collapseToSingleGroup, groupCount, maximizedGroupId, splitTab, tabs } = useWorkspace()
-  const tab = activePanel ? tabs.find((candidate) => candidate.id === activePanel.id) : undefined
-  const canSplit = tab?.type === "terminal" || tab?.type === "ssh"
-  const isMaximized = activePanel?.group.id === maximizedGroupId
-
-  const action = (label: string, icon: React.ReactNode, onClick: () => void, disabled = false) => (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          className="workspace-header-action"
-          aria-label={label}
-          disabled={disabled}
-          onClick={onClick}
-        >
-          {icon}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
-  )
-
-  return (
-    <div className={`workspace-header-actions ${isGroupActive ? "active" : ""}`}>
-      {action(
-        t("workspace.splitRight", { defaultValue: "Split Right" }),
-        <PanelRight size={14} aria-hidden="true" />,
-        () => activePanel && splitTab(activePanel.id, "right"),
-        !canSplit
-      )}
-      {action(
-        t("workspace.splitLeft", { defaultValue: "Split Left" }),
-        <PanelLeft size={14} aria-hidden="true" />,
-        () => activePanel && splitTab(activePanel.id, "left"),
-        !canSplit
-      )}
-      {action(
-        t("workspace.splitDown", { defaultValue: "Split Down" }),
-        <PanelBottom size={14} aria-hidden="true" />,
-        () => activePanel && splitTab(activePanel.id, "below"),
-        !canSplit
-      )}
-      {action(
-        t("workspace.splitAbove", { defaultValue: "Split Above" }),
-        <PanelTop size={14} aria-hidden="true" />,
-        () => activePanel && splitTab(activePanel.id, "above"),
-        !canSplit
-      )}
-      {activePanel &&
-        action(
-          isMaximized
-            ? t("workspace.restoreGroup", { defaultValue: "Restore Group" })
-            : t("workspace.maximizeGroup", { defaultValue: "Maximize Group" }),
-          isMaximized ? (
-            <Minimize2 size={14} aria-hidden="true" />
-          ) : (
-            <Maximize2 size={14} aria-hidden="true" />
-          ),
-          () => (isMaximized ? activePanel.api.exitMaximized() : activePanel.api.maximize())
-        )}
-      {activePanel &&
-        groupCount > 1 &&
-        action(
-          t("workspace.restoreSingleGroup", { defaultValue: "Restore Single Group" }),
-          <PanelsTopLeft size={14} aria-hidden="true" />,
-          () => collapseToSingleGroup(activePanel.id)
-        )}
-    </div>
-  )
-}
-
-const WorkspaceWatermark: React.FC = () => {
-  const { t } = useTranslation()
-  return (
-    <div className="workspace-watermark">
-      <Columns2 size={24} aria-hidden="true" />
-      <span>{t("workspace.emptyGroup", { defaultValue: "Drag a tab here" })}</span>
-    </div>
-  )
 }
 
 const dockComponents = { workspacePanel: WorkspacePanel }
@@ -355,281 +100,17 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
   const initialLayoutRef = useRef(initialLayout)
   const dockDisposablesRef = useRef<Array<{ dispose: () => void }>>([])
 
-  useEffect(() => {
-    const root = dockRootRef.current
-    if (!root) {
-      return
-    }
+  useDockInteractionClasses(dockRootRef)
 
-    const stopResizing = () => {
-      document.body.classList.remove(
-        "workspace-sash-resizing",
-        "workspace-sash-resizing-horizontal",
-        "workspace-sash-resizing-vertical"
-      )
-    }
-
-    const stopGroupDrag = () => {
-      document.body.classList.remove("workspace-group-dragging")
-    }
-
-    const startResizing = (event: PointerEvent) => {
-      if (event.button !== 0 || !(event.target instanceof Element)) {
-        return
-      }
-
-      const sash = event.target.closest(".dv-sash")
-      if (!sash || !root.contains(sash)) {
-        return
-      }
-
-      const splitView = sash.closest(".dv-split-view-container")
-      document.body.classList.add("workspace-sash-resizing")
-      document.body.classList.toggle(
-        "workspace-sash-resizing-horizontal",
-        splitView?.classList.contains("dv-horizontal") ?? false
-      )
-      document.body.classList.toggle(
-        "workspace-sash-resizing-vertical",
-        splitView?.classList.contains("dv-vertical") ?? false
-      )
-      window.getSelection()?.removeAllRanges()
-      event.preventDefault()
-    }
-
-    const startGroupDrag = (target: EventTarget | null) => {
-      if (!(target instanceof Element)) {
-        return
-      }
-
-      const dragHandle = target.closest(".dv-tab, .dv-draggable")
-      if (!dragHandle || !root.contains(dragHandle)) {
-        return
-      }
-
-      document.body.classList.add("workspace-group-dragging")
-      window.getSelection()?.removeAllRanges()
-    }
-
-    const handleGroupPointerDown = (event: PointerEvent) => {
-      if (event.button === 0) {
-        startGroupDrag(event.target)
-      }
-    }
-
-    const handleNativeDragStart = (event: DragEvent) => {
-      startGroupDrag(event.target)
-    }
-
-    root.addEventListener("pointerdown", startResizing, true)
-    root.addEventListener("pointerdown", handleGroupPointerDown, true)
-    root.addEventListener("dragstart", handleNativeDragStart, true)
-    document.addEventListener("pointerup", stopResizing)
-    document.addEventListener("pointercancel", stopResizing)
-    document.addEventListener("pointerup", stopGroupDrag)
-    document.addEventListener("pointercancel", stopGroupDrag)
-    document.addEventListener("dragend", stopGroupDrag)
-    document.addEventListener("drop", stopGroupDrag)
-    window.addEventListener("blur", stopResizing)
-    window.addEventListener("blur", stopGroupDrag)
-
-    return () => {
-      root.removeEventListener("pointerdown", startResizing, true)
-      root.removeEventListener("pointerdown", handleGroupPointerDown, true)
-      root.removeEventListener("dragstart", handleNativeDragStart, true)
-      document.removeEventListener("pointerup", stopResizing)
-      document.removeEventListener("pointercancel", stopResizing)
-      document.removeEventListener("pointerup", stopGroupDrag)
-      document.removeEventListener("pointercancel", stopGroupDrag)
-      document.removeEventListener("dragend", stopGroupDrag)
-      document.removeEventListener("drop", stopGroupDrag)
-      window.removeEventListener("blur", stopResizing)
-      window.removeEventListener("blur", stopGroupDrag)
-      stopResizing()
-      stopGroupDrag()
-    }
-  }, [])
-
-  const splitTab = useCallback(
-    (tabId: string, direction: WorkspaceSplitDirection) => {
-      const sourcePanel = dockApi?.getPanel(tabId)
-      if (!dockApi || !sourcePanel) {
-        return
-      }
-      const sourceTab = tabsRef.current.find((tab) => tab.id === tabId)
-      if (!sourceTab || (sourceTab.type !== "terminal" && sourceTab.type !== "ssh")) {
-        return
-      }
-
-      if (sourcePanel.group.panels.length === 1) {
-        const duplicatedTabId = duplicateTab(tabId)
-        if (duplicatedTabId) {
-          pendingSplitRef.current = {
-            direction,
-            sourceTabId: tabId,
-            tabId: duplicatedTabId,
-          }
-        }
-        return
-      }
-
-      const targetGroup = dockApi.addGroup({ referencePanel: sourcePanel, direction })
-      sourcePanel.api.moveTo({ group: targetGroup, position: "center" })
-      sourcePanel.api.setActive()
-    },
-    [dockApi, duplicateTab]
-  )
-
-  const clearTabDrop = useCallback(() => {
-    dropPreviewRef.current = null
-    setDropPreview(null)
-  }, [])
-
-  const previewTabDrop = useCallback(
-    (tabId: string, clientX: number, clientY: number) => {
-      const root = dockRootRef.current
-      const api = dockApi
-      const sourcePanel = api?.getPanel(tabId)
-      if (!root || !api || !sourcePanel) {
-        clearTabDrop()
-        return false
-      }
-
-      const rootRect = root.getBoundingClientRect()
-      if (
-        clientX < rootRect.left ||
-        clientX > rootRect.right ||
-        clientY < rootRect.top ||
-        clientY > rootRect.bottom
-      ) {
-        clearTabDrop()
-        return false
-      }
-
-      const targetGroupMatch = api.groups
-        .map((group) => ({ group, bounds: group.api.boundingBox }))
-        .filter(
-          (
-            candidate
-          ): candidate is {
-            group: (typeof api.groups)[number]
-            bounds: NonNullable<(typeof candidate)["bounds"]>
-          } => {
-            const { bounds } = candidate
-            return (
-              bounds !== undefined &&
-              bounds.width > 0 &&
-              bounds.height > 0 &&
-              clientX >= rootRect.left + bounds.left &&
-              clientX <= rootRect.left + bounds.left + bounds.width &&
-              clientY >= rootRect.top + bounds.top &&
-              clientY <= rootRect.top + bounds.top + bounds.height
-            )
-          }
-        )
-        .sort(
-          (first, second) =>
-            first.bounds.width * first.bounds.height - second.bounds.width * second.bounds.height
-        )[0]
-      const targetGroup = targetGroupMatch?.group
-      const targetPanel = targetGroup?.activePanel ?? targetGroup?.panels[0]
-      if (!targetGroupMatch || !targetPanel) {
-        clearTabDrop()
-        return false
-      }
-
-      const targetRect = {
-        left: rootRect.left + targetGroupMatch.bounds.left,
-        top: rootRect.top + targetGroupMatch.bounds.top,
-        width: targetGroupMatch.bounds.width,
-        height: targetGroupMatch.bounds.height,
-      }
-      const normalizedX = (clientX - targetRect.left) / targetRect.width - 0.5
-      const normalizedY = (clientY - targetRect.top) / targetRect.height - 0.5
-      const isSourceGroup = sourcePanel.group === targetPanel.group
-      const direction: WorkspaceDropDirection =
-        !isSourceGroup && Math.abs(normalizedX) <= 0.25 && Math.abs(normalizedY) <= 0.25
-          ? "center"
-          : Math.abs(normalizedX) > Math.abs(normalizedY)
-            ? normalizedX < 0
-              ? "left"
-              : "right"
-            : normalizedY < 0
-              ? "above"
-              : "below"
-
-      if (isSourceGroup) {
-        const sourceTab = tabsRef.current.find((tab) => tab.id === tabId)
-        if (
-          sourcePanel.group.panels.length === 1 &&
-          (!sourceTab || (sourceTab.type !== "terminal" && sourceTab.type !== "ssh"))
-        ) {
-          clearTabDrop()
-          return false
-        }
-      }
-      const nextPreview: WorkspaceDropPreview = {
-        direction,
-        sourceTabId: tabId,
-        targetTabId: targetPanel.id,
-        left: targetRect.left - rootRect.left,
-        top: targetRect.top - rootRect.top,
-        width: targetRect.width,
-        height: targetRect.height,
-      }
-
-      dropPreviewRef.current = nextPreview
-      setDropPreview((current) =>
-        current?.direction === nextPreview.direction &&
-        current.targetTabId === nextPreview.targetTabId &&
-        current.sourceTabId === nextPreview.sourceTabId &&
-        current.left === nextPreview.left &&
-        current.top === nextPreview.top &&
-        current.width === nextPreview.width &&
-        current.height === nextPreview.height
-          ? current
-          : nextPreview
-      )
-      return true
-    },
-    [clearTabDrop, dockApi]
-  )
-
-  const commitTabDrop = useCallback(
-    (tabId: string, clientX: number, clientY: number) => {
-      if (!previewTabDrop(tabId, clientX, clientY)) {
-        return false
-      }
-
-      const preview = dropPreviewRef.current
-      const sourcePanel = dockApi?.getPanel(tabId)
-      const targetPanel = preview ? dockApi?.getPanel(preview.targetTabId) : undefined
-      if (!preview || !sourcePanel || !targetPanel) {
-        clearTabDrop()
-        return false
-      }
-
-      if (sourcePanel.group === targetPanel.group && sourcePanel.group.panels.length === 1) {
-        splitTab(tabId, preview.direction as WorkspaceSplitDirection)
-        clearTabDrop()
-        return true
-      }
-
-      sourcePanel.api.moveTo({
-        group: targetPanel.group,
-        position:
-          preview.direction === "above"
-            ? "top"
-            : preview.direction === "below"
-              ? "bottom"
-              : preview.direction,
-      })
-      sourcePanel.api.setActive()
-      clearTabDrop()
-      return true
-    },
-    [clearTabDrop, dockApi, previewTabDrop, splitTab]
-  )
+  const { splitTab, clearTabDrop, previewTabDrop, commitTabDrop } = useWorkspaceDrop({
+    dockApi,
+    tabsRef,
+    duplicateTab,
+    pendingSplitRef,
+    dropPreviewRef,
+    setDropPreview,
+    dockRootRef,
+  })
 
   useEffect(() => {
     tabsRef.current = tabs

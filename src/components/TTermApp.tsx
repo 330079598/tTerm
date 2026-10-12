@@ -1,44 +1,46 @@
 import "@/components/TTermApp.css"
-import { invoke } from "@tauri-apps/api/core"
-import { listen } from "@tauri-apps/api/event"
 import { platform } from "@tauri-apps/plugin-os"
-import type { SerializedDockview } from "dockview-react"
-import { BookMarked, Library, Minus, Plus, Settings, Square, Waypoints, X } from "lucide-react"
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { ConnectionDialog } from "@/components/ConnectionDialog"
-import type { ProfileSavedOptions } from "@/components/ConnectionDialog/types"
-import { CommandEditorDialog, CommandLibrary } from "@/components/CommandLibrary"
-import { BroadcastManager } from "@/components/BroadcastManager"
+import { CommandLibrary } from "@/components/CommandLibrary"
+import { CommandEditorDialog } from "@/components/CommandLibrary/CommandEditorDialog"
 import { CloseRequestDialog } from "@/components/CloseRequestDialog"
 import { ContextMenu } from "@/components/ContextMenu"
-import { NewTabLauncher, type LocalShellChoice } from "@/components/NewTabLauncher"
-import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
+import { NewTabLauncher } from "@/components/NewTabLauncher"
+import { ProfilesPanel } from "@/components/ProfilesPanel"
 import { RenameDialog } from "@/components/RenameDialog"
-import { TabBar } from "@/components/TabBar"
-import { TransferManager } from "@/components/TransferManager"
+import { AppTitleBar } from "@/components/TTermApp/AppTitleBar"
 import { EmptyState } from "@/components/TTermApp/EmptyState"
 import { TabPanels, type TabPanelsHandle } from "@/components/TTermApp/TabPanels"
-import type { WorkspaceSplitDirection } from "@/components/TTermApp/workspaceContext"
-import {
-  buildTabFromConnection,
-  isTerminalConnectionUnavailable,
-  resolveSavedPasswordInjectionTargets,
-} from "@/components/TTermApp/ttermAppUtils"
+import type { AppShell } from "@/components/TTermApp/appShell"
+import { useBroadcastState } from "@/components/TTermApp/useBroadcastState"
+import { useBroadcastRuntime } from "@/components/TTermApp/useBroadcastRuntime"
+import { useTerminalLogRecording } from "@/components/TTermApp/useTerminalLogRecording"
+import { useBroadcastSending } from "@/components/TTermApp/useBroadcastSending"
+import { useTabConnectionActions } from "@/components/TTermApp/useTabConnectionActions"
+import { useBroadcastControls } from "@/components/TTermApp/useBroadcastControls"
+import { usePageTabs } from "@/components/TTermApp/usePageTabs"
+import { useSessionRestore } from "@/components/TTermApp/useSessionRestore"
+import { useTabOpeners } from "@/components/TTermApp/useTabOpeners"
+import { useProfileDialogState } from "@/components/TTermApp/useProfileDialogState"
+import { useQuickConnect } from "@/components/TTermApp/useQuickConnect"
+import { useProfileActions } from "@/components/TTermApp/useProfileActions"
+import { useTabClosing } from "@/components/TTermApp/useTabClosing"
+import { useWorkspaceSplits } from "@/components/TTermApp/useWorkspaceSplits"
+import { useTitleBarPages } from "@/components/TTermApp/useTitleBarPages"
+import { useCommandLibraryActions } from "@/components/TTermApp/useCommandLibraryActions"
+import { useTabKeymap } from "@/components/TTermApp/useTabKeymap"
 import { TunnelHostKeyPrompt } from "@/components/TunnelsPanel/TunnelHostKeyPrompt"
 import { useTunnelAutoStart } from "@/components/TunnelsPanel/useTunnelAutoStart"
 import { useTunnelNotifications } from "@/components/TunnelsPanel/useTunnelNotifications"
 import { useTunnelQuitGuard } from "@/components/TunnelsPanel/useTunnelQuitGuard"
 import { useRunningTunnelCount } from "@/components/TunnelsPanel/useRunningTunnelCount"
 import { VaultStartupUnlockDialog } from "@/components/VaultStartupUnlockDialog"
-import { formatBytes, MAX_EDIT_FILE_BYTES } from "@/components/SftpDrawer/sftpDrawerUtils"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { ToastAction } from "@/components/ui/toast"
-import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { useConfig } from "@/contexts/ConfigContext"
-import { useKeymap } from "@/contexts/KeymapContext"
 import { useAppActivity } from "@/contexts/AppActivityContext"
 import { useTransferManager } from "@/contexts/TransferContext"
 import { useConnectionManager } from "@/hooks/useConnectionManager"
@@ -49,49 +51,9 @@ import { useTabContextMenu } from "@/hooks/useTabContextMenu"
 import { useTabs } from "@/hooks/useTabs"
 import { useTerminalFontZoom } from "@/hooks/useTerminalFontZoom"
 import { useTerminalNotifications } from "@/hooks/useTerminalNotifications"
-import { toast } from "@/hooks/use-toast"
 import { useWindowControls } from "@/hooks/useWindowControls"
-import { nameLocalTab, refreshSavedLocalTabs } from "@/lib/localTabTitle"
-import { markSessionReady } from "@/lib/startup"
-import {
-  addRecentCommand,
-  createCommandDraft,
-  loadRecentCommands,
-  saveRecentCommands,
-} from "@/lib/recentCommands"
 import { onSyncApplied } from "@/lib/sync"
-import { applyProfileToTab, buildConnectionFromProfile } from "@/lib/profileConnections"
-import {
-  addRecentQuickConnection,
-  applyQuickConnectAuth,
-  draftProfileFromInput,
-  draftProfileFromTab,
-  loadRecentQuickConnections,
-  quickConnectionFromTab,
-  removeRecentQuickConnection,
-  saveRecentQuickConnections,
-  type RecentQuickConnection,
-  type SshConfigHost,
-} from "@/lib/quickConnect"
 import { useWebDavSync } from "@/hooks/useWebDavSync"
-import { getAdjacentTabId, getTabIdsForCloseAction } from "@/lib/tabClosing"
-import { setRecordingTabIds, type TerminalLogStatus } from "@/lib/terminalLogRecording"
-import { handleAppPageRequests } from "@/lib/appNavigation"
-import { toErrorMessage } from "@/lib/utils"
-import { getSiblingTabId, getTabIdAtPosition } from "@/lib/tabNavigation"
-import { keepFocusOnMouseDown } from "@/lib/terminalFocus"
-import { isPageTab, Tab } from "@/types/tab"
-import type { CommandDraft, ExecutedCommand, RecentCommand, SavedCommand } from "@/types/command"
-import type {
-  BroadcastMode,
-  LiveBroadcastState,
-  PtyWriteResult,
-  TerminalInputRequest,
-  TerminalRuntimeState,
-} from "@/types/broadcast"
-import { notifySavedPasswordNotSent } from "@/components/TerminalTab/savedPasswordNotice"
-import type { ConnectionState, SshConnectionProgress } from "@/components/TerminalTab/types"
-
 const SETTINGS_TAB_TITLE = "Settings"
 
 function getRuntimePlatform() {
@@ -102,32 +64,6 @@ function getRuntimePlatform() {
   }
 }
 
-function formatRemoteFileConnectionLabel(connection?: Tab["connection"]): string | undefined {
-  const profileName = connection?.profileName?.trim()
-  if (profileName) {
-    return profileName
-  }
-
-  const host = connection?.host?.trim()
-  if (!host) {
-    return undefined
-  }
-
-  const userHost = connection?.username ? `${connection.username}@${host}` : host
-  return connection?.port && connection.port !== 22 ? `${userHost}:${connection.port}` : userHost
-}
-
-function getRemoteFileConnectionKey(connection?: Tab["connection"]): string {
-  if (connection?.profileId) {
-    return `profile:${connection.profileId}`
-  }
-
-  const host = connection?.host?.trim() ?? ""
-  const username = connection?.username?.trim() ?? ""
-  const port = connection?.port ?? 22
-  return `target:${username}@${host}:${port}`
-}
-
 export const TTermApp: React.FC = () => {
   const { t, i18n } = useTranslation()
   const { setActiveTerminalSessionCount } = useAppActivity()
@@ -135,87 +71,16 @@ export const TTermApp: React.FC = () => {
   const isMacos = os === "macos"
   const isLinux = os === "linux"
   const isWindows = os === "windows"
-  const [showConnectionDialog, setShowConnectionDialog] = useState(false)
+  const dialog = useProfileDialogState()
   const [showNewTabLauncher, setShowNewTabLauncher] = useState(false)
-  const [quickConnectRecents, setQuickConnectRecents] = useState<RecentQuickConnection[]>(() =>
-    typeof window === "undefined" ? [] : loadRecentQuickConnections(window.localStorage)
-  )
-  // Starting values of a new profile, and the quick connect tab it is saved for.
-  const [draftProfile, setDraftProfile] = useState<SavedProfile | null>(null)
-  const [savingQuickConnectTabId, setSavingQuickConnectTabId] = useState<string | null>(null)
   const [showProfilesPanel, setShowProfilesPanel] = useState(false)
-  const [showCommandLibrary, setShowCommandLibrary] = useState(false)
-  const [commandLibrarySearchQuery, setCommandLibrarySearchQuery] = useState("")
-  const [quickSaveRequest, setQuickSaveRequest] = useState<{
-    draft: CommandDraft
-    profile?: { id: string; name: string }
-  } | null>(null)
-  const [recentCommands, setRecentCommands] = useState<RecentCommand[]>(() =>
-    typeof window === "undefined" ? [] : loadRecentCommands(window.localStorage)
-  )
-  const [editingProfile, setEditingProfile] = useState<SavedProfile | null>(null)
-  // The tab whose profile is being edited, which can be reconnected once it is saved.
-  const [editingProfileTabId, setEditingProfileTabId] = useState<string | null>(null)
-  const [duplicatingProfile, setDuplicatingProfile] = useState<SavedProfile | null>(null)
   const [profilesRefreshKey, setProfilesRefreshKey] = useState(0)
-  const [sessionRestored, setSessionRestored] = useState(false)
-  const [workspaceLayout, setWorkspaceLayout] = useState<SerializedDockview | null>(null)
   const [startupVaultUnlockDismissed, setStartupVaultUnlockDismissed] = useState(false)
-  const [broadcastMode, setBroadcastMode] = useState<BroadcastMode>("command")
-  const [liveBroadcastState, setLiveBroadcastState] = useState<LiveBroadcastState>("idle")
-  const [broadcastSource, setBroadcastSource] = useState<{
-    tabId: string
-    sessionNonce: number
-  } | null>(null)
-  const [broadcastTargetIds, setBroadcastTargetIds] = useState<string[]>([])
-  const [terminalRuntimeStates, setTerminalRuntimeStates] = useState<
-    Record<string, TerminalRuntimeState>
-  >({})
-  const [latestBroadcastResults, setLatestBroadcastResults] = useState<
-    Record<string, PtyWriteResult>
-  >({})
-  const [unavailableBroadcastTargetIds, setUnavailableBroadcastTargetIds] = useState<string[]>([])
-  const [isBroadcastPreparing, setIsBroadcastPreparing] = useState(false)
-  const broadcastWriteQueueRef = useRef(Promise.resolve())
-  const broadcastGenerationRef = useRef(0)
-  const savedPasswordPromptTargetsRef = useRef<
-    Map<string, { sessionNonce: number; prompt: string }>
-  >(new Map())
-  const liveSourceRef = useRef<{ tabId: string; sessionNonce: number } | null>(null)
-  const liveStateRef = useRef<LiveBroadcastState>(liveBroadcastState)
-  const runtimeStatesRef = useRef(terminalRuntimeStates)
-  const targetIdsRef = useRef(broadcastTargetIds)
-  const unavailableTargetIdsRef = useRef(unavailableBroadcastTargetIds)
-  const broadcastPreparingRef = useRef(false)
-  const broadcastPreflightRef = useRef<{
-    reject: (error: Error) => void
-    resolve: (targets: Array<{ tabId: string; sessionNonce: number }>) => void
-    targets: Map<string, number>
-  } | null>(null)
-  useLatestRef(runtimeStatesRef, terminalRuntimeStates)
-  useLatestRef(targetIdsRef, broadcastTargetIds)
-  useLatestRef(unavailableTargetIdsRef, unavailableBroadcastTargetIds)
-  useLatestRef(liveStateRef, liveBroadcastState)
+  const broadcast = useBroadcastState()
   const workspaceRef = useRef<TabPanelsHandle>(null)
 
-  const {
-    tabs,
-    activeTabId,
-    addTab,
-    openSettingsTab,
-    renameSettingsTab,
-    openTunnelsTab,
-    renameTunnelsTab,
-    openLogsTab,
-    renameLogsTab,
-    removeTabs,
-    setActiveTab,
-    moveTab,
-    duplicateTab,
-    renameTab,
-    restoreSession,
-    updateTab,
-  } = useTabs()
+  const tabsApi = useTabs()
+  const { tabs, activeTabId, setActiveTab, moveTab, duplicateTab, renameTab, updateTab } = tabsApi
   const tabsRef = useRef(tabs)
   const activeTabIdRef = useRef(activeTabId)
   useLatestRef(tabsRef, tabs)
@@ -226,7 +91,7 @@ export const TTermApp: React.FC = () => {
       return count
     }
 
-    const connectionState = terminalRuntimeStates[tab.id]?.connectionState
+    const connectionState = broadcast.terminalRuntimeStates[tab.id]?.connectionState
     return connectionState === "connected" ||
       connectionState === "connecting" ||
       connectionState === "reconnecting"
@@ -281,702 +146,26 @@ export const TTermApp: React.FC = () => {
   useTunnelNotifications()
   const runningTunnelCount = useRunningTunnelCount()
 
-  const stopLiveBroadcast = useCallback(() => {
-    broadcastGenerationRef.current += 1
-    liveSourceRef.current = null
-    liveStateRef.current = "idle"
-    setBroadcastSource(null)
-    setLiveBroadcastState("idle")
-    setBroadcastMode("command")
-  }, [])
-
-  const stopLiveSource = useCallback(
-    (tabId: string, sessionNonce: number) => {
-      const source = liveSourceRef.current
-      if (source?.tabId !== tabId || source.sessionNonce !== sessionNonce) return false
-
-      stopLiveBroadcast()
-      return true
-    },
-    [stopLiveBroadcast]
-  )
-
-  const stopUnavailableLiveSource = useCallback(
-    (tabId: string, sessionNonce: number) => {
-      if (!stopLiveSource(tabId, sessionNonce)) return
-
-      toast({
-        title: t("broadcast.sourceUnavailableTitle"),
-        description: t("broadcast.sourceUnavailableDescription"),
-      })
-    },
-    [stopLiveSource, t]
-  )
-
-  const handleTerminalConnectionStateChange = useCallback(
-    (tabId: string, sessionNonce: number, connectionState: ConnectionState | null) => {
-      if (isTerminalConnectionUnavailable(connectionState)) {
-        stopUnavailableLiveSource(tabId, sessionNonce)
-      }
-      setTerminalRuntimeStates((current) => {
-        if (connectionState === null) {
-          if (current[tabId]?.sessionNonce !== sessionNonce) return current
-          const next = { ...current }
-          delete next[tabId]
-          return next
-        }
-
-        const previous = current[tabId]
-        if (
-          previous?.sessionNonce === sessionNonce &&
-          previous.connectionState === connectionState
-        ) {
-          return current
-        }
-        return { ...current, [tabId]: { connectionState, sessionNonce } }
-      })
-      if (connectionState === "connected") {
-        setUnavailableBroadcastTargetIds((current) => current.filter((id) => id !== tabId))
-        setLatestBroadcastResults((current) => {
-          if (!current[tabId]) return current
-          const next = { ...current }
-          delete next[tabId]
-          return next
-        })
-      }
-    },
-    [stopUnavailableLiveSource]
-  )
-
-  const resolveBroadcastTargets = useCallback(() => {
-    const selected = new Set(targetIdsRef.current)
-    const unavailable = new Set(unavailableTargetIdsRef.current)
-    return tabsRef.current
-      .filter(
-        (tab) =>
-          selected.has(tab.id) &&
-          !unavailable.has(tab.id) &&
-          (tab.type === "terminal" || tab.type === "ssh") &&
-          runtimeStatesRef.current[tab.id]?.connectionState === "connected" &&
-          runtimeStatesRef.current[tab.id]?.sessionNonce === (tab.sessionNonce ?? 0)
-      )
-      .map((tab) => ({ tabId: tab.id, sessionNonce: tab.sessionNonce ?? 0 }))
-  }, [])
-
-  const writeBroadcast = useCallback(
-    async (data: string, targets = resolveBroadcastTargets()) => {
-      if (targets.length === 0 || data.length === 0) return []
-      return invoke<PtyWriteResult[]>("write_pty_batch", { targets, guardTarget: null, data })
-    },
-    [resolveBroadcastTargets]
-  )
-
-  const evaluateBroadcastPreflight = useCallback(() => {
-    const preflight = broadcastPreflightRef.current
-    if (!preflight) return
-
-    const targets: Array<{ tabId: string; sessionNonce: number }> = []
-    for (const [tabId, sessionNonce] of preflight.targets) {
-      const tab = tabsRef.current.find((candidate) => candidate.id === tabId)
-      if (!tab || (tab.type !== "terminal" && tab.type !== "ssh")) {
-        preflight.reject(new Error(t("broadcast.reconnectTargetMissing")))
-        broadcastPreflightRef.current = null
-        return
-      }
-      const tabNonce = tab.sessionNonce ?? 0
-      if (tabNonce > sessionNonce) {
-        preflight.reject(new Error(t("broadcast.reconnectTargetChanged")))
-        broadcastPreflightRef.current = null
-        return
-      }
-      if (tabNonce < sessionNonce) return
-
-      const runtime = runtimeStatesRef.current[tabId]
-      if (!runtime || runtime.sessionNonce < sessionNonce) return
-      if (runtime.sessionNonce > sessionNonce) {
-        preflight.reject(new Error(t("broadcast.reconnectTargetChanged")))
-        broadcastPreflightRef.current = null
-        return
-      }
-      if (runtime.connectionState === "error" || runtime.connectionState === "disconnected") {
-        preflight.reject(new Error(t("broadcast.reconnectTargetFailed", { name: tab.title })))
-        broadcastPreflightRef.current = null
-        return
-      }
-      if (runtime.connectionState !== "connected") return
-      targets.push({ tabId, sessionNonce })
-    }
-
-    broadcastPreflightRef.current = null
-    preflight.resolve(targets)
-  }, [t])
-
-  useEffect(() => {
-    evaluateBroadcastPreflight()
-  }, [evaluateBroadcastPreflight, tabs, terminalRuntimeStates])
-
-  useEffect(() => {
-    let disposed = false
-    const cleanups: Array<() => void> = []
-    void Promise.all([
-      listen<{ message?: string; phase?: string }>("terminal-log-error", (event) => {
-        toast({
-          title:
-            event.payload.phase === "start"
-              ? t("terminalLogging.sessionLogFailed")
-              : t("terminalLogging.writeFailed"),
-          description: event.payload.message ?? t("terminalLogging.writeFailed"),
-          variant: "destructive",
-        })
-      }),
-      listen<TerminalLogStatus>("terminal-log-status", (event) => {
-        setRecordingTabIds(event.payload.recordingTabIds)
-      }),
-    ]).then((unlisteners) => {
-      if (disposed) unlisteners.forEach((cleanup) => cleanup())
-      else cleanups.push(...unlisteners)
-    })
-    void invoke<TerminalLogStatus>("get_terminal_log_status")
-      .then((status) => {
-        if (!disposed) setRecordingTabIds(status.recordingTabIds)
-      })
-      .catch(console.error)
-    return () => {
-      disposed = true
-      cleanups.forEach((cleanup) => cleanup())
-    }
-  }, [t])
-
-  const handleSetTabLogRecording = useCallback(
-    (tabId: string, recording: boolean) => {
-      invoke<TerminalLogStatus>("set_terminal_log_recording", { tabId, recording })
-        .then((status) => setRecordingTabIds(status.recordingTabIds))
-        .catch((error) => {
-          toast({
-            title: recording ? t("terminalLogging.startFailed") : t("terminalLogging.stopFailed"),
-            description: toErrorMessage(error),
-            variant: "destructive",
-          })
-        })
-    },
-    [t]
-  )
-
-  const ensureBroadcastTargetsConnected = useCallback(async () => {
-    if (broadcastPreparingRef.current) return null
-
-    const selected = new Set(targetIdsRef.current)
-    const targets = tabsRef.current.filter(
-      (tab) => selected.has(tab.id) && (tab.type === "terminal" || tab.type === "ssh")
-    )
-    if (targets.length !== selected.size || targets.length === 0) return null
-
-    const reconnectTargets = targets.filter((tab) => {
-      const runtime = runtimeStatesRef.current[tab.id]
-      return !(
-        runtime?.connectionState === "connected" && runtime.sessionNonce === (tab.sessionNonce ?? 0)
-      )
-    })
-    if (reconnectTargets.length === 0) {
-      return targets.map((tab) => ({ tabId: tab.id, sessionNonce: tab.sessionNonce ?? 0 }))
-    }
-
-    broadcastPreparingRef.current = true
-    setIsBroadcastPreparing(true)
-    try {
-      const confirmed = await confirm({
-        title: t("broadcast.autoReconnectConfirmTitle", { count: reconnectTargets.length }),
-        description: t("broadcast.autoReconnectConfirmDescription", {
-          count: reconnectTargets.length,
-        }),
-        confirmText: t("broadcast.reconnectConfirmAction"),
-        variant: "destructive",
-      })
-      if (!confirmed) return null
-
-      const expected = new Map<string, number>()
-      const reconnectIds = new Set(reconnectTargets.map((tab) => tab.id))
-      for (const tab of targets) {
-        const runtime = runtimeStatesRef.current[tab.id]
-        const nonce = tab.sessionNonce ?? 0
-        const keepConnecting =
-          reconnectIds.has(tab.id) &&
-          runtime?.connectionState === "connecting" &&
-          runtime.sessionNonce === nonce
-        expected.set(
-          tab.id,
-          reconnectIds.has(tab.id) && !keepConnecting ? (nonce + 1) >>> 0 : nonce
-        )
-      }
-
-      const connectedTargets = await new Promise<Array<{ tabId: string; sessionNonce: number }>>(
-        (resolve, reject) => {
-          broadcastPreflightRef.current = { reject, resolve, targets: expected }
-          for (const tab of reconnectTargets) {
-            const runtime = runtimeStatesRef.current[tab.id]
-            const nonce = tab.sessionNonce ?? 0
-            if (runtime?.connectionState !== "connecting" || runtime.sessionNonce !== nonce) {
-              updateTab(tab.id, (current) => ({
-                ...current,
-                sessionNonce: ((current.sessionNonce ?? 0) + 1) >>> 0,
-              }))
-            }
-          }
-          evaluateBroadcastPreflight()
-        }
-      )
-      return connectedTargets
-    } catch (error) {
-      toast({
-        title: t("broadcast.reconnectFailedTitle"),
-        description: String(error instanceof Error ? error.message : error),
-        variant: "destructive",
-      })
-      return null
-    } finally {
-      broadcastPreflightRef.current = null
-      broadcastPreparingRef.current = false
-      setIsBroadcastPreparing(false)
-    }
-  }, [confirm, evaluateBroadcastPreflight, t, updateTab])
-
-  const handleTerminalInput = useCallback(
-    async ({ tabId, sessionNonce, data, kind }: TerminalInputRequest) => {
-      const isLiveSource =
-        liveSourceRef.current?.tabId === tabId &&
-        liveSourceRef.current.sessionNonce === sessionNonce
-
-      if (kind === "saved-password") {
-        const source = { tabId, sessionNonce, prompt: data }
-        const targets = resolveSavedPasswordInjectionTargets(
-          source,
-          isLiveSource && liveStateRef.current === "active",
-          resolveBroadcastTargets(),
-          savedPasswordPromptTargetsRef.current
-        )
-
-        const written = await Promise.all(
-          targets.map(async (target) => {
-            const tab = tabsRef.current.find((candidate) => candidate.id === target.tabId)
-            if (!tab) return false
-
-            try {
-              return await invoke<boolean>("write_saved_password_for_sudo", {
-                tabId: target.tabId,
-                sessionNonce: target.sessionNonce,
-                profileId: tab.connection?.profileId,
-                profileName: tab.connection?.profileName,
-                prompt: target.prompt,
-              })
-            } catch (error) {
-              console.error(`Failed to inject saved password into terminal ${target.tabId}`, error)
-              return false
-            }
-          })
-        )
-        // targets[0] is always the source terminal.
-        if (!written[0]) notifySavedPasswordNotSent(t)
-        return written[0]
-      }
-
-      if (!isLiveSource) {
-        await invoke("write_pty", { tabId, sessionNonce, data })
-        return
-      }
-
-      if (liveStateRef.current === "paused") {
-        await invoke("write_pty", { tabId, sessionNonce, data })
-        return
-      }
-
-      if (kind === "paste" && /[\r\n]/.test(data)) {
-        const confirmed = await confirm({
-          title: t("broadcast.multilinePasteTitle"),
-          description: t("broadcast.multilinePasteDescription", {
-            count: resolveBroadcastTargets().length,
-          }),
-          confirmText: t("broadcast.sendAnyway"),
-          defaultAction: "confirm",
-          variant: "destructive",
-        })
-        if (!confirmed) return
-      }
-
-      let results: PtyWriteResult[] = []
-      let liveTargetCount = 0
-      const generation = broadcastGenerationRef.current
-      const queuedWrite = broadcastWriteQueueRef.current.then(async () => {
-        if (generation !== broadcastGenerationRef.current || !liveSourceRef.current) return
-        const targets = resolveBroadcastTargets()
-        const source = liveSourceRef.current
-        if (!source) return
-        liveTargetCount = targets.filter((target) => target.tabId !== source.tabId).length
-        results = await invoke<PtyWriteResult[]>("write_pty_batch", {
-          targets: targets.filter((target) => target.tabId !== source.tabId),
-          guardTarget: source,
-          data,
-        })
-      })
-      broadcastWriteQueueRef.current = queuedWrite.catch(() => undefined)
-      try {
-        await queuedWrite
-      } catch (error) {
-        stopLiveBroadcast()
-        toast({
-          title: t("broadcast.sendFailedTitle"),
-          description: String(error),
-          variant: "destructive",
-        })
-        return
-      }
-      if (generation !== broadcastGenerationRef.current || !liveSourceRef.current) return
-      setLatestBroadcastResults(Object.fromEntries(results.map((result) => [result.tabId, result])))
-      const sourceResult = results.find((result) => result.tabId === tabId)
-      if (!sourceResult || sourceResult.status !== "written") {
-        stopUnavailableLiveSource(tabId, sessionNonce)
-        return
-      }
-
-      const failedIds = results
-        .filter((result) => result.tabId !== tabId && result.status !== "written")
-        .map((result) => result.tabId)
-
-      if (failedIds.length > 0) {
-        setUnavailableBroadcastTargetIds((current) => [...new Set([...current, ...failedIds])])
-        setBroadcastTargetIds((current) => current.filter((id) => !failedIds.includes(id)))
-        toast({
-          title: t("broadcast.partialFailureTitle"),
-          description: t("broadcast.partialFailureDescription", {
-            failed: failedIds.length,
-            total: liveTargetCount,
-          }),
-          variant: "destructive",
-        })
-      }
-    },
-    [confirm, resolveBroadcastTargets, stopLiveBroadcast, stopUnavailableLiveSource, t]
-  )
-
-  const handleSendBroadcastCommand = useCallback(
-    async (command: string) => {
-      const targets = await ensureBroadcastTargetsConnected()
-      if (!targets) return false
-
-      if (/\r|\n/.test(command)) {
-        const confirmed = await confirm({
-          title: t("broadcast.multilineCommandTitle"),
-          description: t("broadcast.multilineCommandDescription", {
-            count: targets.length,
-          }),
-          confirmText: t("broadcast.sendAnyway"),
-          defaultAction: "confirm",
-          variant: "destructive",
-        })
-        if (!confirmed) return false
-      }
-
-      try {
-        let results: PtyWriteResult[] = []
-        const queuedWrite = broadcastWriteQueueRef.current.then(async () => {
-          const validTargets = resolveBroadcastTargets()
-          if (
-            validTargets.length !== targets.length ||
-            targets.some(
-              (target) =>
-                !validTargets.some(
-                  (valid) =>
-                    valid.tabId === target.tabId && valid.sessionNonce === target.sessionNonce
-                )
-            )
-          ) {
-            throw new Error(t("broadcast.targetsChanged"))
-          }
-          results = await writeBroadcast(`${command}\r`, targets)
-        })
-        broadcastWriteQueueRef.current = queuedWrite.catch(() => undefined)
-        await queuedWrite
-        setLatestBroadcastResults(
-          Object.fromEntries(results.map((result) => [result.tabId, result]))
-        )
-        const written = results.filter((result) => result.status === "written").length
-        toast({
-          title: written > 0 ? t("broadcast.sentTitle") : t("broadcast.sendFailedTitle"),
-          description: t("broadcast.sentDescription", { written, total: results.length }),
-          variant: written > 0 ? "default" : "destructive",
-        })
-        return written > 0
-      } catch (error) {
-        console.error("Failed to broadcast command:", error)
-        toast({
-          title: t("broadcast.sendFailedTitle"),
-          description: String(error),
-          variant: "destructive",
-        })
-        return false
-      }
-    },
-    [confirm, ensureBroadcastTargetsConnected, resolveBroadcastTargets, t, writeBroadcast]
-  )
-
-  const handleStartLiveBroadcast = useCallback(
-    async (sourceTabId: string) => {
-      const sourceTab = tabs.find((tab) => tab.id === sourceTabId)
-      const runtime = terminalRuntimeStates[sourceTabId]
-      if (!sourceTab || runtime?.connectionState !== "connected") return false
-
-      const targets = await ensureBroadcastTargetsConnected()
-      if (!targets) return false
-
-      const confirmed = await confirm({
-        title: t("broadcast.liveConfirmTitle"),
-        description: t("broadcast.liveConfirmDescription"),
-        confirmText: t("broadcast.startLive"),
-        variant: "destructive",
-      })
-      if (!confirmed) return false
-
-      const currentSourceTab = tabsRef.current.find((tab) => tab.id === sourceTabId)
-      const currentRuntime = runtimeStatesRef.current[sourceTabId]
-      if (
-        !currentSourceTab ||
-        currentRuntime?.connectionState !== "connected" ||
-        currentRuntime.sessionNonce !== (currentSourceTab.sessionNonce ?? 0)
-      ) {
-        return false
-      }
-
-      const liveTargets = resolveBroadcastTargets().filter((target) => target.tabId !== sourceTabId)
-      if (
-        liveTargets.length === 0 ||
-        liveTargets.length !== targets.filter((target) => target.tabId !== sourceTabId).length ||
-        liveTargets.some(
-          (target) =>
-            !targets.some(
-              (expected) =>
-                expected.tabId === target.tabId && expected.sessionNonce === target.sessionNonce
-            )
-        )
-      ) {
-        toast({
-          title: t("broadcast.sendFailedTitle"),
-          description: t("broadcast.targetsChanged"),
-          variant: "destructive",
-        })
-        return false
-      }
-      setBroadcastTargetIds((current) => current.filter((tabId) => tabId !== sourceTabId))
-
-      const source = { tabId: sourceTabId, sessionNonce: currentSourceTab.sessionNonce ?? 0 }
-      broadcastGenerationRef.current += 1
-      liveSourceRef.current = source
-      liveStateRef.current = "active"
-      setBroadcastSource(source)
-      setLiveBroadcastState("active")
-      setBroadcastMode("live")
-      setActiveTab(sourceTabId)
-      return true
-    },
-    [
-      confirm,
-      ensureBroadcastTargetsConnected,
-      resolveBroadcastTargets,
-      setActiveTab,
-      t,
-      tabs,
-      terminalRuntimeStates,
-    ]
-  )
-
-  const handleTerminalSensitivePrompt = useCallback(
-    (tabId: string) => {
-      if (liveSourceRef.current?.tabId === tabId) {
-        stopLiveBroadcast()
-        toast({
-          title: t("broadcast.stoppedForPromptTitle"),
-          description: t("broadcast.stoppedForPromptDescription"),
-        })
-      }
-    },
-    [stopLiveBroadcast, t]
-  )
-
-  const handleTerminalSavedPasswordPromptChange = useCallback(
-    (tabId: string, sessionNonce: number, prompt: string | null) => {
-      if (prompt !== null) {
-        savedPasswordPromptTargetsRef.current.set(tabId, { sessionNonce, prompt })
-      } else if (savedPasswordPromptTargetsRef.current.get(tabId)?.sessionNonce === sessionNonce) {
-        savedPasswordPromptTargetsRef.current.delete(tabId)
-      }
-    },
-    []
-  )
-
-  const handleTerminalSessionUnavailable = useCallback(
-    (tabId: string, sessionNonce: number, unexpected: boolean) => {
-      setUnavailableBroadcastTargetIds((current) =>
-        current.includes(tabId) ? current : [...current, tabId]
-      )
-      if (unexpected) {
-        stopUnavailableLiveSource(tabId, sessionNonce)
-      } else {
-        stopLiveSource(tabId, sessionNonce)
-      }
-    },
-    [stopLiveSource, stopUnavailableLiveSource]
-  )
-
-  const toggleBroadcastTarget = useCallback((tabId: string) => {
-    setBroadcastTargetIds((current) => {
-      return current.includes(tabId) ? current.filter((id) => id !== tabId) : [...current, tabId]
-    })
-  }, [])
-
-  const selectBroadcastTargets = useCallback(
-    (tabIds: string[]) => {
-      const requested = new Set(tabIds)
-      const selected = tabs
-        .filter((tab) => requested.has(tab.id) && (tab.type === "terminal" || tab.type === "ssh"))
-        .map((tab) => tab.id)
-      setBroadcastTargetIds(selected)
-    },
-    [tabs]
-  )
-
-  const selectVisibleBroadcastTargets = useCallback(
-    (excludeTabId?: string) => {
-      selectBroadcastTargets(
-        (workspaceRef.current?.getVisibleTerminalTabIds() ?? []).filter((id) => id !== excludeTabId)
-      )
-    },
-    [selectBroadcastTargets]
-  )
-
-  const selectAllBroadcastTargets = useCallback(
-    (excludeTabId?: string) => {
-      selectBroadcastTargets(tabs.filter((tab) => tab.id !== excludeTabId).map((tab) => tab.id))
-    },
-    [selectBroadcastTargets, tabs]
-  )
-
-  const clearBroadcastTargets = useCallback(() => {
-    setBroadcastTargetIds([])
-    if (liveSourceRef.current) {
-      stopLiveBroadcast()
-    }
-  }, [stopLiveBroadcast])
-
-  // Drop broadcast targets whose tabs were closed. Done during render so no
-  // commit ever sees the stale ids.
-  const [broadcastTargetsTabs, setBroadcastTargetsTabs] = useState(tabs)
-  if (broadcastTargetsTabs !== tabs) {
-    setBroadcastTargetsTabs(tabs)
-    const validIds = new Set(
-      tabs.filter((tab) => tab.type === "terminal" || tab.type === "ssh").map((tab) => tab.id)
-    )
-    setBroadcastTargetIds((current) => {
-      const next = current.filter((id) => validIds.has(id))
-      return next.length === current.length ? current : next
-    })
+  const shell: AppShell = {
+    ...tabsApi,
+    t,
+    tabsRef,
+    activeTabIdRef,
+    workspaceRef,
+    confirm,
+    cleanupConnection,
   }
-
-  useEffect(() => {
-    if (!broadcastSource) return
-    const sourceTab = tabs.find((tab) => tab.id === broadcastSource.tabId)
-    const runtime = terminalRuntimeStates[broadcastSource.tabId]
-    if (
-      !sourceTab ||
-      sourceTab.sessionNonce !== broadcastSource.sessionNonce ||
-      (runtime !== undefined &&
-        (runtime.sessionNonce !== broadcastSource.sessionNonce ||
-          isTerminalConnectionUnavailable(runtime.connectionState)))
-    ) {
-      // Also resets refs the live input path reads (generation, source), so it
-      // can't move into render; closed tabs / dropped sessions are external.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      stopLiveBroadcast()
-    }
-  }, [broadcastSource, stopLiveBroadcast, tabs, terminalRuntimeStates])
-
-  useEffect(() => {
-    // i18next re-emits `languageChanged` (forcing every useTranslation()
-    // consumer to re-render) even when called with the language it's
-    // already on, so guard this to avoid a redundant second app-wide
-    // re-render right after SettingsDialog's own changeLanguage call.
-    if (isLoaded && i18n.language !== config.language) {
-      i18n.changeLanguage(config.language)
-    }
-  }, [isLoaded, config.language, i18n])
-
-  useEffect(() => {
-    renameSettingsTab(settingsTabTitle)
-  }, [renameSettingsTab, settingsTabTitle])
-
-  useEffect(() => {
-    renameTunnelsTab(tunnelsTabTitle)
-  }, [renameTunnelsTab, tunnelsTabTitle])
-
-  useEffect(() => {
-    renameLogsTab(logsTabTitle)
-  }, [renameLogsTab, logsTabTitle])
-
-  useEffect(
-    () =>
-      handleAppPageRequests((page) => {
-        if (page === "terminal-logs") openLogsTab(logsTabTitle)
-      }),
-    [logsTabTitle, openLogsTab]
-  )
-
-  useEffect(() => {
-    if (!isLoaded) {
-      return
-    }
-
-    let cancelled = false
-
-    const loadAndRestoreSession = async () => {
-      try {
-        const savedSession = await getPreloadedSession()
-        if (cancelled) {
-          return
-        }
-
-        if (savedSession && savedSession.tabs.length > 0) {
-          const restoredTabs = await refreshSavedLocalTabs(savedSession.tabs)
-          if (cancelled) {
-            return
-          }
-          setWorkspaceLayout(savedSession.layout)
-          restoreSession(restoredTabs, savedSession.activeTabId)
-        } else {
-          const tab = await nameLocalTab({ title: "", type: "terminal", isModified: false })
-          if (cancelled) {
-            return
-          }
-          addTab(buildTabFromConnection(tab))
-        }
-      } finally {
-        if (!cancelled) {
-          setSessionRestored(true)
-          markSessionReady()
-        }
-      }
-    }
-
-    void loadAndRestoreSession()
-
-    return () => {
-      cancelled = true
-    }
-  }, [addTab, getPreloadedSession, isLoaded, restoreSession])
-
-  useEffect(() => {
-    if (!sessionRestored) {
-      return
-    }
-
-    saveSession(tabs, activeTabId, workspaceLayout)
-  }, [tabs, activeTabId, saveSession, sessionRestored, workspaceLayout])
+  const runtime = useBroadcastRuntime(shell, broadcast)
+  const handleSetTabLogRecording = useTerminalLogRecording(t)
+  const sending = useBroadcastSending(shell, broadcast, runtime)
+  const tabConnection = useTabConnectionActions(shell)
+  const controls = useBroadcastControls(shell, broadcast, runtime, tabConnection.handleReconnectTab)
+  usePageTabs(shell, { isLoaded, config, i18n, settingsTabTitle, tunnelsTabTitle, logsTabTitle })
+  const { workspaceLayout, setWorkspaceLayout } = useSessionRestore(shell, {
+    isLoaded,
+    getPreloadedSession,
+    saveSession,
+  })
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -993,501 +182,28 @@ export const TTermApp: React.FC = () => {
     setShowNewTabLauncher(true)
   }, [])
 
-  const handleOpenLocalTerminal = useCallback(
-    (choice?: LocalShellChoice) => {
-      const shell = choice?.shell ?? config.terminal_shell
-      const custom = shell === "custom"
-      void nameLocalTab({
-        title: "",
-        type: "terminal",
-        isModified: false,
-        connection: {
-          type: "terminal",
-          terminalShell: shell,
-          // A chosen shell is a detected executable; the default comes with the configured arguments.
-          terminalShellCustomPath: custom
-            ? (choice?.customPath ?? config.terminal_shell_custom_path.trim())
-            : undefined,
-          terminalShellCustomArgs:
-            custom && !choice ? config.terminal_shell_custom_args.trim() : undefined,
-        },
-      }).then(addTab)
-    },
-    [
-      addTab,
-      config.terminal_shell,
-      config.terminal_shell_custom_args,
-      config.terminal_shell_custom_path,
-    ]
+  const { handleOpenLocalTerminal, handleConnect, handleOpenRemoteFile } = useTabOpeners(
+    shell,
+    config
   )
-
-  const handleOpenConnectionDialogFromLauncher = useCallback(
-    (input: string, configHosts: readonly SshConfigHost[]) => {
-      setEditingProfile(null)
-      setDuplicatingProfile(null)
-      setDraftProfile(draftProfileFromInput(input, configHosts))
-      setShowConnectionDialog(true)
-    },
-    []
-  )
-
-  const updateQuickConnectRecents = useCallback(
-    (update: (recents: RecentQuickConnection[]) => RecentQuickConnection[]) => {
-      setQuickConnectRecents((current) => {
-        const next = update(current)
-        saveRecentQuickConnections(window.localStorage, next)
-        return next
-      })
-    },
-    []
-  )
-
-  const handleForgetQuickConnectRecent = useCallback(
-    (recent: RecentQuickConnection) =>
-      updateQuickConnectRecents((current) => removeRecentQuickConnection(current, recent)),
-    [updateQuickConnectRecents]
-  )
-
-  const handleClearQuickConnectRecents = useCallback(
-    () => updateQuickConnectRecents(() => []),
-    [updateQuickConnectRecents]
-  )
-
-  const openSaveQuickConnectDialog = useCallback((tab: Tab) => {
-    setEditingProfile(null)
-    setDuplicatingProfile(null)
-    setDraftProfile(draftProfileFromTab(tab))
-    setSavingQuickConnectTabId(tab.id)
-    setShowConnectionDialog(true)
-  }, [])
-
-  const handleQuickConnectSaved = useCallback(
-    (profile: SavedProfile) => {
-      const tabId = savingQuickConnectTabId
-      if (!tabId) return
-      // The tab now belongs to the profile, so its SFTP and reconnects use what was saved.
-      const profileConnection = buildConnectionFromProfile(profile).connection
-      updateTab(tabId, (tab) => {
-        // A tab still signing in automatically keeps doing so: it reuses the
-        // password typed in it, whether or not the profile stored it.
-        const keepAuto = tab.connection?.authMethod === "auto"
-        return {
-          ...tab,
-          title: profile.name,
-          quickConnect: false,
-          quickConnectAuth: undefined,
-          connection: {
-            ...tab.connection,
-            ...profileConnection,
-            ...(keepAuto && {
-              authMethod: "auto" as const,
-              privateKeyPath: tab.connection?.privateKeyPath,
-              jumpHosts: tab.connection?.jumpHosts,
-            }),
-          },
-        }
-      })
-    },
-    [savingQuickConnectTabId, updateTab]
-  )
-
-  const handleTerminalConnectionProgress = useCallback(
-    (tabId: string, progress: SshConnectionProgress) => {
-      const auth = progress.auth
-      if (progress.phase === "target_authenticated" && auth) {
-        updateTab(tabId, (tab) => applyQuickConnectAuth(tab, auth))
-        return
-      }
-
-      if (progress.phase !== "ready") return
-      const tab = tabsRef.current.find((candidate) => candidate.id === tabId)
-      if (!tab?.quickConnect || tab.connection?.profileId) return
-      // Only the first connection is offered for saving; reconnects and restored sessions are not.
-      updateTab(tabId, (current) => ({ ...current, quickConnect: false }))
-
-      const connection = quickConnectionFromTab(tab)
-      if (connection) {
-        updateQuickConnectRecents((current) =>
-          addRecentQuickConnection(current, connection, Date.now())
-        )
-      }
-      toast({
-        title: t("quickConnect.connectedTitle", { target: tab.title }),
-        description: t("quickConnect.connectedDescription"),
-        duration: 10_000,
-        action: (
-          <ToastAction
-            altText={t("quickConnect.saveAsProfile")}
-            onClick={() => {
-              const current = tabsRef.current.find((candidate) => candidate.id === tabId)
-              if (current) openSaveQuickConnectDialog(current)
-            }}
-          >
-            {t("quickConnect.saveAsProfile")}
-          </ToastAction>
-        ),
-      })
-    },
-    [openSaveQuickConnectDialog, t, updateQuickConnectRecents, updateTab]
-  )
-
-  const handleConnect = useCallback(
-    (connection: Omit<Tab, "id" | "isActive">) => {
-      if (connection.type === "terminal") {
-        void nameLocalTab(connection).then((tab) => addTab(buildTabFromConnection(tab)))
-        return
-      }
-      addTab(buildTabFromConnection(connection))
-    },
-    [addTab]
-  )
-
-  const handleEditProfile = useCallback((profile: SavedProfile) => {
-    setDuplicatingProfile(null)
-    setEditingProfile(profile)
-    setEditingProfileTabId(null)
-    setShowConnectionDialog(true)
-  }, [])
-
-  const handleDuplicateProfile = useCallback((profile: SavedProfile) => {
-    setEditingProfile(null)
-    setDuplicatingProfile(profile)
-    setShowConnectionDialog(true)
-  }, [])
-
-  const handleDeleteProfile = useCallback(
-    (profile: SavedProfile) => {
-      const profileTabs = tabs.filter(
-        (tab) => tab.type === "ssh" && tab.connection?.profileId === profile.id
-      )
-
-      const source = liveSourceRef.current
-      if (source && profileTabs.some((tab) => tab.id === source.tabId)) {
-        stopLiveSource(source.tabId, source.sessionNonce)
-      }
-
-      for (const tab of profileTabs) {
-        cleanupConnection(tab.id)
-      }
-      removeTabs(profileTabs.map((tab) => tab.id))
-    },
-    [cleanupConnection, removeTabs, stopLiveSource, tabs]
-  )
-
-  const handleEditTabProfile = useCallback(
-    async (tab: Tab) => {
-      const profileId = tab.connection?.profileId
-      if (!profileId) {
-        if (tab.type === "ssh") openSaveQuickConnectDialog(tab)
-        return
-      }
-
-      try {
-        const profiles = await invoke<SavedProfile[]>("list_profiles")
-        const profile = profiles.find((item) => item.id === profileId)
-        if (!profile) {
-          toast({
-            title: t("common.error", { defaultValue: "Error" }),
-            description: t("profiles.notFound", {
-              defaultValue: "This connection configuration no longer exists.",
-            }),
-            variant: "destructive",
-          })
-          return
-        }
-
-        handleEditProfile(profile)
-        setEditingProfileTabId(tab.id)
-      } catch (error) {
-        console.error("Failed to load connection profile:", error)
-        toast({
-          title: t("common.error", { defaultValue: "Error" }),
-          description: t("profiles.loadFailed", {
-            defaultValue: "Failed to load connection profiles.",
-          }),
-          variant: "destructive",
-        })
-      }
-    },
-    [handleEditProfile, openSaveQuickConnectDialog, t]
-  )
-
-  const handleOpenRemoteFile = useCallback(
-    (entry: SftpDirectoryEntry, sourceTabId: string, connection?: Tab["connection"]) => {
-      const fileSize = entry.size ?? 0
-      if (fileSize > MAX_EDIT_FILE_BYTES) {
-        const message = `Remote file is too large to edit in tTerm (${fileSize} bytes, limit ${MAX_EDIT_FILE_BYTES} bytes)`
-        toast({
-          variant: "destructive",
-          title: t("remoteFileEditor.openFailed", { defaultValue: "Failed to open remote file" }),
-          description: `${message} (${formatBytes(fileSize)}, limit ${formatBytes(MAX_EDIT_FILE_BYTES)})`,
-        })
-        return
-      }
-
-      const host = connection?.host
-      const connectionLabel = formatRemoteFileConnectionLabel(connection)
-      const connectionKey = getRemoteFileConnectionKey(connection)
-      const existingTab = tabs.find(
-        (tab) =>
-          tab.type === "remote-file-editor" &&
-          tab.remoteFile?.path === entry.path &&
-          (tab.remoteFile.connectionKey ?? getRemoteFileConnectionKey(tab.connection)) ===
-            connectionKey
-      )
-
-      if (existingTab) {
-        setActiveTab(existingTab.id)
-        return
-      }
-
-      addTab({
-        title: entry.name,
-        type: "remote-file-editor",
-        isModified: false,
-        connection,
-        remoteFile: {
-          sourceTabId,
-          profileId: connection?.profileId,
-          profileName: connection?.profileName,
-          connectionLabel,
-          connectionKey,
-          host,
-          path: entry.path,
-          fileName: entry.name,
-          size: entry.size ?? 0,
-          modifiedAt: entry.modifiedAt,
-        },
-      })
-    },
-    [addTab, setActiveTab, t, tabs]
-  )
-
-  const getActiveTransfersForTabs = useCallback(
-    (tabIds: string[]) => {
-      const idSet = new Set(tabIds)
-      return transfers.filter(
-        (transfer) =>
-          transfer.tabId &&
-          idSet.has(transfer.tabId) &&
-          (transfer.status === "pending" || transfer.status === "transferring")
-      )
-    },
-    [transfers]
-  )
-
-  const confirmCloseTabsWithTransfers = useCallback(
-    async (tabIds: string[]) => {
-      const activeTransfers = getActiveTransfersForTabs(tabIds)
-      if (activeTransfers.length === 0) {
-        return true
-      }
-
-      return confirm({
-        title: t("tabs.closeActiveTransferTitle", {
-          count: activeTransfers.length,
-          defaultValue: "Active transfer in progress",
-        }),
-        description: t("tabs.closeActiveTransferDescription", {
-          count: activeTransfers.length,
-          defaultValue:
-            "Closing this tab will hide active SFTP transfer progress and may interrupt the transfer. Continue?",
-        }),
-        confirmText: t("tabs.closeActiveTransferConfirm", { defaultValue: "Close anyway" }),
-        cancelText: t("common.cancel", { defaultValue: "Cancel" }),
-        variant: "destructive",
-      })
-    },
-    [confirm, getActiveTransfersForTabs, t]
-  )
-
-  const confirmCloseTabsWithUnsavedRemoteFiles = useCallback(
-    async (tabIds: string[]) => {
-      const idSet = new Set(tabIds)
-      const unsavedTabs = tabsRef.current.filter(
-        (tab) => idSet.has(tab.id) && tab.type === "remote-file-editor" && tab.isModified
-      )
-      if (unsavedTabs.length === 0) {
-        return true
-      }
-
-      return confirm({
-        title: t("remoteFileEditor.closeUnsavedTitle", {
-          count: unsavedTabs.length,
-          defaultValue: "Close unsaved remote file?",
-        }),
-        description: t("remoteFileEditor.closeUnsavedDescription", {
-          count: unsavedTabs.length,
-          defaultValue:
-            "One or more remote file tabs have unsaved changes. Closing them will discard those changes.",
-        }),
-        confirmText: t("remoteFileEditor.closeUnsavedConfirm", { defaultValue: "Discard" }),
-        cancelText: t("common.cancel", { defaultValue: "Cancel" }),
-        variant: "destructive",
-      })
-    },
-    [confirm, t]
-  )
-
-  const closeTabById = useCallback(
-    (id: string, preferredActiveTabId?: string) => {
-      const tab = tabsRef.current.find((currentTab) => currentTab.id === id)
-      if (tab) {
-        stopLiveSource(tab.id, tab.sessionNonce ?? 0)
-      }
-      if (!isPageTab(tab) && tab?.type !== "remote-file-editor") {
-        cleanupConnection(id)
-      }
-      if (activeTabIdRef.current === id && preferredActiveTabId) {
-        workspaceRef.current?.activateTab(preferredActiveTabId)
-      }
-      removeTabs([id], { preferredActiveTabId })
-    },
-    [cleanupConnection, removeTabs, stopLiveSource]
-  )
-
-  const handleRemoveTab = useCallback(
-    async (id: string) => {
-      const tabIds =
-        workspaceRef.current?.getGroupTabIds(id) ??
-        tabsRef.current.map((currentTab) => currentTab.id)
-      const preferredActiveTabId = getAdjacentTabId(tabIds, id)
-      const unsavedConfirmed = await confirmCloseTabsWithUnsavedRemoteFiles([id])
-      if (!unsavedConfirmed) {
-        return
-      }
-
-      const confirmed = await confirmCloseTabsWithTransfers([id])
-      if (!confirmed) {
-        return
-      }
-      closeTabById(id, preferredActiveTabId)
-    },
-    [closeTabById, confirmCloseTabsWithTransfers, confirmCloseTabsWithUnsavedRemoteFiles]
-  )
-
-  const closeTabsWithConfirmation = useCallback(
-    async (targetTabs: Tab[], closeAction: () => void) => {
-      const targetTabIds = targetTabs.map((tab) => tab.id)
-      const unsavedConfirmed = await confirmCloseTabsWithUnsavedRemoteFiles(targetTabIds)
-      if (!unsavedConfirmed) {
-        return
-      }
-
-      const confirmed = await confirmCloseTabsWithTransfers(targetTabIds)
-      if (!confirmed) {
-        return
-      }
-
-      for (const targetTab of targetTabs) {
-        stopLiveSource(targetTab.id, targetTab.sessionNonce ?? 0)
-        if (!isPageTab(targetTab) && targetTab.type !== "remote-file-editor") {
-          cleanupConnection(targetTab.id)
-        }
-      }
-      closeAction()
-    },
-    [
-      cleanupConnection,
-      confirmCloseTabsWithTransfers,
-      confirmCloseTabsWithUnsavedRemoteFiles,
-      stopLiveSource,
-    ]
-  )
-
-  const handleCloseOtherTabs = useCallback(
-    async (id: string) => {
-      const tabIds = workspaceRef.current?.getGroupTabIds(id) ?? tabs.map((tab) => tab.id)
-      const targetIds = getTabIdsForCloseAction(tabIds, id, "close-others")
-      const targetIdSet = new Set(targetIds)
-      const targetTabs = tabs.filter((tab) => targetIdSet.has(tab.id))
-      await closeTabsWithConfirmation(targetTabs, () => {
-        workspaceRef.current?.activateTab(id)
-        removeTabs(targetIds, { preferredActiveTabId: id, activatePreferred: true })
-      })
-    },
-    [closeTabsWithConfirmation, removeTabs, tabs]
-  )
-
-  const handleCloseTabsToLeft = useCallback(
-    async (id: string) => {
-      const tabIds = workspaceRef.current?.getGroupTabIds(id) ?? tabs.map((tab) => tab.id)
-      const targetIds = getTabIdsForCloseAction(tabIds, id, "close-left")
-      if (targetIds.length === 0) {
-        return
-      }
-
-      const targetIdSet = new Set(targetIds)
-      const targetTabs = tabs.filter((tab) => targetIdSet.has(tab.id))
-      await closeTabsWithConfirmation(targetTabs, () => {
-        if (activeTabId && targetIdSet.has(activeTabId)) {
-          workspaceRef.current?.activateTab(id)
-        }
-        removeTabs(targetIds, { preferredActiveTabId: id })
-      })
-    },
-    [activeTabId, closeTabsWithConfirmation, removeTabs, tabs]
-  )
-
-  const handleCloseTabsToRight = useCallback(
-    async (id: string) => {
-      const tabIds = workspaceRef.current?.getGroupTabIds(id) ?? tabs.map((tab) => tab.id)
-      const targetIds = getTabIdsForCloseAction(tabIds, id, "close-right")
-      if (targetIds.length === 0) {
-        return
-      }
-
-      const targetIdSet = new Set(targetIds)
-      const targetTabs = tabs.filter((tab) => targetIdSet.has(tab.id))
-      await closeTabsWithConfirmation(targetTabs, () => {
-        if (activeTabId && targetIdSet.has(activeTabId)) {
-          workspaceRef.current?.activateTab(id)
-        }
-        removeTabs(targetIds, { preferredActiveTabId: id })
-      })
-    },
-    [activeTabId, closeTabsWithConfirmation, removeTabs, tabs]
-  )
-
-  const handleSplitTab = useCallback((tabId: string, direction: WorkspaceSplitDirection) => {
-    workspaceRef.current?.splitTab(tabId, direction)
-  }, [])
-
-  const handleTabDragMove = useCallback((tabId: string, clientX: number, clientY: number) => {
-    workspaceRef.current?.previewTabDrop(tabId, clientX, clientY)
-  }, [])
-
-  const handleTabDrop = useCallback((tabId: string, clientX: number, clientY: number) => {
-    return workspaceRef.current?.commitTabDrop(tabId, clientX, clientY) ?? false
-  }, [])
-
-  const handleTabDragCancel = useCallback(() => {
-    workspaceRef.current?.clearTabDrop()
-  }, [])
-
-  const getTabContextIds = useCallback(
-    (tabId: string) => workspaceRef.current?.getGroupTabIds(tabId) ?? tabs.map((tab) => tab.id),
-    [tabs]
-  )
-
-  const { registerHandler } = useKeymap()
-
-  useEffect(() => {
-    const unregisterSplitRight = registerHandler("workspace.splitRight", () => {
-      if (activeTabId) {
-        handleSplitTab(activeTabId, "right")
-      }
-    })
-    const unregisterSplitBelow = registerHandler("workspace.splitBelow", () => {
-      if (activeTabId) {
-        handleSplitTab(activeTabId, "below")
-      }
-    })
-    return () => {
-      unregisterSplitRight()
-      unregisterSplitBelow()
-    }
-  }, [registerHandler, handleSplitTab, activeTabId])
+  const quickConnect = useQuickConnect(shell, dialog)
+  const profileActions = useProfileActions(shell, dialog, {
+    liveSourceRef: broadcast.liveSourceRef,
+    runtimeStatesRef: broadcast.runtimeStatesRef,
+    stopLiveSource: runtime.stopLiveSource,
+    openSaveQuickConnectDialog: quickConnect.openSaveQuickConnectDialog,
+    handleQuickConnectSaved: quickConnect.handleQuickConnectSaved,
+    handleReconnectTab: tabConnection.handleReconnectTab,
+  })
+  const { handleRemoveTab, handleCloseOtherTabs, handleCloseTabsToLeft, handleCloseTabsToRight } =
+    useTabClosing(shell, { transfers, stopLiveSource: runtime.stopLiveSource })
+  const {
+    handleSplitTab,
+    handleTabDragMove,
+    handleTabDrop,
+    handleTabDragCancel,
+    getTabContextIds,
+  } = useWorkspaceSplits(shell)
 
   useTerminalFontZoom()
 
@@ -1514,282 +230,15 @@ export const TTermApp: React.FC = () => {
     handleCloseTabsToLeft,
     updateTab,
     renameTab,
-    editTabProfile: handleEditTabProfile,
+    editTabProfile: profileActions.handleEditTabProfile,
     setTabLogRecording: handleSetTabLogRecording,
   })
 
-  const handleReconnectTab = useCallback(
-    (tabId: string) => {
-      updateTab(tabId, (tab) => ({
-        ...tab,
-        sessionNonce: ((tab.sessionNonce ?? 0) + 1) >>> 0,
-      }))
-    },
-    [updateTab]
-  )
-
-  const handleProfileSaved = useCallback(
-    (profile: SavedProfile, { reconnect }: ProfileSavedOptions) => {
-      if (savingQuickConnectTabId) {
-        handleQuickConnectSaved(profile)
-        return
-      }
-
-      // Open tabs of the profile reconnect with what was saved; their sessions keep running.
-      const profileTabs = tabsRef.current.filter(
-        (tab) => tab.type === "ssh" && tab.connection?.profileId === profile.id
-      )
-      profileTabs.forEach((tab) =>
-        updateTab(tab.id, (current) => applyProfileToTab(current, profile))
-      )
-
-      const reconnectTabId =
-        reconnect && profileTabs.some((tab) => tab.id === editingProfileTabId)
-          ? editingProfileTabId
-          : null
-      if (reconnectTabId) handleReconnectTab(reconnectTabId)
-
-      const isLive = (tab: Tab) => {
-        const runtime = runtimeStatesRef.current[tab.id]
-        return (
-          runtime?.sessionNonce === (tab.sessionNonce ?? 0) &&
-          (runtime.connectionState === "connected" ||
-            runtime.connectionState === "connecting" ||
-            runtime.connectionState === "reconnecting")
-        )
-      }
-      const liveTabIds = profileTabs
-        .filter((tab) => tab.id !== reconnectTabId && isLive(tab))
-        .map((tab) => tab.id)
-      if (liveTabIds.length === 0) return
-
-      toast({
-        title: t("profiles.openTabsNotUpdatedTitle"),
-        description: t("profiles.openTabsNotUpdatedDescription", { count: liveTabIds.length }),
-        duration: 10_000,
-        action: (
-          <ToastAction
-            altText={t("profiles.reconnectNow")}
-            onClick={async () => {
-              const targets = tabsRef.current.filter(
-                (tab) =>
-                  liveTabIds.includes(tab.id) &&
-                  tab.connection?.profileId === profile.id &&
-                  isLive(tab)
-              )
-              if (targets.length === 0) return
-              const confirmed = await confirm({
-                title: t("profiles.reconnectConfirmTitle", { count: targets.length }),
-                description: t("profiles.reconnectConfirmDescription"),
-                confirmText: t("profiles.reconnectConfirmAction"),
-                variant: "destructive",
-              })
-              if (confirmed) targets.forEach((tab) => handleReconnectTab(tab.id))
-            }}
-          >
-            {t("profiles.reconnectNow")}
-          </ToastAction>
-        ),
-      })
-    },
-    [
-      confirm,
-      editingProfileTabId,
-      handleQuickConnectSaved,
-      handleReconnectTab,
-      savingQuickConnectTabId,
-      t,
-      updateTab,
-    ]
-  )
-
-  const pauseLiveBroadcast = useCallback(() => {
-    if (liveSourceRef.current) {
-      broadcastGenerationRef.current += 1
-      liveStateRef.current = "paused"
-      setLiveBroadcastState("paused")
-    }
-  }, [])
-
-  const resumeLiveBroadcast = useCallback(() => {
-    if (liveSourceRef.current) {
-      broadcastGenerationRef.current += 1
-      liveStateRef.current = "active"
-      setLiveBroadcastState("active")
-    }
-  }, [])
-
-  const reconnectBroadcastTargets = useCallback(async () => {
-    const selected = new Set(broadcastTargetIds)
-    const openTerminalTabs = tabs.filter((tab) => tab.type === "terminal" || tab.type === "ssh")
-    const targets =
-      selected.size > 0 ? openTerminalTabs.filter((tab) => selected.has(tab.id)) : openTerminalTabs
-    if (targets.length === 0) return
-
-    const confirmed = await confirm({
-      title: t("broadcast.reconnectConfirmTitle", { count: targets.length }),
-      description: t("broadcast.reconnectConfirmDescription", { count: targets.length }),
-      confirmText: t("broadcast.reconnectConfirmAction"),
-      variant: "destructive",
-    })
-    if (!confirmed) return
-
-    stopLiveBroadcast()
-    const targetIds = new Set(targets.map((tab) => tab.id))
-    setLatestBroadcastResults((current) =>
-      Object.fromEntries(Object.entries(current).filter(([tabId]) => !targetIds.has(tabId)))
-    )
-    setUnavailableBroadcastTargetIds((current) => current.filter((id) => !targetIds.has(id)))
-    targets.forEach((tab) => handleReconnectTab(tab.id))
-  }, [broadcastTargetIds, confirm, handleReconnectTab, stopLiveBroadcast, t, tabs])
-
-  const handlePinConnectionHeader = useCallback(
-    (tabId: string) => {
-      updateTab(tabId, (tab) => ({
-        ...tab,
-        connectionHeaderPinned: true,
-      }))
-    },
-    [updateTab]
-  )
-
-  const handleUnpinConnectionHeader = useCallback(
-    (tabId: string) => {
-      updateTab(tabId, (tab) => ({
-        ...tab,
-        connectionHeaderPinned: false,
-      }))
-    },
-    [updateTab]
-  )
-
-  const handleServerMonitorVisibilityChange = useCallback(
-    (tabId: string, visible: boolean) => {
-      const profileId = tabs.find((tab) => tab.id === tabId)?.connection?.profileId
-
-      updateTab(tabId, (tab) => {
-        if (!tab.connection || tab.connection.type !== "ssh") {
-          return tab
-        }
-
-        return {
-          ...tab,
-          connection: {
-            ...tab.connection,
-            serverMonitorVisible: visible,
-          },
-        }
-      })
-
-      if (!profileId) {
-        return
-      }
-
-      invoke("set_profile_server_monitor_visible", { id: profileId, visible }).catch((error) => {
-        console.error("Failed to save server monitor preference:", error)
-      })
-    },
-    [tabs, updateTab]
-  )
-
-  const handleSettingsClick = useCallback(() => {
-    openSettingsTab(settingsTabTitle)
-  }, [openSettingsTab, settingsTabTitle])
-
-  const tunnelsButtonLabel =
-    runningTunnelCount > 0
-      ? t("tunnels.runningCountLabel", {
-          title: tunnelsTabTitle,
-          count: runningTunnelCount,
-          defaultValue: "{{title}} ({{count}} running)",
-        })
-      : tunnelsTabTitle
-
-  const handleTunnelsClick = useCallback(() => {
-    openTunnelsTab(tunnelsTabTitle)
-  }, [openTunnelsTab, tunnelsTabTitle])
-
-  // The tray menu opens the page itself, and after a tunnel it could not
-  // start so the user sees why.
-  const handleTunnelsClickRef = useRef(handleTunnelsClick)
-  useLatestRef(handleTunnelsClickRef, handleTunnelsClick)
-  useEffect(() => {
-    let disposed = false
-    let unlisten: (() => void) | undefined
-    void listen("tray-open-tunnels", () => handleTunnelsClickRef.current()).then((cleanup) => {
-      if (disposed) cleanup()
-      else unlisten = cleanup
-    })
-    return () => {
-      disposed = true
-      unlisten?.()
-    }
-  }, [])
-
-  const activeTerminalTab = useMemo(() => {
-    const tab = tabs.find((candidate) => candidate.id === activeTabId)
-    return tab?.type === "terminal" || tab?.type === "ssh" ? tab : null
-  }, [activeTabId, tabs])
-  const activeTerminalRuntime = activeTerminalTab
-    ? terminalRuntimeStates[activeTerminalTab.id]
-    : undefined
-  const canInsertSavedCommand = Boolean(
-    activeTerminalTab &&
-    activeTerminalRuntime?.connectionState === "connected" &&
-    activeTerminalRuntime.sessionNonce === (activeTerminalTab.sessionNonce ?? 0)
-  )
-  const activeCommandProfile =
-    activeTerminalTab?.connection?.profileId && activeTerminalTab.connection.profileName
-      ? {
-          id: activeTerminalTab.connection.profileId,
-          name: activeTerminalTab.connection.profileName,
-        }
-      : undefined
-
-  const handleInsertCommandText = useCallback(
-    async (commandText: string) => {
-      const tabId = activeTabIdRef.current
-      const tab = tabsRef.current.find((candidate) => candidate.id === tabId)
-      if (!tab || (tab.type !== "terminal" && tab.type !== "ssh")) {
-        toast({
-          title: t("commandLibrary.messages.insertFailed"),
-          description: t("commandLibrary.selectTerminalHint"),
-          variant: "destructive",
-        })
-        return false
-      }
-
-      const sessionNonce = tab.sessionNonce ?? 0
-      const runtime = runtimeStatesRef.current[tab.id]
-      if (runtime?.connectionState !== "connected" || runtime.sessionNonce !== sessionNonce) {
-        toast({
-          title: t("commandLibrary.messages.insertFailed"),
-          description: t("commandLibrary.messages.terminalUnavailable"),
-          variant: "destructive",
-        })
-        return false
-      }
-
-      try {
-        await invoke("write_pty", { tabId: tab.id, sessionNonce, data: commandText })
-        toast({ title: t("commandLibrary.messages.inserted") })
-        return true
-      } catch (error) {
-        toast({
-          title: t("commandLibrary.messages.insertFailed"),
-          description: String(error),
-          variant: "destructive",
-        })
-        return false
-      }
-    },
-    [t]
-  )
-
-  const handleInsertSavedCommand = useCallback(
-    (command: SavedCommand) => handleInsertCommandText(command.commandText),
-    [handleInsertCommandText]
-  )
+  const titleBar = useTitleBarPages(shell, {
+    settingsTabTitle,
+    tunnelsTabTitle,
+    runningTunnelCount,
+  })
 
   const getVisibleTerminalTabIds = useCallback(
     () => workspaceRef.current?.getVisibleTerminalTabIds() ?? [],
@@ -1802,82 +251,8 @@ export const TTermApp: React.FC = () => {
     getVisibleTabIds: getVisibleTerminalTabIds,
   })
 
-  const handleTerminalCommandExecuted = useCallback((command: ExecutedCommand) => {
-    setRecentCommands((current) => addRecentCommand(current, command))
-  }, [])
-
-  // Saved once per change rather than per command: a pasted script reports
-  // every line as a command at once.
-  useEffect(() => {
-    try {
-      saveRecentCommands(window.localStorage, recentCommands)
-    } catch (error) {
-      console.error("Failed to persist recent commands:", error)
-    }
-  }, [recentCommands])
-
-  const handleSaveCommand = useCallback(
-    (commandText: string, profile?: { id: string; name: string }) => {
-      const draft = createCommandDraft(commandText, profile)
-      if (!draft.commandText) return
-      setQuickSaveRequest({ draft, profile })
-    },
-    []
-  )
-
-  const handleOpenCommandLibrary = useCallback((query?: string) => {
-    setCommandLibrarySearchQuery(query ?? "")
-    setShowCommandLibrary(true)
-  }, [])
-
-  useEffect(() => {
-    const unregister = registerHandler("commandLibrary.open", () => {
-      handleOpenCommandLibrary()
-    })
-    return unregister
-  }, [registerHandler, handleOpenCommandLibrary])
-
-  const keymapTabIds = useMemo(() => tabs.map((tab) => tab.id), [tabs])
-
-  useEffect(() => {
-    const unregisterNewTab = registerHandler("workspace.newTab", () => {
-      handleNewTab()
-    })
-    const unregisterNextTab = registerHandler("tabs.next", () => {
-      const nextId = getSiblingTabId(keymapTabIds, activeTabId, 1)
-      if (nextId) {
-        setActiveTab(nextId)
-      }
-    })
-    const unregisterPrevTab = registerHandler("tabs.prev", () => {
-      const prevId = getSiblingTabId(keymapTabIds, activeTabId, -1)
-      if (prevId) {
-        setActiveTab(prevId)
-      }
-    })
-    const unregisterSwitchToNth = registerHandler("tabs.switchToNth", (event) => {
-      const position = Number.parseInt(event.key, 10)
-      if (Number.isNaN(position)) {
-        return false
-      }
-      const tabId = getTabIdAtPosition(keymapTabIds, position)
-      if (tabId) {
-        setActiveTab(tabId)
-      }
-    })
-    const unregisterCloseActive = registerHandler("tabs.closeActive", () => {
-      if (activeTabId) {
-        void handleRemoveTab(activeTabId)
-      }
-    })
-    return () => {
-      unregisterNewTab()
-      unregisterNextTab()
-      unregisterPrevTab()
-      unregisterSwitchToNth()
-      unregisterCloseActive()
-    }
-  }, [registerHandler, keymapTabIds, activeTabId, setActiveTab, handleNewTab, handleRemoveTab])
+  const commandLibrary = useCommandLibraryActions(shell, broadcast)
+  useTabKeymap(shell, { handleNewTab, handleRemoveTab })
 
   const handleCollapsedProfileGroupKeysChange = useCallback(
     (groups: string[]) => {
@@ -1896,9 +271,9 @@ export const TTermApp: React.FC = () => {
           handleConnect={handleConnect}
           handleNewTab={handleNewTab}
           onCollapsedProfileGroupKeysChange={handleCollapsedProfileGroupKeysChange}
-          onDuplicateProfile={handleDuplicateProfile}
-          onDeleteProfile={handleDeleteProfile}
-          onEditProfile={handleEditProfile}
+          onDuplicateProfile={profileActions.handleDuplicateProfile}
+          onDeleteProfile={profileActions.handleDeleteProfile}
+          onEditProfile={profileActions.handleEditProfile}
           refreshKey={profilesRefreshKey}
         />
       )
@@ -1908,34 +283,36 @@ export const TTermApp: React.FC = () => {
       <TabPanels
         ref={workspaceRef}
         activeTabId={activeTabId}
-        broadcastSourceTabId={broadcastMode === "live" ? (broadcastSource?.tabId ?? null) : null}
-        liveBroadcastState={liveBroadcastState}
+        broadcastSourceTabId={
+          broadcast.broadcastMode === "live" ? (broadcast.broadcastSource?.tabId ?? null) : null
+        }
+        liveBroadcastState={broadcast.liveBroadcastState}
         duplicateTab={duplicateTab}
-        handlePinConnectionHeader={handlePinConnectionHeader}
-        handleReconnectTab={handleReconnectTab}
-        handleServerMonitorVisibilityChange={handleServerMonitorVisibilityChange}
-        handleUnpinConnectionHeader={handleUnpinConnectionHeader}
+        handlePinConnectionHeader={tabConnection.handlePinConnectionHeader}
+        handleReconnectTab={tabConnection.handleReconnectTab}
+        handleServerMonitorVisibilityChange={tabConnection.handleServerMonitorVisibilityChange}
+        handleUnpinConnectionHeader={tabConnection.handleUnpinConnectionHeader}
         initialLayout={workspaceLayout}
         onActiveTabChange={setActiveTab}
         onConnectProfile={handleConnect}
-        onEditProfile={handleEditProfile}
+        onEditProfile={profileActions.handleEditProfile}
         onLayoutChange={setWorkspaceLayout}
         onOpenRemoteFile={handleOpenRemoteFile}
-        onPauseBroadcast={pauseLiveBroadcast}
-        onResumeBroadcast={resumeLiveBroadcast}
-        onStopBroadcast={stopLiveBroadcast}
+        onPauseBroadcast={controls.pauseLiveBroadcast}
+        onResumeBroadcast={controls.resumeLiveBroadcast}
+        onStopBroadcast={runtime.stopLiveBroadcast}
         onTabClose={handleRemoveTab}
         onTabContextMenu={handleTabContextMenu}
-        onTerminalConnectionStateChange={handleTerminalConnectionStateChange}
-        onTerminalCommandExecuted={handleTerminalCommandExecuted}
+        onTerminalConnectionStateChange={runtime.handleTerminalConnectionStateChange}
+        onTerminalCommandExecuted={commandLibrary.handleTerminalCommandExecuted}
         onTerminalAttention={handleTerminalAttention}
-        onTerminalInput={handleTerminalInput}
-        onOpenCommandLibrary={handleOpenCommandLibrary}
-        onSaveCommand={handleSaveCommand}
-        onTerminalSavedPasswordPromptChange={handleTerminalSavedPasswordPromptChange}
-        onTerminalSessionUnavailable={handleTerminalSessionUnavailable}
-        onTerminalSensitivePrompt={handleTerminalSensitivePrompt}
-        onTerminalConnectionProgress={handleTerminalConnectionProgress}
+        onTerminalInput={sending.handleTerminalInput}
+        onOpenCommandLibrary={commandLibrary.handleOpenCommandLibrary}
+        onSaveCommand={commandLibrary.handleSaveCommand}
+        onTerminalSavedPasswordPromptChange={controls.handleTerminalSavedPasswordPromptChange}
+        onTerminalSessionUnavailable={controls.handleTerminalSessionUnavailable}
+        onTerminalSensitivePrompt={sending.handleTerminalSensitivePrompt}
+        onTerminalConnectionProgress={quickConnect.handleTerminalConnectionProgress}
         profilesRefreshKey={profilesRefreshKey}
         startupConnectionsReady={startupConnectionsReady}
         startupSessionRestoreMode={config.startup_session_restore_mode}
@@ -1955,157 +332,61 @@ export const TTermApp: React.FC = () => {
         } as React.CSSProperties
       }
     >
-      <div className="title-bar">
-        <div className="title-bar-left">
-          <div className="tab-list-container">
-            <TabBar
-              tabs={tabs}
-              activeTabId={activeTabId}
-              onTabClick={setActiveTab}
-              onTabClose={handleRemoveTab}
-              onNewTab={handleNewTab}
-              onTabMove={moveTab}
-              onTabDragMove={handleTabDragMove}
-              onTabDrop={handleTabDrop}
-              onTabDragCancel={handleTabDragCancel}
-              getTabContextIds={getTabContextIds}
-              onContextMenu={handleTabContextMenu}
-            />
-            <div className="tab-add-button">
-              <button
-                className="tab-action"
-                onMouseDown={keepFocusOnMouseDown}
-                onClick={handleNewTab}
-                aria-label={t("tabs.newTab", { defaultValue: "New tab" })}
-              >
-                <Plus size={16} />
-              </button>
-              <button
-                className="tab-action"
-                onMouseDown={keepFocusOnMouseDown}
-                onClick={() => setShowProfilesPanel(true)}
-                aria-label={t("profiles.title", { defaultValue: "Profiles" })}
-              >
-                <BookMarked size={16} />
-              </button>
-              <button
-                className="tab-action"
-                onMouseDown={keepFocusOnMouseDown}
-                onClick={() => handleOpenCommandLibrary()}
-                aria-label={t("commandLibrary.title")}
-              >
-                <Library size={16} />
-              </button>
-              <TransferManager
-                transfers={transfers}
-                onCancel={cancelTransfer}
-                onRemove={removeTransfer}
-                onRetry={retryTransfer}
-                onClearCompleted={clearCompletedTransfers}
-              />
-              <BroadcastManager
-                activeTabId={activeTabId}
-                mode={broadcastMode}
-                liveState={liveBroadcastState}
-                preparing={isBroadcastPreparing}
-                latestResults={latestBroadcastResults}
-                unavailableTabIds={unavailableBroadcastTargetIds}
-                runtimeStates={terminalRuntimeStates}
-                selectedTabIds={broadcastTargetIds}
-                sourceTabId={broadcastSource?.tabId ?? null}
-                tabs={tabs}
-                onClear={clearBroadcastTargets}
-                onModeChange={setBroadcastMode}
-                onReconnectTargets={reconnectBroadcastTargets}
-                onSelectAll={selectAllBroadcastTargets}
-                onSelectVisible={selectVisibleBroadcastTargets}
-                onSendCommand={handleSendBroadcastCommand}
-                onStartLive={handleStartLiveBroadcast}
-                onStopLive={stopLiveBroadcast}
-                onToggleTarget={toggleBroadcastTarget}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="drag-space" data-tauri-drag-region></div>
-
-        <div className="title-bar-right" style={{ paddingRight: `${nativeControlsReservePx}px` }}>
-          <button
-            className="tab-action settings-button tunnels-trigger"
-            onMouseDown={keepFocusOnMouseDown}
-            onClick={handleTunnelsClick}
-            aria-label={tunnelsButtonLabel}
-            title={tunnelsButtonLabel}
-          >
-            <Waypoints size={16} />
-            {runningTunnelCount > 0 && (
-              <span className="tunnels-running-badge">
-                {runningTunnelCount > 99 ? "99+" : runningTunnelCount}
-              </span>
-            )}
-          </button>
-          <button
-            className="tab-action settings-button"
-            onMouseDown={keepFocusOnMouseDown}
-            onClick={handleSettingsClick}
-            aria-label={settingsTabTitle}
-          >
-            <Settings size={16} />
-          </button>
-          {isLinux && (
-            <div
-              className="window-controls"
-              aria-label={t("window.controls", { defaultValue: "Window controls" })}
-            >
-              <button
-                className="window-control-button"
-                onClick={handleMinimizeWindow}
-                aria-label={t("window.minimize", { defaultValue: "Minimize" })}
-              >
-                <Minus size={16} />
-              </button>
-              <button
-                className="window-control-button"
-                onClick={handleToggleMaximizeWindow}
-                aria-label={t("window.maximize", { defaultValue: "Maximize" })}
-              >
-                <Square size={13} />
-              </button>
-              <button
-                className="window-control-button close"
-                onClick={handleCloseWindow}
-                aria-label={t("window.close", { defaultValue: "Close" })}
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+      <AppTitleBar
+        tabs={tabs}
+        activeTabId={activeTabId}
+        setActiveTab={setActiveTab}
+        handleRemoveTab={handleRemoveTab}
+        handleNewTab={handleNewTab}
+        moveTab={moveTab}
+        handleTabDragMove={handleTabDragMove}
+        handleTabDrop={handleTabDrop}
+        handleTabDragCancel={handleTabDragCancel}
+        getTabContextIds={getTabContextIds}
+        handleTabContextMenu={handleTabContextMenu}
+        setShowProfilesPanel={setShowProfilesPanel}
+        transfers={transfers}
+        cancelTransfer={cancelTransfer}
+        removeTransfer={removeTransfer}
+        retryTransfer={retryTransfer}
+        clearCompletedTransfers={clearCompletedTransfers}
+        nativeControlsReservePx={nativeControlsReservePx}
+        runningTunnelCount={runningTunnelCount}
+        settingsTabTitle={settingsTabTitle}
+        isLinux={isLinux}
+        handleMinimizeWindow={handleMinimizeWindow}
+        handleToggleMaximizeWindow={handleToggleMaximizeWindow}
+        handleCloseWindow={handleCloseWindow}
+        broadcast={broadcast}
+        controls={controls}
+        sending={sending}
+        runtime={runtime}
+        titleBar={titleBar}
+        commandLibrary={commandLibrary}
+      />
 
       <div className="content-area">{renderTabContent()}</div>
 
-      {showConnectionDialog && (
+      {dialog.showConnectionDialog && (
         <ConnectionDialog
-          isOpen={showConnectionDialog}
+          isOpen={dialog.showConnectionDialog}
           onClose={() => {
-            setShowConnectionDialog(false)
-            setEditingProfile(null)
-            setEditingProfileTabId(null)
-            setDuplicatingProfile(null)
-            setDraftProfile(null)
-            setSavingQuickConnectTabId(null)
+            dialog.setShowConnectionDialog(false)
+            dialog.setEditingProfile(null)
+            dialog.setEditingProfileTabId(null)
+            dialog.setDuplicatingProfile(null)
+            dialog.setDraftProfile(null)
+            dialog.setSavingQuickConnectTabId(null)
             setProfilesRefreshKey((key) => key + 1)
           }}
           onConnect={handleConnect}
-          editProfile={editingProfile}
-          duplicateProfile={duplicatingProfile}
-          draftProfile={draftProfile}
-          saveOnly={savingQuickConnectTabId !== null}
-          onSaved={handleProfileSaved}
-          typedPasswordTabId={savingQuickConnectTabId ?? undefined}
-          canReconnect={editingProfileTabId !== null}
+          editProfile={dialog.editingProfile}
+          duplicateProfile={dialog.duplicatingProfile}
+          draftProfile={dialog.draftProfile}
+          saveOnly={dialog.savingQuickConnectTabId !== null}
+          onSaved={profileActions.handleProfileSaved}
+          typedPasswordTabId={dialog.savingQuickConnectTabId ?? undefined}
+          canReconnect={dialog.editingProfileTabId !== null}
         />
       )}
 
@@ -2114,10 +395,10 @@ export const TTermApp: React.FC = () => {
         onClose={() => setShowNewTabLauncher(false)}
         onConnect={handleConnect}
         onOpenLocalTerminal={handleOpenLocalTerminal}
-        onOpenConnectionDialog={handleOpenConnectionDialogFromLauncher}
-        recents={quickConnectRecents}
-        onForgetRecent={handleForgetQuickConnectRecent}
-        onClearRecents={handleClearQuickConnectRecents}
+        onOpenConnectionDialog={quickConnect.handleOpenConnectionDialogFromLauncher}
+        recents={quickConnect.quickConnectRecents}
+        onForgetRecent={quickConnect.handleForgetQuickConnectRecent}
+        onClearRecents={quickConnect.handleClearQuickConnectRecents}
       />
 
       <Dialog open={showProfilesPanel} onOpenChange={setShowProfilesPanel}>
@@ -2132,9 +413,9 @@ export const TTermApp: React.FC = () => {
             onCollapsedGroupKeysChange={handleCollapsedProfileGroupKeysChange}
             onClose={() => setShowProfilesPanel(false)}
             onCreate={() => {
-              setEditingProfile(null)
-              setDuplicatingProfile(null)
-              setShowConnectionDialog(true)
+              dialog.setEditingProfile(null)
+              dialog.setDuplicatingProfile(null)
+              dialog.setShowConnectionDialog(true)
               setShowProfilesPanel(false)
             }}
             onConnect={(connection) => {
@@ -2142,39 +423,39 @@ export const TTermApp: React.FC = () => {
               setShowProfilesPanel(false)
             }}
             onEdit={(profile) => {
-              handleEditProfile(profile)
+              profileActions.handleEditProfile(profile)
               setShowProfilesPanel(false)
             }}
             onDuplicate={(profile) => {
-              handleDuplicateProfile(profile)
+              profileActions.handleDuplicateProfile(profile)
               setShowProfilesPanel(false)
             }}
-            onDeleteProfile={handleDeleteProfile}
+            onDeleteProfile={profileActions.handleDeleteProfile}
           />
         </DialogContent>
       </Dialog>
 
       <CommandLibrary
-        open={showCommandLibrary}
-        onOpenChange={setShowCommandLibrary}
-        activeProfile={activeCommandProfile}
-        canInsert={canInsertSavedCommand}
-        onInsert={handleInsertSavedCommand}
-        onInsertRecent={handleInsertCommandText}
-        recentCommands={recentCommands}
-        initialSearchQuery={commandLibrarySearchQuery}
+        open={commandLibrary.showCommandLibrary}
+        onOpenChange={commandLibrary.setShowCommandLibrary}
+        activeProfile={commandLibrary.activeCommandProfile}
+        canInsert={commandLibrary.canInsertSavedCommand}
+        onInsert={commandLibrary.handleInsertSavedCommand}
+        onInsertRecent={commandLibrary.handleInsertCommandText}
+        recentCommands={commandLibrary.recentCommands}
+        initialSearchQuery={commandLibrary.commandLibrarySearchQuery}
       />
 
       <CommandEditorDialog
-        open={Boolean(quickSaveRequest)}
+        open={Boolean(commandLibrary.quickSaveRequest)}
         command={null}
-        draft={quickSaveRequest?.draft}
+        draft={commandLibrary.quickSaveRequest?.draft}
         availableTags={[]}
-        activeProfile={quickSaveRequest?.profile}
+        activeProfile={commandLibrary.quickSaveRequest?.profile}
         onOpenChange={(open) => {
-          if (!open) setQuickSaveRequest(null)
+          if (!open) commandLibrary.setQuickSaveRequest(null)
         }}
-        onSaved={() => setQuickSaveRequest(null)}
+        onSaved={() => commandLibrary.setQuickSaveRequest(null)}
       />
 
       {contextMenu.visible && (

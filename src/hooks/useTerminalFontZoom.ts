@@ -1,11 +1,8 @@
 import { useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
-import {
-  DEFAULT_TERMINAL_FONT_SIZE,
-  TERMINAL_FONT_SIZE_RANGE,
-  useConfig,
-} from "@/contexts/ConfigContext"
+import { DEFAULT_TERMINAL_FONT_SIZE, TERMINAL_FONT_SIZE_RANGE } from "@/lib/appConfig"
+import { useConfig } from "@/contexts/ConfigContext"
 import { useKeymap } from "@/contexts/KeymapContext"
 import { toast } from "@/hooks/use-toast"
 import { useStableRef } from "@/hooks/useStableRef"

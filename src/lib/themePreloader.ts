@@ -1,10 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core"
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
-import {
-  getDetectedPlatform,
-  isWindowBlurSupported,
-  type WindowBlurMaterial,
-} from "@/contexts/ConfigContext"
+import { getDetectedPlatform, isWindowBlurSupported } from "@/lib/uiPlatform"
+import type { WindowBlurMaterial } from "@/lib/appConfig"
 import { getPresetTheme } from "@/lib/themeDefinitions"
 import type {
   CatalogTheme,
