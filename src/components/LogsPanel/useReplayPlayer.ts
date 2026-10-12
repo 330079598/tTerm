@@ -177,8 +177,8 @@ export function useReplayPlayer({
   useEffect(() => {
     const container = containerRef.current
     if (!frames || !container) return
+    // `timelineRef` already holds the timeline: the effect above runs first.
     framesRef.current = frames
-    timelineRef.current = timeline
     const size = initialReplaySize(frames)
     const font = configRef.current
     const term = new Terminal({
@@ -214,8 +214,6 @@ export function useReplayPlayer({
       searchRef.current = null
       term.dispose()
     }
-    // The timeline at load time is enough here; later changes move the clock only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerRef, frames, seek, stopLoop])
 
   const togglePlay = () => {

@@ -17,12 +17,14 @@ export const EMPTY_COMMAND_CAPTURE_STATE: TerminalCommandCaptureState = {
   valid: true,
 }
 
-/** Characters that are inserted as typed, so a run of them goes in at once. */
-// eslint-disable-next-line no-control-regex
-const PLAIN_TEXT = /[^\x00-\x1f\x7f]+/y
+/**
+ * Characters that are inserted as typed, so a run of them goes in at once:
+ * anything but the C0 controls and DEL. `\p{Cc}` also covers the C1 range
+ * U+0080–U+009F, which is typed text here, so that range is added back.
+ */
+const PLAIN_TEXT = /(?:\P{Cc}|[\u0080-\u009f])+/uy
 /** Inside bracketed paste line breaks are inserted too, each as a newline. */
-// eslint-disable-next-line no-control-regex
-const BRACKETED_PLAIN_TEXT = /[^\x00-\x09\x0b\x0c\x0e-\x1f\x7f]+/y
+const BRACKETED_PLAIN_TEXT = /(?:\P{Cc}|[\u0080-\u009f\n\r])+/uy
 
 function insertAtCursor(state: TerminalCommandCaptureState, value: string) {
   state.text = `${state.text.slice(0, state.cursor)}${value}${state.text.slice(state.cursor)}`

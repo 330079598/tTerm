@@ -25,12 +25,17 @@ export function useThemeCatalog(configuredThemeId: string) {
     [cachedCatalogTheme, catalogThemes]
   )
 
-  const loadCatalogThemes = useCallback(async () => {
-    const themes = await loadThemeCatalog()
-    setCatalogThemes(themes)
-    setCatalogFailed(false)
-    return themes
-  }, [])
+  // The state is set in the promise callback rather than after an `await`,
+  // which the effect lint can't yet tell apart from setting it synchronously.
+  const loadCatalogThemes = useCallback(
+    () =>
+      loadThemeCatalog().then((themes) => {
+        setCatalogThemes(themes)
+        setCatalogFailed(false)
+        return themes
+      }),
+    []
+  )
 
   // Only a library theme the cache cannot stand in for needs the library;
   // one the library lacks too shows the fallback once it has loaded.
@@ -40,7 +45,6 @@ export function useThemeCatalog(configuredThemeId: string) {
     !knownCatalogThemes.some((theme) => theme.id === configuredThemeId)
   useEffect(() => {
     if (!needsCatalog) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set once the library loads or fails
     loadCatalogThemes().catch((error: unknown) => {
       console.error("Failed to load the theme library:", error)
       setCatalogFailed(true)

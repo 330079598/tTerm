@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
   Plus,
@@ -107,6 +107,13 @@ const getActionIcon = (icon?: string) => {
   }
 }
 
+/** Where a menu of `rect`'s size opened at `x`, `y` goes to stay 10px inside the window. */
+function fitInViewport(x: number, y: number, rect: DOMRect) {
+  const adjustedX = x + rect.width > window.innerWidth ? window.innerWidth - rect.width - 10 : x
+  const adjustedY = y + rect.height > window.innerHeight ? window.innerHeight - rect.height - 10 : y
+  return { left: Math.max(10, adjustedX), top: Math.max(10, adjustedY) }
+}
+
 function getMenuItemIndices(actions: TabContextMenuAction[]) {
   const indices: number[] = []
   for (let i = 0; i < actions.length; i++) {
@@ -134,22 +141,13 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
     [openedFrom]
   )
 
-  const adjustPosition = useCallback(() => {
-    if (!menuRef.current) return { left: x, top: y }
-    const rect = menuRef.current.getBoundingClientRect()
-    const adjustedX = x + rect.width > window.innerWidth ? window.innerWidth - rect.width - 10 : x
-    const adjustedY =
-      y + rect.height > window.innerHeight ? window.innerHeight - rect.height - 10 : y
-    return { left: Math.max(10, adjustedX), top: Math.max(10, adjustedY) }
-  }, [x, y])
-
   const [position, setPosition] = useState({ left: x, top: y })
 
   React.useLayoutEffect(() => {
     // Measure-then-reposition before paint; needs the rendered size.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPosition(adjustPosition())
-  }, [adjustPosition])
+    const rect = menuRef.current?.getBoundingClientRect()
+    setPosition(rect ? fitInViewport(x, y, rect) : { left: x, top: y })
+  }, [x, y])
 
   // Focus the menuitem element when focusIndex changes
   useEffect(() => {

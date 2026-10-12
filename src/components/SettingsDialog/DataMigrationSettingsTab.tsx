@@ -78,17 +78,21 @@ export const DataMigrationSettingsTab: React.FC = () => {
     [t]
   )
 
-  const refreshBackupManagement = useCallback(async () => {
-    const [settings, history] = await Promise.all([
-      invoke<AutomaticBackupSettings>("get_automatic_backup_settings"),
-      invoke<BackupHistoryEntry[]>("list_backup_history"),
-    ])
-    setAutomaticSettings(settings)
-    setBackupHistory(history)
-  }, [])
+  // The state is set in the promise callbacks rather than after an `await`,
+  // which the effect lint can't yet tell apart from setting it synchronously.
+  const refreshBackupManagement = useCallback(
+    () =>
+      Promise.all([
+        invoke<AutomaticBackupSettings>("get_automatic_backup_settings"),
+        invoke<BackupHistoryEntry[]>("list_backup_history"),
+      ]).then(([settings, history]) => {
+        setAutomaticSettings(settings)
+        setBackupHistory(history)
+      }),
+    []
+  )
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after await; false positive fixed upstream in facebook/react#36734
     refreshBackupManagement().catch((error) => {
       console.error("Failed to load backup management settings:", error)
     })

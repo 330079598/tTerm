@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useEffectEvent, useMemo, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog"
 import {
@@ -133,14 +133,10 @@ export const SshConfigImportDialog: React.FC<SshConfigImportDialogProps> = ({
     }
   }
 
+  // Run only when the dialog opens; manual path edits are previewed by the Preview button.
+  const previewOnOpen = useEffectEvent(() => void fetchPreview(sourcePath))
   useEffect(() => {
-    if (!open) {
-      return
-    }
-
-    void fetchPreview(sourcePath)
-    // Run only when the dialog opens; manual path edits are previewed by the Preview button.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (open) previewOnOpen()
   }, [open])
 
   const chooseSourceDirectory = async () => {

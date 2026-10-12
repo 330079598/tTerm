@@ -10,6 +10,14 @@ import type { RecentCommand, SavedCommand } from "@/types/command"
 import { createCommandDraft } from "@/lib/recentCommands"
 import { onSyncApplied } from "@/lib/sync"
 
+/** The saved commands and the tags they can be filed under. */
+function loadCommandLibrary() {
+  return Promise.all([
+    invoke<SavedCommand[]>("list_saved_commands"),
+    invoke<string[]>("list_command_tags"),
+  ])
+}
+
 interface CommandLibraryDataOptions {
   open: boolean
   initialSearchQuery: string
@@ -47,26 +55,27 @@ export function useCommandLibraryData({
   const [recentPendingId, setRecentPendingId] = useState<string | null>(null)
   const [tags, setTags] = useState<string[]>([])
 
-  const fetchCommands = useCallback(async () => {
-    try {
-      const [loaded, loadedTags] = await Promise.all([
-        invoke<SavedCommand[]>("list_saved_commands"),
-        invoke<string[]>("list_command_tags"),
-      ])
-      setCommands(loaded)
-      setTags(loadedTags)
-      setMobileDetailOpen(false)
-      setSelectedId((current) =>
-        current && loaded.some((command) => command.id === current)
-          ? current
-          : (loaded[0]?.id ?? null)
-      )
-    } catch (error) {
-      setLoadError(String(error))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+  // The state is set in the promise callbacks rather than after an `await`,
+  // which the effect lint can't yet tell apart from setting it synchronously.
+  const fetchCommands = useCallback(
+    () =>
+      loadCommandLibrary()
+        .then(
+          ([loaded, loadedTags]) => {
+            setCommands(loaded)
+            setTags(loadedTags)
+            setMobileDetailOpen(false)
+            setSelectedId((current) =>
+              current && loaded.some((command) => command.id === current)
+                ? current
+                : (loaded[0]?.id ?? null)
+            )
+          },
+          (error: unknown) => setLoadError(String(error))
+        )
+        .finally(() => setIsLoading(false)),
+    []
+  )
 
   const loadCommands = useCallback(async () => {
     setIsLoading(true)
@@ -92,7 +101,6 @@ export function useCommandLibraryData({
 
   useEffect(() => {
     if (!open) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after await; false positive fixed upstream in facebook/react#36734
     void fetchCommands()
     requestAnimationFrame(() => searchInputRef.current?.focus())
   }, [fetchCommands, initialSearchQuery, open])

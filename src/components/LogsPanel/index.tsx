@@ -54,32 +54,34 @@ export const LogsPanel: React.FC = () => {
   const [checkAnchor, setCheckAnchor] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  const refresh = useCallback(async () => {
-    try {
-      const list = await invoke<LogSession[]>("list_terminal_logs")
-      setSessions(list)
-      setListError(null)
-      // A tab menu asked for a tab's logs: show its newest session.
-      const request = takeLogsTabRequest()
-      if (request !== null) {
-        const loggedIds = await invoke<string[]>("terminal_log_ids_for_tab", {
-          tabId: request.tabId,
+  // The state is set in the promise callbacks rather than after an `await`,
+  // which the effect lint can't yet tell apart from setting it synchronously.
+  const refresh = useCallback(
+    () =>
+      invoke<LogSession[]>("list_terminal_logs")
+        .then((list) => {
+          setSessions(list)
+          setListError(null)
+          // A tab menu asked for a tab's logs: show its newest session.
+          const request = takeLogsTabRequest()
+          if (request === null) return
+          return invoke<string[]>("terminal_log_ids_for_tab", { tabId: request.tabId }).then(
+            (loggedIds) => {
+              const newest = findTabLog(list, request, loggedIds)
+              setFilter("")
+              setSelectedId(newest?.id ?? null)
+              setNotice(newest ? null : t("terminalLogs.noLogsForTab"))
+            }
+          )
         })
-        const newest = findTabLog(list, request, loggedIds)
-        setFilter("")
-        setSelectedId(newest?.id ?? null)
-        setNotice(newest ? null : t("terminalLogs.noLogsForTab"))
-      }
-    } catch (error) {
-      setListError(toErrorMessage(error))
-    }
-  }, [t])
+        .catch((error: unknown) => setListError(toErrorMessage(error))),
+    [t]
+  )
 
   useEffect(() => {
     let disposed = false
     let timer: number | undefined
     let unlisten: (() => void) | undefined
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after await; false positive fixed upstream in facebook/react#36734
     void refresh()
     const stopRequests = onLogsTabRequest(() => void refresh())
     // A session starting or stopping a log changes the list.

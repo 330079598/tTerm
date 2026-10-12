@@ -26,8 +26,8 @@ const MAX_TITLE_LENGTH = 256
 const MAX_BODY_LENGTH = 1024
 
 function clean(text: string, maxLength: number) {
-  // eslint-disable-next-line no-control-regex
-  const visible = text.replace(/[\u0000-\u001f\u007f-\u009f]+/g, " ").trim()
+  // `\p{Cc}` is exactly U+0000–U+001F and U+007F–U+009F.
+  const visible = text.replace(/\p{Cc}+/gu, " ").trim()
   return visible.length > maxLength ? `${visible.slice(0, maxLength - 1)}…` : visible
 }
 

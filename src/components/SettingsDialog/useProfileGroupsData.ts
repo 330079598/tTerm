@@ -1,4 +1,5 @@
 import React from "react"
+import type { TFunction } from "i18next"
 import { useTranslation } from "react-i18next"
 
 import {
@@ -9,6 +10,23 @@ import {
 import { invokeSafe } from "@/lib/errors"
 import type { SavedProfile } from "@/types/tab"
 
+/** The profile groups and the profiles filed in them, or null after an error was shown. */
+async function loadProfileGroups(t: TFunction) {
+  const groupsResult = await invokeSafe<string[]>("list_profile_groups", undefined, {
+    context: "list_profile_groups",
+    title: t("errors.profileGroupsLoadFailed"),
+  })
+  if (!groupsResult.ok) return null
+
+  const profilesResult = await invokeSafe<SavedProfile[]>("list_profiles", undefined, {
+    context: "list_profiles",
+    title: t("errors.profileGroupsLoadFailed"),
+  })
+  if (!profilesResult.ok) return null
+
+  return { groups: groupsResult.value, profiles: profilesResult.value }
+}
+
 /**
  * The groups page's data: the groups, the saved hosts, and the columns that
  * file each host under its group.
@@ -18,25 +36,19 @@ export function useProfileGroupsData(refreshKey: number | undefined) {
   const [profileGroups, setProfileGroups] = React.useState<string[]>([])
   const [profiles, setProfiles] = React.useState<SavedProfile[]>([])
 
-  const refreshProfileGroups = React.useCallback(async () => {
-    const groupsResult = await invokeSafe<string[]>("list_profile_groups", undefined, {
-      context: "list_profile_groups",
-      title: t("errors.profileGroupsLoadFailed"),
-    })
-    if (!groupsResult.ok) return
-
-    const profilesResult = await invokeSafe<SavedProfile[]>("list_profiles", undefined, {
-      context: "list_profiles",
-      title: t("errors.profileGroupsLoadFailed"),
-    })
-    if (!profilesResult.ok) return
-
-    setProfileGroups(groupsResult.value)
-    setProfiles(profilesResult.value)
-  }, [t])
+  // The state is set in the promise callbacks rather than after an `await`,
+  // which the effect lint can't yet tell apart from setting it synchronously.
+  const refreshProfileGroups = React.useCallback(
+    () =>
+      loadProfileGroups(t).then((loaded) => {
+        if (!loaded) return
+        setProfileGroups(loaded.groups)
+        setProfiles(loaded.profiles)
+      }),
+    [t]
+  )
 
   React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after await; false positive fixed upstream in facebook/react#36734
     void refreshProfileGroups()
   }, [refreshKey, refreshProfileGroups])
 

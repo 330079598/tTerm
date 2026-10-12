@@ -51,17 +51,21 @@ export const KnownHostsCard: React.FC<KnownHostsCardProps> = ({ confirm }) => {
   const [query, setQuery] = useState("")
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
-  const reload = useCallback(async () => {
-    try {
-      setEntries(await invoke<KnownHostEntry[]>("list_known_hosts"))
-      setLoadError(null)
-    } catch (error) {
-      setLoadError(toErrorMessage(error))
-    }
-  }, [])
+  // The state is set in the promise callbacks rather than after an `await`,
+  // which the effect lint can't yet tell apart from setting it synchronously.
+  const reload = useCallback(
+    () =>
+      invoke<KnownHostEntry[]>("list_known_hosts").then(
+        (loaded) => {
+          setEntries(loaded)
+          setLoadError(null)
+        },
+        (error: unknown) => setLoadError(toErrorMessage(error))
+      ),
+    []
+  )
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after await; false positive fixed upstream in facebook/react#36734
     void reload()
     return onSyncApplied(["knownHosts", "profiles"], () => void reload())
   }, [reload])

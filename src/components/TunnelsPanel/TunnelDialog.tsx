@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react"
+import React, { useState } from "react"
 import { AlertTriangle, ArrowRightLeft, Globe, Loader2, Undo2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -80,11 +80,7 @@ const TunnelForm: React.FC<TunnelFormProps> = ({ onOpenChange, tunnel, profiles,
     draft.bindHost.trim() !== "" &&
     !LOOPBACK_HOSTS.has(draft.bindHost.trim())
 
-  const sshCommand = useMemo(
-    () => buildSshCommand(effective, profile),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [draft.kind, draft.bindHost, draft.destHost, bindPort, destPort, profile]
-  )
+  const sshCommand = buildSshCommand(effective, profile)
 
   const update = (patch: Partial<TunnelRule>) => {
     setDraft((current) => ({ ...current, ...patch }))

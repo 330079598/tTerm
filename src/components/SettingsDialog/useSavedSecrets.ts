@@ -23,14 +23,20 @@ export function useSavedSecrets(unlocked: boolean) {
   const revealRequestRef = useRef(0)
   const isMountedRef = useRef(true)
 
-  const reloadSavedSecrets = useCallback(async () => {
-    try {
-      const entries = await listSavedSecrets()
-      if (isMountedRef.current) setSavedSecrets(entries)
-    } catch {
-      if (isMountedRef.current) setSavedSecrets([])
-    }
-  }, [listSavedSecrets])
+  // The state is set in the promise callbacks rather than after an `await`,
+  // which the effect lint can't yet tell apart from setting it synchronously.
+  const reloadSavedSecrets = useCallback(
+    () =>
+      listSavedSecrets().then(
+        (entries) => {
+          if (isMountedRef.current) setSavedSecrets(entries)
+        },
+        () => {
+          if (isMountedRef.current) setSavedSecrets([])
+        }
+      ),
+    [listSavedSecrets]
+  )
 
   const clearRevealedPassword = useCallback(() => {
     if (revealTimerRef.current !== null) {
@@ -43,7 +49,6 @@ export function useSavedSecrets(unlocked: boolean) {
 
   useEffect(() => {
     isMountedRef.current = true
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after await; false positive fixed upstream in facebook/react#36734
     void reloadSavedSecrets()
     return () => {
       isMountedRef.current = false
