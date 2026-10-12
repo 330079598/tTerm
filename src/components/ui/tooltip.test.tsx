@@ -53,3 +53,57 @@ describe("TooltipContent", () => {
     expect(tooltip.className).toContain("-translate-y-[calc(100%+0.5rem)]")
   })
 })
+
+describe("Tooltip", () => {
+  afterEach(cleanup)
+
+  function renderTab() {
+    render(
+      <>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div>
+              tab
+              <button onMouseLeave={(event) => event.stopPropagation()}>close</button>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>D:\code\tTerm</TooltipContent>
+        </Tooltip>
+        <div>elsewhere</div>
+      </>
+    )
+    fireEvent.mouseEnter(screen.getByText("tab"))
+    expect(screen.getByRole("tooltip")).toBeTruthy()
+  }
+
+  it("stays open while the pointer moves within its trigger", () => {
+    renderTab()
+    fireEvent.pointerOver(screen.getByText("close"))
+    expect(screen.queryByRole("tooltip")).not.toBeNull()
+  })
+
+  it("closes when the pointer is over another element, even if mouseleave never reached the trigger", () => {
+    renderTab()
+    fireEvent.mouseLeave(screen.getByText("close"))
+    fireEvent.pointerOver(screen.getByText("elsewhere"))
+    expect(screen.queryByRole("tooltip")).toBeNull()
+  })
+
+  it("closes when the pointer leaves the window", () => {
+    renderTab()
+    fireEvent.mouseOut(screen.getByText("close"), { relatedTarget: null })
+    expect(screen.queryByRole("tooltip")).toBeNull()
+  })
+
+  it("closes on a press, such as the start of a tab drag", () => {
+    renderTab()
+    fireEvent.pointerDown(screen.getByText("tab"))
+    expect(screen.queryByRole("tooltip")).toBeNull()
+  })
+
+  it("closes when the window loses focus", () => {
+    renderTab()
+    fireEvent.blur(window)
+    expect(screen.queryByRole("tooltip")).toBeNull()
+  })
+})

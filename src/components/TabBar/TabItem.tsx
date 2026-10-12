@@ -136,8 +136,6 @@ export const TabItem = React.memo(function TabItem({
               e.stopPropagation()
               onTabClose(tab.id)
             }}
-            onMouseEnter={(e) => e.stopPropagation()}
-            onMouseLeave={(e) => e.stopPropagation()}
           >
             <X size={12} />
           </button>

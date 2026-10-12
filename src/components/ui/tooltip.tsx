@@ -24,6 +24,40 @@ function Tooltip({ children }: { children: React.ReactNode }) {
     [open, triggerElement]
   )
 
+  // mouseleave alone can miss: a child that stops its propagation, pointer
+  // capture during a tab drag, or the pointer leaving the window through the
+  // title bar all leave the tooltip stuck open. So while it is open, any sign
+  // that the pointer is somewhere else closes it too.
+  React.useEffect(() => {
+    if (!open || !triggerElement) {
+      return undefined
+    }
+
+    const close = () => setOpen(false)
+    const handlePointerOver = (event: Event) => {
+      if (!(event.target instanceof Node) || !triggerElement.contains(event.target)) {
+        close()
+      }
+    }
+    const handleMouseOut = (event: MouseEvent) => {
+      if (!event.relatedTarget) {
+        close()
+      }
+    }
+
+    document.addEventListener("pointerover", handlePointerOver, true)
+    document.addEventListener("mouseout", handleMouseOut, true)
+    document.addEventListener("pointerdown", close, true)
+    window.addEventListener("blur", close)
+
+    return () => {
+      document.removeEventListener("pointerover", handlePointerOver, true)
+      document.removeEventListener("mouseout", handleMouseOut, true)
+      document.removeEventListener("pointerdown", close, true)
+      window.removeEventListener("blur", close)
+    }
+  }, [open, triggerElement])
+
   return <TooltipContext.Provider value={value}>{children}</TooltipContext.Provider>
 }
 
