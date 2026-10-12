@@ -110,10 +110,16 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
       setConnectionStateIfChanged("connected")
     }
 
-    if (!isActiveRef.current && text.length > 0) onBackgroundOutputRef.current?.()
-
     const reservedLines = scrollbackMemory.reserve(text)
     term.write(text, () => {
+      // Full-screen programs such as an agent's TUI, vim or top redraw in
+      // answer to focus and mouse reports, so their output is no news. They
+      // ask for attention through bells, notifications or agent status. The
+      // check runs once the chunk is parsed, so a program leaving the
+      // alternate screen on exit still marks the tab.
+      if (!isActiveRef.current && text.length > 0 && term.buffer.active.type === "normal") {
+        onBackgroundOutputRef.current?.()
+      }
       scrollbackMemory.settle(reservedLines)
       outputAcker.parsed(channelBytes)
       checkPasswordPrompt()
