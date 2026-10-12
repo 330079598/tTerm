@@ -9,6 +9,7 @@ mod core;
 mod db;
 mod fonts;
 mod ime_focus;
+mod main_window;
 mod migrate;
 mod monitor;
 mod notification;
@@ -27,178 +28,13 @@ mod zmodem;
 
 use core::state::PtyMap;
 use std::sync::Arc;
-use tauri::utils::config::BackgroundThrottlingPolicy;
-use tauri::{Manager, WebviewWindowBuilder};
+use tauri::Manager;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 use tauri_plugin_frame::FramePluginBuilder;
 use tokio::sync::RwLock;
 
 pub struct TokioRuntimeState {
     pub runtime: tokio::runtime::Runtime,
-}
-
-#[tauri::command]
-fn toggle_devtools(app: tauri::AppHandle, enable: bool) -> Result<(), String> {
-    let window = app
-        .get_webview_window("main")
-        .ok_or("Main window not found")?;
-
-    if enable {
-        window.open_devtools();
-    } else {
-        window.close_devtools();
-    }
-
-    Ok(())
-}
-
-fn background_throttling_policy(value: &str) -> BackgroundThrottlingPolicy {
-    match value {
-        "disabled" => BackgroundThrottlingPolicy::Disabled,
-        "suspend" => BackgroundThrottlingPolicy::Suspend,
-        _ => BackgroundThrottlingPolicy::Throttle,
-    }
-}
-
-/// The main window is declared with `create: false` so it is built here: the
-/// background throttling policy is a user setting and WebKit only takes it
-/// when the webview is created. The first frame is painted in the last theme
-/// background; `index.html` picks it up through `--boot-bg`. With the blur on
-/// (macOS, Windows) that background is a translucent tint over it, and the
-/// page learns its opacity from `__TTERM_WINDOW_BLUR__` before the config
-/// loads.
-fn create_main_window(app: &tauri::App, cfg: Option<&config::AppConfig>) -> tauri::Result<()> {
-    let window_config = app
-        .config()
-        .app
-        .windows
-        .iter()
-        .find(|window| window.label == "main")
-        .cloned()
-        .expect("main window missing from tauri.conf.json");
-    let background_throttling = cfg.map_or("throttle", |cfg| cfg.background_throttling.as_str());
-    let mut builder = WebviewWindowBuilder::from_config(app.handle(), &window_config)?
-        .background_throttling(background_throttling_policy(background_throttling));
-    let background = config::window_background::load_window_background();
-    let blur_cfg = cfg.filter(|cfg| cfg!(any(target_os = "macos", windows)) && cfg.window_blur);
-    let blur = blur_cfg.map(|cfg| {
-        let dark = background.is_none_or(window_blur::is_dark_background);
-        window_blur::WindowBlur::from_config(cfg, dark)
-    });
-    let blur_opacity = blur_cfg.map(|cfg| f64::from(cfg.window_opacity_percent) / 100.0);
-    if let Some(opacity) = blur_opacity {
-        builder = builder.initialization_script(format!("window.__TTERM_WINDOW_BLUR__={opacity};"));
-    }
-    #[cfg(target_os = "macos")]
-    if blur.is_some() {
-        builder = builder.background_color(tauri::window::Color(0, 0, 0, 0));
-    }
-    #[cfg(windows)]
-    if let Some(blur) = blur {
-        builder = builder
-            .effects(window_blur::windows_effects(blur))
-            .theme(Some(window_blur::windows_theme(blur)));
-    }
-    if let Some((r, g, b)) = background {
-        let alpha = blur_opacity.map_or(String::new(), |opacity| format!("/{opacity}"));
-        builder = builder.initialization_script(format!(
-            "try{{const s=new CSSStyleSheet();s.replaceSync(':root{{--boot-bg:rgb({r} {g} {b}{alpha})}}');\
-             document.adoptedStyleSheets=[...document.adoptedStyleSheets,s]}}catch{{}}"
-        ));
-        // The Windows window is transparent and must stay that way.
-        #[cfg(not(target_os = "windows"))]
-        if blur.is_none() {
-            builder = builder.background_color(tauri::window::Color(r, g, b, 255));
-        }
-    }
-    let window = builder.build()?;
-    // The macOS blur is set on the built window; Windows took it above.
-    #[cfg(target_os = "macos")]
-    if blur.is_some() {
-        window_blur::apply_window_blur(&window, blur)?;
-    }
-    #[cfg(not(target_os = "macos"))]
-    let _ = window;
-    Ok(())
-}
-
-fn tokio_worker_threads_from(
-    override_value: Option<&str>,
-    available_parallelism: Option<usize>,
-) -> usize {
-    const MIN_WORKERS: usize = 2;
-    const DEFAULT_MAX_WORKERS: usize = 8;
-    const ENV_MAX_WORKERS: usize = 16;
-
-    if let Some(raw) = override_value {
-        if let Ok(parsed) = raw.trim().parse::<usize>() {
-            return parsed.clamp(MIN_WORKERS, ENV_MAX_WORKERS);
-        }
-    }
-
-    available_parallelism
-        .map(|n| n.clamp(MIN_WORKERS, DEFAULT_MAX_WORKERS))
-        .unwrap_or(MIN_WORKERS)
-}
-
-/// Adaptive Tokio worker count for desktop workloads (SSH/SFTP concurrency).
-/// Override with `TTERM_TOKIO_WORKERS` (clamped to 2-16).
-fn tokio_worker_threads() -> usize {
-    let available_parallelism = std::thread::available_parallelism().ok().map(|n| n.get());
-    tokio_worker_threads_from(
-        std::env::var("TTERM_TOKIO_WORKERS").ok().as_deref(),
-        available_parallelism,
-    )
-}
-
-#[cfg(test)]
-mod background_throttling_tests {
-    use super::{background_throttling_policy, BackgroundThrottlingPolicy};
-
-    #[test]
-    fn unknown_values_fall_back_to_throttle() {
-        assert!(matches!(
-            background_throttling_policy("disabled"),
-            BackgroundThrottlingPolicy::Disabled
-        ));
-        assert!(matches!(
-            background_throttling_policy("suspend"),
-            BackgroundThrottlingPolicy::Suspend
-        ));
-        assert!(matches!(
-            background_throttling_policy("throttle"),
-            BackgroundThrottlingPolicy::Throttle
-        ));
-        assert!(matches!(
-            background_throttling_policy(""),
-            BackgroundThrottlingPolicy::Throttle
-        ));
-    }
-}
-
-#[cfg(test)]
-mod tokio_worker_tests {
-    use super::tokio_worker_threads_from;
-
-    #[test]
-    fn worker_count_uses_bounded_available_parallelism() {
-        assert_eq!(tokio_worker_threads_from(None, None), 2);
-        assert_eq!(tokio_worker_threads_from(None, Some(1)), 2);
-        assert_eq!(tokio_worker_threads_from(None, Some(6)), 6);
-        assert_eq!(tokio_worker_threads_from(None, Some(64)), 8);
-    }
-
-    #[test]
-    fn worker_count_honors_a_valid_bounded_override() {
-        assert_eq!(tokio_worker_threads_from(Some("6"), Some(2)), 6);
-        assert_eq!(tokio_worker_threads_from(Some("1"), Some(8)), 2);
-        assert_eq!(tokio_worker_threads_from(Some("99"), Some(2)), 16);
-    }
-
-    #[test]
-    fn invalid_override_falls_back_to_available_parallelism() {
-        assert_eq!(tokio_worker_threads_from(Some("invalid"), Some(4)), 4);
-    }
 }
 
 /// Runs one of tTerm's console helpers instead of the app when started as one
@@ -232,7 +68,7 @@ pub fn run() {
     let zmodem_manual_detect_map: core::state::ZmodemManualDetectMap =
         Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
     let runtime = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(tokio_worker_threads())
+        .worker_threads(core::runtime::tokio_worker_threads())
         .enable_all()
         .build()
         .expect("failed to build tokio runtime");
@@ -433,7 +269,7 @@ pub fn run() {
             updater::download_app_update,
             updater::install_downloaded_app_update,
             updater::download_install_app_update,
-            toggle_devtools,
+            main_window::toggle_devtools,
             ime_focus::repair_ime_focus,
             notification::show_notification,
             notification::notification_permission,
@@ -501,7 +337,7 @@ pub fn run() {
             notification::init(&app_handle);
             #[cfg(target_os = "macos")]
             terminal::pty::preload_login_shell_env();
-            create_main_window(app, cfg.as_ref())?;
+            main_window::create_main_window(app, cfg.as_ref())?;
             background::apply_config(&app_handle, &cfg.unwrap_or_default());
 
             Ok(())
