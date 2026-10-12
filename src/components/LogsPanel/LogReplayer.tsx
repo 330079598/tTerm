@@ -3,6 +3,13 @@ import { invoke } from "@tauri-apps/api/core"
 import { ChevronDown, ChevronUp, Pause, Play, RotateCcw, SkipForward } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import type { ReplayFontFit } from "@/components/LogsPanel/replayFit"
+import { ReplayFontControls } from "@/components/LogsPanel/ReplayFontControls"
+import {
+  loadReplayViewPreferences,
+  saveReplayViewPreferences,
+  type ReplayViewPreferences,
+} from "@/components/LogsPanel/replayView"
 import { useReplayPlayer } from "@/components/LogsPanel/useReplayPlayer"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -18,7 +25,7 @@ import {
   parseReplayFrames,
   type ReplayFrame,
 } from "@/lib/terminalLogReplay"
-import { toErrorMessage } from "@/lib/utils"
+import { cn, toErrorMessage } from "@/lib/utils"
 
 /** Pauses longer than this play as this long while idle time is skipped. */
 const IDLE_LIMIT_MS = 2000
@@ -36,11 +43,21 @@ export const LogReplayer: React.FC<LogReplayerProps> = ({ sessionId }) => {
   const palette = getTheme(displayedTheme)?.terminal ?? getTheme("default")!.terminal
 
   const containerRef = useRef<HTMLDivElement>(null)
+  const viewportRef = useRef<HTMLDivElement>(null)
   const [frames, setFrames] = useState<ReplayFrame[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [speed, setSpeed] = useState(1)
   const [skipIdle, setSkipIdle] = useState(true)
   const [query, setQuery] = useState("")
+  const [view, setView] = useState(loadReplayViewPreferences)
+  const [fitted, setFitted] = useState<ReplayFontFit | null>(null)
+  const fontSize = view.fontSize ?? config.font_size
+
+  const updateView = (change: Partial<ReplayViewPreferences>) => {
+    const next = { ...view, ...change }
+    setView(next)
+    saveReplayViewPreferences(next)
+  }
 
   const timeline = useMemo(
     () => (frames ? buildReplayTimeline(frames, skipIdle ? IDLE_LIMIT_MS : null) : []),
@@ -64,11 +81,15 @@ export const LogReplayer: React.FC<LogReplayerProps> = ({ sessionId }) => {
 
   const { searchRef, playing, position, duration, isPlaying, togglePlay, seek } = useReplayPlayer({
     containerRef,
+    viewportRef,
     frames,
     timeline,
     speed,
     palette,
     config,
+    fontSize,
+    fitPanel: view.fitPanel,
+    onFit: setFitted,
   })
 
   const find = (previous: boolean) => {
@@ -149,6 +170,13 @@ export const LogReplayer: React.FC<LogReplayerProps> = ({ sessionId }) => {
             ))}
           </Select>
         </div>
+        <ReplayFontControls
+          fontSize={fitted?.fontSize ?? fontSize}
+          capped={fitted?.capped ?? false}
+          fitPanel={view.fitPanel}
+          onFontSizeChange={(next) => updateView({ fontSize: next })}
+          onFitPanelChange={(fitPanel) => updateView({ fitPanel })}
+        />
         <div className="flex items-center gap-1.5">
           <Checkbox id="replay-skip-idle" checked={skipIdle} onCheckedChange={setSkipIdle} />
           <Label
@@ -196,9 +224,22 @@ export const LogReplayer: React.FC<LogReplayerProps> = ({ sessionId }) => {
           </Button>
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto p-3" style={{ background: palette.background }}>
+      <div
+        ref={viewportRef}
+        className="min-h-0 flex-1 overflow-auto p-3"
+        style={{ background: palette.background }}
+      >
         {!frames && <p className="text-muted-foreground text-sm">{t("terminalLogs.loading")}</p>}
-        <div ref={containerRef} className="inline-block" />
+        {/* At least as wide as the panel, so xterm's scrollbar sits at its right edge. */}
+        <div
+          ref={containerRef}
+          className={cn(
+            // Clipped, so nothing xterm positions inside can scroll the panel.
+            "w-max min-w-full overflow-hidden",
+            // Keep in step with REPLAY_SCROLLBACK_CLASS in useReplayPlayer.
+            "[&:not(.replay-has-scrollback)_.xterm-scrollable-element>.scrollbar.vertical]:hidden!"
+          )}
+        />
       </div>
     </div>
   )

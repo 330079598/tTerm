@@ -825,6 +825,11 @@
     "speed": "Speed",
     "skipIdle": "Skip idle time",
     "skipIdleDesc": "Pauses longer than {{seconds}} s play as {{seconds}} s",
+    "fontSize": "Font size",
+    "fontSmaller": "Smaller text",
+    "fontLarger": "Larger text",
+    "fitPanel": "Fit panel",
+    "fitPanelDesc": "Draw the recording at the largest size that fits the panel",
     "search": "Search",
     "findPrevious": "Previous",
     "findNext": "Next"

@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest"
 
 import {
   buildReplayTimeline,
+  fitReplayFontSize,
   formatReplayTime,
   framesPlayedBy,
   initialReplaySize,
   parseReplayFrames,
+  replayFontSize,
   type ReplayFrame,
 } from "@/lib/terminalLogReplay"
 
@@ -79,5 +81,47 @@ describe("terminalLogReplay", () => {
     expect(formatReplayTime(0)).toBe("0:00")
     expect(formatReplayTime(65_000)).toBe("1:05")
     expect(formatReplayTime(3_725_000)).toBe("1:02:05")
+  })
+
+  it("fits the font to one dimension of the panel", () => {
+    // (1610 - 10) / 800 doubles it.
+    expect(fitReplayFontSize(12, 800, 10, 1610)).toBe(24)
+    // Rounds down to a quarter point, and shrinks too.
+    expect(fitReplayFontSize(12, 800, 0, 1010)).toBe(15)
+    expect(fitReplayFontSize(12, 800, 0, 600)).toBe(9)
+    // Stays within the font size range.
+    expect(fitReplayFontSize(12, 800, 10, 100)).toBe(6)
+    expect(fitReplayFontSize(12, 800, 10, 1e5)).toBe(48)
+    expect(fitReplayFontSize(12, 0, 10, 500)).toBe(12)
+  })
+
+  it("never lets the recording overflow the panel", () => {
+    const text = { width: 800, height: 400 }
+    const chrome = { width: 14, height: 0 }
+    // The preferred size fits.
+    expect(replayFontSize(12, 14, false, text, chrome, { width: 2000, height: 1000 })).toEqual({
+      fontSize: 14,
+      capped: false,
+    })
+    // The height holds the preferred size back: 12 * 450 / 400 = 13.5.
+    expect(replayFontSize(12, 16, false, text, chrome, { width: 2000, height: 450 })).toEqual({
+      fontSize: 13.5,
+      capped: true,
+    })
+    // So does the width: 12 * (1014 - 14) / 800 = 15.
+    expect(replayFontSize(12, 16, false, text, chrome, { width: 1014, height: 1000 })).toEqual({
+      fontSize: 15,
+      capped: true,
+    })
+    // Fitting takes the width when the height allows it: 12 * (1214 - 14) / 800 = 18.
+    expect(replayFontSize(12, 12, true, text, chrome, { width: 1214, height: 1000 })).toEqual({
+      fontSize: 18,
+      capped: false,
+    })
+    // And the height when it does not.
+    expect(replayFontSize(12, 12, true, text, chrome, { width: 1214, height: 500 })).toEqual({
+      fontSize: 15,
+      capped: false,
+    })
   })
 })

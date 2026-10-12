@@ -3,6 +3,7 @@ import { SearchAddon } from "@xterm/addon-search"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { Terminal, type ITheme } from "@xterm/xterm"
 
+import { fitReplayToViewport, type ReplayFontFit } from "@/components/LogsPanel/replayFit"
 import { writeFrames } from "@/components/LogsPanel/replayWriter"
 import type { AppConfig } from "@/lib/appConfig"
 import {
@@ -12,16 +13,27 @@ import {
   type ReplayFrame,
 } from "@/lib/terminalLogReplay"
 
+/** Set on the terminal's container while it has lines scrolled out of view. */
+export const REPLAY_SCROLLBACK_CLASS = "replay-has-scrollback"
+
 /** How often the position shown under the player updates while playing. */
 const POSITION_UPDATE_MS = 100
 
 interface ReplayPlayerOptions {
   containerRef: RefObject<HTMLDivElement | null>
+  /** The panel the replay always fits inside. */
+  viewportRef: RefObject<HTMLDivElement | null>
   frames: ReplayFrame[] | null
   timeline: number[]
   speed: number
   palette: ITheme
   config: AppConfig
+  /** The font size the user set, used while `fitPanel` is off. */
+  fontSize: number
+  /** Draw at the largest size that fits the panel. */
+  fitPanel: boolean
+  /** Told each font size the replay is drawn at. */
+  onFit: (fit: ReplayFontFit) => void
 }
 
 /**
@@ -30,13 +42,18 @@ interface ReplayPlayerOptions {
  */
 export function useReplayPlayer({
   containerRef,
+  viewportRef,
   frames,
   timeline,
   speed,
   palette,
   config,
+  fontSize,
+  fitPanel,
+  onFit,
 }: ReplayPlayerOptions) {
   const termRef = useRef<Terminal | null>(null)
+  const refitRef = useRef<(() => void) | null>(null)
   const searchRef = useRef<SearchAddon | null>(null)
   const [playing, setPlaying] = useState(false)
   const [position, setPosition] = useState(0)
@@ -58,6 +75,12 @@ export function useReplayPlayer({
   const speedRef = useRef(speed)
   const paletteRef = useRef(palette)
   const configRef = useRef(config)
+  const fontSizeRef = useRef(fontSize)
+  const onFitRef = useRef(onFit)
+
+  useEffect(() => {
+    onFitRef.current = onFit
+  }, [onFit])
 
   useEffect(() => {
     speedRef.current = speed
@@ -72,10 +95,11 @@ export function useReplayPlayer({
     configRef.current = config
     const term = termRef.current
     if (!term) return
+    // The font size is the replay's own, but the other font settings change it.
     term.options.fontFamily = config.font_family
-    term.options.fontSize = config.font_size
     term.options.lineHeight = config.terminal_line_height
     term.options.letterSpacing = config.terminal_letter_spacing
+    refitRef.current?.()
   }, [config])
 
   const stopLoop = useCallback(() => {
@@ -188,7 +212,7 @@ export function useReplayPlayer({
       disableStdin: true,
       scrollback: 100_000,
       fontFamily: font.font_family,
-      fontSize: font.font_size,
+      fontSize: fontSizeRef.current,
       lineHeight: font.terminal_line_height,
       letterSpacing: font.terminal_letter_spacing,
       theme: paletteRef.current,
@@ -201,6 +225,14 @@ export function useReplayPlayer({
     term.open(container)
     termRef.current = term
     searchRef.current = search
+    // xterm's scrollbar sits at the recording's right edge and is drawn even
+    // with nothing to scroll, so the panel shows it only once there is.
+    const updateScrollback = () =>
+      container.classList.toggle(REPLAY_SCROLLBACK_CLASS, term.buffer.active.baseY > 0)
+    const scrollbackListeners = [
+      term.onWriteParsed(updateScrollback),
+      term.onResize(updateScrollback),
+    ]
     const state = engine.current
     state.index = 0
     state.position = 0
@@ -210,11 +242,31 @@ export function useReplayPlayer({
     return () => {
       state.generation++
       stopLoop()
+      for (const listener of scrollbackListeners) listener.dispose()
+      container.classList.remove(REPLAY_SCROLLBACK_CLASS)
       termRef.current = null
       searchRef.current = null
       term.dispose()
     }
   }, [containerRef, frames, seek, stopLoop])
+
+  // Declared after the terminal is made, so it runs on each new terminal too.
+  useEffect(() => {
+    fontSizeRef.current = fontSize
+    const term = termRef.current
+    const container = containerRef.current
+    const viewport = viewportRef.current
+    if (!term || !container || !viewport) return
+    const request = { preferred: fontSize, fit: fitPanel }
+    const fit = fitReplayToViewport(term, container, viewport, request, (fitted) =>
+      onFitRef.current(fitted)
+    )
+    refitRef.current = fit.refit
+    return () => {
+      fit.dispose()
+      refitRef.current = null
+    }
+  }, [containerRef, viewportRef, frames, fontSize, fitPanel])
 
   const togglePlay = () => {
     const state = engine.current

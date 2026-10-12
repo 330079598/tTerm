@@ -809,6 +809,11 @@
     "speed": "播放速度",
     "skipIdle": "跳过空闲",
     "skipIdleDesc": "超过 {{seconds}} 秒的停顿按 {{seconds}} 秒播放",
+    "fontSize": "字号",
+    "fontSmaller": "缩小字号",
+    "fontLarger": "放大字号",
+    "fitPanel": "适应面板",
+    "fitPanelDesc": "用面板放得下的最大字号显示录制内容",
     "search": "搜索",
     "findPrevious": "上一个",
     "findNext": "下一个"

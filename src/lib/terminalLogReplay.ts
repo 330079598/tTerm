@@ -96,3 +96,55 @@ export function formatReplayTime(ms: number): string {
   const mmss = `${String(minutes).padStart(hours > 0 ? 2 : 1, "0")}:${String(seconds).padStart(2, "0")}`
   return hours > 0 ? `${hours}:${mmss}` : mmss
 }
+
+/** The font sizes a replay can be set or fitted to. */
+export const MIN_REPLAY_FONT_SIZE = 6
+export const MAX_REPLAY_FONT_SIZE = 48
+
+export function clampReplayFontSize(fontSize: number): number {
+  return Math.min(Math.max(fontSize, MIN_REPLAY_FONT_SIZE), MAX_REPLAY_FONT_SIZE)
+}
+
+/**
+ * The font size at which `text` grows or shrinks to fill `available` along
+ * one dimension. Only the text scales with the font; `chrome`, the space
+ * beside it, stays the same. Rounds down to a quarter point, so it errs on
+ * the side of fitting.
+ */
+export function fitReplayFontSize(
+  fontSize: number,
+  text: number,
+  chrome: number,
+  available: number
+): number {
+  if (text <= 0) return fontSize
+  return clampReplayFontSize(Math.floor(((fontSize * (available - chrome)) / text) * 4) / 4)
+}
+
+export interface ReplayBox {
+  width: number
+  height: number
+}
+
+/**
+ * The font a replay is drawn at, given how big its text is at `fontSize`:
+ * `preferred`, or with `fit` the largest size that fits the panel. Either way
+ * the recording always fits the panel, since a panel scrolling around the
+ * terminal's own scrollback leaves two scrollbars and half the screen out of
+ * view. `capped` says the panel held the preferred size back.
+ */
+export function replayFontSize(
+  fontSize: number,
+  preferred: number,
+  fit: boolean,
+  text: ReplayBox,
+  chrome: ReplayBox,
+  available: ReplayBox
+): { fontSize: number; capped: boolean } {
+  const largest = Math.min(
+    fitReplayFontSize(fontSize, text.width, chrome.width, available.width),
+    fitReplayFontSize(fontSize, text.height, chrome.height, available.height)
+  )
+  const wanted = fit ? largest : clampReplayFontSize(preferred)
+  return { fontSize: Math.min(wanted, largest), capped: largest < wanted }
+}
