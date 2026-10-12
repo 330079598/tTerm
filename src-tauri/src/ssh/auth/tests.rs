@@ -16,6 +16,8 @@ use super::{
     authenticate, AuthMethod, AuthPromptField, AuthPrompter, AuthTarget, AuthUsed, ScriptedPrompts,
 };
 
+mod certificates;
+
 const USER: &str = "ops";
 const PASSWORD: &str = "hunter2";
 
@@ -35,6 +37,8 @@ struct Script {
     after_wrong_password: Option<Vec<MethodKind>>,
     /// Verdict for any public key.
     publickey: fn() -> Auth,
+    /// Verdict for any OpenSSH certificate.
+    certificate: fn() -> Auth,
     rounds: Vec<Round>,
     /// Verdict once every round was answered correctly.
     keyboard_interactive: fn() -> Auth,
@@ -48,6 +52,7 @@ impl Default for Script {
             password: Auth::reject,
             after_wrong_password: None,
             publickey: Auth::reject,
+            certificate: Auth::reject,
             rounds: Vec::new(),
             keyboard_interactive: || Auth::Accept,
             methods: None,
@@ -112,6 +117,15 @@ impl russh::server::Handler for Server {
     ) -> Result<Auth, Self::Error> {
         self.log.lock().unwrap().push("publickey".to_string());
         Ok((self.script.publickey)())
+    }
+
+    async fn auth_openssh_certificate(
+        &mut self,
+        _user: &str,
+        _certificate: &russh::keys::Certificate,
+    ) -> Result<Auth, Self::Error> {
+        self.log.lock().unwrap().push("certificate".to_string());
+        Ok((self.script.certificate)())
     }
 
     async fn auth_keyboard_interactive<'a>(

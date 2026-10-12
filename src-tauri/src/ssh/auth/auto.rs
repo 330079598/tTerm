@@ -7,10 +7,12 @@ use super::methods::{
 use super::{
     AuthPromptField, AuthPrompter, AuthTarget, AuthUsed, DEFAULT_IDENTITY_FILES, TYPING_ATTEMPTS,
 };
+use crate::ssh::agent::offered_before;
 use crate::ssh::typed_passwords;
 use crate::ssh::types::SshConnectError;
 use russh::client::AuthResult;
-use russh::keys::{PrivateKey, PublicKey};
+use russh::keys::agent::AgentIdentity;
+use russh::keys::PrivateKey;
 use russh::{client, MethodKind};
 use std::path::PathBuf;
 use zeroize::Zeroizing;
@@ -227,7 +229,7 @@ async fn try_key_file<H>(
     target: &AuthTarget<'_>,
     prompter: &AuthPrompter,
     path: &std::path::Path,
-    offered: &mut Vec<PublicKey>,
+    offered: &mut Vec<AgentIdentity>,
 ) -> Result<Option<(AuthResult, bool)>, SshConnectError>
 where
     H: client::Handler,
@@ -243,11 +245,11 @@ where
         return Ok(verdict.map(|verdict| (verdict, false)));
     };
 
-    let key_data = key.public_key().key_data();
-    if offered.iter().any(|known| known.key_data() == key_data) {
+    let identity = AgentIdentity::from(key.public_key().clone());
+    if offered_before(offered, &identity) {
         return Ok(None);
     }
-    offered.push(key.public_key().clone());
+    offered.push(identity);
 
     if !key.is_encrypted() {
         let verdict = sign_in_with_key(session, target, &display, key).await?;

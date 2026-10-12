@@ -7,7 +7,6 @@
 use russh::client::{self, AuthResult};
 use russh::keys::agent::client::AgentClient;
 use russh::keys::agent::AgentIdentity;
-use russh::keys::PublicKey;
 
 use crate::ssh::types::SshConnectError;
 
@@ -116,12 +115,12 @@ where
 
 /// The agent step of automatic authentication: like
 /// [`authenticate_via_agent`], but an agent that is not running or holds no
-/// keys just yields `None`. Every key offered is added to `offered`, so a
-/// key file holding the same key is not offered a second time.
+/// keys just yields `None`. Every identity offered is added to `offered`, so
+/// a key file holding the same key is not offered a second time.
 pub async fn try_agent_identities<H>(
     session: &mut client::Handle<H>,
     username: &str,
-    offered: &mut Vec<PublicKey>,
+    offered: &mut Vec<AgentIdentity>,
 ) -> Option<AuthResult>
 where
     H: client::Handler,
@@ -131,18 +130,39 @@ where
     offer_identities(session, username, &mut agent, identities, offered).await
 }
 
+/// Whether `identity` is among those already `offered`: the same key, or
+/// the same certificate. A certificate and the key it certifies are told
+/// apart, since a server may take one and not the other.
+pub(crate) fn offered_before(offered: &[AgentIdentity], identity: &AgentIdentity) -> bool {
+    offered.iter().any(|known| match (known, identity) {
+        (AgentIdentity::PublicKey { key: known, .. }, AgentIdentity::PublicKey { key, .. }) => {
+            known.key_data() == key.key_data()
+        }
+        (
+            AgentIdentity::Certificate {
+                certificate: known, ..
+            },
+            AgentIdentity::Certificate { certificate, .. },
+        ) => known.signature() == certificate.signature(),
+        _ => false,
+    })
+}
+
 /// Offers each identity in turn and returns the first verdict that is not a
-/// plain rejection.
+/// plain rejection. An OpenSSH certificate held by the agent (Teleport,
+/// `step ssh login` and `ssh-add` of a key with a `-cert.pub` beside it put
+/// them there) is offered as a certificate, not as the bare key inside it,
+/// which a server trusting only the certificate authority would refuse.
 ///
 /// Signing can involve a hardware touch/PIN prompt handled by the agent
 /// itself, so each attempt gets a generous timeout rather than the shorter
 /// budget used for password/key-file auth.
-async fn offer_identities<H, S>(
+pub(crate) async fn offer_identities<H, S>(
     session: &mut client::Handle<H>,
     username: &str,
     agent: &mut AgentClient<S>,
     identities: Vec<AgentIdentity>,
-    offered: &mut Vec<PublicKey>,
+    offered: &mut Vec<AgentIdentity>,
 ) -> Option<AuthResult>
 where
     H: client::Handler,
@@ -161,17 +181,27 @@ where
         .flatten();
 
     for identity in identities {
-        let public_key = identity.public_key().into_owned();
-        offered.push(public_key.clone());
-        let hash_alg = match public_key.algorithm() {
+        offered.push(identity.clone());
+        let hash_alg = match identity.public_key().algorithm() {
             russh::keys::Algorithm::Rsa { .. } => rsa_hash_alg,
             _ => None,
         };
-        let attempt = tokio::time::timeout(
-            SIGN_TIMEOUT,
-            session.authenticate_publickey_with(username, public_key, hash_alg, agent),
-        )
-        .await;
+        let attempt = match identity {
+            AgentIdentity::PublicKey { key, .. } => {
+                tokio::time::timeout(
+                    SIGN_TIMEOUT,
+                    session.authenticate_publickey_with(username, key, hash_alg, agent),
+                )
+                .await
+            }
+            AgentIdentity::Certificate { certificate, .. } => {
+                tokio::time::timeout(
+                    SIGN_TIMEOUT,
+                    session.authenticate_certificate_with(username, certificate, hash_alg, agent),
+                )
+                .await
+            }
+        };
 
         match attempt {
             Ok(Ok(
