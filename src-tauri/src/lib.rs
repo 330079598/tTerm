@@ -358,10 +358,13 @@ pub fn run() {
                         api.prevent_exit();
                     }
                 }
-                // Tunnels may still be running; keep what they carried.
-                tauri::RunEvent::Exit => app
-                    .state::<tunnel::commands::TunnelManager>()
-                    .save_traffic(),
+                tauri::RunEvent::Exit => {
+                    // Tunnels may still be running; keep what they carried.
+                    app.state::<tunnel::commands::TunnelManager>()
+                        .save_traffic();
+                    // Logs keep what they have not written out yet.
+                    session_log::shutdown(app);
+                }
                 // Clicking the Dock icon brings back a window closed to the
                 // background.
                 #[cfg(target_os = "macos")]

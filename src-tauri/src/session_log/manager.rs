@@ -1,12 +1,12 @@
-//! The sessions being logged, the settings they are logged with, and the
-//! cleanup of old logs.
+//! The sessions being logged and the settings they are logged with.
 
-use super::retention::{self, Retention};
-use super::rotating::COMPRESSING;
-use super::writer::{lock_session_writer, SessionWriter};
+use super::retention::Retention;
+use super::rotating;
+use super::worker::{self, LogHandle};
+use super::writer::{SessionWriter, Stamp};
 use super::{
     emit_error, emit_start_error, emit_status, LogConfig, SessionLogPolicy, SessionLogState,
-    SessionMetadata, TerminalLogStatus, CLEANUP_INTERVAL,
+    SessionMetadata, TerminalLogStatus,
 };
 use crate::config::AppConfig;
 use crate::core::session::types::SessionPlan;
@@ -15,16 +15,19 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::{Instant, SystemTime};
-use tauri::{AppHandle, Emitter, Manager};
+use std::sync::MutexGuard;
+use std::time::Duration;
+use tauri::AppHandle;
+
+/// How long quitting waits for logs to write out what they still hold.
+const SHUTDOWN_WAIT: Duration = Duration::from_secs(3);
 
 struct SessionEntry {
     metadata: SessionMetadata,
     policy: SessionLogPolicy,
     rows: u16,
     cols: u16,
-    writer: Option<Arc<Mutex<SessionWriter>>>,
+    writer: Option<LogHandle>,
 }
 
 #[derive(Default)]
@@ -47,38 +50,62 @@ impl LogManager {
             .is_some_and(|config| config.records(policy, self.manual.get(tab_id).copied()))
     }
 
-    fn remember_log(&mut self, tab_id: &str, writer: &Arc<Mutex<SessionWriter>>) {
-        let id = lock_session_writer(writer).id.clone();
-        self.logged.entry(tab_id.to_string()).or_default().push(id);
-    }
-
     fn has_writers(&self) -> bool {
         self.sessions.values().any(|entry| entry.writer.is_some())
     }
 
-    fn create_writer(
-        &self,
+    fn writer(&self, tab_id: &str) -> Option<&LogHandle> {
+        self.sessions
+            .get(tab_id)
+            .and_then(|entry| entry.writer.as_ref())
+    }
+
+    /// Starts a log for a tab's session and remembers it as the tab's.
+    fn start_writer(
+        &mut self,
         app: &AppHandle,
+        tab_id: &str,
         entry: &SessionEntry,
         event: &str,
-    ) -> Result<Arc<Mutex<SessionWriter>>, String> {
+    ) -> Result<LogHandle, String> {
         let config = self
             .config
             .as_ref()
             .ok_or("Terminal logging is not configured")?;
-        let writer = Arc::new(Mutex::new(SessionWriter::create(
-            app,
-            config,
-            entry.metadata.clone(),
-            entry.rows,
-            entry.cols,
-        )?));
+        let mut writer =
+            SessionWriter::create(app, config, entry.metadata.clone(), entry.rows, entry.cols)?;
         // The size lets a replay start at the size the session had.
-        lock_session_writer(&writer).record_event(
+        writer.record_event(
             event,
             serde_json::json!({ "rows": entry.rows, "cols": entry.cols }),
+            Stamp::now(),
         )?;
-        Ok(writer)
+        let handle = LogHandle::spawn(app, tab_id, writer)?;
+        self.logged
+            .entry(tab_id.to_string())
+            .or_default()
+            .push(handle.id.clone());
+        Ok(handle)
+    }
+
+    /// Starts the log of a tracked session that has none.
+    fn start_tracked_writer(
+        &mut self,
+        app: &AppHandle,
+        tab_id: &str,
+        event: &str,
+    ) -> Result<(), String> {
+        let Some(entry) = self.sessions.remove(tab_id) else {
+            return Ok(());
+        };
+        let result = self.start_writer(app, tab_id, &entry, event);
+        let (writer, result) = match result {
+            Ok(writer) => (Some(writer), Ok(())),
+            Err(err) => (None, Err(err)),
+        };
+        self.sessions
+            .insert(tab_id.to_string(), SessionEntry { writer, ..entry });
+        result
     }
 }
 
@@ -131,30 +158,16 @@ impl SessionLogState {
             let entry = manager.sessions.get_mut(&tab_id).expect("listed above");
             if let Some(writer) = entry.writer.take() {
                 if records && !files_changed {
-                    lock_session_writer(&writer).record_input = config.record_input;
                     entry.writer = Some(writer);
+                } else if records {
+                    writer.close("logging_reconfigured");
                 } else {
-                    let event = if records {
-                        "logging_reconfigured"
-                    } else {
-                        "logging_disabled"
-                    };
-                    if let Err(err) = lock_session_writer(&writer).close_with(event) {
-                        error = Some(err);
-                    }
+                    writer.close("logging_disabled");
                 }
             }
             if records && manager.sessions[&tab_id].writer.is_none() {
-                match manager.create_writer(app, &manager.sessions[&tab_id], "logging_enabled") {
-                    Ok(writer) => {
-                        manager.remember_log(&tab_id, &writer);
-                        manager
-                            .sessions
-                            .get_mut(&tab_id)
-                            .expect("listed above")
-                            .writer = Some(writer)
-                    }
-                    Err(err) => error = Some(err),
+                if let Err(err) = manager.start_tracked_writer(app, &tab_id, "logging_enabled") {
+                    error = Some(err);
                 }
             }
         }
@@ -163,7 +176,7 @@ impl SessionLogState {
         drop(manager);
         emit_status(app, self);
         if files_changed || retention_changed {
-            self.schedule_cleanup(app, true);
+            self.schedule_maintenance(app, true);
         }
         error.map_or(Ok(()), Err)
     }
@@ -193,30 +206,24 @@ impl SessionLogState {
                 return;
             }
         };
-        if let Some(previous) = manager.sessions.remove(tab_id) {
-            if let Some(writer) = previous.writer {
-                let _ = lock_session_writer(&writer).finish();
-            }
+        if let Some(writer) = manager
+            .sessions
+            .remove(tab_id)
+            .and_then(|previous| previous.writer)
+        {
+            writer.close("session_end");
         }
-        let mut failure = None;
-        let writer = if manager.records(tab_id, entry.policy) {
-            match manager.create_writer(app, &entry, "session_start") {
-                Ok(writer) => {
-                    manager.remember_log(tab_id, &writer);
-                    Some(writer)
-                }
-                Err(err) => {
-                    manager.last_error = Some(err.clone());
-                    failure = Some(err);
-                    None
-                }
-            }
+        manager.sessions.insert(tab_id.to_string(), entry);
+        let failure = if manager.records(tab_id, plan.session_log) {
+            manager
+                .start_tracked_writer(app, tab_id, "session_start")
+                .err()
         } else {
             None
         };
-        manager
-            .sessions
-            .insert(tab_id.to_string(), SessionEntry { writer, ..entry });
+        if let Some(err) = &failure {
+            manager.last_error = Some(err.clone());
+        }
         self.sync_active(&manager);
         drop(manager);
         if let Some(err) = failure {
@@ -225,12 +232,18 @@ impl SessionLogState {
         emit_status(app, self);
     }
 
-    fn writer(&self, app: &AppHandle, tab_id: &str) -> Option<Arc<Mutex<SessionWriter>>> {
+    /// The manager, unless nothing is being logged; output on every tab
+    /// passes through here, so that case must stay cheap.
+    fn manager_if_active(
+        &self,
+        app: &AppHandle,
+        tab_id: &str,
+    ) -> Option<MutexGuard<'_, LogManager>> {
+        if !self.active.load(Ordering::Relaxed) {
+            return None;
+        }
         match self.manager.lock() {
-            Ok(manager) => manager
-                .sessions
-                .get(tab_id)
-                .and_then(|entry| entry.writer.clone()),
+            Ok(manager) => Some(manager),
             Err(_) => {
                 emit_error(app, tab_id, "Terminal log state is unavailable");
                 None
@@ -238,53 +251,59 @@ impl SessionLogState {
         }
     }
 
-    fn report(&self, app: &AppHandle, tab_id: &str, result: Result<(), String>) {
-        if let Err(err) = result {
-            self.set_error(err.clone());
-            emit_error(app, tab_id, &err);
-        }
-    }
-
-    pub(super) fn record_bytes(&self, app: &AppHandle, tab_id: &str, direction: &str, data: &[u8]) {
-        if !self.active.load(Ordering::Relaxed) {
-            return;
-        }
-        let Some(writer) = self.writer(app, tab_id) else {
+    /// Queues output or input for the tab's log. Never waits on the disk.
+    pub(super) fn record_bytes(
+        &self,
+        app: &AppHandle,
+        tab_id: &str,
+        direction: &'static str,
+        data: &[u8],
+    ) {
+        let Some(manager) = self.manager_if_active(app, tab_id) else {
             return;
         };
-        let result = lock_session_writer(&writer).record_bytes(direction, data);
-        self.report(app, tab_id, result);
+        // Taken under the lock, so what reaches a log in order is timed in
+        // order, whichever thread it came from.
+        let at = Stamp::now();
+        if direction == "input"
+            && !manager
+                .config
+                .as_ref()
+                .is_some_and(|config| config.record_input)
+        {
+            return;
+        }
+        if let Some(writer) = manager.writer(tab_id) {
+            writer.data(direction, data, at);
+        }
     }
 
     pub(super) fn record_event(
         &self,
         app: &AppHandle,
         tab_id: &str,
-        event: &str,
+        event: &'static str,
         detail: serde_json::Value,
     ) {
-        if !self.active.load(Ordering::Relaxed) {
-            return;
-        }
-        let Some(writer) = self.writer(app, tab_id) else {
+        let Some(manager) = self.manager_if_active(app, tab_id) else {
             return;
         };
-        let result = lock_session_writer(&writer).record_event(event, detail);
-        self.report(app, tab_id, result);
+        if let Some(writer) = manager.writer(tab_id) {
+            writer.event(event, detail, Stamp::now());
+        }
     }
 
-    pub(super) fn resize(&self, app: &AppHandle, tab_id: &str, rows: u16, cols: u16) {
-        let writer = match self.manager.lock() {
-            Ok(mut manager) => manager.sessions.get_mut(tab_id).and_then(|entry| {
-                entry.rows = rows;
-                entry.cols = cols;
-                entry.writer.clone()
-            }),
-            Err(_) => return,
+    pub(super) fn resize(&self, tab_id: &str, rows: u16, cols: u16) {
+        let Ok(mut manager) = self.manager.lock() else {
+            return;
         };
-        if let Some(writer) = writer {
-            let result = lock_session_writer(&writer).resize(rows, cols);
-            self.report(app, tab_id, result);
+        let at = Stamp::now();
+        if let Some(entry) = manager.sessions.get_mut(tab_id) {
+            entry.rows = rows;
+            entry.cols = cols;
+            if let Some(writer) = &entry.writer {
+                writer.resize(rows, cols, at);
+            }
         }
     }
 
@@ -300,37 +319,26 @@ impl SessionLogState {
         }
         let previous = manager.manual.insert(tab_id.to_string(), recording);
         let mut result = Ok(());
-        match (
-            recording,
-            manager
-                .sessions
-                .get(tab_id)
-                .map(|entry| entry.writer.clone()),
-        ) {
-            (true, Some(None)) => {
-                match manager.create_writer(app, &manager.sessions[tab_id], "logging_started") {
-                    Ok(writer) => {
-                        manager.remember_log(tab_id, &writer);
-                        manager
-                            .sessions
-                            .get_mut(tab_id)
-                            .expect("found above")
-                            .writer = Some(writer);
-                    }
-                    Err(err) => result = Err(err),
-                }
+        let has_writer = manager
+            .sessions
+            .get(tab_id)
+            .map(|entry| entry.writer.is_some());
+        match (recording, has_writer) {
+            (true, Some(false)) => {
+                result = manager.start_tracked_writer(app, tab_id, "logging_started");
             }
-            (false, Some(Some(writer))) => {
-                manager
+            (false, Some(true)) => {
+                if let Some(writer) = manager
                     .sessions
                     .get_mut(tab_id)
-                    .expect("found above")
-                    .writer = None;
-                result = lock_session_writer(&writer).close_with("logging_stopped");
+                    .and_then(|entry| entry.writer.take())
+                {
+                    writer.close("logging_stopped");
+                }
             }
             _ => {}
         }
-        if result.is_err() && recording {
+        if result.is_err() {
             match previous {
                 Some(previous) => manager.manual.insert(tab_id.to_string(), previous),
                 None => manager.manual.remove(tab_id),
@@ -353,12 +361,46 @@ impl SessionLogState {
             writer
         });
         if let Some(writer) = writer {
-            if let Err(err) = lock_session_writer(&writer).finish() {
-                emit_error(app, tab_id, &err);
-            }
+            writer.close("session_end");
         }
         emit_status(app, self);
-        self.schedule_cleanup(app, false);
+    }
+
+    /// Ends every log and waits a short while for them to be written out;
+    /// tTerm is quitting.
+    pub(super) fn shutdown(&self) {
+        let writers: Vec<LogHandle> = match self.manager.lock() {
+            Ok(mut manager) => {
+                let writers = manager
+                    .sessions
+                    .values_mut()
+                    .filter_map(|entry| entry.writer.take())
+                    .collect();
+                self.sync_active(&manager);
+                writers
+            }
+            Err(_) => Vec::new(),
+        };
+        for writer in writers {
+            writer.close("session_end");
+        }
+        worker::wait_for_closing(SHUTDOWN_WAIT);
+    }
+
+    /// Has the log `id`, if it is being written, write out what it has
+    /// buffered, so reading it shows everything logged so far.
+    pub(super) fn flush_log(&self, id: &str) {
+        let flushed = self.manager.lock().ok().and_then(|manager| {
+            manager
+                .sessions
+                .values()
+                .filter_map(|entry| entry.writer.as_ref())
+                .find(|writer| writer.id == id)
+                .and_then(LogHandle::request_flush)
+        });
+        if let Some(flushed) = flushed {
+            worker::wait_flushed(&flushed);
+        }
     }
 
     pub(super) fn status(&self) -> Result<TerminalLogStatus, String> {
@@ -382,98 +424,25 @@ impl SessionLogState {
             directory: directory.to_string_lossy().into_owned(),
             active_sessions: recording_tab_ids.len(),
             recording_tab_ids,
-            total_size_bytes: directory_size(&directory),
+            total_size_bytes: self.disk_usage.load(Ordering::Relaxed),
             last_error,
         })
-    }
-
-    /// Removes logs the retention settings no longer keep, on a background
-    /// thread. Unless `force`d, runs at most once per `CLEANUP_INTERVAL`.
-    /// Never takes the manager lock on the caller's thread, so it is safe to
-    /// call while a log is closing.
-    pub(super) fn schedule_cleanup(&self, app: &AppHandle, force: bool) {
-        {
-            let mut last = match self.last_cleanup.lock() {
-                Ok(last) => last,
-                Err(poisoned) => poisoned.into_inner(),
-            };
-            if !force && last.is_some_and(|last| last.elapsed() < CLEANUP_INTERVAL) {
-                return;
-            }
-            *last = Some(Instant::now());
-        }
-        if self.cleanup_running.swap(true, Ordering::AcqRel) {
-            self.cleanup_again.store(true, Ordering::Release);
-            return;
-        }
-        let app = app.clone();
-        std::thread::spawn(move || {
-            let state = app.state::<SessionLogState>();
-            loop {
-                state.clean_now(&app);
-                if state.cleanup_again.swap(false, Ordering::AcqRel) {
-                    continue;
-                }
-                state.cleanup_running.store(false, Ordering::Release);
-                // A request that came in just before the flag dropped.
-                if state.cleanup_again.swap(false, Ordering::AcqRel)
-                    && !state.cleanup_running.swap(true, Ordering::AcqRel)
-                {
-                    continue;
-                }
-                break;
-            }
-        });
     }
 
     /// The log directory, the retention settings, and the files no one may
     /// touch: those being written or compressed.
     pub(super) fn directory_state(&self) -> Result<(PathBuf, Retention, HashSet<PathBuf>), String> {
-        let (directory, retention, writers) = {
+        let (directory, retention) = {
             let manager = self.lock_manager()?;
-            let (directory, retention) = match manager.config.as_ref() {
+            match manager.config.as_ref() {
                 Some(config) => (config.files.directory.clone(), config.retention),
                 None => (
                     crate::config::paths::get_config_path()?.join("logs"),
                     Retention::default(),
                 ),
-            };
-            let writers: Vec<_> = manager
-                .sessions
-                .values()
-                .filter_map(|entry| entry.writer.clone())
-                .collect();
-            (directory, retention, writers)
-        };
-        let mut in_use: HashSet<PathBuf> = writers
-            .iter()
-            .flat_map(|writer| lock_session_writer(writer).open_paths().collect::<Vec<_>>())
-            .collect();
-        if let Ok(compressing) = COMPRESSING.lock() {
-            in_use.extend(compressing.iter().cloned());
-        }
-        Ok((directory, retention, in_use))
-    }
-
-    fn clean_now(&self, app: &AppHandle) {
-        let Ok((directory, retention, in_use)) = self.directory_state() else {
-            return;
-        };
-        if retention.is_off() {
-            return;
-        }
-        match retention::clean(&directory, retention, &in_use, SystemTime::now()) {
-            Ok(report) if report.removed > 0 => emit_status(app, self),
-            Ok(_) => {}
-            Err(message) => {
-                self.set_error(message.clone());
-                let _ = app.emit_to(
-                    tauri::EventTarget::any(),
-                    "terminal-log-error",
-                    serde_json::json!({ "tabId": null, "message": message }),
-                );
             }
-        }
+        };
+        Ok((directory, retention, rotating::in_use()))
     }
 }
 
@@ -491,25 +460,4 @@ fn validate_directory(directory: &Path) -> Result<(), String> {
     fs::remove_file(&probe)
         .map_err(|err| format!("Failed to remove terminal log write test: {err}"))?;
     Ok(())
-}
-
-fn directory_size(path: &Path) -> u64 {
-    let Ok(entries) = fs::read_dir(path) else {
-        return 0;
-    };
-    entries
-        .filter_map(Result::ok)
-        .map(|entry| {
-            entry
-                .metadata()
-                .map(|metadata| {
-                    if metadata.is_dir() {
-                        directory_size(&entry.path())
-                    } else {
-                        metadata.len()
-                    }
-                })
-                .unwrap_or(0)
-        })
-        .sum()
 }

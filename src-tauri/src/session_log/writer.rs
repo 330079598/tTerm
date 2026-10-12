@@ -3,14 +3,41 @@
 use super::naming::{render_name, unique_base_name};
 use super::plain::PlainLog;
 use super::rotating::RotatingFile;
-use super::{library, now_unix_ms, LogConfig, SessionMetadata};
+use super::{library, LogConfig, SessionMetadata};
 use base64::Engine;
-use chrono::Local;
+use chrono::{DateTime, Local};
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
+
+/// When something happened, taken as it happened: the log is written later,
+/// on its own thread.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct Stamp {
+    instant: Instant,
+    wall: SystemTime,
+}
+
+impl Stamp {
+    pub(super) fn now() -> Self {
+        Self {
+            instant: Instant::now(),
+            wall: SystemTime::now(),
+        }
+    }
+
+    fn unix_ms(self) -> u64 {
+        self.wall
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()
+            .min(u64::MAX as u128) as u64
+    }
+
+    fn local(self) -> DateTime<Local> {
+        DateTime::from(self.wall)
+    }
+}
 
 pub(super) struct SessionWriter {
     /// The base name of the log's files: its id in the log library.
@@ -18,7 +45,6 @@ pub(super) struct SessionWriter {
     started: Instant,
     sequence: u64,
     closed: bool,
-    pub(super) record_input: bool,
     raw: Option<RotatingFile>,
     plain: Option<RotatingFile>,
     plain_lines: PlainLog,
@@ -100,29 +126,36 @@ impl SessionWriter {
             started: Instant::now(),
             sequence: 0,
             closed: false,
-            record_input: config.record_input,
             raw,
             plain,
             plain_lines: PlainLog::new(rows, cols, files.plain_timestamps),
         })
     }
 
-    pub(super) fn record_bytes(&mut self, direction: &str, data: &[u8]) -> Result<(), String> {
+    fn elapsed_us(&self, at: Stamp) -> u64 {
+        at.instant
+            .saturating_duration_since(self.started)
+            .as_micros()
+            .min(u64::MAX as u128) as u64
+    }
+
+    pub(super) fn record_bytes(
+        &mut self,
+        direction: &str,
+        data: &[u8],
+        at: Stamp,
+    ) -> Result<(), String> {
         if self.closed || data.is_empty() {
             return Ok(());
         }
         let is_input = direction == "input";
-        if is_input && !self.record_input {
-            return Ok(());
-        }
         self.sequence = self.sequence.saturating_add(1);
-        let elapsed_us = self.started.elapsed().as_micros().min(u64::MAX as u128) as u64;
-        let timestamp_ms = now_unix_ms();
+        let elapsed_us = self.elapsed_us(at);
         if let Some(raw) = self.raw.as_mut() {
             let event = serde_json::to_vec(&serde_json::json!({
                 "type": "data",
                 "sequence": self.sequence,
-                "timestampMs": timestamp_ms,
+                "timestampMs": at.unix_ms(),
                 "elapsedUs": elapsed_us,
                 "direction": direction,
                 "encoding": "base64",
@@ -134,9 +167,9 @@ impl SessionWriter {
         }
         if self.plain.is_some() {
             let lines = if is_input {
-                self.plain_lines.input(Local::now(), data)
+                self.plain_lines.input(at.local(), data)
             } else {
-                self.plain_lines.output(data)
+                self.plain_lines.output(at.local(), data)
             };
             self.write_plain(lines)?;
         }
@@ -147,34 +180,39 @@ impl SessionWriter {
         &mut self,
         event_type: &str,
         detail: serde_json::Value,
+        at: Stamp,
     ) -> Result<(), String> {
         if self.closed {
             return Ok(());
         }
         self.sequence = self.sequence.saturating_add(1);
-        let timestamp_ms = now_unix_ms();
+        let elapsed_us = self.elapsed_us(at);
         if let Some(raw) = self.raw.as_mut() {
             let event = serde_json::to_vec(&serde_json::json!({
                 "type": event_type,
                 "sequence": self.sequence,
-                "timestampMs": timestamp_ms,
-                "elapsedUs": self.started.elapsed().as_micros().min(u64::MAX as u128) as u64,
+                "timestampMs": at.unix_ms(),
+                "elapsedUs": elapsed_us,
                 "detail": detail,
             }))
             .map_err(|err| format!("Failed to serialize terminal log event: {err}"))?;
             raw.write_event(&with_newline(event))?;
         }
         if self.plain.is_some() {
-            let lines = self.plain_lines.event(Local::now(), event_type, &detail);
+            let lines = self.plain_lines.event(at.local(), event_type, &detail);
             self.write_plain(lines)?;
         }
         Ok(())
     }
 
-    pub(super) fn resize(&mut self, rows: u16, cols: u16) -> Result<(), String> {
-        self.record_event("resize", serde_json::json!({ "rows": rows, "cols": cols }))?;
+    pub(super) fn resize(&mut self, rows: u16, cols: u16, at: Stamp) -> Result<(), String> {
+        self.record_event(
+            "resize",
+            serde_json::json!({ "rows": rows, "cols": cols }),
+            at,
+        )?;
         if self.plain.is_some() && !self.closed {
-            let lines = self.plain_lines.resize(rows, cols);
+            let lines = self.plain_lines.resize(at.local(), rows, cols);
             self.write_plain(lines)?;
         }
         Ok(())
@@ -190,15 +228,26 @@ impl SessionWriter {
         Ok(())
     }
 
-    pub(super) fn close_with(&mut self, event_type: &str) -> Result<(), String> {
+    /// Writes out what is buffered, so readers of the files see it.
+    pub(super) fn flush(&mut self) -> Result<(), String> {
+        for file in [self.raw.as_mut(), self.plain.as_mut()]
+            .into_iter()
+            .flatten()
+        {
+            file.flush()?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn close_with(&mut self, event_type: &str, at: Stamp) -> Result<(), String> {
         if self.closed {
             return Ok(());
         }
         if self.plain.is_some() {
-            let lines = self.plain_lines.finish(Local::now());
+            let lines = self.plain_lines.finish(at.local());
             self.write_plain(lines)?;
         }
-        self.record_event(event_type, serde_json::json!({}))?;
+        self.record_event(event_type, serde_json::json!({}), at)?;
         self.closed = true;
         if let Some(mut raw) = self.raw.take() {
             raw.finish_current()?;
@@ -207,26 +256,6 @@ impl SessionWriter {
             plain.finish_current()?;
         }
         Ok(())
-    }
-
-    pub(super) fn finish(&mut self) -> Result<(), String> {
-        self.close_with("session_end")
-    }
-
-    pub(super) fn open_paths(&self) -> impl Iterator<Item = PathBuf> + '_ {
-        [self.raw.as_ref(), self.plain.as_ref()]
-            .into_iter()
-            .flatten()
-            .filter_map(|file| file.open_path().map(Path::to_path_buf))
-    }
-}
-
-pub(super) fn lock_session_writer(
-    writer: &Arc<Mutex<SessionWriter>>,
-) -> MutexGuard<'_, SessionWriter> {
-    match writer.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => poisoned.into_inner(),
     }
 }
 

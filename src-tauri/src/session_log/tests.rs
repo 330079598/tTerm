@@ -148,13 +148,13 @@ fn tick() -> DateTime<Local> {
 #[test]
 fn plain_log_puts_typed_lines_between_the_output_around_them() {
     let mut log = PlainLog::new(10, 40, true);
-    let mut lines = log.output(b"$ ");
+    let mut lines = log.output(Local::now(), b"$ ");
     tick();
     lines.extend(log.input(tick(), b"ls\r"));
     // The prompt is still on screen, so the typed line waits for it.
     assert!(lines.is_empty());
     tick();
-    lines.extend(log.output(b"ls\r\nfile\r\n$ "));
+    lines.extend(log.output(Local::now(), b"ls\r\nfile\r\n$ "));
     lines.extend(log.finish(tick()));
     assert_eq!(
         untimed(lines),
@@ -166,10 +166,10 @@ fn plain_log_puts_typed_lines_between_the_output_around_them() {
 fn plain_log_without_timestamps_keeps_output_bare() {
     let mut log = PlainLog::new(10, 40, false);
     let mut lines = log.event(tick(), "session_start", &serde_json::json!({}));
-    lines.extend(log.output(b"$ "));
+    lines.extend(log.output(Local::now(), b"$ "));
     lines.extend(log.input(tick(), b"ls\r"));
     tick();
-    lines.extend(log.output(b"ls\r\nfile\r\n\r\n$ "));
+    lines.extend(log.output(Local::now(), b"ls\r\nfile\r\n\r\n$ "));
     lines.extend(log.finish(tick()));
     assert_eq!(
         lines,
@@ -194,11 +194,11 @@ fn plain_log_writes_events_right_away_on_an_empty_screen() {
 #[test]
 fn plain_log_notes_full_screen_programs_in_order() {
     let mut log = PlainLog::new(10, 40, true);
-    let mut lines = log.output(b"$ vim\r\n");
+    let mut lines = log.output(Local::now(), b"$ vim\r\n");
     tick();
-    lines.extend(log.output(b"\x1b[?1049h\x1b[2Jtext\x1b[?1049l"));
+    lines.extend(log.output(Local::now(), b"\x1b[?1049h\x1b[2Jtext\x1b[?1049l"));
     tick();
-    lines.extend(log.output(b"$ ls\r\n"));
+    lines.extend(log.output(Local::now(), b"$ ls\r\n"));
     lines.extend(log.finish(tick()));
     assert_eq!(
         untimed(lines),

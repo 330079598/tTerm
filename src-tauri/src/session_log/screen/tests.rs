@@ -12,17 +12,20 @@ fn texts(lines: Vec<ScreenLine>) -> Vec<String> {
 
 fn run(rows: u16, cols: u16, data: &[u8]) -> Vec<String> {
     let mut log = OutputLog::new(rows, cols);
-    let mut lines = log.advance(data);
-    lines.extend(log.finish());
+    let mut lines = log.advance(Local::now(), data);
+    lines.extend(log.finish(Local::now()));
     texts(lines)
 }
 
 #[test]
 fn logs_lines_once_they_scroll_off_the_top() {
     let mut log = OutputLog::new(3, 20);
-    assert!(log.advance(b"one\r\ntwo\r\nthree").is_empty());
-    assert_eq!(texts(log.advance(b"\r\nfour")), vec!["one"]);
-    assert_eq!(texts(log.finish()), vec!["two", "three", "four"]);
+    assert!(log.advance(Local::now(), b"one\r\ntwo\r\nthree").is_empty());
+    assert_eq!(texts(log.advance(Local::now(), b"\r\nfour")), vec!["one"]);
+    assert_eq!(
+        texts(log.finish(Local::now())),
+        vec!["two", "three", "four"]
+    );
 }
 
 #[test]
@@ -48,8 +51,8 @@ fn rejoins_lines_the_terminal_wrapped() {
 #[test]
 fn wrapped_line_split_across_scroll_and_screen_stays_whole() {
     let mut log = OutputLog::new(2, 4);
-    let mut lines = log.advance(b"abcdefgh\r\nxy");
-    lines.extend(log.finish());
+    let mut lines = log.advance(Local::now(), b"abcdefgh\r\nxy");
+    lines.extend(log.finish(Local::now()));
     assert_eq!(texts(lines), vec!["abcdefgh", "xy"]);
 }
 
@@ -92,35 +95,35 @@ fn combining_marks_stay_with_their_character() {
 #[test]
 fn shrinking_pushes_top_rows_into_the_log() {
     let mut log = OutputLog::new(4, 10);
-    assert!(log.advance(b"1\r\n2\r\n3\r\n4").is_empty());
-    assert_eq!(texts(log.resize(2, 10)), vec!["1", "2"]);
-    assert_eq!(texts(log.finish()), vec!["3", "4"]);
+    assert!(log.advance(Local::now(), b"1\r\n2\r\n3\r\n4").is_empty());
+    assert_eq!(texts(log.resize(Local::now(), 2, 10)), vec!["1", "2"]);
+    assert_eq!(texts(log.finish(Local::now())), vec!["3", "4"]);
 }
 
 #[test]
 fn prompt_redraw_after_backspaces_is_logged_once() {
     let mut log = OutputLog::new(5, 40);
     assert!(log
-        .advance(b"\r\x1b[0m\x1b[32m> \x1b[36m~\x1b[0m \x1b[K")
+        .advance(Local::now(), b"\r\x1b[0m\x1b[32m> \x1b[36m~\x1b[0m \x1b[K")
         .is_empty());
-    assert!(log.advance(b"l").is_empty());
-    assert!(log.advance(b"\x08ll").is_empty());
+    assert!(log.advance(Local::now(), b"l").is_empty());
+    assert!(log.advance(Local::now(), b"\x08ll").is_empty());
     assert!(log
-        .advance(b"\x08\x08\x1b[32ml\x1b[32ml\x1b[39m")
+        .advance(Local::now(), b"\x08\x08\x1b[32ml\x1b[32ml\x1b[39m")
         .is_empty());
-    assert!(log.advance(b"\x1b[?1l\x1b>\r\r\n").is_empty());
-    assert_eq!(texts(log.finish()), vec!["> ~ ll"]);
+    assert!(log.advance(Local::now(), b"\x1b[?1l\x1b>\r\r\n").is_empty());
+    assert_eq!(texts(log.finish(Local::now())), vec!["> ~ ll"]);
 }
 
 #[test]
 fn oldest_pending_tracks_rows_still_on_screen() {
     let mut log = OutputLog::new(2, 10);
     assert!(log.oldest_pending().is_none());
-    log.advance(b"a");
+    log.advance(Local::now(), b"a");
     let first = log.oldest_pending().expect("row started");
-    log.advance(b"\r\nb\r\nc");
+    log.advance(Local::now(), b"\r\nb\r\nc");
     let after = log.oldest_pending().expect("rows on screen");
     assert!(after >= first);
-    log.finish();
+    log.finish(Local::now());
     assert!(log.oldest_pending().is_none());
 }

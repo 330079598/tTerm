@@ -1,4 +1,5 @@
 mod library;
+mod maintenance;
 mod manager;
 mod naming;
 mod plain;
@@ -7,6 +8,7 @@ mod rotating;
 mod screen;
 #[cfg(test)]
 mod tests;
+mod worker;
 mod writer;
 
 use crate::config::AppConfig;
@@ -19,7 +21,7 @@ use retention::Retention;
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::ipc::Response;
@@ -36,7 +38,7 @@ const MAX_TOTAL_SIZE_MB: u32 = 1024 * 1024;
 /// Input lines and events wait for the output lines that came before them;
 /// past this many, the oldest are written anyway.
 const MAX_QUEUED_PLAIN_LINES: usize = 10_000;
-/// Cleanup after a log closes runs at most this often.
+/// Old logs are removed at most this often, unless settings change.
 const CLEANUP_INTERVAL: Duration = Duration::from_secs(60);
 
 /// Whether a connection's sessions are logged.
@@ -189,9 +191,12 @@ pub struct SessionLogState {
     /// Some session is being logged; lets output skip the manager lock when
     /// none is.
     active: AtomicBool,
+    /// What the log directory takes on disk, as last measured.
+    disk_usage: AtomicU64,
     last_cleanup: Mutex<Option<Instant>>,
-    cleanup_running: AtomicBool,
-    cleanup_again: AtomicBool,
+    force_cleanup: AtomicBool,
+    maintenance_running: AtomicBool,
+    maintenance_again: AtomicBool,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -229,8 +234,7 @@ pub fn record_output(app: &AppHandle, tab_id: &str, data: &[u8]) {
 }
 
 pub fn record_resize(app: &AppHandle, tab_id: &str, rows: u16, cols: u16) {
-    app.state::<SessionLogState>()
-        .resize(app, tab_id, rows, cols);
+    app.state::<SessionLogState>().resize(tab_id, rows, cols);
 }
 
 pub fn record_credential_injection(app: &AppHandle, tab_id: &str) {
@@ -246,10 +250,19 @@ pub fn end_session(app: &AppHandle, tab_id: &str) {
     app.state::<SessionLogState>().end_session(app, tab_id);
 }
 
+/// Ends every log, writing out what they still hold; tTerm is quitting.
+pub fn shutdown(app: &AppHandle) {
+    app.state::<SessionLogState>().shutdown();
+}
+
+/// The logging status; the disk usage in it is remeasured in the background
+/// and sent again with `terminal-log-status` if it changed.
 #[tauri::command]
 pub fn get_terminal_log_status(
+    app: AppHandle,
     state: State<'_, SessionLogState>,
 ) -> Result<TerminalLogStatus, String> {
+    state.schedule_maintenance(&app, false);
     state.status()
 }
 
@@ -270,13 +283,16 @@ pub fn terminal_log_ids_for_tab(
 /// Starts or stops logging one tab, whatever the settings say, until the
 /// tab closes.
 #[tauri::command]
-pub fn set_terminal_log_recording(
+pub async fn set_terminal_log_recording(
     app: AppHandle,
-    state: State<'_, SessionLogState>,
     tab_id: String,
     recording: bool,
 ) -> Result<TerminalLogStatus, String> {
-    state.set_recording(&app, &tab_id, recording)
+    run_blocking(move || {
+        app.state::<SessionLogState>()
+            .set_recording(&app, &tab_id, recording)
+    })
+    .await
 }
 
 /// The saved sessions in the log directory, newest first.
@@ -290,18 +306,24 @@ pub async fn list_terminal_logs(app: AppHandle) -> Result<Vec<library::LogSessio
 #[tauri::command]
 pub async fn load_terminal_log_recording(app: AppHandle, id: String) -> Result<Response, String> {
     let (directory, _, _) = app.state::<SessionLogState>().directory_state()?;
-    run_blocking(move || library::load_recording(&directory, &id))
-        .await
-        .map(Response::new)
+    run_blocking(move || {
+        app.state::<SessionLogState>().flush_log(&id);
+        library::load_recording(&directory, &id)
+    })
+    .await
+    .map(Response::new)
 }
 
 /// A session's plain-text log as UTF-8 bytes.
 #[tauri::command]
 pub async fn load_terminal_log_text(app: AppHandle, id: String) -> Result<Response, String> {
     let (directory, _, _) = app.state::<SessionLogState>().directory_state()?;
-    run_blocking(move || library::load_text(&directory, &id))
-        .await
-        .map(Response::new)
+    run_blocking(move || {
+        app.state::<SessionLogState>().flush_log(&id);
+        library::load_text(&directory, &id)
+    })
+    .await
+    .map(Response::new)
 }
 
 #[tauri::command]
@@ -311,7 +333,11 @@ pub async fn export_terminal_log_asciicast(
     path: String,
 ) -> Result<(), String> {
     let (directory, _, _) = app.state::<SessionLogState>().directory_state()?;
-    run_blocking(move || library::export_asciicast(&directory, &id, Path::new(&path))).await
+    run_blocking(move || {
+        app.state::<SessionLogState>().flush_log(&id);
+        library::export_asciicast(&directory, &id, Path::new(&path))
+    })
+    .await
 }
 
 #[tauri::command]
@@ -319,7 +345,7 @@ pub async fn delete_terminal_log(app: AppHandle, id: String) -> Result<(), Strin
     let state = app.state::<SessionLogState>();
     let (directory, _, in_use) = state.directory_state()?;
     run_blocking(move || library::delete(&directory, &id, &in_use)).await?;
-    emit_status(&app, &state);
+    state.schedule_maintenance(&app, false);
     Ok(())
 }
 
@@ -333,7 +359,7 @@ pub async fn delete_terminal_logs(
     let state = app.state::<SessionLogState>();
     let (directory, _, in_use) = state.directory_state()?;
     let report = run_blocking(move || Ok(library::delete_many(&directory, &ids, &in_use))).await?;
-    emit_status(&app, &state);
+    state.schedule_maintenance(&app, false);
     Ok(report)
 }
 

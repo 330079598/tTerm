@@ -54,8 +54,8 @@ impl PlainLog {
         self.settle(Vec::new())
     }
 
-    pub(super) fn output(&mut self, data: &[u8]) -> Vec<String> {
-        let lines = self.output.advance(data);
+    pub(super) fn output(&mut self, at: DateTime<Local>, data: &[u8]) -> Vec<String> {
+        let lines = self.output.advance(at, data);
         let ready = self.place(lines);
         self.settle(ready)
     }
@@ -71,8 +71,8 @@ impl PlainLog {
         self.settle(Vec::new())
     }
 
-    pub(super) fn resize(&mut self, rows: u16, cols: u16) -> Vec<String> {
-        let lines = self.output.resize(rows, cols);
+    pub(super) fn resize(&mut self, at: DateTime<Local>, rows: u16, cols: u16) -> Vec<String> {
+        let lines = self.output.resize(at, rows, cols);
         let ready = self.place(lines);
         self.settle(ready)
     }
@@ -83,7 +83,7 @@ impl PlainLog {
             let line = self.line(at, "INPUT", &line);
             self.queue.push_back((at, line));
         }
-        let lines = self.output.finish();
+        let lines = self.output.finish(at);
         let ready = self.place(lines);
         self.settle(ready)
     }

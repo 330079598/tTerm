@@ -155,6 +155,9 @@ struct Screen {
     /// wrapping onto rows that have not.
     logical: Option<(DateTime<Local>, String)>,
     last_at: Option<DateTime<Local>>,
+    /// When the output being parsed arrived; lines and events take their
+    /// time from it, not from when the log got round to parsing them.
+    now: DateTime<Local>,
     output: Vec<ScreenLine>,
 }
 
@@ -178,6 +181,7 @@ impl Screen {
             last_char: None,
             logical: None,
             last_at: None,
+            now: Local::now(),
             output: Vec::new(),
         }
     }
@@ -191,7 +195,7 @@ impl Screen {
             .started
             .or_else(|| self.logical.as_ref().map(|(at, _)| *at))
             .or(self.last_at)
-            .unwrap_or_else(Local::now);
+            .unwrap_or(self.now);
         let wrapped = row.wrapped;
         let mut text = row.text();
         if let Some((started, mut head)) = self.logical.take() {
@@ -226,10 +230,7 @@ impl Screen {
     }
 
     fn event(&mut self, name: &'static str) {
-        self.output.push(ScreenLine::Event {
-            at: Local::now(),
-            name,
-        });
+        self.output.push(ScreenLine::Event { at: self.now, name });
     }
 
     /// Logs what the main screen shows, up to its last non-blank row, and
@@ -313,7 +314,7 @@ impl Screen {
         let row = &mut self.grid[self.row];
         row.put(col, ch, width == 2);
         if row.started.is_none() {
-            row.started = Some(Local::now());
+            row.started = Some(self.now);
         }
         self.col += width;
         if self.col >= self.cols {
@@ -522,10 +523,11 @@ impl Screen {
         self.commit_screen();
         let (rows, cols) = (self.rows as u16, self.cols as u16);
         let output = std::mem::take(&mut self.output);
-        let last_at = self.last_at;
+        let (last_at, now) = (self.last_at, self.now);
         *self = Screen::new(rows, cols);
         self.output = output;
         self.last_at = last_at;
+        self.now = now;
     }
 
     fn resize(&mut self, rows: u16, cols: u16) {
@@ -753,18 +755,22 @@ impl OutputLog {
         }
     }
 
-    pub(super) fn advance(&mut self, data: &[u8]) -> Vec<ScreenLine> {
+    /// Parses output that arrived `at`.
+    pub(super) fn advance(&mut self, at: DateTime<Local>, data: &[u8]) -> Vec<ScreenLine> {
+        self.screen.now = at;
         self.parser.advance(&mut self.screen, data);
         std::mem::take(&mut self.screen.output)
     }
 
-    pub(super) fn resize(&mut self, rows: u16, cols: u16) -> Vec<ScreenLine> {
+    pub(super) fn resize(&mut self, at: DateTime<Local>, rows: u16, cols: u16) -> Vec<ScreenLine> {
+        self.screen.now = at;
         self.screen.resize(rows, cols);
         std::mem::take(&mut self.screen.output)
     }
 
     /// Logs everything still on screen; the session is over.
-    pub(super) fn finish(&mut self) -> Vec<ScreenLine> {
+    pub(super) fn finish(&mut self, at: DateTime<Local>) -> Vec<ScreenLine> {
+        self.screen.now = at;
         self.screen.finish();
         std::mem::take(&mut self.screen.output)
     }
