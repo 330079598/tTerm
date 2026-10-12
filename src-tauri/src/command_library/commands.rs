@@ -1,4 +1,5 @@
 use super::{CommandRepository, CommandVariable, SavedCommand};
+use crate::core::blocking::run_blocking;
 use chrono::Utc;
 use serde::Deserialize;
 use std::collections::HashSet;
@@ -31,65 +32,78 @@ fn default_scope_type() -> String {
 }
 
 #[tauri::command]
-pub fn list_saved_commands() -> Result<Vec<SavedCommand>, String> {
-    CommandRepository::new(crate::db::get()?).list()
+pub async fn list_saved_commands() -> Result<Vec<SavedCommand>, String> {
+    run_blocking(|| CommandRepository::new(crate::db::get()?).list()).await
 }
 
 #[tauri::command]
-pub fn list_command_tags() -> Result<Vec<String>, String> {
-    CommandRepository::new(crate::db::get()?).list_tags()
+pub async fn list_command_tags() -> Result<Vec<String>, String> {
+    run_blocking(|| CommandRepository::new(crate::db::get()?).list_tags()).await
 }
 
 #[tauri::command]
-pub fn create_command_tag(tag: String) -> Result<String, String> {
-    CommandRepository::new(crate::db::get()?).create_tag(&tag)
+pub async fn create_command_tag(tag: String) -> Result<String, String> {
+    run_blocking(move || CommandRepository::new(crate::db::get()?).create_tag(&tag)).await
 }
 
 #[tauri::command]
-pub fn rename_command_tag(old_tag: String, new_tag: String) -> Result<Vec<String>, String> {
-    CommandRepository::new(crate::db::get()?).rename_tag(&old_tag, &new_tag)
+pub async fn rename_command_tag(old_tag: String, new_tag: String) -> Result<Vec<String>, String> {
+    run_blocking(move || CommandRepository::new(crate::db::get()?).rename_tag(&old_tag, &new_tag))
+        .await
 }
 
 #[tauri::command]
-pub fn delete_command_tag(tag: String) -> Result<Vec<String>, String> {
-    CommandRepository::new(crate::db::get()?).delete_tag(&tag)
+pub async fn delete_command_tag(tag: String) -> Result<Vec<String>, String> {
+    run_blocking(move || CommandRepository::new(crate::db::get()?).delete_tag(&tag)).await
 }
 
 #[tauri::command]
-pub fn save_saved_command(input: SaveCommandInput) -> Result<SavedCommand, String> {
-    save(
-        &CommandRepository::new(crate::db::get()?),
-        input,
-        Utc::now().timestamp_millis(),
-    )
+pub async fn save_saved_command(input: SaveCommandInput) -> Result<SavedCommand, String> {
+    run_blocking(move || {
+        save(
+            &CommandRepository::new(crate::db::get()?),
+            input,
+            Utc::now().timestamp_millis(),
+        )
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn delete_saved_command(id: String) -> Result<bool, String> {
-    CommandRepository::new(crate::db::get()?).delete(id.trim())
+pub async fn delete_saved_command(id: String) -> Result<bool, String> {
+    run_blocking(move || CommandRepository::new(crate::db::get()?).delete(id.trim())).await
 }
 
 #[tauri::command]
-pub fn set_saved_command_favorite(id: String, favorite: bool) -> Result<SavedCommand, String> {
-    let repository = CommandRepository::new(crate::db::get()?);
-    let mut command = repository
-        .get(id.trim())?
-        .ok_or_else(|| "Saved command not found".to_string())?;
-    command.is_favorite = favorite;
-    command.updated_at = Utc::now().timestamp_millis();
-    repository.save(&command)?;
-    Ok(command)
+pub async fn set_saved_command_favorite(
+    id: String,
+    favorite: bool,
+) -> Result<SavedCommand, String> {
+    run_blocking(move || {
+        let repository = CommandRepository::new(crate::db::get()?);
+        let mut command = repository
+            .get(id.trim())?
+            .ok_or_else(|| "Saved command not found".to_string())?;
+        command.is_favorite = favorite;
+        command.updated_at = Utc::now().timestamp_millis();
+        repository.save(&command)?;
+        Ok(command)
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn record_saved_command_use(id: String) -> Result<(), String> {
-    let updated = CommandRepository::new(crate::db::get()?)
-        .record_use(id.trim(), Utc::now().timestamp_millis())?;
-    if updated {
-        Ok(())
-    } else {
-        Err("Saved command not found".to_string())
-    }
+pub async fn record_saved_command_use(id: String) -> Result<(), String> {
+    run_blocking(move || {
+        let updated = CommandRepository::new(crate::db::get()?)
+            .record_use(id.trim(), Utc::now().timestamp_millis())?;
+        if updated {
+            Ok(())
+        } else {
+            Err("Saved command not found".to_string())
+        }
+    })
+    .await
 }
 
 fn save(

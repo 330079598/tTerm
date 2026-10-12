@@ -356,38 +356,38 @@ pub async fn save_terminal_contents(path: String, contents: String) -> Result<()
 }
 
 #[tauri::command]
-pub fn open_terminal_log_directory(
-    app: AppHandle,
-    state: State<'_, SessionLogState>,
-) -> Result<(), String> {
-    let directory = {
-        let manager = state.lock_manager()?;
-        manager
-            .config
-            .as_ref()
-            .map(|config| config.files.directory.clone())
-            .unwrap_or(crate::config::get_config_path()?.join("logs"))
-    };
-
-    fs::create_dir_all(&directory)
-        .map_err(|error| format!("Failed to create terminal log directory: {error}"))?;
+pub async fn open_terminal_log_directory(app: AppHandle) -> Result<(), String> {
+    let configured = app
+        .state::<SessionLogState>()
+        .lock_manager()?
+        .config
+        .as_ref()
+        .map(|config| config.files.directory.clone());
+    let directory = run_blocking(move || {
+        let directory = configured.unwrap_or(crate::config::get_config_path()?.join("logs"));
+        fs::create_dir_all(&directory)
+            .map_err(|error| format!("Failed to create terminal log directory: {error}"))?;
+        Ok(directory)
+    })
+    .await?;
     app.opener()
         .open_path(directory.to_string_lossy().into_owned(), None::<&str>)
         .map_err(|error| format!("Failed to open terminal log directory: {error}"))
 }
 
 #[tauri::command]
-pub fn retry_terminal_logging(
-    app: AppHandle,
-    state: State<'_, SessionLogState>,
-) -> Result<TerminalLogStatus, String> {
-    let config = crate::config::load_config_file()?;
-    {
-        let mut manager = state.lock_manager()?;
-        manager.config = None;
-    }
-    state.apply_config(&app, &config)?;
-    state.status()
+pub async fn retry_terminal_logging(app: AppHandle) -> Result<TerminalLogStatus, String> {
+    run_blocking(move || {
+        let state = app.state::<SessionLogState>();
+        let config = crate::config::load_config_file()?;
+        {
+            let mut manager = state.lock_manager()?;
+            manager.config = None;
+        }
+        state.apply_config(&app, &config)?;
+        state.status()
+    })
+    .await
 }
 
 fn now_unix_ms() -> u64 {

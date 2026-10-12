@@ -747,25 +747,26 @@ pub fn resolve_reconnect_settings() -> (bool, u32) {
 }
 
 #[tauri::command]
-pub fn load_config() -> Result<AppConfig, String> {
-    load_config_file()
+pub async fn load_config() -> Result<AppConfig, String> {
+    crate::core::blocking::run_blocking(load_config_file).await
 }
 
 #[tauri::command]
-pub fn save_config(
-    app: tauri::AppHandle,
-    config: AppConfig,
-    log_state: tauri::State<'_, crate::session_log::SessionLogState>,
-) -> Result<(), String> {
-    let mut config = config;
-    // The storage mode changes only through the secret store commands, which
-    // also move the keys; a stale value from the UI must not overwrite it.
-    config.secret_storage_mode = load_config_file()?.secret_storage_mode;
-    log_state.validate_config(&config)?;
-    save_config_file(&config)?;
-    crate::sftp::internal::api::apply_bandwidth_limits(&config);
-    crate::background::apply_config(&app, &config);
-    log_state.apply_config(&app, &config)
+pub async fn save_config(app: tauri::AppHandle, config: AppConfig) -> Result<(), String> {
+    crate::core::blocking::run_blocking(move || {
+        use tauri::Manager;
+        let log_state = app.state::<crate::session_log::SessionLogState>();
+        let mut config = config;
+        // The storage mode changes only through the secret store commands, which
+        // also move the keys; a stale value from the UI must not overwrite it.
+        config.secret_storage_mode = load_config_file()?.secret_storage_mode;
+        log_state.validate_config(&config)?;
+        save_config_file(&config)?;
+        crate::sftp::internal::api::apply_bandwidth_limits(&config);
+        crate::background::apply_config(&app, &config);
+        log_state.apply_config(&app, &config)
+    })
+    .await
 }
 
 #[cfg(test)]

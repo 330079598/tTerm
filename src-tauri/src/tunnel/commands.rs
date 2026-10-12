@@ -7,6 +7,7 @@ use super::storage::{
     upsert_tunnel,
 };
 use super::types::{TunnelRule, TunnelState, TunnelStatus, TunnelTraffic};
+use crate::core::blocking::run_blocking;
 use crate::core::session::{
     load_saved_jump_host_password, load_saved_ssh_password, normalize_connection,
     resolve_ssh_password, JumpHostOptions, JumpHostSecretOwner, PtyConnectionOptions,
@@ -221,16 +222,16 @@ fn find_profile(profile_id: &str) -> Result<SavedProfile, String> {
 }
 
 #[tauri::command]
-pub fn list_tunnels() -> Result<Vec<TunnelRule>, String> {
-    load_tunnels()
+pub async fn list_tunnels() -> Result<Vec<TunnelRule>, String> {
+    run_blocking(load_tunnels).await
 }
 
 #[tauri::command]
-pub fn list_tunnel_statuses(
+pub async fn list_tunnel_statuses(
     manager: State<'_, TunnelManager>,
 ) -> Result<Vec<TunnelStatus>, String> {
-    let rules = load_tunnels()?;
-    let saved = crate::db::read(list_tunnel_traffic)?;
+    let (rules, saved) =
+        run_blocking(|| Ok((load_tunnels()?, crate::db::read(list_tunnel_traffic)?))).await?;
     Ok(rules
         .iter()
         .map(|rule| manager.status_of(&rule.id, saved.get(&rule.id).copied().unwrap_or_default()))
@@ -239,26 +240,31 @@ pub fn list_tunnel_statuses(
 
 /// Zeroes a tunnel's lifetime traffic and starts counting again from now.
 #[tauri::command]
-pub fn reset_tunnel_traffic_totals(
+pub async fn reset_tunnel_traffic_totals(
     id: String,
     manager: State<'_, TunnelManager>,
 ) -> Result<(), String> {
-    match manager.reporter(&id) {
+    let reporter = manager.reporter(&id);
+    run_blocking(move || match reporter {
         Some(reporter) => reporter.reset_traffic(),
         None => {
             let now = crate::ssh::now_unix_ms().max(0) as u64;
             crate::db::write(|transaction| reset_tunnel_traffic(transaction, &id, now))
         }
-    }
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn save_tunnel(app: AppHandle, mut tunnel: TunnelRule) -> Result<TunnelRule, String> {
+pub async fn save_tunnel(app: AppHandle, mut tunnel: TunnelRule) -> Result<TunnelRule, String> {
     tunnel.validate()?;
-    let profile = find_profile(&tunnel.profile_id)?;
-    connection_options_for_profile(&profile)?;
-
-    crate::db::write(|transaction| upsert_tunnel(transaction, &tunnel))?;
+    let tunnel = run_blocking(move || {
+        let profile = find_profile(&tunnel.profile_id)?;
+        connection_options_for_profile(&profile)?;
+        crate::db::write(|transaction| upsert_tunnel(transaction, &tunnel))?;
+        Ok(tunnel)
+    })
+    .await?;
     crate::background::refresh_tunnels(&app);
     Ok(tunnel)
 }

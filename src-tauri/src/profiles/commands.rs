@@ -7,6 +7,7 @@ use super::storage::{
 use super::types::{
     SavedProfile, SshConfigImportOptions, SshConfigImportPreview, SshConfigImportResult,
 };
+use crate::core::blocking::run_blocking;
 use crate::core::state::HostPromptMap;
 use crate::ssh::SshConnectionProgressPayload;
 use crate::ssh::{ConnectionStatusOptions, HostKeyVerificationMode, SecretLocation};
@@ -18,12 +19,15 @@ mod connection_check;
 mod import;
 
 #[tauri::command]
-pub fn list_profiles() -> Result<Vec<SavedProfile>, String> {
-    let mut profiles = load_profiles()?;
-    for profile in &mut profiles {
-        sanitize_profile(profile);
-    }
-    Ok(profiles)
+pub async fn list_profiles() -> Result<Vec<SavedProfile>, String> {
+    run_blocking(|| {
+        let mut profiles = load_profiles()?;
+        for profile in &mut profiles {
+            sanitize_profile(profile);
+        }
+        Ok(profiles)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -190,64 +194,79 @@ fn store_profile(
 }
 
 #[tauri::command]
-pub fn list_profile_groups() -> Result<Vec<String>, String> {
-    crate::db::read(all_profile_groups)
+pub async fn list_profile_groups() -> Result<Vec<String>, String> {
+    run_blocking(|| crate::db::read(all_profile_groups)).await
 }
 
 #[tauri::command]
-pub fn save_profile_group(name: String) -> Result<Vec<String>, String> {
+pub async fn save_profile_group(name: String) -> Result<Vec<String>, String> {
     let name = normalize_group_name(&name);
     if name.is_empty() {
         return Err("Group name is required".to_string());
     }
 
-    crate::db::write(|transaction| {
-        add_profile_group(transaction, &name)?;
-        all_profile_groups(transaction)
+    run_blocking(move || {
+        crate::db::write(|transaction| {
+            add_profile_group(transaction, &name)?;
+            all_profile_groups(transaction)
+        })
     })
+    .await
 }
 
 #[tauri::command]
-pub fn rename_profile_group(old_name: String, new_name: String) -> Result<Vec<String>, String> {
+pub async fn rename_profile_group(
+    old_name: String,
+    new_name: String,
+) -> Result<Vec<String>, String> {
     let old_name = normalize_group_name(&old_name);
     let new_name = normalize_group_name(&new_name);
     if old_name.is_empty() || new_name.is_empty() {
         return Err("Group name is required".to_string());
     }
 
-    crate::db::write(|transaction| {
-        regroup_profiles(transaction, &old_name, &new_name)?;
-        remove_profile_group(transaction, &old_name)?;
-        add_profile_group(transaction, &new_name)?;
-        all_profile_groups(transaction)
+    run_blocking(move || {
+        crate::db::write(|transaction| {
+            regroup_profiles(transaction, &old_name, &new_name)?;
+            remove_profile_group(transaction, &old_name)?;
+            add_profile_group(transaction, &new_name)?;
+            all_profile_groups(transaction)
+        })
     })
+    .await
 }
 
 #[tauri::command]
-pub fn delete_profile_group(name: String) -> Result<Vec<String>, String> {
+pub async fn delete_profile_group(name: String) -> Result<Vec<String>, String> {
     let name = normalize_group_name(&name);
     if name.is_empty() {
         return Err("Group name is required".to_string());
     }
 
-    crate::db::write(|transaction| {
-        regroup_profiles(transaction, &name, "")?;
-        remove_profile_group(transaction, &name)?;
-        all_profile_groups(transaction)
+    run_blocking(move || {
+        crate::db::write(|transaction| {
+            regroup_profiles(transaction, &name, "")?;
+            remove_profile_group(transaction, &name)?;
+            all_profile_groups(transaction)
+        })
     })
+    .await
 }
 
 #[tauri::command]
-pub fn move_profile_to_group(
+pub async fn move_profile_to_group(
     id: String,
     group: String,
     target_id: Option<String>,
 ) -> Result<(), String> {
     let group = normalize_group_name(&group);
-    crate::db::write(|transaction| {
-        super::storage::move_profile(transaction, &id, &group, target_id.as_deref())?;
-        add_profile_group(transaction, &group)
+    run_blocking(move || {
+        crate::db::write(|transaction| {
+            super::storage::move_profile(transaction, &id, &group, target_id.as_deref())?;
+            add_profile_group(transaction, &group)
+        })
     })
+    .await
 }
 
 #[tauri::command]
@@ -295,14 +314,17 @@ pub async fn delete_profiles(
 }
 
 #[tauri::command]
-pub fn set_profile_server_monitor_visible(id: String, visible: bool) -> Result<(), String> {
-    crate::db::write(|transaction| {
-        if let Some(mut profile) = get_profile(transaction, &id)? {
-            profile.server_monitor_visible = visible;
-            upsert_profile(transaction, &profile)?;
-        }
-        Ok(())
+pub async fn set_profile_server_monitor_visible(id: String, visible: bool) -> Result<(), String> {
+    run_blocking(move || {
+        crate::db::write(|transaction| {
+            if let Some(mut profile) = get_profile(transaction, &id)? {
+                profile.server_monitor_visible = visible;
+                upsert_profile(transaction, &profile)?;
+            }
+            Ok(())
+        })
     })
+    .await
 }
 
 #[derive(serde::Serialize)]

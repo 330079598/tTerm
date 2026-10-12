@@ -1,3 +1,4 @@
+use super::blocking::run_blocking;
 use super::session::{normalize_connection, resolve_ssh_password};
 use super::state::{
     ActiveSession, AtomicTerminalSize, HostPromptMap, PtyMap, PtySession, SessionExitSignal,
@@ -533,19 +534,23 @@ pub fn respond_ssh_host_key_prompt(
 }
 
 #[tauri::command]
-pub fn has_saved_password(
+pub async fn has_saved_password(
     app: AppHandle,
     profile_id: Option<String>,
     profile_name: Option<String>,
     secret_state: State<'_, crate::ssh::SecretStoreState>,
 ) -> Result<bool, String> {
-    Ok(super::session::load_saved_ssh_password(
-        &app,
-        &secret_state,
-        profile_id.as_deref(),
-        profile_name.as_deref(),
-    )?
-    .is_some())
+    let secret_state = secret_state.inner().clone();
+    run_blocking(move || {
+        Ok(super::session::load_saved_ssh_password(
+            &app,
+            &secret_state,
+            profile_id.as_deref(),
+            profile_name.as_deref(),
+        )?
+        .is_some())
+    })
+    .await
 }
 
 #[tauri::command]
@@ -553,7 +558,7 @@ pub fn has_saved_password(
     clippy::too_many_arguments,
     reason = "a Tauri command's arguments are its IPC fields and injected state"
 )]
-pub fn has_saved_jump_host_password(
+pub async fn has_saved_jump_host_password(
     app: AppHandle,
     profile_id: Option<String>,
     profile_name: Option<String>,
@@ -563,70 +568,103 @@ pub fn has_saved_jump_host_password(
     allow_legacy_fallback: Option<bool>,
     secret_state: State<'_, crate::ssh::SecretStoreState>,
 ) -> Result<bool, String> {
-    Ok(super::session::load_saved_jump_host_password(
-        &app,
-        &secret_state,
-        super::session::JumpHostSecretOwner {
-            profile_id: profile_id.as_deref(),
-            profile_name: profile_name.as_deref(),
-            host: host.as_deref(),
-            port,
-            username: username.as_deref(),
-        },
-        allow_legacy_fallback.unwrap_or(false),
-    )?
-    .is_some())
+    let secret_state = secret_state.inner().clone();
+    run_blocking(move || {
+        Ok(super::session::load_saved_jump_host_password(
+            &app,
+            &secret_state,
+            super::session::JumpHostSecretOwner {
+                profile_id: profile_id.as_deref(),
+                profile_name: profile_name.as_deref(),
+                host: host.as_deref(),
+                port,
+                username: username.as_deref(),
+            },
+            allow_legacy_fallback.unwrap_or(false),
+        )?
+        .is_some())
+    })
+    .await
 }
 
 /// The saved password a sudo prompt in this profile would be answered with.
 #[tauri::command]
-pub fn get_sudo_password_source(
+pub async fn get_sudo_password_source(
     app: AppHandle,
     profile_id: Option<String>,
     profile_name: Option<String>,
     secret_state: State<'_, crate::ssh::SecretStoreState>,
 ) -> Result<Option<super::session::SudoPasswordSource>, String> {
-    Ok(super::session::load_saved_sudo_password(
-        &app,
-        &secret_state,
-        profile_id.as_deref(),
-        profile_name.as_deref(),
-    )?
-    .map(|(_, source)| source))
+    let secret_state = secret_state.inner().clone();
+    run_blocking(move || {
+        Ok(super::session::load_saved_sudo_password(
+            &app,
+            &secret_state,
+            profile_id.as_deref(),
+            profile_name.as_deref(),
+        )?
+        .map(|(_, source)| source))
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn has_saved_sudo_password(
+pub async fn has_saved_sudo_password(
     app: AppHandle,
     profile_id: String,
     secret_state: State<'_, crate::ssh::SecretStoreState>,
 ) -> Result<bool, String> {
-    Ok(secret_state
-        .get_password(&app, &super::session::sudo_secret_key(profile_id.trim()))?
-        .is_some())
+    let secret_state = secret_state.inner().clone();
+    run_blocking(move || {
+        Ok(secret_state
+            .get_password(&app, &super::session::sudo_secret_key(profile_id.trim()))?
+            .is_some())
+    })
+    .await
 }
 
 /// Writes the saved sudo password to an SSH session, but only while `prompt`
 /// is still the session's last output line. Returns false when there is no
 /// saved password, the session moved on, or the prompt is no longer waiting.
+///
+/// The session map and the saved password are read on a worker thread: the
+/// locks are taken with blocking calls and the password may sit behind the
+/// credential store.
 #[tauri::command]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a Tauri command's arguments are its IPC fields and injected state"
-)]
-pub fn write_saved_password_for_sudo(
+pub async fn write_saved_password_for_sudo(
     app: AppHandle,
     tab_id: String,
     session_nonce: u32,
     profile_id: Option<String>,
     profile_name: Option<String>,
     prompt: String,
-    state: State<'_, PtyMap>,
-    secret_state: State<'_, crate::ssh::SecretStoreState>,
 ) -> Result<bool, String> {
+    run_blocking(move || {
+        write_saved_password_for_sudo_blocking(
+            &app,
+            &tab_id,
+            session_nonce,
+            profile_id.as_deref(),
+            profile_name.as_deref(),
+            &prompt,
+        )
+    })
+    .await
+}
+
+fn write_saved_password_for_sudo_blocking(
+    app: &AppHandle,
+    tab_id: &str,
+    session_nonce: u32,
+    profile_id: Option<&str>,
+    profile_name: Option<&str>,
+    prompt: &str,
+) -> Result<bool, String> {
+    let state = app.state::<PtyMap>();
+    let secret_state = app.state::<crate::ssh::SecretStoreState>();
     let map = state.blocking_read();
     let session = map
-        .get(&tab_id)
+        .get(tab_id)
         .ok_or_else(|| format!("PTY session {} not found", tab_id))?;
     if session.session_nonce != session_nonce {
         return Ok(false);
@@ -639,16 +677,12 @@ pub fn write_saved_password_for_sudo(
     let ActiveSession::Ssh(ssh) = active else {
         return Err("Saved SSH password cannot be written to a local terminal.".to_string());
     };
-    if !ssh.output_tail.awaits_prompt(&prompt) {
+    if !ssh.output_tail.awaits_prompt(prompt) {
         return Ok(false);
     }
 
-    let Some((password, _)) = super::session::load_saved_sudo_password(
-        &app,
-        &secret_state,
-        profile_id.as_deref(),
-        profile_name.as_deref(),
-    )?
+    let Some((password, _)) =
+        super::session::load_saved_sudo_password(app, &secret_state, profile_id, profile_name)?
     else {
         return Ok(false);
     };
@@ -666,6 +700,6 @@ pub fn write_saved_password_for_sudo(
     ssh.input
         .send(data.to_vec())
         .map_err(|_| format!("PTY session {} is not writable", tab_id))?;
-    crate::session_log::record_credential_injection(&app, &tab_id);
+    crate::session_log::record_credential_injection(app, tab_id);
     Ok(true)
 }
