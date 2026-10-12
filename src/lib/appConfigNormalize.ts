@@ -206,7 +206,7 @@ export function normalizeConfig(config: Partial<AppConfig>): AppConfig {
       typeof config.terminal_log_name_template === "string" &&
       config.terminal_log_name_template.trim()
         ? config.terminal_log_name_template
-        : "{profile}-{host}-{yyyyMMdd-HHmmss}-{sessionId}",
+        : "{year}-{month}-{day}/{profile}-{host}-{time}-{sessionId}",
     terminal_log_max_file_size_mb: normalizeTerminalLogFileSize(
       config.terminal_log_max_file_size_mb
     ),

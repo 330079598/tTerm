@@ -202,7 +202,7 @@ export const defaultConfig: AppConfig = {
   terminal_log_enabled: false,
   terminal_log_directory: "",
   terminal_log_format: "both",
-  terminal_log_name_template: "{profile}-{host}-{yyyyMMdd-HHmmss}-{sessionId}",
+  terminal_log_name_template: "{year}-{month}-{day}/{profile}-{host}-{time}-{sessionId}",
   terminal_log_max_file_size_mb: 50,
   terminal_log_compress: false,
   terminal_log_plain_timestamps: true,

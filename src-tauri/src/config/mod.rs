@@ -459,7 +459,7 @@ fn default_terminal_log_format() -> String {
 }
 
 fn default_terminal_log_name_template() -> String {
-    "{profile}-{host}-{yyyyMMdd-HHmmss}-{sessionId}".to_string()
+    "{year}-{month}-{day}/{profile}-{host}-{time}-{sessionId}".to_string()
 }
 
 fn default_terminal_log_max_file_size_mb() -> u32 {
