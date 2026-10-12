@@ -51,6 +51,7 @@ fn jump(key: Option<&str>) -> JumpHostOptions {
         auth_method: Some(if key.is_some() { "key" } else { "password" }.into()),
         private_key_path: key.map(str::to_string),
         private_key_passphrase: None,
+        certificate_path: None,
     }
 }
 

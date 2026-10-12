@@ -412,6 +412,7 @@ pub(crate) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefa
         "user",
         "port",
         "identityfile",
+        "certificatefile",
         "proxyjump",
         "serveraliveinterval",
         "serveralivecountmax",
@@ -424,7 +425,6 @@ pub(crate) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefa
     ]);
     let unsupported_tracked = HashSet::from([
         "proxycommand",
-        "certificatefile",
         "controlmaster",
         "controlpath",
         "controlpersist",
@@ -517,6 +517,7 @@ pub(crate) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefa
                 "user" => defaults.user = Some(value),
                 "port" => defaults.port = value.parse::<u16>().ok(),
                 "identityfile" => defaults.identity_file = Some(value),
+                "certificatefile" => defaults.certificate_file = Some(value),
                 "serveraliveinterval" => defaults.server_alive_interval = value.parse::<u32>().ok(),
                 "serveralivecountmax" => {
                     defaults.server_alive_count_max = value.parse::<u32>().ok()
@@ -551,6 +552,7 @@ fn parse_proxy_jump(
     proxy_jump: Option<String>,
     defaults: &SshConfigDefaults,
     private_key_path: Option<&str>,
+    certificate_path: Option<&str>,
     warnings: &mut Vec<String>,
 ) -> Vec<SavedJumpHost> {
     let Some(proxy_jump) = proxy_jump else {
@@ -624,6 +626,7 @@ fn parse_proxy_jump(
                 auth_method: jump_auth_method.to_string(),
                 private_key_path: private_key_path.map(str::to_string),
                 private_key_passphrase: None,
+                certificate_path: certificate_path.map(str::to_string),
                 password: None,
             })
         })
@@ -678,6 +681,20 @@ pub(crate) fn build_import_host(
     } else {
         "password".to_string()
     };
+    let certificate_path = first_option(&raw.options, "certificatefile")
+        .or_else(|| defaults.certificate_file.clone())
+        .map(|value| expand_home_path(&value).to_string_lossy().to_string());
+    // tTerm offers a certificate with the private key it certifies, so one
+    // without an IdentityFile has nothing to go with.
+    let certificate_path = match certificate_path {
+        Some(path) if private_key_path.is_none() => {
+            warnings.push(format!(
+                "CertificateFile '{path}' was not imported because the host has no IdentityFile."
+            ));
+            None
+        }
+        certificate_path => certificate_path,
+    };
     let agent_forward = parse_forward_agent(
         first_option(&raw.options, "forwardagent").or_else(|| defaults.forward_agent.clone()),
         &mut warnings,
@@ -710,6 +727,7 @@ pub(crate) fn build_import_host(
         first_option(&raw.options, "proxyjump"),
         defaults,
         private_key_path.as_deref(),
+        certificate_path.as_deref(),
         &mut warnings,
     );
     let forwards = parse_forwards(&raw.options, &mut warnings);
@@ -726,6 +744,7 @@ pub(crate) fn build_import_host(
         username,
         auth_method,
         private_key_path,
+        certificate_path,
         agent_forward,
         keepalive_interval_secs,
         keepalive_count_max,

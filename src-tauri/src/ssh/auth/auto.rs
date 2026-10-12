@@ -242,11 +242,11 @@ where
     let Ok(key) = PrivateKey::from_openssh(&text) else {
         // Not in OpenSSH format (old PEM RSA): `publickey` reads the other
         // formats, as long as they need no passphrase.
-        let verdict = publickey(session, target, &display, None).await.ok();
+        let verdict = publickey(session, target, &display, None, None).await.ok();
         return Ok(verdict.map(|verdict| (verdict, false)));
     };
 
-    if key_file_identities(&display, key.public_key())
+    if key_file_identities(&display, key.public_key(), None)
         .iter()
         .all(|identity| offered_before(offered, identity))
     {
@@ -254,7 +254,7 @@ where
     }
 
     if !key.is_encrypted() {
-        let verdict = sign_in_with_key(session, target, &display, key, offered).await?;
+        let verdict = sign_in_with_key(session, target, &display, key, None, offered).await?;
         return Ok(Some((verdict, false)));
     }
 
@@ -280,7 +280,8 @@ where
         };
         let passphrase = answers.into_iter().next().unwrap_or_default();
         if let Ok(decrypted) = key.decrypt(passphrase.as_bytes()) {
-            let verdict = sign_in_with_key(session, target, &display, decrypted, offered).await?;
+            let verdict =
+                sign_in_with_key(session, target, &display, decrypted, None, offered).await?;
             return Ok(Some((verdict, true)));
         }
     }

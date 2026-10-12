@@ -95,11 +95,14 @@ where
     .await
 }
 
+/// Signs in with the key file at `path`, and with `certificate_path` as its
+/// certificate when one is configured; see [`key_file_identities`].
 pub(super) async fn publickey<H>(
     session: &mut client::Handle<H>,
     target: &AuthTarget<'_>,
     path: &str,
     passphrase: Option<&str>,
+    certificate_path: Option<&str>,
 ) -> Result<AuthResult, SshConnectError>
 where
     H: client::Handler,
@@ -107,9 +110,18 @@ where
     let subject = target.subject();
     let key_error =
         |reason: String| SshConnectError::Permanent(format!("{subject} key {path}: {reason}"));
+    let certificate = |public_key: &PublicKey| {
+        certificate_path
+            .map(|certificate_path| load_certificate(certificate_path, public_key))
+            .transpose()
+            .map_err(|reason| SshConnectError::Permanent(format!("{subject} {reason}")))
+    };
 
     match crate::ssh::key_file::load_private_key(path, passphrase, &format!("{subject} key")) {
-        Ok(key) => sign_in_with_key(session, target, path, key, &mut Vec::new()).await,
+        Ok(key) => {
+            let certificate = certificate(key.public_key())?;
+            sign_in_with_key(session, target, path, key, certificate, &mut Vec::new()).await
+        }
         // Old PEM-format RSA keys are beyond `russh` in this build.
         Err(load_error) => {
             let (mut signer, public_key) = std::fs::read_to_string(path)
@@ -117,24 +129,75 @@ where
                 .and_then(|pem| RingRsaSigner::from_pem(&pem))
                 .ok_or(SshConnectError::Permanent(load_error))?
                 .map_err(key_error)?;
-            let identities = key_file_identities(path, &public_key);
+            let identities = key_file_identities(path, &public_key, certificate(&public_key)?);
             let mut offered = Vec::new();
             sign_in_with_rsa(session, target, &mut signer, path, identities, &mut offered).await
         }
     }
 }
 
-/// What a key file offers the server, in `ssh`'s order: the OpenSSH
-/// certificate stored beside it as `<key>-cert.pub`, then the key itself.
+/// Reads the certificate configured for a key, which must certify that key
+/// and must not have expired. Unlike the certificate `ssh` finds beside a
+/// key, a configured one that cannot be used is an error, so the user learns
+/// why instead of seeing the server turn the key down.
+pub(super) fn load_certificate(path: &str, public_key: &PublicKey) -> Result<Certificate, String> {
+    let text = std::fs::read_to_string(crate::profiles::parser::expand_home_path(path)).map_err(
+        |error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                format!("certificate file not found: {path}")
+            } else {
+                format!("cannot read certificate file {path}: {error}")
+            }
+        },
+    )?;
+    let certificate = Certificate::from_openssh(text.trim())
+        .map_err(|error| format!("{path} is not an OpenSSH certificate: {error}"))?;
+    if certificate.public_key() != public_key.key_data() {
+        return Err(format!(
+            "certificate {path} certifies a different key than the private key"
+        ));
+    }
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_secs());
+    if certificate.valid_before() <= now {
+        let expired = i64::try_from(certificate.valid_before())
+            .ok()
+            .and_then(|seconds| chrono::DateTime::from_timestamp(seconds, 0))
+            .map(|time| {
+                chrono::DateTime::<chrono::Local>::from(time)
+                    .format("%Y-%m-%d %H:%M")
+                    .to_string()
+            })
+            .unwrap_or_default();
+        return Err(format!(
+            "certificate {path} expired at {expired}; get a new one from your certificate authority"
+        ));
+    }
+    Ok(certificate)
+}
+
+/// What a key file offers the server, in `ssh`'s order: its OpenSSH
+/// certificate, then the key itself. The certificate is `certificate` when
+/// one is configured, and otherwise the one stored beside the key as
+/// `<key>-cert.pub`.
 ///
 /// Servers that trust a certificate authority (`TrustedUserCAKeys`) list no
-/// user keys, so the certificate is what gets the user in. A certificate that
-/// cannot be read, or that certifies another key, is left out, as `ssh` does.
-pub(super) fn key_file_identities(path: &str, public_key: &PublicKey) -> Vec<AgentIdentity> {
-    let certificate = std::fs::read_to_string(format!("{path}-cert.pub"))
-        .ok()
-        .and_then(|text| Certificate::from_openssh(text.trim()).ok())
-        .filter(|certificate| certificate.public_key() == public_key.key_data());
+/// user keys, so the certificate is what gets the user in. A certificate
+/// beside the key that cannot be read, or that certifies another key, is left
+/// out, as `ssh` does.
+pub(super) fn key_file_identities(
+    path: &str,
+    public_key: &PublicKey,
+    certificate: Option<Certificate>,
+) -> Vec<AgentIdentity> {
+    let certificate = certificate.or_else(|| {
+        std::fs::read_to_string(format!("{path}-cert.pub"))
+            .ok()
+            .and_then(|text| Certificate::from_openssh(text.trim()).ok())
+            .filter(|certificate| certificate.public_key() == public_key.key_data())
+    });
     certificate
         .map(AgentIdentity::from)
         .into_iter()
@@ -171,12 +234,13 @@ pub(super) async fn sign_in_with_key<H>(
     target: &AuthTarget<'_>,
     path: &str,
     key: PrivateKey,
+    certificate: Option<Certificate>,
     offered: &mut Vec<AgentIdentity>,
 ) -> Result<AuthResult, SshConnectError>
 where
     H: client::Handler,
 {
-    let identities = key_file_identities(path, key.public_key())
+    let identities = key_file_identities(path, key.public_key(), certificate)
         .into_iter()
         .filter(|identity| !offered_before(offered, identity))
         .collect::<Vec<_>>();

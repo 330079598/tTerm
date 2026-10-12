@@ -209,6 +209,7 @@ fn keys_ignore_secrets_in_the_id_but_not_in_the_hash() {
         reconnect_max_attempts: 0,
         private_key_path: None,
         private_key_passphrase: None,
+        certificate_path: None,
         use_agent: false,
         keyboard_interactive: false,
         auto_auth: false,

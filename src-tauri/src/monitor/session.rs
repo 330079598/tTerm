@@ -70,6 +70,7 @@ pub(crate) fn monitor_connection_fingerprint(plan: &SessionPlan) -> Result<Strin
                 jump.username.as_str(),
                 jump.private_key_path.as_deref().unwrap_or(""),
                 jump.private_key_passphrase.is_some(),
+                jump.certificate_path.as_deref().unwrap_or(""),
             )
         })
         .collect::<Vec<_>>();
@@ -82,6 +83,7 @@ pub(crate) fn monitor_connection_fingerprint(plan: &SessionPlan) -> Result<Strin
         username,
         plan.private_key_path.as_deref().unwrap_or(""),
         plan.private_key_passphrase.is_some(),
+        plan.certificate_path.as_deref().unwrap_or(""),
         plan.keepalive_interval_secs,
         jump_chain,
     ))

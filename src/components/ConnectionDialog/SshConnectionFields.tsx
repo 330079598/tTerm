@@ -3,6 +3,7 @@ import { open as openFileDialog } from "@tauri-apps/plugin-dialog"
 import { useTranslation } from "react-i18next"
 
 import { AuthMethodPicker } from "@/components/ConnectionDialog/AuthMethodPicker"
+import { CertificatePathField } from "@/components/ConnectionDialog/CertificatePathField"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -252,6 +253,11 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
               placeholder={t("connection.passphrasePlaceholder")}
             />
           </div>
+          <CertificatePathField
+            id="conn-certificate-path"
+            value={form.certificatePath}
+            onChange={(certificatePath) => setForm((current) => ({ ...current, certificatePath }))}
+          />
         </>
       )}
 

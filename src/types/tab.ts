@@ -15,6 +15,8 @@ export interface SavedProfile {
   agent_forward?: boolean
   private_key_path?: string
   private_key_passphrase?: string
+  /** OpenSSH certificate for the private key; missing uses `<key>-cert.pub` beside it. */
+  certificate_path?: string
   keepalive_interval_secs: number
   keepalive_count_max: number
   server_monitor_visible?: boolean
@@ -48,6 +50,8 @@ export interface SavedJumpHost {
   auth_method: string
   private_key_path?: string
   private_key_passphrase?: string
+  /** OpenSSH certificate for the private key; missing uses `<key>-cert.pub` beside it. */
+  certificate_path?: string
   password?: string
 }
 
@@ -114,6 +118,7 @@ export interface JumpHostConnection {
   password?: string
   privateKeyPath?: string
   privateKeyPassphrase?: string
+  certificatePath?: string
 }
 
 export interface Tab {
@@ -162,6 +167,8 @@ export interface Tab {
     agentForward?: boolean
     privateKeyPath?: string
     privateKeyPassphrase?: string
+    /** OpenSSH certificate for the private key; missing uses `<key>-cert.pub` beside it. */
+    certificatePath?: string
     terminalShell?: TerminalShellType
     terminalShellCustomPath?: string
     terminalShellCustomArgs?: string

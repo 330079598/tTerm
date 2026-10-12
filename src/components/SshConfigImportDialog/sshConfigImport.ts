@@ -9,6 +9,7 @@ interface SshConfigImportHost {
   username?: string
   authMethod: string
   privateKeyPath?: string
+  certificatePath?: string
   agentForward: boolean
   keepaliveIntervalSecs: number
   keepaliveCountMax: number

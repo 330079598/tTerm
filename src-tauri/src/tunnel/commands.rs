@@ -192,6 +192,9 @@ fn connection_options_for_profile(profile: &SavedProfile) -> Result<PtyConnectio
                     .then(|| jump.private_key_path.clone())
                     .flatten(),
                 private_key_passphrase: None,
+                certificate_path: (jump.auth_method == "key")
+                    .then(|| jump.certificate_path.clone())
+                    .flatten(),
             })
             .collect()
     } else {
@@ -208,6 +211,7 @@ fn connection_options_for_profile(profile: &SavedProfile) -> Result<PtyConnectio
         keepalive_interval_secs: Some(profile.keepalive_interval_secs.min(u16::MAX as u32) as u16),
         keepalive_count_max: Some(profile.keepalive_count_max.min(u16::MAX as u32) as u16),
         private_key_path: uses_key.then(|| profile.private_key_path.clone()).flatten(),
+        certificate_path: uses_key.then(|| profile.certificate_path.clone()).flatten(),
         auth_method: profile.auth_method.clone(),
         jump_hosts,
         ..PtyConnectionOptions::default()

@@ -827,6 +827,33 @@ fn missing_key_files_are_listed_once_with_the_profiles_using_them() {
 }
 
 #[test]
+fn missing_certificate_files_are_listed_with_the_key_files() {
+    let profiles: Vec<SavedProfile> = serde_json::from_value(serde_json::json!([{
+        "id": "certified", "name": "certified", "connection_type": "ssh",
+        "host": "example.com", "port": 22, "username": "root", "auth_method": "key",
+        "private_key_path": "/keys/id", "certificate_path": "/keys/id-ca-cert.pub",
+        "jump_hosts": [{
+            "host": "bastion", "port": 22, "username": "root", "auth_method": "key",
+            "private_key_path": "/keys/jump", "certificate_path": "/keys/jump-cert.pub"
+        }]
+    }]))
+    .unwrap();
+    let paths = missing_key_files(&profiles)
+        .into_iter()
+        .map(|missing| missing.path)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        paths,
+        [
+            "/keys/id",
+            "/keys/id-ca-cert.pub",
+            "/keys/jump",
+            "/keys/jump-cert.pub"
+        ]
+    );
+}
+
+#[test]
 fn device_setup_secrets_stay_unless_webdav_settings_travel() {
     assert!(secret_travels("profile-id", false));
     assert!(secret_travels("profile-id:jump", false));

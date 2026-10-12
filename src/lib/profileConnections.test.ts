@@ -37,6 +37,18 @@ const tab = (overrides: Partial<Tab> = {}): Tab => ({
 })
 
 describe("applyProfileToTab", () => {
+  it("connects with a key's certificate, and drops it with the key", () => {
+    const keyed = profile({
+      auth_method: "key",
+      private_key_path: "/keys/id",
+      certificate_path: "/keys/id-ca-cert.pub",
+    })
+    expect(applyProfileToTab(tab(), keyed).connection?.certificatePath).toBe("/keys/id-ca-cert.pub")
+    const keyedTab = applyProfileToTab(tab(), keyed)
+    const agent = profile({ auth_method: "agent", certificate_path: "/keys/id-ca-cert.pub" })
+    expect(applyProfileToTab(keyedTab, agent).connection?.certificatePath).toBeUndefined()
+  })
+
   it("connects with the saved settings and keeps the session", () => {
     const next = applyProfileToTab(tab(), profile({ port: 2222, encoding: "gbk" }))
     expect(next.sessionNonce).toBe(2)

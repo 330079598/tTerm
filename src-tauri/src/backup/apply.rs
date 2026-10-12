@@ -65,15 +65,19 @@ pub(super) fn ensure_selection_available(
 pub(super) fn missing_key_files(profiles: &[SavedProfile]) -> Vec<MissingKeyFile> {
     let mut missing = BTreeMap::<&str, Vec<String>>::new();
     for profile in profiles.iter().filter(|p| p.connection_type == "ssh") {
+        // A key's certificate is a file the backup does not carry either.
         let own = (profile.auth_method.as_deref() == Some("key"))
-            .then_some(profile.private_key_path.as_deref())
-            .flatten();
+            .then_some([&profile.private_key_path, &profile.certificate_path])
+            .into_iter()
+            .flatten()
+            .filter_map(Option::as_deref);
         let jumps = profile
             .jump_hosts
             .iter()
             .filter(|jump| profile.uses_jump_host() && jump.auth_method == "key")
-            .filter_map(|jump| jump.private_key_path.as_deref());
-        for path in own.into_iter().chain(jumps).map(str::trim) {
+            .flat_map(|jump| [&jump.private_key_path, &jump.certificate_path])
+            .filter_map(Option::as_deref);
+        for path in own.chain(jumps).map(str::trim) {
             if path.is_empty() || Path::new(path).is_file() {
                 continue;
             }

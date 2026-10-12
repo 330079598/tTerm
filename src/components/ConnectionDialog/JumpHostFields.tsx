@@ -4,6 +4,7 @@ import { Plus, Route, Server, Trash2, ArrowDown, ArrowUp } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { AuthMethodPicker } from "@/components/ConnectionDialog/AuthMethodPicker"
+import { CertificatePathField } from "@/components/ConnectionDialog/CertificatePathField"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -454,6 +455,13 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
                       placeholder={t("connection.passphrasePlaceholder")}
                     />
                   </div>
+                  <CertificatePathField
+                    id={`jump-certificate-path-${jump.id}`}
+                    value={jump.certificatePath}
+                    onChange={(certificatePath) =>
+                      updateJumpHost(setForm, jump.id, { certificatePath })
+                    }
+                  />
                 </>
               )}
 

@@ -21,6 +21,9 @@ pub struct SavedJumpHost {
     pub private_key_path: Option<String>,
     #[serde(default, skip_serializing)]
     pub private_key_passphrase: Option<String>,
+    /// OpenSSH certificate for the private key; `<key>-cert.pub` when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub certificate_path: Option<String>,
     #[serde(default, skip_serializing)]
     pub password: Option<String>,
 }
@@ -48,6 +51,9 @@ pub struct SavedProfile {
     pub private_key_path: Option<String>,
     #[serde(default, skip_serializing)]
     pub private_key_passphrase: Option<String>,
+    /// OpenSSH certificate for the private key; `<key>-cert.pub` when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub certificate_path: Option<String>,
     #[serde(default = "default_keepalive_interval")]
     pub keepalive_interval_secs: u32,
     #[serde(default = "default_keepalive_count")]
@@ -133,6 +139,8 @@ pub struct SshConfigImportHost {
     pub username: Option<String>,
     pub auth_method: String,
     pub private_key_path: Option<String>,
+    /// `CertificateFile`, kept only with an `IdentityFile` to go with it.
+    pub certificate_path: Option<String>,
     /// `ForwardAgent yes`.
     pub agent_forward: bool,
     pub keepalive_interval_secs: u32,
@@ -171,6 +179,7 @@ pub(crate) struct SshConfigDefaults {
     pub user: Option<String>,
     pub port: Option<u16>,
     pub identity_file: Option<String>,
+    pub certificate_file: Option<String>,
     pub server_alive_interval: Option<u32>,
     pub server_alive_count_max: Option<u32>,
     pub forward_agent: Option<String>,

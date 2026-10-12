@@ -76,6 +76,7 @@ pub(super) fn import_ssh_config_profiles_blocking(
             agent_forward: host.agent_forward,
             private_key_path: host.private_key_path,
             private_key_passphrase: None,
+            certificate_path: host.certificate_path,
             keepalive_interval_secs: host.keepalive_interval_secs,
             keepalive_count_max: host.keepalive_count_max,
             server_monitor_visible: false,

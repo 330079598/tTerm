@@ -164,6 +164,62 @@ Host custom-sock
 }
 
 #[test]
+fn parse_ssh_config_imports_a_certificate_with_its_identity_file() {
+    let config = r#"
+CertificateFile ~/.ssh/default-cert.pub
+
+Host certified
+  HostName certified.example.com
+  IdentityFile ~/.ssh/id_ed25519
+  CertificateFile ~/.ssh/id_ed25519-ca-cert.pub
+  ProxyJump bastion.example.com
+
+Host inherits
+  HostName inherits.example.com
+  IdentityFile ~/.ssh/id_ed25519
+
+Host keyless
+  HostName keyless.example.com
+  CertificateFile ~/.ssh/orphan-cert.pub
+"#;
+
+    let (raw_hosts, defaults, _) = parse_ssh_config(config);
+    let hosts: Vec<_> = raw_hosts
+        .into_iter()
+        .map(|raw| build_import_host(raw, &defaults, &[]))
+        .collect();
+
+    let home = super::home_dir().expect("home directory");
+    let expected = home
+        .join(".ssh/id_ed25519-ca-cert.pub")
+        .to_string_lossy()
+        .to_string();
+    assert_eq!(
+        hosts[0].certificate_path.as_deref(),
+        Some(expected.as_str())
+    );
+    assert_eq!(
+        hosts[0].jump_hosts[0].certificate_path.as_deref(),
+        Some(expected.as_str()),
+        "jump hosts take the target's key, and so its certificate"
+    );
+    assert!(hosts[0].unsupported_options.is_empty());
+
+    let default = home
+        .join(".ssh/default-cert.pub")
+        .to_string_lossy()
+        .to_string();
+    assert_eq!(hosts[1].certificate_path.as_deref(), Some(default.as_str()));
+
+    assert_eq!(hosts[2].auth_method, "password");
+    assert!(hosts[2].certificate_path.is_none());
+    assert!(hosts[2]
+        .warnings
+        .iter()
+        .any(|warning| warning.contains("has no IdentityFile")));
+}
+
+#[test]
 fn parse_ssh_config_ignores_match_block_options_until_next_host() {
     let config = r#"
 User global-user

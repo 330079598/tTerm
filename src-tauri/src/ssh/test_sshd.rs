@@ -168,6 +168,7 @@ impl TestSshd {
         AuthMethod::Key {
             path: self.client_key.to_str().expect("utf-8 key path"),
             passphrase: None,
+            certificate: None,
         }
     }
 }

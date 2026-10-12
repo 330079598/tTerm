@@ -17,6 +17,7 @@ import { SavedProfile } from "@/components/ProfilesPanel"
 import { invokeSafe, reportError } from "@/lib/errors"
 import { Tab } from "@/types/tab"
 import {
+  certificatePayload,
   encodingPayload,
   getDefaultTitle,
   loginScriptPayload,
@@ -139,6 +140,7 @@ export function useConnectionSubmit({
         auth_method: form.authMethod,
         agent_forward: form.agentForward,
         private_key_path: form.authMethod === "key" ? form.privateKeyPath : undefined,
+        certificate_path: certificatePayload(form.authMethod, form.certificatePath),
         keepalive_interval_secs: keepalive.intervalSecs,
         keepalive_count_max: keepalive.countMax,
         server_monitor_visible: editProfile?.server_monitor_visible === true,
@@ -210,6 +212,7 @@ export function useConnectionSubmit({
         agentForward: form.agentForward,
         privateKeyPath: form.authMethod === "key" ? form.privateKeyPath : undefined,
         privateKeyPassphrase: form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
+        certificatePath: certificatePayload(form.authMethod, form.certificatePath),
         keepaliveIntervalSecs: keepalive.intervalSecs,
         keepaliveCountMax: keepalive.countMax,
         serverMonitorVisible: editProfile?.server_monitor_visible === true,

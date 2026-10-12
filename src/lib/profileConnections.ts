@@ -37,6 +37,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
       authMethod: normalizeSshAuthMethod(profile.auth_method),
       agentForward: profile.agent_forward === true,
       privateKeyPath: profile.auth_method === "key" ? profile.private_key_path : undefined,
+      certificatePath: profile.auth_method === "key" ? profile.certificate_path : undefined,
       keepaliveIntervalSecs: profile.keepalive_interval_secs,
       keepaliveCountMax: profile.keepalive_count_max,
       serverMonitorVisible: profile.server_monitor_visible === true,
@@ -53,6 +54,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
               username: jump.username,
               authMethod: normalizeSshAuthMethod(jump.auth_method),
               privateKeyPath: jump.private_key_path,
+              certificatePath: jump.certificate_path,
             }))
           : undefined,
     },

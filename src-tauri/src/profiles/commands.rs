@@ -385,6 +385,11 @@ pub async fn test_connection(
                 } else {
                     None
                 },
+                certificate_path: if j.auth_method == "key" {
+                    j.certificate_path
+                } else {
+                    None
+                },
                 use_agent: j.auth_method == "agent",
                 auto_auth: j.auth_method == "auto",
                 keyboard_interactive: j.auth_method == "interactive",
@@ -417,6 +422,11 @@ pub async fn test_connection(
             None
         },
         private_key_passphrase: profile.private_key_passphrase.clone(),
+        certificate_path: if profile.auth_method.as_deref() == Some("key") {
+            profile.certificate_path.clone()
+        } else {
+            None
+        },
         use_agent: profile.auth_method.as_deref() == Some("agent"),
         auto_auth: profile.auth_method.as_deref() == Some("auto"),
         keyboard_interactive: profile.auth_method.as_deref() == Some("interactive"),

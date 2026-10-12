@@ -552,6 +552,7 @@ async fn key_file_method_signs_with_the_key() {
         .authenticate(AuthMethod::Key {
             path: key_path.to_str().expect("utf-8 path"),
             passphrase: None,
+            certificate: None,
         })
         .await;
     std::fs::remove_file(&key_path).ok();
@@ -568,6 +569,7 @@ async fn an_unreadable_key_is_reported_with_its_path() {
         .authenticate(AuthMethod::Key {
             path: "/nonexistent/tterm/id_ed25519",
             passphrase: None,
+            certificate: None,
         })
         .await
         .expect_err("missing key");
@@ -643,10 +645,26 @@ fn password_prompts_are_told_apart_from_code_prompts() {
 #[test]
 fn plan_fields_pick_the_method_in_precedence_order() {
     let method = |agent, interactive, key, password| {
-        AuthMethod::from_plan(false, agent, interactive, key, Some("phrase"), password)
+        AuthMethod::from_plan(
+            false,
+            agent,
+            interactive,
+            key,
+            Some("phrase"),
+            Some("/k-cert.pub"),
+            password,
+        )
     };
     assert!(matches!(
-        AuthMethod::from_plan(true, true, true, Some("/k"), Some("phrase"), Some("p")),
+        AuthMethod::from_plan(
+            true,
+            true,
+            true,
+            Some("/k"),
+            Some("phrase"),
+            Some("/k-cert.pub"),
+            Some("p")
+        ),
         AuthMethod::Auto {
             key_path: Some("/k"),
             local_identities: true,
@@ -665,7 +683,8 @@ fn plan_fields_pick_the_method_in_precedence_order() {
         method(false, false, Some("/k"), Some("p")),
         AuthMethod::Key {
             path: "/k",
-            passphrase: Some("phrase")
+            passphrase: Some("phrase"),
+            certificate: Some("/k-cert.pub"),
         }
     ));
     assert!(matches!(

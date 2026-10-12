@@ -1,5 +1,6 @@
 import { normalizeSshAuthMethod } from "@/lib/profileConnections"
 import type { JumpHostConnection, SavedJumpHost } from "@/types/tab"
+import { certificatePayload } from "@/components/ConnectionDialog/connectionDialogUtils"
 import { ConnectionForm } from "@/components/ConnectionDialog/types"
 
 export const getJumpHostPasswordLookupKey = (
@@ -85,6 +86,7 @@ export function buildJumpHostsPayload(
         password: authMethod === "password" ? jump.password || undefined : undefined,
         private_key_path: privateKeyPath,
         private_key_passphrase: privateKeyPassphrase,
+        certificate_path: certificatePayload(authMethod, jump.certificatePath),
       }
     })
   }
@@ -104,6 +106,7 @@ export function buildJumpHostsPayload(
       privateKeyPath: authMethod === "key" ? jump.privateKeyPath || undefined : undefined,
       privateKeyPassphrase:
         authMethod === "key" ? jump.privateKeyPassphrase || undefined : undefined,
+      certificatePath: certificatePayload(authMethod, jump.certificatePath),
     }
   })
 }

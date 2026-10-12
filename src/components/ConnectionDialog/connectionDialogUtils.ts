@@ -35,6 +35,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     authMethod,
     agentForward: profile.agent_forward === true,
     privateKeyPath: profile.private_key_path ?? "",
+    certificatePath: profile.certificate_path ?? "",
     keepaliveIntervalSecs: profile.keepalive_interval_secs,
     keepaliveCountMax: profile.keepalive_count_max,
     encoding: normalizeTerminalEncoding(profile.encoding),
@@ -51,8 +52,17 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
       username: jump.username ?? "",
       authMethod: normalizeSshAuthMethod(jump.auth_method),
       privateKeyPath: jump.private_key_path ?? "",
+      certificatePath: jump.certificate_path ?? "",
     })),
   }
+}
+
+/** The certificate to store or send: only with a key, and omitted when empty. */
+export function certificatePayload(
+  authMethod: string,
+  certificatePath: string
+): string | undefined {
+  return authMethod === "key" ? certificatePath.trim() || undefined : undefined
 }
 
 /** A saved charset label as one the dialog offers; anything else is UTF-8. */

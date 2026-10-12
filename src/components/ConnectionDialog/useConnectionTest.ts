@@ -18,6 +18,7 @@ import type {
 import { SavedProfile } from "@/components/ProfilesPanel"
 import { isVerificationCanceled } from "@/lib/userVerification"
 import {
+  certificatePayload,
   getDefaultTitle,
   normalizeKeepalive,
 } from "@/components/ConnectionDialog/connectionDialogUtils"
@@ -120,6 +121,7 @@ export function useConnectionTest({
         auth_method: form.authMethod,
         private_key_path: form.authMethod === "key" ? form.privateKeyPath : undefined,
         private_key_passphrase: form.authMethod === "key" ? form.privateKeyPassphrase : undefined,
+        certificate_path: certificatePayload(form.authMethod, form.certificatePath),
         keepalive_interval_secs: keepalive.intervalSecs,
         keepalive_count_max: keepalive.countMax,
         server_monitor_visible: editProfile?.server_monitor_visible === true,

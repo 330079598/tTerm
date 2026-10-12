@@ -32,6 +32,9 @@ pub struct JumpHostOptions {
     pub private_key_path: Option<String>,
     #[serde(default, alias = "privateKeyPassphrase")]
     pub private_key_passphrase: Option<String>,
+    /// OpenSSH certificate for the private key; `<key>-cert.pub` when unset.
+    #[serde(default, alias = "certificatePath")]
+    pub certificate_path: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -50,6 +53,8 @@ pub(crate) struct RawJumpHostOptions {
     private_key_path: Option<String>,
     #[serde(default, alias = "privateKeyPassphrase")]
     private_key_passphrase: Option<String>,
+    #[serde(default, alias = "certificatePath")]
+    certificate_path: Option<String>,
 }
 
 impl From<RawJumpHostOptions> for JumpHostOptions {
@@ -62,6 +67,7 @@ impl From<RawJumpHostOptions> for JumpHostOptions {
             auth_method: raw.auth_method,
             private_key_path: raw.private_key_path,
             private_key_passphrase: raw.private_key_passphrase,
+            certificate_path: raw.certificate_path,
         }
     }
 }
@@ -75,6 +81,8 @@ pub struct JumpHostPlan {
     pub password: Option<String>,
     pub private_key_path: Option<String>,
     pub private_key_passphrase: Option<String>,
+    /// OpenSSH certificate for the private key; `<key>-cert.pub` when unset.
+    pub certificate_path: Option<String>,
     /// Authenticate through the local SSH agent instead of a password or key file.
     pub use_agent: bool,
     /// Authenticate by answering the server's prompts; nothing is stored.
@@ -91,6 +99,7 @@ impl JumpHostPlan {
             self.keyboard_interactive,
             self.private_key_path.as_deref(),
             self.private_key_passphrase.as_deref(),
+            self.certificate_path.as_deref(),
             self.password.as_deref(),
         )
     }
@@ -135,6 +144,8 @@ pub struct PtyConnectionOptions {
     pub keepalive_count_max: Option<u16>,
     pub private_key_path: Option<String>,
     pub private_key_passphrase: Option<String>,
+    /// OpenSSH certificate for the private key; `<key>-cert.pub` when unset.
+    pub certificate_path: Option<String>,
     #[serde(default, alias = "authMethod")]
     pub auth_method: Option<String>,
     /// Forward the local SSH agent to the target host, whatever `auth_method` is.
@@ -187,6 +198,8 @@ pub(crate) struct RawPtyConnectionOptions {
     private_key_path: Option<String>,
     #[serde(default, alias = "privateKeyPassphrase")]
     private_key_passphrase: Option<String>,
+    #[serde(default, alias = "certificatePath")]
+    certificate_path: Option<String>,
     #[serde(default, alias = "authMethod")]
     auth_method: Option<String>,
     #[serde(default, alias = "agentForward")]
@@ -236,6 +249,7 @@ impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
             keepalive_count_max: raw.keepalive_count_max,
             private_key_path: raw.private_key_path,
             private_key_passphrase: raw.private_key_passphrase,
+            certificate_path: raw.certificate_path,
             auth_method: raw.auth_method,
             agent_forward: raw.agent_forward,
             jump_hosts,
@@ -269,6 +283,7 @@ impl Default for PtyConnectionOptions {
             keepalive_count_max: None,
             private_key_path: None,
             private_key_passphrase: None,
+            certificate_path: None,
             auth_method: None,
             agent_forward: false,
             jump_hosts: Vec::new(),
@@ -307,6 +322,8 @@ pub struct SessionPlan {
     pub reconnect_max_attempts: u32,
     pub private_key_path: Option<String>,
     pub private_key_passphrase: Option<String>,
+    /// OpenSSH certificate for the private key; `<key>-cert.pub` when unset.
+    pub certificate_path: Option<String>,
     /// Authenticate through the local SSH agent instead of a password or key file.
     pub use_agent: bool,
     /// Authenticate by answering the server's prompts; nothing is stored.
@@ -340,6 +357,7 @@ impl SessionPlan {
             self.keyboard_interactive,
             self.private_key_path.as_deref(),
             self.private_key_passphrase.as_deref(),
+            self.certificate_path.as_deref(),
             self.password.as_deref(),
         )
     }

@@ -66,6 +66,7 @@ pub fn normalize_connection(
             reconnect_max_attempts: 0,
             private_key_path: None,
             private_key_passphrase: None,
+            certificate_path: None,
             use_agent: false,
             keyboard_interactive: false,
             auto_auth: false,
@@ -127,6 +128,12 @@ pub fn normalize_connection(
             } else {
                 connection.private_key_passphrase.filter(|v| !v.is_empty())
             };
+            // Only a configured key has a configured certificate.
+            let certificate_path = if stores_nothing || auto_auth {
+                None
+            } else {
+                connection.certificate_path.filter(|v| !v.trim().is_empty())
+            };
 
             let jump_hosts = normalize_jump_hosts(connection.jump_hosts)?;
             let (reconnect_enabled, reconnect_max_attempts) =
@@ -148,6 +155,7 @@ pub fn normalize_connection(
                 reconnect_max_attempts,
                 private_key_path,
                 private_key_passphrase,
+                certificate_path,
                 use_agent,
                 keyboard_interactive,
                 auto_auth,
@@ -209,6 +217,11 @@ fn normalize_jump_host(opts: JumpHostOptions) -> Result<JumpHostPlan, String> {
     } else {
         None
     };
+    let certificate_path = if use_key {
+        opts.certificate_path.filter(|v| !v.trim().is_empty())
+    } else {
+        None
+    };
     let password = if use_key || use_agent || keyboard_interactive || auto_auth {
         None
     } else {
@@ -222,6 +235,7 @@ fn normalize_jump_host(opts: JumpHostOptions) -> Result<JumpHostPlan, String> {
         password,
         private_key_path,
         private_key_passphrase,
+        certificate_path,
         use_agent,
         keyboard_interactive,
         auto_auth,
@@ -548,5 +562,40 @@ mod tests {
         let plan = normalize_connection(Some(options)).expect("should normalize");
         assert_eq!(plan.jump_hosts.len(), 1);
         assert_eq!(plan.jump_hosts[0].host, "bastion");
+    }
+
+    #[test]
+    fn a_certificate_is_kept_only_for_key_authentication() {
+        let plan = |auth_method: &str| {
+            let options: PtyConnectionOptions = serde_json::from_value(serde_json::json!({
+                "type": "ssh",
+                "host": "target",
+                "username": "user",
+                "authMethod": auth_method,
+                "privateKeyPath": "/keys/id",
+                "certificatePath": "/keys/id-cert.pub",
+                "jumpHosts": [{
+                    "host": "bastion",
+                    "username": "jump",
+                    "authMethod": auth_method,
+                    "privateKeyPath": "/keys/jump",
+                    "certificatePath": "/keys/jump-cert.pub"
+                }]
+            }))
+            .expect("options should deserialize");
+            normalize_connection(Some(options)).expect("should normalize")
+        };
+
+        let keyed = plan("key");
+        assert_eq!(keyed.certificate_path.as_deref(), Some("/keys/id-cert.pub"));
+        assert_eq!(
+            keyed.jump_hosts[0].certificate_path.as_deref(),
+            Some("/keys/jump-cert.pub")
+        );
+        for other in ["agent", "interactive", "auto"] {
+            let plan = plan(other);
+            assert!(plan.certificate_path.is_none(), "{other}");
+            assert!(plan.jump_hosts[0].certificate_path.is_none(), "{other}");
+        }
     }
 }

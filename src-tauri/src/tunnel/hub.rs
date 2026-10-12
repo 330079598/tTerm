@@ -75,12 +75,13 @@ pub struct SessionKey {
 impl SessionKey {
     pub fn for_plan(plan: &SessionPlan) -> Self {
         let mut id = format!(
-            "{}|{}:{}|{}|{}",
+            "{}|{}:{}|{}|{}|{}",
             plan.profile_id.as_deref().unwrap_or(&plan.profile_name),
             plan.host.as_deref().unwrap_or_default(),
             plan.port,
             plan.username.as_deref().unwrap_or_default(),
             plan.private_key_path.as_deref().unwrap_or_default(),
+            plan.certificate_path.as_deref().unwrap_or_default(),
         );
         let mut hasher = DefaultHasher::new();
         plan.password.hash(&mut hasher);
@@ -88,11 +89,12 @@ impl SessionKey {
         for jump in &plan.jump_hosts {
             let _ = write!(
                 id,
-                "|{}@{}:{}#{}",
+                "|{}@{}:{}#{}#{}",
                 jump.username,
                 jump.host,
                 jump.port,
-                jump.private_key_path.as_deref().unwrap_or_default()
+                jump.private_key_path.as_deref().unwrap_or_default(),
+                jump.certificate_path.as_deref().unwrap_or_default()
             );
             jump.password.hash(&mut hasher);
             jump.private_key_passphrase.hash(&mut hasher);

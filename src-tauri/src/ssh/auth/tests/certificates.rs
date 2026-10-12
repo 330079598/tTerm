@@ -1,4 +1,5 @@
-//! OpenSSH certificates, offered from beside a key file and from the agent.
+//! OpenSSH certificates, offered from a key file's configuration, from beside
+//! the key, and from the agent.
 
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -15,15 +16,24 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use super::{auto, write_client_key, AuthMethod, AuthUsed, Harness, Script, USER};
 use crate::ssh::agent::{offer_identities, offered_before};
 
-/// Signs a user certificate for `key` with a throwaway certificate authority.
-fn certify(key: &PublicKey) -> Certificate {
-    let ca = PrivateKey::random(&mut rand::rng(), Algorithm::Ed25519).expect("CA key");
-    let now = SystemTime::now()
+fn now() -> u64 {
+    SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("clock after 1970")
-        .as_secs();
-    let mut builder = Builder::new_with_random_nonce(&mut rand::rng(), key, now - 60, now + 3600)
-        .expect("certificate builder");
+        .as_secs()
+}
+
+/// Signs a user certificate for `key` with a throwaway certificate authority.
+fn certify(key: &PublicKey) -> Certificate {
+    certify_until(key, now() + 3600)
+}
+
+/// Like [`certify`], valid until `valid_before` (seconds since 1970).
+fn certify_until(key: &PublicKey, valid_before: u64) -> Certificate {
+    let ca = PrivateKey::random(&mut rand::rng(), Algorithm::Ed25519).expect("CA key");
+    let mut builder =
+        Builder::new_with_random_nonce(&mut rand::rng(), key, now() - 7200, valid_before)
+            .expect("certificate builder");
     builder.cert_type(CertType::User).expect("certificate type");
     builder.key_id("tterm-test").expect("key id");
     builder.valid_principal(USER).expect("principal");
@@ -57,6 +67,7 @@ fn key_method(path: &Path) -> AuthMethod<'_> {
     AuthMethod::Key {
         path: path.to_str().expect("utf-8 path"),
         passphrase: None,
+        certificate: None,
     }
 }
 
@@ -143,6 +154,111 @@ async fn auto_signs_in_with_the_certificate_beside_the_key_file() {
         }
     );
     assert_eq!(harness.log(), ["certificate"]);
+}
+
+/// Writes `text` to a file of its own, away from any key, and returns its path.
+fn write_certificate_file(text: &str) -> PathBuf {
+    let path = std::env::temp_dir().join(format!("tterm-cert-{}.pub", uuid::Uuid::new_v4()));
+    std::fs::write(&path, text).expect("write certificate");
+    path
+}
+
+/// Signs in with a fresh key file and the certificate `certificate` makes
+/// for its public key, configured as a file of its own. Returns the result
+/// and what the server was sent.
+async fn sign_in_with_configured_certificate(
+    certificate: impl FnOnce(&PublicKey) -> String,
+) -> (Result<AuthUsed, String>, Vec<String>) {
+    let mut harness = Harness::start(
+        Script {
+            certificate: || Auth::Accept,
+            ..Script::default()
+        },
+        vec![],
+    )
+    .await;
+
+    let key_path = write_client_key();
+    let key = load_secret_key(&key_path, None).expect("load client key");
+    let certificate_path = write_certificate_file(&certificate(key.public_key()));
+    let result = harness
+        .authenticate(AuthMethod::Key {
+            path: key_path.to_str().expect("utf-8 path"),
+            passphrase: None,
+            certificate: Some(certificate_path.to_str().expect("utf-8 path")),
+        })
+        .await;
+    std::fs::remove_file(&key_path).ok();
+    std::fs::remove_file(&certificate_path).ok();
+    (result, harness.log())
+}
+
+#[tokio::test]
+async fn key_file_method_signs_in_with_a_configured_certificate() {
+    let (result, log) = sign_in_with_configured_certificate(|key| {
+        certify(key).to_openssh().expect("encode certificate")
+    })
+    .await;
+
+    result.expect("authenticate");
+    assert_eq!(log, ["certificate"]);
+}
+
+/// Asserts that an unusable certificate failed the sign-in with an error
+/// containing `expected`, before anything was offered.
+fn assert_unusable((result, log): (Result<AuthUsed, String>, Vec<String>), expected: &str) {
+    let error = result.expect_err("an unusable certificate");
+    assert!(error.contains(expected), "{error}");
+    assert!(log.is_empty(), "nothing is offered: {log:?}");
+}
+
+#[tokio::test]
+async fn a_configured_certificate_that_cannot_be_used_is_explained() {
+    assert_unusable(
+        sign_in_with_configured_certificate(|_| "not a certificate".to_string()).await,
+        "is not an OpenSSH certificate",
+    );
+    assert_unusable(
+        sign_in_with_configured_certificate(|key| {
+            certify_until(key, now() - 3600)
+                .to_openssh()
+                .expect("encode certificate")
+        })
+        .await,
+        "expired at",
+    );
+
+    let other = PrivateKey::random(&mut rand::rng(), Algorithm::Ed25519).expect("other key");
+    let other_key = other.public_key().clone();
+    assert_unusable(
+        sign_in_with_configured_certificate(move |_| {
+            certify(&other_key)
+                .to_openssh()
+                .expect("encode certificate")
+        })
+        .await,
+        "certifies a different key",
+    );
+}
+
+#[tokio::test]
+async fn a_missing_configured_certificate_is_reported_with_its_path() {
+    let mut harness = Harness::start(Script::default(), vec![]).await;
+
+    let key_path = write_client_key();
+    let result = harness
+        .authenticate(AuthMethod::Key {
+            path: key_path.to_str().expect("utf-8 path"),
+            passphrase: None,
+            certificate: Some("/nonexistent/tterm/id_ed25519-cert.pub"),
+        })
+        .await;
+    std::fs::remove_file(&key_path).ok();
+
+    assert_eq!(
+        result.expect_err("missing certificate"),
+        "SSH certificate file not found: /nonexistent/tterm/id_ed25519-cert.pub"
+    );
 }
 
 fn put_string(buffer: &mut Vec<u8>, bytes: &[u8]) {

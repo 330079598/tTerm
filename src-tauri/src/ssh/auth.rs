@@ -51,6 +51,8 @@ pub enum AuthMethod<'a> {
     Key {
         path: &'a str,
         passphrase: Option<&'a str>,
+        /// The key's OpenSSH certificate; `<path>-cert.pub` when unset.
+        certificate: Option<&'a str>,
     },
     Password(Option<&'a str>),
     /// Nothing stored: every answer comes from the user.
@@ -76,6 +78,7 @@ impl<'a> AuthMethod<'a> {
         keyboard_interactive: bool,
         private_key_path: Option<&'a str>,
         private_key_passphrase: Option<&'a str>,
+        certificate_path: Option<&'a str>,
         password: Option<&'a str>,
     ) -> Self {
         if auto {
@@ -92,6 +95,7 @@ impl<'a> AuthMethod<'a> {
             Self::Key {
                 path,
                 passphrase: private_key_passphrase,
+                certificate: certificate_path,
             }
         } else {
             Self::Password(password)
@@ -292,9 +296,11 @@ where
         AuthMethod::Agent => {
             crate::ssh::agent::authenticate_via_agent(session, target.username).await?
         }
-        AuthMethod::Key { path, passphrase } => {
-            publickey(session, target, path, passphrase).await?
-        }
+        AuthMethod::Key {
+            path,
+            passphrase,
+            certificate,
+        } => publickey(session, target, path, passphrase, certificate).await?,
         AuthMethod::Password(_) => {
             let password = stored_password.take().ok_or_else(|| {
                 SshConnectError::Permanent(format!("{subject} password is required"))

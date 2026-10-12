@@ -56,6 +56,8 @@ export interface JumpHostForm {
   password: string
   privateKeyPath: string
   privateKeyPassphrase: string
+  /** OpenSSH certificate for the key; empty uses `<key>-cert.pub` beside it. */
+  certificatePath: string
 }
 
 export interface ConnectionForm {
@@ -71,6 +73,8 @@ export interface ConnectionForm {
   rememberPassword: boolean
   privateKeyPath: string
   privateKeyPassphrase: string
+  /** OpenSSH certificate for the key; empty uses `<key>-cert.pub` beside it. */
+  certificatePath: string
   keepaliveIntervalSecs: number
   keepaliveCountMax: number
   encoding: TerminalEncoding
@@ -102,6 +106,7 @@ export const createDefaultJumpHost = (): JumpHostForm => ({
   password: "",
   privateKeyPath: "",
   privateKeyPassphrase: "",
+  certificatePath: "",
 })
 
 export interface ConnectionDialogContentProps extends Omit<ConnectionDialogProps, "isOpen"> {
@@ -122,6 +127,7 @@ export const defaultForm: ConnectionForm = {
   rememberPassword: false,
   privateKeyPath: "",
   privateKeyPassphrase: "",
+  certificatePath: "",
   keepaliveIntervalSecs: 15,
   keepaliveCountMax: 3,
   encoding: DEFAULT_TERMINAL_ENCODING,
