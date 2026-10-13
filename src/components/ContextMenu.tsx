@@ -30,6 +30,7 @@ import {
   FileDown,
   ScrollText,
 } from "lucide-react"
+import { useShortcutLabel } from "@/contexts/KeymapContext"
 import { TabContextMenuAction } from "@/types/tab"
 import { restoreFocus } from "@/lib/terminalFocus"
 import { cn } from "@/lib/utils"
@@ -127,6 +128,7 @@ function getMenuItemIndices(actions: TabContextMenuAction[]) {
 export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onAction, onClose }) => {
   const menuRef = useRef<HTMLDivElement>(null)
   const enabledIndices = getMenuItemIndices(actions)
+  const shortcutLabel = useShortcutLabel()
   const [focusIndex, setFocusIndex] = useState(() => enabledIndices[0] ?? -1)
   // Read before the menu takes the focus.
   const [openedFrom] = useState(() => document.activeElement)
@@ -237,6 +239,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
               return <div key={index} role="separator" className="bg-border my-1 h-px" />
             }
             const isFocused = focusIndex === index
+            const shortcut = shortcutLabel(action.shortcut)
             return (
               <Button
                 key={index}
@@ -270,6 +273,11 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
               >
                 {getActionIcon(action.icon)}
                 <span>{action.label}</span>
+                {shortcut && (
+                  <kbd className="text-muted-foreground ml-auto shrink-0 pl-3 font-sans text-xs">
+                    {shortcut}
+                  </kbd>
+                )}
               </Button>
             )
           })}

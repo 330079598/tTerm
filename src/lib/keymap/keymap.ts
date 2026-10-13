@@ -1,5 +1,5 @@
 import { KEYMAP_ACTIONS, KEYMAP_ACTION_IDS, type KeymapActionId } from "@/lib/keymap/actions"
-import { parseChord, serializeChord } from "@/lib/keymap/chord"
+import { formatChord, parseChord, serializeChord } from "@/lib/keymap/chord"
 
 /**
  * Persisted keymap configuration. `bindings` is a sparse override layer:
@@ -93,6 +93,21 @@ export function resolveEffectiveKeymap(keymap: KeymapConfig): EffectiveKeymap {
   }
 
   return effective
+}
+
+/** How an action's first chord reads in menus and tooltips, or undefined while it is unbound. */
+export function getShortcutLabel(
+  effective: EffectiveKeymap,
+  actionId: KeymapActionId,
+  isMac: boolean
+): string | undefined {
+  const chord = effective[actionId]?.[0]
+  return chord ? formatChord(chord, isMac) : undefined
+}
+
+/** A button's tooltip: its label, followed by its shortcut when it has one. */
+export function withShortcut(label: string, shortcut: string | undefined): string {
+  return shortcut ? `${label} (${shortcut})` : label
 }
 
 /**

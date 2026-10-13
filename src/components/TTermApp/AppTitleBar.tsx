@@ -14,6 +14,8 @@ import type { Tab } from "@/types/tab"
 import { BroadcastManager } from "@/components/BroadcastManager"
 import { TabBar } from "@/components/TabBar"
 import { TransferManager } from "@/components/TransferManager"
+import { useShortcutLabel } from "@/contexts/KeymapContext"
+import { withShortcut } from "@/lib/keymap/keymap"
 import { keepFocusOnMouseDown } from "@/lib/terminalFocus"
 
 type TransferManager = ReturnType<typeof useTransferManager>
@@ -85,6 +87,8 @@ export function AppTitleBar({
   commandLibrary,
 }: AppTitleBarProps) {
   const { t } = useTranslation()
+  const shortcutLabel = useShortcutLabel()
+  const newTabLabel = t("tabs.newTab", { defaultValue: "New tab" })
 
   return (
     <div className="title-bar">
@@ -108,7 +112,8 @@ export function AppTitleBar({
               className="tab-action"
               onMouseDown={keepFocusOnMouseDown}
               onClick={handleNewTab}
-              aria-label={t("tabs.newTab", { defaultValue: "New tab" })}
+              aria-label={newTabLabel}
+              title={withShortcut(newTabLabel, shortcutLabel("workspace.newTab"))}
             >
               <Plus size={16} />
             </button>
@@ -125,6 +130,7 @@ export function AppTitleBar({
               onMouseDown={keepFocusOnMouseDown}
               onClick={() => commandLibrary.handleOpenCommandLibrary()}
               aria-label={t("commandLibrary.title")}
+              title={withShortcut(t("commandLibrary.title"), shortcutLabel("commandLibrary.open"))}
             >
               <Library size={16} />
             </button>

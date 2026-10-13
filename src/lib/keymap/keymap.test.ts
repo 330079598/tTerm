@@ -5,11 +5,38 @@ import {
   buildChordIndex,
   findKeymapConflicts,
   getCliConflictHint,
+  getShortcutLabel,
   normalizeKeymap,
   resolveEffectiveKeymap,
   DEFAULT_KEYMAP_CONFIG,
   type EffectiveKeymap,
+  withShortcut,
 } from "@/lib/keymap/keymap"
+
+describe("getShortcutLabel", () => {
+  it("shows the first chord in effect, so a rebound action shows its new chord", () => {
+    const defaults = resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG)
+    expect(getShortcutLabel(defaults, "tabs.renameActive", true)).toBe("⌘⇧R")
+    expect(getShortcutLabel(defaults, "tabs.renameActive", false)).toBe("Ctrl+Shift+R")
+    expect(getShortcutLabel(defaults, "terminal.zoomIn", false)).toBe("Ctrl+=")
+
+    const rebound = resolveEffectiveKeymap({ bindings: { "tabs.renameActive": ["mod+e"] } })
+    expect(getShortcutLabel(rebound, "tabs.renameActive", true)).toBe("⌘E")
+  })
+
+  it("shows nothing for an unbound action", () => {
+    const effective = resolveEffectiveKeymap({ bindings: { "tabs.closeActive": null } })
+    expect(getShortcutLabel(effective, "tabs.closeActive", true)).toBeUndefined()
+    expect(getShortcutLabel(effective, "terminal.reset", true)).toBeUndefined()
+  })
+})
+
+describe("withShortcut", () => {
+  it("appends the shortcut only when there is one", () => {
+    expect(withShortcut("New tab", "⌃⇧T")).toBe("New tab (⌃⇧T)")
+    expect(withShortcut("New tab", undefined)).toBe("New tab")
+  })
+})
 
 describe("resolveEffectiveKeymap", () => {
   it("provides a tTerm default for every action", () => {

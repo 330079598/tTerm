@@ -6,7 +6,8 @@ import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import { CodeMirrorEditor } from "@/components/CodeMirrorEditor"
-import { useKeymap } from "@/contexts/KeymapContext"
+import { useKeymap, useShortcutLabel } from "@/contexts/KeymapContext"
+import { withShortcut } from "@/lib/keymap/keymap"
 import { toast } from "@/hooks/use-toast"
 import type { Tab } from "@/types/tab"
 
@@ -39,6 +40,7 @@ export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({
 }) => {
   const { t } = useTranslation()
   const { registerHandler } = useKeymap()
+  const shortcutLabel = useShortcutLabel()
   const remoteFile = tab.remoteFile
   const [content, setContent] = useState("")
   const [savedContent, setSavedContent] = useState("")
@@ -207,6 +209,10 @@ export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({
             size="sm"
             onClick={() => void saveFile()}
             disabled={!dirty || isSaving || isLoading}
+            title={withShortcut(
+              t("remoteFileEditor.save", { defaultValue: "Save" }),
+              shortcutLabel("editor.save")
+            )}
           >
             {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             {t("remoteFileEditor.save", { defaultValue: "Save" })}

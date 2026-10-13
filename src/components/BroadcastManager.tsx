@@ -11,7 +11,8 @@ import type {
   TerminalRuntimeState,
 } from "@/types/broadcast"
 import { useConfig } from "@/contexts/ConfigContext"
-import { useKeymap } from "@/contexts/KeymapContext"
+import { useKeymap, useShortcutLabel } from "@/contexts/KeymapContext"
+import { withShortcut } from "@/lib/keymap/keymap"
 import { isImeKeyEvent } from "@/lib/ime"
 import { keepFocusOnMouseDown, refocusTerminalIfFocusLost } from "@/lib/terminalFocus"
 
@@ -61,6 +62,7 @@ export function BroadcastManager({
   const { t } = useTranslation()
   const { config } = useConfig()
   const { registerHandler } = useKeymap()
+  const shortcutLabel = useShortcutLabel()
   const [open, setOpen] = useState(false)
   const [command, setCommand] = useState("")
   const [primaryInputTabId, setPrimaryInputTabId] = useState<string | null>(null)
@@ -131,6 +133,7 @@ export function BroadcastManager({
         type="button"
         className={`tab-action broadcast-trigger ${isLiveRunning ? "is-live" : open ? "is-open" : ""}`}
         aria-label={t("broadcast.title")}
+        title={withShortcut(t("broadcast.title"), shortcutLabel("broadcast.togglePanel"))}
         aria-expanded={open}
         onMouseDown={keepFocusOnMouseDown}
         onClick={() => setOpen((current) => !current)}

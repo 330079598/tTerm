@@ -4,7 +4,12 @@ import { useConfig } from "@/contexts/ConfigContext"
 import type { KeymapActionId } from "@/lib/keymap/actions"
 import { isMacPlatform } from "@/lib/keymap/chord"
 import { attachKeymapDispatcher, type KeymapHandler } from "@/lib/keymap/dispatcher"
-import { buildChordIndex, resolveEffectiveKeymap, type EffectiveKeymap } from "@/lib/keymap/keymap"
+import {
+  buildChordIndex,
+  getShortcutLabel,
+  resolveEffectiveKeymap,
+  type EffectiveKeymap,
+} from "@/lib/keymap/keymap"
 
 interface KeymapContextValue {
   /** Serialized chords currently in effect per action (null = unbound). */
@@ -102,4 +107,17 @@ export function useKeymap(): KeymapContextValue {
     throw new Error("useKeymap must be used within a KeymapProvider")
   }
   return context
+}
+
+/**
+ * Reads an action's shortcut as it is bound now, for menus and tooltips.
+ * Outside a KeymapProvider every action reads as unbound.
+ */
+export function useShortcutLabel(): (actionId: KeymapActionId | undefined) => string | undefined {
+  const bindings = useContext(KeymapContext)?.bindings
+  return useCallback(
+    (actionId) =>
+      bindings && actionId ? getShortcutLabel(bindings, actionId, isMacPlatform()) : undefined,
+    [bindings]
+  )
 }

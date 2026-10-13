@@ -61,7 +61,12 @@ export const TabItem = React.memo(function TabItem({
 
       if (isPageTab(tab)) {
         onContextMenu(e, tab, [
-          { label: t("contextMenu.newTab"), action: "new", icon: "plus" },
+          {
+            label: t("contextMenu.newTab"),
+            action: "new",
+            icon: "plus",
+            shortcut: "workspace.newTab",
+          },
           { separator: true, label: "", action: "" },
           ...closeActions,
         ])
@@ -79,7 +84,12 @@ export const TabItem = React.memo(function TabItem({
       const logActions = getTabLogMenuActions(tab, t)
 
       const actions: TabContextMenuAction[] = [
-        { label: t("contextMenu.newTab"), action: "new", icon: "plus" },
+        {
+          label: t("contextMenu.newTab"),
+          action: "new",
+          icon: "plus",
+          shortcut: "workspace.newTab",
+        },
         { label: t("contextMenu.duplicateTab"), action: "duplicate", icon: "copy" },
         ...getTabSplitMenuActions(tab, t),
         getTabRenameMenuAction(tab, t),

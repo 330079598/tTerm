@@ -57,7 +57,7 @@ export function getTabCloseMenuActions(
 ): TabContextMenuAction[] {
   const context = getTabCloseContext(tabIds, tabId)
   return [
-    { label: labels.closeTab, action: "close", icon: "x" },
+    { label: labels.closeTab, action: "close", icon: "x", shortcut: "tabs.closeActive" },
     {
       label: labels.closeOtherTabs,
       action: "close-others",

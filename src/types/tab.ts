@@ -1,3 +1,4 @@
+import type { KeymapActionId } from "@/lib/keymap/actions"
 import type { TabIconStyle } from "@/lib/tabIcons"
 import type { ProxyChoice } from "@/types/proxy"
 
@@ -219,4 +220,6 @@ export interface TabContextMenuAction {
   icon?: string
   separator?: boolean
   disabled?: boolean
+  /** The keymap action that does the same, whose current chord the menu shows. */
+  shortcut?: KeymapActionId
 }

@@ -3,6 +3,7 @@ import { Activity, Globe, Pin, PinOff, RefreshCcw, Route } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useShortcutLabel } from "@/contexts/KeymapContext"
 import {
   getConnectionDisplay,
   getConnectionStateLabel,
@@ -13,6 +14,7 @@ import {
   SshConnectionProgress,
   TerminalTabProps,
 } from "@/components/TerminalTab/types"
+import { withShortcut } from "@/lib/keymap/keymap"
 import { keepFocusOnMouseDown } from "@/lib/terminalFocus"
 
 function getConnectionProtocolLabel(
@@ -81,6 +83,7 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
   serverMonitorVisible,
 }) => {
   const { t } = useTranslation()
+  const shortcutLabel = useShortcutLabel()
   const showConnectionHeader = connection?.type === "ssh" && connectionHeaderPinned
   const showPinnedToggle = connection?.type === "ssh" && !connectionHeaderPinned
   const progressLabel =
@@ -185,6 +188,10 @@ export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
               className="connection-action"
               onMouseDown={keepFocusOnMouseDown}
               onClick={onToggleSftpDrawer}
+              title={withShortcut(
+                t("sessionHeader.sftp", { defaultValue: "SFTP" }),
+                shortcutLabel("sftp.toggle")
+              )}
             >
               <Globe size={14} />
               <span>{t("sessionHeader.sftp", { defaultValue: "SFTP" })}</span>

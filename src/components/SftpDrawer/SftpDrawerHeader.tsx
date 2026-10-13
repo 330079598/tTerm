@@ -23,6 +23,8 @@ import { SftpPathBar } from "@/components/SftpDrawer/SftpPathBar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useShortcutLabel } from "@/contexts/KeymapContext"
+import { withShortcut } from "@/lib/keymap/keymap"
 import { cn } from "@/lib/utils"
 import type { LoadSftpDirectory } from "@/components/SftpDrawer/types"
 import type { SftpSearchOptions } from "@/components/SftpDrawer/sftpSearch"
@@ -94,6 +96,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   toggleShowHidden,
 }) => {
   const { t } = useTranslation()
+  const shortcutLabel = useShortcutLabel()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -126,9 +129,15 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   }
 
   const navigationButtons = [
-    { key: "back", Icon: ArrowLeft, enabled: canGoBack, onClick: goBack },
-    { key: "forward", Icon: ArrowRight, enabled: canGoForward, onClick: goForward },
-    { key: "up", Icon: ArrowUp, enabled: canGoUp, onClick: goUp },
+    { key: "back", Icon: ArrowLeft, enabled: canGoBack, onClick: goBack, shortcut: "sftp.back" },
+    {
+      key: "forward",
+      Icon: ArrowRight,
+      enabled: canGoForward,
+      onClick: goForward,
+      shortcut: "sftp.forward",
+    },
+    { key: "up", Icon: ArrowUp, enabled: canGoUp, onClick: goUp, shortcut: "sftp.up" },
   ] as const
   const navigationLabels = {
     back: t("sftp.actions.back", { defaultValue: "Back" }),
@@ -146,7 +155,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
       <div className="sftp-header-left">
         <span className="sftp-drawer-eyebrow">SFTP</span>
         <div className="sftp-nav-group">
-          {navigationButtons.map(({ key, Icon, enabled, onClick }) => (
+          {navigationButtons.map(({ key, Icon, enabled, onClick, shortcut }) => (
             <Tooltip key={key}>
               <TooltipTrigger asChild>
                 <Button
@@ -160,7 +169,9 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
                   <Icon className="size-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{navigationLabels[key]}</TooltipContent>
+              <TooltipContent>
+                {withShortcut(navigationLabels[key], shortcutLabel(shortcut))}
+              </TooltipContent>
             </Tooltip>
           ))}
         </div>

@@ -1,15 +1,26 @@
 import type { useTranslation } from "react-i18next"
 
+import type { KeymapActionId } from "@/lib/keymap/actions"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
 import { getTabLogMenuActions } from "@/lib/terminalLogRecording"
 import { isPageTab, type Tab, type TabContextMenuAction } from "@/types/tab"
 
-const SPLITS = [
-  { key: "splitRight", label: "Split Right", action: "split-right" },
+const SPLITS: {
+  key: string
+  label: string
+  action: string
+  shortcut?: KeymapActionId
+}[] = [
+  {
+    key: "splitRight",
+    label: "Split Right",
+    action: "split-right",
+    shortcut: "workspace.splitRight",
+  },
   { key: "splitLeft", label: "Split Left", action: "split-left" },
-  { key: "splitDown", label: "Split Down", action: "split-down" },
+  { key: "splitDown", label: "Split Down", action: "split-down", shortcut: "workspace.splitBelow" },
   { key: "splitAbove", label: "Split Above", action: "split-above" },
-] as const
+]
 
 /** The menu items that split a terminal tab's pane, none for other tabs. */
 export function getTabSplitMenuActions(
@@ -17,10 +28,11 @@ export function getTabSplitMenuActions(
   t: ReturnType<typeof useTranslation>["t"]
 ): TabContextMenuAction[] {
   if (tab.type !== "terminal" && tab.type !== "ssh") return []
-  return SPLITS.map(({ key, label, action }) => ({
+  return SPLITS.map(({ key, label, action, shortcut }) => ({
     label: t(`contextMenu.${key}`, { defaultValue: label }),
     action,
     icon: action,
+    shortcut,
   }))
 }
 
@@ -30,7 +42,7 @@ export function getTabRenameMenuAction(
   t: ReturnType<typeof useTranslation>["t"]
 ): TabContextMenuAction {
   const label = tab.type === "terminal" ? t("contextMenu.editTab") : t("contextMenu.renameTab")
-  return { label, action: "rename", icon: "edit" }
+  return { label, action: "rename", icon: "edit", shortcut: "tabs.renameActive" }
 }
 
 /** The item that pins or unpins an SSH tab's connection header, none for other tabs. */
@@ -51,7 +63,7 @@ export function getWorkspaceTabMenuActions(
   t: ReturnType<typeof useTranslation>["t"]
 ): TabContextMenuAction[] {
   const commonStart: TabContextMenuAction[] = [
-    { label: t("contextMenu.newTab"), action: "new", icon: "plus" },
+    { label: t("contextMenu.newTab"), action: "new", icon: "plus", shortcut: "workspace.newTab" },
   ]
   const commonEnd: TabContextMenuAction[] = [
     { separator: true, label: "", action: "" },
