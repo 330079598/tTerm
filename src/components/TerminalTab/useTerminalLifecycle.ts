@@ -170,6 +170,10 @@ export function useTerminalLifecycle({
       if (session.disposed) return
       fitTerminalOnly()
       term.refresh(0, Math.max(0, term.rows - 1))
+      // The new cell size changes the column count without resizing the pane,
+      // so no ResizeObserver tells the PTY; a shell left at the fallback
+      // font's width wraps and redraws its line at the wrong column.
+      scheduleFitDuringResize()
     }
 
     void document.fonts?.ready?.then(handleFontsLoaded)
