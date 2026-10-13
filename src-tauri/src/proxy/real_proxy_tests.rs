@@ -1,10 +1,12 @@
 //! SSH sessions through real proxy servers to a real OpenSSH server (see
-//! [`crate::ssh::test_sshd`]): OpenSSH's own SOCKS5 server (`ssh -D`) and
-//! tinyproxy for HTTP `CONNECT`. Run them with:
+//! [`crate::ssh::test_sshd`]): OpenSSH's own SOCKS5 server (`ssh -D`),
+//! tinyproxy for HTTP `CONNECT`, and proxy commands (`nc`, `ssh -W`). Run
+//! them with:
 //! ```sh
 //! cargo test --lib -- --ignored real_proxy
 //! ```
 
+use super::command::{expand, spawn, CommandTarget};
 use super::connect::connect_through_proxy;
 use super::{ProxyEndpoint, ProxyKind};
 use crate::ssh::auth::{authenticate, AuthPrompter, AuthTarget};
@@ -44,6 +46,7 @@ fn endpoint(kind: ProxyKind, port: u16, credentials: Option<(&str, &str)>) -> Pr
         port,
         username: credentials.map(|(username, _)| username.to_string()),
         password: credentials.map(|(_, password)| Zeroizing::new(password.to_string())),
+        command: None,
     }
 }
 
@@ -53,6 +56,14 @@ async fn run_through(proxy: &ProxyEndpoint, host: &str, sshd: &TestSshd) -> Stri
     let stream = connect_through_proxy(proxy, host, sshd.port)
         .await
         .unwrap_or_else(|error| panic!("proxy tunnel: {error}"));
+    run_session(stream, host, sshd).await
+}
+
+/// Signs in to `sshd` as `host` over `stream` and runs a command.
+async fn run_session<S>(stream: S, host: &str, sshd: &TestSshd) -> String
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+{
     let mut session = russh::client::connect_stream(
         Arc::new(crate::ssh::jump::config::compatibility_client_config(15, 3)),
         stream,
@@ -184,4 +195,52 @@ async fn real_proxy_http_connect_from_tinyproxy_carries_a_session() {
     .expect_err("no credentials are refused");
     assert!(error.message().contains("requires a user name"), "{error}");
     drop(tinyproxy);
+}
+
+/// Signs in to `sshd` over the proxy command `template`.
+async fn run_command(template: &str, sshd: &TestSshd) -> String {
+    let username = current_user();
+    let command_line = expand(
+        template,
+        &CommandTarget {
+            host: "127.0.0.1",
+            port: sshd.port,
+            username: &username,
+        },
+    )
+    .expect("expand the command");
+    let stream = spawn(&command_line)
+        .await
+        .unwrap_or_else(|error| panic!("proxy command: {error}"));
+    run_session(stream, "127.0.0.1", sshd).await
+}
+
+#[tokio::test]
+#[ignore = "spawns a real sshd, nc and ssh -W; run with --ignored real_proxy"]
+async fn real_proxy_command_carries_a_session() {
+    let sshd = TestSshd::spawn(12335, &["-t", "ed25519"], "").await;
+    assert_eq!(run_command("nc %h %p", &sshd).await, "through-proxy");
+
+    // The usual jump through another server, here the same one.
+    let jump = format!(
+        "ssh -F /dev/null -o BatchMode=yes -o IdentitiesOnly=yes \
+         -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR \
+         -i {} -p %p %r@%h -W %h:%p",
+        sshd.client_key.display()
+    );
+    assert_eq!(run_command(&jump, &sshd).await, "through-proxy");
+
+    // A command that cannot reach the host says why.
+    let error = russh::client::connect_stream(
+        Arc::new(crate::ssh::jump::config::compatibility_client_config(15, 3)),
+        spawn("nc 127.0.0.1 1").await.expect("spawn nc"),
+        AcceptAnyServerKey,
+    )
+    .await
+    .err()
+    .expect("nothing listens on port 1");
+    assert!(
+        error.to_string().contains("exited with status 1"),
+        "{error}"
+    );
 }

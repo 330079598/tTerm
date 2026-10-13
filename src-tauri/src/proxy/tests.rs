@@ -16,6 +16,7 @@ fn endpoint(kind: ProxyKind, port: u16, credentials: Option<(&str, &str)>) -> Pr
         port,
         username: credentials.map(|(username, _)| username.to_string()),
         password: credentials.map(|(_, password)| Zeroizing::new(password.to_string())),
+        command: None,
     }
 }
 
@@ -222,6 +223,7 @@ fn server(id: &str, name: &str) -> ProxyServer {
         host: "127.0.0.1".to_string(),
         port: 7890,
         username: None,
+        command: None,
     }
 }
 
@@ -241,6 +243,35 @@ fn servers_are_trimmed_and_checked() {
     assert!(normalize_server(server_with(|s| s.name.clear())).is_err());
     assert!(normalize_server(server_with(|s| s.host = "a b".to_string())).is_err());
     assert!(normalize_server(server_with(|s| s.port = 0)).is_err());
+}
+
+#[test]
+fn a_command_proxy_keeps_only_its_command() {
+    let command = |text: &str| {
+        server_with(|s| {
+            s.kind = ProxyKind::Command;
+            s.username = Some("me".to_string());
+            s.command = Some(text.to_string());
+        })
+    };
+    let server = normalize_server(command("  cloudflared access ssh --hostname %h  ")).unwrap();
+    assert_eq!(
+        server.command.as_deref(),
+        Some("cloudflared access ssh --hostname %h")
+    );
+    assert_eq!((server.host.as_str(), server.port), ("", 0));
+    assert_eq!(server.username, None);
+    // It stores without the fields it does not use.
+    let stored = serde_json::to_value(&server).unwrap();
+    assert_eq!(stored["kind"], "command");
+    assert!(stored.get("username").is_none());
+
+    assert!(normalize_server(command(" ")).is_err());
+    assert!(normalize_server(command("nc %h\n%p")).is_err());
+    assert!(normalize_server(command("nc %x")).is_err());
+    // A server of another kind drops a leftover command.
+    let http = normalize_server(server_with(|s| s.command = Some("nc".to_string()))).unwrap();
+    assert_eq!(http.command, None);
 }
 
 fn server_with(change: impl FnOnce(&mut ProxyServer)) -> ProxyServer {

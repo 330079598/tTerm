@@ -455,6 +455,7 @@ fn proxies_and_their_passwords_sync_in_order() {
         host: "proxy.corp".to_string(),
         port: 8080,
         username: Some("me".to_string()),
+        command: None,
     };
     a.database
         .write(|transaction| {

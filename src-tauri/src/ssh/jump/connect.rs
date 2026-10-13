@@ -2,7 +2,9 @@ use super::config::{compatibility_client_config, unverifiable_host_key_error};
 use super::handler::JumpHostHandler;
 use crate::core::session::{types::JumpHostPlan, types::SessionPlan};
 use crate::core::state::HostPromptMap;
-use crate::proxy::{connect::connect_through_proxy, ProxyEndpoint};
+use crate::proxy::command::CommandTarget;
+use crate::proxy::connect::{open_stream, ProxyStream};
+use crate::proxy::{ProxyEndpoint, ProxyKind};
 use crate::ssh::auth::{authenticate, AuthMethod, AuthPrompter, AuthTarget};
 use crate::ssh::types::{
     emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode, SshClientHandler,
@@ -119,31 +121,31 @@ fn build_jump_handler(
     }
 }
 
-/// Opens the stream to the first host through `proxy`, reporting progress,
-/// or `None` when the first host is dialed directly.
+/// Opens the stream to the first host, `target`, through `proxy`, reporting
+/// progress, or `None` when the first host is dialed directly.
 pub(crate) async fn open_proxy_stream(
     ctx: ConnectContext<'_>,
     proxy: Option<&ProxyEndpoint>,
-    host: &str,
-    port: u16,
-) -> Result<Option<tokio::net::TcpStream>, SshConnectError> {
+    target: &CommandTarget<'_>,
+) -> Result<Option<ProxyStream>, SshConnectError> {
     let Some(proxy) = proxy else {
         return Ok(None);
     };
-    emit_connection_progress(
-        ctx.app,
-        ctx.tab_id,
-        ctx.status_options,
-        SshConnectionProgressPayload::new(
-            "proxy_connecting",
-            format!(
-                "Connecting to {host}:{port} through the {}",
-                proxy.describe()
-            ),
-        )
-        .host(proxy.host.clone(), proxy.port),
+    let (host, port) = (target.host, target.port);
+    let progress = SshConnectionProgressPayload::new(
+        "proxy_connecting",
+        format!(
+            "Connecting to {host}:{port} through the {}",
+            proxy.describe()
+        ),
     );
-    connect_through_proxy(proxy, host, port).await.map(Some)
+    let progress = if proxy.kind == ProxyKind::Command {
+        progress
+    } else {
+        progress.host(proxy.host.clone(), proxy.port)
+    };
+    emit_connection_progress(ctx.app, ctx.tab_id, ctx.status_options, progress);
+    open_stream(ctx.app, proxy, target).await.map(Some)
 }
 
 /// The SSH handshake with the first host, over `stream` when a proxy opened
@@ -152,7 +154,7 @@ pub(crate) async fn connect_first_hop<H>(
     config: Arc<client::Config>,
     host: &str,
     port: u16,
-    stream: Option<tokio::net::TcpStream>,
+    stream: Option<ProxyStream>,
     handler: H,
 ) -> Result<client::Handle<H>, russh::Error>
 where
@@ -233,7 +235,16 @@ async fn connect_jump_direct(
         .hop(hop_index, total_hops),
     );
 
-    let stream = open_proxy_stream(ctx, proxy, &jump_plan.host, jump_plan.port).await?;
+    let stream = open_proxy_stream(
+        ctx,
+        proxy,
+        &CommandTarget {
+            host: &jump_plan.host,
+            port: jump_plan.port,
+            username: &jump_plan.username,
+        },
+    )
+    .await?;
     let mut session = tokio::time::timeout(
         Duration::from_secs(15),
         connect_first_hop(
@@ -613,7 +624,16 @@ pub async fn open_target_ssh_session_with_forwarding(
             .host(target_host.to_string(), target_port)
             .username(target_username.to_string()),
         );
-        let stream = open_proxy_stream(ctx, target.proxy, target_host, target_port).await?;
+        let stream = open_proxy_stream(
+            ctx,
+            target.proxy,
+            &CommandTarget {
+                host: target_host,
+                port: target_port,
+                username: target_username,
+            },
+        )
+        .await?;
         let sess = connect_first_hop(target_config, target_host, target_port, stream, handler)
             .await
             .map_err(|e| {

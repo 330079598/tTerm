@@ -35,6 +35,7 @@ fn endpoint(server: ProxyServer, password: Option<Zeroizing<String>>) -> ProxyEn
         port: server.port,
         password: server.username.as_ref().and(password),
         username: server.username,
+        command: server.command,
     }
 }
 
@@ -95,6 +96,7 @@ mod tests {
             host: "proxy".to_string(),
             port: 8080,
             username: None,
+            command: None,
         };
         let password = Some(Zeroizing::new("secret".to_string()));
         assert!(endpoint(server.clone(), password.clone())

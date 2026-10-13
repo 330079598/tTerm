@@ -1,10 +1,15 @@
-//! Proxy servers that SSH connections reach their first host through: an
-//! HTTP proxy (`CONNECT`) or a SOCKS5 proxy. The servers are kept in a list
-//! that hosts refer to by id, with one of them as this device's default.
+//! Proxies that SSH connections reach their first host through: an HTTP
+//! proxy (`CONNECT`), a SOCKS5 proxy, or a local command whose input and
+//! output carry the connection, as OpenSSH's `ProxyCommand`. The proxies are
+//! kept in a list that hosts refer to by id, with one of them as this
+//! device's default.
 //!
-//! `storage` keeps the list, `resolve` turns a host's choice into the server
-//! to dial, and `connect` opens the TCP stream through it.
+//! `storage` keeps the list, `resolve` turns a host's choice into the proxy
+//! to use, and `connect` opens the stream through it: over TCP, or by running
+//! the command (`command`) once the user allowed it here (`approval`).
 
+pub(crate) mod approval;
+pub(crate) mod command;
 pub(crate) mod connect;
 mod http_connect;
 pub(crate) mod resolve;
@@ -26,6 +31,8 @@ pub enum ProxyKind {
     Http,
     /// A SOCKS5 proxy, which also resolves the target's host name.
     Socks5,
+    /// A local command whose standard input and output carry the connection.
+    Command,
 }
 
 impl ProxyKind {
@@ -33,22 +40,29 @@ impl ProxyKind {
         match self {
             Self::Http => "HTTP",
             Self::Socks5 => "SOCKS5",
+            Self::Command => "command",
         }
     }
 }
 
-/// A saved proxy server, without its password.
+/// A saved proxy, without its password. A command proxy has only a command;
+/// the others have a host and port instead.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProxyServer {
     pub id: String,
     pub name: String,
     pub kind: ProxyKind,
+    #[serde(default)]
     pub host: String,
+    #[serde(default)]
     pub port: u16,
     /// Sign in to the proxy as this user; no authentication when unset.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
+    /// The command line, with OpenSSH's `%h`, `%p`, `%r` and `%%` tokens.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
 }
 
 /// A saved proxy server as the settings list shows it.
@@ -80,7 +94,7 @@ impl ProxyChoice {
     }
 }
 
-/// A proxy server to dial, with its password.
+/// A proxy to use, with its password.
 #[derive(Clone)]
 pub struct ProxyEndpoint {
     pub name: String,
@@ -89,11 +103,16 @@ pub struct ProxyEndpoint {
     pub port: u16,
     pub username: Option<String>,
     pub password: Option<Zeroizing<String>>,
+    /// The command line of a command proxy, before its tokens are replaced.
+    pub command: Option<String>,
 }
 
 impl ProxyEndpoint {
     /// How progress messages and errors name the proxy, e.g. `SOCKS5 proxy "Office" (10.0.0.1:1080)`.
     pub fn describe(&self) -> String {
+        if self.kind == ProxyKind::Command {
+            return format!("proxy command \"{}\"", self.name);
+        }
         format!(
             "{} proxy \"{}\" ({}:{})",
             self.kind.label(),
@@ -114,6 +133,7 @@ impl std::fmt::Debug for ProxyEndpoint {
             .field("port", &self.port)
             .field("username", &self.username)
             .field("password", &self.password.as_ref().map(|_| "<redacted>"))
+            .field("command", &self.command)
             .finish()
     }
 }
@@ -144,12 +164,41 @@ fn normalize_server(mut server: ProxyServer) -> Result<ProxyServer, String> {
     if server.name.is_empty() {
         return Err("Enter a name for the proxy.".to_string());
     }
+    if server.kind == ProxyKind::Command {
+        return normalize_command(server);
+    }
+    server.command = None;
     if server.host.is_empty() || server.host.contains(char::is_whitespace) {
         return Err("Enter the proxy's host name or IP address.".to_string());
     }
     if server.port == 0 {
         return Err("Enter the proxy's port, between 1 and 65535.".to_string());
     }
+    Ok(server)
+}
+
+fn normalize_command(mut server: ProxyServer) -> Result<ProxyServer, String> {
+    let command = server
+        .command
+        .as_deref()
+        .map(str::trim)
+        .filter(|command| !command.is_empty())
+        .ok_or_else(|| "Enter the command to run.".to_string())?;
+    if command.contains(['\n', '\r']) {
+        return Err("The command must be on one line.".to_string());
+    }
+    command::expand(
+        command,
+        &command::CommandTarget {
+            host: "host",
+            port: 22,
+            username: "user",
+        },
+    )?;
+    server.command = Some(command.to_string());
+    server.host = String::new();
+    server.port = 0;
+    server.username = None;
     Ok(server)
 }
 
@@ -204,7 +253,14 @@ pub async fn save_proxy(
                 secret_state.delete_password(&app, &key)?;
             }
         }
-        crate::db::write(|transaction| storage::upsert_proxy(transaction, &server))?;
+        crate::db::write(|transaction| {
+            storage::upsert_proxy(transaction, &server)?;
+            // A command typed here needs no second confirmation to run.
+            match &server.command {
+                Some(command) => approval::allow(transaction, command),
+                None => Ok(()),
+            }
+        })?;
         list_entries(&secret_state)
     })
     .await

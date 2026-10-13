@@ -106,6 +106,7 @@ pub fn run() {
         .manage(pty_map)
         .manage(host_prompt_map)
         .manage(ssh::auth::AuthPromptMap::default())
+        .manage(proxy::approval::ProxyCommandPrompts::default())
         .manage(sftp_pool)
         .manage(monitor_sessions)
         .manage(transfer_cancel_map)
@@ -159,6 +160,8 @@ pub fn run() {
             proxy::list_proxies,
             proxy::save_proxy,
             proxy::delete_proxy,
+            proxy::approval::pending_proxy_command_prompts,
+            proxy::approval::respond_proxy_command_prompt,
             config::window_background::save_window_background,
             window_blur::set_window_blur,
             window_blur::system_prefers_dark,

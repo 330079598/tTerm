@@ -103,11 +103,12 @@ impl SessionKey {
         if let Some(proxy) = &plan.proxy {
             let _ = write!(
                 id,
-                "|proxy {:?} {}@{}:{}",
+                "|proxy {:?} {}@{}:{} {}",
                 proxy.kind,
                 proxy.username.as_deref().unwrap_or_default(),
                 proxy.host,
-                proxy.port
+                proxy.port,
+                proxy.command.as_deref().unwrap_or_default()
             );
             proxy.password.as_deref().hash(&mut hasher);
         }

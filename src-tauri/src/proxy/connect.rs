@@ -1,8 +1,15 @@
-//! Opens the TCP stream an SSH session starts on through a proxy server.
+//! Opens the stream an SSH session starts on through a proxy: a TCP stream
+//! through a proxy server, or the input and output of a proxy command.
 
+use super::command::{self, CommandStream, CommandTarget};
 use super::{http_connect, socks5, ProxyEndpoint, ProxyKind};
 use crate::ssh::types::SshConnectError;
+use std::io;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use std::time::Duration;
+use tauri::AppHandle;
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::TcpStream;
 
 /// How long reaching the proxy and its handshake may take together.
@@ -84,6 +91,11 @@ async fn open_tunnel(
     match proxy.kind {
         ProxyKind::Http => http_connect::handshake(&mut stream, proxy, host, port).await?,
         ProxyKind::Socks5 => socks5::handshake(&mut stream, proxy, host, port).await?,
+        ProxyKind::Command => {
+            return Err(ProxyError::Invalid(
+                "a proxy command is not a server to dial".to_string(),
+            ))
+        }
     }
     Ok(stream)
 }
@@ -112,4 +124,69 @@ pub async fn connect_through_proxy(
     port: u16,
 ) -> Result<TcpStream, SshConnectError> {
     connect_with_timeout(proxy, host, port, HANDSHAKE_TIMEOUT).await
+}
+
+/// The stream to the first host that a proxy opened.
+pub enum ProxyStream {
+    Tcp(TcpStream),
+    Command(CommandStream),
+}
+
+/// Opens the stream to `target` through `proxy`. A proxy command this device
+/// has not allowed yet is shown to the user first.
+pub async fn open_stream(
+    app: &AppHandle,
+    proxy: &ProxyEndpoint,
+    target: &CommandTarget<'_>,
+) -> Result<ProxyStream, SshConnectError> {
+    let Some(template) = proxy.command.as_deref() else {
+        return connect_through_proxy(proxy, target.host, target.port)
+            .await
+            .map(ProxyStream::Tcp);
+    };
+    let command_line = command::expand(template, target).map_err(SshConnectError::Permanent)?;
+    super::approval::ensure_allowed(app, &proxy.name, template).await?;
+    command::spawn(&command_line)
+        .await
+        .map(ProxyStream::Command)
+}
+
+impl AsyncRead for ProxyStream {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        match self.get_mut() {
+            Self::Tcp(stream) => Pin::new(stream).poll_read(cx, buf),
+            Self::Command(stream) => Pin::new(stream).poll_read(cx, buf),
+        }
+    }
+}
+
+impl AsyncWrite for ProxyStream {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        data: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        match self.get_mut() {
+            Self::Tcp(stream) => Pin::new(stream).poll_write(cx, data),
+            Self::Command(stream) => Pin::new(stream).poll_write(cx, data),
+        }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match self.get_mut() {
+            Self::Tcp(stream) => Pin::new(stream).poll_flush(cx),
+            Self::Command(stream) => Pin::new(stream).poll_flush(cx),
+        }
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match self.get_mut() {
+            Self::Tcp(stream) => Pin::new(stream).poll_shutdown(cx),
+            Self::Command(stream) => Pin::new(stream).poll_shutdown(cx),
+        }
+    }
 }
