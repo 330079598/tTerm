@@ -64,6 +64,13 @@ const AGENT_ECHO_WINDOW_MS = 10_000
  */
 export const AGENT_CLAIM_WINDOW_MS = 10_000
 
+/**
+ * Agents that report it themselves when the user stops them or refuses what
+ * they ask, which Claude Code does not. Their keys are no sign of a stop:
+ * Codex's Esc closes a popup first, and its Ctrl+C clears a draft.
+ */
+const AGENTS_REPORTING_STOPS: ReadonlySet<string> = new Set(["codex", "opencode", "pi"])
+
 /** The terminal each addressed session was submitted from, across tabs. */
 const sessionOwners = new Map<string, AgentTracker>()
 
@@ -127,11 +134,11 @@ export class AgentTracker {
   }
 
   /**
-   * Esc or Ctrl+C typed in the terminal: an agent at work stops and waits for
-   * the user, without a hook to say so.
+   * Esc or Ctrl+C typed in the terminal: an agent at work that does not
+   * report its stops stops and waits for the user, without a hook to say so.
    */
   interrupt() {
-    if (!this.status) return
+    if (!this.status || AGENTS_REPORTING_STOPS.has(this.status.agent)) return
     this.cancelWait()
     this.setStatus(null)
   }

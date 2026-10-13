@@ -125,6 +125,13 @@ describe("AgentTracker", () => {
     expect(announcements).toEqual([])
   })
 
+  it("leaves stops to an agent that reports them", () => {
+    // Codex's Esc may only close a popup, and its Ctrl+C clear a draft.
+    tracker.report({ agent: "codex", state: "processing" })
+    tracker.interrupt()
+    expect(statuses).toEqual([{ agent: "codex", activity: "processing" }])
+  })
+
   it("goes quiet when the agent reports it was stopped", () => {
     tracker.report({ agent: "codex", state: "waiting" })
     tracker.report({ agent: "codex", state: "idle" })
