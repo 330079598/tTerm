@@ -141,15 +141,14 @@ where
 /// key, a configured one that cannot be used is an error, so the user learns
 /// why instead of seeing the server turn the key down.
 pub(super) fn load_certificate(path: &str, public_key: &PublicKey) -> Result<Certificate, String> {
-    let text = std::fs::read_to_string(crate::profiles::parser::expand_home_path(path)).map_err(
-        |error| {
+    let text = std::fs::read_to_string(crate::profiles::parser::paths::expand_home_path(path))
+        .map_err(|error| {
             if error.kind() == std::io::ErrorKind::NotFound {
                 format!("certificate file not found: {path}")
             } else {
                 format!("cannot read certificate file {path}: {error}")
             }
-        },
-    )?;
+        })?;
     let certificate = Certificate::from_openssh(text.trim())
         .map_err(|error| format!("{path} is not an OpenSSH certificate: {error}"))?;
     if certificate.public_key() != public_key.key_data() {

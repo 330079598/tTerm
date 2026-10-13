@@ -1,4 +1,6 @@
-use super::{build_import_host, parse_ssh_config, read_ssh_config_with_includes};
+use super::host::build_import_host;
+use super::include::read_ssh_config_with_includes;
+use super::parse::parse_ssh_config;
 use crate::profiles::storage::sanitize_profile;
 use crate::profiles::types::SavedProfile;
 use std::collections::HashSet;
@@ -189,7 +191,7 @@ Host keyless
         .map(|raw| build_import_host(raw, &defaults, &[]))
         .collect();
 
-    let home = super::home_dir().expect("home directory");
+    let home = super::paths::home_dir().expect("home directory");
     let expected = home
         .join(".ssh/id_ed25519-ca-cert.pub")
         .to_string_lossy()
