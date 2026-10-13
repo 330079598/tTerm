@@ -34,6 +34,7 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
     "alt+8",
     "alt+9",
   ],
+  "tabs.renameActive": "mod+shift+r",
   "tabs.closeActive": "mod+shift+w",
   "terminal.find": "mod+f",
   "terminal.clear": "mod+shift+k",

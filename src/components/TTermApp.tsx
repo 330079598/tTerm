@@ -153,6 +153,7 @@ export const TTermApp: React.FC = () => {
   const {
     contextMenu,
     renameDialog,
+    openRenameDialog,
     handleTabContextMenu,
     handleContextMenuAction,
     handleCloseContextMenu,
@@ -188,7 +189,7 @@ export const TTermApp: React.FC = () => {
   })
 
   const commandLibrary = useCommandLibraryActions(shell, broadcast)
-  useTabKeymap(shell, { handleNewTab, handleRemoveTab })
+  useTabKeymap(shell, { handleNewTab, handleRemoveTab, openRenameDialog })
 
   const handleCollapsedProfileGroupKeysChange = useCollapsedProfileGroupsSaver()
 

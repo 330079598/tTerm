@@ -13,6 +13,7 @@ export type KeymapActionId =
   | "tabs.next"
   | "tabs.prev"
   | "tabs.switchToNth"
+  | "tabs.renameActive"
   | "tabs.closeActive"
   // terminal
   | "terminal.find"
@@ -60,6 +61,7 @@ export const KEYMAP_ACTIONS: KeymapActionDefinition[] = [
   { id: "tabs.next", group: "tabs", allowInEditable: true },
   { id: "tabs.prev", group: "tabs", allowInEditable: true },
   { id: "tabs.switchToNth", group: "tabs", allowInEditable: true },
+  { id: "tabs.renameActive", group: "tabs", allowInEditable: true },
   { id: "tabs.closeActive", group: "tabs", allowInEditable: true },
   { id: "terminal.find", group: "terminal", allowInEditable: true },
   { id: "terminal.clear", group: "terminal", allowInEditable: true },

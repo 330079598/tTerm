@@ -48,6 +48,16 @@ export function useTabContextMenu({
     actions: [],
   })
 
+  /** Opens the dialog that renames a tab, and picks a local tab's icon. */
+  const openRenameDialog = useCallback((tab: Tab) => {
+    setRenameDialogState({
+      isOpen: true,
+      tabId: tab.id,
+      currentName: tab.title,
+      localTab: tab.type === "terminal" ? tab : undefined,
+    })
+  }, [])
+
   const handleTabContextMenu = useCallback(
     (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => {
       event.preventDefault()
@@ -90,12 +100,7 @@ export function useTabContextMenu({
           splitTab(tab.id, "above")
           break
         case "rename":
-          setRenameDialogState({
-            isOpen: true,
-            tabId: tab.id,
-            currentName: tab.title,
-            localTab: tab.type === "terminal" ? tab : undefined,
-          })
+          openRenameDialog(tab)
           break
         case "edit-connection":
           editTabProfile(tab)
@@ -150,6 +155,7 @@ export function useTabContextMenu({
       handleNewTab,
       duplicateTab,
       splitTab,
+      openRenameDialog,
       handleRemoveTab,
       handleCloseOtherTabs,
       handleCloseTabsToRight,
@@ -215,6 +221,7 @@ export function useTabContextMenu({
         onChange: handleIconStyleChange,
       },
     },
+    openRenameDialog,
     handleTabContextMenu,
     handleContextMenuAction,
     handleCloseContextMenu,
