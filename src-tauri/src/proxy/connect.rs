@@ -129,7 +129,9 @@ pub async fn connect_through_proxy(
 /// The stream to the first host that a proxy opened.
 pub enum ProxyStream {
     Tcp(TcpStream),
-    Command(CommandStream),
+    // Boxed because a command stream is several times the size of a TCP
+    // stream, and every connection would otherwise carry that size.
+    Command(Box<CommandStream>),
 }
 
 /// Opens the stream to `target` through `proxy`. A proxy command this device
@@ -148,7 +150,7 @@ pub async fn open_stream(
     super::approval::ensure_allowed(app, &proxy.name, template).await?;
     command::spawn(&command_line)
         .await
-        .map(ProxyStream::Command)
+        .map(|stream| ProxyStream::Command(Box::new(stream)))
 }
 
 impl AsyncRead for ProxyStream {
