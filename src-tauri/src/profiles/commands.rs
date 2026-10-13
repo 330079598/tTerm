@@ -9,12 +9,13 @@ use super::types::{
 };
 use crate::core::blocking::run_blocking;
 use crate::core::state::HostPromptMap;
+use crate::ssh::jump::connect::{connect_via_jump_chain, ConnectContext};
 use crate::ssh::types::SshConnectionProgressPayload;
 use crate::ssh::{
     secret_store::types::SecretLocation, types::ConnectionStatusOptions,
     types::HostKeyVerificationMode,
 };
-use connection_check::{authenticate_test_connection, test_connection_handler};
+use connection_check::{authenticate_test_connection, test_connection_handler, test_session_plan};
 use import::import_ssh_config_profiles_blocking;
 use std::collections::HashSet;
 
@@ -338,10 +339,6 @@ pub struct TestConnectionResult {
 }
 
 #[tauri::command]
-#[expect(
-    clippy::too_many_lines,
-    reason = "predates the 150-line limit; split it when it next changes"
-)]
 pub async fn test_connection(
     app: tauri::AppHandle,
     mut profile: SavedProfile,
@@ -359,90 +356,9 @@ pub async fn test_connection(
     let host = profile.host.clone().ok_or("Host is required")?;
     let username = profile.username.clone().ok_or("Username is required")?;
     let port = profile.port.unwrap_or(22);
-
-    normalize_profile(&mut profile);
-
-    let jump_hosts = if profile.uses_jump_host() {
-        profile
-            .jump_hosts
-            .into_iter()
-            .map(|j| crate::core::session::types::JumpHostPlan {
-                host: j.host,
-                port: j.port,
-                username: j.username,
-                password: if matches!(j.auth_method.as_str(), "agent" | "interactive") {
-                    None
-                } else {
-                    j.password
-                },
-                private_key_path: if j.auth_method == "key" {
-                    j.private_key_path
-                } else {
-                    None
-                },
-                private_key_passphrase: if j.auth_method == "key" {
-                    j.private_key_passphrase
-                } else {
-                    None
-                },
-                certificate_path: if j.auth_method == "key" {
-                    j.certificate_path
-                } else {
-                    None
-                },
-                use_agent: j.auth_method == "agent",
-                auto_auth: j.auth_method == "auto",
-                keyboard_interactive: j.auth_method == "interactive",
-            })
-            .collect::<Vec<_>>()
-    } else {
-        Vec::new()
-    };
-
-    let mut plan = crate::core::session::types::SessionPlan {
-        kind: crate::core::state::SessionKind::Ssh,
-        profile_id: Some(profile.id.clone()),
-        profile_name: profile.name.clone(),
-        host: Some(host.clone()),
-        port,
-        username: Some(username.clone()),
-        password: if matches!(
-            profile.auth_method.as_deref(),
-            Some("agent" | "interactive")
-        ) {
-            None
-        } else {
-            profile.password.clone()
-        },
-        ignore_saved_password: profile.ignore_saved_password,
-        remember_password: false,
-        private_key_path: if profile.auth_method.as_deref() == Some("key") {
-            profile.private_key_path.clone()
-        } else {
-            None
-        },
-        private_key_passphrase: profile.private_key_passphrase.clone(),
-        certificate_path: if profile.auth_method.as_deref() == Some("key") {
-            profile.certificate_path.clone()
-        } else {
-            None
-        },
-        use_agent: profile.auth_method.as_deref() == Some("agent"),
-        auto_auth: profile.auth_method.as_deref() == Some("auto"),
-        keyboard_interactive: profile.auth_method.as_deref() == Some("interactive"),
-        agent_forward: false,
-        terminal_shell: None,
-        keepalive_interval_secs: profile.keepalive_interval_secs as u16,
-        keepalive_count_max: profile.keepalive_count_max as u16,
-        reconnect_enabled: false,
-        reconnect_max_attempts: 0,
-        jump_hosts,
-        encoding: Default::default(),
-        shell_integration: false,
-        session_log: Default::default(),
-    };
-
     let test_tab_id = format!("test-{}", profile.id);
+    let mut plan = test_session_plan(profile, &host, &username, port);
+
     // The connection dialog listens on the test tab id while the test runs.
     let auth_prompter = crate::ssh::auth::AuthPrompter::tab(&app, &test_tab_id);
     crate::core::session::resolve_ssh_password(&app, &secret_state, &mut plan)?;
@@ -457,90 +373,29 @@ pub async fn test_connection(
         ),
     );
 
-    use std::time::Duration;
-    let network_latency_ms;
+    let ctx = ConnectContext {
+        app: &app,
+        tab_id: &test_tab_id,
+        prompts: prompt_state.inner(),
+        status_options: ConnectionStatusOptions::SILENT,
+        host_key_verification_mode: HostKeyVerificationMode::TrustUnknownForSession,
+        auth_prompter: &auth_prompter,
+    };
+    let handler = test_connection_handler(
+        &app,
+        &test_tab_id,
+        &plan,
+        &host,
+        port,
+        prompt_state.inner().clone(),
+        HostKeyVerificationMode::TrustUnknownForSession,
+    );
+    let config = std::sync::Arc::new(crate::ssh::jump::config::compatibility_client_config(
+        plan.keepalive_interval_secs as u64,
+        plan.keepalive_count_max as usize,
+    ));
 
-    if !plan.jump_hosts.is_empty() {
-        let target_config =
-            std::sync::Arc::new(crate::ssh::jump::config::compatibility_client_config(
-                plan.keepalive_interval_secs as u64,
-                plan.keepalive_count_max as usize,
-            ));
-
-        let (jump_chain, mut target_session) = crate::ssh::jump::connect::connect_via_jump_chain(
-            crate::ssh::jump::connect::ConnectContext {
-                app: &app,
-                tab_id: &test_tab_id,
-                prompts: prompt_state.inner(),
-                status_options: ConnectionStatusOptions::SILENT,
-                host_key_verification_mode: HostKeyVerificationMode::TrustUnknownForSession,
-                auth_prompter: &auth_prompter,
-            },
-            &plan.jump_hosts,
-            &host,
-            port,
-            test_connection_handler(
-                &app,
-                &test_tab_id,
-                &plan,
-                &host,
-                port,
-                prompt_state.inner().clone(),
-                HostKeyVerificationMode::TrustUnknownForSession,
-            ),
-            target_config,
-        )
-        .await?;
-
-        crate::ssh::types::emit_connection_progress(
-            &app,
-            &test_tab_id,
-            ConnectionStatusOptions::SILENT,
-            SshConnectionProgressPayload::new(
-                "target_authenticating",
-                format!("Authenticating target as {}", username),
-            )
-            .host(host.clone(), port)
-            .username(username.clone()),
-        );
-
-        authenticate_test_connection(
-            &mut target_session,
-            &host,
-            port,
-            &username,
-            &plan,
-            &auth_prompter,
-        )
-        .await?;
-        network_latency_ms = crate::ssh::client::measure_ssh_latency(&target_session)
-            .await
-            .ok();
-        crate::ssh::types::emit_connection_progress(
-            &app,
-            &test_tab_id,
-            ConnectionStatusOptions::SILENT,
-            SshConnectionProgressPayload::new(
-                "ready",
-                format!("Successfully connected to {}@{}:{}", username, host, port),
-            )
-            .host(host.clone(), port)
-            .username(username.clone())
-            .network_latency(network_latency_ms),
-        );
-
-        let _ = target_session
-            .disconnect(russh::Disconnect::ByApplication, "", "")
-            .await;
-        drop(jump_chain);
-    } else {
-        use russh::client;
-
-        let config = std::sync::Arc::new(crate::ssh::jump::config::compatibility_client_config(
-            plan.keepalive_interval_secs as u64,
-            plan.keepalive_count_max as usize,
-        ));
-
+    let (jump_chain, mut session) = if plan.jump_hosts.is_empty() {
         crate::ssh::types::emit_connection_progress(
             &app,
             &test_tab_id,
@@ -552,22 +407,9 @@ pub async fn test_connection(
             .host(host.clone(), port)
             .username(username.clone()),
         );
-
-        let mut session = tokio::time::timeout(
-            Duration::from_secs(10),
-            client::connect(
-                config,
-                (host.as_str(), port),
-                test_connection_handler(
-                    &app,
-                    &test_tab_id,
-                    &plan,
-                    &host,
-                    port,
-                    prompt_state.inner().clone(),
-                    HostKeyVerificationMode::TrustUnknownForSession,
-                ),
-            ),
+        let session = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            russh::client::connect(config, (host.as_str(), port), handler),
         )
         .await
         .map_err(|_| "Connection timeout".to_string())?
@@ -577,40 +419,45 @@ pub async fn test_connection(
                 None => format!("Connection failed: {}", e),
             },
         )?;
+        (None, session)
+    } else {
+        let (chain, session) =
+            connect_via_jump_chain(ctx, &plan.jump_hosts, &host, port, handler, config).await?;
+        (Some(chain), session)
+    };
 
-        crate::ssh::types::emit_connection_progress(
-            &app,
-            &test_tab_id,
-            ConnectionStatusOptions::SILENT,
-            SshConnectionProgressPayload::new(
-                "target_authenticating",
-                format!("Authenticating target as {}", username),
-            )
-            .host(host.clone(), port)
-            .username(username.clone()),
-        );
+    crate::ssh::types::emit_connection_progress(
+        &app,
+        &test_tab_id,
+        ConnectionStatusOptions::SILENT,
+        SshConnectionProgressPayload::new(
+            "target_authenticating",
+            format!("Authenticating target as {}", username),
+        )
+        .host(host.clone(), port)
+        .username(username.clone()),
+    );
 
-        authenticate_test_connection(&mut session, &host, port, &username, &plan, &auth_prompter)
-            .await?;
-        network_latency_ms = crate::ssh::client::measure_ssh_latency(&session).await.ok();
-        crate::ssh::types::emit_connection_progress(
-            &app,
-            &test_tab_id,
-            ConnectionStatusOptions::SILENT,
-            SshConnectionProgressPayload::new(
-                "ready",
-                format!("Successfully connected to {}@{}:{}", username, host, port),
-            )
-            .host(host.clone(), port)
-            .username(username.clone())
-            .network_latency(network_latency_ms),
-        );
+    authenticate_test_connection(&mut session, &host, port, &username, &plan, &auth_prompter)
+        .await?;
+    let network_latency_ms = crate::ssh::client::measure_ssh_latency(&session).await.ok();
+    crate::ssh::types::emit_connection_progress(
+        &app,
+        &test_tab_id,
+        ConnectionStatusOptions::SILENT,
+        SshConnectionProgressPayload::new(
+            "ready",
+            format!("Successfully connected to {}@{}:{}", username, host, port),
+        )
+        .host(host.clone(), port)
+        .username(username.clone())
+        .network_latency(network_latency_ms),
+    );
 
-        session
-            .disconnect(russh::Disconnect::ByApplication, "", "")
-            .await
-            .ok();
-    }
+    let _ = session
+        .disconnect(russh::Disconnect::ByApplication, "", "")
+        .await;
+    drop(jump_chain);
 
     Ok(TestConnectionResult {
         message: format!("Successfully connected to {}@{}:{}", username, host, port),

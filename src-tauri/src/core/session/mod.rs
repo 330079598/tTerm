@@ -7,6 +7,41 @@ use types::{
 
 use crate::core::state::SessionKind;
 
+/// The local shell a terminal session starts, as the connection chose it.
+#[cfg(target_os = "windows")]
+fn terminal_shell_config(
+    connection: &PtyConnectionOptions,
+    cwd: Option<String>,
+) -> TerminalShellConfig {
+    let trimmed = |value: &Option<String>| {
+        value
+            .as_deref()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(str::to_string)
+    };
+    TerminalShellConfig {
+        shell: connection
+            .terminal_shell
+            .as_deref()
+            .unwrap_or("auto")
+            .trim()
+            .to_string(),
+        custom_path: trimmed(&connection.terminal_shell_custom_path),
+        custom_args: trimmed(&connection.terminal_shell_custom_args),
+        cwd,
+    }
+}
+
+/// The local shell a terminal session starts: the login shell, in `cwd`.
+#[cfg(not(target_os = "windows"))]
+fn terminal_shell_config(
+    _connection: &PtyConnectionOptions,
+    cwd: Option<String>,
+) -> TerminalShellConfig {
+    TerminalShellConfig { cwd }
+}
+
 pub fn normalize_connection(
     connection: Option<PtyConnectionOptions>,
 ) -> Result<SessionPlan, String> {
@@ -26,28 +61,7 @@ pub fn normalize_connection(
         .clone()
         .filter(|value| !value.trim().is_empty());
 
-    #[cfg(target_os = "windows")]
-    let terminal_shell = Some(TerminalShellConfig {
-        shell: connection
-            .terminal_shell
-            .unwrap_or_else(|| "auto".to_string())
-            .trim()
-            .to_string(),
-        custom_path: connection
-            .terminal_shell_custom_path
-            .as_ref()
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty()),
-        custom_args: connection
-            .terminal_shell_custom_args
-            .as_ref()
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty()),
-        cwd,
-    });
-
-    #[cfg(not(target_os = "windows"))]
-    let terminal_shell = Some(TerminalShellConfig { cwd });
+    let terminal_shell = Some(terminal_shell_config(&connection, cwd));
 
     match kind {
         SessionKind::Terminal => Ok(SessionPlan {
