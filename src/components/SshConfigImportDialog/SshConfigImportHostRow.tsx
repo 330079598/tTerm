@@ -9,12 +9,34 @@ import {
 import { formatForward } from "@/components/TunnelsPanel/tunnelUtils"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { proxyAddress, proxyKindLabel } from "@/lib/proxy"
 import { cn } from "@/lib/utils"
 
 interface SshConfigImportHostRowProps {
   host: SshConfigImportHost
   checked: boolean
   onCheckedChange: (checked: boolean) => void
+}
+
+/** What the host's `ProxyCommand` sets up, as one line. */
+const ProxyLine: React.FC<{ proxy: NonNullable<SshConfigImportHost["proxy"]> }> = ({ proxy }) => {
+  const { t } = useTranslation()
+  if (proxy.mode === "direct") return <div>{t("sshConfigImport.proxyDirect")}</div>
+  if (proxy.mode === "server") {
+    return (
+      <div>
+        {t("sshConfigImport.proxyServer", {
+          proxy: `${proxyKindLabel(proxy.kind)} ${proxyAddress(proxy)}`,
+        })}
+      </div>
+    )
+  }
+  return (
+    <div className="grid gap-0.5">
+      <div className="text-foreground/80 font-mono break-all">$ {proxy.command}</div>
+      <div>{t("sshConfigImport.proxyCommandHint")}</div>
+    </div>
+  )
 }
 
 /** One host of the SSH config, with what importing it would set up. */
@@ -74,6 +96,12 @@ export const SshConfigImportHostRow: React.FC<SshConfigImportHostRowProps> = ({
           </div>
         </div>
       </div>
+
+      {host.proxy && !host.skipped && (
+        <div className="text-muted-foreground ml-7 text-xs">
+          <ProxyLine proxy={host.proxy} />
+        </div>
+      )}
 
       {host.forwards.length > 0 && (
         <div className="text-muted-foreground ml-7 grid gap-0.5 font-mono text-xs">

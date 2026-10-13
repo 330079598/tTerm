@@ -84,7 +84,7 @@ fn parse_ssh_config_skips_wildcard_hosts_and_tracks_unsupported_options() {
     let config = r#"
 Host *.internal
   User deploy
-  ProxyCommand ssh gateway nc %h %p
+  ControlMaster auto
 "#;
 
     let (raw_hosts, defaults, warnings) = parse_ssh_config(config);
@@ -97,7 +97,7 @@ Host *.internal
         host.skip_reason.as_deref(),
         Some("Wildcard Host patterns are not imported as saved profiles.")
     );
-    assert_eq!(host.unsupported_options, vec!["proxycommand".to_string()]);
+    assert_eq!(host.unsupported_options, vec!["controlmaster".to_string()]);
 }
 
 #[test]
@@ -284,4 +284,82 @@ Host prod
     assert_eq!(host.host.as_deref(), Some("prod.example.com"));
 
     let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn parse_ssh_config_imports_proxy_commands() {
+    use crate::profiles::types::SshConfigImportProxy;
+    let config = r#"
+Host tunnel
+  HostName db.internal
+  ProxyCommand=sh -c "cloudflared access ssh --hostname %h"
+Host office
+  HostName 10.0.0.5
+  ProxyCommand nc -X connect -x proxy.corp:8080 %h %p
+Host behind
+  HostName 10.0.0.6
+  ProxyCommand ssh -q -W %h:%p ops@bastion
+Host both
+  HostName 10.0.0.7
+  ProxyJump gateway
+  ProxyCommand nc %h %p
+Host plain
+  HostName 10.0.0.8
+  ProxyCommand none
+Host fallback
+  HostName 10.0.0.9
+Host hashed
+  HostName 10.0.0.10
+  ProxyCommand ssh -S ~/.ssh/cm-%C -W %h:%p bastion
+Host *
+  ProxyCommand cloudflared access ssh --hostname %h
+"#;
+    let (raw_hosts, defaults, _) = parse_ssh_config(config);
+    let hosts: Vec<_> = raw_hosts
+        .into_iter()
+        .map(|raw| build_import_host(raw, &defaults, &[]))
+        .collect();
+    let host = |name: &str| hosts.iter().find(|host| host.name == name).unwrap();
+
+    // The shell gets the command with its quotes.
+    assert_eq!(
+        host("tunnel").proxy,
+        Some(SshConfigImportProxy::Command {
+            command: r#"sh -c "cloudflared access ssh --hostname %h""#.to_string()
+        })
+    );
+    assert_eq!(
+        host("office").proxy,
+        Some(SshConfigImportProxy::Server {
+            kind: crate::proxy::ProxyKind::Http,
+            host: "proxy.corp".to_string(),
+            port: 8080
+        })
+    );
+    let behind = host("behind");
+    assert_eq!(behind.proxy, None);
+    assert_eq!(behind.jump_hosts.len(), 1);
+    assert_eq!(
+        (
+            behind.jump_hosts[0].username.as_str(),
+            behind.jump_hosts[0].host.as_str()
+        ),
+        ("ops", "bastion")
+    );
+    let both = host("both");
+    assert_eq!(both.proxy, None);
+    assert_eq!(both.jump_hosts[0].host, "gateway");
+    assert!(both
+        .warnings
+        .iter()
+        .any(|w| w.contains("ProxyCommand was not imported")));
+    assert_eq!(host("plain").proxy, Some(SshConfigImportProxy::Direct));
+    assert!(matches!(
+        host("fallback").proxy,
+        Some(SshConfigImportProxy::Command { .. })
+    ));
+    // OpenSSH tokens tTerm cannot fill leave the host without a proxy.
+    let hashed = host("hashed");
+    assert_eq!(hashed.proxy, None);
+    assert!(hashed.warnings.iter().any(|w| w.contains("%C")));
 }

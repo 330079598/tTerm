@@ -5,7 +5,10 @@ use crate::profiles::storage::{
     add_profile_group, load_profiles, normalize_group_name, sanitize_profile, upsert_profile,
 };
 use crate::profiles::types::{SavedProfile, SshConfigImportOptions, SshConfigImportResult};
+use proxy::ImportedProxies;
 use std::collections::HashSet;
+
+mod proxy;
 
 pub(super) fn import_ssh_config_profiles_blocking(
     options: SshConfigImportOptions,
@@ -23,6 +26,7 @@ pub(super) fn import_ssh_config_profiles_blocking(
             .unwrap_or("Imported from SSH config"),
     );
     let mut profiles = load_profiles()?;
+    let mut proxies = ImportedProxies::load()?;
     let mut imported = 0;
     let mut updated = 0;
     let mut skipped = 0;
@@ -92,9 +96,13 @@ pub(super) fn import_ssh_config_profiles_blocking(
             shell_integration: existing_index
                 .is_some_and(|index| profiles[index].shell_integration),
             session_log: existing_index.and_then(|index| profiles[index].session_log.clone()),
-            proxy: existing_index
-                .map(|index| profiles[index].proxy.clone())
-                .unwrap_or_default(),
+            // A host whose config sets no proxy keeps the one chosen in tTerm.
+            proxy: match &host.proxy {
+                Some(proxy) => proxies.choice(proxy),
+                None => existing_index
+                    .map(|index| profiles[index].proxy.clone())
+                    .unwrap_or_default(),
+            },
         };
 
         forward_sources.push((profile.id.clone(), profile.name.clone(), host.forwards));
@@ -110,6 +118,7 @@ pub(super) fn import_ssh_config_profiles_blocking(
     }
 
     crate::db::write(|transaction| {
+        proxies.save(transaction)?;
         for profile in &changed_profiles {
             upsert_profile(transaction, profile)?;
         }

@@ -1,6 +1,6 @@
 //! Turns SSH config text into raw `Host` blocks and the global defaults.
 
-use super::words::{split_ssh_words, strip_inline_comment};
+use super::words::{split_keyword, split_ssh_words, strip_inline_comment};
 use crate::profiles::types::{RawSshHost, SshConfigDefaults};
 use std::collections::{HashMap, HashSet};
 
@@ -20,6 +20,7 @@ pub(super) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefa
         "identityfile",
         "certificatefile",
         "proxyjump",
+        "proxycommand",
         "serveraliveinterval",
         "serveralivecountmax",
         "preferredauthentications",
@@ -30,7 +31,6 @@ pub(super) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefa
         "dynamicforward",
     ]);
     let unsupported_tracked = HashSet::from([
-        "proxycommand",
         "controlmaster",
         "controlpath",
         "controlpersist",
@@ -57,13 +57,14 @@ pub(super) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefa
             continue;
         }
 
-        let mut parts = split_ssh_words(&line);
-        if parts.is_empty() {
-            continue;
-        }
-
-        let key = parts.remove(0).to_ascii_lowercase();
-        let value = parts.join(" ");
+        let (key, rest) = split_keyword(&line);
+        let key = key.to_ascii_lowercase();
+        // A shell runs the proxy command, so its quotes are kept for the shell.
+        let value = if key == "proxycommand" {
+            rest.to_string()
+        } else {
+            split_ssh_words(rest).join(" ")
+        };
 
         if key == "include" {
             global_warnings.push(format!("Line {line_no}: Include was not expanded."));
@@ -129,6 +130,7 @@ pub(super) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefa
                     defaults.server_alive_count_max = value.parse::<u32>().ok()
                 }
                 "forwardagent" => defaults.forward_agent = Some(value),
+                "proxycommand" => defaults.proxy_command = Some(value),
                 _ => {}
             }
             continue;

@@ -1,11 +1,13 @@
 //! Importing hosts from an OpenSSH config file: `paths` finds the file,
 //! `include` reads it with its includes, `words` and `parse` split it into
-//! `Host` blocks, and `host` turns each block into a preview entry.
+//! `Host` blocks, and `host` turns each block into a preview entry, with
+//! `proxy_command` reading what its `ProxyCommand` does.
 
 mod host;
 mod include;
 mod parse;
 pub(crate) mod paths;
+mod proxy_command;
 mod words;
 
 use super::storage::load_profiles;

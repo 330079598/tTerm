@@ -1214,7 +1214,10 @@
     "importCompleteDesc": "Imported {{imported}}, updated {{updated}}, skipped {{skipped}}.",
     "importForwards": "Also import port forwards ({{count}})",
     "importCompleteTunnels": "Added {{count}} port forwards.",
-    "defaultGroup": "Imported from SSH config"
+    "defaultGroup": "Imported from SSH config",
+    "proxyDirect": "Connects directly (ProxyCommand none), even when this device has a default proxy.",
+    "proxyServer": "Connects through the {{proxy}} proxy, which is added to Settings > Proxies if it is not there yet.",
+    "proxyCommandHint": "Saved as a proxy command in Settings > Proxies. tTerm asks before it first runs."
   },
   "profileGroups": {
     "title": "Connection groups",

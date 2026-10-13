@@ -1198,7 +1198,10 @@
     "importCompleteDesc": "新增 {{imported}}，更新 {{updated}}，跳过 {{skipped}}。",
     "importForwards": "同时导入端口转发（{{count}}）",
     "importCompleteTunnels": "新增 {{count}} 条端口转发。",
-    "defaultGroup": "从 SSH 配置导入"
+    "defaultGroup": "从 SSH 配置导入",
+    "proxyDirect": "直接连接（ProxyCommand none），即使本机设置了默认代理。",
+    "proxyServer": "经过代理 {{proxy}} 连接；如果 设置 > 代理 中还没有，会自动添加。",
+    "proxyCommandHint": "作为代理命令保存到 设置 > 代理 中，第一次运行前会先询问你。"
   },
   "profileGroups": {
     "title": "连接分组",

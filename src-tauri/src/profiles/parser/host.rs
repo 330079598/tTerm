@@ -1,9 +1,10 @@
 //! Builds the import preview entry of one `Host` block.
 
 use super::paths::expand_home_path;
+use super::proxy_command::{classify, ProxyCommandUse};
 use crate::profiles::types::{
     default_keepalive_count, default_keepalive_interval, RawSshHost, SavedJumpHost,
-    SshConfigDefaults, SshConfigImportHost,
+    SshConfigDefaults, SshConfigImportHost, SshConfigImportProxy,
 };
 use crate::tunnel::forwards::ForwardSpec;
 use std::collections::HashMap;
@@ -157,6 +158,51 @@ fn parse_forwards(
     forwards
 }
 
+/// The `ProxyJump` to import and the proxy, from the host's `ProxyJump` and
+/// `ProxyCommand`. A `ProxyCommand` of `ssh -W` becomes the `ProxyJump`.
+fn proxy_settings(
+    raw: &RawSshHost,
+    defaults: &SshConfigDefaults,
+    warnings: &mut Vec<String>,
+) -> (Option<String>, Option<SshConfigImportProxy>) {
+    let proxy_jump = first_option(&raw.options, "proxyjump");
+    let own_command = first_option(&raw.options, "proxycommand");
+    if proxy_jump.is_some() {
+        if own_command.is_some() {
+            warnings.push(
+                "ProxyCommand was not imported because the host also has a ProxyJump, which tTerm uses instead."
+                    .to_string(),
+            );
+        }
+        return (proxy_jump, None);
+    }
+    let Some(command) = own_command.or_else(|| defaults.proxy_command.clone()) else {
+        return (None, None);
+    };
+    match classify(&command) {
+        ProxyCommandUse::Direct => (None, Some(SshConfigImportProxy::Direct)),
+        ProxyCommandUse::Server { kind, host, port } => (
+            None,
+            Some(SshConfigImportProxy::Server { kind, host, port }),
+        ),
+        ProxyCommandUse::Jump(jump) => (Some(jump), None),
+        ProxyCommandUse::Command(command) => {
+            let sample = crate::proxy::command::CommandTarget {
+                host: "host",
+                port: 22,
+                username: "user",
+            };
+            match crate::proxy::command::expand(&command, &sample) {
+                Ok(_) => (None, Some(SshConfigImportProxy::Command { command })),
+                Err(reason) => {
+                    warnings.push(format!("ProxyCommand was not imported: {reason}"));
+                    (None, None)
+                }
+            }
+        }
+    }
+}
+
 pub(super) fn build_import_host(
     raw: RawSshHost,
     defaults: &SshConfigDefaults,
@@ -222,8 +268,9 @@ pub(super) fn build_import_host(
         warnings.push("User is missing; username must be filled before connecting.".to_string());
     }
 
+    let (proxy_jump, proxy) = proxy_settings(&raw, defaults, &mut warnings);
     let jump_hosts = parse_proxy_jump(
-        first_option(&raw.options, "proxyjump"),
+        proxy_jump,
         defaults,
         private_key_path.as_deref(),
         certificate_path.as_deref(),
@@ -248,6 +295,7 @@ pub(super) fn build_import_host(
         keepalive_interval_secs,
         keepalive_count_max,
         jump_hosts,
+        proxy,
         warnings,
         unsupported_options: raw.unsupported_options,
         forwards,

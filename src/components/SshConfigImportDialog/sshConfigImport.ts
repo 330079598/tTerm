@@ -1,5 +1,15 @@
+import type { NetworkProxyKind } from "@/types/proxy"
 import type { SavedJumpHost, SavedProfile } from "@/types/tab"
 import type { ForwardSpec } from "@/types/tunnel"
+
+/**
+ * What a host's `ProxyCommand` sets up: no proxy, the HTTP or SOCKS5 server
+ * the command only handed the connection to, or the command itself.
+ */
+export type SshConfigImportProxy =
+  | { mode: "direct" }
+  | { mode: "server"; kind: NetworkProxyKind; host: string; port: number }
+  | { mode: "command"; command: string }
 
 export interface SshConfigImportHost {
   hostPattern: string
@@ -14,6 +24,7 @@ export interface SshConfigImportHost {
   keepaliveIntervalSecs: number
   keepaliveCountMax: number
   jumpHosts: SavedJumpHost[]
+  proxy?: SshConfigImportProxy
   warnings: string[]
   unsupportedOptions: string[]
   forwards: ForwardSpec[]

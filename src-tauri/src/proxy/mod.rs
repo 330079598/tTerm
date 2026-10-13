@@ -36,7 +36,8 @@ pub enum ProxyKind {
 }
 
 impl ProxyKind {
-    fn label(self) -> &'static str {
+    /// How messages and names write the kind, e.g. `SOCKS5`.
+    pub(crate) fn label(self) -> &'static str {
         match self {
             Self::Http => "HTTP",
             Self::Socks5 => "SOCKS5",

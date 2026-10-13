@@ -1,5 +1,17 @@
 //! Splits SSH config lines into words the way OpenSSH quotes them.
 
+/// The keyword of a line and the rest after it, which OpenSSH separates with
+/// spaces, an `=`, or both: `Port 22`, `Port=22` and `Port = 22`.
+pub(super) fn split_keyword(line: &str) -> (&str, &str) {
+    let line = line.trim_start();
+    let end = line
+        .find(|ch: char| ch.is_whitespace() || ch == '=')
+        .unwrap_or(line.len());
+    let rest = line[end..].trim_start();
+    let rest = rest.strip_prefix('=').unwrap_or(rest).trim_start();
+    (&line[..end], rest)
+}
+
 pub(super) fn strip_inline_comment(line: &str) -> String {
     let mut in_single = false;
     let mut in_double = false;

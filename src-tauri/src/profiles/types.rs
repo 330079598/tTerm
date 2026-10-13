@@ -150,6 +150,8 @@ pub struct SshConfigImportHost {
     pub keepalive_interval_secs: u32,
     pub keepalive_count_max: u32,
     pub jump_hosts: Vec<SavedJumpHost>,
+    /// What `ProxyCommand` sets up, unless it became a jump host.
+    pub proxy: Option<SshConfigImportProxy>,
     pub warnings: Vec<String>,
     pub unsupported_options: Vec<String>,
     /// `LocalForward` / `RemoteForward` / `DynamicForward` entries.
@@ -157,6 +159,22 @@ pub struct SshConfigImportHost {
     pub skipped: bool,
     pub skip_reason: Option<String>,
     pub existing_profile_id: Option<String>,
+}
+
+/// The proxy an imported host connects through, from its `ProxyCommand`.
+#[derive(Debug, Serialize, Clone, PartialEq, Eq)]
+#[serde(tag = "mode", rename_all = "camelCase")]
+pub enum SshConfigImportProxy {
+    /// `ProxyCommand none`: no proxy, even when this device has a default one.
+    Direct,
+    /// The HTTP or SOCKS5 proxy server the command only handed the connection to.
+    Server {
+        kind: crate::proxy::ProxyKind,
+        host: String,
+        port: u16,
+    },
+    /// Any other command, saved as a command proxy.
+    Command { command: String },
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -187,6 +205,7 @@ pub(crate) struct SshConfigDefaults {
     pub server_alive_interval: Option<u32>,
     pub server_alive_count_max: Option<u32>,
     pub forward_agent: Option<String>,
+    pub proxy_command: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
