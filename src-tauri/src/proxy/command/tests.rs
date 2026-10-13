@@ -1,4 +1,5 @@
 use super::*;
+#[cfg(unix)]
 use tokio::io::AsyncWriteExt;
 
 fn target<'a>(host: &'a str, username: &'a str) -> CommandTarget<'a> {

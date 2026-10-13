@@ -284,7 +284,7 @@ pub async fn delete_proxy(
     .await
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod real_proxy_tests;
 #[cfg(test)]
 mod tests;
