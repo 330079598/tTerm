@@ -114,6 +114,22 @@ async fn open_terminal_channel(
     Ok(channel)
 }
 
+/// Returns the newest size the terminal reported while the connection was
+/// being set up, or `size` when it reported none. Opening the PTY at that size
+/// spares the shell a resize while it prints its first prompt: readline
+/// redraws the prompt for the old width then, and on an older bash that
+/// lands on the line above and leaves a broken copy behind.
+fn latest_queued_size(
+    resize_rx: &mut mpsc::UnboundedReceiver<(u16, u16)>,
+    size: (u16, u16),
+) -> (u16, u16) {
+    let mut latest = size;
+    while let Ok((rows, cols)) = resize_rx.try_recv() {
+        latest = (rows, cols);
+    }
+    latest
+}
+
 /// The channels a connection attempt is driven through.
 pub struct SshChannelIo {
     pub stop_rx: watch::Receiver<bool>,
@@ -220,6 +236,7 @@ pub async fn run_single_ssh_connection(
         }
     };
 
+    let (mut rows, mut cols) = latest_queued_size(&mut resize_rx, (rows, cols));
     let channel_open_started_at = tokio::time::Instant::now();
     let mut channel = match open_terminal_channel(&session, &plan, rows, cols).await {
         Ok(channel) => channel,
@@ -251,6 +268,7 @@ pub async fn run_single_ssh_connection(
         }
         if early_output.is_none() {
             // That channel is closed; the plain shell gets a fresh one.
+            (rows, cols) = latest_queued_size(&mut resize_rx, (rows, cols));
             channel = match open_terminal_channel(&session, &plan, rows, cols).await {
                 Ok(channel) => channel,
                 Err(reason) => {
@@ -454,5 +472,22 @@ pub async fn run_single_ssh_connection(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::latest_queued_size;
+    use tokio::sync::mpsc;
+
+    #[test]
+    fn latest_queued_size_keeps_the_newest_resize() {
+        let (resize_tx, mut resize_rx) = mpsc::unbounded_channel();
+        assert_eq!(latest_queued_size(&mut resize_rx, (24, 80)), (24, 80));
+
+        resize_tx.send((30, 100)).unwrap();
+        resize_tx.send((40, 120)).unwrap();
+        assert_eq!(latest_queued_size(&mut resize_rx, (24, 80)), (40, 120));
+        assert!(resize_rx.try_recv().is_err());
     }
 }
