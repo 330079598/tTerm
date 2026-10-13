@@ -1,7 +1,7 @@
 import type { SavedJumpHost, SavedProfile } from "@/types/tab"
 import type { ForwardSpec } from "@/types/tunnel"
 
-interface SshConfigImportHost {
+export interface SshConfigImportHost {
   hostPattern: string
   name: string
   host?: string

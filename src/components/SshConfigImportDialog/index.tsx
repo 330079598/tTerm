@@ -1,24 +1,14 @@
 import React, { useEffect, useEffectEvent, useMemo, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog"
-import {
-  AlertTriangle,
-  CheckCircle2,
-  FileSearch,
-  FileUp,
-  FolderOpen,
-  Import,
-  Loader2,
-  RefreshCcw,
-} from "lucide-react"
+import { FileSearch, FileUp, FolderOpen, Import, Loader2, RefreshCcw } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import {
-  type SshConfigImportPreview,
-  type SshConfigImportResult,
-  statusForHost,
+import { SshConfigImportHostRow } from "@/components/SshConfigImportDialog/SshConfigImportHostRow"
+import type {
+  SshConfigImportPreview,
+  SshConfigImportResult,
 } from "@/components/SshConfigImportDialog/sshConfigImport"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -33,9 +23,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "@/hooks/use-toast"
-import { cn } from "@/lib/utils"
 import type { SavedProfile } from "@/types/tab"
-import { formatForward } from "@/components/TunnelsPanel/tunnelUtils"
 
 interface SshConfigImportDialogProps {
   open: boolean
@@ -359,97 +347,14 @@ export const SshConfigImportDialog: React.FC<SshConfigImportDialogProps> = ({
               )}
 
               {!loadingPreview &&
-                preview?.hosts.map((host) => {
-                  const status = statusForHost(host)
-                  const checked = selectedHosts.has(host.hostPattern)
-                  const details = [
-                    host.username ? `${host.username}@${host.host ?? host.name}` : host.host,
-                    host.port !== 22 ? `:${host.port}` : null,
-                    host.authMethod === "key"
-                      ? t("profiles.authMethodKey")
-                      : t("profiles.authMethodPassword"),
-                    host.agentForward ? t("ssh.agentForward") : null,
-                    host.jumpHosts.length > 0
-                      ? t("jumpHost.viaCount", { count: host.jumpHosts.length })
-                      : null,
-                  ].filter(Boolean)
-
-                  return (
-                    <div
-                      key={host.hostPattern}
-                      className={cn(
-                        "grid gap-3 px-4 py-3 transition-colors",
-                        !host.skipped && "hover:bg-muted/25"
-                      )}
-                    >
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          className="mt-1"
-                          checked={checked}
-                          disabled={host.skipped}
-                          onCheckedChange={(next) => toggleHost(host.hostPattern, next)}
-                          aria-label={t("sshConfigImport.selectHost", { name: host.name })}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex min-w-0 flex-wrap items-center gap-2">
-                            <span className="truncate text-sm font-medium">{host.name}</span>
-                            {host.existingProfileId && (
-                              <Badge variant="secondary">{t("sshConfigImport.exists")}</Badge>
-                            )}
-                            {status === "ready" && (
-                              <Badge variant="outline" className="text-success">
-                                <CheckCircle2 size={12} />
-                                {t("sshConfigImport.ready")}
-                              </Badge>
-                            )}
-                            {status === "warning" && (
-                              <Badge variant="outline" className="text-warning">
-                                <AlertTriangle size={12} />
-                                {t("sshConfigImport.warning")}
-                              </Badge>
-                            )}
-                            {status === "skipped" && (
-                              <Badge variant="outline" className="text-muted-foreground">
-                                {t("sshConfigImport.skipped")}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-muted-foreground mt-1 truncate text-xs">
-                            {details.length > 0
-                              ? details.join(" ")
-                              : t("profiles.connectionDetailsUnavailable")}
-                          </div>
-                        </div>
-                      </div>
-
-                      {host.forwards.length > 0 && (
-                        <div className="text-muted-foreground ml-7 grid gap-0.5 font-mono text-xs">
-                          {host.forwards.map((forward) => (
-                            <div key={formatForward(forward)}>{formatForward(forward)}</div>
-                          ))}
-                        </div>
-                      )}
-
-                      {(host.skipReason ||
-                        host.warnings.length > 0 ||
-                        host.unsupportedOptions.length > 0) && (
-                        <div className="text-muted-foreground ml-7 grid gap-1 text-xs">
-                          {host.skipReason && <div>{host.skipReason}</div>}
-                          {host.warnings.map((warning) => (
-                            <div key={warning}>{warning}</div>
-                          ))}
-                          {host.unsupportedOptions.length > 0 && (
-                            <div>
-                              {t("sshConfigImport.unsupportedOptions", {
-                                options: host.unsupportedOptions.join(", "),
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+                preview?.hosts.map((host) => (
+                  <SshConfigImportHostRow
+                    key={host.hostPattern}
+                    host={host}
+                    checked={selectedHosts.has(host.hostPattern)}
+                    onCheckedChange={(next) => toggleHost(host.hostPattern, next)}
+                  />
+                ))}
             </div>
           </ScrollArea>
         </div>
