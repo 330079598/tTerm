@@ -99,6 +99,18 @@ impl SessionKey {
             jump.password.hash(&mut hasher);
             jump.private_key_passphrase.hash(&mut hasher);
         }
+        // Tunnels share a session only when they reach it the same way.
+        if let Some(proxy) = &plan.proxy {
+            let _ = write!(
+                id,
+                "|proxy {:?} {}@{}:{}",
+                proxy.kind,
+                proxy.username.as_deref().unwrap_or_default(),
+                proxy.host,
+                proxy.port
+            );
+            proxy.password.as_deref().hash(&mut hasher);
+        }
         Self {
             id,
             credentials: hasher.finish(),

@@ -149,5 +149,7 @@ pub(super) fn test_session_plan(
         encoding: Default::default(),
         shell_integration: false,
         session_log: Default::default(),
+        proxy_choice: profile.proxy.clone(),
+        proxy: None,
     }
 }

@@ -7,6 +7,7 @@ use super::{BackupPayload, BackupSelection, AUTOMATIC_SETTINGS_KEY};
 use crate::config;
 use crate::db::meta;
 use crate::profiles::types::SavedProfile;
+use crate::proxy::ProxyServer;
 use crate::sftp::store::SftpDirectoryStore;
 use crate::ssh::secret_store::{store::restore_secrets, store::snapshot_secrets, store::SecretRow};
 use crate::ssh::store::KnownHostStore;
@@ -15,10 +16,18 @@ use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Profiles with what travels with them: groups, tunnels and proxy servers.
+pub(super) type ProfilesSnapshot = (
+    Vec<SavedProfile>,
+    Vec<String>,
+    Vec<TunnelRule>,
+    Vec<ProxyServer>,
+);
+
 /// Database-held data a failed import restores.
 #[derive(Default)]
 pub(super) struct DatabaseSnapshot {
-    pub(super) profiles: Option<(Vec<SavedProfile>, Vec<String>, Vec<TunnelRule>)>,
+    pub(super) profiles: Option<ProfilesSnapshot>,
     /// Ciphertext as stored. Taken with profiles too: replacing profiles
     /// deletes the passwords of the removed ones.
     pub(super) secrets: Option<Vec<SecretRow>>,
@@ -63,6 +72,7 @@ pub(super) fn snapshot_database(
                 crate::profiles::storage::list_saved_profiles(connection)?,
                 crate::profiles::storage::configured_profile_groups(connection)?,
                 crate::tunnel::storage::list_tunnel_rules(connection)?,
+                crate::proxy::storage::list_proxies(connection)?,
             ))
         } else {
             None
@@ -102,10 +112,11 @@ pub(super) fn restore_database(
     transaction: &rusqlite::Connection,
     snapshot: &DatabaseSnapshot,
 ) -> Result<(), String> {
-    if let Some((profiles, groups, tunnels)) = snapshot.profiles.as_ref() {
+    if let Some((profiles, groups, tunnels, proxies)) = snapshot.profiles.as_ref() {
         crate::profiles::storage::replace_profiles(transaction, profiles)?;
         crate::profiles::storage::replace_profile_groups(transaction, groups)?;
         crate::tunnel::storage::replace_tunnels(transaction, tunnels)?;
+        crate::proxy::storage::replace_proxies(transaction, proxies)?;
     }
     if let Some(secrets) = snapshot.secrets.as_ref() {
         restore_secrets(transaction, secrets)?;

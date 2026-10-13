@@ -109,6 +109,8 @@ mod tests {
             encoding: Default::default(),
             shell_integration: false,
             session_log: Default::default(),
+            proxy_choice: Default::default(),
+            proxy: None,
         }
     }
 

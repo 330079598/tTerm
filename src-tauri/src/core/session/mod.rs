@@ -90,6 +90,8 @@ pub fn normalize_connection(
             encoding: Default::default(),
             shell_integration: false,
             session_log,
+            proxy_choice: Default::default(),
+            proxy: None,
         }),
         SessionKind::Ssh => {
             let host = connection
@@ -181,6 +183,8 @@ pub fn normalize_connection(
                 ),
                 shell_integration: connection.shell_integration,
                 session_log,
+                proxy_choice: connection.proxy,
+                proxy: None,
             })
         }
     }
@@ -465,6 +469,7 @@ pub fn resolve_ssh_password(
 
     // Resolve jump host passwords independently of target authentication.
     resolve_jump_host_passwords(app, secret_state, plan)?;
+    plan.proxy = crate::proxy::resolve::resolve_proxy(app, secret_state, &plan.proxy_choice)?;
 
     Ok(())
 }

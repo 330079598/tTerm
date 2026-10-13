@@ -214,6 +214,7 @@ fn connection_options_for_profile(profile: &SavedProfile) -> Result<PtyConnectio
         certificate_path: uses_key.then(|| profile.certificate_path.clone()).flatten(),
         auth_method: profile.auth_method.clone(),
         jump_hosts,
+        proxy: profile.proxy.clone(),
         ..PtyConnectionOptions::default()
     })
 }

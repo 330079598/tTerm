@@ -92,6 +92,9 @@ pub(super) fn import_ssh_config_profiles_blocking(
             shell_integration: existing_index
                 .is_some_and(|index| profiles[index].shell_integration),
             session_log: existing_index.and_then(|index| profiles[index].session_log.clone()),
+            proxy: existing_index
+                .map(|index| profiles[index].proxy.clone())
+                .unwrap_or_default(),
         };
 
         forward_sources.push((profile.id.clone(), profile.name.clone(), host.forwards));

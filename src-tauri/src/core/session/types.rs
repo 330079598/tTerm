@@ -160,6 +160,8 @@ pub struct PtyConnectionOptions {
     /// Whether this connection is logged: `always`, `never`, or as the
     /// logging setting says when unset.
     pub session_log: Option<String>,
+    /// SSH: which proxy server the first host is reached through.
+    pub proxy: crate::proxy::ProxyChoice,
     #[cfg(target_os = "windows")]
     pub terminal_shell: Option<String>,
     #[cfg(target_os = "windows")]
@@ -214,6 +216,8 @@ pub(crate) struct RawPtyConnectionOptions {
     shell_integration: bool,
     #[serde(default, alias = "sessionLog")]
     session_log: Option<String>,
+    #[serde(default)]
+    proxy: crate::proxy::ProxyChoice,
     #[cfg(target_os = "windows")]
     #[serde(default, alias = "terminalShell")]
     terminal_shell: Option<String>,
@@ -256,6 +260,7 @@ impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
             encoding: raw.encoding,
             shell_integration: raw.shell_integration,
             session_log: raw.session_log,
+            proxy: raw.proxy,
             #[cfg(target_os = "windows")]
             terminal_shell: raw.terminal_shell,
             #[cfg(target_os = "windows")]
@@ -290,6 +295,7 @@ impl Default for PtyConnectionOptions {
             encoding: None,
             shell_integration: false,
             session_log: None,
+            proxy: Default::default(),
             #[cfg(target_os = "windows")]
             terminal_shell: None,
             #[cfg(target_os = "windows")]
@@ -346,6 +352,10 @@ pub struct SessionPlan {
     pub shell_integration: bool,
     /// Whether this session is logged, before the user's choice for its tab.
     pub session_log: crate::session_log::SessionLogPolicy,
+    /// Which proxy server the first host is reached through, as chosen.
+    pub proxy_choice: crate::proxy::ProxyChoice,
+    /// The proxy server `proxy_choice` resolved to; set by `resolve_ssh_password`.
+    pub proxy: Option<crate::proxy::ProxyEndpoint>,
 }
 
 impl SessionPlan {

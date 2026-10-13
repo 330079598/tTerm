@@ -9,7 +9,9 @@ use super::types::{
 };
 use crate::core::blocking::run_blocking;
 use crate::core::state::HostPromptMap;
-use crate::ssh::jump::connect::{connect_via_jump_chain, ConnectContext};
+use crate::ssh::jump::connect::{
+    connect_first_hop, connect_via_jump_chain, open_proxy_stream, ConnectContext,
+};
 use crate::ssh::types::SshConnectionProgressPayload;
 use crate::ssh::{
     secret_store::types::SecretLocation, types::ConnectionStatusOptions,
@@ -407,9 +409,10 @@ pub async fn test_connection(
             .host(host.clone(), port)
             .username(username.clone()),
         );
+        let stream = open_proxy_stream(ctx, plan.proxy.as_ref(), &host, port).await?;
         let session = tokio::time::timeout(
             std::time::Duration::from_secs(10),
-            russh::client::connect(config, (host.as_str(), port), handler),
+            connect_first_hop(config, &host, port, stream, handler),
         )
         .await
         .map_err(|_| "Connection timeout".to_string())?
@@ -421,8 +424,16 @@ pub async fn test_connection(
         )?;
         (None, session)
     } else {
-        let (chain, session) =
-            connect_via_jump_chain(ctx, &plan.jump_hosts, &host, port, handler, config).await?;
+        let (chain, session) = connect_via_jump_chain(
+            ctx,
+            &plan.jump_hosts,
+            &host,
+            port,
+            handler,
+            config,
+            plan.proxy.as_ref(),
+        )
+        .await?;
         (Some(chain), session)
     };
 

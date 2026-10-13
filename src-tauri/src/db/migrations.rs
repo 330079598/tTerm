@@ -47,6 +47,11 @@ const MIGRATIONS: &[Migration] = &[
         name: "custom_themes",
         sql: include_str!("../../migrations/0008_custom_themes.sql"),
     },
+    Migration {
+        version: 9,
+        name: "proxies",
+        sql: include_str!("../../migrations/0009_proxies.sql"),
+    },
 ];
 
 pub(super) fn apply(connection: &mut Connection) -> Result<(), String> {
@@ -129,7 +134,7 @@ mod tests {
                 row.get(0)
             })
             .expect("read schema version");
-        assert_eq!(version, 8);
+        assert_eq!(version, 9);
 
         let table_count: i64 = connection
             .query_row(

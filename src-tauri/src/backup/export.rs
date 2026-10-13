@@ -84,6 +84,7 @@ pub(super) fn collect_payload(
             selection.profiles,
             crate::tunnel::storage::list_tunnel_rules,
         )?,
+        proxies: read_selected_data(selection.profiles, crate::proxy::storage::list_proxies)?,
         session: if selection.session {
             crate::db::read(crate::session::read_session)?
                 .map(|session| to_backup_value(&session))

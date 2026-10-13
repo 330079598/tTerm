@@ -183,6 +183,9 @@ struct BackupPayload {
     /// Port-forwarding rules; travel with `profiles` because they reference profile ids.
     #[serde(default)]
     tunnels: Option<Value>,
+    /// Proxy servers; travel with `profiles` because profiles name them by id.
+    #[serde(default)]
+    proxies: Option<Value>,
     session: Option<Value>,
     known_hosts: Option<Value>,
     sftp_directories: Option<Value>,

@@ -260,6 +260,9 @@ pub struct AppConfig {
     /// How local terminal tabs show their shell's icon.
     #[serde(default)]
     pub tab_icons: tab_icons::TabIconConfig,
+    /// Proxy server that hosts left on the default connect through; none when empty.
+    #[serde(default)]
+    pub default_proxy_id: String,
 }
 
 /// User-configurable keyboard shortcut overrides. `bindings` maps action ids
@@ -659,6 +662,7 @@ impl Default for AppConfig {
             notify_sound: true,
             bell_style: default_bell_style(),
             tab_icons: tab_icons::TabIconConfig::default(),
+            default_proxy_id: String::new(),
         }
     }
 }

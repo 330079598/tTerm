@@ -14,6 +14,7 @@ mod migrate;
 mod monitor;
 mod notification;
 mod profiles;
+mod proxy;
 mod session;
 mod session_log;
 mod sftp;
@@ -155,6 +156,9 @@ pub fn run() {
             app_state::save_app_state,
             themes::load_custom_themes,
             themes::save_custom_themes,
+            proxy::list_proxies,
+            proxy::save_proxy,
+            proxy::delete_proxy,
             config::window_background::save_window_background,
             window_blur::set_window_blur,
             window_blur::system_prefers_dark,

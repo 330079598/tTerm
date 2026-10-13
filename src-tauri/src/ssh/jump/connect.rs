@@ -2,6 +2,7 @@ use super::config::{compatibility_client_config, unverifiable_host_key_error};
 use super::handler::JumpHostHandler;
 use crate::core::session::{types::JumpHostPlan, types::SessionPlan};
 use crate::core::state::HostPromptMap;
+use crate::proxy::{connect::connect_through_proxy, ProxyEndpoint};
 use crate::ssh::auth::{authenticate, AuthMethod, AuthPrompter, AuthTarget};
 use crate::ssh::types::{
     emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode, SshClientHandler,
@@ -39,6 +40,8 @@ pub struct SshTarget<'a> {
     pub keepalive_interval_secs: u16,
     pub keepalive_count_max: u16,
     pub jump_hosts: &'a [JumpHostPlan],
+    /// The proxy server the first host, a jump host or the target, is reached through.
+    pub proxy: Option<&'a ProxyEndpoint>,
 }
 
 impl<'a> SshTarget<'a> {
@@ -56,6 +59,7 @@ impl<'a> SshTarget<'a> {
             keepalive_interval_secs: plan.keepalive_interval_secs,
             keepalive_count_max: plan.keepalive_count_max,
             jump_hosts: &plan.jump_hosts,
+            proxy: plan.proxy.as_ref(),
         }
     }
 }
@@ -115,6 +119,51 @@ fn build_jump_handler(
     }
 }
 
+/// Opens the stream to the first host through `proxy`, reporting progress,
+/// or `None` when the first host is dialed directly.
+pub(crate) async fn open_proxy_stream(
+    ctx: ConnectContext<'_>,
+    proxy: Option<&ProxyEndpoint>,
+    host: &str,
+    port: u16,
+) -> Result<Option<tokio::net::TcpStream>, SshConnectError> {
+    let Some(proxy) = proxy else {
+        return Ok(None);
+    };
+    emit_connection_progress(
+        ctx.app,
+        ctx.tab_id,
+        ctx.status_options,
+        SshConnectionProgressPayload::new(
+            "proxy_connecting",
+            format!(
+                "Connecting to {host}:{port} through the {}",
+                proxy.describe()
+            ),
+        )
+        .host(proxy.host.clone(), proxy.port),
+    );
+    connect_through_proxy(proxy, host, port).await.map(Some)
+}
+
+/// The SSH handshake with the first host, over `stream` when a proxy opened
+/// one, otherwise over a new TCP connection.
+pub(crate) async fn connect_first_hop<H>(
+    config: Arc<client::Config>,
+    host: &str,
+    port: u16,
+    stream: Option<tokio::net::TcpStream>,
+    handler: H,
+) -> Result<client::Handle<H>, russh::Error>
+where
+    H: client::Handler<Error = russh::Error> + Send + 'static,
+{
+    match stream {
+        Some(stream) => client::connect_stream(config, stream, handler).await,
+        None => client::connect(config, (host, port), handler).await,
+    }
+}
+
 fn map_jump_connect_error(
     error: russh::Error,
     host_key_rejected: Arc<AtomicBool>,
@@ -147,6 +196,7 @@ async fn connect_jump_direct(
     jump_plan: &JumpHostPlan,
     hop_index: usize,
     total_hops: usize,
+    proxy: Option<&ProxyEndpoint>,
 ) -> Result<client::Handle<JumpHostHandler>, SshConnectError> {
     let ConnectContext {
         app,
@@ -183,11 +233,14 @@ async fn connect_jump_direct(
         .hop(hop_index, total_hops),
     );
 
+    let stream = open_proxy_stream(ctx, proxy, &jump_plan.host, jump_plan.port).await?;
     let mut session = tokio::time::timeout(
         Duration::from_secs(15),
-        client::connect(
+        connect_first_hop(
             jump_config,
-            (jump_plan.host.as_str(), jump_plan.port),
+            &jump_plan.host,
+            jump_plan.port,
+            stream,
             jump_handler,
         ),
     )
@@ -344,8 +397,9 @@ impl Drop for JumpChain {
 }
 
 /// Open an ordered ProxyJump-style chain, then establish the target SSH session
-/// on top of the final direct-tcpip stream. The returned `JumpChain` must stay
-/// alive for as long as the target session is used.
+/// on top of the final direct-tcpip stream. The first jump host is reached
+/// through `proxy` when one is set. The returned `JumpChain` must stay alive
+/// for as long as the target session is used.
 pub async fn connect_via_jump_chain<H>(
     ctx: ConnectContext<'_>,
     jump_plans: &[JumpHostPlan],
@@ -353,6 +407,7 @@ pub async fn connect_via_jump_chain<H>(
     target_port: u16,
     target_handler: H,
     target_config: Arc<client::Config>,
+    proxy: Option<&ProxyEndpoint>,
 ) -> Result<(JumpChain, client::Handle<H>), SshConnectError>
 where
     H: client::Handler<Error = russh::Error> + Send + 'static,
@@ -372,7 +427,7 @@ where
     let total_hops = jump_plans.len();
     let mut sessions = Vec::with_capacity(total_hops);
 
-    let first = connect_jump_direct(ctx, &jump_plans[0], 1, total_hops).await?;
+    let first = connect_jump_direct(ctx, &jump_plans[0], 1, total_hops, proxy).await?;
     sessions.push(first);
 
     for (index, jump_plan) in jump_plans.iter().enumerate().skip(1) {
@@ -558,7 +613,8 @@ pub async fn open_target_ssh_session_with_forwarding(
             .host(target_host.to_string(), target_port)
             .username(target_username.to_string()),
         );
-        let sess = client::connect(target_config, (target_host, target_port), handler)
+        let stream = open_proxy_stream(ctx, target.proxy, target_host, target_port).await?;
+        let sess = connect_first_hop(target_config, target_host, target_port, stream, handler)
             .await
             .map_err(|e| {
                 if host_key_rejected.load(Ordering::Relaxed) {
@@ -579,6 +635,7 @@ pub async fn open_target_ssh_session_with_forwarding(
             target_port,
             handler,
             target_config,
+            target.proxy,
         )
         .await?;
         (Some(chain), target_sess)

@@ -8,6 +8,7 @@ use super::{BackupImportOptions, BackupLogFile, BackupPayload, BackupSelection, 
 use crate::command_library::{models::SavedCommand, repository::CommandRepository};
 use crate::config::{self, AppConfig};
 use crate::profiles::types::SavedProfile;
+use crate::proxy::ProxyServer;
 use crate::sftp::store::SftpDirectoryStore;
 use crate::ssh::secret_store::{crypto::SecretKey as DataKey, store::put_secret};
 use crate::ssh::store::KnownHostStore;
@@ -266,6 +267,19 @@ pub(super) fn apply_database_payload(
             crate::tunnel::storage::replace_tunnels(
                 transaction,
                 &from_backup_value::<Vec<TunnelRule>>(tunnels)?,
+            )?;
+        }
+        // Backups made before proxies existed carry none; keep the current servers then.
+        if let Some(incoming) = payload.proxies.as_ref() {
+            let proxies = if merge {
+                let existing = to_backup_value(&crate::proxy::storage::list_proxies(transaction)?)?;
+                merge_arrays_by_keys(existing, incoming.clone(), &["id"])?
+            } else {
+                incoming.clone()
+            };
+            crate::proxy::storage::replace_proxies(
+                transaction,
+                &from_backup_value::<Vec<ProxyServer>>(proxies)?,
             )?;
         }
     }

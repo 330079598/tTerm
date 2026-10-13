@@ -50,8 +50,8 @@ fn import_options(strategy: &str) -> BackupImportOptions {
     }
 }
 
-/// Seeds the database with profiles a and b, group "ops", tunnel t1, a
-/// known host and an SFTP directory.
+/// Seeds the database with profiles a and b, group "ops", tunnel t1, proxy
+/// x, a known host and an SFTP directory.
 fn seed_database(connection: &rusqlite::Connection) {
     let payload = {
         let mut payload = BackupPayload::default();
@@ -64,6 +64,9 @@ fn seed_database(connection: &rusqlite::Connection) {
             "id": "t1", "name": "db", "profileId": "a", "kind": "local",
             "bindHost": "127.0.0.1", "bindPort": 5432,
             "destHost": "db", "destPort": 5432
+        }]));
+        payload.proxies = Some(serde_json::json!([{
+            "id": "x", "name": "Office", "kind": "http", "host": "proxy.corp", "port": 8080
         }]));
         payload.known_hosts =
             Some(serde_json::json!({ "entries": [db_known_host("a.example", "old")] }));
@@ -303,11 +306,12 @@ fn merge_import_keeps_existing_data_and_updates_by_key() {
                 crate::profiles::storage::configured_profile_groups(connection)?,
                 ["dev", "ops"]
             );
-            // Tunnels missing from an old backup are left alone.
+            // Tunnels and proxies missing from an old backup are left alone.
             assert_eq!(
                 crate::tunnel::storage::list_tunnel_rules(connection)?.len(),
                 1
             );
+            assert_eq!(crate::proxy::storage::list_proxies(connection)?.len(), 1);
             let hosts = crate::ssh::store::list_known_hosts(connection)?.entries;
             assert_eq!(
                 hosts.len(),
@@ -506,7 +510,7 @@ fn database_snapshot_undoes_an_import() {
             let before = snapshot_database(connection, &database_selection())?;
             let before_json = |s: &DatabaseSnapshot| {
                 serde_json::json!({
-                    "profiles": s.profiles.as_ref().map(|(p, g, t)| serde_json::json!([p, g, t])),
+                    "profiles": s.profiles.as_ref().map(|(p, g, t, x)| serde_json::json!([p, g, t, x])),
                     "known_hosts": s.known_hosts,
                     "sftp": s.sftp_directories,
                 })
@@ -542,6 +546,9 @@ fn exported_data_imports_back_unchanged() {
                 payload.tunnels = Some(to_backup_value(
                     &crate::tunnel::storage::list_tunnel_rules(connection)?,
                 )?);
+                payload.proxies = Some(to_backup_value(&crate::proxy::storage::list_proxies(
+                    connection,
+                )?)?);
                 payload.known_hosts = Some(to_backup_value(&crate::ssh::store::list_known_hosts(
                     connection,
                 )?)?);

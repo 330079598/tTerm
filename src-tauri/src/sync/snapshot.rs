@@ -9,6 +9,7 @@ use crate::command_library::models::SavedCommand;
 use crate::config::AppConfig;
 use crate::db::sql_error;
 use crate::profiles::types::SavedProfile;
+use crate::proxy::ProxyServer;
 use crate::ssh::secret_store::{
     crypto::SecretKey as DataKey, store::delete_secret, store::get_secret, store::put_secret,
 };
@@ -21,6 +22,7 @@ use serde_json::Value;
 pub(crate) const PROFILES: &str = "profiles";
 pub(crate) const PROFILE_GROUPS: &str = "profileGroups";
 pub(crate) const TUNNELS: &str = "tunnels";
+pub(crate) const PROXIES: &str = "proxies";
 pub(crate) const SECRETS: &str = "secrets";
 pub(crate) const COMMANDS: &str = "commands";
 pub(crate) const KNOWN_HOSTS: &str = "knownHosts";
@@ -84,7 +86,7 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct SyncSelection {
-    /// Profiles, their groups and port-forwarding rules.
+    /// Profiles, their groups, port-forwarding rules and proxy servers.
     pub profiles: bool,
     pub secrets: bool,
     pub commands: bool,
@@ -112,7 +114,7 @@ impl SyncSelection {
     pub fn categories(&self, themes_ready: bool) -> Vec<&'static str> {
         let mut categories = Vec::new();
         if self.profiles {
-            categories.extend([PROFILES, PROFILE_GROUPS, TUNNELS]);
+            categories.extend([PROFILES, PROFILE_GROUPS, TUNNELS, PROXIES]);
         }
         for (enabled, category) in [
             (self.secrets, SECRETS),
@@ -144,6 +146,7 @@ pub(crate) fn collect(
         let collection = match category {
             PROFILES => collect_rows(connection, "profiles", normalize_profile)?,
             TUNNELS => collect_rows(connection, "tunnels", normalize_tunnel)?,
+            PROXIES => collect_rows(connection, "proxies", normalize_proxy)?,
             PROFILE_GROUPS => crate::profiles::storage::configured_profile_groups(connection)?
                 .into_iter()
                 .map(|name| (name, SyncRecord::new(Value::Bool(true), None)))
@@ -274,6 +277,7 @@ pub(crate) fn normalize(category: &str, collection: &Collection) -> Result<Colle
             let data = match category {
                 PROFILES => normalize_profile(&record.data)?,
                 TUNNELS => normalize_tunnel(&record.data)?,
+                PROXIES => normalize_proxy(&record.data)?,
                 COMMANDS => normalize_command(id, &record.data)?,
                 KNOWN_HOSTS => known_host_data(&known_host_from(record)?),
                 PROFILE_GROUPS => Value::Bool(true),
@@ -327,6 +331,15 @@ fn normalize_tunnel(value: &Value) -> Result<Value, String> {
         .map_err(|error| format!("Synced tunnel is invalid: {error}"))?;
     let value =
         serde_json::to_value(rule).map_err(|error| format!("Failed to encode tunnel: {error}"))?;
+    Ok(with_position(value, position))
+}
+
+fn normalize_proxy(value: &Value) -> Result<Value, String> {
+    let (data, position) = take_position(value);
+    let server = serde_json::from_value::<ProxyServer>(data)
+        .map_err(|error| format!("Synced proxy is invalid: {error}"))?;
+    let value =
+        serde_json::to_value(server).map_err(|error| format!("Failed to encode proxy: {error}"))?;
     Ok(with_position(value, position))
 }
 
@@ -448,6 +461,18 @@ pub(crate) fn apply_database(
                 let encoded = serde_json::to_string(&rule)
                     .map_err(|error| format!("Failed to encode tunnel: {error}"))?;
                 upsert_row(transaction, "tunnels", id, position, &encoded)?;
+            }
+        }
+        PROXIES => {
+            for id in &removed {
+                crate::proxy::storage::delete_proxy(transaction, id)?;
+            }
+            for (id, record) in changed(local, merged) {
+                let (data, position) = take_position(&record.data);
+                let mut server = serde_json::from_value::<ProxyServer>(data)
+                    .map_err(|error| format!("Synced proxy is invalid: {error}"))?;
+                server.id = id.clone();
+                crate::proxy::storage::put_proxy_at(transaction, &server, position)?;
             }
         }
         PROFILE_GROUPS => {

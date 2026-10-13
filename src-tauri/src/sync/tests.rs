@@ -1,4 +1,4 @@
-use super::snapshot::{COMMANDS, KNOWN_HOSTS, PROFILES, PROFILE_GROUPS, SECRETS, THEMES};
+use super::snapshot::{COMMANDS, KNOWN_HOSTS, PROFILES, PROFILE_GROUPS, PROXIES, SECRETS, THEMES};
 use super::*;
 use crate::command_library::{models::SavedCommand, repository::CommandRepository};
 use crate::db::Database;
@@ -8,10 +8,11 @@ use crate::ssh::secret_store::{
 use crate::ssh::store::KnownHostRecord;
 use serde_json::json;
 
-const CATEGORIES: [&str; 7] = [
+const CATEGORIES: [&str; 8] = [
     PROFILES,
     PROFILE_GROUPS,
     TUNNELS,
+    PROXIES,
     SECRETS,
     COMMANDS,
     KNOWN_HOSTS,
@@ -441,6 +442,52 @@ fn groups_tunnels_and_known_hosts_sync() {
         })
         .unwrap();
     assert!(b.sync(&mut remote).is_empty());
+}
+
+#[test]
+fn proxies_and_their_passwords_sync_in_order() {
+    let mut remote = None;
+    let (mut a, mut b) = (Device::new(), Device::new());
+    let server = |id: &str, name: &str| crate::proxy::ProxyServer {
+        id: id.to_string(),
+        name: name.to_string(),
+        kind: crate::proxy::ProxyKind::Http,
+        host: "proxy.corp".to_string(),
+        port: 8080,
+        username: Some("me".to_string()),
+    };
+    a.database
+        .write(|transaction| {
+            crate::proxy::storage::replace_proxies(
+                transaction,
+                &[server("p2", "Second"), server("p1", "First")],
+            )
+        })
+        .unwrap();
+    a.save_secret(&crate::proxy::proxy_secret_key("p1"), "pw");
+    a.sync(&mut remote);
+    assert_eq!(b.sync(&mut remote), [PROXIES, SECRETS]);
+    let names = |device: &Device| -> Vec<String> {
+        device
+            .database
+            .read(crate::proxy::storage::list_proxies)
+            .unwrap()
+            .into_iter()
+            .map(|server| server.name)
+            .collect()
+    };
+    assert_eq!(names(&b), ["Second", "First"]);
+    assert_eq!(
+        b.secret(&crate::proxy::proxy_secret_key("p1")).as_deref(),
+        Some("pw")
+    );
+
+    a.database
+        .write(|transaction| crate::proxy::storage::delete_proxy(transaction, "p2"))
+        .unwrap();
+    a.sync(&mut remote);
+    assert_eq!(b.sync(&mut remote), [PROXIES]);
+    assert_eq!(names(&b), ["First"]);
 }
 
 #[test]

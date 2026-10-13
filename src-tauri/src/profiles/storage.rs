@@ -300,6 +300,19 @@ pub fn saved_secret_summaries() -> Result<Vec<SavedSecretSummary>, String> {
         normalize_profile(&mut profile);
         summaries.extend(profile_secret_summaries(&profile));
     }
+    // Proxy passwords belong to no profile; they are listed under the proxy's name.
+    for server in crate::db::read(crate::proxy::storage::list_proxies)? {
+        if server.username.is_none() {
+            continue;
+        }
+        summaries.push(SavedSecretSummary {
+            key: crate::proxy::proxy_secret_key(&server.id),
+            profile_id: String::new(),
+            profile_name: server.name.clone(),
+            label: server.name,
+            kind: "proxy".to_string(),
+        });
+    }
 
     Ok(summaries)
 }

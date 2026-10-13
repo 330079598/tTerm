@@ -9,6 +9,7 @@ use super::{
 };
 use crate::config::AppConfig;
 use crate::profiles::types::SavedProfile;
+use crate::proxy::ProxyServer;
 use crate::session::SessionData;
 use crate::sftp::store::SftpDirectoryStore;
 use crate::ssh::secret_store::types::SecretStoreState;
@@ -222,6 +223,10 @@ pub(super) fn validate_payload(payload: &BackupPayload) -> Result<(), String> {
     if let Some(value) = payload.tunnels.clone() {
         serde_json::from_value::<Vec<TunnelRule>>(value)
             .map_err(|error| format!("Invalid tunnel data in backup: {error}"))?;
+    }
+    if let Some(value) = payload.proxies.clone() {
+        serde_json::from_value::<Vec<ProxyServer>>(value)
+            .map_err(|error| format!("Invalid proxy data in backup: {error}"))?;
     }
     if let Some(value) = payload.session.clone() {
         serde_json::from_value::<SessionData>(value)
