@@ -42,6 +42,7 @@ export function attachTerminalInput(ctx: TerminalSessionContext, deps: TerminalI
     }
 
     if (data === "\x1b" || data.includes("\x03")) agentTracker.interrupt()
+    else if (!data.startsWith("\x1b")) agentTracker.answer()
 
     // Typing at the prompt means the user answers it; replies the terminal
     // itself sends (focus, cursor reports) start with ESC and do not count.

@@ -132,6 +132,26 @@ describe("AgentTracker", () => {
     expect(statuses).toEqual([{ agent: "codex", activity: "processing" }])
   })
 
+  it("works on once a wait is answered", () => {
+    tracker.report({ agent: "codex", state: "waiting" })
+    tracker.answer()
+    vi.advanceTimersByTime(5000)
+    expect(statuses[statuses.length - 1]).toEqual({ agent: "codex", activity: "processing" })
+    expect(announcements).toEqual([])
+    // A refusal is reported.
+    tracker.report({ agent: "codex", state: "idle" })
+    expect(statuses[statuses.length - 1]).toBeNull()
+  })
+
+  it("keeps waiting where an answer may be a refusal nobody reports", () => {
+    tracker.report({ agent: "claude", state: "waiting" })
+    tracker.answer()
+    expect(statuses).toEqual([{ agent: "claude", activity: "waiting" }])
+    tracker.report({ agent: "codex", state: "processing" })
+    tracker.answer()
+    expect(statuses[statuses.length - 1]).toEqual({ agent: "codex", activity: "processing" })
+  })
+
   it("goes quiet when the agent reports it was stopped", () => {
     tracker.report({ agent: "codex", state: "waiting" })
     tracker.report({ agent: "codex", state: "idle" })

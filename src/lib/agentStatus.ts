@@ -67,7 +67,8 @@ export const AGENT_CLAIM_WINDOW_MS = 10_000
 /**
  * Agents that report it themselves when the user stops them or refuses what
  * they ask, which Claude Code does not. Their keys are no sign of a stop:
- * Codex's Esc closes a popup first, and its Ctrl+C clears a draft.
+ * Codex's Esc closes a popup first, and its Ctrl+C clears a draft. A guess
+ * that an answer resumed their work is put right by the report if it did not.
  */
 const AGENTS_REPORTING_STOPS: ReadonlySet<string> = new Set(["codex", "opencode", "pi"])
 
@@ -141,6 +142,18 @@ export class AgentTracker {
     if (!this.status || AGENTS_REPORTING_STOPS.has(this.status.agent)) return
     this.cancelWait()
     this.setStatus(null)
+  }
+
+  /**
+   * Typed in the terminal, not by the terminal itself: an agent waiting for
+   * the user has its answer and works on. Its hooks would say so only once
+   * the approved tool has finished, which may take minutes.
+   */
+  answer() {
+    const status = this.status
+    if (status?.activity !== "waiting" || !AGENTS_REPORTING_STOPS.has(status.agent)) return
+    this.cancelWait()
+    this.setStatus({ agent: status.agent, activity: "processing" })
   }
 
   /** The shell's prompt is back or the session closed: no agent runs anymore. */
