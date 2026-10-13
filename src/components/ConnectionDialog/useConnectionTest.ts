@@ -16,6 +16,7 @@ import type {
   ConnectionForm,
 } from "@/components/ConnectionDialog/types"
 import { SavedProfile } from "@/components/ProfilesPanel"
+import { proxyChoicePayload } from "@/lib/proxy"
 import { isVerificationCanceled } from "@/lib/userVerification"
 import {
   certificatePayload,
@@ -128,6 +129,7 @@ export function useConnectionTest({
         remember_password: false,
         use_jump_host: form.useJumpHost,
         jump_hosts: jumpHostsPayload,
+        proxy: proxyChoicePayload(form.proxy),
       }
 
       const result = await withVaultUnlock(() =>

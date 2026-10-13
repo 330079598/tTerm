@@ -229,6 +229,8 @@ export function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     zmodem_auto_detect_enabled: config.zmodem_auto_detect_enabled !== false,
     zmodem_download_directory:
       typeof config.zmodem_download_directory === "string" ? config.zmodem_download_directory : "",
+    default_proxy_id:
+      typeof config.default_proxy_id === "string" ? config.default_proxy_id.trim() : "",
     sudo_prompt_patterns: Array.isArray(config.sudo_prompt_patterns)
       ? config.sudo_prompt_patterns.filter(
           (pattern): pattern is string => typeof pattern === "string" && pattern.trim() !== ""

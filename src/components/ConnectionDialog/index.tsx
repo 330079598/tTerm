@@ -28,6 +28,7 @@ import {
   getDefaultTitle,
 } from "@/components/ConnectionDialog/connectionDialogUtils"
 import { JumpHostFields } from "@/components/ConnectionDialog/JumpHostFields"
+import { ProxyFields } from "@/components/ConnectionDialog/ProxyFields"
 import { SshConnectionFields } from "@/components/ConnectionDialog/SshConnectionFields"
 import { SessionCustomizationFields } from "@/components/ConnectionDialog/SessionCustomizationFields"
 import { SudoAutofillFields } from "@/components/ConnectionDialog/SudoAutofillFields"
@@ -243,6 +244,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
                   })
                 }
               />
+              <ProxyFields form={form} setForm={setForm} />
               <SudoAutofillFields
                 form={form}
                 setForm={setForm}

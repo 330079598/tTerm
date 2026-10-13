@@ -1,4 +1,5 @@
 import type { TabIconStyle } from "@/lib/tabIcons"
+import type { ProxyChoice } from "@/types/proxy"
 
 export interface SavedProfile {
   id: string
@@ -38,6 +39,8 @@ export interface SavedProfile {
   shell_integration?: boolean
   /** Whether the connection's sessions are logged; missing follows the logging setting. */
   session_log?: SessionLogPolicy
+  /** Which proxy the first host is reached through; missing follows the default proxy. */
+  proxy?: ProxyChoice
 }
 
 /** A connection's logging choice; `default` follows the logging setting. */
@@ -186,6 +189,8 @@ export interface Tab {
     shellIntegration?: boolean
     /** Whether this tab's sessions are logged; missing follows the logging setting. */
     sessionLog?: SessionLogPolicy
+    /** SSH: which proxy the first host is reached through; missing follows the default proxy. */
+    proxy?: ProxyChoice
   }
   remoteFile?: {
     sourceTabId: string

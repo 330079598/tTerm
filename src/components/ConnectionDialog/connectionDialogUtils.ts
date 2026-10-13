@@ -1,5 +1,6 @@
 import { SavedProfile } from "@/components/ProfilesPanel"
 import { normalizeSessionLogPolicy, normalizeSshAuthMethod } from "@/lib/profileConnections"
+import { normalizeProxyChoice } from "@/lib/proxy"
 import type { SessionLogPolicy } from "@/types/tab"
 import type { TerminalPalette } from "@/types/theme"
 
@@ -44,6 +45,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     shellIntegration: profile.shell_integration === true,
     sessionLog: normalizeSessionLogPolicy(profile.session_log) ?? "default",
     useJumpHost: profile.use_jump_host ?? jumpHosts.length > 0,
+    proxy: normalizeProxyChoice(profile.proxy),
     sudoAutofill: profile.sudo_autofill !== false,
     jumpHosts: jumpHosts.map((jump) => ({
       ...createDefaultJumpHost(),

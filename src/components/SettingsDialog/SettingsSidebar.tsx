@@ -6,6 +6,7 @@ import {
   HardDriveDownload,
   Info,
   Keyboard,
+  Network,
   Palette,
   Plug,
   Shield,
@@ -39,6 +40,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ activeTab, onT
           label: t("settings.connection", { defaultValue: "Connection" }),
           icon: Plug,
         },
+        { value: "proxies", label: t("proxies.sidebar"), icon: Network },
       ],
     },
     {

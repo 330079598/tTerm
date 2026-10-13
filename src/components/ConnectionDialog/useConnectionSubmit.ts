@@ -15,6 +15,7 @@ import {
 } from "@/components/ConnectionDialog/types"
 import { SavedProfile } from "@/components/ProfilesPanel"
 import { invokeSafe, reportError } from "@/lib/errors"
+import { proxyChoicePayload } from "@/lib/proxy"
 import { Tab } from "@/types/tab"
 import {
   certificatePayload,
@@ -151,6 +152,7 @@ export function useConnectionSubmit({
         session_log: sessionLogPayload(form.sessionLog),
         use_jump_host: form.useJumpHost,
         jump_hosts: profileJumpHostsPayload,
+        proxy: proxyChoicePayload(form.proxy),
         sudo_autofill: form.sudoAutofill,
         sudo_password:
           form.sudoAutofill && form.sudoPassword.length > 0 ? form.sudoPassword : undefined,
@@ -222,6 +224,7 @@ export function useConnectionSubmit({
         shellIntegration: form.shellIntegration,
         sessionLog: sessionLogPayload(form.sessionLog),
         jumpHosts: connectionJumpHostsPayload,
+        proxy: proxyChoicePayload(form.proxy),
       }
     } else {
       connection.connection = {

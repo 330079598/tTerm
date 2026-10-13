@@ -103,6 +103,8 @@ export interface AppConfig extends TabSettings {
   reconnect_max_attempts: number
   zmodem_auto_detect_enabled: boolean
   zmodem_download_directory: string
+  /** Proxy server that hosts left on the default connect through; empty for none. */
+  default_proxy_id: string
   /** Extra sudo password prompt regexes; an optional `user` group names the account. */
   sudo_prompt_patterns: string[]
   /** macOS: Option+key sends Meta (ESC prefix) instead of the alternate character. */
@@ -216,6 +218,7 @@ export const defaultConfig: AppConfig = {
   reconnect_max_attempts: 5,
   zmodem_auto_detect_enabled: true,
   zmodem_download_directory: "",
+  default_proxy_id: "",
   sudo_prompt_patterns: [],
   mac_option_is_meta: false,
   confirm_multiline_paste: true,

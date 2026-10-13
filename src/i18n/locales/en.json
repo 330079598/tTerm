@@ -1721,7 +1721,8 @@
     "secretKinds": {
       "ssh": "SSH password",
       "jumpHost": "Jump host password",
-      "sudo": "Sudo password"
+      "sudo": "Sudo password",
+      "proxy": "Proxy password"
     }
   },
   "userVerification": {
@@ -2441,6 +2442,68 @@
       "gamepad-2": "Gamepad",
       "music": "Music",
       "palette": "Palette"
+    }
+  },
+  "proxies": {
+    "sidebar": "Proxies",
+    "title": "Proxy servers",
+    "description": "SSH connections can reach their first host through an HTTP or SOCKS5 proxy, such as a company proxy or a local Clash or V2Ray.",
+    "defaultTitle": "Default proxy",
+    "defaultDescription": "Hosts set to \"Use the default proxy\" connect through this one. It applies to this device only and is not synced.",
+    "defaultMissing": "The default proxy was deleted. Choose another one, or None.",
+    "defaultNone": "None (connect directly)",
+    "deletedOption": "Deleted proxy",
+    "defaultBadge": "Default",
+    "listTitle": "Saved proxies",
+    "add": "Add proxy",
+    "empty": "No proxies yet. Add one to connect through it.",
+    "loadFailed": "Could not load the proxies: {{error}}",
+    "firstHopNote": "A proxy carries the connection to the first host only: the first jump host when a host uses jump hosts.",
+    "edit": "Edit",
+    "editLabel": "Edit {{name}}",
+    "delete": "Delete",
+    "deleteLabel": "Delete {{name}}",
+    "deleteTitle": "Delete proxy",
+    "deleteConfirm": "Delete the proxy \"{{name}}\" and its saved password?",
+    "deleteConfirmInUse_one": "Delete the proxy \"{{name}}\"? {{count}} host connects through it and will not connect until you choose another proxy for it.",
+    "deleteConfirmInUse_other": "Delete the proxy \"{{name}}\"? {{count}} hosts connect through it and will not connect until you choose another proxy for them.",
+    "deleteFailed": "Could not delete the proxy",
+    "newTitle": "Add proxy",
+    "editTitle": "Edit proxy",
+    "dialogDescription": "The proxy opens the TCP connection to the host; SSH still encrypts everything end to end.",
+    "kinds": {
+      "socks5": "SOCKS5",
+      "http": "HTTP (CONNECT)"
+    },
+    "form": {
+      "name": "Name",
+      "namePlaceholder": "e.g. Office proxy",
+      "kind": "Type",
+      "host": "Host",
+      "port": "Port",
+      "username": "User name",
+      "usernamePlaceholder": "Optional",
+      "password": "Password",
+      "passwordSavedPlaceholder": "Leave empty to keep the saved password",
+      "clearPassword": "Remove saved password"
+    },
+    "errors": {
+      "name": "Enter a name.",
+      "host": "Enter a host name or IP address without spaces.",
+      "port": "Enter a port between 1 and 65535."
+    },
+    "field": {
+      "label": "Proxy",
+      "useDefault": "Use the default proxy",
+      "useDefaultNamed": "Use the default proxy ({{name}})",
+      "direct": "Connect directly",
+      "deletedOption": "Deleted proxy",
+      "defaultHint": "Connects through \"{{name}}\", this device's default proxy.",
+      "noDefaultHint": "No default proxy is set, so this host connects directly.",
+      "defaultMissingHint": "The default proxy was deleted. Choose another one in Settings > Proxies.",
+      "firstHopHint": "Applies to the first host: the first jump host when jump hosts are used.",
+      "deletedHint": "The proxy chosen for this host was deleted. Choose another one.",
+      "emptyHint": "Add proxy servers in Settings > Proxies."
     }
   }
 }

@@ -80,7 +80,9 @@ export function SavedSecretsCard({
                         ? t("secretStorage.secretKinds.jumpHost")
                         : entry.kind === "sudo"
                           ? t("secretStorage.secretKinds.sudo")
-                          : t("secretStorage.secretKinds.ssh")}
+                          : entry.kind === "proxy"
+                            ? t("secretStorage.secretKinds.proxy")
+                            : t("secretStorage.secretKinds.ssh")}
                     </div>
                     {revealed && revealedPassword !== null && (
                       <div className="bg-muted/60 mt-1 rounded-sm px-2 py-1 font-mono text-xs break-all">

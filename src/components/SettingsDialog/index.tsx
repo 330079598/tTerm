@@ -28,6 +28,7 @@ import { LoggingSettingsTab } from "@/components/SettingsDialog/LoggingSettingsT
 import { NotificationSettingsTab } from "@/components/SettingsDialog/NotificationSettingsTab"
 import { KeymapSettingsTab } from "@/components/SettingsDialog/KeymapSettingsTab"
 import { ProfileGroupsSettingsTab } from "@/components/SettingsDialog/ProfileGroupsSettingsTab"
+import { ProxySettingsTab } from "@/components/SettingsDialog/ProxySettingsTab"
 import { SecuritySettingsTab } from "@/components/SettingsDialog/SecuritySettingsTab"
 import { SettingsSidebar } from "@/components/SettingsDialog/SettingsSidebar"
 import { UpdateSettingsTab } from "@/components/SettingsDialog/UpdateSettingsTab"
@@ -202,6 +203,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               showJumpHostConnectionInfo={config.show_jump_host_connection_info}
               sudoPromptPatterns={config.sudo_prompt_patterns}
             />
+          </SettingsTabPanel>
+
+          <SettingsTabPanel value="proxies">
+            <ProxySettingsTab confirm={confirm} />
           </SettingsTabPanel>
 
           <SettingsTabPanel value="logging">

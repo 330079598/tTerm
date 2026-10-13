@@ -1,3 +1,4 @@
+import { normalizeProxyChoice, proxyChoicePayload } from "@/lib/proxy"
 import type {
   ConnectionType,
   SavedProfile,
@@ -46,6 +47,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
       loginScript: profile.login_script,
       shellIntegration: profile.shell_integration === true,
       sessionLog: normalizeSessionLogPolicy(profile.session_log),
+      proxy: proxyChoicePayload(normalizeProxyChoice(profile.proxy)),
       jumpHosts:
         useJumpHost && jumpHosts.length > 0
           ? jumpHosts.map((jump) => ({

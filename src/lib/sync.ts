@@ -7,6 +7,7 @@ export type SyncCategory =
   | "profiles"
   | "profileGroups"
   | "tunnels"
+  | "proxies"
   | "secrets"
   | "commands"
   | "knownHosts"

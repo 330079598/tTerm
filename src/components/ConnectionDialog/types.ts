@@ -1,5 +1,7 @@
 import { SavedProfile } from "@/components/ProfilesPanel"
 import { useConfig } from "@/contexts/ConfigContext"
+import { DEFAULT_PROXY_CHOICE } from "@/lib/proxy"
+import type { ProxyChoice } from "@/types/proxy"
 import { SessionLogPolicy, SshAuthMethod, Tab, TerminalShellType } from "@/types/tab"
 
 export interface ConnectionDialogProps {
@@ -91,6 +93,8 @@ export interface ConnectionForm {
   // Jump host chain fields
   useJumpHost: boolean
   jumpHosts: JumpHostForm[]
+  /** Which proxy the first host is reached through. */
+  proxy: ProxyChoice
   // Sudo password autofill
   sudoAutofill: boolean
   sudoPassword: string
@@ -140,6 +144,7 @@ export const defaultForm: ConnectionForm = {
   terminalShellCustomArgs: "",
   useJumpHost: false,
   jumpHosts: [],
+  proxy: DEFAULT_PROXY_CHOICE,
   sudoAutofill: true,
   sudoPassword: "",
   clearSudoPassword: false,
