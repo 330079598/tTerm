@@ -2447,7 +2447,7 @@
   "proxies": {
     "sidebar": "Proxies",
     "title": "Proxy servers",
-    "description": "SSH connections can reach their first host through an HTTP or SOCKS5 proxy, such as a company proxy or a local Clash or V2Ray.",
+    "description": "SSH connections can reach their first host through an HTTP or SOCKS5 proxy, such as a company proxy or a local Clash or V2Ray, or through a proxy command like OpenSSH's ProxyCommand.",
     "defaultTitle": "Default proxy",
     "defaultDescription": "Hosts set to \"Use the default proxy\" connect through this one. It applies to this device only and is not synced.",
     "defaultMissing": "The default proxy was deleted. Choose another one, or None.",
@@ -2470,10 +2470,11 @@
     "deleteFailed": "Could not delete the proxy",
     "newTitle": "Add proxy",
     "editTitle": "Edit proxy",
-    "dialogDescription": "The proxy opens the TCP connection to the host; SSH still encrypts everything end to end.",
+    "dialogDescription": "The proxy opens the connection to the host; SSH still encrypts everything end to end.",
     "kinds": {
       "socks5": "SOCKS5",
-      "http": "HTTP (CONNECT)"
+      "http": "HTTP (CONNECT)",
+      "command": "Command (ProxyCommand)"
     },
     "form": {
       "name": "Name",
@@ -2485,12 +2486,16 @@
       "usernamePlaceholder": "Optional",
       "password": "Password",
       "passwordSavedPlaceholder": "Leave empty to keep the saved password",
-      "clearPassword": "Remove saved password"
+      "clearPassword": "Remove saved password",
+      "command": "Command",
+      "commandHint": "Runs on this computer, and SSH talks through its input and output. %h is replaced by the host, %p by the port, %r by the user name and %% by a percent sign."
     },
     "errors": {
       "name": "Enter a name.",
       "host": "Enter a host name or IP address without spaces.",
-      "port": "Enter a port between 1 and 65535."
+      "port": "Enter a port between 1 and 65535.",
+      "command": "Enter the command to run.",
+      "commandToken": "Unknown % token. Use %h, %p, %r, %n, or %% for a percent sign."
     },
     "field": {
       "label": "Proxy",
@@ -2504,6 +2509,13 @@
       "firstHopHint": "Applies to the first host: the first jump host when jump hosts are used.",
       "deletedHint": "The proxy chosen for this host was deleted. Choose another one.",
       "emptyHint": "Add proxy servers in Settings > Proxies."
+    },
+    "commandPrompt": {
+      "title": "Allow this proxy command?",
+      "description": "To connect, the proxy \"{{name}}\" runs the command below on this computer. It was not set up on this device: it came from sync, a backup or an SSH config import. Allow it only if you recognize it.",
+      "remember": "This device remembers your answer. If the command changes, you will be asked again.",
+      "deny": "Don't run",
+      "allow": "Allow and connect"
     }
   }
 }

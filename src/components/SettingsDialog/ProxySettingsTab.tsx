@@ -14,7 +14,7 @@ import { Select } from "@/components/ui/select"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useToast } from "@/hooks/use-toast"
 import { useProxyServers } from "@/hooks/useProxyServers"
-import { countProfilesUsingProxy, proxyAddress, proxyKindLabel } from "@/lib/proxy"
+import { countProfilesUsingProxy, proxySummary } from "@/lib/proxy"
 import { toErrorMessage } from "@/lib/utils"
 import type { ProxyServerEntry } from "@/types/proxy"
 import type { SavedProfile } from "@/types/tab"
@@ -153,7 +153,7 @@ export const ProxySettingsTab: React.FC<ProxySettingsTabProps> = ({ confirm }) =
                           )}
                         </div>
                         <div className="text-muted-foreground truncate font-mono text-xs">
-                          {proxyKindLabel(server.kind)} {proxyAddress(server)}
+                          {proxySummary(server)}
                           {server.username ? ` · ${server.username}` : ""}
                         </div>
                       </div>

@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useProxyServers } from "@/hooks/useProxyServers"
-import { parseProxyChoiceKey, proxyAddress, proxyChoiceKey, proxyKindLabel } from "@/lib/proxy"
+import { parseProxyChoiceKey, proxyChoiceKey, proxySummary } from "@/lib/proxy"
 import type { ProxyServer } from "@/types/proxy"
 
 import { ConnectionForm } from "@/components/ConnectionDialog/types"
@@ -16,7 +16,7 @@ interface ProxyFieldsProps {
 }
 
 function serverLabel(server: ProxyServer): string {
-  return `${server.name} (${proxyKindLabel(server.kind)} ${proxyAddress(server)})`
+  return `${server.name} (${proxySummary(server)})`
 }
 
 /** The proxy a host connects through: the default one, none, or a saved server. */

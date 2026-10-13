@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 import { CloseRequestDialog } from "@/components/CloseRequestDialog"
 import { ContextMenu } from "@/components/ContextMenu"
 import { NewTabLauncher } from "@/components/NewTabLauncher"
+import { ProxyCommandPrompt } from "@/components/ProxyCommandPrompt"
 import { RenameDialog } from "@/components/RenameDialog"
 import { AppTitleBar } from "@/components/TTermApp/AppTitleBar"
 import { CommandLibraryDialogs } from "@/components/TTermApp/CommandLibraryDialogs"
@@ -336,6 +337,7 @@ export const TTermApp: React.FC = () => {
       <RenameDialog {...renameDialog} />
 
       <TunnelHostKeyPrompt />
+      <ProxyCommandPrompt />
       <VaultStartupUnlockDialog
         open={shouldPromptStartupVaultUnlock}
         onClose={dismissStartupVaultUnlock}

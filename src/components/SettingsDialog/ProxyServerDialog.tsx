@@ -2,7 +2,6 @@ import React, { useState } from "react"
 import { Loader2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -14,12 +13,12 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PasswordInput } from "@/components/ui/password-input"
 import { Select } from "@/components/ui/select"
+import { ProxyServerFields } from "@/components/SettingsDialog/ProxyServerFields"
 import type { ProxyPasswordChange } from "@/hooks/useProxyServers"
 import { DEFAULT_PROXY_PORTS, validateProxyDraft, type ProxyDraftError } from "@/lib/proxy"
 import { toErrorMessage } from "@/lib/utils"
-import type { ProxyKind, ProxyServer, ProxyServerEntry } from "@/types/proxy"
+import type { NetworkProxyKind, ProxyKind, ProxyServer, ProxyServerEntry } from "@/types/proxy"
 
 interface ProxyServerDialogProps {
   open: boolean
@@ -31,39 +30,76 @@ interface ProxyServerDialogProps {
 
 type ProxyServerFormProps = Omit<ProxyServerDialogProps, "open">
 
+/** The form's text fields, as typed. */
+interface DraftFields {
+  name: string
+  kind: ProxyKind
+  host: string
+  portText: string
+  username: string
+  command: string
+}
+
+function initialFields(server: ProxyServerEntry | null): DraftFields {
+  const isServer = server && server.kind !== "command"
+  return {
+    name: server?.name ?? "",
+    kind: server?.kind ?? "socks5",
+    host: isServer ? server.host : "127.0.0.1",
+    portText: String(isServer ? server.port : DEFAULT_PROXY_PORTS.socks5),
+    username: server?.username ?? "",
+    command: server?.command ?? "",
+  }
+}
+
+/**
+ * The port after switching to the kind `next`: an untouched usual port
+ * follows the kind, a typed one stays.
+ */
+function followPort(fields: DraftFields, next: ProxyKind): string {
+  if (fields.kind === "command" || next === "command") return fields.portText
+  return fields.portText.trim() === String(DEFAULT_PROXY_PORTS[fields.kind])
+    ? String(DEFAULT_PROXY_PORTS[next as NetworkProxyKind])
+    : fields.portText
+}
+
 const ProxyServerForm: React.FC<ProxyServerFormProps> = ({ onOpenChange, server, onSave }) => {
   const { t } = useTranslation()
-  const [name, setName] = useState(server?.name ?? "")
-  const [kind, setKind] = useState<ProxyKind>(server?.kind ?? "socks5")
-  const [host, setHost] = useState(server?.host ?? "127.0.0.1")
-  const [portText, setPortText] = useState(String(server?.port ?? DEFAULT_PROXY_PORTS.socks5))
-  const [username, setUsername] = useState(server?.username ?? "")
+  const [fields, setFields] = useState(() => initialFields(server))
   const [password, setPassword] = useState("")
   const [clearPassword, setClearPassword] = useState(false)
   const [error, setError] = useState<ProxyDraftError | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const hasSavedPassword = server?.hasPassword === true && !clearPassword
+  const { name, kind, host, portText, username, command } = fields
+  const isCommand = kind === "command"
   const port = /^\d+$/.test(portText.trim()) ? Number(portText.trim()) : 0
+  const setField = (field: keyof DraftFields) => (event: React.ChangeEvent<HTMLInputElement>) =>
+    setFields((current) => ({ ...current, [field]: event.target.value }))
 
   const changeKind = (next: ProxyKind) => {
-    // Follow the usual port of the new kind unless one was typed.
-    if (portText.trim() === String(DEFAULT_PROXY_PORTS[kind])) {
-      setPortText(String(DEFAULT_PROXY_PORTS[next]))
-    }
-    setKind(next)
+    setFields((current) => ({ ...current, kind: next, portText: followPort(current, next) }))
   }
 
   const handleSave = async () => {
-    const draft: ProxyServer = {
-      id: server?.id ?? crypto.randomUUID(),
-      name: name.trim(),
-      kind,
-      host: host.trim(),
-      port,
-      username: username.trim() || undefined,
-    }
+    const draft: ProxyServer = isCommand
+      ? {
+          id: server?.id ?? crypto.randomUUID(),
+          name: name.trim(),
+          kind,
+          host: "",
+          port: 0,
+          command: command.trim(),
+        }
+      : {
+          id: server?.id ?? crypto.randomUUID(),
+          name: name.trim(),
+          kind,
+          host: host.trim(),
+          port,
+          username: username.trim() || undefined,
+        }
     const invalid = validateProxyDraft(draft)
     setError(invalid)
     if (invalid) {
@@ -73,7 +109,7 @@ const ProxyServerForm: React.FC<ProxyServerFormProps> = ({ onOpenChange, server,
     setSaving(true)
     setSaveError(null)
     try {
-      await onSave(draft, { password, clearPassword })
+      await onSave(draft, isCommand ? { clearPassword: true } : { password, clearPassword })
       onOpenChange(false)
     } catch (err) {
       setSaveError(toErrorMessage(err))
@@ -107,7 +143,7 @@ const ProxyServerForm: React.FC<ProxyServerFormProps> = ({ onOpenChange, server,
             id="proxy-name"
             value={name}
             placeholder={t("proxies.form.namePlaceholder")}
-            onChange={(event) => setName(event.target.value)}
+            onChange={setField("name")}
           />
           {fieldError("name")}
         </div>
@@ -123,79 +159,49 @@ const ProxyServerForm: React.FC<ProxyServerFormProps> = ({ onOpenChange, server,
           >
             <option value="socks5">{t("proxies.kinds.socks5")}</option>
             <option value="http">{t("proxies.kinds.http")}</option>
+            <option value="command">{t("proxies.kinds.command")}</option>
           </Select>
         </div>
 
-        <div className="grid grid-cols-[1fr_7rem] gap-3">
+        {isCommand ? (
           <div>
-            <Label htmlFor="proxy-host" className="mb-1.5 block">
-              {t("proxies.form.host")}
-            </Label>
-            <Input id="proxy-host" value={host} onChange={(event) => setHost(event.target.value)} />
-            {fieldError("host")}
-          </div>
-          <div>
-            <Label htmlFor="proxy-port" className="mb-1.5 block">
-              {t("proxies.form.port")}
+            <Label htmlFor="proxy-command" className="mb-1.5 block">
+              {t("proxies.form.command")}
             </Label>
             <Input
-              id="proxy-port"
-              inputMode="numeric"
-              value={portText}
-              onChange={(event) => setPortText(event.target.value)}
-            />
-            {fieldError("port")}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label htmlFor="proxy-username" className="mb-1.5 block">
-              {t("proxies.form.username")}
-            </Label>
-            <Input
-              id="proxy-username"
+              id="proxy-command"
+              className="font-mono"
               autoComplete="off"
-              value={username}
-              placeholder={t("proxies.form.usernamePlaceholder")}
-              onChange={(event) => setUsername(event.target.value)}
+              spellCheck={false}
+              value={command}
+              placeholder="ssh -W %h:%p bastion"
+              onChange={setField("command")}
             />
+            {fieldError("command")}
+            {fieldError("commandToken")}
+            <p className="text-muted-foreground mt-1.5 text-xs leading-5">
+              {t("proxies.form.commandHint")}
+            </p>
           </div>
-          <div>
-            <div className="mb-1.5 flex items-center gap-2">
-              <Label htmlFor="proxy-password">{t("proxies.form.password")}</Label>
-              {hasSavedPassword && (
-                <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
-                  {t("connection.savedPasswordBadge")}
-                </Badge>
-              )}
-            </div>
-            <PasswordInput
-              id="proxy-password"
-              autoComplete="new-password"
-              value={password}
-              disabled={!username.trim()}
-              placeholder={hasSavedPassword ? t("proxies.form.passwordSavedPlaceholder") : ""}
-              onChange={(event) => {
-                setPassword(event.target.value)
-                setClearPassword(false)
-              }}
-            />
-          </div>
-        </div>
-        {server?.hasPassword && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={clearPassword}
-            onClick={() => {
+        ) : (
+          <ProxyServerFields
+            host={host}
+            portText={portText}
+            username={username}
+            password={password}
+            savedPassword={server?.hasPassword === true}
+            clearPassword={clearPassword}
+            fieldError={fieldError}
+            onField={setField}
+            onPassword={(value) => {
+              setPassword(value)
+              setClearPassword(false)
+            }}
+            onClearPassword={() => {
               setPassword("")
               setClearPassword(true)
             }}
-          >
-            {t("proxies.form.clearPassword")}
-          </Button>
+          />
         )}
 
         {saveError && (

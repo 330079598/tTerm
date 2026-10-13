@@ -1,9 +1,9 @@
-import type { ProxyChoice, ProxyKind, ProxyServer } from "@/types/proxy"
+import type { NetworkProxyKind, ProxyChoice, ProxyServer } from "@/types/proxy"
 
 export const DEFAULT_PROXY_CHOICE: ProxyChoice = { mode: "default" }
 
 /** The ports proxies of each kind usually listen on. */
-export const DEFAULT_PROXY_PORTS: Record<ProxyKind, number> = {
+export const DEFAULT_PROXY_PORTS: Record<NetworkProxyKind, number> = {
   http: 8080,
   socks5: 1080,
 }
@@ -45,17 +45,33 @@ export function proxyAddress(server: Pick<ProxyServer, "host" | "port">): string
 }
 
 /** How a list names a server's protocol. */
-export function proxyKindLabel(kind: ProxyKind): string {
+export function proxyKindLabel(kind: NetworkProxyKind): string {
   return kind === "http" ? "HTTP" : "SOCKS5"
 }
 
-export type ProxyDraftError = "name" | "host" | "port"
+/** What a list shows under a proxy's name: its protocol and address, or its command. */
+export function proxySummary(server: ProxyServer): string {
+  if (server.kind === "command") return `$ ${server.command ?? ""}`
+  return `${proxyKindLabel(server.kind)} ${proxyAddress(server)}`
+}
 
-/** The first field of a server being edited that cannot be saved. */
+/** Whether every `%` in a proxy command starts a token tTerm replaces. */
+export function hasOnlyKnownProxyTokens(command: string): boolean {
+  return /^(?:[^%]|%[%hnpr])*$/.test(command)
+}
+
+export type ProxyDraftError = "name" | "host" | "port" | "command" | "commandToken"
+
+/** The first field of a proxy being edited that cannot be saved. */
 export function validateProxyDraft(
-  draft: Pick<ProxyServer, "name" | "host" | "port">
+  draft: Pick<ProxyServer, "name" | "kind" | "host" | "port" | "command">
 ): ProxyDraftError | null {
   if (!draft.name.trim()) return "name"
+  if (draft.kind === "command") {
+    const command = draft.command?.trim() ?? ""
+    if (!command) return "command"
+    return hasOnlyKnownProxyTokens(command) ? null : "commandToken"
+  }
   const host = draft.host.trim()
   if (!host || /\s/.test(host)) return "host"
   if (!Number.isInteger(draft.port) || draft.port < 1 || draft.port > 65535) return "port"
