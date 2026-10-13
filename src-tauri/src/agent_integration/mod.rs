@@ -14,7 +14,6 @@ mod codex;
 pub mod console_report;
 mod hooks;
 mod json;
-mod login_shell;
 mod plugin_file;
 
 use std::path::{Path, PathBuf};
@@ -169,7 +168,7 @@ fn config_dir(spec: &AgentSpec) -> Option<(PathBuf, ConfigSource)> {
     let from_environment = std::env::var(spec.variable)
         .ok()
         .filter(|dir| !dir.trim().is_empty())
-        .or_else(|| login_shell::variable(spec.variable))
+        .or_else(|| crate::core::login_shell::variable(spec.variable))
         .map(|dir| crate::profiles::parser::paths::expand_home_path(&dir))
         .filter(|dir| dir.is_absolute());
     if let Some(dir) = from_environment {

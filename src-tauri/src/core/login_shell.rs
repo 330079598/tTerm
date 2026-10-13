@@ -1,7 +1,8 @@
 //! Variables the user exports in their shell's startup files. tTerm opened
-//! from the Dock or a desktop menu does not inherit them, while the agents,
-//! started from a shell, do: `CLAUDE_CONFIG_DIR` set in `~/.zshrc` moves
-//! Claude Code's settings without tTerm seeing it in its own environment.
+//! from the Dock or a desktop menu does not inherit them, while programs
+//! started from a shell do: `CLAUDE_CONFIG_DIR` set in `~/.zshrc` moves
+//! Claude Code's settings without tTerm seeing it in its own environment, and
+//! a `PATH` extended there finds programs tTerm's own `PATH` does not.
 
 #[cfg(unix)]
 use std::collections::HashMap;
@@ -25,7 +26,7 @@ const TIMEOUT: Duration = Duration::from_secs(5);
 
 /// `name` as an interactive login shell sets it; asked once per run.
 #[cfg(unix)]
-pub(super) fn variable(name: &'static str) -> Option<String> {
+pub(crate) fn variable(name: &'static str) -> Option<String> {
     static CACHE: OnceLock<Mutex<HashMap<&'static str, Option<String>>>> = OnceLock::new();
     let cache = CACHE.get_or_init(Default::default);
     if let Some(value) = cache.lock().ok()?.get(name) {
@@ -38,7 +39,7 @@ pub(super) fn variable(name: &'static str) -> Option<String> {
 
 /// Windows programs inherit what the user sets; there are no startup files.
 #[cfg(not(unix))]
-pub(super) fn variable(_name: &'static str) -> Option<String> {
+pub(crate) fn variable(_name: &'static str) -> Option<String> {
     None
 }
 
