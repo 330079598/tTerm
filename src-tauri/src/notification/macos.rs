@@ -130,7 +130,10 @@ pub async fn show(request: NotificationRequest) -> Result<(), String> {
         let pending: Reply = Arc::new(Mutex::new(Some(sender)));
         // Asks only the first time; later calls answer at once. The request is
         // added after the answer so the very first notification is not lost.
-        let options = UNAuthorizationOptions::Alert | UNAuthorizationOptions::Sound;
+        // The Dock hides the app icon's badge unless badges are authorized too.
+        let options = UNAuthorizationOptions::Alert
+            | UNAuthorizationOptions::Sound
+            | UNAuthorizationOptions::Badge;
         let handler = RcBlock::new(move |granted: Bool, error: *mut NSError| {
             if granted.as_bool() {
                 add_request(&request, pending.clone());
