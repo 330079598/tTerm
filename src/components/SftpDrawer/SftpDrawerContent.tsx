@@ -4,6 +4,7 @@ import type { TFunction } from "i18next"
 import { useTranslation } from "react-i18next"
 
 import { useSftpColumnWidths } from "@/components/SftpDrawer/useSftpColumnWidths"
+import type { SftpDragOut } from "@/components/SftpDrawer/useSftpDragOut"
 import { useSftpPointerSelection } from "@/components/SftpDrawer/useSftpPointerSelection"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -47,6 +48,8 @@ function getOwnerGroupLabel(entry: SftpDirectoryEntry) {
 
 export interface SftpDrawerContentProps {
   activePath: string | null
+  /** Null where dragging rows out to the file manager is unsupported. */
+  dragOut: SftpDragOut | null
   enterSelectionMode: () => void
   error: string | null
   exitSelectionMode: () => void
@@ -65,6 +68,7 @@ export interface SftpDrawerContentProps {
   loadDirectory: LoadSftpDirectory
   onSortColumn: (column: SftpSortColumn) => void
   searchMatcher: SftpSearchMatcher
+  selectedEntries: SftpDirectoryEntry[]
   selectedPaths: string[]
   setContextMenu: React.Dispatch<React.SetStateAction<SftpContextMenuState | null>>
   sort: SftpSort
@@ -72,6 +76,7 @@ export interface SftpDrawerContentProps {
 
 export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
   activePath,
+  dragOut,
   enterSelectionMode,
   error,
   exitSelectionMode,
@@ -90,6 +95,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
   loadDirectory,
   onSortColumn,
   searchMatcher,
+  selectedEntries,
   selectedPaths,
   setContextMenu,
   sort,
@@ -259,11 +265,21 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
                       return
                     }
 
-                    startRowSweep(entry.path)
+                    // Pressing a highlighted row drags it (or the whole
+                    // selection) out to the file manager; any other row
+                    // starts sweeping a selection.
+                    const dragEntries = isSelectionMode
+                      ? isSelected && selectedEntries
+                      : isActive && [entry]
+                    if (dragOut && dragEntries) {
+                      dragOut.beginPress(event, dragEntries)
+                    } else {
+                      startRowSweep(entry.path)
+                    }
                     handleActivateEntry(entry.path)
                   }}
                   onClick={(event) => {
-                    if (pointerMovedRef.current) {
+                    if (pointerMovedRef.current || dragOut?.startedRef.current) {
                       event.preventDefault()
                       event.stopPropagation()
                       return
@@ -328,7 +344,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
                     }
                   }}
                   onDoubleClick={() => {
-                    if (pointerMovedRef.current) {
+                    if (pointerMovedRef.current || dragOut?.startedRef.current) {
                       return
                     }
 

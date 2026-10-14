@@ -1849,6 +1849,7 @@
       "missingConnection": "SSH 连接缺失",
       "invalidFile": "无法上传 {{name}}：文件路径不可用",
       "noValidFiles": "没有有效的文件可上传",
+      "dragOutUnknownTarget": "请把文件拖到文件夹或桌面上，才能下载到那里。",
       "notReady": "SFTP 未就绪",
       "uploadAllFailed": "{{count}} 个上传任务失败",
       "uploadPartialFailed": "{{succeeded}} 个上传成功，{{failed}} 个失败"

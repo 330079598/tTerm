@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { useTranslation } from "react-i18next"
 
+import { isDragOutActive } from "@/components/SftpDrawer/dragOut"
 import type { LoadSftpDirectory, SftpDirectoryListing } from "@/components/SftpDrawer/types"
 
 interface UseSftpDragDropParams {
@@ -93,7 +94,7 @@ export function useSftpDragDrop({
       const appWindow = getCurrentWindow()
 
       unlisten = await appWindow.onDragDropEvent((event) => {
-        if (!acceptsWindowDrop) {
+        if (!acceptsWindowDrop || isDragOutActive()) {
           return
         }
 

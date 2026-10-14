@@ -7,6 +7,8 @@ pub mod command_library;
 mod config;
 mod core;
 mod db;
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+mod drag_out;
 mod fonts;
 mod ime_focus;
 mod main_window;
@@ -179,6 +181,8 @@ pub fn run() {
             session_log::open_terminal_log_directory,
             session_log::retry_terminal_logging,
             clipboard_files::read_clipboard_file_paths,
+            #[cfg(any(target_os = "windows", target_os = "macos"))]
+            drag_out::start_drag_out,
             session::load_session,
             session::save_session,
             session::clear_session,

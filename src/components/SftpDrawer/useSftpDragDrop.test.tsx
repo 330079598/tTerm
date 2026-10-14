@@ -7,8 +7,13 @@ import { useSftpDragDrop } from "@/components/SftpDrawer/useSftpDragDrop"
 
 type DragDropEvent = { payload: { type: string; paths?: string[] } }
 
-const { dropHandlers } = vi.hoisted(() => ({
+const { dropHandlers, dragOutActive } = vi.hoisted(() => ({
   dropHandlers: new Set<(event: DragDropEvent) => void>(),
+  dragOutActive: { current: false },
+}))
+
+vi.mock("@/components/SftpDrawer/dragOut", () => ({
+  isDragOutActive: () => dragOutActive.current,
 }))
 
 vi.mock("@tauri-apps/api/window", () => ({
@@ -53,6 +58,7 @@ describe("useSftpDragDrop", () => {
   afterEach(() => {
     cleanup()
     dropHandlers.clear()
+    dragOutActive.current = false
     vi.clearAllMocks()
   })
 
@@ -80,5 +86,21 @@ describe("useSftpDragDrop", () => {
 
     await waitFor(() => expect(focused).toHaveBeenCalledWith(["/local/Zed-aarch64.dmg"]))
     expect(background).not.toHaveBeenCalled()
+  })
+
+  // On Windows a drag out carries placeholder files, and letting go over
+  // tTerm's own window would otherwise upload them.
+  it("ignores a window drop while tTerm drags files out", async () => {
+    const uploadPaths = renderDrawer({
+      isGlobalShortcutTarget: true,
+      currentPath: "/home/stone/code",
+    })
+    await waitFor(() => expect(dropHandlers.size).toBe(1))
+    dragOutActive.current = true
+
+    dropFile("C:\\Temp\\tTerm-drag-1\\tTerm-drop-1-0.log")
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(uploadPaths).not.toHaveBeenCalled()
   })
 })

@@ -16,6 +16,7 @@ import { SftpDialogs } from "@/components/SftpDrawer/SftpDialogs"
 import { SftpEntryContextMenu } from "@/components/SftpDrawer/SftpEntryContextMenu"
 import { SftpPermissionsDialog } from "@/components/SftpDrawer/SftpPermissionsDialog"
 import { useSftpDragDrop } from "@/components/SftpDrawer/useSftpDragDrop"
+import { useSftpDragOut } from "@/components/SftpDrawer/useSftpDragOut"
 import { useSftpPasteUpload } from "@/components/SftpDrawer/useSftpPasteUpload"
 import { useSftpSelection } from "@/components/SftpDrawer/useSftpSelection"
 import { useSftpDirectoryLoader } from "@/components/SftpDrawer/useSftpDirectoryLoader"
@@ -86,6 +87,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     addTransfer,
     conflictDialog,
     downloadEntries,
+    downloadEntriesToFolder,
     handleUploadDialog,
     handleUploadFolderDialog,
     transfersRef,
@@ -108,6 +110,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       uploadPaths,
       visible,
     })
+
+  const dragOut = useSftpDragOut({ downloadEntriesToFolder, setError })
 
   useSftpPasteUpload({
     enabled: config.sftp_paste_upload_enabled && isGlobalShortcutTarget,
@@ -319,6 +323,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       <SftpDrawerContent
         error={error}
         activePath={activePath}
+        dragOut={dragOut}
         handleActivateEntry={handleActivateEntry}
         handleDragEnter={handleDragEnter}
         handleDragLeave={handleDragLeave}
@@ -337,6 +342,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         onSortColumn={handleSortColumn}
         sort={viewPreferences.sort}
         searchMatcher={searchMatcher}
+        selectedEntries={selectedEntries}
         selectedPaths={selectedPaths}
         setContextMenu={setContextMenu}
       />

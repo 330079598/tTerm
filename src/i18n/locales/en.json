@@ -1867,6 +1867,7 @@
       "missingConnection": "SSH connection is missing",
       "invalidFile": "Cannot upload {{name}}: file path not available",
       "noValidFiles": "No valid files to upload",
+      "dragOutUnknownTarget": "Drop the files on a folder or on the desktop to download them there.",
       "notReady": "SFTP not ready",
       "uploadAllFailed": "{{count}} upload(s) failed",
       "uploadPartialFailed": "{{succeeded}} upload(s) succeeded, {{failed}} failed"
