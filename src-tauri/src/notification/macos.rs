@@ -15,7 +15,7 @@ use objc2_foundation::{
 use objc2_user_notifications::{
     UNAuthorizationOptions, UNAuthorizationStatus, UNMutableNotificationContent, UNNotification,
     UNNotificationPresentationOptions, UNNotificationRequest, UNNotificationResponse,
-    UNNotificationSettings, UNNotificationSound, UNUserNotificationCenter,
+    UNNotificationSetting, UNNotificationSettings, UNNotificationSound, UNUserNotificationCenter,
     UNUserNotificationCenterDelegate,
 };
 use tauri::AppHandle;
@@ -200,17 +200,19 @@ pub async fn permission() -> NotificationPermission {
         let sender = Mutex::new(Some(sender));
         let handler = RcBlock::new(move |settings: std::ptr::NonNull<UNNotificationSettings>| {
             // SAFETY: the framework passes valid settings.
-            let status = unsafe { settings.as_ref() }.authorizationStatus();
+            let settings = unsafe { settings.as_ref() };
+            let answer = (settings.authorizationStatus(), settings.badgeSetting());
             if let Some(sender) = sender.lock().ok().and_then(|mut sender| sender.take()) {
-                let _ = sender.send(status);
+                let _ = sender.send(answer);
             }
         });
         UNUserNotificationCenter::currentNotificationCenter()
             .getNotificationSettingsWithCompletionHandler(&handler);
     }
     match receiver.await {
-        Ok(UNAuthorizationStatus::NotDetermined) => NotificationPermission::NotDetermined,
-        Ok(UNAuthorizationStatus::Denied) => NotificationPermission::Denied,
+        Ok((UNAuthorizationStatus::NotDetermined, _)) => NotificationPermission::NotDetermined,
+        Ok((UNAuthorizationStatus::Denied, _)) => NotificationPermission::Denied,
+        Ok((_, UNNotificationSetting::Disabled)) => NotificationPermission::BadgeOff,
         Ok(_) => NotificationPermission::Granted,
         Err(_) => NotificationPermission::NotDetermined,
     }

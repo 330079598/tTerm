@@ -2264,6 +2264,8 @@
     "testFailed": "无法显示通知",
     "deniedTitle": "tTerm 的通知已被关闭",
     "deniedDesc": "请在“系统设置 → 通知 → tTerm”中允许通知。",
+    "badgeOffTitle": "应用图标不会显示通知数",
+    "badgeOffDesc": "在“系统设置 → 通知 → tTerm”中打开“标记应用程序图标”，即可在图标上看到还没查看的通知数。",
     "events": "事件",
     "eventsDesc": "哪些事件会通知你。",
     "commandFinishedSetting": "长命令执行完成",

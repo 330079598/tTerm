@@ -35,7 +35,7 @@ import { isImeKeyEvent } from "@/lib/ime"
 import { toErrorMessage } from "@/lib/utils"
 
 /** `notification_permission` (src-tauri/src/notification). */
-type NotificationPermission = "granted" | "denied" | "notDetermined" | "fallback"
+type NotificationPermission = "granted" | "denied" | "notDetermined" | "badgeOff" | "fallback"
 
 export const NotificationSettingsTab: React.FC = () => {
   const { t } = useTranslation()
@@ -169,6 +169,15 @@ export const NotificationSettingsTab: React.FC = () => {
               <div className="pl-6">
                 <AlertTitle>{t("notifications.deniedTitle")}</AlertTitle>
                 <AlertDescription>{t("notifications.deniedDesc")}</AlertDescription>
+              </div>
+            </Alert>
+          )}
+          {permission === "badgeOff" && (
+            <Alert className="border-amber-500/40 bg-amber-500/5">
+              <CircleAlert className="absolute top-3.5 left-4 size-4 text-amber-500" />
+              <div className="pl-6">
+                <AlertTitle>{t("notifications.badgeOffTitle")}</AlertTitle>
+                <AlertDescription>{t("notifications.badgeOffDesc")}</AlertDescription>
               </div>
             </Alert>
           )}

@@ -38,6 +38,10 @@ pub enum NotificationPermission {
     Denied,
     /// macOS asks the first time one is shown.
     NotDetermined,
+    /// Allowed, but the app icon's count is turned off. macOS asks for badges
+    /// only once, so a copy allowed before tTerm asked for them stays so until
+    /// the user turns them on in System Settings.
+    BadgeOff,
     /// A development build outside an app bundle: shown through AppleScript,
     /// and clicking it does not lead back to the tab.
     Fallback,
