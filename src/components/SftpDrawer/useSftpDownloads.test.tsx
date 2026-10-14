@@ -423,4 +423,40 @@ describe("useSftpDownloads", () => {
     expect(transfers).toHaveLength(1)
     expect(transfers[0]).toMatchObject({ fileName: "sftp.itemSummary", localPath: "/local/target" })
   })
+
+  // A drag out names the folder itself, so even a lone file skips the save
+  // dialog and lands in that folder under its own name.
+  it("downloads a file dropped on a folder without asking where", async () => {
+    const { addTransfer, transfers, updateTransfer } = createTransferStore()
+    const { result } = renderHook(() =>
+      useSftpDownloads({
+        addTransfer,
+        connection: undefined,
+        promptConflictPolicy: vi.fn(),
+        tabId: "tab-1",
+        transfersRef: { current: transfers },
+        updateTransfer,
+      })
+    )
+    invoke.mockImplementation((command: string) =>
+      command === "sftp_check_download_conflicts"
+        ? Promise.resolve(noConflicts)
+        : Promise.resolve(undefined)
+    )
+
+    await act(async () => {
+      await result.current.downloadEntriesToFolder([file], "C:\\Users\\me\\Desktop")
+    })
+
+    expect(openDialog).not.toHaveBeenCalled()
+    expect(invoke).toHaveBeenCalledWith(
+      "sftp_download_paths",
+      expect.objectContaining({
+        conflictPolicy: "overwrite",
+        localParentPath: "C:\\Users\\me\\Desktop",
+        remotePaths: [file.path],
+      })
+    )
+    expect(transfers[0]).toMatchObject({ fileName: file.name, fileSize: file.size })
+  })
 })

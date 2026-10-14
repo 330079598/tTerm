@@ -22,6 +22,10 @@ interface UseSftpTransfersReturn {
   downloadEntries: (
     entries: import("@/components/SftpDrawer/types").SftpDirectoryEntry[]
   ) => Promise<void>
+  downloadEntriesToFolder: (
+    entries: import("@/components/SftpDrawer/types").SftpDirectoryEntry[],
+    folder: string
+  ) => Promise<void>
   handleUploadDialog: () => Promise<void>
   handleUploadFolderDialog: () => Promise<void>
   removeTransfer: (id: string) => void
@@ -50,7 +54,7 @@ export function useSftpTransfers({
   } = useTransferManager()
   const { conflictDialog, promptConflictPolicy } = useSftpConflictDialog()
 
-  const { downloadEntries } = useSftpDownloads({
+  const { downloadEntries, downloadEntriesToFolder } = useSftpDownloads({
     addTransfer,
     connection,
     promptConflictPolicy,
@@ -94,6 +98,7 @@ export function useSftpTransfers({
     clearCompletedTransfers,
     conflictDialog,
     downloadEntries,
+    downloadEntriesToFolder,
     handleUploadDialog,
     handleUploadFolderDialog,
     removeTransfer,
