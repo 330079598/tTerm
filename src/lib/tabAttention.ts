@@ -5,8 +5,9 @@ import { strongerAttention, type TabAttentionLevel } from "@/lib/terminalNotific
 
 // Marks on tabs the user is not looking at: new output, a bell, a
 // notification; how many system notifications a tab raised unseen; what an AI
-// agent in a tab is doing; and the command a tab's shell runs. Kept apart from the tabs themselves so a mark neither
-// re-renders the workspace nor is saved with the session.
+// agent in a tab is doing; and the command a tab's shell runs. Kept apart from
+// the tabs themselves so a mark neither re-renders the workspace nor is saved
+// with the session.
 let marks = new Map<string, TabAttentionLevel>()
 let unseenNotifications = new Map<string, number>()
 let agentStatuses = new Map<string, AgentStatus>()

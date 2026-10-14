@@ -106,8 +106,9 @@ interface UseTerminalNotificationsOptions {
 /**
  * Announces what terminals want attention for: marks tabs out of sight,
  * toasts while the window is in front and the user works in another tab or
- * pane, system notifications while it is not. Clicking a notification shows its tab. The app
- * icon counts system notifications until the user sees their tabs. Mounted once at the app level.
+ * pane, system notifications while it is not. Clicking a notification shows
+ * its tab. The app icon counts system notifications until the user sees their
+ * tabs. Mounted once at the app level.
  */
 export function useTerminalNotifications({
   tabs,
@@ -200,10 +201,14 @@ export function useTerminalNotifications({
       const tabTitle = tabsRef.current.find((tab) => tab.id === tabId)?.title ?? "tTerm"
       const text = describeEvent(event, tabTitle, t)
       if (decision.system) {
-        countTabNotification(tabId)
-        showSystemNotification({ ...text, tabId, sound: config.notify_sound }).catch(
-          (error: unknown) => console.error("Failed to show a notification:", error)
-        )
+        showSystemNotification({ ...text, tabId, sound: config.notify_sound })
+          .then(() => {
+            // Only one that was shown counts, and not once its tab came into
+            // sight while it was on its way.
+            const seen = windowFocusedRef.current && getVisibleTabIdsRef.current().includes(tabId)
+            if (!seen) countTabNotification(tabId)
+          })
+          .catch((error: unknown) => console.error("Failed to show a notification:", error))
         return
       }
 
