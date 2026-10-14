@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react"
+import React, { useMemo } from "react"
 import { AlertCircle, ArrowUpFromLine, File, FolderPlus, Loader2, RefreshCcw } from "lucide-react"
 import type { TFunction } from "i18next"
 import { useTranslation } from "react-i18next"
 
 import { useSftpColumnWidths } from "@/components/SftpDrawer/useSftpColumnWidths"
+import { useSftpPointerSelection } from "@/components/SftpDrawer/useSftpPointerSelection"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -94,15 +95,8 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
   sort,
 }) => {
   const { t } = useTranslation()
-  const [isPointerSelecting, setIsPointerSelecting] = useState(false)
   const { columnWeights, tableShellRef, tableGridStyle, startColumnResize, adjustColumnWidth } =
     useSftpColumnWidths()
-  const pointerAnchorRef = useRef<string | null>(null)
-  const pointerMovedRef = useRef(false)
-  // Set when a press starts on the empty space below the rows, so a plain
-  // click there (no rows swept) can clear the selection on release.
-  const pointerFromBlankRef = useRef(false)
-  const rowRefs = useRef(new Map<string, HTMLDivElement>())
   const filteredEntries = useMemo(() => {
     if (!searchMatcher.hasQuery) {
       return listing?.entries ?? []
@@ -125,77 +119,13 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
           })
       : null
 
-  const updateSelectionFromPointer = React.useCallback(
-    (clientY: number) => {
-      const hoveredEntry = filteredEntries.find((entry) => {
-        const row = rowRefs.current.get(entry.path)
-        if (!row) {
-          return false
-        }
-
-        const rect = row.getBoundingClientRect()
-        return clientY >= rect.top && clientY <= rect.bottom
-      })
-
-      if (!hoveredEntry) {
-        return
-      }
-
-      // Sweeping a row starts a multi-selection from any mode, so no toolbar
-      // toggle is needed first. A press that stays on one row is still a click.
-      if (!pointerAnchorRef.current) {
-        pointerAnchorRef.current = hoveredEntry.path
-        pointerMovedRef.current = true
-        enterSelectionMode()
-        handleActivateEntry(hoveredEntry.path)
-        handleSelectRange(hoveredEntry.path, hoveredEntry.path)
-        return
-      }
-
-      if (pointerAnchorRef.current === hoveredEntry.path) {
-        return
-      }
-
-      pointerMovedRef.current = true
-      enterSelectionMode()
-      handleSelectRange(pointerAnchorRef.current, hoveredEntry.path)
-    },
-    [enterSelectionMode, filteredEntries, handleActivateEntry, handleSelectRange]
-  )
-
-  useEffect(() => {
-    if (!isPointerSelecting) {
-      return
-    }
-
-    const handleMouseMove = (event: MouseEvent) => {
-      event.preventDefault()
-      updateSelectionFromPointer(event.clientY)
-    }
-
-    const stopSelection = () => {
-      if (pointerFromBlankRef.current && !pointerMovedRef.current) {
-        exitSelectionMode()
-      }
-
-      setIsPointerSelecting(false)
-      pointerAnchorRef.current = null
-      pointerFromBlankRef.current = false
-      document.body.classList.remove("sftp-no-select")
-      window.setTimeout(() => {
-        pointerMovedRef.current = false
-      }, 0)
-    }
-
-    document.body.classList.add("sftp-no-select")
-    window.addEventListener("mousemove", handleMouseMove)
-    window.addEventListener("mouseup", stopSelection)
-    return () => {
-      document.body.classList.remove("sftp-no-select")
-      window.removeEventListener("mousemove", handleMouseMove)
-      window.removeEventListener("mouseup", stopSelection)
-    }
-  }, [exitSelectionMode, isPointerSelecting, updateSelectionFromPointer])
+  const { pointerMovedRef, rowRefs, startBlankSweep, startRowSweep } = useSftpPointerSelection({
+    entries: filteredEntries,
+    enterSelectionMode,
+    exitSelectionMode,
+    handleActivateEntry,
+    handleSelectRange,
+  })
 
   return (
     <div
@@ -258,10 +188,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
               return
             }
 
-            pointerAnchorRef.current = null
-            pointerFromBlankRef.current = true
-            pointerMovedRef.current = false
-            setIsPointerSelecting(true)
+            startBlankSweep()
             // Cancelling the press (no text selection while dragging) also
             // cancels its focus change, which would leave keys going to the
             // covered terminal; take focus here as a plain click would.
@@ -332,10 +259,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
                       return
                     }
 
-                    pointerAnchorRef.current = entry.path
-                    pointerMovedRef.current = false
-                    pointerFromBlankRef.current = false
-                    setIsPointerSelecting(true)
+                    startRowSweep(entry.path)
                     handleActivateEntry(entry.path)
                   }}
                   onClick={(event) => {
