@@ -109,6 +109,7 @@ export const WorkspacePanel = React.memo(function WorkspacePanel({
               workspacePanelApi={api}
               connectionHeaderPinned={tab.connectionHeaderPinned}
               connection={tab.connection ?? { type: tab.type === "terminal" ? "terminal" : "ssh" }}
+              shellName={tab.shellName}
               isBroadcastSource={workspace.broadcastSourceTabId === tab.id}
               liveBroadcastState={workspace.liveBroadcastState}
               onPauseBroadcast={workspace.onPauseBroadcast}

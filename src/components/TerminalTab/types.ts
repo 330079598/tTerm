@@ -14,6 +14,8 @@ export interface TerminalTabProps {
   workspacePanelApi?: Pick<DockviewPanelApi, "onDidDimensionsChange">
   connectionHeaderPinned?: boolean
   connection?: Tab["connection"]
+  /** The shell a local tab runs (`pwsh`, `cmd`, `WSL`, `zsh`), for quoting dropped paths. */
+  shellName?: string
   onPidChange?: (pid: number) => void
   /** A local shell reported a new working directory. */
   onCwdChange?: (cwd: string) => void

@@ -11,6 +11,7 @@ import { useTerminalActivation } from "@/components/TerminalTab/useTerminalActiv
 import { useConnectionNotices } from "@/components/TerminalTab/useConnectionNotices"
 import { useSftpDrawerToggle } from "@/components/TerminalTab/useSftpDrawerToggle"
 import { useTerminalClipboard } from "@/components/TerminalTab/useTerminalClipboard"
+import { useTerminalFileDrop } from "@/components/TerminalTab/useTerminalFileDrop"
 import { useTerminalContextMenu } from "@/components/TerminalTab/useTerminalContextMenu"
 import { useTerminalShortcuts } from "@/components/TerminalTab/useTerminalShortcuts"
 import { BroadcastControls } from "@/components/TerminalTab/BroadcastControls"
@@ -42,6 +43,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   workspacePanelApi,
   connectionHeaderPinned = true,
   connection,
+  shellName,
   isBroadcastSource = false,
   liveBroadcastState = "idle",
   onConnectionStateChange,
@@ -232,6 +234,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     config,
     t,
   })
+
+  useTerminalFileDrop({ ...refs, connection, isActive, shellName })
 
   const {
     terminalContextMenu,
