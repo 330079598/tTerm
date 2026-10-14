@@ -4,6 +4,8 @@
 
 pub mod badge;
 #[cfg(all(unix, not(target_os = "macos")))]
+mod launcher_entry;
+#[cfg(all(unix, not(target_os = "macos")))]
 mod linux;
 #[cfg(target_os = "macos")]
 mod macos;

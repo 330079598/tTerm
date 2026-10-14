@@ -91,6 +91,11 @@ block2 = "0.6"
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
+[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
+# The launcher count docks read over DBus (see notification/launcher_entry.rs);
+# already built for the keyring, opener and single-instance plugins.
+zbus = "5"
+
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util"] }
 

@@ -1,6 +1,6 @@
 //! How many system notifications no one has looked at yet, shown on the app
-//! icon. macOS and Linux (launchers that read Unity's count) take the number
-//! itself. Windows has no count for an app installed without a package
+//! icon. macOS and the Linux docks that follow Unity's LauncherEntry API take
+//! the number itself. Windows has no count for an app installed without a package
 //! identity, so the frontend draws it and it goes on the taskbar button as an
 //! overlay, the way chat apps show theirs. The tray icon gains a red dot as
 //! well, since a window closed to the tray has no taskbar button to carry it.
@@ -43,14 +43,19 @@ pub async fn set_unseen_notifications(
     crate::background::tray::set_attention(&app, count > 0);
     #[cfg(target_os = "windows")]
     return windows_overlay::set(&app, overlay.filter(|_| count > 0));
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
     {
         let _ = overlay;
         set_badge_count(&app, count)
     }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let _ = overlay;
+        super::launcher_entry::set_count(&app, count).await
+    }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "macos")]
 fn set_badge_count(app: &AppHandle, count: u32) -> Result<(), String> {
     use tauri::Manager;
 
