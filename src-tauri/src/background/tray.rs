@@ -146,8 +146,8 @@ fn tray_icon(app: &AppHandle, attention: bool) -> Option<Image<'_>> {
 fn with_dot(icon: &Image<'_>) -> Image<'static> {
     let (width, height) = (icon.width(), icon.height());
     let size = width.min(height) as f32;
-    let radius = size * 0.22;
-    let ring = (size * 0.06).max(1.0);
+    let radius = size * 0.15;
+    let ring = (size * 0.05).max(1.0);
     let (center_x, center_y) = (width as f32 - radius - ring, radius + ring);
     let mut rgba = icon.rgba().to_vec();
     for (index, pixel) in rgba.chunks_exact_mut(4).enumerate() {
@@ -437,9 +437,10 @@ mod tests {
             let start = (y * 32 + x) * 4;
             dotted.rgba()[start..start + 4].to_vec()
         };
-        assert_eq!(pixel(24, 7), [0xE8, 0x11, 0x23, 255]);
+        assert_eq!(pixel(25, 6), [0xE8, 0x11, 0x23, 255]);
         // The ring between the dot and the icon is clear.
-        assert_eq!(pixel(24, 16)[3], 0);
+        assert_eq!(pixel(21, 10)[3], 0);
+        assert_eq!(pixel(18, 6), blue);
         assert_eq!(pixel(4, 28), blue);
     }
 
