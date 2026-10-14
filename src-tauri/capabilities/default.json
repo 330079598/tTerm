@@ -18,7 +18,6 @@
     "core:window:allow-center",
     "core:window:allow-set-size",
     "core:window:allow-set-focus",
-    "core:window:allow-set-badge-count",
     "core:window:allow-is-maximized",
     "core:window:allow-set-background-color",
     "core:webview:allow-set-webview-background-color",

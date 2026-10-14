@@ -97,6 +97,7 @@ pub fn show_main_window(app: &AppHandle) {
         let _ = window.show();
         let _ = window.set_focus();
     }
+    crate::notification::badge::restore(app);
 }
 
 /// Quits the way the window would: running tunnels are confirmed first, in

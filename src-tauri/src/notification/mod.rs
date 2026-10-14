@@ -2,6 +2,7 @@
 //! notification a program asked for, a bell. Clicking one brings the window
 //! forward on the tab that raised it.
 
+pub mod badge;
 #[cfg(all(unix, not(target_os = "macos")))]
 mod linux;
 #[cfg(target_os = "macos")]

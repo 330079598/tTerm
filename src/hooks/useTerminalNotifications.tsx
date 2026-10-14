@@ -9,6 +9,7 @@ import { ToastAction } from "@/components/ui/toast"
 import { useConfig } from "@/contexts/ConfigContext"
 import { setToastLimit, toast } from "@/hooks/use-toast"
 import { agentDisplayName } from "@/lib/agentStatus"
+import { badgeOverlaySize, drawBadgeOverlay } from "@/lib/notificationBadge"
 import {
   clearTabAttention,
   countTabNotification,
@@ -21,6 +22,7 @@ import {
   formatCommandDuration,
   type TerminalAttentionEvent,
 } from "@/lib/terminalNotifications"
+import { getDetectedPlatform } from "@/lib/uiPlatform"
 import type { Tab } from "@/types/tab"
 
 /** What `show_notification` takes (src-tauri/src/notification). */
@@ -34,6 +36,20 @@ export interface SystemNotification {
 
 export function showSystemNotification(notification: SystemNotification) {
   return invoke("show_notification", { request: notification })
+}
+
+/**
+ * Puts the count on the app icon: the Dock or launcher takes the number, the
+ * Windows taskbar a picture of it.
+ */
+function showUnseenNotifications(count: number) {
+  const overlay =
+    count > 0 && getDetectedPlatform() === "windows"
+      ? drawBadgeOverlay(count, badgeOverlaySize(window.devicePixelRatio))
+      : null
+  invoke("set_unseen_notifications", { count, overlay }).catch((error: unknown) =>
+    console.error("Failed to show the notification count:", error)
+  )
 }
 
 /** Announcements of one tab closer together than this are dropped. */
@@ -145,13 +161,7 @@ export function useTerminalNotifications({
     }
 
     const appWindow = getCurrentWindow()
-    // The Dock on macOS, launchers that read Unity's count on Linux; Windows
-    // has no count and ignores it.
-    keep(
-      watchUnseenNotificationTotal((total) => {
-        appWindow.setBadgeCount(total > 0 ? total : undefined).catch(() => {})
-      })
-    )
+    keep(watchUnseenNotificationTotal(showUnseenNotifications))
     appWindow
       .isFocused()
       .then((focused) => {
