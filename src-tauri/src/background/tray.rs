@@ -1,10 +1,11 @@
 //! The tray icon (the menu bar on macOS) shown while closing the window can
 //! leave tTerm running: it brings the window back, starts and stops tunnels,
-//! and quits.
+//! and quits. It carries a red dot while system notifications wait unseen.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, Once};
 
+use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager};
@@ -19,6 +20,8 @@ const MENU_TUNNELS_PAGE: &str = "tray-tunnels-page";
 const MENU_TUNNEL_PREFIX: &str = "tray-tunnel:";
 /// Asks the UI to open the Port Forwarding page.
 const OPEN_TUNNELS_EVENT: &str = "tray-open-tunnels";
+/// The dot's red, the same as the count on the Windows taskbar.
+const DOT_RGB: [u8; 3] = [0xE8, 0x11, 0x23];
 
 #[derive(Default)]
 pub struct TrayState {
@@ -26,6 +29,8 @@ pub struct TrayState {
     /// What the current menu shows; it is rebuilt only when this changes.
     shown: Mutex<Option<Vec<MenuTunnel>>>,
     refresh_pending: AtomicBool,
+    /// Whether the icon shows the dot for unseen notifications.
+    attention: AtomicBool,
 }
 
 /// A tunnel as one menu entry shows it.
@@ -96,8 +101,8 @@ pub(super) fn show(app: &AppHandle, language: &str) -> tauri::Result<()> {
         // a click brings the window back and the menu is on right click.
         .show_menu_on_left_click(cfg!(target_os = "macos"))
         .on_tray_icon_event(on_tray_icon_event);
-    if let Some(icon) = app.default_window_icon() {
-        builder = builder.icon(icon.clone());
+    if let Some(icon) = tray_icon(app, state.attention.load(Ordering::SeqCst)) {
+        builder = builder.icon(icon);
     }
     builder.build(app)?;
     Ok(())
@@ -109,6 +114,62 @@ pub(super) fn hide(app: &AppHandle) {
         .shown
         .lock()
         .unwrap_or_else(|e| e.into_inner()) = None;
+}
+
+/// Puts the red dot on the tray icon while notifications wait unseen, or
+/// takes it off. Remembered for a tray icon added later.
+pub fn set_attention(app: &AppHandle, attention: bool) {
+    let Some(state) = app.try_state::<TrayState>() else {
+        return;
+    };
+    if state.attention.swap(attention, Ordering::SeqCst) == attention {
+        return;
+    }
+    if let Some(tray) = app.tray_by_id(TRAY_ID) {
+        if let Err(error) = tray.set_icon(tray_icon(app, attention)) {
+            eprintln!("Failed to update the tray icon: {error}");
+        }
+    }
+}
+
+fn tray_icon(app: &AppHandle, attention: bool) -> Option<Image<'_>> {
+    let icon = app.default_window_icon()?;
+    Some(if attention {
+        with_dot(icon)
+    } else {
+        icon.clone()
+    })
+}
+
+/// The icon with a red dot in its top right corner. A clear ring cuts the dot
+/// out of the icon so it stands apart on any tray background.
+fn with_dot(icon: &Image<'_>) -> Image<'static> {
+    let (width, height) = (icon.width(), icon.height());
+    let size = width.min(height) as f32;
+    let radius = size * 0.22;
+    let ring = (size * 0.06).max(1.0);
+    let (center_x, center_y) = (width as f32 - radius - ring, radius + ring);
+    let mut rgba = icon.rgba().to_vec();
+    for (index, pixel) in rgba.chunks_exact_mut(4).enumerate() {
+        let x = (index % width as usize) as f32 + 0.5;
+        let y = (index / width as usize) as f32 + 0.5;
+        let distance = (x - center_x).hypot(y - center_y);
+        // How much of the pixel the dot, and the dot with its ring, cover.
+        let dot = (radius + 0.5 - distance).clamp(0.0, 1.0);
+        let cut = (radius + ring + 0.5 - distance).clamp(0.0, 1.0);
+        let kept = f32::from(pixel[3]) / 255.0 * (1.0 - cut) * (1.0 - dot);
+        let alpha = dot + kept;
+        if alpha <= 0.0 {
+            pixel.fill(0);
+            continue;
+        }
+        for (channel, dot_channel) in pixel.iter_mut().zip(DOT_RGB) {
+            let color = f32::from(dot_channel) * dot + f32::from(*channel) * kept;
+            *channel = (color / alpha).round() as u8;
+        }
+        pixel[3] = (alpha * 255.0).round() as u8;
+    }
+    Image::new_owned(rgba, width, height)
 }
 
 /// Brings the tunnel entries up to date after a tunnel started, stopped or
@@ -365,6 +426,21 @@ mod tests {
     fn ampersands_stay_literal_in_windows_menus() {
         let label = tunnel_label(labels("en"), &tunnel("a & b", TunnelState::Stopped));
         assert_eq!(label, if cfg!(windows) { "a && b" } else { "a & b" });
+    }
+
+    #[test]
+    fn dot_sits_in_the_top_right_corner_apart_from_the_icon() {
+        let blue = [0, 0, 255, 255];
+        let icon = Image::new_owned(blue.repeat(32 * 32), 32, 32);
+        let dotted = with_dot(&icon);
+        let pixel = |x: usize, y: usize| {
+            let start = (y * 32 + x) * 4;
+            dotted.rgba()[start..start + 4].to_vec()
+        };
+        assert_eq!(pixel(24, 7), [0xE8, 0x11, 0x23, 255]);
+        // The ring between the dot and the icon is clear.
+        assert_eq!(pixel(24, 16)[3], 0);
+        assert_eq!(pixel(4, 28), blue);
     }
 
     #[test]

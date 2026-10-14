@@ -8,7 +8,7 @@ export interface BadgeOverlay {
   height: number
 }
 
-/** The red Windows uses for alerts. */
+/** The overlay's red, the same as the dot on the tray icon. */
 const BADGE_COLOR = "#E81123"
 
 /** One digit fits a 16px overlay; two would be too small to read. */

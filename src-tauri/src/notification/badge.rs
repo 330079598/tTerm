@@ -2,7 +2,8 @@
 //! icon. macOS and Linux (launchers that read Unity's count) take the number
 //! itself. Windows has no count for an app installed without a package
 //! identity, so the frontend draws it and it goes on the taskbar button as an
-//! overlay, the way chat apps show theirs.
+//! overlay, the way chat apps show theirs. The tray icon gains a red dot as
+//! well, since a window closed to the tray has no taskbar button to carry it.
 
 use serde::Deserialize;
 use tauri::AppHandle;
@@ -39,6 +40,7 @@ pub async fn set_unseen_notifications(
     overlay: Option<OverlayImage>,
 ) -> Result<(), String> {
     let overlay = overlay.map(OverlayImage::check).transpose()?;
+    crate::background::tray::set_attention(&app, count > 0);
     #[cfg(target_os = "windows")]
     return windows_overlay::set(&app, overlay.filter(|_| count > 0));
     #[cfg(not(target_os = "windows"))]

@@ -40,7 +40,7 @@ export function showSystemNotification(notification: SystemNotification) {
 
 /**
  * Puts the count on the app icon: the Dock or launcher takes the number, the
- * Windows taskbar a picture of it.
+ * Windows taskbar a picture of it. The tray icon shows a dot either way.
  */
 function showUnseenNotifications(count: number) {
   const overlay =
