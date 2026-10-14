@@ -4,10 +4,11 @@ import type { AgentStatus } from "@/lib/agentStatus"
 import { strongerAttention, type TabAttentionLevel } from "@/lib/terminalNotifications"
 
 // Marks on tabs the user is not looking at: new output, a bell, a
-// notification; what an AI agent in a tab is doing; and the command a tab's
-// shell runs. Kept apart from the tabs themselves so a mark neither
+// notification; how many system notifications a tab raised unseen; what an AI
+// agent in a tab is doing; and the command a tab's shell runs. Kept apart from the tabs themselves so a mark neither
 // re-renders the workspace nor is saved with the session.
 let marks = new Map<string, TabAttentionLevel>()
+let unseenNotifications = new Map<string, number>()
 let agentStatuses = new Map<string, AgentStatus>()
 let runningCommands = new Map<string, string>()
 const runningCommandTimers = new Map<string, ReturnType<typeof setTimeout>>()
@@ -25,11 +26,49 @@ export function markTabAttention(tabId: string, level: TabAttentionLevel) {
   emit()
 }
 
+/** Looking at the tab answers its mark and its unseen notifications. */
 export function clearTabAttention(tabId: string) {
-  if (!marks.has(tabId)) return
+  if (!marks.has(tabId) && !unseenNotifications.has(tabId)) return
   marks = new Map(marks)
   marks.delete(tabId)
+  unseenNotifications = new Map(unseenNotifications)
+  unseenNotifications.delete(tabId)
   emit()
+}
+
+/** Counts a system notification the tab raised while the user looked away. */
+export function countTabNotification(tabId: string) {
+  unseenNotifications = new Map(unseenNotifications).set(
+    tabId,
+    (unseenNotifications.get(tabId) ?? 0) + 1
+  )
+  emit()
+}
+
+function unseenNotificationTotal(): number {
+  let total = 0
+  for (const count of unseenNotifications.values()) total += count
+  return total
+}
+
+/**
+ * Hears the number of system notifications no one has looked at yet, now and
+ * whenever it changes. A plain subscription rather than a hook: the app icon
+ * badge it feeds needs no render.
+ */
+export function watchUnseenNotificationTotal(listener: (total: number) => void): () => void {
+  let last = unseenNotificationTotal()
+  listener(last)
+  const onChange = () => {
+    const total = unseenNotificationTotal()
+    if (total === last) return
+    last = total
+    listener(total)
+  }
+  listeners.add(onChange)
+  return () => {
+    listeners.delete(onChange)
+  }
 }
 
 export function getTabAttention(tabId: string): TabAttentionLevel | undefined {

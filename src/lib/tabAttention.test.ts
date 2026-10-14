@@ -4,10 +4,55 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { act, renderHook } from "@testing-library/react"
 
 import {
+  clearTabAttention,
+  countTabNotification,
+  markTabAttention,
   RUNNING_COMMAND_DELAY_MS,
   setTabRunningCommand,
   useRunningCommands,
+  watchUnseenNotificationTotal,
 } from "@/lib/tabAttention"
+
+describe("watchUnseenNotificationTotal", () => {
+  afterEach(() => {
+    clearTabAttention("tab-1")
+    clearTabAttention("tab-2")
+  })
+
+  it("counts notifications across tabs until each tab is seen", () => {
+    const totals: number[] = []
+    const stop = watchUnseenNotificationTotal((total) => totals.push(total))
+
+    countTabNotification("tab-1")
+    countTabNotification("tab-1")
+    countTabNotification("tab-2")
+    clearTabAttention("tab-1")
+    clearTabAttention("tab-2")
+    stop()
+
+    expect(totals).toEqual([0, 1, 2, 3, 1, 0])
+  })
+
+  it("stays quiet when only a tab's mark changes", () => {
+    const listener = vi.fn()
+    const stop = watchUnseenNotificationTotal(listener)
+
+    markTabAttention("tab-1", "bell")
+    clearTabAttention("tab-1")
+    stop()
+
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it("stops hearing once unsubscribed", () => {
+    const listener = vi.fn()
+    watchUnseenNotificationTotal(listener)()
+
+    countTabNotification("tab-1")
+
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+})
 
 describe("setTabRunningCommand", () => {
   afterEach(() => {

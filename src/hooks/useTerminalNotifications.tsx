@@ -9,7 +9,12 @@ import { ToastAction } from "@/components/ui/toast"
 import { useConfig } from "@/contexts/ConfigContext"
 import { setToastLimit, toast } from "@/hooks/use-toast"
 import { agentDisplayName } from "@/lib/agentStatus"
-import { markTabAttention } from "@/lib/tabAttention"
+import {
+  clearTabAttention,
+  countTabNotification,
+  markTabAttention,
+  watchUnseenNotificationTotal,
+} from "@/lib/tabAttention"
 import { focusTerminal } from "@/lib/terminalFocus"
 import {
   decideAttention,
@@ -101,7 +106,8 @@ interface UseTerminalNotificationsOptions {
 /**
  * Announces what terminals want attention for: marks tabs out of sight,
  * toasts while the window is in front and the user works in another tab or
- * pane, system notifications while it is not. Clicking a notification shows its tab. Mounted once at the app level.
+ * pane, system notifications while it is not. Clicking a notification shows its tab. The app
+ * icon counts system notifications until the user sees their tabs. Mounted once at the app level.
  */
 export function useTerminalNotifications({
   tabs,
@@ -116,6 +122,7 @@ export function useTerminalNotifications({
   const tabsRef = useRef(tabs)
   const activeTabIdRef = useRef(activeTabId)
   const activateTabRef = useRef(activateTab)
+  const getVisibleTabIdsRef = useRef(getVisibleTabIds)
   // The toaster sits outside the config provider, so the limit comes from here.
   useEffect(() => {
     setToastLimit(config.toast_max_visible)
@@ -125,7 +132,8 @@ export function useTerminalNotifications({
     tabsRef.current = tabs
     activeTabIdRef.current = activeTabId
     activateTabRef.current = activateTab
-  }, [tabs, activeTabId, activateTab])
+    getVisibleTabIdsRef.current = getVisibleTabIds
+  }, [tabs, activeTabId, activateTab, getVisibleTabIds])
 
   useEffect(() => {
     let disposed = false
@@ -136,6 +144,13 @@ export function useTerminalNotifications({
     }
 
     const appWindow = getCurrentWindow()
+    // The Dock on macOS, launchers that read Unity's count on Linux; Windows
+    // has no count and ignores it.
+    keep(
+      watchUnseenNotificationTotal((total) => {
+        appWindow.setBadgeCount(total > 0 ? total : undefined).catch(() => {})
+      })
+    )
     appWindow
       .isFocused()
       .then((focused) => {
@@ -145,6 +160,9 @@ export function useTerminalNotifications({
     void appWindow
       .onFocusChanged(({ payload }) => {
         windowFocusedRef.current = payload
+        // Panes in sight raise system notifications while the window is in
+        // the background; coming back to it sees them.
+        if (payload) for (const tabId of getVisibleTabIdsRef.current()) clearTabAttention(tabId)
       })
       .then(keep)
       .catch(console.error)
@@ -182,6 +200,7 @@ export function useTerminalNotifications({
       const tabTitle = tabsRef.current.find((tab) => tab.id === tabId)?.title ?? "tTerm"
       const text = describeEvent(event, tabTitle, t)
       if (decision.system) {
+        countTabNotification(tabId)
         showSystemNotification({ ...text, tabId, sound: config.notify_sound }).catch(
           (error: unknown) => console.error("Failed to show a notification:", error)
         )
