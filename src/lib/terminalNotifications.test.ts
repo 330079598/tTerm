@@ -123,15 +123,25 @@ describe("CommandTimer", () => {
   it("reports the first command started after the prompt until the prompt is back", () => {
     const running: (string | null)[] = []
     const timer = new CommandTimer((command) => running.push(command))
-    timer.setCommand("ls")
+    timer.setTypedCommand("ls")
     timer.mark({ kind: "prompt" }, 0)
+    timer.setTypedCommand("python")
     timer.start(10)
-    timer.setCommand("python")
-    timer.setCommand("print(1)")
     timer.mark({ kind: "output" }, 20)
     expect(timer.mark({ kind: "done", exitCode: 0 }, 30)).toMatchObject({ exitCode: 0 })
     timer.mark({ kind: "prompt" }, 40)
     expect(running).toEqual(["python", null])
+  })
+
+  it("is not named by lines typed into the command it runs", () => {
+    const running: (string | null)[] = []
+    const timer = new CommandTimer((command) => running.push(command))
+    timer.mark({ kind: "prompt" }, 0)
+    // The command line was recalled from history, so nothing typed names it.
+    timer.start(10)
+    timer.setTypedCommand("fix the login bug")
+    expect(running).toEqual([])
+    expect(timer.finish(0, 30)?.command).toBeUndefined()
   })
 })
 

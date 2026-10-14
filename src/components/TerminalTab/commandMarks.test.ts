@@ -178,6 +178,42 @@ describe("CommandMarks", () => {
     expect(marks.isAtPrompt()).toBe(false)
   })
 
+  it("knows when a command runs from its C and D marks (bash, zsh, fish)", async () => {
+    const { marks, write } = setup()
+    await write(`${PROMPT}$ ls\r\n${OUTPUT}a\r\n${done(0)}${PROMPT}$ claude`)
+    expect(marks.isRunningProgram()).toBe(false)
+    // Once a C was seen, Enter no longer stands in for it.
+    expect(marks.handleEnter()).toBe(false)
+    await write(`\r\n${OUTPUT}`)
+    expect(marks.isRunningProgram()).toBe(true)
+    await write(`> hi\r\n${done(0)}`)
+    expect(marks.isRunningProgram()).toBe(false)
+  })
+
+  it("knows when a command runs from Enter when the shell sends no C (PowerShell, cmd)", async () => {
+    const { marks, write } = setup()
+    await write(`${PROMPT}C:\\> claude`)
+    expect(marks.isRunningProgram()).toBe(false)
+    expect(marks.handleEnter()).toBe(true)
+    expect(marks.isRunningProgram()).toBe(true)
+    await write("\r\n> hi")
+    expect(marks.handleEnter()).toBe(false)
+    expect(marks.isRunningProgram()).toBe(true)
+    await write(`\r\n${PROMPT}C:\\> `)
+    expect(marks.isRunningProgram()).toBe(false)
+  })
+
+  it("counts a full-screen program as running, marks or not", async () => {
+    const { marks, write } = setup()
+    expect(marks.isRunningProgram()).toBe(false)
+    await write("\x1b[?1049h")
+    expect(marks.isRunningProgram()).toBe(true)
+    await write(`\x1b[?1049l${PROMPT}$ ls\r\n${OUTPUT}`)
+    expect(marks.isRunningProgram()).toBe(true)
+    marks.setEnabled(false)
+    expect(marks.isRunningProgram()).toBe(false)
+  })
+
   it("does not claim a prompt before any mark or when turned off", async () => {
     const { marks, write } = setup()
     expect(marks.isAtPrompt()).toBe(false)

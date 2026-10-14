@@ -63,6 +63,11 @@ export class CommandMarks implements IDisposable {
   private sendsOutputMarks = false
   /** The shell sends D marks when commands finish (all but cmd). */
   private sendsDoneMarks = false
+  /**
+   * A command started and has not finished. Kept apart from the entries, whose
+   * prompt may scroll out of the buffer while a long command still runs.
+   */
+  private commandRunning = false
   private enabled = true
   /** The prompt the last jump went to, while the view still shows it there. */
   private jumped: { prompt: IMarker; viewportY: number } | null = null
@@ -102,15 +107,30 @@ export class CommandMarks implements IDisposable {
   }
 
   /**
-   * Enter pressed. A shell that sends no C mark (PowerShell, cmd) starts its
-   * output on the line after the one the command was typed on.
+   * Input goes to a program rather than to the shell's line editor: a
+   * full-screen program, or a command the marks show started and not yet
+   * finished. False when the shell marks nothing, as nothing is known then.
    */
-  handleEnter() {
-    if (!this.enabled || this.sendsOutputMarks || this.term.buffer.active.type !== "normal") return
+  isRunningProgram(): boolean {
+    if (this.term.buffer.active.type !== "normal") return true
+    return this.enabled && this.commandRunning
+  }
+
+  /**
+   * Enter pressed. A shell that sends no C mark (PowerShell, cmd) starts its
+   * output on the line after the one the command was typed on. Returns true
+   * when Enter starts a command this way.
+   */
+  handleEnter(): boolean {
+    if (!this.enabled || this.sendsOutputMarks || this.term.buffer.active.type !== "normal") {
+      return false
+    }
     const entry = this.current()
-    if (!entry || entry.output || entry.end) return
+    if (!entry || entry.output || entry.end) return false
     const marker = this.term.registerMarker(0)
     if (marker) entry.output = { marker, nextLine: true }
+    this.commandRunning = true
+    return true
   }
 
   /** Scrolls the previous prompt to the top. Returns false when no prompt is known. */
@@ -206,6 +226,7 @@ export class CommandMarks implements IDisposable {
   }
 
   private startPrompt() {
+    this.commandRunning = false
     const previous = this.current()
     if (previous && !previous.end) this.end(previous)
     const prompt = this.term.registerMarker(0)
@@ -218,6 +239,7 @@ export class CommandMarks implements IDisposable {
 
   private startOutput() {
     this.sendsOutputMarks = true
+    this.commandRunning = true
     const entry = this.current()
     // Only the first C counts; one from Enter gives way to it.
     if (!entry || entry.end || (entry.output && !entry.output.nextLine)) return
@@ -227,6 +249,7 @@ export class CommandMarks implements IDisposable {
   }
 
   private finishCommand(exitCode: number | undefined) {
+    this.commandRunning = false
     const entry = this.current()
     if (!entry || entry.end) return
     this.end(entry)
@@ -280,6 +303,7 @@ export class CommandMarks implements IDisposable {
     const entries = this.entries
     this.entries = []
     this.jumped = null
+    this.commandRunning = false
     for (const entry of entries) this.disposeEntry(entry)
   }
 }

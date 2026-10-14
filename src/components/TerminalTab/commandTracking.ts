@@ -48,7 +48,7 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
   const emitExecutedCommand = (commandText: string) => {
     const normalized = commandText.trim()
     if (!normalized) return
-    commandTimer.setCommand(normalized)
+    commandTimer.setTypedCommand(normalized)
     const now = Date.now()
     if (lastEmittedCommand?.text === normalized && now - lastEmittedCommand.at < 1500) return
     // A new command means the last fill's sudo run is over.

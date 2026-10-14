@@ -151,6 +151,15 @@ export class CommandTimer {
     this.reportRunning()
   }
 
+  /**
+   * A line typed at the prompt. Lines typed once the command has started go
+   * to it rather than to the shell, such as an agent's prompt or a REPL's
+   * input, so they do not name it.
+   */
+  setTypedCommand(command: string) {
+    if (this.startedAt === null) this.setCommand(command)
+  }
+
   /** Follows a shell integration mark; returns the command a done mark ends. */
   mark(mark: CommandMark, now: number): FinishedCommand | null {
     if (mark.kind === "done") return this.finish(mark.exitCode, now)

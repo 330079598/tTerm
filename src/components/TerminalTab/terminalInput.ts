@@ -52,11 +52,14 @@ export function attachTerminalInput(ctx: TerminalSessionContext, deps: TerminalI
       answerCurrentPrompt()
     }
 
+    // Lines typed into a running program, such as an agent's prompt, are not
+    // shell commands. Read before Enter below starts a command.
+    const inProgram = commandMarks.isRunningProgram()
+    // Shells that send no C mark start their command on Enter.
+    let startsCommand = false
     if (data.includes("\r")) {
       agentTracker.submit()
-      // Shells that send no C mark start their command here.
-      if (commandMarks.isAtPrompt()) commandTimer.start(Date.now())
-      commandMarks.handleEnter()
+      startsCommand = commandMarks.handleEnter()
     }
 
     if (session.commandCaptureSuspended) {
@@ -67,8 +70,10 @@ export function attachTerminalInput(ctx: TerminalSessionContext, deps: TerminalI
     } else {
       const captured = captureTerminalInput(session.commandCaptureState, data)
       session.commandCaptureState = captured.state
-      for (const command of captured.commands) emitExecutedCommand(command)
+      if (!inProgram) for (const command of captured.commands) emitExecutedCommand(command)
     }
+    // After the typed command is noted, so that it names what starts.
+    if (startsCommand) commandTimer.start(Date.now())
 
     const onInput = onInputRef.current
     if (onInput) {
