@@ -96,6 +96,29 @@ pub fn show(app: &AppHandle, request: NotificationRequest) -> Result<(), String>
     show().map_err(|error| format!("Failed to show a notification: {error}"))
 }
 
+/// Whether taskbar buttons show overlays: "Show badges on taskbar apps" under
+/// Settings > Personalization > Taskbar > Taskbar behaviors, on unless set.
+pub fn taskbar_badges_on() -> bool {
+    use windows::core::w;
+    use windows::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
+
+    let mut badges: u32 = 1;
+    let mut size = std::mem::size_of::<u32>() as u32;
+    // SAFETY: `badges` and `size` outlive the call, which writes at most `size` bytes.
+    let status = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            w!(r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"),
+            w!("TaskbarBadges"),
+            RRF_RT_REG_DWORD,
+            None,
+            Some(std::ptr::from_mut(&mut badges).cast()),
+            Some(&mut size),
+        )
+    };
+    status.is_err() || badges != 0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

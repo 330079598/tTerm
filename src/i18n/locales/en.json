@@ -2288,6 +2288,8 @@
     "deniedDesc": "Allow them in System Settings → Notifications → tTerm.",
     "badgeOffTitle": "The app icon does not count notifications",
     "badgeOffDesc": "Turn on Badge app icon in System Settings → Notifications → tTerm to see how many you have not looked at yet.",
+    "taskbarBadgesOffTitle": "The taskbar does not count notifications",
+    "taskbarBadgesOffDesc": "Turn on Show badges on taskbar apps in Settings → Personalization → Taskbar → Taskbar behaviors to see how many you have not looked at yet.",
     "events": "Events",
     "eventsDesc": "What is announced.",
     "commandFinishedSetting": "Long commands finishing",

@@ -35,7 +35,20 @@ import { isImeKeyEvent } from "@/lib/ime"
 import { toErrorMessage } from "@/lib/utils"
 
 /** `notification_permission` (src-tauri/src/notification). */
-type NotificationPermission = "granted" | "denied" | "notDetermined" | "badgeOff" | "fallback"
+type NotificationPermission =
+  "granted" | "denied" | "notDetermined" | "badgeOff" | "taskbarBadgesOff" | "fallback"
+
+/** What keeps notifications, or their count, from the user and how to fix it. */
+const PERMISSION_WARNINGS: Partial<
+  Record<NotificationPermission, { title: string; description: string }>
+> = {
+  denied: { title: "notifications.deniedTitle", description: "notifications.deniedDesc" },
+  badgeOff: { title: "notifications.badgeOffTitle", description: "notifications.badgeOffDesc" },
+  taskbarBadgesOff: {
+    title: "notifications.taskbarBadgesOffTitle",
+    description: "notifications.taskbarBadgesOffDesc",
+  },
+}
 
 export const NotificationSettingsTab: React.FC = () => {
   const { t } = useTranslation()
@@ -91,6 +104,7 @@ export const NotificationSettingsTab: React.FC = () => {
   }
 
   const announcementsOff = !config.notifications_enabled
+  const warning = permission ? PERMISSION_WARNINGS[permission] : undefined
 
   return (
     <ScrollArea className="h-full pr-4">
@@ -163,21 +177,12 @@ export const NotificationSettingsTab: React.FC = () => {
               </Button>
             }
           />
-          {permission === "denied" && (
+          {warning && (
             <Alert className="border-amber-500/40 bg-amber-500/5">
               <CircleAlert className="absolute top-3.5 left-4 size-4 text-amber-500" />
               <div className="pl-6">
-                <AlertTitle>{t("notifications.deniedTitle")}</AlertTitle>
-                <AlertDescription>{t("notifications.deniedDesc")}</AlertDescription>
-              </div>
-            </Alert>
-          )}
-          {permission === "badgeOff" && (
-            <Alert className="border-amber-500/40 bg-amber-500/5">
-              <CircleAlert className="absolute top-3.5 left-4 size-4 text-amber-500" />
-              <div className="pl-6">
-                <AlertTitle>{t("notifications.badgeOffTitle")}</AlertTitle>
-                <AlertDescription>{t("notifications.badgeOffDesc")}</AlertDescription>
+                <AlertTitle>{t(warning.title)}</AlertTitle>
+                <AlertDescription>{t(warning.description)}</AlertDescription>
               </div>
             </Alert>
           )}

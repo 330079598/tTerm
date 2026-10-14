@@ -43,6 +43,9 @@ pub enum NotificationPermission {
     /// only once, so a copy allowed before tTerm asked for them stays so until
     /// the user turns them on in System Settings.
     BadgeOff,
+    /// Windows hides the count on taskbar buttons while "Show badges on
+    /// taskbar apps" is off.
+    TaskbarBadgesOff,
     /// A development build outside an app bundle: shown through AppleScript,
     /// and clicking it does not lead back to the tab.
     Fallback,
@@ -89,6 +92,12 @@ pub async fn show_notification(app: AppHandle, request: NotificationRequest) -> 
 pub async fn notification_permission() -> NotificationPermission {
     #[cfg(target_os = "macos")]
     return macos::permission().await;
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    return if windows::taskbar_badges_on() {
+        NotificationPermission::Granted
+    } else {
+        NotificationPermission::TaskbarBadgesOff
+    };
+    #[cfg(all(unix, not(target_os = "macos")))]
     NotificationPermission::Granted
 }
