@@ -14,8 +14,17 @@ if set -q TTERM_COMMAND_MARKS
     function __tterm_mark_prompt --on-event fish_prompt
         printf '\e]133;A\e\\\\'
     end
+    # Before C, the command line as run (OSC 633 E), which tTerm cannot
+    # rebuild from the keys when it came from history or completion.
+    # Backslashes and the control characters that would end the sequence are
+    # escaped as `\\` and `\xHH`; splitting on lines and joining them escapes
+    # the line breaks.
     function __tterm_mark_output --on-event fish_preexec
-        printf '\e]133;C\e\\\\'
+        set -l line (string replace -a '\\' '\\\\' -- $argv[1])
+        set line (string join '\\x0a' -- $line | string replace -a \r '\\x0d' \
+            | string replace -a \t '\\x09' | string replace -a \e '\\x1b' \
+            | string replace -a \a '\\x07')
+        printf '\e]633;E;%s\e\\\\\e]133;C\e\\\\' "$line"
     end
     function __tterm_mark_done --on-event fish_postexec
         printf '\e]133;D;%s\e\\\\' $status

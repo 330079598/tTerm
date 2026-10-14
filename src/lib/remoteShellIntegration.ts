@@ -1,6 +1,7 @@
 // Command marks (OSC 133) for shells on remote hosts, which tTerm does not
 // change. The user adds one of these to their shell's startup file; they send
-// the same marks as tTerm's local scripts (src-tauri/src/terminal/shell_integration).
+// the same marks as tTerm's local scripts (src-tauri/src/terminal/shell_integration),
+// but not the command line (OSC 633 E), so tTerm rebuilds it from the keys.
 
 /** For the end of ~/.bashrc or ~/.zshrc. */
 export const POSIX_SHELL_INTEGRATION = String.raw`# tTerm: mark prompts and commands (OSC 133) to jump between commands and

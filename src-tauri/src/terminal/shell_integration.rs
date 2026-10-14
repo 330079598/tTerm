@@ -8,7 +8,10 @@
 //!
 //! Unless turned off in the settings, the shells also mark their commands
 //! (OSC 133): A where a prompt starts, C where a command's output starts, D
-//! with its exit status once it ends. cmd sends only A, PowerShell A and D.
+//! with its exit status once it ends. cmd sends only A, PowerShell A and D,
+//! and C with PSReadLine. zsh, fish and PowerShell with PSReadLine also send
+//! each command line before C (OSC 633 E), so the frontend need not rebuild
+//! it from the keys.
 
 use std::path::{Path, PathBuf};
 
@@ -225,6 +228,7 @@ mod tests {
         assert!(!args[2].contains('"'), "double quotes need escaping");
         assert!(args[2].contains("]9;9;"));
         assert!(args[2].contains(COMMAND_MARKS_ENV));
+        assert!(args[2].contains("]633;E;") && args[2].contains("]133;C"));
         assert!(powershell_env(false).is_empty());
         assert_eq!(powershell_env(true)[0].0, COMMAND_MARKS_ENV);
     }

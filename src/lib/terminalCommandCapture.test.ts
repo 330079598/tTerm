@@ -53,4 +53,12 @@ describe("terminal command capture", () => {
     expect(parseShellIntegrationCommand("E;printf a; printf b")).toBe("printf a; printf b")
     expect(parseShellIntegrationCommand("D;0")).toBeNull()
   })
+
+  it("unescapes the backslashes and control characters of an E command line", () => {
+    expect(parseShellIntegrationCommand("E;dir C:\\x5ctmp\\x0a\\x09ls \\\\x")).toBe(
+      "dir C:\\tmp\n\tls \\x"
+    )
+    expect(parseShellIntegrationCommand("E;\\x20 ")).toBeNull()
+    expect(parseShellIntegrationCommand("C;dir C:\\x5ctmp")).toBe("dir C:\\x5ctmp")
+  })
 })

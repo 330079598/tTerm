@@ -224,7 +224,7 @@ export function useTerminalLifecycle({
     const {
       agentTracker,
       commandTimer,
-      emitExecutedCommand,
+      emitTypedCommand,
       commandMarks,
       shellIntegrationDisposables,
       attentionReports,
@@ -238,7 +238,7 @@ export function useTerminalLifecycle({
       answerCurrentPrompt,
       commandMarks,
       commandTimer,
-      emitExecutedCommand,
+      emitTypedCommand,
     })
     const { outputAcker, stopListening } = startPtySession(ctx, {
       applyConnectionState,

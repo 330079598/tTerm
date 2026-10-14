@@ -146,9 +146,19 @@ export class CommandTimer {
     this.reportRunning()
   }
 
+  /**
+   * The command line the shell reports it runs (OSC 633 E). It names the
+   * command even when a line typed before it, or Enter, already started one:
+   * the shell knows what it runs.
+   */
   setCommand(command: string) {
     this.command = command
-    this.reportRunning()
+    if (this.running === null || this.running === command) {
+      this.reportRunning()
+      return
+    }
+    this.running = command
+    this.onRunning?.(command)
   }
 
   /**
@@ -157,7 +167,9 @@ export class CommandTimer {
    * input, so they do not name it.
    */
   setTypedCommand(command: string) {
-    if (this.startedAt === null) this.setCommand(command)
+    if (this.startedAt !== null) return
+    this.command = command
+    this.reportRunning()
   }
 
   /** Follows a shell integration mark; returns the command a done mark ends. */

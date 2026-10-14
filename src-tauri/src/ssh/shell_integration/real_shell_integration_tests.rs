@@ -110,6 +110,10 @@ fn real_shell_integration_marks_commands_in_each_shell() {
 
         expect_output(&output, "\x1b]133;A", &shell);
         writer.write_all(b"false\r").unwrap();
+        // bash has no hook that sees the command line before it runs.
+        if !shell.ends_with("bash") {
+            expect_output(&output, "\x1b]633;E;false\x1b\\", &shell);
+        }
         expect_output(&output, "\x1b]133;C", &shell);
         expect_output(&output, "\x1b]133;D;1", &shell);
         writer.write_all(b"exit\r").unwrap();

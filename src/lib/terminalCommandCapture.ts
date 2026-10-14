@@ -132,13 +132,25 @@ export function captureTerminalInput(
   return { state, commands }
 }
 
+/**
+ * The command line in an OSC 633 E payload, or in a C that carries one. E
+ * escapes backslashes and control characters as `\\` and `\xHH`, as tTerm's
+ * scripts and VS Code's shell integration send it.
+ */
 export function parseShellIntegrationCommand(data: string): string | null {
   const separatorIndex = data.indexOf(";")
   if (separatorIndex < 0) return null
   const marker = data.slice(0, separatorIndex)
-  const command = data.slice(separatorIndex + 1).trim()
+  const rest = data.slice(separatorIndex + 1)
+  const command = (marker === "E" ? unescapeCommandLine(rest) : rest).trim()
   if ((marker === "E" || marker === "C") && command) {
     return command
   }
   return null
+}
+
+function unescapeCommandLine(value: string): string {
+  return value.replace(/\\(?:x([0-9a-fA-F]{2})|\\)/g, (_, hex?: string) =>
+    hex ? String.fromCharCode(parseInt(hex, 16)) : "\\"
+  )
 }

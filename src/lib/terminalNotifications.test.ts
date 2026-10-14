@@ -143,6 +143,19 @@ describe("CommandTimer", () => {
     expect(running).toEqual([])
     expect(timer.finish(0, 30)?.command).toBeUndefined()
   })
+
+  it("takes the command line the shell reports over what was typed", () => {
+    const running: (string | null)[] = []
+    const timer = new CommandTimer((command) => running.push(command))
+    timer.mark({ kind: "prompt" }, 0)
+    // Enter started it with a line completed with Tab, rebuilt as `cl`.
+    timer.setTypedCommand("cl")
+    timer.start(10)
+    timer.setCommand("claude --resume")
+    timer.setCommand("claude --resume")
+    expect(running).toEqual(["cl", "claude --resume"])
+    expect(timer.finish(0, 30)?.command).toBe("claude --resume")
+  })
 })
 
 describe("decideAttention", () => {

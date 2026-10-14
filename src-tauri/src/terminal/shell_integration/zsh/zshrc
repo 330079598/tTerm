@@ -29,8 +29,19 @@ if [[ -n ${TTERM_COMMAND_MARKS-} ]]; then
   __tterm_mark_prompt() {
     builtin printf '\033]133;D;%s\033\\\033]133;A\033\\' $?
   }
+  # Before C, the command line as run (OSC 633 E), which tTerm cannot rebuild
+  # from the keys when it came from history or completion. Backslashes and
+  # the control characters that would end the sequence are escaped as `\\`
+  # and `\xHH`. $1 is empty when history is off; $3 is the expanded line.
   __tterm_mark_output() {
-    builtin printf '\033]133;C\033\\'
+    local line=${1:-$3}
+    line=${line//\\/'\\'}
+    line=${line//$'\n'/'\x0a'}
+    line=${line//$'\r'/'\x0d'}
+    line=${line//$'\t'/'\x09'}
+    line=${line//$'\e'/'\x1b'}
+    line=${line//$'\a'/'\x07'}
+    builtin printf '\033]633;E;%s\033\\\033]133;C\033\\' "$line"
   }
   precmd_functions=(__tterm_mark_prompt $precmd_functions)
   add-zsh-hook preexec __tterm_mark_output

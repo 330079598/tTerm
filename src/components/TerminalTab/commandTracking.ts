@@ -45,22 +45,31 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
     if (finished) onAttentionRef.current?.({ kind: "command", ...finished })
   }
 
-  const emitExecutedCommand = (commandText: string) => {
-    const normalized = commandText.trim()
-    if (!normalized) return
-    commandTimer.setTypedCommand(normalized)
+  const recordCommand = (command: string) => {
     const now = Date.now()
-    if (lastEmittedCommand?.text === normalized && now - lastEmittedCommand.at < 1500) return
+    if (lastEmittedCommand?.text === command && now - lastEmittedCommand.at < 1500) return
     // A new command means the last fill's sudo run is over.
     session.lastPasswordFill = null
-    lastEmittedCommand = { text: normalized, at: now }
+    lastEmittedCommand = { text: command, at: now }
     const connection = connectionRef.current
     onCommandExecutedRef.current?.({
-      commandText: normalized,
+      commandText: command,
       profileId: connection?.profileId,
       profileName: connection?.profileName,
       executedAt: now,
     })
+  }
+
+  // Once the shell reports its command lines (OSC 633 E), lines rebuilt from
+  // the keys, which miss history recall and completion, no longer count.
+  let shellReportsCommands = false
+
+  /** A line typed at the shell's prompt. */
+  const emitTypedCommand = (commandText: string) => {
+    const normalized = commandText.trim()
+    if (!normalized || shellReportsCommands) return
+    commandTimer.setTypedCommand(normalized)
+    recordCommand(normalized)
   }
 
   const commandMarks = new CommandMarks(term)
@@ -72,7 +81,11 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
       commandMarks.handleMark(data)
       timeCommand(data)
       const command = parseShellIntegrationCommand(data)
-      if (command) emitExecutedCommand(command)
+      if (command) {
+        shellReportsCommands = true
+        commandTimer.setCommand(command)
+        recordCommand(command)
+      }
       return false
     })
   )
@@ -97,7 +110,7 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
   return {
     agentTracker,
     commandTimer,
-    emitExecutedCommand,
+    emitTypedCommand,
     commandMarks,
     shellIntegrationDisposables,
     attentionReports,

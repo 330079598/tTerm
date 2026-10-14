@@ -8,7 +8,7 @@ import { captureTerminalInput, EMPTY_COMMAND_CAPTURE_STATE } from "@/lib/termina
 
 type TerminalInputDeps = Pick<ConnectionStateUpdater, "applyConnectionState"> &
   Pick<SavedPasswordPrompts, "stopLoginScript" | "answerCurrentPrompt"> &
-  Pick<CommandTracking, "agentTracker" | "commandMarks" | "commandTimer" | "emitExecutedCommand">
+  Pick<CommandTracking, "agentTracker" | "commandMarks" | "commandTimer" | "emitTypedCommand">
 
 /**
  * Sends what is typed to the session, noting commands as they are
@@ -31,7 +31,7 @@ export function attachTerminalInput(ctx: TerminalSessionContext, deps: TerminalI
     answerCurrentPrompt,
     commandMarks,
     commandTimer,
-    emitExecutedCommand,
+    emitTypedCommand,
   } = deps
   term.onData((data) => {
     if (waitingForReconnectRef.current) {
@@ -70,7 +70,7 @@ export function attachTerminalInput(ctx: TerminalSessionContext, deps: TerminalI
     } else {
       const captured = captureTerminalInput(session.commandCaptureState, data)
       session.commandCaptureState = captured.state
-      if (!inProgram) for (const command of captured.commands) emitExecutedCommand(command)
+      if (!inProgram) for (const command of captured.commands) emitTypedCommand(command)
     }
     // After the typed command is noted, so that it names what starts.
     if (startsCommand) commandTimer.start(Date.now())
