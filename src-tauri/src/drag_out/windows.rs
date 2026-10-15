@@ -19,9 +19,10 @@ use windows::Win32::UI::Shell::Common::ITEMIDLIST;
 use windows::Win32::UI::Shell::{
     BHID_DataObject, ILFree, SHCNRF_NewDelivery, SHCNRF_ShellLevel, SHChangeNotification_Lock,
     SHChangeNotification_Unlock, SHChangeNotify, SHChangeNotifyDeregister, SHChangeNotifyEntry,
-    SHChangeNotifyRegister, SHCreateShellItemArrayFromIDLists, SHDoDragDrop, SHGetPathFromIDListW,
-    SHGetSpecialFolderLocation, SHParseDisplayName, CSIDL_DESKTOP, SHCNE_CREATE, SHCNE_DELETE,
-    SHCNE_ID, SHCNE_MKDIR, SHCNE_RMDIR, SHCNE_UPDATEDIR, SHCNF_FLUSHNOWAIT, SHCNF_PATHW,
+    SHChangeNotifyRegister, SHCreateShellItemArrayFromIDLists, SHDoDragDrop, SHGetPathFromIDListEx,
+    SHGetSpecialFolderLocation, SHParseDisplayName, CSIDL_DESKTOP, GPFIDL_DEFAULT, SHCNE_CREATE,
+    SHCNE_DELETE, SHCNE_ID, SHCNE_MKDIR, SHCNE_RMDIR, SHCNE_UPDATEDIR, SHCNF_FLUSHNOWAIT,
+    SHCNF_PATHW,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, GetAncestor, GetCursorPos, RegisterClassW,
@@ -44,6 +45,9 @@ const CANCELLED_GRACE: Duration = Duration::from_millis(400);
 /// How long the remaining placeholders get to arrive after the first, so
 /// that all of them are found and deleted.
 const REST_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// The longest path Windows supports, in UTF-16 units including the nul.
+const LONGEST_PATH: usize = 32_768;
 
 /// Extensions whose empty files the shell would try to parse for the drag
 /// image (shortcuts and the like); their placeholders go without one.
@@ -459,10 +463,12 @@ unsafe fn notified_path(wparam: WPARAM, lparam: LPARAM) -> Option<PathBuf> {
         if lock.is_invalid() {
             return None;
         }
-        let mut buffer = [0u16; 260];
+        // Sized for the longest path Windows allows rather than MAX_PATH, so
+        // a drop deep in a folder tree is still recognized.
+        let mut buffer = vec![0u16; LONGEST_PATH];
         let found = !items.is_null()
             && !(*items).is_null()
-            && SHGetPathFromIDListW(*items, &mut buffer).as_bool();
+            && SHGetPathFromIDListEx(*items, &mut buffer, GPFIDL_DEFAULT).as_bool();
         let _ = SHChangeNotification_Unlock(lock);
         if !found {
             return None;
