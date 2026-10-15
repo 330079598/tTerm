@@ -24,6 +24,13 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   "workspace.newTab": "ctrl+shift+t",
   "workspace.splitRight": "mod+\\",
   "workspace.splitBelow": "mod+shift+\\",
+  // Ctrl+[ is Escape on Windows and Linux, so the pane chords there take Shift.
+  "workspace.focusNextPane": "mod+shift+]",
+  "workspace.focusPrevPane": "mod+shift+[",
+  "workspace.focusPaneLeft": "mod+alt+arrowleft",
+  "workspace.focusPaneRight": "mod+alt+arrowright",
+  "workspace.focusPaneUp": "mod+alt+arrowup",
+  "workspace.focusPaneDown": "mod+alt+arrowdown",
   "commandLibrary.open": "mod+shift+p",
   "broadcast.togglePanel": "mod+shift+b",
   "tabs.next": "ctrl+tab",
@@ -48,11 +55,10 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   "sftp.selectAll": "mod+a",
   "sftp.focusPath": "mod+l",
   "sftp.pasteUpload": "mod+v",
-  // Alt+Arrow follows Windows Explorer and Linux file managers; Mod+[ / Mod+]
-  // is the macOS Finder chord, which mouse utilities there often map side
-  // buttons to.
-  "sftp.back": ["alt+arrowleft", "mod+["],
-  "sftp.forward": ["alt+arrowright", "mod+]"],
+  // Alt+Arrow follows Windows Explorer and Linux file managers. Mod+[ / Mod+]
+  // is left to the pane shortcuts, as in iTerm2 and Ghostty.
+  "sftp.back": "alt+arrowleft",
+  "sftp.forward": "alt+arrowright",
   "sftp.up": "alt+arrowup",
   "zmodem.sendFiles": null,
   "zmodem.receiveFiles": null,
@@ -62,10 +68,13 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
 /**
  * Defaults that differ on macOS. Cmd+1-9 switches tabs in Terminal, iTerm2
  * and browsers there, while Option+digit types symbols such as "¡" and is
- * Meta+digit (a readline count) once Option acts as Meta.
+ * Meta+digit (a readline count) once Option acts as Meta. Cmd+[ / Cmd+]
+ * switches panes in iTerm2, Ghostty and Warp.
  */
 const MAC_DEFAULT_BINDINGS: Partial<Record<KeymapActionId, string | string[] | null>> = {
   "tabs.switchToNth": digitChords("mod"),
+  "workspace.focusNextPane": "mod+]",
+  "workspace.focusPrevPane": "mod+[",
 }
 
 /** actionId -> serialized chords currently in effect (null = unbound). */

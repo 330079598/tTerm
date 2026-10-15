@@ -13,6 +13,11 @@ vi.mock("@/components/TerminalTab", () => ({
   TerminalTab: ({ tabId }: { tabId: string }) => <div data-testid={`terminal-${tabId}`} />,
 }))
 
+// jsdom lays nothing out, so pane shortcuts have no positions to work with here.
+vi.mock("@/contexts/KeymapContext", () => ({
+  useKeymap: () => ({ registerHandler: () => () => {} }),
+}))
+
 vi.mock("@/components/TabIcon", () => ({ TabIcon: () => null }))
 vi.mock("@/components/TabTooltip", () => ({
   TabTooltip: ({ children }: { children: React.ReactNode }) => children,

@@ -23,6 +23,13 @@ export interface KeymapDispatchEnvironment {
 }
 
 /**
+ * Keys whose Ctrl chord the terminal needs, so on macOS they never fall back
+ * to a Cmd binding: Ctrl+[ is Escape, and Ctrl+] leaves telnet and virsh
+ * consoles.
+ */
+const TERMINAL_CTRL_KEYS = new Set(["[", "]"])
+
+/**
  * Resolve one keydown event against the bindings. Returns the matched action
  * id when the event was consumed. Pure — unit-testable without a DOM.
  */
@@ -50,7 +57,7 @@ export function dispatchKeydownEvent(
 
   const index = env.getChordIndex()
   let actionId = index.get(serialized)
-  if (!actionId && env.isMac() && chord.ctrl && !chord.mod) {
+  if (!actionId && env.isMac() && chord.ctrl && !chord.mod && !TERMINAL_CTRL_KEYS.has(chord.key)) {
     // Keep the app's historical macOS behavior where Ctrl also activates a
     // Mod binding, while giving explicit `ctrl+...` bindings precedence.
     actionId = index.get(serializeChord({ ...chord, ctrl: undefined, mod: true }) ?? "")

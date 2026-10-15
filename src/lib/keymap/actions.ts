@@ -7,6 +7,12 @@ export type KeymapActionId =
   | "workspace.newTab"
   | "workspace.splitRight"
   | "workspace.splitBelow"
+  | "workspace.focusNextPane"
+  | "workspace.focusPrevPane"
+  | "workspace.focusPaneLeft"
+  | "workspace.focusPaneRight"
+  | "workspace.focusPaneUp"
+  | "workspace.focusPaneDown"
   | "commandLibrary.open"
   | "broadcast.togglePanel"
   // tabs
@@ -56,6 +62,12 @@ export const KEYMAP_ACTIONS: KeymapActionDefinition[] = [
   { id: "workspace.newTab", group: "workspace", allowInEditable: true },
   { id: "workspace.splitRight", group: "workspace", allowInEditable: true },
   { id: "workspace.splitBelow", group: "workspace", allowInEditable: true },
+  { id: "workspace.focusNextPane", group: "workspace", allowInEditable: true },
+  { id: "workspace.focusPrevPane", group: "workspace", allowInEditable: true },
+  { id: "workspace.focusPaneLeft", group: "workspace", allowInEditable: true },
+  { id: "workspace.focusPaneRight", group: "workspace", allowInEditable: true },
+  { id: "workspace.focusPaneUp", group: "workspace", allowInEditable: true },
+  { id: "workspace.focusPaneDown", group: "workspace", allowInEditable: true },
   { id: "commandLibrary.open", group: "workspace", allowInEditable: true },
   { id: "broadcast.togglePanel", group: "workspace", allowInEditable: true },
   { id: "tabs.next", group: "tabs", allowInEditable: true },

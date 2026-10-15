@@ -168,6 +168,30 @@ describe("dispatchKeydownEvent", () => {
     expect(handler).toHaveBeenCalledOnce()
   })
 
+  it("leaves Ctrl+[ and Ctrl+] to the terminal on macOS while Cmd+[ / Cmd+] are bound", () => {
+    const handler = vi.fn()
+    const handlers = new Map<KeymapActionId, Set<KeymapHandler>>([
+      ["workspace.focusPrevPane", new Set([handler])],
+      ["workspace.focusNextPane", new Set([handler])],
+    ])
+    const index = new Map<string, KeymapActionId>([
+      ["mod+[", "workspace.focusPrevPane"],
+      ["mod+]", "workspace.focusNextPane"],
+    ])
+    const env = createEnv({ handlers, index, isMac: true })
+
+    const escape = keydown("[", { code: "BracketLeft", ctrlKey: true })
+    expect(dispatchKeydownEvent(escape, env)).toBeNull()
+    expect(escape.defaultPrevented).toBe(false)
+    expect(
+      dispatchKeydownEvent(keydown("]", { code: "BracketRight", ctrlKey: true }), env)
+    ).toBeNull()
+    expect(handler).not.toHaveBeenCalled()
+
+    const cmd = keydown("[", { code: "BracketLeft", metaKey: true })
+    expect(dispatchKeydownEvent(cmd, env)).toBe("workspace.focusPrevPane")
+  })
+
   it("matches explicit Ctrl bindings on Windows and Linux", () => {
     const handler = vi.fn()
     const handlers = new Map<KeymapActionId, Set<KeymapHandler>>([

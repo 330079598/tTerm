@@ -71,6 +71,19 @@ describe("resolveEffectiveKeymap", () => {
     expect(effective["tabs.switchToNth"]![0]).toBe("alt+1")
   })
 
+  it("switches panes with Cmd+[ / Cmd+] on macOS and Ctrl+Shift+[ / ] elsewhere", () => {
+    const mac = resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG, true)
+    expect(mac["workspace.focusPrevPane"]).toEqual(["mod+["])
+    expect(mac["workspace.focusNextPane"]).toEqual(["mod+]"])
+    expect(mac["workspace.focusPaneLeft"]).toEqual(["mod+alt+arrowleft"])
+
+    const other = resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG)
+    expect(other["workspace.focusPrevPane"]).toEqual(["mod+shift+["])
+    expect(other["workspace.focusNextPane"]).toEqual(["mod+shift+]"])
+    expect(other["workspace.focusPaneDown"]).toEqual(["mod+alt+arrowdown"])
+    expect(other["sftp.back"]).toEqual(["alt+arrowleft"])
+  })
+
   it("switches tabs with Cmd+1-9 on macOS", () => {
     const effective = resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG, true)
     expect(effective["tabs.switchToNth"]).toEqual(
@@ -113,6 +126,7 @@ describe("findKeymapConflicts", () => {
 
   it("returns empty for the tTerm defaults", () => {
     expect(findKeymapConflicts(resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG)).size).toBe(0)
+    expect(findKeymapConflicts(resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG, true)).size).toBe(0)
   })
 
   it("does not flag multiple chords on a single action", () => {

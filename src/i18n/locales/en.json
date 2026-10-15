@@ -339,7 +339,13 @@
       "workspace": {
         "newTab": "New connection tab",
         "splitRight": "Split right",
-        "splitBelow": "Split below"
+        "splitBelow": "Split below",
+        "focusNextPane": "Focus next pane",
+        "focusPrevPane": "Focus previous pane",
+        "focusPaneLeft": "Focus pane on the left",
+        "focusPaneRight": "Focus pane on the right",
+        "focusPaneUp": "Focus pane above",
+        "focusPaneDown": "Focus pane below"
       },
       "commandLibrary": {
         "open": "Open command library"

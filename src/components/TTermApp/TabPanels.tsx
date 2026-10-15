@@ -27,6 +27,7 @@ import {
 import { WorkspaceTab } from "@/components/TTermApp/WorkspaceTab"
 import { isPageTab, type Tab } from "@/types/tab"
 import { useDockInteractionClasses } from "@/components/TTermApp/useDockInteractionClasses"
+import { usePaneKeymap } from "@/components/TTermApp/usePaneKeymap"
 import { useWorkspaceDrop } from "@/components/TTermApp/useWorkspaceDrop"
 
 const workspaceDockTheme = {
@@ -163,6 +164,8 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
     },
     [dockApi]
   )
+
+  usePaneKeymap(dockApi)
 
   useImperativeHandle(
     ref,
