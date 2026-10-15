@@ -35,8 +35,10 @@ export function useTabKeymap(shell: AppShell, actions: TabKeymapActions) {
         setActiveTab(prevId)
       }
     })
-    const unregisterSwitchToNth = registerHandler("tabs.switchToNth", (event) => {
-      const position = Number.parseInt(event.key, 10)
+    // The chord's key comes from the physical key, while event.key is what
+    // Option types on macOS ("¡" for Option+1), so only the chord has a digit.
+    const unregisterSwitchToNth = registerHandler("tabs.switchToNth", (_event, chord) => {
+      const position = Number.parseInt(chord.key, 10)
       if (Number.isNaN(position)) {
         return false
       }

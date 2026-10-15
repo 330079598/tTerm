@@ -64,6 +64,18 @@ describe("dispatchKeydownEvent", () => {
     expect(event.defaultPrevented).toBe(true)
   })
 
+  it("gives handlers the physical digit when Option types a symbol on macOS", () => {
+    const handler = vi.fn()
+    const handlers = new Map([["tabs.switchToNth", new Set([handler])] as const])
+    const index = new Map([["alt+1", "tabs.switchToNth"] as const])
+    const env = createEnv({ handlers, index, isMac: true })
+
+    const event = keydown("¡", { code: "Digit1", altKey: true })
+
+    expect(dispatchKeydownEvent(event, env)).toBe("tabs.switchToNth")
+    expect(handler).toHaveBeenCalledWith(event, expect.objectContaining({ key: "1", alt: true }))
+  })
+
   it("passes unbound chords through untouched", () => {
     const env = createEnv()
     const event = keydown("a", { ctrlKey: true })
