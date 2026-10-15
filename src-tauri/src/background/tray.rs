@@ -150,7 +150,7 @@ fn with_dot(icon: &Image<'_>) -> Image<'static> {
     let ring = (size * 0.05).max(1.0);
     let (center_x, center_y) = (width as f32 - radius - ring, radius + ring);
     let mut rgba = icon.rgba().to_vec();
-    for (index, pixel) in rgba.chunks_exact_mut(4).enumerate() {
+    for (index, pixel) in rgba.as_chunks_mut::<4>().0.iter_mut().enumerate() {
         let x = (index % width as usize) as f32 + 0.5;
         let y = (index / width as usize) as f32 + 0.5;
         let distance = (x - center_x).hypot(y - center_y);
