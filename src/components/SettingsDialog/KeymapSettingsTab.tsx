@@ -42,7 +42,7 @@ export const KeymapSettingsTab: React.FC = () => {
 
   const persistKeymap = useCallback(
     async (nextKeymap: KeymapConfig, actionId: KeymapActionId) => {
-      const conflicts = findKeymapConflicts(resolveEffectiveKeymap(nextKeymap))
+      const conflicts = findKeymapConflicts(resolveEffectiveKeymap(nextKeymap, isMac))
       const firstConflict = conflicts.values().next().value as KeymapActionId[] | undefined
       if (firstConflict) {
         setConflict({ actionId, owners: firstConflict })
@@ -52,7 +52,7 @@ export const KeymapSettingsTab: React.FC = () => {
       setConflict(null)
       return saveSettings({ keymap: nextKeymap })
     },
-    [saveSettings]
+    [isMac, saveSettings]
   )
 
   const updateBinding = useCallback(

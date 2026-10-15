@@ -51,7 +51,7 @@ export function KeymapProvider({ children }: { children: React.ReactNode }) {
   const isMacRef = useRef(isMacPlatform())
 
   const bindings = useMemo<EffectiveKeymap>(
-    () => resolveEffectiveKeymap(config.keymap),
+    () => resolveEffectiveKeymap(config.keymap, isMacPlatform()),
     [config.keymap]
   )
 

@@ -14,6 +14,11 @@ export const DEFAULT_KEYMAP_CONFIG: KeymapConfig = {
   bindings: {},
 }
 
+/** The nine chords that switch to tabs 1-9, all on the given modifier. */
+function digitChords(modifier: string): string[] {
+  return Array.from({ length: 9 }, (_, index) => `${modifier}+${index + 1}`)
+}
+
 /** Serialized default chord (or chords) per action. `null` means unbound. */
 const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   "workspace.newTab": "ctrl+shift+t",
@@ -23,17 +28,7 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   "broadcast.togglePanel": "mod+shift+b",
   "tabs.next": "ctrl+tab",
   "tabs.prev": "ctrl+shift+tab",
-  "tabs.switchToNth": [
-    "alt+1",
-    "alt+2",
-    "alt+3",
-    "alt+4",
-    "alt+5",
-    "alt+6",
-    "alt+7",
-    "alt+8",
-    "alt+9",
-  ],
+  "tabs.switchToNth": digitChords("alt"),
   "tabs.renameActive": "mod+shift+r",
   "tabs.closeActive": "mod+shift+w",
   "terminal.find": "mod+f",
@@ -64,6 +59,15 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   "editor.save": "mod+s",
 }
 
+/**
+ * Defaults that differ on macOS. Cmd+1-9 switches tabs in Terminal, iTerm2
+ * and browsers there, while Option+digit types symbols such as "¡" and is
+ * Meta+digit (a readline count) once Option acts as Meta.
+ */
+const MAC_DEFAULT_BINDINGS: Partial<Record<KeymapActionId, string | string[] | null>> = {
+  "tabs.switchToNth": digitChords("mod"),
+}
+
 /** actionId -> serialized chords currently in effect (null = unbound). */
 export type EffectiveKeymap = Record<KeymapActionId, string[] | null>
 
@@ -79,8 +83,9 @@ function normalizeBinding(source: string | string[] | null | undefined): string[
   return valid.length > 0 ? valid : null
 }
 
-export function resolveEffectiveKeymap(keymap: KeymapConfig): EffectiveKeymap {
+export function resolveEffectiveKeymap(keymap: KeymapConfig, isMac = false): EffectiveKeymap {
   const effective = {} as EffectiveKeymap
+  const defaults = isMac ? { ...DEFAULT_BINDINGS, ...MAC_DEFAULT_BINDINGS } : DEFAULT_BINDINGS
 
   for (const action of KEYMAP_ACTIONS) {
     const override = keymap.bindings[action.id]
@@ -89,7 +94,7 @@ export function resolveEffectiveKeymap(keymap: KeymapConfig): EffectiveKeymap {
       continue
     }
     const normalizedOverride = normalizeBinding(override)
-    effective[action.id] = normalizedOverride ?? normalizeBinding(DEFAULT_BINDINGS[action.id])
+    effective[action.id] = normalizedOverride ?? normalizeBinding(defaults[action.id])
   }
 
   return effective

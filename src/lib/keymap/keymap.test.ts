@@ -71,6 +71,14 @@ describe("resolveEffectiveKeymap", () => {
     expect(effective["tabs.switchToNth"]![0]).toBe("alt+1")
   })
 
+  it("switches tabs with Cmd+1-9 on macOS", () => {
+    const effective = resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG, true)
+    expect(effective["tabs.switchToNth"]).toEqual(
+      Array.from({ length: 9 }, (_, index) => `mod+${index + 1}`)
+    )
+    expect(effective["workspace.newTab"]).toEqual(["ctrl+shift+t"])
+  })
+
   it("lets an explicit override replace the default binding", () => {
     const effective = resolveEffectiveKeymap({
       bindings: { "terminal.find": ["mod+j"] },
