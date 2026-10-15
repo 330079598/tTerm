@@ -84,6 +84,12 @@ describe("resolveEffectiveKeymap", () => {
     expect(other["sftp.back"]).toEqual(["alt+arrowleft"])
   })
 
+  it("restores a single group with Mod+Alt+\\, beside the split chords", () => {
+    expect(resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG)["workspace.restoreSingleGroup"]).toEqual([
+      "mod+alt+\\",
+    ])
+  })
+
   it("switches tabs with Cmd+1-9 on macOS", () => {
     const effective = resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG, true)
     expect(effective["tabs.switchToNth"]).toEqual(

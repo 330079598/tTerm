@@ -31,6 +31,8 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   "workspace.focusPaneRight": "mod+alt+arrowright",
   "workspace.focusPaneUp": "mod+alt+arrowup",
   "workspace.focusPaneDown": "mod+alt+arrowdown",
+  // Undoing the splits sits beside the split chords, Mod+\ and Mod+Shift+\.
+  "workspace.restoreSingleGroup": "mod+alt+\\",
   "commandLibrary.open": "mod+shift+p",
   "broadcast.togglePanel": "mod+shift+b",
   "tabs.next": "ctrl+tab",

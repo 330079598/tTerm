@@ -345,7 +345,8 @@
         "focusPaneLeft": "Focus pane on the left",
         "focusPaneRight": "Focus pane on the right",
         "focusPaneUp": "Focus pane above",
-        "focusPaneDown": "Focus pane below"
+        "focusPaneDown": "Focus pane below",
+        "restoreSingleGroup": "Restore single group"
       },
       "commandLibrary": {
         "open": "Open command library"

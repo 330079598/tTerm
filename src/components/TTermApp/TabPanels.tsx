@@ -165,7 +165,7 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
     [dockApi]
   )
 
-  usePaneKeymap(dockApi)
+  usePaneKeymap(dockApi, collapseToSingleGroup)
 
   useImperativeHandle(
     ref,

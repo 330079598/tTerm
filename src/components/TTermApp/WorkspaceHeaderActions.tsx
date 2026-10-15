@@ -14,12 +14,15 @@ import { useTranslation } from "react-i18next"
 
 import { useWorkspace } from "@/components/TTermApp/workspaceContext"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useShortcutLabel } from "@/contexts/KeymapContext"
+import { withShortcut } from "@/lib/keymap/keymap"
 
 export const WorkspaceHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({
   activePanel,
   isGroupActive,
 }) => {
   const { t } = useTranslation()
+  const shortcutLabel = useShortcutLabel()
   const { collapseToSingleGroup, groupCount, maximizedGroupId, splitTab, tabs } = useWorkspace()
   const tab = activePanel ? tabs.find((candidate) => candidate.id === activePanel.id) : undefined
   const canSplit = tab?.type === "terminal" || tab?.type === "ssh"
@@ -83,7 +86,10 @@ export const WorkspaceHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({
       {activePanel &&
         groupCount > 1 &&
         action(
-          t("workspace.restoreSingleGroup", { defaultValue: "Restore Single Group" }),
+          withShortcut(
+            t("workspace.restoreSingleGroup", { defaultValue: "Restore Single Group" }),
+            shortcutLabel("workspace.restoreSingleGroup")
+          ),
           <PanelsTopLeft size={14} aria-hidden="true" />,
           () => collapseToSingleGroup(activePanel.id)
         )}

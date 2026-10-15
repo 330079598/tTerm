@@ -27,10 +27,13 @@ function paneRects(dockApi: DockviewApi): PaneRect[] {
 
 /**
  * Keyboard shortcuts that move the focus between split panes, in reading
- * order or by direction. Activating a pane's tab puts the keyboard in its
- * terminal, as clicking the pane does.
+ * order or by direction, and that gather every pane back into one. Activating
+ * a pane's tab puts the keyboard in its terminal, as clicking the pane does.
  */
-export function usePaneKeymap(dockApi: DockviewApi | null) {
+export function usePaneKeymap(
+  dockApi: DockviewApi | null,
+  collapseToSingleGroup: (tabId: string) => void
+) {
   const { registerHandler } = useKeymap()
   // Pane ids from most to least recently focused, to break ties between
   // neighbours the way tmux does.
@@ -54,8 +57,8 @@ export function usePaneKeymap(dockApi: DockviewApi | null) {
   useEffect(() => {
     if (!dockApi) return
 
-    // A shortcut with no pane to go to flashes the active tab, so it still
-    // shows it was received.
+    // A shortcut with no pane to go to, or no split to undo, flashes the
+    // active tab, so it still shows it was received.
     const focusPane = (pickPane: (panes: PaneRect[], activeId: string) => string | undefined) => {
       const activeGroup = dockApi.activeGroup
       if (!activeGroup) return false
@@ -82,7 +85,16 @@ export function usePaneKeymap(dockApi: DockviewApi | null) {
           )
         )
       ),
+      registerHandler("workspace.restoreSingleGroup", () => {
+        const activePanel = dockApi.activePanel
+        if (!activePanel) return false
+        if (dockApi.groups.length > 1) {
+          collapseToSingleGroup(activePanel.id)
+        } else {
+          nudgeTab(activePanel.id)
+        }
+      }),
     ]
     return () => unregisters.forEach((unregister) => unregister())
-  }, [dockApi, registerHandler])
+  }, [collapseToSingleGroup, dockApi, registerHandler])
 }

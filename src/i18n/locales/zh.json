@@ -336,7 +336,8 @@
         "focusPaneLeft": "切换到左侧分屏",
         "focusPaneRight": "切换到右侧分屏",
         "focusPaneUp": "切换到上方分屏",
-        "focusPaneDown": "切换到下方分屏"
+        "focusPaneDown": "切换到下方分屏",
+        "restoreSingleGroup": "还原单分组"
       },
       "commandLibrary": {
         "open": "打开命令库"

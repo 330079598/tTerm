@@ -16,6 +16,7 @@ vi.mock("@/components/TerminalTab", () => ({
 // jsdom lays nothing out, so pane shortcuts have no positions to work with here.
 vi.mock("@/contexts/KeymapContext", () => ({
   useKeymap: () => ({ registerHandler: () => () => {} }),
+  useShortcutLabel: () => () => undefined,
 }))
 
 vi.mock("@/components/TabIcon", () => ({ TabIcon: () => null }))
