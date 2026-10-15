@@ -24,10 +24,10 @@ export interface KeymapDispatchEnvironment {
 
 /**
  * Keys whose Ctrl chord the terminal needs, so on macOS they never fall back
- * to a Cmd binding: Ctrl+[ is Escape, and Ctrl+] leaves telnet and virsh
- * consoles.
+ * to a Cmd binding: Ctrl+[ is Escape, Ctrl+] leaves telnet and virsh
+ * consoles, and Ctrl+\ sends SIGQUIT.
  */
-const TERMINAL_CTRL_KEYS = new Set(["[", "]"])
+const TERMINAL_CTRL_KEYS = new Set(["[", "]", "\\"])
 
 /**
  * Resolve one keydown event against the bindings. Returns the matched action

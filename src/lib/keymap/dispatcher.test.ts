@@ -192,6 +192,23 @@ describe("dispatchKeydownEvent", () => {
     expect(dispatchKeydownEvent(cmd, env)).toBe("workspace.focusPrevPane")
   })
 
+  it("leaves Ctrl+\\ to the terminal as SIGQUIT on macOS while Cmd+\\ splits", () => {
+    const handler = vi.fn()
+    const handlers = new Map<KeymapActionId, Set<KeymapHandler>>([
+      ["workspace.splitRight", new Set([handler])],
+    ])
+    const index = new Map<string, KeymapActionId>([["mod+\\", "workspace.splitRight"]])
+    const env = createEnv({ handlers, index, isMac: true })
+
+    const quit = keydown("\\", { code: "Backslash", ctrlKey: true })
+    expect(dispatchKeydownEvent(quit, env)).toBeNull()
+    expect(quit.defaultPrevented).toBe(false)
+    expect(handler).not.toHaveBeenCalled()
+
+    const cmd = keydown("\\", { code: "Backslash", metaKey: true })
+    expect(dispatchKeydownEvent(cmd, env)).toBe("workspace.splitRight")
+  })
+
   it("matches explicit Ctrl bindings on Windows and Linux", () => {
     const handler = vi.fn()
     const handlers = new Map<KeymapActionId, Set<KeymapHandler>>([
