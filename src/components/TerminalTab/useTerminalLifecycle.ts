@@ -115,24 +115,30 @@ export function useTerminalLifecycle({
     waitingForReconnectRef.current = false
     setSavedPasswordPrompt(null)
 
-    const { term, imeCursorGuard, imeEarlyInputFix, scrollbackMemory, imeFocusRepair } =
-      openTerminal({
-        container,
-        cursorStyleRef,
-        configMacOptionIsMetaRef,
-        configOsc52ClipboardWriteRef,
-        scrollbackLinesRef,
-        fontSizeRef,
-        fontFamilyRef,
-        configLetterSpacingRef,
-        configLineHeightRef,
-        themeRef,
-        termRef,
-        fitAddonRef,
-        searchAddonRef,
-        searchResultsDisposableRef,
-        setSearchResults,
-      })
+    const {
+      term,
+      imeCursorGuard,
+      imeEarlyInputFix,
+      imeContextReset,
+      scrollbackMemory,
+      imeFocusRepair,
+    } = openTerminal({
+      container,
+      cursorStyleRef,
+      configMacOptionIsMetaRef,
+      configOsc52ClipboardWriteRef,
+      scrollbackLinesRef,
+      fontSizeRef,
+      fontFamilyRef,
+      configLetterSpacingRef,
+      configLineHeightRef,
+      themeRef,
+      termRef,
+      fitAddonRef,
+      searchAddonRef,
+      searchResultsDisposableRef,
+      setSearchResults,
+    })
 
     // A tab restored in the background draws nothing until it is shown.
     if (isActiveRef.current) {
@@ -313,6 +319,7 @@ export function useTerminalLifecycle({
       }
       imeCursorGuard.dispose()
       imeEarlyInputFix.dispose()
+      imeContextReset.dispose()
       imeFocusRepair?.dispose()
       scrollbackMemory.dispose()
       term.dispose()

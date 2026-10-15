@@ -8,6 +8,7 @@ import { openUrl } from "@tauri-apps/plugin-opener"
 import { platform } from "@tauri-apps/plugin-os"
 
 import type { UseTerminalLifecycleOptions } from "@/components/TerminalTab/terminalLifecycleTypes"
+import { installImeContextReset } from "@/components/TerminalTab/imeContextReset"
 import { installImeCursorGuard } from "@/components/TerminalTab/imeCursorGuard"
 import { installImeEarlyInputFix } from "@/components/TerminalTab/imeEarlyInput"
 import { installImeFocusRepair } from "@/components/TerminalTab/imeFocusRepair"
@@ -157,10 +158,18 @@ export function openTerminal({
   term.open(container)
   const imeCursorGuard = installImeCursorGuard(term)
   const imeEarlyInputFix = installImeEarlyInputFix(term)
+  const imeContextReset = installImeContextReset(term)
   const scrollbackMemory = createScrollbackMemory(term, () => scrollbackLinesRef.current)
   const imeFocusRepair = IS_WINDOWS
     ? installImeFocusRepair(term, () => invoke("repair_ime_focus"))
     : null
 
-  return { term, imeCursorGuard, imeEarlyInputFix, scrollbackMemory, imeFocusRepair }
+  return {
+    term,
+    imeCursorGuard,
+    imeEarlyInputFix,
+    imeContextReset,
+    scrollbackMemory,
+    imeFocusRepair,
+  }
 }
