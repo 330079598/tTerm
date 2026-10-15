@@ -37,6 +37,14 @@ describe("getTabIdAtPosition", () => {
     expect(getTabIdAtPosition(TABS, 0)).toBeUndefined()
     expect(getTabIdAtPosition(TABS, 4)).toBeUndefined()
   })
+
+  it("returns the last tab for position 9", () => {
+    expect(getTabIdAtPosition(TABS, 9)).toBe("t3")
+    const manyTabs = Array.from({ length: 12 }, (_, index) => `t${index + 1}`)
+    expect(getTabIdAtPosition(manyTabs, 9)).toBe("t12")
+    expect(getTabIdAtPosition(manyTabs, 8)).toBe("t8")
+    expect(getTabIdAtPosition([], 9)).toBeUndefined()
+  })
 })
 
 describe("resolveTabShortcutTarget", () => {

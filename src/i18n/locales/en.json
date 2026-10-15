@@ -350,7 +350,7 @@
       "tabs": {
         "next": "Next tab",
         "prev": "Previous tab",
-        "switchToNth": "Switch to tab 1-9",
+        "switchToNth": "Switch to tab 1-8, or the last tab with 9",
         "renameActive": "Rename active tab",
         "closeActive": "Close active tab"
       },

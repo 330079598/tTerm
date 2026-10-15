@@ -20,8 +20,18 @@ export function getSiblingTabId(
   return tabIds[nextIndex]
 }
 
-/** Returns the tab id at the given 1-based position, or undefined when out of range. */
+// The ninth tab shortcut always picks the last tab, as Chrome, Safari, Terminal
+// and iTerm2 do, so the far end of a long tab bar is one key away.
+const LAST_TAB_POSITION = 9
+
+/**
+ * Returns the tab id at the given 1-based position, or undefined when out of
+ * range; position 9 is the last tab, however many tabs there are.
+ */
 export function getTabIdAtPosition(tabIds: string[], position: number): string | undefined {
+  if (position === LAST_TAB_POSITION) {
+    return tabIds[tabIds.length - 1]
+  }
   if (position < 1 || position > tabIds.length) {
     return undefined
   }
