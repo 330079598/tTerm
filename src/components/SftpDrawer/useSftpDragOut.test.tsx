@@ -8,12 +8,14 @@ import type { DragOutResult } from "@/components/SftpDrawer/dragOut"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { useSftpDragOut } from "@/components/SftpDrawer/useSftpDragOut"
 
-const { startDragOut, supported } = vi.hoisted(() => ({
+const { refreshDropFolder, startDragOut, supported } = vi.hoisted(() => ({
+  refreshDropFolder: vi.fn<(directory: string) => Promise<void>>(),
   startDragOut: vi.fn<(entries: SftpDirectoryEntry[]) => Promise<DragOutResult>>(),
   supported: { current: true },
 }))
 
 vi.mock("@/components/SftpDrawer/dragOut", () => ({
+  refreshDropFolder,
   startDragOut,
   supportsDragOut: () => supported.current,
 }))
@@ -67,6 +69,19 @@ describe("useSftpDragOut", () => {
       expect(downloadEntriesToFolder).toHaveBeenCalledWith([file], "/Users/me/Desktop")
     )
     expect(startDragOut).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(refreshDropFolder).toHaveBeenCalledWith("/Users/me/Desktop"))
+  })
+
+  it("refreshes the drop folder even when the download fails", async () => {
+    startDragOut.mockResolvedValue({ kind: "dropped", directory: "C:\\Users\\me\\Desktop" })
+    const { downloadEntriesToFolder, result, setError } = renderDragOut()
+    downloadEntriesToFolder.mockRejectedValue(new Error("connection lost"))
+
+    press(result.current!)
+    moveTo(30, 12)
+
+    await waitFor(() => expect(setError).toHaveBeenCalledWith("Error: connection lost"))
+    expect(refreshDropFolder).toHaveBeenCalledWith("C:\\Users\\me\\Desktop")
   })
 
   it("leaves a press that does not move as a click", () => {

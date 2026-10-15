@@ -49,3 +49,15 @@ export async function startDragOut(entries: SftpDirectoryEntry[]): Promise<DragO
     }, SELF_DROP_SETTLE_MS)
   }
 }
+
+/**
+ * Has the file manager list `directory` again once the download into it has
+ * ended, since File Explorer can miss changes right after a drop.
+ */
+export async function refreshDropFolder(directory: string): Promise<void> {
+  try {
+    await invoke("refresh_drop_folder", { directory })
+  } catch (error) {
+    console.warn("Failed to refresh the folder the files were dropped on:", error)
+  }
+}

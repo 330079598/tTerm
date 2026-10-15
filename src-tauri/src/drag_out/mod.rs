@@ -49,6 +49,22 @@ pub async fn start_drag_out(
     platform_drag_out(window, items).await
 }
 
+/// Called once the download into a dropped-on folder has ended, so the file
+/// manager shows what it wrote there without a manual refresh.
+#[tauri::command]
+pub async fn refresh_drop_folder(directory: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    crate::core::blocking::run_blocking(move || {
+        windows::refresh_folder(std::path::Path::new(&directory));
+        Ok(())
+    })
+    .await?;
+    // Finder follows the folder's changes on its own.
+    #[cfg(target_os = "macos")]
+    let _ = directory;
+    Ok(())
+}
+
 #[cfg(target_os = "windows")]
 async fn platform_drag_out(
     window: tauri::WebviewWindow,

@@ -18,9 +18,10 @@ use windows::Win32::System::Ole::{DROPEFFECT_COPY, DROPEFFECT_NONE};
 use windows::Win32::UI::Shell::Common::ITEMIDLIST;
 use windows::Win32::UI::Shell::{
     BHID_DataObject, ILFree, SHCNRF_NewDelivery, SHCNRF_ShellLevel, SHChangeNotification_Lock,
-    SHChangeNotification_Unlock, SHChangeNotifyDeregister, SHChangeNotifyEntry,
+    SHChangeNotification_Unlock, SHChangeNotify, SHChangeNotifyDeregister, SHChangeNotifyEntry,
     SHChangeNotifyRegister, SHCreateShellItemArrayFromIDLists, SHDoDragDrop, SHGetPathFromIDListW,
-    SHGetSpecialFolderLocation, SHParseDisplayName, CSIDL_DESKTOP, SHCNE_CREATE, SHCNE_MKDIR,
+    SHGetSpecialFolderLocation, SHParseDisplayName, CSIDL_DESKTOP, SHCNE_CREATE, SHCNE_DELETE,
+    SHCNE_ID, SHCNE_MKDIR, SHCNE_RMDIR, SHCNE_UPDATEDIR, SHCNF_FLUSHNOWAIT, SHCNF_PATHW,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, GetAncestor, GetCursorPos, RegisterClassW,
@@ -231,14 +232,22 @@ fn take_copies(watcher: isize) -> Vec<PathBuf> {
 /// File Explorer can still hold a new file open for a moment after its
 /// notice, so the delete is retried briefly.
 fn remove_copied_placeholder(copy: &Path) {
+    let is_dir = copy.is_dir();
     for _ in 0..10 {
-        let removed = if copy.is_dir() {
+        let removed = if is_dir {
             std::fs::remove_dir(copy)
         } else {
             std::fs::remove_file(copy)
         };
         match removed {
-            Ok(()) => return,
+            Ok(()) => {
+                // File Explorer added the placeholder to its view itself while
+                // copying it, and can miss the file system's notice of a
+                // delete that follows so soon; the shell's own notice removes
+                // it from the view instead of leaving it until a refresh.
+                notify_shell(if is_dir { SHCNE_RMDIR } else { SHCNE_DELETE }, copy);
+                return;
+            }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return,
             Err(_) => std::thread::sleep(Duration::from_millis(100)),
         }
@@ -247,6 +256,28 @@ fn remove_copied_placeholder(copy: &Path) {
         "[drag_out] Failed to delete the drop placeholder {}",
         copy.display()
     );
+}
+
+/// Tells File Explorer to list `directory` again, as a refresh would. Right
+/// after a drop it can miss the file system's notices for the files the
+/// download writes there, renames and deletes.
+pub fn refresh_folder(directory: &Path) {
+    notify_shell(SHCNE_UPDATEDIR, directory);
+}
+
+fn notify_shell(event: SHCNE_ID, path: &Path) {
+    let path = HSTRING::from(path.as_os_str());
+    // SAFETY: the path is a live, nul-terminated string, and the shell reads
+    // it during the call. FLUSHNOWAIT delivers the notice without waiting
+    // for File Explorer to handle it.
+    unsafe {
+        SHChangeNotify(
+            event,
+            SHCNF_PATHW | SHCNF_FLUSHNOWAIT,
+            Some(path.as_ptr().cast()),
+            None,
+        );
+    }
 }
 
 /// Runs on the main thread, which OLE has initialized for drag and drop.

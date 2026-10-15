@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { startDragOut, supportsDragOut } from "@/components/SftpDrawer/dragOut"
+import { refreshDropFolder, startDragOut, supportsDragOut } from "@/components/SftpDrawer/dragOut"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 
 /** How far a press must move before it becomes a drag, as in the browser. */
@@ -45,7 +45,12 @@ export function useSftpDragOut({
           }, 0)
         })
         if (result.kind === "dropped") {
-          await downloadEntriesToFolder(entries, result.directory)
+          try {
+            await downloadEntriesToFolder(entries, result.directory)
+          } finally {
+            // A failed or cancelled download can still leave files behind.
+            void refreshDropFolder(result.directory)
+          }
         } else if (result.kind === "unknownTarget") {
           setError(
             t("sftp.errors.dragOutUnknownTarget", {

@@ -183,6 +183,8 @@ pub fn run() {
             clipboard_files::read_clipboard_file_paths,
             #[cfg(any(target_os = "windows", target_os = "macos"))]
             drag_out::start_drag_out,
+            #[cfg(any(target_os = "windows", target_os = "macos"))]
+            drag_out::refresh_drop_folder,
             session::load_session,
             session::save_session,
             session::clear_session,
