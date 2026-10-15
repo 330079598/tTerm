@@ -47,6 +47,10 @@ pub enum NotificationPermission {
     BadgeOff,
     /// Windows hides the count on taskbar buttons while "Show badges on
     /// taskbar apps" is off.
+    #[cfg_attr(
+        target_os = "macos",
+        expect(dead_code, reason = "only Windows reports it")
+    )]
     TaskbarBadgesOff,
     /// A development build outside an app bundle: shown through AppleScript,
     /// and clicking it does not lead back to the tab.
