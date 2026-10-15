@@ -27,3 +27,18 @@ export function getTabIdAtPosition(tabIds: string[], position: number): string |
   }
   return tabIds[position - 1]
 }
+
+/** What a tab shortcut leads to: another tab, the tab already active, or no tab at all. */
+export type TabShortcutTarget =
+  { kind: "switch"; tabId: string } | { kind: "current"; tabId: string } | { kind: "none" }
+
+/** Classifies the tab a shortcut resolved to, so a shortcut that changes nothing can say so. */
+export function resolveTabShortcutTarget(
+  tabId: string | undefined,
+  activeTabId: string | null
+): TabShortcutTarget {
+  if (!tabId) {
+    return { kind: "none" }
+  }
+  return tabId === activeTabId ? { kind: "current", tabId } : { kind: "switch", tabId }
+}

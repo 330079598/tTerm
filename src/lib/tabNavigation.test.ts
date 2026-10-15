@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { getSiblingTabId, getTabIdAtPosition } from "@/lib/tabNavigation"
+import { getSiblingTabId, getTabIdAtPosition, resolveTabShortcutTarget } from "@/lib/tabNavigation"
 
 const TABS = ["t1", "t2", "t3"]
 
@@ -36,5 +36,19 @@ describe("getTabIdAtPosition", () => {
   it("returns undefined for out-of-range positions", () => {
     expect(getTabIdAtPosition(TABS, 0)).toBeUndefined()
     expect(getTabIdAtPosition(TABS, 4)).toBeUndefined()
+  })
+})
+
+describe("resolveTabShortcutTarget", () => {
+  it("switches to a tab other than the active one", () => {
+    expect(resolveTabShortcutTarget("t2", "t1")).toEqual({ kind: "switch", tabId: "t2" })
+  })
+
+  it("reports the active tab as the current target", () => {
+    expect(resolveTabShortcutTarget("t1", "t1")).toEqual({ kind: "current", tabId: "t1" })
+  })
+
+  it("reports no target when the shortcut found no tab", () => {
+    expect(resolveTabShortcutTarget(undefined, "t1")).toEqual({ kind: "none" })
   })
 })

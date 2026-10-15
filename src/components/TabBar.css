@@ -1,3 +1,4 @@
 /* The tab bar's styles; the parts are imported in cascade order. */
 @import "./TabBar/TabList.css";
 @import "./TabBar/TabItem.css";
+@import "./TabBar/TabNudge.css";
