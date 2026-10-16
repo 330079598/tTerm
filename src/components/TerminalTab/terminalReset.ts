@@ -4,7 +4,7 @@ import type { Terminal } from "@xterm/xterm"
 const SOFT_RESET = "\x1b[!p"
 
 /** DECSTR leaves mouse reporting alone; turn off every tracking mode and encoding. */
-const MOUSE_REPORTING_OFF = [9, 1000, 1001, 1002, 1003, 1005, 1006, 1015, 1016]
+export const MOUSE_REPORTING_OFF = [9, 1000, 1001, 1002, 1003, 1005, 1006, 1015, 1016]
   .map((mode) => `\x1b[?${mode}l`)
   .join("")
 

@@ -209,6 +209,7 @@ pub fn run() {
             zmodem::commands::zmodem_arm_manual_detect,
             terminal::pty::list_available_terminal_shells,
             terminal::pty::local_terminal_shell_name,
+            terminal::foreground::pty_shell_in_foreground,
             fonts::list_fonts,
             monitor::get_server_metrics_snapshot,
             monitor::release_server_monitor_session,

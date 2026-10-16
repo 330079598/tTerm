@@ -235,6 +235,7 @@ export function useTerminalLifecycle({
       shellIntegrationDisposables,
       attentionReports,
       cwdReports,
+      mouseReportingGuard,
       lineFeedDisposable,
     } = createCommandTracking(ctx)
     attachTerminalInput(ctx, {
@@ -339,6 +340,7 @@ export function useTerminalLifecycle({
       commandMarks.dispose()
       commandMarksRef.current = null
       cwdReports.dispose()
+      mouseReportingGuard.dispose()
       container.classList.remove("xterm-has-scrollback")
       container.replaceChildren()
     }

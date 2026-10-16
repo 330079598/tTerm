@@ -1,3 +1,5 @@
+import { invoke } from "@tauri-apps/api/core"
+
 import type { TerminalSessionContext } from "@/components/TerminalTab/terminalLifecycleTypes"
 import {
   CommandMarks,
@@ -6,6 +8,7 @@ import {
 } from "@/components/TerminalTab/commandMarks"
 import { watchAttentionReports } from "@/components/TerminalTab/attentionReports"
 import { watchCwdReports } from "@/components/TerminalTab/cwdReports"
+import { watchMouseReporting } from "@/components/TerminalTab/mouseReportingGuard"
 import { AgentTracker } from "@/lib/agentStatus"
 import { setTabAgentStatus, setTabRunningCommand } from "@/lib/tabAttention"
 import { CommandTimer } from "@/lib/terminalNotifications"
@@ -103,6 +106,13 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
     onCwd: (cwd) => onCwdChangeRef.current?.(cwd),
   })
 
+  // Mouse reporting a killed program left on.
+  const mouseReportingGuard = watchMouseReporting(term, {
+    isShellInForeground: async () =>
+      connectionRef.current?.type !== "ssh" &&
+      (await invoke<boolean>("pty_shell_in_foreground", { tabId, sessionNonce })),
+  })
+
   const lineFeedDisposable = term.onLineFeed(() => {
     session.lineFeedCount += 1
   })
@@ -115,6 +125,7 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
     shellIntegrationDisposables,
     attentionReports,
     cwdReports,
+    mouseReportingGuard,
     lineFeedDisposable,
   }
 }

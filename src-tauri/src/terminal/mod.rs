@@ -3,6 +3,7 @@ pub mod console_reset;
 #[cfg(unix)]
 pub(crate) mod cwd_watch;
 pub(crate) mod encoding;
+pub(crate) mod foreground;
 pub(crate) mod io_batcher;
 #[cfg(unix)]
 mod local_integration;
