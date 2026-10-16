@@ -43,13 +43,10 @@ impl std::fmt::Display for RsaSignError {
     }
 }
 
-/// Whether `path` is an old PEM-format RSA key that [`RingRsaSigner`] can use
+/// Whether `pem` is an old PEM-format RSA key that [`RingRsaSigner`] can use
 /// even though `russh` refuses to load it.
-pub(crate) fn pem_key_file_is_usable(path: &str) -> bool {
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|pem| RingRsaSigner::from_pem(&pem))
-        .is_some_and(|loaded| loaded.is_ok())
+pub(crate) fn pem_key_is_usable(pem: &str) -> bool {
+    RingRsaSigner::from_pem(pem).is_some_and(|loaded| loaded.is_ok())
 }
 
 pub(crate) struct RingRsaSigner {

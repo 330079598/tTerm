@@ -4,6 +4,8 @@ use super::{
     AuthPromptField, AuthPromptPayload, AuthPrompter, AuthTarget, EXCHANGE_TIMEOUT, MAX_STEPS,
 };
 use crate::ssh::agent::offered_before;
+use crate::ssh::key_file::{display_path, parse_certificate, read_key};
+use crate::ssh::key_vault;
 use crate::ssh::rsa_signer::RingRsaSigner;
 use crate::ssh::types::SshConnectError;
 use russh::client::{AuthResult, KeyboardInteractiveAuthResponse};
@@ -95,8 +97,9 @@ where
     .await
 }
 
-/// Signs in with the key file at `path`, and with `certificate_path` as its
-/// certificate when one is configured; see [`key_file_identities`].
+/// Signs in with the key at `path`, a key file or a key in the key vault.
+/// Its certificate is `certificate_path` when one is configured, and
+/// otherwise the one kept with a vault key; see [`key_file_identities`].
 pub(super) async fn publickey<H>(
     session: &mut client::Handle<H>,
     target: &AuthTarget<'_>,
@@ -108,25 +111,33 @@ where
     H: client::Handler,
 {
     let subject = target.subject();
+    let key_subject = format!("{subject} key");
+    let material = read_key(path, &key_subject).map_err(SshConnectError::Permanent)?;
+    let label = material.label.as_str();
     let key_error =
-        |reason: String| SshConnectError::Permanent(format!("{subject} key {path}: {reason}"));
+        |reason: String| SshConnectError::Permanent(format!("{subject} key {label}: {reason}"));
     let certificate = |public_key: &PublicKey| {
+        let saved = || {
+            material
+                .certificate
+                .as_deref()
+                .map(|text| parse_certificate(text, &format!("of {label}"), public_key))
+        };
         certificate_path
             .map(|certificate_path| load_certificate(certificate_path, public_key))
+            .or_else(saved)
             .transpose()
             .map_err(|reason| SshConnectError::Permanent(format!("{subject} {reason}")))
     };
 
-    match crate::ssh::key_file::load_private_key(path, passphrase, &format!("{subject} key")) {
+    match material.decode(passphrase, &key_subject) {
         Ok(key) => {
             let certificate = certificate(key.public_key())?;
             sign_in_with_key(session, target, path, key, certificate, &mut Vec::new()).await
         }
         // Old PEM-format RSA keys are beyond `russh` in this build.
         Err(load_error) => {
-            let (mut signer, public_key) = std::fs::read_to_string(path)
-                .ok()
-                .and_then(|pem| RingRsaSigner::from_pem(&pem))
+            let (mut signer, public_key) = RingRsaSigner::from_pem(&material.text)
                 .ok_or(SshConnectError::Permanent(load_error))?
                 .map_err(key_error)?;
             let identities = key_file_identities(path, &public_key, certificate(&public_key)?);
@@ -149,32 +160,7 @@ pub(super) fn load_certificate(path: &str, public_key: &PublicKey) -> Result<Cer
                 format!("cannot read certificate file {path}: {error}")
             }
         })?;
-    let certificate = Certificate::from_openssh(text.trim())
-        .map_err(|error| format!("{path} is not an OpenSSH certificate: {error}"))?;
-    if certificate.public_key() != public_key.key_data() {
-        return Err(format!(
-            "certificate {path} certifies a different key than the private key"
-        ));
-    }
-
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs());
-    if certificate.valid_before() <= now {
-        let expired = i64::try_from(certificate.valid_before())
-            .ok()
-            .and_then(|seconds| chrono::DateTime::from_timestamp(seconds, 0))
-            .map(|time| {
-                chrono::DateTime::<chrono::Local>::from(time)
-                    .format("%Y-%m-%d %H:%M")
-                    .to_string()
-            })
-            .unwrap_or_default();
-        return Err(format!(
-            "certificate {path} expired at {expired}; get a new one from your certificate authority"
-        ));
-    }
-    Ok(certificate)
+    parse_certificate(&text, path, public_key)
 }
 
 /// What a key file offers the server, in `ssh`'s order: its OpenSSH
@@ -192,6 +178,10 @@ pub(super) fn key_file_identities(
     certificate: Option<Certificate>,
 ) -> Vec<AgentIdentity> {
     let certificate = certificate.or_else(|| {
+        // A vault key keeps its certificate with it, not in a file beside it.
+        if key_vault::reference_id(path).is_some() {
+            return None;
+        }
         std::fs::read_to_string(format!("{path}-cert.pub"))
             .ok()
             .and_then(|text| Certificate::from_openssh(text.trim()).ok())
@@ -219,8 +209,9 @@ fn offer_next(verdict: &AuthResult) -> bool {
 /// that keep an `offered` list skip such a key instead of signing with it.
 fn already_offered(target: &AuthTarget<'_>, path: &str) -> SshConnectError {
     SshConnectError::Permanent(format!(
-        "{} key {path} was already offered",
-        target.subject()
+        "{} key {} was already offered",
+        target.subject(),
+        display_path(path)
     ))
 }
 
@@ -247,7 +238,11 @@ where
     // RSA is signed by `ring` (see `rsa_signer`); every other key by `russh`.
     if let KeypairData::Rsa(rsa_keypair) = key.key_data() {
         let mut signer = RingRsaSigner::new(rsa_keypair).map_err(|reason| {
-            SshConnectError::Permanent(format!("{} key {path}: {reason}", target.subject()))
+            SshConnectError::Permanent(format!(
+                "{} key {}: {reason}",
+                target.subject(),
+                display_path(path)
+            ))
         })?;
         return sign_in_with_rsa(session, target, &mut signer, path, identities, offered).await;
     }

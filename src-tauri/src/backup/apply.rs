@@ -79,7 +79,7 @@ pub(super) fn missing_key_files(profiles: &[SavedProfile]) -> Vec<MissingKeyFile
             .flat_map(|jump| [&jump.private_key_path, &jump.certificate_path])
             .filter_map(Option::as_deref);
         for path in own.chain(jumps).map(str::trim) {
-            if path.is_empty() || Path::new(path).is_file() {
+            if path.is_empty() || crate::ssh::key_file::key_exists(path) {
                 continue;
             }
             let users = missing.entry(path).or_default();

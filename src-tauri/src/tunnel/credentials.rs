@@ -4,7 +4,6 @@
 use crate::core::session::{types::JumpHostPlan, types::PtyConnectionOptions, types::SessionPlan};
 use russh::keys::{self, ssh_key};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 
 /// Secrets entered by the user in answer to a [`CredentialRequest`].
 #[derive(Debug, Default, Deserialize)]
@@ -81,16 +80,18 @@ enum KeyCheck {
 }
 
 fn check_key(path: &str, passphrase: Option<&str>) -> Result<KeyCheck, String> {
-    match keys::load_secret_key(Path::new(path), passphrase) {
+    let key = crate::ssh::key_file::read_key(path, "SSH key")?;
+    let passphrase = passphrase.or(key.saved_passphrase());
+    match keys::decode_secret_key(&key.text, passphrase) {
         Ok(_) => Ok(KeyCheck::Usable),
         Err(keys::Error::KeyIsEncrypted) => Ok(KeyCheck::NeedsPassphrase { incorrect: false }),
         Err(keys::Error::SshKey(ssh_key::Error::Crypto)) if passphrase.is_some() => {
             Ok(KeyCheck::NeedsPassphrase { incorrect: true })
         }
         // Old PEM-format RSA keys are loaded when connecting, not by `russh`.
-        Err(_) if crate::ssh::rsa_signer::pem_key_file_is_usable(path) => Ok(KeyCheck::Usable),
+        Err(_) if crate::ssh::rsa_signer::pem_key_is_usable(&key.text) => Ok(KeyCheck::Usable),
         Err(err) => Err(crate::ssh::key_file::describe_key_error(
-            "SSH key", path, &err,
+            "SSH key", &key.label, &err,
         )),
     }
 }

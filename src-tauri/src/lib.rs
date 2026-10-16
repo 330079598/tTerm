@@ -76,6 +76,7 @@ pub fn run() {
         .build()
         .expect("failed to build tokio runtime");
     let secret_store = ssh::secret_store::types::SecretStoreState::new();
+    ssh::key_vault::install(secret_store.clone());
     let session_log_state = session_log::SessionLogState::default();
 
     let builder = tauri::Builder::default()
@@ -277,6 +278,12 @@ pub fn run() {
             ssh::secret_commands::get_saved_secret,
             ssh::secret_commands::verify_user,
             ssh::secret_commands::delete_saved_secret,
+            ssh::key_vault::list_vault_keys,
+            ssh::key_vault::import_vault_key,
+            ssh::key_vault::rename_vault_key,
+            ssh::key_vault::set_vault_key_certificate,
+            ssh::key_vault::delete_vault_key,
+            ssh::key_vault::export_vault_key,
             ssh::known_host_commands::list_known_hosts,
             ssh::known_host_commands::delete_known_hosts,
             updater::check_app_update,

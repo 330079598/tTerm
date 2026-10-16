@@ -8,6 +8,7 @@ use super::{
     AuthPromptField, AuthPrompter, AuthTarget, AuthUsed, DEFAULT_IDENTITY_FILES, TYPING_ATTEMPTS,
 };
 use crate::ssh::agent::offered_before;
+use crate::ssh::key_file::{parse_certificate, read_key};
 use crate::ssh::typed_passwords;
 use crate::ssh::types::SshConnectError;
 use russh::client::AuthResult;
@@ -235,18 +236,24 @@ async fn try_key_file<H>(
 where
     H: client::Handler,
 {
-    let Ok(text) = std::fs::read_to_string(path) else {
+    let display = path.to_string_lossy();
+    let Ok(material) = read_key(&display, "SSH key") else {
         return Ok(None);
     };
-    let display = path.to_string_lossy();
-    let Ok(key) = PrivateKey::from_openssh(&text) else {
+    let Ok(key) = PrivateKey::from_openssh(&material.text) else {
         // Not in OpenSSH format (old PEM RSA): `publickey` reads the other
         // formats, as long as they need no passphrase.
         let verdict = publickey(session, target, &display, None, None).await.ok();
         return Ok(verdict.map(|verdict| (verdict, false)));
     };
+    // The certificate a vault key keeps; a key file's sits beside it. One
+    // that cannot be used is left out, as one beside a file is.
+    let certificate = material
+        .certificate
+        .as_deref()
+        .and_then(|text| parse_certificate(text, "", key.public_key()).ok());
 
-    if key_file_identities(&display, key.public_key(), None)
+    if key_file_identities(&display, key.public_key(), certificate.clone())
         .iter()
         .all(|identity| offered_before(offered, identity))
     {
@@ -254,7 +261,16 @@ where
     }
 
     if !key.is_encrypted() {
-        let verdict = sign_in_with_key(session, target, &display, key, None, offered).await?;
+        let verdict =
+            sign_in_with_key(session, target, &display, key, certificate, offered).await?;
+        return Ok(Some((verdict, false)));
+    }
+    if let Some(decrypted) = material
+        .saved_passphrase()
+        .and_then(|passphrase| key.decrypt(passphrase.as_bytes()).ok())
+    {
+        let verdict =
+            sign_in_with_key(session, target, &display, decrypted, certificate, offered).await?;
         return Ok(Some((verdict, false)));
     }
 
@@ -270,7 +286,7 @@ where
             String::new(),
             instructions.to_string(),
             vec![AuthPromptField {
-                text: format!("Passphrase for {display}:"),
+                text: format!("Passphrase for {}:", material.label),
                 echo: false,
             }],
         );
@@ -281,7 +297,8 @@ where
         let passphrase = answers.into_iter().next().unwrap_or_default();
         if let Ok(decrypted) = key.decrypt(passphrase.as_bytes()) {
             let verdict =
-                sign_in_with_key(session, target, &display, decrypted, None, offered).await?;
+                sign_in_with_key(session, target, &display, decrypted, certificate, offered)
+                    .await?;
             return Ok(Some((verdict, true)));
         }
     }
