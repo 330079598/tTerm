@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { toast } from "@/hooks/use-toast"
+import { isVaultKeyPath } from "@/lib/keyVault"
 import type { TerminalTabProps } from "@/components/TerminalTab/types"
 import type { JumpHostConnection } from "@/types/tab"
 
@@ -195,7 +196,9 @@ export const JumpHostInfoDialog: React.FC<JumpHostInfoDialogProps> = ({
               {jump.authMethod === "key" && jump.privateKeyPath && (
                 <div className="jump-host-info-key-path">
                   {t("jumpHostInfo.privateKey", { defaultValue: "Private key" })}:{" "}
-                  {jump.privateKeyPath}
+                  {isVaultKeyPath(jump.privateKeyPath)
+                    ? t("keyVault.fromVault")
+                    : jump.privateKeyPath}
                 </div>
               )}
             </div>

@@ -28,6 +28,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { isVaultKeyPath } from "@/lib/keyVault"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -307,7 +308,11 @@ export function BackupImportCard({
                   <ul className="mt-2 space-y-1 text-xs">
                     {importResult.missingKeyFiles.map((file) => (
                       <li key={file.path} className="break-all">
-                        <code>{file.path}</code>
+                        {isVaultKeyPath(file.path) ? (
+                          t("keyVault.missingFromVault")
+                        ) : (
+                          <code>{file.path}</code>
+                        )}
                         <span className="text-muted-foreground">
                           {" · "}
                           {file.profiles.join(", ")}

@@ -14,6 +14,7 @@ import { SystemUnlockFailedCard } from "@/components/SettingsDialog/SystemUnlock
 import { MasterPasswordCard } from "@/components/SettingsDialog/MasterPasswordCard"
 import { SavedSecretsCard } from "@/components/SettingsDialog/SavedSecretsCard"
 import { KnownHostsCard } from "@/components/SettingsDialog/KnownHostsCard"
+import { SshKeysCard } from "@/components/SettingsDialog/SshKeysCard"
 import { useVaultActions } from "@/components/SettingsDialog/useVaultActions"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { useConfirmDialog, useInfoDialog } from "@/components/ui/app-dialog"
@@ -186,6 +187,14 @@ export const SecuritySettingsTab: React.FC<SecuritySettingsTabProps> = ({ confir
           revealedPassword={revealedPassword}
           revealError={revealError}
           secretStatus={secretStatus}
+        />
+
+        {/* Mounted again when saved passwords lock or unlock, so the keys load again. */}
+        <SshKeysCard
+          key={unlocked ? "unlocked" : "locked"}
+          confirm={confirm}
+          mode={mode}
+          unlocked={unlocked}
         />
 
         <KnownHostsCard confirm={confirm} />

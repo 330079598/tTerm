@@ -1,10 +1,10 @@
 import React from "react"
-import { open as openFileDialog } from "@tauri-apps/plugin-dialog"
 import { Plus, Route, Server, Trash2, ArrowDown, ArrowUp } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { AuthMethodPicker } from "@/components/ConnectionDialog/AuthMethodPicker"
 import { CertificatePathField } from "@/components/ConnectionDialog/CertificatePathField"
+import { PrivateKeyField } from "@/components/ConnectionDialog/PrivateKeyField"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -394,54 +394,16 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
 
               {jump.authMethod === "key" && (
                 <>
-                  <div>
-                    <Label htmlFor={`jump-key-path-${jump.id}`} className="mb-1.5 block">
-                      {t("ssh.privateKeyPath")}
-                    </Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id={`jump-key-path-${jump.id}`}
-                        value={jump.privateKeyPath}
-                        onChange={(e) => {
-                          onClearError(jump.id, "privateKeyPath")
-                          updateJumpHost(setForm, jump.id, { privateKeyPath: e.target.value })
-                        }}
-                        placeholder="~/.ssh/id_rsa"
-                        className="flex-1"
-                        aria-invalid={!!errors[errorKey(jump.id, "privateKeyPath")]}
-                        aria-describedby={
-                          errors[errorKey(jump.id, "privateKeyPath")]
-                            ? `jump-key-error-${jump.id}`
-                            : undefined
-                        }
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          const selected = await openFileDialog({ multiple: false }).catch(
-                            () => null
-                          )
-                          if (selected && typeof selected === "string") {
-                            onClearError(jump.id, "privateKeyPath")
-                            updateJumpHost(setForm, jump.id, { privateKeyPath: selected })
-                          }
-                        }}
-                      >
-                        {t("ssh.browseKey")}
-                      </Button>
-                    </div>
-                    {errors[errorKey(jump.id, "privateKeyPath")] && (
-                      <p
-                        id={`jump-key-error-${jump.id}`}
-                        className="text-destructive mt-1 text-xs"
-                        role="alert"
-                      >
-                        {errors[errorKey(jump.id, "privateKeyPath")]}
-                      </p>
-                    )}
-                  </div>
+                  <PrivateKeyField
+                    id={`jump-key-path-${jump.id}`}
+                    value={jump.privateKeyPath}
+                    onChange={(privateKeyPath) => {
+                      onClearError(jump.id, "privateKeyPath")
+                      updateJumpHost(setForm, jump.id, { privateKeyPath })
+                    }}
+                    passphrase={jump.privateKeyPassphrase}
+                    error={errors[errorKey(jump.id, "privateKeyPath")]}
+                  />
                   <div>
                     <Label htmlFor={`jump-key-pass-${jump.id}`} className="mb-1.5 block">
                       {t("ssh.privateKeyPassphrase")}

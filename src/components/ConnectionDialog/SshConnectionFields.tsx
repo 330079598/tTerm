@@ -1,10 +1,9 @@
 import React from "react"
-import { open as openFileDialog } from "@tauri-apps/plugin-dialog"
 import { useTranslation } from "react-i18next"
 
 import { AuthMethodPicker } from "@/components/ConnectionDialog/AuthMethodPicker"
 import { CertificatePathField } from "@/components/ConnectionDialog/CertificatePathField"
-import { Button } from "@/components/ui/button"
+import { PrivateKeyField } from "@/components/ConnectionDialog/PrivateKeyField"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -209,37 +208,12 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
 
       {form.authMethod === "key" && (
         <>
-          <div>
-            <Label htmlFor="conn-key-path" className="mb-1.5 block">
-              {t("ssh.privateKeyPath")}
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                id="conn-key-path"
-                value={form.privateKeyPath}
-                onChange={(e) =>
-                  setForm((current) => ({ ...current, privateKeyPath: e.target.value }))
-                }
-                placeholder="~/.ssh/id_rsa"
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  const selected = await openFileDialog({
-                    multiple: false,
-                  }).catch(() => null)
-                  if (selected && typeof selected === "string") {
-                    setForm((current) => ({ ...current, privateKeyPath: selected }))
-                  }
-                }}
-              >
-                {t("ssh.browseKey")}
-              </Button>
-            </div>
-          </div>
+          <PrivateKeyField
+            id="conn-key-path"
+            value={form.privateKeyPath}
+            onChange={(privateKeyPath) => setForm((current) => ({ ...current, privateKeyPath }))}
+            passphrase={form.privateKeyPassphrase}
+          />
           <div>
             <Label htmlFor="conn-key-pass" className="mb-1.5 block">
               {t("ssh.privateKeyPassphrase")}
