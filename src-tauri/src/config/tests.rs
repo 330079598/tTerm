@@ -235,10 +235,10 @@ fn tab_icons_keep_each_shells_choice() {
 }
 
 #[test]
-fn tab_agent_indicator_defaults_to_the_disc_and_pause_bars() {
+fn tab_agent_indicator_defaults_to_the_ring_and_pause_bars() {
     let config: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
 
-    assert_eq!(config.tab_agent_indicator.working, "disc");
+    assert_eq!(config.tab_agent_indicator.working, "ring");
     assert_eq!(config.tab_agent_indicator.waiting, "bars");
     assert!(config.tab_agent_indicator.working_color.is_empty());
 }

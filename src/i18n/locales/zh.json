@@ -2372,7 +2372,7 @@
     "title": "AI 助手标记",
     "description": "Claude Code、Codex、OpenCode 等 AI 助手在标签页里工作或等你回复时，标签页上显示的标记。",
     "working": "工作中",
-    "workingDescription": "AI 助手忙碌时显示的动画。",
+    "workingDescription": "AI 助手忙碌时显示的动画，tTerm 里所有的加载转圈也使用这个动画。",
     "waiting": "等你回复",
     "waitingDescription": "AI 助手停下来、需要你回应时显示的标记。",
     "style": "样式",

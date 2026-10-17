@@ -1,7 +1,10 @@
-/** The animations a tab can show while an AI agent works in it. */
+/**
+ * The animations a tab can show while an AI agent works in it, which every
+ * loading spinner (Spinner) takes too.
+ */
 export const TAB_AGENT_WORKING_STYLES = [
-  "disc",
   "ring",
+  "disc",
   "comet",
   "orbit",
   "pulse",
@@ -28,7 +31,7 @@ export interface TabAgentIndicatorConfig {
 }
 
 export const DEFAULT_TAB_AGENT_INDICATOR: TabAgentIndicatorConfig = {
-  working: "disc",
+  working: "ring",
   waiting: "bars",
   working_color: "",
   waiting_color: "",

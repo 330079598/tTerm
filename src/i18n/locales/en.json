@@ -2394,7 +2394,7 @@
     "title": "AI agent badge",
     "description": "The badge a tab shows while an AI agent such as Claude Code, Codex or OpenCode works in it or waits for you.",
     "working": "While working",
-    "workingDescription": "The animation while the agent is busy.",
+    "workingDescription": "The animation while the agent is busy. Every loading spinner in tTerm uses it too.",
     "waiting": "While waiting for you",
     "waitingDescription": "The mark while the agent has stopped and needs your answer.",
     "style": "Style",

@@ -3,10 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { getSpinnerStyle, setSpinnerStyle, subscribeSpinnerStyle } from "@/lib/spinnerStyle"
 
 describe("spinnerStyle", () => {
-  afterEach(() => setSpinnerStyle("disc"))
+  afterEach(() => setSpinnerStyle("ring"))
 
   it("starts with the default working style", () => {
-    expect(getSpinnerStyle()).toBe("disc")
+    expect(getSpinnerStyle()).toBe("ring")
   })
 
   it("tells subscribers about a change, and only a change", () => {
