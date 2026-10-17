@@ -1,6 +1,7 @@
 pub(crate) mod atomic;
 pub(crate) mod paths;
 pub mod reconnect;
+pub mod tab_agent_indicator;
 pub mod tab_icons;
 pub mod window_background;
 
@@ -267,6 +268,9 @@ pub struct AppConfig {
     /// How local terminal tabs show their shell's icon.
     #[serde(default)]
     pub tab_icons: tab_icons::TabIconConfig,
+    /// How a tab shows an AI agent at work or waiting for the user.
+    #[serde(default)]
+    pub tab_agent_indicator: tab_agent_indicator::TabAgentIndicatorConfig,
     /// Proxy server that hosts left on the default connect through; none when empty.
     #[serde(default)]
     pub default_proxy_id: String,
@@ -675,6 +679,7 @@ impl Default for AppConfig {
             notify_sound_file: String::new(),
             bell_style: default_bell_style(),
             tab_icons: tab_icons::TabIconConfig::default(),
+            tab_agent_indicator: tab_agent_indicator::TabAgentIndicatorConfig::default(),
             default_proxy_id: String::new(),
         }
     }

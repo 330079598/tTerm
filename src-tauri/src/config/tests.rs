@@ -233,3 +233,24 @@ fn tab_icons_keep_each_shells_choice() {
     let saved = serde_json::to_string(&config.tab_icons).unwrap();
     assert!(saved.contains(r##""pwsh":{"color":"#ff0000"}"##));
 }
+
+#[test]
+fn tab_agent_indicator_defaults_to_the_disc_and_pause_bars() {
+    let config: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+
+    assert_eq!(config.tab_agent_indicator.working, "disc");
+    assert_eq!(config.tab_agent_indicator.waiting, "bars");
+    assert!(config.tab_agent_indicator.working_color.is_empty());
+}
+
+#[test]
+fn tab_agent_indicator_keeps_a_partial_choice() {
+    let config: AppConfig = serde_json::from_str(
+        r##"{"theme":"default","tab_agent_indicator":{"working":"braille","waiting_color":"#ff0000"}}"##,
+    )
+    .unwrap();
+
+    assert_eq!(config.tab_agent_indicator.working, "braille");
+    assert_eq!(config.tab_agent_indicator.waiting, "bars");
+    assert_eq!(config.tab_agent_indicator.waiting_color, "#ff0000");
+}

@@ -306,7 +306,9 @@
   background: radial-gradient(circle, hsl(var(--destructive)) 0 45%, transparent 50%);
 }
 
-/* An AI agent in the tab (TabAttentionDot): at work, or waiting for the user. */
+/* An AI agent in the tab (TabAttentionDot): at work, or waiting for the user,
+   in the style the settings pick (tabAgentIndicator.ts). A chosen color comes
+   in as --tab-agent-color and --tab-agent-faint; otherwise the theme's. */
 .tab-agent {
   position: relative;
   z-index: 1;
@@ -318,40 +320,178 @@
   border-radius: 50%;
 }
 
-/* A half-lit disc turning. */
 .tab-agent[data-activity="processing"] {
-  background: linear-gradient(90deg, hsl(var(--primary)) 50%, hsl(var(--primary) / 0.22) 50%);
-  animation: tab-agent-spin 1.2s linear infinite;
+  --tab-agent-on: var(--tab-agent-color, hsl(var(--primary)));
+  --tab-agent-off: var(--tab-agent-faint, hsl(var(--primary) / 0.22));
 }
 
-/* Pause bars: the agent has stopped and waits on the user. Unlike a dot they
-   can't be taken for a bell's. */
 .tab-agent[data-activity="waiting"] {
-  border-radius: 1px;
-  background: linear-gradient(
-    90deg,
-    hsl(var(--warning)) 0 2.5px,
-    transparent 2.5px 5.5px,
-    hsl(var(--warning)) 5.5px
-  );
+  --tab-agent-on: var(--tab-agent-color, hsl(var(--warning)));
 }
 
 /* Only transform and opacity animate, so the badges run on the compositor;
-   an animated box-shadow repainted every frame and cost ~15% CPU. The ripple
-   plays a few times only, since a waiting agent may sit for hours. */
-.tab-agent[data-activity="waiting"]::after {
+   an animated box-shadow repainted every frame and cost ~15% CPU. */
+
+/* A half-lit disc turning. */
+.tab-agent[data-style="disc"] {
+  background: linear-gradient(90deg, var(--tab-agent-on) 50%, var(--tab-agent-off) 50%);
+  animation: tab-agent-spin 1.2s linear infinite;
+}
+
+/* A ring with one lit quarter turning. */
+.tab-agent[data-activity="processing"][data-style="ring"] {
+  border: 1.5px solid var(--tab-agent-off);
+  border-top-color: var(--tab-agent-on);
+  animation: tab-agent-spin 0.8s linear infinite;
+}
+
+/* A ring whose lit head drags a fading tail around. The mask cuts the hole,
+   so the tab's own background shows through it. */
+.tab-agent[data-style="comet"] {
+  background: conic-gradient(transparent, var(--tab-agent-on));
+  -webkit-mask: radial-gradient(circle, transparent 2px, #000 2.5px);
+  mask: radial-gradient(circle, transparent 2px, #000 2.5px);
+  animation: tab-agent-spin 0.9s linear infinite;
+}
+
+/* A dot circling a faint one. The whole badge turns, carrying the dot. */
+.tab-agent[data-style="orbit"] {
+  background: radial-gradient(circle, var(--tab-agent-off) 0 1.5px, transparent 2px);
+  animation: tab-agent-spin 1.1s linear infinite;
+}
+
+.tab-agent[data-style="orbit"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2.5px;
+  height: 2.5px;
+  margin-left: -1.25px;
+  border-radius: 50%;
+  background: var(--tab-agent-on);
+}
+
+/* A dot breathing in and out. */
+.tab-agent[data-style="pulse"] {
+  background: var(--tab-agent-on);
+  animation: tab-agent-pulse 1.4s ease-in-out infinite;
+}
+
+/* Three dots bouncing in turn. */
+.tab-agent[data-style="dots"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 11px;
+  border-radius: 0;
+}
+
+.tab-agent[data-style="dots"] > i {
+  width: 2.5px;
+  height: 2.5px;
+  border-radius: 50%;
+  background: var(--tab-agent-on);
+  animation: tab-agent-bounce 1s ease-in-out infinite;
+}
+
+.tab-agent[data-style="dots"] > i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.tab-agent[data-style="dots"] > i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* The braille spinner terminal programs draw. Its frames are stacked in a
+   column that steps up one line at a time, so only transform animates. */
+.tab-agent[data-style="braille"] {
+  width: 9px;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 0;
+  color: var(--tab-agent-on);
+  font-size: 11px;
+  line-height: 12px;
+  text-align: center;
+}
+
+.tab-agent[data-style="braille"]::before {
+  content: "⠋\A⠙\A⠹\A⠸\A⠼\A⠴\A⠦\A⠧\A⠇\A⠏";
+  display: block;
+  white-space: pre;
+  animation: tab-agent-frames 0.8s steps(10) infinite;
+}
+
+/* Pause bars: the agent has stopped and waits on the user. Unlike a dot they
+   can't be taken for a bell's. "still" leaves out the ripple. */
+.tab-agent[data-style="bars"],
+.tab-agent[data-style="still"] {
+  border-radius: 1px;
+  background: linear-gradient(
+    90deg,
+    var(--tab-agent-on) 0 2.5px,
+    transparent 2.5px 5.5px,
+    var(--tab-agent-on) 5.5px
+  );
+}
+
+/* A hollow ring, which a bell's solid dot isn't either. */
+.tab-agent[data-activity="waiting"][data-style="ring"] {
+  border: 2px solid var(--tab-agent-on);
+}
+
+/* The ripple plays a few times only, since a waiting agent may sit for hours. */
+.tab-agent[data-style="bars"]::after,
+.tab-agent[data-activity="waiting"][data-style="ring"]::after {
   content: "";
   position: absolute;
   inset: -1px;
   border-radius: 50%;
-  background: hsl(var(--warning));
+  background: var(--tab-agent-on);
   opacity: 0;
   animation: tab-agent-ripple 1.4s cubic-bezier(0, 0, 0.2, 1) 3;
+}
+
+/* The ring's border sits outside the box the ripple is placed in. */
+.tab-agent[data-activity="waiting"][data-style="ring"]::after {
+  inset: -3px;
 }
 
 @keyframes tab-agent-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes tab-agent-pulse {
+  0%,
+  100% {
+    transform: scale(0.55);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes tab-agent-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(1px);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-2px);
+    opacity: 1;
+  }
+}
+
+@keyframes tab-agent-frames {
+  to {
+    transform: translateY(-120px);
   }
 }
 
@@ -368,7 +508,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .tab-agent,
+  .tab-agent::before,
   .tab-agent::after,
+  .tab-agent > i,
   .tab-drag-ghost {
     animation: none;
   }

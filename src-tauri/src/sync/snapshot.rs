@@ -67,6 +67,7 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "tab_standard_width",
     "tab_hover_tooltip",
     "tab_icons",
+    "tab_agent_indicator",
     "reconnect_enabled",
     "reconnect_max_attempts",
     "zmodem_auto_detect_enabled",

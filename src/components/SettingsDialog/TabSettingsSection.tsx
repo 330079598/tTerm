@@ -3,6 +3,7 @@ import { GalleryHorizontal, MessageSquareText } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
+import { TabAgentIndicatorSettings } from "@/components/SettingsDialog/TabAgentIndicatorSettings"
 import { TabIconSettings } from "@/components/SettingsDialog/TabIconSettings"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,7 +22,10 @@ interface TabSettingsSectionProps {
   tabWidthMode: TabWidthMode
 }
 
-/** Appearance settings for the tabs: how wide they are, their hover tooltip and the icons local tabs show. */
+/**
+ * Appearance settings for the tabs: how wide they are, their hover tooltip,
+ * the icons local tabs show and the badge for an AI agent in a tab.
+ */
 export function TabSettingsSection({
   handleTabStandardWidthChange,
   handleTabWidthModeChange,
@@ -137,6 +141,7 @@ export function TabSettingsSection({
         />
       </SettingsSection>
       <TabIconSettings />
+      <TabAgentIndicatorSettings />
     </>
   )
 }

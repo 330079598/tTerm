@@ -19,6 +19,7 @@ vi.mock("@/contexts/KeymapContext", () => ({
   useShortcutLabel: () => () => undefined,
 }))
 
+vi.mock("@/components/TabAttentionDot", () => ({ TabAttentionDot: () => null }))
 vi.mock("@/components/TabIcon", () => ({ TabIcon: () => null }))
 vi.mock("@/components/TabTooltip", () => ({
   TabTooltip: ({ children }: { children: React.ReactNode }) => children,
