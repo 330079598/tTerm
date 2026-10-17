@@ -53,14 +53,3 @@ export function normalizeTabAgentIndicator(value: unknown): TabAgentIndicatorCon
     waiting_color: normalizeColor(saved.waiting_color),
   }
 }
-
-/**
- * The CSS variables that tint an indicator in a chosen color: the color, and
- * the faint shade the disc and ring draw their unlit part in. None for "",
- * which leaves the theme's color.
- */
-export function tabAgentColorVariables(color: string): Record<string, string> | undefined {
-  if (!color) return undefined
-  // 0x38 is the 22% alpha the theme's own faint shade uses.
-  return { "--tab-agent-color": color, "--tab-agent-faint": `${color}38` }
-}

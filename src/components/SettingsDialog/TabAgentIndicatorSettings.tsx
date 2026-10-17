@@ -13,6 +13,8 @@ import {
   TAB_AGENT_WAITING_STYLES,
   TAB_AGENT_WORKING_STYLES,
   type TabAgentIndicatorConfig,
+  type TabAgentWaitingStyle,
+  type TabAgentWorkingStyle,
 } from "@/lib/tabAgentIndicator"
 import { TAB_ICON_COLORS } from "@/lib/tabIcons"
 import { cn } from "@/lib/utils"
@@ -82,7 +84,7 @@ export function TabAgentIndicatorSettings() {
   )
 }
 
-interface AgentStyleChoicesProps<S extends string> {
+interface AgentStyleChoicesProps<S extends TabAgentWorkingStyle | TabAgentWaitingStyle> {
   activity: AgentStatus["activity"]
   styles: readonly S[]
   style: S
@@ -92,7 +94,7 @@ interface AgentStyleChoicesProps<S extends string> {
 }
 
 /** The styles for one activity, each shown as it runs on a tab, and its color. */
-function AgentStyleChoices<S extends string>({
+function AgentStyleChoices<S extends TabAgentWorkingStyle | TabAgentWaitingStyle>({
   activity,
   styles,
   style,

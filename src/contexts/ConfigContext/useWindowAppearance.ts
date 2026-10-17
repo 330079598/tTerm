@@ -1,11 +1,15 @@
 import { useEffect } from "react"
 
 import type { AppConfig } from "@/lib/appConfig"
+import { setSpinnerStyle } from "@/lib/spinnerStyle"
 import { setWindowBlur } from "@/lib/themePreloader"
 import { applyUiScalePercent, isWindowBlurEnabled } from "@/lib/uiPlatform"
 
-/** Applies the UI scale and the window blur from the config. */
+/** Applies the UI scale, the window blur and the loading spinners' style from the config. */
 export function useWindowAppearance(config: AppConfig, isLoaded: boolean) {
+  const spinnerStyle = config.tab_agent_indicator.working
+  useEffect(() => setSpinnerStyle(spinnerStyle), [spinnerStyle])
+
   useEffect(() => {
     applyUiScalePercent(config.ui_scale_percent)
     return () => {

@@ -1,15 +1,16 @@
 import type React from "react"
 import { useTranslation } from "react-i18next"
 
+import { Spinner } from "@/components/ui/spinner"
 import { useConfig } from "@/contexts/ConfigContext"
 import { agentDisplayName, type AgentStatus } from "@/lib/agentStatus"
-import { tabAgentColorVariables } from "@/lib/tabAgentIndicator"
+import type { TabAgentWaitingStyle, TabAgentWorkingStyle } from "@/lib/tabAgentIndicator"
 import { useTabAgentStatus, useTabAttention } from "@/lib/tabAttention"
 
 interface TabAgentBadgeProps {
   activity: AgentStatus["activity"]
   /** A style from `TAB_AGENT_WORKING_STYLES` or `TAB_AGENT_WAITING_STYLES`, to match `activity`. */
-  style: string
+  style: TabAgentWorkingStyle | TabAgentWaitingStyle
   /** A `#rrggbb` color, or "" for the theme's. */
   color: string
   label: string
@@ -17,24 +18,18 @@ interface TabAgentBadgeProps {
 
 /** The badge for an AI agent at work or waiting. */
 export function TabAgentBadge({ activity, style, color, label }: TabAgentBadgeProps) {
+  const working = activity === "processing"
   return (
     <span
       className="tab-agent"
       data-activity={activity}
-      data-style={style}
-      style={tabAgentColorVariables(color) as React.CSSProperties | undefined}
+      data-style={working ? undefined : style}
+      style={color ? { color } : undefined}
       role="img"
       aria-label={label}
       title={label}
     >
-      {/* Each dot bounces on its own, so each needs an element. */}
-      {activity === "processing" && style === "dots" && (
-        <>
-          <i />
-          <i />
-          <i />
-        </>
-      )}
+      {working && <Spinner size={8} variant={style as TabAgentWorkingStyle} />}
     </span>
   )
 }
