@@ -9,10 +9,12 @@ mod launcher_entry;
 mod linux;
 #[cfg(target_os = "macos")]
 mod macos;
+pub(crate) mod sound;
 #[cfg(target_os = "windows")]
 mod windows;
 
 use serde::{Deserialize, Serialize};
+use tauri::ipc::Response;
 use tauri::{AppHandle, Emitter};
 
 /// Sent to the frontend when a notification is clicked.
@@ -106,4 +108,20 @@ pub async fn notification_permission() -> NotificationPermission {
     };
     #[cfg(all(unix, not(target_os = "macos")))]
     NotificationPermission::Granted
+}
+
+/// Copies the audio file at `path` in as the notification sound and returns
+/// its name. tTerm plays the sound itself because a Windows toast plays only
+/// the system's sounds for an app that is not packaged.
+#[tauri::command]
+pub async fn import_notification_sound(path: String) -> Result<String, String> {
+    crate::core::blocking::run_blocking(move || sound::import(std::path::Path::new(&path))).await
+}
+
+/// The notification sound's bytes, which the frontend decodes and plays.
+#[tauri::command]
+pub async fn read_notification_sound() -> Result<Response, String> {
+    crate::core::blocking::run_blocking(sound::read)
+        .await
+        .map(Response::new)
 }

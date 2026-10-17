@@ -3,6 +3,8 @@ import {
   type SecretStorageMode,
   getDefaultTerminalRenderer,
   HIDDEN_RENDERER_RELEASE_SECS_OPTIONS,
+  NOTIFICATION_SOUND_NAMES,
+  type NotificationSoundName,
   DEFAULT_HIDDEN_RENDERER_RELEASE_SECS,
   type AppConfig,
   defaultConfig,
@@ -29,6 +31,12 @@ function normalizeHiddenRendererReleaseSecs(value: unknown): number {
   return (HIDDEN_RENDERER_RELEASE_SECS_OPTIONS as readonly unknown[]).includes(value)
     ? (value as number)
     : DEFAULT_HIDDEN_RENDERER_RELEASE_SECS
+}
+
+function normalizeNotificationSoundName(value: unknown): NotificationSoundName {
+  return (NOTIFICATION_SOUND_NAMES as readonly unknown[]).includes(value)
+    ? (value as NotificationSoundName)
+    : "system"
 }
 
 /** Also accepts the modes used before passwords moved into the database. */
@@ -289,6 +297,8 @@ export function normalizeConfig(config: Partial<AppConfig>): AppConfig {
       3
     ),
     notify_sound: config.notify_sound !== false,
+    notify_sound_name: normalizeNotificationSoundName(config.notify_sound_name),
+    notify_sound_file: typeof config.notify_sound_file === "string" ? config.notify_sound_file : "",
     bell_style:
       config.bell_style === "visual" || config.bell_style === "sound" ? config.bell_style : "none",
   }

@@ -10,6 +10,7 @@ import { useConfig } from "@/contexts/ConfigContext"
 import { setToastLimit, toast } from "@/hooks/use-toast"
 import { agentDisplayName } from "@/lib/agentStatus"
 import { badgeOverlaySize, drawBadgeOverlay } from "@/lib/notificationBadge"
+import { type NotificationSoundSettings, playNotificationSound } from "@/lib/notificationSound"
 import {
   clearTabAttention,
   countTabNotification,
@@ -26,7 +27,7 @@ import { getDetectedPlatform } from "@/lib/uiPlatform"
 import type { Tab } from "@/types/tab"
 
 /** What `show_notification` takes (src-tauri/src/notification). */
-export interface SystemNotification {
+interface SystemNotification {
   title: string
   subtitle?: string
   body: string
@@ -34,8 +35,14 @@ export interface SystemNotification {
   sound: boolean
 }
 
-export function showSystemNotification(notification: SystemNotification) {
-  return invoke("show_notification", { request: notification })
+/** Shows a system notification with the sound the settings pick. */
+export async function showSystemNotification(
+  notification: Omit<SystemNotification, "sound">,
+  soundSettings: NotificationSoundSettings
+) {
+  const sound = await playNotificationSound(soundSettings)
+  const request: SystemNotification = { ...notification, sound }
+  return invoke("show_notification", { request })
 }
 
 /**
@@ -211,7 +218,7 @@ export function useTerminalNotifications({
       const tabTitle = tabsRef.current.find((tab) => tab.id === tabId)?.title ?? "tTerm"
       const text = describeEvent(event, tabTitle, t)
       if (decision.system) {
-        showSystemNotification({ ...text, tabId, sound: config.notify_sound })
+        showSystemNotification({ ...text, tabId }, config)
           .then(() => {
             // Only one that was shown counts, and not once its tab came into
             // sight while it was on its way.

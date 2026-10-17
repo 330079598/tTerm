@@ -250,9 +250,17 @@ pub struct AppConfig {
         deserialize_with = "deserialize_toast_max_visible"
     )]
     pub toast_max_visible: u8,
-    /// System notifications play the system sound.
+    /// System notifications make a sound.
     #[serde(default = "default_true")]
     pub notify_sound: bool,
+    /// Which sound: "system", one tTerm plays itself ("chime", "ding", "pop",
+    /// "rise"), or "custom" for `notify_sound_file`.
+    #[serde(default = "default_notify_sound_name")]
+    pub notify_sound_name: String,
+    /// The name of the file the "custom" sound was copied from; tTerm plays
+    /// its own copy (`notification::sound`).
+    #[serde(default)]
+    pub notify_sound_file: String,
     /// What the terminal bell does: "visual", "sound" or "none".
     #[serde(default = "default_bell_style")]
     pub bell_style: String,
@@ -551,6 +559,10 @@ where
     Ok(value.round().clamp(1.0, 5.0) as u8)
 }
 
+fn default_notify_sound_name() -> String {
+    "system".to_string()
+}
+
 fn default_bell_style() -> String {
     "none".to_string()
 }
@@ -659,6 +671,8 @@ impl Default for AppConfig {
             bell_notify: false,
             toast_max_visible: default_toast_max_visible(),
             notify_sound: true,
+            notify_sound_name: default_notify_sound_name(),
+            notify_sound_file: String::new(),
             bell_style: default_bell_style(),
             tab_icons: tab_icons::TabIconConfig::default(),
             default_proxy_id: String::new(),

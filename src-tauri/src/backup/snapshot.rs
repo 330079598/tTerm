@@ -148,6 +148,7 @@ pub(super) fn capture_file_snapshot(
     let mut names = Vec::new();
     if selection.settings {
         names.push("config.json");
+        names.push(crate::notification::sound::SOUND_FILE);
     }
     let mut snapshot = names
         .into_iter()

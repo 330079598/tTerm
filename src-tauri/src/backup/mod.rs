@@ -199,6 +199,9 @@ struct BackupPayload {
     automatic_backup: Option<AutomaticBackupSettings>,
     #[serde(default)]
     sync: Option<crate::sync::SyncSettings>,
+    /// The notification sound file as base64; travels with `config`.
+    #[serde(default)]
+    notification_sound: Option<String>,
     /// Which profile groups the sidebar shows collapsed; travels with `config`.
     #[serde(default)]
     collapsed_profile_group_keys: Option<Vec<String>>,

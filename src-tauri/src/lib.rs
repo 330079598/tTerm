@@ -294,6 +294,8 @@ pub fn run() {
             ime_focus::repair_ime_focus,
             notification::show_notification,
             notification::notification_permission,
+            notification::import_notification_sound,
+            notification::read_notification_sound,
             notification::badge::set_unseen_notifications,
             agent_integration::agent_integration_status,
             agent_integration::install_agent_integration,

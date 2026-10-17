@@ -80,8 +80,13 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "bell_notify",
     "toast_max_visible",
     "notify_sound",
+    "notify_sound_name",
     "bell_style",
 ];
+
+/// The settings record that carries the notification sound file as base64,
+/// beside the settings taken from the config file.
+const NOTIFICATION_SOUND: &str = "notification_sound";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -259,14 +264,21 @@ fn collect_known_hosts(connection: &Connection) -> Result<Collection, String> {
 fn collect_settings() -> Result<Collection, String> {
     let config = serde_json::to_value(crate::config::load_config_file()?)
         .map_err(|error| format!("Failed to read settings: {error}"))?;
-    Ok(SYNCED_SETTINGS
+    let mut settings: Collection = SYNCED_SETTINGS
         .iter()
         .filter_map(|&key| {
             config
                 .get(key)
                 .map(|value| (key.to_string(), SyncRecord::new(value.clone(), None)))
         })
-        .collect())
+        .collect();
+    if let Some(sound) = crate::notification::sound::export()? {
+        settings.insert(
+            NOTIFICATION_SOUND.to_string(),
+            SyncRecord::new(Value::String(sound), None),
+        );
+    }
+    Ok(settings)
 }
 
 /// Runs each record of `collection` through the app's model for `category`.
@@ -557,6 +569,12 @@ pub(crate) fn apply_settings(merged: &Collection) -> Result<(), String> {
     for (key, record) in merged {
         if SYNCED_SETTINGS.contains(&key.as_str()) {
             fields.insert(key.clone(), record.data.clone());
+        } else if key == NOTIFICATION_SOUND {
+            let sound = record
+                .data
+                .as_str()
+                .ok_or("The synced notification sound is invalid.")?;
+            crate::notification::sound::restore(sound)?;
         }
     }
     let config = serde_json::from_value::<AppConfig>(config)

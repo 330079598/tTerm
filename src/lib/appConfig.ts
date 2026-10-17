@@ -31,6 +31,17 @@ export type WindowBlurMaterial = "acrylic" | "mica"
 /** What the terminal bell does: flash the terminal, play a tone, or nothing. */
 export type BellStyle = "visual" | "sound" | "none"
 
+/** The sounds a notification can make: the system's, a tone tTerm plays, or a file. */
+export const NOTIFICATION_SOUND_NAMES = [
+  "system",
+  "chime",
+  "ding",
+  "pop",
+  "rise",
+  "custom",
+] as const
+export type NotificationSoundName = (typeof NOTIFICATION_SOUND_NAMES)[number]
+
 export function getDefaultTerminalRenderer(): TerminalRenderer {
   return "webgl"
 }
@@ -153,8 +164,11 @@ export interface AppConfig extends TabSettings {
   bell_notify: boolean
   /** In-app toasts stacked at once; a new one closes the oldest past this. */
   toast_max_visible: number
-  /** System notifications play the system sound. */
+  /** System notifications make a sound. */
   notify_sound: boolean
+  notify_sound_name: NotificationSoundName
+  /** The name of the file the "custom" sound was copied from; tTerm plays its own copy. */
+  notify_sound_file: string
   bell_style: BellStyle
 }
 
@@ -246,6 +260,8 @@ export const defaultConfig: AppConfig = {
   bell_notify: false,
   toast_max_visible: 3,
   notify_sound: true,
+  notify_sound_name: "system",
+  notify_sound_file: "",
   bell_style: "none",
 }
 

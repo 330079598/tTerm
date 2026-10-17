@@ -1,18 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
-import {
-  Bell,
-  BellRing,
-  CircleAlert,
-  Layers,
-  MessageSquareText,
-  Send,
-  Timer,
-  Volume2,
-} from "lucide-react"
+import { Bell, BellRing, CircleAlert, Layers, MessageSquareText, Send, Timer } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { AgentIntegrationSection } from "@/components/SettingsDialog/AgentIntegrationSection"
+import { NotificationSoundRow } from "@/components/SettingsDialog/NotificationSoundRow"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -72,11 +64,10 @@ export const NotificationSettingsTab: React.FC = () => {
 
   const sendTestNotification = async () => {
     try {
-      await showSystemNotification({
-        title: t("notifications.testTitle"),
-        body: t("notifications.testBody"),
-        sound: config.notify_sound,
-      })
+      await showSystemNotification(
+        { title: t("notifications.testTitle"), body: t("notifications.testBody") },
+        config
+      )
       // macOS asks for permission on the first one.
       window.setTimeout(refreshPermission, 1500)
     } catch (error) {
@@ -126,19 +117,7 @@ export const NotificationSettingsTab: React.FC = () => {
               />
             }
           />
-          <SettingsRow
-            icon={<Volume2 size={16} />}
-            title={t("notifications.sound")}
-            description={t("notifications.soundDesc")}
-            action={
-              <Switch
-                checked={config.notify_sound}
-                disabled={announcementsOff}
-                onCheckedChange={(checked) => void saveSettings({ notify_sound: checked })}
-                aria-label={t("notifications.sound")}
-              />
-            }
-          />
+          <NotificationSoundRow disabled={announcementsOff} />
           <SettingsRow
             icon={<Layers size={16} />}
             title={t("notifications.toastMaxVisible")}

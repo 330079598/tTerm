@@ -145,6 +145,10 @@ pub(super) fn apply_payload(
             keep_device_settings(&mut imported, config::load_config_file()?);
             config::save_config_file(&imported)?;
         }
+        // A backup made before sounds travelled keeps this device's sound.
+        if let Some(sound) = payload.notification_sound.as_deref() {
+            crate::notification::sound::restore(sound)?;
+        }
     }
 
     // The WebDAV passwords are only taken together with their server.

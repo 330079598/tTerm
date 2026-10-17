@@ -112,6 +112,11 @@ pub(super) fn collect_payload(
         webdav_backup,
         automatic_backup,
         sync,
+        notification_sound: if selection.settings {
+            crate::notification::sound::export()?
+        } else {
+            None
+        },
         collapsed_profile_group_keys: if selection.settings {
             Some(crate::db::read(
                 crate::app_state::collapsed_profile_group_keys,
