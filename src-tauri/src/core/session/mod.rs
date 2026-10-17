@@ -153,7 +153,7 @@ pub fn normalize_connection(
 
             let jump_hosts = normalize_jump_hosts(connection.jump_hosts)?;
             let (reconnect_enabled, reconnect_max_attempts) =
-                crate::config::resolve_reconnect_settings();
+                crate::config::reconnect::resolve_reconnect_settings();
 
             Ok(SessionPlan {
                 kind,
