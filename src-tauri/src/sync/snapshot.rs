@@ -595,5 +595,6 @@ mod tests {
             assert!(config.get(key).is_some(), "{key} is not a config field");
         }
         assert!(SYNCED_SETTINGS.contains(&"tab_icons"));
+        assert!(SYNCED_SETTINGS.contains(&"tab_agent_indicator"));
     }
 }

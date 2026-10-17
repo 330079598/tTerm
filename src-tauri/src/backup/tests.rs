@@ -791,6 +791,21 @@ fn imported_settings_bring_their_tab_icons_along() {
 }
 
 #[test]
+fn imported_settings_bring_their_agent_badge_and_spinner_style_along() {
+    let mut exported = AppConfig::default();
+    exported.tab_agent_indicator.working = "braille".to_string();
+    exported.tab_agent_indicator.waiting = "still".to_string();
+    exported.tab_agent_indicator.working_color = "#a371f7".to_string();
+    let expected = exported.tab_agent_indicator.clone();
+
+    // A backup carries config.json as JSON and reads it back as an AppConfig.
+    let mut imported: AppConfig =
+        serde_json::from_value(serde_json::to_value(&exported).unwrap()).unwrap();
+    keep_device_settings(&mut imported, AppConfig::default());
+    assert_eq!(imported.tab_agent_indicator, expected);
+}
+
+#[test]
 fn missing_key_files_are_listed_once_with_the_profiles_using_them() {
     let present = std::env::current_exe().unwrap();
     let present = present.to_string_lossy();
