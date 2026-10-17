@@ -3,7 +3,6 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   FileX2,
-  Loader2,
   Trash2,
   X,
   ChevronDown,
@@ -26,6 +25,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Spinner } from "@/components/ui/spinner"
 import { keepFocusOnMouseDown, refocusTerminalIfFocusLost } from "@/lib/terminalFocus"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -424,11 +424,7 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         className={cn("gap-1.5 px-2 shadow-none", hasActive && "text-primary")}
       >
-        {hasActive ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          <ArrowDownToLine className="size-4" />
-        )}
+        {hasActive ? <Spinner /> : <ArrowDownToLine className="size-4" />}
         {shouldShowBadge && totalTransfers > 0 && (
           <Badge variant="default" className="h-5 min-w-5 px-1.5">
             {totalTransfers}

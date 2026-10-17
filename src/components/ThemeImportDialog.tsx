@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { FileUp, Import, Loader2 } from "lucide-react"
+import { FileUp, Import } from "lucide-react"
 
 import { ThemeLivePreview } from "@/components/ThemeEditor/ThemeLivePreview"
 import { ThemePreviewSwatches } from "@/components/ThemePreviewSwatches"
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { useTheme } from "@/contexts/ThemeContext"
 import { deriveThemeColors, terminalPaletteFromScheme } from "@/lib/themeDerivation"
@@ -253,7 +254,7 @@ export const ThemeImportDialog: React.FC<ThemeImportDialogProps> = ({ onClose, o
             disabled={themes.length === 0 || (single && !singleName.trim()) || saving}
             onClick={() => void handleImport()}
           >
-            {saving ? <Loader2 className="animate-spin" /> : <Import size={14} />}
+            {saving ? <Spinner /> : <Import size={14} />}
             {single || themes.length === 0
               ? t("themeImport.importAndApply", { defaultValue: "Import and apply" })
               : t("themeImport.importAll", {

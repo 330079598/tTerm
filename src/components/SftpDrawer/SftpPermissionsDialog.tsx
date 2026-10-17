@@ -1,5 +1,4 @@
 import React, { useState } from "react"
-import { Loader2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -14,6 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Spinner } from "@/components/ui/spinner"
 
 import { formatOctalMode, parseOctalMode, PERMISSION_BITS } from "@/components/SftpDrawer/sftpView"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
@@ -152,7 +152,7 @@ const SftpPermissionsForm: React.FC<SftpPermissionsDialogProps> = ({
               {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={mode === null || isApplying}>
-              {isApplying && <Loader2 className="animate-spin" />}
+              {isApplying && <Spinner />}
               {t("sftp.permissions.apply")}
             </Button>
           </DialogFooter>

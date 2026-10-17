@@ -3,7 +3,6 @@ import {
   CalendarClock,
   CheckCircle2,
   Download,
-  LoaderCircle,
   PackageCheck,
   RefreshCw,
   RotateCcw,
@@ -17,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select } from "@/components/ui/select"
+import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
 import { UpdateReleaseNotes } from "@/components/UpdateReleaseNotes"
 import { useAppActivity } from "@/contexts/AppActivityContext"
@@ -295,7 +295,7 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
                   )
                 }}
               >
-                {checking && <RefreshCw className="animate-spin" size={14} />}
+                {checking && <Spinner size={14} />}
                 {t("updates.checkNow", { defaultValue: "Check now" })}
               </Button>
 
@@ -322,7 +322,7 @@ export const UpdateSettingsTab: React.FC<UpdateSettingsTabProps> = ({
 
               {installing && (
                 <Button type="button" disabled>
-                  <LoaderCircle className="animate-spin" size={14} />
+                  <Spinner size={14} />
                   {t("updates.installing", { defaultValue: "Installing" })}
                 </Button>
               )}

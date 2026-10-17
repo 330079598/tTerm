@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { AlertTriangle, ArrowRightLeft, Globe, Loader2, Undo2 } from "lucide-react"
+import { AlertTriangle, ArrowRightLeft, Globe, Undo2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
+import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import type { SavedProfile } from "@/types/tab"
@@ -352,7 +353,7 @@ const TunnelForm: React.FC<TunnelFormProps> = ({ onOpenChange, tunnel, profiles,
           {t("common.cancel", { defaultValue: "Cancel" })}
         </Button>
         <Button type="button" onClick={handleSave} disabled={saving}>
-          {saving && <Loader2 className="animate-spin" />}
+          {saving && <Spinner />}
           {t("common.save", { defaultValue: "Save" })}
         </Button>
       </DialogFooter>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
-import { CheckCircle2, CircleAlert, Loader2, Save, Server, Terminal } from "lucide-react"
+import { CheckCircle2, CircleAlert, Save, Server, Terminal } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { useSavedPasswordAvailability } from "@/components/ConnectionDialog/useSavedPasswordAvailability"
@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import { Spinner } from "@/components/ui/spinner"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useUserVerification } from "@/contexts/UserVerificationContext"
@@ -305,7 +306,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
                 disabled={isTesting || !form.host.trim() || !form.username.trim()}
                 className="min-w-[100px]"
               >
-                {isTesting && <Loader2 className="animate-spin" />}
+                {isTesting && <Spinner />}
                 {isTesting ? t("profiles.testing") : t("profiles.test")}
               </Button>
             )}

@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react"
 import { invoke } from "@tauri-apps/api/core"
-import { Loader2, ShieldCheck } from "lucide-react"
+import { ShieldCheck } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog"
 import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
+import { Spinner } from "@/components/ui/spinner"
 import { ToastAction } from "@/components/ui/toast"
 import { VaultStartupUnlockDialog } from "@/components/VaultStartupUnlockDialog"
 import { useConfig } from "@/contexts/ConfigContext"
@@ -277,7 +278,7 @@ export function UserVerificationProvider({ children }: { children: React.ReactNo
               </Button>
               <Button type="submit" disabled={busy || password.length === 0}>
                 {busy ? (
-                  <Loader2 size={14} className="mr-2 animate-spin" />
+                  <Spinner size={14} className="mr-2" />
                 ) : (
                   <ShieldCheck size={14} className="mr-2" />
                 )}

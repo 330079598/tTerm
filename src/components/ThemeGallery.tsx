@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { openUrl } from "@tauri-apps/plugin-opener"
-import { Check, Copy, GalleryHorizontal, Loader2, RotateCcw, Search, Star } from "lucide-react"
+import { Check, Copy, GalleryHorizontal, RotateCcw, Search, Star } from "lucide-react"
 
 import { TerminalPalettePreview } from "@/components/TerminalPalettePreview"
 import { ThemePreviewSwatches } from "@/components/ThemePreviewSwatches"
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Spinner } from "@/components/ui/spinner"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useLatestRef } from "@/hooks/useLatestRef"
 import { toast } from "@/hooks/use-toast"
@@ -232,7 +233,7 @@ export const ThemeGallery: React.FC<ThemeGalleryProps> = ({ onApply, onCopy, onC
                 </div>
               ) : !catalogThemes ? (
                 <div className="flex justify-center p-6">
-                  <Loader2 className="text-muted-foreground size-5 animate-spin" />
+                  <Spinner size={20} className="text-muted-foreground" />
                 </div>
               ) : visibleThemes.length === 0 ? (
                 <p className="text-muted-foreground p-6 text-center text-sm">
@@ -340,7 +341,7 @@ export const ThemeGallery: React.FC<ThemeGalleryProps> = ({ onApply, onCopy, onC
               disabled={!selectedTheme || busy}
               onClick={() => void run(onApply)}
             >
-              {busy ? <Loader2 className="animate-spin" /> : <Check size={14} />}
+              {busy ? <Spinner /> : <Check size={14} />}
               {t("themeGallery.apply", { defaultValue: "Apply" })}
             </Button>
           </div>

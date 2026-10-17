@@ -1,7 +1,7 @@
 import React, { useEffect, useEffectEvent, useMemo, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog"
-import { FileSearch, FileUp, FolderOpen, Import, Loader2, RefreshCcw } from "lucide-react"
+import { FileSearch, FileUp, FolderOpen, Import, RefreshCcw } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { SshConfigImportHostRow } from "@/components/SshConfigImportDialog/SshConfigImportHostRow"
@@ -22,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Spinner } from "@/components/ui/spinner"
 import { toast } from "@/hooks/use-toast"
 import type { SavedProfile } from "@/types/tab"
 
@@ -263,11 +264,7 @@ export const SshConfigImportDialog: React.FC<SshConfigImportDialogProps> = ({
                   onClick={() => loadPreview(sourcePath)}
                   disabled={loadingPreview}
                 >
-                  {loadingPreview ? (
-                    <Loader2 className="animate-spin" size={15} />
-                  ) : (
-                    <RefreshCcw size={15} />
-                  )}
+                  {loadingPreview ? <Spinner size={15} /> : <RefreshCcw size={15} />}
                   {t("sshConfigImport.preview")}
                 </Button>
               </div>
@@ -335,7 +332,7 @@ export const SshConfigImportDialog: React.FC<SshConfigImportDialogProps> = ({
             <div className="divide-border divide-y">
               {loadingPreview && (
                 <div className="text-muted-foreground flex h-40 items-center justify-center gap-2 text-sm">
-                  <Loader2 className="animate-spin" size={16} />
+                  <Spinner />
                   {t("sshConfigImport.loading")}
                 </div>
               )}
@@ -364,7 +361,7 @@ export const SshConfigImportDialog: React.FC<SshConfigImportDialogProps> = ({
             {t("common.cancel")}
           </Button>
           <Button type="button" onClick={handleImport} disabled={importing || selectedCount === 0}>
-            {importing ? <Loader2 className="animate-spin" size={15} /> : <Import size={15} />}
+            {importing ? <Spinner size={15} /> : <Import size={15} />}
             {t("sshConfigImport.importSelected")}
           </Button>
         </DialogFooter>

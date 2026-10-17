@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { Loader2, Lock, Unlock } from "lucide-react"
+import { Lock, Unlock } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
+import { Spinner } from "@/components/ui/spinner"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useToast } from "@/hooks/use-toast"
 import { toErrorMessage } from "@/lib/utils"
@@ -108,7 +109,7 @@ export const VaultStartupUnlockDialog: React.FC<VaultStartupUnlockDialogProps> =
             </Button>
             <Button type="submit" disabled={busy || password.length === 0}>
               {busy ? (
-                <Loader2 size={14} className="mr-2 animate-spin" />
+                <Spinner size={14} className="mr-2" />
               ) : (
                 <Unlock size={14} className="mr-2" />
               )}

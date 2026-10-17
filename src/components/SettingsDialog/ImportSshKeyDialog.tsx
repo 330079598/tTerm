@@ -1,6 +1,5 @@
 import React, { useState } from "react"
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog"
-import { Loader2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -16,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PasswordInput } from "@/components/ui/password-input"
+import { Spinner } from "@/components/ui/spinner"
 import { useToast } from "@/hooks/use-toast"
 import { importVaultKey } from "@/hooks/useVaultKeys"
 import { toErrorMessage } from "@/lib/utils"
@@ -176,7 +176,7 @@ const ImportSshKeyForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           {t("common.cancel")}
         </Button>
         <Button type="submit" disabled={importing || !path.trim()}>
-          {importing && <Loader2 size={14} className="animate-spin" />}
+          {importing && <Spinner size={14} />}
           {t("keyVault.importDialog.submit")}
         </Button>
       </DialogFooter>

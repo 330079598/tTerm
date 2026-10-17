@@ -1,20 +1,11 @@
-import {
-  ArrowLeft,
-  Braces,
-  FileCode2,
-  Library,
-  Loader2,
-  Pencil,
-  Star,
-  Tags,
-  Trash2,
-} from "lucide-react"
+import { ArrowLeft, Braces, FileCode2, Library, Pencil, Star, Tags, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import type { CommandLibraryData } from "@/components/CommandLibrary/useCommandLibraryData"
 import type { CommandInsertion } from "@/components/CommandLibrary/useCommandInsertion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import { formatPlaceholder } from "@/lib/commandVariables"
 import { cn } from "@/lib/utils"
 
@@ -93,11 +84,7 @@ export function CommandDetailPane({
               aria-label={t("commandLibrary.favorite")}
               onClick={() => void handleRecentFavorite(selectedRecent)}
             >
-              {recentPendingId === selectedRecent.id ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <Star />
-              )}
+              {recentPendingId === selectedRecent.id ? <Spinner /> : <Star />}
             </Button>
           </div>
           <div className="border-border/80 bg-muted/30 mt-5 min-h-32 rounded-md border p-4 shadow-inner">
@@ -140,7 +127,7 @@ export function CommandDetailPane({
                 }
               }}
             >
-              {isInserting ? <Loader2 className="animate-spin" /> : <FileCode2 />}
+              {isInserting ? <Spinner /> : <FileCode2 />}
               {isInserting ? t("commandLibrary.inserting") : t("commandLibrary.insert")}
             </Button>
           </div>
@@ -293,7 +280,7 @@ export function CommandDetailPane({
               disabled={!canInsert || isInserting}
               onClick={() => void handleInsert(selectedCommand)}
             >
-              {isInserting ? <Loader2 className="animate-spin" /> : <FileCode2 />}
+              {isInserting ? <Spinner /> : <FileCode2 />}
               {isInserting ? t("commandLibrary.inserting") : t("commandLibrary.insert")}
             </Button>
             {!canInsert && (

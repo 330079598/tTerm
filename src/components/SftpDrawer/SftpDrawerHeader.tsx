@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next"
 import { SftpPathBar } from "@/components/SftpDrawer/SftpPathBar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Spinner } from "@/components/ui/spinner"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useShortcutLabel } from "@/contexts/KeymapContext"
 import { withShortcut } from "@/lib/keymap/keymap"
@@ -433,7 +434,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
                 disabled={isLoading}
                 aria-label={t("sftp.actions.refresh", { defaultValue: "Refresh" })}
               >
-                <RefreshCcw className={cn("size-4", isLoading && "animate-spin")} />
+                {isLoading ? <Spinner /> : <RefreshCcw className="size-4" />}
               </Button>
             </TooltipTrigger>
             <TooltipContent>

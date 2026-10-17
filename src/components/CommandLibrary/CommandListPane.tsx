@@ -1,4 +1,4 @@
-import { AlertCircle, Clock3, FileCode2, Loader2, Plus, Search, Star } from "lucide-react"
+import { AlertCircle, Clock3, FileCode2, Plus, Search, Star } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import type { CommandLibraryData } from "@/components/CommandLibrary/useCommandLibraryData"
@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
 type CommandListPaneProps = Pick<
@@ -113,7 +114,7 @@ export function CommandListPane({
       <ScrollArea className="min-h-0 flex-1">
         {isLoading && (
           <div className="flex min-h-48 items-center justify-center" role="status">
-            <Loader2 className="text-muted-foreground size-5 animate-spin" />
+            <Spinner size={20} className="text-muted-foreground" />
             <span className="sr-only">{t("commandLibrary.loading")}</span>
           </div>
         )}
@@ -233,7 +234,7 @@ export function CommandListPane({
                   onClick={() => void handleFavorite(command)}
                 >
                   {favoritePendingId === command.id ? (
-                    <Loader2 className="size-3.5 animate-spin" />
+                    <Spinner size={14} />
                   ) : (
                     <Star
                       className={cn(
@@ -298,7 +299,7 @@ export function CommandListPane({
                     onClick={() => void handleRecentFavorite(recent)}
                   >
                     {recentPendingId === recent.id ? (
-                      <Loader2 className="size-3.5 animate-spin" />
+                      <Spinner size={14} />
                     ) : (
                       <Star
                         className={cn(

@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { useTranslation } from "react-i18next"
-import { ChevronDown, ChevronRight, FileInput, Loader2, Plus, Search, X } from "lucide-react"
+import { ChevronDown, ChevronRight, FileInput, Plus, Search, X } from "lucide-react"
 
 import { ProfileRow } from "@/components/ProfilesPanel/ProfileRow"
+import { Spinner } from "@/components/ui/spinner"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
@@ -318,7 +319,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
       <ScrollArea className="flex-1 px-3 pb-3">
         {isLoading && (
           <div className="flex min-h-[260px] flex-col items-center justify-center">
-            <Loader2 className="text-muted-foreground size-6 animate-spin" />
+            <Spinner size={24} className="text-muted-foreground" />
           </div>
         )}
 

@@ -7,7 +7,6 @@ import {
   Cloud,
   FileSearch,
   KeyRound,
-  Loader2,
   RefreshCw,
   Upload,
 } from "lucide-react"
@@ -34,6 +33,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Spinner } from "@/components/ui/spinner"
 
 interface BackupImportCardProps {
   selection: BackupSelection
@@ -96,11 +96,7 @@ export function BackupImportCard({
         </div>
 
         <Button type="button" variant="outline" disabled={busy} onClick={handleChooseImport}>
-          {busyAction === "inspect" ? (
-            <Loader2 className="animate-spin" size={16} />
-          ) : (
-            <FileSearch size={16} />
-          )}
+          {busyAction === "inspect" ? <Spinner /> : <FileSearch size={16} />}
           {busyAction === "inspect"
             ? t("dataMigration.inspecting")
             : t("dataMigration.chooseBackup")}
@@ -203,7 +199,7 @@ export function BackupImportCard({
                     disabled={busy || !importPassword}
                     onClick={handleVerifyPassword}
                   >
-                    {busyAction === "verify" && <Loader2 className="animate-spin" size={16} />}
+                    {busyAction === "verify" && <Spinner />}
                     {busyAction === "verify"
                       ? t("dataMigration.verifying")
                       : t("dataMigration.verify")}
@@ -270,11 +266,7 @@ export function BackupImportCard({
               }
               onClick={handleImport}
             >
-              {busyAction === "import" ? (
-                <Loader2 className="animate-spin" size={16} />
-              ) : (
-                <Upload size={16} />
-              )}
+              {busyAction === "import" ? <Spinner /> : <Upload size={16} />}
               {busyAction === "import"
                 ? t("dataMigration.importing")
                 : t("dataMigration.importAction")}

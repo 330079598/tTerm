@@ -1,5 +1,4 @@
 import React, { useState } from "react"
-import { Loader2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -14,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
+import { Spinner } from "@/components/ui/spinner"
 import { ProxyServerFields } from "@/components/SettingsDialog/ProxyServerFields"
 import type { ProxyPasswordChange } from "@/hooks/useProxyServers"
 import { DEFAULT_PROXY_PORTS, validateProxyDraft, type ProxyDraftError } from "@/lib/proxy"
@@ -216,7 +216,7 @@ const ProxyServerForm: React.FC<ProxyServerFormProps> = ({ onOpenChange, server,
           {t("common.cancel")}
         </Button>
         <Button type="submit" disabled={saving}>
-          {saving && <Loader2 className="animate-spin" />}
+          {saving && <Spinner />}
           {t("common.save")}
         </Button>
       </DialogFooter>

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
-import { AlertTriangle, CheckCircle2, Info, Loader2, RefreshCw, RotateCcw } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Info, RefreshCw, RotateCcw } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
+import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
 import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { useToast } from "@/hooks/use-toast"
@@ -254,11 +255,7 @@ export const WebDavSyncCard: React.FC = () => {
 
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" disabled={busy} onClick={() => void syncNow()}>
-                {busyAction === "sync" ? (
-                  <Loader2 className="animate-spin" size={16} />
-                ) : (
-                  <RefreshCw size={16} />
-                )}
+                {busyAction === "sync" ? <Spinner /> : <RefreshCw size={16} />}
                 {busyAction === "sync"
                   ? t("dataMigration.sync.syncing")
                   : t("dataMigration.sync.now")}

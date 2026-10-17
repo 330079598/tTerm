@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 import React from "react"
-import { Archive, FolderOpen, KeyRound, Loader2, RefreshCw, Save } from "lucide-react"
+import { Archive, FolderOpen, KeyRound, RefreshCw, Save } from "lucide-react"
 
 import type { AutomaticBackupSettings, BusyAction } from "@/components/SettingsDialog/dataMigration"
 import type { SelectionItem, SelectionKey } from "@/components/SettingsDialog/backupShared"
@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
+import { Spinner } from "@/components/ui/spinner"
 
 interface AutomaticBackupCardProps {
   busyAction: BusyAction | null
@@ -144,11 +145,7 @@ export function AutomaticBackupCard({
             {t("common.save")}
           </Button>
           <Button variant="outline" disabled={busy} onClick={handleBackupNow}>
-            {busyAction === "backupNow" ? (
-              <Loader2 className="animate-spin" size={16} />
-            ) : (
-              <Archive size={16} />
-            )}
+            {busyAction === "backupNow" ? <Spinner /> : <Archive size={16} />}
             {busyAction === "backupNow"
               ? t("dataMigration.backingUp")
               : t("dataMigration.backupNow")}

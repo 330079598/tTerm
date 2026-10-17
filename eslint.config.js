@@ -31,6 +31,12 @@ export default tseslint.config(
     rules: {
       // Disallow relative imports, enforce @ alias usage
       "no-restricted-imports": ["error", {
+        // Loading spinners follow the style picked in the settings.
+        paths: [{
+          name: "lucide-react",
+          importNames: ["Loader", "LoaderIcon", "Loader2", "Loader2Icon", "LoaderCircle", "LoaderCircleIcon"],
+          message: "Use Spinner from @/components/ui/spinner, which takes the loading style picked in the settings."
+        }],
         patterns: [{
           group: ["../*", "./*"],
           message: "Use @ path alias instead of relative paths (e.g., @/types/tab instead of ../types/tab)"

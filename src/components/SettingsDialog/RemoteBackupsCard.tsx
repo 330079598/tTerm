@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 import React from "react"
-import { Download, Loader2, RefreshCw, RotateCcw, Trash2 } from "lucide-react"
+import { Download, RefreshCw, RotateCcw, Trash2 } from "lucide-react"
 
 import type { BusyAction, RemoteBackupEntry } from "@/components/SettingsDialog/webdavBackup"
 import { formatFileSize } from "@/components/SettingsDialog/backupShared"
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Spinner } from "@/components/ui/spinner"
 
 interface RemoteBackupsCardProps {
   busy: boolean
@@ -67,7 +68,7 @@ export function RemoteBackupsCard({
             onClick={() => void loadRemoteBackups()}
             aria-label={t("dataMigration.webdav.refresh")}
           >
-            <RefreshCw size={16} className={busyAction === "list" ? "animate-spin" : ""} />
+            {busyAction === "list" ? <Spinner /> : <RefreshCw size={16} />}
           </Button>
         </div>
         {!configured ? (
@@ -109,11 +110,7 @@ export function RemoteBackupsCard({
                 disabled={busy || selected.size === 0}
                 onClick={handleDeleteSelected}
               >
-                {busyAction === "delete" ? (
-                  <Loader2 className="animate-spin" size={16} />
-                ) : (
-                  <Trash2 size={16} />
-                )}
+                {busyAction === "delete" ? <Spinner /> : <Trash2 size={16} />}
                 {t("dataMigration.webdav.deleteSelected", { count: selected.size })}
               </Button>
             </div>
@@ -162,7 +159,7 @@ export function RemoteBackupsCard({
                       })}
                     >
                       {rowAction?.fileName === entry.fileName && rowAction.kind === "download" ? (
-                        <Loader2 className="animate-spin" size={16} />
+                        <Spinner />
                       ) : (
                         <Download size={16} />
                       )}
@@ -179,7 +176,7 @@ export function RemoteBackupsCard({
                       })}
                     >
                       {rowAction?.fileName === entry.fileName && rowAction.kind === "restore" ? (
-                        <Loader2 className="animate-spin" size={16} />
+                        <Spinner />
                       ) : (
                         <RotateCcw size={16} />
                       )}

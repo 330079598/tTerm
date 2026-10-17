@@ -1,17 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { save as saveFileDialog } from "@tauri-apps/plugin-dialog"
-import {
-  Cloud,
-  CloudUpload,
-  KeyRound,
-  Loader2,
-  Lock,
-  PlugZap,
-  Save,
-  Trash2,
-  Unlock,
-} from "lucide-react"
+import { Cloud, CloudUpload, KeyRound, Lock, PlugZap, Save, Trash2, Unlock } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import {
@@ -26,6 +16,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Spinner } from "@/components/ui/spinner"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { useToast } from "@/hooks/use-toast"
@@ -406,29 +397,17 @@ export const WebDavBackupPanel: React.FC<WebDavBackupPanelProps> = ({
 
           <div className="flex flex-wrap gap-2">
             <Button disabled={busy} onClick={handleSave}>
-              {busyAction === "save" ? (
-                <Loader2 className="animate-spin" size={16} />
-              ) : (
-                <Save size={16} />
-              )}
+              {busyAction === "save" ? <Spinner /> : <Save size={16} />}
               {t("common.save")}
             </Button>
             <Button variant="outline" disabled={busy || !form.url.trim()} onClick={handleTest}>
-              {busyAction === "test" ? (
-                <Loader2 className="animate-spin" size={16} />
-              ) : (
-                <PlugZap size={16} />
-              )}
+              {busyAction === "test" ? <Spinner /> : <PlugZap size={16} />}
               {busyAction === "test"
                 ? t("dataMigration.webdav.testing")
                 : t("dataMigration.webdav.test")}
             </Button>
             <Button variant="outline" disabled={busy || !form.url.trim()} onClick={handleUpload}>
-              {busyAction === "upload" ? (
-                <Loader2 className="animate-spin" size={16} />
-              ) : (
-                <CloudUpload size={16} />
-              )}
+              {busyAction === "upload" ? <Spinner /> : <CloudUpload size={16} />}
               {busyAction === "upload"
                 ? t("dataMigration.webdav.uploading")
                 : t("dataMigration.webdav.upload")}

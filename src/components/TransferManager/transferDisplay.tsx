@@ -1,5 +1,6 @@
-import { CheckCircle2, Clock, Loader2, XCircle } from "lucide-react"
+import { CheckCircle2, Clock, XCircle } from "lucide-react"
 
+import { Spinner } from "@/components/ui/spinner"
 import type { TransferStatus } from "@/types/tab"
 
 export function formatBytes(bytes: number): string {
@@ -37,7 +38,7 @@ export function getStatusIcon(status: TransferStatus) {
     case "pending":
       return <Clock size={16} className="text-muted-foreground" />
     case "transferring":
-      return <Loader2 size={16} className="text-primary animate-spin" />
+      return <Spinner className="text-primary" />
     case "completed":
       return <CheckCircle2 size={16} className="text-green-500" />
     case "failed":

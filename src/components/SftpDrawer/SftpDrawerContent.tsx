@@ -1,5 +1,5 @@
 import React, { useMemo } from "react"
-import { AlertCircle, ArrowUpFromLine, File, FolderPlus, Loader2, RefreshCcw } from "lucide-react"
+import { AlertCircle, ArrowUpFromLine, File, FolderPlus, RefreshCcw } from "lucide-react"
 import type { TFunction } from "i18next"
 import { useTranslation } from "react-i18next"
 
@@ -9,6 +9,7 @@ import { useSftpPointerSelection } from "@/components/SftpDrawer/useSftpPointerS
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Spinner } from "@/components/ui/spinner"
 import { isMacPlatform } from "@/lib/keymap/chord"
 import { cn } from "@/lib/utils"
 import { SftpTableHeader } from "@/components/SftpDrawer/SftpTableHeader"
@@ -204,7 +205,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
         >
           {isLoading && (
             <div className="text-muted-foreground flex min-h-[200px] flex-col items-center justify-center gap-3">
-              <Loader2 className="size-6 animate-spin" />
+              <Spinner size={24} />
               <span className="text-sm">{t("sftp.loading", { defaultValue: "Loading..." })}</span>
             </div>
           )}

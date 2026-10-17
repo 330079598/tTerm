@@ -1,9 +1,9 @@
 import React from "react"
-import { Loader2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Label } from "@/components/ui/label"
 import { PasswordInput } from "@/components/ui/password-input"
+import { Spinner } from "@/components/ui/spinner"
 
 export interface PasswordFieldProps {
   id: string
@@ -44,4 +44,4 @@ export const PasswordField: React.FC<PasswordFieldProps> = ({
 }
 
 export const ActionIcon: React.FC<{ busy: boolean; icon: React.ReactNode }> = ({ busy, icon }) =>
-  busy ? <Loader2 size={14} className="mr-2 animate-spin" /> : <>{icon}</>
+  busy ? <Spinner size={14} className="mr-2" /> : <>{icon}</>

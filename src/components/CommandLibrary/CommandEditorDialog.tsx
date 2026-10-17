@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
-import { Check, Loader2 } from "lucide-react"
+import { Check } from "lucide-react"
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -31,6 +31,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
+import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { extractPlaceholderNames } from "@/lib/commandVariables"
@@ -363,7 +364,7 @@ export function CommandEditorDialog({
               {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isSaving}>
-              {isSaving ? <Loader2 className="animate-spin" /> : <Check />}
+              {isSaving ? <Spinner /> : <Check />}
               {isSaving ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>

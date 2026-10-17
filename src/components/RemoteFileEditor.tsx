@@ -1,10 +1,11 @@
 import "@/components/RemoteFileEditor.css"
 import { invoke } from "@tauri-apps/api/core"
-import { Loader2, RefreshCcw, Save } from "lucide-react"
+import { RefreshCcw, Save } from "lucide-react"
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import { CodeMirrorEditor } from "@/components/CodeMirrorEditor"
 import { useKeymap, useShortcutLabel } from "@/contexts/KeymapContext"
 import { withShortcut } from "@/lib/keymap/keymap"
@@ -214,7 +215,7 @@ export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({
               shortcutLabel("editor.save")
             )}
           >
-            {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            {isSaving ? <Spinner /> : <Save className="size-4" />}
             {t("remoteFileEditor.save", { defaultValue: "Save" })}
           </Button>
         </div>
@@ -228,7 +229,7 @@ export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({
 
       {isLoading ? (
         <div className="remote-file-editor-empty">
-          <Loader2 className="mr-2 size-4 animate-spin" />
+          <Spinner className="mr-2" />
           {t("remoteFileEditor.loading", { defaultValue: "Loading remote file..." })}
         </div>
       ) : (

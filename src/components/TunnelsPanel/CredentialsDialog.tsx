@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { KeyRound, Loader2 } from "lucide-react"
+import { KeyRound } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
+import { Spinner } from "@/components/ui/spinner"
 import type { CredentialRequest } from "@/types/tunnel"
 import { credentialFieldKey } from "@/components/TunnelsPanel/tunnelUtils"
 import { isImeKeyEvent } from "@/lib/ime"
@@ -140,7 +141,7 @@ export const CredentialsDialog: React.FC<CredentialsDialogProps> = ({
             {t("common.cancel", { defaultValue: "Cancel" })}
           </Button>
           <Button type="button" disabled={!complete || busy} onClick={submit}>
-            {busy && <Loader2 className="animate-spin" />}
+            {busy && <Spinner />}
             {t("tunnels.credentials.connect", { defaultValue: "Connect" })}
           </Button>
         </DialogFooter>

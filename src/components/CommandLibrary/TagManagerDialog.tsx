@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
-import { Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react"
+import { Check, Pencil, Plus, Trash2, X } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Spinner } from "@/components/ui/spinner"
 import { useToast } from "@/hooks/use-toast"
 import { isImeKeyEvent } from "@/lib/ime"
 
@@ -109,13 +110,7 @@ export function TagManagerDialog({
             disabled={!managedTagDraft.trim() || tagMutationPending}
             onClick={() => void saveManagedTag()}
           >
-            {tagMutationPending ? (
-              <Loader2 className="animate-spin" />
-            ) : editingTag ? (
-              <Check />
-            ) : (
-              <Plus />
-            )}
+            {tagMutationPending ? <Spinner /> : editingTag ? <Check /> : <Plus />}
             {editingTag ? t("common.save") : t("commandLibrary.tags.add")}
           </Button>
         </div>

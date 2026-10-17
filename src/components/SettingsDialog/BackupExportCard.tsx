@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 import React from "react"
-import { CheckCircle2, Download, Eye, EyeOff, KeyRound, Loader2 } from "lucide-react"
+import { CheckCircle2, Download, Eye, EyeOff, KeyRound } from "lucide-react"
 
 import type { BackupExportResult, BusyAction } from "@/components/SettingsDialog/dataMigration"
 import type {
@@ -14,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Spinner } from "@/components/ui/spinner"
 
 interface BackupExportCardProps {
   selection: BackupSelection
@@ -128,11 +129,7 @@ export function BackupExportCard({
         )}
 
         <Button disabled={busy || !Object.values(selection).some(Boolean)} onClick={handleExport}>
-          {busyAction === "export" ? (
-            <Loader2 className="animate-spin" size={16} />
-          ) : (
-            <Download size={16} />
-          )}
+          {busyAction === "export" ? <Spinner /> : <Download size={16} />}
           {busyAction === "export" ? t("dataMigration.exporting") : t("dataMigration.exportAction")}
         </Button>
 

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react"
-import { Braces, FileCode2, Loader2 } from "lucide-react"
+import { Braces, FileCode2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
+import { Spinner } from "@/components/ui/spinner"
 import { useSyncedState } from "@/hooks/useSyncedState"
 import {
   activeVariables,
@@ -157,7 +158,7 @@ export const CommandVariablesDialog: React.FC<CommandVariablesDialogProps> = ({
               {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isInserting}>
-              {isInserting ? <Loader2 className="animate-spin" /> : <FileCode2 />}
+              {isInserting ? <Spinner /> : <FileCode2 />}
               {isInserting ? t("commandLibrary.inserting") : t("commandLibrary.insert")}
             </Button>
           </DialogFooter>

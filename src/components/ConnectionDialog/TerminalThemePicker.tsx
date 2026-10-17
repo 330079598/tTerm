@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from "react"
-import { Check, ChevronDown, Loader2, Search } from "lucide-react"
+import { Check, ChevronDown, Search } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Input } from "@/components/ui/input"
+import { Spinner } from "@/components/ui/spinner"
 import { useTheme } from "@/contexts/ThemeContext"
 import { isImeKeyEvent } from "@/lib/ime"
 import { catalogThemeName, isCatalogThemeId } from "@/lib/themeCatalog"
@@ -267,7 +268,7 @@ export const TerminalThemePicker: React.FC<TerminalThemePickerProps> = ({
             )}
             {!catalogThemes && (
               <div className="text-muted-foreground flex items-center gap-2 px-2 py-2 text-xs">
-                <Loader2 className="size-3.5 animate-spin" />
+                <Spinner size={14} />
                 {t("themeGallery.loading")}
               </div>
             )}
