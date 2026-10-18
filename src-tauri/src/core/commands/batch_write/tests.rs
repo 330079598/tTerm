@@ -14,6 +14,7 @@ fn session(session_nonce: u32, runtime: &tokio::runtime::Runtime) -> PtySession 
         output: crate::terminal::io_batcher::TerminalOutput::new(tauri::ipc::Channel::new(|_| {
             Ok(())
         })),
+        serial_view: None,
     }
 }
 

@@ -253,7 +253,8 @@ pub async fn write_serial_bytes(
     Ok(())
 }
 
-/// Shows what a serial tab receives in hex, or as text again.
+/// Shows what a serial tab receives in hex, or as text again, from now on
+/// or from when its device comes back.
 #[tauri::command]
 pub async fn set_serial_view(
     tab_id: String,
@@ -261,10 +262,13 @@ pub async fn set_serial_view(
     hex: bool,
     state: State<'_, PtyMap>,
 ) -> Result<(), String> {
-    with_serial(&state, &tab_id, session_nonce, |serial| {
-        serial.view.set_hex(hex)
-    })
-    .await
+    let map = state.read().await;
+    map.get(&tab_id)
+        .filter(|session| session.session_nonce == session_nonce)
+        .and_then(|session| session.serial_view.as_ref())
+        .ok_or_else(|| "This tab is not an open serial connection".to_string())?
+        .set_hex(hex);
+    Ok(())
 }
 
 #[tauri::command]

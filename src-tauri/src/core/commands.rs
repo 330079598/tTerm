@@ -189,6 +189,7 @@ fn create_pty_blocking(
         supervisor,
         size,
         output: output_channel,
+        serial_view: plan.serial.as_ref().map(|serial| serial.view.clone()),
     };
 
     sessions.insert(tab_id, session);

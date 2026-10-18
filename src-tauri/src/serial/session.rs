@@ -21,7 +21,6 @@ pub struct ActiveSerial {
     line_ending: SerialLineEnding,
     /// The charset typed text is sent in.
     encoding: TerminalEncoding,
-    pub(super) view: Arc<super::SerialView>,
     control: SerialControl,
     /// Ends the reader thread and fails writes once the tab lets go of the port.
     closed: Arc<AtomicBool>,
@@ -178,7 +177,7 @@ pub(crate) fn spawn_serial_attempt(
         crate::zmodem::session::ZmodemSettings::load(),
         Some(Box::new(super::output::SerialOutput::new(
             tab.plan.encoding,
-            view.clone(),
+            view,
         ))),
     );
 
@@ -188,7 +187,6 @@ pub(crate) fn spawn_serial_attempt(
         path: path.to_string(),
         line_ending: options.line_ending,
         encoding: tab.plan.encoding,
-        view,
         control: SerialControl(Arc::new(Mutex::new(port))),
         closed,
         tap,

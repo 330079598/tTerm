@@ -134,6 +134,9 @@ pub struct PtySession {
     /// The frontend's output channel. Its flow control is acknowledged by
     /// `ack_pty_output` as xterm.js parses.
     pub output: crate::terminal::io_batcher::TerminalOutput,
+    /// Serial: how the tab shows what it receives, which its bar can change
+    /// while the device is away too.
+    pub serial_view: Option<Arc<crate::serial::SerialView>>,
 }
 
 impl PtySession {
