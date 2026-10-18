@@ -47,6 +47,15 @@ describe("getWorkspaceTabMenuActions", () => {
       expect.arrayContaining(["duplicate", "split-right", "rename", "close"])
     )
   })
+
+  it("edits the profile an SSH or serial tab was opened from", () => {
+    const base = { id: "a", title: "tab", isActive: true }
+    const profile = { profileId: "p" }
+    expect(actions({ ...base, type: "ssh", connection: profile })).toContain("edit-connection")
+    expect(actions({ ...base, type: "serial", connection: profile })).toContain("edit-connection")
+    expect(actions({ ...base, type: "serial" })).not.toContain("edit-connection")
+    expect(actions({ ...base, type: "terminal" })).not.toContain("edit-connection")
+  })
 })
 
 describe("getTabRenameMenuAction", () => {

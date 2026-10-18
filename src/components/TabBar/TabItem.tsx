@@ -73,13 +73,15 @@ export const TabItem = React.memo(function TabItem({
         return
       }
 
-      // A tab without a profile (quick connect, or connected without saving) can be saved as one.
-      const editConnectionAction: TabContextMenuAction | null =
-        tab.type !== "ssh"
-          ? null
-          : tab.connection?.profileId
-            ? { label: t("contextMenu.editConnection"), action: "edit-connection", icon: "edit" }
-            : { label: t("contextMenu.saveConnection"), action: "edit-connection", icon: "edit" }
+      // An SSH tab without a profile (quick connect, or connected without saving) can be saved as
+      // one; a serial tab can only edit the profile it came from.
+      const editConnectionAction: TabContextMenuAction | null = tab.connection?.profileId
+        ? tab.type === "ssh" || tab.type === "serial"
+          ? { label: t("contextMenu.editConnection"), action: "edit-connection", icon: "edit" }
+          : null
+        : tab.type === "ssh"
+          ? { label: t("contextMenu.saveConnection"), action: "edit-connection", icon: "edit" }
+          : null
 
       const logActions = getTabLogMenuActions(tab, t)
 

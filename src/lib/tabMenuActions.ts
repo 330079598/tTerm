@@ -81,7 +81,7 @@ export function getWorkspaceTabMenuActions(
   }
 
   const editConnectionAction: TabContextMenuAction | null =
-    tab.type === "ssh" && tab.connection?.profileId
+    (tab.type === "ssh" || tab.type === "serial") && tab.connection?.profileId
       ? { label: t("contextMenu.editConnection"), action: "edit-connection", icon: "edit" }
       : null
   const logActions = getTabLogMenuActions(tab, t)
