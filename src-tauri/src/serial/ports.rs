@@ -17,7 +17,7 @@ pub(super) fn visible_ports(ports: Vec<SerialPortInfo>, macos: bool) -> Vec<Seri
         .filter(|port| !(macos && port.port_name.starts_with("/dev/tty.")))
         .map(entry_from)
         .collect();
-    entries.sort_by(|a, b| natural_key(&a.path).cmp(&natural_key(&b.path)));
+    entries.sort_by_key(|entry| natural_key(&entry.path));
     entries.dedup_by(|a, b| a.path == b.path);
     entries
 }
