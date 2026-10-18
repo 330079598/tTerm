@@ -2725,6 +2725,8 @@
     "file": "Send file",
     "fileHint": "Send a file to the device over XMODEM or YMODEM; start its receiver first",
     "fileDialogTitle": "Send files over {{protocol}}",
-    "fileFailed": "Could not send the file"
+    "fileFailed": "Could not send the file",
+    "echo": "Show",
+    "echoHint": "Show what is sent in the terminal, after an arrow"
   }
 }

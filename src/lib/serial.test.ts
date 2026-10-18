@@ -8,6 +8,7 @@ import {
   localEchoText,
   normalizeSerialSettings,
   parseHexBytes,
+  sentEchoLine,
   serialPortDescription,
   serialSummary,
   withSerialPort,
@@ -92,6 +93,26 @@ describe("createLineTimestamper", () => {
 
   it("leaves empty lines alone", () => {
     expect(createLineTimestamper()("\r\n\r\n", now)).toBe("\r\n\r\n")
+  })
+
+  it("stamps the next output after a line written by someone else", () => {
+    const stampLines = createLineTimestamper()
+    stampLines("> ", now)
+    stampLines.startLine()
+    expect(stampLines("ok", now)).toBe(`${stamp}ok`)
+  })
+})
+
+describe("sentEchoLine", () => {
+  it("shows sent text with its control characters visible", () => {
+    expect(sentEchoLine({ text: "AT\r\x00" })).toBe("\x1b[36m→ AT\\r\\x00\x1b[39m")
+  })
+
+  it("shows sent bytes in hex, after the time when asked", () => {
+    const now = new Date(2026, 0, 1, 9, 5, 7, 42)
+    expect(sentEchoLine({ bytes: [0xaa, 0x5, 0x0d] }, now)).toBe(
+      "\x1b[2m[09:05:07.042]\x1b[22m \x1b[36m→ AA 05 0D\x1b[39m"
+    )
   })
 })
 

@@ -26,6 +26,7 @@ import type {
 } from "@/components/TerminalTab/types"
 import { useSerialControls } from "@/components/TerminalTab/useSerialControls"
 import { formatUsbId, normalizeSerialSettings, serialSummary } from "@/lib/serial"
+import { serialSendKey } from "@/lib/serialSendStore"
 import { keepFocusOnMouseDown } from "@/lib/terminalFocus"
 
 interface SerialControlBarProps {
@@ -193,7 +194,12 @@ export const SerialControlBar: React.FC<SerialControlBarProps> = ({
         </div>
       </div>
       {showSendBar && (
-        <SerialSendBar tabId={tabId} sessionNonce={sessionNonce} lineEnding={settings.lineEnding} />
+        <SerialSendBar
+          tabId={tabId}
+          sessionNonce={sessionNonce}
+          lineEnding={settings.lineEnding}
+          storageKey={serialSendKey(connection.profileId, settings.port)}
+        />
       )}
     </>
   )

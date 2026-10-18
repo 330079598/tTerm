@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from "react"
 
+import { sentEchoLine } from "@/lib/serial"
 import type { SerialSettings } from "@/types/serial"
 
 /** How a serial tab shows its session, which its control bar changes while it runs. */
@@ -39,6 +40,23 @@ export function getSerialDisplay(tabId: string, settings?: SerialSettings): Seri
 export function setSerialDisplay(tabId: string, patch: Partial<SerialDisplay>) {
   displays.set(tabId, { ...getSerialDisplay(tabId), ...patch })
   for (const listener of listeners) listener()
+}
+
+// Each serial tab's terminal, for showing what its send bar sent.
+const echoWriters = new Map<string, (line: string) => void>()
+
+/** Lets the send bar show what it sent in `tabId`'s terminal, until the returned call. */
+export function registerSerialEcho(tabId: string, writeLine: (line: string) => void) {
+  echoWriters.set(tabId, writeLine)
+  return () => {
+    if (echoWriters.get(tabId) === writeLine) echoWriters.delete(tabId)
+  }
+}
+
+/** Shows what the send bar sent in its tab's terminal, timed when timestamps are on. */
+export function echoSerialSend(tabId: string, sent: { text?: string; bytes?: readonly number[] }) {
+  const now = getSerialDisplay(tabId).timestamps ? new Date() : undefined
+  echoWriters.get(tabId)?.(sentEchoLine(sent, now))
 }
 
 /** Forgets a closed tab's display. */

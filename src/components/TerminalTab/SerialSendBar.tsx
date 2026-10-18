@@ -8,17 +8,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { SerialFileSend } from "@/components/TerminalTab/SerialFileSend"
-import {
-  MIN_REPEAT_MS,
-  type SerialSendMode,
-  useSerialSender,
-} from "@/components/TerminalTab/useSerialSender"
+import { MIN_REPEAT_MS, useSerialSender } from "@/components/TerminalTab/useSerialSender"
+import type { SerialSendMode } from "@/lib/serialSendStore"
 import type { SerialLineEnding } from "@/types/serial"
 
 interface SerialSendBarProps {
   tabId: string
   sessionNonce: number
   lineEnding: SerialLineEnding
+  /** Where the connection's history and echo choice are kept. */
+  storageKey: string
 }
 
 /** A serial tab's send bar: text or hex to send once, or over and over. */
@@ -26,12 +25,14 @@ export const SerialSendBar: React.FC<SerialSendBarProps> = ({
   tabId,
   sessionNonce,
   lineEnding,
+  storageKey,
 }) => {
   const { t } = useTranslation()
-  const { history, repeating, send, stopRepeat } = useSerialSender({
+  const { history, echo, setEcho, repeating, send, stopRepeat } = useSerialSender({
     tabId,
     sessionNonce,
     lineEnding,
+    storageKey,
   })
   const [mode, setMode] = useState<SerialSendMode>("text")
   const [text, setText] = useState("")
@@ -98,6 +99,16 @@ export const SerialSendBar: React.FC<SerialSendBarProps> = ({
         />
         <Label htmlFor={`serial-send-enter-${tabId}`} className="text-xs font-normal">
           {t("serialSend.appendEnter")}
+        </Label>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <Checkbox id={`serial-send-echo-${tabId}`} checked={echo} onCheckedChange={setEcho} />
+        <Label
+          htmlFor={`serial-send-echo-${tabId}`}
+          className="text-xs font-normal"
+          title={t("serialSend.echoHint")}
+        >
+          {t("serialSend.echo")}
         </Label>
       </div>
       <div className="flex items-center gap-1.5">

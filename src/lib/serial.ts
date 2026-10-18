@@ -113,14 +113,20 @@ function formatClock(now: Date): string {
   return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${pad(now.getMilliseconds(), 3)}`
 }
 
+/** The dimmed time a line starts with when timestamps are on. */
+export function timestampPrefix(now: Date): string {
+  return `\x1b[2m[${formatClock(now)}]\x1b[22m `
+}
+
 /**
  * Starts each line of output with the time it arrived, dimmed. A line split
- * across chunks gets one stamp, from the chunk that started it.
+ * across chunks gets one stamp, from the chunk that started it. `startLine`
+ * says something else ended the line, so the next output starts one.
  */
 export function createLineTimestamper() {
   let atLineStart = true
-  return (text: string, now: Date = new Date()): string => {
-    const stamp = `\x1b[2m[${formatClock(now)}]\x1b[22m `
+  const stampLines = (text: string, now: Date = new Date()): string => {
+    const stamp = timestampPrefix(now)
     let stamped = ""
     for (const char of text) {
       if (atLineStart && char !== "\r" && char !== "\n") {
@@ -132,6 +138,40 @@ export function createLineTimestamper() {
     }
     return stamped
   }
+  return Object.assign(stampLines, {
+    startLine: () => {
+      atLineStart = true
+    },
+  })
+}
+
+const CONTROL_ESCAPES: Record<string, string> = { "\r": "\\r", "\n": "\\n", "\t": "\\t" }
+
+/** Text as an echo line shows it: control characters as escapes. */
+function visibleText(text: string): string {
+  return Array.from(text, (char) => {
+    const code = char.charCodeAt(0)
+    if (code >= 0x20 && code !== 0x7f) return char
+    return CONTROL_ESCAPES[char] ?? `\\x${code.toString(16).padStart(2, "0")}`
+  }).join("")
+}
+
+/** Bytes as the hex view shows them: `AA 55 0D`. */
+export function formatHexBytes(bytes: readonly number[]): string {
+  return bytes.map((byte) => byte.toString(16).toUpperCase().padStart(2, "0")).join(" ")
+}
+
+/**
+ * The line the terminal shows for something the send bar sent, so it can be
+ * told from what the device sends: an arrow, in cyan, after the time when
+ * timestamps are on.
+ */
+export function sentEchoLine(
+  sent: { text?: string; bytes?: readonly number[] },
+  now?: Date
+): string {
+  const shown = sent.bytes ? formatHexBytes(sent.bytes) : visibleText(sent.text ?? "")
+  return `${now ? timestampPrefix(now) : ""}\x1b[36m→ ${shown}\x1b[39m`
 }
 
 /** What a hex string turned into: its bytes, or the token that isn't hex. */

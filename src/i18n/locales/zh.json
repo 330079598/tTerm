@@ -2703,6 +2703,8 @@
     "file": "发送文件",
     "fileHint": "通过 XMODEM 或 YMODEM 把文件发给设备，请先让设备进入接收状态",
     "fileDialogTitle": "通过 {{protocol}} 发送文件",
-    "fileFailed": "无法发送文件"
+    "fileFailed": "无法发送文件",
+    "echo": "显示",
+    "echoHint": "在终端里显示发送的内容，以箭头开头"
   }
 }

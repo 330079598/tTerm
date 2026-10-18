@@ -6,7 +6,7 @@ import type { ConnectionStateUpdater } from "@/components/TerminalTab/connection
 import type { SavedPasswordPrompts } from "@/components/TerminalTab/savedPasswordPrompts"
 import type { CommandTracking } from "@/components/TerminalTab/commandTracking"
 import { OutputAcker } from "@/components/TerminalTab/outputAck"
-import { getSerialDisplay } from "@/components/TerminalTab/serialDisplay"
+import { getSerialDisplay, registerSerialEcho } from "@/components/TerminalTab/serialDisplay"
 import { getConnectionDisplay } from "@/components/TerminalTab/terminalTabUtils"
 import type { HostKeyPromptState, SshConnectionProgress } from "@/components/TerminalTab/types"
 import { createLineTimestamper } from "@/lib/serial"
@@ -70,6 +70,14 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
 
   let outputScanState: TerminalOutputScanState = EMPTY_OUTPUT_SCAN_STATE
   const stampLines = createLineTimestamper()
+  // What the send bar sent goes on a line of its own, after any half line
+  // the device left, and the device's next output starts a stamped line.
+  const unregisterSerialEcho = registerSerialEcho(tabId, (line) => {
+    if (session.disposed) return
+    const startsMidLine = term.buffer.active.cursorX > 0
+    term.write(`${startsMidLine ? "\r\n" : ""}${line}\r\n`)
+    stampLines.startLine()
+  })
   // A serial session, like an SSH one, is a connection to reconnect.
   const isConnection = () =>
     connectionRef.current?.type === "ssh" || connectionRef.current?.type === "serial"
@@ -303,6 +311,7 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
     })
 
   const stopListening = () => {
+    unregisterSerialEcho()
     unlistenOutput?.()
     unlistenExit?.()
     unlistenHostPrompt?.()
