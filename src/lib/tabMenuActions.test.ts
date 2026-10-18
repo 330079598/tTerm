@@ -50,8 +50,11 @@ describe("getWorkspaceTabMenuActions", () => {
 })
 
 describe("getTabRenameMenuAction", () => {
-  it("edits a local tab and renames others", () => {
+  it("edits a terminal tab, whose icon can be chosen, and renames others", () => {
     expect(getTabRenameMenuAction({ type: "terminal" }, t).label).toBe("contextMenu.editTab")
-    expect(getTabRenameMenuAction({ type: "ssh" }, t).label).toBe("contextMenu.renameTab")
+    expect(getTabRenameMenuAction({ type: "ssh" }, t).label).toBe("contextMenu.editTab")
+    expect(getTabRenameMenuAction({ type: "remote-file-editor" }, t).label).toBe(
+      "contextMenu.renameTab"
+    )
   })
 })

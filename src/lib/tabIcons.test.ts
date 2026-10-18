@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   DEFAULT_TAB_ICON_CONFIG,
+  normalizeSavedSshTab,
   normalizeTabIconConfig,
   normalizeTabIconStyle,
   resolveTabIcon,
@@ -10,6 +11,7 @@ import {
   withShellIconStyle,
   type TabIconConfig,
 } from "@/lib/tabIcons"
+import type { Tab } from "@/types/tab"
 
 const config = (fields: Partial<TabIconConfig> = {}): TabIconConfig => ({
   ...DEFAULT_TAB_ICON_CONFIG,
@@ -42,9 +44,27 @@ describe("resolveTabIcon", () => {
     expect(resolveTabIcon(tab, icons)).toEqual({ icon: "rocket", color: "" })
   })
 
-  it("shows nothing while icons are off, or for remote tabs", () => {
+  it("draws an SSH tab as a server until its host's distribution is known", () => {
+    expect(resolveTabIcon({ type: "ssh" }, config())).toEqual({ icon: "server", color: "" })
+    expect(resolveTabIcon({ type: "ssh", distroId: "debian" }, config())).toEqual({
+      icon: "distro:debian",
+      color: "",
+    })
+  })
+
+  it("lays an SSH tab's own choice over its host's distribution", () => {
+    const tab = {
+      type: "ssh" as const,
+      distroId: "ubuntu" as const,
+      iconStyle: { icon: "database" as const, color: "#e5534b" },
+    }
+    expect(resolveTabIcon(tab, config())).toEqual({ icon: "database", color: "#e5534b" })
+  })
+
+  it("shows nothing while icons are off, or for other tabs", () => {
     expect(resolveTabIcon({ type: "terminal" }, config({ enabled: false }))).toBeNull()
-    expect(resolveTabIcon({ type: "ssh" }, config())).toBeNull()
+    expect(resolveTabIcon({ type: "ssh" }, config({ enabled: false }))).toBeNull()
+    expect(resolveTabIcon({ type: "remote-file-editor" }, config())).toBeNull()
   })
 })
 
@@ -57,6 +77,27 @@ describe("normalizeTabIconStyle", () => {
     expect(normalizeTabIconStyle({ icon: "unicorn", color: "red" })).toBeUndefined()
     expect(normalizeTabIconStyle({ color: "" })).toEqual({ color: "" })
     expect(normalizeTabIconStyle("pwsh")).toBeUndefined()
+  })
+
+  it("keeps the logos of known distributions only", () => {
+    expect(normalizeTabIconStyle({ icon: "distro:arch" })).toEqual({ icon: "distro:arch" })
+    expect(normalizeTabIconStyle({ icon: "distro:windows" })).toBeUndefined()
+  })
+})
+
+describe("normalizeSavedSshTab", () => {
+  it("drops an unknown distribution and icon from a saved SSH tab", () => {
+    const saved = {
+      id: "a",
+      title: "host",
+      type: "ssh" as const,
+      isActive: false,
+      distroId: "beos",
+      iconStyle: { icon: "unicorn" },
+    } as unknown as Tab
+    const tab = normalizeSavedSshTab(saved)
+    expect(tab.distroId).toBeUndefined()
+    expect(tab.iconStyle).toBeUndefined()
   })
 })
 

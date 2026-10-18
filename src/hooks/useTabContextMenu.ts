@@ -4,7 +4,7 @@ import type { ContextMenuState, RenameDialogState } from "@/components/TTermApp/
 import type { WorkspaceSplitDirection } from "@/components/TTermApp/workspaceContext"
 import { showLogsForTab } from "@/lib/appNavigation"
 import { nameLocalTab } from "@/lib/localTabTitle"
-import type { TabIconStyle } from "@/lib/tabIcons"
+import { hasTabIcon, type TabIconStyle } from "@/lib/tabIcons"
 import type { Tab, TabContextMenuAction } from "@/types/tab"
 
 interface UseTabContextMenuDeps {
@@ -48,12 +48,13 @@ export function useTabContextMenu({
     actions: [],
   })
 
-  /** Opens the dialog that renames a tab, and picks a local tab's icon. */
+  /** Opens the dialog that renames a tab, and picks a terminal tab's icon. */
   const openRenameDialog = useCallback((tab: Tab) => {
     setRenameDialogState({
       isOpen: true,
       tabId: tab.id,
       currentName: tab.title,
+      iconTab: hasTabIcon(tab) ? tab : undefined,
       localTab: tab.type === "terminal" ? tab : undefined,
     })
   }, [])
@@ -187,7 +188,7 @@ export function useTabContextMenu({
     })
   }, [])
 
-  const localTab = renameDialogState.localTab
+  const { iconTab, localTab } = renameDialogState
   const handleUseAutoTitle = useCallback(() => {
     if (!localTab) return
     void nameLocalTab({ ...localTab, title: "" }).then(({ title }) =>
@@ -202,9 +203,9 @@ export function useTabContextMenu({
 
   const handleIconStyleChange = useCallback(
     (iconStyle: TabIconStyle | undefined) => {
-      if (localTab) updateTab(localTab.id, (current) => ({ ...current, iconStyle }))
+      if (iconTab) updateTab(iconTab.id, (current) => ({ ...current, iconStyle }))
     },
-    [localTab, updateTab]
+    [iconTab, updateTab]
   )
 
   return {
@@ -215,9 +216,9 @@ export function useTabContextMenu({
       onConfirm: handleRenameConfirm,
       onClose: handleRenameClose,
       onUseAutoTitle: localTab && !localTab.autoTitle ? handleUseAutoTitle : undefined,
-      icon: localTab && {
-        shellName: localTab.shellName,
-        value: localTab.iconStyle,
+      icon: iconTab && {
+        tab: iconTab,
+        value: iconTab.iconStyle,
         onChange: handleIconStyleChange,
       },
     },

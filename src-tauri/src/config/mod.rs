@@ -723,6 +723,14 @@ pub fn command_marks_enabled() -> bool {
         .unwrap_or_else(|_| default_command_marks())
 }
 
+/// Whether tabs show icons, which for an SSH tab means asking the host what
+/// it runs; on when the config file is missing or unreadable.
+pub fn tab_icons_enabled() -> bool {
+    load_config_file()
+        .map(|config| config.tab_icons.enabled)
+        .unwrap_or(true)
+}
+
 /// Whether local shells on macOS and Linux start through tTerm's shell
 /// integration; off when the config file is missing or unreadable.
 #[cfg(unix)]

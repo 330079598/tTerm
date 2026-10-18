@@ -7,7 +7,89 @@ export type LinuxDistributionInfo = {
   versionId?: string
 }
 
-const DISTRO_RULES: Array<{ patterns: string[]; id: string; exact?: boolean }> = [
+/**
+ * The distributions with an icon of their own, generic Linux first, then
+ * roughly by how often they run on servers. Each has `<id>.svg` in
+ * `public/assets/distro-icons`.
+ */
+export const DISTRO_IDS = [
+  "linux",
+  "ubuntu",
+  "debian",
+  "centos",
+  "rhel",
+  "fedora",
+  "rocky",
+  "alma",
+  "oracle",
+  "amazon",
+  "suse",
+  "alpine",
+  "arch",
+  "manjaro",
+  "endeavouros",
+  "cachyos",
+  "garuda",
+  "gentoo",
+  "nixos",
+  "void",
+  "slackware",
+  "kali",
+  "parrot",
+  "linuxmint",
+  "popos",
+  "elementary",
+  "zorin",
+  "deepin",
+  "mx",
+  "antix",
+  "biglinux",
+  "nobara",
+  "bazzite",
+] as const
+
+export type DistroId = (typeof DISTRO_IDS)[number]
+
+// Product names, which stay the same in every language.
+const DISTRO_NAMES: Record<DistroId, string> = {
+  linux: "Linux",
+  ubuntu: "Ubuntu",
+  debian: "Debian",
+  centos: "CentOS",
+  rhel: "Red Hat Enterprise Linux",
+  fedora: "Fedora",
+  rocky: "Rocky Linux",
+  alma: "AlmaLinux",
+  oracle: "Oracle Linux",
+  amazon: "Amazon Linux",
+  suse: "openSUSE",
+  alpine: "Alpine Linux",
+  arch: "Arch Linux",
+  manjaro: "Manjaro",
+  endeavouros: "EndeavourOS",
+  cachyos: "CachyOS",
+  garuda: "Garuda Linux",
+  gentoo: "Gentoo",
+  nixos: "NixOS",
+  void: "Void Linux",
+  slackware: "Slackware",
+  kali: "Kali Linux",
+  parrot: "Parrot OS",
+  linuxmint: "Linux Mint",
+  popos: "Pop!_OS",
+  elementary: "elementary OS",
+  zorin: "Zorin OS",
+  deepin: "deepin",
+  mx: "MX Linux",
+  antix: "antiX",
+  biglinux: "BigLinux",
+  nobara: "Nobara",
+  bazzite: "Bazzite",
+}
+
+// Checked in order against each value, so names that contain another's
+// ("linuxmint", "archlinux") come before it ("mint", "arch").
+const DISTRO_RULES: Array<{ patterns: string[]; id: DistroId; exact?: boolean }> = [
   { patterns: ["archlinux"], id: "arch" },
   { patterns: ["ubuntu"], id: "ubuntu" },
   { patterns: ["linuxmint", "linux mint"], id: "linuxmint" },
@@ -53,7 +135,7 @@ const DISTRO_RULES: Array<{ patterns: string[]; id: string; exact?: boolean }> =
  * own. What the host says it is wins over what it says it is like, so Linux
  * Mint, which is like Ubuntu, shows its own.
  */
-export function detectDistroId(info?: LinuxDistributionInfo): string {
+export function detectDistroId(info?: LinuxDistributionInfo): DistroId {
   const values = [info?.id, info?.name, info?.prettyName, ...(info?.idLike ?? [])]
     .filter((value): value is string => Boolean(value))
     .map((value) => value.toLowerCase())
@@ -68,6 +150,14 @@ export function detectDistroId(info?: LinuxDistributionInfo): string {
   return "linux"
 }
 
-export function distroIconSrc(id: string): string {
+export function isDistroId(value: unknown): value is DistroId {
+  return (DISTRO_IDS as readonly unknown[]).includes(value)
+}
+
+export function distroName(id: DistroId): string {
+  return DISTRO_NAMES[id]
+}
+
+export function distroIconSrc(id: DistroId): string {
   return `/assets/distro-icons/${id}.svg`
 }

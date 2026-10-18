@@ -25,7 +25,7 @@ import {
 // for it to settle.
 const SAVE_DELAY_MS = 400
 
-/** Settings for the shell icons on local terminal tabs. */
+/** Settings for the icons on terminal tabs: whether they show, and each shell's. */
 export function TabIconSettings() {
   const { t } = useTranslation()
   const { config } = useConfig()

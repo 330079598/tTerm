@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-/// How local terminal tabs show their shell's icon. The frontend checks the
+/// How terminal tabs show their shell's or host's icon. The frontend checks the
 /// icon ids and colors it reads back; this only keeps what it saved.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(default)]
 pub struct TabIconConfig {
-    /// Show an icon in front of each local tab's title.
+    /// Show an icon in front of each terminal tab's title, local or SSH.
     pub enabled: bool,
     /// The icon and color chosen for a shell, by its lowercased name (`pwsh`,
     /// `git bash`). A shell missing here keeps its built-in look.

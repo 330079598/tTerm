@@ -1,3 +1,4 @@
+import { isDistroId, type DistroId } from "@/lib/distro"
 import type { Tab } from "@/types/tab"
 
 /** The icons a local tab can show, in the order the picker lays them out, by theme. */
@@ -78,6 +79,12 @@ export const TAB_ICON_IDS = [
 
 export type TabIconId = (typeof TAB_ICON_IDS)[number]
 
+/** A Linux distribution's logo, drawn in its own colors. */
+export type DistroTabIcon = `distro:${DistroId}`
+
+/** Anything a tab can show: a glyph, or a distribution's logo. */
+export type TabIconChoice = TabIconId | DistroTabIcon
+
 /** Colors offered next to a custom one; each reads on light and dark tabs alike. */
 export const TAB_ICON_COLORS = [
   "#3b9ae1",
@@ -97,18 +104,18 @@ export const TAB_ICON_COLORS = [
  * choice to what applies below it; an empty color means no tint.
  */
 export interface TabIconStyle {
-  icon?: TabIconId
+  icon?: TabIconChoice
   color?: string
 }
 
 /** An icon as shown: an empty color draws it in the tab's text color. */
 export interface ResolvedTabIcon {
-  icon: TabIconId
+  icon: TabIconChoice
   color: string
 }
 
 export interface TabIconConfig {
-  /** Show an icon in front of each local tab's title. */
+  /** Show an icon in front of each terminal tab's title. */
   enabled: boolean
   /** Choices by shell, keyed by {@link shellKey}. */
   shells: Record<string, TabIconStyle>
@@ -119,6 +126,7 @@ export const DEFAULT_TAB_ICON_CONFIG: TabIconConfig = { enabled: true, shells: {
 const PLAIN: ResolvedTabIcon = { icon: "terminal", color: "" }
 const POWERSHELL: ResolvedTabIcon = { icon: "square-chevron-right", color: "#3b9ae1" }
 const UNIX: ResolvedTabIcon = { icon: "terminal", color: "#4caf7a" }
+const SERVER: ResolvedTabIcon = { icon: "server", color: "" }
 
 // How each shell looks until the user picks otherwise, keyed like the
 // settings: the lowercased names local_terminal_shell_name gives.
@@ -194,16 +202,46 @@ export function shellTabIcon(
   return applyTabIconStyle(builtInShellIcon(key), config.shells[key])
 }
 
-/** The icon a local tab shows, or null for other tabs and while icons are off. */
-export function resolveTabIcon(
-  tab: Pick<Tab, "type" | "shellName" | "iconStyle">,
-  config: TabIconConfig
-): ResolvedTabIcon | null {
-  if (tab.type !== "terminal" || !config.enabled) return null
-  return applyTabIconStyle(shellTabIcon(config, tab.shellName), tab.iconStyle)
+export function isDistroTabIcon(icon: TabIconChoice): icon is DistroTabIcon {
+  return icon.startsWith("distro:")
 }
 
-function isTabIconId(value: unknown): value is TabIconId {
+/** The distribution whose logo `icon` is. */
+export function tabIconDistro(icon: DistroTabIcon): DistroId {
+  return icon.slice("distro:".length) as DistroId
+}
+
+/** What an SSH tab shows without a choice of its own: its host's distribution, once known. */
+export function sshTabIcon(distroId: DistroId | undefined): ResolvedTabIcon {
+  return distroId ? { icon: `distro:${distroId}`, color: "" } : SERVER
+}
+
+/** Whether a tab is a terminal, local or SSH, and so shows an icon. */
+export function hasTabIcon(tab: Pick<Tab, "type">): boolean {
+  return tab.type === "terminal" || tab.type === "ssh"
+}
+
+/** What a terminal tab shows without a choice of its own. */
+export function inheritedTabIcon(
+  tab: Pick<Tab, "type" | "shellName" | "distroId">,
+  config: TabIconConfig
+): ResolvedTabIcon {
+  return tab.type === "ssh" ? sshTabIcon(tab.distroId) : shellTabIcon(config, tab.shellName)
+}
+
+/** The icon a terminal tab shows, or null for other tabs and while icons are off. */
+export function resolveTabIcon(
+  tab: Pick<Tab, "type" | "shellName" | "distroId" | "iconStyle">,
+  config: TabIconConfig
+): ResolvedTabIcon | null {
+  if (!hasTabIcon(tab) || !config.enabled) return null
+  return applyTabIconStyle(inheritedTabIcon(tab, config), tab.iconStyle)
+}
+
+function isTabIconChoice(value: unknown): value is TabIconChoice {
+  if (typeof value === "string" && value.startsWith("distro:")) {
+    return isDistroId(value.slice("distro:".length))
+  }
   return (TAB_ICON_IDS as readonly unknown[]).includes(value)
 }
 
@@ -212,11 +250,21 @@ export function normalizeTabIconStyle(value: unknown): TabIconStyle | undefined 
   if (!value || typeof value !== "object") return undefined
   const { icon, color } = value as Record<string, unknown>
   const style: TabIconStyle = {}
-  if (isTabIconId(icon)) style.icon = icon
+  if (isTabIconChoice(icon)) style.icon = icon
   if (typeof color === "string" && (color === "" || /^#[0-9a-f]{6}$/i.test(color))) {
     style.color = color.toLowerCase()
   }
   return style.icon === undefined && style.color === undefined ? undefined : style
+}
+
+/** A saved SSH tab with its own icon and its host's distribution checked. */
+export function normalizeSavedSshTab(tab: Tab): Tab {
+  if (tab.type !== "ssh") return tab
+  return {
+    ...tab,
+    iconStyle: normalizeTabIconStyle(tab.iconStyle),
+    distroId: isDistroId(tab.distroId) ? tab.distroId : undefined,
+  }
 }
 
 /** The tab icon settings from a saved config, each choice valid. */

@@ -192,7 +192,7 @@ fn find_prefixed_line(output: &str, prefix: &str) -> Option<String> {
     })
 }
 
-fn parse_os_release(content: &str) -> Option<LinuxDistributionInfo> {
+pub(crate) fn parse_os_release(content: &str) -> Option<LinuxDistributionInfo> {
     if content.trim().is_empty() {
         return None;
     }

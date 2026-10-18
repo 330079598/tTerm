@@ -5,6 +5,7 @@ pub mod jump;
 pub(crate) mod key_file;
 pub(crate) mod key_vault;
 pub mod known_host_commands;
+pub(crate) mod remote_os;
 pub(crate) mod rsa_signer;
 pub mod secret_commands;
 pub(crate) mod secret_store;

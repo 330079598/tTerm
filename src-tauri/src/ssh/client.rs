@@ -310,6 +310,12 @@ pub async fn run_single_ssh_connection(
         .shell_integration(shell_integration_status),
     );
 
+    // Asked once the shell is requested, so its answer travels alongside the
+    // first prompt instead of ahead of it.
+    if crate::config::tab_icons_enabled() {
+        super::remote_os::probe(&app, &tab_id, &session).await;
+    }
+
     let (mut reader, writer) = channel.split();
     let mut writer_stream = writer.make_writer();
     let mut ssh_query_pending = Vec::new();

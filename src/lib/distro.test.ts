@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { detectDistroId, type LinuxDistributionInfo } from "@/lib/distro"
+import { detectDistroId, isDistroId, type LinuxDistributionInfo } from "@/lib/distro"
 
 function info(fields: Partial<LinuxDistributionInfo>): LinuxDistributionInfo {
   return { id: "", idLike: [], name: "", prettyName: "", ...fields }
@@ -26,5 +26,13 @@ describe("detectDistroId", () => {
   it("shows generic Linux for an unknown distribution or none", () => {
     expect(detectDistroId(info({ id: "someos", name: "Some OS" }))).toBe("linux")
     expect(detectDistroId(undefined)).toBe("linux")
+  })
+})
+
+describe("isDistroId", () => {
+  it("accepts only distributions with an icon", () => {
+    expect(isDistroId("debian")).toBe(true)
+    expect(isDistroId("windows")).toBe(false)
+    expect(isDistroId(undefined)).toBe(false)
   })
 })

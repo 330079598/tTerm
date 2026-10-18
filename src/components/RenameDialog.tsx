@@ -12,12 +12,13 @@ import { TabIconPicker } from "@/components/TabIconPicker"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useConfig } from "@/contexts/ConfigContext"
-import { shellTabIcon, type TabIconStyle } from "@/lib/tabIcons"
+import { inheritedTabIcon, type TabIconStyle } from "@/lib/tabIcons"
 import { Label } from "@/components/ui/label"
+import type { Tab } from "@/types/tab"
 
-/** A local tab's own icon, edited beside its name. */
+/** A terminal tab's own icon, edited beside its name. */
 interface TabIconEdit {
-  shellName?: string
+  tab: Pick<Tab, "type" | "shellName" | "distroId">
   value: TabIconStyle | undefined
   onChange: (value: TabIconStyle | undefined) => void
 }
@@ -29,7 +30,7 @@ interface RenameDialogProps {
   onClose: () => void
   /** Given for a local tab the user named: names it automatically again. */
   onUseAutoTitle?: () => void
-  /** Given for a local tab, whose icon can be chosen too. */
+  /** Given for a terminal tab, local or SSH, whose icon can be chosen too. */
   icon?: TabIconEdit
 }
 
@@ -105,8 +106,8 @@ function RenameForm({
           <div className="py-2">
             <TabIconPicker
               value={iconStyle}
-              inherited={shellTabIcon(config.tab_icons, icon.shellName)}
-              resetLabel={t("tabIcons.resetTab")}
+              inherited={inheritedTabIcon(icon.tab, config.tab_icons)}
+              resetLabel={t(icon.tab.type === "ssh" ? "tabIcons.resetSshTab" : "tabIcons.resetTab")}
               onChange={setIconStyle}
             />
           </div>

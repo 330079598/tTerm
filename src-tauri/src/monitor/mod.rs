@@ -1,4 +1,4 @@
-mod metrics;
+pub(crate) mod metrics;
 mod session;
 pub(crate) mod types;
 

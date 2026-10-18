@@ -1,3 +1,4 @@
+import type { DistroId } from "@/lib/distro"
 import type { KeymapActionId } from "@/lib/keymap/actions"
 import type { TabIconStyle } from "@/lib/tabIcons"
 import type { ProxyChoice } from "@/types/proxy"
@@ -145,8 +146,10 @@ export interface Tab {
   autoTitle?: boolean
   /** The shell a local tab runs (`pwsh`, `cmd`, `WSL`, `zsh`), for its icon and tooltip. */
   shellName?: string
-  /** A local tab's own icon and color, over those of its shell. */
+  /** A terminal tab's own icon and color, over those of its shell or host. */
   iconStyle?: TabIconStyle
+  /** SSH: the Linux distribution the host runs, once it has said; its logo is the tab's icon. */
+  distroId?: DistroId
   /**
    * Opened from the launcher by typing a host and not connected yet: its
    * first connection is remembered as recent and offered for saving.

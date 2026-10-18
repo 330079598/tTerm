@@ -24,6 +24,7 @@ import { useSessionRestore } from "@/components/TTermApp/useSessionRestore"
 import { useTabOpeners } from "@/components/TTermApp/useTabOpeners"
 import { useProfileDialogState } from "@/components/TTermApp/useProfileDialogState"
 import { useQuickConnect } from "@/components/TTermApp/useQuickConnect"
+import { useRemoteOsDetection } from "@/components/TTermApp/useRemoteOsDetection"
 import { useProfileActions } from "@/components/TTermApp/useProfileActions"
 import { useTabClosing } from "@/components/TTermApp/useTabClosing"
 import { useWorkspaceSplits } from "@/components/TTermApp/useWorkspaceSplits"
@@ -73,6 +74,7 @@ export const TTermApp: React.FC = () => {
   useLatestRef(activeTabIdRef, activeTabId)
 
   useActiveTerminalSessionCount(tabs, broadcast.terminalRuntimeStates)
+  useRemoteOsDetection(updateTab)
 
   useWebDavSync()
   const { profilesRefreshKey, refreshProfiles } = useProfilesRefreshKey()

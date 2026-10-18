@@ -2,6 +2,7 @@ import type { useTranslation } from "react-i18next"
 
 import type { KeymapActionId } from "@/lib/keymap/actions"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
+import { hasTabIcon } from "@/lib/tabIcons"
 import { getTabLogMenuActions } from "@/lib/terminalLogRecording"
 import { isPageTab, type Tab, type TabContextMenuAction } from "@/types/tab"
 
@@ -36,12 +37,12 @@ export function getTabSplitMenuActions(
   }))
 }
 
-/** The item that renames a tab; a local tab's also picks its icon. */
+/** The item that renames a tab; a terminal tab's also picks its icon. */
 export function getTabRenameMenuAction(
   tab: Pick<Tab, "type">,
   t: ReturnType<typeof useTranslation>["t"]
 ): TabContextMenuAction {
-  const label = tab.type === "terminal" ? t("contextMenu.editTab") : t("contextMenu.renameTab")
+  const label = hasTabIcon(tab) ? t("contextMenu.editTab") : t("contextMenu.renameTab")
   return { label, action: "rename", icon: "edit", shortcut: "tabs.renameActive" }
 }
 

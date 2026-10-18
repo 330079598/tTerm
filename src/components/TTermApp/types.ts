@@ -12,7 +12,9 @@ export interface RenameDialogState {
   isOpen: boolean
   tabId: string | null
   currentName: string
-  /** A local terminal tab: its icon can be chosen, and once named it can go back to an automatic name. */
+  /** A terminal tab, local or SSH, whose icon can be chosen. */
+  iconTab?: Tab
+  /** A local terminal tab: once named it can go back to an automatic name. */
   localTab?: Tab
 }
 

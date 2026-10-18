@@ -5,6 +5,7 @@ import type { AppShell } from "@/components/TTermApp/appShell"
 import type { useSessionPersistence } from "@/hooks/useSessionPersistence"
 import { buildTabFromConnection } from "@/components/TTermApp/ttermAppUtils"
 import { nameLocalTab, refreshSavedLocalTabs } from "@/lib/localTabTitle"
+import { normalizeSavedSshTab } from "@/lib/tabIcons"
 import { markSessionReady } from "@/lib/startup"
 
 interface SessionRestoreOptions {
@@ -38,7 +39,9 @@ export function useSessionRestore(shell: AppShell, options: SessionRestoreOption
         }
 
         if (savedSession && savedSession.tabs.length > 0) {
-          const restoredTabs = await refreshSavedLocalTabs(savedSession.tabs)
+          const restoredTabs = (await refreshSavedLocalTabs(savedSession.tabs)).map(
+            normalizeSavedSshTab
+          )
           if (cancelled) {
             return
           }

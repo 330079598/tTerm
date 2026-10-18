@@ -1,15 +1,18 @@
 import { Ban } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { TAB_ICON_GLYPHS } from "@/components/TabIconPicker/glyphs"
+import { TabIconGlyph } from "@/components/TabIcon"
 import { Button } from "@/components/ui/button"
 import { ColorSwatches } from "@/components/ui/color-swatches"
+import { DISTRO_IDS, distroName } from "@/lib/distro"
 import {
   applyTabIconStyle,
+  isDistroTabIcon,
   normalizeTabIconStyle,
   TAB_ICON_COLORS,
   TAB_ICON_IDS,
   type ResolvedTabIcon,
+  type TabIconChoice,
   type TabIconStyle,
 } from "@/lib/tabIcons"
 import { cn } from "@/lib/utils"
@@ -42,35 +45,35 @@ export function TabIconPicker({ value, inherited, onChange, resetLabel }: TabIco
       <div className="space-y-1.5">
         <div className="text-muted-foreground text-xs">{t("tabIcons.icon")}</div>
         <div className="flex flex-wrap gap-1" role="radiogroup" aria-label={t("tabIcons.icon")}>
-          {TAB_ICON_IDS.map((id) => {
-            const Glyph = TAB_ICON_GLYPHS[id]
-            const name = t(`tabIcons.glyphs.${id}`)
-            return (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={shown.icon === id}
-                aria-label={name}
-                title={name}
-                className={cn(
-                  "hover:bg-muted flex h-7 w-7 items-center justify-center rounded-md border",
-                  shown.icon === id ? "border-primary bg-muted" : "border-transparent"
-                )}
-                onClick={() => chooseIcon(id)}
-              >
-                <Glyph
-                  size={14}
-                  style={shown.color ? { color: shown.color } : undefined}
-                  aria-hidden="true"
-                />
-              </button>
-            )
-          })}
+          {TAB_ICON_IDS.map((id) => (
+            <IconOption
+              key={id}
+              icon={{ icon: id, color: shown.color }}
+              name={t(`tabIcons.glyphs.${id}`)}
+              checked={shown.icon === id}
+              onSelect={chooseIcon}
+            />
+          ))}
         </div>
       </div>
 
       <div className="space-y-1.5">
+        <div className="text-muted-foreground text-xs">{t("tabIcons.distros")}</div>
+        <div className="flex flex-wrap gap-1" role="radiogroup" aria-label={t("tabIcons.distros")}>
+          {DISTRO_IDS.map((id) => (
+            <IconOption
+              key={id}
+              icon={{ icon: `distro:${id}`, color: "" }}
+              name={distroName(id)}
+              checked={shown.icon === `distro:${id}`}
+              onSelect={chooseIcon}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* A distribution's logo keeps its own colors. */}
+      <div className={cn("space-y-1.5", isDistroTabIcon(shown.icon) && "hidden")}>
         <div className="text-muted-foreground text-xs">{t("tabIcons.color")}</div>
         <ColorSwatches
           value={shown.color}
@@ -91,5 +94,35 @@ export function TabIconPicker({ value, inherited, onChange, resetLabel }: TabIco
         </Button>
       )}
     </div>
+  )
+}
+
+/** One icon to pick, shown as it would look on a tab. */
+function IconOption({
+  icon,
+  name,
+  checked,
+  onSelect,
+}: {
+  icon: ResolvedTabIcon
+  name: string
+  checked: boolean
+  onSelect: (icon: TabIconChoice) => void
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={checked}
+      aria-label={name}
+      title={name}
+      className={cn(
+        "hover:bg-muted flex h-7 w-7 items-center justify-center rounded-md border",
+        checked ? "border-primary bg-muted" : "border-transparent"
+      )}
+      onClick={() => onSelect(icon.icon)}
+    >
+      <TabIconGlyph icon={icon} size={14} />
+    </button>
   )
 }
