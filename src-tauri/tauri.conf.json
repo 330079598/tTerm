@@ -29,6 +29,7 @@
   },
   "bundle": {
     "active": true,
+    "license": "MIT",
     "targets": ["nsis", "dmg", "app", "appimage", "deb", "rpm"],
     "createUpdaterArtifacts": true,
     "macOS": {
