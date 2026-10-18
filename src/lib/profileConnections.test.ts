@@ -124,6 +124,7 @@ describe("serial profiles", () => {
       lineEnding: "crlf",
       localEcho: false,
       timestamps: true,
+      hexView: false,
     },
   })
 

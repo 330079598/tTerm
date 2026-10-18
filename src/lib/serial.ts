@@ -29,6 +29,7 @@ export const DEFAULT_SERIAL_SETTINGS: SerialSettings = {
   lineEnding: "cr",
   localEcho: false,
   timestamps: false,
+  hexView: false,
 }
 
 function oneOf<T>(choices: readonly T[], value: unknown, fallback: T): T {
@@ -61,6 +62,7 @@ export function normalizeSerialSettings(value: unknown): SerialSettings {
     lineEnding: oneOf(SERIAL_LINE_ENDINGS, raw.lineEnding, "cr"),
     localEcho: raw.localEcho === true,
     timestamps: raw.timestamps === true,
+    hexView: raw.hexView === true,
     usb: normalizeUsbId(raw.usb),
   }
 }

@@ -362,8 +362,8 @@ pub struct SessionPlan {
     pub proxy_choice: crate::proxy::ProxyChoice,
     /// The proxy server `proxy_choice` resolved to; set by `resolve_ssh_password`.
     pub proxy: Option<crate::proxy::ProxyEndpoint>,
-    /// Serial: the port and how it is opened, checked.
-    pub serial: Option<crate::serial::SerialOptions>,
+    /// Serial: the port and how it is opened, checked, and how it shows.
+    pub serial: Option<crate::serial::SerialPlan>,
 }
 
 impl SessionPlan {

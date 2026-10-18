@@ -235,6 +235,7 @@ export const SerialConnectionFields: React.FC<SerialConnectionFieldsProps> = ({
         [
           ["localEcho", "conn-serial-local-echo"],
           ["timestamps", "conn-serial-timestamps"],
+          ["hexView", "conn-serial-hex-view"],
         ] as const
       ).map(([key, id]) => (
         <div key={key} className="flex items-start gap-2">

@@ -61,5 +61,8 @@ export function useSerialControls(
     void run("send_serial_break", {})
   }
 
-  return { dtr: current.dtr, rts: current.rts, toggleLine, reset, sendBreak }
+  /** Turns the hex view on or off, reporting whether the port took it. */
+  const setHexView = (hex: boolean) => run("set_serial_view", { hex })
+
+  return { dtr: current.dtr, rts: current.rts, toggleLine, reset, sendBreak, setHexView }
 }

@@ -291,7 +291,7 @@ fn a_serial_connection_plans_a_serial_session() {
     assert_eq!(plan.kind, crate::core::state::SessionKind::Serial);
     assert_eq!(plan.profile_name, "/dev/ttyUSB0");
     assert!(plan.reconnect_enabled);
-    assert_eq!(plan.serial.unwrap().baud_rate, 9600);
+    assert_eq!(plan.serial.unwrap().options.baud_rate, 9600);
 }
 
 #[test]
@@ -308,10 +308,57 @@ fn typed_text_goes_out_in_the_device_charset() {
 fn output_in_another_charset_shows_as_utf8_even_split_across_reads() {
     use crate::terminal::reader::OutputFilter;
     let gbk = crate::terminal::encoding::TerminalEncoding::from_label(Some("gbk"));
-    let mut output = super::output::SerialOutput::for_encoding(gbk).unwrap();
+    let mut output = super::output::SerialOutput::new(gbk, Default::default());
     let first = output.filter(b"ok \xd6".to_vec());
     let second = output.filter(b"\xd0\r\n".to_vec());
     let shown = [first.display, second.display].concat();
     assert_eq!(String::from_utf8(shown).unwrap(), "ok 中\r\n");
-    assert!(super::output::SerialOutput::for_encoding(Default::default()).is_none());
+}
+
+fn hex_output() -> (super::output::SerialOutput, Arc<super::SerialView>) {
+    let view = Arc::new(super::SerialView::default());
+    view.set_hex(true);
+    let gbk = crate::terminal::encoding::TerminalEncoding::from_label(Some("gbk"));
+    (super::output::SerialOutput::new(gbk, view.clone()), view)
+}
+
+#[test]
+fn the_hex_view_shows_the_bytes_sent_sixteen_a_line() {
+    let (mut output, _) = hex_output();
+    let now = std::time::Instant::now();
+    let shown = output.filter_at((0u8..18).collect(), now);
+    assert_eq!(
+        String::from_utf8(shown.display).unwrap(),
+        "00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F \r\n10 11 "
+    );
+    // The log keeps the text, decoded, not the hex.
+    let gbk = output.filter_at(b"\xd6\xd0".to_vec(), now);
+    assert_eq!(String::from_utf8(gbk.display).unwrap(), "D6 D0 ");
+    assert_eq!(String::from_utf8(gbk.log.unwrap()).unwrap(), "中");
+}
+
+#[test]
+fn a_pause_starts_a_new_hex_line() {
+    let (mut output, _) = hex_output();
+    let now = std::time::Instant::now();
+    output.filter_at(b"AT".to_vec(), now);
+    let later = now + std::time::Duration::from_millis(80);
+    let shown = output.filter_at(b"OK".to_vec(), later);
+    assert_eq!(String::from_utf8(shown.display).unwrap(), "\r\n4F 4B ");
+    let soon = later + std::time::Duration::from_millis(5);
+    let shown = output.filter_at(b"!".to_vec(), soon);
+    assert_eq!(String::from_utf8(shown.display).unwrap(), "21 ");
+}
+
+#[test]
+fn switching_views_starts_a_new_line() {
+    let (mut output, view) = hex_output();
+    let now = std::time::Instant::now();
+    output.filter_at(b"A".to_vec(), now);
+    view.set_hex(false);
+    let text = output.filter_at(b"boot".to_vec(), now);
+    assert_eq!(text.display, b"\r\nboot");
+    view.set_hex(true);
+    let hex = output.filter_at(b"B".to_vec(), now);
+    assert_eq!(String::from_utf8(hex.display).unwrap(), "\r\n42 ");
 }

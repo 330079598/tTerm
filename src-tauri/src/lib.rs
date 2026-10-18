@@ -211,6 +211,7 @@ pub fn run() {
             serial::set_serial_signals,
             serial::pulse_serial_line,
             serial::send_serial_break,
+            serial::set_serial_view,
             zmodem::commands::zmodem_start_send,
             zmodem::commands::zmodem_arm_manual_detect,
             terminal::pty::list_available_terminal_shells,

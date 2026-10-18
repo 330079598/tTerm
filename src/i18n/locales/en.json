@@ -1372,7 +1372,9 @@
       "localEchoDesc": "Show what you type, for devices that don't echo it back",
       "timestamps": "Timestamps",
       "timestampsDesc": "Start each line of output with the time it arrived",
-      "encodingDesc": "The charset the device sends and reads text in"
+      "encodingDesc": "The charset the device sends and reads text in",
+      "hexView": "HEX view",
+      "hexViewDesc": "Show received bytes in hex, a new line after each pause"
     }
   },
   "rename": {

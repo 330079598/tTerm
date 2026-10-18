@@ -21,6 +21,7 @@ pub struct ActiveSerial {
     line_ending: SerialLineEnding,
     /// The charset typed text is sent in.
     encoding: TerminalEncoding,
+    pub(super) view: Arc<super::SerialView>,
     control: SerialControl,
     /// Ends the reader thread and fails writes once the tab lets go of the port.
     closed: Arc<AtomicBool>,
@@ -130,6 +131,7 @@ pub(crate) fn serial_options(tab: &TabConnection) -> Result<&SerialOptions, Stri
     tab.plan
         .serial
         .as_ref()
+        .map(|serial| &serial.options)
         .ok_or_else(|| "The serial connection has no settings".to_string())
 }
 
@@ -139,6 +141,12 @@ pub(crate) fn spawn_serial_attempt(
     path: &str,
 ) -> Result<ActiveSerial, String> {
     let options = serial_options(tab)?;
+    let view = tab
+        .plan
+        .serial
+        .as_ref()
+        .map(|serial| serial.view.clone())
+        .unwrap_or_default();
     let port = super::open::open_port(options, path)?;
     let clone = |port: &dyn SerialPort| {
         port.try_clone()
@@ -161,8 +169,10 @@ pub(crate) fn spawn_serial_attempt(
         tab.exit_tx.clone(),
         Some(sender),
         crate::zmodem::session::ZmodemSettings::load(),
-        super::output::SerialOutput::for_encoding(tab.plan.encoding)
-            .map(|output| Box::new(output) as Box<dyn crate::terminal::reader::OutputFilter>),
+        Some(Box::new(super::output::SerialOutput::new(
+            tab.plan.encoding,
+            view.clone(),
+        ))),
     );
 
     Ok(ActiveSerial {
@@ -171,6 +181,7 @@ pub(crate) fn spawn_serial_attempt(
         path: path.to_string(),
         line_ending: options.line_ending,
         encoding: tab.plan.encoding,
+        view,
         control: SerialControl(Arc::new(Mutex::new(port))),
         closed,
     })

@@ -29,6 +29,8 @@ export interface SerialSettings {
   localEcho: boolean
   /** Start each line of output with the time it arrived. */
   timestamps: boolean
+  /** Show received bytes in hex instead of as text. */
+  hexView: boolean
   usb?: SerialUsbId
 }
 

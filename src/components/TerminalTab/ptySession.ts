@@ -237,11 +237,22 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
       creatingPtyRef.current = true
       return waitForStableFit().then(() => {
         createdPtySize = { rows: term.rows, cols: term.cols }
+        const connection = connectionRef.current
         return invoke<number>("create_pty", {
           tabId,
           sessionNonce,
           ...createdPtySize,
-          connection: connectionRef.current,
+          // A serial tab reopens in the view its bar last chose.
+          connection:
+            connection?.type === "serial" && connection.serial
+              ? {
+                  ...connection,
+                  serial: {
+                    ...connection.serial,
+                    hexView: getSerialDisplay(tabId, connection.serial).hex,
+                  },
+                }
+              : connection,
           outputChannel,
         })
       })

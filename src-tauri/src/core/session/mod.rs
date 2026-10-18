@@ -155,7 +155,7 @@ fn normalize_serial(
         session_log,
         proxy_choice: Default::default(),
         proxy: None,
-        serial: Some(serial),
+        serial: Some(crate::serial::SerialPlan::new(serial)),
     })
 }
 

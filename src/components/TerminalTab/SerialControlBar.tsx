@@ -1,5 +1,6 @@
 import React, { useEffect } from "react"
 import {
+  Binary,
   Clock,
   MessageSquareText,
   RefreshCcw,
@@ -74,7 +75,7 @@ export const SerialControlBar: React.FC<SerialControlBarProps> = ({
   const { t } = useTranslation()
   const settings = normalizeSerialSettings(connection.serial)
   const [display, setDisplay] = useSerialDisplay(tabId, settings)
-  const { dtr, rts, toggleLine, reset, sendBreak } = useSerialControls(
+  const { dtr, rts, toggleLine, reset, sendBreak, setHexView } = useSerialControls(
     tabId,
     sessionNonce,
     connectionProgress
@@ -145,6 +146,18 @@ export const SerialControlBar: React.FC<SerialControlBarProps> = ({
           label={t("serialControls.break")}
           hint={t("serialControls.breakHint")}
           onClick={sendBreak}
+        />
+        <BarButton
+          icon={<Binary size={14} />}
+          label="HEX"
+          hint={t("connection.serial.hexViewDesc")}
+          pressed={display.hex}
+          onClick={() => {
+            const hex = !display.hex
+            void setHexView(hex).then((ok) => {
+              if (ok) setDisplay({ hex })
+            })
+          }}
         />
         <BarButton
           icon={<Clock size={14} />}

@@ -6,6 +6,8 @@ import type { SerialSettings } from "@/types/serial"
 export interface SerialDisplay {
   timestamps: boolean
   localEcho: boolean
+  /** Received bytes show in hex; the backend makes the hex. */
+  hex: boolean
 }
 
 // Kept outside React so the output and input handlers, which outlive
@@ -24,7 +26,11 @@ function subscribe(listener: () => void) {
 export function getSerialDisplay(tabId: string, settings?: SerialSettings): SerialDisplay {
   let display = displays.get(tabId)
   if (!display) {
-    display = { timestamps: settings?.timestamps === true, localEcho: settings?.localEcho === true }
+    display = {
+      timestamps: settings?.timestamps === true,
+      localEcho: settings?.localEcho === true,
+      hex: settings?.hexView === true,
+    }
     displays.set(tabId, display)
   }
   return display

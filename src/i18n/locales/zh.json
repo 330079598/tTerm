@@ -1356,7 +1356,9 @@
       "localEchoDesc": "显示输入的内容，用于不回显的设备",
       "timestamps": "时间戳",
       "timestampsDesc": "在每行输出前加上收到的时间",
-      "encodingDesc": "设备收发文本所用的字符集"
+      "encodingDesc": "设备收发文本所用的字符集",
+      "hexView": "HEX 显示",
+      "hexViewDesc": "以十六进制显示收到的字节，每次停顿后另起一行"
     }
   },
   "rename": {

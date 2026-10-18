@@ -13,6 +13,8 @@ mod tests;
 use crate::core::blocking::run_blocking;
 use crate::core::state::{ActiveSession, PtyMap};
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tauri::State;
 
 /// How long a serial pulse holds its line before releasing it, unless asked.
@@ -90,6 +92,9 @@ pub struct SerialOptions {
     /// The frontend starts each line of output with the time it arrived.
     #[serde(default)]
     pub timestamps: bool,
+    /// Received bytes show in hex instead of as text.
+    #[serde(default)]
+    pub hex_view: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usb: Option<SerialUsbId>,
 }
@@ -126,6 +131,41 @@ impl SerialOptions {
             return Err(format!("Stop bits must be 1 or 2, not {}", self.stop_bits));
         }
         Ok(self)
+    }
+}
+
+/// How a serial tab shows what it receives, which its controls change while
+/// it runs. Shared by every attempt of the tab, so it outlasts a reconnect.
+#[derive(Debug, Default)]
+pub struct SerialView {
+    hex: AtomicBool,
+}
+
+impl SerialView {
+    pub fn hex(&self) -> bool {
+        self.hex.load(Ordering::Relaxed)
+    }
+
+    pub fn set_hex(&self, hex: bool) {
+        self.hex.store(hex, Ordering::Relaxed);
+    }
+}
+
+/// A serial session's checked settings and its view.
+#[derive(Debug, Clone)]
+pub struct SerialPlan {
+    pub options: SerialOptions,
+    pub view: Arc<SerialView>,
+}
+
+impl SerialPlan {
+    pub fn new(options: SerialOptions) -> Self {
+        let view = SerialView::default();
+        view.set_hex(options.hex_view);
+        Self {
+            options,
+            view: Arc::new(view),
+        }
     }
 }
 
@@ -185,6 +225,20 @@ pub async fn pulse_serial_line(
     run_blocking(move || control.pulse(line, duration)).await
 }
 
+/// Shows what a serial tab receives in hex, or as text again.
+#[tauri::command]
+pub async fn set_serial_view(
+    tab_id: String,
+    session_nonce: u32,
+    hex: bool,
+    state: State<'_, PtyMap>,
+) -> Result<(), String> {
+    with_serial(&state, &tab_id, session_nonce, |serial| {
+        serial.view.set_hex(hex)
+    })
+    .await
+}
+
 #[tauri::command]
 pub async fn send_serial_break(
     tab_id: String,
@@ -211,6 +265,16 @@ async fn serial_control(
     tab_id: &str,
     session_nonce: u32,
 ) -> Result<session::SerialControl, String> {
+    with_serial(state, tab_id, session_nonce, session::ActiveSerial::control).await
+}
+
+/// Runs `f` on a tab's open port.
+async fn with_serial<T>(
+    state: &PtyMap,
+    tab_id: &str,
+    session_nonce: u32,
+    f: impl FnOnce(&session::ActiveSerial) -> T,
+) -> Result<T, String> {
     let map = state.read().await;
     let session = map
         .get(tab_id)
@@ -218,7 +282,7 @@ async fn serial_control(
         .ok_or_else(|| "This tab's serial session has ended".to_string())?;
     let active = session.active.lock().await;
     match active.as_ref() {
-        Some(ActiveSession::Serial(serial)) => Ok(serial.control()),
+        Some(ActiveSession::Serial(serial)) => Ok(f(serial)),
         Some(_) => Err("This tab is not a serial connection".to_string()),
         None => Err("The serial device is disconnected".to_string()),
     }
