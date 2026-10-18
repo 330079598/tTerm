@@ -220,7 +220,7 @@ fn fake(reads: Vec<io::Result<Vec<u8>>>) -> FakePort {
 fn the_reader_waits_out_timeouts() {
     let timeout = || Err(io::Error::new(io::ErrorKind::TimedOut, "timed out"));
     let port = fake(vec![timeout(), timeout(), Ok(b"hi".to_vec())]);
-    let mut reader = SerialReader::new(port, Arc::new(AtomicBool::new(false)));
+    let mut reader = SerialReader::new(port, Arc::new(AtomicBool::new(false)), Default::default());
     let mut buf = [0u8; 8];
     assert_eq!(reader.read(&mut buf).unwrap(), 2);
     assert_eq!(&buf[..2], b"hi");
@@ -229,15 +229,18 @@ fn the_reader_waits_out_timeouts() {
 #[test]
 fn the_reader_ends_once_the_tab_lets_go() {
     let closed = Arc::new(AtomicBool::new(false));
-    let mut reader = SerialReader::new(fake(Vec::new()), closed.clone());
+    let mut reader = SerialReader::new(fake(Vec::new()), closed.clone(), Default::default());
     closed.store(true, Ordering::Relaxed);
     assert_eq!(reader.read(&mut [0u8; 8]).unwrap(), 0);
 }
 
 #[test]
 fn a_port_that_reads_nothing_was_unplugged() {
-    let mut reader =
-        SerialReader::new(fake(vec![Ok(Vec::new())]), Arc::new(AtomicBool::new(false)));
+    let mut reader = SerialReader::new(
+        fake(vec![Ok(Vec::new())]),
+        Arc::new(AtomicBool::new(false)),
+        Default::default(),
+    );
     let err = reader.read(&mut [0u8; 8]).unwrap_err();
     assert_eq!(err.kind(), io::ErrorKind::NotConnected);
 }
@@ -361,4 +364,41 @@ fn switching_views_starts_a_new_line() {
     view.set_hex(true);
     let hex = output.filter_at(b"B".to_vec(), now);
     assert_eq!(String::from_utf8(hex.display).unwrap(), "\r\n42 ");
+}
+
+/// A port whose second read finds the transfer gone, as when one ends
+/// between two reads.
+struct EndingTransfer {
+    tap: super::io::SerialTap,
+    reads: usize,
+}
+
+impl Read for EndingTransfer {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.reads += 1;
+        let bytes: &[u8] = if self.reads == 1 {
+            b"C"
+        } else {
+            *self.tap.lock().unwrap() = None;
+            b"hi"
+        };
+        buf[..bytes.len()].copy_from_slice(bytes);
+        Ok(bytes.len())
+    }
+}
+
+#[test]
+fn a_transfer_takes_the_input_until_it_lets_go() {
+    let tap = super::io::SerialTap::default();
+    let (sender, incoming) = std::sync::mpsc::channel();
+    *tap.lock().unwrap() = Some(sender);
+    let port = EndingTransfer {
+        tap: tap.clone(),
+        reads: 0,
+    };
+    let mut reader = SerialReader::new(port, Arc::new(AtomicBool::new(false)), tap);
+    let mut buf = [0u8; 8];
+    let read = reader.read(&mut buf).unwrap();
+    assert_eq!(&buf[..read], b"hi");
+    assert_eq!(incoming.try_recv().unwrap(), b"C");
 }

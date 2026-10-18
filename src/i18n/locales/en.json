@@ -2720,6 +2720,11 @@
     "send": "Send",
     "stop": "Stop",
     "failed": "Could not send",
-    "invalidHex": "\"{{token}}\" is not hex bytes"
+    "invalidHex": "\"{{token}}\" is not hex bytes",
+    "protocol": "File transfer protocol",
+    "file": "Send file",
+    "fileHint": "Send a file to the device over XMODEM or YMODEM; start its receiver first",
+    "fileDialogTitle": "Send files over {{protocol}}",
+    "fileFailed": "Could not send the file"
   }
 }

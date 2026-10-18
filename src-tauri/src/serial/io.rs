@@ -1,6 +1,10 @@
 use std::io::{self, Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{mpsc, Arc, Mutex, PoisonError};
+
+/// Where a port's input goes instead of the terminal while a file transfer
+/// has the port: the transfer's end of a channel.
+pub(crate) type SerialTap = Arc<Mutex<Option<mpsc::Sender<Vec<u8>>>>>;
 
 /// Whether an I/O error only means the port's timeout ran out.
 fn timed_out(err: &io::Error) -> bool {
@@ -13,14 +17,23 @@ fn timed_out(err: &io::Error) -> bool {
 /// Reads a serial port for a tab's reader thread. A read that times out is no
 /// end of the stream, only a chance to see whether the tab is closing, which
 /// ends the stream; a port that reads nothing without timing out was unplugged.
+/// What a transfer takes through the tap never reaches the terminal.
 pub(super) struct SerialReader<R> {
     port: R,
     closed: Arc<AtomicBool>,
+    tap: SerialTap,
 }
 
 impl<R> SerialReader<R> {
-    pub(super) fn new(port: R, closed: Arc<AtomicBool>) -> Self {
-        Self { port, closed }
+    pub(super) fn new(port: R, closed: Arc<AtomicBool>, tap: SerialTap) -> Self {
+        Self { port, closed, tap }
+    }
+
+    /// Hands `bytes` to the transfer that has the port; `false` when none has.
+    fn divert(&self, bytes: &[u8]) -> bool {
+        let tap = self.tap.lock().unwrap_or_else(PoisonError::into_inner);
+        tap.as_ref()
+            .is_some_and(|sender| sender.send(bytes.to_vec()).is_ok())
     }
 }
 
@@ -32,6 +45,7 @@ impl<R: Read> Read for SerialReader<R> {
             }
             match self.port.read(buf) {
                 Ok(0) => return Err(disconnected()),
+                Ok(read) if self.divert(&buf[..read]) => continue,
                 Err(err) if timed_out(&err) => continue,
                 result => return result,
             }

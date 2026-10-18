@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
+import { SerialFileSend } from "@/components/TerminalTab/SerialFileSend"
 import {
   MIN_REPEAT_MS,
   type SerialSendMode,
@@ -133,6 +134,7 @@ export const SerialSendBar: React.FC<SerialSendBarProps> = ({
           {t("serialSend.send")}
         </Button>
       )}
+      <SerialFileSend tabId={tabId} sessionNonce={sessionNonce} />
     </div>
   )
 }

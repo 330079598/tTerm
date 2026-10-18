@@ -1,4 +1,4 @@
-use super::io::{SerialReader, SerialWriter};
+use super::io::{SerialReader, SerialTap, SerialWriter};
 use super::{SerialLine, SerialLineEnding, SerialOptions};
 use crate::core::supervisor::TabConnection;
 use crate::terminal::encoding::TerminalEncoding;
@@ -25,6 +25,8 @@ pub struct ActiveSerial {
     control: SerialControl,
     /// Ends the reader thread and fails writes once the tab lets go of the port.
     closed: Arc<AtomicBool>,
+    /// Takes the port's input from the terminal while a file transfer runs.
+    pub(super) tap: SerialTap,
 }
 
 impl ActiveSerial {
@@ -158,7 +160,12 @@ pub(crate) fn spawn_serial_attempt(
     let closed = Arc::new(AtomicBool::new(false));
     let writer = PtyWriter::new(Box::new(SerialWriter::new(writer_port, closed.clone())));
     let input = PtyInput::over_writer(writer.clone());
-    let reader = input.track_output(Box::new(SerialReader::new(reader_port, closed.clone())));
+    let tap = SerialTap::default();
+    let reader = input.track_output(Box::new(SerialReader::new(
+        reader_port,
+        closed.clone(),
+        tap.clone(),
+    )));
     let sender = crate::terminal::io_batcher::TerminalOutputSender::spawn(
         &tab.channel.tab_id,
         tab.output_channel.clone(),
@@ -184,6 +191,7 @@ pub(crate) fn spawn_serial_attempt(
         view,
         control: SerialControl(Arc::new(Mutex::new(port))),
         closed,
+        tap,
     })
 }
 

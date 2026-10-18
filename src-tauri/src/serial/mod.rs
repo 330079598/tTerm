@@ -9,6 +9,7 @@ pub(crate) mod reconnect;
 pub(crate) mod session;
 #[cfg(test)]
 mod tests;
+pub(crate) mod xmodem;
 
 use crate::core::blocking::run_blocking;
 use crate::core::state::{ActiveSession, PtyMap, ZmodemMap};

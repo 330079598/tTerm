@@ -2698,6 +2698,11 @@
     "send": "发送",
     "stop": "停止",
     "failed": "发送失败",
-    "invalidHex": "“{{token}}”不是十六进制字节"
+    "invalidHex": "“{{token}}”不是十六进制字节",
+    "protocol": "文件传输协议",
+    "file": "发送文件",
+    "fileHint": "通过 XMODEM 或 YMODEM 把文件发给设备，请先让设备进入接收状态",
+    "fileDialogTitle": "通过 {{protocol}} 发送文件",
+    "fileFailed": "无法发送文件"
   }
 }
