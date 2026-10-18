@@ -48,6 +48,7 @@ pub fn normalize_connection(
     let connection = connection.unwrap_or_default();
     let kind = match connection.connection_type.as_deref() {
         Some("ssh") => SessionKind::Ssh,
+        Some("serial") => SessionKind::Serial,
         _ => SessionKind::Terminal,
     };
 
@@ -92,6 +93,7 @@ pub fn normalize_connection(
             session_log,
             proxy_choice: Default::default(),
             proxy: None,
+            serial: None,
         }),
         SessionKind::Ssh => normalize_ssh(
             connection,
@@ -99,7 +101,60 @@ pub fn normalize_connection(
             keepalive_interval_secs,
             keepalive_count_max,
         ),
+        SessionKind::Serial => normalize_serial(connection, session_log),
     }
+}
+
+/// The plan of a serial connection. It reconnects whenever its device comes
+/// back, however long that takes, so it has no retry budget.
+fn normalize_serial(
+    connection: PtyConnectionOptions,
+    session_log: crate::session_log::SessionLogPolicy,
+) -> Result<SessionPlan, String> {
+    let serial = connection
+        .serial
+        .ok_or_else(|| "Choose a serial port to connect to".to_string())?
+        .validated()?;
+    let profile_name = connection
+        .profile_name
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| serial.port.clone());
+    let profile_id = connection
+        .profile_id
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+
+    Ok(SessionPlan {
+        kind: SessionKind::Serial,
+        profile_id,
+        profile_name,
+        host: Some(serial.port.clone()),
+        port: 0,
+        username: None,
+        password: None,
+        ignore_saved_password: false,
+        remember_password: false,
+        keepalive_interval_secs: 0,
+        keepalive_count_max: 0,
+        reconnect_enabled: true,
+        reconnect_max_attempts: 0,
+        private_key_path: None,
+        private_key_passphrase: None,
+        certificate_path: None,
+        use_agent: false,
+        keyboard_interactive: false,
+        auto_auth: false,
+        agent_forward: false,
+        terminal_shell: None,
+        jump_hosts: Vec::new(),
+        encoding: Default::default(),
+        shell_integration: false,
+        session_log,
+        proxy_choice: Default::default(),
+        proxy: None,
+        serial: Some(serial),
+    })
 }
 
 /// The plan of an SSH connection: who to log in as, how, and through what.
@@ -200,6 +255,7 @@ fn normalize_ssh(
         session_log,
         proxy_choice: connection.proxy,
         proxy: None,
+        serial: None,
     })
 }
 

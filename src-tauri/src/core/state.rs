@@ -38,7 +38,7 @@ pub struct ZmodemTabHandle {
 /// (the PTY reader thread, or the SSH connection task) once it recognizes
 /// this tab is now piped to a send session instead of processed inline;
 /// `active` is the same write-back handle `write_pty` already uses, valid
-/// for both `ActiveSession::Local` and `ActiveSession::Ssh`.
+/// for every kind of `ActiveSession`.
 pub struct ZmodemArmedSend {
     pub session_nonce: u32,
     pub incoming_rx: std::sync::mpsc::Receiver<Vec<u8>>,
@@ -79,11 +79,13 @@ pub struct ChannelContext {
 pub enum SessionKind {
     Terminal,
     Ssh,
+    Serial,
 }
 
 pub enum ActiveSession {
     Local(crate::terminal::types::ActivePty),
     Ssh(ActiveSsh),
+    Serial(crate::serial::session::ActiveSerial),
 }
 
 pub struct ActiveSsh {
@@ -163,6 +165,8 @@ impl PtySession {
             ActiveSession::Ssh(ssh) => {
                 let _ = ssh.resize_tx.send((rows, cols));
             }
+            // A serial line has no terminal size.
+            ActiveSession::Serial(_) => {}
         }
         self.output.move_to(output);
         Some(self.pid)

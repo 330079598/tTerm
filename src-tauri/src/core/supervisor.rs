@@ -160,17 +160,11 @@ fn equal_jitter(nominal_secs: u64) -> Duration {
     Duration::from_millis(half_ms + extra_ms)
 }
 
-/// Starts the next connection attempt of a tab whose session reconnects.
-fn spawn_reconnect_attempt(tab: TabConnection, rows: u16, cols: u16) -> ActiveSession {
+/// Starts the next connection attempt of an SSH tab.
+fn spawn_ssh_reconnect(tab: TabConnection, rows: u16, cols: u16) -> ActiveSession {
     // Re-read on every reconnect (not just the initial spawn) so a settings
     // change takes effect without needing a fresh tab.
-    let settings = ZmodemSettings::load();
-    match tab.plan.kind {
-        // A local terminal never reconnects; its plan turns reconnects off.
-        SessionKind::Ssh | SessionKind::Terminal => {
-            ActiveSession::Ssh(spawn_ssh_attempt(tab, rows, cols, settings))
-        }
-    }
+    ActiveSession::Ssh(spawn_ssh_attempt(tab, rows, cols, ZmodemSettings::load()))
 }
 
 /// Clears what died with a tab's last connection attempt.
@@ -287,7 +281,7 @@ pub fn spawn_supervisor(
         let (app, tab_id) = (&channel.app, channel.tab_id.as_str());
         let plan = &tab.plan;
         let mut stop_rx = tab.stop_rx.clone();
-        let reconnect_enabled = plan.reconnect_enabled && plan.kind == SessionKind::Ssh;
+        let reconnect_enabled = plan.reconnect_enabled;
         let mut backoff = SshBackoff {
             attempt: 0,
             max_attempts: plan.reconnect_max_attempts,
@@ -311,28 +305,36 @@ pub fn spawn_supervisor(
                 break;
             };
 
-            let resume = backoff
-                .wait(
-                    app,
-                    tab_id,
-                    reason,
-                    connected_duration.unwrap_or_default(),
-                    &mut stop_rx,
-                )
-                .await;
-            if !resume {
+            let attempt_tab = TabConnection {
+                stop_rx: stop_rx.clone(),
+                ..tab.clone()
+            };
+            let next = match plan.kind {
+                SessionKind::Serial => {
+                    crate::serial::reconnect::reopen(&attempt_tab, &reason, &mut stop_rx)
+                        .await
+                        .map(ActiveSession::Serial)
+                }
+                // A local terminal never reconnects; its plan turns reconnects off.
+                SessionKind::Ssh | SessionKind::Terminal => {
+                    let resume = backoff
+                        .wait(
+                            app,
+                            tab_id,
+                            reason,
+                            connected_duration.unwrap_or_default(),
+                            &mut stop_rx,
+                        )
+                        .await;
+                    resume.then(|| {
+                        let (rows, cols) = size.load();
+                        spawn_ssh_reconnect(attempt_tab, rows, cols)
+                    })
+                }
+            };
+            let Some(next) = next else {
                 break;
-            }
-
-            let (rows, cols) = size.load();
-            let next = spawn_reconnect_attempt(
-                TabConnection {
-                    stop_rx: stop_rx.clone(),
-                    ..tab.clone()
-                },
-                rows,
-                cols,
-            );
+            };
             *channel.active.lock().await = Some(next);
         }
     })

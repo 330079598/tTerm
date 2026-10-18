@@ -174,6 +174,7 @@ impl SessionMetadata {
             session_type: match plan.kind {
                 SessionKind::Terminal => "local",
                 SessionKind::Ssh => "ssh",
+                SessionKind::Serial => "serial",
             }
             .to_string(),
             profile: plan.profile_name.clone(),

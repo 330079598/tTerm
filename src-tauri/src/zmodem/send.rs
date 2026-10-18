@@ -445,6 +445,9 @@ fn write_back(active: &Arc<TokioMutex<Option<ActiveSession>>>, bytes: &[u8]) {
         Some(ActiveSession::Ssh(ssh)) => {
             let _ = ssh.input_tx.send(bytes.to_vec());
         }
+        Some(ActiveSession::Serial(serial)) => {
+            let _ = serial.writer.write_all(bytes);
+        }
         None => {}
     }
 }

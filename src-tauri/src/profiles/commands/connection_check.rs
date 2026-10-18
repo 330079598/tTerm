@@ -151,5 +151,6 @@ pub(super) fn test_session_plan(
         session_log: Default::default(),
         proxy_choice: profile.proxy.clone(),
         proxy: None,
+        serial: None,
     }
 }

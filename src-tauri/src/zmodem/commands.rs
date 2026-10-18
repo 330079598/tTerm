@@ -68,6 +68,9 @@ pub fn zmodem_cancel(
                 Some(ActiveSession::Ssh(ssh)) => {
                     let _ = ssh.input_tx.send(super::session::abort_sequence());
                 }
+                Some(ActiveSession::Serial(serial)) => {
+                    let _ = serial.writer.write_all(&super::session::abort_sequence());
+                }
                 None => {}
             }
         }

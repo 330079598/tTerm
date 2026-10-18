@@ -109,6 +109,7 @@ pub(super) fn import_ssh_config_profiles_blocking(
             },
             tab_icon: existing_index.and_then(|index| profiles[index].tab_icon.clone()),
             distro,
+            serial: None,
         };
 
         forward_sources.push((profile.id.clone(), profile.name.clone(), host.forwards));

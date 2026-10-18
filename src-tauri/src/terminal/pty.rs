@@ -114,10 +114,14 @@ pub fn spawn_reader_thread(
                 let step = zmodem_driver.process(chunk);
                 if !step.outgoing.is_empty() {
                     let mut guard = channel.active.blocking_lock();
-                    if let Some(super::super::core::state::ActiveSession::Local(local)) =
-                        guard.as_mut()
-                    {
-                        let _ = local.writer.write_all(&step.outgoing);
+                    match guard.as_mut() {
+                        Some(super::super::core::state::ActiveSession::Local(local)) => {
+                            let _ = local.writer.write_all(&step.outgoing);
+                        }
+                        Some(super::super::core::state::ActiveSession::Serial(serial)) => {
+                            let _ = serial.writer.write_all(&step.outgoing);
+                        }
+                        _ => {}
                     }
                 }
                 if let Some(remainder) = step.send_requested {

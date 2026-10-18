@@ -38,6 +38,8 @@ fn stop_pty_session(
             ActiveSession::Ssh(ssh) => {
                 ssh.task.abort();
             }
+            // Dropping it closes the port.
+            ActiveSession::Serial(_) => {}
         }
     }
 
@@ -241,6 +243,11 @@ fn spawn_initial_session(
 
             Ok((0, ActiveSession::Ssh(ssh)))
         }
+        crate::core::state::SessionKind::Serial => {
+            let serial = crate::serial::session::spawn_first_serial_attempt(tab)?;
+
+            Ok((0, ActiveSession::Serial(serial)))
+        }
     }
 }
 
@@ -278,6 +285,11 @@ fn intercept_zmodem_input(
             }
             Some(ActiveSession::Ssh(ssh)) => {
                 let _ = ssh.input_tx.send(crate::zmodem::session::abort_sequence());
+            }
+            Some(ActiveSession::Serial(serial)) => {
+                let _ = serial
+                    .writer
+                    .write_all(&crate::zmodem::session::abort_sequence());
             }
             None => {}
         }
@@ -327,6 +339,10 @@ pub fn write_pty(
             .input
             .send(ssh.encoding.encode_input(&input).into_owned())
             .map_err(|_| format!("PTY session {} is not writable", tab_id)),
+        ActiveSession::Serial(serial) => serial
+            .input
+            .send(serial.encode_input(&input).into_owned())
+            .map_err(|e| format!("Failed to write to the serial port: {}", e)),
     };
     if result.is_ok() {
         crate::session_log::record_input(&app, &tab_id, &input);
@@ -456,6 +472,8 @@ pub fn resize_pty(
             .resize_tx
             .send((rows, cols))
             .map_err(|_| format!("PTY session {} is not resizable", tab_id)),
+        // A serial line has no terminal size; the size is still logged.
+        ActiveSession::Serial(_) => Ok(()),
     };
     if result.is_ok() {
         crate::session_log::record_resize(&app, &tab_id, rows, cols);

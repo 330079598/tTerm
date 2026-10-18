@@ -48,6 +48,10 @@ impl ActivePty {
 pub struct PtyWriter(Arc<Mutex<Box<dyn Write + Send>>>);
 
 impl PtyWriter {
+    pub fn new(writer: Box<dyn Write + Send>) -> Self {
+        Self(Arc::new(Mutex::new(writer)))
+    }
+
     fn lock(&self) -> std::sync::MutexGuard<'_, Box<dyn Write + Send>> {
         self.0
             .lock()
@@ -141,6 +145,12 @@ impl PtyInput {
             PtyWriter(Arc::new(Mutex::new(Box::new(ChannelWriter(tx))))),
             0,
         )
+    }
+
+    /// Input for a device written to directly, a serial port's, whose output
+    /// is counted with [`PtyInput::track_output`].
+    pub fn over_writer(writer: PtyWriter) -> Self {
+        Self::spawn(writer, 0)
     }
 
     /// Counts the shell's output; each byte it writes adds one.

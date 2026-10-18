@@ -108,6 +108,9 @@ pub struct SavedProfile {
     /// host and port stay the same.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub distro: Option<String>,
+    /// A serial connection's port and how it is opened.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub serial: Option<crate::serial::SerialOptions>,
 }
 
 impl SavedProfile {

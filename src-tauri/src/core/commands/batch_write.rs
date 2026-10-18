@@ -85,6 +85,7 @@ fn write_active_session(tab_id: String, active: &mut ActiveSession, data: &[u8])
     let write_result = match active {
         ActiveSession::Local(local) => local.input.send(data.to_vec()),
         ActiveSession::Ssh(ssh) => ssh.input.send(ssh.encoding.encode_input(data).into_owned()),
+        ActiveSession::Serial(serial) => serial.input.send(serial.encode_input(data).into_owned()),
     };
 
     match write_result {

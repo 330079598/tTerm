@@ -17,6 +17,7 @@ mod monitor;
 mod notification;
 mod profiles;
 mod proxy;
+mod serial;
 mod session;
 mod session_log;
 mod sftp;
@@ -206,6 +207,10 @@ pub fn run() {
             core::commands::get_sudo_password_source,
             core::commands::has_saved_sudo_password,
             zmodem::commands::zmodem_cancel,
+            serial::list_serial_ports,
+            serial::set_serial_signals,
+            serial::pulse_serial_line,
+            serial::send_serial_break,
             zmodem::commands::zmodem_start_send,
             zmodem::commands::zmodem_arm_manual_detect,
             terminal::pty::list_available_terminal_shells,

@@ -221,6 +221,7 @@ fn keys_ignore_secrets_in_the_id_but_not_in_the_hash() {
         session_log: Default::default(),
         proxy_choice: Default::default(),
         proxy: None,
+        serial: None,
     };
     let (a, b) = (
         SessionKey::for_plan(&plan("x")),

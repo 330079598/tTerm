@@ -111,6 +111,7 @@ mod tests {
             session_log: Default::default(),
             proxy_choice: Default::default(),
             proxy: None,
+            serial: None,
         }
     }
 

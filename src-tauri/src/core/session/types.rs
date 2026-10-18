@@ -170,6 +170,8 @@ pub struct PtyConnectionOptions {
     pub terminal_shell_custom_args: Option<String>,
     /// Local terminal: directory to start in, as last reported by the shell.
     pub cwd: Option<String>,
+    /// Serial: the port and how it is opened.
+    pub serial: Option<crate::serial::SerialOptions>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -229,6 +231,8 @@ pub(crate) struct RawPtyConnectionOptions {
     terminal_shell_custom_args: Option<String>,
     #[serde(default)]
     cwd: Option<String>,
+    #[serde(default)]
+    serial: Option<crate::serial::SerialOptions>,
 }
 
 impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
@@ -268,6 +272,7 @@ impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
             #[cfg(target_os = "windows")]
             terminal_shell_custom_args: raw.terminal_shell_custom_args,
             cwd: raw.cwd,
+            serial: raw.serial,
         }
     }
 }
@@ -303,6 +308,7 @@ impl Default for PtyConnectionOptions {
             #[cfg(target_os = "windows")]
             terminal_shell_custom_args: None,
             cwd: None,
+            serial: None,
         }
     }
 }
@@ -356,6 +362,8 @@ pub struct SessionPlan {
     pub proxy_choice: crate::proxy::ProxyChoice,
     /// The proxy server `proxy_choice` resolved to; set by `resolve_ssh_password`.
     pub proxy: Option<crate::proxy::ProxyEndpoint>,
+    /// Serial: the port and how it is opened, checked.
+    pub serial: Option<crate::serial::SerialOptions>,
 }
 
 impl SessionPlan {
