@@ -160,6 +160,121 @@ fn equal_jitter(nominal_secs: u64) -> Duration {
     Duration::from_millis(half_ms + extra_ms)
 }
 
+/// Starts the next connection attempt of a tab whose session reconnects.
+fn spawn_reconnect_attempt(tab: TabConnection, rows: u16, cols: u16) -> ActiveSession {
+    // Re-read on every reconnect (not just the initial spawn) so a settings
+    // change takes effect without needing a fresh tab.
+    let settings = ZmodemSettings::load();
+    match tab.plan.kind {
+        // A local terminal never reconnects; its plan turns reconnects off.
+        SessionKind::Ssh | SessionKind::Terminal => {
+            ActiveSession::Ssh(spawn_ssh_attempt(tab, rows, cols, settings))
+        }
+    }
+}
+
+/// Clears what died with a tab's last connection attempt.
+async fn clear_attempt(channel: &ChannelContext) {
+    *channel.active.lock().await = None;
+    // The peer's rz/sz process (if any) dies with the old channel; a ZMODEM
+    // session can't meaningfully survive a reconnect.
+    channel
+        .zmodem
+        .map
+        .write()
+        .unwrap_or_else(PoisonError::into_inner)
+        .remove(&channel.tab_id);
+    channel
+        .zmodem
+        .armed_send_map
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .remove(&channel.tab_id);
+}
+
+/// Reports a session that ended for good, without a reconnect.
+fn report_exit(app: &AppHandle, tab_id: &str, signal: &SessionExitSignal) {
+    let exit_reason = match signal {
+        SessionExitSignal::Recoverable { reason, .. }
+        | SessionExitSignal::NonRecoverable(reason) => {
+            emit_status_line(app, tab_id, "31", reason);
+            Some(reason.as_str())
+        }
+        SessionExitSignal::Terminated => None,
+    };
+    emit_pty_exit(app, tab_id, exit_reason);
+    crate::session_log::end_session(app, tab_id);
+}
+
+/// The retry budget of one SSH tab's automatic reconnects.
+struct SshBackoff {
+    attempt: u32,
+    max_attempts: u32,
+}
+
+impl SshBackoff {
+    /// Waits out the backoff before the next attempt. Returns `false` when the
+    /// budget is spent, after reporting the disconnect, or when the tab stops.
+    async fn wait(
+        &mut self,
+        app: &AppHandle,
+        tab_id: &str,
+        reason: String,
+        connected_duration: Duration,
+        stop_rx: &mut watch::Receiver<bool>,
+    ) -> bool {
+        let max_attempts = self.max_attempts;
+        // Forgive part of the backoff attempt counter in proportion to how
+        // long this reconnect held before dropping again, instead of only
+        // resetting it on a full RECONNECT_STABLE_RESET-long connection.
+        self.attempt = decayed_attempt(self.attempt, connected_duration) + 1;
+        let attempt = self.attempt;
+
+        // Retry budget exhausted: report the disconnect. The localized
+        // terminal line comes from the frontend via the progress event, so
+        // no status line is written here.
+        if attempt > max_attempts {
+            emit_connection_progress(
+                app,
+                tab_id,
+                ConnectionStatusOptions::VERBOSE,
+                SshConnectionProgressPayload::new(
+                    "retry_exhausted",
+                    format!("Reconnect attempts exhausted ({reason})"),
+                )
+                .reason(reason.clone())
+                .retry_max(max_attempts),
+            );
+            emit_pty_exit(app, tab_id, Some(&reason));
+            crate::session_log::end_session(app, tab_id);
+            return false;
+        }
+
+        let delay = equal_jitter(reconnect_nominal_secs(attempt));
+        let delay_secs = delay.as_secs_f64();
+        // Structured retry status: the frontend renders the localized
+        // message from these fields instead of the English `message`.
+        emit_connection_progress(
+            app,
+            tab_id,
+            ConnectionStatusOptions::VERBOSE,
+            SshConnectionProgressPayload::new(
+                "retrying",
+                format!("Reconnecting in {delay_secs:.0}s (attempt {attempt})"),
+            )
+            .reason(reason)
+            .retry_attempt(attempt, delay_secs)
+            .retry_max(max_attempts),
+        );
+
+        tokio::select! {
+            _ = tokio::time::sleep(delay) => {}
+            _ = stop_rx.changed() => {}
+        }
+        !*stop_rx.borrow()
+    }
+}
+
 /// Watches one tab's connection attempts and starts a new one, with backoff,
 /// after each recoverable drop.
 pub fn spawn_supervisor(
@@ -168,133 +283,57 @@ pub fn spawn_supervisor(
     size: Arc<super::state::AtomicTerminalSize>,
 ) -> tokio::task::JoinHandle<()> {
     tab.runtime_handle.clone().spawn(async move {
-        let ChannelContext {
-            app,
-            tab_id,
-            active,
-            zmodem,
-            ..
-        } = tab.channel.clone();
+        let channel = tab.channel.clone();
+        let (app, tab_id) = (&channel.app, channel.tab_id.as_str());
         let plan = &tab.plan;
         let mut stop_rx = tab.stop_rx.clone();
         let reconnect_enabled = plan.reconnect_enabled && plan.kind == SessionKind::Ssh;
-        let max_attempts = plan.reconnect_max_attempts;
-        let mut attempt: u32 = 0;
+        let mut backoff = SshBackoff {
+            attempt: 0,
+            max_attempts: plan.reconnect_max_attempts,
+        };
 
         while let Some(signal) = exit_rx.recv().await {
             if *stop_rx.borrow() {
                 break;
             }
+            clear_attempt(&channel).await;
 
-            {
-                let mut guard = active.lock().await;
-                *guard = None;
-            }
-            // The peer's rz/sz process (if any) dies with the old channel; a
-            // ZMODEM session can't meaningfully survive a reconnect.
-            zmodem
-                .map
-                .write()
-                .unwrap_or_else(PoisonError::into_inner)
-                .remove(&tab_id);
-            zmodem
-                .armed_send_map
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .remove(&tab_id);
-
-            let recoverable_info = match &signal {
+            let retry = match &signal {
                 SessionExitSignal::Recoverable {
                     reason,
                     connected_duration,
-                } => Some((reason.clone(), *connected_duration)),
+                } if reconnect_enabled => Some((reason.clone(), *connected_duration)),
                 _ => None,
             };
-
-            let should_retry = reconnect_enabled && recoverable_info.is_some();
-            if !should_retry {
-                let exit_reason = match &signal {
-                    SessionExitSignal::Recoverable { reason, .. }
-                    | SessionExitSignal::NonRecoverable(reason) => {
-                        emit_status_line(&app, &tab_id, "31", reason);
-                        Some(reason.clone())
-                    }
-                    SessionExitSignal::Terminated => None,
-                };
-                emit_pty_exit(&app, &tab_id, exit_reason.as_deref());
-                crate::session_log::end_session(&app, &tab_id);
+            let Some((reason, connected_duration)) = retry else {
+                report_exit(app, tab_id, &signal);
                 break;
-            }
+            };
 
-            let (reason, connected_duration) = recoverable_info.unwrap_or_default();
-            // Forgive part of the backoff attempt counter in proportion to how
-            // long this reconnect held before dropping again, instead of only
-            // resetting it on a full RECONNECT_STABLE_RESET-long connection.
-            attempt = decayed_attempt(attempt, connected_duration.unwrap_or_default());
-            attempt += 1;
-
-            // Retry budget exhausted: report the disconnect. The localized
-            // terminal line comes from the frontend via the progress event, so
-            // no status line is written here.
-            if attempt > max_attempts {
-                emit_connection_progress(
-                    &app,
-                    &tab_id,
-                    ConnectionStatusOptions::VERBOSE,
-                    SshConnectionProgressPayload::new(
-                        "retry_exhausted",
-                        format!("Reconnect attempts exhausted ({reason})"),
-                    )
-                    .reason(reason.clone())
-                    .retry_max(max_attempts),
-                );
-                emit_pty_exit(&app, &tab_id, Some(&reason));
-                crate::session_log::end_session(&app, &tab_id);
-                break;
-            }
-
-            let nominal_secs = reconnect_nominal_secs(attempt);
-            let delay = equal_jitter(nominal_secs);
-            let delay_secs = delay.as_secs_f64();
-            // Structured retry status: the frontend renders the localized
-            // message from these fields instead of the English `message`.
-            emit_connection_progress(
-                &app,
-                &tab_id,
-                ConnectionStatusOptions::VERBOSE,
-                SshConnectionProgressPayload::new(
-                    "retrying",
-                    format!("Reconnecting in {delay_secs:.0}s (attempt {attempt})"),
+            let resume = backoff
+                .wait(
+                    app,
+                    tab_id,
+                    reason,
+                    connected_duration.unwrap_or_default(),
+                    &mut stop_rx,
                 )
-                .reason(reason)
-                .retry_attempt(attempt, delay_secs)
-                .retry_max(max_attempts),
-            );
-
-            tokio::select! {
-                _ = tokio::time::sleep(delay) => {}
-                _ = stop_rx.changed() => {}
-            }
-            if *stop_rx.borrow() {
+                .await;
+            if !resume {
                 break;
             }
 
             let (rows, cols) = size.load();
-            // Re-read on every reconnect (not just the initial spawn) so a
-            // settings change takes effect without needing a fresh tab.
-            let next = spawn_ssh_attempt(
+            let next = spawn_reconnect_attempt(
                 TabConnection {
                     stop_rx: stop_rx.clone(),
                     ..tab.clone()
                 },
                 rows,
                 cols,
-                ZmodemSettings::load(),
             );
-            {
-                let mut guard = active.lock().await;
-                *guard = Some(ActiveSession::Ssh(next));
-            }
+            *channel.active.lock().await = Some(next);
         }
     })
 }

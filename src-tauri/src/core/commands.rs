@@ -170,46 +170,7 @@ fn create_pty_blocking(
         runtime_handle,
     };
 
-    let (pid, initial_active) = match plan.kind {
-        crate::core::state::SessionKind::Terminal => {
-            let (pid, pty) =
-                terminal::pty::spawn_local_pty(rows, cols, plan.terminal_shell.clone())?;
-
-            let reader = pty.input.track_output(
-                pty.master
-                    .try_clone_reader()
-                    .map_err(|e| format!("Failed to clone reader: {}", e))?,
-            );
-
-            let sender = crate::terminal::io_batcher::TerminalOutputSender::spawn(
-                &tab_id,
-                output_channel.clone(),
-            );
-            terminal::pty::spawn_reader_thread(
-                reader,
-                tab.channel.clone(),
-                tab.exit_tx.clone(),
-                Some(sender),
-                ZmodemSettings::load(),
-            );
-
-            #[cfg(unix)]
-            terminal::cwd_watch::spawn_cwd_watcher(
-                app.clone(),
-                tab_id.clone(),
-                session_nonce,
-                pid,
-                stop_rx.clone(),
-            );
-
-            (pid, ActiveSession::Local(pty))
-        }
-        crate::core::state::SessionKind::Ssh => {
-            let ssh = spawn_ssh_attempt(tab.clone(), rows, cols, ZmodemSettings::load());
-
-            (0, ActiveSession::Ssh(ssh))
-        }
-    };
+    let (pid, initial_active) = spawn_initial_session(&tab, rows, cols)?;
 
     {
         let mut guard = runtime_state.runtime.block_on(active.lock());
@@ -231,6 +192,56 @@ fn create_pty_blocking(
     sessions.insert(tab_id, session);
 
     Ok(pid)
+}
+
+/// Starts a tab's first connection attempt, returning the pid of its local
+/// shell (0 when there is none) and the live session.
+fn spawn_initial_session(
+    tab: &TabConnection,
+    rows: u16,
+    cols: u16,
+) -> Result<(u32, ActiveSession), String> {
+    let channel = &tab.channel;
+    match tab.plan.kind {
+        crate::core::state::SessionKind::Terminal => {
+            let (pid, pty) =
+                terminal::pty::spawn_local_pty(rows, cols, tab.plan.terminal_shell.clone())?;
+
+            let reader = pty.input.track_output(
+                pty.master
+                    .try_clone_reader()
+                    .map_err(|e| format!("Failed to clone reader: {}", e))?,
+            );
+
+            let sender = crate::terminal::io_batcher::TerminalOutputSender::spawn(
+                &channel.tab_id,
+                tab.output_channel.clone(),
+            );
+            terminal::pty::spawn_reader_thread(
+                reader,
+                channel.clone(),
+                tab.exit_tx.clone(),
+                Some(sender),
+                ZmodemSettings::load(),
+            );
+
+            #[cfg(unix)]
+            terminal::cwd_watch::spawn_cwd_watcher(
+                channel.app.clone(),
+                channel.tab_id.clone(),
+                channel.session_nonce,
+                pid,
+                tab.stop_rx.clone(),
+            );
+
+            Ok((pid, ActiveSession::Local(pty)))
+        }
+        crate::core::state::SessionKind::Ssh => {
+            let ssh = spawn_ssh_attempt(tab.clone(), rows, cols, ZmodemSettings::load());
+
+            Ok((0, ActiveSession::Ssh(ssh)))
+        }
+    }
 }
 
 /// While a ZMODEM transfer occupies `tab_id`'s channel, ordinary keystrokes
