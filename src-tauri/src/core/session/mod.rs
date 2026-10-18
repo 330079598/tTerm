@@ -148,7 +148,9 @@ fn normalize_serial(
         agent_forward: false,
         terminal_shell: None,
         jump_hosts: Vec::new(),
-        encoding: Default::default(),
+        encoding: crate::terminal::encoding::TerminalEncoding::from_label(
+            connection.encoding.as_deref(),
+        ),
         shell_integration: false,
         session_log,
         proxy_choice: Default::default(),

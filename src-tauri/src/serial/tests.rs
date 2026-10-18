@@ -293,3 +293,25 @@ fn a_serial_connection_plans_a_serial_session() {
     assert!(plan.reconnect_enabled);
     assert_eq!(plan.serial.unwrap().baud_rate, 9600);
 }
+
+#[test]
+fn typed_text_goes_out_in_the_device_charset() {
+    let gbk = crate::terminal::encoding::TerminalEncoding::from_label(Some("gbk"));
+    let sent = super::session::encode_serial_input(SerialLineEnding::Crlf, gbk, "中\r".as_bytes());
+    assert_eq!(&*sent, b"\xd6\xd0\r\n");
+    let utf8 = crate::terminal::encoding::TerminalEncoding::default();
+    let sent = super::session::encode_serial_input(SerialLineEnding::Cr, utf8, b"ls\r");
+    assert!(matches!(sent, std::borrow::Cow::Borrowed(_)));
+}
+
+#[test]
+fn output_in_another_charset_shows_as_utf8_even_split_across_reads() {
+    use crate::terminal::reader::OutputFilter;
+    let gbk = crate::terminal::encoding::TerminalEncoding::from_label(Some("gbk"));
+    let mut output = super::output::SerialOutput::for_encoding(gbk).unwrap();
+    let first = output.filter(b"ok \xd6".to_vec());
+    let second = output.filter(b"\xd0\r\n".to_vec());
+    let shown = [first.display, second.display].concat();
+    assert_eq!(String::from_utf8(shown).unwrap(), "ok 中\r\n");
+    assert!(super::output::SerialOutput::for_encoding(Default::default()).is_none());
+}

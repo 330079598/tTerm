@@ -3,7 +3,10 @@ import {
   KEEPALIVE_COUNT_RANGE,
   KEEPALIVE_INTERVAL_RANGE,
 } from "@/components/ConnectionDialog/types"
-import { sessionLogPayload } from "@/components/ConnectionDialog/connectionDialogUtils"
+import {
+  encodingPayload,
+  sessionLogPayload,
+} from "@/components/ConnectionDialog/connectionDialogUtils"
 import { normalizeSerialSettings } from "@/lib/serial"
 import type { SavedProfile, Tab } from "@/types/tab"
 
@@ -19,6 +22,7 @@ export function buildSerialProfile(
     keepalive_interval_secs: KEEPALIVE_INTERVAL_RANGE.fallback,
     keepalive_count_max: KEEPALIVE_COUNT_RANGE.fallback,
     terminal_theme: form.terminalTheme || undefined,
+    encoding: encodingPayload(form.encoding),
     session_log: sessionLogPayload(form.sessionLog),
     serial: normalizeSerialSettings(form.serial),
   }
@@ -35,6 +39,7 @@ export function buildSerialConnection(
     profileId,
     profileName: title,
     terminalTheme: form.terminalTheme || undefined,
+    encoding: encodingPayload(form.encoding),
     sessionLog: sessionLogPayload(form.sessionLog),
     serial: normalizeSerialSettings(form.serial),
   }

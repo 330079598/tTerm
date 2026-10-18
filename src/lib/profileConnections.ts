@@ -34,6 +34,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
         profileId: profile.id,
         profileName: profile.name,
         terminalTheme: profile.terminal_theme,
+        encoding: profile.encoding,
         sessionLog: normalizeSessionLogPolicy(profile.session_log),
         serial: normalizeSerialSettings(profile.serial),
       },

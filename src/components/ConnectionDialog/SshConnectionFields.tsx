@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next"
 
 import { AuthMethodPicker } from "@/components/ConnectionDialog/AuthMethodPicker"
 import { CertificatePathField } from "@/components/ConnectionDialog/CertificatePathField"
+import { EncodingField } from "@/components/ConnectionDialog/EncodingField"
 import { PrivateKeyField } from "@/components/ConnectionDialog/PrivateKeyField"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -10,17 +11,12 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
-import { Select } from "@/components/ui/select"
 
-import {
-  normalizeKeepalive,
-  normalizeTerminalEncoding,
-} from "@/components/ConnectionDialog/connectionDialogUtils"
+import { normalizeKeepalive } from "@/components/ConnectionDialog/connectionDialogUtils"
 import {
   ConnectionForm,
   KEEPALIVE_COUNT_RANGE,
   KEEPALIVE_INTERVAL_RANGE,
-  TERMINAL_ENCODINGS,
 } from "@/components/ConnectionDialog/types"
 
 const SAVED_PASSWORD_MASK = "********"
@@ -283,28 +279,7 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
         </div>
       )}
 
-      <div>
-        <Label htmlFor="conn-encoding" className="mb-1.5 block">
-          {t("connection.encoding")}
-        </Label>
-        <Select
-          id="conn-encoding"
-          value={form.encoding}
-          onChange={(e) =>
-            setForm((current) => ({
-              ...current,
-              encoding: normalizeTerminalEncoding(e.target.value),
-            }))
-          }
-        >
-          {TERMINAL_ENCODINGS.map((encoding) => (
-            <option key={encoding} value={encoding}>
-              {t(`connection.encodingOptions.${encoding}`)}
-            </option>
-          ))}
-        </Select>
-        <p className="text-muted-foreground mt-1 text-xs">{t("connection.encodingDesc")}</p>
-      </div>
+      <EncodingField form={form} setForm={setForm} description={t("connection.encodingDesc")} />
 
       <div>
         <div className="grid grid-cols-2 gap-3">

@@ -225,6 +225,7 @@ fn spawn_initial_session(
                 tab.exit_tx.clone(),
                 Some(sender),
                 ZmodemSettings::load(),
+                None,
             );
 
             #[cfg(unix)]

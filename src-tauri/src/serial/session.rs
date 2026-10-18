@@ -1,6 +1,7 @@
 use super::io::{SerialReader, SerialWriter};
 use super::{SerialLine, SerialLineEnding, SerialOptions};
 use crate::core::supervisor::TabConnection;
+use crate::terminal::encoding::TerminalEncoding;
 use crate::terminal::types::{PtyInput, PtyWriter};
 use serialport::SerialPort;
 use std::borrow::Cow;
@@ -18,15 +19,18 @@ pub struct ActiveSerial {
     /// device came back under another name.
     pub path: String,
     line_ending: SerialLineEnding,
+    /// The charset typed text is sent in.
+    encoding: TerminalEncoding,
     control: SerialControl,
     /// Ends the reader thread and fails writes once the tab lets go of the port.
     closed: Arc<AtomicBool>,
 }
 
 impl ActiveSerial {
-    /// Typed text as the device expects it: Enter sends the line ending.
+    /// Typed text as the device expects it: Enter sends the line ending,
+    /// and text goes out in the device's charset.
     pub fn encode_input<'a>(&self, input: &'a [u8]) -> Cow<'a, [u8]> {
-        encode_line_ending(self.line_ending, input)
+        encode_serial_input(self.line_ending, self.encoding, input)
     }
 
     pub(super) fn control(&self) -> SerialControl {
@@ -37,6 +41,19 @@ impl ActiveSerial {
 impl Drop for ActiveSerial {
     fn drop(&mut self) {
         self.closed.store(true, Ordering::Relaxed);
+    }
+}
+
+/// Typed text with Enter as `ending`, in `encoding`.
+pub(super) fn encode_serial_input(
+    ending: SerialLineEnding,
+    encoding: TerminalEncoding,
+    input: &[u8],
+) -> Cow<'_, [u8]> {
+    let ended = encode_line_ending(ending, input);
+    match encoding.encode_input(&ended) {
+        Cow::Owned(encoded) => Cow::Owned(encoded),
+        Cow::Borrowed(_) => ended,
     }
 }
 
@@ -144,6 +161,8 @@ pub(crate) fn spawn_serial_attempt(
         tab.exit_tx.clone(),
         Some(sender),
         crate::zmodem::session::ZmodemSettings::load(),
+        super::output::SerialOutput::for_encoding(tab.plan.encoding)
+            .map(|output| Box::new(output) as Box<dyn crate::terminal::reader::OutputFilter>),
     );
 
     Ok(ActiveSerial {
@@ -151,6 +170,7 @@ pub(crate) fn spawn_serial_attempt(
         input,
         path: path.to_string(),
         line_ending: options.line_ending,
+        encoding: tab.plan.encoding,
         control: SerialControl(Arc::new(Mutex::new(port))),
         closed,
     })

@@ -66,12 +66,29 @@ where
     }
 }
 
+/// What an [`OutputFilter`] makes of a batch of output.
+pub struct FilteredOutput {
+    /// What the terminal shows.
+    pub display: Vec<u8>,
+    /// What the session log records, when it is not `display`.
+    pub log: Option<Vec<u8>>,
+}
+
+/// Turns output into what the terminal shows, for a device whose bytes are
+/// not UTF-8 text as they come, such as a serial port in another charset.
+/// It sees the output ZMODEM leaves, and the session log records what it
+/// returns instead of the raw bytes.
+pub trait OutputFilter: Send {
+    fn filter(&mut self, output: Vec<u8>) -> FilteredOutput;
+}
+
 pub fn spawn_reader_thread(
     reader: Box<dyn Read + Send>,
     channel: ChannelContext,
     exit_tx: mpsc::UnboundedSender<crate::core::state::SessionExitSignal>,
     sender: Option<super::io_batcher::TerminalOutputSender>,
     settings: ZmodemSettings,
+    mut filter: Option<Box<dyn OutputFilter>>,
 ) {
     thread::spawn(move || {
         // Shared between the deliver closure and the final flush: the sender
@@ -90,10 +107,15 @@ pub fn spawn_reader_thread(
         // every subsequent byte is piped here instead of through
         // `zmodem_driver` — see `ZmodemSendPipe`'s doc comment.
         let mut zmodem_send_pipe = crate::zmodem::ZmodemSendPipe::default();
+        let log_raw_output = filter.is_none();
 
         let outcome = run_pty_reader(
             reader,
-            |chunk| crate::session_log::record_output(&log_app, &log_tab_id, chunk),
+            |chunk| {
+                if log_raw_output {
+                    crate::session_log::record_output(&log_app, &log_tab_id, chunk);
+                }
+            },
             |chunk| {
                 if zmodem_send_pipe.try_forward(chunk) {
                     return;
@@ -119,16 +141,28 @@ pub fn spawn_reader_thread(
                 if step.passthrough.is_empty() {
                     return;
                 }
+                let display = match filter.as_mut() {
+                    Some(filter) => {
+                        let filtered = filter.filter(step.passthrough);
+                        let log = filtered.log.as_deref().unwrap_or(&filtered.display);
+                        crate::session_log::record_output(&channel.app, &channel.tab_id, log);
+                        filtered.display
+                    }
+                    None => step.passthrough,
+                };
+                if display.is_empty() {
+                    return;
+                }
                 match sender
                     .lock()
                     .unwrap_or_else(PoisonError::into_inner)
                     .as_mut()
                 {
-                    Some(sender) => sender.send(step.passthrough),
+                    Some(sender) => sender.send(display),
                     None => emit_pty_output(
                         &channel.app,
                         &channel.tab_id,
-                        String::from_utf8_lossy(&step.passthrough).into_owned(),
+                        String::from_utf8_lossy(&display).into_owned(),
                     ),
                 }
             },

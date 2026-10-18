@@ -87,6 +87,7 @@ export const SerialControlBar: React.FC<SerialControlBarProps> = ({
       ? getSshConnectionProgressLabel(connectionProgress, t)
       : null
   const details = [serialSummary(settings)]
+  if (connection.encoding) details.push(t(`connection.encodingOptions.${connection.encoding}`))
   if (settings.usb) details.push(`USB ${formatUsbId(settings.usb)}`)
   const lineLabel = (name: string, level: boolean | null) =>
     level === null ? name : `${name} ${level ? t("serialControls.on") : t("serialControls.off")}`

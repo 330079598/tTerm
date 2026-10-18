@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import { RefreshCw } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { EncodingField } from "@/components/ConnectionDialog/EncodingField"
 import { useSerialPorts } from "@/components/ConnectionDialog/useSerialPorts"
 import type { ConnectionForm } from "@/components/ConnectionDialog/types"
 import { Button } from "@/components/ui/button"
@@ -223,6 +224,12 @@ export const SerialConnectionFields: React.FC<SerialConnectionFieldsProps> = ({
           </Select>
         </div>
       </div>
+
+      <EncodingField
+        form={form}
+        setForm={setForm}
+        description={t("connection.serial.encodingDesc")}
+      />
 
       {(
         [

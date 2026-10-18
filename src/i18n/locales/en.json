@@ -1371,7 +1371,8 @@
       "localEcho": "Local echo",
       "localEchoDesc": "Show what you type, for devices that don't echo it back",
       "timestamps": "Timestamps",
-      "timestampsDesc": "Start each line of output with the time it arrived"
+      "timestampsDesc": "Start each line of output with the time it arrived",
+      "encodingDesc": "The charset the device sends and reads text in"
     }
   },
   "rename": {
