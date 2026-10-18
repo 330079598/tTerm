@@ -2684,6 +2684,20 @@
     "localEcho": "回显",
     "reconnectHint": "关闭端口后重新打开",
     "waiting": "{{port}} 已断开（{{reason}}），等待设备重新连接",
-    "failed": "串口控制失败"
+    "failed": "串口控制失败",
+    "sendHint": "显示发送栏，发送文本或十六进制数据"
+  },
+  "serialSend": {
+    "mode": "发送方式",
+    "text": "文本",
+    "input": "要发送的数据",
+    "textPlaceholder": "要发送的文本",
+    "appendEnter": "+ 回车",
+    "repeat": "每隔",
+    "repeatInterval": "重复间隔（毫秒）",
+    "send": "发送",
+    "stop": "停止",
+    "failed": "发送失败",
+    "invalidHex": "“{{token}}”不是十六进制字节"
   }
 }

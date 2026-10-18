@@ -4,8 +4,10 @@ import {
   createLineTimestamper,
   DEFAULT_SERIAL_SETTINGS,
   formatUsbId,
+  lineEndingBytes,
   localEchoText,
   normalizeSerialSettings,
+  parseHexBytes,
   serialPortDescription,
   serialSummary,
   withSerialPort,
@@ -90,5 +92,29 @@ describe("createLineTimestamper", () => {
 
   it("leaves empty lines alone", () => {
     expect(createLineTimestamper()("\r\n\r\n", now)).toBe("\r\n\r\n")
+  })
+})
+
+describe("parseHexBytes", () => {
+  it("reads hex the ways people write it", () => {
+    const expected = { ok: true, bytes: [0x48, 0x65, 0x6c] }
+    expect(parseHexBytes("48 65 6C")).toEqual(expected)
+    expect(parseHexBytes("48,65,6c")).toEqual(expected)
+    expect(parseHexBytes("0x48 0x65 0x6C")).toEqual(expected)
+    expect(parseHexBytes(" 48656c ")).toEqual(expected)
+    expect(parseHexBytes("")).toEqual({ ok: true, bytes: [] })
+  })
+
+  it("names the token that isn't hex", () => {
+    expect(parseHexBytes("48 6G")).toEqual({ ok: false, token: "6G" })
+    expect(parseHexBytes("48 656")).toEqual({ ok: false, token: "656" })
+  })
+})
+
+describe("lineEndingBytes", () => {
+  it("sends what Enter sends", () => {
+    expect(lineEndingBytes("cr")).toEqual([0x0d])
+    expect(lineEndingBytes("lf")).toEqual([0x0a])
+    expect(lineEndingBytes("crlf")).toEqual([0x0d, 0x0a])
   })
 })

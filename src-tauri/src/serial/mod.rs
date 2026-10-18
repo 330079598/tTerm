@@ -11,11 +11,11 @@ pub(crate) mod session;
 mod tests;
 
 use crate::core::blocking::run_blocking;
-use crate::core::state::{ActiveSession, PtyMap};
+use crate::core::state::{ActiveSession, PtyMap, ZmodemMap};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 /// How long a serial pulse holds its line before releasing it, unless asked.
 const DEFAULT_PULSE_MS: u64 = 100;
@@ -223,6 +223,33 @@ pub async fn pulse_serial_line(
     let control = serial_control(&state, &tab_id, session_nonce).await?;
     let duration = pulse_duration(duration_ms);
     run_blocking(move || control.pulse(line, duration)).await
+}
+
+/// Sends bytes to a serial tab's port as they are, without the line ending or
+/// charset typed text gets: what its send bar's hex mode sends.
+#[tauri::command]
+pub async fn write_serial_bytes(
+    app: AppHandle,
+    tab_id: String,
+    session_nonce: u32,
+    data: Vec<u8>,
+    state: State<'_, PtyMap>,
+    zmodem_state: State<'_, ZmodemMap>,
+) -> Result<(), String> {
+    let transferring = zmodem_state
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .contains_key(&tab_id);
+    if transferring {
+        return Err("Wait for the file transfer on this port to end".to_string());
+    }
+    with_serial(&state, &tab_id, session_nonce, |serial| {
+        serial.input.send(data.clone())
+    })
+    .await?
+    .map_err(|err| format!("Failed to write to the serial port: {err}"))?;
+    crate::session_log::record_input(&app, &tab_id, &data);
+    Ok(())
 }
 
 /// Shows what a serial tab receives in hex, or as text again.

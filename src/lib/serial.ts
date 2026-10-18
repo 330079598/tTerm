@@ -133,3 +133,29 @@ export function createLineTimestamper() {
     return stamped
   }
 }
+
+/** What a hex string turned into: its bytes, or the token that isn't hex. */
+export type ParsedHex = { ok: true; bytes: number[] } | { ok: false; token: string }
+
+/**
+ * The bytes a hex string names, the way people write them: `48 65 6C`,
+ * `48,65,6c`, `0x48 0x65` or `48656C`. A token of an odd number of digits,
+ * or with anything but hex digits, is an error.
+ */
+export function parseHexBytes(text: string): ParsedHex {
+  const bytes: number[] = []
+  for (const raw of text.split(/[\s,;:-]+/)) {
+    if (!raw) continue
+    const token = raw.replace(/^0x/i, "")
+    if (!/^[0-9a-f]+$/i.test(token) || token.length % 2 !== 0) return { ok: false, token: raw }
+    for (let index = 0; index < token.length; index += 2) {
+      bytes.push(parseInt(token.slice(index, index + 2), 16))
+    }
+  }
+  return { ok: true, bytes }
+}
+
+/** The bytes Enter sends with `ending`. */
+export function lineEndingBytes(ending: SerialLineEnding): number[] {
+  return ending === "cr" ? [0x0d] : ending === "lf" ? [0x0a] : [0x0d, 0x0a]
+}

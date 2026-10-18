@@ -2706,6 +2706,20 @@
     "localEcho": "Echo",
     "reconnectHint": "Close the port and open it again",
     "waiting": "{{port}} disconnected ({{reason}}). Waiting for it to come back",
-    "failed": "Serial control failed"
+    "failed": "Serial control failed",
+    "sendHint": "Show the bar for sending text or hex"
+  },
+  "serialSend": {
+    "mode": "Send as",
+    "text": "Text",
+    "input": "Data to send",
+    "textPlaceholder": "Text to send",
+    "appendEnter": "+ Enter",
+    "repeat": "Every",
+    "repeatInterval": "Repeat interval in milliseconds",
+    "send": "Send",
+    "stop": "Stop",
+    "failed": "Could not send",
+    "invalidHex": "\"{{token}}\" is not hex bytes"
   }
 }
