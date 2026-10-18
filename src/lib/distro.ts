@@ -48,19 +48,21 @@ const DISTRO_RULES: Array<{ patterns: string[]; id: string; exact?: boolean }> =
   { patterns: ["oracle"], id: "oracle" },
 ]
 
-/** The distribution whose icon a host shows; generic Linux for one without its own. */
+/**
+ * The distribution whose icon a host shows; generic Linux for one without its
+ * own. What the host says it is wins over what it says it is like, so Linux
+ * Mint, which is like Ubuntu, shows its own.
+ */
 export function detectDistroId(info?: LinuxDistributionInfo): string {
-  const values = [info?.id, ...(info?.idLike ?? []), info?.name, info?.prettyName]
+  const values = [info?.id, info?.name, info?.prettyName, ...(info?.idLike ?? [])]
     .filter((value): value is string => Boolean(value))
     .map((value) => value.toLowerCase())
 
-  for (const rule of DISTRO_RULES) {
-    const matches = rule.exact
-      ? values.some((value) => rule.patterns.some((pattern) => value === pattern))
-      : values.some((value) => rule.patterns.some((pattern) => value.includes(pattern)))
-    if (matches) {
-      return rule.id
-    }
+  for (const value of values) {
+    const rule = DISTRO_RULES.find(({ patterns, exact }) =>
+      patterns.some((pattern) => (exact ? value === pattern : value.includes(pattern)))
+    )
+    if (rule) return rule.id
   }
 
   return "linux"

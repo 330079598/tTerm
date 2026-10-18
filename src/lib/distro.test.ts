@@ -12,6 +12,13 @@ describe("detectDistroId", () => {
     expect(detectDistroId(info({ id: "amzn" }))).toBe("amazon")
   })
 
+  it("prefers a derivative over the distribution it is based on", () => {
+    expect(detectDistroId(info({ id: "linuxmint", idLike: ["ubuntu", "debian"] }))).toBe(
+      "linuxmint"
+    )
+    expect(detectDistroId(info({ id: "manjaro", idLike: ["arch"] }))).toBe("manjaro")
+  })
+
   it("falls back to what a distribution is like", () => {
     expect(detectDistroId(info({ id: "someos", idLike: ["rhel", "fedora"] }))).toBe("rhel")
   })
