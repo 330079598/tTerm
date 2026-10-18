@@ -15,6 +15,7 @@ If you often connect to servers, move files between local and remote machines, o
 - **Fast, resumable transfers**: Parallel SFTP channels, resume after interruption, conflict handling, and bandwidth limits. ZMODEM (`rz`/`sz`) covers hosts without SFTP.
 - **Visual port forwarding**: Manage local, remote, and dynamic (SOCKS5) SSH tunnels from a dedicated page, with live status, traffic counters, and automatic reconnects.
 - **See the server at a glance**: A monitor bar under each SSH session shows CPU, memory, network, disk, and latency, with nothing to install on the server.
+- **Keep track of your AI agents**: Tabs running Claude Code, Codex, OpenCode, or pi show whether the agent is working or waiting for you, and you are notified when it needs you or finishes.
 - **Safer SSH workflow**: Host key confirmation, SSH agent and jump-host support, and saved passwords encrypted locally with AES-256-GCM.
 - **Modern desktop experience**: Built with Tauri for a lightweight, fast, cross-platform app with themes, customizable shortcuts, and English/Chinese UI.
 
@@ -47,6 +48,16 @@ Run the same thing on several servers at once (`Cmd/Ctrl+Shift+B`). The screensh
 - **Live mode**: keystrokes and pastes from a primary terminal are mirrored to every target in real time
 - Per-target delivery status, and disconnected targets can be reconnected before sending
 - Live mode stops automatically when a password prompt appears, so passwords stay in the source terminal
+
+### AI Coding Agents
+
+Running Claude Code, Codex, OpenCode, or pi in several tabs at once? tTerm shows which agent is busy and which one is waiting for your answer, so you don't have to click through every tab to find out.
+
+- **One-click setup** in Settings > Notifications: tTerm merges hooks into the Claude Code and Codex settings, or installs a small plugin for OpenCode and pi. Your other settings are left alone, the previous file is kept as `.tterm-bak`, and "Show what is added" previews the change first
+- **Tab badges**: an animation while the agent works, and a different mark when it stops to ask for permission or input
+- **Notifications** when an agent has been waiting for a few seconds, finishes its turn, or stops on an error. Requests that auto mode approves right away are not announced
+- **Works over SSH**: agents report through a terminal escape sequence (OSC 777), so an agent on a remote host works too once you copy the same hooks into its config there. Inside tmux, turn on `set -g allow-passthrough on`
+- Choose the badge style (seven working animations, three waiting marks) and its color in Settings > Appearance
 
 ### Command Library
 
@@ -373,6 +384,6 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 ## License
 
-MIT
+[MIT](./LICENSE)
 
 The theme library comes from [iTerm2-Color-Schemes](https://github.com/mbadolato/iTerm2-Color-Schemes) (MIT, see `src/assets/themes/LICENSE`); each theme belongs to its author, credited in `src/assets/themes/CREDITS.md`.
