@@ -3,8 +3,8 @@ use serialport::{DataBits, ErrorKind, FlowControl, Parity, SerialPort, StopBits}
 use std::time::Duration;
 
 /// How long one read waits for data before the reader checks whether its tab
-/// is closing. Windows also holds a write on the port back until the read in
-/// progress ends, so this bounds how late a keystroke can go out.
+/// is closing, and how long one write waits on a held-off line before it
+/// tries again.
 pub(super) const READ_TIMEOUT: Duration = Duration::from_millis(20);
 
 /// Opens the port at `path` with the connection's settings.

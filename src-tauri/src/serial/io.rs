@@ -53,6 +53,35 @@ impl<R: Read> Read for SerialReader<R> {
     }
 }
 
+/// How often a Windows port is checked for input while it has none.
+#[cfg(windows)]
+const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(2);
+
+/// Reads a Windows port only once input is waiting. Windows runs one call at
+/// a time on a port opened the way `serialport` opens it, so a read left
+/// waiting for input held each keystroke's write back until it timed out,
+/// and the reader, starting its next read at once, often took the port
+/// first again: typing lagged by hundreds of milliseconds. Asking how much
+/// input is waiting returns at once, so a write gets the port between checks.
+#[cfg(windows)]
+pub(super) struct PolledPort(pub(super) Box<dyn serialport::SerialPort>);
+
+#[cfg(windows)]
+impl Read for PolledPort {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let deadline = std::time::Instant::now() + super::open::READ_TIMEOUT;
+        loop {
+            if self.0.bytes_to_read()? > 0 {
+                return self.0.read(buf);
+            }
+            if std::time::Instant::now() >= deadline {
+                return Err(io::ErrorKind::TimedOut.into());
+            }
+            std::thread::sleep(POLL_INTERVAL);
+        }
+    }
+}
+
 /// Writes to a serial port, waiting out the timeouts a slow line or a device
 /// holding off flow control cause instead of giving the write up.
 pub(super) struct SerialWriter<W> {

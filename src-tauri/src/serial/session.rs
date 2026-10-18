@@ -154,6 +154,8 @@ pub(crate) fn spawn_serial_attempt(
             .map_err(|err| format!("Failed to share {path}: {}", err.description))
     };
     let reader_port = clone(port.as_ref())?;
+    #[cfg(windows)]
+    let reader_port = super::io::PolledPort(reader_port);
     let writer_port = clone(port.as_ref())?;
 
     let closed = Arc::new(AtomicBool::new(false));
