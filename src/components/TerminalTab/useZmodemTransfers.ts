@@ -17,6 +17,7 @@ interface ZmodemTransferStartEvent {
   fileName: string
   fileSize: number
   localPath: string
+  sizeUnknown?: boolean
 }
 
 interface ZmodemTransferProgressEvent {
@@ -83,7 +84,7 @@ export function useZmodemTransfers({ tabId, sessionNonce }: UseZmodemTransfersPa
         })()
       }),
       appWindow.listen<ZmodemTransferStartEvent>(`zmodem-transfer-start-${tabId}`, (event) => {
-        const { transferId, direction, fileName, fileSize, localPath } = event.payload
+        const { transferId, direction, fileName, fileSize, localPath, sizeUnknown } = event.payload
         addTransfer(
           {
             tabId,
@@ -92,6 +93,7 @@ export function useZmodemTransfers({ tabId, sessionNonce }: UseZmodemTransfersPa
             remotePath: fileName,
             fileName,
             fileSize,
+            sizeUnknown,
             cancel,
           },
           transferId

@@ -159,7 +159,8 @@ pub(super) struct TransferParams {
 /// What the transfer list shows of a file.
 pub(super) struct FileInfo {
     pub name: String,
-    pub size: u64,
+    /// `None` when the sender gave none.
+    pub size: Option<u64>,
     pub path: String,
     /// `upload` to the device, `download` from it.
     pub direction: &'static str,
@@ -206,8 +207,9 @@ impl<'a> FileRows<'a> {
                 transfer_id: self.ids[index].clone(),
                 direction: file.direction,
                 file_name: file.name.clone(),
-                file_size: file.size,
+                file_size: file.size.unwrap_or(0),
                 local_path: file.path.clone(),
+                size_unknown: file.size.is_none(),
             },
         );
     }
@@ -254,7 +256,7 @@ impl<'a> FileRows<'a> {
     pub(super) fn finish(&mut self, from: usize, to: usize) {
         for index in from..to {
             self.start(index);
-            self.progress(index, self.files[index].size, true);
+            self.progress(index, self.files[index].size.unwrap_or(0), true);
             self.complete(index, &Ok(()));
         }
     }
@@ -274,7 +276,7 @@ pub(super) fn run(params: TransferParams) {
         .map(|opened| {
             let info = FileInfo {
                 name: opened.file.name.clone(),
-                size: opened.file.size,
+                size: Some(opened.file.size),
                 path: opened.path,
                 direction: "upload",
             };

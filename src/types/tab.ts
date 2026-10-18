@@ -79,6 +79,8 @@ export interface TransferTask {
   remotePath: string
   fileName: string
   fileSize: number
+  /** The sender gave no size, as XMODEM never does; `fileSize` is then 0. */
+  sizeUnknown?: boolean
   transferred: number
   status: TransferStatus
   error?: string

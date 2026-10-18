@@ -264,6 +264,7 @@ fn send_one_file(
             file_name,
             file_size,
             local_path: path.display().to_string(),
+            size_unknown: false,
         },
     );
 

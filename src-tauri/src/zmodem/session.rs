@@ -301,6 +301,7 @@ impl ZmodemReceiveDriver {
                         file_name: name,
                         file_size: size,
                         local_path: dest_path.to_string_lossy().into_owned(),
+                        size_unknown: false,
                     },
                 );
             }

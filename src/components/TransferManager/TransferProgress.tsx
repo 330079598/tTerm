@@ -18,6 +18,22 @@ export const TransferProgress: React.FC<{ transfer: TransferTask }> = ({ transfe
   const resumedFrom = transfer.resumedFrom ?? 0
   const parallelism = transfer.parallelism ?? 0
 
+  if (transfer.sizeUnknown) {
+    // Without a total there is no share to show, only that bytes are coming.
+    return (
+      <div className="mt-2 space-y-1.5">
+        <div className="bg-muted h-1 overflow-hidden rounded-full">
+          <div className="bg-primary/60 h-full w-full animate-pulse" />
+        </div>
+        <div className="text-muted-foreground flex items-center justify-between text-[10px]">
+          <span>{formatBytes(transfer.transferred)}</span>
+          {speed > 0 && <span>{formatSpeed(speed)}</span>}
+          <span>{t("transfer.sizeUnknown", { defaultValue: "Size unknown" })}</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="mt-2 space-y-1.5">
       <div className="bg-muted h-1 overflow-hidden rounded-full">

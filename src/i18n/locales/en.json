@@ -1795,6 +1795,7 @@
     }
   },
   "transfer": {
+    "sizeUnknown": "Size unknown",
     "title": "Transfers",
     "active": "Active",
     "history": "History",

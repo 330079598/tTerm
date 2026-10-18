@@ -117,7 +117,7 @@ impl FileSink for DiskSink<'_> {
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_default(),
-            size: size.unwrap_or(0),
+            size,
             path: path.to_string_lossy().into_owned(),
             direction: "download",
         });
@@ -187,7 +187,7 @@ impl DiskSink<'_> {
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_default(),
-            size: 0,
+            size: None,
             path: path.to_string_lossy().into_owned(),
             direction: "download",
         });

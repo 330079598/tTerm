@@ -34,6 +34,10 @@ pub struct TransferStartPayload {
     pub file_name: String,
     pub file_size: u64,
     pub local_path: String,
+    /// The sender gave no size, as XMODEM never does: `file_size` is 0 and
+    /// the list shows what has arrived without a total.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub size_unknown: bool,
 }
 
 #[derive(Serialize)]

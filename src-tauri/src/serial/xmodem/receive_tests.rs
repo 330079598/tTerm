@@ -3,10 +3,14 @@ use super::protocol::{
     crc16, send_xmodem, send_ymodem, Link, OutgoingFile, Received, Result, TransferError,
 };
 use super::receive::{receive_xmodem, receive_ymodem, FileSink};
+use super::transfer::{FileInfo, FileRows};
 use super::XmodemProtocol;
+use crate::zmodem::events::EmitFn;
+use serde_json::json;
 use std::collections::VecDeque;
 use std::io::Cursor;
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 /// One end of an in-memory line, for running a sender against a receiver.
@@ -265,4 +269,35 @@ fn a_taken_name_gets_a_number() {
     assert_eq!(unused_path(&folder, "fw.bin"), folder.join("fw (3).bin"));
     assert_eq!(unused_path(&folder, "README"), folder.join("README"));
     std::fs::remove_dir_all(&folder).unwrap();
+}
+
+#[test]
+fn a_file_without_a_size_says_so_in_the_transfer_list() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let seen = events.clone();
+    let emit: EmitFn = Box::new(move |kind, payload| {
+        seen.lock().unwrap().push((kind.to_string(), payload));
+    });
+    let mut rows = FileRows::new(&emit, Vec::new());
+    for size in [None, Some(5)] {
+        let row = rows.add(FileInfo {
+            name: "fw.bin".to_string(),
+            size,
+            path: "fw.bin".to_string(),
+            direction: "download",
+        });
+        rows.start(row);
+    }
+    let starts: Vec<_> = events
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|(_, payload)| {
+            (
+                payload["fileSize"].clone(),
+                payload.get("sizeUnknown").cloned(),
+            )
+        })
+        .collect();
+    assert_eq!(starts, [(json!(0), Some(json!(true))), (json!(5), None)]);
 }

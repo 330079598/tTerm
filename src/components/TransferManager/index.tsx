@@ -310,7 +310,9 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
             )}
             <span>{formatDuration(duration)}</span>
             <span>
-              {isDelete ? formatItems(transfer.fileSize, t) : formatBytes(transfer.fileSize)}
+              {isDelete
+                ? formatItems(transfer.fileSize, t)
+                : formatBytes(transfer.sizeUnknown ? transfer.transferred : transfer.fileSize)}
             </span>
           </div>
         )}

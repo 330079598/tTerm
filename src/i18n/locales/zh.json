@@ -1777,6 +1777,7 @@
     }
   },
   "transfer": {
+    "sizeUnknown": "大小未知",
     "title": "传输",
     "active": "进行中",
     "history": "历史记录",
