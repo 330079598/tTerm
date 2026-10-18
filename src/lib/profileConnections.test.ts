@@ -122,6 +122,7 @@ describe("serial profiles", () => {
       stopBits: 1,
       flowControl: "none",
       lineEnding: "crlf",
+      receiveNewline: "cr",
       localEcho: false,
       timestamps: true,
       hexView: false,

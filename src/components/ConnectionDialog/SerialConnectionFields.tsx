@@ -17,6 +17,7 @@ import {
   SERIAL_FLOW_CONTROLS,
   SERIAL_LINE_ENDINGS,
   SERIAL_PARITIES,
+  SERIAL_RECEIVE_NEWLINES,
   SERIAL_STOP_BITS,
   serialPortDescription,
   withSerialPort,
@@ -219,6 +220,25 @@ export const SerialConnectionFields: React.FC<SerialConnectionFieldsProps> = ({
             {SERIAL_LINE_ENDINGS.map((ending) => (
               <option key={ending} value={ending}>
                 {t(`connection.serial.lineEndingOptions.${ending}`)}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="conn-serial-receive-newline" className="mb-1.5 block">
+            {t("connection.serial.receiveNewline")}
+          </Label>
+          <Select
+            id="conn-serial-receive-newline"
+            value={serial.receiveNewline}
+            title={t("connection.serial.receiveNewlineDesc")}
+            onChange={(event) =>
+              update({ receiveNewline: event.target.value as SerialSettings["receiveNewline"] })
+            }
+          >
+            {SERIAL_RECEIVE_NEWLINES.map((newline) => (
+              <option key={newline} value={newline}>
+                {t(`connection.serial.receiveNewlineOptions.${newline}`)}
               </option>
             ))}
           </Select>

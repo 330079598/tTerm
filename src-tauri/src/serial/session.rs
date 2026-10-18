@@ -178,6 +178,7 @@ pub(crate) fn spawn_serial_attempt(
         Some(Box::new(super::output::SerialOutput::new(
             tab.plan.encoding,
             view,
+            options.receive_newline,
         ))),
     );
 

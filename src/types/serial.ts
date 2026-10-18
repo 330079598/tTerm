@@ -6,6 +6,12 @@ export type SerialFlowControl = "none" | "software" | "hardware"
 /** What the Enter key sends; xterm.js types a carriage return. */
 export type SerialLineEnding = "cr" | "lf" | "crlf"
 
+/**
+ * Which lone byte of a received line break also gets the other half, for
+ * devices that end lines, or echo Enter, with only a CR or an LF.
+ */
+export type SerialReceiveNewline = "none" | "cr" | "lf"
+
 /** The USB device behind a port, which finds it again under another name. */
 export interface SerialUsbId {
   vid: number
@@ -25,6 +31,7 @@ export interface SerialSettings {
   stopBits: number
   flowControl: SerialFlowControl
   lineEnding: SerialLineEnding
+  receiveNewline: SerialReceiveNewline
   /** Show typed text in the terminal, for devices that don't echo it. */
   localEcho: boolean
   /** Start each line of output with the time it arrived. */

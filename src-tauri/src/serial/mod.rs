@@ -54,6 +54,20 @@ pub enum SerialLineEnding {
     Crlf,
 }
 
+/// How a serial tab completes a line break the device sends only half of,
+/// for devices that end their lines, or echo Enter, with a lone CR or LF.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SerialReceiveNewline {
+    /// Shows line breaks as the device sends them.
+    #[default]
+    None,
+    /// A CR also starts a new line.
+    Cr,
+    /// An LF also returns to the start of the line.
+    Lf,
+}
+
 /// The USB device behind a port, kept with a saved connection so it finds
 /// its device again when the port's name changes: after a replug, or on
 /// another machine the connection was synced to.
@@ -87,6 +101,8 @@ pub struct SerialOptions {
     pub flow_control: SerialFlowControl,
     #[serde(default)]
     pub line_ending: SerialLineEnding,
+    #[serde(default)]
+    pub receive_newline: SerialReceiveNewline,
     /// The frontend echoes typed text into the terminal, for devices that
     /// don't echo it back.
     #[serde(default)]

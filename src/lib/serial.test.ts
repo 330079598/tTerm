@@ -31,6 +31,7 @@ describe("normalizeSerialSettings", () => {
       stopBits: 3,
       flowControl: "dsr",
       lineEnding: "lfcr",
+      receiveNewline: "crlf",
       usb: { vid: "x", pid: 1 },
     })
     expect(settings).toEqual({ ...DEFAULT_SERIAL_SETTINGS, port: "COM3" })
@@ -41,9 +42,11 @@ describe("normalizeSerialSettings", () => {
       port: "/dev/ttyUSB0",
       baudRate: 921600,
       parity: "even",
+      receiveNewline: "cr",
       usb: { vid: 0x1a86, pid: 0x7523, serialNumber: "" },
     })
     expect(settings.baudRate).toBe(921600)
+    expect(settings.receiveNewline).toBe("cr")
     expect(settings.usb).toEqual({ vid: 0x1a86, pid: 0x7523, serialNumber: undefined })
     expect(serialSummary(settings)).toBe("921600 8E1")
   })

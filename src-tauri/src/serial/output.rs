@@ -1,4 +1,4 @@
-use super::SerialView;
+use super::{SerialReceiveNewline, SerialView};
 use crate::terminal::encoding::{OutputDecoder, TerminalEncoding};
 use crate::terminal::reader::{FilteredOutput, OutputFilter};
 use std::fmt::Write;
@@ -12,20 +12,26 @@ const HEX_BYTES_PER_LINE: usize = 16;
 const HEX_FRAME_GAP: Duration = Duration::from_millis(50);
 
 /// Turns what a serial device sends into what its tab shows: text in the
-/// device's charset decoded to UTF-8, or every byte in hex. The session log
-/// records the text either way.
+/// device's charset decoded to UTF-8 with its line breaks completed, or
+/// every byte in hex. The session log records the text either way.
 pub(super) struct SerialOutput {
     decoder: Option<OutputDecoder>,
     view: Arc<SerialView>,
     hex: HexDump,
+    newlines: ReceivedNewlines,
 }
 
 impl SerialOutput {
-    pub(super) fn new(encoding: TerminalEncoding, view: Arc<SerialView>) -> Self {
+    pub(super) fn new(
+        encoding: TerminalEncoding,
+        view: Arc<SerialView>,
+        newline: SerialReceiveNewline,
+    ) -> Self {
         Self {
             decoder: encoding.output_decoder(),
             view,
             hex: HexDump::default(),
+            newlines: ReceivedNewlines::new(newline),
         }
     }
 
@@ -36,6 +42,7 @@ impl SerialOutput {
             Some(decoder) => decoder.decode(&output),
             None => output,
         };
+        let text = self.newlines.complete(text);
         match display.or_else(|| self.hex.leave(&text)) {
             Some(display) => FilteredOutput {
                 display,
@@ -107,5 +114,45 @@ impl HexDump {
             self.text_mid_line = last != b'\n';
         }
         mid_hex_line.then(|| [b"\r\n".as_slice(), text].concat())
+    }
+}
+
+/// Adds the half of a line break the device leaves out, keeping track of the
+/// last byte so a break split across two reads is completed once.
+pub(super) struct ReceivedNewlines {
+    mode: SerialReceiveNewline,
+    /// The last byte was a CR.
+    after_cr: bool,
+}
+
+impl ReceivedNewlines {
+    pub(super) fn new(mode: SerialReceiveNewline) -> Self {
+        Self {
+            mode,
+            after_cr: false,
+        }
+    }
+
+    pub(super) fn complete(&mut self, text: Vec<u8>) -> Vec<u8> {
+        if self.mode == SerialReceiveNewline::None || text.is_empty() {
+            return text;
+        }
+        let mut out = Vec::with_capacity(text.len() + text.len() / 8);
+        for byte in text {
+            match (self.mode, byte) {
+                // A run of CRs, such as the `\r\r\n` some devices end lines
+                // with, is one line break: its first CR gets an LF, and the
+                // rest of it, which would only move the cursor where it is,
+                // is dropped.
+                (SerialReceiveNewline::Cr, b'\r' | b'\n') if self.after_cr => {}
+                (SerialReceiveNewline::Cr, b'\r') => out.extend_from_slice(b"\r\n"),
+                (SerialReceiveNewline::Lf, b'\n') if !self.after_cr => {
+                    out.extend_from_slice(b"\r\n");
+                }
+                _ => out.push(byte),
+            }
+            self.after_cr = byte == b'\r';
+        }
+        out
     }
 }

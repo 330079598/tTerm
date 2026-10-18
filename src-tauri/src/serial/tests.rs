@@ -2,7 +2,7 @@ use super::io::{SerialReader, SerialWriter};
 use super::open::describe_open_error;
 use super::ports::{port_to_open, visible_ports};
 use super::session::encode_line_ending;
-use super::{SerialLineEnding, SerialOptions, SerialPortEntry, SerialUsbId};
+use super::{SerialLineEnding, SerialOptions, SerialPortEntry, SerialReceiveNewline, SerialUsbId};
 use serialport::{SerialPortInfo, SerialPortType, UsbPortInfo};
 use std::collections::VecDeque;
 use std::io::{self, Read, Write};
@@ -48,6 +48,7 @@ fn options_default_to_115200_8n1() {
     assert_eq!(options.baud_rate, 115_200);
     assert_eq!((options.data_bits, options.stop_bits), (8, 1));
     assert_eq!(options.line_ending, SerialLineEnding::Cr);
+    assert_eq!(options.receive_newline, SerialReceiveNewline::None);
 }
 
 #[test]
@@ -311,18 +312,62 @@ fn typed_text_goes_out_in_the_device_charset() {
 fn output_in_another_charset_shows_as_utf8_even_split_across_reads() {
     use crate::terminal::reader::OutputFilter;
     let gbk = crate::terminal::encoding::TerminalEncoding::from_label(Some("gbk"));
-    let mut output = super::output::SerialOutput::new(gbk, Default::default());
+    let mut output =
+        super::output::SerialOutput::new(gbk, Default::default(), SerialReceiveNewline::None);
     let first = output.filter(b"ok \xd6".to_vec());
     let second = output.filter(b"\xd0\r\n".to_vec());
     let shown = [first.display, second.display].concat();
     assert_eq!(String::from_utf8(shown).unwrap(), "ok 中\r\n");
 }
 
+/// What `reads` show, one after another, with `mode` completing line breaks.
+fn completed(mode: SerialReceiveNewline, reads: &[&[u8]]) -> Vec<u8> {
+    let mut newlines = super::output::ReceivedNewlines::new(mode);
+    reads
+        .iter()
+        .flat_map(|read| newlines.complete(read.to_vec()))
+        .collect()
+}
+
+#[test]
+fn a_lone_cr_starts_a_new_line_when_asked() {
+    let cr = SerialReceiveNewline::Cr;
+    assert_eq!(completed(cr, &[b"ls\r"]), b"ls\r\n");
+    assert_eq!(completed(cr, &[b"a\r\nb\r\r\nc"]), b"a\r\nb\r\nc");
+    // The LF after a CR that ended the last read is the same line break.
+    assert_eq!(completed(cr, &[b"a\r", b"\nb"]), b"a\r\nb");
+    assert_eq!(completed(SerialReceiveNewline::None, &[b"a\r"]), b"a\r");
+}
+
+#[test]
+fn a_lone_lf_returns_to_the_line_start_when_asked() {
+    let lf = SerialReceiveNewline::Lf;
+    assert_eq!(completed(lf, &[b"a\nb\r\nc"]), b"a\r\nb\r\nc");
+    assert_eq!(completed(lf, &[b"a\r", b"\nb\n"]), b"a\r\nb\r\n");
+}
+
+#[test]
+fn completed_line_breaks_reach_the_screen_and_the_log() {
+    use crate::terminal::reader::OutputFilter;
+    let utf8 = crate::terminal::encoding::TerminalEncoding::default();
+    let view = Arc::new(super::SerialView::default());
+    let mut output = super::output::SerialOutput::new(utf8, view.clone(), SerialReceiveNewline::Cr);
+    assert_eq!(output.filter(b"ok\r".to_vec()).display, b"ok\r\n");
+    // The hex view still shows the bytes the device sent.
+    view.set_hex(true);
+    let shown = output.filter(b"x\r".to_vec());
+    assert_eq!(String::from_utf8(shown.display).unwrap(), "78 0D ");
+    assert_eq!(shown.log.unwrap(), b"x\r\n");
+}
+
 fn hex_output() -> (super::output::SerialOutput, Arc<super::SerialView>) {
     let view = Arc::new(super::SerialView::default());
     view.set_hex(true);
     let gbk = crate::terminal::encoding::TerminalEncoding::from_label(Some("gbk"));
-    (super::output::SerialOutput::new(gbk, view.clone()), view)
+    (
+        super::output::SerialOutput::new(gbk, view.clone(), SerialReceiveNewline::None),
+        view,
+    )
 }
 
 #[test]

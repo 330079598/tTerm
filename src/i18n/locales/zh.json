@@ -1352,6 +1352,13 @@
         "lf": "LF (\\n)",
         "crlf": "CRLF (\\r\\n)"
       },
+      "receiveNewline": "接收换行",
+      "receiveNewlineDesc": "设备只发 CR 或只发 LF 时，补齐另一半，让每行另起一行显示",
+      "receiveNewlineOptions": {
+        "none": "原样",
+        "cr": "CR → CRLF",
+        "lf": "LF → CRLF"
+      },
       "localEcho": "本地回显",
       "localEchoDesc": "显示输入的内容，用于不回显的设备",
       "timestamps": "时间戳",

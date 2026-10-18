@@ -3,6 +3,7 @@ import type {
   SerialLineEnding,
   SerialParity,
   SerialPortEntry,
+  SerialReceiveNewline,
   SerialSettings,
   SerialUsbId,
 } from "@/types/serial"
@@ -18,6 +19,7 @@ export const SERIAL_STOP_BITS = [1, 2] as const
 export const SERIAL_PARITIES: readonly SerialParity[] = ["none", "odd", "even"]
 export const SERIAL_FLOW_CONTROLS: readonly SerialFlowControl[] = ["none", "software", "hardware"]
 export const SERIAL_LINE_ENDINGS: readonly SerialLineEnding[] = ["cr", "lf", "crlf"]
+export const SERIAL_RECEIVE_NEWLINES: readonly SerialReceiveNewline[] = ["none", "cr", "lf"]
 
 export const DEFAULT_SERIAL_SETTINGS: SerialSettings = {
   port: "",
@@ -27,6 +29,7 @@ export const DEFAULT_SERIAL_SETTINGS: SerialSettings = {
   stopBits: 1,
   flowControl: "none",
   lineEnding: "cr",
+  receiveNewline: "none",
   localEcho: false,
   timestamps: false,
   hexView: false,
@@ -60,6 +63,7 @@ export function normalizeSerialSettings(value: unknown): SerialSettings {
     stopBits: oneOf(SERIAL_STOP_BITS, raw.stopBits, 1),
     flowControl: oneOf(SERIAL_FLOW_CONTROLS, raw.flowControl, "none"),
     lineEnding: oneOf(SERIAL_LINE_ENDINGS, raw.lineEnding, "cr"),
+    receiveNewline: oneOf(SERIAL_RECEIVE_NEWLINES, raw.receiveNewline, "none"),
     localEcho: raw.localEcho === true,
     timestamps: raw.timestamps === true,
     hexView: raw.hexView === true,

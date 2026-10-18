@@ -1368,6 +1368,13 @@
         "lf": "LF (\\n)",
         "crlf": "CRLF (\\r\\n)"
       },
+      "receiveNewline": "Received newlines",
+      "receiveNewlineDesc": "For devices that send only a CR or only an LF, add the other half so each line starts on a new one",
+      "receiveNewlineOptions": {
+        "none": "As sent",
+        "cr": "CR → CRLF",
+        "lf": "LF → CRLF"
+      },
       "localEcho": "Local echo",
       "localEchoDesc": "Show what you type, for devices that don't echo it back",
       "timestamps": "Timestamps",
