@@ -8,6 +8,7 @@ import { resolveSavedPasswordInjectionTargets } from "@/components/TTermApp/tter
 import { toast } from "@/hooks/use-toast"
 import type { PtyWriteResult, TerminalInputRequest } from "@/types/broadcast"
 import { notifySavedPasswordNotSent } from "@/components/TerminalTab/savedPasswordNotice"
+import { isSessionTab } from "@/types/tab"
 
 /**
  * Sends to the broadcast targets: commands, live input from the source
@@ -50,9 +51,7 @@ export function useBroadcastSending(
     if (broadcastPreparingRef.current) return null
 
     const selected = new Set(targetIdsRef.current)
-    const targets = tabsRef.current.filter(
-      (tab) => selected.has(tab.id) && (tab.type === "terminal" || tab.type === "ssh")
-    )
+    const targets = tabsRef.current.filter((tab) => selected.has(tab.id) && isSessionTab(tab))
     if (targets.length !== selected.size || targets.length === 0) return null
 
     const reconnectTargets = targets.filter((tab) => {

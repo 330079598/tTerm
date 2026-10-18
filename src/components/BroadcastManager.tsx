@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useTranslation } from "react-i18next"
 
-import type { Tab } from "@/types/tab"
+import { isSessionTab, type Tab } from "@/types/tab"
 import type {
   BroadcastMode,
   LiveBroadcastState,
@@ -67,7 +67,7 @@ export function BroadcastManager({
   const [command, setCommand] = useState("")
   const [primaryInputTabId, setPrimaryInputTabId] = useState<string | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
-  const terminalTabs = tabs.filter((tab) => tab.type === "terminal" || tab.type === "ssh")
+  const terminalTabs = tabs.filter((tab) => isSessionTab(tab))
   const selected = new Set(selectedTabIds)
   const unavailable = new Set(unavailableTabIds)
   const activeTab = terminalTabs.find((tab) => tab.id === activeTabId)

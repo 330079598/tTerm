@@ -2,7 +2,7 @@ import { useEffect } from "react"
 
 import { useAppActivity } from "@/contexts/AppActivityContext"
 import type { TerminalRuntimeState } from "@/types/broadcast"
-import type { Tab } from "@/types/tab"
+import { isSessionTab, type Tab } from "@/types/tab"
 
 /**
  * Tells the app how many terminal tabs hold a connection that is up or on
@@ -15,7 +15,7 @@ export function useActiveTerminalSessionCount(
   const { setActiveTerminalSessionCount } = useAppActivity()
 
   const activeTerminalSessionCount = tabs.reduce((count, tab) => {
-    if (tab.type !== "terminal" && tab.type !== "ssh") {
+    if (!isSessionTab(tab)) {
       return count
     }
 

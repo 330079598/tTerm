@@ -1,5 +1,5 @@
 import { isDistroId, type DistroId } from "@/lib/distro"
-import type { Tab } from "@/types/tab"
+import { isSessionTab, type Tab } from "@/types/tab"
 
 /** The icons a local tab can show, in the order the picker lays them out, by theme. */
 export const TAB_ICON_IDS = [
@@ -218,7 +218,7 @@ export function sshTabIcon(distroId: DistroId | undefined): ResolvedTabIcon {
 
 /** Whether a tab is a terminal, local or SSH, and so shows an icon. */
 export function hasTabIcon(tab: Pick<Tab, "type">): boolean {
-  return tab.type === "terminal" || tab.type === "ssh"
+  return isSessionTab(tab)
 }
 
 /** What a terminal tab shows without a choice of its own. */

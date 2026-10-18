@@ -7,7 +7,7 @@ import type {
   WorkspaceDropDirection,
 } from "@/components/TTermApp/workspaceDrop"
 import type { TabPanelsProps } from "@/components/TTermApp/workspaceContext"
-import type { Tab } from "@/types/tab"
+import { isSessionTab, type Tab } from "@/types/tab"
 import type { WorkspaceSplitDirection } from "@/components/TTermApp/workspaceContext"
 
 interface WorkspaceDropOptions {
@@ -40,7 +40,7 @@ export function useWorkspaceDrop({
         return
       }
       const sourceTab = tabsRef.current.find((tab) => tab.id === tabId)
-      if (!sourceTab || (sourceTab.type !== "terminal" && sourceTab.type !== "ssh")) {
+      if (!sourceTab || !isSessionTab(sourceTab)) {
         return
       }
 
@@ -143,10 +143,7 @@ export function useWorkspaceDrop({
 
       if (isSourceGroup) {
         const sourceTab = tabsRef.current.find((tab) => tab.id === tabId)
-        if (
-          sourcePanel.group.panels.length === 1 &&
-          (!sourceTab || (sourceTab.type !== "terminal" && sourceTab.type !== "ssh"))
-        ) {
+        if (sourcePanel.group.panels.length === 1 && (!sourceTab || !isSessionTab(sourceTab))) {
           clearTabDrop()
           return false
         }

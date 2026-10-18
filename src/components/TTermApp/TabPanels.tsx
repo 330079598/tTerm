@@ -25,7 +25,7 @@ import {
   type WorkspaceSplitDirection,
 } from "@/components/TTermApp/workspaceContext"
 import { WorkspaceTab } from "@/components/TTermApp/WorkspaceTab"
-import { isPageTab, type Tab } from "@/types/tab"
+import { isPageTab, isSessionTab, type Tab } from "@/types/tab"
 import { useDockInteractionClasses } from "@/components/TTermApp/useDockInteractionClasses"
 import { usePaneKeymap } from "@/components/TTermApp/usePaneKeymap"
 import { useWorkspaceDrop } from "@/components/TTermApp/useWorkspaceDrop"
@@ -187,7 +187,7 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
         return dockApi.panels
           .filter((panel) => {
             const tab = tabsRef.current.find((candidate) => candidate.id === panel.id)
-            return panel.api.isVisible && (tab?.type === "terminal" || tab?.type === "ssh")
+            return panel.api.isVisible && isSessionTab(tab)
           })
           .map((panel) => panel.id)
       },

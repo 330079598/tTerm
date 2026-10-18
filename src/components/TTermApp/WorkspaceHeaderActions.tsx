@@ -16,6 +16,7 @@ import { useWorkspace } from "@/components/TTermApp/workspaceContext"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useShortcutLabel } from "@/contexts/KeymapContext"
 import { withShortcut } from "@/lib/keymap/keymap"
+import { isSessionTab } from "@/types/tab"
 
 export const WorkspaceHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({
   activePanel,
@@ -25,7 +26,7 @@ export const WorkspaceHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({
   const shortcutLabel = useShortcutLabel()
   const { collapseToSingleGroup, groupCount, maximizedGroupId, splitTab, tabs } = useWorkspace()
   const tab = activePanel ? tabs.find((candidate) => candidate.id === activePanel.id) : undefined
-  const canSplit = tab?.type === "terminal" || tab?.type === "ssh"
+  const canSplit = isSessionTab(tab)
   const isMaximized = activePanel?.group.id === maximizedGroupId
 
   const action = (label: string, icon: React.ReactNode, onClick: () => void, disabled = false) => (

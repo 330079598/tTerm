@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react"
 import type { useTranslation } from "react-i18next"
 
-import type { Tab, TabContextMenuAction } from "@/types/tab"
+import { isSessionTab, type Tab, type TabContextMenuAction } from "@/types/tab"
 
 export interface TerminalLogStatus {
   /** Sessions are logged unless their connection or tab says otherwise. */
@@ -45,7 +45,7 @@ export function getTabLogMenuActions(
   tab: Pick<Tab, "id" | "type">,
   t: ReturnType<typeof useTranslation>["t"]
 ): TabContextMenuAction[] {
-  if (tab.type !== "terminal" && tab.type !== "ssh") return []
+  if (!isSessionTab(tab)) return []
   return [
     isTabLogRecording(tab.id)
       ? { label: t("contextMenu.stopLogging"), action: "log-stop", icon: "record-stop" }

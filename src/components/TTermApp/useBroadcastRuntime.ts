@@ -7,6 +7,7 @@ import { isTerminalConnectionUnavailable } from "@/components/TTermApp/ttermAppU
 import { toast } from "@/hooks/use-toast"
 import type { PtyWriteResult } from "@/types/broadcast"
 import type { ConnectionState } from "@/components/TerminalTab/types"
+import { isSessionTab } from "@/types/tab"
 
 /**
  * The core of broadcasting: stopping a live broadcast, following each
@@ -118,7 +119,7 @@ export function useBroadcastRuntime(shell: AppShell, state: BroadcastState) {
         (tab) =>
           selected.has(tab.id) &&
           !unavailable.has(tab.id) &&
-          (tab.type === "terminal" || tab.type === "ssh") &&
+          isSessionTab(tab) &&
           runtimeStatesRef.current[tab.id]?.connectionState === "connected" &&
           runtimeStatesRef.current[tab.id]?.sessionNonce === (tab.sessionNonce ?? 0)
       )
@@ -140,7 +141,7 @@ export function useBroadcastRuntime(shell: AppShell, state: BroadcastState) {
     const targets: Array<{ tabId: string; sessionNonce: number }> = []
     for (const [tabId, sessionNonce] of preflight.targets) {
       const tab = tabsRef.current.find((candidate) => candidate.id === tabId)
-      if (!tab || (tab.type !== "terminal" && tab.type !== "ssh")) {
+      if (!tab || !isSessionTab(tab)) {
         preflight.reject(new Error(t("broadcast.reconnectTargetMissing")))
         broadcastPreflightRef.current = null
         return

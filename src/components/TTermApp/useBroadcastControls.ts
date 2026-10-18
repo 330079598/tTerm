@@ -4,6 +4,7 @@ import type { AppShell } from "@/components/TTermApp/appShell"
 import type { BroadcastState } from "@/components/TTermApp/useBroadcastState"
 import type { BroadcastRuntime } from "@/components/TTermApp/useBroadcastRuntime"
 import { isTerminalConnectionUnavailable } from "@/components/TTermApp/ttermAppUtils"
+import { isSessionTab } from "@/types/tab"
 
 /**
  * Choosing the broadcast targets, pausing and resuming a live broadcast,
@@ -69,7 +70,7 @@ export function useBroadcastControls(
     (tabIds: string[]) => {
       const requested = new Set(tabIds)
       const selected = tabs
-        .filter((tab) => requested.has(tab.id) && (tab.type === "terminal" || tab.type === "ssh"))
+        .filter((tab) => requested.has(tab.id) && isSessionTab(tab))
         .map((tab) => tab.id)
       setBroadcastTargetIds(selected)
     },
@@ -104,9 +105,7 @@ export function useBroadcastControls(
   const [broadcastTargetsTabs, setBroadcastTargetsTabs] = useState(tabs)
   if (broadcastTargetsTabs !== tabs) {
     setBroadcastTargetsTabs(tabs)
-    const validIds = new Set(
-      tabs.filter((tab) => tab.type === "terminal" || tab.type === "ssh").map((tab) => tab.id)
-    )
+    const validIds = new Set(tabs.filter((tab) => isSessionTab(tab)).map((tab) => tab.id))
     setBroadcastTargetIds((current) => {
       const next = current.filter((id) => validIds.has(id))
       return next.length === current.length ? current : next
@@ -148,7 +147,7 @@ export function useBroadcastControls(
 
   const reconnectBroadcastTargets = useCallback(async () => {
     const selected = new Set(broadcastTargetIds)
-    const openTerminalTabs = tabs.filter((tab) => tab.type === "terminal" || tab.type === "ssh")
+    const openTerminalTabs = tabs.filter((tab) => isSessionTab(tab))
     const targets =
       selected.size > 0 ? openTerminalTabs.filter((tab) => selected.has(tab.id)) : openTerminalTabs
     if (targets.length === 0) return

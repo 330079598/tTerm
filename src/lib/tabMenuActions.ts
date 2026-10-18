@@ -4,7 +4,7 @@ import type { KeymapActionId } from "@/lib/keymap/actions"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
 import { hasTabIcon } from "@/lib/tabIcons"
 import { getTabLogMenuActions } from "@/lib/terminalLogRecording"
-import { isPageTab, type Tab, type TabContextMenuAction } from "@/types/tab"
+import { isPageTab, isSessionTab, type Tab, type TabContextMenuAction } from "@/types/tab"
 
 const SPLITS: {
   key: string
@@ -28,7 +28,7 @@ export function getTabSplitMenuActions(
   tab: Pick<Tab, "type">,
   t: ReturnType<typeof useTranslation>["t"]
 ): TabContextMenuAction[] {
-  if (tab.type !== "terminal" && tab.type !== "ssh") return []
+  if (!isSessionTab(tab)) return []
   return SPLITS.map(({ key, label, action, shortcut }) => ({
     label: t(`contextMenu.${key}`, { defaultValue: label }),
     action,

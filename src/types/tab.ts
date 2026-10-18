@@ -224,6 +224,13 @@ export function isPageTab(tab: Pick<Tab, "type"> | null | undefined): boolean {
   return tab?.type === "settings" || tab?.type === "tunnels" || tab?.type === "logs"
 }
 
+/** Whether a tab runs a terminal session, a local shell's or a connection's, rather than a page. */
+export function isSessionTab<T extends Pick<Tab, "type">>(
+  tab: T | null | undefined
+): tab is T & { type: ConnectionType } {
+  return tab?.type === "terminal" || tab?.type === "ssh"
+}
+
 export interface TabContextMenuAction {
   label: string
   action: string

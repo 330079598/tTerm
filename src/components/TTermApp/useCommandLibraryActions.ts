@@ -12,6 +12,7 @@ import {
   saveRecentCommands,
 } from "@/lib/recentCommands"
 import type { CommandDraft, ExecutedCommand, RecentCommand, SavedCommand } from "@/types/command"
+import { isSessionTab } from "@/types/tab"
 
 /**
  * The command library: opening it, inserting a command into the active
@@ -33,7 +34,7 @@ export function useCommandLibraryActions(shell: AppShell, state: BroadcastState)
 
   const activeTerminalTab = useMemo(() => {
     const tab = tabs.find((candidate) => candidate.id === activeTabId)
-    return tab?.type === "terminal" || tab?.type === "ssh" ? tab : null
+    return isSessionTab(tab) ? tab : null
   }, [activeTabId, tabs])
   const activeTerminalRuntime = activeTerminalTab
     ? terminalRuntimeStates[activeTerminalTab.id]
@@ -55,7 +56,7 @@ export function useCommandLibraryActions(shell: AppShell, state: BroadcastState)
     async (commandText: string) => {
       const tabId = activeTabIdRef.current
       const tab = tabsRef.current.find((candidate) => candidate.id === tabId)
-      if (!tab || (tab.type !== "terminal" && tab.type !== "ssh")) {
+      if (!tab || !isSessionTab(tab)) {
         toast({
           title: t("commandLibrary.messages.insertFailed"),
           description: t("commandLibrary.selectTerminalHint"),
