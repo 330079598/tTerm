@@ -226,6 +226,8 @@ pub fn run() {
             profiles::commands::delete_profile,
             profiles::commands::delete_profiles,
             profiles::commands::set_profile_server_monitor_visible,
+            profiles::commands::set_profile_distro,
+            profiles::commands::set_profile_tab_icon,
             profiles::commands::test_connection,
             tunnel::commands::list_tunnels,
             tunnel::commands::list_tunnel_statuses,

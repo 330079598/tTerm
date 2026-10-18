@@ -18,7 +18,7 @@ import type { Tab } from "@/types/tab"
 
 /** A terminal tab's own icon, edited beside its name. */
 interface TabIconEdit {
-  tab: Pick<Tab, "type" | "shellName" | "distroId">
+  tab: Pick<Tab, "type" | "shellName" | "distroId" | "connection">
   value: TabIconStyle | undefined
   onChange: (value: TabIconStyle | undefined) => void
 }
@@ -110,6 +110,9 @@ function RenameForm({
               resetLabel={t(icon.tab.type === "ssh" ? "tabIcons.resetSshTab" : "tabIcons.resetTab")}
               onChange={setIconStyle}
             />
+            {icon.tab.type === "ssh" && icon.tab.connection?.profileId && (
+              <p className="text-muted-foreground mt-2 text-xs">{t("tabIcons.connectionShared")}</p>
+            )}
           </div>
         )}
 

@@ -19,6 +19,7 @@ interface UseTabContextMenuDeps {
   renameTab: (id: string, newName: string) => void
   editTabProfile: (tab: Tab) => void
   setTabLogRecording: (tabId: string, recording: boolean) => void
+  setTabIconStyle: (tabId: string, iconStyle: TabIconStyle | undefined) => void
 }
 
 export function useTabContextMenu({
@@ -33,6 +34,7 @@ export function useTabContextMenu({
   renameTab,
   editTabProfile,
   setTabLogRecording,
+  setTabIconStyle,
 }: UseTabContextMenuDeps) {
   const [renameDialogState, setRenameDialogState] = useState<RenameDialogState>({
     isOpen: false,
@@ -203,9 +205,9 @@ export function useTabContextMenu({
 
   const handleIconStyleChange = useCallback(
     (iconStyle: TabIconStyle | undefined) => {
-      if (iconTab) updateTab(iconTab.id, (current) => ({ ...current, iconStyle }))
+      if (iconTab) setTabIconStyle(iconTab.id, iconStyle)
     },
-    [iconTab, updateTab]
+    [iconTab, setTabIconStyle]
   )
 
   return {

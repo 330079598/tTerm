@@ -1,5 +1,9 @@
 import { SavedProfile } from "@/components/ProfilesPanel"
-import { normalizeSessionLogPolicy, normalizeSshAuthMethod } from "@/lib/profileConnections"
+import {
+  normalizeSessionLogPolicy,
+  normalizeSshAuthMethod,
+  profileTabIcon,
+} from "@/lib/profileConnections"
 import { normalizeProxyChoice } from "@/lib/proxy"
 import type { SessionLogPolicy } from "@/types/tab"
 import type { TerminalPalette } from "@/types/theme"
@@ -42,6 +46,8 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     encoding: normalizeTerminalEncoding(profile.encoding),
     terminalTheme: profile.terminal_theme ?? "",
     loginScript: profile.login_script ?? "",
+    tabIcon: profileTabIcon(profile).iconStyle,
+    distro: profileTabIcon(profile).distroId,
     shellIntegration: profile.shell_integration === true,
     sessionLog: normalizeSessionLogPolicy(profile.session_log) ?? "default",
     useJumpHost: profile.use_jump_host ?? jumpHosts.length > 0,

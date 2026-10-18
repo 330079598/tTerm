@@ -147,6 +147,13 @@ export function useConnectionSubmit({
         server_monitor_visible: editProfile?.server_monitor_visible === true,
         encoding: encodingPayload(form.encoding),
         terminal_theme: form.terminalTheme || undefined,
+        tab_icon: form.tabIcon,
+        // What the backend keeps too, so the open tabs this profile updates
+        // go on showing the distribution while the host stays the same.
+        distro:
+          editProfile?.host === form.host && editProfile.port === form.port
+            ? editProfile.distro
+            : undefined,
         login_script: loginScriptPayload(form.loginScript),
         shell_integration: form.shellIntegration,
         session_log: sessionLogPayload(form.sessionLog),
@@ -199,6 +206,7 @@ export function useConnectionSubmit({
     }
 
     if (form.type === "ssh") {
+      connection.iconStyle = form.tabIcon
       connection.connection = {
         type: form.type,
         profileId,

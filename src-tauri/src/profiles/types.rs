@@ -99,9 +99,28 @@ pub struct SavedProfile {
     /// default proxy when unset.
     #[serde(default, skip_serializing_if = "crate::proxy::ProxyChoice::is_default")]
     pub proxy: crate::proxy::ProxyChoice,
+    /// The icon and color this connection's tabs show; the logo of the host's
+    /// distribution, once known, when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tab_icon: Option<crate::config::tab_icons::TabIconStyle>,
+    /// The Linux distribution the host says it runs (`ubuntu`, `arch`), for its
+    /// tabs' icon. Set on connecting; saving the profile keeps it while the
+    /// host and port stay the same.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub distro: Option<String>,
 }
 
 impl SavedProfile {
+    /// The distribution this profile's host was seen running, while `host`
+    /// and `port` still point at it.
+    pub fn distro_at(&self, host: Option<&str>, port: Option<u16>) -> Option<String> {
+        if self.host.as_deref() == host && self.port == port {
+            self.distro.clone()
+        } else {
+            None
+        }
+    }
+
     pub fn uses_jump_host(&self) -> bool {
         self.use_jump_host.unwrap_or(!self.jump_hosts.is_empty())
     }

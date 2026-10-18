@@ -43,6 +43,10 @@ export interface SavedProfile {
   session_log?: SessionLogPolicy
   /** Which proxy the first host is reached through; missing follows the default proxy. */
   proxy?: ProxyChoice
+  /** The icon and color the connection's tabs show; missing shows the host's distribution. */
+  tab_icon?: TabIconStyle
+  /** Read-only: the Linux distribution the host said it runs, kept by the backend. */
+  distro?: string
 }
 
 /** A connection's logging choice; `default` follows the logging setting. */
@@ -146,7 +150,10 @@ export interface Tab {
   autoTitle?: boolean
   /** The shell a local tab runs (`pwsh`, `cmd`, `WSL`, `zsh`), for its icon and tooltip. */
   shellName?: string
-  /** A terminal tab's own icon and color, over those of its shell or host. */
+  /**
+   * A terminal tab's own icon and color, over those of its shell or host. A
+   * saved SSH connection's tabs all show the one saved with it.
+   */
   iconStyle?: TabIconStyle
   /** SSH: the Linux distribution the host runs, once it has said; its logo is the tab's icon. */
   distroId?: DistroId

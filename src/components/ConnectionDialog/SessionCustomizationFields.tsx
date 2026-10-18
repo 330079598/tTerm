@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useTheme } from "@/contexts/ThemeContext"
 import type { TerminalPalette } from "@/types/theme"
 
+import { ConnectionIconField } from "@/components/ConnectionDialog/ConnectionIconField"
 import { TerminalThemePicker } from "@/components/ConnectionDialog/TerminalThemePicker"
 import { ConnectionForm } from "@/components/ConnectionDialog/types"
 
@@ -50,6 +51,8 @@ export const SessionCustomizationFields: React.FC<SessionCustomizationFieldsProp
 
   return (
     <div className="space-y-3 rounded-md border px-3 py-2">
+      <ConnectionIconField form={form} setForm={setForm} />
+
       <div>
         <Label htmlFor="conn-terminal-theme" className="mb-1.5 block">
           {t("connection.terminalTheme")}

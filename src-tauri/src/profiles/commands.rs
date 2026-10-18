@@ -7,6 +7,7 @@ use super::storage::{
 use super::types::{
     SavedProfile, SshConfigImportOptions, SshConfigImportPreview, SshConfigImportResult,
 };
+use crate::config::tab_icons::TabIconStyle;
 use crate::core::blocking::run_blocking;
 use crate::core::state::HostPromptMap;
 use crate::proxy::command::CommandTarget;
@@ -185,8 +186,11 @@ fn store_profile(
 
     sanitize_profile(&mut profile);
 
-    if let Some(mut previous) = crate::db::read(|connection| get_profile(connection, &profile.id))?
-    {
+    let previous = crate::db::read(|connection| get_profile(connection, &profile.id))?;
+    profile.distro = previous
+        .as_ref()
+        .and_then(|previous| previous.distro_at(profile.host.as_deref(), profile.port));
+    if let Some(mut previous) = previous {
         normalize_profile(&mut previous);
         for summary in super::storage::profile_secret_summaries(&previous) {
             if !super::storage::profile_secret_summaries(&profile)
@@ -322,10 +326,30 @@ pub async fn delete_profiles(
 
 #[tauri::command]
 pub async fn set_profile_server_monitor_visible(id: String, visible: bool) -> Result<(), String> {
+    update_profile(id, move |profile| profile.server_monitor_visible = visible).await
+}
+
+/// Remembers the Linux distribution a profile's host runs, for its tabs' icon.
+#[tauri::command]
+pub async fn set_profile_distro(id: String, distro: Option<String>) -> Result<(), String> {
+    update_profile(id, move |profile| profile.distro = distro).await
+}
+
+/// Sets the icon a profile's tabs show; none shows the host's distribution.
+#[tauri::command]
+pub async fn set_profile_tab_icon(id: String, icon: Option<TabIconStyle>) -> Result<(), String> {
+    update_profile(id, move |profile| profile.tab_icon = icon).await
+}
+
+/// Changes one setting of a saved profile; a deleted profile is left alone.
+async fn update_profile(
+    id: String,
+    change: impl FnOnce(&mut SavedProfile) + Send + 'static,
+) -> Result<(), String> {
     run_blocking(move || {
         crate::db::write(|transaction| {
             if let Some(mut profile) = get_profile(transaction, &id)? {
-                profile.server_monitor_visible = visible;
+                change(&mut profile);
                 upsert_profile(transaction, &profile)?;
             }
             Ok(())
@@ -526,5 +550,30 @@ mod tests {
         assert_eq!(profile.password.as_deref(), Some("new-secret"));
 
         crate::ssh::typed_passwords::forget_typed_passwords(TAB.to_string());
+    }
+
+    #[test]
+    fn a_profile_keeps_its_hosts_distribution_only_while_the_host_stays() {
+        let mut profile = quick_profile();
+        profile.distro = Some("debian".to_string());
+        assert_eq!(
+            profile.distro_at(Some("db"), Some(22)).as_deref(),
+            Some("debian")
+        );
+        assert_eq!(profile.distro_at(Some("db2"), Some(22)), None);
+        assert_eq!(profile.distro_at(Some("db"), Some(2222)), None);
+    }
+
+    #[test]
+    fn a_profile_reads_back_its_tab_icon_and_distribution() {
+        let mut json = serde_json::to_value(quick_profile()).expect("serialize");
+        json["tab_icon"] = serde_json::json!({ "icon": "distro:arch" });
+        json["distro"] = serde_json::json!("ubuntu");
+        let profile: SavedProfile = serde_json::from_value(json).expect("deserialize");
+        assert_eq!(
+            profile.tab_icon.and_then(|icon| icon.icon).as_deref(),
+            Some("distro:arch")
+        );
+        assert_eq!(profile.distro.as_deref(), Some("ubuntu"));
     }
 }

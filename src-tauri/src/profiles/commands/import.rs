@@ -63,6 +63,10 @@ pub(super) fn import_ssh_config_profiles_blocking(
             }
         }
 
+        // An overwritten profile keeps its host's distribution while it still
+        // points at the same host.
+        let distro = existing_index
+            .and_then(|index| profiles[index].distro_at(Some(&hostname), Some(host.port)));
         let profile = SavedProfile {
             id: existing_index
                 .map(|index| profiles[index].id.clone())
@@ -103,6 +107,8 @@ pub(super) fn import_ssh_config_profiles_blocking(
                     .map(|index| profiles[index].proxy.clone())
                     .unwrap_or_default(),
             },
+            tab_icon: existing_index.and_then(|index| profiles[index].tab_icon.clone()),
+            distro,
         };
 
         forward_sources.push((profile.id.clone(), profile.name.clone(), host.forwards));

@@ -1,4 +1,6 @@
+import { isDistroId } from "@/lib/distro"
 import { normalizeProxyChoice, proxyChoicePayload } from "@/lib/proxy"
+import { normalizeTabIconStyle } from "@/lib/tabIcons"
 import type {
   ConnectionType,
   SavedProfile,
@@ -28,6 +30,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
     title: profile.name,
     type: connectionType,
     isModified: false,
+    ...profileTabIcon(profile),
     connection: {
       type: connectionType,
       profileId: profile.id,
@@ -63,6 +66,25 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
   }
 }
 
+/** The icon a saved connection's tabs show, and the distribution its host runs. */
+export function profileTabIcon(profile: SavedProfile): Pick<Tab, "iconStyle" | "distroId"> {
+  if (profile.connection_type !== "ssh") return {}
+  return {
+    iconStyle: normalizeTabIconStyle(profile.tab_icon),
+    distroId: isDistroId(profile.distro) ? profile.distro : undefined,
+  }
+}
+
+/**
+ * The open SSH tabs that share `tab`'s saved connection, `tab` among them;
+ * just `tab` for a connection that was never saved.
+ */
+export function sameConnectionTabs(tabs: Tab[], tab: Tab): Tab[] {
+  const profileId = tab.type === "ssh" ? tab.connection?.profileId : undefined
+  if (!profileId) return [tab]
+  return tabs.filter((other) => other.type === "ssh" && other.connection?.profileId === profileId)
+}
+
 /**
  * An open tab of an edited profile, now connecting with what was saved. A
  * password typed for the tab is kept only while it still signs in to the
@@ -95,5 +117,5 @@ export function applyProfileToTab(tab: Tab, profile: SavedProfile): Tab {
     }
   }
 
-  return { ...tab, title, duplicateBaseTitle, connection }
+  return { ...tab, ...profileTabIcon(profile), title, duplicateBaseTitle, connection }
 }

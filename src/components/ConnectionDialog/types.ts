@@ -1,6 +1,8 @@
 import { SavedProfile } from "@/components/ProfilesPanel"
 import { useConfig } from "@/contexts/ConfigContext"
+import type { DistroId } from "@/lib/distro"
 import { DEFAULT_PROXY_CHOICE } from "@/lib/proxy"
+import type { TabIconStyle } from "@/lib/tabIcons"
 import type { ProxyChoice } from "@/types/proxy"
 import { SessionLogPolicy, SshAuthMethod, Tab, TerminalShellType } from "@/types/tab"
 
@@ -83,6 +85,10 @@ export interface ConnectionForm {
   /** Theme id for this connection's terminal colors; empty follows the app theme. */
   terminalTheme: string
   loginScript: string
+  /** The icon the connection's tabs show; missing shows the host's distribution. */
+  tabIcon?: TabIconStyle
+  /** Read-only: the distribution the saved host was seen running. */
+  distro?: DistroId
   /** Install tTerm's shell integration on the host so its shell marks commands. */
   shellIntegration: boolean
   /** Whether the connection's sessions are logged; `default` follows the logging setting. */

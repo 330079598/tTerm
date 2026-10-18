@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { applyProfileToTab } from "@/lib/profileConnections"
+import {
+  applyProfileToTab,
+  buildConnectionFromProfile,
+  profileTabIcon,
+  sameConnectionTabs,
+} from "@/lib/profileConnections"
 import type { SavedProfile, Tab } from "@/types/tab"
 
 const profile = (overrides: Partial<SavedProfile> = {}): SavedProfile => ({
@@ -72,5 +77,34 @@ describe("applyProfileToTab", () => {
       profile({ name: "api" })
     )
     expect(copy).toMatchObject({ title: "api-2", duplicateBaseTitle: "api" })
+  })
+})
+
+describe("profileTabIcon", () => {
+  it("gives a saved SSH connection's tabs its icon and its host's distribution", () => {
+    const saved = profile({ tab_icon: { icon: "database" }, distro: "debian" })
+    expect(buildConnectionFromProfile(saved)).toMatchObject({
+      iconStyle: { icon: "database" },
+      distroId: "debian",
+    })
+    expect(applyProfileToTab(tab({ distroId: "arch" }), saved).distroId).toBe("debian")
+  })
+
+  it("drops a distribution without an icon", () => {
+    expect(profileTabIcon(profile({ distro: "beos" })).distroId).toBeUndefined()
+  })
+})
+
+describe("sameConnectionTabs", () => {
+  it("finds every open SSH tab of the same saved connection", () => {
+    const first = tab()
+    const second = tab({ id: "t2" })
+    const other = tab({ id: "t3", connection: { type: "ssh", profileId: "p2" } })
+    expect(sameConnectionTabs([first, second, other], first)).toEqual([first, second])
+  })
+
+  it("keeps a connection that was never saved to its own tab", () => {
+    const quick = tab({ connection: { type: "ssh", host: "10.0.0.1" } })
+    expect(sameConnectionTabs([quick, tab({ id: "t2" })], quick)).toEqual([quick])
   })
 })
