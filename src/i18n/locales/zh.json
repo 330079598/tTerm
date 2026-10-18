@@ -2705,6 +2705,10 @@
     "fileDialogTitle": "通过 {{protocol}} 发送文件",
     "fileFailed": "无法发送文件",
     "echo": "显示",
-    "echoHint": "在终端里显示发送的内容，以箭头开头"
+    "echoHint": "在终端里显示发送的内容，以箭头开头",
+    "receive": "接收文件",
+    "receiveHint": "通过 XMODEM 或 YMODEM 接收设备发来的文件，点这里之后再让设备开始发送",
+    "receiveDialogTitle": "保存通过 {{protocol}} 收到的文件",
+    "receiveFailed": "无法接收文件"
   }
 }

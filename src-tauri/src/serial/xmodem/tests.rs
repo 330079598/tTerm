@@ -276,7 +276,7 @@ fn a_receiver_cancelling_stops_the_transfer() {
         &mut outgoing,
         &mut |_| {},
     );
-    assert_eq!(result, Err(TransferError::CancelledByReceiver));
+    assert_eq!(result, Err(TransferError::CancelledByDevice));
 }
 
 #[test]

@@ -2727,6 +2727,10 @@
     "fileDialogTitle": "Send files over {{protocol}}",
     "fileFailed": "Could not send the file",
     "echo": "Show",
-    "echoHint": "Show what is sent in the terminal, after an arrow"
+    "echoHint": "Show what is sent in the terminal, after an arrow",
+    "receive": "Receive file",
+    "receiveHint": "Receive what the device sends over XMODEM or YMODEM; start its sender after this",
+    "receiveDialogTitle": "Save files received over {{protocol}}",
+    "receiveFailed": "Could not receive files"
   }
 }

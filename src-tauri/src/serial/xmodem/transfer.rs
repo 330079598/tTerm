@@ -110,26 +110,63 @@ pub(super) fn open_files(paths: &[String]) -> Result<Vec<OpenedFile>, String> {
         .collect()
 }
 
-pub(super) struct TransferParams {
-    pub emit: EmitFn,
+/// A transfer's hold on a tab's port, given back with [`PortClaim::release`].
+pub(super) struct PortClaim {
     pub tab_id: String,
     pub session_nonce: u32,
     pub transfers: ZmodemMap,
     pub tap: SerialTap,
+}
+
+impl PortClaim {
+    /// Gives the port's input back to the terminal and lets typing through.
+    pub(super) fn release(self) {
+        *self.tap.lock().unwrap_or_else(PoisonError::into_inner) = None;
+        let mut transfers = self
+            .transfers
+            .write()
+            .unwrap_or_else(PoisonError::into_inner);
+        if transfers
+            .get(&self.tab_id)
+            .is_some_and(|handle| handle.session_nonce == self.session_nonce)
+        {
+            transfers.remove(&self.tab_id);
+        }
+    }
+}
+
+/// Tells the device a transfer that failed on this side is over. One the
+/// device cancelled, or that lost the device, needs no telling.
+pub(super) fn cancel_on_failure(link: &mut TapLink, result: &Result<(), TransferError>) {
+    if let Err(error) = result {
+        if !matches!(
+            error,
+            TransferError::CancelledByDevice | TransferError::Disconnected
+        ) {
+            protocol::send_cancel(link);
+        }
+    }
+}
+
+pub(super) struct TransferParams {
+    pub emit: EmitFn,
+    pub claim: PortClaim,
     pub link: TapLink,
     pub protocol: XmodemProtocol,
     pub files: Vec<OpenedFile>,
 }
 
 /// What the transfer list shows of a file.
-struct FileInfo {
-    name: String,
-    size: u64,
-    path: String,
+pub(super) struct FileInfo {
+    pub name: String,
+    pub size: u64,
+    pub path: String,
+    /// `upload` to the device, `download` from it.
+    pub direction: &'static str,
 }
 
 /// Reports the files' rows in the transfer list.
-struct FileRows<'a> {
+pub(super) struct FileRows<'a> {
     emit: &'a EmitFn,
     files: Vec<FileInfo>,
     ids: Vec<String>,
@@ -138,7 +175,7 @@ struct FileRows<'a> {
 }
 
 impl<'a> FileRows<'a> {
-    fn new(emit: &'a EmitFn, files: Vec<FileInfo>) -> Self {
+    pub(super) fn new(emit: &'a EmitFn, files: Vec<FileInfo>) -> Self {
         Self {
             emit,
             ids: files.iter().map(|_| events::new_transfer_id()).collect(),
@@ -148,7 +185,15 @@ impl<'a> FileRows<'a> {
         }
     }
 
-    fn start(&mut self, index: usize) {
+    /// Adds a file found as the transfer runs; returns its index.
+    pub(super) fn add(&mut self, file: FileInfo) -> usize {
+        self.files.push(file);
+        self.ids.push(events::new_transfer_id());
+        self.started.push(None);
+        self.files.len() - 1
+    }
+
+    pub(super) fn start(&mut self, index: usize) {
         if self.started[index].is_some() {
             return;
         }
@@ -159,7 +204,7 @@ impl<'a> FileRows<'a> {
             "transfer-start",
             TransferStartPayload {
                 transfer_id: self.ids[index].clone(),
-                direction: "upload",
+                direction: file.direction,
                 file_name: file.name.clone(),
                 file_size: file.size,
                 local_path: file.path.clone(),
@@ -167,7 +212,7 @@ impl<'a> FileRows<'a> {
         );
     }
 
-    fn progress(&mut self, index: usize, sent: u64, finished: bool) {
+    pub(super) fn progress(&mut self, index: usize, sent: u64, finished: bool) {
         let now = Instant::now();
         let due = self
             .last_report
@@ -190,7 +235,7 @@ impl<'a> FileRows<'a> {
         );
     }
 
-    fn complete(&self, index: usize, result: &Result<(), TransferError>) {
+    pub(super) fn complete(&self, index: usize, result: &Result<(), TransferError>) {
         let cancelled = matches!(result, Err(TransferError::Cancelled));
         events::emit(
             self.emit,
@@ -206,7 +251,7 @@ impl<'a> FileRows<'a> {
 
     /// Ends the rows of the files from `from` up to, not including, `to` as
     /// sent, empty files among them that never reported progress.
-    fn finish(&mut self, from: usize, to: usize) {
+    pub(super) fn finish(&mut self, from: usize, to: usize) {
         for index in from..to {
             self.start(index);
             self.progress(index, self.files[index].size, true);
@@ -219,10 +264,7 @@ impl<'a> FileRows<'a> {
 pub(super) fn run(params: TransferParams) {
     let TransferParams {
         emit,
-        tab_id,
-        session_nonce,
-        transfers,
-        tap,
+        claim,
         mut link,
         protocol,
         files,
@@ -234,6 +276,7 @@ pub(super) fn run(params: TransferParams) {
                 name: opened.file.name.clone(),
                 size: opened.file.size,
                 path: opened.path,
+                direction: "upload",
             };
             (info, opened.file)
         })
@@ -259,26 +302,10 @@ pub(super) fn run(params: TransferParams) {
         })
     };
 
+    cancel_on_failure(&mut link, &result);
     match &result {
         Ok(()) => rows.finish(current, count),
-        Err(error) => {
-            // The receiver already knows a transfer it cancelled, or lost, is over.
-            if !matches!(
-                error,
-                TransferError::CancelledByReceiver | TransferError::Disconnected
-            ) {
-                protocol::send_cancel(&mut link);
-            }
-            rows.complete(current, &result);
-        }
+        Err(_) => rows.complete(current, &result),
     }
-
-    *tap.lock().unwrap_or_else(PoisonError::into_inner) = None;
-    let mut transfers = transfers.write().unwrap_or_else(PoisonError::into_inner);
-    if transfers
-        .get(&tab_id)
-        .is_some_and(|handle| handle.session_nonce == session_nonce)
-    {
-        transfers.remove(&tab_id);
-    }
+    claim.release();
 }

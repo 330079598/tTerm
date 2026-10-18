@@ -5,22 +5,22 @@ use super::XmodemProtocol;
 use std::io::Read;
 use std::time::{Duration, Instant};
 
-const SOH: u8 = 0x01;
-const STX: u8 = 0x02;
-const EOT: u8 = 0x04;
-const ACK: u8 = 0x06;
-const NAK: u8 = 0x15;
-const CAN: u8 = 0x18;
-const SUB: u8 = 0x1a;
-const CRC_MODE: u8 = b'C';
+pub(super) const SOH: u8 = 0x01;
+pub(super) const STX: u8 = 0x02;
+pub(super) const EOT: u8 = 0x04;
+pub(super) const ACK: u8 = 0x06;
+pub(super) const NAK: u8 = 0x15;
+pub(super) const CAN: u8 = 0x18;
+pub(super) const SUB: u8 = 0x1a;
+pub(super) const CRC_MODE: u8 = b'C';
 
 /// How long a receiver has to ask for the first block. Bootloaders ask once
 /// a second, and a person may start the transfer before the device.
-const START_TIMEOUT: Duration = Duration::from_secs(60);
+pub(super) const START_TIMEOUT: Duration = Duration::from_secs(60);
 /// How long a receiver has to answer one block.
-const BLOCK_TIMEOUT: Duration = Duration::from_secs(10);
+pub(super) const BLOCK_TIMEOUT: Duration = Duration::from_secs(10);
 /// How often a block is sent before the transfer gives up on it.
-const MAX_ATTEMPTS: u32 = 10;
+pub(super) const MAX_ATTEMPTS: u32 = 10;
 
 /// What the receiver sent, as [`Link::read`] reports it.
 pub(super) enum Received {
@@ -48,10 +48,16 @@ pub(super) trait Link {
 pub(super) enum TransferError {
     /// The user stopped it.
     Cancelled,
-    /// The receiver sent CAN CAN.
-    CancelledByReceiver,
+    /// The device sent CAN CAN.
+    CancelledByDevice,
     /// The receiver never asked for the first block.
     NoReceiver,
+    /// The device never sent the first block.
+    NoSender,
+    /// The device sent a block out of order.
+    OutOfSequence,
+    /// A YMODEM header named no file the way the protocol writes one.
+    BadHeader,
     /// The receiver kept refusing or not answering a block.
     NoAnswer,
     Disconnected,
@@ -62,11 +68,17 @@ impl TransferError {
     pub(super) fn message(&self) -> String {
         match self {
             Self::Cancelled => "Cancelled".to_string(),
-            Self::CancelledByReceiver => "The device cancelled the transfer".to_string(),
+            Self::CancelledByDevice => "The device cancelled the transfer".to_string(),
             Self::NoReceiver => {
                 "The device never asked for the file. Start its receiver (XMODEM or YMODEM) and try again"
                     .to_string()
             }
+            Self::NoSender => {
+                "The device never started sending. Start its sender (XMODEM or YMODEM) and try again"
+                    .to_string()
+            }
+            Self::OutOfSequence => "The device sent a block out of order".to_string(),
+            Self::BadHeader => "The device sent a file header that can't be read".to_string(),
             Self::NoAnswer => "The device stopped answering".to_string(),
             Self::Disconnected => "The serial device was disconnected".to_string(),
             Self::Io(err) => err.clone(),
@@ -74,11 +86,11 @@ impl TransferError {
     }
 }
 
-type Result<T> = std::result::Result<T, TransferError>;
+pub(super) type Result<T> = std::result::Result<T, TransferError>;
 
 /// How each block is checked, as the receiver asked.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Check {
+pub(super) enum Check {
     Crc,
     Sum,
 }
@@ -108,7 +120,7 @@ pub(super) fn crc16(data: &[u8]) -> u16 {
     crc
 }
 
-fn write(link: &mut impl Link, bytes: &[u8]) -> Result<()> {
+pub(super) fn write(link: &mut impl Link, bytes: &[u8]) -> Result<()> {
     link.write(bytes)
         .map_err(|err| TransferError::Io(format!("Failed to write to the serial port: {err}")))
 }
@@ -119,7 +131,7 @@ pub(super) fn send_cancel(link: &mut impl Link) {
 }
 
 /// The next byte, or why there is none within `timeout`.
-fn read(link: &mut impl Link, timeout: Duration) -> Result<Option<u8>> {
+pub(super) fn read(link: &mut impl Link, timeout: Duration) -> Result<Option<u8>> {
     if link.cancelled() {
         return Err(TransferError::Cancelled);
     }
@@ -130,8 +142,8 @@ fn read(link: &mut impl Link, timeout: Duration) -> Result<Option<u8>> {
     }
 }
 
-/// Whether a CAN is the receiver cancelling: a second one follows at once.
-fn cancelled_by_receiver(link: &mut impl Link) -> Result<bool> {
+/// Whether a CAN is the device cancelling: a second one follows at once.
+pub(super) fn cancelled_by_device(link: &mut impl Link) -> Result<bool> {
     Ok(read(link, Duration::from_secs(1))? == Some(CAN))
 }
 
@@ -142,8 +154,8 @@ fn wait_for_start(link: &mut impl Link) -> Result<Check> {
         match read(link, Duration::from_secs(1))? {
             Some(CRC_MODE) => return Ok(Check::Crc),
             Some(NAK) => return Ok(Check::Sum),
-            Some(CAN) if cancelled_by_receiver(link)? => {
-                return Err(TransferError::CancelledByReceiver)
+            Some(CAN) if cancelled_by_device(link)? => {
+                return Err(TransferError::CancelledByDevice)
             }
             _ => {}
         }
@@ -159,8 +171,8 @@ fn wait_for_answer(link: &mut impl Link) -> Result<bool> {
         match read(link, deadline.saturating_duration_since(link.now()))? {
             Some(ACK) => return Ok(true),
             Some(NAK) => return Ok(false),
-            Some(CAN) if cancelled_by_receiver(link)? => {
-                return Err(TransferError::CancelledByReceiver)
+            Some(CAN) if cancelled_by_device(link)? => {
+                return Err(TransferError::CancelledByDevice)
             }
             _ => {}
         }
