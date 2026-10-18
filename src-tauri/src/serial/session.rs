@@ -138,7 +138,7 @@ pub(crate) fn spawn_serial_attempt(
         &tab.channel.tab_id,
         tab.output_channel.clone(),
     );
-    crate::terminal::pty::spawn_reader_thread(
+    crate::terminal::reader::spawn_reader_thread(
         reader,
         tab.channel.clone(),
         tab.exit_tx.clone(),

@@ -219,7 +219,7 @@ fn spawn_initial_session(
                 &channel.tab_id,
                 tab.output_channel.clone(),
             );
-            terminal::pty::spawn_reader_thread(
+            terminal::reader::spawn_reader_thread(
                 reader,
                 channel.clone(),
                 tab.exit_tx.clone(),

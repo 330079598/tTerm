@@ -382,7 +382,7 @@ fn reader_thread_delivers_batched_utf8_stream_in_order() {
     };
 
     let sender = std::sync::Mutex::new(Some(TerminalOutputSender::spawn("e2e", channel)));
-    let outcome = super::super::pty::run_pty_reader(
+    let outcome = super::super::reader::run_pty_reader(
         reader,
         |_| {},
         |chunk: &[u8]| {
@@ -397,7 +397,7 @@ fn reader_thread_delivers_batched_utf8_stream_in_order() {
         },
     );
 
-    assert_eq!(outcome, super::super::pty::ReaderOutcome::Terminated);
+    assert_eq!(outcome, super::super::reader::ReaderOutcome::Terminated);
 
     let received = received.lock().unwrap().clone();
     let text = String::from_utf8(received).expect("delivered stream is valid UTF-8");

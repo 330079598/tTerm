@@ -1,7 +1,7 @@
 //! End-to-end test of the M4 wiring — the send (upload) direction — driven
 //! against a REAL local PTY (via `portable_pty`) running a REAL `rz`
 //! process. Mirrors production exactly: the "reader" loop (this test's main
-//! thread, standing in for `terminal::pty::spawn_reader_thread`'s closure
+//! thread, standing in for `terminal::reader::spawn_reader_thread`'s closure
 //! once `ZmodemSendPipe` is armed) forwards raw bytes into a channel, while
 //! `zmodem::send::run` — the same function `zmodem_start_send` spawns onto
 //! its own thread in production — drives the whole upload from the other
