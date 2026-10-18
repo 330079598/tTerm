@@ -1,3 +1,5 @@
+import type { LinuxDistributionInfo } from "@/lib/distro"
+
 const CPU_HISTORY_SAMPLE_LIMIT = 48
 
 const CPU_SPARKLINE_SMOOTHING = 0.45
@@ -23,14 +25,6 @@ export type CpuCoreTimes = {
 export type CpuHistorySample = {
   total: number
   cores: Array<{ id: string; percent: number }>
-}
-
-type LinuxDistributionInfo = {
-  id: string
-  idLike: string[]
-  name: string
-  prettyName: string
-  versionId?: string
 }
 
 type MemoryMetrics = {

@@ -24,9 +24,7 @@ import {
   formatLatency,
   formatNetworkRate,
   formatUptime,
-  normalizeDistroId,
   getDistroLabel,
-  getDistroIconSrc,
 } from "@/components/TerminalTab/serverMonitorFormat"
 import {
   PercentValue,
@@ -37,6 +35,7 @@ import type { TerminalTabProps } from "@/components/TerminalTab/types"
 import { ServerMonitorPanel } from "@/components/TerminalTab/ServerMonitorPanel"
 import { useServerMetricsPolling } from "@/components/TerminalTab/useServerMetricsPolling"
 import { useConfig } from "@/contexts/ConfigContext"
+import { detectDistroId, distroIconSrc } from "@/lib/distro"
 import type { MonitorMetricId } from "@/lib/monitorMetrics"
 import { useToast } from "@/hooks/use-toast"
 interface ServerMonitorBarProps {
@@ -144,7 +143,7 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
       )
     }
 
-    const distroId = normalizeDistroId(snapshot)
+    const distroId = detectDistroId(snapshot.distribution)
     const distroLabel = getDistroLabel(snapshot)
     const primaryDisk = selectMostUsedDisk(snapshot.disks) ?? snapshot.disk
     const memoryValue = snapshot.memory
@@ -275,13 +274,13 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
         <span className="server-monitor-distro">
           <img
             className="server-monitor-distro-icon"
-            src={getDistroIconSrc(distroId)}
+            src={distroIconSrc(distroId)}
             alt=""
             aria-hidden="true"
             onError={(event) => {
               const image = event.currentTarget
               if (!image.src.endsWith("/linux.svg")) {
-                image.src = getDistroIconSrc("linux")
+                image.src = distroIconSrc("linux")
               }
             }}
           />

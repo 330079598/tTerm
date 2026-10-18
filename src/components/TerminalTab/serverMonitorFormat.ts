@@ -1,7 +1,5 @@
 import type { ServerMetricsSnapshot } from "@/components/TerminalTab/serverMetrics"
 
-const DISTRO_ICON_BASE = "/assets/distro-icons"
-
 export function formatKib(value?: number) {
   if (value === undefined) return "--"
   const bytes = value * 1024
@@ -62,75 +60,8 @@ export function formatUptime(seconds?: number) {
   return days > 0 ? `${days}d ${hours}h` : `${hours}h`
 }
 
-const DISTRO_RULES: Array<{ patterns: string[]; id: string; exact?: boolean }> = [
-  { patterns: ["archlinux"], id: "arch" },
-  { patterns: ["ubuntu"], id: "ubuntu" },
-  { patterns: ["linuxmint", "linux mint"], id: "linuxmint" },
-  { patterns: ["mint"], id: "linuxmint" },
-  { patterns: ["debian"], id: "debian" },
-  { patterns: ["gentoo"], id: "gentoo" },
-  { patterns: ["manjaro"], id: "manjaro" },
-  { patterns: ["kali"], id: "kali" },
-  { patterns: ["pop!_os", "pop_os"], id: "popos" },
-  { patterns: ["pop os", "pop!"], id: "popos" },
-  { patterns: ["zorin"], id: "zorin" },
-  { patterns: ["elementary"], id: "elementary" },
-  { patterns: ["mx linux"], id: "mx" },
-  { patterns: ["mx"], id: "mx", exact: true },
-  { patterns: ["endeavouros"], id: "endeavouros" },
-  { patterns: ["endeavour"], id: "endeavouros" },
-  { patterns: ["cachyos"], id: "cachyos" },
-  { patterns: ["nixos", "nix os"], id: "nixos" },
-  { patterns: ["nobara"], id: "nobara" },
-  { patterns: ["bazzite"], id: "bazzite" },
-  { patterns: ["antix"], id: "antix" },
-  { patterns: ["biglinux", "big linux"], id: "biglinux" },
-  { patterns: ["deepin"], id: "deepin" },
-  { patterns: ["garuda"], id: "garuda" },
-  { patterns: ["slackware"], id: "slackware" },
-  { patterns: ["void"], id: "void" },
-  { patterns: ["parrot"], id: "parrot" },
-  { patterns: ["rocky"], id: "rocky" },
-  { patterns: ["alma"], id: "alma" },
-  { patterns: ["centos"], id: "centos" },
-  { patterns: ["rhel", "redhat", "red hat"], id: "rhel" },
-  { patterns: ["fedora"], id: "fedora" },
-  { patterns: ["suse", "opensuse"], id: "suse" },
-  { patterns: ["arch"], id: "arch" },
-  { patterns: ["alpine"], id: "alpine" },
-  { patterns: ["amazon"], id: "amazon" },
-  { patterns: ["amzn"], id: "amazon", exact: true },
-  { patterns: ["oracle"], id: "oracle" },
-]
-
-export function normalizeDistroId(snapshot?: ServerMetricsSnapshot) {
-  const values = [
-    snapshot?.distribution?.id,
-    ...(snapshot?.distribution?.idLike ?? []),
-    snapshot?.distribution?.name,
-    snapshot?.distribution?.prettyName,
-  ]
-    .filter(Boolean)
-    .map((value) => value!.toLowerCase())
-
-  for (const rule of DISTRO_RULES) {
-    const matches = rule.exact
-      ? values.some((value) => rule.patterns.some((pattern) => value === pattern))
-      : values.some((value) => rule.patterns.some((pattern) => value.includes(pattern)))
-    if (matches) {
-      return rule.id
-    }
-  }
-
-  return "linux"
-}
-
 export function getDistroLabel(snapshot?: ServerMetricsSnapshot) {
   if (!snapshot?.distribution) return "Linux"
   const pretty = snapshot.distribution.prettyName || snapshot.distribution.name
   return pretty || "Linux"
-}
-
-export function getDistroIconSrc(distroId: string) {
-  return `${DISTRO_ICON_BASE}/${distroId}.svg`
 }
