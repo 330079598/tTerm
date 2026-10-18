@@ -108,3 +108,38 @@ describe("sameConnectionTabs", () => {
     expect(sameConnectionTabs([quick, tab({ id: "t2" })], quick)).toEqual([quick])
   })
 })
+
+describe("serial profiles", () => {
+  const board = profile({
+    connection_type: "serial",
+    name: "ESP32",
+    host: undefined,
+    serial: {
+      port: "COM3",
+      baudRate: 921600,
+      dataBits: 8,
+      parity: "none",
+      stopBits: 1,
+      flowControl: "none",
+      lineEnding: "crlf",
+      localEcho: false,
+      timestamps: true,
+    },
+  })
+
+  it("open a serial tab on the saved port", () => {
+    const opened = buildConnectionFromProfile(board)
+    expect(opened.type).toBe("serial")
+    expect(opened.connection).toMatchObject({
+      type: "serial",
+      profileId: "p1",
+      profileName: "ESP32",
+      serial: { port: "COM3", baudRate: 921600, lineEnding: "crlf", timestamps: true },
+    })
+    expect(opened.connection?.host).toBeUndefined()
+  })
+
+  it("carry no SSH tab icon", () => {
+    expect(profileTabIcon(board)).toEqual({})
+  })
+})

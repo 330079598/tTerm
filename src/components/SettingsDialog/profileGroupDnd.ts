@@ -1,3 +1,4 @@
+import { normalizeSerialSettings } from "@/lib/serial"
 import type { SavedProfile } from "@/types/tab"
 
 export const UNGROUPED_KEY = "__ungrouped__"
@@ -38,6 +39,10 @@ export const buildProfileSubtitle = (
 ) => {
   if (profile.connection_type === "terminal") {
     return t("profiles.localTerminal")
+  }
+
+  if (profile.connection_type === "serial") {
+    return normalizeSerialSettings(profile.serial).port
   }
 
   if (!profile.host) {

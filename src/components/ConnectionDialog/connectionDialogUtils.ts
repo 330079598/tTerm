@@ -5,6 +5,7 @@ import {
   profileTabIcon,
 } from "@/lib/profileConnections"
 import { normalizeProxyChoice } from "@/lib/proxy"
+import { normalizeSerialSettings } from "@/lib/serial"
 import type { SessionLogPolicy } from "@/types/tab"
 import type { TerminalPalette } from "@/types/theme"
 
@@ -53,6 +54,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     useJumpHost: profile.use_jump_host ?? jumpHosts.length > 0,
     proxy: normalizeProxyChoice(profile.proxy),
     sudoAutofill: profile.sudo_autofill !== false,
+    serial: normalizeSerialSettings(profile.serial),
     jumpHosts: jumpHosts.map((jump) => ({
       ...createDefaultJumpHost(),
       host: jump.host ?? "",
@@ -162,5 +164,7 @@ export function getDefaultTitle(type: ConnectionType, form: ConnectionForm): str
       return "Shell name"
     case "ssh":
       return form.host ? `${form.username}@${form.host}` : "SSH Connection"
+    case "serial":
+      return form.serial.port.trim() || "Serial port"
   }
 }

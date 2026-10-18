@@ -4,6 +4,8 @@ import type { TerminalSessionContext } from "@/components/TerminalTab/terminalLi
 import type { ConnectionStateUpdater } from "@/components/TerminalTab/connectionStateUpdater"
 import type { SavedPasswordPrompts } from "@/components/TerminalTab/savedPasswordPrompts"
 import type { CommandTracking } from "@/components/TerminalTab/commandTracking"
+import { getSerialDisplay } from "@/components/TerminalTab/serialDisplay"
+import { localEchoText } from "@/lib/serial"
 import { captureTerminalInput, EMPTY_COMMAND_CAPTURE_STATE } from "@/lib/terminalCommandCapture"
 
 type TerminalInputDeps = Pick<ConnectionStateUpdater, "applyConnectionState"> &
@@ -23,6 +25,7 @@ export function attachTerminalInput(ctx: TerminalSessionContext, deps: TerminalI
     waitingForReconnectRef,
     onReconnectRequestRef,
     onInputRef,
+    connectionRef,
   } = ctx
   const {
     applyConnectionState,
@@ -74,6 +77,11 @@ export function attachTerminalInput(ctx: TerminalSessionContext, deps: TerminalI
     }
     // After the typed command is noted, so that it names what starts.
     if (startsCommand) commandTimer.start(Date.now())
+
+    const connection = connectionRef.current
+    if (connection?.type === "serial" && getSerialDisplay(tabId, connection.serial).localEcho) {
+      term.write(localEchoText(data))
+    }
 
     const onInput = onInputRef.current
     if (onInput) {

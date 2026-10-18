@@ -286,6 +286,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
       aria-label={isBroadcastSource ? t("broadcast.sourceTerminal") : undefined}
     >
       <ConnectionHeader
+        tabId={tabId}
+        sessionNonce={sessionNonce}
         connection={connection}
         connectionHeaderPinned={connectionHeaderPinned}
         connectionState={connectionState}

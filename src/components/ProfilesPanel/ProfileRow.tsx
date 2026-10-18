@@ -1,15 +1,17 @@
 import React from "react"
-import { ChevronRight, Copy, Pencil, PlugZap, Server, Terminal, Trash2 } from "lucide-react"
+import { ChevronRight, Copy, Pencil, PlugZap, Server, Terminal, Trash2, Usb } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
+import { normalizeSerialSettings, serialSummary } from "@/lib/serial"
 import { cn } from "@/lib/utils"
 import type { ConnectionType, SavedProfile } from "@/types/tab"
 
 const connectionTypeIcons = {
   ssh: Server,
   terminal: Terminal,
+  serial: Usb,
 } as const
 
 const buildConnectionSubtitle = (
@@ -18,6 +20,10 @@ const buildConnectionSubtitle = (
 ) => {
   if (profile.connection_type === "terminal") {
     return t("profiles.localTerminal")
+  }
+
+  if (profile.connection_type === "serial") {
+    return normalizeSerialSettings(profile.serial).port
   }
 
   if (!profile.host) {
@@ -33,6 +39,10 @@ const buildMetaItems = (
 ) => {
   if (profile.connection_type === "terminal") {
     return [t("profiles.localTerminal")]
+  }
+
+  if (profile.connection_type === "serial") {
+    return [t("profiles.serialBadge"), serialSummary(normalizeSerialSettings(profile.serial))]
   }
 
   const items = ["SSH"]
@@ -130,7 +140,11 @@ export const ProfileRow: React.FC<{
         <div className="flex min-w-0 items-center gap-2">
           <div className="truncate text-sm font-medium tracking-[-0.01em]">{profile.name}</div>
           <Badge variant="outline" className="hidden shrink-0 sm:inline-flex">
-            {profile.connection_type === "terminal" ? t("profiles.localBadge") : "SSH"}
+            {profile.connection_type === "terminal"
+              ? t("profiles.localBadge")
+              : profile.connection_type === "serial"
+                ? t("profiles.serialBadge")
+                : "SSH"}
           </Badge>
         </div>
 

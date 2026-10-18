@@ -1,5 +1,6 @@
 import { isDistroId } from "@/lib/distro"
 import { normalizeProxyChoice, proxyChoicePayload } from "@/lib/proxy"
+import { normalizeSerialSettings } from "@/lib/serial"
 import { normalizeTabIconStyle } from "@/lib/tabIcons"
 import type {
   ConnectionType,
@@ -23,6 +24,21 @@ export function normalizeSessionLogPolicy(
 
 export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id" | "isActive"> {
   const connectionType = profile.connection_type as ConnectionType
+  if (connectionType === "serial") {
+    return {
+      title: profile.name,
+      type: connectionType,
+      isModified: false,
+      connection: {
+        type: connectionType,
+        profileId: profile.id,
+        profileName: profile.name,
+        terminalTheme: profile.terminal_theme,
+        sessionLog: normalizeSessionLogPolicy(profile.session_log),
+        serial: normalizeSerialSettings(profile.serial),
+      },
+    }
+  }
   const jumpHosts = profile.jump_hosts ?? []
   const useJumpHost = profile.use_jump_host ?? jumpHosts.length > 0
 

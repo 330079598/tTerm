@@ -6,8 +6,10 @@ import type { ConnectionStateUpdater } from "@/components/TerminalTab/connection
 import type { SavedPasswordPrompts } from "@/components/TerminalTab/savedPasswordPrompts"
 import type { CommandTracking } from "@/components/TerminalTab/commandTracking"
 import { OutputAcker } from "@/components/TerminalTab/outputAck"
+import { getSerialDisplay } from "@/components/TerminalTab/serialDisplay"
 import { getConnectionDisplay } from "@/components/TerminalTab/terminalTabUtils"
 import type { HostKeyPromptState, SshConnectionProgress } from "@/components/TerminalTab/types"
+import { createLineTimestamper } from "@/lib/serial"
 import { isVaultLocked, reportVaultLocked } from "@/lib/vaultLock"
 import {
   decodeOutputChunk,
@@ -67,6 +69,10 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
   }
 
   let outputScanState: TerminalOutputScanState = EMPTY_OUTPUT_SCAN_STATE
+  const stampLines = createLineTimestamper()
+  // A serial session, like an SSH one, is a connection to reconnect.
+  const isConnection = () =>
+    connectionRef.current?.type === "ssh" || connectionRef.current?.type === "serial"
 
   let unlistenOutput: (() => void) | null = null
   let unlistenExit: (() => void) | null = null
@@ -100,6 +106,9 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
     } else {
       return
     }
+
+    const serial = connectionRef.current?.type === "serial" ? connectionRef.current.serial : null
+    if (serial && getSerialDisplay(tabId, serial).timestamps) text = stampLines(text)
 
     const scanned = scanTerminalOutput(outputScanState, text)
     outputScanState = scanned.state
@@ -139,7 +148,7 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
       commandTimer.prompt()
       onSessionUnavailableRef.current?.(tabId, sessionNonce, true)
       const reason = event.payload as string | null | undefined
-      if (connectionRef.current?.type === "ssh") {
+      if (isConnection()) {
         const displayAddress = getConnectionDisplay(connectionRef.current, translationRef.current)
         term.writeln(`\r\n\x1b[33m${displayAddress}: session closed\x1b[0m`)
         term.writeln("\x1b[36mPress any key to reconnect\x1b[0m")
@@ -179,6 +188,15 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
       } else if (event.payload.phase === "retrying") {
         stopLoginScript()
         sawRetryingPhase = true
+        applyConnectionState("reconnecting")
+      } else if (event.payload.phase === "serial_waiting") {
+        sawRetryingPhase = true
+        const waiting = translationRef.current("serialControls.waiting", {
+          port: event.payload.host ?? "",
+          reason: event.payload.reason ?? "",
+          defaultValue: "{{port}} disconnected ({{reason}}). Waiting for it to come back",
+        })
+        term.write(`\r\n\x1b[33m[${waiting}]\x1b[0m\r\n`)
         applyConnectionState("reconnecting")
       } else if (event.payload.phase === "retry_exhausted") {
         // The supervisor emits pty-exit right after this; the localized
@@ -251,7 +269,7 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
     })
     .catch((error) => {
       if (session.disposed) return
-      if (connectionRef.current?.type === "ssh") {
+      if (isConnection()) {
         applyConnectionState("error")
         if (isVaultLocked(error)) {
           reportVaultLocked(() => {
@@ -262,6 +280,12 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
         }
       }
       term.writeln(`\x1b[31mFailed to start terminal: ${error}\x1b[0m`)
+      if (connectionRef.current?.type === "serial") {
+        // A port that didn't open, unplugged or held by another program, is
+        // tried again with a key once it is free.
+        term.writeln("\x1b[36mPress any key to reconnect\x1b[0m")
+        waitingForReconnectRef.current = true
+      }
     })
     .finally(() => {
       creatingPtyRef.current = false

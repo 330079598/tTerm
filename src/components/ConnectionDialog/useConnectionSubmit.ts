@@ -25,6 +25,10 @@ import {
   normalizeKeepalive,
   sessionLogPayload,
 } from "@/components/ConnectionDialog/connectionDialogUtils"
+import {
+  buildSerialConnection,
+  buildSerialProfile,
+} from "@/components/ConnectionDialog/serialPayload"
 import { findActiveTunnelsUsingProfile } from "@/components/TunnelsPanel/profileTunnels"
 import { summarizeTunnelNames } from "@/components/TunnelsPanel/tunnelUtils"
 
@@ -105,7 +109,8 @@ export function useConnectionSubmit({
     const group = form.group.trim()
     const shouldPersistProfile = shouldSave
     const profileId =
-      form.type === "ssh" && (shouldPersistProfile || editProfile) ? sshProfileId : undefined
+      form.type !== "terminal" && (shouldPersistProfile || editProfile) ? sshProfileId : undefined
+    const hasTarget = (form.type === "serial" ? form.serial.port : form.host).trim() !== ""
     const ignoreSavedPassword =
       form.type === "ssh" &&
       form.authMethod === "password" &&
@@ -115,7 +120,7 @@ export function useConnectionSubmit({
     const profileJumpHostsPayload = buildJumpHostsPayload(form, "snake", undefined, true)
     const connectionJumpHostsPayload = buildJumpHostsPayload(form, "camel", savedJumpPasswordKeys)
 
-    if (shouldPersistProfile && form.type === "ssh" && form.host.trim()) {
+    if (shouldPersistProfile && form.type !== "terminal" && hasTarget) {
       const duplicate = allProfiles.find(
         (profile) => profile.id !== profileId && profile.name === title && profile.group === group
       )
@@ -124,7 +129,7 @@ export function useConnectionSubmit({
         return
       }
 
-      const profile: SavedProfile = {
+      const sshProfile = (): SavedProfile => ({
         id: sshProfileId,
         name: title,
         group,
@@ -164,7 +169,11 @@ export function useConnectionSubmit({
         sudo_password:
           form.sudoAutofill && form.sudoPassword.length > 0 ? form.sudoPassword : undefined,
         clear_sudo_password: form.clearSudoPassword,
-      }
+      })
+      const profile =
+        form.type === "serial"
+          ? buildSerialProfile(form, { id: sshProfileId, name: title, group })
+          : sshProfile()
       const result = await invokeSafe<void>(
         "save_profile",
         { profile, typedPasswordTabId },
@@ -196,7 +205,7 @@ export function useConnectionSubmit({
       }
     }
 
-    // Nothing was saved (no host yet); a save-only dialog never connects.
+    // Nothing was saved (no host or port yet); a save-only dialog never connects.
     if (saveOnly) return
 
     const connection: Omit<Tab, "id" | "isActive"> = {
@@ -234,6 +243,8 @@ export function useConnectionSubmit({
         jumpHosts: connectionJumpHostsPayload,
         proxy: proxyChoicePayload(form.proxy),
       }
+    } else if (form.type === "serial") {
+      connection.connection = buildSerialConnection(form, title, profileId)
     } else {
       connection.connection = {
         type: "terminal",

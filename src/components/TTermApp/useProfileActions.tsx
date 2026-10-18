@@ -70,7 +70,8 @@ export function useProfileActions(
   const handleDeleteProfile = useCallback(
     (profile: SavedProfile) => {
       const profileTabs = tabs.filter(
-        (tab) => tab.type === "ssh" && tab.connection?.profileId === profile.id
+        (tab) =>
+          (tab.type === "ssh" || tab.type === "serial") && tab.connection?.profileId === profile.id
       )
 
       const source = liveSourceRef.current
@@ -133,7 +134,8 @@ export function useProfileActions(
 
       // Open tabs of the profile reconnect with what was saved; their sessions keep running.
       const profileTabs = tabsRef.current.filter(
-        (tab) => tab.type === "ssh" && tab.connection?.profileId === profile.id
+        (tab) =>
+          (tab.type === "ssh" || tab.type === "serial") && tab.connection?.profileId === profile.id
       )
       profileTabs.forEach((tab) =>
         updateTab(tab.id, (current) => applyProfileToTab(current, profile))

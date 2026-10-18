@@ -38,6 +38,7 @@ export const TAB_ICON_IDS = [
   "wifi",
   "monitor",
   "laptop",
+  "usb",
   // Status and symbols.
   "zap",
   "flame",
@@ -127,6 +128,7 @@ const PLAIN: ResolvedTabIcon = { icon: "terminal", color: "" }
 const POWERSHELL: ResolvedTabIcon = { icon: "square-chevron-right", color: "#3b9ae1" }
 const UNIX: ResolvedTabIcon = { icon: "terminal", color: "#4caf7a" }
 const SERVER: ResolvedTabIcon = { icon: "server", color: "" }
+const SERIAL: ResolvedTabIcon = { icon: "usb", color: "" }
 
 // How each shell looks until the user picks otherwise, keyed like the
 // settings: the lowercased names local_terminal_shell_name gives.
@@ -226,7 +228,9 @@ export function inheritedTabIcon(
   tab: Pick<Tab, "type" | "shellName" | "distroId">,
   config: TabIconConfig
 ): ResolvedTabIcon {
-  return tab.type === "ssh" ? sshTabIcon(tab.distroId) : shellTabIcon(config, tab.shellName)
+  if (tab.type === "ssh") return sshTabIcon(tab.distroId)
+  if (tab.type === "serial") return SERIAL
+  return shellTabIcon(config, tab.shellName)
 }
 
 /** The icon a terminal tab shows, or null for other tabs and while icons are off. */

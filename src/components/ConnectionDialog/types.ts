@@ -2,8 +2,10 @@ import { SavedProfile } from "@/components/ProfilesPanel"
 import { useConfig } from "@/contexts/ConfigContext"
 import type { DistroId } from "@/lib/distro"
 import { DEFAULT_PROXY_CHOICE } from "@/lib/proxy"
+import { DEFAULT_SERIAL_SETTINGS } from "@/lib/serial"
 import type { TabIconStyle } from "@/lib/tabIcons"
 import type { ProxyChoice } from "@/types/proxy"
+import type { SerialSettings } from "@/types/serial"
 import { SessionLogPolicy, SshAuthMethod, Tab, TerminalShellType } from "@/types/tab"
 
 export interface ConnectionDialogProps {
@@ -28,7 +30,7 @@ export interface ProfileSavedOptions {
   reconnect: boolean
 }
 
-export type ConnectionType = "terminal" | "ssh"
+export type ConnectionType = "terminal" | "ssh" | "serial"
 
 export type ConfigState = ReturnType<typeof useConfig>["config"]
 export type SaveConfig = ReturnType<typeof useConfig>["saveConfig"]
@@ -105,6 +107,8 @@ export interface ConnectionForm {
   sudoAutofill: boolean
   sudoPassword: string
   clearSudoPassword: boolean
+  /** The port and how it is opened, for a serial connection. */
+  serial: SerialSettings
 }
 
 export const createDefaultJumpHost = (): JumpHostForm => ({
@@ -154,6 +158,7 @@ export const defaultForm: ConnectionForm = {
   sudoAutofill: true,
   sudoPassword: "",
   clearSudoPassword: false,
+  serial: DEFAULT_SERIAL_SETTINGS,
 }
 
 export const KEEPALIVE_INTERVAL_RANGE = { min: 5, max: 3600, fallback: 15 } as const
@@ -162,4 +167,5 @@ export const KEEPALIVE_COUNT_RANGE = { min: 1, max: 100, fallback: 3 } as const
 export const connectionTypes = [
   { type: "terminal" as const, label: "OS terminal" },
   { type: "ssh" as const, label: "SSH Connection" },
+  { type: "serial" as const, label: "Serial port" },
 ]

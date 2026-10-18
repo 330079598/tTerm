@@ -18,6 +18,9 @@ export function getConnectionDisplay(
   if (!connection || connection.type === "terminal") {
     return t("sessionHeader.localShell", { defaultValue: "Local shell" })
   }
+  if (connection.type === "serial") {
+    return connection.serial?.port || connection.profileName || "serial"
+  }
 
   const host = connection.host || t("sessionHeader.unknownHost", { defaultValue: "unknown-host" })
   const port = connection.port ?? 22
@@ -83,6 +86,13 @@ export function getSshConnectionProgressLabel(
       max: progress.retryMaxAttempts ?? 0,
       defaultValue:
         "Disconnected ({{reason}}). Reconnecting in {{delay}}s (attempt {{attempt}}/{{max}})",
+    })
+  }
+  if (progress.phase === "serial_waiting") {
+    return t("serialControls.waiting", {
+      port: progress.host ?? "",
+      reason: progress.reason ?? "",
+      defaultValue: "{{port}} disconnected ({{reason}}). Waiting for it to come back",
     })
   }
   if (progress.phase === "retry_exhausted") {

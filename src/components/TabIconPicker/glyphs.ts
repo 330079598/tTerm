@@ -67,6 +67,7 @@ import {
   Wrench,
   Zap,
   type LucideIcon,
+  Usb,
 } from "lucide-react"
 
 import type { TabIconId } from "@/lib/tabIcons"
@@ -105,6 +106,7 @@ export const TAB_ICON_GLYPHS: Record<TabIconId, LucideIcon> = {
   wifi: Wifi,
   monitor: Monitor,
   laptop: Laptop,
+  usb: Usb,
   zap: Zap,
   flame: Flame,
   rocket: Rocket,

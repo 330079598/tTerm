@@ -1057,7 +1057,8 @@
     "deleteSelected": "Delete selected",
     "deleteSelectedConfirm_one": "Delete this {{count}} connection?",
     "deleteSelectedConfirm_other": "Delete these {{count}} connections?",
-    "deleteSelectedFailed": "Failed to delete selected connections"
+    "deleteSelectedFailed": "Failed to delete selected connections",
+    "serialBadge": "Serial"
   },
   "commandLibrary": {
     "title": "Command Library",
@@ -1276,7 +1277,8 @@
     "saveAndConnectDescription": "Save this connection first, then open it immediately.",
     "types": {
       "terminal": "OS terminal",
-      "ssh": "SSH Connection"
+      "ssh": "SSH Connection",
+      "serial": "Serial port"
     },
     "terminalShell": "Terminal shell",
     "terminalShellCustomPath": "Custom shell path",
@@ -1335,7 +1337,42 @@
       "always": "Always log",
       "never": "Never log"
     },
-    "loginScriptDesc": "Typed into the shell one line at a time once it is ready, each after the previous command finishes. A password prompt is left for you (or sudo autofill) to answer; typing yourself stops the rest. Runs again after a reconnect."
+    "loginScriptDesc": "Typed into the shell one line at a time once it is ready, each after the previous command finishes. A password prompt is left for you (or sudo autofill) to answer; typing yourself stops the rest. Runs again after a reconnect.",
+    "serial": {
+      "port": "Port",
+      "choosePort": "Choose a port",
+      "noPorts": "No serial ports found",
+      "notConnected": "{{port}} (not connected)",
+      "otherPort": "Other port…",
+      "portPlaceholder": "COM3 or /dev/ttyUSB0",
+      "refresh": "Refresh ports",
+      "listFailed": "Could not list serial ports: {{error}}",
+      "baudRate": "Baud rate",
+      "dataBits": "Data bits",
+      "parity": "Parity",
+      "parityOptions": {
+        "none": "None",
+        "odd": "Odd",
+        "even": "Even"
+      },
+      "stopBits": "Stop bits",
+      "flowControl": "Flow control",
+      "flowControlOptions": {
+        "none": "None",
+        "software": "XON/XOFF",
+        "hardware": "RTS/CTS"
+      },
+      "lineEnding": "Enter sends",
+      "lineEndingOptions": {
+        "cr": "CR (\\r)",
+        "lf": "LF (\\n)",
+        "crlf": "CRLF (\\r\\n)"
+      },
+      "localEcho": "Local echo",
+      "localEchoDesc": "Show what you type, for devices that don't echo it back",
+      "timestamps": "Timestamps",
+      "timestampsDesc": "Start each line of output with the time it arrived"
+    }
   },
   "rename": {
     "title": "Rename Tab",
@@ -2651,5 +2688,21 @@
       "savedToVaultDesc": "This connection now signs in with “{{name}}” from the key vault.",
       "saveToVaultFailed": "Couldn't save the key to the vault"
     }
+  },
+  "serialControls": {
+    "kind": "Serial",
+    "on": "on",
+    "off": "off",
+    "dtrHint": "Set or clear the DTR line",
+    "rtsHint": "Set or clear the RTS line",
+    "reset": "Reset",
+    "resetHint": "Pulse RTS, which resets ESP32 and most USB serial boards. To reset an Arduino, toggle DTR.",
+    "break": "Break",
+    "breakHint": "Hold the line in a break for 100 ms",
+    "timestamps": "Time",
+    "localEcho": "Echo",
+    "reconnectHint": "Close the port and open it again",
+    "waiting": "{{port}} disconnected ({{reason}}). Waiting for it to come back",
+    "failed": "Serial control failed"
   }
 }

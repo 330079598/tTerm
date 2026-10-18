@@ -1041,7 +1041,8 @@
     "deleteSelected": "删除所选",
     "deleteSelectedConfirm_one": "确定删除这 {{count}} 个连接吗？",
     "deleteSelectedConfirm_other": "确定删除这 {{count}} 个连接吗？",
-    "deleteSelectedFailed": "删除所选连接失败"
+    "deleteSelectedFailed": "删除所选连接失败",
+    "serialBadge": "串口"
   },
   "commandLibrary": {
     "title": "命令库",
@@ -1260,7 +1261,8 @@
     "saveAndConnectDescription": "先保存此连接配置，然后立即打开连接。",
     "types": {
       "terminal": "OS terminal",
-      "ssh": "SSH 连接"
+      "ssh": "SSH 连接",
+      "serial": "串口"
     },
     "terminalShell": "终端 Shell",
     "terminalShellCustomPath": "自定义 Shell 路径",
@@ -1319,6 +1321,41 @@
       "default": "跟随全局设置",
       "always": "总是记录",
       "never": "从不记录"
+    },
+    "serial": {
+      "port": "端口",
+      "choosePort": "选择端口",
+      "noPorts": "未找到串口",
+      "notConnected": "{{port}}（未连接）",
+      "otherPort": "其他端口…",
+      "portPlaceholder": "COM3 或 /dev/ttyUSB0",
+      "refresh": "刷新端口",
+      "listFailed": "无法列出串口：{{error}}",
+      "baudRate": "波特率",
+      "dataBits": "数据位",
+      "parity": "校验位",
+      "parityOptions": {
+        "none": "无",
+        "odd": "奇校验",
+        "even": "偶校验"
+      },
+      "stopBits": "停止位",
+      "flowControl": "流控",
+      "flowControlOptions": {
+        "none": "无",
+        "software": "XON/XOFF",
+        "hardware": "RTS/CTS"
+      },
+      "lineEnding": "回车发送",
+      "lineEndingOptions": {
+        "cr": "CR (\\r)",
+        "lf": "LF (\\n)",
+        "crlf": "CRLF (\\r\\n)"
+      },
+      "localEcho": "本地回显",
+      "localEchoDesc": "显示输入的内容，用于不回显的设备",
+      "timestamps": "时间戳",
+      "timestampsDesc": "在每行输出前加上收到的时间"
     }
   },
   "rename": {
@@ -2629,5 +2666,21 @@
       "savedToVaultDesc": "这个连接现在使用密钥库中的“{{name}}”登录。",
       "saveToVaultFailed": "无法把密钥存入密钥库"
     }
+  },
+  "serialControls": {
+    "kind": "串口",
+    "on": "开",
+    "off": "关",
+    "dtrHint": "置位或清除 DTR 线",
+    "rtsHint": "置位或清除 RTS 线",
+    "reset": "复位",
+    "resetHint": "拉一下 RTS，可复位 ESP32 和大多数 USB 串口开发板。Arduino 请切换 DTR 来复位。",
+    "break": "Break",
+    "breakHint": "让线路保持 Break 状态 100 毫秒",
+    "timestamps": "时间",
+    "localEcho": "回显",
+    "reconnectHint": "关闭端口后重新打开",
+    "waiting": "{{port}} 已断开（{{reason}}），等待设备重新连接",
+    "failed": "串口控制失败"
   }
 }

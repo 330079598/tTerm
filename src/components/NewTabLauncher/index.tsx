@@ -79,7 +79,13 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
     let cancelled = false
     invoke<SavedProfile[]>("list_profiles")
       .then((loaded) => {
-        if (!cancelled) setProfiles(loaded.filter((profile) => profile.connection_type === "ssh"))
+        if (!cancelled) {
+          setProfiles(
+            loaded.filter(
+              (profile) => profile.connection_type === "ssh" || profile.connection_type === "serial"
+            )
+          )
+        }
       })
       .catch(() => {})
     // No ~/.ssh/config is the common case, not an error.
@@ -191,7 +197,13 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
     const profileItems = query
       ? profiles
           .filter((profile) =>
-            matchesQuery(query, [profile.name, profile.host, profile.username, profile.group])
+            matchesQuery(query, [
+              profile.name,
+              profile.host,
+              profile.username,
+              profile.group,
+              profile.serial?.port,
+            ])
           )
           .slice(0, PROFILE_MATCH_LIMIT)
           .map<LauncherItem>((profile) => ({
@@ -200,11 +212,13 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
             label: profile.name,
             detail: [
               profile.group,
-              formatEndpoint({
-                username: profile.username,
-                host: profile.host ?? "",
-                port: profile.port,
-              }),
+              profile.connection_type === "serial"
+                ? profile.serial?.port
+                : formatEndpoint({
+                    username: profile.username,
+                    host: profile.host ?? "",
+                    port: profile.port,
+                  }),
             ]
               .filter(Boolean)
               .join(" · "),

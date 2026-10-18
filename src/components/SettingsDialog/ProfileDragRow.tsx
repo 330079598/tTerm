@@ -1,6 +1,6 @@
 import React from "react"
 import { useDraggable, useDroppable } from "@dnd-kit/react"
-import { GripVertical, Pencil, PlugZap, Server, Terminal, Trash2 } from "lucide-react"
+import { GripVertical, Pencil, PlugZap, Server, Terminal, Trash2, Usb } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import {
@@ -37,7 +37,7 @@ export const ProfileDragRow: React.FC<ProfileDragRowProps> = ({
   const { ref: draggableRef, isDragging } = useDraggable({ id: profileDragId(profile.id) })
   const { ref: droppableRef, isDropTarget } = useDroppable({ id: profileDropId(profile.id) })
   const isTerminal = profile.connection_type === "terminal"
-  const Icon = isTerminal ? Terminal : Server
+  const Icon = isTerminal ? Terminal : profile.connection_type === "serial" ? Usb : Server
   const hasProfileActions = Boolean(onConnectProfile || onEditProfile || onDeleteProfile)
   const setNodeRef = (node: HTMLDivElement | null) => {
     draggableRef(node)
@@ -74,7 +74,11 @@ export const ProfileDragRow: React.FC<ProfileDragRowProps> = ({
         <div className="flex min-w-0 items-center gap-2">
           <div className="truncate text-sm font-medium">{profile.name}</div>
           <Badge variant="outline" className="h-5 shrink-0 px-1.5 text-[10px]">
-            {isTerminal ? t("profiles.localBadge") : "SSH"}
+            {isTerminal
+              ? t("profiles.localBadge")
+              : profile.connection_type === "serial"
+                ? t("profiles.serialBadge")
+                : "SSH"}
           </Badge>
         </div>
         <div className="text-muted-foreground mt-1 truncate text-xs">

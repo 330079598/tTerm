@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useShortcutLabel } from "@/contexts/KeymapContext"
+import { SerialControlBar } from "@/components/TerminalTab/SerialControlBar"
 import {
   getConnectionDisplay,
   getConnectionStateLabel,
@@ -56,6 +57,8 @@ function getConnectionDetailItems(
 }
 
 interface ConnectionHeaderProps {
+  tabId: string
+  sessionNonce: number
   connection?: TerminalTabProps["connection"]
   connectionHeaderPinned: boolean
   connectionState: ConnectionState
@@ -69,7 +72,23 @@ interface ConnectionHeaderProps {
   serverMonitorVisible: boolean
 }
 
-export const ConnectionHeader: React.FC<ConnectionHeaderProps> = ({
+/** A connection's header: an SSH tab's pinnable one, or a serial tab's controls. */
+export const ConnectionHeader: React.FC<ConnectionHeaderProps> = (props) =>
+  props.connection?.type === "serial" ? (
+    <SerialControlBar
+      tabId={props.tabId}
+      sessionNonce={props.sessionNonce}
+      connection={props.connection}
+      connectionState={props.connectionState}
+      connectionProgress={props.connectionProgress}
+      onBackgroundMouseDown={props.onBackgroundMouseDown}
+      onReconnect={props.onReconnect}
+    />
+  ) : (
+    <SshConnectionHeader {...props} />
+  )
+
+const SshConnectionHeader: React.FC<ConnectionHeaderProps> = ({
   connection,
   connectionHeaderPinned,
   connectionState,

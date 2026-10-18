@@ -2,6 +2,7 @@ import type { DistroId } from "@/lib/distro"
 import type { KeymapActionId } from "@/lib/keymap/actions"
 import type { TabIconStyle } from "@/lib/tabIcons"
 import type { ProxyChoice } from "@/types/proxy"
+import type { SerialSettings } from "@/types/serial"
 
 export interface SavedProfile {
   id: string
@@ -47,6 +48,8 @@ export interface SavedProfile {
   tab_icon?: TabIconStyle
   /** Read-only: the Linux distribution the host said it runs, kept by the backend. */
   distro?: string
+  /** A serial connection's port and how it is opened. */
+  serial?: SerialSettings
 }
 
 /** A connection's logging choice; `default` follows the logging setting. */
@@ -96,7 +99,7 @@ export interface TransferTask {
 
 export type TerminalShellType =
   "auto" | "cmd" | "powershell" | "pwsh" | "wsl" | "git-bash" | "custom"
-export type ConnectionType = "terminal" | "ssh"
+export type ConnectionType = "terminal" | "ssh" | "serial"
 export type TabType = ConnectionType | "settings" | "tunnels" | "logs" | "remote-file-editor"
 
 /**
@@ -202,6 +205,8 @@ export interface Tab {
     sessionLog?: SessionLogPolicy
     /** SSH: which proxy the first host is reached through; missing follows the default proxy. */
     proxy?: ProxyChoice
+    /** Serial: the port and how it is opened. */
+    serial?: SerialSettings
   }
   remoteFile?: {
     sourceTabId: string
@@ -228,7 +233,7 @@ export function isPageTab(tab: Pick<Tab, "type"> | null | undefined): boolean {
 export function isSessionTab<T extends Pick<Tab, "type">>(
   tab: T | null | undefined
 ): tab is T & { type: ConnectionType } {
-  return tab?.type === "terminal" || tab?.type === "ssh"
+  return tab?.type === "terminal" || tab?.type === "ssh" || tab?.type === "serial"
 }
 
 export interface TabContextMenuAction {

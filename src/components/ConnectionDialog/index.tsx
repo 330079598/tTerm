@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
-import { CheckCircle2, CircleAlert, Save, Server, Terminal } from "lucide-react"
+import { CheckCircle2, CircleAlert, Save, Server, Terminal, Usb } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { useSavedPasswordAvailability } from "@/components/ConnectionDialog/useSavedPasswordAvailability"
@@ -30,6 +30,7 @@ import {
 } from "@/components/ConnectionDialog/connectionDialogUtils"
 import { JumpHostFields } from "@/components/ConnectionDialog/JumpHostFields"
 import { ProxyFields } from "@/components/ConnectionDialog/ProxyFields"
+import { SerialConnectionFields } from "@/components/ConnectionDialog/SerialConnectionFields"
 import { SshConnectionFields } from "@/components/ConnectionDialog/SshConnectionFields"
 import { SessionCustomizationFields } from "@/components/ConnectionDialog/SessionCustomizationFields"
 import { SudoAutofillFields } from "@/components/ConnectionDialog/SudoAutofillFields"
@@ -48,6 +49,7 @@ import { getJumpHostErrorKey } from "@/components/ConnectionDialog/jumpHostPaylo
 const connectionTypeIcons = {
   terminal: Terminal,
   ssh: Server,
+  serial: Usb,
 } as const
 
 const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
@@ -150,6 +152,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
 
   const isSsh = form.type === "ssh"
   const isTerminal = form.type === "terminal"
+  const isSerial = form.type === "serial"
+  const canSave = (isSerial ? form.serial.port : form.host).trim() !== ""
 
   return (
     <>
@@ -172,7 +176,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
         <form onSubmit={handleSubmit} className="flex-1 space-y-5 overflow-y-auto px-1">
           <div hidden={saveOnly}>
             <Label className="mb-2 block">{t("connection.type")}</Label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {connectionTypes.map(({ type, label }) => {
                 const Icon = connectionTypeIcons[type]
 
@@ -188,7 +192,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
                     )}
                   >
                     <Icon size={16} />
-                    {label}
+                    {t(`connection.types.${type}`, { defaultValue: label })}
                   </Button>
                 )
               })}
@@ -216,6 +220,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
           )}
 
           {isTerminal && <TerminalConnectionFields form={form} setForm={setForm} />}
+
+          {isSerial && <SerialConnectionFields form={form} setForm={setForm} />}
 
           {isSsh && (
             <>
@@ -320,7 +326,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
                           type="submit"
                           variant="outline"
                           data-action="save-reconnect"
-                          disabled={!form.host.trim()}
+                          disabled={!canSave}
                         >
                           {t("profiles.saveAndReconnect")}
                         </Button>
@@ -328,14 +334,14 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
                       <TooltipContent>{t("profiles.saveAndReconnectDescription")}</TooltipContent>
                     </Tooltip>
                   )}
-                  <Button type="submit" data-action="save" disabled={!form.host.trim()}>
+                  <Button type="submit" data-action="save" disabled={!canSave}>
                     <Save size={14} />
                     {t("quickConnect.save")}
                   </Button>
                 </>
               ) : (
                 <>
-                  {isSsh && (
+                  {(isSsh || isSerial) && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button type="submit" variant="outline" data-action="save">
