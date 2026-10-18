@@ -93,101 +93,114 @@ pub fn normalize_connection(
             proxy_choice: Default::default(),
             proxy: None,
         }),
-        SessionKind::Ssh => {
-            let host = connection
-                .host
-                .as_ref()
-                .map(|v| v.trim().to_string())
-                .filter(|v| !v.is_empty())
-                .ok_or_else(|| "SSH host is required".to_string())?;
-            let port = connection.port.unwrap_or(22);
-            let username = connection
-                .username
-                .as_ref()
-                .map(|v| v.trim().to_string())
-                .filter(|v| !v.is_empty())
-                .ok_or_else(|| "SSH username is required".to_string())?;
-
-            let profile_name = connection
-                .profile_name
-                .as_ref()
-                .map(|v| v.trim().to_string())
-                .filter(|v| !v.is_empty())
-                .unwrap_or_else(|| format!("{}@{}:{}", username, host, port));
-            let profile_id = connection
-                .profile_id
-                .as_ref()
-                .map(|v| v.trim().to_string())
-                .filter(|v| !v.is_empty());
-
-            let use_agent = connection.auth_method.as_deref() == Some("agent");
-            let keyboard_interactive = connection.auth_method.as_deref() == Some("interactive");
-            let auto_auth = connection.auth_method.as_deref() == Some("auto");
-            // Neither method stores a password or reads a key file.
-            let stores_nothing = use_agent || keyboard_interactive;
-            let agent_forward = connection.agent_forward;
-            // Automatic authentication asks for the password and passphrase it needs.
-            let password = if stores_nothing || auto_auth {
-                None
-            } else {
-                connection.password.filter(|v| !v.is_empty())
-            };
-            let ignore_saved_password = connection.ignore_saved_password;
-            let remember_password = connection.remember_password.unwrap_or(false);
-            let private_key_path = if stores_nothing {
-                None
-            } else {
-                connection.private_key_path.filter(|v| !v.is_empty())
-            };
-            let private_key_passphrase = if stores_nothing || auto_auth {
-                None
-            } else {
-                connection.private_key_passphrase.filter(|v| !v.is_empty())
-            };
-            // Only a configured key has a configured certificate.
-            let certificate_path = if stores_nothing || auto_auth {
-                None
-            } else {
-                connection.certificate_path.filter(|v| !v.trim().is_empty())
-            };
-
-            let jump_hosts = normalize_jump_hosts(connection.jump_hosts)?;
-            let (reconnect_enabled, reconnect_max_attempts) =
-                crate::config::reconnect::resolve_reconnect_settings();
-
-            Ok(SessionPlan {
-                kind,
-                profile_id,
-                profile_name,
-                host: Some(host),
-                port,
-                username: Some(username),
-                password,
-                ignore_saved_password,
-                remember_password,
-                keepalive_interval_secs,
-                keepalive_count_max,
-                reconnect_enabled,
-                reconnect_max_attempts,
-                private_key_path,
-                private_key_passphrase,
-                certificate_path,
-                use_agent,
-                keyboard_interactive,
-                auto_auth,
-                agent_forward,
-                terminal_shell: None,
-                jump_hosts,
-                encoding: crate::terminal::encoding::TerminalEncoding::from_label(
-                    connection.encoding.as_deref(),
-                ),
-                shell_integration: connection.shell_integration,
-                session_log,
-                proxy_choice: connection.proxy,
-                proxy: None,
-            })
-        }
+        SessionKind::Ssh => normalize_ssh(
+            connection,
+            session_log,
+            keepalive_interval_secs,
+            keepalive_count_max,
+        ),
     }
+}
+
+/// The plan of an SSH connection: who to log in as, how, and through what.
+fn normalize_ssh(
+    connection: PtyConnectionOptions,
+    session_log: crate::session_log::SessionLogPolicy,
+    keepalive_interval_secs: u16,
+    keepalive_count_max: u16,
+) -> Result<SessionPlan, String> {
+    let host = connection
+        .host
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| "SSH host is required".to_string())?;
+    let port = connection.port.unwrap_or(22);
+    let username = connection
+        .username
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| "SSH username is required".to_string())?;
+
+    let profile_name = connection
+        .profile_name
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| format!("{}@{}:{}", username, host, port));
+    let profile_id = connection
+        .profile_id
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+
+    let use_agent = connection.auth_method.as_deref() == Some("agent");
+    let keyboard_interactive = connection.auth_method.as_deref() == Some("interactive");
+    let auto_auth = connection.auth_method.as_deref() == Some("auto");
+    // Neither method stores a password or reads a key file.
+    let stores_nothing = use_agent || keyboard_interactive;
+    let agent_forward = connection.agent_forward;
+    // Automatic authentication asks for the password and passphrase it needs.
+    let password = if stores_nothing || auto_auth {
+        None
+    } else {
+        connection.password.filter(|v| !v.is_empty())
+    };
+    let ignore_saved_password = connection.ignore_saved_password;
+    let remember_password = connection.remember_password.unwrap_or(false);
+    let private_key_path = if stores_nothing {
+        None
+    } else {
+        connection.private_key_path.filter(|v| !v.is_empty())
+    };
+    let private_key_passphrase = if stores_nothing || auto_auth {
+        None
+    } else {
+        connection.private_key_passphrase.filter(|v| !v.is_empty())
+    };
+    // Only a configured key has a configured certificate.
+    let certificate_path = if stores_nothing || auto_auth {
+        None
+    } else {
+        connection.certificate_path.filter(|v| !v.trim().is_empty())
+    };
+
+    let jump_hosts = normalize_jump_hosts(connection.jump_hosts)?;
+    let (reconnect_enabled, reconnect_max_attempts) =
+        crate::config::reconnect::resolve_reconnect_settings();
+
+    Ok(SessionPlan {
+        kind: SessionKind::Ssh,
+        profile_id,
+        profile_name,
+        host: Some(host),
+        port,
+        username: Some(username),
+        password,
+        ignore_saved_password,
+        remember_password,
+        keepalive_interval_secs,
+        keepalive_count_max,
+        reconnect_enabled,
+        reconnect_max_attempts,
+        private_key_path,
+        private_key_passphrase,
+        certificate_path,
+        use_agent,
+        keyboard_interactive,
+        auto_auth,
+        agent_forward,
+        terminal_shell: None,
+        jump_hosts,
+        encoding: crate::terminal::encoding::TerminalEncoding::from_label(
+            connection.encoding.as_deref(),
+        ),
+        shell_integration: connection.shell_integration,
+        session_log,
+        proxy_choice: connection.proxy,
+        proxy: None,
+    })
 }
 
 pub fn normalize_jump_hosts(jump_hosts: Vec<JumpHostOptions>) -> Result<Vec<JumpHostPlan>, String> {
