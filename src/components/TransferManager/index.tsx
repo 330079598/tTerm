@@ -14,12 +14,11 @@ import { useTranslation } from "react-i18next"
 
 import {
   formatBytes,
-  formatSpeed,
   formatDuration,
   formatItems,
-  formatItemSpeed,
   getStatusIcon,
 } from "@/components/TransferManager/transferDisplay"
+import { TransferProgress } from "@/components/TransferManager/TransferProgress"
 import type { TransferTask } from "@/types/tab"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -169,10 +168,8 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
   }, [isOpen, updatePanelPosition])
 
   function renderTransfer(transfer: TransferTask, nested = false) {
-    const progress = transfer.fileSize > 0 ? (transfer.transferred / transfer.fileSize) * 100 : 0
     const isActive = transfer.status === "pending" || transfer.status === "transferring"
     const isDelete = transfer.direction === "delete"
-    const speed = transfer.speed ?? 0
     const duration = transfer.endTime ? transfer.endTime - transfer.startTime : 0
     const childTransfers = childTransfersByBatchId.get(transfer.id) ?? []
     const canExpand =
@@ -191,8 +188,6 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
       !isActive &&
       Boolean(transfer.retry) &&
       (transfer.status === "failed" || transfer.status === "cancelled")
-    const resumedFrom = transfer.resumedFrom ?? 0
-    const parallelism = transfer.parallelism ?? 0
 
     return (
       <Card key={transfer.id} className={cn("p-3", nested && "bg-muted/30 py-2 shadow-none")}>
@@ -295,35 +290,7 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
           </div>
         </div>
 
-        {transfer.status === "transferring" && (
-          <div className="mt-2 space-y-1.5">
-            <div className="bg-muted h-1 overflow-hidden rounded-full">
-              <div
-                className="bg-primary h-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <div className="text-muted-foreground flex items-center justify-between text-[10px]">
-              <span>
-                {isDelete
-                  ? `${formatItems(transfer.transferred, t)} / ${formatItems(transfer.fileSize, t)}`
-                  : `${formatBytes(transfer.transferred)} / ${formatBytes(transfer.fileSize)}`}
-              </span>
-              {speed > 0 && (
-                <span>{isDelete ? formatItemSpeed(speed, t) : formatSpeed(speed)}</span>
-              )}
-              <span className="flex items-center gap-1">
-                {parallelism > 1 && <span>{parallelism}x</span>}
-                {resumedFrom > 0 && (
-                  <span className="text-primary">
-                    {t("transfer.resumed", { defaultValue: "resumed" })}
-                  </span>
-                )}
-                <span>{progress.toFixed(1)}%</span>
-              </span>
-            </div>
-          </div>
-        )}
+        {transfer.status === "transferring" && <TransferProgress transfer={transfer} />}
 
         {transfer.status === "pending" && (
           <div className="text-muted-foreground mt-2 text-[10px]">
