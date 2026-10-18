@@ -72,7 +72,7 @@ fn apply_macos_login_shell_env(cmd: &mut CommandBuilder) {
 /// profile). A tab opened before it finishes waits for the same load.
 #[cfg(target_os = "macos")]
 pub fn preload_login_shell_env() {
-    thread::spawn(|| {
+    std::thread::spawn(|| {
         macos_login_shell_env();
     });
 }
