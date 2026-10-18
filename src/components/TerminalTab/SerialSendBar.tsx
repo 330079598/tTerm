@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { SerialFileTransfer } from "@/components/TerminalTab/SerialFileTransfer"
+import { SerialSendHistoryMenu } from "@/components/TerminalTab/SerialSendHistoryMenu"
 import { MIN_REPEAT_MS, useSerialSender } from "@/components/TerminalTab/useSerialSender"
 import type { SerialSendMode } from "@/lib/serialSendStore"
 import type { SerialLineEnding } from "@/types/serial"
@@ -16,7 +17,7 @@ interface SerialSendBarProps {
   tabId: string
   sessionNonce: number
   lineEnding: SerialLineEnding
-  /** Where the connection's history and echo choice are kept. */
+  /** The key the connection's history and echo choice are kept under. */
   storageKey: string
 }
 
@@ -28,12 +29,13 @@ export const SerialSendBar: React.FC<SerialSendBarProps> = ({
   storageKey,
 }) => {
   const { t } = useTranslation()
-  const { history, echo, setEcho, repeating, send, stopRepeat } = useSerialSender({
-    tabId,
-    sessionNonce,
-    lineEnding,
-    storageKey,
-  })
+  const { history, removeSend, clearHistory, echo, setEcho, repeating, send, stopRepeat } =
+    useSerialSender({
+      tabId,
+      sessionNonce,
+      lineEnding,
+      storageKey,
+    })
   const [mode, setMode] = useState<SerialSendMode>("text")
   const [text, setText] = useState("")
   const [appendEnter, setAppendEnter] = useState(true)
@@ -69,6 +71,22 @@ export const SerialSendBar: React.FC<SerialSendBarProps> = ({
         <option value="text">{t("serialSend.text")}</option>
         <option value="hex">HEX</option>
       </Select>
+      <SerialSendHistoryMenu
+        history={history}
+        onPick={(send) => {
+          setHistoryIndex(history.indexOf(send))
+          setMode(send.mode)
+          setText(send.text)
+        }}
+        onDelete={(id) => {
+          setHistoryIndex(-1)
+          void removeSend(id)
+        }}
+        onClear={() => {
+          setHistoryIndex(-1)
+          void clearHistory()
+        }}
+      />
       <Input
         aria-label={t("serialSend.input")}
         className="h-7 min-w-40 flex-1 font-mono text-xs"

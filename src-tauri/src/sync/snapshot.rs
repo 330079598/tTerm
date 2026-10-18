@@ -10,6 +10,7 @@ use crate::config::AppConfig;
 use crate::db::sql_error;
 use crate::profiles::types::SavedProfile;
 use crate::proxy::ProxyServer;
+use crate::serial::history::{store as serial_sends, SerialSend};
 use crate::ssh::secret_store::{
     crypto::SecretKey as DataKey, store::delete_secret, store::get_secret, store::put_secret,
 };
@@ -28,6 +29,8 @@ pub(crate) const COMMANDS: &str = "commands";
 pub(crate) const KNOWN_HOSTS: &str = "knownHosts";
 pub(crate) const SETTINGS: &str = "settings";
 pub(crate) const THEMES: &str = "themes";
+/// What serial send bars sent; synced with the command library.
+pub(crate) const SERIAL_SENDS: &str = "serialSends";
 
 /// Where a record sits in its list; stored in the record so reordering syncs.
 const POSITION: &str = "_position";
@@ -125,6 +128,7 @@ impl SyncSelection {
         for (enabled, category) in [
             (self.secrets, SECRETS),
             (self.commands, COMMANDS),
+            (self.commands, SERIAL_SENDS),
             (self.known_hosts, KNOWN_HOSTS),
             (self.settings, SETTINGS),
             (self.themes && themes_ready, THEMES),
@@ -163,6 +167,10 @@ pub(crate) fn collect(
                 .map(|command| Ok((command.id.clone(), command_record(&command)?)))
                 .collect::<Result<_, String>>()?,
             KNOWN_HOSTS => collect_known_hosts(connection)?,
+            SERIAL_SENDS => serial_sends::list_all(connection)?
+                .iter()
+                .map(|send| Ok((send.id.clone(), serial_send_record(send)?)))
+                .collect::<Result<_, String>>()?,
             SETTINGS => collect_settings()?,
             THEMES => collect_rows(connection, "custom_themes", |value| Ok(value.clone()))?,
             other => return Err(format!("Unknown sync category '{other}'.")),
@@ -293,6 +301,7 @@ pub(crate) fn normalize(category: &str, collection: &Collection) -> Result<Colle
                 PROXIES => normalize_proxy(&record.data)?,
                 COMMANDS => normalize_command(id, &record.data)?,
                 KNOWN_HOSTS => known_host_data(&known_host_from(record)?),
+                SERIAL_SENDS => serial_send_record(&serial_send_from(id, &record.data)?)?.data,
                 PROFILE_GROUPS => Value::Bool(true),
                 SECRETS if record.data.is_string() => record.data.clone(),
                 SECRETS => return Err(format!("Synced password '{id}' is invalid.")),
@@ -391,6 +400,23 @@ fn command_from(
 
 fn normalize_command(id: &str, data: &Value) -> Result<Value, String> {
     Ok(command_record(&command_from(id, data, None)?)?.data)
+}
+
+/// A send as synced: its fields but the id, which is the record's key.
+fn serial_send_record(send: &SerialSend) -> Result<SyncRecord, String> {
+    let mut value = serde_json::to_value(send)
+        .map_err(|error| format!("Failed to encode a serial send: {error}"))?;
+    if let Value::Object(fields) = &mut value {
+        fields.remove("id");
+    }
+    Ok(SyncRecord::new(value, Some(send.sent_at)))
+}
+
+fn serial_send_from(id: &str, data: &Value) -> Result<SerialSend, String> {
+    let mut fields = data.as_object().cloned().unwrap_or_default();
+    fields.insert("id".to_string(), id.into());
+    serde_json::from_value(Value::Object(fields))
+        .map_err(|error| format!("Synced serial send '{id}' is invalid: {error}"))
 }
 
 fn known_host_from(record: &SyncRecord) -> Result<KnownHostRecord, String> {
@@ -507,6 +533,14 @@ pub(crate) fn apply_database(
                     .unwrap_or_else(|| chrono::Utc::now().timestamp_millis());
                 crate::command_library::repository::save_command(transaction, &command)?;
             }
+        }
+        SERIAL_SENDS => {
+            serial_sends::delete(transaction, &removed)?;
+            for (id, record) in changed(local, merged) {
+                serial_sends::put(transaction, &serial_send_from(id, &record.data)?)?;
+            }
+            // Two devices' sends together can run past the limit.
+            serial_sends::trim(transaction)?;
         }
         KNOWN_HOSTS => {
             let entries = merged

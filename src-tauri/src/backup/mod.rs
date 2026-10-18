@@ -190,6 +190,9 @@ struct BackupPayload {
     known_hosts: Option<Value>,
     sftp_directories: Option<Value>,
     commands: Option<Vec<SavedCommand>>,
+    /// What serial send bars sent; travels with `commands`.
+    #[serde(default)]
+    serial_sends: Option<Vec<crate::serial::history::SerialSend>>,
     frontend_state: Option<Value>,
     /// The WebDAV server, the local backup schedule and the sync preferences
     /// travel with `config`; the WebDAV passwords are among `secrets`.

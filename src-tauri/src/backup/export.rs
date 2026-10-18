@@ -11,6 +11,7 @@ use super::{
 use crate::command_library::repository::CommandRepository;
 use crate::config;
 use crate::profiles::types::SavedProfile;
+use crate::serial::history::store as serial_sends;
 use crate::ssh::secret_store::store::get_secret;
 use crate::ssh::secret_store::types::SecretStoreState;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
@@ -102,6 +103,11 @@ pub(super) fn collect_payload(
         )?,
         commands: if selection.command_library {
             Some(CommandRepository::new(crate::db::get()?).list()?)
+        } else {
+            None
+        },
+        serial_sends: if selection.command_library {
+            Some(crate::db::read(serial_sends::list_all)?)
         } else {
             None
         },

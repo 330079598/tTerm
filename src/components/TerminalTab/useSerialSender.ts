@@ -3,16 +3,11 @@ import { invoke } from "@tauri-apps/api/core"
 import { useTranslation } from "react-i18next"
 
 import { echoSerialSend } from "@/components/TerminalTab/serialDisplay"
+import { useSerialSendHistory } from "@/components/TerminalTab/useSerialSendHistory"
 import { toast } from "@/hooks/use-toast"
 import { useStableRef } from "@/hooks/useStableRef"
 import { lineEndingBytes, parseHexBytes } from "@/lib/serial"
-import {
-  loadSerialSendMemory,
-  saveSerialSendMemory,
-  type SerialSendEntry,
-  type SerialSendMemory,
-  withSentEntry,
-} from "@/lib/serialSendStore"
+import { loadSerialSendEcho, saveSerialSendEcho, type SerialSendEntry } from "@/lib/serialSendStore"
 import type { SerialLineEnding } from "@/types/serial"
 
 /** The shortest repeat interval, which keeps a slow line from falling behind. */
@@ -22,7 +17,7 @@ interface UseSerialSenderOptions {
   tabId: string
   sessionNonce: number
   lineEnding: SerialLineEnding
-  /** Where the connection's history and echo choice are kept. */
+  /** The key the connection's history and echo choice are kept under. */
   storageKey: string
 }
 
@@ -38,21 +33,12 @@ export function useSerialSender({
   storageKey,
 }: UseSerialSenderOptions) {
   const { t } = useTranslation()
-  const [memory, setMemory] = useState<SerialSendMemory>(() => loadSerialSendMemory(storageKey))
+  const { history, record, remove, clear } = useSerialSendHistory(storageKey)
+  const [echo, setEchoState] = useState(() => loadSerialSendEcho(storageKey))
   const [repeating, setRepeating] = useState(false)
   const timerRef = useRef<number | null>(null)
   // Read by the repeat timer, which outlives renders.
-  const echoRef = useStableRef(memory.echo)
-
-  const remember = useCallback(
-    (update: (current: SerialSendMemory) => SerialSendMemory) =>
-      setMemory((current) => {
-        const next = update(current)
-        saveSerialSendMemory(storageKey, next)
-        return next
-      }),
-    [storageKey]
-  )
+  const echoRef = useStableRef(echo)
 
   const stopRepeat = useCallback(() => {
     if (timerRef.current !== null) window.clearInterval(timerRef.current)
@@ -104,7 +90,8 @@ export function useSerialSender({
     if (!entry.text.trim() && !appendEnter) return
     stopRepeat()
     if (!(await sendOnce(entry, appendEnter))) return
-    remember((current) => ({ ...current, history: withSentEntry(current.history, entry) }))
+    // A bare Enter is not worth recalling.
+    if (entry.text.trim()) void record(entry)
     if (repeatMs === undefined) return
     setRepeating(true)
     timerRef.current = window.setInterval(
@@ -113,7 +100,19 @@ export function useSerialSender({
     )
   }
 
-  const setEcho = (echo: boolean) => remember((current) => ({ ...current, echo }))
+  const setEcho = (next: boolean) => {
+    setEchoState(next)
+    saveSerialSendEcho(storageKey, next)
+  }
 
-  return { history: memory.history, echo: memory.echo, setEcho, repeating, send, stopRepeat }
+  return {
+    history,
+    removeSend: remove,
+    clearHistory: clear,
+    echo,
+    setEcho,
+    repeating,
+    send,
+    stopRepeat,
+  }
 }

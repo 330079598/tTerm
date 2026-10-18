@@ -21,7 +21,7 @@ use document::{Collections, MAX_DOCUMENT_SIZE, SYNC_FILE_NAME};
 use merge::{merge_collection, same_data};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use snapshot::{removed_ids, SETTINGS, TUNNELS};
+use snapshot::{removed_ids, SERIAL_SENDS, SETTINGS, TUNNELS};
 use std::sync::Mutex;
 use tauri::{AppHandle, State};
 
@@ -431,8 +431,11 @@ async fn apply(
         .copied()
         .filter(|category| !same_data(&local[*category], &normalized[*category]))
         .collect();
+    // A full send history drops its oldest send on every new one, which is
+    // no reason for a recovery backup.
     let deletes = changed
         .iter()
+        .filter(|category| **category != SERIAL_SENDS)
         .any(|category| !removed_ids(&local[*category], &normalized[*category]).is_empty());
 
     let mut outcome = SyncOutcome {

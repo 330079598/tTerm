@@ -34,6 +34,8 @@ pub(super) struct DatabaseSnapshot {
     pub(super) known_hosts: Option<KnownHostStore>,
     pub(super) sftp_directories: Option<SftpDirectoryStore>,
     pub(super) themes: Option<Vec<Value>>,
+    /// Taken with the command library, which the send history travels with.
+    pub(super) serial_sends: Option<Vec<crate::serial::history::SerialSend>>,
     /// The `app_meta` values an import may change: settings and the session.
     pub(super) meta: Vec<(&'static str, Option<String>)>,
 }
@@ -97,6 +99,11 @@ pub(super) fn snapshot_database(
         } else {
             None
         },
+        serial_sends: if selection.command_library {
+            Some(crate::serial::history::store::list_all(connection)?)
+        } else {
+            None
+        },
         meta: imported_meta_keys(selection)
             .into_iter()
             .map(|key| Ok((key, meta::get_raw(connection, key)?)))
@@ -129,6 +136,9 @@ pub(super) fn restore_database(
     }
     if let Some(themes) = snapshot.themes.as_ref() {
         crate::themes::replace_themes(transaction, themes)?;
+    }
+    if let Some(sends) = snapshot.serial_sends.as_ref() {
+        crate::serial::history::store::replace_all(transaction, sends)?;
     }
     for (key, value) in &snapshot.meta {
         meta::put_raw(transaction, key, value.as_deref())?;

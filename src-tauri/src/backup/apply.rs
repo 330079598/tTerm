@@ -9,6 +9,7 @@ use crate::command_library::{models::SavedCommand, repository::CommandRepository
 use crate::config::{self, AppConfig};
 use crate::profiles::types::SavedProfile;
 use crate::proxy::ProxyServer;
+use crate::serial::history::{store as serial_sends, SerialSend};
 use crate::sftp::store::SftpDirectoryStore;
 use crate::ssh::secret_store::{crypto::SecretKey as DataKey, store::put_secret};
 use crate::ssh::store::KnownHostStore;
@@ -155,6 +156,13 @@ pub(super) fn apply_payload(
     let webdav_restored = options.selection.settings && payload.webdav_backup.is_some();
     let (profiles_imported, secrets_imported) = crate::db::write(|transaction| {
         let profiles_imported = apply_database_payload(transaction, payload, options)?;
+        if let Some(sends) = payload
+            .serial_sends
+            .as_deref()
+            .filter(|_| options.selection.command_library)
+        {
+            import_serial_sends(transaction, sends, options.conflict_strategy == "merge")?;
+        }
         let secrets_imported = match data_key {
             Some(data_key) => {
                 let mut imported = 0;
@@ -345,6 +353,31 @@ pub(super) fn to_backup_value<T: Serialize>(value: &T) -> Result<Value, String> 
 
 pub(super) fn from_backup_value<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, String> {
     serde_json::from_value(value).map_err(|error| format!("Invalid backup data: {error}"))
+}
+
+/// Takes a backup's serial send history: instead of this device's in a
+/// replace, beside it in a merge, where the later of a send made on both wins.
+pub(super) fn import_serial_sends(
+    transaction: &rusqlite::Connection,
+    sends: &[SerialSend],
+    merge: bool,
+) -> Result<(), String> {
+    if !merge {
+        return serial_sends::replace_all(transaction, sends);
+    }
+    let current: HashMap<String, i64> = serial_sends::list_all(transaction)?
+        .into_iter()
+        .map(|send| (send.id, send.sent_at))
+        .collect();
+    for send in sends {
+        if current
+            .get(&send.id)
+            .is_none_or(|sent_at| *sent_at < send.sent_at)
+        {
+            serial_sends::put(transaction, send)?;
+        }
+    }
+    serial_sends::trim(transaction)
 }
 
 pub(super) fn replace_commands(commands: &[SavedCommand]) -> Result<(), String> {

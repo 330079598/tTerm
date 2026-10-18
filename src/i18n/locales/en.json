@@ -2090,7 +2090,7 @@
       "session": "Session and workspace layout",
       "knownHosts": "SSH known hosts",
       "sftpDirectories": "SFTP recent directories",
-      "commands": "Command library",
+      "commands": "Command library and serial send history",
       "themes": "Custom themes",
       "logs": "Terminal logs",
       "secrets": "Saved account passwords and SSH key vault"
@@ -2222,7 +2222,7 @@
       "categories": {
         "profiles": "Connection profiles, groups and tunnels",
         "secrets": "Saved passwords and SSH key vault",
-        "commands": "Command library",
+        "commands": "Command library and serial send history",
         "knownHosts": "SSH known hosts",
         "settings": "Preferences",
         "themes": "Custom themes"
@@ -2235,7 +2235,8 @@
         "commands": "commands",
         "knownHosts": "known hosts",
         "settings": "preferences",
-        "themes": "themes"
+        "themes": "themes",
+        "serialSends": "Serial send history"
       },
       "pushInterval": "Upload local changes",
       "pullInterval": "Download changes from other devices",
@@ -2732,6 +2733,12 @@
     "receive": "Receive file",
     "receiveHint": "Receive what the device sends over XMODEM or YMODEM; start its sender after this",
     "receiveDialogTitle": "Save files received over {{protocol}}",
-    "receiveFailed": "Could not receive files"
+    "receiveFailed": "Could not receive files",
+    "history": "Send history",
+    "historyEmpty": "Nothing sent yet",
+    "historyDelete": "Remove from history",
+    "historyClear": "Clear history",
+    "historyClearConfirm": "Clear everything this connection's send bar sent? Synced devices lose it too.",
+    "historyFailed": "Couldn't update the send history"
   }
 }

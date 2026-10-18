@@ -1,4 +1,6 @@
-use super::snapshot::{COMMANDS, KNOWN_HOSTS, PROFILES, PROFILE_GROUPS, PROXIES, SECRETS, THEMES};
+use super::snapshot::{
+    COMMANDS, KNOWN_HOSTS, PROFILES, PROFILE_GROUPS, PROXIES, SECRETS, SERIAL_SENDS, THEMES,
+};
 use super::*;
 use crate::command_library::{models::SavedCommand, repository::CommandRepository};
 use crate::db::Database;
@@ -8,7 +10,7 @@ use crate::ssh::secret_store::{
 use crate::ssh::store::KnownHostRecord;
 use serde_json::json;
 
-const CATEGORIES: [&str; 8] = [
+const CATEGORIES: [&str; 9] = [
     PROFILES,
     PROFILE_GROUPS,
     TUNNELS,
@@ -17,6 +19,7 @@ const CATEGORIES: [&str; 8] = [
     COMMANDS,
     KNOWN_HOSTS,
     THEMES,
+    SERIAL_SENDS,
 ];
 
 /// The server's file: collections and revision history.
@@ -489,6 +492,64 @@ fn proxies_and_their_passwords_sync_in_order() {
     a.sync(&mut remote);
     assert_eq!(b.sync(&mut remote), [PROXIES]);
     assert_eq!(names(&b), ["First"]);
+}
+
+impl Device {
+    fn send(&self, key: &str, text: &str, sent_at: i64) {
+        self.database
+            .write(|transaction| {
+                crate::serial::history::store::record(
+                    transaction,
+                    key,
+                    crate::serial::history::SerialSendMode::Text,
+                    text,
+                    sent_at,
+                )
+            })
+            .unwrap();
+    }
+
+    fn sends(&self, key: &str) -> Vec<(String, i64)> {
+        self.database
+            .read(|connection| crate::serial::history::store::list(connection, key))
+            .unwrap()
+            .into_iter()
+            .map(|send| (send.text, send.sent_at))
+            .collect()
+    }
+}
+
+#[test]
+fn serial_sends_sync_as_one_history_and_clearing_travels() {
+    let mut remote = None;
+    let (mut a, mut b) = (Device::new(), Device::new());
+    a.send("profile:board", "AT", 1);
+    a.send("profile:board", "AT+RST", 2);
+    a.sync(&mut remote);
+    assert_eq!(b.sync(&mut remote), [SERIAL_SENDS]);
+    assert_eq!(
+        b.sends("profile:board"),
+        [("AT+RST".to_string(), 2), ("AT".to_string(), 1)]
+    );
+
+    // Both send AT again; the one record keeps the later time.
+    a.send("profile:board", "AT", 5);
+    b.send("profile:board", "AT", 4);
+    a.sync(&mut remote);
+    b.sync(&mut remote);
+    a.sync(&mut remote);
+    let expected = [("AT".to_string(), 5), ("AT+RST".to_string(), 2)];
+    assert_eq!(a.sends("profile:board"), expected);
+    assert_eq!(b.sends("profile:board"), expected);
+
+    // B clears the history; A loses it too.
+    b.database
+        .write(|transaction| crate::serial::history::store::clear(transaction, "profile:board"))
+        .unwrap();
+    b.sync(&mut remote);
+    a.sync(&mut remote);
+    assert!(a.sends("profile:board").is_empty());
+    assert!(a.sync(&mut remote).is_empty());
 }
 
 #[test]

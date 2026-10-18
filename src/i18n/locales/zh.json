@@ -2071,7 +2071,7 @@
       "session": "会话和工作区布局",
       "knownHosts": "SSH 已知主机",
       "sftpDirectories": "SFTP 最近目录",
-      "commands": "命令库",
+      "commands": "命令库和串口发送历史",
       "themes": "自定义主题",
       "logs": "终端日志",
       "secrets": "已保存的账户密码和 SSH 密钥库"
@@ -2202,7 +2202,7 @@
       "categories": {
         "profiles": "连接配置、分组和隧道",
         "secrets": "已保存的密码和 SSH 密钥库",
-        "commands": "命令库",
+        "commands": "命令库和串口发送历史",
         "knownHosts": "SSH 已知主机",
         "settings": "偏好设置",
         "themes": "自定义主题"
@@ -2215,7 +2215,8 @@
         "commands": "命令",
         "knownHosts": "已知主机",
         "settings": "偏好设置",
-        "themes": "主题"
+        "themes": "主题",
+        "serialSends": "串口发送历史"
       },
       "pushInterval": "上传本机改动",
       "pullInterval": "拉取其他设备的改动",
@@ -2710,6 +2711,12 @@
     "receive": "接收文件",
     "receiveHint": "通过 XMODEM 或 YMODEM 接收设备发来的文件，点这里之后再让设备开始发送",
     "receiveDialogTitle": "保存通过 {{protocol}} 收到的文件",
-    "receiveFailed": "无法接收文件"
+    "receiveFailed": "无法接收文件",
+    "history": "发送历史",
+    "historyEmpty": "还没有发送过内容",
+    "historyDelete": "从历史中删除",
+    "historyClear": "清空历史",
+    "historyClearConfirm": "清空这个连接的全部发送历史吗？同步的其他设备上也会一起清空。",
+    "historyFailed": "无法更新发送历史"
   }
 }

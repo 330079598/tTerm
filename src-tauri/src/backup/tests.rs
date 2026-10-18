@@ -1,5 +1,6 @@
 use super::apply::{
-    apply_database_payload, keep_device_settings, merge_arrays_by_keys, to_backup_value,
+    apply_database_payload, import_serial_sends, keep_device_settings, merge_arrays_by_keys,
+    to_backup_value,
 };
 use super::archive::{
     build_archive_for_version, decode_archive, decrypt_payload, derive_key, encrypt_payload,
@@ -995,4 +996,47 @@ fn encrypted_archive_round_trips_manifest_and_credentials() {
     assert_eq!(decoded.payload.unwrap().secrets.len(), 1);
     assert!(decode_archive(&path, Some("wrong-password")).is_err());
     fs::remove_file(path).expect("remove archive");
+}
+
+#[test]
+fn serial_sends_merge_by_their_later_use_or_replace() {
+    use crate::serial::history::{store, SerialSendMode};
+    let sent = |connection: &rusqlite::Connection| {
+        store::list_all(connection)
+            .unwrap()
+            .into_iter()
+            .map(|send| (send.text, send.sent_at))
+            .collect::<Vec<_>>()
+    };
+    let backup = crate::db::Database::open_in_memory().unwrap();
+    let incoming = backup
+        .write(|connection| {
+            store::record(connection, "port:COM3", SerialSendMode::Text, "AT", 9)?;
+            store::record(connection, "port:COM3", SerialSendMode::Text, "old", 1)?;
+            store::list_all(connection)
+        })
+        .unwrap();
+    let database = crate::db::Database::open_in_memory().unwrap();
+    database
+        .write(|connection| {
+            store::record(connection, "port:COM3", SerialSendMode::Text, "AT", 5)?;
+            store::record(connection, "port:COM3", SerialSendMode::Text, "old", 3)?;
+            store::record(connection, "port:COM3", SerialSendMode::Text, "mine", 4)?;
+            import_serial_sends(connection, &incoming, true)?;
+            assert_eq!(
+                sent(connection),
+                [
+                    ("AT".to_string(), 9),
+                    ("mine".to_string(), 4),
+                    ("old".to_string(), 3)
+                ]
+            );
+            import_serial_sends(connection, &incoming, false)?;
+            assert_eq!(
+                sent(connection),
+                [("AT".to_string(), 9), ("old".to_string(), 1)]
+            );
+            Ok(())
+        })
+        .unwrap();
 }

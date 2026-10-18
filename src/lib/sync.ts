@@ -13,6 +13,7 @@ export type SyncCategory =
   | "knownHosts"
   | "settings"
   | "themes"
+  | "serialSends"
 
 export interface SyncOutcome {
   state: "disabled" | "locked" | "busy" | "unchanged" | "synced"

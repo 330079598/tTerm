@@ -57,6 +57,11 @@ const MIGRATIONS: &[Migration] = &[
         name: "trusted_proxy_commands",
         sql: include_str!("../../migrations/0010_trusted_proxy_commands.sql"),
     },
+    Migration {
+        version: 11,
+        name: "serial_send_history",
+        sql: include_str!("../../migrations/0011_serial_send_history.sql"),
+    },
 ];
 
 pub(super) fn apply(connection: &mut Connection) -> Result<(), String> {
@@ -139,7 +144,7 @@ mod tests {
                 row.get(0)
             })
             .expect("read schema version");
-        assert_eq!(version, 10);
+        assert_eq!(version, 11);
 
         let table_count: i64 = connection
             .query_row(
