@@ -1962,7 +1962,7 @@
     "refreshed": "Refreshed",
     "retry": "Retry",
     "dropFiles": "Drop files to upload",
-    "dropFilesHint": "Files will be uploaded to current directory",
+    "dropFilesTarget": "Files will be uploaded to",
     "search": {
       "placeholder": "Filter current folder, e.g. *.sh",
       "label": "Filter current folder by text, glob, or regex",

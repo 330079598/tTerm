@@ -73,6 +73,18 @@ body.sftp-column-resizing * {
   height: 48px;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .sftp-drag-hint-icon {
+    animation: sftp-drag-hint-float 1.2s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes sftp-drag-hint-float {
+  to {
+    transform: translateY(-6px);
+  }
+}
+
 .sftp-drag-hint-title {
   font-size: var(--sftp-font-size-title);
   font-weight: 600;
@@ -83,6 +95,19 @@ body.sftp-column-resizing * {
   font-size: var(--sftp-font-size-large);
   color: hsl(var(--muted-foreground));
   text-align: center;
+}
+
+/* The path can be long; it stays on one line, cut at the end. */
+.sftp-drag-hint-path {
+  max-width: min(360px, 80vw);
+  margin: 4px auto 0;
+  overflow: hidden;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: var(--sftp-font-size-large);
+  color: hsl(var(--foreground));
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sftp-table-shell {

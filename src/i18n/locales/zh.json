@@ -1944,7 +1944,7 @@
     "refreshed": "已刷新",
     "retry": "重试",
     "dropFiles": "拖放文件以上传",
-    "dropFilesHint": "文件将上传到当前目录",
+    "dropFilesTarget": "文件将上传到",
     "search": {
       "placeholder": "过滤当前目录，例如 *.sh",
       "label": "按文本、通配符或正则过滤当前目录",

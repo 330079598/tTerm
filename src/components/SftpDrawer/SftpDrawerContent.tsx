@@ -151,10 +151,13 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
                 {t("sftp.dropFiles", { defaultValue: "Drop files to upload" })}
               </p>
               <p className="sftp-drag-hint-description">
-                {t("sftp.dropFilesHint", {
-                  defaultValue: "Files will be uploaded to current directory",
-                })}
+                {t("sftp.dropFilesTarget", { defaultValue: "Files will be uploaded to" })}
               </p>
+              {listing && (
+                <p className="sftp-drag-hint-path" title={listing.currentPath}>
+                  {listing.currentPath}
+                </p>
+              )}
             </div>
           </div>
         </div>
