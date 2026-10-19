@@ -22,12 +22,13 @@ import {
   PanelBottom,
   Search,
   Star,
-  Upload,
-  Download,
+  ArrowUpFromLine,
+  ArrowDownToLine,
   RotateCcw,
   CircleDot,
   Square,
   FileDown,
+  FolderDown,
   ScrollText,
 } from "lucide-react"
 import { useShortcutLabel } from "@/contexts/KeymapContext"
@@ -90,17 +91,19 @@ const getActionIcon = (icon?: string) => {
     case "split-above":
       return <PanelTop size={14} aria-hidden="true" />
     case "upload":
-      return <Upload size={14} aria-hidden="true" />
+      return <ArrowUpFromLine size={14} aria-hidden="true" />
     case "rotate-ccw":
       return <RotateCcw size={14} aria-hidden="true" />
     case "download":
-      return <Download size={14} aria-hidden="true" />
+      return <ArrowDownToLine size={14} aria-hidden="true" />
     case "record":
       return <CircleDot size={14} aria-hidden="true" />
     case "record-stop":
       return <Square size={14} aria-hidden="true" />
     case "file-down":
       return <FileDown size={14} aria-hidden="true" />
+    case "folder-down":
+      return <FolderDown size={14} aria-hidden="true" />
     case "scroll-text":
       return <ScrollText size={14} aria-hidden="true" />
     default:

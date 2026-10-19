@@ -4,9 +4,9 @@ import {
   ArrowRight,
   ArrowUp,
   ArrowDownToLine,
-  ArrowUpFromLine,
   Eye,
   EyeOff,
+  FileUp,
   FolderUp,
   FolderPlus,
   ListChecks,
@@ -368,7 +368,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
                 disabled={!listingCurrentPath || isLoading}
                 aria-label={t("sftp.actions.uploadFiles", { defaultValue: "Upload Files" })}
               >
-                <ArrowUpFromLine className="size-4" />
+                <FileUp className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>

@@ -57,7 +57,8 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
                 ? t("sftp.actions.downloadFolder", { defaultValue: "Download Folder" })
                 : t("sftp.actions.download", { defaultValue: "Download" }),
           action: "download",
-          icon: "download",
+          icon:
+            selectionCount > 1 ? "download" : contextMenuEntry.isDir ? "folder-down" : "file-down",
         },
         {
           label: t("sftp.actions.edit", { defaultValue: "Edit" }),
