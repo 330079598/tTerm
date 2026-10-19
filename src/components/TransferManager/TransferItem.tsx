@@ -1,23 +1,15 @@
 import React from "react"
-import {
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  ChevronDown,
-  ChevronRight,
-  FileX2,
-  RotateCcw,
-  Trash2,
-  X,
-} from "lucide-react"
+import { ChevronDown, ChevronRight, RotateCcw, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { TransferDirectionIcon } from "@/components/TransferManager/TransferDirectionIcon"
 import {
   formatBytes,
   formatDuration,
   formatItems,
-  getStatusIcon,
 } from "@/components/TransferManager/transferDisplay"
 import { TransferProgress } from "@/components/TransferManager/TransferProgress"
+import { isActiveTransfer } from "@/components/TransferManager/transferSummary"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -48,7 +40,7 @@ export const TransferItem: React.FC<TransferItemProps> = (props) => {
     onRetry,
   } = props
   const { t } = useTranslation()
-  const isActive = transfer.status === "pending" || transfer.status === "transferring"
+  const isActive = isActiveTransfer(transfer)
   const isDelete = transfer.direction === "delete"
   const duration = transfer.endTime ? transfer.endTime - transfer.startTime : 0
   const childTransfers = childTransfersByBatchId.get(transfer.id) ?? []
@@ -104,15 +96,7 @@ export const TransferItem: React.FC<TransferItemProps> = (props) => {
           <div className="w-5 shrink-0" />
         ) : null}
 
-        <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded">
-          {transfer.direction === "upload" ? (
-            <ArrowUpFromLine className="size-3.5" />
-          ) : transfer.direction === "delete" ? (
-            <FileX2 className="size-3.5" />
-          ) : (
-            <ArrowDownToLine className="size-3.5" />
-          )}
-        </div>
+        <TransferDirectionIcon transfer={transfer} />
 
         <div className="min-w-0 flex-1">
           <div className="truncate text-xs font-medium">{transfer.fileName}</div>
@@ -126,11 +110,15 @@ export const TransferItem: React.FC<TransferItemProps> = (props) => {
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
-          {getStatusIcon(transfer.status)}
           {isActive ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-xs" onClick={() => onCancel(transfer.id)}>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => onCancel(transfer.id)}
+                  aria-label={t("transfer.cancel", { defaultValue: "Cancel" })}
+                >
                   <X className="size-3" />
                 </Button>
               </TooltipTrigger>
@@ -157,8 +145,13 @@ export const TransferItem: React.FC<TransferItemProps> = (props) => {
               )}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon-xs" onClick={() => onRemove(transfer.id)}>
-                    <Trash2 className="size-3" />
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => onRemove(transfer.id)}
+                    aria-label={t("transfer.remove", { defaultValue: "Remove" })}
+                  >
+                    <X className="size-3" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>{t("transfer.remove", { defaultValue: "Remove" })}</TooltipContent>

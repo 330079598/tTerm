@@ -1809,6 +1809,19 @@
     "cancelledShort": "已取消",
     "skipped": "已跳过（目标已存在）",
     "skippedShort": "已跳过",
+    "direction": {
+      "upload": "上传",
+      "download": "下载",
+      "delete": "删除"
+    },
+    "status": {
+      "pending": "等待中",
+      "transferring": "传输中",
+      "completed": "已完成",
+      "failed": "失败",
+      "cancelled": "已取消"
+    },
+    "directionStatus": "{{direction}}，{{status}}",
     "trigger": {
       "active_one": "{{count}} 个传输进行中",
       "active_other": "{{count}} 个传输进行中",

@@ -1827,6 +1827,19 @@
     "cancelledShort": "cancelled",
     "skipped": "Skipped (already exists)",
     "skippedShort": "skipped",
+    "direction": {
+      "upload": "Upload",
+      "download": "Download",
+      "delete": "Delete"
+    },
+    "status": {
+      "pending": "Waiting",
+      "transferring": "Transferring",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "directionStatus": "{{direction}}, {{status}}",
     "trigger": {
       "active_one": "{{count}} transfer in progress",
       "active_other": "{{count}} transfers in progress",
