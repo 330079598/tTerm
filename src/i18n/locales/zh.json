@@ -1808,7 +1808,17 @@
     "failedShort": "失败",
     "cancelledShort": "已取消",
     "skipped": "已跳过（目标已存在）",
-    "skippedShort": "已跳过"
+    "skippedShort": "已跳过",
+    "trigger": {
+      "active_one": "{{count}} 个传输进行中",
+      "active_other": "{{count}} 个传输进行中",
+      "activeWithProgress_one": "{{count}} 个传输进行中，{{percent}}%",
+      "activeWithProgress_other": "{{count}} 个传输进行中，{{percent}}%",
+      "failed_one": "{{count}} 个传输失败",
+      "failed_other": "{{count}} 个传输失败",
+      "idle_one": "{{count}} 个已结束的传输",
+      "idle_other": "{{count}} 个已结束的传输"
+    }
   },
   "zmodem": {
     "actions": {

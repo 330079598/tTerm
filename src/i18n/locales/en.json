@@ -1826,7 +1826,17 @@
     "failedShort": "failed",
     "cancelledShort": "cancelled",
     "skipped": "Skipped (already exists)",
-    "skippedShort": "skipped"
+    "skippedShort": "skipped",
+    "trigger": {
+      "active_one": "{{count}} transfer in progress",
+      "active_other": "{{count}} transfers in progress",
+      "activeWithProgress_one": "{{count}} transfer in progress, {{percent}}%",
+      "activeWithProgress_other": "{{count}} transfers in progress, {{percent}}%",
+      "failed_one": "{{count}} transfer failed",
+      "failed_other": "{{count}} transfers failed",
+      "idle_one": "{{count}} finished transfer",
+      "idle_other": "{{count}} finished transfers"
+    }
   },
   "zmodem": {
     "actions": {

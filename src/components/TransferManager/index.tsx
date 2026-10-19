@@ -1,16 +1,15 @@
 import React, { useCallback, useMemo, useState, useRef, useEffect, useLayoutEffect } from "react"
-import { ArrowDownToLine, X, ChevronDown, ChevronUp } from "lucide-react"
+import { X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { TransferItem } from "@/components/TransferManager/TransferItem"
+import { isActiveTransfer } from "@/components/TransferManager/transferSummary"
+import { TransferTrigger } from "@/components/TransferManager/TransferTrigger"
 import type { TransferTask } from "@/types/tab"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Spinner } from "@/components/ui/spinner"
-import { keepFocusOnMouseDown, refocusTerminalIfFocusLost } from "@/lib/terminalFocus"
-import { cn } from "@/lib/utils"
+import { refocusTerminalIfFocusLost } from "@/lib/terminalFocus"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface TransferManagerProps {
@@ -70,9 +69,7 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
   }, [])
 
   const { active, completed } = useMemo(() => {
-    const active = visibleTransfers.filter(
-      (t) => t.status === "pending" || t.status === "transferring"
-    )
+    const active = visibleTransfers.filter(isActiveTransfer)
     const completed = visibleTransfers.filter(
       (t) => t.status === "completed" || t.status === "failed" || t.status === "cancelled"
     )
@@ -164,27 +161,13 @@ export const TransferManager: React.FC<TransferManagerProps> = ({
     return null
   }
 
-  const hasActive = active.length > 0
-  const totalTransfers = visibleTransfers.length
-  const shouldShowBadge = hasActive || totalTransfers > 0
-
   return (
     <div className="relative" ref={dropdownRef}>
-      <Button
-        variant="ghost"
-        size="sm"
-        onMouseDown={keepFocusOnMouseDown}
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn("gap-1.5 px-2 shadow-none", hasActive && "text-primary")}
-      >
-        {hasActive ? <Spinner /> : <ArrowDownToLine className="size-4" />}
-        {shouldShowBadge && totalTransfers > 0 && (
-          <Badge variant="default" className="h-5 min-w-5 px-1.5">
-            {totalTransfers}
-          </Badge>
-        )}
-        {isOpen ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
-      </Button>
+      <TransferTrigger
+        transfers={visibleTransfers}
+        isOpen={isOpen}
+        onToggle={() => setIsOpen(!isOpen)}
+      />
 
       {isOpen && (
         <Card className="absolute top-full z-50 mt-2 shadow-lg" style={panelStyle}>
