@@ -36,21 +36,6 @@
 - **`rz` / `sz` like Xshell and SecureCRT.** ZMODEM works in local and SSH terminals, for network gear, embedded boards and shell-only bastion hosts.
 - **Built for many servers.** Split panes, broadcast input to several terminals, a command library with variables, visual port forwarding, and a server monitor that needs nothing installed on the server.
 
-## How it compares
-
-|                                | tTerm               | Xshell                 | SecureCRT | Termius          | Tabby |
-| ------------------------------ | ------------------- | ---------------------- | --------- | ---------------- | ----- |
-| Price                          | Free                | Free for home / school | Paid      | Free + subscription | Free |
-| Open source                    | ✅ MIT              | ❌                     | ❌        | ❌               | ✅    |
-| macOS / Linux                  | ✅                  | ❌ Windows only        | ✅        | ✅               | ✅    |
-| Graphical SFTP browser         | ✅                  | Separate Xftp app      | Separate SecureFX app | ✅  | ✅    |
-| ZMODEM `rz` / `sz`             | ✅                  | ✅                     | ✅        | ❌               | ✅    |
-| Sync through your own server   | ✅ Any WebDAV       | ❌                     | ❌        | ❌ Paid vendor cloud | Self-hostable Tabby Web |
-| Claude Code / Codex tab status | ✅                  | ❌                     | ❌        | ❌               | ❌    |
-| Server monitor, no agent       | ✅                  | ❌                     | ❌        | ❌               | ❌    |
-
-<sub>Based on each product's public information as of October 2026. If something is out of date, please open an issue.</sub>
-
 ## Installation
 
 Download the package for your system from the [latest release](https://github.com/330079598/tTerm/releases/latest):
