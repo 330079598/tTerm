@@ -36,7 +36,11 @@ tauri-plugin-clipboard-manager = "2.3.2"
 portable-pty = "0.9"
 uuid = { version = "1", features = ["v4"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "io-util", "fs", "net", "process"] }
-russh = { version = "0.63", default-features = false, features = ["ring"] }
+# `rsa` lets russh verify RSA host keys. It brings in the RustCrypto `rsa`
+# crate, whose RUSTSEC-2023-0071 leaks a private key through the timing of
+# private-key operations; verifying a server's signature uses only its public
+# key, and tTerm still signs with RSA keys through ring (ssh/rsa_signer.rs).
+russh = { version = "0.63", default-features = false, features = ["ring", "rsa"] }
 russh-sftp = "3"
 # Both are already linked through russh and rustls; named here because RSA key
 # files are signed with ring instead of the `rsa` crate (see ssh/rsa_signer.rs).

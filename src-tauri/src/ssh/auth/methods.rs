@@ -135,7 +135,7 @@ where
             let certificate = certificate(key.public_key())?;
             sign_in_with_key(session, target, path, key, certificate, &mut Vec::new()).await
         }
-        // Old PEM-format RSA keys are beyond `russh` in this build.
+        // Some old PEM-format RSA keys are beyond `russh`.
         Err(load_error) => {
             let (mut signer, public_key) = RingRsaSigner::from_pem(&material.text)
                 .ok_or(SshConnectError::Permanent(load_error))?

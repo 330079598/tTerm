@@ -195,31 +195,31 @@ async fn real_sshd_accepts_a_pem_rsa_key_file() {
     .expect("PEM RSA key authentication");
 }
 
-/// A server with nothing but an RSA host key cannot be verified in this
-/// build (russh's `rsa` feature is off), and the failure must say so rather
-/// than "Wrong server signature".
+/// A server with nothing but an RSA host key, as on old Linux releases and
+/// network equipment, is verified whether it signs with rsa-sha2 or, like
+/// OpenSSH before 7.2, only with SHA-1 `ssh-rsa`.
 #[tokio::test]
 #[ignore = "spawns a real sshd; run with --ignored real_sshd"]
-async fn real_sshd_with_only_an_rsa_host_key_is_explained() {
-    let sshd =
-        TestSshd::spawn_with_host_key(12316, &["-t", "rsa", "-b", "3072"], &["-t", "ed25519"], "")
-            .await;
+async fn real_sshd_with_only_an_rsa_host_key_is_verified() {
+    for (port, host_key_algorithms) in [(12316, ""), (12319, "HostKeyAlgorithms ssh-rsa\n")] {
+        let sshd = TestSshd::spawn_with_host_key(
+            port,
+            &["-t", "rsa", "-b", "3072"],
+            &["-t", "ed25519"],
+            host_key_algorithms,
+        )
+        .await;
 
-    let error = russh::client::connect(
-        Arc::new(crate::ssh::jump::config::compatibility_client_config(15, 3)),
-        ("127.0.0.1", sshd.port),
-        crate::ssh::test_sshd::AcceptAnyServerKey,
-    )
-    .await
-    .err()
-    .expect("an RSA-only host cannot be verified");
-
-    let explained = crate::ssh::jump::config::unverifiable_host_key_error(&error)
-        .unwrap_or_else(|| panic!("unexplained failure: {error}"));
-    assert!(
-        explained.to_string().contains("RSA host key"),
-        "{explained}"
-    );
+        let mut session = sshd.connect().await;
+        authenticate(
+            &mut session,
+            &target(&current_user(), sshd.port),
+            sshd.key_method(),
+            &AuthPrompter::Unavailable,
+        )
+        .await
+        .unwrap_or_else(|error| panic!("{host_key_algorithms:?}: {error}"));
+    }
 }
 
 /// Starts `sshd` with no `authorized_keys`, trusting a fresh certificate

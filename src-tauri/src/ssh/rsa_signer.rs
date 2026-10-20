@@ -90,8 +90,7 @@ impl RingRsaSigner {
 
     /// Reads an RSA key in one of the PEM formats older tools wrote: PKCS#1
     /// (`BEGIN RSA PRIVATE KEY`, the `ssh-keygen` default before OpenSSH 7.8)
-    /// or unencrypted PKCS#8. `russh` only parses these with its `rsa`
-    /// feature, which this build leaves off.
+    /// or unencrypted PKCS#8, for the ones `russh` cannot parse itself.
     ///
     /// Returns `None` when `pem` is not such a key, so the caller keeps the
     /// error it already has.
