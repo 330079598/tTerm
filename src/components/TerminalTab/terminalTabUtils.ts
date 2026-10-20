@@ -47,7 +47,6 @@ export function getConnectionStateLabel(
 }
 
 const SHELL_INTEGRATION_REASONS: Record<ShellIntegrationUnavailableReason["code"], string> = {
-  marksOff: "Mark commands is turned off in Settings",
   shell: "The login shell is {{shell}}; only bash, zsh and fish are supported",
   noReply:
     "The server did not run the installer (no POSIX sh, or a network device, Windows server or forced command)",

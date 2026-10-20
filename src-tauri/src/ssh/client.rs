@@ -1,4 +1,4 @@
-use super::shell_integration::{ShellIntegrationStatus, UnavailableReason};
+use super::shell_integration::ShellIntegrationStatus;
 use super::types::{
     emit_connection_progress, ConnectionStatusOptions, SshClientHandler,
     SshConnectionProgressPayload,
@@ -226,11 +226,10 @@ pub async fn run_single_ssh_connection(
     let unavailable = |reason| Some(ShellIntegrationStatus::Unavailable { reason });
     let (shell_integration, mut shell_integration_status) = if !plan.shell_integration {
         (None, None)
-    } else if !crate::config::command_marks_enabled() {
-        (None, unavailable(UnavailableReason::MarksOff))
     } else {
         let target = format!("{username}@{host}:{}", plan.port);
-        match super::shell_integration::prepare(&session, &target).await {
+        let marks = crate::config::command_marks_enabled();
+        match super::shell_integration::prepare(&session, &target, marks).await {
             Ok(command) => (Some(command), None),
             Err(reason) => (None, unavailable(reason)),
         }

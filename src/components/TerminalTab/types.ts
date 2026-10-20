@@ -76,7 +76,7 @@ export type ConnectionState = "connecting" | "connected" | "disconnected" | "rec
 export type ShellIntegrationUnavailableReason =
   | { code: "shell"; shell: string }
   | {
-      code: "marksOff" | "noReply" | "writeFailed" | "path" | "rejected" | "timedOut" | "failed"
+      code: "noReply" | "writeFailed" | "path" | "rejected" | "timedOut" | "failed"
     }
 
 export type ShellIntegrationStatus =

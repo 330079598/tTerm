@@ -51,15 +51,23 @@ fn reads_the_answer_after_startup_noise() {
 #[test]
 fn quotes_the_start_script_path() {
     assert_eq!(
-        launch_command("/home/me/.cache/tterm/x").as_deref(),
+        launch_command("/home/me/.cache/tterm/x", true).as_deref(),
         Some("exec sh '/home/me/.cache/tterm/x/unix/start.sh' --motd")
     );
     assert_eq!(
-        launch_command("/home/my files/x").as_deref(),
+        launch_command("/home/my files/x", true).as_deref(),
         Some("exec sh '/home/my files/x/unix/start.sh' --motd")
     );
-    assert_eq!(launch_command("/home/o'neil/x"), None);
-    assert_eq!(launch_command("/home/me\n/x"), None);
+    assert_eq!(launch_command("/home/o'neil/x", true), None);
+    assert_eq!(launch_command("/home/me\n/x", true), None);
+}
+
+#[test]
+fn starts_without_marks_when_they_are_off() {
+    assert_eq!(
+        launch_command("/home/me/.cache/tterm/x", false).as_deref(),
+        Some("exec env tterm_marks=0 sh '/home/me/.cache/tterm/x/unix/start.sh' --motd")
+    );
 }
 
 #[test]

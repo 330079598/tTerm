@@ -1,7 +1,9 @@
-//! Shell integration for SSH sessions: command marks (OSC 133) from the
-//! remote shell, for connections that turn it on. Before the interactive
-//! shell starts, a separate exec channel runs `exec sh -s` and is fed
-//! [`install_script`], which writes tTerm's scripts for bash, zsh and fish to
+//! Shell integration for SSH sessions, for connections that turn it on: the
+//! remote shell reports its working directory (OSC 7), which the SFTP drawer
+//! can follow, and marks its commands (OSC 133) unless command marks are off
+//! in the settings. Before the interactive shell starts, a separate exec
+//! channel runs `exec sh -s` and is fed [`install_script`], which writes
+//! tTerm's scripts for bash, zsh and fish to
 //! `~/.cache/tterm/shell-integration/<version>` (once per version), removes
 //! versions unused for a month, and replies with the directory. The
 //! interactive channel then runs `unix/start.sh` from there in place of a
@@ -10,8 +12,9 @@
 //! along the way, gets the plain shell, and the connection header says why.
 //!
 //! Exec commands are run by the user's login shell (`$SHELL -c`), so they
-//! hold nothing beyond `exec sh`, one single-quoted path and a plain word,
-//! which bash, zsh, fish, csh and ksh all read the same way.
+//! hold nothing beyond `exec`, `env` with a plain assignment, `sh`, one
+//! single-quoted path and a plain word, which bash, zsh, fish, csh and ksh
+//! all read the same way.
 
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard, OnceLock};
@@ -48,8 +51,6 @@ pub enum ShellIntegrationStatus {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(tag = "code", rename_all = "camelCase")]
 pub enum UnavailableReason {
-    /// Command marks are off in the settings.
-    MarksOff,
     /// The login shell is not bash, zsh or fish.
     Shell {
         shell: String,
@@ -187,12 +188,14 @@ pub(crate) fn parse_reply(output: &str) -> Option<Reply<'_>> {
 }
 
 /// The exec command that starts the shell from `dir`, or `None` for a path
-/// that cannot be single-quoted.
-pub(crate) fn launch_command(dir: &str) -> Option<String> {
+/// that cannot be single-quoted. Without `marks` the shell only reports its
+/// working directory.
+pub(crate) fn launch_command(dir: &str, marks: bool) -> Option<String> {
     if dir.contains('\'') || dir.chars().any(char::is_control) {
         return None;
     }
-    Some(format!("exec sh '{dir}/unix/start.sh' --motd"))
+    let env = if marks { "" } else { "env tterm_marks=0 " };
+    Some(format!("exec {env}sh '{dir}/unix/start.sh' --motd"))
 }
 
 /// Hosts (`user@host:port`) that gave a lasting reason for a plain shell, so
@@ -206,17 +209,21 @@ fn lasting_reasons() -> MutexGuard<'static, HashMap<String, UnavailableReason>> 
 }
 
 /// Installs the scripts on `host` and returns the command that starts the
-/// shell with them, or why the session gets a plain shell.
+/// shell with them, marking commands when `marks` is set, or why the session
+/// gets a plain shell.
 pub(crate) async fn prepare<H: client::Handler>(
     session: &client::Handle<H>,
     host: &str,
+    marks: bool,
 ) -> Result<String, UnavailableReason> {
     if let Some(reason) = lasting_reasons().get(host) {
         return Err(reason.clone());
     }
     let result = match tokio::time::timeout(TIMEOUT, install(session)).await {
         Ok(Ok(output)) => match parse_reply(&output) {
-            Some(Reply::Installed(dir)) => launch_command(dir).ok_or(UnavailableReason::Path),
+            Some(Reply::Installed(dir)) => {
+                launch_command(dir, marks).ok_or(UnavailableReason::Path)
+            }
             Some(Reply::Shell(shell)) => Err(UnavailableReason::Shell {
                 shell: shell.to_string(),
             }),

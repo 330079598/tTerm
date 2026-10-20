@@ -1329,7 +1329,7 @@
     "loginScript": "Run after login",
     "loginScriptPlaceholder": "cd /var/www/app\nsudo -i",
     "shellIntegration": "Shell integration",
-    "shellIntegrationDesc": "When connecting, puts a few small scripts under ~/.cache/tterm on the server so bash, zsh and fish mark each command: jump between commands, copy the last command's output, and see succeeded and failed commands on the scrollbar. Other shells and unsupported servers get a plain shell as before. Needs Mark commands turned on in Settings.",
+    "shellIntegrationDesc": "When connecting, puts a few small scripts under ~/.cache/tterm on the server so bash, zsh and fish mark each command: jump between commands, copy the last command's output, and see succeeded and failed commands on the scrollbar. The shell also reports its directory so the SFTP panel can follow it, which is all it does while Mark commands is off in Settings. Other shells and unsupported servers get a plain shell as before.",
     "sessionLog": "Session logging",
     "sessionLogDesc": "Whether this connection's sessions are written to terminal logs. Follow settings uses the default in Settings > Logs.",
     "sessionLogOptions": {
@@ -1440,7 +1440,7 @@
     "osc52ClipboardWrite": "Let programs copy to the clipboard",
     "osc52ClipboardWriteDesc": "Programs such as vim, neovim and tmux can copy text to your clipboard (OSC 52), including over SSH. They can never read it.",
     "commandMarks": "Mark commands (shell integration)",
-    "commandMarksRemote": "SSH connections: turn on Shell integration in a connection's settings and tTerm installs it when connecting, or copy a script below to the end of ~/.bashrc or ~/.zshrc on the server (~/.config/fish/config.fish for fish); new sessions pick it up.",
+    "commandMarksRemote": "SSH connections: turn on Shell integration in a connection's settings and tTerm installs it when connecting, or copy a script below, which also reports the directory for SFTP to follow, to the end of ~/.bashrc or ~/.zshrc on the server (~/.config/fish/config.fish for fish); new sessions pick it up.",
     "copyPosixIntegration": "Copy bash / zsh script",
     "copyFishIntegration": "Copy fish script",
     "integrationCopied": "Script copied",
@@ -1554,7 +1554,6 @@
   "sessionHeader": {
     "shellIntegrationFallback": "{{connection}}: shell integration did not start, using a plain shell",
     "shellIntegrationReasons": {
-      "marksOff": "Mark commands is turned off in Settings",
       "shell": "The login shell is {{shell}}; only bash, zsh and fish are supported",
       "noReply": "The server did not run the installer (no POSIX sh, or a network device, Windows server or forced command)",
       "writeFailed": "~/.cache/tterm could not be written",
