@@ -10,6 +10,7 @@ import { useTerminalConfigSync } from "@/components/TerminalTab/useTerminalConfi
 import { useTerminalActivation } from "@/components/TerminalTab/useTerminalActivation"
 import { useConnectionNotices } from "@/components/TerminalTab/useConnectionNotices"
 import { useSftpDrawerToggle } from "@/components/TerminalTab/useSftpDrawerToggle"
+import { useCdInTerminal } from "@/components/TerminalTab/useCdInTerminal"
 import { useTerminalClipboard } from "@/components/TerminalTab/useTerminalClipboard"
 import { useTerminalFileDrop } from "@/components/TerminalTab/useTerminalFileDrop"
 import { useTerminalContextMenu } from "@/components/TerminalTab/useTerminalContextMenu"
@@ -227,6 +228,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     setShowSftpDrawer,
   })
 
+  const cdInTerminal = useCdInTerminal({ ...refs, tabId, sessionNonce, setShowSftpDrawer })
+
   const { PasteConfirmDialog, pasteFromClipboard } = useTerminalClipboard({
     ...refs,
     isBroadcastSource,
@@ -327,6 +330,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
           connection={connection}
           onClose={() => setShowSftpDrawer(false)}
           onOpenRemoteFile={onOpenRemoteFile}
+          onCdInTerminal={connection?.type === "ssh" ? cdInTerminal : undefined}
         />
         {isSearchOpen && (
           <TerminalSearchBar

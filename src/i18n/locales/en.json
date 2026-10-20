@@ -1904,7 +1904,9 @@
       "forward": "Forward",
       "up": "Parent Folder",
       "refresh": "Refresh",
-      "close": "Close"
+      "close": "Close",
+      "openInTerminal": "Open in Terminal",
+      "openCurrentInTerminal": "Open this folder in the terminal"
     },
     "selection": {
       "clear": "Clear Selection",
@@ -1956,7 +1958,8 @@
       "dragOutUnknownTarget": "Drop the files on a folder or on the desktop to download them there.",
       "notReady": "SFTP not ready",
       "uploadAllFailed": "{{count}} upload(s) failed",
-      "uploadPartialFailed": "{{succeeded}} upload(s) succeeded, {{failed}} failed"
+      "uploadPartialFailed": "{{succeeded}} upload(s) succeeded, {{failed}} failed",
+      "terminalBusy": "The terminal is running a program. Quit it, then try again."
     },
     "emptyDescription": "This folder is empty",
     "emptyHint": "Upload files or create a folder to start organizing this path.",

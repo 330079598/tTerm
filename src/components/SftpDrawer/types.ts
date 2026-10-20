@@ -11,6 +11,8 @@ export interface SftpDrawerProps {
     sourceTabId: string,
     connection?: Tab["connection"]
   ) => void
+  /** Takes the tab's shell to `path`; false when the terminal is busy. */
+  onCdInTerminal?: (path: string) => boolean
 }
 
 export interface SftpDirectoryEntry {

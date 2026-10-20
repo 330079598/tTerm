@@ -9,6 +9,8 @@ import type { SftpContextMenuState, SftpDirectoryEntry } from "@/components/Sftp
 interface SftpEntryContextMenuProps {
   contextMenu: SftpContextMenuState | null
   contextMenuEntry: SftpDirectoryEntry | null
+  /** Missing when the drawer's tab has no shell to send `cd` to. */
+  handleCdInTerminal?: (path: string) => void
   handleCopyPath: () => Promise<void>
   handleDelete: () => void
   handleDownload: () => Promise<void>
@@ -23,6 +25,7 @@ interface SftpEntryContextMenuProps {
 export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
   contextMenu,
   contextMenuEntry,
+  handleCdInTerminal,
   handleCopyPath,
   handleDelete,
   handleDownload,
@@ -49,6 +52,15 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
           action: "copy-path",
           icon: "copy",
         },
+        ...(handleCdInTerminal && contextMenuEntry.isDir
+          ? [
+              {
+                label: t("sftp.actions.openInTerminal"),
+                action: "cd",
+                icon: "terminal",
+              },
+            ]
+          : []),
         {
           label:
             selectionCount > 1
@@ -88,6 +100,7 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
       onAction={(action) => {
         if (action === "download") void handleDownload()
         else if (action === "copy-path") void handleCopyPath()
+        else if (action === "cd") handleCdInTerminal?.(contextMenuEntry.path)
         else if (action === "edit") handleEdit()
         else if (action === "rename") handleRename()
         else if (action === "permissions") handlePermissions()

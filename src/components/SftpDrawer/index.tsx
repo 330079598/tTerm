@@ -41,6 +41,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   connection,
   onClose,
   onOpenRemoteFile,
+  onCdInTerminal,
 }) => {
   const { t } = useTranslation()
   const { config } = useConfig()
@@ -252,6 +253,13 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     commandDeleteCommand,
   })
 
+  const handleCdInTerminal = useCallback(
+    (path: string) => {
+      if (onCdInTerminal && !onCdInTerminal(path)) setError(t("sftp.errors.terminalBusy"))
+    },
+    [onCdInTerminal, setError, t]
+  )
+
   const contextSelectionCount = useMemo(() => {
     if (!contextMenuEntry) {
       return selectedPaths.length
@@ -326,6 +334,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
             toggleFollow={toggleFollow}
             terminalCwd={terminalCwd}
             shellIntegration={connection?.shellIntegration === true}
+            currentPath={onCdInTerminal ? listingCurrentPath : null}
+            cdInTerminal={handleCdInTerminal}
           />
         }
       />
@@ -367,6 +377,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       <SftpEntryContextMenu
         contextMenu={contextMenu}
         contextMenuEntry={contextMenuEntry}
+        handleCdInTerminal={onCdInTerminal ? handleCdInTerminal : undefined}
         handleCopyPath={handleCopyPath}
         handleDelete={handleDelete}
         handleDownload={handleDownload}

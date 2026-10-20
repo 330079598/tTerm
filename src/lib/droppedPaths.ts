@@ -30,7 +30,7 @@ const CMD_SPECIAL = /[\s&()[\]{}^=;!'+,`~%]/
 const POWERSHELL_SPECIAL = /[\s'"`$&()[\]{};,@#|<>]/
 
 /** Escapes each special character with a backslash, as macOS Terminal does. */
-function quotePosix(path: string): string {
+export function quotePosix(path: string): string {
   // A backslash before a line break joins the lines, so a break gets quoted.
   return path.replace(POSIX_SPECIAL, (char) => (char === "\n" ? "'\n'" : `\\${char}`))
 }

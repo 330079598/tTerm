@@ -1886,7 +1886,9 @@
       "forward": "前进",
       "up": "上一级目录",
       "refresh": "刷新",
-      "close": "关闭"
+      "close": "关闭",
+      "openInTerminal": "在终端中打开",
+      "openCurrentInTerminal": "在终端中打开当前目录"
     },
     "selection": {
       "clear": "清空选择",
@@ -1938,7 +1940,8 @@
       "dragOutUnknownTarget": "请把文件拖到文件夹或桌面上，才能下载到那里。",
       "notReady": "SFTP 未就绪",
       "uploadAllFailed": "{{count}} 个上传任务失败",
-      "uploadPartialFailed": "{{succeeded}} 个上传成功，{{failed}} 个失败"
+      "uploadPartialFailed": "{{succeeded}} 个上传成功，{{failed}} 个失败",
+      "terminalBusy": "终端里正在运行程序，退出后再试。"
     },
     "emptyDescription": "此文件夹为空",
     "emptyHint": "上传文件或新建文件夹，开始整理此路径。",

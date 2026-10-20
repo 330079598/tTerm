@@ -1,5 +1,5 @@
 import React from "react"
-import { FolderSync } from "lucide-react"
+import { FolderSync, SquareTerminal } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -12,17 +12,26 @@ interface SftpTerminalActionsProps {
   terminalCwd: string | null
   /** The connection installs tTerm's shell integration, which reports it. */
   shellIntegration: boolean
+  /** The listed directory, null while there is none or no shell to send it to. */
+  currentPath: string | null
+  cdInTerminal: (path: string) => void
 }
 
-/** The drawer's link to its terminal: following the shell's directory. */
+/**
+ * The drawer's links to its terminal: following the shell's directory, and
+ * taking the shell to the listed one.
+ */
 export const SftpTerminalActions: React.FC<SftpTerminalActionsProps> = ({
   follows,
   toggleFollow,
   terminalCwd,
   shellIntegration,
+  currentPath,
+  cdInTerminal,
 }) => {
   const { t } = useTranslation()
   const label = t("sftp.follow.label")
+  const cdLabel = t("sftp.actions.openCurrentInTerminal")
   // Following waits for a report that may never come; say why.
   const waiting = follows && terminalCwd === null
   const hint = !waiting
@@ -57,6 +66,20 @@ export const SftpTerminalActions: React.FC<SftpTerminalActionsProps> = ({
             <div>{label}</div>
             {hint && <div className="opacity-80">{hint}</div>}
           </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => currentPath && cdInTerminal(currentPath)}
+              disabled={!currentPath}
+              aria-label={cdLabel}
+            >
+              <SquareTerminal className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{cdLabel}</TooltipContent>
         </Tooltip>
       </div>
       <div className="sftp-action-divider" aria-hidden="true" />
