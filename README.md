@@ -1,27 +1,99 @@
-# tTerm — A Modern SSH Terminal with Built-in SFTP
+<p align="center">
+  <img src="./app-icon.png" width="112" alt="tTerm icon">
+</p>
 
-English | [简体中文](./README.zh-CN.md)
+<h1 align="center">tTerm</h1>
 
-`tTerm` is a desktop terminal app for developers, operators, and anyone who works with remote servers. It brings **local terminals, SSH sessions, split panes, SFTP file management, port forwarding, server monitoring, and encrypted credential storage** into one lightweight application.
+<p align="center">
+  <strong>A free, open-source SSH terminal with built-in SFTP.</strong><br>
+  A lightweight alternative to Xshell, SecureCRT and Termius for macOS, Windows and Linux.
+</p>
 
-If you often connect to servers, move files between local and remote machines, or juggle many terminal sessions at once, tTerm is designed to be the tool you can open and start working with immediately.
+<p align="center">
+  <a href="https://github.com/330079598/tTerm/releases/latest"><img src="https://img.shields.io/github/v/release/330079598/tTerm?label=release" alt="Latest release"></a>
+  <a href="https://github.com/330079598/tTerm/releases"><img src="https://img.shields.io/github/downloads/330079598/tTerm/total" alt="Downloads"></a>
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue" alt="Platforms">
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/330079598/tTerm" alt="License"></a>
+  <a href="https://github.com/330079598/tTerm/stargazers"><img src="https://img.shields.io/github/stars/330079598/tTerm?style=social" alt="GitHub stars"></a>
+</p>
 
-![main-overview](./docs/screenshot/main-overview.png)
+<p align="center">
+  <a href="https://github.com/330079598/tTerm/releases/latest"><strong>Download</strong></a> ·
+  <a href="#installation">Installation</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#faq">FAQ</a> ·
+  <a href="./README.zh-CN.md">简体中文</a>
+</p>
+
+![tTerm: three SSH sessions in split panes with live broadcast input](./docs/screenshot/main-overview.png)
 
 ## Why tTerm?
 
-- **Terminal and files in one place**: Open the SFTP drawer from an SSH session to browse, transfer, and edit remote files without switching apps.
-- **Built for many servers at once**: Split the workspace into panes, broadcast a command to several terminals, and keep frequently used commands in a searchable library.
-- **Fast, resumable transfers**: Parallel SFTP channels, resume after interruption, conflict handling, and bandwidth limits. ZMODEM (`rz`/`sz`) covers hosts without SFTP.
-- **Visual port forwarding**: Manage local, remote, and dynamic (SOCKS5) SSH tunnels from a dedicated page, with live status, traffic counters, and automatic reconnects.
-- **See the server at a glance**: A monitor bar under each SSH session shows CPU, memory, network, disk, and latency, with nothing to install on the server.
-- **Keep track of your AI agents**: Tabs running Claude Code, Codex, OpenCode, or pi show whether the agent is working or waiting for you, and you are notified when it needs you or finishes.
-- **Safer SSH workflow**: Host key confirmation, SSH agent and jump-host support, and saved passwords encrypted locally with AES-256-GCM.
-- **Modern desktop experience**: Built with Tauri for a lightweight, fast, cross-platform app with themes, customizable shortcuts, and English/Chinese UI.
+- **Know which AI agent needs you.** Run Claude Code, Codex, OpenCode or pi in several tabs, and each tab shows whether its agent is working or waiting for your answer. You get a notification when one needs you or finishes, even over SSH.
+- **Free, open source, no account.** MIT licensed. There is no sign-up, no subscription, and nothing behind a paywall.
+- **Your data stays yours.** tTerm has no cloud service. Saved passwords are encrypted locally with AES-256-GCM, and multi-device sync goes through your own WebDAV server, encrypted before upload.
+- **Terminal and files in one window.** Open the SFTP drawer from any SSH session. Transfers run over parallel channels, resume after interruption, and respect a bandwidth limit.
+- **`rz` / `sz` like Xshell and SecureCRT.** ZMODEM works in local and SSH terminals, for network gear, embedded boards and shell-only bastion hosts.
+- **Built for many servers.** Split panes, broadcast input to several terminals, a command library with variables, visual port forwarding, and a server monitor that needs nothing installed on the server.
 
-## Key Features
+## How it compares
 
-### Workspace and Tabs
+|                                | tTerm               | Xshell                 | SecureCRT | Termius          | Tabby |
+| ------------------------------ | ------------------- | ---------------------- | --------- | ---------------- | ----- |
+| Price                          | Free                | Free for home / school | Paid      | Free + subscription | Free |
+| Open source                    | ✅ MIT              | ❌                     | ❌        | ❌               | ✅    |
+| macOS / Linux                  | ✅                  | ❌ Windows only        | ✅        | ✅               | ✅    |
+| Graphical SFTP browser         | ✅                  | Separate Xftp app      | Separate SecureFX app | ✅  | ✅    |
+| ZMODEM `rz` / `sz`             | ✅                  | ✅                     | ✅        | ❌               | ✅    |
+| Sync through your own server   | ✅ Any WebDAV       | ❌                     | ❌        | ❌ Paid vendor cloud | Self-hostable Tabby Web |
+| Claude Code / Codex tab status | ✅                  | ❌                     | ❌        | ❌               | ❌    |
+| Server monitor, no agent       | ✅                  | ❌                     | ❌        | ❌               | ❌    |
+
+<sub>Based on each product's public information as of October 2026. If something is out of date, please open an issue.</sub>
+
+## Installation
+
+Download the package for your system from the [latest release](https://github.com/330079598/tTerm/releases/latest):
+
+| System                        | File                       |
+| ----------------------------- | -------------------------- |
+| macOS, Apple Silicon (M1 and later) | `tTerm_x.y.z_aarch64.dmg` |
+| macOS, Intel                  | `tTerm_x.y.z_x64.dmg`      |
+| Windows                       | `tTerm_x.y.z_x64-setup.exe` |
+| Linux                         | `.AppImage`, `.deb` or `.rpm` |
+
+tTerm updates itself from inside the app, on a **Stable** or **Beta Dev** channel.
+
+### macOS: first launch says "tTerm is damaged and can't be opened"
+
+The file is not damaged. tTerm is an open-source project without a paid Apple Developer ID, so its builds are not notarized by Apple, and macOS blocks any un-notarized app downloaded from a browser.
+
+1. Drag `tTerm.app` into **Applications**.
+2. Open **Terminal** and run:
+
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/tTerm.app
+   ```
+
+3. Open tTerm as usual.
+
+You only need to do this once. Updates installed from inside tTerm are not blocked. If you update by downloading a new `.dmg` from the browser instead, run the command again.
+
+### macOS: Keychain asks for your password after every update
+
+By default tTerm keeps the key that unlocks your saved passwords in the macOS Keychain. Without an Apple Developer ID, every new version looks like a different app to the Keychain, so **after each update** macOS asks once:
+
+> "tTerm" wants to use your confidential information stored in "tterm" in your keychain.
+
+Enter your **Mac login password** and click **Always Allow**. tTerm won't ask again until the next update.
+
+- If you click **Deny**, saved passwords stay locked. You can try again from **Settings → Security**.
+- To avoid the Keychain prompt entirely, choose **Master password** under **Settings → Security → Unlock method**. tTerm then keeps nothing in the Keychain and asks for your master password instead.
+
+## Features
+
+<details>
+<summary><strong>Workspace and tabs</strong>: tabs, split panes, session restore</summary>
 
 - Multiple tabs with drag-and-drop reordering, duplicate, rename, and close others / left / right
 - Split panes: split any tab left, right, up, or down, drag tabs between groups, and maximize a group
@@ -29,7 +101,10 @@ If you often connect to servers, move files between local and remote machines, o
 - Session and layout restore after restart, optionally connecting only the active tab at startup
 - Confirmation before closing tabs with active transfers or quitting with running tunnels
 
-### Terminal
+</details>
+
+<details>
+<summary><strong>Terminal</strong>: shell integration, custom shortcuts, session logs</summary>
 
 - Local shell with auto-detection, or pick one (on Windows: cmd, PowerShell, PowerShell 7, WSL, Git Bash, or a custom executable)
 - Search with real-time highlighting
@@ -40,18 +115,24 @@ If you often connect to servers, move files between local and remote machines, o
 - On macOS, Option can act as the Meta key (Alt shortcuts in the shell, Emacs, and tmux)
 - Optional session logging: raw and/or plain-text logs, file name templates, size-based rotation, and gzip compression of closed files
 
-### Broadcast Input
+</details>
 
-Run the same thing on several servers at once (`Cmd/Ctrl+Shift+B`). The screenshot at the top shows live mode typing into three split panes:
+<details>
+<summary><strong>Broadcast input</strong>: type once, run on many servers</summary>
+
+Run the same thing on several servers at once (`Cmd/Ctrl+Shift+B`). The screenshot at the top shows live mode typing into three split panes.
 
 - **Command mode**: type a command once and send it to the selected terminals, with a confirmation for multi-line input
 - **Live mode**: keystrokes and pastes from a primary terminal are mirrored to every target in real time
 - Per-target delivery status, and disconnected targets can be reconnected before sending
 - Live mode stops automatically when a password prompt appears, so passwords stay in the source terminal
 
-### AI Coding Agents
+</details>
 
-Running Claude Code, Codex, OpenCode, or pi in several tabs at once? tTerm shows which agent is busy and which one is waiting for your answer, so you don't have to click through every tab to find out.
+<details>
+<summary><strong>AI coding agents</strong>: Claude Code, Codex, OpenCode and pi</summary>
+
+Running several agents at once? tTerm shows which one is busy and which one is waiting for your answer, so you don't have to click through every tab to find out.
 
 - **One-click setup** in Settings > Notifications: tTerm merges hooks into the Claude Code and Codex settings, or installs a small plugin for OpenCode and pi. Your other settings are left alone, the previous file is kept as `.tterm-bak`, and "Show what is added" previews the change first
 - **Tab badges**: an animation while the agent works, and a different mark when it stops to ask for permission or input
@@ -59,7 +140,10 @@ Running Claude Code, Codex, OpenCode, or pi in several tabs at once? tTerm shows
 - **Works over SSH**: agents report through a terminal escape sequence (OSC 777), so an agent on a remote host works too once you copy the same hooks into its config there. Inside tmux, turn on `set -g allow-passthrough on`
 - Choose the badge style (seven working animations, three waiting marks) and its color in Settings > Appearance
 
-### Command Library
+</details>
+
+<details>
+<summary><strong>Command library</strong>: saved commands with variables</summary>
 
 ![command-library](./docs/screenshot/command-library.png)
 
@@ -71,7 +155,10 @@ Running Claude Code, Codex, OpenCode, or pi in several tabs at once? tTerm shows
 - Optional "confirm before inserting" for destructive commands, which shows the full command first
 - Tag management: create, rename, and delete
 
-### SSH Connections
+</details>
+
+<details>
+<summary><strong>SSH connections</strong>: keys, agents, jump hosts, MFA, sudo autofill</summary>
 
 ![saved-connections](./docs/screenshot/saved-connections.png)
 
@@ -79,6 +166,7 @@ Running Claude Code, Codex, OpenCode, or pi in several tabs at once? tTerm shows
 - **Keyboard-interactive and multi-step logins**: when a server asks for a one-time code, an MFA token, or a second step after a key, the tab prompts for each answer; a saved password answers the server's password prompt on its own. An "Interactive" method stores no credentials at all
 - Optional SSH agent forwarding per connection
 - Jump-host chains, opened in order like OpenSSH `ProxyJump`
+- HTTP and SOCKS5 proxies, and `ProxyCommand`
 - Import hosts from `~/.ssh/config` with a preview, including `LocalForward` / `RemoteForward` / `DynamicForward` rules as tunnels
 - Connection groups with drag-and-drop, search, and bulk delete
 - Host key confirmation; review and remove trusted hosts under Settings → Security
@@ -87,14 +175,20 @@ Running Claude Code, Codex, OpenCode, or pi in several tabs at once? tTerm shows
 - Per-tab connection header with pinning
 - **Sudo password autofill**: when `sudo` or `doas` asks for a password, a bar outside the terminal offers to fill the saved password with one click or `Cmd/Ctrl+Shift+Enter`. Prompts are recognized in English, Chinese, and other locales, and you can add custom patterns. A dedicated sudo password can be saved per connection, which is useful for key or agent logins. Autofill pauses for the session if the password is rejected.
 
-### Server Monitor
+</details>
+
+<details>
+<summary><strong>Server monitor</strong>: CPU, memory, network, disk, latency</summary>
 
 - Compact status bar under each SSH session: CPU, memory, network throughput, disk, load, uptime, server IP, and SSH latency. Choose which metrics to show and in what order.
 - Expandable detail panel with Overview, CPU, Memory, Network, and Disk tabs and recent trends
 - Metrics are read over the existing SSH connection from `/proc`; nothing is installed on the server. Linux hosts only.
 - Refresh interval from 1 to 60 seconds
 
-### Built-in SFTP File Manager
+</details>
+
+<details>
+<summary><strong>SFTP file manager</strong>: browse, edit, chmod, drag and drop</summary>
 
 ![sftp-browser](./docs/screenshot/sftp-browser.png)
 
@@ -107,22 +201,22 @@ Running Claude Code, Codex, OpenCode, or pi in several tabs at once? tTerm shows
 - **Remote file editor**: open a remote file in a built-in editor with syntax highlighting and save it back
 - Copy full remote paths
 
-### Transfer Manager
+</details>
+
+<details>
+<summary><strong>Transfers</strong>: parallel, resumable, rate-limited, ZMODEM</summary>
 
 - Parallel SFTP channels per transfer (1–16, default 4)
 - Resume or retry interrupted transfers from where they stopped
 - Conflict handling when files already exist: overwrite only if newer, overwrite all, skip, or keep both
 - Separate upload and download bandwidth limits that also apply to running transfers
 - Progress, speed, and status for every task, with expandable batch/folder groups and a history view
-- ZMODEM transfers show up here alongside SFTP tasks
+- **ZMODEM (`rz` / `sz`)**: when SFTP isn't available, run `rz` / `sz` right in the terminal, just like SecureCRT and Xshell. Transfers are detected automatically in local terminals and SSH sessions, can be started from the context menu, and show up alongside SFTP tasks. See [docs/zmodem.md](./docs/zmodem.md).
 
-### ZMODEM File Transfer (rz / sz)
+</details>
 
-When SFTP isn't available (network-equipment consoles, embedded targets, bastion hosts that only expose an interactive shell), run `rz` / `sz` right in the terminal, just like SecureCRT / Xshell. Transfers are detected automatically in both local terminals and SSH sessions, and can also be triggered manually from the context menu.
-
-See [docs/zmodem.md](./docs/zmodem.md) for usage, settings, and implementation details.
-
-### Port Forwarding
+<details>
+<summary><strong>Port forwarding</strong>: local, remote and SOCKS5 tunnels</summary>
 
 ![port-forwarding](./docs/screenshot/port-forwarding.png)
 
@@ -134,7 +228,10 @@ See [docs/zmodem.md](./docs/zmodem.md) for usage, settings, and implementation d
 - Shows the equivalent OpenSSH command, and warns when a tunnel listens on an address reachable from your network
 - Copy the listening address or open it in the browser
 
-### Personalization
+</details>
+
+<details>
+<summary><strong>Personalization</strong>: nearly 700 themes, fonts, window blur</summary>
 
 ![theme-editor](./docs/screenshot/theme-editor.png)
 
@@ -142,245 +239,57 @@ See [docs/zmodem.md](./docs/zmodem.md) for usage, settings, and implementation d
 - A theme library of nearly 700 themes, the collection Ghostty ships: search it, browse with the arrow keys while the whole app previews each one, star favorites, and copy any into the editor
 - Follow the system appearance with a light and a dark theme of your choice
 - Import themes from Ghostty, Windows Terminal, iTerm2 (`.itermcolors`), Alacritty, and kitty; tTerm builds matching interface colors from the terminal palette
-- Terminal palette preview with 16-color swatches
 - Font settings with a system font picker, and cursor style picker
 - Interface text scale from 80% to 200%
 - Window background blur (macOS, Windows) with adjustable blur and opacity; acrylic or mica material on Windows
 - English and Chinese UI with automatic language detection
-- Windows, macOS, and Linux desktop support
 
-### Security and Data
+</details>
+
+<details>
+<summary><strong>Security, backup and sync</strong>: local encryption, WebDAV</summary>
 
 - **Encrypted saved passwords**: SSH, jump-host, and sudo passwords are encrypted with AES-256-GCM in tTerm's local database. Choose how the key is unlocked:
   - **System credential store** (Keychain on macOS, Credential Manager on Windows, Secret Service on Linux)
   - **Master password** (Argon2id), with an optional unlock prompt at startup
   - **Don't save passwords**: keep them for the current session only
 - Optional recovery password in case the system credential store loses the key
-- View or delete saved passwords from settings
-- **Backup and migration**: export exactly the data you choose (settings, connections and tunnels, workspace, known hosts, commands, themes, logs). Passwords are only included in password-protected backups (Argon2id + AES-256-GCM). Settings carry the WebDAV, scheduled-backup and sync setup, and the WebDAV passwords travel with the other passwords, so a restored device backs up and syncs again without being set up. Private key files are never included; an import lists the ones missing on the device. Imports are previewed first, can merge or replace, and create a recovery snapshot automatically.
+- **Backup and migration**: export exactly the data you choose (settings, connections and tunnels, workspace, known hosts, commands, themes, logs). Passwords are only included in password-protected backups (Argon2id + AES-256-GCM). Private key files are never included; an import lists the ones missing on the device. Imports are previewed first, can merge or replace, and create a recovery snapshot automatically.
 - Scheduled local backups (daily or weekly) with a retention limit. These never contain passwords.
 - **WebDAV remote backup**: upload encrypted backups to a WebDAV service (Nextcloud, Synology, AList, Jianguoyun, ...) and restore them on any device
 - **Multi-device sync**: devices that share a WebDAV folder merge each other's changes to connections, passwords, commands, known hosts, settings, and themes automatically. The sync file is encrypted before upload, and you choose what is synced.
-- Data from older versions (JSON config files and the old password vault) is migrated automatically
-- Data stays on your machine unless you set up WebDAV yourself; tTerm has no cloud service of its own
 
-### Updates
+</details>
 
-- Built-in updater with **Stable** and **Beta Dev** channels
-- Optional background download, configurable check frequency, and release notes in the app
-- Warns before a restart would interrupt active sessions
+## Screenshots
 
-## Getting Started
+| | |
+| --- | --- |
+| ![Saved connections](./docs/screenshot/saved-connections.png) | ![SFTP browser](./docs/screenshot/sftp-browser.png) |
+| ![Port forwarding](./docs/screenshot/port-forwarding.png) | ![Command library](./docs/screenshot/command-library.png) |
 
-### Download
+## FAQ
 
-Pre-built binaries are available on the [Releases](https://github.com/330079598/tTerm/releases) page for:
+**Is tTerm really free?**
+Yes. tTerm is MIT licensed, with no paid tier, no account and no usage tracking.
 
-- **macOS** — Apple Silicon (aarch64) and Intel (x86_64) `.dmg` and `.app` bundles
-- **Windows** — `.exe` NSIS installer
-- **Linux** — `.AppImage`, `.deb`, and `.rpm` packages
+**Where is my data stored?**
+On your own machine, in tTerm's data folder: `~/Library/Application Support/com.stone.tTerm` on macOS, `%APPDATA%\com.stone.tTerm` on Windows, and `~/.config/com.stone.tTerm` on Linux. Nothing leaves the device unless you set up WebDAV backup or sync yourself.
 
-### Prerequisites
+**Can I import my existing hosts?**
+Yes, from `~/.ssh/config`, including `ProxyJump` and port-forwarding rules. You can also move everything between computers with an encrypted backup file or WebDAV.
 
-- Node.js 18+
-- pnpm
-- Rust (latest stable)
-- Tauri 2 system dependencies
+**Why does macOS say the app is damaged, or ask for my Keychain password after updates?**
+See [Installation](#installation). Both come from tTerm not having a paid Apple Developer ID; neither means anything is wrong.
 
-Platform-specific requirements:
-
-- **Windows**: Microsoft C++ Build Tools
-- **macOS**: Xcode Command Line Tools
-- **Linux**: Tauri dependencies such as WebKitGTK, OpenSSL, and AppIndicator packages
-
-### Install Dependencies
-
-```bash
-pnpm install
-```
-
-### Run in Development Mode
-
-```bash
-pnpm tauri:dev
-```
-
-This runs the app as `tTerm Dev` (`com.stone.tTerm.dev`), so it can run next to
-an installed tTerm and keeps its own database, settings and WebView storage.
-
-On Linux, if the Wayland backend exits with a GDK protocol error or WebKitGTK
-reports GBM buffer errors, use the XWayland-compatible development command:
-
-```bash
-pnpm tauri:dev:linux
-```
-
-This command runs the app with `GDK_BACKEND=x11` and disables WebKitGTK's
-DMABUF renderer. An XWayland installation is required.
-
-### Build the Desktop App
-
-```bash
-pnpm tauri build
-```
-
-Tauri writes platform-specific bundles under `src-tauri/target`.
-
-### CI/CD
-
-GitHub Actions workflows are included for automated builds:
-
-- **release-main.yml** — Triggered on push to `main` or `v*` tags. Builds for macOS (aarch64 + x86_64), Ubuntu 24.04, and Windows. Creates draft GitHub releases.
-- **release-dev-beta.yml** — Triggered on push to `dev-beta`. Builds beta pre-releases for the Beta Dev update channel.
-- **sync-release-notes.yml** — Manually triggered. Syncs release notes into the updater manifest for a channel.
-
-## Common Scripts
-
-```bash
-# Start the frontend dev server
-pnpm dev
-
-# Build frontend assets
-pnpm build
-
-# Preview the frontend build
-pnpm preview
-
-# Start Tauri development mode (separate tTerm Dev identity and data)
-pnpm tauri:dev
-
-# Start Tauri on Linux through XWayland (Wayland/GBM compatibility mode)
-pnpm tauri:dev:linux
-
-# Build the desktop application
-pnpm tauri build
-
-# Run frontend tests (Vitest)
-pnpm test
-
-# Run ESLint
-pnpm lint
-
-# Fix ESLint issues automatically
-pnpm lint:fix
-
-# Format source files
-pnpm format
-
-# Check formatting
-pnpm format:check
-
-# Refresh the theme library from iTerm2-Color-Schemes (optionally at a given commit)
-pnpm themes:update
-```
-
-## Tech Stack
-
-### Frontend
-
-- React 19
-- TypeScript
-- Vite
-- TanStack Router
-- xterm.js (WebGL and Canvas renderers)
-- dockview (split-pane workspace)
-- CodeMirror 6 (remote file editor)
-- dnd-kit
-- i18next / react-i18next
-- Radix UI
-- lucide-react
-- Tailwind CSS 4
-
-### Desktop and Backend
-
-- Tauri 2 (updater, dialog, clipboard, OS plugins)
-- Rust 2021
-- portable-pty
-- russh
-- russh-sftp
-- Tokio
-- SQLite (rusqlite)
-- keyring
-- aes-gcm / argon2 / zeroize
-
-## Project Structure
-
-```text
-.
-├── src/                      # React frontend application
-│   ├── components/           # Terminal, SFTP, tunnels, broadcast, settings, theme, and UI components
-│   ├── contexts/             # Global config, theme, keymap, and transfer state
-│   ├── hooks/                # Tabs, connections, session restore, and feature hooks
-│   ├── i18n/                 # English and Chinese locale resources
-│   ├── lib/                  # Keymap, theme, startup, prompt detection, and utility helpers
-│   ├── routes/               # TanStack Router pages
-│   └── types/                # Frontend type definitions
-├── src-tauri/                # Tauri / Rust backend
-│   ├── src/backup/           # Backup export/import, scheduled backups, and WebDAV remote backup
-│   ├── src/command_library/  # Saved commands and tags
-│   ├── src/config/           # App configuration and paths
-│   ├── src/core/             # PTY, commands, and app state
-│   ├── src/db/               # SQLite schema, migrations, and legacy JSON import
-│   ├── src/fonts/            # System font support
-│   ├── src/monitor/          # Server monitor metrics over SSH
-│   ├── src/profiles/         # Connection profiles and SSH config import
-│   ├── src/session/          # Session persistence
-│   ├── src/session_log.rs    # Terminal session logging
-│   ├── src/sftp/             # SFTP connections, file operations, and transfers
-│   ├── src/ssh/              # SSH client, agent, jump hosts, host keys, and encrypted secret store
-│   ├── src/sync/             # Multi-device sync over WebDAV (three-way merge)
-│   ├── src/terminal/         # Terminal types and I/O
-│   ├── src/tunnel/           # Port forwarding, SOCKS5, and the shared-connection hub
-│   ├── src/updater.rs        # In-app updates
-│   ├── src/window_blur.rs    # Window background blur (macOS / Windows)
-│   └── src/zmodem/           # ZMODEM (rz/sz) protocol engine, trigger detection, send/receive
-├── docs/                     # Documentation and screenshots
-├── public/                   # Static assets
-└── dist/                     # Frontend build output
-```
-
-## Use Cases
-
-- Maintain several servers and switch between SSH sessions quickly
-- Run the same command on a group of servers at once
-- Upload and download files between local and remote machines often, including large or interrupted transfers
-- Reach private databases and web services through SSH tunnels
-- Work with terminals and remote files in a single desktop window
-- Move files with `rz`/`sz` on network gear, embedded devices, or shell-only bastion hosts
-- Save frequently used connection profiles while keeping credentials local and encrypted
-- Use a lighter, modern, themeable alternative to heavier terminal clients
-
-## Development Notes
-
-tTerm's frontend calls Rust backend commands through Tauri `invoke`. Terminal support is powered by `portable-pty`, and SSH and SFTP are powered by `russh` and `russh-sftp`. Settings stay in `config.json`; everything else (connections, tunnels, known hosts, commands, custom themes, the restored session, backup and sync settings, and encrypted secrets) lives in a local SQLite database (`tterm.db`). Saved passwords use envelope encryption: each secret is encrypted with a data key, and only that key is protected by the system credential store or a master password.
-
-When developing, pay special attention to:
-
-- Whether frontend interactions work well for multi-tab, split-pane, and multi-task workflows
-- Whether Rust commands return clear errors that can be shown in the UI
-- Whether file transfers expose complete progress, cancellation, and failure states
-- Whether password, key, and host-fingerprint flows remain local, safe, and explicit
-- Whether new data is covered by a database migration (`src-tauri/src/db/migrations.rs`) and by backup/import
-
-For how ZMODEM is implemented and how to run its integration tests against real `lrzsz`, see [docs/zmodem.md](./docs/zmodem.md#implementation).
+**Does the server monitor need anything on the server?**
+No. It reads `/proc` over the SSH connection you already have. It works on Linux hosts.
 
 ## Contributing
 
-Issues and pull requests are welcome. Before submitting changes, run:
+Issues and pull requests are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to build tTerm, how the code is organized, and the checks a change must pass.
 
-```bash
-pnpm lint
-pnpm format:check
-pnpm test
-pnpm build
-```
-
-If your changes touch the Rust/Tauri backend, also run:
-
-```bash
-cargo check --manifest-path src-tauri/Cargo.toml
-cargo test --manifest-path src-tauri/Cargo.toml
-```
+If tTerm is useful to you, a ⭐ on GitHub helps other people find it.
 
 ## License
 
