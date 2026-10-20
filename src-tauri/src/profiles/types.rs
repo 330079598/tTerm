@@ -95,6 +95,10 @@ pub struct SavedProfile {
     /// as the logging setting says when unset.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_log: Option<String>,
+    /// Where this connection's SFTP drawer opens: `home`, `last` or
+    /// `terminal`, or as the SFTP setting says when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sftp_start_directory: Option<String>,
     /// Which proxy server the first host is reached through; the device's
     /// default proxy when unset.
     #[serde(default, skip_serializing_if = "crate::proxy::ProxyChoice::is_default")]

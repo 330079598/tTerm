@@ -23,6 +23,11 @@ import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useAppActivity } from "@/contexts/AppActivityContext"
 import type { BackgroundThrottling, CloseBehavior } from "@/lib/appConfig"
+import {
+  normalizeSftpStartDirectory,
+  SFTP_START_DIRECTORIES,
+  type SftpStartDirectory,
+} from "@/lib/sftpStartDirectory"
 import { getDetectedPlatform } from "@/lib/uiPlatform"
 import { getLaunchBackgroundThrottling } from "@/contexts/ConfigContext"
 import { cn } from "@/lib/utils"
@@ -45,6 +50,7 @@ interface GeneralSettingsTabProps {
   handleLanguageChange: (langCode: string) => Promise<void>
   handleRestoreAllSessionConnectionsChange: (checked: boolean) => Promise<void>
   handleSftpPasteUploadEnabledChange: (checked: boolean) => Promise<void>
+  handleSftpStartDirectoryChange: (choice: SftpStartDirectory) => Promise<void>
   handleSftpTransferParallelismChange: (value: number) => Promise<void>
   handleSftpUploadLimitChange: (kib: number) => Promise<void>
   handleSftpDownloadLimitChange: (kib: number) => Promise<void>
@@ -55,6 +61,7 @@ interface GeneralSettingsTabProps {
   languages: LanguageOption[]
   restoreAllSessionConnections: boolean
   sftpPasteUploadEnabled: boolean
+  sftpStartDirectory: SftpStartDirectory
   sftpTransferParallelism: number
   sftpUploadLimitKib: number
   sftpDownloadLimitKib: number
@@ -72,6 +79,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   handleLanguageChange,
   handleRestoreAllSessionConnectionsChange,
   handleSftpPasteUploadEnabledChange,
+  handleSftpStartDirectoryChange,
   handleSftpTransferParallelismChange,
   handleSftpUploadLimitChange,
   handleSftpDownloadLimitChange,
@@ -82,6 +90,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   languages,
   restoreAllSessionConnections,
   sftpPasteUploadEnabled,
+  sftpStartDirectory,
   sftpTransferParallelism,
   sftpUploadLimitKib,
   sftpDownloadLimitKib,
@@ -152,6 +161,27 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             defaultValue: "Configure file manager behavior for remote directories.",
           })}
         >
+          <SettingsRow
+            title={t("settings.sftpStartDirectory")}
+            description={t("settings.sftpStartDirectoryDesc")}
+            action={
+              <Select
+                aria-label={t("settings.sftpStartDirectory")}
+                value={sftpStartDirectory}
+                onChange={(event) => {
+                  const choice = normalizeSftpStartDirectory(event.target.value)
+                  if (choice) void handleSftpStartDirectoryChange(choice)
+                }}
+                className="w-44"
+              >
+                {SFTP_START_DIRECTORIES.map((choice) => (
+                  <option key={choice} value={choice}>
+                    {t(`sftp.startDirectory.${choice}`)}
+                  </option>
+                ))}
+              </Select>
+            }
+          />
           <SettingsRow
             title={t("settings.sftpPasteUpload")}
             description={t("settings.sftpPasteUploadDesc")}

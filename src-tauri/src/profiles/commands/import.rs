@@ -100,6 +100,8 @@ pub(super) fn import_ssh_config_profiles_blocking(
             shell_integration: existing_index
                 .is_some_and(|index| profiles[index].shell_integration),
             session_log: existing_index.and_then(|index| profiles[index].session_log.clone()),
+            sftp_start_directory: existing_index
+                .and_then(|index| profiles[index].sftp_start_directory.clone()),
             // A host whose config sets no proxy keeps the one chosen in tTerm.
             proxy: match &host.proxy {
                 Some(proxy) => proxies.choice(proxy),

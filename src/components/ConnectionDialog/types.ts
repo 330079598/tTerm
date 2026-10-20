@@ -3,6 +3,7 @@ import { useConfig } from "@/contexts/ConfigContext"
 import type { DistroId } from "@/lib/distro"
 import { DEFAULT_PROXY_CHOICE } from "@/lib/proxy"
 import { DEFAULT_SERIAL_SETTINGS } from "@/lib/serial"
+import type { SftpStartDirectory } from "@/lib/sftpStartDirectory"
 import type { TabIconStyle } from "@/lib/tabIcons"
 import type { ProxyChoice } from "@/types/proxy"
 import type { SerialSettings } from "@/types/serial"
@@ -95,6 +96,8 @@ export interface ConnectionForm {
   shellIntegration: boolean
   /** Whether the connection's sessions are logged; `default` follows the logging setting. */
   sessionLog: SessionLogPolicy | "default"
+  /** Where the connection's SFTP drawer opens; `default` follows the SFTP setting. */
+  sftpStartDirectory: SftpStartDirectory | "default"
   terminalShell: TerminalShellType
   terminalShellCustomPath: string
   terminalShellCustomArgs: string
@@ -149,6 +152,7 @@ export const defaultForm: ConnectionForm = {
   loginScript: "",
   shellIntegration: false,
   sessionLog: "default",
+  sftpStartDirectory: "default",
   terminalShell: "auto",
   terminalShellCustomPath: "",
   terminalShellCustomArgs: "",

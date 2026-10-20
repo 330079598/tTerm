@@ -251,6 +251,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleSftpPasteUploadEnabledChange={
                 settingsHandlers.handleSftpPasteUploadEnabledChange
               }
+              handleSftpStartDirectoryChange={settingsHandlers.handleSftpStartDirectoryChange}
               handleSftpTransferParallelismChange={
                 settingsHandlers.handleSftpTransferParallelismChange
               }
@@ -267,6 +268,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               languages={languages}
               restoreAllSessionConnections={config.startup_session_restore_mode === "all"}
               sftpPasteUploadEnabled={config.sftp_paste_upload_enabled}
+              sftpStartDirectory={config.sftp_start_directory}
               sftpTransferParallelism={config.sftp_transfer_parallelism}
               sftpUploadLimitKib={config.sftp_upload_limit_kib}
               sftpDownloadLimitKib={config.sftp_download_limit_kib}

@@ -3,12 +3,11 @@ import { getCurrentWindow } from "@tauri-apps/api/window"
 import { useTranslation } from "react-i18next"
 
 import { isDragOutActive } from "@/components/SftpDrawer/dragOut"
-import type { LoadSftpDirectory, SftpDirectoryListing } from "@/components/SftpDrawer/types"
+import type { SftpDirectoryListing } from "@/components/SftpDrawer/types"
 
 interface UseSftpDragDropParams {
   isGlobalShortcutTarget: boolean
   listing: SftpDirectoryListing | null
-  loadDirectory: LoadSftpDirectory
   setError: React.Dispatch<React.SetStateAction<string | null>>
   uploadPaths: (paths: string[]) => Promise<void>
   visible: boolean
@@ -27,7 +26,6 @@ const DROP_DEDUP_WINDOW_MS = 750
 export function useSftpDragDrop({
   isGlobalShortcutTarget,
   listing,
-  loadDirectory,
   setError,
   uploadPaths,
   visible,
@@ -36,12 +34,6 @@ export function useSftpDragDrop({
   const [isDragActive, setIsDragActive] = useState(false)
   const dragCounterRef = useRef(0)
   const lastDropRef = useRef<{ signature: string; timestamp: number } | null>(null)
-
-  useEffect(() => {
-    if (visible && !listing) {
-      void loadDirectory(null)
-    }
-  }, [listing, loadDirectory, visible])
 
   const handleUploadPaths = useCallback(
     async (paths: string[]) => {

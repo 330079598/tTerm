@@ -253,6 +253,8 @@
     "maintenance": "Maintenance",
     "sftp": "SFTP",
     "sftpDesc": "Configure file manager behavior for remote directories.",
+    "sftpStartDirectory": "Open SFTP at",
+    "sftpStartDirectoryDesc": "Where a tab's SFTP panel opens. The terminal's directory needs Shell integration turned on for the connection, and falls back to home until the shell reports it. A connection can choose otherwise in its settings.",
     "sftpPasteUpload": "Paste copied files into SFTP",
     "sftpPasteUploadDesc": "When enabled, Ctrl+V or Cmd+V in the SFTP panel uploads copied local files and folders. Clipboard text is ignored.",
     "sftpTransferParallelism": "Parallel transfer channels",
@@ -1332,6 +1334,9 @@
     "shellIntegrationDesc": "When connecting, puts a few small scripts under ~/.cache/tterm on the server so bash, zsh and fish mark each command: jump between commands, copy the last command's output, and see succeeded and failed commands on the scrollbar. The shell also reports its directory so the SFTP panel can follow it, which is all it does while Mark commands is off in Settings. Other shells and unsupported servers get a plain shell as before.",
     "sessionLog": "Session logging",
     "sessionLogDesc": "Whether this connection's sessions are written to terminal logs. Follow settings uses the default in Settings > Logs.",
+    "sftpStartDirectory": "Open SFTP at",
+    "sftpStartDirectoryDefault": "As in Settings",
+    "sftpStartDirectoryDesc": "Where this connection's SFTP panel opens. The terminal's directory needs Shell integration below.",
     "sessionLogOptions": {
       "default": "Follow settings",
       "always": "Always log",
@@ -2017,6 +2022,16 @@
       "octalHint": "Three digits such as 644 or 755. Folders are not changed recursively.",
       "specialHint": "The leading digit sets setuid (4), setgid (2) and sticky (1).",
       "apply": "Apply"
+    },
+    "startDirectory": {
+      "home": "Home directory",
+      "last": "Last directory",
+      "terminal": "Terminal's directory"
+    },
+    "follow": {
+      "label": "Follow the terminal's directory",
+      "notReported": "The shell has not reported its directory yet. If shell integration did not start, the connection header says why.",
+      "needsShellIntegration": "The shell does not report its directory: turn on Shell integration in the connection's settings, then reconnect."
     }
   },
   "terminalSearch": {

@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useTheme } from "@/contexts/ThemeContext"
+import { normalizeSftpStartDirectory, SFTP_START_DIRECTORIES } from "@/lib/sftpStartDirectory"
 import type { TerminalPalette } from "@/types/theme"
 
 import { ConnectionIconField } from "@/components/ConnectionDialog/ConnectionIconField"
@@ -103,6 +104,33 @@ export const SessionCustomizationFields: React.FC<SessionCustomizationFieldsProp
           ))}
         </Select>
         <p className="text-muted-foreground mt-1 text-xs">{t("connection.sessionLogDesc")}</p>
+      </div>
+
+      <div>
+        <Label htmlFor="conn-sftp-start-directory" className="mb-1.5 block">
+          {t("connection.sftpStartDirectory")}
+        </Label>
+        <Select
+          id="conn-sftp-start-directory"
+          value={form.sftpStartDirectory}
+          onChange={(e) => {
+            const value = e.target.value
+            setForm((current) => ({
+              ...current,
+              sftpStartDirectory: normalizeSftpStartDirectory(value) ?? "default",
+            }))
+          }}
+        >
+          <option value="default">{t("connection.sftpStartDirectoryDefault")}</option>
+          {SFTP_START_DIRECTORIES.map((option) => (
+            <option key={option} value={option}>
+              {t(`sftp.startDirectory.${option}`)}
+            </option>
+          ))}
+        </Select>
+        <p className="text-muted-foreground mt-1 text-xs">
+          {t("connection.sftpStartDirectoryDesc")}
+        </p>
       </div>
 
       <div className="flex items-start gap-2">

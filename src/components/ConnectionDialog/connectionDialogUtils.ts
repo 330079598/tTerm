@@ -6,6 +6,7 @@ import {
 } from "@/lib/profileConnections"
 import { normalizeProxyChoice } from "@/lib/proxy"
 import { normalizeSerialSettings } from "@/lib/serial"
+import { normalizeSftpStartDirectory, type SftpStartDirectory } from "@/lib/sftpStartDirectory"
 import type { SessionLogPolicy } from "@/types/tab"
 import type { TerminalPalette } from "@/types/theme"
 
@@ -51,6 +52,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     distro: profileTabIcon(profile).distroId,
     shellIntegration: profile.shell_integration === true,
     sessionLog: normalizeSessionLogPolicy(profile.session_log) ?? "default",
+    sftpStartDirectory: normalizeSftpStartDirectory(profile.sftp_start_directory) ?? "default",
     useJumpHost: profile.use_jump_host ?? jumpHosts.length > 0,
     proxy: normalizeProxyChoice(profile.proxy),
     sudoAutofill: profile.sudo_autofill !== false,
@@ -121,6 +123,13 @@ export function loginScriptPayload(script: string): string | undefined {
 export function sessionLogPayload(
   value: SessionLogPolicy | "default"
 ): SessionLogPolicy | undefined {
+  return value === "default" ? undefined : value
+}
+
+/** The form's SFTP start directory as stored: unset follows the SFTP setting. */
+export function sftpStartDirectoryPayload(
+  value: SftpStartDirectory | "default"
+): SftpStartDirectory | undefined {
   return value === "default" ? undefined : value
 }
 

@@ -5,6 +5,7 @@ import type { AppConfig, BackgroundThrottling, CloseBehavior } from "@/lib/appCo
 import type { useToast } from "@/hooks/use-toast"
 import type { useConfirmDialog } from "@/components/ui/app-dialog"
 import type { useSettingsSave } from "@/hooks/useSettingsSave"
+import type { SftpStartDirectory } from "@/lib/sftpStartDirectory"
 import { toErrorMessage } from "@/lib/utils"
 import type { UpdateChannel, UpdateCheckFrequency } from "@/lib/updater"
 
@@ -45,6 +46,10 @@ export function useSettingsHandlers({
 
   const handleSftpPasteUploadEnabledChange = async (checked: boolean) => {
     await saveSettings({ sftp_paste_upload_enabled: checked })
+  }
+
+  const handleSftpStartDirectoryChange = async (choice: SftpStartDirectory) => {
+    await saveSettings({ sftp_start_directory: choice })
   }
 
   const handleZmodemAutoDetectEnabledChange = async (checked: boolean) => {
@@ -159,6 +164,7 @@ export function useSettingsHandlers({
     handleClearSession,
     handleRestoreAllSessionConnectionsChange,
     handleSftpPasteUploadEnabledChange,
+    handleSftpStartDirectoryChange,
     handleZmodemAutoDetectEnabledChange,
     handleZmodemDownloadDirectoryChange,
     handleBackgroundThrottlingChange,

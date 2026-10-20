@@ -10,6 +10,7 @@ import { watchAttentionReports } from "@/components/TerminalTab/attentionReports
 import { watchCwdReports } from "@/components/TerminalTab/cwdReports"
 import { watchMouseReporting } from "@/components/TerminalTab/mouseReportingGuard"
 import { AgentTracker } from "@/lib/agentStatus"
+import { setTabRemoteCwd } from "@/lib/remoteCwd"
 import { setTabAgentStatus, setTabRunningCommand } from "@/lib/tabAttention"
 import { CommandTimer } from "@/lib/terminalNotifications"
 import { parseShellIntegrationCommand } from "@/lib/terminalCommandCapture"
@@ -98,12 +99,14 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
     onAttention: (event) => onAttentionRef.current?.(event),
   })
 
-  // A local shell's directory, for the tab to restart in.
+  // A local shell's directory, for the tab to restart in; a remote one's, for
+  // the SFTP drawer to follow.
   const cwdReports = watchCwdReports(term, {
     tabId,
     sessionNonce,
     isRemote: () => connectionRef.current?.type === "ssh",
     onCwd: (cwd) => onCwdChangeRef.current?.(cwd),
+    onRemoteCwd: (cwd) => setTabRemoteCwd(tabId, cwd),
   })
 
   // Mouse reporting a killed program left on.

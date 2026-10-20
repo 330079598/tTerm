@@ -3,6 +3,7 @@ import type { VerificationMethod } from "@/lib/userVerification"
 import type { UpdateCheckFrequency } from "@/lib/updater"
 import { DEFAULT_KEYMAP_CONFIG, type KeymapConfig } from "@/lib/keymap/keymap"
 import { DEFAULT_MONITOR_VISIBLE_METRICS, type MonitorMetricId } from "@/lib/monitorMetrics"
+import type { SftpStartDirectory } from "@/lib/sftpStartDirectory"
 import { DEFAULT_TAB_SETTINGS, type TabSettings } from "@/lib/tabSettings"
 
 export interface SecretBackendStatus {
@@ -86,6 +87,8 @@ export interface AppConfig extends TabSettings {
   startup_session_restore_mode: "active" | "all"
   show_jump_host_connection_info: boolean
   sftp_paste_upload_enabled: boolean
+  /** Where SFTP drawers open; a connection can choose otherwise. */
+  sftp_start_directory: SftpStartDirectory
   monitor_refresh_interval_secs: number
   monitor_visible_metrics: MonitorMetricId[]
   update_channel: "stable" | "beta-dev"
@@ -209,6 +212,7 @@ export const defaultConfig: AppConfig = {
   startup_session_restore_mode: "active",
   show_jump_host_connection_info: true,
   sftp_paste_upload_enabled: false,
+  sftp_start_directory: "last",
   monitor_refresh_interval_secs: 5,
   monitor_visible_metrics: DEFAULT_MONITOR_VISIBLE_METRICS,
   update_channel: defaultUpdateChannel,

@@ -70,6 +70,10 @@ pub struct AppConfig {
     pub show_jump_host_connection_info: bool,
     #[serde(default)]
     pub sftp_paste_upload_enabled: bool,
+    /// Where the SFTP drawer opens: `home`, `last` or `terminal`; a
+    /// connection can choose otherwise.
+    #[serde(default = "default_sftp_start_directory")]
+    pub sftp_start_directory: String,
     #[serde(default = "default_monitor_refresh_interval_secs")]
     pub monitor_refresh_interval_secs: u16,
     #[serde(default = "default_monitor_visible_metrics")]
@@ -483,6 +487,10 @@ fn default_terminal_log_max_file_size_mb() -> u32 {
     50
 }
 
+fn default_sftp_start_directory() -> String {
+    "last".to_string()
+}
+
 fn default_sftp_transfer_parallelism() -> u16 {
     4
 }
@@ -623,6 +631,7 @@ impl Default for AppConfig {
             startup_session_restore_mode: default_startup_session_restore_mode(),
             show_jump_host_connection_info: default_show_jump_host_connection_info(),
             sftp_paste_upload_enabled: false,
+            sftp_start_directory: default_sftp_start_directory(),
             monitor_refresh_interval_secs: default_monitor_refresh_interval_secs(),
             monitor_visible_metrics: default_monitor_visible_metrics(),
             update_channel: default_update_channel(),

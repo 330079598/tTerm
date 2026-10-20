@@ -44,7 +44,6 @@ function renderDrawer(overrides: { isGlobalShortcutTarget: boolean; currentPath:
     useSftpDragDrop({
       isGlobalShortcutTarget: overrides.isGlobalShortcutTarget,
       listing: { currentPath: overrides.currentPath, entries: [] },
-      loadDirectory: vi.fn().mockResolvedValue(undefined),
       setError: vi.fn(),
       uploadPaths,
       visible: true,

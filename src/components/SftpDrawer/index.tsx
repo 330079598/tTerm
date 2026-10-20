@@ -20,6 +20,8 @@ import { useSftpDragOut } from "@/components/SftpDrawer/useSftpDragOut"
 import { useSftpPasteUpload } from "@/components/SftpDrawer/useSftpPasteUpload"
 import { useSftpSelection } from "@/components/SftpDrawer/useSftpSelection"
 import { useSftpDirectoryLoader } from "@/components/SftpDrawer/useSftpDirectoryLoader"
+import { useSftpTerminalFollow } from "@/components/SftpDrawer/useSftpTerminalFollow"
+import { SftpTerminalActions } from "@/components/SftpDrawer/SftpTerminalActions"
 import { useSftpDrawerLifecycle } from "@/components/SftpDrawer/useSftpDrawerLifecycle"
 import { useSftpView } from "@/components/SftpDrawer/useSftpView"
 import type {
@@ -72,6 +74,14 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     }
   )
   const listingCurrentPath = listing?.currentPath ?? null
+  const { follows, toggleFollow, terminalCwd } = useSftpTerminalFollow({
+    tabId,
+    connection,
+    visible,
+    listing,
+    isLoading,
+    loadDirectory,
+  })
   const {
     searchOptions,
     toggleSearchOption,
@@ -105,7 +115,6 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     useSftpDragDrop({
       isGlobalShortcutTarget,
       listing,
-      loadDirectory,
       setError,
       uploadPaths,
       visible,
@@ -311,6 +320,14 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         toggleSelectionMode={toggleSelectionMode}
         showHidden={viewPreferences.showHidden}
         toggleShowHidden={toggleShowHidden}
+        terminalActions={
+          <SftpTerminalActions
+            follows={follows}
+            toggleFollow={toggleFollow}
+            terminalCwd={terminalCwd}
+            shellIntegration={connection?.shellIntegration === true}
+          />
+        }
       />
 
       {error && (

@@ -1,5 +1,6 @@
 import type { DistroId } from "@/lib/distro"
 import type { KeymapActionId } from "@/lib/keymap/actions"
+import type { SftpStartDirectory } from "@/lib/sftpStartDirectory"
 import type { TabIconStyle } from "@/lib/tabIcons"
 import type { ProxyChoice } from "@/types/proxy"
 import type { SerialSettings } from "@/types/serial"
@@ -42,6 +43,8 @@ export interface SavedProfile {
   shell_integration?: boolean
   /** Whether the connection's sessions are logged; missing follows the logging setting. */
   session_log?: SessionLogPolicy
+  /** Where the connection's SFTP drawer opens; missing follows the SFTP setting. */
+  sftp_start_directory?: SftpStartDirectory
   /** Which proxy the first host is reached through; missing follows the default proxy. */
   proxy?: ProxyChoice
   /** The icon and color the connection's tabs show; missing shows the host's distribution. */
@@ -205,6 +208,8 @@ export interface Tab {
     shellIntegration?: boolean
     /** Whether this tab's sessions are logged; missing follows the logging setting. */
     sessionLog?: SessionLogPolicy
+    /** SSH: where the SFTP drawer opens; missing follows the SFTP setting. */
+    sftpStartDirectory?: SftpStartDirectory
     /** SSH: which proxy the first host is reached through; missing follows the default proxy. */
     proxy?: ProxyChoice
     /** Serial: the port and how it is opened. */

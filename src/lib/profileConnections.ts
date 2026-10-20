@@ -1,6 +1,7 @@
 import { isDistroId } from "@/lib/distro"
 import { normalizeProxyChoice, proxyChoicePayload } from "@/lib/proxy"
 import { normalizeSerialSettings } from "@/lib/serial"
+import { normalizeSftpStartDirectory } from "@/lib/sftpStartDirectory"
 import { normalizeTabIconStyle } from "@/lib/tabIcons"
 import type {
   ConnectionType,
@@ -67,6 +68,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
       loginScript: profile.login_script,
       shellIntegration: profile.shell_integration === true,
       sessionLog: normalizeSessionLogPolicy(profile.session_log),
+      sftpStartDirectory: normalizeSftpStartDirectory(profile.sftp_start_directory),
       proxy: proxyChoicePayload(normalizeProxyChoice(profile.proxy)),
       jumpHosts:
         useJumpHost && jumpHosts.length > 0

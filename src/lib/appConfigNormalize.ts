@@ -25,6 +25,7 @@ import { normalizeVerificationMethod } from "@/lib/userVerification"
 import type { UpdateCheckFrequency } from "@/lib/updater"
 import { normalizeKeymap } from "@/lib/keymap/keymap"
 import { normalizeMonitorVisibleMetrics } from "@/lib/monitorMetrics"
+import { normalizeSftpStartDirectory } from "@/lib/sftpStartDirectory"
 import { normalizeTabSettings } from "@/lib/tabSettings"
 
 function normalizeHiddenRendererReleaseSecs(value: unknown): number {
@@ -183,6 +184,7 @@ export function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     startup_session_restore_mode: config.startup_session_restore_mode === "all" ? "all" : "active",
     show_jump_host_connection_info: config.show_jump_host_connection_info !== false,
     sftp_paste_upload_enabled: config.sftp_paste_upload_enabled === true,
+    sftp_start_directory: normalizeSftpStartDirectory(config.sftp_start_directory) ?? "last",
     secret_storage_mode: normalizeSecretStorageMode(config.secret_storage_mode),
     prompt_unlock_vault_on_startup: config.prompt_unlock_vault_on_startup === true,
     terminal_renderer:
