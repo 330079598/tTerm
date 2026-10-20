@@ -95,7 +95,7 @@ jobs:
         if: matrix.platform == 'ubuntu-24.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libudev-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libudev-dev patchelf openssh-server
 
       # generate_context! needs frontendDist to exist; the checks do not
       # need the built frontend in it.
@@ -110,3 +110,15 @@ jobs:
       - name: Test
         working-directory: src-tauri
         run: cargo test
+
+      # RSA host keys and key files depend on which russh features are on, so
+      # they are checked against a real OpenSSH server, which only this
+      # runner has.
+      - name: Test RSA against a real sshd (Ubuntu only)
+        if: matrix.platform == 'ubuntu-24.04'
+        working-directory: src-tauri
+        run: >-
+          cargo test --lib -- --ignored
+          real_sshd_with_only_an_rsa_host_key
+          real_sshd_accepts_an_rsa_key_file
+          real_sshd_accepts_a_pem_rsa_key_file
