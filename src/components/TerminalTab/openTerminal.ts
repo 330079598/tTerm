@@ -14,6 +14,7 @@ import { installImeEarlyInputFix } from "@/components/TerminalTab/imeEarlyInput"
 import { installImeFocusRepair } from "@/components/TerminalTab/imeFocusRepair"
 import { createScrollbackMemory } from "@/components/TerminalTab/scrollbackMemory"
 import { OSC52_CODE, parseOsc52Copy } from "@/lib/osc52"
+import { installOscLinkDedupe } from "@/lib/oscLinkDedupe"
 import { startingScrollbackLines } from "@/lib/scrollback"
 import { isTransparentTerminalTheme } from "@/lib/terminalPalette"
 import { updateCanvasFontHostFont } from "@/lib/canvasFontHost"
@@ -116,6 +117,7 @@ export function openTerminal({
     // Under the 10px scrollbar (TerminalTab.css): search matches, commands.
     overviewRuler: { width: 10 },
   })
+  installOscLinkDedupe(term)
 
   const fitAddon = new FitAddon()
   const searchAddon = new SearchAddon({ highlightLimit: 2000 })

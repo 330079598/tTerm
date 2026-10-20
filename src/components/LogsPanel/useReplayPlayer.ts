@@ -6,6 +6,7 @@ import { Terminal, type ITheme } from "@xterm/xterm"
 import { fitReplayToViewport, type ReplayFontFit } from "@/components/LogsPanel/replayFit"
 import { writeFrames } from "@/components/LogsPanel/replayWriter"
 import type { AppConfig } from "@/lib/appConfig"
+import { installOscLinkDedupe } from "@/lib/oscLinkDedupe"
 import {
   framesPlayedBy,
   initialReplaySize,
@@ -218,6 +219,7 @@ export function useReplayPlayer({
       theme: paletteRef.current,
       allowProposedApi: true,
     })
+    installOscLinkDedupe(term)
     const search = new SearchAddon()
     term.loadAddon(search)
     term.loadAddon(new Unicode11Addon())
