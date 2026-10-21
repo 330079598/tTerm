@@ -9,6 +9,7 @@ import { platform } from "@tauri-apps/plugin-os"
 
 import type { UseTerminalLifecycleOptions } from "@/components/TerminalTab/terminalLifecycleTypes"
 import { installImeContextReset } from "@/components/TerminalTab/imeContextReset"
+import { KeywordHighlighter } from "@/components/TerminalTab/keywordHighlighter"
 import { installImeCursorGuard } from "@/components/TerminalTab/imeCursorGuard"
 import { installImeEarlyInputFix } from "@/components/TerminalTab/imeEarlyInput"
 import { installImeFocusRepair } from "@/components/TerminalTab/imeFocusRepair"
@@ -56,6 +57,7 @@ type OpenTerminalOptions = Pick<
   | "termRef"
   | "fitAddonRef"
   | "searchAddonRef"
+  | "keywordHighlighterRef"
   | "searchResultsDisposableRef"
   | "setSearchResults"
 > & {
@@ -85,6 +87,7 @@ export function openTerminal({
   termRef,
   fitAddonRef,
   searchAddonRef,
+  keywordHighlighterRef,
   searchResultsDisposableRef,
   setSearchResults,
 }: OpenTerminalOptions) {
@@ -136,6 +139,9 @@ export function openTerminal({
     })
   )
   term.loadAddon(new Unicode11Addon())
+  // Disposed with the terminal; useKeywordHighlight gives it its rules.
+  const keywordHighlighter = new KeywordHighlighter()
+  term.loadAddon(keywordHighlighter)
   term.unicode.activeVersion = "11"
   // Disposed with the terminal.
   term.parser.registerOscHandler(OSC52_CODE, (data) => {
@@ -152,6 +158,7 @@ export function openTerminal({
   termRef.current = term
   fitAddonRef.current = fitAddon
   searchAddonRef.current = searchAddon
+  keywordHighlighterRef.current = keywordHighlighter
   searchResultsDisposableRef.current = searchAddon.onDidChangeResults((results) => {
     setSearchResults(results)
   })

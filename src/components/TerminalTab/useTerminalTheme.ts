@@ -41,6 +41,7 @@ export function useTerminalTheme({ connection, config }: UseTerminalThemeOptions
     windowBlur,
     connectionPalette,
     resolveTerminalTheme,
+    terminalTheme,
     terminalThemeRef,
   }
 }

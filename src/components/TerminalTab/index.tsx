@@ -27,6 +27,7 @@ import { ServerMonitorBar } from "@/components/TerminalTab/ServerMonitorBar"
 import { TerminalSearchBar } from "@/components/TerminalTab/TerminalSearchBar"
 import { useTerminalSearch } from "@/components/TerminalTab/useTerminalSearch"
 import { useTerminalLifecycle } from "@/components/TerminalTab/useTerminalLifecycle"
+import { useKeywordHighlight } from "@/components/TerminalTab/useKeywordHighlight"
 import { useZmodemTransfers } from "@/components/TerminalTab/useZmodemTransfers"
 import {
   useConnectionStateReport,
@@ -141,7 +142,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
   const { bindings, registerHandler } = useKeymap()
 
-  const { windowBlur, connectionPalette, resolveTerminalTheme, terminalThemeRef } =
+  const { windowBlur, connectionPalette, resolveTerminalTheme, terminalTheme, terminalThemeRef } =
     useTerminalTheme({
       connection,
       config,
@@ -168,6 +169,15 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     sessionNonce,
     tabId,
     terminalRenderer: config.terminal_renderer,
+  })
+
+  // After the lifecycle, whose effect creates the terminal it decorates.
+  const keywordHighlight = useKeywordHighlight({
+    ...refs,
+    connection,
+    isActive,
+    config,
+    palette: terminalTheme,
   })
 
   useZmodemTransfers({ tabId, sessionNonce })
@@ -262,6 +272,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     showSftpDrawer,
     setShowSftpDrawer,
     pasteFromClipboard,
+    keywordHighlight,
   })
 
   useTerminalShortcuts({

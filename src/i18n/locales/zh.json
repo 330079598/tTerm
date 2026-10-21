@@ -1654,6 +1654,8 @@
     "zmodemSend": "使用 ZMODEM 发送文件 (rz)",
     "zmodemReceive": "使用 ZMODEM 接收文件 (sz)",
     "saveContents": "保存终端内容…",
+    "pauseKeywordHighlight": "暂停关键字高亮",
+    "resumeKeywordHighlight": "恢复关键字高亮",
     "textFiles": "文本文件",
     "contentsFileName": "终端",
     "contentsSaved": "终端内容已保存",

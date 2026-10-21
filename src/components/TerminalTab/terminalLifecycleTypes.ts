@@ -7,6 +7,7 @@ import type { TerminalCommandCaptureState } from "@/lib/terminalCommandCapture"
 import type { LoginScriptRunner } from "@/lib/loginScript"
 import type { createScrollbackMemory } from "@/components/TerminalTab/scrollbackMemory"
 import { CommandMarks } from "@/components/TerminalTab/commandMarks"
+import type { KeywordHighlighter } from "@/components/TerminalTab/keywordHighlighter"
 import type {
   ConnectionState,
   HostKeyPromptState,
@@ -78,6 +79,7 @@ export type UseTerminalLifecycleOptions = {
   scheduleFitDuringResize: () => void
   surfaceRef: React.RefObject<HTMLDivElement | null>
   searchAddonRef: React.RefObject<SearchAddon | null>
+  keywordHighlighterRef: React.RefObject<KeywordHighlighter | null>
   searchResultsDisposableRef: React.RefObject<IDisposable | null>
   setConnectionState: (value: ConnectionState) => void
   setHostKeyPrompt: (value: HostKeyPromptState | null) => void

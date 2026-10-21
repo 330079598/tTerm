@@ -72,6 +72,7 @@ export function useTerminalLifecycle({
   scheduleFitDuringResize,
   surfaceRef,
   searchAddonRef,
+  keywordHighlighterRef,
   searchResultsDisposableRef,
   setConnectionState,
   setHostKeyPrompt,
@@ -136,6 +137,7 @@ export function useTerminalLifecycle({
       termRef,
       fitAddonRef,
       searchAddonRef,
+      keywordHighlighterRef,
       searchResultsDisposableRef,
       setSearchResults,
     })
@@ -301,6 +303,7 @@ export function useTerminalLifecycle({
       searchResultsDisposableRef.current?.dispose()
       searchResultsDisposableRef.current = null
       searchAddonRef.current = null
+      keywordHighlighterRef.current = null
       if (typeof document !== "undefined") {
         document.fonts?.removeEventListener?.("loadingdone", handleFontsLoaded)
       }
@@ -386,6 +389,7 @@ export function useTerminalLifecycle({
     scrollbackLinesRef,
     surfaceRef,
     searchAddonRef,
+    keywordHighlighterRef,
     searchResultsDisposableRef,
     setConnectionState,
     setHostKeyPrompt,

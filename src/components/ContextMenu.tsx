@@ -28,6 +28,7 @@ import {
   CircleDot,
   Square,
   FileDown,
+  Highlighter,
   FolderDown,
   ScrollText,
 } from "lucide-react"
@@ -104,6 +105,8 @@ const getActionIcon = (icon?: string) => {
       return <FileDown size={14} aria-hidden="true" />
     case "folder-down":
       return <FolderDown size={14} aria-hidden="true" />
+    case "highlighter":
+      return <Highlighter size={14} aria-hidden="true" />
     case "scroll-text":
       return <ScrollText size={14} aria-hidden="true" />
     default:

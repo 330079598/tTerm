@@ -5,6 +5,7 @@ import { type IDisposable, Terminal } from "@xterm/xterm"
 
 import type { AppConfig } from "@/lib/appConfig"
 import type { CommandMarks } from "@/components/TerminalTab/commandMarks"
+import type { KeywordHighlighter } from "@/components/TerminalTab/keywordHighlighter"
 import type { SavedPasswordPromptActions, TerminalTabProps } from "@/components/TerminalTab/types"
 import { playBellSound } from "@/lib/bellSound"
 import { markTabAttention } from "@/lib/tabAttention"
@@ -58,6 +59,7 @@ export function useTerminalTabRefs({
   const termRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
   const searchAddonRef = useRef<SearchAddon | null>(null)
+  const keywordHighlighterRef = useRef<KeywordHighlighter | null>(null)
   const searchResultsDisposableRef = useRef<IDisposable | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const resizeRafRef = useRef<number | null>(null)
@@ -135,6 +137,7 @@ export function useTerminalTabRefs({
     termRef,
     fitAddonRef,
     searchAddonRef,
+    keywordHighlighterRef,
     searchResultsDisposableRef,
     resizeObserverRef,
     resizeRafRef,

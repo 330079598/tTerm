@@ -6,6 +6,7 @@ import { save as saveFileDialog } from "@tauri-apps/plugin-dialog"
 import type { TerminalTabRefs } from "@/components/TerminalTab/useTerminalTabRefs"
 import type { AppConfig } from "@/lib/appConfig"
 import type { useTerminalClipboard } from "@/components/TerminalTab/useTerminalClipboard"
+import type { useKeywordHighlight } from "@/components/TerminalTab/useKeywordHighlight"
 import { releaseClearedScrollback } from "@/components/TerminalTab/scrollbackMemory"
 import type { TerminalTabProps } from "@/components/TerminalTab/types"
 import { toast } from "@/hooks/use-toast"
@@ -24,7 +25,9 @@ type UseTerminalContextMenuOptions = Pick<
   > & { config: AppConfig; t: TFunction; sessionNonce: number } & {
     showSftpDrawer: boolean
     setShowSftpDrawer: Dispatch<SetStateAction<boolean>>
-  } & Pick<ReturnType<typeof useTerminalClipboard>, "pasteFromClipboard">
+  } & Pick<ReturnType<typeof useTerminalClipboard>, "pasteFromClipboard"> & {
+    keywordHighlight: ReturnType<typeof useKeywordHighlight>
+  }
 
 /**
  * The terminal's context menu and the actions it offers: copying, pasting,
@@ -45,6 +48,7 @@ export function useTerminalContextMenu({
   showSftpDrawer,
   setShowSftpDrawer,
   pasteFromClipboard,
+  keywordHighlight,
 }: UseTerminalContextMenuOptions) {
   const [terminalContextMenu, setTerminalContextMenu] = useState<{
     x: number
@@ -229,6 +233,10 @@ export function useTerminalContextMenu({
         await saveTerminalContents()
         return
       }
+      if (action === "toggle-keyword-highlight") {
+        keywordHighlight.toggleHighlightPaused()
+        return
+      }
       if (action === "copy" && selection) {
         try {
           await invoke("plugin:clipboard-manager|write_text", { text: selection })
@@ -264,6 +272,7 @@ export function useTerminalContextMenu({
       clearTerminalHistory,
       connection,
       copyLastCommandOutput,
+      keywordHighlight,
       onOpenCommandLibrary,
       onSaveCommand,
       pasteFromClipboard,
@@ -319,6 +328,19 @@ export function useTerminalContextMenu({
     },
     { separator: true, action: "separator", label: "" },
     { action: "save-contents", label: t("terminalContext.saveContents"), icon: "file-down" },
+    ...(keywordHighlight.highlightAvailable
+      ? [
+          {
+            action: "toggle-keyword-highlight",
+            label: t(
+              keywordHighlight.highlightPaused
+                ? "terminalContext.resumeKeywordHighlight"
+                : "terminalContext.pauseKeywordHighlight"
+            ),
+            icon: "highlighter",
+          },
+        ]
+      : []),
     {
       action: "reset-terminal",
       label: t("terminalContext.resetTerminal"),

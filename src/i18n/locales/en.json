@@ -1672,6 +1672,8 @@
     "zmodemSend": "Send files with ZMODEM (rz)",
     "zmodemReceive": "Receive files with ZMODEM (sz)",
     "saveContents": "Save Terminal Contents…",
+    "pauseKeywordHighlight": "Pause Keyword Highlighting",
+    "resumeKeywordHighlight": "Resume Keyword Highlighting",
     "textFiles": "Text files",
     "contentsFileName": "terminal",
     "contentsSaved": "Terminal contents saved",
