@@ -106,7 +106,8 @@ awk '{ printf "%.0f\n", $1 }' /proc/uptime 2>/dev/null || true
 printf "__TTERM_NETWORK__ "
 network_interface="$(ip -o route show default 2>/dev/null | awk 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit } }')"
 if [ -z "$network_interface" ]; then
-  network_interface="$(awk -F: '$1 !~ /^[[:space:]]*lo[[:space:]]*$/ { gsub(/[[:space:]]/, "", $1); print $1; exit }' /proc/net/dev 2>/dev/null)"
+  # The first two lines of /proc/net/dev are its header.
+  network_interface="$(awk -F: 'NR > 2 && $1 !~ /^[[:space:]]*lo[[:space:]]*$/ { gsub(/[[:space:]]/, "", $1); print $1; exit }' /proc/net/dev 2>/dev/null)"
 fi
 if [ -n "$network_interface" ]; then
   awk -v iface="$network_interface" '
