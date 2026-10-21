@@ -1,23 +1,27 @@
-//! Reads which Linux distribution an SSH host runs, so its tab can show the
+//! Reads which system an SSH host runs, so its tab can show the
 //! distribution's icon.
 
-use crate::monitor::metrics::parse_os_release;
+use crate::monitor::metrics::parse_os_identity;
 use crate::monitor::types::LinuxDistributionInfo;
-use russh::client::{Handle, Handler, Msg};
-use russh::{Channel, ChannelMsg};
+use crate::sftp::internal::exec::RemoteScript;
+use russh::client::{Handle, Handler};
 use serde::Serialize;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
-/// Reports what a host runs; `distribution` is null for a host without
-/// `/etc/os-release`, such as macOS, a BSD or a network device.
+/// Reports what a host runs; `distribution` is null for a host that says
+/// nothing about it, such as OpenBSD or a network device.
 const REMOTE_OS_EVENT: &str = "ssh-remote-os";
 
-/// Bounds opening the channel and, separately, reading its output, so a
+/// Bounds starting the script and, separately, reading its output, so a
 /// server that never answers costs the terminal nothing.
 const TIMEOUT: Duration = Duration::from_secs(3);
 
-const COMMAND: &str = "cat /etc/os-release 2>/dev/null";
+/// Linux and FreeBSD describe themselves in `/etc/os-release`, macOS through
+/// `sw_vers`. It runs under `sh -s`, so a csh login shell, which would read
+/// `2>/dev/null` as an argument, does not matter.
+const SCRIPT: &str = "if [ -r /etc/os-release ]; then cat /etc/os-release; \
+                      elif command -v sw_vers >/dev/null 2>&1; then sw_vers; fi\n";
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,28 +30,23 @@ struct RemoteOsPayload {
     distribution: Option<LinuxDistributionInfo>,
 }
 
-/// Asks the host for its `/etc/os-release` on a channel of its own, and
-/// reports the answer for `tab_id` in the background. A server that refuses
-/// another channel, such as one allowing a single session, reports nothing.
+/// Asks the host what it runs on a channel of its own, and reports the
+/// answer for `tab_id` in the background. A server that refuses another
+/// channel, such as one allowing a single session, reports nothing.
 pub(crate) async fn probe<H: Handler>(app: &AppHandle, tab_id: &str, session: &Handle<H>) {
-    let opened = tokio::time::timeout(TIMEOUT, async {
-        let channel = session.channel_open_session().await.ok()?;
-        channel.exec(true, COMMAND).await.ok()?;
-        Some(channel)
-    })
-    .await;
-    let Ok(Some(channel)) = opened else {
+    let Ok(Ok(script)) = tokio::time::timeout(TIMEOUT, RemoteScript::start(session, SCRIPT)).await
+    else {
         return;
     };
     let app = app.clone();
     let tab_id = tab_id.to_string();
     tokio::spawn(async move {
-        let Ok(output) = tokio::time::timeout(TIMEOUT, read_output(channel)).await else {
+        let Ok(output) = tokio::time::timeout(TIMEOUT, read_output(script)).await else {
             return;
         };
         let payload = RemoteOsPayload {
             tab_id,
-            distribution: parse_os_release(&output),
+            distribution: parse_os_identity(&output),
         };
         if let Err(error) = app.emit(REMOTE_OS_EVENT, payload) {
             eprintln!("Failed to report the remote OS: {error}");
@@ -55,16 +54,39 @@ pub(crate) async fn probe<H: Handler>(app: &AppHandle, tab_id: &str, session: &H
     });
 }
 
-/// Everything the command prints, once it is done.
-async fn read_output(mut channel: Channel<Msg>) -> String {
+/// Everything the script prints, once it is done.
+async fn read_output(mut script: RemoteScript) -> String {
     let mut output = Vec::new();
-    while let Some(message) = channel.wait().await {
-        match message {
-            ChannelMsg::Data { data } => output.extend_from_slice(&data),
-            ChannelMsg::Failure | ChannelMsg::Eof | ChannelMsg::Close => break,
-            _ => {}
+    while let Some(chunk) = script.next_output().await {
+        output.extend_from_slice(&chunk);
+    }
+    script.finish().await;
+    String::from_utf8_lossy(&output).into_owned()
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::{read_output, SCRIPT};
+    use crate::monitor::metrics::parse_os_identity;
+    use crate::sftp::internal::exec::RemoteScript;
+    use crate::ssh::test_sshd::TestSshd;
+
+    #[tokio::test]
+    #[ignore = "spawns a real sshd; run with --ignored real_sshd"]
+    async fn real_sshd_names_this_system() {
+        let sshd =
+            TestSshd::spawn(12352, &["-t", "ed25519"], "Subsystem sftp internal-sftp\n").await;
+        let (ssh, _sftp) = sshd.sftp_session().await;
+        let script = RemoteScript::start(&ssh, SCRIPT)
+            .await
+            .expect("start script");
+        let output = read_output(script).await;
+
+        let distribution = parse_os_identity(&output).expect("distribution");
+        if cfg!(target_os = "macos") {
+            assert_eq!(distribution.id, "macos");
+        } else {
+            assert!(!distribution.id.is_empty(), "{output}");
         }
     }
-    let _ = channel.close().await;
-    String::from_utf8_lossy(&output).into_owned()
 }

@@ -125,10 +125,13 @@ jobs:
 
       # The server monitor's script has a section per system, which only the
       # system's own tools show working.
-      - name: Test server monitoring against a real sshd (Ubuntu and macOS)
+      - name: Test server monitoring and OS detection against a real sshd (Ubuntu and macOS)
         if: matrix.platform == 'ubuntu-24.04' || matrix.platform == 'macos-latest'
         working-directory: src-tauri
-        run: cargo test --lib -- --ignored real_sshd_collects_metrics_for_this_system
+        run: >-
+          cargo test --lib -- --ignored
+          real_sshd_collects_metrics_for_this_system
+          real_sshd_names_this_system
 
       # Shell integration starts the user's bash, zsh or fish through
       # unix/start.sh, which only the real shells show working. The Ubuntu

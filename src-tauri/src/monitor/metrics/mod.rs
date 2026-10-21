@@ -41,6 +41,12 @@ pub(crate) fn parse_metrics_output(output: &str) -> ServerMetricsSnapshot {
     snapshot
 }
 
+/// What a host says it runs, from either `/etc/os-release` or macOS's
+/// `sw_vers` output.
+pub(crate) fn parse_os_identity(output: &str) -> Option<LinuxDistributionInfo> {
+    parse_os_release(output).or_else(|| darwin::parse_sw_vers(output))
+}
+
 pub(super) fn extract_block<'a>(output: &'a str, start: &str, end: &str) -> Option<&'a str> {
     let start_idx = output.find(start)? + start.len();
     let rest = &output[start_idx..];
@@ -57,7 +63,7 @@ pub(super) fn find_prefixed_line(output: &str, prefix: &str) -> Option<String> {
     })
 }
 
-pub(crate) fn parse_os_release(content: &str) -> Option<LinuxDistributionInfo> {
+pub(super) fn parse_os_release(content: &str) -> Option<LinuxDistributionInfo> {
     if content.trim().is_empty() {
         return None;
     }

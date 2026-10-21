@@ -9,7 +9,7 @@ import type { TabIconStyle } from "@/lib/tabIcons"
 
 interface RemoteOsPayload {
   tabId: string
-  /** Null for a host without `/etc/os-release`, such as macOS or a BSD. */
+  /** Null for a host that says nothing about it, such as OpenBSD or a network device. */
   distribution: LinuxDistributionInfo | null
 }
 

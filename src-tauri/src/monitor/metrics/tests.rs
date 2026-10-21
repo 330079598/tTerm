@@ -1,6 +1,6 @@
 use super::bsd::{parse_disks, parse_netstat};
 use super::linux::{parse_disk_metrics_block, parse_memory_metrics, parse_network_metrics};
-use super::{parse_load_average, parse_metrics_output};
+use super::{parse_load_average, parse_metrics_output, parse_os_identity};
 
 #[test]
 fn parses_memory_and_swap_usage() {
@@ -333,4 +333,20 @@ fn df_rows_keep_spaces_in_devices_and_mount_points() {
     assert_eq!(disks[0].filesystem, "//user@nas/share drive");
     assert_eq!(disks[0].mount, "/Volumes/share drive");
     assert_eq!(disks[0].used_percent, 25.0);
+}
+
+#[test]
+fn names_a_host_from_os_release_or_sw_vers() {
+    let linux =
+        parse_os_identity("ID=debian\nPRETTY_NAME=\"Debian GNU/Linux 12 (bookworm)\"\n").unwrap();
+    assert_eq!(linux.id, "debian");
+
+    let macos = parse_os_identity(
+        "ProductName:\t\tmacOS\nProductVersion:\t\t15.1\nBuildVersion:\t\t24B83\n",
+    )
+    .unwrap();
+    assert_eq!(macos.id, "macos");
+    assert_eq!(macos.pretty_name, "macOS 15.1");
+
+    assert!(parse_os_identity("").is_none());
 }

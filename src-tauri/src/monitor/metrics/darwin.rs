@@ -26,7 +26,7 @@ pub(super) fn parse(output: &str) -> ServerMetricsSnapshot {
 }
 
 /// `sw_vers`'s `ProductName: macOS` lines, as an os-release would say it.
-fn parse_sw_vers(block: &str) -> Option<LinuxDistributionInfo> {
+pub(super) fn parse_sw_vers(block: &str) -> Option<LinuxDistributionInfo> {
     let values = block
         .lines()
         .filter_map(|line| line.split_once(':'))
