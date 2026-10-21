@@ -251,8 +251,15 @@ async fn real_shell_integration_over_sshd_marks_commands_in_the_login_shell() {
     let mut output = start(&mut channel, &command).await.expect("start");
     channel.data(&b"false\n"[..]).await.expect("type a command");
 
+    // The first prompt's D carries the startup files' status, which may be 1
+    // as well, so the status that counts is the one after the output starts.
+    let failed = |output: &[u8]| {
+        let text = String::from_utf8_lossy(output);
+        text.split_once("\x1b]133;C")
+            .is_some_and(|(_, after)| after.contains("\x1b]133;D;1"))
+    };
     let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
-    while !String::from_utf8_lossy(&output).contains("\x1b]133;D;1") {
+    while !failed(&output) {
         let message = tokio::time::timeout_at(deadline, channel.wait())
             .await
             .unwrap_or_else(|_| {
@@ -266,7 +273,7 @@ async fn real_shell_integration_over_sshd_marks_commands_in_the_login_shell() {
     }
     let text = String::from_utf8_lossy(&output);
     assert!(
-        text.contains("\x1b]133;A") && text.contains("\x1b]133;C"),
+        text.contains("\x1b]133;A") && text.contains("\x1b]7;file:///"),
         "{text}"
     );
     let _ = channel.data(&b"exit\n"[..]).await;
