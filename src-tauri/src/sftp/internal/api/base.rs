@@ -4,6 +4,7 @@ use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error, release
 use crate::sftp::internal::types::{SftpConnectionPool, SftpDirectoryEntry, SftpDirectoryListing};
 use crate::sftp::store;
 use crate::ssh::secret_store::types::SecretStoreState;
+use russh_sftp::client::fs::Metadata;
 use russh_sftp::client::SftpSession;
 use tauri::{AppHandle, State};
 
@@ -52,6 +53,36 @@ async fn resolve_initial_directory(
     }
 }
 
+/// The entry for `name` in the folder `parent`, as a listing shows it.
+pub(crate) fn directory_entry(
+    parent: &str,
+    name: String,
+    metadata: &Metadata,
+) -> SftpDirectoryEntry {
+    SftpDirectoryEntry {
+        path: crate::sftp::internal::paths::join_remote_path(parent, &name),
+        name,
+        is_dir: metadata.is_dir(),
+        is_symlink: metadata.is_symlink(),
+        size: metadata.size,
+        modified_at: metadata.mtime.map(|value| value as i64 * 1000),
+        permissions: metadata
+            .permissions
+            .map(|_| metadata.permissions().to_string()),
+        mode: metadata
+            .permissions
+            .map(|mode| mode & super::permissions::PERMISSION_MASK),
+        owner: metadata
+            .user
+            .clone()
+            .or_else(|| metadata.uid.map(|value| value.to_string())),
+        group: metadata
+            .group
+            .clone()
+            .or_else(|| metadata.gid.map(|value| value.to_string())),
+    }
+}
+
 async fn read_directory_entries(
     sftp: &SftpSession,
     current_path: &str,
@@ -60,33 +91,7 @@ async fn read_directory_entries(
         .read_dir(current_path)
         .await
         .map_err(map_sftp_error)?
-        .map(|entry| {
-            let name = entry.file_name();
-            let metadata = entry.metadata();
-
-            SftpDirectoryEntry {
-                path: crate::sftp::internal::paths::join_remote_path(current_path, &name),
-                name,
-                is_dir: metadata.is_dir(),
-                is_symlink: metadata.is_symlink(),
-                size: metadata.size,
-                modified_at: metadata.mtime.map(|value| value as i64 * 1000),
-                permissions: metadata
-                    .permissions
-                    .map(|_| metadata.permissions().to_string()),
-                mode: metadata
-                    .permissions
-                    .map(|mode| mode & super::permissions::PERMISSION_MASK),
-                owner: metadata
-                    .user
-                    .clone()
-                    .or_else(|| metadata.uid.map(|value| value.to_string())),
-                group: metadata
-                    .group
-                    .clone()
-                    .or_else(|| metadata.gid.map(|value| value.to_string())),
-            }
-        })
+        .map(|entry| directory_entry(current_path, entry.file_name(), &entry.metadata()))
         .collect::<Vec<_>>();
 
     crate::sftp::internal::paths::sort_entries(&mut entries);
