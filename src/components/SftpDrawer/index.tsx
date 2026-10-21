@@ -1,9 +1,10 @@
 import "@/components/SftpDrawer.css"
-import React, { useCallback, useMemo, useReducer, useRef, useState } from "react"
+import React, { useCallback, useReducer, useRef, useState } from "react"
 import { AlertCircle } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { sftpDialogReducer } from "@/components/SftpDrawer/sftpDialogReducer"
+import { sftpFontSizeStyle } from "@/components/SftpDrawer/sftpDrawerUtils"
 import { useSftpSelectionMode } from "@/components/SftpDrawer/useSftpSelectionMode"
 import { useSftpEntryActions } from "@/components/SftpDrawer/useSftpEntryActions"
 import { useSftpDeleteActions } from "@/components/SftpDrawer/useSftpDeleteActions"
@@ -56,12 +57,6 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     useState<SftpDirectoryEntry[]>(EMPTY_SFTP_ENTRIES)
   const { history, recordFailed, recordLoaded } = useSftpHistory()
   const [searchQuery, setSearchQuery] = useState("")
-  const createFolderName = dialog.type === "createFolder" ? dialog.folderName : ""
-  const renameEntry = dialog.type === "rename" ? dialog.entry : null
-  const renameNewName = dialog.type === "rename" ? dialog.newName : ""
-  const deleteDialogEntries = dialog.type === "delete" ? dialog.entries : EMPTY_SFTP_ENTRIES
-  const commandDeleteEntries = dialog.type === "commandDelete" ? dialog.entries : EMPTY_SFTP_ENTRIES
-  const commandDeleteCommand = dialog.type === "commandDelete" ? dialog.command : ""
 
   const { listing, setListing, isLoading, error, setError, loadDirectory } = useSftpDirectoryLoader(
     {
@@ -161,22 +156,11 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       visible,
     })
 
-  const runAndRefresh = useCallback(
-    async (action: () => Promise<void>) => {
-      setError(null)
-      try {
-        await action()
-        await loadDirectory(currentPath)
-      } catch (invokeError) {
-        setError(String(invokeError))
-      }
-    },
-    [currentPath, loadDirectory, setError]
-  )
   const {
     activeEntry,
     breadcrumbs,
     contextMenuEntry,
+    contextSelectionCount,
     handleActivateEntry,
     handleClearSelection,
     handleSelectRange,
@@ -209,14 +193,12 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     connection,
     t,
     dispatchDialog,
-    createFolderName,
+    dialog,
     listingCurrentPath,
-    runAndRefresh,
+    setError,
     contextMenuEntry,
     activeEntry,
     listing,
-    renameEntry,
-    renameNewName,
     selectedEntries,
     selectedPaths,
     downloadEntries,
@@ -248,9 +230,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     setListing,
     setSelectedPaths,
     setActivePath,
-    deleteDialogEntries,
-    commandDeleteEntries,
-    commandDeleteCommand,
+    dialog,
   })
 
   const handleCdInTerminal = useCallback(
@@ -259,14 +239,6 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     },
     [onCdInTerminal, setError, t]
   )
-
-  const contextSelectionCount = useMemo(() => {
-    if (!contextMenuEntry) {
-      return selectedPaths.length
-    }
-
-    return selectedPaths.includes(contextMenuEntry.path) ? selectedPaths.length : 1
-  }, [contextMenuEntry, selectedPaths])
 
   useSftpDrawerLifecycle(tabId, visible, drawerRef)
 
@@ -277,14 +249,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       ref={drawerRef}
       onMouseDown={handleSideButton}
       onMouseUp={handleSideButton}
-      style={
-        {
-          "--sftp-font-size": `calc(${Math.max(config.font_size - 2, 10)}px * var(--ui-font-scale, 1))`,
-          "--sftp-font-size-small": `calc(${Math.max(config.font_size - 3, 9)}px * var(--ui-font-scale, 1))`,
-          "--sftp-font-size-large": `calc(${Math.max(config.font_size, 12)}px * var(--ui-font-scale, 1))`,
-          "--sftp-font-size-title": `calc(${Math.max(config.font_size + 4, 16)}px * var(--ui-font-scale, 1))`,
-        } as React.CSSProperties
-      }
+      style={sftpFontSizeStyle(config.font_size)}
     >
       <SftpDeleteTransferEvents
         addTransfer={addTransfer}

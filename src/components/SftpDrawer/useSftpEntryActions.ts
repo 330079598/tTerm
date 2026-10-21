@@ -7,6 +7,7 @@ import type {
   SftpDirectoryEntry,
   SftpDirectoryListing,
   SftpDialogAction,
+  SftpDialogState,
   LoadSftpDirectory,
 } from "@/components/SftpDrawer/types"
 import { toast } from "@/hooks/use-toast"
@@ -17,14 +18,12 @@ interface UseSftpEntryActionsOptions {
   connection: SftpDrawerProps["connection"]
   t: TFunction
   dispatchDialog: React.Dispatch<SftpDialogAction>
-  createFolderName: string
+  dialog: SftpDialogState
   listingCurrentPath: string | null
-  runAndRefresh: (action: () => Promise<void>) => Promise<void>
+  setError: (error: string | null) => void
   contextMenuEntry: SftpDirectoryEntry | null
   activeEntry: SftpDirectoryEntry | null
   listing: SftpDirectoryListing | null
-  renameEntry: SftpDirectoryEntry | null
-  renameNewName: string
   selectedEntries: SftpDirectoryEntry[]
   selectedPaths: string[]
   downloadEntries: (entries: SftpDirectoryEntry[]) => Promise<void>
@@ -43,14 +42,12 @@ export function useSftpEntryActions({
   connection,
   t,
   dispatchDialog,
-  createFolderName,
+  dialog,
   listingCurrentPath,
-  runAndRefresh,
+  setError,
   contextMenuEntry,
   activeEntry,
   listing,
-  renameEntry,
-  renameNewName,
   selectedEntries,
   selectedPaths,
   downloadEntries,
@@ -59,6 +56,38 @@ export function useSftpEntryActions({
   setPermissionEntries,
   currentPath,
 }: UseSftpEntryActionsOptions) {
+  const createFolderName = dialog.type === "createFolder" ? dialog.folderName : ""
+  const renameEntry = dialog.type === "rename" ? dialog.entry : null
+  const renameNewName = dialog.type === "rename" ? dialog.newName : ""
+  // What a menu action applies to: the whole selection when the menu opened
+  // on a selected row, else the row it opened on.
+  const targetEntries = useCallback(
+    () =>
+      contextMenuEntry &&
+      selectedPaths.includes(contextMenuEntry.path) &&
+      selectedEntries.length > 0
+        ? selectedEntries
+        : contextMenuEntry
+          ? [contextMenuEntry]
+          : activeEntry
+            ? [activeEntry]
+            : [],
+    [activeEntry, contextMenuEntry, selectedEntries, selectedPaths]
+  )
+
+  const runAndRefresh = useCallback(
+    async (action: () => Promise<void>) => {
+      setError(null)
+      try {
+        await action()
+        await loadDirectory(currentPath)
+      } catch (invokeError) {
+        setError(String(invokeError))
+      }
+    },
+    [currentPath, loadDirectory, setError]
+  )
+
   const handleCreateDirectory = useCallback(() => {
     dispatchDialog({ action: "openCreateFolder" })
   }, [dispatchDialog])
@@ -119,18 +148,8 @@ export function useSftpEntryActions({
   ])
 
   const handleDownload = useCallback(async () => {
-    const entries =
-      contextMenuEntry &&
-      selectedPaths.includes(contextMenuEntry.path) &&
-      selectedEntries.length > 0
-        ? selectedEntries
-        : contextMenuEntry
-          ? [contextMenuEntry]
-          : activeEntry
-            ? [activeEntry]
-            : []
-    await downloadEntries(entries)
-  }, [activeEntry, contextMenuEntry, downloadEntries, selectedEntries, selectedPaths])
+    await downloadEntries(targetEntries())
+  }, [downloadEntries, targetEntries])
 
   const handleDownloadSelection = useCallback(async () => {
     await downloadEntries(selectedEntries)
@@ -158,18 +177,8 @@ export function useSftpEntryActions({
   }, [activeEntry, connection, contextMenuEntry, onOpenRemoteFile, tabId])
 
   const handlePermissions = useCallback(() => {
-    const entries =
-      contextMenuEntry &&
-      selectedPaths.includes(contextMenuEntry.path) &&
-      selectedEntries.length > 0
-        ? selectedEntries
-        : contextMenuEntry
-          ? [contextMenuEntry]
-          : activeEntry
-            ? [activeEntry]
-            : []
-    setPermissionEntries(entries)
-  }, [activeEntry, contextMenuEntry, selectedEntries, selectedPaths, setPermissionEntries])
+    setPermissionEntries(targetEntries())
+  }, [setPermissionEntries, targetEntries])
 
   const handleApplyPermissions = useCallback(
     async (entries: SftpDirectoryEntry[], mode: number) => {

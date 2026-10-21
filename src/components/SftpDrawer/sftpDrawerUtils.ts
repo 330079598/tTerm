@@ -1,3 +1,5 @@
+import type React from "react"
+
 export const MAX_EDIT_FILE_BYTES = 5 * 1024 * 1024
 
 export function joinRemotePath(basePath: string, name: string): string {
@@ -5,6 +7,16 @@ export function joinRemotePath(basePath: string, name: string): string {
     return `/${name}`
   }
   return `${basePath}/${name}`
+}
+
+/** The drawer's font sizes, which follow the terminal's. */
+export function sftpFontSizeStyle(fontSize: number): React.CSSProperties {
+  return {
+    "--sftp-font-size": `calc(${Math.max(fontSize - 2, 10)}px * var(--ui-font-scale, 1))`,
+    "--sftp-font-size-small": `calc(${Math.max(fontSize - 3, 9)}px * var(--ui-font-scale, 1))`,
+    "--sftp-font-size-large": `calc(${Math.max(fontSize, 12)}px * var(--ui-font-scale, 1))`,
+    "--sftp-font-size-title": `calc(${Math.max(fontSize + 4, 16)}px * var(--ui-font-scale, 1))`,
+  } as React.CSSProperties
 }
 
 export function formatBytes(value?: number): string {

@@ -49,6 +49,10 @@ export function useSftpSelection({
     [listing?.entries, contextMenu?.entryPath]
   )
 
+  // A right click on a selected row acts on the whole selection.
+  const contextSelectionCount =
+    contextMenuEntry && !selectedPaths.includes(contextMenuEntry.path) ? 1 : selectedPaths.length
+
   const breadcrumbs = useMemo(() => {
     const currentPath = listing?.currentPath ?? "/"
     if (currentPath === "/") {
@@ -118,6 +122,7 @@ export function useSftpSelection({
     activeEntry,
     breadcrumbs,
     contextMenuEntry,
+    contextSelectionCount,
     handleActivateEntry,
     handleClearSelection,
     handleSelectRange,

@@ -8,10 +8,13 @@ import type {
   SftpDirectoryListing,
   SftpContextMenuState,
   SftpDialogAction,
+  SftpDialogState,
   DeleteBatchStartResult,
   DeletePreviewResult,
 } from "@/components/SftpDrawer/types"
 import { toast } from "@/hooks/use-toast"
+
+const NO_ENTRIES: SftpDirectoryEntry[] = []
 
 function isDeletedEntryPath(path: string, deletedPaths: Set<string>) {
   for (const deletedPath of deletedPaths) {
@@ -39,9 +42,7 @@ interface UseSftpDeleteActionsOptions {
   setListing: React.Dispatch<React.SetStateAction<SftpDirectoryListing | null>>
   setSelectedPaths: React.Dispatch<React.SetStateAction<string[]>>
   setActivePath: React.Dispatch<React.SetStateAction<string | null>>
-  deleteDialogEntries: SftpDirectoryEntry[]
-  commandDeleteEntries: SftpDirectoryEntry[]
-  commandDeleteCommand: string
+  dialog: SftpDialogState
 }
 
 /**
@@ -65,10 +66,12 @@ export function useSftpDeleteActions({
   setListing,
   setSelectedPaths,
   setActivePath,
-  deleteDialogEntries,
-  commandDeleteEntries,
-  commandDeleteCommand,
+  dialog,
 }: UseSftpDeleteActionsOptions) {
+  const deleteDialogEntries = dialog.type === "delete" ? dialog.entries : NO_ENTRIES
+  const commandDeleteEntries = dialog.type === "commandDelete" ? dialog.entries : NO_ENTRIES
+  const commandDeleteCommand = dialog.type === "commandDelete" ? dialog.command : ""
+
   const handleDeleteSelection = useCallback(() => {
     if (isDeleting) {
       return

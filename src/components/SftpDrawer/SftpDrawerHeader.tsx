@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react"
+import React from "react"
 import {
   ArrowLeft,
   ArrowRight,
@@ -12,21 +12,18 @@ import {
   ListChecks,
   ListX,
   RefreshCcw,
-  Regex,
-  Search,
   Trash2,
   X,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { SftpHeaderSearch } from "@/components/SftpDrawer/SftpHeaderSearch"
 import { SftpPathBar } from "@/components/SftpDrawer/SftpPathBar"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useShortcutLabel } from "@/contexts/KeymapContext"
 import { withShortcut } from "@/lib/keymap/keymap"
-import { cn } from "@/lib/utils"
 import type { LoadSftpDirectory } from "@/components/SftpDrawer/types"
 import type { SftpSearchOptions } from "@/components/SftpDrawer/sftpSearch"
 
@@ -101,37 +98,6 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
 }) => {
   const { t } = useTranslation()
   const shortcutLabel = useShortcutLabel()
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const searchInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (isSearchOpen) {
-      searchInputRef.current?.focus()
-    }
-  }, [isSearchOpen])
-
-  const handleCloseSearch = () => {
-    setIsSearchOpen(false)
-    setSearchQuery("")
-  }
-
-  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "Escape") return
-
-    event.preventDefault()
-    event.stopPropagation()
-    handleCloseSearch()
-  }
-
-  const handleToggleSearch = () => {
-    if (isSearchOpen) {
-      handleCloseSearch()
-      return
-    }
-
-    setIsSearchOpen(true)
-  }
-
   const navigationButtons = [
     { key: "back", Icon: ArrowLeft, enabled: canGoBack, onClick: goBack, shortcut: "sftp.back" },
     {
@@ -191,100 +157,14 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
       <div className="sftp-header-actions">
         {terminalActions}
         <div className="sftp-action-group">
-          {isSearchOpen && (
-            <div className="sftp-header-search" onKeyDown={handleSearchKeyDown}>
-              <div className="sftp-search-box">
-                <Search className="sftp-search-icon" />
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Input
-                      ref={searchInputRef}
-                      value={searchQuery}
-                      onChange={(event) => setSearchQuery(event.target.value)}
-                      placeholder={t("sftp.search.placeholder", {
-                        defaultValue: "Filter current folder",
-                      })}
-                      disabled={!listingCurrentPath || isLoading}
-                      className={cn("sftp-search-input", searchError && "border-destructive")}
-                      aria-invalid={Boolean(searchError)}
-                      aria-label={t("sftp.search.label", { defaultValue: "Filter current folder" })}
-                    />
-                  </TooltipTrigger>
-                  {searchError && <TooltipContent>{searchError}</TooltipContent>}
-                </Tooltip>
-                <div className="sftp-search-controls">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant={searchOptions.regex ? "secondary" : "ghost"}
-                        size="icon-xs"
-                        onClick={() => toggleSearchOption("regex")}
-                        aria-label={t("sftp.search.regex", {
-                          defaultValue: "Use regular expression; falls back to glob",
-                        })}
-                        aria-pressed={searchOptions.regex}
-                        disabled={!listingCurrentPath || isLoading}
-                      >
-                        <Regex className="size-3" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {t("sftp.search.regex", {
-                        defaultValue: "Use regular expression; falls back to glob",
-                      })}
-                    </TooltipContent>
-                  </Tooltip>
-                  {searchQuery && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => setSearchQuery("")}
-                          aria-label={t("sftp.search.clear", { defaultValue: "Clear filter" })}
-                        >
-                          <X className="size-3" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {t("sftp.search.clear", { defaultValue: "Clear filter" })}
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                </div>
-              </div>
-              {searchError && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="sftp-search-error">
-                      {t("sftp.search.invalidRegex", {
-                        defaultValue: "Invalid regular expression",
-                      })}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>{searchError}</TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-          )}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={isSearchOpen || searchQuery ? "secondary" : "ghost"}
-                size="icon-sm"
-                onClick={handleToggleSearch}
-                disabled={!listingCurrentPath || isLoading}
-                aria-label={t("sftp.search.label", { defaultValue: "Filter current folder" })}
-                aria-pressed={isSearchOpen || Boolean(searchQuery)}
-              >
-                <Search className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {t("sftp.search.label", { defaultValue: "Filter current folder" })}
-            </TooltipContent>
-          </Tooltip>
+          <SftpHeaderSearch
+            disabled={!listingCurrentPath || isLoading}
+            searchError={searchError}
+            searchOptions={searchOptions}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            toggleSearchOption={toggleSearchOption}
+          />
         </div>
         <div className="sftp-action-divider" aria-hidden="true" />
         <div className="sftp-action-group">
