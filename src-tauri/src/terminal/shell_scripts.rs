@@ -6,7 +6,8 @@
 use std::fs;
 use std::path::Path;
 
-/// Exported as a bash function (`BASH_FUNC_<name>%%`) for Git Bash and WSL bash.
+/// The body of bash's prompt hook: exported as a function
+/// (`BASH_FUNC_<name>%%`) for Git Bash, defined by `bash/init.bash` elsewhere.
 pub(crate) const BASH_REPORT_CWD: &str = include_str!("shell_integration/bash/report-cwd.bash");
 /// The directory report plus command marks (OSC 133 D and A).
 pub(crate) const BASH_PROMPT: &str = include_str!("shell_integration/bash/prompt.bash");
@@ -17,6 +18,10 @@ pub(crate) const UNIX_SCRIPTS: &[(&str, &str)] = &[
     (
         "unix/start.sh",
         include_str!("shell_integration/unix/start.sh"),
+    ),
+    (
+        "bash/init.bash",
+        include_str!("shell_integration/bash/init.bash"),
     ),
     ("bash/report-cwd.bash", BASH_REPORT_CWD),
     ("bash/prompt.bash", BASH_PROMPT),

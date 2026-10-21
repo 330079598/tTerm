@@ -55,27 +55,18 @@ fn expect_output(output: &Mutex<Vec<u8>>, needle: &str, shell: &Path) {
     );
 }
 
-#[test]
-#[ignore = "runs the real sh and the bash, zsh and fish found on PATH"]
-fn real_shell_integration_marks_commands_in_each_shell() {
-    let shells: Vec<PathBuf> = ["bash", "zsh", "fish"]
-        .into_iter()
-        .filter_map(which)
-        .collect();
-    assert!(!shells.is_empty(), "none of bash, zsh or fish is on PATH");
+/// A shell started through `unix/start.sh` on a pty, and what it printed.
+struct StartedShell {
+    shell: PathBuf,
+    output: Arc<Mutex<Vec<u8>>>,
+    writer: Box<dyn Write + Send>,
+    child: Box<dyn portable_pty::Child + Send + Sync>,
+}
 
-    for shell in shells {
-        let home = TempDir::new();
-        // Keeps zsh from offering its new-user setup.
-        std::fs::write(home.path.join(".zshrc"), "").unwrap();
-        let dir = install_with_sh(&home.path, &shell).expect("installer reply");
-        assert!(
-            dir.ends_with(&format!("/.cache/tterm/shell-integration/{}", version())),
-            "{dir}"
-        );
-        // Installing again finds the scripts in place.
-        assert_eq!(install_with_sh(&home.path, &shell).as_deref(), Some(&*dir));
-
+impl StartedShell {
+    /// Starts `shell` from the scripts in `dir` for a user whose home is
+    /// `home`, marking commands when `marks` is set.
+    fn spawn(dir: &str, home: &Path, shell: &Path, marks: bool) -> Self {
         let pair = portable_pty::native_pty_system()
             .openpty(portable_pty::PtySize {
                 rows: 24,
@@ -86,12 +77,14 @@ fn real_shell_integration_marks_commands_in_each_shell() {
             .expect("open pty");
         let mut command = portable_pty::CommandBuilder::new("sh");
         command.arg(format!("{dir}/unix/start.sh"));
-        command.env("HOME", &home.path);
-        command.env("SHELL", &shell);
+        command.env("HOME", home);
+        command.env("SHELL", shell);
         command.env("TERM", "xterm-256color");
+        command.env("tterm_marks", if marks { "1" } else { "0" });
         command.env_remove("ZDOTDIR");
-        command.cwd(&home.path);
-        let mut child = pair.slave.spawn_command(command).expect("spawn start.sh");
+        command.env_remove("HISTFILE");
+        command.cwd(home);
+        let child = pair.slave.spawn_command(command).expect("spawn start.sh");
         drop(pair.slave);
 
         let output = Arc::new(Mutex::new(Vec::new()));
@@ -106,18 +99,110 @@ fn real_shell_integration_marks_commands_in_each_shell() {
                 collected.lock().unwrap().extend_from_slice(&buffer[..read]);
             }
         });
-        let mut writer = pair.master.take_writer().expect("pty writer");
+        let writer = pair.master.take_writer().expect("pty writer");
+        Self {
+            shell: shell.to_path_buf(),
+            output,
+            writer,
+            child,
+        }
+    }
 
-        expect_output(&output, "\x1b]133;A", &shell);
-        writer.write_all(b"false\r").unwrap();
+    fn expect(&self, needle: &str) {
+        expect_output(&self.output, needle, &self.shell);
+    }
+
+    fn run(&mut self, line: &str) {
+        self.writer
+            .write_all(format!("{line}\r").as_bytes())
+            .unwrap();
+    }
+
+    fn printed(&self, needle: &str) -> bool {
+        String::from_utf8_lossy(&self.output.lock().unwrap()).contains(needle)
+    }
+
+    fn exit(mut self) {
+        self.run("exit");
+        let _ = self.child.kill();
+    }
+}
+
+/// bash, zsh and fish on PATH.
+fn shells() -> Vec<PathBuf> {
+    let shells: Vec<PathBuf> = ["bash", "zsh", "fish"]
+        .into_iter()
+        .filter_map(which)
+        .collect();
+    assert!(!shells.is_empty(), "none of bash, zsh or fish is on PATH");
+    shells
+}
+
+/// macOS's own bash: version 3.2, and patched to read the login files in
+/// POSIX mode.
+fn is_macos_bash(shell: &Path) -> bool {
+    cfg!(target_os = "macos") && shell == Path::new("/bin/bash")
+}
+
+/// A home for `shell` with the scripts installed, and their directory.
+fn home_with_scripts(shell: &Path) -> (TempDir, String) {
+    let home = TempDir::new();
+    // Keeps zsh from offering its new-user setup.
+    std::fs::write(home.path.join(".zshrc"), "").unwrap();
+    // A profile that replaces PROMPT_COMMAND must not drop tTerm's hook.
+    // macOS's own bash still gets the hook before the profile, so this is
+    // left out there.
+    if !is_macos_bash(shell) {
+        std::fs::write(home.path.join(".bash_profile"), "PROMPT_COMMAND=true\n").unwrap();
+    }
+    let dir = install_with_sh(&home.path, shell).expect("installer reply");
+    (home, dir)
+}
+
+#[test]
+#[ignore = "runs the real sh and the bash, zsh and fish found on PATH"]
+fn real_shell_integration_marks_commands_in_each_shell() {
+    for shell in shells() {
+        let (home, dir) = home_with_scripts(&shell);
+        assert!(
+            dir.ends_with(&format!("/.cache/tterm/shell-integration/{}", version())),
+            "{dir}"
+        );
+        // Installing again finds the scripts in place.
+        assert_eq!(install_with_sh(&home.path, &shell).as_deref(), Some(&*dir));
+
+        let mut started = StartedShell::spawn(&dir, &home.path, &shell, true);
+        started.expect("\x1b]133;A");
+        started.run("false");
         // bash has no hook that sees the command line before it runs.
         if !shell.ends_with("bash") {
-            expect_output(&output, "\x1b]633;E;false\x1b\\", &shell);
+            started.expect("\x1b]633;E;false\x1b\\");
         }
-        expect_output(&output, "\x1b]133;C", &shell);
-        expect_output(&output, "\x1b]133;D;1", &shell);
-        writer.write_all(b"exit\r").unwrap();
-        let _ = child.kill();
+        // bash before 4.4 has no PS0 to mark where output starts.
+        if !is_macos_bash(&shell) {
+            started.expect("\x1b]133;C");
+        }
+        started.expect("\x1b]133;D;1");
+        started.run("cd /");
+        started.expect("\x1b]7;file:///\x1b\\");
+        started.exit();
+    }
+}
+
+#[test]
+#[ignore = "runs the real sh and the bash, zsh and fish found on PATH"]
+fn real_shell_integration_reports_the_directory_with_marks_off() {
+    for shell in shells() {
+        let (home, dir) = home_with_scripts(&shell);
+        let mut started = StartedShell::spawn(&dir, &home.path, &shell, false);
+        started.run("cd /");
+        started.expect("\x1b]7;file:///\x1b\\");
+        assert!(
+            !started.printed("\x1b]133;"),
+            "{}: marked commands with marks off",
+            shell.display()
+        );
+        started.exit();
     }
 }
 

@@ -21,15 +21,28 @@ shell=${SHELL:-}
 
 case "${shell##*/}" in
     bash)
-        # An exported function plus PROMPT_COMMAND, as for Git Bash: bash
-        # stays a plain login shell. PS0 marks where output starts.
-        if [ "$tterm_marks" = 1 ] && [ -r "$tterm_dir/bash/prompt.bash" ]; then
-            exec env "BASH_FUNC___tterm_prompt%%=$(cat "$tterm_dir/bash/prompt.bash")" \
-                PROMPT_COMMAND=__tterm_prompt 'PS0=\e]133;C\e\\' "$shell" -l
-        fi
-        if [ -r "$tterm_dir/bash/report-cwd.bash" ]; then
-            exec env "BASH_FUNC___tterm_report_cwd%%=$(cat "$tterm_dir/bash/report-cwd.bash")" \
-                PROMPT_COMMAND=__tterm_report_cwd "$shell" -l
+        # macOS's own bash reads the login files even in POSIX mode and never
+        # $ENV, so it gets the hook up front, as an exported function plus
+        # PROMPT_COMMAND, which a profile that assigns PROMPT_COMMAND drops.
+        if [ "$shell" = /bin/bash ] && [ "$(uname -s)" = Darwin ]; then
+            if [ "$tterm_marks" = 1 ] && [ -r "$tterm_dir/bash/prompt.bash" ]; then
+                exec env "BASH_FUNC___tterm_prompt%%=$(cat "$tterm_dir/bash/prompt.bash")" \
+                    PROMPT_COMMAND=__tterm_prompt "$shell" -l
+            fi
+            if [ -r "$tterm_dir/bash/report-cwd.bash" ]; then
+                exec env "BASH_FUNC___tterm_report_cwd%%=$(cat "$tterm_dir/bash/report-cwd.bash")" \
+                    PROMPT_COMMAND=__tterm_report_cwd "$shell" -l
+            fi
+        # Any other bash reads only $ENV in POSIX mode, where bash/init.bash
+        # reads the login files and then adds the hook. POSIX mode would also
+        # make the history file ~/.sh_history.
+        elif [ -r "$tterm_dir/bash/init.bash" ]; then
+            [ "$tterm_marks" = 1 ] && export TTERM_COMMAND_MARKS=1
+            if [ -z "${HISTFILE:-}" ]; then
+                export HISTFILE="$HOME/.bash_history" TTERM_UNEXPORT_HISTFILE=1
+            fi
+            export ENV="$tterm_dir/bash/init.bash"
+            exec "$shell" --posix --login
         fi
         ;;
     zsh)
