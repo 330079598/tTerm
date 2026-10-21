@@ -86,13 +86,23 @@ fn process_name(_pid: u32) -> Option<String> {
 mod tests {
     use super::*;
 
+    /// Polls for up to five seconds, since `spawn` can return before the
+    /// child has `exec`ed, while it still carries the name of the test
+    /// thread that forked it.
     #[test]
     fn names_a_running_process() {
         let mut child = std::process::Command::new("sleep")
             .arg("5")
             .spawn()
             .unwrap();
-        let name = process_name(child.id());
+        let mut name = None;
+        for _ in 0..500 {
+            name = process_name(child.id());
+            if name.as_deref() == Some("sleep") {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
         let _ = child.kill();
         let _ = child.wait();
         assert_eq!(name.as_deref(), Some("sleep"));
