@@ -11,7 +11,7 @@ import type {
   LoadSftpDirectory,
 } from "@/components/SftpDrawer/types"
 import { toast } from "@/hooks/use-toast"
-import { joinRemotePath } from "@/components/SftpDrawer/sftpDrawerUtils"
+import { joinRemotePath, parentRemotePath } from "@/components/SftpDrawer/sftpDrawerUtils"
 
 interface UseSftpEntryActionsOptions {
   tabId: string
@@ -31,6 +31,7 @@ interface UseSftpEntryActionsOptions {
   onOpenRemoteFile: SftpDrawerProps["onOpenRemoteFile"]
   setPermissionEntries: React.Dispatch<React.SetStateAction<SftpDirectoryEntry[]>>
   currentPath: string | null
+  setActivePath: (path: string | null) => void
   openCompress: (entries: SftpDirectoryEntry[]) => void
   openExtract: (entry: SftpDirectoryEntry) => void
 }
@@ -38,7 +39,7 @@ interface UseSftpEntryActionsOptions {
 /**
  * What can be done to entries besides deleting them: creating a folder,
  * renaming, downloading, opening or editing, permissions, compressing or
- * extracting and copying a path.
+ * extracting, showing a search result in its folder and copying a path.
  */
 export function useSftpEntryActions({
   tabId,
@@ -58,6 +59,7 @@ export function useSftpEntryActions({
   onOpenRemoteFile,
   setPermissionEntries,
   currentPath,
+  setActivePath,
   openCompress,
   openExtract,
 }: UseSftpEntryActionsOptions) {
@@ -123,7 +125,7 @@ export function useSftpEntryActions({
   }, [activeEntry, contextMenuEntry, listing, dispatchDialog])
 
   const handleRenameConfirm = useCallback(() => {
-    if (!renameEntry || !listingCurrentPath) {
+    if (!renameEntry) {
       return
     }
 
@@ -138,19 +140,12 @@ export function useSftpEntryActions({
         tabId,
         connection,
         oldPath: renameEntry.path,
-        newPath: joinRemotePath(listingCurrentPath, trimmedName),
+        // A search result can sit in a subfolder of the listing.
+        newPath: joinRemotePath(parentRemotePath(renameEntry.path), trimmedName),
       })
     )
     dispatchDialog({ action: "close" })
-  }, [
-    connection,
-    listingCurrentPath,
-    renameEntry,
-    renameNewName,
-    runAndRefresh,
-    tabId,
-    dispatchDialog,
-  ])
+  }, [connection, renameEntry, renameNewName, runAndRefresh, tabId, dispatchDialog])
 
   const handleDownload = useCallback(async () => {
     await downloadEntries(targetEntries())
@@ -193,6 +188,14 @@ export function useSftpEntryActions({
     const entry = contextMenuEntry ?? activeEntry
     if (entry) openExtract(entry)
   }, [activeEntry, contextMenuEntry, openExtract])
+
+  // Opens a search result's folder with the result highlighted.
+  const handleReveal = useCallback(async () => {
+    const entry = contextMenuEntry ?? activeEntry
+    if (!entry) return
+    await loadDirectory(parentRemotePath(entry.path))
+    setActivePath(entry.path)
+  }, [activeEntry, contextMenuEntry, loadDirectory, setActivePath])
 
   const handleApplyPermissions = useCallback(
     async (entries: SftpDirectoryEntry[], mode: number) => {
@@ -246,6 +249,7 @@ export function useSftpEntryActions({
     handleApplyPermissions,
     handleCompress,
     handleExtract,
+    handleReveal,
     handleCopyPath,
   }
 }

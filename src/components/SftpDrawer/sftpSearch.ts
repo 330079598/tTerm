@@ -2,6 +2,8 @@ import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 
 export type SftpSearchOptions = {
   regex: boolean
+  /** Search the folders under the current one on the server, on Enter. */
+  recursive: boolean
 }
 
 export type SftpSearchMatcher = {
@@ -12,6 +14,14 @@ export type SftpSearchMatcher = {
 
 export const DEFAULT_SFTP_SEARCH_OPTIONS: SftpSearchOptions = {
   regex: false,
+  recursive: false,
+}
+
+/** Lets every entry through: what a search of subfolders found is shown as is. */
+export const MATCH_ALL: SftpSearchMatcher = {
+  error: null,
+  hasQuery: false,
+  matches: () => true,
 }
 
 const REGEX_SPECIAL_CHARS = /[\\^$+?.()|{}]/g

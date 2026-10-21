@@ -272,6 +272,7 @@ pub fn run() {
             sftp::internal::api::archive::sftp_compress_entries,
             sftp::internal::api::archive::sftp_extract_archive,
             sftp::internal::api::archive::sftp_cancel_remote_operation,
+            sftp::internal::api::search::sftp_search_entries,
             sftp::internal::api::permissions::sftp_set_permissions,
             sftp::internal::api::edit::sftp_open_file_for_edit,
             sftp::internal::api::edit::sftp_save_edited_file,

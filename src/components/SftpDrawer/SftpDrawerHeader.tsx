@@ -56,6 +56,8 @@ export interface SftpDrawerHeaderProps {
   selectedCount: number
   setSearchQuery: (query: string) => void
   toggleSearchOption: (option: keyof SftpSearchOptions) => void
+  /** Starts a search of subfolders, when that option is on. */
+  onSubmitSearch: () => void
   toggleSelectionMode: () => void
   showHidden: boolean
   toggleShowHidden: () => void
@@ -91,6 +93,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   selectedCount,
   setSearchQuery,
   toggleSearchOption,
+  onSubmitSearch,
   toggleSelectionMode,
   showHidden,
   toggleShowHidden,
@@ -164,6 +167,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             toggleSearchOption={toggleSearchOption}
+            onSubmitSearch={onSubmitSearch}
           />
         </div>
         <div className="sftp-action-divider" aria-hidden="true" />

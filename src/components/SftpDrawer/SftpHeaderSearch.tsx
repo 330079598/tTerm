@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from "react"
-import { Regex, Search, X } from "lucide-react"
+import { FolderTree, Regex, Search, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { SftpSearchOptions } from "@/components/SftpDrawer/sftpSearch"
+import { isImeKeyEvent } from "@/lib/ime"
 import { cn } from "@/lib/utils"
 
 export interface SftpHeaderSearchProps {
@@ -15,6 +16,8 @@ export interface SftpHeaderSearchProps {
   searchQuery: string
   setSearchQuery: (query: string) => void
   toggleSearchOption: (option: keyof SftpSearchOptions) => void
+  /** Starts a search of subfolders, when that option is on. */
+  onSubmitSearch: () => void
 }
 
 function OptionButton({
@@ -58,6 +61,7 @@ export const SftpHeaderSearch: React.FC<SftpHeaderSearchProps> = ({
   searchQuery,
   setSearchQuery,
   toggleSearchOption,
+  onSubmitSearch,
 }) => {
   const { t } = useTranslation()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -75,6 +79,11 @@ export const SftpHeaderSearch: React.FC<SftpHeaderSearchProps> = ({
   }
 
   const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent) && searchOptions.recursive) {
+      event.preventDefault()
+      onSubmitSearch()
+      return
+    }
     if (event.key !== "Escape") return
 
     event.preventDefault()
@@ -91,7 +100,9 @@ export const SftpHeaderSearch: React.FC<SftpHeaderSearchProps> = ({
     setIsSearchOpen(true)
   }
 
-  const label = t("sftp.search.label", { defaultValue: "Filter current folder" })
+  const label = searchOptions.recursive
+    ? t("sftp.search.recursiveLabel")
+    : t("sftp.search.label", { defaultValue: "Filter current folder" })
 
   return (
     <>
@@ -105,9 +116,11 @@ export const SftpHeaderSearch: React.FC<SftpHeaderSearchProps> = ({
                   ref={searchInputRef}
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder={t("sftp.search.placeholder", {
-                    defaultValue: "Filter current folder",
-                  })}
+                  placeholder={
+                    searchOptions.recursive
+                      ? t("sftp.search.recursivePlaceholder")
+                      : t("sftp.search.placeholder", { defaultValue: "Filter current folder" })
+                  }
                   disabled={disabled}
                   className={cn("sftp-search-input", searchError && "border-destructive")}
                   aria-invalid={Boolean(searchError)}
@@ -117,6 +130,14 @@ export const SftpHeaderSearch: React.FC<SftpHeaderSearchProps> = ({
               {searchError && <TooltipContent>{searchError}</TooltipContent>}
             </Tooltip>
             <div className="sftp-search-controls">
+              <OptionButton
+                active={searchOptions.recursive}
+                disabled={disabled}
+                label={t("sftp.search.recursive")}
+                onClick={() => toggleSearchOption("recursive")}
+              >
+                <FolderTree className="size-3" />
+              </OptionButton>
               <OptionButton
                 active={searchOptions.regex}
                 disabled={disabled}

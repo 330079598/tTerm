@@ -1917,7 +1917,8 @@
       "openInTerminal": "Open in Terminal",
       "openCurrentInTerminal": "Open this folder in the terminal",
       "compress": "Compress…",
-      "extract": "Extract…"
+      "extract": "Extract…",
+      "showInFolder": "Show in Folder"
     },
     "selection": {
       "clear": "Clear Selection",
@@ -1990,7 +1991,23 @@
       "resultSummary_one": "{{count}} of {{total}} item",
       "resultSummary_other": "{{count}} of {{total}} items",
       "regex": "Use regular expression; falls back to glob",
-      "invalidRegex": "Invalid regular expression"
+      "invalidRegex": "Invalid regular expression",
+      "recursive": "Search subfolders on the server (press Enter)",
+      "recursiveLabel": "Search this folder and its subfolders by name",
+      "recursivePlaceholder": "Search subfolders, press Enter",
+      "searching_one": "Searching for “{{query}}”… {{count}} found",
+      "searching_other": "Searching for “{{query}}”… {{count}} found",
+      "found_one": "{{count}} match for “{{query}}” in subfolders",
+      "found_other": "{{count}} matches for “{{query}}” in subfolders",
+      "scannedFolders_one": "{{count}} folder read",
+      "scannedFolders_other": "{{count}} folders read",
+      "truncated": "stopped at the first {{count}}",
+      "stopped": "stopped",
+      "usedSftp": "searched over SFTP, as the server can't run find",
+      "skippedFolders_one": "{{count}} folder could not be read",
+      "skippedFolders_other": "{{count}} folders could not be read",
+      "stop": "Stop",
+      "closeResults": "Close search results"
     },
     "path": {
       "label": "Go to remote path",

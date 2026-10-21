@@ -27,6 +27,8 @@ export interface SftpDirectoryEntry {
   mode?: number | null
   owner?: string
   group?: string
+  /** For a search result: its folder relative to the searched one, empty at the top. */
+  location?: string
 }
 
 export interface SftpDirectoryListing {
@@ -151,3 +153,16 @@ export type PromptConflictPolicy = (
   report: ConflictReport,
   direction: "upload" | "download"
 ) => Promise<ConflictPolicy | null>
+
+/** Mirrors `SearchEvent` in `src-tauri/src/sftp/internal/api/search.rs`. */
+export type SftpSearchEvent =
+  { kind: "matches"; entries: SftpDirectoryEntry[] } | { kind: "progress"; scannedFolders: number }
+
+export interface SftpSearchSummary {
+  /** `sftp` when the server could not run `find` and folders were read one by one. */
+  method: "find" | "sftp"
+  found: number
+  truncated: boolean
+  cancelled: boolean
+  skippedFolders: number
+}

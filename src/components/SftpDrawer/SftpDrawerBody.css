@@ -354,6 +354,18 @@ body.sftp-column-resizing .sftp-column-resizer::after {
   font-weight: 600;
 }
 
+/* A search result's folder, after its name. */
+.sftp-entry-location {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+  font-size: var(--sftp-font-size-small);
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sftp-entry-icon {
   width: 16px;
   height: 16px;

@@ -246,3 +246,15 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* The strip above the results of a search of subfolders. */
+.sftp-search-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 2px 8px 2px 12px;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--muted) / 0.4);
+  font-size: var(--sftp-font-size-small);
+}

@@ -20,6 +20,8 @@ interface SftpEntryContextMenuProps {
   handleExtract: () => void
   handlePermissions: () => void
   handleRename: () => void
+  /** Set while the rows are search results, which can be shown in their folder. */
+  handleReveal?: () => Promise<void>
   isDeleting: boolean
   onClose: () => void
   selectionCount: number
@@ -37,6 +39,7 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
   handleExtract,
   handlePermissions,
   handleRename,
+  handleReveal,
   isDeleting,
   onClose,
   selectionCount,
@@ -58,6 +61,9 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
           action: "copy-path",
           icon: "copy",
         },
+        ...(handleReveal
+          ? [{ label: t("sftp.actions.showInFolder"), action: "reveal", icon: "folder" }]
+          : []),
         ...(handleCdInTerminal && contextMenuEntry.isDir
           ? [
               {
@@ -115,6 +121,7 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
         if (action === "download") void handleDownload()
         else if (action === "copy-path") void handleCopyPath()
         else if (action === "cd") handleCdInTerminal?.(contextMenuEntry.path)
+        else if (action === "reveal") void handleReveal?.()
         else if (action === "compress") handleCompress()
         else if (action === "extract") handleExtract()
         else if (action === "edit") handleEdit()

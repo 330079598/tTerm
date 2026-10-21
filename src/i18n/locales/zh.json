@@ -1899,7 +1899,8 @@
       "openInTerminal": "在终端中打开",
       "openCurrentInTerminal": "在终端中打开当前目录",
       "compress": "压缩…",
-      "extract": "解压…"
+      "extract": "解压…",
+      "showInFolder": "在所在文件夹中显示"
     },
     "selection": {
       "clear": "清空选择",
@@ -1972,7 +1973,23 @@
       "resultSummary_one": "匹配 {{count}} / {{total}} 项",
       "resultSummary_other": "匹配 {{count}} / {{total}} 项",
       "regex": "使用正则表达式；失败时按通配符处理",
-      "invalidRegex": "正则表达式无效"
+      "invalidRegex": "正则表达式无效",
+      "recursive": "在服务器上搜索子文件夹（按回车）",
+      "recursiveLabel": "按名称搜索当前文件夹及其子文件夹",
+      "recursivePlaceholder": "搜索子文件夹，按回车开始",
+      "searching_one": "正在搜索“{{query}}”… 已找到 {{count}} 项",
+      "searching_other": "正在搜索“{{query}}”… 已找到 {{count}} 项",
+      "found_one": "子文件夹中有 {{count}} 项匹配“{{query}}”",
+      "found_other": "子文件夹中有 {{count}} 项匹配“{{query}}”",
+      "scannedFolders_one": "已读取 {{count}} 个文件夹",
+      "scannedFolders_other": "已读取 {{count}} 个文件夹",
+      "truncated": "只显示前 {{count}} 项",
+      "stopped": "已停止",
+      "usedSftp": "服务器无法运行 find，已改用 SFTP 逐层搜索",
+      "skippedFolders_one": "{{count}} 个文件夹无法读取",
+      "skippedFolders_other": "{{count}} 个文件夹无法读取",
+      "stop": "停止",
+      "closeResults": "关闭搜索结果"
     },
     "path": {
       "label": "跳转远程路径",

@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react"
 import {
   createSftpSearchMatcher,
   DEFAULT_SFTP_SEARCH_OPTIONS,
+  MATCH_ALL,
   type SftpSearchOptions,
 } from "@/components/SftpDrawer/sftpSearch"
 import type { SftpDirectoryListing } from "@/components/SftpDrawer/types"
@@ -18,6 +19,9 @@ import {
 /**
  * How the listing is shown: the search options, the sort order and whether hidden
  * entries appear. The last two are remembered across sessions.
+ *
+ * `searchMatcher` checks the query as typed; `listingMatcher` filters the rows,
+ * and lets all through while searching subfolders, which runs on Enter instead.
  */
 export function useSftpView(listing: SftpDirectoryListing | null, searchQuery: string) {
   const [searchOptions, setSearchOptions] = useState<SftpSearchOptions>(DEFAULT_SFTP_SEARCH_OPTIONS)
@@ -27,6 +31,7 @@ export function useSftpView(listing: SftpDirectoryListing | null, searchQuery: s
     () => createSftpSearchMatcher(searchQuery, searchOptions),
     [searchOptions, searchQuery]
   )
+  const listingMatcher = searchOptions.recursive ? MATCH_ALL : searchMatcher
 
   const updateViewPreferences = useCallback(
     (update: (current: SftpViewPreferences) => SftpViewPreferences) => {
@@ -62,15 +67,15 @@ export function useSftpView(listing: SftpDirectoryListing | null, searchQuery: s
   )
 
   const filteredListing = useMemo(() => {
-    if (!viewListing || !searchMatcher.hasQuery) {
+    if (!viewListing || !listingMatcher.hasQuery) {
       return viewListing
     }
 
     return {
       ...viewListing,
-      entries: viewListing.entries.filter(searchMatcher.matches),
+      entries: viewListing.entries.filter(listingMatcher.matches),
     }
-  }, [viewListing, searchMatcher])
+  }, [viewListing, listingMatcher])
 
   const toggleSearchOption = useCallback((option: keyof SftpSearchOptions) => {
     setSearchOptions((current) => ({
@@ -83,6 +88,7 @@ export function useSftpView(listing: SftpDirectoryListing | null, searchQuery: s
     searchOptions,
     toggleSearchOption,
     searchMatcher,
+    listingMatcher,
     viewPreferences,
     handleSortColumn,
     toggleShowHidden,

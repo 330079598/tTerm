@@ -17,7 +17,9 @@ import { SftpDialogs } from "@/components/SftpDrawer/SftpDialogs"
 import { SftpEntryContextMenu } from "@/components/SftpDrawer/SftpEntryContextMenu"
 import { SftpPermissionsDialog } from "@/components/SftpDrawer/SftpPermissionsDialog"
 import { SftpArchiveDialog } from "@/components/SftpDrawer/SftpArchiveDialog"
+import { SftpSearchStatus } from "@/components/SftpDrawer/SftpSearchStatus"
 import { useSftpArchive } from "@/components/SftpDrawer/useSftpArchive"
+import { useSftpRecursiveSearch } from "@/components/SftpDrawer/useSftpRecursiveSearch"
 import { useSftpDragDrop } from "@/components/SftpDrawer/useSftpDragDrop"
 import { useSftpDragOut } from "@/components/SftpDrawer/useSftpDragOut"
 import { useSftpPasteUpload } from "@/components/SftpDrawer/useSftpPasteUpload"
@@ -72,6 +74,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     }
   )
   const listingCurrentPath = listing?.currentPath ?? null
+  const recursiveSearch = useSftpRecursiveSearch({ tabId, connection, listing, searchQuery })
   const { follows, toggleFollow, terminalCwd } = useSftpTerminalFollow({
     tabId,
     connection,
@@ -84,12 +87,13 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     searchOptions,
     toggleSearchOption,
     searchMatcher,
+    listingMatcher,
     viewPreferences,
     handleSortColumn,
     toggleShowHidden,
     viewListing,
     filteredListing,
-  } = useSftpView(listing, searchQuery)
+  } = useSftpView(recursiveSearch.shownListing, searchQuery)
 
   const {
     addTransfer,
@@ -179,7 +183,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   } = useSftpSelection({
     activePath,
     contextMenu,
-    listing,
+    listing: recursiveSearch.shownListing,
     rangeEntries: filteredListing?.entries,
     selectedPaths,
     setActivePath,
@@ -199,6 +203,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     handleApplyPermissions,
     handleCompress,
     handleExtract,
+    handleReveal,
     handleCopyPath,
   } = useSftpEntryActions({
     tabId,
@@ -218,6 +223,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     onOpenRemoteFile,
     setPermissionEntries,
     currentPath,
+    setActivePath,
     openCompress: archive.openCompress,
     openExtract: archive.openExtract,
   })
@@ -304,6 +310,9 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         selectedCount={selectedPaths.length}
         setSearchQuery={setSearchQuery}
         toggleSearchOption={toggleSearchOption}
+        onSubmitSearch={() =>
+          void recursiveSearch.start(searchOptions.regex, viewPreferences.showHidden)
+        }
         toggleSelectionMode={toggleSelectionMode}
         showHidden={viewPreferences.showHidden}
         toggleShowHidden={toggleShowHidden}
@@ -326,6 +335,12 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         </Alert>
       )}
 
+      <SftpSearchStatus
+        search={recursiveSearch.search}
+        onStop={recursiveSearch.stop}
+        onClose={() => setSearchQuery("")}
+      />
+
       <SftpDrawerContent
         error={error}
         activePath={activePath}
@@ -347,7 +362,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         loadDirectory={loadDirectory}
         onSortColumn={handleSortColumn}
         sort={viewPreferences.sort}
-        searchMatcher={searchMatcher}
+        searchMatcher={listingMatcher}
+        searchStatus={recursiveSearch.search?.status ?? null}
         selectedEntries={selectedEntries}
         selectedPaths={selectedPaths}
         setContextMenu={setContextMenu}
@@ -365,6 +381,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         handleExtract={handleExtract}
         handlePermissions={handlePermissions}
         handleRename={handleRename}
+        handleReveal={recursiveSearch.search ? handleReveal : undefined}
         isDeleting={isDeleting}
         onClose={() => setContextMenu(null)}
         selectionCount={contextSelectionCount}

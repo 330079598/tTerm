@@ -69,6 +69,8 @@ export interface SftpDrawerContentProps {
   loadDirectory: LoadSftpDirectory
   onSortColumn: (column: SftpSortColumn) => void
   searchMatcher: SftpSearchMatcher
+  /** Set while the rows are a search of subfolders rather than the folder. */
+  searchStatus: "searching" | "done" | "failed" | null
   selectedEntries: SftpDirectoryEntry[]
   selectedPaths: string[]
   setContextMenu: React.Dispatch<React.SetStateAction<SftpContextMenuState | null>>
@@ -96,6 +98,7 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
   loadDirectory,
   onSortColumn,
   searchMatcher,
+  searchStatus,
   selectedEntries,
   selectedPaths,
   setContextMenu,
@@ -385,6 +388,11 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
                   <span className="sftp-cell sftp-name-cell">
                     <SftpEntryIcon entry={entry} />
                     <span className="truncate">{entry.name}</span>
+                    {entry.location && (
+                      <span className="sftp-entry-location" title={entry.location}>
+                        {entry.location}
+                      </span>
+                    )}
                   </span>
                   <span className="sftp-cell">{formatTimestamp(entry.modifiedAt)}</span>
                   <span className="sftp-cell">{entry.isDir ? "--" : formatBytes(entry.size)}</span>
@@ -398,8 +406,8 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
           {!isLoading &&
             !error &&
             listing &&
-            listing.entries.length > 0 &&
-            filteredEntries.length === 0 &&
+            ((listing.entries.length > 0 && filteredEntries.length === 0) ||
+              (searchStatus === "done" && listing.entries.length === 0)) &&
             !searchMatcher.error && (
               <div className="sftp-empty-state">
                 <File className="size-6" />
@@ -416,19 +424,23 @@ export const SftpDrawerContent: React.FC<SftpDrawerContentProps> = ({
               </div>
             )}
 
-          {!isLoading && !error && listing?.entries.length === 0 && !searchMatcher.error && (
-            <div className="sftp-empty-state">
-              <FolderPlus className="size-6" />
-              <span className="sftp-empty-title">
-                {t("sftp.emptyDescription", { defaultValue: "This folder is empty" })}
-              </span>
-              <span className="sftp-empty-description">
-                {t("sftp.emptyHint", {
-                  defaultValue: "Upload files or create a folder to start organizing this path.",
-                })}
-              </span>
-            </div>
-          )}
+          {!isLoading &&
+            !error &&
+            !searchStatus &&
+            listing?.entries.length === 0 &&
+            !searchMatcher.error && (
+              <div className="sftp-empty-state">
+                <FolderPlus className="size-6" />
+                <span className="sftp-empty-title">
+                  {t("sftp.emptyDescription", { defaultValue: "This folder is empty" })}
+                </span>
+                <span className="sftp-empty-description">
+                  {t("sftp.emptyHint", {
+                    defaultValue: "Upload files or create a folder to start organizing this path.",
+                  })}
+                </span>
+              </div>
+            )}
         </ScrollArea>
       </div>
     </div>
