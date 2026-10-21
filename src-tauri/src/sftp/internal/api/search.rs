@@ -4,7 +4,7 @@
 
 mod find;
 mod matcher;
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod real_sshd_tests;
 mod walk;
 
