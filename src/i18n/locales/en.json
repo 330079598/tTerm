@@ -1387,7 +1387,11 @@
       "encodingDesc": "The charset the device sends and reads text in",
       "hexView": "HEX view",
       "hexViewDesc": "Show received bytes in hex, a new line after each pause"
-    }
+    },
+    "highlightSet": "Keyword highlighting",
+    "highlightSetDefault": "Default set ({{name}})",
+    "highlightSetOff": "Off",
+    "highlightSetDesc": "Which highlight set colors this connection's output."
   },
   "rename": {
     "title": "Rename Tab",

@@ -10,6 +10,7 @@ import { normalizeSftpStartDirectory, SFTP_START_DIRECTORIES } from "@/lib/sftpS
 import type { TerminalPalette } from "@/types/theme"
 
 import { ConnectionIconField } from "@/components/ConnectionDialog/ConnectionIconField"
+import { HighlightSetField } from "@/components/ConnectionDialog/HighlightSetField"
 import { TerminalThemePicker } from "@/components/ConnectionDialog/TerminalThemePicker"
 import { ConnectionForm } from "@/components/ConnectionDialog/types"
 
@@ -132,6 +133,8 @@ export const SessionCustomizationFields: React.FC<SessionCustomizationFieldsProp
           {t("connection.sftpStartDirectoryDesc")}
         </p>
       </div>
+
+      <HighlightSetField form={form} setForm={setForm} />
 
       <div className="flex items-start gap-2">
         <Checkbox

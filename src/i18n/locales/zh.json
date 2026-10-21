@@ -1371,7 +1371,11 @@
       "encodingDesc": "设备收发文本所用的字符集",
       "hexView": "HEX 显示",
       "hexViewDesc": "以十六进制显示收到的字节，每次停顿后另起一行"
-    }
+    },
+    "highlightSet": "关键字高亮",
+    "highlightSetDefault": "默认高亮集（{{name}}）",
+    "highlightSetOff": "关闭",
+    "highlightSetDesc": "此连接的输出用哪个高亮集标色。"
   },
   "rename": {
     "title": "重命名标签页",

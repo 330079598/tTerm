@@ -6,6 +6,7 @@ import {
 } from "@/lib/profileConnections"
 import { normalizeProxyChoice } from "@/lib/proxy"
 import { normalizeSerialSettings } from "@/lib/serial"
+import { HIGHLIGHT_SET_FOLLOW_DEFAULT } from "@/lib/keywordHighlight/config"
 import { normalizeSftpStartDirectory, type SftpStartDirectory } from "@/lib/sftpStartDirectory"
 import type { SessionLogPolicy } from "@/types/tab"
 import type { TerminalPalette } from "@/types/theme"
@@ -53,6 +54,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     shellIntegration: profile.shell_integration === true,
     sessionLog: normalizeSessionLogPolicy(profile.session_log) ?? "default",
     sftpStartDirectory: normalizeSftpStartDirectory(profile.sftp_start_directory) ?? "default",
+    highlightSet: profile.highlight_set || HIGHLIGHT_SET_FOLLOW_DEFAULT,
     useJumpHost: profile.use_jump_host ?? jumpHosts.length > 0,
     proxy: normalizeProxyChoice(profile.proxy),
     sudoAutofill: profile.sudo_autofill !== false,
@@ -131,6 +133,11 @@ export function sftpStartDirectoryPayload(
   value: SftpStartDirectory | "default"
 ): SftpStartDirectory | undefined {
   return value === "default" ? undefined : value
+}
+
+/** The form's highlight set as stored: unset follows the default set. */
+export function highlightSetPayload(value: string): string | undefined {
+  return value === HIGHLIGHT_SET_FOLLOW_DEFAULT ? undefined : value
 }
 
 export function buildInitialForm(

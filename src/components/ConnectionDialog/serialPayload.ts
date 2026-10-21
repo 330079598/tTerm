@@ -5,6 +5,7 @@ import {
 } from "@/components/ConnectionDialog/types"
 import {
   encodingPayload,
+  highlightSetPayload,
   sessionLogPayload,
 } from "@/components/ConnectionDialog/connectionDialogUtils"
 import { normalizeSerialSettings } from "@/lib/serial"
@@ -24,6 +25,7 @@ export function buildSerialProfile(
     terminal_theme: form.terminalTheme || undefined,
     encoding: encodingPayload(form.encoding),
     session_log: sessionLogPayload(form.sessionLog),
+    highlight_set: highlightSetPayload(form.highlightSet),
     serial: normalizeSerialSettings(form.serial),
   }
 }
@@ -41,6 +43,7 @@ export function buildSerialConnection(
     terminalTheme: form.terminalTheme || undefined,
     encoding: encodingPayload(form.encoding),
     sessionLog: sessionLogPayload(form.sessionLog),
+    highlightSet: highlightSetPayload(form.highlightSet),
     serial: normalizeSerialSettings(form.serial),
   }
 }

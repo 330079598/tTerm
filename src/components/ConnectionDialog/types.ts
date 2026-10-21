@@ -98,6 +98,8 @@ export interface ConnectionForm {
   sessionLog: SessionLogPolicy | "default"
   /** Where the connection's SFTP drawer opens; `default` follows the SFTP setting. */
   sftpStartDirectory: SftpStartDirectory | "default"
+  /** The keyword highlight set's id or `off`; `default` follows the default set. */
+  highlightSet: string
   terminalShell: TerminalShellType
   terminalShellCustomPath: string
   terminalShellCustomArgs: string
@@ -153,6 +155,7 @@ export const defaultForm: ConnectionForm = {
   shellIntegration: false,
   sessionLog: "default",
   sftpStartDirectory: "default",
+  highlightSet: "default",
   terminalShell: "auto",
   terminalShellCustomPath: "",
   terminalShellCustomArgs: "",

@@ -25,6 +25,7 @@ import {
   normalizeKeepalive,
   sessionLogPayload,
   sftpStartDirectoryPayload,
+  highlightSetPayload,
 } from "@/components/ConnectionDialog/connectionDialogUtils"
 import {
   buildSerialConnection,
@@ -164,6 +165,7 @@ export function useConnectionSubmit({
         shell_integration: form.shellIntegration,
         session_log: sessionLogPayload(form.sessionLog),
         sftp_start_directory: sftpStartDirectoryPayload(form.sftpStartDirectory),
+        highlight_set: highlightSetPayload(form.highlightSet),
         use_jump_host: form.useJumpHost,
         jump_hosts: profileJumpHostsPayload,
         proxy: proxyChoicePayload(form.proxy),
@@ -243,6 +245,7 @@ export function useConnectionSubmit({
         shellIntegration: form.shellIntegration,
         sessionLog: sessionLogPayload(form.sessionLog),
         sftpStartDirectory: sftpStartDirectoryPayload(form.sftpStartDirectory),
+        highlightSet: highlightSetPayload(form.highlightSet),
         jumpHosts: connectionJumpHostsPayload,
         proxy: proxyChoicePayload(form.proxy),
       }
