@@ -1,6 +1,6 @@
 [package]
 name = "tTerm"
-version = "0.6.0"
+version = "0.7.0"
 description = "A SSH APP"
 authors = ["stone"]
 license = "MIT"
