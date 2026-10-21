@@ -48,6 +48,14 @@ describe("getWorkspaceTabMenuActions", () => {
     )
   })
 
+  it("shows the duplicate shortcut beside the copy item", () => {
+    const tab = { id: "a", title: "tTerm", type: "terminal", isActive: true } as const
+    const duplicate = getWorkspaceTabMenuActions(tab, [tab.id], t).find(
+      (item) => item.action === "duplicate"
+    )
+    expect(duplicate?.shortcut).toBe("tabs.duplicateActive")
+  })
+
   it("edits the profile an SSH or serial tab was opened from", () => {
     const base = { id: "a", title: "tab", isActive: true }
     const profile = { profileId: "p" }

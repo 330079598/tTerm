@@ -92,7 +92,12 @@ export const TabItem = React.memo(function TabItem({
           icon: "plus",
           shortcut: "workspace.newTab",
         },
-        { label: t("contextMenu.duplicateTab"), action: "duplicate", icon: "copy" },
+        {
+          label: t("contextMenu.duplicateTab"),
+          action: "duplicate",
+          icon: "copy",
+          shortcut: "tabs.duplicateActive",
+        },
         ...getTabSplitMenuActions(tab, t),
         getTabRenameMenuAction(tab, t),
         ...(editConnectionAction ? [editConnectionAction] : []),

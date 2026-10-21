@@ -39,6 +39,8 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   "tabs.prev": "ctrl+shift+tab",
   "tabs.switchToNth": digitChords("alt"),
   "tabs.renameActive": "mod+shift+r",
+  // Windows Terminal duplicates a tab on Ctrl+Shift+D as well.
+  "tabs.duplicateActive": "mod+shift+d",
   "tabs.closeActive": "mod+shift+w",
   "terminal.find": "mod+f",
   "terminal.clear": "mod+shift+k",

@@ -12,9 +12,9 @@ interface TabKeymapActions {
   openRenameDialog: (tab: Tab) => void
 }
 
-/** Keyboard shortcuts for opening, switching, renaming and closing tabs. */
+/** Keyboard shortcuts for opening, switching, renaming, duplicating and closing tabs. */
 export function useTabKeymap(shell: AppShell, actions: TabKeymapActions) {
-  const { tabs, activeTabId, setActiveTab } = shell
+  const { tabs, activeTabId, setActiveTab, duplicateTab } = shell
   const { handleNewTab, handleRemoveTab, openRenameDialog } = actions
   const { registerHandler } = useKeymap()
 
@@ -60,6 +60,12 @@ export function useTabKeymap(shell: AppShell, actions: TabKeymapActions) {
       }
       openRenameDialog(tab)
     })
+    // Page tabs and remote file editors cannot be duplicated, so the chord passes through.
+    const unregisterDuplicateActive = registerHandler("tabs.duplicateActive", () => {
+      if (!activeTabId || duplicateTab(activeTabId) === null) {
+        return false
+      }
+    })
     const unregisterCloseActive = registerHandler("tabs.closeActive", () => {
       if (activeTabId) {
         void handleRemoveTab(activeTabId)
@@ -71,6 +77,7 @@ export function useTabKeymap(shell: AppShell, actions: TabKeymapActions) {
       unregisterPrevTab()
       unregisterSwitchToNth()
       unregisterRenameActive()
+      unregisterDuplicateActive()
       unregisterCloseActive()
     }
   }, [
@@ -79,6 +86,7 @@ export function useTabKeymap(shell: AppShell, actions: TabKeymapActions) {
     keymapTabIds,
     activeTabId,
     setActiveTab,
+    duplicateTab,
     handleNewTab,
     handleRemoveTab,
     openRenameDialog,

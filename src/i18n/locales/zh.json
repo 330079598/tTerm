@@ -352,6 +352,7 @@
         "prev": "上一个标签页",
         "switchToNth": "切换到第 1-8 个标签页，9 为最后一个",
         "renameActive": "重命名当前标签页",
+        "duplicateActive": "复制当前标签页",
         "closeActive": "关闭当前标签页"
       },
       "terminal": {

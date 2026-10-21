@@ -88,7 +88,12 @@ export function getWorkspaceTabMenuActions(
 
   return [
     ...commonStart,
-    { label: t("contextMenu.duplicateTab"), action: "duplicate", icon: "copy" },
+    {
+      label: t("contextMenu.duplicateTab"),
+      action: "duplicate",
+      icon: "copy",
+      shortcut: "tabs.duplicateActive",
+    },
     ...getTabSplitMenuActions(tab, t),
     getTabRenameMenuAction(tab, t),
     ...(editConnectionAction ? [editConnectionAction] : []),
