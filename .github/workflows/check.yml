@@ -95,7 +95,7 @@ jobs:
         if: matrix.platform == 'ubuntu-24.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libudev-dev patchelf openssh-server
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libudev-dev patchelf openssh-server zsh fish
 
       # generate_context! needs frontendDist to exist; the checks do not
       # need the built frontend in it.
@@ -122,3 +122,20 @@ jobs:
           real_sshd_with_only_an_rsa_host_key
           real_sshd_accepts_an_rsa_key_file
           real_sshd_accepts_a_pem_rsa_key_file
+
+      # Shell integration starts the user's bash, zsh or fish through
+      # unix/start.sh, which only the real shells show working. The Ubuntu
+      # runner has all three plus sshd, where the runner's login shell is bash.
+      - name: Test shell integration with real shells (Ubuntu only)
+        if: matrix.platform == 'ubuntu-24.04'
+        working-directory: src-tauri
+        run: cargo test --lib -- --ignored real_shell_integration
+
+      # macOS's own bash takes a path of its own in unix/start.sh.
+      - name: Test shell integration with real shells (macOS only)
+        if: matrix.platform == 'macos-latest'
+        working-directory: src-tauri
+        run: >-
+          cargo test --lib -- --ignored
+          real_shell_integration_marks_commands_in_each_shell
+          real_shell_integration_reports_the_directory_with_marks_off
