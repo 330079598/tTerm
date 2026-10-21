@@ -1,4 +1,5 @@
 use crate::sftp::internal::connection::map_sftp_error;
+use crate::sftp::internal::exec::shell_quote;
 use russh_sftp::client::SftpSession;
 use serde::{Deserialize, Serialize};
 use std::future::Future;
@@ -132,14 +133,10 @@ fn is_dangerous_delete_path(path: &str) -> bool {
     normalized.is_empty() || normalized == "/" || normalized == "." || normalized == ".."
 }
 
-fn shell_quote_single(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\\''"))
-}
-
 fn command_delete_script(paths: &[String]) -> String {
     let quoted_paths = paths
         .iter()
-        .map(|path| shell_quote_single(path))
+        .map(|path| shell_quote(path))
         .collect::<Vec<_>>()
         .join(" ");
 

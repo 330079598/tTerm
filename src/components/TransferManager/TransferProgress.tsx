@@ -6,6 +6,7 @@ import {
   formatItems,
   formatItemSpeed,
   formatSpeed,
+  isRemoteOperation,
 } from "@/components/TransferManager/transferDisplay"
 import type { TransferTask } from "@/types/tab"
 
@@ -17,6 +18,19 @@ export const TransferProgress: React.FC<{ transfer: TransferTask }> = ({ transfe
   const speed = transfer.speed ?? 0
   const resumedFrom = transfer.resumedFrom ?? 0
   const parallelism = transfer.parallelism ?? 0
+
+  if (isRemoteOperation(transfer)) {
+    return (
+      <div className="mt-2 space-y-1.5">
+        <div className="bg-muted h-1 overflow-hidden rounded-full">
+          <div className="bg-primary/60 h-full w-full animate-pulse" />
+        </div>
+        <div className="text-muted-foreground text-[10px]">
+          {t("transfer.runningOnServer", { defaultValue: "Running on the server…" })}
+        </div>
+      </div>
+    )
+  }
 
   if (transfer.sizeUnknown) {
     // Without a total there is no share to show, only that bytes are coming.

@@ -1840,7 +1840,9 @@
     "direction": {
       "upload": "Upload",
       "download": "Download",
-      "delete": "Delete"
+      "delete": "Delete",
+      "compress": "Compress",
+      "extract": "Extract"
     },
     "status": {
       "pending": "Waiting",
@@ -1859,7 +1861,8 @@
       "failed_other": "{{count}} transfers failed",
       "idle_one": "{{count}} finished transfer",
       "idle_other": "{{count}} finished transfers"
-    }
+    },
+    "runningOnServer": "Running on the server…"
   },
   "zmodem": {
     "actions": {
@@ -1912,7 +1915,9 @@
       "refresh": "Refresh",
       "close": "Close",
       "openInTerminal": "Open in Terminal",
-      "openCurrentInTerminal": "Open this folder in the terminal"
+      "openCurrentInTerminal": "Open this folder in the terminal",
+      "compress": "Compress…",
+      "extract": "Extract…"
     },
     "selection": {
       "clear": "Clear Selection",
@@ -2041,6 +2046,24 @@
       "label": "Follow the terminal's directory",
       "notReported": "The shell has not reported its directory yet. If shell integration did not start, the connection header says why.",
       "needsShellIntegration": "The shell does not report its directory: turn on Shell integration in the connection's settings, then reconnect."
+    },
+    "archive": {
+      "compressTitle": "Compress",
+      "compressDescription_one": "Make an archive of {{count}} item in {{folder}} on the server.",
+      "compressDescription_other": "Make an archive of {{count}} items in {{folder}} on the server.",
+      "nameLabel": "Archive name",
+      "formatLabel": "Format",
+      "compress": "Compress",
+      "extractTitle": "Extract {{name}}",
+      "extractDescription": "The archive is unpacked on the server. The folder is created if it does not exist.",
+      "destinationLabel": "Extract to",
+      "overwrite": "Replace files that already exist",
+      "extract": "Extract",
+      "compressSuccess": "Created {{name}}",
+      "compressFailure": "Failed to compress",
+      "extractSuccess": "Extracted {{name}}",
+      "extractFailure": "Failed to extract",
+      "differentFolders": "Items from different folders can't go in one archive."
     }
   },
   "terminalSearch": {

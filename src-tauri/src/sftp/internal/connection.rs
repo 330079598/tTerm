@@ -179,6 +179,26 @@ pub async fn get_or_create_sftp_connection(
     Ok(())
 }
 
+/// The tab's pooled connection, opened when there is none: its SFTP session
+/// and the SSH connection under it, for running commands next to it. Holding
+/// the handles keeps the reaper from closing the connection mid-operation.
+pub async fn pooled_handles(
+    app: &AppHandle,
+    tab_id: &str,
+    plan: &SessionPlan,
+    prompts: HostPromptMap,
+    pool: &SftpConnectionPool,
+) -> Result<(Arc<SftpSession>, Arc<client::Handle<SshClientHandler>>), String> {
+    let key = SftpConnectionKey::from_plan(tab_id, plan)?;
+    get_or_create_sftp_connection(app, tab_id, plan, prompts, pool).await?;
+    let pool_guard = pool.read().await;
+    let cached = pool_guard.get(&key).ok_or("Connection not found")?;
+    Ok((
+        cached.connection.sftp.clone(),
+        cached.connection.ssh.clone(),
+    ))
+}
+
 /// An operation holds a clone of the session handles while it runs
 /// (`with_sftp!`, transfers); closing the connection then would cut it off.
 fn in_use(connection: &ConnectedSftp) -> bool {

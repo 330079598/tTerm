@@ -3,6 +3,7 @@ import { createPortal } from "react-dom"
 import { useTranslation } from "react-i18next"
 
 import { ContextMenu } from "@/components/ContextMenu"
+import { archiveFormatOf } from "@/components/SftpDrawer/sftpArchive"
 
 import type { SftpContextMenuState, SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 
@@ -11,10 +12,12 @@ interface SftpEntryContextMenuProps {
   contextMenuEntry: SftpDirectoryEntry | null
   /** Missing when the drawer's tab has no shell to send `cd` to. */
   handleCdInTerminal?: (path: string) => void
+  handleCompress: () => void
   handleCopyPath: () => Promise<void>
   handleDelete: () => void
   handleDownload: () => Promise<void>
   handleEdit: () => void
+  handleExtract: () => void
   handlePermissions: () => void
   handleRename: () => void
   isDeleting: boolean
@@ -26,10 +29,12 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
   contextMenu,
   contextMenuEntry,
   handleCdInTerminal,
+  handleCompress,
   handleCopyPath,
   handleDelete,
   handleDownload,
   handleEdit,
+  handleExtract,
   handlePermissions,
   handleRename,
   isDeleting,
@@ -41,6 +46,7 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
   if (!contextMenu || !contextMenuEntry) {
     return null
   }
+  const canExtract = selectionCount === 1 && archiveFormatOf(contextMenuEntry) !== null
 
   return createPortal(
     <ContextMenu
@@ -73,6 +79,14 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
             selectionCount > 1 ? "download" : contextMenuEntry.isDir ? "folder-down" : "file-down",
         },
         {
+          label: t("sftp.actions.compress"),
+          action: "compress",
+          icon: "archive",
+        },
+        ...(canExtract
+          ? [{ label: t("sftp.actions.extract"), action: "extract", icon: "extract" }]
+          : []),
+        {
           label: t("sftp.actions.edit", { defaultValue: "Edit" }),
           action: "edit",
           icon: "edit",
@@ -101,6 +115,8 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
         if (action === "download") void handleDownload()
         else if (action === "copy-path") void handleCopyPath()
         else if (action === "cd") handleCdInTerminal?.(contextMenuEntry.path)
+        else if (action === "compress") handleCompress()
+        else if (action === "extract") handleExtract()
         else if (action === "edit") handleEdit()
         else if (action === "rename") handleRename()
         else if (action === "permissions") handlePermissions()

@@ -73,7 +73,8 @@ export interface SavedJumpHost {
 }
 
 export type TransferStatus = "pending" | "transferring" | "completed" | "failed" | "cancelled"
-export type TransferDirection = "upload" | "download" | "delete"
+/** `compress` and `extract` run on the server, with no bytes to count. */
+export type TransferDirection = "upload" | "download" | "delete" | "compress" | "extract"
 
 export interface TransferTask {
   id: string

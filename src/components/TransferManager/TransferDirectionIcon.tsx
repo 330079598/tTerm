@@ -4,6 +4,8 @@ import {
   ArrowUpFromLine,
   CheckCircle2,
   Clock,
+  FileArchive,
+  PackageOpen,
   Trash2,
   XCircle,
 } from "lucide-react"
@@ -18,12 +20,16 @@ const DIRECTION_STYLES: Record<TransferDirection, string> = {
   upload: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
   download: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
   delete: "bg-muted text-muted-foreground",
+  compress: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  extract: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
 }
 
 const DIRECTION_ICONS: Record<TransferDirection, React.ComponentType<{ className?: string }>> = {
   upload: ArrowUpFromLine,
   download: ArrowDownToLine,
   delete: Trash2,
+  compress: FileArchive,
+  extract: PackageOpen,
 }
 
 /** The badge on the icon's corner; a running transfer has none, its progress bar says it. */

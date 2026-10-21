@@ -9,6 +9,12 @@ export function joinRemotePath(basePath: string, name: string): string {
   return `${basePath}/${name}`
 }
 
+/** The folder holding `path`; `/` for an entry of the root. */
+export function parentRemotePath(path: string): string {
+  const slash = path.lastIndexOf("/")
+  return slash <= 0 ? "/" : path.slice(0, slash)
+}
+
 /** The drawer's font sizes, which follow the terminal's. */
 export function sftpFontSizeStyle(fontSize: number): React.CSSProperties {
   return {

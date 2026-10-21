@@ -7,6 +7,7 @@ import {
   formatBytes,
   formatDuration,
   formatItems,
+  isRemoteOperation,
 } from "@/components/TransferManager/transferDisplay"
 import { TransferProgress } from "@/components/TransferManager/TransferProgress"
 import { isActiveTransfer } from "@/components/TransferManager/transferSummary"
@@ -42,6 +43,7 @@ export const TransferItem: React.FC<TransferItemProps> = (props) => {
   const { t } = useTranslation()
   const isActive = isActiveTransfer(transfer)
   const isDelete = transfer.direction === "delete"
+  const isRemote = isRemoteOperation(transfer)
   const duration = transfer.endTime ? transfer.endTime - transfer.startTime : 0
   const childTransfers = childTransfersByBatchId.get(transfer.id) ?? []
   const canExpand =
@@ -101,11 +103,7 @@ export const TransferItem: React.FC<TransferItemProps> = (props) => {
         <div className="min-w-0 flex-1">
           <div className="truncate text-xs font-medium">{transfer.fileName}</div>
           <div className="text-muted-foreground truncate font-mono text-[10px]">
-            {transfer.direction === "upload"
-              ? transfer.remotePath
-              : transfer.direction === "delete"
-                ? transfer.remotePath
-                : transfer.localPath}
+            {transfer.direction === "download" ? transfer.localPath : transfer.remotePath}
           </div>
         </div>
 
@@ -165,8 +163,13 @@ export const TransferItem: React.FC<TransferItemProps> = (props) => {
 
       {transfer.status === "pending" && (
         <div className="text-muted-foreground mt-2 text-[10px]">
-          {t("transfer.pending", { defaultValue: "Waiting..." })} {" - "}
-          {isDelete ? formatItems(transfer.fileSize, t) : formatBytes(transfer.fileSize)}
+          {t("transfer.pending", { defaultValue: "Waiting..." })}
+          {!isRemote && (
+            <>
+              {" - "}
+              {isDelete ? formatItems(transfer.fileSize, t) : formatBytes(transfer.fileSize)}
+            </>
+          )}
         </div>
       )}
 
@@ -180,11 +183,13 @@ export const TransferItem: React.FC<TransferItemProps> = (props) => {
             </span>
           )}
           <span>{formatDuration(duration)}</span>
-          <span>
-            {isDelete
-              ? formatItems(transfer.fileSize, t)
-              : formatBytes(transfer.sizeUnknown ? transfer.transferred : transfer.fileSize)}
-          </span>
+          {!isRemote && (
+            <span>
+              {isDelete
+                ? formatItems(transfer.fileSize, t)
+                : formatBytes(transfer.sizeUnknown ? transfer.transferred : transfer.fileSize)}
+            </span>
+          )}
         </div>
       )}
 

@@ -164,6 +164,40 @@ impl TestSshd {
         .expect("connect to test sshd")
     }
 
+    /// A session logged in as the current user, with an SFTP session over
+    /// it. The server must run with a `Subsystem sftp` line.
+    pub(crate) async fn sftp_session(
+        &self,
+    ) -> (
+        client::Handle<AcceptAnyServerKey>,
+        Arc<russh_sftp::client::SftpSession>,
+    ) {
+        let username = current_user();
+        let mut session = self.connect().await;
+        crate::ssh::auth::authenticate(
+            &mut session,
+            &crate::ssh::auth::AuthTarget {
+                host: "127.0.0.1",
+                port: self.port,
+                username: &username,
+                hop: None,
+            },
+            self.key_method(),
+            &crate::ssh::auth::AuthPrompter::Unavailable,
+        )
+        .await
+        .expect("authenticate");
+        let channel = session.channel_open_session().await.expect("open channel");
+        channel
+            .request_subsystem(true, "sftp")
+            .await
+            .expect("sftp subsystem");
+        let sftp = russh_sftp::client::SftpSession::new(channel.into_stream())
+            .await
+            .expect("sftp session");
+        (session, Arc::new(sftp))
+    }
+
     pub(crate) fn key_method(&self) -> AuthMethod<'_> {
         AuthMethod::Key {
             path: self.client_key.to_str().expect("utf-8 key path"),

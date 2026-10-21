@@ -31,11 +31,14 @@ interface UseSftpEntryActionsOptions {
   onOpenRemoteFile: SftpDrawerProps["onOpenRemoteFile"]
   setPermissionEntries: React.Dispatch<React.SetStateAction<SftpDirectoryEntry[]>>
   currentPath: string | null
+  openCompress: (entries: SftpDirectoryEntry[]) => void
+  openExtract: (entry: SftpDirectoryEntry) => void
 }
 
 /**
  * What can be done to entries besides deleting them: creating a folder,
- * renaming, downloading, opening or editing, permissions and copying a path.
+ * renaming, downloading, opening or editing, permissions, compressing or
+ * extracting and copying a path.
  */
 export function useSftpEntryActions({
   tabId,
@@ -55,6 +58,8 @@ export function useSftpEntryActions({
   onOpenRemoteFile,
   setPermissionEntries,
   currentPath,
+  openCompress,
+  openExtract,
 }: UseSftpEntryActionsOptions) {
   const createFolderName = dialog.type === "createFolder" ? dialog.folderName : ""
   const renameEntry = dialog.type === "rename" ? dialog.entry : null
@@ -180,6 +185,15 @@ export function useSftpEntryActions({
     setPermissionEntries(targetEntries())
   }, [setPermissionEntries, targetEntries])
 
+  const handleCompress = useCallback(() => {
+    openCompress(targetEntries())
+  }, [openCompress, targetEntries])
+
+  const handleExtract = useCallback(() => {
+    const entry = contextMenuEntry ?? activeEntry
+    if (entry) openExtract(entry)
+  }, [activeEntry, contextMenuEntry, openExtract])
+
   const handleApplyPermissions = useCallback(
     async (entries: SftpDirectoryEntry[], mode: number) => {
       await invoke("sftp_set_permissions", {
@@ -230,6 +244,8 @@ export function useSftpEntryActions({
     handleEdit,
     handlePermissions,
     handleApplyPermissions,
+    handleCompress,
+    handleExtract,
     handleCopyPath,
   }
 }

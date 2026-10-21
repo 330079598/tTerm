@@ -1,3 +1,10 @@
+import type { TransferTask } from "@/types/tab"
+
+/** A command running on the server, which reports no progress until it ends. */
+export function isRemoteOperation(transfer: Pick<TransferTask, "direction">) {
+  return transfer.direction === "compress" || transfer.direction === "extract"
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B"
   const k = 1024

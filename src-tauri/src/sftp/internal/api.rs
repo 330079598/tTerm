@@ -39,6 +39,7 @@ macro_rules! with_sftp {
     }};
 }
 
+pub mod archive;
 pub mod base;
 pub mod conflict;
 pub mod delete;
@@ -47,17 +48,22 @@ pub mod edit;
 pub mod permissions;
 pub mod upload;
 
-use crate::core::session::types::SessionPlan;
+use crate::core::session::types::{PtyConnectionOptions, SessionPlan};
 use crate::core::state::HostPromptMap;
 use crate::sftp::internal::connection::{
-    evict_connection, get_or_create_sftp_connection, open_sftp_raw_session,
+    ensure_ssh_plan, evict_connection, get_or_create_sftp_connection, open_sftp_raw_session,
+    pooled_handles,
 };
 use crate::sftp::internal::transfer::rate_limit::RateLimiter;
 use crate::sftp::internal::transfer::{
     RemoteChannels, TransferDirection, DEFAULT_PARALLELISM, MAX_PARALLELISM,
 };
-use crate::sftp::internal::types::{SftpConnectionKey, SftpConnectionPool};
+use crate::sftp::internal::types::{SftpConnectionKey, SftpConnectionPool, TransferCancelMap};
+use crate::ssh::secret_store::types::SecretStoreState;
+use crate::ssh::types::SshClientHandler;
+use russh::client;
 use russh_sftp::client::SftpSession;
+use std::future::Future;
 use std::sync::PoisonError;
 use std::sync::{Arc, LazyLock, RwLock};
 use std::time::SystemTime;
@@ -128,6 +134,47 @@ pub fn transfer_rate_limiter(direction: TransferDirection) -> Arc<RateLimiter> {
 pub fn apply_bandwidth_limits(config: &crate::config::AppConfig) {
     UPLOAD_LIMITER.set_rate(u64::from(config.sftp_upload_limit_kib) * 1024);
     DOWNLOAD_LIMITER.set_rate(u64::from(config.sftp_download_limit_kib) * 1024);
+}
+
+/// What a command that works on the tab's host needs to reach it.
+pub struct SftpHost<'a> {
+    pub app: &'a AppHandle,
+    pub tab_id: &'a str,
+    pub connection: Option<PtyConnectionOptions>,
+    pub prompts: HostPromptMap,
+    pub secret_state: &'a SecretStoreState,
+    pub pool: &'a SftpConnectionPool,
+}
+
+impl SftpHost<'_> {
+    /// The tab's pooled SFTP session and the SSH connection under it.
+    pub async fn handles(
+        self,
+    ) -> Result<(Arc<SftpSession>, Arc<client::Handle<SshClientHandler>>), String> {
+        let plan = ensure_ssh_plan(self.app, self.secret_state, self.connection)?;
+        pooled_handles(self.app, self.tab_id, &plan, self.prompts, self.pool).await
+    }
+}
+
+/// Runs `work` as the operation `operation_id`, which the cancel map can stop
+/// from the moment the command starts, connecting included.
+pub async fn with_cancel<F, Fut, T>(
+    cancel_map: &TransferCancelMap,
+    operation_id: &str,
+    work: F,
+) -> T
+where
+    F: FnOnce(tokio::sync::watch::Receiver<bool>) -> Fut,
+    Fut: Future<Output = T>,
+{
+    let (sender, receiver) = tokio::sync::watch::channel(false);
+    cancel_map
+        .write()
+        .await
+        .insert(operation_id.to_string(), sender);
+    let result = work(receiver).await;
+    cancel_map.write().await.remove(operation_id);
+    result
 }
 
 /// Ensure a pooled connection exists, then open `parallelism` SFTP channels

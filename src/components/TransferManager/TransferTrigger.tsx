@@ -5,6 +5,8 @@ import {
   ArrowUpFromLine,
   ChevronDown,
   ChevronUp,
+  FileArchive,
+  PackageOpen,
   Trash2,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -21,6 +23,8 @@ const KIND_ICONS: Record<TransferKind, React.ComponentType<{ className?: string 
   upload: ArrowUpFromLine,
   download: ArrowDownToLine,
   delete: Trash2,
+  compress: FileArchive,
+  extract: PackageOpen,
   mixed: ArrowDownUp,
 }
 

@@ -31,6 +31,8 @@ import {
   Highlighter,
   FolderDown,
   ScrollText,
+  FileArchive,
+  PackageOpen,
 } from "lucide-react"
 import { useShortcutLabel } from "@/contexts/KeymapContext"
 import { TabContextMenuAction } from "@/types/tab"
@@ -105,6 +107,10 @@ const getActionIcon = (icon?: string) => {
       return <FileDown size={14} aria-hidden="true" />
     case "folder-down":
       return <FolderDown size={14} aria-hidden="true" />
+    case "archive":
+      return <FileArchive size={14} aria-hidden="true" />
+    case "extract":
+      return <PackageOpen size={14} aria-hidden="true" />
     case "highlighter":
       return <Highlighter size={14} aria-hidden="true" />
     case "scroll-text":

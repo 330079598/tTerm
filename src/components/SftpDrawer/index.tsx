@@ -16,6 +16,8 @@ import { SftpDrawerHeader } from "@/components/SftpDrawer/SftpDrawerHeader"
 import { SftpDialogs } from "@/components/SftpDrawer/SftpDialogs"
 import { SftpEntryContextMenu } from "@/components/SftpDrawer/SftpEntryContextMenu"
 import { SftpPermissionsDialog } from "@/components/SftpDrawer/SftpPermissionsDialog"
+import { SftpArchiveDialog } from "@/components/SftpDrawer/SftpArchiveDialog"
+import { useSftpArchive } from "@/components/SftpDrawer/useSftpArchive"
 import { useSftpDragDrop } from "@/components/SftpDrawer/useSftpDragDrop"
 import { useSftpDragOut } from "@/components/SftpDrawer/useSftpDragOut"
 import { useSftpPasteUpload } from "@/components/SftpDrawer/useSftpPasteUpload"
@@ -106,6 +108,14 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     setError,
     tabId,
   })
+  const archive = useSftpArchive({
+    tabId,
+    connection,
+    addTransfer,
+    updateTransfer,
+    listingCurrentPath,
+    loadDirectory,
+  })
 
   const { handleDragEnter, handleDragLeave, handleDragOver, handleDrop, isDragActive } =
     useSftpDragDrop({
@@ -187,6 +197,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     handleEdit,
     handlePermissions,
     handleApplyPermissions,
+    handleCompress,
+    handleExtract,
     handleCopyPath,
   } = useSftpEntryActions({
     tabId,
@@ -206,6 +218,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     onOpenRemoteFile,
     setPermissionEntries,
     currentPath,
+    openCompress: archive.openCompress,
+    openExtract: archive.openExtract,
   })
 
   const {
@@ -343,10 +357,12 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         contextMenu={contextMenu}
         contextMenuEntry={contextMenuEntry}
         handleCdInTerminal={onCdInTerminal ? handleCdInTerminal : undefined}
+        handleCompress={handleCompress}
         handleCopyPath={handleCopyPath}
         handleDelete={handleDelete}
         handleDownload={handleDownload}
         handleEdit={handleEdit}
+        handleExtract={handleExtract}
         handlePermissions={handlePermissions}
         handleRename={handleRename}
         isDeleting={isDeleting}
@@ -369,6 +385,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         onApply={handleApplyPermissions}
         onClose={() => setPermissionEntries(EMPTY_SFTP_ENTRIES)}
       />
+      <SftpArchiveDialog {...archive.dialogProps} />
       {conflictDialog}
     </div>
   )

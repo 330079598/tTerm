@@ -1,3 +1,4 @@
+import { isRemoteOperation } from "@/components/TransferManager/transferDisplay"
 import type { TransferDirection, TransferTask } from "@/types/tab"
 
 /** What the transfers being summed up move: one direction, or more than one. */
@@ -27,12 +28,17 @@ export function summarizeTransfers(transfers: TransferTask[]): TransferSummary {
   const [onlyDirection] = directions
   const kind: TransferKind = directions.size === 1 ? onlyDirection : "mixed"
 
-  // A delete counts items and a byte transfer counts bytes, so only byte
-  // transfers with a known total go into the share.
+  // A delete counts items, a server command nothing, and a byte transfer
+  // bytes, so only byte transfers with a known total go into the share.
   let total = 0
   let moved = 0
   for (const transfer of active) {
-    if (transfer.direction === "delete" || transfer.sizeUnknown || transfer.fileSize <= 0) {
+    if (
+      transfer.direction === "delete" ||
+      isRemoteOperation(transfer) ||
+      transfer.sizeUnknown ||
+      transfer.fileSize <= 0
+    ) {
       continue
     }
     total += transfer.fileSize
