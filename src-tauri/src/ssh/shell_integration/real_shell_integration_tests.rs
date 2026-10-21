@@ -48,11 +48,10 @@ fn expect_output(output: &Mutex<Vec<u8>>, needle: &str, shell: &Path) {
         }
         std::thread::sleep(Duration::from_millis(50));
     }
-    panic!(
-        "{}: no {needle:?} in {:?}",
-        shell.display(),
-        String::from_utf8_lossy(&output.lock().unwrap())
-    );
+    // Copied out first: panicking with the lock held would poison it for the
+    // reader thread.
+    let printed = String::from_utf8_lossy(&output.lock().unwrap()).into_owned();
+    panic!("{}: no {needle:?} in {printed:?}", shell.display());
 }
 
 /// A shell started through `unix/start.sh` on a pty, and what it printed.
@@ -149,6 +148,10 @@ fn home_with_scripts(shell: &Path) -> (TempDir, String) {
     let home = TempDir::new();
     // Keeps zsh from offering its new-user setup.
     std::fs::write(home.path.join(".zshrc"), "").unwrap();
+    // Debian's global zshrc runs compinit, which stops at a y/n prompt when
+    // it finds a group- or world-writable fpath directory, as on GitHub's
+    // Ubuntu runners, and the answer eats the first typed command.
+    std::fs::write(home.path.join(".zshenv"), "skip_global_compinit=1\n").unwrap();
     // A profile that replaces PROMPT_COMMAND must not drop tTerm's hook.
     // macOS's own bash still gets the hook before the profile, so this is
     // left out there.
