@@ -25,6 +25,7 @@ import { DataMigrationSettingsTab } from "@/components/SettingsDialog/DataMigrat
 import { FontSettingsTab } from "@/components/SettingsDialog/FontSettingsTab"
 import { GeneralSettingsTab } from "@/components/SettingsDialog/GeneralSettingsTab"
 import { LoggingSettingsTab } from "@/components/SettingsDialog/LoggingSettingsTab"
+import { HighlightSettingsTab } from "@/components/SettingsDialog/HighlightSettingsTab"
 import { NotificationSettingsTab } from "@/components/SettingsDialog/NotificationSettingsTab"
 import { KeymapSettingsTab } from "@/components/SettingsDialog/KeymapSettingsTab"
 import { ProfileGroupsSettingsTab } from "@/components/SettingsDialog/ProfileGroupsSettingsTab"
@@ -178,6 +179,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               loadingFonts={loadingFonts}
               fontSizeOptions={FONT_SIZE_OPTIONS}
             />
+          </SettingsTabPanel>
+
+          <SettingsTabPanel value="highlight">
+            <HighlightSettingsTab />
           </SettingsTabPanel>
 
           <SettingsTabPanel value="notifications">
