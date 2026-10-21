@@ -45,6 +45,8 @@ export interface SavedProfile {
   session_log?: SessionLogPolicy
   /** Where the connection's SFTP drawer opens; missing follows the SFTP setting. */
   sftp_start_directory?: SftpStartDirectory
+  /** The keyword highlight set's id, or `off`; missing follows the default set. */
+  highlight_set?: string
   /** Which proxy the first host is reached through; missing follows the default proxy. */
   proxy?: ProxyChoice
   /** The icon and color the connection's tabs show; missing shows the host's distribution. */
@@ -210,6 +212,8 @@ export interface Tab {
     sessionLog?: SessionLogPolicy
     /** SSH: where the SFTP drawer opens; missing follows the SFTP setting. */
     sftpStartDirectory?: SftpStartDirectory
+    /** SSH and serial: the keyword highlight set's id, or `off`; missing follows the default set. */
+    highlightSet?: string
     /** SSH: which proxy the first host is reached through; missing follows the default proxy. */
     proxy?: ProxyChoice
     /** Serial: the port and how it is opened. */

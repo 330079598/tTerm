@@ -24,6 +24,7 @@ import {
 import { normalizeVerificationMethod } from "@/lib/userVerification"
 import type { UpdateCheckFrequency } from "@/lib/updater"
 import { normalizeKeymap } from "@/lib/keymap/keymap"
+import { normalizeKeywordHighlightConfig } from "@/lib/keywordHighlight/config"
 import { normalizeMonitorVisibleMetrics } from "@/lib/monitorMetrics"
 import { normalizeSftpStartDirectory } from "@/lib/sftpStartDirectory"
 import { normalizeTabSettings } from "@/lib/tabSettings"
@@ -253,6 +254,7 @@ export function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     right_click_paste: config.right_click_paste === true,
     osc52_clipboard_write: config.osc52_clipboard_write !== false,
     command_marks: config.command_marks !== false,
+    keyword_highlight: normalizeKeywordHighlightConfig(config.keyword_highlight),
     local_shell_integration: config.local_shell_integration === true,
     terminal_line_height: normalizeTerminalLineHeight(config.terminal_line_height),
     terminal_letter_spacing: normalizeRoundedInRange(

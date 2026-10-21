@@ -37,6 +37,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
         terminalTheme: profile.terminal_theme,
         encoding: profile.encoding,
         sessionLog: normalizeSessionLogPolicy(profile.session_log),
+        highlightSet: profile.highlight_set,
         serial: normalizeSerialSettings(profile.serial),
       },
     }
@@ -69,6 +70,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
       shellIntegration: profile.shell_integration === true,
       sessionLog: normalizeSessionLogPolicy(profile.session_log),
       sftpStartDirectory: normalizeSftpStartDirectory(profile.sftp_start_directory),
+      highlightSet: profile.highlight_set,
       proxy: proxyChoicePayload(normalizeProxyChoice(profile.proxy)),
       jumpHosts:
         useJumpHost && jumpHosts.length > 0

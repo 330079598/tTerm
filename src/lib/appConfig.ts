@@ -2,6 +2,10 @@ import { detectSystemLanguage } from "@/i18n/language"
 import type { VerificationMethod } from "@/lib/userVerification"
 import type { UpdateCheckFrequency } from "@/lib/updater"
 import { DEFAULT_KEYMAP_CONFIG, type KeymapConfig } from "@/lib/keymap/keymap"
+import {
+  defaultKeywordHighlightConfig,
+  type KeywordHighlightConfig,
+} from "@/lib/keywordHighlight/config"
 import { DEFAULT_MONITOR_VISIBLE_METRICS, type MonitorMetricId } from "@/lib/monitorMetrics"
 import type { SftpStartDirectory } from "@/lib/sftpStartDirectory"
 import { DEFAULT_TAB_SETTINGS, type TabSettings } from "@/lib/tabSettings"
@@ -133,6 +137,8 @@ export interface AppConfig extends TabSettings {
   osc52_clipboard_write: boolean
   /** Local shells mark their prompts and commands (OSC 133) for jumping and copying output. */
   command_marks: boolean
+  /** Words and patterns colored in terminal output, in named sets. */
+  keyword_highlight: KeywordHighlightConfig
   /** macOS and Linux: local bash, zsh and fish start through tTerm's shell integration. */
   local_shell_integration: boolean
   /** Multiple of the font's cell height. */
@@ -244,6 +250,7 @@ export const defaultConfig: AppConfig = {
   right_click_paste: false,
   osc52_clipboard_write: true,
   command_marks: true,
+  keyword_highlight: defaultKeywordHighlightConfig(),
   local_shell_integration: false,
   terminal_line_height: 1,
   terminal_letter_spacing: 0,

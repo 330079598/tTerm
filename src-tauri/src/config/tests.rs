@@ -1,4 +1,4 @@
-use super::AppConfig;
+use super::{keyword_highlight, AppConfig};
 
 #[test]
 fn legacy_config_shows_its_one_theme() {
@@ -253,4 +253,33 @@ fn tab_agent_indicator_keeps_a_partial_choice() {
     assert_eq!(config.tab_agent_indicator.working, "braille");
     assert_eq!(config.tab_agent_indicator.waiting, "bars");
     assert_eq!(config.tab_agent_indicator.waiting_color, "#ff0000");
+}
+
+#[test]
+fn keyword_highlight_defaults_to_the_built_in_set() {
+    let config: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+
+    assert!(config.keyword_highlight.enabled);
+    assert_eq!(config.keyword_highlight.default_set, "builtin");
+    assert!(!config.keyword_highlight.alternate_screen);
+    assert!(config.keyword_highlight.sets.is_none());
+}
+
+#[test]
+fn keyword_highlight_keeps_the_users_sets() {
+    let config: AppConfig = serde_json::from_str(
+        r##"{"theme":"default","keyword_highlight":{"default_set":"net","sets":[{"id":"net","name":"Network","rules":[{"id":"r1","pattern":"down","foreground":"#ff0000"}]}]}}"##,
+    )
+    .unwrap();
+
+    let sets = config.keyword_highlight.sets.as_ref().unwrap();
+    let rule = &sets[0].rules[0];
+    assert_eq!(sets[0].name, "Network");
+    assert!(rule.enabled);
+    assert_eq!(rule.kind, "keyword");
+    assert_eq!(rule.foreground.as_deref(), Some("#ff0000"));
+    assert_eq!(rule.background, None);
+    let saved = serde_json::to_string(&config.keyword_highlight).unwrap();
+    let reread: keyword_highlight::KeywordHighlightConfig = serde_json::from_str(&saved).unwrap();
+    assert_eq!(reread, config.keyword_highlight);
 }

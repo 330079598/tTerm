@@ -1,4 +1,5 @@
 pub(crate) mod atomic;
+pub mod keyword_highlight;
 pub(crate) mod paths;
 pub mod reconnect;
 pub mod tab_agent_indicator;
@@ -275,6 +276,9 @@ pub struct AppConfig {
     /// How a tab shows an AI agent at work or waiting for the user.
     #[serde(default)]
     pub tab_agent_indicator: tab_agent_indicator::TabAgentIndicatorConfig,
+    /// Words and patterns colored in terminal output, in named sets.
+    #[serde(default)]
+    pub keyword_highlight: keyword_highlight::KeywordHighlightConfig,
     /// Proxy server that hosts left on the default connect through; none when empty.
     #[serde(default)]
     pub default_proxy_id: String,
@@ -689,6 +693,7 @@ impl Default for AppConfig {
             bell_style: default_bell_style(),
             tab_icons: tab_icons::TabIconConfig::default(),
             tab_agent_indicator: tab_agent_indicator::TabAgentIndicatorConfig::default(),
+            keyword_highlight: keyword_highlight::KeywordHighlightConfig::default(),
             default_proxy_id: String::new(),
         }
     }

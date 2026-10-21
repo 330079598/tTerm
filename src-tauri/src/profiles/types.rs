@@ -99,6 +99,10 @@ pub struct SavedProfile {
     /// `terminal`, or as the SFTP setting says when unset.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sftp_start_directory: Option<String>,
+    /// The keyword highlight set this connection's tabs use: a set's id, or
+    /// `off`; the default set when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub highlight_set: Option<String>,
     /// Which proxy server the first host is reached through; the device's
     /// default proxy when unset.
     #[serde(default, skip_serializing_if = "crate::proxy::ProxyChoice::is_default")]
