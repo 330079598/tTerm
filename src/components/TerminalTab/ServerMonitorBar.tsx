@@ -135,10 +135,10 @@ export const ServerMonitorBar: React.FC<ServerMonitorBarProps> = ({
 
     const { snapshot, cpuPercent, networkRate } = state
     if (!snapshot.supported) {
+      const os = snapshot.kernel?.split(" ")[0]
       return (
         <span className="server-monitor-message">
-          {snapshot.unsupportedReason ??
-            t("serverMonitor.unsupported", { defaultValue: "Only Linux hosts are supported" })}
+          {os ? t("serverMonitor.unsupportedOs", { os }) : t("serverMonitor.unsupported")}
         </span>
       )
     }

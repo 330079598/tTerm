@@ -155,7 +155,8 @@ export function useServerMetricsPolling({
           return
         }
         const hadCpuBaseline = previousCpuTimesRef.current !== undefined
-        const cpuPercent = calculateCpuPercent(previousCpuTimesRef.current, snapshot.cpuTimes)
+        const cpuPercent =
+          snapshot.cpuPercent ?? calculateCpuPercent(previousCpuTimesRef.current, snapshot.cpuTimes)
         const cpuCorePercents = calculateCpuCorePercents(
           previousCpuCoreTimesRef.current,
           snapshot.cpuCoreTimes

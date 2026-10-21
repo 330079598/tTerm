@@ -86,6 +86,12 @@ impl RemoteScript {
             .channel_open_session()
             .await
             .map_err(|err| format!("Failed to open SSH channel: {err}"))?;
+        Self::start_on(channel, script).await
+    }
+
+    /// Starts `script` as [`RemoteScript::start`] does, on a channel the
+    /// caller opened, for one that times the opening.
+    pub async fn start_on(channel: Channel<Msg>, script: &str) -> Result<Self, String> {
         let started = async {
             channel.exec(true, "exec sh -s").await?;
             channel.data(script.as_bytes()).await?;

@@ -1,4 +1,7 @@
-/** What a Linux host's `/etc/os-release` says about it. */
+/**
+ * What a host's `/etc/os-release` says about it. Linux and FreeBSD have the
+ * file; the server monitor fills it in from `sw_vers` on macOS.
+ */
 export type LinuxDistributionInfo = {
   id: string
   idLike: string[]
@@ -9,8 +12,8 @@ export type LinuxDistributionInfo = {
 
 /**
  * The distributions with an icon of their own, generic Linux first, then
- * roughly by how often they run on servers. Each has `<id>.svg` in
- * `public/assets/distro-icons`.
+ * roughly by how often they run on servers, then the other systems the
+ * server monitor reads. Each has `<id>.svg` in `public/assets/distro-icons`.
  */
 export const DISTRO_IDS = [
   "linux",
@@ -46,6 +49,8 @@ export const DISTRO_IDS = [
   "biglinux",
   "nobara",
   "bazzite",
+  "freebsd",
+  "macos",
 ] as const
 
 export type DistroId = (typeof DISTRO_IDS)[number]
@@ -85,6 +90,8 @@ const DISTRO_NAMES: Record<DistroId, string> = {
   biglinux: "BigLinux",
   nobara: "Nobara",
   bazzite: "Bazzite",
+  freebsd: "FreeBSD",
+  macos: "macOS",
 }
 
 // Checked in order against each value, so names that contain another's
@@ -128,6 +135,8 @@ const DISTRO_RULES: Array<{ patterns: string[]; id: DistroId; exact?: boolean }>
   { patterns: ["amazon"], id: "amazon" },
   { patterns: ["amzn"], id: "amazon", exact: true },
   { patterns: ["oracle"], id: "oracle" },
+  { patterns: ["freebsd"], id: "freebsd" },
+  { patterns: ["macos", "mac os x"], id: "macos" },
 ]
 
 /**

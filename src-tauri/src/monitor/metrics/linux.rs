@@ -1,10 +1,46 @@
-//! Reads what the script prints on Linux: `/proc` for the CPU, memory, load,
-//! uptime and network, and `df` for the file systems.
+//! Reads what the script's Linux section prints: `/proc` for the CPU,
+//! memory, load, uptime and network, and `df` for the file systems.
 
-use super::percent;
-use crate::monitor::types::{CpuCoreTimes, CpuTimes, DiskMetrics, MemoryMetrics, NetworkMetrics};
+use super::{extract_block, find_prefixed_line, parse_load_average, percent, sort_disks};
+use crate::monitor::types::{
+    CpuCoreTimes, CpuTimes, DiskMetrics, MemoryMetrics, NetworkMetrics, ServerMetricsSnapshot,
+};
 
-pub(super) fn parse_cpu_times(line: &str) -> Option<CpuTimes> {
+pub(super) fn parse(output: &str) -> ServerMetricsSnapshot {
+    let disks = extract_block(output, "__TTERM_DISKS_BEGIN__", "__TTERM_DISKS_END__")
+        .map(parse_disk_metrics_block)
+        .unwrap_or_default();
+    let disk = disks
+        .iter()
+        .find(|disk| disk.mount == "/")
+        .cloned()
+        .or_else(|| {
+            find_prefixed_line(output, "__TTERM_DF_ROOT__")
+                .and_then(|line| parse_legacy_disk_metrics(&line))
+        });
+
+    ServerMetricsSnapshot {
+        supported: true,
+        cpu_times: find_prefixed_line(output, "__TTERM_PROC_STAT__")
+            .and_then(|line| parse_cpu_times(&line)),
+        cpu_core_times: find_prefixed_line(output, "__TTERM_PROC_STAT_CORES__")
+            .map(|line| parse_cpu_core_times(&line))
+            .unwrap_or_default(),
+        memory: find_prefixed_line(output, "__TTERM_MEMINFO__")
+            .and_then(|line| parse_memory_metrics(&line)),
+        disk,
+        disks,
+        network: find_prefixed_line(output, "__TTERM_NETWORK__")
+            .and_then(|line| parse_network_metrics(&line)),
+        load_average: find_prefixed_line(output, "__TTERM_LOADAVG__")
+            .and_then(|line| parse_load_average(&line)),
+        uptime_secs: find_prefixed_line(output, "__TTERM_UPTIME__")
+            .and_then(|line| line.parse::<u64>().ok()),
+        ..ServerMetricsSnapshot::default()
+    }
+}
+
+fn parse_cpu_times(line: &str) -> Option<CpuTimes> {
     let values = line
         .split_whitespace()
         .map(str::parse::<u64>)
@@ -28,7 +64,7 @@ pub(super) fn parse_cpu_times(line: &str) -> Option<CpuTimes> {
     })
 }
 
-pub(super) fn parse_cpu_core_times(line: &str) -> Vec<CpuCoreTimes> {
+fn parse_cpu_core_times(line: &str) -> Vec<CpuCoreTimes> {
     line.split_whitespace()
         .filter_map(|item| {
             let (id, raw_times) = item.split_once('=')?;
@@ -78,25 +114,15 @@ pub(super) fn parse_memory_metrics(line: &str) -> Option<MemoryMetrics> {
                 + reclaimable.unwrap_or(0),
         )
     })?;
-    let used = total.saturating_sub(available);
-    let used_percent = percent(used, total);
-    let swap_total = swap_total.unwrap_or(0);
-    let swap_free = swap_free.unwrap_or(0).min(swap_total);
-    let swap_used = swap_total.saturating_sub(swap_free);
-
-    Some(MemoryMetrics {
-        total_kib: total,
-        available_kib: available,
-        used_kib: used,
-        used_percent,
-        swap_total_kib: swap_total,
-        swap_free_kib: swap_free,
-        swap_used_kib: swap_used,
-        swap_used_percent: percent(swap_used, swap_total),
-    })
+    Some(MemoryMetrics::new(
+        total,
+        available,
+        swap_total.unwrap_or(0),
+        swap_free.unwrap_or(0),
+    ))
 }
 
-pub(super) fn parse_legacy_disk_metrics(line: &str) -> Option<DiskMetrics> {
+fn parse_legacy_disk_metrics(line: &str) -> Option<DiskMetrics> {
     let mut values = line.split_whitespace();
     let total = values.next()?.parse::<u64>().ok()?;
     let used = values.next()?.parse::<u64>().ok()?;
@@ -145,11 +171,7 @@ pub(super) fn parse_disk_metrics_block(block: &str) -> Vec<DiskMetrics> {
             })
         })
         .collect::<Vec<_>>();
-    disks.sort_by(|left, right| {
-        (left.mount != "/")
-            .cmp(&(right.mount != "/"))
-            .then_with(|| left.mount.cmp(&right.mount))
-    });
+    sort_disks(&mut disks);
     disks
 }
 

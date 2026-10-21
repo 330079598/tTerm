@@ -1,12 +1,12 @@
-use super::metrics::parse_metrics_output;
+use super::metrics::{parse_metrics_output, METRICS_SCRIPT};
 use super::types::{MonitorSession, MonitorSessionMap, MONITOR_SESSION_IDLE_TIMEOUT};
 use crate::core::session::types::SessionPlan;
 use crate::core::state::HostPromptMap;
+use crate::sftp::internal::exec::RemoteScript;
 use crate::ssh::{
     jump::connect::open_target_ssh_session, jump::connect::ConnectContext,
     jump::connect::SshTarget, types::ConnectionStatusOptions,
 };
-use russh::ChannelMsg;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 use tokio::sync::Mutex;
@@ -191,7 +191,7 @@ pub(crate) async fn collect_metrics_snapshot(
     let mut session = monitor_session.lock().await;
     session.last_used_at = Instant::now();
     let channel_open_started_at = Instant::now();
-    let mut channel = session
+    let channel = session
         .ssh
         .channel_open_session()
         .await
@@ -201,46 +201,21 @@ pub(crate) async fn collect_metrics_snapshot(
         .as_millis()
         .min(u64::MAX as u128) as u64;
 
-    channel
-        .exec(true, super::metrics::METRICS_SCRIPT)
-        .await
-        .map_err(|err| format!("Failed to execute metrics command: {err}"))?;
-
-    let mut stdout = String::new();
-    let mut stderr = String::new();
-    let mut exit_status = None;
-    while let Some(message) = channel.wait().await {
-        match message {
-            ChannelMsg::Data { data } => stdout.push_str(&String::from_utf8_lossy(&data)),
-            ChannelMsg::ExtendedData { data, .. } => {
-                stderr.push_str(&String::from_utf8_lossy(&data))
-            }
-            ChannelMsg::ExitStatus { exit_status: code } => exit_status = Some(code),
-            ChannelMsg::Close => break,
-            _ => {}
-        }
+    let mut script = RemoteScript::start_on(channel, METRICS_SCRIPT).await?;
+    let mut stdout = Vec::new();
+    while let Some(output) = script.next_output().await {
+        stdout.extend_from_slice(&output);
     }
-
-    let _ = channel.close().await;
+    let outcome = script.finish().await;
     session.last_used_at = Instant::now();
 
-    if exit_status.unwrap_or(0) != 0 {
-        let detail = stderr.trim();
-        return Err(if detail.is_empty() {
-            format!(
-                "Metrics command failed with exit status {}",
-                exit_status.unwrap_or(1)
-            )
-        } else {
-            format!(
-                "Metrics command failed with exit status {}: {}",
-                exit_status.unwrap_or(1),
-                detail
-            )
-        });
+    // A server that closes the channel without an exit status still sent
+    // the output.
+    if outcome.exit_status.is_some_and(|code| code != 0) {
+        return Err(outcome.failure_message("Metrics command"));
     }
 
-    let mut snapshot = parse_metrics_output(&stdout);
+    let mut snapshot = parse_metrics_output(&String::from_utf8_lossy(&stdout));
     snapshot.network_latency_ms = Some(network_latency_ms);
     Ok(snapshot)
 }

@@ -1612,7 +1612,8 @@
   "serverMonitor": {
     "loading": "Loading server metrics...",
     "disconnected": "Monitor paused until SSH reconnects",
-    "unsupported": "Only Linux hosts are supported",
+    "unsupported": "Monitoring supports Linux, macOS and FreeBSD hosts",
+    "unsupportedOs": "Monitoring does not support {{os}} hosts yet; it supports Linux, macOS and FreeBSD",
     "stale": "stale",
     "copyIp": "Copy server IP address",
     "copyIpSuccess": "IP copied",

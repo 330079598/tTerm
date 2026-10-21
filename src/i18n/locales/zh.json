@@ -1594,7 +1594,8 @@
   "serverMonitor": {
     "loading": "正在加载服务器指标...",
     "disconnected": "SSH 重连前暂停监控",
-    "unsupported": "仅支持 Linux 主机",
+    "unsupported": "监控仅支持 Linux、macOS 和 FreeBSD 主机",
+    "unsupportedOs": "暂不支持监控 {{os}} 主机，目前支持 Linux、macOS 和 FreeBSD",
     "stale": "过期",
     "copyIp": "复制服务器 IP 地址",
     "copyIpSuccess": "已复制 IP",

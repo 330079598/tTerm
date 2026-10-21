@@ -1,3 +1,4 @@
+use super::metrics::percent;
 use crate::ssh::jump::connect::JumpChain;
 use russh::client;
 use serde::Serialize;
@@ -19,6 +20,8 @@ pub struct MonitorSession {
     pub ssh: client::Handle<crate::ssh::types::SshClientHandler>,
 }
 
+/// What a host says it runs, in `/etc/os-release` terms. Linux and FreeBSD
+/// have that file; the monitor fills it in from `sw_vers` on macOS.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LinuxDistributionInfo {
@@ -29,7 +32,7 @@ pub struct LinuxDistributionInfo {
     pub version_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CpuTimes {
     pub user: u64,
@@ -64,6 +67,26 @@ pub struct MemoryMetrics {
     pub swap_used_percent: f64,
 }
 
+impl MemoryMetrics {
+    /// Works out the used amounts and percentages from the totals, in KiB.
+    pub fn new(total: u64, available: u64, swap_total: u64, swap_free: u64) -> Self {
+        let available = available.min(total);
+        let used = total - available;
+        let swap_free = swap_free.min(swap_total);
+        let swap_used = swap_total - swap_free;
+        Self {
+            total_kib: total,
+            available_kib: available,
+            used_kib: used,
+            used_percent: percent(used, total),
+            swap_total_kib: swap_total,
+            swap_free_kib: swap_free,
+            swap_used_kib: swap_used,
+            swap_used_percent: percent(swap_used, swap_total),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiskMetrics {
@@ -96,14 +119,19 @@ pub struct LoadAverageMetrics {
     pub fifteen: f64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+/// One sample of a host's metrics. A host whose system the monitor cannot
+/// read is `supported: false`, with only `kernel` (`uname -srm`) set.
+#[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerMetricsSnapshot {
     pub supported: bool,
-    pub unsupported_reason: Option<String>,
     pub distribution: Option<LinuxDistributionInfo>,
     pub kernel: Option<String>,
+    /// Counters to diff against the previous sample, where the host keeps them.
     pub cpu_times: Option<CpuTimes>,
+    /// The CPU use the host measured itself, on macOS, which keeps no
+    /// counters a shell can read.
+    pub cpu_percent: Option<f64>,
     pub cpu_core_times: Vec<CpuCoreTimes>,
     pub memory: Option<MemoryMetrics>,
     pub primary_ip: Option<String>,

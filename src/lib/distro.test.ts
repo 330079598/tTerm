@@ -23,6 +23,13 @@ describe("detectDistroId", () => {
     expect(detectDistroId(info({ id: "someos", idLike: ["rhel", "fedora"] }))).toBe("rhel")
   })
 
+  it("knows FreeBSD by its os-release and macOS by what the monitor reports", () => {
+    expect(detectDistroId(info({ id: "freebsd", prettyName: "FreeBSD 14.1-RELEASE" }))).toBe(
+      "freebsd"
+    )
+    expect(detectDistroId(info({ id: "macos", name: "macOS" }))).toBe("macos")
+  })
+
   it("shows generic Linux for an unknown distribution or none", () => {
     expect(detectDistroId(info({ id: "someos", name: "Some OS" }))).toBe("linux")
     expect(detectDistroId(undefined)).toBe("linux")

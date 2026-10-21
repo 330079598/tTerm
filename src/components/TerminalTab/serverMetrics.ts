@@ -75,10 +75,13 @@ export type NetworkHistorySample = NetworkRate & {
 
 export type ServerMetricsSnapshot = {
   supported: boolean
-  unsupportedReason?: string
   distribution?: LinuxDistributionInfo
+  /** `uname -srm`, such as `Linux 6.8.0 x86_64`. */
   kernel?: string
+  /** Counters to diff against the previous sample, where the host keeps them. */
   cpuTimes?: CpuTimes
+  /** The CPU use the host measured itself, on macOS, which keeps no counters. */
+  cpuPercent?: number
   cpuCoreTimes?: CpuCoreTimes[]
   memory?: MemoryMetrics
   primaryIp?: string
