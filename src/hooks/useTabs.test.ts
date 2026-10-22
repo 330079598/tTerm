@@ -3,7 +3,8 @@
 import { act, renderHook } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
-import { getDuplicateTabTitle, removeTabsFromState, useTabs } from "@/hooks/useTabs"
+import { useTabs } from "@/hooks/useTabs"
+import { getDuplicateTabTitle, removeTabsFromState } from "@/lib/tabsState"
 import type { Tab } from "@/types/tab"
 
 function createTabs(ids: string[], activeTabId: string): Tab[] {
