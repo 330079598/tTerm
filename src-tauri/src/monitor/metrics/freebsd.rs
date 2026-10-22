@@ -54,14 +54,15 @@ fn parse_ticks(value: &str) -> Vec<CpuTimes> {
     else {
         return Vec::new();
     };
-    ticks
-        .chunks_exact(CPU_STATES)
-        .map(|states| CpuTimes {
-            user: states[0],
-            nice: states[1],
-            system: states[2],
-            irq: states[3],
-            idle: states[4],
+    let (groups, _) = ticks.as_chunks::<CPU_STATES>();
+    groups
+        .iter()
+        .map(|&[user, nice, system, irq, idle]| CpuTimes {
+            user,
+            nice,
+            system,
+            irq,
+            idle,
             ..CpuTimes::default()
         })
         .collect()
