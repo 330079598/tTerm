@@ -34,15 +34,22 @@ export function TabAgentBadge({ activity, style, color, label }: TabAgentBadgePr
   )
 }
 
+interface TabAttentionDotProps {
+  tabId: string
+  /** A tab of the bar with split panes: the panes whose marks it shows, its active one first. */
+  paneIds?: readonly string[]
+}
+
 /**
  * The mark on a tab: an AI agent at work or waiting in it, otherwise a dot
  * for news (new output, a bell, a notification).
  */
-export const TabAttentionDot: React.FC<{ tabId: string }> = ({ tabId }) => {
+export const TabAttentionDot: React.FC<TabAttentionDotProps> = ({ tabId, paneIds }) => {
   const { t } = useTranslation()
   const { config } = useConfig()
-  const level = useTabAttention(tabId)
-  const agent = useTabAgentStatus(tabId)
+  const tabIds = paneIds ?? [tabId]
+  const level = useTabAttention(tabIds)
+  const agent = useTabAgentStatus(tabIds)
   if (agent) {
     const label = t(`notifications.agentActivity.${agent.activity}`, {
       agent: agentDisplayName(agent.agent),

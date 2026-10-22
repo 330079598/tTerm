@@ -1,6 +1,5 @@
 import type { SshAuthUsed, Tab } from "@/types/tab"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
-import type { DockviewPanelApi } from "dockview-react"
 import type { TerminalInputRequest } from "@/types/broadcast"
 import type { LiveBroadcastState } from "@/types/broadcast"
 import type { ExecutedCommand } from "@/types/command"
@@ -11,7 +10,6 @@ export interface TerminalTabProps {
   sessionNonce?: number
   isActive: boolean
   isGlobalShortcutTarget: boolean
-  workspacePanelApi?: Pick<DockviewPanelApi, "onDidDimensionsChange">
   connectionHeaderPinned?: boolean
   connection?: Tab["connection"]
   /** The shell a local tab runs (`pwsh`, `cmd`, `WSL`, `zsh`), for quoting dropped paths. */

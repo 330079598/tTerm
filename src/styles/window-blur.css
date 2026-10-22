@@ -35,8 +35,8 @@ html.window-blur .remote-file-editor,
 html.window-blur .remote-file-editor-code,
 html.window-blur .remote-file-editor .cm-editor,
 html.window-blur .workspace-panel,
-html.window-blur .workspace-dock .dv-dockview,
-html.window-blur .workspace-dock .dv-groupview,
+html.window-blur .workspace,
+html.window-blur .workspace-pane,
 html.window-blur .xterm .xterm-viewport {
   background: transparent;
 }
@@ -75,43 +75,21 @@ html.window-blur .terminal-tab-shell:has(.sftp-drawer.is-open) .connection-heade
   visibility: hidden;
 }
 
-html.window-blur .workspace-dock {
-  --dv-group-view-background-color: transparent;
-  --dv-tabs-and-actions-container-background-color: hsl(
-    var(--titlebar) / var(--window-bar-opacity)
-  );
-  --dv-activegroup-visiblepanel-tab-background-color: hsl(
-    var(--tab-active, var(--background)) / var(--window-opacity)
-  );
-  --dv-activegroup-hiddenpanel-tab-background-color: hsl(
-    var(--tab-background) / var(--window-opacity)
-  );
-  --dv-inactivegroup-visiblepanel-tab-background-color: hsl(
-    var(--tab-active, var(--background)) / var(--window-opacity)
-  );
-  --dv-inactivegroup-hiddenpanel-tab-background-color: hsl(
-    var(--tab-background) / var(--window-opacity)
-  );
-}
-
-html.window-blur .workspace-dock .dv-tabs-and-actions-container,
+html.window-blur .pane-header,
 html.window-blur .server-monitor-bar,
 html.window-blur .server-monitor-panel-header {
   background-color: hsl(var(--titlebar) / var(--window-bar-opacity));
 }
 
-html.window-blur .tab-item,
-html.window-blur .workspace-tab {
+html.window-blur .tab-item {
   background-color: hsl(var(--tab-background) / var(--window-opacity));
 }
 
-html.window-blur .tab-list:not(.sorting) .tab-item:not(.active):hover,
-html.window-blur .workspace-tab:hover {
+html.window-blur .tab-list:not(.sorting) .tab-item:not(.active):hover {
   background-color: hsl(var(--tab-hover) / var(--window-opacity));
 }
 
-html.window-blur .tab-item.active,
-html.window-blur .workspace-tab.active {
+html.window-blur .tab-item.active {
   background-color: hsl(var(--tab-active, var(--background)) / var(--window-opacity));
 }
 

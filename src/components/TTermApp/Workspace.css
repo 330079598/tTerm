@@ -1,0 +1,310 @@
+.workspace {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: hsl(var(--background));
+}
+
+/* The gaps between split panes take one quiet tone; the dividers in them draw
+   the line. */
+.workspace.has-pane-headers {
+  background: hsl(var(--border) / 0.1);
+}
+
+.workspace-pane {
+  position: absolute;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: hsl(var(--background));
+}
+
+/* Panes of the tabs out of sight keep their size and their terminals, so they
+   come back without a refit. */
+.workspace-pane[data-hidden] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* A hidden terminal still painting can leave stale pixels behind on WebView2. */
+.workspace-pane[data-hidden] .terminal-tab-shell {
+  display: none;
+}
+
+.workspace-pane-body {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}
+
+.workspace-panel {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: hsl(var(--background));
+}
+
+/* Split panes have headers of their own under the title bar. */
+:root:has(.workspace.has-pane-headers) {
+  --toast-viewport-top: calc(var(--title-bar-height) + 26px);
+}
+
+.pane-header {
+  position: relative;
+  display: flex;
+  height: 26px;
+  flex: 0 0 26px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 3px 0 9px;
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+  background: hsl(var(--titlebar));
+  color: hsl(var(--foreground) / 0.6);
+  cursor: default;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  user-select: none;
+  transition: color 0.15s ease;
+}
+
+/* The pane with the keyboard: an accent along the header's edge. */
+.pane-header::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: hsl(var(--tab-active-border, var(--primary)));
+  content: "";
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.pane-header.active {
+  color: hsl(var(--foreground));
+}
+
+.pane-header.active::before {
+  opacity: 1;
+}
+
+.pane-header-title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0;
+}
+
+.pane-header.modified .pane-header-title::before {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: hsl(var(--warning));
+  content: "";
+  vertical-align: 1px;
+}
+
+.pane-header-zoom {
+  flex-shrink: 0;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-variant-numeric: tabular-nums;
+}
+
+.pane-header-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 1px;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.pane-header:hover .pane-header-actions,
+.pane-header:focus-within .pane-header-actions {
+  opacity: 1;
+}
+
+.pane-header-action {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.pane-header-action:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.pane-header-action:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: -2px;
+}
+
+/* A divider fills the gap between two panes, with a quiet line along its
+   middle until it is pointed at. */
+.workspace-sash {
+  position: absolute;
+  z-index: 5;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-image: linear-gradient(hsl(var(--border) / 0.42), hsl(var(--border) / 0.42));
+  touch-action: none;
+  transition: background-size 160ms ease;
+}
+
+.workspace-sash.horizontal {
+  background-size: 1px 100%;
+  cursor: ew-resize;
+}
+
+.workspace-sash.vertical {
+  background-size: 100% 1px;
+  cursor: ns-resize;
+}
+
+/* A wider target for the pointer, without a heavier line. */
+@media (pointer: fine) {
+  .workspace-sash::before {
+    position: absolute;
+    inset: 0;
+    content: "";
+  }
+
+  .workspace-sash.horizontal::before {
+    right: -3px;
+    left: -3px;
+  }
+
+  .workspace-sash.vertical::before {
+    top: -3px;
+    bottom: -3px;
+  }
+}
+
+.workspace-sash:hover {
+  background-image: linear-gradient(hsl(var(--foreground) / 0.2), hsl(var(--foreground) / 0.2));
+}
+
+.workspace-sash.horizontal:hover {
+  background-size: 2px 100%;
+}
+
+.workspace-sash.vertical:hover {
+  background-size: 100% 2px;
+}
+
+body.workspace-sash-resizing .workspace-sash {
+  background-image: linear-gradient(hsl(var(--foreground) / 0.34), hsl(var(--foreground) / 0.34));
+}
+
+/* Nothing gets selected while a divider or a pane is dragged. */
+body.workspace-sash-resizing,
+body.workspace-sash-resizing *,
+body.workspace-pane-dragging,
+body.workspace-pane-dragging * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+body.workspace-pane-dragging,
+body.workspace-pane-dragging * {
+  cursor: grabbing !important;
+}
+
+body.workspace-sash-resizing-horizontal,
+body.workspace-sash-resizing-horizontal * {
+  cursor: ew-resize !important;
+}
+
+body.workspace-sash-resizing-vertical,
+body.workspace-sash-resizing-vertical * {
+  cursor: ns-resize !important;
+}
+
+/* A pane dragged up onto the tab bar becomes a tab of its own there. */
+body.pane-drag-over-tab-bar .tab-list-viewport {
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.9);
+  background: hsl(var(--primary) / 0.12);
+}
+
+.workspace-drop-preview {
+  position: absolute;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.workspace-drop-preview-surface {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid hsl(var(--primary) / 0.9);
+  background: hsl(var(--primary) / 0.18);
+  color: hsl(var(--primary-foreground));
+  box-shadow:
+    inset 0 0 0 1px hsl(var(--primary-foreground) / 0.08),
+    0 0 24px hsl(var(--primary) / 0.12);
+  transition:
+    inset 120ms ease,
+    background-color 120ms ease;
+}
+
+.workspace-drop-preview.left .workspace-drop-preview-surface,
+.workspace-drop-preview.right .workspace-drop-preview-surface {
+  top: 6px;
+  bottom: 6px;
+  width: calc(50% - 9px);
+}
+
+.workspace-drop-preview.left .workspace-drop-preview-surface {
+  left: 6px;
+}
+
+.workspace-drop-preview.right .workspace-drop-preview-surface {
+  right: 6px;
+}
+
+.workspace-drop-preview.above .workspace-drop-preview-surface,
+.workspace-drop-preview.below .workspace-drop-preview-surface {
+  right: 6px;
+  left: 6px;
+  height: calc(50% - 9px);
+}
+
+.workspace-drop-preview.above .workspace-drop-preview-surface {
+  top: 6px;
+}
+
+.workspace-drop-preview.below .workspace-drop-preview-surface {
+  bottom: 6px;
+}

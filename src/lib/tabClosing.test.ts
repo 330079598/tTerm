@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest"
 
 import {
-  getAdjacentTabId,
   getTabCloseContext,
   getTabCloseMenuActions,
   getTabIdsForCloseAction,
@@ -45,7 +44,7 @@ describe("tab closing context", () => {
     })
 
     expect(actions.map((action) => action.action)).toEqual([
-      "close",
+      "close-tab",
       "close-others",
       "close-left",
       "close-right",
@@ -54,9 +53,19 @@ describe("tab closing context", () => {
     expect(actions.find((action) => action.action === "close-right")?.disabled).toBe(false)
   })
 
-  it("prefers the right neighbor and falls back to the left neighbor", () => {
-    expect(getAdjacentTabId(["a", "b", "c"], "b")).toBe("c")
-    expect(getAdjacentTabId(["a", "b", "c"], "c")).toBe("b")
-    expect(getAdjacentTabId(["a"], "a")).toBeUndefined()
+  it("shows the close shortcut only for a tab with one pane, which it closes", () => {
+    const labels = {
+      closeTab: "Close",
+      closeOtherTabs: "Close others",
+      closeTabsToLeft: "Close left",
+      closeTabsToRight: "Close right",
+    }
+    const shortcut = (isSplit: boolean) =>
+      getTabCloseMenuActions(["a"], "a", labels, isSplit).find(
+        (action) => action.action === "close-tab"
+      )?.shortcut
+
+    expect(shortcut(false)).toBe("tabs.closeActive")
+    expect(shortcut(true)).toBeUndefined()
   })
 })

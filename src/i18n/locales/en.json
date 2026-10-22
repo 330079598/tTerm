@@ -23,7 +23,6 @@
       "russh": "SSH and SFTP protocols",
       "react": "UI framework",
       "codemirror": "File editor",
-      "dockview": "Split panes and tabs",
       "portablePty": "Local pseudo-terminals",
       "tokio": "Async runtime",
       "rustls": "TLS and cryptography",
@@ -97,10 +96,19 @@
     "splitLeft": "Split Left",
     "splitDown": "Split Down",
     "splitAbove": "Split Above",
-    "maximizeGroup": "Maximize Group",
-    "restoreGroup": "Restore Group",
-    "restoreSingleGroup": "Restore Single Group",
-    "emptyGroup": "Drag a tab here"
+    "zoomPane": "Maximize Pane",
+    "unzoomPane": "Restore Pane",
+    "movePaneToNewTab": "Move to New Tab",
+    "unsplit": "Unsplit",
+    "closePane": "Close Pane",
+    "paneCount_one": "{{count}} pane",
+    "paneCount_other": "{{count}} panes",
+    "paneZoomed": "A pane is maximized",
+    "closeSplitTabTitle_one": "Close {{count}} pane?",
+    "closeSplitTabTitle_other": "Close {{count}} panes?",
+    "closeSplitTabDescription_one": "This tab has {{count}} pane. Closing it closes it.",
+    "closeSplitTabDescription_other": "This tab is split into {{count}} panes. Closing it closes all of them.",
+    "closeSplitTabConfirm": "Close Tab"
   },
   "broadcast": {
     "title": "Terminal broadcast",
@@ -348,7 +356,9 @@
         "focusPaneRight": "Focus pane on the right",
         "focusPaneUp": "Focus pane above",
         "focusPaneDown": "Focus pane below",
-        "restoreSingleGroup": "Restore single group"
+        "restoreSingleGroup": "Unsplit the active tab into tabs of their own",
+        "togglePaneZoom": "Maximize or restore the active pane",
+        "movePaneToNewTab": "Move the active pane to a new tab"
       },
       "commandLibrary": {
         "open": "Open command library"
@@ -362,7 +372,7 @@
         "switchToNth": "Switch to tab 1-8, or the last tab with 9",
         "renameActive": "Rename active tab",
         "duplicateActive": "Duplicate active tab",
-        "closeActive": "Close active tab"
+        "closeActive": "Close the active pane, or the tab when it has one"
       },
       "terminal": {
         "find": "Find in terminal",

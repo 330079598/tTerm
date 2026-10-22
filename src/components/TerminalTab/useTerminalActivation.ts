@@ -10,11 +10,10 @@ import { dismissTabToast } from "@/hooks/useTerminalNotifications"
 
 type UseTerminalActivationOptions = Pick<
   TerminalTabProps,
-  "workspacePanelApi" | "isActive" | "tabId" | "isGlobalShortcutTarget"
+  "isActive" | "tabId" | "isGlobalShortcutTarget"
 > &
   Pick<
     TerminalTabRefs,
-    | "isActiveRef"
     | "containerRef"
     | "surfaceRef"
     | "resizeObserverRef"
@@ -32,11 +31,9 @@ type UseTerminalActivationOptions = Pick<
  * focus, and clearing what it wanted attention for.
  */
 export function useTerminalActivation({
-  workspacePanelApi,
   isActive,
   tabId,
   isGlobalShortcutTarget,
-  isActiveRef,
   containerRef,
   surfaceRef,
   resizeObserverRef,
@@ -48,18 +45,6 @@ export function useTerminalActivation({
   bellFlashTimerRef,
   scheduleFitDuringResize,
 }: UseTerminalActivationOptions) {
-  useEffect(() => {
-    if (!workspacePanelApi) return
-
-    const disposable = workspacePanelApi.onDidDimensionsChange(() => {
-      if (isActiveRef.current) {
-        scheduleFitDuringResize()
-      }
-    })
-
-    return () => disposable.dispose()
-  }, [isActiveRef, scheduleFitDuringResize, workspacePanelApi])
-
   useEffect(() => {
     const container = containerRef.current
     const surface = surfaceRef.current

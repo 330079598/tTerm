@@ -50,14 +50,25 @@ export function getTabIdsForCloseAction(
   }
 }
 
+/**
+ * The closing items of a tab of the bar's menu. A split tab closes with all its
+ * panes, while the close shortcut closes only the active pane, so it shows
+ * the shortcut only when it has a single pane.
+ */
 export function getTabCloseMenuActions(
   tabIds: string[],
   tabId: string,
-  labels: TabCloseMenuLabels
+  labels: TabCloseMenuLabels,
+  isSplit = false
 ): TabContextMenuAction[] {
   const context = getTabCloseContext(tabIds, tabId)
   return [
-    { label: labels.closeTab, action: "close", icon: "x", shortcut: "tabs.closeActive" },
+    {
+      label: labels.closeTab,
+      action: "close-tab",
+      icon: "x",
+      shortcut: isSplit ? undefined : "tabs.closeActive",
+    },
     {
       label: labels.closeOtherTabs,
       action: "close-others",
@@ -74,13 +85,4 @@ export function getTabCloseMenuActions(
       disabled: !context?.rightIds.length,
     },
   ]
-}
-
-export function getAdjacentTabId(tabIds: string[], tabId: string): string | undefined {
-  const index = tabIds.indexOf(tabId)
-  if (index === -1) {
-    return undefined
-  }
-
-  return tabIds[index + 1] ?? tabIds[index - 1]
 }

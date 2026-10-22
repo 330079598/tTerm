@@ -14,6 +14,8 @@ export type KeymapActionId =
   | "workspace.focusPaneUp"
   | "workspace.focusPaneDown"
   | "workspace.restoreSingleGroup"
+  | "workspace.togglePaneZoom"
+  | "workspace.movePaneToNewTab"
   | "commandLibrary.open"
   | "broadcast.togglePanel"
   // tabs
@@ -71,6 +73,8 @@ export const KEYMAP_ACTIONS: KeymapActionDefinition[] = [
   { id: "workspace.focusPaneUp", group: "workspace", allowInEditable: true },
   { id: "workspace.focusPaneDown", group: "workspace", allowInEditable: true },
   { id: "workspace.restoreSingleGroup", group: "workspace", allowInEditable: true },
+  { id: "workspace.togglePaneZoom", group: "workspace", allowInEditable: true },
+  { id: "workspace.movePaneToNewTab", group: "workspace", allowInEditable: true },
   { id: "commandLibrary.open", group: "workspace", allowInEditable: true },
   { id: "broadcast.togglePanel", group: "workspace", allowInEditable: true },
   { id: "tabs.next", group: "tabs", allowInEditable: true },

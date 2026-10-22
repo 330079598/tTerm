@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import { BookMarked, Library, Minus, Plus, Settings, Square, Waypoints, X } from "lucide-react"
 
@@ -11,6 +12,7 @@ import type { useWorkspaceSplits } from "@/components/TTermApp/useWorkspaceSplit
 import type { useTabContextMenu } from "@/hooks/useTabContextMenu"
 import type { useTransferManager } from "@/contexts/TransferContext"
 import type { Tab } from "@/types/tab"
+import { getPaneIds, type TabGroup } from "@/lib/tabGroups"
 import { BroadcastManager } from "@/components/BroadcastManager"
 import { TabBar } from "@/components/TabBar"
 import { TransferManager } from "@/components/TransferManager"
@@ -22,15 +24,15 @@ type TransferManager = ReturnType<typeof useTransferManager>
 
 interface AppTitleBarProps {
   tabs: Tab[]
+  groups: TabGroup[]
   activeTabId: string | null
   setActiveTab: (id: string) => void
-  handleRemoveTab: (id: string) => Promise<void>
+  handleCloseTab: (id: string) => Promise<void>
   handleNewTab: () => void
   moveTab: (fromIndex: number, toIndex: number) => void
   handleTabDragMove: ReturnType<typeof useWorkspaceSplits>["handleTabDragMove"]
   handleTabDrop: ReturnType<typeof useWorkspaceSplits>["handleTabDrop"]
   handleTabDragCancel: () => void
-  getTabContextIds: (tabId: string) => string[]
   handleTabContextMenu: ReturnType<typeof useTabContextMenu>["handleTabContextMenu"]
   setShowProfilesPanel: (show: boolean) => void
   transfers: TransferManager["transfers"]
@@ -56,15 +58,15 @@ interface AppTitleBarProps {
 /** The title bar: the tabs, the tools beside them, and the page and window buttons. */
 export function AppTitleBar({
   tabs,
+  groups,
   activeTabId,
   setActiveTab,
-  handleRemoveTab,
+  handleCloseTab,
   handleNewTab,
   moveTab,
   handleTabDragMove,
   handleTabDrop,
   handleTabDragCancel,
-  getTabContextIds,
   handleTabContextMenu,
   setShowProfilesPanel,
   transfers,
@@ -90,21 +92,38 @@ export function AppTitleBar({
   const shortcutLabel = useShortcutLabel()
   const newTabLabel = t("tabs.newTab", { defaultValue: "New tab" })
 
+  // The bar shows each group as the pane it had the focus in, with its other panes behind it.
+  const { barTabs, tabPanes } = useMemo(() => {
+    const byId = new Map(tabs.map((tab) => [tab.id, tab]))
+    return {
+      barTabs: groups.flatMap((group) => byId.get(group.activeTabId) ?? []),
+      tabPanes: new Map(
+        groups.map((group) => [
+          group.activeTabId,
+          {
+            tabs: getPaneIds(group.root).flatMap((id) => byId.get(id) ?? []),
+            isZoomed: group.zoomedTabId !== undefined,
+          },
+        ])
+      ),
+    }
+  }, [groups, tabs])
+
   return (
     <div className="title-bar">
       <div className="title-bar-left">
         <div className="tab-list-container">
           <TabBar
-            tabs={tabs}
+            tabs={barTabs}
+            tabPanes={tabPanes}
             activeTabId={activeTabId}
             onTabClick={setActiveTab}
-            onTabClose={handleRemoveTab}
+            onTabClose={handleCloseTab}
             onNewTab={handleNewTab}
             onTabMove={moveTab}
             onTabDragMove={handleTabDragMove}
             onTabDrop={handleTabDrop}
             onTabDragCancel={handleTabDragCancel}
-            getTabContextIds={getTabContextIds}
             onContextMenu={handleTabContextMenu}
           />
           <div className="tab-add-button">

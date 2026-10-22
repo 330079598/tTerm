@@ -1,6 +1,6 @@
 import React, { useCallback } from "react"
 import { useTranslation } from "react-i18next"
-import { X } from "lucide-react"
+import { Maximize2, X } from "lucide-react"
 
 import { TabAttentionDot } from "@/components/TabAttentionDot"
 import { TabIcon } from "@/components/TabIcon"
@@ -12,13 +12,24 @@ import {
   getTabPinMenuAction,
   getTabRenameMenuAction,
   getTabSplitMenuActions,
+  getUngroupMenuAction,
 } from "@/lib/tabMenuActions"
 import { keepFocusOnMouseDown } from "@/lib/terminalFocus"
 import { getTabLogMenuActions } from "@/lib/terminalLogRecording"
 import { isPageTab, type Tab, type TabContextMenuAction } from "@/types/tab"
 
+/** The panes of a tab split into several. */
+export interface TabPanes {
+  /** Every pane's tab, in their order. */
+  tabs: Tab[]
+  /** One of the panes is zoomed to fill the tab. */
+  isZoomed: boolean
+}
+
 interface TabItemProps {
+  /** The tab, or for a split one, the pane it had the focus in. */
   tab: Tab
+  panes?: TabPanes
   index: number
   getTabContextIds: (tabId: string) => string[]
   isActive: boolean
@@ -33,6 +44,7 @@ interface TabItemProps {
 /** One tab in the tab bar, with its context menu. */
 export const TabItem = React.memo(function TabItem({
   tab,
+  panes,
   index,
   getTabContextIds,
   isActive,
@@ -44,6 +56,12 @@ export const TabItem = React.memo(function TabItem({
   onPointerDown,
 }: TabItemProps) {
   const { t } = useTranslation()
+  const paneCount = panes?.tabs.length ?? 1
+  const isSplit = paneCount > 1
+  // The active pane's marks come first, then the others'.
+  const paneIds = isSplit
+    ? [tab.id, ...(panes?.tabs.filter((pane) => pane.id !== tab.id).map((pane) => pane.id) ?? [])]
+    : undefined
 
   const setNodeRef = (node: HTMLDivElement | null) => {
     if (isActive) setActiveNode?.(node)
@@ -52,12 +70,18 @@ export const TabItem = React.memo(function TabItem({
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault()
-      const closeActions = getTabCloseMenuActions(getTabContextIds(tab.id), tab.id, {
-        closeTab: t("contextMenu.closeTab"),
-        closeOtherTabs: t("contextMenu.closeOtherTabs"),
-        closeTabsToLeft: t("contextMenu.closeTabsToLeft"),
-        closeTabsToRight: t("contextMenu.closeTabsToRight"),
-      })
+      const closeActions = getTabCloseMenuActions(
+        getTabContextIds(tab.id),
+        tab.id,
+        {
+          closeTab: t("contextMenu.closeTab"),
+          closeOtherTabs: t("contextMenu.closeOtherTabs"),
+          closeTabsToLeft: t("contextMenu.closeTabsToLeft"),
+          closeTabsToRight: t("contextMenu.closeTabsToRight"),
+        },
+        isSplit
+      )
+      const splitActions = isSplit ? [getUngroupMenuAction(t)] : []
 
       if (isPageTab(tab)) {
         onContextMenu(e, tab, [
@@ -67,6 +91,7 @@ export const TabItem = React.memo(function TabItem({
             icon: "plus",
             shortcut: "workspace.newTab",
           },
+          ...splitActions,
           { separator: true, label: "", action: "" },
           ...closeActions,
         ])
@@ -99,6 +124,7 @@ export const TabItem = React.memo(function TabItem({
           shortcut: "tabs.duplicateActive",
         },
         ...getTabSplitMenuActions(tab, t),
+        ...splitActions,
         getTabRenameMenuAction(tab, t),
         ...(editConnectionAction ? [editConnectionAction] : []),
         ...getTabPinMenuAction(tab, t),
@@ -108,7 +134,7 @@ export const TabItem = React.memo(function TabItem({
       ]
       onContextMenu(e, tab, actions)
     },
-    [getTabContextIds, tab, onContextMenu, t]
+    [getTabContextIds, isSplit, tab, onContextMenu, t]
   )
 
   const handleKeyDown = useCallback(
@@ -124,7 +150,7 @@ export const TabItem = React.memo(function TabItem({
   )
 
   return (
-    <TabTooltip tab={tab}>
+    <TabTooltip tab={tab} panes={isSplit ? panes?.tabs : undefined}>
       <div
         ref={setNodeRef}
         className={`tab-item ${isActive ? "active" : ""} ${tab.isModified ? "modified" : ""} ${isDragging ? "dragging" : ""}`}
@@ -141,9 +167,24 @@ export const TabItem = React.memo(function TabItem({
       >
         <span className="tab-number">{index + 1}</span>
         <TabIcon tab={tab} className="tab-icon" />
-        <TabAttentionDot tabId={tab.id} />
-        <TabLogIndicator tabId={tab.id} />
+        <TabAttentionDot tabId={tab.id} paneIds={paneIds} />
+        <TabLogIndicator tabId={tab.id} paneIds={paneIds} />
         <TabTitle tab={tab} className="tab-title" />
+        {isSplit && (
+          <span
+            className="tab-pane-count"
+            role="img"
+            aria-label={
+              panes?.isZoomed
+                ? `${t("workspace.paneCount", { count: paneCount })}, ${t("workspace.paneZoomed")}`
+                : t("workspace.paneCount", { count: paneCount })
+            }
+            title={t("workspace.paneCount", { count: paneCount })}
+          >
+            {panes?.isZoomed ? <Maximize2 size={9} aria-hidden="true" /> : null}
+            {paneCount}
+          </span>
+        )}
         <button
           className="tab-close"
           aria-label={t("contextMenu.closeTab", { defaultValue: "Close tab" })}

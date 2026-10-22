@@ -118,12 +118,25 @@ function subscribe(listener: () => void) {
   }
 }
 
-export function useTabAttention(tabId: string): TabAttentionLevel | undefined {
-  return useSyncExternalStore(subscribe, () => marks.get(tabId))
+/** The strongest mark on any of the tabs, as the tab of the bar holding them as panes shows it. */
+export function useTabAttention(tabIds: readonly string[]): TabAttentionLevel | undefined {
+  return useSyncExternalStore(subscribe, () =>
+    tabIds.reduce<TabAttentionLevel | undefined>((level, tabId) => {
+      const mark = marks.get(tabId)
+      return mark ? strongerAttention(level, mark) : level
+    }, undefined)
+  )
 }
 
-export function useTabAgentStatus(tabId: string): AgentStatus | undefined {
-  return useSyncExternalStore(subscribe, () => agentStatuses.get(tabId))
+/** What an AI agent does in the first of the tabs that has one. */
+export function useTabAgentStatus(tabIds: readonly string[]): AgentStatus | undefined {
+  return useSyncExternalStore(subscribe, () => {
+    for (const tabId of tabIds) {
+      const status = agentStatuses.get(tabId)
+      if (status) return status
+    }
+    return undefined
+  })
 }
 
 /** The command each tab's shell runs, by tab id. */

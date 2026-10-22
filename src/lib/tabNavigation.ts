@@ -52,3 +52,13 @@ export function resolveTabShortcutTarget(
   }
   return tabId === activeTabId ? { kind: "current", tabId } : { kind: "switch", tabId }
 }
+
+/**
+ * Orders tab ids as the tabs were opened: ids are `tab-<n>` with a counter
+ * that only grows, and survives restarts, so the number tells their age.
+ */
+export function compareTabIds(first: string, second: string): number {
+  const number = (id: string) => Number(/^tab-(\d+)$/.exec(id)?.[1] ?? Number.NaN)
+  const difference = number(first) - number(second)
+  return Number.isNaN(difference) ? first.localeCompare(second) : difference
+}

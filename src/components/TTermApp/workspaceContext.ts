@@ -1,34 +1,32 @@
-// The workspace's props and the context its dock panels and tab headers read
-// them from, apart from TabPanels so each dockview component can live in its
-// own file.
+// The workspace's props and the context its panes and their headers read them
+// from, apart from TabPanels so each pane component can live in its own file.
 
 import type React from "react"
-import { createContext, useContext, useEffect, useState } from "react"
-import type { IDockviewPanelProps, SerializedDockview } from "dockview-react"
+import { createContext, useContext } from "react"
 
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import type { ConnectionState, SshConnectionProgress } from "@/components/TerminalTab/types"
+import type { SplitDirection, TabGroup } from "@/lib/tabGroups"
 import type { TerminalAttentionEvent } from "@/lib/terminalNotifications"
 import type { LiveBroadcastState, TerminalInputRequest } from "@/types/broadcast"
 import type { ExecutedCommand } from "@/types/command"
 import type { SavedProfile, Tab, TabContextMenuAction } from "@/types/tab"
 
-export type WorkspacePanelParams = {
-  tabId: string
-}
-
-export type WorkspaceSplitDirection = "left" | "right" | "above" | "below"
-
 export interface TabPanelsProps {
   activeTabId: string | null
-  duplicateTab: (id: string) => string | null
+  groups: TabGroup[]
+  duplicateTab: (id: string, split?: SplitDirection) => string | null
+  mergeGroup: (id: string, targetId: string, direction: SplitDirection) => void
+  placePane: (id: string, targetId: string, direction: SplitDirection) => void
+  breakOutPane: (id: string, index?: number) => void
+  ungroupPanes: (id: string) => void
+  togglePaneZoom: (id: string) => void
+  resizeSplit: (groupId: string, path: number[], sizes: number[]) => void
   handlePinConnectionHeader: (tabId: string) => void
   handleReconnectTab: (tabId: string) => void
   handleServerMonitorVisibilityChange: (tabId: string, visible: boolean) => void
   handleUnpinConnectionHeader: (tabId: string) => void
-  initialLayout: SerializedDockview | null
   onActiveTabChange: (tabId: string) => void
-  onLayoutChange: (layout: SerializedDockview) => void
   onOpenRemoteFile: (
     entry: SftpDirectoryEntry,
     sourceTabId: string,
@@ -36,6 +34,7 @@ export interface TabPanelsProps {
   ) => void
   onConnectProfile: (connection: Omit<Tab, "id" | "isActive">) => void
   onEditProfile: (profile: SavedProfile) => void
+  /** Closes one pane; closing a group's last pane closes its tab in the bar. */
   onTabClose: (tabId: string) => void
   onTabContextMenu: (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => void
   onTerminalConnectionStateChange: (
@@ -70,12 +69,10 @@ export interface TabPanelsProps {
 
 export type WorkspaceContextValue = Omit<
   TabPanelsProps,
-  "activeTabId" | "initialLayout" | "onActiveTabChange" | "onLayoutChange"
+  "activeTabId" | "groups" | "mergeGroup" | "placePane" | "resizeSplit"
 > & {
-  collapseToSingleGroup: (tabId: string) => void
-  groupCount: number
-  maximizedGroupId: string | null
-  splitTab: (tabId: string, direction: WorkspaceSplitDirection) => void
+  /** Starts dragging a pane by its header, to another place or out into a tab of its own. */
+  startPaneDrag: (event: React.PointerEvent<HTMLElement>, tabId: string) => void
 }
 
 export const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
@@ -86,27 +83,4 @@ export function useWorkspace() {
     throw new Error("Workspace components must be rendered inside TabPanels")
   }
   return value
-}
-
-export function useDockPanelState(api: IDockviewPanelProps["api"]) {
-  const [state, setState] = useState(() => ({
-    hasBeenVisible: api.isVisible,
-    isActive: api.isActive,
-    isVisible: api.isVisible,
-  }))
-
-  useEffect(() => {
-    const update = () => {
-      setState((current) => ({
-        hasBeenVisible: current.hasBeenVisible || api.isVisible,
-        isActive: api.isActive,
-        isVisible: api.isVisible,
-      }))
-    }
-    const disposables = [api.onDidActiveChange(update), api.onDidVisibilityChange(update)]
-    update()
-    return () => disposables.forEach((disposable) => disposable.dispose())
-  }, [api])
-
-  return state
 }

@@ -12,13 +12,17 @@ interface TabKeymapActions {
   openRenameDialog: (tab: Tab) => void
 }
 
-/** Keyboard shortcuts for opening, switching, renaming, duplicating and closing tabs. */
+/**
+ * Keyboard shortcuts for opening, switching, renaming, duplicating and
+ * closing tabs. Switching goes between the tabs of the bar, to the pane each
+ * had the focus in; renaming, duplicating and closing act on the active pane.
+ */
 export function useTabKeymap(shell: AppShell, actions: TabKeymapActions) {
-  const { tabs, activeTabId, setActiveTab, duplicateTab } = shell
+  const { tabs, groups, activeTabId, setActiveTab, duplicateTab } = shell
   const { handleNewTab, handleRemoveTab, openRenameDialog } = actions
   const { registerHandler } = useKeymap()
 
-  const keymapTabIds = useMemo(() => tabs.map((tab) => tab.id), [tabs])
+  const keymapTabIds = useMemo(() => groups.map((group) => group.activeTabId), [groups])
 
   useEffect(() => {
     // A shortcut that lands on the active tab, or on no tab, would otherwise

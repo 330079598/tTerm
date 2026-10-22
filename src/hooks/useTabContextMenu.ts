@@ -1,17 +1,23 @@
 import { useCallback, useState } from "react"
 
 import type { ContextMenuState, RenameDialogState } from "@/components/TTermApp/types"
-import type { WorkspaceSplitDirection } from "@/components/TTermApp/workspaceContext"
 import { showLogsForTab } from "@/lib/appNavigation"
 import { nameLocalTab } from "@/lib/localTabTitle"
+import type { SplitDirection } from "@/lib/tabGroups"
 import { hasTabIcon, type TabIconStyle } from "@/lib/tabIcons"
 import type { Tab, TabContextMenuAction } from "@/types/tab"
 
 interface UseTabContextMenuDeps {
   handleNewTab: () => void
   duplicateTab: (id: string) => string | null
-  splitTab: (id: string, direction: WorkspaceSplitDirection) => void
+  splitTab: (id: string, direction: SplitDirection) => void
+  togglePaneZoom: (id: string) => void
+  breakOutPane: (id: string) => void
+  ungroupPanes: (id: string) => void
+  /** Closes one pane, or the tab of the bar it is the only pane of. */
   handleRemoveTab: (id: string) => void
+  /** Closes a tab of the bar with all its panes. */
+  handleCloseTab: (id: string) => void
   handleCloseOtherTabs: (id: string) => void
   handleCloseTabsToRight: (id: string) => void
   handleCloseTabsToLeft: (id: string) => void
@@ -26,7 +32,11 @@ export function useTabContextMenu({
   handleNewTab,
   duplicateTab,
   splitTab,
+  togglePaneZoom,
+  breakOutPane,
+  ungroupPanes,
   handleRemoveTab,
+  handleCloseTab,
   handleCloseOtherTabs,
   handleCloseTabsToRight,
   handleCloseTabsToLeft,
@@ -102,6 +112,15 @@ export function useTabContextMenu({
         case "split-above":
           splitTab(tab.id, "above")
           break
+        case "toggle-zoom":
+          togglePaneZoom(tab.id)
+          break
+        case "move-to-new-tab":
+          breakOutPane(tab.id)
+          break
+        case "ungroup":
+          ungroupPanes(tab.id)
+          break
         case "rename":
           openRenameDialog(tab)
           break
@@ -138,6 +157,9 @@ export function useTabContextMenu({
         case "close":
           handleRemoveTab(tab.id)
           break
+        case "close-tab":
+          handleCloseTab(tab.id)
+          break
         case "close-others":
           handleCloseOtherTabs(tab.id)
           break
@@ -158,8 +180,12 @@ export function useTabContextMenu({
       handleNewTab,
       duplicateTab,
       splitTab,
+      togglePaneZoom,
+      breakOutPane,
+      ungroupPanes,
       openRenameDialog,
       handleRemoveTab,
+      handleCloseTab,
       handleCloseOtherTabs,
       handleCloseTabsToRight,
       handleCloseTabsToLeft,

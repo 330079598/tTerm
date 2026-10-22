@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react"
-import type { DockviewApi } from "dockview-react"
 
 import { useKeymap } from "@/contexts/KeymapContext"
 import type { KeymapActionId } from "@/lib/keymap/actions"
@@ -9,6 +8,8 @@ import {
   type PaneDirection,
   type PaneRect,
 } from "@/lib/paneNavigation"
+import type { PaneBox } from "@/lib/paneLayout"
+import { getPaneIds, type TabGroup } from "@/lib/tabGroups"
 import { nudgeTab } from "@/lib/tabNudge"
 
 const DIRECTION_ACTIONS: [KeymapActionId, PaneDirection][] = [
@@ -18,56 +19,74 @@ const DIRECTION_ACTIONS: [KeymapActionId, PaneDirection][] = [
   ["workspace.focusPaneDown", "down"],
 ]
 
-function paneRects(dockApi: DockviewApi): PaneRect[] {
-  return dockApi.groups.map((group) => {
-    const { left, top, right, bottom } = group.element.getBoundingClientRect()
-    return { id: group.id, left, top, right, bottom }
-  })
+interface PaneKeymapOptions {
+  activeTabId: string | null
+  activeGroup: TabGroup | undefined
+  /** The panes in sight and where they sit. */
+  visibleBoxes: ReadonlyMap<string, PaneBox>
+  setActiveTab: (tabId: string) => void
+  ungroupPanes: (tabId: string) => void
+  togglePaneZoom: (tabId: string) => void
+  breakOutPane: (tabId: string) => void
+}
+
+function paneRects(boxes: ReadonlyMap<string, PaneBox>): PaneRect[] {
+  return [...boxes].map(([id, box]) => ({
+    id,
+    left: box.left,
+    top: box.top,
+    right: box.left + box.width,
+    bottom: box.top + box.height,
+  }))
 }
 
 /**
- * Keyboard shortcuts that move the focus between split panes, in reading
- * order or by direction, and that gather every pane back into one. Activating
- * a pane's tab puts the keyboard in its terminal, as clicking the pane does.
+ * Keyboard shortcuts for the panes of the tab in sight: moving the focus
+ * between them in reading order or by direction, zooming one, moving one out
+ * to a tab of its own, and undoing the split. Focusing a pane puts the
+ * keyboard in its terminal, as clicking it does.
  */
-export function usePaneKeymap(
-  dockApi: DockviewApi | null,
-  collapseToSingleGroup: (tabId: string) => void
-) {
+export function usePaneKeymap({
+  activeTabId,
+  activeGroup,
+  visibleBoxes,
+  setActiveTab,
+  ungroupPanes,
+  togglePaneZoom,
+  breakOutPane,
+}: PaneKeymapOptions) {
   const { registerHandler } = useKeymap()
   // Pane ids from most to least recently focused, to break ties between
   // neighbours the way tmux does.
   const recentPaneIdsRef = useRef<string[]>([])
 
   useEffect(() => {
-    if (!dockApi) return
-    const remember = (groupId: string) => {
-      recentPaneIdsRef.current = [
-        groupId,
-        ...recentPaneIdsRef.current.filter((id) => id !== groupId),
-      ]
-    }
-    if (dockApi.activeGroup) remember(dockApi.activeGroup.id)
-    const disposable = dockApi.onDidActiveGroupChange((group) => {
-      if (group) remember(group.id)
-    })
-    return () => disposable.dispose()
-  }, [dockApi])
+    if (!activeTabId) return
+    recentPaneIdsRef.current = [
+      activeTabId,
+      ...recentPaneIdsRef.current.filter((id) => id !== activeTabId),
+    ]
+  }, [activeTabId])
 
   useEffect(() => {
-    if (!dockApi) return
+    if (!activeTabId) return
+    const isSplit = activeGroup !== undefined && getPaneIds(activeGroup.root).length > 1
 
-    // A shortcut with no pane to go to, or no split to undo, flashes the
+    // A shortcut with no pane to go to, or no split to act on, flashes the
     // active tab, so it still shows it was received.
     const focusPane = (pickPane: (panes: PaneRect[], activeId: string) => string | undefined) => {
-      const activeGroup = dockApi.activeGroup
-      if (!activeGroup) return false
-      const targetId = pickPane(paneRects(dockApi), activeGroup.id)
-      const target = targetId ? dockApi.groups.find((group) => group.id === targetId) : undefined
-      if (target?.activePanel) {
-        target.activePanel.api.setActive()
-      } else if (activeGroup.activePanel) {
-        nudgeTab(activeGroup.activePanel.id)
+      const targetId = pickPane(paneRects(visibleBoxes), activeTabId)
+      if (targetId && targetId !== activeTabId) {
+        setActiveTab(targetId)
+      } else {
+        nudgeTab(activeTabId)
+      }
+    }
+    const onSplit = (act: (tabId: string) => void) => () => {
+      if (isSplit) {
+        act(activeTabId)
+      } else {
+        nudgeTab(activeTabId)
       }
     }
 
@@ -85,16 +104,19 @@ export function usePaneKeymap(
           )
         )
       ),
-      registerHandler("workspace.restoreSingleGroup", () => {
-        const activePanel = dockApi.activePanel
-        if (!activePanel) return false
-        if (dockApi.groups.length > 1) {
-          collapseToSingleGroup(activePanel.id)
-        } else {
-          nudgeTab(activePanel.id)
-        }
-      }),
+      registerHandler("workspace.restoreSingleGroup", onSplit(ungroupPanes)),
+      registerHandler("workspace.togglePaneZoom", onSplit(togglePaneZoom)),
+      registerHandler("workspace.movePaneToNewTab", onSplit(breakOutPane)),
     ]
     return () => unregisters.forEach((unregister) => unregister())
-  }, [collapseToSingleGroup, dockApi, registerHandler])
+  }, [
+    activeGroup,
+    activeTabId,
+    breakOutPane,
+    registerHandler,
+    setActiveTab,
+    togglePaneZoom,
+    ungroupPanes,
+    visibleBoxes,
+  ])
 }

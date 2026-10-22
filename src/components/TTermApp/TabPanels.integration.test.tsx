@@ -1,17 +1,27 @@
 // @vitest-environment jsdom
 
-import { useEffect, useRef, useState } from "react"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { useEffect } from "react"
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { TabPanels, type TabPanelsHandle } from "@/components/TTermApp/TabPanels"
+import { TabPanels } from "@/components/TTermApp/TabPanels"
 import { useTabs } from "@/hooks/useTabs"
-import { getTabIdsForCloseAction } from "@/lib/tabClosing"
+import { getPaneIds } from "@/lib/tabGroups"
 import type { Tab } from "@/types/tab"
 
-vi.mock("@/components/TerminalTab", () => ({
-  TerminalTab: ({ tabId }: { tabId: string }) => <div data-testid={`terminal-${tabId}`} />,
-}))
+const mounts = vi.hoisted(() => ({ count: new Map<string, number>() }))
+
+vi.mock("@/components/TerminalTab", async () => {
+  const { useEffect: useMountEffect } = await import("react")
+  return {
+    TerminalTab: ({ tabId, isActive }: { tabId: string; isActive: boolean }) => {
+      useMountEffect(() => {
+        mounts.count.set(tabId, (mounts.count.get(tabId) ?? 0) + 1)
+      }, [tabId])
+      return <div data-testid={`terminal-${tabId}`} data-visible={isActive || undefined} />
+    },
+  }
+})
 
 // jsdom lays nothing out, so pane shortcuts have no positions to work with here.
 vi.mock("@/contexts/KeymapContext", () => ({
@@ -20,6 +30,7 @@ vi.mock("@/contexts/KeymapContext", () => ({
 }))
 
 vi.mock("@/components/TabAttentionDot", () => ({ TabAttentionDot: () => null }))
+vi.mock("@/components/TabLogIndicator", () => ({ TabLogIndicator: () => null }))
 vi.mock("@/components/TabIcon", () => ({ TabIcon: () => null }))
 vi.mock("@/components/TabTooltip", () => ({
   TabTooltip: ({ children }: { children: React.ReactNode }) => children,
@@ -38,13 +49,8 @@ class TestResizeObserver implements ResizeObserver {
 }
 
 vi.stubGlobal("ResizeObserver", TestResizeObserver)
-vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
-  callback(0)
-  return 0
-})
-vi.stubGlobal("cancelAnimationFrame", () => {})
 
-const initialTabs: Tab[] = ["left-active", "left-other", "context", "outside"].map((id, index) => ({
+const initialTabs: Tab[] = ["tab-1", "tab-2"].map((id, index) => ({
   id,
   title: id,
   type: "terminal",
@@ -52,131 +58,153 @@ const initialTabs: Tab[] = ["left-active", "left-other", "context", "outside"].m
   hasConnected: true,
 }))
 
+let api: ReturnType<typeof useTabs>
+
 function WorkspaceHarness() {
-  const workspaceRef = useRef<TabPanelsHandle>(null)
-  const { tabs, activeTabId, duplicateTab, removeTabs, restoreSession, setActiveTab, updateTab } =
-    useTabs()
-  const [contextGroupIds, setContextGroupIds] = useState<string[]>([])
-  const [outsideGroupIds, setOutsideGroupIds] = useState<string[]>([])
-  const [dockActiveTabId, setDockActiveTabId] = useState<string | null>(null)
+  const tabsApi = useTabs()
+  const { restoreSession } = tabsApi
 
   useEffect(() => {
-    restoreSession(initialTabs, "left-active")
+    api = tabsApi
+  })
+
+  useEffect(() => {
+    restoreSession(initialTabs, "tab-1")
   }, [restoreSession])
 
-  if (tabs.length === 0) {
+  if (tabsApi.tabs.length === 0) {
     return null
   }
 
-  const inspectGroups = () => {
-    setContextGroupIds(workspaceRef.current?.getGroupTabIds("context") ?? [])
-    setOutsideGroupIds(workspaceRef.current?.getGroupTabIds("outside") ?? [])
-    setDockActiveTabId(workspaceRef.current?.getActiveTabId() ?? null)
-  }
-
-  const closeContextTabsToLeft = () => {
-    const groupTabIds = workspaceRef.current?.getGroupTabIds("context") ?? []
-    const targetIds = getTabIdsForCloseAction(groupTabIds, "context", "close-left")
-    if (activeTabId && targetIds.includes(activeTabId)) {
-      workspaceRef.current?.activateTab("context")
-    }
-    removeTabs(targetIds, { preferredActiveTabId: "context" })
-  }
-
   return (
-    <div style={{ width: 800, height: 600 }}>
-      <button type="button" onClick={() => workspaceRef.current?.splitTab("outside", "right")}>
-        Split outside
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          workspaceRef.current?.activateTab("left-active")
-          setActiveTab("left-active")
-        }}
-      >
-        Activate left
-      </button>
-      <button type="button" onClick={closeContextTabsToLeft}>
-        Close context left
-      </button>
-      <button type="button" onClick={inspectGroups}>
-        Inspect groups
-      </button>
-      <output data-testid="active-tab">{activeTabId}</output>
-      <output data-testid="dock-active-tab">{dockActiveTabId}</output>
-      <output data-testid="tab-ids">{tabs.map((tab) => tab.id).join(",")}</output>
-      <output data-testid="context-group">{contextGroupIds.join(",")}</output>
-      <output data-testid="outside-group">{outsideGroupIds.join(",")}</output>
-      <TabPanels
-        ref={workspaceRef}
-        activeTabId={activeTabId}
-        broadcastSourceTabId={null}
-        duplicateTab={duplicateTab}
-        handlePinConnectionHeader={() => {}}
-        handleReconnectTab={() => {}}
-        handleServerMonitorVisibilityChange={() => {}}
-        handleUnpinConnectionHeader={() => {}}
-        initialLayout={null}
-        liveBroadcastState="idle"
-        onActiveTabChange={setActiveTab}
-        onConnectProfile={() => {}}
-        onEditProfile={() => {}}
-        onLayoutChange={() => {}}
-        onOpenRemoteFile={() => {}}
-        onPauseBroadcast={() => {}}
-        onResumeBroadcast={() => {}}
-        onStopBroadcast={() => {}}
-        onTabClose={() => {}}
-        onTabContextMenu={() => {}}
-        onTerminalConnectionStateChange={() => {}}
-        onTerminalInput={async () => {}}
-        onTerminalSavedPasswordPromptChange={() => {}}
-        onTerminalSessionUnavailable={() => {}}
-        onTerminalSensitivePrompt={() => {}}
-        startupConnectionsReady
-        startupSessionRestoreMode="all"
-        tabs={tabs}
-        updateTab={updateTab}
-      />
-    </div>
+    <TabPanels
+      activeTabId={tabsApi.activeTabId}
+      groups={tabsApi.groups}
+      broadcastSourceTabId={null}
+      duplicateTab={tabsApi.duplicateTab}
+      mergeGroup={tabsApi.mergeGroup}
+      placePane={tabsApi.placePane}
+      breakOutPane={tabsApi.breakOutPane}
+      ungroupPanes={tabsApi.ungroupPanes}
+      togglePaneZoom={tabsApi.togglePaneZoom}
+      resizeSplit={tabsApi.resizeSplit}
+      handlePinConnectionHeader={() => {}}
+      handleReconnectTab={() => {}}
+      handleServerMonitorVisibilityChange={() => {}}
+      handleUnpinConnectionHeader={() => {}}
+      liveBroadcastState="idle"
+      onActiveTabChange={tabsApi.setActiveTab}
+      onConnectProfile={() => {}}
+      onEditProfile={() => {}}
+      onOpenRemoteFile={() => {}}
+      onPauseBroadcast={() => {}}
+      onResumeBroadcast={() => {}}
+      onStopBroadcast={() => {}}
+      onTabClose={(id) => tabsApi.removeTabs([id])}
+      onTabContextMenu={() => {}}
+      onTerminalConnectionStateChange={() => {}}
+      onTerminalInput={async () => {}}
+      onTerminalSavedPasswordPromptChange={() => {}}
+      onTerminalSessionUnavailable={() => {}}
+      onTerminalSensitivePrompt={() => {}}
+      startupConnectionsReady
+      startupSessionRestoreMode="all"
+      tabs={tabsApi.tabs}
+      updateTab={tabsApi.updateTab}
+    />
   )
 }
 
+const pane = (id: string) => screen.getByTestId(`terminal-${id}`).closest(".workspace-pane")
+const isPaneVisible = (id: string) => !pane(id)?.hasAttribute("data-hidden")
+const groupPanes = () => api.groups.map((group) => getPaneIds(group.root))
+
 afterEach(() => {
+  cleanup()
+  mounts.count.clear()
   vi.clearAllMocks()
 })
 
-describe("TabPanels grouped closing", () => {
-  it("closes the active tabs to the left in one group without affecting another group", async () => {
+describe("TabPanels split tabs", () => {
+  it("opens a split's copy as a pane of the same tab, both in sight with headers", async () => {
     render(<WorkspaceHarness />)
+    await screen.findByTestId("terminal-tab-2")
+    expect(document.querySelectorAll(".pane-header")).toHaveLength(0)
 
-    await screen.findByTestId("terminal-outside")
-    fireEvent.click(screen.getByRole("button", { name: "Split outside" }))
-    fireEvent.click(screen.getByRole("button", { name: "Inspect groups" }))
-
-    await waitFor(() => {
-      expect(screen.getByTestId("context-group").textContent).toBe("left-active,left-other,context")
-      expect(screen.getByTestId("outside-group").textContent).toBe("outside")
+    act(() => {
+      api.duplicateTab("tab-1", "right")
     })
 
-    fireEvent.click(screen.getByRole("button", { name: "Activate left" }))
-    fireEvent.click(screen.getByRole("button", { name: "Inspect groups" }))
-    expect(screen.getByTestId("active-tab").textContent).toBe("left-active")
-    expect(screen.getByTestId("dock-active-tab").textContent).toBe("left-active")
+    expect(groupPanes()).toEqual([["tab-1", "tab-3"], ["tab-2"]])
+    expect(api.activeTabId).toBe("tab-3")
+    expect(isPaneVisible("tab-1")).toBe(true)
+    expect(isPaneVisible("tab-3")).toBe(true)
+    expect(isPaneVisible("tab-2")).toBe(false)
+    expect(document.querySelectorAll(".pane-header")).toHaveLength(2)
+  })
 
-    fireEvent.click(screen.getByRole("button", { name: "Close context left" }))
+  it("keeps every terminal mounted while switching tabs and moving panes between them", async () => {
+    render(<WorkspaceHarness />)
+    await screen.findByTestId("terminal-tab-2")
+    act(() => {
+      api.duplicateTab("tab-1", "below")
+    })
+    act(() => {
+      api.setActiveTab("tab-2")
+    })
+    expect(isPaneVisible("tab-2")).toBe(true)
+    expect(isPaneVisible("tab-1")).toBe(false)
 
-    await waitFor(() => {
-      expect(screen.getByTestId("active-tab").textContent).toBe("context")
-      expect(screen.getByTestId("tab-ids").textContent).toBe("context,outside")
+    act(() => {
+      api.mergeGroup("tab-2", "tab-3", "right")
+    })
+    expect(groupPanes()).toEqual([["tab-1", "tab-3", "tab-2"]])
+    act(() => {
+      api.breakOutPane("tab-3", 0)
+    })
+    expect(groupPanes()).toEqual([["tab-3"], ["tab-1", "tab-2"]])
+
+    expect([...mounts.count.values()].every((count) => count === 1)).toBe(true)
+  })
+
+  it("hides the other panes behind a zoomed one, and closing a pane focuses its neighbour", async () => {
+    render(<WorkspaceHarness />)
+    await screen.findByTestId("terminal-tab-2")
+    act(() => {
+      api.duplicateTab("tab-1", "right")
+    })
+    act(() => {
+      api.togglePaneZoom("tab-3")
+    })
+    expect(isPaneVisible("tab-3")).toBe(true)
+    expect(isPaneVisible("tab-1")).toBe(false)
+
+    fireEvent.click(screen.getAllByRole("button", { name: "workspace.closePane" })[0])
+    expect(groupPanes()).toEqual([["tab-3"], ["tab-2"]])
+    expect(api.activeTabId).toBe("tab-3")
+    expect(document.querySelectorAll(".pane-header")).toHaveLength(0)
+  })
+
+  it("undoes the split from a pane's header, giving each pane a tab of its own", async () => {
+    render(<WorkspaceHarness />)
+    await screen.findByTestId("terminal-tab-2")
+    act(() => {
+      api.duplicateTab("tab-1", "right")
     })
 
-    fireEvent.click(screen.getByRole("button", { name: "Inspect groups" }))
-    await waitFor(() => {
-      expect(screen.getByTestId("context-group").textContent).toBe("context")
-      expect(screen.getByTestId("outside-group").textContent).toBe("outside")
-      expect(screen.getByTestId("dock-active-tab").textContent).toBe("context")
+    fireEvent.click(screen.getAllByRole("button", { name: "workspace.unsplit" })[0])
+    expect(groupPanes()).toEqual([["tab-1"], ["tab-3"], ["tab-2"]])
+    expect(api.activeTabId).toBe("tab-3")
+    expect(document.querySelectorAll(".pane-header")).toHaveLength(0)
+  })
+
+  it("closes the last pane of a tab by moving to the tab that takes its place", async () => {
+    render(<WorkspaceHarness />)
+    await screen.findByTestId("terminal-tab-2")
+    act(() => {
+      api.removeTabs(["tab-1"])
     })
+    expect(api.activeTabId).toBe("tab-2")
+    expect(isPaneVisible("tab-2")).toBe(true)
   })
 })

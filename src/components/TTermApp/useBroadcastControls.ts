@@ -5,6 +5,7 @@ import type { BroadcastState } from "@/components/TTermApp/useBroadcastState"
 import type { BroadcastRuntime } from "@/components/TTermApp/useBroadcastRuntime"
 import { isTerminalConnectionUnavailable } from "@/components/TTermApp/ttermAppUtils"
 import { isSessionTab } from "@/types/tab"
+import { getVisiblePaneIds } from "@/lib/tabGroups"
 
 /**
  * Choosing the broadcast targets, pausing and resuming a live broadcast,
@@ -16,7 +17,7 @@ export function useBroadcastControls(
   broadcastRuntime: BroadcastRuntime,
   handleReconnectTab: (tabId: string) => void
 ) {
-  const { t, workspaceRef, confirm, tabs } = shell
+  const { t, confirm, tabs, groups, activeTabId } = shell
   const {
     setLiveBroadcastState,
     broadcastSource,
@@ -80,10 +81,10 @@ export function useBroadcastControls(
   const selectVisibleBroadcastTargets = useCallback(
     (excludeTabId?: string) => {
       selectBroadcastTargets(
-        (workspaceRef.current?.getVisibleTerminalTabIds() ?? []).filter((id) => id !== excludeTabId)
+        getVisiblePaneIds(groups, activeTabId).filter((id) => id !== excludeTabId)
       )
     },
-    [selectBroadcastTargets, workspaceRef]
+    [activeTabId, groups, selectBroadcastTargets]
   )
 
   const selectAllBroadcastTargets = useCallback(

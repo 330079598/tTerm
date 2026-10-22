@@ -4,6 +4,7 @@ import { act, renderHook } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
 import { useTabs } from "@/hooks/useTabs"
+import { getPaneIds } from "@/lib/tabGroups"
 import { getDuplicateTabTitle, removeTabsFromState } from "@/lib/tabsState"
 import type { Tab } from "@/types/tab"
 
@@ -214,5 +215,97 @@ describe("useTabs automatic titles", () => {
 
     expect(titles(result)).toEqual(["builds", "builds-2"])
     expect(result.current.tabs.every((tab) => !tab.autoTitle)).toBe(true)
+  })
+})
+
+describe("useTabs split tabs", () => {
+  const panes = (result: { current: ReturnType<typeof useTabs> }) =>
+    result.current.groups.map((group) => getPaneIds(group.root))
+
+  function setup(ids: string[], layout?: unknown) {
+    const hook = renderHook(() => useTabs())
+    act(() => {
+      hook.result.current.restoreSession(createTabs(ids, ids[0]), ids[0], layout)
+    })
+    return hook
+  }
+
+  it("gives every tab a tab of the bar of its own at first", () => {
+    const { result } = setup(["a", "b"])
+    expect(panes(result)).toEqual([["a"], ["b"]])
+  })
+
+  it("opens a split's copy as a pane beside its source, and lists the tabs in bar order", () => {
+    const { result } = setup(["a", "b"])
+    let copy: string | null = null
+    act(() => {
+      copy = result.current.duplicateTab("a", "right")
+    })
+    expect(panes(result)).toEqual([["a", copy], ["b"]])
+    expect(result.current.tabs.map((tab) => tab.id)).toEqual(["a", copy, "b"])
+    expect(result.current.activeTabId).toBe(copy)
+  })
+
+  it("moves tabs of the bar with their panes", () => {
+    const { result } = setup(["a", "b", "c"])
+    act(() => {
+      result.current.mergeGroup("c", "a", "below")
+    })
+    act(() => {
+      result.current.moveTab(0, 1)
+    })
+    expect(panes(result)).toEqual([["b"], ["a", "c"]])
+    expect(result.current.tabs.map((tab) => tab.id)).toEqual(["b", "a", "c"])
+  })
+
+  it("focuses the next pane of a tab when its active pane closes", () => {
+    const { result } = setup(["a", "b", "c"])
+    act(() => {
+      result.current.mergeGroup("b", "a", "right")
+    })
+    act(() => {
+      result.current.setActiveTab("a")
+    })
+    act(() => {
+      result.current.removeTabs(["a"])
+    })
+    expect(result.current.activeTabId).toBe("b")
+    expect(panes(result)).toEqual([["b"], ["c"]])
+  })
+
+  it("restores the saved split for the tabs that came back", () => {
+    const layout = {
+      version: 2,
+      groups: [
+        {
+          root: {
+            type: "split",
+            orientation: "vertical",
+            sizes: [0.3, 0.7],
+            children: [
+              { type: "pane", tabId: "b" },
+              { type: "pane", tabId: "a" },
+            ],
+          },
+          activeTabId: "a",
+        },
+      ],
+    }
+    const { result } = setup(["a", "b", "c"], layout)
+    expect(panes(result)).toEqual([["b", "a"], ["c"]])
+    expect(result.current.tabs.map((tab) => tab.id)).toEqual(["b", "a", "c"])
+    expect(new Set(result.current.groups.map((group) => group.id)).size).toBe(2)
+  })
+
+  it("breaks a pane out into a new tab of the bar and focuses it", () => {
+    const { result } = setup(["a", "b"])
+    act(() => {
+      result.current.mergeGroup("b", "a", "right")
+    })
+    act(() => {
+      result.current.breakOutPane("a", 0)
+    })
+    expect(panes(result)).toEqual([["a"], ["b"]])
+    expect(result.current.activeTabId).toBe("a")
   })
 })

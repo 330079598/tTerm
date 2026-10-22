@@ -1,14 +1,16 @@
 import { useCallback, useRef } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { useTranslation } from "react-i18next"
-import type { SerializedDockview } from "dockview-react"
 import { invokeSafe, reportError } from "@/lib/errors"
+import type { TabGroup } from "@/lib/tabGroups"
+import { serializeTabGroups } from "@/lib/tabGroupsPersistence"
 import { isPageTab, Tab } from "@/types/tab"
 
 interface SessionData {
   tabs: Tab[]
   activeTabId: string | null
-  layout: SerializedDockview | null
+  /** The tabs' split layout: the current format, or the Dockview one of older versions. */
+  layout: unknown
   lastSaved: number
 }
 
@@ -85,11 +87,12 @@ export function useSessionPersistence() {
     (
       tabs: Tab[],
       activeTabId: string | null,
-      layout: SerializedDockview | null,
+      groups: TabGroup[],
       fallbackActiveTabId?: string | null
     ) => {
       try {
         const persistableTabs = getPersistableTabs(tabs)
+        const layout = serializeTabGroups(groups, new Set(persistableTabs.map((tab) => tab.id)))
         const persistedActiveTabId = getPersistedActiveTabId(
           persistableTabs,
           activeTabId,
@@ -146,7 +149,7 @@ export function useSessionPersistence() {
     const result = await invokeSafe<{
       tabs: Tab[]
       active_tab_id: string | null
-      layout?: SerializedDockview | null
+      layout?: unknown
       last_saved: number
     }>("load_session", undefined, {
       context: "load_session",
@@ -174,7 +177,7 @@ export function useSessionPersistence() {
 
   // Debounced save
   const debouncedSave = useCallback(
-    (tabs: Tab[], activeTabId: string | null, layout: SerializedDockview | null) => {
+    (tabs: Tab[], activeTabId: string | null, groups: TabGroup[]) => {
       const activeContentTab = tabs.find((tab) => tab.id === activeTabId && !isPageTab(tab))
       if (activeContentTab) {
         lastActiveContentTabIdRef.current = activeContentTab.id
@@ -184,7 +187,7 @@ export function useSessionPersistence() {
         clearTimeout(timeoutRef.current)
       }
       timeoutRef.current = setTimeout(() => {
-        saveSession(tabs, activeTabId, layout, lastActiveContentTabIdRef.current)
+        saveSession(tabs, activeTabId, groups, lastActiveContentTabIdRef.current)
       }, SAVE_DEBOUNCE_MS)
     },
     [saveSession]

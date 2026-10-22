@@ -7,12 +7,14 @@ import type { Tab } from "@/types/tab"
 
 interface TabTooltipProps {
   tab: Tab
+  /** A split tab's panes, each named on a line of its own. */
+  panes?: Tab[]
   /** The tab's header element, which receives the hover. */
   children: React.ReactElement
 }
 
 /** The hover tooltip on a tab's header, shown only when the setting turns it on. */
-export function TabTooltip({ tab, children }: TabTooltipProps) {
+export function TabTooltip({ tab, panes, children }: TabTooltipProps) {
   const { config } = useConfig()
 
   if (!config.tab_hover_tooltip) {
@@ -22,7 +24,9 @@ export function TabTooltip({ tab, children }: TabTooltipProps) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent>{tabTooltip(tab)}</TooltipContent>
+      <TooltipContent>
+        {panes ? panes.map((pane) => <div key={pane.id}>{tabTooltip(pane)}</div>) : tabTooltip(tab)}
+      </TooltipContent>
     </Tooltip>
   )
 }

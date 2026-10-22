@@ -11,8 +11,8 @@ export interface PaneRect {
   bottom: number
 }
 
-// Dockview rounds pane edges to whole pixels, so panes in one row can differ
-// by a pixel in their tops.
+// Pane edges are rounded to whole pixels, so panes in one row can differ by a
+// pixel in their tops.
 const EDGE_TOLERANCE = 2
 
 function isVisible(pane: PaneRect) {

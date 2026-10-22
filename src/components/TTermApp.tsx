@@ -55,6 +55,7 @@ import { useTerminalFontZoom } from "@/hooks/useTerminalFontZoom"
 import { useTerminalNotifications } from "@/hooks/useTerminalNotifications"
 import { useWindowControls } from "@/hooks/useWindowControls"
 import { useWebDavSync } from "@/hooks/useWebDavSync"
+import { getVisiblePaneIds } from "@/lib/tabGroups"
 const SETTINGS_TAB_TITLE = "Settings"
 
 export const TTermApp: React.FC = () => {
@@ -67,7 +68,19 @@ export const TTermApp: React.FC = () => {
   const workspaceRef = useRef<TabPanelsHandle>(null)
 
   const tabsApi = useTabs()
-  const { tabs, activeTabId, setActiveTab, moveTab, duplicateTab, renameTab, updateTab } = tabsApi
+  const {
+    tabs,
+    groups,
+    activeTabId,
+    setActiveTab,
+    moveTab,
+    duplicateTab,
+    renameTab,
+    updateTab,
+    breakOutPane,
+    ungroupPanes,
+    togglePaneZoom,
+  } = tabsApi
   const tabsRef = useRef(tabs)
   const activeTabIdRef = useRef(activeTabId)
   useLatestRef(tabsRef, tabs)
@@ -108,7 +121,7 @@ export const TTermApp: React.FC = () => {
   const tabConnection = useTabConnectionActions(shell)
   const controls = useBroadcastControls(shell, broadcast, runtime, tabConnection.handleReconnectTab)
   usePageTabs(shell, { isLoaded, config, i18n, settingsTabTitle, tunnelsTabTitle, logsTabTitle })
-  const { workspaceLayout, setWorkspaceLayout } = useSessionRestore(shell, {
+  useSessionRestore(shell, {
     isLoaded,
     getPreloadedSession,
     saveSession,
@@ -133,15 +146,15 @@ export const TTermApp: React.FC = () => {
     handleQuickConnectSaved: quickConnect.handleQuickConnectSaved,
     handleReconnectTab: tabConnection.handleReconnectTab,
   })
-  const { handleRemoveTab, handleCloseOtherTabs, handleCloseTabsToLeft, handleCloseTabsToRight } =
-    useTabClosing(shell, { transfers, stopLiveSource: runtime.stopLiveSource })
   const {
-    handleSplitTab,
-    handleTabDragMove,
-    handleTabDrop,
-    handleTabDragCancel,
-    getTabContextIds,
-  } = useWorkspaceSplits(shell)
+    handleRemoveTab,
+    handleCloseTab,
+    handleCloseOtherTabs,
+    handleCloseTabsToLeft,
+    handleCloseTabsToRight,
+  } = useTabClosing(shell, { transfers, stopLiveSource: runtime.stopLiveSource })
+  const { handleSplitTab, handleTabDragMove, handleTabDrop, handleTabDragCancel } =
+    useWorkspaceSplits(shell)
 
   useTerminalFontZoom()
 
@@ -163,7 +176,11 @@ export const TTermApp: React.FC = () => {
     handleNewTab,
     duplicateTab,
     splitTab: handleSplitTab,
+    togglePaneZoom,
+    breakOutPane,
+    ungroupPanes,
     handleRemoveTab,
+    handleCloseTab,
     handleCloseOtherTabs,
     handleCloseTabsToRight,
     handleCloseTabsToLeft,
@@ -181,8 +198,8 @@ export const TTermApp: React.FC = () => {
   })
 
   const getVisibleTerminalTabIds = useCallback(
-    () => workspaceRef.current?.getVisibleTerminalTabIds() ?? [],
-    []
+    () => getVisiblePaneIds(groups, activeTabId),
+    [activeTabId, groups]
   )
   const handleTerminalAttention = useTerminalNotifications({
     tabs,
@@ -216,6 +233,13 @@ export const TTermApp: React.FC = () => {
       <TabPanels
         ref={workspaceRef}
         activeTabId={activeTabId}
+        groups={groups}
+        mergeGroup={tabsApi.mergeGroup}
+        placePane={tabsApi.placePane}
+        breakOutPane={breakOutPane}
+        ungroupPanes={ungroupPanes}
+        togglePaneZoom={togglePaneZoom}
+        resizeSplit={tabsApi.resizeSplit}
         broadcastSourceTabId={
           broadcast.broadcastMode === "live" ? (broadcast.broadcastSource?.tabId ?? null) : null
         }
@@ -225,11 +249,9 @@ export const TTermApp: React.FC = () => {
         handleReconnectTab={tabConnection.handleReconnectTab}
         handleServerMonitorVisibilityChange={tabConnection.handleServerMonitorVisibilityChange}
         handleUnpinConnectionHeader={tabConnection.handleUnpinConnectionHeader}
-        initialLayout={workspaceLayout}
         onActiveTabChange={setActiveTab}
         onConnectProfile={handleConnect}
         onEditProfile={profileActions.handleEditProfile}
-        onLayoutChange={setWorkspaceLayout}
         onOpenRemoteFile={handleOpenRemoteFile}
         onPauseBroadcast={controls.pauseLiveBroadcast}
         onResumeBroadcast={controls.resumeLiveBroadcast}
@@ -267,15 +289,15 @@ export const TTermApp: React.FC = () => {
     >
       <AppTitleBar
         tabs={tabs}
+        groups={groups}
         activeTabId={activeTabId}
         setActiveTab={setActiveTab}
-        handleRemoveTab={handleRemoveTab}
+        handleCloseTab={handleCloseTab}
         handleNewTab={handleNewTab}
         moveTab={moveTab}
         handleTabDragMove={handleTabDragMove}
         handleTabDrop={handleTabDrop}
         handleTabDragCancel={handleTabDragCancel}
-        getTabContextIds={getTabContextIds}
         handleTabContextMenu={handleTabContextMenu}
         setShowProfilesPanel={setShowProfilesPanel}
         transfers={transfers}

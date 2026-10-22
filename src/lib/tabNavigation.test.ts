@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { getSiblingTabId, getTabIdAtPosition, resolveTabShortcutTarget } from "@/lib/tabNavigation"
+import {
+  compareTabIds,
+  getSiblingTabId,
+  getTabIdAtPosition,
+  resolveTabShortcutTarget,
+} from "@/lib/tabNavigation"
 
 const TABS = ["t1", "t2", "t3"]
 
@@ -58,5 +63,15 @@ describe("resolveTabShortcutTarget", () => {
 
   it("reports no target when the shortcut found no tab", () => {
     expect(resolveTabShortcutTarget(undefined, "t1")).toEqual({ kind: "none" })
+  })
+})
+
+describe("compareTabIds", () => {
+  it("orders tabs as they were opened, by number rather than by text", () => {
+    expect(["tab-10", "tab-2", "tab-1"].sort(compareTabIds)).toEqual(["tab-1", "tab-2", "tab-10"])
+  })
+
+  it("falls back to the text for ids that are not numbered", () => {
+    expect(["b", "tab-1", "a"].sort(compareTabIds)).toEqual(["a", "b", "tab-1"])
   })
 })

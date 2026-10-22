@@ -42,7 +42,6 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   sessionNonce = 0,
   isActive,
   isGlobalShortcutTarget,
-  workspacePanelApi,
   connectionHeaderPinned = true,
   connection,
   shellName,
@@ -195,7 +194,6 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
   useTerminalActivation({
     ...refs,
-    workspacePanelApi,
     isActive,
     tabId,
     isGlobalShortcutTarget,

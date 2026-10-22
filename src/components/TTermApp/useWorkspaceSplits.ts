@@ -1,18 +1,19 @@
 import { useCallback, useEffect } from "react"
 
 import type { AppShell } from "@/components/TTermApp/appShell"
-import type { WorkspaceSplitDirection } from "@/components/TTermApp/workspaceContext"
 import { useKeymap } from "@/contexts/KeymapContext"
+import type { SplitDirection } from "@/lib/tabGroups"
 
-/** Splitting the workspace, from the menus, the keyboard or a dragged tab. */
+/** Splitting a pane, from the menus or the keyboard, and dropping a tab dragged off the tab bar. */
 export function useWorkspaceSplits(shell: AppShell) {
-  const { workspaceRef, tabs, activeTabId } = shell
+  const { workspaceRef, activeTabId, duplicateTab } = shell
 
+  // A split opens a copy of the pane beside it, as iTerm2 and Windows Terminal do.
   const handleSplitTab = useCallback(
-    (tabId: string, direction: WorkspaceSplitDirection) => {
-      workspaceRef.current?.splitTab(tabId, direction)
+    (tabId: string, direction: SplitDirection) => {
+      duplicateTab(tabId, direction)
     },
-    [workspaceRef]
+    [duplicateTab]
   )
 
   const handleTabDragMove = useCallback(
@@ -32,11 +33,6 @@ export function useWorkspaceSplits(shell: AppShell) {
   const handleTabDragCancel = useCallback(() => {
     workspaceRef.current?.clearTabDrop()
   }, [workspaceRef])
-
-  const getTabContextIds = useCallback(
-    (tabId: string) => workspaceRef.current?.getGroupTabIds(tabId) ?? tabs.map((tab) => tab.id),
-    [tabs, workspaceRef]
-  )
 
   const { registerHandler } = useKeymap()
 
@@ -62,6 +58,5 @@ export function useWorkspaceSplits(shell: AppShell) {
     handleTabDragMove,
     handleTabDrop,
     handleTabDragCancel,
-    getTabContextIds,
   }
 }

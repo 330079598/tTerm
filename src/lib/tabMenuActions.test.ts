@@ -4,7 +4,7 @@ import {
   getTabPinMenuAction,
   getTabRenameMenuAction,
   getTabSplitMenuActions,
-  getWorkspaceTabMenuActions,
+  getPaneMenuActions,
 } from "@/lib/tabMenuActions"
 
 const t = ((key: string) => key) as Parameters<typeof getTabSplitMenuActions>[1]
@@ -32,25 +32,40 @@ describe("getTabPinMenuAction", () => {
   })
 })
 
-describe("getWorkspaceTabMenuActions", () => {
-  const actions = (tab: Parameters<typeof getWorkspaceTabMenuActions>[0], ids = [tab.id]) =>
-    getWorkspaceTabMenuActions(tab, ids, t).map((item) => item.action)
+describe("getPaneMenuActions", () => {
+  const actions = (tab: Parameters<typeof getPaneMenuActions>[0], isZoomed = false) =>
+    getPaneMenuActions(tab, { isZoomed }, t).map((item) => item.action)
 
-  it("offers a page only a new tab and closing", () => {
+  it("offers a page only the pane's layout and closing", () => {
     const page = actions({ id: "a", title: "Settings", type: "settings", isActive: true })
-    expect(page.slice(0, 3)).toEqual(["new", "", "close"])
-    expect(page).not.toContain("rename")
+    expect(page).toEqual(["toggle-zoom", "move-to-new-tab", "ungroup", "", "close"])
   })
 
-  it("offers a terminal its copies, splits, renaming and logging", () => {
+  it("offers a terminal its copies, splits, renaming and the pane's layout", () => {
     expect(actions({ id: "a", title: "tTerm", type: "terminal", isActive: true })).toEqual(
-      expect.arrayContaining(["duplicate", "split-right", "rename", "close"])
+      expect.arrayContaining([
+        "duplicate",
+        "split-right",
+        "rename",
+        "toggle-zoom",
+        "move-to-new-tab",
+        "ungroup",
+        "close",
+      ])
     )
+  })
+
+  it("restores a zoomed pane instead of zooming it", () => {
+    const tab = { id: "a", title: "tTerm", type: "terminal", isActive: true } as const
+    const zoom = (isZoomed: boolean) =>
+      getPaneMenuActions(tab, { isZoomed }, t).find((item) => item.action === "toggle-zoom")
+    expect(zoom(false)?.label).toBe("workspace.zoomPane")
+    expect(zoom(true)?.label).toBe("workspace.unzoomPane")
   })
 
   it("shows the duplicate shortcut beside the copy item", () => {
     const tab = { id: "a", title: "tTerm", type: "terminal", isActive: true } as const
-    const duplicate = getWorkspaceTabMenuActions(tab, [tab.id], t).find(
+    const duplicate = getPaneMenuActions(tab, { isZoomed: false }, t).find(
       (item) => item.action === "duplicate"
     )
     expect(duplicate?.shortcut).toBe("tabs.duplicateActive")

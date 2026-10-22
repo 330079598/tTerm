@@ -33,6 +33,10 @@ import {
   ScrollText,
   FileArchive,
   PackageOpen,
+  Maximize2,
+  Minimize2,
+  SquareArrowOutUpRight,
+  Columns2,
 } from "lucide-react"
 import { useShortcutLabel } from "@/contexts/KeymapContext"
 import { TabContextMenuAction } from "@/types/tab"
@@ -115,6 +119,14 @@ const getActionIcon = (icon?: string) => {
       return <Highlighter size={14} aria-hidden="true" />
     case "scroll-text":
       return <ScrollText size={14} aria-hidden="true" />
+    case "maximize":
+      return <Maximize2 size={14} aria-hidden="true" />
+    case "minimize":
+      return <Minimize2 size={14} aria-hidden="true" />
+    case "move-out":
+      return <SquareArrowOutUpRight size={14} aria-hidden="true" />
+    case "unsplit":
+      return <Columns2 size={14} aria-hidden="true" />
     default:
       return null
   }

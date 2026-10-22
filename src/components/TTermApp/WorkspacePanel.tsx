@@ -1,14 +1,9 @@
 import React from "react"
-import type { IDockviewPanelProps } from "dockview-react"
 
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { TerminalTab } from "@/components/TerminalTab"
-import {
-  useDockPanelState,
-  useWorkspace,
-  type WorkspacePanelParams,
-} from "@/components/TTermApp/workspaceContext"
-import { isPageTab } from "@/types/tab"
+import { useWorkspace } from "@/components/TTermApp/workspaceContext"
+import { isPageTab, type Tab } from "@/types/tab"
 import { withLocalCwd } from "@/lib/localTabTitle"
 
 const RemoteFileEditor = React.lazy(() =>
@@ -35,19 +30,24 @@ const SettingsPanel = React.lazy(() =>
   }))
 )
 
-export const WorkspacePanel = React.memo(function WorkspacePanel({
-  api,
-  params,
-}: IDockviewPanelProps<WorkspacePanelParams>) {
-  const workspace = useWorkspace()
-  const { hasBeenVisible, isActive, isVisible } = useDockPanelState(api)
-  const tab = workspace.tabs.find((candidate) => candidate.id === params.tabId)
-  const isHiddenByMaximize =
-    workspace.maximizedGroupId !== null && api.group.id !== workspace.maximizedGroupId
+interface WorkspacePanelProps {
+  tab: Tab
+  /** The pane is in sight: its tab in the bar is the active one, and no zoom hides it. */
+  isVisible: boolean
+  /** The pane has been in sight since it opened. */
+  hasBeenVisible: boolean
+  /** The pane has the keyboard: the app's active tab. */
+  isActive: boolean
+}
 
-  if (!tab) {
-    return null
-  }
+/** What a pane shows: a terminal, a page or a remote file. */
+export const WorkspacePanel = React.memo(function WorkspacePanel({
+  tab,
+  isVisible,
+  hasBeenVisible,
+  isActive,
+}: WorkspacePanelProps) {
+  const workspace = useWorkspace()
 
   const isSshConnection = tab.connection?.type === "ssh" || tab.type === "ssh"
   const shouldConnect =
@@ -59,13 +59,12 @@ export const WorkspacePanel = React.memo(function WorkspacePanel({
       hasBeenVisible ||
       tab.hasConnected === true)
 
+  // Pages render only while in sight, as they hold no session to keep.
+  const showsPage = isVisible || !isPageTab(tab)
+
   return (
-    <div
-      className="workspace-panel"
-      data-maximized-hidden={isHiddenByMaximize || undefined}
-      data-workspace-panel-id={tab.id}
-    >
-      {tab.type === "settings" ? (
+    <div className="workspace-panel" data-workspace-panel-id={tab.id}>
+      {!showsPage ? null : tab.type === "settings" ? (
         <ErrorBoundary resetKey={tab.id} scope="settings">
           <React.Suspense fallback={null}>
             <SettingsPanel
@@ -106,7 +105,6 @@ export const WorkspacePanel = React.memo(function WorkspacePanel({
               sessionNonce={tab.sessionNonce}
               isActive={isVisible}
               isGlobalShortcutTarget={isActive}
-              workspacePanelApi={api}
               connectionHeaderPinned={tab.connectionHeaderPinned}
               connection={tab.connection ?? { type: tab.type === "terminal" ? "terminal" : "ssh" }}
               shellName={tab.shellName}

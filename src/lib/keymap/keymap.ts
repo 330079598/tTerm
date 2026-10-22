@@ -33,6 +33,9 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   "workspace.focusPaneDown": "mod+alt+arrowdown",
   // Undoing the splits sits beside the split chords, Mod+\ and Mod+Shift+\.
   "workspace.restoreSingleGroup": "mod+alt+\\",
+  // iTerm2 zooms a pane on Cmd+Shift+Enter, which fills a saved password here.
+  "workspace.togglePaneZoom": "mod+alt+enter",
+  "workspace.movePaneToNewTab": null,
   "commandLibrary.open": "mod+shift+p",
   "broadcast.togglePanel": "mod+shift+b",
   "tabs.next": "ctrl+tab",

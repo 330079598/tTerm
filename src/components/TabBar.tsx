@@ -11,11 +11,15 @@ import { TabOverflowPanel } from "@/components/TabBar/TabOverflowPanel"
 import { TabItem } from "@/components/TabBar/TabItem"
 import { TabIcon } from "@/components/TabIcon"
 import type { Tab, TabContextMenuAction } from "@/types/tab"
+import type { TabPanes } from "@/components/TabBar/TabItem"
 import { focusActiveTerminal, keepFocusOnMouseDown } from "@/lib/terminalFocus"
 
 const TAB_OVERFLOW_THRESHOLD = 16
 export interface TabBarProps {
+  /** The tabs of the bar, each the pane its group had the focus in. */
   tabs: Tab[]
+  /** The panes of each split tab, keyed by the tab it shows. */
+  tabPanes: ReadonlyMap<string, TabPanes>
   activeTabId: string | null
   onTabClick: (id: string) => void
   onTabClose: (id: string) => void
@@ -24,12 +28,12 @@ export interface TabBarProps {
   onTabDragMove: (tabId: string, clientX: number, clientY: number) => void
   onTabDrop: (tabId: string, clientX: number, clientY: number) => boolean
   onTabDragCancel: () => void
-  getTabContextIds: (tabId: string) => string[]
   onContextMenu: (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => void
 }
 
 export const TabBar: React.FC<TabBarProps> = ({
   tabs,
+  tabPanes,
   activeTabId,
   onTabClick,
   onTabClose,
@@ -37,7 +41,6 @@ export const TabBar: React.FC<TabBarProps> = ({
   onTabDragMove,
   onTabDrop,
   onTabDragCancel,
-  getTabContextIds,
   onContextMenu,
 }) => {
   const { t } = useTranslation()
@@ -171,6 +174,7 @@ export const TabBar: React.FC<TabBarProps> = ({
   )
 
   const hasOverflow = scrollState.canScrollLeft || scrollState.canScrollRight
+  const getTabContextIds = useCallback(() => tabs.map((tab) => tab.id), [tabs])
 
   const scrollTabs = useCallback(
     (direction: "left" | "right") => {
@@ -248,6 +252,7 @@ export const TabBar: React.FC<TabBarProps> = ({
               <TabItem
                 tab={tab}
                 index={index}
+                panes={tabPanes.get(tab.id)}
                 getTabContextIds={getTabContextIds}
                 isActive={tab.id === activeTabId}
                 isDragging={tab.id === draggingTabId}

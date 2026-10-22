@@ -1,215 +1,144 @@
-import { useCallback } from "react"
-import type { DockviewApi } from "dockview-react"
+import { useCallback, useState } from "react"
 
-import type {
-  PendingSplit,
-  WorkspaceDropPreview,
-  WorkspaceDropDirection,
+import {
+  findDropTarget,
+  type WorkspaceDropPreview,
+  type WorkspaceDropTarget,
 } from "@/components/TTermApp/workspaceDrop"
 import type { TabPanelsProps } from "@/components/TTermApp/workspaceContext"
+import type { PaneBox } from "@/lib/paneLayout"
+import { findGroupOfTab, getPaneIds, type TabGroup } from "@/lib/tabGroups"
 import { isSessionTab, type Tab } from "@/types/tab"
-import type { WorkspaceSplitDirection } from "@/components/TTermApp/workspaceContext"
+
+type DragSource = "tab" | "pane"
 
 interface WorkspaceDropOptions {
-  dockApi: DockviewApi | null
-  tabsRef: React.RefObject<Tab[]>
+  rootRef: React.RefObject<HTMLDivElement | null>
+  groups: TabGroup[]
+  activeGroup: TabGroup | undefined
+  /** The panes in sight and where they sit in the workspace. */
+  visibleBoxes: ReadonlyMap<string, PaneBox>
+  tabs: Tab[]
   duplicateTab: TabPanelsProps["duplicateTab"]
-  pendingSplitRef: React.RefObject<PendingSplit | null>
-  dropPreviewRef: React.RefObject<WorkspaceDropPreview | null>
-  setDropPreview: React.Dispatch<React.SetStateAction<WorkspaceDropPreview | null>>
-  dockRootRef: React.RefObject<HTMLDivElement | null>
+  mergeGroup: TabPanelsProps["mergeGroup"]
+  placePane: TabPanelsProps["placePane"]
 }
 
 /**
- * Splitting a tab into a new group, and dropping a tab dragged off the tab
- * bar onto the workspace: next to a group, or into it.
+ * Dropping onto the tab in sight: a tab dragged off the tab bar joins it as
+ * panes, and a pane dragged by its header moves within it. Dropping a lone
+ * tab onto itself splits off a copy, as the split buttons do.
  */
 export function useWorkspaceDrop({
-  dockApi,
-  tabsRef,
+  rootRef,
+  groups,
+  activeGroup,
+  visibleBoxes,
+  tabs,
   duplicateTab,
-  pendingSplitRef,
-  dropPreviewRef,
-  setDropPreview,
-  dockRootRef,
+  mergeGroup,
+  placePane,
 }: WorkspaceDropOptions) {
-  const splitTab = useCallback(
-    (tabId: string, direction: WorkspaceSplitDirection) => {
-      const sourcePanel = dockApi?.getPanel(tabId)
-      if (!dockApi || !sourcePanel) {
-        return
-      }
-      const sourceTab = tabsRef.current.find((tab) => tab.id === tabId)
-      if (!sourceTab || !isSessionTab(sourceTab)) {
-        return
-      }
+  const [dropPreview, setDropPreview] = useState<WorkspaceDropPreview | null>(null)
 
-      if (sourcePanel.group.panels.length === 1) {
-        const duplicatedTabId = duplicateTab(tabId)
-        if (duplicatedTabId) {
-          pendingSplitRef.current = {
-            direction,
-            sourceTabId: tabId,
-            tabId: duplicatedTabId,
-          }
-        }
-        return
-      }
+  const clearDrop = useCallback(() => setDropPreview(null), [])
 
-      const targetGroup = dockApi.addGroup({ referencePanel: sourcePanel, direction })
-      sourcePanel.api.moveTo({ group: targetGroup, position: "center" })
-      sourcePanel.api.setActive()
+  const findTarget = useCallback(
+    (source: DragSource, tabId: string, clientX: number, clientY: number) => {
+      const root = rootRef.current
+      if (!root || !activeGroup) return null
+      const rect = root.getBoundingClientRect()
+      const target = findDropTarget(visibleBoxes, clientX - rect.left, clientY - rect.top)
+      if (!target) return null
+      if (source === "pane") {
+        return target.tabId === tabId ? null : target
+      }
+      if (findGroupOfTab(groups, tabId) !== activeGroup) return target
+      const tab = tabs.find((candidate) => candidate.id === tabId)
+      return getPaneIds(activeGroup.root).length === 1 && isSessionTab(tab) ? target : null
     },
-    [dockApi, duplicateTab, pendingSplitRef, tabsRef]
+    [activeGroup, groups, rootRef, tabs, visibleBoxes]
   )
 
-  const clearTabDrop = useCallback(() => {
-    dropPreviewRef.current = null
-    setDropPreview(null)
-  }, [dropPreviewRef, setDropPreview])
-
-  const previewTabDrop = useCallback(
-    (tabId: string, clientX: number, clientY: number) => {
-      const root = dockRootRef.current
-      const api = dockApi
-      const sourcePanel = api?.getPanel(tabId)
-      if (!root || !api || !sourcePanel) {
-        clearTabDrop()
+  const previewDrop = useCallback(
+    (source: DragSource, tabId: string, clientX: number, clientY: number) => {
+      const target = findTarget(source, tabId, clientX, clientY)
+      if (!target) {
+        clearDrop()
         return false
       }
-
-      const rootRect = root.getBoundingClientRect()
-      if (
-        clientX < rootRect.left ||
-        clientX > rootRect.right ||
-        clientY < rootRect.top ||
-        clientY > rootRect.bottom
-      ) {
-        clearTabDrop()
-        return false
-      }
-
-      const targetGroupMatch = api.groups
-        .map((group) => ({ group, bounds: group.api.boundingBox }))
-        .filter(
-          (
-            candidate
-          ): candidate is {
-            group: (typeof api.groups)[number]
-            bounds: NonNullable<(typeof candidate)["bounds"]>
-          } => {
-            const { bounds } = candidate
-            return (
-              bounds !== undefined &&
-              bounds.width > 0 &&
-              bounds.height > 0 &&
-              clientX >= rootRect.left + bounds.left &&
-              clientX <= rootRect.left + bounds.left + bounds.width &&
-              clientY >= rootRect.top + bounds.top &&
-              clientY <= rootRect.top + bounds.top + bounds.height
-            )
-          }
-        )
-        .sort(
-          (first, second) =>
-            first.bounds.width * first.bounds.height - second.bounds.width * second.bounds.height
-        )[0]
-      const targetGroup = targetGroupMatch?.group
-      const targetPanel = targetGroup?.activePanel ?? targetGroup?.panels[0]
-      if (!targetGroupMatch || !targetPanel) {
-        clearTabDrop()
-        return false
-      }
-
-      const targetRect = {
-        left: rootRect.left + targetGroupMatch.bounds.left,
-        top: rootRect.top + targetGroupMatch.bounds.top,
-        width: targetGroupMatch.bounds.width,
-        height: targetGroupMatch.bounds.height,
-      }
-      const normalizedX = (clientX - targetRect.left) / targetRect.width - 0.5
-      const normalizedY = (clientY - targetRect.top) / targetRect.height - 0.5
-      const isSourceGroup = sourcePanel.group === targetPanel.group
-      const direction: WorkspaceDropDirection =
-        !isSourceGroup && Math.abs(normalizedX) <= 0.25 && Math.abs(normalizedY) <= 0.25
-          ? "center"
-          : Math.abs(normalizedX) > Math.abs(normalizedY)
-            ? normalizedX < 0
-              ? "left"
-              : "right"
-            : normalizedY < 0
-              ? "above"
-              : "below"
-
-      if (isSourceGroup) {
-        const sourceTab = tabsRef.current.find((tab) => tab.id === tabId)
-        if (sourcePanel.group.panels.length === 1 && (!sourceTab || !isSessionTab(sourceTab))) {
-          clearTabDrop()
-          return false
-        }
-      }
-      const nextPreview: WorkspaceDropPreview = {
-        direction,
-        sourceTabId: tabId,
-        targetTabId: targetPanel.id,
-        left: targetRect.left - rootRect.left,
-        top: targetRect.top - rootRect.top,
-        width: targetRect.width,
-        height: targetRect.height,
-      }
-
-      dropPreviewRef.current = nextPreview
       setDropPreview((current) =>
-        current?.direction === nextPreview.direction &&
-        current.targetTabId === nextPreview.targetTabId &&
-        current.sourceTabId === nextPreview.sourceTabId &&
-        current.left === nextPreview.left &&
-        current.top === nextPreview.top &&
-        current.width === nextPreview.width &&
-        current.height === nextPreview.height
+        current &&
+        current.direction === target.direction &&
+        current.targetTabId === target.tabId &&
+        current.sourceTabId === tabId &&
+        current.left === target.box.left &&
+        current.top === target.box.top &&
+        current.width === target.box.width &&
+        current.height === target.box.height
           ? current
-          : nextPreview
+          : {
+              ...target.box,
+              direction: target.direction,
+              sourceTabId: tabId,
+              targetTabId: target.tabId,
+            }
       )
       return true
     },
-    [clearTabDrop, dockApi, dockRootRef, dropPreviewRef, setDropPreview, tabsRef]
+    [clearDrop, findTarget]
   )
 
-  const commitTabDrop = useCallback(
-    (tabId: string, clientX: number, clientY: number) => {
-      if (!previewTabDrop(tabId, clientX, clientY)) {
-        return false
+  const drop = useCallback(
+    (source: DragSource, tabId: string, target: WorkspaceDropTarget) => {
+      if (source === "pane") {
+        placePane(tabId, target.tabId, target.direction)
+      } else if (target.tabId === tabId) {
+        duplicateTab(tabId, target.direction)
+      } else {
+        mergeGroup(tabId, target.tabId, target.direction)
       }
+    },
+    [duplicateTab, mergeGroup, placePane]
+  )
 
-      const preview = dropPreviewRef.current
-      const sourcePanel = dockApi?.getPanel(tabId)
-      const targetPanel = preview ? dockApi?.getPanel(preview.targetTabId) : undefined
-      if (!preview || !sourcePanel || !targetPanel) {
-        clearTabDrop()
-        return false
-      }
-
-      if (sourcePanel.group === targetPanel.group && sourcePanel.group.panels.length === 1) {
-        splitTab(tabId, preview.direction as WorkspaceSplitDirection)
-        clearTabDrop()
-        return true
-      }
-
-      sourcePanel.api.moveTo({
-        group: targetPanel.group,
-        position:
-          preview.direction === "above"
-            ? "top"
-            : preview.direction === "below"
-              ? "bottom"
-              : preview.direction,
-      })
-      sourcePanel.api.setActive()
-      clearTabDrop()
+  const commitDrop = useCallback(
+    (source: DragSource, tabId: string, clientX: number, clientY: number) => {
+      const target = findTarget(source, tabId, clientX, clientY)
+      clearDrop()
+      if (!target) return false
+      drop(source, tabId, target)
       return true
     },
-    [clearTabDrop, dockApi, previewTabDrop, splitTab, dropPreviewRef]
+    [clearDrop, drop, findTarget]
   )
 
-  return { splitTab, clearTabDrop, previewTabDrop, commitTabDrop }
+  const previewTabDrop = useCallback(
+    (tabId: string, clientX: number, clientY: number) =>
+      previewDrop("tab", tabId, clientX, clientY),
+    [previewDrop]
+  )
+  const commitTabDrop = useCallback(
+    (tabId: string, clientX: number, clientY: number) => commitDrop("tab", tabId, clientX, clientY),
+    [commitDrop]
+  )
+  const previewPaneDrop = useCallback(
+    (tabId: string, clientX: number, clientY: number) =>
+      previewDrop("pane", tabId, clientX, clientY),
+    [previewDrop]
+  )
+  const commitPaneDrop = useCallback(
+    (tabId: string, clientX: number, clientY: number) =>
+      commitDrop("pane", tabId, clientX, clientY),
+    [commitDrop]
+  )
+
+  return {
+    dropPreview,
+    clearDrop,
+    previewTabDrop,
+    commitTabDrop,
+    previewPaneDrop,
+    commitPaneDrop,
+  }
 }

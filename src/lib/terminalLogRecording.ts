@@ -36,8 +36,9 @@ function subscribe(listener: () => void) {
   }
 }
 
-export function useTabLogRecording(tabId: string): boolean {
-  return useSyncExternalStore(subscribe, () => recording.has(tabId))
+/** Whether any of the tabs is being logged. */
+export function useTabLogRecording(tabIds: readonly string[]): boolean {
+  return useSyncExternalStore(subscribe, () => tabIds.some((tabId) => recording.has(tabId)))
 }
 
 /** The tab menu items that start or stop logging a terminal tab and show its logs. */

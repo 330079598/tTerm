@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react"
-import type { SerializedDockview } from "dockview-react"
 
 import type { AppShell } from "@/components/TTermApp/appShell"
 import type { useSessionPersistence } from "@/hooks/useSessionPersistence"
@@ -19,10 +18,9 @@ interface SessionRestoreOptions {
  * loaded, and saves them whenever they change after that.
  */
 export function useSessionRestore(shell: AppShell, options: SessionRestoreOptions) {
-  const { tabs, activeTabId, addTab, restoreSession } = shell
+  const { tabs, groups, activeTabId, addTab, restoreSession } = shell
   const { isLoaded, getPreloadedSession, saveSession } = options
   const [sessionRestored, setSessionRestored] = useState(false)
-  const [workspaceLayout, setWorkspaceLayout] = useState<SerializedDockview | null>(null)
 
   useEffect(() => {
     if (!isLoaded) {
@@ -45,8 +43,7 @@ export function useSessionRestore(shell: AppShell, options: SessionRestoreOption
           if (cancelled) {
             return
           }
-          setWorkspaceLayout(savedSession.layout)
-          restoreSession(restoredTabs, savedSession.activeTabId)
+          restoreSession(restoredTabs, savedSession.activeTabId, savedSession.layout)
         } else {
           const tab = await nameLocalTab({ title: "", type: "terminal", isModified: false })
           if (cancelled) {
@@ -74,11 +71,6 @@ export function useSessionRestore(shell: AppShell, options: SessionRestoreOption
       return
     }
 
-    saveSession(tabs, activeTabId, workspaceLayout)
-  }, [tabs, activeTabId, saveSession, sessionRestored, workspaceLayout])
-
-  return {
-    workspaceLayout,
-    setWorkspaceLayout,
-  }
+    saveSession(tabs, activeTabId, groups)
+  }, [tabs, groups, activeTabId, saveSession, sessionRestored])
 }

@@ -27,7 +27,6 @@ const ACKNOWLEDGEMENTS = [
   { name: "russh", key: "russh", url: "https://github.com/Eugeny/russh" },
   { name: "React", key: "react", url: "https://react.dev" },
   { name: "CodeMirror", key: "codemirror", url: "https://codemirror.net" },
-  { name: "Dockview", key: "dockview", url: "https://dockview.dev" },
   {
     name: "portable-pty",
     key: "portablePty",

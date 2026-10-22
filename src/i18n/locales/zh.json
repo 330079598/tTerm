@@ -23,7 +23,6 @@
       "russh": "SSH 与 SFTP 协议",
       "react": "界面框架",
       "codemirror": "文件编辑器",
-      "dockview": "分屏与标签布局",
       "portablePty": "本地伪终端",
       "tokio": "异步运行时",
       "rustls": "TLS 与加密",
@@ -97,10 +96,19 @@
     "splitLeft": "向左分屏",
     "splitDown": "向下分屏",
     "splitAbove": "向上分屏",
-    "maximizeGroup": "最大化分组",
-    "restoreGroup": "还原分组",
-    "restoreSingleGroup": "还原单分组",
-    "emptyGroup": "将标签拖到此处"
+    "zoomPane": "最大化分屏",
+    "unzoomPane": "还原分屏",
+    "movePaneToNewTab": "移到新标签页",
+    "unsplit": "取消分屏",
+    "closePane": "关闭分屏",
+    "paneCount_one": "{{count}} 个分屏",
+    "paneCount_other": "{{count}} 个分屏",
+    "paneZoomed": "有分屏已最大化",
+    "closeSplitTabTitle_one": "关闭 {{count}} 个分屏？",
+    "closeSplitTabTitle_other": "关闭 {{count}} 个分屏？",
+    "closeSplitTabDescription_one": "此标签页分成了 {{count}} 个分屏，关闭后它们都会关闭。",
+    "closeSplitTabDescription_other": "此标签页分成了 {{count}} 个分屏，关闭后它们都会关闭。",
+    "closeSplitTabConfirm": "关闭标签页"
   },
   "broadcast": {
     "title": "终端广播",
@@ -339,7 +347,9 @@
         "focusPaneRight": "切换到右侧分屏",
         "focusPaneUp": "切换到上方分屏",
         "focusPaneDown": "切换到下方分屏",
-        "restoreSingleGroup": "还原单分组"
+        "restoreSingleGroup": "取消分屏，每个分屏成为独立标签页",
+        "togglePaneZoom": "最大化或还原当前分屏",
+        "movePaneToNewTab": "将当前分屏移到新标签页"
       },
       "commandLibrary": {
         "open": "打开命令库"
@@ -353,7 +363,7 @@
         "switchToNth": "切换到第 1-8 个标签页，9 为最后一个",
         "renameActive": "重命名当前标签页",
         "duplicateActive": "复制当前标签页",
-        "closeActive": "关闭当前标签页"
+        "closeActive": "关闭当前分屏，只有一个时关闭标签页"
       },
       "terminal": {
         "find": "在终端中查找",

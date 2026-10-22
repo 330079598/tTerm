@@ -1,7 +1,6 @@
 import type { useTranslation } from "react-i18next"
 
 import type { KeymapActionId } from "@/lib/keymap/actions"
-import { getTabCloseMenuActions } from "@/lib/tabClosing"
 import { hasTabIcon } from "@/lib/tabIcons"
 import { getTabLogMenuActions } from "@/lib/terminalLogRecording"
 import { isPageTab, isSessionTab, type Tab, type TabContextMenuAction } from "@/types/tab"
@@ -57,37 +56,55 @@ export function getTabPinMenuAction(
     : [{ label: t("contextMenu.unpinConnectionHeader"), action: "unpin-header", icon: "pin-off" }]
 }
 
-/** The context menu of a tab in a split group's header. */
-export function getWorkspaceTabMenuActions(
+/** The item that undoes a tab's split, giving each of its panes a tab of its own. */
+export function getUngroupMenuAction(
+  t: ReturnType<typeof useTranslation>["t"]
+): TabContextMenuAction {
+  return {
+    label: t("workspace.unsplit"),
+    action: "ungroup",
+    icon: "unsplit",
+    shortcut: "workspace.restoreSingleGroup",
+  }
+}
+
+/** The context menu of a pane's header, in a tab of the bar split into panes. */
+export function getPaneMenuActions(
   tab: Tab,
-  tabIds: string[],
+  pane: { isZoomed: boolean },
   t: ReturnType<typeof useTranslation>["t"]
 ): TabContextMenuAction[] {
-  const commonStart: TabContextMenuAction[] = [
-    { label: t("contextMenu.newTab"), action: "new", icon: "plus", shortcut: "workspace.newTab" },
-  ]
-  const commonEnd: TabContextMenuAction[] = [
+  const layoutActions: TabContextMenuAction[] = [
     { separator: true, label: "", action: "" },
-    ...getTabCloseMenuActions(tabIds, tab.id, {
-      closeTab: t("contextMenu.closeTab"),
-      closeOtherTabs: t("contextMenu.closeOtherTabs"),
-      closeTabsToLeft: t("contextMenu.closeTabsToLeft"),
-      closeTabsToRight: t("contextMenu.closeTabsToRight"),
-    }),
+    {
+      label: pane.isZoomed ? t("workspace.unzoomPane") : t("workspace.zoomPane"),
+      action: "toggle-zoom",
+      icon: pane.isZoomed ? "minimize" : "maximize",
+      shortcut: "workspace.togglePaneZoom",
+    },
+    {
+      label: t("workspace.movePaneToNewTab"),
+      action: "move-to-new-tab",
+      icon: "move-out",
+      shortcut: "workspace.movePaneToNewTab",
+    },
+    getUngroupMenuAction(t),
+  ]
+  const closeAction: TabContextMenuAction[] = [
+    { separator: true, label: "", action: "" },
+    { label: t("workspace.closePane"), action: "close", icon: "x", shortcut: "tabs.closeActive" },
   ]
 
   if (isPageTab(tab)) {
-    return [...commonStart, ...commonEnd]
+    return [...layoutActions.slice(1), ...closeAction]
   }
 
   const editConnectionAction: TabContextMenuAction | null =
     (tab.type === "ssh" || tab.type === "serial") && tab.connection?.profileId
       ? { label: t("contextMenu.editConnection"), action: "edit-connection", icon: "edit" }
       : null
-  const logActions = getTabLogMenuActions(tab, t)
 
   return [
-    ...commonStart,
     {
       label: t("contextMenu.duplicateTab"),
       action: "duplicate",
@@ -98,7 +115,8 @@ export function getWorkspaceTabMenuActions(
     getTabRenameMenuAction(tab, t),
     ...(editConnectionAction ? [editConnectionAction] : []),
     ...getTabPinMenuAction(tab, t),
-    ...logActions,
-    ...commonEnd,
+    ...getTabLogMenuActions(tab, t),
+    ...layoutActions,
+    ...closeAction,
   ]
 }

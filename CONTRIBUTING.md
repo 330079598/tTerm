@@ -96,8 +96,8 @@ password.
 ### Tech stack
 
 - **Frontend**: React 19, TypeScript, Vite, TanStack Router, xterm.js (WebGL and
-  Canvas renderers), dockview, CodeMirror 6, dnd-kit, i18next, Radix UI,
-  lucide-react, Tailwind CSS 4
+  Canvas renderers), CodeMirror 6, dnd-kit, i18next, Radix UI, lucide-react,
+  Tailwind CSS 4
 - **Backend**: Tauri 2, Rust, Tokio, portable-pty, russh, russh-sftp, SQLite
   (rusqlite), keyring, aes-gcm, argon2, zeroize
 
