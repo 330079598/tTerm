@@ -66,42 +66,60 @@
   display: flex;
   height: 26px;
   flex: 0 0 26px;
-  align-items: center;
+  align-items: stretch;
   gap: 6px;
-  padding: 0 3px 0 9px;
+  padding: 0 3px 0 0;
   border-bottom: 1px solid hsl(var(--border) / 0.5);
   background: hsl(var(--titlebar));
-  color: hsl(var(--foreground) / 0.6);
+  color: hsl(var(--foreground) / 0.55);
   cursor: default;
   font-size: calc(12px * var(--ui-font-scale, 1));
   user-select: none;
   transition: color 0.15s ease;
 }
 
-/* The pane with the keyboard: an accent along the header's edge. */
-.pane-header::before {
+.pane-header.active {
+  color: hsl(var(--foreground));
+}
+
+/* What runs in the pane, drawn as a tab: in the pane with the keyboard it
+   takes the active tab's fill and accent, as in the tab bar, and only as wide
+   as its title, so a wide pane doesn't get a bar-long stripe. */
+.pane-header-tab {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  max-width: min(100%, 320px);
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px 0 9px;
+  transition: background-color 0.15s ease;
+}
+
+.pane-header-tab::before {
   position: absolute;
   top: 0;
-  bottom: 0;
-  left: 0;
-  width: 2px;
+  right: 5px;
+  left: 5px;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
   background: hsl(var(--tab-active-border, var(--primary)));
   content: "";
   opacity: 0;
   transition: opacity 0.15s ease;
 }
 
-.pane-header.active {
-  color: hsl(var(--foreground));
+.pane-header.active .pane-header-tab {
+  background: hsl(var(--tab-active, var(--titlebar)));
 }
 
-.pane-header.active::before {
+.pane-header.active .pane-header-tab::before {
   opacity: 1;
 }
 
 .pane-header-title {
   min-width: 0;
-  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -132,6 +150,7 @@
 .pane-header-actions {
   display: flex;
   flex-shrink: 0;
+  margin-left: auto;
   align-items: center;
   gap: 1px;
   opacity: 0;

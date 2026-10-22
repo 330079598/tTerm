@@ -90,15 +90,17 @@ export const PaneHeader = React.memo(function PaneHeader({
           onTabContextMenu(event, tab, getPaneMenuActions(tab, { isZoomed }, t))
         }
       >
-        <TabIcon tab={tab} />
-        <TabAttentionDot tabId={tab.id} />
-        <TabLogIndicator tabId={tab.id} />
-        <TabTitle tab={tab} className="pane-header-title" />
-        {isZoomed && (
-          <span className="pane-header-zoom">
-            {paneNumber}/{paneCount}
-          </span>
-        )}
+        <div className="pane-header-tab">
+          <TabIcon tab={tab} />
+          <TabAttentionDot tabId={tab.id} />
+          <TabLogIndicator tabId={tab.id} />
+          <TabTitle tab={tab} className="pane-header-title" />
+          {isZoomed && (
+            <span className="pane-header-zoom">
+              {paneNumber}/{paneCount}
+            </span>
+          )}
+        </div>
         <div className="pane-header-actions">
           {canSplit &&
             action(

@@ -81,6 +81,10 @@ html.window-blur .server-monitor-panel-header {
   background-color: hsl(var(--titlebar) / var(--window-bar-opacity));
 }
 
+html.window-blur .pane-header.active .pane-header-tab {
+  background-color: hsl(var(--tab-active, var(--titlebar)) / var(--window-bar-opacity));
+}
+
 html.window-blur .tab-item {
   background-color: hsl(var(--tab-background) / var(--window-opacity));
 }
