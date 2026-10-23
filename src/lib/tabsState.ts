@@ -127,6 +127,34 @@ function nextSessionNonce(sessionNonce?: number) {
   return ((sessionNonce ?? 0) + 1) >>> 0
 }
 
+/** A copy of a session tab under a new id, which opens a session of its own. */
+function duplicateTabData(sourceTab: Tab, newId: string, tabs: readonly Tab[]): Tab {
+  const { id: _id, isActive: _isActive, ...tabData } = sourceTab
+  // A copy named automatically starts in the same directory, under the
+  // same name; the tab numbers tell them apart.
+  const baseTitle = sourceTab.autoTitle
+    ? undefined
+    : (sourceTab.duplicateBaseTitle ?? sourceTab.title)
+  return ensureTabDefaults({
+    ...tabData,
+    connection: tabData.connection ?? {
+      type: tabData.type === "terminal" ? "terminal" : "ssh",
+    },
+    sessionNonce: nextSessionNonce(sourceTab.sessionNonce),
+    id: newId,
+    title:
+      baseTitle === undefined
+        ? sourceTab.title
+        : getDuplicateTabTitle(
+            baseTitle,
+            tabs.map((tab) => tab.title)
+          ),
+    duplicateBaseTitle: baseTitle,
+    isActive: true,
+    hasConnected: true,
+  })
+}
+
 function activateTabInState(state: TabsState, id: string): TabsState {
   if (!state.tabs.some((tab) => tab.id === id)) {
     return state
@@ -220,30 +248,7 @@ function applyTabsAction(state: TabsState, action: TabsAction): TabsState {
       if (!sourceTab || isPageTab(sourceTab) || sourceTab.type === "remote-file-editor") {
         return state
       }
-      const { id: _id, isActive: _isActive, ...tabData } = sourceTab
-      // A copy named automatically starts in the same directory, under the
-      // same name; the tab numbers tell them apart.
-      const baseTitle = sourceTab.autoTitle
-        ? undefined
-        : (sourceTab.duplicateBaseTitle ?? sourceTab.title)
-      const newTab: Tab = ensureTabDefaults({
-        ...tabData,
-        connection: tabData.connection ?? {
-          type: tabData.type === "terminal" ? "terminal" : "ssh",
-        },
-        sessionNonce: nextSessionNonce(sourceTab.sessionNonce),
-        id: action.newId,
-        title:
-          baseTitle === undefined
-            ? sourceTab.title
-            : getDuplicateTabTitle(
-                baseTitle,
-                state.tabs.map((tab) => tab.title)
-              ),
-        duplicateBaseTitle: baseTitle,
-        isActive: true,
-        hasConnected: true,
-      })
+      const newTab = duplicateTabData(sourceTab, action.newId, state.tabs)
       const sourceGroup = action.split && findGroupOfTab(state.groups, action.sourceId)
       const split = action.split
       return {
