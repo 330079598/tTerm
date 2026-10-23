@@ -25,3 +25,16 @@ describe("normalizeTabSettings", () => {
     expect(normalizeTabSettings({})).toEqual(DEFAULT_TAB_SETTINGS)
   })
 })
+
+describe("pane settings", () => {
+  it("shows headers unless turned off, and keeps the fade in range", () => {
+    expect(normalizeTabSettings({ panes: { show_headers: false } }).panes.show_headers).toBe(false)
+    expect(normalizeTabSettings({ panes: { show_headers: "no" } }).panes.show_headers).toBe(true)
+    const dim = (value: unknown) =>
+      normalizeTabSettings({ panes: { dim_inactive_percent: value } }).panes.dim_inactive_percent
+    expect(dim(30.4)).toBe(30)
+    expect(dim(-5)).toBe(0)
+    expect(dim(200)).toBe(60)
+    expect(dim("30")).toBe(0)
+  })
+})

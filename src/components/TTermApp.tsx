@@ -234,6 +234,7 @@ export const TTermApp: React.FC = () => {
         ref={workspaceRef}
         activeTabId={activeTabId}
         groups={groups}
+        paneLook={config.panes}
         mergeGroup={tabsApi.mergeGroup}
         placePane={tabsApi.placePane}
         breakOutPane={breakOutPane}

@@ -1,4 +1,4 @@
-use super::{keyword_highlight, AppConfig};
+use super::{keyword_highlight, panes, AppConfig};
 
 #[test]
 fn legacy_config_shows_its_one_theme() {
@@ -282,4 +282,24 @@ fn keyword_highlight_keeps_the_users_sets() {
     let saved = serde_json::to_string(&config.keyword_highlight).unwrap();
     let reread: keyword_highlight::KeywordHighlightConfig = serde_json::from_str(&saved).unwrap();
     assert_eq!(reread, config.keyword_highlight);
+}
+
+#[test]
+fn panes_default_to_headers_shown_and_no_dimming() {
+    let config: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+
+    assert!(config.panes.show_headers);
+    assert_eq!(config.panes.dim_inactive_percent, 0);
+}
+
+#[test]
+fn panes_keep_a_partial_choice() {
+    let config: AppConfig =
+        serde_json::from_str(r#"{"theme":"default","panes":{"show_headers":false}}"#).unwrap();
+
+    assert!(!config.panes.show_headers);
+    assert_eq!(config.panes.dim_inactive_percent, 0);
+    let saved = serde_json::to_string(&config.panes).unwrap();
+    let reread: panes::PaneConfig = serde_json::from_str(&saved).unwrap();
+    assert_eq!(reread, config.panes);
 }

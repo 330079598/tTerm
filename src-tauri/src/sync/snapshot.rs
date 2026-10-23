@@ -73,6 +73,7 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "tab_icons",
     "tab_agent_indicator",
     "keyword_highlight",
+    "panes",
     "reconnect_enabled",
     "reconnect_max_attempts",
     "zmodem_auto_detect_enabled",

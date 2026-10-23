@@ -1,5 +1,6 @@
 pub(crate) mod atomic;
 pub mod keyword_highlight;
+pub mod panes;
 pub(crate) mod paths;
 pub mod reconnect;
 pub mod tab_agent_indicator;
@@ -279,6 +280,9 @@ pub struct AppConfig {
     /// Words and patterns colored in terminal output, in named sets.
     #[serde(default)]
     pub keyword_highlight: keyword_highlight::KeywordHighlightConfig,
+    /// How split panes look, and the saved split layouts.
+    #[serde(default)]
+    pub panes: panes::PaneConfig,
     /// Proxy server that hosts left on the default connect through; none when empty.
     #[serde(default)]
     pub default_proxy_id: String,
@@ -694,6 +698,7 @@ impl Default for AppConfig {
             tab_icons: tab_icons::TabIconConfig::default(),
             tab_agent_indicator: tab_agent_indicator::TabAgentIndicatorConfig::default(),
             keyword_highlight: keyword_highlight::KeywordHighlightConfig::default(),
+            panes: panes::PaneConfig::default(),
             default_proxy_id: String::new(),
         }
     }

@@ -10,7 +10,7 @@
 
 /* The gaps between split panes take one quiet tone; the dividers in them draw
    the line. */
-.workspace.has-pane-headers {
+.workspace.is-split {
   background: hsl(var(--border) / 0.1);
 }
 
@@ -42,6 +42,27 @@
   min-width: 0;
   min-height: 0;
   flex: 1;
+}
+
+/* Panes without the keyboard fade toward the background, by the amount set. */
+.workspace.dims-inactive-panes .workspace-pane:not(.active) .workspace-pane-body::after {
+  position: absolute;
+  z-index: 20;
+  background: hsl(var(--background));
+  content: "";
+  inset: 0;
+  opacity: var(--inactive-pane-dim, 0);
+  pointer-events: none;
+}
+
+/* Without headers, a thin frame in the accent marks the pane with the keyboard. */
+.workspace.frames-active-pane .workspace-pane.active::after {
+  position: absolute;
+  z-index: 21;
+  border: 1px solid hsl(var(--tab-active-border, var(--primary)) / 0.75);
+  content: "";
+  inset: 0;
+  pointer-events: none;
 }
 
 .workspace-panel {

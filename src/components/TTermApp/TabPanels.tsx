@@ -1,5 +1,5 @@
 import "@/components/TTermApp/Workspace.css"
-import { forwardRef, useImperativeHandle, useMemo, useRef } from "react"
+import { forwardRef, useImperativeHandle, useMemo, useRef, type CSSProperties } from "react"
 import { createPortal } from "react-dom"
 import { Columns2, Rows2 } from "lucide-react"
 
@@ -37,6 +37,7 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
   {
     activeTabId,
     groups,
+    paneLook,
     mergeGroup,
     placePane,
     resizeSplit,
@@ -78,6 +79,7 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
   ref
 ) {
   const rootRef = useRef<HTMLDivElement | null>(null)
+  const { show_headers: showPaneHeaders, dim_inactive_percent: dimPercent } = paneLook
   const { activeGroup, slots, visibleBoxes, sashes } = usePaneSlots(
     rootRef,
     groups,
@@ -201,11 +203,25 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
   // Panes are listed in the order their tabs opened, which never changes, so
   // React never moves a terminal's element, which would reset its scroll.
   const mountOrder = useMemo(() => [...tabs].sort((a, b) => compareTabIds(a.id, b.id)), [tabs])
-  const showsHeaders = activeGroup !== undefined && activeGroup.root.type === "split"
+  const isSplit = activeGroup !== undefined && activeGroup.root.type === "split"
+  // With more than one pane in sight, the ones without the keyboard may fade,
+  // and without headers a frame marks the one with it.
+  const showsSplit = isSplit && !activeGroup.zoomedTabId
+  const workspaceClass = [
+    "workspace",
+    isSplit ? "is-split" : "",
+    isSplit && showPaneHeaders ? "has-pane-headers" : "",
+    showsSplit && !showPaneHeaders ? "frames-active-pane" : "",
+    showsSplit && dimPercent > 0 ? "dims-inactive-panes" : "",
+  ].join(" ")
 
   return (
     <WorkspaceContext.Provider value={contextValue}>
-      <div ref={rootRef} className={`workspace ${showsHeaders ? "has-pane-headers" : ""}`}>
+      <div
+        ref={rootRef}
+        className={workspaceClass}
+        style={{ "--inactive-pane-dim": dimPercent / 100 } as CSSProperties}
+      >
         {mountOrder.map((tab) => {
           const slot = slots.get(tab.id)
           if (!slot) return null
@@ -216,7 +232,7 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
               box={slot.box}
               isVisible={slot.isVisible}
               isActive={slot.isVisible && tab.id === activeTabId}
-              showHeader={slot.paneCount > 1}
+              showHeader={showPaneHeaders && slot.paneCount > 1}
               isZoomed={slot.group.zoomedTabId === tab.id}
               paneNumber={slot.paneNumber}
               paneCount={slot.paneCount}

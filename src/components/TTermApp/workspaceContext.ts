@@ -7,6 +7,7 @@ import { createContext, useContext } from "react"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import type { ConnectionState, SshConnectionProgress } from "@/components/TerminalTab/types"
 import type { SplitDirection, TabGroup } from "@/lib/tabGroups"
+import type { PaneSettings } from "@/lib/tabSettings"
 import type { TerminalAttentionEvent } from "@/lib/terminalNotifications"
 import type { LiveBroadcastState, TerminalInputRequest } from "@/types/broadcast"
 import type { ExecutedCommand } from "@/types/command"
@@ -15,6 +16,8 @@ import type { SavedProfile, Tab, TabContextMenuAction } from "@/types/tab"
 export interface TabPanelsProps {
   activeTabId: string | null
   groups: TabGroup[]
+  /** Whether split panes show headers, and how much the ones without the keyboard fade. */
+  paneLook: Pick<PaneSettings, "show_headers" | "dim_inactive_percent">
   duplicateTab: (id: string, split?: SplitDirection) => string | null
   mergeGroup: (id: string, targetId: string, direction: SplitDirection) => void
   placePane: (id: string, targetId: string, direction: SplitDirection) => void
@@ -69,7 +72,7 @@ export interface TabPanelsProps {
 
 export type WorkspaceContextValue = Omit<
   TabPanelsProps,
-  "activeTabId" | "groups" | "mergeGroup" | "placePane" | "resizeSplit"
+  "activeTabId" | "groups" | "mergeGroup" | "placePane" | "resizeSplit" | "paneLook"
 > & {
   /** Starts dragging a pane by its header, to another place or out into a tab of its own. */
   startPaneDrag: (event: React.PointerEvent<HTMLElement>, tabId: string) => void

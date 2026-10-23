@@ -60,7 +60,11 @@ const initialTabs: Tab[] = ["tab-1", "tab-2"].map((id, index) => ({
 
 let api: ReturnType<typeof useTabs>
 
-function WorkspaceHarness() {
+function WorkspaceHarness({
+  paneLook = { show_headers: true, dim_inactive_percent: 0 },
+}: {
+  paneLook?: { show_headers: boolean; dim_inactive_percent: number }
+}) {
   const tabsApi = useTabs()
   const { restoreSession } = tabsApi
 
@@ -80,6 +84,7 @@ function WorkspaceHarness() {
     <TabPanels
       activeTabId={tabsApi.activeTabId}
       groups={tabsApi.groups}
+      paneLook={paneLook}
       broadcastSourceTabId={null}
       duplicateTab={tabsApi.duplicateTab}
       mergeGroup={tabsApi.mergeGroup}
@@ -141,6 +146,26 @@ describe("TabPanels split tabs", () => {
     expect(isPaneVisible("tab-3")).toBe(true)
     expect(isPaneVisible("tab-2")).toBe(false)
     expect(document.querySelectorAll(".pane-header")).toHaveLength(2)
+  })
+
+  it("without headers, frames the active pane and fades the others when set to", async () => {
+    render(<WorkspaceHarness paneLook={{ show_headers: false, dim_inactive_percent: 30 }} />)
+    await screen.findByTestId("terminal-tab-2")
+    act(() => {
+      api.duplicateTab("tab-1", "right")
+    })
+
+    const workspace = document.querySelector(".workspace")
+    expect(document.querySelectorAll(".pane-header")).toHaveLength(0)
+    expect(workspace?.classList.contains("frames-active-pane")).toBe(true)
+    expect(workspace?.classList.contains("dims-inactive-panes")).toBe(true)
+    expect(pane("tab-3")?.classList.contains("active")).toBe(true)
+
+    act(() => {
+      api.togglePaneZoom("tab-3")
+    })
+    expect(workspace?.classList.contains("frames-active-pane")).toBe(false)
+    expect(workspace?.classList.contains("dims-inactive-panes")).toBe(false)
   })
 
   it("keeps every terminal mounted while switching tabs and moving panes between them", async () => {

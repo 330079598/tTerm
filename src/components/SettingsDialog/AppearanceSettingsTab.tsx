@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
+import { PaneSettingsSection } from "@/components/SettingsDialog/PaneSettingsSection"
 import { TabSettingsSection } from "@/components/SettingsDialog/TabSettingsSection"
 import {
   FollowSystemThemeSetting,
@@ -450,6 +451,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
           tabStandardWidth={tabStandardWidth}
           tabWidthMode={tabWidthMode}
         />
+        <PaneSettingsSection />
       </div>
     </ScrollArea>
   )
