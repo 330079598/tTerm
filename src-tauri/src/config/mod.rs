@@ -217,6 +217,10 @@ pub struct AppConfig {
     /// tints it with the desktop wallpaper (Windows 11).
     #[serde(default = "default_window_blur_material")]
     pub window_blur_material: String,
+    /// How the window lays out its surfaces: "classic", or "islands", which
+    /// floats each pane as a rounded card on the title bar's color.
+    #[serde(default = "default_ui_style")]
+    pub ui_style: String,
     /// What closing the main window does: "ask", "tray" (keep running in the
     /// background behind a tray icon) or "quit".
     #[serde(default = "default_close_behavior")]
@@ -547,6 +551,10 @@ fn default_background_throttling() -> String {
     "throttle".to_string()
 }
 
+fn default_ui_style() -> String {
+    "classic".to_string()
+}
+
 fn default_close_behavior() -> String {
     "ask".to_string()
 }
@@ -681,6 +689,7 @@ impl Default for AppConfig {
             window_blur_radius: default_window_blur_radius(),
             window_opacity_percent: default_window_opacity_percent(),
             window_blur_material: default_window_blur_material(),
+            ui_style: default_ui_style(),
             close_behavior: default_close_behavior(),
             notifications_enabled: true,
             notify_command_finished: true,

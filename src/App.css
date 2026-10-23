@@ -2,6 +2,7 @@
 @import "./styles/base.css";
 @import "./styles/layout.css";
 @import "./styles/window-blur.css";
+@import "./styles/islands.css";
 @import "@xterm/xterm/css/xterm.css";
 
 /* Tailwind arbitrary font sizes are not backed by theme tokens. */

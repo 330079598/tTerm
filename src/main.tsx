@@ -5,6 +5,7 @@ import { DEFAULT_TERMINAL_FONT_FAMILY } from "@/lib/appConfig"
 import { initCanvasFontHost, updateCanvasFontHostFont } from "@/lib/canvasFontHost"
 import { onAppReady } from "@/lib/startup"
 import { preloadTheme } from "@/lib/themePreloader"
+import { preloadUiStyle } from "@/lib/uiStyle"
 
 import "@/i18n/config"
 
@@ -16,6 +17,7 @@ updateCanvasFontHostFont(DEFAULT_TERMINAL_FONT_FAMILY)
 
 // Preload theme before React mounts to prevent flash
 preloadTheme()
+preloadUiStyle()
 
 // Mount React application
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(<App />)

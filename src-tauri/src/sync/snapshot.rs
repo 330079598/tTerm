@@ -46,6 +46,7 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "theme_light",
     "theme_dark",
     "favorite_themes",
+    "ui_style",
     "language",
     "font_size",
     "terminal_line_height",

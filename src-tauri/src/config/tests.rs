@@ -309,3 +309,13 @@ fn panes_keep_saved_templates_as_written() {
     let reread: panes::PaneConfig = serde_json::from_str(&saved).unwrap();
     assert_eq!(reread, config.panes);
 }
+
+#[test]
+fn ui_style_defaults_to_classic_and_keeps_islands() {
+    let config: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+    assert_eq!(config.ui_style, "classic");
+
+    let config: AppConfig =
+        serde_json::from_str(r#"{"theme":"default","ui_style":"islands"}"#).unwrap();
+    assert_eq!(config.ui_style, "islands");
+}

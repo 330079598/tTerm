@@ -1,0 +1,64 @@
+/* Islands (`html.ui-islands`). The title bar's color runs on around the
+   content as the window's ground, and each pane floats on it as a rounded
+   card in the terminal's own background. Split panes are told apart by the gap
+   between them, so the dividers draw no line until they are pointed at. */
+html.ui-islands {
+  --island-margin: 6px;
+  --island-radius: 8px;
+}
+
+html.ui-islands .content-area {
+  padding: 2px var(--island-margin) var(--island-margin);
+  background-color: hsl(var(--titlebar));
+}
+
+html.ui-islands .workspace,
+html.ui-islands .workspace.is-split {
+  background: transparent;
+}
+
+html.ui-islands .workspace-pane,
+html.ui-islands .content-area > .terminal-placeholder {
+  border-radius: var(--island-radius);
+  background: hsl(var(--background));
+}
+
+html.ui-islands .content-area > .terminal-placeholder {
+  overflow: auto;
+}
+
+/* The frame that marks the pane with the keyboard follows the card's corners. */
+html.ui-islands .workspace.frames-active-pane .workspace-pane.active::after {
+  border-radius: inherit;
+}
+
+/* The header is part of its card rather than a strip of the ground. */
+html.ui-islands .pane-header {
+  background: transparent;
+}
+
+html.ui-islands body:not(.workspace-sash-resizing) .workspace-sash:not(:hover) {
+  background-image: none;
+}
+
+/* Over the blur, the ground takes a lighter tint than the cards. Each card
+   lies over the ground's tint, so its own opacity is what brings the two
+   together to the configured opacity. */
+html.window-blur.ui-islands {
+  --island-ground-opacity: calc(var(--window-opacity) * 0.6);
+  --island-opacity: calc(1 - (1 - var(--window-opacity)) / (1 - var(--window-opacity) * 0.6));
+}
+
+html.window-blur.ui-islands .title-bar,
+html.window-blur.ui-islands .content-area {
+  background-color: hsl(var(--titlebar) / var(--island-ground-opacity));
+}
+
+html.window-blur.ui-islands .workspace-pane,
+html.window-blur.ui-islands .content-area > .terminal-placeholder {
+  background: hsl(var(--background) / var(--island-opacity));
+}
+
+html.window-blur.ui-islands .pane-header {
+  background: transparent;
+}

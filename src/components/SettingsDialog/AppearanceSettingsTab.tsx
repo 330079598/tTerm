@@ -23,6 +23,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
 import { PaneSettingsSection } from "@/components/SettingsDialog/PaneSettingsSection"
 import { TabSettingsSection } from "@/components/SettingsDialog/TabSettingsSection"
+import { UiStyleSetting } from "@/components/SettingsDialog/UiStyleSetting"
 import {
   FollowSystemThemeSetting,
   LibraryThemeCards,
@@ -429,6 +430,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
               </Button>
             </div>
           </SettingsRow>
+          <UiStyleSetting />
         </SettingsSection>
 
         {isWindowBlurSupported() && (

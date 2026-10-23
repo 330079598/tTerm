@@ -4,8 +4,12 @@ import type { AppConfig } from "@/lib/appConfig"
 import { setSpinnerStyle } from "@/lib/spinnerStyle"
 import { setWindowBlur } from "@/lib/themePreloader"
 import { applyUiScalePercent, isWindowBlurEnabled } from "@/lib/uiPlatform"
+import { applyUiStyle } from "@/lib/uiStyle"
 
-/** Applies the UI scale, the window blur and the loading spinners' style from the config. */
+/**
+ * Applies the UI scale, the window blur, the window's style and the loading
+ * spinners' style from the config.
+ */
 export function useWindowAppearance(config: AppConfig, isLoaded: boolean) {
   const spinnerStyle = config.tab_agent_indicator.working
   useEffect(() => setSpinnerStyle(spinnerStyle), [spinnerStyle])
@@ -21,6 +25,12 @@ export function useWindowAppearance(config: AppConfig, isLoaded: boolean) {
       }
     }
   }, [config.ui_scale_percent])
+
+  // Not before the config loads, which would put back the classic default
+  // over the style remembered from the last run.
+  useEffect(() => {
+    if (isLoaded) applyUiStyle(config.ui_style)
+  }, [config.ui_style, isLoaded])
 
   // Not before the config loads: the page starts with whatever the window was
   // created with, and the defaults would switch the blur off in between.
