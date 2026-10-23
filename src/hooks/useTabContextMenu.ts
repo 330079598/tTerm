@@ -14,6 +14,7 @@ interface UseTabContextMenuDeps {
   togglePaneZoom: (id: string) => void
   breakOutPane: (id: string) => void
   ungroupPanes: (id: string) => void
+  openLayoutTemplates: (id: string) => void
   /** Closes one pane, or the tab of the bar it is the only pane of. */
   handleRemoveTab: (id: string) => void
   /** Closes a tab of the bar with all its panes. */
@@ -35,6 +36,7 @@ export function useTabContextMenu({
   togglePaneZoom,
   breakOutPane,
   ungroupPanes,
+  openLayoutTemplates,
   handleRemoveTab,
   handleCloseTab,
   handleCloseOtherTabs,
@@ -121,6 +123,9 @@ export function useTabContextMenu({
         case "ungroup":
           ungroupPanes(tab.id)
           break
+        case "layout-templates":
+          openLayoutTemplates(tab.id)
+          break
         case "rename":
           openRenameDialog(tab)
           break
@@ -183,6 +188,7 @@ export function useTabContextMenu({
       togglePaneZoom,
       breakOutPane,
       ungroupPanes,
+      openLayoutTemplates,
       openRenameDialog,
       handleRemoveTab,
       handleCloseTab,

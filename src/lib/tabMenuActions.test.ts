@@ -38,7 +38,14 @@ describe("getPaneMenuActions", () => {
 
   it("offers a page only the pane's layout and closing", () => {
     const page = actions({ id: "a", title: "Settings", type: "settings", isActive: true })
-    expect(page).toEqual(["toggle-zoom", "move-to-new-tab", "ungroup", "", "close"])
+    expect(page).toEqual([
+      "toggle-zoom",
+      "move-to-new-tab",
+      "ungroup",
+      "layout-templates",
+      "",
+      "close",
+    ])
   })
 
   it("offers a terminal its copies, splits, renaming and the pane's layout", () => {

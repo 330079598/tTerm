@@ -4,6 +4,7 @@ import { act, renderHook } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
 import { useTabs } from "@/hooks/useTabs"
+import { BUILTIN_PANE_TEMPLATES } from "@/lib/paneTemplates"
 import { getPaneIds } from "@/lib/tabGroups"
 import { getDuplicateTabTitle, removeTabsFromState } from "@/lib/tabsState"
 import type { Tab } from "@/types/tab"
@@ -307,5 +308,58 @@ describe("useTabs split tabs", () => {
     })
     expect(panes(result)).toEqual([["a"], ["b"]])
     expect(result.current.activeTabId).toBe("a")
+  })
+})
+
+describe("useTabs layout templates", () => {
+  const panes = (result: { current: ReturnType<typeof useTabs> }) =>
+    result.current.groups.map((group) => getPaneIds(group.root))
+
+  function setup(ids: string[]) {
+    const hook = renderHook(() => useTabs())
+    act(() => {
+      hook.result.current.restoreSession(createTabs(ids, ids[0]), ids[0])
+    })
+    return hook
+  }
+
+  it("fills the panes a layout adds with copies of the pane it was applied to", () => {
+    const { result } = setup(["a", "b"])
+    act(() => {
+      result.current.applyLayoutTemplate("a", BUILTIN_PANE_TEMPLATES[2].root)
+    })
+    const [first] = panes(result)
+    expect(first).toHaveLength(3)
+    expect(first[0]).toBe("a")
+    expect(panes(result)[1]).toEqual(["b"])
+    expect(result.current.tabs.map((tab) => tab.title)).toEqual(["a", "a-2", "a-3", "b"])
+    expect(result.current.activeTabId).toBe("a")
+  })
+
+  it("moves the panes a smaller layout has no room for into tabs of their own", () => {
+    const { result } = setup(["a", "b", "c"])
+    act(() => {
+      result.current.mergeGroup("b", "a", "right")
+      result.current.mergeGroup("c", "b", "right")
+    })
+    act(() => {
+      result.current.applyLayoutTemplate("c", BUILTIN_PANE_TEMPLATES[1].root)
+    })
+    expect(panes(result)).toEqual([["a", "c"], ["b"]])
+    expect(result.current.groups[0].root).toMatchObject({ orientation: "vertical" })
+    expect(result.current.activeTabId).toBe("c")
+  })
+
+  it("leaves a page tab as it is when the layout needs copies of it", () => {
+    const { result } = renderHook(() => useTabs())
+    act(() => {
+      result.current.openSettingsTab("Settings")
+    })
+    const before = result.current.groups
+    act(() => {
+      result.current.applyLayoutTemplate(result.current.tabs[0].id, BUILTIN_PANE_TEMPLATES[0].root)
+    })
+    expect(result.current.groups).toBe(before)
+    expect(result.current.tabs).toHaveLength(1)
   })
 })

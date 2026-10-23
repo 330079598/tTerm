@@ -22,6 +22,7 @@ import {
   type TabGroup,
 } from "@/lib/tabGroups"
 import { restoreTabGroups } from "@/lib/tabGroupsPersistence"
+import { applyTemplateToGroups, type LayoutShape } from "@/lib/paneTemplates"
 import { isPageTab, type PageTabType, type Tab } from "@/types/tab"
 
 export interface RemoveTabsOptions {
@@ -57,6 +58,7 @@ export type TabsAction =
   | { type: "ungroup"; id: string }
   | { type: "toggle-zoom"; id: string }
   | { type: "resize-split"; groupId: string; path: number[]; sizes: number[] }
+  | { type: "apply-template"; id: string; root: LayoutShape; newIds: string[] }
 
 export function removeTabsFromState(
   tabs: Tab[],
@@ -153,6 +155,39 @@ function duplicateTabData(sourceTab: Tab, newId: string, tabs: readonly Tab[]): 
     isActive: true,
     hasConnected: true,
   })
+}
+
+/**
+ * Lays the tab of the bar holding `action.id` out as a template, filling the
+ * panes it has no tab for with copies of that pane.
+ */
+function applyTemplate(
+  state: TabsState,
+  action: Extract<TabsAction, { type: "apply-template" }>
+): TabsState {
+  const sourceTab = state.tabs.find((tab) => tab.id === action.id)
+  if (!sourceTab) return state
+  const canCopy = !isPageTab(sourceTab) && sourceTab.type !== "remote-file-editor"
+  const newTabs: Tab[] = []
+  for (const newId of canCopy ? action.newIds : []) {
+    newTabs.push({
+      ...duplicateTabData(sourceTab, newId, [...state.tabs, ...newTabs]),
+      isActive: false,
+    })
+  }
+  let groupCount = state.groupCount
+  const groups = applyTemplateToGroups(
+    state.groups,
+    action.id,
+    action.root,
+    newTabs.map((tab) => tab.id),
+    () => `group-${++groupCount}`
+  )
+  if (groups === state.groups) return state
+  return activateTabInState(
+    { ...state, tabs: [...state.tabs, ...newTabs], groups, groupCount },
+    action.id
+  )
 }
 
 function activateTabInState(state: TabsState, id: string): TabsState {
@@ -327,6 +362,8 @@ function applyTabsAction(state: TabsState, action: TabsAction): TabsState {
             : group
         ),
       }
+    case "apply-template":
+      return applyTemplate(state, action)
   }
 }
 

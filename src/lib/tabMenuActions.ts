@@ -68,6 +68,18 @@ export function getUngroupMenuAction(
   }
 }
 
+/** The item that opens the layout templates for the tab holding this pane. */
+export function getLayoutTemplatesMenuAction(
+  t: ReturnType<typeof useTranslation>["t"]
+): TabContextMenuAction {
+  return {
+    label: t("layoutTemplates.menu"),
+    action: "layout-templates",
+    icon: "layout",
+    shortcut: "workspace.chooseLayout",
+  }
+}
+
 /** The context menu of a pane's header, in a tab of the bar split into panes. */
 export function getPaneMenuActions(
   tab: Tab,
@@ -89,6 +101,7 @@ export function getPaneMenuActions(
       shortcut: "workspace.movePaneToNewTab",
     },
     getUngroupMenuAction(t),
+    getLayoutTemplatesMenuAction(t),
   ]
   const closeAction: TabContextMenuAction[] = [
     { separator: true, label: "", action: "" },

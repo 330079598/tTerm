@@ -1,5 +1,6 @@
 import { useCallback, useReducer, useRef } from "react"
-import type { SplitDirection, TabGroup } from "@/lib/tabGroups"
+import { countTemplatePanes, type LayoutShape } from "@/lib/paneTemplates"
+import { findGroupOfTab, getPaneIds, type SplitDirection, type TabGroup } from "@/lib/tabGroups"
 import { ensureTabDefaults, tabsReducer, type RemoveTabsOptions } from "@/lib/tabsState"
 import { isPageTab, type PageTabType, Tab } from "@/types/tab"
 
@@ -34,6 +35,11 @@ export interface UseTabsReturn {
   ungroupPanes: (id: string) => void
   togglePaneZoom: (id: string) => void
   resizeSplit: (groupId: string, path: number[], sizes: number[]) => void
+  /**
+   * Lays the tab of the bar holding pane `id` out as a template; panes the
+   * template adds open copies of that pane.
+   */
+  applyLayoutTemplate: (id: string, root: LayoutShape) => void
 }
 
 export function useTabs(): UseTabsReturn {
@@ -183,6 +189,17 @@ export function useTabs(): UseTabsReturn {
     []
   )
 
+  const applyLayoutTemplate = useCallback(
+    (id: string, root: LayoutShape) => {
+      const group = findGroupOfTab(groups, id)
+      if (!group) return
+      const missing = countTemplatePanes(root) - getPaneIds(group.root).length
+      const newIds = Array.from({ length: Math.max(0, missing) }, generateTabId)
+      dispatch({ type: "apply-template", id, root, newIds })
+    },
+    [generateTabId, groups]
+  )
+
   return {
     tabs,
     activeTabId,
@@ -207,5 +224,6 @@ export function useTabs(): UseTabsReturn {
     ungroupPanes: ungroupPanesCallback,
     togglePaneZoom,
     resizeSplit: resizeSplitCallback,
+    applyLayoutTemplate,
   }
 }

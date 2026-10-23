@@ -12,6 +12,7 @@ import {
   getTabPinMenuAction,
   getTabRenameMenuAction,
   getTabSplitMenuActions,
+  getLayoutTemplatesMenuAction,
   getUngroupMenuAction,
 } from "@/lib/tabMenuActions"
 import { keepFocusOnMouseDown } from "@/lib/terminalFocus"
@@ -92,6 +93,7 @@ export const TabItem = React.memo(function TabItem({
             shortcut: "workspace.newTab",
           },
           ...splitActions,
+          ...(isSplit ? [getLayoutTemplatesMenuAction(t)] : []),
           { separator: true, label: "", action: "" },
           ...closeActions,
         ])
@@ -125,6 +127,7 @@ export const TabItem = React.memo(function TabItem({
         },
         ...getTabSplitMenuActions(tab, t),
         ...splitActions,
+        getLayoutTemplatesMenuAction(t),
         getTabRenameMenuAction(tab, t),
         ...(editConnectionAction ? [editConnectionAction] : []),
         ...getTabPinMenuAction(tab, t),

@@ -110,6 +110,32 @@
     "closeSplitTabDescription_other": "This tab is split into {{count}} panes. Closing it closes all of them.",
     "closeSplitTabConfirm": "Close Tab"
   },
+  "layoutTemplates": {
+    "menu": "Split Layout…",
+    "title": "Split layout",
+    "description": "Lay this tab's panes out in a layout. Panes the layout adds open copies of the pane you chose; panes it has no room for move to tabs of their own.",
+    "builtin": "Built-in",
+    "builtins": {
+      "columns2": "Two columns",
+      "rows2": "Two rows",
+      "columns3": "Three columns",
+      "mainRight2": "Main + two on the right",
+      "mainBottom2": "Main + two below",
+      "grid4": "Grid of four"
+    },
+    "saved": "Saved layouts",
+    "noneSaved": "No saved layouts yet. Split a tab the way you like, then save its layout here.",
+    "saveCurrent": "Save this tab's layout",
+    "splitFirst": "Split this tab first to save its layout.",
+    "name": "Layout name",
+    "save": "Save",
+    "untitled_one": "Layout of {{count}} pane",
+    "untitled_other": "Layout of {{count}} panes",
+    "paneCount_one": "{{count}} pane",
+    "paneCount_other": "{{count}} panes",
+    "needsSession": "Only a terminal or connection pane can be copied into the panes this layout adds.",
+    "delete": "Delete layout {{name}}"
+  },
   "broadcast": {
     "title": "Terminal broadcast",
     "selected_one": "{{count}} selected",
@@ -321,6 +347,7 @@
     "dimInactivePanes": "Dim inactive panes",
     "dimInactivePanesDesc": "Fade the panes without the keyboard so the one you type into stands out.",
     "dimInactivePanesOff": "Off",
+    "layoutTemplatesDesc": "Layouts saved from split tabs. Apply one from a tab's menu, Split Layout…",
     "tabStandardWidth": "Standard width",
     "tabStandardWidthRange": "80-300px",
     "interface": "Interface",
@@ -365,7 +392,8 @@
         "focusPaneDown": "Focus pane below",
         "restoreSingleGroup": "Unsplit the active tab into tabs of their own",
         "togglePaneZoom": "Maximize or restore the active pane",
-        "movePaneToNewTab": "Move the active pane to a new tab"
+        "movePaneToNewTab": "Move the active pane to a new tab",
+        "chooseLayout": "Choose a split layout for the active tab"
       },
       "commandLibrary": {
         "open": "Open command library"

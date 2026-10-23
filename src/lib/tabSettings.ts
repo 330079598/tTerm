@@ -4,6 +4,7 @@ import {
   type TabAgentIndicatorConfig,
 } from "@/lib/tabAgentIndicator"
 import { DEFAULT_TAB_ICON_CONFIG, normalizeTabIconConfig, type TabIconConfig } from "@/lib/tabIcons"
+import { normalizePaneTemplates, type PaneLayoutTemplate } from "@/lib/paneTemplates"
 
 /** How wide tabs are: each as wide as its title, or all the same width. */
 export type TabWidthMode = "adaptive" | "standard"
@@ -11,11 +12,12 @@ export type TabWidthMode = "adaptive" | "standard"
 /** How much the panes without the keyboard fade, in percent; 0 leaves them be. */
 export const INACTIVE_PANE_DIM_OPTIONS = [0, 15, 30, 45] as const
 
-/** How the panes of a split tab look. */
+/** How the panes of a split tab look, and the layouts saved to split tabs with. */
 export interface PaneSettings {
   /** Each pane of a split tab shows a header naming it, with buttons to split, zoom and close it. */
   show_headers: boolean
   dim_inactive_percent: number
+  templates: PaneLayoutTemplate[]
 }
 
 /** The settings for how tabs look, part of the app config. */
@@ -35,7 +37,7 @@ export const DEFAULT_TAB_SETTINGS: TabSettings = {
   tab_hover_tooltip: false,
   tab_icons: DEFAULT_TAB_ICON_CONFIG,
   tab_agent_indicator: DEFAULT_TAB_AGENT_INDICATOR,
-  panes: { show_headers: true, dim_inactive_percent: 0 },
+  panes: { show_headers: true, dim_inactive_percent: 0, templates: [] },
 }
 
 /** The tab settings from a saved config, each one valid. */
@@ -62,6 +64,7 @@ function normalizePaneSettings(value: unknown): PaneSettings {
       typeof dim === "number" && Number.isFinite(dim)
         ? Math.min(Math.max(Math.round(dim), 0), 60)
         : 0,
+    templates: normalizePaneTemplates(panes.templates),
   }
 }
 

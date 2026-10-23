@@ -3,6 +3,7 @@ import React, { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { CloseRequestDialog } from "@/components/CloseRequestDialog"
+import { LayoutTemplateDialog } from "@/components/LayoutTemplateDialog"
 import { ContextMenu } from "@/components/ContextMenu"
 import { NewTabLauncher } from "@/components/NewTabLauncher"
 import { ProxyCommandPrompt } from "@/components/ProxyCommandPrompt"
@@ -31,6 +32,7 @@ import { useWorkspaceSplits } from "@/components/TTermApp/useWorkspaceSplits"
 import { useTitleBarPages } from "@/components/TTermApp/useTitleBarPages"
 import { useCommandLibraryActions } from "@/components/TTermApp/useCommandLibraryActions"
 import { useTabKeymap } from "@/components/TTermApp/useTabKeymap"
+import { useLayoutTemplates } from "@/components/TTermApp/useLayoutTemplates"
 import { useActiveTerminalSessionCount } from "@/components/TTermApp/useActiveTerminalSessionCount"
 import {
   useBlockNativeContextMenu,
@@ -157,6 +159,7 @@ export const TTermApp: React.FC = () => {
     useWorkspaceSplits(shell)
 
   useTerminalFontZoom()
+  const { openLayoutTemplates, layoutTemplateDialog } = useLayoutTemplates(shell)
 
   const {
     nativeControlsReservePx,
@@ -179,6 +182,7 @@ export const TTermApp: React.FC = () => {
     togglePaneZoom,
     breakOutPane,
     ungroupPanes,
+    openLayoutTemplates,
     handleRemoveTab,
     handleCloseTab,
     handleCloseOtherTabs,
@@ -362,6 +366,7 @@ export const TTermApp: React.FC = () => {
       <CloseRequestDialog runningTunnelCount={runningTunnelCount} />
 
       <RenameDialog {...renameDialog} />
+      <LayoutTemplateDialog {...layoutTemplateDialog} />
 
       <TunnelHostKeyPrompt />
       <ProxyCommandPrompt />

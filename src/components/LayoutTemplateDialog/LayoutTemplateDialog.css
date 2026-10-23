@@ -1,0 +1,81 @@
+.layout-template-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
+
+.layout-template-card-wrap {
+  position: relative;
+}
+
+.layout-template-card {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.layout-template-card:hover:not(:disabled),
+.layout-template-card:focus-visible {
+  border-color: hsl(var(--primary) / 0.7);
+  background: hsl(var(--accent) / 0.5);
+  outline: none;
+}
+
+.layout-template-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.layout-template-preview {
+  display: flex;
+  height: 54px;
+}
+
+.layout-template-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout-template-count {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+}
+
+.layout-template-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: hsl(var(--background) / 0.9);
+  color: hsl(var(--muted-foreground));
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.layout-template-card-wrap:hover .layout-template-delete,
+.layout-template-delete:focus-visible {
+  opacity: 1;
+}
+
+.layout-template-delete:hover {
+  color: hsl(var(--destructive));
+}

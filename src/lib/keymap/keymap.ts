@@ -36,6 +36,7 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   // iTerm2 zooms a pane on Cmd+Shift+Enter, which fills a saved password here.
   "workspace.togglePaneZoom": "mod+alt+enter",
   "workspace.movePaneToNewTab": null,
+  "workspace.chooseLayout": null,
   "commandLibrary.open": "mod+shift+p",
   "broadcast.togglePanel": "mod+shift+b",
   "tabs.next": "ctrl+tab",

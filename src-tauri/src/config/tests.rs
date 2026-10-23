@@ -290,15 +290,21 @@ fn panes_default_to_headers_shown_and_no_dimming() {
 
     assert!(config.panes.show_headers);
     assert_eq!(config.panes.dim_inactive_percent, 0);
+    assert!(config.panes.templates.is_empty());
 }
 
 #[test]
-fn panes_keep_a_partial_choice() {
-    let config: AppConfig =
-        serde_json::from_str(r#"{"theme":"default","panes":{"show_headers":false}}"#).unwrap();
+fn panes_keep_saved_templates_as_written() {
+    let config: AppConfig = serde_json::from_str(
+        r#"{"theme":"default","panes":{"show_headers":false,"templates":[{"id":"t1","name":"Ops","root":{"type":"split","orientation":"horizontal","children":[{"type":"pane"},{"type":"pane"}],"sizes":[0.3,0.7]}}]}}"#,
+    )
+    .unwrap();
 
     assert!(!config.panes.show_headers);
     assert_eq!(config.panes.dim_inactive_percent, 0);
+    let template = &config.panes.templates[0];
+    assert_eq!(template.name, "Ops");
+    assert_eq!(template.root["sizes"][1], 0.7);
     let saved = serde_json::to_string(&config.panes).unwrap();
     let reread: panes::PaneConfig = serde_json::from_str(&saved).unwrap();
     assert_eq!(reread, config.panes);

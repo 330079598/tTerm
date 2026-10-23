@@ -37,4 +37,11 @@ describe("pane settings", () => {
     expect(dim(200)).toBe(60)
     expect(dim("30")).toBe(0)
   })
+
+  it("drops saved layouts that are broken", () => {
+    const panes = normalizeTabSettings({
+      panes: { templates: [{ id: "a", name: "x", root: { type: "pane" } }] },
+    }).panes
+    expect(panes.templates).toEqual([])
+  })
 })

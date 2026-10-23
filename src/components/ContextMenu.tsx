@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
+  LayoutTemplate,
   Plus,
   X,
   Copy,
@@ -127,6 +128,8 @@ const getActionIcon = (icon?: string) => {
       return <SquareArrowOutUpRight size={14} aria-hidden="true" />
     case "unsplit":
       return <Columns2 size={14} aria-hidden="true" />
+    case "layout":
+      return <LayoutTemplate size={14} aria-hidden="true" />
     default:
       return null
   }

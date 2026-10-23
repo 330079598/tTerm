@@ -1,0 +1,26 @@
+/* The drawing of a layout: its panes as boxes with a hairline gap. */
+.layout-preview-split {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  gap: 2px;
+}
+
+.layout-preview-split.vertical {
+  flex-direction: column;
+}
+
+.layout-preview-cell {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-basis: 0;
+}
+
+.layout-preview-pane {
+  flex: 1;
+  border: 1px solid hsl(var(--primary) / 0.45);
+  border-radius: 3px;
+  background: hsl(var(--primary) / 0.12);
+}

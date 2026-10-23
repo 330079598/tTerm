@@ -1,16 +1,19 @@
-import { PanelsTopLeft } from "lucide-react"
+import { LayoutTemplate, PanelsTopLeft, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { LayoutShapePreview } from "@/components/LayoutTemplateDialog/LayoutShapePreview"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
+import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
+import { countTemplatePanes } from "@/lib/paneTemplates"
 import { INACTIVE_PANE_DIM_OPTIONS, type PaneSettings } from "@/lib/tabSettings"
 
 /**
- * Appearance settings for split tabs: their pane headers, and fading the
- * panes without the keyboard.
+ * Appearance settings for split tabs: their pane headers, fading the panes
+ * without the keyboard, and the layouts saved from split tabs.
  */
 export function PaneSettingsSection() {
   const { t } = useTranslation()
@@ -27,40 +30,81 @@ export function PaneSettingsSection() {
     : [...INACTIVE_PANE_DIM_OPTIONS, panes.dim_inactive_percent].sort((a, b) => a - b)
 
   return (
-    <SettingsSection
-      icon={<PanelsTopLeft size={16} />}
-      title={t("settings.panes")}
-      description={t("settings.panesDesc")}
-    >
-      <SettingsRow
-        title={t("settings.paneHeaders")}
-        description={t("settings.paneHeadersDesc")}
-        action={
-          <Switch
-            checked={panes.show_headers}
-            aria-label={t("settings.paneHeaders")}
-            onCheckedChange={(checked) => save({ show_headers: checked })}
-          />
-        }
-      />
-      <SettingsRow
-        title={t("settings.dimInactivePanes")}
-        description={t("settings.dimInactivePanesDesc")}
-        action={
-          <Select
-            className="w-28"
-            aria-label={t("settings.dimInactivePanes")}
-            value={String(panes.dim_inactive_percent)}
-            onChange={(event) => save({ dim_inactive_percent: Number(event.target.value) })}
-          >
-            {dimOptions.map((percent) => (
-              <option key={percent} value={percent}>
-                {percent === 0 ? t("settings.dimInactivePanesOff") : `${percent}%`}
-              </option>
-            ))}
-          </Select>
-        }
-      />
-    </SettingsSection>
+    <>
+      <SettingsSection
+        icon={<PanelsTopLeft size={16} />}
+        title={t("settings.panes")}
+        description={t("settings.panesDesc")}
+      >
+        <SettingsRow
+          title={t("settings.paneHeaders")}
+          description={t("settings.paneHeadersDesc")}
+          action={
+            <Switch
+              checked={panes.show_headers}
+              aria-label={t("settings.paneHeaders")}
+              onCheckedChange={(checked) => save({ show_headers: checked })}
+            />
+          }
+        />
+        <SettingsRow
+          title={t("settings.dimInactivePanes")}
+          description={t("settings.dimInactivePanesDesc")}
+          action={
+            <Select
+              className="w-28"
+              aria-label={t("settings.dimInactivePanes")}
+              value={String(panes.dim_inactive_percent)}
+              onChange={(event) => save({ dim_inactive_percent: Number(event.target.value) })}
+            >
+              {dimOptions.map((percent) => (
+                <option key={percent} value={percent}>
+                  {percent === 0 ? t("settings.dimInactivePanesOff") : `${percent}%`}
+                </option>
+              ))}
+            </Select>
+          }
+        />
+      </SettingsSection>
+      <SettingsSection
+        icon={<LayoutTemplate size={16} />}
+        title={t("layoutTemplates.saved")}
+        description={t("settings.layoutTemplatesDesc")}
+      >
+        {panes.templates.length === 0 ? (
+          <p className="text-muted-foreground px-1 text-xs">{t("layoutTemplates.noneSaved")}</p>
+        ) : (
+          panes.templates.map((template) => (
+            <SettingsRow
+              key={template.id}
+              title={
+                <span className="flex items-center gap-3">
+                  <span className="flex h-6 w-9 shrink-0">
+                    <LayoutShapePreview shape={template.root} />
+                  </span>
+                  {template.name}
+                </span>
+              }
+              description={t("layoutTemplates.paneCount", {
+                count: countTemplatePanes(template.root),
+              })}
+              action={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t("layoutTemplates.delete", { name: template.name })}
+                  onClick={() =>
+                    save({ templates: panes.templates.filter(({ id }) => id !== template.id) })
+                  }
+                >
+                  <Trash2 size={14} />
+                </Button>
+              }
+            />
+          ))
+        )}
+      </SettingsSection>
+    </>
   )
 }

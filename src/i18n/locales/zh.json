@@ -110,6 +110,32 @@
     "closeSplitTabDescription_other": "此标签页分成了 {{count}} 个分屏，关闭后它们都会关闭。",
     "closeSplitTabConfirm": "关闭标签页"
   },
+  "layoutTemplates": {
+    "menu": "分屏布局…",
+    "title": "分屏布局",
+    "description": "按所选布局重新排列这个标签页的分屏。布局多出的分屏会复制你选中的分屏会话；放不下的分屏会各自移到新标签页。",
+    "builtin": "内置",
+    "builtins": {
+      "columns2": "左右两栏",
+      "rows2": "上下两栏",
+      "columns3": "三栏",
+      "mainRight2": "主区 + 右侧两格",
+      "mainBottom2": "主区 + 下方两格",
+      "grid4": "四宫格"
+    },
+    "saved": "已保存的布局",
+    "noneSaved": "还没有保存的布局。先把标签页分好屏，再在这里保存它的布局。",
+    "saveCurrent": "保存当前标签页的布局",
+    "splitFirst": "先分屏，才能保存这个标签页的布局。",
+    "name": "布局名称",
+    "save": "保存",
+    "untitled_one": "{{count}} 格布局",
+    "untitled_other": "{{count}} 格布局",
+    "paneCount_one": "{{count}} 个分屏",
+    "paneCount_other": "{{count}} 个分屏",
+    "needsSession": "只有终端或连接分屏才能复制到这个布局多出的分屏里。",
+    "delete": "删除布局 {{name}}"
+  },
   "broadcast": {
     "title": "终端广播",
     "selected_other": "已选择 {{count}} 个",
@@ -312,6 +338,7 @@
     "dimInactivePanes": "未激活分屏变暗",
     "dimInactivePanesDesc": "让没有键盘焦点的分屏变淡，突出正在输入的那个。",
     "dimInactivePanesOff": "关闭",
+    "layoutTemplatesDesc": "从分屏标签页保存的布局。在标签页右键菜单的“分屏布局…”里套用。",
     "tabStandardWidth": "标准宽度",
     "tabStandardWidthRange": "80-300px",
     "interface": "界面",
@@ -356,7 +383,8 @@
         "focusPaneDown": "切换到下方分屏",
         "restoreSingleGroup": "取消分屏，每个分屏成为独立标签页",
         "togglePaneZoom": "最大化或还原当前分屏",
-        "movePaneToNewTab": "将当前分屏移到新标签页"
+        "movePaneToNewTab": "将当前分屏移到新标签页",
+        "chooseLayout": "为当前标签页选择分屏布局"
       },
       "commandLibrary": {
         "open": "打开命令库"

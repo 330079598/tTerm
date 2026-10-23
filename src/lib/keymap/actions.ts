@@ -16,6 +16,7 @@ export type KeymapActionId =
   | "workspace.restoreSingleGroup"
   | "workspace.togglePaneZoom"
   | "workspace.movePaneToNewTab"
+  | "workspace.chooseLayout"
   | "commandLibrary.open"
   | "broadcast.togglePanel"
   // tabs
@@ -75,6 +76,7 @@ export const KEYMAP_ACTIONS: KeymapActionDefinition[] = [
   { id: "workspace.restoreSingleGroup", group: "workspace", allowInEditable: true },
   { id: "workspace.togglePaneZoom", group: "workspace", allowInEditable: true },
   { id: "workspace.movePaneToNewTab", group: "workspace", allowInEditable: true },
+  { id: "workspace.chooseLayout", group: "workspace", allowInEditable: true },
   { id: "commandLibrary.open", group: "workspace", allowInEditable: true },
   { id: "broadcast.togglePanel", group: "workspace", allowInEditable: true },
   { id: "tabs.next", group: "tabs", allowInEditable: true },
