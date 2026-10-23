@@ -231,6 +231,30 @@
   background: hsl(var(--accent));
 }
 
+/* The panes of a split tab, listed under it, indented past its number. */
+.tab-overflow-item.pane {
+  position: relative;
+  padding: 5px 8px 5px 32px;
+}
+
+.tab-overflow-item.pane::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 16px;
+  width: 1px;
+  background: hsl(var(--border));
+  content: "";
+}
+
+.tab-overflow-item.pane .tab-overflow-number {
+  display: none;
+}
+
+.tab-overflow-item.pane .tab-overflow-title {
+  font-size: calc(12px * var(--ui-font-scale, 1));
+}
+
 .tab-overflow-number {
   flex-shrink: 0;
   min-width: 18px;

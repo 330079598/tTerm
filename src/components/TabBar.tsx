@@ -126,9 +126,9 @@ export const TabBar: React.FC<TabBarProps> = ({
     updateOverflowPanelPosition,
     closeOverflowMenu,
     handleSelectTab,
-    filteredTabs,
+    entries,
     handleSearchKeyDown,
-  } = useTabOverflowMenu({ tabs, onTabClick })
+  } = useTabOverflowMenu({ tabs, tabPanes, onTabClick })
 
   const { layoutListDrag, handleTabPointerDown } = useTabDrag({
     dragStateRef,
@@ -311,8 +311,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
                 handleSearchKeyDown={handleSearchKeyDown}
-                filteredTabs={filteredTabs}
-                tabs={tabs}
+                entries={entries}
                 activeTabId={activeTabId}
                 handleSelectTab={handleSelectTab}
               />,

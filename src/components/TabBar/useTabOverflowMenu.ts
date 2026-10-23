@@ -1,15 +1,21 @@
-import React, { useCallback, useEffect, useRef, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import type { TabBarProps } from "@/components/TabBar"
+import { getFirstOverflowTarget, getOverflowEntries } from "@/components/TabBar/overflowEntries"
 import { placeOverflowPanel, type OverflowPanelStyle } from "@/components/TabBar/overflowPanelStyle"
 import { isImeKeyEvent } from "@/lib/ime"
 import { refocusTerminalIfFocusLost } from "@/lib/terminalFocus"
 
 /**
- * The menu listing every tab when they overflow the bar: where its panel
- * opens, searching it, and closing it on a click outside or Escape.
+ * The menu listing every tab when they overflow the bar, and the panes of
+ * split ones: where its panel opens, searching it, and closing it on a click
+ * outside or Escape.
  */
-export function useTabOverflowMenu({ tabs, onTabClick }: Pick<TabBarProps, "tabs" | "onTabClick">) {
+export function useTabOverflowMenu({
+  tabs,
+  tabPanes,
+  onTabClick,
+}: Pick<TabBarProps, "tabs" | "tabPanes" | "onTabClick">) {
   const overflowMenuRef = useRef<HTMLDivElement | null>(null)
   const overflowTriggerRef = useRef<HTMLButtonElement | null>(null)
   const overflowPanelRef = useRef<HTMLDivElement | null>(null)
@@ -90,38 +96,18 @@ export function useTabOverflowMenu({ tabs, onTabClick }: Pick<TabBarProps, "tabs
     [closeOverflowMenu, onTabClick]
   )
 
-  const normalizedSearchQuery = searchQuery.trim().toLowerCase()
-  const filteredTabs = normalizedSearchQuery
-    ? tabs.filter((tab, index) => {
-        const connection = tab.connection
-        const searchableText = [
-          String(index + 1),
-          tab.title,
-          tab.type,
-          connection?.host,
-          connection?.username,
-          connection?.profileName,
-          tab.remoteFile?.profileName,
-          tab.remoteFile?.connectionLabel,
-          tab.remoteFile?.host,
-          tab.remoteFile?.path,
-          connection?.port ? String(connection.port) : undefined,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-
-        return searchableText.includes(normalizedSearchQuery)
-      })
-    : tabs
+  const entries = useMemo(
+    () => getOverflowEntries(tabs, tabPanes, searchQuery),
+    [searchQuery, tabPanes, tabs]
+  )
 
   const handleSearchKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent) && filteredTabs.length > 0) {
-        handleSelectTab(filteredTabs[0].id)
-      }
+      if (event.key !== "Enter" || isImeKeyEvent(event.nativeEvent)) return
+      const target = getFirstOverflowTarget(entries)
+      if (target) handleSelectTab(target)
     },
-    [filteredTabs, handleSelectTab]
+    [entries, handleSelectTab]
   )
 
   return {
@@ -137,7 +123,7 @@ export function useTabOverflowMenu({ tabs, onTabClick }: Pick<TabBarProps, "tabs
     updateOverflowPanelPosition,
     closeOverflowMenu,
     handleSelectTab,
-    filteredTabs,
+    entries,
     handleSearchKeyDown,
   }
 }
