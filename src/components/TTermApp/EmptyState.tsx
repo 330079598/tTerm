@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 
 import { ProfilesPanel, SavedProfile } from "@/components/ProfilesPanel"
 import { Button } from "@/components/ui/button"
+import type { RecentProfile } from "@/lib/profileRecents"
 import { Tab } from "@/types/tab"
 
 interface EmptyStateProps {
@@ -14,6 +15,7 @@ interface EmptyStateProps {
   onDuplicateProfile: (profile: SavedProfile) => void
   onDeleteProfile?: (profile: SavedProfile) => void
   onEditProfile: (profile: SavedProfile) => void
+  profileRecents: readonly RecentProfile[]
   refreshKey?: number
 }
 
@@ -25,6 +27,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onDuplicateProfile,
   onDeleteProfile,
   onEditProfile,
+  profileRecents,
   refreshKey,
 }) => {
   const { t } = useTranslation()
@@ -62,6 +65,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         <ProfilesPanel
           refreshKey={refreshKey}
           collapsedGroupKeys={collapsedProfileGroupKeys}
+          profileRecents={profileRecents}
           className="h-full"
           onCollapsedGroupKeysChange={onCollapsedProfileGroupKeysChange}
           onConnect={(connection) => {

@@ -75,6 +75,8 @@ const buildMetaItems = (
 
 export const ProfileRow: React.FC<{
   profile: SavedProfile
+  /** Name the profile's group, in a list that does not show the groups. */
+  showGroup?: boolean
   isActive: boolean
   isDeleting: boolean
   onConnect: (p: SavedProfile) => void
@@ -86,6 +88,7 @@ export const ProfileRow: React.FC<{
   t: (key: string, options?: Record<string, unknown>) => string
 }> = ({
   profile,
+  showGroup = false,
   isActive,
   isDeleting,
   onConnect,
@@ -98,7 +101,9 @@ export const ProfileRow: React.FC<{
 }) => {
   const connectionType = profile.connection_type as ConnectionType
   const Icon = connectionTypeIcons[connectionType] ?? Server
-  const subtitle = buildConnectionSubtitle(profile, t)
+  const connectionSubtitle = buildConnectionSubtitle(profile, t)
+  const subtitle =
+    showGroup && profile.group ? `${profile.group} · ${connectionSubtitle}` : connectionSubtitle
   const metaItems = buildMetaItems(profile, t)
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Enter") {

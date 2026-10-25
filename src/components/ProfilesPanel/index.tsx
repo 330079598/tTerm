@@ -6,9 +6,12 @@ import { ChevronDown, ChevronRight, FileInput, Plus, Search, X } from "lucide-re
 import {
   filterProfiles,
   groupProfiles,
+  sortProfilesByRecent,
   UNGROUPED_KEY,
 } from "@/components/ProfilesPanel/profileListing"
 import { ProfileRow } from "@/components/ProfilesPanel/ProfileRow"
+import { ProfileSortToggle } from "@/components/ProfilesPanel/ProfileSortToggle"
+import { useProfileSort } from "@/components/ProfilesPanel/useProfileSort"
 import { Spinner } from "@/components/ui/spinner"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
@@ -19,6 +22,7 @@ import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { SshConfigImportDialog } from "@/components/SshConfigImportDialog"
 import { isImeKeyEvent } from "@/lib/ime"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
+import type { RecentProfile } from "@/lib/profileRecents"
 import { cn } from "@/lib/utils"
 import { Tab, type SavedProfile } from "@/types/tab"
 import { findTunnelsUsingProfile } from "@/components/TunnelsPanel/profileTunnels"
@@ -30,6 +34,8 @@ interface ProfilesPanelProps {
   onDuplicate: (profile: SavedProfile) => void
   onDeleteProfile?: (profile: SavedProfile) => void
   collapsedGroupKeys?: string[]
+  /** The saved connections used lately, for listing them by last use. */
+  profileRecents?: readonly RecentProfile[]
   refreshKey?: number
   onCreate?: () => void
   onClose?: () => void
@@ -48,6 +54,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
   onDuplicate,
   onDeleteProfile,
   collapsedGroupKeys = [],
+  profileRecents = [],
   refreshKey,
   onCreate,
   onClose,
@@ -65,6 +72,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [sort, setSort] = useProfileSort()
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const collapsedGroupKeySet = useMemo(() => new Set(collapsedGroupKeys), [collapsedGroupKeys])
 
@@ -156,17 +164,24 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
     onConnect(buildConnectionFromProfile(profile))
   }
 
-  const groupedProfiles = useMemo(
-    () => groupProfiles(filterProfiles(profiles, searchQuery)),
+  const filteredProfiles = useMemo(
+    () => filterProfiles(profiles, searchQuery),
     [profiles, searchQuery]
   )
+  // Listed by last use, the profiles form one list without groups.
+  const recentProfiles = useMemo(
+    () => (sort === "recent" ? sortProfilesByRecent(filteredProfiles, profileRecents) : null),
+    [filteredProfiles, profileRecents, sort]
+  )
+  const groupedProfiles = useMemo(() => groupProfiles(filteredProfiles), [filteredProfiles])
 
   const flatProfiles = useMemo(
     () =>
+      recentProfiles ??
       groupedProfiles.flatMap(([group, items]) =>
         collapsedGroupKeySet.has(group) && !searchQuery.trim() ? [] : items
       ),
-    [collapsedGroupKeySet, groupedProfiles, searchQuery]
+    [collapsedGroupKeySet, groupedProfiles, recentProfiles, searchQuery]
   )
 
   const activeProfileId = useMemo(() => {
@@ -205,8 +220,27 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
   }
 
   const hasProfiles = profiles.length > 0
-  const hasFilteredResults = groupedProfiles.length > 0
+  const hasFilteredResults = filteredProfiles.length > 0
   const isFiltering = searchQuery.trim().length > 0
+
+  const renderRow = (profile: SavedProfile, showGroup: boolean) => (
+    <ProfileRow
+      key={profile.id}
+      profile={profile}
+      showGroup={showGroup}
+      isActive={profile.id === activeProfileId}
+      isDeleting={deletingId === profile.id}
+      onConnect={handleConnect}
+      onEdit={onEdit}
+      onDuplicate={onDuplicate}
+      onDelete={handleDelete}
+      onFocusRow={setSelectedProfileId}
+      rowRef={(node) => {
+        rowRefs.current[profile.id] = node
+      }}
+      t={t}
+    />
+  )
 
   const toggleGroupCollapsed = (group: string) => {
     const next = new Set(collapsedGroupKeySet)
@@ -268,8 +302,8 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
         </div>
       </div>
 
-      <div className="px-5 pt-4 pb-3">
-        <div className="relative">
+      <div className="flex gap-2 px-5 pt-4 pb-3">
+        <div className="relative min-w-0 flex-1">
           <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
             ref={searchInputRef}
@@ -284,6 +318,13 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
             className="pl-9"
           />
         </div>
+        <ProfileSortToggle
+          sort={sort}
+          onSortChange={(next) => {
+            setSort(next)
+            setSelectedProfileId(null)
+          }}
+        />
       </div>
 
       <ScrollArea className="flex-1 px-3 pb-3">
@@ -328,7 +369,17 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
           </div>
         )}
 
-        {hasFilteredResults && (
+        {hasFilteredResults && recentProfiles && (
+          <div
+            className="space-y-2 px-2 pb-2"
+            role="listbox"
+            aria-label={t("profiles.sort.recent")}
+          >
+            {recentProfiles.map((profile) => renderRow(profile, true))}
+          </div>
+        )}
+
+        {hasFilteredResults && !recentProfiles && (
           <div className="space-y-5 px-2 pb-2">
             {groupedProfiles.map(([group, items]) => {
               const isCollapsed = collapsedGroupKeySet.has(group) && !isFiltering
@@ -365,23 +416,7 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
                       role="listbox"
                       aria-label={groupLabel}
                     >
-                      {items.map((profile) => (
-                        <ProfileRow
-                          key={profile.id}
-                          profile={profile}
-                          isActive={profile.id === activeProfileId}
-                          isDeleting={deletingId === profile.id}
-                          onConnect={handleConnect}
-                          onEdit={onEdit}
-                          onDuplicate={onDuplicate}
-                          onDelete={handleDelete}
-                          onFocusRow={setSelectedProfileId}
-                          rowRef={(node) => {
-                            rowRefs.current[profile.id] = node
-                          }}
-                          t={t}
-                        />
-                      ))}
+                      {items.map((profile) => renderRow(profile, false))}
                     </div>
                   )}
                 </section>

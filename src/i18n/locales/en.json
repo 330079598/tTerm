@@ -1086,6 +1086,11 @@
     "copyName": "Copy of {{name}}",
     "newConnection": "New Connection",
     "ungrouped": "Ungrouped",
+    "sort": {
+      "label": "Order connections",
+      "default": "By group",
+      "recent": "Recently used"
+    },
     "duplicateName": "A connection with this name already exists in this group",
     "description": "Open, organize, and edit your connection profiles",
     "emptyDescription": "Create a profile to reconnect in one click.",

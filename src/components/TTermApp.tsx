@@ -235,6 +235,7 @@ export const TTermApp: React.FC = () => {
           onDuplicateProfile={profileActions.handleDuplicateProfile}
           onDeleteProfile={profileActions.handleDeleteProfile}
           onEditProfile={profileActions.handleEditProfile}
+          profileRecents={recents.profileRecents}
           refreshKey={profilesRefreshKey}
         />
       )
@@ -356,6 +357,7 @@ export const TTermApp: React.FC = () => {
         setShowProfilesPanel={setShowProfilesPanel}
         collapsedGroupKeys={appState.collapsedProfileGroupKeys}
         onCollapsedGroupKeysChange={handleCollapsedProfileGroupKeysChange}
+        profileRecents={recents.profileRecents}
       />
 
       <CommandLibraryDialogs commandLibrary={commandLibrary} />

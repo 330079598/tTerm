@@ -6,6 +6,7 @@ import type { ProfileDialogState } from "@/components/TTermApp/useProfileDialogS
 import type { useProfileActions } from "@/components/TTermApp/useProfileActions"
 import type { useTabOpeners } from "@/components/TTermApp/useTabOpeners"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import type { RecentProfile } from "@/lib/profileRecents"
 
 interface ProfileDialogsProps {
   dialog: ProfileDialogState
@@ -17,6 +18,7 @@ interface ProfileDialogsProps {
   setShowProfilesPanel: (open: boolean) => void
   collapsedGroupKeys: string[]
   onCollapsedGroupKeysChange: (groups: string[]) => void
+  profileRecents: readonly RecentProfile[]
 }
 
 /** The host editor and the hosts panel the title bar opens. */
@@ -30,6 +32,7 @@ export const ProfileDialogs: React.FC<ProfileDialogsProps> = ({
   setShowProfilesPanel,
   collapsedGroupKeys,
   onCollapsedGroupKeysChange,
+  profileRecents,
 }) => (
   <>
     {dialog.showConnectionDialog && (
@@ -63,6 +66,7 @@ export const ProfileDialogs: React.FC<ProfileDialogsProps> = ({
         <ProfilesPanel
           refreshKey={profilesRefreshKey}
           collapsedGroupKeys={collapsedGroupKeys}
+          profileRecents={profileRecents}
           surface="panel"
           onCollapsedGroupKeysChange={onCollapsedGroupKeysChange}
           onClose={() => setShowProfilesPanel(false)}

@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest"
 import {
   filterProfiles,
   groupProfiles,
+  loadProfileSort,
+  sortProfilesByRecent,
   UNGROUPED_KEY,
 } from "@/components/ProfilesPanel/profileListing"
 import type { SavedProfile } from "@/types/tab"
@@ -45,5 +47,31 @@ describe("groupProfiles", () => {
       ["Test", ["b", "d"]],
       [UNGROUPED_KEY, ["a"]],
     ])
+  })
+})
+
+describe("sortProfilesByRecent", () => {
+  it("puts the one used last first and the unused ones after in saved order", () => {
+    const profiles = ["a", "b", "c", "d"].map((id) => profile({ id }))
+    const sorted = sortProfilesByRecent(profiles, [
+      { profileId: "c", lastUsedAt: 20 },
+      { profileId: "a", lastUsedAt: 10 },
+      { profileId: "gone", lastUsedAt: 30 },
+    ])
+    expect(ids(sorted)).toEqual(["c", "a", "b", "d"])
+  })
+})
+
+describe("loadProfileSort", () => {
+  it("falls back to the grouped list for anything unknown", () => {
+    expect(loadProfileSort({ getItem: () => "recent" })).toBe("recent")
+    expect(loadProfileSort({ getItem: () => "sideways" })).toBe("default")
+    expect(
+      loadProfileSort({
+        getItem: () => {
+          throw new Error("blocked")
+        },
+      })
+    ).toBe("default")
   })
 })

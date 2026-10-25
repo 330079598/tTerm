@@ -1070,6 +1070,11 @@
     "copyName": "{{name}} 的副本",
     "newConnection": "新建连接",
     "ungrouped": "未分组",
+    "sort": {
+      "label": "连接排列方式",
+      "default": "按分组",
+      "recent": "最近使用"
+    },
     "duplicateName": "该分组下已存在同名连接",
     "description": "打开、整理并编辑你的连接配置",
     "emptyDescription": "创建一个连接配置，之后即可一键重连。",
