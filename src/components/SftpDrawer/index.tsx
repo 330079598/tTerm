@@ -123,6 +123,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
 
   const { handleDragEnter, handleDragLeave, handleDragOver, handleDrop, isDragActive } =
     useSftpDragDrop({
+      drawerRef,
       isGlobalShortcutTarget,
       listing,
       setError,

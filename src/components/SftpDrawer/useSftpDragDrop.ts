@@ -4,8 +4,10 @@ import { useTranslation } from "react-i18next"
 
 import { isDragOutActive } from "@/components/SftpDrawer/dragOut"
 import type { SftpDirectoryListing } from "@/components/SftpDrawer/types"
+import { useStableRef } from "@/hooks/useStableRef"
 
 interface UseSftpDragDropParams {
+  drawerRef: React.RefObject<HTMLDivElement | null>
   isGlobalShortcutTarget: boolean
   listing: SftpDirectoryListing | null
   setError: React.Dispatch<React.SetStateAction<string | null>>
@@ -22,8 +24,19 @@ interface UseSftpDragDropReturn {
 }
 
 const DROP_DEDUP_WINDOW_MS = 750
+const PANEL_SELECTOR = "[data-workspace-panel-id]"
+
+/** The workspace panel under a point of a window drag, given in physical pixels. */
+function panelAt(position: { x: number; y: number }): Element | null {
+  const ratio = window.devicePixelRatio || 1
+  return (
+    document.elementFromPoint(position.x / ratio, position.y / ratio)?.closest(PANEL_SELECTOR) ??
+    null
+  )
+}
 
 export function useSftpDragDrop({
+  drawerRef,
   isGlobalShortcutTarget,
   listing,
   setError,
@@ -70,56 +83,64 @@ export function useSftpDragDrop({
     [listing, setError, t, uploadPaths]
   )
 
-  // The OS delivers a drop to the window, not to a tab, and background tabs
-  // stay mounted with their drawer open. Without the focus check every open
-  // drawer would upload the dropped file to its own current directory.
-  const acceptsWindowDrop = visible && isGlobalShortcutTarget
+  const isShortcutTargetRef = useStableRef(isGlobalShortcutTarget)
+  const handleUploadPathsRef = useStableRef(handleUploadPaths)
 
   useEffect(() => {
-    if (!acceptsWindowDrop) {
+    if (!visible) {
       return
     }
 
+    // The OS delivers a drop to the window, not to a tab. Background tabs
+    // stay mounted with their drawer open, and split panes show several
+    // drawers at once, so only the drawer in the pane under the cursor takes
+    // it. Focus can't decide: a file dragged in from another window, or
+    // another monitor, leaves it on whichever pane was clicked last. A drop
+    // outside every pane, such as on the tab bar, goes to the focused one.
+    const ownsPoint = (position: { x: number; y: number }) => {
+      const panel = panelAt(position)
+      if (!panel) return isShortcutTargetRef.current
+      return panel === drawerRef.current?.closest(PANEL_SELECTOR)
+    }
+
+    // Registering takes several round trips, so the effect can be cleaned
+    // up before it resolves; the listener must then be stopped as soon as it
+    // arrives, or it outlives the drawer state it was made for and keeps
+    // uploading drops into that tab's directory.
+    let disposed = false
     let unlisten: (() => void) | undefined
-
-    const setupDragDropListener = async () => {
-      const appWindow = getCurrentWindow()
-
-      unlisten = await appWindow.onDragDropEvent((event) => {
-        if (!acceptsWindowDrop || isDragOutActive()) {
+    getCurrentWindow()
+      .onDragDropEvent((event) => {
+        if (isDragOutActive()) {
           return
         }
 
-        if (event.payload.type === "enter") {
-          dragCounterRef.current += 1
-          setIsDragActive(true)
-        } else if (event.payload.type === "leave") {
-          dragCounterRef.current = Math.max(0, dragCounterRef.current - 1)
-          if (dragCounterRef.current === 0) {
-            setIsDragActive(false)
-          }
-        } else if (event.payload.type === "drop") {
+        const { payload } = event
+        if (payload.type === "enter" || payload.type === "over") {
+          setIsDragActive(ownsPoint(payload.position))
+        } else if (payload.type === "leave") {
+          setIsDragActive(false)
+        } else if (payload.type === "drop") {
           dragCounterRef.current = 0
           setIsDragActive(false)
-
-          const paths = event.payload.paths as string[]
-          if (paths && paths.length > 0) {
-            void handleUploadPaths(paths)
+          if (payload.paths.length > 0 && ownsPoint(payload.position)) {
+            void handleUploadPathsRef.current(payload.paths)
           }
         }
       })
-    }
-
-    void setupDragDropListener()
+      .then((stop) => {
+        if (disposed) stop()
+        else unlisten = stop
+      })
+      .catch(console.error)
 
     return () => {
+      disposed = true
       dragCounterRef.current = 0
       setIsDragActive(false)
-      if (unlisten) {
-        unlisten()
-      }
+      unlisten?.()
     }
-  }, [acceptsWindowDrop, handleUploadPaths])
+  }, [drawerRef, handleUploadPathsRef, isShortcutTargetRef, visible])
 
   const handleDragEnter = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
