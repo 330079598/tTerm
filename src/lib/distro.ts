@@ -159,6 +159,17 @@ export function detectDistroId(info?: LinuxDistributionInfo): DistroId {
   return "linux"
 }
 
+/**
+ * What tTerm's WSL launcher (src-tauri/src/terminal/shell_integration/wsl/launch.sh)
+ * reports from os-release, `OSC 777 ; tterm-os ; <ID> ; <ID_LIKE> ; <NAME>`,
+ * or null when the payload is not that report.
+ */
+export function parseOsReport(data: string): LinuxDistributionInfo | null {
+  const [command, id = "", idLike = "", name = "", ...rest] = data.split(";")
+  if (command !== "tterm-os" || rest.length > 0 || (!id && !name)) return null
+  return { id, idLike: idLike.split(" ").filter(Boolean), name, prettyName: "" }
+}
+
 export function isDistroId(value: unknown): value is DistroId {
   return (DISTRO_IDS as readonly unknown[]).includes(value)
 }

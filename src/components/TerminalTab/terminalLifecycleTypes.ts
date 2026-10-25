@@ -60,6 +60,7 @@ export type UseTerminalLifecycleOptions = {
   lastPtySizeRef: React.RefObject<{ rows: number; cols: number } | null>
   onPidChangeRef: React.RefObject<TerminalTabProps["onPidChange"]>
   onCwdChangeRef: React.RefObject<TerminalTabProps["onCwdChange"]>
+  onDistroChangeRef: React.RefObject<TerminalTabProps["onDistroChange"]>
   onInputRef: React.RefObject<TerminalTabProps["onInput"]>
   onCommandExecutedRef: React.RefObject<TerminalTabProps["onCommandExecuted"]>
   onReconnectRequestRef: React.RefObject<TerminalTabProps["onReconnectRequest"]>
@@ -124,6 +125,7 @@ export type TerminalSessionContext = Pick<
   | "onCommandExecutedRef"
   | "onConnectionProgressRef"
   | "onCwdChangeRef"
+  | "onDistroChangeRef"
   | "onInputRef"
   | "onPidChangeRef"
   | "onReconnectRequestRef"

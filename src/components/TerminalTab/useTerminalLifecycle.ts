@@ -55,6 +55,7 @@ export function useTerminalLifecycle({
   lastPtySizeRef,
   onPidChangeRef,
   onCwdChangeRef,
+  onDistroChangeRef,
   onInputRef,
   onCommandExecutedRef,
   onReconnectRequestRef,
@@ -212,6 +213,7 @@ export function useTerminalLifecycle({
       onCommandExecutedRef,
       onConnectionProgressRef,
       onCwdChangeRef,
+      onDistroChangeRef,
       onInputRef,
       onPidChangeRef,
       onReconnectRequestRef,
@@ -240,6 +242,7 @@ export function useTerminalLifecycle({
       shellIntegrationDisposables,
       attentionReports,
       cwdReports,
+      osReports,
       mouseReportingGuard,
       lineFeedDisposable,
     } = createCommandTracking(ctx)
@@ -347,6 +350,7 @@ export function useTerminalLifecycle({
       commandMarks.dispose()
       commandMarksRef.current = null
       cwdReports.dispose()
+      osReports.dispose()
       mouseReportingGuard.dispose()
       container.classList.remove("xterm-has-scrollback")
       container.replaceChildren()
@@ -373,6 +377,7 @@ export function useTerminalLifecycle({
     loadTerminalRenderer,
     onPidChangeRef,
     onCwdChangeRef,
+    onDistroChangeRef,
     onInputRef,
     onCommandExecutedRef,
     onReconnectRequestRef,

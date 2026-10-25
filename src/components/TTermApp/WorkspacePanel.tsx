@@ -5,6 +5,7 @@ import { TerminalTab } from "@/components/TerminalTab"
 import { useWorkspace } from "@/components/TTermApp/workspaceContext"
 import { isPageTab, type Tab } from "@/types/tab"
 import { withLocalCwd } from "@/lib/localTabTitle"
+import { withLocalDistro } from "@/lib/tabIcons"
 
 const RemoteFileEditor = React.lazy(() =>
   import("@/components/RemoteFileEditor").then((module) => ({
@@ -115,6 +116,9 @@ export const WorkspacePanel = React.memo(function WorkspacePanel({
               onStopBroadcast={workspace.onStopBroadcast}
               onCwdChange={(cwd) =>
                 workspace.updateTab(tab.id, (current) => withLocalCwd(current, cwd))
+              }
+              onDistroChange={(distroId) =>
+                workspace.updateTab(tab.id, (current) => withLocalDistro(current, distroId))
               }
               onConnectionStateChange={workspace.onTerminalConnectionStateChange}
               onInput={workspace.onTerminalInput}

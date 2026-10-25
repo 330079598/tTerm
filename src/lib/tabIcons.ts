@@ -215,7 +215,32 @@ export function tabIconDistro(icon: DistroTabIcon): DistroId {
 
 /** What an SSH tab shows without a choice of its own: its host's distribution, once known. */
 export function sshTabIcon(distroId: DistroId | undefined): ResolvedTabIcon {
-  return distroId ? { icon: `distro:${distroId}`, color: "" } : SERVER
+  return distroId ? distroTabIcon(distroId) : SERVER
+}
+
+function distroTabIcon(distroId: DistroId): ResolvedTabIcon {
+  return { icon: `distro:${distroId}`, color: "" }
+}
+
+/**
+ * What a local tab shows without a choice of its own. A WSL tab shows the
+ * distribution its launcher reported in place of the built-in look, under
+ * any choice the user made for WSL.
+ */
+function localTabIcon(
+  config: TabIconConfig,
+  shellName: string | undefined,
+  distroId: DistroId | undefined
+): ResolvedTabIcon {
+  const key = shellKey(shellName)
+  if (key !== "wsl" || !distroId) return shellTabIcon(config, shellName)
+  return applyTabIconStyle(distroTabIcon(distroId), config.shells[key])
+}
+
+/** A local tab with the distribution its WSL shell reported; the same tab when nothing changes. */
+export function withLocalDistro(tab: Tab, distroId: DistroId): Tab {
+  if (tab.type !== "terminal" || tab.distroId === distroId) return tab
+  return { ...tab, distroId }
 }
 
 /** Whether a tab is a terminal, local or SSH, and so shows an icon. */
@@ -230,7 +255,7 @@ export function inheritedTabIcon(
 ): ResolvedTabIcon {
   if (tab.type === "ssh") return sshTabIcon(tab.distroId)
   if (tab.type === "serial") return SERIAL
-  return shellTabIcon(config, tab.shellName)
+  return localTabIcon(config, tab.shellName, tab.distroId)
 }
 
 /** The icon a terminal tab shows, or null for other tabs and while icons are off. */

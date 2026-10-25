@@ -1,3 +1,4 @@
+import type { DistroId } from "@/lib/distro"
 import type { SshAuthUsed, Tab } from "@/types/tab"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import type { TerminalInputRequest } from "@/types/broadcast"
@@ -17,6 +18,8 @@ export interface TerminalTabProps {
   onPidChange?: (pid: number) => void
   /** A local shell reported a new working directory. */
   onCwdChange?: (cwd: string) => void
+  /** A local WSL shell's launcher reported the distribution it runs. */
+  onDistroChange?: (distroId: DistroId) => void
   onConnectionStateChange?: (
     tabId: string,
     sessionNonce: number,

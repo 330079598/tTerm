@@ -9,6 +9,7 @@ import {
 import { watchAttentionReports } from "@/components/TerminalTab/attentionReports"
 import { watchCwdReports } from "@/components/TerminalTab/cwdReports"
 import { watchMouseReporting } from "@/components/TerminalTab/mouseReportingGuard"
+import { watchOsReports } from "@/components/TerminalTab/osReports"
 import { AgentTracker } from "@/lib/agentStatus"
 import { setTabRemoteCwd } from "@/lib/remoteCwd"
 import { setTabAgentStatus, setTabRunningCommand } from "@/lib/tabAttention"
@@ -17,7 +18,8 @@ import { parseShellIntegrationCommand } from "@/lib/terminalCommandCapture"
 
 /**
  * Follows the commands run in the session: shell integration marks, typed
- * commands, their timing, AI agents' reports and the working directory.
+ * commands, their timing, AI agents' reports, the working directory and,
+ * under WSL, the distribution.
  */
 export function createCommandTracking(ctx: TerminalSessionContext) {
   const {
@@ -31,6 +33,7 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
     commandMarksEnabledRef,
     commandMarksRef,
     onCwdChangeRef,
+    onDistroChangeRef,
   } = ctx
   let lastEmittedCommand: { text: string; at: number } | null = null
 
@@ -109,6 +112,12 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
     onRemoteCwd: (cwd) => setTabRemoteCwd(tabId, cwd),
   })
 
+  // The distribution a local WSL shell runs, for the tab's logo.
+  const osReports = watchOsReports(term, {
+    isRemote: () => connectionRef.current?.type === "ssh",
+    onDistro: (distroId) => onDistroChangeRef.current?.(distroId),
+  })
+
   // Mouse reporting a killed program left on.
   const mouseReportingGuard = watchMouseReporting(term, {
     isShellInForeground: async () =>
@@ -128,6 +137,7 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
     shellIntegrationDisposables,
     attentionReports,
     cwdReports,
+    osReports,
     mouseReportingGuard,
     lineFeedDisposable,
   }

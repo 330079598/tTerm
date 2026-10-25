@@ -8,6 +8,7 @@ import {
   resolveTabIcon,
   shellsForSettings,
   shellTabIcon,
+  withLocalDistro,
   withShellIconStyle,
   type TabIconConfig,
 } from "@/lib/tabIcons"
@@ -61,6 +62,28 @@ describe("resolveTabIcon", () => {
     expect(resolveTabIcon(tab, config())).toEqual({ icon: "database", color: "#e5534b" })
   })
 
+  it("draws a WSL tab with the distribution its launcher reported", () => {
+    expect(resolveTabIcon({ type: "terminal", shellName: "WSL" }, config())).toEqual({
+      icon: "terminal",
+      color: "#e9853a",
+    })
+    const tab = { type: "terminal" as const, shellName: "WSL", distroId: "arch" as const }
+    expect(resolveTabIcon(tab, config())).toEqual({ icon: "distro:arch", color: "" })
+  })
+
+  it("lays the user's choice for WSL over the reported distribution", () => {
+    const tab = { type: "terminal" as const, shellName: "WSL", distroId: "arch" as const }
+    expect(resolveTabIcon(tab, config({ shells: { wsl: { icon: "rocket" } } }))).toEqual({
+      icon: "rocket",
+      color: "",
+    })
+  })
+
+  it("keeps a distribution off a local tab that no longer runs WSL", () => {
+    const tab = { type: "terminal" as const, shellName: "pwsh", distroId: "arch" as const }
+    expect(resolveTabIcon(tab, config())?.icon).toBe("square-chevron-right")
+  })
+
   it("shows nothing while icons are off, or for other tabs", () => {
     expect(resolveTabIcon({ type: "terminal" }, config({ enabled: false }))).toBeNull()
     expect(resolveTabIcon({ type: "ssh" }, config({ enabled: false }))).toBeNull()
@@ -82,6 +105,21 @@ describe("normalizeTabIconStyle", () => {
   it("keeps the logos of known distributions only", () => {
     expect(normalizeTabIconStyle({ icon: "distro:arch" })).toEqual({ icon: "distro:arch" })
     expect(normalizeTabIconStyle({ icon: "distro:windows" })).toBeUndefined()
+  })
+})
+
+describe("withLocalDistro", () => {
+  const local = { id: "a", title: "WSL", type: "terminal", isActive: true } as Tab
+
+  it("gives a local tab the reported distribution, once", () => {
+    const next = withLocalDistro(local, "debian")
+    expect(next.distroId).toBe("debian")
+    expect(withLocalDistro(next, "debian")).toBe(next)
+  })
+
+  it("leaves an SSH tab's distribution to its host", () => {
+    const ssh = { ...local, type: "ssh" } as Tab
+    expect(withLocalDistro(ssh, "debian")).toBe(ssh)
   })
 })
 

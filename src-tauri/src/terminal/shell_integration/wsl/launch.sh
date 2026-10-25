@@ -2,7 +2,7 @@
 # -e sh ./wsl/launch.sh <restore dir> <marks>`. It changes into the directory
 # to restore, or the Linux home as Windows Terminal does, then starts the
 # user's shell through unix/start.sh, marking commands (OSC 133) when <marks>
-# is 1.
+# is 1. Before that it reports the distribution from os-release.
 tterm_dir=$PWD
 tterm_marks=${2:-0}
 
@@ -21,5 +21,22 @@ tterm_cd_windows() {
 tterm_cd "$1" ||
     tterm_cd_windows "$1" ||
     cd
+
+# One os-release field, without quotes or anything that could end or split
+# the report below.
+tterm_os_field() {
+    sed -n "s/^$1=//p" "$2" | head -n 1 | tr -cd 'A-Za-z0-9 ._!+()-'
+}
+
+# Names the distribution for the tab's logo:
+# OSC 777 ; tterm-os ; <ID> ; <ID_LIKE> ; <NAME>.
+for tterm_os in /etc/os-release /usr/lib/os-release; do
+    [ -r "$tterm_os" ] || continue
+    printf '\033]777;tterm-os;%s;%s;%s\007' \
+        "$(tterm_os_field ID "$tterm_os")" \
+        "$(tterm_os_field ID_LIKE "$tterm_os")" \
+        "$(tterm_os_field NAME "$tterm_os")"
+    break
+done
 
 . "$tterm_dir/unix/start.sh"

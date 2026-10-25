@@ -166,7 +166,10 @@ export interface Tab {
    * saved SSH connection's tabs all show the one saved with it.
    */
   iconStyle?: TabIconStyle
-  /** SSH: the Linux distribution the host runs, once it has said; its logo is the tab's icon. */
+  /**
+   * The Linux distribution an SSH host or a local WSL shell runs, once it has
+   * said; its logo is the tab's icon.
+   */
   distroId?: DistroId
   /**
    * Opened from the launcher by typing a host and not connected yet: its

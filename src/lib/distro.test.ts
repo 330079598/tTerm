@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { detectDistroId, isDistroId, type LinuxDistributionInfo } from "@/lib/distro"
+import { detectDistroId, isDistroId, parseOsReport, type LinuxDistributionInfo } from "@/lib/distro"
 
 function info(fields: Partial<LinuxDistributionInfo>): LinuxDistributionInfo {
   return { id: "", idLike: [], name: "", prettyName: "", ...fields }
@@ -33,6 +33,30 @@ describe("detectDistroId", () => {
   it("shows generic Linux for an unknown distribution or none", () => {
     expect(detectDistroId(info({ id: "someos", name: "Some OS" }))).toBe("linux")
     expect(detectDistroId(undefined)).toBe("linux")
+  })
+})
+
+describe("parseOsReport", () => {
+  it("reads the WSL launcher's report", () => {
+    expect(parseOsReport("tterm-os;ubuntu;debian;Ubuntu")).toEqual(
+      info({ id: "ubuntu", idLike: ["debian"], name: "Ubuntu" })
+    )
+    expect(parseOsReport("tterm-os;rocky;rhel centos fedora;Rocky Linux")?.idLike).toEqual([
+      "rhel",
+      "centos",
+      "fedora",
+    ])
+  })
+
+  it("names Pop!_OS by the name its id leaves out", () => {
+    expect(detectDistroId(parseOsReport("tterm-os;pop;ubuntu debian;Pop!_OS")!)).toBe("popos")
+  })
+
+  it("ignores other OSC 777 payloads and empty reports", () => {
+    expect(parseOsReport("tterm-agent;claude;done")).toBeNull()
+    expect(parseOsReport("notify;title;body")).toBeNull()
+    expect(parseOsReport("tterm-os;;;")).toBeNull()
+    expect(parseOsReport("tterm-os;ubuntu;debian;Ubuntu;extra")).toBeNull()
   })
 })
 
