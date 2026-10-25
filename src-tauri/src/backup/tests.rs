@@ -939,6 +939,7 @@ fn frontend_state_is_filtered_by_selected_category() {
         "customThemes": [{"id":"theme"}],
         "recentCommands": [{"id":"recent"}],
         "recentQuickConnections": [{"host":"example.com"}],
+        "recentProfiles": [{"profileId":"p1","lastUsedAt":1}],
         "sftpColumnWidths": [1, 2],
         "sftpView": {"showHidden": false},
         "untrusted": "ignored"
@@ -951,6 +952,7 @@ fn frontend_state_is_filtered_by_selected_category() {
     assert!(filtered.get("customThemes").is_none());
     assert!(filtered.get("recentCommands").is_some());
     assert!(filtered.get("recentQuickConnections").is_some());
+    assert!(filtered.get("recentProfiles").is_some());
     assert!(filtered.get("sftpView").is_some());
     assert!(filtered.get("untrusted").is_none());
 }

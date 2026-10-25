@@ -25,6 +25,7 @@ import { useSessionRestore } from "@/components/TTermApp/useSessionRestore"
 import { useTabOpeners } from "@/components/TTermApp/useTabOpeners"
 import { useProfileDialogState } from "@/components/TTermApp/useProfileDialogState"
 import { useConnectionIcons } from "@/components/TTermApp/useConnectionIcons"
+import { useProfileRecents } from "@/components/TTermApp/useProfileRecents"
 import { useQuickConnect } from "@/components/TTermApp/useQuickConnect"
 import { useProfileActions } from "@/components/TTermApp/useProfileActions"
 import { useTabClosing } from "@/components/TTermApp/useTabClosing"
@@ -141,6 +142,11 @@ export const TTermApp: React.FC = () => {
     config
   )
   const quickConnect = useQuickConnect(shell, dialog)
+  const recents = useProfileRecents(shell, {
+    onConnectionStateChange: runtime.handleTerminalConnectionStateChange,
+    forgetQuickConnectRecent: quickConnect.handleForgetQuickConnectRecent,
+    clearQuickConnectRecents: quickConnect.handleClearQuickConnectRecents,
+  })
   const profileActions = useProfileActions(shell, dialog, {
     liveSourceRef: broadcast.liveSourceRef,
     runtimeStatesRef: broadcast.runtimeStatesRef,
@@ -264,7 +270,7 @@ export const TTermApp: React.FC = () => {
         onStopBroadcast={runtime.stopLiveBroadcast}
         onTabClose={handleRemoveTab}
         onTabContextMenu={handleTabContextMenu}
-        onTerminalConnectionStateChange={runtime.handleTerminalConnectionStateChange}
+        onTerminalConnectionStateChange={recents.handleTerminalConnectionStateChange}
         onTerminalCommandExecuted={commandLibrary.handleTerminalCommandExecuted}
         onTerminalAttention={handleTerminalAttention}
         onTerminalInput={sending.handleTerminalInput}
@@ -335,8 +341,9 @@ export const TTermApp: React.FC = () => {
         onOpenLocalTerminal={handleOpenLocalTerminal}
         onOpenConnectionDialog={quickConnect.handleOpenConnectionDialogFromLauncher}
         recents={quickConnect.quickConnectRecents}
-        onForgetRecent={quickConnect.handleForgetQuickConnectRecent}
-        onClearRecents={quickConnect.handleClearQuickConnectRecents}
+        profileRecents={recents.profileRecents}
+        onForgetRecent={recents.handleForgetRecent}
+        onClearRecents={recents.handleClearRecents}
       />
 
       <ProfileDialogs

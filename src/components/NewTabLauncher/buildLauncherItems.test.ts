@@ -39,6 +39,7 @@ const build = (overrides: Partial<LauncherItemsInput> = {}) =>
     configHosts: [],
     profiles: [],
     recents: [],
+    profileRecents: [],
     shells: [],
     terminalShell: "auto",
     terminalShellCustomPath: "",
@@ -65,6 +66,51 @@ describe("buildLauncherItems", () => {
     })
     expect(items.filter((item) => item.section === "profiles").map((item) => item.key)).toEqual([
       "profile:p1",
+    ])
+  })
+
+  it("lists the saved connections used lately among the recents, newest first", () => {
+    expect(
+      keys({
+        profiles: [profile(), profile({ id: "p2", name: "db-01" })],
+        recents: [recent({ lastUsedAt: 2000 })],
+        profileRecents: [
+          { profileId: "p2", lastUsedAt: 3000 },
+          { profileId: "p1", lastUsedAt: 1000 },
+        ],
+      }).filter((key) => key.startsWith("recent"))
+    ).toEqual(["recent-profile:p2", "recent:admin@db.example.com:22:2000", "recent-profile:p1"])
+  })
+
+  it("leaves out a recent whose saved connection was deleted", () => {
+    expect(keys({ profileRecents: [{ profileId: "gone", lastUsedAt: 1 }] })).toEqual([
+      "terminal",
+      "new-connection",
+    ])
+  })
+
+  it("lets a saved recent be forgotten by its profile", () => {
+    const item = build({
+      profiles: [profile()],
+      profileRecents: [{ profileId: "p1", lastUsedAt: 1 }],
+    }).find((candidate) => candidate.key === "recent-profile:p1")
+    expect(item?.recent).toEqual({ kind: "profile", profileId: "p1" })
+  })
+
+  it("puts the matching saved connections used lately first", () => {
+    const items = build({
+      input: "web",
+      profiles: [
+        profile(),
+        profile({ id: "p2", name: "web-02" }),
+        profile({ id: "p3", name: "web-03" }),
+      ],
+      profileRecents: [{ profileId: "p3", lastUsedAt: 1 }],
+    })
+    expect(items.filter((item) => item.section === "profiles").map((item) => item.key)).toEqual([
+      "profile:p3",
+      "profile:p1",
+      "profile:p2",
     ])
   })
 

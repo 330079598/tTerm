@@ -257,6 +257,7 @@ pub(super) fn filter_frontend_state(
         for key in [
             "recentCommands",
             "recentQuickConnections",
+            "recentProfiles",
             "sftpColumnWidths",
             "sftpView",
         ] {

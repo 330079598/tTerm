@@ -9,6 +9,8 @@ import type { SavedProfile, TerminalShellType } from "@/types/tab"
 
 export const PROFILE_MATCH_LIMIT = 8
 export const CONFIG_MATCH_LIMIT = 6
+/** How many recents the launcher lists with nothing typed. */
+export const RECENT_ITEMS_LIMIT = 8
 
 type LauncherAction =
   | { kind: "connect"; connection: QuickConnection }
@@ -26,6 +28,10 @@ export interface LocalShellChoice {
   customPath?: string
 }
 
+/** A recent the list can forget: a quick connection, or a saved one used lately. */
+export type LauncherRecent =
+  { kind: "quick"; connection: RecentQuickConnection } | { kind: "profile"; profileId: string }
+
 export type LauncherSection = "localTerminal" | "recent" | "profiles" | "sshConfig"
 
 export interface LauncherItem {
@@ -36,7 +42,7 @@ export interface LauncherItem {
   section?: LauncherSection
   action: LauncherAction
   /** Recents can be forgotten from the list. */
-  recent?: RecentQuickConnection
+  recent?: LauncherRecent
 }
 
 export function describeConnection(connection: QuickConnection): string {

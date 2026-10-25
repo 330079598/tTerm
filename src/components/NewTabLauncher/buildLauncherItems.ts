@@ -4,10 +4,12 @@ import { BookMarked, Clock, FileCog, Plus, Server, Terminal } from "lucide-react
 import {
   CONFIG_MATCH_LIMIT,
   PROFILE_MATCH_LIMIT,
+  RECENT_ITEMS_LIMIT,
   describeConnection,
   type LauncherItem,
 } from "@/components/NewTabLauncher/launcherItems"
 import type { AppConfig } from "@/lib/appConfig"
+import { profileLastUsed, type RecentProfile } from "@/lib/profileRecents"
 import { profileSearchFields } from "@/lib/profileSearch"
 import {
   formatEndpoint,
@@ -32,6 +34,8 @@ export interface LauncherItemsInput {
   configHosts: readonly SshConfigHost[]
   profiles: readonly SavedProfile[]
   recents: readonly RecentQuickConnection[]
+  /** The saved connections used lately, newest first. */
+  profileRecents: readonly RecentProfile[]
   shells: readonly TerminalShellProfile[]
   terminalShell: AppConfig["terminal_shell"]
   terminalShellCustomPath: string
@@ -40,14 +44,16 @@ export interface LauncherItemsInput {
 
 /**
  * The launcher's list for what was typed: with nothing typed, the local
- * terminals, a new connection and the recents; otherwise everything that
- * matches, the typed connection first.
+ * terminals, a new connection and the recents, quick and saved connections
+ * together; otherwise everything that matches, the typed connection first
+ * and the saved connections used lately before the others.
  */
 export function buildLauncherItems({
   input,
   configHosts,
   profiles,
   recents,
+  profileRecents,
   shells,
   terminalShell,
   terminalShellCustomPath,
@@ -130,41 +136,49 @@ export function buildLauncherItems({
     action: { kind: "new-connection" },
   }
 
-  const recentItems = recents
+  const quickRecents = recents
     .filter((recent) => matchesQuery(query, [recent.title, recent.username, recent.host]))
-    .map<LauncherItem>((recent) => ({
-      key: `recent:${recent.username}@${recent.host}:${recent.port}:${recent.lastUsedAt}`,
-      icon: Clock,
-      label: recent.title,
-      detail: describeConnection(recent),
-      section: "recent",
-      action: { kind: "connect", connection: recent },
-      recent,
+    .map((recent) => ({
+      usedAt: recent.lastUsedAt,
+      item: {
+        key: `recent:${recent.username}@${recent.host}:${recent.port}:${recent.lastUsedAt}`,
+        icon: Clock,
+        label: recent.title,
+        detail: describeConnection(recent),
+        section: "recent",
+        action: { kind: "connect", connection: recent },
+        recent: { kind: "quick", connection: recent },
+      } satisfies LauncherItem,
     }))
 
+  const profileItem = (profile: SavedProfile): LauncherItem => ({
+    key: `profile:${profile.id}`,
+    icon: BookMarked,
+    label: profile.name,
+    detail: [
+      profile.group,
+      profile.connection_type === "serial"
+        ? profile.serial?.port
+        : formatEndpoint({
+            username: profile.username,
+            host: profile.host ?? "",
+            port: profile.port,
+          }),
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    section: "profiles",
+    action: { kind: "profile", profile },
+  })
+
+  const lastUsed = profileLastUsed(profileRecents)
   const profileItems = query
     ? profiles
         .filter((profile) => matchesQuery(query, profileSearchFields(profile)))
+        // A stable sort, so connections never used keep their saved order.
+        .sort((left, right) => (lastUsed.get(right.id) ?? 0) - (lastUsed.get(left.id) ?? 0))
         .slice(0, PROFILE_MATCH_LIMIT)
-        .map<LauncherItem>((profile) => ({
-          key: `profile:${profile.id}`,
-          icon: BookMarked,
-          label: profile.name,
-          detail: [
-            profile.group,
-            profile.connection_type === "serial"
-              ? profile.serial?.port
-              : formatEndpoint({
-                  username: profile.username,
-                  host: profile.host ?? "",
-                  port: profile.port,
-                }),
-          ]
-            .filter(Boolean)
-            .join(" · "),
-          section: "profiles",
-          action: { kind: "profile", profile },
-        }))
+        .map(profileItem)
     : []
 
   const configItems = query
@@ -191,11 +205,28 @@ export function buildLauncherItems({
     : []
 
   if (!query) {
+    const profilesById = new Map(profiles.map((profile) => [profile.id, profile]))
+    // A recent whose profile was deleted since is left out.
+    const savedRecents = profileRecents.flatMap((recent) => {
+      const profile = profilesById.get(recent.profileId)
+      if (!profile) return []
+      const item: LauncherItem = {
+        ...profileItem(profile),
+        key: `recent-profile:${profile.id}`,
+        section: "recent",
+        recent: { kind: "profile", profileId: profile.id },
+      }
+      return [{ usedAt: recent.lastUsedAt, item }]
+    })
+    const recentItems = [...quickRecents, ...savedRecents]
+      .sort((left, right) => right.usedAt - left.usedAt)
+      .slice(0, RECENT_ITEMS_LIMIT)
+      .map((recent) => recent.item)
     return [...terminalItems, newConnectionItem, ...recentItems]
   }
   return [
     ...(connectItem ? [connectItem] : []),
-    ...recentItems,
+    ...quickRecents.map((recent) => recent.item),
     ...profileItems,
     ...configItems,
     ...(addUserItem ? [addUserItem] : []),

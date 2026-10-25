@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next"
 import { buildLauncherItems } from "@/components/NewTabLauncher/buildLauncherItems"
 import {
   type LocalShellChoice,
+  type LauncherRecent,
   type LauncherSection,
   type LauncherItem,
 } from "@/components/NewTabLauncher/launcherItems"
@@ -14,6 +15,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { useConfig } from "@/contexts/ConfigContext"
 import { isImeKeyEvent } from "@/lib/ime"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
+import type { RecentProfile } from "@/lib/profileRecents"
 import {
   buildQuickConnectTab,
   type RecentQuickConnection,
@@ -32,7 +34,10 @@ interface NewTabLauncherProps {
   /** Opens the full connection dialog, prefilled from what was typed. */
   onOpenConnectionDialog: (input: string, configHosts: readonly SshConfigHost[]) => void
   recents: readonly RecentQuickConnection[]
-  onForgetRecent: (recent: RecentQuickConnection) => void
+  /** The saved connections used lately, newest first. */
+  profileRecents: readonly RecentProfile[]
+  onForgetRecent: (recent: LauncherRecent) => void
+  /** Clears the quick connections and the saved ones alike. */
   onClearRecents: () => void
 }
 
@@ -48,6 +53,7 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
   onOpenLocalTerminal,
   onOpenConnectionDialog,
   recents,
+  profileRecents,
   onForgetRecent,
   onClearRecents,
 }) => {
@@ -100,6 +106,7 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
         configHosts,
         profiles,
         recents,
+        profileRecents,
         shells,
         terminalShell: config.terminal_shell,
         terminalShellCustomPath: config.terminal_shell_custom_path,
@@ -110,6 +117,7 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
       config.terminal_shell_custom_path,
       configHosts,
       input,
+      profileRecents,
       profiles,
       recents,
       shells,
@@ -185,7 +193,13 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
   const clearRecents = async () => {
     const confirmed = await confirm({
       title: t("quickConnect.clearRecentsTitle"),
-      description: t("quickConnect.clearRecentsDescription", { count: recents.length }),
+      description: t("quickConnect.clearRecentsDescription", {
+        count:
+          recents.length +
+          profileRecents.filter((recent) =>
+            profiles.some((profile) => profile.id === recent.profileId)
+          ).length,
+      }),
       confirmText: t("quickConnect.clearRecents"),
       cancelText: t("common.cancel"),
       variant: "destructive",

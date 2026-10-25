@@ -1,3 +1,4 @@
+import { PROFILE_RECENTS_STORAGE_KEY } from "@/lib/profileRecents"
 import { QUICK_CONNECT_RECENTS_STORAGE_KEY } from "@/lib/quickConnect"
 import { RECENT_COMMANDS_STORAGE_KEY } from "@/lib/recentCommands"
 import { SFTP_VIEW_STORAGE_KEY } from "@/components/SftpDrawer/sftpView"
@@ -68,6 +69,7 @@ export interface BackupImportResult {
   frontendState: {
     recentCommands?: unknown[]
     recentQuickConnections?: unknown[]
+    recentProfiles?: unknown[]
     sftpColumnWidths?: unknown
     sftpView?: unknown
   } | null
@@ -105,6 +107,9 @@ export function restoreFrontendState(state: BackupImportResult["frontendState"])
       QUICK_CONNECT_RECENTS_STORAGE_KEY,
       JSON.stringify(state.recentQuickConnections)
     )
+  }
+  if (state && Array.isArray(state.recentProfiles)) {
+    localStorage.setItem(PROFILE_RECENTS_STORAGE_KEY, JSON.stringify(state.recentProfiles))
   }
   if (state && state.sftpColumnWidths !== undefined && state.sftpColumnWidths !== null) {
     localStorage.setItem("tterm.sftp.columnWidths", JSON.stringify(state.sftpColumnWidths))
