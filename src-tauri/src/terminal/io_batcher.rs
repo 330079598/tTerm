@@ -16,6 +16,8 @@ const FLUSH_THRESHOLD_BYTES: usize = 128 * 1024;
 /// Hard cap for a single IPC message; larger batches are split across sends.
 const MAX_CHUNK_BYTES: usize = 512 * 1024;
 /// Batching window while data keeps arriving (matches a 60-120 FPS cadence).
+/// Output that follows a quiet spell of at least this long is sent at once
+/// instead, so the echo of a keystroke never waits out a window.
 pub const BATCH_INTERVAL: Duration = Duration::from_millis(8);
 /// Bytes sent to the webview but not yet acknowledged as parsed by xterm.js
 /// before the sender stops. Large enough to keep the IPC pipe busy, small
@@ -277,6 +279,10 @@ fn sender_loop(rx: &Receiver<Vec<u8>>, channel: &TerminalOutput) {
     // recv_timeout would starve a steady trickle (messages every few ms,
     // below the byte threshold) until megabytes accumulated.
     let mut flush_deadline: Option<Instant> = None;
+    // When the last batch went out. Output arriving a full window after it
+    // is interactive (an echo, a prompt) and goes out at once; output arriving
+    // sooner is part of a burst and waits for the window to coalesce.
+    let mut last_flush: Option<Instant> = None;
     let mut alive = true;
     while alive {
         let message = match flush_deadline {
@@ -303,12 +309,24 @@ fn sender_loop(rx: &Receiver<Vec<u8>>, channel: &TerminalOutput) {
             },
         };
         if let Some(data) = message {
-            if flush_deadline.is_none() {
-                flush_deadline = Some(Instant::now() + BATCH_INTERVAL);
-            }
             pending.extend_from_slice(&data);
+            if flush_deadline.is_none() {
+                // The window ends a full interval after the previous batch,
+                // not after this arrival, so a burst still goes out at most
+                // once per interval and never waits longer than one.
+                let window_end = last_flush
+                    .map(|at| at + BATCH_INTERVAL)
+                    .filter(|&end| end > Instant::now());
+                if window_end.is_none() {
+                    flush_all(&mut pending, channel);
+                    last_flush = Some(Instant::now());
+                    continue;
+                }
+                flush_deadline = window_end;
+            }
             if pending.len() >= FLUSH_THRESHOLD_BYTES {
                 flush_all(&mut pending, channel);
+                last_flush = Some(Instant::now());
                 flush_deadline = None;
                 // Bytes queued behind this batch are already deliverable:
                 // drain them now instead of waking once per message.
@@ -334,6 +352,7 @@ fn sender_loop(rx: &Receiver<Vec<u8>>, channel: &TerminalOutput) {
         } else if flush_deadline.take().is_some() {
             // Batching window elapsed: deliver what accumulated.
             flush_all(&mut pending, channel);
+            last_flush = Some(Instant::now());
         }
     }
     // End of stream: deliver any deferred partial sequence as-is.

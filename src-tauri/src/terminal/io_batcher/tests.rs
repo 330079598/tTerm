@@ -282,8 +282,8 @@ fn rapid_messages_coalesce_into_fewer_chunks() {
         chunks: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
     };
     let mut sender = TerminalOutputSender::spawn("coalesce", recorder.channel());
-    // All ten land inside one batching window, so they must reach the
-    // webview as fewer IPC messages than reads.
+    // The first goes out at once; the other nine land inside the window it
+    // opens, so they must reach the webview as fewer IPC messages than reads.
     let mut expected = Vec::new();
     for i in 0..10 {
         let message = format!("message-{i:02} ").into_bytes();
@@ -299,6 +299,33 @@ fn rapid_messages_coalesce_into_fewer_chunks() {
         chunks.len()
     );
     assert_eq!(chunks.concat(), expected);
+}
+
+#[test]
+fn output_after_a_quiet_spell_skips_the_batching_window() {
+    let (delivered_tx, delivered_rx) = std::sync::mpsc::channel::<Instant>();
+    let delivered_tx = Mutex::new(delivered_tx);
+    let channel = Channel::new(move |_body: InvokeResponseBody| {
+        let _ = delivered_tx.lock().unwrap().send(Instant::now());
+        Ok(())
+    });
+    let mut sender = TerminalOutputSender::spawn("echo", TerminalOutput::new(channel));
+    // Each echo follows a pause longer than the window, like keystrokes, so
+    // each must reach the webview well before a window could have elapsed.
+    for _ in 0..3 {
+        std::thread::sleep(BATCH_INTERVAL * 2);
+        let sent_at = Instant::now();
+        sender.send(b"x".to_vec());
+        let delivered_at = delivered_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("echo was never delivered");
+        assert!(
+            delivered_at - sent_at < BATCH_INTERVAL,
+            "echo waited {:?} for the batching window",
+            delivered_at - sent_at
+        );
+    }
+    sender.finish();
 }
 
 #[test]
