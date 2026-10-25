@@ -3,6 +3,11 @@ import { invoke } from "@tauri-apps/api/core"
 import { useTranslation } from "react-i18next"
 import { ChevronDown, ChevronRight, FileInput, Plus, Search, X } from "lucide-react"
 
+import {
+  filterProfiles,
+  groupProfiles,
+  UNGROUPED_KEY,
+} from "@/components/ProfilesPanel/profileListing"
 import { ProfileRow } from "@/components/ProfilesPanel/ProfileRow"
 import { Spinner } from "@/components/ui/spinner"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -14,8 +19,6 @@ import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { SshConfigImportDialog } from "@/components/SshConfigImportDialog"
 import { isImeKeyEvent } from "@/lib/ime"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
-import { profileSearchFields } from "@/lib/profileSearch"
-import { matchesQuery } from "@/lib/quickConnect"
 import { cn } from "@/lib/utils"
 import { Tab, type SavedProfile } from "@/types/tab"
 import { findTunnelsUsingProfile } from "@/components/TunnelsPanel/profileTunnels"
@@ -36,8 +39,6 @@ interface ProfilesPanelProps {
 }
 
 export type { SavedProfile }
-
-const UNGROUPED_KEY = "__ungrouped__"
 
 const getGroupListId = (group: string) => `profiles-group-${encodeURIComponent(group)}`
 
@@ -155,29 +156,10 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
     onConnect(buildConnectionFromProfile(profile))
   }
 
-  const groupedProfiles = useMemo(() => {
-    const filteredProfiles = profiles.filter((profile) =>
-      matchesQuery(searchQuery, [...profileSearchFields(profile), profile.connection_type])
-    )
-
-    const groups = new Map<string, SavedProfile[]>()
-
-    for (const profile of filteredProfiles) {
-      const key = profile.group === "" ? UNGROUPED_KEY : profile.group
-      const existingItems = groups.get(key)
-      if (existingItems) {
-        existingItems.push(profile)
-      } else {
-        groups.set(key, [profile])
-      }
-    }
-
-    return Array.from(groups.entries()).sort(([left], [right]) => {
-      if (left === UNGROUPED_KEY) return 1
-      if (right === UNGROUPED_KEY) return -1
-      return left.localeCompare(right)
-    })
-  }, [profiles, searchQuery])
+  const groupedProfiles = useMemo(
+    () => groupProfiles(filterProfiles(profiles, searchQuery)),
+    [profiles, searchQuery]
+  )
 
   const flatProfiles = useMemo(
     () =>
