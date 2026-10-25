@@ -400,7 +400,13 @@
   opacity: 0.7;
 }
 
-.terminal-password-feedback[data-caps-lock] > svg {
+.terminal-password-feedback[data-caps-lock] > svg,
+.terminal-password-feedback > [data-notice] {
   color: hsl(var(--warning));
   opacity: 1;
+}
+
+.terminal-password-feedback > [data-notice] {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

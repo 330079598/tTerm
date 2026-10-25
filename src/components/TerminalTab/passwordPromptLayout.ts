@@ -9,6 +9,9 @@ const MIN_INLINE_MARKS = 8
 /** Cells a floating chip's padding takes, half on each side. */
 const CHIP_PADDING_CELLS = 1
 
+/** Characters that take two terminal cells, as East Asian wide characters do. */
+const WIDE_CHAR = /[ᄀ-ᅟ⺀-꓏가-힣豈-﫿︰-﹏＀-｠￠-￦]/
+
 /** Gap between the saved-password bar and the surface's edges; the bar's CSS uses the same. */
 const PROMPT_BAR_INSET = 12
 
@@ -33,8 +36,17 @@ export interface FeedbackLayout {
   top: number
   /** Width in cells the feedback may take, a chip's padding included. */
   cells: number
-  /** The stars after the icon. */
-  marks: string
+  /** What follows the icon: the stars, or a notice in their place. */
+  text: string
+  /** Whether `text` is a notice rather than the stars. */
+  notice: boolean
+}
+
+interface FeedbackContent {
+  /** Characters typed so far, or null when the stars are turned off. */
+  typed: number | null
+  /** A few words shown in the stars' place for a moment, such as that Caps Lock is on. */
+  notice: string | null
 }
 
 interface PromptBarPlacementInput {
@@ -46,36 +58,48 @@ interface PromptBarPlacementInput {
   input: SurfaceRect | null
 }
 
+function textCells(text: string): number {
+  let cells = 0
+  for (const char of text) cells += WIDE_CHAR.test(char) ? 2 : 1
+  return cells
+}
+
 function marksFor(typed: number, room: number): string {
   // A password longer than the room fills it, led by an ellipsis.
   return typed > room ? `…${"*".repeat(Math.max(0, room - 1))}` : "*".repeat(typed)
 }
 
 /**
- * Lays out the key and stars after the cursor. Near the end of the row, where
- * they would be cut off at the terminal's edge, they move onto a chip on the
- * row above, or below when the cursor is on the first row. The cursor stays
- * put while a password is typed, so the choice holds for the whole prompt.
+ * Lays out the key and stars, or a notice, after the cursor. Near the end of
+ * the row, where they would be cut off at the terminal's edge, they move onto a
+ * chip on the row above, or below when the cursor is on the first row. The
+ * cursor stays put while a password is typed, so the stars keep their place
+ * for the whole prompt.
  */
-export function feedbackLayout(box: CursorCellBox, typed: number | null): FeedbackLayout {
-  const needed = typed === null ? 0 : MIN_INLINE_MARKS
+export function feedbackLayout(
+  box: CursorCellBox,
+  { typed, notice }: FeedbackContent
+): FeedbackLayout {
+  const textFor = (room: number) => notice ?? marksFor(typed ?? 0, room)
+  const needed = notice ? textCells(notice) : typed === null ? 0 : MIN_INLINE_MARKS
   const inlineRoom = box.cellsLeft - ICON_CELLS
   if (inlineRoom >= needed) {
-    const marks = marksFor(typed ?? 0, inlineRoom)
-    return { floating: false, left: box.left, top: box.top, cells: box.cellsLeft, marks }
+    const text = textFor(inlineRoom)
+    const layout = { left: box.left, top: box.top, cells: box.cellsLeft, text }
+    return { ...layout, floating: false, notice: notice !== null }
   }
 
   const rowRight = box.left + box.cellsLeft * box.cellWidth
   const rowCells = Math.round((rowRight - box.rowLeft) / box.cellWidth)
-  const marks = marksFor(typed ?? 0, Math.max(0, rowCells - ICON_CELLS - CHIP_PADDING_CELLS))
-  const cells = ICON_CELLS + marks.length + CHIP_PADDING_CELLS
+  const text = textFor(Math.max(0, rowCells - ICON_CELLS - CHIP_PADDING_CELLS))
+  const cells = Math.min(rowCells, ICON_CELLS + textCells(text) + CHIP_PADDING_CELLS)
   // It starts over the cursor, pulled left as far as it must to end within the row.
   const left = Math.max(
     box.rowLeft,
     Math.min(box.left - box.cellWidth, rowRight - cells * box.cellWidth)
   )
   const top = box.top >= box.cellHeight ? box.top - box.cellHeight : box.top + box.cellHeight
-  return { floating: true, left, top, cells, marks }
+  return { floating: true, left, top, cells, text, notice: notice !== null }
 }
 
 /**
