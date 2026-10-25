@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { useConfig } from "@/contexts/ConfigContext"
 import { isImeKeyEvent } from "@/lib/ime"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
+import { profileSearchFields } from "@/lib/profileSearch"
 import {
   buildQuickConnectTab,
   formatEndpoint,
@@ -196,15 +197,7 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
 
     const profileItems = query
       ? profiles
-          .filter((profile) =>
-            matchesQuery(query, [
-              profile.name,
-              profile.host,
-              profile.username,
-              profile.group,
-              profile.serial?.port,
-            ])
-          )
+          .filter((profile) => matchesQuery(query, profileSearchFields(profile)))
           .slice(0, PROFILE_MATCH_LIMIT)
           .map<LauncherItem>((profile) => ({
             key: `profile:${profile.id}`,
