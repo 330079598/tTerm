@@ -386,6 +386,15 @@
   pointer-events: none;
 }
 
+/* Off the cursor's row it covers terminal output, so it gets the terminal's
+   background, given inline, and an edge. */
+.terminal-password-feedback[data-floating] {
+  box-sizing: border-box;
+  border-radius: 4px;
+  background: hsl(var(--card));
+  box-shadow: 0 0 0 1px hsl(var(--border));
+}
+
 .terminal-password-feedback > svg {
   flex-shrink: 0;
   opacity: 0.7;

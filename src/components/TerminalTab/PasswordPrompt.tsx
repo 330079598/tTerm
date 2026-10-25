@@ -2,10 +2,11 @@ import React, { useMemo } from "react"
 import type { Terminal } from "@xterm/xterm"
 
 import { PasswordFeedbackOverlay } from "@/components/TerminalTab/PasswordFeedbackOverlay"
-import { promptInputRect } from "@/components/TerminalTab/passwordPromptLayout"
+import { feedbackLayout, promptInputRect } from "@/components/TerminalTab/passwordPromptLayout"
 import { SavedPasswordPromptBar } from "@/components/TerminalTab/SavedPasswordPromptBar"
 import type { SavedPasswordPromptState, TerminalTabProps } from "@/components/TerminalTab/types"
 import { useCursorCellBox } from "@/components/TerminalTab/useCursorCellBox"
+import { useConfig } from "@/contexts/ConfigContext"
 
 interface PasswordPromptProps {
   termRef: React.RefObject<Terminal | null>
@@ -29,14 +30,15 @@ export const PasswordPrompt: React.FC<PasswordPromptProps> = ({
   state,
   ...barProps
 }) => {
+  const { config } = useConfig()
   const box = useCursorCellBox(termRef, surfaceRef)
-  const input = useMemo(() => box && promptInputRect(box), [box])
+  const typed = config.password_feedback ? (state.status === "manual" ? state.typed : 0) : null
+  const layout = useMemo(() => box && feedbackLayout(box, typed), [box, typed])
+  const input = useMemo(() => box && layout && promptInputRect(box, layout), [box, layout])
 
   return (
     <>
-      {box && (
-        <PasswordFeedbackOverlay box={box} typed={state.status === "manual" ? state.typed : 0} />
-      )}
+      {box && layout && <PasswordFeedbackOverlay box={box} layout={layout} />}
       {state.status !== "manual" && (
         <SavedPasswordPromptBar {...barProps} input={input} state={state} />
       )}

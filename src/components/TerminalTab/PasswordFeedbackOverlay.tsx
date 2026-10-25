@@ -2,16 +2,14 @@ import type React from "react"
 import { ArrowBigUpDash, KeyRound } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { ICON_CELLS } from "@/components/TerminalTab/passwordPromptLayout"
+import type { FeedbackLayout } from "@/components/TerminalTab/passwordPromptLayout"
 import type { CursorCellView } from "@/components/TerminalTab/useCursorCellBox"
-import { useConfig } from "@/contexts/ConfigContext"
 import { useCapsLock } from "@/hooks/useCapsLock"
 
 interface PasswordFeedbackOverlayProps {
   /** The cell after the cursor. */
   box: CursorCellView
-  /** Characters typed at the prompt so far. */
-  typed: number
+  layout: FeedbackLayout
 }
 
 /**
@@ -20,29 +18,30 @@ interface PasswordFeedbackOverlayProps {
  * pwfeedback echoes them. tTerm draws it over the terminal; none of it is
  * terminal content or reaches the remote.
  */
-export const PasswordFeedbackOverlay: React.FC<PasswordFeedbackOverlayProps> = ({ box, typed }) => {
+export const PasswordFeedbackOverlay: React.FC<PasswordFeedbackOverlayProps> = ({
+  box,
+  layout,
+}) => {
   const { t } = useTranslation()
-  const { config } = useConfig()
   const capsLockOn = useCapsLock()
-
-  const room = Math.max(0, box.cellsLeft - ICON_CELLS)
-  const shownTyped = config.password_feedback ? typed : 0
-  // A password longer than the rest of the row fills it, led by an ellipsis.
-  const marks = shownTyped > room ? `…${"*".repeat(Math.max(0, room - 1))}` : "*".repeat(shownTyped)
   const label = t(capsLockOn ? "sudoAutofill.tabWaitingCapsLock" : "sudoAutofill.cursorWaiting")
   const iconSize = Math.round(Math.min(box.cellHeight * 0.75, box.cellWidth * 1.6))
+  const width = layout.cells * box.cellWidth
 
   return (
     <div
       className="terminal-password-feedback"
       data-caps-lock={capsLockOn || undefined}
+      data-floating={layout.floating || undefined}
       role="status"
       aria-label={label}
       style={{
-        left: box.left,
-        top: box.top,
+        left: layout.left,
+        top: layout.top,
         height: box.cellHeight,
-        maxWidth: Math.max(box.cellsLeft, ICON_CELLS) * box.cellWidth,
+        ...(layout.floating
+          ? { width, padding: `0 ${box.cellWidth / 2}px`, background: box.background }
+          : { maxWidth: width }),
         color: box.color,
         fontFamily: box.fontFamily,
         fontSize: box.fontSize,
@@ -54,7 +53,7 @@ export const PasswordFeedbackOverlay: React.FC<PasswordFeedbackOverlayProps> = (
       ) : (
         <KeyRound size={iconSize} aria-hidden="true" />
       )}
-      {marks && <span aria-hidden="true">{marks}</span>}
+      {layout.marks && <span aria-hidden="true">{layout.marks}</span>}
     </div>
   )
 }

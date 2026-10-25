@@ -1,7 +1,13 @@
 import type { CursorCellBox } from "@/components/TerminalTab/useCursorCellBox"
 
 /** Cells the key icon and the gap after it take. */
-export const ICON_CELLS = 2
+const ICON_CELLS = 2
+
+/** Cells beside the cursor the stars need before they move off its row. */
+const MIN_INLINE_MARKS = 8
+
+/** Cells a floating chip's padding takes, half on each side. */
+const CHIP_PADDING_CELLS = 1
 
 /** Gap between the saved-password bar and the surface's edges; the bar's CSS uses the same. */
 const PROMPT_BAR_INSET = 12
@@ -16,6 +22,21 @@ export interface SurfaceRect {
 
 export type PromptBarPlacement = "bottom" | "top"
 
+/** Where the feedback for a password prompt goes and what it shows. */
+export interface FeedbackLayout {
+  /**
+   * On a chip of its own on the next row, because the cursor's row has no
+   * room left for it.
+   */
+  floating: boolean
+  left: number
+  top: number
+  /** Width in cells the feedback may take, a chip's padding included. */
+  cells: number
+  /** The stars after the icon. */
+  marks: string
+}
+
 interface PromptBarPlacementInput {
   surfaceWidth: number
   surfaceHeight: number
@@ -25,13 +46,55 @@ interface PromptBarPlacementInput {
   input: SurfaceRect | null
 }
 
-/** The prompt line from its first cell through the key icon after the cursor. */
-export function promptInputRect(box: CursorCellBox): SurfaceRect {
-  return {
+function marksFor(typed: number, room: number): string {
+  // A password longer than the room fills it, led by an ellipsis.
+  return typed > room ? `…${"*".repeat(Math.max(0, room - 1))}` : "*".repeat(typed)
+}
+
+/**
+ * Lays out the key and stars after the cursor. Near the end of the row, where
+ * they would be cut off at the terminal's edge, they move onto a chip on the
+ * row above, or below when the cursor is on the first row. The cursor stays
+ * put while a password is typed, so the choice holds for the whole prompt.
+ */
+export function feedbackLayout(box: CursorCellBox, typed: number | null): FeedbackLayout {
+  const needed = typed === null ? 0 : MIN_INLINE_MARKS
+  const inlineRoom = box.cellsLeft - ICON_CELLS
+  if (inlineRoom >= needed) {
+    const marks = marksFor(typed ?? 0, inlineRoom)
+    return { floating: false, left: box.left, top: box.top, cells: box.cellsLeft, marks }
+  }
+
+  const rowRight = box.left + box.cellsLeft * box.cellWidth
+  const rowCells = Math.round((rowRight - box.rowLeft) / box.cellWidth)
+  const marks = marksFor(typed ?? 0, Math.max(0, rowCells - ICON_CELLS - CHIP_PADDING_CELLS))
+  const cells = ICON_CELLS + marks.length + CHIP_PADDING_CELLS
+  // It starts over the cursor, pulled left as far as it must to end within the row.
+  const left = Math.max(
+    box.rowLeft,
+    Math.min(box.left - box.cellWidth, rowRight - cells * box.cellWidth)
+  )
+  const top = box.top >= box.cellHeight ? box.top - box.cellHeight : box.top + box.cellHeight
+  return { floating: true, left, top, cells, marks }
+}
+
+/**
+ * Where the user reads the prompt and looks for feedback: the prompt line
+ * through the key after the cursor, and a floating chip if there is one.
+ */
+export function promptInputRect(box: CursorCellBox, feedback: FeedbackLayout): SurfaceRect {
+  const line = {
     left: box.rowLeft,
     top: box.top,
     right: box.left + ICON_CELLS * box.cellWidth,
     bottom: box.top + box.cellHeight,
+  }
+  if (!feedback.floating) return line
+  return {
+    left: Math.min(line.left, feedback.left),
+    top: Math.min(line.top, feedback.top),
+    right: Math.max(line.right, feedback.left + feedback.cells * box.cellWidth),
+    bottom: Math.max(line.bottom, feedback.top + box.cellHeight),
   }
 }
 

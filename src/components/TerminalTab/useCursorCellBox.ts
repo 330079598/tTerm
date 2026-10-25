@@ -48,11 +48,12 @@ export function cursorCellBox(input: CursorCellInput): CursorCellBox | null {
   }
 }
 
-/** The cell after the cursor, with the font and color the terminal draws in. */
+/** The cell after the cursor, with the font and colors the terminal draws in. */
 export interface CursorCellView extends CursorCellBox {
   fontFamily?: string
   fontSize?: number
   color?: string
+  background?: string
 }
 
 function sameView(a: CursorCellView | null, b: CursorCellView | null): boolean {
@@ -66,7 +67,8 @@ function sameView(a: CursorCellView | null, b: CursorCellView | null): boolean {
     a.cellsLeft === b.cellsLeft &&
     a.fontFamily === b.fontFamily &&
     a.fontSize === b.fontSize &&
-    a.color === b.color
+    a.color === b.color &&
+    a.background === b.background
   )
 }
 
@@ -103,6 +105,7 @@ export function useCursorCellBox(
         fontFamily: term.options.fontFamily,
         fontSize: term.options.fontSize,
         color: term.options.theme?.foreground,
+        background: term.options.theme?.background,
       }
       setView((current) => (sameView(current, next) ? current : next))
     }
