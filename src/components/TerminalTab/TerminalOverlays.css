@@ -224,15 +224,17 @@
 }
 
 /* Saved-password offer for a sudo prompt. Drawn outside the xterm canvas so
-   remote output cannot imitate it. */
+   remote output cannot imitate it. In a narrow pane the buttons wrap onto a
+   second row, so they never squeeze out which password would be sent. */
 .terminal-password-prompt {
   position: absolute;
   right: 12px;
   bottom: 12px;
   z-index: 20;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 6px 10px;
   max-width: min(520px, calc(100% - 24px));
   padding: 8px 8px 8px 12px;
   border: 1px solid hsl(var(--primary) / 0.45);
@@ -243,16 +245,38 @@
   font-size: calc(12px * var(--ui-font-scale, 1));
 }
 
-.terminal-password-prompt > svg {
+/* Over the prompt line at the bottom, the bar moves to the top instead. */
+.terminal-password-prompt.is-top {
+  top: 12px;
+  bottom: auto;
+}
+
+.terminal-password-prompt-main {
+  display: flex;
+  flex: 1 1 16em;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.terminal-password-prompt-main > svg {
   flex-shrink: 0;
   color: hsl(var(--primary));
+}
+
+.terminal-password-prompt-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
 }
 
 .terminal-password-prompt.is-rejected {
   border-color: hsl(var(--warning) / 0.5);
 }
 
-.terminal-password-prompt.is-rejected > svg {
+.terminal-password-prompt.is-rejected .terminal-password-prompt-main > svg {
   color: hsl(var(--warning));
 }
 

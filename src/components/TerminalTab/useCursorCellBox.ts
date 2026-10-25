@@ -5,6 +5,8 @@ import type { Terminal } from "@xterm/xterm"
 export interface CursorCellBox {
   left: number
   top: number
+  /** Where the cursor's row starts. */
+  rowLeft: number
   cellWidth: number
   cellHeight: number
   /** Cells from that one to the end of the row. */
@@ -39,6 +41,7 @@ export function cursorCellBox(input: CursorCellInput): CursorCellBox | null {
   return {
     left: screen.left - surface.left + col * cellWidth,
     top: screen.top - surface.top + cursorRow * cellHeight,
+    rowLeft: screen.left - surface.left,
     cellWidth,
     cellHeight,
     cellsLeft: cols - col,
@@ -57,6 +60,7 @@ function sameView(a: CursorCellView | null, b: CursorCellView | null): boolean {
   return (
     a.left === b.left &&
     a.top === b.top &&
+    a.rowLeft === b.rowLeft &&
     a.cellWidth === b.cellWidth &&
     a.cellHeight === b.cellHeight &&
     a.cellsLeft === b.cellsLeft &&

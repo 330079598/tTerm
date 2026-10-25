@@ -2,12 +2,10 @@ import type React from "react"
 import { ArrowBigUpDash, KeyRound } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { ICON_CELLS } from "@/components/TerminalTab/passwordPromptLayout"
 import type { CursorCellView } from "@/components/TerminalTab/useCursorCellBox"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useCapsLock } from "@/hooks/useCapsLock"
-
-/** Cells the key icon and the gap after it take. */
-const ICON_CELLS = 2
 
 interface PasswordFeedbackOverlayProps {
   /** The cell after the cursor. */

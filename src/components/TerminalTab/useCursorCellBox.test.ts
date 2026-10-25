@@ -10,7 +10,14 @@ describe("cursorCellBox", () => {
   it("places the box on the cell after the cursor", () => {
     expect(
       cursorCellBox({ screen, surface, cols: 80, rows: 24, cursorCol: 10, cursorRow: 3 })
-    ).toEqual({ left: 116, top: 66, cellWidth: 10, cellHeight: 20, cellsLeft: 69 })
+    ).toEqual({
+      left: 116,
+      top: 66,
+      rowLeft: 6,
+      cellWidth: 10,
+      cellHeight: 20,
+      cellsLeft: 69,
+    })
   })
 
   it("keeps the box inside the row at its last cell", () => {
