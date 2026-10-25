@@ -6,6 +6,8 @@ use crate::db::meta;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
+pub(crate) mod scrollback;
+
 pub(crate) const SESSION_KEY: &str = "session";
 /// Set once `session.json` was moved into the database, so the merge of the
 /// legacy config folder stops bringing the file back.
@@ -126,12 +128,24 @@ pub async fn load_session() -> Result<SessionData, String> {
 
 #[tauri::command]
 pub async fn save_session(session: SessionData) -> Result<(), String> {
-    run_blocking(move || crate::db::write(|transaction| write_session(transaction, session))).await
+    run_blocking(move || {
+        // Every change of the tabs is saved here, so this is where the
+        // content of the tabs closed since is let go.
+        if let Err(error) = scrollback::prune_to_session(&session.tabs) {
+            eprintln!("Failed to delete the terminal content of closed tabs: {error}");
+        }
+        crate::db::write(|transaction| write_session(transaction, session))
+    })
+    .await
 }
 
 #[tauri::command]
 pub async fn clear_session() -> Result<(), String> {
-    run_blocking(|| crate::db::write(|transaction| clear(transaction))).await
+    run_blocking(|| {
+        crate::db::write(|transaction| clear(transaction))?;
+        scrollback::clear_all()
+    })
+    .await
 }
 
 /// Moves `session.json` from older versions into the database.
