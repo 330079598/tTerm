@@ -74,6 +74,7 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "tab_hover_tooltip",
     "tab_icons",
     "tab_agent_indicator",
+    "profile_sort",
     "keyword_highlight",
     "panes",
     "reconnect_enabled",

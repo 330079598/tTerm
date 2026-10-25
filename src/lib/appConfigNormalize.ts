@@ -281,6 +281,7 @@ export function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     ),
     window_blur_material: config.window_blur_material === "mica" ? "mica" : "acrylic",
     ui_style: config.ui_style === "islands" ? "islands" : "classic",
+    profile_sort: config.profile_sort === "recent" ? "recent" : "default",
     close_behavior:
       config.close_behavior === "tray" || config.close_behavior === "quit"
         ? config.close_behavior

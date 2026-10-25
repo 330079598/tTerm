@@ -35,6 +35,8 @@ export type CloseBehavior = "ask" | "tray" | "quit"
 export type WindowBlurMaterial = "acrylic" | "mica"
 /** How the window lays out its surfaces; "islands" floats each pane as a rounded card. */
 export type UiStyle = "classic" | "islands"
+/** How the connections panel lists profiles: by group, or in one list by when they were last used. */
+export type ProfileSort = "default" | "recent"
 /** What the terminal bell does: flash the terminal, play a tone, or nothing. */
 export type BellStyle = "visual" | "sound" | "none"
 
@@ -158,6 +160,7 @@ export interface AppConfig extends TabSettings {
   /** Windows backdrop: acrylic blurs what is behind, mica tints with the wallpaper. */
   window_blur_material: WindowBlurMaterial
   ui_style: UiStyle
+  profile_sort: ProfileSort
   /** Opacity of that tint in percent. */
   window_opacity_percent: number
   close_behavior: CloseBehavior
@@ -267,6 +270,7 @@ export const defaultConfig: AppConfig = {
   window_opacity_percent: 70,
   window_blur_material: "acrylic",
   ui_style: "classic",
+  profile_sort: "default",
   close_behavior: "ask",
   notifications_enabled: true,
   notify_command_finished: true,

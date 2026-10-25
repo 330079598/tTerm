@@ -1,21 +1,21 @@
-import { useCallback, useState } from "react"
+import { useCallback } from "react"
 
-import {
-  loadProfileSort,
-  saveProfileSort,
-  type ProfileSort,
-} from "@/components/ProfilesPanel/profileListing"
+import { useConfig } from "@/contexts/ConfigContext"
+import type { ProfileSort } from "@/lib/appConfig"
 
-/** How the connections panel lists profiles, remembered on this device. */
+/**
+ * How the connections panel lists profiles. It is a setting, so it goes
+ * into backups and syncs to the other devices with the rest of them.
+ */
 export function useProfileSort() {
-  const [sort, setSort] = useState<ProfileSort>(() =>
-    typeof window === "undefined" ? "default" : loadProfileSort(window.localStorage)
+  const { config, saveConfig } = useConfig()
+
+  const changeSort = useCallback(
+    (next: ProfileSort) => {
+      saveConfig({ profile_sort: next }).catch(console.error)
+    },
+    [saveConfig]
   )
 
-  const changeSort = useCallback((next: ProfileSort) => {
-    setSort(next)
-    saveProfileSort(window.localStorage, next)
-  }, [])
-
-  return [sort, changeSort] as const
+  return [config.profile_sort, changeSort] as const
 }

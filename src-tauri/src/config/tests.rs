@@ -154,6 +154,25 @@ fn invalid_tab_width_config_is_normalized() {
 }
 
 #[test]
+fn profile_sort_falls_back_to_the_grouped_list() {
+    let parse = |json: &str| {
+        serde_json::from_str::<AppConfig>(json)
+            .unwrap()
+            .profile_sort
+    };
+
+    assert_eq!(parse(r#"{"theme":"default"}"#), "default");
+    assert_eq!(
+        parse(r#"{"theme":"default","profile_sort":"recent"}"#),
+        "recent"
+    );
+    assert_eq!(
+        parse(r#"{"theme":"default","profile_sort":"sideways"}"#),
+        "default"
+    );
+}
+
+#[test]
 fn terminal_line_height_and_letter_spacing_are_clamped() {
     let config: AppConfig = serde_json::from_str(
         r#"{"theme":"default","terminal_line_height":1.234,"terminal_letter_spacing":-1.6}"#,

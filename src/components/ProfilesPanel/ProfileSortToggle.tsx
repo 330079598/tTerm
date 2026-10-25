@@ -1,7 +1,7 @@
 import React from "react"
 import { useTranslation } from "react-i18next"
 
-import type { ProfileSort } from "@/components/ProfilesPanel/profileListing"
+import type { ProfileSort } from "@/lib/appConfig"
 import { cn } from "@/lib/utils"
 
 const SORTS: readonly ProfileSort[] = ["default", "recent"]

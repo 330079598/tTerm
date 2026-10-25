@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest"
 import {
   filterProfiles,
   groupProfiles,
-  loadProfileSort,
   UNGROUPED_KEY,
 } from "@/components/ProfilesPanel/profileListing"
 import type { SavedProfile } from "@/types/tab"
@@ -63,19 +62,5 @@ describe("groupProfiles while searching", () => {
       ["Zulu", ["c", "b"]],
       ["Alpha", ["a"]],
     ])
-  })
-})
-
-describe("loadProfileSort", () => {
-  it("falls back to the grouped list for anything unknown", () => {
-    expect(loadProfileSort({ getItem: () => "recent" })).toBe("recent")
-    expect(loadProfileSort({ getItem: () => "sideways" })).toBe("default")
-    expect(
-      loadProfileSort({
-        getItem: () => {
-          throw new Error("blocked")
-        },
-      })
-    ).toBe("default")
   })
 })
