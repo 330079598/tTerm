@@ -6,7 +6,6 @@ import { ChevronDown, ChevronRight, FileInput, Plus, Search, X } from "lucide-re
 import {
   filterProfiles,
   groupProfiles,
-  sortProfilesByRecent,
   UNGROUPED_KEY,
 } from "@/components/ProfilesPanel/profileListing"
 import { ProfileRow } from "@/components/ProfilesPanel/ProfileRow"
@@ -22,7 +21,8 @@ import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { SshConfigImportDialog } from "@/components/SshConfigImportDialog"
 import { isImeKeyEvent } from "@/lib/ime"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
-import type { RecentProfile } from "@/lib/profileRecents"
+import { profileLastUsed, type RecentProfile } from "@/lib/profileRecents"
+import { rankProfiles } from "@/lib/profileSearch"
 import { cn } from "@/lib/utils"
 import { Tab, type SavedProfile } from "@/types/tab"
 import { findTunnelsUsingProfile } from "@/components/TunnelsPanel/profileTunnels"
@@ -168,12 +168,19 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
     () => filterProfiles(profiles, searchQuery),
     [profiles, searchQuery]
   )
-  // Listed by last use, the profiles form one list without groups.
+  // Listed by last use, the profiles form one list without groups, and a
+  // search still puts its best fits first.
   const recentProfiles = useMemo(
-    () => (sort === "recent" ? sortProfilesByRecent(filteredProfiles, profileRecents) : null),
-    [filteredProfiles, profileRecents, sort]
+    () =>
+      sort === "recent"
+        ? rankProfiles(filteredProfiles, searchQuery, profileLastUsed(profileRecents))
+        : null,
+    [filteredProfiles, profileRecents, searchQuery, sort]
   )
-  const groupedProfiles = useMemo(() => groupProfiles(filteredProfiles), [filteredProfiles])
+  const groupedProfiles = useMemo(
+    () => groupProfiles(filteredProfiles, searchQuery),
+    [filteredProfiles, searchQuery]
+  )
 
   const flatProfiles = useMemo(
     () =>

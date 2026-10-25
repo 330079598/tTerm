@@ -10,7 +10,7 @@ import {
 } from "@/components/NewTabLauncher/launcherItems"
 import type { AppConfig } from "@/lib/appConfig"
 import { profileLastUsed, type RecentProfile } from "@/lib/profileRecents"
-import { profileSearchFields } from "@/lib/profileSearch"
+import { profileSearchFields, rankProfiles } from "@/lib/profileSearch"
 import {
   formatEndpoint,
   matchesQuery,
@@ -46,7 +46,8 @@ export interface LauncherItemsInput {
  * The launcher's list for what was typed: with nothing typed, the local
  * terminals, a new connection and the recents, quick and saved connections
  * together; otherwise everything that matches, the typed connection first
- * and the saved connections used lately before the others.
+ * and the saved connections the search fits best, then those used lately,
+ * before the others.
  */
 export function buildLauncherItems({
   input,
@@ -172,11 +173,13 @@ export function buildLauncherItems({
   })
 
   const lastUsed = profileLastUsed(profileRecents)
+  // Ranked before the cut, so the best fit is never the one left out.
   const profileItems = query
-    ? profiles
-        .filter((profile) => matchesQuery(query, profileSearchFields(profile)))
-        // A stable sort, so connections never used keep their saved order.
-        .sort((left, right) => (lastUsed.get(right.id) ?? 0) - (lastUsed.get(left.id) ?? 0))
+    ? rankProfiles(
+        profiles.filter((profile) => matchesQuery(query, profileSearchFields(profile))),
+        query,
+        lastUsed
+      )
         .slice(0, PROFILE_MATCH_LIMIT)
         .map(profileItem)
     : []

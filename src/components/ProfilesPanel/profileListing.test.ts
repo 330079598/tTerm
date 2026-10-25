@@ -4,7 +4,6 @@ import {
   filterProfiles,
   groupProfiles,
   loadProfileSort,
-  sortProfilesByRecent,
   UNGROUPED_KEY,
 } from "@/components/ProfilesPanel/profileListing"
 import type { SavedProfile } from "@/types/tab"
@@ -50,15 +49,20 @@ describe("groupProfiles", () => {
   })
 })
 
-describe("sortProfilesByRecent", () => {
-  it("puts the one used last first and the unused ones after in saved order", () => {
-    const profiles = ["a", "b", "c", "d"].map((id) => profile({ id }))
-    const sorted = sortProfilesByRecent(profiles, [
-      { profileId: "c", lastUsedAt: 20 },
-      { profileId: "a", lastUsedAt: 10 },
-      { profileId: "gone", lastUsedAt: 30 },
+describe("groupProfiles while searching", () => {
+  it("puts the group holding the best fit first, and the best fit first in it", () => {
+    const grouped = groupProfiles(
+      [
+        profile({ id: "a", group: "Alpha", name: "gateway", username: "web" }),
+        profile({ id: "b", group: "Zulu", name: "db", username: "web" }),
+        profile({ id: "c", group: "Zulu", name: "web" }),
+      ],
+      "web"
+    )
+    expect(grouped.map(([group, items]) => [group, ids(items)])).toEqual([
+      ["Zulu", ["c", "b"]],
+      ["Alpha", ["a"]],
     ])
-    expect(ids(sorted)).toEqual(["c", "a", "b", "d"])
   })
 })
 

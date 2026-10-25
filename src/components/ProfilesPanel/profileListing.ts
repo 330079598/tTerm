@@ -1,5 +1,4 @@
-import { profileLastUsed, type RecentProfile } from "@/lib/profileRecents"
-import { profileSearchFields } from "@/lib/profileSearch"
+import { profileMatchScore, profileSearchFields, rankProfiles } from "@/lib/profileSearch"
 import { matchesQuery } from "@/lib/quickConnect"
 import type { SavedProfile } from "@/types/tab"
 
@@ -20,12 +19,17 @@ export function filterProfiles(profiles: readonly SavedProfile[], query: string)
 
 /**
  * Profiles by group, groups by name with the ungrouped ones last, each
- * group in the saved order.
+ * group in the saved order. While searching, the best fits come first in
+ * each group, and the group holding the best fit comes first, so the first
+ * profile listed is the one the search fits best.
  */
-export function groupProfiles(profiles: readonly SavedProfile[]): [string, SavedProfile[]][] {
+export function groupProfiles(
+  profiles: readonly SavedProfile[],
+  query = ""
+): [string, SavedProfile[]][] {
   const groups = new Map<string, SavedProfile[]>()
 
-  for (const profile of profiles) {
+  for (const profile of rankProfiles(profiles, query)) {
     const key = profile.group === "" ? UNGROUPED_KEY : profile.group
     const existingItems = groups.get(key)
     if (existingItems) {
@@ -35,26 +39,14 @@ export function groupProfiles(profiles: readonly SavedProfile[]): [string, Saved
     }
   }
 
-  return Array.from(groups.entries()).sort(([left], [right]) => {
+  const bestScore = (items: SavedProfile[]) => profileMatchScore(items[0], query)
+  return Array.from(groups.entries()).sort(([left, leftItems], [right, rightItems]) => {
+    const byScore = bestScore(rightItems) - bestScore(leftItems)
+    if (byScore !== 0) return byScore
     if (left === UNGROUPED_KEY) return 1
     if (right === UNGROUPED_KEY) return -1
     return left.localeCompare(right)
   })
-}
-
-/**
- * The profiles in one list, the one used last first. Profiles never used
- * follow in the saved order.
- */
-export function sortProfilesByRecent(
-  profiles: readonly SavedProfile[],
-  recents: readonly RecentProfile[]
-): SavedProfile[] {
-  const lastUsed = profileLastUsed(recents)
-  // Array.prototype.sort is stable, so equal times keep the saved order.
-  return [...profiles].sort(
-    (left, right) => (lastUsed.get(right.id) ?? 0) - (lastUsed.get(left.id) ?? 0)
-  )
 }
 
 export function loadProfileSort(storage: Pick<Storage, "getItem">): ProfileSort {
