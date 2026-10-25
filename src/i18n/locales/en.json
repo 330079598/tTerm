@@ -1089,7 +1089,7 @@
     "duplicateName": "A connection with this name already exists in this group",
     "description": "Open, organize, and edit your connection profiles",
     "emptyDescription": "Create a profile to reconnect in one click.",
-    "searchPlaceholder": "Search by name, host, or group",
+    "searchPlaceholder": "Search by name, host, username, or group",
     "searchEmpty": "No matching connections",
     "searchEmptyDescription": "Try a different name, host, username, or group.",
     "localTerminal": "Local terminal",

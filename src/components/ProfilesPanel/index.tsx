@@ -14,6 +14,7 @@ import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { SshConfigImportDialog } from "@/components/SshConfigImportDialog"
 import { isImeKeyEvent } from "@/lib/ime"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
+import { matchesQuery } from "@/lib/quickConnect"
 import { cn } from "@/lib/utils"
 import { Tab, type SavedProfile } from "@/types/tab"
 import { findTunnelsUsingProfile } from "@/components/TunnelsPanel/profileTunnels"
@@ -154,23 +155,16 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
   }
 
   const groupedProfiles = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase()
-    const filteredProfiles = profiles.filter((profile) => {
-      if (!query) return true
-
-      const searchTarget = [
+    const filteredProfiles = profiles.filter((profile) =>
+      matchesQuery(searchQuery, [
         profile.name,
         profile.group,
         profile.host,
         profile.username,
         profile.connection_type,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-
-      return searchTarget.includes(query)
-    })
+        profile.serial?.port,
+      ])
+    )
 
     const groups = new Map<string, SavedProfile[]>()
 

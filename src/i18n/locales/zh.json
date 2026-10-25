@@ -1073,7 +1073,7 @@
     "duplicateName": "该分组下已存在同名连接",
     "description": "打开、整理并编辑你的连接配置",
     "emptyDescription": "创建一个连接配置，之后即可一键重连。",
-    "searchPlaceholder": "按名称、主机或分组搜索",
+    "searchPlaceholder": "按名称、主机、用户名或分组搜索",
     "searchEmpty": "没有匹配的连接",
     "searchEmptyDescription": "试试其他名称、主机、用户名或分组关键词。",
     "localTerminal": "本地终端",
