@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   DEFAULT_TAB_ICON_CONFIG,
+  hasLocalBadge,
   normalizeSavedSshTab,
   normalizeTabIconConfig,
   normalizeTabIconStyle,
@@ -105,6 +106,21 @@ describe("normalizeTabIconStyle", () => {
   it("keeps the logos of known distributions only", () => {
     expect(normalizeTabIconStyle({ icon: "distro:arch" })).toEqual({ icon: "distro:arch" })
     expect(normalizeTabIconStyle({ icon: "distro:windows" })).toBeUndefined()
+  })
+})
+
+describe("hasLocalBadge", () => {
+  const logo = { icon: "distro:ubuntu" as const, color: "" }
+
+  it("badges a WSL tab's distribution logo, reported or chosen", () => {
+    expect(hasLocalBadge({ type: "terminal", shellName: "WSL" }, logo)).toBe(true)
+  })
+
+  it("leaves glyphs, SSH hosts and other shells unbadged", () => {
+    const glyph = { icon: "rocket" as const, color: "" }
+    expect(hasLocalBadge({ type: "terminal", shellName: "WSL" }, glyph)).toBe(false)
+    expect(hasLocalBadge({ type: "ssh" }, logo)).toBe(false)
+    expect(hasLocalBadge({ type: "terminal", shellName: "zsh" }, logo)).toBe(false)
   })
 })
 

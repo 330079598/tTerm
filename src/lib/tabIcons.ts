@@ -243,6 +243,17 @@ export function withLocalDistro(tab: Tab, distroId: DistroId): Tab {
   return { ...tab, distroId }
 }
 
+/**
+ * Whether a tab's icon carries the local badge: a WSL tab showing a
+ * distribution's logo, which would otherwise look like an SSH host's.
+ */
+export function hasLocalBadge(
+  tab: Pick<Tab, "type" | "shellName">,
+  icon: ResolvedTabIcon
+): boolean {
+  return tab.type === "terminal" && shellKey(tab.shellName) === "wsl" && isDistroTabIcon(icon.icon)
+}
+
 /** Whether a tab is a terminal, local or SSH, and so shows an icon. */
 export function hasTabIcon(tab: Pick<Tab, "type">): boolean {
   return isSessionTab(tab)
