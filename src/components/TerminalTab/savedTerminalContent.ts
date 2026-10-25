@@ -4,7 +4,11 @@ import { invoke } from "@tauri-apps/api/core"
 import { listen, type UnlistenFn } from "@tauri-apps/api/event"
 import type { TFunction } from "i18next"
 
-import { restoredContentText, serializeTerminal } from "@/components/TerminalTab/terminalSnapshot"
+import {
+  formatSavedAt,
+  restoredContentText,
+  serializeTerminal,
+} from "@/components/TerminalTab/terminalSnapshot"
 
 /**
  * Keeps what each terminal tab shows on disk, when "Restore terminal
@@ -161,26 +165,18 @@ export async function loadSavedTerminalContent(tabIds: string[]): Promise<void> 
   }
 }
 
-function restoredBanner(savedAt: number, t: TFunction): string {
-  const time = new Date(savedAt).toLocaleString(undefined, {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
-  return t("sessionHeader.contentRestored", { time, defaultValue: "Restored · saved {{time}}" })
+/** A terminal tracked for the next save, which can show the tab's saved content. */
+export interface TrackedTerminalContent extends IDisposable {
+  /**
+   * Shows the tab's saved content, once per launch. Call it once the
+   * terminal has settled on its size, so the rule under it spans the
+   * terminal, and before the session writes anything.
+   */
+  showSaved(t: TFunction): void
 }
 
-/**
- * Shows the tab's saved content in its new terminal, once per launch, and
- * keeps track of the terminal for the next save. Call it before the session
- * writes anything.
- */
-export function restoreTerminalContent(tabId: string, term: Terminal, t: TFunction): IDisposable {
-  const saved = restored.get(tabId)
-  restored.delete(tabId)
-  if (saved) term.write(restoredContentText(saved.content, restoredBanner(saved.savedAt, t)))
-
+/** Keeps track of a tab's new terminal for the next save. */
+export function trackTerminalContent(tabId: string, term: Terminal): TrackedTerminalContent {
   // Disposed with the terminal.
   const serializer = new SerializeAddon()
   term.loadAddon(serializer)
@@ -190,6 +186,16 @@ export function restoreTerminalContent(tabId: string, term: Terminal, t: TFuncti
   })
   tracked.set(tabId, entry)
   return {
+    showSaved(t) {
+      const saved = restored.get(tabId)
+      if (!saved) return
+      restored.delete(tabId)
+      const banner = t("sessionHeader.contentRestored", {
+        time: formatSavedAt(saved.savedAt),
+        defaultValue: "Restored · saved {{time}}",
+      })
+      term.write(restoredContentText(saved.content, banner, term.cols))
+    },
     dispose() {
       writes.dispose()
       if (tracked.get(tabId) === entry) tracked.delete(tabId)

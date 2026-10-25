@@ -4,6 +4,8 @@ import { SerializeAddon } from "@xterm/addon-serialize"
 import { Terminal } from "@xterm/xterm"
 
 import {
+  bannerLine,
+  formatSavedAt,
   restoredContentText,
   serializeTerminal,
   SNAPSHOT_MAX_LINES,
@@ -76,12 +78,33 @@ describe("serializeTerminal", () => {
 })
 
 describe("restoredContentText", () => {
-  it("closes the content with the banner on a line of its own", async () => {
-    const lines = await restoreInto(restoredContentText("\x1b[1m$ ls", "Restored"))
-    expect(lines).toEqual(["$ ls", "── Restored ──", ""])
+  it("closes the content with a rule across the terminal, the banner in its middle", async () => {
+    const lines = await restoreInto(restoredContentText("\x1b[1m$ ls", "Restored", 20))
+    expect(lines).toEqual(["$ ls", "───── Restored ─────", ""])
   })
 
   it("is empty when the terminal had shown nothing", () => {
-    expect(restoredContentText("  \r\n ", "Restored")).toBe("")
+    expect(restoredContentText("  \r\n ", "Restored", 80)).toBe("")
+  })
+})
+
+describe("bannerLine", () => {
+  it("counts wide characters as two cells", () => {
+    expect(bannerLine("已恢复", 12)).toBe("── 已恢复 ──")
+  })
+
+  it("puts the odd cell on the right", () => {
+    expect(bannerLine("ab", 9)).toBe("── ab ───")
+  })
+
+  it("keeps some rule on a terminal too narrow for the banner", () => {
+    expect(bannerLine("Restored", 4)).toBe("── Restored ──")
+  })
+})
+
+describe("formatSavedAt", () => {
+  it("uses the 24-hour clock", () => {
+    expect(formatSavedAt(new Date(2026, 9, 5, 14, 3).getTime())).toBe("10-05 14:03")
+    expect(formatSavedAt(new Date(2026, 0, 1, 0, 7).getTime())).toBe("01-01 00:07")
   })
 })

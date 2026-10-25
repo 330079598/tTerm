@@ -6,6 +6,7 @@ import { type IDisposable, Terminal } from "@xterm/xterm"
 import type { TerminalCommandCaptureState } from "@/lib/terminalCommandCapture"
 import type { LoginScriptRunner } from "@/lib/loginScript"
 import type { createScrollbackMemory } from "@/components/TerminalTab/scrollbackMemory"
+import type { TrackedTerminalContent } from "@/components/TerminalTab/savedTerminalContent"
 import { CommandMarks } from "@/components/TerminalTab/commandMarks"
 import type { KeywordHighlighter } from "@/components/TerminalTab/keywordHighlighter"
 import type {
@@ -143,4 +144,5 @@ export type TerminalSessionContext = Pick<
   onSavedPasswordPromptChange: TerminalTabProps["onSavedPasswordPromptChange"]
   translationRef: React.RefObject<TFunction>
   scrollbackMemory: ReturnType<typeof createScrollbackMemory>
+  savedContent: TrackedTerminalContent
 }

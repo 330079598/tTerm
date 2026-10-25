@@ -37,6 +37,7 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
     isActiveRef,
     onBackgroundOutputRef,
     scrollbackMemory,
+    savedContent,
     onSessionUnavailableRef,
     translationRef,
     setHostKeyPrompt,
@@ -244,6 +245,8 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
 
       creatingPtyRef.current = true
       return waitForStableFit().then(() => {
+        // The last launch's content goes above the session, at the size it settled on.
+        if (!session.disposed) savedContent.showSaved(translationRef.current)
         createdPtySize = { rows: term.rows, cols: term.cols }
         const connection = connectionRef.current
         return invoke<number>("create_pty", {
