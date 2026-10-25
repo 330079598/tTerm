@@ -7,6 +7,7 @@ import { TabIcon } from "@/components/TabIcon"
 import { TabLogIndicator } from "@/components/TabLogIndicator"
 import { TabTitle } from "@/components/TabTitle"
 import { TabTooltip } from "@/components/TabTooltip"
+import { useTabPasswordPrompt } from "@/lib/tabAttention"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
 import {
   getTabPinMenuAction,
@@ -63,6 +64,7 @@ export const TabItem = React.memo(function TabItem({
   const paneIds = isSplit
     ? [tab.id, ...(panes?.tabs.filter((pane) => pane.id !== tab.id).map((pane) => pane.id) ?? [])]
     : undefined
+  const waitingForPassword = useTabPasswordPrompt(paneIds ?? [tab.id])
 
   const setNodeRef = (node: HTMLDivElement | null) => {
     if (isActive) setActiveNode?.(node)
@@ -161,6 +163,7 @@ export const TabItem = React.memo(function TabItem({
         tabIndex={0}
         aria-selected={isActive}
         data-tab-id={tab.id}
+        data-password-prompt={waitingForPassword || undefined}
         data-allow-context-menu
         onClick={() => onTabClick(tab.id)}
         onContextMenu={handleContextMenu}

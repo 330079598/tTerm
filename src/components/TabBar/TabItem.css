@@ -326,6 +326,17 @@
   color: hsl(var(--warning));
 }
 
+/* A tab out of view that waits for a password is tinted with its key's color,
+   since sudo gives up after a few minutes and the key alone is easy to miss
+   among many tabs. The active tab needs no tint: its terminal shows the
+   prompt. The tint is an image layer so the hover background still shows
+   through it, and the border gives the tint an edge on dark themes, where
+   a tint alone barely lifts off the tab bar. */
+.tab-item:not(.active)[data-password-prompt] {
+  background-image: linear-gradient(hsl(var(--primary) / 0.22), hsl(var(--primary) / 0.22));
+  border-color: hsl(var(--primary) / 0.55);
+}
+
 /* A tab whose session is being logged (TabLogIndicator). */
 .tab-log-recording {
   position: relative;
