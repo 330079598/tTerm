@@ -1,4 +1,5 @@
 pub(crate) mod atomic;
+pub mod keymap;
 pub mod keyword_highlight;
 pub mod panes;
 pub(crate) mod paths;
@@ -8,6 +9,7 @@ pub mod tab_icons;
 pub mod window_background;
 
 use atomic::atomic_write;
+use keymap::KeymapConfig;
 use paths::{ensure_config_dir, get_config_path};
 
 use serde::{Deserialize, Deserializer, Serialize};
@@ -193,7 +195,7 @@ pub struct AppConfig {
     /// Extra pixels between terminal characters; may be negative.
     #[serde(default, deserialize_with = "deserialize_terminal_letter_spacing")]
     pub terminal_letter_spacing: i8,
-    #[serde(default = "default_keymap")]
+    #[serde(default)]
     pub keymap: KeymapConfig,
     /// What WebKit does with the page while the window is hidden (macOS 14+):
     /// "throttle", "disabled" or "suspend". Read once when the window is
@@ -293,55 +295,6 @@ pub struct AppConfig {
     /// Proxy server that hosts left on the default connect through; none when empty.
     #[serde(default)]
     pub default_proxy_id: String,
-}
-
-/// User-configurable keyboard shortcut overrides. `bindings` maps action ids
-/// to their chord serializations; `None` entries mean "unbound", missing
-/// entries fall back to the tTerm defaults on the frontend.
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct KeymapConfig {
-    #[serde(default, deserialize_with = "deserialize_keymap_bindings")]
-    pub bindings: std::collections::BTreeMap<String, Option<Vec<String>>>,
-}
-
-#[derive(Deserialize)]
-#[serde(untagged)]
-enum KeymapBindingValue {
-    One(String),
-    Many(Vec<String>),
-}
-
-fn deserialize_keymap_bindings<'de, D>(
-    deserializer: D,
-) -> Result<std::collections::BTreeMap<String, Option<Vec<String>>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let bindings = std::collections::BTreeMap::<String, Option<KeymapBindingValue>>::deserialize(
-        deserializer,
-    )?;
-    Ok(bindings
-        .into_iter()
-        .map(|(action, value)| {
-            let chords = value.map(|binding| match binding {
-                KeymapBindingValue::One(chord) => vec![chord],
-                KeymapBindingValue::Many(chords) => chords,
-            });
-            (action, chords)
-        })
-        .collect())
-}
-
-impl Default for KeymapConfig {
-    fn default() -> Self {
-        default_keymap()
-    }
-}
-
-fn default_keymap() -> KeymapConfig {
-    KeymapConfig {
-        bindings: std::collections::BTreeMap::new(),
-    }
 }
 
 fn normalize_language(locale: &str) -> String {
@@ -687,7 +640,7 @@ impl Default for AppConfig {
             local_shell_integration: false,
             terminal_line_height: default_terminal_line_height(),
             terminal_letter_spacing: 0,
-            keymap: default_keymap(),
+            keymap: KeymapConfig::default(),
             background_throttling: default_background_throttling(),
             window_blur: false,
             window_blur_radius: default_window_blur_radius(),
