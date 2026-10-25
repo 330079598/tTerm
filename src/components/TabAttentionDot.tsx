@@ -1,11 +1,13 @@
 import type React from "react"
+import { KeyRound } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Spinner } from "@/components/ui/spinner"
 import { useConfig } from "@/contexts/ConfigContext"
+import { useCapsLock } from "@/hooks/useCapsLock"
 import { agentDisplayName, type AgentStatus } from "@/lib/agentStatus"
 import type { TabAgentWaitingStyle, TabAgentWorkingStyle } from "@/lib/tabAgentIndicator"
-import { useTabAgentStatus, useTabAttention } from "@/lib/tabAttention"
+import { useTabAgentStatus, useTabAttention, useTabPasswordPrompt } from "@/lib/tabAttention"
 
 interface TabAgentBadgeProps {
   activity: AgentStatus["activity"]
@@ -41,8 +43,9 @@ interface TabAttentionDotProps {
 }
 
 /**
- * The mark on a tab: an AI agent at work or waiting in it, otherwise a dot
- * for news (new output, a bell, a notification).
+ * The mark on a tab: a key while it waits for a password, which holds up
+ * whatever runs there; otherwise an AI agent at work or waiting in it;
+ * otherwise a dot for news (new output, a bell, a notification).
  */
 export const TabAttentionDot: React.FC<TabAttentionDotProps> = ({ tabId, paneIds }) => {
   const { t } = useTranslation()
@@ -50,6 +53,22 @@ export const TabAttentionDot: React.FC<TabAttentionDotProps> = ({ tabId, paneIds
   const tabIds = paneIds ?? [tabId]
   const level = useTabAttention(tabIds)
   const agent = useTabAgentStatus(tabIds)
+  const waitingForPassword = useTabPasswordPrompt(tabIds)
+  const capsLockOn = useCapsLock()
+  if (waitingForPassword) {
+    const label = t(capsLockOn ? "sudoAutofill.tabWaitingCapsLock" : "sudoAutofill.tabWaiting")
+    return (
+      <span
+        className="tab-password-prompt"
+        data-caps-lock={capsLockOn || undefined}
+        role="img"
+        aria-label={label}
+        title={label}
+      >
+        <KeyRound size={12} aria-hidden="true" />
+      </span>
+    )
+  }
   if (agent) {
     const label = t(`notifications.agentActivity.${agent.activity}`, {
       agent: agentDisplayName(agent.agent),

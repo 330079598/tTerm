@@ -5,6 +5,7 @@ import type { SudoPasswordSource } from "@/components/TerminalTab/types"
 import { notifySavedPasswordNotSent } from "@/components/TerminalTab/savedPasswordNotice"
 import { matchPasswordPrompt, readCursorLine, type PasswordPromptMatch } from "@/lib/sudoPrompt"
 import { LoginScriptRunner, parseLoginScript } from "@/lib/loginScript"
+import { setTabPasswordPrompt } from "@/lib/tabAttention"
 import { EMPTY_COMMAND_CAPTURE_STATE } from "@/lib/terminalCommandCapture"
 
 /**
@@ -113,6 +114,7 @@ export function createSavedPasswordPrompts(ctx: TerminalSessionContext) {
     const key = match ? `${session.lineFeedCount}:${match.prompt}` : null
     if (key === session.currentPromptKey) return
     session.currentPromptKey = key
+    setTabPasswordPrompt(tabId, match !== null)
     clearSavedPasswordOffer()
     if (match && key !== answeredPromptKey) handlePasswordPrompt(match)
   }

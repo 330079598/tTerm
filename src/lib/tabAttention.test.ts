@@ -8,8 +8,10 @@ import {
   countTabNotification,
   markTabAttention,
   RUNNING_COMMAND_DELAY_MS,
+  setTabPasswordPrompt,
   setTabRunningCommand,
   useRunningCommands,
+  useTabPasswordPrompt,
   watchUnseenNotificationTotal,
 } from "@/lib/tabAttention"
 
@@ -81,5 +83,18 @@ describe("setTabRunningCommand", () => {
     act(() => setTabRunningCommand("tab-1", null))
     act(() => vi.advanceTimersByTime(RUNNING_COMMAND_DELAY_MS * 2))
     expect(result.current).toBeUndefined()
+  })
+})
+
+describe("useTabPasswordPrompt", () => {
+  it("marks a tab of the bar while any of its panes waits for a password", () => {
+    const { result } = renderHook(() => useTabPasswordPrompt(["pane-1", "pane-2"]))
+    expect(result.current).toBe(false)
+
+    act(() => setTabPasswordPrompt("pane-2", true))
+    expect(result.current).toBe(true)
+
+    act(() => setTabPasswordPrompt("pane-2", false))
+    expect(result.current).toBe(false)
   })
 })

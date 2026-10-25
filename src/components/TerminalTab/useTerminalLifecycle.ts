@@ -21,6 +21,7 @@ import { startPtySession } from "@/components/TerminalTab/ptySession"
 import { disposeRendererAddon } from "@/components/TerminalTab/rendererRelease"
 import { trackTerminalContent } from "@/components/TerminalTab/savedTerminalContent"
 import { safePreloadFont } from "@/lib/canvasFontHost"
+import { setTabPasswordPrompt } from "@/lib/tabAttention"
 import { EMPTY_COMMAND_CAPTURE_STATE } from "@/lib/terminalCommandCapture"
 
 export function useTerminalLifecycle({
@@ -341,6 +342,7 @@ export function useTerminalLifecycle({
       creatingPtyRef.current = false
       waitingForReconnectRef.current = false
       setSavedPasswordPrompt(null)
+      setTabPasswordPrompt(tabId, false)
       onSavedPasswordPromptChange?.(tabId, sessionNonce, null)
       for (const disposable of scrollbackDisposables) disposable.dispose()
       for (const disposable of shellIntegrationDisposables) disposable.dispose()

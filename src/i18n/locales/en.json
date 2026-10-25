@@ -2452,6 +2452,8 @@
     "dismiss": "Dismiss",
     "rejectedTitle": "Saved password was rejected",
     "rejectedDescription": "Autofill is paused for this session. Type the password, or update it in the connection settings.",
+    "tabWaiting": "Waiting for a password. Nothing appears as you type it; press Enter when you are done.",
+    "tabWaitingCapsLock": "Waiting for a password. Caps Lock is on.",
     "notSentTitle": "Password not sent",
     "notSentDescription": "The password prompt was no longer waiting for input, so the saved password was not sent."
   },

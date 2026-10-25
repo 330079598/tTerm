@@ -2432,6 +2432,8 @@
     "dismiss": "忽略",
     "rejectedTitle": "已保存的密码被拒绝",
     "rejectedDescription": "本次会话已暂停自动填充。请手动输入，或在连接配置中更新密码。",
+    "tabWaiting": "正在等待输入密码。输入时屏幕上不会显示任何字符，输完按 Enter 即可。",
+    "tabWaitingCapsLock": "正在等待输入密码。大写锁定已开启。",
     "notSentTitle": "密码未发送",
     "notSentDescription": "密码提示已不在等待输入，因此没有发送已保存的密码。"
   },

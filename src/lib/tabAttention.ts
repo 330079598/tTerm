@@ -5,13 +5,15 @@ import { strongerAttention, type TabAttentionLevel } from "@/lib/terminalNotific
 
 // Marks on tabs the user is not looking at: new output, a bell, a
 // notification; how many system notifications a tab raised unseen; what an AI
-// agent in a tab is doing; and the command a tab's shell runs. Kept apart from
+// agent in a tab is doing; the command a tab's shell runs; and which tabs
+// wait at a password prompt. Kept apart from
 // the tabs themselves so a mark neither re-renders the workspace nor is saved
 // with the session.
 let marks = new Map<string, TabAttentionLevel>()
 let unseenNotifications = new Map<string, number>()
 let agentStatuses = new Map<string, AgentStatus>()
 let runningCommands = new Map<string, string>()
+let passwordPrompts = new Set<string>()
 const runningCommandTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const listeners = new Set<() => void>()
 
@@ -111,6 +113,15 @@ export function setTabRunningCommand(tabId: string, command: string | null) {
   emit()
 }
 
+/** Whether the tab's session waits at a password prompt, until the cursor leaves it. */
+export function setTabPasswordPrompt(tabId: string, waiting: boolean) {
+  if (passwordPrompts.has(tabId) === waiting) return
+  passwordPrompts = new Set(passwordPrompts)
+  if (waiting) passwordPrompts.add(tabId)
+  else passwordPrompts.delete(tabId)
+  emit()
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener)
   return () => {
@@ -137,6 +148,11 @@ export function useTabAgentStatus(tabIds: readonly string[]): AgentStatus | unde
     }
     return undefined
   })
+}
+
+/** Whether any of the tabs waits at a password prompt. */
+export function useTabPasswordPrompt(tabIds: readonly string[]): boolean {
+  return useSyncExternalStore(subscribe, () => tabIds.some((tabId) => passwordPrompts.has(tabId)))
 }
 
 /** The command each tab's shell runs, by tab id. */
