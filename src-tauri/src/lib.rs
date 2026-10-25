@@ -123,6 +123,7 @@ pub fn run() {
         .manage(session_log_state)
         .manage(tunnel::commands::TunnelManager::default())
         .manage(background::CloseBehaviorState::default())
+        .manage(background::quit::QuitState::default())
         .manage(background::tray::TrayState::default())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -256,6 +257,8 @@ pub fn run() {
             tunnel::commands::confirm_quit_app,
             tunnel::commands::cancel_quit_prompt,
             background::resolve_close_request,
+            background::quit::set_save_before_quit,
+            background::quit::ready_to_quit,
             command_library::commands::list_saved_commands,
             command_library::commands::list_command_tags,
             command_library::commands::create_command_tag,
@@ -397,10 +400,7 @@ pub fn run() {
                 tauri::RunEvent::ExitRequested {
                     api, code: None, ..
                 } => {
-                    if app
-                        .state::<tunnel::commands::TunnelManager>()
-                        .hold_exit_for_confirmation(app)
-                    {
+                    if background::on_exit_requested(app) {
                         api.prevent_exit();
                     }
                 }

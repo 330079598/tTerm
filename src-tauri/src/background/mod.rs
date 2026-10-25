@@ -2,6 +2,7 @@
 //! background behind a tray icon (the menu bar on macOS), as the user chose in
 //! `close_behavior`. "ask" lets the UI decide on each close.
 
+pub(crate) mod quit;
 pub(crate) mod tray;
 
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
@@ -108,7 +109,7 @@ fn request_quit(app: &AppHandle) {
         show_main_window(app);
     }
     if !tunnels.hold_exit_for_confirmation(app) {
-        app.exit(0);
+        quit::quit(app);
     }
 }
 
@@ -152,14 +153,30 @@ pub fn on_close_requested(window: &Window) -> bool {
         CloseBehavior::Ask if state.should_ask() => {
             if app.emit(CLOSE_REQUESTED_EVENT, ()).is_err() {
                 state.prompt_open.store(false, Ordering::SeqCst);
-                return app.state::<TunnelManager>().hold_exit_for_confirmation(app);
+                quit_unless_held(app);
             }
             true
         }
         CloseBehavior::Ask | CloseBehavior::Quit => {
-            app.state::<TunnelManager>().hold_exit_for_confirmation(app)
+            quit_unless_held(app);
+            true
         }
     }
+}
+
+/// Quits, unless running tunnels hold the exit for the user's confirmation.
+/// The window stays open meanwhile: the UI saves before the quit closes it.
+fn quit_unless_held(app: &AppHandle) {
+    if !app.state::<TunnelManager>().hold_exit_for_confirmation(app) {
+        quit::quit(app);
+    }
+}
+
+/// Handles an exit the app did not request itself, such as Cmd+Q. Returns
+/// `true` when the exit must be prevented: it is held for the confirmation
+/// of running tunnels, or goes ahead once the UI has saved.
+pub fn on_exit_requested(app: &AppHandle) -> bool {
+    app.state::<TunnelManager>().hold_exit_for_confirmation(app) || quit::quit_after_save(app)
 }
 
 /// The UI's answer to `close-requested`: "tray", "quit" or "cancel". A

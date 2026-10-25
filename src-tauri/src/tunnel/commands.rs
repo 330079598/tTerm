@@ -451,7 +451,7 @@ pub async fn auto_start_tunnels(
 #[tauri::command]
 pub fn confirm_quit_app(app: AppHandle, manager: State<'_, TunnelManager>) {
     manager.quit_confirmed.store(true, Ordering::SeqCst);
-    app.exit(0);
+    crate::background::quit::quit(&app);
 }
 
 #[tauri::command]
