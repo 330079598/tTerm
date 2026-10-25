@@ -9,7 +9,7 @@ import { localEchoText } from "@/lib/serial"
 import { captureTerminalInput, EMPTY_COMMAND_CAPTURE_STATE } from "@/lib/terminalCommandCapture"
 
 type TerminalInputDeps = Pick<ConnectionStateUpdater, "applyConnectionState"> &
-  Pick<SavedPasswordPrompts, "stopLoginScript" | "answerCurrentPrompt"> &
+  Pick<SavedPasswordPrompts, "stopLoginScript" | "typeAtPrompt"> &
   Pick<CommandTracking, "agentTracker" | "commandMarks" | "commandTimer" | "emitTypedCommand">
 
 /**
@@ -31,7 +31,7 @@ export function attachTerminalInput(ctx: TerminalSessionContext, deps: TerminalI
     applyConnectionState,
     agentTracker,
     stopLoginScript,
-    answerCurrentPrompt,
+    typeAtPrompt,
     commandMarks,
     commandTimer,
     emitTypedCommand,
@@ -52,7 +52,7 @@ export function attachTerminalInput(ctx: TerminalSessionContext, deps: TerminalI
     if (!data.startsWith("\x1b")) {
       // Typing anywhere else means the user takes over from the login script.
       if (session.currentPromptKey === null) stopLoginScript()
-      answerCurrentPrompt()
+      typeAtPrompt(data)
     }
 
     // Lines typed into a running program, such as an agent's prompt, are not

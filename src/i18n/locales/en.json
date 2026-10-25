@@ -357,8 +357,10 @@
     "tabStandardWidth": "Standard width",
     "tabStandardWidthRange": "80-300px",
     "interface": "Interface",
-    "sudoAutofill": "Sudo password autofill",
-    "sudoAutofillDesc": "Recognize password prompts that a saved password can answer.",
+    "sudoAutofill": "Password prompts",
+    "sudoAutofillDesc": "Recognize password prompts in the terminal: show feedback at the cursor as you type, and answer them with a saved password.",
+    "passwordFeedback": "Show a mark for each typed character",
+    "passwordFeedbackDesc": "Like sudo's pwfeedback, a * appears beside the cursor for each character you type at a password prompt. It is drawn by tTerm only and never sent to the server. Off, only a key shows there.",
     "sudoPromptPatterns": "Custom prompt patterns",
     "sudoPromptPatternsDesc": "One JavaScript regular expression per line, matched against the prompt line (trimmed). The prompt must end with a colon. A named group (?<user>...) restricts it to the profile's user. Built in: sudo in any locale, sudo-rs, doas.",
     "sudoPromptPatternsInvalid": "Invalid regular expression: {{pattern}}"
@@ -2454,6 +2456,7 @@
     "rejectedDescription": "Autofill is paused for this session. Type the password, or update it in the connection settings.",
     "tabWaiting": "Waiting for a password. Nothing appears as you type it; press Enter when you are done.",
     "tabWaitingCapsLock": "Waiting for a password. Caps Lock is on.",
+    "cursorWaiting": "Waiting for a password. Nothing the server shows echoes it; tTerm marks what you type here.",
     "notSentTitle": "Password not sent",
     "notSentDescription": "The password prompt was no longer waiting for input, so the saved password was not sent."
   },

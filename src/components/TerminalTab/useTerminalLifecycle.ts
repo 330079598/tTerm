@@ -233,7 +233,7 @@ export function useTerminalLifecycle({
     }
     const { applyConnectionState, setConnectionStateIfChanged } =
       createConnectionStateUpdater(setConnectionState)
-    const { answerCurrentPrompt, checkPasswordPrompt, stopLoginScript, startLoginScript } =
+    const { typeAtPrompt, checkPasswordPrompt, stopLoginScript, startLoginScript } =
       createSavedPasswordPrompts(ctx)
     const {
       agentTracker,
@@ -251,7 +251,7 @@ export function useTerminalLifecycle({
       applyConnectionState,
       agentTracker,
       stopLoginScript,
-      answerCurrentPrompt,
+      typeAtPrompt,
       commandMarks,
       commandTimer,
       emitTypedCommand,

@@ -348,8 +348,10 @@
     "tabStandardWidth": "标准宽度",
     "tabStandardWidthRange": "80-300px",
     "interface": "界面",
-    "sudoAutofill": "sudo 密码自动填充",
-    "sudoAutofillDesc": "识别可以用已保存密码回答的密码提示。",
+    "sudoAutofill": "密码提示",
+    "sudoAutofillDesc": "识别终端中的密码提示：输入时在光标处显示反馈，并可用已保存的密码回答。",
+    "passwordFeedback": "输入密码时显示星号",
+    "passwordFeedbackDesc": "和 sudo 的 pwfeedback 一样，在密码提示处每输入一个字符，光标旁就显示一个 *。星号只由 tTerm 在本地显示，不会发送给服务器。关闭后只显示一个钥匙图标。",
     "sudoPromptPatterns": "自定义提示符规则",
     "sudoPromptPatternsDesc": "每行一个 JavaScript 正则表达式，匹配去除首尾空白后的提示行，提示必须以冒号结尾。命名分组 (?<user>...) 会要求与连接用户一致。已内置：各语言的 sudo、sudo-rs、doas。",
     "sudoPromptPatternsInvalid": "无效的正则表达式：{{pattern}}"
@@ -2434,6 +2436,7 @@
     "rejectedDescription": "本次会话已暂停自动填充。请手动输入，或在连接配置中更新密码。",
     "tabWaiting": "正在等待输入密码。输入时屏幕上不会显示任何字符，输完按 Enter 即可。",
     "tabWaitingCapsLock": "正在等待输入密码。大写锁定已开启。",
+    "cursorWaiting": "正在等待输入密码。服务器不会回显输入的内容，这里的标记由 tTerm 显示。",
     "notSentTitle": "密码未发送",
     "notSentDescription": "密码提示已不在等待输入，因此没有发送已保存的密码。"
   },

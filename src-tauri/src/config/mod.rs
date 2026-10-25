@@ -162,6 +162,10 @@ pub struct AppConfig {
     /// matched by the frontend on top of the built-in ones.
     #[serde(default)]
     pub sudo_prompt_patterns: Vec<String>,
+    /// Whether the terminal shows a mark per character typed at a password
+    /// prompt, as sudo's pwfeedback does; off, it shows only a key.
+    #[serde(default = "default_password_feedback")]
+    pub password_feedback: bool,
     /// Send Option+key as Meta (ESC prefix) in the terminal instead of typing
     /// the macOS alternate character. Only read on macOS.
     #[serde(default)]
@@ -419,6 +423,10 @@ fn default_show_jump_host_connection_info() -> bool {
     true
 }
 
+fn default_password_feedback() -> bool {
+    true
+}
+
 fn default_monitor_refresh_interval_secs() -> u16 {
     5
 }
@@ -655,6 +663,7 @@ impl Default for AppConfig {
             zmodem_auto_detect_enabled: default_zmodem_auto_detect_enabled(),
             zmodem_download_directory: String::new(),
             sudo_prompt_patterns: Vec::new(),
+            password_feedback: default_password_feedback(),
             mac_option_is_meta: false,
             confirm_multiline_paste: default_confirm_multiline_paste(),
             copy_on_select: false,

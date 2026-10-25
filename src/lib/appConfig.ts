@@ -131,6 +131,8 @@ export interface AppConfig extends TabSettings {
   default_proxy_id: string
   /** Extra sudo password prompt regexes; an optional `user` group names the account. */
   sudo_prompt_patterns: string[]
+  /** A mark per character typed at a password prompt; off, only a key shows there. */
+  password_feedback: boolean
   /** macOS: Option+key sends Meta (ESC prefix) instead of the alternate character. */
   mac_option_is_meta: boolean
   /** Ask before pasting multiple lines into a shell without bracketed paste mode. */
@@ -253,6 +255,7 @@ export const defaultConfig: AppConfig = {
   zmodem_download_directory: "",
   default_proxy_id: "",
   sudo_prompt_patterns: [],
+  password_feedback: true,
   mac_option_is_meta: false,
   confirm_multiline_paste: true,
   copy_on_select: false,

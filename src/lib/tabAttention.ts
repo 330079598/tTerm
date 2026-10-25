@@ -113,7 +113,7 @@ export function setTabRunningCommand(tabId: string, command: string | null) {
   emit()
 }
 
-/** Whether the tab's session waits at a password prompt, until the cursor leaves it. */
+/** Whether the tab's session waits at a password prompt, until the answer is submitted. */
 export function setTabPasswordPrompt(tabId: string, waiting: boolean) {
   if (passwordPrompts.has(tabId) === waiting) return
   passwordPrompts = new Set(passwordPrompts)

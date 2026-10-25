@@ -201,8 +201,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 settingsHandlers.handleShowJumpHostConnectionInfoChange
               }
               handleSudoPromptPatternsChange={settingsHandlers.handleSudoPromptPatternsChange}
+              handlePasswordFeedbackChange={settingsHandlers.handlePasswordFeedbackChange}
               monitorRefreshIntervalSecs={config.monitor_refresh_interval_secs}
               monitorVisibleMetrics={config.monitor_visible_metrics}
+              passwordFeedback={config.password_feedback}
               reconnectEnabled={config.reconnect_enabled}
               reconnectMaxAttempts={config.reconnect_max_attempts}
               showJumpHostConnectionInfo={config.show_jump_host_connection_info}

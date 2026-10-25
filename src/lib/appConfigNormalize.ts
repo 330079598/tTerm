@@ -248,6 +248,7 @@ export function normalizeConfig(config: Partial<AppConfig>): AppConfig {
           (pattern): pattern is string => typeof pattern === "string" && pattern.trim() !== ""
         )
       : [],
+    password_feedback: config.password_feedback !== false,
     ui_scale_percent: normalizeUiScalePercent(config.ui_scale_percent),
     mac_option_is_meta: config.mac_option_is_meta === true,
     confirm_multiline_paste: config.confirm_multiline_paste !== false,

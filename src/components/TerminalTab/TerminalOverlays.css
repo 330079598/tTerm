@@ -347,3 +347,27 @@
     opacity: 0;
   }
 }
+
+/* Beside the cursor at a password prompt (PasswordFeedbackOverlay). It takes
+   the terminal's font and color inline and lets clicks through to the
+   terminal under it. */
+.terminal-password-feedback {
+  position: absolute;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  white-space: pre;
+  pointer-events: none;
+}
+
+.terminal-password-feedback > svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.terminal-password-feedback[data-caps-lock] > svg {
+  color: hsl(var(--warning));
+  opacity: 1;
+}

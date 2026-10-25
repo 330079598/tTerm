@@ -2,6 +2,7 @@ import React from "react"
 import { DragDropProvider } from "@dnd-kit/react"
 import {
   Activity,
+  Asterisk,
   Clock3,
   Cpu,
   Gauge,
@@ -41,8 +42,10 @@ interface ConnectionSettingsTabProps {
   handleMonitorRefreshIntervalChange: (seconds: number) => Promise<void>
   handleMonitorVisibleMetricsChange: (metrics: MonitorMetricId[]) => Promise<void>
   handleSudoPromptPatternsChange: (patterns: string[]) => Promise<void>
+  handlePasswordFeedbackChange: (checked: boolean) => Promise<void>
   monitorRefreshIntervalSecs: number
   monitorVisibleMetrics: MonitorMetricId[]
+  passwordFeedback: boolean
   reconnectEnabled: boolean
   reconnectMaxAttempts: number
   showJumpHostConnectionInfo: boolean
@@ -63,8 +66,10 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
   handleMonitorRefreshIntervalChange,
   handleMonitorVisibleMetricsChange,
   handleSudoPromptPatternsChange,
+  handlePasswordFeedbackChange,
   monitorRefreshIntervalSecs,
   monitorVisibleMetrics,
+  passwordFeedback,
   reconnectEnabled,
   reconnectMaxAttempts,
   showJumpHostConnectionInfo,
@@ -289,6 +294,14 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
           title={t("settings.sudoAutofill")}
           description={t("settings.sudoAutofillDesc")}
         >
+          <SettingsRow
+            icon={<Asterisk size={16} />}
+            title={t("settings.passwordFeedback")}
+            description={t("settings.passwordFeedbackDesc")}
+            action={
+              <Switch checked={passwordFeedback} onCheckedChange={handlePasswordFeedbackChange} />
+            }
+          />
           <SettingsRow
             icon={<KeyRound size={16} />}
             title={t("settings.sudoPromptPatterns")}

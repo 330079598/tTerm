@@ -116,6 +116,10 @@ export function useSettingsHandlers({
     await saveSettings({ sudo_prompt_patterns: patterns })
   }
 
+  const handlePasswordFeedbackChange = async (checked: boolean) => {
+    await saveSettings({ password_feedback: checked })
+  }
+
   const handleMonitorRefreshIntervalChange = async (seconds: number) => {
     await saveSettings({ monitor_refresh_interval_secs: seconds })
   }
@@ -182,6 +186,7 @@ export function useSettingsHandlers({
     handleReconnectMaxAttemptsChange,
     handleShowJumpHostConnectionInfoChange,
     handleSudoPromptPatternsChange,
+    handlePasswordFeedbackChange,
     handleMonitorRefreshIntervalChange,
     handleMonitorVisibleMetricsChange,
     handleTerminalLogEnabledChange,

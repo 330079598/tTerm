@@ -61,11 +61,16 @@ export type SavedPasswordPromptState =
   | { status: "available"; prompt: string; user: string | null; source: SudoPasswordSource }
   /** The saved password was just refused; autofill is paused for the session. */
   | { status: "rejected"; prompt: string; user: string | null }
+  /**
+   * No saved password is offered; the user types it. `typed` counts the
+   * characters so far, which the remote does not echo.
+   */
+  | { status: "manual"; prompt: string; user: string | null; typed: number }
 
 export type SavedPasswordPromptActions = {
   /** Sends the saved password; false when no prompt is on offer. */
   fill: () => boolean
-  /** Hides the offer for the current prompt. */
+  /** Hides the bar for the current prompt, typing hint included. */
   dismiss: () => void
   /** True while the cursor sits on a password prompt, offered or not. */
   atPasswordPrompt: () => boolean

@@ -12,7 +12,8 @@ interface SavedPasswordPromptBarProps {
   fillShortcut?: string
   onDismiss: () => void
   onFill: () => void
-  state: SavedPasswordPromptState
+  /** The cursor overlay, not the bar, shows a prompt the user types into. */
+  state: Exclude<SavedPasswordPromptState, { status: "manual" }>
 }
 
 /**

@@ -1,10 +1,11 @@
 import { invoke } from "@tauri-apps/api/core"
 
 import type { TerminalSessionContext } from "@/components/TerminalTab/terminalLifecycleTypes"
-import type { SudoPasswordSource } from "@/components/TerminalTab/types"
+import type { SavedPasswordPromptState, SudoPasswordSource } from "@/components/TerminalTab/types"
 import { notifySavedPasswordNotSent } from "@/components/TerminalTab/savedPasswordNotice"
 import { matchPasswordPrompt, readCursorLine, type PasswordPromptMatch } from "@/lib/sudoPrompt"
 import { LoginScriptRunner, parseLoginScript } from "@/lib/loginScript"
+import { nextTypedLength } from "@/lib/passwordFeedback"
 import { setTabPasswordPrompt } from "@/lib/tabAttention"
 import { EMPTY_COMMAND_CAPTURE_STATE } from "@/lib/terminalCommandCapture"
 
@@ -42,6 +43,18 @@ export function createSavedPasswordPrompts(ctx: TerminalSessionContext) {
   // Set once a filled password is refused; stays for this session so a
   // stale password cannot burn through the remote's lockout budget.
   let savedPasswordRejected = false
+  // The prompt under the cursor, until it is answered.
+  let currentPrompt: PasswordPromptMatch | null = null
+  // What the bar and the cursor overlay show, so typing counts on from it.
+  let shown: SavedPasswordPromptState | null = null
+
+  const showPrompt = (state: SavedPasswordPromptState | null) => {
+    shown = state
+    setSavedPasswordPrompt(state)
+  }
+
+  const showTyped = (match: PasswordPromptMatch, typed: number) =>
+    showPrompt({ status: "manual", prompt: match.prompt, user: match.user, typed })
 
   const clearSavedPasswordOffer = () => {
     // Invalidates any in-flight source lookup so it cannot revive the offer.
@@ -50,12 +63,36 @@ export function createSavedPasswordPrompts(ctx: TerminalSessionContext) {
       offeredPrompt = null
       onSavedPasswordPromptChange?.(tabId, sessionNonce, null)
     }
-    setSavedPasswordPrompt(null)
+    showPrompt(null)
   }
 
   const answerCurrentPrompt = () => {
     if (session.currentPromptKey !== null) answeredPromptKey = session.currentPromptKey
     clearSavedPasswordOffer()
+  }
+
+  /** Closing the offer leaves the user to type the password. */
+  const dismissCurrentPrompt = () => {
+    const match = currentPrompt
+    answerCurrentPrompt()
+    if (match) showTyped(match, 0)
+  }
+
+  /**
+   * The user types at the prompt themselves: an offer gives way to the
+   * count of what they typed, which the cursor overlay shows until Enter or
+   * Ctrl+C ends the prompt and clears the tab's key mark with it.
+   */
+  const typeAtPrompt = (data: string) => {
+    const match = currentPrompt
+    const typed = match ? nextTypedLength(shown?.status === "manual" ? shown.typed : 0, data) : null
+    answerCurrentPrompt()
+    if (match && typed !== null) {
+      showTyped(match, typed)
+    } else if (match) {
+      currentPrompt = null
+      setTabPasswordPrompt(tabId, false)
+    }
   }
 
   const handlePasswordPrompt = (match: PasswordPromptMatch) => {
@@ -64,12 +101,16 @@ export function createSavedPasswordPrompts(ctx: TerminalSessionContext) {
     const connection = connectionRef.current
     const profileId = connection?.profileId
     const profileName = connection?.profileName
+    const typeManually = () => {
+      onSensitivePromptRef.current?.(tabId)
+      showTyped(match, 0)
+    }
 
     const fill = session.lastPasswordFill
     session.lastPasswordFill = null
     if (fill && fill.prompt === match.prompt && Date.now() - fill.at < PASSWORD_REJECT_WINDOW_MS) {
       savedPasswordRejected = true
-      setSavedPasswordPrompt({ status: "rejected", prompt: match.prompt, user: match.user })
+      showPrompt({ status: "rejected", prompt: match.prompt, user: match.user })
       onSensitivePromptRef.current?.(tabId)
       return
     }
@@ -78,7 +119,7 @@ export function createSavedPasswordPrompts(ctx: TerminalSessionContext) {
     // login) must never receive this profile's password.
     const userMatches = match.user === null || match.user === connection?.username
     if (savedPasswordRejected || !userMatches || !(profileId || profileName)) {
-      onSensitivePromptRef.current?.(tabId)
+      typeManually()
       return
     }
 
@@ -87,17 +128,17 @@ export function createSavedPasswordPrompts(ctx: TerminalSessionContext) {
       .then((source) => {
         if (session.disposed || checkId !== session.passwordPromptCheckId) return
         if (!source) {
-          onSensitivePromptRef.current?.(tabId)
+          typeManually()
           return
         }
         offeredPrompt = { prompt: match.prompt, user: match.user, source }
         onSavedPasswordPromptChange?.(tabId, sessionNonce, match.prompt)
-        setSavedPasswordPrompt({ status: "available", ...offeredPrompt })
+        showPrompt({ status: "available", ...offeredPrompt })
       })
       .catch((err) => {
         if (session.disposed || checkId !== session.passwordPromptCheckId) return
         console.error("Failed to look up saved sudo password:", err)
-        onSensitivePromptRef.current?.(tabId)
+        typeManually()
       })
   }
 
@@ -114,6 +155,7 @@ export function createSavedPasswordPrompts(ctx: TerminalSessionContext) {
     const key = match ? `${session.lineFeedCount}:${match.prompt}` : null
     if (key === session.currentPromptKey) return
     session.currentPromptKey = key
+    currentPrompt = match
     setTabPasswordPrompt(tabId, match !== null)
     clearSavedPasswordOffer()
     if (match && key !== answeredPromptKey) handlePasswordPrompt(match)
@@ -178,11 +220,11 @@ export function createSavedPasswordPrompts(ctx: TerminalSessionContext) {
 
   savedPasswordPromptActionsRef.current = {
     fill: fillSavedPassword,
-    dismiss: answerCurrentPrompt,
+    dismiss: dismissCurrentPrompt,
     atPasswordPrompt: () => session.currentPromptKey !== null,
   }
 
-  return { answerCurrentPrompt, checkPasswordPrompt, stopLoginScript, startLoginScript }
+  return { typeAtPrompt, checkPasswordPrompt, stopLoginScript, startLoginScript }
 }
 
 export type SavedPasswordPrompts = ReturnType<typeof createSavedPasswordPrompts>
