@@ -35,6 +35,11 @@ input::-ms-clear {
   display: none;
 }
 
+/* Hide WebKit's Caps Lock indicator on macOS; password fields show their own on every platform */
+input::-webkit-caps-lock-indicator {
+  display: none;
+}
+
 /* Utility */
 .sr-only {
   position: absolute;

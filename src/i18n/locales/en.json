@@ -911,6 +911,7 @@
     "background": "Run in background"
   },
   "common": {
+    "capsLockOn": "Caps Lock is on",
     "cancel": "Cancel",
     "save": "Save",
     "saving": "Saving...",

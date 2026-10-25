@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PasswordInput } from "@/components/ui/password-input"
 
 /** A question the SSH server (or tTerm, for a missing password) has for the user. */
 export interface SshAuthPrompt {
@@ -155,6 +156,21 @@ const SshAuthPromptForm: React.FC<{
 
           {prompt.prompts.map((field, index) => {
             const id = `ssh-auth-prompt-${prompt.requestId}-${index}`
+            const inputProps = {
+              ref: index === 0 ? firstInputRef : undefined,
+              id,
+              autoComplete: "off",
+              autoCapitalize: "none",
+              autoCorrect: "off",
+              spellCheck: false,
+              value: answers[index] ?? "",
+              onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
+                setAnswers((current) =>
+                  current.map((value, position) =>
+                    position === index ? event.target.value : value
+                  )
+                ),
+            }
             return (
               <div key={id} className="space-y-1.5">
                 <Label htmlFor={id}>
@@ -162,23 +178,12 @@ const SshAuthPromptForm: React.FC<{
                     ? t("ssh.authPrompt.password")
                     : field.text.trim() || t("ssh.authPrompt.response")}
                 </Label>
-                <Input
-                  ref={index === 0 ? firstInputRef : undefined}
-                  id={id}
-                  type={field.echo ? "text" : "password"}
-                  autoComplete="off"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  value={answers[index] ?? ""}
-                  onChange={(event) =>
-                    setAnswers((current) =>
-                      current.map((value, position) =>
-                        position === index ? event.target.value : value
-                      )
-                    )
-                  }
-                />
+                {/* Hidden answers get the reveal toggle and the Caps Lock warning. */}
+                {field.echo ? (
+                  <Input type="text" {...inputProps} />
+                ) : (
+                  <PasswordInput {...inputProps} />
+                )}
               </div>
             )
           })}

@@ -895,6 +895,7 @@
     "background": "最小化到托盘"
   },
   "common": {
+    "capsLockOn": "大写锁定已开启",
     "cancel": "取消",
     "save": "保存",
     "saving": "保存中...",
