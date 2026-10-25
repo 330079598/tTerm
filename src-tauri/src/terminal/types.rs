@@ -16,6 +16,8 @@ const PASTE_WINDOW_BYTES: u64 = 4096;
 /// paste may then run twice as far ahead.
 const PASTE_STALL: Duration = Duration::from_millis(100);
 const INTERRUPT: &[u8] = b"\x03";
+/// How xterm.js starts a paste once the program turns on bracketed paste.
+const BRACKETED_PASTE_START: &[u8] = b"\x1b[200~";
 
 pub struct ActivePty {
     /// Writes straight to the PTY and blocks until the shell takes the bytes,
@@ -85,6 +87,11 @@ impl Write for PtyWriter {
 /// console shell takes all of it off the PTY (PSReadLine into its own
 /// memory), shows nothing for seconds and then works through it past any
 /// Ctrl+C. A Ctrl+C drops whatever input is still queued ahead of it.
+///
+/// A bracketed paste is written at once. The program asked for it bracketed
+/// so that it holds the whole paste until its end, which a Claude Code or a
+/// zsh does without any output, and pacing it only waited out a stall each
+/// time the window doubled, most of a second for a large log.
 pub struct PtyInput {
     tx: mpsc::Sender<(u64, Vec<u8>)>,
     /// Counts the Ctrl+Cs sent; input queued before the latest is dropped.
@@ -114,7 +121,8 @@ impl PtyInput {
                     pasted = true;
                 }
                 let interrupted = || interrupt != current.load(Ordering::SeqCst);
-                let mut pace = is_paste.then(|| Pace::new(&shell_output));
+                let paced = is_paste && !bytes.starts_with(BRACKETED_PASTE_START);
+                let mut pace = paced.then(|| Pace::new(&shell_output));
                 for chunk in bytes.chunks(INPUT_CHUNK_BYTES) {
                     if let Some(pace) = &mut pace {
                         pace.wait(&shell_output, &interrupted);
@@ -338,7 +346,7 @@ mod tests {
         }
     }
 
-    fn paste_duration(echo: bool) -> Duration {
+    fn paste_duration(echo: bool, paste: Vec<u8>) -> Duration {
         let written = Arc::new(Mutex::new(Vec::new()));
         let output = Arc::new(std::sync::OnceLock::new());
         let writer = PtyWriter(Arc::new(Mutex::new(Box::new(EchoWriter {
@@ -350,7 +358,6 @@ mod tests {
             output.set(input.output.clone()).unwrap();
         }
 
-        let paste = vec![b'a'; PASTE_WINDOW_BYTES as usize * 2];
         let started = Instant::now();
         input.send(paste.clone()).unwrap();
         while written.lock().unwrap().len() < paste.len() {
@@ -362,9 +369,19 @@ mod tests {
 
     #[test]
     fn a_paste_runs_ahead_of_the_shell_only_by_a_window() {
+        let paste = vec![b'a'; PASTE_WINDOW_BYTES as usize * 2];
         // A shell echoing what it reads takes the paste without a pause.
-        assert!(paste_duration(true) < PASTE_STALL);
+        assert!(paste_duration(true, paste.clone()) < PASTE_STALL);
         // A silent one gets the window doubled once it stays quiet.
-        assert!(paste_duration(false) >= PASTE_STALL);
+        assert!(paste_duration(false, paste) >= PASTE_STALL);
+    }
+
+    #[test]
+    fn a_bracketed_paste_is_written_without_waiting_for_output() {
+        let mut paste = BRACKETED_PASTE_START.to_vec();
+        paste.extend(vec![b'a'; PASTE_WINDOW_BYTES as usize * 4]);
+        paste.extend_from_slice(b"\x1b[201~");
+        // A program holding the paste until its end stays silent throughout.
+        assert!(paste_duration(false, paste) < PASTE_STALL);
     }
 }
