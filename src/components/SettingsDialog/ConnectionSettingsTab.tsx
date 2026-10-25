@@ -28,12 +28,11 @@ import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
+import { SudoPromptPatternsSetting } from "@/components/SettingsDialog/SudoPromptPatternsSetting"
 import { RECONNECT_MAX_ATTEMPTS_MAX, RECONNECT_MAX_ATTEMPTS_MIN } from "@/lib/appConfig"
 import { DEFAULT_MONITOR_VISIBLE_METRICS, type MonitorMetricId } from "@/lib/monitorMetrics"
 import { useSyncedState } from "@/hooks/useSyncedState"
 import { isImeKeyEvent } from "@/lib/ime"
-import { isValidPromptPattern } from "@/lib/sudoPrompt"
-import { cn } from "@/lib/utils"
 
 interface ConnectionSettingsTabProps {
   handleReconnectEnabledChange: (checked: boolean) => Promise<void>
@@ -50,13 +49,6 @@ interface ConnectionSettingsTabProps {
   reconnectMaxAttempts: number
   showJumpHostConnectionInfo: boolean
   sudoPromptPatterns: string[]
-}
-
-function parsePromptPatterns(draft: string): string[] {
-  return draft
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
 }
 
 export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
@@ -76,20 +68,6 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
   sudoPromptPatterns,
 }) => {
   const { t } = useTranslation()
-  const [sudoPromptPatternsDraft, setSudoPromptPatternsDraft] = useSyncedState(
-    sudoPromptPatterns.join("\n")
-  )
-  const invalidSudoPromptPatterns = parsePromptPatterns(sudoPromptPatternsDraft).filter(
-    (pattern) => !isValidPromptPattern(pattern)
-  )
-
-  const commitSudoPromptPatterns = React.useCallback(() => {
-    const patterns = parsePromptPatterns(sudoPromptPatternsDraft)
-    if (patterns.some((pattern) => !isValidPromptPattern(pattern))) return
-    if (patterns.join("\n") !== sudoPromptPatterns.join("\n")) {
-      void handleSudoPromptPatternsChange(patterns)
-    }
-  }, [handleSudoPromptPatternsChange, sudoPromptPatterns, sudoPromptPatternsDraft])
   const [monitorRefreshDraft, setMonitorRefreshDraft] = useSyncedState(
     String(monitorRefreshIntervalSecs)
   )
@@ -302,35 +280,10 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
               <Switch checked={passwordFeedback} onCheckedChange={handlePasswordFeedbackChange} />
             }
           />
-          <SettingsRow
-            icon={<KeyRound size={16} />}
-            title={t("settings.sudoPromptPatterns")}
-            description={t("settings.sudoPromptPatternsDesc")}
-          >
-            <textarea
-              aria-invalid={invalidSudoPromptPatterns.length > 0}
-              aria-label={t("settings.sudoPromptPatterns")}
-              autoCapitalize="none"
-              autoCorrect="off"
-              className={cn(
-                "border-input placeholder:text-muted-foreground dark:bg-input/30 min-h-20 w-full rounded-md border bg-transparent px-3 py-2 font-mono text-xs shadow-xs outline-none",
-                "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-                "aria-invalid:border-destructive"
-              )}
-              onBlur={commitSudoPromptPatterns}
-              onChange={(event) => setSudoPromptPatternsDraft(event.target.value)}
-              placeholder={"^Password for (?<user>\\S+) on \\S+:$"}
-              spellCheck={false}
-              value={sudoPromptPatternsDraft}
-            />
-            {invalidSudoPromptPatterns.length > 0 && (
-              <p className="text-destructive mt-1 text-xs">
-                {t("settings.sudoPromptPatternsInvalid", {
-                  pattern: invalidSudoPromptPatterns[0],
-                })}
-              </p>
-            )}
-          </SettingsRow>
+          <SudoPromptPatternsSetting
+            onChange={handleSudoPromptPatternsChange}
+            patterns={sudoPromptPatterns}
+          />
         </SettingsSection>
 
         <SettingsSection
