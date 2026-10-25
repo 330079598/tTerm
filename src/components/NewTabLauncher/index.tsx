@@ -1,37 +1,25 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
-import { BookMarked, Clock, FileCog, Plus, Server, Terminal, X } from "lucide-react"
+import { X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { buildLauncherItems } from "@/components/NewTabLauncher/buildLauncherItems"
 import {
-  PROFILE_MATCH_LIMIT,
-  CONFIG_MATCH_LIMIT,
   type LocalShellChoice,
   type LauncherSection,
   type LauncherItem,
-  describeConnection,
 } from "@/components/NewTabLauncher/launcherItems"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { useConfig } from "@/contexts/ConfigContext"
 import { isImeKeyEvent } from "@/lib/ime"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
-import { profileSearchFields } from "@/lib/profileSearch"
 import {
   buildQuickConnectTab,
-  formatEndpoint,
-  matchesQuery,
-  parseQuickConnectInput,
-  quickConnectionFromConfig,
-  resolveQuickConnectTarget,
   type RecentQuickConnection,
   type SshConfigHost,
 } from "@/lib/quickConnect"
-import {
-  isDetectedCustomShell,
-  terminalShellLabel,
-  type TerminalShellProfile,
-} from "@/lib/terminalShells"
+import { type TerminalShellProfile } from "@/lib/terminalShells"
 import { cn } from "@/lib/utils"
 import type { SavedProfile, Tab } from "@/types/tab"
 
@@ -105,173 +93,29 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
     }
   }, [open])
 
-  const items = useMemo<LauncherItem[]>(() => {
-    const query = input.trim()
-    const target = parseQuickConnectInput(query)
-    const resolved = target ? resolveQuickConnectTarget(target, configHosts) : null
-
-    const connectItem: LauncherItem | null = resolved
-      ? {
-          key: "typed",
-          icon: Server,
-          label: t("quickConnect.connectTo", { target: describeConnection(resolved) }),
-          action: { kind: "connect", connection: resolved },
-        }
-      : null
-    // `ssh -p 2222 host` gets `-l` appended; a bare host gets `@` in front.
-    const addUserItem: LauncherItem | null =
-      target && !resolved
-        ? {
-            key: "typed-add-user",
-            icon: Server,
-            label: t("quickConnect.connectTo", { target: formatEndpoint(target) }),
-            detail: t("quickConnect.addUser"),
-            action: /^ssh\s|^-/.test(query)
-              ? { kind: "add-user", input: `${query} -l `, caret: query.length + 4 }
-              : { kind: "add-user", input: `@${query}`, caret: 0 },
-          }
-        : null
-
-    // The default shell first, then every other shell found on this machine.
-    const defaultShell = config.terminal_shell
-    const defaultCustomPath = config.terminal_shell_custom_path.trim()
-    const defaultShellProfile = shells.find((profile) => profile.shell === defaultShell)
-    const defaultShellLabel =
-      defaultShell === "custom"
-        ? defaultCustomPath || t("connection.terminalShellOptions.custom")
-        : defaultShellProfile
-          ? terminalShellLabel(defaultShellProfile, t)
-          : defaultShell
-    const terminalItems: LauncherItem[] = [
-      {
-        key: "terminal",
-        icon: Terminal,
-        label: defaultShellLabel,
-        detail: t("quickConnect.defaultShell"),
-        section: "localTerminal",
-        action: { kind: "terminal" },
-      },
-      ...shells
-        .filter((profile) =>
-          profile.shell === "custom"
-            ? isDetectedCustomShell(profile) &&
-              !(defaultShell === "custom" && profile.source === defaultCustomPath)
-            : profile.shell !== "auto" && profile.shell !== defaultShell
-        )
-        .map<LauncherItem>((profile) => ({
-          key: `terminal:${profile.shell}:${profile.source}`,
-          icon: Terminal,
-          label: terminalShellLabel(profile, t),
-          detail: profile.source,
-          section: "localTerminal",
-          action: {
-            kind: "terminal",
-            shell: {
-              shell: profile.shell,
-              customPath: profile.shell === "custom" ? profile.source : undefined,
-            },
-          },
-        })),
+  const items = useMemo(
+    () =>
+      buildLauncherItems({
+        input,
+        configHosts,
+        profiles,
+        recents,
+        shells,
+        terminalShell: config.terminal_shell,
+        terminalShellCustomPath: config.terminal_shell_custom_path,
+        t,
+      }),
+    [
+      config.terminal_shell,
+      config.terminal_shell_custom_path,
+      configHosts,
+      input,
+      profiles,
+      recents,
+      shells,
+      t,
     ]
-    const newConnectionItem: LauncherItem = {
-      key: "new-connection",
-      icon: Plus,
-      label: t("quickConnect.newConnection"),
-      detail: query
-        ? t("quickConnect.newConnectionPrefilled")
-        : t("quickConnect.newConnectionDetail"),
-      action: { kind: "new-connection" },
-    }
-
-    const recentItems = recents
-      .filter((recent) => matchesQuery(query, [recent.title, recent.username, recent.host]))
-      .map<LauncherItem>((recent) => ({
-        key: `recent:${recent.username}@${recent.host}:${recent.port}:${recent.lastUsedAt}`,
-        icon: Clock,
-        label: recent.title,
-        detail: describeConnection(recent),
-        section: "recent",
-        action: { kind: "connect", connection: recent },
-        recent,
-      }))
-
-    const profileItems = query
-      ? profiles
-          .filter((profile) => matchesQuery(query, profileSearchFields(profile)))
-          .slice(0, PROFILE_MATCH_LIMIT)
-          .map<LauncherItem>((profile) => ({
-            key: `profile:${profile.id}`,
-            icon: BookMarked,
-            label: profile.name,
-            detail: [
-              profile.group,
-              profile.connection_type === "serial"
-                ? profile.serial?.port
-                : formatEndpoint({
-                    username: profile.username,
-                    host: profile.host ?? "",
-                    port: profile.port,
-                  }),
-            ]
-              .filter(Boolean)
-              .join(" · "),
-            section: "profiles",
-            action: { kind: "profile", profile },
-          }))
-      : []
-
-    const configItems = query
-      ? configHosts
-          .filter((host) => matchesQuery(query, [host.hostPattern, host.host, host.username]))
-          // Exactly the typed alias is the typed item already.
-          .filter((host) => !(resolved && target?.host === host.hostPattern))
-          .slice(0, CONFIG_MATCH_LIMIT)
-          .map<LauncherItem>((host) => {
-            const connection = quickConnectionFromConfig(host)
-            return {
-              key: `config:${host.hostPattern}`,
-              icon: FileCog,
-              label: host.hostPattern,
-              detail: connection
-                ? describeConnection(connection)
-                : `${formatEndpoint({ host: host.host ?? host.hostPattern, port: host.port })} · ${t("quickConnect.addUser")}`,
-              section: "sshConfig",
-              action: connection
-                ? { kind: "connect", connection }
-                : { kind: "add-user", input: `@${host.hostPattern}`, caret: 0 },
-            }
-          })
-      : []
-
-    if (!query) {
-      return [...terminalItems, newConnectionItem, ...recentItems]
-    }
-    return [
-      ...(connectItem ? [connectItem] : []),
-      ...recentItems,
-      ...profileItems,
-      ...configItems,
-      ...(addUserItem ? [addUserItem] : []),
-      ...terminalItems.filter((item) =>
-        matchesQuery(query, [
-          item.label,
-          item.detail,
-          t("quickConnect.localTerminal"),
-          "terminal local shell",
-        ])
-      ),
-      newConnectionItem,
-    ]
-  }, [
-    config.terminal_shell,
-    config.terminal_shell_custom_path,
-    configHosts,
-    input,
-    profiles,
-    recents,
-    shells,
-    t,
-  ])
+  )
 
   const selectedIndex = Math.min(selected, items.length - 1)
 
