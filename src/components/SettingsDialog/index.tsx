@@ -253,6 +253,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleRestoreAllSessionConnectionsChange={
                 settingsHandlers.handleRestoreAllSessionConnectionsChange
               }
+              handleRestoreTerminalContentChange={
+                settingsHandlers.handleRestoreTerminalContentChange
+              }
               handleSftpPasteUploadEnabledChange={
                 settingsHandlers.handleSftpPasteUploadEnabledChange
               }
@@ -272,6 +275,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               i18nLanguage={i18n.language}
               languages={languages}
               restoreAllSessionConnections={config.startup_session_restore_mode === "all"}
+              restoreTerminalContent={config.restore_terminal_content}
               sftpPasteUploadEnabled={config.sftp_paste_upload_enabled}
               sftpStartDirectory={config.sftp_start_directory}
               sftpTransferParallelism={config.sftp_transfer_parallelism}

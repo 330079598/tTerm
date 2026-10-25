@@ -68,6 +68,9 @@ pub struct AppConfig {
     pub terminal_padding_bottom_px: u16,
     #[serde(default = "default_startup_session_restore_mode")]
     pub startup_session_restore_mode: String,
+    /// Whether a restart shows each terminal tab's content from before.
+    #[serde(default)]
+    pub restore_terminal_content: bool,
     #[serde(default = "default_show_jump_host_connection_info")]
     pub show_jump_host_connection_info: bool,
     #[serde(default)]
@@ -645,6 +648,7 @@ impl Default for AppConfig {
             terminal_padding_right_px: 0,
             terminal_padding_bottom_px: 0,
             startup_session_restore_mode: default_startup_session_restore_mode(),
+            restore_terminal_content: false,
             show_jump_host_connection_info: default_show_jump_host_connection_info(),
             sftp_paste_upload_enabled: false,
             sftp_start_directory: default_sftp_start_directory(),

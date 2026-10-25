@@ -18,6 +18,7 @@ import type {
   MigrationView,
 } from "@/components/SettingsDialog/dataMigration"
 import type { RemoteBackupEntry } from "@/components/SettingsDialog/webdavBackup"
+import { saveTerminalContent } from "@/components/TerminalTab/savedTerminalContent"
 import {
   type BackupSelection,
   type SelectionItem,
@@ -315,7 +316,7 @@ export function BackupImportCard({
                 </div>
               )}
               {importResult.requiresRestart && (
-                <Button size="sm" onClick={() => void relaunch()}>
+                <Button size="sm" onClick={() => void saveTerminalContent().then(relaunch)}>
                   <RefreshCw size={14} />
                   {t("dataMigration.restartNow")}
                 </Button>

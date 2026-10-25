@@ -44,6 +44,10 @@ export function useSettingsHandlers({
     await saveSettings({ startup_session_restore_mode: checked ? "all" : "active" })
   }
 
+  const handleRestoreTerminalContentChange = async (checked: boolean) => {
+    await saveSettings({ restore_terminal_content: checked })
+  }
+
   const handleSftpPasteUploadEnabledChange = async (checked: boolean) => {
     await saveSettings({ sftp_paste_upload_enabled: checked })
   }
@@ -163,6 +167,7 @@ export function useSettingsHandlers({
   return {
     handleClearSession,
     handleRestoreAllSessionConnectionsChange,
+    handleRestoreTerminalContentChange,
     handleSftpPasteUploadEnabledChange,
     handleSftpStartDirectoryChange,
     handleZmodemAutoDetectEnabledChange,

@@ -127,6 +127,7 @@ export const TTermApp: React.FC = () => {
     isLoaded,
     getPreloadedSession,
     saveSession,
+    restoreTerminalContent: config.restore_terminal_content,
   })
 
   useBlockNativeContextMenu()

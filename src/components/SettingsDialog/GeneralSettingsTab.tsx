@@ -49,6 +49,7 @@ interface GeneralSettingsTabProps {
   handleClearSession: () => Promise<void>
   handleLanguageChange: (langCode: string) => Promise<void>
   handleRestoreAllSessionConnectionsChange: (checked: boolean) => Promise<void>
+  handleRestoreTerminalContentChange: (checked: boolean) => Promise<void>
   handleSftpPasteUploadEnabledChange: (checked: boolean) => Promise<void>
   handleSftpStartDirectoryChange: (choice: SftpStartDirectory) => Promise<void>
   handleSftpTransferParallelismChange: (value: number) => Promise<void>
@@ -60,6 +61,7 @@ interface GeneralSettingsTabProps {
   i18nLanguage: string
   languages: LanguageOption[]
   restoreAllSessionConnections: boolean
+  restoreTerminalContent: boolean
   sftpPasteUploadEnabled: boolean
   sftpStartDirectory: SftpStartDirectory
   sftpTransferParallelism: number
@@ -78,6 +80,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   handleClearSession,
   handleLanguageChange,
   handleRestoreAllSessionConnectionsChange,
+  handleRestoreTerminalContentChange,
   handleSftpPasteUploadEnabledChange,
   handleSftpStartDirectoryChange,
   handleSftpTransferParallelismChange,
@@ -89,6 +92,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   i18nLanguage,
   languages,
   restoreAllSessionConnections,
+  restoreTerminalContent,
   sftpPasteUploadEnabled,
   sftpStartDirectory,
   sftpTransferParallelism,
@@ -308,6 +312,16 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               <Switch
                 checked={restoreAllSessionConnections}
                 onCheckedChange={handleRestoreAllSessionConnectionsChange}
+              />
+            }
+          />
+          <SettingsRow
+            title={t("settings.restoreTerminalContent")}
+            description={t("settings.restoreTerminalContentDesc")}
+            action={
+              <Switch
+                checked={restoreTerminalContent}
+                onCheckedChange={handleRestoreTerminalContentChange}
               />
             }
           />

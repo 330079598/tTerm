@@ -6,11 +6,18 @@ import { buildTabFromConnection } from "@/components/TTermApp/ttermAppUtils"
 import { nameLocalTab, refreshSavedLocalTabs } from "@/lib/localTabTitle"
 import { normalizeSavedSshTab } from "@/lib/tabIcons"
 import { markSessionReady } from "@/lib/startup"
+import {
+  isTerminalContentRestoreEnabled,
+  loadSavedTerminalContent,
+  setTerminalContentRestore,
+} from "@/components/TerminalTab/savedTerminalContent"
 
 interface SessionRestoreOptions {
   isLoaded: boolean
   getPreloadedSession: ReturnType<typeof useSessionPersistence>["loadSession"]
   saveSession: ReturnType<typeof useSessionPersistence>["saveSession"]
+  /** Whether a restart shows each terminal tab's content from before. */
+  restoreTerminalContent: boolean
 }
 
 /**
@@ -19,8 +26,13 @@ interface SessionRestoreOptions {
  */
 export function useSessionRestore(shell: AppShell, options: SessionRestoreOptions) {
   const { tabs, groups, activeTabId, addTab, restoreSession } = shell
-  const { isLoaded, getPreloadedSession, saveSession } = options
+  const { isLoaded, getPreloadedSession, saveSession, restoreTerminalContent } = options
   const [sessionRestored, setSessionRestored] = useState(false)
+
+  // Ahead of the restore below, which reads the saved content only when on.
+  useEffect(() => {
+    if (isLoaded) setTerminalContentRestore(restoreTerminalContent)
+  }, [isLoaded, restoreTerminalContent])
 
   useEffect(() => {
     if (!isLoaded) {
@@ -40,6 +52,10 @@ export function useSessionRestore(shell: AppShell, options: SessionRestoreOption
           const restoredTabs = (await refreshSavedLocalTabs(savedSession.tabs)).map(
             normalizeSavedSshTab
           )
+          if (isTerminalContentRestoreEnabled()) {
+            // Before the tabs' terminals are made, which show it as they open.
+            await loadSavedTerminalContent(restoredTabs.map((tab) => tab.id))
+          }
           if (cancelled) {
             return
           }

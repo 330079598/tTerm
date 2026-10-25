@@ -19,6 +19,7 @@ import { createCommandTracking } from "@/components/TerminalTab/commandTracking"
 import { attachTerminalInput } from "@/components/TerminalTab/terminalInput"
 import { startPtySession } from "@/components/TerminalTab/ptySession"
 import { disposeRendererAddon } from "@/components/TerminalTab/rendererRelease"
+import { restoreTerminalContent } from "@/components/TerminalTab/savedTerminalContent"
 import { safePreloadFont } from "@/lib/canvasFontHost"
 import { EMPTY_COMMAND_CAPTURE_STATE } from "@/lib/terminalCommandCapture"
 
@@ -162,6 +163,8 @@ export function useTerminalLifecycle({
       term.focus()
     }
     fitTerminalOnly()
+    // Before the session writes anything, so the last launch's content sits above it.
+    const savedContent = restoreTerminalContent(tabId, term, translationRef.current)
 
     const session: TerminalSessionState = {
       disposed: false,
@@ -326,6 +329,7 @@ export function useTerminalLifecycle({
       imeContextReset.dispose()
       imeFocusRepair?.dispose()
       scrollbackMemory.dispose()
+      savedContent.dispose()
       term.dispose()
       termRef.current = null
       fitAddonRef.current = null

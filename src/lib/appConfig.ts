@@ -91,6 +91,8 @@ export interface AppConfig extends TabSettings {
   terminal_padding_right_px: number
   terminal_padding_bottom_px: number
   startup_session_restore_mode: "active" | "all"
+  /** Whether a restart shows each terminal tab's content from before. */
+  restore_terminal_content: boolean
   show_jump_host_connection_info: boolean
   sftp_paste_upload_enabled: boolean
   /** Where SFTP drawers open; a connection can choose otherwise. */
@@ -219,6 +221,7 @@ export const defaultConfig: AppConfig = {
   terminal_padding_right_px: 0,
   terminal_padding_bottom_px: 0,
   startup_session_restore_mode: "active",
+  restore_terminal_content: false,
   show_jump_host_connection_info: true,
   sftp_paste_upload_enabled: false,
   sftp_start_directory: "last",

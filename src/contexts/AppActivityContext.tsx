@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 
+import { saveTerminalContent } from "@/components/TerminalTab/savedTerminalContent"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { relaunchApp } from "@/lib/updater"
 
@@ -38,6 +39,8 @@ export function AppActivityProvider({ children }: { children: React.ReactNode })
       }
     }
 
+    // A relaunch skips the quit that would otherwise save it.
+    await saveTerminalContent()
     await relaunchApp()
   }, [activeTerminalSessionCount, confirm, t])
 

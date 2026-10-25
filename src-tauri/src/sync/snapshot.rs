@@ -63,6 +63,7 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "terminal_padding_right_px",
     "terminal_padding_bottom_px",
     "startup_session_restore_mode",
+    "restore_terminal_content",
     "show_jump_host_connection_info",
     "sftp_paste_upload_enabled",
     "sftp_start_directory",

@@ -35,6 +35,7 @@ import { BackupExportCard } from "@/components/SettingsDialog/BackupExportCard"
 import { BackupHistoryCard } from "@/components/SettingsDialog/BackupHistoryCard"
 import { BackupImportCard } from "@/components/SettingsDialog/BackupImportCard"
 import { MigrationViewTabs } from "@/components/SettingsDialog/MigrationViewTabs"
+import { suspendTerminalContentSaving } from "@/components/TerminalTab/savedTerminalContent"
 
 export const DataMigrationSettingsTab: React.FC = () => {
   const { t } = useTranslation()
@@ -263,6 +264,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
         })
       )
       restoreFrontendState(result.frontendState)
+      if (selection.session) suspendTerminalContentSaving()
       if (selection.themes) void reloadCustomThemes()
       setImportResult(result)
       // The backup password stays until another file is chosen, so the same

@@ -182,6 +182,11 @@ pub(super) fn apply_payload(
     if options.selection.logs {
         restore_log_files(&payload.logs)?;
     }
+    // The imported tabs reuse the ids of the tabs open now, whose saved
+    // content must not show in them.
+    if options.selection.session && payload.session.is_some() {
+        crate::session::scrollback::clear_all()?;
+    }
 
     let commands_imported = if options.selection.command_library {
         let incoming = payload.commands.as_deref().unwrap_or(&[]);
