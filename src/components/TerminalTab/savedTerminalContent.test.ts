@@ -76,10 +76,9 @@ describe("savedTerminalContent", () => {
     const first = terminal()
     content.trackTerminalContent("tab-1", first.term).showSaved(t)
     await first.write("$ ")
-    const [command, output, rule, prompt] = text(first.term).split("\n")
+    const [command, output, banner, prompt] = text(first.term).split("\n")
     expect([command, output, prompt]).toEqual(["$ ls", "file", "$ "])
-    expect(rule).toMatch(/^─+ Restored \d\d-\d\d \d\d:\d\d ─+$/)
-    expect(rule).toHaveLength(first.term.cols)
+    expect(banner).toMatch(/^── Restored (\d{4}-)?\d\d-\d\d \d\d:\d\d ──$/)
 
     const again = terminal()
     content.trackTerminalContent("tab-1", again.term).showSaved(t)

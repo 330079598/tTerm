@@ -169,8 +169,8 @@ export async function loadSavedTerminalContent(tabIds: string[]): Promise<void> 
 export interface TrackedTerminalContent extends IDisposable {
   /**
    * Shows the tab's saved content, once per launch. Call it once the
-   * terminal has settled on its size, so the rule under it spans the
-   * terminal, and before the session writes anything.
+   * terminal has settled on its size, so the content is laid out at the
+   * terminal's width, and before the session writes anything.
    */
   showSaved(t: TFunction): void
 }
@@ -194,7 +194,7 @@ export function trackTerminalContent(tabId: string, term: Terminal): TrackedTerm
         time: formatSavedAt(saved.savedAt),
         defaultValue: "Restored · saved {{time}}",
       })
-      term.write(restoredContentText(saved.content, banner, term.cols))
+      term.write(restoredContentText(saved.content, banner))
     },
     dispose() {
       writes.dispose()

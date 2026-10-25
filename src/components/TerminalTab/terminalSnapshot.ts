@@ -19,48 +19,24 @@ export function serializeTerminal(term: Terminal, serializer: SerializeAddon): s
   return serializer.serialize({ range: { start, end }, excludeModes: true, excludeAltBuffer: true })
 }
 
-/** `savedAt` as month, day and 24-hour time, such as `10-25 14:03`. */
-export function formatSavedAt(savedAt: number): string {
+/**
+ * `savedAt` as month, day and 24-hour time, such as `10-25 14:03`, with the
+ * year in front when it is not the year of `now`.
+ */
+export function formatSavedAt(savedAt: number, now = Date.now()): string {
   const date = new Date(savedAt)
   const pad = (value: number) => String(value).padStart(2, "0")
-  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
-
-/** Cells `char` takes: two for East Asian wide and fullwidth characters. */
-function charCells(char: string): number {
-  const code = char.codePointAt(0) ?? 0
-  const wide =
-    (code >= 0x1100 && code <= 0x115f) ||
-    (code >= 0x2e80 && code <= 0xa4cf) ||
-    (code >= 0xac00 && code <= 0xd7a3) ||
-    (code >= 0xf900 && code <= 0xfaff) ||
-    (code >= 0xfe30 && code <= 0xfe4f) ||
-    (code >= 0xff00 && code <= 0xff60) ||
-    (code >= 0xffe0 && code <= 0xffe6) ||
-    (code >= 0x20000 && code <= 0x3fffd)
-  return wide ? 2 : 1
-}
-
-function textCells(text: string): number {
-  let cells = 0
-  for (const char of text) cells += charCells(char)
-  return cells
-}
-
-/** `banner` in the middle of a rule as wide as `cols`. */
-export function bannerLine(banner: string, cols: number): string {
-  const label = ` ${banner} `
-  const fill = Math.max(4, cols - textCells(label))
-  const left = Math.floor(fill / 2)
-  return `${"─".repeat(left)}${label}${"─".repeat(fill - left)}`
+  const day = `${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+  const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  const year = date.getFullYear() === new Date(now).getFullYear() ? "" : `${date.getFullYear()}-`
+  return `${year}${day} ${time}`
 }
 
 /**
  * The text that shows `content` again above a new session, closed by a dim
- * rule across the `cols` wide terminal with `banner` in its middle; nothing
- * when the terminal had shown nothing.
+ * line with `banner`; nothing when the terminal had shown nothing.
  */
-export function restoredContentText(content: string, banner: string, cols: number): string {
+export function restoredContentText(content: string, banner: string): string {
   if (!content.trim()) return ""
-  return `${content}\x1b[0m\r\n\x1b[2m${bannerLine(banner, cols)}\x1b[0m\r\n`
+  return `${content}\x1b[0m\r\n\x1b[2m── ${banner} ──\x1b[0m\r\n`
 }
