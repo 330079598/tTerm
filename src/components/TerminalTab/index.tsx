@@ -22,8 +22,7 @@ import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
 import { SshAuthPromptDialog } from "@/components/TerminalTab/SshAuthPromptDialog"
 import { JumpHostInfoDialog } from "@/components/TerminalTab/JumpHostInfoDialog"
-import { PasswordFeedbackOverlay } from "@/components/TerminalTab/PasswordFeedbackOverlay"
-import { SavedPasswordPromptBar } from "@/components/TerminalTab/SavedPasswordPromptBar"
+import { PasswordPrompt } from "@/components/TerminalTab/PasswordPrompt"
 import { ServerMonitorBar } from "@/components/TerminalTab/ServerMonitorBar"
 import { TerminalSearchBar } from "@/components/TerminalTab/TerminalSearchBar"
 import { useTerminalSearch } from "@/components/TerminalTab/useTerminalSearch"
@@ -396,15 +395,9 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
         )}
 
         {savedPasswordPrompt && (
-          <PasswordFeedbackOverlay
+          <PasswordPrompt
             termRef={termRef}
             surfaceRef={surfaceRef}
-            typed={savedPasswordPrompt.status === "manual" ? savedPasswordPrompt.typed : 0}
-          />
-        )}
-
-        {savedPasswordPrompt && savedPasswordPrompt.status !== "manual" && (
-          <SavedPasswordPromptBar
             connection={connection}
             fillShortcut={bindings["terminal.fillSavedPassword"]?.[0]}
             onDismiss={() => {

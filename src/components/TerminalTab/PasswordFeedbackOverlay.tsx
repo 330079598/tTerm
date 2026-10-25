@@ -1,9 +1,8 @@
 import type React from "react"
-import type { Terminal } from "@xterm/xterm"
 import { ArrowBigUpDash, KeyRound } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { useCursorCellBox } from "@/components/TerminalTab/useCursorCellBox"
+import type { CursorCellView } from "@/components/TerminalTab/useCursorCellBox"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useCapsLock } from "@/hooks/useCapsLock"
 
@@ -11,8 +10,8 @@ import { useCapsLock } from "@/hooks/useCapsLock"
 const ICON_CELLS = 2
 
 interface PasswordFeedbackOverlayProps {
-  termRef: React.RefObject<Terminal | null>
-  surfaceRef: React.RefObject<HTMLDivElement | null>
+  /** The cell after the cursor. */
+  box: CursorCellView
   /** Characters typed at the prompt so far. */
   typed: number
 }
@@ -23,16 +22,10 @@ interface PasswordFeedbackOverlayProps {
  * pwfeedback echoes them. tTerm draws it over the terminal; none of it is
  * terminal content or reaches the remote.
  */
-export const PasswordFeedbackOverlay: React.FC<PasswordFeedbackOverlayProps> = ({
-  termRef,
-  surfaceRef,
-  typed,
-}) => {
+export const PasswordFeedbackOverlay: React.FC<PasswordFeedbackOverlayProps> = ({ box, typed }) => {
   const { t } = useTranslation()
   const { config } = useConfig()
   const capsLockOn = useCapsLock()
-  const box = useCursorCellBox(termRef, surfaceRef)
-  if (!box) return null
 
   const room = Math.max(0, box.cellsLeft - ICON_CELLS)
   const shownTyped = config.password_feedback ? typed : 0
