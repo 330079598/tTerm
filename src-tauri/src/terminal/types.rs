@@ -18,6 +18,7 @@ const PASTE_STALL: Duration = Duration::from_millis(100);
 const INTERRUPT: &[u8] = b"\x03";
 /// How xterm.js starts a paste once the program turns on bracketed paste.
 const BRACKETED_PASTE_START: &[u8] = b"\x1b[200~";
+const BRACKETED_PASTE_END: &[u8] = b"\x1b[201~";
 
 pub struct ActivePty {
     /// Writes straight to the PTY and blocks until the shell takes the bytes,
@@ -110,6 +111,9 @@ impl PtyInput {
         // Ends once the session drops its sender, or the PTY stops taking input.
         thread::spawn(move || {
             let mut pasted = false;
+            // A bracketed paste a Ctrl+C cut short, whose program would take
+            // everything after it for more of the paste until it is ended.
+            let mut unended_paste = false;
             for (interrupt, bytes) in rx {
                 let is_paste = bytes.len() >= PASTE_BYTES;
                 if bytes == INTERRUPT {
@@ -117,22 +121,31 @@ impl PtyInput {
                         discard_unread_input(pid);
                     }
                     pasted = false;
+                    // Ended only after the discard, which would drop the end too.
+                    if std::mem::take(&mut unended_paste)
+                        && writer.write_all(BRACKETED_PASTE_END).is_err()
+                    {
+                        return;
+                    }
                 } else if is_paste {
                     pasted = true;
                 }
                 let interrupted = || interrupt != current.load(Ordering::SeqCst);
-                let paced = is_paste && !bytes.starts_with(BRACKETED_PASTE_START);
-                let mut pace = paced.then(|| Pace::new(&shell_output));
+                let bracketed = bytes.starts_with(BRACKETED_PASTE_START);
+                let mut pace = (is_paste && !bracketed).then(|| Pace::new(&shell_output));
+                let mut started = false;
                 for chunk in bytes.chunks(INPUT_CHUNK_BYTES) {
                     if let Some(pace) = &mut pace {
                         pace.wait(&shell_output, &interrupted);
                     }
                     if interrupted() {
+                        unended_paste = bracketed && started;
                         break;
                     }
                     if writer.write_all(chunk).is_err() {
                         return;
                     }
+                    started = true;
                     if let Some(pace) = &mut pace {
                         pace.written += chunk.len() as u64;
                     }
@@ -326,6 +339,40 @@ mod tests {
         assert_eq!(*written.lock().unwrap(), expected);
     }
 
+    #[test]
+    fn ctrl_c_ends_a_bracketed_paste_it_cuts_short() {
+        let written = Arc::new(Mutex::new(Vec::new()));
+        let (entered_tx, entered) = mpsc::channel();
+        let (open, gate) = mpsc::channel();
+        let writer = PtyWriter(Arc::new(Mutex::new(Box::new(GatedWriter {
+            written: written.clone(),
+            entered: entered_tx,
+            gate,
+        }))));
+        let input = PtyInput::spawn(writer, 0);
+
+        let mut paste = BRACKETED_PASTE_START.to_vec();
+        paste.extend(vec![b'a'; INPUT_CHUNK_BYTES * 3]);
+        paste.extend_from_slice(BRACKETED_PASTE_END);
+        input.send(paste.clone()).unwrap();
+        entered.recv_timeout(Duration::from_secs(5)).unwrap();
+        input.send(INTERRUPT.to_vec()).unwrap();
+        for _ in 0..3 {
+            open.send(()).unwrap();
+        }
+
+        let mut expected = paste[..INPUT_CHUNK_BYTES].to_vec();
+        expected.extend_from_slice(BRACKETED_PASTE_END);
+        expected.extend_from_slice(INTERRUPT);
+        for _ in 0..500 {
+            if written.lock().unwrap().len() >= expected.len() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(*written.lock().unwrap(), expected);
+    }
+
     /// Records what reaches the PTY and answers every write with output.
     struct EchoWriter {
         written: Arc<Mutex<Vec<u8>>>,
@@ -380,7 +427,7 @@ mod tests {
     fn a_bracketed_paste_is_written_without_waiting_for_output() {
         let mut paste = BRACKETED_PASTE_START.to_vec();
         paste.extend(vec![b'a'; PASTE_WINDOW_BYTES as usize * 4]);
-        paste.extend_from_slice(b"\x1b[201~");
+        paste.extend_from_slice(BRACKETED_PASTE_END);
         // A program holding the paste until its end stays silent throughout.
         assert!(paste_duration(false, paste) < PASTE_STALL);
     }
