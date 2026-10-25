@@ -426,7 +426,9 @@
         "zoomReset": "Reset font size",
         "previousCommand": "Scroll to previous command",
         "nextCommand": "Scroll to next command",
-        "copyLastCommandOutput": "Copy last command output"
+        "copyLastCommandOutput": "Copy last command output",
+        "copy": "Copy selected text",
+        "paste": "Paste into terminal"
       },
       "sftp": {
         "toggle": "Toggle SFTP panel",

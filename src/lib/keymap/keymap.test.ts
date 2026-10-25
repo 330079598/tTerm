@@ -65,6 +65,16 @@ describe("resolveEffectiveKeymap", () => {
     expect(effective["terminal.copyLastCommandOutput"]).toBeNull()
   })
 
+  it("copies and pastes with Ctrl+Shift+C / V, leaving Cmd+C / V to macOS", () => {
+    const other = resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG)
+    expect(other["terminal.copy"]).toEqual(["mod+shift+c"])
+    expect(other["terminal.paste"]).toEqual(["mod+shift+v"])
+
+    const mac = resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG, true)
+    expect(mac["terminal.copy"]).toBeNull()
+    expect(mac["terminal.paste"]).toBeNull()
+  })
+
   it("supports multiple chords for one action (nth tab switching)", () => {
     const effective = resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG)
     expect(effective["tabs.switchToNth"]).toHaveLength(9)

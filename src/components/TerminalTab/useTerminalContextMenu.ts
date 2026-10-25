@@ -25,7 +25,7 @@ type UseTerminalContextMenuOptions = Pick<
   > & { config: AppConfig; t: TFunction; sessionNonce: number } & {
     showSftpDrawer: boolean
     setShowSftpDrawer: Dispatch<SetStateAction<boolean>>
-  } & Pick<ReturnType<typeof useTerminalClipboard>, "pasteFromClipboard"> & {
+  } & Pick<ReturnType<typeof useTerminalClipboard>, "pasteFromClipboard" | "copySelection"> & {
     keywordHighlight: ReturnType<typeof useKeywordHighlight>
   }
 
@@ -48,6 +48,7 @@ export function useTerminalContextMenu({
   showSftpDrawer,
   setShowSftpDrawer,
   pasteFromClipboard,
+  copySelection,
   keywordHighlight,
 }: UseTerminalContextMenuOptions) {
   const [terminalContextMenu, setTerminalContextMenu] = useState<{
@@ -215,7 +216,6 @@ export function useTerminalContextMenu({
         await armZmodemManualTrigger("receive")
         return
       }
-      const term = termRef.current
       const selection = terminalContextMenu?.selection.trim() ?? ""
       if (action === "clear-history") {
         clearTerminalHistory()
@@ -238,17 +238,7 @@ export function useTerminalContextMenu({
         return
       }
       if (action === "copy" && selection) {
-        try {
-          await invoke("plugin:clipboard-manager|write_text", { text: selection })
-          term?.clearSelection()
-        } catch (error) {
-          console.error("Failed to copy terminal selection:", error)
-          toast({
-            title: t("terminalContext.copyFailedTitle"),
-            description: t("terminalContext.copyFailedDescription"),
-            variant: "destructive",
-          })
-        }
+        await copySelection(selection)
         return
       }
       if (action === "save" && selection) {
@@ -272,15 +262,14 @@ export function useTerminalContextMenu({
       clearTerminalHistory,
       connection,
       copyLastCommandOutput,
+      copySelection,
       keywordHighlight,
       onOpenCommandLibrary,
       onSaveCommand,
       pasteFromClipboard,
       resetTerminal,
       saveTerminalContents,
-      t,
       terminalContextMenu,
-      termRef,
     ]
   )
 
@@ -289,6 +278,7 @@ export function useTerminalContextMenu({
       action: "copy",
       label: t("terminalContext.copy"),
       icon: "copy",
+      shortcut: "terminal.copy",
       disabled: !terminalContextMenu?.selection,
     },
     {
@@ -306,7 +296,12 @@ export function useTerminalContextMenu({
       disabled: !terminalContextMenu?.selection,
     },
     { separator: true, action: "separator", label: "" },
-    { action: "paste", label: t("terminalContext.paste"), icon: "paste" },
+    {
+      action: "paste",
+      label: t("terminalContext.paste"),
+      icon: "paste",
+      shortcut: "terminal.paste",
+    },
     {
       action: "find",
       label: t("terminalContext.findCommand"),

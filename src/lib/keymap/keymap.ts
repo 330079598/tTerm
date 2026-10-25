@@ -59,6 +59,10 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   "terminal.previousCommand": "mod+arrowup",
   "terminal.nextCommand": "mod+arrowdown",
   "terminal.copyLastCommandOutput": null,
+  // Ctrl+C and Ctrl+V belong to the shell, so copying and pasting take Shift,
+  // as in Windows Terminal and GNOME Terminal.
+  "terminal.copy": "mod+shift+c",
+  "terminal.paste": "mod+shift+v",
   "sftp.toggle": "ctrl+t",
   "sftp.selectAll": "mod+a",
   "sftp.focusPath": "mod+l",
@@ -83,6 +87,10 @@ const MAC_DEFAULT_BINDINGS: Partial<Record<KeymapActionId, string | string[] | n
   "tabs.switchToNth": digitChords("mod"),
   "workspace.focusNextPane": "mod+]",
   "workspace.focusPrevPane": "mod+[",
+  // Cmd+C and Cmd+V already copy and paste through the Edit menu, and Cmd+V
+  // uploads to SFTP when the drawer has the focus.
+  "terminal.copy": null,
+  "terminal.paste": null,
 }
 
 /** actionId -> serialized chords currently in effect (null = unbound). */

@@ -3,6 +3,7 @@ import { useEffect } from "react"
 import type { TerminalTabRefs } from "@/components/TerminalTab/useTerminalTabRefs"
 import type { useKeymap } from "@/contexts/KeymapContext"
 import type { useTerminalContextMenu } from "@/components/TerminalTab/useTerminalContextMenu"
+import type { useTerminalClipboard } from "@/components/TerminalTab/useTerminalClipboard"
 import type { TerminalTabProps } from "@/components/TerminalTab/types"
 
 type UseTerminalShortcutsOptions = Pick<TerminalTabProps, "onSaveCommand"> &
@@ -21,7 +22,8 @@ type UseTerminalShortcutsOptions = Pick<TerminalTabProps, "onSaveCommand"> &
   } & Pick<
     ReturnType<typeof useTerminalContextMenu>,
     "clearTerminalHistory" | "resetTerminal" | "armZmodemManualTrigger" | "copyLastCommandOutput"
-  >
+  > &
+  Pick<ReturnType<typeof useTerminalClipboard>, "pasteFromClipboard" | "copySelection">
 
 /** The terminal's keyboard shortcuts; each serves the focused pane only. */
 export function useTerminalShortcuts({
@@ -39,6 +41,8 @@ export function useTerminalShortcuts({
   resetTerminal,
   armZmodemManualTrigger,
   copyLastCommandOutput,
+  pasteFromClipboard,
+  copySelection,
 }: UseTerminalShortcutsOptions) {
   useEffect(() => {
     const unregisterFind = registerHandler("terminal.find", () => {
@@ -89,6 +93,20 @@ export function useTerminalShortcuts({
       if (!isShortcutTargetRef.current || !commandMarksRef.current?.lastOutputRange()) return false
       void copyLastCommandOutput()
     })
+    // Both serve only a focused terminal, so that in a text field elsewhere
+    // the chord keeps its usual meaning.
+    const unregisterCopy = registerHandler("terminal.copy", () => {
+      if (!isShortcutTargetRef.current) return false
+      if (!containerRef.current?.contains(document.activeElement)) return false
+      const selection = termRef.current?.hasSelection() ? termRef.current.getSelection().trim() : ""
+      if (!selection) return false
+      void copySelection(selection)
+    })
+    const unregisterPaste = registerHandler("terminal.paste", () => {
+      if (!isShortcutTargetRef.current) return false
+      if (!containerRef.current?.contains(document.activeElement)) return false
+      void pasteFromClipboard()
+    })
     const unregisterSaveSelection = registerHandler("terminal.saveSelection", () => {
       if (!isShortcutTargetRef.current) return false
       if (!containerRef.current?.contains(document.activeElement)) return false
@@ -113,6 +131,8 @@ export function useTerminalShortcuts({
       unregisterPreviousCommand()
       unregisterNextCommand()
       unregisterCopyCommandOutput()
+      unregisterCopy()
+      unregisterPaste()
     }
   }, [
     armZmodemManualTrigger,
@@ -121,10 +141,12 @@ export function useTerminalShortcuts({
     connectionRef,
     containerRef,
     copyLastCommandOutput,
+    copySelection,
     handleToggleSftpDrawer,
     isShortcutTargetRef,
     onSaveCommand,
     openSearch,
+    pasteFromClipboard,
     registerHandler,
     resetTerminal,
     savedPasswordPromptActionsRef,

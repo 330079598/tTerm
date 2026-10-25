@@ -240,7 +240,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
 
   const cdInTerminal = useCdInTerminal({ ...refs, tabId, sessionNonce, setShowSftpDrawer })
 
-  const { PasteConfirmDialog, pasteFromClipboard } = useTerminalClipboard({
+  const { PasteConfirmDialog, pasteFromClipboard, copySelection } = useTerminalClipboard({
     ...refs,
     isBroadcastSource,
     liveBroadcastState,
@@ -272,6 +272,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     showSftpDrawer,
     setShowSftpDrawer,
     pasteFromClipboard,
+    copySelection,
     keywordHighlight,
   })
 
@@ -285,6 +286,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     resetTerminal,
     armZmodemManualTrigger,
     copyLastCommandOutput,
+    pasteFromClipboard,
+    copySelection,
   })
 
   const terminalPaddingStyle = {

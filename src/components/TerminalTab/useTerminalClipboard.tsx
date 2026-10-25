@@ -19,7 +19,7 @@ type UseTerminalClipboardOptions = Pick<
 
 /**
  * Pasting into the terminal (asking first when a line break would run a
- * command) and copying on select.
+ * command), copying its selection, and copying on select.
  */
 export function useTerminalClipboard({
   isBroadcastSource,
@@ -110,6 +110,24 @@ export function useTerminalClipboard({
     }
   }, [pasteIntoTerminal, t])
 
+  /** Copies the terminal's selected text, then clears the selection. */
+  const copySelection = useCallback(
+    async (selection: string) => {
+      try {
+        await invoke("plugin:clipboard-manager|write_text", { text: selection })
+        termRef.current?.clearSelection()
+      } catch (error) {
+        console.error("Failed to copy terminal selection:", error)
+        toast({
+          title: t("terminalContext.copyFailedTitle"),
+          description: t("terminalContext.copyFailedDescription"),
+          variant: "destructive",
+        })
+      }
+    },
+    [t, termRef]
+  )
+
   // Copy on select: the selection is final once the mouse button that made
   // it is released, which may happen outside the terminal.
   useEffect(() => {
@@ -145,5 +163,6 @@ export function useTerminalClipboard({
   return {
     PasteConfirmDialog,
     pasteFromClipboard,
+    copySelection,
   }
 }

@@ -38,6 +38,8 @@ export type KeymapActionId =
   | "terminal.previousCommand"
   | "terminal.nextCommand"
   | "terminal.copyLastCommandOutput"
+  | "terminal.copy"
+  | "terminal.paste"
   // sftp
   | "sftp.toggle"
   | "sftp.selectAll"
@@ -96,6 +98,8 @@ export const KEYMAP_ACTIONS: KeymapActionDefinition[] = [
   { id: "terminal.previousCommand", group: "terminal", allowInEditable: true },
   { id: "terminal.nextCommand", group: "terminal", allowInEditable: true },
   { id: "terminal.copyLastCommandOutput", group: "terminal", allowInEditable: true },
+  { id: "terminal.copy", group: "terminal", allowInEditable: true },
+  { id: "terminal.paste", group: "terminal", allowInEditable: true },
   { id: "sftp.toggle", group: "sftp", allowInEditable: true },
   { id: "sftp.selectAll", group: "sftp", allowInEditable: false },
   { id: "sftp.focusPath", group: "sftp", allowInEditable: false },

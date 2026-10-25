@@ -417,7 +417,9 @@
         "zoomReset": "重置字号",
         "previousCommand": "跳到上一条命令",
         "nextCommand": "跳到下一条命令",
-        "copyLastCommandOutput": "复制上一条命令的输出"
+        "copyLastCommandOutput": "复制上一条命令的输出",
+        "copy": "复制选中文本",
+        "paste": "粘贴到终端"
       },
       "sftp": {
         "toggle": "切换 SFTP 面板",
