@@ -67,24 +67,54 @@ export const buildProfileSubtitle = (
   }`
 }
 
-export const moveProfileInList = (
+/**
+ * Files profiles in a group before the target, or last, as the backend does:
+ * the moved profiles keep the order they had among themselves.
+ */
+export const moveProfilesInList = (
   profiles: SavedProfile[],
-  profileId: string,
+  profileIds: readonly string[],
   targetGroupId: string | undefined,
   targetProfileId: string | null
 ) => {
-  const sourceIndex = profiles.findIndex((profile) => profile.id === profileId)
-  if (sourceIndex < 0) {
+  const moving = new Set(profileIds)
+  const moved = profiles
+    .filter((profile) => moving.has(profile.id))
+    .map((profile) => ({ ...profile, group_id: targetGroupId }))
+  if (moved.length === 0) {
     return profiles
   }
 
-  const nextProfiles = [...profiles]
-  const [profile] = nextProfiles.splice(sourceIndex, 1)
-  const movedProfile = { ...profile, group_id: targetGroupId }
+  const nextProfiles = profiles.filter((profile) => !moving.has(profile.id))
   const targetIndex = targetProfileId
     ? nextProfiles.findIndex((profile) => profile.id === targetProfileId)
     : -1
-
-  nextProfiles.splice(targetIndex >= 0 ? targetIndex : nextProfiles.length, 0, movedProfile)
+  nextProfiles.splice(targetIndex >= 0 ? targetIndex : nextProfiles.length, 0, ...moved)
   return nextProfiles
+}
+
+/**
+ * Whether a move leaves the page as it was: every moved profile was in the
+ * target group already, and that group lists its profiles in the same order.
+ * Where the group sits in the list of every profile can't be seen, so a move
+ * that only changes that is not worth saving.
+ */
+export const isMoveUnchanged = (
+  before: readonly SavedProfile[],
+  after: readonly SavedProfile[],
+  profileIds: readonly string[],
+  targetGroupId: string | undefined
+) => {
+  const targetKey = getGroupKey(targetGroupId)
+  const moving = new Set(profileIds)
+  const groupOrder = (profiles: readonly SavedProfile[]) =>
+    profiles
+      .filter((profile) => getGroupKey(profile.group_id) === targetKey)
+      .map((profile) => profile.id)
+      .join("\n")
+  return (
+    before.every(
+      (profile) => !moving.has(profile.id) || getGroupKey(profile.group_id) === targetKey
+    ) && groupOrder(before) === groupOrder(after)
+  )
 }

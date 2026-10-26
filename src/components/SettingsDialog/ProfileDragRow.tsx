@@ -20,6 +20,11 @@ interface ProfileDragRowProps {
   profile: SavedProfile
   /** Refuses drops, while the group holding the row is dragged. */
   dropDisabled?: boolean
+  /**
+   * How many hosts the current drag carries when this row is among them, 0
+   * otherwise. A carried row takes no drops and fades like the dragged one.
+   */
+  draggedCount: number
   isSelected: boolean
   onConnectProfile?: (connection: Omit<Tab, "id" | "isActive">) => void
   onDeleteProfile: (profile: SavedProfile) => void
@@ -30,6 +35,7 @@ interface ProfileDragRowProps {
 export const ProfileDragRow: React.FC<ProfileDragRowProps> = ({
   profile,
   dropDisabled,
+  draggedCount,
   isSelected,
   onConnectProfile,
   onDeleteProfile,
@@ -40,7 +46,7 @@ export const ProfileDragRow: React.FC<ProfileDragRowProps> = ({
   const { ref: draggableRef, isDragging } = useDraggable({ id: profileDragId(profile.id) })
   const { ref: droppableRef, isDropTarget } = useDroppable({
     id: profileDropId(profile.id),
-    disabled: dropDisabled,
+    disabled: dropDisabled || draggedCount > 0,
   })
   const isTerminal = profile.connection_type === "terminal"
   const Icon = isTerminal ? Terminal : profile.connection_type === "serial" ? Usb : Server
@@ -54,14 +60,23 @@ export const ProfileDragRow: React.FC<ProfileDragRowProps> = ({
     <div
       ref={setNodeRef}
       className={cn(
-        "group border-border/70 bg-background/70 hover:bg-muted/35 focus-visible:ring-ring/50 flex cursor-grab items-start gap-3 rounded-md border px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-[3px]",
-        isDragging && "cursor-grabbing opacity-60",
+        "group border-border/70 bg-background/70 hover:bg-muted/35 focus-visible:ring-ring/50 relative flex cursor-grab items-start gap-3 rounded-md border px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-[3px]",
+        isSelected && "border-primary/70 bg-primary/5",
         isDropTarget && "border-primary/70 bg-primary/5",
-        isSelected && "border-primary/70 bg-primary/5"
+        (isDragging || draggedCount > 0) && "opacity-60",
+        isDragging && "cursor-grabbing"
       )}
       role="listitem"
       tabIndex={0}
     >
+      {isDragging && draggedCount > 1 && (
+        <Badge className="absolute -top-2 -right-2 h-5 px-1.5 text-[10px] shadow-sm">
+          {t("profileGroups.dragCount", {
+            count: draggedCount,
+            defaultValue: "{{count}} connections",
+          })}
+        </Badge>
+      )}
       <Tooltip>
         <TooltipTrigger asChild>
           <Checkbox

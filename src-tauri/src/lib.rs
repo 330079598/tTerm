@@ -239,7 +239,7 @@ pub fn run() {
             profiles::commands::groups::rename_profile_group,
             profiles::commands::groups::move_profile_group,
             profiles::commands::groups::delete_profile_group,
-            profiles::commands::groups::move_profile_to_group,
+            profiles::commands::groups::move_profiles_to_group,
             profiles::commands::save_profile,
             profiles::commands::delete_profile,
             profiles::commands::delete_profiles,

@@ -1323,8 +1323,11 @@
     "dropToTop": "Drop here to move the group to the top",
     "nameHasSeparator": "A group name cannot contain \"{{separator}}\".",
     "dropEmpty": "Drop saved connections here.",
+    "dragCount_one": "{{count}} connection",
+    "dragCount_other": "{{count}} connections",
     "duplicate": "Group already exists",
-    "moveFailed": "Failed to move connection",
+    "moveFailed_one": "Failed to move connection",
+    "moveFailed_other": "Failed to move connections",
     "saveFailed": "Failed to save group"
   },
   "connection": {

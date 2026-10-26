@@ -59,15 +59,21 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
     confirm,
   })
 
-  const { handleDeleteProfile, handleDragStart, handleDragEnd, draggingGroupId } =
-    useProfileListActions({
-      profiles,
-      setProfiles,
-      groupTree,
-      moveGroup,
-      refreshProfileGroups,
-      confirm,
-    })
+  const {
+    handleDeleteProfile,
+    handleDragStart,
+    handleDragEnd,
+    draggingGroupId,
+    draggingProfileIds,
+  } = useProfileListActions({
+    profiles,
+    setProfiles,
+    groupTree,
+    selectedProfileIds,
+    moveGroup,
+    refreshProfileGroups,
+    confirm,
+  })
 
   const draggedNode = draggingGroupId ? groupTree.nodes.get(draggingGroupId) : undefined
   const rootZoneVisible = (draggedNode?.depth ?? 0) > 0
@@ -185,6 +191,9 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
                     key={profile.id}
                     profile={profile}
                     dropDisabled={dropDisabled}
+                    draggedCount={
+                      draggingProfileIds.includes(profile.id) ? draggingProfileIds.length : 0
+                    }
                     isSelected={selectedProfileIds.has(profile.id)}
                     onConnectProfile={onConnectProfile}
                     onDeleteProfile={handleDeleteProfile}

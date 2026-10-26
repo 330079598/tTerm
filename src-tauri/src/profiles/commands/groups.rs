@@ -3,7 +3,7 @@
 
 use crate::core::blocking::run_blocking;
 use crate::profiles::groups::{create_group, delete_group, list_groups, move_group, rename_group};
-use crate::profiles::storage::move_profile;
+use crate::profiles::storage::move_profiles;
 use crate::profiles::types::ProfileGroup;
 
 #[tauri::command]
@@ -64,10 +64,11 @@ pub async fn delete_profile_group(id: String) -> Result<Vec<ProfileGroup>, Strin
     .await
 }
 
-/// Files a profile in `group_id` (ungrouped for none), before `target_id` or last.
+/// Files profiles in `group_id` (ungrouped for none), before `target_id` or
+/// last, in the order they had among themselves.
 #[tauri::command]
-pub async fn move_profile_to_group(
-    id: String,
+pub async fn move_profiles_to_group(
+    ids: Vec<String>,
     group_id: Option<String>,
     target_id: Option<String>,
 ) -> Result<(), String> {
@@ -81,7 +82,7 @@ pub async fn move_profile_to_group(
                     return Err("This group no longer exists".to_string());
                 }
             }
-            move_profile(transaction, &id, group_id.as_deref(), target_id.as_deref())
+            move_profiles(transaction, &ids, group_id.as_deref(), target_id.as_deref())
         })
     })
     .await

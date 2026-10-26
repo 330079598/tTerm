@@ -1307,8 +1307,11 @@
     "dropToTop": "拖到这里，将分组移到顶层",
     "nameHasSeparator": "分组名称不能包含“{{separator}}”。",
     "dropEmpty": "将已保存连接拖到这里。",
+    "dragCount_one": "{{count}} 个连接",
+    "dragCount_other": "{{count}} 个连接",
     "duplicate": "该分组已存在",
-    "moveFailed": "移动连接失败",
+    "moveFailed_one": "移动连接失败",
+    "moveFailed_other": "移动连接失败",
     "saveFailed": "保存分组失败"
   },
   "connection": {

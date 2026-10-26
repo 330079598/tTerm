@@ -118,27 +118,35 @@ pub(crate) fn replace_profiles(
     Ok(())
 }
 
-/// Files a profile in `group_id` (ungrouped for `None`), placing it before
-/// `target_id` or last.
-pub(crate) fn move_profile(
+/// Files profiles in `group_id` (ungrouped for `None`), placing them before
+/// `target_id` or last. They keep the order they had among themselves, so a
+/// batch dragged together lands as it was listed.
+pub(crate) fn move_profiles(
     connection: &Connection,
-    id: &str,
+    ids: &[impl AsRef<str>],
     group_id: Option<&str>,
     target_id: Option<&str>,
 ) -> Result<(), String> {
-    let mut ids = ordered_profile_ids(connection)?;
-    let Some(source_index) = ids.iter().position(|existing| existing == id) else {
+    let moving = ids
+        .iter()
+        .map(AsRef::as_ref)
+        .collect::<std::collections::HashSet<_>>();
+    let (moved, mut ids): (Vec<_>, Vec<_>) = ordered_profile_ids(connection)?
+        .into_iter()
+        .partition(|existing| moving.contains(existing.as_str()));
+    if moved.len() != moving.len() {
         return Err("Profile not found".to_string());
-    };
-    let mut profile = get_profile(connection, id)?.ok_or("Profile not found")?;
-    profile.group_id = group_id.map(str::to_string);
-    upsert_profile(connection, &profile)?;
+    }
+    for id in &moved {
+        let mut profile = get_profile(connection, id)?.ok_or("Profile not found")?;
+        profile.group_id = group_id.map(str::to_string);
+        upsert_profile(connection, &profile)?;
+    }
 
-    let moved = ids.remove(source_index);
     let insert_index = target_id
         .and_then(|target_id| ids.iter().position(|existing| existing == target_id))
         .unwrap_or(ids.len());
-    ids.insert(insert_index, moved);
+    ids.splice(insert_index..insert_index, moved);
 
     let mut statement = connection
         .prepare("UPDATE profiles SET position = ?1 WHERE id = ?2 AND position != ?1")
@@ -379,24 +387,57 @@ mod tests {
     }
 
     #[test]
-    fn move_profile_regroups_and_reorders() {
+    fn move_profiles_regroups_and_reorders() {
         let database = Database::open_in_memory().expect("open database");
         database
             .write(|connection| {
                 for id in ["a", "b", "c", "d"] {
                     upsert_profile(connection, &profile(id, None))?;
                 }
-                move_profile(connection, "d", Some("ops"), Some("b"))?;
+                move_profiles(connection, &["d"], Some("ops"), Some("b"))?;
                 assert_eq!(ids(connection), ["a", "d", "b", "c"]);
                 assert_eq!(
                     get_profile(connection, "d")?.unwrap().group_id.as_deref(),
                     Some("ops")
                 );
 
-                move_profile(connection, "a", None, None)?;
+                move_profiles(connection, &["a"], None, None)?;
                 assert_eq!(ids(connection), ["d", "b", "c", "a"]);
 
-                assert!(move_profile(connection, "missing", None, None).is_err());
+                assert!(move_profiles(connection, &["missing"], None, None).is_err());
+                Ok(())
+            })
+            .expect("move profiles");
+    }
+
+    #[test]
+    fn moved_profiles_keep_their_own_order_whatever_order_they_are_named_in() {
+        let database = Database::open_in_memory().expect("open database");
+        database
+            .write(|connection| {
+                for id in ["a", "b", "c", "d", "e"] {
+                    upsert_profile(connection, &profile(id, None))?;
+                }
+                move_profiles(connection, &["d", "a"], Some("ops"), Some("c"))?;
+                assert_eq!(ids(connection), ["b", "a", "d", "c", "e"]);
+                for id in ["a", "d"] {
+                    assert_eq!(
+                        get_profile(connection, id)?.unwrap().group_id.as_deref(),
+                        Some("ops")
+                    );
+                }
+                assert_eq!(get_profile(connection, "b")?.unwrap().group_id, None);
+
+                move_profiles(connection, &["e", "b"], None, None)?;
+                assert_eq!(ids(connection), ["a", "d", "c", "b", "e"]);
+
+                // A missing profile leaves the others where they were.
+                assert!(move_profiles(connection, &["a", "missing"], None, None).is_err());
+                assert_eq!(ids(connection), ["a", "d", "c", "b", "e"]);
+                assert_eq!(
+                    get_profile(connection, "a")?.unwrap().group_id.as_deref(),
+                    Some("ops")
+                );
                 Ok(())
             })
             .expect("move profiles");

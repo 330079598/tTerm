@@ -10,7 +10,8 @@ import {
   getGroupKeyFromDropId,
   getProfileDropIdFromDndId,
   getProfileIdFromDndId,
-  moveProfileInList,
+  isMoveUnchanged,
+  moveProfilesInList,
   ROOT_DROP_ID,
   UNGROUPED_KEY,
 } from "@/components/SettingsDialog/profileGroupDnd"
@@ -26,6 +27,8 @@ interface ProfileListActionsOptions {
   profiles: SavedProfile[]
   setProfiles: React.Dispatch<React.SetStateAction<SavedProfile[]>>
   groupTree: GroupTree
+  /** The ticked hosts; dragging one of them drags them all. */
+  selectedProfileIds: ReadonlySet<string>
   moveGroup: (group: ProfileGroup, parentId: string | null) => Promise<void>
   refreshProfileGroups: () => Promise<void>
   confirm: ReturnType<typeof useConfirmDialog>["confirm"]
@@ -39,6 +42,7 @@ export function useProfileListActions({
   profiles,
   setProfiles,
   groupTree,
+  selectedProfileIds,
   moveGroup,
   refreshProfileGroups,
   confirm,
@@ -46,6 +50,7 @@ export function useProfileListActions({
   const { t } = useTranslation()
   const { toast } = useToast()
   const [draggingGroupId, setDraggingGroupId] = React.useState<string | null>(null)
+  const [draggingProfileIds, setDraggingProfileIds] = React.useState<readonly string[]>([])
 
   const handleDeleteProfile = React.useCallback(
     async (profile: SavedProfile) => {
@@ -80,51 +85,51 @@ export function useProfileListActions({
     [profiles]
   )
 
-  const handleMoveProfile = React.useCallback(
-    async (profileId: string, targetGroupKey: string, targetProfileId?: string | null) => {
-      if (profileId === targetProfileId) {
+  /** The hosts a drag of this one carries: every ticked host, in list order, if it's ticked. */
+  const dragBatch = React.useCallback(
+    (profileId: string) =>
+      selectedProfileIds.has(profileId)
+        ? profiles.filter((item) => selectedProfileIds.has(item.id)).map((item) => item.id)
+        : [profileId],
+    [profiles, selectedProfileIds]
+  )
+
+  const handleMoveProfiles = React.useCallback(
+    async (
+      profileIds: readonly string[],
+      targetGroupKey: string,
+      targetProfileId: string | null
+    ) => {
+      // A batch dropped on one of its own hosts has nowhere to go.
+      if (targetProfileId && profileIds.includes(targetProfileId)) {
         return
       }
 
       const targetGroupId = getGroupIdFromKey(
         targetProfileId ? getProfileGroupKey(targetProfileId) : targetGroupKey
       )
-      const profile = profiles.find((item) => item.id === profileId)
-      if (!profile) {
+      const moved = moveProfilesInList(profiles, profileIds, targetGroupId, targetProfileId)
+      if (moved === profiles || isMoveUnchanged(profiles, moved, profileIds, targetGroupId)) {
         return
-      }
-
-      const currentIndex = profiles.findIndex((item) => item.id === profileId)
-      const currentTargetIndex = targetProfileId
-        ? profiles.findIndex((item) => item.id === targetProfileId)
-        : -1
-      const sameGroup = getGroupKey(profile.group_id) === getGroupKey(targetGroupId)
-      if (sameGroup && targetProfileId && currentIndex === currentTargetIndex - 1) {
-        return
-      }
-      if (sameGroup && !targetProfileId) {
-        const groupProfiles = profiles.filter(
-          (item) => getGroupKey(item.group_id) === getGroupKey(targetGroupId)
-        )
-        if (groupProfiles[groupProfiles.length - 1]?.id === profileId) {
-          return
-        }
       }
 
       setProfiles((current) =>
-        moveProfileInList(current, profileId, targetGroupId, targetProfileId ?? null)
+        moveProfilesInList(current, profileIds, targetGroupId, targetProfileId)
       )
 
       try {
-        await invoke("move_profile_to_group", {
-          id: profileId,
+        await invoke("move_profiles_to_group", {
+          ids: profileIds,
           groupId: targetGroupId ?? null,
-          targetId: targetProfileId ?? null,
+          targetId: targetProfileId,
         })
       } catch (error) {
         await refreshProfileGroups()
         toast({
-          title: t("profileGroups.moveFailed", { defaultValue: "Failed to move connection" }),
+          title: t("profileGroups.moveFailed", {
+            count: profileIds.length,
+            defaultValue: "Failed to move connection",
+          }),
           description: toErrorMessage(error),
           variant: "destructive",
         })
@@ -160,9 +165,12 @@ export function useProfileListActions({
         NonNullable<React.ComponentProps<typeof DragDropProvider>["onDragStart"]>
       >[0]
     ) => {
-      setDraggingGroupId(getGroupIdFromDragId(event.operation.source?.id ?? null))
+      const sourceId = event.operation.source?.id ?? null
+      setDraggingGroupId(getGroupIdFromDragId(sourceId))
+      const profileId = getProfileIdFromDndId(sourceId)
+      setDraggingProfileIds(profileId ? dragBatch(profileId) : [])
     },
-    []
+    [dragBatch]
   )
 
   const handleDragEnd = React.useCallback(
@@ -170,6 +178,7 @@ export function useProfileListActions({
       event: Parameters<NonNullable<React.ComponentProps<typeof DragDropProvider>["onDragEnd"]>>[0]
     ) => {
       setDraggingGroupId(null)
+      setDraggingProfileIds([])
       if (event.canceled) return
 
       const sourceId = event.operation.source?.id ?? null
@@ -189,10 +198,16 @@ export function useProfileListActions({
         return
       }
 
-      void handleMoveProfile(profileId, targetGroupKey, targetProfileId)
+      void handleMoveProfiles(dragBatch(profileId), targetGroupKey, targetProfileId)
     },
-    [getProfileGroupKey, handleMoveGroup, handleMoveProfile]
+    [dragBatch, getProfileGroupKey, handleMoveGroup, handleMoveProfiles]
   )
 
-  return { handleDeleteProfile, handleDragStart, handleDragEnd, draggingGroupId }
+  return {
+    handleDeleteProfile,
+    handleDragStart,
+    handleDragEnd,
+    draggingGroupId,
+    draggingProfileIds,
+  }
 }

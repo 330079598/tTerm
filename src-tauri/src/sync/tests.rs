@@ -816,7 +816,9 @@ fn nested_groups_sync_and_merge_a_rename_with_a_move() {
         Ok((prod.id, web.id, dev.id))
     });
     a.save_profile("p1", "one.example");
-    a.edit(|connection| crate::profiles::storage::move_profile(connection, "p1", Some(&web), None));
+    a.edit(|connection| {
+        crate::profiles::storage::move_profiles(connection, &["p1"], Some(&web), None)
+    });
     a.sync(&mut remote);
     assert_eq!(b.sync(&mut remote), [PROFILES, PROFILE_GROUPS]);
     assert_eq!(b.group_paths()[&web], "prod / web");
