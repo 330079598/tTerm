@@ -100,8 +100,16 @@ fn profile_summary(connection: &rusqlite::Connection) -> Vec<(String, String, St
     crate::profiles::storage::list_saved_profiles(connection)
         .unwrap()
         .into_iter()
-        .map(|p| (p.id, p.name, p.group))
+        .map(|p| (p.id, p.name, p.group_id.unwrap_or_default()))
         .collect()
+}
+
+/// The ids of the groups, which for groups named in older backups are their names.
+fn group_ids(connection: &rusqlite::Connection) -> Result<Vec<String>, String> {
+    Ok(crate::profiles::groups::list_groups(connection)?
+        .into_iter()
+        .map(|group| group.id)
+        .collect())
 }
 
 fn owned(rows: &[(&str, &str, &str)]) -> Vec<(String, String, String)> {
@@ -303,10 +311,7 @@ fn merge_import_keeps_existing_data_and_updates_by_key() {
                     ("c", "Gamma", "dev")
                 ])
             );
-            assert_eq!(
-                crate::profiles::storage::configured_profile_groups(connection)?,
-                ["dev", "ops"]
-            );
+            assert_eq!(group_ids(connection)?, ["dev", "ops"]);
             // Tunnels and proxies missing from an old backup are left alone.
             assert_eq!(
                 crate::tunnel::storage::list_tunnel_rules(connection)?.len(),
@@ -461,10 +466,7 @@ fn replace_import_drops_data_missing_from_the_backup() {
                 profile_summary(connection),
                 owned(&[("b", "Beta renamed", "dev"), ("c", "Gamma", "dev")])
             );
-            assert_eq!(
-                crate::profiles::storage::configured_profile_groups(connection)?,
-                ["dev"]
-            );
+            assert_eq!(group_ids(connection)?, ["dev"]);
             assert_eq!(
                 crate::tunnel::storage::list_tunnel_rules(connection)?.len(),
                 1
@@ -542,7 +544,7 @@ fn exported_data_imports_back_unchanged() {
                     &crate::profiles::storage::list_saved_profiles(connection)?,
                 )?);
                 payload.profile_groups = Some(to_backup_value(
-                    &crate::profiles::storage::configured_profile_groups(connection)?,
+                    &crate::profiles::groups::list_groups(connection)?,
                 )?);
                 payload.tunnels = Some(to_backup_value(
                     &crate::tunnel::storage::list_tunnel_rules(connection)?,

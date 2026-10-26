@@ -62,6 +62,11 @@ const MIGRATIONS: &[Migration] = &[
         name: "serial_send_history",
         sql: include_str!("../../migrations/0011_serial_send_history.sql"),
     },
+    Migration {
+        version: 12,
+        name: "nested_profile_groups",
+        sql: include_str!("../../migrations/0012_nested_profile_groups.sql"),
+    },
 ];
 
 pub(super) fn apply(connection: &mut Connection) -> Result<(), String> {
@@ -144,7 +149,7 @@ mod tests {
                 row.get(0)
             })
             .expect("read schema version");
-        assert_eq!(version, 11);
+        assert_eq!(version, 12);
 
         let table_count: i64 = connection
             .query_row(
@@ -154,6 +159,72 @@ mod tests {
             )
             .expect("read schema");
         assert_eq!(table_count, 1);
+    }
+
+    #[test]
+    fn profile_groups_named_before_become_records_keyed_by_their_name() {
+        let mut connection = Connection::open_in_memory().expect("open database");
+        connection
+            .execute_batch(
+                "CREATE TABLE schema_migrations (\
+                    version INTEGER PRIMARY KEY,\
+                    name TEXT NOT NULL,\
+                    applied_at INTEGER NOT NULL\
+                );",
+            )
+            .expect("create migration metadata");
+        for migration in MIGRATIONS.iter().filter(|migration| migration.version < 12) {
+            connection
+                .execute_batch(migration.sql)
+                .expect("apply older migration");
+            connection
+                .execute(
+                    "INSERT INTO schema_migrations (version, name, applied_at) VALUES (?1, ?2, 0)",
+                    params![migration.version, migration.name],
+                )
+                .expect("record older migration");
+        }
+        connection
+            .execute_batch(
+                "INSERT INTO profile_groups (name) VALUES ('empty'), ('ops');\
+                 INSERT INTO profiles (id, position, data) VALUES\
+                    ('a', 0, '{\"id\":\"a\",\"name\":\"A\",\"group\":\" ops \"}'),\
+                    ('b', 1, '{\"id\":\"b\",\"name\":\"B\",\"group\":\"web\"}'),\
+                    ('c', 2, '{\"id\":\"c\",\"name\":\"C\",\"group\":\"\"}'),\
+                    ('d', 3, '{\"id\":\"d\",\"name\":\"D\"}');",
+            )
+            .expect("seed groups by name");
+
+        apply(&mut connection).expect("migrate");
+
+        let groups = connection
+            .prepare("SELECT id, name, parent_id FROM profile_groups ORDER BY id")
+            .and_then(|mut statement| {
+                statement
+                    .query_map([], |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, Option<String>>(2)?,
+                        ))
+                    })?
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .expect("read groups");
+        let named = |name: &str| (name.to_string(), name.to_string(), None);
+        assert_eq!(groups, [named("empty"), named("ops"), named("web")]);
+
+        let data = |id: &str| {
+            connection
+                .query_row("SELECT data FROM profiles WHERE id = ?1", [id], |row| {
+                    row.get::<_, String>(0)
+                })
+                .expect("read profile")
+        };
+        assert_eq!(data("a"), r#"{"id":"a","name":"A","group_id":"ops"}"#);
+        assert_eq!(data("b"), r#"{"id":"b","name":"B","group_id":"web"}"#);
+        assert_eq!(data("c"), r#"{"id":"c","name":"C"}"#);
+        assert_eq!(data("d"), r#"{"id":"d","name":"D"}"#);
     }
 
     #[test]

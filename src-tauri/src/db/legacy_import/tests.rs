@@ -96,9 +96,17 @@ fn imports_every_file_once_and_renames_them() {
                 "secrets never reach the database"
             );
 
+            let groups = crate::profiles::groups::list_groups(connection)?
+                .into_iter()
+                .map(|group| (group.id, group.name))
+                .collect::<Vec<_>>();
+            let named = |name: &str| (name.to_string(), name.to_string());
+            assert_eq!(groups, [named("empty"), named("ops")]);
             assert_eq!(
-                crate::profiles::storage::configured_profile_groups(connection)?,
-                ["empty", "ops"]
+                crate::profiles::storage::get_profile(connection, "b")?
+                    .and_then(|profile| profile.group_id)
+                    .as_deref(),
+                Some("ops")
             );
             assert_eq!(
                 crate::tunnel::storage::list_tunnel_rules(connection)?[0].profile_id,
@@ -329,7 +337,7 @@ fn corrupt_file_aborts_the_whole_import() {
     assert!(error.contains("tunnels.json"));
     assert!(!legacy_json_imported(&database).unwrap());
     assert!(database
-        .read(crate::profiles::storage::configured_profile_groups)
+        .read(crate::profiles::groups::list_groups)
         .unwrap()
         .is_empty());
     assert!(
@@ -370,6 +378,15 @@ fn imports_a_real_config_directory_copy() {
         crate::profiles::storage::normalize_profile(profile);
     }
     let expected_groups: Vec<String> = serde_json::from_value(json("profile_groups.json")).unwrap();
+    let expected_groups = expected_groups
+        .into_iter()
+        .chain(
+            serde_json::from_value::<Vec<SavedProfile>>(json("profiles.json"))
+                .unwrap()
+                .into_iter()
+                .map(|profile| profile.legacy_group),
+        )
+        .collect::<Vec<_>>();
     let expected_tunnels = json("tunnels.json");
     let expected_known_hosts = json("ssh_known_hosts.json");
     let expected_sftp = json("sftp_directories.json");
@@ -388,7 +405,10 @@ fn imports_a_real_config_directory_copy() {
                 serde_json::to_value(&profiles).unwrap(),
                 serde_json::to_value(&expected_profiles).unwrap()
             );
-            let mut groups = crate::profiles::storage::configured_profile_groups(connection)?;
+            let mut groups = crate::profiles::groups::list_groups(connection)?
+                .into_iter()
+                .map(|group| group.id)
+                .collect::<Vec<_>>();
             let mut expected = expected_groups
                 .iter()
                 .map(|g| g.trim().to_string())

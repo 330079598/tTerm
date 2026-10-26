@@ -1,7 +1,7 @@
+use super::groups::{group_paths, list_groups, resolve_path};
 use super::parser::build_ssh_config_import_preview;
 use super::storage::{
-    add_profile_group, all_profile_groups, delete_profile_secrets, get_profile, load_profiles,
-    normalize_group_name, normalize_profile, regroup_profiles, remove_profile_group,
+    delete_profile_secrets, get_profile, list_saved_profiles, load_profiles, normalize_profile,
     sanitize_profile, upsert_profile,
 };
 use super::types::{
@@ -24,14 +24,23 @@ use import::import_ssh_config_profiles_blocking;
 use std::collections::HashSet;
 
 mod connection_check;
+pub(crate) mod groups;
 mod import;
 
 #[tauri::command]
 pub async fn list_profiles() -> Result<Vec<SavedProfile>, String> {
     run_blocking(|| {
-        let mut profiles = load_profiles()?;
+        let (mut profiles, groups) = crate::db::read(|connection| {
+            Ok((list_saved_profiles(connection)?, list_groups(connection)?))
+        })?;
+        let paths = group_paths(&groups);
         for profile in &mut profiles {
             sanitize_profile(profile);
+            profile.group_path = profile
+                .group_id
+                .as_ref()
+                .and_then(|id| paths.get(id))
+                .cloned();
         }
         Ok(profiles)
     })
@@ -100,6 +109,7 @@ fn store_profile(
     secret_state: crate::ssh::secret_store::types::SecretStoreState,
     mut profile: SavedProfile,
 ) -> Result<(), String> {
+    let group_path = profile.group_path.take();
     normalize_profile(&mut profile);
 
     if profile.auth_method.as_deref() != Some("key") && profile.remember_password {
@@ -201,83 +211,12 @@ fn store_profile(
             }
         }
     }
-    crate::db::write(|transaction| upsert_profile(transaction, &profile))
-}
-
-#[tauri::command]
-pub async fn list_profile_groups() -> Result<Vec<String>, String> {
-    run_blocking(|| crate::db::read(all_profile_groups)).await
-}
-
-#[tauri::command]
-pub async fn save_profile_group(name: String) -> Result<Vec<String>, String> {
-    let name = normalize_group_name(&name);
-    if name.is_empty() {
-        return Err("Group name is required".to_string());
-    }
-
-    run_blocking(move || {
-        crate::db::write(|transaction| {
-            add_profile_group(transaction, &name)?;
-            all_profile_groups(transaction)
-        })
+    crate::db::write(|transaction| {
+        if let Some(path) = group_path.as_deref() {
+            profile.group_id = resolve_path(transaction, path)?;
+        }
+        upsert_profile(transaction, &profile)
     })
-    .await
-}
-
-#[tauri::command]
-pub async fn rename_profile_group(
-    old_name: String,
-    new_name: String,
-) -> Result<Vec<String>, String> {
-    let old_name = normalize_group_name(&old_name);
-    let new_name = normalize_group_name(&new_name);
-    if old_name.is_empty() || new_name.is_empty() {
-        return Err("Group name is required".to_string());
-    }
-
-    run_blocking(move || {
-        crate::db::write(|transaction| {
-            regroup_profiles(transaction, &old_name, &new_name)?;
-            remove_profile_group(transaction, &old_name)?;
-            add_profile_group(transaction, &new_name)?;
-            all_profile_groups(transaction)
-        })
-    })
-    .await
-}
-
-#[tauri::command]
-pub async fn delete_profile_group(name: String) -> Result<Vec<String>, String> {
-    let name = normalize_group_name(&name);
-    if name.is_empty() {
-        return Err("Group name is required".to_string());
-    }
-
-    run_blocking(move || {
-        crate::db::write(|transaction| {
-            regroup_profiles(transaction, &name, "")?;
-            remove_profile_group(transaction, &name)?;
-            all_profile_groups(transaction)
-        })
-    })
-    .await
-}
-
-#[tauri::command]
-pub async fn move_profile_to_group(
-    id: String,
-    group: String,
-    target_id: Option<String>,
-) -> Result<(), String> {
-    let group = normalize_group_name(&group);
-    run_blocking(move || {
-        crate::db::write(|transaction| {
-            super::storage::move_profile(transaction, &id, &group, target_id.as_deref())?;
-            add_profile_group(transaction, &group)
-        })
-    })
-    .await
 }
 
 #[tauri::command]

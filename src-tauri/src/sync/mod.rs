@@ -21,7 +21,7 @@ use document::{Collections, MAX_DOCUMENT_SIZE, SYNC_FILE_NAME};
 use merge::{merge_collection, same_data};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use snapshot::{removed_ids, SERIAL_SENDS, SETTINGS, TUNNELS};
+use snapshot::{removed_ids, PROFILES, PROFILE_GROUPS, SERIAL_SENDS, SETTINGS, TUNNELS};
 use std::sync::Mutex;
 use tauri::{AppHandle, State};
 
@@ -483,6 +483,14 @@ async fn apply(
                         &normalized[category],
                     )?;
                 }
+            }
+            // Groups and profiles merged apart can leave a group in a loop or
+            // a profile in a group another device deleted.
+            if changed
+                .iter()
+                .any(|category| [PROFILES, PROFILE_GROUPS].contains(category))
+            {
+                crate::profiles::groups::repair(transaction)?;
             }
             state::save(
                 transaction,

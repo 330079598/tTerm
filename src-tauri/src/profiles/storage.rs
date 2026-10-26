@@ -118,11 +118,12 @@ pub(crate) fn replace_profiles(
     Ok(())
 }
 
-/// Moves a profile into `group`, placing it before `target_id` or last.
+/// Files a profile in `group_id` (ungrouped for `None`), placing it before
+/// `target_id` or last.
 pub(crate) fn move_profile(
     connection: &Connection,
     id: &str,
-    group: &str,
+    group_id: Option<&str>,
     target_id: Option<&str>,
 ) -> Result<(), String> {
     let mut ids = ordered_profile_ids(connection)?;
@@ -130,7 +131,7 @@ pub(crate) fn move_profile(
         return Err("Profile not found".to_string());
     };
     let mut profile = get_profile(connection, id)?.ok_or("Profile not found")?;
-    profile.group = group.to_string();
+    profile.group_id = group_id.map(str::to_string);
     upsert_profile(connection, &profile)?;
 
     let moved = ids.remove(source_index);
@@ -161,23 +162,6 @@ fn ordered_profile_ids(connection: &Connection) -> Result<Vec<String>, String> {
         .map_err(sql_error("Failed to read profiles"))
 }
 
-/// Moves every profile in group `from` to group `to`. Returns how many moved.
-pub(crate) fn regroup_profiles(
-    connection: &Connection,
-    from: &str,
-    to: &str,
-) -> Result<usize, String> {
-    let mut moved = 0;
-    for mut profile in list_saved_profiles(connection)? {
-        if normalize_group_name(&profile.group) == from {
-            profile.group = to.to_string();
-            upsert_profile(connection, &profile)?;
-            moved += 1;
-        }
-    }
-    Ok(moved)
-}
-
 pub(crate) fn normalize_profile(profile: &mut SavedProfile) {
     if profile.jump_hosts.is_empty() {
         if let Some(jump) = profile.legacy_jump_host.take() {
@@ -191,13 +175,22 @@ pub(crate) fn normalize_profile(profile: &mut SavedProfile) {
         profile.use_jump_host = Some(!profile.jump_hosts.is_empty());
     }
 
-    if profile.group.trim().is_empty() {
-        profile.group = String::new();
+    let legacy_group = std::mem::take(&mut profile.legacy_group);
+    if profile.group_id.is_none() {
+        profile.group_id = Some(legacy_group.trim().to_string());
+    }
+    if profile
+        .group_id
+        .as_deref()
+        .is_some_and(|id| id.trim().is_empty())
+    {
+        profile.group_id = None;
     }
 }
 
 pub(crate) fn sanitize_profile(profile: &mut SavedProfile) {
     normalize_profile(profile);
+    profile.group_path = None;
     profile.password = None;
     profile.ignore_saved_password = false;
     profile.private_key_passphrase = None;
@@ -338,87 +331,16 @@ pub(crate) fn delete_profile_secrets(
     Ok(deleted)
 }
 
-pub(crate) fn normalize_group_name(value: &str) -> String {
-    value.trim().to_string()
-}
-
-pub(crate) fn push_unique_group(groups: &mut Vec<String>, group: String) {
-    if group.is_empty() || groups.iter().any(|existing| existing == &group) {
-        return;
-    }
-
-    groups.push(group);
-}
-
-/// Groups created explicitly, including ones no profile uses.
-pub(crate) fn configured_profile_groups(connection: &Connection) -> Result<Vec<String>, String> {
-    let mut statement = connection
-        .prepare("SELECT name FROM profile_groups ORDER BY lower(name), name")
-        .map_err(sql_error("Failed to read profile groups"))?;
-    let rows = statement
-        .query_map([], |row| row.get::<_, String>(0))
-        .map_err(sql_error("Failed to read profile groups"))?;
-    rows.collect::<Result<_, _>>()
-        .map_err(sql_error("Failed to read profile groups"))
-}
-
-pub(crate) fn add_profile_group(connection: &Connection, name: &str) -> Result<(), String> {
-    let name = normalize_group_name(name);
-    if name.is_empty() {
-        return Ok(());
-    }
-    connection
-        .execute(
-            "INSERT OR IGNORE INTO profile_groups (name) VALUES (?1)",
-            [name],
-        )
-        .map_err(sql_error("Failed to save profile group"))?;
-    Ok(())
-}
-
-pub(crate) fn remove_profile_group(connection: &Connection, name: &str) -> Result<(), String> {
-    connection
-        .execute(
-            "DELETE FROM profile_groups WHERE name = ?1",
-            [normalize_group_name(name)],
-        )
-        .map_err(sql_error("Failed to delete profile group"))?;
-    Ok(())
-}
-
-pub(crate) fn replace_profile_groups(
-    connection: &Connection,
-    groups: &[String],
-) -> Result<(), String> {
-    connection
-        .execute("DELETE FROM profile_groups", [])
-        .map_err(sql_error("Failed to clear profile groups"))?;
-    for group in groups {
-        add_profile_group(connection, group)?;
-    }
-    Ok(())
-}
-
-/// Configured groups plus every group a profile is in, sorted by name.
-pub(crate) fn all_profile_groups(connection: &Connection) -> Result<Vec<String>, String> {
-    let mut groups = configured_profile_groups(connection)?;
-    for profile in list_saved_profiles(connection)? {
-        push_unique_group(&mut groups, normalize_group_name(&profile.group));
-    }
-    groups.sort_by_key(|group| group.to_lowercase());
-    Ok(groups)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::db::Database;
 
-    fn profile(id: &str, group: &str) -> SavedProfile {
+    fn profile(id: &str, group_id: Option<&str>) -> SavedProfile {
         serde_json::from_value(serde_json::json!({
             "id": id,
             "name": id.to_uppercase(),
-            "group": group,
+            "group_id": group_id,
             "connection_type": "ssh",
             "host": "example.com",
             "port": 22,
@@ -442,14 +364,14 @@ mod tests {
         let database = Database::open_in_memory().expect("open database");
         database
             .write(|connection| {
-                upsert_profile(connection, &profile("a", ""))?;
-                upsert_profile(connection, &profile("b", ""))?;
-                let mut updated = profile("a", "ops");
+                upsert_profile(connection, &profile("a", None))?;
+                upsert_profile(connection, &profile("b", None))?;
+                let mut updated = profile("a", Some("ops"));
                 updated.password = Some("secret".to_string());
                 upsert_profile(connection, &updated)?;
                 assert_eq!(ids(connection), ["a", "b"]);
                 let stored = get_profile(connection, "a")?.expect("profile a");
-                assert_eq!(stored.group, "ops");
+                assert_eq!(stored.group_id.as_deref(), Some("ops"));
                 assert!(stored.password.is_none());
                 Ok(())
             })
@@ -462,44 +384,62 @@ mod tests {
         database
             .write(|connection| {
                 for id in ["a", "b", "c", "d"] {
-                    upsert_profile(connection, &profile(id, ""))?;
+                    upsert_profile(connection, &profile(id, None))?;
                 }
-                move_profile(connection, "d", "ops", Some("b"))?;
+                move_profile(connection, "d", Some("ops"), Some("b"))?;
                 assert_eq!(ids(connection), ["a", "d", "b", "c"]);
-                assert_eq!(get_profile(connection, "d")?.unwrap().group, "ops");
+                assert_eq!(
+                    get_profile(connection, "d")?.unwrap().group_id.as_deref(),
+                    Some("ops")
+                );
 
-                move_profile(connection, "a", "", None)?;
+                move_profile(connection, "a", None, None)?;
                 assert_eq!(ids(connection), ["d", "b", "c", "a"]);
 
-                assert!(move_profile(connection, "missing", "", None).is_err());
+                assert!(move_profile(connection, "missing", None, None).is_err());
                 Ok(())
             })
             .expect("move profiles");
     }
 
     #[test]
-    fn group_rename_and_delete_touch_matching_profiles_only() {
-        let database = Database::open_in_memory().expect("open database");
-        database
-            .write(|connection| {
-                upsert_profile(connection, &profile("a", " ops "))?;
-                upsert_profile(connection, &profile("b", "dev"))?;
-                add_profile_group(connection, "ops")?;
-                add_profile_group(connection, "empty")?;
+    fn a_profile_filed_under_a_group_name_is_filed_in_the_group_of_that_id() {
+        let read = |value: serde_json::Value| {
+            let mut profile: SavedProfile = serde_json::from_value(value).expect("profile");
+            normalize_profile(&mut profile);
+            profile.group_id
+        };
+        let fixture = |fields: serde_json::Value| {
+            let mut value = serde_json::json!({ "id": "a", "name": "A", "connection_type": "ssh" });
+            value
+                .as_object_mut()
+                .expect("object")
+                .extend(fields.as_object().cloned().unwrap_or_default());
+            value
+        };
+        assert_eq!(
+            read(fixture(serde_json::json!({ "group": " ops " }))).as_deref(),
+            Some("ops")
+        );
+        assert_eq!(read(fixture(serde_json::json!({ "group": "" }))), None);
+        assert_eq!(
+            read(fixture(
+                serde_json::json!({ "group": "ops", "group_id": "g1" })
+            ))
+            .as_deref(),
+            Some("g1")
+        );
+        assert_eq!(read(fixture(serde_json::json!({ "group_id": " " }))), None);
 
-                assert_eq!(regroup_profiles(connection, "ops", "prod")?, 1);
-                remove_profile_group(connection, "ops")?;
-                add_profile_group(connection, "prod")?;
-                assert_eq!(get_profile(connection, "a")?.unwrap().group, "prod");
-                assert_eq!(get_profile(connection, "b")?.unwrap().group, "dev");
-                assert_eq!(all_profile_groups(connection)?, ["dev", "empty", "prod"]);
-
-                regroup_profiles(connection, "prod", "")?;
-                remove_profile_group(connection, "prod")?;
-                assert_eq!(all_profile_groups(connection)?, ["dev", "empty"]);
-                Ok(())
-            })
-            .expect("edit groups");
+        let encoded = encode_profile(
+            &serde_json::from_value(fixture(serde_json::json!({
+                "group": "ops", "group_path": "ops"
+            })))
+            .expect("profile"),
+        )
+        .expect("encode");
+        assert!(encoded.contains(r#""group_id":"ops""#));
+        assert!(!encoded.contains("group_path") && !encoded.contains(r#""group""#));
     }
 
     #[test]
@@ -508,7 +448,7 @@ mod tests {
         database
             .write(|connection| {
                 for id in ["a", "b", "c"] {
-                    upsert_profile(connection, &profile(id, ""))?;
+                    upsert_profile(connection, &profile(id, None))?;
                 }
                 let deleted = delete_profiles(
                     connection,

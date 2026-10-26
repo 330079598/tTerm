@@ -7,7 +7,9 @@ use super::remote;
 use super::{BackupImportOptions, BackupLogFile, BackupPayload, BackupSelection, MissingKeyFile};
 use crate::command_library::{models::SavedCommand, repository::CommandRepository};
 use crate::config::{self, AppConfig};
-use crate::profiles::types::SavedProfile;
+use crate::profiles::groups::{list_groups, repair, replace_groups, with_legacy_groups};
+use crate::profiles::storage::normalize_profile;
+use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::proxy::ProxyServer;
 use crate::serial::history::{store as serial_sends, SerialSend};
 use crate::sftp::store::SftpDirectoryStore;
@@ -17,7 +19,7 @@ use crate::tunnel::types::TunnelRule;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use serde::Serialize;
 use serde_json::Value;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -244,10 +246,17 @@ pub(super) fn apply_database_payload(
     }
     let mut profiles_imported = 0;
     if options.selection.profiles {
+        let mut legacy_groups = Vec::new();
         if let Some(incoming) = payload.profiles.as_ref() {
-            let incoming_profiles = serde_json::from_value::<Vec<SavedProfile>>(incoming.clone())
-                .map_err(|error| format!("Invalid profiles: {error}"))?;
+            let mut incoming_profiles =
+                serde_json::from_value::<Vec<SavedProfile>>(incoming.clone())
+                    .map_err(|error| format!("Invalid profiles: {error}"))?;
             profiles_imported = incoming_profiles.len();
+            // A backup made before groups had ids files profiles by group name.
+            legacy_groups = with_legacy_groups(Vec::new(), &incoming_profiles);
+            for profile in &mut incoming_profiles {
+                normalize_profile(profile);
+            }
             let profiles = if merge {
                 let safe_incoming = to_backup_value(&incoming_profiles)?;
                 let existing =
@@ -258,20 +267,25 @@ pub(super) fn apply_database_payload(
             };
             crate::profiles::storage::replace_profiles(transaction, &profiles)?;
         }
-        if let Some(incoming) = payload.profile_groups.as_ref() {
-            let groups = if merge {
-                let existing = to_backup_value(
-                    &crate::profiles::storage::configured_profile_groups(transaction)?,
-                )?;
-                merge_string_arrays(existing, incoming.clone())?
-            } else {
-                incoming.clone()
+        if payload.profile_groups.is_some() || !legacy_groups.is_empty() {
+            let incoming = match payload.profile_groups.as_ref() {
+                Some(groups) => from_backup_value::<Vec<ProfileGroup>>(groups.clone())?,
+                None => Vec::new(),
             };
-            crate::profiles::storage::replace_profile_groups(
-                transaction,
-                &from_backup_value::<Vec<String>>(groups)?,
-            )?;
+            let mut groups = if merge {
+                list_groups(transaction)?
+            } else {
+                Vec::new()
+            };
+            for group in legacy_groups.into_iter().chain(incoming) {
+                match groups.iter_mut().find(|existing| existing.id == group.id) {
+                    Some(existing) => *existing = group,
+                    None => groups.push(group),
+                }
+            }
+            replace_groups(transaction, &groups)?;
         }
+        repair(transaction)?;
         // Backups made before tunnels existed carry none; keep the current rules then.
         if let Some(incoming) = payload.tunnels.as_ref() {
             let tunnels = if merge {
@@ -464,27 +478,6 @@ fn merge_object_entries(existing: Value, incoming: Value, keys: &[&str]) -> Resu
     Ok(serde_json::json!({
         "entries": merge_arrays_by_keys(existing_entries, incoming_entries, keys)?
     }))
-}
-
-fn merge_string_arrays(existing: Value, incoming: Value) -> Result<Value, String> {
-    let mut result = existing.as_array().cloned().unwrap_or_default();
-    let mut seen = result
-        .iter()
-        .filter_map(Value::as_str)
-        .map(str::to_string)
-        .collect::<HashSet<_>>();
-    for value in incoming
-        .as_array()
-        .ok_or_else(|| "Imported profile groups are not an array.".to_string())?
-    {
-        let group = value
-            .as_str()
-            .ok_or_else(|| "Imported profile group is not a string.".to_string())?;
-        if seen.insert(group.to_string()) {
-            result.push(Value::String(group.to_string()));
-        }
-    }
-    Ok(Value::Array(result))
 }
 
 pub(super) fn imported_logs_root() -> Result<PathBuf, String> {

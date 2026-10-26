@@ -1,9 +1,8 @@
 //! Importing profiles from an OpenSSH config file.
 
+use crate::profiles::groups::resolve_path;
 use crate::profiles::parser::build_ssh_config_import_preview;
-use crate::profiles::storage::{
-    add_profile_group, load_profiles, normalize_group_name, sanitize_profile, upsert_profile,
-};
+use crate::profiles::storage::{load_profiles, sanitize_profile, upsert_profile};
 use crate::profiles::types::{SavedProfile, SshConfigImportOptions, SshConfigImportResult};
 use proxy::ImportedProxies;
 use std::collections::HashSet;
@@ -19,12 +18,11 @@ pub(super) fn import_ssh_config_profiles_blocking(
         .into_iter()
         .collect::<HashSet<String>>();
     let import_all = selected_hosts.is_empty();
-    let group = normalize_group_name(
-        options
-            .group
-            .as_deref()
-            .unwrap_or("Imported from SSH config"),
-    );
+    let group_path = options
+        .group
+        .as_deref()
+        .unwrap_or("Imported from SSH config");
+    let group_id = crate::db::write(|transaction| resolve_path(transaction, group_path))?;
     let mut profiles = load_profiles()?;
     let mut proxies = ImportedProxies::load()?;
     let mut imported = 0;
@@ -48,7 +46,7 @@ pub(super) fn import_ssh_config_profiles_blocking(
 
         let existing_index = profiles
             .iter()
-            .position(|profile| profile.name == host.name && profile.group == group);
+            .position(|profile| profile.name == host.name && profile.group_id == group_id);
 
         if let Some(index) = existing_index {
             if !options.overwrite_existing {
@@ -72,7 +70,9 @@ pub(super) fn import_ssh_config_profiles_blocking(
                 .map(|index| profiles[index].id.clone())
                 .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
             name: host.name,
-            group: group.clone(),
+            group_id: group_id.clone(),
+            group_path: None,
+            legacy_group: String::new(),
             connection_type: "ssh".to_string(),
             host: Some(hostname),
             port: Some(host.port),
@@ -132,7 +132,7 @@ pub(super) fn import_ssh_config_profiles_blocking(
         for profile in &changed_profiles {
             upsert_profile(transaction, profile)?;
         }
-        add_profile_group(transaction, &group)
+        Ok(())
     })?;
 
     let (tunnels_imported, tunnels_skipped) = if options.import_forwards {

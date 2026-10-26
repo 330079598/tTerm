@@ -8,7 +8,7 @@ use super::merge::{Collection, SyncRecord};
 use crate::command_library::models::SavedCommand;
 use crate::config::AppConfig;
 use crate::db::sql_error;
-use crate::profiles::types::SavedProfile;
+use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::proxy::ProxyServer;
 use crate::serial::history::{store as serial_sends, SerialSend};
 use crate::ssh::secret_store::{
@@ -164,9 +164,12 @@ pub(crate) fn collect(
             PROFILES => collect_rows(connection, "profiles", normalize_profile)?,
             TUNNELS => collect_rows(connection, "tunnels", normalize_tunnel)?,
             PROXIES => collect_rows(connection, "proxies", normalize_proxy)?,
-            PROFILE_GROUPS => crate::profiles::storage::configured_profile_groups(connection)?
+            PROFILE_GROUPS => crate::profiles::groups::group_rows(connection)?
                 .into_iter()
-                .map(|name| (name, SyncRecord::new(Value::Bool(true), None)))
+                .map(|(group, updated_at)| {
+                    let data = profile_group_data(&group);
+                    (group.id, SyncRecord::new(data, updated_at))
+                })
                 .collect(),
             SECRETS => collect_secrets(connection, data_key)?,
             COMMANDS => crate::command_library::repository::list_commands(connection)?
@@ -309,7 +312,7 @@ pub(crate) fn normalize(category: &str, collection: &Collection) -> Result<Colle
                 COMMANDS => normalize_command(id, &record.data)?,
                 KNOWN_HOSTS => known_host_data(&known_host_from(record)?),
                 SERIAL_SENDS => serial_send_record(&serial_send_from(id, &record.data)?)?.data,
-                PROFILE_GROUPS => Value::Bool(true),
+                PROFILE_GROUPS => profile_group_data(&profile_group_from(id, &record.data)?),
                 SECRETS if record.data.is_string() => record.data.clone(),
                 SECRETS => return Err(format!("Synced password '{id}' is invalid.")),
                 THEMES if record.data.get("id").and_then(Value::as_str) == Some(id) => {
@@ -352,6 +355,40 @@ fn normalize_profile(value: &Value) -> Result<Value, String> {
     let value = serde_json::from_str(&encoded)
         .map_err(|error| format!("Failed to encode profile: {error}"))?;
     Ok(with_position(value, position))
+}
+
+/// A group as synced: its fields but the id, which is the record's key.
+fn profile_group_data(group: &ProfileGroup) -> Value {
+    serde_json::json!({ "name": group.name, "parentId": group.parent_id })
+}
+
+/// A synced group. Older versions synced each group as `true` under its
+/// name, which is the id such a group was given on upgrade.
+fn profile_group_from(id: &str, data: &Value) -> Result<ProfileGroup, String> {
+    if data == &Value::Bool(true) {
+        return Ok(ProfileGroup {
+            id: id.to_string(),
+            name: id.to_string(),
+            parent_id: None,
+        });
+    }
+    let invalid = || format!("Synced profile group '{id}' is invalid.");
+    let name = data
+        .get("name")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .ok_or_else(invalid)?;
+    let parent_id = match data.get("parentId") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(parent_id)) => Some(parent_id.clone()),
+        Some(_) => return Err(invalid()),
+    };
+    Ok(ProfileGroup {
+        id: id.to_string(),
+        name: name.to_string(),
+        parent_id,
+    })
 }
 
 fn normalize_tunnel(value: &Value) -> Result<Value, String> {
@@ -522,10 +559,15 @@ pub(crate) fn apply_database(
             }
         }
         PROFILE_GROUPS => {
-            crate::profiles::storage::replace_profile_groups(
-                transaction,
-                &merged.keys().cloned().collect::<Vec<_>>(),
-            )?;
+            for id in &removed {
+                crate::profiles::groups::delete_group_row(transaction, id)?;
+            }
+            for (id, record) in changed(local, merged) {
+                crate::profiles::groups::put_group(
+                    transaction,
+                    &profile_group_from(id, &record.data)?,
+                )?;
+            }
         }
         COMMANDS => {
             let current = crate::command_library::repository::list_commands(transaction)?;

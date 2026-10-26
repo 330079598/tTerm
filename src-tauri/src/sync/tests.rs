@@ -4,6 +4,7 @@ use super::snapshot::{
 use super::*;
 use crate::command_library::{models::SavedCommand, repository::CommandRepository};
 use crate::db::Database;
+use crate::profiles::types::ProfileGroup;
 use crate::ssh::secret_store::{
     crypto::SecretKey as DataKey, store::get_secret, store::put_secret,
 };
@@ -125,15 +126,21 @@ impl Device {
                         )?;
                     }
                 }
+                if changed
+                    .iter()
+                    .any(|category| [PROFILES, PROFILE_GROUPS].contains(category))
+                {
+                    crate::profiles::groups::repair(transaction)?;
+                }
                 Ok(())
             })
             .unwrap();
         changed
     }
 
-    fn save_profile(&self, id: &str, host: &str, group: &str) {
+    fn save_profile(&self, id: &str, host: &str) {
         let profile = serde_json::from_value(json!({
-            "id": id, "name": id, "group": group, "connection_type": "ssh",
+            "id": id, "name": id, "connection_type": "ssh",
             "host": host, "port": 22, "username": "root",
             "auth_method": "password", "private_key_path": null
         }))
@@ -196,11 +203,11 @@ fn command(id: &str, text: &str) -> SavedCommand {
 fn two_devices_converge_and_deletions_travel() {
     let mut remote = None;
     let (mut a, mut b) = (Device::new(), Device::new());
-    a.save_profile("p1", "one.example", "prod");
-    a.save_profile("p2", "two.example", "prod");
+    a.save_profile("p1", "one.example");
+    a.save_profile("p2", "two.example");
     a.save_secret("p1", "secret-1");
     a.save_secret("webdav:password", "never-synced");
-    b.save_profile("p3", "three.example", "dev");
+    b.save_profile("p3", "three.example");
 
     assert!(a.sync(&mut remote).is_empty());
     assert_eq!(b.sync(&mut remote), [PROFILES, SECRETS]);
@@ -226,7 +233,7 @@ fn two_devices_converge_and_deletions_travel() {
     b.database
         .write(|transaction| crate::profiles::storage::upsert_profile(transaction, &edited))
         .unwrap();
-    a.save_profile("p1", "renamed.example", "prod");
+    a.save_profile("p1", "renamed.example");
     a.sync(&mut remote);
     b.sync(&mut remote);
     a.sync(&mut remote);
@@ -274,16 +281,16 @@ fn themes_sync_with_their_order_edits_and_deletions() {
 fn an_overwritten_upload_is_merged_back_instead_of_deleted() {
     let mut remote = None;
     let (mut a, mut b) = (Device::new(), Device::new());
-    a.save_profile("p1", "one.example", "");
+    a.save_profile("p1", "one.example");
     a.sync(&mut remote);
     b.sync(&mut remote);
 
     // Both read the same file; A uploads first, then B uploads over it
     // (a server that ignores If-Match lets the stale upload through).
     let seen_by_b = remote.clone();
-    a.save_profile("p2", "from-a.example", "");
+    a.save_profile("p2", "from-a.example");
     a.sync(&mut remote);
-    b.save_profile("p3", "from-b.example", "");
+    b.save_profile("p3", "from-b.example");
     let (merged, history) = b.merge(seen_by_b.as_ref());
     b.apply(&merged);
     remote = Some((merged.clone(), history.clone()));
@@ -339,7 +346,7 @@ fn lineage_decides_whether_the_base_applies() {
 fn passwords_sync_and_follow_their_profile() {
     let mut remote = None;
     let (mut a, mut b) = (Device::new(), Device::new());
-    a.save_profile("p1", "one.example", "");
+    a.save_profile("p1", "one.example");
     a.save_secret("p1", "first");
     a.save_secret("p1:sudo", "sudo-pass");
     a.sync(&mut remote);
@@ -406,9 +413,13 @@ fn groups_tunnels_and_known_hosts_sync() {
     .unwrap();
     a.database
         .write(|transaction| {
-            crate::profiles::storage::replace_profile_groups(
+            crate::profiles::groups::replace_groups(
                 transaction,
-                &["Empty group".to_string()],
+                &[ProfileGroup {
+                    id: "g1".to_string(),
+                    name: "Empty group".to_string(),
+                    parent_id: None,
+                }],
             )?;
             crate::tunnel::storage::replace_tunnels(transaction, &[rule])?;
             crate::ssh::store::merge_known_host(
@@ -430,7 +441,10 @@ fn groups_tunnels_and_known_hosts_sync() {
     b.database
         .read(|connection| {
             assert_eq!(
-                crate::profiles::storage::configured_profile_groups(connection)?,
+                crate::profiles::groups::list_groups(connection)?
+                    .into_iter()
+                    .map(|group| group.name)
+                    .collect::<Vec<_>>(),
                 ["Empty group"]
             );
             assert_eq!(
@@ -584,7 +598,7 @@ fn categories_this_device_skips_are_carried_over() {
 fn fields_from_a_newer_version_survive_an_older_device() {
     let mut remote = None;
     let (mut a, mut b) = (Device::new(), Device::new());
-    a.save_profile("p1", "one.example", "");
+    a.save_profile("p1", "one.example");
     a.sync(&mut remote);
     // A newer tTerm adds a field B does not know.
     remote
@@ -634,10 +648,10 @@ async fn live_devices_sync_through_a_server() {
     };
     let (mut a, mut b) = (Device::new(), Device::new());
 
-    a.save_profile("p1", "one.example", "prod");
-    a.save_profile("p2", "two.example", "prod");
+    a.save_profile("p1", "one.example");
+    a.save_profile("p2", "two.example");
     a.save_secret("p1", "secret-1");
-    b.save_profile("p3", "three.example", "dev");
+    b.save_profile("p3", "three.example");
     let first = a.sync_live(&remote("a")).await;
     assert!(first.uploaded && first.union);
     let joined = b.sync_live(&remote("b")).await;
@@ -676,7 +690,7 @@ async fn live_devices_sync_through_a_server() {
     assert!(same_collections(&a.collect(), &b.collect()));
 
     // A device that forgot its base merges without deleting anything.
-    b.save_profile("p9", "local-only.example", "");
+    b.save_profile("p9", "local-only.example");
     b.live_base = None;
     let rejoined = b.sync_live(&remote("b")).await;
     assert!(rejoined.union);
@@ -713,8 +727,8 @@ async fn live_devices_syncing_at_once_lose_nothing() {
     a.sync_live(&remote("a")).await;
     b.sync_live(&remote("b")).await;
     for round in 0..6 {
-        a.save_profile(&format!("a{round}"), "a.example", "");
-        b.save_profile(&format!("b{round}"), "b.example", "");
+        a.save_profile(&format!("a{round}"), "a.example");
+        b.save_profile(&format!("b{round}"), "b.example");
         let (ra, rb) = (remote("a"), remote("b"));
         tokio::join!(a.sync_live(&ra), b.sync_live(&rb));
     }
@@ -736,7 +750,7 @@ async fn live_devices_syncing_at_once_lose_nothing() {
 #[test]
 fn triggers_record_when_rows_change() {
     let device = Device::new();
-    device.save_profile("p1", "one.example", "");
+    device.save_profile("p1", "one.example");
     let updated_at = |device: &Device| -> Option<i64> {
         device
             .database
@@ -760,12 +774,125 @@ fn triggers_record_when_rows_change() {
                 .map_err(|error| error.to_string())
         })
         .unwrap();
-    device.save_profile("p1", "one.example", "");
+    device.save_profile("p1", "one.example");
     assert_eq!(
         updated_at(&device),
         Some(1),
         "an unchanged save keeps the time"
     );
-    device.save_profile("p1", "two.example", "");
+    device.save_profile("p1", "two.example");
     assert!(updated_at(&device).unwrap() >= first);
+}
+
+impl Device {
+    /// Runs a change to the groups and profiles on this device.
+    fn edit<T>(&self, change: impl FnOnce(&rusqlite::Connection) -> Result<T, String>) -> T {
+        self.database
+            .write(|transaction| change(transaction))
+            .unwrap()
+    }
+
+    /// Each group's path, by id.
+    fn group_paths(&self) -> std::collections::HashMap<String, String> {
+        self.database
+            .read(|connection| {
+                Ok(crate::profiles::groups::group_paths(
+                    &crate::profiles::groups::list_groups(connection)?,
+                ))
+            })
+            .unwrap()
+    }
+}
+
+#[test]
+fn nested_groups_sync_and_merge_a_rename_with_a_move() {
+    use crate::profiles::groups::{create_group, move_group, rename_group};
+    let mut remote = None;
+    let (mut a, mut b) = (Device::new(), Device::new());
+    let (prod, web, dev) = a.edit(|connection| {
+        let prod = create_group(connection, "prod", None)?;
+        let web = create_group(connection, "web", Some(&prod.id))?;
+        let dev = create_group(connection, "dev", None)?;
+        Ok((prod.id, web.id, dev.id))
+    });
+    a.save_profile("p1", "one.example");
+    a.edit(|connection| crate::profiles::storage::move_profile(connection, "p1", Some(&web), None));
+    a.sync(&mut remote);
+    assert_eq!(b.sync(&mut remote), [PROFILES, PROFILE_GROUPS]);
+    assert_eq!(b.group_paths()[&web], "prod / web");
+    assert_eq!(b.profile("p1").unwrap().group_id, Some(web.clone()));
+
+    a.edit(|connection| rename_group(connection, &prod, "production"));
+    b.edit(|connection| move_group(connection, &web, Some(&dev)));
+    a.sync(&mut remote);
+    b.sync(&mut remote);
+    a.sync(&mut remote);
+    for device in [&a, &b] {
+        let paths = device.group_paths();
+        assert_eq!(paths[&prod], "production");
+        assert_eq!(paths[&web], "dev / web");
+    }
+    assert!(a.sync(&mut remote).is_empty());
+    assert!(b.sync(&mut remote).is_empty());
+}
+
+#[test]
+fn groups_moved_into_each_other_on_two_devices_settle_on_one_tree() {
+    use crate::profiles::groups::{create_group, move_group};
+    let mut remote = None;
+    let (mut a, mut b) = (Device::new(), Device::new());
+    let (x, y) = a.edit(|connection| {
+        Ok((
+            create_group(connection, "x", None)?.id,
+            create_group(connection, "y", None)?.id,
+        ))
+    });
+    a.sync(&mut remote);
+    b.sync(&mut remote);
+
+    a.edit(|connection| move_group(connection, &x, Some(&y)));
+    b.edit(|connection| move_group(connection, &y, Some(&x)));
+    for _ in 0..2 {
+        a.sync(&mut remote);
+        b.sync(&mut remote);
+    }
+    // The loop is cut at the group with the smaller id.
+    let (top, nested) = if x < y { ("x", &y) } else { ("y", &x) };
+    for device in [&a, &b] {
+        assert_eq!(device.group_paths()[nested].split(" / ").next(), Some(top));
+    }
+    assert!(a.sync(&mut remote).is_empty());
+    assert!(b.sync(&mut remote).is_empty());
+}
+
+#[test]
+fn a_sync_file_from_before_groups_had_ids_files_profiles_by_group_name() {
+    let collections = Collections::from([
+        (
+            PROFILE_GROUPS.to_string(),
+            merge::Collection::from([(
+                "ops".to_string(),
+                merge::SyncRecord::new(json!(true), None),
+            )]),
+        ),
+        (
+            PROFILES.to_string(),
+            merge::Collection::from([(
+                "p1".to_string(),
+                merge::SyncRecord::new(
+                    json!({
+                        "id": "p1", "name": "p1", "group": "ops", "connection_type": "ssh",
+                        "host": "one.example", "_position": 0
+                    }),
+                    Some(1),
+                ),
+            )]),
+        ),
+    ]);
+    let mut remote = Some((collections, vec!["older".to_string()]));
+    let mut b = Device::new();
+    b.sync(&mut remote);
+    assert_eq!(b.group_paths()["ops"], "ops");
+    assert_eq!(b.profile("p1").unwrap().group_id.as_deref(), Some("ops"));
+    assert!(b.sync(&mut remote).is_empty());
 }

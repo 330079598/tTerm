@@ -6,7 +6,7 @@ use super::remote;
 use super::{BackupPayload, BackupSelection, AUTOMATIC_SETTINGS_KEY};
 use crate::config;
 use crate::db::meta;
-use crate::profiles::types::SavedProfile;
+use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::proxy::ProxyServer;
 use crate::sftp::store::SftpDirectoryStore;
 use crate::ssh::secret_store::{store::restore_secrets, store::snapshot_secrets, store::SecretRow};
@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 /// Profiles with what travels with them: groups, tunnels and proxy servers.
 pub(super) type ProfilesSnapshot = (
     Vec<SavedProfile>,
-    Vec<String>,
+    Vec<ProfileGroup>,
     Vec<TunnelRule>,
     Vec<ProxyServer>,
 );
@@ -72,7 +72,7 @@ pub(super) fn snapshot_database(
         profiles: if selection.profiles {
             Some((
                 crate::profiles::storage::list_saved_profiles(connection)?,
-                crate::profiles::storage::configured_profile_groups(connection)?,
+                crate::profiles::groups::list_groups(connection)?,
                 crate::tunnel::storage::list_tunnel_rules(connection)?,
                 crate::proxy::storage::list_proxies(connection)?,
             ))
@@ -121,7 +121,7 @@ pub(super) fn restore_database(
 ) -> Result<(), String> {
     if let Some((profiles, groups, tunnels, proxies)) = snapshot.profiles.as_ref() {
         crate::profiles::storage::replace_profiles(transaction, profiles)?;
-        crate::profiles::storage::replace_profile_groups(transaction, groups)?;
+        crate::profiles::groups::replace_groups(transaction, groups)?;
         crate::tunnel::storage::replace_tunnels(transaction, tunnels)?;
         crate::proxy::storage::replace_proxies(transaction, proxies)?;
     }

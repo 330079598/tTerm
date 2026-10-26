@@ -79,7 +79,7 @@ pub(super) fn collect_payload(
         )?,
         profile_groups: read_selected_data(
             selection.profiles,
-            crate::profiles::storage::configured_profile_groups,
+            crate::profiles::groups::list_groups,
         )?,
         tunnels: read_selected_data(
             selection.profiles,

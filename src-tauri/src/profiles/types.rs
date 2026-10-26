@@ -32,8 +32,19 @@ pub struct SavedJumpHost {
 pub struct SavedProfile {
     pub id: String,
     pub name: String,
-    #[serde(default)]
-    pub group: String,
+    /// The group the profile is filed in; ungrouped when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group_id: Option<String>,
+    /// The names of the group and the groups above it, from the top, joined
+    /// by ` / `. Filled in when profiles are listed and never stored. A path
+    /// given on save files the profile there, creating the groups it names
+    /// that are missing; an empty one leaves it ungrouped.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group_path: Option<String>,
+    /// The group's name from before groups had ids, read from older
+    /// profiles, backups and sync files; such a group's id is its name.
+    #[serde(default, rename = "group", skip_serializing)]
+    pub(crate) legacy_group: String,
     pub connection_type: String,
     pub host: Option<String>,
     pub port: Option<u16>,
@@ -137,6 +148,52 @@ impl SavedProfile {
     }
 }
 
+/// A group of saved profiles. Groups nest: a group without a parent sits at
+/// the top.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", from = "StoredProfileGroup")]
+pub struct ProfileGroup {
+    pub id: String,
+    pub name: String,
+    pub parent_id: Option<String>,
+}
+
+/// A group as read from a backup or a file of an older version, which held
+/// groups as bare names; such a group's id is its name.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum StoredProfileGroup {
+    Name(String),
+    #[serde(rename_all = "camelCase")]
+    Group {
+        id: String,
+        name: String,
+        #[serde(default)]
+        parent_id: Option<String>,
+    },
+}
+
+impl From<StoredProfileGroup> for ProfileGroup {
+    fn from(stored: StoredProfileGroup) -> Self {
+        match stored {
+            StoredProfileGroup::Name(name) => Self {
+                id: name.trim().to_string(),
+                name: name.trim().to_string(),
+                parent_id: None,
+            },
+            StoredProfileGroup::Group {
+                id,
+                name,
+                parent_id,
+            } => Self {
+                id,
+                name,
+                parent_id,
+            },
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SavedSecretSummary {
@@ -152,6 +209,7 @@ pub struct SavedSecretSummary {
 pub struct SshConfigImportOptions {
     #[serde(default)]
     pub source_path: Option<String>,
+    /// The path of the group the hosts are filed in, as `a / b`.
     #[serde(default)]
     pub group: Option<String>,
     #[serde(default)]

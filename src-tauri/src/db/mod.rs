@@ -204,7 +204,10 @@ mod tests {
         let database = Database::open_in_memory().expect("open database");
         let result: Result<(), String> = database.write(|transaction| {
             transaction
-                .execute("INSERT INTO profile_groups (name) VALUES ('ops')", [])
+                .execute(
+                    "INSERT INTO profile_groups (id, name) VALUES ('ops', 'ops')",
+                    [],
+                )
                 .map_err(|error| error.to_string())?;
             Err("boom".to_string())
         });

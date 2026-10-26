@@ -5,7 +5,7 @@
 //! Imported files are renamed to `<name>.migrated` rather than deleted.
 
 use super::{sql_error, Database};
-use crate::profiles::types::SavedProfile;
+use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::sftp::store::SftpDirectoryStore;
 use crate::ssh::store::KnownHostStore;
 use crate::tunnel::types::TunnelRule;
@@ -105,11 +105,18 @@ pub(crate) fn import_settings_files(database: &Database, config_dir: &Path) -> R
 }
 
 fn import_files(connection: &Connection, config_dir: &Path) -> Result<(), String> {
-    if let Some(profiles) = read_json::<Vec<SavedProfile>>(&config_dir.join("profiles.json"))? {
-        crate::profiles::storage::replace_profiles(connection, &profiles)?;
+    let profiles = read_json::<Vec<SavedProfile>>(&config_dir.join("profiles.json"))?;
+    if let Some(profiles) = &profiles {
+        crate::profiles::storage::replace_profiles(connection, profiles)?;
     }
-    if let Some(groups) = read_json::<Vec<String>>(&config_dir.join("profile_groups.json"))? {
-        crate::profiles::storage::replace_profile_groups(connection, &groups)?;
+    let groups = read_json::<Vec<ProfileGroup>>(&config_dir.join("profile_groups.json"))?;
+    if groups.is_some() || profiles.is_some() {
+        // These files name groups; a profile's group name is its group's id.
+        let groups = crate::profiles::groups::with_legacy_groups(
+            groups.unwrap_or_default(),
+            profiles.as_deref().unwrap_or_default(),
+        );
+        crate::profiles::groups::replace_groups(connection, &groups)?;
     }
     if let Some(tunnels) = read_json::<Vec<TunnelRule>>(&config_dir.join("tunnels.json"))? {
         crate::tunnel::storage::replace_tunnels(connection, &tunnels)?;
