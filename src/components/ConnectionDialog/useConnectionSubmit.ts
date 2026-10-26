@@ -15,6 +15,7 @@ import {
 } from "@/components/ConnectionDialog/types"
 import { SavedProfile } from "@/components/ProfilesPanel"
 import { invokeSafe, reportError } from "@/lib/errors"
+import { normalizeGroupPath } from "@/lib/profileGroups"
 import { proxyChoicePayload } from "@/lib/proxy"
 import { Tab } from "@/types/tab"
 import {
@@ -108,7 +109,7 @@ export function useConnectionSubmit({
     // An unnamed local tab is named after its shell when it opens.
     const title =
       form.title.trim() || (form.type === "terminal" ? "" : getDefaultTitle(form.type, form))
-    const group = form.group.trim()
+    const group = normalizeGroupPath(form.group)
     const shouldPersistProfile = shouldSave
     const profileId =
       form.type !== "terminal" && (shouldPersistProfile || editProfile) ? sshProfileId : undefined
@@ -124,7 +125,8 @@ export function useConnectionSubmit({
 
     if (shouldPersistProfile && form.type !== "terminal" && hasTarget) {
       const duplicate = allProfiles.find(
-        (profile) => profile.id !== profileId && profile.name === title && profile.group === group
+        (profile) =>
+          profile.id !== profileId && profile.name === title && (profile.group_path ?? "") === group
       )
       if (duplicate) {
         setNameError(t("profiles.duplicateName"))
@@ -134,7 +136,7 @@ export function useConnectionSubmit({
       const sshProfile = (): SavedProfile => ({
         id: sshProfileId,
         name: title,
-        group,
+        group_path: group,
         connection_type: form.type,
         host: form.host,
         port: form.port,
@@ -176,7 +178,7 @@ export function useConnectionSubmit({
       })
       const profile =
         form.type === "serial"
-          ? buildSerialProfile(form, { id: sshProfileId, name: title, group })
+          ? buildSerialProfile(form, { id: sshProfileId, name: title, group_path: group })
           : sshProfile()
       const result = await invokeSafe<void>(
         "save_profile",

@@ -23,7 +23,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useConfig } from "@/contexts/ConfigContext"
 import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { useToast } from "@/hooks/use-toast"
+import { buildGroupTree, visibleGroupNodes } from "@/lib/profileGroups"
 import { cn } from "@/lib/utils"
+import type { ProfileGroup } from "@/types/tab"
 import {
   buildInitialForm,
   getDefaultTitle,
@@ -97,16 +99,16 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const saveOnly = saveOnlyProp || Boolean(editProfile)
 
   useEffect(() => {
-    Promise.all([invoke<SavedProfile[]>("list_profiles"), invoke<string[]>("list_profile_groups")])
-      .then(([profiles, configuredGroups]) => {
+    Promise.all([
+      invoke<SavedProfile[]>("list_profiles"),
+      invoke<ProfileGroup[]>("list_profile_groups"),
+    ])
+      .then(([profiles, groups]) => {
         setAllProfiles(profiles)
-        const groups = [
-          ...new Set([
-            ...configuredGroups,
-            ...profiles.map((profile) => profile.group).filter(Boolean),
-          ]),
-        ].sort((left, right) => left.localeCompare(right))
-        setExistingGroups(groups)
+        // Paths in tree order, so a group's subgroups follow it.
+        setExistingGroups(
+          visibleGroupNodes(buildGroupTree(groups, profiles)).map((node) => node.path)
+        )
       })
       .catch(() => {})
   }, [])

@@ -10,7 +10,6 @@ import type { SavedProfile, Tab } from "@/types/tab"
 const profile = (overrides: Partial<SavedProfile> = {}): SavedProfile => ({
   id: "p1",
   name: "web",
-  group: "",
   connection_type: "ssh",
   host: "10.0.0.1",
   port: 22,

@@ -18,6 +18,8 @@ import type { SavedProfile, Tab } from "@/types/tab"
 
 interface ProfileDragRowProps {
   profile: SavedProfile
+  /** Refuses drops, while the group holding the row is dragged. */
+  dropDisabled?: boolean
   isSelected: boolean
   onConnectProfile?: (connection: Omit<Tab, "id" | "isActive">) => void
   onDeleteProfile: (profile: SavedProfile) => void
@@ -27,6 +29,7 @@ interface ProfileDragRowProps {
 
 export const ProfileDragRow: React.FC<ProfileDragRowProps> = ({
   profile,
+  dropDisabled,
   isSelected,
   onConnectProfile,
   onDeleteProfile,
@@ -35,7 +38,10 @@ export const ProfileDragRow: React.FC<ProfileDragRowProps> = ({
 }) => {
   const { t } = useTranslation()
   const { ref: draggableRef, isDragging } = useDraggable({ id: profileDragId(profile.id) })
-  const { ref: droppableRef, isDropTarget } = useDroppable({ id: profileDropId(profile.id) })
+  const { ref: droppableRef, isDropTarget } = useDroppable({
+    id: profileDropId(profile.id),
+    disabled: dropDisabled,
+  })
   const isTerminal = profile.connection_type === "terminal"
   const Icon = isTerminal ? Terminal : profile.connection_type === "serial" ? Usb : Server
   const hasProfileActions = Boolean(onConnectProfile || onEditProfile || onDeleteProfile)

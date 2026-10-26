@@ -401,7 +401,6 @@ export function draftProfileFromTab(tab: Tab): SavedProfile {
   return {
     id: "",
     name: tab.title,
-    group: "",
     connection_type: "ssh",
     host: connection.host,
     port: connection.port ?? DEFAULT_SSH_PORT,

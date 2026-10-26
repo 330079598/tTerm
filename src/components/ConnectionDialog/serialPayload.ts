@@ -14,7 +14,7 @@ import type { SavedProfile, Tab } from "@/types/tab"
 /** A serial connection as saved, with only what a serial profile keeps. */
 export function buildSerialProfile(
   form: ConnectionForm,
-  identity: Pick<SavedProfile, "id" | "name" | "group">
+  identity: Pick<SavedProfile, "id" | "name" | "group_path">
 ): SavedProfile {
   return {
     ...identity,

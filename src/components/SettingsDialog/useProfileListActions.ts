@@ -4,38 +4,48 @@ import { invoke } from "@tauri-apps/api/core"
 import { useTranslation } from "react-i18next"
 
 import {
+  getGroupIdFromDragId,
+  getGroupIdFromKey,
   getGroupKey,
-  getGroupKeyFromDndId,
-  getGroupNameFromKey,
+  getGroupKeyFromDropId,
   getProfileDropIdFromDndId,
   getProfileIdFromDndId,
   moveProfileInList,
+  ROOT_DROP_ID,
+  UNGROUPED_KEY,
 } from "@/components/SettingsDialog/profileGroupDnd"
 import { profileTunnelNote } from "@/components/SettingsDialog/profileDeletion"
 import { findTunnelsUsingProfile } from "@/components/TunnelsPanel/profileTunnels"
 import type { useConfirmDialog } from "@/components/ui/app-dialog"
 import { useToast } from "@/hooks/use-toast"
+import { groupAndDescendantIds, type GroupTree } from "@/lib/profileGroups"
 import { toErrorMessage } from "@/lib/utils"
-import type { SavedProfile } from "@/types/tab"
+import type { ProfileGroup, SavedProfile } from "@/types/tab"
 
 interface ProfileListActionsOptions {
   profiles: SavedProfile[]
   setProfiles: React.Dispatch<React.SetStateAction<SavedProfile[]>>
-  setProfileGroups: React.Dispatch<React.SetStateAction<string[]>>
+  groupTree: GroupTree
+  moveGroup: (group: ProfileGroup, parentId: string | null) => Promise<void>
   refreshProfileGroups: () => Promise<void>
   confirm: ReturnType<typeof useConfirmDialog>["confirm"]
 }
 
-/** Deleting one host, and dragging hosts between groups or within one. */
+/**
+ * Deleting one host, dragging hosts between groups or within one, and
+ * dragging a group into another or to the top.
+ */
 export function useProfileListActions({
   profiles,
   setProfiles,
-  setProfileGroups,
+  groupTree,
+  moveGroup,
   refreshProfileGroups,
   confirm,
 }: ProfileListActionsOptions) {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const [draggingGroupId, setDraggingGroupId] = React.useState<string | null>(null)
 
   const handleDeleteProfile = React.useCallback(
     async (profile: SavedProfile) => {
@@ -66,7 +76,7 @@ export function useProfileListActions({
   )
 
   const getProfileGroupKey = React.useCallback(
-    (profileId: string) => getGroupKey(profiles.find((item) => item.id === profileId)?.group ?? ""),
+    (profileId: string) => getGroupKey(profiles.find((item) => item.id === profileId)?.group_id),
     [profiles]
   )
 
@@ -76,10 +86,9 @@ export function useProfileListActions({
         return
       }
 
-      const targetGroup =
-        targetProfileId && getProfileGroupKey(targetProfileId)
-          ? getGroupNameFromKey(getProfileGroupKey(targetProfileId))
-          : getGroupNameFromKey(targetGroupKey)
+      const targetGroupId = getGroupIdFromKey(
+        targetProfileId ? getProfileGroupKey(targetProfileId) : targetGroupKey
+      )
       const profile = profiles.find((item) => item.id === profileId)
       if (!profile) {
         return
@@ -89,13 +98,13 @@ export function useProfileListActions({
       const currentTargetIndex = targetProfileId
         ? profiles.findIndex((item) => item.id === targetProfileId)
         : -1
-      const sameGroup = (profile.group ?? "").trim() === targetGroup
+      const sameGroup = getGroupKey(profile.group_id) === getGroupKey(targetGroupId)
       if (sameGroup && targetProfileId && currentIndex === currentTargetIndex - 1) {
         return
       }
       if (sameGroup && !targetProfileId) {
         const groupProfiles = profiles.filter(
-          (item) => getGroupKey(item.group ?? "") === targetGroupKey
+          (item) => getGroupKey(item.group_id) === getGroupKey(targetGroupId)
         )
         if (groupProfiles[groupProfiles.length - 1]?.id === profileId) {
           return
@@ -103,22 +112,15 @@ export function useProfileListActions({
       }
 
       setProfiles((current) =>
-        moveProfileInList(current, profileId, targetGroup, targetProfileId ?? null)
+        moveProfileInList(current, profileId, targetGroupId, targetProfileId ?? null)
       )
 
       try {
         await invoke("move_profile_to_group", {
           id: profileId,
-          group: targetGroup,
+          groupId: targetGroupId ?? null,
           targetId: targetProfileId ?? null,
         })
-        if (targetGroup) {
-          setProfileGroups((current) =>
-            current.includes(targetGroup)
-              ? current
-              : [...current, targetGroup].sort((left, right) => left.localeCompare(right))
-          )
-        }
       } catch (error) {
         await refreshProfileGroups()
         toast({
@@ -128,29 +130,69 @@ export function useProfileListActions({
         })
       }
     },
-    [getProfileGroupKey, profiles, refreshProfileGroups, setProfileGroups, setProfiles, t, toast]
+    [getProfileGroupKey, profiles, refreshProfileGroups, setProfiles, t, toast]
+  )
+
+  /** Files a dragged group under the group it was dropped on, or at the top. */
+  const handleMoveGroup = React.useCallback(
+    (groupId: string, targetId: string | number | null) => {
+      const node = groupTree.nodes.get(groupId)
+      if (!node) return
+      const targetProfileId = getProfileDropIdFromDndId(targetId)
+      const targetKey =
+        targetId === ROOT_DROP_ID
+          ? UNGROUPED_KEY
+          : targetProfileId
+            ? getProfileGroupKey(targetProfileId)
+            : getGroupKeyFromDropId(targetId)
+      if (!targetKey) return
+      const parentId = getGroupIdFromKey(targetKey) ?? null
+      // A group can't go into itself or a group inside it.
+      if (parentId && groupAndDescendantIds(groupTree, groupId).has(parentId)) return
+      void moveGroup(node.group, parentId)
+    },
+    [getProfileGroupKey, groupTree, moveGroup]
+  )
+
+  const handleDragStart = React.useCallback(
+    (
+      event: Parameters<
+        NonNullable<React.ComponentProps<typeof DragDropProvider>["onDragStart"]>
+      >[0]
+    ) => {
+      setDraggingGroupId(getGroupIdFromDragId(event.operation.source?.id ?? null))
+    },
+    []
   )
 
   const handleDragEnd = React.useCallback(
     (
       event: Parameters<NonNullable<React.ComponentProps<typeof DragDropProvider>["onDragEnd"]>>[0]
     ) => {
+      setDraggingGroupId(null)
       if (event.canceled) return
 
-      const profileId = getProfileIdFromDndId(event.operation.source?.id ?? null)
+      const sourceId = event.operation.source?.id ?? null
       const targetId = event.operation.target?.id ?? null
+      const groupId = getGroupIdFromDragId(sourceId)
+      if (groupId) {
+        handleMoveGroup(groupId, targetId)
+        return
+      }
+
+      const profileId = getProfileIdFromDndId(sourceId)
       const targetProfileId = getProfileDropIdFromDndId(targetId)
       const targetGroupKey =
         (targetProfileId ? getProfileGroupKey(targetProfileId) : null) ??
-        getGroupKeyFromDndId(targetId)
+        getGroupKeyFromDropId(targetId)
       if (!profileId || !targetGroupKey) {
         return
       }
 
       void handleMoveProfile(profileId, targetGroupKey, targetProfileId)
     },
-    [getProfileGroupKey, handleMoveProfile]
+    [getProfileGroupKey, handleMoveGroup, handleMoveProfile]
   )
 
-  return { handleDeleteProfile, handleDragEnd }
+  return { handleDeleteProfile, handleDragStart, handleDragEnd, draggingGroupId }
 }

@@ -103,7 +103,9 @@ export const ProfileRow: React.FC<{
   const Icon = connectionTypeIcons[connectionType] ?? Server
   const connectionSubtitle = buildConnectionSubtitle(profile, t)
   const subtitle =
-    showGroup && profile.group ? `${profile.group} · ${connectionSubtitle}` : connectionSubtitle
+    showGroup && profile.group_path
+      ? `${profile.group_path} · ${connectionSubtitle}`
+      : connectionSubtitle
   const metaItems = buildMetaItems(profile, t)
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Enter") {

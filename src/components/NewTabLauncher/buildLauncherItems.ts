@@ -157,7 +157,7 @@ export function buildLauncherItems({
     icon: BookMarked,
     label: profile.name,
     detail: [
-      profile.group,
+      profile.group_path,
       profile.connection_type === "serial"
         ? profile.serial?.port
         : formatEndpoint({

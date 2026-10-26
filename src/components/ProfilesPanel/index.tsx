@@ -1,16 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { useTranslation } from "react-i18next"
-import { ChevronDown, ChevronRight, FileInput, Plus, Search, X } from "lucide-react"
+import { FileInput, Plus, Search, X } from "lucide-react"
 
-import {
-  filterProfiles,
-  groupProfiles,
-  UNGROUPED_KEY,
-} from "@/components/ProfilesPanel/profileListing"
+import { filterProfiles, UNGROUPED_KEY } from "@/components/ProfilesPanel/profileListing"
+import { GroupList, ProfileGroupSection } from "@/components/ProfilesPanel/ProfileGroupSection"
 import { ProfileRow } from "@/components/ProfilesPanel/ProfileRow"
 import { ProfileSortToggle } from "@/components/ProfilesPanel/ProfileSortToggle"
 import { useProfileSort } from "@/components/ProfilesPanel/useProfileSort"
+import { useProfilesPanelData } from "@/components/ProfilesPanel/useProfilesPanelData"
 import { Spinner } from "@/components/ui/spinner"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
@@ -21,6 +19,7 @@ import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { SshConfigImportDialog } from "@/components/SshConfigImportDialog"
 import { isImeKeyEvent } from "@/lib/ime"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
+import { buildGroupTree, visibleTreeProfiles } from "@/lib/profileGroups"
 import { profileLastUsed, type RecentProfile } from "@/lib/profileRecents"
 import { rankProfiles } from "@/lib/profileSearch"
 import { cn } from "@/lib/utils"
@@ -46,8 +45,6 @@ interface ProfilesPanelProps {
 
 export type { SavedProfile }
 
-const getGroupListId = (group: string) => `profiles-group-${encodeURIComponent(group)}`
-
 export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
   onConnect,
   onEdit,
@@ -66,41 +63,14 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
   const { toast } = useToast()
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
-  const [profiles, setProfiles] = useState<SavedProfile[]>([])
+  const { profiles, setProfiles, groups, isLoading } = useProfilesPanelData(refreshKey)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [sort, setSort] = useProfileSort()
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const collapsedGroupKeySet = useMemo(() => new Set(collapsedGroupKeys), [collapsedGroupKeys])
-
-  const [loadingRefreshKey, setLoadingRefreshKey] = useState(refreshKey)
-  if (loadingRefreshKey !== refreshKey) {
-    setLoadingRefreshKey(refreshKey)
-    setIsLoading(true)
-  }
-
-  useEffect(() => {
-    invoke<SavedProfile[]>("list_profiles")
-      .then((result) => {
-        setProfiles(result)
-      })
-      .catch((error) => {
-        console.error("Failed to load profiles:", error)
-        toast({
-          title: t("common.error", { defaultValue: "Error" }),
-          description: t("profiles.loadFailed", {
-            defaultValue: "Failed to load connection profiles.",
-          }),
-          variant: "destructive",
-        })
-      })
-      .finally(() => {
-        setIsLoading(false)
-      })
-  }, [refreshKey, t, toast])
 
   useEffect(() => {
     if (surface !== "plain") {
@@ -168,27 +138,25 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
     () => filterProfiles(profiles, searchQuery),
     [profiles, searchQuery]
   )
-  // Listed by last use, the profiles form one list without groups, and a
-  // search still puts its best fits first.
-  const recentProfiles = useMemo(
+  const isFiltering = searchQuery.trim().length > 0
+  // Listed by last use or searched, the profiles form one list without
+  // groups, each naming its group, with the best fits of a search first.
+  const listedProfiles = useMemo(
     () =>
-      sort === "recent"
-        ? rankProfiles(filteredProfiles, searchQuery, profileLastUsed(profileRecents))
+      sort === "recent" || isFiltering
+        ? rankProfiles(
+            filteredProfiles,
+            searchQuery,
+            sort === "recent" ? profileLastUsed(profileRecents) : undefined
+          )
         : null,
-    [filteredProfiles, profileRecents, searchQuery, sort]
+    [filteredProfiles, isFiltering, profileRecents, searchQuery, sort]
   )
-  const groupedProfiles = useMemo(
-    () => groupProfiles(filteredProfiles, searchQuery),
-    [filteredProfiles, searchQuery]
-  )
+  const groupTree = useMemo(() => buildGroupTree(groups, profiles), [groups, profiles])
 
   const flatProfiles = useMemo(
-    () =>
-      recentProfiles ??
-      groupedProfiles.flatMap(([group, items]) =>
-        collapsedGroupKeySet.has(group) && !searchQuery.trim() ? [] : items
-      ),
-    [collapsedGroupKeySet, groupedProfiles, recentProfiles, searchQuery]
+    () => listedProfiles ?? visibleTreeProfiles(groupTree, collapsedGroupKeySet, UNGROUPED_KEY),
+    [collapsedGroupKeySet, groupTree, listedProfiles]
   )
 
   const activeProfileId = useMemo(() => {
@@ -228,7 +196,6 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
 
   const hasProfiles = profiles.length > 0
   const hasFilteredResults = filteredProfiles.length > 0
-  const isFiltering = searchQuery.trim().length > 0
 
   const renderRow = (profile: SavedProfile, showGroup: boolean) => (
     <ProfileRow
@@ -376,59 +343,42 @@ export const ProfilesPanel: React.FC<ProfilesPanelProps> = ({
           </div>
         )}
 
-        {hasFilteredResults && recentProfiles && (
+        {hasFilteredResults && listedProfiles && (
           <div
             className="space-y-2 px-2 pb-2"
             role="listbox"
-            aria-label={t("profiles.sort.recent")}
+            aria-label={isFiltering ? t("profiles.title") : t("profiles.sort.recent")}
           >
-            {recentProfiles.map((profile) => renderRow(profile, true))}
+            {listedProfiles.map((profile) => renderRow(profile, true))}
           </div>
         )}
 
-        {hasFilteredResults && !recentProfiles && (
+        {hasFilteredResults && !listedProfiles && (
           <div className="space-y-5 px-2 pb-2">
-            {groupedProfiles.map(([group, items]) => {
-              const isCollapsed = collapsedGroupKeySet.has(group) && !isFiltering
-              const groupLabel = group === UNGROUPED_KEY ? t("profiles.ungrouped") : group
-              const groupListId = getGroupListId(group)
-
-              return (
-                <section key={group} className="space-y-2">
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:bg-muted/35 focus-visible:ring-ring/50 flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-[11px] font-semibold tracking-[0.08em] transition-colors outline-none focus-visible:ring-[3px]"
-                    onClick={() => toggleGroupCollapsed(group)}
-                    aria-expanded={!isCollapsed}
-                    aria-controls={groupListId}
-                    aria-label={
-                      isCollapsed
-                        ? t("profiles.expandGroup", { group: groupLabel })
-                        : t("profiles.collapseGroup", { group: groupLabel })
-                    }
-                  >
-                    {isCollapsed ? (
-                      <ChevronRight className="size-3 shrink-0" />
-                    ) : (
-                      <ChevronDown className="size-3 shrink-0" />
-                    )}
-                    <span className="min-w-0 flex-1 whitespace-pre-wrap">{groupLabel}</span>
-                    <span className="shrink-0 tabular-nums">{items.length}</span>
-                  </button>
-
-                  {!isCollapsed && (
-                    <div
-                      id={groupListId}
-                      className="space-y-2"
-                      role="listbox"
-                      aria-label={groupLabel}
-                    >
-                      {items.map((profile) => renderRow(profile, false))}
-                    </div>
-                  )}
-                </section>
-              )
-            })}
+            {groupTree.roots
+              .filter((node) => node.total > 0)
+              .map((node) => (
+                <ProfileGroupSection
+                  key={node.group.id}
+                  node={node}
+                  collapsedKeys={collapsedGroupKeySet}
+                  onToggle={toggleGroupCollapsed}
+                  renderRow={(profile) => renderRow(profile, false)}
+                />
+              ))}
+            {groupTree.ungrouped.length > 0 && (
+              <GroupList
+                groupKey={UNGROUPED_KEY}
+                label={t("profiles.ungrouped")}
+                count={groupTree.ungrouped.length}
+                isCollapsed={collapsedGroupKeySet.has(UNGROUPED_KEY)}
+                onToggle={toggleGroupCollapsed}
+              >
+                <div className="space-y-2" role="listbox" aria-label={t("profiles.ungrouped")}>
+                  {groupTree.ungrouped.map((profile) => renderRow(profile, false))}
+                </div>
+              </GroupList>
+            )}
           </div>
         )}
       </ScrollArea>

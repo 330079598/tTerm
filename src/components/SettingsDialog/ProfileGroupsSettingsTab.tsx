@@ -3,8 +3,9 @@ import { DragDropProvider } from "@dnd-kit/react"
 import { FolderTree, Plus, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { ProfileGroupCard } from "@/components/SettingsDialog/ProfileGroupCard"
+import { RootDropZone } from "@/components/SettingsDialog/ProfileGroupCard"
 import { ProfileDragRow } from "@/components/SettingsDialog/ProfileDragRow"
+import { ProfileGroupTree } from "@/components/SettingsDialog/ProfileGroupTree"
 import { SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Button } from "@/components/ui/button"
@@ -36,22 +37,13 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
   const { appState, saveAppState } = useConfig()
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const [newGroupName, setNewGroupName] = React.useState("")
-  const [editingGroupName, setEditingGroupName] = React.useState<string | null>(null)
-  const [editingGroupDraft, setEditingGroupDraft] = React.useState("")
-  const [groupBusy, setGroupBusy] = React.useState(false)
   const collapsedGroupKeySet = React.useMemo(
     () => new Set(appState.collapsedProfileGroupKeys),
     [appState.collapsedProfileGroupKeys]
   )
 
-  const {
-    profileGroups,
-    setProfileGroups,
-    profiles,
-    setProfiles,
-    refreshProfileGroups,
-    groupColumns,
-  } = useProfileGroupsData(refreshKey)
+  const { setProfileGroups, profiles, setProfiles, refreshProfileGroups, groupTree } =
+    useProfileGroupsData(refreshKey)
   const {
     selectedProfileIds,
     profileSelectionBusy,
@@ -60,42 +52,29 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
     handleDeleteSelectedProfiles,
   } = useProfileSelection({ profiles, setProfiles, confirm })
 
-  const showGroupError = React.useCallback(
-    (error: unknown) => {
-      toast({
-        title: t("profileGroups.saveFailed", { defaultValue: "Failed to save group" }),
-        description: toErrorMessage(error),
-        variant: "destructive",
-      })
-    },
-    [t, toast]
-  )
-
-  const { handleAddGroup, startEditGroup, cancelEditGroup, handleRenameGroup, handleDeleteGroup } =
-    useProfileGroupActions({
-      newGroupName,
-      setNewGroupName,
-      profileGroups,
-      setProfileGroups,
-      profiles,
-      setProfiles,
-      editingGroupDraft,
-      setEditingGroupName,
-      setEditingGroupDraft,
-      setGroupBusy,
-      showGroupError,
-      confirm,
-      toast,
-      t,
-    })
-
-  const { handleDeleteProfile, handleDragEnd } = useProfileListActions({
-    profiles,
-    setProfiles,
+  const { groupBusy, addGroup, renameGroup, moveGroup, deleteGroup } = useProfileGroupActions({
+    groupTree,
     setProfileGroups,
-    refreshProfileGroups,
+    setProfiles,
     confirm,
   })
+
+  const { handleDeleteProfile, handleDragStart, handleDragEnd, draggingGroupId } =
+    useProfileListActions({
+      profiles,
+      setProfiles,
+      groupTree,
+      moveGroup,
+      refreshProfileGroups,
+      confirm,
+    })
+
+  const draggedNode = draggingGroupId ? groupTree.nodes.get(draggingGroupId) : undefined
+  const rootZoneVisible = (draggedNode?.depth ?? 0) > 0
+
+  const handleAddGroup = async () => {
+    if (await addGroup(newGroupName, null)) setNewGroupName("")
+  }
 
   const toggleGroupCollapsed = React.useCallback(
     (groupKey: string) => {
@@ -129,107 +108,91 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
                 "Create groups and drag saved connection profiles between them to keep your workspace organized.",
             })}
           >
-            <div className="bg-card rounded-md border p-4">
-              <div className="flex max-w-lg gap-2">
-                <Input
-                  value={newGroupName}
-                  onChange={(event) => setNewGroupName(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent)) {
-                      event.preventDefault()
-                      void handleAddGroup()
-                    }
-                  }}
-                  placeholder={t("profileGroups.namePlaceholder")}
-                  disabled={groupBusy}
-                  className="h-8"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleAddGroup}
-                  disabled={groupBusy || !newGroupName.trim()}
-                >
-                  <Plus size={14} />
-                  {t("profileGroups.addButton")}
-                </Button>
-              </div>
-            </div>
-
-            {selectedProfileIds.size > 0 && (
-              <div className="bg-muted/40 flex items-center justify-between rounded-md border px-4 py-2">
-                <span className="text-sm font-medium">
-                  {t("profiles.selectedCount", {
-                    count: selectedProfileIds.size,
-                    defaultValue: "{{count}} connections selected",
-                  })}
-                </span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearProfileSelection}
-                    disabled={profileSelectionBusy}
-                  >
-                    {t("profiles.clearSelection", { defaultValue: "Clear selection" })}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleDeleteSelectedProfiles}
-                    disabled={profileSelectionBusy}
-                  >
-                    <Trash2 size={14} />
-                    {t("profiles.deleteSelected", { defaultValue: "Delete selected" })}
-                  </Button>
+            <DragDropProvider onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+              <div className="relative">
+                <div className="bg-card rounded-md border p-4">
+                  <div className="flex max-w-lg gap-2">
+                    <Input
+                      value={newGroupName}
+                      onChange={(event) => setNewGroupName(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent)) {
+                          event.preventDefault()
+                          void handleAddGroup()
+                        }
+                      }}
+                      placeholder={t("profileGroups.namePlaceholder")}
+                      disabled={groupBusy}
+                      className="h-8"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleAddGroup}
+                      disabled={groupBusy || !newGroupName.trim()}
+                    >
+                      <Plus size={14} />
+                      {t("profileGroups.addButton")}
+                    </Button>
+                  </div>
                 </div>
+                {rootZoneVisible && <RootDropZone />}
               </div>
-            )}
 
-            <DragDropProvider onDragEnd={handleDragEnd}>
-              <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-                {groupColumns.map((group) => (
-                  <ProfileGroupCard
-                    key={group.key}
-                    group={group}
-                    count={group.profiles.length}
-                    groupBusy={groupBusy}
-                    isCollapsed={collapsedGroupKeySet.has(group.key)}
-                    isEditing={editingGroupName === group.name}
-                    editingGroupDraft={editingGroupDraft}
-                    onCancelEdit={cancelEditGroup}
-                    onDeleteGroup={handleDeleteGroup}
-                    onRenameGroup={handleRenameGroup}
-                    onStartEdit={startEditGroup}
-                    onToggleCollapsed={toggleGroupCollapsed}
-                    setEditingGroupDraft={setEditingGroupDraft}
-                  >
-                    {group.profiles.length === 0 ? (
-                      <div className="text-muted-foreground flex min-h-20 items-center justify-center rounded-md border border-dashed px-4 text-center text-xs">
-                        {t("profileGroups.dropEmpty", {
-                          defaultValue: "Drop saved connections here.",
-                        })}
-                      </div>
-                    ) : (
-                      <div className="space-y-2" role="list">
-                        {group.profiles.map((profile) => (
-                          <ProfileDragRow
-                            key={profile.id}
-                            profile={profile}
-                            isSelected={selectedProfileIds.has(profile.id)}
-                            onConnectProfile={onConnectProfile}
-                            onDeleteProfile={handleDeleteProfile}
-                            onEditProfile={onEditProfile}
-                            onToggleSelected={toggleProfileSelected}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </ProfileGroupCard>
-                ))}
-              </div>
+              {selectedProfileIds.size > 0 && (
+                <div className="bg-muted/40 flex items-center justify-between rounded-md border px-4 py-2">
+                  <span className="text-sm font-medium">
+                    {t("profiles.selectedCount", {
+                      count: selectedProfileIds.size,
+                      defaultValue: "{{count}} connections selected",
+                    })}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearProfileSelection}
+                      disabled={profileSelectionBusy}
+                    >
+                      {t("profiles.clearSelection", { defaultValue: "Clear selection" })}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleDeleteSelectedProfiles}
+                      disabled={profileSelectionBusy}
+                    >
+                      <Trash2 size={14} />
+                      {t("profiles.deleteSelected", { defaultValue: "Delete selected" })}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <ProfileGroupTree
+                groupTree={groupTree}
+                draggingGroupId={draggingGroupId}
+                collapsedKeys={collapsedGroupKeySet}
+                groupBusy={groupBusy}
+                onToggleCollapsed={toggleGroupCollapsed}
+                onAddGroup={addGroup}
+                onRenameGroup={renameGroup}
+                onDeleteGroup={deleteGroup}
+                renderProfile={(profile, dropDisabled) => (
+                  <ProfileDragRow
+                    key={profile.id}
+                    profile={profile}
+                    dropDisabled={dropDisabled}
+                    isSelected={selectedProfileIds.has(profile.id)}
+                    onConnectProfile={onConnectProfile}
+                    onDeleteProfile={handleDeleteProfile}
+                    onEditProfile={onEditProfile}
+                    onToggleSelected={toggleProfileSelected}
+                  />
+                )}
+              />
             </DragDropProvider>
           </SettingsSection>
         </div>

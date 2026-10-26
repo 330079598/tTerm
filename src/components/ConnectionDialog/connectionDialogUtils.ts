@@ -36,7 +36,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     ...defaultForm,
     type: profile.connection_type as ConnectionType,
     title: profile.name,
-    group: profile.group ?? "",
+    group: profile.group_path ?? "",
     host: profile.host ?? "",
     port: profile.port ?? 22,
     username: profile.username ?? "",

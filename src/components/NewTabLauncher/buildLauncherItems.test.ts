@@ -13,7 +13,7 @@ const t = ((key: string) => key) as TFunction
 const profile = (overrides: Partial<SavedProfile> = {}): SavedProfile => ({
   id: "p1",
   name: "web-01",
-  group: "Production",
+  group_path: "Production",
   connection_type: "ssh",
   host: "10.0.0.5",
   port: 22,

@@ -111,7 +111,6 @@ export function useConnectionTest({
       const profile: SavedProfile = {
         id: sshProfileId,
         name: title,
-        group: form.group.trim(),
         connection_type: form.type,
         host: form.host,
         port: form.port,

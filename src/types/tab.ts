@@ -5,10 +5,24 @@ import type { TabIconStyle } from "@/lib/tabIcons"
 import type { ProxyChoice } from "@/types/proxy"
 import type { SerialSettings } from "@/types/serial"
 
+/** A group of saved profiles; a group without a parent sits at the top. */
+export interface ProfileGroup {
+  id: string
+  name: string
+  parentId: string | null
+}
+
 export interface SavedProfile {
   id: string
   name: string
-  group: string
+  /** The group the profile is filed in; ungrouped when missing. */
+  group_id?: string
+  /**
+   * The names of the group and the groups above it, as `prod / web`, when
+   * profiles are listed. On save, a path given here files the profile there,
+   * creating the groups it names that are missing; an empty one ungroups it.
+   */
+  group_path?: string
   connection_type: string
   host?: string
   port?: number
