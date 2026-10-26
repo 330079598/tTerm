@@ -10,22 +10,31 @@ import { toErrorMessage } from "@/lib/utils"
 import type { SavedProfile } from "@/types/tab"
 
 interface ProfileSelectionOptions {
-  profiles: SavedProfile[]
+  /**
+   * The profiles that can be ticked: those a search finds, or all of them.
+   * A ticked profile that drops out of these is unticked, so a batch never
+   * holds a profile the page doesn't show.
+   */
+  selectableProfiles: SavedProfile[]
   setProfiles: React.Dispatch<React.SetStateAction<SavedProfile[]>>
   confirm: ReturnType<typeof useConfirmDialog>["confirm"]
 }
 
 /** The hosts ticked on the groups page, and deleting them together. */
-export function useProfileSelection({ profiles, setProfiles, confirm }: ProfileSelectionOptions) {
+export function useProfileSelection({
+  selectableProfiles,
+  setProfiles,
+  confirm,
+}: ProfileSelectionOptions) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [selectedProfileIds, setSelectedProfileIds] = React.useState<Set<string>>(new Set())
   const [profileSelectionBusy, setProfileSelectionBusy] = React.useState(false)
 
-  const [selectionProfiles, setSelectionProfiles] = React.useState(profiles)
-  if (selectionProfiles !== profiles) {
-    setSelectionProfiles(profiles)
-    const knownIds = new Set(profiles.map((profile) => profile.id))
+  const [selectionProfiles, setSelectionProfiles] = React.useState(selectableProfiles)
+  if (selectionProfiles !== selectableProfiles) {
+    setSelectionProfiles(selectableProfiles)
+    const knownIds = new Set(selectableProfiles.map((profile) => profile.id))
     setSelectedProfileIds((current) => {
       const next = new Set([...current].filter((id) => knownIds.has(id)))
       return next.size === current.size ? current : next
@@ -42,6 +51,10 @@ export function useProfileSelection({ profiles, setProfiles, confirm }: ProfileS
       }
       return next
     })
+  }, [])
+
+  const selectProfiles = React.useCallback((profileIds: readonly string[]) => {
+    setSelectedProfileIds((current) => new Set([...current, ...profileIds]))
   }, [])
 
   const clearProfileSelection = React.useCallback(() => {
@@ -92,6 +105,7 @@ export function useProfileSelection({ profiles, setProfiles, confirm }: ProfileS
     selectedProfileIds,
     profileSelectionBusy,
     toggleProfileSelected,
+    selectProfiles,
     clearProfileSelection,
     handleDeleteSelectedProfiles,
   }

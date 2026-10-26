@@ -1,22 +1,19 @@
 import React from "react"
 import { DragDropProvider } from "@dnd-kit/react"
-import { FolderTree, Plus, Trash2 } from "lucide-react"
+import { FolderTree, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { RootDropZone } from "@/components/SettingsDialog/ProfileGroupCard"
 import { ProfileDragRow } from "@/components/SettingsDialog/ProfileDragRow"
+import { ProfileGroupsToolbar } from "@/components/SettingsDialog/ProfileGroupsToolbar"
 import { ProfileGroupTree } from "@/components/SettingsDialog/ProfileGroupTree"
 import { SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useConfig } from "@/contexts/ConfigContext"
-import { useToast } from "@/hooks/use-toast"
-import { isImeKeyEvent } from "@/lib/ime"
-import { toErrorMessage } from "@/lib/utils"
 import type { SavedProfile, Tab } from "@/types/tab"
 import { useProfileGroupActions } from "@/components/SettingsDialog/useProfileGroupActions"
+import { useProfileGroupCollapse } from "@/components/SettingsDialog/useProfileGroupCollapse"
+import { useProfileGroupSearch } from "@/components/SettingsDialog/useProfileGroupSearch"
 import { useProfileGroupsData } from "@/components/SettingsDialog/useProfileGroupsData"
 import { useProfileListActions } from "@/components/SettingsDialog/useProfileListActions"
 import { useProfileSelection } from "@/components/SettingsDialog/useProfileSelection"
@@ -33,24 +30,29 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
   refreshKey,
 }) => {
   const { t } = useTranslation()
-  const { toast } = useToast()
-  const { appState, saveAppState } = useConfig()
   const { confirm, ConfirmDialog } = useConfirmDialog()
-  const [newGroupName, setNewGroupName] = React.useState("")
-  const collapsedGroupKeySet = React.useMemo(
-    () => new Set(appState.collapsedProfileGroupKeys),
-    [appState.collapsedProfileGroupKeys]
-  )
 
-  const { setProfileGroups, profiles, setProfiles, refreshProfileGroups, groupTree } =
-    useProfileGroupsData(refreshKey)
+  const {
+    profileGroups,
+    setProfileGroups,
+    profiles,
+    setProfiles,
+    refreshProfileGroups,
+    groupTree,
+  } = useProfileGroupsData(refreshKey)
+  const search = useProfileGroupSearch(profileGroups, profiles)
+  const { collapsedKeys, toggleGroupCollapsed } = useProfileGroupCollapse(
+    search.searchTree,
+    search.query
+  )
   const {
     selectedProfileIds,
     profileSelectionBusy,
     toggleProfileSelected,
+    selectProfiles,
     clearProfileSelection,
     handleDeleteSelectedProfiles,
-  } = useProfileSelection({ profiles, setProfiles, confirm })
+  } = useProfileSelection({ selectableProfiles: search.matchedProfiles, setProfiles, confirm })
 
   const { groupBusy, addGroup, renameGroup, moveGroup, deleteGroup } = useProfileGroupActions({
     groupTree,
@@ -77,30 +79,12 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
 
   const draggedNode = draggingGroupId ? groupTree.nodes.get(draggingGroupId) : undefined
   const rootZoneVisible = (draggedNode?.depth ?? 0) > 0
-
-  const handleAddGroup = async () => {
-    if (await addGroup(newGroupName, null)) setNewGroupName("")
-  }
-
-  const toggleGroupCollapsed = React.useCallback(
-    (groupKey: string) => {
-      const next = new Set(collapsedGroupKeySet)
-      if (next.has(groupKey)) {
-        next.delete(groupKey)
-      } else {
-        next.add(groupKey)
-      }
-
-      saveAppState({ collapsedProfileGroupKeys: Array.from(next) }).catch((error) => {
-        toast({
-          title: t("settings.saveFailed", { defaultValue: "Failed to save settings" }),
-          description: toErrorMessage(error),
-          variant: "destructive",
-        })
-      })
-    },
-    [collapsedGroupKeySet, saveAppState, t, toast]
-  )
+  const unselectedMatchIds = search.isFiltering
+    ? search.matchedProfiles
+        .filter((profile) => !selectedProfileIds.has(profile.id))
+        .map((profile) => profile.id)
+    : []
+  const nothingFound = search.isFiltering && search.matchedProfiles.length === 0
 
   return (
     <>
@@ -115,35 +99,15 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
             })}
           >
             <DragDropProvider onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-              <div className="relative">
-                <div className="bg-card rounded-md border p-4">
-                  <div className="flex max-w-lg gap-2">
-                    <Input
-                      value={newGroupName}
-                      onChange={(event) => setNewGroupName(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" && !isImeKeyEvent(event.nativeEvent)) {
-                          event.preventDefault()
-                          void handleAddGroup()
-                        }
-                      }}
-                      placeholder={t("profileGroups.namePlaceholder")}
-                      disabled={groupBusy}
-                      className="h-8"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={handleAddGroup}
-                      disabled={groupBusy || !newGroupName.trim()}
-                    >
-                      <Plus size={14} />
-                      {t("profileGroups.addButton")}
-                    </Button>
-                  </div>
-                </div>
-                {rootZoneVisible && <RootDropZone />}
-              </div>
+              <ProfileGroupsToolbar
+                groupBusy={groupBusy}
+                onAddGroup={(name) => addGroup(name, null)}
+                query={search.query}
+                onQueryChange={search.setQuery}
+                unselectedMatchIds={unselectedMatchIds}
+                onSelectMatches={selectProfiles}
+                rootZoneVisible={rootZoneVisible}
+              />
 
               {selectedProfileIds.size > 0 && (
                 <div className="bg-muted/40 flex items-center justify-between rounded-md border px-4 py-2">
@@ -177,31 +141,42 @@ export const ProfileGroupsSettingsTab: React.FC<ProfileGroupsSettingsTabProps> =
                 </div>
               )}
 
-              <ProfileGroupTree
-                groupTree={groupTree}
-                draggingGroupId={draggingGroupId}
-                collapsedKeys={collapsedGroupKeySet}
-                groupBusy={groupBusy}
-                onToggleCollapsed={toggleGroupCollapsed}
-                onAddGroup={addGroup}
-                onRenameGroup={renameGroup}
-                onDeleteGroup={deleteGroup}
-                renderProfile={(profile, dropDisabled) => (
-                  <ProfileDragRow
-                    key={profile.id}
-                    profile={profile}
-                    dropDisabled={dropDisabled}
-                    draggedCount={
-                      draggingProfileIds.includes(profile.id) ? draggingProfileIds.length : 0
-                    }
-                    isSelected={selectedProfileIds.has(profile.id)}
-                    onConnectProfile={onConnectProfile}
-                    onDeleteProfile={handleDeleteProfile}
-                    onEditProfile={onEditProfile}
-                    onToggleSelected={toggleProfileSelected}
-                  />
-                )}
-              />
+              {nothingFound ? (
+                <div className="text-muted-foreground rounded-md border border-dashed px-4 py-8 text-center">
+                  <div className="text-foreground text-sm font-medium">
+                    {t("profiles.searchEmpty")}
+                  </div>
+                  <div className="mt-1 text-xs">{t("profiles.searchEmptyDescription")}</div>
+                </div>
+              ) : (
+                <ProfileGroupTree
+                  groupTree={search.searchTree ?? groupTree}
+                  draggingGroupId={draggingGroupId}
+                  collapsedKeys={collapsedKeys}
+                  groupBusy={groupBusy}
+                  onToggleCollapsed={toggleGroupCollapsed}
+                  onAddGroup={addGroup}
+                  onRenameGroup={renameGroup}
+                  // A search's tree counts only what it found, so the
+                  // confirmation reads the group's count from the whole tree.
+                  onDeleteGroup={(node) => deleteGroup(groupTree.nodes.get(node.group.id) ?? node)}
+                  renderProfile={(profile, dropDisabled) => (
+                    <ProfileDragRow
+                      key={profile.id}
+                      profile={profile}
+                      dropDisabled={dropDisabled}
+                      draggedCount={
+                        draggingProfileIds.includes(profile.id) ? draggingProfileIds.length : 0
+                      }
+                      isSelected={selectedProfileIds.has(profile.id)}
+                      onConnectProfile={onConnectProfile}
+                      onDeleteProfile={handleDeleteProfile}
+                      onEditProfile={onEditProfile}
+                      onToggleSelected={toggleProfileSelected}
+                    />
+                  )}
+                />
+              )}
             </DragDropProvider>
           </SettingsSection>
         </div>

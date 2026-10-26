@@ -51,6 +51,7 @@ export function useProfileGroupsData(refreshKey: number | undefined) {
   )
 
   return {
+    profileGroups,
     setProfileGroups,
     profiles,
     setProfiles,

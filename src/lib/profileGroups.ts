@@ -146,3 +146,10 @@ export function visibleTreeProfiles(
   if (!collapsedKeys.has(ungroupedKey)) result.push(...tree.ungrouped)
   return result
 }
+
+/** The ids of the groups that hold no profiles, in them or in a group inside them. */
+export function emptyGroupIds(tree: GroupTree): Set<string> {
+  return new Set(
+    [...tree.nodes.values()].filter((node) => node.total === 0).map((node) => node.group.id)
+  )
+}

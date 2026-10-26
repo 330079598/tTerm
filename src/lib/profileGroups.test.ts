@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   buildGroupTree,
+  emptyGroupIds,
   groupAndDescendantIds,
   normalizeGroupPath,
   visibleGroupNodes,
@@ -101,5 +102,13 @@ describe("tree walks", () => {
     expect(ids([])).toEqual(["4", "1", "2", "3"])
     expect(ids(["p", UNGROUPED])).toEqual(["4"])
     expect(ids(["w"])).toEqual(["4", "2", "3"])
+  })
+
+  it("lists the groups that hold no profile, counting the groups inside them", () => {
+    const sparse = buildGroupTree(
+      [group("p", "prod"), group("w", "web", "p"), group("e", "empty", "p"), group("d", "dev")],
+      [profile("1", "w")]
+    )
+    expect([...emptyGroupIds(sparse)].sort()).toEqual(["d", "e"])
   })
 })

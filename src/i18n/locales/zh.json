@@ -1309,6 +1309,8 @@
     "dropEmpty": "将已保存连接拖到这里。",
     "dragCount_one": "{{count}} 个连接",
     "dragCount_other": "{{count}} 个连接",
+    "search": "搜索连接",
+    "selectMatches": "全选",
     "duplicate": "该分组已存在",
     "moveFailed_one": "移动连接失败",
     "moveFailed_other": "移动连接失败",

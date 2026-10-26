@@ -1325,6 +1325,8 @@
     "dropEmpty": "Drop saved connections here.",
     "dragCount_one": "{{count}} connection",
     "dragCount_other": "{{count}} connections",
+    "search": "Search connections",
+    "selectMatches": "Select all",
     "duplicate": "Group already exists",
     "moveFailed_one": "Failed to move connection",
     "moveFailed_other": "Failed to move connections",
