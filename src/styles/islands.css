@@ -41,22 +41,32 @@ html.ui-islands body:not(.workspace-sash-resizing) .workspace-sash:not(:hover) {
   background-image: none;
 }
 
-/* Over the blur, the ground takes a lighter tint than the cards. Each card
-   lies over the ground's tint, so its own opacity is what brings the two
-   together to the configured opacity. */
+/* Over the blur, the ground is the title bar's color at the bars' opacity, so
+   its buttons and tabs read the same over a light or a dark desktop. It is not
+   painted behind the cards, which tint the blur directly at the configured
+   opacity: the frame around the panes is the content area's border, the gaps
+   between them are the dividers, and the corners a card's rounding leaves
+   open come from its own shadow, cut to its box. */
 html.window-blur.ui-islands {
-  --island-ground-opacity: calc(var(--window-opacity) * 0.6);
-  --island-opacity: calc(1 - (1 - var(--window-opacity)) / (1 - var(--window-opacity) * 0.6));
+  --island-ground: hsl(var(--titlebar) / var(--window-bar-opacity));
 }
 
-html.window-blur.ui-islands .title-bar,
 html.window-blur.ui-islands .content-area {
-  background-color: hsl(var(--titlebar) / var(--island-ground-opacity));
+  padding: 0;
+  border: solid var(--island-ground);
+  border-width: 2px var(--island-margin) var(--island-margin);
+  background: transparent;
 }
 
 html.window-blur.ui-islands .workspace-pane,
 html.window-blur.ui-islands .content-area > .terminal-placeholder {
-  background: hsl(var(--background) / var(--island-opacity));
+  background: hsl(var(--background) / var(--window-opacity));
+  box-shadow: 0 0 0 var(--island-radius) var(--island-ground);
+  clip-path: inset(0);
+}
+
+html.window-blur.ui-islands .workspace-sash {
+  background-color: var(--island-ground);
 }
 
 html.window-blur.ui-islands .pane-header {
