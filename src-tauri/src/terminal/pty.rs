@@ -36,6 +36,8 @@ pub fn build_terminal_command(
     super::local_integration::apply(&mut cmd);
 
     cmd.env("TERM", "xterm-256color");
+    // xterm.js supports RGB colors; TUI programs otherwise quantize theme-derived fills.
+    cmd.env("COLORTERM", "truecolor");
     cmd.env("HOME", &home);
     if std::env::var_os("LANG").is_none() {
         cmd.env("LANG", "en_US.UTF-8");
@@ -625,3 +627,7 @@ mod tests {
         assert_eq!(shell_program_name("  ").as_deref(), None);
     }
 }
+
+#[cfg(all(test, target_os = "windows"))]
+#[path = "windows_color_tests.rs"]
+mod windows_color_tests;

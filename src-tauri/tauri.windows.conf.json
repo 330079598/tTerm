@@ -1,5 +1,12 @@
 {
   "identifier": "com.stone.tTerm",
+  "bundle": {
+    "resources": {
+      "resources/conpty/conpty.dll": "conpty.dll",
+      "resources/conpty/OpenConsole.exe": "OpenConsole.exe",
+      "resources/conpty-LICENSE.txt": "conpty-LICENSE.txt"
+    }
+  },
   "app": {
     "withGlobalTauri": true,
     "windows": [

@@ -1,4 +1,8 @@
 fn main() {
+    if let Err(error) = prepare_conpty() {
+        eprintln!("{error}");
+        std::process::exit(1);
+    }
     let embeds_manifest = embed_windows_manifest();
 
     let mut attributes = tauri_build::Attributes::new();
@@ -10,6 +14,41 @@ fn main() {
         println!("{error:#}");
         std::process::exit(1);
     }
+}
+
+/// Stages the pinned Windows runtime so theme queries reach the frontend on older Windows.
+fn prepare_conpty() -> Result<(), Box<dyn std::error::Error>> {
+    println!("cargo:rerun-if-changed=../scripts/prepare-conpty.ps1");
+    if std::env::var("CARGO_CFG_TARGET_OS")? != "windows" {
+        return Ok(());
+    }
+
+    let out_dir = std::env::var("OUT_DIR")?;
+    let profile_dir = std::path::Path::new(&out_dir)
+        .ancestors()
+        .nth(3)
+        .ok_or("Cannot locate Cargo's target directory for ConPTY")?;
+    // Unit test executables live in deps; portable-pty loads conpty.dll beside the executable.
+    let status = std::process::Command::new("powershell.exe")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "../scripts/prepare-conpty.ps1",
+            "-Architecture",
+            &std::env::var("CARGO_CFG_TARGET_ARCH")?,
+            "-TestDirectory",
+        ])
+        .arg(profile_dir.join("deps"))
+        .status()?;
+    if !status.success() {
+        return Err(
+            "Failed to prepare ConPTY. Check the download/cache error above and rebuild.".into(),
+        );
+    }
+    Ok(())
 }
 
 /// Embeds the Common Controls v6 manifest through the linker instead of the
