@@ -46,7 +46,9 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   // Windows Terminal duplicates a tab on Ctrl+Shift+D as well.
   "tabs.duplicateActive": "mod+shift+d",
   "tabs.closeActive": "mod+shift+w",
-  "terminal.find": "mod+f",
+  // Ctrl+F moves the cursor forward in readline and pages down in vim and
+  // less, so finding takes Shift, as in Windows Terminal.
+  "terminal.find": "mod+shift+f",
   "terminal.clear": "mod+shift+k",
   "terminal.reset": null,
   "terminal.saveSelection": "mod+shift+s",
@@ -63,7 +65,9 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   // as in Windows Terminal and GNOME Terminal.
   "terminal.copy": "mod+shift+c",
   "terminal.paste": "mod+shift+v",
-  "sftp.toggle": "ctrl+t",
+  // Ctrl+T transposes characters in readline and opens fzf's file finder;
+  // Ctrl+Shift+E opens the file explorer in VS Code.
+  "sftp.toggle": "mod+shift+e",
   "sftp.selectAll": "mod+a",
   "sftp.focusPath": "mod+l",
   "sftp.pasteUpload": "mod+v",
@@ -81,9 +85,14 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
  * Defaults that differ on macOS. Cmd+1-9 switches tabs in Terminal, iTerm2
  * and browsers there, while Option+digit types symbols such as "¡" and is
  * Meta+digit (a readline count) once Option acts as Meta. Cmd+[ / Cmd+]
- * switches panes in iTerm2, Ghostty and Warp.
+ * switches panes in iTerm2, Ghostty and Warp. Cmd chords never reach the
+ * shell, so tabs open and close on Cmd+T and Cmd+W, and Cmd+F finds, as in
+ * every Mac terminal.
  */
 const MAC_DEFAULT_BINDINGS: Partial<Record<KeymapActionId, string | string[] | null>> = {
+  "workspace.newTab": "mod+t",
+  "tabs.closeActive": "mod+w",
+  "terminal.find": "mod+f",
   "tabs.switchToNth": digitChords("mod"),
   "workspace.focusNextPane": "mod+]",
   "workspace.focusPrevPane": "mod+[",
@@ -197,6 +206,8 @@ export const KNOWN_CLI_CONFLICT_HINTS: Record<string, string> = {
   "mod+w": "readlineDeleteWord",
   "mod+l": "clearScreen",
   "mod+r": "historySearch",
+  "mod+t": "readlineTransposeChars",
+  "mod+f": "readlineForwardChar",
   "mod+b": "tmuxPrefix",
   "mod+z": "suspend",
   "mod+d": "eof",

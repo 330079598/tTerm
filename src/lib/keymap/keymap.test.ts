@@ -46,7 +46,8 @@ describe("resolveEffectiveKeymap", () => {
     }
     expect(effective["workspace.splitRight"]).toEqual(["mod+\\"])
     expect(effective["workspace.newTab"]).toEqual(["ctrl+shift+t"])
-    expect(effective["sftp.toggle"]).toEqual(["ctrl+t"])
+    expect(effective["sftp.toggle"]).toEqual(["mod+shift+e"])
+    expect(effective["terminal.find"]).toEqual(["mod+shift+f"])
     expect(effective["commandLibrary.open"]).toEqual(["mod+shift+p"])
     expect(effective["tabs.next"]).toEqual(["ctrl+tab"])
   })
@@ -105,7 +106,14 @@ describe("resolveEffectiveKeymap", () => {
     expect(effective["tabs.switchToNth"]).toEqual(
       Array.from({ length: 9 }, (_, index) => `mod+${index + 1}`)
     )
-    expect(effective["workspace.newTab"]).toEqual(["ctrl+shift+t"])
+  })
+
+  it("opens, closes and searches with Cmd+T, Cmd+W and Cmd+F on macOS", () => {
+    const effective = resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG, true)
+    expect(effective["workspace.newTab"]).toEqual(["mod+t"])
+    expect(effective["tabs.closeActive"]).toEqual(["mod+w"])
+    expect(effective["terminal.find"]).toEqual(["mod+f"])
+    expect(findKeymapConflicts(effective).size).toBe(0)
   })
 
   it("lets an explicit override replace the default binding", () => {
@@ -126,7 +134,7 @@ describe("resolveEffectiveKeymap", () => {
     const effective = resolveEffectiveKeymap({
       bindings: { "terminal.find": ["not a chord"] },
     })
-    expect(effective["terminal.find"]).toEqual(["mod+f"])
+    expect(effective["terminal.find"]).toEqual(["mod+shift+f"])
   })
 })
 
@@ -134,10 +142,10 @@ describe("findKeymapConflicts", () => {
   it("reports chords bound to multiple actions", () => {
     const effective: EffectiveKeymap = {
       ...resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG),
-      "terminal.clear": ["mod+f"],
+      "terminal.clear": ["mod+shift+f"],
     }
     const conflicts = findKeymapConflicts(effective)
-    expect(conflicts.get("mod+f")).toEqual(["terminal.find", "terminal.clear"])
+    expect(conflicts.get("mod+shift+f")).toEqual(["terminal.find", "terminal.clear"])
   })
 
   it("returns empty for the tTerm defaults", () => {
@@ -154,9 +162,10 @@ describe("findKeymapConflicts", () => {
 describe("buildChordIndex", () => {
   it("maps each chord to its action", () => {
     const index = buildChordIndex(resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG))
-    expect(index.get("mod+f")).toBe("terminal.find")
+    expect(index.get("mod+shift+f")).toBe("terminal.find")
     expect(index.get("ctrl+shift+t")).toBe("workspace.newTab")
-    expect(index.get("ctrl+t")).toBe("sftp.toggle")
+    expect(index.get("mod+shift+e")).toBe("sftp.toggle")
+    expect(index.has("ctrl+t")).toBe(false)
     expect(index.get("alt+1")).toBe("tabs.switchToNth")
     expect(index.get("mod+shift+p")).toBe("commandLibrary.open")
   })
@@ -212,6 +221,11 @@ describe("getCliConflictHint", () => {
     expect(getCliConflictHint("mod+a")).toBe("readlineHome")
     expect(getCliConflictHint("ctrl+s", true)).toBe("xoff")
     expect(getCliConflictHint("mod+s", true)).toBeUndefined()
+  })
+
+  it("warns that Ctrl+T and Ctrl+F belong to readline", () => {
+    expect(getCliConflictHint("mod+t")).toBe("readlineTransposeChars")
+    expect(getCliConflictHint("ctrl+f", true)).toBe("readlineForwardChar")
   })
 
   it("returns undefined for unknown chords", () => {

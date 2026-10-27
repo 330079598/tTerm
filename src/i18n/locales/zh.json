@@ -456,6 +456,8 @@
       "readlineDeleteWord": "Ctrl+W 在许多 Shell 中用于删除前一个单词。",
       "clearScreen": "Ctrl+L 在许多 Shell 中用于清屏。",
       "historySearch": "Ctrl+R 在许多 Shell 中用于搜索命令历史。",
+      "readlineTransposeChars": "Ctrl+T 在 Readline 中用于交换光标两侧的字符，在 fzf 中用于打开文件查找。",
+      "readlineForwardChar": "Ctrl+F 在 Readline 中用于将光标前移一个字符，在 vim 和 less 中用于向下翻页。",
       "tmuxPrefix": "Ctrl+B 是 tmux 的默认前缀键。",
       "suspend": "Ctrl+Z 在 Unix Shell 中用于挂起前台进程。",
       "eof": "Ctrl+D 用于发送 EOF 或退出许多 Shell。",

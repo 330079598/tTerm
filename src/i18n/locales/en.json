@@ -465,6 +465,8 @@
       "readlineDeleteWord": "Ctrl+W deletes the previous word in many shells.",
       "clearScreen": "Ctrl+L clears the screen in many shells.",
       "historySearch": "Ctrl+R searches command history in many shells.",
+      "readlineTransposeChars": "Ctrl+T swaps the characters around the cursor in Readline and opens the file finder in fzf.",
+      "readlineForwardChar": "Ctrl+F moves the cursor forward in Readline and pages down in vim and less.",
       "tmuxPrefix": "Ctrl+B is the default tmux prefix.",
       "suspend": "Ctrl+Z suspends the foreground process in Unix shells.",
       "eof": "Ctrl+D sends EOF or exits many shells.",

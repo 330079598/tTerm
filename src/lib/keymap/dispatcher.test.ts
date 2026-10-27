@@ -45,8 +45,8 @@ function eventWithTarget(
   return event
 }
 
-function bindDefaultChords() {
-  return buildChordIndex(resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG))
+function bindDefaultChords(isMac = false) {
+  return buildChordIndex(resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG, isMac))
 }
 
 describe("dispatchKeydownEvent", () => {
@@ -291,23 +291,41 @@ describe("real default bindings", () => {
     expect(dispatchKeydownEvent(keydown("t", { ctrlKey: true, shiftKey: true }), env)).toBe(
       "workspace.newTab"
     )
-    expect(dispatchKeydownEvent(keydown("t", { ctrlKey: true }), env)).toBe("sftp.toggle")
+    expect(dispatchKeydownEvent(keydown("e", { ctrlKey: true, shiftKey: true }), env)).toBe(
+      "sftp.toggle"
+    )
+    // Ctrl+T stays with the shell, which transposes characters or opens fzf.
+    expect(dispatchKeydownEvent(keydown("t", { ctrlKey: true }), env)).toBeNull()
     expect(newTab).toHaveBeenCalledOnce()
     expect(toggleSftp).toHaveBeenCalledOnce()
   })
 
   it("keeps explicit Control defaults distinct from Command on macOS", () => {
-    const toggleSftp = vi.fn()
+    const nextTab = vi.fn()
     const handlers = new Map<KeymapActionId, Set<KeymapHandler>>([
-      ["sftp.toggle", new Set([toggleSftp])],
+      ["tabs.next", new Set([nextTab])],
     ])
-    const env = createEnv({ handlers, index: bindDefaultChords(), isMac: true })
+    const env = createEnv({ handlers, index: bindDefaultChords(true), isMac: true })
 
-    expect(dispatchKeydownEvent(keydown("t", { code: "KeyT", ctrlKey: true }), env)).toBe(
-      "sftp.toggle"
+    expect(dispatchKeydownEvent(keydown("Tab", { code: "Tab", ctrlKey: true }), env)).toBe(
+      "tabs.next"
     )
-    expect(dispatchKeydownEvent(keydown("t", { code: "KeyT", metaKey: true }), env)).toBeNull()
-    expect(toggleSftp).toHaveBeenCalledOnce()
+    expect(dispatchKeydownEvent(keydown("Tab", { code: "Tab", metaKey: true }), env)).toBeNull()
+    expect(nextTab).toHaveBeenCalledOnce()
+  })
+
+  it("opens a tab on Cmd+T on macOS", () => {
+    const newTab = vi.fn()
+    const handlers = new Map<KeymapActionId, Set<KeymapHandler>>([
+      ["workspace.newTab", new Set([newTab])],
+    ])
+    const env = createEnv({ handlers, index: bindDefaultChords(true), isMac: true })
+
+    expect(dispatchKeydownEvent(keydown("t", { code: "KeyT", metaKey: true }), env)).toBe(
+      "workspace.newTab"
+    )
+    expect(dispatchKeydownEvent(keydown("t", { code: "KeyT", ctrlKey: true }), env)).toBeNull()
+    expect(newTab).toHaveBeenCalledOnce()
   })
 
   it("lets bound-but-unmounted actions pass through", () => {
