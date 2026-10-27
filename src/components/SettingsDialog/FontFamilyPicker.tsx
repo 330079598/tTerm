@@ -5,6 +5,7 @@ import type { FontSettingsTabProps } from "@/components/SettingsDialog/FontSetti
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { firstInstalledFont } from "@/lib/terminalFont"
 import { cn } from "@/lib/utils"
 
 const NERD_FONT_PATTERN =
@@ -58,7 +59,7 @@ export function FontFamilyPicker({
         placeholder={t("fontSettings.customFont")}
         className="mb-2"
       />
-      {nerdFontCount > 0 && !isNerdFont(fontFamily) && (
+      {nerdFontCount > 0 && !isNerdFont(firstInstalledFont(fontFamily, systemFonts)) && (
         <p className="mb-2 text-xs text-amber-600 dark:text-amber-400">
           {t("fontSettings.nerdFontWarning", {
             defaultValue:

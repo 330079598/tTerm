@@ -1,4 +1,4 @@
-use super::{keyword_highlight, panes, AppConfig};
+use super::{default_font_family, keyword_highlight, panes, AppConfig};
 
 #[test]
 fn legacy_config_shows_its_one_theme() {
@@ -337,4 +337,14 @@ fn ui_style_defaults_to_classic_and_keeps_islands() {
     let config: AppConfig =
         serde_json::from_str(r#"{"theme":"default","ui_style":"islands"}"#).unwrap();
     assert_eq!(config.ui_style, "islands");
+}
+
+#[test]
+fn default_font_matches_the_frontend_default() {
+    let frontend = include_str!("../../../src/lib/terminalFont.ts");
+
+    assert!(
+        frontend.contains(&format!("'{}'", default_font_family())),
+        "src/lib/terminalFont.ts lacks this platform's default font chain"
+    );
 }

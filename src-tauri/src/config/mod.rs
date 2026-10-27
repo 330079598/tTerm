@@ -326,13 +326,16 @@ fn default_language() -> String {
         .unwrap_or_else(|| "en".to_string())
 }
 
+/// A Nerd Font first, so prompts such as starship and powerlevel10k draw
+/// their icons, then the system's monospace font. The frontend's
+/// `defaultTerminalFontFamily` holds the same chains, which a test checks.
 fn default_font_family() -> String {
     #[cfg(target_os = "macos")]
-    return "Menlo, Monaco, monospace".to_string();
+    return "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", Menlo, Monaco, monospace".to_string();
     #[cfg(target_os = "windows")]
-    return "\"Cascadia Code\", Consolas, monospace".to_string();
+    return "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", \"Cascadia Code\", Consolas, monospace".to_string();
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    return "\"DejaVu Sans Mono\", monospace".to_string();
+    return "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", \"DejaVu Sans Mono\", monospace".to_string();
 }
 
 fn default_font_size() -> u16 {

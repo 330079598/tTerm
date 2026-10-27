@@ -8,6 +8,7 @@ import {
 } from "@/lib/keywordHighlight/config"
 import { DEFAULT_MONITOR_VISIBLE_METRICS, type MonitorMetricId } from "@/lib/monitorMetrics"
 import type { SftpStartDirectory } from "@/lib/sftpStartDirectory"
+import { defaultTerminalFontFamily } from "@/lib/terminalFont"
 import { DEFAULT_TAB_SETTINGS, type TabSettings } from "@/lib/tabSettings"
 
 export interface SecretBackendStatus {
@@ -199,8 +200,7 @@ const defaultUpdateChannel = /-(alpha|beta|rc|dev)(\.|$)/.test(
 
 export const DEFAULT_TERMINAL_FONT_SIZE = 14
 
-export const DEFAULT_TERMINAL_FONT_FAMILY =
-  '"JetBrains Mono Nerd Font", "JetBrainsMono Nerd Font", "JetBrains Mono", "Fira Code", Menlo, Monaco, monospace'
+export const DEFAULT_TERMINAL_FONT_FAMILY = defaultTerminalFontFamily()
 
 export const defaultConfig: AppConfig = {
   theme: "default",
