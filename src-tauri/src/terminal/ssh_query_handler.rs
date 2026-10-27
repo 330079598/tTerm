@@ -21,7 +21,9 @@ struct SequenceEnd {
 /// - Cursor Position Report (CPR): current cursor location
 /// - Operating Status Report (OSR): terminal ready status
 /// - XTGETTCAP: terminal capability queries (e.g., color support)
-/// - OSC color queries: foreground/background colors
+///
+/// OSC 10/11 color queries pass through: xterm.js answers them with the tab's
+/// own theme, which programs such as Codex blend their panel colors from.
 pub async fn process_ssh_output_for_ui<W>(
     data: &[u8],
     pending: &mut Vec<u8>,
@@ -135,31 +137,6 @@ where
             }
         }
 
-        // OSC color queries: ESC]10;? (foreground) or ESC]11;? (background)
-        // Operating System Command to query terminal colors
-        if !matched && rest.starts_with(b"\x1b]") {
-            if let Some(end) = find_osc_end(rest) {
-                let body = &rest[2..end.index];
-                if body.starts_with(b"10;?") {
-                    // Foreground color: respond with light gray
-                    writer
-                        .write_all(b"\x1b]10;rgb:aaaa/aaaa/aaaa\x1b\\")
-                        .await?;
-                    writer.flush().await?;
-                    i += end.index + end.terminator_len;
-                    matched = true;
-                } else if body.starts_with(b"11;?") {
-                    // Background color: respond with dark gray
-                    writer
-                        .write_all(b"\x1b]11;rgb:1111/1111/1111\x1b\\")
-                        .await?;
-                    writer.flush().await?;
-                    i += end.index + end.terminator_len;
-                    matched = true;
-                }
-            }
-        }
-
         if !matched && is_incomplete_query(rest) {
             pending.extend_from_slice(rest);
             break;
@@ -177,8 +154,8 @@ where
 /// Longest tail held back waiting for the rest of a query. The queries
 /// answered here are a few dozen bytes at most; anything still unterminated
 /// past this is ordinary output that xterm.js parses across chunks itself.
-/// Without the cap, an unterminated `ESC ]` (truncated output, a binary
-/// `cat`) would hold back everything after it until a stray BEL showed up.
+/// Without the cap, an unterminated `ESC P+q` (truncated output, a binary
+/// `cat`) would hold back everything after it until a stray ST showed up.
 const MAX_DEFERRED_QUERY_BYTES: usize = 64;
 
 /// XTGETTCAP answer for "Ms", the terminfo string that sets the clipboard
@@ -187,10 +164,6 @@ const MAX_DEFERRED_QUERY_BYTES: usize = 64;
 /// programs copy is off, since the frontend then drops what arrives.
 const XTGETTCAP_MS_REPLY: &[u8] = b"\x1bP1+r4d73=5c455d35323b25703125733b25703225735c303037\x1b\\";
 
-/// OSC sequences answered here; every other OSC (titles, hyperlinks, OSC 52
-/// clipboard, inline images) passes straight through to the terminal.
-const OSC_COLOR_QUERIES: [&[u8]; 2] = [b"\x1b]10;?", b"\x1b]11;?"];
-
 fn is_incomplete_query(rest: &[u8]) -> bool {
     if rest.len() >= MAX_DEFERRED_QUERY_BYTES {
         return false;
@@ -198,12 +171,6 @@ fn is_incomplete_query(rest: &[u8]) -> bool {
 
     if rest.starts_with(b"\x1bP+q") {
         return find_dcs_end(rest).is_none();
-    }
-
-    if rest.starts_with(b"\x1b]") {
-        return OSC_COLOR_QUERIES.iter().any(|query| {
-            query.starts_with(rest) || (rest.starts_with(query) && find_osc_end(rest).is_none())
-        });
     }
 
     if rest.starts_with(b"\x1b[>") {
@@ -230,26 +197,6 @@ fn is_incomplete_query(rest: &[u8]) -> bool {
 fn find_dcs_end(data: &[u8]) -> Option<SequenceEnd> {
     for i in 2..data.len() {
         if data[i] == 0x9c {
-            return Some(SequenceEnd {
-                index: i,
-                terminator_len: 1,
-            });
-        }
-        if data[i] == 0x1b && i + 1 < data.len() && data[i + 1] == b'\\' {
-            return Some(SequenceEnd {
-                index: i,
-                terminator_len: 2,
-            });
-        }
-    }
-    None
-}
-
-/// Find the end of an OSC (Operating System Command) sequence.
-/// OSC starts with ESC ] and ends with BEL (0x07) or ST (ESC \
-fn find_osc_end(data: &[u8]) -> Option<SequenceEnd> {
-    for i in 2..data.len() {
-        if data[i] == 0x07 {
             return Some(SequenceEnd {
                 index: i,
                 terminator_len: 1,
@@ -341,11 +288,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn color_query_split_across_packets_is_answered() {
-        let (output, replies, pending) = process_in_chunks(b"a\x1b]11;?\x1b\\b", 3).await;
-        assert_eq!(replies, b"\x1b]11;rgb:1111/1111/1111\x1b\\".to_vec());
-        assert_eq!(output, b"ab".to_vec());
+    async fn color_queries_reach_the_terminal() {
+        // xterm.js answers them with the tab's theme; a fixed reply here would
+        // tell every program the background is dark gray.
+        let data = b"a\x1b]10;?\x1b\\\x1b]11;?\x07b";
+        let (output, replies, pending) = process_in_chunks(data, 3).await;
+        assert!(replies.is_empty());
         assert!(pending.is_empty());
+        assert_eq!(output, data.to_vec());
     }
 
     #[tokio::test]
