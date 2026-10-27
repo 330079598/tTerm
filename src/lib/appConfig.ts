@@ -228,7 +228,7 @@ export const defaultConfig: AppConfig = {
   terminal_padding_right_px: 6,
   terminal_padding_bottom_px: 4,
   startup_session_restore_mode: "active",
-  restore_terminal_content: false,
+  restore_terminal_content: true,
   show_jump_host_connection_info: true,
   sftp_paste_upload_enabled: false,
   sftp_start_directory: "last",
