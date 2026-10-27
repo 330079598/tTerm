@@ -6,13 +6,6 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 #[test]
-fn local_shell_advertises_truecolor() {
-    let command = super::build_terminal_command(None).expect("build local shell");
-    assert_eq!(command.get_env("TERM"), Some("xterm-256color".as_ref()));
-    assert_eq!(command.get_env("COLORTERM"), Some("truecolor".as_ref()));
-}
-
-#[test]
 fn conpty_forwards_theme_queries_and_delivers_replies_to_console_apps() {
     let pair = portable_pty::native_pty_system()
         .openpty(PtySize {

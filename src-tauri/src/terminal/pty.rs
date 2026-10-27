@@ -613,7 +613,14 @@ pub fn spawn_local_pty(
 
 #[cfg(test)]
 mod tests {
-    use super::shell_program_name;
+    use super::{build_terminal_command, shell_program_name};
+
+    #[test]
+    fn local_shell_advertises_truecolor() {
+        let command = build_terminal_command(None).expect("build local shell");
+        assert_eq!(command.get_env("TERM"), Some("xterm-256color".as_ref()));
+        assert_eq!(command.get_env("COLORTERM"), Some("truecolor".as_ref()));
+    }
 
     #[test]
     fn names_shells_by_program() {
