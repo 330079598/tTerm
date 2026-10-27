@@ -44,6 +44,33 @@ function materialIconsPlugin(): PluginOption {
   };
 }
 
+/**
+ * xterm's WebGL renderer paints a background rectangle for every cell whose
+ * background word is non-zero, but dim, italic and extended attributes are
+ * stored in that word too. A dim cell on the default background therefore gets
+ * the theme background painted opaque behind it, a dark box once the window
+ * blur makes the terminal background transparent. Still so in the 0.20 betas;
+ * this treats any default-colored background as none, and fails the build when
+ * an upgraded addon no longer has the code it rewrites.
+ */
+function xtermWebglDefaultBackgroundPlugin(): PluginOption {
+  // `f` is the cell's background word, read through the renderer's BG offset.
+  const target = "f=t.cells[h+ze],";
+  const CM_MASK = 0x3000000;
+  return {
+    name: "xterm-webgl-default-background",
+    transform(code, id) {
+      if (!/[\\/]@xterm[\\/]addon-webgl[\\/]lib[\\/]addon-webgl\.mjs(\?|$)/.test(id)) return null;
+      if (code.split(target).length !== 2) {
+        throw new Error(
+          "@xterm/addon-webgl changed: re-check the default-background fix in vite.config.ts",
+        );
+      }
+      return { code: code.replace(target, `${target}f&${CM_MASK}||(f=0),`), map: null };
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
   plugins: [
@@ -52,8 +79,13 @@ export default defineConfig(async () => ({
       autoCodeSplitting: true
     }),
     react(),
-    materialIconsPlugin()
+    materialIconsPlugin(),
+    xtermWebglDefaultBackgroundPlugin()
   ],
+  // Pre-bundled dependencies skip plugin transforms in dev.
+  optimizeDeps: {
+    exclude: ["@xterm/addon-webgl"],
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
