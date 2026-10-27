@@ -27,6 +27,7 @@ const CARGO_MANIFEST = join(ROOT, "src-tauri", "Cargo.toml")
 const INPUTS = [
   join(ROOT, "src-tauri", "Cargo.lock"),
   join(ROOT, "pnpm-lock.yaml"),
+  join(ROOT, "scripts", "prepare-conpty.ps1"),
   fileURLToPath(import.meta.url),
 ]
 // The release matrix in .github/workflows; a crate used on any of them is listed.
@@ -222,6 +223,13 @@ function collectNpmPackages() {
   return packages
 }
 
+// The Windows build bundles this ConPTY runtime; its pinned version lives in
+// the script that downloads it.
+function conptyVersion() {
+  const script = readFileSync(join(ROOT, "scripts", "prepare-conpty.ps1"), "utf8")
+  return script.match(/version = '([^']+)'/)?.[1] ?? ""
+}
+
 // Shipped code that no package manager reports.
 function collectOtherPackages() {
   return [
@@ -253,6 +261,14 @@ function collectOtherPackages() {
           ),
         },
       ],
+    },
+    {
+      name: "Microsoft.Windows.Console.ConPTY",
+      version: conptyVersion(),
+      license: "MIT",
+      source: "other",
+      url: "https://github.com/microsoft/terminal",
+      files: readLicenseFiles(join(ROOT, "src-tauri", "resources"), ["conpty-LICENSE.txt"]),
     },
     {
       name: "iTerm2-Color-Schemes",
