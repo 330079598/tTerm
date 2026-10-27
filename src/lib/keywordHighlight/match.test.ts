@@ -73,7 +73,8 @@ describe("built-in highlight set", () => {
       "Failed",
     ])
     expect(builtinMatches("warning: request timed out")).toEqual(["warning", "timed out"])
-    expect(builtinMatches("[ OK ] tests passed")).toEqual(["OK", "passed"])
+    // "ok" is too common to color: it would light up most command output.
+    expect(builtinMatches("[ OK ] tests passed")).toEqual(["passed"])
     expect(builtinMatches("errorlevel token failsafe")).toEqual([])
   })
 

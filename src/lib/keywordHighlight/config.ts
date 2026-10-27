@@ -130,7 +130,7 @@ export function builtinHighlightSet(): HighlightSet {
         "yellow",
         true
       ),
-      builtinRule("builtin-success", "ok|success(?:ful|fully)?|succeeded|passed", "green", true),
+      builtinRule("builtin-success", "success(?:ful|fully)?|succeeded|passed", "green", true),
       builtinRule("builtin-ipv4", IPV4_PATTERN, "cyan", false),
       builtinRule("builtin-ipv6", IPV6_PATTERN, "cyan", false),
       builtinRule("builtin-mac", MAC_PATTERN, "magenta", false),
