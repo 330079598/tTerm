@@ -159,13 +159,36 @@ describe("dispatchKeydownEvent", () => {
   it("falls back from physical Ctrl to Mod on macOS", () => {
     const handler = vi.fn()
     const handlers = new Map<KeymapActionId, Set<KeymapHandler>>([
-      ["terminal.find", new Set([handler])],
+      ["terminal.zoomIn", new Set([handler])],
     ])
-    const index = new Map<string, KeymapActionId>([["mod+f", "terminal.find"]])
+    const index = new Map<string, KeymapActionId>([["mod+=", "terminal.zoomIn"]])
     const env = createEnv({ handlers, index, isMac: true })
 
-    expect(dispatchKeydownEvent(keydown("f", { ctrlKey: true }), env)).toBe("terminal.find")
+    expect(dispatchKeydownEvent(keydown("=", { ctrlKey: true }), env)).toBe("terminal.zoomIn")
     expect(handler).toHaveBeenCalledOnce()
+  })
+
+  it("leaves Ctrl and a letter to the terminal on macOS while Cmd and that letter is bound", () => {
+    const handler = vi.fn()
+    const handlers = new Map<KeymapActionId, Set<KeymapHandler>>([
+      ["tabs.closeActive", new Set([handler])],
+      ["terminal.find", new Set([handler])],
+    ])
+    const index = new Map<string, KeymapActionId>([
+      ["mod+w", "tabs.closeActive"],
+      ["mod+f", "terminal.find"],
+    ])
+    const env = createEnv({ handlers, index, isMac: true })
+
+    const deleteWord = keydown("w", { code: "KeyW", ctrlKey: true })
+    expect(dispatchKeydownEvent(deleteWord, env)).toBeNull()
+    expect(deleteWord.defaultPrevented).toBe(false)
+    expect(dispatchKeydownEvent(keydown("f", { code: "KeyF", ctrlKey: true }), env)).toBeNull()
+    expect(handler).not.toHaveBeenCalled()
+
+    expect(dispatchKeydownEvent(keydown("w", { code: "KeyW", metaKey: true }), env)).toBe(
+      "tabs.closeActive"
+    )
   })
 
   it("leaves Ctrl+[ and Ctrl+] to the terminal on macOS while Cmd+[ / Cmd+] are bound", () => {
