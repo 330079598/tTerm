@@ -213,6 +213,18 @@ export function strongerAttention(
   return current && ATTENTION_RANK[current] >= ATTENTION_RANK[next] ? current : next
 }
 
+/**
+ * Whether local shells mark where their commands start and end, which
+ * finished-command notifications need: Windows shells mark them once command
+ * marks are on, and macOS and Linux shells also need tTerm's shell integration.
+ */
+export function localShellsMarkCommands(
+  config: { command_marks: boolean; local_shell_integration: boolean },
+  platform: string
+): boolean {
+  return config.command_marks && (platform === "windows" || config.local_shell_integration)
+}
+
 export interface NotificationSettings {
   notifications_enabled: boolean
   notify_command_finished: boolean

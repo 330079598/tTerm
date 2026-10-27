@@ -24,6 +24,8 @@ import { useSettingsSave } from "@/hooks/useSettingsSave"
 import { useSyncedState } from "@/hooks/useSyncedState"
 import { showSystemNotification } from "@/hooks/useTerminalNotifications"
 import { isImeKeyEvent } from "@/lib/ime"
+import { localShellsMarkCommands } from "@/lib/terminalNotifications"
+import { getDetectedPlatform } from "@/lib/uiPlatform"
 import { toErrorMessage } from "@/lib/utils"
 
 /** `notification_permission` (src-tauri/src/notification). */
@@ -42,9 +44,17 @@ const PERMISSION_WARNINGS: Partial<
   },
 }
 
-export const NotificationSettingsTab: React.FC = () => {
+interface NotificationSettingsTabProps {
+  /** Switches the dialog to Terminal settings, where shell integration is turned on. */
+  onOpenTerminalSettings: () => void
+}
+
+export const NotificationSettingsTab: React.FC<NotificationSettingsTabProps> = ({
+  onOpenTerminalSettings,
+}) => {
   const { t } = useTranslation()
   const { config } = useConfig()
+  const platform = getDetectedPlatform()
   const { saveSettings } = useSettingsSave()
   const [permission, setPermission] = useState<NotificationPermission | null>(null)
   const [minSecsDraft, setMinSecsDraft] = useSyncedState(String(config.notify_command_min_secs))
@@ -213,6 +223,22 @@ export const NotificationSettingsTab: React.FC = () => {
                 {t("notifications.commandMinSecsRange")}
               </div>
             </div>
+            {config.notify_command_finished && !localShellsMarkCommands(config, platform) && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                {t(
+                  platform === "windows"
+                    ? "notifications.localShellsUnmarkedWindows"
+                    : "notifications.localShellsUnmarked"
+                )}{" "}
+                <Button
+                  variant="link"
+                  className="h-auto p-0 text-xs"
+                  onClick={onOpenTerminalSettings}
+                >
+                  {t("notifications.openTerminalSettings")}
+                </Button>
+              </p>
+            )}
           </SettingsRow>
           <SettingsRow
             icon={<MessageSquareText size={16} />}

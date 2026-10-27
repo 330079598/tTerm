@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  localShellsMarkCommands,
   CommandTimer,
   decideAttention,
   formatCommandDuration,
@@ -305,5 +306,15 @@ describe("formatCommandDuration", () => {
     expect(formatCommandDuration(42_400)).toBe("42s")
     expect(formatCommandDuration(185_000)).toBe("3m 5s")
     expect(formatCommandDuration(3_720_000)).toBe("1h 2m")
+  })
+})
+
+describe("localShellsMarkCommands", () => {
+  it("needs command marks everywhere and shell integration outside Windows", () => {
+    const on = { command_marks: true, local_shell_integration: true }
+    expect(localShellsMarkCommands(on, "macos")).toBe(true)
+    expect(localShellsMarkCommands({ ...on, local_shell_integration: false }, "linux")).toBe(false)
+    expect(localShellsMarkCommands({ ...on, local_shell_integration: false }, "windows")).toBe(true)
+    expect(localShellsMarkCommands({ ...on, command_marks: false }, "windows")).toBe(false)
   })
 })

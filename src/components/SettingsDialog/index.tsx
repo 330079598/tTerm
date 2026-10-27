@@ -186,7 +186,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           </SettingsTabPanel>
 
           <SettingsTabPanel value="notifications">
-            <NotificationSettingsTab />
+            <NotificationSettingsTab onOpenTerminalSettings={() => setActiveTab("terminal")} />
           </SettingsTabPanel>
 
           <SettingsTabPanel value="connection">
