@@ -1,4 +1,5 @@
-use super::{default_font_family, keyword_highlight, panes, AppConfig};
+use super::defaults::default_font_family;
+use super::{keyword_highlight, panes, AppConfig};
 
 #[test]
 fn legacy_config_shows_its_one_theme() {
