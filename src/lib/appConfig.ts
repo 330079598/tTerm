@@ -192,6 +192,7 @@ export interface AppConfig extends TabSettings {
   bell_style: BellStyle
 }
 
+// The backend's `default_update_channel` makes the same choice.
 const defaultUpdateChannel = /-(alpha|beta|rc|dev)(\.|$)/.test(
   import.meta.env.PACKAGE_VERSION ?? ""
 )
