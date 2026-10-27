@@ -10,6 +10,7 @@ import { DEFAULT_MONITOR_VISIBLE_METRICS, type MonitorMetricId } from "@/lib/mon
 import type { SftpStartDirectory } from "@/lib/sftpStartDirectory"
 import { defaultTerminalFontFamily } from "@/lib/terminalFont"
 import { DEFAULT_TAB_SETTINGS, type TabSettings } from "@/lib/tabSettings"
+import { getDetectedPlatform } from "@/lib/uiPlatform"
 
 export interface SecretBackendStatus {
   storageMode: SecretStorageMode
@@ -260,7 +261,8 @@ export const defaultConfig: AppConfig = {
   mac_option_is_meta: false,
   confirm_multiline_paste: true,
   copy_on_select: false,
-  right_click_paste: false,
+  // Windows users expect it from PuTTY, Xshell and Windows Terminal.
+  right_click_paste: getDetectedPlatform() === "windows",
   osc52_clipboard_write: true,
   command_marks: true,
   keyword_highlight: defaultKeywordHighlightConfig(),

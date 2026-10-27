@@ -181,8 +181,9 @@ pub struct AppConfig {
     #[serde(default)]
     pub copy_on_select: bool,
     /// Right-clicking the terminal pastes instead of opening the context menu
-    /// (Shift+right-click still opens it).
-    #[serde(default)]
+    /// (Shift+right-click still opens it). On by default on Windows, where
+    /// PuTTY, Xshell and Windows Terminal paste on right click.
+    #[serde(default = "default_right_click_paste")]
     pub right_click_paste: bool,
     /// Let programs in the terminal copy text to the clipboard with OSC 52,
     /// which is how vim, neovim and tmux copy over SSH. Reading the clipboard
@@ -483,6 +484,10 @@ fn default_reconnect_enabled() -> bool {
     true
 }
 
+fn default_right_click_paste() -> bool {
+    cfg!(target_os = "windows")
+}
+
 fn default_confirm_multiline_paste() -> bool {
     true
 }
@@ -668,7 +673,7 @@ impl Default for AppConfig {
             mac_option_is_meta: false,
             confirm_multiline_paste: default_confirm_multiline_paste(),
             copy_on_select: false,
-            right_click_paste: false,
+            right_click_paste: default_right_click_paste(),
             osc52_clipboard_write: default_osc52_clipboard_write(),
             command_marks: default_command_marks(),
             local_shell_integration: false,

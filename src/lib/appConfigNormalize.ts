@@ -253,7 +253,10 @@ export function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     mac_option_is_meta: config.mac_option_is_meta === true,
     confirm_multiline_paste: config.confirm_multiline_paste !== false,
     copy_on_select: config.copy_on_select === true,
-    right_click_paste: config.right_click_paste === true,
+    right_click_paste:
+      typeof config.right_click_paste === "boolean"
+        ? config.right_click_paste
+        : defaultConfig.right_click_paste,
     osc52_clipboard_write: config.osc52_clipboard_write !== false,
     command_marks: config.command_marks !== false,
     keyword_highlight: normalizeKeywordHighlightConfig(config.keyword_highlight),
