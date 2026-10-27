@@ -111,6 +111,12 @@ async fn open_terminal_channel(
         .request_pty(false, "xterm-256color", cols as u32, rows as u32, 0, 0, &[])
         .await
         .map_err(|err| format!("Failed to request SSH PTY: {err}"))?;
+    // Remote TUIs otherwise quantize to 256 colors. Servers only take it when
+    // their AcceptEnv lists it (recent Debian and Ubuntu do), so a refusal is
+    // ignored rather than asked for.
+    if let Err(err) = channel.set_env(false, "COLORTERM", "truecolor").await {
+        eprintln!("SSH COLORTERM request failed: {err}");
+    }
     Ok(channel)
 }
 
