@@ -591,6 +591,8 @@ pub fn spawn_local_pty(
             pixel_height: 0,
         })
         .map_err(|e| format!("Failed to open PTY: {}", e))?;
+    #[cfg(target_os = "windows")]
+    log_conpty_source();
 
     let cmd = build_terminal_command(shell_config)?;
     let child = pair
@@ -609,6 +611,27 @@ pub fn spawn_local_pty(
     let active = ActivePty::new(writer, pair.master, child);
 
     Ok((pid, active))
+}
+
+/// Says once which ConPTY the local terminals got. portable-pty falls back to
+/// the system one silently when the bundled `conpty.dll` is missing, and the
+/// older system ones drop the color queries TUIs send at startup.
+#[cfg(target_os = "windows")]
+fn log_conpty_source() {
+    use windows::core::w;
+    use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+
+    static LOGGED: std::sync::Once = std::sync::Once::new();
+    LOGGED.call_once(|| {
+        // SAFETY: GetModuleHandleW only looks up a module this process already loaded.
+        if unsafe { GetModuleHandleW(w!("conpty.dll")) }.is_ok() {
+            eprintln!("Local terminals use the bundled ConPTY");
+        } else {
+            eprintln!(
+                "Bundled conpty.dll is missing beside tTerm; local terminals use the system ConPTY"
+            );
+        }
+    });
 }
 
 #[cfg(test)]
