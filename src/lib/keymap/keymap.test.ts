@@ -108,10 +108,10 @@ describe("resolveEffectiveKeymap", () => {
     )
   })
 
-  it("opens, closes and searches with Cmd+T, Cmd+W and Cmd+F on macOS", () => {
+  it("opens tabs on Cmd+T and searches with Cmd+F on macOS, leaving Cmd+W to the menu", () => {
     const effective = resolveEffectiveKeymap(DEFAULT_KEYMAP_CONFIG, true)
     expect(effective["workspace.newTab"]).toEqual(["mod+t"])
-    expect(effective["tabs.closeActive"]).toEqual(["mod+w"])
+    expect(effective["tabs.closeActive"]).toEqual(["mod+shift+w"])
     expect(effective["terminal.find"]).toEqual(["mod+f"])
     expect(findKeymapConflicts(effective).size).toBe(0)
   })

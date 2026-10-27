@@ -171,23 +171,23 @@ describe("dispatchKeydownEvent", () => {
   it("leaves Ctrl and a letter to the terminal on macOS while Cmd and that letter is bound", () => {
     const handler = vi.fn()
     const handlers = new Map<KeymapActionId, Set<KeymapHandler>>([
-      ["tabs.closeActive", new Set([handler])],
+      ["workspace.newTab", new Set([handler])],
       ["terminal.find", new Set([handler])],
     ])
     const index = new Map<string, KeymapActionId>([
-      ["mod+w", "tabs.closeActive"],
+      ["mod+t", "workspace.newTab"],
       ["mod+f", "terminal.find"],
     ])
     const env = createEnv({ handlers, index, isMac: true })
 
-    const deleteWord = keydown("w", { code: "KeyW", ctrlKey: true })
-    expect(dispatchKeydownEvent(deleteWord, env)).toBeNull()
-    expect(deleteWord.defaultPrevented).toBe(false)
-    expect(dispatchKeydownEvent(keydown("f", { code: "KeyF", ctrlKey: true }), env)).toBeNull()
+    const forwardChar = keydown("f", { code: "KeyF", ctrlKey: true })
+    expect(dispatchKeydownEvent(forwardChar, env)).toBeNull()
+    expect(forwardChar.defaultPrevented).toBe(false)
+    expect(dispatchKeydownEvent(keydown("t", { code: "KeyT", ctrlKey: true }), env)).toBeNull()
     expect(handler).not.toHaveBeenCalled()
 
-    expect(dispatchKeydownEvent(keydown("w", { code: "KeyW", metaKey: true }), env)).toBe(
-      "tabs.closeActive"
+    expect(dispatchKeydownEvent(keydown("f", { code: "KeyF", metaKey: true }), env)).toBe(
+      "terminal.find"
     )
   })
 

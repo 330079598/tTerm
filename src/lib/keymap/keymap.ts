@@ -86,12 +86,12 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
  * and browsers there, while Option+digit types symbols such as "¡" and is
  * Meta+digit (a readline count) once Option acts as Meta. Cmd+[ / Cmd+]
  * switches panes in iTerm2, Ghostty and Warp. Cmd chords never reach the
- * shell, so tabs open and close on Cmd+T and Cmd+W, and Cmd+F finds, as in
- * every Mac terminal.
+ * shell, so tabs open on Cmd+T and Cmd+F finds, as in every Mac terminal.
+ * Closing a tab keeps Cmd+Shift+W, because Cmd+W is Close Window in the
+ * default macOS menu.
  */
 const MAC_DEFAULT_BINDINGS: Partial<Record<KeymapActionId, string | string[] | null>> = {
   "workspace.newTab": "mod+t",
-  "tabs.closeActive": "mod+w",
   "terminal.find": "mod+f",
   "tabs.switchToNth": digitChords("mod"),
   "workspace.focusNextPane": "mod+]",

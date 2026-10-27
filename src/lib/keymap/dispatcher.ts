@@ -25,7 +25,7 @@ export interface KeymapDispatchEnvironment {
 /**
  * Whether the terminal needs this key's Ctrl chord, so on macOS it never falls
  * back to a Cmd binding. Ctrl and a letter is a control character that shells
- * and editors use (Ctrl+W deletes a word while Cmd+W closes the tab), Ctrl+[
+ * and editors use (Ctrl+F moves the cursor forward while Cmd+F finds), Ctrl+[
  * is Escape, Ctrl+] leaves telnet and virsh consoles, and Ctrl+\ sends
  * SIGQUIT.
  */
