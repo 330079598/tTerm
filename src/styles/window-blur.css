@@ -67,7 +67,7 @@ html.window-blur .sftp-drawer-header {
 }
 
 html.window-blur .sftp-drawer.is-open ~ .terminal-host {
-  clip-path: inset(0 0 calc(95% - 0.05 * var(--terminal-padding-bottom, 0px)) 0);
+  clip-path: inset(0 0 calc(95% - 0.05 * var(--terminal-padding-bottom, 4px)) 0);
 }
 
 /* The floating pin button would show through the drawer's header. */

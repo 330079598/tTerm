@@ -321,7 +321,7 @@
   min-height: 0;
   overflow: hidden;
   box-sizing: border-box;
-  padding-right: var(--terminal-padding-right, 0px);
-  padding-bottom: var(--terminal-padding-bottom, 0px);
+  padding-right: var(--terminal-padding-right, 6px);
+  padding-bottom: var(--terminal-padding-bottom, 4px);
   padding-left: var(--terminal-padding-left, 6px);
 }
