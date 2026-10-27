@@ -6,11 +6,13 @@ pub(crate) mod paths;
 pub mod reconnect;
 pub mod tab_agent_indicator;
 pub mod tab_icons;
+mod update_channel;
 pub mod window_background;
 
 use atomic::atomic_write;
 use keymap::KeymapConfig;
 use paths::{ensure_config_dir, get_config_path};
+use update_channel::default_update_channel;
 
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fs;
@@ -436,10 +438,6 @@ fn default_monitor_visible_metrics() -> Vec<String> {
         .into_iter()
         .map(str::to_string)
         .collect()
-}
-
-fn default_update_channel() -> String {
-    "stable".to_string()
 }
 
 fn default_auto_download_updates() -> bool {
