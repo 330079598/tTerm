@@ -5,6 +5,8 @@ mod launcher;
 #[cfg(target_os = "macos")]
 mod macos_command;
 #[cfg(target_os = "windows")]
+mod registry;
+#[cfg(target_os = "windows")]
 mod user_path;
 #[cfg(target_os = "windows")]
 mod windows_command;
