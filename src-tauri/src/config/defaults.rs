@@ -191,6 +191,9 @@ pub(super) fn default_background_throttling() -> String {
     "throttle".to_string()
 }
 
+/// The layout for a config file saved before the setting existed. Such a
+/// user has only ever seen the classic layout, so an update keeps it; a first
+/// launch starts in islands instead (see `AppConfig::default`).
 pub(super) fn default_ui_style() -> String {
     "classic".to_string()
 }
@@ -300,7 +303,7 @@ impl Default for AppConfig {
             window_blur_radius: default_window_blur_radius(),
             window_opacity_percent: default_window_opacity_percent(),
             window_blur_material: default_window_blur_material(),
-            ui_style: default_ui_style(),
+            ui_style: "islands".to_string(),
             close_behavior: default_close_behavior(),
             notifications_enabled: true,
             notify_command_finished: true,

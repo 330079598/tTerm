@@ -26,8 +26,14 @@ describe("ui style", () => {
     expect(root().classList.contains("ui-islands")).toBe(true)
   })
 
-  it("starts classic when nothing was remembered", () => {
+  it("starts the next launch classic when classic was last applied", () => {
+    applyUiStyle("classic")
     preloadUiStyle()
     expect(root().classList.contains("ui-islands")).toBe(false)
+  })
+
+  it("starts in islands when nothing was remembered", () => {
+    preloadUiStyle()
+    expect(root().classList.contains("ui-islands")).toBe(true)
   })
 })

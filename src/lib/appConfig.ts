@@ -275,7 +275,7 @@ export const defaultConfig: AppConfig = {
   window_blur_radius: 20,
   window_opacity_percent: 70,
   window_blur_material: "acrylic",
-  ui_style: "classic",
+  ui_style: "islands",
   profile_sort: "default",
   close_behavior: "ask",
   notifications_enabled: true,

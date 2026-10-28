@@ -331,7 +331,9 @@ fn panes_keep_saved_templates_as_written() {
 }
 
 #[test]
-fn ui_style_defaults_to_classic_and_keeps_islands() {
+fn ui_style_starts_islands_but_keeps_older_files_classic() {
+    assert_eq!(AppConfig::default().ui_style, "islands");
+
     let config: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
     assert_eq!(config.ui_style, "classic");
 

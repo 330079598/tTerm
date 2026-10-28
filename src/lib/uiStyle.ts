@@ -12,17 +12,20 @@ export function applyUiStyle(style: UiStyle): void {
   try {
     localStorage.setItem(UI_STYLE_CACHE_KEY, style)
   } catch {
-    // Without storage the next launch starts classic until the config loads.
+    // Without storage the next launch starts in islands until the config loads.
   }
 }
 
-/** Applies the style remembered from the last run, if there is one. */
+/**
+ * Applies the style remembered from the last run. With nothing remembered this
+ * is most likely a first launch, which starts in islands like a new config.
+ */
 export function preloadUiStyle(): void {
+  let remembered: string | null = null
   try {
-    if (localStorage.getItem(UI_STYLE_CACHE_KEY) === "islands") {
-      document.documentElement.classList.add(ISLANDS_CLASS)
-    }
+    remembered = localStorage.getItem(UI_STYLE_CACHE_KEY)
   } catch {
-    // Nothing remembered; the config applies the style once it loads.
+    // Storage is unavailable; the config corrects the style once it loads.
   }
+  document.documentElement.classList.toggle(ISLANDS_CLASS, remembered !== "classic")
 }
