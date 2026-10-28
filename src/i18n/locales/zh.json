@@ -2037,7 +2037,8 @@
       "notReady": "SFTP 未就绪",
       "uploadAllFailed": "{{count}} 个上传任务失败",
       "uploadPartialFailed": "{{succeeded}} 个上传成功，{{failed}} 个失败",
-      "terminalBusy": "终端里正在运行程序，退出后再试。"
+      "terminalBusy": "终端里正在运行程序，退出后再试。",
+      "terminalElsewhere": "终端现在在 {{host}} 上，不在这台服务器。先退回这台服务器再试。"
     },
     "emptyDescription": "此文件夹为空",
     "emptyHint": "上传文件或新建文件夹，开始整理此路径。",

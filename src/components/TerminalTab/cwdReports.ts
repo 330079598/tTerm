@@ -28,6 +28,8 @@ interface CwdReportOptions {
    * `ssh` from the connected host), and with null once they are back.
    */
   onRemoteAwayHost: (host: string | null) => void
+  /** Called on every remote report, which tTerm's scripts send at each prompt. */
+  onRemoteReport: () => void
 }
 
 /**
@@ -60,6 +62,7 @@ export function watchCwdReports(term: Terminal, options: CwdReportOptions): IDis
   const reportRemote = (data: string) => {
     const report = parseOsc7Report(data)
     if (!report) return
+    options.onRemoteReport()
     // tTerm's own scripts leave the host out, and they run on the connected
     // host only.
     if (!isUnnamedHost(report.host)) {

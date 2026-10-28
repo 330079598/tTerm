@@ -190,6 +190,23 @@ describe("CommandMarks", () => {
     expect(marks.isRunningProgram()).toBe(false)
   })
 
+  it("knows a line went to a program when no directory report followed Enter", () => {
+    const { marks } = setup()
+    marks.setEnabled(false)
+    // Nothing is known before the shell reports at all.
+    marks.handleEnter()
+    expect(marks.awaitsPrompt()).toBe(false)
+
+    marks.noteCwdReport()
+    expect(marks.awaitsPrompt()).toBe(false)
+    marks.handleEnter()
+    expect(marks.awaitsPrompt()).toBe(true)
+    marks.handleEnter()
+    expect(marks.awaitsPrompt()).toBe(true)
+    marks.noteCwdReport()
+    expect(marks.awaitsPrompt()).toBe(false)
+  })
+
   it("knows when a command runs from Enter when the shell sends no C (PowerShell, cmd)", async () => {
     const { marks, write } = setup()
     await write(`${PROMPT}C:\\> claude`)

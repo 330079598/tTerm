@@ -1,3 +1,4 @@
+import type { CdRefusal } from "@/lib/terminalCd"
 import type { Tab } from "@/types/tab"
 
 export interface SftpDrawerProps {
@@ -11,8 +12,8 @@ export interface SftpDrawerProps {
     sourceTabId: string,
     connection?: Tab["connection"]
   ) => void
-  /** Takes the tab's shell to `path`; false when the terminal is busy. */
-  onCdInTerminal?: (path: string) => boolean
+  /** Takes the tab's shell to `path`, or says why it did not. */
+  onCdInTerminal?: (path: string) => CdRefusal | null
 }
 
 export interface SftpDirectoryEntry {

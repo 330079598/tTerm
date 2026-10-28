@@ -112,6 +112,7 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
     onRemoteCwd: (cwd) => setTabRemoteCwd(tabId, cwd),
     remoteHostname: () => getTabRemoteHostname(tabId) ?? null,
     onRemoteAwayHost: (host) => setTabRemoteAwayHost(tabId, host),
+    onRemoteReport: () => commandMarks.noteCwdReport(),
   })
 
   // The distribution a local WSL shell runs, for the tab's logo.

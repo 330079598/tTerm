@@ -68,6 +68,12 @@ export class CommandMarks implements IDisposable {
    * prompt may scroll out of the buffer while a long command still runs.
    */
   private commandRunning = false
+  /**
+   * The shell reported its directory (OSC 7) since Enter was last pressed;
+   * null before any report. tTerm's scripts report it at every prompt, also
+   * with command marks off.
+   */
+  private reportedSinceEnter: boolean | null = null
   private enabled = true
   /** The prompt the last jump went to, while the view still shows it there. */
   private jumped: { prompt: IMarker; viewportY: number } | null = null
@@ -116,12 +122,27 @@ export class CommandMarks implements IDisposable {
     return this.enabled && this.commandRunning
   }
 
+  /** The shell reported its directory, as it does at every prompt. */
+  noteCwdReport() {
+    this.reportedSinceEnter = true
+  }
+
+  /**
+   * Enter was pressed and the shell has not reported its directory since, so
+   * a command or a program still has the line. Tells a shell back at its
+   * prompt from `tail -f` or a REPL when the marks say nothing.
+   */
+  awaitsPrompt(): boolean {
+    return this.reportedSinceEnter === false
+  }
+
   /**
    * Enter pressed. A shell that sends no C mark (PowerShell, cmd) starts its
    * output on the line after the one the command was typed on. Returns true
    * when Enter starts a command this way.
    */
   handleEnter(): boolean {
+    if (this.reportedSinceEnter) this.reportedSinceEnter = false
     if (!this.enabled || this.sendsOutputMarks || this.term.buffer.active.type !== "normal") {
       return false
     }

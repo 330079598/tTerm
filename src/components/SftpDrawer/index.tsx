@@ -256,7 +256,11 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
 
   const handleCdInTerminal = useCallback(
     (path: string) => {
-      if (onCdInTerminal && !onCdInTerminal(path)) setError(t("sftp.errors.terminalBusy"))
+      const refusal = onCdInTerminal?.(path)
+      if (refusal?.reason === "busy") setError(t("sftp.errors.terminalBusy"))
+      if (refusal?.reason === "elsewhere") {
+        setError(t("sftp.errors.terminalElsewhere", { host: refusal.host }))
+      }
     },
     [onCdInTerminal, setError, t]
   )

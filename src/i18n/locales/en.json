@@ -2055,7 +2055,8 @@
       "notReady": "SFTP not ready",
       "uploadAllFailed": "{{count}} upload(s) failed",
       "uploadPartialFailed": "{{succeeded}} upload(s) succeeded, {{failed}} failed",
-      "terminalBusy": "The terminal is running a program. Quit it, then try again."
+      "terminalBusy": "The terminal is running a program. Quit it, then try again.",
+      "terminalElsewhere": "The terminal is on {{host}} now, not on this server. Exit back to this server, then try again."
     },
     "emptyDescription": "This folder is empty",
     "emptyHint": "Upload files or create a folder to start organizing this path.",

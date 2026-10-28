@@ -20,6 +20,7 @@ function setup(remote: boolean, hostname: string | null = "web01") {
   const onCwd = vi.fn()
   const onRemoteCwd = vi.fn()
   const onRemoteAwayHost = vi.fn()
+  const onRemoteReport = vi.fn()
   const reports = watchCwdReports(term, {
     tabId: "tab",
     sessionNonce: 1,
@@ -28,9 +29,10 @@ function setup(remote: boolean, hostname: string | null = "web01") {
     onRemoteCwd,
     remoteHostname: () => hostname,
     onRemoteAwayHost,
+    onRemoteReport,
   })
   const write = (data: string) => new Promise<void>((resolve) => term!.write(data, resolve))
-  return { onCwd, onRemoteCwd, onRemoteAwayHost, reports, write }
+  return { onCwd, onRemoteCwd, onRemoteAwayHost, onRemoteReport, reports, write }
 }
 
 describe("watchCwdReports", () => {
@@ -51,9 +53,10 @@ describe("watchCwdReports", () => {
   })
 
   it("ignores OSC 9;9 over SSH", async () => {
-    const { onRemoteCwd, write } = setup(true)
+    const { onRemoteCwd, onRemoteReport, write } = setup(true)
     await write('\x1b]9;9;"C:\\Users"\x1b\\')
     expect(onRemoteCwd).not.toHaveBeenCalled()
+    expect(onRemoteReport).not.toHaveBeenCalled()
   })
 
   it("follows reports naming the connected host, however fully", async () => {
@@ -65,7 +68,7 @@ describe("watchCwdReports", () => {
   })
 
   it("pauses while another host reports and resumes when the connected one does", async () => {
-    const { onRemoteCwd, onRemoteAwayHost, write } = setup(true)
+    const { onRemoteCwd, onRemoteAwayHost, onRemoteReport, write } = setup(true)
     await write("\x1b]7;file:///srv\x1b\\")
     await write("\x1b]7;file://db01/etc\x1b\\")
     await write("\x1b]7;file://db01/var\x1b\\")
@@ -75,6 +78,7 @@ describe("watchCwdReports", () => {
     await write("\x1b]7;file:///srv\x1b\\")
     expect(onRemoteAwayHost).toHaveBeenLastCalledWith(null)
     expect(onRemoteCwd.mock.calls).toEqual([["/srv"]])
+    expect(onRemoteReport).toHaveBeenCalledTimes(4)
   })
 
   it("takes the first host a report names when the host's name is not known", async () => {
