@@ -80,7 +80,7 @@ function LicenseRow({
         type="button"
         aria-expanded={expanded}
         onClick={onToggle}
-        className="hover:bg-accent/60 focus-visible:bg-accent/60 flex w-full items-center gap-2 px-3 py-2 text-left outline-none"
+        className="hover:bg-muted focus-visible:bg-muted flex w-full items-center gap-2 px-3 py-2 text-left outline-none"
       >
         <ChevronRight
           className={cn(

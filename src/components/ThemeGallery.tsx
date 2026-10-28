@@ -381,7 +381,7 @@ const CatalogThemeRow = React.memo(function CatalogThemeRow({
       onDoubleClick={onApply}
       className={cn(
         "group flex cursor-default items-center gap-2.5 rounded-md px-2 py-1.5 text-sm",
-        selected ? "bg-accent ring-primary ring-1 ring-inset" : "hover:bg-accent/60"
+        selected ? "bg-primary/15" : "hover:bg-muted"
       )}
     >
       <span

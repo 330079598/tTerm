@@ -72,7 +72,7 @@ export const SerialSendHistoryMenu: React.FC<SerialSendHistoryMenuProps> = ({
                 {history.map((send) => (
                   <div
                     key={send.id}
-                    className="hover:bg-accent flex items-center gap-1 rounded pl-2"
+                    className="hover:bg-muted flex items-center gap-1 rounded pl-2"
                   >
                     <button
                       type="button"
@@ -105,7 +105,7 @@ export const SerialSendHistoryMenu: React.FC<SerialSendHistoryMenuProps> = ({
                 <button
                   type="button"
                   role="menuitem"
-                  className="hover:bg-accent text-destructive flex w-full items-center gap-2 rounded px-2 py-1 text-left"
+                  className="hover:bg-muted text-destructive flex w-full items-center gap-2 rounded px-2 py-1 text-left"
                   onClick={clear}
                 >
                   <Trash2 className="size-3" />

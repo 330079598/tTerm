@@ -159,8 +159,8 @@ const TunnelForm: React.FC<TunnelFormProps> = ({ onOpenChange, tunnel, profiles,
                 aria-checked={selected}
                 onClick={() => selectKind(kind)}
                 className={cn(
-                  "hover:bg-accent/50 focus-visible:ring-ring/50 flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors outline-none focus-visible:ring-[3px]",
-                  selected && "border-primary bg-accent/40 ring-primary/30 ring-1"
+                  "hover:bg-muted/50 focus-visible:ring-ring/50 flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors outline-none focus-visible:ring-[3px]",
+                  selected && "border-primary bg-primary/10 hover:bg-primary/10"
                 )}
               >
                 <Icon

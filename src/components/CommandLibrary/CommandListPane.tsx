@@ -230,7 +230,7 @@ export function CommandListPane({
                       ? t("commandLibrary.unfavorite")
                       : t("commandLibrary.favorite")
                   }
-                  className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 absolute top-3 right-2 flex size-9 items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-[3px] disabled:opacity-50"
+                  className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/50 absolute top-3 right-2 flex size-9 items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-[3px] disabled:opacity-50"
                   onClick={() => void handleFavorite(command)}
                 >
                   {favoritePendingId === command.id ? (
@@ -295,7 +295,7 @@ export function CommandListPane({
                         ? t("commandLibrary.unfavorite")
                         : t("commandLibrary.favorite")
                     }
-                    className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 absolute top-3 right-2 flex size-9 items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-[3px] disabled:opacity-50"
+                    className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/50 absolute top-3 right-2 flex size-9 items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-[3px] disabled:opacity-50"
                     onClick={() => void handleRecentFavorite(recent)}
                   >
                     {recentPendingId === recent.id ? (

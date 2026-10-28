@@ -102,7 +102,7 @@ function AboutView({ onShowLicenses }: { onShowLicenses: () => void }) {
                 type="button"
                 title={project.url}
                 onClick={() => void openUrl(project.url)}
-                className="group hover:bg-accent focus-visible:ring-ring/50 flex w-full flex-col items-start rounded-md px-2.5 py-1.5 text-left transition-colors outline-none focus-visible:ring-[3px]"
+                className="group hover:bg-muted focus-visible:ring-ring/50 flex w-full flex-col items-start rounded-md px-2.5 py-1.5 text-left transition-colors outline-none focus-visible:ring-[3px]"
               >
                 <span className="flex w-full items-center gap-1 text-sm font-medium">
                   <span className="truncate">{project.name}</span>

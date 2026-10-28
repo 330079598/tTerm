@@ -214,7 +214,7 @@ export const ThemeImportDialog: React.FC<ThemeImportDialogProps> = ({ onClose, o
                         onClick={() => setPreviewIndex(index)}
                         className={cn(
                           "flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left text-sm",
-                          theme === previewed ? "bg-accent" : "hover:bg-accent/60"
+                          theme === previewed ? "bg-primary/15" : "hover:bg-muted"
                         )}
                       >
                         <span className="truncate">{theme.name}</span>

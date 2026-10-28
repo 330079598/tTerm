@@ -49,7 +49,7 @@ export const MonitorMetricRow: React.FC<MonitorMetricRowProps> = ({
       ref={ref}
       className={cn(
         "border-border bg-background flex min-h-10 items-center gap-2 rounded-md border px-2 py-2 transition-colors",
-        checked ? "hover:bg-accent/35 will-change-transform" : "opacity-70",
+        checked ? "hover:bg-muted/50 will-change-transform" : "opacity-70",
         isDragging && "z-10 opacity-80 shadow-md",
         isDropTarget && "border-primary/70 bg-primary/5"
       )}
@@ -61,7 +61,7 @@ export const MonitorMetricRow: React.FC<MonitorMetricRowProps> = ({
             <button
               ref={handleRef}
               type="button"
-              className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-sm outline-none focus-visible:ring-[3px] active:cursor-grabbing"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/50 flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-sm outline-none focus-visible:ring-[3px] active:cursor-grabbing"
               aria-label={dragLabel}
             >
               <GripVertical size={15} aria-hidden="true" />

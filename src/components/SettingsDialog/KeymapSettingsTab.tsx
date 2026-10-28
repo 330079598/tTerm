@@ -185,7 +185,7 @@ export const KeymapSettingsTab: React.FC = () => {
                         ref={isRecording ? recorderRef : undefined}
                         type="button"
                         className={cn(
-                          "border-input bg-background focus-visible:ring-ring/50 hover:bg-accent flex min-h-8 min-w-28 cursor-pointer flex-wrap items-center justify-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors focus-visible:ring-[3px] focus-visible:outline-none",
+                          "border-input bg-background focus-visible:ring-ring/50 hover:bg-muted flex min-h-8 min-w-28 cursor-pointer flex-wrap items-center justify-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors focus-visible:ring-[3px] focus-visible:outline-none",
                           isRecording && "border-primary text-primary ring-primary/20 ring-2"
                         )}
                         aria-label={t("keymap.recordFor", { action: t(actionLabelKey(action.id)) })}

@@ -44,8 +44,8 @@ export const ThemeCard: React.FC<ThemeCardProps> = ({
             className={cn(
               "h-auto flex-1 justify-start gap-3 rounded-lg border px-3 py-2.5 text-left",
               isActive
-                ? "border-primary bg-accent ring-primary ring-1 ring-inset"
-                : "border-transparent"
+                ? "border-primary bg-primary/10 hover:bg-primary/15 dark:hover:bg-primary/15"
+                : "hover:bg-muted dark:hover:bg-muted border-transparent"
             )}
           >
             <span

@@ -228,7 +228,7 @@
 }
 
 .tab-overflow-item.active {
-  background: hsl(var(--accent));
+  background: hsl(var(--primary) / 0.15);
 }
 
 /* The panes of a split tab, listed under it, indented past its number. */

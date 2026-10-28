@@ -30,7 +30,7 @@
 .layout-template-card:hover:not(:disabled),
 .layout-template-card:focus-visible {
   border-color: hsl(var(--primary) / 0.7);
-  background: hsl(var(--accent) / 0.5);
+  background: hsl(var(--muted));
   outline: none;
 }
 

@@ -52,7 +52,7 @@ export const HighlightRuleList: React.FC<HighlightRuleListProps> = ({
             key={rule.id}
             className={cn(
               "flex items-center gap-2 border-b px-2 py-1.5 last:border-b-0",
-              selected ? "bg-accent" : "hover:bg-accent/50"
+              selected ? "bg-primary/15" : "hover:bg-muted/50"
             )}
           >
             <Checkbox

@@ -141,8 +141,8 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                   className={cn(
                     "h-10 w-full justify-start rounded-md border px-3 text-left",
                     isActive
-                      ? "border-primary bg-accent ring-primary ring-1 ring-inset"
-                      : "border-transparent"
+                      ? "border-primary bg-primary/10 hover:bg-primary/15 dark:hover:bg-primary/15"
+                      : "hover:bg-muted dark:hover:bg-muted border-transparent"
                   )}
                 >
                   <div className="min-w-0 flex-1">

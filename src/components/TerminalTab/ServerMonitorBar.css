@@ -46,7 +46,7 @@
 
 .server-monitor-expand:hover:not(:disabled),
 .server-monitor-panel-close:hover {
-  background: hsl(var(--accent) / 0.6);
+  background: hsl(var(--muted));
   color: hsl(var(--foreground));
 }
 
@@ -128,7 +128,7 @@ button.server-monitor-metric.is-clickable {
 }
 
 button.server-monitor-metric.is-clickable:hover {
-  background: hsl(var(--accent) / 0.55);
+  background: hsl(var(--muted));
   color: hsl(var(--foreground));
 }
 

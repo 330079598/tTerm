@@ -112,10 +112,10 @@ export function FontFamilyPicker({
                     key={font}
                     onClick={() => setFontFamily(`"${font}", monospace`)}
                     className={cn(
-                      "hover:bg-accent flex w-full items-center justify-between rounded px-3 py-1.5 text-left text-sm transition-colors",
+                      "flex w-full items-center justify-between rounded px-3 py-1.5 text-left text-sm transition-colors",
                       fontFamily.includes(font)
-                        ? "bg-accent text-foreground"
-                        : "text-muted-foreground"
+                        ? "bg-primary/15 text-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                     style={{ fontFamily: font }}
                   >

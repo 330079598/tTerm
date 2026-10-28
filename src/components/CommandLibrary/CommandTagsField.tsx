@@ -57,7 +57,7 @@ export function CommandTagsField({
               <span className="truncate">{tag}</span>
               <button
                 type="button"
-                className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 -mr-1 flex size-6 shrink-0 items-center justify-center rounded-sm transition-colors outline-none focus-visible:ring-[3px]"
+                className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/50 -mr-1 flex size-6 shrink-0 items-center justify-center rounded-sm transition-colors outline-none focus-visible:ring-[3px]"
                 aria-label={t("commandLibrary.form.removeTag", { tag })}
                 onClick={() => setSelectedTags((current) => removeCommandTag(current, tag))}
               >
@@ -112,7 +112,7 @@ export function CommandTagsField({
               <button
                 key={tag.toLocaleLowerCase()}
                 type="button"
-                className="border-input bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50 inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-[3px]"
+                className="border-input bg-background text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-[3px]"
                 onClick={() => setSelectedTags((current) => addCommandTags(current, tag))}
               >
                 <Plus className="size-3.5 shrink-0" />
