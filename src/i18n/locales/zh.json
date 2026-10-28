@@ -2994,5 +2994,14 @@
   "launchDir": {
     "notFoundTitle": "无法打开文件夹",
     "notFoundDesc": "{{path}} 不是一个存在的文件夹。"
+  },
+  "systemIntegration": {
+    "title": "系统集成",
+    "description": "从其他程序中打开 tTerm。",
+    "shellCommand": "添加 tterm 命令",
+    "shellCommandDesc": "在终端中运行 tterm . 会在当前文件夹打开一个标签页，tterm <文件夹> 则打开指定的文件夹。开启前已打开的终端需要重新打开后才能使用；tTerm 中的标签页可以立即使用。",
+    "shellCommandFailed": "无法更改 tterm 命令",
+    "shellCommandDescMacos": "在终端中运行 tterm . 会在当前文件夹打开一个标签页，tterm <文件夹> 则打开指定的文件夹。该命令放在 /usr/local/bin 中，可能需要输入管理员密码。",
+    "adminPrompt": "tTerm 要更改 /usr/local/bin 中的 tterm 命令。"
   }
 }

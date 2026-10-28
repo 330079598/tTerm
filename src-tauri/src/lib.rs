@@ -24,6 +24,7 @@ mod session_log;
 mod sftp;
 mod ssh;
 mod sync;
+mod system_integration;
 mod terminal;
 mod themes;
 mod tunnel;
@@ -322,6 +323,8 @@ pub fn run() {
             main_window::toggle_devtools,
             ime_focus::repair_ime_focus,
             launch_dir::take_launch_dirs,
+            system_integration::shell_command_status,
+            system_integration::set_shell_command,
             notification::show_notification,
             notification::notification_permission,
             notification::import_notification_sound,
@@ -337,6 +340,7 @@ pub fn run() {
             let app_handle = app.handle().clone();
             config::paths::init_config_dir(&app_handle)?;
             launch_dir::open_from_startup(&app_handle);
+            system_integration::refresh_shell_command(&app_handle);
 
             if let Err(err) = updater::cleanup_stale_pending_update_files(&app_handle) {
                 eprintln!("Failed to clean stale update cache files: {}", err);

@@ -33,6 +33,7 @@ import { getLaunchBackgroundThrottling } from "@/contexts/ConfigContext"
 import { cn } from "@/lib/utils"
 import { BandwidthLimitInput } from "@/components/SettingsDialog/BandwidthLimitInput"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
+import { SystemIntegrationSection } from "@/components/SettingsDialog/SystemIntegrationSection"
 
 interface LanguageOption {
   code: string
@@ -422,6 +423,8 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             />
           )}
         </SettingsSection>
+
+        <SystemIntegrationSection />
 
         <SettingsSection
           icon={<Bug size={16} />}
