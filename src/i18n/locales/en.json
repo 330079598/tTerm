@@ -1765,7 +1765,8 @@
     "textFiles": "Text files",
     "contentsFileName": "terminal",
     "contentsSaved": "Terminal contents saved",
-    "contentsSaveFailed": "Could not save the terminal contents"
+    "contentsSaveFailed": "Could not save the terminal contents",
+    "agentIntegration": "AI agent integration on this server…"
   },
   "secretStorage": {
     "title": "Saved passwords",
@@ -2684,8 +2685,8 @@
       "resetConfigDir": "Use default",
       "showChanges": "Show what is added",
       "hideChanges": "Hide",
-      "changesDesc": "tTerm merges these hooks into {{path}}, leaves your other settings alone and keeps the previous file as .tterm-bak. On an SSH host you can merge them into the same file yourself.",
-      "changesPluginDesc": "tTerm writes this file, which belongs to tTerm alone and is deleted on removal. On an SSH host you can put it in the same place yourself.",
+      "changesDesc": "tTerm merges these hooks into {{path}}, leaves your other settings alone and keeps the previous file as .tterm-bak. For an SSH server, choose AI agent integration on this server… in its terminal's context menu.",
+      "changesPluginDesc": "tTerm writes this file, which belongs to tTerm alone and is deleted on removal. For an SSH server, choose AI agent integration on this server… in its terminal's context menu.",
       "notifyWaiting": "Notify when waiting",
       "notifyWaitingDesc": "When an agent asks for permission or input and has waited a few seconds.",
       "notifyDone": "Notify when finished",
@@ -3000,5 +3001,16 @@
     "historyClear": "Clear history",
     "historyClearConfirm": "Clear everything this connection's send bar sent? Synced devices lose it too.",
     "historyFailed": "Couldn't update the send history"
+  },
+  "remoteAgents": {
+    "title": "AI coding agents on {{host}}",
+    "description": "Install tTerm's hooks on this server so agents you run there show in this tab when they work, wait for you or finish. Inside tmux this needs set -g allow-passthrough on.",
+    "loading": "Reading the agents' settings on the server…",
+    "loadFailed": "Cannot read the agents' settings on the server: {{error}}",
+    "retry": "Try again",
+    "notDetectedDesc": "{{agent}} has no config directory on this server yet. You can still install; it takes effect once you run {{agent}} there.",
+    "environmentSource": "Config directory from the server's environment.",
+    "changesDesc": "tTerm merges these hooks into {{path}} on the server, leaves your other settings alone and keeps the previous file as .tterm-bak.",
+    "changesPluginDesc": "tTerm writes this file to the server. It belongs to tTerm alone and is deleted on removal."
   }
 }

@@ -85,6 +85,7 @@ export const AgentIntegrationSection: React.FC = () => {
           <AgentIntegrationRow
             key={status.agent}
             status={status}
+            place="local"
             busy={busy}
             onChange={(install) => void change(status, install)}
             links={

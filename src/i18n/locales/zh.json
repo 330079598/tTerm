@@ -1747,7 +1747,8 @@
     "textFiles": "文本文件",
     "contentsFileName": "终端",
     "contentsSaved": "终端内容已保存",
-    "contentsSaveFailed": "无法保存终端内容"
+    "contentsSaveFailed": "无法保存终端内容",
+    "agentIntegration": "在这台服务器上安装 AI Agent 集成…"
   },
   "secretStorage": {
     "title": "已保存的密码",
@@ -2662,8 +2663,8 @@
       "resetConfigDir": "恢复默认",
       "showChanges": "查看写入内容",
       "hideChanges": "收起",
-      "changesDesc": "tTerm 会把下面的 hook 合并进 {{path}}，其他设置保持不变，原文件备份为 .tterm-bak。SSH 主机上可以手动把它合并进远端的同名文件。",
-      "changesPluginDesc": "tTerm 会写入下面这个文件，它只属于 tTerm，移除时删除。SSH 主机上可以手动把它放到远端的同一位置。",
+      "changesDesc": "tTerm 会把这些 hook 合并进 {{path}}，不动你的其他设置，并把原文件保存为 .tterm-bak。SSH 服务器请在它的终端右键菜单里选「在这台服务器上安装 AI Agent 集成…」。",
+      "changesPluginDesc": "tTerm 会写入这个文件，它只属于 tTerm，移除时会删除。SSH 服务器请在它的终端右键菜单里选「在这台服务器上安装 AI Agent 集成…」。",
       "notifyWaiting": "等待确认时通知",
       "notifyWaitingDesc": "助手请求权限或需要你输入并等了几秒时通知你。",
       "notifyDone": "完成时通知",
@@ -2978,5 +2979,16 @@
     "historyClear": "清空历史",
     "historyClearConfirm": "清空这个连接的全部发送历史吗？同步的其他设备上也会一起清空。",
     "historyFailed": "无法更新发送历史"
+  },
+  "remoteAgents": {
+    "title": "{{host}} 上的 AI 编程 Agent",
+    "description": "在这台服务器上安装 tTerm 的 hook，你在上面运行的 Agent 工作中、等你操作或完成时，这个标签页都会显示。在 tmux 里需要 set -g allow-passthrough on。",
+    "loading": "正在读取服务器上的 Agent 设置…",
+    "loadFailed": "无法读取服务器上的 Agent 设置：{{error}}",
+    "retry": "重试",
+    "notDetectedDesc": "这台服务器上还没有 {{agent}} 的配置目录。仍然可以安装，在服务器上运行 {{agent}} 后生效。",
+    "environmentSource": "配置目录来自服务器的环境变量。",
+    "changesDesc": "tTerm 会把这些 hook 合并进服务器上的 {{path}}，不动你的其他设置，并把原文件保存为 .tterm-bak。",
+    "changesPluginDesc": "tTerm 会把这个文件写到服务器上。它只属于 tTerm，移除时会删除。"
   }
 }

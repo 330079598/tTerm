@@ -15,6 +15,7 @@ pub mod console_report;
 mod hooks;
 mod json;
 mod plugin_file;
+pub mod remote;
 
 use std::path::{Path, PathBuf};
 
@@ -102,6 +103,17 @@ impl Agent {
                 }),
             },
         }
+    }
+}
+
+impl AgentSpec {
+    /// The spec for an agent on an SSH host, where Codex's Windows hook,
+    /// which runs this computer's tTerm, has nothing to run.
+    fn for_remote(mut self) -> Self {
+        if let Integration::Hooks(hooks) = &mut self.integration {
+            hooks.command_windows = None;
+        }
+        self
     }
 }
 

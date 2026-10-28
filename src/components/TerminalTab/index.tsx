@@ -22,6 +22,7 @@ import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
 import { SshAuthPromptDialog } from "@/components/TerminalTab/SshAuthPromptDialog"
 import { JumpHostInfoDialog } from "@/components/TerminalTab/JumpHostInfoDialog"
+import { RemoteAgentIntegrationDialog } from "@/components/RemoteAgentIntegrationDialog"
 import { PasswordPrompt } from "@/components/TerminalTab/PasswordPrompt"
 import { ServerMonitorBar } from "@/components/TerminalTab/ServerMonitorBar"
 import { TerminalSearchBar } from "@/components/TerminalTab/TerminalSearchBar"
@@ -260,6 +261,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     armZmodemManualTrigger,
     handleTerminalMenuAction,
     terminalMenuActions,
+    agentIntegrationOpen,
+    setAgentIntegrationOpen,
   } = useTerminalContextMenu({
     ...refs,
     tabId,
@@ -426,6 +429,13 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
           onOpenChange={handleJumpHostInfoOpenChange}
           open={jumpHostInfoOpen}
         />
+        {agentIntegrationOpen && (
+          <RemoteAgentIntegrationDialog
+            tabId={tabId}
+            connection={connection}
+            onClose={() => setAgentIntegrationOpen(false)}
+          />
+        )}
       </div>
       <ServerMonitorBar
         active={isActive}

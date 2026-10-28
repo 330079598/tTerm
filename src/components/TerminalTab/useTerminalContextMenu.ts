@@ -31,7 +31,8 @@ type UseTerminalContextMenuOptions = Pick<
 
 /**
  * The terminal's context menu and the actions it offers: copying, pasting,
- * saving the contents, ZMODEM, resetting and clearing.
+ * saving the contents, ZMODEM, AI agent hooks on an SSH host, resetting and
+ * clearing.
  */
 export function useTerminalContextMenu({
   tabId,
@@ -57,6 +58,7 @@ export function useTerminalContextMenu({
     selection: string
     hasCommandOutput: boolean
   } | null>(null)
+  const [agentIntegrationOpen, setAgentIntegrationOpen] = useState(false)
   const handleTerminalContextMenu = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       event.preventDefault()
@@ -233,6 +235,10 @@ export function useTerminalContextMenu({
         await saveTerminalContents()
         return
       }
+      if (action === "agent-integration") {
+        setAgentIntegrationOpen(true)
+        return
+      }
       if (action === "toggle-keyword-highlight") {
         keywordHighlight.toggleHighlightPaused()
         return
@@ -323,6 +329,9 @@ export function useTerminalContextMenu({
     },
     { separator: true, action: "separator", label: "" },
     { action: "save-contents", label: t("terminalContext.saveContents"), icon: "file-down" },
+    ...(connection?.type === "ssh"
+      ? [{ action: "agent-integration", label: t("terminalContext.agentIntegration"), icon: "bot" }]
+      : []),
     ...(keywordHighlight.highlightAvailable
       ? [
           {
@@ -360,5 +369,7 @@ export function useTerminalContextMenu({
     armZmodemManualTrigger,
     handleTerminalMenuAction,
     terminalMenuActions,
+    agentIntegrationOpen,
+    setAgentIntegrationOpen,
   }
 }

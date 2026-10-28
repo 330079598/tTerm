@@ -23,19 +23,31 @@ const AGENT_NOTES: Partial<Record<AgentIntegrationStatus["agent"], string>> = {
 export const AGENT_LINK_CLASS =
   "hover:text-foreground underline-offset-4 hover:underline disabled:opacity-50"
 
-function describe(status: AgentIntegrationStatus, t: TFunction) {
+/** Where the agent runs: on this computer, or on the tab's SSH host. */
+export type AgentPlace = "local" | "remote"
+
+function describe(status: AgentIntegrationStatus, place: AgentPlace, t: TFunction) {
   const options = { agent: AGENT_NAMES[status.agent], path: status.configPath }
   if (status.error) return t("notifications.agents.readFailed", { error: status.error })
   if (status.state === "installed") return t("notifications.agents.installedDesc", options)
   if (status.state === "outdated") return t("notifications.agents.outdatedDesc", options)
-  if (!status.detected) return t("notifications.agents.notDetectedDesc", options)
+  if (!status.detected) {
+    return place === "remote"
+      ? t("remoteAgents.notDetectedDesc", options)
+      : t("notifications.agents.notDetectedDesc", options)
+  }
   return status.kind === "plugin"
     ? t("notifications.agents.notInstalledPluginDesc", options)
     : t("notifications.agents.notInstalledDesc", options)
 }
 
-function changesDescription(status: AgentIntegrationStatus, t: TFunction) {
+function changesDescription(status: AgentIntegrationStatus, place: AgentPlace, t: TFunction) {
   const options = { path: status.configPath }
+  if (place === "remote") {
+    return status.kind === "plugin"
+      ? t("remoteAgents.changesPluginDesc", options)
+      : t("remoteAgents.changesDesc", options)
+  }
   return status.kind === "plugin"
     ? t("notifications.agents.changesPluginDesc", options)
     : t("notifications.agents.changesDesc", options)
@@ -43,6 +55,7 @@ function changesDescription(status: AgentIntegrationStatus, t: TFunction) {
 
 interface AgentIntegrationRowProps {
   status: AgentIntegrationStatus
+  place: AgentPlace
   busy: boolean
   onChange: (install: boolean) => void
   /** Links shown before "Show what is added", such as choosing the folder. */
@@ -51,10 +64,11 @@ interface AgentIntegrationRowProps {
 
 /**
  * One agent's integration: its state, installing, updating or removing it,
- * and what tTerm adds.
+ * and what tTerm adds, on this computer or on an SSH host.
  */
 export const AgentIntegrationRow: React.FC<AgentIntegrationRowProps> = ({
   status,
+  place,
   busy,
   onChange,
   links,
@@ -62,6 +76,10 @@ export const AgentIntegrationRow: React.FC<AgentIntegrationRowProps> = ({
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const note = AGENT_NOTES[status.agent]
+  const sourceKey =
+    place === "remote" && status.configSource === "environment"
+      ? "remoteAgents.environmentSource"
+      : `notifications.agents.configSources.${status.configSource}`
 
   return (
     <SettingsRow
@@ -76,7 +94,7 @@ export const AgentIntegrationRow: React.FC<AgentIntegrationRowProps> = ({
           )}
         </span>
       }
-      description={describe(status, t)}
+      description={describe(status, place, t)}
       action={
         <div className="flex gap-2">
           {status.state !== "installed" && (
@@ -107,7 +125,7 @@ export const AgentIntegrationRow: React.FC<AgentIntegrationRowProps> = ({
         <div className="text-muted-foreground mb-1 text-xs">{t(note)}</div>
       )}
       <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-        <span>{t(`notifications.agents.configSources.${status.configSource}`)}</span>
+        <span>{t(sourceKey)}</span>
         {links}
         <button
           type="button"
@@ -120,7 +138,9 @@ export const AgentIntegrationRow: React.FC<AgentIntegrationRowProps> = ({
       </div>
       {expanded && (
         <div className="mt-2 space-y-1.5">
-          <div className="text-muted-foreground text-xs">{changesDescription(status, t)}</div>
+          <div className="text-muted-foreground text-xs">
+            {changesDescription(status, place, t)}
+          </div>
           <pre className="bg-muted max-h-64 overflow-auto rounded-md p-3 font-mono text-xs select-text">
             {status.preview}
           </pre>

@@ -326,6 +326,8 @@ pub fn run() {
             agent_integration::agent_integration_status,
             agent_integration::install_agent_integration,
             agent_integration::uninstall_agent_integration,
+            agent_integration::remote::remote_agent_integration_status,
+            agent_integration::remote::change_remote_agent_integration,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();

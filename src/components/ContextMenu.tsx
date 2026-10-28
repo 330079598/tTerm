@@ -30,6 +30,7 @@ import {
   Square,
   FileDown,
   Highlighter,
+  Bot,
   FolderDown,
   ScrollText,
   FileArchive,
@@ -118,6 +119,8 @@ const getActionIcon = (icon?: string) => {
       return <PackageOpen size={14} aria-hidden="true" />
     case "highlighter":
       return <Highlighter size={14} aria-hidden="true" />
+    case "bot":
+      return <Bot size={14} aria-hidden="true" />
     case "scroll-text":
       return <ScrollText size={14} aria-hidden="true" />
     case "maximize":
