@@ -75,7 +75,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   )
   const listingCurrentPath = listing?.currentPath ?? null
   const recursiveSearch = useSftpRecursiveSearch({ tabId, connection, listing, searchQuery })
-  const { follows, toggleFollow, terminalCwd } = useSftpTerminalFollow({
+  const { follows, toggleFollow, terminalCwd, awayHost } = useSftpTerminalFollow({
     tabId,
     connection,
     visible,
@@ -322,6 +322,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
             follows={follows}
             toggleFollow={toggleFollow}
             terminalCwd={terminalCwd}
+            awayHost={awayHost}
             shellIntegration={connection?.shellIntegration === true}
             currentPath={onCdInTerminal ? listingCurrentPath : null}
             cdInTerminal={handleCdInTerminal}

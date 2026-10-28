@@ -7,7 +7,7 @@ import type {
 } from "@/components/SftpDrawer/types"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useStableRef } from "@/hooks/useStableRef"
-import { useTabRemoteCwd } from "@/lib/remoteCwd"
+import { useTabRemoteAwayHost, useTabRemoteCwd } from "@/lib/remoteCwd"
 import { sftpFallbackPath, sftpStartPath } from "@/lib/sftpStartDirectory"
 
 interface UseSftpTerminalFollowOptions {
@@ -23,7 +23,9 @@ interface UseSftpTerminalFollowOptions {
  * Opens the drawer's first listing where the connection or the SFTP setting
  * says, and while following is on, moves the drawer to each directory the
  * terminal's shell reports. Following starts on for drawers that open at the
- * terminal's directory, and each tab can turn it on or off.
+ * terminal's directory, and each tab can turn it on or off. While the
+ * terminal is on another host, reached from this one with ssh, nothing is
+ * followed and `awayHost` names that host.
  */
 export function useSftpTerminalFollow({
   tabId,
@@ -35,6 +37,7 @@ export function useSftpTerminalFollow({
 }: UseSftpTerminalFollowOptions) {
   const { config } = useConfig()
   const terminalCwd = useTabRemoteCwd(tabId) ?? null
+  const awayHost = useTabRemoteAwayHost(tabId) ?? null
   const startChoice = connection?.sftpStartDirectory ?? config.sftp_start_directory
   const [followChoice, setFollowChoice] = useState<boolean | null>(null)
   const follows = followChoice ?? startChoice === "terminal"
@@ -72,5 +75,5 @@ export function useSftpTerminalFollow({
     setFollowChoice(!follows)
   }, [follows])
 
-  return { follows, toggleFollow, terminalCwd }
+  return { follows, toggleFollow, terminalCwd, awayHost }
 }

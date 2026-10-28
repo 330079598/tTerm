@@ -49,6 +49,22 @@ fn reads_the_answer_after_startup_noise() {
 }
 
 #[test]
+fn reads_the_host_name_beside_the_answer() {
+    let output = "Welcome!\r\nTTERM-SHELL-INTEGRATION host web01.example.com\r\n\
+                  TTERM-SHELL-INTEGRATION ok /home/me/.cache/t\r\n";
+    assert_eq!(parse_hostname(output), Some("web01.example.com"));
+    assert_eq!(
+        parse_reply(output),
+        Some(Reply::Installed("/home/me/.cache/t"))
+    );
+    assert_eq!(parse_hostname("TTERM-SHELL-INTEGRATION host \n"), None);
+    assert_eq!(
+        parse_hostname("TTERM-SHELL-INTEGRATION ok /home/me/.cache/t\n"),
+        None
+    );
+}
+
+#[test]
 fn quotes_the_start_script_path() {
     assert_eq!(
         launch_command("/home/me/.cache/tterm/x", true).as_deref(),
@@ -73,7 +89,14 @@ fn starts_without_marks_when_they_are_off() {
 #[test]
 fn serializes_the_status_for_the_connection_header() {
     assert_eq!(
-        serde_json::to_value(ShellIntegrationStatus::Active).unwrap(),
+        serde_json::to_value(ShellIntegrationStatus::Active {
+            hostname: Some("web01".into())
+        })
+        .unwrap(),
+        serde_json::json!({ "status": "active", "hostname": "web01" })
+    );
+    assert_eq!(
+        serde_json::to_value(ShellIntegrationStatus::Active { hostname: None }).unwrap(),
         serde_json::json!({ "status": "active" })
     );
     assert_eq!(

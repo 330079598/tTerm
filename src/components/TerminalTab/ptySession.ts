@@ -9,6 +9,7 @@ import { OutputAcker } from "@/components/TerminalTab/outputAck"
 import { getSerialDisplay, registerSerialEcho } from "@/components/TerminalTab/serialDisplay"
 import { getConnectionDisplay } from "@/components/TerminalTab/terminalTabUtils"
 import type { HostKeyPromptState, SshConnectionProgress } from "@/components/TerminalTab/types"
+import { setTabRemoteHostname } from "@/lib/remoteCwd"
 import { createLineTimestamper } from "@/lib/serial"
 import { isVaultLocked, reportVaultLocked } from "@/lib/vaultLock"
 import {
@@ -184,6 +185,13 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
       setConnectionProgress(event.payload)
       onConnectionProgressRef.current?.(event.payload)
       if (event.payload.phase === "ready") {
+        // Tells the connected host's directory reports from those of a host
+        // reached from it with ssh.
+        const integration = event.payload.shellIntegration
+        setTabRemoteHostname(
+          tabId,
+          integration?.status === "active" ? (integration.hostname ?? null) : null
+        )
         if (sawRetryingPhase) {
           sawRetryingPhase = false
           const banner = translationRef.current("sessionHeader.reconnectRestored", {

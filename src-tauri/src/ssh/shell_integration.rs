@@ -40,11 +40,14 @@ const KEEP_UNUSED_DAYS: u32 = 30;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(tag = "status", rename_all = "camelCase")]
 pub enum ShellIntegrationStatus {
-    Active,
-    /// The session got a plain shell.
-    Unavailable {
-        reason: UnavailableReason,
+    Active {
+        /// The host's name (`uname -n`), which tells its directory reports
+        /// apart from those of a host reached from it with `ssh`.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        hostname: Option<String>,
     },
+    /// The session got a plain shell.
+    Unavailable { reason: UnavailableReason },
 }
 
 /// Why a session got a plain shell.
@@ -125,11 +128,13 @@ fi
 # Marks this version as used, then removes the ones unused for a while.
 touch "$tterm_dir"
 find "$tterm_base" -mindepth 1 -maxdepth 1 -mtime +@KEEP_DAYS@ -exec rm -rf {} \; 2>/dev/null
+echo "@REPLY@host $(uname -n 2>/dev/null)"
 echo "@REPLY@ok $tterm_dir"
 "#;
 
 /// The `sh` script that installs the scripts and replies with
-/// `TTERM-SHELL-INTEGRATION ok <dir>`, or with why not. The files are
+/// `TTERM-SHELL-INTEGRATION ok <dir>`, after a `host <name>` line, or with
+/// why not. The files are
 /// written to a temporary directory first and renamed into place, so another
 /// tab installing at the same moment never sees half of them.
 pub(crate) fn install_script() -> String {
@@ -187,6 +192,27 @@ pub(crate) fn parse_reply(output: &str) -> Option<Reply<'_>> {
     })
 }
 
+/// The host name the installer reported, if any.
+pub(crate) fn parse_hostname(output: &str) -> Option<&str> {
+    output.lines().find_map(|line| {
+        let name = line
+            .trim_end_matches('\r')
+            .strip_prefix(REPLY_PREFIX)?
+            .strip_prefix("host ")?
+            .trim();
+        (!name.is_empty()).then_some(name)
+    })
+}
+
+/// How to start a session's shell with shell integration.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct Prepared {
+    /// The exec command that starts the shell.
+    pub command: String,
+    /// The host's name, for [`ShellIntegrationStatus::Active`].
+    pub hostname: Option<String>,
+}
+
 /// The exec command that starts the shell from `dir`, or `None` for a path
 /// that cannot be single-quoted. Without `marks` the shell only reports its
 /// working directory.
@@ -208,22 +234,25 @@ fn lasting_reasons() -> MutexGuard<'static, HashMap<String, UnavailableReason>> 
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
-/// Installs the scripts on `host` and returns the command that starts the
-/// shell with them, marking commands when `marks` is set, or why the session
-/// gets a plain shell.
+/// Installs the scripts on `host` and returns how to start the shell with
+/// them, marking commands when `marks` is set, or why the session gets a
+/// plain shell.
 pub(crate) async fn prepare<H: client::Handler>(
     session: &client::Handle<H>,
     host: &str,
     marks: bool,
-) -> Result<String, UnavailableReason> {
+) -> Result<Prepared, UnavailableReason> {
     if let Some(reason) = lasting_reasons().get(host) {
         return Err(reason.clone());
     }
     let result = match tokio::time::timeout(TIMEOUT, install(session)).await {
         Ok(Ok(output)) => match parse_reply(&output) {
-            Some(Reply::Installed(dir)) => {
-                launch_command(dir, marks).ok_or(UnavailableReason::Path)
-            }
+            Some(Reply::Installed(dir)) => launch_command(dir, marks)
+                .map(|command| Prepared {
+                    command,
+                    hostname: parse_hostname(&output).map(str::to_string),
+                })
+                .ok_or(UnavailableReason::Path),
             Some(Reply::Shell(shell)) => Err(UnavailableReason::Shell {
                 shell: shell.to_string(),
             }),

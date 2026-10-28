@@ -237,9 +237,17 @@ async fn real_shell_integration_over_sshd_marks_commands_in_the_login_shell() {
     .await
     .expect("authenticate");
 
-    let command = prepare(&session, "real-sshd-test", true)
+    let prepared = prepare(&session, "real-sshd-test", true)
         .await
         .expect("the login shell must be bash, zsh or fish");
+    assert!(
+        prepared
+            .hostname
+            .as_deref()
+            .is_some_and(|name| !name.is_empty()),
+        "{prepared:?}"
+    );
+    let command = prepared.command;
     assert!(command.ends_with(" --motd"), "{command}");
     assert!(
         command.contains(&*cache.path.to_string_lossy()),

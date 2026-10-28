@@ -10,6 +10,8 @@ interface SftpTerminalActionsProps {
   toggleFollow: () => void
   /** The directory the terminal's shell last reported, if it reports any. */
   terminalCwd: string | null
+  /** Another host the terminal is on, reached from this one with ssh. */
+  awayHost: string | null
   /** The connection installs tTerm's shell integration, which reports it. */
   shellIntegration: boolean
   /** The listed directory, null while there is none or no shell to send it to. */
@@ -25,6 +27,7 @@ export const SftpTerminalActions: React.FC<SftpTerminalActionsProps> = ({
   follows,
   toggleFollow,
   terminalCwd,
+  awayHost,
   shellIntegration,
   currentPath,
   cdInTerminal,
@@ -32,13 +35,16 @@ export const SftpTerminalActions: React.FC<SftpTerminalActionsProps> = ({
   const { t } = useTranslation()
   const label = t("sftp.follow.label")
   const cdLabel = t("sftp.actions.openCurrentInTerminal")
-  // Following waits for a report that may never come; say why.
-  const waiting = follows && terminalCwd === null
+  // Following waits for a report that may never come, or for the terminal to
+  // come back from another host; say why.
+  const waiting = follows && (terminalCwd === null || awayHost !== null)
   const hint = !waiting
     ? null
-    : shellIntegration
-      ? t("sftp.follow.notReported")
-      : t("sftp.follow.needsShellIntegration")
+    : awayHost !== null
+      ? t("sftp.follow.away", { host: awayHost })
+      : shellIntegration
+        ? t("sftp.follow.notReported")
+        : t("sftp.follow.needsShellIntegration")
 
   return (
     <>

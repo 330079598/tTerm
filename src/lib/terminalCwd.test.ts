@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { parseCwdReport } from "@/lib/terminalCwd"
+import { isSameHost, isUnnamedHost, parseCwdReport, parseOsc7Report } from "@/lib/terminalCwd"
 
 describe("parseCwdReport", () => {
   it("reads OSC 7 paths sent by tTerm's POSIX shell integration", () => {
@@ -36,5 +36,30 @@ describe("parseCwdReport", () => {
     expect(parseCwdReport(9, "Build finished")).toBeNull()
     expect(parseCwdReport(9, '9;""')).toBeNull()
     expect(parseCwdReport(133, "A")).toBeNull()
+  })
+})
+
+describe("parseOsc7Report", () => {
+  it("keeps the host, in lower case, beside the path", () => {
+    expect(parseOsc7Report("file://Web01/srv/my%20app")).toEqual({
+      host: "web01",
+      path: "/srv/my app",
+    })
+    expect(parseOsc7Report("file:///tmp")).toEqual({ host: "", path: "/tmp" })
+    expect(parseOsc7Report("file://web01")).toBeNull()
+  })
+})
+
+describe("host names", () => {
+  it("treats a missing host and localhost as no name", () => {
+    expect(isUnnamedHost("")).toBe(true)
+    expect(isUnnamedHost("LocalHost")).toBe(true)
+    expect(isUnnamedHost("web01")).toBe(false)
+  })
+
+  it("compares only the first label", () => {
+    expect(isSameHost("web01", "WEB01.example.com")).toBe(true)
+    expect(isSameHost("web01.a.com", "web01.b.com")).toBe(true)
+    expect(isSameHost("web01", "web02")).toBe(false)
   })
 })

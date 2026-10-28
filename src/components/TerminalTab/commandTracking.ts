@@ -11,7 +11,7 @@ import { watchCwdReports } from "@/components/TerminalTab/cwdReports"
 import { watchMouseReporting } from "@/components/TerminalTab/mouseReportingGuard"
 import { watchOsReports } from "@/components/TerminalTab/osReports"
 import { AgentTracker } from "@/lib/agentStatus"
-import { setTabRemoteCwd } from "@/lib/remoteCwd"
+import { getTabRemoteHostname, setTabRemoteAwayHost, setTabRemoteCwd } from "@/lib/remoteCwd"
 import { setTabAgentStatus, setTabRunningCommand } from "@/lib/tabAttention"
 import { CommandTimer } from "@/lib/terminalNotifications"
 import { parseShellIntegrationCommand } from "@/lib/terminalCommandCapture"
@@ -110,6 +110,8 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
     isRemote: () => connectionRef.current?.type === "ssh",
     onCwd: (cwd) => onCwdChangeRef.current?.(cwd),
     onRemoteCwd: (cwd) => setTabRemoteCwd(tabId, cwd),
+    remoteHostname: () => getTabRemoteHostname(tabId) ?? null,
+    onRemoteAwayHost: (host) => setTabRemoteAwayHost(tabId, host),
   })
 
   // The distribution a local WSL shell runs, for the tab's logo.

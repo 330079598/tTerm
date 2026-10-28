@@ -86,7 +86,9 @@ export type ShellIntegrationUnavailableReason =
     }
 
 export type ShellIntegrationStatus =
-  { status: "active" } | { status: "unavailable"; reason: ShellIntegrationUnavailableReason }
+  /** `hostname` is the host's own name (`uname -n`), when it gave one. */
+  | { status: "active"; hostname?: string }
+  | { status: "unavailable"; reason: ShellIntegrationUnavailableReason }
 
 export type SshConnectionProgress = {
   phase: string

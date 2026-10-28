@@ -236,7 +236,7 @@ pub async fn run_single_ssh_connection(
         let target = format!("{username}@{host}:{}", plan.port);
         let marks = crate::config::command_marks_enabled();
         match super::shell_integration::prepare(&session, &target, marks).await {
-            Ok(command) => (Some(command), None),
+            Ok(prepared) => (Some(prepared), None),
             Err(reason) => (None, unavailable(reason)),
         }
     };
@@ -263,11 +263,13 @@ pub async fn run_single_ssh_connection(
     // With shell integration: what the shell printed before the server
     // confirmed it started. `None` means a plain shell.
     let mut early_output = None;
-    if let Some(command) = shell_integration {
-        match super::shell_integration::start(&mut channel, &command).await {
+    if let Some(prepared) = shell_integration {
+        match super::shell_integration::start(&mut channel, &prepared.command).await {
             Ok(output) => {
                 early_output = Some(output);
-                shell_integration_status = Some(ShellIntegrationStatus::Active);
+                shell_integration_status = Some(ShellIntegrationStatus::Active {
+                    hostname: prepared.hostname,
+                });
             }
             Err(reason) => shell_integration_status = unavailable(reason),
         }

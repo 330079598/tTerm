@@ -11,16 +11,22 @@ export const CWD_REPORT_OSC_CODES = [7, 9] as const
  * terminal) is ignored: tTerm's own scripts send an empty host.
  */
 export function parseCwdReport(osc: number, data: string): string | null {
-  if (osc === 7) return parseOsc7(data)
+  if (osc === 7) {
+    const report = parseOsc7Report(data)
+    return report && isUnnamedHost(report.host) ? report.path : null
+  }
   if (osc === 9) return parseOsc9(data)
   return null
 }
 
-function parseOsc7(data: string): string | null {
+/**
+ * The host and directory in an OSC 7 payload, or null when it is not one.
+ * The host is lower case, and empty when the shell left it out.
+ */
+export function parseOsc7Report(data: string): { host: string; path: string } | null {
   const match = /^file:\/\/([^/]*)(\/.*)$/.exec(data)
   if (!match) return null
   const host = match[1].toLowerCase()
-  if (host !== "" && host !== "localhost") return null
 
   let path = match[2]
   try {
@@ -30,7 +36,24 @@ function parseOsc7(data: string): string | null {
   }
   // `file:///C:/Users` names a Windows path.
   if (/^\/[A-Za-z]:([/\\]|$)/.test(path)) path = path.slice(1)
-  return path
+  return { host, path }
+}
+
+/**
+ * An OSC 7 host that names no machine: tTerm's own scripts leave it out, and
+ * `localhost` is whichever machine the shell runs on.
+ */
+export function isUnnamedHost(host: string): boolean {
+  return host === "" || host.toLowerCase() === "localhost"
+}
+
+/**
+ * Two names for the same host. Only the first label counts, as `uname -n`
+ * gives `web01` on one system and `web01.example.com` on another.
+ */
+export function isSameHost(a: string, b: string): boolean {
+  const shortName = (host: string) => host.toLowerCase().split(".")[0]
+  return shortName(a) === shortName(b)
 }
 
 function parseOsc9(data: string): string | null {

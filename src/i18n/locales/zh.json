@@ -2127,7 +2127,8 @@
     "follow": {
       "label": "跟随终端目录",
       "notReported": "shell 还没有上报目录。如果 Shell 集成没有启动，连接标题栏会说明原因。",
-      "needsShellIntegration": "shell 不会上报目录：在连接设置中开启「Shell 集成」，然后重新连接。"
+      "needsShellIntegration": "shell 不会上报目录：在连接设置中开启「Shell 集成」，然后重新连接。",
+      "away": "终端现在在 {{host}} 上，回到这台服务器后继续跟随。"
     },
     "archive": {
       "compressTitle": "压缩",

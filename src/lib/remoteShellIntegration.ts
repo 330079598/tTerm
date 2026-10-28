@@ -4,7 +4,9 @@
 // local scripts (src-tauri/src/terminal/shell_integration), but not the command
 // line (OSC 633 E), so tTerm rebuilds it from the keys. The directory lets the
 // SFTP drawer follow the shell; only `%` needs escaping in it, as tTerm reads
-// the rest of the path as sent. `${"$"}` writes the `$` of a shell expansion
+// the rest of the path as sent. Unlike tTerm's own scripts they name the host,
+// as they may also run on a host reached from the connected one with ssh,
+// whose directories the drawer must not follow. `${"$"}` writes the `$` of a shell expansion
 // that would otherwise start a placeholder here.
 
 /** For the end of ~/.bashrc or ~/.zshrc. */
@@ -14,13 +16,13 @@ export const POSIX_SHELL_INTEGRATION = String.raw`# tTerm: mark prompts and comm
 if [ -z "$__tterm_marks" ]; then
   __tterm_marks=1
   if [ -n "$ZSH_VERSION" ]; then
-    __tterm_mark_prompt() { printf '\033]133;D;%s\033\\\033]7;file://%s\033\\\033]133;A\033\\' "$?" "${"$"}{PWD//\%/%25}"; }
+    __tterm_mark_prompt() { printf '\033]133;D;%s\033\\\033]7;file://%s%s\033\\\033]133;A\033\\' "$?" "$HOST" "${"$"}{PWD//\%/%25}"; }
     __tterm_mark_output() { printf '\033]133;C\033\\'; }
     autoload -Uz add-zsh-hook
     precmd_functions=(__tterm_mark_prompt $precmd_functions)
     add-zsh-hook preexec __tterm_mark_output
   elif [ -n "$BASH_VERSION" ]; then
-    __tterm_mark_prompt() { local s=$?; printf '\033]133;D;%s\033\\\033]7;file://%s\033\\\033]133;A\033\\' "$s" "${"$"}{PWD//\%/%25}"; return $s; }
+    __tterm_mark_prompt() { local s=$?; printf '\033]133;D;%s\033\\\033]7;file://%s%s\033\\\033]133;A\033\\' "$s" "$HOSTNAME" "${"$"}{PWD//\%/%25}"; return $s; }
     if [ -n "$PROMPT_COMMAND" ]; then
       PROMPT_COMMAND="__tterm_mark_prompt;$PROMPT_COMMAND"
     else
@@ -37,7 +39,7 @@ export const FISH_SHELL_INTEGRATION = String.raw`# tTerm: mark prompts and comma
 if status is-interactive; and not set -q __tterm_marks
     set -g __tterm_marks 1
     function __tterm_mark_prompt --on-event fish_prompt
-        printf '\e]7;file://%s\e\\\\' (string replace --all '%' '%25' -- $PWD)
+        printf '\e]7;file://%s%s\e\\\\' $hostname (string replace --all '%' '%25' -- $PWD)
         printf '\e]133;A\e\\\\'
     end
     function __tterm_mark_output --on-event fish_preexec

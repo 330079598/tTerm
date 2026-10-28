@@ -2,7 +2,14 @@
 import { act, renderHook } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
-import { getTabRemoteCwd, setTabRemoteCwd, useTabRemoteCwd } from "@/lib/remoteCwd"
+import {
+  getTabRemoteAwayHost,
+  getTabRemoteCwd,
+  setTabRemoteAwayHost,
+  setTabRemoteCwd,
+  useTabRemoteAwayHost,
+  useTabRemoteCwd,
+} from "@/lib/remoteCwd"
 
 describe("remote cwd store", () => {
   it("keeps the last directory per tab until its session is gone", () => {
@@ -26,5 +33,20 @@ describe("remote cwd store", () => {
 
     act(() => setTabRemoteCwd("tab-c", null))
     expect(result.current).toBeUndefined()
+  })
+
+  it("keeps the other host a tab's terminal is on, apart from its directory", () => {
+    setTabRemoteCwd("tab-d", "/srv")
+    const { result } = renderHook(() => useTabRemoteAwayHost("tab-d"))
+    expect(result.current).toBeUndefined()
+
+    act(() => setTabRemoteAwayHost("tab-d", "db01"))
+    expect(result.current).toBe("db01")
+    expect(getTabRemoteCwd("tab-d")).toBe("/srv")
+
+    act(() => setTabRemoteAwayHost("tab-d", null))
+    expect(result.current).toBeUndefined()
+    expect(getTabRemoteAwayHost("tab-d")).toBeUndefined()
+    setTabRemoteCwd("tab-d", null)
   })
 })

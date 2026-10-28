@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { LoadSftpDirectory, SftpDirectoryListing } from "@/components/SftpDrawer/types"
 import { useSftpTerminalFollow } from "@/components/SftpDrawer/useSftpTerminalFollow"
-import { setTabRemoteCwd } from "@/lib/remoteCwd"
+import { setTabRemoteAwayHost, setTabRemoteCwd } from "@/lib/remoteCwd"
 import type { SftpStartDirectory } from "@/lib/sftpStartDirectory"
 
 const mocks = vi.hoisted(() => ({
@@ -60,6 +60,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   setTabRemoteCwd(TAB, null)
+  setTabRemoteAwayHost(TAB, null)
 })
 
 describe("useSftpTerminalFollow", () => {
@@ -141,5 +142,12 @@ describe("useSftpTerminalFollow", () => {
     act(() => result.current.toggleFollow())
     act(() => setTabRemoteCwd(TAB, "/etc"))
     expect(result.current.listing?.currentPath).toBe("/var/log")
+  })
+
+  it("names the host the terminal went on to", () => {
+    const { result } = render({ visible: true })
+    expect(result.current.awayHost).toBeNull()
+    act(() => setTabRemoteAwayHost(TAB, "db01"))
+    expect(result.current.awayHost).toBe("db01")
   })
 })

@@ -9,4 +9,12 @@ describe("remote shell integration scripts", () => {
     expect(POSIX_SHELL_INTEGRATION.split('"${PWD//\\%/%25}"').length - 1).toBe(2)
     expect(FISH_SHELL_INTEGRATION).toContain("(string replace --all '%' '%25' -- $PWD)")
   })
+
+  it("name the host, so a shell on a host reached with ssh is told apart", () => {
+    expect(POSIX_SHELL_INTEGRATION.split("file://%s%s").length - 1).toBe(2)
+    expect(POSIX_SHELL_INTEGRATION).toContain('"$?" "$HOST" "${PWD')
+    expect(POSIX_SHELL_INTEGRATION).toContain('"$s" "$HOSTNAME" "${PWD')
+    expect(FISH_SHELL_INTEGRATION).toContain("file://%s%s")
+    expect(FISH_SHELL_INTEGRATION).toContain("' $hostname (string replace")
+  })
 })

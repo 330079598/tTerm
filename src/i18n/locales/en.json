@@ -2146,7 +2146,8 @@
     "follow": {
       "label": "Follow the terminal's directory",
       "notReported": "The shell has not reported its directory yet. If shell integration did not start, the connection header says why.",
-      "needsShellIntegration": "The shell does not report its directory: turn on Shell integration in the connection's settings, then reconnect."
+      "needsShellIntegration": "The shell does not report its directory: turn on Shell integration in the connection's settings, then reconnect.",
+      "away": "The terminal is on {{host}} now. Following resumes when it is back on this server."
     },
     "archive": {
       "compressTitle": "Compress",
