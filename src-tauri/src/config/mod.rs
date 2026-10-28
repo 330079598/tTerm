@@ -377,6 +377,7 @@ pub async fn save_config(app: tauri::AppHandle, config: AppConfig) -> Result<(),
         save_config_file(&config)?;
         crate::sftp::internal::api::apply_bandwidth_limits(&config);
         crate::background::apply_config(&app, &config);
+        crate::system_integration::apply_config(&app, &config);
         log_state.apply_config(&app, &config)
     })
     .await

@@ -1,54 +1,65 @@
-import React, { useEffect, useState } from "react"
-import { invoke } from "@tauri-apps/api/core"
-import { SquareTerminal } from "lucide-react"
+import React from "react"
+import { FolderOpen, SquareTerminal } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
+import {
+  useSystemIntegration,
+  type IntegrationStatus,
+} from "@/components/SettingsDialog/useSystemIntegration"
 import { Switch } from "@/components/ui/switch"
-import { toast } from "@/hooks/use-toast"
 import { getDetectedPlatform } from "@/lib/uiPlatform"
-import { toErrorMessage } from "@/lib/utils"
 
-/** Whether new shells run tTerm as `tterm`, as `shell_command_status` returns it. */
-interface ShellCommandStatus {
-  /** Whether tTerm can add the command on this system. */
-  supported: boolean
-  installed: boolean
+interface IntegrationRowProps {
+  icon: React.ReactNode
+  title: string
+  description: string
+  integration: {
+    status: IntegrationStatus | null
+    busy: boolean
+    change: (installed: boolean) => Promise<void>
+  }
 }
+
+const IntegrationRow: React.FC<IntegrationRowProps> = ({
+  icon,
+  title,
+  description,
+  integration: { status, busy, change },
+}) =>
+  status?.supported ? (
+    <SettingsRow
+      icon={icon}
+      title={title}
+      description={description}
+      action={
+        <Switch
+          checked={status.installed}
+          disabled={busy}
+          onCheckedChange={(checked) => void change(checked)}
+          aria-label={title}
+        />
+      }
+    />
+  ) : null
 
 /** Ties tTerm into the system; hidden where it has nothing to offer yet. */
 export const SystemIntegrationSection: React.FC = () => {
   const { t } = useTranslation()
-  const [status, setStatus] = useState<ShellCommandStatus | null>(null)
-  const [busy, setBusy] = useState(false)
+  const macos = getDetectedPlatform() === "macos"
+  const shellCommand = useSystemIntegration({
+    status: "shell_command_status",
+    set: "set_shell_command",
+    args: { adminPrompt: t("systemIntegration.adminPrompt") },
+    failedTitle: t("systemIntegration.shellCommandFailed"),
+  })
+  const folderMenu = useSystemIntegration({
+    status: "folder_menu_status",
+    set: "set_folder_menu",
+    failedTitle: t("systemIntegration.folderMenuFailed"),
+  })
 
-  useEffect(() => {
-    invoke<ShellCommandStatus>("shell_command_status")
-      .then(setStatus)
-      .catch((error: unknown) => console.error("Failed to read the tterm command:", error))
-  }, [])
-
-  if (!status?.supported) return null
-
-  const change = async (installed: boolean) => {
-    setBusy(true)
-    try {
-      setStatus(
-        await invoke<ShellCommandStatus>("set_shell_command", {
-          installed,
-          adminPrompt: t("systemIntegration.adminPrompt"),
-        })
-      )
-    } catch (error) {
-      toast({
-        title: t("systemIntegration.shellCommandFailed"),
-        description: toErrorMessage(error),
-        variant: "destructive",
-      })
-    } finally {
-      setBusy(false)
-    }
-  }
+  if (!shellCommand.status?.supported && !folderMenu.status?.supported) return null
 
   return (
     <SettingsSection
@@ -56,21 +67,23 @@ export const SystemIntegrationSection: React.FC = () => {
       title={t("systemIntegration.title")}
       description={t("systemIntegration.description")}
     >
-      <SettingsRow
+      <IntegrationRow
+        icon={<SquareTerminal size={16} />}
         title={t("systemIntegration.shellCommand")}
         description={
-          getDetectedPlatform() === "macos"
+          macos
             ? t("systemIntegration.shellCommandDescMacos")
             : t("systemIntegration.shellCommandDesc")
         }
-        action={
-          <Switch
-            checked={status.installed}
-            disabled={busy}
-            onCheckedChange={(checked) => void change(checked)}
-            aria-label={t("systemIntegration.shellCommand")}
-          />
+        integration={shellCommand}
+      />
+      <IntegrationRow
+        icon={<FolderOpen size={16} />}
+        title={t("systemIntegration.folderMenu")}
+        description={
+          macos ? t("systemIntegration.folderMenuDescMacos") : t("systemIntegration.folderMenuDesc")
         }
+        integration={folderMenu}
       />
     </SettingsSection>
   )

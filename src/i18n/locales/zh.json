@@ -3002,6 +3002,10 @@
     "shellCommandDesc": "在终端中运行 tterm . 会在当前文件夹打开一个标签页，tterm <文件夹> 则打开指定的文件夹。开启前已打开的终端需要重新打开后才能使用；tTerm 中的标签页可以立即使用。",
     "shellCommandFailed": "无法更改 tterm 命令",
     "shellCommandDescMacos": "在终端中运行 tterm . 会在当前文件夹打开一个标签页，tterm <文件夹> 则打开指定的文件夹。该命令放在 /usr/local/bin 中，可能需要输入管理员密码。",
-    "adminPrompt": "tTerm 要更改 /usr/local/bin 中的 tterm 命令。"
+    "adminPrompt": "tTerm 要更改 /usr/local/bin 中的 tterm 命令。",
+    "folderMenu": "在文件夹右键菜单中添加“在 tTerm 中打开”",
+    "folderMenuDesc": "在文件资源管理器中右键单击文件夹、文件夹内的空白处或驱动器，即可在该位置打开一个标签页。Windows 11 中该项位于“显示更多选项”里。",
+    "folderMenuDescMacos": "在访达中右键单击文件夹，在“快速操作”或“服务”中选择“在 tTerm 中打开”，即可为每个文件夹打开一个标签页。",
+    "folderMenuFailed": "无法更改文件夹右键菜单"
   }
 }

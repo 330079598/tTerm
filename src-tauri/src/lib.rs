@@ -43,13 +43,14 @@ pub struct TokioRuntimeState {
     pub runtime: tokio::runtime::Runtime,
 }
 
-/// Runs one of tTerm's console helpers instead of the app when started as one
-/// (see `terminal::console_reset` and `agent_integration::console_report`);
-/// returns its exit code.
+/// Runs one of tTerm's helpers instead of the app when started as one (see
+/// `terminal::console_reset`, `agent_integration::console_report` and
+/// `system_integration`); returns its exit code.
 #[cfg(target_os = "windows")]
 pub fn run_console_helper() -> Option<i32> {
     terminal::console_reset::run_helper_if_requested()
         .or_else(agent_integration::console_report::run_helper_if_requested)
+        .or_else(system_integration::run_removal_if_requested)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -325,6 +326,8 @@ pub fn run() {
             launch_dir::take_launch_dirs,
             system_integration::shell_command_status,
             system_integration::set_shell_command,
+            system_integration::folder_menu_status,
+            system_integration::set_folder_menu,
             notification::show_notification,
             notification::notification_permission,
             notification::import_notification_sound,
@@ -340,7 +343,6 @@ pub fn run() {
             let app_handle = app.handle().clone();
             config::paths::init_config_dir(&app_handle)?;
             launch_dir::open_from_startup(&app_handle);
-            system_integration::refresh_shell_command(&app_handle);
 
             if let Err(err) = updater::cleanup_stale_pending_update_files(&app_handle) {
                 eprintln!("Failed to clean stale update cache files: {}", err);
@@ -399,7 +401,9 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             terminal::pty::preload_login_shell_env();
             main_window::create_main_window(app, cfg.as_ref())?;
-            background::apply_config(&app_handle, &cfg.unwrap_or_default());
+            let cfg = cfg.unwrap_or_default();
+            background::apply_config(&app_handle, &cfg);
+            system_integration::apply_config(&app_handle, &cfg);
 
             Ok(())
         })

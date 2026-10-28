@@ -3,8 +3,9 @@
 use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::Foundation::ERROR_FILE_NOT_FOUND;
 use windows::Win32::System::Registry::{
-    RegCloseKey, RegCreateKeyExW, RegOpenKeyExW, RegQueryValueExW, RegSetValueExW, HKEY,
-    HKEY_CURRENT_USER, KEY_QUERY_VALUE, KEY_SET_VALUE, REG_OPTION_NON_VOLATILE, REG_VALUE_TYPE,
+    RegCloseKey, RegCreateKeyExW, RegDeleteTreeW, RegOpenKeyExW, RegQueryValueExW, RegSetValueExW,
+    HKEY, HKEY_CURRENT_USER, KEY_QUERY_VALUE, KEY_SET_VALUE, REG_OPTION_NON_VOLATILE,
+    REG_VALUE_TYPE,
 };
 
 /// A key under `HKEY_CURRENT_USER`, closed when dropped.
@@ -166,6 +167,18 @@ impl Drop for Key {
         // closed only here.
         let _ = unsafe { RegCloseKey(self.handle) };
     }
+}
+
+/// Deletes `path` with its subkeys and values, if it exists.
+pub fn delete_tree(path: &str) -> Result<(), String> {
+    // SAFETY: the call only reads the path.
+    let status = unsafe { RegDeleteTreeW(HKEY_CURRENT_USER, &HSTRING::from(path)) };
+    if status == ERROR_FILE_NOT_FOUND {
+        return Ok(());
+    }
+    status
+        .ok()
+        .map_err(|error| format!("Failed to delete the registry key {path}: {error}"))
 }
 
 /// A value's name for the registry functions, where null means the default value.

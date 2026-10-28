@@ -5,6 +5,11 @@
       "resources/conpty/conpty.dll": "conpty.dll",
       "resources/conpty/OpenConsole.exe": "OpenConsole.exe",
       "resources/conpty-LICENSE.txt": "conpty-LICENSE.txt"
+    },
+    "windows": {
+      "nsis": {
+        "installerHooks": "./windows/hooks.nsh"
+      }
     }
   },
   "app": {
