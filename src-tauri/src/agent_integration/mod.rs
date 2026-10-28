@@ -44,7 +44,7 @@ const AGENTS: [Agent; 4] = [Agent::ClaudeCode, Agent::Codex, Agent::OpenCode, Ag
 /// How tTerm reaches into an agent.
 enum Integration {
     /// Hooks merged into the agent's JSON settings file.
-    Hooks(&'static HookSet),
+    Hooks(HookSet),
     /// A file of tTerm's own the agent loads.
     Plugin(PluginFile),
 }
@@ -69,14 +69,14 @@ impl Agent {
                 variable: "CLAUDE_CONFIG_DIR",
                 under_variable: &[],
                 default_dir: &[".claude"],
-                integration: Integration::Hooks(&claude_code::HOOKS),
+                integration: Integration::Hooks(claude_code::HOOKS),
             },
             Agent::Codex => AgentSpec {
                 key: "codex",
                 variable: "CODEX_HOME",
                 under_variable: &[],
                 default_dir: &[".codex"],
-                integration: Integration::Hooks(&codex::HOOKS),
+                integration: Integration::Hooks(codex::HOOKS),
             },
             // OpenCode 2 loads TUI plugins from folders under `plugins`;
             // OpenCode 1 only loads loose files there, so it skips this one.
@@ -196,40 +196,62 @@ fn read_state(spec: &AgentSpec, path: &Path) -> Result<IntegrationState, String>
     }
 }
 
-fn status(agent: Agent) -> AgentIntegrationStatus {
-    let spec = agent.spec();
-    let config_dir = config_dir(&spec);
-    let path = config_dir.as_ref().map(|(dir, _)| target_path(&spec, dir));
-    let (state, error) = match path.as_deref().map(|path| read_state(&spec, path)) {
-        Some(Ok(state)) => (state, None),
-        Some(Err(error)) => (IntegrationState::NotInstalled, Some(error)),
-        None => (
-            IntegrationState::NotInstalled,
-            Some("No home directory".to_string()),
-        ),
+/// Where an agent's integration lives, as the user sees it.
+struct Location {
+    dir: String,
+    /// The file tTerm changes.
+    path: String,
+    source: ConfigSource,
+}
+
+/// The status of `agent`'s integration at `location`, if there is one, in
+/// `state`; an error reads as not installed, with the error beside it.
+fn status_of(
+    agent: Agent,
+    spec: &AgentSpec,
+    location: Option<Location>,
+    state: Result<IntegrationState, String>,
+    detected: bool,
+) -> AgentIntegrationStatus {
+    let (state, error) = match state {
+        Ok(state) => (state, None),
+        Err(error) => (IntegrationState::NotInstalled, Some(error)),
     };
     let (kind, preview) = match &spec.integration {
         Integration::Hooks(hooks) => (IntegrationKind::Hooks, json::to_text(&hooks.preview())),
         Integration::Plugin(plugin) => (IntegrationKind::Plugin, plugin.content.to_string()),
     };
+    let (config_dir, config_path, config_source) = match location {
+        Some(location) => (location.dir, location.path, location.source),
+        None => (String::new(), String::new(), ConfigSource::Default),
+    };
     AgentIntegrationStatus {
         agent,
         kind,
         state,
-        detected: config_dir.as_ref().is_some_and(|(dir, _)| dir.is_dir()),
-        config_dir: config_dir
-            .as_ref()
-            .map(|(dir, _)| dir.display().to_string())
-            .unwrap_or_default(),
-        config_path: path
-            .map(|path| path.display().to_string())
-            .unwrap_or_default(),
-        config_source: config_dir
-            .map(|(_, source)| source)
-            .unwrap_or(ConfigSource::Default),
+        detected,
+        config_dir,
+        config_path,
+        config_source,
         preview,
         error,
     }
+}
+
+fn status(agent: Agent) -> AgentIntegrationStatus {
+    let spec = agent.spec();
+    let Some((dir, source)) = config_dir(&spec) else {
+        let state = Err("No home directory".to_string());
+        return status_of(agent, &spec, None, state, false);
+    };
+    let path = target_path(&spec, &dir);
+    let state = read_state(&spec, &path);
+    let location = Location {
+        dir: dir.display().to_string(),
+        path: path.display().to_string(),
+        source,
+    };
+    status_of(agent, &spec, Some(location), state, dir.is_dir())
 }
 
 fn change(agent: Agent, install: bool) -> Result<AgentIntegrationStatus, String> {

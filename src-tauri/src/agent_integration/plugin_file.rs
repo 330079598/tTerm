@@ -17,13 +17,22 @@ pub(super) struct PluginFile {
 impl PluginFile {
     pub(super) fn state(&self, path: &Path) -> Result<IntegrationState, String> {
         match fs::read_to_string(path) {
-            Ok(text) if text == self.content => Ok(IntegrationState::Installed),
-            Ok(text) if text.contains(REPORT_MARKER) => Ok(IntegrationState::Outdated),
-            Ok(_) => Err(format!("{} is not tTerm's", path.display())),
+            Ok(text) => self.state_of(&text, &path.display().to_string()),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 Ok(IntegrationState::NotInstalled)
             }
             Err(error) => Err(format!("Failed to read {}: {error}", path.display())),
+        }
+    }
+
+    /// The state the file at `path` holding `text` stands for.
+    pub(super) fn state_of(&self, text: &str, path: &str) -> Result<IntegrationState, String> {
+        if text == self.content {
+            Ok(IntegrationState::Installed)
+        } else if text.contains(REPORT_MARKER) {
+            Ok(IntegrationState::Outdated)
+        } else {
+            Err(format!("{path} is not tTerm's"))
         }
     }
 

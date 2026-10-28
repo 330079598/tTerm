@@ -1,45 +1,17 @@
 import React, { useCallback, useEffect, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { open as openDirectoryDialog } from "@tauri-apps/plugin-dialog"
-import { Bot, CircleCheck, Hourglass, Plug } from "lucide-react"
+import { Bot, CircleCheck, Hourglass } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { AGENT_LINK_CLASS, AgentIntegrationRow } from "@/components/AgentIntegrationRow"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
-import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { useConfig } from "@/contexts/ConfigContext"
 import { toast } from "@/hooks/use-toast"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
 import { toErrorMessage } from "@/lib/utils"
-
-/** `AgentIntegrationStatus` (src-tauri/src/agent_integration). */
-interface AgentIntegrationStatus {
-  agent: "claudeCode" | "codex" | "openCode" | "pi"
-  /** Merged into the agent's settings, or a file of tTerm's own. */
-  kind: "hooks" | "plugin"
-  state: "notInstalled" | "installed" | "outdated"
-  detected: boolean
-  configDir: string
-  configPath: string
-  configSource: "setting" | "environment" | "default"
-  preview: string
-  error: string | null
-}
-
-const AGENT_NAMES: Record<AgentIntegrationStatus["agent"], string> = {
-  claudeCode: "Claude Code",
-  codex: "Codex",
-  openCode: "OpenCode",
-  pi: "pi",
-}
-
-/** What the user has to know about an agent's integration. */
-const AGENT_NOTES: Partial<Record<AgentIntegrationStatus["agent"], string>> = {
-  codex: "notifications.agents.notes.codex",
-  openCode: "notifications.agents.notes.openCode",
-}
-
-const LINK_CLASS = "hover:text-foreground underline-offset-4 hover:underline disabled:opacity-50"
+import type { AgentIntegrationStatus } from "@/types/agentIntegration"
 
 /** The hooks that let AI agents report to tTerm, and what their reports announce. */
 export const AgentIntegrationSection: React.FC = () => {
@@ -48,7 +20,6 @@ export const AgentIntegrationSection: React.FC = () => {
   const { saveSettings } = useSettingsSave()
   const [statuses, setStatuses] = useState<AgentIntegrationStatus[]>([])
   const [busyAgent, setBusyAgent] = useState<string | null>(null)
-  const [expandedAgent, setExpandedAgent] = useState<string | null>(null)
 
   const refresh = useCallback(() => {
     invoke<AgentIntegrationStatus[]>("agent_integration_status")
@@ -102,17 +73,6 @@ export const AgentIntegrationSection: React.FC = () => {
     if (await saveSettings({ agent_config_dirs: dirs })) refresh()
   }
 
-  const describe = (status: AgentIntegrationStatus) => {
-    const options = { agent: AGENT_NAMES[status.agent], path: status.configPath }
-    if (status.error) return t("notifications.agents.readFailed", { error: status.error })
-    if (status.state === "installed") return t("notifications.agents.installedDesc", options)
-    if (status.state === "outdated") return t("notifications.agents.outdatedDesc", options)
-    if (!status.detected) return t("notifications.agents.notDetectedDesc", options)
-    return status.kind === "plugin"
-      ? t("notifications.agents.notInstalledPluginDesc", options)
-      : t("notifications.agents.notInstalledDesc", options)
-  }
-
   return (
     <SettingsSection
       icon={<Bot size={16} />}
@@ -121,97 +81,35 @@ export const AgentIntegrationSection: React.FC = () => {
     >
       {statuses.map((status) => {
         const busy = busyAgent === status.agent
-        const expanded = expandedAgent === status.agent
         return (
-          <SettingsRow
+          <AgentIntegrationRow
             key={status.agent}
-            icon={<Plug size={16} />}
-            title={
-              <span className="flex items-center gap-2">
-                {AGENT_NAMES[status.agent]}
-                {status.state !== "notInstalled" && (
-                  <span className="text-muted-foreground text-xs font-normal">
-                    {t(`notifications.agents.states.${status.state}`)}
-                  </span>
-                )}
-              </span>
-            }
-            description={describe(status)}
-            action={
-              <div className="flex gap-2">
-                {status.state !== "installed" && (
-                  <Button
-                    type="button"
-                    disabled={busy || status.error !== null}
-                    onClick={() => void change(status, true)}
-                  >
-                    {status.state === "outdated"
-                      ? t("notifications.agents.update")
-                      : t("notifications.agents.install")}
-                  </Button>
-                )}
-                {status.state !== "notInstalled" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={busy || status.error !== null}
-                    onClick={() => void change(status, false)}
-                  >
-                    {t("notifications.agents.uninstall")}
-                  </Button>
-                )}
-              </div>
-            }
-          >
-            {AGENT_NOTES[status.agent] && status.state !== "notInstalled" && (
-              <div className="text-muted-foreground mb-1 text-xs">
-                {t(AGENT_NOTES[status.agent] as string)}
-              </div>
-            )}
-            <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-              <span>{t(`notifications.agents.configSources.${status.configSource}`)}</span>
-              <button
-                type="button"
-                className={LINK_CLASS}
-                disabled={busy}
-                onClick={() => void chooseConfigDir(status)}
-              >
-                {t("notifications.agents.chooseConfigDir")}
-              </button>
-              {status.configSource === "setting" && (
+            status={status}
+            busy={busy}
+            onChange={(install) => void change(status, install)}
+            links={
+              <>
                 <button
                   type="button"
-                  className={LINK_CLASS}
+                  className={AGENT_LINK_CLASS}
                   disabled={busy}
-                  onClick={() => void resetConfigDir(status)}
+                  onClick={() => void chooseConfigDir(status)}
                 >
-                  {t("notifications.agents.resetConfigDir")}
+                  {t("notifications.agents.chooseConfigDir")}
                 </button>
-              )}
-              <button
-                type="button"
-                className={LINK_CLASS}
-                aria-expanded={expanded}
-                onClick={() => setExpandedAgent(expanded ? null : status.agent)}
-              >
-                {expanded
-                  ? t("notifications.agents.hideChanges")
-                  : t("notifications.agents.showChanges")}
-              </button>
-            </div>
-            {expanded && (
-              <div className="mt-2 space-y-1.5">
-                <div className="text-muted-foreground text-xs">
-                  {status.kind === "plugin"
-                    ? t("notifications.agents.changesPluginDesc", { path: status.configPath })
-                    : t("notifications.agents.changesDesc", { path: status.configPath })}
-                </div>
-                <pre className="bg-muted max-h-64 overflow-auto rounded-md p-3 font-mono text-xs select-text">
-                  {status.preview}
-                </pre>
-              </div>
-            )}
-          </SettingsRow>
+                {status.configSource === "setting" && (
+                  <button
+                    type="button"
+                    className={AGENT_LINK_CLASS}
+                    disabled={busy}
+                    onClick={() => void resetConfigDir(status)}
+                  >
+                    {t("notifications.agents.resetConfigDir")}
+                  </button>
+                )}
+              </>
+            }
+          />
         )
       })}
       <SettingsRow
