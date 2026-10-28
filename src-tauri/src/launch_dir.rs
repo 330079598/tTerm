@@ -34,16 +34,17 @@ pub fn take_launch_dirs(state: tauri::State<'_, LaunchDirs>) -> Vec<LaunchDir> {
     std::mem::take(&mut *state.0.lock().unwrap_or_else(|e| e.into_inner()))
 }
 
-/// Queues the directory tTerm was started with, unless this start is a
-/// restart that repeats the arguments of one that opened it already.
+/// Queues the directories tTerm was started with, unless this start is a
+/// restart that repeats the arguments of one that opened them already.
 pub fn open_from_startup(app: &AppHandle) {
     let args: Vec<String> = std::env::args_os()
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
     let cwd = std::env::current_dir().unwrap_or_default();
-    let Some(dir) = requested_dir(&args, &cwd) else {
+    let dirs = requested_dirs(&args, &cwd);
+    if dirs.is_empty() {
         return;
-    };
+    }
     if let Some(marker) = marker_path(app) {
         if marker.exists() {
             return;
@@ -52,14 +53,15 @@ pub fn open_from_startup(app: &AppHandle) {
             eprintln!("Failed to mark the start directory as opened: {error}");
         }
     }
-    queue(app, dir);
+    queue(app, dirs);
 }
 
-/// Queues the directory a second launch asked for. The single-instance plugin
-/// hands its command line and working directory to the running instance.
+/// Queues the directories a second launch asked for. The single-instance
+/// plugin hands its command line and working directory to the running instance.
 pub fn open_from_second_launch(app: &AppHandle, args: &[String], cwd: &str) {
-    if let Some(dir) = requested_dir(args, Path::new(cwd)) {
-        queue(app, dir);
+    let dirs = requested_dirs(args, Path::new(cwd));
+    if !dirs.is_empty() {
+        queue(app, dirs);
     }
 }
 
@@ -76,25 +78,46 @@ pub fn forget_startup_dir(app: &AppHandle) {
     }
 }
 
-/// The directory named in `args`, a command line with the program first,
-/// resolved against `cwd`, where it was run. Options are skipped.
-fn requested_dir(args: &[String], cwd: &Path) -> Option<LaunchDir> {
-    let arg = args.iter().skip(1).find(|arg| !arg.starts_with('-'))?;
-    let joined = cwd.join(arg);
-    // Drops the `.` of `tterm .`, and on Windows resolves `..` as well.
-    let path = std::path::absolute(&joined).unwrap_or(joined);
-    Some(LaunchDir {
-        exists: path.is_dir(),
-        path: path.to_string_lossy().into_owned(),
-    })
+/// The directories named in `args`, a command line with the program first,
+/// resolved against `cwd`, where it was run. Options are skipped; a file
+/// manager passes every folder chosen in it.
+fn requested_dirs(args: &[String], cwd: &Path) -> Vec<LaunchDir> {
+    args.iter()
+        .skip(1)
+        .filter(|arg| !arg.starts_with('-'))
+        .map(|arg| {
+            let joined = cwd.join(unquoted(arg));
+            // Drops the `.` of `tterm .`, and on Windows resolves `..` as well.
+            let path = std::path::absolute(&joined).unwrap_or(joined);
+            LaunchDir {
+                exists: path.is_dir(),
+                path: path.to_string_lossy().into_owned(),
+            }
+        })
+        .collect()
 }
 
-fn queue(app: &AppHandle, dir: LaunchDir) {
+/// Undoes a quirk of Windows command lines: in `"D:\"`, the backslash escapes
+/// the closing quote, which arrives as `D:"`. No Windows path holds a quote.
+#[cfg(target_os = "windows")]
+fn unquoted(arg: &str) -> String {
+    match arg.strip_suffix('"') {
+        Some(path) => format!("{path}\\"),
+        None => arg.to_string(),
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn unquoted(arg: &str) -> String {
+    arg.to_string()
+}
+
+fn queue(app: &AppHandle, dirs: Vec<LaunchDir>) {
     app.state::<LaunchDirs>()
         .0
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .push(dir);
+        .extend(dirs);
     // Before the frontend listens, the directories wait for it to take them.
     if let Err(error) = app.emit(LAUNCH_DIRS_EVENT, ()) {
         eprintln!("Failed to announce a directory to open: {error}");
@@ -121,34 +144,52 @@ mod tests {
     #[test]
     fn opens_nothing_without_a_directory() {
         let cwd = std::env::temp_dir();
-        assert_eq!(requested_dir(&args(&[]), &cwd), None);
-        assert_eq!(requested_dir(&args(&["--flag", "-x"]), &cwd), None);
+        assert_eq!(requested_dirs(&args(&[]), &cwd), []);
+        assert_eq!(requested_dirs(&args(&["--flag", "-x"]), &cwd), []);
     }
 
     #[test]
     fn resolves_a_relative_directory_against_where_it_was_run() {
         let cwd = std::env::temp_dir();
         let expected = std::path::absolute(&cwd).unwrap();
-        let dir = requested_dir(&args(&["."]), &cwd).unwrap();
-        assert_eq!(Path::new(&dir.path), expected);
-        assert!(dir.exists);
+        let dirs = requested_dirs(&args(&["."]), &cwd);
+        assert_eq!(dirs.len(), 1);
+        assert_eq!(Path::new(&dirs[0].path), expected);
+        assert!(dirs[0].exists);
     }
 
     #[test]
-    fn takes_the_first_argument_that_is_not_an_option() {
+    fn takes_every_argument_that_is_not_an_option() {
         let cwd = std::env::temp_dir();
-        let target = std::path::absolute(cwd.parent().unwrap_or(&cwd)).unwrap();
-        let target_arg = target.to_string_lossy().into_owned();
-        let dir = requested_dir(&args(&["--flag", &target_arg, "."]), &cwd).unwrap();
-        assert_eq!(Path::new(&dir.path), target);
+        let parent = std::path::absolute(cwd.parent().unwrap_or(&cwd)).unwrap();
+        let parent_arg = parent.to_string_lossy().into_owned();
+        let dirs = requested_dirs(&args(&["--flag", &parent_arg, "."]), &cwd);
+        let paths: Vec<_> = dirs.iter().map(|dir| Path::new(&dir.path)).collect();
+        assert_eq!(
+            paths,
+            [
+                parent.as_path(),
+                std::path::absolute(&cwd).unwrap().as_path()
+            ]
+        );
     }
 
     #[test]
     fn reports_a_path_that_is_not_a_directory() {
         let cwd = std::env::temp_dir();
         let name = format!("tterm-missing-{}", uuid::Uuid::new_v4());
-        let dir = requested_dir(&args(&[&name]), &cwd).unwrap();
-        assert!(!dir.exists);
-        assert!(dir.path.ends_with(&name));
+        let dirs = requested_dirs(&args(&[&name]), &cwd);
+        assert!(!dirs[0].exists);
+        assert!(dirs[0].path.ends_with(&name));
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn reads_a_drive_whose_closing_quote_was_escaped() {
+        let cwd = std::env::temp_dir();
+        let drive = cwd.to_string_lossy()[..2].to_string();
+        let dirs = requested_dirs(&args(&[&format!("{drive}\"")]), &cwd);
+        assert_eq!(dirs[0].path, format!("{drive}\\"));
+        assert!(dirs[0].exists);
     }
 }
