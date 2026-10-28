@@ -3012,5 +3012,9 @@
     "environmentSource": "Config directory from the server's environment.",
     "changesDesc": "tTerm merges these hooks into {{path}} on the server, leaves your other settings alone and keeps the previous file as .tterm-bak.",
     "changesPluginDesc": "tTerm writes this file to the server. It belongs to tTerm alone and is deleted on removal."
+  },
+  "launchDir": {
+    "notFoundTitle": "Couldn't open the folder",
+    "notFoundDesc": "{{path}} is not a folder that exists."
   }
 }

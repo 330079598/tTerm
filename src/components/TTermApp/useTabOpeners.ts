@@ -41,7 +41,7 @@ export function useTabOpeners(shell: AppShell, config: AppConfig) {
   const { t, tabs, addTab, setActiveTab } = shell
 
   const handleOpenLocalTerminal = useCallback(
-    (choice?: LocalShellChoice) => {
+    (choice?: LocalShellChoice, cwd?: string) => {
       const shell = choice?.shell ?? config.terminal_shell
       const custom = shell === "custom"
       void nameLocalTab({
@@ -50,6 +50,7 @@ export function useTabOpeners(shell: AppShell, config: AppConfig) {
         isModified: false,
         connection: {
           type: "terminal",
+          cwd,
           terminalShell: shell,
           // A chosen shell is a detected executable; the default comes with the configured arguments.
           terminalShellCustomPath: custom

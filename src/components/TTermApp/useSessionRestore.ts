@@ -18,6 +18,8 @@ interface SessionRestoreOptions {
   saveSession: ReturnType<typeof useSessionPersistence>["saveSession"]
   /** Whether a restart shows each terminal tab's content from before. */
   restoreTerminalContent: boolean
+  /** Opens the directories tTerm was asked to open; resolves to whether it opened any. */
+  openLaunchDirs: () => Promise<boolean>
 }
 
 /**
@@ -26,7 +28,8 @@ interface SessionRestoreOptions {
  */
 export function useSessionRestore(shell: AppShell, options: SessionRestoreOptions) {
   const { tabs, groups, activeTabId, addTab, restoreSession } = shell
-  const { isLoaded, getPreloadedSession, saveSession, restoreTerminalContent } = options
+  const { isLoaded, getPreloadedSession, saveSession, restoreTerminalContent, openLaunchDirs } =
+    options
   const [sessionRestored, setSessionRestored] = useState(false)
 
   // Ahead of the restore below, which reads the saved content only when on.
@@ -60,7 +63,9 @@ export function useSessionRestore(shell: AppShell, options: SessionRestoreOption
             return
           }
           restoreSession(restoredTabs, savedSession.activeTabId, savedSession.layout)
-        } else {
+          await openLaunchDirs()
+        } else if (!(await openLaunchDirs())) {
+          // A first start in a directory needs no second tab in the home directory.
           const tab = await nameLocalTab({ title: "", type: "terminal", isModified: false })
           if (cancelled) {
             return
@@ -80,7 +85,7 @@ export function useSessionRestore(shell: AppShell, options: SessionRestoreOption
     return () => {
       cancelled = true
     }
-  }, [addTab, getPreloadedSession, isLoaded, restoreSession])
+  }, [addTab, getPreloadedSession, isLoaded, openLaunchDirs, restoreSession])
 
   useEffect(() => {
     if (!sessionRestored) {

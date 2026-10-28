@@ -21,6 +21,7 @@ import { useBroadcastSending } from "@/components/TTermApp/useBroadcastSending"
 import { useTabConnectionActions } from "@/components/TTermApp/useTabConnectionActions"
 import { useBroadcastControls } from "@/components/TTermApp/useBroadcastControls"
 import { usePageTabs } from "@/components/TTermApp/usePageTabs"
+import { useLaunchDirs } from "@/components/TTermApp/useLaunchDirs"
 import { useSessionRestore } from "@/components/TTermApp/useSessionRestore"
 import { useTabOpeners } from "@/components/TTermApp/useTabOpeners"
 import { useProfileDialogState } from "@/components/TTermApp/useProfileDialogState"
@@ -124,11 +125,17 @@ export const TTermApp: React.FC = () => {
   const tabConnection = useTabConnectionActions(shell)
   const controls = useBroadcastControls(shell, broadcast, runtime, tabConnection.handleReconnectTab)
   usePageTabs(shell, { isLoaded, config, i18n, settingsTabTitle, tunnelsTabTitle, logsTabTitle })
+  const { handleOpenLocalTerminal, handleConnect, handleOpenRemoteFile } = useTabOpeners(
+    shell,
+    config
+  )
+  const openLaunchDirs = useLaunchDirs(t, (cwd) => handleOpenLocalTerminal(undefined, cwd))
   useSessionRestore(shell, {
     isLoaded,
     getPreloadedSession,
     saveSession,
     restoreTerminalContent: config.restore_terminal_content,
+    openLaunchDirs,
   })
 
   useBlockNativeContextMenu()
@@ -137,10 +144,6 @@ export const TTermApp: React.FC = () => {
     setShowNewTabLauncher(true)
   }, [])
 
-  const { handleOpenLocalTerminal, handleConnect, handleOpenRemoteFile } = useTabOpeners(
-    shell,
-    config
-  )
   const quickConnect = useQuickConnect(shell, dialog)
   const recents = useProfileRecents(shell, {
     onConnectionStateChange: runtime.handleTerminalConnectionStateChange,

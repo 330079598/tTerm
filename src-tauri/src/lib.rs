@@ -11,6 +11,7 @@ mod db;
 mod drag_out;
 mod fonts;
 mod ime_focus;
+mod launch_dir;
 mod main_window;
 mod migrate;
 mod monitor;
@@ -83,7 +84,8 @@ pub fn run() {
     let builder = tauri::Builder::default()
         // Registered first so a second launch exits before touching the
         // database, tunnels or migrations the running instance owns.
-        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+            launch_dir::open_from_second_launch(app, &argv, &cwd);
             background::show_main_window(app);
         }))
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -124,6 +126,7 @@ pub fn run() {
         .manage(tunnel::commands::TunnelManager::default())
         .manage(background::CloseBehaviorState::default())
         .manage(background::quit::QuitState::default())
+        .manage(launch_dir::LaunchDirs::default())
         .manage(background::tray::TrayState::default())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -318,6 +321,7 @@ pub fn run() {
             updater::download_install_app_update,
             main_window::toggle_devtools,
             ime_focus::repair_ime_focus,
+            launch_dir::take_launch_dirs,
             notification::show_notification,
             notification::notification_permission,
             notification::import_notification_sound,
@@ -332,6 +336,7 @@ pub fn run() {
         .setup(|app| {
             let app_handle = app.handle().clone();
             config::paths::init_config_dir(&app_handle)?;
+            launch_dir::open_from_startup(&app_handle);
 
             if let Err(err) = updater::cleanup_stale_pending_update_files(&app_handle) {
                 eprintln!("Failed to clean stale update cache files: {}", err);
@@ -408,6 +413,7 @@ pub fn run() {
                     }
                 }
                 tauri::RunEvent::Exit => {
+                    launch_dir::forget_startup_dir(app);
                     // Tunnels may still be running; keep what they carried.
                     app.state::<tunnel::commands::TunnelManager>()
                         .save_traffic();

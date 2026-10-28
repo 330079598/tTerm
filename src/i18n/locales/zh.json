@@ -2990,5 +2990,9 @@
     "environmentSource": "配置目录来自服务器的环境变量。",
     "changesDesc": "tTerm 会把这些 hook 合并进服务器上的 {{path}}，不动你的其他设置，并把原文件保存为 .tterm-bak。",
     "changesPluginDesc": "tTerm 会把这个文件写到服务器上。它只属于 tTerm，移除时会删除。"
+  },
+  "launchDir": {
+    "notFoundTitle": "无法打开文件夹",
+    "notFoundDesc": "{{path}} 不是一个存在的文件夹。"
   }
 }
