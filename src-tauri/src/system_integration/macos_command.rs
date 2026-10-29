@@ -63,10 +63,8 @@ fn write_launcher(bin: &Path) -> Result<(), String> {
 
 /// Links [`LINK`] to `launcher`; returns false when the user cancels.
 fn link(launcher: &Path, admin_prompt: &str) -> Result<bool, String> {
-    if std::fs::symlink_metadata(LINK).is_ok_and(|meta| !meta.file_type().is_symlink()) {
-        return Err(format!(
-            "{LINK} already exists and does not belong to tTerm. Remove it to add the command."
-        ));
+    if let Some(error) = conflict(Path::new(LINK)) {
+        return Err(error);
     }
     let direct = match std::fs::remove_file(LINK) {
         Err(error) if error.kind() != ErrorKind::NotFound => Err(error),
@@ -87,6 +85,31 @@ fn link(launcher: &Path, admin_prompt: &str) -> Result<bool, String> {
         }
         Err(error) => Err(format!("Failed to create {LINK}: {error}")),
     }
+}
+
+/// Why `link`, which is not tTerm's own link to this user's launcher, may not
+/// be replaced, if it may not. Only a link to nothing may: anything else is
+/// another program's, another user's or another copy of tTerm's, such as a
+/// development build. A link this user cannot follow is another user's.
+fn conflict(link: &Path) -> Option<String> {
+    let meta = std::fs::symlink_metadata(link).ok()?;
+    if !meta.file_type().is_symlink() {
+        return Some(format!(
+            "{} already exists and does not belong to tTerm. Remove it to add the command.",
+            link.display()
+        ));
+    }
+    if std::fs::metadata(link).is_err_and(|error| error.kind() == ErrorKind::NotFound) {
+        return None;
+    }
+    let target = std::fs::read_link(link).map_or_else(
+        |_| "somewhere else".to_string(),
+        |target| format!("'{}'", target.display()),
+    );
+    Some(format!(
+        "{} already links to {target}. Remove it to add the command.",
+        link.display()
+    ))
 }
 
 /// Removes [`LINK`]; returns false when the user cancels.
@@ -133,6 +156,27 @@ fn applescript_string(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_a_link_to_nothing_may_be_replaced() {
+        let dir = std::env::temp_dir().join(format!("tterm-link-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let link = dir.join("tterm");
+        assert_eq!(conflict(&link), None);
+
+        std::os::unix::fs::symlink(dir.join("gone"), &link).unwrap();
+        assert_eq!(conflict(&link), None);
+
+        std::fs::write(dir.join("other"), "").unwrap();
+        std::fs::remove_file(&link).unwrap();
+        std::os::unix::fs::symlink(dir.join("other"), &link).unwrap();
+        assert!(conflict(&link).is_some_and(|error| error.contains("already links to")));
+
+        std::fs::remove_file(&link).unwrap();
+        std::fs::write(&link, "").unwrap();
+        assert!(conflict(&link).is_some_and(|error| error.contains("does not belong to tTerm")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn applescript_strings_escape_quotes_and_backslashes() {
