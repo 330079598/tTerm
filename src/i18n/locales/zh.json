@@ -2999,7 +2999,7 @@
     "title": "系统集成",
     "description": "从其他程序中打开 tTerm。",
     "shellCommand": "添加 tterm 命令",
-    "shellCommandDesc": "在终端中运行 tterm . 会在当前文件夹打开一个标签页，tterm <文件夹> 则打开指定的文件夹。开启前已打开的终端需要重新打开后才能使用；tTerm 中的标签页可以立即使用。",
+    "shellCommandDesc": "在终端中运行 tterm . 会在当前文件夹打开一个标签页，tterm <文件夹> 则打开指定的文件夹。安装 tTerm 时会自动添加，除非你在这里关闭过。开启前已打开的终端需要重新打开后才能使用；tTerm 中的标签页可以立即使用。",
     "shellCommandFailed": "无法更改 tterm 命令",
     "shellCommandDescMacos": "在终端中运行 tterm . 会在当前文件夹打开一个标签页，tterm <文件夹> 则打开指定的文件夹。tTerm 自己的标签页中始终可用；开启后，其他终端中也能使用。该命令放在 /usr/local/bin 中，可能需要输入管理员密码。",
     "adminPrompt": "tTerm 要更改 /usr/local/bin 中的 tterm 命令。",

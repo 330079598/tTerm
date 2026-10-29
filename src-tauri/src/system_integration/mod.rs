@@ -1,6 +1,9 @@
 //! Ties tTerm into the system: the `tterm` command, which opens it from a
 //! shell, and "Open in tTerm" in the file manager's menu for a folder.
 
+// Built for tests everywhere, since it is plain file handling.
+#[cfg(any(target_os = "windows", test))]
+mod choices;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 mod launcher;
 #[cfg(target_os = "macos")]
@@ -16,6 +19,8 @@ mod windows_command;
 #[cfg(target_os = "windows")]
 mod windows_menu;
 
+#[cfg(target_os = "windows")]
+use choices::Addition;
 #[cfg(target_os = "macos")]
 use macos_command as shell_command;
 #[cfg(target_os = "macos")]
@@ -34,6 +39,11 @@ use crate::config::AppConfig;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 const FOLDER_MENU_LABELS: [(&str, &str); 2] = [("en", "Open in tTerm"), ("zh", "在 tTerm 中打开")];
 
+/// The argument tTerm's installer starts it with, to add what the user wants
+/// added to the system; see `choices`.
+#[cfg(target_os = "windows")]
+const ADD_ARG: &str = "--add-system-integration";
+
 /// The argument tTerm's uninstaller starts it with, to take out what it
 /// added to the system while tTerm.exe is still there to do it.
 #[cfg(target_os = "windows")]
@@ -44,6 +54,10 @@ const REMOVE_ARG: &str = "--remove-system-integration";
 /// development build has another.
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 const APP_IDENTIFIER: &str = "com.stone.tTerm";
+
+/// The directory in tTerm's local data directory that holds the launchers.
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+const BIN: &str = "bin";
 
 /// The directory that holds the `tterm` launcher, once tTerm has written it
 /// there; see [`tab_bin_dir`].
@@ -106,8 +120,12 @@ pub async fn set_shell_command(
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     {
         let bin = bin_dir(&app)?;
+        #[cfg(target_os = "windows")]
+        let data = data_dir(&app)?;
         crate::core::blocking::run_blocking(move || {
             let installed = shell_command::set_installed(&bin, installed, &admin_prompt)?;
+            #[cfg(target_os = "windows")]
+            remember_choice(&data, Addition::ShellCommand, installed);
             Ok(IntegrationStatus::supported(installed))
         })
         .await
@@ -144,11 +162,15 @@ pub async fn set_folder_menu(app: AppHandle, installed: bool) -> Result<Integrat
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     {
         let menu = FolderMenu::new(&app)?;
+        #[cfg(target_os = "windows")]
+        let data = data_dir(&app)?;
         crate::core::blocking::run_blocking(move || {
             let language = crate::config::load_config_file()
                 .map(|config| config.language)
                 .unwrap_or_default();
             let installed = menu.set_installed(installed, folder_menu_label(&language))?;
+            #[cfg(target_os = "windows")]
+            remember_choice(&data, Addition::FolderMenu, installed);
             Ok(IntegrationStatus::supported(installed))
         })
         .await
@@ -183,6 +205,8 @@ pub fn apply_config(app: &AppHandle, cfg: &AppConfig) {
         if let Err(error) = FolderMenu::new(app).and_then(|menu| menu.refresh(label)) {
             eprintln!("Failed to update the folder menu: {error}");
         }
+        #[cfg(target_os = "windows")]
+        remember_older_folder_menu(app);
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     let _ = (app, cfg);
@@ -196,34 +220,89 @@ pub fn tab_bin_dir() -> Option<&'static std::path::Path> {
     TAB_BIN.get().map(std::path::PathBuf::as_path)
 }
 
-/// Removes the `tterm` command and the folder menu when tTerm was started by
-/// its uninstaller to do so; returns the exit code. Call first thing in
-/// `main`, before Tauri starts.
+/// Does what tTerm's installer or uninstaller started it to do, and returns
+/// the exit code: adds what the user wants added to the system, or removes
+/// all of it. Call first thing in `main`, before Tauri starts.
 #[cfg(target_os = "windows")]
-pub fn run_removal_if_requested() -> Option<i32> {
-    if std::env::args_os()
-        .nth(1)
-        .is_none_or(|arg| arg != REMOVE_ARG)
-    {
-        return None;
+pub fn run_installer_request() -> Option<i32> {
+    let arg = std::env::args_os().nth(1)?;
+    if arg == ADD_ARG {
+        Some(add_wanted())
+    } else if arg == REMOVE_ARG {
+        Some(remove_all())
+    } else {
+        None
     }
+}
+
+/// Adds the `tterm` command and the folder menu where the user wants them,
+/// which puts back what the uninstall before a reinstall took out. The menu
+/// is named in English, since the settings cannot be read without Tauri;
+/// tTerm names it in the app's language when it next starts.
+#[cfg(target_os = "windows")]
+fn add_wanted() -> i32 {
+    let Some(data) = helper_data_dir() else {
+        eprintln!("Failed to add to Windows: LOCALAPPDATA is not set");
+        return 1;
+    };
     let mut code = 0;
-    let bin = std::env::var_os("LOCALAPPDATA").map(|dir| {
-        std::path::PathBuf::from(dir)
-            .join(APP_IDENTIFIER)
-            .join("bin")
-    });
-    if let Some(bin) = bin {
-        if let Err(error) = shell_command::set_installed(&bin, false, "") {
+    if choices::wanted(&data, Addition::ShellCommand) {
+        if let Err(error) = shell_command::set_installed(&data.join(BIN), true, "") {
+            eprintln!("Failed to add the tterm command: {error}");
+            code = 1;
+        }
+    }
+    if choices::wanted(&data, Addition::FolderMenu) {
+        if let Err(error) = FolderMenu.set_installed(true, FOLDER_MENU_LABELS[0].1) {
+            eprintln!("Failed to add the folder menu: {error}");
+            code = 1;
+        }
+    }
+    code
+}
+
+#[cfg(target_os = "windows")]
+fn remove_all() -> i32 {
+    let mut code = 0;
+    if let Some(data) = helper_data_dir() {
+        if let Err(error) = shell_command::set_installed(&data.join(BIN), false, "") {
             eprintln!("Failed to remove the tterm command: {error}");
             code = 1;
         }
     }
-    if let Err(error) = windows_menu::FolderMenu.set_installed(false, "") {
+    if let Err(error) = FolderMenu.set_installed(false, "") {
         eprintln!("Failed to remove the folder menu: {error}");
         code = 1;
     }
-    Some(code)
+    code
+}
+
+/// Keeps the user's choice in the settings for the installer; see `choices`.
+#[cfg(target_os = "windows")]
+fn remember_choice(data: &std::path::Path, addition: Addition, on: bool) {
+    if let Err(error) = choices::remember(data, addition, on) {
+        eprintln!("Failed to remember the choice for {addition:?}: {error}");
+    }
+}
+
+/// Remembers a folder menu turned on before tTerm kept the choice, so that
+/// the installer puts it back as well.
+#[cfg(target_os = "windows")]
+fn remember_older_folder_menu(app: &AppHandle) {
+    let Ok(data) = data_dir(app) else {
+        return;
+    };
+    if !choices::is_chosen(&data, Addition::FolderMenu)
+        && FolderMenu.is_installed().unwrap_or(false)
+    {
+        remember_choice(&data, Addition::FolderMenu, true);
+    }
+}
+
+/// [`data_dir`] for a helper, which starts without Tauri.
+#[cfg(target_os = "windows")]
+fn helper_data_dir() -> Option<std::path::PathBuf> {
+    std::env::var_os("LOCALAPPDATA").map(|dir| std::path::PathBuf::from(dir).join(APP_IDENTIFIER))
 }
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
@@ -234,15 +313,19 @@ fn folder_menu_label(language: &str) -> &'static str {
         .map_or(FOLDER_MENU_LABELS[0].1, |(_, label)| label)
 }
 
+/// tTerm's local data directory, which is this computer's alone.
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+fn data_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    use tauri::Manager;
+    app.path()
+        .app_local_data_dir()
+        .map_err(|error| format!("Failed to find tTerm's data directory: {error}"))
+}
+
 /// The directory that holds tTerm's `tterm` launchers.
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 fn bin_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
-    use tauri::Manager;
-    Ok(app
-        .path()
-        .app_local_data_dir()
-        .map_err(|error| format!("Failed to find tTerm's data directory: {error}"))?
-        .join("bin"))
+    Ok(data_dir(app)?.join(BIN))
 }
 
 #[cfg(test)]

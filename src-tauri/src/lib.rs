@@ -50,7 +50,7 @@ pub struct TokioRuntimeState {
 pub fn run_console_helper() -> Option<i32> {
     terminal::console_reset::run_helper_if_requested()
         .or_else(agent_integration::console_report::run_helper_if_requested)
-        .or_else(system_integration::run_removal_if_requested)
+        .or_else(system_integration::run_installer_request)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
