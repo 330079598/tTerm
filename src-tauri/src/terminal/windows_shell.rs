@@ -46,7 +46,7 @@ pub(super) fn build_windows_command(
             let args = config
                 .custom_args
                 .as_ref()
-                .map(|value| value.split_whitespace().map(|s| s.to_string()).collect())
+                .map(|value| super::shell_args::split_args(value, false))
                 .unwrap_or_default();
 
             (resolve_windows_custom_shell(&path)?, args)

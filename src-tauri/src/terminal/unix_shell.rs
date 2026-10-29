@@ -30,10 +30,10 @@ pub(super) fn build_command(
     } else {
         None
     };
-    let args: Vec<&str> = config
+    let args = config
         .custom_args
         .as_deref()
-        .map(|args| args.split_whitespace().collect())
+        .map(|args| super::shell_args::split_args(args, true))
         .unwrap_or_default();
 
     let mut cmd = match &custom {
@@ -190,8 +190,8 @@ mod tests {
 
     #[test]
     fn starts_a_chosen_shell_with_its_arguments_as_given() {
-        let cmd = build_command(&custom("/bin/sh", Some("-i  -x")), "/").expect("build");
-        assert_eq!(cmd.get_argv(), &["/bin/sh", "-i", "-x"]);
+        let cmd = build_command(&custom("/bin/sh", Some("-i  -c 'echo hi'")), "/").expect("build");
+        assert_eq!(cmd.get_argv(), &["/bin/sh", "-i", "-c", "echo hi"]);
     }
 
     #[test]
