@@ -29,15 +29,17 @@ fn install() -> Option<PathBuf> {
     Some(dir)
 }
 
-/// Turns `cmd`, which starts the user's login shell, into one that starts it
-/// through `<dir>/unix/start.sh`, keeping its environment and directory.
+/// Turns `cmd`, which starts the shell in its $SHELL as a login shell, into
+/// one that starts it through `<dir>/unix/start.sh`, keeping its environment
+/// and directory.
 fn launch_through(cmd: &mut CommandBuilder, dir: &Path) {
     cmd.get_argv_mut()
         .extend(["/bin/sh".into(), dir.join("unix/start.sh").into_os_string()]);
 }
 
-/// Starts the login shell `cmd` through the integration when it is turned
-/// on, command marks are on and the shell is bash, zsh or fish.
+/// Starts the login shell `cmd` (the one in its $SHELL) through the
+/// integration when it is turned on, command marks are on and the shell is
+/// bash, zsh or fish.
 pub fn apply(cmd: &mut CommandBuilder) {
     if !cmd.is_default_prog()
         || !crate::config::local_shell_integration_enabled()

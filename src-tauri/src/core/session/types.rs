@@ -3,11 +3,8 @@ use serde::Deserialize;
 
 #[derive(Debug, Clone, Default)]
 pub struct TerminalShellConfig {
-    #[cfg(target_os = "windows")]
     pub shell: String,
-    #[cfg(target_os = "windows")]
     pub custom_path: Option<String>,
-    #[cfg(target_os = "windows")]
     pub custom_args: Option<String>,
     /// Directory the shell last reported; the next start resumes there when
     /// it still exists.
@@ -162,11 +159,8 @@ pub struct PtyConnectionOptions {
     pub session_log: Option<String>,
     /// SSH: which proxy server the first host is reached through.
     pub proxy: crate::proxy::ProxyChoice,
-    #[cfg(target_os = "windows")]
     pub terminal_shell: Option<String>,
-    #[cfg(target_os = "windows")]
     pub terminal_shell_custom_path: Option<String>,
-    #[cfg(target_os = "windows")]
     pub terminal_shell_custom_args: Option<String>,
     /// Local terminal: directory to start in, as last reported by the shell.
     pub cwd: Option<String>,
@@ -220,13 +214,10 @@ pub(crate) struct RawPtyConnectionOptions {
     session_log: Option<String>,
     #[serde(default)]
     proxy: crate::proxy::ProxyChoice,
-    #[cfg(target_os = "windows")]
     #[serde(default, alias = "terminalShell")]
     terminal_shell: Option<String>,
-    #[cfg(target_os = "windows")]
     #[serde(default, alias = "terminalShellCustomPath")]
     terminal_shell_custom_path: Option<String>,
-    #[cfg(target_os = "windows")]
     #[serde(default, alias = "terminalShellCustomArgs")]
     terminal_shell_custom_args: Option<String>,
     #[serde(default)]
@@ -265,11 +256,8 @@ impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
             shell_integration: raw.shell_integration,
             session_log: raw.session_log,
             proxy: raw.proxy,
-            #[cfg(target_os = "windows")]
             terminal_shell: raw.terminal_shell,
-            #[cfg(target_os = "windows")]
             terminal_shell_custom_path: raw.terminal_shell_custom_path,
-            #[cfg(target_os = "windows")]
             terminal_shell_custom_args: raw.terminal_shell_custom_args,
             cwd: raw.cwd,
             serial: raw.serial,
@@ -301,11 +289,8 @@ impl Default for PtyConnectionOptions {
             shell_integration: false,
             session_log: None,
             proxy: Default::default(),
-            #[cfg(target_os = "windows")]
             terminal_shell: None,
-            #[cfg(target_os = "windows")]
             terminal_shell_custom_path: None,
-            #[cfg(target_os = "windows")]
             terminal_shell_custom_args: None,
             cwd: None,
             serial: None,

@@ -3,6 +3,7 @@ use super::shell_integration::{self, ShellKind};
 use super::types::ActivePty;
 use portable_pty::{CommandBuilder, PtySize};
 use serde::Serialize;
+use std::ffi::OsStr;
 use std::path::PathBuf;
 #[cfg(target_os = "macos")]
 use std::sync::OnceLock;
@@ -26,12 +27,9 @@ pub fn build_terminal_command(
     let mut cmd = build_windows_command(&config)?;
 
     #[cfg(not(target_os = "windows"))]
-    let mut cmd = CommandBuilder::new_default_prog();
+    let mut cmd = super::unix_shell::build_command(&config, &home)?;
 
-    #[cfg(target_os = "macos")]
-    apply_macos_login_shell_env(&mut cmd);
-
-    // After the macOS login environment, which tells which shell starts.
+    // After the shell is chosen: $SHELL tells which shell starts.
     #[cfg(unix)]
     super::local_integration::apply(&mut cmd);
 
@@ -59,14 +57,14 @@ fn resolve_start_dir(cwd: Option<&str>) -> Option<String> {
 }
 
 #[cfg(target_os = "macos")]
-fn apply_macos_login_shell_env(cmd: &mut CommandBuilder) {
+pub(super) fn apply_macos_login_shell_env(cmd: &mut CommandBuilder) {
     for (key, value) in macos_login_shell_env() {
         if should_import_macos_login_shell_env(key) {
             cmd.env(key, value);
         }
     }
 
-    let mut path = resolve_macos_path(cmd.get_env("PATH"));
+    let mut path = macos_shell_path();
     // `tterm` runs in tTerm's tabs whether or not the command is installed.
     // Last, so that it never stands in for a program of the user's.
     if let Some(bin) = crate::system_integration::tab_bin_dir().and_then(std::path::Path::to_str) {
@@ -76,6 +74,18 @@ fn apply_macos_login_shell_env(cmd: &mut CommandBuilder) {
         }
     }
     cmd.env("PATH", path);
+}
+
+/// The PATH a local tab starts with, before tTerm's own launcher directory:
+/// the login shell's, with the common package-manager locations.
+#[cfg(target_os = "macos")]
+pub(super) fn macos_shell_path() -> String {
+    let inherited = std::env::var_os("PATH");
+    let login = macos_login_shell_env()
+        .iter()
+        .find(|(key, _)| key == "PATH")
+        .map(|(_, value)| OsStr::new(value.as_str()));
+    resolve_macos_path(login.or(inherited.as_deref()))
 }
 
 /// Loads the login shell's environment in the background, so the first local
@@ -129,7 +139,7 @@ fn load_macos_login_shell_env() -> Vec<(String, String)> {
 }
 
 #[cfg(target_os = "macos")]
-fn resolve_macos_path(path: Option<&std::ffi::OsStr>) -> String {
+fn resolve_macos_path(path: Option<&OsStr>) -> String {
     let mut entries: Vec<String> = path
         .map(std::env::split_paths)
         .into_iter()
@@ -370,17 +380,16 @@ fn command_exists_on_path(executable: &str) -> bool {
     find_executable_on_path(executable).is_some()
 }
 
-pub(super) fn find_executable_on_path(executable: &str) -> Option<PathBuf> {
-    let path_var = std::env::var_os("PATH")?;
+#[cfg(target_os = "windows")]
+fn find_executable_on_path(executable: &str) -> Option<PathBuf> {
+    find_executable_in(executable, std::env::var_os("PATH").as_deref())
+}
 
-    for dir in std::env::split_paths(&path_var) {
-        let candidate = dir.join(executable);
-        if candidate.exists() {
-            return Some(candidate);
-        }
-    }
-
-    None
+/// Finds `executable` in the directories of `path`, a PATH value.
+pub(super) fn find_executable_in(executable: &str, path: Option<&OsStr>) -> Option<PathBuf> {
+    std::env::split_paths(path?)
+        .map(|dir| dir.join(executable))
+        .find(|candidate| candidate.exists())
 }
 
 #[cfg(target_os = "windows")]
@@ -390,17 +399,18 @@ fn env_path(key: &str) -> Option<PathBuf> {
         .filter(|path| !path.as_os_str().is_empty() && path.exists())
 }
 
+/// The shells a local tab can start. Async, because finding them on macOS
+/// waits for the login shell's PATH.
 #[tauri::command]
-pub fn list_available_terminal_shells() -> Vec<TerminalShellProfile> {
-    #[cfg(target_os = "windows")]
-    {
-        list_windows_terminal_shells()
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        super::unix_shell::list_shells()
-    }
+pub async fn list_available_terminal_shells() -> Result<Vec<TerminalShellProfile>, String> {
+    crate::core::blocking::run_blocking(|| {
+        #[cfg(target_os = "windows")]
+        let shells = list_windows_terminal_shells();
+        #[cfg(not(target_os = "windows"))]
+        let shells = super::unix_shell::list_shells();
+        Ok(shells)
+    })
+    .await
 }
 
 /// The name of the shell a local tab with this choice starts (`cmd`, `pwsh`,
@@ -429,10 +439,11 @@ pub fn local_terminal_shell_name(
         shell_program_name(&program)
     }
 
-    // Local tabs outside Windows always start the user's default shell.
     #[cfg(not(target_os = "windows"))]
     {
-        let _ = (shell, custom_path);
+        if shell.is_some_and(|shell| shell.trim().eq_ignore_ascii_case("custom")) {
+            return shell_program_name(&custom_path?);
+        }
         shell_program_name(&std::env::var("SHELL").ok()?)
     }
 }

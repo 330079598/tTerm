@@ -8,7 +8,6 @@ use types::{
 use crate::core::state::SessionKind;
 
 /// The local shell a terminal session starts, as the connection chose it.
-#[cfg(target_os = "windows")]
 fn terminal_shell_config(
     connection: &PtyConnectionOptions,
     cwd: Option<String>,
@@ -31,15 +30,6 @@ fn terminal_shell_config(
         custom_args: trimmed(&connection.terminal_shell_custom_args),
         cwd,
     }
-}
-
-/// The local shell a terminal session starts: the login shell, in `cwd`.
-#[cfg(not(target_os = "windows"))]
-fn terminal_shell_config(
-    _connection: &PtyConnectionOptions,
-    cwd: Option<String>,
-) -> TerminalShellConfig {
-    TerminalShellConfig { cwd }
 }
 
 pub fn normalize_connection(
