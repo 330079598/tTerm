@@ -13,6 +13,7 @@ export type ShellConfig = Pick<
   | "terminal_shell_custom_path"
   | "terminal_shell_custom_args"
   | "terminal_shell_id"
+  | "terminal_shell_wsl_distro"
   | "local_shells"
   | "hidden_shells"
 >
@@ -24,6 +25,7 @@ export type DefaultShellSettings = Pick<
   | "terminal_shell_custom_path"
   | "terminal_shell_custom_args"
   | "terminal_shell_id"
+  | "terminal_shell_wsl_distro"
 >
 
 /** A shell a local tab can start, as a tab is opened with it. */
@@ -34,11 +36,13 @@ export interface LocalShellChoice {
   customArgs?: string
   /** The user's shell this is, so a restored tab follows its later edits. */
   shellId?: string
+  /** The WSL distribution a `wsl` shell starts; WSL's default when missing. */
+  wslDistro?: string
 }
 
 /** One shell in the lists: Auto, one found on this machine, or one the user added. */
 export interface ShellEntry {
-  /** `auto`, a detected shell's key (`pwsh`, or its path), or `custom:<id>`. */
+  /** `auto`, a detected shell's key (`pwsh`, `wsl:Ubuntu`, or its path), or `custom:<id>`. */
   key: string
   kind: "auto" | "detected" | "custom"
   label: string
@@ -52,9 +56,22 @@ type Translate = (key: string, defaultValue: string) => string
 
 export const AUTO_SHELL_KEY = "auto"
 
-/** The key a detected shell is hidden by: its kind on Windows, its path elsewhere. */
+/**
+ * The key a detected shell is hidden by: its kind on Windows, or a WSL
+ * distribution's name, and its path elsewhere.
+ */
 export function detectedShellKey(profile: TerminalShellProfile): string {
+  if (profile.wslDistro) return wslDistroKey(profile.wslDistro)
   return profile.shell === "custom" ? profile.source : profile.shell
+}
+
+function wslDistroKey(name: string): string {
+  return `wsl:${name}`
+}
+
+/** The `wsl.exe` arguments that start a distribution. */
+function wslDistroArgs(name: string): string {
+  return `-d ${name}`
 }
 
 export function customShellKey(id: string): string {
@@ -83,7 +100,10 @@ function samePath(a: string, b: string): boolean {
  */
 export function buildShellEntries(
   detected: readonly TerminalShellProfile[],
-  config: Pick<ShellConfig, "local_shells" | "hidden_shells">,
+  config: Pick<
+    ShellConfig,
+    "terminal_shell" | "terminal_shell_wsl_distro" | "local_shells" | "hidden_shells"
+  >,
   t: Translate
 ): ShellEntry[] {
   const entries: ShellEntry[] = [
@@ -96,6 +116,9 @@ export function buildShellEntries(
       hidden: false,
     },
   ]
+  // While the default is WSL's own default distribution, that distribution's
+  // entry stands for it, so the default is marked on the shell it starts.
+  const wslDefault = config.terminal_shell === "wsl" && !config.terminal_shell_wsl_distro.trim()
   const addedAsIs = (path: string) =>
     config.local_shells.some((shell) => !shell.args.trim() && samePath(shell.path, path))
   for (const profile of detected) {
@@ -105,15 +128,18 @@ export function buildShellEntries(
       (!isDetectedCustomShell(profile) || addedAsIs(profile.source))
     )
       continue
-    const key = detectedShellKey(profile)
+    const key = wslDefault && profile.defaultWslDistro ? "wsl" : detectedShellKey(profile)
     entries.push({
       key,
       kind: "detected",
       label: terminalShellLabel(profile, t),
-      detail: profile.source,
+      detail: profile.wslDistro
+        ? `${profile.source} ${wslDistroArgs(profile.wslDistro)}`
+        : profile.source,
       choice: {
         shell: profile.shell,
         customPath: profile.shell === "custom" ? profile.source : undefined,
+        wslDistro: profile.wslDistro,
       },
       hidden: config.hidden_shells.includes(key),
     })
@@ -131,10 +157,20 @@ export function buildShellEntries(
   return entries
 }
 
+/** The program and arguments a shell of the user's own copied from a detected `entry` starts. */
+export function copiedShellCommand(entry: ShellEntry): { path: string; args: string } {
+  const distro = entry.choice.wslDistro
+  if (!distro) return { path: entry.detail, args: "" }
+  const args = wslDistroArgs(distro)
+  return { path: entry.detail.slice(0, -args.length).trim(), args }
+}
+
 /** The key of the default shell among {@link buildShellEntries}. */
 export function defaultShellKey(config: ShellConfig): string {
   const id = config.terminal_shell_id
   if (id && config.local_shells.some((shell) => shell.id === id)) return customShellKey(id)
+  const distro = config.terminal_shell_wsl_distro.trim()
+  if (config.terminal_shell === "wsl" && distro) return wslDistroKey(distro)
   if (config.terminal_shell === "custom") {
     const path = config.terminal_shell_custom_path.trim()
     const added = config.local_shells.find(
@@ -153,6 +189,7 @@ export function defaultShellUpdates(choice: LocalShellChoice): DefaultShellSetti
     terminal_shell_custom_path: custom ? (choice.customPath ?? "").trim() : "",
     terminal_shell_custom_args: custom ? (choice.customArgs ?? "").trim() : "",
     terminal_shell_id: custom ? (choice.shellId ?? "") : "",
+    terminal_shell_wsl_distro: choice.shell === "wsl" ? (choice.wslDistro ?? "").trim() : "",
   }
 }
 
@@ -165,6 +202,10 @@ export function defaultShellChoice(config: ShellConfig): LocalShellChoice {
     shell: config.terminal_shell,
     customPath: custom ? config.terminal_shell_custom_path.trim() : undefined,
     customArgs: custom ? config.terminal_shell_custom_args.trim() || undefined : undefined,
+    wslDistro:
+      config.terminal_shell === "wsl"
+        ? config.terminal_shell_wsl_distro.trim() || undefined
+        : undefined,
   }
 }
 
@@ -181,6 +222,7 @@ export function localShellConnection(
     terminalShellCustomPath: custom ? choice.customPath : undefined,
     terminalShellCustomArgs: custom ? choice.customArgs : undefined,
     terminalShellId: custom ? choice.shellId : undefined,
+    terminalShellWslDistro: choice.shell === "wsl" ? choice.wslDistro : undefined,
   }
 }
 
@@ -250,6 +292,8 @@ export function savedLocalShellUpdates(
 export function startsShell(connection: Tab["connection"], choice: LocalShellChoice): boolean {
   const shell = connection?.terminalShell ?? "auto"
   if (shell !== choice.shell) return false
+  if (shell === "wsl")
+    return (connection?.terminalShellWslDistro ?? "") === (choice.wslDistro ?? "")
   if (shell !== "custom") return true
   if (connection?.terminalShellId || choice.shellId) {
     return connection?.terminalShellId === choice.shellId

@@ -9,7 +9,7 @@ import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/Settin
 import { Button } from "@/components/ui/button"
 import { useConfig } from "@/contexts/ConfigContext"
 import type { LocalShell } from "@/lib/appConfig"
-import { customShellKey, newLocalShellId } from "@/lib/localShells"
+import { copiedShellCommand, customShellKey, newLocalShellId } from "@/lib/localShells"
 import { getDetectedPlatform } from "@/lib/uiPlatform"
 
 /**
@@ -30,8 +30,8 @@ export function LocalShellSettings() {
       ? t("localShells.autoDetailWindows")
       : t("localShells.autoDetailUnix")
 
-  const startAdding = (path = "", name = "") =>
-    setEditing({ id: newLocalShellId(), name, path, args: "" })
+  const startAdding = (path = "", name = "", args = "") =>
+    setEditing({ id: newLocalShellId(), name, path, args })
 
   const editor = (shell: LocalShell) => (
     <LocalShellEditor
@@ -80,7 +80,10 @@ export function LocalShellSettings() {
                   autoDetail={autoDetail}
                   onMakeDefault={() => void shells.makeDefault(entry)}
                   onToggleHidden={() => void shells.toggleHidden(entry.key)}
-                  onCopy={() => startAdding(entry.detail, entry.label)}
+                  onCopy={() => {
+                    const { path, args } = copiedShellCommand(entry)
+                    startAdding(path, entry.label, args)
+                  }}
                   onEdit={() => setEditing(own ?? null)}
                   onRemove={() => {
                     if (id) void shells.removeShell(id)

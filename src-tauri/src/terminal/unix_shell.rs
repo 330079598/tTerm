@@ -107,6 +107,7 @@ pub(super) fn list_shells() -> Vec<TerminalShellProfile> {
         shell: "auto".to_string(),
         label: "Auto (recommended)".to_string(),
         source: "tTerm default".to_string(),
+        ..TerminalShellProfile::default()
     }];
 
     if let Ok(shell) = std::env::var("SHELL") {
@@ -120,6 +121,7 @@ pub(super) fn list_shells() -> Vec<TerminalShellProfile> {
                 shell: "custom".to_string(),
                 label: label.to_string(),
                 source: shell.to_string(),
+                ..TerminalShellProfile::default()
             });
         }
     }
@@ -136,6 +138,7 @@ pub(super) fn list_shells() -> Vec<TerminalShellProfile> {
                 shell: "custom".to_string(),
                 label: shell.to_string(),
                 source,
+                ..TerminalShellProfile::default()
             });
         }
     }
@@ -144,6 +147,7 @@ pub(super) fn list_shells() -> Vec<TerminalShellProfile> {
         shell: "custom".to_string(),
         label: "Custom executable".to_string(),
         source: "manual path".to_string(),
+        ..TerminalShellProfile::default()
     });
 
     profiles
@@ -158,7 +162,7 @@ mod tests {
             shell: "custom".to_string(),
             custom_path: Some(path.to_string()),
             custom_args: args.map(str::to_string),
-            cwd: None,
+            ..TerminalShellConfig::default()
         }
     }
 

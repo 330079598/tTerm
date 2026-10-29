@@ -153,6 +153,7 @@ export function buildInitialForm(
     form.terminalShellCustomPath = choice.customPath ?? ""
     form.terminalShellCustomArgs = choice.customArgs ?? ""
     form.terminalShellId = choice.shellId ?? ""
+    form.terminalShellWslDistro = choice.wslDistro ?? ""
     form.terminalShellKey = defaultShellKey(config)
   }
 

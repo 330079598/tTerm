@@ -28,6 +28,7 @@ fn terminal_shell_config(
             .to_string(),
         custom_path: trimmed(&connection.terminal_shell_custom_path),
         custom_args: trimmed(&connection.terminal_shell_custom_args),
+        wsl_distro: trimmed(&connection.terminal_shell_wsl_distro),
         cwd,
     }
 }

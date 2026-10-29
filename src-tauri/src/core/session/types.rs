@@ -6,6 +6,8 @@ pub struct TerminalShellConfig {
     pub shell: String,
     pub custom_path: Option<String>,
     pub custom_args: Option<String>,
+    /// The WSL distribution a `wsl` shell starts; WSL's default when unset.
+    pub wsl_distro: Option<String>,
     /// Directory the shell last reported; the next start resumes there when
     /// it still exists.
     pub cwd: Option<String>,
@@ -162,6 +164,8 @@ pub struct PtyConnectionOptions {
     pub terminal_shell: Option<String>,
     pub terminal_shell_custom_path: Option<String>,
     pub terminal_shell_custom_args: Option<String>,
+    /// Local terminal: the WSL distribution a `wsl` shell starts.
+    pub terminal_shell_wsl_distro: Option<String>,
     /// Local terminal: directory to start in, as last reported by the shell.
     pub cwd: Option<String>,
     /// Serial: the port and how it is opened.
@@ -220,6 +224,8 @@ pub(crate) struct RawPtyConnectionOptions {
     terminal_shell_custom_path: Option<String>,
     #[serde(default, alias = "terminalShellCustomArgs")]
     terminal_shell_custom_args: Option<String>,
+    #[serde(default, alias = "terminalShellWslDistro")]
+    terminal_shell_wsl_distro: Option<String>,
     #[serde(default)]
     cwd: Option<String>,
     #[serde(default)]
@@ -259,6 +265,7 @@ impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
             terminal_shell: raw.terminal_shell,
             terminal_shell_custom_path: raw.terminal_shell_custom_path,
             terminal_shell_custom_args: raw.terminal_shell_custom_args,
+            terminal_shell_wsl_distro: raw.terminal_shell_wsl_distro,
             cwd: raw.cwd,
             serial: raw.serial,
         }
@@ -292,6 +299,7 @@ impl Default for PtyConnectionOptions {
             terminal_shell: None,
             terminal_shell_custom_path: None,
             terminal_shell_custom_args: None,
+            terminal_shell_wsl_distro: None,
             cwd: None,
             serial: None,
         }

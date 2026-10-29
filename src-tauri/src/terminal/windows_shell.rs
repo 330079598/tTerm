@@ -31,7 +31,7 @@ pub(super) fn build_windows_command(
             found(find_pwsh_path(), "pwsh.exe"),
             vec!["-NoLogo".to_string()],
         ),
-        "wsl" => resolve_wsl_command()?,
+        "wsl" => resolve_wsl_command(config.wsl_distro.as_deref())?,
         "git-bash" => resolve_git_bash_command()?,
         "custom" => {
             let path = config
@@ -193,12 +193,14 @@ fn expand_custom_shell_path(
     expanded
 }
 
-fn resolve_wsl_command() -> Result<(String, Vec<String>), String> {
-    if let Some(path) = find_wsl_path() {
-        Ok((path.to_string_lossy().into_owned(), Vec::new()))
-    } else {
-        Err("WSL is selected but wsl.exe was not found".to_string())
-    }
+/// `wsl.exe`, naming `distro` ahead of the arguments that start the shell,
+/// which `wsl.exe` reads as the distribution's own after `-e`.
+fn resolve_wsl_command(distro: Option<&str>) -> Result<(String, Vec<String>), String> {
+    let path = find_wsl_path().ok_or("WSL is selected but wsl.exe was not found")?;
+    let args = distro
+        .map(|name| vec!["-d".to_string(), name.to_string()])
+        .unwrap_or_default();
+    Ok((path.to_string_lossy().into_owned(), args))
 }
 
 fn resolve_git_bash_command() -> Result<(String, Vec<String>), String> {
@@ -304,6 +306,7 @@ pub(super) fn list_windows_terminal_shells() -> Vec<TerminalShellProfile> {
         shell: "auto".to_string(),
         label: "Auto (recommended)".to_string(),
         source: "tTerm default".to_string(),
+        ..TerminalShellProfile::default()
     }];
 
     if let Some(path) = find_cmd_path() {
@@ -311,6 +314,7 @@ pub(super) fn list_windows_terminal_shells() -> Vec<TerminalShellProfile> {
             shell: "cmd".to_string(),
             label: "Command Prompt (cmd)".to_string(),
             source: path.to_string_lossy().into_owned(),
+            ..TerminalShellProfile::default()
         });
     }
 
@@ -319,6 +323,7 @@ pub(super) fn list_windows_terminal_shells() -> Vec<TerminalShellProfile> {
             shell: "powershell".to_string(),
             label: "Windows PowerShell".to_string(),
             source: path.to_string_lossy().into_owned(),
+            ..TerminalShellProfile::default()
         });
     }
 
@@ -327,15 +332,12 @@ pub(super) fn list_windows_terminal_shells() -> Vec<TerminalShellProfile> {
             shell: "pwsh".to_string(),
             label: "PowerShell 7 (pwsh)".to_string(),
             source: path.to_string_lossy().into_owned(),
+            ..TerminalShellProfile::default()
         });
     }
 
     if let Some(path) = find_wsl_path() {
-        profiles.push(TerminalShellProfile {
-            shell: "wsl".to_string(),
-            label: "Windows Subsystem for Linux (WSL)".to_string(),
-            source: path.to_string_lossy().into_owned(),
-        });
+        profiles.extend(wsl_profiles(&path.to_string_lossy()));
     }
 
     if let Some(path) = find_git_bash_path() {
@@ -343,6 +345,7 @@ pub(super) fn list_windows_terminal_shells() -> Vec<TerminalShellProfile> {
             shell: "git-bash".to_string(),
             label: "Git Bash".to_string(),
             source: path.to_string_lossy().into_owned(),
+            ..TerminalShellProfile::default()
         });
     }
 
@@ -350,9 +353,41 @@ pub(super) fn list_windows_terminal_shells() -> Vec<TerminalShellProfile> {
         shell: "custom".to_string(),
         label: "Custom executable".to_string(),
         source: "manual path".to_string(),
+        ..TerminalShellProfile::default()
     });
 
     profiles
+}
+
+/// One entry per installed WSL distribution, the default first; a single
+/// entry for WSL's default when none is installed or they can't be read.
+fn wsl_profiles(wsl: &str) -> Vec<TerminalShellProfile> {
+    let distros = super::wsl_distros::installed_distros();
+    if distros.is_empty() {
+        return vec![TerminalShellProfile {
+            shell: "wsl".to_string(),
+            label: "Windows Subsystem for Linux (WSL)".to_string(),
+            source: wsl.to_string(),
+            ..TerminalShellProfile::default()
+        }];
+    }
+    distros
+        .into_iter()
+        .map(|distro| TerminalShellProfile {
+            shell: "wsl".to_string(),
+            label: distro.name.clone(),
+            source: wsl.to_string(),
+            wsl_distro: Some(distro.name),
+            default_wsl_distro: distro.is_default,
+        })
+        .collect()
+}
+
+/// Whether WSL has the distribution `name` installed for this user.
+pub(super) fn wsl_distro_installed(name: &str) -> bool {
+    super::wsl_distros::installed_distros()
+        .iter()
+        .any(|distro| distro.name.eq_ignore_ascii_case(name.trim()))
 }
 
 /// The name of the shell a local tab with this choice starts (`cmd`, `pwsh`,
@@ -404,6 +439,17 @@ mod tests {
         assert_eq!(expand("50%"), "50%");
         assert_eq!(expand("%%"), "%%");
         assert_eq!(expand("~nu"), "~nu");
+    }
+
+    #[test]
+    fn names_the_wsl_distribution_to_start() {
+        // Without wsl.exe on this machine there is nothing to start.
+        let Ok((_, args)) = resolve_wsl_command(Some("Ubuntu")) else {
+            return;
+        };
+        assert_eq!(args, ["-d", "Ubuntu"]);
+        let (_, args) = resolve_wsl_command(None).expect("wsl.exe");
+        assert!(args.is_empty());
     }
 
     #[test]

@@ -95,6 +95,8 @@ export interface AppConfig extends TabSettings {
   terminal_shell_custom_args: string
   /** The shell the user added that is the default; the custom path and args mirror it. */
   terminal_shell_id: string
+  /** The WSL distribution a `wsl` default starts; empty starts WSL's own default. */
+  terminal_shell_wsl_distro: string
   /** Shells the user added, in the order the lists show them. */
   local_shells: LocalShell[]
   /** Detected shells hidden from the new tab list, by key (`pwsh`, or a path). */
@@ -233,6 +235,7 @@ export const defaultConfig: AppConfig = {
   terminal_shell_custom_path: "",
   terminal_shell_custom_args: "",
   terminal_shell_id: "",
+  terminal_shell_wsl_distro: "",
   local_shells: [],
   hidden_shells: [],
   secret_vault_enabled: true,

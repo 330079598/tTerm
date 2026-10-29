@@ -6,6 +6,10 @@ export interface TerminalShellProfile {
   label: string
   /** The executable, or a placeholder (`manual path`, `$SHELL`) for an entry to fill in. */
   source: string
+  /** The WSL distribution a `wsl` entry starts; WSL's default when missing. */
+  wslDistro?: string
+  /** Whether `wslDistro` is the one WSL starts when none is named. */
+  defaultWslDistro?: boolean
 }
 
 const terminalShellTranslationKeys: Record<TerminalShellType, string> = {
@@ -29,7 +33,7 @@ export function terminalShellLabel(
   profile: TerminalShellProfile,
   t: (key: string, defaultValue: string) => string
 ): string {
-  return isDetectedCustomShell(profile)
+  return isDetectedCustomShell(profile) || profile.wslDistro
     ? profile.label
     : t(
         `connection.terminalShellOptions.${terminalShellTranslationKeys[profile.shell]}`,

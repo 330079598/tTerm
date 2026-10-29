@@ -12,6 +12,7 @@ const config: ShellConfig = {
   terminal_shell_custom_path: "",
   terminal_shell_custom_args: "",
   terminal_shell_id: "",
+  terminal_shell_wsl_distro: "",
   local_shells: [{ id: "nu", name: "nu", path: "nu", args: "" }],
   hidden_shells: [],
 }
@@ -89,6 +90,7 @@ describe("buildLocalShellSubmit", () => {
       terminal_shell_custom_path: "",
       terminal_shell_custom_args: "",
       terminal_shell_id: "",
+      terminal_shell_wsl_distro: "",
     })
   })
 })

@@ -31,6 +31,7 @@ export function buildLocalShellSubmit(
     customPath: custom ? path : undefined,
     customArgs: custom ? args || undefined : undefined,
     shellId: custom ? form.terminalShellId || undefined : undefined,
+    wslDistro: form.terminalShell === "wsl" ? form.terminalShellWslDistro || undefined : undefined,
   }
   let updates: Partial<AppConfig> | null = null
 

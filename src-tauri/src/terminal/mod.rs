@@ -20,3 +20,5 @@ pub(crate) mod types;
 mod unix_shell;
 #[cfg(target_os = "windows")]
 mod windows_shell;
+#[cfg(target_os = "windows")]
+mod wsl_distros;

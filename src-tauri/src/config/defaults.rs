@@ -247,6 +247,7 @@ impl Default for AppConfig {
             terminal_shell_custom_path: String::new(),
             terminal_shell_custom_args: String::new(),
             terminal_shell_id: String::new(),
+            terminal_shell_wsl_distro: String::new(),
             local_shells: Vec::new(),
             hidden_shells: Vec::new(),
             secret_vault_enabled: default_secret_vault_enabled(),

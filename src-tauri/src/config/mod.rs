@@ -56,10 +56,14 @@ pub struct AppConfig {
     /// default's path and arguments above are kept equal to its own.
     #[serde(default)]
     pub terminal_shell_id: String,
+    /// The WSL distribution the default shell starts when it is `wsl`;
+    /// empty starts WSL's own default.
+    #[serde(default)]
+    pub terminal_shell_wsl_distro: String,
     /// Shells the user added for local tabs, kept per device.
     #[serde(default)]
     pub local_shells: Vec<local_shells::LocalShell>,
-    /// Detected shells the user hid from the new tab list, by key (`pwsh`,
+    /// Detected shells the user hid from the new tab list, by key (`pwsh`, `wsl:Ubuntu`,
     /// or the path of one found on PATH).
     #[serde(default)]
     pub hidden_shells: Vec<String>,

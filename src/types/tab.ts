@@ -216,6 +216,8 @@ export interface Tab {
     terminalShellCustomArgs?: string
     /** Local terminal: the user's shell it starts, whose current path a restart follows. */
     terminalShellId?: string
+    /** Local terminal: the WSL distribution a `wsl` shell starts; WSL's default when missing. */
+    terminalShellWslDistro?: string
     /** Local terminal: last directory the shell reported; a restart resumes there. */
     cwd?: string
     /** Ordered jump host chain to tunnel through. */

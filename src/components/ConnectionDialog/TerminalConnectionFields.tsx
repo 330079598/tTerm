@@ -79,6 +79,7 @@ export const TerminalConnectionFields: React.FC<TerminalConnectionFieldsProps> =
       terminalShellCustomPath: entry.choice.customPath ?? "",
       terminalShellCustomArgs: entry.choice.customArgs ?? "",
       terminalShellId: entry.choice.shellId ?? "",
+      terminalShellWslDistro: entry.choice.wslDistro ?? "",
     }))
 
   const chooseNew = () =>
@@ -89,6 +90,7 @@ export const TerminalConnectionFields: React.FC<TerminalConnectionFieldsProps> =
       terminalShellCustomPath: "",
       terminalShellCustomArgs: "",
       terminalShellId: "",
+      terminalShellWslDistro: "",
     }))
 
   return (

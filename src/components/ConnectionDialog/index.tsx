@@ -398,6 +398,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
     config.terminal_shell_custom_path,
     config.terminal_shell_custom_args,
     config.terminal_shell_id,
+    config.terminal_shell_wsl_distro,
   ].join("::")
 
   return (

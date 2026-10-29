@@ -6,12 +6,18 @@ use std::path::PathBuf;
 #[cfg(target_os = "macos")]
 use std::sync::OnceLock;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TerminalShellProfile {
     pub shell: String,
     pub label: String,
     pub source: String,
+    /// The WSL distribution a `wsl` shell starts; the default one when unset.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wsl_distro: Option<String>,
+    /// Whether `wsl_distro` is the one WSL starts when none is named.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub default_wsl_distro: bool,
 }
 
 pub fn build_terminal_command(
@@ -185,6 +191,21 @@ pub async fn list_available_terminal_shells() -> Result<Vec<TerminalShellProfile
         Ok(shells)
     })
     .await
+}
+
+/// Whether WSL has the distribution `name` installed for this user, which
+/// never holds outside Windows.
+pub(crate) fn wsl_distro_installed(name: &str) -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        super::windows_shell::wsl_distro_installed(name)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = name;
+        false
+    }
 }
 
 /// The program a custom shell's path leads to on this machine, or why it

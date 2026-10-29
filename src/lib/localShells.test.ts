@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import type { LocalShell } from "@/lib/appConfig"
 import {
   buildShellEntries,
+  copiedShellCommand,
   defaultShellChoice,
   defaultShellKey,
   defaultShellUpdates,
@@ -39,6 +40,7 @@ function shellConfig(overrides: Partial<ShellConfig> = {}): ShellConfig {
     terminal_shell_custom_path: "",
     terminal_shell_custom_args: "",
     terminal_shell_id: "",
+    terminal_shell_wsl_distro: "",
     local_shells: [],
     hidden_shells: [],
     ...overrides,
@@ -83,6 +85,25 @@ describe("buildShellEntries", () => {
         shellId: "msys",
       },
     })
+  })
+
+  it("lists each WSL distribution, WSL's default one keyed as WSL while that is the default", () => {
+    const wsl = "C:\\Windows\\System32\\wsl.exe"
+    const distros: TerminalShellProfile[] = [
+      { shell: "wsl", label: "Ubuntu", source: wsl, wslDistro: "Ubuntu", defaultWslDistro: true },
+      { shell: "wsl", label: "Debian", source: wsl, wslDistro: "Debian" },
+    ]
+    const keys = (config: ShellConfig) =>
+      buildShellEntries(distros, config, t).map((entry) => entry.key)
+    expect(keys(shellConfig())).toEqual(["auto", "wsl:Ubuntu", "wsl:Debian"])
+    expect(keys(shellConfig({ terminal_shell: "wsl" }))).toEqual(["auto", "wsl", "wsl:Debian"])
+    const debian = buildShellEntries(distros, shellConfig(), t)[2]
+    expect(debian).toMatchObject({
+      label: "Debian",
+      detail: `${wsl} -d Debian`,
+      choice: { shell: "wsl", wslDistro: "Debian" },
+    })
+    expect(copiedShellCommand(debian)).toEqual({ path: wsl, args: "-d Debian" })
   })
 
   it("keys a shell found on PATH by its path and shows one the user added once", () => {
@@ -142,13 +163,24 @@ describe("the default shell", () => {
       terminal_shell_custom_path: "nu",
       terminal_shell_custom_args: "-l",
       terminal_shell_id: "nu",
+      terminal_shell_wsl_distro: "",
     })
     expect(defaultShellUpdates({ shell: "pwsh", customPath: "x" })).toEqual({
       terminal_shell: "pwsh",
       terminal_shell_custom_path: "",
       terminal_shell_custom_args: "",
       terminal_shell_id: "",
+      terminal_shell_wsl_distro: "",
     })
+  })
+
+  it("can be a WSL distribution, or WSL's own default", () => {
+    const debian = defaultShellUpdates({ shell: "wsl", wslDistro: "Debian" })
+    expect(debian.terminal_shell_wsl_distro).toBe("Debian")
+    expect(defaultShellKey(shellConfig(debian))).toBe("wsl:Debian")
+    expect(defaultShellChoice(shellConfig(debian))).toEqual({ shell: "wsl", wslDistro: "Debian" })
+    expect(defaultShellKey(shellConfig({ terminal_shell: "wsl" }))).toBe("wsl")
+    expect(defaultShellChoice(shellConfig({ terminal_shell: "wsl" }))).toEqual({ shell: "wsl" })
   })
 })
 
@@ -183,6 +215,7 @@ describe("the user's shells", () => {
       terminal_shell_custom_path: "",
       terminal_shell_custom_args: "",
       terminal_shell_id: "",
+      terminal_shell_wsl_distro: "",
     })
     expect(removedLocalShell(config, "msys")).toEqual({ local_shells: [nu] })
   })
@@ -247,6 +280,9 @@ describe("restarting a local tab with another shell", () => {
     expect(startsShell({ type: "terminal", terminalShell: "pwsh" }, { shell: "cmd" })).toBe(false)
     expect(startsShell(localShellConnection(own), own)).toBe(true)
     expect(startsShell(localShellConnection(own), { ...own, shellId: "other" })).toBe(false)
+    const debian = { shell: "wsl" as const, wslDistro: "Debian" }
+    expect(startsShell(localShellConnection(debian), debian)).toBe(true)
+    expect(startsShell(localShellConnection(debian), { shell: "wsl" })).toBe(false)
     expect(
       startsShell(
         { type: "terminal", terminalShell: "custom", terminalShellCustomPath: "/bin/zsh " },
@@ -306,6 +342,7 @@ describe("restarting a local tab with another shell", () => {
       terminal_shell_custom_path: nu.path,
       terminal_shell_custom_args: "",
       terminal_shell_id: "nu",
+      terminal_shell_wsl_distro: "",
     })
     expect(savedLocalShellUpdates(shellConfig(), nu, false)).toEqual({ local_shells: [nu] })
   })

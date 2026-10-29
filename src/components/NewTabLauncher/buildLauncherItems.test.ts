@@ -46,6 +46,7 @@ const build = (overrides: Partial<LauncherItemsInput> = {}) =>
       terminal_shell_custom_path: "",
       terminal_shell_custom_args: "",
       terminal_shell_id: "",
+      terminal_shell_wsl_distro: "",
       local_shells: [],
       hidden_shells: [],
     },
@@ -137,6 +138,7 @@ describe("buildLauncherItems", () => {
         terminal_shell_custom_path: "",
         terminal_shell_custom_args: "",
         terminal_shell_id: "",
+        terminal_shell_wsl_distro: "",
         local_shells: [{ id: "nu", name: "Nushell", path: "nu", args: "-l" }],
         hidden_shells: ["cmd"],
       },
@@ -149,6 +151,33 @@ describe("buildLauncherItems", () => {
     expect(items[2].action).toEqual({
       kind: "terminal",
       shell: { shell: "custom", customPath: "nu", customArgs: "-l", shellId: "nu" },
+    })
+  })
+
+  it("offers each WSL distribution, with WSL's default one standing for a WSL default", () => {
+    const wsl = "C:\\Windows\\System32\\wsl.exe"
+    const items = build({
+      shells: [
+        { shell: "wsl", label: "Ubuntu", source: wsl, wslDistro: "Ubuntu", defaultWslDistro: true },
+        { shell: "wsl", label: "Debian", source: wsl, wslDistro: "Debian" },
+      ],
+      shellConfig: {
+        terminal_shell: "wsl",
+        terminal_shell_custom_path: "",
+        terminal_shell_custom_args: "",
+        terminal_shell_id: "",
+        terminal_shell_wsl_distro: "",
+        local_shells: [],
+        hidden_shells: [],
+      },
+    }).filter((item) => item.section === "localTerminal")
+    expect(items.map((item) => [item.key, item.label])).toEqual([
+      ["terminal", "Ubuntu"],
+      ["terminal:wsl:Debian", "Debian"],
+    ])
+    expect(items[1].action).toEqual({
+      kind: "terminal",
+      shell: { shell: "wsl", wslDistro: "Debian" },
     })
   })
 })

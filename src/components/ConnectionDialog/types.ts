@@ -107,6 +107,8 @@ export interface ConnectionForm {
   terminalShellKey: string
   /** The user's shell chosen, so the tab follows its later edits. */
   terminalShellId: string
+  /** The WSL distribution chosen; WSL's default when empty. */
+  terminalShellWslDistro: string
   /** Add the shell typed in to the user's shells. */
   saveShell: boolean
   /** Make the chosen shell the default. */
@@ -169,6 +171,7 @@ export const defaultForm: ConnectionForm = {
   terminalShellCustomArgs: "",
   terminalShellKey: "auto",
   terminalShellId: "",
+  terminalShellWslDistro: "",
   saveShell: false,
   makeDefaultShell: false,
   useJumpHost: false,
