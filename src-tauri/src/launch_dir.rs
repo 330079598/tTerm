@@ -79,12 +79,23 @@ pub fn forget_startup_dir(app: &AppHandle) {
 }
 
 /// The directories named in `args`, a command line with the program first,
-/// resolved against `cwd`, where it was run. Options are skipped; a file
+/// resolved against `cwd`, where it was run. Options are skipped, but after
+/// `--` every argument is a directory, as in `tterm -- -project`; a file
 /// manager passes every folder chosen in it.
 fn requested_dirs(args: &[String], cwd: &Path) -> Vec<LaunchDir> {
+    let mut options_ended = false;
     args.iter()
         .skip(1)
-        .filter(|arg| !arg.starts_with('-'))
+        .filter(|arg| {
+            if options_ended {
+                return true;
+            }
+            if *arg == "--" {
+                options_ended = true;
+                return false;
+            }
+            !arg.starts_with('-')
+        })
         .map(|arg| {
             let joined = cwd.join(unquoted(arg));
             // Drops the `.` of `tterm .`, and on Windows resolves `..` as well.
@@ -172,6 +183,15 @@ mod tests {
                 std::path::absolute(&cwd).unwrap().as_path()
             ]
         );
+    }
+
+    #[test]
+    fn takes_every_argument_after_a_double_dash() {
+        let cwd = std::env::temp_dir();
+        let dirs = requested_dirs(&args(&["-x", "--", "-project", "--"]), &cwd);
+        let paths: Vec<_> = dirs.iter().map(|dir| PathBuf::from(&dir.path)).collect();
+        let base = std::path::absolute(&cwd).unwrap();
+        assert_eq!(paths, [base.join("-project"), base.join("--")]);
     }
 
     #[test]
