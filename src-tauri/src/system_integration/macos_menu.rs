@@ -7,7 +7,7 @@ use std::process::Command;
 
 use tauri::{AppHandle, Manager};
 
-use super::launcher::{sh_quote, write_if_changed};
+use super::launcher::{sh_launcher, tterm_exe, write_if_changed};
 use super::FOLDER_MENU_LABELS;
 
 /// The menu item: a workflow in the user's ~/Library/Services. It takes its
@@ -56,8 +56,7 @@ impl FolderMenu {
 }
 
 fn write(services: &Path, label: &str) -> Result<(), String> {
-    let exe = std::env::current_exe()
-        .map_err(|error| format!("Failed to find tTerm's executable: {error}"))?;
+    let exe = tterm_exe()?;
     let contents = workflow_path(services, label).join("Contents");
     std::fs::create_dir_all(&contents)
         .map_err(|error| format!("Failed to create '{}': {error}", contents.display()))?;
@@ -149,13 +148,10 @@ fn info_plist(label: &str) -> String {
 const DOCUMENT_WFLOW: &str = include_str!("document.wflow");
 
 /// The workflow: one "Run Shell Script" action that takes the chosen folders
-/// as its arguments and hands them to tTerm without waiting for it.
+/// as its arguments and hands them to tTerm without waiting for it, the way
+/// the `tterm` command does. Finder shows what it says when tTerm has gone.
 fn document_wflow(exe: &str) -> String {
-    let script = xml_escape(&format!(
-        "{} \"$@\" </dev/null >/dev/null 2>&1 &",
-        sh_quote(exe)
-    ));
-    DOCUMENT_WFLOW.replace("{script}", &script)
+    DOCUMENT_WFLOW.replace("{script}", &xml_escape(&sh_launcher(exe)))
 }
 
 fn xml_escape(text: &str) -> String {
@@ -174,9 +170,10 @@ mod tests {
     fn the_workflow_runs_tterm_with_the_chosen_folders() {
         let document = document_wflow("/Applications/tTerm.app/Contents/MacOS/tTerm");
         assert!(document.contains(
-            "<string>&apos;/Applications/tTerm.app/Contents/MacOS/tTerm&apos; \
-             &quot;$@&quot; &lt;/dev/null &gt;/dev/null 2&gt;&amp;1 &amp;</string>"
+            "&apos;/Applications/tTerm.app/Contents/MacOS/tTerm&apos; \
+             &quot;$@&quot; &lt;/dev/null &gt;/dev/null 2&gt;&amp;1 &amp;\n</string>"
         ));
+        assert!(document.contains("<string>#!/bin/sh\nif [ ! -x "));
     }
 
     #[test]

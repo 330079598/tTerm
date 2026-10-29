@@ -40,8 +40,9 @@ const FOLDER_MENU_LABELS: [(&str, &str); 2] = [("en", "Open in tTerm"), ("zh", "
 const REMOVE_ARG: &str = "--remove-system-integration";
 
 /// tTerm's identifier, which names its data directory; the one in
-/// tauri.conf.json, which a helper started without Tauri cannot read.
-#[cfg(target_os = "windows")]
+/// tauri.conf.json, which a helper started without Tauri cannot read. A
+/// development build has another.
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 const APP_IDENTIFIER: &str = "com.stone.tTerm";
 
 /// Whether one of tTerm's additions to the system is in place.
@@ -163,6 +164,11 @@ pub fn apply_config(app: &AppHandle, cfg: &AppConfig) {
         if let Err(error) = bin_dir(app).and_then(|bin| shell_command::refresh(&bin)) {
             eprintln!("Failed to update the tterm command: {error}");
         }
+        // Every copy of tTerm shares the folder menu, and a development build
+        // would take it over each time it starts.
+        if app.config().identifier != APP_IDENTIFIER {
+            return;
+        }
         let label = folder_menu_label(&cfg.language);
         if let Err(error) = FolderMenu::new(app).and_then(|menu| menu.refresh(label)) {
             eprintln!("Failed to update the folder menu: {error}");
@@ -231,7 +237,7 @@ mod tests {
         assert_eq!(super::folder_menu_label("fr"), "Open in tTerm");
     }
 
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
     #[test]
     fn the_identifier_is_the_one_tauri_uses() {
         let config: serde_json::Value =

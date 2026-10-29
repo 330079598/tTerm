@@ -5,6 +5,7 @@
 use tauri::AppHandle;
 use windows::Win32::System::Registry::REG_SZ;
 
+use super::launcher::tterm_exe;
 use super::registry::{self, Key};
 
 /// The verbs, under the current user's classes, so no administrator is needed.
@@ -50,8 +51,7 @@ impl FolderMenu {
 }
 
 fn write(label: &str) -> Result<(), String> {
-    let exe = std::env::current_exe()
-        .map_err(|error| format!("Failed to find tTerm's executable: {error}"))?;
+    let exe = tterm_exe()?;
     let exe = exe.to_string_lossy();
     // Explorer replaces %V with the folder, or the drive's root.
     let command = format!("\"{exe}\" \"%V\"");

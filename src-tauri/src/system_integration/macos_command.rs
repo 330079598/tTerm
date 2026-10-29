@@ -7,7 +7,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::Command;
 
-use super::launcher::{sh_launcher, sh_quote, write_if_changed};
+use super::launcher::{sh_launcher, sh_quote, tterm_exe, write_if_changed};
 
 const LINK: &str = "/usr/local/bin/tterm";
 const LAUNCHER: &str = "tterm";
@@ -51,8 +51,7 @@ pub fn refresh(bin: &Path) -> Result<(), String> {
 }
 
 fn write_launcher(bin: &Path) -> Result<(), String> {
-    let exe = std::env::current_exe()
-        .map_err(|error| format!("Failed to find tTerm's executable: {error}"))?;
+    let exe = tterm_exe()?;
     std::fs::create_dir_all(bin)
         .map_err(|error| format!("Failed to create '{}': {error}", bin.display()))?;
     let launcher = bin.join(LAUNCHER);

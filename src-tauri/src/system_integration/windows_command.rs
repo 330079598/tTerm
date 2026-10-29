@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use super::launcher::{sh_launcher, write_if_changed};
+use super::launcher::{sh_launcher, tterm_exe, write_if_changed};
 use super::user_path;
 
 /// For Command Prompt and PowerShell.
@@ -43,8 +43,7 @@ pub fn refresh(bin: &Path) -> Result<(), String> {
 }
 
 fn write_launchers(bin: &Path) -> Result<(), String> {
-    let exe = std::env::current_exe()
-        .map_err(|error| format!("Failed to find tTerm's executable: {error}"))?;
+    let exe = tterm_exe()?;
     std::fs::create_dir_all(bin)
         .map_err(|error| format!("Failed to create '{}': {error}", bin.display()))?;
     write_if_changed(&bin.join(CMD_LAUNCHER), &cmd_launcher(&exe))?;
