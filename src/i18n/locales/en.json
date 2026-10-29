@@ -2759,7 +2759,12 @@
     "programs": "Programs",
     "checking": "Checking…",
     "starts": "Starts {{program}}",
-    "notFound": "Not found, or not a program that can run here"
+    "notFound": "Not found, or not a program that can run here",
+    "startFailed": "The shell didn't start",
+    "editThis": "Edit this shell",
+    "editTitle": "Edit {{name}}",
+    "retry": "Try again",
+    "openDefault": "Open the default shell"
   },
   "tabIcons": {
     "title": "Tab icons",

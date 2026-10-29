@@ -11,8 +11,11 @@ import {
   programName,
   removedLocalShell,
   savedLocalShell,
+  savedLocalShellUpdates,
+  startsShell,
   toggledHiddenShell,
   withCurrentLocalShell,
+  withLocalShell,
   type ShellConfig,
 } from "@/lib/localShells"
 import type { TerminalShellProfile } from "@/lib/terminalShells"
@@ -231,5 +234,43 @@ describe("programName", () => {
     expect(programName("/opt/homebrew/bin/fish")).toBe("fish")
     expect(programName("pwsh")).toBe("pwsh")
     expect(programName(".hidden")).toBe(".hidden")
+  })
+})
+
+describe("restarting a local tab with another shell", () => {
+  it("tells whether a tab starts the same shell", () => {
+    const own = { shell: "custom" as const, customPath: nu.path, shellId: "nu" }
+    expect(startsShell(undefined, { shell: "auto" })).toBe(true)
+    expect(startsShell({ type: "terminal", terminalShell: "pwsh" }, { shell: "cmd" })).toBe(false)
+    expect(startsShell(localShellConnection(own), own)).toBe(true)
+    expect(startsShell(localShellConnection(own), { ...own, shellId: "other" })).toBe(false)
+    expect(
+      startsShell(
+        { type: "terminal", terminalShell: "custom", terminalShellCustomPath: "/bin/zsh " },
+        { shell: "custom", customPath: "/bin/zsh" }
+      )
+    ).toBe(true)
+  })
+
+  it("keeps the tab's directory and starts a new session", () => {
+    const tab = {
+      connection: localShellConnection({ shell: "custom", customPath: "gone" }, "/src"),
+      sessionNonce: 3,
+    }
+    expect(withLocalShell(tab, { shell: "auto" })).toEqual({
+      connection: localShellConnection({ shell: "auto" }, "/src"),
+      sessionNonce: 4,
+    })
+  })
+
+  it("saves a shell and makes it the default in one change", () => {
+    expect(savedLocalShellUpdates(shellConfig(), nu, true)).toEqual({
+      local_shells: [nu],
+      terminal_shell: "custom",
+      terminal_shell_custom_path: nu.path,
+      terminal_shell_custom_args: "",
+      terminal_shell_id: "nu",
+    })
+    expect(savedLocalShellUpdates(shellConfig(), nu, false)).toEqual({ local_shells: [nu] })
   })
 })

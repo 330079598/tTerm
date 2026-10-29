@@ -4,7 +4,8 @@ import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { TerminalTab } from "@/components/TerminalTab"
 import { useWorkspace } from "@/components/TTermApp/workspaceContext"
 import { isPageTab, type Tab } from "@/types/tab"
-import { withLocalCwd } from "@/lib/localTabTitle"
+import { localShellConnection, withLocalShell, type LocalShellChoice } from "@/lib/localShells"
+import { localShellName, withLocalCwd } from "@/lib/localTabTitle"
 import { withLocalDistro } from "@/lib/tabIcons"
 
 const RemoteFileEditor = React.lazy(() =>
@@ -59,6 +60,18 @@ export const WorkspacePanel = React.memo(function WorkspacePanel({
       isVisible ||
       hasBeenVisible ||
       tab.hasConnected === true)
+
+  const restartWithShell = (choice: LocalShellChoice) => {
+    workspace.updateTab(tab.id, (current) => withLocalShell(current, choice))
+    void localShellName(localShellConnection(choice)).then((shellName) =>
+      workspace.updateTab(tab.id, (current) => ({
+        ...current,
+        shellName,
+        // A tab still named after the shell that failed takes the new one's name.
+        title: current.autoTitle && current.title === current.shellName ? shellName : current.title,
+      }))
+    )
+  }
 
   // Pages render only while in sight, as they hold no session to keep.
   const showsPage = isVisible || !isPageTab(tab)
@@ -129,6 +142,7 @@ export const WorkspacePanel = React.memo(function WorkspacePanel({
               onSavedPasswordPromptChange={workspace.onTerminalSavedPasswordPromptChange}
               onSessionUnavailable={workspace.onTerminalSessionUnavailable}
               onReconnectRequest={() => workspace.handleReconnectTab(tab.id)}
+              onRestartWithShell={restartWithShell}
               onOpenRemoteFile={workspace.onOpenRemoteFile}
               onPinConnectionHeader={() => workspace.handlePinConnectionHeader(tab.id)}
               onServerMonitorVisibilityChange={(visible) =>

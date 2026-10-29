@@ -4,6 +4,7 @@ import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import type { TerminalInputRequest } from "@/types/broadcast"
 import type { LiveBroadcastState } from "@/types/broadcast"
 import type { ExecutedCommand } from "@/types/command"
+import type { LocalShellChoice } from "@/lib/localShells"
 import type { TerminalAttentionEvent } from "@/lib/terminalNotifications"
 
 export interface TerminalTabProps {
@@ -39,6 +40,8 @@ export interface TerminalTabProps {
   /** A finished command, a notification request or a bell in this tab. */
   onAttention?: (tabId: string, event: TerminalAttentionEvent) => void
   onReconnectRequest?: () => void
+  /** Starts a local tab again with another shell, after its own failed to start. */
+  onRestartWithShell?: (choice: LocalShellChoice) => void
   onOpenRemoteFile?: (
     entry: SftpDirectoryEntry,
     sourceTabId: string,

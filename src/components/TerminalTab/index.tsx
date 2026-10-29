@@ -22,6 +22,7 @@ import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
 import { SshAuthPromptDialog } from "@/components/TerminalTab/SshAuthPromptDialog"
 import { JumpHostInfoDialog } from "@/components/TerminalTab/JumpHostInfoDialog"
+import { LocalShellFailedBar } from "@/components/TerminalTab/LocalShellFailedBar"
 import { RemoteAgentIntegrationDialog } from "@/components/RemoteAgentIntegrationDialog"
 import { PasswordPrompt } from "@/components/TerminalTab/PasswordPrompt"
 import { ServerMonitorBar } from "@/components/TerminalTab/ServerMonitorBar"
@@ -57,6 +58,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   onCwdChange,
   onDistroChange,
   onReconnectRequest,
+  onRestartWithShell,
   onSavedPasswordPromptChange,
   onSessionUnavailable,
   onSensitivePrompt,
@@ -109,9 +111,11 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     hostKeyPrompt,
     connectionState,
     connectionProgress,
+    startError,
     setHostKeyPrompt,
     setConnectionState,
     setConnectionProgress,
+    setStartError,
   } = useSessionScopedState({ sessionResetKey })
   const [showSftpDrawer, setShowSftpDrawer] = useState(false)
   const { showServerMonitor, handleToggleServerMonitor } = useServerMonitorToggle(
@@ -167,6 +171,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     setConnectionState,
     setHostKeyPrompt,
     setConnectionProgress,
+    setStartError,
     setSearchResults,
     sessionNonce,
     tabId,
@@ -412,6 +417,15 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
               termRef.current?.focus()
             }}
             state={savedPasswordPrompt}
+          />
+        )}
+
+        {startError && onRestartWithShell && (
+          <LocalShellFailedBar
+            connection={connection}
+            error={startError}
+            onRetry={handleReconnect}
+            onRestartWithShell={onRestartWithShell}
           />
         )}
 

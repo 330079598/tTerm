@@ -2737,7 +2737,12 @@
     "programs": "程序",
     "checking": "正在检查…",
     "starts": "将启动 {{program}}",
-    "notFound": "找不到，或不是这台机器上能运行的程序"
+    "notFound": "找不到，或不是这台机器上能运行的程序",
+    "startFailed": "Shell 没有启动",
+    "editThis": "编辑这个 Shell",
+    "editTitle": "编辑 {{name}}",
+    "retry": "重试",
+    "openDefault": "改用默认 Shell 打开"
   },
   "tabIcons": {
     "title": "标签页图标",

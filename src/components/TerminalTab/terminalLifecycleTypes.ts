@@ -86,6 +86,8 @@ export type UseTerminalLifecycleOptions = {
   setConnectionState: (value: ConnectionState) => void
   setHostKeyPrompt: (value: HostKeyPromptState | null) => void
   setConnectionProgress: (value: SshConnectionProgress | null) => void
+  /** Why the local shell failed to start, for the bar that offers another. */
+  setStartError: (value: string | null) => void
   setSearchResults: React.Dispatch<React.SetStateAction<ISearchResultChangeEvent>>
   sessionNonce: number
   tabId: string
@@ -136,6 +138,7 @@ export type TerminalSessionContext = Pick<
   | "setConnectionProgress"
   | "setHostKeyPrompt"
   | "setSavedPasswordPrompt"
+  | "setStartError"
   | "sudoPromptPatternsRef"
   | "tabId"
   | "waitingForReconnectRef"

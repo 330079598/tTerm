@@ -124,12 +124,7 @@ export function buildShellEntries(
       kind: "custom",
       label: shell.name.trim() || programName(shell.path),
       detail: describeShell(shell),
-      choice: {
-        shell: "custom",
-        customPath: shell.path.trim(),
-        customArgs: shell.args.trim() || undefined,
-        shellId: shell.id,
-      },
+      choice: ownShellChoice(shell),
       hidden: false,
     })
   }
@@ -164,14 +159,7 @@ export function defaultShellUpdates(choice: LocalShellChoice): DefaultShellSetti
 /** The default shell, with the current path of a shell the user added. */
 export function defaultShellChoice(config: ShellConfig): LocalShellChoice {
   const added = config.local_shells.find((shell) => shell.id === config.terminal_shell_id)
-  if (config.terminal_shell === "custom" && added) {
-    return {
-      shell: "custom",
-      customPath: added.path.trim(),
-      customArgs: added.args.trim() || undefined,
-      shellId: added.id,
-    }
-  }
+  if (config.terminal_shell === "custom" && added) return ownShellChoice(added)
   const custom = config.terminal_shell === "custom"
   return {
     shell: config.terminal_shell,
@@ -234,6 +222,51 @@ export function savedLocalShell(
     }
   }
   return { local_shells }
+}
+
+/** Starting one of the user's own shells. */
+export function ownShellChoice(shell: LocalShell): LocalShellChoice {
+  return {
+    shell: "custom",
+    customPath: shell.path.trim(),
+    customArgs: shell.args.trim() || undefined,
+    shellId: shell.id,
+  }
+}
+
+/** The settings with `shell` saved, and made the default when asked. */
+export function savedLocalShellUpdates(
+  config: ShellConfig,
+  shell: LocalShell,
+  makeDefault: boolean
+): Partial<AppConfig> {
+  return {
+    ...savedLocalShell(config, shell),
+    ...(makeDefault ? defaultShellUpdates(ownShellChoice(shell)) : {}),
+  }
+}
+
+/** Whether a local tab's connection starts the same shell as `choice`. */
+export function startsShell(connection: Tab["connection"], choice: LocalShellChoice): boolean {
+  const shell = connection?.terminalShell ?? "auto"
+  if (shell !== choice.shell) return false
+  if (shell !== "custom") return true
+  if (connection?.terminalShellId || choice.shellId) {
+    return connection?.terminalShellId === choice.shellId
+  }
+  return samePath(connection?.terminalShellCustomPath ?? "", choice.customPath ?? "")
+}
+
+/** A local tab started again with `choice`, in the directory its shell was in. */
+export function withLocalShell<T extends Pick<Tab, "connection" | "sessionNonce">>(
+  tab: T,
+  choice: LocalShellChoice
+): T {
+  return {
+    ...tab,
+    connection: localShellConnection(choice, tab.connection?.cwd),
+    sessionNonce: ((tab.sessionNonce ?? 0) + 1) >>> 0,
+  }
 }
 
 /** The settings without the user's shell `id`; Auto becomes the default if it was. */

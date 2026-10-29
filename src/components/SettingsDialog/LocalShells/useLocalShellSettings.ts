@@ -11,7 +11,7 @@ import {
   defaultShellUpdates,
   movedLocalShell,
   removedLocalShell,
-  savedLocalShell,
+  savedLocalShellUpdates,
   toggledHiddenShell,
   type ShellEntry,
 } from "@/lib/localShells"
@@ -68,17 +68,7 @@ export function useLocalShellSettings() {
     toggleHidden: (key: string) =>
       save({ hidden_shells: toggledHiddenShell(config.hidden_shells, key) }),
     saveShell: (shell: LocalShell, makeDefault: boolean) =>
-      save({
-        ...savedLocalShell(config, shell),
-        ...(makeDefault
-          ? defaultShellUpdates({
-              shell: "custom",
-              customPath: shell.path,
-              customArgs: shell.args,
-              shellId: shell.id,
-            })
-          : {}),
-      }),
+      save(savedLocalShellUpdates(config, shell, makeDefault)),
     removeShell: (id: string) => save(removedLocalShell(config, id)),
     moveShell: (id: string, offset: -1 | 1) =>
       save({ local_shells: movedLocalShell(shells, id, offset) }),

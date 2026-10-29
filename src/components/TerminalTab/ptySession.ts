@@ -49,6 +49,7 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
     onPidChangeRef,
     onReconnectRequestRef,
     waitingForReconnectRef,
+    setStartError,
   } = ctx
   const {
     applyConnectionState,
@@ -310,6 +311,8 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
         }
       }
       term.writeln(`\x1b[31mFailed to start terminal: ${error}\x1b[0m`)
+      // A local shell that didn't start gets a bar offering another one.
+      if (!isConnection()) setStartError(String(error))
       if (connectionRef.current?.type === "serial") {
         // A port that didn't open, unplugged or held by another program, is
         // tried again with a key once it is free.
