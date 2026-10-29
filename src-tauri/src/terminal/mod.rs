@@ -15,3 +15,5 @@ mod shell_integration;
 pub(crate) mod shell_scripts;
 pub(crate) mod ssh_query_handler;
 pub(crate) mod types;
+#[cfg(not(target_os = "windows"))]
+mod unix_shell;

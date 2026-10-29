@@ -370,7 +370,7 @@ fn command_exists_on_path(executable: &str) -> bool {
     find_executable_on_path(executable).is_some()
 }
 
-fn find_executable_on_path(executable: &str) -> Option<PathBuf> {
+pub(super) fn find_executable_on_path(executable: &str) -> Option<PathBuf> {
     let path_var = std::env::var_os("PATH")?;
 
     for dir in std::env::split_paths(&path_var) {
@@ -399,7 +399,7 @@ pub fn list_available_terminal_shells() -> Vec<TerminalShellProfile> {
 
     #[cfg(not(target_os = "windows"))]
     {
-        list_unix_terminal_shells()
+        super::unix_shell::list_shells()
     }
 }
 
@@ -500,48 +500,6 @@ fn list_windows_terminal_shells() -> Vec<TerminalShellProfile> {
         label: "Custom executable".to_string(),
         source: "manual path".to_string(),
     });
-
-    profiles
-}
-
-#[cfg(not(target_os = "windows"))]
-fn list_unix_terminal_shells() -> Vec<TerminalShellProfile> {
-    let mut profiles = vec![TerminalShellProfile {
-        shell: "auto".to_string(),
-        label: "Auto (recommended)".to_string(),
-        source: "tTerm default".to_string(),
-    }];
-
-    if let Ok(shell) = std::env::var("SHELL") {
-        let shell = shell.trim();
-        if !shell.is_empty() {
-            let path = PathBuf::from(shell);
-            let label = path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .unwrap_or("Default shell");
-            profiles.push(TerminalShellProfile {
-                shell: "custom".to_string(),
-                label: label.to_string(),
-                source: shell.to_string(),
-            });
-        }
-    }
-
-    for shell in ["zsh", "fish", "bash", "sh", "dash", "ksh", "elvish", "nu"] {
-        if let Some(path) = find_executable_on_path(shell) {
-            let source = path.to_string_lossy().into_owned();
-            if profiles.iter().any(|profile| profile.source == source) {
-                continue;
-            }
-
-            profiles.push(TerminalShellProfile {
-                shell: "custom".to_string(),
-                label: shell.to_string(),
-                source,
-            });
-        }
-    }
 
     profiles
 }
