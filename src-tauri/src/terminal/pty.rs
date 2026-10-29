@@ -5,7 +5,7 @@ use portable_pty::{CommandBuilder, PtySize};
 use serde::Serialize;
 use std::ffi::OsStr;
 use std::path::PathBuf;
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::sync::OnceLock;
 
 #[derive(Debug, Serialize)]
@@ -174,10 +174,22 @@ fn build_windows_command(
 ) -> Result<CommandBuilder, String> {
     let shell = config.shell.trim().to_ascii_lowercase();
 
+    let found = |path: Option<PathBuf>, name: &str| {
+        path.map_or_else(
+            || name.to_string(),
+            |path| path.to_string_lossy().into_owned(),
+        )
+    };
     let (program, args): (String, Vec<String>) = match shell.as_str() {
-        "cmd" => ("cmd.exe".to_string(), Vec::new()),
-        "powershell" => ("powershell.exe".to_string(), vec!["-NoLogo".to_string()]),
-        "pwsh" => ("pwsh.exe".to_string(), vec!["-NoLogo".to_string()]),
+        "cmd" => (found(find_cmd_path(), "cmd.exe"), Vec::new()),
+        "powershell" => (
+            found(find_windows_powershell_path(), "powershell.exe"),
+            vec!["-NoLogo".to_string()],
+        ),
+        "pwsh" => (
+            found(find_pwsh_path(), "pwsh.exe"),
+            vec!["-NoLogo".to_string()],
+        ),
         "wsl" => resolve_wsl_command()?,
         "git-bash" => resolve_git_bash_command()?,
         "custom" => {
@@ -196,7 +208,7 @@ fn build_windows_command(
                 .map(|value| value.split_whitespace().map(|s| s.to_string()).collect())
                 .unwrap_or_default();
 
-            (path, args)
+            (resolve_windows_custom_shell(&path)?, args)
         }
         _ => resolve_windows_auto_shell(),
     };
@@ -253,24 +265,94 @@ fn build_windows_command(
     Ok(cmd)
 }
 
+/// The shell Auto starts: PowerShell 7, then Windows PowerShell, which every
+/// supported Windows has, then cmd. It is found once, in the install
+/// locations before PATH, so that a PATH entry on an unreachable network
+/// share can't hold up every new tab.
 #[cfg(target_os = "windows")]
 fn resolve_windows_auto_shell() -> (String, Vec<String>) {
-    if let Ok(comspec) = std::env::var("COMSPEC") {
-        let trimmed = comspec.trim();
-        if !trimmed.is_empty() {
-            return (trimmed.to_string(), Vec::new());
+    static AUTO_SHELL: OnceLock<(String, Vec<String>)> = OnceLock::new();
+    AUTO_SHELL
+        .get_or_init(|| {
+            let powershell = find_pwsh_path().or_else(find_windows_powershell_path);
+            if let Some(path) = powershell {
+                return (
+                    path.to_string_lossy().into_owned(),
+                    vec!["-NoLogo".to_string()],
+                );
+            }
+            let cmd = find_cmd_path().map(|path| path.to_string_lossy().into_owned());
+            (cmd.unwrap_or_else(|| "cmd.exe".to_string()), Vec::new())
+        })
+        .clone()
+}
+
+/// Finds the program a custom shell names: a path, or a name on PATH whose
+/// `.exe` may be left off.
+#[cfg(target_os = "windows")]
+fn resolve_windows_custom_shell(shell: &str) -> Result<String, String> {
+    let expanded =
+        expand_custom_shell_path(shell, |name| std::env::var(name).ok(), &resolve_home_dir());
+    let found = if expanded.contains(['\\', '/', ':']) {
+        Some(PathBuf::from(&expanded)).filter(|path| path.is_file())
+    } else {
+        [expanded.clone(), format!("{expanded}.exe")]
+            .iter()
+            .find_map(|name| find_executable_on_path(name).filter(|path| path.is_file()))
+    };
+    found
+        .map(|path| path.to_string_lossy().into_owned())
+        .ok_or_else(|| {
+            format!(
+                "The shell {} was not found. Check its path, or choose another shell for this terminal.",
+                shell.trim()
+            )
+        })
+}
+
+/// Unquotes a custom shell path, since Explorer's "Copy as path" adds quotes,
+/// and expands a leading `~` and `%NAME%` variables. An unknown variable
+/// stays as written, as it does in cmd.
+#[cfg(any(target_os = "windows", test))]
+fn expand_custom_shell_path(
+    shell: &str,
+    var: impl Fn(&str) -> Option<String>,
+    home: &str,
+) -> String {
+    let shell = shell.trim();
+    let shell = shell
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+        .unwrap_or(shell)
+        .trim();
+    let shell = match shell.strip_prefix('~') {
+        Some(rest) if rest.is_empty() || rest.starts_with(['\\', '/']) => format!("{home}{rest}"),
+        _ => shell.to_string(),
+    };
+
+    let mut expanded = String::new();
+    let mut rest = shell.as_str();
+    while let Some(start) = rest.find('%') {
+        expanded.push_str(&rest[..start]);
+        let after = &rest[start + 1..];
+        let Some(end) = after.find('%') else {
+            rest = &rest[start..];
+            break;
+        };
+        match var(&after[..end]).filter(|_| end > 0) {
+            Some(value) => {
+                expanded.push_str(&value);
+                rest = &after[end + 1..];
+            }
+            // The closing `%` may open the next variable.
+            None => {
+                expanded.push('%');
+                rest = after;
+            }
         }
     }
-
-    if command_exists_on_path("pwsh.exe") {
-        return ("pwsh.exe".to_string(), vec!["-NoLogo".to_string()]);
-    }
-
-    if command_exists_on_path("powershell.exe") {
-        return ("powershell.exe".to_string(), vec!["-NoLogo".to_string()]);
-    }
-
-    ("cmd.exe".to_string(), Vec::new())
+    expanded.push_str(rest);
+    expanded
 }
 
 #[cfg(target_os = "windows")]
@@ -352,32 +434,28 @@ fn find_cmd_path() -> Option<PathBuf> {
         .or_else(|| find_executable_on_path("cmd.exe"))
 }
 
+/// Windows PowerShell where Windows installs it, else on PATH.
 #[cfg(target_os = "windows")]
 fn find_windows_powershell_path() -> Option<PathBuf> {
-    find_executable_on_path("powershell.exe").or_else(|| {
-        env_path("SystemRoot")
-            .map(|base| {
-                base.join("System32")
-                    .join("WindowsPowerShell")
-                    .join("v1.0")
-                    .join("powershell.exe")
-            })
-            .filter(|path| path.exists())
-    })
+    env_path("SystemRoot")
+        .map(|base| {
+            base.join("System32")
+                .join("WindowsPowerShell")
+                .join("v1.0")
+                .join("powershell.exe")
+        })
+        .filter(|path| path.exists())
+        .or_else(|| find_executable_on_path("powershell.exe"))
 }
 
+/// PowerShell 7 where its installer puts it, else on PATH (Scoop, winget
+/// portable, the Store).
 #[cfg(target_os = "windows")]
 fn find_pwsh_path() -> Option<PathBuf> {
-    find_executable_on_path("pwsh.exe").or_else(|| {
-        env_path("ProgramFiles")
-            .map(|base| base.join("PowerShell").join("7").join("pwsh.exe"))
-            .filter(|path| path.exists())
-    })
-}
-
-#[cfg(target_os = "windows")]
-fn command_exists_on_path(executable: &str) -> bool {
-    find_executable_on_path(executable).is_some()
+    env_path("ProgramFiles")
+        .map(|base| base.join("PowerShell").join("7").join("pwsh.exe"))
+        .filter(|path| path.exists())
+        .or_else(|| find_executable_on_path("pwsh.exe"))
 }
 
 #[cfg(target_os = "windows")]
@@ -433,7 +511,11 @@ pub fn local_terminal_shell_name(
             "pwsh" => "pwsh.exe".to_string(),
             "wsl" => return Some("WSL".to_string()),
             "git-bash" => return Some("Git Bash".to_string()),
-            "custom" => custom_path.filter(|path| !path.trim().is_empty())?,
+            "custom" => expand_custom_shell_path(
+                &custom_path?,
+                |name| std::env::var(name).ok(),
+                &resolve_home_dir(),
+            ),
             _ => resolve_windows_auto_shell().0,
         };
         shell_program_name(&program)
@@ -614,7 +696,7 @@ fn log_conpty_source() {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_terminal_command, shell_program_name};
+    use super::{build_terminal_command, expand_custom_shell_path, shell_program_name};
 
     #[test]
     fn local_shell_advertises_truecolor() {
@@ -633,6 +715,55 @@ mod tests {
             Some("PowerShell")
         );
         assert_eq!(shell_program_name("  ").as_deref(), None);
+    }
+
+    #[test]
+    fn expands_custom_shell_paths() {
+        let var =
+            |name: &str| (name == "LOCALAPPDATA").then(|| r"C:\Users\me\AppData\Local".to_string());
+        let expand = |shell: &str| expand_custom_shell_path(shell, var, r"C:\Users\me");
+        assert_eq!(
+            expand(r#" "C:\Program Files\nu\nu.exe" "#),
+            r"C:\Program Files\nu\nu.exe"
+        );
+        assert_eq!(
+            expand(r"%LOCALAPPDATA%\Programs\nu\nu.exe"),
+            r"C:\Users\me\AppData\Local\Programs\nu\nu.exe"
+        );
+        assert_eq!(expand(r"~\bin\nu.exe"), r"C:\Users\me\bin\nu.exe");
+        assert_eq!(
+            expand(r"%NOPE%\%LOCALAPPDATA%\x"),
+            r"%NOPE%\C:\Users\me\AppData\Local\x"
+        );
+        assert_eq!(expand("50%"), "50%");
+        assert_eq!(expand("%%"), "%%");
+        assert_eq!(expand("~nu"), "~nu");
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn finds_windows_shells() {
+        use super::{resolve_windows_auto_shell, resolve_windows_custom_shell};
+
+        let (auto, _) = resolve_windows_auto_shell();
+        let auto = auto.to_ascii_lowercase();
+        assert!(
+            auto.ends_with("pwsh.exe") || auto.ends_with("powershell.exe"),
+            "{auto}"
+        );
+
+        let cmd = resolve_windows_custom_shell(r#""%SystemRoot%\System32\cmd.exe""#)
+            .expect("cmd by path");
+        assert!(
+            cmd.to_ascii_lowercase().ends_with(r"system32\cmd.exe"),
+            "{cmd}"
+        );
+        let by_name = resolve_windows_custom_shell("cmd").expect("cmd by name");
+        assert!(
+            by_name.to_ascii_lowercase().ends_with("cmd.exe"),
+            "{by_name}"
+        );
+        assert!(resolve_windows_custom_shell(r"C:\no\such\shell.exe").is_err());
     }
 }
 
