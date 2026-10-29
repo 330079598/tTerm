@@ -47,7 +47,7 @@ fn resolve_start_dir(cwd: Option<&str>) -> Option<String> {
     let cwd = cwd?;
     // Git Bash reports `/c/dir`, where any Windows shell can start.
     #[cfg(target_os = "windows")]
-    let cwd = shell_integration::msys_drive_path(cwd).unwrap_or_else(|| cwd.to_string());
+    let cwd = super::shell_integration::msys_drive_path(cwd).unwrap_or_else(|| cwd.to_string());
     #[cfg(not(target_os = "windows"))]
     let cwd = cwd.to_string();
     let path = std::path::Path::new(&cwd);
