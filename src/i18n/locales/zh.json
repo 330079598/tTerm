@@ -2742,7 +2742,8 @@
     "editThis": "编辑这个 Shell",
     "editTitle": "编辑 {{name}}",
     "retry": "重试",
-    "openDefault": "改用默认 Shell 打开"
+    "openDefault": "改用默认 Shell 打开",
+    "openAuto": "改用自动 Shell 打开"
   },
   "tabIcons": {
     "title": "标签页图标",

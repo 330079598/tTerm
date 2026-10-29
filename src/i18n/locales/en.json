@@ -2764,7 +2764,8 @@
     "editThis": "Edit this shell",
     "editTitle": "Edit {{name}}",
     "retry": "Try again",
-    "openDefault": "Open the default shell"
+    "openDefault": "Open the default shell",
+    "openAuto": "Open Auto instead"
   },
   "tabIcons": {
     "title": "Tab icons",

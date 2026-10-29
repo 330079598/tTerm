@@ -10,11 +10,10 @@ import { useConfig } from "@/contexts/ConfigContext"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
 import {
   customShellKey,
-  defaultShellChoice,
   defaultShellKey,
+  failedShellFallback,
   ownShellChoice,
   savedLocalShellUpdates,
-  startsShell,
   type LocalShellChoice,
 } from "@/lib/localShells"
 
@@ -42,8 +41,7 @@ export function LocalShellFailedBar({
   const [editing, setEditing] = useState(false)
   const id = connection?.terminalShellId
   const own = id ? config.local_shells.find((shell) => shell.id === id) : undefined
-  const fallback = defaultShellChoice(config)
-  const isDefault = startsShell(connection, fallback)
+  const fallback = failedShellFallback(connection, config)
 
   return (
     <>
@@ -69,9 +67,9 @@ export function LocalShellFailedBar({
           <Button type="button" size="xs" variant="outline" onClick={onRetry}>
             {t("localShells.retry")}
           </Button>
-          {!isDefault && (
-            <Button type="button" size="xs" onClick={() => onRestartWithShell(fallback)}>
-              {t("localShells.openDefault")}
+          {fallback && (
+            <Button type="button" size="xs" onClick={() => onRestartWithShell(fallback.choice)}>
+              {fallback.replacesDefault ? t("localShells.openAuto") : t("localShells.openDefault")}
             </Button>
           )}
         </div>

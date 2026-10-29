@@ -6,8 +6,10 @@ import {
   defaultShellChoice,
   defaultShellKey,
   defaultShellUpdates,
+  failedShellFallback,
   localShellConnection,
   movedLocalShell,
+  ownShellChoice,
   programName,
   removedLocalShell,
   savedLocalShell,
@@ -261,6 +263,31 @@ describe("restarting a local tab with another shell", () => {
       connection: localShellConnection({ shell: "auto" }, "/src"),
       sessionNonce: 4,
     })
+  })
+
+  it("offers the default shell, or Auto when the default is the one that failed", () => {
+    const nuDefault = shellConfig({
+      terminal_shell: "custom",
+      terminal_shell_custom_path: nu.path,
+      terminal_shell_id: "nu",
+      local_shells: [nu],
+    })
+    const msysTab = localShellConnection(ownShellChoice(msys))
+    expect(failedShellFallback(msysTab, nuDefault)).toEqual({
+      choice: ownShellChoice(nu),
+      replacesDefault: false,
+    })
+    expect(failedShellFallback(localShellConnection(ownShellChoice(nu)), nuDefault)).toEqual({
+      choice: { shell: "auto" },
+      replacesDefault: true,
+    })
+    expect(failedShellFallback(msysTab, shellConfig())).toEqual({
+      choice: { shell: "auto", customPath: undefined, customArgs: undefined },
+      replacesDefault: false,
+    })
+    expect(failedShellFallback(localShellConnection({ shell: "auto" }), shellConfig())).toBe(
+      undefined
+    )
   })
 
   it("saves a shell and makes it the default in one change", () => {

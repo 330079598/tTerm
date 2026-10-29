@@ -269,6 +269,28 @@ export function withLocalShell<T extends Pick<Tab, "connection" | "sessionNonce"
   }
 }
 
+/** What a local tab whose shell failed to start can open instead. */
+export interface FailedShellFallback {
+  choice: LocalShellChoice
+  /** Whether this is Auto standing in for a default shell that failed itself. */
+  replacesDefault: boolean
+}
+
+/**
+ * The shell a tab whose shell failed to start can open instead: the default,
+ * or Auto when the default is the shell that failed, so a broken default
+ * still leaves a way out. Nothing when Auto itself failed.
+ */
+export function failedShellFallback(
+  connection: Tab["connection"],
+  config: ShellConfig
+): FailedShellFallback | undefined {
+  const fallback = defaultShellChoice(config)
+  if (!startsShell(connection, fallback)) return { choice: fallback, replacesDefault: false }
+  if (fallback.shell === "auto") return undefined
+  return { choice: { shell: "auto" }, replacesDefault: true }
+}
+
 /** The settings without the user's shell `id`; Auto becomes the default if it was. */
 export function removedLocalShell(
   config: ShellConfig,
