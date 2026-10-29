@@ -23,8 +23,16 @@ impl FolderMenu {
         Ok(Self)
     }
 
+    /// Whether every verb is there. A write that failed partway, or another
+    /// program, can leave only some of them, which shows as off so that
+    /// turning the menu on writes them all again.
     pub fn is_installed(&self) -> Result<bool, String> {
-        Ok(Key::open(&format!(r"{}\command", VERB_KEYS[0]))?.is_some())
+        for path in VERB_KEYS {
+            if Key::open(&format!(r"{path}\command"))?.is_none() {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 
     /// Adds the menu item, named `label`, or removes it; returns whether it
