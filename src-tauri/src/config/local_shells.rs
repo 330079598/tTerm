@@ -2,10 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use super::AppConfig;
 
-/// The id given to the custom shell an older version kept as the default,
-/// the same on every load so tabs saved with it still find it.
-const MIGRATED_SHELL_ID: &str = "default";
-
 /// A shell the user added for local tabs. The frontend turns it into the
 /// path and arguments a tab starts; this only keeps what it saved.
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
@@ -30,13 +26,32 @@ pub(super) fn migrate(config: &mut AppConfig) {
     {
         return;
     }
+    let args = config.terminal_shell_custom_args.trim();
+    let id = migrated_shell_id(path, args);
     config.local_shells.push(LocalShell {
-        id: MIGRATED_SHELL_ID.to_string(),
+        id: id.clone(),
         name: program_name(path),
         path: path.to_string(),
-        args: config.terminal_shell_custom_args.trim().to_string(),
+        args: args.to_string(),
     });
-    config.terminal_shell_id = MIGRATED_SHELL_ID.to_string();
+    config.terminal_shell_id = id;
+}
+
+/// The id given to the custom shell an older version kept as the default.
+/// It comes from the program and its arguments, so it is the same on every
+/// load and tabs saved with it still find it, while a shell migrated on
+/// another device gets an id of its own unless it is the same shell, and a
+/// backup from there doesn't pass it off as this device's.
+fn migrated_shell_id(path: &str, args: &str) -> String {
+    // FNV-1a stays the same across Rust versions, which std's hasher doesn't promise.
+    let bytes = [path.as_bytes(), &[0], args.as_bytes()];
+    let hash = bytes
+        .into_iter()
+        .flatten()
+        .fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
+            (hash ^ u64::from(*byte)).wrapping_mul(0x0000_0100_0000_01b3)
+        });
+    format!("migrated-{hash:016x}")
 }
 
 /// The program's file name without its extension, `nu` for `C:\nu\nu.exe`.
@@ -64,16 +79,17 @@ mod tests {
     fn keeps_an_older_custom_default_as_the_first_shell() {
         let mut config = custom_default(r#""C:\Tools\nu\nu.exe""#, " --login ");
         migrate(&mut config);
+        let id = migrated_shell_id(r#""C:\Tools\nu\nu.exe""#, "--login");
         assert_eq!(
             config.local_shells,
             vec![LocalShell {
-                id: "default".to_string(),
+                id: id.clone(),
                 name: "nu".to_string(),
                 path: r#""C:\Tools\nu\nu.exe""#.to_string(),
                 args: "--login".to_string(),
             }]
         );
-        assert_eq!(config.terminal_shell_id, "default");
+        assert_eq!(config.terminal_shell_id, id);
         assert_eq!(config.terminal_shell_custom_args, " --login ");
     }
 
@@ -91,6 +107,19 @@ mod tests {
         let mut empty = custom_default("  ", "");
         migrate(&mut empty);
         assert!(empty.local_shells.is_empty());
+    }
+
+    #[test]
+    fn gives_migrated_shells_the_same_id_only_for_the_same_shell() {
+        let id = |path: &str, args: &str| {
+            let mut config = custom_default(path, args);
+            migrate(&mut config);
+            config.terminal_shell_id
+        };
+        assert_eq!(id("/bin/zsh", "-l"), id("/bin/zsh", " -l "));
+        assert_ne!(id("/bin/zsh", "-l"), id("/opt/homebrew/bin/fish", "-l"));
+        assert_ne!(id("/bin/zsh", "-l"), id("/bin/zsh", ""));
+        assert_ne!(id("/bin/zs", "h"), id("/bin/zsh", ""));
     }
 
     #[test]
