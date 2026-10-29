@@ -17,3 +17,5 @@ pub(crate) mod ssh_query_handler;
 pub(crate) mod types;
 #[cfg(not(target_os = "windows"))]
 mod unix_shell;
+#[cfg(target_os = "windows")]
+mod windows_shell;
