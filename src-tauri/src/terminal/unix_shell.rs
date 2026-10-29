@@ -57,6 +57,13 @@ pub(super) fn build_command(
     Ok(cmd)
 }
 
+/// The program a custom shell's path leads to, as a tab would start it.
+pub(super) fn resolve_custom_shell(path: &str) -> Result<String, String> {
+    let home = super::pty::resolve_home_dir();
+    resolve_shell(path.trim(), search_path().as_deref(), &home)
+        .map(|program| program.to_string_lossy().into_owned())
+}
+
 /// Finds the program a custom shell names: a path, a path under `~/`, or a
 /// name to look up on PATH.
 fn resolve_shell(shell: &str, search_path: Option<&OsStr>, home: &str) -> Result<PathBuf, String> {

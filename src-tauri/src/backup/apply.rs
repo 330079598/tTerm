@@ -110,6 +110,7 @@ pub(super) fn is_default_or_existing_directory(value: &str) -> bool {
 /// Keeps what belongs to this device in imported settings: how passwords are
 /// unlocked, and folders and a custom shell that do not exist here.
 pub(super) fn keep_device_settings(imported: &mut AppConfig, current: AppConfig) {
+    keep_device_shells(imported, &current);
     imported.secret_storage_mode = current.secret_storage_mode;
     imported.secret_vault_enabled = current.secret_vault_enabled;
     imported.prompt_unlock_vault_on_startup = current.prompt_unlock_vault_on_startup;
@@ -125,14 +126,44 @@ pub(super) fn keep_device_settings(imported: &mut AppConfig, current: AppConfig)
     for (agent, dir) in current.agent_config_dirs {
         imported.agent_config_dirs.entry(agent).or_insert(dir);
     }
+}
+
+/// Keeps this device's shells in imported settings, with the imported ones
+/// that exist here added, and its default shell when the imported one
+/// doesn't exist here.
+fn keep_device_shells(imported: &mut AppConfig, current: &AppConfig) {
     // A bare command name is looked up on the PATH and may well exist here.
-    let shell = Path::new(imported.terminal_shell_custom_path.trim());
-    if shell.is_absolute() && !shell.is_file() {
-        if imported.terminal_shell == "custom" {
-            imported.terminal_shell = current.terminal_shell;
+    let exists_here = |path: &str| {
+        let shell = Path::new(path.trim().trim_matches('"'));
+        !shell.is_absolute() || shell.is_file()
+    };
+    let mut shells = current.local_shells.clone();
+    for shell in std::mem::take(&mut imported.local_shells) {
+        if exists_here(&shell.path) && !shells.iter().any(|kept| kept.id == shell.id) {
+            shells.push(shell);
         }
-        imported.terminal_shell_custom_path = current.terminal_shell_custom_path;
-        imported.terminal_shell_custom_args = current.terminal_shell_custom_args;
+    }
+    imported.local_shells = shells;
+    imported.hidden_shells.clone_from(&current.hidden_shells);
+
+    let id = &imported.terminal_shell_id;
+    let listed = imported.local_shells.iter().find(|shell| &shell.id == id);
+    if !exists_here(&imported.terminal_shell_custom_path) || (!id.is_empty() && listed.is_none()) {
+        if imported.terminal_shell == "custom" {
+            imported.terminal_shell.clone_from(&current.terminal_shell);
+        }
+        imported
+            .terminal_shell_custom_path
+            .clone_from(&current.terminal_shell_custom_path);
+        imported
+            .terminal_shell_custom_args
+            .clone_from(&current.terminal_shell_custom_args);
+        imported
+            .terminal_shell_id
+            .clone_from(&current.terminal_shell_id);
+    } else if let Some(shell) = listed {
+        imported.terminal_shell_custom_path = shell.path.clone();
+        imported.terminal_shell_custom_args = shell.args.clone();
     }
 }
 

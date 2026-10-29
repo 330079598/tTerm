@@ -187,6 +187,20 @@ pub async fn list_available_terminal_shells() -> Result<Vec<TerminalShellProfile
     .await
 }
 
+/// The program a custom shell's path leads to on this machine, or why it
+/// leads nowhere, for the settings to show before a tab tries it.
+#[tauri::command]
+pub async fn check_local_shell(path: String) -> Result<String, String> {
+    crate::core::blocking::run_blocking(move || {
+        #[cfg(target_os = "windows")]
+        let program = super::windows_shell::resolve_windows_custom_shell(&path);
+        #[cfg(not(target_os = "windows"))]
+        let program = super::unix_shell::resolve_custom_shell(&path);
+        program
+    })
+    .await
+}
+
 /// The name of the shell a local tab with this choice starts (`cmd`, `pwsh`,
 /// `zsh`), for the tab's title.
 #[tauri::command]

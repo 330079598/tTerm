@@ -777,6 +777,57 @@ fn imported_settings_keep_this_devices_unlock_mode_and_missing_paths() {
 }
 
 #[test]
+fn imported_settings_keep_this_devices_shells_and_add_those_found_here() {
+    use crate::config::local_shells::LocalShell;
+    let shell = |id: &str, path: &str| LocalShell {
+        id: id.to_string(),
+        name: id.to_string(),
+        path: path.to_string(),
+        args: String::new(),
+    };
+    let missing = std::env::temp_dir()
+        .join("tterm-no-such-shell")
+        .to_string_lossy()
+        .into_owned();
+    let current = AppConfig {
+        terminal_shell: "custom".to_string(),
+        terminal_shell_custom_path: "fish".to_string(),
+        terminal_shell_id: "here".to_string(),
+        local_shells: vec![shell("here", "fish")],
+        hidden_shells: vec!["cmd".to_string()],
+        ..AppConfig::default()
+    };
+    let mut imported = AppConfig {
+        terminal_shell: "custom".to_string(),
+        terminal_shell_custom_path: missing.clone(),
+        terminal_shell_id: "gone".to_string(),
+        local_shells: vec![shell("gone", &missing), shell("nu", "nu")],
+        hidden_shells: vec!["pwsh".to_string()],
+        ..AppConfig::default()
+    };
+    keep_device_settings(&mut imported, current.clone());
+    assert_eq!(
+        imported.local_shells,
+        vec![shell("here", "fish"), shell("nu", "nu")]
+    );
+    assert_eq!(imported.hidden_shells, vec!["cmd".to_string()]);
+    assert_eq!(imported.terminal_shell_id, "here");
+    assert_eq!(imported.terminal_shell_custom_path, "fish");
+
+    // An imported default found here stays the default, as listed here.
+    let mut imported = AppConfig {
+        terminal_shell: "custom".to_string(),
+        terminal_shell_custom_path: "old-path".to_string(),
+        terminal_shell_id: "nu".to_string(),
+        local_shells: vec![shell("nu", "nu")],
+        ..AppConfig::default()
+    };
+    keep_device_settings(&mut imported, current);
+    assert_eq!(imported.terminal_shell_id, "nu");
+    assert_eq!(imported.terminal_shell_custom_path, "nu");
+}
+
+#[test]
 fn imported_settings_bring_their_tab_icons_along() {
     let mut imported = AppConfig::default();
     imported.tab_icons.enabled = false;

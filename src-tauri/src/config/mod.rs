@@ -3,6 +3,7 @@ mod defaults;
 mod deserialize;
 pub mod keymap;
 pub mod keyword_highlight;
+pub mod local_shells;
 pub mod panes;
 pub(crate) mod paths;
 pub mod reconnect;
@@ -51,6 +52,17 @@ pub struct AppConfig {
     pub terminal_shell_custom_path: String,
     #[serde(default)]
     pub terminal_shell_custom_args: String,
+    /// The shell the user added that is the default, when it is one: the
+    /// default's path and arguments above are kept equal to its own.
+    #[serde(default)]
+    pub terminal_shell_id: String,
+    /// Shells the user added for local tabs, kept per device.
+    #[serde(default)]
+    pub local_shells: Vec<local_shells::LocalShell>,
+    /// Detected shells the user hid from the new tab list, by key (`pwsh`,
+    /// or the path of one found on PATH).
+    #[serde(default)]
+    pub hidden_shells: Vec<String>,
     #[serde(default = "defaults::default_secret_vault_enabled")]
     pub secret_vault_enabled: bool,
     #[serde(default = "defaults::default_secret_storage_mode")]
@@ -325,7 +337,10 @@ pub fn load_config_file() -> Result<AppConfig, String> {
     }
     let content = fs::read_to_string(&config_file)
         .map_err(|e| format!("Failed to read config file: {}", e))?;
-    serde_json::from_str(&content).map_err(|e| format!("Failed to parse config: {}", e))
+    let mut config: AppConfig =
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse config: {}", e))?;
+    local_shells::migrate(&mut config);
+    Ok(config)
 }
 
 pub fn save_config_file(config: &AppConfig) -> Result<(), String> {

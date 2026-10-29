@@ -129,7 +129,7 @@ fn resolve_windows_auto_shell() -> (String, Vec<String>) {
 
 /// Finds the program a custom shell names: a path, or a name on PATH whose
 /// `.exe` may be left off.
-fn resolve_windows_custom_shell(shell: &str) -> Result<String, String> {
+pub(super) fn resolve_windows_custom_shell(shell: &str) -> Result<String, String> {
     let expanded =
         expand_custom_shell_path(shell, |name| std::env::var(name).ok(), &resolve_home_dir());
     let found = if expanded.contains(['\\', '/', ':']) {
