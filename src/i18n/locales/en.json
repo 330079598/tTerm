@@ -3028,6 +3028,8 @@
     "folderMenu": "Add Open in tTerm to the folder menu",
     "folderMenuDesc": "Right-click a folder, the empty space inside one, or a drive in File Explorer to open a tab there. On Windows 11 it is under Show more options.",
     "folderMenuDescMacos": "Right-click folders in Finder and choose Open in tTerm under Quick Actions or Services to open a tab for each.",
-    "folderMenuFailed": "Couldn't change the folder menu"
+    "folderMenuFailed": "Couldn't change the folder menu",
+    "loadFailed": "Couldn't read whether this is on: {{error}}",
+    "retry": "Try again"
   }
 }

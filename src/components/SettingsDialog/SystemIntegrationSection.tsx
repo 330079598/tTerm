@@ -3,50 +3,92 @@ import { FolderOpen, SquareTerminal } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
-import {
-  useSystemIntegration,
-  type IntegrationStatus,
-} from "@/components/SettingsDialog/useSystemIntegration"
+import { useSystemIntegration } from "@/components/SettingsDialog/useSystemIntegration"
+import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { getDetectedPlatform } from "@/lib/uiPlatform"
+
+type Integration = ReturnType<typeof useSystemIntegration>
+
+/**
+ * Whether to show an integration's row: where the backend supports it, or,
+ * until it has said, where tTerm offers it, so the section does not appear
+ * only once the status is in. A status that could not be read shows too.
+ */
+function isShown({ status, loadError }: Integration, offered: boolean): boolean {
+  return loadError !== null || (status?.supported ?? offered)
+}
 
 interface IntegrationRowProps {
   icon: React.ReactNode
   title: string
   description: string
-  integration: {
-    status: IntegrationStatus | null
-    busy: boolean
-    change: (installed: boolean) => Promise<void>
-  }
+  offered: boolean
+  integration: Integration
 }
 
 const IntegrationRow: React.FC<IntegrationRowProps> = ({
   icon,
   title,
   description,
-  integration: { status, busy, change },
-}) =>
-  status?.supported ? (
+  offered,
+  integration,
+}) => {
+  const { t } = useTranslation()
+  const { status, loadError, busy, change, retry } = integration
+  if (!isShown(integration, offered)) return null
+
+  if (loadError !== null) {
+    return (
+      <SettingsRow
+        icon={icon}
+        title={title}
+        description={
+          <>
+            {description}
+            <span className="text-destructive mt-1 block">
+              {t("systemIntegration.loadFailed", { error: loadError })}
+            </span>
+          </>
+        }
+        action={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => void retry()}
+          >
+            {t("systemIntegration.retry")}
+          </Button>
+        }
+      />
+    )
+  }
+
+  return (
     <SettingsRow
       icon={icon}
       title={title}
       description={description}
       action={
         <Switch
-          checked={status.installed}
-          disabled={busy}
+          checked={status?.installed ?? false}
+          disabled={busy || status === null}
           onCheckedChange={(checked) => void change(checked)}
           aria-label={title}
         />
       }
     />
-  ) : null
+  )
+}
 
 /** Ties tTerm into the system; hidden where it has nothing to offer yet. */
 export const SystemIntegrationSection: React.FC = () => {
   const { t } = useTranslation()
-  const macos = getDetectedPlatform() === "macos"
+  const platform = getDetectedPlatform()
+  const macos = platform === "macos"
+  const offered = macos || platform === "windows"
   const shellCommand = useSystemIntegration({
     status: "shell_command_status",
     set: "set_shell_command",
@@ -59,7 +101,7 @@ export const SystemIntegrationSection: React.FC = () => {
     failedTitle: t("systemIntegration.folderMenuFailed"),
   })
 
-  if (!shellCommand.status?.supported && !folderMenu.status?.supported) return null
+  if (!isShown(shellCommand, offered) && !isShown(folderMenu, offered)) return null
 
   return (
     <SettingsSection
@@ -75,6 +117,7 @@ export const SystemIntegrationSection: React.FC = () => {
             ? t("systemIntegration.shellCommandDescMacos")
             : t("systemIntegration.shellCommandDesc")
         }
+        offered={offered}
         integration={shellCommand}
       />
       <IntegrationRow
@@ -83,6 +126,7 @@ export const SystemIntegrationSection: React.FC = () => {
         description={
           macos ? t("systemIntegration.folderMenuDescMacos") : t("systemIntegration.folderMenuDesc")
         }
+        offered={offered}
         integration={folderMenu}
       />
     </SettingsSection>
