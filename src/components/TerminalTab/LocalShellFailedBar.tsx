@@ -14,6 +14,7 @@ import {
   failedShellFallback,
   ownShellChoice,
   savedLocalShellUpdates,
+  startsAsSaved,
   type LocalShellChoice,
 } from "@/lib/localShells"
 
@@ -42,6 +43,9 @@ export function LocalShellFailedBar({
   const id = connection?.terminalShellId
   const own = id ? config.local_shells.find((shell) => shell.id === id) : undefined
   const fallback = failedShellFallback(connection, config)
+  // A shell edited in the settings since this tab opened is tried as it is now.
+  const edited = own && !startsAsSaved(connection, own)
+  const retry = edited ? () => onRestartWithShell(ownShellChoice(own)) : onRetry
 
   return (
     <>
@@ -64,7 +68,7 @@ export function LocalShellFailedBar({
               {t("localShells.editThis")}
             </Button>
           )}
-          <Button type="button" size="xs" variant="outline" onClick={onRetry}>
+          <Button type="button" size="xs" variant="outline" onClick={retry}>
             {t("localShells.retry")}
           </Button>
           {fallback && (

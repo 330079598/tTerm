@@ -257,6 +257,14 @@ export function startsShell(connection: Tab["connection"], choice: LocalShellCho
   return samePath(connection?.terminalShellCustomPath ?? "", choice.customPath ?? "")
 }
 
+/** Whether a local tab's connection starts `shell` with its saved path and arguments. */
+export function startsAsSaved(connection: Tab["connection"], shell: LocalShell): boolean {
+  return (
+    samePath(connection?.terminalShellCustomPath ?? "", shell.path) &&
+    (connection?.terminalShellCustomArgs ?? "").trim() === shell.args.trim()
+  )
+}
+
 /** A local tab started again with `choice`, in the directory its shell was in. */
 export function withLocalShell<T extends Pick<Tab, "connection" | "sessionNonce">>(
   tab: T,

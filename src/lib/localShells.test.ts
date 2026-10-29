@@ -14,6 +14,7 @@ import {
   removedLocalShell,
   savedLocalShell,
   savedLocalShellUpdates,
+  startsAsSaved,
   startsShell,
   toggledHiddenShell,
   withCurrentLocalShell,
@@ -263,6 +264,14 @@ describe("restarting a local tab with another shell", () => {
       connection: localShellConnection({ shell: "auto" }, "/src"),
       sessionNonce: 4,
     })
+  })
+
+  it("tells whether a tab starts the user's shell as it is saved now", () => {
+    const tab = localShellConnection(ownShellChoice(msys))
+    expect(startsAsSaved(tab, msys)).toBe(true)
+    expect(startsAsSaved(tab, { ...msys, args: " --login -i " })).toBe(true)
+    expect(startsAsSaved(tab, { ...msys, args: "--login" })).toBe(false)
+    expect(startsAsSaved(tab, { ...msys, path: "D:\\msys64\\usr\\bin\\bash.exe" })).toBe(false)
   })
 
   it("offers the default shell, or Auto when the default is the one that failed", () => {
