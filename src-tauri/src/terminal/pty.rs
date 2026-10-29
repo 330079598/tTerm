@@ -66,7 +66,16 @@ fn apply_macos_login_shell_env(cmd: &mut CommandBuilder) {
         }
     }
 
-    cmd.env("PATH", resolve_macos_path(cmd.get_env("PATH")));
+    let mut path = resolve_macos_path(cmd.get_env("PATH"));
+    // `tterm` runs in tTerm's tabs whether or not the command is installed.
+    // Last, so that it never stands in for a program of the user's.
+    if let Some(bin) = crate::system_integration::tab_bin_dir().and_then(std::path::Path::to_str) {
+        if !path.split(':').any(|entry| entry == bin) {
+            path.push(':');
+            path.push_str(bin);
+        }
+    }
+    cmd.env("PATH", path);
 }
 
 /// Loads the login shell's environment in the background, so the first local

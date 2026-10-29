@@ -1,6 +1,8 @@
 //! The `tterm` command on macOS: a launcher script in tTerm's data directory,
 //! linked from /usr/local/bin, which shells have on their PATH. Changing that
 //! directory may take an administrator's password, which macOS asks for.
+//! tTerm's own tabs have the launcher's directory on their PATH, so `tterm`
+//! works in them without the link.
 
 use std::io::ErrorKind;
 use std::os::unix::fs::PermissionsExt;
@@ -18,7 +20,7 @@ pub fn is_installed(bin: &Path) -> Result<bool, String> {
 
 /// Adds the command or removes it; returns whether it is installed now. That
 /// stays as it was when the user cancels the password prompt, which shows
-/// `admin_prompt`.
+/// `admin_prompt`. Removing it keeps the launcher, which tTerm's tabs use.
 pub fn set_installed(bin: &Path, installed: bool, admin_prompt: &str) -> Result<bool, String> {
     let was_installed = is_installed(bin)?;
     if installed {
@@ -33,21 +35,13 @@ pub fn set_installed(bin: &Path, installed: bool, admin_prompt: &str) -> Result<
     if was_installed && !unlink(admin_prompt)? {
         return Ok(true);
     }
-    match std::fs::remove_dir_all(bin) {
-        Err(error) if error.kind() != ErrorKind::NotFound => {
-            Err(format!("Failed to delete '{}': {error}", bin.display()))
-        }
-        _ => Ok(false),
-    }
+    Ok(false)
 }
 
-/// Points the launcher at this tTerm while the command is installed. It names
-/// tTerm's executable, which moving the app moves.
+/// Writes the launcher, pointed at this tTerm, which moving the app moves.
+/// tTerm's tabs use it whether or not the command is installed.
 pub fn refresh(bin: &Path) -> Result<(), String> {
-    if is_installed(bin)? {
-        write_launcher(bin)?;
-    }
-    Ok(())
+    write_launcher(bin)
 }
 
 fn write_launcher(bin: &Path) -> Result<(), String> {

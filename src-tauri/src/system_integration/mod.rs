@@ -45,6 +45,11 @@ const REMOVE_ARG: &str = "--remove-system-integration";
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 const APP_IDENTIFIER: &str = "com.stone.tTerm";
 
+/// The directory that holds the `tterm` launcher, once tTerm has written it
+/// there; see [`tab_bin_dir`].
+#[cfg(target_os = "macos")]
+static TAB_BIN: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+
 /// Whether one of tTerm's additions to the system is in place.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -161,8 +166,13 @@ pub async fn set_folder_menu(app: AppHandle, installed: bool) -> Result<Integrat
 pub fn apply_config(app: &AppHandle, cfg: &AppConfig) {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     {
-        if let Err(error) = bin_dir(app).and_then(|bin| shell_command::refresh(&bin)) {
+        let refreshed = bin_dir(app).and_then(|bin| shell_command::refresh(&bin).map(|()| bin));
+        if let Err(error) = &refreshed {
             eprintln!("Failed to update the tterm command: {error}");
+        }
+        #[cfg(target_os = "macos")]
+        if let Ok(bin) = refreshed {
+            let _ = TAB_BIN.set(bin);
         }
         // Every copy of tTerm shares the folder menu, and a development build
         // would take it over each time it starts.
@@ -176,6 +186,14 @@ pub fn apply_config(app: &AppHandle, cfg: &AppConfig) {
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     let _ = (app, cfg);
+}
+
+/// The directory tTerm's local tabs add to their PATH so that `tterm` runs in
+/// them, whether or not the command is installed; `None` until tTerm has
+/// written the launcher, which it cannot from a disk image.
+#[cfg(target_os = "macos")]
+pub fn tab_bin_dir() -> Option<&'static std::path::Path> {
+    TAB_BIN.get().map(std::path::PathBuf::as_path)
 }
 
 /// Removes the `tterm` command and the folder menu when tTerm was started by

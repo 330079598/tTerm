@@ -3023,7 +3023,7 @@
     "shellCommand": "Add the tterm command",
     "shellCommandDesc": "Run tterm . in a shell to open a tab in that folder, or tterm <folder> for another. Shells that were open before you turn this on need restarting first; tabs in tTerm can use it right away.",
     "shellCommandFailed": "Couldn't change the tterm command",
-    "shellCommandDescMacos": "Run tterm . in a shell to open a tab in that folder, or tterm <folder> for another. The command goes in /usr/local/bin, which may take an administrator's password.",
+    "shellCommandDescMacos": "Run tterm . in a shell to open a tab in that folder, or tterm <folder> for another. It always works in tTerm's own tabs; turn this on to use it in other terminals as well. The command goes in /usr/local/bin, which may take an administrator's password.",
     "adminPrompt": "tTerm wants to change the tterm command in /usr/local/bin.",
     "folderMenu": "Add Open in tTerm to the folder menu",
     "folderMenuDesc": "Right-click a folder, the empty space inside one, or a drive in File Explorer to open a tab there. On Windows 11 it is under Show more options.",
