@@ -235,6 +235,7 @@ export const TTermApp: React.FC = () => {
           collapsedProfileGroupKeys={appState.collapsedProfileGroupKeys}
           handleConnect={handleConnect}
           handleNewTab={handleNewTab}
+          onOpenLocalTerminal={() => handleOpenLocalTerminal()}
           onCollapsedProfileGroupKeysChange={handleCollapsedProfileGroupKeysChange}
           onDuplicateProfile={profileActions.handleDuplicateProfile}
           onDeleteProfile={profileActions.handleDeleteProfile}

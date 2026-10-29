@@ -11,6 +11,8 @@ interface EmptyStateProps {
   collapsedProfileGroupKeys?: string[]
   handleConnect: (connection: Omit<Tab, "id" | "isActive">) => void
   handleNewTab: () => void
+  /** Opens a local terminal with the default shell. */
+  onOpenLocalTerminal: () => void
   onCollapsedProfileGroupKeysChange?: (groups: string[]) => void
   onDuplicateProfile: (profile: SavedProfile) => void
   onDeleteProfile?: (profile: SavedProfile) => void
@@ -23,6 +25,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   collapsedProfileGroupKeys,
   handleConnect,
   handleNewTab,
+  onOpenLocalTerminal,
   onCollapsedProfileGroupKeysChange,
   onDuplicateProfile,
   onDeleteProfile,
@@ -40,17 +43,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           <p>{t("welcome.description")}</p>
         </div>
         <div className="terminal-placeholder-actions">
-          <Button
-            type="button"
-            onClick={() =>
-              handleConnect({
-                title: "",
-                type: "terminal",
-                isModified: false,
-                connection: { type: "terminal" },
-              })
-            }
-          >
+          <Button type="button" onClick={onOpenLocalTerminal}>
             <Terminal className="size-4" />
             {t("welcome.localTerminal", { defaultValue: "Local terminal" })}
           </Button>

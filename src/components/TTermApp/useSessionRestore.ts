@@ -4,7 +4,12 @@ import type { AppShell } from "@/components/TTermApp/appShell"
 import type { useSessionPersistence } from "@/hooks/useSessionPersistence"
 import { buildTabFromConnection } from "@/components/TTermApp/ttermAppUtils"
 import { useLatestRef } from "@/hooks/useLatestRef"
-import { withCurrentLocalShell, type ShellConfig } from "@/lib/localShells"
+import {
+  defaultShellChoice,
+  localShellConnection,
+  withCurrentLocalShell,
+  type ShellConfig,
+} from "@/lib/localShells"
 import { nameLocalTab, refreshSavedLocalTabs } from "@/lib/localTabTitle"
 import { normalizeSavedSshTab } from "@/lib/tabIcons"
 import { markSessionReady } from "@/lib/startup"
@@ -81,7 +86,12 @@ export function useSessionRestore(shell: AppShell, options: SessionRestoreOption
           await openLaunchDirs()
         } else if (!(await openLaunchDirs())) {
           // A first start in a directory needs no second tab in the home directory.
-          const tab = await nameLocalTab({ title: "", type: "terminal", isModified: false })
+          const tab = await nameLocalTab({
+            title: "",
+            type: "terminal",
+            isModified: false,
+            connection: localShellConnection(defaultShellChoice(shellConfig)),
+          })
           if (cancelled) {
             return
           }
