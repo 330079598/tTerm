@@ -135,6 +135,7 @@ export const TTermApp: React.FC = () => {
     getPreloadedSession,
     saveSession,
     restoreTerminalContent: config.restore_terminal_content,
+    shellConfig: config,
     openLaunchDirs,
   })
 

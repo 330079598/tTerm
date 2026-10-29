@@ -214,6 +214,8 @@ export interface Tab {
     terminalShell?: TerminalShellType
     terminalShellCustomPath?: string
     terminalShellCustomArgs?: string
+    /** Local terminal: the user's shell it starts, whose current path a restart follows. */
+    terminalShellId?: string
     /** Local terminal: last directory the shell reported; a restart resumes there. */
     cwd?: string
     /** Ordered jump host chain to tunnel through. */

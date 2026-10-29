@@ -41,8 +41,14 @@ const build = (overrides: Partial<LauncherItemsInput> = {}) =>
     recents: [],
     profileRecents: [],
     shells: [],
-    terminalShell: "auto",
-    terminalShellCustomPath: "",
+    shellConfig: {
+      terminal_shell: "auto",
+      terminal_shell_custom_path: "",
+      terminal_shell_custom_args: "",
+      terminal_shell_id: "",
+      local_shells: [],
+      hidden_shells: [],
+    },
     t,
     ...overrides,
   })
@@ -116,5 +122,33 @@ describe("buildLauncherItems", () => {
 
   it("puts a typed connection first", () => {
     expect(keys({ input: "admin@example.org" })[0]).toBe("typed")
+  })
+
+  it("offers the default shell first, then the others not hidden, the user's own last", () => {
+    const items = build({
+      shells: [
+        { shell: "auto", label: "Auto", source: "tTerm default" },
+        { shell: "cmd", label: "cmd", source: "C:\\Windows\\System32\\cmd.exe" },
+        { shell: "pwsh", label: "pwsh", source: "C:\\PowerShell\\7\\pwsh.exe" },
+        { shell: "wsl", label: "WSL", source: "C:\\Windows\\System32\\wsl.exe" },
+      ],
+      shellConfig: {
+        terminal_shell: "pwsh",
+        terminal_shell_custom_path: "",
+        terminal_shell_custom_args: "",
+        terminal_shell_id: "",
+        local_shells: [{ id: "nu", name: "Nushell", path: "nu", args: "-l" }],
+        hidden_shells: ["cmd"],
+      },
+    }).filter((item) => item.section === "localTerminal")
+    expect(items.map((item) => [item.key, item.label])).toEqual([
+      ["terminal", "connection.terminalShellOptions.pwsh"],
+      ["terminal:wsl", "connection.terminalShellOptions.wsl"],
+      ["terminal:custom:nu", "Nushell"],
+    ])
+    expect(items[2].action).toEqual({
+      kind: "terminal",
+      shell: { shell: "custom", customPath: "nu", customArgs: "-l", shellId: "nu" },
+    })
   })
 })

@@ -24,6 +24,7 @@ import { ConnectionSettingsTab } from "@/components/SettingsDialog/ConnectionSet
 import { DataMigrationSettingsTab } from "@/components/SettingsDialog/DataMigrationSettingsTab"
 import { FontSettingsTab } from "@/components/SettingsDialog/FontSettingsTab"
 import { GeneralSettingsTab } from "@/components/SettingsDialog/GeneralSettingsTab"
+import { LocalShellSettings } from "@/components/SettingsDialog/LocalShells/LocalShellSettings"
 import { LoggingSettingsTab } from "@/components/SettingsDialog/LoggingSettingsTab"
 import { HighlightSettingsTab } from "@/components/SettingsDialog/HighlightSettingsTab"
 import { NotificationSettingsTab } from "@/components/SettingsDialog/NotificationSettingsTab"
@@ -179,6 +180,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               loadingFonts={loadingFonts}
               fontSizeOptions={FONT_SIZE_OPTIONS}
             />
+          </SettingsTabPanel>
+
+          <SettingsTabPanel value="shells" scroll>
+            <LocalShellSettings />
           </SettingsTabPanel>
 
           <SettingsTabPanel value="highlight">

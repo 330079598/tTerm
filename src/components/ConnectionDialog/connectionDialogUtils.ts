@@ -7,6 +7,7 @@ import {
 import { normalizeProxyChoice } from "@/lib/proxy"
 import { normalizeSerialSettings } from "@/lib/serial"
 import { HIGHLIGHT_SET_FOLLOW_DEFAULT } from "@/lib/keywordHighlight/config"
+import { defaultShellChoice, defaultShellKey } from "@/lib/localShells"
 import { normalizeSftpStartDirectory, type SftpStartDirectory } from "@/lib/sftpStartDirectory"
 import type { SessionLogPolicy } from "@/types/tab"
 import type { TerminalPalette } from "@/types/theme"
@@ -147,9 +148,12 @@ export function buildInitialForm(
   const form = buildFormFromProfile(profile)
 
   if (!profile || form.type === "terminal") {
-    form.terminalShell = config.terminal_shell
-    form.terminalShellCustomPath = config.terminal_shell_custom_path
-    form.terminalShellCustomArgs = config.terminal_shell_custom_args
+    const choice = defaultShellChoice(config)
+    form.terminalShell = choice.shell
+    form.terminalShellCustomPath = choice.customPath ?? ""
+    form.terminalShellCustomArgs = choice.customArgs ?? ""
+    form.terminalShellId = choice.shellId ?? ""
+    form.terminalShellKey = defaultShellKey(config)
   }
 
   return form

@@ -103,6 +103,14 @@ export interface ConnectionForm {
   terminalShell: TerminalShellType
   terminalShellCustomPath: string
   terminalShellCustomArgs: string
+  /** Which shell is chosen among the local shells, or `new` for one typed in. */
+  terminalShellKey: string
+  /** The user's shell chosen, so the tab follows its later edits. */
+  terminalShellId: string
+  /** Add the shell typed in to the user's shells. */
+  saveShell: boolean
+  /** Make the chosen shell the default. */
+  makeDefaultShell: boolean
   // Jump host chain fields
   useJumpHost: boolean
   jumpHosts: JumpHostForm[]
@@ -159,6 +167,10 @@ export const defaultForm: ConnectionForm = {
   terminalShell: "auto",
   terminalShellCustomPath: "",
   terminalShellCustomArgs: "",
+  terminalShellKey: "auto",
+  terminalShellId: "",
+  saveShell: false,
+  makeDefaultShell: false,
   useJumpHost: false,
   jumpHosts: [],
   proxy: DEFAULT_PROXY_CHOICE,

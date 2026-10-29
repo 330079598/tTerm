@@ -69,6 +69,14 @@ export interface SavedSecretEntry {
   kind: string
 }
 
+/** A shell the user added for local tabs, kept per device. */
+export interface LocalShell {
+  id: string
+  name: string
+  path: string
+  args: string
+}
+
 export interface AppConfig extends TabSettings {
   theme: string
   /** Show `theme_light` or `theme_dark` with the system's appearance instead of `theme`. */
@@ -85,6 +93,12 @@ export interface AppConfig extends TabSettings {
   terminal_shell: "auto" | "cmd" | "powershell" | "pwsh" | "wsl" | "git-bash" | "custom"
   terminal_shell_custom_path: string
   terminal_shell_custom_args: string
+  /** The shell the user added that is the default; the custom path and args mirror it. */
+  terminal_shell_id: string
+  /** Shells the user added, in the order the lists show them. */
+  local_shells: LocalShell[]
+  /** Detected shells hidden from the new tab list, by key (`pwsh`, or a path). */
+  hidden_shells: string[]
   secret_vault_enabled: boolean
   secret_storage_mode: SecretStorageMode
   prompt_unlock_vault_on_startup: boolean
@@ -218,6 +232,9 @@ export const defaultConfig: AppConfig = {
   terminal_shell: "auto",
   terminal_shell_custom_path: "",
   terminal_shell_custom_args: "",
+  terminal_shell_id: "",
+  local_shells: [],
+  hidden_shells: [],
   secret_vault_enabled: true,
   secret_storage_mode: "system",
   prompt_unlock_vault_on_startup: false,

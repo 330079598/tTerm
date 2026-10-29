@@ -11,6 +11,7 @@ import { getDetectedPlatform } from "@/lib/uiPlatform"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
 import { useSyncedState } from "@/hooks/useSyncedState"
+import { programName } from "@/lib/localShells"
 import { detectLocalShellName } from "@/lib/localTabTitle"
 import {
   applyTabIconStyle,
@@ -86,7 +87,10 @@ export function TabIconSettings() {
       {icons.enabled && (
         <SettingsRow title={t("tabIcons.byShell")} description={t("tabIcons.byShellDescription")}>
           <div className="divide-border divide-y">
-            {shellsForSettings(getDetectedPlatform(), icons, [defaultShell]).map((key) => {
+            {shellsForSettings(getDetectedPlatform(), icons, [
+              defaultShell,
+              ...config.local_shells.map((shell) => programName(shell.path)),
+            ]).map((key) => {
               const builtIn = builtInShellIcon(key)
               const style = icons.shells[key]
               const open = editing === key

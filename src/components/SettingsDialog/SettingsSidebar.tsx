@@ -12,6 +12,7 @@ import {
   Plug,
   Shield,
   SquareTerminal,
+  Terminal,
   UploadCloud,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -53,6 +54,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ activeTab, onT
           label: t("settings.terminal", { defaultValue: "Terminal" }),
           icon: SquareTerminal,
         },
+        { value: "shells", label: t("localShells.sidebar"), icon: Terminal },
         { value: "highlight", label: t("keywordHighlight.sidebar"), icon: Highlighter },
         { value: "notifications", label: t("notifications.sidebar"), icon: Bell },
         { value: "keymap", label: t("settings.keymap"), icon: Keyboard },

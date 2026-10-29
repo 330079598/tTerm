@@ -2,11 +2,11 @@ import { useCallback } from "react"
 
 import type { AppShell } from "@/components/TTermApp/appShell"
 import type { AppConfig } from "@/lib/appConfig"
-import type { LocalShellChoice } from "@/components/NewTabLauncher/launcherItems"
 import { buildTabFromConnection } from "@/components/TTermApp/ttermAppUtils"
 import { formatBytes, MAX_EDIT_FILE_BYTES } from "@/components/SftpDrawer/sftpDrawerUtils"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { toast } from "@/hooks/use-toast"
+import { defaultShellChoice, localShellConnection, type LocalShellChoice } from "@/lib/localShells"
 import { nameLocalTab } from "@/lib/localTabTitle"
 import { Tab } from "@/types/tab"
 
@@ -42,31 +42,14 @@ export function useTabOpeners(shell: AppShell, config: AppConfig) {
 
   const handleOpenLocalTerminal = useCallback(
     (choice?: LocalShellChoice, cwd?: string) => {
-      const shell = choice?.shell ?? config.terminal_shell
-      const custom = shell === "custom"
       void nameLocalTab({
         title: "",
         type: "terminal",
         isModified: false,
-        connection: {
-          type: "terminal",
-          cwd,
-          terminalShell: shell,
-          // A chosen shell is a detected executable; the default comes with the configured arguments.
-          terminalShellCustomPath: custom
-            ? (choice?.customPath ?? config.terminal_shell_custom_path.trim())
-            : undefined,
-          terminalShellCustomArgs:
-            custom && !choice ? config.terminal_shell_custom_args.trim() : undefined,
-        },
+        connection: localShellConnection(choice ?? defaultShellChoice(config), cwd),
       }).then(addTab)
     },
-    [
-      addTab,
-      config.terminal_shell,
-      config.terminal_shell_custom_args,
-      config.terminal_shell_custom_path,
-    ]
+    [addTab, config]
   )
 
   const handleConnect = useCallback(

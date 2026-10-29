@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next"
 
 import { buildLauncherItems } from "@/components/NewTabLauncher/buildLauncherItems"
 import {
-  type LocalShellChoice,
   type LauncherRecent,
   type LauncherSection,
   type LauncherItem,
@@ -14,6 +13,7 @@ import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { useConfig } from "@/contexts/ConfigContext"
 import { isImeKeyEvent } from "@/lib/ime"
+import type { LocalShellChoice } from "@/lib/localShells"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
 import type { RecentProfile } from "@/lib/profileRecents"
 import {
@@ -108,21 +108,10 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
         recents,
         profileRecents,
         shells,
-        terminalShell: config.terminal_shell,
-        terminalShellCustomPath: config.terminal_shell_custom_path,
+        shellConfig: config,
         t,
       }),
-    [
-      config.terminal_shell,
-      config.terminal_shell_custom_path,
-      configHosts,
-      input,
-      profileRecents,
-      profiles,
-      recents,
-      shells,
-      t,
-    ]
+    [config, configHosts, input, profileRecents, profiles, recents, shells, t]
   )
 
   const selectedIndex = Math.min(selected, items.length - 1)

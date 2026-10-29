@@ -32,6 +32,8 @@ import {
   buildSerialConnection,
   buildSerialProfile,
 } from "@/components/ConnectionDialog/serialPayload"
+import { buildLocalShellSubmit } from "@/components/ConnectionDialog/localShellPayload"
+import type { ShellConfig } from "@/lib/localShells"
 import { findActiveTunnelsUsingProfile } from "@/components/TunnelsPanel/profileTunnels"
 import { summarizeTunnelNames } from "@/components/TunnelsPanel/tunnelUtils"
 
@@ -53,6 +55,8 @@ interface UseConnectionSubmitOptions {
   onClose: ConnectionDialogContentProps["onClose"]
   onConnect: ConnectionDialogContentProps["onConnect"]
   saveConfig: ConnectionDialogContentProps["saveConfig"]
+  /** The local shells, for a local terminal that adds one or changes the default. */
+  shellConfig: ShellConfig
 }
 
 /**
@@ -77,6 +81,7 @@ export function useConnectionSubmit({
   onClose,
   onConnect,
   saveConfig,
+  shellConfig,
 }: UseConnectionSubmitOptions) {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -254,24 +259,11 @@ export function useConnectionSubmit({
     } else if (form.type === "serial") {
       connection.connection = buildSerialConnection(form, title, profileId)
     } else {
-      connection.connection = {
-        type: "terminal",
-        terminalShell: form.terminalShell,
-        terminalShellCustomPath:
-          form.terminalShell === "custom" ? form.terminalShellCustomPath.trim() : undefined,
-        terminalShellCustomArgs:
-          form.terminalShell === "custom" ? form.terminalShellCustomArgs.trim() : undefined,
-      }
-
-      if (shouldSave) {
+      const local = buildLocalShellSubmit(form, shellConfig)
+      connection.connection = local.connection
+      if (local.updates) {
         try {
-          await saveConfig({
-            terminal_shell: form.terminalShell,
-            terminal_shell_custom_path:
-              form.terminalShell === "custom" ? form.terminalShellCustomPath.trim() : "",
-            terminal_shell_custom_args:
-              form.terminalShell === "custom" ? form.terminalShellCustomArgs.trim() : "",
-          })
+          await saveConfig(local.updates)
         } catch (error) {
           reportError(error, {
             context: "save_config",

@@ -131,6 +131,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     onClose,
     onConnect,
     saveConfig,
+    shellConfig: config,
   })
 
   const {
@@ -396,6 +397,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
     config.terminal_shell,
     config.terminal_shell_custom_path,
     config.terminal_shell_custom_args,
+    config.terminal_shell_id,
   ].join("::")
 
   return (

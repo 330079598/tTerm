@@ -8,7 +8,6 @@ import {
   describeConnection,
   type LauncherItem,
 } from "@/components/NewTabLauncher/launcherItems"
-import type { AppConfig } from "@/lib/appConfig"
 import { profileLastUsed, type RecentProfile } from "@/lib/profileRecents"
 import { profileSearchFields, rankProfiles } from "@/lib/profileSearch"
 import {
@@ -20,11 +19,8 @@ import {
   type RecentQuickConnection,
   type SshConfigHost,
 } from "@/lib/quickConnect"
-import {
-  isDetectedCustomShell,
-  terminalShellLabel,
-  type TerminalShellProfile,
-} from "@/lib/terminalShells"
+import { buildShellEntries, defaultShellKey, type ShellConfig } from "@/lib/localShells"
+import type { TerminalShellProfile } from "@/lib/terminalShells"
 import type { SavedProfile } from "@/types/tab"
 
 /** What the launcher's list is built from. */
@@ -36,9 +32,9 @@ export interface LauncherItemsInput {
   recents: readonly RecentQuickConnection[]
   /** The saved connections used lately, newest first. */
   profileRecents: readonly RecentProfile[]
+  /** The shells found on this machine. */
   shells: readonly TerminalShellProfile[]
-  terminalShell: AppConfig["terminal_shell"]
-  terminalShellCustomPath: string
+  shellConfig: ShellConfig
   t: TFunction
 }
 
@@ -56,8 +52,7 @@ export function buildLauncherItems({
   recents,
   profileRecents,
   shells,
-  terminalShell,
-  terminalShellCustomPath,
+  shellConfig,
   t,
 }: LauncherItemsInput): LauncherItem[] {
   const query = input.trim()
@@ -86,16 +81,14 @@ export function buildLauncherItems({
         }
       : null
 
-  // The default shell first, then every other shell found on this machine.
-  const defaultShell = terminalShell
-  const defaultCustomPath = terminalShellCustomPath.trim()
-  const defaultShellProfile = shells.find((profile) => profile.shell === defaultShell)
+  // The default shell first, then every other shell not hidden, in the settings' order.
+  const entries = buildShellEntries(shells, shellConfig, t)
+  const defaultKey = defaultShellKey(shellConfig)
+  const defaultEntry = entries.find((entry) => entry.key === defaultKey)
   const defaultShellLabel =
-    defaultShell === "custom"
-      ? defaultCustomPath || t("connection.terminalShellOptions.custom")
-      : defaultShellProfile
-        ? terminalShellLabel(defaultShellProfile, t)
-        : defaultShell
+    defaultEntry?.label ||
+    shellConfig.terminal_shell_custom_path.trim() ||
+    t("connection.terminalShellOptions.custom")
   const terminalItems: LauncherItem[] = [
     {
       key: "terminal",
@@ -105,26 +98,15 @@ export function buildLauncherItems({
       section: "localTerminal",
       action: { kind: "terminal" },
     },
-    ...shells
-      .filter((profile) =>
-        profile.shell === "custom"
-          ? isDetectedCustomShell(profile) &&
-            !(defaultShell === "custom" && profile.source === defaultCustomPath)
-          : profile.shell !== "auto" && profile.shell !== defaultShell
-      )
-      .map<LauncherItem>((profile) => ({
-        key: `terminal:${profile.shell}:${profile.source}`,
+    ...entries
+      .filter((entry) => entry.kind !== "auto" && !entry.hidden && entry.key !== defaultKey)
+      .map<LauncherItem>((entry) => ({
+        key: `terminal:${entry.key}`,
         icon: Terminal,
-        label: terminalShellLabel(profile, t),
-        detail: profile.source,
+        label: entry.label,
+        detail: entry.detail,
         section: "localTerminal",
-        action: {
-          kind: "terminal",
-          shell: {
-            shell: profile.shell,
-            customPath: profile.shell === "custom" ? profile.source : undefined,
-          },
-        },
+        action: { kind: "terminal", shell: entry.choice },
       })),
   ]
   const newConnectionItem: LauncherItem = {

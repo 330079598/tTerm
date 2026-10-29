@@ -1,11 +1,12 @@
 import type { LucideIcon } from "lucide-react"
 
+import type { LocalShellChoice } from "@/lib/localShells"
 import {
   formatEndpoint,
   type QuickConnection,
   type RecentQuickConnection,
 } from "@/lib/quickConnect"
-import type { SavedProfile, TerminalShellType } from "@/types/tab"
+import type { SavedProfile } from "@/types/tab"
 
 export const PROFILE_MATCH_LIMIT = 8
 export const CONFIG_MATCH_LIMIT = 6
@@ -20,13 +21,6 @@ type LauncherAction =
   /** A local terminal; without a shell, the default one from the settings. */
   | { kind: "terminal"; shell?: LocalShellChoice }
   | { kind: "new-connection" }
-
-/** A local shell other than the default one. */
-export interface LocalShellChoice {
-  shell: TerminalShellType
-  /** The executable of a detected `custom` shell. */
-  customPath?: string
-}
 
 /** A recent the list can forget: a quick connection, or a saved one used lately. */
 export type LauncherRecent =
