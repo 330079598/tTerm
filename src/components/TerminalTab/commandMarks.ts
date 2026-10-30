@@ -15,7 +15,20 @@ export type CommandMark =
  * when one did; or the marks stopped, as the session ended or they were
  * turned off, so no more prompts will be told.
  */
-export type PromptEvent = { kind: "prompt"; exitCode?: number } | { kind: "ended" }
+export type PromptEvent =
+  | {
+      kind: "prompt"
+      exitCode?: number
+      /**
+       * The shell marked a command's output (C) since its last prompt, so it
+       * ran the line it read; undefined for a shell that sends no C marks. An
+       * empty line, a comment and a line it can't parse run nothing.
+       */
+      startedCommand?: boolean
+      /** The status the shell gave with this prompt (D), even with nothing run. */
+      status?: number
+    }
+  | { kind: "ended" }
 
 /**
  * Where input sent now goes, as far as the marks tell: `unmarked` when the
@@ -94,6 +107,10 @@ export class CommandMarks implements IDisposable {
   private promptListeners = new Set<(event: PromptEvent) => void>()
   /** The shell has marked a prompt (A) in this session. */
   private marksPrompts = false
+  /** A C mark came since the last prompt. */
+  private outputSincePrompt = false
+  /** The status of the D mark since the last prompt. */
+  private statusSincePrompt: number | undefined
 
   constructor(private readonly term: Terminal) {}
 
@@ -122,14 +139,21 @@ export class CommandMarks implements IDisposable {
       // A command that ran ended on the prompt before this one; an Enter on
       // an empty line leaves no status there.
       const finished = this.current()
+      const event: PromptEvent = {
+        kind: "prompt",
+        exitCode: finished?.exitCode,
+        startedCommand: this.sendsOutputMarks ? this.outputSincePrompt : undefined,
+        status: this.statusSincePrompt,
+      }
+      this.outputSincePrompt = false
+      this.statusSincePrompt = undefined
       this.marksPrompts = true
       this.startPrompt()
-      for (const listener of [...this.promptListeners]) {
-        listener({ kind: "prompt", exitCode: finished?.exitCode })
-      }
+      for (const listener of [...this.promptListeners]) listener(event)
     } else if (mark.kind === "output") this.startOutput()
     else {
       this.sendsDoneMarks = true
+      this.statusSincePrompt = mark.exitCode
       this.finishCommand(mark.exitCode)
     }
   }
@@ -314,6 +338,7 @@ export class CommandMarks implements IDisposable {
 
   private startOutput() {
     this.sendsOutputMarks = true
+    this.outputSincePrompt = true
     this.commandRunning = true
     const entry = this.current()
     // Only the first C counts; one from Enter gives way to it.

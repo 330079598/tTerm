@@ -1,6 +1,7 @@
 // Running the compose bar's lines one at a time: a line goes to the shell
 // only once the one before it has ended and the shell is back at its prompt,
 // and a failed line holds the rest until the user says what to do.
+import type { PromptEvent } from "@/components/TerminalTab/commandMarks"
 
 /** `unfinished`: sent, but the run was stopped before it ended. */
 export type RunLineStatus = "pending" | "running" | "succeeded" | "failed" | "unfinished"
@@ -59,6 +60,23 @@ export function finishLine(run: ComposerRun, exitCode: number | undefined): Comp
   })
   if (failed) return { ...run, lines, phase: "failed" }
   return runFrom(lines, run.current + 1)
+}
+
+/**
+ * The shell is back at a prompt, or its marks stopped. A prompt after which
+ * the shell marks that it ran nothing is not the running line's end when
+ * the shell marks the commands it runs: Enter pressed in the terminal on an
+ * empty line, or a prompt drawn again, gives one before the line is read,
+ * and the next line would go to the running one as its input. A comment
+ * runs nothing, and a line the shell can't parse ends with a failing status.
+ */
+export function promptReached(run: ComposerRun, event: PromptEvent): ComposerRun {
+  if (event.kind === "ended") return stopRun(run)
+  if (event.startedCommand !== false) return finishLine(run, event.exitCode)
+  if (run.phase !== "running") return run
+  if (/^\s*#/.test(run.lines[run.current].text)) return finishLine(run, undefined)
+  if (event.status !== undefined && event.status !== 0) return finishLine(run, event.status)
+  return run
 }
 
 /** Runs the failed line again. */

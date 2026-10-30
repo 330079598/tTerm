@@ -302,10 +302,11 @@ describe("CommandMarks prompt events", () => {
     // bash: an empty line runs nothing, and its D repeats the last status.
     marks.handleEnter()
     await write(`\r\n${done(1)}${PROMPT}$ `)
+    // The empty line's prompt shows no C came, so nothing ran before it.
     expect(events).toEqual([
       { kind: "prompt", exitCode: undefined },
-      { kind: "prompt", exitCode: 1 },
-      { kind: "prompt", exitCode: undefined },
+      { kind: "prompt", exitCode: 1, startedCommand: true, status: 1 },
+      { kind: "prompt", exitCode: undefined, startedCommand: false, status: 1 },
     ])
   })
 

@@ -4,6 +4,7 @@ import {
   continueRun,
   finishLine,
   isRunActive,
+  promptReached,
   retryLine,
   runLines,
   startRun,
@@ -60,6 +61,39 @@ describe("composer runs", () => {
   it("ends when the failed line was the last", () => {
     const run = continueRun(finishLine(startRun(["a"]), 1))
     expect(run.phase).toBe("done")
+  })
+
+  it("waits past a prompt at which the shell ran nothing", () => {
+    // Enter pressed in the terminal while "a" ran gives a prompt before "b" is read.
+    let run = promptReached(startRun(["a", "b", "c"]), {
+      kind: "prompt",
+      exitCode: 0,
+      startedCommand: true,
+      status: 0,
+    })
+    run = promptReached(run, { kind: "prompt", startedCommand: false, status: 0 })
+    expect(statuses(run)).toEqual(["succeeded", "running", "pending"])
+
+    run = promptReached(run, { kind: "prompt", exitCode: 0, startedCommand: true, status: 0 })
+    expect(statuses(run)).toEqual(["succeeded", "succeeded", "running"])
+  })
+
+  it("ends a comment, and fails a line the shell can't parse, with nothing run", () => {
+    let run = promptReached(startRun(["# note", "fi", "c"]), {
+      kind: "prompt",
+      startedCommand: false,
+    })
+    expect(statuses(run)).toEqual(["succeeded", "running", "pending"])
+
+    run = promptReached(run, { kind: "prompt", startedCommand: false, status: 2 })
+    expect(run.phase).toBe("failed")
+    expect(run.lines[1].exitCode).toBe(2)
+  })
+
+  it("takes every prompt as a line's end in a shell that marks no output", () => {
+    const run = promptReached(startRun(["a", "b"]), { kind: "prompt" })
+    expect(statuses(run)).toEqual(["succeeded", "running"])
+    expect(promptReached(run, { kind: "ended" }).phase).toBe("stopped")
   })
 
   it("stops with the running line left unfinished", () => {

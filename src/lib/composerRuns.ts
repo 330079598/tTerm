@@ -4,8 +4,8 @@ import type { ShellPromptState } from "@/components/TerminalTab/commandMarks"
 import { composerInput, getComposerTarget } from "@/lib/commandComposer"
 import {
   continueRun,
-  finishLine,
   isRunActive,
+  promptReached,
   retryLine,
   startRun,
   stopRun,
@@ -64,11 +64,7 @@ export function startComposerRun(
   const idle: ComposerRun = { ...run, phase: "done" }
   unsubscribers.set(
     tabId,
-    target.onPrompt((event) =>
-      update(tabId, (current) =>
-        event.kind === "ended" ? stopRun(current) : finishLine(current, event.exitCode)
-      )
-    )
+    target.onPrompt((event) => update(tabId, (current) => promptReached(current, event)))
   )
   apply(tabId, idle, run)
   return "started"
