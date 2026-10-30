@@ -2,6 +2,7 @@
 // only once the one before it has ended and the shell is back at its prompt,
 // and a failed line holds the rest until the user says what to do.
 import type { PromptEvent } from "@/components/TerminalTab/commandMarks"
+import { splitShellCommands } from "@/lib/shellCommands"
 
 /** `unfinished`: sent, but the run was stopped before it ended. */
 export type RunLineStatus = "pending" | "running" | "succeeded" | "failed" | "unfinished"
@@ -23,9 +24,12 @@ export interface ComposerRun {
   current: number
 }
 
-/** The commands in `text`: its lines, less the blank ones, which would run nothing. */
+/**
+ * The commands in `text`, a line each, or several lines for one that goes on
+ * over them; blank lines, which would run nothing, are dropped.
+ */
 export function runLines(text: string): string[] {
-  return text.split(/\r\n?|\n/).filter((line) => line.trim() !== "")
+  return splitShellCommands(text)
 }
 
 function withLine(run: ComposerRun, index: number, line: Partial<RunLine>): RunLine[] {
