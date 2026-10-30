@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 
+import { inputComposed } from "@/components/TerminalTab/terminalInput"
 import type { TerminalTabRefs } from "@/components/TerminalTab/useTerminalTabRefs"
 import { registerComposerTarget } from "@/lib/commandComposer"
 
@@ -13,7 +14,9 @@ export function useComposerTarget({ tabId, termRef, commandMarksRef }: UseCompos
   useEffect(
     () =>
       registerComposerTarget(tabId, {
-        input: (data) => termRef.current?.input(data, true),
+        input: (data) => {
+          if (termRef.current) inputComposed(termRef.current, data)
+        },
         bracketedPasteMode: () => termRef.current?.modes.bracketedPasteMode ?? false,
         promptState: () => commandMarksRef.current?.promptState() ?? "unmarked",
         onPrompt: (listener) => {

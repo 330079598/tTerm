@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
+import type { Terminal } from "@xterm/xterm"
 
 import type { TerminalSessionContext } from "@/components/TerminalTab/terminalLifecycleTypes"
 import type { ConnectionStateUpdater } from "@/components/TerminalTab/connectionStateUpdater"
@@ -14,6 +15,23 @@ type TerminalInputDeps = Pick<ConnectionStateUpdater, "applyConnectionState"> &
   Pick<CommandTracking, "agentTracker" | "commandMarks" | "commandTimer" | "emitTypedCommand"> & {
     predictiveEcho: Pick<PredictiveEcho, "noteInput">
   }
+
+// What the compose bar is sending through the terminal's input, which hands
+// it on to onData before `input` returns.
+let composedInput: string | null = null
+
+/**
+ * Sends `data` from the compose bar through `term`'s own input, as typing,
+ * so a single line with its Enter is told from a paste.
+ */
+export function inputComposed(term: Terminal, data: string) {
+  composedInput = data
+  try {
+    term.input(data, true)
+  } finally {
+    composedInput = null
+  }
+}
 
 /**
  * Sends what is typed to the session, noting commands as they are
@@ -90,10 +108,14 @@ export function attachTerminalInput(ctx: TerminalSessionContext, deps: TerminalI
 
     const onInput = onInputRef.current
     if (onInput) {
+      // One line the compose bar sends with Enter is a typed command; a paste
+      // ending in a line break would run without the user pressing Enter.
+      const composedLine = data === composedInput && data.indexOf("\r") === data.length - 1
       const isMultilinePaste =
-        data.includes("\n") ||
-        (data.length > 1 && data.includes("\r")) ||
-        data.includes("\x1b[200~")
+        !composedLine &&
+        (data.includes("\n") ||
+          (data.length > 1 && data.includes("\r")) ||
+          data.includes("\x1b[200~"))
       void onInput({
         tabId,
         sessionNonce,
