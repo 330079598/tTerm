@@ -65,6 +65,8 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   // as in Windows Terminal and GNOME Terminal.
   "terminal.copy": "mod+shift+c",
   "terminal.paste": "mod+shift+v",
+  // iTerm2 opens its composer on Cmd+Shift+.; Mod+Shift+E is the SFTP panel's.
+  "terminal.toggleComposer": "mod+shift+.",
   // Ctrl+T transposes characters in readline and opens fzf's file finder;
   // Ctrl+Shift+E opens the file explorer in VS Code.
   "sftp.toggle": "mod+shift+e",

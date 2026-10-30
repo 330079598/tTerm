@@ -447,7 +447,8 @@
         "nextCommand": "Scroll to next command",
         "copyLastCommandOutput": "Copy last command output",
         "copy": "Copy selected text",
-        "paste": "Paste into terminal"
+        "paste": "Paste into terminal",
+        "toggleComposer": "Show or focus the compose bar"
       },
       "sftp": {
         "toggle": "Toggle SFTP panel",
@@ -1784,7 +1785,17 @@
     "contentsFileName": "terminal",
     "contentsSaved": "Terminal contents saved",
     "contentsSaveFailed": "Could not save the terminal contents",
-    "agentIntegration": "AI agent integration on this server…"
+    "agentIntegration": "AI agent integration on this server…",
+    "showComposer": "Show Compose Bar",
+    "hideComposer": "Hide Compose Bar"
+  },
+  "composer": {
+    "title": "Compose bar",
+    "placeholder": "Command for {{name}}: Enter sends it, Shift+Enter adds a line",
+    "unavailable": "{{name}} is not connected",
+    "keysHint": "Typed here, a command waits on no round trip and goes to the terminal in one go. Enter sends, Shift+Enter adds a line, ↑/↓ recall recent commands, Ctrl+C interrupts the running command, Esc goes back to the terminal.",
+    "send": "Send",
+    "close": "Close compose bar"
   },
   "secretStorage": {
     "title": "Saved passwords",

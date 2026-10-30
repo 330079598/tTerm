@@ -10,6 +10,7 @@ import type { useKeywordHighlight } from "@/components/TerminalTab/useKeywordHig
 import { releaseClearedScrollback } from "@/components/TerminalTab/scrollbackMemory"
 import type { TerminalTabProps } from "@/components/TerminalTab/types"
 import { toast } from "@/hooks/use-toast"
+import { closeComposer, isComposerOpen, openComposer } from "@/lib/commandComposer"
 import { terminalBufferText, terminalTextFileName } from "@/lib/terminalText"
 import { resetTerminalState } from "@/components/TerminalTab/terminalReset"
 import { toErrorMessage } from "@/lib/utils"
@@ -259,6 +260,11 @@ export function useTerminalContextMenu({
         onOpenCommandLibrary?.(selection || undefined)
         return
       }
+      if (action === "toggle-composer") {
+        if (isComposerOpen()) closeComposer()
+        else openComposer()
+        return
+      }
       if (action === "paste") {
         await pasteFromClipboard()
       }
@@ -314,6 +320,19 @@ export function useTerminalContextMenu({
       icon: "search",
       shortcut: "commandLibrary.open",
     },
+    // A serial tab has a send bar of its own.
+    ...(connection?.type === "serial"
+      ? []
+      : [
+          {
+            action: "toggle-composer",
+            label: t(
+              isComposerOpen() ? "terminalContext.hideComposer" : "terminalContext.showComposer"
+            ),
+            icon: "edit",
+            shortcut: "terminal.toggleComposer" as const,
+          },
+        ]),
     { separator: true, action: "separator", label: "" },
     {
       action: "zmodem-send",

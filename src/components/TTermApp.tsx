@@ -3,6 +3,7 @@ import React, { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { CloseRequestDialog } from "@/components/CloseRequestDialog"
+import { CommandComposer } from "@/components/CommandComposer"
 import { LayoutTemplateDialog } from "@/components/LayoutTemplateDialog"
 import { ContextMenu } from "@/components/ContextMenu"
 import { NewTabLauncher } from "@/components/NewTabLauncher"
@@ -60,6 +61,7 @@ import { useTerminalNotifications } from "@/hooks/useTerminalNotifications"
 import { useWindowControls } from "@/hooks/useWindowControls"
 import { useWebDavSync } from "@/hooks/useWebDavSync"
 import { getVisiblePaneIds } from "@/lib/tabGroups"
+import { isSessionTab } from "@/types/tab"
 const SETTINGS_TAB_TITLE = "Settings"
 
 export const TTermApp: React.FC = () => {
@@ -224,6 +226,9 @@ export const TTermApp: React.FC = () => {
   })
 
   const commandLibrary = useCommandLibraryActions(shell, broadcast)
+  // A serial tab has a send bar of its own.
+  const activeTab = tabs.find((tab) => tab.id === activeTabId)
+  const composerTab = isSessionTab(activeTab) && activeTab.type !== "serial" ? activeTab : null
   useTabKeymap(shell, { handleNewTab, handleRemoveTab, openRenameDialog })
 
   const handleCollapsedProfileGroupKeysChange = useCollapsedProfileGroupsSaver()
@@ -339,6 +344,12 @@ export const TTermApp: React.FC = () => {
       />
 
       <div className="content-area">{renderTabContent()}</div>
+      <CommandComposer
+        tabId={composerTab?.id ?? null}
+        targetTitle={composerTab?.title ?? ""}
+        canSend={commandLibrary.canInsertSavedCommand}
+        recentCommands={commandLibrary.recentCommands}
+      />
 
       <NewTabLauncher
         open={showNewTabLauncher}

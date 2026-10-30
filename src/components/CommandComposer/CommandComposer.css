@@ -1,0 +1,16 @@
+/* The compose bar sits on the ground the title bar is drawn on, below the panes. */
+.command-composer {
+  flex-shrink: 0;
+  background-color: hsl(var(--titlebar));
+  border-top: 1px solid hsl(var(--border));
+}
+
+html.window-blur .command-composer {
+  background-color: hsl(var(--titlebar) / var(--window-bar-opacity));
+}
+
+/* The islands already stand apart from the ground, so no line is drawn above the bar. */
+html.ui-islands .command-composer {
+  border-top: 0;
+  padding-top: 0;
+}

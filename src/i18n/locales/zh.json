@@ -438,7 +438,8 @@
         "nextCommand": "跳到下一条命令",
         "copyLastCommandOutput": "复制上一条命令的输出",
         "copy": "复制选中文本",
-        "paste": "粘贴到终端"
+        "paste": "粘贴到终端",
+        "toggleComposer": "显示或聚焦撰写栏"
       },
       "sftp": {
         "toggle": "切换 SFTP 面板",
@@ -1766,7 +1767,17 @@
     "contentsFileName": "终端",
     "contentsSaved": "终端内容已保存",
     "contentsSaveFailed": "无法保存终端内容",
-    "agentIntegration": "在这台服务器上安装 AI Agent 集成…"
+    "agentIntegration": "在这台服务器上安装 AI Agent 集成…",
+    "showComposer": "显示撰写栏",
+    "hideComposer": "隐藏撰写栏"
+  },
+  "composer": {
+    "title": "撰写栏",
+    "placeholder": "发往 {{name}} 的命令：Enter 发送，Shift+Enter 换行",
+    "unavailable": "{{name}} 未连接",
+    "keysHint": "在这里输入命令不用等网络往返，回车后一次发到终端。Enter 发送，Shift+Enter 换行，↑/↓ 调出最近的命令，Ctrl+C 中断正在运行的命令，Esc 回到终端。",
+    "send": "发送",
+    "close": "关闭撰写栏"
   },
   "secretStorage": {
     "title": "已保存的密码",
