@@ -54,6 +54,19 @@ export async function localShellName(connection: Tab["connection"]): Promise<str
   return (await detectLocalShellName(connection ?? {})) ?? FALLBACK_TITLE
 }
 
+/**
+ * What a local tab shows for its shell: the WSL distribution it starts in
+ * place of `WSL`. The shell's name itself stays, as dropped paths and icons
+ * go by it.
+ */
+export function localShellTitle<Name extends string | undefined>(
+  shellName: Name,
+  connection: Tab["connection"]
+): string | Name {
+  const distro = connection?.terminalShell === "wsl" && connection.terminalShellWslDistro?.trim()
+  return distro || shellName
+}
+
 // Git Bash reports `/c/Users`, which is `C:/Users` on Windows.
 function comparablePath(path: string): string {
   const slashed = path.replace(/\\/g, "/").replace(/^\/([A-Za-z])(\/|$)/, "$1:/")
@@ -192,7 +205,9 @@ export function withDistinctLocalTitles(tabs: Tab[]): Tab[] {
 /** A tab's tooltip: its title with the host it reaches, or a local shell's directory and name. */
 export function tabTooltip(tab: Tab): string {
   const details =
-    tab.type === "terminal" ? [tab.connection?.cwd, tab.shellName] : [tab.connection?.host]
+    tab.type === "terminal"
+      ? [tab.connection?.cwd, localShellTitle(tab.shellName, tab.connection)]
+      : [tab.connection?.host]
   const detail = details.filter((part) => part && part !== tab.title).join(" · ")
   return detail ? `${tab.title} (${detail})` : tab.title
 }
@@ -211,7 +226,7 @@ export async function nameLocalTab<T extends Omit<Tab, "id" | "isActive">>(tab: 
   if (tab.type !== "terminal") return tab
   const [shellName] = await Promise.all([localShellName(tab.connection), loadHome()])
   if (tab.title) return { ...tab, shellName }
-  const title = cwdTitle(tab.connection?.cwd) ?? shellName
+  const title = cwdTitle(tab.connection?.cwd) ?? localShellTitle(shellName, tab.connection)
   return { ...tab, title, shellName, autoTitle: true, duplicateBaseTitle: undefined }
 }
 

@@ -5,6 +5,7 @@ import {
   directoryTitle,
   distinctLocalTitles,
   hasLegacyLocalTitle,
+  localShellTitle,
   runningCommandTitle,
   tabTooltip,
   withLocalCwd,
@@ -178,6 +179,20 @@ describe("tabTooltip with a shell", () => {
       connection: { cwd: "D:\\code\\tTerm" },
     }
     expect(tabTooltip(tab)).toBe("tTerm (D:\\code\\tTerm · pwsh)")
+  })
+
+  it("names a WSL shell after its distribution", () => {
+    const tab: Tab = {
+      id: "1",
+      title: "~",
+      type: "terminal",
+      isActive: true,
+      shellName: "WSL",
+      connection: { cwd: "/home/me", terminalShell: "wsl", terminalShellWslDistro: "Debian" },
+    }
+    expect(tabTooltip(tab)).toBe("~ (/home/me · Debian)")
+    expect(localShellTitle("WSL", { type: "terminal", terminalShell: "wsl" })).toBe("WSL")
+    expect(localShellTitle("pwsh", { type: "terminal", terminalShell: "pwsh" })).toBe("pwsh")
   })
 })
 

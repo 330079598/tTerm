@@ -5,7 +5,7 @@ import { TerminalTab } from "@/components/TerminalTab"
 import { useWorkspace } from "@/components/TTermApp/workspaceContext"
 import { isPageTab, type Tab } from "@/types/tab"
 import { localShellConnection, withLocalShell, type LocalShellChoice } from "@/lib/localShells"
-import { localShellName, withLocalCwd } from "@/lib/localTabTitle"
+import { localShellName, localShellTitle, withLocalCwd } from "@/lib/localTabTitle"
 import { withLocalDistro } from "@/lib/tabIcons"
 
 const RemoteFileEditor = React.lazy(() =>
@@ -62,13 +62,18 @@ export const WorkspacePanel = React.memo(function WorkspacePanel({
       tab.hasConnected === true)
 
   const restartWithShell = (choice: LocalShellChoice) => {
+    const failedTitle = localShellTitle(tab.shellName, tab.connection)
     workspace.updateTab(tab.id, (current) => withLocalShell(current, choice))
-    void localShellName(localShellConnection(choice)).then((shellName) =>
+    const connection = localShellConnection(choice)
+    void localShellName(connection).then((shellName) =>
       workspace.updateTab(tab.id, (current) => ({
         ...current,
         shellName,
         // A tab still named after the shell that failed takes the new one's name.
-        title: current.autoTitle && current.title === current.shellName ? shellName : current.title,
+        title:
+          current.autoTitle && current.title === failedTitle
+            ? localShellTitle(shellName, connection)
+            : current.title,
       }))
     )
   }
