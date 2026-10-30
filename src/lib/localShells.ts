@@ -48,6 +48,8 @@ export interface ShellEntry {
   label: string
   /** The executable, with the arguments of a shell the user added. */
   detail: string
+  /** The executable alone, or nothing for Auto. */
+  source: string
   choice: LocalShellChoice
   hidden: boolean
 }
@@ -112,6 +114,7 @@ export function buildShellEntries(
       kind: "auto",
       label: t("connection.terminalShellOptions.auto", "Auto (recommended)"),
       detail: "",
+      source: "",
       choice: { shell: "auto" },
       hidden: false,
     },
@@ -136,6 +139,7 @@ export function buildShellEntries(
       detail: profile.wslDistro
         ? `${profile.source} ${wslDistroArgs(profile.wslDistro)}`
         : profile.source,
+      source: profile.source,
       choice: {
         shell: profile.shell,
         customPath: profile.shell === "custom" ? profile.source : undefined,
@@ -150,6 +154,7 @@ export function buildShellEntries(
       kind: "custom",
       label: shell.name.trim() || programName(shell.path),
       detail: describeShell(shell),
+      source: shell.path.trim(),
       choice: ownShellChoice(shell),
       hidden: false,
     })
@@ -160,9 +165,7 @@ export function buildShellEntries(
 /** The program and arguments a shell of the user's own copied from a detected `entry` starts. */
 export function copiedShellCommand(entry: ShellEntry): { path: string; args: string } {
   const distro = entry.choice.wslDistro
-  if (!distro) return { path: entry.detail, args: "" }
-  const args = wslDistroArgs(distro)
-  return { path: entry.detail.slice(0, -args.length).trim(), args }
+  return { path: entry.source, args: distro ? wslDistroArgs(distro) : "" }
 }
 
 /** The key of the default shell among {@link buildShellEntries}. */
