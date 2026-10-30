@@ -163,11 +163,17 @@
   background: hsl(var(--muted) / 0.7);
 }
 
-.broadcast-panel button:focus-visible,
-.broadcast-panel textarea:focus-visible,
-.broadcast-panel select:focus-visible {
+.broadcast-panel button:focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
+}
+
+/* Fields show focus with their own border alone. An outline or a halo around
+   the border made a second, heavy frame on a field this large. */
+.broadcast-panel textarea:focus-visible,
+.broadcast-panel select:focus-visible {
+  outline: none;
+  border-color: hsl(var(--ring));
 }
 
 .broadcast-mode-tabs {
@@ -383,10 +389,6 @@
   background: hsl(var(--background));
   font-size: calc(14px * var(--ui-font-scale, 1));
   line-height: 1.55;
-}
-
-.broadcast-command-editor textarea:focus {
-  border-color: hsl(var(--ring));
 }
 
 .broadcast-command-editor button,
