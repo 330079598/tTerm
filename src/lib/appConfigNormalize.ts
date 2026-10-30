@@ -200,6 +200,9 @@ export function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     show_jump_host_connection_info: config.show_jump_host_connection_info !== false,
     sftp_paste_upload_enabled: config.sftp_paste_upload_enabled === true,
     sftp_start_directory: normalizeSftpStartDirectory(config.sftp_start_directory) ?? "last",
+    sftp_external_editor:
+      typeof config.sftp_external_editor === "string" ? config.sftp_external_editor.trim() : "",
+    sftp_external_upload: config.sftp_external_upload === "auto" ? "auto" : "ask",
     secret_storage_mode: normalizeSecretStorageMode(config.secret_storage_mode),
     prompt_unlock_vault_on_startup: config.prompt_unlock_vault_on_startup === true,
     terminal_renderer:

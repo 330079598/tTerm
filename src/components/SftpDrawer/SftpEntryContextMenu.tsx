@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 
 import { ContextMenu } from "@/components/ContextMenu"
 import { archiveFormatOf } from "@/components/SftpDrawer/sftpArchive"
+import { editorDisplayName } from "@/lib/externalEditor"
 
 import type { SftpContextMenuState, SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 
@@ -17,6 +18,10 @@ interface SftpEntryContextMenuProps {
   handleDelete: () => void
   handleDownload: () => Promise<void>
   handleEdit: () => void
+  /** Opens the file in its default program, or in the external editor. */
+  handleOpenExternally: (inEditor: boolean) => void
+  /** The external editor's program; empty until one is picked. */
+  externalEditor: string
   handleExtract: () => void
   handlePermissions: () => void
   handleRename: () => void
@@ -36,6 +41,8 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
   handleDelete,
   handleDownload,
   handleEdit,
+  handleOpenExternally,
+  externalEditor,
   handleExtract,
   handlePermissions,
   handleRename,
@@ -50,6 +57,7 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
     return null
   }
   const canExtract = selectionCount === 1 && archiveFormatOf(contextMenuEntry) !== null
+  const canOpen = selectionCount === 1 && !contextMenuEntry.isDir
 
   return createPortal(
     <ContextMenu
@@ -96,7 +104,21 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
           label: t("sftp.actions.edit", { defaultValue: "Edit" }),
           action: "edit",
           icon: "edit",
-          disabled: selectionCount !== 1 || contextMenuEntry.isDir,
+          disabled: !canOpen,
+        },
+        {
+          label: externalEditor
+            ? t("sftp.actions.openInProgram", { program: editorDisplayName(externalEditor) })
+            : t("sftp.actions.openInEditor"),
+          action: "open-editor",
+          icon: "app-window",
+          disabled: !canOpen,
+        },
+        {
+          label: t("sftp.actions.openWithDefault"),
+          action: "open-default",
+          icon: "external-link",
+          disabled: !canOpen,
         },
         {
           label: t("sftp.actions.rename", { defaultValue: "Rename" }),
@@ -125,6 +147,8 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
         else if (action === "compress") handleCompress()
         else if (action === "extract") handleExtract()
         else if (action === "edit") handleEdit()
+        else if (action === "open-editor") handleOpenExternally(true)
+        else if (action === "open-default") handleOpenExternally(false)
         else if (action === "rename") handleRename()
         else if (action === "permissions") handlePermissions()
         else if (action === "delete") handleDelete()

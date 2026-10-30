@@ -1,15 +1,17 @@
 import React from "react"
-import { ClipboardPaste } from "lucide-react"
+import { ClipboardPaste, FolderOpen, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { BandwidthLimitInput } from "@/components/SettingsDialog/BandwidthLimitInput"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useSettingsSave } from "@/hooks/useSettingsSave"
 import type { AppConfig } from "@/lib/appConfig"
+import { pickEditorProgram } from "@/lib/externalEditor"
 import { normalizeSftpStartDirectory, SFTP_START_DIRECTORIES } from "@/lib/sftpStartDirectory"
 
 /** The SFTP drawer's settings, in the General tab. */
@@ -36,6 +38,10 @@ export const SftpSettingsSection: React.FC = () => {
   }
   const handleSftpDownloadLimitChange = async (kib: number) => {
     await saveSettings({ sftp_download_limit_kib: kib })
+  }
+  const chooseExternalEditor = async () => {
+    const program = await pickEditorProgram(t("settings.sftpExternalEditorChoose"))
+    if (program) await saveSettings({ sftp_external_editor: program })
   }
 
   return (
@@ -124,6 +130,55 @@ export const SftpSettingsSection: React.FC = () => {
             value={sftpDownloadLimitKib}
             onChange={handleSftpDownloadLimitChange}
           />
+        }
+      />
+      <SettingsRow
+        title={t("settings.sftpExternalEditor")}
+        description={t("settings.sftpExternalEditorDesc")}
+      >
+        <div className="flex min-w-0 gap-2">
+          <Input
+            value={config.sftp_external_editor}
+            readOnly
+            placeholder={t("settings.sftpExternalEditorPlaceholder")}
+            aria-label={t("settings.sftpExternalEditor")}
+            className="min-w-0 flex-1 font-mono text-xs"
+          />
+          <Button type="button" variant="outline" onClick={() => void chooseExternalEditor()}>
+            <FolderOpen />
+            {t("terminalLogging.choose")}
+          </Button>
+          {config.sftp_external_editor && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t("settings.sftpExternalEditorClear")}
+              title={t("settings.sftpExternalEditorClear")}
+              onClick={() => void saveSettings({ sftp_external_editor: "" })}
+            >
+              <X />
+            </Button>
+          )}
+        </div>
+      </SettingsRow>
+      <SettingsRow
+        title={t("settings.sftpExternalUpload")}
+        description={t("settings.sftpExternalUploadDesc")}
+        action={
+          <Select
+            aria-label={t("settings.sftpExternalUpload")}
+            value={config.sftp_external_upload}
+            onChange={(event) =>
+              void saveSettings({
+                sftp_external_upload: event.target.value === "auto" ? "auto" : "ask",
+              })
+            }
+            className="w-44"
+          >
+            <option value="ask">{t("settings.sftpExternalUploadAsk")}</option>
+            <option value="auto">{t("settings.sftpExternalUploadAuto")}</option>
+          </Select>
         }
       />
     </SettingsSection>

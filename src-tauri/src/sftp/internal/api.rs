@@ -45,6 +45,7 @@ pub mod conflict;
 pub mod delete;
 pub mod download;
 pub mod edit;
+pub mod external;
 pub mod permissions;
 pub mod search;
 pub mod upload;

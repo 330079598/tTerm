@@ -3,7 +3,10 @@
 
 use serde::{Deserialize, Deserializer};
 
-use super::defaults::{default_predictive_echo, default_profile_sort, default_tab_width_mode};
+use super::defaults::{
+    default_predictive_echo, default_profile_sort, default_sftp_external_upload,
+    default_tab_width_mode,
+};
 
 pub(super) fn deserialize_ui_scale_percent<'de, D>(deserializer: D) -> Result<u16, D::Error>
 where
@@ -82,6 +85,18 @@ where
         sort
     } else {
         default_profile_sort()
+    })
+}
+
+pub(super) fn deserialize_sftp_external_upload<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let mode = String::deserialize(deserializer)?;
+    Ok(if mode == "auto" {
+        mode
+    } else {
+        default_sftp_external_upload()
     })
 }
 

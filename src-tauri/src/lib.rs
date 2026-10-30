@@ -116,6 +116,7 @@ pub fn run() {
         .manage(ssh::auth::AuthPromptMap::default())
         .manage(proxy::approval::ProxyCommandPrompts::default())
         .manage(sftp_pool)
+        .manage(sftp::internal::api::external::ExternalEditState::default())
         .manage(monitor_sessions)
         .manage(transfer_cancel_map)
         .manage(zmodem_map)
@@ -289,6 +290,12 @@ pub fn run() {
             sftp::internal::api::permissions::sftp_set_permissions,
             sftp::internal::api::edit::sftp_open_file_for_edit,
             sftp::internal::api::edit::sftp_save_edited_file,
+            sftp::internal::api::external::sftp_external_edit_open,
+            sftp::internal::api::external::sftp_external_edit_upload,
+            sftp::internal::api::external::sftp_external_edit_list,
+            sftp::internal::api::external::sftp_external_edit_stop,
+            sftp::internal::api::external::sftp_external_edit_release_tab,
+            sftp::internal::api::external::sftp_external_edit_reveal,
             sftp::internal::api::upload::commands::sftp_upload_file,
             sftp::internal::api::upload::commands::sftp_upload_paths,
             sftp::internal::api::upload::commands::sftp_check_upload_conflicts,
@@ -392,6 +399,7 @@ pub fn run() {
                 }
             }
 
+            sftp::internal::api::external::clean_up_on_start(&app_handle);
             sftp::internal::connection::spawn_idle_reaper(
                 app_handle
                     .state::<sftp::internal::types::SftpConnectionPool>()
@@ -428,6 +436,7 @@ pub fn run() {
                         .save_traffic();
                     // Logs keep what they have not written out yet.
                     session_log::shutdown(app);
+                    sftp::internal::api::external::shutdown(app);
                 }
                 // Clicking the Dock icon brings back a window closed to the
                 // background.

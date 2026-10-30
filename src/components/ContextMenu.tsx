@@ -39,6 +39,8 @@ import {
   Minimize2,
   SquareArrowOutUpRight,
   Columns2,
+  ExternalLink,
+  AppWindow,
 } from "lucide-react"
 import { useShortcutLabel } from "@/contexts/KeymapContext"
 import { TabContextMenuAction } from "@/types/tab"
@@ -133,6 +135,10 @@ const getActionIcon = (icon?: string) => {
       return <Columns2 size={14} aria-hidden="true" />
     case "layout":
       return <LayoutTemplate size={14} aria-hidden="true" />
+    case "external-link":
+      return <ExternalLink size={14} aria-hidden="true" />
+    case "app-window":
+      return <AppWindow size={14} aria-hidden="true" />
     default:
       return null
   }

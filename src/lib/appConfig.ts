@@ -39,6 +39,8 @@ export type WindowBlurMaterial = "acrylic" | "mica"
 export type UiStyle = "classic" | "islands"
 /** How the connections panel lists profiles: by group, or in one list by when they were last used. */
 export type ProfileSort = "default" | "recent"
+/** What a saved change to a file opened in another program does. */
+export type SftpExternalUpload = "ask" | "auto"
 /** What the terminal bell does: flash the terminal, play a tone, or nothing. */
 export type BellStyle = "visual" | "sound" | "none"
 
@@ -117,6 +119,9 @@ export interface AppConfig extends TabSettings {
   sftp_paste_upload_enabled: boolean
   /** Where SFTP drawers open; a connection can choose otherwise. */
   sftp_start_directory: SftpStartDirectory
+  /** The program SFTP files open in for editing; empty until one is picked. */
+  sftp_external_editor: string
+  sftp_external_upload: SftpExternalUpload
   monitor_refresh_interval_secs: number
   monitor_visible_metrics: MonitorMetricId[]
   update_channel: "stable" | "beta-dev"
@@ -263,6 +268,8 @@ export const defaultConfig: AppConfig = {
   show_jump_host_connection_info: true,
   sftp_paste_upload_enabled: false,
   sftp_start_directory: "last",
+  sftp_external_editor: "",
+  sftp_external_upload: "ask",
   monitor_refresh_interval_secs: 5,
   monitor_visible_metrics: DEFAULT_MONITOR_VISIBLE_METRICS,
   update_channel: defaultUpdateChannel,

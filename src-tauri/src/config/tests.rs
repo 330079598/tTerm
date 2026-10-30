@@ -194,6 +194,25 @@ fn profile_sort_falls_back_to_the_grouped_list() {
 }
 
 #[test]
+fn sftp_external_upload_falls_back_to_asking() {
+    let parse = |json: &str| {
+        serde_json::from_str::<AppConfig>(json)
+            .unwrap()
+            .sftp_external_upload
+    };
+
+    assert_eq!(parse(r#"{"theme":"default"}"#), "ask");
+    assert_eq!(
+        parse(r#"{"theme":"default","sftp_external_upload":"auto"}"#),
+        "auto"
+    );
+    assert_eq!(
+        parse(r#"{"theme":"default","sftp_external_upload":"never"}"#),
+        "ask"
+    );
+}
+
+#[test]
 fn terminal_line_height_and_letter_spacing_are_clamped() {
     let config: AppConfig = serde_json::from_str(
         r#"{"theme":"default","terminal_line_height":1.234,"terminal_letter_spacing":-1.6}"#,

@@ -67,6 +67,7 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "show_jump_host_connection_info",
     "sftp_paste_upload_enabled",
     "sftp_start_directory",
+    "sftp_external_upload",
     "monitor_refresh_interval_secs",
     "monitor_visible_metrics",
     "tab_width_mode",

@@ -15,6 +15,8 @@ import { SftpDrawerContent } from "@/components/SftpDrawer/SftpDrawerContent"
 import { SftpDrawerHeader } from "@/components/SftpDrawer/SftpDrawerHeader"
 import { SftpDialogs } from "@/components/SftpDrawer/SftpDialogs"
 import { SftpEntryContextMenu } from "@/components/SftpDrawer/SftpEntryContextMenu"
+import { SftpExternalEditsMenu } from "@/components/SftpDrawer/SftpExternalEditsMenu"
+import { useSftpExternalEdits } from "@/components/SftpDrawer/useSftpExternalEdits"
 import { SftpPermissionsDialog } from "@/components/SftpDrawer/SftpPermissionsDialog"
 import { SftpArchiveDialog } from "@/components/SftpDrawer/SftpArchiveDialog"
 import { SftpSearchStatus } from "@/components/SftpDrawer/SftpSearchStatus"
@@ -132,6 +134,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     })
 
   const dragOut = useSftpDragOut({ downloadEntriesToFolder, setError })
+  const externalEdits = useSftpExternalEdits({ tabId, connection })
+  const ExternalEditConfirmDialog = externalEdits.ConfirmDialog
 
   useSftpPasteUpload({
     enabled: config.sftp_paste_upload_enabled && isGlobalShortcutTarget,
@@ -321,6 +325,15 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         toggleSelectionMode={toggleSelectionMode}
         showHidden={viewPreferences.showHidden}
         toggleShowHidden={toggleShowHidden}
+        externalEdits={
+          <SftpExternalEditsMenu
+            edits={externalEdits.edits}
+            onUpload={(edit) => void externalEdits.upload(edit)}
+            onReopen={(edit) => void externalEdits.reopen(edit)}
+            onReveal={(edit) => void externalEdits.reveal(edit)}
+            onStop={(edit) => void externalEdits.stop(edit)}
+          />
+        }
         terminalActions={
           <SftpTerminalActions
             follows={follows}
@@ -384,6 +397,10 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         handleDelete={handleDelete}
         handleDownload={handleDownload}
         handleEdit={handleEdit}
+        handleOpenExternally={(inEditor) => {
+          if (contextMenuEntry) void externalEdits.openExternally(contextMenuEntry, inEditor)
+        }}
+        externalEditor={config.sftp_external_editor}
         handleExtract={handleExtract}
         handlePermissions={handlePermissions}
         handleRename={handleRename}
@@ -410,6 +427,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       />
       <SftpArchiveDialog {...archive.dialogProps} />
       {conflictDialog}
+      <ExternalEditConfirmDialog />
     </div>
   )
 }

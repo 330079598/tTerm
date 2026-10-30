@@ -99,6 +99,17 @@ pub struct AppConfig {
     /// connection can choose otherwise.
     #[serde(default = "defaults::default_sftp_start_directory")]
     pub sftp_start_directory: String,
+    /// The program the SFTP drawer opens files in for editing: an
+    /// application name or path; empty until one is picked.
+    #[serde(default)]
+    pub sftp_external_editor: String,
+    /// What a saved change to a file opened in another program does:
+    /// `ask` before uploading it, or `auto` upload it at once.
+    #[serde(
+        default = "defaults::default_sftp_external_upload",
+        deserialize_with = "deserialize::deserialize_sftp_external_upload"
+    )]
+    pub sftp_external_upload: String,
     #[serde(default = "defaults::default_monitor_refresh_interval_secs")]
     pub monitor_refresh_interval_secs: u16,
     #[serde(default = "defaults::default_monitor_visible_metrics")]

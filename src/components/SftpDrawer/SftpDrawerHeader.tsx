@@ -63,6 +63,8 @@ export interface SftpDrawerHeaderProps {
   toggleShowHidden: () => void
   /** Actions tied to the drawer's terminal, shown before the search. */
   terminalActions?: React.ReactNode
+  /** The files open in other programs, shown first. */
+  externalEdits?: React.ReactNode
 }
 
 export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
@@ -98,6 +100,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   showHidden,
   toggleShowHidden,
   terminalActions,
+  externalEdits,
 }) => {
   const { t } = useTranslation()
   const shortcutLabel = useShortcutLabel()
@@ -158,6 +161,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
         />
       </div>
       <div className="sftp-header-actions">
+        {externalEdits}
         {terminalActions}
         <div className="sftp-action-group">
           <SftpHeaderSearch

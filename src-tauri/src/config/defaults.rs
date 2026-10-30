@@ -163,6 +163,10 @@ pub(super) fn default_sftp_start_directory() -> String {
     "last".to_string()
 }
 
+pub(super) fn default_sftp_external_upload() -> String {
+    "ask".to_string()
+}
+
 pub(super) fn default_sftp_transfer_parallelism() -> u16 {
     4
 }
@@ -272,6 +276,8 @@ impl Default for AppConfig {
             show_jump_host_connection_info: default_show_jump_host_connection_info(),
             sftp_paste_upload_enabled: false,
             sftp_start_directory: default_sftp_start_directory(),
+            sftp_external_editor: String::new(),
+            sftp_external_upload: default_sftp_external_upload(),
             monitor_refresh_interval_secs: default_monitor_refresh_interval_secs(),
             monitor_visible_metrics: default_monitor_visible_metrics(),
             update_channel: default_update_channel(),
