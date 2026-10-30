@@ -86,6 +86,23 @@ export type DistroTabIcon = `distro:${DistroId}`
 /** Anything a tab can show: a glyph, or a distribution's logo. */
 export type TabIconChoice = TabIconId | DistroTabIcon
 
+/** The AI agents with a logo of their own, by the name their reports give. */
+export const AGENT_LOGO_IDS = ["claude", "codex", "opencode", "pi"] as const
+
+export type AgentLogoId = (typeof AGENT_LOGO_IDS)[number]
+
+/** An AI agent's logo, which a tab shows while the agent runs; never saved as a choice. */
+export type AgentTabIcon = `agent:${AgentLogoId}`
+
+// Claude Code's logo keeps its own color; the others are black and white, so
+// they take the tab's text color to read on light and dark tabs alike.
+const AGENT_LOGO_COLORS: Record<AgentLogoId, string> = {
+  claude: "#d97757",
+  codex: "",
+  opencode: "",
+  pi: "",
+}
+
 /** Colors offered next to a custom one; each reads on light and dark tabs alike. */
 export const TAB_ICON_COLORS = [
   "#3b9ae1",
@@ -111,18 +128,20 @@ export interface TabIconStyle {
 
 /** An icon as shown: an empty color draws it in the tab's text color. */
 export interface ResolvedTabIcon {
-  icon: TabIconChoice
+  icon: TabIconChoice | AgentTabIcon
   color: string
 }
 
 export interface TabIconConfig {
   /** Show an icon in front of each terminal tab's title. */
   enabled: boolean
+  /** Show the logo of an AI agent while it runs in a tab, in place of the shell's or host's icon. */
+  agents: boolean
   /** Choices by shell, keyed by {@link shellKey}. */
   shells: Record<string, TabIconStyle>
 }
 
-export const DEFAULT_TAB_ICON_CONFIG: TabIconConfig = { enabled: true, shells: {} }
+export const DEFAULT_TAB_ICON_CONFIG: TabIconConfig = { enabled: true, agents: true, shells: {} }
 
 const PLAIN: ResolvedTabIcon = { icon: "terminal", color: "" }
 const POWERSHELL: ResolvedTabIcon = { icon: "square-chevron-right", color: "#3b9ae1" }
@@ -204,8 +223,24 @@ export function shellTabIcon(
   return applyTabIconStyle(builtInShellIcon(key), config.shells[key])
 }
 
-export function isDistroTabIcon(icon: TabIconChoice): icon is DistroTabIcon {
+export function isDistroTabIcon(icon: ResolvedTabIcon["icon"]): icon is DistroTabIcon {
   return icon.startsWith("distro:")
+}
+
+export function isAgentTabIcon(icon: ResolvedTabIcon["icon"]): icon is AgentTabIcon {
+  return icon.startsWith("agent:")
+}
+
+/** The agent whose logo `icon` is. */
+export function tabIconAgent(icon: AgentTabIcon): AgentLogoId {
+  return icon.slice("agent:".length) as AgentLogoId
+}
+
+/** An agent's logo as a tab shows it, or null for an agent without one. */
+export function agentTabIcon(agent: string): ResolvedTabIcon | null {
+  if (!(AGENT_LOGO_IDS as readonly string[]).includes(agent)) return null
+  const id = agent as AgentLogoId
+  return { icon: `agent:${id}`, color: AGENT_LOGO_COLORS[id] }
 }
 
 /** The distribution whose logo `icon` is. */
@@ -269,13 +304,19 @@ export function inheritedTabIcon(
   return localTabIcon(config, tab.shellName, tab.distroId)
 }
 
-/** The icon a terminal tab shows, or null for other tabs and while icons are off. */
+/**
+ * The icon a terminal tab shows, or null for other tabs and while icons are
+ * off. The logo of the AI agent running in it, if any, stands in for the icon
+ * it inherits; a choice made for the tab itself still wins.
+ */
 export function resolveTabIcon(
   tab: Pick<Tab, "type" | "shellName" | "distroId" | "iconStyle">,
-  config: TabIconConfig
+  config: TabIconConfig,
+  agent?: string
 ): ResolvedTabIcon | null {
   if (!hasTabIcon(tab) || !config.enabled) return null
-  return applyTabIconStyle(inheritedTabIcon(tab, config), tab.iconStyle)
+  const agentIcon = agent && config.agents ? agentTabIcon(agent) : null
+  return applyTabIconStyle(agentIcon ?? inheritedTabIcon(tab, config), tab.iconStyle)
 }
 
 function isTabIconChoice(value: unknown): value is TabIconChoice {
@@ -310,7 +351,7 @@ export function normalizeSavedSshTab(tab: Tab): Tab {
 /** The tab icon settings from a saved config, each choice valid. */
 export function normalizeTabIconConfig(value: unknown): TabIconConfig {
   if (!value || typeof value !== "object") return { ...DEFAULT_TAB_ICON_CONFIG, shells: {} }
-  const { enabled, shells } = value as Record<string, unknown>
+  const { enabled, agents, shells } = value as Record<string, unknown>
   const normalized: Record<string, TabIconStyle> = {}
   if (shells && typeof shells === "object") {
     for (const [key, style] of Object.entries(shells)) {
@@ -318,7 +359,7 @@ export function normalizeTabIconConfig(value: unknown): TabIconConfig {
       if (valid && shellKey(key)) normalized[shellKey(key)] = valid
     }
   }
-  return { enabled: enabled !== false, shells: normalized }
+  return { enabled: enabled !== false, agents: agents !== false, shells: normalized }
 }
 
 /** The config with one shell's choice replaced; undefined forgets it. */

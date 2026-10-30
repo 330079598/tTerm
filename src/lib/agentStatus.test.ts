@@ -55,16 +55,19 @@ describe("agentDisplayName", () => {
 
 describe("AgentTracker", () => {
   let statuses: Array<AgentStatus | null>
+  let agents: Array<string | null>
   let announcements: AgentAnnouncement[]
   let tracker: AgentTracker
 
   beforeEach(() => {
     vi.useFakeTimers()
     statuses = []
+    agents = []
     announcements = []
     tracker = new AgentTracker(
       {
         onStatus: (status) => statuses.push(status),
+        onAgent: (agent) => agents.push(agent),
         onAnnounce: (announcement) => announcements.push(announcement),
       },
       3000
@@ -175,6 +178,21 @@ describe("AgentTracker", () => {
     expect(statuses[statuses.length - 1]).toBeNull()
     expect(tracker.speaksForAgent).toBe(false)
   })
+
+  it("names the agent running from its first report until it ends", () => {
+    tracker.report({ agent: "claude", state: "processing" })
+    tracker.report({ agent: "claude", state: "done" })
+    // Idle between turns, but still running.
+    tracker.report({ agent: "claude", state: "idle" })
+    expect(agents).toEqual(["claude"])
+
+    tracker.report({ agent: "claude", state: "ended" })
+    expect(agents).toEqual(["claude", null])
+
+    tracker.report({ agent: "pi", state: "waiting" })
+    tracker.reset()
+    expect(agents).toEqual(["claude", null, "pi", null])
+  })
 })
 
 describe("AgentTracker sessions told to every terminal", () => {
@@ -187,6 +205,7 @@ describe("AgentTracker sessions told to every terminal", () => {
     announcements[index] = []
     return new AgentTracker({
       onStatus: (status) => statuses[index].push(status),
+      onAgent: () => {},
       onAnnounce: (announcement) => announcements[index].push(announcement),
     })
   }

@@ -172,7 +172,7 @@ export const TabItem = React.memo(function TabItem({
         onPointerDown={(event) => onPointerDown(event, tab.id)}
       >
         <span className="tab-number">{index + 1}</span>
-        <TabIcon tab={tab} className="tab-icon" />
+        <TabIcon tab={tab} paneIds={paneIds} className="tab-icon" />
         <TabAttentionDot tabId={tab.id} paneIds={paneIds} />
         <TabLogIndicator tabId={tab.id} paneIds={paneIds} />
         <TabTitle tab={tab} className="tab-title" />

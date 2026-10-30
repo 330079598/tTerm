@@ -90,6 +90,41 @@ describe("resolveTabIcon", () => {
     expect(resolveTabIcon({ type: "ssh" }, config({ enabled: false }))).toBeNull()
     expect(resolveTabIcon({ type: "remote-file-editor" }, config())).toBeNull()
   })
+
+  it("shows the logo of an agent running in the tab over the shell's or host's icon", () => {
+    const pwsh = { type: "terminal" as const, shellName: "pwsh" }
+    expect(resolveTabIcon(pwsh, config(), "claude")).toEqual({
+      icon: "agent:claude",
+      color: "#d97757",
+    })
+    const ssh = { type: "ssh" as const, distroId: "debian" as const }
+    expect(resolveTabIcon(ssh, config(), "pi")).toEqual({ icon: "agent:pi", color: "" })
+    expect(resolveTabIcon(ssh, config(), "codex")).toEqual({ icon: "agent:codex", color: "" })
+  })
+
+  it("keeps the usual icon for an agent without a logo, or with agent logos off", () => {
+    const pwsh = { type: "terminal" as const, shellName: "pwsh" }
+    expect(resolveTabIcon(pwsh, config(), "my-agent")?.icon).toBe("square-chevron-right")
+    expect(resolveTabIcon(pwsh, config({ agents: false }), "claude")?.icon).toBe(
+      "square-chevron-right"
+    )
+  })
+
+  it("lays the tab's own choice over an agent's logo", () => {
+    const tab = {
+      type: "ssh" as const,
+      iconStyle: { icon: "database" as const, color: "#e5534b" },
+    }
+    expect(resolveTabIcon(tab, config(), "claude")).toEqual({
+      icon: "database",
+      color: "#e5534b",
+    })
+    const tinted = { type: "ssh" as const, iconStyle: { color: "#e5534b" } }
+    expect(resolveTabIcon(tinted, config(), "opencode")).toEqual({
+      icon: "agent:opencode",
+      color: "#e5534b",
+    })
+  })
 })
 
 describe("normalizeTabIconStyle", () => {
@@ -157,13 +192,14 @@ describe("normalizeSavedSshTab", () => {
 
 describe("normalizeTabIconConfig", () => {
   it("shows icons unless turned off, and keys shells in lower case", () => {
-    expect(normalizeTabIconConfig(undefined)).toEqual({ enabled: true, shells: {} })
+    expect(normalizeTabIconConfig(undefined)).toEqual({ enabled: true, agents: true, shells: {} })
     expect(
       normalizeTabIconConfig({
         enabled: false,
+        agents: false,
         shells: { "Git Bash": { icon: "box" }, cmd: { icon: "nope" } },
       })
-    ).toEqual({ enabled: false, shells: { "git bash": { icon: "box" } } })
+    ).toEqual({ enabled: false, agents: false, shells: { "git bash": { icon: "box" } } })
   })
 })
 

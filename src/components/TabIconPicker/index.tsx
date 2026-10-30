@@ -104,7 +104,7 @@ function IconOption({
   checked,
   onSelect,
 }: {
-  icon: ResolvedTabIcon
+  icon: ResolvedTabIcon & { icon: TabIconChoice }
   name: string
   checked: boolean
   onSelect: (icon: TabIconChoice) => void

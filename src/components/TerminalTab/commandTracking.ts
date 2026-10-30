@@ -12,7 +12,7 @@ import { watchMouseReporting } from "@/components/TerminalTab/mouseReportingGuar
 import { watchOsReports } from "@/components/TerminalTab/osReports"
 import { AgentTracker } from "@/lib/agentStatus"
 import { getTabRemoteHostname, setTabRemoteAwayHost, setTabRemoteCwd } from "@/lib/remoteCwd"
-import { setTabAgentStatus, setTabRunningCommand } from "@/lib/tabAttention"
+import { setTabAgentStatus, setTabRunningAgent, setTabRunningCommand } from "@/lib/tabAttention"
 import { CommandTimer } from "@/lib/terminalNotifications"
 import { parseShellIntegrationCommand } from "@/lib/terminalCommandCapture"
 
@@ -41,6 +41,7 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
   // with this session.
   const agentTracker = new AgentTracker({
     onStatus: (status) => setTabAgentStatus(tabId, status),
+    onAgent: (agent) => setTabRunningAgent(tabId, agent),
     onAnnounce: (announcement) => onAttentionRef.current?.({ kind: "agent", ...announcement }),
   })
 

@@ -1,12 +1,16 @@
 import { ChevronRight, ScrollText, Settings, Waypoints } from "lucide-react"
 
+import { AgentLogo } from "@/components/AgentLogo"
 import { TAB_ICON_GLYPHS } from "@/components/TabIconPicker/glyphs"
 import { useConfig } from "@/contexts/ConfigContext"
 import { distroIconSrc } from "@/lib/distro"
+import { useTabRunningAgent } from "@/lib/tabAttention"
 import {
   hasLocalBadge,
+  isAgentTabIcon,
   isDistroTabIcon,
   resolveTabIcon,
+  tabIconAgent,
   tabIconDistro,
   type ResolvedTabIcon,
 } from "@/lib/tabIcons"
@@ -16,9 +20,10 @@ import type { Tab } from "@/types/tab"
 const PAGE_ICONS = { settings: Settings, tunnels: Waypoints, logs: ScrollText } as const
 
 /**
- * An icon a terminal tab can show: a glyph drawn in its color, or the text
- * color for none, or a distribution's logo in its own colors. `localBadge`
- * marks a logo with a prompt in its corner, for a local shell.
+ * An icon a terminal tab can show: a glyph or an AI agent's logo drawn in its
+ * color, or the text color for none, or a distribution's logo in its own
+ * colors. `localBadge` marks a logo with a prompt in its corner, for a local
+ * shell.
  */
 export function TabIconGlyph({
   icon,
@@ -31,6 +36,16 @@ export function TabIconGlyph({
   size?: number
   localBadge?: boolean
 }) {
+  if (isAgentTabIcon(icon.icon)) {
+    return (
+      <AgentLogo
+        agent={tabIconAgent(icon.icon)}
+        className={className}
+        size={size}
+        color={icon.color}
+      />
+    )
+  }
   if (isDistroTabIcon(icon.icon)) {
     const logo = (
       <img
@@ -70,21 +85,26 @@ export function TabIconGlyph({
  * The icon in front of a tab's title: an app page's; for a local terminal
  * its own or its shell's, so tabs named after their directory still tell
  * shells apart, with a WSL tab's logo badged as local; for an SSH tab its own
- * or its host's distribution's.
+ * or its host's distribution's. While an AI agent runs in it, or in one of
+ * its panes, the agent's logo stands in for the shell's or host's.
  */
 export function TabIcon({
   tab,
+  paneIds,
   className,
 }: {
-  tab: Pick<Tab, "type" | "shellName" | "distroId" | "iconStyle">
+  tab: Pick<Tab, "id" | "type" | "shellName" | "distroId" | "iconStyle">
+  /** A tab of the bar with split panes: its panes, its active one first. */
+  paneIds?: readonly string[]
   className?: string
 }) {
   const { config } = useConfig()
+  const agent = useTabRunningAgent(paneIds ?? [tab.id])
   if (tab.type in PAGE_ICONS) {
     const Icon = PAGE_ICONS[tab.type as keyof typeof PAGE_ICONS]
     return <Icon className={className} size={13} aria-hidden="true" />
   }
-  const icon = resolveTabIcon(tab, config.tab_icons)
+  const icon = resolveTabIcon(tab, config.tab_icons, agent)
   return (
     icon && <TabIconGlyph icon={icon} className={className} localBadge={hasLocalBadge(tab, icon)} />
   )

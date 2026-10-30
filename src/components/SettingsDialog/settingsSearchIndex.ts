@@ -66,6 +66,7 @@ export const SETTINGS_SEARCH_INDEX: Record<string, SettingsSearchEntry[]> = {
     { title: "settings.tabHoverTooltipShow", description: "settings.tabHoverTooltipShowDesc" },
     { title: "tabIcons.title", description: "tabIcons.description" },
     { title: "tabIcons.show", description: "tabIcons.showDescription" },
+    { title: "tabIcons.agents", description: "tabIcons.agentsDescription" },
     { title: "tabIcons.byShell", description: "tabIcons.byShellDescription" },
     { title: "tabAgentIndicator.title", description: "tabAgentIndicator.description" },
     { title: "tabAgentIndicator.working", description: "tabAgentIndicator.workingDescription" },

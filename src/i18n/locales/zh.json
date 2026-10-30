@@ -2863,6 +2863,8 @@
     "description": "在终端标签页的标题前显示图标：本地标签页显示所用的 shell，SSH 标签页显示主机的 Linux 发行版。",
     "show": "显示标签页图标",
     "showDescription": "为识别 SSH 主机的发行版，tTerm 会在连接时读取它的 /etc/os-release。单个标签页也可以有自己的图标和颜色：右键它，选择“编辑标签页”。",
+    "agents": "显示 AI Agent 的 logo",
+    "agentsDescription": "Claude Code、Codex、OpenCode 或 pi 在标签页里运行时，标签页显示它的 logo，代替 shell 或主机的图标；你为这个标签页选过图标时除外。Agent 向 tTerm 报告状态后 logo 才会出现（见“通知”里的 AI 编程助手），它从你的第一条提示开始报告。",
     "byShell": "各 shell 的图标",
     "byShellDescription": "每种 shell 的标签页显示的图标和颜色。",
     "change": "更改",

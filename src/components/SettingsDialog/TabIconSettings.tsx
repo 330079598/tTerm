@@ -85,6 +85,19 @@ export function TabIconSettings() {
         }
       />
       {icons.enabled && (
+        <SettingsRow
+          title={t("tabIcons.agents")}
+          description={t("tabIcons.agentsDescription")}
+          action={
+            <Switch
+              checked={icons.agents}
+              aria-label={t("tabIcons.agents")}
+              onCheckedChange={(agents) => save({ ...icons, agents })}
+            />
+          }
+        />
+      )}
+      {icons.enabled && (
         <SettingsRow title={t("tabIcons.byShell")} description={t("tabIcons.byShellDescription")}>
           <div className="divide-border divide-y">
             {shellsForSettings(getDetectedPlatform(), icons, [

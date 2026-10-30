@@ -77,12 +77,15 @@ const sessionOwners = new Map<string, AgentTracker>()
 
 interface AgentTrackerCallbacks {
   onStatus: (status: AgentStatus | null) => void
+  /** The agent running in the terminal, from its first report until it ends; null for none. */
+  onAgent: (agent: string | null) => void
   onAnnounce: (announcement: AgentAnnouncement) => void
 }
 
 /** Follows the reports of the agent running in one terminal. */
 export class AgentTracker {
   private status: AgentStatus | null = null
+  private agent: string | null = null
   private lastReportAt: number | null = null
   private waitTimer: ReturnType<typeof setTimeout> | null = null
   private submittedAt: number | null = null
@@ -116,6 +119,7 @@ export class AgentTracker {
       return
     }
     this.lastReportAt = Date.now()
+    this.setAgent(agent)
     if (state === "idle") {
       this.setStatus(null)
       return
@@ -162,6 +166,7 @@ export class AgentTracker {
     this.releaseSessions()
     this.lastReportAt = null
     this.setStatus(null)
+    this.setAgent(null)
   }
 
   dispose() {
@@ -204,6 +209,12 @@ export class AgentTracker {
     if (this.waitTimer === null) return
     clearTimeout(this.waitTimer)
     this.waitTimer = null
+  }
+
+  private setAgent(agent: string | null) {
+    if (this.agent === agent) return
+    this.agent = agent
+    this.callbacks.onAgent(agent)
   }
 
   private setStatus(status: AgentStatus | null) {

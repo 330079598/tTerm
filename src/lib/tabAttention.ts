@@ -4,14 +4,15 @@ import type { AgentStatus } from "@/lib/agentStatus"
 import { strongerAttention, type TabAttentionLevel } from "@/lib/terminalNotifications"
 
 // Marks on tabs the user is not looking at: new output, a bell, a
-// notification; how many system notifications a tab raised unseen; what an AI
-// agent in a tab is doing; the command a tab's shell runs; and which tabs
-// wait at a password prompt. Kept apart from
-// the tabs themselves so a mark neither re-renders the workspace nor is saved
-// with the session.
+// notification; how many system notifications a tab raised unseen; which AI
+// agent runs in a tab and what it is doing; the command a tab's shell runs;
+// and which tabs wait at a password prompt. Kept apart from the tabs
+// themselves so a mark neither re-renders the workspace nor is saved with the
+// session.
 let marks = new Map<string, TabAttentionLevel>()
 let unseenNotifications = new Map<string, number>()
 let agentStatuses = new Map<string, AgentStatus>()
+let runningAgents = new Map<string, string>()
 let runningCommands = new Map<string, string>()
 let passwordPrompts = new Set<string>()
 const runningCommandTimers = new Map<string, ReturnType<typeof setTimeout>>()
@@ -89,6 +90,15 @@ export function setTabAgentStatus(tabId: string, status: AgentStatus | null) {
   emit()
 }
 
+/** The AI agent running in a tab, as its reports name it, or null once it ends. */
+export function setTabRunningAgent(tabId: string, agent: string | null) {
+  if ((runningAgents.get(tabId) ?? null) === agent) return
+  runningAgents = new Map(runningAgents)
+  if (agent) runningAgents.set(tabId, agent)
+  else runningAgents.delete(tabId)
+  emit()
+}
+
 /**
  * A command shows on its tab once it has run for a moment: one that ends at
  * once (`cd`, `ls`) would only make the title flicker.
@@ -145,6 +155,17 @@ export function useTabAgentStatus(tabIds: readonly string[]): AgentStatus | unde
     for (const tabId of tabIds) {
       const status = agentStatuses.get(tabId)
       if (status) return status
+    }
+    return undefined
+  })
+}
+
+/** The AI agent running in the first of the tabs that has one. */
+export function useTabRunningAgent(tabIds: readonly string[]): string | undefined {
+  return useSyncExternalStore(subscribe, () => {
+    for (const tabId of tabIds) {
+      const agent = runningAgents.get(tabId)
+      if (agent) return agent
     }
     return undefined
   })

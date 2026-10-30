@@ -8,6 +8,9 @@ use std::collections::BTreeMap;
 pub struct TabIconConfig {
     /// Show an icon in front of each terminal tab's title, local or SSH.
     pub enabled: bool,
+    /// Show the logo of an AI agent while it runs in a tab, in place of the
+    /// shell's or host's icon.
+    pub agents: bool,
     /// The icon and color chosen for a shell, by its lowercased name (`pwsh`,
     /// `git bash`). A shell missing here keeps its built-in look.
     pub shells: BTreeMap<String, TabIconStyle>,
@@ -17,6 +20,7 @@ impl Default for TabIconConfig {
     fn default() -> Self {
         Self {
             enabled: true,
+            agents: true,
             shells: BTreeMap::new(),
         }
     }
