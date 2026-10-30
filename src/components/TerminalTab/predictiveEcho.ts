@@ -48,7 +48,14 @@ export function attachPredictiveEcho(
   const overlay = createPredictiveEchoOverlay(term, charAt)
   // Full-screen programs and prompts such as Claude Code's hide the cursor
   // and draw their own, so the cursor's cell is not where typing goes.
+  // xterm's own record of it is also cleared by a reset (RIS, DECSTR), which
+  // the mode sequences below miss; they stand in where it can't be read.
+  const coreService = (
+    term as unknown as { _core?: { coreService?: { isCursorHidden?: unknown } } }
+  )._core?.coreService
   let cursorVisible = true
+  const cursorShown = () =>
+    typeof coreService?.isCursorHidden === "boolean" ? !coreService.isCursorHidden : cursorVisible
   // Rows count from the top of the scrollback, which drops its oldest lines
   // once full; the marker tells when the row typed on has moved.
   let marker: IMarker | null = null
@@ -109,13 +116,16 @@ export function attachPredictiveEcho(
 
   const allowed = () =>
     mode() !== "off" &&
-    cursorVisible &&
+    cursorShown() &&
     term.buffer.active.type === "normal" &&
     term.modes.mouseTrackingMode === "none" &&
     canPredict()
 
   const trackCursorVisibility = (visible: boolean) => (params: (number | number[])[]) => {
-    if (params.includes(25)) cursorVisible = visible
+    // A parameter may come with subparameters, as an array.
+    if (params.some((param) => (Array.isArray(param) ? param[0] : param) === 25)) {
+      cursorVisible = visible
+    }
     // xterm still applies the mode itself.
     return false
   }
