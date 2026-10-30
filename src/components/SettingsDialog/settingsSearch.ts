@@ -81,27 +81,102 @@ function fieldAround(label: HTMLElement, panel: HTMLElement) {
   return label.parentElement ?? label
 }
 
-/** How long a revealed setting stays marked, fading out over the second half. */
-const REVEAL_MARK_MS = 1600
+/** How long the frame around a revealed setting shows, fading over the last part. */
+const REVEAL_FRAME_MS = 1800
+
+/** Room between the frame and a section or field, which have no padding of their own. */
+const REVEAL_FRAME_GAP_PX = 8
+
+/** Room between the frame and a card, whose padding already keeps its text clear. */
+const REVEAL_FRAME_CARD_GAP_PX = 4
+
+/** Takes down the frame on show, if any, so a new reveal never stacks two. */
+let clearFrame: (() => void) | null = null
 
 /**
- * Marks an element for a moment by animating one of its colors from `color`
- * back to its own. The last keyframe is left out, so the animation ends on
- * whatever the element's styles give it.
+ * Draws a rounded frame around the target for a moment. The frame is an
+ * element of its own rather than the target's border or outline, as a line
+ * on the edge of a section or field would run through its text. It sits
+ * beside the page instead of inside the page's scroll area: some scroll
+ * areas start right at their content, and would cut off or crowd a frame
+ * that needs room around it, while the page around them has padding to
+ * spare. So the frame follows the target on every animation frame while
+ * the page scrolls to it, cut to the page so it never covers the sidebar
+ * or the header.
  */
-function markBriefly(element: HTMLElement, property: "backgroundColor" | "color", color: string) {
-  element.animate?.(
+function frameBriefly(target: HTMLElement, panel: HTMLElement, isCard: boolean) {
+  if (typeof target.animate !== "function") return
+  clearFrame?.()
+
+  const host = panel.parentElement ?? panel
+  const gap = isCard ? REVEAL_FRAME_CARD_GAP_PX : REVEAL_FRAME_GAP_PX
+  const radius = isCard ? (parseFloat(getComputedStyle(target).borderRadius) || 12) + gap : 12
+
+  const frame = document.createElement("div")
+  frame.setAttribute("aria-hidden", "true")
+  frame.dataset.settingsSearchFrame = ""
+  Object.assign(frame.style, {
+    position: "absolute",
+    border: "2px solid hsl(var(--ring))",
+    borderRadius: `${radius}px`,
+    boxSizing: "border-box",
+    pointerEvents: "none",
+    zIndex: "1",
+  })
+
+  const place = () => {
+    const box = host.getBoundingClientRect()
+    const page = panel.getBoundingClientRect()
+    const rect = target.getBoundingClientRect()
+    const left = rect.left - gap
+    const top = rect.top - gap
+    const right = rect.right + gap
+    const bottom = rect.bottom + gap
+    Object.assign(frame.style, {
+      left: `${left - box.left - host.clientLeft}px`,
+      top: `${top - box.top - host.clientTop}px`,
+      width: `${right - left}px`,
+      height: `${bottom - top}px`,
+      clipPath: `inset(${Math.max(page.top - top, 0)}px ${Math.max(right - page.right, 0)}px ${Math.max(bottom - page.bottom, 0)}px ${Math.max(page.left - left, 0)}px)`,
+    })
+  }
+
+  // The frame is placed against the host, which needs a position for that;
+  // it gets one only while the frame shows.
+  const restorePosition = host.style.position
+  if (getComputedStyle(host).position === "static") host.style.position = "relative"
+  place()
+  host.appendChild(frame)
+
+  let handle = 0
+  const follow = () => {
+    place()
+    handle = requestAnimationFrame(follow)
+  }
+  handle = requestAnimationFrame(follow)
+
+  const animation = frame.animate(
     [
-      { [property]: color, offset: 0 },
-      { [property]: color, offset: 0.5 },
+      { opacity: 1, offset: 0 },
+      { opacity: 1, offset: 0.6 },
+      { opacity: 0, offset: 1 },
     ],
-    { duration: REVEAL_MARK_MS, easing: "ease-out" }
+    { duration: REVEAL_FRAME_MS, easing: "ease-out" }
   )
+  const cleanUp = () => {
+    if (clearFrame !== cleanUp) return
+    clearFrame = null
+    cancelAnimationFrame(handle)
+    frame.remove()
+    host.style.position = restorePosition
+  }
+  clearFrame = cleanUp
+  animation.onfinish = cleanUp
 }
 
 /**
  * Finds the setting titled `title` on a settings page, scrolls it into view
- * and briefly marks it. Returns false when the page has not rendered it,
+ * and briefly frames it. Returns false when the page has not rendered it,
  * which happens while the page loads or when the setting is on a part of the
  * page that is hidden right now.
  */
@@ -126,11 +201,7 @@ export function revealSetting(panel: HTMLElement, title: string) {
     (label.tagName === "H3" ? label.closest<HTMLElement>("section") : null) ??
     fieldAround(label, panel)
 
+  frameBriefly(target, panel, card !== null)
   target.scrollIntoView?.({ block: "center", behavior: "smooth" })
-  // The mark is a tint and a colored title, not an outline: a section or a
-  // field has no padding, so a line drawn on its edge would cut through its
-  // text, and the page's scroll area would clip one drawn outside it.
-  if (card) markBriefly(card, "backgroundColor", "hsl(var(--primary) / 0.12)")
-  markBriefly(label, "color", "hsl(var(--primary))")
   return true
 }

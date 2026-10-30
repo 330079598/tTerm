@@ -280,10 +280,10 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => run(item)}
                   className={cn(
-                    "group flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm",
-                    // Muted rather than the accent, which some themes make a
-                    // saturated color that outshines the text on it.
-                    index === selectedIndex && "bg-muted"
+                    "group flex cursor-pointer items-center gap-2.5 rounded-md border px-2 py-1.5 text-sm",
+                    // A border in the focus color over a light tint: the accent is a
+                    // saturated fill in some themes, and muted gray is too dark to see.
+                    index === selectedIndex ? "border-ring bg-primary/10" : "border-transparent"
                   )}
                 >
                   <Icon size={15} className="text-muted-foreground shrink-0" />

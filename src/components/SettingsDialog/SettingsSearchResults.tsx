@@ -55,10 +55,10 @@ export const SettingsSearchResults: React.FC<SettingsSearchProps> = ({ search })
               onMouseMove={() => !isActive && search.setActiveIndex(index)}
               onClick={() => search.openResult(result)}
               className={cn(
-                "flex cursor-pointer items-start gap-3 rounded-md px-3 py-2.5",
-                // Muted rather than the accent, which some themes make a
-                // saturated color that outshines the text on it.
-                isActive && "bg-muted"
+                "flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2.5",
+                // A border in the focus color over a light tint: the accent is a
+                // saturated fill in some themes, and muted gray is too dark to see.
+                isActive ? "border-ring bg-primary/10" : "border-transparent"
               )}
             >
               <Icon size={16} className="text-muted-foreground mt-0.5 shrink-0" aria-hidden />

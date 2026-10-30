@@ -93,24 +93,83 @@ describe("searchSettings", () => {
 })
 
 describe("revealSetting", () => {
-  it("marks the card titled like the setting without taking the focus", () => {
-    document.body.innerHTML = `
-      <div id="panel">
-        <div data-slot="card" id="other"><div>Other</div><button></button></div>
-        <div data-slot="card" id="wanted"><div>Copy on select</div><button></button></div>
-      </div>`
-    const panel = document.getElementById("panel") as HTMLElement
-    const marked: string[] = []
-    // jsdom has no Web Animations, so the mark is recorded instead.
-    HTMLElement.prototype.animate = vi.fn(function (this: HTMLElement, keyframes) {
-      const [first] = keyframes as Keyframe[]
-      if (first.backgroundColor) marked.push(this.id)
-      return {} as Animation
+  // jsdom has neither layout nor Web Animations, so tests give elements a
+  // box and record the frame's animation.
+  const animations: Array<{ onfinish: (() => void) | null }> = []
+
+  function installAnimate() {
+    HTMLElement.prototype.animate = vi.fn(() => {
+      const animation = { onfinish: null }
+      animations.push(animation)
+      return animation as unknown as Animation
     })
+  }
+
+  function placeAt(id: string, left: number, top: number, width: number, height: number) {
+    const element = document.getElementById(id) as HTMLElement
+    const box = { left, top, width, height, right: left + width, bottom: top + height }
+    element.getBoundingClientRect = () => box as DOMRect
+  }
+
+  /** Renders a page inside its host, as the settings panel has them. */
+  function renderPage(content: string) {
+    document.body.innerHTML = `<div id="host"><div id="panel">${content}</div></div>`
+    placeAt("host", 0, 0, 800, 600)
+    placeAt("panel", 100, 50, 600, 500)
+    return document.getElementById("panel") as HTMLElement
+  }
+
+  const frames = () => document.querySelectorAll<HTMLElement>("[data-settings-search-frame]")
+
+  afterEach(() => {
+    animations.length = 0
+  })
+
+  it("frames the card titled like the setting without taking the focus", () => {
+    const panel = renderPage(`
+      <div data-slot="card" id="other"><div>Other</div><button></button></div>
+      <div data-slot="card" id="wanted"><div>Copy on select</div><button></button></div>`)
+    installAnimate()
+    placeAt("wanted", 130, 200, 400, 60)
 
     expect(revealSetting(panel, "Copy on select")).toBe(true)
-    expect(marked).toEqual(["wanted"])
+    const [frame] = frames()
+    expect(frame.parentElement?.id).toBe("host")
+    expect(frame.style).toMatchObject({
+      left: "126px",
+      top: "196px",
+      width: "408px",
+      height: "68px",
+    })
     expect(document.activeElement).toBe(document.body)
+  })
+
+  it("leaves room around a section and is cut to the page", () => {
+    const panel = renderPage(`<section id="section"><h3>Startup</h3><button></button></section>`)
+    installAnimate()
+    placeAt("section", 124, 52, 500, 80)
+
+    revealSetting(panel, "Startup")
+    const [frame] = frames()
+    expect(frame.style).toMatchObject({ left: "116px", top: "44px", width: "516px" })
+    // The frame starts above the page's top edge, so that part is cut off.
+    expect(frame.style.clipPath).toBe("inset(6px 0px 0px 0px)")
+  })
+
+  it("shows one frame at a time and takes it down when it fades", () => {
+    const panel = renderPage(`<div data-slot="card" id="card"><div>Copy on select</div></div>`)
+    installAnimate()
+    placeAt("card", 130, 100, 10, 10)
+
+    revealSetting(panel, "Copy on select")
+    revealSetting(panel, "Copy on select")
+    const host = document.getElementById("host") as HTMLElement
+    expect(frames()).toHaveLength(1)
+    expect(host.style.position).toBe("relative")
+
+    animations[animations.length - 1].onfinish?.()
+    expect(frames()).toHaveLength(0)
+    expect(host.style.position).toBe("")
   })
 
   it("reports a setting the page has not rendered", () => {
