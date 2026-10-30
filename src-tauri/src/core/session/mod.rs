@@ -1,3 +1,4 @@
+pub mod saved_hops;
 pub(crate) mod types;
 
 use types::{
@@ -260,7 +261,12 @@ pub fn normalize_jump_hosts(jump_hosts: Vec<JumpHostOptions>) -> Result<Vec<Jump
         ));
     }
 
-    jump_hosts.into_iter().map(normalize_jump_host).collect()
+    let mut plans = jump_hosts
+        .into_iter()
+        .map(normalize_jump_host)
+        .collect::<Result<Vec<_>, _>>()?;
+    saved_hops::fill_from_saved_connections(&mut plans)?;
+    Ok(plans)
 }
 
 /// Validate and convert raw jump host options into a resolved plan.
@@ -320,6 +326,10 @@ fn normalize_jump_host(opts: JumpHostOptions) -> Result<JumpHostPlan, String> {
         use_agent,
         keyboard_interactive,
         auto_auth,
+        profile_id: opts
+            .profile_id
+            .map(|id| id.trim().to_string())
+            .filter(|id| !id.is_empty()),
     })
 }
 
@@ -551,6 +561,10 @@ fn resolve_jump_host_passwords(
             || jump.keyboard_interactive
             || jump.auto_auth
         {
+            continue;
+        }
+        if jump.profile_id.is_some() {
+            saved_hops::fill_saved_password(app, secret_state, jump)?;
             continue;
         }
 

@@ -102,6 +102,7 @@ pub(super) fn test_session_plan(
                 use_agent: j.auth_method == "agent",
                 auto_auth: j.auth_method == "auto",
                 keyboard_interactive: j.auth_method == "interactive",
+                profile_id: j.profile_id,
             })
             .collect::<Vec<_>>()
     } else {

@@ -26,6 +26,10 @@ pub struct SavedJumpHost {
     pub certificate_path: Option<String>,
     #[serde(default, skip_serializing)]
     pub password: Option<String>,
+    /// The saved connection this hop logs in as; the fields above are a copy
+    /// of its address, kept for display and for versions that don't know it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

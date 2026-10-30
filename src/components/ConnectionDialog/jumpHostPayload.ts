@@ -25,6 +25,8 @@ export const getJumpHostValidationErrors = (form: ConnectionForm): Record<string
 
   for (const [index, jump] of form.jumpHosts.entries()) {
     const label = `Jump host #${index + 1}`
+    // A saved connection was checked when it was saved.
+    if (jump.profileId) continue
     if (!jump.host.trim())
       errors[getJumpHostErrorKey(jump.id, "host")] = `${label} host is required.`
     if (!jump.username.trim()) {
@@ -83,10 +85,12 @@ export function buildJumpHostsPayload(
         port: jump.port,
         username: jump.username.trim(),
         auth_method: authMethod,
-        password: authMethod === "password" ? jump.password || undefined : undefined,
+        password:
+          authMethod === "password" && !jump.profileId ? jump.password || undefined : undefined,
         private_key_path: privateKeyPath,
         private_key_passphrase: privateKeyPassphrase,
         certificate_path: certificatePayload(authMethod, jump.certificatePath),
+        profile_id: jump.profileId || undefined,
       }
     })
   }
@@ -99,7 +103,9 @@ export function buildJumpHostsPayload(
       port: jump.port,
       username: jump.username.trim(),
       password:
-        authMethod === "password" && (!savedPasswordAvailable || jump.password.length > 0)
+        authMethod === "password" &&
+        !jump.profileId &&
+        (!savedPasswordAvailable || jump.password.length > 0)
           ? jump.password || undefined
           : undefined,
       authMethod,
@@ -107,6 +113,7 @@ export function buildJumpHostsPayload(
       privateKeyPassphrase:
         authMethod === "key" ? jump.privateKeyPassphrase || undefined : undefined,
       certificatePath: certificatePayload(authMethod, jump.certificatePath),
+      profileId: jump.profileId || undefined,
     }
   })
 }

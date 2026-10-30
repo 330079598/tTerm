@@ -244,6 +244,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
                 form={form}
                 setForm={setForm}
                 savedJumpPasswordKeys={savedJumpPasswordKeys}
+                profiles={allProfiles}
+                currentProfileId={sshProfileId}
                 errors={jumpHostErrors}
                 onClearError={(jumpId, field) =>
                   setJumpHostErrors((current) => {

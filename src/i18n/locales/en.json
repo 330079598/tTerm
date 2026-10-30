@@ -1640,7 +1640,14 @@
     "remove": "Remove jump host",
     "host": "Jump Host",
     "via": "via {{host}}",
-    "viaCount": "via {{count}} jumps"
+    "viaCount": "via {{count}} jumps",
+    "source": "Connect as",
+    "sourceManual": "Enter manually",
+    "sourceSaved": "Saved connections",
+    "savedConnectionHint": "Uses this saved connection's address and login, including changes made to it later.",
+    "savedConnectionOwnJumps": "Its own jump hosts aren't used here; add them as hops before this one.",
+    "savedConnectionDeleted": "{{address}} (deleted)",
+    "savedConnectionMissing": "The saved connection this hop used was deleted. Choose another one or enter the jump host manually."
   },
   "sessionHeader": {
     "shellIntegrationFallback": "{{connection}}: shell integration did not start, using a plain shell",

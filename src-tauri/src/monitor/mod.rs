@@ -140,6 +140,7 @@ mod tests {
             use_agent: false,
             keyboard_interactive: false,
             auto_auth: false,
+            profile_id: None,
         });
 
         let mut second = ssh_plan("target", "user", "profile");
@@ -154,6 +155,7 @@ mod tests {
             use_agent: false,
             keyboard_interactive: false,
             auto_auth: false,
+            profile_id: None,
         });
 
         assert_ne!(

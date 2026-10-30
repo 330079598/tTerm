@@ -81,6 +81,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
               authMethod: normalizeSshAuthMethod(jump.auth_method),
               privateKeyPath: jump.private_key_path,
               certificatePath: jump.certificate_path,
+              profileId: jump.profile_id,
             }))
           : undefined,
     },

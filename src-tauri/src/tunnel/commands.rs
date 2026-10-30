@@ -8,9 +8,10 @@ use super::storage::{
 };
 use super::types::{TunnelRule, TunnelState, TunnelStatus, TunnelTraffic};
 use crate::core::blocking::run_blocking;
+use crate::core::session::saved_hops::load_saved_hop_password;
 use crate::core::session::{
-    load_saved_jump_host_password, load_saved_ssh_password, normalize_connection,
-    resolve_ssh_password, types::JumpHostOptions, types::PtyConnectionOptions, JumpHostSecretOwner,
+    load_saved_ssh_password, normalize_connection, resolve_ssh_password, types::JumpHostOptions,
+    types::PtyConnectionOptions,
 };
 use crate::core::state::HostPromptMap;
 use crate::profiles::types::SavedProfile;
@@ -195,6 +196,7 @@ fn connection_options_for_profile(profile: &SavedProfile) -> Result<PtyConnectio
                 certificate_path: (jump.auth_method == "key")
                     .then(|| jump.certificate_path.clone())
                     .flatten(),
+                profile_id: jump.profile_id.clone(),
             })
             .collect()
     } else {
@@ -329,20 +331,7 @@ async fn start_rule(
                 Some(plan.profile_name.as_str()),
             )
         },
-        |plan, jump| {
-            load_saved_jump_host_password(
-                app,
-                secret_state,
-                JumpHostSecretOwner {
-                    profile_id: plan.profile_id.as_deref(),
-                    profile_name: Some(plan.profile_name.as_str()),
-                    host: Some(jump.host.as_str()),
-                    port: Some(jump.port),
-                    username: Some(jump.username.as_str()),
-                },
-                plan.jump_hosts.len() == 1,
-            )
-        },
+        |plan, jump| load_saved_hop_password(app, secret_state, plan, jump),
     )?;
     if !requests.is_empty() {
         if auto {

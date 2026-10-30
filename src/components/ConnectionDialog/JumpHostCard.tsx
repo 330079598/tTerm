@@ -3,14 +3,18 @@ import { ArrowDown, ArrowUp, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { JumpHostManualFields } from "@/components/ConnectionDialog/JumpHostManualFields"
+import { JumpHostSourceField } from "@/components/ConnectionDialog/JumpHostSourceField"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import type { JumpHostCandidateGroup } from "@/components/ConnectionDialog/jumpHostSource"
 import type { JumpHostForm } from "@/components/ConnectionDialog/types"
 
 interface JumpHostCardProps {
   jump: JumpHostForm
   index: number
   count: number
+  /** The saved connections a hop can log in as. */
+  candidates: JumpHostCandidateGroup[]
   onChange: (patch: Partial<JumpHostForm>) => void
   onMove: (direction: -1 | 1) => void
   onRemove: () => void
@@ -24,6 +28,7 @@ export const JumpHostCard: React.FC<JumpHostCardProps> = ({
   jump,
   index,
   count,
+  candidates,
   onChange,
   onMove,
   onRemove,
@@ -80,13 +85,17 @@ export const JumpHostCard: React.FC<JumpHostCardProps> = ({
         </TooltipProvider>
       </div>
 
-      <JumpHostManualFields
-        jump={jump}
-        onChange={onChange}
-        savedPasswordMasked={savedPasswordMasked}
-        errors={errors}
-        onClearError={onClearError}
-      />
+      <JumpHostSourceField jump={jump} candidates={candidates} onChange={onChange} />
+
+      {!jump.profileId && (
+        <JumpHostManualFields
+          jump={jump}
+          onChange={onChange}
+          savedPasswordMasked={savedPasswordMasked}
+          errors={errors}
+          onClearError={onClearError}
+        />
+      )}
     </div>
   )
 }

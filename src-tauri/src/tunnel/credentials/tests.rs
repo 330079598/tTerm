@@ -52,6 +52,7 @@ fn jump(key: Option<&str>) -> JumpHostOptions {
         private_key_path: key.map(str::to_string),
         private_key_passphrase: None,
         certificate_path: None,
+        profile_id: None,
     }
 }
 

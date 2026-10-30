@@ -36,6 +36,10 @@ pub struct JumpHostOptions {
     /// OpenSSH certificate for the private key; `<key>-cert.pub` when unset.
     #[serde(default, alias = "certificatePath")]
     pub certificate_path: Option<String>,
+    /// The saved connection this hop logs in as. Its address and login then
+    /// come from that connection, and the fields above only describe it.
+    #[serde(default, alias = "profileId")]
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -56,6 +60,8 @@ pub(crate) struct RawJumpHostOptions {
     private_key_passphrase: Option<String>,
     #[serde(default, alias = "certificatePath")]
     certificate_path: Option<String>,
+    #[serde(default, alias = "profileId")]
+    profile_id: Option<String>,
 }
 
 impl From<RawJumpHostOptions> for JumpHostOptions {
@@ -69,6 +75,7 @@ impl From<RawJumpHostOptions> for JumpHostOptions {
             private_key_path: raw.private_key_path,
             private_key_passphrase: raw.private_key_passphrase,
             certificate_path: raw.certificate_path,
+            profile_id: raw.profile_id,
         }
     }
 }
@@ -90,6 +97,9 @@ pub struct JumpHostPlan {
     pub keyboard_interactive: bool,
     /// No method configured: try the agent, key files, then prompts.
     pub auto_auth: bool,
+    /// The saved connection the hop was filled in from; its saved password
+    /// is the hop's.
+    pub profile_id: Option<String>,
 }
 
 impl JumpHostPlan {

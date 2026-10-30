@@ -1,14 +1,16 @@
-import React from "react"
+import React, { useMemo } from "react"
 import { Plus, Route, Server, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { JumpHostCard } from "@/components/ConnectionDialog/JumpHostCard"
 import { getJumpHostPasswordLookupKey } from "@/components/ConnectionDialog/jumpHostPayload"
+import { jumpHostCandidateGroups } from "@/components/ConnectionDialog/jumpHostSource"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
+import type { SavedProfile } from "@/types/tab"
 
 import {
   ConnectionForm,
@@ -24,6 +26,10 @@ interface JumpHostFieldsProps {
   savedJumpPasswordKeys: Set<string>
   errors: Record<string, string>
   onClearError: (jumpId: string, field: string) => void
+  /** Every saved connection, which hops can log in as. */
+  profiles: SavedProfile[]
+  /** The connection being edited, which can't be a hop on its own way. */
+  currentProfileId: string
 }
 
 function updateJumpHost(
@@ -43,9 +49,15 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
   savedJumpPasswordKeys,
   errors,
   onClearError,
+  profiles,
+  currentProfileId,
 }) => {
   const { t } = useTranslation()
   const { confirm, ConfirmDialog } = useConfirmDialog()
+  const candidates = useMemo(
+    () => jumpHostCandidateGroups(profiles, currentProfileId),
+    [profiles, currentProfileId]
+  )
   const target = `${form.username || "user"}@${form.host || "target"}:${form.port || 22}`
 
   const addJumpHost = () => {
@@ -170,6 +182,7 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
               jump={jump}
               index={index}
               count={form.jumpHosts.length}
+              candidates={candidates}
               onChange={(patch) => updateJumpHost(setForm, jump.id, patch)}
               onMove={(direction) => moveJumpHost(index, direction)}
               onRemove={() => removeJumpHost(jump.id)}

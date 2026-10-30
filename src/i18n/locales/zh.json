@@ -1622,7 +1622,14 @@
     "remove": "移除跳板机",
     "host": "跳板机地址",
     "via": "经由 {{host}}",
-    "viaCount": "经由 {{count}} 个跳板机"
+    "viaCount": "经由 {{count}} 个跳板机",
+    "source": "连接方式",
+    "sourceManual": "手动填写",
+    "sourceSaved": "已保存的连接",
+    "savedConnectionHint": "使用这个已保存连接的地址和登录方式，之后修改该连接也会同步到这里。",
+    "savedConnectionOwnJumps": "它自己配置的跳板机在这里不会生效，请把它们作为前面的跳板机加进来。",
+    "savedConnectionDeleted": "{{address}}（已删除）",
+    "savedConnectionMissing": "这一跳使用的已保存连接已被删除，请另选一个或手动填写。"
   },
   "sessionHeader": {
     "shellIntegrationFallback": "{{connection}}：Shell 集成未生效，已使用普通 shell",

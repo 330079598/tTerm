@@ -84,6 +84,11 @@ export interface SavedJumpHost {
   /** OpenSSH certificate for the private key; missing uses `<key>-cert.pub` beside it. */
   certificate_path?: string
   password?: string
+  /**
+   * The saved connection this hop logs in as. The fields above are then a
+   * copy of its address, kept for display; the backend reads the rest from it.
+   */
+  profile_id?: string
 }
 
 export type TransferStatus = "pending" | "transferring" | "completed" | "failed" | "cancelled"
@@ -153,6 +158,8 @@ export interface JumpHostConnection {
   privateKeyPath?: string
   privateKeyPassphrase?: string
   certificatePath?: string
+  /** The saved connection this hop logs in as; see `SavedJumpHost.profile_id`. */
+  profileId?: string
 }
 
 export interface Tab {

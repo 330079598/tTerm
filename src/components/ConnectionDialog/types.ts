@@ -65,6 +65,8 @@ export interface JumpHostForm {
   privateKeyPassphrase: string
   /** OpenSSH certificate for the key; empty uses `<key>-cert.pub` beside it. */
   certificatePath: string
+  /** The saved connection this hop logs in as; empty when it is typed in. */
+  profileId: string
 }
 
 export interface ConnectionForm {
@@ -136,6 +138,7 @@ export const createDefaultJumpHost = (): JumpHostForm => ({
   privateKeyPath: "",
   privateKeyPassphrase: "",
   certificatePath: "",
+  profileId: "",
 })
 
 export interface ConnectionDialogContentProps extends Omit<ConnectionDialogProps, "isOpen"> {

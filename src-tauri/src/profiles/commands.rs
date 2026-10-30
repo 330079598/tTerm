@@ -324,6 +324,7 @@ pub async fn test_connection(
     let port = profile.port.unwrap_or(22);
     let test_tab_id = format!("test-{}", profile.id);
     let mut plan = test_session_plan(profile, &host, &username, port);
+    crate::core::session::saved_hops::fill_from_saved_connections(&mut plan.jump_hosts)?;
 
     // The connection dialog listens on the test tab id while the test runs.
     let auth_prompter = crate::ssh::auth::AuthPrompter::tab(&app, &test_tab_id);

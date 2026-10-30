@@ -128,6 +128,7 @@ fn parse_proxy_jump(
                 private_key_passphrase: None,
                 certificate_path: certificate_path.map(str::to_string),
                 password: None,
+                profile_id: None,
             })
         })
         .collect()
