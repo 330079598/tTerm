@@ -95,8 +95,8 @@ export type AgentLogoId = (typeof AGENT_LOGO_IDS)[number]
 export type AgentTabIcon = `agent:${AgentLogoId}`
 
 // Claude Code's logo keeps its own color; the others are black and white, so
-// they take the tab's text color to read on light and dark tabs alike.
-const AGENT_LOGO_COLORS: Record<AgentLogoId, string> = {
+// they take the text color to read on light and dark tabs alike.
+export const AGENT_LOGO_COLORS: Record<AgentLogoId, string> = {
   claude: "#d97757",
   codex: "",
   opencode: "",

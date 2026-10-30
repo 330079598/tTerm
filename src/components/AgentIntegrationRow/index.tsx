@@ -1,16 +1,25 @@
 import React, { useState } from "react"
 import type { TFunction } from "i18next"
-import { Plug } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { AgentLogo } from "@/components/AgentLogo"
 import { SettingsRow } from "@/components/SettingsDialog/SettingsLayout"
 import { Button } from "@/components/ui/button"
+import { AGENT_LOGO_COLORS, type AgentLogoId } from "@/lib/tabIcons"
 import type { AgentIntegrationStatus } from "@/types/agentIntegration"
 
 const AGENT_NAMES: Record<AgentIntegrationStatus["agent"], string> = {
   claudeCode: "Claude Code",
   codex: "Codex",
   openCode: "OpenCode",
+  pi: "pi",
+}
+
+/** Each agent's logo, by the name its reports give. */
+const AGENT_LOGOS: Record<AgentIntegrationStatus["agent"], AgentLogoId> = {
+  claudeCode: "claude",
+  codex: "codex",
+  openCode: "opencode",
   pi: "pi",
 }
 
@@ -76,6 +85,7 @@ export const AgentIntegrationRow: React.FC<AgentIntegrationRowProps> = ({
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const note = AGENT_NOTES[status.agent]
+  const logo = AGENT_LOGOS[status.agent]
   const sourceKey =
     place === "remote" && status.configSource === "environment"
       ? "remoteAgents.environmentSource"
@@ -83,7 +93,7 @@ export const AgentIntegrationRow: React.FC<AgentIntegrationRowProps> = ({
 
   return (
     <SettingsRow
-      icon={<Plug size={16} />}
+      icon={<AgentLogo agent={logo} size={16} color={AGENT_LOGO_COLORS[logo]} />}
       title={
         <span className="flex items-center gap-2">
           {AGENT_NAMES[status.agent]}
