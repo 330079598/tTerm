@@ -11,12 +11,14 @@ import {
   upsertExternalEdit,
   type ExternalEdit,
   type ExternalUploadOutcome,
+  type OpenIn,
 } from "@/components/SftpDrawer/externalEdit"
 import { formatBytes } from "@/components/SftpDrawer/sftpDrawerUtils"
 import type { SftpDirectoryEntry, SftpDrawerProps } from "@/components/SftpDrawer/types"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { ToastAction } from "@/components/ui/toast"
 import { useConfig } from "@/contexts/ConfigContext"
+import { useTransferManager } from "@/contexts/TransferContext"
 import { toast } from "@/hooks/use-toast"
 import { pickEditorProgram } from "@/lib/externalEditor"
 import { toErrorMessage } from "@/lib/utils"
@@ -38,6 +40,7 @@ export function useSftpExternalEdits({ tabId, connection }: UseSftpExternalEdits
   const { t } = useTranslation()
   const { config, saveConfig } = useConfig()
   const { confirm, ConfirmDialog } = useConfirmDialog()
+  const { addTransfer, updateTransfer } = useTransferManager()
   const [edits, setEdits] = useState<ExternalEdit[]>([])
   // Read from the backend's events, which outlive any one render.
   const latest = useRef({ connection, uploadMode: config.sftp_external_upload })
@@ -45,8 +48,8 @@ export function useSftpExternalEdits({ tabId, connection }: UseSftpExternalEdits
   // Files whose upload, or the question it raised, is under way: the state
   // changes it sends back are not new saves to act on.
   const uploading = useRef(new Set<string>())
-  // The program each file was opened in, to open it there again.
-  const programs = useRef(new Map<string, string | null>())
+  // Where each file was opened, to open it there again.
+  const openedIn = useRef(new Map<string, OpenIn>())
 
   useEffect(() => {
     latest.current = { connection, uploadMode: config.sftp_external_upload }
@@ -181,51 +184,67 @@ export function useSftpExternalEdits({ tabId, connection }: UseSftpExternalEdits
     }
   }, [tabId])
 
+  // A large file downloads through the transfer list, where its progress
+  // shows and it can be cancelled.
   const open = useCallback(
-    async (path: string, fileName: string, program: string | null, size?: number) => {
-      const progress =
+    async (path: string, fileName: string, openIn: OpenIn, size?: number) => {
+      const transferId =
         (size ?? 0) > SLOW_EXTERNAL_FILE_BYTES
-          ? toast({
-              title: t("sftp.externalEdit.downloading", { name: fileName }),
-              duration: Number.POSITIVE_INFINITY,
+          ? addTransfer({
+              tabId,
+              direction: "download",
+              fileName,
+              fileSize: size ?? 0,
+              localPath: "",
+              remotePath: path,
+              speed: 0,
             })
           : null
+      if (transferId) updateTransfer(transferId, { status: "transferring" })
       try {
-        const edit = await invoke<ExternalEdit>("sftp_external_edit_open", {
+        const edit = await invoke<ExternalEdit | null>("sftp_external_edit_open", {
           tabId,
           connection: latest.current.connection,
           path,
-          program,
+          openIn,
+          transferId,
         })
-        programs.current.set(edit.id, program)
+        if (transferId) {
+          updateTransfer(transferId, {
+            status: "completed",
+            transferred: size ?? 0,
+            localPath: edit?.localPath ?? "",
+            endTime: Date.now(),
+          })
+        }
+        if (!edit) return
+        openedIn.current.set(edit.id, openIn)
         setEdits((list) => upsertExternalEdit(list, edit))
       } catch (error) {
+        const message = toErrorMessage(error)
+        const cancelled = message.toLowerCase().includes("cancelled")
+        if (transferId) {
+          updateTransfer(transferId, {
+            status: cancelled ? "cancelled" : "failed",
+            error: cancelled ? undefined : message,
+            endTime: Date.now(),
+          })
+        }
+        if (cancelled) return
         toast({
           variant: "destructive",
           title: t("sftp.externalEdit.openFailed", { name: fileName }),
-          description: toErrorMessage(error),
+          description: message,
         })
-      } finally {
-        progress?.dismiss()
       }
     },
-    [t, tabId]
+    [addTransfer, t, tabId, updateTransfer]
   )
 
-  /** Opens the entry in the external editor, or in its default program. */
-  const openExternally = useCallback(
-    async (entry: SftpDirectoryEntry, inEditor: boolean) => {
+  /** Opens the entry as `openIn` says, asking first for a very large file. */
+  const openEntry = useCallback(
+    async (entry: SftpDirectoryEntry, openIn: OpenIn) => {
       if (entry.isDir) return
-      let program: string | null = null
-      if (inEditor) {
-        program =
-          config.sftp_external_editor ||
-          (await pickEditorProgram(t("settings.sftpExternalEditorChoose")))
-        if (!program) return
-        if (!config.sftp_external_editor) {
-          await saveConfig({ sftp_external_editor: program }).catch(console.error)
-        }
-      }
       if ((entry.size ?? 0) > LARGE_EXTERNAL_FILE_BYTES) {
         const confirmed = await confirm({
           title: t("sftp.externalEdit.largeTitle", { name: entry.name }),
@@ -236,14 +255,33 @@ export function useSftpExternalEdits({ tabId, connection }: UseSftpExternalEdits
         })
         if (!confirmed) return
       }
-      await open(entry.path, entry.name, program, entry.size)
+      await open(entry.path, entry.name, openIn, entry.size)
     },
-    [config.sftp_external_editor, confirm, open, saveConfig, t]
+    [confirm, open, t]
+  )
+
+  /** Opens the entry in the external editor, or in its default program. */
+  const openExternally = useCallback(
+    async (entry: SftpDirectoryEntry, inEditor: boolean) => {
+      if (!inEditor) {
+        await openEntry(entry, { kind: "default" })
+        return
+      }
+      const program =
+        config.sftp_external_editor ||
+        (await pickEditorProgram(t("settings.sftpExternalEditorChoose")))
+      if (!program) return
+      if (!config.sftp_external_editor) {
+        await saveConfig({ sftp_external_editor: program }).catch(console.error)
+      }
+      await openEntry(entry, { kind: "program", program })
+    },
+    [config.sftp_external_editor, openEntry, saveConfig, t]
   )
 
   const reopen = useCallback(
     (edit: ExternalEdit) =>
-      open(edit.remotePath, edit.fileName, programs.current.get(edit.id) ?? null),
+      open(edit.remotePath, edit.fileName, openedIn.current.get(edit.id) ?? { kind: "default" }),
     [open]
   )
 
@@ -260,7 +298,7 @@ export function useSftpExternalEdits({ tabId, connection }: UseSftpExternalEdits
         if (!confirmed) return
       }
       dismissPrompt(edit.id)
-      programs.current.delete(edit.id)
+      openedIn.current.delete(edit.id)
       try {
         await invoke("sftp_external_edit_stop", { id: edit.id })
         setEdits((list) => list.filter((existing) => existing.id !== edit.id))
@@ -279,5 +317,5 @@ export function useSftpExternalEdits({ tabId, connection }: UseSftpExternalEdits
     }
   }, [])
 
-  return { edits, openExternally, upload, reopen, stop, reveal, ConfirmDialog }
+  return { edits, openEntry, openExternally, upload, reopen, stop, reveal, ConfirmDialog }
 }

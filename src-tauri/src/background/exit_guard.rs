@@ -1,4 +1,5 @@
-//! Asking before a quit that would lose something, such as running tunnels.
+//! Asking before a quit that would lose something: running tunnels, or
+//! changes to files opened from SFTP that were never uploaded.
 //! The backend holds the exit and tells the UI what is at stake; the answer
 //! comes back as `confirm_quit_app` or `cancel_quit_prompt`.
 
@@ -19,11 +20,14 @@ const QUIT_REQUESTED_EVENT: &str = "quit-requested";
 pub struct QuitBlockers {
     /// Port-forwarding tunnels running.
     pub tunnels: usize,
+    /// Files opened from SFTP with changes not uploaded; their copies stay
+    /// on disk, but nothing uploads them any more.
+    pub unuploaded_files: Vec<String>,
 }
 
 impl QuitBlockers {
     pub fn is_empty(&self) -> bool {
-        self.tunnels == 0
+        self.tunnels == 0 && self.unuploaded_files.is_empty()
     }
 }
 
@@ -50,6 +54,7 @@ impl ExitGuardState {
 pub fn blockers(app: &AppHandle) -> QuitBlockers {
     QuitBlockers {
         tunnels: app.state::<TunnelManager>().active_count(),
+        unuploaded_files: crate::sftp::internal::api::external::unuploaded_files(app),
     }
 }
 
@@ -87,7 +92,10 @@ mod tests {
             "nothing at stake"
         );
 
-        let tunnels = QuitBlockers { tunnels: 2 };
+        let tunnels = QuitBlockers {
+            tunnels: 2,
+            ..QuitBlockers::default()
+        };
         assert!(state.should_hold(&tunnels), "first attempt asks the user");
         assert!(!state.should_hold(&tunnels), "insisting lets the app quit");
 
@@ -96,5 +104,15 @@ mod tests {
 
         state.confirmed.store(true, Ordering::SeqCst);
         assert!(!state.should_hold(&tunnels), "confirmed");
+    }
+
+    #[test]
+    fn files_not_uploaded_are_at_stake() {
+        let files = QuitBlockers {
+            unuploaded_files: vec!["nginx.conf".to_string()],
+            ..QuitBlockers::default()
+        };
+        assert!(!files.is_empty());
+        assert!(ExitGuardState::default().should_hold(&files));
     }
 }

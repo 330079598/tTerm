@@ -1034,9 +1034,6 @@
       "autoStartDescription": "Only starts on its own if no password needs to be typed; otherwise it waits for you.",
       "equivalent": "Equivalent OpenSSH command"
     },
-    "quitConfirmTitle": "Quit while tunnels are running?",
-    "quitConfirmDescription": "{{count}} port-forwarding tunnel(s) are running and will stop when tTerm quits.",
-    "quitConfirm": "Quit",
     "runningCountLabel": "{{title}} ({{count}} running)",
     "profileInUse": "{{count}} port-forwarding tunnel(s) use this host and will be stopped: {{names}}. Their rules are kept; choose another host for them afterwards.",
     "profileEditedTitle": "Running tunnels not updated",
@@ -2082,7 +2079,8 @@
       "showInFolder": "Show in Folder",
       "openInEditor": "Open in External Editor…",
       "openInProgram": "Open in {{program}}",
-      "openWithDefault": "Open with Default App"
+      "openWithDefault": "Open with Default App",
+      "openWith": "Open With…"
     },
     "externalEdit": {
       "menu_one": "{{count}} file open in other programs",
@@ -2105,7 +2103,6 @@
       "remoteChangedDescription": "{{path}} was changed or removed on the server after you opened it. Uploading replaces it with your copy, and the server's changes are lost.",
       "overwrite": "Replace It",
       "openFailed": "Failed to open {{name}}",
-      "downloading": "Downloading {{name}}…",
       "largeTitle": "Open {{name}}?",
       "largeDescription": "The file is {{size}}. It is downloaded in full before it opens.",
       "openAnyway": "Download and Open",
@@ -2114,6 +2111,14 @@
       "discard": "Discard Changes",
       "keptTitle_one": "{{count}} file's changes were not uploaded",
       "keptTitle_other": "{{count}} files' changes were not uploaded"
+    },
+    "openWith": {
+      "title": "Open {{name}} with",
+      "description": "Pick an application. Saves made in it are uploaded as with the external editor.",
+      "default": "Default",
+      "useAsEditor": "Also use it as the external editor",
+      "other": "Other Program…",
+      "chooseProgram": "Choose a program to open the file in"
     },
     "selection": {
       "clear": "Clear Selection",
@@ -3185,5 +3190,15 @@
     "folderMenuFailed": "Couldn't change the folder menu",
     "loadFailed": "Couldn't read whether this is on: {{error}}",
     "retry": "Try again"
+  },
+  "quitGuard": {
+    "title": "Quit tTerm?",
+    "tunnels_one": "{{count}} port-forwarding tunnel is running and will stop.",
+    "tunnels_other": "{{count}} port-forwarding tunnels are running and will stop.",
+    "files_one": "{{count}} file opened from SFTP has changes that were not uploaded: {{names}}. The local copy stays on this computer, but it will no longer be uploaded.",
+    "files_other": "{{count}} files opened from SFTP have changes that were not uploaded: {{names}}. The local copies stay on this computer, but they will no longer be uploaded.",
+    "namesAndMore_one": "{{names}} and {{count}} more",
+    "namesAndMore_other": "{{names}} and {{count}} more",
+    "quit": "Quit"
   }
 }

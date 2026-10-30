@@ -117,7 +117,9 @@ fn transfer_result_message(
     transfer_outcome(result).map(|_| ())
 }
 
-async fn download_file_with_progress(
+/// Downloads one file through the transfer engine, reporting progress to
+/// the tab and cancellable under `transfer_id`.
+pub(crate) async fn download_file_with_progress(
     app: &AppHandle,
     tab_id: &str,
     channels: RemoteChannels,

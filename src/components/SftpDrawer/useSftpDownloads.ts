@@ -207,7 +207,8 @@ export function useSftpDownloads({
             return
           }
 
-          const startTime = transferStartTimesRef.current.get(transferId) || now
+          const startTime =
+            transferStartTimesRef.current.get(transferId) || currentTransfer?.startTime || now
           const duration = now - startTime
           const measured = Math.max(0, transferred - (resumedFrom ?? 0))
           const speed = duration > 0 ? (measured / duration) * 1000 : 0

@@ -226,3 +226,29 @@ fn session_folders_are_private() {
     local::remove_session_dir(&dir);
     assert!(!dir.exists());
 }
+
+#[cfg(target_os = "macos")]
+#[test]
+fn macos_lists_the_applications_for_text_with_icons() {
+    let apps = super::apps::apps_for("notes.txt");
+    assert!(
+        apps.iter().any(|app| app.path.ends_with("TextEdit.app")),
+        "TextEdit opens text"
+    );
+    assert!(apps.iter().filter(|app| app.is_default).count() <= 1);
+    let text_edit = apps
+        .iter()
+        .find(|app| app.path.ends_with("TextEdit.app"))
+        .unwrap();
+    let icons = super::apps::icons_for(vec![text_edit.path.clone()]);
+    assert!(icons[&text_edit.path]
+        .as_deref()
+        .is_some_and(|icon| icon.starts_with("data:image/png;base64,")));
+    // Drawn once, the icon comes with the list from then on.
+    let again = super::apps::apps_for("notes.txt");
+    assert!(again
+        .iter()
+        .any(|app| app.path == text_edit.path && app.icon.is_some()));
+    // A name without an extension is taken for text.
+    assert!(!super::apps::apps_for("Makefile").is_empty());
+}

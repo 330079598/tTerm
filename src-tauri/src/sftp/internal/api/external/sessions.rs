@@ -66,6 +66,23 @@ impl ExternalEditState {
         ids.iter().filter_map(|id| sessions.remove(id)).collect()
     }
 
+    /// The names of the files with changes not on the server, by path.
+    pub(super) fn unuploaded_names(&self) -> Vec<String> {
+        let mut sessions: Vec<_> = self
+            .lock()
+            .values()
+            .filter(|session| session.has_changes())
+            .map(|session| {
+                (
+                    session.edit.remote_path.clone(),
+                    session.edit.file_name.clone(),
+                )
+            })
+            .collect();
+        sessions.sort();
+        sessions.into_iter().map(|(_, name)| name).collect()
+    }
+
     pub(super) fn remove_all(&self) -> Vec<EditSession> {
         self.lock().drain().map(|(_, session)| session).collect()
     }

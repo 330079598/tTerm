@@ -20,6 +20,8 @@ interface SftpEntryContextMenuProps {
   handleEdit: () => void
   /** Opens the file in its default program, or in the external editor. */
   handleOpenExternally: (inEditor: boolean) => void
+  /** Asks which program to open the file in. */
+  handleOpenWith: () => void
   /** The external editor's program; empty until one is picked. */
   externalEditor: string
   handleExtract: () => void
@@ -42,6 +44,7 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
   handleDownload,
   handleEdit,
   handleOpenExternally,
+  handleOpenWith,
   externalEditor,
   handleExtract,
   handlePermissions,
@@ -111,13 +114,19 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
             ? t("sftp.actions.openInProgram", { program: editorDisplayName(externalEditor) })
             : t("sftp.actions.openInEditor"),
           action: "open-editor",
-          icon: "app-window",
+          icon: "file-pen",
           disabled: !canOpen,
         },
         {
           label: t("sftp.actions.openWithDefault"),
           action: "open-default",
           icon: "external-link",
+          disabled: !canOpen,
+        },
+        {
+          label: t("sftp.actions.openWith"),
+          action: "open-with",
+          icon: "app-window",
           disabled: !canOpen,
         },
         {
@@ -149,6 +158,7 @@ export const SftpEntryContextMenu: React.FC<SftpEntryContextMenuProps> = ({
         else if (action === "edit") handleEdit()
         else if (action === "open-editor") handleOpenExternally(true)
         else if (action === "open-default") handleOpenExternally(false)
+        else if (action === "open-with") handleOpenWith()
         else if (action === "rename") handleRename()
         else if (action === "permissions") handlePermissions()
         else if (action === "delete") handleDelete()

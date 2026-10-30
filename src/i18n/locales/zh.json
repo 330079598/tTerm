@@ -1018,9 +1018,6 @@
       "autoStartDescription": "仅在无需输入密码时才会自动启动，否则会等你手动操作。",
       "equivalent": "等效的 OpenSSH 命令"
     },
-    "quitConfirmTitle": "隧道仍在运行，确定退出吗？",
-    "quitConfirmDescription": "有 {{count}} 个端口转发隧道正在运行，退出 tTerm 后将会停止。",
-    "quitConfirm": "退出",
     "runningCountLabel": "{{title}}（{{count}} 个运行中）",
     "profileInUse": "有 {{count}} 个端口转发隧道使用此主机，将被停止：{{names}}。隧道规则会保留，之后可为它们重新选择主机。",
     "profileEditedTitle": "运行中的隧道未更新",
@@ -2055,7 +2052,8 @@
       "showInFolder": "在所在文件夹中显示",
       "openInEditor": "用外部编辑器打开…",
       "openInProgram": "用 {{program}} 打开",
-      "openWithDefault": "用默认程序打开"
+      "openWithDefault": "用默认程序打开",
+      "openWith": "打开方式…"
     },
     "externalEdit": {
       "menu_one": "{{count}} 个文件在其他程序中打开",
@@ -2078,7 +2076,6 @@
       "remoteChangedDescription": "{{path}} 在你打开后已在服务器上被修改或删除。上传会用你的副本替换它，服务器上的改动将会丢失。",
       "overwrite": "替换",
       "openFailed": "打开 {{name}} 失败",
-      "downloading": "正在下载 {{name}}…",
       "largeTitle": "打开 {{name}}？",
       "largeDescription": "文件大小为 {{size}}，打开前需要完整下载。",
       "openAnyway": "下载并打开",
@@ -2087,6 +2084,14 @@
       "discard": "放弃改动",
       "keptTitle_one": "{{count}} 个文件的改动尚未上传",
       "keptTitle_other": "{{count}} 个文件的改动尚未上传"
+    },
+    "openWith": {
+      "title": "选择打开 {{name}} 的应用",
+      "description": "选择一个应用。在其中保存的改动会像外部编辑器一样上传。",
+      "default": "默认",
+      "useAsEditor": "同时设为外部编辑器",
+      "other": "其他程序…",
+      "chooseProgram": "选择用来打开文件的程序"
     },
     "selection": {
       "clear": "清空选择",
@@ -3154,5 +3159,15 @@
     "folderMenuFailed": "无法更改文件夹右键菜单",
     "loadFailed": "无法读取当前状态：{{error}}",
     "retry": "重试"
+  },
+  "quitGuard": {
+    "title": "退出 tTerm？",
+    "tunnels_one": "有 {{count}} 个端口转发隧道正在运行，退出后将会停止。",
+    "tunnels_other": "有 {{count}} 个端口转发隧道正在运行，退出后将会停止。",
+    "files_one": "有 {{count}} 个从 SFTP 打开的文件的改动尚未上传：{{names}}。本地副本会保留在这台电脑上，但之后不会再上传。",
+    "files_other": "有 {{count}} 个从 SFTP 打开的文件的改动尚未上传：{{names}}。本地副本会保留在这台电脑上，但之后不会再上传。",
+    "namesAndMore_one": "{{names}} 等另外 {{count}} 个",
+    "namesAndMore_other": "{{names}} 等另外 {{count}} 个",
+    "quit": "退出"
   }
 }

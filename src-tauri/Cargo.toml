@@ -90,12 +90,13 @@ security-framework = "3"
 objc2 = "0.6"
 # Touch ID / login password prompts (see ssh/secret_store/os_verifier.rs).
 objc2-local-authentication = { version = "0.3", default-features = false, features = ["std", "block2", "LAContext", "LAError"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSError", "NSString", "NSBundle", "NSDate", "NSDictionary", "NSGeometry", "NSObject", "NSOperation", "NSProcessInfo", "NSURL", "NSValue"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSError", "NSString", "NSBundle", "NSDate", "NSDictionary", "NSFileManager", "NSGeometry", "NSObject", "NSOperation", "NSProcessInfo", "NSURL", "NSValue"] }
 # System notifications whose clicks lead back to their tab (see notification/macos.rs).
 objc2-user-notifications = { version = "0.3", default-features = false, features = ["std", "bitflags", "block2", "UNUserNotificationCenter", "UNNotification", "UNNotificationContent", "UNNotificationRequest", "UNNotificationResponse", "UNNotificationSettings", "UNNotificationSound", "UNNotificationTrigger"] }
 block2 = "0.6"
-# Dragging remote files onto Finder as file promises (see drag_out/macos.rs).
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-uniform-type-identifiers", "NSDragging", "NSDraggingItem", "NSDraggingSession", "NSEvent", "NSFilePromiseProvider", "NSGraphicsContext", "NSImage", "NSPasteboard", "NSResponder", "NSView", "NSWindow", "NSWorkspace"] }
+# Dragging remote files onto Finder as file promises (see drag_out/macos.rs),
+# and the Open With applications with their icons (see sftp/internal/api/external/apps.rs).
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-core-foundation", "objc2-uniform-type-identifiers", "NSBitmapImageRep", "NSDragging", "NSDraggingItem", "NSDraggingSession", "NSEvent", "NSFilePromiseProvider", "NSGraphics", "NSGraphicsContext", "NSImage", "NSImageRep", "NSPasteboard", "NSResponder", "NSView", "NSWindow", "NSWorkspace"] }
 objc2-uniform-type-identifiers = { version = "0.3", default-features = false, features = ["std", "UTType"] }
 
 [target.'cfg(unix)'.dependencies]

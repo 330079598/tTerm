@@ -292,6 +292,8 @@ pub fn run() {
             sftp::internal::api::edit::sftp_open_file_for_edit,
             sftp::internal::api::edit::sftp_save_edited_file,
             sftp::internal::api::external::sftp_external_edit_open,
+            sftp::internal::api::external::sftp_external_open_with_choices,
+            sftp::internal::api::external::sftp_external_app_icons,
             sftp::internal::api::external::sftp_external_edit_upload,
             sftp::internal::api::external::sftp_external_edit_list,
             sftp::internal::api::external::sftp_external_edit_stop,

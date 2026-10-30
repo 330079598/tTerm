@@ -3,6 +3,8 @@
 //! there, and the copy is watched. The drawer hears of each save that
 //! differs from the server and uploads it, at once or after asking.
 
+#[cfg(target_os = "macos")]
+mod apps;
 mod launch;
 mod local;
 #[cfg(all(test, unix))]
@@ -16,13 +18,15 @@ mod watch;
 use crate::core::blocking::run_blocking;
 use crate::core::session::types::{PtyConnectionOptions, SessionPlan};
 use crate::core::state::HostPromptMap;
-use crate::sftp::internal::connection::ensure_ssh_plan;
+use crate::sftp::internal::api::download::download_file_with_progress;
+use crate::sftp::internal::api::prepare_transfer;
+use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error};
 use crate::sftp::internal::paths::normalize_remote_path;
-use crate::sftp::internal::types::SftpConnectionPool;
+use crate::sftp::internal::types::{SftpConnectionPool, TransferCancelMap};
 use crate::ssh::secret_store::types::SecretStoreState;
 use local::{FileStamp, Fingerprint};
 use remote::RemoteStamp;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
@@ -97,6 +101,41 @@ pub enum UploadOutcome {
     RemoteChanged,
 }
 
+/// Where to open a file.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum OpenIn {
+    /// The file's default program.
+    Default,
+    /// A program the user picked: an application on macOS, an executable
+    /// anywhere.
+    Program { program: String },
+    /// The system's own Open With dialog, on Windows.
+    Chooser,
+}
+
+/// An application macOS offers for a kind of file.
+#[cfg(target_os = "macos")]
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppChoice {
+    name: String,
+    path: String,
+    is_default: bool,
+    /// A PNG data URL.
+    icon: Option<String>,
+}
+
+/// How the user can pick a program for a file on this system.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenWithChoices {
+    #[cfg(target_os = "macos")]
+    apps: Vec<AppChoice>,
+    /// Whether the system has an Open With dialog of its own.
+    system_chooser: bool,
+}
+
 /// The tab's host, for moving a file to or from it.
 struct Host<'a> {
     app: &'a AppHandle,
@@ -104,13 +143,47 @@ struct Host<'a> {
     plan: SessionPlan,
     prompts: HostPromptMap,
     pool: &'a SftpConnectionPool,
+    cancel_map: &'a TransferCancelMap,
 }
 
 impl Host<'_> {
-    async fn download(&self, remote_path: &str, local: &Path) -> Result<RemoteStamp, String> {
-        with_sftp!(self.app, self.tab_id, &self.plan, self.prompts, self.pool, sftp => {
-            remote::download(sftp, remote_path, local).await
-        })
+    /// Downloads the file to `local`. With a `transfer_id`, it goes through
+    /// the parallel transfer engine, which reports its progress and can be
+    /// cancelled under that id as any download can.
+    async fn download(
+        &self,
+        remote_path: &str,
+        local: &Path,
+        transfer_id: Option<&str>,
+    ) -> Result<RemoteStamp, String> {
+        let Some(transfer_id) = transfer_id else {
+            return with_sftp!(self.app, self.tab_id, &self.plan, self.prompts, self.pool, sftp => {
+                remote::download(sftp, remote_path, local).await
+            });
+        };
+        let (sftp, channels) = prepare_transfer(
+            self.app,
+            self.tab_id,
+            &self.plan,
+            self.prompts.clone(),
+            self.pool,
+        )
+        .await?;
+        let metadata = sftp.metadata(remote_path).await.map_err(map_sftp_error)?;
+        if metadata.is_dir() {
+            return Err(remote::FOLDER_ERROR.to_string());
+        }
+        download_file_with_progress(
+            self.app,
+            self.tab_id,
+            channels,
+            self.cancel_map,
+            transfer_id,
+            remote_path,
+            &local.to_string_lossy(),
+        )
+        .await?;
+        Ok(RemoteStamp::of(&metadata))
     }
 
     async fn upload(
@@ -146,6 +219,7 @@ async fn start_session(
     host: &Host<'_>,
     remote_path: &str,
     file_name: &str,
+    transfer_id: Option<&str>,
 ) -> Result<ExternalEdit, String> {
     let root = local::edit_root(host.app)?;
     let id = uuid::Uuid::new_v4().to_string();
@@ -155,7 +229,7 @@ async fn start_session(
     };
     let local = dir.join(file_name);
     let downloaded = async {
-        let baseline = host.download(remote_path, &local).await?;
+        let baseline = host.download(remote_path, &local, transfer_id).await?;
         Ok::<_, String>((baseline, fingerprint(local.clone()).await?))
     }
     .await;
@@ -206,9 +280,23 @@ async fn end_sessions(sessions: Vec<EditSession>) -> Vec<ExternalEdit> {
     kept.into_iter().map(|session| session.edit).collect()
 }
 
-/// Opens the remote file at `path` in `program`, or in its default program
-/// when there is none. A file already open from this tab opens again as it
-/// is, downloaded afresh unless it has changes of its own.
+/// Opens the file at `local` as `open_in` says. Returns `false` when the
+/// user cancelled the system's dialog.
+fn launch(app: &AppHandle, open_in: OpenIn, local: &Path) -> Result<bool, String> {
+    match open_in {
+        OpenIn::Default => launch::open_default(app, local).map(|()| true),
+        OpenIn::Program { program } => launch::open_with(&program, local).map(|()| true),
+        #[cfg(windows)]
+        OpenIn::Chooser => launch::open_with_system_chooser(local),
+        #[cfg(not(windows))]
+        OpenIn::Chooser => Err("This system has no Open With dialog".to_string()),
+    }
+}
+
+/// Opens the remote file at `path` as `open_in` says. A file already open
+/// from this tab opens again as it is, downloaded afresh unless it has
+/// changes of its own. Returns None when the user cancelled the system's
+/// Open With dialog.
 #[tauri::command]
 #[allow(
     clippy::too_many_arguments,
@@ -219,17 +307,23 @@ pub async fn sftp_external_edit_open(
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     path: String,
-    program: Option<String>,
+    open_in: OpenIn,
+    transfer_id: Option<String>,
     prompt_state: State<'_, HostPromptMap>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
-) -> Result<ExternalEdit, String> {
+    cancel_map: State<'_, TransferCancelMap>,
+) -> Result<Option<ExternalEdit>, String> {
     let remote_path = normalize_remote_path(&path);
     let file_name = local::local_file_name(&file_name_of(&remote_path)?, cfg!(windows));
-    let program = program
-        .map(|program| program.trim().to_string())
-        .filter(|program| !program.is_empty());
-    if program.is_none() && local::runs_when_opened(&file_name) {
+    let open_in = match open_in {
+        OpenIn::Program { program } if program.trim().is_empty() => OpenIn::Default,
+        OpenIn::Program { program } => OpenIn::Program {
+            program: program.trim().to_string(),
+        },
+        other => other,
+    };
+    if matches!(open_in, OpenIn::Default) && local::runs_when_opened(&file_name) {
         return Err(format!(
             "'{file_name}' could run on this computer if opened in its default program. Open it in the external editor instead."
         ));
@@ -241,36 +335,48 @@ pub async fn sftp_external_edit_open(
         plan: ensure_ssh_plan(&app, &secret_state, connection)?,
         prompts: prompt_state.inner().clone(),
         pool: pool_state.inner(),
+        cancel_map: cancel_map.inner(),
     };
+    let transfer_id = transfer_id.as_deref();
     let state = app.state::<ExternalEditState>();
     let (edit, started) = match state.find(&tab_id, &remote_path) {
         Some(edit) if edit.status != EditStatus::Synced => (edit, false),
         Some(edit) => {
             let local = PathBuf::from(&edit.local_path);
-            let baseline = host.download(&remote_path, &local).await?;
+            let baseline = host.download(&remote_path, &local, transfer_id).await?;
             let synced = fingerprint(local).await?;
             let edit = state.refreshed(&edit.id, baseline, synced).unwrap_or(edit);
             (edit, false)
         }
-        None => (start_session(&host, &remote_path, &file_name).await?, true),
+        None => (
+            start_session(&host, &remote_path, &file_name, transfer_id).await?,
+            true,
+        ),
     };
 
     let local = PathBuf::from(&edit.local_path);
     let opener = app.clone();
-    let launched = run_blocking(move || match program {
-        Some(program) => launch::open_with(&program, &local),
-        None => launch::open_default(&opener, &local),
-    })
-    .await;
-    if let Err(error) = launched {
-        if started {
-            if let Some(session) = state.remove(&edit.id) {
-                end_sessions(vec![session]).await;
-            }
+    let launched = run_blocking(move || launch(&opener, open_in, &local)).await;
+    if !matches!(launched, Ok(true)) && started {
+        if let Some(session) = state.remove(&edit.id) {
+            end_sessions(vec![session]).await;
         }
-        return Err(error);
     }
-    Ok(edit)
+    Ok(launched?.then_some(edit))
+}
+
+/// How the user can pick a program for `file_name` here.
+#[tauri::command]
+pub async fn sftp_external_open_with_choices(file_name: String) -> Result<OpenWithChoices, String> {
+    #[cfg(target_os = "macos")]
+    let apps = run_blocking(move || Ok(apps::apps_for(&file_name))).await?;
+    #[cfg(not(target_os = "macos"))]
+    let _ = file_name;
+    Ok(OpenWithChoices {
+        #[cfg(target_os = "macos")]
+        apps,
+        system_chooser: cfg!(windows),
+    })
 }
 
 /// Uploads the copy's content over the remote file.
@@ -288,6 +394,7 @@ pub async fn sftp_external_edit_upload(
     prompt_state: State<'_, HostPromptMap>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
+    cancel_map: State<'_, TransferCancelMap>,
 ) -> Result<UploadOutcome, String> {
     let state = app.state::<ExternalEditState>();
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
@@ -300,6 +407,7 @@ pub async fn sftp_external_edit_upload(
         plan,
         prompts: prompt_state.inner().clone(),
         pool: pool_state.inner(),
+        cancel_map: cancel_map.inner(),
     };
     let result = async {
         let uploaded = fingerprint(source.local.clone()).await?;
@@ -366,6 +474,27 @@ pub async fn sftp_external_edit_reveal(app: AppHandle, id: String) -> Result<(),
     app.opener()
         .reveal_item_in_dir(&edit.local_path)
         .map_err(|error| format!("Failed to show '{}': {error}", edit.local_path))
+}
+
+/// The icons of the applications at `paths`, as PNG data URLs by path;
+/// none outside macOS, which is the only system listing applications.
+#[tauri::command]
+pub async fn sftp_external_app_icons(
+    paths: Vec<String>,
+) -> Result<HashMap<String, Option<String>>, String> {
+    #[cfg(target_os = "macos")]
+    return run_blocking(move || Ok(apps::icons_for(paths))).await;
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = paths;
+        Ok(HashMap::new())
+    }
+}
+
+/// The names of the open files whose changes are not on the server, which
+/// a quit would leave behind.
+pub fn unuploaded_files(app: &AppHandle) -> Vec<String> {
+    app.state::<ExternalEditState>().unuploaded_names()
 }
 
 /// Removes, at startup, copies left behind long ago.

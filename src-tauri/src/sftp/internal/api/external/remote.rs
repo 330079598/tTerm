@@ -16,8 +16,11 @@ pub(super) struct RemoteStamp {
     pub mtime: Option<u32>,
 }
 
+/// Why a folder cannot be opened like a file.
+pub(super) const FOLDER_ERROR: &str = "Folders cannot be opened in another program";
+
 impl RemoteStamp {
-    fn of(metadata: &Metadata) -> Self {
+    pub(super) fn of(metadata: &Metadata) -> Self {
         Self {
             size: metadata.size.unwrap_or(0),
             mtime: metadata.mtime,
@@ -51,7 +54,7 @@ pub(super) async fn download(
     let mut remote_file = sftp.open(remote).await.map_err(map_sftp_error)?;
     let metadata = remote_file.metadata().await.map_err(map_sftp_error)?;
     if metadata.is_dir() {
-        return Err("Folders cannot be opened in another program".to_string());
+        return Err(FOLDER_ERROR.to_string());
     }
     let mut local_file = create_local(local).await?;
     tokio::io::copy(&mut remote_file, &mut local_file)

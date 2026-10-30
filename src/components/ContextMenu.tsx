@@ -41,6 +41,7 @@ import {
   Columns2,
   ExternalLink,
   AppWindow,
+  FilePen,
 } from "lucide-react"
 import { useShortcutLabel } from "@/contexts/KeymapContext"
 import { TabContextMenuAction } from "@/types/tab"
@@ -139,6 +140,8 @@ const getActionIcon = (icon?: string) => {
       return <ExternalLink size={14} aria-hidden="true" />
     case "app-window":
       return <AppWindow size={14} aria-hidden="true" />
+    case "file-pen":
+      return <FilePen size={14} aria-hidden="true" />
     default:
       return null
   }

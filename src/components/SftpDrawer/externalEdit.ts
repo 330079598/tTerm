@@ -16,13 +16,36 @@ export interface ExternalEdit {
 export type ExternalUploadOutcome =
   { kind: "uploaded"; edit: ExternalEdit } | { kind: "remoteChanged" }
 
+/** Where to open a file; mirrors `OpenIn`. */
+export type OpenIn =
+  | { kind: "default" }
+  | { kind: "program"; program: string }
+  /** The system's own Open With dialog, on Windows. */
+  | { kind: "chooser" }
+
+/** An application macOS offers for a kind of file; mirrors `AppChoice`. */
+export interface AppChoice {
+  name: string
+  path: string
+  isDefault: boolean
+  /** A PNG data URL. */
+  icon?: string | null
+}
+
+/** How the user can pick a program for a file; mirrors `OpenWithChoices`. */
+export interface OpenWithChoices {
+  /** Listed on macOS only. */
+  apps?: AppChoice[]
+  systemChooser: boolean
+}
+
 /** The backend's event for an open file that changed state. */
 export const EXTERNAL_EDIT_EVENT = "sftp-external-edit"
 
 /** Files larger than this are only downloaded to open once the user agrees. */
 export const LARGE_EXTERNAL_FILE_BYTES = 50 * 1024 * 1024
 
-/** Files larger than this show that they are downloading. */
+/** Files larger than this download through the transfer list, with progress. */
 export const SLOW_EXTERNAL_FILE_BYTES = 1024 * 1024
 
 /** The list with `edit` in it, in place of its old state, sorted by path. */

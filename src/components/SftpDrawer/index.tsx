@@ -17,6 +17,8 @@ import { SftpDialogs } from "@/components/SftpDrawer/SftpDialogs"
 import { SftpEntryContextMenu } from "@/components/SftpDrawer/SftpEntryContextMenu"
 import { SftpExternalEditsMenu } from "@/components/SftpDrawer/SftpExternalEditsMenu"
 import { useSftpExternalEdits } from "@/components/SftpDrawer/useSftpExternalEdits"
+import { SftpOpenWithDialog } from "@/components/SftpDrawer/SftpOpenWithDialog"
+import { useSftpOpenWith } from "@/components/SftpDrawer/useSftpOpenWith"
 import { SftpPermissionsDialog } from "@/components/SftpDrawer/SftpPermissionsDialog"
 import { SftpArchiveDialog } from "@/components/SftpDrawer/SftpArchiveDialog"
 import { SftpSearchStatus } from "@/components/SftpDrawer/SftpSearchStatus"
@@ -136,6 +138,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   const dragOut = useSftpDragOut({ downloadEntriesToFolder, setError })
   const externalEdits = useSftpExternalEdits({ tabId, connection })
   const ExternalEditConfirmDialog = externalEdits.ConfirmDialog
+  const openWith = useSftpOpenWith({ openEntry: externalEdits.openEntry })
 
   useSftpPasteUpload({
     enabled: config.sftp_paste_upload_enabled && isGlobalShortcutTarget,
@@ -400,6 +403,9 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         handleOpenExternally={(inEditor) => {
           if (contextMenuEntry) void externalEdits.openExternally(contextMenuEntry, inEditor)
         }}
+        handleOpenWith={() => {
+          if (contextMenuEntry) void openWith.start(contextMenuEntry)
+        }}
         externalEditor={config.sftp_external_editor}
         handleExtract={handleExtract}
         handlePermissions={handlePermissions}
@@ -428,6 +434,11 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       <SftpArchiveDialog {...archive.dialogProps} />
       {conflictDialog}
       <ExternalEditConfirmDialog />
+      <SftpOpenWithDialog
+        {...openWith.dialogProps}
+        onPick={(app, asEditor) => void openWith.dialogProps.onPick(app, asEditor)}
+        onOther={() => void openWith.dialogProps.onOther()}
+      />
     </div>
   )
 }
