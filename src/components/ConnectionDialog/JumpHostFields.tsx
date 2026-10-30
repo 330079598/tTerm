@@ -1,18 +1,13 @@
 import React from "react"
-import { Plus, Route, Server, Trash2, ArrowDown, ArrowUp } from "lucide-react"
+import { Plus, Route, Server, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { AuthMethodPicker } from "@/components/ConnectionDialog/AuthMethodPicker"
-import { CertificatePathField } from "@/components/ConnectionDialog/CertificatePathField"
-import { PrivateKeyField } from "@/components/ConnectionDialog/PrivateKeyField"
+import { JumpHostCard } from "@/components/ConnectionDialog/JumpHostCard"
+import { getJumpHostPasswordLookupKey } from "@/components/ConnectionDialog/jumpHostPayload"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
-import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 
 import {
@@ -22,7 +17,6 @@ import {
 } from "@/components/ConnectionDialog/types"
 
 const MAX_JUMP_HOSTS = 8
-const SAVED_PASSWORD_MASK = "********"
 
 interface JumpHostFieldsProps {
   form: ConnectionForm
@@ -31,8 +25,6 @@ interface JumpHostFieldsProps {
   errors: Record<string, string>
   onClearError: (jumpId: string, field: string) => void
 }
-
-const errorKey = (jumpId: string, field: string) => `${jumpId}:${field}`
 
 function updateJumpHost(
   setForm: React.Dispatch<React.SetStateAction<ConnectionForm>>,
@@ -43,10 +35,6 @@ function updateJumpHost(
     ...cur,
     jumpHosts: cur.jumpHosts.map((jump) => (jump.id === id ? { ...jump, ...patch } : jump)),
   }))
-}
-
-function getJumpHostPasswordLookupKey(jump: Pick<JumpHostForm, "host" | "port" | "username">) {
-  return `${jump.host.trim()}:${jump.port}:${jump.username.trim()}`
 }
 
 export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
@@ -177,268 +165,22 @@ export const JumpHostFields: React.FC<JumpHostFieldsProps> = ({
           </div>
 
           {form.jumpHosts.map((jump, index) => (
-            <div
+            <JumpHostCard
               key={jump.id}
-              className="border-border bg-muted/20 space-y-3 rounded-lg border p-3"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">{t("jumpHost.hop", { index: index + 1 })}</p>
-                  <p className="text-muted-foreground truncate text-xs">
-                    {jump.username || "user"}@{jump.host || "host"}:{jump.port || 22}
-                  </p>
-                </div>
-                <TooltipProvider>
-                  <div className="flex gap-1">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => moveJumpHost(index, -1)}
-                          disabled={index === 0}
-                          aria-label={t("jumpHost.moveUp")}
-                        >
-                          <ArrowUp size={14} />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{t("jumpHost.moveUp")}</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => moveJumpHost(index, 1)}
-                          disabled={index === form.jumpHosts.length - 1}
-                          aria-label={t("jumpHost.moveDown")}
-                        >
-                          <ArrowDown size={14} />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{t("jumpHost.moveDown")}</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => removeJumpHost(jump.id)}
-                          aria-label={t("jumpHost.remove")}
-                        >
-                          <Trash2 size={14} />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{t("jumpHost.remove")}</TooltipContent>
-                    </Tooltip>
-                  </div>
-                </TooltipProvider>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <Label htmlFor={`jump-host-${jump.id}`} className="mb-1.5 block">
-                    {t("jumpHost.host")}
-                  </Label>
-                  <Input
-                    id={`jump-host-${jump.id}`}
-                    value={jump.host}
-                    onChange={(e) => {
-                      onClearError(jump.id, "host")
-                      updateJumpHost(setForm, jump.id, { host: e.target.value })
-                    }}
-                    placeholder="bastion.example.com"
-                    aria-invalid={!!errors[errorKey(jump.id, "host")]}
-                    aria-describedby={
-                      errors[errorKey(jump.id, "host")] ? `jump-host-error-${jump.id}` : undefined
-                    }
-                  />
-                  {errors[errorKey(jump.id, "host")] && (
-                    <p
-                      id={`jump-host-error-${jump.id}`}
-                      className="text-destructive mt-1 text-xs"
-                      role="alert"
-                    >
-                      {errors[errorKey(jump.id, "host")]}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor={`jump-port-${jump.id}`} className="mb-1.5 block">
-                    {t("connection.port")}
-                  </Label>
-                  <Input
-                    id={`jump-port-${jump.id}`}
-                    type="number"
-                    min={1}
-                    max={65535}
-                    value={jump.port}
-                    onChange={(e) => {
-                      onClearError(jump.id, "port")
-                      updateJumpHost(setForm, jump.id, { port: Number(e.target.value) })
-                    }}
-                    aria-invalid={!!errors[errorKey(jump.id, "port")]}
-                    aria-describedby={
-                      errors[errorKey(jump.id, "port")] ? `jump-port-error-${jump.id}` : undefined
-                    }
-                  />
-                  {errors[errorKey(jump.id, "port")] && (
-                    <p
-                      id={`jump-port-error-${jump.id}`}
-                      className="text-destructive mt-1 text-xs"
-                      role="alert"
-                    >
-                      {errors[errorKey(jump.id, "port")]}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor={`jump-username-${jump.id}`} className="mb-1.5 block">
-                  {t("connection.username")}
-                </Label>
-                <Input
-                  id={`jump-username-${jump.id}`}
-                  value={jump.username}
-                  onChange={(e) => {
-                    onClearError(jump.id, "username")
-                    updateJumpHost(setForm, jump.id, { username: e.target.value })
-                  }}
-                  placeholder={t("connection.usernamePlaceholder")}
-                  aria-invalid={!!errors[errorKey(jump.id, "username")]}
-                  aria-describedby={
-                    errors[errorKey(jump.id, "username")]
-                      ? `jump-username-error-${jump.id}`
-                      : undefined
-                  }
-                />
-                {errors[errorKey(jump.id, "username")] && (
-                  <p
-                    id={`jump-username-error-${jump.id}`}
-                    className="text-destructive mt-1 text-xs"
-                    role="alert"
-                  >
-                    {errors[errorKey(jump.id, "username")]}
-                  </p>
-                )}
-              </div>
-
-              <AuthMethodPicker
-                value={jump.authMethod}
-                onChange={(authMethod) => updateJumpHost(setForm, jump.id, { authMethod })}
-              />
-
-              {jump.authMethod === "password" && (
-                <div>
-                  {(() => {
-                    const savedPasswordMasked =
-                      form.rememberPassword &&
-                      savedJumpPasswordKeys.has(getJumpHostPasswordLookupKey(jump)) &&
-                      jump.password.length === 0
-                    return (
-                      <>
-                        <div className="mb-1.5 flex items-center gap-2">
-                          <Label htmlFor={`jump-password-${jump.id}`}>
-                            {t("connection.password")}
-                          </Label>
-                          {savedPasswordMasked && (
-                            <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
-                              {t("connection.savedPasswordBadge")}
-                            </Badge>
-                          )}
-                        </div>
-                        <PasswordInput
-                          id={`jump-password-${jump.id}`}
-                          revealable={!savedPasswordMasked}
-                          value={savedPasswordMasked ? SAVED_PASSWORD_MASK : jump.password}
-                          onChange={(e) => {
-                            const value = e.target.value
-                            if (savedPasswordMasked && /^\**$/.test(value)) {
-                              setForm((current) => ({
-                                ...current,
-                                jumpHosts: current.jumpHosts.map((currentJump) =>
-                                  currentJump.id === jump.id
-                                    ? { ...currentJump, password: "" }
-                                    : currentJump
-                                ),
-                              }))
-                              return
-                            }
-
-                            const nextValue =
-                              savedPasswordMasked && value.startsWith(SAVED_PASSWORD_MASK)
-                                ? value.slice(SAVED_PASSWORD_MASK.length)
-                                : value
-                            updateJumpHost(setForm, jump.id, { password: nextValue })
-                          }}
-                          placeholder={
-                            savedPasswordMasked
-                              ? t("connection.savedPasswordPlaceholder")
-                              : "password"
-                          }
-                        />
-                        {savedPasswordMasked && (
-                          <p className="text-muted-foreground mt-1 text-xs">
-                            {t("connection.savedPasswordHint")}
-                          </p>
-                        )}
-                      </>
-                    )
-                  })()}
-                </div>
-              )}
-
-              {jump.authMethod === "key" && (
-                <>
-                  <PrivateKeyField
-                    id={`jump-key-path-${jump.id}`}
-                    value={jump.privateKeyPath}
-                    onChange={(privateKeyPath) => {
-                      onClearError(jump.id, "privateKeyPath")
-                      updateJumpHost(setForm, jump.id, { privateKeyPath })
-                    }}
-                    passphrase={jump.privateKeyPassphrase}
-                    error={errors[errorKey(jump.id, "privateKeyPath")]}
-                  />
-                  <div>
-                    <Label htmlFor={`jump-key-pass-${jump.id}`} className="mb-1.5 block">
-                      {t("ssh.privateKeyPassphrase")}
-                    </Label>
-                    <PasswordInput
-                      id={`jump-key-pass-${jump.id}`}
-                      value={jump.privateKeyPassphrase}
-                      onChange={(e) =>
-                        updateJumpHost(setForm, jump.id, { privateKeyPassphrase: e.target.value })
-                      }
-                      placeholder={t("connection.passphrasePlaceholder")}
-                    />
-                  </div>
-                  <CertificatePathField
-                    id={`jump-certificate-path-${jump.id}`}
-                    value={jump.certificatePath}
-                    onChange={(certificatePath) =>
-                      updateJumpHost(setForm, jump.id, { certificatePath })
-                    }
-                  />
-                </>
-              )}
-
-              {jump.authMethod === "agent" && (
-                <p className="text-muted-foreground rounded-md border px-3 py-2 text-xs">
-                  {t("ssh.sshAgentHint")}
-                </p>
-              )}
-
-              {jump.authMethod === "interactive" && (
-                <p className="text-muted-foreground rounded-md border px-3 py-2 text-xs">
-                  {t("ssh.interactiveHint")}
-                </p>
-              )}
-            </div>
+              jump={jump}
+              index={index}
+              count={form.jumpHosts.length}
+              onChange={(patch) => updateJumpHost(setForm, jump.id, patch)}
+              onMove={(direction) => moveJumpHost(index, direction)}
+              onRemove={() => removeJumpHost(jump.id)}
+              savedPasswordMasked={
+                form.rememberPassword &&
+                savedJumpPasswordKeys.has(getJumpHostPasswordLookupKey(jump)) &&
+                jump.password.length === 0
+              }
+              errors={errors}
+              onClearError={onClearError}
+            />
           ))}
         </div>
       )}
