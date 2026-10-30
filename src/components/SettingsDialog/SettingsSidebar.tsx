@@ -1,22 +1,7 @@
 import React from "react"
-import {
-  Bell,
-  FileClock,
-  FolderTree,
-  HardDriveDownload,
-  Highlighter,
-  Info,
-  Keyboard,
-  Network,
-  Palette,
-  Plug,
-  Shield,
-  SquareTerminal,
-  Terminal,
-  UploadCloud,
-} from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { SETTINGS_TAB_GROUPS } from "@/components/SettingsDialog/settingsTabs"
 import { cn } from "@/lib/utils"
 
 interface SettingsSidebarProps {
@@ -28,58 +13,14 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ activeTab, onT
   const { t } = useTranslation()
   const itemRefs = React.useRef<Array<HTMLButtonElement | null>>([])
 
-  const groups = [
-    {
-      label: t("settings.categories.workspace", { defaultValue: "Workspace" }),
-      items: [
-        {
-          value: "profile-groups",
-          label: t("settings.profileGroups", { defaultValue: "Groups" }),
-          icon: FolderTree,
-        },
-        {
-          value: "connection",
-          label: t("settings.connection", { defaultValue: "Connection" }),
-          icon: Plug,
-        },
-        { value: "proxies", label: t("proxies.sidebar"), icon: Network },
-      ],
-    },
-    {
-      label: t("settings.categories.experience", { defaultValue: "Experience" }),
-      items: [
-        { value: "appearance", label: t("settings.appearance"), icon: Palette },
-        {
-          value: "terminal",
-          label: t("settings.terminal", { defaultValue: "Terminal" }),
-          icon: SquareTerminal,
-        },
-        { value: "shells", label: t("localShells.sidebar"), icon: Terminal },
-        { value: "highlight", label: t("keywordHighlight.sidebar"), icon: Highlighter },
-        { value: "notifications", label: t("notifications.sidebar"), icon: Bell },
-        { value: "keymap", label: t("settings.keymap"), icon: Keyboard },
-      ],
-    },
-    {
-      label: t("settings.categories.data", { defaultValue: "Data & security" }),
-      items: [
-        { value: "logging", label: t("terminalLogging.title"), icon: FileClock },
-        { value: "data-migration", label: t("dataMigration.sidebar"), icon: HardDriveDownload },
-        { value: "security", label: t("settings.security"), icon: Shield },
-      ],
-    },
-    {
-      label: t("settings.categories.application", { defaultValue: "Application" }),
-      items: [
-        { value: "general", label: t("settings.general"), icon: Info },
-        {
-          value: "updates",
-          label: t("settings.updates", { defaultValue: "Updates" }),
-          icon: UploadCloud,
-        },
-      ],
-    },
-  ]
+  const groups = SETTINGS_TAB_GROUPS.map((group) => ({
+    label: t(group.labelKey, { defaultValue: group.defaultLabel }),
+    items: group.items.map((item) => ({
+      value: item.value,
+      label: t(item.labelKey, { defaultValue: item.defaultLabel }),
+      icon: item.icon,
+    })),
+  }))
   const items = groups.flatMap((group) => group.items)
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
