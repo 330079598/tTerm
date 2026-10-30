@@ -9,7 +9,7 @@ use crate::proxy::command::CommandTarget;
 use crate::proxy::ProxyEndpoint;
 use crate::ssh::auth::{authenticate, AuthPrompter, AuthTarget};
 use crate::ssh::types::{emit_connection_progress, SshConnectError, SshConnectionProgressPayload};
-use russh::client;
+use russh::{client, Channel};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -299,6 +299,26 @@ where
     Ok(session)
 }
 
+/// How long a channel through a session found open may take before that
+/// session counts as dead. One left from before sleep or a network change
+/// stays open until its keepalive gives up, which takes minutes.
+const REUSED_OPEN_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Why a hop, or the target, could not be reached.
+pub(super) enum RouteError {
+    /// A session found open did not carry the channel: it is dead, or its
+    /// login may not forward. It is out of the pool, and logging in afresh
+    /// may still work.
+    Reused(SshConnectError),
+    Failed(SshConnectError),
+}
+
+impl From<SshConnectError> for RouteError {
+    fn from(error: SshConnectError) -> Self {
+        Self::Failed(error)
+    }
+}
+
 /// The hops of one chain and, when this connection shares them, the route of
 /// each.
 pub(super) struct ChainHops<'a> {
@@ -310,7 +330,7 @@ pub(super) struct ChainHops<'a> {
 
 impl ChainHops<'_> {
     /// The farthest hop that is already open, and its position.
-    pub fn farthest_open(&self, ctx: ConnectContext<'_>) -> Option<(usize, Arc<dyn Relay>)> {
+    fn farthest_open(&self, ctx: ConnectContext<'_>) -> Option<(usize, Arc<dyn Relay>)> {
         let (index, session) = self
             .keys?
             .iter()
@@ -321,14 +341,96 @@ impl ChainHops<'_> {
         Some((index, session))
     }
 
-    /// Logs in to hop `index`, through `previous` or, for the first hop,
-    /// directly, and offers it to the connections that come after.
-    pub async fn open(
+    /// Reaches `host:port` from the end of the chain, logging in to the hops
+    /// on the way. With `reuse`, starts from the farthest hop already open;
+    /// without, logs in to every hop afresh and offers them in place of the
+    /// ones in the pool.
+    pub async fn route(
+        &self,
+        ctx: ConnectContext<'_>,
+        (host, port): (&str, u16),
+        reuse: bool,
+    ) -> Result<(Arc<dyn Relay>, Channel<client::Msg>), RouteError> {
+        let found = if reuse { self.farthest_open(ctx) } else { None };
+        // The position of `last` when it is a session found open.
+        let (mut last, mut reused_at, start) = match found {
+            Some((index, session)) => (Some(session), Some(index), index + 1),
+            None => (None, None, 0),
+        };
+        for index in start..self.plans.len() {
+            let (session, reused) = self
+                .open(ctx, index, (last.take(), reused_at), reuse)
+                .await?;
+            last = Some(session);
+            reused_at = reused.then_some(index);
+        }
+        let last =
+            last.ok_or_else(|| SshConnectError::Permanent("Jump chain is empty".to_string()))?;
+
+        emit_terminal_status(
+            ctx,
+            &format!("Jump chain connected. Opening tunnel to {host}:{port}..."),
+        );
+        emit_connection_progress(
+            ctx.app,
+            ctx.tab_id,
+            ctx.status_options,
+            SshConnectionProgressPayload::new(
+                "tunnel_opening",
+                format!("Opening tunnel to target {host}:{port}"),
+            )
+            .host(host.to_string(), port),
+        );
+        let channel = self
+            .open_channel(&last, reused_at, (host, port), |e| {
+                format!("Failed to open tunnel to target through jump chain: {e}")
+            })
+            .await?;
+        Ok((last, channel))
+    }
+
+    /// Opens a channel to `host:port` through `relay`, the session of hop
+    /// `reused_at` when it was found open: that one gets a time limit, and
+    /// leaves the pool when it fails.
+    async fn open_channel(
+        &self,
+        relay: &Arc<dyn Relay>,
+        reused_at: Option<usize>,
+        (host, port): (&str, u16),
+        failed: impl FnOnce(String) -> String,
+    ) -> Result<Channel<client::Msg>, RouteError> {
+        let opening = relay.open_direct_tcpip(host, port);
+        let opened = match reused_at {
+            Some(_) => match tokio::time::timeout(REUSED_OPEN_TIMEOUT, opening).await {
+                Ok(opened) => opened.map_err(|e| e.to_string()),
+                Err(_) => Err("the open connection did not answer".to_string()),
+            },
+            None => opening.await.map_err(|e| e.to_string()),
+        };
+        opened.map_err(|e| {
+            let error = SshConnectError::Network(failed(e));
+            match reused_at.and_then(|index| self.keys?.get(index)) {
+                Some(key) => {
+                    pool::evict(key, relay);
+                    RouteError::Reused(error)
+                }
+                None => RouteError::Failed(error),
+            }
+        })
+    }
+
+    /// Logs in to hop `index`, through `previous` (with the position of the
+    /// session found open, when it is one) or, for the first hop, directly,
+    /// and offers it to the connections that come after. With `reuse`, a hop
+    /// another connection opened meanwhile is taken instead, which the
+    /// returned flag tells.
+    async fn open(
         &self,
         ctx: ConnectContext<'_>,
         index: usize,
-        previous: Option<Arc<dyn Relay>>,
-    ) -> Result<Arc<dyn Relay>, SshConnectError> {
+        (previous, reused_at): (Option<Arc<dyn Relay>>, Option<usize>),
+        reuse: bool,
+    ) -> Result<(Arc<dyn Relay>, bool), RouteError> {
         let plan = self
             .plans
             .get(index)
@@ -338,9 +440,9 @@ impl ChainHops<'_> {
             Some(key) => {
                 let guard = pool::connecting(key).await;
                 // Whoever held the place before may have just opened this hop.
-                if let Some(session) = pool::find(key) {
+                if let Some(session) = pool::find(key).filter(|_| reuse) {
                     self.report_reused(ctx, index);
-                    return Ok(session);
+                    return Ok((session, true));
                 }
                 Some(guard)
             }
@@ -372,14 +474,13 @@ impl ChainHops<'_> {
                     .host(plan.host.clone(), plan.port)
                     .hop(hop_index, total_hops),
                 );
-                let channel = previous
-                    .open_direct_tcpip(&plan.host, plan.port)
-                    .await
-                    .map_err(|e| {
-                        SshConnectError::Network(format!(
+                let channel = self
+                    .open_channel(previous, reused_at, (&plan.host, plan.port), |e| {
+                        format!(
                             "Jump host #{index} failed to open tunnel to jump #{hop_index}: {e}"
-                        ))
-                    })?;
+                        )
+                    })
+                    .await?;
                 connect_jump_over_stream(ctx, plan, hop_index, total_hops, channel.into_stream())
                     .await?
             }
@@ -388,7 +489,7 @@ impl ChainHops<'_> {
         if let Some(key) = key {
             pool::offer(key.clone(), &session);
         }
-        Ok(session)
+        Ok((session, false))
     }
 
     /// Tells the user hop `index` goes over a session that is already open.

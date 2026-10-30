@@ -140,6 +140,17 @@ pub fn offer<T: Relay + 'static>(key: RouteKey, session: &Arc<T>) {
     sessions.insert(key, weak);
 }
 
+/// Takes `session` out of the pool, so no later connection picks it up.
+pub fn evict(key: &RouteKey, session: &Arc<dyn Relay>) {
+    let mut sessions = sessions();
+    if sessions
+        .get(key)
+        .is_some_and(|entry| std::ptr::addr_eq(entry.as_ptr(), Arc::as_ptr(session)))
+    {
+        sessions.remove(key);
+    }
+}
+
 /// Withdraws `session` from the pool when its caller is the last one using it,
 /// and says whether it was. The check and the removal happen under the pool's
 /// lock, which every `find` takes too, so nobody picks it up in between.
@@ -224,6 +235,22 @@ mod tests {
         offer(key.clone(), &session);
         drop(session);
         assert!(find(&key).is_none());
+    }
+
+    #[test]
+    fn an_evicted_session_is_not_found_but_its_replacement_stays() {
+        let key = RouteKey::first(None, "pool-test", "evicted", 22);
+        let stale = Arc::new(Fake);
+        offer(key.clone(), &stale);
+        let found = find(&key).expect("offered session");
+        evict(&key, &found);
+        assert!(find(&key).is_none());
+
+        // A fresh login offered meanwhile is not taken out with the stale one.
+        let fresh = Arc::new(Fake);
+        offer(key.clone(), &fresh);
+        evict(&key, &found);
+        assert!(find(&key).is_some());
     }
 
     #[tokio::test]

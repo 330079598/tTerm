@@ -1,5 +1,5 @@
 use super::config::{compatibility_client_config, unverifiable_host_key_error};
-use super::hop::ChainHops;
+use super::hop::{ChainHops, RouteError};
 use super::pool::{chain_keys, Relay};
 use crate::core::session::{types::JumpHostPlan, types::SessionPlan};
 use crate::core::state::HostPromptMap;
@@ -182,37 +182,20 @@ where
         keys: shared.then_some(keys.as_slice()),
         proxy,
     };
-    let (mut last, next) = match hops.farthest_open(ctx) {
-        Some((index, session)) => (Some(session), index + 1),
-        None => (None, 0),
-    };
-    for index in next..jump_plans.len() {
-        last = Some(hops.open(ctx, index, last.take()).await?);
+    let target = (target_host, target_port);
+    let (last, tunnel_channel) = match hops.route(ctx, target, true).await {
+        Err(RouteError::Reused(error)) => {
+            emit_terminal_status(
+                ctx,
+                &format!("{error}. Logging in again instead of using the open connection..."),
+            );
+            hops.route(ctx, target, false).await
+        }
+        routed => routed,
     }
-    let last = last.ok_or_else(|| SshConnectError::Permanent("Jump chain is empty".to_string()))?;
-
-    emit_terminal_status(
-        ctx,
-        &format!("Jump chain connected. Opening tunnel to {target_host}:{target_port}..."),
-    );
-    emit_connection_progress(
-        app,
-        tab_id,
-        status_options,
-        SshConnectionProgressPayload::new(
-            "tunnel_opening",
-            format!("Opening tunnel to target {}:{}", target_host, target_port),
-        )
-        .host(target_host.to_string(), target_port),
-    );
-    let tunnel_channel = last
-        .open_direct_tcpip(target_host, target_port)
-        .await
-        .map_err(|e| {
-            SshConnectError::Network(format!(
-                "Failed to open tunnel to target through jump chain: {e}"
-            ))
-        })?;
+    .map_err(|error| match error {
+        RouteError::Reused(error) | RouteError::Failed(error) => error,
+    })?;
 
     emit_connection_progress(
         app,
