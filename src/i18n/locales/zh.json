@@ -2875,6 +2875,7 @@
     "connectionShared": "此连接的所有标签页都显示这个图标。",
     "icon": "图标",
     "distros": "发行版",
+    "logos": "Shell 与工具的 logo",
     "color": "颜色",
     "noColor": "无颜色",
     "customColor": "自定义颜色",

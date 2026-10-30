@@ -2906,6 +2906,7 @@
     "connectionShared": "Every tab of this connection shows this icon.",
     "icon": "Icon",
     "distros": "Distributions",
+    "logos": "Shell and tool logos",
     "color": "Color",
     "noColor": "No color",
     "customColor": "Custom color",

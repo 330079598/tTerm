@@ -1,6 +1,7 @@
 import { ChevronRight, ScrollText, Settings, Waypoints } from "lucide-react"
 
 import { AgentLogo } from "@/components/AgentLogo"
+import { BrandLogo } from "@/components/BrandLogo"
 import { TAB_ICON_GLYPHS } from "@/components/TabIconPicker/glyphs"
 import { useConfig } from "@/contexts/ConfigContext"
 import { distroIconSrc } from "@/lib/distro"
@@ -8,9 +9,11 @@ import { useTabRunningAgent } from "@/lib/tabAttention"
 import {
   hasLocalBadge,
   isAgentTabIcon,
+  isBrandTabIcon,
   isDistroTabIcon,
   resolveTabIcon,
   tabIconAgent,
+  tabIconBrand,
   tabIconDistro,
   type ResolvedTabIcon,
 } from "@/lib/tabIcons"
@@ -20,9 +23,9 @@ import type { Tab } from "@/types/tab"
 const PAGE_ICONS = { settings: Settings, tunnels: Waypoints, logs: ScrollText } as const
 
 /**
- * An icon a terminal tab can show: a glyph or an AI agent's logo drawn in its
- * color, or the text color for none, or a distribution's logo in its own
- * colors. `localBadge` marks a logo with a prompt in its corner, for a local
+ * An icon a terminal tab can show: a glyph, an AI agent's logo or a shell's or
+ * tool's logo drawn in its color, or the text color for none, or a
+ * distribution's logo in its own colors. `localBadge` marks a logo with a prompt in its corner, for a local
  * shell.
  */
 export function TabIconGlyph({
@@ -40,6 +43,16 @@ export function TabIconGlyph({
     return (
       <AgentLogo
         agent={tabIconAgent(icon.icon)}
+        className={className}
+        size={size}
+        color={icon.color}
+      />
+    )
+  }
+  if (isBrandTabIcon(icon.icon)) {
+    return (
+      <BrandLogo
+        logo={tabIconBrand(icon.icon)}
         className={className}
         size={size}
         color={icon.color}

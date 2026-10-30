@@ -4,11 +4,13 @@ import { useTranslation } from "react-i18next"
 import { TabIconGlyph } from "@/components/TabIcon"
 import { Button } from "@/components/ui/button"
 import { ColorSwatches } from "@/components/ui/color-swatches"
+import { BRAND_LOGO_IDS, brandLogoColor, brandLogoName } from "@/lib/brandLogos"
 import { DISTRO_IDS, distroName } from "@/lib/distro"
 import {
   applyTabIconStyle,
   isDistroTabIcon,
   normalizeTabIconStyle,
+  pickedLogoColor,
   TAB_ICON_COLORS,
   TAB_ICON_IDS,
   type ResolvedTabIcon,
@@ -35,8 +37,14 @@ export function TabIconPicker({ value, inherited, onChange, resetLabel }: TabIco
   const { t } = useTranslation()
   const shown = applyTabIconStyle(inherited, value)
   const choose = (patch: TabIconStyle) => onChange(normalizeTabIconStyle({ ...value, ...patch }))
-  const chooseIcon = (icon: TabIconStyle["icon"]) =>
-    choose({ icon: icon === inherited.icon ? undefined : icon })
+  // A logo brings its brand's color along, which the color row can then change.
+  const chooseIcon = (icon: TabIconChoice) => {
+    const color = pickedLogoColor(icon)
+    choose({
+      icon: icon === inherited.icon ? undefined : icon,
+      ...(color !== undefined && { color: color === inherited.color ? undefined : color }),
+    })
+  }
   const chooseColor = (color: string) =>
     choose({ color: color === inherited.color ? undefined : color })
 
@@ -66,6 +74,21 @@ export function TabIconPicker({ value, inherited, onChange, resetLabel }: TabIco
               icon={{ icon: `distro:${id}`, color: "" }}
               name={distroName(id)}
               checked={shown.icon === `distro:${id}`}
+              onSelect={chooseIcon}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="text-muted-foreground text-xs">{t("tabIcons.logos")}</div>
+        <div className="flex flex-wrap gap-1" role="radiogroup" aria-label={t("tabIcons.logos")}>
+          {BRAND_LOGO_IDS.map((id) => (
+            <IconOption
+              key={id}
+              icon={{ icon: `logo:${id}`, color: brandLogoColor(id) }}
+              name={brandLogoName(id)}
+              checked={shown.icon === `logo:${id}`}
               onSelect={chooseIcon}
             />
           ))}

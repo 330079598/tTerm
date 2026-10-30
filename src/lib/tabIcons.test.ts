@@ -6,6 +6,7 @@ import {
   normalizeSavedSshTab,
   normalizeTabIconConfig,
   normalizeTabIconStyle,
+  pickedLogoColor,
   resolveTabIcon,
   shellsForSettings,
   shellTabIcon,
@@ -26,7 +27,7 @@ describe("resolveTabIcon", () => {
       icon: "square-chevron-right",
       color: "#3b9ae1",
     })
-    expect(resolveTabIcon({ type: "terminal", shellName: "nu" }, config())).toEqual({
+    expect(resolveTabIcon({ type: "terminal", shellName: "elvish" }, config())).toEqual({
       icon: "terminal",
       color: "",
     })
@@ -142,6 +143,20 @@ describe("normalizeTabIconStyle", () => {
     expect(normalizeTabIconStyle({ icon: "distro:arch" })).toEqual({ icon: "distro:arch" })
     expect(normalizeTabIconStyle({ icon: "distro:windows" })).toBeUndefined()
   })
+
+  it("keeps the logos of known shells and tools only", () => {
+    expect(normalizeTabIconStyle({ icon: "logo:docker" })).toEqual({ icon: "logo:docker" })
+    expect(normalizeTabIconStyle({ icon: "logo:fish" })).toBeUndefined()
+  })
+})
+
+describe("pickedLogoColor", () => {
+  it("gives a logo its own color, and leaves glyphs and distributions their color", () => {
+    expect(pickedLogoColor("logo:docker")).toBe("#2496ed")
+    expect(pickedLogoColor("logo:github")).toBe("")
+    expect(pickedLogoColor("rocket")).toBeUndefined()
+    expect(pickedLogoColor("distro:arch")).toBeUndefined()
+  })
 })
 
 describe("hasLocalBadge", () => {
@@ -233,6 +248,12 @@ describe("shellsForSettings", () => {
 
 describe("shellTabIcon", () => {
   it("is what a shell's tabs show without a choice of their own", () => {
-    expect(shellTabIcon(config(), "Git Bash")).toEqual({ icon: "git-branch", color: "#f05133" })
+    expect(shellTabIcon(config(), "Git Bash")).toEqual({ icon: "logo:git", color: "#f03c2e" })
+    expect(shellTabIcon(config(), "nu")).toEqual({ icon: "logo:nushell", color: "#4e9a06" })
+  })
+
+  it("lays a shell's chosen color over its logo", () => {
+    const icons = config({ shells: { bash: { color: "#a371f7" } } })
+    expect(shellTabIcon(icons, "bash")).toEqual({ icon: "logo:bash", color: "#a371f7" })
   })
 })

@@ -1,3 +1,4 @@
+import { SimpleIcon } from "@/components/SimpleIcon"
 import type { AgentLogoId } from "@/lib/tabIcons"
 
 // From Simple Icons (CC0, simpleicons.org); OpenAI's, for Codex, from 15.22.0,
@@ -25,17 +26,5 @@ export function AgentLogo({
   /** A `#rrggbb` color, or "" for the text color. */
   color: string
 }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      width={size}
-      height={size}
-      fill="currentColor"
-      style={color ? { color } : undefined}
-      aria-hidden="true"
-    >
-      <path d={PATHS[agent]} />
-    </svg>
-  )
+  return <SimpleIcon path={PATHS[agent]} className={className} size={size} color={color} />
 }

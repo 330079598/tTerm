@@ -1,3 +1,4 @@
+import { brandLogoColor, isBrandLogoId, type BrandLogoId } from "@/lib/brandLogos"
 import { isDistroId, type DistroId } from "@/lib/distro"
 import { isSessionTab, type Tab } from "@/types/tab"
 
@@ -83,8 +84,11 @@ export type TabIconId = (typeof TAB_ICON_IDS)[number]
 /** A Linux distribution's logo, drawn in its own colors. */
 export type DistroTabIcon = `distro:${DistroId}`
 
-/** Anything a tab can show: a glyph, or a distribution's logo. */
-export type TabIconChoice = TabIconId | DistroTabIcon
+/** A shell's or tool's logo, tinted like a glyph. */
+export type BrandTabIcon = `logo:${BrandLogoId}`
+
+/** Anything a tab can show: a glyph, a distribution's logo, or a shell's or tool's. */
+export type TabIconChoice = TabIconId | DistroTabIcon | BrandTabIcon
 
 /** The AI agents with a logo of their own, by the name their reports give. */
 export const AGENT_LOGO_IDS = ["claude", "codex", "opencode", "pi"] as const
@@ -149,18 +153,23 @@ const UNIX: ResolvedTabIcon = { icon: "terminal", color: "#4caf7a" }
 const SERVER: ResolvedTabIcon = { icon: "server", color: "" }
 const SERIAL: ResolvedTabIcon = { icon: "usb", color: "" }
 
+function brandIcon(id: BrandLogoId): ResolvedTabIcon {
+  return { icon: `logo:${id}`, color: brandLogoColor(id) }
+}
+
 // How each shell looks until the user picks otherwise, keyed like the
 // settings: the lowercased names local_terminal_shell_name gives.
 const BUILT_IN: Record<string, ResolvedTabIcon> = {
   pwsh: POWERSHELL,
   powershell: POWERSHELL,
   cmd: { icon: "square-terminal", color: "" },
-  "git bash": { icon: "git-branch", color: "#f05133" },
+  "git bash": brandIcon("git"),
   wsl: { icon: "terminal", color: "#e9853a" },
-  bash: UNIX,
-  zsh: UNIX,
+  bash: brandIcon("bash"),
+  zsh: brandIcon("zsh"),
   sh: UNIX,
   fish: { icon: "fish", color: "#4caf7a" },
+  nu: brandIcon("nushell"),
 }
 
 const SHELL_NAMES: Record<string, string> = {
@@ -169,6 +178,7 @@ const SHELL_NAMES: Record<string, string> = {
   cmd: "cmd",
   "git bash": "Git Bash",
   wsl: "WSL",
+  nu: "Nushell",
 }
 
 const WINDOWS_SHELLS = ["pwsh", "powershell", "cmd", "git bash", "wsl"]
@@ -227,6 +237,15 @@ export function isDistroTabIcon(icon: ResolvedTabIcon["icon"]): icon is DistroTa
   return icon.startsWith("distro:")
 }
 
+export function isBrandTabIcon(icon: ResolvedTabIcon["icon"]): icon is BrandTabIcon {
+  return icon.startsWith("logo:")
+}
+
+/** The shell or tool whose logo `icon` is. */
+export function tabIconBrand(icon: BrandTabIcon): BrandLogoId {
+  return icon.slice("logo:".length) as BrandLogoId
+}
+
 export function isAgentTabIcon(icon: ResolvedTabIcon["icon"]): icon is AgentTabIcon {
   return icon.startsWith("agent:")
 }
@@ -241,6 +260,14 @@ export function agentTabIcon(agent: string): ResolvedTabIcon | null {
   if (!(AGENT_LOGO_IDS as readonly string[]).includes(agent)) return null
   const id = agent as AgentLogoId
   return { icon: `agent:${id}`, color: AGENT_LOGO_COLORS[id] }
+}
+
+/**
+ * The color a logo brings when picked: its brand's, "" for the text color;
+ * undefined for glyphs and distributions, which keep the color.
+ */
+export function pickedLogoColor(icon: TabIconChoice): string | undefined {
+  return isBrandTabIcon(icon) ? brandLogoColor(tabIconBrand(icon)) : undefined
 }
 
 /** The distribution whose logo `icon` is. */
@@ -322,6 +349,9 @@ export function resolveTabIcon(
 function isTabIconChoice(value: unknown): value is TabIconChoice {
   if (typeof value === "string" && value.startsWith("distro:")) {
     return isDistroId(value.slice("distro:".length))
+  }
+  if (typeof value === "string" && value.startsWith("logo:")) {
+    return isBrandLogoId(value.slice("logo:".length))
   }
   return (TAB_ICON_IDS as readonly unknown[]).includes(value)
 }

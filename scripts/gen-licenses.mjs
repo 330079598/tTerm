@@ -278,6 +278,31 @@ function collectOtherPackages() {
       url: "https://github.com/mbadolato/iTerm2-Color-Schemes",
       files: readLicenseFiles(join(ROOT, "src", "assets", "themes")),
     },
+    // Logos a tab can show, drawn from Simple Icons; the rest of its logos are CC0.
+    {
+      name: "Bash logo",
+      version: "",
+      license: "MIT",
+      source: "other",
+      url: "https://github.com/odb/official-bash-logo",
+      files: readLicenseFiles(join(ROOT, "src", "assets", "brand-logos"), ["LICENSE-bash"]),
+    },
+    {
+      name: "Git logo",
+      version: "",
+      license: "CC-BY-3.0",
+      source: "other",
+      url: "https://git-scm.com/downloads/logos",
+      files: [
+        {
+          name: "Attribution",
+          text: addText(
+            "Git Logo by Jason Long is licensed under the Creative Commons Attribution 3.0 Unported License."
+          ),
+        },
+        ...spdxFiles("CC-BY-3.0"),
+      ],
+    },
   ]
 }
 
