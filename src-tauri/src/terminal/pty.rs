@@ -208,6 +208,23 @@ pub(crate) fn wsl_distro_installed(name: &str) -> bool {
     }
 }
 
+/// The WSL distributions installed for this user, none outside Windows or
+/// when the registry can't be read.
+pub(crate) fn wsl_distro_names() -> Vec<String> {
+    #[cfg(target_os = "windows")]
+    {
+        super::wsl_distros::installed_distros()
+            .into_iter()
+            .map(|distro| distro.name)
+            .collect()
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Vec::new()
+    }
+}
+
 /// Whether this device has the shell kind a default names: `auto` and
 /// `custom` always, a built-in one such as `pwsh` or `wsl` only where it was
 /// found. Other platforms start the login shell for those.

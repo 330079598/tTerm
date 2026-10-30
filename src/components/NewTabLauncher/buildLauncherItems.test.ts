@@ -154,7 +154,7 @@ describe("buildLauncherItems", () => {
     })
   })
 
-  it("offers each WSL distribution, with WSL's default one standing for a WSL default", () => {
+  it("offers each WSL distribution, after WSL's default while that is the default", () => {
     const wsl = "C:\\Windows\\System32\\wsl.exe"
     const items = build({
       shells: [
@@ -172,10 +172,11 @@ describe("buildLauncherItems", () => {
       },
     }).filter((item) => item.section === "localTerminal")
     expect(items.map((item) => [item.key, item.label])).toEqual([
-      ["terminal", "Ubuntu"],
+      ["terminal", "connection.terminalShellOptions.wsl"],
+      ["terminal:wsl:Ubuntu", "Ubuntu"],
       ["terminal:wsl:Debian", "Debian"],
     ])
-    expect(items[1].action).toEqual({
+    expect(items[2].action).toEqual({
       kind: "terminal",
       shell: { shell: "wsl", wslDistro: "Debian" },
     })

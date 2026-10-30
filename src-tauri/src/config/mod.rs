@@ -344,6 +344,7 @@ pub fn load_config_file() -> Result<AppConfig, String> {
     let mut config: AppConfig =
         serde_json::from_str(&content).map_err(|e| format!("Failed to parse config: {}", e))?;
     local_shells::migrate(&mut config);
+    local_shells::migrate_hidden_wsl(&mut config, crate::terminal::pty::wsl_distro_names);
     Ok(config)
 }
 

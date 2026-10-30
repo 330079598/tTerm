@@ -119,9 +119,11 @@ export function buildShellEntries(
       hidden: false,
     },
   ]
-  // While the default is WSL's own default distribution, that distribution's
-  // entry stands for it, so the default is marked on the shell it starts.
-  const wslDefault = config.terminal_shell === "wsl" && !config.terminal_shell_wsl_distro.trim()
+  // A default of WSL's own default distribution, from older versions, shows
+  // as an entry of its own ahead of the distributions: it follows whichever
+  // one WSL makes its default, and keeps their keys the same either way. It
+  // can't be hidden while it is the default, and it is listed only then.
+  let wslDefault = config.terminal_shell === "wsl" && !config.terminal_shell_wsl_distro.trim()
   const addedAsIs = (path: string) =>
     config.local_shells.some((shell) => !shell.args.trim() && samePath(shell.path, path))
   for (const profile of detected) {
@@ -131,7 +133,19 @@ export function buildShellEntries(
       (!isDetectedCustomShell(profile) || addedAsIs(profile.source))
     )
       continue
-    const key = wslDefault && profile.defaultWslDistro ? "wsl" : detectedShellKey(profile)
+    if (wslDefault && profile.wslDistro) {
+      wslDefault = false
+      entries.push({
+        key: "wsl",
+        kind: "detected",
+        label: t("connection.terminalShellOptions.wsl", "Windows Subsystem for Linux (WSL)"),
+        detail: profile.source,
+        source: profile.source,
+        choice: { shell: "wsl" },
+        hidden: config.hidden_shells.includes("wsl"),
+      })
+    }
+    const key = detectedShellKey(profile)
     entries.push({
       key,
       kind: "detected",

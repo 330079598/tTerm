@@ -37,6 +37,27 @@ pub(super) fn migrate(config: &mut AppConfig) {
     config.terminal_shell_id = id;
 }
 
+/// Hides each of the WSL distributions `installed` lists where v0.7.2-beta.7
+/// hid WSL as a whole, under the key `wsl` that the lists give none of them
+/// now. With none listed, the lists still show WSL as one entry under that
+/// key. `installed` is asked only when there is something to migrate.
+pub(super) fn migrate_hidden_wsl(config: &mut AppConfig, installed: impl FnOnce() -> Vec<String>) {
+    if !config.hidden_shells.iter().any(|key| key == "wsl") {
+        return;
+    }
+    let installed = installed();
+    if installed.is_empty() {
+        return;
+    }
+    config.hidden_shells.retain(|key| key != "wsl");
+    for name in &installed {
+        let key = format!("wsl:{name}");
+        if !config.hidden_shells.contains(&key) {
+            config.hidden_shells.push(key);
+        }
+    }
+}
+
 /// The id given to the custom shell an older version kept as the default.
 /// It comes from the program and its arguments, so it is the same on every
 /// load and tabs saved with it still find it, while a shell migrated on
@@ -120,6 +141,29 @@ mod tests {
         assert_ne!(id("/bin/zsh", "-l"), id("/opt/homebrew/bin/fish", "-l"));
         assert_ne!(id("/bin/zsh", "-l"), id("/bin/zsh", ""));
         assert_ne!(id("/bin/zs", "h"), id("/bin/zsh", ""));
+    }
+
+    #[test]
+    fn hides_each_wsl_distribution_where_wsl_was_hidden() {
+        let hidden = |keys: &[&str], installed: &[&str]| {
+            let mut config = AppConfig {
+                hidden_shells: keys.iter().map(ToString::to_string).collect(),
+                ..AppConfig::default()
+            };
+            migrate_hidden_wsl(&mut config, || {
+                installed.iter().map(ToString::to_string).collect()
+            });
+            config.hidden_shells
+        };
+        assert_eq!(
+            hidden(&["cmd", "wsl", "wsl:Debian"], &["Ubuntu", "Debian"]),
+            ["cmd", "wsl:Debian", "wsl:Ubuntu"]
+        );
+        assert_eq!(hidden(&["wsl"], &[]), ["wsl"]);
+        assert_eq!(
+            hidden(&["wsl:Ubuntu"], &["Ubuntu", "Debian"]),
+            ["wsl:Ubuntu"]
+        );
     }
 
     #[test]

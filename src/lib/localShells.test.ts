@@ -87,16 +87,28 @@ describe("buildShellEntries", () => {
     })
   })
 
-  it("lists each WSL distribution, WSL's default one keyed as WSL while that is the default", () => {
+  it("lists each WSL distribution under its own key, and WSL's default while that is the default", () => {
     const wsl = "C:\\Windows\\System32\\wsl.exe"
     const distros: TerminalShellProfile[] = [
       { shell: "wsl", label: "Ubuntu", source: wsl, wslDistro: "Ubuntu", defaultWslDistro: true },
       { shell: "wsl", label: "Debian", source: wsl, wslDistro: "Debian" },
     ]
-    const keys = (config: ShellConfig) =>
-      buildShellEntries(distros, config, t).map((entry) => entry.key)
+    const keys = (config: ShellConfig, profiles = distros) =>
+      buildShellEntries(profiles, config, t).map((entry) => entry.key)
     expect(keys(shellConfig())).toEqual(["auto", "wsl:Ubuntu", "wsl:Debian"])
-    expect(keys(shellConfig({ terminal_shell: "wsl" }))).toEqual(["auto", "wsl", "wsl:Debian"])
+    const wslDefault = shellConfig({ terminal_shell: "wsl" })
+    expect(keys(wslDefault)).toEqual(["auto", "wsl", "wsl:Ubuntu", "wsl:Debian"])
+    expect(buildShellEntries(distros, wslDefault, t)[1]).toMatchObject({
+      label: "Windows Subsystem for Linux (WSL)",
+      choice: { shell: "wsl" },
+    })
+    expect(defaultShellKey(wslDefault)).toBe("wsl")
+    // Also when the registry names no default distribution.
+    const unmarked = distros.map((profile) => ({ ...profile, defaultWslDistro: undefined }))
+    expect(keys(wslDefault, unmarked)).toEqual(["auto", "wsl", "wsl:Ubuntu", "wsl:Debian"])
+    // WSL read as a whole, with no distribution, is listed once.
+    const whole: TerminalShellProfile[] = [{ shell: "wsl", label: "WSL", source: wsl }]
+    expect(keys(wslDefault, whole)).toEqual(["auto", "wsl"])
     const debian = buildShellEntries(distros, shellConfig(), t)[2]
     expect(debian).toMatchObject({
       label: "Debian",
