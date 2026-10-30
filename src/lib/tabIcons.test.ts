@@ -126,6 +126,12 @@ describe("resolveTabIcon", () => {
       color: "#e5534b",
     })
   })
+
+  it("shows an agent logo picked for the tab whether or not an agent runs", () => {
+    const tab = { type: "terminal" as const, iconStyle: { icon: "agent:claude" as const } }
+    expect(resolveTabIcon(tab, config({ agents: false }))?.icon).toBe("agent:claude")
+    expect(resolveTabIcon(tab, config(), "codex")?.icon).toBe("agent:claude")
+  })
 })
 
 describe("normalizeTabIconStyle", () => {
@@ -148,12 +154,19 @@ describe("normalizeTabIconStyle", () => {
     expect(normalizeTabIconStyle({ icon: "logo:docker" })).toEqual({ icon: "logo:docker" })
     expect(normalizeTabIconStyle({ icon: "logo:fish" })).toBeUndefined()
   })
+
+  it("keeps a picked AI agent logo for agents with one only", () => {
+    expect(normalizeTabIconStyle({ icon: "agent:claude" })).toEqual({ icon: "agent:claude" })
+    expect(normalizeTabIconStyle({ icon: "agent:my-agent" })).toBeUndefined()
+  })
 })
 
 describe("pickedLogoColor", () => {
   it("gives a logo its own color, and leaves glyphs and distributions their color", () => {
     expect(pickedLogoColor("logo:docker")).toBe("#2496ed")
     expect(pickedLogoColor("logo:github")).toBe("")
+    expect(pickedLogoColor("agent:claude")).toBe("#d97757")
+    expect(pickedLogoColor("agent:codex")).toBe("")
     expect(pickedLogoColor("rocket")).toBeUndefined()
     expect(pickedLogoColor("distro:arch")).toBeUndefined()
   })

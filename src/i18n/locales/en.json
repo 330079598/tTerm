@@ -2907,6 +2907,7 @@
     "icon": "Icon",
     "distros": "Distributions",
     "logos": "Shell and tool logos",
+    "agentLogos": "AI agents",
     "color": "Color",
     "noColor": "No color",
     "customColor": "Custom color",

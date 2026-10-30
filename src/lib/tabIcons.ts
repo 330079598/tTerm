@@ -87,15 +87,15 @@ export type DistroTabIcon = `distro:${DistroId}`
 /** A shell's or tool's logo, tinted like a glyph. */
 export type BrandTabIcon = `logo:${BrandLogoId}`
 
-/** Anything a tab can show: a glyph, a distribution's logo, or a shell's or tool's. */
-export type TabIconChoice = TabIconId | DistroTabIcon | BrandTabIcon
+/** Anything a tab can show: a glyph, or a distribution's, shell's, tool's or AI agent's logo. */
+export type TabIconChoice = TabIconId | DistroTabIcon | BrandTabIcon | AgentTabIcon
 
 /** The AI agents with a logo of their own, by the name their reports give. */
 export const AGENT_LOGO_IDS = ["claude", "codex", "opencode", "pi"] as const
 
 export type AgentLogoId = (typeof AGENT_LOGO_IDS)[number]
 
-/** An AI agent's logo, which a tab shows while the agent runs; never saved as a choice. */
+/** An AI agent's logo, which a tab shows while the agent runs, or always once picked for it. */
 export type AgentTabIcon = `agent:${AgentLogoId}`
 
 // Claude Code's logo keeps its own color; the others are black and white, so
@@ -132,7 +132,7 @@ export interface TabIconStyle {
 
 /** An icon as shown: an empty color draws it in the tab's text color. */
 export interface ResolvedTabIcon {
-  icon: TabIconChoice | AgentTabIcon
+  icon: TabIconChoice
   color: string
 }
 
@@ -255,19 +255,24 @@ export function tabIconAgent(icon: AgentTabIcon): AgentLogoId {
   return icon.slice("agent:".length) as AgentLogoId
 }
 
+function isAgentLogoId(value: unknown): value is AgentLogoId {
+  return (AGENT_LOGO_IDS as readonly unknown[]).includes(value)
+}
+
 /** An agent's logo as a tab shows it, or null for an agent without one. */
 export function agentTabIcon(agent: string): ResolvedTabIcon | null {
-  if (!(AGENT_LOGO_IDS as readonly string[]).includes(agent)) return null
-  const id = agent as AgentLogoId
-  return { icon: `agent:${id}`, color: AGENT_LOGO_COLORS[id] }
+  if (!isAgentLogoId(agent)) return null
+  return { icon: `agent:${agent}`, color: AGENT_LOGO_COLORS[agent] }
 }
 
 /**
- * The color a logo brings when picked: its brand's, "" for the text color;
- * undefined for glyphs and distributions, which keep the color.
+ * The color a logo brings when picked: its brand's or agent's, "" for the
+ * text color; undefined for glyphs and distributions, which keep the color.
  */
 export function pickedLogoColor(icon: TabIconChoice): string | undefined {
-  return isBrandTabIcon(icon) ? brandLogoColor(tabIconBrand(icon)) : undefined
+  if (isBrandTabIcon(icon)) return brandLogoColor(tabIconBrand(icon))
+  if (isAgentTabIcon(icon)) return AGENT_LOGO_COLORS[tabIconAgent(icon)]
+  return undefined
 }
 
 /** The distribution whose logo `icon` is. */
@@ -352,6 +357,9 @@ function isTabIconChoice(value: unknown): value is TabIconChoice {
   }
   if (typeof value === "string" && value.startsWith("logo:")) {
     return isBrandLogoId(value.slice("logo:".length))
+  }
+  if (typeof value === "string" && value.startsWith("agent:")) {
+    return isAgentLogoId(value.slice("agent:".length))
   }
   return (TAB_ICON_IDS as readonly unknown[]).includes(value)
 }

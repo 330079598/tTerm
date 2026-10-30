@@ -2876,6 +2876,7 @@
     "icon": "图标",
     "distros": "发行版",
     "logos": "Shell 与工具的 logo",
+    "agentLogos": "AI Agent",
     "color": "颜色",
     "noColor": "无颜色",
     "customColor": "自定义颜色",

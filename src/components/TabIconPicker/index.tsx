@@ -4,9 +4,12 @@ import { useTranslation } from "react-i18next"
 import { TabIconGlyph } from "@/components/TabIcon"
 import { Button } from "@/components/ui/button"
 import { ColorSwatches } from "@/components/ui/color-swatches"
+import { agentDisplayName } from "@/lib/agentStatus"
 import { BRAND_LOGO_IDS, brandLogoColor, brandLogoName } from "@/lib/brandLogos"
 import { DISTRO_IDS, distroName } from "@/lib/distro"
 import {
+  AGENT_LOGO_COLORS,
+  AGENT_LOGO_IDS,
   applyTabIconStyle,
   isDistroTabIcon,
   normalizeTabIconStyle,
@@ -37,7 +40,7 @@ export function TabIconPicker({ value, inherited, onChange, resetLabel }: TabIco
   const { t } = useTranslation()
   const shown = applyTabIconStyle(inherited, value)
   const choose = (patch: TabIconStyle) => onChange(normalizeTabIconStyle({ ...value, ...patch }))
-  // A logo brings its brand's color along, which the color row can then change.
+  // A logo brings its own color along, which the color row can then change.
   const chooseIcon = (icon: TabIconChoice) => {
     const color = pickedLogoColor(icon)
     choose({
@@ -74,6 +77,25 @@ export function TabIconPicker({ value, inherited, onChange, resetLabel }: TabIco
               icon={{ icon: `distro:${id}`, color: "" }}
               name={distroName(id)}
               checked={shown.icon === `distro:${id}`}
+              onSelect={chooseIcon}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="text-muted-foreground text-xs">{t("tabIcons.agentLogos")}</div>
+        <div
+          className="flex flex-wrap gap-1"
+          role="radiogroup"
+          aria-label={t("tabIcons.agentLogos")}
+        >
+          {AGENT_LOGO_IDS.map((id) => (
+            <IconOption
+              key={id}
+              icon={{ icon: `agent:${id}`, color: AGENT_LOGO_COLORS[id] }}
+              name={agentDisplayName(id)}
+              checked={shown.icon === `agent:${id}`}
               onSelect={chooseIcon}
             />
           ))}
