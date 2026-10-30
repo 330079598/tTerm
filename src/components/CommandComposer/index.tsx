@@ -69,7 +69,7 @@ export const CommandComposer: React.FC<CommandComposerProps> = ({
   const { t } = useTranslation()
   const { config } = useConfig()
   const shortcutLabel = useShortcutLabel()
-  const { open, focusRequest, lineByLine, text } = useComposerState()
+  const { open, focusRequest, lineByLine, text, guarded } = useComposerState()
   const { history, setText, recallOlder, recallNewer } = useComposerHistory(text, recentCommands)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   useComposerShortcut(textareaRef, focusRequest)
@@ -86,6 +86,7 @@ export const CommandComposer: React.FC<CommandComposerProps> = ({
     broadcast,
     text,
     setText,
+    guarded,
     confirm,
   })
 
@@ -108,7 +109,7 @@ export const CommandComposer: React.FC<CommandComposerProps> = ({
     const plainCtrl = event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey
     if (event.key === "Enter" && !event.shiftKey && !event.altKey) {
       event.preventDefault()
-      if (canSubmit) submit()
+      if (canSubmit) void submit()
     } else if (event.key === "Escape") {
       event.preventDefault()
       focusActiveTerminal()
@@ -210,7 +211,7 @@ export const CommandComposer: React.FC<CommandComposerProps> = ({
           className="mb-0.5"
           disabled={!canSubmit}
           onMouseDown={keepFocusOnMouseDown}
-          onClick={submit}
+          onClick={() => void submit()}
         >
           <Send />
           {t("composer.send")}

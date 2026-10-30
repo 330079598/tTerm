@@ -5,6 +5,7 @@ import {
   caretOnLastLine,
   composerInput,
   getComposerTarget,
+  getComposerGuarded,
   getComposerText,
   historySuggestion,
   insertIntoComposer,
@@ -91,5 +92,16 @@ describe("insertIntoComposer", () => {
     insertIntoComposer("df -h")
     expect(getComposerText()).toBe("uptime\ndf -h")
     setComposerText("")
+  })
+
+  it("keeps a command that asks for confirmation guarded until the bar is emptied", () => {
+    setComposerText("")
+    insertIntoComposer("uptime")
+    insertIntoComposer("reboot", "Restart")
+    expect(getComposerGuarded()).toEqual(["Restart"])
+    setComposerText("uptime")
+    expect(getComposerGuarded()).toEqual(["Restart"])
+    setComposerText("")
+    expect(getComposerGuarded()).toEqual([])
   })
 })

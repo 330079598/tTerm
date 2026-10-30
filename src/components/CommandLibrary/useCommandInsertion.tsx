@@ -59,8 +59,9 @@ export function useCommandInsertion({
   ) => {
     setIsInserting(true)
     try {
-      if (destination === "composer") insertIntoComposer(commandText)
-      else if (!(await onInsert({ ...command, commandText }))) return false
+      if (destination === "composer") {
+        insertIntoComposer(commandText, command.confirmBeforeRun ? command.name : undefined)
+      } else if (!(await onInsert({ ...command, commandText }))) return false
       void invoke("record_saved_command_use", { id: command.id }).catch(console.error)
       setCommands((current) =>
         current.map((candidate) =>
@@ -87,7 +88,7 @@ export function useCommandInsertion({
       return
     }
 
-    // In the compose bar the command waits to be sent, which is its confirmation.
+    // In the compose bar the command waits to be sent, and sending it asks.
     if (command.confirmBeforeRun && destination === "terminal") {
       onOpenChange(false)
       const confirmed = await confirm({

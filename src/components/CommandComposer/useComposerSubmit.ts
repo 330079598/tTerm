@@ -29,6 +29,8 @@ interface UseComposerSubmitOptions {
   broadcast: ComposerBroadcast
   text: string
   setText: (text: string) => void
+  /** Names of the saved commands in the bar that ask before they run. */
+  guarded: readonly string[]
   confirm: ReturnType<typeof useConfirmDialog>["confirm"]
 }
 
@@ -45,6 +47,7 @@ export function useComposerSubmit({
   broadcast,
   text,
   setText,
+  guarded,
   confirm,
 }: UseComposerSubmitOptions) {
   const { t } = useTranslation()
@@ -127,9 +130,29 @@ export function useComposerSubmit({
     }
   }
 
-  const submit = () => {
+  /** Asks before a saved command that asks for confirmation is sent. */
+  const confirmGuarded = () =>
+    guarded.length === 0 ||
+    confirm({
+      title: t("composer.confirmSendTitle"),
+      description: t("composer.confirmSendDescription", {
+        count: guarded.length,
+        names: guarded.map((name) => `“${name}”`).join(", "),
+      }),
+      confirmText: t("composer.send"),
+      cancelText: t("common.cancel"),
+      defaultAction: "cancel",
+    })
+
+  const submit = async () => {
     if (sending) return
-    if (toBroadcast) void submitToBroadcast()
+    setSending(true)
+    try {
+      if (!(await confirmGuarded())) return
+    } finally {
+      setSending(false)
+    }
+    if (toBroadcast) await submitToBroadcast()
     else submitToPane()
   }
 

@@ -95,6 +95,11 @@ let state = {
   lineByLine: loadFlag(LINE_BY_LINE_STORAGE_KEY),
   /** What is typed in the bar, kept here so the command library can add to it. */
   text: "",
+  /**
+   * The saved commands put in the bar that ask for confirmation before they
+   * run, by name; sending asks first until the bar is emptied.
+   */
+  guarded: [] as readonly string[],
 }
 const listeners = new Set<() => void>()
 
@@ -123,17 +128,26 @@ export function getComposerText() {
   return state.text
 }
 
+/** The saved commands in the bar that ask for confirmation before they run. */
+export function getComposerGuarded() {
+  return state.guarded
+}
+
 export function setComposerText(text: string) {
-  if (text !== state.text) setState({ ...state, text })
+  if (text === state.text) return
+  setState({ ...state, text, guarded: text ? state.guarded : [] })
 }
 
 /**
  * Puts `command` in the bar to be looked over before it is sent, on a line
- * of its own after what is there already, and shows the bar.
+ * of its own after what is there already, and shows the bar. `confirmAs`
+ * names a saved command that asks for confirmation before it runs, which
+ * sending it from the bar then asks.
  */
-export function insertIntoComposer(command: string) {
+export function insertIntoComposer(command: string, confirmAs?: string) {
   const text = state.text.trim() ? `${state.text.replace(/\n+$/, "")}\n${command}` : command
-  setState({ ...state, text, open: true, focusRequest: state.focusRequest + 1 })
+  const guarded = confirmAs === undefined ? state.guarded : [...state.guarded, confirmAs]
+  setState({ ...state, text, guarded, open: true, focusRequest: state.focusRequest + 1 })
 }
 
 export function isComposerOpen() {
@@ -149,7 +163,8 @@ function subscribe(listener: () => void) {
 
 /**
  * Whether the bar is shown, a count that goes up each time it should take
- * the keyboard, how it sends several lines, and its text.
+ * the keyboard, how it sends several lines, its text, and the saved commands
+ * in it that ask for confirmation.
  */
 export function useComposerState() {
   return useSyncExternalStore(subscribe, () => state)
