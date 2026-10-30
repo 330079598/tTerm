@@ -1,6 +1,6 @@
 use super::config::{compatibility_client_config, unverifiable_host_key_error};
-use super::handler::JumpHostHandler;
-use super::hop::{connect_jump_direct, connect_jump_over_stream};
+use super::hop::ChainHops;
+use super::pool::{chain_keys, Relay};
 use crate::core::session::{types::JumpHostPlan, types::SessionPlan};
 use crate::core::state::HostPromptMap;
 use crate::proxy::command::CommandTarget;
@@ -111,21 +111,41 @@ where
     }
 }
 
-/// Holds the authenticated jump sessions that keep every direct-tcpip hop alive.
+/// Keeps a connection's jump hosts open. Its last hop holds on to the hops
+/// before it, and to sessions other connections share with it.
 pub struct JumpChain {
-    pub sessions: Vec<client::Handle<JumpHostHandler>>,
+    last: Arc<dyn Relay>,
 }
 
-impl Drop for JumpChain {
-    fn drop(&mut self) {
-        let _ = self.sessions.len();
+impl JumpChain {
+    /// The session of the last hop, which the target is reached through.
+    pub(crate) fn into_relay(self) -> Arc<dyn Relay> {
+        self.last
     }
+}
+
+/// Writes a status line into the tab's terminal, when this connection shows them.
+pub(super) fn emit_terminal_status(ctx: ConnectContext<'_>, status: &str) {
+    if !ctx.status_options.emit_terminal_output {
+        return;
+    }
+    let status_msg = format!("\r\n\x1b[33m[{status}]\x1b[0m\r\n");
+    crate::session_log::record_output(ctx.app, ctx.tab_id, status_msg.as_bytes());
+    let event_name = format!("pty-output-{}", ctx.tab_id);
+    let _ = ctx
+        .app
+        .emit_to(tauri::EventTarget::any(), &event_name, status_msg);
 }
 
 /// Open an ordered ProxyJump-style chain, then establish the target SSH session
 /// on top of the final direct-tcpip stream. The first jump host is reached
 /// through `proxy` when one is set. The returned `JumpChain` must stay alive
 /// for as long as the target session is used.
+///
+/// Hops already open, for another connection or as a terminal tab of their
+/// own, are used as they are, so only the hops after them are logged in to.
+/// A connection that trusts unknown host keys for itself alone, the
+/// connection test, neither uses nor shares them.
 pub async fn connect_via_jump_chain<H>(
     ctx: ConnectContext<'_>,
     jump_plans: &[JumpHostPlan],
@@ -150,78 +170,31 @@ where
         ));
     }
 
-    let total_hops = jump_plans.len();
-    let mut sessions = Vec::with_capacity(total_hops);
-
-    let first = connect_jump_direct(ctx, &jump_plans[0], 1, total_hops, proxy).await?;
-    sessions.push(first);
-
-    for (index, jump_plan) in jump_plans.iter().enumerate().skip(1) {
-        let hop_index = index + 1;
-        let previous = sessions.last().ok_or_else(|| {
-            SshConnectError::Permanent("Jump chain lost its previous session".to_string())
-        })?;
-
-        if status_options.emit_terminal_output {
-            let status_msg = format!(
-                "\r\n\x1b[33m[Opening tunnel to jump #{} {}:{}...]\x1b[0m\r\n",
-                hop_index, jump_plan.host, jump_plan.port
-            );
-            crate::session_log::record_output(app, tab_id, status_msg.as_bytes());
-            let event_name = format!("pty-output-{}", tab_id);
-            let _ = app.emit_to(tauri::EventTarget::any(), &event_name, status_msg);
-        }
-
-        emit_connection_progress(
-            app,
-            tab_id,
-            status_options,
-            SshConnectionProgressPayload::new(
-                "tunnel_opening",
-                format!(
-                    "Opening tunnel to jump host #{} {}:{}",
-                    hop_index, jump_plan.host, jump_plan.port
-                ),
-            )
-            .host(jump_plan.host.clone(), jump_plan.port)
-            .hop(hop_index, total_hops),
-        );
-        let tunnel_channel = previous
-            .channel_open_direct_tcpip(
-                jump_plan.host.as_str(),
-                jump_plan.port as u32,
-                "127.0.0.1",
-                0,
-            )
-            .await
-            .map_err(|e| {
-                SshConnectError::Network(format!(
-                    "Jump host #{} failed to open tunnel to jump #{}: {e}",
-                    index, hop_index
-                ))
-            })?;
-
-        let next = connect_jump_over_stream(
-            ctx,
-            jump_plan,
-            hop_index,
-            total_hops,
-            tunnel_channel.into_stream(),
-        )
-        .await?;
-        sessions.push(next);
+    let shared = ctx.host_key_verification_mode == HostKeyVerificationMode::PromptAndPersist;
+    let keys = chain_keys(
+        proxy,
+        jump_plans
+            .iter()
+            .map(|jump| (jump.username.as_str(), jump.host.as_str(), jump.port)),
+    );
+    let hops = ChainHops {
+        plans: jump_plans,
+        keys: shared.then_some(keys.as_slice()),
+        proxy,
+    };
+    let (mut last, next) = match hops.farthest_open(ctx) {
+        Some((index, session)) => (Some(session), index + 1),
+        None => (None, 0),
+    };
+    for index in next..jump_plans.len() {
+        last = Some(hops.open(ctx, index, last.take()).await?);
     }
+    let last = last.ok_or_else(|| SshConnectError::Permanent("Jump chain is empty".to_string()))?;
 
-    if status_options.emit_terminal_output {
-        let status_msg = format!(
-            "\r\n\x1b[33m[Jump chain connected. Opening tunnel to {}:{}...]\x1b[0m\r\n",
-            target_host, target_port
-        );
-        crate::session_log::record_output(app, tab_id, status_msg.as_bytes());
-        let event_name = format!("pty-output-{}", tab_id);
-        let _ = app.emit_to(tauri::EventTarget::any(), &event_name, status_msg);
-    }
-
+    emit_terminal_status(
+        ctx,
+        &format!("Jump chain connected. Opening tunnel to {target_host}:{target_port}..."),
+    );
     emit_connection_progress(
         app,
         tab_id,
@@ -232,11 +205,8 @@ where
         )
         .host(target_host.to_string(), target_port),
     );
-    let last = sessions
-        .last()
-        .ok_or_else(|| SshConnectError::Permanent("Jump chain is empty".to_string()))?;
     let tunnel_channel = last
-        .channel_open_direct_tcpip(target_host, target_port as u32, "127.0.0.1", 0)
+        .open_direct_tcpip(target_host, target_port)
         .await
         .map_err(|e| {
             SshConnectError::Network(format!(
@@ -269,7 +239,7 @@ where
                 })
             })?;
 
-    Ok((JumpChain { sessions }, target_session))
+    Ok((JumpChain { last }, target_session))
 }
 
 /// Build a `SshClientHandler` for the target host and open an authenticated

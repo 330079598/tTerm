@@ -1,8 +1,9 @@
 //! Connecting and logging in to one jump host of a chain.
 
 use super::config::{compatibility_client_config, unverifiable_host_key_error};
-use super::connect::{connect_first_hop, open_proxy_stream, ConnectContext};
+use super::connect::{connect_first_hop, emit_terminal_status, open_proxy_stream, ConnectContext};
 use super::handler::JumpHostHandler;
+use super::pool::{self, PooledSession, Relay, RouteKey};
 use crate::core::session::types::JumpHostPlan;
 use crate::proxy::command::CommandTarget;
 use crate::proxy::ProxyEndpoint;
@@ -296,4 +297,121 @@ where
     );
 
     Ok(session)
+}
+
+/// The hops of one chain and, when this connection shares them, the route of
+/// each.
+pub(super) struct ChainHops<'a> {
+    pub plans: &'a [JumpHostPlan],
+    /// `None` when this connection keeps its hops to itself.
+    pub keys: Option<&'a [RouteKey]>,
+    pub proxy: Option<&'a ProxyEndpoint>,
+}
+
+impl ChainHops<'_> {
+    /// The farthest hop that is already open, and its position.
+    pub fn farthest_open(&self, ctx: ConnectContext<'_>) -> Option<(usize, Arc<dyn Relay>)> {
+        let (index, session) = self
+            .keys?
+            .iter()
+            .enumerate()
+            .rev()
+            .find_map(|(index, key)| pool::find(key).map(|session| (index, session)))?;
+        self.report_reused(ctx, index);
+        Some((index, session))
+    }
+
+    /// Logs in to hop `index`, through `previous` or, for the first hop,
+    /// directly, and offers it to the connections that come after.
+    pub async fn open(
+        &self,
+        ctx: ConnectContext<'_>,
+        index: usize,
+        previous: Option<Arc<dyn Relay>>,
+    ) -> Result<Arc<dyn Relay>, SshConnectError> {
+        let plan = self
+            .plans
+            .get(index)
+            .ok_or_else(|| SshConnectError::Permanent("Jump chain lost a hop".to_string()))?;
+        let key = self.keys.and_then(|keys| keys.get(index));
+        let _connecting = match key {
+            Some(key) => {
+                let guard = pool::connecting(key).await;
+                // Whoever held the place before may have just opened this hop.
+                if let Some(session) = pool::find(key) {
+                    self.report_reused(ctx, index);
+                    return Ok(session);
+                }
+                Some(guard)
+            }
+            None => None,
+        };
+
+        let (hop_index, total_hops) = (index + 1, self.plans.len());
+        let handle = match &previous {
+            None => connect_jump_direct(ctx, plan, hop_index, total_hops, self.proxy).await?,
+            Some(previous) => {
+                emit_terminal_status(
+                    ctx,
+                    &format!(
+                        "Opening tunnel to jump #{hop_index} {}:{}...",
+                        plan.host, plan.port
+                    ),
+                );
+                emit_connection_progress(
+                    ctx.app,
+                    ctx.tab_id,
+                    ctx.status_options,
+                    SshConnectionProgressPayload::new(
+                        "tunnel_opening",
+                        format!(
+                            "Opening tunnel to jump host #{hop_index} {}:{}",
+                            plan.host, plan.port
+                        ),
+                    )
+                    .host(plan.host.clone(), plan.port)
+                    .hop(hop_index, total_hops),
+                );
+                let channel = previous
+                    .open_direct_tcpip(&plan.host, plan.port)
+                    .await
+                    .map_err(|e| {
+                        SshConnectError::Network(format!(
+                            "Jump host #{index} failed to open tunnel to jump #{hop_index}: {e}"
+                        ))
+                    })?;
+                connect_jump_over_stream(ctx, plan, hop_index, total_hops, channel.into_stream())
+                    .await?
+            }
+        };
+        let session = Arc::new(PooledSession::new(handle, previous));
+        if let Some(key) = key {
+            pool::offer(key.clone(), &session);
+        }
+        Ok(session)
+    }
+
+    /// Tells the user hop `index` goes over a session that is already open.
+    fn report_reused(&self, ctx: ConnectContext<'_>, index: usize) {
+        let Some(plan) = self.plans.get(index) else {
+            return;
+        };
+        let address = format!("{}@{}:{}", plan.username, plan.host, plan.port);
+        emit_terminal_status(ctx, &format!("Using the open connection to {address}"));
+        emit_connection_progress(
+            ctx.app,
+            ctx.tab_id,
+            ctx.status_options,
+            SshConnectionProgressPayload::new(
+                "jump_connected",
+                format!(
+                    "Using the open connection to jump host #{} {address}",
+                    index + 1
+                ),
+            )
+            .host(plan.host.clone(), plan.port)
+            .username(plan.username.clone())
+            .hop(index + 1, self.plans.len()),
+        );
+    }
 }

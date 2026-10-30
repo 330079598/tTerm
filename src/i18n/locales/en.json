@@ -1629,7 +1629,7 @@
   "jumpHost": {
     "enable": "Connect via jump hosts (bastions)",
     "chain": "Jump chain",
-    "chainDescription": "Connections are opened in order, like OpenSSH ProxyJump.",
+    "chainDescription": "Connections are opened in order, like OpenSSH ProxyJump. A jump host that is already connected, in a tab or for another connection, is used without logging in again.",
     "route": "Connection route",
     "add": "Add jump host",
     "clear": "Clear jump hosts",

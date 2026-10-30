@@ -5,8 +5,11 @@ use super::types::{
 };
 use crate::core::session::types::SessionPlan;
 use crate::core::state::{ChannelContext, HostPromptMap};
+use crate::ssh::jump::connect::JumpChain;
+use crate::ssh::jump::pool::{self, chain_keys, PooledSession, RouteKey};
 use crate::zmodem::session::{ZmodemReceiveDriver, ZmodemSettings};
 use russh::{ChannelMsg, Disconnect};
+use std::sync::Arc;
 use tauri::Emitter;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{mpsc, watch};
@@ -29,6 +32,52 @@ pub async fn measure_ssh_latency(
     })
     .await
     .map_err(|_| "Latency probe timed out".to_string())?
+}
+
+/// Where a tab's session ends up and the way it gets there.
+fn target_route(plan: &SessionPlan, host: &str, username: &str) -> Option<RouteKey> {
+    let hops = plan
+        .jump_hosts
+        .iter()
+        .map(|jump| (jump.username.as_str(), jump.host.as_str(), jump.port));
+    chain_keys(
+        plan.proxy.as_ref(),
+        hops.chain(std::iter::once((username, host, plan.port))),
+    )
+    .pop()
+}
+
+/// Lets connections that jump through the tab's host use its session, which
+/// keeps the jump hosts it was reached through open with it.
+fn share_session(
+    route: Option<&RouteKey>,
+    session: russh::client::Handle<SshClientHandler>,
+    jump_chain: Option<JumpChain>,
+) -> Arc<PooledSession<SshClientHandler>> {
+    let session = Arc::new(PooledSession::new(
+        session,
+        jump_chain.map(JumpChain::into_relay),
+    ));
+    if let Some(route) = route {
+        pool::offer(route.clone(), &session);
+    }
+    session
+}
+
+/// Ends the tab's session, unless connections still jump through it; it then
+/// closes with the last of them.
+async fn close_session(
+    route: Option<&RouteKey>,
+    session: &Arc<PooledSession<SshClientHandler>>,
+    reason: &str,
+) {
+    let unshared = route.is_none_or(|route| pool::withdraw_if_unshared(route, session));
+    if unshared {
+        let _ = session
+            .handle
+            .disconnect(Disconnect::ByApplication, reason, "en")
+            .await;
+    }
 }
 
 pub struct SshExitSignal {
@@ -227,6 +276,9 @@ pub async fn run_single_ssh_connection(
         }
     };
 
+    let route = target_route(&plan, &host, &username);
+    let session = share_session(route.as_ref(), session, jump_chain);
+
     // The command that starts the shell with shell integration, and how
     // integration went for the connection header.
     let unavailable = |reason| Some(ShellIntegrationStatus::Unavailable { reason });
@@ -235,7 +287,7 @@ pub async fn run_single_ssh_connection(
     } else {
         let target = format!("{username}@{host}:{}", plan.port);
         let marks = crate::config::command_marks_enabled();
-        match super::shell_integration::prepare(&session, &target, marks).await {
+        match super::shell_integration::prepare(&session.handle, &target, marks).await {
             Ok(prepared) => (Some(prepared), None),
             Err(reason) => (None, unavailable(reason)),
         }
@@ -243,7 +295,7 @@ pub async fn run_single_ssh_connection(
 
     let (mut rows, mut cols) = latest_queued_size(&mut resize_rx, (rows, cols));
     let channel_open_started_at = tokio::time::Instant::now();
-    let mut channel = match open_terminal_channel(&session, &plan, rows, cols).await {
+    let mut channel = match open_terminal_channel(&session.handle, &plan, rows, cols).await {
         Ok(channel) => channel,
         Err(reason) => {
             finish_output!();
@@ -276,7 +328,7 @@ pub async fn run_single_ssh_connection(
         if early_output.is_none() {
             // That channel is closed; the plain shell gets a fresh one.
             (rows, cols) = latest_queued_size(&mut resize_rx, (rows, cols));
-            channel = match open_terminal_channel(&session, &plan, rows, cols).await {
+            channel = match open_terminal_channel(&session.handle, &plan, rows, cols).await {
                 Ok(channel) => channel,
                 Err(reason) => {
                     finish_output!();
@@ -320,7 +372,7 @@ pub async fn run_single_ssh_connection(
     // Asked once the shell is requested, so its answer travels alongside the
     // first prompt instead of ahead of it.
     if crate::config::tab_icons_enabled() {
-        super::remote_os::probe(&app, &tab_id, &session).await;
+        super::remote_os::probe(&app, &tab_id, &session.handle).await;
     }
 
     let (mut reader, writer) = channel.split();
@@ -356,8 +408,7 @@ pub async fn run_single_ssh_connection(
             _ = stop_rx.changed() => {
                 if *stop_rx.borrow() {
                     let _ = writer.close().await;
-                    let _ = session.disconnect(Disconnect::ByApplication, "Session closed", "en").await;
-                    drop(jump_chain);
+                    close_session(route.as_ref(), &session, "Session closed").await;
                     finish_output!();
                     return SshExitSignal {
                         terminated: true,
@@ -462,8 +513,7 @@ pub async fn run_single_ssh_connection(
                         );
                     }
                     Some(ChannelMsg::ExitStatus { .. }) => {
-                        let _ = session.disconnect(Disconnect::ByApplication, "Shell exited", "en").await;
-                        drop(jump_chain);
+                        close_session(route.as_ref(), &session, "Shell exited").await;
                         finish_output!();
                         return SshExitSignal {
                             terminated: true,

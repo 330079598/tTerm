@@ -1611,7 +1611,7 @@
   "jumpHost": {
     "enable": "通过跳板机（堡垒机）连接",
     "chain": "跳板链路",
-    "chainDescription": "连接会按顺序打开，类似 OpenSSH ProxyJump。",
+    "chainDescription": "连接会按顺序打开，类似 OpenSSH ProxyJump。已经连上的跳板机（在标签页里或被其他连接使用中）会直接复用，不用再登录一次。",
     "route": "连接路径",
     "add": "添加跳板机",
     "clear": "清除跳板机",
