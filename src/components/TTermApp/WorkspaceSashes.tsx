@@ -11,6 +11,8 @@ import type { TabGroup } from "@/lib/tabGroups"
 
 interface SashDrag {
   pointerId: number
+  /** The divider being dragged, which shows its grip until the drag ends. */
+  element: HTMLElement
   sash: SashBox
   start: number
   sizes: number[]
@@ -42,6 +44,7 @@ export function WorkspaceSashes({
   const dragRef = useRef<SashDrag | null>(null)
 
   const stopResizing = useCallback(() => {
+    dragRef.current?.element.classList.remove("dragging")
     dragRef.current = null
     document.body.classList.remove(...RESIZING_CLASSES)
   }, [])
@@ -54,8 +57,10 @@ export function WorkspaceSashes({
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
     window.getSelection()?.removeAllRanges()
+    event.currentTarget.classList.add("dragging")
     dragRef.current = {
       pointerId: event.pointerId,
+      element: event.currentTarget,
       sash,
       start: sash.orientation === "horizontal" ? event.clientX : event.clientY,
       sizes: split.sizes,

@@ -280,6 +280,36 @@ body.workspace-sash-resizing .workspace-sash {
   background-image: linear-gradient(hsl(var(--foreground) / 0.34), hsl(var(--foreground) / 0.34));
 }
 
+/* A grip in the middle of a divider shows it can be dragged. It shows only on
+   hover or while dragged, so a grid of panes isn't dotted with grips. */
+.workspace-sash::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 999px;
+  background: hsl(var(--foreground) / 0.5);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition: opacity 160ms ease;
+}
+
+.workspace-sash.horizontal::after {
+  width: 3px;
+  height: 28px;
+}
+
+.workspace-sash.vertical::after {
+  width: 28px;
+  height: 3px;
+}
+
+.workspace-sash:hover::after,
+.workspace-sash.dragging::after {
+  opacity: 1;
+}
+
 /* Nothing gets selected while a divider or a pane is dragged. */
 body.workspace-sash-resizing,
 body.workspace-sash-resizing *,
