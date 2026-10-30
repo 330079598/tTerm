@@ -129,6 +129,9 @@ pub(super) fn keep_device_settings(imported: &mut AppConfig, current: AppConfig)
     }
 }
 
+/// The id v0.7.2-beta.7 gave every custom shell it migrated, on any device.
+const BETA_MIGRATED_SHELL_ID: &str = "default";
+
 /// Keeps this device's shells in imported settings, with the imported ones
 /// that exist here added, and its default shell when the imported one
 /// doesn't exist here.
@@ -143,18 +146,25 @@ fn keep_device_shells(imported: &mut AppConfig, current: &AppConfig) {
         if !exists_here(&shell.path) {
             continue;
         }
-        match shells.iter().find(|kept| kept.id == shell.id) {
-            Some(kept) if same_program(kept, &shell) => continue,
-            // Another program under an id this device already uses, as every
-            // shell migrated by v0.7.2-beta.7 got `default`, comes in as its own.
-            Some(_) => {
-                let id = uuid::Uuid::new_v4().to_string();
-                if imported.terminal_shell_id == shell.id {
-                    imported.terminal_shell_id.clone_from(&id);
-                }
-                shell.id = id;
+        // Already here, perhaps under the id an earlier import of it gave it.
+        if let Some(kept) = shells.iter().find(|kept| same_program(kept, &shell)) {
+            if imported.terminal_shell_id == shell.id {
+                imported.terminal_shell_id.clone_from(&kept.id);
             }
-            None => {}
+            continue;
+        }
+        if shells.iter().any(|kept| kept.id == shell.id) {
+            // Every shell migrated by v0.7.2-beta.7 got the id `default`, so
+            // under it another device's program comes in as its own. Any other
+            // id is the same shell, which stays as this device has it.
+            if shell.id != BETA_MIGRATED_SHELL_ID {
+                continue;
+            }
+            let id = uuid::Uuid::new_v4().to_string();
+            if imported.terminal_shell_id == shell.id {
+                imported.terminal_shell_id.clone_from(&id);
+            }
+            shell.id = id;
         }
         shells.push(shell);
     }

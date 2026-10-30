@@ -889,13 +889,38 @@ fn imported_shells_under_an_id_used_here_come_in_as_their_own() {
     assert_eq!(imported.terminal_shell_id, added.id);
     assert_eq!(imported.terminal_shell_custom_path, "nu");
 
+    // The same backup imported again finds its shell already here.
+    let first = imported.clone();
+    let mut again = AppConfig {
+        terminal_shell: "custom".to_string(),
+        terminal_shell_custom_path: "nu".to_string(),
+        terminal_shell_id: "default".to_string(),
+        local_shells: vec![shell("default", "nu")],
+        ..AppConfig::default()
+    };
+    keep_device_settings(&mut again, first.clone());
+    assert_eq!(again.local_shells, first.local_shells);
+    assert_eq!(again.terminal_shell_id, first.terminal_shell_id);
+
     // The same program under the same id is the same shell.
     let mut imported = AppConfig {
         local_shells: vec![shell("default", " fish ")],
         ..AppConfig::default()
     };
-    keep_device_settings(&mut imported, current);
+    keep_device_settings(&mut imported, current.clone());
     assert_eq!(imported.local_shells, vec![shell("default", "fish")]);
+
+    // So is any other id, edited on one device, which stays as it is here.
+    let here = AppConfig {
+        local_shells: vec![shell("a1", "fish")],
+        ..AppConfig::default()
+    };
+    let mut imported = AppConfig {
+        local_shells: vec![shell("a1", "nu")],
+        ..AppConfig::default()
+    };
+    keep_device_settings(&mut imported, here);
+    assert_eq!(imported.local_shells, vec![shell("a1", "fish")]);
 }
 
 #[test]
