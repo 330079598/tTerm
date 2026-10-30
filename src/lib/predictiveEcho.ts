@@ -4,6 +4,9 @@
 // against the terminal once the remote's output arrives. A guess is only
 // shown once the remote has echoed a key typed on the same line, so nothing
 // typed at a prompt that does not echo, such as a password prompt, is shown.
+// Only the echo of a typed character counts: a backspace's echo, `\b \b`, is
+// also what a password prompt that masks with `*` sends, and a line that
+// echoed a key as something else is masking it, so nothing more on it is shown.
 
 /** What the predictor reads of the terminal. Rows count from the top of the scrollback. */
 export interface PredictionScreen {
@@ -43,9 +46,14 @@ interface Keystroke {
   value: string
   cursorAfter: number
   at: number
+  /** A backspace, whose echo looks the same at a prompt that masks what is typed. */
+  erases: boolean
 }
 
 const isPredictable = (char: string) => char >= " " && char <= "~"
+
+/** `data` ends the line typed on: Enter, or Ctrl+C or Ctrl+D giving it up. */
+export const endsLine = (data: string) => [..."\r\n\x03\x04"].some((key) => data.includes(key))
 
 /** Guesses the echo of keys typed at a remote shell's line editor. */
 export class EchoPredictor {
@@ -62,6 +70,12 @@ export class EchoPredictor {
   private doubtSince: number | null = null
   private srtt: number | null = null
   private slow = false
+  /**
+   * A row that echoed a key as something other than the key, as a password
+   * prompt masking with `*` does; nothing typed on it is shown until the line
+   * is ended.
+   */
+  private maskedRow: number | null = null
 
   constructor(private readonly now: () => number = Date.now) {}
 
@@ -102,6 +116,7 @@ export class EchoPredictor {
 
   /** Notes `data` typed, before it is sent. */
   type(data: string, screen: PredictionScreen) {
+    if (endsLine(data)) this.maskedRow = null
     for (const char of data) {
       const typed =
         char === "\x7f" || char === "\b"
@@ -126,6 +141,11 @@ export class EchoPredictor {
           )
         : -1
     if (echoed === -1) {
+      if (this.echoedAsSomethingElse(row, screen)) {
+        this.reset()
+        this.maskedRow = row
+        return
+      }
       // Nothing echoed yet. A shell that redraws its line can be caught
       // halfway through, so a line that does not match is only doubted.
       const waiting = screen.cursorRow === row && screen.cursorCol === this.base
@@ -134,7 +154,7 @@ export class EchoPredictor {
     }
     const key = this.pending[echoed]
     this.sample(this.now() - key.at)
-    this.confirmed = true
+    if (!key.erases && row !== this.maskedRow) this.confirmed = true
     this.doubtSince = null
     this.base = key.cursorAfter
     this.pending = this.pending.slice(echoed + 1)
@@ -181,7 +201,7 @@ export class EchoPredictor {
     // the next character of a shell's grayed-out suggestion is at its end.
     const current = this.valueAt(col, screen)
     if (current !== " " && current !== char) return false
-    this.pending.push({ col, value: char, cursorAfter: col + 1, at: this.now() })
+    this.pending.push({ col, value: char, cursorAfter: col + 1, at: this.now(), erases: false })
     return true
   }
 
@@ -189,7 +209,13 @@ export class EchoPredictor {
     const col = this.nextCol(screen)
     // Before the row's typing lies the prompt, which the shell keeps.
     if (col <= this.lineStart) return false
-    this.pending.push({ col: col - 1, value: " ", cursorAfter: col - 1, at: this.now() })
+    this.pending.push({
+      col: col - 1,
+      value: " ",
+      cursorAfter: col - 1,
+      at: this.now(),
+      erases: true,
+    })
     return true
   }
 
@@ -213,6 +239,17 @@ export class EchoPredictor {
       if (this.pending[i].col === col) return this.pending[i].value
     }
     return screen.charAt(this.row ?? screen.cursorRow, col)
+  }
+
+  /** The cursor moved past a typed key whose cell holds another character. */
+  private echoedAsSomethingElse(row: number, screen: PredictionScreen): boolean {
+    if (screen.cursorRow !== row) return false
+    return this.pending.some(
+      (key) =>
+        !key.erases &&
+        key.cursorAfter === screen.cursorCol &&
+        screen.charAt(row, key.col) !== key.value
+    )
   }
 
   /** The terminal already shows what the guesses predict. */

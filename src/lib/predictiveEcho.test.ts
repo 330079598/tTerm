@@ -87,6 +87,35 @@ describe("EchoPredictor", () => {
     expect(shown()).toBeNull()
   })
 
+  it("does not take a line that looks backspaced for an echo", () => {
+    // Nothing echoed, so the line looks as it would once both keys had; a
+    // prompt that masks with `*` also erases the `*` the way a backspace does.
+    line = new FakeLine("Password: ")
+    predictor.type("x\x7f", line)
+    clock += 100
+    predictor.reconcile(line)
+    predictor.type("qr", line)
+    expect(shown()).toBeNull()
+  })
+
+  it("shows nothing more on a line that echoed a key as something else", () => {
+    line = new FakeLine("Password: ")
+    predictor.type("p", line)
+    clock += 100
+    line.echo("*")
+    predictor.reconcile(line)
+    // A `*` in the password echoes as itself, but the line is masking.
+    typeAndEcho("*")
+    predictor.type("x", line)
+    expect(shown()).toBeNull()
+
+    predictor.type("\r", line)
+    line = new FakeLine("$ ")
+    typeAndEcho("l")
+    predictor.type("s", line)
+    expect(shown()).toEqual({ text: "s", cursor: 4 })
+  })
+
   it("starts over on Enter, so the next line must echo again", () => {
     typeAndEcho("ls")
     predictor.type("\r", line)

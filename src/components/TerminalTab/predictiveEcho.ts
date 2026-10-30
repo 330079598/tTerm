@@ -2,7 +2,7 @@ import type { IDisposable, IMarker, Terminal } from "@xterm/xterm"
 
 import { createPredictiveEchoOverlay } from "@/components/TerminalTab/predictiveEchoOverlay"
 import { DEFAULT_PREDICTIVE_ECHO_THRESHOLD_MS, type AppConfig } from "@/lib/appConfig"
-import { EchoPredictor, type PredictionScreen } from "@/lib/predictiveEcho"
+import { EchoPredictor, endsLine, type PredictionScreen } from "@/lib/predictiveEcho"
 
 export type PredictiveEchoMode = AppConfig["predictive_echo"]
 
@@ -54,6 +54,10 @@ export function attachPredictiveEcho(
   let marker: IMarker | null = null
   let markerRow: number | null = null
   let timer: number | null = null
+  // The row typed on while guessing was ruled out, as at a password prompt. A
+  // prompt that echoes `*` for each key no longer looks like one after the
+  // first, so the row stays ruled out until the line is ended.
+  let promptRow: number | null = null
 
   const mode = () => modeRef?.current ?? "auto"
 
@@ -131,7 +135,9 @@ export function attachPredictiveEcho(
   return {
     /** Notes what is typed, before it is sent. */
     noteInput(data: string) {
-      if (!allowed()) {
+      if (endsLine(data)) promptRow = null
+      else if (!canPredict()) promptRow = screen.cursorRow
+      if (!allowed() || screen.cursorRow === promptRow) {
         if (predictor.activeRow !== null) reset()
         return
       }
