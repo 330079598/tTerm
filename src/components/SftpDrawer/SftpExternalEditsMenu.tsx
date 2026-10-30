@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react"
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { ExternalLink, FolderOpen, FilePen, Upload, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -14,6 +15,22 @@ interface SftpExternalEditsMenuProps {
   onStop: (edit: ExternalEdit) => void
 }
 
+const MENU_WIDTH = 416
+const VIEWPORT_MARGIN = 8
+
+/**
+ * Where the menu opens: under its button, right-aligned to it, and moved
+ * along so it stays inside the window.
+ */
+function placeMenu(trigger: DOMRect): React.CSSProperties {
+  const width = Math.min(MENU_WIDTH, window.innerWidth - VIEWPORT_MARGIN * 2)
+  const left = Math.min(
+    Math.max(VIEWPORT_MARGIN, trigger.right - width),
+    window.innerWidth - width - VIEWPORT_MARGIN
+  )
+  return { top: trigger.bottom + 4, left, width }
+}
+
 /** The files open in other programs, shown while there are any. */
 export const SftpExternalEditsMenu: React.FC<SftpExternalEditsMenuProps> = ({
   edits,
@@ -25,11 +42,32 @@ export const SftpExternalEditsMenu: React.FC<SftpExternalEditsMenuProps> = ({
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties | null>(null)
+
+  const updatePosition = useCallback(() => {
+    const root = rootRef.current
+    if (root) setMenuStyle(placeMenu(root.getBoundingClientRect()))
+  }, [])
+
+  // The menu goes to the body: the drawer's pane clips what overflows it, and
+  // the button can sit near the window's left edge in a narrow pane.
+  useLayoutEffect(() => {
+    if (!open) return
+    updatePosition()
+    window.addEventListener("resize", updatePosition)
+    window.addEventListener("scroll", updatePosition, true)
+    return () => {
+      window.removeEventListener("resize", updatePosition)
+      window.removeEventListener("scroll", updatePosition, true)
+    }
+  }, [open, updatePosition])
 
   useEffect(() => {
     if (!open) return
     const closeOutside = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+      const target = event.target as Node
+      if (!rootRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false)
     }
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false)
@@ -71,26 +109,31 @@ export const SftpExternalEditsMenu: React.FC<SftpExternalEditsMenuProps> = ({
           {edits.length}
         </span>
       </Button>
-      {open && (
-        <div
-          role="menu"
-          className="bg-popover text-popover-foreground border-border absolute top-full right-0 z-50 mt-1 w-[min(26rem,calc(100vw-2rem))] rounded-md border p-1 shadow-lg"
-        >
-          <div className="text-muted-foreground px-2 py-1 text-[11px]">{label}</div>
-          <div className="max-h-72 overflow-y-auto">
-            {edits.map((edit) => (
-              <EditRow
-                key={edit.id}
-                edit={edit}
-                onUpload={onUpload}
-                onReopen={onReopen}
-                onReveal={onReveal}
-                onStop={onStop}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+      {open &&
+        menuStyle &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            style={menuStyle}
+            className="bg-popover text-popover-foreground border-border fixed z-50 rounded-md border p-1 shadow-lg"
+          >
+            <div className="text-muted-foreground px-2 py-1 text-[11px]">{label}</div>
+            <div className="max-h-72 overflow-y-auto">
+              {edits.map((edit) => (
+                <EditRow
+                  key={edit.id}
+                  edit={edit}
+                  onUpload={onUpload}
+                  onReopen={onReopen}
+                  onReveal={onReveal}
+                  onStop={onStop}
+                />
+              ))}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   )
 }
