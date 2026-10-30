@@ -5,7 +5,6 @@ import type { AppConfig, BackgroundThrottling, CloseBehavior } from "@/lib/appCo
 import type { useToast } from "@/hooks/use-toast"
 import type { useConfirmDialog } from "@/components/ui/app-dialog"
 import type { useSettingsSave } from "@/hooks/useSettingsSave"
-import type { SftpStartDirectory } from "@/lib/sftpStartDirectory"
 import { toErrorMessage } from "@/lib/utils"
 import type { UpdateChannel, UpdateCheckFrequency } from "@/lib/updater"
 
@@ -48,14 +47,6 @@ export function useSettingsHandlers({
     await saveSettings({ restore_terminal_content: checked })
   }
 
-  const handleSftpPasteUploadEnabledChange = async (checked: boolean) => {
-    await saveSettings({ sftp_paste_upload_enabled: checked })
-  }
-
-  const handleSftpStartDirectoryChange = async (choice: SftpStartDirectory) => {
-    await saveSettings({ sftp_start_directory: choice })
-  }
-
   const handleZmodemAutoDetectEnabledChange = async (checked: boolean) => {
     await saveSettings({ zmodem_auto_detect_enabled: checked })
   }
@@ -70,21 +61,6 @@ export function useSettingsHandlers({
 
   const handleCloseBehaviorChange = async (behavior: CloseBehavior) => {
     await saveSettings({ close_behavior: behavior })
-  }
-
-  const handleSftpTransferParallelismChange = async (value: number) => {
-    if (!Number.isFinite(value)) {
-      return
-    }
-    await saveSettings({ sftp_transfer_parallelism: Math.min(Math.max(Math.round(value), 1), 16) })
-  }
-
-  const handleSftpUploadLimitChange = async (kib: number) => {
-    await saveSettings({ sftp_upload_limit_kib: kib })
-  }
-
-  const handleSftpDownloadLimitChange = async (kib: number) => {
-    await saveSettings({ sftp_download_limit_kib: kib })
   }
 
   const handleEnableDevtoolsChange = async () => {
@@ -172,15 +148,10 @@ export function useSettingsHandlers({
     handleClearSession,
     handleRestoreAllSessionConnectionsChange,
     handleRestoreTerminalContentChange,
-    handleSftpPasteUploadEnabledChange,
-    handleSftpStartDirectoryChange,
     handleZmodemAutoDetectEnabledChange,
     handleZmodemDownloadDirectoryChange,
     handleBackgroundThrottlingChange,
     handleCloseBehaviorChange,
-    handleSftpTransferParallelismChange,
-    handleSftpUploadLimitChange,
-    handleSftpDownloadLimitChange,
     handleEnableDevtoolsChange,
     handleReconnectEnabledChange,
     handleReconnectMaxAttemptsChange,

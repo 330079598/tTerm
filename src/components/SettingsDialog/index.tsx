@@ -268,15 +268,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleRestoreTerminalContentChange={
                 settingsHandlers.handleRestoreTerminalContentChange
               }
-              handleSftpPasteUploadEnabledChange={
-                settingsHandlers.handleSftpPasteUploadEnabledChange
-              }
-              handleSftpStartDirectoryChange={settingsHandlers.handleSftpStartDirectoryChange}
-              handleSftpTransferParallelismChange={
-                settingsHandlers.handleSftpTransferParallelismChange
-              }
-              handleSftpUploadLimitChange={settingsHandlers.handleSftpUploadLimitChange}
-              handleSftpDownloadLimitChange={settingsHandlers.handleSftpDownloadLimitChange}
               handleEnableDevtoolsChange={settingsHandlers.handleEnableDevtoolsChange}
               handleZmodemAutoDetectEnabledChange={
                 settingsHandlers.handleZmodemAutoDetectEnabledChange
@@ -288,11 +279,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               languages={languages}
               restoreAllSessionConnections={config.startup_session_restore_mode === "all"}
               restoreTerminalContent={config.restore_terminal_content}
-              sftpPasteUploadEnabled={config.sftp_paste_upload_enabled}
-              sftpStartDirectory={config.sftp_start_directory}
-              sftpTransferParallelism={config.sftp_transfer_parallelism}
-              sftpUploadLimitKib={config.sftp_upload_limit_kib}
-              sftpDownloadLimitKib={config.sftp_download_limit_kib}
               zmodemAutoDetectEnabled={config.zmodem_auto_detect_enabled}
               zmodemDownloadDirectory={config.zmodem_download_directory}
             />

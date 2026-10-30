@@ -3,7 +3,6 @@ import {
   ArrowLeftRight,
   Bug,
   Check,
-  ClipboardPaste,
   FolderOpen,
   Info,
   Languages,
@@ -23,16 +22,11 @@ import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useAppActivity } from "@/contexts/AppActivityContext"
 import type { BackgroundThrottling, CloseBehavior } from "@/lib/appConfig"
-import {
-  normalizeSftpStartDirectory,
-  SFTP_START_DIRECTORIES,
-  type SftpStartDirectory,
-} from "@/lib/sftpStartDirectory"
 import { getDetectedPlatform } from "@/lib/uiPlatform"
 import { getLaunchBackgroundThrottling } from "@/contexts/ConfigContext"
 import { cn } from "@/lib/utils"
-import { BandwidthLimitInput } from "@/components/SettingsDialog/BandwidthLimitInput"
 import { SettingsRow, SettingsSection } from "@/components/SettingsDialog/SettingsLayout"
+import { SftpSettingsSection } from "@/components/SettingsDialog/SftpSettingsSection"
 import { SystemIntegrationSection } from "@/components/SettingsDialog/SystemIntegrationSection"
 
 interface LanguageOption {
@@ -51,11 +45,6 @@ interface GeneralSettingsTabProps {
   handleLanguageChange: (langCode: string) => Promise<void>
   handleRestoreAllSessionConnectionsChange: (checked: boolean) => Promise<void>
   handleRestoreTerminalContentChange: (checked: boolean) => Promise<void>
-  handleSftpPasteUploadEnabledChange: (checked: boolean) => Promise<void>
-  handleSftpStartDirectoryChange: (choice: SftpStartDirectory) => Promise<void>
-  handleSftpTransferParallelismChange: (value: number) => Promise<void>
-  handleSftpUploadLimitChange: (kib: number) => Promise<void>
-  handleSftpDownloadLimitChange: (kib: number) => Promise<void>
   handleEnableDevtoolsChange: () => Promise<void>
   handleZmodemAutoDetectEnabledChange: (checked: boolean) => Promise<void>
   handleZmodemDownloadDirectoryChange: (directory: string) => Promise<void>
@@ -63,11 +52,6 @@ interface GeneralSettingsTabProps {
   languages: LanguageOption[]
   restoreAllSessionConnections: boolean
   restoreTerminalContent: boolean
-  sftpPasteUploadEnabled: boolean
-  sftpStartDirectory: SftpStartDirectory
-  sftpTransferParallelism: number
-  sftpUploadLimitKib: number
-  sftpDownloadLimitKib: number
   zmodemAutoDetectEnabled: boolean
   zmodemDownloadDirectory: string
 }
@@ -82,11 +66,6 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   handleLanguageChange,
   handleRestoreAllSessionConnectionsChange,
   handleRestoreTerminalContentChange,
-  handleSftpPasteUploadEnabledChange,
-  handleSftpStartDirectoryChange,
-  handleSftpTransferParallelismChange,
-  handleSftpUploadLimitChange,
-  handleSftpDownloadLimitChange,
   handleEnableDevtoolsChange,
   handleZmodemAutoDetectEnabledChange,
   handleZmodemDownloadDirectoryChange,
@@ -94,11 +73,6 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   languages,
   restoreAllSessionConnections,
   restoreTerminalContent,
-  sftpPasteUploadEnabled,
-  sftpStartDirectory,
-  sftpTransferParallelism,
-  sftpUploadLimitKib,
-  sftpDownloadLimitKib,
   zmodemAutoDetectEnabled,
   zmodemDownloadDirectory,
 }) => {
@@ -159,96 +133,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
           </div>
         </SettingsSection>
 
-        <SettingsSection
-          icon={<ClipboardPaste size={16} />}
-          title={t("settings.sftp", { defaultValue: "SFTP" })}
-          description={t("settings.sftpDesc", {
-            defaultValue: "Configure file manager behavior for remote directories.",
-          })}
-        >
-          <SettingsRow
-            title={t("settings.sftpStartDirectory")}
-            description={t("settings.sftpStartDirectoryDesc")}
-            action={
-              <Select
-                aria-label={t("settings.sftpStartDirectory")}
-                value={sftpStartDirectory}
-                onChange={(event) => {
-                  const choice = normalizeSftpStartDirectory(event.target.value)
-                  if (choice) void handleSftpStartDirectoryChange(choice)
-                }}
-                className="w-44"
-              >
-                {SFTP_START_DIRECTORIES.map((choice) => (
-                  <option key={choice} value={choice}>
-                    {t(`sftp.startDirectory.${choice}`)}
-                  </option>
-                ))}
-              </Select>
-            }
-          />
-          <SettingsRow
-            title={t("settings.sftpPasteUpload")}
-            description={t("settings.sftpPasteUploadDesc")}
-            action={
-              <Switch
-                checked={sftpPasteUploadEnabled}
-                onCheckedChange={handleSftpPasteUploadEnabledChange}
-              />
-            }
-          />
-          <SettingsRow
-            title={t("settings.sftpTransferParallelism", {
-              defaultValue: "Parallel transfer channels",
-            })}
-            description={t("settings.sftpTransferParallelismDesc", {
-              defaultValue:
-                "Number of SFTP channels used per resumable transfer (1-16, default 4). Set to 1 for single-stream sequential transfers, which is the compatible choice for servers whose storage stalls under concurrent writes.",
-            })}
-            action={
-              <Input
-                type="number"
-                min={1}
-                max={16}
-                value={sftpTransferParallelism}
-                onChange={(event) =>
-                  handleSftpTransferParallelismChange(Number(event.target.value))
-                }
-                className="w-20"
-              />
-            }
-          />
-          <SettingsRow
-            title={t("settings.sftpUploadLimit", { defaultValue: "Upload speed limit" })}
-            description={t("settings.sftpUploadLimitDesc", {
-              defaultValue:
-                "Caps the combined speed of all SFTP uploads, so large transfers leave room for interactive sessions. 0 means unlimited. Changes apply to running transfers immediately.",
-            })}
-            action={
-              <BandwidthLimitInput
-                aria-label={t("settings.sftpUploadLimit", { defaultValue: "Upload speed limit" })}
-                value={sftpUploadLimitKib}
-                onChange={handleSftpUploadLimitChange}
-              />
-            }
-          />
-          <SettingsRow
-            title={t("settings.sftpDownloadLimit", { defaultValue: "Download speed limit" })}
-            description={t("settings.sftpDownloadLimitDesc", {
-              defaultValue:
-                "Caps the combined speed of all SFTP downloads. 0 means unlimited. Changes apply to running transfers immediately.",
-            })}
-            action={
-              <BandwidthLimitInput
-                aria-label={t("settings.sftpDownloadLimit", {
-                  defaultValue: "Download speed limit",
-                })}
-                value={sftpDownloadLimitKib}
-                onChange={handleSftpDownloadLimitChange}
-              />
-            }
-          />
-        </SettingsSection>
+        <SftpSettingsSection />
 
         <SettingsSection
           icon={<ArrowLeftRight size={16} />}
