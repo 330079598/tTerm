@@ -356,6 +356,10 @@ export function BroadcastManager({
                 <div className="broadcast-command-editor">
                   <textarea
                     value={command}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    autoComplete="off"
+                    spellCheck={false}
                     disabled={preparing}
                     placeholder={t("broadcast.commandPlaceholder")}
                     style={{ fontFamily: config.font_family }}

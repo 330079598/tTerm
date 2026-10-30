@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
 import type { SftpDialogAction, SftpDialogState } from "@/components/SftpDrawer/types"
 import { isImeKeyEvent } from "@/lib/ime"
@@ -135,8 +136,8 @@ export const SftpDialogs: React.FC<SftpDialogsProps> = ({
                   : commandDelete.totalEntries,
               })}
             </div>
-            <textarea
-              className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-h-28 w-full rounded-md border px-3 py-2 font-mono text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            <Textarea
+              className="min-h-28 font-mono"
               disabled={isDeleting}
               value={commandDelete.command}
               onChange={(event) =>

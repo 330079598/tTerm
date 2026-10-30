@@ -86,6 +86,10 @@ export function TabOverflowPanel({
         <input
           ref={searchInputRef}
           className="tab-search-input"
+          autoCapitalize="none"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
           value={searchQuery}
           placeholder={t("tabs.searchTabs", { defaultValue: "Search tabs" })}
           onChange={(event) => setSearchQuery(event.target.value)}
