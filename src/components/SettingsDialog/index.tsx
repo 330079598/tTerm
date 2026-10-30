@@ -43,6 +43,7 @@ import {
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   defaultTab = "general",
+  onTabChange,
   className,
   onConnectProfile,
   onEditProfile,
@@ -66,7 +67,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   } = useTheme()
   const { toast } = useToast()
   const { saveSettings } = useSettingsSave()
-  const [activeTab, setActiveTab] = useSyncedState(normalizeSettingsTab(defaultTab))
+  const [activeTab, setActiveTabState] = useSyncedState(normalizeSettingsTab(defaultTab))
+  const setActiveTab = (tab: string) => {
+    setActiveTabState(tab)
+    onTabChange?.(tab)
+  }
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const { prompt, PromptDialog } = usePromptDialog()
   const { info, InfoDialog } = useInfoDialog()

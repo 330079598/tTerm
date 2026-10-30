@@ -199,6 +199,11 @@ export interface Tab {
   quickConnect?: boolean
   /** Quick connection: the method that got the user in, once known. */
   quickConnectAuth?: SshAuthUsed
+  /**
+   * The settings tab's open section. Kept on the tab because a page unmounts
+   * while out of sight, which would drop the panel's own state.
+   */
+  settingsSection?: string
   connection?: {
     type?: ConnectionType
     profileId?: string

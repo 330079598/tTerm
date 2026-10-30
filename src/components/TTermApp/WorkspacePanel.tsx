@@ -87,6 +87,10 @@ export const WorkspacePanel = React.memo(function WorkspacePanel({
         <ErrorBoundary resetKey={tab.id} scope="settings">
           <React.Suspense fallback={null}>
             <SettingsPanel
+              defaultTab={tab.settingsSection}
+              onTabChange={(section) =>
+                workspace.updateTab(tab.id, (current) => ({ ...current, settingsSection: section }))
+              }
               onConnectProfile={workspace.onConnectProfile}
               onEditProfile={workspace.onEditProfile}
               profilesRefreshKey={workspace.profilesRefreshKey}
