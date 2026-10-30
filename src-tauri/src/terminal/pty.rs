@@ -208,6 +208,27 @@ pub(crate) fn wsl_distro_installed(name: &str) -> bool {
     }
 }
 
+/// Whether this device has the shell kind a default names: `auto` and
+/// `custom` always, a built-in one such as `pwsh` or `wsl` only where it was
+/// found. Other platforms start the login shell for those.
+pub(crate) fn has_terminal_shell(kind: &str) -> bool {
+    if matches!(kind, "auto" | "custom") {
+        return true;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        super::windows_shell::list_windows_terminal_shells()
+            .iter()
+            .any(|profile| profile.shell == kind)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        false
+    }
+}
+
 /// The program a custom shell's path leads to on this machine, or why it
 /// leads nowhere, for the settings to show before a tab tries it.
 #[tauri::command]

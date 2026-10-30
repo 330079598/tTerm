@@ -832,10 +832,26 @@ fn imported_settings_keep_this_devices_shells_and_add_those_found_here() {
         terminal_shell_wsl_distro: "tterm-no-such-distro".to_string(),
         ..AppConfig::default()
     };
-    keep_device_settings(&mut imported, current);
+    keep_device_settings(&mut imported, current.clone());
     assert_eq!(imported.terminal_shell, "custom");
     assert_eq!(imported.terminal_shell_id, "here");
     assert_eq!(imported.terminal_shell_wsl_distro, "");
+
+    // So does a built-in shell this device doesn't have.
+    let missing_kinds = if cfg!(windows) {
+        vec!["tterm-no-such-shell"]
+    } else {
+        vec!["tterm-no-such-shell", "pwsh", "wsl"]
+    };
+    for kind in missing_kinds {
+        let mut imported = AppConfig {
+            terminal_shell: kind.to_string(),
+            ..AppConfig::default()
+        };
+        keep_device_settings(&mut imported, current.clone());
+        assert_eq!(imported.terminal_shell, "custom", "{kind}");
+        assert_eq!(imported.terminal_shell_id, "here", "{kind}");
+    }
 }
 
 #[test]

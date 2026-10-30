@@ -161,12 +161,13 @@ fn keep_device_shells(imported: &mut AppConfig, current: &AppConfig) {
     imported.local_shells = shells;
     imported.hidden_shells.clone_from(&current.hidden_shells);
 
-    // A default WSL distribution this device doesn't have can't start here.
+    // A built-in default shell or WSL distribution this device doesn't have
+    // can't start here.
     let distro = imported.terminal_shell_wsl_distro.trim();
-    if imported.terminal_shell == "wsl"
+    let missing_distro = imported.terminal_shell == "wsl"
         && !distro.is_empty()
-        && !crate::terminal::pty::wsl_distro_installed(distro)
-    {
+        && !crate::terminal::pty::wsl_distro_installed(distro);
+    if missing_distro || !crate::terminal::pty::has_terminal_shell(&imported.terminal_shell) {
         imported.terminal_shell.clone_from(&current.terminal_shell);
         imported
             .terminal_shell_custom_path
