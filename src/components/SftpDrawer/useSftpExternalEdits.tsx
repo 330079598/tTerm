@@ -30,6 +30,13 @@ interface UseSftpExternalEditsOptions {
 
 type ToastHandle = ReturnType<typeof toast>
 
+// Saves come often while a file is being edited, so their notes stay small:
+// one line, and the uploaded one gone again soon.
+const SAVE_TOAST_CLASS = "py-2 pl-3"
+// The amber of the files button's count, which marks the same unsent save.
+const ASK_TOAST_CLASS = `${SAVE_TOAST_CLASS} border-l-4 border-l-amber-500`
+const UPLOADED_TOAST_MS = 2000
+
 /**
  * The tab's remote files open in programs on this computer: opening one,
  * uploading its saved changes (at once or after asking, as the settings
@@ -89,8 +96,9 @@ export function useSftpExternalEdits({ tabId, connection }: UseSftpExternalEdits
         if (outcome.kind === "uploaded") {
           toast({
             title: t("sftp.externalEdit.uploaded", { name: edit.fileName }),
-            description: edit.remotePath,
             variant: "success",
+            className: SAVE_TOAST_CLASS,
+            duration: UPLOADED_TOAST_MS,
           })
         }
       } catch (error) {
@@ -114,10 +122,14 @@ export function useSftpExternalEdits({ tabId, connection }: UseSftpExternalEdits
         edit.id,
         toast({
           title: t("sftp.externalEdit.changedTitle", { name: edit.fileName }),
-          description: edit.remotePath,
+          className: ASK_TOAST_CLASS,
           duration: Number.POSITIVE_INFINITY,
           action: (
-            <ToastAction altText={label} onClick={() => void upload(edit)}>
+            <ToastAction
+              altText={label}
+              className="h-7 px-2.5 text-xs"
+              onClick={() => void upload(edit)}
+            >
               {label}
             </ToastAction>
           ),
