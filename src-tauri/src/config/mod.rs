@@ -186,11 +186,17 @@ pub struct AppConfig {
     pub password_feedback: bool,
     /// When the terminal shows the echo of typing at a remote shell before it
     /// comes back: "auto" on slow links, "always", or "off".
-    #[serde(default = "defaults::default_predictive_echo")]
+    #[serde(
+        default = "defaults::default_predictive_echo",
+        deserialize_with = "deserialize::deserialize_predictive_echo"
+    )]
     pub predictive_echo: String,
     /// In "auto" mode, the round trip in milliseconds above which typing
     /// shows before its echo.
-    #[serde(default = "defaults::default_predictive_echo_threshold_ms")]
+    #[serde(
+        default = "defaults::default_predictive_echo_threshold_ms",
+        deserialize_with = "deserialize::deserialize_predictive_echo_threshold_ms"
+    )]
     pub predictive_echo_threshold_ms: u16,
     /// Send Option+key as Meta (ESC prefix) in the terminal instead of typing
     /// the macOS alternate character. Only read on macOS.

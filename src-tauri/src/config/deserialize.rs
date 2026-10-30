@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Deserializer};
 
-use super::defaults::{default_profile_sort, default_tab_width_mode};
+use super::defaults::{default_predictive_echo, default_profile_sort, default_tab_width_mode};
 
 pub(super) fn deserialize_ui_scale_percent<'de, D>(deserializer: D) -> Result<u16, D::Error>
 where
@@ -91,4 +91,26 @@ where
 {
     let width = f64::deserialize(deserializer)?;
     Ok(width.round().clamp(80.0, 300.0) as u16)
+}
+
+pub(super) fn deserialize_predictive_echo<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let mode = String::deserialize(deserializer)?;
+    Ok(if mode == "always" || mode == "off" {
+        mode
+    } else {
+        default_predictive_echo()
+    })
+}
+
+pub(super) fn deserialize_predictive_echo_threshold_ms<'de, D>(
+    deserializer: D,
+) -> Result<u16, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = f64::deserialize(deserializer)?;
+    Ok(value.round().clamp(10.0, 2000.0) as u16)
 }

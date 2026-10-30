@@ -155,6 +155,26 @@ fn invalid_tab_width_config_is_normalized() {
 }
 
 #[test]
+fn predictive_echo_settings_are_brought_into_range() {
+    let parse = |json: &str| serde_json::from_str::<AppConfig>(json).unwrap();
+
+    let config = parse(
+        r#"{"theme":"default","predictive_echo":"always","predictive_echo_threshold_ms":30.5}"#,
+    );
+    assert_eq!(config.predictive_echo, "always");
+    assert_eq!(config.predictive_echo_threshold_ms, 31);
+
+    let config = parse(
+        r#"{"theme":"default","predictive_echo":"sometimes","predictive_echo_threshold_ms":70000}"#,
+    );
+    assert_eq!(config.predictive_echo, "auto");
+    assert_eq!(config.predictive_echo_threshold_ms, 2000);
+
+    let config = parse(r#"{"theme":"default","predictive_echo_threshold_ms":-1}"#);
+    assert_eq!(config.predictive_echo_threshold_ms, 10);
+}
+
+#[test]
 fn profile_sort_falls_back_to_the_grouped_list() {
     let parse = |json: &str| {
         serde_json::from_str::<AppConfig>(json)
