@@ -29,7 +29,9 @@ const toastVariants = cva(
   {
     variants: {
       variant: {
-        default: "border bg-background text-foreground",
+        // The popover color, as menus use: the page background is the
+        // terminal's, which a toast over it would blend into.
+        default: "border-border bg-popover text-popover-foreground",
         destructive:
           "destructive group border-destructive bg-destructive text-destructive-foreground",
         success:
