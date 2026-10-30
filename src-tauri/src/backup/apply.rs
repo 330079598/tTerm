@@ -6,6 +6,7 @@ use super::export::secret_travels;
 use super::remote;
 use super::{BackupImportOptions, BackupLogFile, BackupPayload, BackupSelection, MissingKeyFile};
 use crate::command_library::{models::SavedCommand, repository::CommandRepository};
+use crate::config::local_shells::LocalShell;
 use crate::config::{self, AppConfig};
 use crate::profiles::groups::{list_groups, repair, replace_groups, with_legacy_groups};
 use crate::profiles::storage::normalize_profile;
@@ -138,10 +139,24 @@ fn keep_device_shells(imported: &mut AppConfig, current: &AppConfig) {
         !shell.is_absolute() || shell.is_file()
     };
     let mut shells = current.local_shells.clone();
-    for shell in std::mem::take(&mut imported.local_shells) {
-        if exists_here(&shell.path) && !shells.iter().any(|kept| kept.id == shell.id) {
-            shells.push(shell);
+    for mut shell in std::mem::take(&mut imported.local_shells) {
+        if !exists_here(&shell.path) {
+            continue;
         }
+        match shells.iter().find(|kept| kept.id == shell.id) {
+            Some(kept) if same_program(kept, &shell) => continue,
+            // Another program under an id this device already uses, as every
+            // shell migrated by v0.7.2-beta.7 got `default`, comes in as its own.
+            Some(_) => {
+                let id = uuid::Uuid::new_v4().to_string();
+                if imported.terminal_shell_id == shell.id {
+                    imported.terminal_shell_id.clone_from(&id);
+                }
+                shell.id = id;
+            }
+            None => {}
+        }
+        shells.push(shell);
     }
     imported.local_shells = shells;
     imported.hidden_shells.clone_from(&current.hidden_shells);
@@ -187,6 +202,11 @@ fn keep_device_shells(imported: &mut AppConfig, current: &AppConfig) {
         imported.terminal_shell_custom_path = shell.path.clone();
         imported.terminal_shell_custom_args = shell.args.clone();
     }
+}
+
+/// Whether two of the user's shells start the same program with the same arguments.
+fn same_program(a: &LocalShell, b: &LocalShell) -> bool {
+    a.path.trim() == b.path.trim() && a.args.trim() == b.args.trim()
 }
 
 pub(super) fn apply_payload(

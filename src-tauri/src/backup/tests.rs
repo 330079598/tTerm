@@ -839,6 +839,50 @@ fn imported_settings_keep_this_devices_shells_and_add_those_found_here() {
 }
 
 #[test]
+fn imported_shells_under_an_id_used_here_come_in_as_their_own() {
+    use crate::config::local_shells::LocalShell;
+    let shell = |id: &str, path: &str| LocalShell {
+        id: id.to_string(),
+        name: path.to_string(),
+        path: path.to_string(),
+        args: String::new(),
+    };
+    let current = AppConfig {
+        terminal_shell: "custom".to_string(),
+        terminal_shell_custom_path: "fish".to_string(),
+        terminal_shell_id: "default".to_string(),
+        local_shells: vec![shell("default", "fish")],
+        ..AppConfig::default()
+    };
+
+    // Another program under the same id gets an id of its own, the default's too.
+    let mut imported = AppConfig {
+        terminal_shell: "custom".to_string(),
+        terminal_shell_custom_path: "nu".to_string(),
+        terminal_shell_id: "default".to_string(),
+        local_shells: vec![shell("default", "nu")],
+        ..AppConfig::default()
+    };
+    keep_device_settings(&mut imported, current.clone());
+    let [kept, added] = imported.local_shells.as_slice() else {
+        panic!("two shells: {:?}", imported.local_shells);
+    };
+    assert_eq!(kept, &shell("default", "fish"));
+    assert_eq!(added.path, "nu");
+    assert_ne!(added.id, "default");
+    assert_eq!(imported.terminal_shell_id, added.id);
+    assert_eq!(imported.terminal_shell_custom_path, "nu");
+
+    // The same program under the same id is the same shell.
+    let mut imported = AppConfig {
+        local_shells: vec![shell("default", " fish ")],
+        ..AppConfig::default()
+    };
+    keep_device_settings(&mut imported, current);
+    assert_eq!(imported.local_shells, vec![shell("default", "fish")]);
+}
+
+#[test]
 fn imported_settings_bring_their_tab_icons_along() {
     let mut imported = AppConfig::default();
     imported.tab_icons.enabled = false;
