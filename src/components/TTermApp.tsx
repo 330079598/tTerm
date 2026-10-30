@@ -47,6 +47,7 @@ import {
 import { useStartupVaultUnlock } from "@/components/TTermApp/useStartupVaultUnlock"
 import { TunnelHostKeyPrompt } from "@/components/TunnelsPanel/TunnelHostKeyPrompt"
 import { useTunnelBackground } from "@/components/TunnelsPanel/useTunnelBackground"
+import { useQuitGuard } from "@/hooks/useQuitGuard"
 import { VaultStartupUnlockDialog } from "@/components/VaultStartupUnlockDialog"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { useConfig } from "@/contexts/ConfigContext"
@@ -110,7 +111,8 @@ export const TTermApp: React.FC = () => {
   const logsTabTitle = t("terminalLogs.title")
   const { shouldPromptStartupVaultUnlock, startupConnectionsReady, dismissStartupVaultUnlock } =
     useStartupVaultUnlock()
-  const runningTunnelCount = useTunnelBackground(confirm, isLoaded && startupConnectionsReady)
+  const runningTunnelCount = useTunnelBackground(isLoaded && startupConnectionsReady)
+  useQuitGuard(confirm)
 
   const shell: AppShell = {
     ...tabsApi,

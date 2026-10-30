@@ -2,6 +2,7 @@
 //! background behind a tray icon (the menu bar on macOS), as the user chose in
 //! `close_behavior`. "ask" lets the UI decide on each close.
 
+pub(crate) mod exit_guard;
 pub(crate) mod quit;
 pub(crate) mod tray;
 
@@ -10,7 +11,6 @@ use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use tauri::{AppHandle, Emitter, Manager, State, Window};
 
 use crate::config::AppConfig;
-use crate::tunnel::commands::TunnelManager;
 
 const CLOSE_REQUESTED_EVENT: &str = "close-requested";
 
@@ -101,14 +101,13 @@ pub fn show_main_window(app: &AppHandle) {
     crate::notification::badge::restore(app);
 }
 
-/// Quits the way the window would: running tunnels are confirmed first, in
-/// the window, so it is shown before asking.
+/// Quits the way the window would: what the quit would end is confirmed
+/// first, in the window, so it is shown before asking.
 fn request_quit(app: &AppHandle) {
-    let tunnels = app.state::<TunnelManager>();
-    if tunnels.has_active() {
+    if !exit_guard::blockers(app).is_empty() {
         show_main_window(app);
     }
-    if !tunnels.hold_exit_for_confirmation(app) {
+    if !exit_guard::hold_exit_for_confirmation(app) {
         quit::quit(app);
     }
 }
@@ -164,19 +163,20 @@ pub fn on_close_requested(window: &Window) -> bool {
     }
 }
 
-/// Quits, unless running tunnels hold the exit for the user's confirmation.
-/// The window stays open meanwhile: the UI saves before the quit closes it.
+/// Quits, unless what the quit would end holds the exit for the user's
+/// confirmation. The window stays open meanwhile: the UI saves before the
+/// quit closes it.
 fn quit_unless_held(app: &AppHandle) {
-    if !app.state::<TunnelManager>().hold_exit_for_confirmation(app) {
+    if !exit_guard::hold_exit_for_confirmation(app) {
         quit::quit(app);
     }
 }
 
 /// Handles an exit the app did not request itself, such as Cmd+Q. Returns
-/// `true` when the exit must be prevented: it is held for the confirmation
-/// of running tunnels, or goes ahead once the UI has saved.
+/// `true` when the exit must be prevented: it is held for the user's
+/// confirmation, or goes ahead once the UI has saved.
 pub fn on_exit_requested(app: &AppHandle) -> bool {
-    app.state::<TunnelManager>().hold_exit_for_confirmation(app) || quit::quit_after_save(app)
+    exit_guard::hold_exit_for_confirmation(app) || quit::quit_after_save(app)
 }
 
 /// The UI's answer to `close-requested`: "tray", "quit" or "cancel". A

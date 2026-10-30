@@ -7,12 +7,17 @@ import type { useConfirmDialog } from "@/components/ui/app-dialog"
 
 type Confirm = ReturnType<typeof useConfirmDialog>["confirm"]
 
+/** What a quit would end; mirrors `QuitBlockers` in `background/exit_guard.rs`. */
+export interface QuitBlockers {
+  tunnels: number
+}
+
 /**
- * Asks before the app quits while port-forwarding tunnels are running. The
- * backend holds the exit and sends the number of live tunnels; the answer goes
- * back as `confirm_quit_app` or `cancel_quit_prompt`.
+ * Asks before the app quits with something at stake, such as running
+ * port-forwarding tunnels. The backend holds the exit and sends what is at
+ * stake; the answer goes back as `confirm_quit_app` or `cancel_quit_prompt`.
  */
-export function useTunnelQuitGuard(confirm: Confirm): void {
+export function useQuitGuard(confirm: Confirm): void {
   const { t } = useTranslation()
   const confirmRef = useRef(confirm)
   const tRef = useRef(t)
@@ -24,12 +29,12 @@ export function useTunnelQuitGuard(confirm: Confirm): void {
   useEffect(() => {
     let disposed = false
     let off: (() => void) | undefined
-    void listen<number>("tunnels-quit-requested", async (event) => {
+    void listen<QuitBlockers>("quit-requested", async (event) => {
       const t = tRef.current
       const quit = await confirmRef.current({
         title: t("tunnels.quitConfirmTitle", { defaultValue: "Quit while tunnels are running?" }),
         description: t("tunnels.quitConfirmDescription", {
-          count: event.payload,
+          count: event.payload.tunnels,
           defaultValue:
             "{{count}} port-forwarding tunnel(s) are running and will stop when tTerm quits.",
         }),

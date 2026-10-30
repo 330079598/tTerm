@@ -129,6 +129,7 @@ pub fn run() {
         .manage(tunnel::commands::TunnelManager::default())
         .manage(background::CloseBehaviorState::default())
         .manage(background::quit::QuitState::default())
+        .manage(background::exit_guard::ExitGuardState::default())
         .manage(launch_dir::LaunchDirs::default())
         .manage(background::tray::TrayState::default())
         .on_window_event(|window, event| {
@@ -262,8 +263,8 @@ pub fn run() {
             tunnel::commands::stop_tunnel,
             tunnel::commands::reset_tunnel_traffic_totals,
             tunnel::commands::auto_start_tunnels,
-            tunnel::commands::confirm_quit_app,
-            tunnel::commands::cancel_quit_prompt,
+            background::exit_guard::confirm_quit_app,
+            background::exit_guard::cancel_quit_prompt,
             background::resolve_close_request,
             background::quit::set_save_before_quit,
             background::quit::ready_to_quit,
