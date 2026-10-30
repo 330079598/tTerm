@@ -3,8 +3,11 @@ import { Settings } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { normalizeSettingsTab } from "@/components/SettingsDialog/settingsLoaders"
+import { SettingsSearchField } from "@/components/SettingsDialog/SettingsSearchField"
+import { SettingsSearchResults } from "@/components/SettingsDialog/SettingsSearchResults"
 import { SettingsTabPanel } from "@/components/SettingsDialog/SettingsTabPanel"
 import { ThemeDialogs } from "@/components/SettingsDialog/ThemeDialogs"
+import { useSettingsSearch } from "@/components/SettingsDialog/useSettingsSearch"
 import { useSettingsTabLoaders } from "@/components/SettingsDialog/useSettingsTabLoaders"
 import { useTerminalSettingsDraft } from "@/components/SettingsDialog/useTerminalSettingsDraft"
 import { useThemeSettingsHandlers } from "@/components/SettingsDialog/useThemeSettingsHandlers"
@@ -50,6 +53,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   profilesRefreshKey,
 }) => {
   const isMountedRef = useRef(true)
+  const rootRef = useRef<HTMLDivElement>(null)
   const { t, i18n } = useTranslation()
   const { appState, config, saveAppState, saveConfig, updateLanguage, refreshSecretStatus } =
     useConfig()
@@ -72,6 +76,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setActiveTabState(tab)
     onTabChange?.(tab)
   }
+  const search = useSettingsSearch({ rootRef, showTab: setActiveTab })
+  const isSearching = search.query.trim() !== ""
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const { prompt, PromptDialog } = usePromptDialog()
   const { info, InfoDialog } = useInfoDialog()
@@ -137,16 +143,30 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   return (
     <>
-      <div className={cn("flex h-full min-h-0 flex-col", className)}>
-        <DialogHeader className="border-border border-b px-6 pt-6 pb-4">
+      <div ref={rootRef} className={cn("flex h-full min-h-0 flex-col", className)}>
+        {/* The right padding keeps the search clear of the dialog's close button. */}
+        <DialogHeader className="border-border gap-3 border-b pt-6 pr-12 pb-4 pl-6 sm:flex-row sm:items-center sm:justify-between">
           <DialogTitle className="flex items-center gap-2">
             <Settings size={18} />
             {t("settings.title")}
           </DialogTitle>
+          <SettingsSearchField search={search} />
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1">
-          <SettingsSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        {/* While searching, the results take the place of the page. */}
+        <Tabs
+          value={isSearching ? "" : activeTab}
+          onValueChange={setActiveTab}
+          className="flex min-h-0 flex-1"
+        >
+          <SettingsSidebar
+            activeTab={activeTab}
+            onTabChange={(tab) => {
+              search.setQuery("")
+              setActiveTab(tab)
+            }}
+          />
+          {isSearching && <SettingsSearchResults search={search} />}
 
           <SettingsTabPanel value="appearance">
             <AppearanceSettingsTab

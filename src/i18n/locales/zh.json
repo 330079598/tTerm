@@ -203,6 +203,13 @@
   },
   "settings": {
     "title": "设置",
+    "search": {
+      "label": "搜索设置",
+      "placeholder": "搜索设置",
+      "empty": "没有与“{{query}}”匹配的设置",
+      "count_one": "{{count}} 个结果",
+      "count_other": "{{count}} 个结果"
+    },
     "categories": {
       "workspace": "工作区",
       "experience": "外观与体验",

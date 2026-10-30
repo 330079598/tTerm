@@ -212,6 +212,13 @@
   },
   "settings": {
     "title": "Settings",
+    "search": {
+      "label": "Search settings",
+      "placeholder": "Search settings",
+      "empty": "No settings match “{{query}}”",
+      "count_one": "{{count}} result",
+      "count_other": "{{count}} results"
+    },
     "categories": {
       "workspace": "Workspace",
       "experience": "Experience",
