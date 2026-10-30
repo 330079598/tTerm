@@ -5,7 +5,11 @@ import {
   caretOnLastLine,
   composerInput,
   getComposerTarget,
+  getComposerText,
+  historySuggestion,
+  insertIntoComposer,
   registerComposerTarget,
+  setComposerText,
   type ComposerTarget,
 } from "@/lib/commandComposer"
 
@@ -61,5 +65,31 @@ describe("registerComposerTarget", () => {
     registerComposerTarget("tab-1", newer)
     unregisterOlder()
     expect(getComposerTarget("tab-1")).toBe(newer)
+  })
+})
+
+describe("historySuggestion", () => {
+  const history = ["git status", "git stash pop", "ls -la"]
+
+  it("offers the newest command that goes on from the text", () => {
+    expect(historySuggestion("git st", history)).toBe("git status")
+    expect(historySuggestion("git stash", history)).toBe("git stash pop")
+  })
+
+  it("offers nothing for an empty text, a whole command, or several lines", () => {
+    expect(historySuggestion("", history)).toBeUndefined()
+    expect(historySuggestion("ls -la", history)).toBeUndefined()
+    expect(historySuggestion("cd /tmp\ngit", history)).toBeUndefined()
+  })
+})
+
+describe("insertIntoComposer", () => {
+  it("adds a command on a line of its own after the text there", () => {
+    setComposerText("")
+    insertIntoComposer("uptime")
+    expect(getComposerText()).toBe("uptime")
+    insertIntoComposer("df -h")
+    expect(getComposerText()).toBe("uptime\ndf -h")
+    setComposerText("")
   })
 })

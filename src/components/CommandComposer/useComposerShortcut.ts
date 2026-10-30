@@ -29,6 +29,10 @@ export function useComposerShortcut(
   )
 
   useEffect(() => {
-    if (focusRequest > 0) textareaRef.current?.focus()
+    if (focusRequest === 0) return
+    // A dialog that asked for the bar, such as the command library, gives the
+    // focus back to where it was as it closes; the bar takes it after that.
+    const frame = requestAnimationFrame(() => textareaRef.current?.focus())
+    return () => cancelAnimationFrame(frame)
   }, [focusRequest, textareaRef])
 }

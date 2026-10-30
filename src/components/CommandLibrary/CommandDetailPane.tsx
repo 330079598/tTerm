@@ -1,4 +1,14 @@
-import { ArrowLeft, Braces, FileCode2, Library, Pencil, Star, Tags, Trash2 } from "lucide-react"
+import {
+  ArrowLeft,
+  Braces,
+  FileCode2,
+  Library,
+  Pencil,
+  SquarePen,
+  Star,
+  Tags,
+  Trash2,
+} from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import type { CommandLibraryData } from "@/components/CommandLibrary/useCommandLibraryData"
@@ -6,6 +16,7 @@ import type { CommandInsertion } from "@/components/CommandLibrary/useCommandIns
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import { insertIntoComposer } from "@/lib/commandComposer"
 import { formatPlaceholder } from "@/lib/commandVariables"
 import { cn } from "@/lib/utils"
 
@@ -113,7 +124,7 @@ export function CommandDetailPane({
               </dd>
             </div>
           </dl>
-          <div className="mt-auto pt-6">
+          <div className="mt-auto flex flex-col gap-2 pt-6 sm:flex-row">
             <Button
               type="button"
               className="w-full sm:w-auto"
@@ -129,6 +140,18 @@ export function CommandDetailPane({
             >
               {isInserting ? <Spinner /> : <FileCode2 />}
               {isInserting ? t("commandLibrary.inserting") : t("commandLibrary.insert")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => {
+                insertIntoComposer(selectedRecent.commandText)
+                onOpenChange(false)
+              }}
+            >
+              <SquarePen />
+              {t("commandLibrary.insertIntoComposer")}
             </Button>
           </div>
         </div>
@@ -274,15 +297,27 @@ export function CommandDetailPane({
           </section>
 
           <div className="mt-auto pt-6">
-            <Button
-              type="button"
-              className="w-full sm:w-auto"
-              disabled={!canInsert || isInserting}
-              onClick={() => void handleInsert(selectedCommand)}
-            >
-              {isInserting ? <Spinner /> : <FileCode2 />}
-              {isInserting ? t("commandLibrary.inserting") : t("commandLibrary.insert")}
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                className="w-full sm:w-auto"
+                disabled={!canInsert || isInserting}
+                onClick={() => void handleInsert(selectedCommand)}
+              >
+                {isInserting ? <Spinner /> : <FileCode2 />}
+                {isInserting ? t("commandLibrary.inserting") : t("commandLibrary.insert")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                disabled={isInserting}
+                onClick={() => void handleInsert(selectedCommand, "composer")}
+              >
+                <SquarePen />
+                {t("commandLibrary.insertIntoComposer")}
+              </Button>
+            </div>
             {!canInsert && (
               <p className="text-muted-foreground mt-2 text-xs">
                 {t("commandLibrary.selectTerminalHint")}

@@ -37,6 +37,16 @@ export function composerInput(text: string, bracketedPaste: boolean): string {
   return `${PASTE_START}${lines.split(PASTE_END).join("")}${PASTE_END}\r`
 }
 
+/**
+ * The newest of `history` (newest first) that starts with `text` and goes on
+ * past it, offered as `text` is typed, the way fish suggests; none for an
+ * empty text or one of several lines.
+ */
+export function historySuggestion(text: string, history: readonly string[]): string | undefined {
+  if (!text || text.includes("\n")) return undefined
+  return history.find((entry) => entry.length > text.length && entry.startsWith(text))
+}
+
 /** No line break comes before the caret, so ArrowUp would not move it. */
 export function caretOnFirstLine(text: string, caret: number) {
   return !text.slice(0, caret).includes("\n")
@@ -83,13 +93,16 @@ let state = {
   focusRequest: 0,
   /** Several lines run one at a time rather than go in as one paste. */
   lineByLine: loadFlag(LINE_BY_LINE_STORAGE_KEY),
+  /** What is typed in the bar, kept here so the command library can add to it. */
+  text: "",
 }
 const listeners = new Set<() => void>()
 
 function setState(next: typeof state) {
+  const previous = state
   state = next
-  saveFlag(OPEN_STORAGE_KEY, next.open)
-  saveFlag(LINE_BY_LINE_STORAGE_KEY, next.lineByLine)
+  if (next.open !== previous.open) saveFlag(OPEN_STORAGE_KEY, next.open)
+  if (next.lineByLine !== previous.lineByLine) saveFlag(LINE_BY_LINE_STORAGE_KEY, next.lineByLine)
   for (const listener of listeners) listener()
 }
 
@@ -106,6 +119,23 @@ export function setComposerLineByLine(lineByLine: boolean) {
   setState({ ...state, lineByLine })
 }
 
+export function getComposerText() {
+  return state.text
+}
+
+export function setComposerText(text: string) {
+  if (text !== state.text) setState({ ...state, text })
+}
+
+/**
+ * Puts `command` in the bar to be looked over before it is sent, on a line
+ * of its own after what is there already, and shows the bar.
+ */
+export function insertIntoComposer(command: string) {
+  const text = state.text.trim() ? `${state.text.replace(/\n+$/, "")}\n${command}` : command
+  setState({ ...state, text, open: true, focusRequest: state.focusRequest + 1 })
+}
+
 export function isComposerOpen() {
   return state.open
 }
@@ -119,7 +149,7 @@ function subscribe(listener: () => void) {
 
 /**
  * Whether the bar is shown, a count that goes up each time it should take
- * the keyboard, and how it sends several lines.
+ * the keyboard, how it sends several lines, and its text.
  */
 export function useComposerState() {
   return useSyncExternalStore(subscribe, () => state)

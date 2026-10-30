@@ -34,6 +34,7 @@ import { useTabClosing } from "@/components/TTermApp/useTabClosing"
 import { useWorkspaceSplits } from "@/components/TTermApp/useWorkspaceSplits"
 import { useTitleBarPages } from "@/components/TTermApp/useTitleBarPages"
 import { useCommandLibraryActions } from "@/components/TTermApp/useCommandLibraryActions"
+import { useComposerBroadcast } from "@/components/TTermApp/useComposerBroadcast"
 import { useTabKeymap } from "@/components/TTermApp/useTabKeymap"
 import { useLayoutTemplates } from "@/components/TTermApp/useLayoutTemplates"
 import { useActiveTerminalSessionCount } from "@/components/TTermApp/useActiveTerminalSessionCount"
@@ -229,6 +230,12 @@ export const TTermApp: React.FC = () => {
   // A serial tab has a send bar of its own.
   const activeTab = tabs.find((tab) => tab.id === activeTabId)
   const composerTab = isSessionTab(activeTab) && activeTab.type !== "serial" ? activeTab : null
+  const composerBroadcast = useComposerBroadcast(
+    broadcast,
+    runtime,
+    sending,
+    commandLibrary.handleTerminalCommandExecuted
+  )
   useTabKeymap(shell, { handleNewTab, handleRemoveTab, openRenameDialog })
 
   const handleCollapsedProfileGroupKeysChange = useCollapsedProfileGroupsSaver()
@@ -350,6 +357,7 @@ export const TTermApp: React.FC = () => {
         canSend={commandLibrary.canInsertSavedCommand}
         isRemote={composerTab?.type === "ssh"}
         recentCommands={commandLibrary.recentCommands}
+        broadcast={composerBroadcast}
       />
 
       <NewTabLauncher

@@ -4,6 +4,7 @@ import { useState } from "react"
 
 import type { CommandLibraryData } from "@/components/CommandLibrary/useCommandLibraryData"
 import type { useConfirmDialog } from "@/components/ui/app-dialog"
+import { insertIntoComposer } from "@/lib/commandComposer"
 import { activeVariables } from "@/lib/commandVariables"
 import type { SavedCommand } from "@/types/command"
 
@@ -16,8 +17,15 @@ interface CommandInsertionOptions {
 }
 
 /**
+ * Where an inserted command goes: typed into the terminal, or into the
+ * compose bar to be looked over, added to and sent from there.
+ */
+export type InsertDestination = "terminal" | "composer"
+
+/**
  * Inserting a command into the terminal (asking for its variables or a
- * confirmation first when it has them), and opening the command editor.
+ * confirmation first when it has them) or into the compose bar, and opening
+ * the command editor.
  */
 export function useCommandInsertion({
   onOpenChange,
@@ -30,6 +38,7 @@ export function useCommandInsertion({
   const [editingCommand, setEditingCommand] = useState<SavedCommand | null>(null)
   const [isInserting, setIsInserting] = useState(false)
   const [fillCommand, setFillCommand] = useState<SavedCommand | null>(null)
+  const [fillDestination, setFillDestination] = useState<InsertDestination>("terminal")
 
   const openEditor = (command: SavedCommand | null) => {
     setEditingCommand(command)
@@ -43,11 +52,15 @@ export function useCommandInsertion({
   }
 
   /** Inserts `commandText` (the command's text, variables filled in) and counts the use. */
-  const insertCommandText = async (command: SavedCommand, commandText: string) => {
+  const insertCommandText = async (
+    command: SavedCommand,
+    commandText: string,
+    destination: InsertDestination
+  ) => {
     setIsInserting(true)
     try {
-      const inserted = await onInsert({ ...command, commandText })
-      if (!inserted) return false
+      if (destination === "composer") insertIntoComposer(commandText)
+      else if (!(await onInsert({ ...command, commandText }))) return false
       void invoke("record_saved_command_use", { id: command.id }).catch(console.error)
       setCommands((current) =>
         current.map((candidate) =>
@@ -62,15 +75,20 @@ export function useCommandInsertion({
     }
   }
 
-  const handleInsert = async (command: SavedCommand) => {
+  const handleInsert = async (
+    command: SavedCommand,
+    destination: InsertDestination = "terminal"
+  ) => {
     // The variables dialog shows the final command, so it doubles as the confirmation.
     if (activeVariables(command).length > 0) {
       onOpenChange(false)
+      setFillDestination(destination)
       setFillCommand(command)
       return
     }
 
-    if (command.confirmBeforeRun) {
+    // In the compose bar the command waits to be sent, which is its confirmation.
+    if (command.confirmBeforeRun && destination === "terminal") {
       onOpenChange(false)
       const confirmed = await confirm({
         title: t("commandLibrary.confirmInsertTitle"),
@@ -86,13 +104,13 @@ export function useCommandInsertion({
         cancelText: t("common.cancel"),
         defaultAction: "cancel",
       })
-      if (!confirmed || !(await insertCommandText(command, command.commandText))) {
+      if (!confirmed || !(await insertCommandText(command, command.commandText, destination))) {
         onOpenChange(true)
       }
       return
     }
 
-    if (await insertCommandText(command, command.commandText)) onOpenChange(false)
+    if (await insertCommandText(command, command.commandText, destination)) onOpenChange(false)
   }
 
   const handleFillCancel = () => {
@@ -103,7 +121,7 @@ export function useCommandInsertion({
   const handleFillSubmit = async (commandText: string) => {
     if (!fillCommand) return
     // On failure the dialog stays open so the entered values are not lost.
-    if (await insertCommandText(fillCommand, commandText)) setFillCommand(null)
+    if (await insertCommandText(fillCommand, commandText, fillDestination)) setFillCommand(null)
   }
 
   return {

@@ -1,14 +1,14 @@
 import { useMemo, useRef, useState } from "react"
 
+import { setComposerText } from "@/lib/commandComposer"
 import type { RecentCommand } from "@/types/command"
 
 /**
- * The bar's text, and ArrowUp / ArrowDown through the commands run lately,
- * newest first, as a shell's history goes. What was being typed comes back
+ * ArrowUp / ArrowDown through the commands run lately, newest first, as a
+ * shell's history goes, in the bar's text. What was being typed comes back
  * past the newest one.
  */
-export function useComposerHistory(recentCommands: RecentCommand[]) {
-  const [text, setTextState] = useState("")
+export function useComposerHistory(text: string, recentCommands: RecentCommand[]) {
   // Where the recall has got to; -1 is the text being typed.
   const [index, setIndex] = useState(-1)
   const draftRef = useRef("")
@@ -19,14 +19,14 @@ export function useComposerHistory(recentCommands: RecentCommand[]) {
   )
 
   const setText = (next: string) => {
-    setTextState(next)
+    setComposerText(next)
     setIndex(-1)
   }
 
   const recall = (next: number) => {
     if (index === -1) draftRef.current = text
     setIndex(next)
-    setTextState(next === -1 ? draftRef.current : (history[next] ?? ""))
+    setComposerText(next === -1 ? draftRef.current : (history[next] ?? ""))
   }
 
   /** Moves to an older command; false when there is none. */
@@ -43,5 +43,5 @@ export function useComposerHistory(recentCommands: RecentCommand[]) {
     return true
   }
 
-  return { text, setText, recallOlder, recallNewer }
+  return { history, setText, recallOlder, recallNewer }
 }
