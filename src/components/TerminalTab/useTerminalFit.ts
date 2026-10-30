@@ -1,6 +1,7 @@
 import { useCallback } from "react"
 import { invoke } from "@tauri-apps/api/core"
 
+import { renderAllRowsNow } from "@/components/TerminalTab/rendererRelease"
 import type { TerminalTabRefs } from "@/components/TerminalTab/useTerminalTabRefs"
 import type { TerminalTabProps } from "@/components/TerminalTab/types"
 
@@ -40,7 +41,12 @@ export function useTerminalFit({
     const dimensions = fitAddon.proposeDimensions()
     if (!dimensions) return false
 
+    const { cols, rows } = term
     fitAddon.fit()
+    // Resizing clears the renderer's canvas at once while xterm draws it
+    // again only on the next frame, so the pane would show one frame empty
+    // as a bar above or below it comes or goes.
+    if (term.cols !== cols || term.rows !== rows) renderAllRowsNow(term)
     return term.cols === dimensions.cols && term.rows === dimensions.rows
   }, [fitAddonRef, termRef])
 
