@@ -12,6 +12,9 @@ import {
   TERMINAL_LOG_MAX_TOTAL_MB,
   MAX_BANDWIDTH_LIMIT_KIB,
   RECONNECT_MAX_ATTEMPTS_MIN,
+  DEFAULT_PREDICTIVE_ECHO_THRESHOLD_MS,
+  PREDICTIVE_ECHO_THRESHOLD_MIN_MS,
+  PREDICTIVE_ECHO_THRESHOLD_MAX_MS,
   RECONNECT_MAX_ATTEMPTS_MAX,
   TERMINAL_LINE_HEIGHT_RANGE,
   TERMINAL_LETTER_SPACING_RANGE,
@@ -140,6 +143,16 @@ function normalizeReconnectMaxAttempts(
   )
 }
 
+function normalizePredictiveEchoThresholdMs(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULT_PREDICTIVE_ECHO_THRESHOLD_MS
+  }
+  return Math.min(
+    Math.max(Math.round(value), PREDICTIVE_ECHO_THRESHOLD_MIN_MS),
+    PREDICTIVE_ECHO_THRESHOLD_MAX_MS
+  )
+}
+
 export function normalizeUiScalePercent(value: Partial<AppConfig>["ui_scale_percent"]): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return 100
@@ -249,6 +262,13 @@ export function normalizeConfig(config: Partial<AppConfig>): AppConfig {
         )
       : [],
     password_feedback: config.password_feedback !== false,
+    predictive_echo:
+      config.predictive_echo === "always" || config.predictive_echo === "off"
+        ? config.predictive_echo
+        : "auto",
+    predictive_echo_threshold_ms: normalizePredictiveEchoThresholdMs(
+      config.predictive_echo_threshold_ms
+    ),
     ui_scale_percent: normalizeUiScalePercent(config.ui_scale_percent),
     mac_option_is_meta: config.mac_option_is_meta === true,
     confirm_multiline_paste: config.confirm_multiline_paste !== false,

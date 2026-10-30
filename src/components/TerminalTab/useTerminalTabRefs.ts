@@ -122,6 +122,8 @@ export function useTerminalTabRefs({
   const configCursorStyleRef = useStableRef(config.cursor_style)
   const configMacOptionIsMetaRef = useStableRef(config.mac_option_is_meta)
   const configOsc52ClipboardWriteRef = useStableRef(config.osc52_clipboard_write)
+  const configPredictiveEchoRef = useStableRef(config.predictive_echo)
+  const configPredictiveEchoThresholdMsRef = useStableRef(config.predictive_echo_threshold_ms)
   const configScrollbackLinesRef = useStableRef(config.scrollback_lines)
   const configTerminalRendererRef = useStableRef<TerminalRenderer>(config.terminal_renderer)
   const savedPasswordPromptActionsRef = useRef<SavedPasswordPromptActions | null>(null)
@@ -175,6 +177,8 @@ export function useTerminalTabRefs({
     configCursorStyleRef,
     configMacOptionIsMetaRef,
     configOsc52ClipboardWriteRef,
+    configPredictiveEchoRef,
+    configPredictiveEchoThresholdMsRef,
     configScrollbackLinesRef,
     configTerminalRendererRef,
     savedPasswordPromptActionsRef,

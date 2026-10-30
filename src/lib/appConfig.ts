@@ -151,6 +151,13 @@ export interface AppConfig extends TabSettings {
   sudo_prompt_patterns: string[]
   /** A mark per character typed at a password prompt; off, only a key shows there. */
   password_feedback: boolean
+  /**
+   * Show the echo of typing at a remote shell before it comes back: on slow
+   * links only, always, or never.
+   */
+  predictive_echo: "auto" | "always" | "off"
+  /** In auto mode, the round trip in milliseconds above which typing shows before its echo. */
+  predictive_echo_threshold_ms: number
   /** macOS: Option+key sends Meta (ESC prefix) instead of the alternate character. */
   mac_option_is_meta: boolean
   /** Ask before pasting multiple lines into a shell without bracketed paste mode. */
@@ -220,6 +227,10 @@ export const DEFAULT_TERMINAL_FONT_SIZE = 14
 
 export const DEFAULT_TERMINAL_FONT_FAMILY = defaultTerminalFontFamily()
 
+export const DEFAULT_PREDICTIVE_ECHO_THRESHOLD_MS = 30
+export const PREDICTIVE_ECHO_THRESHOLD_MIN_MS = 10
+export const PREDICTIVE_ECHO_THRESHOLD_MAX_MS = 2000
+
 export const defaultConfig: AppConfig = {
   theme: "default",
   theme_follow_system: false,
@@ -278,6 +289,8 @@ export const defaultConfig: AppConfig = {
   default_proxy_id: "",
   sudo_prompt_patterns: [],
   password_feedback: true,
+  predictive_echo: "auto",
+  predictive_echo_threshold_ms: DEFAULT_PREDICTIVE_ECHO_THRESHOLD_MS,
   mac_option_is_meta: false,
   confirm_multiline_paste: true,
   copy_on_select: false,

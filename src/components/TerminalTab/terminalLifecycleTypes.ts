@@ -17,7 +17,7 @@ import type {
   SshConnectionProgress,
   TerminalTabProps,
 } from "@/components/TerminalTab/types"
-import type { TerminalRenderer } from "@/lib/appConfig"
+import type { AppConfig, TerminalRenderer } from "@/lib/appConfig"
 import type { TerminalAttentionEvent } from "@/lib/terminalNotifications"
 
 export type UseTerminalLifecycleOptions = {
@@ -35,6 +35,10 @@ export type UseTerminalLifecycleOptions = {
   configMacOptionIsMetaRef?: React.RefObject<boolean>
   /** Programs may copy to the clipboard with OSC 52. */
   configOsc52ClipboardWriteRef?: React.RefObject<boolean>
+  /** When the echo of typing at a remote shell is shown before it arrives. */
+  configPredictiveEchoRef?: React.RefObject<AppConfig["predictive_echo"]>
+  /** In auto mode, the round trip above which that echo shows. */
+  configPredictiveEchoThresholdMsRef?: React.RefObject<number>
   configFontFamilyRef?: React.RefObject<string>
   configFontSizeRef?: React.RefObject<number>
   configLineHeightRef?: React.RefObject<number>

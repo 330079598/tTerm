@@ -82,6 +82,8 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "zmodem_auto_detect_enabled",
     "sudo_prompt_patterns",
     "password_feedback",
+    "predictive_echo",
+    "predictive_echo_threshold_ms",
     "notifications_enabled",
     "notify_command_finished",
     "notify_command_min_secs",

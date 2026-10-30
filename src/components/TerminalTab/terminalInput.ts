@@ -4,13 +4,16 @@ import type { TerminalSessionContext } from "@/components/TerminalTab/terminalLi
 import type { ConnectionStateUpdater } from "@/components/TerminalTab/connectionStateUpdater"
 import type { SavedPasswordPrompts } from "@/components/TerminalTab/savedPasswordPrompts"
 import type { CommandTracking } from "@/components/TerminalTab/commandTracking"
+import type { PredictiveEcho } from "@/components/TerminalTab/predictiveEcho"
 import { getSerialDisplay } from "@/components/TerminalTab/serialDisplay"
 import { localEchoText } from "@/lib/serial"
 import { captureTerminalInput, EMPTY_COMMAND_CAPTURE_STATE } from "@/lib/terminalCommandCapture"
 
 type TerminalInputDeps = Pick<ConnectionStateUpdater, "applyConnectionState"> &
   Pick<SavedPasswordPrompts, "stopLoginScript" | "typeAtPrompt"> &
-  Pick<CommandTracking, "agentTracker" | "commandMarks" | "commandTimer" | "emitTypedCommand">
+  Pick<CommandTracking, "agentTracker" | "commandMarks" | "commandTimer" | "emitTypedCommand"> & {
+    predictiveEcho: Pick<PredictiveEcho, "noteInput">
+  }
 
 /**
  * Sends what is typed to the session, noting commands as they are
@@ -35,6 +38,7 @@ export function attachTerminalInput(ctx: TerminalSessionContext, deps: TerminalI
     commandMarks,
     commandTimer,
     emitTypedCommand,
+    predictiveEcho,
   } = deps
   term.onData((data) => {
     if (waitingForReconnectRef.current) {
@@ -82,6 +86,7 @@ export function attachTerminalInput(ctx: TerminalSessionContext, deps: TerminalI
     if (connection?.type === "serial" && getSerialDisplay(tabId, connection.serial).localEcho) {
       term.write(localEchoText(data))
     }
+    predictiveEcho.noteInput(data)
 
     const onInput = onInputRef.current
     if (onInput) {

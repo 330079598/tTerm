@@ -17,6 +17,7 @@ import { createConnectionStateUpdater } from "@/components/TerminalTab/connectio
 import { createSavedPasswordPrompts } from "@/components/TerminalTab/savedPasswordPrompts"
 import { createCommandTracking } from "@/components/TerminalTab/commandTracking"
 import { attachTerminalInput } from "@/components/TerminalTab/terminalInput"
+import { attachPredictiveEcho } from "@/components/TerminalTab/predictiveEcho"
 import { startPtySession } from "@/components/TerminalTab/ptySession"
 import { disposeRendererAddon } from "@/components/TerminalTab/rendererRelease"
 import { trackTerminalContent } from "@/components/TerminalTab/savedTerminalContent"
@@ -37,6 +38,8 @@ export function useTerminalLifecycle({
   configCursorStyleRef,
   configMacOptionIsMetaRef,
   configOsc52ClipboardWriteRef,
+  configPredictiveEchoRef,
+  configPredictiveEchoThresholdMsRef,
   configFontFamilyRef,
   configFontSizeRef,
   configLineHeightRef,
@@ -249,8 +252,14 @@ export function useTerminalLifecycle({
       mouseReportingGuard,
       lineFeedDisposable,
     } = createCommandTracking(ctx)
+    const predictiveEcho = attachPredictiveEcho(term, {
+      modeRef: configPredictiveEchoRef,
+      thresholdMsRef: configPredictiveEchoThresholdMsRef,
+      canPredict: () => connectionRef.current?.type === "ssh" && session.currentPromptKey === null,
+    })
     attachTerminalInput(ctx, {
       applyConnectionState,
+      predictiveEcho,
       agentTracker,
       stopLoginScript,
       typeAtPrompt,
@@ -356,6 +365,7 @@ export function useTerminalLifecycle({
       cwdReports.dispose()
       osReports.dispose()
       mouseReportingGuard.dispose()
+      predictiveEcho.dispose()
       container.classList.remove("xterm-has-scrollback")
       container.replaceChildren()
     }
@@ -369,6 +379,8 @@ export function useTerminalLifecycle({
     configLineHeightRef,
     configMacOptionIsMetaRef,
     configOsc52ClipboardWriteRef,
+    configPredictiveEchoRef,
+    configPredictiveEchoThresholdMsRef,
     creatingPtyRef,
     cursorStyleRef,
     fitAddonRef,

@@ -112,6 +112,14 @@ pub(super) fn default_password_feedback() -> bool {
     true
 }
 
+pub(super) fn default_predictive_echo() -> String {
+    "auto".to_string()
+}
+
+pub(super) fn default_predictive_echo_threshold_ms() -> u16 {
+    30
+}
+
 pub(super) fn default_monitor_refresh_interval_secs() -> u16 {
     5
 }
@@ -292,6 +300,8 @@ impl Default for AppConfig {
             zmodem_download_directory: String::new(),
             sudo_prompt_patterns: Vec::new(),
             password_feedback: default_password_feedback(),
+            predictive_echo: default_predictive_echo(),
+            predictive_echo_threshold_ms: default_predictive_echo_threshold_ms(),
             mac_option_is_meta: false,
             confirm_multiline_paste: default_confirm_multiline_paste(),
             copy_on_select: false,

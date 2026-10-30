@@ -22,6 +22,7 @@ import {
   reorderMonitorMetrics,
 } from "@/components/SettingsDialog/monitorMetricOrder"
 import { MonitorMetricRow } from "@/components/SettingsDialog/MonitorMetricRow"
+import { PredictiveEchoSection } from "@/components/SettingsDialog/PredictiveEchoSection"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -246,6 +247,8 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
             </div>
           </SettingsRow>
         </SettingsSection>
+
+        <PredictiveEchoSection />
 
         <SettingsSection
           icon={<Route size={16} />}
