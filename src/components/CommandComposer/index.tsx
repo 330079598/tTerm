@@ -29,6 +29,7 @@ import {
 import { isRunActive } from "@/lib/composerRun"
 import { useComposerRun } from "@/lib/composerRuns"
 import { isImeKeyEvent } from "@/lib/ime"
+import { isMacPlatform } from "@/lib/keymap/chord"
 import { withShortcut } from "@/lib/keymap/keymap"
 import { focusActiveTerminal, keepFocusOnMouseDown } from "@/lib/terminalFocus"
 import type { RecentCommand } from "@/types/command"
@@ -123,7 +124,9 @@ export const CommandComposer: React.FC<CommandComposerProps> = ({
       // Interrupts what runs without leaving the bar; with text selected,
       // Ctrl+C copies it as usual.
       if (sendInput("\x03")) event.preventDefault()
-    } else if (plainCtrl && event.key.toLowerCase() === "d" && !text) {
+    } else if (plainCtrl && event.key.toLowerCase() === "d" && !text && !isMacPlatform()) {
+      // On macOS Ctrl+D deletes forward in a text field; pressed until the
+      // text is gone, it would go on to end the shell.
       if (sendInput("\x04")) event.preventDefault()
     }
   }
