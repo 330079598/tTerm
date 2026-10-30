@@ -609,14 +609,34 @@ async fn keyboard_interactive_then_password_asks_for_the_missing_password() {
 }
 
 #[tokio::test]
-async fn a_missing_password_is_reported_before_contacting_the_server() {
+async fn a_missing_password_is_asked_from_the_user() {
+    // A saved connection used as a jump host that keeps no password.
+    let mut harness = Harness::start(
+        Script {
+            password: || Auth::Accept,
+            ..Script::default()
+        },
+        vec![Some(vec![PASSWORD])],
+    )
+    .await;
+
+    harness
+        .authenticate(AuthMethod::Password(None))
+        .await
+        .expect("authenticate");
+    assert_eq!(harness.asked(), [vec![field("Password:", false)]]);
+    assert_eq!(harness.log(), [format!("password:{PASSWORD}")]);
+}
+
+#[tokio::test]
+async fn a_missing_password_is_reported_where_no_prompt_can_show() {
     let mut harness = Harness::start(Script::default(), vec![]).await;
 
     let error = harness
-        .authenticate(AuthMethod::Password(None))
+        .authenticate_with(AuthMethod::Password(None), AuthPrompter::Unavailable)
         .await
         .expect_err("no password");
-    assert_eq!(error, "SSH password is required");
+    assert!(error.contains("needs input from you (Password)"), "{error}");
     assert!(harness.log().is_empty());
 }
 

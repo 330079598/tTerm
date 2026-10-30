@@ -302,9 +302,16 @@ where
             certificate,
         } => publickey(session, target, path, passphrase, certificate).await?,
         AuthMethod::Password(_) => {
-            let password = stored_password.take().ok_or_else(|| {
-                SshConnectError::Permanent(format!("{subject} password is required"))
-            })?;
+            // Nothing saved, as for a saved connection used as a jump host
+            // that keeps no password: the user types it, as ssh asks.
+            let typed;
+            let password = match stored_password.take() {
+                Some(password) => password,
+                None => {
+                    typed = ask_password(target, prompter).await?;
+                    typed.as_str()
+                }
+            };
             let result = password_method(session, target, password).await?;
             // Servers with `PasswordAuthentication no` take the same password
             // through keyboard-interactive (PAM) instead. When `password` is
@@ -407,22 +414,7 @@ where
         return keyboard_interactive(session, target, prompter, stored_password).await;
     }
     if offers(MethodKind::Password) {
-        let answers = prompter
-            .ask(
-                target,
-                prompt_payload(
-                    target,
-                    "password",
-                    String::new(),
-                    String::new(),
-                    vec![AuthPromptField {
-                        text: "Password:".to_string(),
-                        echo: false,
-                    }],
-                ),
-            )
-            .await?;
-        let password = answers.into_iter().next().unwrap_or_default();
+        let password = ask_password(target, prompter).await?;
         return password_method(session, target, &password).await;
     }
 
@@ -440,6 +432,29 @@ where
             &methods
         }
     )))
+}
+
+/// Asks the user for `target`'s password.
+async fn ask_password(
+    target: &AuthTarget<'_>,
+    prompter: &AuthPrompter,
+) -> Result<String, SshConnectError> {
+    let answers = prompter
+        .ask(
+            target,
+            prompt_payload(
+                target,
+                "password",
+                String::new(),
+                String::new(),
+                vec![AuthPromptField {
+                    text: "Password:".to_string(),
+                    echo: false,
+                }],
+            ),
+        )
+        .await?;
+    Ok(answers.into_iter().next().unwrap_or_default())
 }
 
 mod auto;
