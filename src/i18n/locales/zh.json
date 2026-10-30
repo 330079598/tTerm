@@ -1777,7 +1777,23 @@
     "unavailable": "{{name}} 未连接",
     "keysHint": "在这里输入命令不用等网络往返，回车后一次发到终端。Enter 发送，Shift+Enter 换行，↑/↓ 调出最近的命令，Ctrl+C 中断正在运行的命令，Esc 回到终端。",
     "send": "发送",
-    "close": "关闭撰写栏"
+    "close": "关闭撰写栏",
+    "lineByLine": "逐条执行",
+    "lineByLineHint": "多行命令一条条执行：上一条结束、shell 回到提示符后才发下一条，命令失败就停下等你决定。需要开启 shell 集成。",
+    "unmarkedRemote": "这个 shell 没有标记提示符，tTerm 无法知道一行什么时候执行完。请在这个连接的设置里开启「Shell 集成」后重新连接（设置 → 终端里的「标记命令」需保持开启）；或者取消勾选「逐条执行」，把这几行一次粘贴发出。",
+    "unmarkedLocal": "这个 shell 没有标记提示符，tTerm 无法知道一行什么时候执行完。bash、zsh 和 fish 请在设置 → 终端里开启「本地 shell 的 Shell 集成」，然后新开一个标签页（「标记命令」需保持开启）；或者取消勾选「逐条执行」，把这几行一次粘贴发出。",
+    "shellBusy": "这里还有命令在运行，逐条执行要从 shell 提示符开始。请等它结束，或者取消勾选「逐条执行」，把这几行一次粘贴发出。",
+    "run": {
+      "running": "正在执行第 {{current}}/{{total}} 行",
+      "failed": "第 {{current}}/{{total}} 行失败，退出码 {{code}}",
+      "done_other": "{{count}} 行已全部执行",
+      "doneWithFailures_other": "已全部执行，{{count}} 行失败",
+      "stopped_other": "已停止，还有 {{count}} 行未执行",
+      "retry": "重试",
+      "continue": "继续",
+      "stop": "停止",
+      "dismiss": "关闭"
+    }
   },
   "secretStorage": {
     "title": "已保存的密码",

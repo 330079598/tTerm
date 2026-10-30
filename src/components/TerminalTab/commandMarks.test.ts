@@ -292,3 +292,47 @@ describe("CommandMarks", () => {
     expect(buffer.viewportY).toBe(0)
   })
 })
+
+describe("CommandMarks prompt events", () => {
+  it("tells each prompt with the status of the command that ran before it", async () => {
+    const { marks, write } = setup()
+    const events: unknown[] = []
+    marks.onPrompt((event) => events.push(event))
+    await write(`${PROMPT}$ false\r\n${OUTPUT}${done(1)}${PROMPT}$ `)
+    // bash: an empty line runs nothing, and its D repeats the last status.
+    marks.handleEnter()
+    await write(`\r\n${done(1)}${PROMPT}$ `)
+    expect(events).toEqual([
+      { kind: "prompt", exitCode: undefined },
+      { kind: "prompt", exitCode: 1 },
+      { kind: "prompt", exitCode: undefined },
+    ])
+  })
+
+  it("knows a marked prompt in shells that mark no finished command yet (fish, cmd)", async () => {
+    const { marks, write } = setup()
+    expect(marks.promptState()).toBe("unmarked")
+    await write(`${PROMPT}> `)
+    expect(marks.isAtPrompt()).toBe(false)
+    expect(marks.promptState()).toBe("prompt")
+    await write(`sleep 9\r\n${OUTPUT}`)
+    expect(marks.promptState()).toBe("busy")
+  })
+
+  it("keeps knowing the prompt after the terminal is cleared", async () => {
+    const { term, marks, write } = setup()
+    await write(`${PROMPT}$ ls\r\n${OUTPUT}a.txt\r\n${done(0)}${PROMPT}$ `)
+    term.clear()
+    expect(marks.promptState()).toBe("prompt")
+  })
+
+  it("tells listeners the marks ended when turned off or disposed", () => {
+    const { marks } = setup()
+    const events: unknown[] = []
+    const stop = marks.onPrompt((event) => events.push(event))
+    marks.setEnabled(false)
+    marks.dispose()
+    stop()
+    expect(events).toEqual([{ kind: "ended" }])
+  })
+})

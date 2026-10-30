@@ -1795,7 +1795,26 @@
     "unavailable": "{{name}} is not connected",
     "keysHint": "Typed here, a command waits on no round trip and goes to the terminal in one go. Enter sends, Shift+Enter adds a line, ↑/↓ recall recent commands, Ctrl+C interrupts the running command, Esc goes back to the terminal.",
     "send": "Send",
-    "close": "Close compose bar"
+    "close": "Close compose bar",
+    "lineByLine": "Line by line",
+    "lineByLineHint": "Run several lines one at a time: the next goes only once the shell is back at its prompt, and a failed command holds the rest. Needs shell integration.",
+    "unmarkedRemote": "This shell doesn't mark its prompts, so tTerm can't tell when a line has finished. Turn on Shell integration in this connection's settings and reconnect (Mark commands in Settings → Terminal must stay on), or untick Line by line to send the lines as one paste.",
+    "unmarkedLocal": "This shell doesn't mark its prompts, so tTerm can't tell when a line has finished. For bash, zsh and fish, turn on Shell integration for local shells in Settings → Terminal and open a new tab (Mark commands must stay on), or untick Line by line to send the lines as one paste.",
+    "shellBusy": "A command is still running here; running line by line starts at the shell's prompt. Wait for it to finish, or untick Line by line to send the lines as one paste.",
+    "run": {
+      "running": "Running line {{current}} of {{total}}",
+      "failed": "Line {{current}} of {{total}} failed with exit status {{code}}",
+      "done_one": "The line ran",
+      "done_other": "All {{count}} lines ran",
+      "doneWithFailures_one": "All lines ran; {{count}} failed",
+      "doneWithFailures_other": "All lines ran; {{count}} failed",
+      "stopped_one": "Stopped; {{count}} line was not run",
+      "stopped_other": "Stopped; {{count}} lines were not run",
+      "retry": "Retry",
+      "continue": "Continue",
+      "stop": "Stop",
+      "dismiss": "Close"
+    }
   },
   "secretStorage": {
     "title": "Saved passwords",

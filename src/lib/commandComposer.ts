@@ -1,9 +1,12 @@
 import { useSyncExternalStore } from "react"
 
+import type { PromptEvent, ShellPromptState } from "@/components/TerminalTab/commandMarks"
+
 // The compose bar: text edited locally and sent to the focused terminal in
 // one go, so that over a slow link typing never waits on the round trip.
 
 const OPEN_STORAGE_KEY = "tterm.command-composer.open"
+const LINE_BY_LINE_STORAGE_KEY = "tterm.command-composer.line-by-line"
 const PASTE_START = "\x1b[200~"
 const PASTE_END = "\x1b[201~"
 
@@ -16,6 +19,10 @@ export interface ComposerTarget {
   input: (data: string) => void
   /** The program asked for bracketed paste, as shells do at their prompt. */
   bracketedPasteMode: () => boolean
+  /** Whether the shell marks its prompts (OSC 133 A) and waits at one now. */
+  promptState: () => ShellPromptState
+  /** Calls `listener` each time the shell is back at its prompt, until the returned function runs. */
+  onPrompt: (listener: (event: PromptEvent) => void) => () => void
 }
 
 /**
@@ -55,34 +62,48 @@ export function getComposerTarget(tabId: string) {
   return targets.get(tabId)
 }
 
-function loadOpen() {
+function loadFlag(key: string) {
   try {
-    return localStorage.getItem(OPEN_STORAGE_KEY) === "1"
+    return localStorage.getItem(key) === "1"
   } catch {
     return false
   }
 }
 
-let state = { open: loadOpen(), focusRequest: 0 }
+function saveFlag(key: string, value: boolean) {
+  try {
+    localStorage.setItem(key, value ? "1" : "0")
+  } catch {
+    // The choice still holds; it only won't be remembered at the next start.
+  }
+}
+
+let state = {
+  open: loadFlag(OPEN_STORAGE_KEY),
+  focusRequest: 0,
+  /** Several lines run one at a time rather than go in as one paste. */
+  lineByLine: loadFlag(LINE_BY_LINE_STORAGE_KEY),
+}
 const listeners = new Set<() => void>()
 
 function setState(next: typeof state) {
   state = next
-  try {
-    localStorage.setItem(OPEN_STORAGE_KEY, next.open ? "1" : "0")
-  } catch {
-    // The bar still opens; it only won't be open at the next start.
-  }
+  saveFlag(OPEN_STORAGE_KEY, next.open)
+  saveFlag(LINE_BY_LINE_STORAGE_KEY, next.lineByLine)
   for (const listener of listeners) listener()
 }
 
 /** Shows the bar and puts the keyboard in it. */
 export function openComposer() {
-  setState({ open: true, focusRequest: state.focusRequest + 1 })
+  setState({ ...state, open: true, focusRequest: state.focusRequest + 1 })
 }
 
 export function closeComposer() {
   if (state.open) setState({ ...state, open: false })
+}
+
+export function setComposerLineByLine(lineByLine: boolean) {
+  setState({ ...state, lineByLine })
 }
 
 export function isComposerOpen() {
@@ -96,7 +117,10 @@ function subscribe(listener: () => void) {
   }
 }
 
-/** Whether the bar is shown, and a count that goes up each time it should take the keyboard. */
+/**
+ * Whether the bar is shown, a count that goes up each time it should take
+ * the keyboard, and how it sends several lines.
+ */
 export function useComposerState() {
   return useSyncExternalStore(subscribe, () => state)
 }

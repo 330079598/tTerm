@@ -10,6 +10,20 @@ export const COMMAND_MARK_OSC_CODES = [133, 633] as const
 export type CommandMark =
   { kind: "prompt" } | { kind: "output" } | { kind: "done"; exitCode?: number }
 
+/**
+ * The shell is back at its prompt, with the status of the command that ran
+ * when one did; or the marks stopped, as the session ended or they were
+ * turned off, so no more prompts will be told.
+ */
+export type PromptEvent = { kind: "prompt"; exitCode?: number } | { kind: "ended" }
+
+/**
+ * Where input sent now goes, as far as the marks tell: `unmarked` when the
+ * shell has marked no prompt, `busy` while a command or a full-screen
+ * program has the terminal, `prompt` at the shell's prompt.
+ */
+export type ShellPromptState = "unmarked" | "busy" | "prompt"
+
 /** The mark in an OSC 133 / 633 payload such as `A`, `C` or `D;1`. */
 export function parseCommandMark(data: string): CommandMark | null {
   const [letter, param] = data.split(";", 2)
@@ -77,21 +91,43 @@ export class CommandMarks implements IDisposable {
   private enabled = true
   /** The prompt the last jump went to, while the view still shows it there. */
   private jumped: { prompt: IMarker; viewportY: number } | null = null
+  private promptListeners = new Set<(event: PromptEvent) => void>()
+  /** The shell has marked a prompt (A) in this session. */
+  private marksPrompts = false
 
   constructor(private readonly term: Terminal) {}
 
   setEnabled(enabled: boolean) {
     if (enabled === this.enabled) return
     this.enabled = enabled
-    if (!enabled) this.clear()
+    if (!enabled) {
+      this.clear()
+      this.endPromptListeners()
+    }
+  }
+
+  /** Calls `listener` each time the shell is back at its prompt, until the returned function runs. */
+  onPrompt(listener: (event: PromptEvent) => void) {
+    this.promptListeners.add(listener)
+    return () => {
+      this.promptListeners.delete(listener)
+    }
   }
 
   handleMark(data: string) {
     if (!this.enabled || this.term.buffer.active.type !== "normal") return
     const mark = parseCommandMark(data)
     if (!mark) return
-    if (mark.kind === "prompt") this.startPrompt()
-    else if (mark.kind === "output") this.startOutput()
+    if (mark.kind === "prompt") {
+      // A command that ran ended on the prompt before this one; an Enter on
+      // an empty line leaves no status there.
+      const finished = this.current()
+      this.marksPrompts = true
+      this.startPrompt()
+      for (const listener of [...this.promptListeners]) {
+        listener({ kind: "prompt", exitCode: finished?.exitCode })
+      }
+    } else if (mark.kind === "output") this.startOutput()
     else {
       this.sendsDoneMarks = true
       this.finishCommand(mark.exitCode)
@@ -110,6 +146,17 @@ export class CommandMarks implements IDisposable {
     }
     const entry = this.current()
     return entry !== undefined && !entry.output && !entry.end
+  }
+
+  /**
+   * Unlike isAtPrompt, needs no D mark (fish sends none before its first
+   * command, cmd none at all) and no prompt still in the buffer, so clearing
+   * the terminal doesn't lose it.
+   */
+  promptState(): ShellPromptState {
+    if (!this.enabled || !this.marksPrompts) return "unmarked"
+    if (this.term.buffer.active.type !== "normal" || this.commandRunning) return "busy"
+    return "prompt"
   }
 
   /**
@@ -222,6 +269,13 @@ export class CommandMarks implements IDisposable {
 
   dispose() {
     this.clear()
+    this.endPromptListeners()
+  }
+
+  private endPromptListeners() {
+    const listeners = [...this.promptListeners]
+    this.promptListeners.clear()
+    for (const listener of listeners) listener({ kind: "ended" })
   }
 
   /**

@@ -50,6 +50,8 @@ describe("registerComposerTarget", () => {
   const target = (): ComposerTarget => ({
     input: () => {},
     bracketedPasteMode: () => false,
+    promptState: () => "prompt",
+    onPrompt: () => () => {},
   })
 
   it("keeps a newer session's target when the older one unregisters", () => {

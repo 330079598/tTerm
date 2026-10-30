@@ -7,6 +7,7 @@ import { useSessionScopedState } from "@/components/TerminalTab/useSessionScoped
 import { useTerminalTheme } from "@/components/TerminalTab/useTerminalTheme"
 import { useTerminalFit } from "@/components/TerminalTab/useTerminalFit"
 import { useTerminalConfigSync } from "@/components/TerminalTab/useTerminalConfigSync"
+import { useComposerTarget } from "@/components/TerminalTab/useComposerTarget"
 import { useTerminalActivation } from "@/components/TerminalTab/useTerminalActivation"
 import { useConnectionNotices } from "@/components/TerminalTab/useConnectionNotices"
 import { useSftpDrawerToggle } from "@/components/TerminalTab/useSftpDrawerToggle"
@@ -207,6 +208,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     isGlobalShortcutTarget,
     scheduleFitDuringResize,
   })
+  useComposerTarget({ ...refs, tabId })
 
   const {
     jumpHostInfoOpen,

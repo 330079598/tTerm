@@ -4,7 +4,6 @@ import type { TerminalTabRefs } from "@/components/TerminalTab/useTerminalTabRef
 import type { useTerminalFit } from "@/components/TerminalTab/useTerminalFit"
 import { TAB_ACTIVATE_REFIT_DELAY_MS } from "@/components/TerminalTab/terminalTabUtils"
 import type { TerminalTabProps } from "@/components/TerminalTab/types"
-import { registerComposerTarget } from "@/lib/commandComposer"
 import { clearTabAttention } from "@/lib/tabAttention"
 import { markActiveTerminal, registerTerminalFocus } from "@/lib/terminalFocus"
 import { dismissTabToast } from "@/hooks/useTerminalNotifications"
@@ -98,15 +97,6 @@ export function useTerminalActivation({
   }, [hasBeenActiveRef, isActive, tabId])
 
   useEffect(() => registerTerminalFocus(tabId, () => termRef.current?.focus()), [tabId, termRef])
-
-  useEffect(
-    () =>
-      registerComposerTarget(tabId, {
-        input: (data) => termRef.current?.input(data, true),
-        bracketedPasteMode: () => termRef.current?.modes.bracketedPasteMode ?? false,
-      }),
-    [tabId, termRef]
-  )
 
   useEffect(() => {
     if (!isGlobalShortcutTarget || !isActive) return

@@ -348,6 +348,7 @@ export const TTermApp: React.FC = () => {
         tabId={composerTab?.id ?? null}
         targetTitle={composerTab?.title ?? ""}
         canSend={commandLibrary.canInsertSavedCommand}
+        isRemote={composerTab?.type === "ssh"}
         recentCommands={commandLibrary.recentCommands}
       />
 
