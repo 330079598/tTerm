@@ -154,7 +154,7 @@ export function useConnectionTest({
         title: t("profiles.testSuccess"),
         description: successMessage,
         variant: "success",
-        duration: 2500,
+        duration: 1500,
       })
     } catch (error) {
       if (isVerificationCanceled(error)) return

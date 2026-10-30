@@ -164,7 +164,7 @@ export function useProfileActions(
       toast({
         title: t("profiles.openTabsNotUpdatedTitle"),
         description: t("profiles.openTabsNotUpdatedDescription", { count: liveTabIds.length }),
-        duration: 10_000,
+        duration: 5_000,
         action: (
           <ToastAction
             altText={t("profiles.reconnectNow")}

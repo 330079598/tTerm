@@ -141,7 +141,7 @@ export function useQuickConnect(shell: AppShell, dialog: ProfileDialogState) {
       toast({
         title: t("quickConnect.connectedTitle", { target: tab.title }),
         description: t("quickConnect.connectedDescription"),
-        duration: 10_000,
+        duration: 5_000,
         action: (
           <ToastAction
             altText={t("quickConnect.saveAsProfile")}

@@ -35,7 +35,7 @@ type ToastHandle = ReturnType<typeof toast>
 const SAVE_TOAST_CLASS = "py-2 pl-3"
 // The amber of the files button's count, which marks the same unsent save.
 const ASK_TOAST_CLASS = `${SAVE_TOAST_CLASS} border-l-4 border-l-amber-500`
-const UPLOADED_TOAST_MS = 2000
+const UPLOADED_TOAST_MS = 1000
 
 /**
  * The tab's remote files open in programs on this computer: opening one,
