@@ -15,6 +15,7 @@ import { usePaneDrag } from "@/components/TTermApp/usePaneDrag"
 import { usePaneKeymap } from "@/components/TTermApp/usePaneKeymap"
 import { usePaneSlots } from "@/components/TTermApp/usePaneSlots"
 import { useWorkspaceDrop } from "@/components/TTermApp/useWorkspaceDrop"
+import { useWindowFocused } from "@/hooks/useWindowFocused"
 import { compareTabIds } from "@/lib/tabNavigation"
 
 /** The gap between panes, which their dividers sit in. */
@@ -80,6 +81,7 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
 ) {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const { show_headers: showPaneHeaders, dim_inactive_percent: dimPercent } = paneLook
+  const windowFocused = useWindowFocused()
   const { activeGroup, slots, visibleBoxes, sashes } = usePaneSlots(
     rootRef,
     groups,
@@ -204,15 +206,17 @@ export const TabPanels = forwardRef<TabPanelsHandle, TabPanelsProps>(function Ta
   // React never moves a terminal's element, which would reset its scroll.
   const mountOrder = useMemo(() => [...tabs].sort((a, b) => compareTabIds(a.id, b.id)), [tabs])
   const isSplit = activeGroup !== undefined && activeGroup.root.type === "split"
-  // With more than one pane in sight, the ones without the keyboard may fade,
-  // and without headers a frame marks the one with it.
+  // With more than one pane in sight, a frame marks the one with the keyboard,
+  // and the others may fade. The frame fades too while another app has the
+  // keyboard, as no pane does then.
   const showsSplit = isSplit && !activeGroup.zoomedTabId
   const workspaceClass = [
     "workspace",
     isSplit ? "is-split" : "",
     isSplit && showPaneHeaders ? "has-pane-headers" : "",
-    showsSplit && !showPaneHeaders ? "frames-active-pane" : "",
+    showsSplit ? "frames-active-pane" : "",
     showsSplit && dimPercent > 0 ? "dims-inactive-panes" : "",
+    windowFocused ? "" : "window-unfocused",
   ].join(" ")
 
   return (

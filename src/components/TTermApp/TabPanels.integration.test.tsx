@@ -168,6 +168,34 @@ describe("TabPanels split tabs", () => {
     expect(workspace?.classList.contains("dims-inactive-panes")).toBe(false)
   })
 
+  it("frames the active pane with headers too, and marks when the window loses focus", async () => {
+    const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true)
+    render(<WorkspaceHarness />)
+    await screen.findByTestId("terminal-tab-2")
+    const workspace = document.querySelector(".workspace")
+    expect(workspace?.classList.contains("frames-active-pane")).toBe(false)
+
+    act(() => {
+      api.duplicateTab("tab-1", "right")
+    })
+    expect(document.querySelectorAll(".pane-header")).toHaveLength(2)
+    expect(workspace?.classList.contains("frames-active-pane")).toBe(true)
+    expect(workspace?.classList.contains("window-unfocused")).toBe(false)
+
+    hasFocus.mockReturnValue(false)
+    act(() => {
+      window.dispatchEvent(new Event("blur"))
+    })
+    expect(workspace?.classList.contains("window-unfocused")).toBe(true)
+
+    hasFocus.mockReturnValue(true)
+    act(() => {
+      window.dispatchEvent(new Event("focus"))
+    })
+    expect(workspace?.classList.contains("window-unfocused")).toBe(false)
+    hasFocus.mockRestore()
+  })
+
   it("keeps every terminal mounted while switching tabs and moving panes between them", async () => {
     render(<WorkspaceHarness />)
     await screen.findByTestId("terminal-tab-2")

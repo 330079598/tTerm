@@ -6,6 +6,7 @@
   min-height: 0;
   overflow: hidden;
   background: hsl(var(--background));
+  --active-pane-frame-alpha: 0.75;
 }
 
 /* The gaps between split panes take one quiet tone; the dividers in them draw
@@ -55,14 +56,27 @@
   pointer-events: none;
 }
 
-/* Without headers, a thin frame in the accent marks the pane with the keyboard. */
+/* A thin frame in the accent marks the pane with the keyboard, so it is found
+   at a glance rather than by its header's small tab. Headers mark it too, so
+   with them the frame is fainter. */
 .workspace.frames-active-pane .workspace-pane.active::after {
   position: absolute;
   z-index: 21;
-  border: 1px solid hsl(var(--tab-active-border, var(--primary)) / 0.75);
+  border: 1px solid hsl(var(--tab-active-border, var(--primary)) / var(--active-pane-frame-alpha));
   content: "";
   inset: 0;
   pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.workspace.has-pane-headers {
+  --active-pane-frame-alpha: 0.45;
+}
+
+/* While another app has the keyboard, no pane does; the frame stays faintly
+   to show where typing will go on coming back. */
+.workspace.window-unfocused .workspace-pane.active::after {
+  opacity: 0.35;
 }
 
 .workspace-panel {
