@@ -7,6 +7,7 @@ use portable_pty::CommandBuilder;
 
 use super::pty::{find_executable_in, resolve_home_dir, shell_program_name, TerminalShellProfile};
 use super::shell_integration::{self, ShellKind};
+use super::wsl_distros::WslDistro;
 
 /// Builds the command a local tab starts, with tTerm's integration for the
 /// shells it knows.
@@ -31,7 +32,12 @@ pub(super) fn build_windows_command(
             found(find_pwsh_path(), "pwsh.exe"),
             vec!["-NoLogo".to_string()],
         ),
-        "wsl" => resolve_wsl_command(config.wsl_distro.as_deref())?,
+        "wsl" => {
+            if let Some(name) = config.wsl_distro.as_deref() {
+                check_wsl_distro(name, &super::wsl_distros::installed_distros())?;
+            }
+            resolve_wsl_command(config.wsl_distro.as_deref())?
+        }
         "git-bash" => resolve_git_bash_command()?,
         "custom" => {
             let path = config
@@ -201,6 +207,23 @@ fn resolve_wsl_command(distro: Option<&str>) -> Result<(String, Vec<String>), St
         .map(|name| vec!["-d".to_string(), name.to_string()])
         .unwrap_or_default();
     Ok((path.to_string_lossy().into_owned(), args))
+}
+
+/// Refuses a distribution missing from `installed`, which `wsl.exe` would
+/// start only to report and exit, so the tab can offer another shell. With
+/// none listed, the registry can't tell, and `wsl.exe` is left to decide.
+fn check_wsl_distro(name: &str, installed: &[WslDistro]) -> Result<(), String> {
+    let name = name.trim();
+    if installed.is_empty()
+        || installed
+            .iter()
+            .any(|distro| distro.name.eq_ignore_ascii_case(name))
+    {
+        return Ok(());
+    }
+    Err(format!(
+        "The WSL distribution {name} is not installed. Install it or choose another shell."
+    ))
 }
 
 fn resolve_git_bash_command() -> Result<(String, Vec<String>), String> {
@@ -450,6 +473,19 @@ mod tests {
         assert_eq!(args, ["-d", "Ubuntu"]);
         let (_, args) = resolve_wsl_command(None).expect("wsl.exe");
         assert!(args.is_empty());
+    }
+
+    #[test]
+    fn refuses_a_wsl_distribution_that_is_not_installed() {
+        let ubuntu = WslDistro {
+            name: "Ubuntu".to_string(),
+            is_default: true,
+        };
+        assert!(check_wsl_distro(" ubuntu ", std::slice::from_ref(&ubuntu)).is_ok());
+        let error = check_wsl_distro("Debian", &[ubuntu]).expect_err("not installed");
+        assert!(error.contains("Debian"), "{error}");
+        // An unreadable registry lists none and refuses nothing.
+        assert!(check_wsl_distro("Debian", &[]).is_ok());
     }
 
     #[test]
