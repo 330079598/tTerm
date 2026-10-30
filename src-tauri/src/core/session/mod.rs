@@ -547,6 +547,26 @@ pub fn resolve_ssh_password(
     Ok(())
 }
 
+/// Saves a jump host's password under `secret_key`, as the user asked.
+fn remember_jump_password(
+    app: &tauri::AppHandle,
+    secret_state: &crate::ssh::secret_store::types::SecretStoreState,
+    secret_key: &str,
+    password: &str,
+) -> Result<(), String> {
+    let location = secret_state.save_password(app, secret_key, password)?;
+    if matches!(
+        location,
+        crate::ssh::secret_store::types::SecretLocation::Memory
+    ) {
+        return Err(
+            "Jump host password persistence is unavailable. Enable the app vault or use a supported system credential store."
+                .to_string(),
+        );
+    }
+    Ok(())
+}
+
 /// Resolve jump host passwords from the secret store when not already provided.
 fn resolve_jump_host_passwords(
     app: &tauri::AppHandle,
@@ -563,8 +583,16 @@ fn resolve_jump_host_passwords(
         {
             continue;
         }
-        if jump.profile_id.is_some() {
-            saved_hops::fill_saved_password(app, secret_state, jump)?;
+        if let Some(profile_id) = jump.profile_id.as_deref() {
+            // A password typed for a hop that logs in as a saved connection,
+            // as the tunnel's credentials dialog asks, is that connection's.
+            match &jump.password {
+                Some(password) if plan.remember_password => {
+                    remember_jump_password(app, secret_state, profile_id, password)?;
+                }
+                Some(_) => {}
+                None => saved_hops::fill_saved_password(app, secret_state, jump)?,
+            }
             continue;
         }
 
@@ -578,18 +606,7 @@ fn resolve_jump_host_passwords(
 
         if let Some(pw) = &jump.password {
             if plan.remember_password {
-                let location = secret_state.save_password(app, &secret_key, pw)?;
-                if plan.remember_password
-                    && matches!(
-                        location,
-                        crate::ssh::secret_store::types::SecretLocation::Memory
-                    )
-                {
-                    return Err(
-                        "Jump host password persistence is unavailable. Enable the app vault or use a supported system credential store."
-                            .to_string(),
-                    );
-                }
+                remember_jump_password(app, secret_state, &secret_key, pw)?;
             }
             continue;
         }
