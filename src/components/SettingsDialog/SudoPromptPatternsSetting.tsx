@@ -81,7 +81,7 @@ export const SudoPromptPatternsSetting: React.FC<SudoPromptPatternsSettingProps>
             autoCorrect="off"
             className={cn(
               "border-input placeholder:text-muted-foreground dark:bg-input/30 min-h-20 w-full rounded-md border bg-transparent px-3 py-2 font-mono text-xs shadow-xs outline-none",
-              "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+              "focus-visible:border-ring",
               "aria-invalid:border-destructive"
             )}
             onBlur={commit}

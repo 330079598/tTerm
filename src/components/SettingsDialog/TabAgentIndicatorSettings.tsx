@@ -121,7 +121,7 @@ function AgentStyleChoices<S extends TabAgentWorkingStyle | TabAgentWaitingStyle
             aria-checked={style === choice}
             className={cn(
               "hover:bg-muted flex h-8 items-center gap-2 rounded-md border px-2.5 text-xs",
-              style === choice ? "border-primary bg-muted" : "border-border"
+              style === choice ? "border-primary/50 bg-primary/10" : "border-border"
             )}
             onClick={() => onStyleChange(choice)}
           >

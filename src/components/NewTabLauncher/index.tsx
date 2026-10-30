@@ -281,7 +281,9 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
                   onClick={() => run(item)}
                   className={cn(
                     "group flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm",
-                    index === selectedIndex && "bg-accent text-accent-foreground"
+                    // Muted rather than the accent, which some themes make a
+                    // saturated color that outshines the text on it.
+                    index === selectedIndex && "bg-muted"
                   )}
                 >
                   <Icon size={15} className="text-muted-foreground shrink-0" />

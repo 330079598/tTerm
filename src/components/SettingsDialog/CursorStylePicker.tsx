@@ -48,7 +48,7 @@ export const CursorStylePicker: React.FC<CursorStylePickerProps> = ({ value, onC
             className={cn(
               "text-foreground flex flex-col gap-2 rounded-lg border p-2 text-left transition-colors",
               selected
-                ? "border-primary bg-primary/10"
+                ? "border-primary/50 bg-primary/10"
                 : "border-border hover:border-primary/40 hover:bg-secondary/60"
             )}
           >

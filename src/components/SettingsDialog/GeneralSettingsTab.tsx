@@ -114,10 +114,10 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                   aria-pressed={isActive}
                   onClick={() => handleLanguageChange(lang.code)}
                   className={cn(
-                    "h-10 w-full justify-start rounded-md border px-3 text-left",
+                    "h-10 w-full justify-start rounded-md px-3 text-left",
                     isActive
-                      ? "border-primary bg-primary/10 hover:bg-primary/15 dark:hover:bg-primary/15"
-                      : "hover:bg-muted dark:hover:bg-muted border-transparent"
+                      ? "bg-primary/10 hover:bg-primary/15 dark:hover:bg-primary/15"
+                      : "hover:bg-muted dark:hover:bg-muted"
                   )}
                 >
                   <div className="min-w-0 flex-1">

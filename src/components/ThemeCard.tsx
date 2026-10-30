@@ -34,18 +34,26 @@ export const ThemeCard: React.FC<ThemeCardProps> = ({
   const isActive = currentTheme === theme.id
 
   return (
-    <Card className="overflow-hidden border-transparent shadow-none">
+    // The whole card shows the theme in use, with a tint rather than an
+    // outline, so its own buttons sit inside the mark and nothing edges it.
+    <Card
+      className={cn(
+        "overflow-hidden border-transparent shadow-none transition-colors",
+        isActive && "bg-primary/10"
+      )}
+    >
       <CardContent className="p-0">
         <div className="flex items-center">
           <Button
             type="button"
             variant="ghost"
             onClick={onSelect}
+            aria-pressed={isActive}
             className={cn(
-              "h-auto flex-1 justify-start gap-3 rounded-lg border px-3 py-2.5 text-left",
+              "h-auto flex-1 justify-start gap-3 rounded-lg px-3 py-2.5 text-left",
               isActive
-                ? "border-primary bg-primary/10 hover:bg-primary/15 dark:hover:bg-primary/15"
-                : "hover:bg-muted dark:hover:bg-muted border-transparent"
+                ? "hover:bg-primary/5 dark:hover:bg-primary/5"
+                : "hover:bg-muted dark:hover:bg-muted"
             )}
           >
             <span

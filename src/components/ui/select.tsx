@@ -8,8 +8,9 @@ function Select({ className, children, ...props }: React.ComponentProps<"select"
     <div className="relative">
       <select
         data-slot="select"
+        // Focus shows on the border alone, as on Input.
         className={cn(
-          "border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full appearance-none rounded-md border px-3 py-1 pr-9 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
+          "border-input bg-background focus-visible:border-ring h-9 w-full appearance-none rounded-md border px-3 py-1 pr-9 text-sm shadow-xs transition-[color,box-shadow] outline-none disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
         {...props}

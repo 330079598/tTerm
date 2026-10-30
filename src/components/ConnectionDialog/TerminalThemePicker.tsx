@@ -196,7 +196,7 @@ export const TerminalThemePicker: React.FC<TerminalThemePickerProps> = ({
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => (open ? close(false) : openList())}
-        className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 flex h-9 w-full items-center gap-2 rounded-md border px-3 text-left text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+        className="border-input bg-background focus-visible:border-ring flex h-9 w-full items-center gap-2 rounded-md border px-3 text-left text-sm shadow-xs outline-none"
       >
         <Swatch palette={selectedTheme?.terminal} />
         <span className="min-w-0 flex-1 truncate">{selectedLabel}</span>
