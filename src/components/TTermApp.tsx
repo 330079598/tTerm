@@ -358,6 +358,7 @@ export const TTermApp: React.FC = () => {
         isRemote={composerTab?.type === "ssh"}
         recentCommands={commandLibrary.recentCommands}
         broadcast={composerBroadcast}
+        confirm={confirm}
       />
 
       <NewTabLauncher

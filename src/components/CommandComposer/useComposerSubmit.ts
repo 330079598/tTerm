@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
+import type { useConfirmDialog } from "@/components/ui/app-dialog"
 import { toast } from "@/hooks/use-toast"
 import { composerInput, getComposerTarget } from "@/lib/commandComposer"
 import { runLines } from "@/lib/composerRun"
@@ -28,6 +29,7 @@ interface UseComposerSubmitOptions {
   broadcast: ComposerBroadcast
   text: string
   setText: (text: string) => void
+  confirm: ReturnType<typeof useConfirmDialog>["confirm"]
 }
 
 /**
@@ -43,6 +45,7 @@ export function useComposerSubmit({
   broadcast,
   text,
   setText,
+  confirm,
 }: UseComposerSubmitOptions) {
   const { t } = useTranslation()
   // Why the last Enter sent nothing, for the tab it was pressed in.
@@ -73,10 +76,23 @@ export function useComposerSubmit({
     done()
   }
 
-  const runInBroadcastTargets = (lines: string[]) => {
-    const started = broadcast
-      .connectedTargetIds()
-      .filter((id) => startComposerRun(id, lines) === "started")
+  const runInBroadcastTargets = async (lines: string[]) => {
+    const targetIds = broadcast.connectedTargetIds()
+    // As the panel asks before it sends several lines to its targets.
+    if (targetIds.length > 0) {
+      const confirmed = await confirm({
+        title: t("composer.broadcastRunConfirmTitle"),
+        description: t("composer.broadcastRunConfirmDescription", {
+          count: targetIds.length,
+          lines: lines.length,
+        }),
+        confirmText: t("broadcast.sendAnyway"),
+        defaultAction: "confirm",
+        variant: "destructive",
+      })
+      if (!confirmed) return
+    }
+    const started = targetIds.filter((id) => startComposerRun(id, lines) === "started")
     if (started.length === 0) {
       setNotice({ tabId, message: t("composer.broadcastNoneStarted") })
       return
@@ -96,7 +112,7 @@ export function useComposerSubmit({
   const submitToBroadcast = async () => {
     const lines = runLines(text)
     if (lineByLine && lines.length > 1) {
-      runInBroadcastTargets(lines)
+      await runInBroadcastTargets(lines)
       return
     }
     const command = text.replace(/[\r\n]+$/, "")

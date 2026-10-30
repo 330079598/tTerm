@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
+import type { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useShortcutLabel } from "@/contexts/KeymapContext"
@@ -47,6 +48,7 @@ interface CommandComposerProps {
   isRemote: boolean
   recentCommands: RecentCommand[]
   broadcast: ComposerBroadcast
+  confirm: ReturnType<typeof useConfirmDialog>["confirm"]
 }
 
 /**
@@ -62,6 +64,7 @@ export const CommandComposer: React.FC<CommandComposerProps> = ({
   isRemote,
   recentCommands,
   broadcast,
+  confirm,
 }) => {
   const { t } = useTranslation()
   const { config } = useConfig()
@@ -83,6 +86,7 @@ export const CommandComposer: React.FC<CommandComposerProps> = ({
     broadcast,
     text,
     setText,
+    confirm,
   })
 
   if (!open || !tabId) return null
