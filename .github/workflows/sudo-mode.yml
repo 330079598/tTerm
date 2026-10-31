@@ -1,0 +1,85 @@
+name: Sudo mode
+
+# The file manager's sudo mode runs sudo on the host, and sudo 1.9 and sudo-rs
+# word their refusals and read their input differently, which only a real
+# sudo shows. The tests in src-tauri/src/sftp/internal/sudo/host_tests.rs run
+# against both, in the containers scripts/sudo-test-host builds. That takes
+# images from Docker Hub and packages from Ubuntu's mirrors, so it runs only
+# when a change can affect how a connection gets through sudo.
+on:
+  push:
+    branches:
+      - dev
+      - main
+    paths:
+      - 'src-tauri/src/sftp/**'
+      - 'src-tauri/src/ssh/auth.rs'
+      - 'src-tauri/src/ssh/auth/**'
+      - 'src-tauri/src/core/session/**'
+      - 'src-tauri/Cargo.toml'
+      - 'src-tauri/Cargo.lock'
+      - 'scripts/sudo-test-host/**'
+      - '.github/workflows/sudo-mode.yml'
+  pull_request:
+    paths:
+      - 'src-tauri/src/sftp/**'
+      - 'src-tauri/src/ssh/auth.rs'
+      - 'src-tauri/src/ssh/auth/**'
+      - 'src-tauri/src/core/session/**'
+      - 'src-tauri/Cargo.toml'
+      - 'src-tauri/Cargo.lock'
+      - 'scripts/sudo-test-host/**'
+      - '.github/workflows/sudo-mode.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: sudo-mode-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-sudo:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      # The hosts start before the build so their sshd is up by the time the
+      # tests run. Docker, unlike Podman, only finds a Dockerfile by itself,
+      # hence -f.
+      - name: Start sudo test hosts
+        run: |
+          docker build -f scripts/sudo-test-host/Containerfile -t tterm-sudo-host scripts/sudo-test-host
+          docker build -f scripts/sudo-test-host/Containerfile -t tterm-sudo-rs-host --build-arg SUDO_RS=1 --build-arg BASE=docker.io/library/ubuntu:26.04 scripts/sudo-test-host
+          docker run -d -p 2222:22 tterm-sudo-host
+          docker run -d -p 2223:22 tterm-sudo-rs-host
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libudev-dev patchelf
+
+      # generate_context! needs frontendDist to exist; the tests do not need
+      # the built frontend in it.
+      - name: Create frontend dist placeholder
+        run: mkdir -p dist
+
+      # sudo-rs does not support requiretty, so only sudo 1.9 has that account.
+      - name: Test against sudo 1.9
+        working-directory: src-tauri
+        env:
+          TTERM_SUDO_TEST_HOST: 127.0.0.1:2222
+          TTERM_SUDO_TEST_REQUIRETTY: 1
+        run: cargo test --lib -- --ignored real_sudo
+
+      - name: Test against sudo-rs
+        working-directory: src-tauri
+        env:
+          TTERM_SUDO_TEST_HOST: 127.0.0.1:2223
+        run: cargo test --lib -- --ignored real_sudo
