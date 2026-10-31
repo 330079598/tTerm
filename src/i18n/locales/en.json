@@ -2062,7 +2062,8 @@
       "root": "root",
       "enable": "Work as root through sudo",
       "disable": "Stop working as root",
-      "active": "Working as root: everything this drawer changes is changed as root. Click to work as yourself again."
+      "active": "Working as root: everything this drawer changes is changed as root. Click to work as yourself again.",
+      "openAsRoot": "Open as root with sudo"
     },
     "columns": {
       "name": "Name",

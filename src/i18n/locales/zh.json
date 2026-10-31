@@ -2035,7 +2035,8 @@
       "root": "root",
       "enable": "通过 sudo 以 root 身份操作",
       "disable": "退出 root 身份",
-      "active": "正在以 root 身份操作：在这个文件管理器里做的所有改动都以 root 身份进行。点击可切回自己的身份。"
+      "active": "正在以 root 身份操作：在这个文件管理器里做的所有改动都以 root 身份进行。点击可切回自己的身份。",
+      "openAsRoot": "用 sudo 以 root 身份打开"
     },
     "columns": {
       "name": "名称",

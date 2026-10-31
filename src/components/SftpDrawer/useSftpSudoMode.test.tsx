@@ -15,6 +15,7 @@ function renderDrawer(loadDirectory: LoadSftpDirectory, currentPath: string | nu
     useReloadOnSudoSwitch({
       sudoMode: mode.sudoMode,
       setSudoMode: mode.setSudoMode,
+      rootPathRef: mode.rootPathRef,
       loadDirectory,
       currentPath,
     })
@@ -42,6 +43,16 @@ describe("useSftpSudoMode", () => {
 
     act(() => result.current.setSudoMode(true))
     await waitFor(() => expect(loadDirectory).toHaveBeenCalledWith("/etc", { throwOnError: true }))
+    expect(loadDirectory).toHaveBeenCalledTimes(1)
+  })
+
+  it("opens as root the folder the user was refused, not the one in view", async () => {
+    const loadDirectory = vi.fn<LoadSftpDirectory>(async () => undefined)
+    const { result } = renderDrawer(loadDirectory, "/")
+
+    act(() => result.current.openAsRoot("/root"))
+    expect(result.current.sudoMode).toBe(true)
+    await waitFor(() => expect(loadDirectory).toHaveBeenCalledWith("/root", { throwOnError: true }))
     expect(loadDirectory).toHaveBeenCalledTimes(1)
   })
 

@@ -1,14 +1,12 @@
 import "@/components/SftpDrawer.css"
 import React, { useCallback, useReducer, useRef, useState } from "react"
-import { AlertCircle } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { sftpDialogReducer } from "@/components/SftpDrawer/sftpDialogReducer"
-import { sftpFontSizeStyle } from "@/components/SftpDrawer/sftpDrawerUtils"
+import { isPermissionDenied, sftpFontSizeStyle } from "@/components/SftpDrawer/sftpDrawerUtils"
 import { useSftpSelectionMode } from "@/components/SftpDrawer/useSftpSelectionMode"
 import { useSftpEntryActions } from "@/components/SftpDrawer/useSftpEntryActions"
 import { useSftpDeleteActions } from "@/components/SftpDrawer/useSftpDeleteActions"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useConfig } from "@/contexts/ConfigContext"
 import { SftpDeleteTransferEvents } from "@/components/SftpDrawer/SftpDeleteTransferEvents"
 import { SftpDrawerContent } from "@/components/SftpDrawer/SftpDrawerContent"
@@ -30,6 +28,7 @@ import { useSftpPasteUpload } from "@/components/SftpDrawer/useSftpPasteUpload"
 import { useSftpSelection } from "@/components/SftpDrawer/useSftpSelection"
 import { useSftpDirectoryLoader } from "@/components/SftpDrawer/useSftpDirectoryLoader"
 import { SftpSudoToggle } from "@/components/SftpDrawer/SftpSudoToggle"
+import { SftpErrorAlert } from "@/components/SftpDrawer/SftpErrorAlert"
 import { useReloadOnSudoSwitch, useSftpSudoMode } from "@/components/SftpDrawer/useSftpSudoMode"
 import { useSftpTerminalFollow } from "@/components/SftpDrawer/useSftpTerminalFollow"
 import { SftpTerminalActions } from "@/components/SftpDrawer/SftpTerminalActions"
@@ -58,7 +57,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   const { t } = useTranslation()
   const { config } = useConfig()
   // Every request below carries the drawer's identity, root in sudo mode.
-  const { connection, sudoMode, setSudoMode } = useSftpSudoMode(tabConnection)
+  const { connection, sudoMode, setSudoMode, openAsRoot, rootPathRef } =
+    useSftpSudoMode(tabConnection)
   const drawerRef = useRef<HTMLDivElement>(null)
   const [activePath, setActivePath] = useState<string | null>(null)
   const [selectedPaths, setSelectedPaths] = useState<string[]>([])
@@ -71,8 +71,8 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   const { history, recordFailed, recordLoaded } = useSftpHistory()
   const [searchQuery, setSearchQuery] = useState("")
 
-  const { listing, setListing, isLoading, error, setError, loadDirectory } = useSftpDirectoryLoader(
-    {
+  const { listing, setListing, isLoading, error, setError, failedPath, loadDirectory } =
+    useSftpDirectoryLoader({
       tabId,
       connection,
       recordLoaded,
@@ -80,10 +80,15 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
       setActivePath,
       setSelectedPaths,
       setSearchQuery,
-    }
-  )
+    })
   const listingCurrentPath = listing?.currentPath ?? null
-  useReloadOnSudoSwitch({ sudoMode, setSudoMode, loadDirectory, currentPath: listingCurrentPath })
+  useReloadOnSudoSwitch({
+    sudoMode,
+    setSudoMode,
+    rootPathRef,
+    loadDirectory,
+    currentPath: listingCurrentPath,
+  })
   const recursiveSearch = useSftpRecursiveSearch({ tabId, connection, listing, searchQuery })
   const { follows, toggleFollow, terminalCwd, awayHost } = useSftpTerminalFollow({
     tabId,
@@ -366,12 +371,14 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         }
       />
 
-      {error && (
-        <Alert className="bg-destructive/10 text-destructive rounded-none border-x-0 border-t-0">
-          <AlertCircle className="size-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+      <SftpErrorAlert
+        error={error}
+        onOpenAsRoot={
+          !sudoMode && connection && isPermissionDenied(error)
+            ? () => openAsRoot(failedPath)
+            : undefined
+        }
+      />
 
       <SftpSearchStatus
         search={recursiveSearch.search}

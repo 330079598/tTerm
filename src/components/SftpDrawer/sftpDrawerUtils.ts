@@ -15,6 +15,15 @@ export function parentRemotePath(path: string): string {
   return slash <= 0 ? "/" : path.slice(0, slash)
 }
 
+/**
+ * Whether the server refused a request because the account may not do it, as
+ * SFTP reports it ("Permission denied"): the error that working as root
+ * through sudo can get past.
+ */
+export function isPermissionDenied(error: string | null): boolean {
+  return error !== null && /permission denied/i.test(error)
+}
+
 /** The drawer's font sizes, which follow the terminal's. */
 export function sftpFontSizeStyle(fontSize: number): React.CSSProperties {
   return {

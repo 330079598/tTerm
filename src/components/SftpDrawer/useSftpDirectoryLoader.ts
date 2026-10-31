@@ -37,6 +37,9 @@ export function useSftpDirectoryLoader({
   const [listing, setListing] = useState<SftpDirectoryListing | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The folder the last load failed to open, which may differ from the one
+  // in view: the drawer stays where it was when a folder cannot be opened.
+  const [failedPath, setFailedPath] = useState<string | null>(null)
 
   const loadDirectory = useCallback<LoadSftpDirectory>(
     async (path, options) => {
@@ -53,6 +56,7 @@ export function useSftpDirectoryLoader({
 
       setIsLoading(true)
       setError(null)
+      setFailedPath(null)
       try {
         const nextListing = await withVaultUnlock(() =>
           invoke<SftpDirectoryListing>("sftp_list_directory", {
@@ -69,6 +73,7 @@ export function useSftpDirectoryLoader({
       } catch (invokeError) {
         const message = String(invokeError)
         setError(message)
+        setFailedPath(path ?? null)
         recordFailed(options?.historyIndex)
         if (options?.throwOnError) {
           throw new Error(message, { cause: invokeError })
@@ -90,5 +95,5 @@ export function useSftpDirectoryLoader({
     ]
   )
 
-  return { listing, setListing, isLoading, error, setError, loadDirectory }
+  return { listing, setListing, isLoading, error, setError, failedPath, loadDirectory }
 }
