@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { listen, type UnlistenFn } from "@tauri-apps/api/event"
-import { KeyRound } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { Crab } from "@/components/Crab"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -131,16 +131,17 @@ const SshAuthPromptForm: React.FC<{
             void onRespond(answers)
           }}
         >
-          <div>
-            <h3 className="flex items-center gap-2 text-base font-semibold">
-              <KeyRound size={16} />
-              {t("ssh.authPrompt.title")}
-            </h3>
-            <p className="text-muted-foreground mt-1 font-mono text-xs break-all">
-              {prompt.hopIndex
-                ? t("ssh.authPrompt.jumpHost", { index: prompt.hopIndex, endpoint })
-                : endpoint}
-            </p>
+          <div className="flex items-center gap-3">
+            {/* The crab knocks: the connection is at the door, waiting on an answer. */}
+            <Crab motion="knock" height={40} />
+            <div className="min-w-0">
+              <h3 className="text-base font-semibold">{t("ssh.authPrompt.title")}</h3>
+              <p className="text-muted-foreground mt-1 font-mono text-xs break-all">
+                {prompt.hopIndex
+                  ? t("ssh.authPrompt.jumpHost", { index: prompt.hopIndex, endpoint })
+                  : endpoint}
+              </p>
+            </div>
           </div>
 
           {(prompt.name || prompt.instructions) && (
