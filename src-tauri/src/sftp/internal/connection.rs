@@ -26,6 +26,19 @@ const CONNECTION_TIMEOUT: Duration = Duration::from_secs(300);
 /// How often the pool is checked for idle connections to close.
 const REAP_INTERVAL: Duration = Duration::from_secs(60);
 
+/// How long a session whose request just failed has to answer a trivial one.
+const ALIVE_CHECK_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Whether the session still answers after one of its requests failed. A
+/// server that said "no such file" or "permission denied" leaves it working;
+/// a dropped connection or a dead SFTP channel does not.
+pub async fn session_answers(sftp: &russh_sftp::client::SftpSession) -> bool {
+    matches!(
+        tokio::time::timeout(ALIVE_CHECK_TIMEOUT, sftp.canonicalize(".")).await,
+        Ok(Ok(_))
+    )
+}
+
 pub fn map_sftp_error(err: SftpError) -> String {
     err.to_string()
 }
@@ -289,6 +302,19 @@ pub async fn evict_connection(pool: &SftpConnectionPool, key: &SftpConnectionKey
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn a_session_that_refused_a_request_still_answers() {
+        use crate::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
+
+        let server = TestServer::start(ServerOptions::default()).await;
+        let sftp = server.sftp_session().await;
+        assert!(sftp.metadata("/missing").await.is_err());
+        assert!(session_answers(&sftp).await);
+
+        sftp.close().await.expect("close");
+        assert!(!session_answers(&sftp).await);
+    }
 
     #[test]
     fn released_connections_close_once_unused() {

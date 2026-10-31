@@ -25,8 +25,11 @@ macro_rules! with_sftp {
         }
         .await;
 
-        // If operation fails, connection may be broken, remove from cache.
-        if result.is_err() {
+        // A failed request may mean a broken connection. One that still
+        // answers stays pooled, so that an error the server answered, such as
+        // a missing file, costs no reconnect, nor in sudo mode another
+        // password prompt.
+        if result.is_err() && !$crate::sftp::internal::connection::session_answers(&sftp).await {
             let mut pool_guard = $pool.write().await;
             if let Some(cached) = pool_guard.remove(&key) {
                 tokio::spawn(async move {
