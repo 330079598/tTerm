@@ -246,7 +246,9 @@ fn normalize_ssh(
         encoding: crate::terminal::encoding::TerminalEncoding::from_label(
             connection.encoding.as_deref(),
         ),
-        shell_integration: connection.shell_integration,
+        shell_integration: connection
+            .ssh_shell_integration
+            .unwrap_or_else(crate::config::ssh_shell_integration_enabled),
         session_log,
         proxy_choice: connection.proxy,
         proxy: None,

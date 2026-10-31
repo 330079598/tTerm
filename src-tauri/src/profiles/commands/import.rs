@@ -97,8 +97,10 @@ pub(super) fn import_ssh_config_profiles_blocking(
             encoding: existing_index.and_then(|index| profiles[index].encoding.clone()),
             terminal_theme: existing_index.and_then(|index| profiles[index].terminal_theme.clone()),
             login_script: existing_index.and_then(|index| profiles[index].login_script.clone()),
-            shell_integration: existing_index
-                .is_some_and(|index| profiles[index].shell_integration),
+            ssh_shell_integration: existing_index
+                .and_then(|index| profiles[index].ssh_shell_integration),
+            legacy_shell_integration: existing_index
+                .is_some_and(|index| profiles[index].legacy_shell_integration),
             session_log: existing_index.and_then(|index| profiles[index].session_log.clone()),
             sftp_start_directory: existing_index
                 .and_then(|index| profiles[index].sftp_start_directory.clone()),

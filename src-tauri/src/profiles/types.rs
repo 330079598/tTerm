@@ -103,9 +103,16 @@ pub struct SavedProfile {
     /// Commands typed into the remote shell once it is ready, one per line.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub login_script: Option<String>,
-    /// Install tTerm's shell integration on the host so its shell marks commands.
-    #[serde(default)]
-    pub shell_integration: bool,
+    /// Whether this connection's sessions start with tTerm's shell
+    /// integration; as the SSH shell integration setting says when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ssh_shell_integration: Option<bool>,
+    /// The checkbox from before shell integration had a setting and was off
+    /// unless turned on, read from older profiles, backups and sync files.
+    /// Only `true` was a choice; `false` was the default, which now follows
+    /// the setting.
+    #[serde(default, rename = "shell_integration", skip_serializing)]
+    pub(crate) legacy_shell_integration: bool,
     /// Whether this connection's sessions are logged: `always`, `never`, or
     /// as the logging setting says when unset.
     #[serde(default, skip_serializing_if = "Option::is_none")]

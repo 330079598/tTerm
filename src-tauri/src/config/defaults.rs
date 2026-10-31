@@ -191,6 +191,10 @@ pub(super) fn default_command_marks() -> bool {
     true
 }
 
+pub(super) fn default_ssh_shell_integration() -> bool {
+    true
+}
+
 pub(super) fn default_terminal_line_height() -> f64 {
     1.0
 }
@@ -315,6 +319,7 @@ impl Default for AppConfig {
             osc52_clipboard_write: default_osc52_clipboard_write(),
             command_marks: default_command_marks(),
             local_shell_integration: false,
+            ssh_shell_integration: default_ssh_shell_integration(),
             terminal_line_height: default_terminal_line_height(),
             terminal_letter_spacing: 0,
             keymap: KeymapConfig::default(),

@@ -75,6 +75,14 @@ fn sanitize_session_tab(tab: serde_json::Value) -> serde_json::Value {
             }
         }
 
+        // Before shell integration had a setting, a tab without it said
+        // `false`; only `true` was the connection's choice.
+        if connection.remove("shellIntegration") == Some(serde_json::Value::Bool(true)) {
+            connection
+                .entry("sshShellIntegration")
+                .or_insert(serde_json::Value::Bool(true));
+        }
+
         if let Some(serde_json::Value::Array(jump_hosts)) = connection.get_mut("jumpHosts") {
             for jump_host in jump_hosts.iter_mut() {
                 let sanitized = sanitize_jump_host_value(std::mem::take(jump_host));
@@ -277,5 +285,25 @@ mod tests {
         assert_eq!(jump_hosts.len(), 1);
         assert_eq!(jump_hosts[0]["host"], "bastion");
         assert!(jump_hosts[0].get("password").is_none());
+    }
+
+    #[test]
+    fn sanitize_session_tabs_keeps_only_a_legacy_shell_integration_turned_on() {
+        let tabs = serde_json::json!([
+            { "id": "on", "connection": { "shellIntegration": true } },
+            { "id": "off", "connection": { "shellIntegration": false } },
+            { "id": "new", "connection": { "sshShellIntegration": false } },
+        ]);
+
+        let sanitized = sanitize_session_tabs(tabs);
+        assert_eq!(
+            sanitized[0]["connection"],
+            serde_json::json!({ "sshShellIntegration": true })
+        );
+        assert_eq!(sanitized[1]["connection"], serde_json::json!({}));
+        assert_eq!(
+            sanitized[2]["connection"],
+            serde_json::json!({ "sshShellIntegration": false })
+        );
     }
 }

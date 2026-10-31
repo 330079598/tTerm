@@ -11,6 +11,7 @@ import {
 } from "@/components/TerminalTab/terminalTabUtils"
 import type { TerminalTabProps } from "@/components/TerminalTab/types"
 import { toast } from "@/hooks/use-toast"
+import { announcesShellIntegrationFallback } from "@/lib/sshShellIntegration"
 import { toErrorMessage } from "@/lib/utils"
 
 type SaveConfig = ReturnType<typeof useConfig>["saveConfig"]
@@ -43,7 +44,14 @@ export function useConnectionNotices({
   const shellIntegrationNoticeShownRef = useRef(false)
   const shellIntegration = connectionProgress?.shellIntegration
   useEffect(() => {
-    if (shellIntegration?.status !== "unavailable" || shellIntegrationNoticeShownRef.current) {
+    if (
+      shellIntegration?.status !== "unavailable" ||
+      shellIntegrationNoticeShownRef.current ||
+      !announcesShellIntegrationFallback(
+        connectionRef.current?.sshShellIntegration,
+        shellIntegration.reason
+      )
+    ) {
       return
     }
     shellIntegrationNoticeShownRef.current = true

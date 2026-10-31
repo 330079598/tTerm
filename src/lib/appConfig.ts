@@ -179,6 +179,8 @@ export interface AppConfig extends TabSettings {
   keyword_highlight: KeywordHighlightConfig
   /** macOS and Linux: local bash, zsh and fish start through tTerm's shell integration. */
   local_shell_integration: boolean
+  /** SSH sessions start with tTerm's shell integration unless their connection chooses. */
+  ssh_shell_integration: boolean
   /** Multiple of the font's cell height. */
   terminal_line_height: number
   /** Extra pixels between characters; may be negative. */
@@ -307,6 +309,7 @@ export const defaultConfig: AppConfig = {
   command_marks: true,
   keyword_highlight: defaultKeywordHighlightConfig(),
   local_shell_integration: false,
+  ssh_shell_integration: true,
   terminal_line_height: 1,
   terminal_letter_spacing: 0,
   keymap: { ...DEFAULT_KEYMAP_CONFIG, bindings: {} },

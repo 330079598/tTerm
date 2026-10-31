@@ -183,6 +183,12 @@ pub(crate) fn normalize_profile(profile: &mut SavedProfile) {
         profile.use_jump_host = Some(!profile.jump_hosts.is_empty());
     }
 
+    if std::mem::take(&mut profile.legacy_shell_integration)
+        && profile.ssh_shell_integration.is_none()
+    {
+        profile.ssh_shell_integration = Some(true);
+    }
+
     let legacy_group = std::mem::take(&mut profile.legacy_group);
     if profile.group_id.is_none() {
         profile.group_id = Some(legacy_group.trim().to_string());
@@ -520,6 +526,34 @@ mod tests {
 
         assert_eq!(profile.use_jump_host, Some(true));
         assert!(profile.uses_jump_host());
+    }
+
+    #[test]
+    fn only_a_legacy_shell_integration_turned_on_stays_a_choice() {
+        let read = |fields: serde_json::Value| {
+            let mut value = serde_json::json!({ "id": "a", "name": "A", "connection_type": "ssh" });
+            value
+                .as_object_mut()
+                .expect("object")
+                .extend(fields.as_object().expect("fields").clone());
+            let mut profile: SavedProfile = serde_json::from_value(value).expect("profile");
+            normalize_profile(&mut profile);
+            profile.ssh_shell_integration
+        };
+
+        assert_eq!(
+            read(serde_json::json!({ "shell_integration": true })),
+            Some(true)
+        );
+        assert_eq!(
+            read(serde_json::json!({ "shell_integration": false })),
+            None
+        );
+        assert_eq!(read(serde_json::json!({})), None);
+        assert_eq!(
+            read(serde_json::json!({ "shell_integration": true, "ssh_shell_integration": false })),
+            Some(false)
+        );
     }
 
     #[test]

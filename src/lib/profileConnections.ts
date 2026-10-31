@@ -67,7 +67,7 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
       encoding: profile.encoding,
       terminalTheme: profile.terminal_theme,
       loginScript: profile.login_script,
-      shellIntegration: profile.shell_integration === true,
+      sshShellIntegration: profile.ssh_shell_integration,
       sessionLog: normalizeSessionLogPolicy(profile.session_log),
       sftpStartDirectory: normalizeSftpStartDirectory(profile.sftp_start_directory),
       highlightSet: profile.highlight_set,

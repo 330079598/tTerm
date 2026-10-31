@@ -1,5 +1,5 @@
-//! Shell integration for SSH sessions, for connections that turn it on: the
-//! remote shell reports its working directory (OSC 7), which the SFTP drawer
+//! Shell integration for SSH sessions, which have it unless their connection
+//! or the setting turns it off: the remote shell reports its working directory (OSC 7), which the SFTP drawer
 //! can follow, and marks its commands (OSC 133) unless command marks are off
 //! in the settings. Before the interactive shell starts, a separate exec
 //! channel runs `exec sh -s` and is fed [`install_script`], which writes

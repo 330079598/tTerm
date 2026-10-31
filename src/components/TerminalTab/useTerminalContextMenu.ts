@@ -11,6 +11,7 @@ import { releaseClearedScrollback } from "@/components/TerminalTab/scrollbackMem
 import type { TerminalTabProps } from "@/components/TerminalTab/types"
 import { toast } from "@/hooks/use-toast"
 import { closeComposer, isComposerOpen, openComposer } from "@/lib/commandComposer"
+import { sshShellIntegrationEnabled } from "@/lib/sshShellIntegration"
 import { terminalBufferText, terminalTextFileName } from "@/lib/terminalText"
 import { resetTerminalState } from "@/components/TerminalTab/terminalReset"
 import { toErrorMessage } from "@/lib/utils"
@@ -132,7 +133,11 @@ export function useTerminalContextMenu({
       // prompt; say where to turn it on.
       const currentConnection = connectionRef.current
       const withoutIntegration =
-        currentConnection?.type === "ssh" && !currentConnection.shellIntegration
+        currentConnection?.type === "ssh" &&
+        !sshShellIntegrationEnabled(
+          currentConnection.sshShellIntegration,
+          config.ssh_shell_integration
+        )
       toast({
         title: t("terminalContext.resetDoneTitle"),
         description: withoutIntegration
@@ -140,7 +145,15 @@ export function useTerminalContextMenu({
           : t("terminalContext.resetDoneDescription"),
       })
     }
-  }, [commandMarksRef, connectionRef, sessionNonce, t, tabId, termRef])
+  }, [
+    commandMarksRef,
+    config.ssh_shell_integration,
+    connectionRef,
+    sessionNonce,
+    t,
+    tabId,
+    termRef,
+  ])
 
   /** Selects and copies the output of the last command the shell marked. */
   const copyLastCommandOutput = useCallback(async () => {

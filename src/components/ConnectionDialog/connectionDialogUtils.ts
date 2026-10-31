@@ -9,6 +9,7 @@ import { normalizeSerialSettings } from "@/lib/serial"
 import { HIGHLIGHT_SET_FOLLOW_DEFAULT } from "@/lib/keywordHighlight/config"
 import { defaultShellChoice, defaultShellKey } from "@/lib/localShells"
 import { normalizeSftpStartDirectory, type SftpStartDirectory } from "@/lib/sftpStartDirectory"
+import { shellIntegrationChoice } from "@/lib/sshShellIntegration"
 import type { SessionLogPolicy } from "@/types/tab"
 import type { TerminalPalette } from "@/types/theme"
 
@@ -52,7 +53,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     loginScript: profile.login_script ?? "",
     tabIcon: profileTabIcon(profile).iconStyle,
     distro: profileTabIcon(profile).distroId,
-    shellIntegration: profile.shell_integration === true,
+    shellIntegration: shellIntegrationChoice(profile.ssh_shell_integration),
     sessionLog: normalizeSessionLogPolicy(profile.session_log) ?? "default",
     sftpStartDirectory: normalizeSftpStartDirectory(profile.sftp_start_directory) ?? "default",
     highlightSet: profile.highlight_set || HIGHLIGHT_SET_FOLLOW_DEFAULT,

@@ -1,12 +1,12 @@
 import React from "react"
 import { useTranslation } from "react-i18next"
 
-import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useTheme } from "@/contexts/ThemeContext"
 import { normalizeSftpStartDirectory, SFTP_START_DIRECTORIES } from "@/lib/sftpStartDirectory"
+import type { ShellIntegrationChoice } from "@/lib/sshShellIntegration"
 import type { TerminalPalette } from "@/types/theme"
 
 import { ConnectionIconField } from "@/components/ConnectionDialog/ConnectionIconField"
@@ -136,20 +136,28 @@ export const SessionCustomizationFields: React.FC<SessionCustomizationFieldsProp
 
       <HighlightSetField form={form} setForm={setForm} />
 
-      <div className="flex items-start gap-2">
-        <Checkbox
+      <div>
+        <Label htmlFor="conn-shell-integration" className="mb-1.5 block">
+          {t("connection.shellIntegration")}
+        </Label>
+        <Select
           id="conn-shell-integration"
-          checked={form.shellIntegration}
-          onCheckedChange={(checked) =>
-            setForm((current) => ({ ...current, shellIntegration: checked }))
-          }
-        />
-        <div className="space-y-0.5">
-          <Label htmlFor="conn-shell-integration" className="text-sm font-normal">
-            {t("connection.shellIntegration")}
-          </Label>
-          <p className="text-muted-foreground text-xs">{t("connection.shellIntegrationDesc")}</p>
-        </div>
+          value={form.shellIntegration}
+          onChange={(e) => {
+            const value = e.target.value
+            setForm((current) => ({
+              ...current,
+              shellIntegration: value === "on" || value === "off" ? value : "default",
+            }))
+          }}
+        >
+          {(["default", "on", "off"] as const satisfies ShellIntegrationChoice[]).map((option) => (
+            <option key={option} value={option}>
+              {t(`connection.shellIntegrationOptions.${option}`)}
+            </option>
+          ))}
+        </Select>
+        <p className="text-muted-foreground mt-1 text-xs">{t("connection.shellIntegrationDesc")}</p>
       </div>
     </div>
   )

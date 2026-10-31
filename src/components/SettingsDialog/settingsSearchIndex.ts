@@ -27,6 +27,8 @@ export const SETTINGS_SEARCH_INDEX: Record<string, SettingsSearchEntry[]> = {
       title: "settings.predictiveEchoThreshold",
       description: "settings.predictiveEchoThresholdDesc",
     },
+    { title: "settings.shellIntegration", description: "settings.shellIntegrationDesc" },
+    { title: "settings.sshShellIntegration", description: "settings.sshShellIntegrationDesc" },
     { title: "settings.jumpHost", description: "settings.connectionDesc" },
     {
       title: "settings.showJumpHostConnectionInfo",

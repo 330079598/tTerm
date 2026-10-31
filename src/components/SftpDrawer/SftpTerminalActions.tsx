@@ -12,7 +12,7 @@ interface SftpTerminalActionsProps {
   terminalCwd: string | null
   /** Another host the terminal is on, reached from this one with ssh. */
   awayHost: string | null
-  /** The connection installs tTerm's shell integration, which reports it. */
+  /** The connection starts with tTerm's shell integration, which reports it. */
   shellIntegration: boolean
   /** The listed directory, null while there is none or no shell to send it to. */
   currentPath: string | null

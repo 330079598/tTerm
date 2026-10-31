@@ -166,8 +166,9 @@ pub struct PtyConnectionOptions {
     pub jump_hosts: Vec<JumpHostOptions>,
     /// SSH: charset label of the remote shell (`gbk`, `big5`, ...); UTF-8 when unset.
     pub encoding: Option<String>,
-    /// SSH: install tTerm's shell integration on the host so its shell marks commands.
-    pub shell_integration: bool,
+    /// SSH: whether the shell starts with tTerm's shell integration; as the
+    /// SSH shell integration setting says when unset.
+    pub ssh_shell_integration: Option<bool>,
     /// Whether this connection is logged: `always`, `never`, or as the
     /// logging setting says when unset.
     pub session_log: Option<String>,
@@ -226,8 +227,8 @@ pub(crate) struct RawPtyConnectionOptions {
     jump_hosts: Vec<JumpHostOptions>,
     #[serde(default)]
     encoding: Option<String>,
-    #[serde(default, alias = "shellIntegration")]
-    shell_integration: bool,
+    #[serde(default, alias = "sshShellIntegration")]
+    ssh_shell_integration: Option<bool>,
     #[serde(default, alias = "sessionLog")]
     session_log: Option<String>,
     #[serde(default)]
@@ -274,7 +275,7 @@ impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
             agent_forward: raw.agent_forward,
             jump_hosts,
             encoding: raw.encoding,
-            shell_integration: raw.shell_integration,
+            ssh_shell_integration: raw.ssh_shell_integration,
             session_log: raw.session_log,
             proxy: raw.proxy,
             terminal_shell: raw.terminal_shell,
@@ -309,7 +310,7 @@ impl Default for PtyConnectionOptions {
             agent_forward: false,
             jump_hosts: Vec::new(),
             encoding: None,
-            shell_integration: false,
+            ssh_shell_integration: None,
             session_log: None,
             proxy: Default::default(),
             terminal_shell: None,

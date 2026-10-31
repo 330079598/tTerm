@@ -33,6 +33,7 @@ import { useSftpTerminalFollow } from "@/components/SftpDrawer/useSftpTerminalFo
 import { SftpTerminalActions } from "@/components/SftpDrawer/SftpTerminalActions"
 import { useSftpDrawerLifecycle } from "@/components/SftpDrawer/useSftpDrawerLifecycle"
 import { useSftpView } from "@/components/SftpDrawer/useSftpView"
+import { sshShellIntegrationEnabled } from "@/lib/sshShellIntegration"
 import type {
   SftpContextMenuState,
   SftpDirectoryEntry,
@@ -343,7 +344,10 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
             toggleFollow={toggleFollow}
             terminalCwd={terminalCwd}
             awayHost={awayHost}
-            shellIntegration={connection?.shellIntegration === true}
+            shellIntegration={sshShellIntegrationEnabled(
+              connection?.sshShellIntegration,
+              config.ssh_shell_integration
+            )}
             currentPath={onCdInTerminal ? listingCurrentPath : null}
             cdInTerminal={handleCdInTerminal}
           />

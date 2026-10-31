@@ -388,6 +388,10 @@
     "predictiveEchoThresholdDesc": "In Automatic, typing shows before its echo once the time from a key to its echo is over this, and stops once it drops below two thirds of it. tTerm measures that time as you type.",
     "predictiveEchoThresholdMs": "Milliseconds",
     "predictiveEchoThresholdRange": "{{min}}-{{max}} ms",
+    "shellIntegration": "Shell integration",
+    "shellIntegrationDesc": "Lets remote shells mark their commands and report their directory.",
+    "sshShellIntegration": "Shell integration for SSH connections",
+    "sshShellIntegrationDesc": "When connecting, puts a few small scripts under ~/.cache/tterm on the server so bash, zsh and fish mark their commands and report their directory for the SFTP panel. Other shells, network devices and Windows servers get a plain shell as before. A connection can choose for itself in its settings; turn it off there for a server that runs a forced command, such as a bastion's menu. Applies to new sessions.",
     "sudoPromptPatterns": "Advanced: password prompt detection",
     "sudoPromptPatternsSummary": "Prompts from sudo, sudo-rs and doas are recognized already; add prompts from other programs here.",
     "sudoPromptPatternsSummaryCount_one": "Prompts from sudo, sudo-rs and doas are recognized already, and {{count}} custom pattern is added.",
@@ -1439,7 +1443,12 @@
     "loginScript": "Run after login",
     "loginScriptPlaceholder": "cd /var/www/app\nsudo -i",
     "shellIntegration": "Shell integration",
-    "shellIntegrationDesc": "When connecting, puts a few small scripts under ~/.cache/tterm on the server so bash, zsh and fish mark each command: jump between commands, copy the last command's output, and see succeeded and failed commands on the scrollbar. The shell also reports its directory so the SFTP panel can follow it, which is all it does while Mark commands is off in Settings. Other shells and unsupported servers get a plain shell as before.",
+    "shellIntegrationDesc": "When connecting, puts a few small scripts under ~/.cache/tterm on the server so bash, zsh and fish mark each command: jump between commands, copy the last command's output, and see succeeded and failed commands on the scrollbar. The shell also reports its directory so the SFTP panel can follow it, which is all it does while Mark commands is off in Settings. Other shells and unsupported servers get a plain shell as before. Follow settings uses Shell integration for SSH connections under Settings › Connection.",
+    "shellIntegrationOptions": {
+      "default": "Follow settings",
+      "on": "On",
+      "off": "Off"
+    },
     "sessionLog": "Session logging",
     "sessionLogDesc": "Whether this connection's sessions are written to terminal logs. Follow settings uses the default in Settings > Logs.",
     "sftpStartDirectory": "Open SFTP at",
@@ -1784,7 +1793,7 @@
     "resetDoneTitle": "Terminal reset",
     "resetDoneDescription": "New output shows normally; text already on screen stays as it is. At a shell prompt, press Ctrl+L to redraw it.",
     "resetFailedTitle": "Could not reset the shell's console",
-    "resetShellIntegrationHint": "Turn on Shell integration in this connection's settings to redraw automatically.",
+    "resetShellIntegrationHint": "Turn on Shell integration in Settings › Connection or in this connection's settings to redraw automatically.",
     "clearHistory": "Clear terminal history",
     "copyFailedTitle": "Copy failed",
     "copyFailedDescription": "Unable to copy the current terminal selection.",
@@ -2270,7 +2279,7 @@
     "follow": {
       "label": "Follow the terminal's directory",
       "notReported": "The shell has not reported its directory yet. If shell integration did not start, the connection header says why.",
-      "needsShellIntegration": "The shell does not report its directory: turn on Shell integration in the connection's settings, then reconnect.",
+      "needsShellIntegration": "The shell does not report its directory: turn on Shell integration in Settings › Connection or in the connection's settings, then reconnect.",
       "away": "The terminal is on {{host}} now. Following resumes when it is back on this server."
     },
     "archive": {

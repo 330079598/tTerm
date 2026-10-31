@@ -28,6 +28,7 @@ import {
   sftpStartDirectoryPayload,
   highlightSetPayload,
 } from "@/components/ConnectionDialog/connectionDialogUtils"
+import { shellIntegrationPayload } from "@/lib/sshShellIntegration"
 import {
   buildSerialConnection,
   buildSerialProfile,
@@ -169,7 +170,7 @@ export function useConnectionSubmit({
             ? editProfile.distro
             : undefined,
         login_script: loginScriptPayload(form.loginScript),
-        shell_integration: form.shellIntegration,
+        ssh_shell_integration: shellIntegrationPayload(form.shellIntegration),
         session_log: sessionLogPayload(form.sessionLog),
         sftp_start_directory: sftpStartDirectoryPayload(form.sftpStartDirectory),
         highlight_set: highlightSetPayload(form.highlightSet),
@@ -249,7 +250,7 @@ export function useConnectionSubmit({
         encoding: encodingPayload(form.encoding),
         terminalTheme: form.terminalTheme || undefined,
         loginScript: loginScriptPayload(form.loginScript),
-        shellIntegration: form.shellIntegration,
+        sshShellIntegration: shellIntegrationPayload(form.shellIntegration),
         sessionLog: sessionLogPayload(form.sessionLog),
         sftpStartDirectory: sftpStartDirectoryPayload(form.sftpStartDirectory),
         highlightSet: highlightSetPayload(form.highlightSet),

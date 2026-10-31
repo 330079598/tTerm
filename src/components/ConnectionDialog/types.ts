@@ -4,6 +4,7 @@ import type { DistroId } from "@/lib/distro"
 import { DEFAULT_PROXY_CHOICE } from "@/lib/proxy"
 import { DEFAULT_SERIAL_SETTINGS } from "@/lib/serial"
 import type { SftpStartDirectory } from "@/lib/sftpStartDirectory"
+import type { ShellIntegrationChoice } from "@/lib/sshShellIntegration"
 import type { TabIconStyle } from "@/lib/tabIcons"
 import type { ProxyChoice } from "@/types/proxy"
 import type { SerialSettings } from "@/types/serial"
@@ -94,8 +95,8 @@ export interface ConnectionForm {
   tabIcon?: TabIconStyle
   /** Read-only: the distribution the saved host was seen running. */
   distro?: DistroId
-  /** Install tTerm's shell integration on the host so its shell marks commands. */
-  shellIntegration: boolean
+  /** Start the shell with tTerm's shell integration; `default` follows the setting. */
+  shellIntegration: ShellIntegrationChoice
   /** Whether the connection's sessions are logged; `default` follows the logging setting. */
   sessionLog: SessionLogPolicy | "default"
   /** Where the connection's SFTP drawer opens; `default` follows the SFTP setting. */
@@ -165,7 +166,7 @@ export const defaultForm: ConnectionForm = {
   encoding: DEFAULT_TERMINAL_ENCODING,
   terminalTheme: "",
   loginScript: "",
-  shellIntegration: false,
+  shellIntegration: "default",
   sessionLog: "default",
   sftpStartDirectory: "default",
   highlightSet: "default",

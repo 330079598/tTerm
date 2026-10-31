@@ -241,6 +241,12 @@ pub struct AppConfig {
     /// it changes how the shell starts; Windows shells always have it.
     #[serde(default)]
     pub local_shell_integration: bool,
+    /// SSH sessions start with tTerm's shell integration where the host has
+    /// bash, zsh or fish, unless their connection turns it off; a connection
+    /// may also turn it on while this is off. Any other host gets a plain
+    /// shell, so this is on by default.
+    #[serde(default = "defaults::default_ssh_shell_integration")]
+    pub ssh_shell_integration: bool,
     /// Terminal line height as a multiple of the font's cell height.
     #[serde(
         default = "defaults::default_terminal_line_height",
@@ -402,6 +408,14 @@ pub fn tab_icons_enabled() -> bool {
 #[cfg(unix)]
 pub fn local_shell_integration_enabled() -> bool {
     load_config_file().is_ok_and(|config| config.local_shell_integration)
+}
+
+/// Whether SSH sessions whose connection doesn't choose start with shell
+/// integration; on when the config file is missing or unreadable.
+pub fn ssh_shell_integration_enabled() -> bool {
+    load_config_file()
+        .map(|config| config.ssh_shell_integration)
+        .unwrap_or_else(|_| defaults::default_ssh_shell_integration())
 }
 
 #[tauri::command]

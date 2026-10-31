@@ -23,6 +23,7 @@ import {
 } from "@/components/SettingsDialog/monitorMetricOrder"
 import { MonitorMetricRow } from "@/components/SettingsDialog/MonitorMetricRow"
 import { PredictiveEchoSection } from "@/components/SettingsDialog/PredictiveEchoSection"
+import { ShellIntegrationSection } from "@/components/SettingsDialog/ShellIntegrationSection"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -249,6 +250,8 @@ export const ConnectionSettingsTab: React.FC<ConnectionSettingsTabProps> = ({
         </SettingsSection>
 
         <PredictiveEchoSection />
+
+        <ShellIntegrationSection />
 
         <SettingsSection
           icon={<Route size={16} />}

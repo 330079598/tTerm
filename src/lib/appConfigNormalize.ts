@@ -284,6 +284,7 @@ export function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     command_marks: config.command_marks !== false,
     keyword_highlight: normalizeKeywordHighlightConfig(config.keyword_highlight),
     local_shell_integration: config.local_shell_integration === true,
+    ssh_shell_integration: config.ssh_shell_integration !== false,
     terminal_line_height: normalizeTerminalLineHeight(config.terminal_line_height),
     terminal_letter_spacing: normalizeRoundedInRange(
       config.terminal_letter_spacing,
