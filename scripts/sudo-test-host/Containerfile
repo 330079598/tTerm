@@ -5,6 +5,8 @@
 #   podman build -t tterm-sudo-host scripts/sudo-test-host
 #   podman run -d --name tterm-sudo-host -p 2222:22 tterm-sudo-host
 #
+# Docker needs the file named: docker build -f scripts/sudo-test-host/Containerfile ...
+#
 # For sudo-rs instead of sudo 1.9:
 #   podman build --build-arg BASE=docker.io/library/ubuntu:26.04 \
 #     --build-arg SUDO_RS=1 -t tterm-sudo-rs-host scripts/sudo-test-host

@@ -107,12 +107,13 @@ jobs:
       # sudo-rs word their refusals differently, so it is checked against
       # both in the containers scripts/sudo-test-host builds, which have an
       # account for each case sudo can be in. They start before the build so
-      # their sshd is up by the time the tests run.
+      # their sshd is up by the time the tests run. Docker, unlike Podman,
+      # only finds a Dockerfile by itself, hence -f.
       - name: Start sudo test hosts (Ubuntu only)
         if: matrix.platform == 'ubuntu-24.04'
         run: |
-          docker build -t tterm-sudo-host scripts/sudo-test-host
-          docker build -t tterm-sudo-rs-host --build-arg SUDO_RS=1 --build-arg BASE=docker.io/library/ubuntu:26.04 scripts/sudo-test-host
+          docker build -f scripts/sudo-test-host/Containerfile -t tterm-sudo-host scripts/sudo-test-host
+          docker build -f scripts/sudo-test-host/Containerfile -t tterm-sudo-rs-host --build-arg SUDO_RS=1 --build-arg BASE=docker.io/library/ubuntu:26.04 scripts/sudo-test-host
           docker run -d -p 2222:22 tterm-sudo-host
           docker run -d -p 2223:22 tterm-sudo-rs-host
 
