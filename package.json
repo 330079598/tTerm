@@ -19,6 +19,7 @@
     "typecheck": "tsc --noEmit",
     "check:size": "node scripts/check-file-size.mjs",
     "themes:update": "node scripts/update-themes.mjs",
+    "icons:update": "node scripts/app-icon/build.mjs",
     "licenses": "node scripts/gen-licenses.mjs --force"
   },
   "dependencies": {

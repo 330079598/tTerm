@@ -23,16 +23,17 @@
     <path d="M0 860 Q260 800 512 850 T1024 830 V1024 H0 Z" fill="#f3d39b" opacity="0.9"/>
   </g>
   <g filter="url(#sticker)" transform="translate(40 -30)" stroke="#1f1a33" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
-    
     <g transform="rotate(-8 615 450)">
       <rect x="400" y="250" width="430" height="390" rx="50" fill="#fff4dc"/>
       <path d="M450 250 H780 A50 50 0 0 1 830 300 V340 H400 V300 A50 50 0 0 1 450 250 Z" fill="#ffc23d" stroke="none"/>
       <rect x="400" y="250" width="430" height="390" rx="50" fill="none"/>
       <path d="M400 340 H830"/>
-      <circle cx="455" cy="295" r="13" fill="#1f1a33" stroke="none" stroke-width="6"/><circle cx="497" cy="295" r="13" fill="#1f1a33" stroke="none" stroke-width="6"/><circle cx="539" cy="295" r="13" fill="#1f1a33" stroke="none" stroke-width="6"/>
+      <circle cx="455" cy="295" r="13" fill="#1f1a33" stroke="none"/>
+      <circle cx="497" cy="295" r="13" fill="#1f1a33" stroke="none"/>
+      <circle cx="539" cy="295" r="13" fill="#1f1a33" stroke="none"/>
       <rect x="440" y="375" width="350" height="225" rx="24" fill="#2b2752" stroke-width="12"/>
       <path d="M530 430 L588 470.6 L530 511.2" fill="none" stroke="#ffc23d" stroke-width="26"/>
-   <path d="M617 514.1 H686.6" stroke="#ffc23d" stroke-width="26"/>
+      <path d="M617 514.1 H686.6" stroke="#ffc23d" stroke-width="26"/>
     </g>
     <path d="M345 625 Q330 545 322 480" fill="none" stroke-width="22"/>
     <path d="M440 620 Q455 545 470 480" fill="none" stroke-width="22"/>
