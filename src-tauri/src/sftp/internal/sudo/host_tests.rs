@@ -51,11 +51,33 @@ async fn login(user: &str) -> Handle<AcceptAnyKey> {
     ssh
 }
 
-fn saved(
+type Answer = std::future::Ready<Result<Zeroizing<String>, String>>;
+
+fn saved(password: &str) -> std::future::Ready<Result<Option<Zeroizing<String>>, String>> {
+    std::future::ready(Ok(Some(Zeroizing::new(password.to_string()))))
+}
+
+fn nothing_saved() -> std::future::Ready<Result<Option<Zeroizing<String>>, String>> {
+    std::future::ready(Ok(None))
+}
+
+/// For a password that is saved and right, or an account sudo never asks.
+fn never_ask(_retry: bool) -> Answer {
+    panic!("the user is not asked")
+}
+
+/// Answers each question with `password`, writing down whether it said the
+/// answer before was wrong.
+fn answer_with(
     password: &str,
-) -> impl FnOnce() -> std::future::Ready<Result<Option<Zeroizing<String>>, String>> {
+    asked: &Arc<std::sync::Mutex<Vec<bool>>>,
+) -> impl FnMut(bool) -> Answer {
     let password = password.to_string();
-    move || std::future::ready(Ok(Some(Zeroizing::new(password))))
+    let asked = asked.clone();
+    move |retry| {
+        asked.lock().expect("asked").push(retry);
+        std::future::ready(Ok(Zeroizing::new(password.clone())))
+    }
 }
 
 /// What a script printed on standard output, and whether it succeeded.
@@ -78,7 +100,7 @@ async fn run_script(
 #[ignore = "needs a host with sudo; see the module docs"]
 async fn real_sudo_password_account_works_as_root() {
     let ssh = login("alice").await;
-    let auth = authenticate(&ssh, saved("alice-pass"))
+    let auth = authenticate(&ssh, saved("alice-pass"), never_ask)
         .await
         .expect("sudo takes the password");
     assert!(matches!(auth, SudoAuth::Password(_)));
@@ -129,11 +151,9 @@ async fn real_sudo_password_account_works_as_root() {
 #[ignore = "needs a host with sudo; see the module docs"]
 async fn real_sudo_passwordless_account_with_fish_needs_no_password() {
     let ssh = login("bob").await;
-    let auth = authenticate(&ssh, || async {
-        panic!("a NOPASSWD account is never asked for a password")
-    })
-    .await
-    .expect("sudo lets bob in");
+    let auth = authenticate(&ssh, nothing_saved(), never_ask)
+        .await
+        .expect("sudo lets bob in");
     assert!(matches!(auth, SudoAuth::NoPassword));
     let launcher = ChannelLauncher::sudo(auth);
     let sftp = launcher
@@ -149,22 +169,47 @@ async fn real_sudo_passwordless_account_with_fish_needs_no_password() {
 async fn real_sudo_wrong_password_fails_at_once() {
     let ssh = login("alice").await;
     let started = Instant::now();
-    let error = authenticate(&ssh, saved("wrong"))
+    let asked = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let error = authenticate(&ssh, saved("wrong"), answer_with("still wrong", &asked))
         .await
         .err()
         .expect("sudo refuses");
     assert!(error.contains("did not accept"), "{error}");
+    // The saved password, then three answers, each after a refusal.
+    assert_eq!(*asked.lock().expect("asked"), vec![true, true, true]);
+    // sudo waits about two seconds after each wrong password; what must not
+    // happen is a channel left waiting for a try that never comes.
     assert!(
-        started.elapsed() < Duration::from_secs(10),
-        "no waiting for another try"
+        started.elapsed() < Duration::from_secs(25),
+        "no channel waits out its timeout"
     );
+}
+
+#[tokio::test]
+#[ignore = "needs a host with sudo; see the module docs"]
+async fn real_sudo_asks_when_nothing_is_saved_and_again_after_a_typo() {
+    let ssh = login("alice").await;
+    let asked = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let mut typo = answer_with("alice-pas", &asked);
+    let mut right = answer_with("alice-pass", &asked);
+    let auth = authenticate(&ssh, nothing_saved(), move |retry| {
+        if retry {
+            right(retry)
+        } else {
+            typo(retry)
+        }
+    })
+    .await
+    .expect("the second answer is right");
+    assert!(matches!(auth, SudoAuth::Password(ref password) if password.as_str() == "alice-pass"));
+    assert_eq!(*asked.lock().expect("asked"), vec![false, true]);
 }
 
 #[tokio::test]
 #[ignore = "needs a host with sudo; see the module docs"]
 async fn real_sudo_account_limited_to_some_commands_cannot_start_sftp() {
     let ssh = login("carol").await;
-    let auth = authenticate(&ssh, saved("carol-pass"))
+    let auth = authenticate(&ssh, saved("carol-pass"), never_ask)
         .await
         .expect("carol may use sudo for systemctl");
     let error = ChannelLauncher::sudo(auth)
@@ -179,7 +224,7 @@ async fn real_sudo_account_limited_to_some_commands_cannot_start_sftp() {
 #[ignore = "needs a host with sudo; see the module docs"]
 async fn real_sudo_account_outside_sudoers_is_refused() {
     let ssh = login("dave").await;
-    let error = authenticate(&ssh, saved("dave-pass"))
+    let error = authenticate(&ssh, saved("dave-pass"), never_ask)
         .await
         .err()
         .expect("dave may not use sudo");
@@ -193,7 +238,7 @@ async fn real_sudo_requiretty_is_named() {
         return;
     }
     let ssh = login("erin").await;
-    let error = authenticate(&ssh, saved("erin-pass"))
+    let error = authenticate(&ssh, saved("erin-pass"), never_ask)
         .await
         .err()
         .expect("requiretty refuses a channel without a tty");

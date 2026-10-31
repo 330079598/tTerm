@@ -69,8 +69,8 @@ pub fn validation_failed(exit_status: Option<u32>, stderr: &str) -> String {
 }
 
 pub fn wrong_password() -> String {
-    "sudo did not accept the saved password. Correct the connection's sudo password and try \
-     again."
+    "sudo did not accept the password. If the connection has one saved for sudo, correct it in \
+     the connection's settings."
         .to_string()
 }
 
@@ -101,11 +101,4 @@ pub fn elevation_failed(exit_status: Option<u32>, stderr: &str) -> String {
          account run only some commands: {}",
         detail(exit_status, stderr)
     )
-}
-
-/// The account needs a password for sudo and none is saved.
-pub fn no_saved_password() -> String {
-    "sudo needs a password for this account. Save it as the connection's sudo password, or \
-     as its login password, and try again."
-        .to_string()
 }

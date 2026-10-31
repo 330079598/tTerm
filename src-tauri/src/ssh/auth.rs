@@ -201,12 +201,15 @@ pub struct AuthPromptPayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub total_hops: Option<usize>,
     /// `password` when the server asks for the account password through the
-    /// password method, `keyboard-interactive` for server-defined prompts.
+    /// password method, `keyboard-interactive` for server-defined prompts,
+    /// `sudo` for the password sudo wants in the file manager's sudo mode.
     pub kind: &'static str,
     /// Server-supplied title and instructions; often empty.
     pub name: String,
     pub instructions: String,
     pub prompts: Vec<AuthPromptField>,
+    /// The answer given to the same question just before was wrong.
+    pub retry: bool,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]

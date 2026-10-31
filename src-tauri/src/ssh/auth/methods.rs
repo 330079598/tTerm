@@ -66,6 +66,7 @@ pub(super) fn prompt_payload(
         name,
         instructions,
         prompts,
+        retry: false,
     }
 }
 

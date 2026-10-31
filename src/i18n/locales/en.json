@@ -1658,7 +1658,10 @@
       "response": "Response",
       "hint": "Your answers are sent to the server and are not saved.",
       "hintRemembered": "Your answers go only to the server. A password typed here is also kept in memory until this tab closes, so its SFTP and reconnects do not ask again.",
-      "submit": "Continue"
+      "submit": "Continue",
+      "sudoTitle": "sudo password",
+      "sudoHint": "The file manager is opening this host as root through sudo. The password goes only to sudo on the host and is kept in memory until the connection closes. It is not saved.",
+      "sudoRetry": "sudo did not accept that password. Try again."
     }
   },
   "jumpHost": {

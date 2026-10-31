@@ -9,11 +9,12 @@ use crate::core::session::{
     normalize_connection, resolve_ssh_password, types::PtyConnectionOptions, types::SessionPlan,
 };
 use crate::core::state::{HostPromptMap, SessionKind};
-use crate::sftp::internal::launcher::{ChannelLauncher, SFTP_CHANNEL_SETUP_TIMEOUT};
+use crate::sftp::internal::launcher::ChannelLauncher;
 use crate::sftp::internal::sudo::handshake::authenticate;
 use crate::sftp::internal::types::{
     CachedSftpConnection, ConnectedSftp, SftpConnectionKey, SftpConnectionPool, SftpHandles,
 };
+use crate::ssh::auth::{AuthPrompter, AuthTarget};
 use crate::ssh::types::ConnectionStatusOptions;
 use crate::ssh::{
     jump::connect::open_target_ssh_session, jump::connect::ConnectContext,
@@ -87,12 +88,18 @@ async fn connect_sftp(
     let (jump_chain, ssh) = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
 
     let launcher = if plan.sftp_sudo {
-        let auth = tokio::time::timeout(
-            SFTP_CHANNEL_SETUP_TIMEOUT,
-            authenticate(&ssh, || saved_sudo_password(app, plan)),
-        )
-        .await
-        .map_err(|_| "Timed out waiting for sudo on the host".to_string())??;
+        let prompter = AuthPrompter::tab(app, tab_id);
+        let target = AuthTarget {
+            host: plan.host.as_deref().unwrap_or_default(),
+            port: plan.port,
+            username: plan.username.as_deref().unwrap_or_default(),
+            hop: None,
+        };
+        let auth = authenticate(&ssh, saved_sudo_password(app, plan), |retry| {
+            let prompter = prompter.clone();
+            async move { prompter.ask_sudo_password(&target, retry).await }
+        })
+        .await?;
         ChannelLauncher::sudo(auth)
     } else {
         ChannelLauncher::default()
@@ -108,7 +115,9 @@ async fn connect_sftp(
 }
 
 /// The saved password a sudo prompt of this connection would be answered
-/// with: its sudo password, else its login password.
+/// with: its sudo password, else its login password. None when there is
+/// neither, or the connection turned off filling sudo prompts, which then
+/// means asking every time.
 async fn saved_sudo_password(
     app: &AppHandle,
     plan: &SessionPlan,

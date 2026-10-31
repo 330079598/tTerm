@@ -10,6 +10,11 @@ use super::command::{PROBE, READY_MARKER, VALIDATE};
 use super::errors;
 use super::SudoAuth;
 use crate::sftp::internal::exec::{RemoteScript, ScriptOutcome};
+use crate::sftp::internal::launcher::SFTP_CHANNEL_SETUP_TIMEOUT;
+
+/// How often the user is asked again after sudo turned down a password, as
+/// sudo itself asks three times.
+const PASSWORD_PROMPTS: usize = 3;
 
 /// Enough of sudo's standard error to say why it refused.
 const STDERR_LIMIT: usize = 8 * 1024;
@@ -19,19 +24,26 @@ const STDERR_LIMIT: usize = 8 * 1024;
 /// talking, such as a login banner from a shell startup file.
 const READY_LIMIT: usize = 4 * 1024;
 
+/// Runs `command` to its end, bounded like opening a channel: sudo answers
+/// at once, since its standard input ends with what it may read.
 async fn run<H: Handler>(
     ssh: &Handle<H>,
     command: &str,
     input: &[u8],
 ) -> Result<ScriptOutcome, String> {
-    let channel = ssh
-        .channel_open_session()
+    let ran = async {
+        let channel = ssh
+            .channel_open_session()
+            .await
+            .map_err(|err| format!("Failed to open SSH channel: {err}"))?;
+        Ok(RemoteScript::run_command(channel, command, input)
+            .await?
+            .finish()
+            .await)
+    };
+    tokio::time::timeout(SFTP_CHANNEL_SETUP_TIMEOUT, ran)
         .await
-        .map_err(|err| format!("Failed to open SSH channel: {err}"))?;
-    Ok(RemoteScript::run_command(channel, command, input)
-        .await?
-        .finish()
-        .await)
+        .map_err(|_| "Timed out waiting for sudo on the host".to_string())?
 }
 
 /// The password followed by the newline sudo reads up to.
@@ -42,15 +54,22 @@ fn password_line(password: &str) -> Zeroizing<Vec<u8>> {
     line
 }
 
-/// Finds out how sudo lets the account in. Without sudoers' NOPASSWD the
-/// password from `load_password` is checked once here, on a channel whose
-/// standard input then ends, so that a wrong one fails at once instead of
-/// leaving sudo waiting for another try on a channel the SFTP session needs.
-pub async fn authenticate<H, F, Fut>(ssh: &Handle<H>, load_password: F) -> Result<SudoAuth, String>
+/// Finds out how sudo lets the account in. Without sudoers' NOPASSWD a
+/// password is checked here, on a channel whose standard input then ends, so
+/// that a wrong one fails at once instead of leaving sudo waiting for another
+/// try on a channel the SFTP session needs. The `saved` password goes first;
+/// `ask` is called when there is none or sudo turned one down, with `true`
+/// in the second case, up to [`PASSWORD_PROMPTS`] times.
+pub async fn authenticate<H, Saved, Ask, Asked>(
+    ssh: &Handle<H>,
+    saved: Saved,
+    mut ask: Ask,
+) -> Result<SudoAuth, String>
 where
     H: Handler,
-    F: FnOnce() -> Fut,
-    Fut: Future<Output = Result<Option<Zeroizing<String>>, String>>,
+    Saved: Future<Output = Result<Option<Zeroizing<String>>, String>>,
+    Ask: FnMut(bool) -> Asked,
+    Asked: Future<Output = Result<Zeroizing<String>, String>>,
 {
     let probe = run(ssh, PROBE, b"").await?;
     if probe.succeeded() {
@@ -60,14 +79,26 @@ where
         return Err(error);
     }
 
-    let password = load_password()
-        .await?
-        .ok_or_else(errors::no_saved_password)?;
-    let check = run(ssh, VALIDATE, &password_line(&password)).await?;
-    if check.succeeded() {
-        Ok(SudoAuth::Password(password))
-    } else {
-        Err(errors::validation_failed(check.exit_status, &check.stderr))
+    let mut next = saved.await?;
+    let mut prompts = 0;
+    let mut turned_down = false;
+    loop {
+        let password = match next.take() {
+            Some(password) => password,
+            None if prompts < PASSWORD_PROMPTS => {
+                prompts += 1;
+                ask(turned_down).await?
+            }
+            None => return Err(errors::wrong_password()),
+        };
+        let check = run(ssh, VALIDATE, &password_line(&password)).await?;
+        if check.succeeded() {
+            return Ok(SudoAuth::Password(password));
+        }
+        if !errors::is_wrong_password(&check.stderr) {
+            return Err(errors::validation_failed(check.exit_status, &check.stderr));
+        }
+        turned_down = true;
     }
 }
 

@@ -1,10 +1,14 @@
 //! Asking the user for what authentication needs.
 
-use super::{AuthPromptMap, AuthPromptPayload, AuthPrompter, AuthTarget, PROMPT_TIMEOUT};
+use super::methods::prompt_payload;
+use super::{
+    AuthPromptField, AuthPromptMap, AuthPromptPayload, AuthPrompter, AuthTarget, PROMPT_TIMEOUT,
+};
 use crate::ssh::types::SshConnectError;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 use tokio::sync::oneshot;
+use zeroize::Zeroizing;
 
 impl AuthPrompter {
     pub fn tab(app: &tauri::AppHandle, tab_id: &str) -> Self {
@@ -14,12 +18,43 @@ impl AuthPrompter {
         }
     }
 
+    /// Asks for the account's password on `target` for sudo, which the file
+    /// manager's sudo mode needs when none is saved. `retry` says sudo turned
+    /// down the one typed before.
+    pub async fn ask_sudo_password(
+        &self,
+        target: &AuthTarget<'_>,
+        retry: bool,
+    ) -> Result<Zeroizing<String>, String> {
+        let mut payload = prompt_payload(
+            target,
+            "sudo",
+            String::new(),
+            String::new(),
+            vec![AuthPromptField {
+                text: "Password".to_string(),
+                echo: false,
+            }],
+        );
+        payload.retry = retry;
+        let answers = self.ask(target, payload).await.map_err(String::from)?;
+        answers
+            .into_iter()
+            .next()
+            .map(Zeroizing::new)
+            .ok_or_else(|| "No sudo password was entered".to_string())
+    }
+
     pub(super) async fn ask(
         &self,
         target: &AuthTarget<'_>,
         mut payload: AuthPromptPayload,
     ) -> Result<Vec<String>, SshConnectError> {
-        let subject = target.subject();
+        let subject = if payload.kind == "sudo" {
+            "sudo"
+        } else {
+            target.subject()
+        };
         let cancelled =
             || SshConnectError::Permanent(format!("{subject} authentication was cancelled"));
 

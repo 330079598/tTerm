@@ -1640,7 +1640,10 @@
       "response": "回答",
       "hint": "填写的内容只会发送给服务器，不会保存。",
       "hintRemembered": "填写的内容只会发送给服务器。在这里输入的密码还会保留在内存中直到关闭此标签，SFTP 和重新连接时不必再次输入。",
-      "submit": "继续"
+      "submit": "继续",
+      "sudoTitle": "sudo 密码",
+      "sudoHint": "文件管理器正在通过 sudo 以 root 身份打开这台主机。密码只会交给主机上的 sudo，在连接关闭前保留在内存中，不会保存。",
+      "sudoRetry": "sudo 没有接受这个密码，请重新输入。"
     }
   },
   "jumpHost": {

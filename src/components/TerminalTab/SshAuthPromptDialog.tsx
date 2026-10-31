@@ -10,7 +10,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PasswordInput } from "@/components/ui/password-input"
 
-/** A question the SSH server (or tTerm, for a missing password) has for the user. */
+/**
+ * A question the SSH server (or tTerm, for a missing password) has for the user.
+ * `sudo` asks for the password sudo wants when the file manager works as root.
+ */
 export interface SshAuthPrompt {
   requestId: string
   host: string
@@ -18,10 +21,12 @@ export interface SshAuthPrompt {
   username: string
   hopIndex?: number
   totalHops?: number
-  kind: "password" | "keyboard-interactive"
+  kind: "password" | "keyboard-interactive" | "sudo"
   name: string
   instructions: string
   prompts: { text: string; echo: boolean }[]
+  /** The answer given to the same question just before was wrong. */
+  retry?: boolean
 }
 
 interface SshAuthPromptDialogProps {
@@ -108,6 +113,13 @@ const SshAuthPromptForm: React.FC<{
   }, [])
 
   const endpoint = `${prompt.username}@${prompt.host}:${prompt.port}`
+  const isSudo = prompt.kind === "sudo"
+  const title = isSudo ? t("ssh.authPrompt.sudoTitle") : t("ssh.authPrompt.title")
+  const hint = isSudo
+    ? t("ssh.authPrompt.sudoHint")
+    : remembersPasswords
+      ? t("ssh.authPrompt.hintRemembered")
+      : t("ssh.authPrompt.hint")
 
   return (
     // Escape closes the dialog, which cancels the prompt.
@@ -122,7 +134,7 @@ const SshAuthPromptForm: React.FC<{
         showCloseButton={false}
         overlayClassName="ssh-auth-prompt-backdrop"
         onInteractOutside={(event) => event.preventDefault()}
-        aria-label={t("ssh.authPrompt.title")}
+        aria-label={title}
       >
         <form
           className="space-y-4"
@@ -135,7 +147,7 @@ const SshAuthPromptForm: React.FC<{
             {/* The crab knocks: the connection is at the door, waiting on an answer. */}
             <Crab motion="knock" height={40} />
             <div className="min-w-0">
-              <h3 className="text-base font-semibold">{t("ssh.authPrompt.title")}</h3>
+              <h3 className="text-base font-semibold">{title}</h3>
               <p className="text-muted-foreground mt-1 font-mono text-xs break-all">
                 {prompt.hopIndex
                   ? t("ssh.authPrompt.jumpHost", { index: prompt.hopIndex, endpoint })
@@ -153,6 +165,12 @@ const SshAuthPromptForm: React.FC<{
                 </div>
               )}
             </div>
+          )}
+
+          {prompt.retry && (
+            <p role="alert" className="text-destructive text-xs leading-5">
+              {t("ssh.authPrompt.sudoRetry")}
+            </p>
           )}
 
           {prompt.prompts.map((field, index) => {
@@ -175,7 +193,7 @@ const SshAuthPromptForm: React.FC<{
             return (
               <div key={id} className="space-y-1.5">
                 <Label htmlFor={id}>
-                  {prompt.kind === "password"
+                  {prompt.kind === "password" || isSudo
                     ? t("ssh.authPrompt.password")
                     : field.text.trim() || t("ssh.authPrompt.response")}
                 </Label>
@@ -189,9 +207,7 @@ const SshAuthPromptForm: React.FC<{
             )
           })}
 
-          <p className="text-muted-foreground text-xs leading-5">
-            {remembersPasswords ? t("ssh.authPrompt.hintRemembered") : t("ssh.authPrompt.hint")}
-          </p>
+          <p className="text-muted-foreground text-xs leading-5">{hint}</p>
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => void onRespond(null)}>

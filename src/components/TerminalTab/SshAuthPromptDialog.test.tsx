@@ -107,6 +107,33 @@ describe("SshAuthPromptDialog", () => {
     expect(screen.getByLabelText("ssh.authPrompt.password")).toBeTruthy()
   })
 
+  it("asks for the sudo password and says when sudo turned one down", async () => {
+    await renderDialog()
+    emit("ssh-auth-prompt-tab-1", {
+      ...otpPrompt,
+      kind: "sudo",
+      name: "",
+      instructions: "",
+      prompts: [{ text: "Password", echo: false }],
+      retry: true,
+    })
+
+    expect(screen.getByText("ssh.authPrompt.sudoTitle")).toBeTruthy()
+    expect(screen.getByText("ssh.authPrompt.sudoHint")).toBeTruthy()
+    expect(screen.getByRole("alert").textContent).toBe("ssh.authPrompt.sudoRetry")
+    const password = screen.getByLabelText("ssh.authPrompt.password")
+    expect(password.getAttribute("type")).toBe("password")
+
+    fireEvent.change(password, { target: { value: "alice-pass" } })
+    fireEvent.submit(screen.getByRole("dialog").querySelector("form")!)
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("respond_ssh_auth_prompt", {
+        requestId: "request-1",
+        responses: ["alice-pass"],
+      })
+    )
+  })
+
   it("closes a prompt the backend stopped waiting for", async () => {
     await renderDialog()
     emit("ssh-auth-prompt-tab-1", otpPrompt)
