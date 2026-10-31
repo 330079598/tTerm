@@ -4,7 +4,7 @@ import { openUrl } from "@tauri-apps/plugin-opener"
 import { ArrowUpRight, ChevronRight } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import appIcon from "/app-icon.svg"
+import mascot from "/mascot.svg"
 import { LicensesView } from "@/components/AboutDialog/LicensesView"
 import { Button } from "@/components/ui/button"
 import {
@@ -80,7 +80,7 @@ function AboutView({ onShowLicenses }: { onShowLicenses: () => void }) {
   return (
     <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col sm:max-w-xl">
       <DialogHeader className="flex-row items-center gap-4 text-left">
-        <img src={appIcon} alt="" className="size-14 shrink-0 rounded-xl" draggable={false} />
+        <img src={mascot} alt="" className="size-14 shrink-0 rounded-xl" draggable={false} />
         <div className="flex min-w-0 flex-col gap-1">
           <DialogTitle>{t("app.title")}</DialogTitle>
           <DialogDescription>{t("app.subtitle")}</DialogDescription>

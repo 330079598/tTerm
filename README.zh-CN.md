@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./app-icon.png" width="112" alt="tTerm 图标">
+  <img src="./mascot.png" width="112" alt="tTerm 吉祥物">
 </p>
 
 <h1 align="center">tTerm</h1>

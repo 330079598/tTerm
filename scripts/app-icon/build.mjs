@@ -1,17 +1,16 @@
 #!/usr/bin/env node
-// Regenerates every app icon from the drawings in art.mjs: app-icon.svg (the
-// About dialog), app-icon.png (the splash screen and README) and the bundle
-// icons in src-tauri/icons.
+// Regenerates every icon from the drawings in art.mjs: the app icon as
+// app-icon.svg and app-icon.png, the mascot as mascot.svg (the About dialog)
+// and mascot.png (the README and the splash screen), and the bundle icons in
+// src-tauri/icons.
 //
 //   node scripts/app-icon/build.mjs
 //
 // The drawings are rendered to PNG with a headless Chrome or Edge, because
 // the sticker filter comes out wrong in resvg. The script looks for one in
 // the usual install locations; set TTERM_ICON_BROWSER to a browser binary to
-// pick another. `tauri icon` then makes the bundle icons from each PNG. The
-// small drawing replaces the files and .ico entries of 48 px and below,
-// where the full drawing turns into a smudge. Windows scales the 48 px entry
-// down for the taskbar at 125% and 150% display scaling, so it counts as small.
+// pick another. `tauri icon` then makes the bundle icons from the app icon, and
+// icon.icns from the macOS version, which has a wider margin.
 
 import { execFileSync, execSync } from "node:child_process"
 import {
@@ -19,20 +18,17 @@ import {
   existsSync,
   mkdtempSync,
   readdirSync,
-  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
-import { fullIcon, smallIcon } from "./art.mjs"
-import { mergeIco } from "./ico.mjs"
+import { appIcon, macIcon, mascotIcon } from "./art.mjs"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const ICONS_DIR = join(ROOT, "src-tauri", "icons")
-const SMALL_FILES = ["32x32.png", "Square30x30Logo.png", "Square44x44Logo.png"]
-const MAX_SMALL_ICO = 48
+const MAC_FILE = "icon.icns"
 
 const BROWSERS = {
   win32: [
@@ -94,35 +90,31 @@ function tauriIcon(pngPath, outDir) {
 
 function build(workDir) {
   const browser = findBrowser()
-  const sets = { full: fullIcon(), small: smallIcon() }
+  const sets = { app: appIcon(), mac: macIcon(), mascot: mascotIcon() }
   for (const [name, svg] of Object.entries(sets)) {
-    const svgPath = join(workDir, `${name}.svg`)
-    writeFileSync(svgPath, svg)
-    renderPng(browser, svgPath, join(workDir, `${name}.png`), workDir)
-    tauriIcon(join(workDir, `${name}.png`), join(workDir, name))
+    writeFileSync(join(workDir, `${name}.svg`), svg)
+    renderPng(browser, join(workDir, `${name}.svg`), join(workDir, `${name}.png`), workDir)
   }
+  tauriIcon(join(workDir, "app.png"), join(workDir, "app"))
+  tauriIcon(join(workDir, "mac.png"), join(workDir, "mac"))
 
-  writeFileSync(join(ROOT, "app-icon.svg"), sets.full)
-  copyFileSync(join(workDir, "full.png"), join(ROOT, "app-icon.png"))
+  writeFileSync(join(ROOT, "app-icon.svg"), sets.app)
+  copyFileSync(join(workDir, "app.png"), join(ROOT, "app-icon.png"))
+  writeFileSync(join(ROOT, "mascot.svg"), sets.mascot)
+  copyFileSync(join(workDir, "mascot.png"), join(ROOT, "mascot.png"))
 
   // Replace only the files the bundle already uses; `tauri icon` also makes
   // Android and iOS icons, which this app does not ship.
   for (const file of readdirSync(ICONS_DIR)) {
-    const source = SMALL_FILES.includes(file) ? "small" : "full"
+    const source = file === MAC_FILE ? "mac" : "app"
     copyFileSync(join(workDir, source, file), join(ICONS_DIR, file))
   }
-  const ico = mergeIco(
-    readFileSync(join(workDir, "full", "icon.ico")),
-    readFileSync(join(workDir, "small", "icon.ico")),
-    MAX_SMALL_ICO
-  )
-  writeFileSync(join(ICONS_DIR, "icon.ico"), ico)
 }
 
 const workDir = mkdtempSync(join(tmpdir(), "tterm-icon-"))
 try {
   build(workDir)
-  console.log("app-icon.svg, app-icon.png and src-tauri/icons are up to date.")
+  console.log("app-icon, mascot and src-tauri/icons are up to date.")
 } finally {
   rmSync(workDir, { recursive: true, force: true })
 }
