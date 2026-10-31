@@ -1492,7 +1492,14 @@
     "highlightSet": "关键字高亮",
     "highlightSetDefault": "默认高亮集（{{name}}）",
     "highlightSetOff": "关闭",
-    "highlightSetDesc": "此连接的输出用哪个高亮集标色。"
+    "highlightSetDesc": "此连接的输出用哪个高亮集标色。",
+    "validation": {
+      "title": "请检查此项",
+      "required": "请填写{{field}}。",
+      "notNumber": "{{field}}必须是数字。",
+      "atLeast": "{{field}}不能小于 {{min}}。",
+      "between": "{{field}}必须在 {{min}} 到 {{max}} 之间。"
+    }
   },
   "rename": {
     "title": "重命名标签页",

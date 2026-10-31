@@ -1508,7 +1508,14 @@
     "highlightSet": "Keyword highlighting",
     "highlightSetDefault": "Default set ({{name}})",
     "highlightSetOff": "Off",
-    "highlightSetDesc": "Which highlight set colors this connection's output."
+    "highlightSetDesc": "Which highlight set colors this connection's output.",
+    "validation": {
+      "title": "Check this field",
+      "required": "{{field}} is required.",
+      "notNumber": "{{field}} must be a number.",
+      "atLeast": "{{field}} must be at least {{min}}.",
+      "between": "{{field}} must be between {{min}} and {{max}}."
+    }
   },
   "rename": {
     "title": "Rename Tab",

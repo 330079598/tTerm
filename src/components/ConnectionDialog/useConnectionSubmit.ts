@@ -14,6 +14,7 @@ import {
   defaultForm,
 } from "@/components/ConnectionDialog/types"
 import { SavedProfile } from "@/components/ProfilesPanel"
+import { revealFieldById } from "@/components/ConnectionDialog/useInvalidFieldReveal"
 import { invokeSafe, reportError } from "@/lib/errors"
 import { normalizeGroupPath } from "@/lib/profileGroups"
 import { proxyChoicePayload } from "@/lib/proxy"
@@ -100,9 +101,7 @@ export function useConnectionSubmit({
       const firstErrorKey = Object.keys(jumpErrors)[0]
       if (firstErrorKey) {
         const [jumpId, field] = firstErrorKey.split(":")
-        window.setTimeout(() =>
-          document.getElementById(getJumpHostFieldElementId(jumpId, field))?.focus()
-        )
+        revealFieldById(getJumpHostFieldElementId(jumpId, field))
       }
       toast({
         title: t("profiles.testFailed"),
@@ -136,6 +135,7 @@ export function useConnectionSubmit({
       )
       if (duplicate) {
         setNameError(t("profiles.duplicateName"))
+        revealFieldById("conn-title")
         return
       }
 

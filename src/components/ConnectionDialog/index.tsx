@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next"
 import { useSavedPasswordAvailability } from "@/components/ConnectionDialog/useSavedPasswordAvailability"
 import { useConnectionTest } from "@/components/ConnectionDialog/useConnectionTest"
 import { useConnectionSubmit } from "@/components/ConnectionDialog/useConnectionSubmit"
+import { useInvalidFieldReveal } from "@/components/ConnectionDialog/useInvalidFieldReveal"
 import { SavedProfile } from "@/components/ProfilesPanel"
 import { Button } from "@/components/ui/button"
 import {
@@ -134,6 +135,8 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
     shellConfig: config,
   })
 
+  const handleInvalid = useInvalidFieldReveal({ toast, t })
+
   const {
     isTesting,
     testProgress,
@@ -176,7 +179,11 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex-1 space-y-5 overflow-y-auto px-1">
+        <form
+          onSubmit={handleSubmit}
+          onInvalidCapture={handleInvalid}
+          className="[&_:user-invalid]:border-destructive flex-1 space-y-5 overflow-y-auto px-1"
+        >
           <div hidden={saveOnly}>
             <Label className="mb-2 block">{t("connection.type")}</Label>
             <div className="grid grid-cols-3 gap-2">

@@ -15,6 +15,7 @@ import type {
   ConnectionDialogContentProps,
   ConnectionForm,
 } from "@/components/ConnectionDialog/types"
+import { revealFieldById } from "@/components/ConnectionDialog/useInvalidFieldReveal"
 import { SavedProfile } from "@/components/ProfilesPanel"
 import { proxyChoicePayload } from "@/lib/proxy"
 import { isVerificationCanceled } from "@/lib/userVerification"
@@ -70,9 +71,7 @@ export function useConnectionTest({
       const firstErrorKey = Object.keys(jumpErrors)[0]
       if (firstErrorKey) {
         const [jumpId, field] = firstErrorKey.split(":")
-        window.setTimeout(() =>
-          document.getElementById(getJumpHostFieldElementId(jumpId, field))?.focus()
-        )
+        revealFieldById(getJumpHostFieldElementId(jumpId, field))
       }
       toast({
         title: t("profiles.testFailed"),
