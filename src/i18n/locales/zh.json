@@ -1661,6 +1661,8 @@
     "source": "连接方式",
     "sourceManual": "手动填写",
     "sourceSaved": "已保存的连接",
+    "sourceSearch": "按名称、分组、主机或用户名搜索",
+    "sourceNoMatch": "没有匹配的已保存连接。",
     "savedConnectionHint": "使用这个已保存连接的地址和登录方式，之后修改该连接也会同步到这里。",
     "savedConnectionOwnJumps": "它自己配置的跳板机在这里不会生效，请把它们作为前面的跳板机加进来。",
     "savedConnectionDeleted": "{{address}}（已删除）",

@@ -1679,6 +1679,8 @@
     "source": "Connect as",
     "sourceManual": "Enter manually",
     "sourceSaved": "Saved connections",
+    "sourceSearch": "Search by name, group, host or user",
+    "sourceNoMatch": "No saved connection matches.",
     "savedConnectionHint": "Uses this saved connection's address and login, including changes made to it later.",
     "savedConnectionOwnJumps": "Its own jump hosts aren't used here; add them as hops before this one.",
     "savedConnectionDeleted": "{{address}} (deleted)",

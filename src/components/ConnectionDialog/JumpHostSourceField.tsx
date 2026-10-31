@@ -7,9 +7,9 @@ import {
   type JumpHostCandidateGroup,
 } from "@/components/ConnectionDialog/jumpHostSource"
 import { Label } from "@/components/ui/label"
-import { Select } from "@/components/ui/select"
+import { SearchableSelect, type SearchableSelectGroup } from "@/components/ui/searchable-select"
+import { profileSearchFields } from "@/lib/profileSearch"
 import type { JumpHostForm } from "@/components/ConnectionDialog/types"
-import type { SavedProfile } from "@/types/tab"
 
 interface JumpHostSourceFieldProps {
   jump: JumpHostForm
@@ -17,7 +17,10 @@ interface JumpHostSourceFieldProps {
   onChange: (patch: Partial<JumpHostForm>) => void
 }
 
-/** Whether a hop is typed in or logs in as one of the saved connections. */
+/**
+ * Whether a hop is typed in or logs in as one of the saved connections,
+ * picked from a searchable list since there can be many of them.
+ */
 export const JumpHostSourceField: React.FC<JumpHostSourceFieldProps> = ({
   jump,
   candidates,
@@ -27,40 +30,49 @@ export const JumpHostSourceField: React.FC<JumpHostSourceFieldProps> = ({
   const profiles = candidates.flatMap((group) => group.profiles)
   const selected = profiles.find((profile) => profile.id === jump.profileId)
   const missing = Boolean(jump.profileId) && !selected
-  const optionLabel = (profile: SavedProfile) => `${profile.name} (${profileAddress(profile)})`
+  const manualLabel = t("jumpHost.sourceManual")
+
+  const groups: SearchableSelectGroup[] = [
+    { label: null, options: [{ value: "", label: manualLabel }] },
+    ...candidates.map(({ group, profiles: members }) => ({
+      label: group || t("jumpHost.sourceSaved"),
+      options: members.map((profile) => ({
+        value: profile.id,
+        label: profile.name,
+        detail: profileAddress(profile),
+        keywords: profileSearchFields(profile),
+      })),
+    })),
+  ]
+
+  const triggerLabel = selected
+    ? `${selected.name} (${profileAddress(selected)})`
+    : missing
+      ? t("jumpHost.savedConnectionDeleted", {
+          address: `${jump.username}@${jump.host}:${jump.port}`,
+        })
+      : manualLabel
 
   return (
     <div>
       <Label htmlFor={`jump-source-${jump.id}`} className="mb-1.5 block">
         {t("jumpHost.source")}
       </Label>
-      <Select
+      <SearchableSelect
         id={`jump-source-${jump.id}`}
         value={jump.profileId}
-        onChange={(e) => {
-          const profile = profiles.find((candidate) => candidate.id === e.target.value)
+        groups={groups}
+        onChange={(profileId) => {
+          if (profileId === jump.profileId) return
+          const profile = profiles.find((candidate) => candidate.id === profileId)
           // Typing it in starts from the copy of the connection it used.
           onChange(profile ? jumpHostFromProfile(profile) : { profileId: "" })
         }}
-      >
-        <option value="">{t("jumpHost.sourceManual")}</option>
-        {missing && (
-          <option value={jump.profileId} disabled>
-            {t("jumpHost.savedConnectionDeleted", {
-              address: `${jump.username}@${jump.host}:${jump.port}`,
-            })}
-          </option>
-        )}
-        {candidates.map(({ group, profiles: members }) => (
-          <optgroup key={group} label={group || t("jumpHost.sourceSaved")}>
-            {members.map((profile) => (
-              <option key={profile.id} value={profile.id}>
-                {optionLabel(profile)}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </Select>
+        triggerLabel={triggerLabel}
+        searchLabel={t("jumpHost.sourceSearch")}
+        listLabel={t("jumpHost.source")}
+        emptyText={t("jumpHost.sourceNoMatch")}
+      />
       {selected && (
         <p className="text-muted-foreground mt-1 text-xs">
           {t("jumpHost.savedConnectionHint")}
