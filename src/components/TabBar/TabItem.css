@@ -387,6 +387,13 @@
   );
 }
 
+/* The crab is bigger than the 8px marks and keeps its own shape. */
+.tab-agent[data-style="crab"] {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+}
+
 /* A hollow ring, which a bell's solid dot isn't either. */
 .tab-agent[data-style="ring"] {
   border: 2px solid currentColor;

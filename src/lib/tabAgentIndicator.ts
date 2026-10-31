@@ -1,6 +1,6 @@
 /**
  * The animations a tab can show while an AI agent works in it, which every
- * loading spinner (Spinner) takes too.
+ * loading spinner (Spinner) takes too. The crab pinches its claws.
  */
 export const TAB_AGENT_WORKING_STYLES = [
   "ring",
@@ -10,23 +10,25 @@ export const TAB_AGENT_WORKING_STYLES = [
   "pulse",
   "dots",
   "braille",
+  "crab",
 ] as const
 export type TabAgentWorkingStyle = (typeof TAB_AGENT_WORKING_STYLES)[number]
 
 /**
  * The marks a tab can show while its agent waits on the user: pause bars or a
- * ring that ripple a few times, or pause bars that hold still.
+ * ring that ripple a few times, pause bars that hold still, or the crab
+ * knocking a few times.
  */
-export const TAB_AGENT_WAITING_STYLES = ["bars", "ring", "still"] as const
+export const TAB_AGENT_WAITING_STYLES = ["bars", "ring", "still", "crab"] as const
 export type TabAgentWaitingStyle = (typeof TAB_AGENT_WAITING_STYLES)[number]
 
 /** How a tab shows an AI agent at work or waiting, part of the app config. */
 export interface TabAgentIndicatorConfig {
   working: TabAgentWorkingStyle
   waiting: TabAgentWaitingStyle
-  /** A `#rrggbb` color, or "" for the theme's primary color. */
+  /** A `#rrggbb` color, or "" for the theme's primary color. The crab keeps its own colors. */
   working_color: string
-  /** A `#rrggbb` color, or "" for the theme's warning color. */
+  /** A `#rrggbb` color, or "" for the theme's warning color. The crab keeps its own colors. */
   waiting_color: string
 }
 

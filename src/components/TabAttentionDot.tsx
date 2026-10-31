@@ -2,12 +2,16 @@ import type React from "react"
 import { KeyRound } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { Crab } from "@/components/Crab"
 import { Spinner } from "@/components/ui/spinner"
 import { useConfig } from "@/contexts/ConfigContext"
 import { useCapsLock } from "@/hooks/useCapsLock"
 import { agentDisplayName, type AgentStatus } from "@/lib/agentStatus"
 import type { TabAgentWaitingStyle, TabAgentWorkingStyle } from "@/lib/tabAgentIndicator"
 import { useTabAgentStatus, useTabAttention, useTabPasswordPrompt } from "@/lib/tabAttention"
+
+/** The crab's height on a tab, the smallest at which its eyes and claws still read at 100% scaling. */
+const CRAB_BADGE_HEIGHT = 18
 
 interface TabAgentBadgeProps {
   activity: AgentStatus["activity"]
@@ -21,6 +25,7 @@ interface TabAgentBadgeProps {
 /** The badge for an AI agent at work or waiting. */
 export function TabAgentBadge({ activity, style, color, label }: TabAgentBadgeProps) {
   const working = activity === "processing"
+  const crab = style === "crab"
   return (
     <span
       className="tab-agent"
@@ -31,7 +36,10 @@ export function TabAgentBadge({ activity, style, color, label }: TabAgentBadgePr
       aria-label={label}
       title={label}
     >
-      {working && <Spinner size={8} variant={style as TabAgentWorkingStyle} />}
+      {working && (
+        <Spinner size={crab ? CRAB_BADGE_HEIGHT : 8} variant={style as TabAgentWorkingStyle} />
+      )}
+      {!working && crab && <Crab motion="knock" height={CRAB_BADGE_HEIGHT} />}
     </span>
   )
 }

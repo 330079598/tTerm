@@ -2810,6 +2810,7 @@
     "color": "颜色",
     "themeColor": "主题色",
     "customColor": "自定义颜色",
+    "crabColors": "螃蟹使用自己的配色。",
     "workingStyles": {
       "disc": "半圆",
       "ring": "圆环",
@@ -2817,12 +2818,14 @@
       "orbit": "轨道",
       "pulse": "呼吸",
       "dots": "跳动圆点",
-      "braille": "盲文点阵"
+      "braille": "盲文点阵",
+      "crab": "螃蟹捏钳子"
     },
     "waitingStyles": {
       "bars": "暂停条",
       "ring": "圆环",
-      "still": "静止暂停条"
+      "still": "静止暂停条",
+      "crab": "螃蟹敲门"
     }
   },
   "localShells": {

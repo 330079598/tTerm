@@ -139,25 +139,30 @@ function AgentStyleChoices<S extends TabAgentWorkingStyle | TabAgentWaitingStyle
           </button>
         ))}
       </div>
-      <div className="space-y-1.5">
-        <div className="text-muted-foreground text-xs">{t("tabAgentIndicator.color")}</div>
-        <ColorSwatches
-          value={color}
-          colors={TAB_ICON_COLORS}
-          onChange={onColorChange}
-          label={t("tabAgentIndicator.color")}
-          empty={{
-            label: t("tabAgentIndicator.themeColor"),
-            content: (
-              <span
-                className="h-4 w-4 rounded-full"
-                style={{ backgroundColor: `hsl(var(${themeColor}))` }}
-              />
-            ),
-          }}
-          customLabel={t("tabAgentIndicator.customColor")}
-        />
-      </div>
+      {/* The crab keeps its own colors, so there is no color to pick for it. */}
+      {style === "crab" ? (
+        <p className="text-muted-foreground text-xs">{t("tabAgentIndicator.crabColors")}</p>
+      ) : (
+        <div className="space-y-1.5">
+          <div className="text-muted-foreground text-xs">{t("tabAgentIndicator.color")}</div>
+          <ColorSwatches
+            value={color}
+            colors={TAB_ICON_COLORS}
+            onChange={onColorChange}
+            label={t("tabAgentIndicator.color")}
+            empty={{
+              label: t("tabAgentIndicator.themeColor"),
+              content: (
+                <span
+                  className="h-4 w-4 rounded-full"
+                  style={{ backgroundColor: `hsl(var(${themeColor}))` }}
+                />
+              ),
+            }}
+            customLabel={t("tabAgentIndicator.customColor")}
+          />
+        </div>
+      )}
     </div>
   )
 }

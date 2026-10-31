@@ -7,9 +7,10 @@ use serde::{Deserialize, Serialize};
 #[serde(default)]
 pub struct TabAgentIndicatorConfig {
     /// The animation while the agent works, which loading spinners take too:
-    /// "ring", "disc", "comet", "orbit", "pulse", "dots" or "braille".
+    /// "ring", "disc", "comet", "orbit", "pulse", "dots", "braille" or "crab".
     pub working: String,
-    /// The mark while the agent waits on the user: "bars", "ring" or "still".
+    /// The mark while the agent waits on the user: "bars", "ring", "still" or
+    /// "crab".
     pub waiting: String,
     /// A `#rrggbb` color, or empty for the theme's primary color.
     pub working_color: String,

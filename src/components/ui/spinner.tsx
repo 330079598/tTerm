@@ -2,12 +2,13 @@ import "@/components/ui/spinner.css"
 
 import { useSyncExternalStore } from "react"
 
+import { Crab } from "@/components/Crab"
 import { getSpinnerStyle, subscribeSpinnerStyle } from "@/lib/spinnerStyle"
 import type { TabAgentWorkingStyle } from "@/lib/tabAgentIndicator"
 import { cn } from "@/lib/utils"
 
 interface SpinnerProps {
-  /** Its width and height in pixels; the dots run a little wider. */
+  /** Its width and height in pixels; the dots run a little wider and the crab half as wide again. */
   size?: number
   /** A style to show instead of the one the settings pick. */
   variant?: TabAgentWorkingStyle
@@ -22,6 +23,7 @@ interface SpinnerProps {
 export function Spinner({ size = 16, variant, className }: SpinnerProps) {
   const picked = useSyncExternalStore(subscribeSpinnerStyle, getSpinnerStyle)
   const style = variant ?? picked
+  if (style === "crab") return <Crab motion="pinch" height={size} className={className} />
   return (
     <span
       className={cn("spinner", className)}

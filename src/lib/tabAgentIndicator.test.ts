@@ -14,6 +14,12 @@ describe("normalizeTabAgentIndicator", () => {
     expect(indicator.waiting).toBe("bars")
   })
 
+  it("keeps the crab for both", () => {
+    const indicator = normalizeTabAgentIndicator({ working: "crab", waiting: "crab" })
+    expect(indicator.working).toBe("crab")
+    expect(indicator.waiting).toBe("crab")
+  })
+
   it("keeps only #rrggbb colors, lowercased", () => {
     const indicator = normalizeTabAgentIndicator({
       working_color: "#3B9AE1",

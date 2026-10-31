@@ -2841,6 +2841,7 @@
     "color": "Color",
     "themeColor": "Theme color",
     "customColor": "Custom color",
+    "crabColors": "The crab keeps its own colors.",
     "workingStyles": {
       "disc": "Half disc",
       "ring": "Ring",
@@ -2848,12 +2849,14 @@
       "orbit": "Orbit",
       "pulse": "Pulse",
       "dots": "Dots",
-      "braille": "Braille"
+      "braille": "Braille",
+      "crab": "Crab pinching"
     },
     "waitingStyles": {
       "bars": "Pause bars",
       "ring": "Ring",
-      "still": "Still pause bars"
+      "still": "Still pause bars",
+      "crab": "Crab knocking"
     }
   },
   "localShells": {
