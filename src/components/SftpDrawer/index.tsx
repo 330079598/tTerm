@@ -29,6 +29,8 @@ import { useSftpDragOut } from "@/components/SftpDrawer/useSftpDragOut"
 import { useSftpPasteUpload } from "@/components/SftpDrawer/useSftpPasteUpload"
 import { useSftpSelection } from "@/components/SftpDrawer/useSftpSelection"
 import { useSftpDirectoryLoader } from "@/components/SftpDrawer/useSftpDirectoryLoader"
+import { SftpSudoToggle } from "@/components/SftpDrawer/SftpSudoToggle"
+import { useReloadOnSudoSwitch, useSftpSudoMode } from "@/components/SftpDrawer/useSftpSudoMode"
 import { useSftpTerminalFollow } from "@/components/SftpDrawer/useSftpTerminalFollow"
 import { SftpTerminalActions } from "@/components/SftpDrawer/SftpTerminalActions"
 import { useSftpDrawerLifecycle } from "@/components/SftpDrawer/useSftpDrawerLifecycle"
@@ -48,13 +50,15 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
   tabId,
   visible,
   isGlobalShortcutTarget,
-  connection,
+  connection: tabConnection,
   onClose,
   onOpenRemoteFile,
   onCdInTerminal,
 }) => {
   const { t } = useTranslation()
   const { config } = useConfig()
+  // Every request below carries the drawer's identity, root in sudo mode.
+  const { connection, sudoMode, setSudoMode } = useSftpSudoMode(tabConnection)
   const drawerRef = useRef<HTMLDivElement>(null)
   const [activePath, setActivePath] = useState<string | null>(null)
   const [selectedPaths, setSelectedPaths] = useState<string[]>([])
@@ -79,6 +83,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
     }
   )
   const listingCurrentPath = listing?.currentPath ?? null
+  useReloadOnSudoSwitch({ sudoMode, setSudoMode, loadDirectory, currentPath: listingCurrentPath })
   const recursiveSearch = useSftpRecursiveSearch({ tabId, connection, listing, searchQuery })
   const { follows, toggleFollow, terminalCwd, awayHost } = useSftpTerminalFollow({
     tabId,
@@ -277,7 +282,7 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
 
   return (
     <div
-      className={`sftp-drawer ${visible ? "is-open" : ""}`}
+      className={`sftp-drawer ${visible ? "is-open" : ""} ${sudoMode ? "is-sudo" : ""}`}
       aria-hidden={!visible}
       ref={drawerRef}
       onMouseDown={handleSideButton}
@@ -329,6 +334,13 @@ export const SftpDrawer: React.FC<SftpDrawerProps> = ({
         toggleSelectionMode={toggleSelectionMode}
         showHidden={viewPreferences.showHidden}
         toggleShowHidden={toggleShowHidden}
+        sudoToggle={
+          <SftpSudoToggle
+            enabled={sudoMode}
+            disabled={isLoading || !connection}
+            onToggle={() => setSudoMode(!sudoMode)}
+          />
+        }
         externalEdits={
           <SftpExternalEditsMenu
             edits={externalEdits.edits}

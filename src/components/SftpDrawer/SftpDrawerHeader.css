@@ -34,6 +34,11 @@
   overflow: visible;
 }
 
+/* A drawer that works as root carries the destructive color along its top. */
+.sftp-drawer.is-sudo .sftp-drawer-header {
+  box-shadow: inset 0 2px 0 hsl(var(--destructive));
+}
+
 .sftp-header-left {
   display: flex;
   align-items: center;

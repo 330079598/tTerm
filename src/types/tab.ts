@@ -246,6 +246,11 @@ export interface Tab {
     sessionLog?: SessionLogPolicy
     /** SSH: where the SFTP drawer opens; missing follows the SFTP setting. */
     sftpStartDirectory?: SftpStartDirectory
+    /**
+     * SFTP: work on the host as root through sudo. Only the file manager sets it,
+     * on the requests of a drawer in sudo mode and on the files opened from one.
+     */
+    sftpSudo?: boolean
     /** SSH and serial: the keyword highlight set's id, or `off`; missing follows the default set. */
     highlightSet?: string
     /** SSH: which proxy the first host is reached through; missing follows the default proxy. */

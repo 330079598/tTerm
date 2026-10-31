@@ -65,6 +65,8 @@ export interface SftpDrawerHeaderProps {
   terminalActions?: React.ReactNode
   /** The files open in other programs, shown first. */
   externalEdits?: React.ReactNode
+  /** Switches the drawer to working as root, shown beside its name. */
+  sudoToggle?: React.ReactNode
 }
 
 export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
@@ -101,6 +103,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
   toggleShowHidden,
   terminalActions,
   externalEdits,
+  sudoToggle,
 }) => {
   const { t } = useTranslation()
   const shortcutLabel = useShortcutLabel()
@@ -130,6 +133,7 @@ export const SftpDrawerHeader: React.FC<SftpDrawerHeaderProps> = ({
     <div className="sftp-drawer-header">
       <div className="sftp-header-left">
         <span className="sftp-drawer-eyebrow">SFTP</span>
+        {sudoToggle}
         <div className="sftp-nav-group">
           {navigationButtons.map(({ key, Icon, enabled, onClick, shortcut }) => (
             <Tooltip key={key}>

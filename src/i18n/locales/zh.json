@@ -2030,6 +2030,13 @@
   },
   "sftp": {
     "transfers": "传输",
+    "sudo": {
+      "label": "sudo",
+      "root": "root",
+      "enable": "通过 sudo 以 root 身份操作",
+      "disable": "退出 root 身份",
+      "active": "正在以 root 身份操作：在这个文件管理器里做的所有改动都以 root 身份进行。点击可切回自己的身份。"
+    },
     "columns": {
       "name": "名称",
       "modified": "修改日期",
@@ -2560,6 +2567,7 @@
     "close": "关闭"
   },
   "remoteFileEditor": {
+    "asRoot": "通过 sudo 以 root 身份打开：读取和保存都以 root 身份进行。",
     "openFailed": "打开远程文件失败",
     "closeUnsavedTitle": "关闭未保存的远程文件？",
     "closeUnsavedDescription": "一个或多个远程文件标签页有未保存的更改。关闭它们将放弃这些更改。",

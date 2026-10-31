@@ -193,6 +193,12 @@ export const RemoteFileEditor: React.FC<RemoteFileEditorProps> = ({
           <div className="remote-file-editor-name">
             {dirty ? "*" : ""}
             {remoteFile.fileName}
+            {/* Opened from a drawer in sudo mode: it is read and saved as root. */}
+            {tab.connection?.sftpSudo && (
+              <span className="remote-file-editor-root" title={t("remoteFileEditor.asRoot")}>
+                {t("sftp.sudo.root")}
+              </span>
+            )}
           </div>
           <div className="remote-file-editor-path" title={subtitle}>
             {subtitle}

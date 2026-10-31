@@ -2057,6 +2057,13 @@
   },
   "sftp": {
     "transfers": "Transfers",
+    "sudo": {
+      "label": "sudo",
+      "root": "root",
+      "enable": "Work as root through sudo",
+      "disable": "Stop working as root",
+      "active": "Working as root: everything this drawer changes is changed as root. Click to work as yourself again."
+    },
     "columns": {
       "name": "Name",
       "modified": "Date Modified",
@@ -2590,6 +2597,7 @@
   },
   "remoteFileEditor": {
     "openFailed": "Failed to open remote file",
+    "asRoot": "Opened as root through sudo: it is read and saved as root.",
     "closeUnsavedTitle": "Close unsaved remote file?",
     "closeUnsavedDescription": "One or more remote file tabs have unsaved changes. Closing them will discard those changes.",
     "closeUnsavedConfirm": "Discard",

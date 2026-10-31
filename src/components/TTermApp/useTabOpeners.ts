@@ -25,15 +25,21 @@ function formatRemoteFileConnectionLabel(connection?: Tab["connection"]): string
   return connection?.port && connection.port !== 22 ? `${userHost}:${connection.port}` : userHost
 }
 
+/**
+ * Which connection, and as whom, a remote file is open through: the same file
+ * opened as root from a drawer in sudo mode gets a tab of its own, since it
+ * is read and saved as someone else.
+ */
 function getRemoteFileConnectionKey(connection?: Tab["connection"]): string {
+  const identity = connection?.sftpSudo ? ":sudo" : ""
   if (connection?.profileId) {
-    return `profile:${connection.profileId}`
+    return `profile:${connection.profileId}${identity}`
   }
 
   const host = connection?.host?.trim() ?? ""
   const username = connection?.username?.trim() ?? ""
   const port = connection?.port ?? 22
-  return `target:${username}@${host}:${port}`
+  return `target:${username}@${host}:${port}${identity}`
 }
 
 /** Opens tabs: a local terminal, a connection, or a remote file to edit. */

@@ -32,6 +32,17 @@
   font-weight: 600;
 }
 
+.remote-file-editor-root {
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: hsl(var(--destructive) / 0.15);
+  color: hsl(var(--destructive));
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  vertical-align: middle;
+}
+
 .remote-file-editor-path {
   overflow: hidden;
   text-overflow: ellipsis;
