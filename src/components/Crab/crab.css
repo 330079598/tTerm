@@ -1,0 +1,221 @@
+/* The crab that moves (Crab, and the splash screen in index.html): the parts
+   from src/assets/crab stacked at one size, so their viewBoxes line up. Each
+   moving part is its own box and only transform and opacity animate, so every
+   webview runs the motion on the compositor. The transform origins are points
+   of the drawing as fractions of its viewBox (scripts/app-icon/crab.mjs). */
+.crab {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.crab span,
+.crab img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.crab img {
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The right claw is the left one mirrored across the middle. */
+.crab-side[data-mirrored] {
+  transform: scaleX(-1);
+}
+
+/* The claw swings from the shoulder, where the arm meets the body. */
+.crab-claw {
+  transform-origin: calc(76 / 240 * 100%) calc((142 - 24) / 176 * 100%);
+}
+
+.crab[data-size="small"] .crab-claw {
+  transform-origin: calc(8.5 / 28 * 100%) calc(12.5 / 18 * 100%);
+}
+
+/* The jaws hinge at the bottom of the claw. */
+.crab-jaw-outer,
+.crab-jaw-inner {
+  transform-origin: calc(40 / 240 * 100%) calc((143 - 24) / 176 * 100%);
+}
+
+.crab-eyes {
+  transform-origin: 50% calc((56 - 24) / 176 * 100%);
+  animation: crab-blink 4.2s infinite;
+}
+
+.crab-hit {
+  opacity: 0;
+}
+
+@keyframes crab-blink {
+  0%,
+  93%,
+  100% {
+    transform: scaleY(1);
+  }
+  95.5% {
+    transform: scaleY(0.1);
+  }
+}
+
+/* Pinch, while something loads: each claw opens and closes, the two half a
+   beat apart, and the crab bobs. The small claws are too small for their jaws
+   to show, so each claw swings instead. */
+.crab[data-motion="pinch"] .crab-figure {
+  animation: crab-bob 1.2s ease-in-out infinite;
+}
+
+.crab[data-motion="pinch"] .crab-jaw-outer {
+  animation: crab-close-outer 1.2s ease-in-out infinite;
+}
+
+.crab[data-motion="pinch"] .crab-jaw-inner {
+  animation: crab-close-inner 1.2s ease-in-out infinite;
+}
+
+.crab[data-motion="pinch"][data-size="small"] .crab-claw {
+  animation: crab-swing 1.2s ease-in-out infinite;
+}
+
+.crab[data-motion="pinch"] [data-mirrored] .crab-jaw-outer,
+.crab[data-motion="pinch"] [data-mirrored] .crab-jaw-inner,
+.crab[data-motion="pinch"][data-size="small"] [data-mirrored] .crab-claw {
+  animation-delay: -0.6s;
+}
+
+@keyframes crab-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(1.1%);
+  }
+}
+
+@keyframes crab-close-outer {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  40%,
+  55% {
+    transform: rotate(15deg);
+  }
+}
+
+@keyframes crab-close-inner {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  40%,
+  55% {
+    transform: rotate(-15deg);
+  }
+}
+
+@keyframes crab-swing {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  50% {
+    transform: rotate(18deg);
+  }
+}
+
+/* Knock, while the user is asked for something: both claws close into fists
+   and knock twice, then pause, the way someone knocks and waits at a door.
+   It plays three times only, since the question may wait a long while. */
+.crab[data-motion="knock"] .crab-jaw-outer {
+  transform: rotate(15deg);
+}
+
+.crab[data-motion="knock"] .crab-jaw-inner {
+  transform: rotate(-15deg);
+}
+
+.crab[data-motion="knock"] .crab-claw {
+  animation: crab-knock 1.8s ease-in 3;
+}
+
+.crab[data-motion="knock"] .crab-hit {
+  animation: crab-hit 1.8s linear 3;
+}
+
+.crab[data-motion="knock"] .crab-figure {
+  animation: crab-thud 1.8s linear 3;
+}
+
+/* The claw lifts and lands just below where it rests, twice. */
+@keyframes crab-knock {
+  0% {
+    transform: rotate(0);
+  }
+  12% {
+    transform: rotate(32deg);
+    animation-timing-function: ease-in;
+  }
+  21% {
+    transform: rotate(-6deg);
+    animation-timing-function: ease-out;
+  }
+  30% {
+    transform: rotate(22deg);
+    animation-timing-function: ease-in;
+  }
+  39% {
+    transform: rotate(-6deg);
+    animation-timing-function: ease-out;
+  }
+  52%,
+  100% {
+    transform: rotate(0);
+  }
+}
+
+@keyframes crab-hit {
+  0%,
+  20%,
+  28%,
+  38%,
+  46%,
+  100% {
+    opacity: 0;
+  }
+  21%,
+  26%,
+  39%,
+  44% {
+    opacity: 1;
+  }
+}
+
+@keyframes crab-thud {
+  0%,
+  20%,
+  25%,
+  38%,
+  43%,
+  100% {
+    transform: translateY(0);
+  }
+  21%,
+  39% {
+    transform: translateY(1.1%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crab,
+  .crab * {
+    animation: none !important;
+  }
+}

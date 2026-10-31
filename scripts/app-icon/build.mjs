@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Regenerates every icon from the drawings in art.mjs: the app icon as
 // app-icon.svg and app-icon.png, the mascot as mascot.svg (the About dialog)
-// and mascot.png (the README and the splash screen), and the bundle icons in
-// src-tauri/icons.
+// and mascot.png (the README), and the bundle icons in src-tauri/icons; and
+// from crab.mjs, the parts of the crab that moves in src/assets/crab.
 //
 //   node scripts/app-icon/build.mjs
 //
@@ -25,9 +25,11 @@ import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { appIcon, macIcon, mascotIcon } from "./art.mjs"
+import { writeCrabParts } from "./crab.mjs"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const ICONS_DIR = join(ROOT, "src-tauri", "icons")
+const CRAB_DIR = join(ROOT, "src", "assets", "crab")
 const MAC_FILE = "icon.icns"
 
 const BROWSERS = {
@@ -109,12 +111,13 @@ function build(workDir) {
     const source = file === MAC_FILE ? "mac" : "app"
     copyFileSync(join(workDir, source, file), join(ICONS_DIR, file))
   }
+  writeCrabParts(CRAB_DIR)
 }
 
 const workDir = mkdtempSync(join(tmpdir(), "tterm-icon-"))
 try {
   build(workDir)
-  console.log("app-icon, mascot and src-tauri/icons are up to date.")
+  console.log("app-icon, mascot, src-tauri/icons and src/assets/crab are up to date.")
 } finally {
   rmSync(workDir, { recursive: true, force: true })
 }

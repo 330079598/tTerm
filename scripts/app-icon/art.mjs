@@ -1,11 +1,11 @@
 // Draws tTerm's logo and mascot as 1024 x 1024 SVG. The logo, a prompt
 // chevron beside a crab on the mascot's beach, is the app icon at every
 // size. The mascot, a hermit crab whose shell is a terminal window, is the
-// large picture in the README, on the splash screen and in the About dialog,
-// where its detail has room. The mascot is wrapped in a sticker filter that
-// roughens the ink lines and adds the white border and drop shadow. The
-// filter needs a Chromium-class renderer: resvg, which `tauri icon` uses for
-// SVG input, smears the displacement into blobs.
+// large picture in the README and in the About dialog, where its detail has
+// room. The mascot is wrapped in a sticker filter that roughens the ink lines
+// and adds the white border and drop shadow. The filter needs a
+// Chromium-class renderer: resvg, which `tauri icon` uses for SVG input,
+// smears the displacement into blobs.
 
 const INK = "#1f1a33"
 const AMBER = "#ffc23d"
