@@ -390,3 +390,28 @@ fn default_font_matches_the_frontend_default() {
         "src/lib/terminalFont.ts lacks this platform's default font chain"
     );
 }
+
+#[test]
+fn only_local_shell_integration_turned_on_carries_over_from_older_configs() {
+    let read = |json: &str| {
+        let mut config = serde_json::from_str::<AppConfig>(json).unwrap();
+        super::migrate_local_shell_integration(&mut config);
+        config.local_unix_shell_integration
+    };
+    let device_default = cfg!(target_os = "macos");
+
+    assert!(read(
+        r#"{"theme":"default","local_shell_integration":true}"#
+    ));
+    assert_eq!(
+        read(r#"{"theme":"default","local_shell_integration":false}"#),
+        device_default
+    );
+    assert_eq!(read(r#"{"theme":"default"}"#), device_default);
+    assert!(!read(
+        r#"{"theme":"default","local_unix_shell_integration":false}"#
+    ));
+
+    let saved = serde_json::to_value(AppConfig::default()).unwrap();
+    assert!(saved.get("local_shell_integration").is_none());
+}

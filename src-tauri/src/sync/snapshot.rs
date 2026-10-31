@@ -57,7 +57,6 @@ pub(crate) const SYNCED_SETTINGS: &[&str] = &[
     "osc52_clipboard_write",
     "confirm_multiline_paste",
     "command_marks",
-    "local_shell_integration",
     "ssh_shell_integration",
     "scrollback_lines",
     "terminal_padding_left_px",

@@ -191,6 +191,10 @@ pub(super) fn default_command_marks() -> bool {
     true
 }
 
+pub(super) fn default_local_unix_shell_integration() -> bool {
+    cfg!(target_os = "macos")
+}
+
 pub(super) fn default_ssh_shell_integration() -> bool {
     true
 }
@@ -318,7 +322,8 @@ impl Default for AppConfig {
             right_click_paste: default_right_click_paste(),
             osc52_clipboard_write: default_osc52_clipboard_write(),
             command_marks: default_command_marks(),
-            local_shell_integration: false,
+            local_unix_shell_integration: default_local_unix_shell_integration(),
+            legacy_local_shell_integration: false,
             ssh_shell_integration: default_ssh_shell_integration(),
             terminal_line_height: default_terminal_line_height(),
             terminal_letter_spacing: 0,

@@ -229,6 +229,7 @@ pub(super) fn apply_payload(
         if let Some(value) = payload.config.as_ref() {
             let mut imported = serde_json::from_value::<AppConfig>(value.clone())
                 .map_err(|error| format!("Invalid settings: {error}"))?;
+            config::migrate_local_shell_integration(&mut imported);
             keep_device_settings(&mut imported, config::load_config_file()?);
             config::save_config_file(&imported)?;
         }

@@ -283,7 +283,10 @@ export function normalizeConfig(config: Partial<AppConfig>): AppConfig {
     osc52_clipboard_write: config.osc52_clipboard_write !== false,
     command_marks: config.command_marks !== false,
     keyword_highlight: normalizeKeywordHighlightConfig(config.keyword_highlight),
-    local_shell_integration: config.local_shell_integration === true,
+    local_unix_shell_integration:
+      typeof config.local_unix_shell_integration === "boolean"
+        ? config.local_unix_shell_integration
+        : defaultConfig.local_unix_shell_integration,
     ssh_shell_integration: config.ssh_shell_integration !== false,
     terminal_line_height: normalizeTerminalLineHeight(config.terminal_line_height),
     terminal_letter_spacing: normalizeRoundedInRange(

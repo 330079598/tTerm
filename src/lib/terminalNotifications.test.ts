@@ -311,10 +311,14 @@ describe("formatCommandDuration", () => {
 
 describe("localShellsMarkCommands", () => {
   it("needs command marks everywhere and shell integration outside Windows", () => {
-    const on = { command_marks: true, local_shell_integration: true }
+    const on = { command_marks: true, local_unix_shell_integration: true }
     expect(localShellsMarkCommands(on, "macos")).toBe(true)
-    expect(localShellsMarkCommands({ ...on, local_shell_integration: false }, "linux")).toBe(false)
-    expect(localShellsMarkCommands({ ...on, local_shell_integration: false }, "windows")).toBe(true)
+    expect(localShellsMarkCommands({ ...on, local_unix_shell_integration: false }, "linux")).toBe(
+      false
+    )
+    expect(localShellsMarkCommands({ ...on, local_unix_shell_integration: false }, "windows")).toBe(
+      true
+    )
     expect(localShellsMarkCommands({ ...on, command_marks: false }, "windows")).toBe(false)
   })
 })

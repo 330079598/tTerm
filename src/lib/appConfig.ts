@@ -178,7 +178,7 @@ export interface AppConfig extends TabSettings {
   /** Words and patterns colored in terminal output, in named sets. */
   keyword_highlight: KeywordHighlightConfig
   /** macOS and Linux: local bash, zsh and fish start through tTerm's shell integration. */
-  local_shell_integration: boolean
+  local_unix_shell_integration: boolean
   /** SSH sessions start with tTerm's shell integration unless their connection chooses. */
   ssh_shell_integration: boolean
   /** Multiple of the font's cell height. */
@@ -308,7 +308,8 @@ export const defaultConfig: AppConfig = {
   osc52_clipboard_write: true,
   command_marks: true,
   keyword_highlight: defaultKeywordHighlightConfig(),
-  local_shell_integration: false,
+  // Only macOS has it by default; the backend's default is the same.
+  local_unix_shell_integration: getDetectedPlatform() === "macos",
   ssh_shell_integration: true,
   terminal_line_height: 1,
   terminal_letter_spacing: 0,

@@ -40,7 +40,9 @@ export function useTerminalSettingsDraft({
   const [confirmMultilinePaste, setConfirmMultilinePaste] = useState(config.confirm_multiline_paste)
   const [copyOnSelect, setCopyOnSelect] = useState(config.copy_on_select)
   const [commandMarks, setCommandMarks] = useState(config.command_marks)
-  const [localShellIntegration, setLocalShellIntegration] = useState(config.local_shell_integration)
+  const [localShellIntegration, setLocalShellIntegration] = useState(
+    config.local_unix_shell_integration
+  )
   const [rightClickPaste, setRightClickPaste] = useState(config.right_click_paste)
   const [osc52ClipboardWrite, setOsc52ClipboardWrite] = useState(config.osc52_clipboard_write)
   const [scrollbackLines, setScrollbackLines] = useState(() =>
@@ -86,7 +88,7 @@ export function useTerminalSettingsDraft({
         right_click_paste: rightClickPaste,
         osc52_clipboard_write: osc52ClipboardWrite,
         command_marks: commandMarks,
-        local_shell_integration: localShellIntegration,
+        local_unix_shell_integration: localShellIntegration,
         scrollback_lines: scrollbackLines,
         terminal_renderer: terminalRenderer,
         hidden_renderer_release_secs: hiddenRendererReleaseSecs,

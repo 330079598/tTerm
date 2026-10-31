@@ -237,10 +237,15 @@ pub struct AppConfig {
     #[serde(default = "defaults::default_command_marks")]
     pub command_marks: bool,
     /// macOS and Linux: local bash, zsh and fish start through tTerm's shell
-    /// integration, so they mark their commands as well. Off by default, as
-    /// it changes how the shell starts; Windows shells always have it.
-    #[serde(default)]
-    pub local_shell_integration: bool,
+    /// integration, so they mark their commands as well; Windows shells
+    /// always have it. On by default on macOS only, so it stays per device.
+    #[serde(default = "defaults::default_local_unix_shell_integration")]
+    pub local_unix_shell_integration: bool,
+    /// The switch from before it was on by default on macOS, which every
+    /// saved config holds as off unless it was turned on, so only `true` is
+    /// a choice; see [`migrate_local_shell_integration`].
+    #[serde(default, rename = "local_shell_integration", skip_serializing)]
+    pub(crate) legacy_local_shell_integration: bool,
     /// SSH sessions start with tTerm's shell integration where the host has
     /// bash, zsh or fish, unless their connection turns it off; a connection
     /// may also turn it on while this is off. Any other host gets a plain
@@ -374,9 +379,18 @@ pub fn load_config_file() -> Result<AppConfig, String> {
         .map_err(|e| format!("Failed to read config file: {}", e))?;
     let mut config: AppConfig =
         serde_json::from_str(&content).map_err(|e| format!("Failed to parse config: {}", e))?;
+    migrate_local_shell_integration(&mut config);
     local_shells::migrate(&mut config);
     local_shells::migrate_hidden_wsl(&mut config, crate::terminal::pty::wsl_distro_names);
     Ok(config)
+}
+
+/// Keeps local shell integration on where an older version had it turned on;
+/// an older config that left it off gets this device's default.
+pub(crate) fn migrate_local_shell_integration(config: &mut AppConfig) {
+    if std::mem::take(&mut config.legacy_local_shell_integration) {
+        config.local_unix_shell_integration = true;
+    }
 }
 
 pub fn save_config_file(config: &AppConfig) -> Result<(), String> {
@@ -404,10 +418,13 @@ pub fn tab_icons_enabled() -> bool {
 }
 
 /// Whether local shells on macOS and Linux start through tTerm's shell
-/// integration; off when the config file is missing or unreadable.
+/// integration; this device's default when the config file is missing or
+/// unreadable.
 #[cfg(unix)]
 pub fn local_shell_integration_enabled() -> bool {
-    load_config_file().is_ok_and(|config| config.local_shell_integration)
+    load_config_file()
+        .map(|config| config.local_unix_shell_integration)
+        .unwrap_or_else(|_| defaults::default_local_unix_shell_integration())
 }
 
 /// Whether SSH sessions whose connection doesn't choose start with shell
