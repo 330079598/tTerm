@@ -5,6 +5,7 @@ import type { TerminalSessionContext } from "@/components/TerminalTab/terminalLi
 import type { ConnectionStateUpdater } from "@/components/TerminalTab/connectionStateUpdater"
 import type { SavedPasswordPrompts } from "@/components/TerminalTab/savedPasswordPrompts"
 import type { CommandTracking } from "@/components/TerminalTab/commandTracking"
+import { createCursorMoveHold } from "@/components/TerminalTab/cursorMoveHold"
 import { OutputAcker } from "@/components/TerminalTab/outputAck"
 import { getSerialDisplay, registerSerialEcho } from "@/components/TerminalTab/serialDisplay"
 import { getConnectionDisplay } from "@/components/TerminalTab/terminalTabUtils"
@@ -71,12 +72,17 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
     }
   }
 
+  // Holds back output that only moves the cursor until what it draws arrives.
+  // The lines this session writes itself flush it first, so they land after it.
+  const outputHold = createCursorMoveHold(term)
+
   let outputScanState: TerminalOutputScanState = EMPTY_OUTPUT_SCAN_STATE
   const stampLines = createLineTimestamper()
   // What the send bar sent goes on a line of its own, after any half line
   // the device left, and the device's next output starts a stamped line.
   const unregisterSerialEcho = registerSerialEcho(tabId, (line) => {
     if (session.disposed) return
+    outputHold.flush()
     const startsMidLine = term.buffer.active.cursorX > 0
     term.write(`${startsMidLine ? "\r\n" : ""}${line}\r\n`)
     stampLines.startLine()
@@ -131,7 +137,7 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
     }
 
     const reservedLines = scrollbackMemory.reserve(text)
-    term.write(text, () => {
+    outputHold.write(text, () => {
       // Full-screen programs such as an agent's TUI, vim or top redraw in
       // answer to focus and mouse reports, so their output is no news. They
       // ask for attention through bells, notifications or agent status. The
@@ -154,6 +160,7 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
       handleTerminalOutput(event.payload)
     }),
     listen(`pty-exit-${tabId}`, (event) => {
+      outputHold.flush()
       stopLoginScript()
       agentTracker.reset()
       commandTimer.prompt()
@@ -183,6 +190,7 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
       setHostKeyPrompt(event.payload)
     }),
     listen<SshConnectionProgress>(`ssh-connection-progress-${tabId}`, (event) => {
+      outputHold.flush()
       setConnectionProgress(event.payload)
       onConnectionProgressRef.current?.(event.payload)
       if (event.payload.phase === "ready") {
@@ -300,6 +308,7 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
     })
     .catch((error) => {
       if (session.disposed) return
+      outputHold.flush()
       if (isConnection()) {
         applyConnectionState("error")
         if (isVaultLocked(error)) {
@@ -325,6 +334,7 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
     })
 
   const stopListening = () => {
+    outputHold.dispose()
     unregisterSerialEcho()
     unlistenOutput?.()
     unlistenExit?.()
