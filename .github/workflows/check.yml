@@ -103,6 +103,19 @@ jobs:
         shell: bash
         run: mkdir -p dist
 
+      # The file manager's sudo mode runs sudo on the host, and sudo 1.9 and
+      # sudo-rs word their refusals differently, so it is checked against
+      # both in the containers scripts/sudo-test-host builds, which have an
+      # account for each case sudo can be in. They start before the build so
+      # their sshd is up by the time the tests run.
+      - name: Start sudo test hosts (Ubuntu only)
+        if: matrix.platform == 'ubuntu-24.04'
+        run: |
+          docker build -t tterm-sudo-host scripts/sudo-test-host
+          docker build -t tterm-sudo-rs-host --build-arg SUDO_RS=1 --build-arg BASE=docker.io/library/ubuntu:26.04 scripts/sudo-test-host
+          docker run -d -p 2222:22 tterm-sudo-host
+          docker run -d -p 2223:22 tterm-sudo-rs-host
+
       - name: Clippy
         working-directory: src-tauri
         run: cargo clippy --all-targets -- -D warnings
@@ -132,6 +145,13 @@ jobs:
           cargo test --lib -- --ignored
           real_sshd_collects_metrics_for_this_system
           real_sshd_names_this_system
+
+      - name: Test sudo mode against sudo 1.9 and sudo-rs (Ubuntu only)
+        if: matrix.platform == 'ubuntu-24.04'
+        working-directory: src-tauri
+        run: |
+          TTERM_SUDO_TEST_HOST=127.0.0.1:2222 TTERM_SUDO_TEST_REQUIRETTY=1 cargo test --lib -- --ignored real_sudo
+          TTERM_SUDO_TEST_HOST=127.0.0.1:2223 cargo test --lib -- --ignored real_sudo
 
       # Shell integration starts the user's bash, zsh or fish through
       # unix/start.sh, which only the real shells show working. The Ubuntu
