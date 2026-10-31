@@ -4,6 +4,7 @@
 use super::script::{compress_script, extract_script, ArchiveScript, MISSING_TOOL_STATUS};
 use super::ArchiveFormat;
 use crate::sftp::internal::exec::{run_to_end, ScriptOutcome};
+use crate::sftp::internal::launcher::ChannelLauncher;
 use crate::ssh::test_sshd::{AcceptAnyServerKey, TempDir, TestSshd};
 use russh::client::Handle;
 use std::path::Path;
@@ -14,7 +15,7 @@ const SFTP: &str = "Subsystem sftp internal-sftp\n";
 
 async fn run(ssh: &Handle<AcceptAnyServerKey>, script: &ArchiveScript) -> ScriptOutcome {
     let (_sender, mut cancel) = watch::channel(false);
-    run_to_end(ssh, &script.text, &mut cancel)
+    run_to_end(&ChannelLauncher, ssh, &script.text, &mut cancel)
         .await
         .expect("run script")
         .expect("not cancelled")
@@ -184,7 +185,7 @@ async fn real_sshd_cancelling_stops_the_command_on_the_host() {
         tokio::time::sleep(Duration::from_millis(500)).await;
         let _ = sender.send(true);
     });
-    let outcome = run_to_end(&ssh, &compress.text, &mut cancel)
+    let outcome = run_to_end(&ChannelLauncher, &ssh, &compress.text, &mut cancel)
         .await
         .expect("run script");
     assert!(

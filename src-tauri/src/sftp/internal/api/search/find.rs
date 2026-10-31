@@ -5,7 +5,8 @@
 use super::matcher::NameMatcher;
 use super::ResultSink;
 use crate::sftp::internal::api::base::directory_entry;
-use crate::sftp::internal::exec::{cancelled, shell_path, shell_quote, RemoteScript};
+use crate::sftp::internal::exec::{cancelled, shell_path, shell_quote};
+use crate::sftp::internal::launcher::ChannelLauncher;
 use crate::sftp::internal::paths::{join_remote_path, parent_remote_path};
 use crate::sftp::internal::types::SftpDirectoryEntry;
 use russh::client::{Handle, Handler};
@@ -126,6 +127,7 @@ async fn look_up(sftp: &Arc<SftpSession>, paths: Vec<String>) -> Vec<SftpDirecto
 }
 
 pub(super) struct FindSearch<'a, H: Handler> {
+    pub launcher: &'a ChannelLauncher,
     pub ssh: &'a Handle<H>,
     pub sftp: &'a Arc<SftpSession>,
     pub root: &'a str,
@@ -142,7 +144,7 @@ impl<H: Handler> FindSearch<'_, H> {
         let script = find_script(self.root, self.matcher, self.include_hidden);
         // A server that refuses a command channel, or runs no shell for
         // one, gets the SFTP search instead.
-        let Ok(mut running) = RemoteScript::start(self.ssh, &script).await else {
+        let Ok(mut running) = self.launcher.start_script(self.ssh, &script).await else {
             return FindOutcome::Unavailable;
         };
         let mut parser = RecordParser::default();

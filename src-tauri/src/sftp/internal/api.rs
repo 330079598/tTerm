@@ -53,17 +53,16 @@ pub mod upload;
 use crate::core::session::types::{PtyConnectionOptions, SessionPlan};
 use crate::core::state::HostPromptMap;
 use crate::sftp::internal::connection::{
-    ensure_ssh_plan, evict_connection, get_or_create_sftp_connection, open_sftp_raw_session,
-    pooled_handles,
+    ensure_ssh_plan, evict_connection, get_or_create_sftp_connection, pooled_handles,
 };
 use crate::sftp::internal::transfer::rate_limit::RateLimiter;
 use crate::sftp::internal::transfer::{
     RemoteChannels, TransferDirection, DEFAULT_PARALLELISM, MAX_PARALLELISM,
 };
-use crate::sftp::internal::types::{SftpConnectionKey, SftpConnectionPool, TransferCancelMap};
+use crate::sftp::internal::types::{
+    SftpConnectionKey, SftpConnectionPool, SftpHandles, TransferCancelMap,
+};
 use crate::ssh::secret_store::types::SecretStoreState;
-use crate::ssh::types::SshClientHandler;
-use russh::client;
 use russh_sftp::client::SftpSession;
 use std::future::Future;
 use std::sync::PoisonError;
@@ -149,10 +148,9 @@ pub struct SftpHost<'a> {
 }
 
 impl SftpHost<'_> {
-    /// The tab's pooled SFTP session and the SSH connection under it.
-    pub async fn handles(
-        self,
-    ) -> Result<(Arc<SftpSession>, Arc<client::Handle<SshClientHandler>>), String> {
+    /// The tab's pooled SFTP session, the SSH connection under it and the
+    /// launcher for its command channels.
+    pub async fn handles(self) -> Result<SftpHandles, String> {
         let plan = ensure_ssh_plan(self.app, self.secret_state, self.connection)?;
         pooled_handles(self.app, self.tab_id, &plan, self.prompts, self.pool).await
     }
@@ -200,12 +198,13 @@ pub async fn prepare_transfer(
     // it while holding the lock would block pool writers — and, because the
     // tokio RwLock is write-preferring, every subsequent reader queued behind
     // them — for the whole setup on a slow link.
-    let (sftp, ssh) = {
+    let (sftp, ssh, launcher) = {
         let pool_guard = pool.read().await;
         let cached = pool_guard.get(&key).ok_or("Connection not found")?;
         (
             cached.connection.sftp.clone(),
             cached.connection.ssh.clone(),
+            cached.connection.launcher.clone(),
         )
     };
 
@@ -215,7 +214,8 @@ pub async fn prepare_transfer(
     let mut open_tasks = tokio::task::JoinSet::new();
     for _ in 0..parallelism {
         let ssh = ssh.clone();
-        open_tasks.spawn(async move { open_sftp_raw_session(ssh.as_ref()).await });
+        let launcher = launcher.clone();
+        open_tasks.spawn(async move { launcher.open_raw_session(ssh.as_ref()).await });
     }
 
     let mut sessions = Vec::with_capacity(parallelism);

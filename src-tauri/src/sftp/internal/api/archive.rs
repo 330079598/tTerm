@@ -89,7 +89,8 @@ async fn compress(
         &request.archive_name,
         request.format,
     )?;
-    let (sftp, ssh) = host.handles().await?;
+    let handles = host.handles().await?;
+    let sftp = &handles.sftp;
 
     // tar and zip would add to or replace an existing file of that name.
     let archive_path = join_remote_path(&request.directory, &request.archive_name);
@@ -100,7 +101,7 @@ async fn compress(
         ));
     }
 
-    match run_to_end(&ssh, &script.text, &mut cancel).await? {
+    match run_to_end(&handles.launcher, &handles.ssh, &script.text, &mut cancel).await? {
         Some(outcome) => {
             check_outcome(&outcome, &script, "Compressing")?;
             Ok(RemoteOperationResult { cancelled: false })
@@ -125,8 +126,8 @@ async fn extract(
         request.format,
         request.overwrite,
     )?;
-    let (_sftp, ssh) = host.handles().await?;
-    match run_to_end(&ssh, &script.text, &mut cancel).await? {
+    let handles = host.handles().await?;
+    match run_to_end(&handles.launcher, &handles.ssh, &script.text, &mut cancel).await? {
         Some(outcome) => {
             check_outcome(&outcome, &script, "Extracting")?;
             Ok(RemoteOperationResult { cancelled: false })

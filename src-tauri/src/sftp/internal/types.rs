@@ -7,6 +7,7 @@ use std::time::Instant;
 use tokio::sync::watch;
 use tokio::sync::RwLock;
 
+use crate::sftp::internal::launcher::ChannelLauncher;
 use crate::ssh::{jump::connect::JumpChain, types::SshClientHandler};
 
 pub type CancelSender = watch::Sender<bool>;
@@ -46,6 +47,15 @@ pub struct ConnectedSftp {
     /// pool lock go through the `Arc`.
     pub ssh: Arc<client::Handle<SshClientHandler>>,
     pub sftp: Arc<SftpSession>,
+    /// Starts every further channel the connection opens.
+    pub launcher: ChannelLauncher,
+}
+
+/// A pooled connection's handles, cloned out of the pool for one operation.
+pub struct SftpHandles {
+    pub sftp: Arc<SftpSession>,
+    pub ssh: Arc<client::Handle<SshClientHandler>>,
+    pub launcher: ChannelLauncher,
 }
 
 pub struct CachedSftpConnection {

@@ -277,9 +277,9 @@ async fn change(
 
 /// The host's SFTP session and the environment its agents see.
 async fn open(host: SftpHost<'_>) -> Result<(Arc<SftpSession>, HashMap<String, String>), String> {
-    let (sftp, ssh) = host.handles().await?;
-    let env = read_env(&ssh).await?;
-    Ok((sftp, env))
+    let handles = host.handles().await?;
+    let env = read_env(&handles.ssh).await?;
+    Ok((handles.sftp, env))
 }
 
 /// Each agent's integration on the tab's SSH host.

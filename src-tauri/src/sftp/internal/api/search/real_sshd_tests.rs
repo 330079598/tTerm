@@ -6,6 +6,7 @@ use super::find::{FindOutcome, FindSearch};
 use super::matcher::NameMatcher;
 use super::walk::walk;
 use super::{ResultSink, MAX_RESULTS};
+use crate::sftp::internal::launcher::ChannelLauncher;
 use crate::ssh::test_sshd::{TempDir, TestSshd};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -93,6 +94,7 @@ async fn real_sshd_find_searches_subfolders() {
         let matcher = NameMatcher::new("log", false).unwrap();
         let (mut results, found) = sink(Path::new(&root));
         let search = FindSearch {
+            launcher: &ChannelLauncher,
             ssh: &ssh,
             sftp: &sftp,
             root: &root,
@@ -111,6 +113,7 @@ async fn real_sshd_find_searches_subfolders() {
     let matcher = NameMatcher::new(r"^old\.log$", true).unwrap();
     let (mut results, found) = sink(Path::new(&root));
     let search = FindSearch {
+        launcher: &ChannelLauncher,
         ssh: &ssh,
         sftp: &sftp,
         root: &root,
@@ -135,6 +138,7 @@ async fn real_sshd_find_stops_at_the_result_limit() {
     let (mut results, found) = sink(Path::new(&root));
     let (_cancel_sender, mut cancel) = watch::channel(false);
     let search = FindSearch {
+        launcher: &ChannelLauncher,
         ssh: &ssh,
         sftp: &sftp,
         root: &root,
@@ -166,6 +170,7 @@ async fn real_sshd_sftp_only_account_falls_back_to_walking() {
 
     let (mut results, found) = sink(Path::new(&root));
     let search = FindSearch {
+        launcher: &ChannelLauncher,
         ssh: &ssh,
         sftp: &sftp,
         root: &root,

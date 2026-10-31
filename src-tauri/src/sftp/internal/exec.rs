@@ -6,6 +6,8 @@ use russh::client::{Handle, Handler, Msg};
 use russh::{Channel, ChannelMsg, Sig};
 use tokio::sync::watch;
 
+use crate::sftp::internal::launcher::ChannelLauncher;
+
 /// Enough of a failing command's standard error to say why it failed; a
 /// command that fails on every file, such as `find` meeting thousands of
 /// unreadable folders, would otherwise grow it without bound.
@@ -155,6 +157,7 @@ impl RemoteScript {
 /// Runs `script` to its end, ignoring its standard output. Returns None when
 /// `cancel` stopped it first.
 pub async fn run_to_end<H: Handler>(
+    launcher: &ChannelLauncher,
     ssh: &Handle<H>,
     script: &str,
     cancel: &mut watch::Receiver<bool>,
@@ -162,7 +165,7 @@ pub async fn run_to_end<H: Handler>(
     if *cancel.borrow() {
         return Ok(None);
     }
-    let mut running = RemoteScript::start(ssh, script).await?;
+    let mut running = launcher.start_script(ssh, script).await?;
     loop {
         tokio::select! {
             () = cancelled(cancel) => {

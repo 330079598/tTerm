@@ -12,7 +12,9 @@ use crate::core::session::types::PtyConnectionOptions;
 use crate::core::state::HostPromptMap;
 use crate::sftp::internal::api::{with_cancel, SftpHost};
 use crate::sftp::internal::connection::map_sftp_error;
-use crate::sftp::internal::types::{SftpConnectionPool, SftpDirectoryEntry, TransferCancelMap};
+use crate::sftp::internal::types::{
+    SftpConnectionPool, SftpDirectoryEntry, SftpHandles, TransferCancelMap,
+};
 use crate::ssh::secret_store::types::SecretStoreState;
 use find::{FindOutcome, FindSearch};
 use matcher::NameMatcher;
@@ -107,7 +109,11 @@ async fn search(
     mut cancel: watch::Receiver<bool>,
 ) -> Result<SearchSummary, String> {
     let matcher = NameMatcher::new(&request.query, request.regex)?;
-    let (sftp, ssh) = host.handles().await?;
+    let SftpHandles {
+        sftp,
+        ssh,
+        launcher,
+    } = host.handles().await?;
     let root = sftp
         .canonicalize(request.root)
         .await
@@ -119,6 +125,7 @@ async fn search(
     };
 
     let find = FindSearch {
+        launcher: &launcher,
         ssh: &ssh,
         sftp: &sftp,
         root: &root,

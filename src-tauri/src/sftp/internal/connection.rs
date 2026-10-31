@@ -1,8 +1,6 @@
 use russh::client;
 use russh::Disconnect;
-use russh_sftp::client::rawsession::Limits;
-use russh_sftp::client::{error::Error as SftpError, RawSftpSession, SftpSession};
-use russh_sftp::extensions::LimitsExtension;
+use russh_sftp::client::error::Error as SftpError;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::AppHandle;
@@ -11,8 +9,9 @@ use crate::core::session::{
     normalize_connection, resolve_ssh_password, types::PtyConnectionOptions, types::SessionPlan,
 };
 use crate::core::state::{HostPromptMap, SessionKind};
+use crate::sftp::internal::launcher::ChannelLauncher;
 use crate::sftp::internal::types::{
-    CachedSftpConnection, ConnectedSftp, SftpConnectionKey, SftpConnectionPool,
+    CachedSftpConnection, ConnectedSftp, SftpConnectionKey, SftpConnectionPool, SftpHandles,
 };
 use crate::ssh::types::ConnectionStatusOptions;
 use crate::ssh::{
@@ -24,19 +23,6 @@ use crate::ssh::{
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(300);
 /// How often the pool is checked for idle connections to close.
 const REAP_INTERVAL: Duration = Duration::from_secs(60);
-const SFTP_REQUEST_TIMEOUT_SECS: u64 = 120;
-/// Bound on opening an SSH channel and negotiating the SFTP subsystem on it.
-/// `russh_sftp` only times out its own protocol requests (via
-/// `set_timeout`), which only start once a channel exists — the
-/// `channel_open_session`/`request_subsystem` calls that precede it are
-/// plain `russh` futures with no timeout of their own. A server that accepts
-/// a channel but never answers it (e.g. a session limit that is enforced by
-/// silence rather than a refusal, or a transport that stalls without
-/// resetting the socket) would otherwise hang this forever — freezing a
-/// fresh transfer at 0% with no error, since `prepare_transfer` opens a new
-/// batch of channels for every upload/download call and waits for all of
-/// them before doing any I/O.
-const SFTP_CHANNEL_SETUP_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub fn map_sftp_error(err: SftpError) -> String {
     err.to_string()
@@ -91,26 +77,6 @@ pub async fn connect_authenticated_ssh(
     .map_err(String::from)
 }
 
-async fn open_control_sftp_session(
-    ssh: &client::Handle<SshClientHandler>,
-) -> Result<Arc<SftpSession>, String> {
-    let channel = ssh
-        .channel_open_session()
-        .await
-        .map_err(|err| format!("Failed to open SSH channel: {err}"))?;
-
-    channel
-        .request_subsystem(true, "sftp")
-        .await
-        .map_err(|err| format!("Failed to start SFTP subsystem: {err}"))?;
-
-    let sftp = SftpSession::new(channel.into_stream())
-        .await
-        .map_err(map_sftp_error)?;
-    sftp.set_timeout(SFTP_REQUEST_TIMEOUT_SECS);
-    Ok(Arc::new(sftp))
-}
-
 async fn connect_sftp(
     app: &AppHandle,
     tab_id: &str,
@@ -119,14 +85,14 @@ async fn connect_sftp(
 ) -> Result<ConnectedSftp, String> {
     let (jump_chain, ssh) = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
 
-    let sftp = tokio::time::timeout(SFTP_CHANNEL_SETUP_TIMEOUT, open_control_sftp_session(&ssh))
-        .await
-        .map_err(|_| "Timed out opening SFTP channel".to_string())??;
+    let launcher = ChannelLauncher;
+    let sftp = launcher.open_sftp_session(&ssh).await?;
 
     Ok(ConnectedSftp {
         jump_chain,
         ssh: Arc::new(ssh),
         sftp,
+        launcher,
     })
 }
 
@@ -135,6 +101,7 @@ pub async fn close_sftp(connection: ConnectedSftp) {
         jump_chain,
         ssh,
         sftp,
+        launcher: _,
     } = connection;
     let _ = sftp.close().await;
     let _ = ssh
@@ -179,24 +146,26 @@ pub async fn get_or_create_sftp_connection(
     Ok(())
 }
 
-/// The tab's pooled connection, opened when there is none: its SFTP session
-/// and the SSH connection under it, for running commands next to it. Holding
-/// the handles keeps the reaper from closing the connection mid-operation.
+/// The tab's pooled connection, opened when there is none: its SFTP session,
+/// the SSH connection under it and the launcher for running commands next to
+/// it. Holding the handles keeps the reaper from closing the connection
+/// mid-operation.
 pub async fn pooled_handles(
     app: &AppHandle,
     tab_id: &str,
     plan: &SessionPlan,
     prompts: HostPromptMap,
     pool: &SftpConnectionPool,
-) -> Result<(Arc<SftpSession>, Arc<client::Handle<SshClientHandler>>), String> {
+) -> Result<SftpHandles, String> {
     let key = SftpConnectionKey::from_plan(tab_id, plan)?;
     get_or_create_sftp_connection(app, tab_id, plan, prompts, pool).await?;
     let pool_guard = pool.read().await;
     let cached = pool_guard.get(&key).ok_or("Connection not found")?;
-    Ok((
-        cached.connection.sftp.clone(),
-        cached.connection.ssh.clone(),
-    ))
+    Ok(SftpHandles {
+        sftp: cached.connection.sftp.clone(),
+        ssh: cached.connection.ssh.clone(),
+        launcher: cached.connection.launcher.clone(),
+    })
 }
 
 /// An operation holds a clone of the session handles while it runs
@@ -271,60 +240,6 @@ pub async fn evict_connection(pool: &SftpConnectionPool, key: &SftpConnectionKey
             close_sftp(cached.connection).await;
         });
     }
-}
-
-/// Open one additional SFTP subsystem channel on an existing SSH connection and
-/// wrap it as a raw session, negotiating `limits@openssh.com` when offered.
-pub async fn open_sftp_raw_session(
-    ssh: &client::Handle<SshClientHandler>,
-) -> Result<(Arc<RawSftpSession>, Option<LimitsExtension>), String> {
-    tokio::time::timeout(SFTP_CHANNEL_SETUP_TIMEOUT, open_sftp_raw_session_inner(ssh))
-        .await
-        .map_err(|_| "Timed out opening SFTP channel".to_string())?
-}
-
-async fn open_sftp_raw_session_inner(
-    ssh: &client::Handle<SshClientHandler>,
-) -> Result<(Arc<RawSftpSession>, Option<LimitsExtension>), String> {
-    let channel = ssh
-        .channel_open_session()
-        .await
-        .map_err(|err| format!("Failed to open SFTP channel: {err}"))?;
-
-    channel
-        .request_subsystem(true, "sftp")
-        .await
-        .map_err(|err| format!("Failed to start SFTP subsystem: {err}"))?;
-
-    let mut session = RawSftpSession::new(channel.into_stream());
-    let version = session
-        .init()
-        .await
-        .map_err(|err| format!("Failed to initialize SFTP channel: {err}"))?;
-
-    session.set_timeout(SFTP_REQUEST_TIMEOUT_SECS);
-
-    let limits = if version
-        .extensions
-        .get(russh_sftp::extensions::LIMITS)
-        .is_some_and(|value| value == "1")
-    {
-        let extension = session
-            .limits()
-            .await
-            .map_err(|err| format!("Failed to query server SFTP limits: {err}"))?;
-        session.set_limits(Limits {
-            packet_len: None,
-            read_len: (extension.max_read_len > 0).then_some(extension.max_read_len),
-            write_len: (extension.max_write_len > 0).then_some(extension.max_write_len),
-            open_handles: None,
-        });
-        Some(extension)
-    } else {
-        None
-    };
-
-    Ok((Arc::new(session), limits))
 }
 
 #[cfg(test)]
