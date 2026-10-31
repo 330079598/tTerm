@@ -7,6 +7,12 @@
 // Only the echo of a typed character counts: a backspace's echo, `\b \b`, is
 // also what a password prompt that masks with `*` sends, and a line that
 // echoed a key as something else is masking it, so nothing more on it is shown.
+//
+// A key the predictor can't guess, such as Enter or Tab, leaves it not knowing
+// where typing goes next, and keys sent before it may still be on their way.
+// Keys typed after it are placed tentatively: they are not shown, and when the
+// line does not match them they are moved to where it shows typing goes,
+// rather than taken for a masking prompt, until one is echoed where placed.
 
 /** What the predictor reads of the terminal. Rows count from the top of the scrollback. */
 export interface PredictionScreen {
@@ -76,6 +82,17 @@ export class EchoPredictor {
    * is ended.
    */
   private maskedRow: number | null = null
+  /**
+   * The guesses are placed tentatively, since a key that can't be guessed
+   * went out after the last one echoed where it was placed.
+   */
+  private tentative = false
+  /**
+   * What a tentative guess was echoed as instead, and on which row: a key
+   * still on its way or a prompt masking with `*`. An echo of a key typed as
+   * that character does not show that the row echoes typing.
+   */
+  private suspect: { row: number; char: string } | null = null
 
   constructor(private readonly now: () => number = Date.now) {}
 
@@ -106,17 +123,22 @@ export class EchoPredictor {
     return this.pending.length > 0 || this.doubtSince !== null
   }
 
-  /** Forgets every guess; the next row typed on must echo again before guesses show. */
+  /**
+   * Forgets every guess; the next row typed on must echo again before guesses
+   * show. Keys sent meanwhile may still be on their way, so the guesses after
+   * it are placed tentatively.
+   */
   reset() {
-    this.row = null
-    this.pending = []
-    this.confirmed = false
-    this.doubtSince = null
+    this.clear()
+    this.tentative = true
   }
 
   /** Notes `data` typed, before it is sent. */
   type(data: string, screen: PredictionScreen) {
-    if (endsLine(data)) this.maskedRow = null
+    if (endsLine(data)) {
+      this.maskedRow = null
+      this.suspect = null
+    }
     for (const char of data) {
       const typed =
         char === "\x7f" || char === "\b"
@@ -141,8 +163,12 @@ export class EchoPredictor {
           )
         : -1
     if (echoed === -1) {
-      if (this.echoedAsSomethingElse(row, screen)) {
-        this.reset()
+      if (this.tentative) {
+        this.place(row, screen)
+        return
+      }
+      if (this.echoedAs(row, screen) !== null) {
+        this.clear()
         this.maskedRow = row
         return
       }
@@ -154,7 +180,10 @@ export class EchoPredictor {
     }
     const key = this.pending[echoed]
     this.sample(this.now() - key.at)
-    if (!key.erases && row !== this.maskedRow) this.confirmed = true
+    const masked =
+      row === this.maskedRow || (this.suspect?.row === row && this.suspect.char === key.value)
+    if (!key.erases && !masked) this.confirmed = true
+    this.tentative = false
     this.doubtSince = null
     this.base = key.cursorAfter
     this.pending = this.pending.slice(echoed + 1)
@@ -175,13 +204,17 @@ export class EchoPredictor {
       this.base = screen.cursorCol
       this.pending = []
     } else {
-      this.reset()
+      this.clear()
     }
+    // Whatever was on its way when these keys were typed has long arrived.
+    this.tentative = false
   }
 
   /** The guesses to show, or null while none may be shown. */
   view(): PredictionView | null {
-    if (this.row === null || !this.confirmed || this.doubtSince !== null) return null
+    if (this.row === null || !this.confirmed || this.tentative || this.doubtSince !== null) {
+      return null
+    }
     const last = this.pending[this.pending.length - 1]
     if (!last) return null
     const now = this.now()
@@ -193,7 +226,50 @@ export class EchoPredictor {
     return { row: this.row, cells: [...cells.values()], cursorCol: last.cursorAfter }
   }
 
-  private insert(char: string, screen: PredictionScreen): boolean {
+  private clear() {
+    this.row = null
+    this.pending = []
+    this.confirmed = false
+    this.doubtSince = null
+  }
+
+  /**
+   * Moves the tentative guesses to where the line shows typing goes: from the
+   * cursor, less those of them it already shows just before the cursor.
+   */
+  private place(row: number, screen: PredictionScreen) {
+    const other = this.echoedAs(row, screen)
+    if (other !== null) this.suspect = { row, char: other }
+    const keys = this.pending.slice(this.echoedBefore(screen))
+    this.pending = []
+    // A new row is started over by nextCol.
+    if (screen.cursorRow !== row) this.row = null
+    for (const key of keys) {
+      const placed = key.erases
+        ? this.erase(screen, key.at)
+        : this.insert(key.value, screen, key.at)
+      if (!placed) {
+        this.reset()
+        return
+      }
+    }
+  }
+
+  /** How many of the guesses, from the first, the line shows just before the cursor. */
+  private echoedBefore(screen: PredictionScreen): number {
+    const firstErase = this.pending.findIndex((key) => key.erases)
+    const typed = firstErase === -1 ? this.pending.length : firstErase
+    for (let count = Math.min(typed, screen.cursorCol); count > 0; count -= 1) {
+      const start = screen.cursorCol - count
+      const shown = this.pending
+        .slice(0, count)
+        .every((key, i) => screen.charAt(screen.cursorRow, start + i) === key.value)
+      if (shown) return count
+    }
+    return 0
+  }
+
+  private insert(char: string, screen: PredictionScreen, at = this.now()): boolean {
     const col = this.nextCol(screen)
     // A key at the last column leaves the cursor waiting to wrap.
     if (col >= screen.cols - 1) return false
@@ -201,11 +277,11 @@ export class EchoPredictor {
     // the next character of a shell's grayed-out suggestion is at its end.
     const current = this.valueAt(col, screen)
     if (current !== " " && current !== char) return false
-    this.pending.push({ col, value: char, cursorAfter: col + 1, at: this.now(), erases: false })
+    this.pending.push({ col, value: char, cursorAfter: col + 1, at, erases: false })
     return true
   }
 
-  private erase(screen: PredictionScreen): boolean {
+  private erase(screen: PredictionScreen, at = this.now()): boolean {
     const col = this.nextCol(screen)
     // Before the row's typing lies the prompt, which the shell keeps.
     if (col <= this.lineStart) return false
@@ -213,7 +289,7 @@ export class EchoPredictor {
       col: col - 1,
       value: " ",
       cursorAfter: col - 1,
-      at: this.now(),
+      at,
       erases: true,
     })
     return true
@@ -224,7 +300,7 @@ export class EchoPredictor {
     const last = this.pending[this.pending.length - 1]
     if (last) return last.cursorAfter
     if (this.row !== screen.cursorRow) {
-      this.reset()
+      this.clear()
       this.row = screen.cursorRow
       this.lineStart = screen.cursorCol
     }
@@ -241,15 +317,19 @@ export class EchoPredictor {
     return screen.charAt(this.row ?? screen.cursorRow, col)
   }
 
-  /** The cursor moved past a typed key whose cell holds another character. */
-  private echoedAsSomethingElse(row: number, screen: PredictionScreen): boolean {
-    if (screen.cursorRow !== row) return false
-    return this.pending.some(
+  /**
+   * What the cell of a typed key holds once the cursor moved past it, when
+   * that is another character, or null.
+   */
+  private echoedAs(row: number, screen: PredictionScreen): string | null {
+    if (screen.cursorRow !== row) return null
+    const key = this.pending.find(
       (key) =>
         !key.erases &&
         key.cursorAfter === screen.cursorCol &&
         screen.charAt(row, key.col) !== key.value
     )
+    return key ? screen.charAt(row, key.col) : null
   }
 
   /** The terminal already shows what the guesses predict. */

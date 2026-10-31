@@ -148,7 +148,9 @@ export function attachPredictiveEcho(
       if (endsLine(data)) promptRow = null
       else if (!canPredict()) promptRow = screen.cursorRow
       if (!allowed() || screen.cursorRow === promptRow) {
-        if (predictor.activeRow !== null) reset()
+        // The key goes out unguessed, so the predictor must place the keys
+        // after it tentatively, even when it guesses nothing now.
+        reset()
         return
       }
       predictor.type(data, screen)

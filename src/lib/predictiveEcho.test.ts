@@ -229,6 +229,91 @@ describe("EchoPredictor", () => {
     expect(predictor.slowerThan(100)).toBe(false)
   })
 
+  it("places keys typed after Tab once the keys before it are echoed", () => {
+    typeAndEcho("c")
+    predictor.type("d", line)
+    predictor.type("\t", line)
+    // Typed before `d` is echoed, so placed where `d` lands.
+    predictor.type("x", line)
+    expect(shown()).toBeNull()
+
+    clock += 100
+    line.echo("d")
+    predictor.reconcile(line)
+    predictor.type("y", line)
+    expect(shown()).toBeNull()
+
+    clock += 100
+    line.echo("x")
+    predictor.reconcile(line)
+    predictor.type("z", line)
+    expect(shown()).toEqual({ text: "yz", cursor: 7 })
+  })
+
+  it("places keys typed after Tab past what the completion adds", () => {
+    line = new FakeLine("$ cd sr")
+    typeAndEcho("c")
+    predictor.type("\t", line)
+    predictor.type("l", line)
+    clock += 100
+    // The completion adds one character, which looks like a key masked.
+    line.echo("/")
+    predictor.reconcile(line)
+    line.echo("l")
+    predictor.reconcile(line)
+    predictor.type("ib", line)
+    expect(shown()).toEqual({ text: "ib", cursor: 12 })
+  })
+
+  it("guesses the next command when it is typed before the prompt returns", () => {
+    typeAndEcho("ls")
+    predictor.type("\r", line)
+    predictor.type("p", line)
+    clock += 300
+    line.cursorRow += 2
+    line.text = "$ "
+    line.cursorCol = 2
+    predictor.reconcile(line)
+    clock += 200
+    predictor.expire(line)
+    predictor.type("w", line)
+    expect(shown()).toBeNull()
+
+    clock += 100
+    line.echo("p")
+    predictor.reconcile(line)
+    predictor.type("d", line)
+    expect(shown()).toEqual({ text: "wd", cursor: 5 })
+  })
+
+  it("keeps a password hidden after Enter at a prompt that masks with *", () => {
+    typeAndEcho("sudo -s")
+    predictor.type("\r", line)
+    line.cursorRow += 1
+    line.text = "Password: "
+    line.cursorCol = line.text.length
+    predictor.type("a", line)
+    clock += 100
+    line.echo("*")
+    predictor.reconcile(line)
+    // A `*` in the password echoes as itself, but the line is masking.
+    predictor.type("*", line)
+    clock += 100
+    line.echo("*")
+    predictor.reconcile(line)
+    predictor.type("x", line)
+    expect(shown()).toBeNull()
+
+    clock += 5000
+    predictor.expire(line)
+    predictor.type("y", line)
+    clock += 100
+    line.echo("**")
+    predictor.reconcile(line)
+    predictor.type("z", line)
+    expect(shown()).toBeNull()
+  })
+
   it("guesses nothing for keys other than typing and backspace", () => {
     typeAndEcho("a")
     for (const key of ["\t", "\x1b[D", "\x03", "你"]) {
