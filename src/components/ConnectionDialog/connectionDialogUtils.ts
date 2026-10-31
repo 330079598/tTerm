@@ -11,7 +11,6 @@ import { defaultShellChoice, defaultShellKey } from "@/lib/localShells"
 import { normalizeSftpStartDirectory, type SftpStartDirectory } from "@/lib/sftpStartDirectory"
 import { shellIntegrationChoice } from "@/lib/sshShellIntegration"
 import type { SessionLogPolicy } from "@/types/tab"
-import type { TerminalPalette } from "@/types/theme"
 
 import {
   ConfigState,
@@ -91,32 +90,6 @@ export function normalizeTerminalEncoding(value: string | null | undefined): Ter
 /** The charset to store or send: omitted for UTF-8, the default. */
 export function encodingPayload(encoding: TerminalEncoding): string | undefined {
   return encoding === DEFAULT_TERMINAL_ENCODING ? undefined : encoding
-}
-
-export interface ThemePickerGroup {
-  /** Heading of the group; `null` for entries listed above every group. */
-  label: string | null
-  themes: Array<{ id: string; label: string; palette?: TerminalPalette }>
-}
-
-/**
- * The themes whose name holds every word of `query`, ignoring case; groups
- * left empty are dropped.
- */
-export function filterThemeGroups(
-  groups: readonly ThemePickerGroup[],
-  query: string
-): ThemePickerGroup[] {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-  return groups
-    .map((group) => ({
-      ...group,
-      themes: group.themes.filter((theme) => {
-        const name = theme.label.toLowerCase()
-        return words.every((word) => name.includes(word))
-      }),
-    }))
-    .filter((group) => group.themes.length > 0)
 }
 
 /** The login script to store or send: omitted when it has no commands. */
