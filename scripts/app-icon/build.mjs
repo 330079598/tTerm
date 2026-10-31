@@ -10,7 +10,8 @@
 // the sticker filter comes out wrong in resvg. The script looks for one in
 // the usual install locations; set TTERM_ICON_BROWSER to a browser binary to
 // pick another. `tauri icon` then makes the bundle icons from the app icon, and
-// icon.icns from the macOS version, which has a wider margin.
+// icon.icns from the macOS version, which has a wider margin; its images are
+// sorted so the file is the same on every run.
 
 import { execFileSync, execSync } from "node:child_process"
 import {
@@ -26,6 +27,7 @@ import { dirname, join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { appIcon, macIcon, mascotIcon } from "./art.mjs"
 import { writeCrabParts } from "./crab.mjs"
+import { sortIcns } from "./icns.mjs"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const ICONS_DIR = join(ROOT, "src-tauri", "icons")
@@ -99,6 +101,7 @@ function build(workDir) {
   }
   tauriIcon(join(workDir, "app.png"), join(workDir, "app"))
   tauriIcon(join(workDir, "mac.png"), join(workDir, "mac"))
+  sortIcns(join(workDir, "mac", MAC_FILE))
 
   writeFileSync(join(ROOT, "app-icon.svg"), sets.app)
   copyFileSync(join(workDir, "app.png"), join(ROOT, "app-icon.png"))
