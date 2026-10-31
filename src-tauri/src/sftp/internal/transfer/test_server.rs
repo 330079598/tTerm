@@ -40,6 +40,9 @@ impl TestLimits {
     }
 }
 
+/// The path and requested permission bits of each open, in arrival order.
+pub type OpenModeLog = Arc<Mutex<Vec<(String, Option<u32>)>>>;
+
 #[derive(Clone, Debug)]
 pub struct ServerOptions {
     pub limits: Option<TestLimits>,
@@ -56,6 +59,9 @@ pub struct ServerOptions {
     /// Records the offset of every accepted write, in arrival order, so tests
     /// can assert on the order the client actually put requests on the wire.
     pub recorded_write_offsets: Option<Arc<Mutex<Vec<u64>>>>,
+    /// Records the path and requested permission bits of every open, so tests
+    /// can assert on the mode a client asks a new file to be created with.
+    pub recorded_open_modes: Option<OpenModeLog>,
 }
 
 impl Default for ServerOptions {
@@ -67,6 +73,7 @@ impl Default for ServerOptions {
             fail_removes: false,
             stall_writes_after_bytes: None,
             recorded_write_offsets: None,
+            recorded_open_modes: None,
         }
     }
 }
@@ -219,8 +226,13 @@ impl russh_sftp::server::Handler for SftpHandler {
         id: u32,
         filename: String,
         pflags: OpenFlags,
-        _attrs: FileAttributes,
+        attrs: FileAttributes,
     ) -> Result<Handle, Self::Error> {
+        if let Some(modes) = &self.options.recorded_open_modes {
+            if let Ok(mut modes) = modes.lock() {
+                modes.push((filename.clone(), attrs.permissions));
+            }
+        }
         let path = self.real_path(&filename);
         let options = std::fs::OpenOptions::from(pflags);
         let file = options.open(&path).map_err(|_| StatusCode::NoSuchFile)?;

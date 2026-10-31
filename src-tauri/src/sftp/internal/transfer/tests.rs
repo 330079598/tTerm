@@ -1005,6 +1005,7 @@ async fn parallel_upload_outperforms_serial_with_injected_latency() {
         fail_removes: false,
         stall_writes_after_bytes: None,
         recorded_write_offsets: None,
+        recorded_open_modes: None,
     })
     .await;
     let chunk_size = 16 * 1024u64;
