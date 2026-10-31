@@ -19,7 +19,7 @@ import { useWindowFocused } from "@/hooks/useWindowFocused"
 import { compareTabIds } from "@/lib/tabNavigation"
 
 /** The gap between panes, which their dividers sit in. */
-const PANE_GAP = 5
+const PANE_GAP = 8
 const PANE_MINIMUM = { width: 220, height: 140 }
 
 export interface TabPanelsHandle {
