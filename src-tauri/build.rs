@@ -3,6 +3,12 @@ fn main() {
         eprintln!("{error}");
         std::process::exit(1);
     }
+    // tauri-build compiles icons/icon.ico into the Windows resource the
+    // taskbar and window icons come from, and generate_context! embeds the
+    // icons for the other platforms, but neither tells Cargo to watch them,
+    // so after `pnpm icons:update` the app kept its old icon until a clean
+    // build.
+    println!("cargo:rerun-if-changed=icons");
     let embeds_manifest = embed_windows_manifest();
 
     let mut attributes = tauri_build::Attributes::new();
