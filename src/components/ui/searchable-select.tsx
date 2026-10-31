@@ -62,6 +62,9 @@ export function SearchableSelect({
     group.options.map((option) => ({ ...option, key: `${group.label ?? ""}:${option.value}` }))
   )
   const highlighted = entries.find((entry) => entry.key === highlightedKey) ?? entries[0]
+  // Element ids go by position, since a group's heading may hold spaces.
+  const positions = new Map(entries.map((entry, index) => [entry.key, index]))
+  const optionId = (key: string) => `${id}-option-${positions.get(key)}`
 
   const close = (refocus: boolean) => {
     setOpen(false)
@@ -166,7 +169,7 @@ export function SearchableSelect({
               placeholder={searchLabel}
               aria-label={searchLabel}
               aria-controls={`${id}-list`}
-              aria-activedescendant={highlighted ? `${id}-${highlighted.key}` : undefined}
+              aria-activedescendant={highlighted ? optionId(highlighted.key) : undefined}
               className="h-8 border-0 pl-8 shadow-none focus-visible:ring-0"
             />
           </div>
@@ -189,7 +192,7 @@ export function SearchableSelect({
                   return (
                     <div
                       key={key}
-                      id={`${id}-${key}`}
+                      id={optionId(key)}
                       role="option"
                       aria-selected={key === highlighted?.key}
                       onPointerMove={() => setHighlightedKey(key)}
