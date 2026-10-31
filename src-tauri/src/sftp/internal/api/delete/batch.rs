@@ -1,7 +1,7 @@
 use super::*;
 use crate::core::state::HostPromptMap;
 use crate::sftp::internal::connection::{
-    connect_authenticated_ssh, get_or_create_sftp_connection, map_sftp_error,
+    connect_authenticated_ssh, get_or_create_sftp_connection, map_sftp_error, pooled_handles,
 };
 use crate::sftp::internal::types::{SftpConnectionKey, SftpConnectionPool};
 use russh::ChannelMsg;
@@ -106,44 +106,49 @@ async fn run_remote_delete_command(
         .command
         .clone()
         .unwrap_or_else(|| command_delete_script(&paths));
-    let (_jump_session, ssh) =
-        connect_authenticated_ssh(app, tab_id, plan, prompts.clone()).await?;
-    let mut channel = ssh
-        .channel_open_session()
-        .await
-        .map_err(|err| format!("Failed to open SSH channel: {err}"))?;
+    let (exit_status, stderr) = if plan.sftp_sudo {
+        run_delete_command_as_root(batch, &command).await?
+    } else {
+        let (_jump_session, ssh) =
+            connect_authenticated_ssh(app, tab_id, plan, prompts.clone()).await?;
+        let mut channel = ssh
+            .channel_open_session()
+            .await
+            .map_err(|err| format!("Failed to open SSH channel: {err}"))?;
 
-    channel
-        .exec(true, command)
-        .await
-        .map_err(|err| format!("Failed to execute delete command: {err}"))?;
+        channel
+            .exec(true, command)
+            .await
+            .map_err(|err| format!("Failed to execute delete command: {err}"))?;
 
-    let mut stderr = String::new();
-    let mut exit_status = None;
-    while let Some(message) = channel.wait().await {
-        match message {
-            ChannelMsg::Data { .. } => {}
-            ChannelMsg::ExtendedData { data, .. } => {
-                stderr.push_str(&String::from_utf8_lossy(&data));
+        let mut stderr = String::new();
+        let mut exit_status = None;
+        while let Some(message) = channel.wait().await {
+            match message {
+                ChannelMsg::Data { .. } => {}
+                ChannelMsg::ExtendedData { data, .. } => {
+                    stderr.push_str(&String::from_utf8_lossy(&data));
+                }
+                ChannelMsg::ExitStatus {
+                    exit_status: status,
+                } => {
+                    exit_status = Some(status);
+                }
+                ChannelMsg::Close => break,
+                _ => {}
             }
-            ChannelMsg::ExitStatus {
-                exit_status: status,
-            } => {
-                exit_status = Some(status);
-            }
-            ChannelMsg::Close => break,
-            _ => {}
         }
-    }
 
-    let _ = channel.close().await;
-    let _ = ssh
-        .disconnect(
-            russh::Disconnect::ByApplication,
-            "delete command completed",
-            "en",
-        )
-        .await;
+        let _ = channel.close().await;
+        let _ = ssh
+            .disconnect(
+                russh::Disconnect::ByApplication,
+                "delete command completed",
+                "en",
+            )
+            .await;
+        (exit_status, stderr)
+    };
 
     if exit_status.unwrap_or(0) == 0 {
         let progress = DeleteProgress {
@@ -383,6 +388,30 @@ pub(super) async fn run_delete_batch(batch: DeleteBatch) {
         &format!("sftp-delete-batch-complete-{}", batch.tab_id),
         build_delete_complete_event(batch.batch_id, method, &stats, &progress, false, error),
     );
+}
+
+/// Runs the delete command as root on the tab's sudo-mode connection. The
+/// command goes to `sh` on standard input rather than through the login
+/// shell, so it reads the same whichever shell the account logs in with.
+async fn run_delete_command_as_root(
+    batch: &DeleteBatch,
+    command: &str,
+) -> Result<(Option<u32>, String), String> {
+    let handles = pooled_handles(
+        &batch.app,
+        &batch.tab_id,
+        &batch.plan,
+        batch.prompts.clone(),
+        &batch.pool,
+    )
+    .await?;
+    let outcome = handles
+        .launcher
+        .start_script(&handles.ssh, command)
+        .await?
+        .finish()
+        .await;
+    Ok((outcome.exit_status, outcome.stderr))
 }
 
 async fn get_or_create_delete_sftp(

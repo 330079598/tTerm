@@ -153,5 +153,6 @@ pub(super) fn test_session_plan(
         proxy_choice: profile.proxy.clone(),
         proxy: None,
         serial: None,
+        sftp_sudo: false,
     }
 }

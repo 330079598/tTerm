@@ -3,13 +3,14 @@ use russh::Disconnect;
 use russh_sftp::client::error::Error as SftpError;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 use crate::core::session::{
     normalize_connection, resolve_ssh_password, types::PtyConnectionOptions, types::SessionPlan,
 };
 use crate::core::state::{HostPromptMap, SessionKind};
-use crate::sftp::internal::launcher::ChannelLauncher;
+use crate::sftp::internal::launcher::{ChannelLauncher, SFTP_CHANNEL_SETUP_TIMEOUT};
+use crate::sftp::internal::sudo::handshake::authenticate;
 use crate::sftp::internal::types::{
     CachedSftpConnection, ConnectedSftp, SftpConnectionKey, SftpConnectionPool, SftpHandles,
 };
@@ -85,7 +86,17 @@ async fn connect_sftp(
 ) -> Result<ConnectedSftp, String> {
     let (jump_chain, ssh) = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
 
-    let launcher = ChannelLauncher;
+    let launcher = if plan.sftp_sudo {
+        let auth = tokio::time::timeout(
+            SFTP_CHANNEL_SETUP_TIMEOUT,
+            authenticate(&ssh, || saved_sudo_password(app, plan)),
+        )
+        .await
+        .map_err(|_| "Timed out waiting for sudo on the host".to_string())??;
+        ChannelLauncher::sudo(auth)
+    } else {
+        ChannelLauncher::default()
+    };
     let sftp = launcher.open_sftp_session(&ssh).await?;
 
     Ok(ConnectedSftp {
@@ -94,6 +105,30 @@ async fn connect_sftp(
         sftp,
         launcher,
     })
+}
+
+/// The saved password a sudo prompt of this connection would be answered
+/// with: its sudo password, else its login password.
+async fn saved_sudo_password(
+    app: &AppHandle,
+    plan: &SessionPlan,
+) -> Result<Option<zeroize::Zeroizing<String>>, String> {
+    let app = app.clone();
+    let profile_id = plan.profile_id.clone();
+    let profile_name = plan.profile_name.clone();
+    crate::core::blocking::run_blocking(move || {
+        let secret_state = app
+            .try_state::<SecretStoreState>()
+            .ok_or("Saved passwords are unavailable")?;
+        let saved = crate::core::session::load_saved_sudo_password(
+            &app,
+            &secret_state,
+            profile_id.as_deref(),
+            Some(&profile_name),
+        )?;
+        Ok(saved.map(|(password, _source)| password))
+    })
+    .await
 }
 
 pub async fn close_sftp(connection: ConnectedSftp) {

@@ -130,11 +130,14 @@ pub async fn sftp_list_directory(
 
         let entries = read_directory_entries(sftp, &current_path).await?;
 
-        // Save the current path as the last directory
-        let host = plan.host.as_ref().ok_or("Host is required")?;
-        let username = plan.username.as_ref().ok_or("Username is required")?;
+        // Save the current path as the last directory. A folder seen as root,
+        // such as /root, would only fail the next drawer opened as the user.
         let normalized_path = crate::sftp::internal::paths::normalize_remote_path(&current_path);
-        let _ = store::save_last_directory(host, plan.port, username, &normalized_path);
+        if !plan.sftp_sudo {
+            let host = plan.host.as_ref().ok_or("Host is required")?;
+            let username = plan.username.as_ref().ok_or("Username is required")?;
+            let _ = store::save_last_directory(host, plan.port, username, &normalized_path);
+        }
 
         Ok(SftpDirectoryListing {
             current_path: normalized_path,

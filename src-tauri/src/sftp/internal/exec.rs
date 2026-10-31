@@ -94,13 +94,32 @@ impl RemoteScript {
     /// Starts `script` as [`RemoteScript::start`] does, on a channel the
     /// caller opened, for one that times the opening.
     pub async fn start_on(channel: Channel<Msg>, script: &str) -> Result<Self, String> {
-        let started = async {
-            channel.exec(true, "exec sh -s").await?;
-            channel.data(script.as_bytes()).await?;
+        Self::run_command(channel, "exec sh -s", script.as_bytes()).await
+    }
+
+    /// Runs `command` through the account's login shell on `channel` and
+    /// gives it `input` as its whole standard input.
+    pub async fn run_command(
+        channel: Channel<Msg>,
+        command: &str,
+        input: &[u8],
+    ) -> Result<Self, String> {
+        if let Err(err) = channel.exec(true, command).await {
+            let _ = channel.close().await;
+            return Err(format!("Failed to run a command on the server: {err}"));
+        }
+        Self::feed(channel, input).await
+    }
+
+    /// Takes over `channel`, whose command already runs and reads its
+    /// standard input, and gives it `input` as the rest of that input.
+    pub async fn feed(channel: Channel<Msg>, input: &[u8]) -> Result<Self, String> {
+        let fed = async {
+            channel.data(input).await?;
             channel.eof().await
         }
         .await;
-        if let Err(err) = started {
+        if let Err(err) = fed {
             let _ = channel.close().await;
             return Err(format!("Failed to run a command on the server: {err}"));
         }

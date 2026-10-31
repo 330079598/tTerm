@@ -73,6 +73,8 @@ pub struct SftpConnectionKey {
     pub port: u16,
     pub username: String,
     pub jump_chain: Option<String>,
+    /// Whether the connection works as root through sudo.
+    pub sudo: bool,
 }
 
 impl SftpConnectionKey {
@@ -114,6 +116,7 @@ impl SftpConnectionKey {
                         .join("|"),
                 )
             },
+            sudo: plan.sftp_sudo,
         })
     }
 }

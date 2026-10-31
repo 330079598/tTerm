@@ -185,6 +185,9 @@ pub struct PtyConnectionOptions {
     pub cwd: Option<String>,
     /// Serial: the port and how it is opened.
     pub serial: Option<crate::serial::SerialOptions>,
+    /// SFTP: work on the host as root, through sudo. Only the file manager
+    /// sets it, for the requests of a drawer in sudo mode.
+    pub sftp_sudo: bool,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -246,6 +249,8 @@ pub(crate) struct RawPtyConnectionOptions {
     cwd: Option<String>,
     #[serde(default)]
     serial: Option<crate::serial::SerialOptions>,
+    #[serde(default, alias = "sftpSudo")]
+    sftp_sudo: bool,
 }
 
 impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
@@ -285,6 +290,7 @@ impl From<RawPtyConnectionOptions> for PtyConnectionOptions {
             terminal_shell_wsl_distro: raw.terminal_shell_wsl_distro,
             cwd: raw.cwd,
             serial: raw.serial,
+            sftp_sudo: raw.sftp_sudo,
         }
     }
 }
@@ -320,6 +326,7 @@ impl Default for PtyConnectionOptions {
             terminal_shell_wsl_distro: None,
             cwd: None,
             serial: None,
+            sftp_sudo: false,
         }
     }
 }
@@ -375,6 +382,9 @@ pub struct SessionPlan {
     pub proxy: Option<crate::proxy::ProxyEndpoint>,
     /// Serial: the port and how it is opened, checked, and how it shows.
     pub serial: Option<crate::serial::SerialPlan>,
+    /// SFTP: the file manager works on the host as root, through sudo. Its
+    /// connections then pool apart from those that work as the user.
+    pub sftp_sudo: bool,
 }
 
 impl SessionPlan {

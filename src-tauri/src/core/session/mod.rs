@@ -87,6 +87,7 @@ pub fn normalize_connection(
             proxy_choice: Default::default(),
             proxy: None,
             serial: None,
+            sftp_sudo: false,
         }),
         SessionKind::Ssh => normalize_ssh(
             connection,
@@ -149,6 +150,7 @@ fn normalize_serial(
         proxy_choice: Default::default(),
         proxy: None,
         serial: Some(crate::serial::SerialPlan::new(serial)),
+        sftp_sudo: false,
     })
 }
 
@@ -253,6 +255,7 @@ fn normalize_ssh(
         proxy_choice: connection.proxy,
         proxy: None,
         serial: None,
+        sftp_sudo: connection.sftp_sudo,
     })
 }
 

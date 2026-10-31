@@ -1,0 +1,56 @@
+# A throwaway SSH host for trying tTerm's sudo mode of the file manager, and
+# for the tests in src-tauri/src/sftp/internal/sudo/host_tests.rs. Every
+# account's password is its name followed by "-pass".
+#
+#   podman build -t tterm-sudo-host scripts/sudo-test-host
+#   podman run -d --name tterm-sudo-host -p 2222:22 tterm-sudo-host
+#
+# For sudo-rs instead of sudo 1.9:
+#   podman build --build-arg BASE=docker.io/library/ubuntu:26.04 \
+#     --build-arg SUDO_RS=1 -t tterm-sudo-rs-host scripts/sudo-test-host
+ARG BASE=docker.io/library/ubuntu:24.04
+FROM ${BASE}
+# 1 makes sudo-rs the sudo, as Ubuntu 25.10 and later do.
+ARG SUDO_RS=0
+
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      openssh-server sudo fish zsh \
+ && if [ "$SUDO_RS" = 1 ]; then \
+      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends sudo-rs \
+      && update-alternatives --set sudo /usr/lib/cargo/bin/sudo; \
+    fi \
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir -p /run/sshd
+
+# alice: sudo with her password, the common case.
+# bob:   sudo without a password (NOPASSWD), logs in with fish.
+# carol: may only run systemctl through sudo.
+# dave:  not in sudoers at all.
+# erin:  sudo with a password, but sudo insists on a tty (requiretty).
+RUN for user in alice bob carol dave erin; do \
+      useradd -m -s /bin/bash "$user" && echo "$user:$user-pass" | chpasswd; \
+    done \
+ && chsh -s /usr/bin/fish bob \
+ && usermod -aG sudo alice \
+ && echo 'bob ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/bob \
+ && echo 'carol ALL=(ALL) /usr/bin/systemctl' > /etc/sudoers.d/carol \
+ && if sudo --version | grep -q sudo-rs; then echo 'erin ALL=(ALL) ALL' > /etc/sudoers.d/erin; \
+    else printf 'Defaults:erin requiretty\nerin ALL=(ALL) ALL\n' > /etc/sudoers.d/erin; fi \
+ && chmod 0440 /etc/sudoers.d/*
+
+# Root-only files to edit and folders to upload into.
+RUN mkdir -p /etc/nginx /srv/protected \
+ && printf 'worker_processes auto;\n' > /etc/nginx/nginx.conf \
+ && chmod 0644 /etc/nginx/nginx.conf \
+ && printf 'secret\n' > /root/secret.txt && chmod 0600 /root/secret.txt \
+ && useradd -r -s /usr/sbin/nologin www-data 2>/dev/null || true \
+ && printf 'site\n' > /srv/protected/site.conf \
+ && chown www-data:www-data /srv/protected/site.conf && chmod 0640 /srv/protected/site.conf \
+ && chmod 0750 /srv/protected
+
+RUN sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config \
+ && ssh-keygen -A
+
+EXPOSE 22
+CMD ["/usr/sbin/sshd", "-D", "-e"]

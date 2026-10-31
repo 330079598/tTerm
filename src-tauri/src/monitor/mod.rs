@@ -112,6 +112,7 @@ mod tests {
             proxy_choice: Default::default(),
             proxy: None,
             serial: None,
+            sftp_sudo: false,
         }
     }
 

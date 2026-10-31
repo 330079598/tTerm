@@ -222,6 +222,7 @@ fn keys_ignore_secrets_in_the_id_but_not_in_the_hash() {
         proxy_choice: Default::default(),
         proxy: None,
         serial: None,
+        sftp_sudo: false,
     };
     let (a, b) = (
         SessionKey::for_plan(&plan("x")),

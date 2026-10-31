@@ -1,9 +1,11 @@
 //! Opens the channels an SFTP connection works over: its SFTP sessions and
 //! the command channels for the work the protocol cannot do itself. Every
 //! SFTP feature goes through one [`ChannelLauncher`], so that how a channel
-//! starts on the host is decided in one place for the whole connection.
+//! starts on the host is decided in one place for the whole connection: as
+//! the account, or as root through sudo (see [`crate::sftp::internal::sudo`]).
 
-use russh::client::{Handle, Handler};
+use russh::client::{Handle, Handler, Msg};
+use russh::Channel;
 use russh_sftp::client::rawsession::Limits;
 use russh_sftp::client::{RawSftpSession, SftpSession};
 use russh_sftp::extensions::LimitsExtension;
@@ -12,7 +14,8 @@ use std::time::Duration;
 
 use crate::sftp::internal::connection::map_sftp_error;
 use crate::sftp::internal::exec::RemoteScript;
-use crate::ssh::types::SshClientHandler;
+use crate::sftp::internal::sudo::handshake::open_elevated;
+use crate::sftp::internal::sudo::{command, SudoAuth};
 
 const SFTP_REQUEST_TIMEOUT_SECS: u64 = 120;
 /// Bound on opening an SSH channel and negotiating the SFTP subsystem on it.
@@ -26,22 +29,33 @@ const SFTP_REQUEST_TIMEOUT_SECS: u64 = 120;
 /// fresh transfer at 0% with no error, since `prepare_transfer` opens a new
 /// batch of channels for every upload/download call and waits for all of
 /// them before doing any I/O.
-const SFTP_CHANNEL_SETUP_TIMEOUT: Duration = Duration::from_secs(30);
+pub const SFTP_CHANNEL_SETUP_TIMEOUT: Duration = Duration::from_secs(30);
 
 const SETUP_TIMED_OUT: &str = "Timed out opening SFTP channel";
 
 /// Starts the channels of one pooled SFTP connection on its host.
 #[derive(Clone, Default)]
-pub struct ChannelLauncher;
+pub struct ChannelLauncher {
+    /// How sudo lets the account in, for a connection that works as root.
+    sudo: Option<Arc<SudoAuth>>,
+}
 
 impl ChannelLauncher {
+    /// A launcher whose every channel works as root, getting through sudo
+    /// the way `auth` says.
+    pub fn sudo(auth: SudoAuth) -> Self {
+        Self {
+            sudo: Some(Arc::new(auth)),
+        }
+    }
+
     /// Opens the connection's control session, the one listings, edits and
     /// the other single requests go over.
-    pub async fn open_sftp_session(
+    pub async fn open_sftp_session<H: Handler>(
         &self,
-        ssh: &Handle<SshClientHandler>,
+        ssh: &Handle<H>,
     ) -> Result<Arc<SftpSession>, String> {
-        tokio::time::timeout(SFTP_CHANNEL_SETUP_TIMEOUT, open_control_session(ssh))
+        tokio::time::timeout(SFTP_CHANNEL_SETUP_TIMEOUT, self.open_control_session(ssh))
             .await
             .map_err(|_| SETUP_TIMED_OUT.to_string())?
     }
@@ -49,57 +63,82 @@ impl ChannelLauncher {
     /// Opens one more SFTP channel on the connection and wraps it as a raw
     /// session for a transfer lane, negotiating `limits@openssh.com` when
     /// the server offers it.
-    pub async fn open_raw_session(
+    pub async fn open_raw_session<H: Handler>(
         &self,
-        ssh: &Handle<SshClientHandler>,
+        ssh: &Handle<H>,
     ) -> Result<(Arc<RawSftpSession>, Option<LimitsExtension>), String> {
-        tokio::time::timeout(SFTP_CHANNEL_SETUP_TIMEOUT, open_raw_session(ssh))
+        tokio::time::timeout(SFTP_CHANNEL_SETUP_TIMEOUT, self.open_raw_lane(ssh))
             .await
             .map_err(|_| SETUP_TIMED_OUT.to_string())?
     }
 
     /// Starts `script` on its own command channel, as
-    /// [`RemoteScript::start`] describes.
+    /// [`RemoteScript::start`] describes, under `sh` as root in sudo mode.
     pub async fn start_script<H: Handler>(
         &self,
         ssh: &Handle<H>,
         script: &str,
     ) -> Result<RemoteScript, String> {
-        RemoteScript::start(ssh, script).await
+        match &self.sudo {
+            None => RemoteScript::start(ssh, script).await,
+            Some(auth) => {
+                let channel = open_elevated(ssh, auth, &command::script_shell(auth)).await?;
+                RemoteScript::feed(channel, script.as_bytes()).await
+            }
+        }
+    }
+
+    /// A channel that speaks SFTP: the server's own subsystem, or in sudo
+    /// mode its `sftp-server` program run as root. `open_error` names the
+    /// channel in the message for a server that refuses to open it.
+    async fn sftp_channel<H: Handler>(
+        &self,
+        ssh: &Handle<H>,
+        open_error: &str,
+    ) -> Result<Channel<Msg>, String> {
+        if let Some(auth) = &self.sudo {
+            return open_elevated(ssh, auth, &command::sftp_server(auth)).await;
+        }
+        let channel = ssh
+            .channel_open_session()
+            .await
+            .map_err(|err| format!("{open_error}: {err}"))?;
+
+        channel
+            .request_subsystem(true, "sftp")
+            .await
+            .map_err(|err| format!("Failed to start SFTP subsystem: {err}"))?;
+        Ok(channel)
+    }
+
+    async fn open_control_session<H: Handler>(
+        &self,
+        ssh: &Handle<H>,
+    ) -> Result<Arc<SftpSession>, String> {
+        let channel = self.sftp_channel(ssh, "Failed to open SSH channel").await?;
+        let sftp = SftpSession::new(channel.into_stream())
+            .await
+            .map_err(map_sftp_error)?;
+        sftp.set_timeout(SFTP_REQUEST_TIMEOUT_SECS);
+        Ok(Arc::new(sftp))
+    }
+
+    async fn open_raw_lane<H: Handler>(
+        &self,
+        ssh: &Handle<H>,
+    ) -> Result<(Arc<RawSftpSession>, Option<LimitsExtension>), String> {
+        let channel = self
+            .sftp_channel(ssh, "Failed to open SFTP channel")
+            .await?;
+        open_raw_session(channel).await
     }
 }
 
-async fn open_control_session(ssh: &Handle<SshClientHandler>) -> Result<Arc<SftpSession>, String> {
-    let channel = ssh
-        .channel_open_session()
-        .await
-        .map_err(|err| format!("Failed to open SSH channel: {err}"))?;
-
-    channel
-        .request_subsystem(true, "sftp")
-        .await
-        .map_err(|err| format!("Failed to start SFTP subsystem: {err}"))?;
-
-    let sftp = SftpSession::new(channel.into_stream())
-        .await
-        .map_err(map_sftp_error)?;
-    sftp.set_timeout(SFTP_REQUEST_TIMEOUT_SECS);
-    Ok(Arc::new(sftp))
-}
-
+/// Wraps an SFTP channel as a raw session, negotiating `limits@openssh.com`
+/// when the server offers it.
 async fn open_raw_session(
-    ssh: &Handle<SshClientHandler>,
+    channel: Channel<Msg>,
 ) -> Result<(Arc<RawSftpSession>, Option<LimitsExtension>), String> {
-    let channel = ssh
-        .channel_open_session()
-        .await
-        .map_err(|err| format!("Failed to open SFTP channel: {err}"))?;
-
-    channel
-        .request_subsystem(true, "sftp")
-        .await
-        .map_err(|err| format!("Failed to start SFTP subsystem: {err}"))?;
-
     let mut session = RawSftpSession::new(channel.into_stream());
     let version = session
         .init()
