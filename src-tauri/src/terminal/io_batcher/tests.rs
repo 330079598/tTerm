@@ -302,18 +302,20 @@ fn rapid_messages_coalesce_into_fewer_chunks() {
 }
 
 #[test]
-fn output_after_a_quiet_spell_skips_the_batching_window() {
+fn an_echo_after_a_quiet_spell_skips_the_batching_window() {
     let (delivered_tx, delivered_rx) = std::sync::mpsc::channel::<Instant>();
     let delivered_tx = Mutex::new(delivered_tx);
     let channel = Channel::new(move |_body: InvokeResponseBody| {
         let _ = delivered_tx.lock().unwrap().send(Instant::now());
         Ok(())
     });
-    let mut sender = TerminalOutputSender::spawn("echo", TerminalOutput::new(channel));
-    // Each echo follows a pause longer than the window, like keystrokes, so
+    let output = TerminalOutput::new(channel);
+    let mut sender = TerminalOutputSender::spawn("echo", output.clone());
+    // Each echo follows a keystroke after a pause longer than the window, so
     // each must reach the webview well before a window could have elapsed.
     for _ in 0..3 {
         std::thread::sleep(BATCH_INTERVAL * 2);
+        output.note_input();
         let sent_at = Instant::now();
         sender.send(b"x".to_vec());
         let delivered_at = delivered_rx
@@ -326,6 +328,42 @@ fn output_after_a_quiet_spell_skips_the_batching_window() {
         );
     }
     sender.finish();
+}
+
+#[test]
+fn output_nobody_typed_for_waits_a_window_after_a_quiet_spell() {
+    let recorder = ChunkRecorder {
+        chunks: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
+    };
+    let mut sender = TerminalOutputSender::spawn("spinner", recorder.channel());
+    // A spinner frame written in pieces after a pause: back to column 0,
+    // erase the line, draw. Sent alone, the first piece would show the
+    // cursor at column 0 for a frame.
+    std::thread::sleep(BATCH_INTERVAL * 2);
+    sender.send(b"\x1b[1G".to_vec());
+    sender.send(b"\x1b[0K".to_vec());
+    sender.send("\u{2839} Installing".as_bytes().to_vec());
+    std::thread::sleep(BATCH_INTERVAL * 4);
+
+    let chunks = recorder.chunks.lock().unwrap().clone();
+    sender.finish();
+    assert_eq!(
+        chunks,
+        vec!["\x1b[1G\x1b[0K\u{2839} Installing".as_bytes().to_vec()]
+    );
+}
+
+#[test]
+fn input_stops_counting_once_its_answer_window_passes() {
+    let recorder = ChunkRecorder {
+        chunks: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
+    };
+    let output = recorder.channel();
+    assert!(!output.answers_input());
+    output.note_input();
+    assert!(output.answers_input());
+    std::thread::sleep(INPUT_ANSWER_WINDOW + BATCH_INTERVAL);
+    assert!(!output.answers_input());
 }
 
 #[test]

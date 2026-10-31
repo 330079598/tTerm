@@ -347,6 +347,7 @@ pub fn write_pty(
             .map_err(|e| format!("Failed to write to the serial port: {}", e)),
     };
     if result.is_ok() {
+        session.output.note_input();
         crate::session_log::record_input(&app, &tab_id, &input);
     }
     result

@@ -16,9 +16,17 @@ const FLUSH_THRESHOLD_BYTES: usize = 128 * 1024;
 /// Hard cap for a single IPC message; larger batches are split across sends.
 const MAX_CHUNK_BYTES: usize = 512 * 1024;
 /// Batching window while data keeps arriving (matches a 60-120 FPS cadence).
-/// Output that follows a quiet spell of at least this long is sent at once
-/// instead, so the echo of a keystroke never waits out a window.
+/// Output that follows a quiet spell of at least this long and answers input
+/// is sent at once instead, so the echo of a keystroke never waits out a
+/// window.
 pub const BATCH_INTERVAL: Duration = Duration::from_millis(8);
+/// Output this soon after input is taken as its answer: an echo, a redrawn
+/// prompt. Output that comes on its own, such as a spinner's frame, waits one
+/// window after a quiet spell too, because programs often write a frame in
+/// pieces (back to column 0, erase, draw; or draw, then move the cursor back
+/// to an input box) and sending the first piece alone shows the cursor where
+/// the frame is still being drawn.
+pub const INPUT_ANSWER_WINDOW: Duration = Duration::from_millis(150);
 /// Bytes sent to the webview but not yet acknowledged as parsed by xterm.js
 /// before the sender stops. Large enough to keep the IPC pipe busy, small
 /// enough that Ctrl+C reaches the screen within a frame or two.
@@ -115,6 +123,7 @@ impl OutputFlow {
 pub struct TerminalOutput {
     channel: Arc<Mutex<Channel<InvokeResponseBody>>>,
     flow: Arc<OutputFlow>,
+    last_input: Arc<Mutex<Option<Instant>>>,
 }
 
 impl TerminalOutput {
@@ -126,7 +135,25 @@ impl TerminalOutput {
         Self {
             channel: Arc::new(Mutex::new(channel)),
             flow,
+            last_input: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Records that input went to the session, so the output answering it
+    /// goes out without waiting for a batching window.
+    pub fn note_input(&self) {
+        *self
+            .last_input
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = Some(Instant::now());
+    }
+
+    /// Whether input went to the session within [`INPUT_ANSWER_WINDOW`].
+    fn answers_input(&self) -> bool {
+        self.last_input
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .is_some_and(|at| at.elapsed() < INPUT_ANSWER_WINDOW)
     }
 
     /// Sends from now on to `other`'s channel, the one a reloaded page
@@ -280,8 +307,8 @@ fn sender_loop(rx: &Receiver<Vec<u8>>, channel: &TerminalOutput) {
     // below the byte threshold) until megabytes accumulated.
     let mut flush_deadline: Option<Instant> = None;
     // When the last batch went out. Output arriving a full window after it
-    // is interactive (an echo, a prompt) and goes out at once; output arriving
-    // sooner is part of a burst and waits for the window to coalesce.
+    // goes out at once if it answers input (an echo, a prompt); output
+    // arriving sooner is part of a burst and waits for the window to coalesce.
     let mut last_flush: Option<Instant> = None;
     let mut alive = true;
     while alive {
@@ -317,12 +344,15 @@ fn sender_loop(rx: &Receiver<Vec<u8>>, channel: &TerminalOutput) {
                 let window_end = last_flush
                     .map(|at| at + BATCH_INTERVAL)
                     .filter(|&end| end > Instant::now());
-                if window_end.is_none() {
+                if window_end.is_none() && channel.answers_input() {
                     flush_all(&mut pending, channel);
                     last_flush = Some(Instant::now());
                     continue;
                 }
-                flush_deadline = window_end;
+                // Output nobody typed for waits a window even after a quiet
+                // spell, so a frame written in pieces goes out whole.
+                flush_deadline =
+                    Some(window_end.unwrap_or_else(|| Instant::now() + BATCH_INTERVAL));
             }
             if pending.len() >= FLUSH_THRESHOLD_BYTES {
                 flush_all(&mut pending, channel);

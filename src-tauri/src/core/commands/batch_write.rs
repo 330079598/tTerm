@@ -1,6 +1,7 @@
 //! Writing the same input to several sessions at once.
 
 use crate::core::state::{ActiveSession, PtySession};
+use crate::terminal::io_batcher::TerminalOutput;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -54,6 +55,7 @@ pub(super) enum BatchTarget {
     Ready {
         tab_id: String,
         active: Arc<TokioMutex<Option<ActiveSession>>>,
+        output: TerminalOutput,
     },
     Result(PtyWriteResult),
 }
@@ -76,12 +78,18 @@ pub(super) fn snapshot_batch_targets(
             Some(session) => BatchTarget::Ready {
                 tab_id: target.tab_id,
                 active: session.active.clone(),
+                output: session.output.clone(),
             },
         })
         .collect()
 }
 
-fn write_active_session(tab_id: String, active: &mut ActiveSession, data: &[u8]) -> PtyWriteResult {
+fn write_active_session(
+    tab_id: String,
+    active: &mut ActiveSession,
+    output: &TerminalOutput,
+    data: &[u8],
+) -> PtyWriteResult {
     let write_result = match active {
         ActiveSession::Local(local) => local.input.send(data.to_vec()),
         ActiveSession::Ssh(ssh) => ssh.input.send(ssh.encoding.encode_input(data).into_owned()),
@@ -89,21 +97,28 @@ fn write_active_session(tab_id: String, active: &mut ActiveSession, data: &[u8])
     };
 
     match write_result {
-        Ok(()) => PtyWriteResult::new(tab_id, PtyWriteStatus::Written),
+        Ok(()) => {
+            output.note_input();
+            PtyWriteResult::new(tab_id, PtyWriteStatus::Written)
+        }
         Err(error) => PtyWriteResult::failed(tab_id, error.to_string()),
     }
 }
 
 fn write_batch_target(target: BatchTarget, data: &[u8]) -> PtyWriteResult {
-    let (tab_id, active) = match target {
+    let (tab_id, active, output) = match target {
         BatchTarget::Result(result) => return result,
-        BatchTarget::Ready { tab_id, active } => (tab_id, active),
+        BatchTarget::Ready {
+            tab_id,
+            active,
+            output,
+        } => (tab_id, active, output),
     };
     let mut active_guard = active.blocking_lock();
     let Some(active) = active_guard.as_mut() else {
         return PtyWriteResult::new(tab_id, PtyWriteStatus::Reconnecting);
     };
-    write_active_session(tab_id, active, data)
+    write_active_session(tab_id, active, &output, data)
 }
 
 fn write_targets(targets: Vec<BatchTarget>, data: &[u8]) -> Vec<PtyWriteResult> {
@@ -121,9 +136,13 @@ pub(super) fn write_guarded_batch(
     let Some(guard_target) = guard_target else {
         return write_targets(targets, data);
     };
-    let (tab_id, active) = match guard_target {
+    let (tab_id, active, output) = match guard_target {
         BatchTarget::Result(result) => return vec![result],
-        BatchTarget::Ready { tab_id, active } => (tab_id, active),
+        BatchTarget::Ready {
+            tab_id,
+            active,
+            output,
+        } => (tab_id, active, output),
     };
 
     // Keep the source session active until every target write has completed.
@@ -131,7 +150,7 @@ pub(super) fn write_guarded_batch(
     let Some(active) = active_guard.as_mut() else {
         return vec![PtyWriteResult::new(tab_id, PtyWriteStatus::Reconnecting)];
     };
-    let guard_result = write_active_session(tab_id, active, data);
+    let guard_result = write_active_session(tab_id, active, &output, data);
     if guard_result.status != PtyWriteStatus::Written {
         return vec![guard_result];
     }

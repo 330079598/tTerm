@@ -2,6 +2,10 @@ use super::*;
 use crate::core::state::AtomicTerminalSize;
 use tokio::sync::{mpsc, watch};
 
+fn output() -> TerminalOutput {
+    TerminalOutput::new(tauri::ipc::Channel::new(|_| Ok(())))
+}
+
 fn session(session_nonce: u32, runtime: &tokio::runtime::Runtime) -> PtySession {
     let (stop_tx, _) = watch::channel(false);
     PtySession {
@@ -11,9 +15,7 @@ fn session(session_nonce: u32, runtime: &tokio::runtime::Runtime) -> PtySession 
         stop_tx,
         supervisor: runtime.spawn(async {}),
         size: Arc::new(AtomicTerminalSize::new(24, 80)),
-        output: crate::terminal::io_batcher::TerminalOutput::new(tauri::ipc::Channel::new(|_| {
-            Ok(())
-        })),
+        output: output(),
         serial_view: None,
     }
 }
@@ -42,6 +44,7 @@ fn writable_ssh_target(runtime: &tokio::runtime::Runtime) -> WritableTarget {
         BatchTarget::Ready {
             tab_id: "target".to_string(),
             active: active.clone(),
+            output: output(),
         },
         active,
         input_rx,
@@ -125,6 +128,7 @@ fn disconnected_guard_prevents_target_writes() {
     let guard = BatchTarget::Ready {
         tab_id: "source".to_string(),
         active: Arc::new(TokioMutex::new(None)),
+        output: output(),
     };
     let (target, target_active, mut input_rx) = writable_ssh_target(&runtime);
 
