@@ -9,8 +9,9 @@
 // the sticker filter comes out wrong in resvg. The script looks for one in
 // the usual install locations; set TTERM_ICON_BROWSER to a browser binary to
 // pick another. `tauri icon` then makes the bundle icons from each PNG. The
-// small drawing replaces the files and .ico entries of 32 px and below,
-// where the full drawing turns into a smudge.
+// small drawing replaces the files and .ico entries of 48 px and below,
+// where the full drawing turns into a smudge. Windows scales the 48 px entry
+// down for the taskbar at 125% and 150% display scaling, so it counts as small.
 
 import { execFileSync, execSync } from "node:child_process"
 import {
@@ -30,8 +31,8 @@ import { mergeIco } from "./ico.mjs"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const ICONS_DIR = join(ROOT, "src-tauri", "icons")
-const SMALL_FILES = ["32x32.png", "Square30x30Logo.png"]
-const MAX_SMALL_ICO = 32
+const SMALL_FILES = ["32x32.png", "Square30x30Logo.png", "Square44x44Logo.png"]
+const MAX_SMALL_ICO = 48
 
 const BROWSERS = {
   win32: [

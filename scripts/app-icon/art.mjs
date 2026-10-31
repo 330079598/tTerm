@@ -1,7 +1,7 @@
 // Draws tTerm's app icon, a hermit crab whose shell is a terminal window,
-// as SVG. Both drawings sit on a 1024 x 1024 beach tile and are wrapped in a
-// sticker filter that roughens the ink lines and adds the white border and
-// drop shadow. The filter needs a Chromium-class renderer: resvg, which
+// as SVG. Both drawings sit on a 1024 x 1024 tile. The full one is wrapped
+// in a sticker filter that roughens the ink lines and adds the white border
+// and drop shadow. The filter needs a Chromium-class renderer: resvg, which
 // `tauri icon` uses for SVG input, smears the displacement into blobs.
 
 const INK = "#1f1a33"
@@ -61,7 +61,7 @@ function eye(cx, cy) {
     <circle cx="${cx + 5}" cy="${cy}" r="7" fill="#ffffff" stroke="none"/>`
 }
 
-/** The full drawing, used from 48 px up. */
+/** The full drawing, used above 48 px. */
 export function fullIcon() {
   const shell = `
     <g transform="rotate(-8 615 450)">
@@ -91,29 +91,41 @@ export function fullIcon() {
 }
 
 /**
- * The drawing for 16 to 32 px. Legs, blush, mouth and window buttons vanish
- * at that size, so it keeps only a bigger shell, the eyes and one claw, with
- * heavier lines.
+ * The drawing for 48 px and below, which is what the Windows taskbar, title
+ * bar and Explorer show. There the full drawing's subject covers half the
+ * tile and its sticker border and rough lines blur into grey, so this one
+ * drops the sun, sand, sticker filter, legs and face, keeps the lines
+ * straight so they land on pixels, and lets the window and crab fill the
+ * tile, with the eyes over the dark screen where they stand out most.
  */
 export function smallIcon() {
-  const art = `
-    <g transform="rotate(-8 600 440)" stroke-width="28">
-      <rect x="360" y="200" width="500" height="460" rx="64" fill="${CREAM}"/>
-      <path d="M424 200 H796 A64 64 0 0 1 860 264 V320 H360 V264 A64 64 0 0 1 424 200 Z" fill="${AMBER}" stroke="none"/>
-      <rect x="360" y="200" width="500" height="460" rx="64" fill="none"/>
-      <path d="M360 320 H860"/>
-      <rect x="410" y="370" width="400" height="240" rx="28" fill="${SCREEN}" stroke-width="16"/>${prompt(500, 418, 70, 38)}
-    </g>
-    <path d="M335 640 Q320 560 312 500 M450 635 Q465 560 478 500" fill="none" stroke-width="30"/>
-    <ellipse cx="390" cy="720" rx="210" ry="130" fill="${CORAL}" stroke-width="26"/>
-    <circle cx="310" cy="470" r="64" fill="#ffffff" stroke-width="24"/>
-    <circle cx="326" cy="482" r="28" fill="${INK}" stroke="none"/>
-    <circle cx="478" cy="470" r="64" fill="#ffffff" stroke-width="24"/>
-    <circle cx="494" cy="482" r="28" fill="${INK}" stroke="none"/>
-    <path d="M250 715 C256 615 135 590 80 655 L160 700 L76 738 C112 830 246 818 250 715 Z" fill="${CORAL}" stroke-width="26"/>`
-  // The scale goes inside the filtered group: on the group itself it would
-  // also shrink the border, shadow and roughness, which are in user units.
-  return sticker(`
-    <g transform="translate(512 512) scale(0.88) translate(-470 -520)">${art}
-    </g>`)
+  const window = `
+    <rect x="250" y="50" width="730" height="580" rx="96" fill="${SCREEN}" stroke="none"/>
+    <path d="M346 50 H884 A96 96 0 0 1 980 146 V210 H250 V146 A96 96 0 0 1 346 50 Z" fill="${AMBER}" stroke="none"/>
+    <rect x="250" y="50" width="730" height="580" rx="96" fill="none"/>
+    <path d="M250 210 H980"/>
+    <path d="M650 300 L760 380 L650 460 M800 470 H900" fill="none" stroke="${AMBER}" stroke-width="56"/>`
+  // The far claw comes first so the body covers its arm.
+  const crab = `
+    <path d="M880 840 H800" stroke-width="50"/>
+    <path d="M880 840 L960 790 A92 92 0 1 0 966 880 Z" fill="${CORAL}"/>
+    <path d="M330 640 L320 470 M540 640 L550 470" stroke-width="48"/>
+    <ellipse cx="480" cy="790" rx="370" ry="190" fill="${CORAL}"/>
+    <circle cx="320" cy="420" r="96" fill="#ffffff"/>
+    <circle cx="345" cy="440" r="44" fill="${INK}" stroke="none"/>
+    <circle cx="550" cy="420" r="96" fill="#ffffff"/>
+    <circle cx="575" cy="440" r="44" fill="${INK}" stroke="none"/>
+    <path d="M150 740 L270 790" stroke-width="60"/>
+    <path d="M150 740 L52 594 A140 140 0 1 0 192 568 Z" fill="${CORAL}"/>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd88a"/><stop offset="1" stop-color="#f0905a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="200" fill="url(#bg)"/>
+  <g transform="translate(512 512) scale(0.86) translate(-505 -520)" stroke="${INK}" stroke-width="44" stroke-linecap="round" stroke-linejoin="round">${window}${crab}
+  </g>
+</svg>
+`
 }
