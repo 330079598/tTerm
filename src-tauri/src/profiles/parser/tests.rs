@@ -13,6 +13,7 @@ pub(super) fn import(config: &str) -> (Vec<SshConfigImportHost>, Vec<String>) {
 pub(super) fn import_as(config: &str, local_user: &str) -> (Vec<SshConfigImportHost>, Vec<String>) {
     let (mut config, warnings) = parse_ssh_config(config);
     config.local_user = local_user.to_string();
+    config.local_host = "local-host".to_string();
     (entries(&config), warnings)
 }
 
@@ -472,7 +473,7 @@ Host bastion
   HostName bastion.example.com
 
 Host *
-  IdentityFile ~/.ssh/%C
+  IdentityFile ~/.ssh/%Z
   IdentityFile ~/.ssh/%h_%r
 "#;
     let (hosts, _) = import(config);
@@ -492,7 +493,7 @@ Host *
     assert!(db
         .warnings
         .iter()
-        .any(|warning| warning.contains("cannot fill in %C")));
+        .any(|warning| warning.contains("cannot fill in %Z")));
     assert_eq!(
         db.jump_hosts[0].private_key_path.as_deref(),
         Some(key("bastion.example.com_local-user").as_str()),

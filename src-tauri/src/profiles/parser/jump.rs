@@ -31,6 +31,16 @@ struct JumpSpec {
     port: Option<u16>,
 }
 
+/// The host of the last jump host in a `ProxyJump` value as it is written,
+/// which `ssh` fills in for `%j`, or empty without one.
+pub(super) fn last_jump_host(proxy_jump: Option<&str>) -> String {
+    proxy_jump
+        .filter(|value| !value.trim().eq_ignore_ascii_case("none"))
+        .and_then(|value| value.split(',').map(str::trim).rfind(|hop| !hop.is_empty()))
+        .map(|hop| parse_jump_spec(hop).host)
+        .unwrap_or_default()
+}
+
 fn parse_jump_spec(raw_jump: &str) -> JumpSpec {
     let (user, host_part) = raw_jump
         .rsplit_once('@')
@@ -132,12 +142,15 @@ impl Chain<'_> {
             .or_else(|| first_option(options, "port").and_then(|port| port.parse().ok()))
             .unwrap_or(22);
         let user = spec.user.or_else(|| first_option(options, "user"));
+        let jump_host = last_jump_host(first_option(options, "proxyjump").as_deref());
         let tokens = PathTokens {
             alias: &spec.host,
             hostname: &host,
             port,
             user: user.as_deref().unwrap_or(&self.config.local_user),
             local_user: &self.config.local_user,
+            local_host: &self.config.local_host,
+            jump_host: &jump_host,
         };
         let (private_key_path, certificate_path) =
             match key_file_path(options, "identityfile", &tokens, self.warnings) {

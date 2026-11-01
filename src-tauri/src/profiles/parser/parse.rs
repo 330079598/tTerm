@@ -3,6 +3,7 @@
 
 use super::include::IncludeReader;
 use super::matching::{local_user_name, parse_match_criteria, MatchCriterion};
+use super::tokens::local_host_name;
 use super::words::{split_keyword, split_ssh_words, strip_inline_comment};
 use std::mem;
 
@@ -112,6 +113,8 @@ pub(super) struct SshConfig {
     pub wants_final_pass: bool,
     /// The user running tTerm, for `Match localuser`.
     pub local_user: String,
+    /// The name of this machine, for the `%l` token.
+    pub local_host: String,
 }
 
 /// Splits SSH config text into its blocks in file order, with warnings about
@@ -138,6 +141,7 @@ pub(super) fn parse_ssh_config_with(
         blocks: parser.blocks,
         wants_final_pass: parser.wants_final_pass,
         local_user: local_user_name(),
+        local_host: local_host_name(),
     };
     (config, parser.warnings)
 }

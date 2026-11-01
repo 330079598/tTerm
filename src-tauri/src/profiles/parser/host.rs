@@ -1,6 +1,6 @@
 //! Builds the import preview entry of one `Host` block.
 
-use super::jump::{parse_proxy_jump, JumpTarget};
+use super::jump::{last_jump_host, parse_proxy_jump, JumpTarget};
 use super::parse::SshConfig;
 use super::pattern::is_wildcard_host;
 use super::proxy_command::{classify, ProxyCommandUse};
@@ -123,6 +123,7 @@ pub(super) fn build_import_host(
         .or_else(|| (!is_wildcard_host(&raw.pattern)).then(|| raw.pattern.clone()));
     let username = first_option(&raw.options, "user");
     let port = parse_u16_option(first_option(&raw.options, "port")).unwrap_or(22);
+    let jump_host = last_jump_host(first_option(&raw.options, "proxyjump").as_deref());
     let tokens = PathTokens {
         alias: &raw.pattern,
         hostname: host.as_deref().unwrap_or(&raw.pattern),
@@ -130,6 +131,8 @@ pub(super) fn build_import_host(
         // `ssh` signs in as the local user when the config names no user.
         user: username.as_deref().unwrap_or(&config.local_user),
         local_user: &config.local_user,
+        local_host: &config.local_host,
+        jump_host: &jump_host,
     };
     let private_key_path = key_file_path(&raw.options, "identityfile", &tokens, &mut warnings);
     let auth_method = if private_key_path.is_some() {
