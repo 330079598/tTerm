@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
-import { invoke } from "@tauri-apps/api/core"
 import { X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -9,6 +8,7 @@ import {
   type LauncherSection,
   type LauncherItem,
 } from "@/components/NewTabLauncher/launcherItems"
+import { useLauncherData } from "@/components/NewTabLauncher/useLauncherData"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { useConfig } from "@/contexts/ConfigContext"
@@ -21,9 +21,8 @@ import {
   type RecentQuickConnection,
   type SshConfigHost,
 } from "@/lib/quickConnect"
-import { type TerminalShellProfile } from "@/lib/terminalShells"
 import { cn } from "@/lib/utils"
-import type { SavedProfile, Tab } from "@/types/tab"
+import type { Tab } from "@/types/tab"
 
 interface NewTabLauncherProps {
   open: boolean
@@ -62,42 +61,10 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const [input, setInput] = useState("")
   const [selected, setSelected] = useState(0)
-  const [profiles, setProfiles] = useState<SavedProfile[]>([])
-  const [configHosts, setConfigHosts] = useState<SshConfigHost[]>([])
-  const [shells, setShells] = useState<TerminalShellProfile[]>([])
+  const { profiles, configHosts, shells } = useLauncherData(open)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const pendingCaretRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    if (!open) return
-    let cancelled = false
-    invoke<SavedProfile[]>("list_profiles")
-      .then((loaded) => {
-        if (!cancelled) {
-          setProfiles(
-            loaded.filter(
-              (profile) => profile.connection_type === "ssh" || profile.connection_type === "serial"
-            )
-          )
-        }
-      })
-      .catch(() => {})
-    // No ~/.ssh/config is the common case, not an error.
-    invoke<{ hosts: SshConfigHost[] }>("preview_ssh_config_import", { sourcePath: null })
-      .then((preview) => {
-        if (!cancelled) setConfigHosts(preview.hosts.filter((host) => !host.skipped))
-      })
-      .catch(() => {})
-    invoke<TerminalShellProfile[]>("list_available_terminal_shells")
-      .then((detected) => {
-        if (!cancelled) setShells(detected)
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [open])
 
   const items = useMemo(
     () =>
