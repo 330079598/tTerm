@@ -1,11 +1,12 @@
 //! OpenSSH wildcard patterns, where `*` stands for any run of characters and
-//! `?` for exactly one, as `Include` paths and `Host` lines use them.
+//! `?` for exactly one, as `Include` paths, `Host` lines and `known_hosts`
+//! entries use them.
 
 pub(super) fn has_glob_pattern(value: &str) -> bool {
     value.contains('*') || value.contains('?')
 }
 
-pub(super) fn wildcard_matches(pattern: &str, value: &str) -> bool {
+pub(crate) fn wildcard_matches(pattern: &str, value: &str) -> bool {
     fn matches(pattern: &[char], value: &[char]) -> bool {
         if pattern.is_empty() {
             return value.is_empty();

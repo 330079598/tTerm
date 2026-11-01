@@ -7,6 +7,7 @@ use crate::proxy::command::CommandTarget;
 use crate::proxy::connect::{open_stream, ProxyStream};
 use crate::proxy::{ProxyEndpoint, ProxyKind};
 use crate::ssh::auth::{authenticate, AuthMethod, AuthPrompter, AuthTarget};
+use crate::ssh::openssh_known_hosts::request_host_certificates;
 use crate::ssh::types::{
     emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode, SshClientHandler,
     SshConnectError, SshConnectionProgressPayload,
@@ -259,10 +260,12 @@ pub async fn open_target_ssh_session_with_forwarding(
         ..
     } = target;
 
-    let target_config = Arc::new(compatibility_client_config(
+    let mut target_config = compatibility_client_config(
         target.keepalive_interval_secs as u64,
         target.keepalive_count_max as usize,
-    ));
+    );
+    request_host_certificates(&mut target_config, target_host, target_port);
+    let target_config = Arc::new(target_config);
 
     let handler = SshClientHandler {
         app: app.clone(),

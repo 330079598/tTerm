@@ -54,6 +54,10 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 crc32fast = "1"
 flate2 = "1"
 sha2 = "0.11"
+# Already linked through ssh-key; named here to match the hashed host names
+# of OpenSSH known_hosts files, which are an HMAC-SHA1 of the name.
+hmac = "0.13"
+sha1 = "0.11"
 zip = { version = "8", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }

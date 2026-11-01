@@ -12,7 +12,7 @@ mod jump;
 mod matching;
 mod parse;
 pub(crate) mod paths;
-mod pattern;
+pub(crate) mod pattern;
 mod proxy_command;
 mod resolve;
 mod tokens;

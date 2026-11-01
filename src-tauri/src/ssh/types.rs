@@ -1,3 +1,5 @@
+use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
+use crate::ssh::openssh_known_hosts::{check_presented_key, listed_record};
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -363,19 +365,20 @@ impl russh::client::Handler for SshClientHandler {
         use russh::keys::ssh_key::HashAlg;
         use tokio::sync::oneshot;
 
-        // Host certificate algorithms are never advertised, so a compliant
-        // server always presents a bare key; a certificate has no trust anchor.
-        let russh::keys::PublicKeyOrCertificate::PublicKey {
-            key: server_public_key,
-            ..
-        } = server_public_key
-        else {
-            self.emit_status(
-                "31",
-                "SSH host presented a host certificate, which is not supported",
-            );
-            return Ok(false);
-        };
+        // What `ssh` trusts or refuses decides first; a host certificate is
+        // only asked for when `known_hosts` trusts an authority for the host.
+        let (server_public_key, listed_fingerprint) =
+            match check_presented_key(&self.host, self.port, server_public_key) {
+                KnownHostVerdict::Trusted => return Ok(true),
+                KnownHostVerdict::Rejected(reason) => {
+                    self.emit_status("31", &reason);
+                    return Ok(false);
+                }
+                KnownHostVerdict::Undecided {
+                    key,
+                    listed_fingerprint,
+                } => (key, listed_fingerprint),
+            };
 
         let algorithm = server_public_key.algorithm().to_string();
         let fingerprint = server_public_key.fingerprint(HashAlg::Sha256).to_string();
@@ -406,6 +409,10 @@ impl russh::client::Handler for SshClientHandler {
                 return Ok(false);
             }
         };
+        let known = known.or_else(|| {
+            listed_fingerprint
+                .map(|listed| listed_record(&self.host, self.port, &algorithm, listed))
+        });
 
         match resolve_host_key_check(
             self.host_key_verification_mode,

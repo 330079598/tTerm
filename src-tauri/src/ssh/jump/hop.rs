@@ -8,6 +8,7 @@ use crate::core::session::types::JumpHostPlan;
 use crate::proxy::command::CommandTarget;
 use crate::proxy::ProxyEndpoint;
 use crate::ssh::auth::{authenticate, AuthPrompter, AuthTarget};
+use crate::ssh::openssh_known_hosts::request_host_certificates;
 use crate::ssh::types::{emit_connection_progress, SshConnectError, SshConnectionProgressPayload};
 use russh::{client, Channel};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -113,7 +114,9 @@ pub(super) async fn connect_jump_direct(
     let jump_handler = build_jump_handler(ctx, jump_plan, hop_index, total_hops);
     let host_key_rejected = jump_handler.user_rejected_host_key.clone();
     let failure_reason = jump_handler.failure_reason.clone();
-    let jump_config = Arc::new(compatibility_client_config(15, 3));
+    let mut jump_config = compatibility_client_config(15, 3);
+    request_host_certificates(&mut jump_config, &jump_plan.host, jump_plan.port);
+    let jump_config = Arc::new(jump_config);
 
     jump_handler.emit_status(
         "33",
@@ -224,7 +227,9 @@ where
     let jump_handler = build_jump_handler(ctx, jump_plan, hop_index, total_hops);
     let host_key_rejected = jump_handler.user_rejected_host_key.clone();
     let failure_reason = jump_handler.failure_reason.clone();
-    let jump_config = Arc::new(compatibility_client_config(15, 3));
+    let mut jump_config = compatibility_client_config(15, 3);
+    request_host_certificates(&mut jump_config, &jump_plan.host, jump_plan.port);
+    let jump_config = Arc::new(jump_config);
 
     jump_handler.emit_status(
         "33",

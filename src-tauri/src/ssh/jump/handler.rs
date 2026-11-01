@@ -1,4 +1,6 @@
 use crate::core::state::HostPromptMap;
+use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
+use crate::ssh::openssh_known_hosts::{check_presented_key, listed_record};
 use crate::ssh::store::{
     load_known_host, now_unix_ms, save_known_host_entry, KnownHostRecord, SshHostKeyPromptPayload,
     JUMP_HOST_PROFILE_PREFIX,
@@ -38,18 +40,21 @@ impl client::Handler for JumpHostHandler {
         &mut self,
         server_public_key: &russh::keys::PublicKeyOrCertificate,
     ) -> Result<bool, Self::Error> {
-        // Host certificate algorithms are never advertised, so a compliant
-        // server always presents a bare key; a certificate has no trust anchor.
-        let russh::keys::PublicKeyOrCertificate::PublicKey {
-            key: server_public_key,
-            ..
-        } = server_public_key
-        else {
-            let reason = "Jump host presented an SSH host certificate, which is not supported";
-            self.set_failure_reason(reason.to_string());
-            self.emit_status("31", reason);
-            return Ok(false);
-        };
+        // What `ssh` trusts or refuses decides first; a host certificate is
+        // only asked for when `known_hosts` trusts an authority for the host.
+        let (server_public_key, listed_fingerprint) =
+            match check_presented_key(&self.host, self.port, server_public_key) {
+                KnownHostVerdict::Trusted => return Ok(true),
+                KnownHostVerdict::Rejected(reason) => {
+                    self.set_failure_reason(reason.clone());
+                    self.emit_status("31", &reason);
+                    return Ok(false);
+                }
+                KnownHostVerdict::Undecided {
+                    key,
+                    listed_fingerprint,
+                } => (key, listed_fingerprint),
+            };
         let algorithm = server_public_key.algorithm().to_string();
         let fingerprint = server_public_key.fingerprint(HashAlg::Sha256).to_string();
 
@@ -79,6 +84,10 @@ impl client::Handler for JumpHostHandler {
                 return Err(russh::Error::Disconnect);
             }
         };
+        let known = known.or_else(|| {
+            listed_fingerprint
+                .map(|listed| listed_record(&self.host, self.port, &algorithm, listed))
+        });
 
         if let Some(record) = &known {
             if record.host == self.host
