@@ -59,11 +59,12 @@ fn parse_jump_spec(raw_jump: &str) -> JumpSpec {
 }
 
 /// Whether some jump host signs in with the target's key or with a password,
-/// which the import warns about once.
+/// or as the local user, which the import warns about once each.
 #[derive(Default)]
 struct BorrowedAuth {
     target_key: bool,
     password: bool,
+    local_user: bool,
 }
 
 struct Chain<'a> {
@@ -157,10 +158,15 @@ impl Chain<'_> {
                 }
             };
 
+        let username = user.unwrap_or_else(|| {
+            self.borrowed.local_user = true;
+            default_jump_user(self.config).to_string()
+        });
+
         SavedJumpHost {
             host,
             port,
-            username: user.unwrap_or_else(|| "root".to_string()),
+            username,
             auth_method: if private_key_path.is_some() {
                 "key"
             } else {
@@ -173,6 +179,16 @@ impl Chain<'_> {
             password: None,
             profile_id: None,
         }
+    }
+}
+
+/// The user for a jump host with no `User`: the local user, as `ssh` signs in
+/// with, or `root` when the local user name cannot be found.
+fn default_jump_user(config: &SshConfig) -> &str {
+    if config.local_user.is_empty() {
+        "root"
+    } else {
+        &config.local_user
     }
 }
 
@@ -200,6 +216,12 @@ pub(super) fn parse_proxy_jump(
         warnings.push(
             "ProxyJump entries without an IdentityFile of their own were imported with the target host private key; verify each jump host authentication setting.".to_string(),
         );
+    }
+    if borrowed.local_user {
+        warnings.push(format!(
+            "ProxyJump entries without a User were imported with the user name '{}', the local user ssh signs in as; verify each jump host username.",
+            default_jump_user(config)
+        ));
     }
     if borrowed.password {
         warnings.push(

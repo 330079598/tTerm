@@ -126,3 +126,28 @@ Host *
         .iter()
         .any(|warning| warning.contains("leads back to a host already on the way")));
 }
+
+#[test]
+fn a_jump_host_without_a_user_signs_in_as_the_local_user() {
+    let config = r#"
+Host app
+  User deploy
+  ProxyJump bastion
+
+Host bastion
+  HostName bastion.example.com
+"#;
+    let (hosts, _) = super::tests::import_as(config, "alice");
+    let app = &hosts[0];
+
+    assert_eq!(
+        app.jump_hosts[0].username, "alice",
+        "ssh signs in to a jump host as the local user, not as the target's user"
+    );
+    assert!(
+        app.warnings
+            .iter()
+            .any(|warning| warning
+                .contains("without a User were imported with the user name 'alice'"))
+    );
+}
