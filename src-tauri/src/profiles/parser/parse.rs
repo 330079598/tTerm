@@ -1,17 +1,25 @@
-//! Turns SSH config text into raw `Host` blocks and the global defaults.
+//! Turns SSH config text into its `Host` blocks.
 
 use super::words::{split_keyword, split_ssh_words, strip_inline_comment};
-use crate::profiles::types::{RawSshHost, SshConfigDefaults};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
-fn push_option(options: &mut HashMap<String, Vec<String>>, key: &str, value: String) {
-    options
-        .entry(key.to_ascii_lowercase())
-        .or_default()
-        .push(value);
+/// The lines under one `Host` line, or above the first one.
+#[derive(Debug, Default, Clone)]
+pub(super) struct SshConfigBlock {
+    /// The patterns on the `Host` line. Lines above the first `Host` apply to
+    /// every host, as `*`.
+    pub patterns: Vec<String>,
+    /// The line of the `Host` keyword, or 0 for the lines above the first one.
+    pub line: usize,
+    /// The supported options with lowercase keys, in the order they appear.
+    pub options: Vec<(String, String)>,
+    /// The tracked options tTerm does not support, each once.
+    pub unsupported_options: Vec<String>,
 }
 
-pub(super) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefaults, Vec<String>) {
+/// Splits SSH config text into its blocks in file order, with warnings about
+/// the lines that were left out.
+pub(super) fn parse_ssh_config(content: &str) -> (Vec<SshConfigBlock>, Vec<String>) {
     let supported = HashSet::from([
         "host",
         "hostname",
@@ -44,10 +52,11 @@ pub(super) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefa
         "userknownhostsfile",
     ]);
 
-    let mut hosts = Vec::new();
-    let mut defaults = SshConfigDefaults::default();
-    let mut global_warnings = Vec::new();
-    let mut current: Option<RawSshHost> = None;
+    let mut blocks = vec![SshConfigBlock {
+        patterns: vec!["*".to_string()],
+        ..Default::default()
+    }];
+    let mut warnings = Vec::new();
     let mut skipping_match_block = false;
 
     for (line_index, raw_line) in content.lines().enumerate() {
@@ -67,7 +76,7 @@ pub(super) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefa
         };
 
         if key == "include" {
-            global_warnings.push(format!("Line {line_no}: Include was not expanded."));
+            warnings.push(format!("Line {line_no}: Include was not expanded."));
             continue;
         }
 
@@ -77,81 +86,38 @@ pub(super) fn parse_ssh_config(content: &str) -> (Vec<RawSshHost>, SshConfigDefa
             } else {
                 value.trim().to_string()
             };
-            global_warnings.push(format!(
+            warnings.push(format!(
                 "Line {line_no}: Match block '{criteria}' is ignored during import."
             ));
-            if let Some(host) = current.take() {
-                hosts.push(host);
-            }
-            current = None;
             skipping_match_block = true;
             continue;
         }
 
         if key == "host" {
             skipping_match_block = false;
-            if let Some(host) = current.take() {
-                hosts.push(host);
-            }
-
-            let patterns = split_ssh_words(&value);
-            if patterns.iter().any(|pattern| pattern == "*") {
-                current = None;
-            } else if let Some(pattern) = patterns.first() {
-                current = Some(RawSshHost {
-                    pattern: pattern.clone(),
-                    ..Default::default()
-                });
-
-                if patterns.len() > 1 {
-                    if let Some(host) = &mut current {
-                        host.warnings.push(format!(
-                            "Line {line_no}: multiple Host patterns found; only '{}' is imported.",
-                            pattern
-                        ));
-                    }
-                }
-            }
+            blocks.push(SshConfigBlock {
+                patterns: split_ssh_words(&value),
+                line: line_no,
+                ..Default::default()
+            });
             continue;
         }
 
         if skipping_match_block {
             continue;
         }
-
-        if current.is_none() {
-            match key.as_str() {
-                "user" => defaults.user = Some(value),
-                "port" => defaults.port = value.parse::<u16>().ok(),
-                "identityfile" => defaults.identity_file = Some(value),
-                "certificatefile" => defaults.certificate_file = Some(value),
-                "serveraliveinterval" => defaults.server_alive_interval = value.parse::<u32>().ok(),
-                "serveralivecountmax" => {
-                    defaults.server_alive_count_max = value.parse::<u32>().ok()
-                }
-                "forwardagent" => defaults.forward_agent = Some(value),
-                "proxycommand" => defaults.proxy_command = Some(value),
-                _ => {}
-            }
-            continue;
-        }
-
-        let Some(host) = &mut current else {
+        let Some(block) = blocks.last_mut() else {
             continue;
         };
 
         if supported.contains(key.as_str()) {
-            push_option(&mut host.options, &key, value);
+            block.options.push((key, value));
         } else if unsupported_tracked.contains(key.as_str())
-            && !host.unsupported_options.iter().any(|item| item == &key)
+            && !block.unsupported_options.contains(&key)
         {
-            host.unsupported_options.push(key.clone());
+            block.unsupported_options.push(key);
         }
     }
 
-    if let Some(host) = current.take() {
-        hosts.push(host);
-    }
-
-    (hosts, defaults, global_warnings)
+    (blocks, warnings)
 }

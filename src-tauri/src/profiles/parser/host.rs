@@ -1,11 +1,13 @@
 //! Builds the import preview entry of one `Host` block.
 
+use super::parse::SshConfigBlock;
 use super::paths::expand_home_path;
 use super::pattern::is_wildcard_host;
 use super::proxy_command::{classify, ProxyCommandUse};
+use super::resolve::resolve_host;
 use crate::profiles::types::{
     default_keepalive_count, default_keepalive_interval, RawSshHost, SavedJumpHost,
-    SshConfigDefaults, SshConfigImportHost, SshConfigImportProxy,
+    SshConfigImportHost, SshConfigImportProxy,
 };
 use crate::tunnel::forwards::ForwardSpec;
 use std::collections::HashMap;
@@ -47,7 +49,7 @@ fn parse_forward_agent(value: Option<String>, warnings: &mut Vec<String>) -> boo
 
 fn parse_proxy_jump(
     proxy_jump: Option<String>,
-    defaults: &SshConfigDefaults,
+    blocks: &[SshConfigBlock],
     private_key_path: Option<&str>,
     certificate_path: Option<&str>,
     warnings: &mut Vec<String>,
@@ -114,12 +116,14 @@ fn parse_proxy_jump(
                 return None;
             }
 
+            // `ssh` reads the config for the jump host by its own name.
+            let username = user_part
+                .or_else(|| first_option(&resolve_host(blocks, &host).options, "user"))
+                .unwrap_or_else(|| "root".to_string());
             Some(SavedJumpHost {
                 host,
                 port,
-                username: user_part
-                    .or_else(|| defaults.user.clone())
-                    .unwrap_or_else(|| "root".to_string()),
+                username,
                 auth_method: jump_auth_method.to_string(),
                 private_key_path: private_key_path.map(str::to_string),
                 private_key_passphrase: None,
@@ -156,25 +160,17 @@ fn parse_forwards(
     forwards
 }
 
-/// The `ProxyJump` to import and the proxy, from the host's `ProxyJump` and
-/// `ProxyCommand`. A `ProxyCommand` of `ssh -W` becomes the `ProxyJump`.
+/// The `ProxyJump` to import and the proxy, from the host's `ProxyJump` or
+/// `ProxyCommand`, of which it has one at most. A `ProxyCommand` of `ssh -W`
+/// becomes the `ProxyJump`.
 fn proxy_settings(
     raw: &RawSshHost,
-    defaults: &SshConfigDefaults,
     warnings: &mut Vec<String>,
 ) -> (Option<String>, Option<SshConfigImportProxy>) {
-    let proxy_jump = first_option(&raw.options, "proxyjump");
-    let own_command = first_option(&raw.options, "proxycommand");
-    if proxy_jump.is_some() {
-        if own_command.is_some() {
-            warnings.push(
-                "ProxyCommand was not imported because the host also has a ProxyJump, which tTerm uses instead."
-                    .to_string(),
-            );
-        }
-        return (proxy_jump, None);
+    if let Some(proxy_jump) = first_option(&raw.options, "proxyjump") {
+        return (Some(proxy_jump), None);
     }
-    let Some(command) = own_command.or_else(|| defaults.proxy_command.clone()) else {
+    let Some(command) = first_option(&raw.options, "proxycommand") else {
         return (None, None);
     };
     match classify(&command) {
@@ -203,7 +199,7 @@ fn proxy_settings(
 
 pub(super) fn build_import_host(
     raw: RawSshHost,
-    defaults: &SshConfigDefaults,
+    blocks: &[SshConfigBlock],
     existing_profiles: &[crate::profiles::types::SavedProfile],
 ) -> SshConfigImportHost {
     let mut warnings = raw.warnings.clone();
@@ -212,12 +208,9 @@ pub(super) fn build_import_host(
     let host = hostname
         .clone()
         .or_else(|| (!is_wildcard_host(&raw.pattern)).then(|| raw.pattern.clone()));
-    let username = first_option(&raw.options, "user").or_else(|| defaults.user.clone());
-    let port = parse_u16_option(first_option(&raw.options, "port"))
-        .or(defaults.port)
-        .unwrap_or(22);
+    let username = first_option(&raw.options, "user");
+    let port = parse_u16_option(first_option(&raw.options, "port")).unwrap_or(22);
     let private_key_path = first_option(&raw.options, "identityfile")
-        .or_else(|| defaults.identity_file.clone())
         .map(|value| expand_home_path(&value).to_string_lossy().to_string());
     let auth_method = if private_key_path.is_some() {
         "key".to_string()
@@ -225,7 +218,6 @@ pub(super) fn build_import_host(
         "password".to_string()
     };
     let certificate_path = first_option(&raw.options, "certificatefile")
-        .or_else(|| defaults.certificate_file.clone())
         .map(|value| expand_home_path(&value).to_string_lossy().to_string());
     // tTerm offers a certificate with the private key it certifies, so one
     // without an IdentityFile has nothing to go with.
@@ -238,16 +230,12 @@ pub(super) fn build_import_host(
         }
         certificate_path => certificate_path,
     };
-    let agent_forward = parse_forward_agent(
-        first_option(&raw.options, "forwardagent").or_else(|| defaults.forward_agent.clone()),
-        &mut warnings,
-    );
+    let agent_forward =
+        parse_forward_agent(first_option(&raw.options, "forwardagent"), &mut warnings);
     let keepalive_interval_secs =
         parse_u32_option(first_option(&raw.options, "serveraliveinterval"))
-            .or(defaults.server_alive_interval)
             .unwrap_or_else(default_keepalive_interval);
     let keepalive_count_max = parse_u32_option(first_option(&raw.options, "serveralivecountmax"))
-        .or(defaults.server_alive_count_max)
         .unwrap_or_else(default_keepalive_count);
     let mut skipped = false;
     let mut skip_reason = None;
@@ -255,7 +243,7 @@ pub(super) fn build_import_host(
     if is_wildcard_host(&raw.pattern) {
         skipped = true;
         skip_reason =
-            Some("Wildcard Host patterns are not imported as saved profiles.".to_string());
+            Some("Wildcard Host patterns are not imported as saved profiles; their options apply to the hosts they match.".to_string());
     } else if host.is_none() {
         skipped = true;
         skip_reason =
@@ -266,10 +254,10 @@ pub(super) fn build_import_host(
         warnings.push("User is missing; username must be filled before connecting.".to_string());
     }
 
-    let (proxy_jump, proxy) = proxy_settings(&raw, defaults, &mut warnings);
+    let (proxy_jump, proxy) = proxy_settings(&raw, &mut warnings);
     let jump_hosts = parse_proxy_jump(
         proxy_jump,
-        defaults,
+        blocks,
         private_key_path.as_deref(),
         certificate_path.as_deref(),
         &mut warnings,

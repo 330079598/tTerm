@@ -296,18 +296,6 @@ pub struct SshConfigImportResult {
 }
 
 #[derive(Debug, Default, Clone)]
-pub(crate) struct SshConfigDefaults {
-    pub user: Option<String>,
-    pub port: Option<u16>,
-    pub identity_file: Option<String>,
-    pub certificate_file: Option<String>,
-    pub server_alive_interval: Option<u32>,
-    pub server_alive_count_max: Option<u32>,
-    pub forward_agent: Option<String>,
-    pub proxy_command: Option<String>,
-}
-
-#[derive(Debug, Default, Clone)]
 pub(crate) struct RawSshHost {
     pub pattern: String,
     pub options: HashMap<String, Vec<String>>,
