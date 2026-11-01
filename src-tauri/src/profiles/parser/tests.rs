@@ -1,11 +1,8 @@
 use super::host::build_import_host;
-use super::include::read_ssh_config_with_includes;
-use super::parse::parse_ssh_config;
+use super::parse::{parse_ssh_config, SshConfig};
 use super::resolve::import_entries;
 use crate::profiles::storage::sanitize_profile;
 use crate::profiles::types::{SavedProfile, SshConfigImportHost};
-use std::collections::HashSet;
-use std::fs;
 
 /// The preview entries of a config, with the warnings about the whole file.
 pub(super) fn import(config: &str) -> (Vec<SshConfigImportHost>, Vec<String>) {
@@ -16,11 +13,15 @@ pub(super) fn import(config: &str) -> (Vec<SshConfigImportHost>, Vec<String>) {
 pub(super) fn import_as(config: &str, local_user: &str) -> (Vec<SshConfigImportHost>, Vec<String>) {
     let (mut config, warnings) = parse_ssh_config(config);
     config.local_user = local_user.to_string();
-    let hosts = import_entries(&config)
+    (entries(&config), warnings)
+}
+
+/// The preview entries of a config that was read already.
+pub(super) fn entries(config: &SshConfig) -> Vec<SshConfigImportHost> {
+    import_entries(config)
         .into_iter()
-        .map(|raw| build_import_host(raw, &config, &[]))
-        .collect();
-    (hosts, warnings)
+        .map(|raw| build_import_host(raw, config, &[]))
+        .collect()
 }
 
 #[test]
@@ -231,46 +232,6 @@ Host keyless
         .warnings
         .iter()
         .any(|warning| warning.contains("has no IdentityFile")));
-}
-
-#[test]
-fn read_ssh_config_expands_include_files() {
-    let root =
-        std::env::temp_dir().join(format!("tterm-ssh-config-include-{}", uuid::Uuid::new_v4()));
-    let include_dir = root.join("config.d");
-    fs::create_dir_all(&include_dir).expect("include dir should be created");
-    let config_path = root.join("config");
-    let included_path = include_dir.join("prod.conf");
-
-    fs::write(
-        &config_path,
-        r#"
-User default-user
-Include config.d/*.conf
-"#,
-    )
-    .expect("root config should be written");
-    fs::write(
-        &included_path,
-        r#"
-Host prod
-  HostName prod.example.com
-"#,
-    )
-    .expect("included config should be written");
-
-    let (content, warnings) = read_ssh_config_with_includes(&config_path, &mut HashSet::new(), 0)
-        .expect("include expansion should succeed");
-    assert!(warnings.is_empty());
-    assert!(content.contains("Host prod"));
-
-    let (hosts, parse_warnings) = import(&content);
-    assert!(parse_warnings.is_empty());
-    let host = &hosts[0];
-    assert_eq!(host.username.as_deref(), Some("default-user"));
-    assert_eq!(host.host.as_deref(), Some("prod.example.com"));
-
-    let _ = fs::remove_dir_all(root);
 }
 
 #[test]
@@ -549,7 +510,8 @@ Host *.corp.example.com
 Match originalhost db9.*
   Port 2222
 "#;
-    let host = super::config_host_for(config, "db9.corp.example.com");
+    let (config, _) = parse_ssh_config(config);
+    let host = super::config_host_for(&config, "db9.corp.example.com");
 
     assert!(!host.skipped);
     assert_eq!(host.host.as_deref(), Some("db9.corp.example.com"));
@@ -557,7 +519,7 @@ Match originalhost db9.*
     assert_eq!(host.port, 2222);
     assert_eq!(host.jump_hosts[0].host, "bastion");
 
-    let other = super::config_host_for(config, "10.0.0.1");
+    let other = super::config_host_for(&config, "10.0.0.1");
     assert!(other.username.is_none());
     assert!(other.jump_hosts.is_empty());
 }

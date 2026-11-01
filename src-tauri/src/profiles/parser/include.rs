@@ -1,11 +1,13 @@
-//! Reads an SSH config file with its `Include` directives expanded in place.
+//! Opens an SSH config file and the files its `Include` lines name.
 
-use super::paths::expand_home_path;
+use super::parse::{parse_ssh_config_with, SshConfig};
+use super::paths::{expand_home_path, home_dir};
 use super::pattern::{has_glob_pattern, wildcard_matches};
-use super::words::{split_ssh_words, strip_inline_comment};
-use std::collections::HashSet;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
+
+/// How deep includes may nest, as `READCONF_MAX_DEPTH` in OpenSSH.
+const MAX_INCLUDE_DEPTH: usize = 16;
 
 fn describe_ssh_config_read_error(path: &Path, error: &std::io::Error) -> String {
     match error.kind() {
@@ -88,96 +90,86 @@ fn expand_include_source(pattern: &str, base_dir: &Path) -> Vec<PathBuf> {
     candidates
 }
 
-pub(super) fn read_ssh_config_with_includes(
-    source: &Path,
-    visited: &mut HashSet<PathBuf>,
-    depth: usize,
-) -> Result<(String, Vec<String>), String> {
-    const MAX_INCLUDE_DEPTH: usize = 16;
+/// Finds and opens the files `Include` lines name while a config is parsed.
+pub(super) struct IncludeReader {
+    /// Where a relative `Include` path is looked up. `ssh` uses `~/.ssh` for
+    /// every user config, whichever file the `Include` is in.
+    base_dir: PathBuf,
+    /// The files being read, outermost first, so a loop is stopped.
+    open: Vec<PathBuf>,
+}
 
-    let canonical_source = source
-        .canonicalize()
-        .unwrap_or_else(|_| source.to_path_buf());
-    if !visited.insert(canonical_source.clone()) {
-        return Ok((
-            String::new(),
-            vec![format!(
+impl IncludeReader {
+    fn new(base_dir: PathBuf, source: &Path) -> Self {
+        Self {
+            base_dir,
+            open: vec![canonical(source)],
+        }
+    }
+
+    /// Where a relative `Include` path is looked up.
+    pub(super) fn base_dir(&self) -> &Path {
+        &self.base_dir
+    }
+
+    /// The readable files an `Include` pattern names, in name order.
+    pub(super) fn files(&self, pattern: &str) -> Vec<PathBuf> {
+        expand_include_source(pattern, &self.base_dir)
+            .into_iter()
+            .filter(|path| path.is_file())
+            .collect()
+    }
+
+    /// Starts reading an included file, or gives the warning about why it is
+    /// skipped. A file that is read must be closed with [`Self::leave`].
+    pub(super) fn enter(&mut self, path: &Path) -> Result<String, String> {
+        let canonical_path = canonical(path);
+        if self.open.contains(&canonical_path) {
+            return Err(format!(
                 "Include loop skipped for SSH config file: {}",
-                source.display()
-            )],
-        ));
-    }
-
-    if depth > MAX_INCLUDE_DEPTH {
-        visited.remove(&canonical_source);
-        return Ok((
-            String::new(),
-            vec![format!(
+                path.display()
+            ));
+        }
+        if self.open.len() > MAX_INCLUDE_DEPTH {
+            return Err(format!(
                 "Include depth limit reached while reading SSH config file: {}",
-                source.display()
-            )],
-        ));
+                path.display()
+            ));
+        }
+        let content =
+            fs::read_to_string(path).map_err(|e| describe_ssh_config_read_error(path, &e))?;
+        self.open.push(canonical_path);
+        Ok(content)
     }
 
+    /// Finishes the file [`Self::enter`] opened last.
+    pub(super) fn leave(&mut self) {
+        self.open.pop();
+    }
+}
+
+fn canonical(path: &Path) -> PathBuf {
+    path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
+}
+
+/// Reads a user's SSH config file with its includes, looking relative
+/// `Include` paths up in `~/.ssh` as `ssh` does.
+pub(super) fn read_ssh_config(source: &Path) -> Result<(SshConfig, Vec<String>), String> {
+    let base_dir = home_dir()
+        .map(|home| home.join(".ssh"))
+        .or_else(|| source.parent().map(Path::to_path_buf))
+        .unwrap_or_else(|| PathBuf::from("."));
+    read_ssh_config_in(source, base_dir)
+}
+
+/// Reads an SSH config file with its includes, looking relative `Include`
+/// paths up in `base_dir`.
+pub(super) fn read_ssh_config_in(
+    source: &Path,
+    base_dir: PathBuf,
+) -> Result<(SshConfig, Vec<String>), String> {
     let content =
         fs::read_to_string(source).map_err(|e| describe_ssh_config_read_error(source, &e))?;
-    let base_dir = source.parent().unwrap_or_else(|| Path::new("."));
-    let mut expanded = String::new();
-    let mut warnings = Vec::new();
-
-    for (line_index, raw_line) in content.lines().enumerate() {
-        let line = strip_inline_comment(raw_line);
-        let mut parts = split_ssh_words(&line);
-        let is_include = parts
-            .first()
-            .map(|key| key.eq_ignore_ascii_case("include"))
-            .unwrap_or(false);
-
-        if !is_include {
-            expanded.push_str(raw_line);
-            expanded.push('\n');
-            continue;
-        }
-
-        parts.remove(0);
-        if parts.is_empty() {
-            warnings.push(format!(
-                "{}:{}: Include has no path and was ignored.",
-                source.display(),
-                line_index + 1
-            ));
-            continue;
-        }
-
-        for include_pattern in parts {
-            let include_paths = expand_include_source(&include_pattern, base_dir);
-            let readable_paths: Vec<PathBuf> = include_paths
-                .into_iter()
-                .filter(|path| path.is_file())
-                .collect();
-
-            if readable_paths.is_empty() {
-                warnings.push(format!(
-                    "{}:{}: Include '{}' did not match any readable files.",
-                    source.display(),
-                    line_index + 1,
-                    include_pattern
-                ));
-                continue;
-            }
-
-            for include_path in readable_paths {
-                match read_ssh_config_with_includes(&include_path, visited, depth + 1) {
-                    Ok((included_content, mut include_warnings)) => {
-                        expanded.push_str(&included_content);
-                        warnings.append(&mut include_warnings);
-                    }
-                    Err(error) => warnings.push(error),
-                }
-            }
-        }
-    }
-
-    visited.remove(&canonical_source);
-    Ok((expanded, warnings))
+    let mut reader = IncludeReader::new(base_dir, source);
+    Ok(parse_ssh_config_with(&content, Some(&mut reader)))
 }

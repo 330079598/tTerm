@@ -158,28 +158,30 @@ impl Resolution {
     }
 }
 
-/// Reads every block once for `alias`, matching `Host` lines against
-/// `host_arg`: the alias on the first pass and the `HostName` on the final one.
-fn read_blocks(
-    config: &SshConfig,
-    alias: &str,
-    host_arg: &str,
+/// What one pass knows about the host when it checks a block.
+struct Pass<'a> {
+    config: &'a SshConfig,
+    alias: &'a str,
+    /// What `Host` lines are matched against: the alias on the first pass and
+    /// the `HostName` on the final one.
+    host_arg: &'a str,
     final_pass: bool,
-    resolution: &mut Resolution,
-) {
-    for block in &config.blocks {
-        let matched = match &block.condition {
-            BlockCondition::Host(patterns) => match_block(patterns, host_arg),
+}
+
+impl Pass<'_> {
+    fn condition_match(&self, condition: &BlockCondition, resolution: &Resolution) -> BlockMatch {
+        match condition {
+            BlockCondition::Host(patterns) => match_block(patterns, self.host_arg),
             BlockCondition::Match(criteria) => {
                 let host = resolution
-                    .hostname(alias)
-                    .unwrap_or_else(|| host_arg.to_string());
+                    .hostname(self.alias)
+                    .unwrap_or_else(|| self.host_arg.to_string());
                 let context = MatchContext {
                     host: &host,
-                    original_host: alias,
-                    user: resolution.first("user").unwrap_or(&config.local_user),
-                    local_user: &config.local_user,
-                    final_pass,
+                    original_host: self.alias,
+                    user: resolution.first("user").unwrap_or(&self.config.local_user),
+                    local_user: &self.config.local_user,
+                    final_pass: self.final_pass,
                 };
                 if criteria_match(criteria, &context) {
                     BlockMatch::Wildcard
@@ -188,9 +190,30 @@ fn read_blocks(
                 }
             }
             BlockCondition::Never => BlockMatch::None,
-        };
-        if matched != BlockMatch::None {
-            resolution.apply(block, matched);
+        }
+    }
+
+    /// How a block matches, given that each block holding the `Include` it
+    /// came through must match as well.
+    fn block_match(&self, block: &SshConfigBlock, resolution: &Resolution) -> BlockMatch {
+        let guarded = block
+            .guards
+            .iter()
+            .all(|guard| self.condition_match(guard, resolution) != BlockMatch::None);
+        if guarded {
+            self.condition_match(&block.condition, resolution)
+        } else {
+            BlockMatch::None
+        }
+    }
+
+    /// Reads every block once.
+    fn read(&self, resolution: &mut Resolution) {
+        for block in &self.config.blocks {
+            let matched = self.block_match(block, resolution);
+            if matched != BlockMatch::None {
+                resolution.apply(block, matched);
+            }
         }
     }
 }
@@ -202,12 +225,23 @@ fn read_blocks(
 /// wildcard and `Match` blocks add.
 pub(super) fn resolve_host(config: &SshConfig, alias: &str) -> RawSshHost {
     let mut resolution = Resolution::default();
-    read_blocks(config, alias, alias, false, &mut resolution);
+    let first = Pass {
+        config,
+        alias,
+        host_arg: alias,
+        final_pass: false,
+    };
+    first.read(&mut resolution);
     if config.wants_final_pass {
         let host_arg = resolution
             .hostname(alias)
             .unwrap_or_else(|| alias.to_string());
-        read_blocks(config, alias, &host_arg, true, &mut resolution);
+        let last = Pass {
+            host_arg: &host_arg,
+            final_pass: true,
+            ..first
+        };
+        last.read(&mut resolution);
     }
 
     let hostname = resolution.hostname(alias);
@@ -250,7 +284,7 @@ fn wildcard_entry(block: &SshConfigBlock, pattern: &str) -> RawSshHost {
 pub(super) fn import_entries(config: &SshConfig) -> Vec<RawSshHost> {
     let mut seen = HashSet::new();
     let mut entries = Vec::new();
-    for block in config.blocks.iter().filter(|block| block.line > 0) {
+    for block in config.blocks.iter().filter(|block| block.has_header) {
         let BlockCondition::Host(patterns) = &block.condition else {
             continue;
         };
@@ -272,8 +306,8 @@ pub(super) fn import_entries(config: &SshConfig) -> Vec<RawSshHost> {
             entry.warnings.insert(
                 0,
                 format!(
-                    "Line {}: multiple Host patterns found; only '{pattern}' is imported.",
-                    block.line
+                    "{}: multiple Host patterns found; only '{pattern}' is imported.",
+                    block.place
                 ),
             );
         }

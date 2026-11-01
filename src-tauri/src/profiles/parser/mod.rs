@@ -1,6 +1,6 @@
 //! Importing hosts from an OpenSSH config file: `paths` finds the file,
-//! `include` reads it with its includes, `words` and `parse` split it into
-//! `Host` and `Match` blocks, `matching` checks `Match` criteria, `resolve`
+//! `include` opens it and the files it includes, `words` and `parse` split
+//! them into `Host` and `Match` blocks, `matching` checks `Match` criteria, `resolve`
 //! gathers each host's options from the blocks that match it, and `host`
 //! turns them into a preview entry, with `proxy_command` reading what its
 //! `ProxyCommand` does, `jump` reading its `ProxyJump` and `tokens` filling in
@@ -21,21 +21,17 @@ mod words;
 use super::storage::load_profiles;
 use super::types::{SshConfigImportHost, SshConfigImportPreview};
 use host::build_import_host;
-use include::read_ssh_config_with_includes;
-use parse::parse_ssh_config;
+use include::read_ssh_config;
+use parse::SshConfig;
 use paths::normalize_import_source;
 use pattern::is_wildcard_host;
 use resolve::{import_entries, resolve_host};
-use std::collections::HashSet;
 
 pub(crate) fn build_ssh_config_import_preview(
     source_path: Option<String>,
 ) -> Result<SshConfigImportPreview, String> {
     let source = normalize_import_source(source_path)?;
-    let (content, include_warnings) =
-        read_ssh_config_with_includes(&source, &mut HashSet::new(), 0)?;
-    let (config, mut warnings) = parse_ssh_config(&content);
-    warnings.extend(include_warnings);
+    let (config, warnings) = read_ssh_config(&source)?;
     let existing_profiles = load_profiles()?;
     let hosts = import_entries(&config)
         .into_iter()
@@ -49,11 +45,10 @@ pub(crate) fn build_ssh_config_import_preview(
     })
 }
 
-/// What config text sets for a host by any name, listed in it or not, the
-/// way `ssh` would read it for `ssh name`.
-fn config_host_for(content: &str, name: &str) -> SshConfigImportHost {
-    let (config, _) = parse_ssh_config(content);
-    build_import_host(resolve_host(&config, name), &config, &[])
+/// What a config sets for a host by any name, listed in it or not, the way
+/// `ssh` would read it for `ssh name`.
+fn config_host_for(config: &SshConfig, name: &str) -> SshConfigImportHost {
+    build_import_host(resolve_host(config, name), config, &[])
 }
 
 /// What `~/.ssh/config` sets for a host typed by any name, or `None` when
@@ -69,10 +64,12 @@ pub(crate) fn resolve_config_host(name: &str) -> Result<Option<SshConfigImportHo
     if !source.is_file() {
         return Ok(None);
     }
-    let (content, _) = read_ssh_config_with_includes(&source, &mut HashSet::new(), 0)?;
-    Ok(Some(config_host_for(&content, name)))
+    let (config, _) = read_ssh_config(&source)?;
+    Ok(Some(config_host_for(&config, name)))
 }
 
+#[cfg(test)]
+mod include_tests;
 #[cfg(test)]
 mod jump_tests;
 #[cfg(test)]
