@@ -264,7 +264,12 @@ pub async fn open_target_ssh_session_with_forwarding(
         target.keepalive_interval_secs as u64,
         target.keepalive_count_max as usize,
     );
-    request_host_certificates(&mut target_config, target_host, target_port);
+    request_host_certificates(
+        &mut target_config,
+        target_host,
+        target_port,
+        Some(target.profile_name),
+    );
     let target_config = Arc::new(target_config);
 
     let handler = SshClientHandler {

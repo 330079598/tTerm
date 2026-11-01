@@ -367,18 +367,22 @@ impl russh::client::Handler for SshClientHandler {
 
         // What `ssh` trusts or refuses decides first; a host certificate is
         // only asked for when `known_hosts` trusts an authority for the host.
-        let (server_public_key, listed_fingerprint) =
-            match check_presented_key(&self.host, self.port, server_public_key) {
-                KnownHostVerdict::Trusted => return Ok(true),
-                KnownHostVerdict::Rejected(reason) => {
-                    self.emit_status("31", &reason);
-                    return Ok(false);
-                }
-                KnownHostVerdict::Undecided {
-                    key,
-                    listed_fingerprint,
-                } => (key, listed_fingerprint),
-            };
+        let (server_public_key, listed_fingerprint) = match check_presented_key(
+            &self.host,
+            self.port,
+            Some(&self.profile_name),
+            server_public_key,
+        ) {
+            KnownHostVerdict::Trusted => return Ok(true),
+            KnownHostVerdict::Rejected(reason) => {
+                self.emit_status("31", &reason);
+                return Ok(false);
+            }
+            KnownHostVerdict::Undecided {
+                key,
+                listed_fingerprint,
+            } => (key, listed_fingerprint),
+        };
 
         let algorithm = server_public_key.algorithm().to_string();
         let fingerprint = server_public_key.fingerprint(HashAlg::Sha256).to_string();

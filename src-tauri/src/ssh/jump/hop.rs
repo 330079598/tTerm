@@ -115,7 +115,7 @@ pub(super) async fn connect_jump_direct(
     let host_key_rejected = jump_handler.user_rejected_host_key.clone();
     let failure_reason = jump_handler.failure_reason.clone();
     let mut jump_config = compatibility_client_config(15, 3);
-    request_host_certificates(&mut jump_config, &jump_plan.host, jump_plan.port);
+    request_host_certificates(&mut jump_config, &jump_plan.host, jump_plan.port, None);
     let jump_config = Arc::new(jump_config);
 
     jump_handler.emit_status(
@@ -228,7 +228,7 @@ where
     let host_key_rejected = jump_handler.user_rejected_host_key.clone();
     let failure_reason = jump_handler.failure_reason.clone();
     let mut jump_config = compatibility_client_config(15, 3);
-    request_host_certificates(&mut jump_config, &jump_plan.host, jump_plan.port);
+    request_host_certificates(&mut jump_config, &jump_plan.host, jump_plan.port, None);
     let jump_config = Arc::new(jump_config);
 
     jump_handler.emit_status(

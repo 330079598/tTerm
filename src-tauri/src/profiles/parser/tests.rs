@@ -524,3 +524,31 @@ Match originalhost db9.*
     assert!(other.username.is_none());
     assert!(other.jump_hosts.is_empty());
 }
+
+#[test]
+fn the_known_hosts_files_a_host_is_given_are_listed_with_their_tokens() {
+    let config = r#"
+Host db
+  HostName db.corp.example.com
+  UserKnownHostsFile "~/.ssh/known hosts/%h" none
+
+Host *.corp.example.com db
+  UserKnownHostsFile ~/.ssh/ignored
+  GlobalKnownHostsFile /etc/ssh/corp_known_hosts ~/.ssh/%Z
+
+Host *
+  UserKnownHostsFile ~/.ssh/known_hosts_%n
+"#;
+    let (config, _) = parse_ssh_config(config);
+    let home = |name: &str| super::paths::expand_home_path(&format!("~/.ssh/{name}"));
+
+    assert_eq!(
+        super::known_hosts::named_known_hosts_files(&config, &["My DB", "db"], 22),
+        [
+            home("known_hosts_My DB"),
+            home("known hosts/db.corp.example.com"),
+            std::path::PathBuf::from("/etc/ssh/corp_known_hosts"),
+        ],
+        "the first value of each option wins, quotes keep a path with a space whole, and none and unfilled tokens are left out"
+    );
+}

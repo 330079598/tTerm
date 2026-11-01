@@ -13,6 +13,7 @@ mod handshake_tests;
 #[cfg(test)]
 mod tests;
 
+use crate::profiles::parser::config_known_hosts_files;
 use crate::profiles::parser::paths::home_dir;
 use crate::ssh::store::KnownHostRecord;
 use hosts::{host_key_name, patterns_match};
@@ -63,11 +64,23 @@ fn default_files() -> Vec<PathBuf> {
 }
 
 impl OpenSshKnownHosts {
-    /// Reads the default `known_hosts` files. A file that is missing or
-    /// cannot be read adds nothing, as for `ssh`.
-    pub(crate) fn load() -> Self {
+    /// Reads the default `known_hosts` files and those `~/.ssh/config` names
+    /// for `host` or for the saved connection `profile_name`. A file that is
+    /// missing or cannot be read adds nothing, as for `ssh`.
+    ///
+    /// `ssh` reads only the files a config names in place of the defaults;
+    /// tTerm reads both, which trusts nothing the user's own files do not
+    /// list, so a key `ssh` was told about in either place is not asked about.
+    pub(crate) fn load(host: &str, port: u16, profile_name: Option<&str>) -> Self {
+        let names: Vec<&str> = profile_name.into_iter().chain([host]).collect();
+        let mut files = default_files();
+        for file in config_known_hosts_files(&names, port) {
+            if !files.contains(&file) {
+                files.push(file);
+            }
+        }
         let mut known = Self::default();
-        for file in default_files() {
+        for file in files {
             if let Ok(text) = std::fs::read_to_string(&file) {
                 known.add(&text, &file);
             }
@@ -136,8 +149,13 @@ static HOST_CERTIFICATE_ALGORITHMS: [Algorithm; 6] = [
 /// Asks `host` for a host certificate when `known_hosts` trusts an authority
 /// for it. Without one a certificate could not be checked, so a host that
 /// has both would present the certificate and fail where its plain key works.
-pub(crate) fn request_host_certificates(config: &mut russh::client::Config, host: &str, port: u16) {
-    OpenSshKnownHosts::load().request_host_certificates(config, host, port);
+pub(crate) fn request_host_certificates(
+    config: &mut russh::client::Config,
+    host: &str,
+    port: u16,
+    profile_name: Option<&str>,
+) {
+    OpenSshKnownHosts::load(host, port, profile_name).request_host_certificates(config, host, port);
 }
 
 impl OpenSshKnownHosts {
@@ -154,13 +172,14 @@ impl OpenSshKnownHosts {
 pub(crate) fn check_presented_key(
     host: &str,
     port: u16,
+    profile_name: Option<&str>,
     presented: &PublicKeyOrCertificate,
 ) -> KnownHostVerdict {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|elapsed| elapsed.as_secs())
         .unwrap_or_default();
-    OpenSshKnownHosts::load().verify(host, port, presented, now)
+    OpenSshKnownHosts::load(host, port, profile_name).verify(host, port, presented, now)
 }
 
 /// Stands in for tTerm's own record of a host it has none for when

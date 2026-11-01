@@ -101,7 +101,7 @@ fn connection_hash(tokens: &PathTokens) -> String {
 }
 
 /// The path with its tokens filled in, or the token tTerm cannot fill.
-fn expand_tokens(value: &str, tokens: &PathTokens) -> Result<String, String> {
+pub(super) fn expand_tokens(value: &str, tokens: &PathTokens) -> Result<String, String> {
     let mut expanded = String::new();
     let mut chars = value.chars().peekable();
     while let Some(ch) = chars.next() {

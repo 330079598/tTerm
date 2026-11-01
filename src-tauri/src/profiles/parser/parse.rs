@@ -8,7 +8,7 @@ use super::words::{split_keyword, split_ssh_words, strip_inline_comment};
 use std::mem;
 
 /// The options tTerm imports.
-const SUPPORTED_OPTIONS: [&str; 15] = [
+const SUPPORTED_OPTIONS: [&str; 17] = [
     "hostname",
     "user",
     "port",
@@ -24,10 +24,15 @@ const SUPPORTED_OPTIONS: [&str; 15] = [
     "localforward",
     "remoteforward",
     "dynamicforward",
+    "userknownhostsfile",
+    "globalknownhostsfile",
 ];
 
+/// The options whose value is kept as it is written instead of as words.
+const RAW_OPTIONS: [&str; 3] = ["proxycommand", "userknownhostsfile", "globalknownhostsfile"];
+
 /// The options tTerm does not support but tells the user about.
-const TRACKED_UNSUPPORTED_OPTIONS: [&str; 11] = [
+const TRACKED_UNSUPPORTED_OPTIONS: [&str; 10] = [
     "controlmaster",
     "controlpath",
     "controlpersist",
@@ -38,7 +43,6 @@ const TRACKED_UNSUPPORTED_OPTIONS: [&str; 11] = [
     "forwardx11",
     "hostkeyalias",
     "stricthostkeychecking",
-    "userknownhostsfile",
 ];
 
 /// When a block applies.
@@ -199,8 +203,10 @@ impl Parser<'_> {
                     ));
                 }
                 _ if SUPPORTED_OPTIONS.contains(&key.as_str()) => {
-                    // A shell runs the proxy command, so its quotes are kept for the shell.
-                    let value = if key == "proxycommand" {
+                    // A shell runs the proxy command, so its quotes are kept
+                    // for the shell; the known hosts options list paths that
+                    // quotes keep apart.
+                    let value = if RAW_OPTIONS.contains(&key.as_str()) {
                         rest.to_string()
                     } else {
                         split_ssh_words(rest).join(" ")

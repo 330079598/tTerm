@@ -9,6 +9,7 @@
 mod host;
 mod include;
 mod jump;
+mod known_hosts;
 mod matching;
 mod parse;
 pub(crate) mod paths;
@@ -22,10 +23,12 @@ use super::storage::load_profiles;
 use super::types::{SshConfigImportHost, SshConfigImportPreview};
 use host::build_import_host;
 use include::read_ssh_config;
+use known_hosts::named_known_hosts_files;
 use parse::SshConfig;
 use paths::normalize_import_source;
 use pattern::is_wildcard_host;
 use resolve::{import_entries, resolve_host};
+use std::path::PathBuf;
 
 pub(crate) fn build_ssh_config_import_preview(
     source_path: Option<String>,
@@ -66,6 +69,23 @@ pub(crate) fn resolve_config_host(name: &str) -> Result<Option<SshConfigImportHo
     }
     let (config, _) = read_ssh_config(&source)?;
     Ok(Some(config_host_for(&config, name)))
+}
+
+/// The `known_hosts` files `~/.ssh/config` names with `UserKnownHostsFile`
+/// and `GlobalKnownHostsFile` for a host known by any of `names` and
+/// connected to on `port`. None when there is no config or it cannot be read,
+/// since the default files are read either way.
+pub(crate) fn config_known_hosts_files(names: &[&str], port: u16) -> Vec<PathBuf> {
+    let Some(source) = paths::home_dir().map(|home| home.join(".ssh").join("config")) else {
+        return Vec::new();
+    };
+    if !source.is_file() {
+        return Vec::new();
+    }
+    match read_ssh_config(&source) {
+        Ok((config, _)) => named_known_hosts_files(&config, names, port),
+        Err(_) => Vec::new(),
+    }
 }
 
 #[cfg(test)]

@@ -43,7 +43,7 @@ impl client::Handler for JumpHostHandler {
         // What `ssh` trusts or refuses decides first; a host certificate is
         // only asked for when `known_hosts` trusts an authority for the host.
         let (server_public_key, listed_fingerprint) =
-            match check_presented_key(&self.host, self.port, server_public_key) {
+            match check_presented_key(&self.host, self.port, None, server_public_key) {
                 KnownHostVerdict::Trusted => return Ok(true),
                 KnownHostVerdict::Rejected(reason) => {
                     self.set_failure_reason(reason.clone());
