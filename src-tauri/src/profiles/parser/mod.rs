@@ -19,12 +19,13 @@ mod tokens;
 mod words;
 
 use super::storage::load_profiles;
-use super::types::SshConfigImportPreview;
+use super::types::{SshConfigImportHost, SshConfigImportPreview};
 use host::build_import_host;
 use include::read_ssh_config_with_includes;
 use parse::parse_ssh_config;
 use paths::normalize_import_source;
-use resolve::import_entries;
+use pattern::is_wildcard_host;
+use resolve::{import_entries, resolve_host};
 use std::collections::HashSet;
 
 pub(crate) fn build_ssh_config_import_preview(
@@ -46,6 +47,30 @@ pub(crate) fn build_ssh_config_import_preview(
         hosts,
         warnings,
     })
+}
+
+/// What config text sets for a host by any name, listed in it or not, the
+/// way `ssh` would read it for `ssh name`.
+fn config_host_for(content: &str, name: &str) -> SshConfigImportHost {
+    let (config, _) = parse_ssh_config(content);
+    build_import_host(resolve_host(&config, name), &config, &[])
+}
+
+/// What `~/.ssh/config` sets for a host typed by any name, or `None` when
+/// there is no config file or the name is a pattern rather than a host.
+pub(crate) fn resolve_config_host(name: &str) -> Result<Option<SshConfigImportHost>, String> {
+    let name = name.trim();
+    if name.is_empty() || is_wildcard_host(name) {
+        return Ok(None);
+    }
+    let Some(source) = paths::home_dir().map(|home| home.join(".ssh").join("config")) else {
+        return Ok(None);
+    };
+    if !source.is_file() {
+        return Ok(None);
+    }
+    let (content, _) = read_ssh_config_with_includes(&source, &mut HashSet::new(), 0)?;
+    Ok(Some(config_host_for(&content, name)))
 }
 
 #[cfg(test)]

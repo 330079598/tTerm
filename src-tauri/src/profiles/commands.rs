@@ -1,11 +1,12 @@
 use super::groups::{group_paths, list_groups, resolve_path};
-use super::parser::build_ssh_config_import_preview;
+use super::parser::{build_ssh_config_import_preview, resolve_config_host};
 use super::storage::{
     delete_profile_secrets, get_profile, list_saved_profiles, load_profiles, normalize_profile,
     sanitize_profile, upsert_profile,
 };
 use super::types::{
-    SavedProfile, SshConfigImportOptions, SshConfigImportPreview, SshConfigImportResult,
+    SavedProfile, SshConfigImportHost, SshConfigImportOptions, SshConfigImportPreview,
+    SshConfigImportResult,
 };
 use crate::config::tab_icons::TabIconStyle;
 use crate::core::blocking::run_blocking;
@@ -53,6 +54,13 @@ pub async fn preview_ssh_config_import(
 ) -> Result<SshConfigImportPreview, String> {
     // Reads the config and every file it includes; keep that off the main thread.
     crate::core::blocking::run_blocking(move || build_ssh_config_import_preview(source_path)).await
+}
+
+/// What `~/.ssh/config` sets for a host typed into the launcher by a name it
+/// does not list, which its wildcard and `Match` blocks may still reach.
+#[tauri::command]
+pub async fn resolve_ssh_config_host(name: String) -> Result<Option<SshConfigImportHost>, String> {
+    run_blocking(move || resolve_config_host(&name)).await
 }
 
 #[tauri::command]

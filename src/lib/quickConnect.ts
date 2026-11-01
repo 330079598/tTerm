@@ -181,6 +181,17 @@ export function findSshConfigHost(
   return hosts.find((host) => !host.skipped && host.hostPattern === alias)
 }
 
+/**
+ * The host typed into the launcher when `~/.ssh/config` does not list it by
+ * that name, so its wildcard and `Match` blocks are worth asking about:
+ * `null` when nothing typed reads as a host, or the config lists it.
+ */
+export function configHostToLookUp(input: string, hosts: readonly SshConfigHost[]): string | null {
+  const target = parseQuickConnectInput(input.trim())
+  if (!target || findSshConfigHost(hosts, target.host)) return null
+  return target.host
+}
+
 function jumpHostsFromConfig(jumpHosts: readonly SavedJumpHost[]): JumpHostConnection[] {
   return jumpHosts.map((jump) => ({
     host: jump.host,

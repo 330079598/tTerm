@@ -5,7 +5,7 @@ import {
   buildLauncherItems,
   type LauncherItemsInput,
 } from "@/components/NewTabLauncher/buildLauncherItems"
-import type { RecentQuickConnection } from "@/lib/quickConnect"
+import type { RecentQuickConnection, SshConfigHost } from "@/lib/quickConnect"
 import type { SavedProfile } from "@/types/tab"
 
 const t = ((key: string) => key) as TFunction
@@ -58,6 +58,32 @@ const keys = (overrides: Partial<LauncherItemsInput> = {}) =>
   build(overrides).map((item) => item.key)
 
 describe("buildLauncherItems", () => {
+  it("connects a typed host with what ~/.ssh/config sets for it though it is not listed", () => {
+    const typedConfigHost: SshConfigHost = {
+      hostPattern: "db9.corp",
+      name: "db9.corp",
+      host: "db9.corp",
+      port: 2222,
+      username: "alice",
+      agentForward: false,
+      keepaliveIntervalSecs: 15,
+      keepaliveCountMax: 3,
+      jumpHosts: [],
+      skipped: false,
+    }
+
+    expect(keys({ input: "db9.corp" })).toContain("typed-add-user")
+    const typed = build({ input: "db9.corp", typedConfigHost }).find((item) => item.key === "typed")
+    expect(typed?.action).toMatchObject({
+      kind: "connect",
+      connection: { username: "alice", host: "db9.corp", port: 2222 },
+    })
+    expect(
+      build({ input: "db9.corp", typedConfigHost }).some((item) => item.section === "sshConfig"),
+      "the typed host is not listed as a config host"
+    ).toBe(false)
+  })
+
   it("offers a terminal, a new connection and the recents when nothing is typed", () => {
     expect(keys({ profiles: [profile()], recents: [recent()] })).toEqual([
       "terminal",

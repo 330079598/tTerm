@@ -4,6 +4,7 @@ import {
   addRecentQuickConnection,
   applyQuickConnectAuth,
   buildQuickConnectTab,
+  configHostToLookUp,
   draftProfileFromInput,
   draftProfileFromTab,
   formatEndpoint,
@@ -93,6 +94,14 @@ describe("resolveQuickConnectTarget", () => {
     expect(
       resolveQuickConnectTarget({ host: "bastion", username: "root", port: 22 }, hosts)
     ).toMatchObject({ title: "root@bastion", username: "root", port: 22 })
+  })
+
+  it("asks ~/.ssh/config about a typed host only when it does not list it", () => {
+    const hosts = [configHost(), configHost({ hostPattern: "*.corp", skipped: true })]
+    expect(configHostToLookUp("deploy@db9.corp:2200", hosts)).toBe("db9.corp")
+    expect(configHostToLookUp("ssh -l root 10.0.0.5", hosts)).toBe("10.0.0.5")
+    expect(configHostToLookUp("bastion", hosts)).toBeNull()
+    expect(configHostToLookUp("prod db", hosts)).toBeNull()
   })
 
   it("goes through a typed jump host as the same user unless one is given", () => {

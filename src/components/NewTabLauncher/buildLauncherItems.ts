@@ -28,6 +28,8 @@ export interface LauncherItemsInput {
   /** What was typed into the launcher. */
   input: string
   configHosts: readonly SshConfigHost[]
+  /** What `~/.ssh/config` sets for the typed host when it does not list it. */
+  typedConfigHost?: SshConfigHost | null
   profiles: readonly SavedProfile[]
   recents: readonly RecentQuickConnection[]
   /** The saved connections used lately, newest first. */
@@ -48,6 +50,7 @@ export interface LauncherItemsInput {
 export function buildLauncherItems({
   input,
   configHosts,
+  typedConfigHost,
   profiles,
   recents,
   profileRecents,
@@ -57,7 +60,9 @@ export function buildLauncherItems({
 }: LauncherItemsInput): LauncherItem[] {
   const query = input.trim()
   const target = parseQuickConnectInput(query)
-  const resolved = target ? resolveQuickConnectTarget(target, configHosts) : null
+  const resolved = target
+    ? resolveQuickConnectTarget(target, typedConfigHost ? [typedConfigHost] : configHosts)
+    : null
 
   const connectItem: LauncherItem | null = resolved
     ? {

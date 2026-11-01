@@ -241,6 +241,7 @@ pub fn run() {
             monitor::release_server_monitor_session,
             profiles::commands::list_profiles,
             profiles::commands::preview_ssh_config_import,
+            profiles::commands::resolve_ssh_config_host,
             profiles::commands::import_ssh_config_profiles,
             profiles::commands::groups::list_profile_groups,
             profiles::commands::groups::create_profile_group,

@@ -538,3 +538,26 @@ Host *
         "a jump host without a User fills in the local user, as ssh does"
     );
 }
+
+#[test]
+fn a_host_the_config_does_not_list_still_gets_its_wildcard_blocks() {
+    let config = r#"
+Host *.corp.example.com
+  User alice
+  ProxyJump bastion
+
+Match originalhost db9.*
+  Port 2222
+"#;
+    let host = super::config_host_for(config, "db9.corp.example.com");
+
+    assert!(!host.skipped);
+    assert_eq!(host.host.as_deref(), Some("db9.corp.example.com"));
+    assert_eq!(host.username.as_deref(), Some("alice"));
+    assert_eq!(host.port, 2222);
+    assert_eq!(host.jump_hosts[0].host, "bastion");
+
+    let other = super::config_host_for(config, "10.0.0.1");
+    assert!(other.username.is_none());
+    assert!(other.jump_hosts.is_empty());
+}

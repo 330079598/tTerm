@@ -9,6 +9,7 @@ import {
   type LauncherItem,
 } from "@/components/NewTabLauncher/launcherItems"
 import { useLauncherData } from "@/components/NewTabLauncher/useLauncherData"
+import { useTypedConfigHost } from "@/components/NewTabLauncher/useTypedConfigHost"
 import { useConfirmDialog } from "@/components/ui/app-dialog"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { useConfig } from "@/contexts/ConfigContext"
@@ -62,6 +63,7 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
   const [input, setInput] = useState("")
   const [selected, setSelected] = useState(0)
   const { profiles, configHosts, shells } = useLauncherData(open)
+  const typedConfigHost = useTypedConfigHost(open, input, configHosts)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const pendingCaretRef = useRef<number | null>(null)
@@ -71,6 +73,7 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
       buildLauncherItems({
         input,
         configHosts,
+        typedConfigHost,
         profiles,
         recents,
         profileRecents,
@@ -78,7 +81,7 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
         shellConfig: config,
         t,
       }),
-    [config, configHosts, input, profileRecents, profiles, recents, shells, t]
+    [config, configHosts, input, profileRecents, profiles, recents, shells, t, typedConfigHost]
   )
 
   const selectedIndex = Math.min(selected, items.length - 1)
@@ -115,7 +118,7 @@ export const NewTabLauncher: React.FC<NewTabLauncherProps> = ({
         onOpenLocalTerminal(action.shell)
         break
       case "new-connection":
-        onOpenConnectionDialog(input.trim(), configHosts)
+        onOpenConnectionDialog(input.trim(), typedConfigHost ? [typedConfigHost] : configHosts)
         break
       case "add-user":
         pendingCaretRef.current = action.caret
