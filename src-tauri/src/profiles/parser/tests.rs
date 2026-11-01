@@ -498,3 +498,43 @@ Host *
         .iter()
         .any(|warning| warning.contains("ProxyCommand was not imported")));
 }
+
+#[test]
+fn key_file_paths_fill_in_the_host_and_user() {
+    let config = r#"
+Host db
+  HostName db.corp.example.com
+  User deploy
+  ProxyJump bastion
+
+Host bastion
+  HostName bastion.example.com
+
+Host *
+  IdentityFile ~/.ssh/%C
+  IdentityFile ~/.ssh/%h_%r
+"#;
+    let (hosts, _) = import(config);
+    let db = &hosts[0];
+    let key = |name: &str| {
+        super::paths::home_dir()
+            .expect("home directory")
+            .join(format!(".ssh/{name}"))
+            .to_string_lossy()
+            .to_string()
+    };
+
+    assert_eq!(
+        db.private_key_path.as_deref(),
+        Some(key("db.corp.example.com_deploy").as_str())
+    );
+    assert!(db
+        .warnings
+        .iter()
+        .any(|warning| warning.contains("cannot fill in %C")));
+    assert_eq!(
+        db.jump_hosts[0].private_key_path.as_deref(),
+        Some(key("bastion.example.com_local-user").as_str()),
+        "a jump host without a User fills in the local user, as ssh does"
+    );
+}

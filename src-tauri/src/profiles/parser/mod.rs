@@ -3,7 +3,8 @@
 //! `Host` and `Match` blocks, `matching` checks `Match` criteria, `resolve`
 //! gathers each host's options from the blocks that match it, and `host`
 //! turns them into a preview entry, with `proxy_command` reading what its
-//! `ProxyCommand` does and `jump` reading its `ProxyJump`.
+//! `ProxyCommand` does, `jump` reading its `ProxyJump` and `tokens` filling in
+//! its key file paths.
 
 mod host;
 mod include;
@@ -14,6 +15,7 @@ pub(crate) mod paths;
 mod pattern;
 mod proxy_command;
 mod resolve;
+mod tokens;
 mod words;
 
 use super::storage::load_profiles;

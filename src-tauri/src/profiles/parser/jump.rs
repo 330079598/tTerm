@@ -8,8 +8,8 @@
 
 use super::host::first_option;
 use super::parse::SshConfig;
-use super::paths::expand_home_path;
 use super::resolve::resolve_host;
+use super::tokens::{key_file_path, PathTokens};
 use crate::profiles::types::SavedJumpHost;
 use std::collections::HashMap;
 
@@ -125,12 +125,24 @@ impl Chain<'_> {
     }
 
     fn hop(&mut self, spec: JumpSpec, options: &HashMap<String, Vec<String>>) -> SavedJumpHost {
-        let expand = |value: String| expand_home_path(&value).to_string_lossy().to_string();
+        let host = first_option(options, "hostname").unwrap_or_else(|| spec.host.clone());
+        let port = spec
+            .port
+            .or_else(|| first_option(options, "port").and_then(|port| port.parse().ok()))
+            .unwrap_or(22);
+        let user = spec.user.or_else(|| first_option(options, "user"));
+        let tokens = PathTokens {
+            alias: &spec.host,
+            hostname: &host,
+            port,
+            user: user.as_deref().unwrap_or(&self.config.local_user),
+            local_user: &self.config.local_user,
+        };
         let (private_key_path, certificate_path) =
-            match first_option(options, "identityfile").map(expand) {
+            match key_file_path(options, "identityfile", &tokens, self.warnings) {
                 Some(key) => (
                     Some(key),
-                    first_option(options, "certificatefile").map(expand),
+                    key_file_path(options, "certificatefile", &tokens, self.warnings),
                 ),
                 None => {
                     if self.target.private_key_path.is_some() {
@@ -146,15 +158,9 @@ impl Chain<'_> {
             };
 
         SavedJumpHost {
-            host: first_option(options, "hostname").unwrap_or(spec.host),
-            port: spec
-                .port
-                .or_else(|| first_option(options, "port").and_then(|port| port.parse().ok()))
-                .unwrap_or(22),
-            username: spec
-                .user
-                .or_else(|| first_option(options, "user"))
-                .unwrap_or_else(|| "root".to_string()),
+            host,
+            port,
+            username: user.unwrap_or_else(|| "root".to_string()),
             auth_method: if private_key_path.is_some() {
                 "key"
             } else {
