@@ -3,10 +3,11 @@
 //! `Host` and `Match` blocks, `matching` checks `Match` criteria, `resolve`
 //! gathers each host's options from the blocks that match it, and `host`
 //! turns them into a preview entry, with `proxy_command` reading what its
-//! `ProxyCommand` does.
+//! `ProxyCommand` does and `jump` reading its `ProxyJump`.
 
 mod host;
 mod include;
+mod jump;
 mod matching;
 mod parse;
 pub(crate) mod paths;

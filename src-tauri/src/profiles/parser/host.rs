@@ -1,18 +1,19 @@
 //! Builds the import preview entry of one `Host` block.
 
+use super::jump::parse_proxy_jump;
 use super::parse::SshConfig;
 use super::paths::expand_home_path;
 use super::pattern::is_wildcard_host;
 use super::proxy_command::{classify, ProxyCommandUse};
-use super::resolve::resolve_host;
 use crate::profiles::types::{
-    default_keepalive_count, default_keepalive_interval, RawSshHost, SavedJumpHost,
-    SshConfigImportHost, SshConfigImportProxy,
+    default_keepalive_count, default_keepalive_interval, RawSshHost, SshConfigImportHost,
+    SshConfigImportProxy,
 };
 use crate::tunnel::forwards::ForwardSpec;
 use std::collections::HashMap;
 
-fn first_option(options: &HashMap<String, Vec<String>>, key: &str) -> Option<String> {
+/// The first value of an option, trimmed, unless it is empty.
+pub(super) fn first_option(options: &HashMap<String, Vec<String>>, key: &str) -> Option<String> {
     options
         .get(&key.to_ascii_lowercase())
         .and_then(|values| values.first())
@@ -45,94 +46,6 @@ fn parse_forward_agent(value: Option<String>, warnings: &mut Vec<String>) -> boo
             false
         }
     }
-}
-
-fn parse_proxy_jump(
-    proxy_jump: Option<String>,
-    config: &SshConfig,
-    private_key_path: Option<&str>,
-    certificate_path: Option<&str>,
-    warnings: &mut Vec<String>,
-) -> Vec<SavedJumpHost> {
-    let Some(proxy_jump) = proxy_jump else {
-        return Vec::new();
-    };
-
-    if proxy_jump.eq_ignore_ascii_case("none") {
-        return Vec::new();
-    }
-
-    let jump_auth_method = if private_key_path.is_some() {
-        warnings.push(
-            "ProxyJump entries were imported with the target host private key; verify each jump host authentication setting.".to_string(),
-        );
-        "key"
-    } else {
-        warnings.push(
-            "ProxyJump entries were imported with password authentication; verify each jump host authentication setting.".to_string(),
-        );
-        "password"
-    };
-
-    proxy_jump
-        .split(',')
-        .filter_map(|raw_jump| {
-            let raw_jump = raw_jump.trim();
-            if raw_jump.is_empty() {
-                return None;
-            }
-
-            let (user_part, host_part) = raw_jump
-                .rsplit_once('@')
-                .map(|(user, host)| (Some(user.to_string()), host.to_string()))
-                .unwrap_or((None, raw_jump.to_string()));
-
-            let (host, port) = if host_part.starts_with('[') {
-                if let Some(end) = host_part.find(']') {
-                    let host = host_part[1..end].to_string();
-                    let port = host_part[end + 1..]
-                        .strip_prefix(':')
-                        .and_then(|value| value.parse::<u16>().ok())
-                        .unwrap_or(22);
-                    (host, port)
-                } else {
-                    (host_part, 22)
-                }
-            } else if let Some((host, port)) = host_part.rsplit_once(':') {
-                let parsed_port = port.parse::<u16>().ok();
-                match parsed_port {
-                    Some(port) => (host.to_string(), port),
-                    None => (host_part, 22),
-                }
-            } else {
-                (host_part, 22)
-            };
-
-            if host.is_empty() {
-                warnings.push(format!(
-                    "ProxyJump entry '{}' has no host and was skipped.",
-                    raw_jump
-                ));
-                return None;
-            }
-
-            // `ssh` reads the config for the jump host by its own name.
-            let username = user_part
-                .or_else(|| first_option(&resolve_host(config, &host).options, "user"))
-                .unwrap_or_else(|| "root".to_string());
-            Some(SavedJumpHost {
-                host,
-                port,
-                username,
-                auth_method: jump_auth_method.to_string(),
-                private_key_path: private_key_path.map(str::to_string),
-                private_key_passphrase: None,
-                certificate_path: certificate_path.map(str::to_string),
-                password: None,
-                profile_id: None,
-            })
-        })
-        .collect()
 }
 
 /// Collects a host's forward directives; ones that cannot be understood become
