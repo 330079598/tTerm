@@ -1,17 +1,15 @@
-// Draws tTerm's logo and mascot as 1024 x 1024 SVG. The logo, a prompt
-// chevron beside a crab on the mascot's beach, is the app icon at every
-// size. The mascot, a hermit crab whose shell is a terminal window, is the
-// large picture in the README and in the About dialog, where its detail has
-// room. The mascot is wrapped in a sticker filter that roughens the ink lines
-// and adds the white border and drop shadow. The filter needs a
-// Chromium-class renderer: resvg, which `tauri icon` uses for SVG input,
-// smears the displacement into blobs.
+// Draws tTerm's logo and mascot as 1024 x 1024 SVG. The logo, a crab whose
+// body is a terminal window, on the night tile of tTerm's old key icon, is
+// the app icon at every size. The mascot, a hermit crab whose shell is a
+// terminal window, is the large picture in the README and in the About
+// dialog, where its detail has room. The mascot is wrapped in a sticker
+// filter that roughens the ink lines and adds the white border and drop
+// shadow. The filter needs a Chromium-class renderer: resvg, which
+// `tauri icon` uses for SVG input, smears the displacement into blobs.
 
 const INK = "#1f1a33"
 const AMBER = "#ffc23d"
 const CORAL = "#ff7059"
-// Deeper than CORAL so the logo's crab stands out from the orange sky.
-const CRAB_RED = "#e8453c"
 const CREAM = "#fff4dc"
 const SCREEN = "#2b2752"
 
@@ -29,11 +27,6 @@ const STICKER_FILTER = `
       <feMerge><feMergeNode in="shadow"/><feMergeNode in="border"/><feMergeNode in="rough"/></feMerge>
     </filter>`
 
-/** The pale sun and the strip of sand that the mascot and the logo share. */
-const SUN_AND_SAND = `
-    <circle cx="830" cy="190" r="72" fill="#fff6d6" opacity="0.85"/>
-    <path d="M0 860 Q260 800 512 850 T1024 830 V1024 H0 Z" fill="#f3d39b" opacity="0.9"/>`
-
 /** The beach tile: a warm sky, a pale sun and a strip of sand. */
 const BACKGROUND = `
   <defs>
@@ -43,7 +36,9 @@ const BACKGROUND = `
   </defs>
   <clipPath id="tile"><rect width="1024" height="1024" rx="228"/></clipPath>
   <g clip-path="url(#tile)">
-    <rect width="1024" height="1024" fill="url(#bg)"/>${SUN_AND_SAND}
+    <rect width="1024" height="1024" fill="url(#bg)"/>
+    <circle cx="830" cy="190" r="72" fill="#fff6d6" opacity="0.85"/>
+    <path d="M0 860 Q260 800 512 850 T1024 830 V1024 H0 Z" fill="#f3d39b" opacity="0.9"/>
   </g>`
 
 /** A `>_` prompt whose chevron is `size` wide, drawn from its top-left corner. */
@@ -107,47 +102,67 @@ function claw(cx, cy, r, dir) {
   return `M${cx} ${cy} L${point(dir + 30)} A${r} ${r} 0 1 1 ${point(dir - 30)} Z`
 }
 
+// The logo's colours are those of the key that was the app icon before the
+// crab, so the icon still looks like tTerm to people who know the old one.
+const NIGHT_TOP = "#1c2745"
+const NIGHT_BOTTOM = "#0a0f1e"
+const KEY_SCREEN = "#111a30"
+const KEY_PROMPT = "#ffc21a"
+
+/** Half the distance between the logo crab's eyes, wide enough that they do not touch. */
+const LOGO_EYE_SPREAD = 112
+
+/** One of the logo crab's eyes, on the left for `side` -1 and the right for 1. */
+function logoEye(side) {
+  const cx = 512 + side * LOGO_EYE_SPREAD
+  return `
+  <circle cx="${cx}" cy="262" r="84" fill="#ffffff" stroke="${CORAL}" stroke-width="20"/>
+  <circle cx="${cx + 14}" cy="276" r="35" fill="${INK}"/>`
+}
+
 /**
- * The logo: a `>` prompt beside a crab, as two solid shapes in two colours,
- * the way the icons that stay readable on a taskbar are drawn. A drawing with
- * more parts turned to texture at 24 px. The claws sit close to the body so
- * the pair is narrow enough to be drawn large on the tile. The pupils are filled with the sky,
- * so they read as holes. Each claw is its own group, pivoting on its centre,
- * so a page can animate it.
+ * The logo: the crab seen from the front, as on the splash screen, its body a
+ * terminal window. The body is the old key's gold frame and `>_` screen on
+ * the old key's night tile, with coral claws and eyes for the crab. The parts
+ * are few and thick, because thinner ones turned to texture at 24 px. Each
+ * claw is its own group, so a page can animate it.
  */
 const LOGO = `
-  <g transform="translate(512 540) scale(1.12) translate(-512 -540)">
-  <path d="M160 357 L296 517 L160 677" fill="none" stroke="${INK}" stroke-width="104" stroke-linecap="round" stroke-linejoin="round"/>
-  <g fill="${CRAB_RED}" stroke="${CRAB_RED}" stroke-linecap="round">
-    <g id="claw-left"><path d="M506 640 L482 600" stroke-width="60"/><path d="${claw(482, 578, 74, -100)}" stroke="none"/></g>
-    <g id="claw-right"><path d="M816 640 L840 600" stroke-width="60"/><path d="${claw(840, 578, 74, -80)}" stroke="none"/></g>
-    <path d="M591 580 V428 M731 580 V428" stroke-width="52"/>
-    <rect x="486" y="560" width="350" height="216" rx="108" stroke="none"/>
-    <circle cx="591" cy="428" r="70" stroke="none"/>
-    <circle cx="731" cy="428" r="70" stroke="none"/>
-  </g>
-  <circle cx="601" cy="438" r="29" fill="url(#sky)"/>
-  <circle cx="741" cy="438" r="29" fill="url(#sky)"/>
+  <g filter="url(#lift)" transform="translate(512 530) scale(1.08) translate(-512 -505)">
+  <path d="M${512 - LOGO_EYE_SPREAD} 440 V280 M${512 + LOGO_EYE_SPREAD} 440 V280" stroke="${CORAL}" stroke-width="46" stroke-linecap="round"/>
+  <g id="claw-left" fill="${CORAL}"><path d="M320 650 L220 590" stroke="${CORAL}" stroke-width="58" stroke-linecap="round"/><path d="${claw(176, 482, 112, -105)}"/></g>
+  <g id="claw-right" fill="${CORAL}"><path d="M704 650 L804 590" stroke="${CORAL}" stroke-width="58" stroke-linecap="round"/><path d="${claw(848, 482, 112, -75)}"/></g>
+  <rect x="300" y="410" width="424" height="400" rx="108" fill="url(#gold)"/>
+  <rect x="358" y="468" width="308" height="284" rx="54" fill="${KEY_SCREEN}"/>
+  <path d="M414 548 L476 610 L414 672 M514 672 H612" fill="none" stroke="${KEY_PROMPT}" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>${logoEye(-1)}${logoEye(1)}
   </g>`
 
 /**
- * The logo on the mascot's beach, on a rounded tile `inset` px in from each
- * edge of the 1024 px canvas. The tile is drawn with a 24 px inset and
- * scaled to fit.
+ * The logo on the night tile, `inset` px in from each edge of the 1024 px
+ * canvas.
  */
 function tiled(inset) {
-  const scale = ((1024 - 2 * inset) / 976).toFixed(4)
+  const size = 1024 - 2 * inset
+  const scale = (size / 1024).toFixed(4)
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
-    <linearGradient id="sky" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="1024">
-      <stop offset="0" stop-color="#ffd88a"/><stop offset="1" stop-color="#f0905a"/>
+    <linearGradient id="night" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${NIGHT_TOP}"/><stop offset="1" stop-color="${NIGHT_BOTTOM}"/>
     </linearGradient>
-    <clipPath id="tile"><rect x="24" y="24" width="976" height="976" rx="220"/></clipPath>
+    <radialGradient id="glow" cx="0.5" cy="0" r="0.8">
+      <stop offset="0" stop-color="#5b7bd6" stop-opacity="0.35"/><stop offset="1" stop-color="#5b7bd6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" gradientUnits="userSpaceOnUse" x1="0" y1="410" x2="0" y2="810">
+      <stop offset="0" stop-color="#ffe07a"/><stop offset="0.55" stop-color="#ffc21a"/><stop offset="1" stop-color="#f29a00"/>
+    </linearGradient>
+    <filter id="lift" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
   </defs>
   <g transform="translate(512 512) scale(${scale}) translate(-512 -512)">
-    <g clip-path="url(#tile)">
-      <rect width="1024" height="1024" fill="url(#sky)"/>${SUN_AND_SAND}
-    </g>${LOGO}
+    <rect width="1024" height="1024" rx="228" fill="url(#night)"/>
+    <rect width="1024" height="1024" rx="228" fill="url(#glow)"/>
+    <rect x="3" y="3" width="1018" height="1018" rx="225" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="6"/>${LOGO}
   </g>
 </svg>
 `

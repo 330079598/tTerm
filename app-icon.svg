@@ -1,28 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
-    <linearGradient id="sky" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="1024">
-      <stop offset="0" stop-color="#ffd88a"/><stop offset="1" stop-color="#f0905a"/>
+    <linearGradient id="night" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1c2745"/><stop offset="1" stop-color="#0a0f1e"/>
     </linearGradient>
-    <clipPath id="tile"><rect x="24" y="24" width="976" height="976" rx="220"/></clipPath>
+    <radialGradient id="glow" cx="0.5" cy="0" r="0.8">
+      <stop offset="0" stop-color="#5b7bd6" stop-opacity="0.35"/><stop offset="1" stop-color="#5b7bd6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" gradientUnits="userSpaceOnUse" x1="0" y1="410" x2="0" y2="810">
+      <stop offset="0" stop-color="#ffe07a"/><stop offset="0.55" stop-color="#ffc21a"/><stop offset="1" stop-color="#f29a00"/>
+    </linearGradient>
+    <filter id="lift" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
   </defs>
-  <g transform="translate(512 512) scale(1.0492) translate(-512 -512)">
-    <g clip-path="url(#tile)">
-      <rect width="1024" height="1024" fill="url(#sky)"/>
-    <circle cx="830" cy="190" r="72" fill="#fff6d6" opacity="0.85"/>
-    <path d="M0 860 Q260 800 512 850 T1024 830 V1024 H0 Z" fill="#f3d39b" opacity="0.9"/>
-    </g>
-  <g transform="translate(512 540) scale(1.12) translate(-512 -540)">
-  <path d="M160 357 L296 517 L160 677" fill="none" stroke="#1f1a33" stroke-width="104" stroke-linecap="round" stroke-linejoin="round"/>
-  <g fill="#e8453c" stroke="#e8453c" stroke-linecap="round">
-    <g id="claw-left"><path d="M506 640 L482 600" stroke-width="60"/><path d="M482 578 L507.3 508.5 A74 74 0 1 1 434.4 521.3 Z" stroke="none"/></g>
-    <g id="claw-right"><path d="M816 640 L840 600" stroke-width="60"/><path d="M840 578 L887.6 521.3 A74 74 0 1 1 814.7 508.5 Z" stroke="none"/></g>
-    <path d="M591 580 V428 M731 580 V428" stroke-width="52"/>
-    <rect x="486" y="560" width="350" height="216" rx="108" stroke="none"/>
-    <circle cx="591" cy="428" r="70" stroke="none"/>
-    <circle cx="731" cy="428" r="70" stroke="none"/>
-  </g>
-  <circle cx="601" cy="438" r="29" fill="url(#sky)"/>
-  <circle cx="741" cy="438" r="29" fill="url(#sky)"/>
+  <g transform="translate(512 512) scale(1.0000) translate(-512 -512)">
+    <rect width="1024" height="1024" rx="228" fill="url(#night)"/>
+    <rect width="1024" height="1024" rx="228" fill="url(#glow)"/>
+    <rect x="3" y="3" width="1018" height="1018" rx="225" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="6"/>
+  <g filter="url(#lift)" transform="translate(512 530) scale(1.08) translate(-512 -505)">
+  <path d="M400 440 V280 M624 440 V280" stroke="#ff7059" stroke-width="46" stroke-linecap="round"/>
+  <g id="claw-left" fill="#ff7059"><path d="M320 650 L220 590" stroke="#ff7059" stroke-width="58" stroke-linecap="round"/><path d="M176 482 L205.0 373.8 A112 112 0 1 1 96.8 402.8 Z"/></g>
+  <g id="claw-right" fill="#ff7059"><path d="M704 650 L804 590" stroke="#ff7059" stroke-width="58" stroke-linecap="round"/><path d="M848 482 L927.2 402.8 A112 112 0 1 1 819.0 373.8 Z"/></g>
+  <rect x="300" y="410" width="424" height="400" rx="108" fill="url(#gold)"/>
+  <rect x="358" y="468" width="308" height="284" rx="54" fill="#111a30"/>
+  <path d="M414 548 L476 610 L414 672 M514 672 H612" fill="none" stroke="#ffc21a" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="400" cy="262" r="84" fill="#ffffff" stroke="#ff7059" stroke-width="20"/>
+  <circle cx="414" cy="276" r="35" fill="#1f1a33"/>
+  <circle cx="624" cy="262" r="84" fill="#ffffff" stroke="#ff7059" stroke-width="20"/>
+  <circle cx="638" cy="276" r="35" fill="#1f1a33"/>
   </g>
   </g>
 </svg>
