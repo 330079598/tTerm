@@ -1,11 +1,13 @@
 //! Importing hosts from an OpenSSH config file: `paths` finds the file,
 //! `include` reads it with its includes, `words` and `parse` split it into
-//! `Host` blocks, `resolve` gathers each host's options from the blocks that
-//! match it, and `host` turns them into a preview entry, with `proxy_command`
-//! reading what its `ProxyCommand` does.
+//! `Host` and `Match` blocks, `matching` checks `Match` criteria, `resolve`
+//! gathers each host's options from the blocks that match it, and `host`
+//! turns them into a preview entry, with `proxy_command` reading what its
+//! `ProxyCommand` does.
 
 mod host;
 mod include;
+mod matching;
 mod parse;
 pub(crate) mod paths;
 mod pattern;
@@ -28,12 +30,12 @@ pub(crate) fn build_ssh_config_import_preview(
     let source = normalize_import_source(source_path)?;
     let (content, include_warnings) =
         read_ssh_config_with_includes(&source, &mut HashSet::new(), 0)?;
-    let (blocks, mut warnings) = parse_ssh_config(&content);
+    let (config, mut warnings) = parse_ssh_config(&content);
     warnings.extend(include_warnings);
     let existing_profiles = load_profiles()?;
-    let hosts = import_entries(&blocks)
+    let hosts = import_entries(&config)
         .into_iter()
-        .map(|raw| build_import_host(raw, &blocks, &existing_profiles))
+        .map(|raw| build_import_host(raw, &config, &existing_profiles))
         .collect();
 
     Ok(SshConfigImportPreview {
@@ -43,5 +45,7 @@ pub(crate) fn build_ssh_config_import_preview(
     })
 }
 
+#[cfg(test)]
+mod match_tests;
 #[cfg(test)]
 mod tests;

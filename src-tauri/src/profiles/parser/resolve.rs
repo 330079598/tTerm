@@ -1,9 +1,12 @@
 //! Works out the options of each host from every block that matches it, the
 //! way `ssh` reads its config: blocks apply in file order and the first value
 //! of an option wins, so `Host *.corp` and `Host *` reach the hosts below and
-//! above them alike.
+//! above them alike. A `Match` block is checked against what the blocks above
+//! it have set, and `Match final` makes a second pass that matches `Host`
+//! lines against the `HostName`.
 
-use super::parse::SshConfigBlock;
+use super::matching::{criteria_match, MatchContext};
+use super::parse::{BlockCondition, SshConfig, SshConfigBlock};
 use super::pattern::{is_wildcard_host, wildcard_matches};
 use crate::profiles::types::RawSshHost;
 use std::collections::{HashMap, HashSet};
@@ -18,13 +21,13 @@ const GATHERED_OPTIONS: [&str; 5] = [
     "dynamicforward",
 ];
 
-/// How a block's `Host` line matches a host name.
+/// How a block matches a host.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum BlockMatch {
     None,
     /// The line names the host itself.
     Named,
-    /// Only a wildcard pattern on the line matches.
+    /// A wildcard pattern on a `Host` line, or a `Match` line, matches.
     Wildcard,
 }
 
@@ -88,44 +91,58 @@ fn expand_hostname_tokens(value: &str, alias: &str) -> String {
     expanded
 }
 
-/// The options `ssh` would use for `alias`, as a raw host entry.
-///
-/// tTerm keeps one key file and one certificate where `ssh` tries each in
-/// turn, so the ones the host's own blocks name come before those that
-/// wildcard blocks add.
-pub(super) fn resolve_host(blocks: &[SshConfigBlock], alias: &str) -> RawSshHost {
-    let mut options: HashMap<String, Vec<String>> = HashMap::new();
-    let mut inherited: HashMap<String, Vec<String>> = HashMap::new();
-    let mut host = RawSshHost {
-        pattern: alias.to_string(),
-        ..Default::default()
-    };
-    let mut warned_rival = false;
+fn push_once(values: &mut Vec<String>, value: &str) {
+    if !values.iter().any(|existing| existing == value) {
+        values.push(value.to_string());
+    }
+}
 
-    for block in blocks {
-        let matched = match_block(&block.patterns, alias);
-        if matched == BlockMatch::None {
-            continue;
-        }
+/// What one host has gathered from the blocks read so far.
+#[derive(Default)]
+struct Resolution {
+    options: HashMap<String, Vec<String>>,
+    /// Gathered options from blocks that do not name the host itself.
+    inherited: HashMap<String, Vec<String>>,
+    unsupported_options: Vec<String>,
+    warnings: Vec<String>,
+    warned_rival: bool,
+}
+
+impl Resolution {
+    fn first(&self, key: &str) -> Option<&str> {
+        self.options
+            .get(key)
+            .and_then(|values| values.first())
+            .map(String::as_str)
+    }
+
+    /// The `HostName` set so far, with `%h` filled in.
+    fn hostname(&self, alias: &str) -> Option<String> {
+        self.first("hostname")
+            .map(|hostname| expand_hostname_tokens(hostname, alias))
+    }
+
+    fn apply(&mut self, block: &SshConfigBlock, matched: BlockMatch) {
         for (key, value) in &block.options {
             if GATHERED_OPTIONS.contains(&key.as_str()) {
                 let gathered = if matched == BlockMatch::Named {
-                    &mut options
+                    &mut self.options
                 } else {
-                    &mut inherited
+                    &mut self.inherited
                 };
-                gathered.entry(key.clone()).or_default().push(value.clone());
+                // A second pass reads the same lines again.
+                push_once(gathered.entry(key.clone()).or_default(), value);
                 continue;
             }
-            if options.contains_key(key) {
+            if self.options.contains_key(key) {
                 continue;
             }
             if let Some(rival) =
-                rival_proxy_option(key).filter(|rival| options.contains_key(*rival))
+                rival_proxy_option(key).filter(|rival| self.options.contains_key(*rival))
             {
-                if !warned_rival {
-                    warned_rival = true;
-                    host.warnings.push(format!(
+                if !self.warned_rival {
+                    self.warned_rival = true;
+                    self.warnings.push(format!(
                         "{} was not imported because {} comes first, and ssh uses whichever comes first.",
                         option_label(key),
                         option_label(rival)
@@ -133,26 +150,83 @@ pub(super) fn resolve_host(blocks: &[SshConfigBlock], alias: &str) -> RawSshHost
                 }
                 continue;
             }
-            options.insert(key.clone(), vec![value.clone()]);
+            self.options.insert(key.clone(), vec![value.clone()]);
         }
         for option in &block.unsupported_options {
-            if !host.unsupported_options.contains(option) {
-                host.unsupported_options.push(option.clone());
-            }
+            push_once(&mut self.unsupported_options, option);
         }
     }
+}
 
-    for (key, values) in inherited {
-        options.entry(key).or_default().extend(values);
+/// Reads every block once for `alias`, matching `Host` lines against
+/// `host_arg`: the alias on the first pass and the `HostName` on the final one.
+fn read_blocks(
+    config: &SshConfig,
+    alias: &str,
+    host_arg: &str,
+    final_pass: bool,
+    resolution: &mut Resolution,
+) {
+    for block in &config.blocks {
+        let matched = match &block.condition {
+            BlockCondition::Host(patterns) => match_block(patterns, host_arg),
+            BlockCondition::Match(criteria) => {
+                let host = resolution
+                    .hostname(alias)
+                    .unwrap_or_else(|| host_arg.to_string());
+                let context = MatchContext {
+                    host: &host,
+                    original_host: alias,
+                    user: resolution.first("user").unwrap_or(&config.local_user),
+                    local_user: &config.local_user,
+                    final_pass,
+                };
+                if criteria_match(criteria, &context) {
+                    BlockMatch::Wildcard
+                } else {
+                    BlockMatch::None
+                }
+            }
+            BlockCondition::Never => BlockMatch::None,
+        };
+        if matched != BlockMatch::None {
+            resolution.apply(block, matched);
+        }
     }
-    if let Some(hostname) = options
-        .get_mut("hostname")
-        .and_then(|values| values.first_mut())
-    {
-        *hostname = expand_hostname_tokens(hostname, alias);
+}
+
+/// The options `ssh` would use for `alias`, as a raw host entry.
+///
+/// tTerm keeps one key file and one certificate where `ssh` tries each in
+/// turn, so the ones the host's own blocks name come before those that
+/// wildcard and `Match` blocks add.
+pub(super) fn resolve_host(config: &SshConfig, alias: &str) -> RawSshHost {
+    let mut resolution = Resolution::default();
+    read_blocks(config, alias, alias, false, &mut resolution);
+    if config.wants_final_pass {
+        let host_arg = resolution
+            .hostname(alias)
+            .unwrap_or_else(|| alias.to_string());
+        read_blocks(config, alias, &host_arg, true, &mut resolution);
     }
-    host.options = options;
-    host
+
+    let hostname = resolution.hostname(alias);
+    let mut options = resolution.options;
+    for (key, values) in resolution.inherited {
+        let gathered = options.entry(key).or_default();
+        for value in &values {
+            push_once(gathered, value);
+        }
+    }
+    if let Some(hostname) = hostname {
+        options.insert("hostname".to_string(), vec![hostname]);
+    }
+    RawSshHost {
+        pattern: alias.to_string(),
+        options,
+        unsupported_options: resolution.unsupported_options,
+        warnings: resolution.warnings,
+    }
 }
 
 /// A wildcard block's own options, for the preview entry that shows it was
@@ -172,15 +246,18 @@ fn wildcard_entry(block: &SshConfigBlock, pattern: &str) -> RawSshHost {
 
 /// One entry per name that starts a `Host` line, in the order the names first
 /// appear. A line with `*` among its patterns sets options for other hosts and
-/// gets no entry.
-pub(super) fn import_entries(blocks: &[SshConfigBlock]) -> Vec<RawSshHost> {
+/// gets no entry, and so does a `Match` line.
+pub(super) fn import_entries(config: &SshConfig) -> Vec<RawSshHost> {
     let mut seen = HashSet::new();
     let mut entries = Vec::new();
-    for block in blocks.iter().filter(|block| block.line > 0) {
-        if block.patterns.iter().any(|pattern| pattern == "*") {
+    for block in config.blocks.iter().filter(|block| block.line > 0) {
+        let BlockCondition::Host(patterns) = &block.condition else {
+            continue;
+        };
+        if patterns.iter().any(|pattern| pattern == "*") {
             continue;
         }
-        let Some(pattern) = block.patterns.first() else {
+        let Some(pattern) = patterns.first() else {
             continue;
         };
         if !seen.insert(pattern.clone()) {
@@ -189,9 +266,9 @@ pub(super) fn import_entries(blocks: &[SshConfigBlock]) -> Vec<RawSshHost> {
         let mut entry = if is_wildcard_host(pattern) {
             wildcard_entry(block, pattern)
         } else {
-            resolve_host(blocks, pattern)
+            resolve_host(config, pattern)
         };
-        if block.patterns.len() > 1 {
+        if patterns.len() > 1 {
             entry.warnings.insert(
                 0,
                 format!(

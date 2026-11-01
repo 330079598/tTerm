@@ -1,6 +1,6 @@
 //! Builds the import preview entry of one `Host` block.
 
-use super::parse::SshConfigBlock;
+use super::parse::SshConfig;
 use super::paths::expand_home_path;
 use super::pattern::is_wildcard_host;
 use super::proxy_command::{classify, ProxyCommandUse};
@@ -49,7 +49,7 @@ fn parse_forward_agent(value: Option<String>, warnings: &mut Vec<String>) -> boo
 
 fn parse_proxy_jump(
     proxy_jump: Option<String>,
-    blocks: &[SshConfigBlock],
+    config: &SshConfig,
     private_key_path: Option<&str>,
     certificate_path: Option<&str>,
     warnings: &mut Vec<String>,
@@ -118,7 +118,7 @@ fn parse_proxy_jump(
 
             // `ssh` reads the config for the jump host by its own name.
             let username = user_part
-                .or_else(|| first_option(&resolve_host(blocks, &host).options, "user"))
+                .or_else(|| first_option(&resolve_host(config, &host).options, "user"))
                 .unwrap_or_else(|| "root".to_string());
             Some(SavedJumpHost {
                 host,
@@ -199,7 +199,7 @@ fn proxy_settings(
 
 pub(super) fn build_import_host(
     raw: RawSshHost,
-    blocks: &[SshConfigBlock],
+    config: &SshConfig,
     existing_profiles: &[crate::profiles::types::SavedProfile],
 ) -> SshConfigImportHost {
     let mut warnings = raw.warnings.clone();
@@ -257,7 +257,7 @@ pub(super) fn build_import_host(
     let (proxy_jump, proxy) = proxy_settings(&raw, &mut warnings);
     let jump_hosts = parse_proxy_jump(
         proxy_jump,
-        blocks,
+        config,
         private_key_path.as_deref(),
         certificate_path.as_deref(),
         &mut warnings,

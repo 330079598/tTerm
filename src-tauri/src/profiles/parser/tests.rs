@@ -8,11 +8,17 @@ use std::collections::HashSet;
 use std::fs;
 
 /// The preview entries of a config, with the warnings about the whole file.
-fn import(config: &str) -> (Vec<SshConfigImportHost>, Vec<String>) {
-    let (blocks, warnings) = parse_ssh_config(config);
-    let hosts = import_entries(&blocks)
+pub(super) fn import(config: &str) -> (Vec<SshConfigImportHost>, Vec<String>) {
+    import_as(config, "local-user")
+}
+
+/// The preview entries of a config read by the local user `local_user`.
+pub(super) fn import_as(config: &str, local_user: &str) -> (Vec<SshConfigImportHost>, Vec<String>) {
+    let (mut config, warnings) = parse_ssh_config(config);
+    config.local_user = local_user.to_string();
+    let hosts = import_entries(&config)
         .into_iter()
-        .map(|raw| build_import_host(raw, &blocks, &[]))
+        .map(|raw| build_import_host(raw, &config, &[]))
         .collect();
     (hosts, warnings)
 }
@@ -225,31 +231,6 @@ Host keyless
         .warnings
         .iter()
         .any(|warning| warning.contains("has no IdentityFile")));
-}
-
-#[test]
-fn parse_ssh_config_ignores_match_block_options_until_next_host() {
-    let config = r#"
-User global-user
-
-Match host prod
-  User match-user
-  IdentityFile ~/.ssh/match_key
-
-Host prod
-  HostName prod.example.com
-"#;
-
-    let (hosts, warnings) = import(config);
-    assert_eq!(hosts.len(), 1);
-    assert!(warnings
-        .iter()
-        .any(|warning| warning.contains("Match block 'host prod' is ignored")));
-
-    let host = &hosts[0];
-    assert_eq!(host.username.as_deref(), Some("global-user"));
-    assert_eq!(host.auth_method, "password");
-    assert!(host.private_key_path.is_none());
 }
 
 #[test]
