@@ -1,6 +1,7 @@
 //! Builds the import preview entry of one `Host` block.
 
 use super::paths::expand_home_path;
+use super::pattern::is_wildcard_host;
 use super::proxy_command::{classify, ProxyCommandUse};
 use crate::profiles::types::{
     default_keepalive_count, default_keepalive_interval, RawSshHost, SavedJumpHost,
@@ -42,10 +43,6 @@ fn parse_forward_agent(value: Option<String>, warnings: &mut Vec<String>) -> boo
             false
         }
     }
-}
-
-fn is_wildcard_host(pattern: &str) -> bool {
-    pattern.contains('*') || pattern.contains('?') || pattern.contains('!')
 }
 
 fn parse_proxy_jump(

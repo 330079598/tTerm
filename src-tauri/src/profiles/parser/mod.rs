@@ -7,6 +7,7 @@ mod host;
 mod include;
 mod parse;
 pub(crate) mod paths;
+mod pattern;
 mod proxy_command;
 mod words;
 
