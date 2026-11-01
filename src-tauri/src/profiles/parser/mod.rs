@@ -47,6 +47,8 @@ pub(crate) fn build_ssh_config_import_preview(
 }
 
 #[cfg(test)]
+mod jump_tests;
+#[cfg(test)]
 mod match_tests;
 #[cfg(test)]
 mod tests;

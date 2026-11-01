@@ -392,7 +392,7 @@ Host bastion
     );
     assert_eq!(db1.forwards.len(), 2, "forwards gather from every block");
     assert_eq!(db1.jump_hosts.len(), 1);
-    assert_eq!(db1.jump_hosts[0].host, "bastion");
+    assert_eq!(db1.jump_hosts[0].host, "203.0.113.5");
     assert_eq!(
         db1.jump_hosts[0].username, "ops",
         "the jump host's user comes from its own Host block"

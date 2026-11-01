@@ -1,6 +1,6 @@
 //! Builds the import preview entry of one `Host` block.
 
-use super::jump::parse_proxy_jump;
+use super::jump::{parse_proxy_jump, JumpTarget};
 use super::parse::SshConfig;
 use super::paths::expand_home_path;
 use super::pattern::is_wildcard_host;
@@ -168,13 +168,12 @@ pub(super) fn build_import_host(
     }
 
     let (proxy_jump, proxy) = proxy_settings(&raw, &mut warnings);
-    let jump_hosts = parse_proxy_jump(
-        proxy_jump,
-        config,
-        private_key_path.as_deref(),
-        certificate_path.as_deref(),
-        &mut warnings,
-    );
+    let target = JumpTarget {
+        alias: &raw.pattern,
+        private_key_path: private_key_path.as_deref(),
+        certificate_path: certificate_path.as_deref(),
+    };
+    let jump_hosts = parse_proxy_jump(proxy_jump, config, &target, &mut warnings);
     let forwards = parse_forwards(&raw.options, &mut warnings);
     let existing_profile_id = existing_profiles
         .iter()
