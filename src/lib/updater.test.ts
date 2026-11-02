@@ -65,6 +65,32 @@ describe("app updater state transitions", () => {
     }
   )
 
+  it("checks the requested channel after a check of another channel ends", async () => {
+    let finish!: () => void
+    mocks.invoke.mockImplementation(async (_command: string, args: { channel: string }) => {
+      if (args.channel === "stable") {
+        await new Promise<void>((resolve) => {
+          finish = resolve
+        })
+        return null
+      }
+      return update
+    })
+    const updater = await loadUpdater()
+    const background = updater.checkForAppUpdate("stable", true)
+    await vi.waitFor(() => expect(finish).toBeTypeOf("function"))
+    const manual = updater.checkForAppUpdate("beta-dev")
+    finish()
+
+    await background
+    await expect(manual).resolves.toEqual(update)
+    expect(mocks.invoke.mock.calls.map(([, args]) => args)).toEqual([
+      { channel: "stable" },
+      { channel: "beta-dev" },
+    ])
+    expect(updater.getUpdaterState()).toMatchObject({ status: "available", channel: "beta-dev" })
+  })
+
   it("does not publish the downloaded confirmation state for download and install", async () => {
     const updater = await loadUpdater()
     await updater.checkForAppUpdate("stable")

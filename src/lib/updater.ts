@@ -65,6 +65,7 @@ let downloadedUpdateChannel: UpdateChannel | null = null
 let hasInstalledUpdate = false
 let checkInFlight: Promise<AppUpdateMetadata | null> | null = null
 let checkIsSilent = false
+let checkChannel: UpdateChannel | null = null
 let downloadInFlight: Promise<boolean> | null = null
 let installInFlight: Promise<boolean> | null = null
 let downloadAndInstallInFlight: Promise<boolean> | null = null
@@ -102,12 +103,19 @@ export async function checkForAppUpdate(channel: UpdateChannel, silent = false) 
   }
 
   if (checkInFlight) {
+    // A check of another channel cannot answer this one, so this one runs
+    // once it ends, as the channel may have just been switched.
+    if (checkChannel !== channel) {
+      await checkInFlight
+      return checkForAppUpdate(channel, silent)
+    }
     // A manual request must see a result even when it joins a background check.
     checkIsSilent &&= silent
     return checkInFlight
   }
 
   checkIsSilent = silent
+  checkChannel = channel
   checkInFlight = (async () => {
     try {
       const currentVersion = await getVersion().catch(() => state.currentVersion)
