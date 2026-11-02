@@ -46,6 +46,8 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   // Windows Terminal duplicates a tab on Ctrl+Shift+D as well.
   "tabs.duplicateActive": "mod+shift+d",
   "tabs.closeActive": "mod+shift+w",
+  // Ctrl+Shift+T opens a tab on Windows and Linux, so reopening is left unbound there.
+  "tabs.reopenClosed": null,
   // O for the dialog it opens; Mod+Shift+S already saves the selection.
   "tabs.saveConnection": "mod+shift+o",
   // Ctrl+F moves the cursor forward in readline and pages down in vim and
@@ -96,6 +98,8 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
  */
 const MAC_DEFAULT_BINDINGS: Partial<Record<KeymapActionId, string | string[] | null>> = {
   "workspace.newTab": "mod+t",
+  // As in Safari, Chrome and iTerm2.
+  "tabs.reopenClosed": "mod+shift+t",
   "terminal.find": "mod+f",
   "tabs.switchToNth": digitChords("mod"),
   "workspace.focusNextPane": "mod+]",

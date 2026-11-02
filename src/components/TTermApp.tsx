@@ -130,10 +130,8 @@ export const TTermApp: React.FC = () => {
   const tabConnection = useTabConnectionActions(shell)
   const controls = useBroadcastControls(shell, broadcast, runtime, tabConnection.handleReconnectTab)
   usePageTabs(shell, { isLoaded, config, i18n, settingsTabTitle, tunnelsTabTitle, logsTabTitle })
-  const { handleOpenLocalTerminal, handleConnect, handleOpenRemoteFile } = useTabOpeners(
-    shell,
-    config
-  )
+  const { handleOpenLocalTerminal, handleConnect, handleOpenRemoteFile, prepareTab } =
+    useTabOpeners(shell, config)
   const openLaunchDirs = useLaunchDirs(t, (cwd) => handleOpenLocalTerminal(undefined, cwd))
   useSessionRestore(shell, {
     isLoaded,
@@ -170,7 +168,13 @@ export const TTermApp: React.FC = () => {
     handleCloseOtherTabs,
     handleCloseTabsToLeft,
     handleCloseTabsToRight,
-  } = useTabClosing(shell, { transfers, stopLiveSource: runtime.stopLiveSource })
+    reopenClosedTab,
+    hasClosedTabs,
+  } = useTabClosing(shell, {
+    transfers,
+    stopLiveSource: runtime.stopLiveSource,
+    prepareClosedTab: prepareTab,
+  })
   const { handleSplitTab, handleTabDragMove, handleTabDrop, handleTabDragCancel } =
     useWorkspaceSplits(shell)
 
@@ -209,6 +213,8 @@ export const TTermApp: React.FC = () => {
     editTabProfile: profileActions.handleEditTabProfile,
     setTabLogRecording: handleSetTabLogRecording,
     setTabIconStyle,
+    reopenClosedTab,
+    hasClosedTabs,
   })
 
   const titleBar = useTitleBarPages(shell, {
@@ -242,6 +248,7 @@ export const TTermApp: React.FC = () => {
     handleNewTab,
     handleRemoveTab,
     openRenameDialog,
+    reopenClosedTab,
     editTabProfile: profileActions.handleEditTabProfile,
   })
 

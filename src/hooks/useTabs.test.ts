@@ -4,6 +4,7 @@ import { act, renderHook } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
 import { useTabs } from "@/hooks/useTabs"
+import { closedEntries } from "@/lib/closedTabs"
 import { BUILTIN_PANE_TEMPLATES } from "@/lib/paneTemplates"
 import { getPaneIds } from "@/lib/tabGroups"
 import { getDuplicateTabTitle, removeTabsFromState } from "@/lib/tabsState"
@@ -245,6 +246,26 @@ describe("useTabs split tabs", () => {
     expect(panes(result)).toEqual([["a", copy], ["b"]])
     expect(result.current.tabs.map((tab) => tab.id)).toEqual(["a", copy, "b"])
     expect(result.current.activeTabId).toBe(copy)
+  })
+
+  it("reopens a closed split tab of the bar in its place, with every pane connecting", () => {
+    const { result } = setup(["a", "b", "c"])
+    act(() => {
+      result.current.mergeGroup("c", "b", "right")
+    })
+    const entries = closedEntries(result.current.tabs, result.current.groups, ["b", "c"])
+    act(() => {
+      result.current.removeTabs(["b", "c"])
+    })
+    act(() => {
+      result.current.reopenTabs(entries[0].tabs, entries[0].layout)
+    })
+    const [, reopened] = result.current.groups
+    expect(panes(result)).toHaveLength(2)
+    expect(getPaneIds(reopened.root)).toHaveLength(2)
+    expect(result.current.tabs.map((tab) => tab.title)).toEqual(["a", "b", "c"])
+    expect(result.current.tabs.every((tab) => tab.hasConnected)).toBe(true)
+    expect(result.current.activeTabId).toBe(reopened.activeTabId)
   })
 
   it("moves tabs of the bar with their panes", () => {

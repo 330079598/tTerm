@@ -10,6 +10,7 @@ import { TabTooltip } from "@/components/TabTooltip"
 import { useTabPasswordPrompt } from "@/lib/tabAttention"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
 import {
+  getReopenClosedTabMenuAction,
   getTabConnectionMenuAction,
   getTabPinMenuAction,
   getTabRenameMenuAction,
@@ -95,6 +96,7 @@ export const TabItem = React.memo(function TabItem({
             icon: "plus",
             shortcut: "workspace.newTab",
           },
+          getReopenClosedTabMenuAction(t),
           ...splitActions,
           ...(isSplit ? [getLayoutTemplatesMenuAction(t)] : []),
           { separator: true, label: "", action: "" },
@@ -112,6 +114,7 @@ export const TabItem = React.memo(function TabItem({
           icon: "plus",
           shortcut: "workspace.newTab",
         },
+        getReopenClosedTabMenuAction(t),
         {
           label: t("contextMenu.duplicateTab"),
           action: "duplicate",

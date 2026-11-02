@@ -23,6 +23,7 @@ import {
 } from "@/lib/tabGroups"
 import { restoreTabGroups } from "@/lib/tabGroupsPersistence"
 import { applyTemplateToGroups, type LayoutShape } from "@/lib/paneTemplates"
+import { placeReopenedTabs, reopenedActiveTabId, type ClosedLayout } from "@/lib/closedTabs"
 import { isPageTab, type PageTabType, type Tab } from "@/types/tab"
 
 export interface RemoveTabsOptions {
@@ -59,6 +60,7 @@ export type TabsAction =
   | { type: "toggle-zoom"; id: string }
   | { type: "resize-split"; groupId: string; path: number[]; sizes: number[] }
   | { type: "apply-template"; id: string; root: LayoutShape; newIds: string[] }
+  | { type: "reopen"; tabs: Tab[]; layout: ClosedLayout }
 
 export function removeTabsFromState(
   tabs: Tab[],
@@ -364,6 +366,21 @@ function applyTabsAction(state: TabsState, action: TabsAction): TabsState {
       }
     case "apply-template":
       return applyTemplate(state, action)
+    case "reopen": {
+      if (action.tabs.length === 0) return state
+      const ids = action.tabs.map((tab) => tab.id)
+      let groupCount = state.groupCount
+      const groups = placeReopenedTabs(
+        state.groups,
+        action.layout,
+        ids,
+        () => `group-${++groupCount}`
+      )
+      return activateTabInState(
+        { ...state, tabs: [...state.tabs, ...action.tabs], groups, groupCount },
+        reopenedActiveTabId(action.layout, ids)
+      )
+    }
   }
 }
 

@@ -27,6 +27,8 @@ interface UseTabContextMenuDeps {
   editTabProfile: (tab: Tab) => void
   setTabLogRecording: (tabId: string, recording: boolean) => void
   setTabIconStyle: (tabId: string, iconStyle: TabIconStyle | undefined) => void
+  reopenClosedTab: () => boolean
+  hasClosedTabs: () => boolean
 }
 
 export function useTabContextMenu({
@@ -47,6 +49,8 @@ export function useTabContextMenu({
   editTabProfile,
   setTabLogRecording,
   setTabIconStyle,
+  reopenClosedTab,
+  hasClosedTabs,
 }: UseTabContextMenuDeps) {
   const [renameDialogState, setRenameDialogState] = useState<RenameDialogState>({
     isOpen: false,
@@ -76,15 +80,18 @@ export function useTabContextMenu({
   const handleTabContextMenu = useCallback(
     (event: React.MouseEvent, tab: Tab, actions: TabContextMenuAction[]) => {
       event.preventDefault()
+      const canReopen = hasClosedTabs()
       setContextMenu({
         visible: true,
         x: event.clientX,
         y: event.clientY,
         tab,
-        actions,
+        actions: actions.map((item) =>
+          item.action === "reopen-closed" ? { ...item, disabled: !canReopen } : item
+        ),
       })
     },
-    []
+    [hasClosedTabs]
   )
 
   const handleContextMenuAction = useCallback(
@@ -98,6 +105,9 @@ export function useTabContextMenu({
       switch (action) {
         case "new":
           handleNewTab()
+          break
+        case "reopen-closed":
+          reopenClosedTab()
           break
         case "duplicate":
           duplicateTab(tab.id)
@@ -198,6 +208,7 @@ export function useTabContextMenu({
       updateTab,
       editTabProfile,
       setTabLogRecording,
+      reopenClosedTab,
     ]
   )
 

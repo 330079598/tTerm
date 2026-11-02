@@ -84,6 +84,18 @@ export function tabConnectionActionLabel(tab: Pick<Tab, "type" | "connection">):
   return null
 }
 
+/** The item that opens the tab closed last again. */
+export function getReopenClosedTabMenuAction(
+  t: ReturnType<typeof useTranslation>["t"]
+): TabContextMenuAction {
+  return {
+    label: t("contextMenu.reopenClosedTab"),
+    action: "reopen-closed",
+    icon: "rotate-ccw",
+    shortcut: "tabs.reopenClosed",
+  }
+}
+
 /** The item that undoes a tab's split, giving each of its panes a tab of its own. */
 export function getUngroupMenuAction(
   t: ReturnType<typeof useTranslation>["t"]

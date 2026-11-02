@@ -81,6 +81,7 @@
     "editConnection": "修改连接配置",
     "saveConnection": "保存为连接配置",
     "saveLocalConnection": "保存为本地连接",
+    "reopenClosedTab": "重新打开关闭的标签页",
     "pinConnectionHeader": "固定连接信息栏",
     "unpinConnectionHeader": "取消固定连接信息栏",
     "startLogging": "开始记录日志",
@@ -445,6 +446,7 @@
         "renameActive": "重命名当前标签页",
         "duplicateActive": "复制当前标签页",
         "closeActive": "关闭当前分屏，只有一个时关闭标签页",
+        "reopenClosed": "重新打开最近关闭的标签页",
         "saveConnection": "把当前标签页保存为连接，或修改它的连接配置"
       },
       "terminal": {

@@ -81,6 +81,7 @@
     "editConnection": "Edit Connection Configuration",
     "saveConnection": "Save as Connection Configuration",
     "saveLocalConnection": "Save as Local Connection",
+    "reopenClosedTab": "Reopen Closed Tab",
     "pinConnectionHeader": "Pin Connection Header",
     "unpinConnectionHeader": "Unpin Connection Header",
     "startLogging": "Start Logging",
@@ -454,6 +455,7 @@
         "renameActive": "Rename active tab",
         "duplicateActive": "Duplicate active tab",
         "closeActive": "Close the active pane, or the tab when it has one",
+        "reopenClosed": "Reopen the tab closed last",
         "saveConnection": "Save the active tab as a connection, or edit its saved one"
       },
       "terminal": {

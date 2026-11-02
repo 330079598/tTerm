@@ -1,6 +1,7 @@
 import { useCallback, useReducer, useRef } from "react"
 import { countTemplatePanes, type LayoutShape } from "@/lib/paneTemplates"
 import { findGroupOfTab, getPaneIds, type SplitDirection, type TabGroup } from "@/lib/tabGroups"
+import type { ClosedLayout } from "@/lib/closedTabs"
 import { ensureTabDefaults, tabsReducer, type RemoveTabsOptions } from "@/lib/tabsState"
 import { isPageTab, type PageTabType, Tab } from "@/types/tab"
 
@@ -10,6 +11,8 @@ export interface UseTabsReturn {
   /** The tabs of the tab bar, in its order, each holding one or more of `tabs` as panes. */
   groups: TabGroup[]
   addTab: (tab: Omit<Tab, "id" | "isActive">) => string
+  /** Opens closed tabs again under new ids, put back where `layout` says. */
+  reopenTabs: (tabs: Omit<Tab, "id" | "isActive">[], layout: ClosedLayout) => void
   openSettingsTab: (title: string) => void
   renameSettingsTab: (title: string) => void
   openTunnelsTab: (title: string) => void
@@ -87,6 +90,17 @@ export function useTabs(): UseTabsReturn {
 
       dispatch({ type: "add", tab: newTab })
       return id
+    },
+    [generateTabId]
+  )
+
+  const reopenTabs = useCallback(
+    (tabData: Omit<Tab, "id" | "isActive">[], layout: ClosedLayout) => {
+      // Every pane of a split is on screen at once, so each connects now.
+      const reopened = tabData.map((data) =>
+        ensureTabDefaults({ ...data, id: generateTabId(), isActive: false, hasConnected: true })
+      )
+      dispatch({ type: "reopen", tabs: reopened, layout })
     },
     [generateTabId]
   )
@@ -205,6 +219,7 @@ export function useTabs(): UseTabsReturn {
     activeTabId,
     groups,
     addTab,
+    reopenTabs,
     openSettingsTab,
     renameSettingsTab,
     openTunnelsTab,

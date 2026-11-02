@@ -2,7 +2,9 @@ import { useCallback } from "react"
 
 import type { AppShell } from "@/components/TTermApp/appShell"
 import type { BroadcastRuntime } from "@/components/TTermApp/useBroadcastRuntime"
+import { useClosedTabs } from "@/components/TTermApp/useClosedTabs"
 import type { useTransferManager } from "@/contexts/TransferContext"
+import type { ClosedTab } from "@/lib/closedTabs"
 import { getTabIdsForCloseAction, type TabCloseAction } from "@/lib/tabClosing"
 import { findGroupOfTab, getPaneIds } from "@/lib/tabGroups"
 import { isPageTab, isSessionTab, Tab } from "@/types/tab"
@@ -10,16 +12,22 @@ import { isPageTab, isSessionTab, Tab } from "@/types/tab"
 interface TabClosingDeps {
   transfers: ReturnType<typeof useTransferManager>["transfers"]
   stopLiveSource: BroadcastRuntime["stopLiveSource"]
+  /** Makes a closed tab ready to open again. */
+  prepareClosedTab: (tab: ClosedTab) => Promise<ClosedTab>
 }
 
 /**
  * Closing panes and the tabs of the bar that hold them, after confirming
  * when that would close several sessions at once, discard unsaved remote
- * files or hide running transfers.
+ * files or hide running transfers, and opening closed ones again.
  */
 export function useTabClosing(shell: AppShell, deps: TabClosingDeps) {
   const { t, tabsRef, confirm, cleanupConnection, tabs, groups, removeTabs } = shell
-  const { transfers, stopLiveSource } = deps
+  const { transfers, stopLiveSource, prepareClosedTab } = deps
+  const { rememberClosedTabs, reopenClosedTab, hasClosedTabs } = useClosedTabs(
+    shell,
+    prepareClosedTab
+  )
 
   const getActiveTransfersForTabs = useCallback(
     (tabIds: string[]) => {
@@ -96,9 +104,10 @@ export function useTabClosing(shell: AppShell, deps: TabClosingDeps) {
       if (!isPageTab(tab) && tab?.type !== "remote-file-editor") {
         cleanupConnection(id)
       }
+      rememberClosedTabs([id], groups)
       removeTabs([id])
     },
-    [cleanupConnection, removeTabs, stopLiveSource, tabsRef]
+    [cleanupConnection, groups, rememberClosedTabs, removeTabs, stopLiveSource, tabsRef]
   )
 
   /** Closes one pane; the next pane of its tab takes the focus, or the next tab once it was the last. */
@@ -137,12 +146,15 @@ export function useTabClosing(shell: AppShell, deps: TabClosingDeps) {
           cleanupConnection(targetTab.id)
         }
       }
+      rememberClosedTabs(targetTabIds, groups)
       closeAction()
     },
     [
       cleanupConnection,
       confirmCloseTabsWithTransfers,
       confirmCloseTabsWithUnsavedRemoteFiles,
+      groups,
+      rememberClosedTabs,
       stopLiveSource,
     ]
   )
@@ -231,5 +243,7 @@ export function useTabClosing(shell: AppShell, deps: TabClosingDeps) {
     handleCloseOtherTabs,
     handleCloseTabsToLeft,
     handleCloseTabsToRight,
+    reopenClosedTab,
+    hasClosedTabs,
   }
 }

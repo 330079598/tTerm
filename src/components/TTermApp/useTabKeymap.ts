@@ -11,19 +11,22 @@ interface TabKeymapActions {
   handleNewTab: () => void
   handleRemoveTab: (id: string) => Promise<void>
   openRenameDialog: (tab: Tab) => void
+  /** Opens the tab closed last again; false when there is none. */
+  reopenClosedTab: () => boolean
   /** Saves a tab's connection, or edits the saved one it came from. */
   editTabProfile: (tab: Tab) => void
 }
 
 /**
- * Keyboard shortcuts for opening, switching, renaming, duplicating and
- * closing tabs, and for saving their connections. Switching goes between the
- * tabs of the bar, to the pane each had the focus in; renaming, duplicating,
- * closing and saving act on the active pane.
+ * Keyboard shortcuts for opening, switching, renaming, duplicating, closing
+ * and reopening tabs, and for saving their connections. Switching goes
+ * between the tabs of the bar, to the pane each had the focus in; renaming,
+ * duplicating, closing and saving act on the active pane.
  */
 export function useTabKeymap(shell: AppShell, actions: TabKeymapActions) {
   const { tabs, groups, activeTabId, setActiveTab, duplicateTab } = shell
-  const { handleNewTab, handleRemoveTab, openRenameDialog, editTabProfile } = actions
+  const { handleNewTab, handleRemoveTab, openRenameDialog, reopenClosedTab, editTabProfile } =
+    actions
   const { registerHandler } = useKeymap()
 
   const keymapTabIds = useMemo(() => groups.map((group) => group.activeTabId), [groups])
@@ -79,6 +82,10 @@ export function useTabKeymap(shell: AppShell, actions: TabKeymapActions) {
         void handleRemoveTab(activeTabId)
       }
     })
+    // With nothing closed, the chord goes on to the terminal.
+    const unregisterReopenClosed = registerHandler("tabs.reopenClosed", () => {
+      if (!reopenClosedTab()) return false
+    })
     // Only where the tab's menu offers it; a page or a serial tab never saved
     // passes the chord on.
     const unregisterSaveConnection = registerHandler("tabs.saveConnection", () => {
@@ -88,6 +95,7 @@ export function useTabKeymap(shell: AppShell, actions: TabKeymapActions) {
     })
     return () => {
       unregisterSaveConnection()
+      unregisterReopenClosed()
       unregisterNewTab()
       unregisterNextTab()
       unregisterPrevTab()
@@ -106,6 +114,7 @@ export function useTabKeymap(shell: AppShell, actions: TabKeymapActions) {
     handleNewTab,
     handleRemoveTab,
     openRenameDialog,
+    reopenClosedTab,
     editTabProfile,
   ])
 }

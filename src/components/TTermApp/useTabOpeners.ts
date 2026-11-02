@@ -63,21 +63,30 @@ export function useTabOpeners(shell: AppShell, config: AppConfig) {
     [addTab, config]
   )
 
+  /** A tab to open, made ready: a local one named and starting its shell's current program. */
+  const prepareTab = useCallback(
+    async (connection: Omit<Tab, "id" | "isActive">): Promise<Omit<Tab, "id" | "isActive">> => {
+      if (connection.type !== "terminal") return buildTabFromConnection(connection)
+      // A saved or reopened local tab starts the current program of the
+      // user's shell it names, which may have changed since.
+      const current = {
+        ...connection,
+        connection: withCurrentLocalShell(connection.connection, config.local_shells),
+      }
+      return buildTabFromConnection(await nameLocalTab(current))
+    },
+    [config.local_shells]
+  )
+
   const handleConnect = useCallback(
     (connection: Omit<Tab, "id" | "isActive">) => {
-      if (connection.type === "terminal") {
-        // A saved local tab starts the current program of the user's shell
-        // it names, which may have changed since.
-        const current = {
-          ...connection,
-          connection: withCurrentLocalShell(connection.connection, config.local_shells),
-        }
-        void nameLocalTab(current).then((tab) => addTab(buildTabFromConnection(tab)))
+      if (connection.type !== "terminal") {
+        addTab(buildTabFromConnection(connection))
         return
       }
-      addTab(buildTabFromConnection(connection))
+      void prepareTab(connection).then(addTab)
     },
-    [addTab, config.local_shells]
+    [addTab, prepareTab]
   )
 
   const handleOpenRemoteFile = useCallback(
@@ -135,5 +144,6 @@ export function useTabOpeners(shell: AppShell, config: AppConfig) {
     handleOpenLocalTerminal,
     handleConnect,
     handleOpenRemoteFile,
+    prepareTab,
   }
 }
