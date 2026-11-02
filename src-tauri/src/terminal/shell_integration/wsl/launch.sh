@@ -16,6 +16,12 @@ tterm_cd_windows() {
     [ -n "$1" ] && tterm_cd "$(wslpath -u "$1" 2>/dev/null)"
 }
 
+# A saved local connection may start in `~` or `~/dir`, the Linux home here.
+case $1 in
+"~") set -- "$HOME" "$tterm_marks" ;;
+"~/"*) set -- "$HOME/${1#"~/"}" "$tterm_marks" ;;
+esac
+
 # The restored directory is a Linux path, or a Windows one when the tab used
 # another shell before.
 tterm_cd "$1" ||

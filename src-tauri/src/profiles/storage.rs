@@ -1,4 +1,4 @@
-use super::types::{SavedProfile, SavedSecretSummary};
+use super::types::{LocalTerminalOptions, SavedProfile, SavedSecretSummary};
 use crate::db::sql_error;
 use rusqlite::{params, Connection, OptionalExtension};
 
@@ -188,6 +188,13 @@ pub(crate) fn normalize_profile(profile: &mut SavedProfile) {
     {
         profile.ssh_shell_integration = Some(true);
     }
+
+    // Only a local terminal starts a local shell; the field means nothing elsewhere.
+    profile.local_terminal = profile
+        .local_terminal
+        .take()
+        .filter(|_| profile.connection_type == "terminal")
+        .map(LocalTerminalOptions::normalized);
 
     let legacy_group = std::mem::take(&mut profile.legacy_group);
     if profile.group_id.is_none() {

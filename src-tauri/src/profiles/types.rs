@@ -141,6 +141,63 @@ pub struct SavedProfile {
     /// A serial connection's port and how it is opened.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub serial: Option<crate::serial::SerialOptions>,
+    /// A local terminal's shell and the directory it starts in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_terminal: Option<LocalTerminalOptions>,
+}
+
+fn default_local_shell() -> String {
+    "auto".to_string()
+}
+
+/// What a saved local terminal starts: one of the shells a local tab can
+/// run, in a directory of its own. The shell is kept as the tab names it, so
+/// a profile synced to another device starts the same kind of shell there,
+/// or fails with the bar that offers another one.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalTerminalOptions {
+    /// `auto`, a shell such as `zsh`, `pwsh` or `wsl`, or `custom`.
+    #[serde(default = "default_local_shell")]
+    pub shell: String,
+    /// The program a `custom` shell runs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_args: Option<String>,
+    /// The user's own shell this is. While the device still lists it, its
+    /// current program and arguments are started instead of the copy above.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shell_id: Option<String>,
+    /// The distribution a `wsl` shell starts; WSL's default when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wsl_distro: Option<String>,
+    /// The directory the shell starts in, where `~` is the home directory.
+    /// The home directory when unset or when the directory is gone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_directory: Option<String>,
+}
+
+impl LocalTerminalOptions {
+    /// The options with blank fields unset and the shell's own fields kept
+    /// only for the shell that uses them.
+    pub(crate) fn normalized(self) -> Self {
+        let text = |value: Option<String>| {
+            value
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty())
+        };
+        let shell = text(Some(self.shell)).unwrap_or_else(default_local_shell);
+        let custom = shell == "custom";
+        Self {
+            custom_path: text(self.custom_path).filter(|_| custom),
+            custom_args: text(self.custom_args).filter(|_| custom),
+            shell_id: text(self.shell_id).filter(|_| custom),
+            wsl_distro: text(self.wsl_distro).filter(|_| shell == "wsl"),
+            start_directory: text(self.start_directory),
+            shell,
+        }
+    }
 }
 
 impl SavedProfile {
@@ -309,4 +366,59 @@ pub(crate) fn default_keepalive_interval() -> u32 {
 }
 pub(crate) fn default_keepalive_count() -> u32 {
     3
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{LocalTerminalOptions, SavedProfile};
+
+    #[test]
+    fn a_local_terminal_profile_reads_back_its_shell_and_directory() {
+        let profile: SavedProfile = serde_json::from_value(serde_json::json!({
+            "id": "a", "name": "web", "connection_type": "terminal",
+            "local_terminal": { "shell": "wsl", "wslDistro": "Ubuntu", "startDirectory": "~/web" }
+        }))
+        .expect("profile");
+        let local = profile.local_terminal.clone().expect("local terminal");
+        assert_eq!(local.shell, "wsl");
+        assert_eq!(local.wsl_distro.as_deref(), Some("Ubuntu"));
+        assert_eq!(local.start_directory.as_deref(), Some("~/web"));
+
+        let json = serde_json::to_value(&profile).expect("serialize");
+        assert_eq!(json["local_terminal"]["startDirectory"], "~/web");
+        assert!(json["local_terminal"].get("customPath").is_none());
+    }
+
+    #[test]
+    fn normalizing_keeps_only_what_the_shell_uses() {
+        let options = LocalTerminalOptions {
+            shell: " ".to_string(),
+            custom_path: Some("/bin/fish".to_string()),
+            custom_args: None,
+            shell_id: Some("id".to_string()),
+            wsl_distro: Some("Ubuntu".to_string()),
+            start_directory: Some("  ".to_string()),
+        }
+        .normalized();
+        assert_eq!(options.shell, "auto");
+        assert_eq!(options.custom_path, None);
+        assert_eq!(options.shell_id, None);
+        assert_eq!(options.wsl_distro, None);
+        assert_eq!(options.start_directory, None);
+
+        let custom = LocalTerminalOptions {
+            shell: "custom".to_string(),
+            custom_path: Some(" /bin/fish ".to_string()),
+            custom_args: Some("-l".to_string()),
+            shell_id: Some("id".to_string()),
+            wsl_distro: Some("Ubuntu".to_string()),
+            start_directory: Some(" /srv/app ".to_string()),
+        }
+        .normalized();
+        assert_eq!(custom.custom_path.as_deref(), Some("/bin/fish"));
+        assert_eq!(custom.custom_args.as_deref(), Some("-l"));
+        assert_eq!(custom.shell_id.as_deref(), Some("id"));
+        assert_eq!(custom.wsl_distro, None);
+        assert_eq!(custom.start_directory.as_deref(), Some("/srv/app"));
+    }
 }

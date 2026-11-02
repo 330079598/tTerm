@@ -25,7 +25,7 @@ pub fn build_terminal_command(
 ) -> Result<CommandBuilder, String> {
     let config = shell_config.unwrap_or_default();
     let home = resolve_home_dir();
-    let start_dir = resolve_start_dir(config.cwd.as_deref()).unwrap_or_else(|| home.clone());
+    let start_dir = resolve_start_dir(config.cwd.as_deref(), &home).unwrap_or_else(|| home.clone());
 
     #[cfg(target_os = "windows")]
     let mut cmd = super::windows_shell::build_windows_command(&config)?;
@@ -48,16 +48,27 @@ pub fn build_terminal_command(
     Ok(cmd)
 }
 
-/// The restored directory when it is an absolute path that still exists.
-fn resolve_start_dir(cwd: Option<&str>) -> Option<String> {
-    let cwd = cwd?;
+/// The directory to start in when it is an absolute path that still exists.
+/// A leading `~` is the home directory, so a saved local connection can
+/// name the same folder on machines whose home directories differ.
+fn resolve_start_dir(cwd: Option<&str>, home: &str) -> Option<String> {
+    let cwd = expand_home(cwd?.trim(), home);
     // Git Bash reports `/c/dir`, where any Windows shell can start.
     #[cfg(target_os = "windows")]
-    let cwd = super::shell_integration::msys_drive_path(cwd).unwrap_or_else(|| cwd.to_string());
-    #[cfg(not(target_os = "windows"))]
-    let cwd = cwd.to_string();
+    let cwd = super::shell_integration::msys_drive_path(&cwd).unwrap_or(cwd);
     let path = std::path::Path::new(&cwd);
     (path.is_absolute() && path.is_dir()).then_some(cwd)
+}
+
+/// `path` with a leading `~`, alone or before a separator, replaced by `home`.
+fn expand_home(path: &str, home: &str) -> String {
+    match path.strip_prefix('~') {
+        Some("") => home.to_string(),
+        Some(rest) if rest.starts_with('/') || rest.starts_with('\\') => {
+            format!("{}{rest}", home.trim_end_matches(['/', '\\']))
+        }
+        _ => path.to_string(),
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -390,13 +401,37 @@ fn log_conpty_source() {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_terminal_command, shell_program_name};
+    use super::{build_terminal_command, expand_home, resolve_start_dir, shell_program_name};
 
     #[test]
     fn local_shell_advertises_truecolor() {
         let command = build_terminal_command(None).expect("build local shell");
         assert_eq!(command.get_env("TERM"), Some("xterm-256color".as_ref()));
         assert_eq!(command.get_env("COLORTERM"), Some("truecolor".as_ref()));
+    }
+
+    #[test]
+    fn a_leading_tilde_names_the_home_directory() {
+        assert_eq!(expand_home("~", "/home/me"), "/home/me");
+        assert_eq!(expand_home("~/src/app", "/home/me/"), "/home/me/src/app");
+        assert_eq!(expand_home(r"~\src", r"C:\Users\me"), r"C:\Users\me\src");
+        // Another user's home and a name starting with `~` are left alone.
+        assert_eq!(expand_home("~bob/src", "/home/me"), "~bob/src");
+        assert_eq!(expand_home("/tmp/~", "/home/me"), "/tmp/~");
+    }
+
+    #[test]
+    fn starts_only_in_a_directory_that_exists() {
+        let dir = std::env::temp_dir();
+        let home = dir.to_string_lossy().into_owned();
+        assert_eq!(resolve_start_dir(Some("~"), &home), Some(home.clone()));
+        assert_eq!(resolve_start_dir(Some("relative/dir"), &home), None);
+        let missing = dir.join("tterm-missing-start-dir");
+        assert_eq!(
+            resolve_start_dir(Some(&missing.to_string_lossy()), &home),
+            None
+        );
+        assert_eq!(resolve_start_dir(None, &home), None);
     }
 
     #[test]
