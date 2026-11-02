@@ -86,8 +86,10 @@ jobs:
             args: '--target aarch64-apple-darwin --bundles dmg,app'
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin --bundles dmg,app'
+          # RPM refuses the '-' of a SemVer prerelease in its version, so the
+          # RPM is bundled in its own step below.
           - platform: 'ubuntu-24.04'
-            args: '--bundles appimage,deb,rpm'
+            args: '--bundles appimage,deb'
           - platform: 'windows-latest'
             args: '--bundles nsis'
 
@@ -150,6 +152,29 @@ jobs:
           # release's latest.json at the same time, failing with 404 or dropping
           # platforms; the manifest job builds it once after every platform is up.
           includeUpdaterJson: false
+
+      - name: Bundle and upload Linux beta RPM
+        if: matrix.platform == 'ubuntu-24.04'
+        shell: bash
+        env:
+          BETA_VERSION: ${{ needs.prepare.outputs.beta_version }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.beta_tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          # 0.7.2-beta.15 becomes RPM version 0.7.2 with release beta.15, which
+          # sorts after beta.14 and before the 0.7.2 release. tauri bundle reuses
+          # the binary built above, so the app still reports the full beta
+          # version to the updater; only the package metadata changes.
+          BASE_VERSION="${BETA_VERSION%%-*}"
+          RPM_RELEASE="${BETA_VERSION#*-}"
+          pnpm tauri bundle --ci --bundles rpm \
+            --config "{\"version\":\"${BASE_VERSION}\",\"bundle\":{\"linux\":{\"rpm\":{\"release\":\"${RPM_RELEASE}\"}}}}"
+          gh release upload "$RELEASE_TAG" \
+            src-tauri/target/release/bundle/rpm/*.rpm \
+            src-tauri/target/release/bundle/rpm/*.rpm.sig \
+            --clobber
 
   publish-beta-manifest:
     needs:

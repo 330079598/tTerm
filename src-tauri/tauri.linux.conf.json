@@ -1,5 +1,12 @@
 {
   "identifier": "com.stone.tTerm",
+  "bundle": {
+    "linux": {
+      "rpm": {
+        "epoch": 1
+      }
+    }
+  },
   "app": {
     "windows": [
       {
