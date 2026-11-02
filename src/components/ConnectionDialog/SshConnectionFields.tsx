@@ -4,9 +4,9 @@ import { useTranslation } from "react-i18next"
 import { AuthMethodPicker } from "@/components/ConnectionDialog/AuthMethodPicker"
 import { CertificatePathField } from "@/components/ConnectionDialog/CertificatePathField"
 import { EncodingField } from "@/components/ConnectionDialog/EncodingField"
+import { GroupField } from "@/components/ConnectionDialog/GroupField"
 import { PrivateKeyField } from "@/components/ConnectionDialog/PrivateKeyField"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/ui/password-input"
@@ -30,8 +30,6 @@ interface SshConnectionFieldsProps {
   matchingGroups: string[]
   nameError: string | null
   setNameError: React.Dispatch<React.SetStateAction<string | null>>
-  showGroupDropdown: boolean
-  setShowGroupDropdown: React.Dispatch<React.SetStateAction<boolean>>
   titlePlaceholder: string
 }
 
@@ -43,8 +41,6 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
   matchingGroups,
   nameError,
   setNameError,
-  showGroupDropdown,
-  setShowGroupDropdown,
   titlePlaceholder,
 }) => {
   const { t } = useTranslation()
@@ -73,42 +69,7 @@ export const SshConnectionFields: React.FC<SshConnectionFieldsProps> = ({
         {nameError && <p className="text-destructive mt-1 text-xs">{nameError}</p>}
       </div>
 
-      <div className="relative">
-        <Label htmlFor="conn-group" className="mb-1.5 block">
-          {t("connection.group")}
-        </Label>
-        <Input
-          id="conn-group"
-          value={form.group}
-          onChange={(e) => {
-            setForm((current) => ({ ...current, group: e.target.value }))
-            setShowGroupDropdown(true)
-          }}
-          onFocus={() => setShowGroupDropdown(true)}
-          onBlur={() => setTimeout(() => setShowGroupDropdown(false), 150)}
-          placeholder={t("connection.groupPlaceholder")}
-          autoComplete="off"
-        />
-        {showGroupDropdown && matchingGroups.length > 0 && (
-          <Card className="absolute top-full right-0 left-0 z-20 mt-1 max-h-40 overflow-y-auto rounded-md">
-            <CardContent className="p-1">
-              {matchingGroups.map((group) => (
-                <button
-                  key={group}
-                  type="button"
-                  className="hover:bg-muted w-full rounded-sm px-3 py-1.5 text-left text-sm"
-                  onMouseDown={() => {
-                    setForm((current) => ({ ...current, group }))
-                    setShowGroupDropdown(false)
-                  }}
-                >
-                  {group}
-                </button>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      <GroupField form={form} setForm={setForm} matchingGroups={matchingGroups} />
 
       <div className="grid grid-cols-3 gap-3">
         <div className="col-span-2">

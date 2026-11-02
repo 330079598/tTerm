@@ -82,7 +82,6 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   // remounts it with fresh form state instead of resetting in an effect.
   const [draftProfileId] = useState(() => editProfile?.id ?? crypto.randomUUID())
   const [existingGroups, setExistingGroups] = useState<string[]>([])
-  const [showGroupDropdown, setShowGroupDropdown] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
   const [allProfiles, setAllProfiles] = useState<SavedProfile[]>([])
   const [jumpHostErrors, setJumpHostErrors] = useState<Record<string, string>>({})
@@ -243,8 +242,6 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
                 matchingGroups={matchingGroups}
                 nameError={nameError}
                 setNameError={setNameError}
-                showGroupDropdown={showGroupDropdown}
-                setShowGroupDropdown={setShowGroupDropdown}
                 titlePlaceholder={getDefaultTitle(form.type, form)}
               />
               <JumpHostFields
