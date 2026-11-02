@@ -47,6 +47,7 @@ import {
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   defaultTab = "general",
   onTabChange,
+  sectionRequest,
   className,
   onConnectProfile,
   onEditProfile,
@@ -77,6 +78,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     onTabChange?.(tab)
   }
   const search = useSettingsSearch({ rootRef, showTab: setActiveTab })
+  // The host asked for a section, perhaps the one already open, so the search
+  // that would cover it ends. Done while rendering, as useSyncedState does.
+  const [seenRequest, setSeenRequest] = useState(sectionRequest)
+  if (sectionRequest !== seenRequest) {
+    setSeenRequest(sectionRequest)
+    setActiveTabState(normalizeSettingsTab(defaultTab))
+    search.setQuery("")
+  }
   const isSearching = search.query.trim() !== ""
   const { confirm, ConfirmDialog } = useConfirmDialog()
   const { prompt, PromptDialog } = usePromptDialog()

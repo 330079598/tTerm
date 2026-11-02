@@ -15,6 +15,8 @@ export interface SettingsPanelProps {
   defaultTab?: string
   /** Called when the user opens another section, so a host can bring it back on remount. */
   onTabChange?: (tab: string) => void
+  /** Changes each time the host asks for `defaultTab` to be shown, ending any search. */
+  sectionRequest?: number
   className?: string
   onConnectProfile?: (connection: Omit<Tab, "id" | "isActive">) => void
   onEditProfile?: (profile: SavedProfile) => void

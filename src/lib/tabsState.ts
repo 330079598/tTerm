@@ -243,7 +243,11 @@ function applyTabsAction(state: TabsState, action: TabsAction): TabsState {
         const tabs = action.tab.settingsSection
           ? state.tabs.map((tab) =>
               tab.id === existingPageTab.id
-                ? { ...tab, settingsSection: action.tab.settingsSection }
+                ? {
+                    ...tab,
+                    settingsSection: action.tab.settingsSection,
+                    settingsRequest: (tab.settingsRequest ?? 0) + 1,
+                  }
                 : tab
             )
           : state.tabs

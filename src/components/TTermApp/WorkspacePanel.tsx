@@ -88,6 +88,7 @@ export const WorkspacePanel = React.memo(function WorkspacePanel({
           <React.Suspense fallback={null}>
             <SettingsPanel
               defaultTab={tab.settingsSection}
+              sectionRequest={tab.settingsRequest}
               onTabChange={(section) =>
                 workspace.updateTab(tab.id, (current) => ({ ...current, settingsSection: section }))
               }

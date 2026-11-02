@@ -344,6 +344,9 @@ describe("useTabs settings navigation", () => {
     expect(result.current.tabs).toHaveLength(1)
     expect(result.current.activeTabId).toBe(id)
     expect(result.current.tabs[0].settingsSection).toBe("updates")
+    // Asking again for the section it is on still reaches the page.
+    act(() => result.current.openSettingsTab("Settings", "updates"))
+    expect(result.current.tabs[0].settingsRequest).toBe(2)
   })
 
   it("keeps the selected section when opening settings without a section", () => {
@@ -352,6 +355,7 @@ describe("useTabs settings navigation", () => {
     act(() => result.current.openSettingsTab("Settings"))
     expect(result.current.tabs).toHaveLength(1)
     expect(result.current.tabs[0].settingsSection).toBe("updates")
+    expect(result.current.tabs[0].settingsRequest).toBeUndefined()
   })
 })
 

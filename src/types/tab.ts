@@ -221,6 +221,12 @@ export interface Tab {
    * while out of sight, which would drop the panel's own state.
    */
   settingsSection?: string
+  /**
+   * Counts the times something outside the settings page asked it to show a
+   * section, so the page leaves its search for it even when the section is
+   * the one it is on.
+   */
+  settingsRequest?: number
   connection?: {
     type?: ConnectionType
     profileId?: string
