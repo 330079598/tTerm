@@ -7,7 +7,8 @@ import {
 import { normalizeProxyChoice } from "@/lib/proxy"
 import { normalizeSerialSettings } from "@/lib/serial"
 import { HIGHLIGHT_SET_FOLLOW_DEFAULT } from "@/lib/keywordHighlight/config"
-import { defaultShellChoice, defaultShellKey } from "@/lib/localShells"
+import { localProfileChoice } from "@/lib/localProfiles"
+import { defaultShellChoice, defaultShellKey, shellChoiceKey } from "@/lib/localShells"
 import { normalizeSftpStartDirectory, type SftpStartDirectory } from "@/lib/sftpStartDirectory"
 import { shellIntegrationChoice } from "@/lib/sshShellIntegration"
 import type { SessionLogPolicy } from "@/types/tab"
@@ -60,6 +61,7 @@ export function buildFormFromProfile(profile?: SavedProfile | null): ConnectionF
     proxy: normalizeProxyChoice(profile.proxy),
     sudoAutofill: profile.sudo_autofill !== false,
     serial: normalizeSerialSettings(profile.serial),
+    startDirectory: profile.local_terminal?.startDirectory ?? "",
     jumpHosts: jumpHosts.map((jump) => ({
       ...createDefaultJumpHost(),
       host: jump.host ?? "",
@@ -123,13 +125,15 @@ export function buildInitialForm(
   const form = buildFormFromProfile(profile)
 
   if (!profile || form.type === "terminal") {
-    const choice = defaultShellChoice(config)
+    // A saved local terminal shows its own shell; anything else the default.
+    const saved = profile?.local_terminal
+    const choice = saved ? localProfileChoice(saved) : defaultShellChoice(config)
     form.terminalShell = choice.shell
     form.terminalShellCustomPath = choice.customPath ?? ""
     form.terminalShellCustomArgs = choice.customArgs ?? ""
     form.terminalShellId = choice.shellId ?? ""
     form.terminalShellWslDistro = choice.wslDistro ?? ""
-    form.terminalShellKey = defaultShellKey(config)
+    form.terminalShellKey = saved ? shellChoiceKey(choice, config) : defaultShellKey(config)
   }
 
   return form

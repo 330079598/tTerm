@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 
 import {
   buildLocalShellSubmit,
+  buildLocalTerminalProfile,
+  localProfileName,
   NEW_SHELL_KEY,
 } from "@/components/ConnectionDialog/localShellPayload"
 import { defaultForm, type ConnectionForm } from "@/components/ConnectionDialog/types"
@@ -92,5 +94,43 @@ describe("buildLocalShellSubmit", () => {
       terminal_shell_id: "",
       terminal_shell_wsl_distro: "",
     })
+  })
+})
+
+describe("saving a local terminal", () => {
+  it("starts the tab in the directory and keeps the session settings", () => {
+    const { connection } = buildLocalShellSubmit(
+      form({ startDirectory: " ~/web ", loginScript: "nvm use", terminalTheme: "nord" }),
+      config
+    )
+    expect(connection).toMatchObject({
+      type: "terminal",
+      cwd: "~/web",
+      loginScript: "nvm use",
+      terminalTheme: "nord",
+    })
+  })
+
+  it("keeps the shell and directory in the profile", () => {
+    const local = form({
+      terminalShellKey: "wsl:Ubuntu",
+      terminalShell: "wsl",
+      terminalShellWslDistro: "Ubuntu",
+      startDirectory: "/home/me/web",
+    })
+    const { choice } = buildLocalShellSubmit(local, config)
+    const profile = buildLocalTerminalProfile(local, { id: "p", name: "web" }, choice)
+    expect(profile).toMatchObject({
+      connection_type: "terminal",
+      local_terminal: { shell: "wsl", wslDistro: "Ubuntu", startDirectory: "/home/me/web" },
+    })
+  })
+
+  it("names an unnamed profile after its folder, else its shell", () => {
+    expect(localProfileName(form({ startDirectory: "/srv/api" }))).toBe("api")
+    expect(
+      localProfileName(form({ terminalShell: "custom", terminalShellCustomPath: "/bin/fish" }))
+    ).toBe("fish")
+    expect(localProfileName(form({ terminalShell: "auto" }))).toBe("Terminal")
   })
 })

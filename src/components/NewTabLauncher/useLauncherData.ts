@@ -12,6 +12,9 @@ export interface LauncherData {
   shells: TerminalShellProfile[]
 }
 
+/** The saved connections the launcher can open. */
+const LAUNCHABLE_TYPES = new Set(["ssh", "serial", "terminal"])
+
 /** Loads what the launcher lists each time it opens. */
 export function useLauncherData(open: boolean): LauncherData {
   const [profiles, setProfiles] = useState<SavedProfile[]>([])
@@ -24,11 +27,7 @@ export function useLauncherData(open: boolean): LauncherData {
     invoke<SavedProfile[]>("list_profiles")
       .then((loaded) => {
         if (!cancelled) {
-          setProfiles(
-            loaded.filter(
-              (profile) => profile.connection_type === "ssh" || profile.connection_type === "serial"
-            )
-          )
+          setProfiles(loaded.filter((profile) => LAUNCHABLE_TYPES.has(profile.connection_type)))
         }
       })
       .catch(() => {})

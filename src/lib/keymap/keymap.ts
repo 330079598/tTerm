@@ -46,6 +46,8 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   // Windows Terminal duplicates a tab on Ctrl+Shift+D as well.
   "tabs.duplicateActive": "mod+shift+d",
   "tabs.closeActive": "mod+shift+w",
+  // O for the dialog it opens; Mod+Shift+S already saves the selection.
+  "tabs.saveConnection": "mod+shift+o",
   // Ctrl+F moves the cursor forward in readline and pages down in vim and
   // less, so finding takes Shift, as in Windows Terminal.
   "terminal.find": "mod+shift+f",

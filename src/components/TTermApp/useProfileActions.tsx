@@ -5,7 +5,7 @@ import type { AppShell } from "@/components/TTermApp/appShell"
 import type { ProfileDialogState } from "@/components/TTermApp/useProfileDialogState"
 import type { BroadcastState } from "@/components/TTermApp/useBroadcastState"
 import type { BroadcastRuntime } from "@/components/TTermApp/useBroadcastRuntime"
-import type { Tab } from "@/types/tab"
+import { isSessionTab, type Tab } from "@/types/tab"
 import type { ProfileSavedOptions } from "@/components/ConnectionDialog/types"
 import { SavedProfile } from "@/components/ProfilesPanel"
 import { ToastAction } from "@/components/ui/toast"
@@ -19,6 +19,12 @@ interface ProfileActionDeps {
   openSaveQuickConnectDialog: (tab: Tab) => void
   handleQuickConnectSaved: (profile: SavedProfile) => void
   handleReconnectTab: (tabId: string) => void
+}
+
+/** A local tab of a deleted profile, kept open as an unsaved one. */
+function unlinkLocalTab(tab: Tab): Tab {
+  if (!tab.connection) return tab
+  return { ...tab, connection: { ...tab.connection, profileId: undefined, profileName: undefined } }
 }
 
 /**
@@ -69,6 +75,13 @@ export function useProfileActions(
 
   const handleDeleteProfile = useCallback(
     (profile: SavedProfile) => {
+      // A local shell has nothing to lose its connection to, so its tabs go
+      // on as unsaved ones.
+      for (const tab of tabs) {
+        if (tab.type === "terminal" && tab.connection?.profileId === profile.id) {
+          updateTab(tab.id, unlinkLocalTab)
+        }
+      }
       const profileTabs = tabs.filter(
         (tab) =>
           (tab.type === "ssh" || tab.type === "serial") && tab.connection?.profileId === profile.id
@@ -84,14 +97,14 @@ export function useProfileActions(
       }
       removeTabs(profileTabs.map((tab) => tab.id))
     },
-    [cleanupConnection, liveSourceRef, removeTabs, stopLiveSource, tabs]
+    [cleanupConnection, liveSourceRef, removeTabs, stopLiveSource, tabs, updateTab]
   )
 
   const handleEditTabProfile = useCallback(
     async (tab: Tab) => {
       const profileId = tab.connection?.profileId
       if (!profileId) {
-        if (tab.type === "ssh") openSaveQuickConnectDialog(tab)
+        if (tab.type === "ssh" || tab.type === "terminal") openSaveQuickConnectDialog(tab)
         return
       }
 
@@ -134,8 +147,7 @@ export function useProfileActions(
 
       // Open tabs of the profile reconnect with what was saved; their sessions keep running.
       const profileTabs = tabsRef.current.filter(
-        (tab) =>
-          (tab.type === "ssh" || tab.type === "serial") && tab.connection?.profileId === profile.id
+        (tab) => isSessionTab(tab) && tab.connection?.profileId === profile.id
       )
       profileTabs.forEach((tab) =>
         updateTab(tab.id, (current) => applyProfileToTab(current, profile))

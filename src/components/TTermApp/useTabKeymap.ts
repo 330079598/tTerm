@@ -3,6 +3,7 @@ import { useEffect, useMemo } from "react"
 import type { AppShell } from "@/components/TTermApp/appShell"
 import { useKeymap } from "@/contexts/KeymapContext"
 import { getSiblingTabId, getTabIdAtPosition, resolveTabShortcutTarget } from "@/lib/tabNavigation"
+import { tabConnectionActionLabel } from "@/lib/tabMenuActions"
 import { nudgeTab, nudgeTabBar } from "@/lib/tabNudge"
 import { isPageTab, type Tab } from "@/types/tab"
 
@@ -10,16 +11,19 @@ interface TabKeymapActions {
   handleNewTab: () => void
   handleRemoveTab: (id: string) => Promise<void>
   openRenameDialog: (tab: Tab) => void
+  /** Saves a tab's connection, or edits the saved one it came from. */
+  editTabProfile: (tab: Tab) => void
 }
 
 /**
  * Keyboard shortcuts for opening, switching, renaming, duplicating and
- * closing tabs. Switching goes between the tabs of the bar, to the pane each
- * had the focus in; renaming, duplicating and closing act on the active pane.
+ * closing tabs, and for saving their connections. Switching goes between the
+ * tabs of the bar, to the pane each had the focus in; renaming, duplicating,
+ * closing and saving act on the active pane.
  */
 export function useTabKeymap(shell: AppShell, actions: TabKeymapActions) {
   const { tabs, groups, activeTabId, setActiveTab, duplicateTab } = shell
-  const { handleNewTab, handleRemoveTab, openRenameDialog } = actions
+  const { handleNewTab, handleRemoveTab, openRenameDialog, editTabProfile } = actions
   const { registerHandler } = useKeymap()
 
   const keymapTabIds = useMemo(() => groups.map((group) => group.activeTabId), [groups])
@@ -75,7 +79,15 @@ export function useTabKeymap(shell: AppShell, actions: TabKeymapActions) {
         void handleRemoveTab(activeTabId)
       }
     })
+    // Only where the tab's menu offers it; a page or a serial tab never saved
+    // passes the chord on.
+    const unregisterSaveConnection = registerHandler("tabs.saveConnection", () => {
+      const tab = tabs.find((candidate) => candidate.id === activeTabId)
+      if (!tab || !tabConnectionActionLabel(tab)) return false
+      editTabProfile(tab)
+    })
     return () => {
+      unregisterSaveConnection()
       unregisterNewTab()
       unregisterNextTab()
       unregisterPrevTab()
@@ -94,5 +106,6 @@ export function useTabKeymap(shell: AppShell, actions: TabKeymapActions) {
     handleNewTab,
     handleRemoveTab,
     openRenameDialog,
+    editTabProfile,
   ])
 }

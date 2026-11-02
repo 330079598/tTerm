@@ -5,7 +5,14 @@ import type { SavedProfile } from "@/types/tab"
  * connections panel and the new tab launcher find the same connections.
  */
 export function profileSearchFields(profile: SavedProfile): Array<string | undefined> {
-  return [profile.name, profile.group_path, profile.host, profile.username, profile.serial?.port]
+  return [
+    profile.name,
+    profile.group_path,
+    profile.host,
+    profile.username,
+    profile.serial?.port,
+    profile.local_terminal?.startDirectory,
+  ]
 }
 
 const NAME_WORD_SEPARATORS = /[\s\-_.]+/

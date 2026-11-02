@@ -69,6 +69,23 @@ export interface SavedProfile {
   distro?: string
   /** A serial connection's port and how it is opened. */
   serial?: SerialSettings
+  /** A local terminal's shell and the directory it starts in. */
+  local_terminal?: LocalTerminalSettings
+}
+
+/**
+ * What a saved local terminal starts, as `LocalShellChoice` names a shell,
+ * and the directory it starts in.
+ */
+export interface LocalTerminalSettings {
+  shell: TerminalShellType
+  customPath?: string
+  customArgs?: string
+  /** The user's own shell this is; its current program starts while the device lists it. */
+  shellId?: string
+  wslDistro?: string
+  /** Where the shell starts; `~` is the home directory. The home directory when missing. */
+  startDirectory?: string
 }
 
 /** A connection's logging choice; `default` follows the logging setting. */

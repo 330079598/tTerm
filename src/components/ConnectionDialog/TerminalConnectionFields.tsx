@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
+import { open as openDirectoryDialog } from "@tauri-apps/plugin-dialog"
 import { platform } from "@tauri-apps/plugin-os"
+import { FolderOpen } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { NEW_SHELL_KEY } from "@/components/ConnectionDialog/localShellPayload"
 import { ShellPathInput } from "@/components/ShellPathInput"
+import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -81,6 +84,17 @@ export const TerminalConnectionFields: React.FC<TerminalConnectionFieldsProps> =
       terminalShellId: entry.choice.shellId ?? "",
       terminalShellWslDistro: entry.choice.wslDistro ?? "",
     }))
+
+  const chooseStartDirectory = async () => {
+    const selected = await openDirectoryDialog({
+      directory: true,
+      multiple: false,
+      defaultPath: form.startDirectory.trim() || undefined,
+    }).catch(() => null)
+    if (typeof selected === "string") {
+      setForm((current) => ({ ...current, startDirectory: selected }))
+    }
+  }
 
   const chooseNew = () =>
     setForm((current) => ({
@@ -164,6 +178,31 @@ export const TerminalConnectionFields: React.FC<TerminalConnectionFieldsProps> =
           </label>
         </>
       )}
+
+      <div>
+        <Label htmlFor="conn-start-directory" className="mb-1.5 block">
+          {t("connection.startDirectory")}
+        </Label>
+        <div className="flex gap-2">
+          <Input
+            id="conn-start-directory"
+            value={form.startDirectory}
+            onChange={(e) => setForm((current) => ({ ...current, startDirectory: e.target.value }))}
+            placeholder="~"
+            className="font-mono"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label={t("connection.chooseStartDirectory")}
+            onClick={() => void chooseStartDirectory()}
+          >
+            <FolderOpen size={16} />
+          </Button>
+        </div>
+        <p className="text-muted-foreground mt-1 text-xs">{t("connection.startDirectoryDesc")}</p>
+      </div>
 
       {form.terminalShellKey !== defaultKey && (
         <label className="flex items-center gap-2 text-sm">

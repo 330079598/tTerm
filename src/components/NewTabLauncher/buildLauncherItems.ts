@@ -147,11 +147,13 @@ export function buildLauncherItems({
       profile.group_path,
       profile.connection_type === "serial"
         ? profile.serial?.port
-        : formatEndpoint({
-            username: profile.username,
-            host: profile.host ?? "",
-            port: profile.port,
-          }),
+        : profile.connection_type === "terminal"
+          ? (profile.local_terminal?.startDirectory ?? t("quickConnect.localTerminal"))
+          : formatEndpoint({
+              username: profile.username,
+              host: profile.host ?? "",
+              port: profile.port,
+            }),
     ]
       .filter(Boolean)
       .join(" · "),

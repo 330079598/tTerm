@@ -18,7 +18,7 @@ export function useTerminalTheme({ connection, config }: UseTerminalThemeOptions
   const windowBlur = isWindowBlurEnabled(config)
   // A connection's own colors win over the app theme; one that no longer
   // exists falls back to the app theme.
-  const connectionThemeId = connection?.type === "ssh" ? connection.terminalTheme : undefined
+  const connectionThemeId = connection?.terminalTheme
   // A library theme resolves once the library has loaded.
   useCatalogFor([connectionThemeId])
   const connectionPalette = connectionThemeId ? getTheme(connectionThemeId)?.terminal : undefined

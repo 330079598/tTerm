@@ -17,6 +17,11 @@ import { ConnectionForm } from "@/components/ConnectionDialog/types"
 interface SessionCustomizationFieldsProps {
   form: ConnectionForm
   setForm: React.Dispatch<React.SetStateAction<ConnectionForm>>
+  /**
+   * A local terminal's: no icon, SFTP or shell integration choice, and the
+   * login script runs as the shell's startup commands.
+   */
+  local?: boolean
 }
 
 const PREVIEW_COLORS = ["red", "green", "yellow", "blue", "magenta", "cyan"] as const
@@ -46,6 +51,7 @@ const PalettePreview: React.FC<{ palette: TerminalPalette }> = ({ palette }) => 
 export const SessionCustomizationFields: React.FC<SessionCustomizationFieldsProps> = ({
   form,
   setForm,
+  local = false,
 }) => {
   const { t } = useTranslation()
   const { getTheme } = useTheme()
@@ -53,7 +59,7 @@ export const SessionCustomizationFields: React.FC<SessionCustomizationFieldsProp
 
   return (
     <div className="space-y-3 rounded-md border px-3 py-2">
-      <ConnectionIconField form={form} setForm={setForm} />
+      {!local && <ConnectionIconField form={form} setForm={setForm} />}
 
       <div>
         <Label htmlFor="conn-terminal-theme" className="mb-1.5 block">
@@ -70,17 +76,21 @@ export const SessionCustomizationFields: React.FC<SessionCustomizationFieldsProp
 
       <div>
         <Label htmlFor="conn-login-script" className="mb-1.5 block">
-          {t("connection.loginScript")}
+          {t(local ? "connection.startupCommands" : "connection.loginScript")}
         </Label>
         <Textarea
           id="conn-login-script"
           value={form.loginScript}
           onChange={(e) => setForm((current) => ({ ...current, loginScript: e.target.value }))}
-          placeholder={t("connection.loginScriptPlaceholder")}
+          placeholder={t(
+            local ? "connection.startupCommandsPlaceholder" : "connection.loginScriptPlaceholder"
+          )}
           className="min-h-16 font-mono"
           rows={3}
         />
-        <p className="text-muted-foreground mt-1 text-xs">{t("connection.loginScriptDesc")}</p>
+        <p className="text-muted-foreground mt-1 text-xs">
+          {t(local ? "connection.startupCommandsDesc" : "connection.loginScriptDesc")}
+        </p>
       </div>
 
       <div>
@@ -107,58 +117,66 @@ export const SessionCustomizationFields: React.FC<SessionCustomizationFieldsProp
         <p className="text-muted-foreground mt-1 text-xs">{t("connection.sessionLogDesc")}</p>
       </div>
 
-      <div>
-        <Label htmlFor="conn-sftp-start-directory" className="mb-1.5 block">
-          {t("connection.sftpStartDirectory")}
-        </Label>
-        <Select
-          id="conn-sftp-start-directory"
-          value={form.sftpStartDirectory}
-          onChange={(e) => {
-            const value = e.target.value
-            setForm((current) => ({
-              ...current,
-              sftpStartDirectory: normalizeSftpStartDirectory(value) ?? "default",
-            }))
-          }}
-        >
-          <option value="default">{t("connection.sftpStartDirectoryDefault")}</option>
-          {SFTP_START_DIRECTORIES.map((option) => (
-            <option key={option} value={option}>
-              {t(`sftp.startDirectory.${option}`)}
-            </option>
-          ))}
-        </Select>
-        <p className="text-muted-foreground mt-1 text-xs">
-          {t("connection.sftpStartDirectoryDesc")}
-        </p>
-      </div>
+      {!local && (
+        <div>
+          <Label htmlFor="conn-sftp-start-directory" className="mb-1.5 block">
+            {t("connection.sftpStartDirectory")}
+          </Label>
+          <Select
+            id="conn-sftp-start-directory"
+            value={form.sftpStartDirectory}
+            onChange={(e) => {
+              const value = e.target.value
+              setForm((current) => ({
+                ...current,
+                sftpStartDirectory: normalizeSftpStartDirectory(value) ?? "default",
+              }))
+            }}
+          >
+            <option value="default">{t("connection.sftpStartDirectoryDefault")}</option>
+            {SFTP_START_DIRECTORIES.map((option) => (
+              <option key={option} value={option}>
+                {t(`sftp.startDirectory.${option}`)}
+              </option>
+            ))}
+          </Select>
+          <p className="text-muted-foreground mt-1 text-xs">
+            {t("connection.sftpStartDirectoryDesc")}
+          </p>
+        </div>
+      )}
 
       <HighlightSetField form={form} setForm={setForm} />
 
-      <div>
-        <Label htmlFor="conn-shell-integration" className="mb-1.5 block">
-          {t("connection.shellIntegration")}
-        </Label>
-        <Select
-          id="conn-shell-integration"
-          value={form.shellIntegration}
-          onChange={(e) => {
-            const value = e.target.value
-            setForm((current) => ({
-              ...current,
-              shellIntegration: value === "on" || value === "off" ? value : "default",
-            }))
-          }}
-        >
-          {(["default", "on", "off"] as const satisfies ShellIntegrationChoice[]).map((option) => (
-            <option key={option} value={option}>
-              {t(`connection.shellIntegrationOptions.${option}`)}
-            </option>
-          ))}
-        </Select>
-        <p className="text-muted-foreground mt-1 text-xs">{t("connection.shellIntegrationDesc")}</p>
-      </div>
+      {!local && (
+        <div>
+          <Label htmlFor="conn-shell-integration" className="mb-1.5 block">
+            {t("connection.shellIntegration")}
+          </Label>
+          <Select
+            id="conn-shell-integration"
+            value={form.shellIntegration}
+            onChange={(e) => {
+              const value = e.target.value
+              setForm((current) => ({
+                ...current,
+                shellIntegration: value === "on" || value === "off" ? value : "default",
+              }))
+            }}
+          >
+            {(["default", "on", "off"] as const satisfies ShellIntegrationChoice[]).map(
+              (option) => (
+                <option key={option} value={option}>
+                  {t(`connection.shellIntegrationOptions.${option}`)}
+                </option>
+              )
+            )}
+          </Select>
+          <p className="text-muted-foreground mt-1 text-xs">
+            {t("connection.shellIntegrationDesc")}
+          </p>
+        </div>
+      )}
     </div>
   )
 }

@@ -56,6 +56,34 @@ export function getTabPinMenuAction(
     : [{ label: t("contextMenu.unpinConnectionHeader"), action: "unpin-header", icon: "pin-off" }]
 }
 
+/**
+ * The item that edits the saved connection a session tab came from, or
+ * saves an SSH or local tab that has none as one. A serial tab only edits
+ * the profile it came from.
+ */
+export function getTabConnectionMenuAction(
+  tab: Pick<Tab, "type" | "connection">,
+  t: ReturnType<typeof useTranslation>["t"]
+): TabContextMenuAction[] {
+  const label = tabConnectionActionLabel(tab)
+  if (!label) return []
+  return [
+    { label: t(label), action: "edit-connection", icon: "edit", shortcut: "tabs.saveConnection" },
+  ]
+}
+
+/**
+ * The label key of {@link getTabConnectionMenuAction}'s item for `tab`, or
+ * null when it has none, so the shortcut acts where the menu would.
+ */
+export function tabConnectionActionLabel(tab: Pick<Tab, "type" | "connection">): string | null {
+  if (!isSessionTab(tab)) return null
+  if (tab.connection?.profileId) return "contextMenu.editConnection"
+  if (tab.type === "ssh") return "contextMenu.saveConnection"
+  if (tab.type === "terminal") return "contextMenu.saveLocalConnection"
+  return null
+}
+
 /** The item that undoes a tab's split, giving each of its panes a tab of its own. */
 export function getUngroupMenuAction(
   t: ReturnType<typeof useTranslation>["t"]
@@ -112,11 +140,6 @@ export function getPaneMenuActions(
     return [...layoutActions.slice(1), ...closeAction]
   }
 
-  const editConnectionAction: TabContextMenuAction | null =
-    (tab.type === "ssh" || tab.type === "serial") && tab.connection?.profileId
-      ? { label: t("contextMenu.editConnection"), action: "edit-connection", icon: "edit" }
-      : null
-
   return [
     {
       label: t("contextMenu.duplicateTab"),
@@ -126,7 +149,7 @@ export function getPaneMenuActions(
     },
     ...getTabSplitMenuActions(tab, t),
     getTabRenameMenuAction(tab, t),
-    ...(editConnectionAction ? [editConnectionAction] : []),
+    ...getTabConnectionMenuAction(tab, t),
     ...getTabPinMenuAction(tab, t),
     ...getTabLogMenuActions(tab, t),
     ...layoutActions,

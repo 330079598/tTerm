@@ -116,6 +116,8 @@ export interface ConnectionForm {
   saveShell: boolean
   /** Make the chosen shell the default. */
   makeDefaultShell: boolean
+  /** Where a local terminal's shell starts; empty starts in the home directory. */
+  startDirectory: string
   // Jump host chain fields
   useJumpHost: boolean
   jumpHosts: JumpHostForm[]
@@ -178,6 +180,7 @@ export const defaultForm: ConnectionForm = {
   terminalShellWslDistro: "",
   saveShell: false,
   makeDefaultShell: false,
+  startDirectory: "",
   useJumpHost: false,
   jumpHosts: [],
   proxy: DEFAULT_PROXY_CHOICE,

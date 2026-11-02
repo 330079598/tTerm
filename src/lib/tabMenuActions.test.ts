@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  getTabConnectionMenuAction,
   getTabPinMenuAction,
   getTabRenameMenuAction,
   getTabSplitMenuActions,
   getPaneMenuActions,
+  tabConnectionActionLabel,
 } from "@/lib/tabMenuActions"
 
 const t = ((key: string) => key) as Parameters<typeof getTabSplitMenuActions>[1]
@@ -78,13 +80,40 @@ describe("getPaneMenuActions", () => {
     expect(duplicate?.shortcut).toBe("tabs.duplicateActive")
   })
 
-  it("edits the profile an SSH or serial tab was opened from", () => {
+  it("edits the profile a session tab was opened from", () => {
     const base = { id: "a", title: "tab", isActive: true }
     const profile = { profileId: "p" }
     expect(actions({ ...base, type: "ssh", connection: profile })).toContain("edit-connection")
     expect(actions({ ...base, type: "serial", connection: profile })).toContain("edit-connection")
+    expect(actions({ ...base, type: "terminal", connection: profile })).toContain("edit-connection")
     expect(actions({ ...base, type: "serial" })).not.toContain("edit-connection")
-    expect(actions({ ...base, type: "terminal" })).not.toContain("edit-connection")
+  })
+})
+
+describe("getTabConnectionMenuAction", () => {
+  const labels = (tab: Parameters<typeof getTabConnectionMenuAction>[0]) =>
+    getTabConnectionMenuAction(tab, t).map((item) => item.label)
+
+  it("saves an SSH or local tab that has no profile, and edits one that has", () => {
+    expect(labels({ type: "ssh" })).toEqual(["contextMenu.saveConnection"])
+    expect(labels({ type: "terminal" })).toEqual(["contextMenu.saveLocalConnection"])
+    expect(labels({ type: "terminal", connection: { profileId: "p" } })).toEqual([
+      "contextMenu.editConnection",
+    ])
+  })
+
+  it("shows the shortcut, which acts only where the item is offered", () => {
+    expect(getTabConnectionMenuAction({ type: "terminal" }, t)[0].shortcut).toBe(
+      "tabs.saveConnection"
+    )
+    expect(tabConnectionActionLabel({ type: "terminal" })).toBe("contextMenu.saveLocalConnection")
+    expect(tabConnectionActionLabel({ type: "serial" })).toBeNull()
+    expect(tabConnectionActionLabel({ type: "settings" })).toBeNull()
+  })
+
+  it("offers nothing for a serial tab without a profile or a remote file", () => {
+    expect(labels({ type: "serial" })).toEqual([])
+    expect(labels({ type: "remote-file-editor", connection: { profileId: "p" } })).toEqual([])
   })
 })
 

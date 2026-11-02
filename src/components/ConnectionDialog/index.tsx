@@ -31,6 +31,7 @@ import {
   buildInitialForm,
   getDefaultTitle,
 } from "@/components/ConnectionDialog/connectionDialogUtils"
+import { GroupField } from "@/components/ConnectionDialog/GroupField"
 import { JumpHostFields } from "@/components/ConnectionDialog/JumpHostFields"
 import { ProxyFields } from "@/components/ConnectionDialog/ProxyFields"
 import { SerialConnectionFields } from "@/components/ConnectionDialog/SerialConnectionFields"
@@ -158,7 +159,7 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
   const isSsh = form.type === "ssh"
   const isTerminal = form.type === "terminal"
   const isSerial = form.type === "serial"
-  const canSave = (isSerial ? form.serial.port : form.host).trim() !== ""
+  const canSave = isTerminal || (isSerial ? form.serial.port : form.host).trim() !== ""
 
   return (
     <>
@@ -228,7 +229,14 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
             </div>
           )}
 
-          {isTerminal && <TerminalConnectionFields form={form} setForm={setForm} />}
+          {!isSsh && <GroupField form={form} setForm={setForm} matchingGroups={matchingGroups} />}
+
+          {isTerminal && (
+            <>
+              <TerminalConnectionFields form={form} setForm={setForm} />
+              <SessionCustomizationFields form={form} setForm={setForm} local />
+            </>
+          )}
 
           {isSerial && <SerialConnectionFields form={form} setForm={setForm} />}
 
@@ -350,17 +358,15 @@ const ConnectionDialogContent: React.FC<ConnectionDialogContentProps> = ({
                 </>
               ) : (
                 <>
-                  {(isSsh || isSerial) && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button type="submit" variant="outline" data-action="save">
-                          <Save size={14} />
-                          {t("connection.saveAndConnect")}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{t("connection.saveAndConnectDescription")}</TooltipContent>
-                    </Tooltip>
-                  )}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button type="submit" variant="outline" data-action="save">
+                        <Save size={14} />
+                        {t("connection.saveAndConnect")}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("connection.saveAndConnectDescription")}</TooltipContent>
+                  </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button type="submit" data-action="connect">

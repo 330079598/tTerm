@@ -6,7 +6,12 @@ import { buildTabFromConnection } from "@/components/TTermApp/ttermAppUtils"
 import { formatBytes, MAX_EDIT_FILE_BYTES } from "@/components/SftpDrawer/sftpDrawerUtils"
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
 import { toast } from "@/hooks/use-toast"
-import { defaultShellChoice, localShellConnection, type LocalShellChoice } from "@/lib/localShells"
+import {
+  defaultShellChoice,
+  localShellConnection,
+  withCurrentLocalShell,
+  type LocalShellChoice,
+} from "@/lib/localShells"
 import { nameLocalTab } from "@/lib/localTabTitle"
 import { Tab } from "@/types/tab"
 
@@ -61,12 +66,18 @@ export function useTabOpeners(shell: AppShell, config: AppConfig) {
   const handleConnect = useCallback(
     (connection: Omit<Tab, "id" | "isActive">) => {
       if (connection.type === "terminal") {
-        void nameLocalTab(connection).then((tab) => addTab(buildTabFromConnection(tab)))
+        // A saved local tab starts the current program of the user's shell
+        // it names, which may have changed since.
+        const current = {
+          ...connection,
+          connection: withCurrentLocalShell(connection.connection, config.local_shells),
+        }
+        void nameLocalTab(current).then((tab) => addTab(buildTabFromConnection(tab)))
         return
       }
       addTab(buildTabFromConnection(connection))
     },
-    [addTab]
+    [addTab, config.local_shells]
   )
 
   const handleOpenRemoteFile = useCallback(

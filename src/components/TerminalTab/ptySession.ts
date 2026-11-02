@@ -304,6 +304,8 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
       if (connectionRef.current?.type !== "ssh") {
         setConnectionStateIfChanged("connected")
       }
+      // A local shell is ready once it runs; an SSH shell says so itself.
+      if (connectionRef.current?.type === "terminal") startLoginScript()
       onPidChangeRef.current?.(pid)
     })
     .catch((error) => {

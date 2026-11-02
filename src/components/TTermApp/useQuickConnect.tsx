@@ -5,6 +5,7 @@ import type { ProfileDialogState } from "@/components/TTermApp/useProfileDialogS
 import { SavedProfile } from "@/components/ProfilesPanel"
 import { ToastAction } from "@/components/ui/toast"
 import { toast } from "@/hooks/use-toast"
+import { draftLocalProfileFromTab } from "@/lib/localProfiles"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
 import {
   addRecentQuickConnection,
@@ -75,7 +76,9 @@ export function useQuickConnect(shell: AppShell, dialog: ProfileDialogState) {
     (tab: Tab) => {
       setEditingProfile(null)
       setDuplicatingProfile(null)
-      setDraftProfile(draftProfileFromTab(tab))
+      setDraftProfile(
+        tab.type === "terminal" ? draftLocalProfileFromTab(tab) : draftProfileFromTab(tab)
+      )
       setSavingQuickConnectTabId(tab.id)
       setShowConnectionDialog(true)
     },
@@ -95,6 +98,16 @@ export function useQuickConnect(shell: AppShell, dialog: ProfileDialogState) {
       // The tab now belongs to the profile, so its SFTP and reconnects use what was saved.
       const profileConnection = buildConnectionFromProfile(profile).connection
       updateTab(tabId, (tab) => {
+        // A local shell goes on in the directory it is in.
+        if (tab.type === "terminal") {
+          return {
+            ...tab,
+            title: profile.name,
+            autoTitle: false,
+            duplicateBaseTitle: undefined,
+            connection: { ...tab.connection, ...profileConnection, cwd: tab.connection?.cwd },
+          }
+        }
         // A tab still signing in automatically keeps doing so: it reuses the
         // password typed in it, whether or not the profile stored it.
         const keepAuto = tab.connection?.authMethod === "auto"

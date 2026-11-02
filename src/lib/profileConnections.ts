@@ -1,4 +1,6 @@
 import { isDistroId } from "@/lib/distro"
+import { localProfileChoice } from "@/lib/localProfiles"
+import { localShellConnection } from "@/lib/localShells"
 import { normalizeProxyChoice, proxyChoicePayload } from "@/lib/proxy"
 import { normalizeSerialSettings } from "@/lib/serial"
 import { normalizeSftpStartDirectory } from "@/lib/sftpStartDirectory"
@@ -39,6 +41,23 @@ export function buildConnectionFromProfile(profile: SavedProfile): Omit<Tab, "id
         sessionLog: normalizeSessionLogPolicy(profile.session_log),
         highlightSet: profile.highlight_set,
         serial: normalizeSerialSettings(profile.serial),
+      },
+    }
+  }
+  if (connectionType === "terminal") {
+    const local = profile.local_terminal
+    return {
+      title: profile.name,
+      type: connectionType,
+      isModified: false,
+      connection: {
+        ...localShellConnection(localProfileChoice(local), local?.startDirectory),
+        profileId: profile.id,
+        profileName: profile.name,
+        terminalTheme: profile.terminal_theme,
+        loginScript: profile.login_script,
+        sessionLog: normalizeSessionLogPolicy(profile.session_log),
+        highlightSet: profile.highlight_set,
       },
     }
   }
@@ -122,6 +141,9 @@ export function applyProfileToTab(tab: Tab, profile: SavedProfile): Tab {
     previous.authMethod === next.authMethod &&
     previous.privateKeyPath === next.privateKeyPath
   const connection = { ...previous, ...next }
+  // A local shell goes on in the directory it is in; the saved one is where
+  // a new tab of the profile starts.
+  if (next.type === "terminal") connection.cwd = previous.cwd ?? next.cwd
   if (!sameAccount) {
     connection.password = undefined
     connection.privateKeyPassphrase = undefined

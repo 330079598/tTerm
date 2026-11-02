@@ -198,6 +198,11 @@ export function defaultShellKey(config: ShellConfig): string {
   return config.terminal_shell
 }
 
+/** The key of `choice` among {@link buildShellEntries}, as if it were the default. */
+export function shellChoiceKey(choice: LocalShellChoice, config: ShellConfig): string {
+  return defaultShellKey({ ...config, ...defaultShellUpdates(choice) })
+}
+
 /** The settings that make `choice` the default shell. */
 export function defaultShellUpdates(choice: LocalShellChoice): DefaultShellSettings {
   const custom = choice.shell === "custom"

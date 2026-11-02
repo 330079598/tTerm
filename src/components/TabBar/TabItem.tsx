@@ -10,6 +10,7 @@ import { TabTooltip } from "@/components/TabTooltip"
 import { useTabPasswordPrompt } from "@/lib/tabAttention"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
 import {
+  getTabConnectionMenuAction,
   getTabPinMenuAction,
   getTabRenameMenuAction,
   getTabSplitMenuActions,
@@ -102,16 +103,6 @@ export const TabItem = React.memo(function TabItem({
         return
       }
 
-      // An SSH tab without a profile (quick connect, or connected without saving) can be saved as
-      // one; a serial tab can only edit the profile it came from.
-      const editConnectionAction: TabContextMenuAction | null = tab.connection?.profileId
-        ? tab.type === "ssh" || tab.type === "serial"
-          ? { label: t("contextMenu.editConnection"), action: "edit-connection", icon: "edit" }
-          : null
-        : tab.type === "ssh"
-          ? { label: t("contextMenu.saveConnection"), action: "edit-connection", icon: "edit" }
-          : null
-
       const logActions = getTabLogMenuActions(tab, t)
 
       const actions: TabContextMenuAction[] = [
@@ -131,7 +122,7 @@ export const TabItem = React.memo(function TabItem({
         ...splitActions,
         getLayoutTemplatesMenuAction(t),
         getTabRenameMenuAction(tab, t),
-        ...(editConnectionAction ? [editConnectionAction] : []),
+        ...getTabConnectionMenuAction(tab, t),
         ...getTabPinMenuAction(tab, t),
         ...logActions,
         { separator: true, label: "", action: "" },

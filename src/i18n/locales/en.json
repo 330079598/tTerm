@@ -80,6 +80,7 @@
     "renameTab": "Rename Tab",
     "editConnection": "Edit Connection Configuration",
     "saveConnection": "Save as Connection Configuration",
+    "saveLocalConnection": "Save as Local Connection",
     "pinConnectionHeader": "Pin Connection Header",
     "unpinConnectionHeader": "Unpin Connection Header",
     "startLogging": "Start Logging",
@@ -452,7 +453,8 @@
         "switchToNth": "Switch to tab 1-8, or the last tab with 9",
         "renameActive": "Rename active tab",
         "duplicateActive": "Duplicate active tab",
-        "closeActive": "Close the active pane, or the tab when it has one"
+        "closeActive": "Close the active pane, or the tab when it has one",
+        "saveConnection": "Save the active tab as a connection, or edit its saved one"
       },
       "terminal": {
         "find": "Find in terminal",
@@ -1460,6 +1462,12 @@
       "never": "Never log"
     },
     "loginScriptDesc": "Typed into the shell one line at a time once it is ready, each after the previous command finishes. A password prompt is left for you (or sudo autofill) to answer; typing yourself stops the rest. Runs again after a reconnect.",
+    "startDirectory": "Start directory",
+    "chooseStartDirectory": "Choose a folder",
+    "startDirectoryDesc": "Where the shell starts. ~ is your home directory. Left empty, or once the folder is gone, the shell starts in your home directory.",
+    "startupCommands": "Startup commands",
+    "startupCommandsPlaceholder": "source .venv/bin/activate\nnpm run dev",
+    "startupCommandsDesc": "Typed into the shell one line at a time each time it starts, each after the previous command finishes. Typing yourself stops the rest.",
     "serial": {
       "port": "Port",
       "choosePort": "Choose a port",

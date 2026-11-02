@@ -19,7 +19,7 @@ const buildConnectionSubtitle = (
   t: (key: string, options?: Record<string, unknown>) => string
 ) => {
   if (profile.connection_type === "terminal") {
-    return t("profiles.localTerminal")
+    return profile.local_terminal?.startDirectory || t("profiles.localTerminal")
   }
 
   if (profile.connection_type === "serial") {

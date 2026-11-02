@@ -238,7 +238,12 @@ export const TTermApp: React.FC = () => {
     sending,
     commandLibrary.handleTerminalCommandExecuted
   )
-  useTabKeymap(shell, { handleNewTab, handleRemoveTab, openRenameDialog })
+  useTabKeymap(shell, {
+    handleNewTab,
+    handleRemoveTab,
+    openRenameDialog,
+    editTabProfile: profileActions.handleEditTabProfile,
+  })
 
   const handleCollapsedProfileGroupKeysChange = useCollapsedProfileGroupsSaver()
 

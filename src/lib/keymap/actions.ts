@@ -26,6 +26,7 @@ export type KeymapActionId =
   | "tabs.renameActive"
   | "tabs.duplicateActive"
   | "tabs.closeActive"
+  | "tabs.saveConnection"
   // terminal
   | "terminal.find"
   | "terminal.clear"
@@ -88,6 +89,7 @@ export const KEYMAP_ACTIONS: KeymapActionDefinition[] = [
   { id: "tabs.renameActive", group: "tabs", allowInEditable: true },
   { id: "tabs.duplicateActive", group: "tabs", allowInEditable: true },
   { id: "tabs.closeActive", group: "tabs", allowInEditable: true },
+  { id: "tabs.saveConnection", group: "tabs", allowInEditable: true },
   { id: "terminal.find", group: "terminal", allowInEditable: true },
   { id: "terminal.clear", group: "terminal", allowInEditable: true },
   { id: "terminal.reset", group: "terminal", allowInEditable: true },

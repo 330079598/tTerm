@@ -144,3 +144,46 @@ describe("serial profiles", () => {
     expect(profileTabIcon(board)).toEqual({})
   })
 })
+
+describe("local terminal profiles", () => {
+  const local = profile({
+    connection_type: "terminal",
+    host: undefined,
+    port: undefined,
+    username: undefined,
+    login_script: "nvm use",
+    terminal_theme: "nord",
+    local_terminal: { shell: "wsl", wslDistro: "Ubuntu", startDirectory: "~/web" },
+  })
+
+  it("open the saved shell in the saved directory", () => {
+    const opened = buildConnectionFromProfile(local)
+    expect(opened.type).toBe("terminal")
+    expect(opened.title).toBe("web")
+    expect(opened.connection).toMatchObject({
+      type: "terminal",
+      profileId: "p1",
+      terminalShell: "wsl",
+      terminalShellWslDistro: "Ubuntu",
+      cwd: "~/web",
+      loginScript: "nvm use",
+      terminalTheme: "nord",
+    })
+  })
+
+  it("open Auto in the home directory when nothing is saved", () => {
+    const opened = buildConnectionFromProfile({ ...local, local_terminal: undefined })
+    expect(opened.connection).toMatchObject({ terminalShell: "auto", cwd: undefined })
+  })
+
+  it("leave an open shell in the directory it is in when edited", () => {
+    const open = tab({
+      type: "terminal",
+      title: "web",
+      connection: { type: "terminal", profileId: "p1", profileName: "web", cwd: "/srv/web/src" },
+    })
+    const updated = applyProfileToTab(open, { ...local, terminal_theme: "dracula" })
+    expect(updated.connection?.cwd).toBe("/srv/web/src")
+    expect(updated.connection?.terminalTheme).toBe("dracula")
+  })
+})

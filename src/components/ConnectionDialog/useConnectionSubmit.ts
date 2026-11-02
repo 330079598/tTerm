@@ -34,7 +34,11 @@ import {
   buildSerialConnection,
   buildSerialProfile,
 } from "@/components/ConnectionDialog/serialPayload"
-import { buildLocalShellSubmit } from "@/components/ConnectionDialog/localShellPayload"
+import {
+  buildLocalShellSubmit,
+  buildLocalTerminalProfile,
+  localProfileName,
+} from "@/components/ConnectionDialog/localShellPayload"
 import type { ShellConfig } from "@/lib/localShells"
 import { findActiveTunnelsUsingProfile } from "@/components/TunnelsPanel/profileTunnels"
 import { summarizeTunnelNames } from "@/components/TunnelsPanel/tunnelUtils"
@@ -111,14 +115,38 @@ export function useConnectionSubmit({
       return
     }
 
-    // An unnamed local tab is named after its shell when it opens.
-    const title =
-      form.title.trim() || (form.type === "terminal" ? "" : getDefaultTitle(form.type, form))
-    const group = normalizeGroupPath(form.group)
     const shouldPersistProfile = shouldSave
-    const profileId =
-      form.type !== "terminal" && (shouldPersistProfile || editProfile) ? sshProfileId : undefined
-    const hasTarget = (form.type === "serial" ? form.serial.port : form.host).trim() !== ""
+    // An unnamed local tab is named after its shell when it opens; a saved
+    // one after the folder it starts in.
+    const title =
+      form.title.trim() ||
+      (form.type !== "terminal"
+        ? getDefaultTitle(form.type, form)
+        : shouldPersistProfile
+          ? localProfileName(form)
+          : "")
+    const group = normalizeGroupPath(form.group)
+    const profileId = shouldPersistProfile || editProfile ? sshProfileId : undefined
+    const hasTarget =
+      form.type === "terminal" ||
+      (form.type === "serial" ? form.serial.port : form.host).trim() !== ""
+    const local = form.type === "terminal" ? buildLocalShellSubmit(form, shellConfig) : null
+    let localSettingsSaved = false
+    // The shells a local terminal adds or makes the default, saved once.
+    const saveLocalSettings = async (): Promise<boolean> => {
+      if (!local?.updates || localSettingsSaved) return true
+      try {
+        await saveConfig(local.updates)
+        localSettingsSaved = true
+        return true
+      } catch (error) {
+        reportError(error, {
+          context: "save_config",
+          title: t("errors.configSaveFailed"),
+        })
+        return false
+      }
+    }
     const ignoreSavedPassword =
       form.type === "ssh" &&
       form.authMethod === "password" &&
@@ -128,7 +156,7 @@ export function useConnectionSubmit({
     const profileJumpHostsPayload = buildJumpHostsPayload(form, "snake", undefined, true)
     const connectionJumpHostsPayload = buildJumpHostsPayload(form, "camel", savedJumpPasswordKeys)
 
-    if (shouldPersistProfile && form.type !== "terminal" && hasTarget) {
+    if (shouldPersistProfile && hasTarget) {
       const duplicate = allProfiles.find(
         (profile) =>
           profile.id !== profileId && profile.name === title && (profile.group_path ?? "") === group
@@ -182,10 +210,13 @@ export function useConnectionSubmit({
           form.sudoAutofill && form.sudoPassword.length > 0 ? form.sudoPassword : undefined,
         clear_sudo_password: form.clearSudoPassword,
       })
+      const identity = { id: sshProfileId, name: title, group_path: group }
       const profile =
         form.type === "serial"
-          ? buildSerialProfile(form, { id: sshProfileId, name: title, group_path: group })
-          : sshProfile()
+          ? buildSerialProfile(form, identity)
+          : local
+            ? buildLocalTerminalProfile(form, identity, local.choice)
+            : sshProfile()
       const result = await invokeSafe<void>(
         "save_profile",
         { profile, typedPasswordTabId },
@@ -194,7 +225,7 @@ export function useConnectionSubmit({
           title: t("errors.profileSaveFailed"),
         }
       )
-      if (!result.ok) {
+      if (!result.ok || !(await saveLocalSettings())) {
         return
       }
       if (editProfile) {
@@ -259,20 +290,13 @@ export function useConnectionSubmit({
       }
     } else if (form.type === "serial") {
       connection.connection = buildSerialConnection(form, title, profileId)
-    } else {
-      const local = buildLocalShellSubmit(form, shellConfig)
-      connection.connection = local.connection
-      if (local.updates) {
-        try {
-          await saveConfig(local.updates)
-        } catch (error) {
-          reportError(error, {
-            context: "save_config",
-            title: t("errors.configSaveFailed"),
-          })
-          return
-        }
+    } else if (local) {
+      connection.connection = {
+        ...local.connection,
+        profileId,
+        profileName: profileId ? title : undefined,
       }
+      if (!(await saveLocalSettings())) return
     }
 
     onConnect(connection)

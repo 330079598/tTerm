@@ -169,7 +169,8 @@ export function createSavedPasswordPrompts(ctx: TerminalSessionContext) {
   const startLoginScript = () => {
     stopLoginScript()
     const connection = connectionRef.current
-    if (connection?.type !== "ssh") return
+    // A saved local terminal's startup commands run the same way.
+    if (connection?.type !== "ssh" && connection?.type !== "terminal") return
     const lines = parseLoginScript(connection.loginScript)
     if (lines.length === 0) return
     session.loginScriptRunner = new LoginScriptRunner({
