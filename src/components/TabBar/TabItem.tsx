@@ -173,8 +173,6 @@ export const TabItem = React.memo(function TabItem({
       >
         <span className="tab-number">{index + 1}</span>
         <TabIcon tab={tab} paneIds={paneIds} className="tab-icon" />
-        <TabAttentionDot tabId={tab.id} paneIds={paneIds} />
-        <TabLogIndicator tabId={tab.id} paneIds={paneIds} />
         <TabTitle tab={tab} className="tab-title" />
         {isSplit && (
           <span
@@ -191,16 +189,22 @@ export const TabItem = React.memo(function TabItem({
             {paneCount}
           </span>
         )}
-        <button
-          className="tab-close"
-          aria-label={t("contextMenu.closeTab", { defaultValue: "Close tab" })}
-          onClick={(e) => {
-            e.stopPropagation()
-            onTabClose(tab.id)
-          }}
-        >
-          <X size={12} />
-        </button>
+        <span className="tab-end">
+          <span className="tab-marks">
+            <TabAttentionDot tabId={tab.id} paneIds={paneIds} />
+            <TabLogIndicator tabId={tab.id} paneIds={paneIds} />
+          </span>
+          <button
+            className="tab-close"
+            aria-label={t("contextMenu.closeTab", { defaultValue: "Close tab" })}
+            onClick={(e) => {
+              e.stopPropagation()
+              onTabClose(tab.id)
+            }}
+          >
+            <X size={12} />
+          </button>
+        </span>
       </div>
     </TabTooltip>
   )

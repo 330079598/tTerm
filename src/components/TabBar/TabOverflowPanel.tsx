@@ -45,8 +45,10 @@ function OverflowRow({
     >
       <span className="tab-overflow-number">{number}</span>
       <TabIcon tab={tab} className="tab-icon" />
-      <TabAttentionDot tabId={tab.id} />
       <span className="tab-overflow-title">{tab.title}</span>
+      <span className="tab-marks">
+        <TabAttentionDot tabId={tab.id} />
+      </span>
       {connectionMeta.primary && (
         <span className="tab-overflow-meta">
           <span className="tab-overflow-meta-primary">{connectionMeta.primary}</span>

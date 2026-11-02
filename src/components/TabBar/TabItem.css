@@ -227,6 +227,51 @@
   outline-offset: 2px;
 }
 
+/* The end of a tab: its marks (TabAttentionDot, TabLogIndicator) stand in the
+   close button's place and give way to it on hover, as an unsaved file's dot
+   does in an editor. The marks sit after the title, away from the icon, so
+   they don't crowd an agent's logo and the title doesn't shift as they come
+   and go. Both share one grid cell, so the tab keeps its width as they swap. */
+.tab-end {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex-shrink: 0;
+  align-items: center;
+  justify-items: center;
+}
+
+.tab-end > * {
+  grid-area: 1 / 1;
+}
+
+.tab-marks {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.15s ease;
+}
+
+.tab-marks:empty {
+  display: none;
+}
+
+/* The marks lead into the title where they stand before it elsewhere; here
+   they need no space after them. */
+.tab-marks > * {
+  margin-right: 0;
+}
+
+.tab-item:not(:hover) .tab-end:has(.tab-marks:not(:empty)) .tab-close:not(:focus-visible) {
+  opacity: 0;
+}
+
+.tab-item:hover .tab-marks,
+.tab-end:has(.tab-close:focus-visible) .tab-marks {
+  opacity: 0;
+}
+
 .tab-close.always-visible {
   opacity: 1;
 }
