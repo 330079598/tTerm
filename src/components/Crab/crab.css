@@ -49,6 +49,47 @@
   animation: crab-blink 4.2s infinite;
 }
 
+.crab[data-size="small"] .crab-eyes {
+  transform-origin: 50% calc(3.4 / 18 * 100%);
+}
+
+/* Separate layers let the gaze move inside the whites while both blink
+   together. The small crab only blinks: its gaze would move a fraction of a
+   pixel, which blurs the pupils more than it shows. */
+.crab-pupils {
+  animation: crab-look 6.8s ease-in-out infinite;
+}
+
+.crab[data-size="small"] .crab-pupils {
+  animation: none;
+}
+
+/* A knocking crab may wait a long while for an answer, so its eyes stop with
+   its claws instead of keeping the window drawing frames the whole time. */
+.crab[data-motion="knock"] .crab-eyes,
+.crab[data-motion="knock"] .crab-pupils {
+  animation-iteration-count: 1;
+}
+
+@keyframes crab-look {
+  0%,
+  12%,
+  88%,
+  100% {
+    transform: translate(0, 0);
+  }
+  /* The pupils rest right of the middle, so they look further left than
+     right; either way they stay inside the whites. */
+  24%,
+  38% {
+    transform: translate(-2.6%, -0.8%);
+  }
+  56%,
+  70% {
+    transform: translate(1.1%, -0.8%);
+  }
+}
+
 .crab-hit {
   opacity: 0;
 }

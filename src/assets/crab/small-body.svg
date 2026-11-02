@@ -4,8 +4,4 @@
   <rect x="8.2" y="4.2" width="11.6" height="12.6" rx="2.6" fill="none" stroke-width="1.6"/>
   <rect x="9.9" y="9.2" width="8.2" height="5.9" rx="1" fill="#2b2752" stroke="none"/>
   <path d="M11.6 10.4 L13.6 12.15 L11.6 13.9" fill="none" stroke="#ffc23d" stroke-width="1.3" stroke-linecap="round"/>
-  <circle cx="11.4" cy="3.4" r="2.5" fill="#ffffff" stroke-width="1.2"/>
-  <circle cx="11.816666666666666" cy="3.757142857142857" r="1.45" fill="#1f1a33" stroke="none"/>
-  <circle cx="16.6" cy="3.4" r="2.5" fill="#ffffff" stroke-width="1.2"/>
-  <circle cx="17.01666666666667" cy="3.757142857142857" r="1.45" fill="#1f1a33" stroke="none"/>
 </svg>

@@ -6,9 +6,12 @@ import eyes from "@/assets/crab/eyes.svg"
 import hit from "@/assets/crab/hit.svg"
 import jawInner from "@/assets/crab/jaw-inner.svg"
 import jawOuter from "@/assets/crab/jaw-outer.svg"
+import pupils from "@/assets/crab/pupils.svg"
 import smallBody from "@/assets/crab/small-body.svg"
 import smallClaw from "@/assets/crab/small-claw.svg"
+import smallEyes from "@/assets/crab/small-eyes.svg"
 import smallHit from "@/assets/crab/small-hit.svg"
+import smallPupils from "@/assets/crab/small-pupils.svg"
 import { cn } from "@/lib/utils"
 
 /** What the crab does: pinch while something loads, knock while the user is asked for something. */
@@ -47,7 +50,15 @@ export function Crab({ motion, height, className }: CrabProps) {
         <CrabClaw small={small} knocks={motion === "knock"} />
         <CrabClaw small={small} knocks={motion === "knock"} mirrored />
         <img src={small ? smallBody : body} alt="" draggable={false} />
-        {!small && <img className="crab-eyes" src={eyes} alt="" draggable={false} />}
+        <span className="crab-eyes">
+          <img src={small ? smallEyes : eyes} alt="" draggable={false} />
+          <img
+            className="crab-pupils"
+            src={small ? smallPupils : pupils}
+            alt=""
+            draggable={false}
+          />
+        </span>
       </span>
     </span>
   )

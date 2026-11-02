@@ -60,12 +60,21 @@ function hit(points, width) {
   <g stroke="${AMBER}" stroke-width="${width}" stroke-linecap="round">${strokes.join("")}</g>`
 }
 
-function eye(cx, cy, r, ring, pupil, glint) {
+function eye(cx, cy, r, ring) {
   return `
-  <circle cx="${cx}" cy="${cy}" r="${r}" fill="#ffffff" stroke-width="${ring}"/>
-  <circle cx="${cx + r / 6}" cy="${cy + r / 7}" r="${pupil}" fill="${INK}" stroke="none"/>${
+  <circle cx="${cx}" cy="${cy}" r="${r}" fill="#ffffff" stroke-width="${ring}"/>`
+}
+
+/**
+ * The pupil of the eye of radius `eyeR` at (cx, cy), with a glint when
+ * `glint` gives its radius. The pupil sits low and to the right, which leaves
+ * a crescent of white that reads even at 18 px and gives the crab its look.
+ */
+function pupil(cx, cy, eyeR, r, glint = 0) {
+  return `
+  <circle cx="${cx + eyeR / 6}" cy="${cy + eyeR / 7}" r="${r}" fill="${INK}" stroke="none"/>${
     glint
-      ? `\n  <circle cx="${cx + r / 3.3}" cy="${cy - 1}" r="${glint}" fill="#ffffff" stroke="none"/>`
+      ? `\n  <circle cx="${cx + eyeR / 3.3}" cy="${cy - 1}" r="${glint}" fill="#ffffff" stroke="none"/>`
       : ""
   }`
 }
@@ -89,7 +98,8 @@ export function fullCrab() {
   <rect x="114" y="136" width="28" height="9" rx="4.5" fill="${AMBER}" stroke="none"/>`
   return {
     "body.svg": svg(FULL_VIEWBOX, windowBody(70, 68, 100, 98, 20, 28, 8, screen)),
-    "eyes.svg": svg(FULL_VIEWBOX, eye(100, 56, 15, 6, 6.5, 2) + eye(140, 56, 15, 6, 6.5, 2)),
+    "eyes.svg": svg(FULL_VIEWBOX, eye(100, 56, 15, 6) + eye(140, 56, 15, 6)),
+    "pupils.svg": svg(FULL_VIEWBOX, pupil(100, 56, 15, 6.5, 2) + pupil(140, 56, 15, 6.5, 2)),
     "arm.svg": svg(FULL_VIEWBOX, arm(76, 44, 142, 14, 8)),
     "jaw-outer.svg": svg(
       FULL_VIEWBOX,
@@ -120,12 +130,9 @@ export function smallCrab() {
   <path d="M11.6 10.4 L13.6 12.15 L11.6 13.9" fill="none" stroke="${AMBER}" stroke-width="1.3" stroke-linecap="round"/>`
   const claw = `<g stroke-width="1.3">${jaw(4.2, 9.6, 3.6, 32, true)}${jaw(4.2, 9.6, 3.6, 32, false)}\n  </g>`
   return {
-    "small-body.svg": svg(
-      SMALL_VIEWBOX,
-      windowBody(8.2, 4.2, 11.6, 12.6, 2.6, 3.6, 1.6, screen) +
-        eye(11.4, 3.4, 2.5, 1.2, 1.45, 0) +
-        eye(16.6, 3.4, 2.5, 1.2, 1.45, 0)
-    ),
+    "small-body.svg": svg(SMALL_VIEWBOX, windowBody(8.2, 4.2, 11.6, 12.6, 2.6, 3.6, 1.6, screen)),
+    "small-eyes.svg": svg(SMALL_VIEWBOX, eye(11.4, 3.4, 2.5, 1.2) + eye(16.6, 3.4, 2.5, 1.2)),
+    "small-pupils.svg": svg(SMALL_VIEWBOX, pupil(11.4, 3.4, 2.5, 1.45) + pupil(16.6, 3.4, 2.5, 1.45)),
     "small-claw.svg": svg(SMALL_VIEWBOX, arm(9, 5, 12.5, 3.2, 1.2) + claw),
     "small-hit.svg": svg(
       SMALL_VIEWBOX,
