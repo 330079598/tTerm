@@ -13,7 +13,7 @@ export interface UseTabsReturn {
   addTab: (tab: Omit<Tab, "id" | "isActive">) => string
   /** Opens closed tabs again under new ids, put back where `layout` says. */
   reopenTabs: (tabs: Omit<Tab, "id" | "isActive">[], layout: ClosedLayout) => void
-  openSettingsTab: (title: string) => void
+  openSettingsTab: (title: string, section?: string) => void
   renameSettingsTab: (title: string) => void
   openTunnelsTab: (title: string) => void
   renameTunnelsTab: (title: string) => void
@@ -106,11 +106,12 @@ export function useTabs(): UseTabsReturn {
   )
 
   const openPageTab = useCallback(
-    (type: PageTabType, title: string) => {
+    (type: PageTabType, title: string, settingsSection?: string) => {
       const tab = ensureTabDefaults({
         id: generateTabId(),
         title,
         type,
+        settingsSection,
         isActive: true,
         isModified: false,
         hasConnected: true,
@@ -125,7 +126,7 @@ export function useTabs(): UseTabsReturn {
   }, [])
 
   const openSettingsTab = useCallback(
-    (title: string) => openPageTab("settings", title),
+    (title: string, section?: string) => openPageTab("settings", title, section),
     [openPageTab]
   )
   const renameSettingsTab = useCallback(

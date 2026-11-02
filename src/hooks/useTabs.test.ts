@@ -332,6 +332,29 @@ describe("useTabs split tabs", () => {
   })
 })
 
+describe("useTabs settings navigation", () => {
+  it("opens the requested section and reuses an existing settings tab", () => {
+    const { result } = renderHook(() => useTabs())
+    act(() => result.current.openSettingsTab("Settings", "updates"))
+    const id = result.current.activeTabId
+    expect(result.current.tabs[0].settingsSection).toBe("updates")
+
+    act(() => result.current.updateTab(id!, (tab) => ({ ...tab, settingsSection: "general" })))
+    act(() => result.current.openSettingsTab("Settings", "updates"))
+    expect(result.current.tabs).toHaveLength(1)
+    expect(result.current.activeTabId).toBe(id)
+    expect(result.current.tabs[0].settingsSection).toBe("updates")
+  })
+
+  it("keeps the selected section when opening settings without a section", () => {
+    const { result } = renderHook(() => useTabs())
+    act(() => result.current.openSettingsTab("Settings", "updates"))
+    act(() => result.current.openSettingsTab("Settings"))
+    expect(result.current.tabs).toHaveLength(1)
+    expect(result.current.tabs[0].settingsSection).toBe("updates")
+  })
+})
+
 describe("useTabs layout templates", () => {
   const panes = (result: { current: ReturnType<typeof useTabs> }) =>
     result.current.groups.map((group) => getPaneIds(group.root))

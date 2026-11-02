@@ -240,7 +240,14 @@ function applyTabsAction(state: TabsState, action: TabsAction): TabsState {
     case "open-page": {
       const existingPageTab = state.tabs.find((tab) => tab.type === action.tab.type)
       if (existingPageTab) {
-        return activateTabInState(state, existingPageTab.id)
+        const tabs = action.tab.settingsSection
+          ? state.tabs.map((tab) =>
+              tab.id === existingPageTab.id
+                ? { ...tab, settingsSection: action.tab.settingsSection }
+                : tab
+            )
+          : state.tabs
+        return activateTabInState({ ...state, tabs }, existingPageTab.id)
       }
       return {
         ...state,
