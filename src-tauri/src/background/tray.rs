@@ -21,7 +21,8 @@ const MENU_TUNNELS_PAGE: &str = "tray-tunnels-page";
 const MENU_TUNNEL_PREFIX: &str = "tray-tunnel:";
 /// Asks the UI to open the Port Forwarding page.
 const OPEN_TUNNELS_EVENT: &str = "tray-open-tunnels";
-/// Asks the UI to open the update settings and check for an update.
+/// Tells the UI that an update check asked for from the tray is waiting in
+/// `take_tray_update_check`.
 const CHECK_UPDATES_EVENT: &str = "tray-check-updates";
 /// The dot's red, the same as the count on the Windows taskbar.
 const DOT_RGB: [u8; 3] = [0xE8, 0x11, 0x23];
@@ -34,6 +35,9 @@ pub struct TrayState {
     refresh_pending: AtomicBool,
     /// Whether the icon shows the dot for unseen notifications.
     attention: AtomicBool,
+    /// An update check asked for from the tray that the UI has not taken yet.
+    /// It is kept because a click before the UI listens would otherwise be lost.
+    update_check_requested: AtomicBool,
 }
 
 /// A tunnel as one menu entry shows it.
@@ -335,7 +339,17 @@ fn open_tunnels_page(app: &AppHandle) {
 /// Shows the window first, so the result of the check is in sight.
 fn check_updates(app: &AppHandle) {
     super::show_main_window(app);
+    app.state::<TrayState>()
+        .update_check_requested
+        .store(true, Ordering::SeqCst);
     let _ = app.emit(CHECK_UPDATES_EVENT, ());
+}
+
+/// Hands the UI an update check asked for from the tray, once. The UI asks
+/// both when told about a click and when it starts listening.
+#[tauri::command]
+pub fn take_tray_update_check(state: tauri::State<'_, TrayState>) -> bool {
+    state.update_check_requested.swap(false, Ordering::SeqCst)
 }
 
 /// Stops a running tunnel or starts a stopped one. A start that needs a

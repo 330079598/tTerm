@@ -269,6 +269,7 @@ pub fn run() {
             background::resolve_close_request,
             background::quit::set_save_before_quit,
             background::quit::ready_to_quit,
+            background::tray::take_tray_update_check,
             command_library::commands::list_saved_commands,
             command_library::commands::list_command_tags,
             command_library::commands::create_command_tag,
