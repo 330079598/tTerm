@@ -16,10 +16,13 @@ use crate::tunnel::{commands::TunnelManager, types::TunnelState};
 pub(super) const TRAY_ID: &str = "main";
 const MENU_SHOW: &str = "tray-show";
 const MENU_QUIT: &str = "tray-quit";
+const MENU_CHECK_UPDATES: &str = "tray-updates";
 const MENU_TUNNELS_PAGE: &str = "tray-tunnels-page";
 const MENU_TUNNEL_PREFIX: &str = "tray-tunnel:";
 /// Asks the UI to open the Port Forwarding page.
 const OPEN_TUNNELS_EVENT: &str = "tray-open-tunnels";
+/// Asks the UI to open the update settings and check for an update.
+const CHECK_UPDATES_EVENT: &str = "tray-check-updates";
 /// The dot's red, the same as the count on the Windows taskbar.
 const DOT_RGB: [u8; 3] = [0xE8, 0x11, 0x23];
 
@@ -44,6 +47,7 @@ struct MenuTunnel {
 #[derive(Clone, Copy)]
 struct Labels {
     show: &'static str,
+    check_updates: &'static str,
     quit: &'static str,
     tunnels: &'static str,
     no_tunnels: &'static str,
@@ -57,6 +61,7 @@ fn labels(language: &str) -> Labels {
     if language == "zh" {
         Labels {
             show: "显示 tTerm",
+            check_updates: "检查更新…",
             quit: "退出",
             tunnels: "端口转发",
             no_tunnels: "没有端口转发规则",
@@ -68,6 +73,7 @@ fn labels(language: &str) -> Labels {
     } else {
         Labels {
             show: "Show tTerm",
+            check_updates: "Check for updates…",
             quit: "Quit",
             tunnels: "Port Forwarding",
             no_tunnels: "No tunnels",
@@ -279,6 +285,13 @@ fn tray_menu(
             &PredefinedMenuItem::separator(app)?,
             &submenu,
             &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(
+                app,
+                MENU_CHECK_UPDATES,
+                labels.check_updates,
+                true,
+                None::<&str>,
+            )?,
             &MenuItem::with_id(app, MENU_QUIT, labels.quit, true, None::<&str>)?,
         ],
     )
@@ -305,6 +318,7 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
         MENU_SHOW => super::show_main_window(app),
         MENU_QUIT => super::request_quit(app),
         MENU_TUNNELS_PAGE => open_tunnels_page(app),
+        MENU_CHECK_UPDATES => check_updates(app),
         id => {
             if let Some(tunnel_id) = id.strip_prefix(MENU_TUNNEL_PREFIX) {
                 toggle_tunnel(app, tunnel_id.to_string());
@@ -316,6 +330,12 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
 fn open_tunnels_page(app: &AppHandle) {
     super::show_main_window(app);
     let _ = app.emit(OPEN_TUNNELS_EVENT, ());
+}
+
+/// Shows the window first, so the result of the check is in sight.
+fn check_updates(app: &AppHandle) {
+    super::show_main_window(app);
+    let _ = app.emit(CHECK_UPDATES_EVENT, ());
 }
 
 /// Stops a running tunnel or starts a stopped one. A start that needs a

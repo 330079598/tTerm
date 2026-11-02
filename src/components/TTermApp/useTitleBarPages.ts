@@ -2,6 +2,7 @@ import { listen } from "@tauri-apps/api/event"
 import { useCallback, useEffect, useRef } from "react"
 
 import type { AppShell } from "@/components/TTermApp/appShell"
+import { useTrayUpdateCheck } from "@/components/TTermApp/useTrayUpdateCheck"
 import { useLatestRef } from "@/hooks/useLatestRef"
 
 interface TitleBarPagesOptions {
@@ -17,6 +18,7 @@ interface TitleBarPagesOptions {
 export function useTitleBarPages(shell: AppShell, options: TitleBarPagesOptions) {
   const { t, openSettingsTab, openTunnelsTab } = shell
   const { settingsTabTitle, tunnelsTabTitle, runningTunnelCount } = options
+  useTrayUpdateCheck(shell, settingsTabTitle)
 
   const handleSettingsClick = useCallback(() => {
     openSettingsTab(settingsTabTitle)

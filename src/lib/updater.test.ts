@@ -39,6 +39,32 @@ beforeEach(() => {
 })
 
 describe("app updater state transitions", () => {
+  it.each(["not-available", "error"])(
+    "shows %s when a manual request joins a silent check",
+    async (expectedStatus) => {
+      let finish!: () => void
+      mocks.invoke.mockImplementation(async () => {
+        await new Promise<void>((resolve) => {
+          finish = resolve
+        })
+        if (expectedStatus === "error") throw new Error("Network unavailable")
+        return null
+      })
+      const updater = await loadUpdater()
+      const background = updater.checkForAppUpdate("stable", true)
+      await vi.waitFor(() => expect(finish).toBeTypeOf("function"))
+      const manual = updater.checkForAppUpdate("stable")
+      finish()
+      await Promise.all([background, manual])
+
+      expect(mocks.invoke).toHaveBeenCalledTimes(1)
+      expect(updater.getUpdaterState()).toMatchObject({
+        status: expectedStatus,
+        canRetry: expectedStatus === "error",
+      })
+    }
+  )
+
   it("does not publish the downloaded confirmation state for download and install", async () => {
     const updater = await loadUpdater()
     await updater.checkForAppUpdate("stable")
