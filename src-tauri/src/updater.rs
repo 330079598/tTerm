@@ -176,6 +176,7 @@ pub async fn download_app_update(
 
 #[tauri::command]
 pub async fn install_downloaded_app_update(
+    app: tauri::AppHandle,
     downloads: tauri::State<'_, PendingUpdateDownloads>,
     channel: String,
 ) -> Result<bool, String> {
@@ -195,6 +196,7 @@ pub async fn install_downloaded_app_update(
         }
     };
     let app_bundle_path = current_macos_app_bundle_path();
+    crate::window_state::save_now(app.clone()).await;
     download.update.install(bytes).map_err(|e| e.to_string())?;
     clear_macos_quarantine_after_update(app_bundle_path.as_deref());
     remove_cached_update(downloads.inner(), &channel).await;
@@ -214,6 +216,7 @@ pub async fn download_install_app_update(
 
     let bytes = download_update_bytes(&update, &on_event).await?;
     let app_bundle_path = current_macos_app_bundle_path();
+    crate::window_state::save_now(app.clone()).await;
     update.install(bytes).map_err(|e| e.to_string())?;
 
     clear_macos_quarantine_after_update(app_bundle_path.as_deref());

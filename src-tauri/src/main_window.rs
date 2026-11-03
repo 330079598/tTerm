@@ -33,7 +33,9 @@ fn background_throttling_policy(value: &str) -> BackgroundThrottlingPolicy {
 /// background; `index.html` picks it up through `--boot-bg`. With the blur on
 /// (macOS, Windows) that background is a translucent tint over it, and the
 /// page learns its opacity from `__TTERM_WINDOW_BLUR__` before the config
-/// loads.
+/// loads. The window is built hidden and shown once it is back at the size
+/// and position it was left at, so it does not open at the default size and
+/// then jump.
 pub fn create_main_window(
     app: &tauri::App,
     cfg: Option<&crate::config::AppConfig>,
@@ -48,6 +50,7 @@ pub fn create_main_window(
         .expect("main window missing from tauri.conf.json");
     let background_throttling = cfg.map_or("throttle", |cfg| cfg.background_throttling.as_str());
     let mut builder = WebviewWindowBuilder::from_config(app.handle(), &window_config)?
+        .visible(false)
         .background_throttling(background_throttling_policy(background_throttling));
     let background = crate::config::window_background::load_window_background();
     let blur_cfg = cfg.filter(|cfg| cfg!(any(target_os = "macos", windows)) && cfg.window_blur);
@@ -82,13 +85,13 @@ pub fn create_main_window(
         }
     }
     let window = builder.build()?;
+    crate::window_state::restore(&window);
     // The macOS blur is set on the built window; Windows took it above.
     #[cfg(target_os = "macos")]
     if blur.is_some() {
         crate::window_blur::apply_window_blur(&window, blur)?;
     }
-    #[cfg(not(target_os = "macos"))]
-    let _ = window;
+    window.show()?;
     Ok(())
 }
 

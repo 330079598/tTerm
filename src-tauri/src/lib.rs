@@ -30,6 +30,7 @@ mod themes;
 mod tunnel;
 mod updater;
 mod window_blur;
+mod window_state;
 mod zmodem;
 
 use core::state::PtyMap;
@@ -435,6 +436,7 @@ pub fn run() {
                     }
                 }
                 tauri::RunEvent::Exit => {
+                    window_state::save(app);
                     launch_dir::forget_startup_dir(app);
                     // Tunnels may still be running; keep what they carried.
                     app.state::<tunnel::commands::TunnelManager>()
