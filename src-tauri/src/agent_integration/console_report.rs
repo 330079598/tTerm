@@ -5,9 +5,9 @@
 //! agent's console instead and writes it there, and ConPTY forwards it to the
 //! tab like the agent's own output. The agent's console is the first one up
 //! the hook's ancestors with a window: a hidden console has none, a
-//! pseudoconsole has one. Without one, the agent runs its sessions in a
-//! background server, and the report goes with the session's id to every
-//! console running the agent, as on Unix.
+//! pseudoconsole has one, up to the nearest process of the agent. Without
+//! one, the agent runs its sessions in a background server, and the report
+//! goes with the session's id to every console running the agent, as on Unix.
 
 use std::collections::{HashMap, HashSet};
 use std::io::Read;
@@ -49,6 +49,7 @@ fn report(agent: &str, state: &str, session: Option<&str>) {
     let processes = processes();
     let mut consoles = HashSet::new();
     let own = format!("\x1b]777;tterm-agent;{agent};{state}\x07");
+    let exe = format!("{agent}.exe");
     let mut seen = HashSet::new();
     let mut pid = processes.get(&std::process::id()).map(|process| process.0);
     // A parent id may have been reused; the set ends a cycle that makes.
@@ -56,13 +57,20 @@ fn report(agent: &str, state: &str, session: Option<&str>) {
         if write_to_console(current, &own, &mut consoles) {
             return;
         }
-        pid = processes.get(&current).map(|process| process.0);
+        let Some((parent, name)) = processes.get(&current) else {
+            break;
+        };
+        // The nearest agent runs the hook. Without a console it is the
+        // background server, whose parent may be the agent that started it.
+        if name.eq_ignore_ascii_case(&exe) {
+            break;
+        }
+        pid = Some(*parent);
     }
     let Some(session) = session else {
         return;
     };
     let addressed = format!("\x1b]777;tterm-agent;{agent};{state};{session}\x07");
-    let exe = format!("{agent}.exe");
     for (pid, (_, name)) in &processes {
         if name.eq_ignore_ascii_case(&exe) {
             write_to_console(*pid, &addressed, &mut consoles);

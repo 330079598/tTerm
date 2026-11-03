@@ -6,7 +6,9 @@
 //! ancestors with one. By default it hands its sessions to a shared background
 //! server, and the hook descends from that server instead: it then writes to
 //! every terminal running Codex, with the session's id, for tTerm to keep the
-//! report in the tab the session was submitted from. Codex runs a hook only
+//! report in the tab the session was submitted from. The walk stops at the
+//! nearest Codex: the server may still be the child of the Codex that started
+//! it, whose terminal is not the session's. Codex runs a hook only
 //! once the user has trusted it in `/hooks`, and again after it changes.
 //!
 //! On Windows Codex runs `commandWindows` instead, through `cmd /C` and with
@@ -119,12 +121,14 @@ fn hook_command(state: &str) -> String {
 
 /// awk in the script's double quotes: `\$` for its fields, `\"` for its
 /// strings. `?` or `??` stands for no terminal; tmux's server is `tmux` or
-/// `tmux: server`.
+/// `tmux: server`. The nearest `codex` up the hook's ancestors runs it: with
+/// a terminal it is Codex on its own, without one the shared server, even
+/// when a Codex with a terminal started that server and is its parent.
 const AWK: &str = concat!(
     r#"function has(p) { return t[p] != \"\" && t[p] !~ /^[?]/ } "#,
     r#"function emit(p, b,  q, x) { if (t[p] in s) return; s[t[p]] = 1; x = 0; for (q = p; q > 1; q = pp[q]) if (n[q] ~ /^tmux/) x = 1; print x, t[p], b } "#,
     r#"{ pp[\$1] = \$2; t[\$1] = \$3; c = \$4; for (i = 5; i <= NF; i++) c = c \" \" \$i; sub(/.*\//, \"\", c); n[\$1] = c } "#,
-    r#"END { for (p = h; p > 1 && !has(p); p = pp[p]); if (p > 1) emit(p, 0); else for (p in n) if (n[p] == \"codex\" && has(p)) emit(p, 1) }"#,
+    r#"END { for (p = h; p > 1 && !has(p) && n[p] != \"codex\"; p = pp[p]); if (p > 1 && has(p)) emit(p, 0); else for (p in n) if (n[p] == \"codex\" && has(p)) emit(p, 1) }"#,
 );
 
 #[cfg(all(test, unix))]
@@ -246,6 +250,25 @@ mod tests {
         );
         // Without a session to name, no terminal could tell it is its own.
         assert_eq!(run_hook("processing", "{}", table), []);
+    }
+
+    #[test]
+    fn hook_under_a_server_started_by_a_codex_writes_to_every_codex() {
+        // Codex 0.166 leaves the server a child of the Codex that started it.
+        let table = "ME 700 ?? zsh\n\
+                     700 600 ?? /Users/me/.codex/packages/app-server-daemon/bin/codex\n\
+                     600 550 TTY/ttyB codex\n\
+                     550 1 TTY/ttyB -zsh\n\
+                     500 450 TTY/ttyA codex\n\
+                     450 1 TTY/ttyA -zsh\n";
+        let report = "\u{1b}]777;tterm-agent;codex;done;01a12490-4b68-76d0\u{7}";
+        assert_eq!(
+            run_hook("done", INPUT, table),
+            [
+                ("ttyA".to_string(), report.to_string()),
+                ("ttyB".to_string(), report.to_string()),
+            ]
+        );
     }
 }
 
