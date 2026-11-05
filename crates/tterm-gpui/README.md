@@ -32,7 +32,7 @@ libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
 libvulkan-dev libgl1-mesa-dev libegl1-mesa-dev libdbus-1-dev
 ```
 
-X11 与 xkbcommon、Wayland 供窗口与键盘使用；fontconfig 与 freetype 供字体度量；Vulkan 与 GL/EGL 是 wgpu 的后端。缺少这些包时，`xkbcommon-sys`、`wayland-sys`、`yeslogic-fontconfig-sys`、`freetype-sys` 之类的 `-sys` crate 会在构建脚本里失败。本卡没有 Linux 机器，CI 也没有推送，因此这条清单按 GPUI 的构建依赖整理，未在 Linux 上逐条复现，见报告“偏差”。
+X11 与 xkbcommon、Wayland 供窗口与键盘使用；fontconfig 与 freetype 供字体度量；Vulkan 与 GL/EGL 是 wgpu 的后端。缺少这些包时，`xkbcommon-sys`、`wayland-sys`、`yeslogic-fontconfig-sys`、`freetype-sys` 之类的 `-sys` crate 会在构建脚本里失败。本卡没有 Linux 机器，CI 也没有推送；用 Docker（Ubuntu 24.04 arm64）只装这条清单里的包后 `cargo check -p tterm-gpui --locked` 通过，但没有桌面环境，窗口运行仍未验证。见报告“检查”与“偏差”。
 
 Windows 不需要额外的系统依赖；macOS 只需要 Xcode 命令行工具。
 
