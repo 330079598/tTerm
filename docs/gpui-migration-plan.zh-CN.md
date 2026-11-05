@@ -2,6 +2,7 @@
 
 > 评估日期：2026-11-01。本文用于技术选型与工作量评估，不代表已经启动迁移。
 > **2026-11-05 更新：已决定正式迁移**，界面目标为与现有版本一致（[决策 001](gpui-migration/decisions/001-formal-migration.md)）。选型以[技术选型](gpui-migration/tech-selection.md)为准，界面还原与验收见[界面一致性](gpui-migration/ui-parity.md)与[验收协议](gpui-migration/acceptance.md)；本文第 1 节“先测量再决定”与第 6.0 节的“判断”不再决定是否迁移。
+> **2026-11-05 再次更新：不再整体复用 nyaterm 的终端，也不使用任何 nyakang 的分支**（[决策 007](gpui-migration/decisions/007-official-sources-and-terminal-route.md)）。GPUI 与组件库用官方 crates.io 发布（gpui-kit 0.9.0 + `gpui-pre`），终端以官方 `alacritty_terminal 0.26.0` 为内核自己搭建。本文第 3.2、3.5、4、10 节中关于复用 nyaterm 终端与分支的内容以该决策为准。
 > 基于 tTerm 本地代码、固定提交的 nyaterm 与 Zed 源码，以及 2026-11-01 查询的 nyaterm issue 和各分支差异；尚未进行组件抽取、编译验证和性能对比。
 
 ## 1. 建议与结论

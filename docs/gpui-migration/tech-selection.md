@@ -6,20 +6,20 @@
 
 ## 1. 结论
 
-| 层         | 选型                                                                                   | 备选与放弃理由                                                                                       |
-| ---------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| 仓库形态   | **同一仓库，重写界面，共享 Rust 核心**                                                 | 新建仓库：迁移期后端要两边维护，见第 2 节                                                            |
-| GPUI 来源  | **nyaterm 的生产组合**，镜像到 tTerm 自己的仓库后固定 rev                              | gpui-kit 0.9 + `gpui-pre`、上游 Zed git、gpui-ce，见第 3 节                                          |
-| 组件库     | **gpui-kit**：行为层用 `gpui-base`，外观由 tTerm 自己的 `tterm-ui` 决定                | adabraka-ui、guise 等规模小；Zed 的 `ui` 是 GPL                                                      |
-| 终端       | **nyaterm-terminal + nyaterm-terminal-gpui**（Alacritty 内核分支）                     | Zed `terminal` 是 GPL；`gpui-terminal`、`gpui_xterm` 只是 0.1 的雏形；libghostty-vt 没有 GPUI 绘制层 |
-| 远程编辑器 | **gpui-kit 的代码编辑器**（tree-sitter、ropey）                                        | 自研代价过高；Zed `editor` 是 GPL                                                                    |
-| 图标       | **与 lucide-react 同版本的 Lucide SVG**，由脚本从 npm 包导出                           | gpui-kit-assets 自带 Lucide，但版本不一定与现有一致                                                  |
-| 国际化     | **自写 `tterm-i18n`，直接读现有 i18next JSON**                                         | rust-i18n 的插值与复数语法不同，需要转换文案，两个客户端就不再共用一份文件                           |
-| 打包       | **cargo-packager**（app、dmg、NSIS、deb、AppImage）+ **cargo-generate-rpm**            | 继续用 tauri-bundler：要伪造 Tauri 工程配置；cargo-packager 没有 RPM 输出                            |
-| 更新       | **沿用现有 `latest.json` 与 minisign 公钥**，优先 cargo-packager-updater，不兼容则自写 | gpui-updater 0.4：格式与签名方式待核实                                                               |
-| 界面测试   | GPUI `TestAppContext`（行为）+ `VisualTestAppContext`（macOS 截图）+ 自建对比工具      | 只靠人工截图无法复现，也无法由评估者判定                                                             |
+| 层         | 选型                                                                                                                                                                                            | 备选与放弃理由                                                                                                                                                   |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 仓库形态   | **同一仓库，重写界面，共享 Rust 核心**                                                                                                                                                          | 新建仓库：迁移期后端要两边维护，见第 2 节                                                                                                                        |
+| GPUI 来源  | **官方 Zed 代码的 crates.io 快照**：`gpui-pre =0.3.11`（`zed@f816e1f`），经 `gpui-kit 0.9.0` 使用                                                                                               | nyakang 的分支组合（个人维护，2026-11-05 决定不用，见[决策 007](decisions/007-official-sources-and-terminal-route.md)）；上游 Zed git；gpui-ce，见第 3 节        |
+| 组件库     | **gpui-kit 0.9.0**（crates.io 官方发布）：行为层用 `gpui-base`，外观由 tTerm 自己的 `tterm-ui` 决定                                                                                             | adabraka-ui、guise 等规模小；Zed 的 `ui` 是 GPL                                                                                                                  |
+| 终端       | **官方 `alacritty_terminal 0.26.0` 为内核**；模型与绘制元素自写，架构按 Zed 的做法净室实现；输入协议、方框字符、链接识别移植自 Alacritty 应用层；关键词高亮等独立模块从 nyaterm 挑选，见第 5 节 | 整体复用 nyaterm 终端 crate：需要给 Alacritty 带 2 个补丁，且代码来自一个 6 个月的个人项目；Zed `terminal` 是 GPL；`gpui-terminal`、`gpui_xterm` 只是 0.1 的雏形 |
+| 远程编辑器 | **gpui-kit 的代码编辑器**（tree-sitter、ropey）                                                                                                                                                 | 自研代价过高；Zed `editor` 是 GPL                                                                                                                                |
+| 图标       | **与 lucide-react 同版本的 Lucide SVG**，由脚本从 npm 包导出                                                                                                                                    | gpui-kit-assets 自带 Lucide，但版本不一定与现有一致                                                                                                              |
+| 国际化     | **自写 `tterm-i18n`，直接读现有 i18next JSON**                                                                                                                                                  | rust-i18n 的插值与复数语法不同，需要转换文案，两个客户端就不再共用一份文件                                                                                       |
+| 打包       | **cargo-packager**（app、dmg、NSIS、deb、AppImage）+ **cargo-generate-rpm**                                                                                                                     | 继续用 tauri-bundler：要伪造 Tauri 工程配置；cargo-packager 没有 RPM 输出                                                                                        |
+| 更新       | **沿用现有 `latest.json` 与 minisign 公钥**，优先 cargo-packager-updater，不兼容则自写                                                                                                          | gpui-updater 0.4：格式与签名方式待核实                                                                                                                           |
+| 界面测试   | GPUI `TestAppContext`（行为）+ `VisualTestAppContext`（macOS 截图）+ 自建对比工具                                                                                                               | 只靠人工截图无法复现，也无法由评估者判定                                                                                                                         |
 
-一句话：**终端和组件都有可以直接复用的成熟实现，真正的工作量在把 8.9 万行界面按原样重画一遍，以及平台层的输入法、无 GPU 和更新衔接。**
+一句话：**所有依赖都来自官方发布，不需要 fork 任何仓库；终端在官方 Alacritty 之上自己搭，组件用 gpui-kit；真正的工作量在把 8.9 万行界面按原样重画一遍，以及平台层的输入法、无 GPU 和更新衔接。**
 
 ## 2. 仓库形态：不新建仓库
 
@@ -43,8 +43,8 @@ rust-toolchain.toml        # 固定工具链，CI 读取它
 crates/
   tterm-core/              # 会话、认证、SFTP、隧道、存储、备份、同步（P1 从 src-tauri/src 迁入）
   tterm-platform/          # 路径、凭据、剪贴板、通知、托盘、单实例等能力 trait 与各平台实现
-  tterm-terminal/          # 终端模型，导入 nyaterm-terminal
-  tterm-terminal-view/     # 终端 GPUI Element，导入 nyaterm-terminal-gpui
+  tterm-terminal/          # 终端模型：封装官方 alacritty_terminal，不依赖 GPUI
+  tterm-terminal-view/     # 终端 GPUI Element：绘制、滚动、选区、输入法
   tterm-i18n/              # 读取 src/i18n/locales/*.json（P5 后移到 crates/tterm-i18n/locales/）
   tterm-ui/                # 设计令牌、图标、基础组件，对应 src/components/ui
   tterm-gpui/              # 应用本体：窗口、工作区、各功能视图；开发期二进制名 tterm-gpui，P5 改为 tTerm
@@ -66,31 +66,41 @@ src/                       # 现有 React 前端，保留到 P5-09
 
 ## 3. GPUI 来源
 
-GPUI 没有可用的正式发布。crates.io 上的 `gpui` 停在 2025-10-22 的 0.2.2，与现在的代码已经不是一代（验证报告 4.4 节）。可选的来源有四个：
+2026-11-05 决定：**只用官方来源，不依赖任何个人维护的分支**（[决策 007](decisions/007-official-sources-and-terminal-route.md)）。
 
-| 来源                                                                          | 现状                                                                                            | 优点                                                                                                     | 缺点                                                                      |
-| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| **A. nyaterm 组合**：`nyakang/zed` + `nyakang/gpui-kit` + `nyakang/alacritty` | nyaterm main（workspace 版本 2.0.2）固定 `zed@a755e55`、`gpui-kit@9143df9`、`alacritty@86ff089` | 要复用的终端代码就是对着它写的；带文件拖出、Windows 输入法、模态窗口等补丁；有一个同类产品在三平台上发布 | 依赖一个维护者的分支；落后上游                                            |
-| B. gpui-kit 0.9（crates.io）+ `gpui-pre =0.3.11`                              | 2026-11-02 发布，`gpui-pre` 是 Zed 某个提交的快照                                               | 版本化、可复现；组件库与 GPUI 成对测试过                                                                 | 没有拖出与输入法补丁；终端绘制层要按新 API 适配；打补丁要自己维护快照分支 |
-| C. 上游 Zed git + 上游 gpui-kit git                                           | 最新                                                                                            | 上游修复最快到                                                                                           | 两者 rev 要自己配对；没有补丁                                             |
-| D. gpui-ce（社区分支）                                                        | 0.3.x，跟随上游，增加了文本框等                                                                 | 面向独立应用                                                                                             | gpui-kit 不以它为目标，组合不起来                                         |
+GPUI 没有 Zed 官方的定期发布：crates.io 上的 `gpui` 停在 2025-10-22 的 0.2.2（验证报告 4.4 节）。可用的官方来源是 `gpui-pre`：
 
-**选 A，并做三件事降低风险：**
+- `gpui-pre 0.3.11` 是官方 Zed 代码 `zed@f816e1f` 的快照，Apache-2.0，2026-11-02 发布；此前 0.3.9（10-12）、0.3.10（10-26），约一两周一版。
+- 快照由 gpui-kit 的维护者发布（crates.io 账号 `huacnlee`，Longbridge），`gpui-kit 0.9.0` 与它成对发布、成对测试。
+- tTerm 只依赖 `gpui-kit = "=0.9.0"`，通过它的再导出使用 GPUI，避免两处版本不一致。升级时两者一起升。
 
-1. **镜像。** 把三个分支 fork 到 tTerm 自己的 GitHub 账号，`Cargo.toml` 指向自己的镜像和固定 rev。上游分支被删或强推时不受影响 `[人工：建仓库]`。
-2. **固定到 nyaterm 的发布版本，而不是某天的 main。** P0-06 选一个 nyaterm 已发布版本（例如 v2.0.2）对应的 rev，记录到 `pins.md`。验证报告里的 `8e5a53c0`、`c0ca1511`、`3b60b2ed` 是 11-01 的组合，开工前更新。
-3. **每季度评估一次切换到 B。** 条件：tTerm 需要的补丁（P0-07 清单）都已进上游或可以干净地打在 `gpui-pre` 快照上，且终端绘制层的适配量在 M 以内。届时写决策记录。
+| 来源                                | 结论     | 理由                                                                                      |
+| ----------------------------------- | -------- | ----------------------------------------------------------------------------------------- |
+| **gpui-kit 0.9.0 + `gpui-pre`**     | **采用** | 代码是官方 Zed 的；版本化、可复现；组件库与 GPUI 成对测试                                 |
+| 上游 Zed git + 上游 gpui-kit git    | 退路     | `gpui-pre` 停止发布时改用：直接依赖 `zed-industries/zed` 的固定提交，gpui-kit 视情况 fork |
+| nyakang 的 zed、gpui-kit、alacritty | 不采用   | 个人维护；补丁大多服务于 nyaterm 自己的功能（嵌入原生子窗口、文件拖出等），见下           |
+| gpui-ce（社区分支）                 | 不采用   | gpui-kit 不以它为目标                                                                     |
 
-已知要在 P0-06 统一的依赖冲突：
+不采用 nyakang 分支意味着放弃它的补丁（2026-11-05 核对：比官方多 38 个提交、+7,607 行）。逐类判断：
 
-| 依赖            | tTerm                   | GPUI 侧                                              | 处理                                                             |
-| --------------- | ----------------------- | ---------------------------------------------------- | ---------------------------------------------------------------- |
-| rustls 后端     | `ring`                  | nyaterm 用 `aws_lc_rs`                               | 同一构建只能选一个，统一为 `ring`；不行就记录原因                |
-| reqwest         | 0.13（crates.io）       | gpui-kit 用 `zed-reqwest` 0.12（git）                | 按 nyaterm 的做法 `[patch]` 到发布版；接受两个版本共存时记录体积 |
-| vte             | 0.15                    | nyaterm workspace 写 0.14，Alacritty 分支解析出 0.15 | `cargo tree -d` 确认                                             |
-| portable-pty    | 0.9（crates.io）        | nyaterm 用自己的分支                                 | 保持 0.9；终端模型不依赖它                                       |
-| windows / objc2 | windows 0.62、objc2 0.6 | 以固定 rev 为准                                      | 列出重复版本；类型要跨 crate 传递的必须统一                      |
-| 工具链          | edition 2021，stable    | Zed 分支固定 1.98.1，nyaterm 用 2024                 | 新 crate 用 2024 edition；`rust-toolchain.toml` 固定版本         |
+| 补丁                                       | 规模        | tTerm 是否需要                                       |
+| ------------------------------------------ | ----------- | ---------------------------------------------------- |
+| 在窗口中嵌入原生子窗口                     | 约 1,500 行 | 不需要，服务于 nyaterm 的 RDP、VNC                   |
+| 文件拖出到 Finder 或资源管理器             | 约 3,000 行 | 先用 tTerm 自己的 `src-tauri/src/drag_out/`（P0-19） |
+| Windows 输入法只更新光标的组合事件         | 一个提交    | 可能需要，由 P0-18 的 Windows 中文输入法测试决定     |
+| 图集分配失败不崩溃、关闭对话框恢复所属窗口 | 数百行      | 暂缓；遇到对应问题时再处理                           |
+
+真要给 GPUI 打补丁时，不 fork 整个 Zed：用 Cargo 的 `[patch.crates-io]` 把 `gpui-pre` 换成一份打过补丁的同版本源码。这条退路在 P0-06 实测一次（P0-07 负责逐项评估）。
+
+已知要在 P0-06 统一的依赖冲突（以 gpui-kit 0.9.0 的实际依赖树为准）：
+
+| 依赖            | tTerm                   | 待查                                 | 处理                                                     |
+| --------------- | ----------------------- | ------------------------------------ | -------------------------------------------------------- |
+| rustls 后端     | `ring`                  | gpui-kit 的依赖是否带入 `aws-lc-rs`  | 同一构建只能选一个，统一为 `ring`；不行就记录原因        |
+| reqwest         | 0.13（crates.io）       | gpui-kit 是否依赖其他 reqwest        | 接受两个版本共存时记录体积                               |
+| vte             | 0.15                    | `alacritty_terminal 0.26.0` 所需版本 | `cargo tree -d` 确认                                     |
+| windows / objc2 | windows 0.62、objc2 0.6 | `gpui-pre` 的版本                    | 列出重复版本；类型要跨 crate 传递的必须统一              |
+| 工具链          | 1.99.1，edition 2021    | `gpui-pre` 的 `rust-version`         | 新 crate 用 2024 edition；`rust-toolchain.toml` 固定版本 |
 
 ## 4. 组件库：gpui-kit
 
@@ -123,13 +133,37 @@ GPUI 没有可用的正式发布。crates.io 上的 `gpui` 停在 2025-10-22 的
 
 ## 5. 终端
 
-沿用迁移计划 3.2 节的结论：复用 nyaterm 的两个终端 crate。验证报告 5.3 节已经证明模型层可以抽出来，255 个测试全部通过。
+2026-11-05 决定（[决策 007](decisions/007-official-sources-and-terminal-route.md)）：**以官方 `alacritty_terminal` 为内核，其余自己搭，按来源分四块：**
+
+| 部分                                                        | 来源                                                                                                                                                                      | 许可                    | 任务卡                            |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | --------------------------------- |
+| 终端内核：解析、屏幕、回滚区、选区、搜索的底层              | crates.io 官方 `alacritty_terminal = "=0.26.0"`，不打补丁                                                                                                                 | Apache-2.0              | P0-06、P0-09                      |
+| 终端模型封装、绘制元素、滚动、输入法                        | 自写。架构参考 Zed 的 `terminal` 与 `terminal_view`，按**净室流程**：先由读过 Zed 的 agent 写纯文字设计说明，再由没读过 Zed 的 agent 实现                                 | tTerm 自己的代码（MIT） | P0-27、P0-09、P0-10、P0-12、P0-13 |
+| 按键与鼠标协议、方框与 Powerline 字符、链接识别             | 从 Alacritty 应用层复制并改写到 GPUI：`input/keyboard.rs`（718 行）、`input/mod.rs`（1,559 行）、`renderer/text/builtin_font.rs`（1,032 行）、`display/hint.rs`（703 行） | Apache-2.0              | P0-28                             |
+| 关键词高亮；sixel 与 kitty 图片协议（现有版本没有，只评估） | 从 nyaterm 挑选模块复制，先过质量关卡                                                                                                                                     | Apache-2.0              | P0-29                             |
+
+这样做的理由：
+
+- **全部依赖来自官方。** Zed 自己的 Alacritty 分支只改了启动 PTY 时的信号屏蔽，tTerm 有自己的 PTY 与 SSH 通道，用不到；nyaterm 的 2 个 Alacritty 补丁只服务于它自己的滚动锚定设计。所以官方 0.26.0 就够用。
+- **最容易出错的输入协议用久经检验的实现。** Alacritty 的按键编码与鼠标上报 2017 年起被大量用户使用。
+- **不整体继承一个年轻项目的设计。** nyaterm 2026-04 创建，6 个月约 3,900 次提交，有 48 个未关闭的 bug（2026-11-05）；它的代码测试充分，但单文件最大 3,488 行，需要大改才符合本仓库规则。只取独立模块，改造量小。
+- **代价：** 终端部分比整体复用 nyaterm 多约 4–8 周，主要在绘制元素、滚动锚定与输入法。
+
+**Zed 净室规则**（README 执行规则 6 的细化）：
+
+1. 读 Zed GPL 源码的 agent 只产出文字设计说明（P0-27），说明里不得出现代码片段、逐行翻译或 Zed 私有的标识符；可以写 Alacritty 与 GPUI 的公开接口名。
+2. 评估者审查说明，确认没有混入代码。
+3. 实现 P0-09、P0-10、P0-12、P0-13 的 agent 不得打开 Zed 的 `terminal`、`terminal_view` 源码，只看设计说明与官方文档。
+4. 每张实现卡的报告声明“未阅读 Zed 终端源码”。
+
+回滚区写满后的锚定是已知难点：nyaterm 为此给 Alacritty 加了滚动计数，官方版本没有。P0-12 以现有 xterm.js 的行为为目标，评估不改内核的做法（例如比对视口内容、或向 Alacritty 官方提交补丁），不得自行 fork。
 
 其他候选及放弃原因：
 
 | 候选                            | 情况                                                         | 结论                                                      |
 | ------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------- |
-| Zed `terminal`、`terminal_view` | GPL-3.0-or-later                                             | 只读不抄                                                  |
+| 整体复用 nyaterm 两个终端 crate | Apache-2.0；需要 Alacritty 带 2 个补丁                       | 不采用，只挑模块（P0-29）                                 |
+| Zed `terminal`、`terminal_view` | GPL-3.0-or-later，且深度依赖 Zed 的 workspace、editor、ui    | 只按净室流程参考架构                                      |
 | `gpui-terminal` 0.1             | 基于 alacritty_terminal，提供 `TerminalView`，接受任意读写流 | 太早期，没有输入法、滚动模型、搜索                        |
 | `gpui_xterm` 0.1.1              | 基于 alacritty_terminal 0.25.1 与 crates.io 的 gpui 0.2.2    | 绑在旧 GPUI 上                                            |
 | libghostty-vt                   | Ghostty 的 VT 内核，有 Rust 绑定，不是线程安全的             | 没有 GPUI 绘制层，要配 Zig 工具链；作为日后替换内核的备选 |
@@ -217,7 +251,11 @@ russh、russh-sftp、ring、rusqlite、keyring、portable-pty、serialport、tok
 - [longbridge/gpui-kit](https://github.com/longbridge/gpui-kit)：README、组件目录 `crates/component/src`；crates.io 上 [gpui-kit](https://crates.io/crates/gpui-kit) 与 [gpui-component](https://crates.io/crates/gpui-component) 0.9.0 的依赖（`gpui-pre =0.3.11`、`rust-i18n`、`ropey`、`tree-sitter`）。
 - [crates.io gpui](https://crates.io/crates/gpui)：最新 0.2.2，2025-10-22。
 - [gpui-pre](https://docs.rs/crate/gpui-pre/0.3.10)：Zed 提交的快照。
-- [nyakang/nyaterm Cargo.toml](https://github.com/nyakang/nyaterm/blob/main/Cargo.toml)：固定的 zed、gpui-kit、alacritty rev。
+- [nyakang/nyaterm Cargo.toml](https://github.com/nyakang/nyaterm/blob/main/Cargo.toml)：固定的 zed、gpui-kit、alacritty rev；v2.0.2 为 `zed@a755e55`、`gpui-kit@9143df9`、`alacritty@86ff089`。
+- 分支与官方的差异（2026-11-05）：[nyakang/zed](https://github.com/zed-industries/zed/compare/main...a755e55acb90229c687e64e6a84877fb70d21619)、[nyakang/gpui-kit](https://github.com/longbridge/gpui-kit/compare/main...9143df9774d0190162053defc9b1faac3f8ab907)、[nyakang/alacritty](https://github.com/alacritty/alacritty/compare/master...86ff089983b93700c065ae3ae57273addf561fe7)、[Zed 的 Alacritty 分支](https://github.com/alacritty/alacritty/compare/master...4c129667ce56611becdc82de6e28218c80e2e88f)。
+- [crates.io alacritty_terminal](https://crates.io/crates/alacritty_terminal)：最新 0.26.0，2026-04-06。
+- [crates.io gpui-pre](https://crates.io/crates/gpui-pre)：0.3.11 为 `zed@f816e1f` 的快照，发布者 `huacnlee`。
+- [Alacritty](https://github.com/alacritty/alacritty)：应用层 `input/`、`renderer/text/builtin_font.rs`、`display/hint.rs`，Apache-2.0。
 - [zed-industries/awesome-gpui](https://github.com/zed-industries/awesome-gpui)：组件库与工具列表。
 - [GPUI Community Edition](https://gpui-ce.github.io)。
 - [gpui-terminal](https://docs.rs/gpui-terminal)、[gpui_xterm](https://docs.rs/crate/gpui_xterm/latest)、[libghostty-vt](https://docs.rs/libghostty-vt)。

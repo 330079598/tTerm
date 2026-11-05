@@ -1,12 +1,12 @@
 # W0 准备与 P0 验证
 
-本阶段回答五个问题：现有版本慢在哪里；nyaterm 的终端能否抽离；真实会话是否可用；关键平台是否可以接受；收益是否值得继续投入。对应[迁移计划](../gpui-migration-plan.zh-CN.md)第 6.0 节与 P0。
+本阶段回答五个问题：现有版本慢在哪里；在官方 Alacritty 之上能否搭出可用的终端（2026-11-05 起不再整体复用 nyaterm 终端，见[决策 007](decisions/007-official-sources-and-terminal-route.md)）；真实会话是否可用；关键平台是否可以接受；收益是否值得继续投入。对应[迁移计划](../gpui-migration-plan.zh-CN.md)第 6.0 节与 P0。
 
 本阶段的原型代码允许走捷径（例如直接调用 portable-pty），但必须放在 `tterm-gpui` 中，并在报告里列出所有捷径，P1 之后逐一替换。
 
-**G1 必需与可推迟。** 回答 G1 只需要：W0-01 至 W0-04、W0-05 中 P0-24 用到的屏幕、P0-01 至 P0-06、P0-08、P0-09 与 P0-10 的验证分支版本、P0-13 至 P0-18、P0-21、P0-22，以及 2026-11-05 新增的 P0-24（[ui-parity.md](ui-parity.md#p0-24-ui-原语还原验证)）、P0-25（[ui-parity.md](ui-parity.md#p0-25-gpui-绘制能力核实)）、P0-26（[tech-selection.md](tech-selection.md#p0-26-打包与更新衔接可行性)）。P0-07、P0-11、P0-12、P0-19、P0-20、P0-23 可以推迟到 G1 之后，但必须在依赖它们的卡之前完成：P0-12 在 P2-06 之前，P0-11 在 P2-24 之前，P0-19 在 P4-05d 之前，P0-20 在 P4-07 之前，P0-07 在 P0-19 之前，P0-23 在 P2 与 P3 开始之前。
+**G1 必需与可推迟。** 回答 G1 只需要：W0-01 至 W0-04、W0-05 中 P0-24 用到的屏幕、P0-01 至 P0-06、P0-08、P0-09、P0-10、P0-13 至 P0-18、P0-21、P0-22、P0-27、P0-28，以及 2026-11-05 新增的 P0-24（[ui-parity.md](ui-parity.md#p0-24-ui-原语还原验证)）、P0-25（[ui-parity.md](ui-parity.md#p0-25-gpui-绘制能力核实)）、P0-26（[tech-selection.md](tech-selection.md#p0-26-打包与更新衔接可行性)）。P0-07、P0-11、P0-12、P0-19、P0-20、P0-23、P0-29 可以推迟到 G1 之后，但必须在依赖它们的卡之前完成：P0-12 在 P2-06 之前，P0-11 在 P2-24 之前，P0-19 在 P4-05d 之前，P0-20 在 P4-07 之前，P0-07 在 P0-19 之前，P0-23 在 P2 与 P3 开始之前，P0-29 在 P2-16 之前。
 
-**验证分支。** G1 之前，导入的 nyaterm 代码放在不合并的验证分支 `migrate/spike`（从 `GPUI` 切出）上，可以暂不按大小限制拆分，以免在可能放弃的代码上花拆分的工作量。验证分支上 `pnpm check:size` 与 clippy 的长度检查可以失败，其他检查必须通过。G1 决定继续后，由 P1-13 拆分并合并。
+**验证分支与大小限制。** 自写的终端代码（P0-09、P0-10、P0-12、P0-13）从第一天起遵守全部仓库规则，按正常流程合回 `GPUI`。只有原样复制的第三方代码（P0-28 的 Alacritty 应用层、P0-29 的 nyaterm 模块）可以先放在不合并的验证分支 `migrate/spike`（从 `GPUI` 切出）上，暂不拆分；该分支上 `pnpm check:size` 与 clippy 的长度检查可以失败，其他检查必须通过。G1 决定继续后，由 P1-13 拆分并合并。
 
 ## W0 准备
 
@@ -140,29 +140,33 @@
 
 - 依赖：W0-01
 - 规模：M
-- 参考：nyaterm 根 `Cargo.toml`（提交 `1521b6b7`）、迁移计划 3.5 节、[技术选型第 3 节](tech-selection.md#3-gpui-来源)、`src-tauri/Cargo.toml`
-- 工作：
-  1. 选定 GPUI、gpui_platform、gpui-kit、Alacritty 的来源与 rev。按技术选型第 3 节，固定到 nyaterm 某个已发布版本使用的组合（2026-11-05 的 main 为 `nyakang/zed@a755e55`、`nyakang/gpui-kit@9143df9`、`nyakang/alacritty@86ff089`；11-01 的 `8e5a53c0`、`c0ca1511`、`3b60b2ed` 已过时），并镜像到 tTerm 自己的仓库。
-  2. 与 tTerm 现有依赖对齐，至少检查：`vte`（tTerm 用 0.15，Alacritty 分支所需版本待查）、`tokio`、`rustls` 与加密后端（tTerm 用 `ring`，nyaterm 用 `aws_lc_rs`）、`image`、`regex`。用 `cargo tree -d` 列出重复依赖。
-  3. 决定是否建立 tTerm 自己的 GPUI 分支 `[人工：创建 GitHub 仓库]`。建议建立，作为 P0-07 挑选补丁的落点。
-  4. 确定 Rust 工具链：GPUI 与 nyaterm 代码所需的最低版本（nyaterm 使用 2024 edition，tTerm 现为 2021），在仓库中加入 `rust-toolchain.toml` 固定版本，CI 改为读取它而非 `stable`。
-  5. 评估三平台的编译时间与 release 二进制体积；参照 nyaterm 根 `Cargo.toml` 的 `[profile.dev.package]`，为 GPUI、Alacritty 等包设置开发构建的优化级别，记录增量编译时间。
-- 产出：`pins.md`、`decisions/002-dependency-sources.md`、重复依赖清单。
-- 验收：一个只依赖 `gpui` 与 `gpui-kit` 的空程序在三平台编译通过；与 tTerm 的 workspace 共存时没有类型不统一的重复依赖。
-- 评估重点：分支的维护者与更新频率；上游许可证是否在固定 rev 上仍为 Apache-2.0。
+- 参考：[技术选型第 3、5 节](tech-selection.md#3-gpui-来源)、[决策 007](decisions/007-official-sources-and-terminal-route.md)、`src-tauri/Cargo.toml`、`pins.md`
+- 工作（2026-11-05 修订：只用官方来源）：
+  1. 在根 `Cargo.toml` 的 `[workspace.dependencies]` 中固定：`gpui-kit = "=0.9.0"`（带入 `gpui-pre =0.3.11`，即 `zed@f816e1f`）、`alacritty_terminal = "=0.26.0"`。不引入任何 git 依赖，不引入 `nyakang` 或其他个人分支。确认通过 gpui-kit 的再导出能拿到 GPUI 与 `gpui_platform` 的全部所需接口；拿不到时才直接依赖同版本的 `gpui-pre` 系列 crate，并说明原因。
+  2. 与 tTerm 现有依赖对齐，至少检查：`vte`（tTerm 用 0.15）、`tokio`、`rustls` 与加密后端（tTerm 用 `ring`）、`reqwest`、`image`、`regex`、`windows`、`objc2`。用 `cargo tree -d` 列出重复依赖。
+  3. **实测打补丁的退路。** 把 `gpui-pre 0.3.11` 的源码放到临时目录，改一行无害代码，用 `[patch.crates-io]` 替换后编译通过并能看到改动生效；然后撤销，不提交。报告写清步骤，供以后需要给 GPUI 打补丁时照做。
+  4. 确定 Rust 工具链：取 `gpui-pre`、gpui-kit 与 `alacritty_terminal` 要求的最低版本，必要时调高 `rust-toolchain.toml`；决定 workspace 的 `resolver` 是否改为 `"3"`。
+  5. 评估三平台的编译时间与 release 二进制体积；为 GPUI 等大依赖设置开发构建的优化级别，记录增量编译时间。
+- 产出：`pins.md`、`decisions/002-dependency-sources.md`、重复依赖清单、打补丁步骤。
+- 验收：
+  - 一个只依赖 gpui-kit 与 `alacritty_terminal` 的空程序在三平台编译通过（CI 未推送时按[决策 006](decisions/006-w0-01-ci-waiver.md) 记为未验证）。
+  - `Cargo.lock` 中没有任何 git 来源的依赖。
+  - 与 tTerm 的 workspace 共存时没有类型不统一的重复依赖。
+  - 第 3 步的打补丁退路有可复现的步骤与输出。
+- 评估重点：`pins.md` 中每一项的许可在固定版本上是否仍为 Apache-2.0；gpui-kit 的 `Cargo.toml` 没有 `license` 字段，以仓库 `LICENSE-APACHE` 为准。
 
-### P0-07 GPUI 分支补丁评估
+### P0-07 GPUI 补丁差距评估
 
 - 依赖：P0-06
 - 规模：M
-- 参考：`nyakang/zed` 相对上游的 26 个提交、迁移计划 3.5 节
+- 参考：[技术选型第 3 节](tech-selection.md#3-gpui-来源)中放弃的 nyakang 补丁表；`nyakang/zed` 相对官方的 38 个提交（Apache-2.0，可以阅读和移植）；官方 Zed 自 `zed@f816e1f` 之后的提交
 - 工作：
-  1. 逐个补丁记录：作用、tTerm 是否需要、上游是否已有等价实现、改动规模、冲突风险。
-  2. 重点评估：三平台文件拖出、跨窗口拖拽、模态窗口 owner、图集分配失败处理、Windows 输入法组合事件。
-  3. 检查 nyaterm 分支落后上游的 194 个提交中，是否有 tTerm 需要的修复（输入法、Wayland、无障碍、渲染）。
-- 产出：`docs/gpui-migration/gpui-patches.md`，并给出挑选方案。
-- 验收：每个补丁有“采用”“暂缓”或“不需要”的结论和理由。
-- 不做：实际移植补丁，随 P0-19 或 P5 进行。
+  1. 逐项记录 nyakang 补丁中 tTerm 可能需要的部分：Windows 输入法只更新光标的组合事件、图集分配失败处理、关闭对话框时恢复所属窗口、隐藏光标、macOS 光标状态。每项写：作用、对应的 tTerm 场景、官方是否已有等价实现、改动规模。
+  2. 检查官方 Zed 在 `f816e1f` 之后是否有 tTerm 需要的修复（输入法、Wayland、无障碍、渲染），作为升级 `gpui-pre` 的依据。
+  3. 每项给出“不需要”“等官方”“需要时按 P0-06 的退路打补丁”之一的结论。
+- 产出：`docs/gpui-migration/gpui-patches.md`。
+- 验收：每项都有结论和理由；结论为“需要”的项附上触发它的测试场景（例如 P0-18 的某个输入法用例）。
+- 不做：实际打补丁。
 
 ### P0-08 最小 GPUI 程序
 
@@ -178,41 +182,40 @@
 - 验收：三平台 CI 构建与样例测试通过；本地在 macOS、Windows、Linux 至少各运行一次并截图；macOS 应用包能连到局域网内的 SSH 主机。
 - 不做：任何业务功能。
 
-### P0-09 导入终端模型 crate
+### P0-09 终端模型（官方 Alacritty）
 
-- 依赖：P0-08
-- 规模：M（验证分支版本，不含拆分）
-- 参考：nyaterm `crates/nyaterm-terminal/`（约 1.3 万行，含测试）、迁移计划 3.2 节的耦合表
+- 依赖：P0-06、P0-27
+- 规模：L
+- 参考：P0-27 的设计说明；官方 `alacritty_terminal 0.26.0` 的文档；`src-tauri/src/terminal/`（现有的输出批处理与查询应答）；**不得阅读 Zed 的终端源码**（技术选型第 5 节的净室规则）
 - 工作：
-  1. 把 nyaterm-terminal 导入为 `tterm-terminal`，保留目录结构，登记第三方来源。
-  2. 替换对 `nyaterm_core` 的依赖：
-     - 字符编码：对接 tTerm 的 `src-tauri/src/terminal/encoding.rs`，或把 nyaterm 的实现一并导入并说明取舍。
-     - 关键词高亮规则：暂时定义在 `tterm-terminal` 内部，P2-16 再与 tTerm 的高亮配置对齐。
-     - 单元格高度、AI 命令捕获：内联或删除，说明理由。
-  3. **大小限制。** 已知超限：`lib.rs` 3335 行、`graphics/mod.rs` 1748 行；测试文件 `tests.rs` 豁免。G1 之前在验证分支上原样使用，不拆分；G1 之后由 P1-13 拆分并合回 `GPUI`。
-  4. 修正 clippy 在 tTerm 配置下除长度以外的告警。不得新增 `allow` 或 `expect`。
-  5. 原有测试全部迁入并通过。
-- 产出：验证分支上的 `crates/tterm-terminal/`、`third-party.md` 条目、超限文件与超长函数清单（供 P1-13 使用）。
+  1. 在 `crates/tterm-terminal` 中封装 `alacritty_terminal::Term`：写入字节、resize、回滚容量、可见区域快照（行、单元格属性、光标、选区）、变更行的追踪，以及标题、响铃、剪贴板、需要回写给 PTY 的应答等事件。
+  2. 快照对绘制层只读，绘制不长期持有解析需要的锁（计划 7.3 节）。
+  3. 搜索与选区先用 Alacritty 自带的能力，接口按 P2 的需要设计。
+  4. 终端模型只接收 UTF-8。GBK 等会话编码由现有的 `src-tauri/src/terminal/encoding.rs` 在写入终端前转换（P1 移入 core），模型不重复实现。
+  5. 抗崩溃测试：用随机字节流和手写的边界序列持续写入（例如 proptest），不得出现 panic。
+- 产出：`tterm-terminal` 及其测试。
 - 验收：
-  - `cargo test -p tterm-terminal` 通过，测试数量不少于导入前。
-  - 除长度检查外，其他检查通过。
-  - `tterm-terminal` 不依赖 GPUI、Tauri 或 nyaterm 的其他 crate。
-- 评估重点：替换 nyaterm_core 类型时是否改变了行为；alacritty 分支补丁（scroll epoch、screen generation）的使用位置是否清楚记录。
-- 不做：新增功能或改变行为。
+  - 全部检查通过，包括大小限制，不新增 `allow` 或 `expect`。
+  - `tterm-terminal` 不依赖 GPUI、Tauri。
+  - 抗崩溃测试至少运行 10 万组随机输入无 panic，报告给出种子与运行时间。
+  - 报告声明执行者未阅读 Zed 终端源码。
+- 评估重点：快照的拷贝量是否与可见行数成正比，而不是与回滚区成正比。
+- 不做：绘制与输入。
 
-### P0-10 导入终端绘制
+### P0-10 终端绘制元素
 
-- 依赖：P0-09
-- 规模：M（验证分支版本，不含拆分）
-- 参考：nyaterm `crates/nyaterm-terminal-gpui/`（约 1.55 万行，含测试）
+- 依赖：P0-09、P0-27、P0-25
+- 规模：L
+- 参考：P0-27 的设计说明；GPUI 的 `Element` 与文字排版接口；`src/lib/terminalPalette.ts`；**不得阅读 Zed 的终端源码**
 - 工作：
-  1. 导入为 `tterm-gpui` 内的 `terminal_view` 模块，或独立 crate `tterm-terminal-gpui`，二选一并写决策记录。
-  2. 用 tTerm 的终端调色板类型替换 `nyaterm_ui::ThemePalette`（约 130 处引用）。类型定义放在 `tterm-terminal`，字段对应 `src/lib/terminalPalette.ts` 与主题定义。
-  3. 已知超限：`element/mod.rs` 2653 行、`keywords.rs` 2641 行、`paint.rs` 1330 行；测试文件豁免。处理方式同 P0-09，记入超限清单，由 P1-13 拆分。
-  4. 保留 `renderer_probe` 示例与 `renderer-bench` 特性，供 P0-21 和 P2-25 使用。
-- 产出：验证分支上的终端绘制模块、调色板类型、超限清单。
-- 验收：测试通过；`renderer_probe` 能运行并输出数据；除长度检查外，其他检查通过。
-- 评估重点：调色板映射是否覆盖 16 色、前景、背景、光标、选区、搜索高亮等全部槽位。
+  1. 在 `crates/tterm-terminal-view` 中实现终端的 GPUI Element：由字体度量算出单元格宽高与行列数；按行合并相同样式的文字再排版；背景色块、光标各形状、选区、下划线样式、宽字符与 emoji。
+  2. 终端调色板类型放在 `tterm-terminal`，字段对应 `src/lib/terminalPalette.ts`：16 色、前景、背景、光标、选区、搜索高亮。
+  3. 基本滚动：滚轮改变显示偏移；完整的滚动条与锚定见 P0-12。
+  4. 方框与 Powerline 字符先用字体自带字形，P0-28 移植 Alacritty 的内置字形后替换。
+  5. 绘制基准：用 GPUI 的 profiler 记录每帧耗时，供 P0-21 与 P2-25 使用。
+- 产出：`tterm-terminal-view`、调色板类型、绘制基准。
+- 验收：全部检查通过；同一字体与窗口尺寸下行列数与 Tauri 版一致；空闲时不重绘；报告声明未阅读 Zed 终端源码。
+- 评估重点：每帧的排版是否有缓存；后台标签是否停止绘制通知。
 
 ### P0-11 录制字节流回放
 
@@ -226,32 +229,76 @@
 - 产出：`tterm-terminal` 的测试夹具目录、回放工具、比较结果。
 - 验收：差异逐项列出，并判断属于 Unicode 版本差异、实现缺陷还是可以接受的行为差异。
 
-### P0-12 拆出滚动与滚动条
+### P0-12 滚动、滚动条与回滚区锚定
 
 - 依赖：P0-10
 - 规模：L
-- 参考：nyaterm `crates/nyaterm-desktop/src/features/terminal/terminal_runtime/scroll.rs`、`terminal_surface/scrollbar.rs`、`models/terminal/presentation.rs`；nyaterm issue #985、#923、#1043
+- 参考：P0-27 的设计说明；现有 xterm.js 的滚动行为（作为目标）；nyaterm issue #985、#923、#1043（作为要避免的问题）；**不得阅读 Zed 的终端源码**
 - 工作：
-  1. 把小数滚动量累积、边界限制、显示偏移、滑块几何、拖拽、搜索标记的逻辑，从挂在 `NyaTermApp` 上的方法中拆成不依赖应用对象的状态与函数。
-  2. 移植后台标签策略：不可见时继续解析，停止实时快照与绘制通知。
-  3. 为三个已知问题写回归测试：滚动时历史丢失、跳行；回滚区写满开始淘汰旧行后，未处于底部时快速输出导致的闪烁。
-- 产出：滚动模块及其测试。
-- 验收：三个回归场景有自动化测试；#1043 若在上游仍未修复，报告说明本卡是否修复以及如何修复。
-- 评估重点：锚定模型在回滚区淘汰时的坐标换算。
+  1. 小数滚动量累积、边界限制、显示偏移；滚动条的滑块几何、拖拽、搜索标记。
+  2. 后台标签策略：不可见时继续解析，停止快照与绘制通知。
+  3. **回滚区写满后的锚定。** 官方 Alacritty 没有滚动计数（nyaterm 为此打了补丁，本项目不打）。评估不改内核的做法，例如比对视口内容找出移动的行数；或者向 Alacritty 官方提交补丁、合入前接受与 xterm.js 一致的退化行为。不得 fork Alacritty。
+  4. 为三类场景写回归测试：滚动时历史丢失或跳行；回滚区写满后，不在底部时快速输出导致的闪烁；锚定行被淘汰时的行为。
+- 产出：滚动模块及其测试、锚定方案的决策记录。
+- 验收：三类场景有自动化测试；锚定行为与现有 xterm.js 版对比后逐项说明差异。
+- 评估重点：锚定在回滚区淘汰时的坐标换算。
 
 ### P0-13 原型输入：键盘、选区、剪贴板、输入法
 
-- 依赖：P0-10
+- 依赖：P0-10、P0-28
 - 规模：M
-- 参考：nyaterm `terminal_surface/ime.rs`、`nyaterm-terminal-gpui/src/input.rs`
+- 参考：P0-27 的设计说明；P0-28 移植的按键与鼠标协议；GPUI 的输入法接口；**不得阅读 Zed 的终端源码**
 - 工作：接通键盘输入编码、鼠标选区、复制粘贴、输入法预编辑与候选框定位，达到能在 shell 中正常使用的程度。
 - 产出：原型中的输入处理。
-- 验收：在三平台的 shell 中完成中文输入、复制、粘贴；记录未实现的按键与模式。
+- 验收：在三平台的 shell 中完成中文输入、复制、粘贴；记录未实现的按键与模式；报告声明未阅读 Zed 终端源码。
 - 不做：完整的按键与鼠标协议，留给 P2-03、P2-04、P2-11。
+
+### P0-27 终端净室设计说明（参考 Zed）
+
+- 依赖：W0-02
+- 规模：M
+- 并行：P0-01 至 P0-08
+- 参考：Zed `crates/terminal`、`crates/terminal_view`（GPL-3.0-or-later，**只读**）；[技术选型第 5 节](tech-selection.md#5-终端)的净室规则
+- 工作：读 Zed 的终端实现，写一份**纯文字**的设计说明 `docs/gpui-migration/terminal-design.md`，覆盖：模型与视图的划分；PTY 输出到屏幕更新的数据流与线程；快照与变更追踪；绘制时的排版与缓存；滚动、选区、搜索、链接；输入法的预编辑与候选框定位；按键与鼠标事件的路由；resize；已知的边界情况与 Zed 处理过的坑。可以写 Alacritty 与 GPUI 的公开接口名。
+- 产出：设计说明。
+- 验收：
+  - 说明中没有代码片段、伪代码逐行翻译或 Zed 私有的类型与函数名。评估者逐节检查。
+  - 每节说明“为什么这样设计”，不是只描述“Zed 是这样做的”。
+  - 执行者在报告中声明自己将不参与 P0-09、P0-10、P0-12、P0-13 的实现。
+- 不做：任何代码。
+
+### P0-28 移植 Alacritty 应用层的输入协议与内置字形
+
+- 依赖：P0-09
+- 规模：L
+- 参考：官方 Alacritty（Apache-2.0）`alacritty/src/input/keyboard.rs`、`input/mod.rs`、`renderer/text/builtin_font.rs`、`display/hint.rs`，固定到与 `alacritty_terminal 0.26.0` 同一发布的提交
+- 工作：
+  1. 按键到转义序列，含应用光标键、修饰键组合与 kitty 键盘协议；从 winit 的按键类型改写为 GPUI 的 `Keystroke`。
+  2. 鼠标上报与选区规则：各上报模式、双击与三击选词选行、滚轮在备用屏幕上的行为。
+  3. 方框字符、Powerline 箭头等内置字形，改为用 GPUI 的路径或矩形绘制，接入 P0-10。
+  4. URL 与路径识别。
+  5. 每个复制的文件保留原许可声明，文件头注明来源提交、原路径与修改，登记 `third-party.md`。
+- 产出：上述模块与测试；原样复制、尚未拆分的部分放在 `migrate/spike`。
+- 验收：按键编码有逐条对照测试（按键、修饰键、模式 → 期望字节）；鼠标上报各模式有测试；内置字形的截图与 Tauri 版对比；第三方登记完整。
+- 评估重点：改写时是否改变了协议行为；与 tTerm 现有的 `src-tauri/src/terminal/ssh_query_handler.rs` 是否重复应答。
+
+### P0-29 nyaterm 模块挑选与质量关卡
+
+- 依赖：P0-09
+- 规模：M
+- 参考：nyaterm（Apache-2.0）固定到某个发布版本，例如 v2.0.2：`crates/nyaterm-terminal-gpui/src/keywords.rs`（关键词高亮，与 P1-11b 和 tTerm 的 `src/lib/keywordHighlight/` 对照）；`crates/nyaterm-terminal/src/sixel.rs` 与 `graphics/`（sixel 与 kitty 图片协议）。会话编码不在候选内，tTerm 后端已有实现。
+- 工作：
+  1. 对每个候选模块做质量关卡：在 tTerm 的 clippy 配置下的告警清单；抗崩溃测试（随机输入不 panic）；它依赖的 nyaterm 其他代码；按仓库大小规则拆分所需的改动量。
+  2. 判断它是否依赖 nyaterm 给 Alacritty 加的滚动计数；依赖的一律不取。
+  3. 通过关卡的模块复制进来，登记 `third-party.md`；不通过的写明原因和自己实现的估算。
+  4. 图片协议是现有 Tauri 版没有的功能，不在对齐范围内：本卡只给出结论，是否加入由决策人另行决定。
+- 产出：`reports/P0-29.md` 中的逐模块结论、复制进来的模块与测试。
+- 验收：每个候选模块都有“采用”或“不采用”的结论和证据；采用的模块全部检查通过（拆分完成前放在 `migrate/spike`）。
+- 评估重点：复制的模块是否夹带了 nyaterm 的应用层依赖。
 
 ### P0-14 原型接入本地 PTY
 
-- 依赖：P0-12、P0-13
+- 依赖：P0-10、P0-13
 - 规模：M
 - 工作：
   1. 原型直接用 portable-pty 启动本机默认 shell，接通输入、输出与 resize。Windows 上必须与 Tauri 版一样加载随应用分发的 ConPTY（`src-tauri/resources/conpty/` 中的 `conpty.dll` 与 `OpenConsole.exe`，由 `build.rs` 调用 `scripts/prepare-conpty.ps1` 准备），否则颜色与重排行为会与 Tauri 版不同，对比失去意义。
@@ -307,8 +354,8 @@
 
 - 依赖：P0-07、P0-08
 - 规模：M
-- 参考：tTerm `src-tauri/src/drag_out/`（已有 macOS 与 Windows 的原生实现）、`src/components/SftpDrawer/useSftpDragOut.ts`、nyaterm 分支的文件导出补丁
-- 工作：比较两种方案：在 GPUI 窗口上复用 tTerm 现有的 `drag_out` 原生代码；移植 nyaterm 的 GPUI 补丁。各做一个最小演示，把一个延迟生成内容的文件拖到 Finder 或资源管理器，Linux 拖到文件管理器。
+- 参考：tTerm `src-tauri/src/drag_out/`（已有 macOS 与 Windows 的原生实现）、`src/components/SftpDrawer/useSftpDragOut.ts`；`nyakang/zed` 的文件导出补丁（Apache-2.0，只作参考，见 P0-07）
+- 工作：优先方案是在 GPUI 窗口上复用 tTerm 现有的 `drag_out` 原生代码，通过窗口的原生句柄发起拖拽；只有它在某个平台不可行时，才评估按 P0-06 的退路给 GPUI 打补丁。各做一个最小演示，把一个延迟生成内容的文件拖到 Finder 或资源管理器，Linux 拖到文件管理器。
 - 产出：演示代码与决策记录。
 - 验收：至少一种方案在三平台可行，或明确列出不可行的平台。
 - 评估重点：延迟下载（拖放时才开始下载）与大文件的处理。
@@ -326,7 +373,7 @@
 
 - 依赖：P0-14、P0-01
 - 规模：M
-- 工作：用 P0-01 的负载和口径测量原型，必要时用 `renderer_probe` 测绘制耗时，与基线对比。另测空闲时的唤醒次数与能耗：光标闪烁、动画与定时器是否让空闲窗口持续重绘（macOS 用 `powermetrics` 或活动监视器的“能耗影响”，Linux 用 `powertop`）。
+- 工作：用 P0-01 的负载和口径测量原型，用 P0-10 的绘制基准测绘制耗时，与基线对比。另测空闲时的唤醒次数与能耗：光标闪烁、动画与定时器是否让空闲窗口持续重绘（macOS 用 `powermetrics` 或活动监视器的“能耗影响”，Linux 用 `powertop`）。
 - 产出：对比 CSV 与报告。
 - 验收：同一机器、同一构建条件；说明原型缺失的功能可能对数字造成的影响。
 

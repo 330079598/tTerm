@@ -1,9 +1,9 @@
 # 第三方代码登记
 
-本文件登记从 nyaterm、gpui-kit 等仓库复制进 tTerm 的代码。规则见 [README 执行规则第 6 条](README.md#2-执行规则)，要点如下：
+本文件登记从 Alacritty、nyaterm、gpui-kit 等仓库复制进 tTerm 的代码。规则见 [README 执行规则第 6 条](README.md#2-执行规则)，要点如下：
 
 - 每个复制进来的文件在文件头注明来源仓库、来源提交、原路径、许可证与修改说明，并在本表登记。
-- 不得复制 Zed 中 GPL 许可的 crate（`terminal`、`terminal_view`、`editor`、`workspace`、`ui` 等）的代码；可以阅读以理解做法。
+- 不得复制 Zed 中 GPL 许可的 crate（`terminal`、`terminal_view`、`editor`、`workspace`、`ui` 等）的代码。终端部分按净室规则参考 Zed，见[技术选型第 5 节](tech-selection.md#5-终端)。
 - 复制进来的代码同样受 AGENTS.md 的大小限制；超限文件在合回 `GPUI` 之前拆分，不加入基线。G1 之前的验证分支可以暂不拆分，见 P0-09。
 - tTerm 使用 MIT 许可，复制进来的 Apache-2.0 文件仍属 Apache-2.0：保留原许可声明，在文件头注明修改，发行包中附带 Apache-2.0 全文与第三方声明（P4-25、P5-02）。
 - 来源仓库有 `NOTICE` 时一并保留其内容。nyaterm 在固定提交上没有 `NOTICE`。
