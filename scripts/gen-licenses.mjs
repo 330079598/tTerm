@@ -25,7 +25,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
 const OUTPUT = join(ROOT, "public", "licenses.json")
 const CARGO_MANIFEST = join(ROOT, "src-tauri", "Cargo.toml")
 const INPUTS = [
-  join(ROOT, "src-tauri", "Cargo.lock"),
+  join(ROOT, "Cargo.lock"),
   join(ROOT, "pnpm-lock.yaml"),
   join(ROOT, "scripts", "prepare-conpty.ps1"),
   fileURLToPath(import.meta.url),

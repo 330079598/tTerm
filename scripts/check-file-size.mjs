@@ -25,7 +25,7 @@ const EXEMPT = [/\.test\.tsx?$/, /(^|\/)tests\.rs$/, /_tests\.rs$/, /(^|\/)tests
 function sourceFiles() {
   const output = execFileSync(
     "git",
-    ["ls-files", "--cached", "--others", "--exclude-standard", "--", "src", "src-tauri/src"],
+    ["ls-files", "--cached", "--others", "--exclude-standard", "--", "src", "src-tauri/src", "crates"],
     { cwd: ROOT, encoding: "utf8" }
   )
   return output
