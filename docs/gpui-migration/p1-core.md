@@ -163,6 +163,8 @@
 
 ## P1-10 WebView 本地存储迁入后端
 
+> 这项迁移必须随 Tauri 版发给用户并运行过一次，GPUI 版读不到 WebView 的 localStorage。发布方式见 [P5-03](p5-release.md#p5-03-更新器) 的两级升级（过渡版）。
+
 - 依赖：G1
 - 规模：M
 - 并行：P1-01 至 P1-09
