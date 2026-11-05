@@ -1,5 +1,5 @@
 #!/bin/sh
-# Cargo runner on macOS (see src-tauri/.cargo/config.toml). Runs a development
+# Cargo runner on macOS (see .cargo/config.toml). Runs a development
 # build of tTerm from inside an app bundle: macOS only shows notifications
 # from a bundle, and only leads a click on one back to it. Run as a bare
 # binary, tTerm can only post them through AppleScript, and clicking those

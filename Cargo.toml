@@ -1,0 +1,33 @@
+# The workspace lives at the repository root so the Tauri app and the crates
+# the GPUI version is built from share one target directory, one lockfile and
+# one set of lints. `src-tauri/` stays a member until the GPUI version ships.
+[workspace]
+members = ["src-tauri"]
+# The Tauri package is on edition 2021, whose implied resolver is the one its
+# dependencies were resolved with. A virtual workspace would otherwise default
+# to resolver 1.
+resolver = "2"
+
+[workspace.lints.clippy]
+# Threshold in clippy.toml. Older functions over it carry an `expect` that
+# fails once they are split, so the marker cannot outlive the debt.
+too_many_lines = "warn"
+
+# Dev-build settings for dependencies only; tTerm itself keeps the default
+# profile (full debuginfo, no optimization), so the debugger still sees locals
+# and types in our own code.
+# - Line tables only: per-crate .pdb files on MSVC are what balloons
+#   target/deps to tens of GB, and backtraces through dependencies still show
+#   file names and line numbers.
+# - opt-level 2: unoptimized argon2, ring, aes-gcm and russh make unlocking and
+#   connecting painfully slow in dev builds. Dependencies rarely rebuild, so
+#   this only costs time on a full build.
+[profile.dev.package."*"]
+debug = "line-tables-only"
+opt-level = 2
+
+# To step into one dependency with its locals, give just that crate full
+# debuginfo instead of dropping the section above:
+# [profile.dev.package.russh]
+# debug = 2
+# opt-level = 0

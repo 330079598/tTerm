@@ -32,6 +32,9 @@ Thumbs.db
 .kiro
 .claude
 .zcode
+# Cargo's output; the workspace at the root builds into /target, and older
+# checkouts may still have the per-crate directory next to the manifest.
+/target
 src-tauri/target*
 .codex
 .agents

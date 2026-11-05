@@ -1,0 +1,6 @@
+# Pins the Rust version for every cargo command in this repository, and the CI
+# runs install the toolchain it names instead of tracking `stable`. P0-06 may
+# raise it when the GPUI crates need a newer compiler.
+[toolchain]
+channel = "1.99.1"
+components = ["clippy", "rustfmt"]
