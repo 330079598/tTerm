@@ -61,14 +61,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
+      # rust-toolchain.toml pins the version and the components for every
+      # job, so the checks run on the same compiler as the release builds.
+      - name: Install Rust
+        run: rustup show
 
       - name: Format
-        working-directory: src-tauri
-        run: cargo fmt --check
+        run: cargo fmt --all --check
 
   rust:
     # Clippy and the tests run on every platform the app ships for, since
@@ -81,15 +80,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
+      - name: Install Rust
+        run: rustup show
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src-tauri -> target'
+          workspaces: '. -> target'
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-24.04'
@@ -104,19 +101,16 @@ jobs:
         run: mkdir -p dist
 
       - name: Clippy
-        working-directory: src-tauri
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Test
-        working-directory: src-tauri
-        run: cargo test
+        run: cargo test --workspace
 
       # RSA host keys and key files depend on which russh features are on, so
       # they are checked against a real OpenSSH server, which only this
       # runner has.
       - name: Test RSA against a real sshd (Ubuntu only)
         if: matrix.platform == 'ubuntu-24.04'
-        working-directory: src-tauri
         run: >-
           cargo test --lib -- --ignored
           real_sshd_with_only_an_rsa_host_key
@@ -127,7 +121,6 @@ jobs:
       # system's own tools show working.
       - name: Test server monitoring and OS detection against a real sshd (Ubuntu and macOS)
         if: matrix.platform == 'ubuntu-24.04' || matrix.platform == 'macos-latest'
-        working-directory: src-tauri
         run: >-
           cargo test --lib -- --ignored
           real_sshd_collects_metrics_for_this_system
@@ -138,13 +131,11 @@ jobs:
       # runner has all three plus sshd, where the runner's login shell is bash.
       - name: Test shell integration with real shells (Ubuntu only)
         if: matrix.platform == 'ubuntu-24.04'
-        working-directory: src-tauri
         run: cargo test --lib -- --ignored real_shell_integration
 
       # macOS's own bash takes a path of its own in unix/start.sh.
       - name: Test shell integration with real shells (macOS only)
         if: matrix.platform == 'macos-latest'
-        working-directory: src-tauri
         run: >-
           cargo test --lib -- --ignored
           real_shell_integration_marks_commands_in_each_shell

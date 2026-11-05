@@ -17,7 +17,9 @@ on:
       - 'src-tauri/src/ssh/auth/**'
       - 'src-tauri/src/core/session/**'
       - 'src-tauri/Cargo.toml'
-      - 'src-tauri/Cargo.lock'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
       - 'scripts/sudo-test-host/**'
       - '.github/workflows/sudo-mode.yml'
   pull_request:
@@ -27,7 +29,9 @@ on:
       - 'src-tauri/src/ssh/auth/**'
       - 'src-tauri/src/core/session/**'
       - 'src-tauri/Cargo.toml'
-      - 'src-tauri/Cargo.lock'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
       - 'scripts/sudo-test-host/**'
       - '.github/workflows/sudo-mode.yml'
   workflow_dispatch:
@@ -52,13 +56,13 @@ jobs:
           docker run -d -p 2222:22 tterm-sudo-host
           docker run -d -p 2223:22 tterm-sudo-rs-host
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust
+        run: rustup show
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src-tauri -> target'
+          workspaces: '. -> target'
 
       - name: Install dependencies
         run: |
@@ -72,14 +76,12 @@ jobs:
 
       # sudo-rs does not support requiretty, so only sudo 1.9 has that account.
       - name: Test against sudo 1.9
-        working-directory: src-tauri
         env:
           TTERM_SUDO_TEST_HOST: 127.0.0.1:2222
           TTERM_SUDO_TEST_REQUIRETTY: 1
         run: cargo test --lib -- --ignored real_sudo
 
       - name: Test against sudo-rs
-        working-directory: src-tauri
         env:
           TTERM_SUDO_TEST_HOST: 127.0.0.1:2223
         run: cargo test --lib -- --ignored real_sudo

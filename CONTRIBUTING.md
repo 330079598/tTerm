@@ -43,7 +43,8 @@ To build the desktop app:
 pnpm tauri build
 ```
 
-Tauri writes the platform bundles under `src-tauri/target`.
+Tauri writes the platform bundles under `target`, the workspace's output
+directory at the repository root.
 
 ## Checks
 
@@ -53,7 +54,7 @@ and macOS.
 
 ```bash
 pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm check:size
-cd src-tauri && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
+cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace
 ```
 
 Don't silence a failing check to get it green: no `--no-verify`, no
@@ -127,6 +128,7 @@ password.
 │   ├── terminal/             # Terminal types and I/O
 │   ├── tunnel/               # Port forwarding, SOCKS5 and the shared-connection hub
 │   └── zmodem/               # ZMODEM (rz/sz) engine, trigger detection, send and receive
+├── crates/                   # Rust crates for the GPUI version, one per responsibility
 ├── docs/                     # Documentation and screenshots
 └── scripts/                  # Size check, theme and license generators
 ```

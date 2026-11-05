@@ -10,8 +10,11 @@ tTerm is a desktop SSH terminal built on Tauri 2.
 
 - `src/`: the frontend, written in React 19 and TypeScript, built with Vite and styled with Tailwind.
 - `src-tauri/src/`: the Rust backend, which handles PTY, SSH, SFTP, tunnels, backup, sync and the database.
+- `crates/`: the crates the GPUI version is built from, in the same workspace as the Tauri backend.
 - The frontend calls the backend through `#[tauri::command]` functions and `invoke`.
-- Use pnpm, never npm or yarn. Run every `cargo` command from `src-tauri/`.
+- Use pnpm, never npm or yarn. Run every `cargo` command from the repository root;
+  the workspace holds `src-tauri` and `crates/*`, so pass `--workspace` to
+  commands that take a package selection.
 
 ## Before you finish
 
@@ -21,7 +24,7 @@ Windows and macOS.
 
 ```sh
 pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm check:size
-cd src-tauri && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
+cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace
 ```
 
 - Don't silence a failing check to get it green. That means no `--no-verify`,
@@ -39,7 +42,7 @@ enforced. Test files and generated files are exempt.
 | `.rs` file | 800 lines | `pnpm check:size` |
 | `.ts` / `.tsx` file | 500 lines | `pnpm check:size` |
 | `.css` file | 600 lines | `pnpm check:size` |
-| Rust function | 150 lines | clippy `too_many_lines` (threshold in `src-tauri/clippy.toml`) |
+| Rust function | 150 lines | clippy `too_many_lines` (threshold in `clippy.toml` at the repository root) |
 | Rust function arguments | 7 | clippy `too_many_arguments` |
 | React component | about 300 lines, or about 10 hook calls | review |
 
