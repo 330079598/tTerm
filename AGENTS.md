@@ -23,7 +23,7 @@ Run these checks and make them pass. CI runs the same ones in
 Windows and macOS.
 
 ```sh
-pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm check:size
+pnpm lint && pnpm format:check && pnpm check:tokens && pnpm typecheck && pnpm test && pnpm check:size
 cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace
 ```
 

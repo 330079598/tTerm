@@ -53,7 +53,7 @@ Every change must pass these. CI runs the same ones in
 and macOS.
 
 ```bash
-pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm check:size
+pnpm lint && pnpm format:check && pnpm check:tokens && pnpm typecheck && pnpm test && pnpm check:size
 cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace
 ```
 
@@ -78,6 +78,8 @@ pnpm format           # Format with Prettier
 pnpm format:check     # Check formatting
 pnpm typecheck        # TypeScript type check
 pnpm check:size       # File size limits
+pnpm check:tokens     # Theme stylesheet and tterm-ui constants match tokens.json
+pnpm tokens:generate  # Regenerate them from src/styles/tokens.json
 pnpm themes:update    # Refresh the theme library from iTerm2-Color-Schemes
 pnpm licenses         # Regenerate the third-party license list
 ```
