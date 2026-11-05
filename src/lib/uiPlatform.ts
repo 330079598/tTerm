@@ -1,25 +1,17 @@
 import { platform } from "@tauri-apps/plugin-os"
 
 import type { AppConfig } from "@/lib/appConfig"
+import tokens from "@/styles/tokens.json"
 
+/** Writes the type scale from src/styles/tokens.json, scaled by the factor. */
 export function applyUiScalePercent(scale: number) {
   const rootStyle = document.documentElement.style
   const factor = scale / 100
   rootStyle.setProperty("--ui-font-scale", String(factor))
-  rootStyle.setProperty("--text-xs", `${0.75 * factor}rem`)
-  rootStyle.setProperty("--text-xs--line-height", "1.15")
-  rootStyle.setProperty("--text-sm", `${0.875 * factor}rem`)
-  rootStyle.setProperty("--text-sm--line-height", "1.2")
-  rootStyle.setProperty("--text-base", `${factor}rem`)
-  rootStyle.setProperty("--text-base--line-height", "1.25")
-  rootStyle.setProperty("--text-lg", `${1.125 * factor}rem`)
-  rootStyle.setProperty("--text-lg--line-height", "1.25")
-  rootStyle.setProperty("--text-xl", `${1.25 * factor}rem`)
-  rootStyle.setProperty("--text-xl--line-height", "1.25")
-  rootStyle.setProperty("--text-2xl", `${1.5 * factor}rem`)
-  rootStyle.setProperty("--text-2xl--line-height", "1.2")
-  rootStyle.setProperty("--text-3xl", `${1.875 * factor}rem`)
-  rootStyle.setProperty("--text-3xl--line-height", "1.2")
+  for (const [name, size] of Object.entries(tokens.fontSizes)) {
+    rootStyle.setProperty(`--text-${name}`, `${size.rem * factor}rem`)
+    rootStyle.setProperty(`--text-${name}--line-height`, String(size.lineHeight))
+  }
 }
 
 let _cachedPlatform: string | null = null
