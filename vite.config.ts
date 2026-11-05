@@ -6,6 +6,7 @@ import { defineConfig, type PluginOption } from "vite";
 import packageJson from "./package.json" with { type: "json" };
 import react from "@vitejs/plugin-react";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
+import { patchAtlasPageVersions } from "./src/lib/xtermWebglPatches";
 const host = process.env.TAURI_DEV_HOST;
 const require = createRequire(import.meta.url);
 const rootDir = dirname(fileURLToPath(import.meta.url));
@@ -71,6 +72,18 @@ function xtermWebglDefaultBackgroundPlugin(): PluginOption {
   };
 }
 
+/** Applies the atlas page version fix in src/lib/xtermWebglPatches.ts. */
+function xtermWebglAtlasPageVersionPlugin(): PluginOption {
+  return {
+    name: "xterm-webgl-atlas-page-version",
+    transform(code, id) {
+      // `?raw` imports are the module as text, which its test reads unpatched.
+      if (!/[\\/]@xterm[\\/]addon-webgl[\\/]lib[\\/]addon-webgl\.mjs(\?(?!raw)|$)/.test(id)) return null;
+      return { code: patchAtlasPageVersions(code), map: null };
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
   plugins: [
@@ -80,7 +93,8 @@ export default defineConfig(async () => ({
     }),
     react(),
     materialIconsPlugin(),
-    xtermWebglDefaultBackgroundPlugin()
+    xtermWebglDefaultBackgroundPlugin(),
+    xtermWebglAtlasPageVersionPlugin()
   ],
   // Pre-bundled dependencies skip plugin transforms in dev.
   optimizeDeps: {
