@@ -18,7 +18,9 @@
     "format:check": "prettier --check src",
     "typecheck": "tsc --noEmit",
     "check:size": "node scripts/check-file-size.mjs",
+    "check:tokens": "node scripts/tokens/generate.mjs --check",
     "themes:update": "node scripts/update-themes.mjs",
+    "tokens:generate": "node scripts/tokens/generate.mjs",
     "icons:update": "node scripts/app-icon/build.mjs",
     "licenses": "node scripts/gen-licenses.mjs --force"
   },
