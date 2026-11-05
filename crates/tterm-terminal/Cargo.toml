@@ -8,3 +8,9 @@ publish = false
 
 [lints]
 workspace = true
+
+[dependencies]
+# The only external source of terminal state: parsing, the grid, scrollback,
+# selection and search all come from the official crate pinned in P0-06. No
+# patch, no fork and no git source may replace it (decision 007).
+alacritty_terminal.workspace = true
