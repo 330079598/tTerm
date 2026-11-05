@@ -2,28 +2,32 @@
 
 本文件记录 GPUI 版使用的每个外部依赖的来源、固定 rev、版本与许可，由 [P0-06](p0-validation.md#p0-06-固定依赖组合) 填写。[README 执行规则第 5 条](README.md#2-执行规则)要求新依赖使用本表登记的版本，且不得引入其他 GPUI 来源；U-01 每月按本表记录的提交对比上游变化。
 
-下表是 P0-06 必须填写的行（2026-11-05 按[决策 007](decisions/007-official-sources-and-terminal-route.md)修订：只用官方来源，不使用任何 git 依赖或个人分支）。填写前所有值为“待定”，不要用未核实的版本代替。
+下表是 P0-06 必须填写的行（2026-11-05 按[决策 007](decisions/007-official-sources-and-terminal-route.md)修订：只用官方来源，不使用任何 git 依赖或个人分支）。表中的版本已写进仓库根 `Cargo.toml` 的 `[workspace.dependencies]`，新 crate 用 `gpui-kit.workspace = true`、`alacritty_terminal.workspace = true` 引用，不要另写版本号。
 
-| 依赖                                 | 来源                           | 固定版本 | 对应上游提交 | 许可 | 核验日期 | 备注 |
-| ------------------------------------ | ------------------------------ | -------- | ------------ | ---- | -------- | ---- |
-| gpui-kit                             | crates.io                      | 待定     | 待定         | 待定 | 待定     | 待定 |
-| GPUI（`gpui-pre`，经 gpui-kit 带入） | crates.io                      | 待定     | 待定         | 待定 | 待定     | 待定 |
-| alacritty_terminal                   | crates.io                      | 待定     | 待定         | 待定 | 待定     | 待定 |
-| Alacritty 应用层（P0-28 复制的源码） | github.com/alacritty/alacritty | 不适用   | 待定         | 待定 | 待定     | 待定 |
-| nyaterm 模块（P0-29 复制的源码）     | github.com/nyakang/nyaterm     | 不适用   | 待定         | 待定 | 待定     | 待定 |
-| rustls 后端（统一为 `ring`）         | 待定                           | 待定     | 待定         | 待定 | 待定     | 待定 |
-| reqwest                              | 待定                           | 待定     | 待定         | 待定 | 待定     | 待定 |
-| vte                                  | 待定                           | 待定     | 待定         | 待定 | 待定     | 待定 |
-| windows / objc2                      | 待定                           | 待定     | 待定         | 待定 | 待定     | 待定 |
-| 工具链（`rust-toolchain.toml`）      | 待定                           | 待定     | 待定         | 待定 | 待定     | 待定 |
+| 依赖                                     | 来源                           | 固定版本                                                  | 对应上游提交                                                                             | 许可                                                    | 核验日期   | 备注                                                                                                                                                                                                     |
+| ---------------------------------------- | ------------------------------ | --------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| gpui-kit                                 | crates.io                      | `=0.9.0`                                                  | 不适用（crates.io 发布，本身不是 git 依赖）                                              | Apache-2.0                                              | 2026-11-05 | 0.9.0 的 crates.io 清单**有** `license = "Apache-2.0"` 字段，与技术选型初稿的说明不同；仓库另有 `LICENSE-APACHE`，两者一致。`use gpui_kit::*` 即 GPUI，`gpui_kit::platform` 即 gpui_platform。               |
+| GPUI（`gpui-pre`，经 gpui-kit 带入）     | crates.io                      | `=0.3.11`（不在任何 `Cargo.toml` 中直接写，由 gpui-kit 带入） | `zed@f816e1f`                                                         | Apache-2.0                                              | 2026-11-05 | 提交来自 crates.io 上 0.3.11 的描述字段。包的库根是 `src/gpui.rs`、crate 名 `gpui`；它和 25 个 `gpui-pre-*` 兄弟 crate 按同一版本号一起发。不直接依赖 `gpui-pre` 系列：全部接口经 gpui-kit 的再导出可用。 |
+| alacritty_terminal                       | crates.io                      | `=0.26.0`                                                 | `94e7c8874e526b1e67b349d9ba30ddf81669119e`（Alacritty v0.17.0，2026-04-06）               | Apache-2.0                                              | 2026-11-05 | 不打补丁。与 tTerm 的 `vte` 同为 0.15.0，合并后只有一个版本。                                                                                                                                              |
+| Alacritty 应用层（P0-28 复制的源码）     | github.com/alacritty/alacritty | 不适用                                                    | `94e7c8874e526b1e67b349d9ba30ddf81669119e`（与上面的 crate 同一提交）                     | Apache-2.0                                              | 2026-11-05 | P0-28 要复制的 `input/keyboard.rs`、`input/mod.rs`、`renderer/text/builtin_font.rs`、`display/hint.rs` 都取自该提交；复制后在本行与 `third-party.md` 补上实际文件路径。                                       |
+| nyaterm 模块（P0-29 复制的源码）         | github.com/nyakang/nyaterm     | 不适用                                                    | `1453f6cefe5bfccd2dcb119514221b8af682588c`（v2.0.2）                                     | Apache-2.0                                              | 2026-11-05 | 只挑独立模块，过质量关卡后复制；该提交没有 `NOTICE` 文件。P0-29 定下文件后在本行补充路径。                                                                                                                |
+| rustls 后端（统一为 `ring`）             | crates.io                      | rustls `0.23.45`、ring `0.17.14`                          | 不适用                                                                                   | rustls `Apache-2.0 OR ISC OR MIT`、ring `Apache-2.0 AND ISC` | 2026-11-05 | 把 GPUI 与 alacritty 一起解析后，锁文件里 `aws-lc-rs` 出现 0 次，构建只有一个 rustls 后端，符合技术选型的「统一为 ring」。                                                                                  |
+| reqwest                                  | crates.io                      | `0.13.5`                                                  | 不适用                                                                                   | MIT OR Apache-2.0                                       | 2026-11-05 | GPUI 侧不使用同一个 reqwest：`gpui-kit-assets` 依赖改名发布的 `gpui-pre-reqwest 0.12.15`（reqwest 0.12 的快照），两个实现会同时链进二进制，见报告「偏差」第 5 条。                                          |
+| vte                                      | crates.io                      | `0.15.0`                                                  | 不适用                                                                                   | Apache-2.0 OR MIT                                       | 2026-11-05 | 只有一个版本：`alacritty_terminal 0.26.0` 与 `src-tauri` 都要 0.15，没有 `cargo tree -d` 冲突。                                                                                                            |
+| windows / objc2                          | crates.io                      | windows `0.62.2`、objc2 `0.6.4`                           | 不适用                                                                                   | 都是 `MIT OR Apache-2.0`（objc2 为 MIT）                | 2026-11-05 | tTerm 与 `gpui-pre` 共用这两个版本，类型可以跨 crate 传递。锁文件里另有 windows 0.58/0.61 与 objc2 0.5.3，只出现在 GPUI 自身或 Tauri 插件内部，不与本行交叉，见报告「重复依赖」。                            |
+| 工具链（`rust-toolchain.toml`）          | 仓库根 `rust-toolchain.toml`   | `1.99.1`                                                  | 不适用                                                                                   | 不适用                                                  | 2026-11-05 | 合并树里声明 `rust-version` 最高的是 `oo7 0.6.0` 的 1.92（只被 Linux 的 ashpd 门户用到），其次是 tauri 的 1.90；`gpui-pre` 自己不声明 `rust-version`。1.99.1 满足全部要求，维持不变。                     |
 
 填写要求：
 
 1. **来源。** crates.io 的依赖写 crates.io；复制进来的源码写官方仓库地址。不得出现 git 依赖、镜像或个人分支。
 2. **固定版本。** crates.io 依赖在 `Cargo.toml` 中用 `=` 精确固定，起点为 gpui-kit `0.9.0`、`gpui-pre 0.3.11`、`alacritty_terminal 0.26.0`。gpui-kit 与 `gpui-pre` 成对升级。
 3. **对应上游提交。** `gpui-pre` 写它快照的 Zed 提交（0.3.11 为 `zed@f816e1f`）；复制的源码写来源提交的完整哈希，与 `third-party.md` 一致。
-4. **许可。** 以固定版本上的 `LICENSE`、`COPYING` 或 `NOTICE` 为准；gpui-kit 的 `Cargo.toml` 没有 `license` 字段，按仓库中的 `LICENSE-APACHE` 核对。
+4. **许可。** 以固定版本上的 `LICENSE`、`COPYING` 或 `NOTICE` 为准。gpui-kit 0.9.0 的 crates.io 清单已带 `license = "Apache-2.0"`（技术选型初稿说没有该字段，是核对 0.9.0 发布之前的仓库清单得出的），与仓库的 `LICENSE-APACHE` 一致，两者都核对过。
 5. **核验日期。** 写实际核对许可与三平台编译的日期。
 6. **备注。** 记录依赖冲突的处理与未决问题：rustls 统一为 `ring` 后 `aws-lc-rs` 是否仍被间接引入；`reqwest` 是否两个版本共存；`vte` 的解析版本；`windows`、`objc2` 的重复版本中哪些类型需要跨 crate 统一。
 7. **工具链。** 本行引用仓库根 `rust-toolchain.toml` 的 `channel`，改版本时同时改文件与本表。
 8. **打补丁记录。** 若按 P0-06 的退路给 `gpui-pre` 打了补丁，在备注中写明补丁文件、原因与对应的 P0-07 条目。
+
+## 打补丁退路
+
+需要给 GPUI 打补丁时用 Cargo 的 `[patch.crates-io]` 指向同版本源码，不 fork 整个 Zed（[决策 007](decisions/007-official-sources-and-terminal-route.md) 第 4 条）。P0-06 实测过的步骤与实际输出写在 [P0-06 报告](reports/P0-06.md#打补丁退路的实测步骤)，本次没有提交任何补丁。
