@@ -123,3 +123,5 @@ fn open_window(cx: &mut App) {
     }
 }
 
+#[cfg(test)]
+mod tests;
