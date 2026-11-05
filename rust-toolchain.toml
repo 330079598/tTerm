@@ -1,6 +1,8 @@
 # Pins the Rust version for every cargo command in this repository, and the CI
-# runs install the toolchain it names instead of tracking `stable`. P0-06 may
-# raise it when the GPUI crates need a newer compiler.
+# runs install the toolchain it names instead of tracking `stable`. P0-06 kept
+# it after checking the GPUI tree: the highest `rust-version` any dependency
+# declares is 1.92 (`oo7`, reached only through the Linux portal), and
+# `gpui-pre` declares none.
 [toolchain]
 channel = "1.99.1"
 components = ["clippy", "rustfmt"]
