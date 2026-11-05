@@ -2,7 +2,7 @@
 # the GPUI version is built from share one target directory, one lockfile and
 # one set of lints. `src-tauri/` stays a member until the GPUI version ships.
 [workspace]
-members = ["src-tauri"]
+members = ["src-tauri", "crates/*"]
 # The Tauri package is on edition 2021, whose implied resolver is the one its
 # dependencies were resolved with. A virtual workspace would otherwise default
 # to resolver 1.

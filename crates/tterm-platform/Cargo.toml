@@ -1,0 +1,10 @@
+[package]
+name = "tterm-platform"
+version = "0.1.0"
+edition = "2024"
+description = "Native platform capabilities behind traits the interface can inject"
+license = "MIT"
+publish = false
+
+[lints]
+workspace = true

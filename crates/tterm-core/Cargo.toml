@@ -1,0 +1,10 @@
+[package]
+name = "tterm-core"
+version = "0.1.0"
+edition = "2024"
+description = "Domain services shared by the Tauri and the GPUI client"
+license = "MIT"
+publish = false
+
+[lints]
+workspace = true

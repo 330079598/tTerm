@@ -6387,6 +6387,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
+name = "tterm-core"
+version = "0.1.0"
+
+[[package]]
+name = "tterm-platform"
+version = "0.1.0"
+
+[[package]]
+name = "tterm-terminal"
+version = "0.1.0"
+
+[[package]]
 name = "ttf-parser"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

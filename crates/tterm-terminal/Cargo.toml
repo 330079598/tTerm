@@ -1,0 +1,10 @@
+[package]
+name = "tterm-terminal"
+version = "0.1.0"
+edition = "2024"
+description = "Terminal model and the GPUI element that draws it"
+license = "MIT"
+publish = false
+
+[lints]
+workspace = true
