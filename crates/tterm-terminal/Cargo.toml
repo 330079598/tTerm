@@ -2,7 +2,7 @@
 name = "tterm-terminal"
 version = "0.1.0"
 edition = "2024"
-description = "Terminal model and the GPUI element that draws it"
+description = "Terminal model shared by the clients, free of any UI framework"
 license = "MIT"
 publish = false
 

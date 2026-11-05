@@ -1,5 +1,7 @@
-//! The terminal model and the GPUI element that draws it.
+//! The terminal model: screen and history, selection, search, input encoding
+//! and the escape sequences tTerm extends.
 //!
-//! Imported from nyaterm's terminal crates in P0-09 and P0-10, then split to
-//! fit the repository's size limits in P1-13, so this crate is empty until
-//! then.
+//! It depends on neither Tauri nor GPUI; the GPUI element that draws it lives
+//! in its own crate, `tterm-terminal-view`. The model is imported from
+//! nyaterm's terminal crate in P0-09 and split to fit the repository's size
+//! limits in P1-13, so this crate is empty until then.
