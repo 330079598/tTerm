@@ -34,9 +34,10 @@ too_many_lines = "warn"
 #   connecting painfully slow in dev builds. Dependencies rarely rebuild, so
 #   this only costs time on a full build.
 # - GPUI is covered by the same setting. Lowering it for the GPUI crates would
-#   cut the first build of a GPUI binary from 135s to 48s on an M4, but
-#   unoptimized text shaping and animation make the dev build unpleasant, so
-#   P0-06 kept it (incremental builds are 0.5s either way).
+#   cut the first build of a GPUI binary from 135s to 48s on an M4. P0-06 kept
+#   it because unoptimized text shaping and animation are expected to make the
+#   dev build sluggish; nobody has measured that yet, so P0-08 checks it once a
+#   real window opens. Incremental builds take 0.5s either way.
 [profile.dev.package."*"]
 debug = "line-tables-only"
 opt-level = 2
