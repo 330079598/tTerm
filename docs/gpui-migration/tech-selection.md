@@ -61,7 +61,7 @@ src/                       # 现有 React 前端，保留到 P5-09
 - AGENTS.md 的“所有 cargo 命令从 `src-tauri/` 执行”改为“从仓库根执行，加 `--workspace`”。
 - `scripts/check-file-size.mjs` 的扫描范围加上 `crates/`。
 - `Cargo.lock` 移到根目录。用 `git mv` 单独提交，确认锁定的版本没有变化。
-- 根 `Cargo.toml` 显式写 `resolver = "2"`。虚拟 workspace 默认用解析器 1，会让现有依赖的解析结果与 `src-tauri` 单独构建时不同；新 crate 虽是 2024 edition，解析器由 workspace 统一决定。是否改为 `"3"`（按 MSRV 解析）在 P0-06 决定。
+- 根 `Cargo.toml` 显式写 `resolver = "2"`。虚拟 workspace 默认用解析器 1，会让现有依赖的解析结果与 `src-tauri` 单独构建时不同；新 crate 虽是 2024 edition，解析器由 workspace 统一决定。是否改为 `"3"`（按 MSRV 解析）由 P0-06 决定。[决策 002](decisions/002-dependency-sources.md) 已改为 `"3"`：在固定工具链上两者解析结果相同，改后能挡住以后 `cargo update` 拉进 MSRV 更高的依赖。
 - `.cargo/config.toml` 随之移到根目录，macOS 的开发 runner 从此对整个 workspace 生效；它只包装名为 `tTerm` 的二进制，所以 GPUI 版开发期必须用别的名字（见 P0-08）。
 
 ## 3. GPUI 来源
@@ -102,6 +102,8 @@ GPUI 没有 Zed 官方的定期发布：crates.io 上的 `gpui` 停在 2025-10-2
 | windows / objc2 | windows 0.62、objc2 0.6 | `gpui-pre` 的版本                    | 列出重复版本；类型要跨 crate 传递的必须统一              |
 | 工具链          | 1.99.1，edition 2021    | `gpui-pre` 的 `rust-version`         | 新 crate 用 2024 edition；`rust-toolchain.toml` 固定版本 |
 
+P0-06 的核对结果（详见 [pins.md](pins.md) 与[决策 002](decisions/002-dependency-sources.md)）：没有 `aws-lc-rs`，rustls 只有一个 `ring` 后端；reqwest 两个版本共存，GPUI 用的是改名发布的 `gpui-pre-reqwest 0.12.15`（reqwest 0.12 快照）；`vte` 只有 0.15.0；tTerm 与 `gpui-pre` 共用 `windows 0.62.2` 与 `objc2 0.6.4`；`gpui-pre` 不声明 `rust-version`，树上最高 MSRV 是 1.92，1.99.1 保留。
+
 ## 4. 组件库：gpui-kit
 
 [longbridge/gpui-kit](https://github.com/longbridge/gpui-kit)（原 gpui-component，Apache-2.0，约 1.9 万星）是 GPUI 生态里最大的组件库，也是 nyaterm 用的那个。
@@ -120,7 +122,7 @@ GPUI 没有 Zed 官方的定期发布：crates.io 上的 `gpui` 停在 2025-10-2
 3. 样式很难调到一致的，用 `gpui-base` 的行为加自己的绘制。
 4. 每个组件取哪一种由 [P0-24](ui-parity.md#p0-24-ui-原语还原验证) 的截图对比决定，不靠目测。
 
-注意：gpui-kit 的 `Cargo.toml` 没有 `license` 字段（验证报告 4.2 节），仓库里有 `LICENSE-APACHE`。复用前在 `third-party.md` 登记，以仓库许可文件为准。
+注意：gpui-kit 0.9.0 发布到 crates.io 的清单带 `license = "Apache-2.0"`；验证报告 4.2 节核对的是发布之前的仓库清单，当时没有该字段，仓库里另有 `LICENSE-APACHE`，两者一致（P0-06 核对）。复用前在 `third-party.md` 登记。
 
 其他库只做参考：
 

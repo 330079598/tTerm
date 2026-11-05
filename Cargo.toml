@@ -3,10 +3,21 @@
 # one set of lints. `src-tauri/` stays a member until the GPUI version ships.
 [workspace]
 members = ["src-tauri", "crates/*"]
-# The Tauri package is on edition 2021, whose implied resolver is the one its
-# dependencies were resolved with. A virtual workspace would otherwise default
-# to resolver 1.
-resolver = "2"
+# A virtual workspace would default to resolver 1, which resolves the Tauri
+# package's dependencies differently from when it built on its own. Resolver 3
+# is resolver 2 plus MSRV-aware version selection, so a later `cargo update`
+# cannot pull in a crate that needs a newer compiler than rust-toolchain.toml
+# pins. On 1.99.1 it resolves the same 1125 packages as resolver 2 (P0-06).
+resolver = "3"
+
+# The two dependencies of the GPUI version, pinned here so every crate takes
+# them from one place. Both come from crates.io only: no git source, no fork
+# and no personal branch may appear here (decision 007). `gpui-kit` carries the
+# matching `gpui-pre` 0.3.11 snapshot of Zed, so GPUI and its platform layer are
+# used through its re-exports instead of as separate dependencies.
+[workspace.dependencies]
+gpui-kit = "=0.9.0"
+alacritty_terminal = "=0.26.0"
 
 [workspace.lints.clippy]
 # Threshold in clippy.toml. Older functions over it carry an `expect` that
@@ -22,6 +33,10 @@ too_many_lines = "warn"
 # - opt-level 2: unoptimized argon2, ring, aes-gcm and russh make unlocking and
 #   connecting painfully slow in dev builds. Dependencies rarely rebuild, so
 #   this only costs time on a full build.
+# - GPUI is covered by the same setting. Lowering it for the GPUI crates would
+#   cut the first build of a GPUI binary from 135s to 48s on an M4, but
+#   unoptimized text shaping and animation make the dev build unpleasant, so
+#   P0-06 kept it (incremental builds are 0.5s either way).
 [profile.dev.package."*"]
 debug = "line-tables-only"
 opt-level = 2
