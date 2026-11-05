@@ -97,13 +97,26 @@ jobs:
         if: matrix.platform == 'ubuntu-24.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libudev-dev patchelf openssh-server zsh fish
+          # The second line is what GPUI's Linux backend links against: X11 and
+          # xkbcommon, Wayland, fontconfig and freetype for text, and Vulkan
+          # plus the GL/EGL fallbacks for wgpu. See crates/tterm-gpui/README.md.
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libudev-dev patchelf openssh-server zsh fish \
+            libfontconfig-dev libfreetype-dev libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev \
+            libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libvulkan-dev libgl1-mesa-dev libegl1-mesa-dev libdbus-1-dev
 
       # generate_context! needs frontendDist to exist; the checks do not
       # need the built frontend in it.
       - name: Create frontend dist placeholder
         shell: bash
         run: mkdir -p dist
+
+      # The GPUI prototype is a second binary in the workspace. Clippy and the
+      # tests below also compile it, but an explicit build proves that the
+      # binary itself links on all three platforms.
+      - name: Build the GPUI prototype
+        run: cargo build -p tterm-gpui
 
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
