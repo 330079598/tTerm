@@ -1,0 +1,15 @@
+[package]
+name = "tterm-ui"
+version = "0.1.0"
+edition = "2024"
+description = "Design tokens, and from P0-24 on the GPUI components that replace src/components/ui"
+license = "MIT"
+publish = false
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+# Only the token tests parse src/styles/tokens.json; the crate itself has no
+# dependencies, so it builds before P0-06 fixes the GPUI revision.
+serde_json = "1"

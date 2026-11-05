@@ -47,6 +47,11 @@ jobs:
       - name: Format
         run: pnpm format:check
 
+      # The theme stylesheet and the tterm-ui constants are generated from
+      # src/styles/tokens.json; this fails when either drifts from it.
+      - name: Design tokens
+        run: pnpm check:tokens
+
       - name: Type check
         run: pnpm typecheck
 
