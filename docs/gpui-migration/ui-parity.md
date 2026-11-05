@@ -21,17 +21,17 @@ GPUI 的布局引擎是 taffy，支持 flex 和 grid；样式方法按 Tailwind 
 
 做到一致的前提是**取现有界面的实际计算值，而不是 Tailwind 的默认值**。tTerm 改过几处基础数值，照抄 Tailwind 文档会错：
 
-| 项             | 现有实现                                                                                                 | GPUI 中的写法                                                      |
-| -------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| 根字号         | `body` 为 `13px × --ui-font-scale`（`src/styles/base.css:8`），rem 仍为 16px                             | `rem_size` 保持 16px，正文字号单独设为 13px × 缩放比例             |
-| 文字字号与行高 | `applyUiScalePercent` 改写 `--text-xs` 到 `--text-xl`，行高为 1.15、1.2、1.25（`src/lib/uiPlatform.ts`） | `tterm-ui` 的字号令牌照抄这组数值，不用 GPUI 的 `text_sm` 默认行高 |
-| 界面缩放       | 只缩放文字，不缩放间距                                                                                   | 同样只改字号令牌                                                   |
-| 字体栈         | `-apple-system, BlinkMacSystemFont, "Segoe UI", ...`                                                     | macOS `.SystemUIFont`，Windows `Segoe UI`，Linux 按同一顺序回退    |
-| 颜色           | `src/styles/themes.css` 的 HSL 变量，含 `/ 0.3` 这类透明度                                               | 由 UP-03 从同一份源生成 `Hsla` 常量                                |
-| 滚动条         | `::-webkit-scrollbar` 宽 8px，滑块圆角 4px，颜色取 `--muted-foreground / 0.5`                            | `tterm-ui::Scrollbar` 照此绘制，悬停变 0.8                         |
-| 阴影           | `shadow-*` 共 92 处                                                                                      | GPUI `BoxShadow` 支持多层、偏移、模糊和扩展                        |
-| 文字截断       | `truncate`、`text-ellipsis` 共 114 处                                                                    | `text_ellipsis` 与 `overflow_hidden`                               |
-| 图标           | lucide-react                                                                                             | 同版本 Lucide SVG，相同的 `stroke-width` 与尺寸                    |
+| 项             | 现有实现                                                                                                 | GPUI 中的写法                                                                                                          |
+| -------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 根字号         | `body` 为 `13px × --ui-font-scale`（`src/styles/base.css:8`），rem 仍为 16px                             | `rem_size` 保持 16px，正文字号单独设为 13px × 缩放比例                                                                 |
+| 文字字号与行高 | `applyUiScalePercent` 改写 `--text-xs` 到 `--text-xl`，行高为 1.15、1.2、1.25（`src/lib/uiPlatform.ts`） | `tterm-ui` 的字号令牌照抄这组数值，不用 GPUI 的 `text_sm` 默认行高                                                     |
+| 界面缩放       | 只缩放文字，不缩放间距                                                                                   | 同样只改字号令牌                                                                                                       |
+| 字体栈         | `-apple-system, BlinkMacSystemFont, "Segoe UI", ...`                                                     | macOS `.SystemUIFont`，Windows `Segoe UI`，Linux 按同一顺序回退                                                        |
+| 颜色           | `src/styles/themes.css` 的 HSL 变量，含 `/ 0.3` 这类透明度                                               | UP-03 从同一份源生成不依赖框架的 HSL 分量常量（`tterm_ui::tokens`），P0-24 再映射为 GPUI 的 `Hsla`，透明度由使用处传入 |
+| 滚动条         | `::-webkit-scrollbar` 宽 8px，滑块圆角 4px，颜色取 `--muted-foreground / 0.5`                            | `tterm-ui::Scrollbar` 照此绘制，悬停变 0.8                                                                             |
+| 阴影           | `shadow-*` 共 92 处                                                                                      | GPUI `BoxShadow` 支持多层、偏移、模糊和扩展                                                                            |
+| 文字截断       | `truncate`、`text-ellipsis` 共 114 处                                                                    | `text_ellipsis` 与 `overflow_hidden`                                                                                   |
+| 图标           | lucide-react                                                                                             | 同版本 Lucide SVG，相同的 `stroke-width` 与尺寸                                                                        |
 
 ## 3. 只能接近的部分
 
@@ -182,15 +182,15 @@ tterm-parity compare → 每屏的布局差、颜色差、图像差热力图，�
 
 - 依赖：W0-01
 - 规模：M
-- 工作：把 `src/styles/themes.css` 中的颜色、圆角、阴影与 `uiPlatform.ts` 中的字号行高抽成一份 `tokens.json`，脚本由它生成 CSS 变量（替换现有的手写部分，生成结果与现状逐字节相同）和 `tterm-ui` 的 Rust 常量。
+- 工作：把 `src/styles/themes.css` 中的颜色、圆角与 `uiPlatform.ts` 中的字号行高抽成一份 `tokens.json`（2026-11-05 修订：现有代码没有阴影令牌，阴影来自 Tailwind 的 `shadow-*` 与组件 CSS，不在本卡范围），脚本由它生成 CSS 变量（替换现有的手写部分，生成结果与现状逐字节相同）和 `tterm-ui` 的 Rust 常量。
 - 验收：生成的 CSS 与现有 CSS 的计算值相同（W0-05 的参考截图不变）；Rust 常量有测试与 JSON 对照。
 - 不做：改任何颜色或尺寸。
 
 ### P0-24 UI 原语还原验证
 
-- 依赖：W0-04、P0-08
+- 依赖：W0-04、P0-08、UP-03
 - 规模：M
-- 工作：用 gpui-kit 还原 `src/components/ui/` 中最难的 8 个组件：按钮（全部变体与尺寸）、输入框、密码输入框、选择框、开关、标签页、对话框、右键菜单。每个先尝试“封装 gpui-component 并调主题”，达不到第 5.2 节门槛再改为“gpui-base 行为加自绘”。
+- 工作：给 `tterm-ui` 加上 P0-06 固定的 GPUI 依赖，把 UP-03 的 `Hsl` 与 `FontSize` 令牌映射为 `Hsla` 与像素值（界面缩放与透明度在映射时传入）。然后用 gpui-kit 还原 `src/components/ui/` 中最难的 8 个组件：按钮（全部变体与尺寸）、输入框、密码输入框、选择框、开关、标签页、对话框、右键菜单。每个先尝试“封装 gpui-component 并调主题”，达不到第 5.2 节门槛再改为“gpui-base 行为加自绘”。
 - 产出：8 个组件、对比报告、每个组件的做法与理由。
 - 验收：8 个组件在浅色、深色下全部达到第 5.2 节门槛，或在 `exceptions.md` 中登记并说明原因。
 - 评估重点：封装 gpui-component 时，主题调整是否会影响其他组件；中文输入法在输入框中是否正常。
