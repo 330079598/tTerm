@@ -27,7 +27,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 const MANIFEST_PATH = join(ROOT, "parity", "screens.json")
 const FRONTEND_PATHS = [
   "src",
-  "parity",
+  "parity/screens.json",
+  "parity/fixtures",
   "scripts/parity",
   "package.json",
   "pnpm-lock.yaml",

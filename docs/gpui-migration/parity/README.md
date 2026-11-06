@@ -97,9 +97,11 @@ node scripts/parity/capture.mjs --screen example.button-input.default
 缓存键是**最后一次改动参考前端的提交**，路径列表见 `crates/tterm-parity/src/reference.rs` 的 `FRONTEND_PATHS`：
 
 ```text
-src parity scripts/parity package.json pnpm-lock.yaml
-vite.config.ts tsconfig.json index.html parity.html
+src parity/screens.json parity/fixtures scripts/parity package.json
+pnpm-lock.yaml vite.config.ts tsconfig.json index.html parity.html
 ```
+
+`parity/README.md` 和 `docs/` 不参与缓存键，改文档不会触发参考图重生成。
 
 - 同一提交的第二次 `compare` 直接复用 `target/parity/reference/<hash>/`，不重新启动浏览器。
 - 工作区有未提交的前端改动时，缓存键仍是旧提交，工具会在 stderr 警告；此时用 `UPDATE_REFERENCE=1`。

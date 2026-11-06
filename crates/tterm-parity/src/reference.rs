@@ -12,9 +12,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// The files whose last commit keys the reference cache.
-pub const FRONTEND_PATHS: [&str; 9] = [
+pub const FRONTEND_PATHS: [&str; 10] = [
     "src",
-    "parity",
+    "parity/screens.json",
+    "parity/fixtures",
     "scripts/parity",
     "package.json",
     "pnpm-lock.yaml",
