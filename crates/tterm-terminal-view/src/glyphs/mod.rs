@@ -25,10 +25,10 @@
 //! whether the shapes use the cell's foreground color or one of Alacritty's
 //! fixed shade grays.
 
-pub mod blocks;
-pub mod geometry;
-pub mod lines;
-pub mod powerline;
+mod blocks;
+mod geometry;
+mod lines;
+mod powerline;
 
 use geometry::Geometry;
 

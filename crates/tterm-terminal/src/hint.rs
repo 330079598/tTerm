@@ -10,8 +10,8 @@
 //! hint carries grid coordinates, which the view can compare with the pointer
 //! cell and with a selection.
 
-pub mod path;
-pub mod url;
+mod path;
+mod url;
 
 use crate::grid::GridPoint;
 use crate::grid::GridRange;

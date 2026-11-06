@@ -34,7 +34,7 @@
 //! view routes those before calling this module, as Alacritty runs its own
 //! bindings before the terminal encoding.
 
-pub mod named;
+mod named;
 mod sequence;
 
 use gpui_kit::Keystroke;
