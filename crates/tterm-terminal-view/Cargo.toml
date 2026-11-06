@@ -17,3 +17,8 @@ gpui-kit.workspace = true
 # Terminal modes, grid points and selection kinds come from the model; this
 # crate never keeps terminal state of its own.
 tterm-terminal = { path = "../tterm-terminal" }
+
+[dev-dependencies]
+# Headless windows, test focus and frame rendering for the view behaviour
+# tests; the production crate does not enable this feature.
+gpui-kit = { workspace = true, features = ["test-support"] }
