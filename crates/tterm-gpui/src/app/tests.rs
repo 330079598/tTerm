@@ -4,7 +4,7 @@
 //! The first opens the real `Hello` view through the same `gpui_kit::open_window`
 //! call the binary uses, dispatches `Increment`, and asserts the visible
 //! counter. The second is P0-25's probe of `debug_selector`: GPUI records the
-//! laid-out bounds of a marked element, and `TestAppContext::debug_bounds`
+//! laid-out bounds of a marked element, and `VisualTestContext::debug_bounds`
 //! reads them back, which is what the parity tooling in W0-04 relies on.
 
 use gpui_kit::prelude::*;
@@ -87,7 +87,7 @@ impl Render for SelectorProbe {
 }
 
 /// P0-25 item 9: a `debug_selector` gives the element's laid-out bounds back
-/// through `TestAppContext::debug_bounds`, in logical pixels, and an unmarked
+/// through `VisualTestContext::debug_bounds`, in logical pixels, and an unmarked
 /// selector resolves to `None`. Selectors are only recorded in a debug build
 /// with the `test-support` feature, which is the configuration this target is
 /// built in.
