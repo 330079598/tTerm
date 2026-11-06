@@ -40,7 +40,7 @@
    - 从 Alacritty、nyaterm 或 gpui-kit 复制的文件，文件头注明来源仓库、提交、原路径和许可，并登记到 `docs/gpui-migration/third-party.md`。
    - 不得复制 Zed 中 GPL 许可的 crate（`terminal`、`terminal_view`、`editor`、`workspace`、`ui` 等）的代码。终端部分按[技术选型第 5 节](tech-selection.md#5-终端)的净室规则参考 Zed：只有 P0-27 的执行者阅读 Zed 终端源码并写纯文字设计说明，实现终端的执行者不得阅读。
    - 依赖只用官方来源，不引入 git 依赖或个人分支（[决策 007](decisions/007-official-sources-and-terminal-route.md)）。
-   - 复制进来的代码同样受大小限制，超限的文件在合回 `GPUI` 之前拆分，不加入基线。G1 之前的验证分支可以暂不拆分，见 [P0-09](p0-validation.md#p0-09-导入终端模型-crate)。
+   - 复制进来的代码同样受大小限制，超限的文件在合回 `GPUI` 之前拆分，不加入基线。只有原样复制的第三方代码可以在 G1 之前暂放不合并的验证分支 `migrate/spike`，见 [P0 说明](p0-validation.md)开头的“验证分支与大小限制”。
    - tTerm 使用 MIT 许可，复制进来的 Apache-2.0 文件仍属 Apache-2.0：保留原许可声明，在文件头注明修改，发行包中附带 Apache-2.0 全文与第三方声明（见 P4-25、P5-02）。来源仓库若有 `NOTICE` 文件，一并保留其内容；nyaterm 在固定提交上没有 `NOTICE`。
 7. **不碰真实数据。** GPUI 开发版使用独立的应用标识与数据目录（暂定 `com.stone.tTerm.gpui-dev`），不得读写正式版的 `com.stone.tTerm` 或 Tauri 开发版的 `com.stone.tTerm.dev`，后者存有使用者的真实连接。需要测试数据时，从备份导入到独立目录。
 8. **代码位置会变化。** 任务卡中的文件路径与行号来自 2026-11-01 的 `dev`。开始前核对一遍，变化不影响任务目标的，在报告中注明即可。
