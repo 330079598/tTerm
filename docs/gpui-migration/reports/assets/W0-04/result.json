@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "reference": {
+    "frontendCommit": "4cbc0677dc2b9c5f63810ca207306b73606e893d"
+  },
+  "thresholds": {
+    "fixedPx": 1.0,
+    "textPx": 2.0,
+    "textFraction": 0.02,
+    "maskedSsim": 0.99,
+    "fullSsim": 0.97
+  },
+  "screens": [
+    {
+      "id": "example.button-input.default",
+      "title": "Example: one button and one input",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "example.button",
+            "passed": true,
+            "maxBoundsDelta": 0.25,
+            "failures": []
+          },
+          {
+            "id": "example.input",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "example.screen",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0001,
+        "maxDeltaE": 2.6153,
+        "pixelsAboveOne": 52
+      },
+      "ssim": {
+        "full": 0.998504,
+        "masked": 1.0
+      },
+      "heatmap": "heatmaps/example.button-input.default.png",
+      "images": {
+        "reference": "../reference/4cbc0677dc2b9c5f63810ca207306b73606e893d/example.button-input.default.png",
+        "actual": "../actual/example.button-input.default.png"
+      },
+      "failures": []
+    }
+  ],
+  "passed": true
+}

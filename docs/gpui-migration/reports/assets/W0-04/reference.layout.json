@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "screen": "example.button-input.default",
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2
+  },
+  "elements": [
+    {
+      "id": "example.screen",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 800,
+        "height": 600
+      },
+      "style": {
+        "backgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0,
+        "borderRadius": 0,
+        "fontFamily": "system-ui",
+        "fontSize": 13,
+        "fontWeight": 400,
+        "lineHeight": 18.200001,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "padding": {
+          "top": 32,
+          "right": 32,
+          "bottom": 32,
+          "left": 32
+        }
+      }
+    },
+    {
+      "id": "example.input",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32,
+        "y": 64,
+        "width": 288,
+        "height": 36
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 1,
+        "borderRadius": 4,
+        "fontFamily": "system-ui",
+        "fontSize": 14,
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "padding": {
+          "top": 4,
+          "right": 12,
+          "bottom": 4,
+          "left": 12
+        }
+      }
+    },
+    {
+      "id": "example.button",
+      "sizing": "text",
+      "bounds": {
+        "x": 328,
+        "y": 64,
+        "width": 63.75,
+        "height": 36
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0,
+        "borderRadius": 4,
+        "fontFamily": "system-ui",
+        "fontSize": 14,
+        "fontWeight": 500,
+        "lineHeight": 16,
+        "color": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "padding": {
+          "top": 8,
+          "right": 16,
+          "bottom": 8,
+          "left": 16
+        }
+      }
+    }
+  ],
+  "textRegions": [
+    {
+      "x": 32,
+      "y": 31,
+      "width": 80.56,
+      "height": 17
+    },
+    {
+      "x": 45,
+      "y": 69,
+      "width": 262,
+      "height": 26
+    },
+    {
+      "x": 344,
+      "y": 73,
+      "width": 31.74,
+      "height": 17
+    }
+  ],
+  "invokedCommands": [
+    "list_profiles"
+  ]
+}

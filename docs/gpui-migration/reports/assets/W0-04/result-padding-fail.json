@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "reference": {
+    "frontendCommit": "4cbc0677dc2b9c5f63810ca207306b73606e893d"
+  },
+  "thresholds": {
+    "fixedPx": 1.0,
+    "textPx": 2.0,
+    "textFraction": 0.02,
+    "maskedSsim": 0.99,
+    "fullSsim": 0.97
+  },
+  "screens": [
+    {
+      "id": "example.button-input.default",
+      "title": "Example: one button and one input",
+      "passed": false,
+      "layout": {
+        "passed": false,
+        "elements": [
+          {
+            "id": "example.button",
+            "passed": false,
+            "maxBoundsDelta": 2.25,
+            "failures": [
+              "example.button: width moved by 2.25 px, allowed 2.00",
+              "example.button: padding right 16 -> 17 (difference 1.0000, allowed 0.01)",
+              "example.button: padding left 16 -> 17 (difference 1.0000, allowed 0.01)"
+            ]
+          },
+          {
+            "id": "example.input",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "example.screen",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": [
+          "example.button: width moved by 2.25 px, allowed 2.00",
+          "example.button: padding right 16 -> 17 (difference 1.0000, allowed 0.01)",
+          "example.button: padding left 16 -> 17 (difference 1.0000, allowed 0.01)"
+        ]
+      },
+      "colors": {
+        "meanDeltaE": 0.0054,
+        "maxDeltaE": 35.1464,
+        "pixelsAboveOne": 346
+      },
+      "ssim": {
+        "full": 0.997538,
+        "masked": 0.999285
+      },
+      "heatmap": "heatmaps/example.button-input.default.png",
+      "images": {
+        "reference": "../reference/4cbc0677dc2b9c5f63810ca207306b73606e893d/example.button-input.default.png",
+        "actual": "../actual/example.button-input.default.png"
+      },
+      "failures": [
+        "example.button: width moved by 2.25 px, allowed 2.00",
+        "example.button: padding right 16 -> 17 (difference 1.0000, allowed 0.01)",
+        "example.button: padding left 16 -> 17 (difference 1.0000, allowed 0.01)"
+      ]
+    }
+  ],
+  "passed": false
+}
