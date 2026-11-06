@@ -10,6 +10,15 @@ fn manifest() -> ScreensManifest {
         },
         theme: "dark".to_owned(),
         ui_scale_percent: 100,
+        platform: PlatformSpec {
+            os: "macos".to_owned(),
+            version: "14.5.0".to_owned(),
+            family: "unix".to_owned(),
+            arch: "aarch64".to_owned(),
+            os_type: "macos".to_owned(),
+            exe_extension: String::new(),
+            eol: "\n".to_owned(),
+        },
         screens: vec![ScreenSpec {
             id: "example.button-input.default".to_owned(),
             title: "Example".to_owned(),
@@ -58,8 +67,8 @@ fn a_fixture_path_is_rejected() {
 #[test]
 fn the_wrong_schema_is_rejected() {
     let mut value = manifest();
-    value.version = 2;
-    expect_error(value, "expected 1");
+    value.version = 1;
+    expect_error(value, "expected 2");
 }
 
 #[test]

@@ -9,5 +9,7 @@ declare global {
     __PARITY_ERROR__?: string
     /** Distinct commands the mocked invoke answered, sorted. */
     __PARITY_INVOKES__?: string[]
+    /** Commands the screen called without a fixture, including caught ones. */
+    __PARITY_MISSING__?: string[]
   }
 }

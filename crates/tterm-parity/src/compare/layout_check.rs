@@ -221,14 +221,16 @@ fn compare_style(
         backdrop,
         failures,
     );
-    compare_color(
-        id,
-        "border",
-        reference.border_color,
-        actual.border_color,
-        backdrop,
-        failures,
-    );
+    if reference.border_width > 0.0 || actual.border_width > 0.0 {
+        compare_color(
+            id,
+            "border",
+            reference.border_color,
+            actual.border_color,
+            backdrop,
+            failures,
+        );
+    }
     compare_color(
         id,
         "text",

@@ -7,6 +7,7 @@ import packageJson from "./package.json" with { type: "json" };
 import react from "@vitejs/plugin-react";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import { patchAtlasPageVersions } from "./src/lib/xtermWebglPatches";
+import { parityTauriAliases } from "./src/parity/tauri/modules";
 const host = process.env.TAURI_DEV_HOST;
 const require = createRequire(import.meta.url);
 const rootDir = dirname(fileURLToPath(import.meta.url));
@@ -145,10 +146,7 @@ export default defineConfig(async ({ mode }) => ({
       // backend. The aliases are scoped to the mode so the real app and its
       // tests keep the real modules.
       ...(mode === "parity"
-        ? {
-            "@tauri-apps/api/core": resolve(rootDir, "src/parity/tauri/core.ts"),
-            "@tauri-apps/api/event": resolve(rootDir, "src/parity/tauri/event.ts"),
-          }
+        ? Object.fromEntries(parityTauriAliases((file) => resolve(rootDir, file)))
         : {}),
     },
   },

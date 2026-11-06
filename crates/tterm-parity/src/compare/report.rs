@@ -24,14 +24,20 @@ pub fn render(report: &Report) -> String {
     );
     html.push_str("<h1>tTerm UI parity report</h1>\n");
     html.push_str(&format!(
-        "<p>Reference frontend commit: <code>{}</code>. Thresholds: fixed ≤ {} px, \
-         text ≤ max({} px, {}%), masked SSIM ≥ {}, full SSIM ≥ {}.</p>\n",
+        "<p>Reference frontend commit: <code>{}</code>{}. Thresholds: fixed ≤ {} px, \
+         text ≤ max({} px, {}%), masked SSIM ≥ {}, full SSIM ≥ {}, screen-gate pixels ≤ {}.</p>\n",
         escape(&report.reference.frontend_commit),
+        if report.reference.dirty {
+            " (dirty working tree, regenerated for this run)"
+        } else {
+            ""
+        },
         report.thresholds.fixed_px,
         report.thresholds.text_px,
         report.thresholds.text_fraction * 100.0,
         report.thresholds.masked_ssim,
-        report.thresholds.full_ssim
+        report.thresholds.full_ssim,
+        report.thresholds.screen_color_pixels
     ));
     html.push_str(&format!(
         "<p class=\"{}\"><strong>Overall: {}</strong></p>\n",
@@ -54,14 +60,18 @@ fn render_screen(html: &mut String, screen: &ScreenReport) {
     ));
     html.push_str(&format!(
         "<p>{}<br>SSIM full <code>{:.6}</code>, masked <code>{:.6}</code>. \
-         Colour ΔE<sub>00</sub> mean <code>{:.4}</code>, max <code>{:.4}</code>, \
-         pixels above 1: <code>{}</code>.</p>\n",
+         Text-masked colour ΔE<sub>00</sub> mean <code>{:.4}</code>, max <code>{:.4}</code>, \
+         pixels above 1: <code>{}</code>. Screen gate: mean <code>{:.4}</code>, max \
+         <code>{:.4}</code>, pixels above 1: <code>{}</code>.</p>\n",
         escape(&screen.title),
         screen.ssim.full,
         screen.ssim.masked,
         screen.colors.mean_delta_e,
         screen.colors.max_delta_e,
-        screen.colors.pixels_above_one
+        screen.colors.pixels_above_one,
+        screen.screen_colors.mean_delta_e,
+        screen.screen_colors.max_delta_e,
+        screen.screen_colors.pixels_above_one
     ));
     html.push_str("<div class=\"images\">\n");
     html.push_str(&figure(&screen.images.reference, "reference (WebKit)"));

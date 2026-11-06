@@ -144,7 +144,7 @@ export function collectLayout(screen) {
   )
 
   return {
-    version: 1,
+    version: 2,
     screen,
     viewport: {
       width: window.innerWidth,

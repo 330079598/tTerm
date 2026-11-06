@@ -8,31 +8,72 @@
 //! hand out. The wrapper approach works in any render mode and also gives the
 //! text element's own bounds, which the masked SSIM needs.
 //!
+//! The marked child is styled from the same [`StyleSnapshot`] that is recorded.
+//! Padding, border width and radius, font size, weight and line height, and the
+//! text colour therefore cannot be drawn from one value and reported from
+//! another. Background and border colour are deliberately not applied here: the
+//! screen keeps painting those itself, so changing only the paint call is a real
+//! divergence that the screenshot measurement catches.
+//!
 //! See the W0-04 report's deviation section for the source references.
 
+use crate::color::to_gpui;
 use crate::layout::{BoundsSnapshot, ElementSizing, LayoutSink, StyleSnapshot};
 use gpui_kit::{
-    Bounds, Div, FontWeight, IntoElement, ParentElement, Pixels, Rgba, SharedString, Styled, div,
-    px,
+    Bounds, Div, FontWeight, ParentElement, Pixels, Rgba, SharedString, Styled, div, px,
 };
 
 /// The family GPUI resolves to the same macOS system UI font CSS calls
 /// `-apple-system`; the exported layout canonicalises both to `system-ui`.
 pub const SYSTEM_FONT: &str = ".SystemUIFont";
 
-/// Wraps `child` and records its bounds under `id`.
+/// Applies every style value that pixels cannot prove back to a `Div`.
+///
+/// The screenshot comparison measures background and border colour from the
+/// rendered pixels. The remaining fields are declarations, so the painter and
+/// the recorder must read them from the same snapshot; this is that single
+/// application point.
+pub fn apply_snapshot(mut view: Div, style: &StyleSnapshot) -> Div {
+    // `system-ui` is the canonical name both layouts use; GPUI draws it with
+    // its system font. Any other family is passed through unchanged.
+    let family = if style.font_family == "system-ui" {
+        SYSTEM_FONT
+    } else {
+        style.font_family.as_str()
+    };
+    view = view
+        .pt(px(style.padding.top))
+        .pr(px(style.padding.right))
+        .pb(px(style.padding.bottom))
+        .pl(px(style.padding.left))
+        .border(px(style.border_width))
+        .rounded(px(style.border_radius))
+        .font_family(family)
+        .text_size(px(style.font_size))
+        .line_height(px(style.line_height))
+        .font_weight(FontWeight(style.font_weight as f32))
+        .text_color(to_gpui(style.color));
+    view
+}
+
+/// Wraps a styled element and records its bounds and the same style snapshot.
+///
+/// `build` receives a `Div` that already carries [`apply_snapshot`]. It should
+/// add only layout and colours, which are the values the screenshot proves.
 pub fn parity_element(
     sink: &LayoutSink,
     id: &'static str,
     sizing: ElementSizing,
     style: StyleSnapshot,
-    child: impl IntoElement,
+    build: impl FnOnce(Div) -> Div,
 ) -> Div {
     let sink = sink.clone();
+    let recorded = style.clone();
+    let child = build(apply_snapshot(div(), &style));
     div()
         .on_children_prepainted(move |bounds, _, _| {
             if let Some(bounds) = bounds.first() {
-                sink.record_element(id, sizing, to_snapshot(*bounds), style.clone());
+                sink.record_element(id, sizing, to_snapshot(*bounds), recorded.clone());
             }
         })
         .child(child)
@@ -66,6 +107,24 @@ pub fn parity_text(
             }
         })
         .child(text)
+}
+
+/// A text child that uses the font values of the marked element's snapshot.
+pub fn parity_text_for(
+    sink: &LayoutSink,
+    key: &'static str,
+    text: impl Into<SharedString>,
+    style: &StyleSnapshot,
+) -> Div {
+    parity_text(
+        sink,
+        key,
+        text,
+        style.font_size,
+        style.line_height,
+        FontWeight(style.font_weight as f32),
+        to_gpui(style.color),
+    )
 }
 
 fn to_snapshot(bounds: Bounds<Pixels>) -> BoundsSnapshot {

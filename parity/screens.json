@@ -1,8 +1,17 @@
 {
-  "version": 1,
+  "version": 2,
   "viewport": { "width": 800, "height": 600, "deviceScaleFactor": 2 },
   "theme": "dark",
   "uiScalePercent": 100,
+  "platform": {
+    "os": "macos",
+    "version": "14.5.0",
+    "family": "unix",
+    "arch": "aarch64",
+    "type": "macos",
+    "exeExtension": "",
+    "eol": "\n"
+  },
   "screens": [
     {
       "id": "example.button-input.default",

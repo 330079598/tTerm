@@ -145,6 +145,77 @@ pub fn heatmap(reference: &RgbaImage, actual: &RgbaImage) -> RgbaImage {
     output
 }
 
+/// The mask for the whole-screen colour gate: text plus the one-pixel
+/// antialiasing band around every marked element.
+pub fn screen_mask(
+    reference: &LayoutDocument,
+    actual: &LayoutDocument,
+    width: u32,
+    height: u32,
+    text_mask: &[bool],
+) -> Vec<bool> {
+    let mut mask = text_mask.to_vec();
+    mark_edges(&mut mask, reference, width, height);
+    mark_edges(&mut mask, actual, width, height);
+    mask
+}
+
+/// Marks the border band plus one pixel of antialiasing around each element.
+pub fn edge_mask(
+    reference: &LayoutDocument,
+    actual: &LayoutDocument,
+    width: u32,
+    height: u32,
+) -> Vec<bool> {
+    let mut mask = vec![false; (width * height) as usize];
+    mark_edges(&mut mask, reference, width, height);
+    mark_edges(&mut mask, actual, width, height);
+    mask
+}
+
+fn mark_edges(mask: &mut [bool], layout: &LayoutDocument, width: u32, height: u32) {
+    let scale = f64::from(layout.viewport.device_scale_factor);
+    for element in &layout.elements {
+        let bounds = element.bounds;
+        let left = f64::from(bounds.x) * scale;
+        let top = f64::from(bounds.y) * scale;
+        let element_width = f64::from(bounds.width) * scale;
+        let element_height = f64::from(bounds.height) * scale;
+        let radius = (f64::from(element.style.border_radius) * scale)
+            .min(element_width / 2.0)
+            .min(element_height / 2.0)
+            .max(0.0);
+        // The border itself changes colour across its width, so the band is the
+        // border plus one physical pixel of antialiasing on either side.
+        let band = f64::from(element.style.border_width) * scale + 1.0;
+        let start_x = (left.floor() as i32 - 2).max(0);
+        let start_y = (top.floor() as i32 - 2).max(0);
+        let end_x = ((left + element_width).ceil() as i32 + 2).min(width as i32);
+        let end_y = ((top + element_height).ceil() as i32 + 2).min(height as i32);
+        for y in start_y..end_y {
+            for x in start_x..end_x {
+                let local_x = f64::from(x) + 0.5 - left;
+                let local_y = f64::from(y) + 0.5 - top;
+                if rounded_rect_sdf(local_x, local_y, element_width, element_height, radius).abs()
+                    <= band
+                {
+                    mask[(y as u32 * width + x as u32) as usize] = true;
+                }
+            }
+        }
+    }
+}
+
+/// The signed distance to a rounded rectangle whose top-left corner is (0, 0).
+fn rounded_rect_sdf(x: f64, y: f64, width: f64, height: f64, radius: f64) -> f64 {
+    let half_width = width / 2.0;
+    let half_height = height / 2.0;
+    let qx = (x - half_width).abs() - (half_width - radius);
+    let qy = (y - half_height).abs() - (half_height - radius);
+    let outside = qx.max(0.0).hypot(qy.max(0.0));
+    outside + qx.max(qy).min(0.0) - radius
+}
+
 /// Marks every text rectangle from both layouts, scaled to device pixels.
 pub fn text_mask(
     reference: &LayoutDocument,

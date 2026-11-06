@@ -23,6 +23,7 @@ const scale = Number(params.get("scale") ?? "100")
 
 window.__PARITY_READY__ = false
 window.__PARITY_INVOKES__ = []
+window.__PARITY_MISSING__ = []
 
 // `--ui-font-scale` and the `--text-*` variables are normally written by the
 // application after it loads the configuration; the capture sets them before

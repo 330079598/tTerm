@@ -54,13 +54,15 @@ fn capture() -> Result<(), String> {
 fn compare() -> Result<(), String> {
     let root = repo_root();
     let commit = reference::frontend_commit(&root)?;
-    if reference::frontend_dirty(&root)? {
-        eprintln!(
-            "warning: the reference frontend has uncommitted changes, but the cache key is the \
-             last commit ({commit}); set UPDATE_REFERENCE=1 to regenerate the reference"
+    let dirty = reference::frontend_dirty(&root)?;
+    let reference_dir =
+        reference::ensure_reference(&root, &commit, dirty, reference::update_requested())?;
+    if dirty {
+        println!(
+            "reference: the frontend is dirty; using {} (regenerated for this run)",
+            reference_dir.display()
         );
     }
-    let reference_dir = reference::ensure_reference(&root, &commit, reference::update_requested())?;
     let actual_dir = root.join("target").join("parity").join("actual");
     let captured = capture_all(&root, &actual_dir)?;
     for screen in &captured {
@@ -73,7 +75,7 @@ fn compare() -> Result<(), String> {
     }
 
     let report_dir = root.join("target").join("parity").join("report");
-    let outcome = compare::run(&root, &reference_dir, &actual_dir, &report_dir)?;
+    let outcome = compare::run(&root, &reference_dir, &actual_dir, &report_dir, dirty)?;
     println!();
     for screen in &outcome.screens {
         print_screen(screen, &report_dir);
@@ -113,8 +115,14 @@ fn print_screen(screen: &ScreenReport, report_dir: &Path) {
         screen.layout.failures.len()
     );
     println!(
-        "  color: mean deltaE00 {:.4}, max {:.4}, {} px above 1",
+        "  color (text masked): mean deltaE00 {:.4}, max {:.4}, {} px above 1",
         screen.colors.mean_delta_e, screen.colors.max_delta_e, screen.colors.pixels_above_one
+    );
+    println!(
+        "  color (screen gate): mean deltaE00 {:.4}, max {:.4}, {} px above 1",
+        screen.screen_colors.mean_delta_e,
+        screen.screen_colors.max_delta_e,
+        screen.screen_colors.pixels_above_one
     );
     println!(
         "  ssim: full {:.6}, masked {:.6}",

@@ -42,7 +42,12 @@ async function main() {
   const options = parseArgs(process.argv.slice(2))
   const manifest = JSON.parse(await readFile(MANIFEST_PATH, "utf8"))
   const commit = options.commit ?? frontendCommit()
-  const outDir = resolve(options.out ?? join(ROOT, "target", "parity", "reference", commit))
+  const dirty = frontendDirty()
+  const defaultName = dirty ? `${commit}-dirty` : commit
+  const outDir = resolve(options.out ?? join(ROOT, "target", "parity", "reference", defaultName))
+  if (dirty) {
+    console.log(`reference: the frontend is dirty; capturing into ${outDir}`)
+  }
   const screens = manifest.screens.filter(
     (screen) => options.screens.length === 0 || options.screens.includes(screen.id)
   )
@@ -71,7 +76,7 @@ async function main() {
       await captureScreen(browser, base, manifest, screen, outDir)
     }
     const output = {
-      version: 1,
+      version: 2,
       commit,
       viewport: manifest.viewport,
       screens: screens.map((screen) => ({
@@ -116,12 +121,14 @@ async function captureScreen(browser, base, manifest, screen, outDir) {
     const parityError = await page.evaluate(() => window.__PARITY_ERROR__ ?? null)
     if (parityError) throw new Error(parityError)
     if (pageErrors.length > 0) throw new Error(`page error: ${pageErrors[0]}`)
+    await assertNoMissingFixtures(page)
 
     await page.screenshot({
       path: join(outDir, `${screen.id}.png`),
       animations: "disabled",
       caret: "hide",
     })
+    await assertNoMissingFixtures(page)
     const layout = await page.evaluate(collectLayout, screen.id)
     await writeFile(
       join(outDir, `${screen.id}.layout.json`),
@@ -145,6 +152,21 @@ async function launchBrowser() {
         `(${error instanceof Error ? error.message : String(error)})`
     )
   }
+}
+
+async function assertNoMissingFixtures(page) {
+  const missing = await page.evaluate(() => window.__PARITY_MISSING__ ?? [])
+  if (missing.length > 0) {
+    throw new Error(`missing fixture(s) for: ${missing.join(", ")}`)
+  }
+}
+
+function frontendDirty() {
+  const output = execFileSync("git", ["status", "--porcelain", "--", ...FRONTEND_PATHS], {
+    cwd: ROOT,
+    encoding: "utf8",
+  }).trim()
+  return output.length > 0
 }
 
 function frontendCommit() {

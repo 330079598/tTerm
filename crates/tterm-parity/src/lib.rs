@@ -30,6 +30,7 @@ pub mod fixture;
 pub mod layout;
 pub mod manifest;
 pub mod marker;
+pub mod measure;
 pub mod reference;
 pub mod screens;
 

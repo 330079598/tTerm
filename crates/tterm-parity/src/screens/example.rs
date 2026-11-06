@@ -13,8 +13,8 @@ use crate::color::{hsl_to_rgba, to_gpui};
 use crate::fixture::FixtureFile;
 use crate::layout::{ElementSizing, LayoutSink, PaddingSnapshot, StyleSnapshot};
 use crate::manifest::{ScreenSpec, ScreensManifest};
-use crate::marker::{parity_element, parity_text};
-use gpui_kit::{Div, FontWeight, IntoElement, ParentElement, Styled, div, px};
+use crate::marker::{parity_element, parity_text, parity_text_for};
+use gpui_kit::{FontWeight, IntoElement, ParentElement, Styled, div, px};
 use std::path::Path;
 use tterm_ui::tokens::palette::{Colors, DARK, LIGHT};
 use tterm_ui::tokens::theme::Theme;
@@ -74,100 +74,84 @@ impl ExampleScreen {
     /// Paints the screen and records every marked element.
     pub fn render(&self) -> impl IntoElement {
         let colors = self.theme.colors;
-        let screen = div()
-            .size_full()
-            .flex()
-            .flex_col()
-            .gap(px(COLUMN_GAP))
-            .p(px(PAGE_PADDING))
-            .bg(to_gpui(hsl_to_rgba(colors.background)))
-            .text_size(px(BODY_FONT_SIZE))
-            .line_height(px(BODY_LINE_HEIGHT))
-            .text_color(to_gpui(hsl_to_rgba(colors.foreground)))
-            .child(
-                parity_text(
-                    &self.layout,
-                    "example.label",
-                    "Profile name",
-                    CONTENT_FONT_SIZE,
-                    TEXT_LINE_HEIGHT,
-                    FontWeight::NORMAL,
-                    to_gpui(hsl_to_rgba(colors.muted_foreground)),
-                )
-                .self_start(),
-            )
-            .child(
-                div()
-                    .flex()
+        let root_style = root_style(&colors);
+        let input_style = input_style(&colors);
+        let button_style = button_style(&colors);
+
+        let label = parity_text(
+            &self.layout,
+            "example.label",
+            "Profile name",
+            CONTENT_FONT_SIZE,
+            TEXT_LINE_HEIGHT,
+            FontWeight::NORMAL,
+            to_gpui(hsl_to_rgba(colors.muted_foreground)),
+        )
+        .self_start();
+
+        let input_text = parity_text_for(
+            &self.layout,
+            "example.input.text",
+            self.profile_name.clone(),
+            &input_style,
+        );
+        let button_text =
+            parity_text_for(&self.layout, "example.button.text", "Save", &button_style);
+        let input_border = to_gpui(hsl_to_rgba(colors.input));
+        let button_background = to_gpui(hsl_to_rgba(colors.primary));
+
+        let input = parity_element(
+            &self.layout,
+            "example.input",
+            ElementSizing::Fixed,
+            input_style,
+            move |view| {
+                view.flex()
                     .items_center()
-                    .gap(px(ROW_GAP))
-                    .child(parity_element(
-                        &self.layout,
-                        "example.input",
-                        ElementSizing::Fixed,
-                        input_style(&colors),
-                        self.input(&colors),
-                    ))
-                    .child(parity_element(
-                        &self.layout,
-                        "example.button",
-                        ElementSizing::Text,
-                        button_style(&colors),
-                        self.button(&colors),
-                    )),
-            );
+                    .w(px(INPUT_WIDTH))
+                    .h(px(CONTROL_HEIGHT))
+                    .border_color(input_border)
+                    .child(input_text)
+            },
+        );
+        let button = parity_element(
+            &self.layout,
+            "example.button",
+            ElementSizing::Text,
+            button_style,
+            move |view| {
+                view.flex()
+                    .items_center()
+                    .justify_center()
+                    .h(px(CONTROL_HEIGHT))
+                    .bg(button_background)
+                    .child(button_text)
+            },
+        );
+        let row = div()
+            .flex()
+            .items_center()
+            .gap(px(ROW_GAP))
+            .child(input)
+            .child(button);
+        let screen_background = to_gpui(hsl_to_rgba(colors.background));
 
         parity_element(
             &self.layout,
             "example.screen",
             ElementSizing::Fixed,
-            root_style(&colors),
-            screen,
+            root_style,
+            move |view| {
+                view.size_full()
+                    .flex()
+                    .flex_col()
+                    .gap(px(COLUMN_GAP))
+                    .bg(screen_background)
+                    .child(label)
+                    .child(row)
+            },
         )
         .size_full()
-    }
-
-    fn input(&self, colors: &Colors) -> Div {
-        div()
-            .flex()
-            .items_center()
-            .w(px(INPUT_WIDTH))
-            .h(px(CONTROL_HEIGHT))
-            .rounded(px(CORNER_RADIUS))
-            .border_1()
-            .border_color(to_gpui(hsl_to_rgba(colors.input)))
-            .px(px(FIELD_PADDING_X))
-            .py(px(FIELD_PADDING_Y))
-            .child(parity_text(
-                &self.layout,
-                "example.input.text",
-                self.profile_name.clone(),
-                CONTENT_FONT_SIZE,
-                TEXT_LINE_HEIGHT,
-                FontWeight::NORMAL,
-                to_gpui(hsl_to_rgba(colors.foreground)),
-            ))
-    }
-
-    fn button(&self, colors: &Colors) -> Div {
-        div()
-            .flex()
-            .items_center()
-            .justify_center()
-            .h(px(CONTROL_HEIGHT))
-            .px(px(BUTTON_PADDING_X))
-            .py(px(BUTTON_PADDING_Y))
-            .rounded(px(CORNER_RADIUS))
-            .bg(to_gpui(hsl_to_rgba(colors.primary)))
-            .child(parity_text(
-                &self.layout,
-                "example.button.text",
-                "Save",
-                CONTENT_FONT_SIZE,
-                TEXT_LINE_HEIGHT,
-                FontWeight::MEDIUM,
-                to_gpui(hsl_to_rgba(colors.primary_foreground)),
-            ))
     }
 }
 
@@ -192,6 +176,8 @@ fn root_style(colors: &Colors) -> StyleSnapshot {
         line_height: BODY_LINE_HEIGHT,
         color: hsl_to_rgba(colors.foreground),
         padding: PaddingSnapshot::all(PAGE_PADDING),
+        declared_background_color: None,
+        declared_border_color: None,
     }
 }
 
@@ -207,6 +193,8 @@ fn input_style(colors: &Colors) -> StyleSnapshot {
         line_height: TEXT_LINE_HEIGHT,
         color: hsl_to_rgba(colors.foreground),
         padding: PaddingSnapshot::symmetric(FIELD_PADDING_Y, FIELD_PADDING_X),
+        declared_background_color: None,
+        declared_border_color: None,
     }
 }
 
@@ -222,5 +210,7 @@ fn button_style(colors: &Colors) -> StyleSnapshot {
         line_height: TEXT_LINE_HEIGHT,
         color: hsl_to_rgba(colors.primary_foreground),
         padding: PaddingSnapshot::symmetric(BUTTON_PADDING_Y, BUTTON_PADDING_X),
+        declared_background_color: None,
+        declared_border_color: None,
     }
 }

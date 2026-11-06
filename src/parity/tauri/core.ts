@@ -4,14 +4,32 @@
 // them, so the modules below answer the three things the frontend uses from
 // Tauri: `invoke`, events and `Channel`. A command without a fixture throws,
 // which makes a screen that reaches for an unrecorded command fail loudly
-// instead of screenshotting an empty state. The imported types are the real
-// package's types, so the mock cannot silently drift from the IPC contract.
+// instead of screenshotting an empty state. Every such command is also recorded
+// in `window.__PARITY_MISSING__`, because a component is free to catch the
+// rejection and carry on; the capture checks that list after the screen is
+// ready. The imported types are the real package's types, so the mock cannot
+// silently drift from the IPC contract.
 
 import type { InvokeArgs, InvokeOptions } from "@tauri-apps/api/core"
 import type { ParityFixture } from "@/parity/fixtures"
 
 /** Matches Tauri's key for custom IPC serialisation. */
 export const SERIALIZE_TO_IPC_FN = "__TAURI_TO_IPC_KEY__"
+
+type JsonObject = Record<string, unknown>
+
+interface RejectDirective {
+  $reject: string
+}
+
+interface PendingDirective {
+  $pending: true
+}
+
+interface ArgsCase {
+  args: unknown
+  value: unknown
+}
 
 let activeFixture: ParityFixture | null = null
 const invoked: string[] = []
@@ -35,6 +53,7 @@ export function resetParityCore(): void {
   invoked.length = 0
   channels.clear()
   nextChannelId = 1
+  if (typeof window !== "undefined") window.__PARITY_MISSING__ = []
 }
 
 /**
@@ -76,27 +95,94 @@ export function sendChannelMessage(id: number, payload: unknown): void {
   channel.onmessage(payload)
 }
 
-/** Returns the fixture value of `command`, cloned so screens cannot mutate it. */
+/**
+ * Returns the fixture value of `command`, cloned so screens cannot mutate it.
+ *
+ * A value may be a plain value, `{ "$reject": "text" }` to reject,
+ * `{ "$pending": true }` to never settle, or a non-empty list of
+ * `{ "args": {...}, "value": ... }` cases matched exactly against `args`.
+ */
 export async function invoke<T>(
   command: string,
   args?: InvokeArgs,
   options?: InvokeOptions
 ): Promise<T> {
-  // The parameters exist to keep the shape of Tauri's signature; fixtures are
-  // addressed by command name alone.
-  void args
   void options
+  invoked.push(command)
 
   if (!activeFixture) {
+    recordMissing(command)
     throw new Error("Parity mock: no fixture is active; the screen is not in parity/screens.json")
   }
-  invoked.push(command)
   if (!Object.prototype.hasOwnProperty.call(activeFixture.commands, command)) {
+    recordMissing(command)
     const known = Object.keys(activeFixture.commands).sort().join(", ")
     throw new Error(`Parity mock: no fixture for "${command}"; fixtures provide: ${known}`)
   }
-  const value = activeFixture.commands[command]
+
+  const fixture = activeFixture.commands[command]
+  const value = valueForArgs(command, fixture, args)
+  if (isReject(value)) throw new Error(value.$reject)
+  if (isPending(value)) return new Promise<T>(() => {})
   return (value === undefined ? undefined : structuredClone(value)) as T
+}
+
+function valueForArgs(command: string, fixture: unknown, args: InvokeArgs | undefined): unknown {
+  if (!isArgsList(fixture)) return fixture
+  const match = fixture.find((candidate) => deepEqual(candidate.args, args))
+  if (!match) {
+    recordMissing(command)
+    throw new Error(
+      `Parity mock: no args fixture for "${command}"; ${fixture.length} case(s) did not match`
+    )
+  }
+  return match.value
+}
+
+function isReject(value: unknown): value is RejectDirective {
+  return isObject(value) && typeof value.$reject === "string"
+}
+
+function isPending(value: unknown): value is PendingDirective {
+  return isObject(value) && value.$pending === true
+}
+
+function isArgsCase(value: unknown): value is ArgsCase {
+  return isObject(value) && "args" in value && "value" in value
+}
+
+/** A list of argument cases. An empty list is a normal empty array fixture. */
+function isArgsList(value: unknown): value is ArgsCase[] {
+  return Array.isArray(value) && value.length > 0 && value.every(isArgsCase)
+}
+
+function isObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function deepEqual(first: unknown, second: unknown): boolean {
+  if (first === second) return true
+  if (typeof first !== typeof second) return false
+  if (Array.isArray(first) || Array.isArray(second)) {
+    if (!Array.isArray(first) || !Array.isArray(second) || first.length !== second.length) {
+      return false
+    }
+    return first.every((value, index) => deepEqual(value, second[index]))
+  }
+  if (isObject(first) && isObject(second)) {
+    const keys = Object.keys(first).sort()
+    const otherKeys = Object.keys(second).sort()
+    if (!deepEqual(keys, otherKeys)) return false
+    return keys.every((key) => deepEqual(first[key], second[key]))
+  }
+  return false
+}
+
+function recordMissing(command: string): void {
+  if (typeof window === "undefined") return
+  const missing = window.__PARITY_MISSING__ ?? []
+  if (!missing.includes(command)) missing.push(command)
+  window.__PARITY_MISSING__ = missing
 }
 
 /** True when running inside Tauri, which parity mode emulates. */

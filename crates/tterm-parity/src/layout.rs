@@ -12,7 +12,7 @@ use std::path::Path;
 use std::rc::Rc;
 
 /// Bumped whenever the JSON shape changes incompatibly.
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
 
 /// The window and pixel density a screen was captured at.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -100,9 +100,9 @@ impl PaddingSnapshot {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StyleSnapshot {
-    /// Background as 8-bit sRGB; alpha may be zero for a transparent field.
+    /// Background as 8-bit sRGB, measured from the rendered pixels.
     pub background_color: [u8; 4],
-    /// Border as 8-bit sRGB.
+    /// Border as 8-bit sRGB, measured from the rendered pixels.
     pub border_color: [u8; 4],
     /// Border width in logical pixels.
     pub border_width: f32,
@@ -120,6 +120,14 @@ pub struct StyleSnapshot {
     pub color: [u8; 4],
     /// Padding in logical pixels.
     pub padding: PaddingSnapshot,
+    /// The background the view declared before measurement. Keeping it lets an
+    /// opaque declaration be cross-checked against the pixels the renderer
+    /// actually painted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared_background_color: Option<[u8; 4]>,
+    /// The border the view declared before measurement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared_border_color: Option<[u8; 4]>,
 }
 
 /// One `data-parity` element or one GPUI parity marker.

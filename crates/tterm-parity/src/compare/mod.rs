@@ -2,8 +2,10 @@
 //!
 //! A screen passes when every marked element is within the section 5.2 bounds
 //! and style tolerances, the masked SSIM is at least 0.99 and the full-screen
-//! SSIM at least 0.97. The colour-difference metric is reported for the record;
-//! element colours are gated by the layout check.
+//! SSIM at least 0.97. Colours are measured from the two screenshots, not read
+//! back from the style snapshot. After masking text and the one-pixel
+//! antialiasing band around each marked element, no pixel may differ by more
+//! than CIEDE2000 1.
 
 pub mod color;
 pub mod image_diff;
@@ -12,6 +14,7 @@ pub mod report;
 
 use crate::layout::LayoutDocument;
 use crate::manifest::{ScreenSpec, ScreensManifest};
+use crate::measure;
 use crate::reference;
 use image::RgbaImage;
 use serde::Serialize;
@@ -22,6 +25,10 @@ use std::path::{Path, PathBuf};
 pub const MASKED_SSIM_MIN: f64 = 0.99;
 /// Full-screen SSIM floor from `ui-parity.md` section 5.2.
 pub const FULL_SSIM_MIN: f64 = 0.97;
+/// The whole-screen colour gate. Zero is deliberate: beyond text and the
+/// one-pixel element edge band, a colour difference above CIEDE2000 1 is a
+/// real mismatch.
+pub const SCREEN_COLOR_MAX_PIXELS: u64 = 0;
 
 /// What a compare run produced.
 #[derive(Debug)]
@@ -50,6 +57,9 @@ pub struct ScreenReport {
     pub layout: LayoutReport,
     /// Whole-image CIEDE2000 statistics over the unmasked pixels.
     pub colors: ColorReport,
+    /// CIEDE2000 statistics after masking text and element edge bands. This
+    /// is the gate.
+    pub screen_colors: ColorReport,
     /// Full and text-masked SSIM.
     pub ssim: SsimReport,
     /// Heatmap path relative to the report directory, empty when the images
@@ -141,6 +151,8 @@ pub struct Report {
 pub struct ReferenceInfo {
     /// Last commit that touched the reference frontend.
     pub frontend_commit: String,
+    /// Whether the reference was captured from an uncommitted frontend.
+    pub dirty: bool,
 }
 
 /// The thresholds, written into the report so a reader does not need the docs.
@@ -157,6 +169,8 @@ pub struct Thresholds {
     pub masked_ssim: f64,
     /// Full SSIM floor.
     pub full_ssim: f64,
+    /// Largest number of screen-gate pixels above CIEDE2000 1.
+    pub screen_color_pixels: u64,
 }
 
 /// Compares one reference directory with one actual directory.
@@ -165,9 +179,14 @@ pub fn run(
     reference_dir: &Path,
     actual_dir: &Path,
     report_dir: &Path,
+    dirty: bool,
 ) -> Result<CompareOutcome, String> {
     let manifest = ScreensManifest::load(root)?;
     let commit = reference::recorded_commit(reference_dir)?;
+    let reference_name = reference_dir
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| format!("{} has no directory name", reference_dir.display()))?;
     if report_dir.exists() {
         fs::remove_dir_all(report_dir)
             .map_err(|error| format!("could not clear {}: {error}", report_dir.display()))?;
@@ -179,7 +198,8 @@ pub fn run(
     for screen in &manifest.screens {
         let reference_side = load_side(reference_dir, screen)?;
         let actual_side = load_side(actual_dir, screen)?;
-        let (mut report, heatmap) = compare_screen(screen, &reference_side, &actual_side, &commit);
+        let (mut report, heatmap) =
+            compare_screen(screen, &reference_side, &actual_side, reference_name);
         if let Some(heatmap) = heatmap {
             let relative = format!("heatmaps/{}.png", screen.id);
             let path = report_dir.join(&relative);
@@ -193,9 +213,10 @@ pub fn run(
 
     let passed = screens.iter().all(|screen| screen.passed);
     let report = Report {
-        schema_version: 1,
+        schema_version: 2,
         reference: ReferenceInfo {
             frontend_commit: commit,
+            dirty,
         },
         thresholds: Thresholds {
             fixed_px: layout_check::FIXED_TOLERANCE,
@@ -203,6 +224,7 @@ pub fn run(
             text_fraction: layout_check::TEXT_TOLERANCE_FRACTION,
             masked_ssim: MASKED_SSIM_MIN,
             full_ssim: FULL_SSIM_MIN,
+            screen_color_pixels: SCREEN_COLOR_MAX_PIXELS,
         },
         screens,
         passed,
@@ -252,17 +274,24 @@ fn compare_screen(
     screen: &ScreenSpec,
     reference: &Side,
     actual: &Side,
-    commit: &str,
+    reference_name: &str,
 ) -> (ScreenReport, Option<RgbaImage>) {
     let backdrop = reference.image.get_pixel(0, 0).0;
     let layout = layout_check::compare(&reference.layout, &actual.layout, backdrop);
     let mut failures = layout.failures.clone();
+    validate_measurements(reference, "reference", &mut failures);
+    validate_measurements(actual, "GPUI", &mut failures);
     let mut heatmap = None;
     let mut ssim = SsimReport {
         full: 0.0,
         masked: 0.0,
     };
     let mut colors = ColorReport {
+        mean_delta_e: 0.0,
+        max_delta_e: 0.0,
+        pixels_above_one: 0,
+    };
+    let mut screen_colors = ColorReport {
         mean_delta_e: 0.0,
         max_delta_e: 0.0,
         pixels_above_one: 0,
@@ -303,6 +332,21 @@ fn compare_screen(
             max_delta_e: round_to(difference.max_delta_e, 4),
             pixels_above_one: difference.pixels_above_one,
         };
+        let gate_mask =
+            image_diff::screen_mask(&reference.layout, &actual.layout, width, height, &mask);
+        let gate = image_diff::color_difference(&reference.image, &actual.image, &gate_mask);
+        screen_colors = ColorReport {
+            mean_delta_e: round_to(gate.mean_delta_e, 4),
+            max_delta_e: round_to(gate.max_delta_e, 4),
+            pixels_above_one: gate.pixels_above_one,
+        };
+        if gate.pixels_above_one > SCREEN_COLOR_MAX_PIXELS {
+            failures.push(format!(
+                "screen colour gate: {} pixel(s) above CIEDE2000 1 outside text and element \
+                 edges (allowed {SCREEN_COLOR_MAX_PIXELS})",
+                gate.pixels_above_one
+            ));
+        }
         heatmap = Some(image_diff::heatmap(&reference.image, &actual.image));
     }
 
@@ -313,15 +357,94 @@ fn compare_screen(
         passed,
         layout,
         colors,
+        screen_colors,
         ssim,
         heatmap: String::new(),
         images: ImagePaths {
-            reference: format!("../reference/{commit}/{}.png", screen.id),
+            reference: format!("../reference/{reference_name}/{}.png", screen.id),
             actual: format!("../actual/{}.png", screen.id),
         },
         failures,
     };
     (report, heatmap)
+}
+
+/// Re-measures both screenshots and checks that the layout document, the
+/// pixels and the declared style all agree. The declared check is what makes
+/// the tool fail when a view draws a different colour from the one it records.
+fn validate_measurements(side: &Side, label: &str, failures: &mut Vec<String>) {
+    for element in &side.layout.elements {
+        let measured = match measure::measure_element(
+            &side.image,
+            side.layout.viewport,
+            element,
+            &side.layout.text_regions,
+        ) {
+            Ok(measured) => measured,
+            Err(error) => {
+                failures.push(format!("{}: {label} {error}", element.id));
+                continue;
+            }
+        };
+        if measured.background != element.style.background_color {
+            failures.push(format!(
+                "{}: {label} layout background {} but the pixels measured {}",
+                element.id,
+                hex(element.style.background_color),
+                hex(measured.background)
+            ));
+        }
+        if element.style.border_width > 0.0 {
+            match measured.border {
+                Some(border) if border != element.style.border_color => failures.push(format!(
+                    "{}: {label} layout border {} but the pixels measured {}",
+                    element.id,
+                    hex(element.style.border_color),
+                    hex(border)
+                )),
+                None => failures.push(format!(
+                    "{}: {label} has no readable border band for a {} px border",
+                    element.id, element.style.border_width
+                )),
+                Some(_) => {}
+            }
+        }
+
+        if let Some(declared) = element.style.declared_background_color
+            && declared[3] == 255
+            && measured.background[3] == 255
+            && declared != measured.background
+        {
+            failures.push(format!(
+                "{}: {label} declares background {} but the pixels measured {} (the style \
+                 snapshot and the drawing disagree)",
+                element.id,
+                hex(declared),
+                hex(measured.background)
+            ));
+        }
+        if element.style.border_width > 0.0
+            && let Some(declared) = element.style.declared_border_color
+            && declared[3] == 255
+            && let Some(border) = measured.border
+            && declared != border
+        {
+            failures.push(format!(
+                "{}: {label} declares border {} but the pixels measured {} (the style \
+                 snapshot and the drawing disagree)",
+                element.id,
+                hex(declared),
+                hex(border)
+            ));
+        }
+    }
+}
+
+fn hex(color: [u8; 4]) -> String {
+    format!(
+        "#{:02x}{:02x}{:02x}{:02x}",
+        color[0], color[1], color[2], color[3]
+    )
 }
 
 fn ssim_rounded(value: f64) -> f64 {

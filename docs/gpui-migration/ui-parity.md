@@ -100,17 +100,19 @@ GPUI 的内容遮罩（content mask）是轴对齐的矩形。父元素设了圆
         │          Playwright WebKit，固定窗口尺寸、DPR 2、字体
         │          → reference/<屏幕ID>.png + reference/<屏幕ID>.layout.json
         │
-        └─ GPUI 端：VisualTestAppContext 用同一份夹具构建视图
+        └─ GPUI 端：HeadlessAppContext 用同一份夹具构建视图
                    capture_screenshot → actual/<屏幕ID>.png
-                   debug_bounds 读取各标记元素 → actual/<屏幕ID>.layout.json
+                   标记元素外包一层 Div，on_children_prepainted 读取唯一子元素
+                   → actual/<屏幕ID>.layout.json
         ↓
 tterm-parity compare → 每屏的布局差、颜色差、图像差热力图，汇总为 HTML 报告
 ```
 
-- **元素标记。** React 侧给需要比对的元素加 `data-parity="<ID>"`，GPUI 侧用同一个 ID 设 `debug_selector`。只加属性，不改行为，Tauri 版可以合并。
+- **元素标记。** React 侧给需要比对的元素加 `data-parity="<ID>"`，GPUI 侧用同一个 ID 调用 `parity_element`。它在元素外包一层只放一个子元素的 `Div`，用 `on_children_prepainted` 读取该子元素的 border box；文字用 `parity_text` / `parity_text_for` 记录自身边界。只加属性，不改行为，Tauri 版可以合并。
+- **为什么不用 `debug_selector`。** P0-25 第 9 项已确认：`debug_selector` 只在 `cfg(any(test, all(debug_assertions, feature = "test-support")))` 下记录（`gpui-pre-0.3.11/src/elements/div.rs:901-920`，不满足时为空操作 `:922-925`），并且只有 `VisualTestContext::debug_bounds` 能读；`HeadlessAppContext` 没有读取入口。W0-04 的标记方案因此不依赖 debug 构建；这个构建前提也与 P0-25 第 6 条限制一致。
 - **参考端用 Playwright WebKit 而不是 Tauri 窗口。** macOS 上它与 WKWebView 是同一个引擎、同一套 CoreText；Tauri 窗口在 macOS 上没有 WebDriver 入口。每个大类抽一屏，用真实 Tauri 窗口截图（`screencapture -l`）交叉核对一次，证明两者没有系统性偏差。
-- **截图只在 macOS 自动化。** `VisualTestAppContext` 只在 macOS 上有，用的是真实平台渲染，窗口放在屏幕外。Windows 与 Linux 做人工截图对照（第 5.3 节）。
-- **布局 JSON 记录：** 每个标记元素的位置与尺寸、背景色、边框色与宽度、圆角、字体族、字号、字重、行高、文字颜色。
+- **截图只在 macOS 自动化。** `HeadlessAppContext` 只在 macOS 上有，用的是真实平台渲染，窗口放在屏幕外。Windows 与 Linux 做人工截图对照（第 5.3 节）。
+- **布局 JSON 记录：** 每个标记元素的位置与尺寸、背景色、边框色与宽度、圆角、字体族、字号、字重、行高、文字颜色。其中背景色与边框色由 PNG 实测（背景取内缩后圆角矩形内的像素众数，边框取四条直边中段的像素众数，均排除文字区域）；`padding`、`fontFamily`、`fontSize`、`fontWeight`、`lineHeight`、`borderRadius`、`borderWidth` 无法从像素可靠反推，绘制和记录共用同一个 `StyleSnapshot`（`apply_snapshot`），但只能证明代码意图一致。声明颜色另存为 `declaredBackgroundColor` / `declaredBorderColor`，用于和实测值交叉校验，不能代替实测。
 
 ### 5.2 通过门槛（macOS，DPR 2）
 

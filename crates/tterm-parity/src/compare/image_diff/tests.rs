@@ -1,5 +1,7 @@
 use super::*;
-use crate::layout::{BoundsSnapshot, LayoutDocument, ViewportSnapshot};
+use crate::layout::{
+    BoundsSnapshot, ElementSizing, LayoutDocument, PaddingSnapshot, StyleSnapshot, ViewportSnapshot,
+};
 use image::Rgba;
 
 fn solid(width: u32, height: u32, color: [u8; 4]) -> RgbaImage {
@@ -8,7 +10,7 @@ fn solid(width: u32, height: u32, color: [u8; 4]) -> RgbaImage {
 
 fn layout(text_regions: Vec<BoundsSnapshot>) -> LayoutDocument {
     LayoutDocument {
-        version: 1,
+        version: 2,
         screen: "s".to_owned(),
         viewport: ViewportSnapshot {
             width: 10,
@@ -18,6 +20,56 @@ fn layout(text_regions: Vec<BoundsSnapshot>) -> LayoutDocument {
         elements: Vec::new(),
         text_regions,
     }
+}
+
+fn element_layout() -> LayoutDocument {
+    LayoutDocument {
+        version: 2,
+        screen: "s".to_owned(),
+        viewport: ViewportSnapshot {
+            width: 10,
+            height: 10,
+            device_scale_factor: 1.0,
+        },
+        elements: vec![crate::layout::ElementSnapshot {
+            id: "e".to_owned(),
+            sizing: ElementSizing::Fixed,
+            bounds: BoundsSnapshot::new(2.0, 2.0, 4.0, 4.0),
+            style: StyleSnapshot {
+                background_color: [0, 0, 0, 255],
+                border_color: [0, 0, 0, 0],
+                border_width: 0.0,
+                border_radius: 0.0,
+                font_family: "system-ui".to_owned(),
+                font_size: 14.0,
+                font_weight: 400,
+                line_height: 16.0,
+                color: [0, 0, 0, 255],
+                padding: PaddingSnapshot::all(0.0),
+                declared_background_color: None,
+                declared_border_color: None,
+            },
+        }],
+        text_regions: Vec::new(),
+    }
+}
+
+#[test]
+fn the_edge_mask_marks_the_one_pixel_band_not_the_interior() {
+    let layout = element_layout();
+    let mask = edge_mask(&layout, &layout, 10, 10);
+    assert!(mask[2 * 10 + 2], "the top-left corner is in the band");
+    assert!(mask[6 * 10 + 6], "the bottom-right corner is in the band");
+    assert!(!mask[4 * 10 + 4], "the interior is not in the band");
+}
+
+#[test]
+fn the_screen_mask_extends_the_text_mask_with_the_element_edges() {
+    let layout = element_layout();
+    let text = vec![false; 10 * 10];
+    let mask = screen_mask(&layout, &layout, 10, 10, &text);
+    assert!(mask[2 * 10 + 2]);
+    assert!(!mask[4 * 10 + 4]);
 }
 
 #[test]

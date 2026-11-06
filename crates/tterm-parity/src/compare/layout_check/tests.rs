@@ -17,6 +17,8 @@ fn style() -> StyleSnapshot {
         line_height: 16.0,
         color: [255, 255, 255, 255],
         padding: PaddingSnapshot::symmetric(8.0, 16.0),
+        declared_background_color: None,
+        declared_border_color: None,
     }
 }
 
@@ -31,7 +33,7 @@ fn element(id: &str, sizing: ElementSizing, bounds: BoundsSnapshot) -> ElementSn
 
 fn document(elements: Vec<ElementSnapshot>) -> LayoutDocument {
     LayoutDocument {
-        version: 1,
+        version: 2,
         screen: "s".to_owned(),
         viewport: ViewportSnapshot {
             width: 800,

@@ -7,6 +7,7 @@
 
 use crate::layout::LayoutSink;
 use crate::manifest::ScreensManifest;
+use crate::measure;
 use crate::screens::{ScreenView, example};
 use gpui_kit::{AppContext, HeadlessAppContext, px, size};
 use std::fs;
@@ -56,7 +57,9 @@ pub fn capture_all(root: &Path, output: &Path) -> Result<Vec<CapturedScreen>, St
             .capture_screenshot(window.into())
             .map_err(|error| format!("could not capture {}: {error}", screen.id))?;
 
-        let document = sink.finish();
+        let mut document = sink.finish();
+        measure::measure_document(&image, &mut document)
+            .map_err(|error| format!("could not measure {}: {error}", screen.id))?;
         if document.elements.is_empty() {
             return Err(format!(
                 "{} recorded no elements; its parity markers did not paint",

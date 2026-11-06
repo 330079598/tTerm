@@ -12,6 +12,8 @@ fn style() -> StyleSnapshot {
         line_height: 16.0,
         color: [204, 204, 204, 255],
         padding: PaddingSnapshot::symmetric(4.0, 12.0),
+        declared_background_color: None,
+        declared_border_color: None,
     }
 }
 
@@ -77,7 +79,7 @@ fn json_uses_the_contracts_field_names() {
         style(),
     );
     let json = serde_json::to_value(sink.finish()).expect("layout serialises");
-    assert_eq!(json["version"], 1);
+    assert_eq!(json["version"], 2);
     assert_eq!(json["viewport"]["deviceScaleFactor"], 2.0);
     assert_eq!(json["elements"][0]["sizing"], "fixed");
     assert_eq!(json["elements"][0]["style"]["fontFamily"], "system-ui");
@@ -86,9 +88,29 @@ fn json_uses_the_contracts_field_names() {
 }
 
 #[test]
+fn declared_colours_are_optional_and_keep_their_names() {
+    let mut value = style();
+    value.declared_background_color = Some([0, 112, 204, 255]);
+    value.declared_border_color = Some([61, 61, 61, 255]);
+    let json = serde_json::to_value(value).expect("style serialises");
+    assert_eq!(
+        json["declaredBackgroundColor"],
+        serde_json::json!([0, 112, 204, 255])
+    );
+    assert_eq!(
+        json["declaredBorderColor"],
+        serde_json::json!([61, 61, 61, 255])
+    );
+
+    let plain = serde_json::to_value(style()).expect("style serialises");
+    assert!(plain.get("declaredBackgroundColor").is_none());
+    assert!(plain.get("declaredBorderColor").is_none());
+}
+
+#[test]
 fn the_reference_reader_ignores_extra_fields() {
     let text = r#"{
-        "version": 1,
+        "version": 2,
         "screen": "s",
         "viewport": { "width": 10, "height": 10, "deviceScaleFactor": 2 },
         "elements": [],
@@ -100,7 +122,7 @@ fn the_reference_reader_ignores_extra_fields() {
 }
 
 #[test]
-fn schema_version_one_is_written() {
+fn schema_version_two_is_written() {
     let document = sink().finish();
     assert_eq!(document.version, SCHEMA_VERSION);
     assert_eq!(document.screen, "example.button-input.default");

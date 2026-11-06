@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// The manifest schema this tool understands.
-pub const MANIFEST_VERSION: u32 = 1;
+pub const MANIFEST_VERSION: u32 = 2;
 
 /// The window every screen is captured at.
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
@@ -32,6 +32,30 @@ pub struct ScreenSpec {
     pub fixture: String,
 }
 
+/// The platform the reference side is told it runs on.
+///
+/// `plugin-os` is synchronous in the frontend, so parity mode answers it from
+/// here instead of from the host. Every screen in a run sees the same values.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformSpec {
+    /// `macos`, `windows`, `linux`, ...
+    pub os: String,
+    /// The OS version string.
+    pub version: String,
+    /// `unix` or `windows`.
+    pub family: String,
+    /// `aarch64`, `x86_64`, ...
+    pub arch: String,
+    /// `macos`, `windows`, `linux`, ...
+    #[serde(rename = "type")]
+    pub os_type: String,
+    /// Empty on macOS; `.exe` on Windows.
+    pub exe_extension: String,
+    /// The end-of-line sequence.
+    pub eol: String,
+}
+
 /// The whole manifest.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,6 +68,8 @@ pub struct ScreensManifest {
     pub theme: String,
     /// Interface scale in percent, as the settings express it.
     pub ui_scale_percent: u32,
+    /// What `plugin-os` answers in parity mode.
+    pub platform: PlatformSpec,
     /// The screens, in report order.
     pub screens: Vec<ScreenSpec>,
 }
@@ -92,6 +118,20 @@ impl ScreensManifest {
                 "parity/screens.json uiScalePercent is {}; the W0-04 example screen only supports 100",
                 self.ui_scale_percent
             ));
+        }
+        for (field, value) in [
+            ("os", self.platform.os.as_str()),
+            ("version", self.platform.version.as_str()),
+            ("family", self.platform.family.as_str()),
+            ("arch", self.platform.arch.as_str()),
+            ("type", self.platform.os_type.as_str()),
+            ("eol", self.platform.eol.as_str()),
+        ] {
+            if value.is_empty() {
+                return Err(format!(
+                    "parity/screens.json platform.{field} is empty; plugin-os answers it synchronously"
+                ));
+            }
         }
         if self.screens.is_empty() {
             return Err("parity/screens.json lists no screens".to_owned());
