@@ -1,6 +1,6 @@
 //! The P0-08 window: a bilingual greeting and a `gpui-kit` button.
 //!
-//! P0-09 replaces this file with the terminal prototype, so it deliberately
+//! The terminal prototype (P0-10 onward) replaces this window, so it deliberately
 //! holds no application state, services or persistence.
 
 use gpui_kit::base::StyledExt as _;

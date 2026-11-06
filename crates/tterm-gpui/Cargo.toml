@@ -16,5 +16,5 @@ workspace = true
 gpui-kit.workspace = true
 
 [dev-dependencies]
-# Headless windows and UI queries for the sample test; see src/tests.rs.
+# Headless windows and UI queries for the sample test; see src/app/tests.rs.
 gpui-kit = { workspace = true, features = ["test-support"] }
