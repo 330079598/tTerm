@@ -17,6 +17,13 @@ gpui-kit.workspace = true
 
 [dev-dependencies]
 # Headless windows and UI queries for the sample test; see src/app/tests.rs.
-gpui-kit = { workspace = true, features = ["test-support"] }
-# The P0-28 glyph grid example paints the geometry from the view crate.
+# `profiler` enables GPUI's frame timings for the P0-10 drawing benchmark.
+gpui-kit = { workspace = true, features = ["test-support", "profiler"] }
+# The P0-28 glyph grid and the P0-10 terminal examples paint through the view
+# crate.
 tterm-terminal-view = { path = "../tterm-terminal-view" }
+tterm-terminal = { path = "../tterm-terminal" }
+# The real-PTY demo and the benchmark. Both are already in Cargo.lock through
+# the Tauri application, so no new package or version is introduced.
+portable-pty = "0.9"
+async-channel = "2"
