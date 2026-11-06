@@ -58,6 +58,7 @@ pub mod event;
 pub mod grid;
 pub mod hint;
 pub mod mode;
+pub mod palette;
 pub mod search;
 pub mod selection;
 pub mod snapshot;
