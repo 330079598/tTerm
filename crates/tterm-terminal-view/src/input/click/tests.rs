@@ -113,11 +113,7 @@ fn selection_kinds_follow_alacritty() {
 fn double_click_selects_a_word() {
     let terminal = terminal(20, 5);
     terminal.write(b"hello world");
-    terminal.select(
-        SelectionKind::Semantic,
-        point(0, 6),
-        Side::Left,
-    );
+    terminal.select(SelectionKind::Semantic, point(0, 6), Side::Left);
     assert_eq!(terminal.selection_text().as_deref(), Some("world"));
 }
 
@@ -150,6 +146,7 @@ fn double_click_follows_a_wrapped_word() {
 fn triple_click_selects_the_line() {
     let terminal = terminal(20, 4);
     terminal.write(b"first\r\nsecond");
-    terminal.select(SelectionKind::Lines, point(0, 1), Side::Left);
-    assert_eq!(terminal.selection_text().as_deref(), Some("second"));
+    terminal.select(SelectionKind::Lines, point(1, 0), Side::Left);
+    // A line selection keeps the line ending, like Alacritty's selection text.
+    assert_eq!(terminal.selection_text().as_deref(), Some("second\n"));
 }

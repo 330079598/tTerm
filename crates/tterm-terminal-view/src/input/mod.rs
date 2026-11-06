@@ -4,6 +4,7 @@
 //! event, so it can be tested without a window. The view calls the encoder
 //! first and only then writes the returned bytes to the session.
 
+pub mod click;
 pub mod focus;
 pub mod keyboard;
 pub mod mouse;
