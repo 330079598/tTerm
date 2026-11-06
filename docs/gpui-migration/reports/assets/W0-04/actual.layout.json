@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "screen": "example.button-input.default",
   "viewport": {
     "width": 800,
@@ -46,7 +46,19 @@
           "right": 16.0,
           "bottom": 8.0,
           "left": 16.0
-        }
+        },
+        "declaredBackgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
       }
     },
     {
@@ -60,10 +72,10 @@
       },
       "style": {
         "backgroundColor": [
-          0,
-          0,
-          0,
-          0
+          27,
+          29,
+          35,
+          255
         ],
         "borderColor": [
           61,
@@ -88,7 +100,19 @@
           "right": 12.0,
           "bottom": 4.0,
           "left": 12.0
-        }
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
       }
     },
     {
@@ -130,7 +154,19 @@
           "right": 32.0,
           "bottom": 32.0,
           "left": 32.0
-        }
+        },
+        "declaredBackgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
       }
     }
   ],

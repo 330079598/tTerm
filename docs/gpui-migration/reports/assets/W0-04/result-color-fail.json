@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 2,
+  "reference": {
+    "frontendCommit": "ab0a947451d32d622d6f256dd1c3b5c0f2f9c466",
+    "dirty": false
+  },
+  "thresholds": {
+    "fixedPx": 1.0,
+    "textPx": 2.0,
+    "textFraction": 0.02,
+    "maskedSsim": 0.99,
+    "fullSsim": 0.97,
+    "screenColorPixels": 0
+  },
+  "screens": [
+    {
+      "id": "example.button-input.default",
+      "title": "Example: one button and one input",
+      "passed": false,
+      "layout": {
+        "passed": false,
+        "elements": [
+          {
+            "id": "example.button",
+            "passed": false,
+            "maxBoundsDelta": 0.25,
+            "failures": [
+              "example.button: background colour #0070ccff -> #963c50ff"
+            ]
+          },
+          {
+            "id": "example.input",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "example.screen",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": [
+          "example.button: background colour #0070ccff -> #963c50ff"
+        ]
+      },
+      "colors": {
+        "meanDeltaE": 0.1346,
+        "maxDeltaE": 38.4529,
+        "pixelsAboveOne": 6620
+      },
+      "screenColors": {
+        "meanDeltaE": 0.1262,
+        "maxDeltaE": 38.4529,
+        "pixelsAboveOne": 6132
+      },
+      "ssim": {
+        "full": 0.998424,
+        "masked": 0.999912
+      },
+      "heatmap": "heatmaps/example.button-input.default.png",
+      "images": {
+        "reference": "../reference/ab0a947451d32d622d6f256dd1c3b5c0f2f9c466/example.button-input.default.png",
+        "actual": "../actual/example.button-input.default.png"
+      },
+      "failures": [
+        "example.button: background colour #0070ccff -> #963c50ff",
+        "example.button: GPUI declares background #0070ccff but the pixels measured #963c50ff (the style snapshot and the drawing disagree)",
+        "screen colour gate: 6132 pixel(s) above CIEDE2000 1 outside text and element edges (allowed 0)"
+      ]
+    }
+  ],
+  "passed": false
+}

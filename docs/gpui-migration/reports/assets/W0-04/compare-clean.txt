@@ -1,0 +1,15 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.06s
+     Running `/Users/stone/Code/rust/tTerm-W0-04/scripts/macos-dev-bundle.sh target/debug/tterm-parity compare`
+gpui example.button-input.default: 3 element(s) -> /Users/stone/Code/rust/tTerm-W0-04/target/parity/actual/example.button-input.default.layout.json
+
+example.button-input.default PASS
+  layout: 3 element(s), max bounds delta 0.25 px, 0 failure(s)
+  color (text masked): mean deltaE00 0.0001, max 2.6153, 52 px above 1
+  color (screen gate): mean deltaE00 0.0000, max 0.0000, 0 px above 1
+  ssim: full 0.998504, masked 1.000000
+  heatmap: /Users/stone/Code/rust/tTerm-W0-04/target/parity/report/heatmaps/example.button-input.default.png
+
+1 screen(s): 1 passed, 0 failed
+report: /Users/stone/Code/rust/tTerm-W0-04/target/parity/report/index.html
+result: /Users/stone/Code/rust/tTerm-W0-04/target/parity/report/result.json
+EXIT=0

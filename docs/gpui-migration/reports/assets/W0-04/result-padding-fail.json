@@ -1,14 +1,16 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "reference": {
-    "frontendCommit": "4cbc0677dc2b9c5f63810ca207306b73606e893d"
+    "frontendCommit": "ab0a947451d32d622d6f256dd1c3b5c0f2f9c466",
+    "dirty": false
   },
   "thresholds": {
     "fixedPx": 1.0,
     "textPx": 2.0,
     "textFraction": 0.02,
     "maskedSsim": 0.99,
-    "fullSsim": 0.97
+    "fullSsim": 0.97,
+    "screenColorPixels": 0
   },
   "screens": [
     {
@@ -52,19 +54,25 @@
         "maxDeltaE": 35.1464,
         "pixelsAboveOne": 346
       },
+      "screenColors": {
+        "meanDeltaE": 0.0027,
+        "maxDeltaE": 35.1464,
+        "pixelsAboveOne": 142
+      },
       "ssim": {
         "full": 0.997538,
         "masked": 0.999285
       },
       "heatmap": "heatmaps/example.button-input.default.png",
       "images": {
-        "reference": "../reference/4cbc0677dc2b9c5f63810ca207306b73606e893d/example.button-input.default.png",
+        "reference": "../reference/ab0a947451d32d622d6f256dd1c3b5c0f2f9c466/example.button-input.default.png",
         "actual": "../actual/example.button-input.default.png"
       },
       "failures": [
         "example.button: width moved by 2.25 px, allowed 2.00",
         "example.button: padding right 16 -> 17 (difference 1.0000, allowed 0.01)",
-        "example.button: padding left 16 -> 17 (difference 1.0000, allowed 0.01)"
+        "example.button: padding left 16 -> 17 (difference 1.0000, allowed 0.01)",
+        "screen colour gate: 142 pixel(s) above CIEDE2000 1 outside text and element edges (allowed 0)"
       ]
     }
   ],

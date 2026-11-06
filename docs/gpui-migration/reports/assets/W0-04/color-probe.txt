@@ -1,0 +1,28 @@
+   Compiling tterm-parity v0.1.0 (/Users/stone/Code/rust/tTerm-W0-04/crates/tterm-parity)
+warning: unused variable: `button_background`
+   --> crates/tterm-parity/src/screens/example.rs:101:13
+    |
+101 |         let button_background = to_gpui(hsl_to_rgba(colors.primary));
+    |             ^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_button_background`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tterm-parity` (lib) generated 1 warning (run `cargo fix --lib -p tterm-parity` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.21s
+     Running `/Users/stone/Code/rust/tTerm-W0-04/scripts/macos-dev-bundle.sh target/debug/tterm-parity compare`
+gpui example.button-input.default: 3 element(s) -> /Users/stone/Code/rust/tTerm-W0-04/target/parity/actual/example.button-input.default.layout.json
+
+example.button-input.default FAIL
+  layout: 3 element(s), max bounds delta 0.25 px, 1 failure(s)
+  color (text masked): mean deltaE00 0.1346, max 38.4529, 6620 px above 1
+  color (screen gate): mean deltaE00 0.1262, max 38.4529, 6132 px above 1
+  ssim: full 0.998424, masked 0.999912
+  heatmap: /Users/stone/Code/rust/tTerm-W0-04/target/parity/report/heatmaps/example.button-input.default.png
+  failure: example.button: background colour #0070ccff -> #963c50ff
+  failure: example.button: GPUI declares background #0070ccff but the pixels measured #963c50ff (the style snapshot and the drawing disagree)
+  failure: screen colour gate: 6132 pixel(s) above CIEDE2000 1 outside text and element edges (allowed 0)
+
+1 screen(s): 0 passed, 1 failed
+report: /Users/stone/Code/rust/tTerm-W0-04/target/parity/report/index.html
+result: /Users/stone/Code/rust/tTerm-W0-04/target/parity/report/result.json
+EXIT=1

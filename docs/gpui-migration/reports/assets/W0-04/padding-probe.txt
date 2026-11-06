@@ -1,0 +1,20 @@
+   Compiling tterm-parity v0.1.0 (/Users/stone/Code/rust/tTerm-W0-04/crates/tterm-parity)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.71s
+     Running `/Users/stone/Code/rust/tTerm-W0-04/scripts/macos-dev-bundle.sh target/debug/tterm-parity compare`
+gpui example.button-input.default: 3 element(s) -> /Users/stone/Code/rust/tTerm-W0-04/target/parity/actual/example.button-input.default.layout.json
+
+example.button-input.default FAIL
+  layout: 3 element(s), max bounds delta 2.25 px, 3 failure(s)
+  color (text masked): mean deltaE00 0.0054, max 35.1464, 346 px above 1
+  color (screen gate): mean deltaE00 0.0027, max 35.1464, 142 px above 1
+  ssim: full 0.997538, masked 0.999285
+  heatmap: /Users/stone/Code/rust/tTerm-W0-04/target/parity/report/heatmaps/example.button-input.default.png
+  failure: example.button: width moved by 2.25 px, allowed 2.00
+  failure: example.button: padding right 16 -> 17 (difference 1.0000, allowed 0.01)
+  failure: example.button: padding left 16 -> 17 (difference 1.0000, allowed 0.01)
+  failure: screen colour gate: 142 pixel(s) above CIEDE2000 1 outside text and element edges (allowed 0)
+
+1 screen(s): 0 passed, 1 failed
+report: /Users/stone/Code/rust/tTerm-W0-04/target/parity/report/index.html
+result: /Users/stone/Code/rust/tTerm-W0-04/target/parity/report/result.json
+EXIT=1

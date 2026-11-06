@@ -1,14 +1,16 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "reference": {
-    "frontendCommit": "4cbc0677dc2b9c5f63810ca207306b73606e893d"
+    "frontendCommit": "ab0a947451d32d622d6f256dd1c3b5c0f2f9c466",
+    "dirty": false
   },
   "thresholds": {
     "fixedPx": 1.0,
     "textPx": 2.0,
     "textFraction": 0.02,
     "maskedSsim": 0.99,
-    "fullSsim": 0.97
+    "fullSsim": 0.97,
+    "screenColorPixels": 0
   },
   "screens": [
     {
@@ -44,13 +46,18 @@
         "maxDeltaE": 2.6153,
         "pixelsAboveOne": 52
       },
+      "screenColors": {
+        "meanDeltaE": 0.0,
+        "maxDeltaE": 0.0,
+        "pixelsAboveOne": 0
+      },
       "ssim": {
         "full": 0.998504,
         "masked": 1.0
       },
       "heatmap": "heatmaps/example.button-input.default.png",
       "images": {
-        "reference": "../reference/4cbc0677dc2b9c5f63810ca207306b73606e893d/example.button-input.default.png",
+        "reference": "../reference/ab0a947451d32d622d6f256dd1c3b5c0f2f9c466/example.button-input.default.png",
         "actual": "../actual/example.button-input.default.png"
       },
       "failures": []

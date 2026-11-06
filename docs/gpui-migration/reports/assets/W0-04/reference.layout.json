@@ -1,20 +1,20 @@
 {
-  "version": 1,
+  "version": 2,
   "screen": "example.button-input.default",
   "viewport": {
     "width": 800,
     "height": 600,
-    "deviceScaleFactor": 2
+    "deviceScaleFactor": 2.0
   },
   "elements": [
     {
       "id": "example.screen",
       "sizing": "fixed",
       "bounds": {
-        "x": 0,
-        "y": 0,
-        "width": 800,
-        "height": 600
+        "x": 0.0,
+        "y": 0.0,
+        "width": 800.0,
+        "height": 600.0
       },
       "style": {
         "backgroundColor": [
@@ -29,12 +29,12 @@
           61,
           255
         ],
-        "borderWidth": 0,
-        "borderRadius": 0,
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
         "fontFamily": "system-ui",
-        "fontSize": 13,
+        "fontSize": 13.0,
         "fontWeight": 400,
-        "lineHeight": 18.200001,
+        "lineHeight": 18.2,
         "color": [
           204,
           204,
@@ -42,28 +42,40 @@
           255
         ],
         "padding": {
-          "top": 32,
-          "right": 32,
-          "bottom": 32,
-          "left": 32
-        }
+          "top": 32.0,
+          "right": 32.0,
+          "bottom": 32.0,
+          "left": 32.0
+        },
+        "declaredBackgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
       }
     },
     {
       "id": "example.input",
       "sizing": "fixed",
       "bounds": {
-        "x": 32,
-        "y": 64,
-        "width": 288,
-        "height": 36
+        "x": 32.0,
+        "y": 64.0,
+        "width": 288.0,
+        "height": 36.0
       },
       "style": {
         "backgroundColor": [
-          0,
-          0,
-          0,
-          0
+          27,
+          29,
+          35,
+          255
         ],
         "borderColor": [
           61,
@@ -71,12 +83,12 @@
           61,
           255
         ],
-        "borderWidth": 1,
-        "borderRadius": 4,
+        "borderWidth": 1.0,
+        "borderRadius": 4.0,
         "fontFamily": "system-ui",
-        "fontSize": 14,
+        "fontSize": 14.0,
         "fontWeight": 400,
-        "lineHeight": 16,
+        "lineHeight": 16.0,
         "color": [
           204,
           204,
@@ -84,21 +96,33 @@
           255
         ],
         "padding": {
-          "top": 4,
-          "right": 12,
-          "bottom": 4,
-          "left": 12
-        }
+          "top": 4.0,
+          "right": 12.0,
+          "bottom": 4.0,
+          "left": 12.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
       }
     },
     {
       "id": "example.button",
       "sizing": "text",
       "bounds": {
-        "x": 328,
-        "y": 64,
+        "x": 328.0,
+        "y": 64.0,
         "width": 63.75,
-        "height": 36
+        "height": 36.0
       },
       "style": {
         "backgroundColor": [
@@ -113,12 +137,12 @@
           61,
           255
         ],
-        "borderWidth": 0,
-        "borderRadius": 4,
+        "borderWidth": 0.0,
+        "borderRadius": 4.0,
         "fontFamily": "system-ui",
-        "fontSize": 14,
+        "fontSize": 14.0,
         "fontWeight": 500,
-        "lineHeight": 16,
+        "lineHeight": 16.0,
         "color": [
           255,
           255,
@@ -126,35 +150,44 @@
           255
         ],
         "padding": {
-          "top": 8,
-          "right": 16,
-          "bottom": 8,
-          "left": 16
-        }
+          "top": 8.0,
+          "right": 16.0,
+          "bottom": 8.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
       }
     }
   ],
   "textRegions": [
     {
-      "x": 32,
-      "y": 31,
+      "x": 32.0,
+      "y": 31.0,
       "width": 80.56,
-      "height": 17
+      "height": 17.0
     },
     {
-      "x": 45,
-      "y": 69,
-      "width": 262,
-      "height": 26
+      "x": 45.0,
+      "y": 69.0,
+      "width": 262.0,
+      "height": 26.0
     },
     {
-      "x": 344,
-      "y": 73,
+      "x": 344.0,
+      "y": 73.0,
       "width": 31.74,
-      "height": 17
+      "height": 17.0
     }
-  ],
-  "invokedCommands": [
-    "list_profiles"
   ]
 }
