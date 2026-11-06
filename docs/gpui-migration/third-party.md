@@ -10,5 +10,11 @@
 
 | 本仓库路径 | 来源仓库 | 来源提交 | 来源路径 | 许可证 | 改动说明 |
 | ---------- | -------- | -------- | -------- | ------ | -------- |
+| `crates/tterm-terminal-view/src/input/keyboard.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/keyboard.rs` | Apache-2.0 | 把 winit 的 `KeyEvent` 改写为 GPUI 的 `Keystroke`；把 Alacritty 配置项改成 `EncoderConfig` 参数；补入默认绑定里的应用光标键、F1–F4、Shift+Tab、Backspace、小键盘 Enter，以及 xterm 的应用小键盘序列；Vi、搜索、提示与快捷键动作不移植。协议字节不变。 |
+| `crates/tterm-terminal-view/src/input/keyboard/named.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/keyboard.rs` | Apache-2.0 | 从同一文件拆出的命名键表与 Kitty 码；只改输入类型。 |
+| `crates/tterm-terminal-view/src/input/keyboard/sequence.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/keyboard.rs` | Apache-2.0 | 从同一文件拆出的 `build_sequence` 与修饰键编码；只改输入类型。 |
 
-目前尚未导入任何第三方代码，P0-09 起在本表登记。
+登记细节：
+
+- Alacritty 在该提交没有 `NOTICE` 文件；仓库中的 `LICENSE-APACHE` 与 `LICENSE-MIT` 是许可文本，复制进来的文件仍按 Apache-2.0 使用，发行包附全文的要求见 P4-25、P5-02。
+- 测试文件（`*/tests.rs`）是由本卡按行为新写的，不复制 Alacritty 的测试代码，因此不登记；每个期望值在测试里注明依据。

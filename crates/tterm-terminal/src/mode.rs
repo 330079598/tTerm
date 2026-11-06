@@ -71,6 +71,14 @@ impl Modes {
         self.0 & other.0 == other.0
     }
 
+    /// The union of two mode sets.
+    ///
+    /// The view combines the flag groups it asks about, such as the Kitty
+    /// protocol modes, without naming each one at every call site.
+    pub const fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+
     /// Whether any flag of `other` is set in `self`.
     ///
     /// Views use it to ask "is mouse reporting on at all" against
