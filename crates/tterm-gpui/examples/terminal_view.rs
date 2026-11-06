@@ -20,6 +20,7 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use gpui_kit::prelude::*;
 use gpui_kit::{
@@ -97,9 +98,10 @@ fn main() {
             println!("terminal_view: wrote {path}");
         }
         (Some("--metrics"), None) => print_metrics(),
+        (Some("--idle-check"), None) => run_idle_check(),
         (None, None) => run_window(),
         _ => {
-            eprintln!("usage: terminal_view [--screenshot <path> | --metrics]");
+            eprintln!("usage: terminal_view [--screenshot <path> | --metrics | --idle-check]");
             std::process::exit(2);
         }
     }
@@ -290,6 +292,70 @@ impl Demo {
             _reader: Some(reader_thread),
         })
     }
+}
+
+/// A real window with an empty terminal and no focus. After ten seconds it
+/// prints the frame count and quits; a non-zero increase means something in
+/// the element schedules frames while idle.
+struct IdleProbe {
+    view: Entity<TerminalView>,
+}
+
+impl IdleProbe {
+    fn new(cx: &mut Context<Self>) -> Self {
+        let view =
+            cx.new(|cx| TerminalView::new(cx, new_terminal(), TerminalViewConfig::default()));
+        let probe = Self { view };
+        cx.spawn(async move |weak, cx| {
+            // Let the first window frames settle, then measure the next 9
+            // seconds. A visible, unfocused, unchanged terminal must add no
+            // frames at all.
+            cx.background_executor().timer(Duration::from_secs(1)).await;
+            let start = weak
+                .update(cx, |probe, cx| probe.view.read(cx).stats().frames)
+                .unwrap_or(0);
+            cx.background_executor().timer(Duration::from_secs(9)).await;
+            let _ = weak.update(cx, |probe, cx| {
+                let stats = probe.view.read(cx).stats();
+                println!(
+                    "idle_check: start_frames={start} end_frames={} delta={} redraw_requests={} blink_toggles={} output_notifications={}",
+                    stats.frames,
+                    stats.frames.saturating_sub(start),
+                    stats.redraw_requests,
+                    stats.blink_toggles,
+                    stats.output_notifications
+                );
+            });
+            cx.update(|app| app.quit());
+        })
+        .detach();
+        probe
+    }
+}
+
+impl Render for IdleProbe {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        div().size_full().child(self.view.clone())
+    }
+}
+
+fn run_idle_check() {
+    gpui_kit::application().run(|cx: &mut App| {
+        gpui_kit::init(cx);
+        let options = WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(Bounds {
+                origin: point(px(120.0), px(120.0)),
+                size: size(px(1200.0), px(800.0)),
+            })),
+            focus: false,
+            show: true,
+            ..WindowOptions::default()
+        };
+        if let Err(error) = gpui_kit::open_window(options, cx, |_, cx| cx.new(IdleProbe::new)) {
+            eprintln!("terminal_view: {error}");
+            cx.quit();
+        }
+    });
 }
 
 fn screenshot(path: &Path) -> Result<(), String> {
