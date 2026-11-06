@@ -27,7 +27,11 @@ impl Modes {
     pub const BRACKETED_PASTE: Self = Self(1 << 4);
     /// Mouse reports use the SGR encoding (mode 1006).
     pub const SGR_MOUSE: Self = Self(1 << 5);
-    /// The program wants motion reports while a button is held (mode 1002).
+    /// The program wants every pointer motion reported (mode 1003).
+    ///
+    /// The name is Alacritty's bit name, not the protocol's mode name: its
+    /// `ReportAllMouseMotion` arm sets this bit, and `input/mod.rs` uses it
+    /// for the no-button hover report.
     pub const MOUSE_MOTION: Self = Self(1 << 6);
     /// A character at the last column wraps to the next line (DECAWM).
     pub const LINE_WRAP: Self = Self(1 << 7);
@@ -41,8 +45,10 @@ impl Modes {
     pub const FOCUS_IN_OUT: Self = Self(1 << 11);
     /// The alternate screen is active (mode 1049 and relatives).
     pub const ALT_SCREEN: Self = Self(1 << 12);
-    /// The program wants motion reports while a button is held and dragged
-    /// (mode 1003).
+    /// The program wants motion reports while a button is held (mode 1002).
+    ///
+    /// Alacritty's `ReportCellMouseMotion` sets this bit; the mouse encoder
+    /// reports drag codes only when it is present.
     pub const MOUSE_DRAG: Self = Self(1 << 13);
     /// Mouse coordinates are encoded as UTF-8 (mode 1005).
     pub const UTF8_MOUSE: Self = Self(1 << 14);

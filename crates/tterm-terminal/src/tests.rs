@@ -97,6 +97,31 @@ fn first_frame_contains_the_visible_grid_and_its_defaults() {
 }
 
 #[test]
+fn mode_sets_combine_for_groups() {
+    let combined = Modes::APP_CURSOR.union(Modes::APP_KEYPAD);
+    assert!(combined.contains(Modes::APP_CURSOR));
+    assert!(combined.contains(Modes::APP_KEYPAD));
+    assert_eq!(
+        combined.bits(),
+        Modes::APP_CURSOR.bits() | Modes::APP_KEYPAD.bits()
+    );
+}
+
+#[test]
+fn mouse_motion_modes_map_to_alacritty_flags() {
+    let terminal = terminal(20, 5, 0);
+    terminal.write(b"\x1b[?1002h");
+    let frame = terminal.snapshot();
+    assert!(frame.modes().contains(Modes::MOUSE_DRAG));
+    assert!(!frame.modes().contains(Modes::MOUSE_MOTION));
+
+    terminal.write(b"\x1b[?1003h");
+    let frame = terminal.snapshot();
+    assert!(frame.modes().contains(Modes::MOUSE_MOTION));
+    assert!(!frame.modes().contains(Modes::MOUSE_DRAG));
+}
+
+#[test]
 fn writes_text_and_places_the_cursor() {
     let terminal = terminal(20, 5, 0);
     terminal.write(b"hello");
