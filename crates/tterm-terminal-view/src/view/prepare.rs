@@ -81,11 +81,6 @@ impl TerminalView {
             self.build_frame(grid, metrics, &text_system)
         };
 
-        let show_cursor = if data.snapshot.cursor().blinking && self.blink.running {
-            self.blink.on
-        } else {
-            true
-        };
         let cursor = cursor_for(&data.snapshot, focused);
         let should_blink = self.visible
             && BlinkState::should_run(
@@ -96,6 +91,13 @@ impl TerminalView {
                 data.snapshot.cursor().blinking,
             );
         self.update_blink(should_blink, cx);
+        // Read the phase after the timer state is settled, so the frame that
+        // loses focus shows the cursor instead of inheriting a hidden phase.
+        let show_cursor = if data.snapshot.cursor().blinking && self.blink.running {
+            self.blink.on
+        } else {
+            true
+        };
 
         let origin = grid_origin(
             bounds,
