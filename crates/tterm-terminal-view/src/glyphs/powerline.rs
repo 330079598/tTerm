@@ -39,24 +39,32 @@ pub fn powerline(character: char, metrics: CellMetrics) -> Option<BuiltinGlyph> 
 
     let mut geometry = Geometry::new(width, height);
     let arrow = matches!(character, '\u{e0b1}' | '\u{e0b3}');
+    // The row loop is written in whole rows; stretch it to the measured
+    // width so the tip reaches the cell edge at any aspect ratio.
+    let x_scale = if x_intersection > 0.0 {
+        width / x_intersection
+    } else {
+        1.0
+    };
     let mut x = 0.0;
     while x < x_intersection {
         let y_top = x + top_y;
         let y_bottom = bottom_y - x;
+        let x0 = x * x_scale;
+        let x1 = (x + 1.0) * x_scale;
         if !arrow {
-            geometry.rect(0.0, y_top, x + 1.0, scale);
-            geometry.rect(0.0, y_bottom, x + 1.0, scale);
+            geometry.rect(0.0, y_top, x1, scale);
+            geometry.rect(0.0, y_bottom, x1, scale);
         } else {
             let inner_top = (y_top + extra_thickness).min(y_bottom);
             let inner_bottom = (y_bottom - extra_thickness).max(y_top);
-            if x + 1.0 >= width {
-                // Cut the tip with a rectangle when the cell is too narrow
-                // for the full arrow.
-                geometry.rect(x, y_top, 1.0, y_bottom - y_top + scale);
+            if x1 >= width - 0.001 {
+                // The last strip closes the arrow's point.
+                geometry.rect(x0, y_top, width - x0, y_bottom - y_top + scale);
                 break;
             }
-            geometry.rect(0.0, y_top, 1.0, inner_top - y_top + scale);
-            geometry.rect(x, inner_bottom, 1.0, y_bottom - inner_bottom + scale);
+            geometry.rect(x0, y_top, x_scale, inner_top - y_top + scale);
+            geometry.rect(x0, inner_bottom, x_scale, y_bottom - inner_bottom + scale);
         }
         x += 1.0;
     }
