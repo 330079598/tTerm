@@ -59,6 +59,9 @@ describe("terminal palette defaults", () => {
 
   it("derives the same palette as the Rust side", () => {
     const palette = generateTerminalPaletteFromColors(PRESET_THEMES[0].colors)
+    expect(palette.selectionBackground).toBe("hsl(207 100% 40% / 0.24)")
+    expect(palette.cursorAccent).toBeUndefined()
+    expect(palette.selectionForeground).toBeUndefined()
     expect(
       Object.fromEntries(Object.entries(palette).map(([key, value]) => [key, colorToHex(value)]))
     ).toEqual({
