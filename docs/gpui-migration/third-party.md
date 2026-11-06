@@ -17,6 +17,11 @@
 | `crates/tterm-terminal-view/src/input/click.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/mod.rs`、`alacritty/src/event.rs` | Apache-2.0 | `on_mouse_press`、`on_left_click` 与 `ClickState` 的点击计数和选词/选行规则；只产出 P0-09 的 `SelectionKind`。 |
 | `crates/tterm-terminal-view/src/input/wheel.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/mod.rs` | Apache-2.0 | `scroll_terminal` 的上报、备用屏幕方向键与本地滚动顺序；像素累计与倍率留给视图。 |
 | `crates/tterm-terminal-view/src/input/focus.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/mod.rs` | Apache-2.0 | `on_focus_change` 的 `CSI I` / `CSI O`；改成返回字节。 |
+| `crates/tterm-terminal-view/src/glyphs/mod.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/renderer/text/builtin_font.rs` | Apache-2.0 | 把光栅位图换成单元格内的矩形与多边形；字符覆盖范围与填充色语义沿用 Alacritty。 |
+| `crates/tterm-terminal-view/src/glyphs/geometry.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/renderer/text/builtin_font.rs` | Apache-2.0 | `Canvas` 的线宽、线段边界、圆弧与裁剪改写成矢量几何。 |
+| `crates/tterm-terminal-view/src/glyphs/lines.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/renderer/text/builtin_font.rs` | Apache-2.0 | 方框字符的四个笔画表、虚线、双线、圆弧与对角线；圆弧半径按矢量需要缩小，见报告“偏差”。 |
+| `crates/tterm-terminal-view/src/glyphs/blocks.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/renderer/text/builtin_font.rs` | Apache-2.0 | 块元素、八分块、象限、六分块与阴影灰度；六分块表由 Alacritty 的六个 match 生成。 |
+| `crates/tterm-terminal-view/src/glyphs/powerline.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/renderer/text/builtin_font.rs` | Apache-2.0 | Powerline 三角形与箭头的逐行绘制，改为矩形并按单元格高度缩放。 |
 
 登记细节：
 
