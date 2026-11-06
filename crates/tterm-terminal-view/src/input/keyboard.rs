@@ -334,10 +334,14 @@ fn encode_binding(
     }
 
     if !reports_all && let Key::Named(NamedKey::Backspace) = key {
-        if modifiers.is_empty() || modifiers == SequenceModifiers::SHIFT {
+        // Only the binding without modifiers applies in DISAMBIGUATE mode.
+        if modifiers.is_empty() {
             return Some(b"\x7f".to_vec());
         }
-        if modifiers == SequenceModifiers::ALT {
+        if !disambiguates && modifiers == SequenceModifiers::SHIFT {
+            return Some(b"\x7f".to_vec());
+        }
+        if !disambiguates && modifiers == SequenceModifiers::ALT {
             // The binding sends ESC DEL even when Option normally composes,
             // because the binding runs before the text path.
             return Some(b"\x1b\x7f".to_vec());

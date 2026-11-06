@@ -392,8 +392,22 @@ fn kitty_disambiguation() {
         true,
         b"\x1b[13;2u",
     );
-    // The Backspace binding is not excluded by DISAMBIGUATE in Alacritty.
+    // The Backspace binding without modifiers is the only one that does not
+    // exclude DISAMBIGUATE; the Shift and Alt bindings do, so those modified
+    // keys are encoded by the Kitty protocol.
     assert_bytes(&stroke("backspace"), disambiguate, true, b"\x7f");
+    assert_bytes(
+        &modified("backspace", None, shift()),
+        disambiguate,
+        true,
+        b"\x1b[127;2u",
+    );
+    assert_bytes(
+        &modified("backspace", None, alt()),
+        disambiguate,
+        true,
+        b"\x1b[127;3u",
+    );
     // try_build_named_kitty: F3 uses 13~ in the Kitty protocol.
     assert_bytes(&stroke("f3"), disambiguate, true, b"\x1b[13~");
     // F1 has no Kitty entry, so the normal builder leaves out parameter 1.
