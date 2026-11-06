@@ -222,14 +222,22 @@ fn quadrants_and_sextants_meet_without_gaps() {
 }
 
 #[test]
-fn shades_use_the_alacritty_gray_values() {
-    let cases = [('░', 64), ('▒', 128), ('▓', 192), ('█', 255)];
-    for (character, gray) in cases {
-        let glyph = glyph(character, SIZES[0]);
-        assert_eq!(glyph.fill(), GlyphFill::Gray(gray));
-        assert!(covers(&glyph, 1.0, 1.0));
+fn shades_use_the_alacritty_coverage_steps() {
+    // Alacritty's `builtin_font.rs` calls 64, 128 and 192 the fill alpha
+    // steps. A shade enters the atlas as `BitmapBuffer::Rgb` with
+    // `multicolor` off (renderer/text/atlas.rs), and `res/glsl3/text.f.glsl`
+    // multiplies that mask into the foreground color's alpha, so the number
+    // is coverage of the foreground color, not a gray: ░ is 64/255, ▒ is
+    // 128/255 and ▓ is 192/255 opacity, and █ is the foreground color itself.
+    for (character, coverage) in [('░', 64), ('▒', 128), ('▓', 192)] {
+        let shade = glyph(character, SIZES[0]);
+        assert_eq!(shade.fill(), GlyphFill::ForegroundAlpha(coverage));
+        assert!(covers(&shade, 1.0, 1.0));
     }
-    // Everything else uses the foreground color.
+    let full = glyph('█', SIZES[0]);
+    assert_eq!(full.fill(), GlyphFill::Foreground);
+    assert!(covers(&full, 1.0, 1.0));
+    // Everything else uses the foreground color too.
     assert_eq!(glyph('─', SIZES[0]).fill(), GlyphFill::Foreground);
 }
 

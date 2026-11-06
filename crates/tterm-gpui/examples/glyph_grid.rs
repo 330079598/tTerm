@@ -87,12 +87,19 @@ fn paint(bounds: Bounds<Pixels>, window: &mut Window) {
         let Some(glyph) = builtin_glyph(*character, CellMetrics::new(CELL, CELL)) else {
             continue;
         };
+        // Alacritty's shade steps are coverage, so a shade is the foreground
+        // color at value/255 opacity rather than a gray of its own.
         let color = match glyph.fill() {
-            GlyphFill::Foreground => rgb(0xe6edf3),
-            GlyphFill::Gray(gray) => rgb(u32::from(gray) * 0x010101),
+            GlyphFill::Foreground => foreground(),
+            GlyphFill::ForegroundAlpha(coverage) => foreground().alpha(f32::from(coverage) / 255.0),
         };
         paint_glyph(window, cell_origin(origin, index), &glyph, color);
     }
+}
+
+/// The grid's foreground color.
+fn foreground() -> Rgba {
+    rgb(0xe6edf3)
 }
 
 /// The top-left corner of one cell in the grid.

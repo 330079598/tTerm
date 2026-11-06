@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Changes: the pixel canvas becomes rectangles; the block fractions,
-// quadrant and sextant masks and shade values are Alacritty's.
+// quadrant and sextant masks and shade coverages are Alacritty's.
 
 //! Block elements, U+2580 through U+259F, and the legacy computing blocks
 //! U+1FB00 through U+1FB3B and U+1FB82 through U+1FB8B.
@@ -86,18 +86,20 @@ fn fraction_block(character: char, metrics: CellMetrics) -> BuiltinGlyph {
     super::foreground(geometry)
 }
 
-/// Fills the cell with one of the four shade values.
+/// Fills the cell with one of the four shade coverages.
 fn shade(character: char, metrics: CellMetrics) -> BuiltinGlyph {
-    let gray = match character {
-        '\u{2588}' => 255,
-        '\u{2591}' => 64,
-        '\u{2592}' => 128,
-        '\u{2593}' => 192,
-        _ => 255,
-    };
     let mut geometry = Geometry::new(metrics.width, metrics.height);
     geometry.rect(0.0, 0.0, metrics.width, metrics.height);
-    BuiltinGlyph::new(geometry.finish(), GlyphFill::Gray(gray))
+    // Alacritty's 64, 128 and 192 are coverage steps, so each shade is the
+    // foreground color at that share of its alpha; █ covers the cell and is
+    // the plain foreground color.
+    let fill = match character {
+        '\u{2591}' => GlyphFill::ForegroundAlpha(64),
+        '\u{2592}' => GlyphFill::ForegroundAlpha(128),
+        '\u{2593}' => GlyphFill::ForegroundAlpha(192),
+        _ => GlyphFill::Foreground,
+    };
+    BuiltinGlyph::new(geometry.finish(), fill)
 }
 
 /// Draws the quadrants U+2596 through U+259F.

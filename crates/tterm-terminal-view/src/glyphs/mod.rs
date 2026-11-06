@@ -22,8 +22,7 @@
 //! Coordinates are cell-local device pixels with the origin at the cell's
 //! top-left corner, so the view adds the cell origin and passes the shapes
 //! to `Window::paint_quad` or a fill-only `PathBuilder`. [`GlyphFill`] says
-//! whether the shapes use the cell's foreground color or one of Alacritty's
-//! fixed shade grays.
+//! at what coverage the cell's foreground color paints the shapes.
 
 mod blocks;
 mod geometry;
@@ -89,12 +88,18 @@ pub enum GlyphShape {
 /// The color a built-in glyph is filled with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GlyphFill {
-    /// Draw with the cell's foreground color.
+    /// Draw with the cell's foreground color at full coverage.
     Foreground,
-    /// Draw with Alacritty's fixed gray for a shade, from 0 to 255.
+    /// Draw with the cell's foreground color at a coverage, from 0 to 255.
     ///
-    /// The values are 64 for `░`, 128 for `▒`, 192 for `▓` and 255 for `█`.
-    Gray(u8),
+    /// Alacritty's `builtin_font.rs` names the values 64, 128 and 192 the
+    /// fill alpha steps, and a shade reaches its atlas as an RGB mask with
+    /// `multicolor` off, so `text.f.glsl` folds the mask into the foreground
+    /// color's alpha. The number is therefore coverage, not a color: the
+    /// shade is the foreground color at `value / 255` opacity. The steps are
+    /// 64 for `░`, 128 for `▒` and 192 for `▓`; `█` fills the cell and uses
+    /// [`GlyphFill::Foreground`].
+    ForegroundAlpha(u8),
 }
 
 /// A built-in glyph in cell-local pixels.
