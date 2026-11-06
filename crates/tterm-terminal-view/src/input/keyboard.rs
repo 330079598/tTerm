@@ -86,6 +86,10 @@ pub struct EncoderConfig {
     /// `false`; on the other platforms its `alt_send_esc` is always true, so
     /// the default is `true`. Callers that expose a setting set it through
     /// [`EncoderConfig::macos`] or by assigning the field.
+    ///
+    /// The flag only applies to keys that carry text. Alacritty always treats
+    /// Alt as a modifier for a named key without text, such as an arrow or a
+    /// function key, because such a key cannot be composed.
     pub alt_sends_escape: bool,
 }
 
@@ -197,7 +201,7 @@ pub fn encode(press: &KeyPress<'_>, modes: Modes, config: EncoderConfig) -> Opti
         return Some(bytes);
     }
 
-    let alt_sends_escape = config.alt_sends_escape && modifiers.contains(SequenceModifiers::ALT);
+    let alt_sends_escape = sends_alt_escape(&key, &text, modifiers, config);
     let input_modifiers = if alt_sends_escape {
         modifiers
     } else {
@@ -252,7 +256,7 @@ fn encode_release(
         return None;
     }
 
-    let alt_sends_escape = config.alt_sends_escape && modifiers.contains(SequenceModifiers::ALT);
+    let alt_sends_escape = sends_alt_escape(key, text, modifiers, config);
     let input_modifiers = if alt_sends_escape {
         modifiers
     } else {
@@ -397,6 +401,29 @@ fn effective_modifiers(press: &KeyPress<'_>) -> SequenceModifiers {
         modifiers.set(SequenceModifiers::SHIFT, shift);
     }
     modifiers
+}
+
+/// Whether Alt is a Meta prefix for this key, as Alacritty's `alt_send_esc`
+/// decides.
+///
+/// A named key without text is a functional key such as an arrow or F5, and
+/// Alacritty treats Alt as a modifier for it whatever the Option policy is,
+/// so Option+Up keeps the Alt bit even where Option normally composes. A
+/// named key with text follows the policy, and a character key needs the
+/// policy plus exactly one character of text.
+fn sends_alt_escape(
+    key: &Key<'_>,
+    text: &str,
+    modifiers: SequenceModifiers,
+    config: EncoderConfig,
+) -> bool {
+    if !modifiers.contains(SequenceModifiers::ALT) {
+        return false;
+    }
+    match key {
+        Key::Named(named) => named.text().is_none() || config.alt_sends_escape,
+        Key::Character(_) => config.alt_sends_escape && text.chars().count() == 1,
+    }
 }
 
 /// The text a key produces outside the escape-sequence builder.

@@ -204,6 +204,9 @@ fn application_cursor_mode() {
     assert_bytes(&stroke("end"), app, true, b"\x1bOF");
     // A modifier stops the binding from matching and build_sequence wins.
     assert_bytes(&modified("up", None, shift()), app, true, b"\x1b[1;2A");
+    // Alt keeps the modifier even with option_as_alt off, so the binding
+    // does not match and the modified sequence wins.
+    assert_bytes(&modified("up", None, alt()), app, false, b"\x1b[1;3A");
     // The binding has no ~REPORT_ALL_KEYS_AS_ESC and no
     // ~DISAMBIGUATE_ESC_CODES, so it still wins in those modes, as in
     // Alacritty.
@@ -320,6 +323,55 @@ fn alt_is_meta_or_composed() {
         Modes::REPORT_ALL_KEYS_AS_ESC,
         true,
         b"\x1b[115;9u",
+    );
+}
+
+#[test]
+fn alt_is_always_a_modifier_for_functional_keys() {
+    // Alacritty's alt_send_esc: a named key without text keeps Alt whatever
+    // the Option policy is, because it cannot be composed. With
+    // option_as_alt off, Option+Up must still move by word in a shell.
+    let normal = Modes::NONE;
+    assert_bytes(&modified("up", None, alt()), normal, false, b"\x1b[1;3A");
+    assert_bytes(&modified("down", None, alt()), normal, false, b"\x1b[1;3B");
+    assert_bytes(&modified("left", None, alt()), normal, false, b"\x1b[1;3D");
+    assert_bytes(&modified("right", None, alt()), normal, false, b"\x1b[1;3C");
+    assert_bytes(&modified("home", None, alt()), normal, false, b"\x1b[1;3H");
+    assert_bytes(&modified("end", None, alt()), normal, false, b"\x1b[1;3F");
+    assert_bytes(
+        &modified("pageup", None, alt()),
+        normal,
+        false,
+        b"\x1b[5;3~",
+    );
+    assert_bytes(
+        &modified("pagedown", None, alt()),
+        normal,
+        false,
+        b"\x1b[6;3~",
+    );
+    assert_bytes(&modified("f5", None, alt()), normal, false, b"\x1b[15;3~");
+    // A named key with text follows the policy instead.
+    assert_bytes(&modified("enter", Some("\n"), alt()), normal, false, b"\r");
+    // A character key needs the policy and exactly one character of text.
+    assert_bytes(&modified("ab", Some("ab"), alt()), normal, true, b"ab");
+    // The release path applies the same rule, so an event-type report keeps
+    // the Alt bit too.
+    let up = modified("up", None, alt());
+    let release = KeyPress {
+        state: KeyState::Released,
+        ..KeyPress::new(&up)
+    };
+    assert_eq!(
+        encode(
+            &release,
+            Modes::REPORT_EVENT_TYPES,
+            EncoderConfig {
+                alt_sends_escape: false
+            }
+        )
+        .as_deref(),
+        Some(b"\x1b[1;3:3A".as_slice())
     );
 }
 
