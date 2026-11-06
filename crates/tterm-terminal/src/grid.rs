@@ -17,7 +17,9 @@ use alacritty_terminal::index::{Column, Line, Point as AnsiPoint};
 ///
 /// The dimensions are bounded because a transient zero from a window layout
 /// must not panic a session: Alacritty indexes the last column and divides by
-/// the line count. The constructor clamps instead of trusting the caller.
+/// the line count. The constructor clamps instead of trusting the caller, and
+/// because the fields are public, [`crate::terminal::Terminal`] clamps again
+/// with [`GridSize::clamped`] before a size reaches Alacritty.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct GridSize {
     /// Number of columns.
@@ -33,7 +35,7 @@ impl GridSize {
     /// Alacritty draws some emoji incorrectly in a one-column grid. The model
     /// enforces the same floor because Alacritty 0.26.0's reflow did not
     /// finish when the P0-09 crash test resized a terminal with wide
-    /// characters in its history to one column (report P0-09, deviation 4).
+    /// characters in its history to one column (report P0-09, deviation 1).
     /// Clamping here makes that freeze unreachable for every caller.
     pub const MIN_COLUMNS: usize = 2;
 
@@ -48,6 +50,12 @@ impl GridSize {
             },
             screen_lines: if screen_lines == 0 { 1 } else { screen_lines },
         }
+    }
+
+    /// The same size with the floors of [`GridSize::new`] applied, for a value
+    /// that may have been built from its public fields directly.
+    pub const fn clamped(self) -> Self {
+        Self::new(self.columns, self.screen_lines)
     }
 }
 

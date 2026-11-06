@@ -180,7 +180,7 @@ impl Terminal {
         let collector = Collector {
             intents: Arc::clone(&intents),
         };
-        let term = Term::new(config.to_alacritty(), &grid, collector);
+        let term = Term::new(config.to_alacritty(), &grid.clamped(), collector);
         let state = State {
             term,
             parser: Processor::new(),
@@ -219,10 +219,13 @@ impl Terminal {
     }
 
     /// Resizes the grid and remembers the cell size the view measured.
+    ///
+    /// The size is clamped like [`Terminal::new`] does, so a one-column or
+    /// zero-row size built from the public fields cannot reach Alacritty.
     pub fn resize(&self, grid: GridSize, cell_size: CellSize) {
         let mut state = self.state.lock();
         state.cell_size = cell_size;
-        state.term.resize(grid);
+        state.term.resize(grid.clamped());
     }
 
     /// Changes the scrollback capacity.

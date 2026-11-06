@@ -2,8 +2,9 @@
 //!
 //! Alacritty tracks damage per screen row, but only in-place updates use it:
 //! every time the scroll region scrolls — each newline once output reaches the
-//! bottom — the whole screen is marked damaged, and so is every frame while
-//! the viewport is scrolled back (design note 4.3). A `Full` damage therefore
+//! bottom — the whole screen is marked damaged, and so is every change of the
+//! display offset, including the one that keeps a scrolled-back viewport on
+//! the same history when output arrives (design note 4.3). A `Full` damage therefore
 //! says "copy and draw everything"; per-row damage only saves work for output
 //! that rewrites the screen in place, such as a prompt, vim or a progress bar.
 //!

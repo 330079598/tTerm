@@ -553,6 +553,33 @@ fn a_one_column_grid_is_raised_to_two() {
 }
 
 #[test]
+fn a_size_built_from_its_fields_is_clamped_too() {
+    // The fields of `GridSize` are public, so a view can build a one-column,
+    // zero-row size without `GridSize::new`. The model must clamp it anyway,
+    // on creation and on resize, before Alacritty sees it.
+    let narrow = GridSize {
+        columns: 1,
+        screen_lines: 0,
+    };
+    let terminal = Terminal::new(Config::default(), narrow, CELL);
+    terminal.write("中中中".as_bytes());
+    assert_eq!(terminal.snapshot().grid(), GridSize::new(2, 1));
+
+    terminal.resize(
+        GridSize {
+            columns: 20,
+            screen_lines: 4,
+        },
+        CELL,
+    );
+    terminal.write("中中中".as_bytes());
+    terminal.resize(narrow, CELL);
+    let frame = terminal.snapshot();
+    assert_eq!(frame.grid(), GridSize::new(2, 1));
+    assert_eq!(frame.cell_count(), 2);
+}
+
+#[test]
 fn the_bottom_line_flag_tracks_content_in_the_last_row() {
     let terminal = terminal(10, 3, 0);
     terminal.write(b"a");
