@@ -539,6 +539,17 @@ fn kitty_numpad_codes() {
 }
 
 #[test]
+fn non_ascii_key_names_are_text() {
+    // A key such as Option+F on macOS is a character, not the start of an
+    // "f<number>" function key; parsing must not slice inside the character.
+    let key = typed("ƒ", "ƒ");
+    assert_eq!(
+        pressed(&key, Modes::NONE, true).as_deref(),
+        Some("ƒ".as_bytes())
+    );
+}
+
+#[test]
 fn vi_mode_writes_nothing() {
     assert_eq!(pressed(&typed("a", "a"), Modes::VI, true), None);
     // The text would otherwise be encoded.

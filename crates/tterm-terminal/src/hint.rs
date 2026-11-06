@@ -128,7 +128,13 @@ impl GridText {
         let start_point = self.points.get(start).copied().flatten()?;
         let end_point = self.points.get(end - 1).copied().flatten()?;
         let start_byte = *self.offsets.get(start)?;
-        let end_byte = *self.offsets.get(end)?;
+        // `end` is exclusive; when the match ends at the last character of
+        // the frame there is no offsets[end], so use the string's end.
+        let end_byte = if end == self.offsets.len() {
+            self.text.len()
+        } else {
+            *self.offsets.get(end)?
+        };
         let text = self.text.get(start_byte..end_byte)?.to_string();
         Some(Hint {
             range: GridRange::new(start_point, end_point),

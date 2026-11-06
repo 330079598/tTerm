@@ -107,7 +107,7 @@ impl NamedKey {
             "audiovolumeup" => Self::AudioVolumeUp,
             "audiovolumemute" => Self::AudioVolumeMute,
             function if function.starts_with('f') => {
-                let number = function[1..].parse::<u8>().ok()?;
+                let number = function.strip_prefix('f')?.parse::<u8>().ok()?;
                 (1..=35)
                     .contains(&number)
                     .then_some(Self::Function(number))?

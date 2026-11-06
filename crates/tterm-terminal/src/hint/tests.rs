@@ -181,6 +181,19 @@ fn a_file_url_is_not_also_a_path() {
 }
 
 #[test]
+fn a_hint_that_ends_at_the_frame_edge_is_found() {
+    // Ten columns and one row: the URL fills the whole frame, so its
+    // exclusive end equals the number of characters and has no offsets
+    // entry of its own.
+    let url = hints("http://a.b", 10, 1);
+    assert_eq!(url.len(), 1);
+    assert_eq!(url[0].text, "http://a.b");
+    let path = hints("/usr/bin/x", 10, 1);
+    assert_eq!(path.len(), 1);
+    assert_eq!(path[0].kind, HintKind::Path);
+}
+
+#[test]
 fn hint_at_uses_grid_coordinates() {
     let frame = snapshot("hello https://example.com/x world", 80, 5);
     let inside = GridPoint::new(0, 8);
