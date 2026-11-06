@@ -68,9 +68,10 @@ pub enum WheelAction {
 
 /// Decides what a wheel movement does.
 ///
-/// `shift` is the escape hatch: with Shift held a program that owns the mouse
-/// does not get the wheel, and the viewport scrolls instead, which keeps text
-/// selection and history scrolling possible.
+/// A program that owns the mouse gets the wheel even with Shift held, as in
+/// Alacritty's `scroll_terminal`. Shift is the local escape only on the
+/// alternate screen, where it keeps the wheel scrolling history instead of
+/// sending arrow keys.
 pub fn wheel_action(modes: Modes, shift: bool, wheel: Wheel) -> WheelAction {
     if wheel.lines == 0 && wheel.columns == 0 {
         return WheelAction::None;
