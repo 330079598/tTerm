@@ -10984,6 +10984,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tterm-parity"
+version = "0.1.0"
+dependencies = [
+ "gpui-kit",
+ "image",
+ "serde",
+ "serde_json",
+ "tterm-ui",
+]
+
+[[package]]
 name = "tterm-platform"
 version = "0.1.0"
 

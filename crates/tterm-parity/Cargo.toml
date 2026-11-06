@@ -1,0 +1,24 @@
+[package]
+name = "tterm-parity"
+version = "0.1.0"
+edition = "2024"
+description = "The UI parity toolchain: render GPUI screens headlessly, compare them with the React reference and report the differences"
+license = "MIT"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+# The GPUI facade. `test-support` is what exposes HeadlessAppContext and the
+# headless renderer; it is a build feature, not a #[cfg(test)] switch, because
+# `tterm-parity compare` is a binary that renders outside cargo test.
+gpui-kit = { workspace = true, features = ["test-support"] }
+# The design tokens are the same ones the React stylesheet is generated from.
+tterm-ui = { path = "../tterm-ui" }
+# PNG decoding and encoding. 0.25.10 is already in the workspace lock through
+# gpui; only the PNG codec is enabled so the dependency does not widen image's
+# feature set for the rest of the workspace.
+image = { version = "=0.25.10", default-features = false, features = ["png"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
