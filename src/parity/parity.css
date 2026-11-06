@@ -1,0 +1,13 @@
+/* The reference capture uses the viewport as the window; there is no scrollbar
+   and no document margin, so the layout JSON's coordinates are window pixels. */
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+}

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "viewport": { "width": 800, "height": 600, "deviceScaleFactor": 2 },
+  "theme": "dark",
+  "uiScalePercent": 100,
+  "screens": [
+    {
+      "id": "example.button-input.default",
+      "title": "Example: one button and one input",
+      "fixture": "example.button-input.default.json"
+    }
+  ]
+}

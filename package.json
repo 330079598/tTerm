@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/gen-licenses.mjs && vite",
+    "dev:parity": "vite --mode parity",
     "build": "node scripts/gen-licenses.mjs && tsc && vite build",
     "test": "vitest run src",
     "preview": "vite preview",

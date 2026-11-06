@@ -1,0 +1,18 @@
+{
+  "screen": "example.button-input.default",
+  "commands": {
+    "list_profiles": [
+      {
+        "id": "6f0d4a9e-3f7c-4c1e-9a25-0f1d2c3b4a59",
+        "name": "prod-web-01",
+        "connection_type": "ssh",
+        "host": "web-01.example.com",
+        "port": 22,
+        "username": "deploy",
+        "remember_password": false,
+        "keepalive_interval_secs": 30,
+        "keepalive_count_max": 3
+      }
+    ]
+  }
+}

@@ -85,7 +85,7 @@ function xtermWebglAtlasPageVersionPlugin(): PluginOption {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig(async ({ mode }) => ({
   plugins: [
     tanstackRouter({
       target: "react",
@@ -106,28 +106,50 @@ export default defineConfig(async () => ({
   // 1. prevent vite from obscuring rust errors
   clearScreen: false,
   // 2. tauri expects a fixed port, fail if that port is not available
-  server: {
-    port: 1420,
-    strictPort: true,
-    host: host || false,
-    hmr: host
+  // The parity capture starts its own server on a free port, so `vite --mode
+  // parity` only needs a port that cannot collide with a running `tauri dev`.
+  server:
+    mode === "parity"
       ? {
-          protocol: "ws",
-          host,
-          port: 1421,
+          port: 1423,
+          strictPort: true,
+          host: "127.0.0.1",
         }
-      : undefined,
-    watch: {
-      // 3. tell vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
-    },
-  },
+      : {
+          port: 1420,
+          strictPort: true,
+          host: host || false,
+          hmr: host
+            ? {
+                protocol: "ws",
+                host,
+                port: 1421,
+              }
+            : undefined,
+          watch: {
+            // 3. tell vite to ignore watching `src-tauri`
+            ignored: ["**/src-tauri/**"],
+          },
+        },
   define: {
     "import.meta.env.PACKAGE_VERSION": JSON.stringify(packageJson.version),
   },
   resolve: {
     alias: {
       "@": "/src",
+      // Fixtures live outside src because W0-05 fills them independently of
+      // the components they feed.
+      "@fixtures": "/parity/fixtures",
+      "@manifest": "/parity/screens.json",
+      // Parity mode answers Tauri's IPC from fixtures instead of a running
+      // backend. The aliases are scoped to the mode so the real app and its
+      // tests keep the real modules.
+      ...(mode === "parity"
+        ? {
+            "@tauri-apps/api/core": resolve(rootDir, "src/parity/tauri/core.ts"),
+            "@tauri-apps/api/event": resolve(rootDir, "src/parity/tauri/event.ts"),
+          }
+        : {}),
     },
   },
   build: {

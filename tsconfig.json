@@ -21,7 +21,9 @@
     "noFallthroughCasesInSwitch": true,
 
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@fixtures/*": ["./parity/fixtures/*"],
+      "@manifest": ["./parity/screens.json"]
     }
   },
   "include": ["src"],
