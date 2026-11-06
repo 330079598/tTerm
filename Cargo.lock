@@ -10980,6 +10980,7 @@ name = "tterm-gpui"
 version = "0.1.0"
 dependencies = [
  "gpui-kit",
+ "tterm-terminal-view",
 ]
 
 [[package]]
