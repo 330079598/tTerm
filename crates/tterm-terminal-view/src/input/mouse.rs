@@ -5,7 +5,9 @@
 // Changes: mouse reports are pure functions over a grid point and the
 // terminal modes; winit's `MouseButton`, `ElementState` and pixel-to-cell
 // conversion stay in the view. The bytes are Alacritty's `mouse_report`,
-// `normal_mouse_report` and `sgr_mouse_report`.
+// `normal_mouse_report` and `sgr_mouse_report`. The Shift escape that
+// `mouse_input`, `mouse_moved` and `on_mouse_release` apply before reporting
+// is a separate routing decision, `button_action` and `motion`.
 
 //! Mouse report encoding.
 //!
@@ -13,6 +15,10 @@
 //! functions; the encoding itself is independent of GPUI. Coordinates are
 //! grid coordinates, where `line` is the absolute line and a negative line is
 //! in the scrollback, which the protocols cannot address.
+//!
+//! The view routes a press, release or drag through [`button_action`] and
+//! [`motion`] first: with Shift held the event belongs to the local selection
+//! and never reaches the encoders.
 
 use gpui_kit::Modifiers;
 use tterm_terminal::grid::GridPoint;
@@ -109,12 +115,40 @@ pub fn reports_mouse(modes: Modes) -> bool {
     modes.intersects(Modes::MOUSE_MODE) && !modes.contains(Modes::VI)
 }
 
+/// What the view does with a mouse button press or release.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ButtonAction {
+    /// Send the report to the program.
+    Report,
+    /// Keep the event local: selection, click handling and hint activation.
+    Local,
+}
+
+/// Decides whether a button press or release is reported.
+///
+/// Shift is the local escape: Alacritty's `on_mouse_press` and
+/// `on_mouse_release` report only when Shift is not held, so the view can
+/// extend a selection over a program that owns the mouse. The encoder itself
+/// stays a pure protocol function; the view calls this first and only then
+/// [`encode_button`].
+pub fn button_action(modes: Modes, shift: bool) -> ButtonAction {
+    if !shift && reports_mouse(modes) {
+        ButtonAction::Report
+    } else {
+        ButtonAction::Local
+    }
+}
+
 /// Decides whether a pointer motion should be reported.
 ///
 /// The view calls this only when the cell under the pointer changed, which is
 /// Alacritty's deduplication: the protocol addresses cells, so two motions
-/// inside one cell are one report.
-pub fn motion(modes: Modes, held: Option<MouseButton>) -> Option<Motion> {
+/// inside one cell are one report. Shift with the left or right button held is
+/// the local escape, matching `mouse_moved`: the view extends the selection
+/// instead of reporting the drag. The middle button has no selection branch in
+/// Alacritty, and a hover has no button, so those reports keep their Shift
+/// bit.
+pub fn motion(modes: Modes, held: Option<MouseButton>, shift: bool) -> Option<Motion> {
     if !reports_mouse(modes) {
         return None;
     }
@@ -122,6 +156,7 @@ pub fn motion(modes: Modes, held: Option<MouseButton>) -> Option<Motion> {
         return None;
     }
     match held {
+        Some(MouseButton::Left | MouseButton::Right) if shift => None,
         Some(MouseButton::Left) => Some(Motion::Drag(MouseButton::Left)),
         Some(MouseButton::Middle) => Some(Motion::Drag(MouseButton::Middle)),
         Some(MouseButton::Right) => Some(Motion::Drag(MouseButton::Right)),

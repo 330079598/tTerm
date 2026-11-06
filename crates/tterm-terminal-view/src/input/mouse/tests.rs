@@ -6,10 +6,12 @@
 use tterm_terminal::grid::GridPoint;
 use tterm_terminal::mode::Modes;
 
+use super::ButtonAction;
 use super::ButtonState;
 use super::Motion;
 use super::MouseButton;
 use super::MouseModifiers;
+use super::button_action;
 use super::encode_button;
 use super::encode_motion;
 use super::motion;
@@ -294,22 +296,51 @@ fn wheel_reports() {
 }
 
 #[test]
+fn shift_escapes_to_the_local_selection() {
+    // Alacritty's on_mouse_press and on_mouse_release report only without
+    // Shift; with Shift the view extends the selection instead.
+    assert_eq!(button_action(click(), false), ButtonAction::Report);
+    assert_eq!(button_action(click(), true), ButtonAction::Local);
+    assert_eq!(button_action(Modes::NONE, false), ButtonAction::Local);
+    assert_eq!(
+        button_action(click().union(Modes::VI), true),
+        ButtonAction::Local
+    );
+}
+
+#[test]
 fn motion_decision_follows_the_mode() {
     // Mode 1002: cell motion, only while a button is held.
     assert_eq!(
-        motion(drag(), Some(MouseButton::Left)),
+        motion(drag(), Some(MouseButton::Left), false),
         Some(Motion::Drag(MouseButton::Left))
     );
-    assert_eq!(motion(drag(), None), None);
+    assert_eq!(motion(drag(), None, false), None);
     // Mode 1003: every motion; no button is the hover code 35.
     assert_eq!(
-        motion(any(), Some(MouseButton::Right)),
+        motion(any(), Some(MouseButton::Right), false),
         Some(Motion::Drag(MouseButton::Right))
     );
-    assert_eq!(motion(any(), None), Some(Motion::Hover));
+    assert_eq!(motion(any(), None, false), Some(Motion::Hover));
     // Mode 1000 does not report motion.
-    assert_eq!(motion(click(), Some(MouseButton::Left)), None);
-    assert_eq!(motion(Modes::NONE, Some(MouseButton::Left)), None);
+    assert_eq!(motion(click(), Some(MouseButton::Left), false), None);
+    assert_eq!(motion(Modes::NONE, Some(MouseButton::Left), false), None);
+}
+
+#[test]
+fn motion_keeps_the_shift_escape_of_a_drag() {
+    // mouse_moved sends a left or right drag to the local selection when
+    // Shift is held, so no report is built.
+    assert_eq!(motion(any(), Some(MouseButton::Left), true), None);
+    assert_eq!(motion(any(), Some(MouseButton::Right), true), None);
+    // Alacritty's selection branch covers only the left and right buttons, so
+    // a middle-button drag is still reported, Shift bit included.
+    assert_eq!(
+        motion(any(), Some(MouseButton::Middle), true),
+        Some(Motion::Drag(MouseButton::Middle))
+    );
+    // A hover has no selection to extend; mode 1003 reports it either way.
+    assert_eq!(motion(any(), None, true), Some(Motion::Hover));
 }
 
 #[test]
