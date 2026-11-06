@@ -22,8 +22,11 @@
 | `crates/tterm-terminal-view/src/glyphs/lines.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/renderer/text/builtin_font.rs` | Apache-2.0 | 方框字符的四个笔画表、虚线、双线、圆弧与对角线；圆弧半径按矢量需要缩小，见报告“偏差”。 |
 | `crates/tterm-terminal-view/src/glyphs/blocks.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/renderer/text/builtin_font.rs` | Apache-2.0 | 块元素、八分块、象限、六分块与阴影灰度；六分块表由 Alacritty 的六个 match 生成。 |
 | `crates/tterm-terminal-view/src/glyphs/powerline.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/renderer/text/builtin_font.rs` | Apache-2.0 | Powerline 三角形与箭头的逐行绘制，改为矩形并按单元格高度缩放。 |
+| `crates/tterm-terminal/src/hint.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/display/hint.rs` | Apache-2.0 | 可见区域的匹配扫描与网格坐标映射；输入从 `Term` 换成 P0-09 的 `Snapshot`，不再持有终端锁。 |
+| `crates/tterm-terminal/src/hint/url.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/config/ui_config.rs`（`URL_REGEX`）、`alacritty/src/display/hint.rs`（`HintPostProcessor`） | Apache-2.0 | URL 正则与结尾截断规则；正则作用于拼接后的可见文本，去掉了 `regex` crate 不接受且无作用的 `{-}` 集合运算符。 |
 
 登记细节：
 
 - Alacritty 在该提交没有 `NOTICE` 文件；仓库中的 `LICENSE-APACHE` 与 `LICENSE-MIT` 是许可文本，复制进来的文件仍按 Apache-2.0 使用，发行包附全文的要求见 P4-25、P5-02。
-- 测试文件（`*/tests.rs`）是由本卡按行为新写的，不复制 Alacritty 的测试代码，因此不登记；每个期望值在测试里注明依据。
+- 测试文件（`*/tests.rs`）是由本卡按行为新写的，不复制 Alacritty 的测试代码；URL 的用例数据取自 Alacritty 的两个 URL 测试，其余是本卡构造的。每个期望值在测试里注明依据。
+- `crates/tterm-terminal/src/hint/path.rs` 不来自 Alacritty：Alacritty 只识别 URL 与 OSC 8 链接，没有裸路径规则；这里的路径规则是 tTerm 自己写的，因此不登记来源。

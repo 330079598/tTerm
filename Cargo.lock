@@ -10991,6 +10991,7 @@ name = "tterm-terminal"
 version = "0.1.0"
 dependencies = [
  "alacritty_terminal",
+ "regex",
 ]
 
 [[package]]

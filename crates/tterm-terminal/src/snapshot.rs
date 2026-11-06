@@ -271,6 +271,21 @@ impl Snapshot {
         screen_row(line, self.display_offset, self.rows.len())
     }
 
+    /// The absolute grid line of a visible row.
+    ///
+    /// This is the inverse of [`Snapshot::screen_row`]: a viewport row plus
+    /// the display offset. The hint scanner and any other code that maps a
+    /// frame position back to a grid coordinate uses it, so the conversion
+    /// stays in one place.
+    pub fn grid_line(&self, row: usize) -> Option<i32> {
+        if row >= self.rows.len() {
+            return None;
+        }
+        let offset = i32::try_from(self.display_offset).ok()?;
+        let line = i32::try_from(row).ok()?;
+        line.checked_sub(offset)
+    }
+
     /// The number of cells this frame copied.
     ///
     /// Always `line_count() * grid().columns`: the scrollback is never part of
