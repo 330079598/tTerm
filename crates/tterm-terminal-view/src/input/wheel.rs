@@ -75,7 +75,9 @@ pub fn wheel_action(modes: Modes, shift: bool, wheel: Wheel) -> WheelAction {
     if wheel.lines == 0 && wheel.columns == 0 {
         return WheelAction::None;
     }
-    if !shift && super::mouse::reports_mouse(modes) {
+    // Alacritty sends wheel reports even with Shift held; only the
+    // alternate-screen arrow branch treats Shift as the local escape.
+    if super::mouse::reports_mouse(modes) {
         let mut reports = Vec::new();
         reports.extend(repeat_wheel(
             wheel.lines,

@@ -37,12 +37,23 @@ fn a_program_that_reports_the_mouse_gets_wheel_reports() {
 }
 
 #[test]
-fn shift_forces_a_local_scroll() {
-    // Shift is the escape hatch from a program that owns the mouse.
+fn shift_still_reports_when_the_program_takes_the_mouse() {
+    // Alacritty's mouse-report branch does not check Shift: a program that
+    // enabled a mouse mode receives Shift+wheel too.
     assert_eq!(
         wheel_action(Modes::MOUSE_REPORT_CLICK, true, wheel(3, 0)),
-        WheelAction::Scroll(3)
+        WheelAction::Report(vec![
+            MouseButton::WheelUp,
+            MouseButton::WheelUp,
+            MouseButton::WheelUp
+        ])
     );
+}
+
+#[test]
+fn shift_drops_alternate_scroll() {
+    // Shift is the local escape on the alternate screen, where the wheel
+    // would otherwise send arrow keys.
     let alternate = Modes::ALT_SCREEN.union(Modes::ALTERNATE_SCROLL);
     assert_eq!(
         wheel_action(alternate, true, wheel(3, 0)),
