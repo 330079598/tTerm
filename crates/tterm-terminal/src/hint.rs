@@ -1,3 +1,11 @@
+// Derived from Alacritty's `alacritty/src/display/hint.rs`, commit
+// 94e7c8874e526b1e67b349d9ba30ddf81669119e (v0.17.0), Apache-2.0.
+// SPDX-License-Identifier: Apache-2.0
+//
+// Changes: the scan reads a P0-09 `Snapshot` instead of a `Term` and its grid
+// iterator, so the module holds no terminal lock. The URL pattern lives in
+// `url.rs`; the bare-path rule in `path.rs` is tTerm's own.
+
 //! URL and path recognition over a visible frame.
 //!
 //! The rules are Alacritty's `display/hint.rs`: find the configured URL
