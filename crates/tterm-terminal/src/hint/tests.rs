@@ -113,6 +113,16 @@ fn trailing_punctuation_and_brackets_are_trimmed() {
 }
 
 #[test]
+fn the_brace_range_ends_a_url() {
+    // Alacritty's class contains `{-}`, which `regex` reads as the range
+    // from `{` to `}`. It excludes `{`, `|` and `}`, so these characters
+    // end the match instead of being part of it.
+    assert_eq!(urls("https://a.com/b|c"), ["https://a.com/b"]);
+    assert_eq!(urls("https://a.com/b{c"), ["https://a.com/b"]);
+    assert_eq!(urls("https://a.com/b}c"), ["https://a.com/b"]);
+}
+
+#[test]
 fn a_url_can_wrap_onto_the_next_row() {
     let url = "https://example.com/very/long/path";
     // Twenty columns put the first twenty characters on row 0.

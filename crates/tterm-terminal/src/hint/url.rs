@@ -6,9 +6,8 @@
 // Changes: the expression runs on the joined visible text instead of the
 // grid iterator, and the post-processing works on string offsets instead of
 // terminal points. The recognized schemes, the excluded characters and the
-// trailing-punctuation rules are Alacritty's; the no-op `{-}` class
-// subtraction in its pattern is omitted because the `regex` crate does not
-// accept it.
+// trailing-punctuation rules are Alacritty's; the `{-}` range is kept because
+// it excludes `{`, `|` and `}`.
 
 //! URL recognition.
 //!
@@ -26,9 +25,9 @@ use regex::Regex;
 ///
 /// This is `alacritty/src/config/ui_config.rs`'s `URL_REGEX`. The character
 /// class after the scheme excludes control characters, angle brackets,
-/// quotes, whitespace, `^`, the Powerline angle brackets, backticks and
-/// backslashes.
-const URL_PATTERN: &str = r#"(ipfs:|ipns:|magnet:|mailto:|gemini://|gopher://|https://|http://|news:|file:|git://|ssh:|ftp://)[^\x00-\x1F\x7F-\x9F<>"\s\^⟨⟩`\\]+"#;
+/// quotes, whitespace, the `{-}` range (`{`, `|` and `}`), `^`, the Powerline
+/// angle brackets, backticks and backslashes.
+const URL_PATTERN: &str = r#"(ipfs:|ipns:|magnet:|mailto:|gemini://|gopher://|https://|http://|news:|file:|git://|ssh:|ftp://)[^\x00-\x1F\x7F-\x9F<>"\s{-}\^⟨⟩`\\]+"#;
 
 /// The compiled expression, or `None` if it cannot be compiled.
 ///
