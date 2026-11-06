@@ -87,7 +87,7 @@ impl Scene {
             Scene::BlurElement => size(px(760.), px(560.)),
             Scene::RoundedMask => size(px(700.), px(420.)),
             Scene::LinearGradient => size(px(740.), px(480.)),
-            Scene::RadialGradient => size(px(700.), px(400.)),
+            Scene::RadialGradient => size(px(760.), px(540.)),
             Scene::LetterSpacing => size(px(720.), px(340.)),
             Scene::Shadows => size(px(760.), px(420.)),
             Scene::SvgColor => size(px(680.), px(300.)),
@@ -115,12 +115,14 @@ impl Scene {
                  stop from equal percentages."
             }
             Scene::RadialGradient => {
-                "5. No radial gradient and no mask. Below: 24 concentric filled circles and a ring \
-                 drawn as two circles."
+                "5. No radial gradient, no conic gradient and no mask. Below: 24 and 96 \
+                 concentric circles, then a ring and a comet stroked on a linear gradient so the \
+                 middle shows the background through."
             }
             Scene::LetterSpacing => {
                 "6. No letter-spacing option in TextStyle, TextRun or shape_line. Below: one shaped \
-                 line, then one shaped line per character with 3 px of added advance."
+                 line, one shaped line with each glyph moved 3 px, and the same glyphs at 0 px as \
+                 the control."
             }
             Scene::Shadows => {
                 "7. Box shadows are a Vec: one, two and three layers, plus an inset layer."
@@ -409,103 +411,205 @@ fn paint_circle(window: &mut Window, center: Point<Pixels>, radius: Pixels, colo
     }
 }
 
-/// Item 5: a radial gradient faked by painting 24 circles from the edge color
-/// down to the center color.
-fn paint_radial_fallback(bounds: Bounds<Pixels>, window: &mut Window) {
-    const STEPS: usize = 24;
+/// The point at `angle` on a circle, so the fill and stroke paths share one
+/// vertex calculation.
+fn circle_vertex(center: Point<Pixels>, radius: f32, angle: f32) -> Point<Pixels> {
+    point(
+        center.x + px(radius * angle.cos()),
+        center.y + px(radius * angle.sin()),
+    )
+}
+
+/// Item 5: a radial gradient faked by painting `steps` circles from the page
+/// color at the rim to the accent color in the middle. More steps make the
+/// color bands narrower, but they never disappear: the band between two rings
+/// still has one flat color.
+fn paint_radial_fallback(bounds: Bounds<Pixels>, window: &mut Window, steps: usize) {
     let center = bounds.center();
     let diameter = f32::from(bounds.size.width).min(f32::from(bounds.size.height));
-    for step in (0..STEPS).rev() {
-        let t = step as f32 / (STEPS - 1) as f32;
-        let radius = diameter / 2.0 * (step + 1) as f32 / STEPS as f32;
+    for step in (0..steps).rev() {
+        let t = step as f32 / (steps - 1) as f32;
+        let radius = diameter / 2.0 * (step + 1) as f32 / steps as f32;
         paint_circle(window, center, px(radius), mix(rgb(ACCENT), rgb(PAGE), t));
     }
 }
 
-/// Item 5: the ring the spinner needs, drawn as a disc with the page color
-/// punched through the middle; a mask would be the CSS way.
-fn paint_ring_fallback(bounds: Bounds<Pixels>, window: &mut Window) {
+/// Item 5: the spinner's ring, stroked as a path instead of filling a disc and
+/// covering the middle with the background color. Nothing is painted inside,
+/// so the canvas' own background shows through the hole.
+fn paint_ring(bounds: Bounds<Pixels>, window: &mut Window) {
+    const SEGMENTS: usize = 64;
     let center = bounds.center();
-    let radius = px(f32::from(bounds.size.width).min(f32::from(bounds.size.height)) / 2.0);
-    paint_circle(window, center, radius, rgb(ACCENT));
-    paint_circle(window, center, radius * 0.62, rgb(PAGE));
+    let stroke = 16.0;
+    let radius = (f32::from(bounds.size.width).min(f32::from(bounds.size.height)) - stroke) / 2.0;
+    let mut builder = PathBuilder::stroke(px(stroke));
+    for index in 0..SEGMENTS {
+        let angle = std::f32::consts::TAU * index as f32 / SEGMENTS as f32;
+        let vertex = circle_vertex(center, radius, angle);
+        if index == 0 {
+            builder.move_to(vertex);
+        } else {
+            builder.line_to(vertex);
+        }
+    }
+    builder.close();
+    if let Ok(path) = builder.build() {
+        window.paint_path(path, rgb(ACCENT));
+    }
 }
 
-/// Item 5, both fallbacks side by side.
-fn radial_gradient_fallbacks() -> Div {
+/// Item 5: the comet spinner's conic-gradient fallback. GPUI has no conic
+/// gradient, so the circle is stroked in 48 arcs and each arc gets its own
+/// alpha, from transparent at the tail to opaque at the head.
+fn paint_comet(bounds: Bounds<Pixels>, window: &mut Window) {
+    const SEGMENTS: usize = 48;
+    let center = bounds.center();
+    let stroke = 16.0;
+    let radius = (f32::from(bounds.size.width).min(f32::from(bounds.size.height)) - stroke) / 2.0;
+    let color = Hsla::from(rgb(ACCENT));
+    for index in 0..SEGMENTS {
+        let from = std::f32::consts::TAU * index as f32 / SEGMENTS as f32;
+        let to = std::f32::consts::TAU * (index + 1) as f32 / SEGMENTS as f32;
+        let mut builder = PathBuilder::stroke(px(stroke));
+        builder.move_to(circle_vertex(center, radius, from));
+        builder.line_to(circle_vertex(center, radius, to));
+        let t = (index + 1) as f32 / SEGMENTS as f32;
+        if let Ok(path) = builder.build() {
+            window.paint_path(path, color.opacity(t));
+        }
+    }
+}
+
+/// The two faked radial gradients. A radial gradient fades into the page
+/// color, so this stage is the page color.
+fn radial_discs() -> Div {
     div()
         .flex()
         .flex_row()
         .gap_6()
-        .items_center()
+        .p_4()
+        .rounded(px(12.))
+        .bg(rgb(PAGE))
         .child(labelled(
-            "24 concentric circles, 24 color steps",
+            "24 concentric circles: visible color bands",
             canvas(
                 |_, _, _| (),
-                |bounds, _, window, _| paint_radial_fallback(bounds, window),
+                |bounds, _, window, _| paint_radial_fallback(bounds, window, 24),
             )
-            .w(px(200.))
-            .h(px(200.)),
+            .w(px(160.))
+            .h(px(160.)),
         ))
         .child(labelled(
-            "a ring: a filled circle with the page color inside",
+            "96 concentric circles: narrower color bands",
             canvas(
                 |_, _, _| (),
-                |bounds, _, window, _| paint_ring_fallback(bounds, window),
+                |bounds, _, window, _| paint_radial_fallback(bounds, window, 96),
             )
-            .w(px(200.))
-            .h(px(200.)),
+            .w(px(160.))
+            .h(px(160.)),
         ))
 }
 
-/// Shapes and paints one line of text. With `tracking` set the line is shaped
-/// one character at a time and advanced by hand, which is the only way GPUI
-/// can add letter spacing.
-fn paint_line(
+/// The rings sit on a linear gradient: both are stroked, so the gradient has
+/// to show through the hole in the ring and between the comet's arcs.
+fn radial_rings() -> Div {
+    div()
+        .flex()
+        .flex_row()
+        .gap_6()
+        .p_4()
+        .rounded(px(12.))
+        .bg(linear_gradient(
+            90.,
+            linear_color_stop(rgb(0x7ee787), 0.),
+            linear_color_stop(rgb(0xf778ba), 1.),
+        ))
+        .child(labelled(
+            "ring: PathBuilder::stroke(16), the middle is untouched",
+            canvas(
+                |_, _, _| (),
+                |bounds, _, window, _| paint_ring(bounds, window),
+            )
+            .w(px(140.))
+            .h(px(140.)),
+        ))
+        .child(labelled(
+            "comet: 48 stroked arcs, alpha 0 to 1, the conic-gradient fallback",
+            canvas(
+                |_, _, _| (),
+                |bounds, _, window, _| paint_comet(bounds, window),
+            )
+            .w(px(140.))
+            .h(px(140.)),
+        ))
+}
+
+/// Item 5: both fallbacks, one stage per background.
+fn radial_gradient_fallbacks() -> Div {
+    div()
+        .flex()
+        .flex_col()
+        .gap_4()
+        .child(radial_discs())
+        .child(radial_rings())
+}
+
+/// Paints one line through `ShapedLine::paint`. This is the reference the
+/// other rows are compared against.
+fn paint_whole_line(bounds: Bounds<Pixels>, window: &mut Window, cx: &mut App, text: &'static str) {
+    let font = Font::default();
+    let font_size = px(20.);
+    let line_height = px(30.);
+    let color = Hsla::from(rgb(TEXT));
+    let run = text_run(&font, color, text.len());
+    let line = window
+        .text_system()
+        .shape_line(SharedString::from(text), font_size, &[run], None);
+    let _ = line.paint(
+        bounds.origin,
+        line_height,
+        TextAlign::Left,
+        None,
+        window,
+        cx,
+    );
+}
+
+/// Item 6's fallback: shape the line once, then paint each decoded glyph with
+/// `window.paint_glyph` at its shaped position plus `spacing * glyph_index`.
+/// Shaping the whole line keeps the font's kerning; shaping one character at a
+/// time loses it, which is why the old per-character control line ended short.
+fn paint_spaced_line(
     bounds: Bounds<Pixels>,
     window: &mut Window,
-    cx: &mut App,
     text: &'static str,
-    tracking: Option<Pixels>,
+    spacing: Pixels,
 ) {
     let font = Font::default();
     let font_size = px(20.);
     let line_height = px(30.);
     let color = Hsla::from(rgb(TEXT));
-    let mut x = bounds.origin.x;
-    match tracking {
-        None => {
-            let run = text_run(&font, color, text.len());
-            let line =
-                window
-                    .text_system()
-                    .shape_line(SharedString::from(text), font_size, &[run], None);
-            let _ = line.paint(
-                bounds.origin,
-                line_height,
-                TextAlign::Left,
-                None,
-                window,
-                cx,
+    let run = text_run(&font, color, text.len());
+    let line = window
+        .text_system()
+        .shape_line(SharedString::from(text), font_size, &[run], None);
+    // The baseline `ShapedLine::paint` uses: the line box centers the font's
+    // ascent and descent around the glyphs.
+    let padding_top = (line_height - line.ascent - line.descent) / 2.;
+    let baseline = bounds.origin.y + padding_top + line.ascent;
+    let mut glyph_index = 0;
+    for run in &line.runs {
+        for glyph in &run.glyphs {
+            let origin = point(
+                bounds.origin.x + glyph.position.x + spacing * glyph_index,
+                baseline + glyph.position.y,
             );
-        }
-        Some(tracking) => {
-            for character in text.chars() {
-                let single = SharedString::from(character.to_string());
-                let run = text_run(&font, color, single.len());
-                let line = window
-                    .text_system()
-                    .shape_line(single, font_size, &[run], None);
-                let _ = line.paint(
-                    point(x, bounds.origin.y),
-                    line_height,
-                    TextAlign::Left,
-                    None,
-                    window,
-                    cx,
-                );
-                x += line.width() + tracking;
-            }
+            let _ = if glyph.is_emoji {
+                window.paint_emoji(origin, run.font_id, glyph.id, line.font_size)
+            } else {
+                window.paint_glyph(origin, run.font_id, glyph.id, line.font_size, color)
+            };
+            glyph_index += 1;
         }
     }
 }
@@ -522,40 +626,37 @@ fn text_run(font: &Font, color: Hsla, len: usize) -> TextRun {
     }
 }
 
-/// Item 6: the whole line, the per-character line with 3 px between glyphs,
-/// and the per-character line without extra spacing as the control.
+/// Item 6: the whole line, the same line shaped once and moved 3 px per glyph,
+/// and the same glyph loop with 0 px as the control.
 fn letter_spacing() -> Div {
+    const TEXT: &str = "tTerm GPUI spacing";
     div()
         .flex()
         .flex_col()
         .gap_3()
         .child(labelled(
-            "one shape_line: no letter-spacing input exists",
+            "one shape_line painted by ShapedLine::paint: the reference",
             canvas(
                 |_, _, _| (),
-                |bounds, _, window, cx| paint_line(bounds, window, cx, "tTerm GPUI spacing", None),
+                |bounds, _, window, cx| paint_whole_line(bounds, window, cx, TEXT),
             )
             .h(px(30.))
             .w_full(),
         ))
         .child(labelled(
-            "per-character shape_line with 3 px of extra advance",
+            "one shape_line, each glyph after the first moved 3 px: kerning is kept",
             canvas(
                 |_, _, _| (),
-                |bounds, _, window, cx| {
-                    paint_line(bounds, window, cx, "tTerm GPUI spacing", Some(px(3.)))
-                },
+                |bounds, _, window, _| paint_spaced_line(bounds, window, TEXT, px(3.)),
             )
             .h(px(30.))
             .w_full(),
         ))
         .child(labelled(
-            "control: the same per-character path with 0 px, so the difference is the spacing",
+            "control: the same glyph loop with 0 px, which must match the first line pixel for pixel",
             canvas(
                 |_, _, _| (),
-                |bounds, _, window, cx| {
-                    paint_line(bounds, window, cx, "tTerm GPUI spacing", Some(px(0.)))
-                },
+                |bounds, _, window, _| paint_spaced_line(bounds, window, TEXT, px(0.)),
             )
             .h(px(30.))
             .w_full(),
