@@ -1,0 +1,19 @@
+[package]
+name = "tterm-terminal-view"
+version = "0.1.0"
+edition = "2024"
+description = "GPUI-facing terminal input encoders and built-in glyph geometry"
+license = "MIT"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+# The keyboard encoder turns GPUI's `Keystroke` into terminal bytes, so this
+# crate needs the same pinned GPUI facade the view uses. No other GPUI source
+# may be added (decision 007).
+gpui-kit.workspace = true
+# Terminal modes, grid points and selection kinds come from the model; this
+# crate never keeps terminal state of its own.
+tterm-terminal = { path = "../tterm-terminal" }

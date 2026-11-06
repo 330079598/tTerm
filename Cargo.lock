@@ -10994,6 +10994,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "tterm-terminal-view"
+version = "0.1.0"
+dependencies = [
+ "gpui-kit",
+ "tterm-terminal",
+]
+
+[[package]]
 name = "tterm-ui"
 version = "0.1.0"
 dependencies = [
