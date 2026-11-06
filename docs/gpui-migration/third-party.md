@@ -13,7 +13,7 @@
 | `crates/tterm-terminal-view/src/input/keyboard.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/keyboard.rs` | Apache-2.0 | 把 winit 的 `KeyEvent` 改写为 GPUI 的 `Keystroke`；把 Alacritty 配置项改成 `EncoderConfig` 参数；补入默认绑定里的应用光标键、F1–F4、Shift+Tab、Backspace、小键盘 Enter，以及 xterm 的应用小键盘序列；Vi、搜索、提示与快捷键动作不移植。协议字节不变。 |
 | `crates/tterm-terminal-view/src/input/keyboard/named.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/keyboard.rs` | Apache-2.0 | 从同一文件拆出的命名键表与 Kitty 码；只改输入类型。 |
 | `crates/tterm-terminal-view/src/input/keyboard/sequence.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/keyboard.rs` | Apache-2.0 | 从同一文件拆出的 `build_sequence` 与修饰键编码；只改输入类型。 |
-| `crates/tterm-terminal-view/src/input/mouse.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/mod.rs` | Apache-2.0 | `mouse_report`、`normal_mouse_report`、`sgr_mouse_report` 与 `mouse_moved` 的判定；像素到网格的换算留给视图。 |
+| `crates/tterm-terminal-view/src/input/mouse.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/mod.rs` | Apache-2.0 | `mouse_report`、`normal_mouse_report`、`sgr_mouse_report` 与 `mouse_moved` 的判定；按下、松开与拖动的 Shift 本地逃逸做成独立路由（`button_action`、`motion`）；像素到网格的换算留给视图。 |
 | `crates/tterm-terminal-view/src/input/click.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/mod.rs`、`alacritty/src/event.rs` | Apache-2.0 | `on_mouse_press`、`on_left_click` 与 `ClickState` 的点击计数和选词/选行规则；只产出 P0-09 的 `SelectionKind`。 |
 | `crates/tterm-terminal-view/src/input/wheel.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/mod.rs` | Apache-2.0 | `scroll_terminal` 的上报、备用屏幕方向键与本地滚动顺序；像素累计与倍率留给视图。 |
 | `crates/tterm-terminal-view/src/input/focus.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/mod.rs` | Apache-2.0 | `on_focus_change` 的 `CSI I` / `CSI O`；改成返回字节。 |
@@ -23,7 +23,7 @@
 | `crates/tterm-terminal-view/src/glyphs/blocks.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/renderer/text/builtin_font.rs` | Apache-2.0 | 块元素、八分块、象限、六分块与阴影灰度；六分块表由 Alacritty 的六个 match 生成。 |
 | `crates/tterm-terminal-view/src/glyphs/powerline.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/renderer/text/builtin_font.rs` | Apache-2.0 | Powerline 三角形与箭头的逐行绘制，改为矩形并按单元格高度缩放。 |
 | `crates/tterm-terminal/src/hint.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/display/hint.rs` | Apache-2.0 | 可见区域的匹配扫描与网格坐标映射；输入从 `Term` 换成 P0-09 的 `Snapshot`，不再持有终端锁。 |
-| `crates/tterm-terminal/src/hint/url.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/config/ui_config.rs`（`URL_REGEX`）、`alacritty/src/display/hint.rs`（`HintPostProcessor`） | Apache-2.0 | URL 正则与结尾截断规则；正则作用于拼接后的可见文本，去掉了 `regex` crate 不接受且无作用的 `{-}` 集合运算符。 |
+| `crates/tterm-terminal/src/hint/url.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/config/ui_config.rs`（`URL_REGEX`）、`alacritty/src/display/hint.rs`（`HintPostProcessor`） | Apache-2.0 | URL 正则与结尾截断规则；正则作用于拼接后的可见文本，保留 `{-}` 的 `{`–`}` 区间（排除 `{`、`}` 与竖线），与 `regex` crate 的读法一致。 |
 
 登记细节：
 
