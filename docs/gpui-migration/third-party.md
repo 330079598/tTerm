@@ -13,6 +13,10 @@
 | `crates/tterm-terminal-view/src/input/keyboard.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/keyboard.rs` | Apache-2.0 | 把 winit 的 `KeyEvent` 改写为 GPUI 的 `Keystroke`；把 Alacritty 配置项改成 `EncoderConfig` 参数；补入默认绑定里的应用光标键、F1–F4、Shift+Tab、Backspace、小键盘 Enter，以及 xterm 的应用小键盘序列；Vi、搜索、提示与快捷键动作不移植。协议字节不变。 |
 | `crates/tterm-terminal-view/src/input/keyboard/named.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/keyboard.rs` | Apache-2.0 | 从同一文件拆出的命名键表与 Kitty 码；只改输入类型。 |
 | `crates/tterm-terminal-view/src/input/keyboard/sequence.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/keyboard.rs` | Apache-2.0 | 从同一文件拆出的 `build_sequence` 与修饰键编码；只改输入类型。 |
+| `crates/tterm-terminal-view/src/input/mouse.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/mod.rs` | Apache-2.0 | `mouse_report`、`normal_mouse_report`、`sgr_mouse_report` 与 `mouse_moved` 的判定；像素到网格的换算留给视图。 |
+| `crates/tterm-terminal-view/src/input/click.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/mod.rs`、`alacritty/src/event.rs` | Apache-2.0 | `on_mouse_press`、`on_left_click` 与 `ClickState` 的点击计数和选词/选行规则；只产出 P0-09 的 `SelectionKind`。 |
+| `crates/tterm-terminal-view/src/input/wheel.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/mod.rs` | Apache-2.0 | `scroll_terminal` 的上报、备用屏幕方向键与本地滚动顺序；像素累计与倍率留给视图。 |
+| `crates/tterm-terminal-view/src/input/focus.rs` | github.com/alacritty/alacritty | `94e7c8874e526b1e67b349d9ba30ddf81669119e` | `alacritty/src/input/mod.rs` | Apache-2.0 | `on_focus_change` 的 `CSI I` / `CSI O`；改成返回字节。 |
 
 登记细节：
 
