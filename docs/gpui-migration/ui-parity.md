@@ -35,18 +35,18 @@ GPUI 的布局引擎是 taffy，支持 flex 和 grid；样式方法按 Tailwind 
 
 ## 3. 只能接近的部分
 
-| 项           | 原因                                                                                                                                 | 处理                                                                                           |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| 文字渲染     | macOS 两边都用 CoreText，Windows 都用 DirectWrite，差异小；Linux 上 WebKitGTK 用 FreeType 与 HarfBuzz，GPUI 用 cosmic-text，差异明显 | 只要求字体、字号、字重、行高与基线位置一致；Linux 单独人工比对                                 |
-| 字间距       | `tracking-*` 在 GPUI 固定 rev 上是否支持待核实                                                                                       | P0-25 核实；不支持则去掉，记入差异表                                                           |
-| 过渡         | CSS `transition` 共 107 处，状态一变就自动插值；GPUI 没有自动过渡，每处要用动画 API 手写                                             | 逐处登记时长与曲线照抄；用户看不出的可以去掉，但要在差异表中列出                               |
-| 关键帧动画   | `@keyframes` 与 `animate-*` 共 31 处，包括螃蟹（`Crab/crab.css`）与加载动画                                                          | 用 GPUI 的 `with_animation` 重写，帧率与曲线对齐；空闲时不得持续重绘                           |
-| 终端字形     | xterm.js 用 canvas 测量字符宽度，自绘方框字符与 Powerline 字形；新终端用字体度量                                                     | 同一字体下行列数必须一致；单元格宽高误差不超过 0.5 物理像素；方框字符与 Powerline 字形人工比对 |
-| 代码编辑器   | CodeMirror 换成 gpui-kit 编辑器                                                                                                      | 主题色、字号、行号栏宽度对齐，其余接受差异                                                     |
-| Markdown     | react-markdown 换成 gpui-component 的渲染                                                                                            | 更新说明等少数位置使用，标题、列表、代码块的间距对齐                                           |
-| 滚动手感     | WebKit 的惯性与橡皮筋效果                                                                                                            | macOS 触控板惯性由系统事件提供；橡皮筋效果不做                                                 |
-| 焦点环       | CSS `ring` 与 `outline-offset`；GPUI 没有 outline                                                                                    | 用边框或阴影模拟，尺寸与颜色一致                                                               |
-| 普通文本选择 | 18 处 `select-text`；GPUI 的普通文本默认不能选                                                                                       | 只在需要复制的位置（日志、错误信息、主机指纹）用可选文本组件                                   |
+| 项           | 原因                                                                                                                                                    | 处理                                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 文字渲染     | macOS 两边都用 CoreText，Windows 都用 DirectWrite，差异小；Linux 上 WebKitGTK 用 FreeType 与 HarfBuzz，GPUI 用 cosmic-text，差异明显                    | 只要求字体、字号、字重、行高与基线位置一致；Linux 单独人工比对                                             |
+| 字间距       | P0-25 已核实：`TextStyle`（`src/style.rs:438`）、`TextRun`（`src/text_system.rs:1070`）与 `shape_line`（`src/text_system.rs:672`）都没有 letter-spacing | 现有 `tracking-*` 无处可映射，逐处去掉并记入差异表；确需加宽的位置改用逐字符 `shape_line` 自绘，成本按处计 |
+| 过渡         | CSS `transition` 共 107 处，状态一变就自动插值；GPUI 没有自动过渡，每处要用动画 API 手写                                                                | 逐处登记时长与曲线照抄；用户看不出的可以去掉，但要在差异表中列出                                           |
+| 关键帧动画   | `@keyframes` 与 `animate-*` 共 31 处，包括螃蟹（`Crab/crab.css`）与加载动画                                                                             | 用 GPUI 的 `with_animation` 重写，帧率与曲线对齐；空闲时不得持续重绘                                       |
+| 终端字形     | xterm.js 用 canvas 测量字符宽度，自绘方框字符与 Powerline 字形；新终端用字体度量                                                                        | 同一字体下行列数必须一致；单元格宽高误差不超过 0.5 物理像素；方框字符与 Powerline 字形人工比对             |
+| 代码编辑器   | CodeMirror 换成 gpui-kit 编辑器                                                                                                                         | 主题色、字号、行号栏宽度对齐，其余接受差异                                                                 |
+| Markdown     | react-markdown 换成 gpui-component 的渲染                                                                                                               | 更新说明等少数位置使用，标题、列表、代码块的间距对齐                                                       |
+| 滚动手感     | WebKit 的惯性与橡皮筋效果                                                                                                                               | macOS 触控板惯性由系统事件提供；橡皮筋效果不做                                                             |
+| 焦点环       | CSS `ring` 与 `outline-offset`；GPUI 没有 outline                                                                                                       | 用边框或阴影模拟，尺寸与颜色一致                                                                           |
+| 普通文本选择 | 18 处 `select-text`；GPUI 的普通文本默认不能选                                                                                                          | 只在需要复制的位置（日志、错误信息、主机指纹）用可选文本组件                                               |
 
 ## 4. 需要替代的部分
 
@@ -56,8 +56,8 @@ GPUI 的布局引擎是 taffy，支持 flex 和 grid；样式方法按 Tailwind 
 
 现有 6 处在窗口内部的元素上用了 `backdrop-filter: blur`：对话框遮罩（`ui/dialog.tsx:134`，`backdrop-blur-sm`）、终端浮层（`TerminalOverlays.css:16`，14px）、终端内的提示（`TerminalXterm.css:103`，8px）、主机密钥对话框、广播管理器、SFTP 抽屉。
 
-- 上游 GPUI 只支持**窗口级**的背景模糊（`WindowBackgroundAppearance::Blurred`），这部分可以与现有的窗口模糊一致。
-- 元素级模糊只在社区分支中见到实现（bite-gpui-ce 的 `backdrop_blur` 示例，且注明不支持圆角）。
+- 上游 GPUI 只支持**窗口级**的背景模糊（`WindowBackgroundAppearance::Blurred`）。P0-25 的三平台结论：macOS 用 `NSVisualEffectView`，可用；Windows 的 `Blurred` 走 `SetWindowCompositionAttribute` 的 Acrylic（Windows 10 17763 以上），`MicaBackdrop`／`MicaAltBackdrop` 走 DWM（Windows 11 22621 以上）；Linux 只有 Wayland 在合成器提供 `ext-background-effect` 或 `kde-blur` 时才有模糊，X11 只有透明、没有模糊。详见 [P0-25 报告](reports/P0-25.md)。
+- 元素级模糊只在社区分支中见到实现（bite-gpui-ce 的 `backdrop_blur` 示例，且注明不支持圆角）。P0-25 已核实（2026-11-06）：gpui-pre 0.3.11 的 `Background` 只有纯色、线性渐变、斜纹与棋盘格四种（`src/color.rs:745`），`backdrop` 一词在整个 crate 里只出现在 `WindowBackgroundAppearance` 的文档中（`src/platform.rs:2899`），`gpui-base`、`gpui-component` 也没有。演示 `reports/assets/P0-25-blur-element.png`：80% 不透明底只把下层压暗，边缘仍是硬的。
 - **替代：** 用不透明度更高的同色底代替模糊。视觉差别是透过浮层看不到被虚化的终端内容。
 - **原样方案：** 在自己的 GPUI 分支中实现背景模糊着色器，Metal、wgpu、D3D11 三个后端都要写，规模 L 以上，而且要维护到每次升级 GPUI。
 
@@ -67,14 +67,15 @@ GPUI 的内容遮罩（content mask）是轴对齐的矩形。父元素设了圆
 
 受影响最大的是孤岛风格（`src/styles/islands.css`）：圆角面板里的终端、列表和图片。
 
+- P0-25 已核实（2026-11-06）：`ContentMask` 只有 `bounds` 一个字段（`src/window.rs:2455`），`overflow_mask` 也只按边界裁剪（`src/style.rs:638`）。演示 `reports/assets/P0-25-rounded-mask.png`：左边是 `overflow_hidden` 的失败效果，右边是内缩子元素的替代效果。
 - **替代：** 圆角容器的内容区留出不小于圆角半径的内边距，让内容到不了角落；需要贴边的（终端背景色、列表选中行）由容器自己画圆角背景，子元素不画背景。
 - 在不透明背景上可以在四角补画背景色遮住溢出；在透明或模糊背景上不行，只能靠内边距。
 - **原样方案：** 在分支中给内容遮罩加圆角，涉及所有图元的着色器，规模 L 以上。
 
 ### 4.3 径向渐变、遮罩与 clip-path
 
-- 加载动画用 `mask: radial-gradient(...)` 挖空圆心（`ui/spinner.css:54`）。GPUI 只有线性渐变，没有遮罩。**替代：** 用路径（`PathBuilder`）或 SVG 画出同样的环形。
-- 线性渐变共 31 处；固定 rev 支持的色标数量待核实（各分支有 2 个、4 个的限制）。超出时拆成多段或改用图片。
+- 加载动画用 `mask: radial-gradient(...)` 挖空圆心（`ui/spinner.css:54`）。P0-25 已核实：gpui-pre 0.3.11 的源码里没有 radial 字样，也没有遮罩。**替代：** 用路径（`PathBuilder`）或 SVG 画出同样的环形；`reports/P0-25.md` 的演示用 24 个同心圆近似径向渐变、内外两个圆画环（`reports/assets/P0-25-radial-gradient.png`）。
+- 线性渐变共 31 处；P0-25 已核实**上限是 2 个色标**：`Background.colors` 是 `[LinearColorStop; 2]`（`src/color.rs:784`），构造函数只收 from 与 to（`src/color.rs:865`），着色器同形（`gpui-pre-wgpu-0.3.11/src/shaders.wgsl:404`）。需要第三个颜色时拼接相邻矩形，或把两个色标放在同一百分比上做硬停（`reports/assets/P0-25-linear-gradient.png`）；31 处要逐处确认是否真的需要三色，多数两色就够。
 - `clip-path: inset(...)` 两处都是矩形，用内容遮罩即可，不受影响。
 
 ### 4.4 其他做不到或不做的
@@ -82,6 +83,7 @@ GPUI 的内容遮罩（content mask）是轴对齐的矩形。父元素设了圆
 - **像素完全相同。** 两套渲染管线的抗锯齿与次像素定位不同，文字像素不可能逐点相等。第 5 节的门槛据此设定。
 - **WebView 提供的输入框附加功能：** 拼写检查、自动填充、文本框的系统右键菜单（查询、翻译、朗读）。GPUI 文本框没有这些。
 - **浏览器开发者工具与 React DevTools。** 用 gpui-kit 的 inspector 与 gpui-devtools 代替，能力较弱。
+- **多色 SVG。** `svg()` 只取一个 `text_color`：文件栅格化成 alpha 掩码后单色着色（`src/elements/svg.rs:150`、`src/window.rs:5210`），SVG 自带的颜色被丢掉，演示 `reports/assets/P0-25-svg-color.png`。Lucide 图标是单色描边，不受影响；确实需要多色的，用 `SvgRenderer::render_single_frame`（`src/svg_renderer.rs:222`）栅格化后按图片画，缓存自己做。
 - **Linux 上没有 Vulkan 的机器。** GPUI 在 Linux 上经 wgpu 走 Vulkan，只能退到 llvmpipe 等软件实现，CPU 占用高。WebKitGTK 在这类机器上仍可用。是否支持由 P0-17 决定。
 - **无 GPU 的 Windows 云桌面。** nyaterm #938 已标为 `not_planned`（验证报告 4.3 节），上游不会修。
 
