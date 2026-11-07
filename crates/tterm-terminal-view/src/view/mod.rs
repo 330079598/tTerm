@@ -5,7 +5,7 @@
 //! ([`tterm_terminal::terminal::Terminal`]) is shared with the session and is
 //! only locked while a snapshot is copied.
 //!
-//! [`TerminalElement`] is the custom [`gpui_kit::Element`]. Its prepaint
+//! [`element::TerminalElement`] is the custom [`gpui_kit::Element`]. Its prepaint
 //! takes the snapshot and builds the rows; its paint only draws the prepared
 //! frame. A frame has three entry points:
 //!
@@ -15,6 +15,7 @@
 
 mod blink;
 mod cache;
+pub mod element;
 pub mod font;
 mod frame;
 mod paint;
@@ -22,6 +23,7 @@ mod prepare;
 mod row;
 mod scroll;
 mod style;
+mod wheel;
 
 #[cfg(test)]
 mod tests;
@@ -30,21 +32,19 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use gpui_kit::{
-    App, Bounds, Context, Element, ElementId, Entity, FocusHandle, GlobalElementId,
-    InspectorElementId, InteractiveElement, IntoElement, LayoutId, Length, ParentElement, Pixels,
-    Point, Render, ScrollEvent, Style, Styled, Task, Window, div, relative, size,
+    Bounds, Context, FocusHandle, InteractiveElement, IntoElement, ParentElement, Pixels, Point,
+    Render, Styled, Task, Window, div,
 };
 use tterm_terminal::grid::{CellSize, GridSize};
 use tterm_terminal::mode::Modes;
 use tterm_terminal::palette::TerminalPalette;
-use tterm_terminal::terminal::{Scroll, Terminal};
-
-use crate::input::wheel::{Wheel, WheelAction, wheel_action};
+use tterm_terminal::terminal::Terminal;
 
 use self::blink::BlinkState;
 use self::cache::RowCache;
+use self::element::TerminalElement;
 use self::font::{CellGeometry, FontSet, TerminalFont};
-use self::frame::{FrameData, PreparedFrame};
+use self::frame::FrameData;
 use self::scroll::ScrollAccumulator;
 
 /// Where bytes the view produces, such as alternate-screen wheel arrows,
@@ -107,7 +107,7 @@ impl ViewStats {
     }
 }
 
-/// The terminal view, a GPUI entity that renders one [`TerminalElement`].
+/// The terminal view, a GPUI entity that renders one [`element::TerminalElement`].
 pub struct TerminalView {
     terminal: Arc<Terminal>,
     font: TerminalFont,
@@ -282,40 +282,6 @@ impl TerminalView {
         self.blink_task.take();
         self.blink.set_running(false);
     }
-
-    fn on_wheel(&mut self, event: &ScrollEvent, _window: &mut Window, cx: &mut Context<Self>) {
-        let Some(data) = self.last_frame.as_ref() else {
-            return;
-        };
-        let lines = self.scroll.lines(event.delta, data.metrics.cell_height);
-        if lines == 0 {
-            return;
-        }
-        let action = wheel_action(
-            data.snapshot.modes(),
-            event.modifiers.shift,
-            Wheel { lines, columns: 0 },
-        );
-        match action {
-            WheelAction::Scroll(lines) => {
-                self.terminal.scroll(Scroll::Delta(lines));
-                self.invalidate(cx);
-            }
-            WheelAction::Alternate(arrows) => {
-                self.scroll.reset();
-                if let Some(input) = &self.input {
-                    for arrow in arrows {
-                        input(arrow.sequence());
-                    }
-                }
-            }
-            // P0-13 reports the wheel through the mouse encoder; P0-10 only
-            // scrolls the viewport locally.
-            WheelAction::Report(_) | WheelAction::None => {
-                self.scroll.reset();
-            }
-        }
-    }
 }
 
 impl Render for TerminalView {
@@ -326,85 +292,6 @@ impl Render for TerminalView {
             .track_focus(&self.focus_handle)
             .on_scroll(cx.listener(Self::on_wheel))
             .child(TerminalElement::new(cx.entity()))
-    }
-}
-
-/// The custom GPUI element that draws one terminal.
-pub struct TerminalElement {
-    view: Entity<TerminalView>,
-}
-
-impl TerminalElement {
-    /// Wraps a view in an element.
-    pub fn new(view: Entity<TerminalView>) -> Self {
-        Self { view }
-    }
-}
-
-impl IntoElement for TerminalElement {
-    type Element = Self;
-
-    fn into_element(self) -> Self::Element {
-        self
-    }
-}
-
-impl Element for TerminalElement {
-    type RequestLayoutState = Style;
-    type PrepaintState = PreparedFrame;
-
-    fn id(&self) -> Option<ElementId> {
-        None
-    }
-
-    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
-        None
-    }
-
-    fn request_layout(
-        &mut self,
-        _id: Option<&GlobalElementId>,
-        _inspector_id: Option<&InspectorElementId>,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> (LayoutId, Self::RequestLayoutState) {
-        let style = Style {
-            size: size(
-                Length::Definite(relative(1.0)),
-                Length::Definite(relative(1.0)),
-            ),
-            flex_grow: 1.0,
-            flex_shrink: 1.0,
-            flex_basis: Length::Definite(relative(1.0)),
-            ..Style::default()
-        };
-        (window.request_layout(style.clone(), [], cx), style)
-    }
-
-    fn prepaint(
-        &mut self,
-        _id: Option<&GlobalElementId>,
-        _inspector_id: Option<&InspectorElementId>,
-        bounds: Bounds<Pixels>,
-        _request_layout: &mut Style,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> Self::PrepaintState {
-        self.view
-            .update(cx, |view, cx| view.prepare(bounds, window, cx))
-    }
-
-    fn paint(
-        &mut self,
-        _id: Option<&GlobalElementId>,
-        _inspector_id: Option<&InspectorElementId>,
-        bounds: Bounds<Pixels>,
-        _request_layout: &mut Style,
-        prepaint: &mut Self::PrepaintState,
-        window: &mut Window,
-        _cx: &mut App,
-    ) {
-        prepaint.paint(bounds, window);
     }
 }
 
