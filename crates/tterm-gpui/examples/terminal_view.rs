@@ -70,7 +70,9 @@ fn screenshot_bytes() -> Vec<u8> {
     bytes
         .extend_from_slice(b"\x1b[38;5;39mThe quick brown fox jumps over the lazy dog.\x1b[0m\r\n");
     bytes.extend_from_slice(b"\x1b[38;5;214m0123456789 !@#$%^&*()_+-=[]{};':\",./<>?\x1b[0m\r\n");
-    bytes.extend_from_slice(b"\x1b[10;1H\x1b[?25h");
+    // Park the cursor on the "q" of "quick", away from column 0, so the image
+    // shows that the block cursor lands on its own cell.
+    bytes.extend_from_slice(b"\x1b[10;5H\x1b[?25h");
     bytes
 }
 
