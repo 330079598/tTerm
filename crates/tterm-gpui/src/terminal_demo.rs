@@ -12,7 +12,7 @@ mod pipeline;
 mod session;
 mod window;
 
-use command::{CommandSpec, command_from_environment};
+use command::CommandSpec;
 
 const USAGE: &str = "usage: tterm-gpui [--ssh <target> [args...]]";
 
@@ -20,7 +20,7 @@ const USAGE: &str = "usage: tterm-gpui [--ssh <target> [args...]]";
 pub fn run() {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     match arguments.first().map(String::as_str) {
-        None => window::run_window(command_from_environment()),
+        None => window::run_window(CommandSpec::Shell),
         Some("--ssh") => {
             let Some(target) = arguments.get(1).cloned() else {
                 eprintln!("--ssh requires a user@host target");
