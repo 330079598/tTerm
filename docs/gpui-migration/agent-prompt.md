@@ -33,7 +33,7 @@ git worktree add ..\tTerm-<ID> -b migrate/<ID>-<英文短名> GPUI
 - 使用独立的数据目录 com.stone.tTerm.gpui-dev，不读写 com.stone.tTerm 或 com.stone.tTerm.dev。
 - 复制的第三方代码在文件头注明来源仓库、提交、原路径和许可，并登记到 docs/gpui-migration/third-party.md。
 - 不修改 docs/gpui-migration/status.md，它由评估者维护。
-- 本机只有 Windows。macOS、Linux 上的验收项，以及需要真机或真人操作的项，标为“未验证”或“[人工]”，写清缺什么，不要写“通过”。
+- 本机是 <平台>。其他平台上的验收项，以及需要真机或真人操作的项（例如真实输入法），标为“未验证”或“[人工]”，写清缺什么，不要写“通过”。
 - 规模为 L 的卡，先在报告中写好提交拆分计划再开始写代码。
 
 完成标准：
