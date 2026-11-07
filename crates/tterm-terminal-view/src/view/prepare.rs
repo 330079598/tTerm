@@ -53,7 +53,12 @@ impl TerminalView {
             }
         };
 
-        let grid = grid_for(bounds.size.width, bounds.size.height, &metrics);
+        let grid = grid_for(
+            bounds.size.width,
+            bounds.size.height,
+            &metrics,
+            self.terminal.scrollback() > 0,
+        );
         let cell_size = metrics.model_cell_size();
         if metrics_changed || self.last_grid != Some(grid) {
             self.terminal.resize(grid, cell_size);

@@ -1,16 +1,21 @@
 //! Font configuration and cell measurement.
 //!
 //! The cell grid is measured once per font, size and scale factor. The
-//! measurement follows `src/lib/terminalFont.ts` and xterm.js
-//! (`CharSizeService` / `FitAddon`) so the row and column counts match the
-//! Tauri version at the same font and window size:
+//! measurement follows `src/lib/terminalFont.ts` and what the Tauri version
+//! actually runs: xterm.js's `CharSizeService`, its WebGL and canvas
+//! renderers (both size cells the same way) and `FitAddon`, so the row and
+//! column counts match at the same font and window size:
 //!
-//! - the width is the advance of `m` in the configured monospace font, plus
-//!   the configured letter spacing;
-//! - the height is the font's ascent plus descent, multiplied by the line
-//!   height and rounded up to whole device pixels;
-//! - rows and columns are `floor(available / cell)`, with a small tolerance
-//!   against floating point error, and the model's minimum of two columns.
+//! - the character width is the advance of `m`, rounded down to whole device
+//!   pixels; the letter spacing, rounded, is added in device pixels;
+//! - the character height is the font's ascent plus descent rounded up to
+//!   whole device pixels, and the cell height is that times the line height,
+//!   rounded down;
+//! - the available width loses the overview ruler gutter whenever the
+//!   terminal has scrollback, and both sides are whole logical pixels, as
+//!   `FitAddon` reads them from CSS;
+//! - rows and columns are `floor(available / cell)`, with the model's minimum
+//!   of two columns.
 //!
 //! GPUI has no letter spacing, but the terminal sets each cell's x position
 //! itself, so a non-zero `letter_spacing` widens the cell and every column
@@ -250,32 +255,69 @@ pub fn measure_cell(
     // the cell is as tall as the glyphs on every platform.
     let descent = text_system.descent(font_id, font_size).as_f32().abs();
     let font_height = ascent + descent;
-
-    // xterm.js rounds the font height up to device pixels, multiplies it by
-    // the line height, then rounds that down; do the same so row counts agree.
-    let char_height_device = (font_height * scale_factor).ceil().max(1.0);
-    let cell_height_device = (char_height_device * font.line_height.max(0.1))
-        .floor()
-        .max(1.0);
-    let cell_height = cell_height_device / scale_factor;
-    let cell_width = advance.as_f32() + font.letter_spacing;
+    let (cell_width, cell_height) = cell_size(advance.as_f32(), font_height, font, scale_factor);
     let baseline = (cell_height - font_height) / 2.0 + ascent;
 
     CellGeometry {
-        cell_width: cell_width.max(1.0),
-        cell_height: cell_height.max(1.0),
+        cell_width,
+        cell_height,
         font_size: font_size.as_f32(),
         baseline,
         scale_factor,
     }
 }
 
+/// The logical cell size for a character `advance` and `font_height`.
+///
+/// This is xterm.js's renderer arithmetic: the character width is rounded
+/// down and the character height rounded up to whole device pixels, the
+/// rounded letter spacing is added in device pixels, and the line height
+/// scales the rounded character height before it is rounded down. A 14px
+/// JetBrains Mono advance of 8.4 therefore makes 8px cells at every common
+/// scale factor, as it does in the Tauri version.
+fn cell_size(advance: f32, font_height: f32, font: &TerminalFont, scale_factor: f32) -> (f32, f32) {
+    let char_width_device = (advance * scale_factor).floor().max(1.0);
+    let cell_width_device = (char_width_device + font.letter_spacing.round()).max(1.0);
+    let char_height_device = (font_height * scale_factor).ceil().max(1.0);
+    let cell_height_device = (char_height_device * font.line_height.max(0.1))
+        .floor()
+        .max(1.0);
+    (
+        cell_width_device / scale_factor,
+        cell_height_device / scale_factor,
+    )
+}
+
+/// The width xterm.js leaves free on the right for tTerm's overview ruler
+/// and scrollbar: `overviewRuler.width` in `openTerminal.ts`, which
+/// `FitAddon` subtracts whenever the terminal keeps scrollback. P0-12 draws
+/// the scrollbar in this gutter.
+pub const SCROLLBAR_GUTTER: f32 = 10.0;
+
 /// The number of rows and columns that fit in `width` by `height`.
-pub fn grid_for(width: Pixels, height: Pixels, geometry: &CellGeometry) -> TerminalGridSize {
-    let columns = ((width.as_f32() / geometry.cell_width) + 1e-4)
+///
+/// `has_scrollback` reserves [`SCROLLBAR_GUTTER`] as `FitAddon` does. Both
+/// sides are first cut to whole logical pixels, which is what `FitAddon`
+/// gets from `parseInt` on the computed CSS size; the small tolerance keeps a
+/// layout result such as 799.9999 from losing a pixel.
+pub fn grid_for(
+    width: Pixels,
+    height: Pixels,
+    geometry: &CellGeometry,
+    has_scrollback: bool,
+) -> TerminalGridSize {
+    let whole = |value: f32| (value + 1e-3).floor().max(0.0);
+    let gutter = if has_scrollback {
+        SCROLLBAR_GUTTER
+    } else {
+        0.0
+    };
+    let available_width = (whole(width.as_f32()) - gutter).max(0.0);
+    let available_height = whole(height.as_f32());
+    let columns = ((available_width / geometry.cell_width) + 1e-4)
         .floor()
         .max(0.0) as usize;
-    let rows = ((height.as_f32() / geometry.cell_height) + 1e-4)
+    let rows = ((available_height / geometry.cell_height) + 1e-4)
         .floor()
         .max(0.0) as usize;
     TerminalGridSize::new(columns, rows)
@@ -316,22 +358,47 @@ mod tests {
         assert_eq!(first_available(&chain, |_| false), None);
     }
 
-    #[test]
-    fn grid_counts_use_floor_and_the_two_column_floor() {
-        let cell = geometry(8.4, 19.0);
-        assert_eq!(grid_for(px(800.0), px(600.0), &cell).columns, 95);
-        assert_eq!(grid_for(px(800.0), px(600.0), &cell).screen_lines, 31);
-        assert_eq!(grid_for(px(1200.0), px(800.0), &cell).columns, 142);
-        assert_eq!(grid_for(px(1200.0), px(800.0), &cell).screen_lines, 42);
-        assert_eq!(grid_for(px(1.0), px(1.0), &cell).columns, 2);
-        assert_eq!(grid_for(px(1.0), px(1.0), &cell).screen_lines, 1);
+    fn grid(width: f32, height: f32, cell: &CellGeometry, scrollback: bool) -> (usize, usize) {
+        let grid = grid_for(px(width), px(height), cell, scrollback);
+        (grid.columns, grid.screen_lines)
     }
 
     #[test]
-    fn exact_fits_are_not_lost_to_floating_point_error() {
-        let cell = geometry(10.0, 20.0);
-        let grid = grid_for(px(800.000_01), px(600.000_01), &cell);
-        assert_eq!((grid.columns, grid.screen_lines), (80, 30));
+    fn grid_counts_reserve_the_gutter_and_keep_the_minimums() {
+        // JetBrains Mono 14px in xterm.js: 8px cells and 19px rows at DPR 1.
+        let cell = geometry(8.0, 19.0);
+        assert_eq!(grid(800.0, 600.0, &cell, true), (98, 31));
+        assert_eq!(grid(1200.0, 800.0, &cell, true), (148, 42));
+        assert_eq!(grid(800.0, 600.0, &cell, false), (100, 31));
+        assert_eq!(grid(1.0, 1.0, &cell, true), (2, 1));
+    }
+
+    #[test]
+    fn fractional_sizes_are_cut_to_whole_pixels_like_fit_addon() {
+        // 19.2px rows are JetBrains Mono 14px at DPR 1.25.
+        let cell = geometry(8.0, 19.2);
+        // FitAddon reads 38 from 38.5px, which holds one 19.2px row, not two.
+        assert_eq!(grid(800.0, 38.5, &cell, true).1, 1);
+        // A layout result just under a whole pixel keeps that pixel.
+        assert_eq!(grid(809.999_9, 600.0, &cell, true).0, 100);
+    }
+
+    #[test]
+    fn cells_follow_the_xterm_renderer_rounding() {
+        let font = TerminalFont::default();
+        // An 8.4px advance and an 18.48px font height (JetBrains Mono 14px).
+        assert_eq!(cell_size(8.4, 18.48, &font, 1.0), (8.0, 19.0));
+        assert_eq!(cell_size(8.4, 18.48, &font, 1.25), (8.0, 24.0 / 1.25));
+        assert_eq!(cell_size(8.4, 18.48, &font, 1.5), (8.0, 28.0 / 1.5));
+        assert_eq!(cell_size(8.4, 18.48, &font, 2.0), (8.0, 18.5));
+
+        let spaced = TerminalFont {
+            letter_spacing: 1.0,
+            line_height: 1.2,
+            ..TerminalFont::default()
+        };
+        // Letter spacing is in device pixels: one extra device pixel at DPR 2.
+        assert_eq!(cell_size(8.4, 18.48, &spaced, 2.0), (8.5, 44.0 / 2.0));
     }
 
     #[test]

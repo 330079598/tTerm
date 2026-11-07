@@ -154,8 +154,9 @@ fn print_metrics() {
             "dpr={scale_factor}: cell={:.4}x{:.4} logical",
             metrics.cell_width, metrics.cell_height
         );
+        // The demo terminal keeps scrollback, so the gutter is reserved.
         for (width, height) in [(800.0, 600.0), (1200.0, 800.0)] {
-            let grid = grid_for(px(width), px(height), &metrics);
+            let grid = grid_for(px(width), px(height), &metrics, true);
             println!(
                 "  {width}x{height}: {} columns x {} rows",
                 grid.columns, grid.screen_lines
