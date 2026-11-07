@@ -92,7 +92,11 @@ impl TerminalView {
             None => self.build_frame(grid, metrics, &text_system),
         };
 
-        let cursor = cursor_for(&data.snapshot, focused);
+        let cursor = if self.composition.active() {
+            None
+        } else {
+            cursor_for(&data.snapshot, focused)
+        };
         let should_blink = self.visible
             && BlinkState::should_run(
                 true,
@@ -118,6 +122,9 @@ impl TerminalView {
             data.metrics.scale_factor,
         );
         self.input_origin = Some(origin);
+        self.composition
+            .refresh(&data.snapshot, cx.background_executor().now());
+        self.prepare_ime(&data, origin, window, cx);
         PreparedFrame::Full {
             data,
             origin,

@@ -36,6 +36,16 @@ impl TerminalView {
         if event.prefer_character_input {
             return;
         }
+        // A confirmation press can be replayed after text is committed. Keep
+        // its suppression only until that key is released, not until the next
+        // unrelated Enter after a candidate was selected with the mouse.
+        if self.composition.active() || (self.ime_confirm && event.keystroke.key == "enter") {
+            self.ime_confirm = event.keystroke.key == "enter";
+            window.prevent_default();
+            cx.stop_propagation();
+            return;
+        }
+        self.ime_confirm = false;
         if self.clipboard_key(&event.keystroke, cx)
             || self.encode_key(&event.keystroke, KeyState::Pressed, event.is_held, cx)
         {
@@ -50,6 +60,12 @@ impl TerminalView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.composition.active() || (self.ime_confirm && event.keystroke.key == "enter") {
+            self.ime_confirm = false;
+            window.prevent_default();
+            cx.stop_propagation();
+            return;
+        }
         if self.encode_key(&event.keystroke, KeyState::Released, false, cx) {
             window.prevent_default();
             cx.stop_propagation();
@@ -90,6 +106,11 @@ impl TerminalView {
             }
         }
         if !focused {
+            self.ime_confirm = false;
+            self.composition.clear();
+            self.preedit = None;
+            self.ime_hide_task.take();
+            window.notify_text_input_changed(&self.focus_handle);
             self.stop_blink();
         }
         window.invalidate_character_coordinates();

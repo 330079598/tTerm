@@ -16,9 +16,12 @@
 mod blink;
 mod cache;
 mod clipboard;
+mod composition;
 pub mod element;
 pub mod font;
 mod frame;
+mod ime;
+mod input_handler;
 mod keyboard;
 mod paint;
 mod paste;
@@ -29,6 +32,8 @@ mod scroll;
 mod style;
 mod wheel;
 
+#[cfg(test)]
+mod ime_tests;
 #[cfg(test)]
 mod input_tests;
 #[cfg(test)]
@@ -131,6 +136,10 @@ pub struct TerminalView {
     input_observed: bool,
     input_origin: Option<Point<Pixels>>,
     pointer: pointer::PointerState,
+    composition: composition::Composition,
+    ime_confirm: bool,
+    preedit: Option<composition::PreeditPaint>,
+    ime_hide_task: Option<Task<()>>,
     resize: Option<ResizeSink>,
     visible: bool,
     geometry: Option<CellGeometry>,
@@ -168,6 +177,10 @@ impl TerminalView {
             input_observed: false,
             input_origin: None,
             pointer: pointer::PointerState::default(),
+            composition: composition::Composition::default(),
+            ime_confirm: false,
+            preedit: None,
+            ime_hide_task: None,
             resize: config.resize,
             visible: true,
             geometry: None,
@@ -242,6 +255,10 @@ impl TerminalView {
             self.blink_only = false;
             self.request_redraw(cx);
         } else {
+            self.ime_confirm = false;
+            self.composition.clear();
+            self.preedit = None;
+            self.ime_hide_task.take();
             self.stop_blink();
             self.blink_only = false;
         }
@@ -279,8 +296,11 @@ impl TerminalView {
         self.request_redraw(cx);
     }
 
-    /// Clears the screen content and requests one frame.
+    /// Invalidates the screen and cancels view-local input during a session reset.
     pub fn clear(&mut self, cx: &mut Context<Self>) {
+        self.ime_confirm = false;
+        self.composition.clear();
+        self.preedit = None;
         self.invalidate(cx);
     }
 

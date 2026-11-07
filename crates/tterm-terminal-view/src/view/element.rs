@@ -1,11 +1,11 @@
 //! The terminal element delegates layout and painting to its view.
 
 use gpui_kit::{
-    App, Bounds, Element, ElementId, Entity, GlobalElementId, InspectorElementId, IntoElement,
-    LayoutId, Length, Pixels, Style, Window, relative, size,
+    App, Bounds, ContentMask, Element, ElementId, ElementInputHandler, Entity, GlobalElementId,
+    InspectorElementId, IntoElement, LayoutId, Length, Pixels, Style, Window, relative, size,
 };
 
-use super::{TerminalView, frame::PreparedFrame};
+use super::{TerminalView, frame::PreparedFrame, input_handler::TerminalInputHandler};
 
 /// The custom GPUI element that draws one terminal.
 pub struct TerminalElement {
@@ -80,8 +80,20 @@ impl Element for TerminalElement {
         _request_layout: &mut Style,
         prepaint: &mut Self::PrepaintState,
         window: &mut Window,
-        _cx: &mut App,
+        cx: &mut App,
     ) {
         prepaint.paint(bounds, window);
+        let focus = self.view.read(cx).focus_handle();
+        window.handle_input(
+            &focus,
+            TerminalInputHandler(ElementInputHandler::new(bounds, self.view.clone())),
+            cx,
+        );
+        let preedit = self.view.read(cx).preedit.clone();
+        if let Some(preedit) = preedit {
+            window.with_content_mask(Some(ContentMask { bounds }), |window| {
+                preedit.paint(window, cx)
+            });
+        }
     }
 }
