@@ -36,20 +36,21 @@ impl TerminalView {
         let scale_factor = window.scale_factor();
         let text_system = window.text_system().clone();
         let mut metrics_changed = false;
-        if self.geometry.is_none() || (self.geometry_scale - scale_factor).abs() > 1e-4 {
-            let geometry = measure_cell(&text_system, &self.fonts, &self.font, scale_factor);
-            if self.geometry != Some(geometry) {
-                metrics_changed = true;
-                self.style_epoch = self.style_epoch.wrapping_add(1);
-                self.cache.clear();
-                self.last_frame = None;
+        let metrics = match self.geometry {
+            Some(geometry) if (self.geometry_scale - scale_factor).abs() <= 1e-4 => geometry,
+            previous => {
+                let geometry = measure_cell(&text_system, &self.fonts, &self.font, scale_factor);
+                if previous != Some(geometry) {
+                    metrics_changed = true;
+                    self.style_epoch = self.style_epoch.wrapping_add(1);
+                    self.cache.clear();
+                    self.last_frame = None;
+                }
+                self.geometry = Some(geometry);
+                self.geometry_scale = scale_factor;
+                geometry
             }
-            self.geometry = Some(geometry);
-            self.geometry_scale = scale_factor;
-        }
-        let metrics = self
-            .geometry
-            .expect("the geometry was measured immediately above");
+        };
 
         let grid = grid_for(bounds.size.width, bounds.size.height, &metrics);
         let cell_size = metrics.model_cell_size();
@@ -65,20 +66,24 @@ impl TerminalView {
 
         let focused = self.focus_handle.is_focused(window);
         let window_active = window.is_window_active();
-        let blink_only = self.blink_only
-            && self
-                .last_frame
-                .as_ref()
-                .is_some_and(|frame| frame.grid() == grid && frame.style_epoch == self.style_epoch);
-        self.blink_only = false;
-
-        let data = if blink_only {
-            self.stats.blink_reuses = self.stats.blink_reuses.saturating_add(1);
+        // A blink-only frame repaints the previous frame as it is, as long as
+        // the grid and style epoch still match.
+        let blink_frame = if self.blink_only {
+            let style_epoch = self.style_epoch;
             self.last_frame
                 .clone()
-                .expect("the blink fast path requires a previous frame")
+                .filter(|frame| frame.grid() == grid && frame.style_epoch == style_epoch)
         } else {
-            self.build_frame(grid, metrics, &text_system)
+            None
+        };
+        self.blink_only = false;
+
+        let data = match blink_frame {
+            Some(frame) => {
+                self.stats.blink_reuses = self.stats.blink_reuses.saturating_add(1);
+                frame
+            }
+            None => self.build_frame(grid, metrics, &text_system),
         };
 
         let cursor = cursor_for(&data.snapshot, focused);
