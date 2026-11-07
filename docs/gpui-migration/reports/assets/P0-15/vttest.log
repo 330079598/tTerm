@@ -1,0 +1,7 @@
+Note: Setup Terminal with test-defaults
+Note: enable ISO-2022 (UTF-8)
+Send: <27> % @ 
+Send: <27> [ 0 c 
+Wait: 1
+Read: <27> [ ? 6 c 
+Done: 1
