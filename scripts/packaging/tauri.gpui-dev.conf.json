@@ -1,0 +1,27 @@
+{
+  "productName": "tTerm GPUI Dev",
+  "mainBinaryName": "tTerm GPUI Dev",
+  "identifier": "com.stone.tTerm.gpui-dev",
+  "version": "0.0.1",
+  "bundle": {
+    "targets": ["nsis"],
+    "createUpdaterArtifacts": false,
+    "publisher": "stone",
+    "windows": {
+      "nsis": {
+        "installerHooks": null,
+        "installMode": "currentUser"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "P0_26_TEST_PUBLIC_KEY",
+      "endpoints": ["http://127.0.0.1:18226/latest.json"],
+      "dangerousInsecureTransportProtocol": true,
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+diff --git a/src-tauri/src/lib.rs b/src-tauri/src/lib.rs
+index 6e5f1e25..93129492 100644
+--- a/src-tauri/src/lib.rs
++++ b/src-tauri/src/lib.rs
+@@ -370,10 +370,6 @@ pub fn run() {
+                 eprintln!("Failed to open database: {error}");
+             }
+ 
+-            if let Err(err) = migrate::migrate_legacy_config_files(&app_handle) {
+-                eprintln!("Failed to migrate legacy config files: {}", err);
+-            }
+-
+             // After the legacy config merge so data from the old config
+             // directory is imported along with everything else.
+             if let Err(error) = db::import_legacy_json_files() {
+diff --git a/src-tauri/src/updater.rs b/src-tauri/src/updater.rs
+index cae7f849..b48f0610 100644
+--- a/src-tauri/src/updater.rs
++++ b/src-tauri/src/updater.rs
+@@ -47,11 +47,8 @@ pub enum AppUpdateDownloadEvent {
+     Finished,
+ }
+ 
+-fn update_endpoint(channel: &str) -> &'static str {
+-    match channel {
+-        "beta-dev" => "https://330079598.github.io/tTerm/update/beta-dev/latest.json",
+-        _ => "https://330079598.github.io/tTerm/update/stable/latest.json",
+-    }
++fn update_endpoint(_channel: &str) -> &'static str {
++    "http://127.0.0.1:18226/latest.json"
+ }
+ 
+ fn is_retryable_update_error(err: &tauri_plugin_updater::Error) -> bool {
