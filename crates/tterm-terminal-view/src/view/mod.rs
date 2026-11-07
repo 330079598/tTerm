@@ -18,6 +18,7 @@ mod cache;
 pub mod element;
 pub mod font;
 mod frame;
+mod keyboard;
 mod paint;
 mod prepare;
 mod row;
@@ -25,6 +26,8 @@ mod scroll;
 mod style;
 mod wheel;
 
+#[cfg(test)]
+mod input_tests;
 #[cfg(test)]
 mod tests;
 
@@ -39,6 +42,8 @@ use tterm_terminal::grid::{CellSize, GridSize};
 use tterm_terminal::mode::Modes;
 use tterm_terminal::palette::TerminalPalette;
 use tterm_terminal::terminal::Terminal;
+
+use crate::input::keyboard::EncoderConfig;
 
 use self::blink::BlinkState;
 use self::cache::RowCache;
@@ -64,6 +69,8 @@ pub struct TerminalViewConfig {
     /// Where alternate-screen wheel arrows are written, when the example has
     /// a PTY. P0-13 wires the full input path.
     pub input: Option<InputSink>,
+    /// Alt/Option policy passed to the existing keyboard encoder.
+    pub keyboard: EncoderConfig,
     /// Reports a grid change to the session so it can resize the PTY.
     pub resize: Option<ResizeSink>,
 }
@@ -115,6 +122,9 @@ pub struct TerminalView {
     palette: TerminalPalette,
     focus_handle: FocusHandle,
     input: Option<InputSink>,
+    keyboard: EncoderConfig,
+    input_focused: bool,
+    input_observed: bool,
     resize: Option<ResizeSink>,
     visible: bool,
     geometry: Option<CellGeometry>,
@@ -147,6 +157,9 @@ impl TerminalView {
             palette: config.palette,
             focus_handle,
             input: config.input,
+            keyboard: config.keyboard,
+            input_focused: false,
+            input_observed: false,
             resize: config.resize,
             visible: true,
             geometry: None,
@@ -285,11 +298,14 @@ impl TerminalView {
 }
 
 impl Render for TerminalView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.observe_input_focus(window, cx);
         div()
             .size_full()
             .key_context("Terminal")
             .track_focus(&self.focus_handle)
+            .on_key_down(cx.listener(Self::on_key_down))
+            .on_key_up(cx.listener(Self::on_key_up))
             .on_scroll(cx.listener(Self::on_wheel))
             .child(TerminalElement::new(cx.entity()))
     }
