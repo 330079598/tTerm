@@ -5,7 +5,7 @@
 //! ([`tterm_terminal::terminal::Terminal`]) is shared with the session and is
 //! only locked while a snapshot is copied.
 //!
-//! [`TerminalElement`] is the custom [`gpui_kit::Element`]. Its prepaint
+//! [`element::TerminalElement`] is the custom [`gpui_kit::Element`]. Its prepaint
 //! takes the snapshot and builds the rows; its paint only draws the prepared
 //! frame. A frame has three entry points:
 //!
@@ -15,14 +15,29 @@
 
 mod blink;
 mod cache;
+mod clipboard;
+mod composition;
+pub mod element;
 pub mod font;
 mod frame;
+mod ime;
+mod input_handler;
+mod keyboard;
 mod paint;
+mod paste;
+mod pointer;
 mod prepare;
 mod row;
 mod scroll;
 mod style;
+mod wheel;
 
+#[cfg(test)]
+mod ime_tests;
+#[cfg(test)]
+mod input_tests;
+#[cfg(test)]
+mod pointer_tests;
 #[cfg(test)]
 mod tests;
 
@@ -30,21 +45,21 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use gpui_kit::{
-    App, Bounds, Context, Element, ElementId, Entity, FocusHandle, GlobalElementId,
-    InspectorElementId, InteractiveElement, IntoElement, LayoutId, Length, ParentElement, Pixels,
-    Point, Render, ScrollEvent, Style, Styled, Task, Window, div, relative, size,
+    Bounds, Context, FocusHandle, InteractiveElement, IntoElement, ParentElement, Pixels, Point,
+    Render, Styled, Task, Window, div,
 };
 use tterm_terminal::grid::{CellSize, GridSize};
 use tterm_terminal::mode::Modes;
 use tterm_terminal::palette::TerminalPalette;
-use tterm_terminal::terminal::{Scroll, Terminal};
+use tterm_terminal::terminal::Terminal;
 
-use crate::input::wheel::{Wheel, WheelAction, wheel_action};
+use crate::input::keyboard::EncoderConfig;
 
 use self::blink::BlinkState;
 use self::cache::RowCache;
+use self::element::TerminalElement;
 use self::font::{CellGeometry, FontSet, TerminalFont};
-use self::frame::{FrameData, PreparedFrame};
+use self::frame::FrameData;
 use self::scroll::ScrollAccumulator;
 
 /// Where bytes the view produces, such as alternate-screen wheel arrows,
@@ -61,9 +76,10 @@ pub struct TerminalViewConfig {
     pub font: TerminalFont,
     /// The theme palette.
     pub palette: TerminalPalette,
-    /// Where alternate-screen wheel arrows are written, when the example has
-    /// a PTY. P0-13 wires the full input path.
+    /// Ordered byte sink shared by keyboard, clipboard and text input.
     pub input: Option<InputSink>,
+    /// Alt/Option policy passed to the existing keyboard encoder.
+    pub keyboard: EncoderConfig,
     /// Reports a grid change to the session so it can resize the PTY.
     pub resize: Option<ResizeSink>,
 }
@@ -93,6 +109,8 @@ pub struct ViewStats {
     pub resizes: u64,
     /// Blink-only repaints that reused the previous snapshot and rows.
     pub blink_reuses: u64,
+    /// Candidate geometry changes that requested an IME coordinate update.
+    pub ime_geometry_updates: u64,
 }
 
 impl ViewStats {
@@ -107,7 +125,7 @@ impl ViewStats {
     }
 }
 
-/// The terminal view, a GPUI entity that renders one [`TerminalElement`].
+/// The terminal view, a GPUI entity that renders one [`element::TerminalElement`].
 pub struct TerminalView {
     terminal: Arc<Terminal>,
     font: TerminalFont,
@@ -115,6 +133,16 @@ pub struct TerminalView {
     palette: TerminalPalette,
     focus_handle: FocusHandle,
     input: Option<InputSink>,
+    keyboard: EncoderConfig,
+    input_focused: bool,
+    input_observed: bool,
+    input_origin: Option<Point<Pixels>>,
+    pointer: pointer::PointerState,
+    composition: composition::Composition,
+    ime_confirm: bool,
+    preedit: Option<composition::PreeditPaint>,
+    ime_geometry: Option<ime::CandidateGeometry>,
+    ime_hide_task: Option<Task<()>>,
     resize: Option<ResizeSink>,
     visible: bool,
     geometry: Option<CellGeometry>,
@@ -147,6 +175,16 @@ impl TerminalView {
             palette: config.palette,
             focus_handle,
             input: config.input,
+            keyboard: config.keyboard,
+            input_focused: false,
+            input_observed: false,
+            input_origin: None,
+            pointer: pointer::PointerState::default(),
+            composition: composition::Composition::default(),
+            ime_confirm: false,
+            preedit: None,
+            ime_geometry: None,
+            ime_hide_task: None,
             resize: config.resize,
             visible: true,
             geometry: None,
@@ -221,6 +259,10 @@ impl TerminalView {
             self.blink_only = false;
             self.request_redraw(cx);
         } else {
+            self.ime_confirm = false;
+            self.composition.clear();
+            self.preedit = None;
+            self.ime_hide_task.take();
             self.stop_blink();
             self.blink_only = false;
         }
@@ -258,8 +300,11 @@ impl TerminalView {
         self.request_redraw(cx);
     }
 
-    /// Clears the screen content and requests one frame.
+    /// Invalidates the screen and cancels view-local input during a session reset.
     pub fn clear(&mut self, cx: &mut Context<Self>) {
+        self.ime_confirm = false;
+        self.composition.clear();
+        self.preedit = None;
         self.invalidate(cx);
     }
 
@@ -282,129 +327,45 @@ impl TerminalView {
         self.blink_task.take();
         self.blink.set_running(false);
     }
-
-    fn on_wheel(&mut self, event: &ScrollEvent, _window: &mut Window, cx: &mut Context<Self>) {
-        let Some(data) = self.last_frame.as_ref() else {
-            return;
-        };
-        let lines = self.scroll.lines(event.delta, data.metrics.cell_height);
-        if lines == 0 {
-            return;
-        }
-        let action = wheel_action(
-            data.snapshot.modes(),
-            event.modifiers.shift,
-            Wheel { lines, columns: 0 },
-        );
-        match action {
-            WheelAction::Scroll(lines) => {
-                self.terminal.scroll(Scroll::Delta(lines));
-                self.invalidate(cx);
-            }
-            WheelAction::Alternate(arrows) => {
-                self.scroll.reset();
-                if let Some(input) = &self.input {
-                    for arrow in arrows {
-                        input(arrow.sequence());
-                    }
-                }
-            }
-            // P0-13 reports the wheel through the mouse encoder; P0-10 only
-            // scrolls the viewport locally.
-            WheelAction::Report(_) | WheelAction::None => {
-                self.scroll.reset();
-            }
-        }
-    }
 }
 
 impl Render for TerminalView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.observe_input_focus(window, cx);
         div()
             .size_full()
             .key_context("Terminal")
             .track_focus(&self.focus_handle)
+            .on_key_down(cx.listener(Self::on_key_down))
+            .on_key_up(cx.listener(Self::on_key_up))
+            .on_any_mouse_down(cx.listener(Self::on_pointer_down))
+            .on_mouse_move(cx.listener(Self::on_pointer_move))
+            .on_mouse_up(
+                gpui_kit::MouseButton::Left,
+                cx.listener(Self::on_pointer_up),
+            )
+            .on_mouse_up(
+                gpui_kit::MouseButton::Right,
+                cx.listener(Self::on_pointer_up),
+            )
+            .on_mouse_up(
+                gpui_kit::MouseButton::Middle,
+                cx.listener(Self::on_pointer_up),
+            )
+            .on_mouse_up_out(
+                gpui_kit::MouseButton::Left,
+                cx.listener(Self::on_pointer_up),
+            )
+            .on_mouse_up_out(
+                gpui_kit::MouseButton::Middle,
+                cx.listener(Self::on_pointer_up),
+            )
+            .on_mouse_up_out(
+                gpui_kit::MouseButton::Right,
+                cx.listener(Self::on_pointer_up),
+            )
             .on_scroll(cx.listener(Self::on_wheel))
             .child(TerminalElement::new(cx.entity()))
-    }
-}
-
-/// The custom GPUI element that draws one terminal.
-pub struct TerminalElement {
-    view: Entity<TerminalView>,
-}
-
-impl TerminalElement {
-    /// Wraps a view in an element.
-    pub fn new(view: Entity<TerminalView>) -> Self {
-        Self { view }
-    }
-}
-
-impl IntoElement for TerminalElement {
-    type Element = Self;
-
-    fn into_element(self) -> Self::Element {
-        self
-    }
-}
-
-impl Element for TerminalElement {
-    type RequestLayoutState = Style;
-    type PrepaintState = PreparedFrame;
-
-    fn id(&self) -> Option<ElementId> {
-        None
-    }
-
-    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
-        None
-    }
-
-    fn request_layout(
-        &mut self,
-        _id: Option<&GlobalElementId>,
-        _inspector_id: Option<&InspectorElementId>,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> (LayoutId, Self::RequestLayoutState) {
-        let style = Style {
-            size: size(
-                Length::Definite(relative(1.0)),
-                Length::Definite(relative(1.0)),
-            ),
-            flex_grow: 1.0,
-            flex_shrink: 1.0,
-            flex_basis: Length::Definite(relative(1.0)),
-            ..Style::default()
-        };
-        (window.request_layout(style.clone(), [], cx), style)
-    }
-
-    fn prepaint(
-        &mut self,
-        _id: Option<&GlobalElementId>,
-        _inspector_id: Option<&InspectorElementId>,
-        bounds: Bounds<Pixels>,
-        _request_layout: &mut Style,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> Self::PrepaintState {
-        self.view
-            .update(cx, |view, cx| view.prepare(bounds, window, cx))
-    }
-
-    fn paint(
-        &mut self,
-        _id: Option<&GlobalElementId>,
-        _inspector_id: Option<&InspectorElementId>,
-        bounds: Bounds<Pixels>,
-        _request_layout: &mut Style,
-        prepaint: &mut Self::PrepaintState,
-        window: &mut Window,
-        _cx: &mut App,
-    ) {
-        prepaint.paint(bounds, window);
     }
 }
 

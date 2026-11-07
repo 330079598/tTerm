@@ -13,8 +13,9 @@
 //! cargo run -p tterm-gpui --example terminal_view -- --metrics
 //! ```
 //!
-//! Input is P0-13's job: this example displays output and scrolls with the
-//! wheel, but does not forward typing.
+//! P0-13 connects keyboard, selection, clipboard and native text input to
+//! the existing PTY writer. Copy/paste uses Command+C/V on macOS and
+//! Control+Shift+C/V elsewhere.
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
