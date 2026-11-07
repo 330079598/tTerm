@@ -39,6 +39,35 @@ Staging must rename it to the experiment's main binary name and include
 Installation identity, manufacturer, current-user scope, registry keys, shortcuts,
 and the installation directory must match the reviewed Tauri installer.
 
+The reproducible GPUI packaging and signing entry points are:
+
+```powershell
+./scripts/packaging/package-gpui.ps1
+./scripts/packaging/sign-update.ps1
+```
+
+Tauri release installer:
+`D:\code\rust\tTerm-p0-26-scratch\target-tauri\release\bundle\nsis\tTerm GPUI Dev_0.0.1_x64-setup.exe`.
+GPUI release installer:
+`D:\code\rust\tTerm-p0-26-scratch\packages\tTerm GPUI Dev_0.0.2_x64-setup.exe`.
+The actual Tauri installation is
+`C:\Users\stone\AppData\Local\Programs\tTerm GPUI Dev`.
+Both generated NSIS scripts identify publisher `stone`, current-user scope,
+main binary `tTerm GPUI Dev.exe`, uninstall key `tTerm GPUI Dev`, and install
+location key `HKCU\Software\stone\tTerm GPUI Dev`.
+The packager configuration explicitly supplies `name` because 0.11.8 otherwise
+tries to change directory to its configuration file while inferring the name.
+
+Run the service in a hidden background process, recording its PID and logs:
+
+```powershell
+Start-Process -FilePath (Get-Command node).Source -ArgumentList D:/code/rust/tTerm-P0-26/scripts/packaging/serve-update.mjs -WindowStyle Hidden -RedirectStandardOutput D:/code/rust/tTerm-p0-26-scratch/evidence/server-stdout.log -RedirectStandardError D:/code/rust/tTerm-p0-26-scratch/evidence/server-stderr.log -PassThru
+```
+
+The service has an explicit two-file allowlist. Its document root contains no
+keys. Signatures use the newly generated test key only. Production signing
+variables must be cleared before any signing or packaging invocation.
+
 Full local evidence belongs in `D:\code\rust\tTerm-p0-26-scratch\evidence`.
 Private keys belong only in `D:\code\rust\tTerm-p0-26-keys`.
 Neither path is published or committed. The local HTTP service must bind only
