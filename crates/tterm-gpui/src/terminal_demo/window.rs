@@ -11,7 +11,7 @@ use tterm_terminal::terminal::{Config, Terminal};
 use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
 
 use super::command::CommandSpec;
-use super::conpty::prepare_conpty;
+use super::conpty::{log_conpty_source, prepare_conpty};
 use super::intents::DEFAULT_TITLE;
 use super::pipeline::SessionState;
 use super::session::{Session, pty_size};
@@ -94,7 +94,10 @@ impl Prototype {
             state,
         );
         let (session, wake) = match started {
-            Ok(started) => started,
+            Ok(started) => {
+                log_conpty_source();
+                started
+            }
             Err(error) => {
                 eprintln!("tterm-gpui: {error}");
                 terminal.write(format!("\x1b[31m[{error}]\x1b[0m\r\n").as_bytes());
