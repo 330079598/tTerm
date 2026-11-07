@@ -50,7 +50,7 @@ impl Session {
         let child = pair
             .slave
             .spawn_command(command)
-            .map_err(|error| format!("Failed to start the shell: {error}"))?;
+            .map_err(|error| format!("Failed to start the command: {error}"))?;
         drop(pair.slave);
         let reader = pair
             .master
