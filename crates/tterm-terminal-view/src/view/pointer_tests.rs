@@ -258,3 +258,170 @@ fn shift_wheel_keeps_the_existing_reporting_policy(cx: &mut TestAppContext) {
     );
     assert_eq!(&*h.bytes.borrow(), b"\x1b[<68;3;1M");
 }
+
+#[gpui_kit::test]
+fn releasing_outside_finishes_local_selection(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.output(cx, b"hello world");
+    for button in [MouseButton::Left, MouseButton::Right] {
+        drag(&h, cx, Modifiers::default());
+        let start = position(&h, cx, 4.9, 0.5);
+        h.event(
+            cx,
+            MouseDownEvent {
+                position: start,
+                button,
+                click_count: 1,
+                ..Default::default()
+            },
+        );
+        let outside = position(&h, cx, 10000., 0.5);
+        h.event(
+            cx,
+            MouseMoveEvent {
+                position: outside,
+                pressed_button: Some(button),
+                ..Default::default()
+            },
+        );
+        h.event(
+            cx,
+            MouseUpEvent {
+                position: outside,
+                button,
+                click_count: 1,
+                ..Default::default()
+            },
+        );
+        let selected = h.terminal.selection_text();
+        assert!(selected.is_some());
+        h.event(
+            cx,
+            MouseMoveEvent {
+                position: start,
+                pressed_button: None,
+                ..Default::default()
+            },
+        );
+        assert_eq!(h.terminal.selection_text(), selected);
+    }
+    assert!(h.bytes.borrow().is_empty());
+}
+
+#[gpui_kit::test]
+fn releasing_outside_pairs_every_reported_button_once(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.output(cx, b"\x1b[?1002h\x1b[?1006h");
+    for (button, code) in [
+        (MouseButton::Left, 0),
+        (MouseButton::Middle, 1),
+        (MouseButton::Right, 2),
+    ] {
+        h.bytes.borrow_mut().clear();
+        let start = position(&h, cx, 2.1, 0.5);
+        h.event(
+            cx,
+            MouseDownEvent {
+                position: start,
+                button,
+                click_count: 1,
+                ..Default::default()
+            },
+        );
+        let release = MouseUpEvent {
+            position: point(px(-100.), px(-100.)),
+            button,
+            click_count: 1,
+            ..Default::default()
+        };
+        h.event(cx, release.clone());
+        h.event(cx, release);
+        let returned = position(&h, cx, 5.1, 0.5);
+        h.event(
+            cx,
+            MouseMoveEvent {
+                position: returned,
+                pressed_button: None,
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            &*h.bytes.borrow(),
+            format!("\x1b[<{code};3;1M\x1b[<{code};1;1m").as_bytes()
+        );
+    }
+}
+
+#[gpui_kit::test]
+fn returning_without_a_button_recovers_a_missed_native_release(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.output(cx, b"hello world");
+    let start = position(&h, cx, 0.1, 0.5);
+    h.event(
+        cx,
+        MouseDownEvent {
+            position: start,
+            button: MouseButton::Left,
+            click_count: 1,
+            ..Default::default()
+        },
+    );
+    let returned = position(&h, cx, 4.9, 0.5);
+    h.event(
+        cx,
+        MouseMoveEvent {
+            position: returned,
+            pressed_button: None,
+            ..Default::default()
+        },
+    );
+    let returned = position(&h, cx, 10.9, 0.5);
+    h.event(
+        cx,
+        MouseMoveEvent {
+            position: returned,
+            pressed_button: None,
+            ..Default::default()
+        },
+    );
+    assert_eq!(h.terminal.selection_text().as_deref(), Some("hello"));
+    h.output(cx, b"\x1b[?1002h\x1b[?1006h");
+    for (button, code) in [
+        (MouseButton::Left, 0),
+        (MouseButton::Middle, 1),
+        (MouseButton::Right, 2),
+    ] {
+        h.bytes.borrow_mut().clear();
+        h.event(
+            cx,
+            MouseDownEvent {
+                position: start,
+                button,
+                click_count: 1,
+                ..Default::default()
+            },
+        );
+        let returned = position(&h, cx, 2.1, 0.5);
+        h.event(
+            cx,
+            MouseMoveEvent {
+                position: returned,
+                pressed_button: None,
+                ..Default::default()
+            },
+        );
+        let returned = position(&h, cx, 3.1, 0.5);
+        h.event(
+            cx,
+            MouseMoveEvent {
+                position: returned,
+                pressed_button: None,
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            &*h.bytes.borrow(),
+            format!("\x1b[<{code};1;1M\x1b[<{code};3;1m").as_bytes()
+        );
+    }
+}

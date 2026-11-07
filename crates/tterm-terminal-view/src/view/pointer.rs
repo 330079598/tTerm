@@ -81,6 +81,11 @@ impl TerminalView {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        // A release outside the native window may not be delivered. Recover
+        // from the platform's button state when the pointer returns instead.
+        if event.pressed_button.is_none() && self.pointer.held.is_some() {
+            self.finish_pointer(event.position, event.modifiers, cx);
+        }
         let Some((point, side)) = self.pointer_cell(event.position) else {
             return;
         };
@@ -122,19 +127,28 @@ impl TerminalView {
         if self.pointer.held != Some(button) {
             return;
         }
-        if let Some((point, side)) = self.pointer_cell(event.position) {
+        self.finish_pointer(event.position, event.modifiers, cx);
+        cx.stop_propagation();
+    }
+
+    fn finish_pointer(
+        &mut self,
+        position: Point<Pixels>,
+        modifiers: Modifiers,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(button) = self.pointer.held else {
+            return;
+        };
+        if let Some((point, side)) = self.pointer_cell(position) {
             if self.pointer.selecting {
                 self.terminal.extend_selection(point, side);
                 self.invalidate(cx);
-            } else if self.pointer.reported_press
-                && mouse::button_action(self.input_modes(), event.modifiers.shift)
-                    == ButtonAction::Report
-            {
-                self.report_button(point, button, ButtonState::Released, event.modifiers, cx);
+            } else if self.pointer.reported_press {
+                self.report_button(point, button, ButtonState::Released, modifiers, cx);
             }
         }
         self.pointer = PointerState::default();
-        cx.stop_propagation();
     }
 
     pub(super) fn report_button(

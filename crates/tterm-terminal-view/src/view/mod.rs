@@ -348,6 +348,18 @@ impl Render for TerminalView {
                 gpui_kit::MouseButton::Middle,
                 cx.listener(Self::on_pointer_up),
             )
+            .on_mouse_up_out(
+                gpui_kit::MouseButton::Left,
+                cx.listener(Self::on_pointer_up),
+            )
+            .on_mouse_up_out(
+                gpui_kit::MouseButton::Middle,
+                cx.listener(Self::on_pointer_up),
+            )
+            .on_mouse_up_out(
+                gpui_kit::MouseButton::Right,
+                cx.listener(Self::on_pointer_up),
+            )
             .on_scroll(cx.listener(Self::on_wheel))
             .child(TerminalElement::new(cx.entity()))
     }
