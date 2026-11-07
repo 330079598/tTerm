@@ -51,7 +51,7 @@
 ### G1 技术验证通过，进入 P1
 
 - P0 中 G1 必需的卡全部通过，包括新增的 P0-24、P0-25、P0-26、P0-27、P0-28。
-- `Cargo.lock` 中没有 git 来源的依赖；P0-27 的设计说明通过净室审查，P0-09、P0-10、P0-12、P0-13 的报告都声明未阅读 Zed 终端源码（[决策 007](decisions/007-official-sources-and-terminal-route.md)）。
+- `Cargo.lock` 中没有 git 来源的依赖；P0-27 的设计说明通过净室审查，P0-09、P0-10 的报告声明未阅读 Zed 终端源码（[决策 007](decisions/007-official-sources-and-terminal-route.md)），P0-12、P0-13 的报告列出阅读过的 Zed 文件并声明没有复制代码（[决策 008](decisions/008-zed-terminal-reading.md)）。
 - 原型在三平台都能运行 vim、tmux、htop 和一个 AI TUI，无错乱。
 - 输入法：macOS 与 Windows 系统中文输入法全部场景通过；Linux 四个组合中至少 X11+fcitx5 与 Wayland+fcitx5 通过，没通过的写明是否阻塞 Linux 发布。
 - 无 GPU 环境：空闲 CPU < 2%；持续输出时的 CPU 不高于 Tauri 版的 1.5 倍；不满足时要有确定的结论：做降级方案，或明确不支持该环境。

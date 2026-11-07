@@ -11,7 +11,7 @@
 | 仓库形态   | **同一仓库，重写界面，共享 Rust 核心**                                                                                                                                                          | 新建仓库：迁移期后端要两边维护，见第 2 节                                                                                                                        |
 | GPUI 来源  | **官方 Zed 代码的 crates.io 快照**：`gpui-pre =0.3.11`（`zed@f816e1f`），经 `gpui-kit 0.9.0` 使用                                                                                               | nyakang 的分支组合（个人维护，2026-11-05 决定不用，见[决策 007](decisions/007-official-sources-and-terminal-route.md)）；上游 Zed git；gpui-ce，见第 3 节        |
 | 组件库     | **gpui-kit 0.9.0**（crates.io 官方发布）：行为层用 `gpui-base`，外观由 tTerm 自己的 `tterm-ui` 决定                                                                                             | adabraka-ui、guise 等规模小；Zed 的 `ui` 是 GPL                                                                                                                  |
-| 终端       | **官方 `alacritty_terminal 0.26.0` 为内核**；模型与绘制元素自写，架构按 Zed 的做法净室实现；输入协议、方框字符、链接识别移植自 Alacritty 应用层；关键词高亮等独立模块从 nyaterm 挑选，见第 5 节 | 整体复用 nyaterm 终端 crate：需要给 Alacritty 带 2 个补丁，且代码来自一个 6 个月的个人项目；Zed `terminal` 是 GPL；`gpui-terminal`、`gpui_xterm` 只是 0.1 的雏形 |
+| 终端       | **官方 `alacritty_terminal 0.26.0` 为内核**；模型与绘制元素自写，架构参考 Zed 的做法；输入协议、方框字符、链接识别移植自 Alacritty 应用层；关键词高亮等独立模块从 nyaterm 挑选，见第 5 节 | 整体复用 nyaterm 终端 crate：需要给 Alacritty 带 2 个补丁，且代码来自一个 6 个月的个人项目；Zed `terminal` 是 GPL；`gpui-terminal`、`gpui_xterm` 只是 0.1 的雏形 |
 | 远程编辑器 | **gpui-kit 的代码编辑器**（tree-sitter、ropey）                                                                                                                                                 | 自研代价过高；Zed `editor` 是 GPL                                                                                                                                |
 | 图标       | **与 lucide-react 同版本的 Lucide SVG**，由脚本从 npm 包导出                                                                                                                                    | gpui-kit-assets 自带 Lucide，但版本不一定与现有一致                                                                                                              |
 | 国际化     | **自写 `tterm-i18n`，直接读现有 i18next JSON**                                                                                                                                                  | rust-i18n 的插值与复数语法不同，需要转换文案，两个客户端就不再共用一份文件                                                                                       |
@@ -140,7 +140,7 @@ P0-06 的核对结果（详见 [pins.md](pins.md) 与[决策 002](decisions/002-
 | 部分                                                        | 来源                                                                                                                                                                      | 许可                    | 任务卡                            |
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | --------------------------------- |
 | 终端内核：解析、屏幕、回滚区、选区、搜索的底层              | crates.io 官方 `alacritty_terminal = "=0.26.0"`，不打补丁                                                                                                                 | Apache-2.0              | P0-06、P0-09                      |
-| 终端模型封装、绘制元素、滚动、输入法                        | 自写。架构参考 Zed 的 `terminal` 与 `terminal_view`，按**净室流程**：先由读过 Zed 的 agent 写纯文字设计说明，再由没读过 Zed 的 agent 实现                                 | tTerm 自己的代码（MIT） | P0-27、P0-09、P0-10、P0-12、P0-13 |
+| 终端模型封装、绘制元素、滚动、输入法                        | 自写。架构参考 Zed 的 `terminal` 与 `terminal_view`：先由读过 Zed 的 agent 写纯文字设计说明，实现者以说明为主、可以阅读 Zed 源码，但不复制代码（决策 008）                                 | tTerm 自己的代码（MIT） | P0-27、P0-09、P0-10、P0-12、P0-13 |
 | 按键与鼠标协议、方框与 Powerline 字符、链接识别             | 从 Alacritty 应用层复制并改写到 GPUI：`input/keyboard.rs`（718 行）、`input/mod.rs`（1,559 行）、`renderer/text/builtin_font.rs`（1,032 行）、`display/hint.rs`（703 行） | Apache-2.0              | P0-28                             |
 | 关键词高亮；sixel 与 kitty 图片协议（现有版本没有，只评估） | 从 nyaterm 挑选模块复制，先过质量关卡                                                                                                                                     | Apache-2.0              | P0-29                             |
 
@@ -151,12 +151,13 @@ P0-06 的核对结果（详见 [pins.md](pins.md) 与[决策 002](decisions/002-
 - **不整体继承一个年轻项目的设计。** nyaterm 2026-04 创建，6 个月约 3,900 次提交，有 48 个未关闭的 bug（2026-11-05）；它的代码测试充分，但单文件最大 3,488 行，需要大改才符合本仓库规则。只取独立模块，改造量小。
 - **代价：** 终端部分比整体复用 nyaterm 多约 4–8 周，主要在绘制元素、滚动锚定与输入法。
 
-**Zed 净室规则**（README 执行规则 6 的细化）：
+**Zed 参考规则**（README 执行规则 6 的细化；2026-11-07 起按[决策 008](decisions/008-zed-terminal-reading.md)，替代原来的净室规则）：
 
-1. 读 Zed GPL 源码的 agent 只产出文字设计说明（P0-27），说明里不得出现代码片段、逐行翻译或 Zed 私有的标识符；可以写 Alacritty 与 GPUI 的公开接口名。
-2. 评估者审查说明，确认没有混入代码。
-3. 实现 P0-09、P0-10、P0-12、P0-13 的 agent 不得打开 Zed 的 `terminal`、`terminal_view` 源码，只看设计说明与官方文档。
-4. 每张实现卡的报告声明“未阅读 Zed 终端源码”。
+1. P0-27 的设计说明里不得出现代码片段、逐行翻译或 Zed 私有的标识符；可以写 Alacritty 与 GPUI 的公开接口名。评估者已审查通过。
+2. 实现终端的 agent 以设计说明与官方文档为主要依据，可以阅读 Zed 的 `terminal`、`terminal_view` 源码，只借鉴思路。
+3. 不得复制 Zed 的代码、注释、测试或私有标识符，不得逐个函数翻译或照搬模块结构，不引入 GPL 依赖。
+4. 实现卡的报告列出阅读过的 Zed 提交与文件，并声明没有复制。评估者对照这些文件抽查实现。
+5. P0-09、P0-10 在原净室规则下完成，报告中的“未阅读 Zed 终端源码”声明保持原样。
 
 回滚区写满后的锚定是已知难点：nyaterm 为此给 Alacritty 加了滚动计数，官方版本没有。P0-12 以现有 xterm.js 的行为为目标，评估不改内核的做法（例如比对视口内容、或向 Alacritty 官方提交补丁），不得自行 fork。
 
@@ -165,7 +166,7 @@ P0-06 的核对结果（详见 [pins.md](pins.md) 与[决策 002](decisions/002-
 | 候选                            | 情况                                                         | 结论                                                      |
 | ------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------- |
 | 整体复用 nyaterm 两个终端 crate | Apache-2.0；需要 Alacritty 带 2 个补丁                       | 不采用，只挑模块（P0-29）                                 |
-| Zed `terminal`、`terminal_view` | GPL-3.0-or-later，且深度依赖 Zed 的 workspace、editor、ui    | 只按净室流程参考架构                                      |
+| Zed `terminal`、`terminal_view` | GPL-3.0-or-later，且深度依赖 Zed 的 workspace、editor、ui    | 可以阅读、参考架构，不复制代码（决策 008）                |
 | `gpui-terminal` 0.1             | 基于 alacritty_terminal，提供 `TerminalView`，接受任意读写流 | 太早期，没有输入法、滚动模型、搜索                        |
 | `gpui_xterm` 0.1.1              | 基于 alacritty_terminal 0.25.1 与 crates.io 的 gpui 0.2.2    | 绑在旧 GPUI 上                                            |
 | libghostty-vt                   | Ghostty 的 VT 内核，有 Rust 绑定，不是线程安全的             | 没有 GPUI 绘制层，要配 Zig 工具链；作为日后替换内核的备选 |
