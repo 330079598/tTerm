@@ -115,42 +115,52 @@ fn new_terminal() -> Arc<Terminal> {
     ))
 }
 
-fn measure(font: &TerminalFont) -> (FontSet, tterm_terminal_view::view::font::CellGeometry) {
-    let platform = gpui_kit::platform::current_platform(true);
-    let text_system = TextSystem::new(platform.text_system());
-    let fonts = FontSet::new(font);
-    let metrics = measure_cell(&text_system, &fonts, font, 1.0);
-    let font_id = text_system.resolve_font(fonts.regular());
-    println!(
-        "metrics: units_per_em={} ascent={:.4} descent={:.4} cap_height={:.4}",
-        text_system.units_per_em(font_id),
-        text_system.ascent(font_id, px(font.size)).as_f32(),
-        text_system.descent(font_id, px(font.size)).as_f32(),
-        text_system.cap_height(font_id, px(font.size)).as_f32()
-    );
-    (fonts, metrics)
+/// The platform's real text system.
+///
+/// A headless GPUI platform on Windows has no text system (it reports fixed
+/// placeholder metrics and accepts every family name), so the measurement
+/// asks the windowed platform's text system without opening a window.
+fn real_text_system() -> TextSystem {
+    let platform = gpui_kit::platform::current_platform(false);
+    TextSystem::new(platform.text_system())
 }
 
 fn print_metrics() {
     let font = TerminalFont::default();
-    let (_fonts, metrics) = measure(&font);
+    let text_system = real_text_system();
+    let fonts = FontSet::resolve(&font, &text_system);
+    let font_id = text_system.resolve_font(fonts.regular());
     println!(
-        "font={} size={} line_height={} letter_spacing={}",
+        "font={} (chain starts with {}) size={} line_height={} letter_spacing={}",
+        fonts.family(),
         font.primary_family(),
         font.size,
         font.line_height,
         font.letter_spacing
     );
     println!(
-        "cell={:.4}x{:.4} logical, dpr={}",
-        metrics.cell_width, metrics.cell_height, metrics.scale_factor
+        "metrics: units_per_em={} ascent={:.4} descent={:.4} advance(m)={:.4}",
+        text_system.units_per_em(font_id),
+        text_system.ascent(font_id, px(font.size)).as_f32(),
+        text_system.descent(font_id, px(font.size)).as_f32(),
+        text_system
+            .advance(font_id, px(font.size), 'm')
+            .map(|advance| advance.width.as_f32())
+            .unwrap_or(f32::NAN)
     );
-    for (width, height) in [(800.0, 600.0), (1200.0, 800.0)] {
-        let grid = grid_for(px(width), px(height), &metrics);
+    for scale_factor in [1.0, 1.25, 1.5, 2.0] {
+        let metrics = measure_cell(&text_system, &fonts, &font, scale_factor);
         println!(
-            "{width}x{height}: {} columns x {} rows",
-            grid.columns, grid.screen_lines
+            "dpr={scale_factor}: cell={:.4}x{:.4} logical",
+            metrics.cell_width, metrics.cell_height
         );
+        for (width, height) in [(800.0, 600.0), (1200.0, 800.0)] {
+            let grid = grid_for(px(width), px(height), &metrics);
+            println!(
+                "  {width}x{height}: {} columns x {} rows",
+                grid.columns, grid.screen_lines
+            );
+        }
     }
 }
 

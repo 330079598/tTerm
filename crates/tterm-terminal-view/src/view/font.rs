@@ -93,14 +93,44 @@ pub struct FontSet {
 }
 
 impl FontSet {
-    /// Builds the faces for a family chain.
+    /// Builds the faces with the chain's first family as the primary face,
+    /// without asking a text system which families exist.
+    ///
+    /// The view starts from this set and replaces it with
+    /// [`FontSet::resolve`] before it measures the first frame.
     pub fn new(font: &TerminalFont) -> Self {
+        Self::with_primary(font, font.primary_family())
+    }
+
+    /// Builds the faces from the first family in the chain that
+    /// `text_system` has, as a browser picks from a CSS `font-family` list.
+    ///
+    /// GPUI only looks at a font's fallbacks for characters the primary face
+    /// lacks; a primary family that is not installed silently becomes the
+    /// platform UI font, which is proportional. Resolving the chain here
+    /// keeps the terminal on the same monospace font as xterm.js. When no
+    /// family is installed the first one is kept and GPUI's own fallback
+    /// applies.
+    pub fn resolve(font: &TerminalFont, text_system: &TextSystem) -> Self {
+        let primary = first_available(&font.families, |family| {
+            family_installed(text_system, family)
+        })
+        .unwrap_or_else(|| font.primary_family());
+        Self::with_primary(font, primary)
+    }
+
+    fn with_primary(font: &TerminalFont, primary: &str) -> Self {
         Self {
-            regular: face(font, false, false),
-            bold: face(font, true, false),
-            italic: face(font, false, true),
-            bold_italic: face(font, true, true),
+            regular: face(font, primary, false, false),
+            bold: face(font, primary, true, false),
+            italic: face(font, primary, false, true),
+            bold_italic: face(font, primary, true, true),
         }
+    }
+
+    /// The family the faces are drawn with.
+    pub fn family(&self) -> &str {
+        &self.regular.family
     }
 
     /// The face for a cell's weight and slant.
@@ -119,12 +149,39 @@ impl FontSet {
     }
 }
 
-fn face(font: &TerminalFont, bold: bool, italic: bool) -> Font {
-    let mut face = gpui_kit::font(font.primary_family());
+/// The first family in `families` for which `installed` is true.
+fn first_available(families: &[String], mut installed: impl FnMut(&str) -> bool) -> Option<&str> {
+    families
+        .iter()
+        .map(String::as_str)
+        .find(|family| installed(family))
+}
+
+/// Whether `family` resolves to itself rather than to GPUI's fallback stack.
+///
+/// GPUI resolves a missing family to the first font of its fallback stack
+/// and records only directly loaded fonts under their own name, so a family
+/// is installed exactly when the font recorded for its id has its name.
+fn family_installed(text_system: &TextSystem, family: &str) -> bool {
+    let candidate = gpui_kit::font(family.to_string());
+    let id = text_system.resolve_font(&candidate);
+    text_system
+        .get_font_for_id(id)
+        .is_some_and(|resolved| resolved.family == candidate.family)
+}
+
+fn face(font: &TerminalFont, primary: &str, bold: bool, italic: bool) -> Font {
+    let mut face = gpui_kit::font(primary.to_string());
     // Terminals must not ligate: each cell is positioned on its own.
     face.features = FontFeatures::disable_ligatures();
-    if font.families.len() > 1 {
-        face.fallbacks = Some(FontFallbacks::from_fonts(font.families[1..].to_vec()));
+    let fallbacks: Vec<String> = font
+        .families
+        .iter()
+        .filter(|family| family.as_str() != primary)
+        .cloned()
+        .collect();
+    if !fallbacks.is_empty() {
+        face.fallbacks = Some(FontFallbacks::from_fonts(fallbacks));
     }
     if bold {
         face.weight = FontWeight::BOLD;
@@ -244,6 +301,19 @@ mod tests {
             parse_family_chain(r#""JetBrains Mono", Menlo,  monospace, "#),
             ["JetBrains Mono", "Menlo", "monospace"]
         );
+    }
+
+    #[test]
+    fn the_first_installed_family_wins() {
+        let chain = parse_family_chain(
+            r#""JetBrains Mono Nerd Font", "JetBrains Mono", Consolas, monospace"#,
+        );
+        let installed = ["Consolas", "JetBrains Mono"];
+        assert_eq!(
+            first_available(&chain, |family| installed.contains(&family)),
+            Some("JetBrains Mono")
+        );
+        assert_eq!(first_available(&chain, |_| false), None);
     }
 
     #[test]

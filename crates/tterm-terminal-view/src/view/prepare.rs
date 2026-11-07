@@ -7,7 +7,7 @@ use tterm_terminal::damage::Damage;
 use tterm_terminal::grid::GridSize;
 
 use super::blink::{BLINK_INTERVAL, BlinkState};
-use super::font::{grid_for, measure_cell};
+use super::font::{FontSet, grid_for, measure_cell};
 use super::frame::{FrameData, PreparedFrame, cursor_for};
 use super::row::{plan_row, row_hash, shape_row};
 use super::{TerminalView, bottom_anchored, grid_origin};
@@ -39,6 +39,7 @@ impl TerminalView {
         let metrics = match self.geometry {
             Some(geometry) if (self.geometry_scale - scale_factor).abs() <= 1e-4 => geometry,
             previous => {
+                self.fonts = FontSet::resolve(&self.font, &text_system);
                 let geometry = measure_cell(&text_system, &self.fonts, &self.font, scale_factor);
                 if previous != Some(geometry) {
                     metrics_changed = true;
