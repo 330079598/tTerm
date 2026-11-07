@@ -109,6 +109,8 @@ pub struct ViewStats {
     pub resizes: u64,
     /// Blink-only repaints that reused the previous snapshot and rows.
     pub blink_reuses: u64,
+    /// Candidate geometry changes that requested an IME coordinate update.
+    pub ime_geometry_updates: u64,
 }
 
 impl ViewStats {
@@ -139,6 +141,7 @@ pub struct TerminalView {
     composition: composition::Composition,
     ime_confirm: bool,
     preedit: Option<composition::PreeditPaint>,
+    ime_geometry: Option<ime::CandidateGeometry>,
     ime_hide_task: Option<Task<()>>,
     resize: Option<ResizeSink>,
     visible: bool,
@@ -180,6 +183,7 @@ impl TerminalView {
             composition: composition::Composition::default(),
             ime_confirm: false,
             preedit: None,
+            ime_geometry: None,
             ime_hide_task: None,
             resize: config.resize,
             visible: true,

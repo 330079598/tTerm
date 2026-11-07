@@ -326,3 +326,57 @@ fn scrolling_history_moves_the_preedit_anchor_with_its_grid_row(cx: &mut TestApp
     );
     assert!(h.bytes.borrow().is_empty());
 }
+
+#[gpui_kit::test]
+fn unchanged_candidate_geometry_does_not_request_platform_updates(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.output(cx, b"\x1b[3;5H");
+    h.update(cx, |view, window, cx| {
+        view.replace_and_mark_text_in_range(None, "ni", None, window, cx)
+    });
+    h.draw(cx);
+    let updates = h
+        .view
+        .read_with(cx, |view, _| view.stats().ime_geometry_updates);
+    for _ in 0..3 {
+        h.output(cx, b"\x1b[10;30Houtput");
+    }
+    assert_eq!(
+        h.view
+            .read_with(cx, |view, _| view.stats().ime_geometry_updates),
+        updates
+    );
+    h.update(cx, |view, window, cx| {
+        view.replace_and_mark_text_in_range(None, "nihao", None, window, cx)
+    });
+    h.draw(cx);
+    assert_eq!(
+        h.view
+            .read_with(cx, |view, _| view.stats().ime_geometry_updates),
+        updates + 1
+    );
+    h.draw(cx);
+    assert_eq!(
+        h.view
+            .read_with(cx, |view, _| view.stats().ime_geometry_updates),
+        updates + 1
+    );
+    h.update(cx, |view, window, cx| view.unmark_text(window, cx));
+    h.draw(cx);
+    let resting = h
+        .view
+        .read_with(cx, |view, _| view.stats().ime_geometry_updates);
+    h.output(cx, b"\x1b[11;30H");
+    assert_eq!(
+        h.view
+            .read_with(cx, |view, _| view.stats().ime_geometry_updates),
+        resting + 1
+    );
+    h.output(cx, b"\x1b[11;30H");
+    assert_eq!(
+        h.view
+            .read_with(cx, |view, _| view.stats().ime_geometry_updates),
+        resting + 1
+    );
+    assert!(h.bytes.borrow().is_empty());
+}

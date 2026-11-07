@@ -7,6 +7,13 @@ use gpui_kit::{
 use std::ops::Range;
 use tterm_terminal::terminal::Scroll;
 
+#[derive(PartialEq)]
+pub(super) struct CandidateGeometry {
+    bounds: Bounds<Pixels>,
+    preedit_width: Pixels,
+    scale_factor: f32,
+}
+
 impl EntityInputHandler for TerminalView {
     fn text_for_range(
         &mut self,
@@ -146,15 +153,26 @@ impl TerminalView {
         } else {
             None
         };
-        window.invalidate_character_coordinates();
+        let geometry = CandidateGeometry {
+            bounds,
+            preedit_width: self
+                .preedit
+                .as_ref()
+                .map_or(gpui_kit::px(0.), |preedit| preedit.line.width()),
+            scale_factor: window.scale_factor(),
+        };
+        if self.ime_geometry.as_ref() != Some(&geometry) {
+            self.ime_geometry = Some(geometry);
+            self.stats.ime_geometry_updates = self.stats.ime_geometry_updates.saturating_add(1);
+            window.invalidate_character_coordinates();
+        }
         if self.composition.hidden_since.is_some() && self.ime_hide_task.is_none() {
             self.ime_hide_task = Some(cx.spawn_in(window, async move |view, cx| {
                 cx.background_executor()
                     .timer(super::composition::TRANSIENT_HIDE)
                     .await;
-                let _ = cx.update(|window, cx| {
+                let _ = cx.update(|_, cx| {
                     view.update(cx, |view, cx| {
-                        window.invalidate_character_coordinates();
                         view.invalidate(cx);
                     })
                 });
