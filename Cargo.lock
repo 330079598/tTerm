@@ -10996,6 +10996,7 @@ dependencies = [
  "portable-pty",
  "tterm-terminal",
  "tterm-terminal-view",
+ "windows 0.62.2",
 ]
 
 [[package]]

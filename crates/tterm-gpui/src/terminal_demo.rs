@@ -1,4 +1,4 @@
-//! P0-10's terminal element demo.
+//! P0-14's local PTY terminal prototype.
 //!
 //! With no arguments it opens a window running the platform's default shell
 //! in a real PTY. `--screenshot <png>` renders a fixed synthetic screen
@@ -90,23 +90,143 @@ impl Render for Demo {
     }
 }
 
-fn main() {
-    let mut arguments = std::env::args().skip(1);
-    match (arguments.next().as_deref(), arguments.next()) {
-        (Some("--screenshot"), Some(path)) => {
-            if let Err(error) = screenshot(Path::new(&path)) {
+pub fn run() {
+    let arguments: Vec<String> = std::env::args().skip(1).collect();
+    match arguments.first().map(String::as_str) {
+        Some("--screenshot") => {
+            if arguments.len() != 2 {
+                eprintln!(
+                    "usage: tterm-gpui [--screenshot <path> | --metrics | --idle-check | --ssh <target> [args...]]"
+                );
+                std::process::exit(2);
+            }
+            let path = &arguments[1];
+            if let Err(error) = screenshot(Path::new(path)) {
                 eprintln!("terminal_view: {error}");
                 std::process::exit(1);
             }
             println!("terminal_view: wrote {path}");
         }
-        (Some("--metrics"), None) => print_metrics(),
-        (Some("--idle-check"), None) => run_idle_check(),
-        (None, None) => run_window(),
+        Some("--metrics") if arguments.len() == 1 => print_metrics(),
+        Some("--idle-check") if arguments.len() == 1 => run_idle_check(),
+        Some("--ssh") => {
+            let target = match arguments.get(1) {
+                Some(target) => target.clone(),
+                None => {
+                    eprintln!("--ssh requires a user@wsl-ip target");
+                    std::process::exit(2);
+                }
+            };
+            run_window(CommandSpec::Ssh {
+                target,
+                args: arguments.into_iter().skip(2).collect(),
+            });
+        }
+        None => run_window(command_from_environment()),
         _ => {
-            eprintln!("usage: terminal_view [--screenshot <path> | --metrics | --idle-check]");
+            eprintln!(
+                "usage: tterm-gpui [--screenshot <path> | --metrics | --idle-check | --ssh <target> [args...]]"
+            );
             std::process::exit(2);
         }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum CommandSpec {
+    Shell,
+    Ssh { target: String, args: Vec<String> },
+}
+
+fn command_from_environment() -> CommandSpec {
+    match std::env::var("TTERM_GPUI_SSH_TARGET") {
+        Ok(target) if !target.trim().is_empty() => CommandSpec::Ssh {
+            target,
+            args: std::env::var("TTERM_GPUI_SSH_ARGS")
+                .map(|value| value.split_whitespace().map(str::to_owned).collect())
+                .unwrap_or_default(),
+        },
+        _ => CommandSpec::Shell,
+    }
+}
+
+#[cfg(windows)]
+fn prepare_conpty() {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+    use windows::Win32::System::LibraryLoader::{GetModuleHandleW, LoadLibraryW};
+    use windows::core::PCWSTR;
+
+    let resource_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("src-tauri")
+        .join("resources")
+        .join("conpty");
+    let dll = resource_dir.join("conpty.dll");
+    let open_console = resource_dir.join("OpenConsole.exe");
+    if !dll.is_file() || !open_console.is_file() {
+        eprintln!(
+            "tterm-gpui: bundled ConPTY is missing at {}; falling back to system ConPTY; run scripts/prepare-conpty.ps1 or build the Tauri package",
+            resource_dir.display()
+        );
+        return;
+    }
+
+    let wide: Vec<u16> = OsStr::new(&dll)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    // Keep the module loaded for the process lifetime. portable-pty resolves
+    // conpty.dll by module name on its first PTY creation. P1-12 replaces this
+    // prototype-only setup with the core session service.
+    let loaded = unsafe { LoadLibraryW(PCWSTR(wide.as_ptr())) };
+    if loaded.as_ref().map_or(true, |module| module.is_invalid()) {
+        eprintln!(
+            "tterm-gpui: failed to load bundled ConPTY at {}; falling back to system ConPTY",
+            dll.display()
+        );
+        return;
+    }
+    let module_name: Vec<u16> = OsStr::new("conpty.dll")
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let actual = unsafe { GetModuleHandleW(PCWSTR(module_name.as_ptr())) };
+    if actual.is_ok() {
+        eprintln!(
+            "tterm-gpui: local terminals use bundled ConPTY ({})",
+            dll.display()
+        );
+    } else {
+        eprintln!("tterm-gpui: bundled ConPTY loaded but source could not be queried");
+    }
+}
+
+#[cfg(not(windows))]
+fn prepare_conpty() {}
+
+impl CommandSpec {
+    fn builder(&self) -> CommandBuilder {
+        let mut command = match self {
+            Self::Shell => CommandBuilder::new_default_prog(),
+            Self::Ssh { target, args } => {
+                let mut command = CommandBuilder::new("ssh");
+                command.arg(target);
+                for argument in args {
+                    command.arg(argument);
+                }
+                command
+            }
+        };
+        // Keep the prototype's shell environment aligned with Tauri.
+        // P1-12 replaces this direct command construction with AppServices.
+        command.env("TERM", "xterm-256color");
+        command.env("COLORTERM", "truecolor");
+        if std::env::var_os("LANG").is_none() {
+            command.env("LANG", "en_US.UTF-8");
+        }
+        command
     }
 }
 
@@ -168,7 +288,8 @@ fn print_metrics() {
     }
 }
 
-fn run_window() {
+fn run_window(command: CommandSpec) {
+    prepare_conpty();
     gpui_kit::application().run(|cx: &mut App| {
         gpui_kit::init(cx);
         cx.on_window_closed(|cx, _| {
@@ -177,14 +298,14 @@ fn run_window() {
             }
         })
         .detach();
-        if let Err(error) = open_demo_window(cx) {
+        if let Err(error) = open_demo_window(cx, command) {
             eprintln!("terminal_view: {error}");
             cx.quit();
         }
     });
 }
 
-fn open_demo_window(cx: &mut App) -> Result<(), String> {
+fn open_demo_window(cx: &mut App, command: CommandSpec) -> Result<(), String> {
     let bounds = Bounds {
         origin: point(px(120.0), px(120.0)),
         size: size(px(1200.0), px(800.0)),
@@ -193,8 +314,11 @@ fn open_demo_window(cx: &mut App) -> Result<(), String> {
         window_bounds: Some(WindowBounds::Windowed(bounds)),
         ..WindowOptions::default()
     };
-    let (handle, demo) = gpui_kit::open_window(options, cx, |_, cx| cx.new(Demo::new))
-        .map_err(|error| error.to_string())?;
+    let (handle, demo) = gpui_kit::open_window(options, cx, move |_, cx| {
+        let command = command.clone();
+        cx.new(|cx| Demo::new(cx, command))
+    })
+    .map_err(|error| error.to_string())?;
     let focus = demo.read(cx).view.read(cx).focus_handle();
     handle
         .update(cx, |_, window, cx| {
@@ -206,8 +330,8 @@ fn open_demo_window(cx: &mut App) -> Result<(), String> {
 }
 
 impl Demo {
-    fn new(cx: &mut Context<Self>) -> Self {
-        match Self::spawn(cx) {
+    fn new(cx: &mut Context<Self>, command: CommandSpec) -> Self {
+        match Self::spawn(cx, command) {
             Ok(demo) => demo,
             Err(error) => {
                 eprintln!("terminal_view: could not start a shell: {error}");
@@ -223,7 +347,7 @@ impl Demo {
         }
     }
 
-    fn spawn(cx: &mut Context<Self>) -> Result<Self, String> {
+    fn spawn(cx: &mut Context<Self>, command: CommandSpec) -> Result<Self, String> {
         let terminal = new_terminal();
         let pair = native_pty_system()
             .openpty(PtySize {
@@ -235,7 +359,7 @@ impl Demo {
             .map_err(|error| error.to_string())?;
         let child = pair
             .slave
-            .spawn_command(CommandBuilder::new_default_prog())
+            .spawn_command(command.builder())
             .map_err(|error| error.to_string())?;
         drop(pair.slave);
         let mut reader = pair
