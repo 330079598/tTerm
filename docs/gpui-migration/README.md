@@ -15,6 +15,7 @@
 | [p3-workspace.md](p3-workspace.md)     | P3 应用外壳、工作区、全局状态与基础组件    |
 | [p4-features.md](p4-features.md)       | P4 业务功能与设置界面对齐                  |
 | [p5-release.md](p5-release.md)         | P5 平台能力、打包、更新、数据演练与发布    |
+| [agent-prompt.md](agent-prompt.md)     | 把任务卡交给其他 agent 时的指令模板        |
 
 任务 ID 的前缀即阶段：`W0-` 准备，`P0-` 到 `P5-` 对应计划第 6 节的阶段，`G` 为需要人决策的关卡。
 
