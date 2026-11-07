@@ -2,7 +2,7 @@
 name = "tterm-gpui"
 version = "0.1.0"
 edition = "2024"
-description = "The GPUI client of tTerm, which starts as the P0-08 minimal program"
+description = "The GPUI client of tTerm; for now the P0-14 local PTY prototype"
 license = "MIT"
 publish = false
 
@@ -16,13 +16,19 @@ workspace = true
 gpui-kit.workspace = true
 tterm-terminal-view = { path = "../tterm-terminal-view" }
 tterm-terminal = { path = "../tterm-terminal" }
+# The prototype's PTY and its wake channel. Both were already in Cargo.lock
+# through the Tauri application, so no new package or version is introduced.
+# P1-12 replaces the direct portable-pty use with AppServices.
 portable-pty = "0.9"
 async-channel = "2"
 
 [dev-dependencies]
-# Headless windows and UI queries for the sample test; see src/app/tests.rs.
-# `profiler` enables GPUI's frame timings for the P0-10 drawing benchmark.
+# `test-support` gives the terminal_view example `Window::render_to_image` for
+# its screenshot; `profiler` enables GPUI's frame timings for the P0-10
+# drawing benchmark.
 gpui-kit = { workspace = true, features = ["test-support", "profiler"] }
 
 [target.'cfg(windows)'.dependencies]
+# Loads the bundled conpty.dll by full path; the version is the one pins.md
+# fixes for tTerm and gpui-pre.
 windows = { version = "0.62.2", features = ["Win32_System_LibraryLoader"] }
