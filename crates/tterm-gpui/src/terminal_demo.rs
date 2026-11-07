@@ -7,7 +7,8 @@
 
 mod command;
 mod conpty;
-mod output;
+mod intents;
+mod pipeline;
 mod session;
 mod window;
 
