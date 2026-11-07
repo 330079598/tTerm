@@ -1,0 +1,10 @@
+ROOT: C:\Users\stone\AppData\Roaming\Microsoft\Windows\Start Menu\Programs
+{"Path":"C:\\Users\\stone\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\tTerm GPUI Dev.lnk","SHA256":"37308D576B57E623DF57CF8191EA5390C74C25D09D35CF5C7DEB22268683CB29","Target":"C:\\Users\\stone\\AppData\\Local\\Programs\\tTerm GPUI Dev\\tTerm GPUI Dev.exe","Arguments":"","WorkingDirectory":"C:\\Users\\stone\\AppData\\Local\\Programs\\tTerm GPUI Dev","Icon":",0"}
+{"Path":"C:\\Users\\stone\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\tTerm GPUI Dev\\tTerm GPUI Dev.lnk","SHA256":"9D4A25227456B4D97B412A1D5313AA0198FE512110B45803B7B1A4AE4932C40A","Target":"C:\\Users\\stone\\AppData\\Local\\Programs\\tTerm GPUI Dev\\tTerm GPUI Dev.exe","Arguments":"","WorkingDirectory":"C:\\Users\\stone\\AppData\\Local\\Programs\\tTerm GPUI Dev","Icon":",0"}
+{"Path":"C:\\Users\\stone\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\tTerm.lnk","SHA256":"543FD9BB8CBACA66AF18CCC0FB159E1F5DA1ECA01A5E5A2CC5AF3B57ADE73EAD","Target":"C:\\Users\\stone\\AppData\\Local\\tTerm\\tTerm.exe","Arguments":"","WorkingDirectory":"C:\\Users\\stone\\AppData\\Local\\tTerm","Icon":",0"}
+ROOT: C:\ProgramData\Microsoft\Windows\Start Menu\Programs
+NO MATCHING SHORTCUTS
+ROOT: C:\Users\stone\Desktop
+{"Path":"C:\\Users\\stone\\Desktop\\tTerm GPUI Dev.lnk","SHA256":"87CCF080338D8EDB596F06516755378B6D948E43C6AD698B42F2FD1BA6C6774F","Target":"C:\\Users\\stone\\AppData\\Local\\Programs\\tTerm GPUI Dev\\tTerm GPUI Dev.exe","Arguments":"","WorkingDirectory":"C:\\Users\\stone\\AppData\\Local\\Programs\\tTerm GPUI Dev","Icon":",0"}
+ROOT: C:\Users\Public\Desktop
+NO MATCHING SHORTCUTS

@@ -1,0 +1,13 @@
+ROOT: Registry::HKEY_CURRENT_USER\Software\stone
+
+HKEY_CURRENT_USER\Software\stone\tTerm
+    (Default)    REG_SZ    C:\Users\stone\AppData\Local\tTerm
+    Installer Language    REG_SZ    1033
+
+
+HKEY_CURRENT_USER\Software\stone\tTerm GPUI Dev
+    (Default)    REG_SZ    C:\Users\stone\AppData\Local\Programs\tTerm GPUI Dev
+    Installer Language    REG_SZ    1033
+
+ROOT: Registry::HKEY_LOCAL_MACHINE\Software\stone
+ABSENT

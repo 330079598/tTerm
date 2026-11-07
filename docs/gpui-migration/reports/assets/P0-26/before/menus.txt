@@ -1,0 +1,24 @@
+
+HKEY_CURRENT_USER\Software\Classes\Directory\shell\tTerm
+    (Default)    REG_SZ    在 tTerm 中打开
+    Icon    REG_SZ    C:\Users\stone\AppData\Local\tTerm\tTerm.exe
+
+HKEY_CURRENT_USER\Software\Classes\Directory\shell\tTerm\command
+    (Default)    REG_SZ    "C:\Users\stone\AppData\Local\tTerm\tTerm.exe" "%V"
+
+
+HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell\tTerm
+    (Default)    REG_SZ    在 tTerm 中打开
+    Icon    REG_SZ    C:\Users\stone\AppData\Local\tTerm\tTerm.exe
+
+HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell\tTerm\command
+    (Default)    REG_SZ    "C:\Users\stone\AppData\Local\tTerm\tTerm.exe" "%V"
+
+
+HKEY_CURRENT_USER\Software\Classes\Drive\shell\tTerm
+    (Default)    REG_SZ    在 tTerm 中打开
+    Icon    REG_SZ    C:\Users\stone\AppData\Local\tTerm\tTerm.exe
+
+HKEY_CURRENT_USER\Software\Classes\Drive\shell\tTerm\command
+    (Default)    REG_SZ    "C:\Users\stone\AppData\Local\tTerm\tTerm.exe" "%V"
+

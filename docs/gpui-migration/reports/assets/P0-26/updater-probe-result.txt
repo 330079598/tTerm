@@ -1,0 +1,6 @@
+ORIGINAL manifest rejected: missing field `format`
+ADAPTED manifest accepted: version=0.0.2, format=nsis, url=http://127.0.0.1:18227/package.exe
+PASS same original Tauri signature verified; bytes=7018366
+PASS tampered package rejected: The signature verification failed
+PASS malformed signature rejected: Invalid symbol 45, offset 7.
+No install function called; probe loopback server ends with process.

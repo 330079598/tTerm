@@ -1,0 +1,8 @@
+Checked by the evaluator at 2026-11-07 18:46:39 +08:00, read-only.
+Registry::HKEY_CURRENT_USER\Software\stone\tTerm GPUI Dev exists: False
+C:\Users\stone\AppData\Roaming\com.stone.tTerm.gpui-dev exists: False
+C:\Users\stone\AppData\Local\com.stone.tTerm.gpui-dev exists: False
+C:\Users\stone\AppData\Local\Programs\tTerm GPUI Dev exists: False
+D:\code\rust\tTerm-p0-26-keys\test.key exists: True
+D:\code\rust\tTerm-p0-26-keys\test.key.pub exists: True
+HKCU\Software\stone subkeys: tTerm

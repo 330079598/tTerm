@@ -1,0 +1,1 @@
+tterm-gpui: local terminals use the ConPTY at C:\Users\stone\AppData\Local\Programs\tTerm GPUI Dev\conpty.dll

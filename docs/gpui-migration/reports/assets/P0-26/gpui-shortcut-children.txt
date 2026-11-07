@@ -1,0 +1,15 @@
+
+ProcessId      : 7280
+Name           : conhost.exe
+ExecutablePath : C:\WINDOWS\system32\conhost.exe
+CommandLine    : \??\C:\WINDOWS\system32\conhost.exe 0x4
+
+ProcessId      : 46464
+Name           : OpenConsole.exe
+ExecutablePath : C:\Users\stone\AppData\Local\Programs\tTerm GPUI Dev\OpenConsole.exe
+CommandLine    : "C:\Users\stone\AppData\Local\Programs\tTerm GPUI Dev\OpenConsole.exe" --headless --inheritcursor --width 80 --height 24 --signal 0x7cc --server 0x7c4
+
+ProcessId      : 19412
+Name           : pwsh.exe
+ExecutablePath : C:\Program Files\PowerShell\7\pwsh.exe
+CommandLine    : "C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo

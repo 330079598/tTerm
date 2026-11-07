@@ -5,14 +5,31 @@
 //! uses the older system ConPTY in kernel32, which drops the color queries
 //! TUIs send at startup. Loading the bundled DLL by its full path first makes
 //! that lookup return it, and the DLL starts the `OpenConsole.exe` next to it.
-//! The path is the source tree's, so this only works for the prototype; P1-12
-//! replaces it with the core session service.
+//! An installed build leaves a complete pair beside the executable for
+//! portable-pty to load; source builds preload the source tree's copy. P1-12
+//! replaces this with the core session service.
+
+/// A complete installed runtime takes precedence over the source tree.
+#[cfg(any(windows, test))]
+fn should_preload_source(has_dll: bool, has_console: bool) -> bool {
+    !(has_dll && has_console)
+}
 
 /// Loads the bundled `conpty.dll` before the first PTY opens.
 #[cfg(windows)]
 pub(super) fn prepare_conpty() {
     use windows::Win32::System::LibraryLoader::LoadLibraryW;
     use windows::core::HSTRING;
+
+    if let Ok(executable) = std::env::current_exe()
+        && let Some(directory) = executable.parent()
+        && !should_preload_source(
+            directory.join("conpty.dll").is_file(),
+            directory.join("OpenConsole.exe").is_file(),
+        )
+    {
+        return;
+    }
 
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("..")
@@ -69,3 +86,16 @@ pub(super) fn log_conpty_source() {
 
 #[cfg(not(windows))]
 pub(super) fn log_conpty_source() {}
+
+#[cfg(test)]
+mod tests {
+    use super::should_preload_source;
+
+    #[test]
+    fn only_a_complete_installed_pair_skips_source_preloading() {
+        assert!(!should_preload_source(true, true));
+        assert!(should_preload_source(false, true));
+        assert!(should_preload_source(true, false));
+        assert!(should_preload_source(false, false));
+    }
+}

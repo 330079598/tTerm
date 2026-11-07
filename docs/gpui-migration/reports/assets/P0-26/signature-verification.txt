@@ -1,0 +1,4 @@
+PASS original package and Tauri signature; bytes=7018366
+trusted comment: timestamp:1794045431	file:tTerm GPUI Dev_0.0.2_x64-setup.exe	version:0.0.2
+PASS tampered package rejected: The signature verification failed
+PASS wrong public key rejected: The signature verification failed

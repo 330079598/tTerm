@@ -1,0 +1,5 @@
+> rg -n -F 'migrate_legacy_config_files' src-tauri/src/lib.rs
+exit code: 1
+> rg -n -F '127.0.0.1' src-tauri/src/updater.rs
+51:    "http://127.0.0.1:18226/latest.json"
+exit code: 0
