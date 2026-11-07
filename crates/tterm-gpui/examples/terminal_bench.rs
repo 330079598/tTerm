@@ -1,12 +1,17 @@
 //! P0-10's drawing benchmark.
 //!
-//! Runs three scenarios against a headless 1200x800 window (DPR 1 on this
-//! machine) and prints p50, p95 and maximum for the request-layout, prepaint
-//! and paint phases, plus the row-cache hit rate:
+//! Runs five scenarios against a headless 1200x800 window and prints p50, p95
+//! and maximum for the request-layout, prepaint and paint phases, plus the
+//! row-cache hit rate:
 //!
 //! - idle: 120 draws with no new output;
 //! - stream: one colored line per frame, the steady `tail -f` case;
-//! - tui: a full screen of true-color text and wide characters per frame.
+//! - inplace: an alternate-screen program that rewrites a clock and three
+//!   meters in place each frame, as htop does;
+//! - scrolled: one line per frame while the viewport is 30 lines up the
+//!   history;
+//! - tui: a full screen of true-color text and wide characters per frame,
+//!   the worst case with nothing to reuse.
 //!
 //! Frame times come from GPUI's profiler (`gpui-pre`'s `FrameTiming.phases`),
 //! not from hand-placed timers around the element.
@@ -22,7 +27,7 @@ use std::sync::Arc;
 use gpui_kit::profiler::{FrameEvent, FrameTimingCollector, set_trace_enabled};
 use gpui_kit::{AppContext, Entity, HeadlessAppContext, px, size};
 use tterm_terminal::grid::{CellSize, GridSize};
-use tterm_terminal::terminal::{Config, Terminal};
+use tterm_terminal::terminal::{Config, Scroll, Terminal};
 use tterm_terminal_view::view::{TerminalView, TerminalViewConfig, ViewStats};
 
 const WINDOW_WIDTH: f32 = 1200.0;
@@ -148,7 +153,11 @@ fn run() -> Result<(), String> {
         GridSize::new(80, 24),
         CellSize::new(8, 16),
     ));
-    let platform = gpui_kit::platform::current_platform(true);
+    // A headless platform on Windows has only a placeholder text system, which
+    // would leave font lookup and shaping out of the timings. The windowed
+    // platform's DirectWrite system opens no window by itself; elsewhere the
+    // headless platform already shapes with the real font stack.
+    let platform = gpui_kit::platform::current_platform(!cfg!(target_os = "windows"));
     let mut context =
         HeadlessAppContext::with_platform(platform.text_system(), Arc::new(()), || {
             gpui_kit::platform::current_headless_renderer()
@@ -209,21 +218,43 @@ fn run() -> Result<(), String> {
         &view,
         "stream",
         240,
-        |frame| {
-            let line = format!(
-                "\x1b[38;2;{};{};{}m{:03} The quick brown fox jumps over the lazy dog \
-                 \x1b[38;5;{}m中文🙂\x1b[0m\r\n",
-                (frame * 7) % 256,
-                (frame * 13) % 256,
-                (frame * 29) % 256,
-                frame % 1000,
-                16 + (frame % 200)
-            );
-            terminal.write(line.as_bytes());
-        },
+        |frame| terminal.write(stream_line(frame).as_bytes()),
         &mut collector,
     )?;
     results.push(stream);
+
+    // The design note's three cache loads are streaming output (above), an
+    // in-place redraw like htop, and output while the user reads history.
+    let inplace = run_scenario(
+        &mut context,
+        window.into(),
+        &view,
+        "inplace",
+        240,
+        |frame| terminal.write(inplace_update(frame).as_bytes()),
+        &mut collector,
+    )?;
+    results.push(inplace);
+
+    let scrolled = run_scenario(
+        &mut context,
+        window.into(),
+        &view,
+        "scrolled",
+        240,
+        |frame| {
+            if frame == 0 {
+                terminal.write(b"\x1b[?1049l");
+                // Read 30 lines up the history while output keeps arriving;
+                // Alacritty keeps the viewport on the same history lines.
+                terminal.scroll(Scroll::Delta(30));
+            }
+            terminal.write(format!("{frame:05} background output line\r\n").as_bytes());
+        },
+        &mut collector,
+    )?;
+    results.push(scrolled);
+    terminal.scroll(Scroll::Bottom);
 
     let tui = run_scenario(
         &mut context,
@@ -231,20 +262,7 @@ fn run() -> Result<(), String> {
         &view,
         "tui",
         120,
-        |frame| {
-            let mut screen = String::from("\x1b[H");
-            for row in 0..40 {
-                let red = (row * 5 + frame * 3) % 256;
-                let green = (row * 11 + frame * 7) % 256;
-                let blue = (row * 17 + frame * 13) % 256;
-                screen.push_str(&format!("\x1b[38;2;{red};{green};{blue}m"));
-                screen.push_str(&format!(
-                    "{row:02} 0123456789 中文🙂 {} ░▒▓█ ┌─┐\x1b[0m\r\n",
-                    "x".repeat((row as usize + frame as usize) % 20)
-                ));
-            }
-            terminal.write(screen.as_bytes());
-        },
+        |frame| terminal.write(tui_screen(frame).as_bytes()),
         &mut collector,
     )?;
     results.push(tui);
@@ -261,6 +279,60 @@ fn run() -> Result<(), String> {
         result.print();
     }
     Ok(())
+}
+
+/// One colored line of streaming output, as `tail -f` produces.
+fn stream_line(frame: u32) -> String {
+    format!(
+        "\x1b[38;2;{};{};{}m{:03} The quick brown fox jumps over the lazy dog \
+         \x1b[38;5;{}m中文🙂\x1b[0m\r\n",
+        (frame * 7) % 256,
+        (frame * 13) % 256,
+        (frame * 29) % 256,
+        frame % 1000,
+        16 + (frame % 200)
+    )
+}
+
+/// An htop-like frame: the first one enters the alternate screen and draws a
+/// static table; every frame then rewrites a clock and three meters in place.
+fn inplace_update(frame: u32) -> String {
+    let mut update = String::new();
+    if frame == 0 {
+        update.push_str("\x1b[?1049h\x1b[2J\x1b[H");
+        for row in 0..40 {
+            update.push_str(&format!("\x1b[36m{row:02}\x1b[0m PID USER  COMMAND\r\n"));
+        }
+    }
+    update.push_str(&format!("\x1b[1;1H\x1b[1mUptime {frame:05}\x1b[0m"));
+    for meter in 0..3 {
+        let filled = ((frame + meter * 7) % 40) as usize;
+        update.push_str(&format!(
+            "\x1b[{};1H\x1b[32m[{}{}]\x1b[0m {:3}%",
+            meter + 2,
+            "|".repeat(filled),
+            " ".repeat(40 - filled),
+            filled * 100 / 40
+        ));
+    }
+    update
+}
+
+/// A full screen of true-color text, wide characters and block glyphs that
+/// changes every row on every frame.
+fn tui_screen(frame: u32) -> String {
+    let mut screen = String::from("\x1b[H");
+    for row in 0..40 {
+        let red = (row * 5 + frame * 3) % 256;
+        let green = (row * 11 + frame * 7) % 256;
+        let blue = (row * 17 + frame * 13) % 256;
+        screen.push_str(&format!("\x1b[38;2;{red};{green};{blue}m"));
+        screen.push_str(&format!(
+            "{row:02} 0123456789 中文🙂 {} ░▒▓█ ┌─┐\x1b[0m\r\n",
+            "x".repeat((row as usize + frame as usize) % 20)
+        ));
+    }
+    screen
 }
 
 fn draw(context: &mut HeadlessAppContext, window: gpui_kit::AnyWindowHandle) -> Result<(), String> {
