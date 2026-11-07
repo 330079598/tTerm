@@ -22,6 +22,10 @@ pub struct FrameData {
     pub metrics: CellGeometry,
     /// The palette used for this frame.
     pub palette: TerminalPalette,
+    /// The view's style epoch when the rows were built. Rows carry resolved
+    /// colors and shaped glyphs, so a later frame may reuse them only while
+    /// the palette, font and metrics are unchanged.
+    pub style_epoch: u64,
 }
 
 impl FrameData {

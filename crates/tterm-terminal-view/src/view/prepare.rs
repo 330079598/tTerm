@@ -69,7 +69,7 @@ impl TerminalView {
             && self
                 .last_frame
                 .as_ref()
-                .is_some_and(|frame| frame.grid() == grid);
+                .is_some_and(|frame| frame.grid() == grid && frame.style_epoch == self.style_epoch);
         self.blink_only = false;
 
         let data = if blink_only {
@@ -121,10 +121,15 @@ impl TerminalView {
         text_system: &std::rc::Rc<gpui_kit::WindowTextSystem>,
     ) -> Arc<FrameData> {
         let snapshot = self.terminal.snapshot();
-        let previous = self.last_frame.clone();
+        let style_epoch = self.style_epoch;
+        // Alacritty's damage covers the cells only, not a palette or font
+        // change, so rows built under another style epoch are never reused.
+        let previous = self
+            .last_frame
+            .clone()
+            .filter(|frame| frame.style_epoch == style_epoch);
         let damaged = damaged_rows(snapshot.damage(), snapshot.line_count());
         let mut rows = Vec::with_capacity(snapshot.line_count());
-        let style_epoch = self.style_epoch;
         let palette = &self.palette;
         let fonts = &self.fonts;
         let cache = &mut self.cache;
@@ -165,6 +170,7 @@ impl TerminalView {
             rows,
             metrics,
             palette: self.palette.clone(),
+            style_epoch,
         });
         self.last_frame = Some(Arc::clone(&frame));
         frame

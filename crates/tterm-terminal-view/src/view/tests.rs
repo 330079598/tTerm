@@ -169,6 +169,33 @@ fn output_after_resize_prepares_rows_and_hits_the_cache(cx: &mut TestAppContext)
     assert!(second.cache_hit_rate() > first.cache_hit_rate());
 }
 
+#[gpui_kit::test]
+fn a_palette_change_recolors_rows_that_received_no_output(cx: &mut TestAppContext) {
+    let (handle, view) = open_window(cx);
+    view.read_with(cx, |view, _| view.terminal.write(b"hello\r\nworld\r\n"));
+    cx.update_window(handle, |_, window, cx| window.render_frame(cx))
+        .expect("render the text");
+
+    // No output follows, so Alacritty reports every text row as undamaged;
+    // the new foreground must still reach them.
+    let foreground = tterm_terminal::palette::Rgba::rgb(255, 0, 0);
+    view.update(cx, |view, cx| {
+        let mut palette = view.palette().clone();
+        palette.foreground = foreground;
+        view.set_palette(palette, cx);
+    });
+    cx.update_window(handle, |_, window, cx| window.render_frame(cx))
+        .expect("render with the new palette");
+
+    view.read_with(cx, |view, _| {
+        let frame = view.last_frame.as_ref().expect("a frame was rendered");
+        for row in &frame.rows[..2] {
+            assert!(!row.glyphs.is_empty());
+            assert!(row.glyphs.iter().all(|glyph| glyph.color == foreground));
+        }
+    });
+}
+
 #[test]
 fn shaping_places_each_glyph_on_its_column() {
     let platform = gpui_kit::platform::current_platform(true);
