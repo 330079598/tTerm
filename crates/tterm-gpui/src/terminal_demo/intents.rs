@@ -49,8 +49,14 @@ fn send(writes: &Sender<WriteMessage>, bytes: Vec<u8>) {
 }
 
 /// Keeps only the latest title, so a program that sets many titles quickly
-/// leaves one for the window to show.
+/// leaves one for the window to show. An empty title shows the default one,
+/// since a window without a title cannot be told apart in the task bar.
 fn set_title(state: &SessionState, title: String) {
+    let title = if title.trim().is_empty() {
+        DEFAULT_TITLE.to_string()
+    } else {
+        title
+    };
     if let Ok(mut slot) = state.title.lock() {
         *slot = Some(title);
     }
