@@ -165,13 +165,10 @@ impl PaintContext<'_> {
         if !self.show_cursor {
             return;
         }
-        let origin = self.row_origin(cursor.row);
-        let width = cursor.width_cells as f32 * self.metrics.cell_width;
-        let height = self.metrics.cell_height;
-        let bounds = Bounds {
-            origin,
-            size: size(px(width), px(height)),
-        };
+        let bounds = cursor_bounds(self.origin, &cursor, &self.metrics);
+        let origin = bounds.origin;
+        let width = bounds.size.width.as_f32();
+        let height = bounds.size.height.as_f32();
         let color = hsla(self.palette.cursor);
         let faded = color.opacity(0.55);
 
@@ -432,6 +429,27 @@ impl PaintContext<'_> {
     }
 }
 
+/// The cells the cursor covers, relative to the grid origin.
+///
+/// Every cursor shape is drawn inside these bounds, so they carry both the
+/// row and the column; a wide character makes them two cells wide.
+fn cursor_bounds(
+    grid_origin: Point<Pixels>,
+    cursor: &CursorPaint,
+    metrics: &CellGeometry,
+) -> Bounds<Pixels> {
+    Bounds {
+        origin: point(
+            grid_origin.x + px(cursor.column as f32 * metrics.cell_width),
+            grid_origin.y + px(cursor.row as f32 * metrics.cell_height),
+        ),
+        size: size(
+            px(cursor.width_cells as f32 * metrics.cell_width),
+            px(metrics.cell_height),
+        ),
+    }
+}
+
 fn thickness(cell_height: f32) -> f32 {
     (cell_height / 14.0).max(1.0).round()
 }
@@ -526,5 +544,29 @@ mod tests {
         let mut unfocused = cursor;
         unfocused.focused = false;
         assert!(!unfocused.is_filled_block());
+    }
+
+    #[test]
+    fn the_cursor_is_drawn_over_its_own_cell() {
+        let metrics = CellGeometry {
+            cell_width: 8.0,
+            cell_height: 19.0,
+            font_size: 14.0,
+            baseline: 14.0,
+            scale_factor: 1.0,
+        };
+        let cursor = CursorPaint {
+            row: 3,
+            column: 5,
+            width_cells: 2,
+            shape: CursorShape::Block,
+            focused: true,
+        };
+        let bounds = cursor_bounds(point(px(10.0), px(20.0)), &cursor, &metrics);
+        assert_eq!(
+            bounds.origin,
+            point(px(10.0 + 5.0 * 8.0), px(20.0 + 3.0 * 19.0))
+        );
+        assert_eq!(bounds.size, size(px(16.0), px(19.0)));
     }
 }
