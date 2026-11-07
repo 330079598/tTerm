@@ -30,6 +30,8 @@ pub fn prepare_conpty() {
     // Keep the module loaded for the process lifetime. portable-pty resolves
     // conpty.dll by module name on its first PTY creation. P1-12 replaces this
     // prototype-only setup with the core session service.
+    // SAFETY: `wide` is NUL-terminated and points to an existing DLL path;
+    // the returned module is intentionally kept loaded for process lifetime.
     let loaded = unsafe { LoadLibraryW(PCWSTR(wide.as_ptr())) };
     if loaded.as_ref().map_or(true, |module| module.is_invalid()) {
         eprintln!(
@@ -42,6 +44,8 @@ pub fn prepare_conpty() {
         .encode_wide()
         .chain(std::iter::once(0))
         .collect();
+    // SAFETY: `module_name` is a NUL-terminated module name and the call only
+    // queries the current process module table.
     let actual = unsafe { GetModuleHandleW(PCWSTR(module_name.as_ptr())) };
     if actual.is_ok() {
         eprintln!(

@@ -10,7 +10,7 @@ pub enum WriteMessage {
 
 pub struct Session {
     pub(crate) child: Option<Arc<Mutex<Box<dyn portable_pty::Child + Send + Sync>>>>,
-    pub(crate) master: Option<Arc<Mutex<Box<dyn MasterPty + Send>>>>,
+    pub(crate) master: Option<Arc<Mutex<Option<Box<dyn MasterPty + Send>>>>>,
     pub(crate) writer: Option<mpsc::Sender<WriteMessage>>,
     pub(crate) reader: Option<std::thread::JoinHandle<()>>,
     pub(crate) parser: Option<std::thread::JoinHandle<()>>,
@@ -27,7 +27,11 @@ impl Session {
                 let _ = child.kill();
             }
         }
-        self.master.take();
+        if let Some(master) = self.master.take() {
+            if let Ok(mut master) = master.lock() {
+                master.take();
+            }
+        }
         if let Some(writer) = self.writer.take() {
             let _ = writer.send(WriteMessage::Close);
         }

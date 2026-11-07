@@ -26,7 +26,8 @@ use std::time::Duration;
 
 use gpui_kit::prelude::*;
 use gpui_kit::{
-    App, Bounds, Entity, TextSystem, Window, WindowBounds, WindowOptions, div, point, px, size,
+    AnyWindowHandle, App, Bounds, Entity, TextSystem, Window, WindowBounds, WindowOptions, div,
+    point, px, size,
 };
 use portable_pty::{PtySize, native_pty_system};
 use tterm_terminal::grid::{CellSize, GridSize, WindowSize};
@@ -87,6 +88,7 @@ struct Demo {
     view: Entity<TerminalView>,
     session: Option<Session>,
     title: Arc<Mutex<Option<String>>>,
+    window_handle: Arc<Mutex<Option<AnyWindowHandle>>>,
 }
 
 impl Drop for Demo {
@@ -244,6 +246,12 @@ fn open_demo_window(cx: &mut App, command: CommandSpec) -> Result<(), String> {
     })
     .map_err(|error| error.to_string())?;
     let focus = demo.read(cx).view.read(cx).focus_handle();
+    let window_handle: AnyWindowHandle = handle.into();
+    demo.update(cx, |demo, _| {
+        if let Ok(mut current) = demo.window_handle.lock() {
+            *current = Some(window_handle);
+        }
+    });
     handle
         .update(cx, |_, window, cx| {
             window.focus(&focus, cx);
@@ -265,6 +273,7 @@ impl Demo {
                     view,
                     session: None,
                     title: Arc::new(Mutex::new(None)),
+                    window_handle: Arc::new(Mutex::new(None)),
                 }
             }
         }
@@ -293,7 +302,7 @@ impl Demo {
             .master
             .take_writer()
             .map_err(|error| error.to_string())?;
-        let master = Arc::new(Mutex::new(pair.master));
+        let master = Arc::new(Mutex::new(Some(pair.master)));
         let child = Arc::new(Mutex::new(child));
         let alive = Arc::new(AtomicBool::new(true));
         let (bytes_tx, bytes_rx) = mpsc::sync_channel::<Vec<u8>>(8);
@@ -308,12 +317,13 @@ impl Demo {
             cell: CellSize::new(8, 16),
         }));
         let parser_size_for_thread = Arc::clone(&parser_size);
+        let reader_tx = bytes_tx.clone();
         let reader_thread = std::thread::spawn(move || {
             let mut buffer = [0u8; 8192];
             loop {
                 match reader.read(&mut buffer) {
                     Ok(0) | Err(_) => break,
-                    Ok(count) if bytes_tx.send(buffer[..count].to_vec()).is_err() => break,
+                    Ok(count) if reader_tx.send(buffer[..count].to_vec()).is_err() => break,
                     Ok(_) => {}
                 }
             }
@@ -355,7 +365,7 @@ impl Demo {
             }
         });
         let child_for_monitor = Arc::clone(&child);
-        let monitor_terminal = Arc::clone(&terminal);
+        let monitor_bytes = bytes_tx.clone();
         let monitor_wake = wake_tx.clone();
         let monitor_alive = Arc::clone(&alive);
         let child_monitor = std::thread::spawn(move || {
@@ -367,7 +377,7 @@ impl Demo {
                     .is_some();
                 if exited {
                     monitor_alive.store(false, Ordering::Release);
-                    monitor_terminal.write(b"\r\n\x1b[33m[Process exited]\x1b[0m\r\n");
+                    let _ = monitor_bytes.send(b"\r\n\x1b[33m[Process exited]\x1b[0m\r\n".to_vec());
                     let _ = monitor_wake.try_send(());
                     break;
                 }
@@ -388,13 +398,15 @@ impl Demo {
                 if let Ok(mut size) = parser_size.lock() {
                     *size = WindowSize { grid, cell };
                 }
-                if let Ok(master) = resize_master.lock() {
-                    let _ = master.resize(PtySize {
-                        rows: grid.screen_lines as u16,
-                        cols: grid.columns as u16,
-                        pixel_width: (cell.width as usize * grid.columns) as u16,
-                        pixel_height: (cell.height as usize * grid.screen_lines) as u16,
-                    });
+                if let Ok(mut master) = resize_master.lock() {
+                    if let Some(master) = master.as_mut() {
+                        let _ = master.resize(PtySize {
+                            rows: grid.screen_lines as u16,
+                            cols: grid.columns as u16,
+                            pixel_width: (cell.width as usize * grid.columns) as u16,
+                            pixel_height: (cell.height as usize * grid.screen_lines) as u16,
+                        });
+                    }
                 }
             })),
             ..TerminalViewConfig::default()
@@ -402,6 +414,9 @@ impl Demo {
         let view = cx.new(|cx| TerminalView::new(cx, terminal, config));
 
         let output_view = view.downgrade();
+        let output_title = Arc::clone(&parser_title);
+        let output_window = Arc::new(Mutex::new(None));
+        let title_window = Arc::clone(&output_window);
         cx.spawn(async move |_demo, cx| {
             while wake_rx.recv().await.is_ok() {
                 if output_view
@@ -409,6 +424,17 @@ impl Demo {
                     .is_err()
                 {
                     break;
+                }
+                if let Ok(mut title) = output_title.lock() {
+                    if let Some(title) = title.take() {
+                        if let Ok(current) = title_window.lock() {
+                            if let Some(handle) = *current {
+                                let _ = cx.update_window(handle, |_, window, _| {
+                                    window.set_window_title(&title)
+                                });
+                            }
+                        }
+                    }
                 }
             }
         })
@@ -427,6 +453,7 @@ impl Demo {
                 alive,
             }),
             title: parser_title,
+            window_handle: output_window,
         })
     }
 }
