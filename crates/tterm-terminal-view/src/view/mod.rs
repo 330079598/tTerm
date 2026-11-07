@@ -15,11 +15,14 @@
 
 mod blink;
 mod cache;
+mod clipboard;
 pub mod element;
 pub mod font;
 mod frame;
 mod keyboard;
 mod paint;
+mod paste;
+mod pointer;
 mod prepare;
 mod row;
 mod scroll;
@@ -28,6 +31,8 @@ mod wheel;
 
 #[cfg(test)]
 mod input_tests;
+#[cfg(test)]
+mod pointer_tests;
 #[cfg(test)]
 mod tests;
 
@@ -66,8 +71,7 @@ pub struct TerminalViewConfig {
     pub font: TerminalFont,
     /// The theme palette.
     pub palette: TerminalPalette,
-    /// Where alternate-screen wheel arrows are written, when the example has
-    /// a PTY. P0-13 wires the full input path.
+    /// Ordered byte sink shared by keyboard, clipboard and text input.
     pub input: Option<InputSink>,
     /// Alt/Option policy passed to the existing keyboard encoder.
     pub keyboard: EncoderConfig,
@@ -125,6 +129,8 @@ pub struct TerminalView {
     keyboard: EncoderConfig,
     input_focused: bool,
     input_observed: bool,
+    input_origin: Option<Point<Pixels>>,
+    pointer: pointer::PointerState,
     resize: Option<ResizeSink>,
     visible: bool,
     geometry: Option<CellGeometry>,
@@ -160,6 +166,8 @@ impl TerminalView {
             keyboard: config.keyboard,
             input_focused: false,
             input_observed: false,
+            input_origin: None,
+            pointer: pointer::PointerState::default(),
             resize: config.resize,
             visible: true,
             geometry: None,
@@ -306,6 +314,20 @@ impl Render for TerminalView {
             .track_focus(&self.focus_handle)
             .on_key_down(cx.listener(Self::on_key_down))
             .on_key_up(cx.listener(Self::on_key_up))
+            .on_any_mouse_down(cx.listener(Self::on_pointer_down))
+            .on_mouse_move(cx.listener(Self::on_pointer_move))
+            .on_mouse_up(
+                gpui_kit::MouseButton::Left,
+                cx.listener(Self::on_pointer_up),
+            )
+            .on_mouse_up(
+                gpui_kit::MouseButton::Right,
+                cx.listener(Self::on_pointer_up),
+            )
+            .on_mouse_up(
+                gpui_kit::MouseButton::Middle,
+                cx.listener(Self::on_pointer_up),
+            )
             .on_scroll(cx.listener(Self::on_wheel))
             .child(TerminalElement::new(cx.entity()))
     }

@@ -117,6 +117,7 @@ impl TerminalView {
             bottom_anchored(&data.snapshot),
             data.metrics.scale_factor,
         );
+        self.input_origin = Some(origin);
         PreparedFrame::Full {
             data,
             origin,

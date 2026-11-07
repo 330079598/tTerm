@@ -36,7 +36,9 @@ impl TerminalView {
         if event.prefer_character_input {
             return;
         }
-        if self.encode_key(&event.keystroke, KeyState::Pressed, event.is_held, cx) {
+        if self.clipboard_key(&event.keystroke, cx)
+            || self.encode_key(&event.keystroke, KeyState::Pressed, event.is_held, cx)
+        {
             window.prevent_default();
             cx.stop_propagation();
         }

@@ -37,11 +37,21 @@ impl TerminalView {
                     }
                 }
             }
-            // P0-13 reports the wheel through the mouse encoder; P0-10 only
-            // scrolls the viewport locally.
-            WheelAction::Report(_) | WheelAction::None => {
+            WheelAction::Report(buttons) => {
                 self.scroll.reset();
+                if let Some((point, _)) = self.pointer_cell(event.position) {
+                    for button in buttons {
+                        self.report_button(
+                            point,
+                            button,
+                            crate::input::mouse::ButtonState::Pressed,
+                            event.modifiers,
+                            cx,
+                        );
+                    }
+                }
             }
+            WheelAction::None => self.scroll.reset(),
         }
     }
 }
