@@ -12,25 +12,45 @@ use std::path::PathBuf;
 
 use portable_pty::CommandBuilder;
 
+const USAGE: &str = "usage: tterm-gpui [--ssh <target> [args...] | --exec <program> [args...]]";
+
 /// What the prototype runs in its PTY.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum CommandSpec {
     /// The platform's default shell.
     Shell,
-    /// The system `ssh` with a target and extra arguments, the P0 stand-in
-    /// for tTerm's own SSH sessions.
-    Ssh { target: String, args: Vec<String> },
+    /// A program with arguments: the system `ssh`, the P0 stand-in for
+    /// tTerm's own SSH sessions, or a workload a P0 card runs.
+    Program { program: String, args: Vec<String> },
 }
 
 impl CommandSpec {
+    /// Reads the command line after the program name.
+    pub fn from_args(arguments: &[String]) -> Result<Self, String> {
+        let Some((first, rest)) = arguments.split_first() else {
+            return Ok(Self::Shell);
+        };
+        let (program, args) = match first.as_str() {
+            "--ssh" => match rest.first() {
+                Some(_) => ("ssh".to_string(), rest.to_vec()),
+                None => return Err(format!("--ssh needs a target; {USAGE}")),
+            },
+            "--exec" => match rest.split_first() {
+                Some((program, args)) => (program.clone(), args.to_vec()),
+                None => return Err(format!("--exec needs a program; {USAGE}")),
+            },
+            _ => return Err(USAGE.to_string()),
+        };
+        Ok(Self::Program { program, args })
+    }
+
     /// The command with the Tauri version's environment and start directory.
     pub fn builder(&self) -> CommandBuilder {
         let home = home_dir(|key| std::env::var(key).ok());
         let mut command = match self {
             Self::Shell => shell_command(),
-            Self::Ssh { target, args } => {
-                let mut command = CommandBuilder::new("ssh");
-                command.arg(target);
+            Self::Program { program, args } => {
+                let mut command = CommandBuilder::new(program);
                 command.args(args);
                 command
             }

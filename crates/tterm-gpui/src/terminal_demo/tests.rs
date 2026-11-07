@@ -10,7 +10,7 @@ use tterm_terminal::palette::TerminalPalette;
 use tterm_terminal::snapshot::Snapshot;
 use tterm_terminal::terminal::{Config, Terminal};
 
-use super::command::{home_dir, windows_shell};
+use super::command::{CommandSpec, home_dir, windows_shell};
 use super::intents::DEFAULT_TITLE;
 use super::pipeline::{self, QUEUED_READS, SessionState, WriteMessage};
 use super::session::{EXIT_NOTICE, Session, pty_size};
@@ -189,6 +189,29 @@ fn windows_prefers_powershell_7_then_windows_powershell_then_cmd() {
         shell(None, None, None),
         (PathBuf::from("cmd.exe"), Vec::new())
     );
+}
+
+#[test]
+fn the_command_line_picks_the_shell_ssh_or_a_program() {
+    let args = |list: &[&str]| list.iter().map(|arg| arg.to_string()).collect::<Vec<_>>();
+    assert_eq!(CommandSpec::from_args(&[]), Ok(CommandSpec::Shell));
+    assert_eq!(
+        CommandSpec::from_args(&args(&["--ssh", "me@host", "-p", "2222"])),
+        Ok(CommandSpec::Program {
+            program: "ssh".to_string(),
+            args: args(&["me@host", "-p", "2222"]),
+        })
+    );
+    assert_eq!(
+        CommandSpec::from_args(&args(&["--exec", "vim", "notes.txt"])),
+        Ok(CommandSpec::Program {
+            program: "vim".to_string(),
+            args: args(&["notes.txt"]),
+        })
+    );
+    assert!(CommandSpec::from_args(&args(&["--ssh"])).is_err());
+    assert!(CommandSpec::from_args(&args(&["--exec"])).is_err());
+    assert!(CommandSpec::from_args(&args(&["--unknown"])).is_err());
 }
 
 #[test]
