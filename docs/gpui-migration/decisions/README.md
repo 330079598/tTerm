@@ -18,8 +18,9 @@
 | 006  | W0-01 的 CI 验收暂缓                      | [006-w0-01-ci-waiver.md](006-w0-01-ci-waiver.md)                                         |
 | 007  | 只用官方来源，终端以官方 Alacritty 为内核 | [007-official-sources-and-terminal-route.md](007-official-sources-and-terminal-route.md) |
 | 008  | 实现终端的执行者可以阅读 Zed 终端源码     | [008-zed-terminal-reading.md](008-zed-terminal-reading.md)                               |
+| 009  | 重启后自动续接 AI 会话                    | [009-agent-session-resume.md](009-agent-session-resume.md)                               |
 
-- 下一个可用编号：**009**。
+- 下一个可用编号：**010**。
 
 ## 正文格式
 

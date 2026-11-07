@@ -114,8 +114,8 @@
 - 依赖：P3-08
 - 规模：M
 - 参考：`TTermApp/useSessionRestore.ts`、`src/hooks/useSessionPersistence.ts`、`src/lib/tabsState.ts`、`tabGroupsPersistence.ts`
-- 工作：启动时恢复上次的标签、分组、分屏与会话；保存的格式不变，Tauri 版保存的工作区可以在 GPUI 版中恢复，反之亦然。
-- 验收：两个方向的恢复测试，使用真实的保存文件。
+- 工作：启动时恢复上次的标签、分组、分屏与会话；保存的格式不变，Tauri 版保存的工作区可以在 GPUI 版中恢复，反之亦然。按 [N-01](new-features.md#n-01-重启后续接-ai-会话) 续接退出时仍在运行的 AI 会话，使用 N-01 移入 core 的续接命令模块，不在界面中另写一份。
+- 验收：两个方向的恢复测试，使用真实的保存文件；保存文件中带续接记录的标签在两个客户端中都能续接。
 
 ## P3-11 新标签启动器与快速连接
 
