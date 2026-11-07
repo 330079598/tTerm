@@ -1,0 +1,8 @@
+ROOT: C:\Users\stone\AppData\Roaming\Microsoft\Windows\Start Menu\Programs
+{"Path":"C:\\Users\\stone\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\tTerm.lnk","SHA256":"543FD9BB8CBACA66AF18CCC0FB159E1F5DA1ECA01A5E5A2CC5AF3B57ADE73EAD","Target":"C:\\Users\\stone\\AppData\\Local\\tTerm\\tTerm.exe","Arguments":"","WorkingDirectory":"C:\\Users\\stone\\AppData\\Local\\tTerm","Icon":",0"}
+ROOT: C:\ProgramData\Microsoft\Windows\Start Menu\Programs
+NO MATCHING SHORTCUTS
+ROOT: C:\Users\stone\Desktop
+NO MATCHING SHORTCUTS
+ROOT: C:\Users\Public\Desktop
+NO MATCHING SHORTCUTS

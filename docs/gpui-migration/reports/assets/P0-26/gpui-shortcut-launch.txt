@@ -1,0 +1,7 @@
+Shortcut: C:\Users\stone\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\tTerm GPUI Dev.lnk
+Target: C:\Users\stone\AppData\Local\Programs\tTerm GPUI Dev\tTerm GPUI Dev.exe
+WorkingDirectory: C:\Users\stone\AppData\Local\Programs\tTerm GPUI Dev
+
+ProcessId      : 26148
+ExecutablePath : C:\Users\stone\AppData\Local\Programs\tTerm GPUI Dev\tTerm GPUI Dev.exe
+CommandLine    : "C:\Users\stone\AppData\Local\Programs\tTerm GPUI Dev\tTerm GPUI Dev.exe"

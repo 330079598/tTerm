@@ -1,0 +1,17 @@
+ROOT: C:\Users\stone\AppData\Roaming\com.stone.tTerm.gpui-dev
+
+Name         Length
+----         ------
+scrollback
+config.json  3684
+tterm.db     4096
+tterm.db-shm 32768
+tterm.db-wal 531512
+
+
+ROOT: C:\Users\stone\AppData\Local\com.stone.tTerm.gpui-dev
+
+Name      Length
+----      ------
+EBWebView
+updates

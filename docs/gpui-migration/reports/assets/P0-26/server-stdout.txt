@@ -1,0 +1,9 @@
+Listening on http://127.0.0.1:18226
+{"time":"2026-11-07T09:59:00.381Z","method":"GET","url":"/latest.json","status":200}
+{"time":"2026-11-07T09:59:00.429Z","method":"GET","url":"/tTerm-GPUI-Dev_0.0.2_x64-setup.exe","status":200}
+{"time":"2026-11-07T09:59:56.744Z","method":"GET","url":"/latest.json","status":200}
+{"time":"2026-11-07T10:17:47.490Z","method":"GET","url":"/latest.json","status":200}
+{"time":"2026-11-07T10:17:59.197Z","method":"GET","url":"/latest.json","status":200}
+{"time":"2026-11-07T10:17:59.206Z","method":"GET","url":"/latest.json","status":200}
+{"time":"2026-11-07T10:17:59.209Z","method":"GET","url":"/tTerm-GPUI-Dev_0.0.2_x64-setup.exe","status":200}
+{"time":"2026-11-07T10:29:25.952Z","method":"GET","url":"/latest.json","status":200}

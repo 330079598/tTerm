@@ -1,0 +1,31 @@
+ROOT: Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall
+
+HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\tTerm
+    MainBinaryName    REG_SZ    tTerm.exe
+    DisplayName    REG_SZ    tTerm
+    DisplayIcon    REG_SZ    "C:\Users\stone\AppData\Local\tTerm\tTerm.exe"
+    DisplayVersion    REG_SZ    0.8.1
+    Publisher    REG_SZ    stone
+    InstallLocation    REG_SZ    "C:\Users\stone\AppData\Local\tTerm"
+    UninstallString    REG_SZ    "C:\Users\stone\AppData\Local\tTerm\uninstall.exe"
+    NoModify    REG_DWORD    0x1
+    NoRepair    REG_DWORD    0x1
+    EstimatedSize    REG_DWORD    0xadcf
+
+
+HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\tTerm GPUI Dev
+    MainBinaryName    REG_SZ    tTerm GPUI Dev.exe
+    DisplayName    REG_SZ    tTerm GPUI Dev
+    DisplayIcon    REG_SZ    "C:\Users\stone\AppData\Local\Programs\tTerm GPUI Dev\tTerm GPUI Dev.exe"
+    DisplayVersion    REG_SZ    0.0.2
+    Publisher    REG_SZ    stone
+    InstallLocation    REG_SZ    "C:\Users\stone\AppData\Local\Programs\tTerm GPUI Dev"
+    UninstallString    REG_SZ    "C:\Users\stone\AppData\Local\Programs\tTerm GPUI Dev\uninstall.exe"
+    NoModify    REG_DWORD    0x1
+    NoRepair    REG_DWORD    0x1
+    EstimatedSize    REG_DWORD    0x5490
+
+ROOT: Registry::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Uninstall
+NO MATCHING UNINSTALL KEYS
+ROOT: Registry::HKEY_LOCAL_MACHINE\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall
+NO MATCHING UNINSTALL KEYS

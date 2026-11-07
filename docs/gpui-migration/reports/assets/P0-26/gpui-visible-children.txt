@@ -1,0 +1,12 @@
+
+ProcessId      : 18568
+Name           : conhost.exe
+ExecutablePath : C:\WINDOWS\system32\conhost.exe
+
+ProcessId      : 42788
+Name           : OpenConsole.exe
+ExecutablePath : C:\Users\stone\AppData\Local\Programs\tTerm GPUI Dev\OpenConsole.exe
+
+ProcessId      : 48648
+Name           : pwsh.exe
+ExecutablePath : C:\Program Files\PowerShell\7\pwsh.exe

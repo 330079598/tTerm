@@ -1,0 +1,9 @@
+Closed evidence process 39704 window: True
+COMMAND: Start-Process 'C:\Users\stone\AppData\Local\Programs\tTerm GPUI Dev\uninstall.exe' -ArgumentList /S -WindowStyle Hidden -Wait -PassThru
+Uninstaller exit code: 0
+Install directory exists: False
+Verified leftover shortcut target: C:\Users\stone\AppData\Local\Programs\tTerm GPUI Dev\tTerm GPUI Dev.exe
+COMMAND: Remove-Item -LiteralPath 'C:\Users\stone\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\tTerm GPUI Dev.lnk'
+Remove-Item output: (empty); exists after removal: False
+Stopped only verified server PID 44092.
+Watcher PID 21472 exited after stop-watcher file; PID 26148 was stopped before visible evidence launch; evidence PID 39704 closed normally.
