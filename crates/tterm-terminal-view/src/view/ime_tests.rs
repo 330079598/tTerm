@@ -1,7 +1,7 @@
 //! IME tests drive GPUI's public input-handler interface in a test window.
 
 use super::input_tests::Harness;
-use gpui_kit::{Bounds, EntityInputHandler, TestAppContext, point, px, size};
+use gpui_kit::{AppContext, Bounds, EntityInputHandler, TestAppContext, point, px, size};
 
 #[gpui_kit::test]
 fn preedit_is_visible_without_writing_and_commit_writes_utf8_once(cx: &mut TestAppContext) {
@@ -237,5 +237,92 @@ fn utf16_candidate_offsets_use_the_shaped_preedit_without_exposing_scrollback(
             Some(String::new())
         );
     });
+    assert!(h.bytes.borrow().is_empty());
+}
+
+#[gpui_kit::test]
+fn preedit_paints_background_and_underline_at_the_candidate_anchor(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.output(cx, b"\x1b[3;5H");
+    h.update(cx, |view, window, cx| {
+        view.replace_and_mark_text_in_range(None, "ni", Some(2..2), window, cx)
+    });
+    h.draw(cx);
+    cx.update_window(h.window, |_, window, _| {
+        let underlines = window.painted_underlines();
+        assert_eq!(underlines.len(), 1);
+        assert!(underlines[0].bounds.size.width.as_f32() > 0.);
+        assert!(underlines[0].thickness.as_f32() > 0.);
+        assert!(window.painted_quads().len() >= 2);
+    })
+    .unwrap();
+}
+
+#[gpui_kit::test]
+fn candidate_coordinates_include_element_origin_and_resize(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.output(cx, b"\x1b[3;5H");
+    h.update(cx, |view, window, cx| {
+        view.replace_and_mark_text_in_range(None, "ni", None, window, cx)
+    });
+    let bounds = Bounds::new(point(px(70.), px(40.)), size(px(400.), px(200.)));
+    h.update(cx, |view, window, cx| {
+        view.prepare(bounds, window, cx);
+        let caret = view.bounds_for_range(0..0, bounds, window, cx).unwrap();
+        let metrics = view.geometry.unwrap();
+        assert_eq!(
+            caret.origin,
+            point(
+                px(70. + 4. * metrics.cell_width),
+                px(40. + 2. * metrics.cell_height)
+            )
+        );
+        assert_eq!(
+            caret.size,
+            size(px(metrics.cell_width), px(metrics.cell_height))
+        );
+        let smaller = Bounds::new(bounds.origin, size(px(120.), px(80.)));
+        view.prepare(smaller, window, cx);
+        let resized = view.bounds_for_range(0..0, smaller, window, cx).unwrap();
+        assert!(resized.origin.x >= smaller.origin.x && resized.origin.y >= smaller.origin.y);
+        assert!(resized.origin.y < smaller.origin.y + smaller.size.height);
+    });
+}
+
+#[gpui_kit::test]
+fn scrolling_history_moves_the_preedit_anchor_with_its_grid_row(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    let rows = h
+        .view
+        .read_with(cx, |view, _| view.grid_size().unwrap().screen_lines);
+    h.output(cx, &b"history\r\n".repeat(rows + 5));
+    h.output(cx, b"\x1b[2;3H");
+    h.update(cx, |view, window, cx| {
+        view.replace_and_mark_text_in_range(None, "ni", None, window, cx)
+    });
+    h.draw(cx);
+    let (before, before_origin) = h.view.read_with(cx, |view, _| {
+        (
+            view.preedit.as_ref().unwrap().bounds,
+            view.input_origin.unwrap(),
+        )
+    });
+    h.update(cx, |view, _, cx| {
+        view.terminal
+            .scroll(tterm_terminal::terminal::Scroll::Delta(1));
+        view.invalidate(cx);
+    });
+    h.draw(cx);
+    let (after, height, after_origin) = h.view.read_with(cx, |view, _| {
+        (
+            view.preedit.as_ref().unwrap().bounds,
+            view.geometry.unwrap().cell_height,
+            view.input_origin.unwrap(),
+        )
+    });
+    assert_eq!(
+        (after.origin.y - after_origin.y) - (before.origin.y - before_origin.y),
+        px(height)
+    );
     assert!(h.bytes.borrow().is_empty());
 }
