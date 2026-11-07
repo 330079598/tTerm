@@ -2,6 +2,7 @@ use portable_pty::MasterPty;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
+pub type MasterSlot = Arc<Mutex<Option<Box<dyn MasterPty + Send>>>>;
 
 pub enum WriteMessage {
     Bytes(Vec<u8>),
@@ -10,7 +11,7 @@ pub enum WriteMessage {
 
 pub struct Session {
     pub(crate) child: Option<Arc<Mutex<Box<dyn portable_pty::Child + Send + Sync>>>>,
-    pub(crate) master: Option<Arc<Mutex<Option<Box<dyn MasterPty + Send>>>>>,
+    pub(crate) master: MasterSlot,
     pub(crate) writer: Option<mpsc::Sender<WriteMessage>>,
     pub(crate) reader: Option<std::thread::JoinHandle<()>>,
     pub(crate) parser: Option<std::thread::JoinHandle<()>>,
@@ -22,25 +23,23 @@ pub struct Session {
 impl Session {
     pub fn shutdown(mut self) {
         self.alive.store(false, Ordering::Release);
-        if let Some(child) = self.child.as_ref() {
-            if let Ok(mut child) = child.lock() {
-                let _ = child.kill();
-            }
+        if let Some(child) = self.child.as_ref()
+            && let Ok(mut child) = child.lock()
+        {
+            let _ = child.kill();
         }
-        if let Some(master) = self.master.take() {
-            if let Ok(mut master) = master.lock() {
-                master.take();
-            }
+        if let Ok(mut master) = self.master.lock() {
+            master.take();
         }
         if let Some(writer) = self.writer.take() {
             let _ = writer.send(WriteMessage::Close);
         }
         let child = self.child.take();
         std::thread::spawn(move || {
-            if let Some(child) = child {
-                if let Ok(mut child) = child.lock() {
-                    let _ = child.wait();
-                }
+            if let Some(child) = child
+                && let Ok(mut child) = child.lock()
+            {
+                let _ = child.wait();
             }
             self.join_threads();
         });

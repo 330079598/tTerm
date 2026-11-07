@@ -101,10 +101,10 @@ impl Drop for Demo {
 
 impl Render for Demo {
     fn render(&mut self, window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        if let Ok(mut title) = self.title.lock() {
-            if let Some(title) = title.take() {
-                window.set_window_title(&title);
-            }
+        if let Ok(mut title) = self.title.lock()
+            && let Some(title) = title.take()
+        {
+            window.set_window_title(&title);
         }
         div().size_full().child(self.view.clone())
     }
@@ -246,7 +246,7 @@ fn open_demo_window(cx: &mut App, command: CommandSpec) -> Result<(), String> {
     })
     .map_err(|error| error.to_string())?;
     let focus = demo.read(cx).view.read(cx).focus_handle();
-    let window_handle: AnyWindowHandle = handle.into();
+    let window_handle: AnyWindowHandle = handle;
     demo.update(cx, |demo, _| {
         if let Ok(mut current) = demo.window_handle.lock() {
             *current = Some(window_handle);
@@ -259,6 +259,48 @@ fn open_demo_window(cx: &mut App, command: CommandSpec) -> Result<(), String> {
         })
         .map_err(|error| error.to_string())?;
     Ok(())
+}
+
+fn start_writer(
+    mut writer: Box<dyn std::io::Write + Send>,
+    receiver: mpsc::Receiver<WriteMessage>,
+) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        while let Ok(message) = receiver.recv() {
+            match message {
+                WriteMessage::Bytes(bytes) => {
+                    if writer.write_all(&bytes).is_err() {
+                        break;
+                    }
+                }
+                WriteMessage::Close => break,
+            }
+        }
+    })
+}
+
+fn monitor_child(
+    child: Arc<Mutex<Box<dyn portable_pty::Child + Send + Sync>>>,
+    bytes: mpsc::SyncSender<Vec<u8>>,
+    wake: async_channel::Sender<()>,
+    alive: Arc<AtomicBool>,
+) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        loop {
+            let exited = child
+                .lock()
+                .ok()
+                .and_then(|mut child| child.try_wait().ok().flatten())
+                .is_some();
+            if exited {
+                alive.store(false, Ordering::Release);
+                let _ = bytes.send(b"\r\n\x1b[33m[Process exited]\x1b[0m\r\n".to_vec());
+                let _ = wake.try_send(());
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+    })
 }
 
 impl Demo {
@@ -351,39 +393,14 @@ impl Demo {
                 let _ = parser_wake.try_send(());
             }
         });
-        let writer_thread = std::thread::spawn(move || {
-            let mut writer = writer;
-            while let Ok(message) = write_rx.recv() {
-                match message {
-                    WriteMessage::Bytes(bytes) => {
-                        if writer.write_all(&bytes).is_err() {
-                            break;
-                        }
-                    }
-                    WriteMessage::Close => break,
-                }
-            }
-        });
-        let child_for_monitor = Arc::clone(&child);
-        let monitor_bytes = bytes_tx.clone();
-        let monitor_wake = wake_tx.clone();
-        let monitor_alive = Arc::clone(&alive);
-        let child_monitor = std::thread::spawn(move || {
-            loop {
-                let exited = child_for_monitor
-                    .lock()
-                    .ok()
-                    .and_then(|mut child| child.try_wait().ok().flatten())
-                    .is_some();
-                if exited {
-                    monitor_alive.store(false, Ordering::Release);
-                    let _ = monitor_bytes.send(b"\r\n\x1b[33m[Process exited]\x1b[0m\r\n".to_vec());
-                    let _ = monitor_wake.try_send(());
-                    break;
-                }
-                std::thread::sleep(Duration::from_millis(25));
-            }
-        });
+        let writer_thread = start_writer(writer, write_rx);
+
+        let child_monitor = monitor_child(
+            Arc::clone(&child),
+            bytes_tx.clone(),
+            wake_tx.clone(),
+            Arc::clone(&alive),
+        );
 
         let input_writer = write_tx.clone();
         let input_alive = Arc::clone(&alive);
@@ -398,15 +415,15 @@ impl Demo {
                 if let Ok(mut size) = parser_size.lock() {
                     *size = WindowSize { grid, cell };
                 }
-                if let Ok(mut master) = resize_master.lock() {
-                    if let Some(master) = master.as_mut() {
-                        let _ = master.resize(PtySize {
-                            rows: grid.screen_lines as u16,
-                            cols: grid.columns as u16,
-                            pixel_width: (cell.width as usize * grid.columns) as u16,
-                            pixel_height: (cell.height as usize * grid.screen_lines) as u16,
-                        });
-                    }
+                if let Ok(mut master) = resize_master.lock()
+                    && let Some(master) = master.as_mut()
+                {
+                    let _ = master.resize(PtySize {
+                        rows: grid.screen_lines as u16,
+                        cols: grid.columns as u16,
+                        pixel_width: (cell.width as usize * grid.columns) as u16,
+                        pixel_height: (cell.height as usize * grid.screen_lines) as u16,
+                    });
                 }
             })),
             ..TerminalViewConfig::default()
@@ -425,16 +442,13 @@ impl Demo {
                 {
                     break;
                 }
-                if let Ok(mut title) = output_title.lock() {
-                    if let Some(title) = title.take() {
-                        if let Ok(current) = title_window.lock() {
-                            if let Some(handle) = *current {
-                                let _ = cx.update_window(handle, |_, window, _| {
-                                    window.set_window_title(&title)
-                                });
-                            }
-                        }
-                    }
+                if let Ok(mut title) = output_title.lock()
+                    && let Some(title) = title.take()
+                    && let Ok(current) = title_window.lock()
+                    && let Some(handle) = *current
+                {
+                    let _ =
+                        cx.update_window(handle, |_, window, _| window.set_window_title(&title));
                 }
             }
         })
@@ -444,7 +458,7 @@ impl Demo {
             view,
             session: Some(Session {
                 child: Some(child),
-                master: Some(master),
+                master,
                 writer: Some(write_tx),
                 reader: Some(reader_thread),
                 parser: Some(parser_thread),
