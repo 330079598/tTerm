@@ -13,7 +13,7 @@
 | 001  | 正式迁移到 GPUI                           | [001-formal-migration.md](001-formal-migration.md)                                       |
 | 002  | P0-06 的依赖来源与固定组合                | [002-dependency-sources.md](002-dependency-sources.md)                                   |
 | 003  | G1 是否进入 P1                            | 留给 G1                                                                                  |
-| 004  | P0-26 的打包与更新衔接                    | [004-packaging.md](004-packaging.md)（待确认）                                           |
+| 004  | P0-26 的打包与更新衔接                    | [004-packaging.md](004-packaging.md)                                                     |
 | 005  | G0 剖析结论确认                           | 留给 G0                                                                                  |
 | 006  | W0-01 的 CI 验收暂缓                      | [006-w0-01-ci-waiver.md](006-w0-01-ci-waiver.md)                                         |
 | 007  | 只用官方来源，终端以官方 Alacritty 为内核 | [007-official-sources-and-terminal-route.md](007-official-sources-and-terminal-route.md) |
