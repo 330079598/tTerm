@@ -12,6 +12,9 @@ mod pipeline;
 mod session;
 mod window;
 
+#[cfg(test)]
+mod tests;
+
 use command::CommandSpec;
 
 const USAGE: &str = "usage: tterm-gpui [--ssh <target> [args...]]";

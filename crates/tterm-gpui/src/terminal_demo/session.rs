@@ -75,6 +75,12 @@ impl Session {
         Ok((session, pipeline.wake))
     }
 
+    /// Whether the program still runs and input still reaches it.
+    #[cfg(test)]
+    pub fn is_running(&self) -> bool {
+        self.alive.load(Ordering::Acquire)
+    }
+
     /// The view's input callback. It queues bytes for the writer while the
     /// program runs and drops them once it has ended.
     pub fn input(&self) -> impl Fn(&[u8]) + 'static {
