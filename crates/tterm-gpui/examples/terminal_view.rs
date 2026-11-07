@@ -1,33 +1,31 @@
-//! P0-10's terminal element demo.
+//! Runs the GPUI terminal examples that need GPUI's test support.
 //!
-//! With no arguments it opens a window running the platform's default shell
-//! in a real PTY. `--screenshot <png>` renders a fixed synthetic screen
-//! headlessly, which makes the regression image reproducible without screen
-//! recording permission. `--metrics` prints the measured cell size and the
-//! row/column counts for 800x600 and 1200x800.
+//! With no arguments it opens the P0-14 local PTY prototype, the same window
+//! as `cargo run -p tterm-gpui`. `--screenshot <png>` renders a fixed
+//! synthetic screen, which makes the regression image reproducible without
+//! screen recording permission. `--metrics` prints the measured cell size
+//! and the row/column counts for 800x600 and 1200x800. `--idle-check` counts
+//! the frames an idle, unfocused terminal draws in ten seconds.
+//!
+//! The screenshot calls `Window::render_to_image`, which GPUI only builds with
+//! its `test-support` feature; examples get it from the dev-dependencies, the
+//! binary does not.
 //!
 //! ```sh
-//! cargo run -p tterm-gpui --example terminal_view
 //! cargo run -p tterm-gpui --example terminal_view -- \
 //!   --screenshot docs/gpui-migration/reports/assets/P0-10-windows.png
 //! cargo run -p tterm-gpui --example terminal_view -- --metrics
+//! cargo run -p tterm-gpui --example terminal_view -- --idle-check
 //! ```
-//!
-//! P0-13 connects keyboard, selection, clipboard and native text input to
-//! the existing PTY writer. Copy/paste uses Command+C/V on macOS and
-//! Control+Shift+C/V elsewhere.
 
-use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use gpui_kit::prelude::*;
 use gpui_kit::{
     App, Bounds, Entity, TextSystem, Window, WindowBounds, WindowOptions, div, point, px, size,
 };
-use portable_pty::{CommandBuilder, MasterPty, PtySize, native_pty_system};
 use tterm_terminal::grid::{CellSize, GridSize};
 use tterm_terminal::terminal::{Config, Terminal};
 use tterm_terminal_view::view::font::{FontSet, TerminalFont, grid_for, measure_cell};
@@ -36,6 +34,29 @@ use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
 /// The grid the demo starts with, before the first frame measures the font.
 const INITIAL_COLUMNS: usize = 80;
 const INITIAL_ROWS: usize = 24;
+
+const USAGE: &str = "usage: terminal_view [--screenshot <path> | --metrics | --idle-check | --ssh <target> [args...]]";
+
+fn main() {
+    let arguments: Vec<String> = std::env::args().skip(1).collect();
+    match arguments.first().map(String::as_str) {
+        Some("--screenshot") => {
+            if arguments.len() != 2 {
+                eprintln!("{USAGE}");
+                std::process::exit(2);
+            }
+            let path = &arguments[1];
+            if let Err(error) = screenshot(Path::new(path)) {
+                eprintln!("terminal_view: {error}");
+                std::process::exit(1);
+            }
+            println!("terminal_view: wrote {path}");
+        }
+        Some("--metrics") if arguments.len() == 1 => print_metrics(),
+        Some("--idle-check") if arguments.len() == 1 => run_idle_check(),
+        _ => tterm_gpui::terminal_demo::run(),
+    }
+}
 
 /// The fixed stream the headless screenshot draws: colors, every style,
 /// true color, a 256-color cube, wide characters, emoji, box drawing and
@@ -75,39 +96,6 @@ fn screenshot_bytes() -> Vec<u8> {
     // shows that the block cursor lands on its own cell.
     bytes.extend_from_slice(b"\x1b[10;5H\x1b[?25h");
     bytes
-}
-
-struct Demo {
-    view: Entity<TerminalView>,
-    _child: Option<Box<dyn portable_pty::Child + Send + Sync>>,
-    _master: Option<Arc<Mutex<Box<dyn MasterPty + Send>>>>,
-    _reader: Option<std::thread::JoinHandle<()>>,
-}
-
-impl Render for Demo {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        div().size_full().child(self.view.clone())
-    }
-}
-
-fn main() {
-    let mut arguments = std::env::args().skip(1);
-    match (arguments.next().as_deref(), arguments.next()) {
-        (Some("--screenshot"), Some(path)) => {
-            if let Err(error) = screenshot(Path::new(&path)) {
-                eprintln!("terminal_view: {error}");
-                std::process::exit(1);
-            }
-            println!("terminal_view: wrote {path}");
-        }
-        (Some("--metrics"), None) => print_metrics(),
-        (Some("--idle-check"), None) => run_idle_check(),
-        (None, None) => run_window(),
-        _ => {
-            eprintln!("usage: terminal_view [--screenshot <path> | --metrics | --idle-check]");
-            std::process::exit(2);
-        }
-    }
 }
 
 fn new_terminal() -> Arc<Terminal> {
@@ -165,146 +153,6 @@ fn print_metrics() {
                 grid.columns, grid.screen_lines
             );
         }
-    }
-}
-
-fn run_window() {
-    gpui_kit::application().run(|cx: &mut App| {
-        gpui_kit::init(cx);
-        cx.on_window_closed(|cx, _| {
-            if cx.windows().is_empty() {
-                cx.quit();
-            }
-        })
-        .detach();
-        if let Err(error) = open_demo_window(cx) {
-            eprintln!("terminal_view: {error}");
-            cx.quit();
-        }
-    });
-}
-
-fn open_demo_window(cx: &mut App) -> Result<(), String> {
-    let bounds = Bounds {
-        origin: point(px(120.0), px(120.0)),
-        size: size(px(1200.0), px(800.0)),
-    };
-    let options = WindowOptions {
-        window_bounds: Some(WindowBounds::Windowed(bounds)),
-        ..WindowOptions::default()
-    };
-    let (handle, demo) = gpui_kit::open_window(options, cx, |_, cx| cx.new(Demo::new))
-        .map_err(|error| error.to_string())?;
-    let focus = demo.read(cx).view.read(cx).focus_handle();
-    handle
-        .update(cx, |_, window, cx| {
-            window.focus(&focus, cx);
-            window.activate_window();
-        })
-        .map_err(|error| error.to_string())?;
-    Ok(())
-}
-
-impl Demo {
-    fn new(cx: &mut Context<Self>) -> Self {
-        match Self::spawn(cx) {
-            Ok(demo) => demo,
-            Err(error) => {
-                eprintln!("terminal_view: could not start a shell: {error}");
-                let view = cx
-                    .new(|cx| TerminalView::new(cx, new_terminal(), TerminalViewConfig::default()));
-                Self {
-                    view,
-                    _child: None,
-                    _master: None,
-                    _reader: None,
-                }
-            }
-        }
-    }
-
-    fn spawn(cx: &mut Context<Self>) -> Result<Self, String> {
-        let terminal = new_terminal();
-        let pair = native_pty_system()
-            .openpty(PtySize {
-                rows: INITIAL_ROWS as u16,
-                cols: INITIAL_COLUMNS as u16,
-                pixel_width: 0,
-                pixel_height: 0,
-            })
-            .map_err(|error| error.to_string())?;
-        let child = pair
-            .slave
-            .spawn_command(CommandBuilder::new_default_prog())
-            .map_err(|error| error.to_string())?;
-        drop(pair.slave);
-        let mut reader = pair
-            .master
-            .try_clone_reader()
-            .map_err(|error| error.to_string())?;
-        let writer = pair
-            .master
-            .take_writer()
-            .map_err(|error| error.to_string())?;
-        let master = Arc::new(Mutex::new(pair.master));
-        let writer = Arc::new(Mutex::new(writer));
-
-        let (sender, receiver) = async_channel::bounded::<()>(1);
-        let input_terminal = Arc::clone(&terminal);
-        let reader_thread = std::thread::spawn(move || {
-            let mut buffer = [0u8; 8192];
-            loop {
-                match reader.read(&mut buffer) {
-                    Ok(0) | Err(_) => break,
-                    Ok(count) => {
-                        input_terminal.write(&buffer[..count]);
-                        let _ = sender.try_send(());
-                    }
-                }
-            }
-        });
-
-        let input_writer = Arc::clone(&writer);
-        let resize_master = Arc::clone(&master);
-        let config = TerminalViewConfig {
-            input: Some(Rc::new(move |bytes: &[u8]| {
-                if let Ok(mut writer) = input_writer.lock() {
-                    let _ = writer.write_all(bytes);
-                }
-            })),
-            resize: Some(Rc::new(move |grid: GridSize, cell: CellSize| {
-                if let Ok(master) = resize_master.lock() {
-                    let _ = master.resize(PtySize {
-                        rows: grid.screen_lines as u16,
-                        cols: grid.columns as u16,
-                        pixel_width: (cell.width as usize * grid.columns) as u16,
-                        pixel_height: (cell.height as usize * grid.screen_lines) as u16,
-                    });
-                }
-            })),
-            ..TerminalViewConfig::default()
-        };
-        let view = cx.new(|cx| TerminalView::new(cx, terminal, config));
-
-        let output_view = view.downgrade();
-        cx.spawn(async move |_demo, cx| {
-            while receiver.recv().await.is_ok() {
-                if output_view
-                    .update(cx, |view, cx| view.notify_output(cx))
-                    .is_err()
-                {
-                    break;
-                }
-            }
-        })
-        .detach();
-
-        Ok(Self {
-            view,
-            _child: Some(child),
-            _master: Some(master),
-            _reader: Some(reader_thread),
-        })
     }
 }
 

@@ -1,10 +1,8 @@
 //! The tTerm GPUI client.
 //!
-//! P0-08 opens one window to prove the pinned `gpui-kit` facade builds, runs
-//! and can be tested headlessly before the terminal work starts in P0-09.
-
-mod app;
+//! For now it is the P0-14 prototype: one window running the local shell in
+//! a real PTY. See [`tterm_gpui::terminal_demo`].
 
 fn main() {
-    app::run();
+    tterm_gpui::terminal_demo::run();
 }
