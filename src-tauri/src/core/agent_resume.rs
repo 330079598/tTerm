@@ -5,7 +5,10 @@
 //! cannot accidentally replay saved screen text as a command.
 
 /// The agents whose sessions tTerm can resume.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use serde::Deserialize;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum ResumeAgent {
     ClaudeCode,
     Codex,
@@ -27,6 +30,21 @@ pub struct ResumeRequest<'a> {
     pub session_id: &'a str,
     pub cwd: &'a str,
     pub shell: &'a str,
+}
+
+#[tauri::command]
+pub fn build_agent_resume_command(
+    agent: ResumeAgent,
+    session_id: String,
+    cwd: String,
+    shell: String,
+) -> Option<String> {
+    build_resume_command(&ResumeRequest {
+        agent,
+        session_id: &session_id,
+        cwd: &cwd,
+        shell: &shell,
+    })
 }
 
 /// Builds one line that changes directory and invokes the agent's official

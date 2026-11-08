@@ -350,6 +350,7 @@ pub fn run() {
             agent_integration::agent_integration_status,
             agent_integration::install_agent_integration,
             agent_integration::uninstall_agent_integration,
+            core::agent_resume::build_agent_resume_command,
             agent_integration::remote::remote_agent_integration_status,
             agent_integration::remote::change_remote_agent_integration,
         ])
