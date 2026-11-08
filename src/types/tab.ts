@@ -300,6 +300,8 @@ export interface Tab {
 export interface AgentResumeInfo {
   agent: "claudeCode" | "codex"
   sessionId: string
+  /** Directory at agent start; older records can fall back to the local shell directory. */
+  cwd?: string
 }
 
 /** Singleton app pages that live in a tab but have no connection or session. */

@@ -36,6 +36,7 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
     onDistroChangeRef,
     onAgentSessionChangeRef,
   } = ctx
+  let reportedCwd: string | undefined
   let lastEmittedCommand: { text: string; at: number } | null = null
 
   // An AI agent reporting through tTerm's hooks; its marks on the tab go
@@ -105,7 +106,15 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
   const attentionReports = watchAttentionReports(term, {
     agentTracker,
     onAttention: (event) => onAttentionRef.current?.(event),
-    onAgentSession: (session) => onAgentSessionChangeRef.current?.(session),
+    onAgentSession: (session) =>
+      onAgentSessionChangeRef.current?.(
+        session
+          ? {
+              ...session,
+              cwd: reportedCwd ?? connectionRef.current?.cwd,
+            }
+          : null
+      ),
   })
 
   // A local shell's directory, for the tab to restart in; a remote one's, for
@@ -114,8 +123,14 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
     tabId,
     sessionNonce,
     isRemote: () => connectionRef.current?.type === "ssh",
-    onCwd: (cwd) => onCwdChangeRef.current?.(cwd),
-    onRemoteCwd: (cwd) => setTabRemoteCwd(tabId, cwd),
+    onCwd: (cwd) => {
+      reportedCwd = cwd
+      onCwdChangeRef.current?.(cwd)
+    },
+    onRemoteCwd: (cwd) => {
+      reportedCwd = cwd ?? undefined
+      setTabRemoteCwd(tabId, cwd)
+    },
     remoteHostname: () => getTabRemoteHostname(tabId) ?? null,
     onRemoteAwayHost: (host) => setTabRemoteAwayHost(tabId, host),
     onRemoteReport: () => commandMarks.noteCwdReport(),

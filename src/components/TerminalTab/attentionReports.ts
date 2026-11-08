@@ -13,7 +13,9 @@ interface AttentionReportOptions {
   /** Follows the agent in the terminal; hears its reports. */
   agentTracker: AgentTracker
   onAttention: (event: TerminalAttentionEvent) => void
-  onAgentSession: (session: { agent: "claudeCode" | "codex"; sessionId: string } | null) => void
+  onAgentSession: (
+    session: { agent: "claudeCode" | "codex"; sessionId: string; cwd?: string } | null
+  ) => void
 }
 
 /**

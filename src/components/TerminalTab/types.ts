@@ -20,7 +20,7 @@ export interface TerminalTabProps {
   /** A local shell reported a new working directory. */
   onCwdChange?: (cwd: string) => void
   onAgentSessionChange?: (
-    session: { agent: "claudeCode" | "codex"; sessionId: string } | null
+    session: { agent: "claudeCode" | "codex"; sessionId: string; cwd?: string } | null
   ) => void
   /** A local WSL shell's launcher reported the distribution it runs. */
   onDistroChange?: (distroId: DistroId) => void

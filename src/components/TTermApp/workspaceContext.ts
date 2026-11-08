@@ -49,7 +49,7 @@ export interface TabPanelsProps {
   onTerminalCommandExecuted?: (command: ExecutedCommand) => void
   onTerminalAgentSessionChange?: (
     tabId: string,
-    session: { agent: "claudeCode" | "codex"; sessionId: string } | null
+    session: { agent: "claudeCode" | "codex"; sessionId: string; cwd?: string } | null
   ) => void
   onTerminalAttention?: (tabId: string, event: TerminalAttentionEvent) => void
   onOpenCommandLibrary?: (query?: string) => void

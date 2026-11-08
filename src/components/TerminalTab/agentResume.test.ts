@@ -6,7 +6,7 @@ import type { PromptEvent, ShellPromptState } from "@/components/TerminalTab/com
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }))
 
-function setup(resume = true) {
+function setup(resume = true, savedCwd?: string) {
   let data: (value: string) => void = () => {}
   let key: () => void = () => {}
   let prompt: (event: PromptEvent) => void = () => {}
@@ -32,7 +32,7 @@ function setup(resume = true) {
       },
       promptState: () => state,
     },
-    resume: resume ? { agent: "codex", sessionId: "abc-123" } : undefined,
+    resume: resume ? { agent: "codex", sessionId: "abc-123", cwd: savedCwd } : undefined,
     cwd: "/work dir",
     tabId: "test-tab",
     sessionNonce: 7,
@@ -96,6 +96,20 @@ describe("agent resume timing and manual fallback", () => {
     expect(writes()).toEqual([
       ["write_pty", { tabId: "test-tab", sessionNonce: 7, data: "RUST_BUILT_COMMAND\r" }],
     ])
+    test.controller.dispose()
+  })
+
+  it("uses the agent start directory and the live SSH shell rather than a saved shell", async () => {
+    const test = setup(true, "/remote/start dir")
+    test.controller.ready("fish", true)
+    test.prompt()
+    await settle()
+    expect(invoke).toHaveBeenCalledWith("build_agent_resume_command", {
+      agent: "codex",
+      sessionId: "abc-123",
+      cwd: "/remote/start dir",
+      shell: "fish",
+    })
     test.controller.dispose()
   })
 

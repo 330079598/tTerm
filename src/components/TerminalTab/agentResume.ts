@@ -53,7 +53,7 @@ export function startAgentResume(options: AgentResumeOptions) {
       const command = await invoke<string | null>("build_agent_resume_command", {
         agent: resume.agent,
         sessionId: resume.sessionId,
-        cwd: cwd ?? "",
+        cwd: resume.cwd ?? cwd ?? "",
         shell,
       })
       if (stopped || attempt !== generation || !canSend()) return

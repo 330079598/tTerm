@@ -237,7 +237,10 @@ export const TTermApp: React.FC = () => {
 
   const commandLibrary = useCommandLibraryActions(shell, broadcast)
   const handleTerminalAgentSessionChange = useCallback(
-    (tabId: string, session: { agent: "claudeCode" | "codex"; sessionId: string } | null) => {
+    (
+      tabId: string,
+      session: { agent: "claudeCode" | "codex"; sessionId: string; cwd?: string } | null
+    ) => {
       updateTab(tabId, (current) => ({
         ...current,
         connection: current.connection

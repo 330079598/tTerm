@@ -17,6 +17,8 @@ export interface AgentReport {
 export interface AgentResumeSession {
   agent: "claudeCode" | "codex"
   sessionId: string
+  /** Directory at agent start; older records can fall back to the local shell directory. */
+  cwd?: string
 }
 
 /** The payload of an OSC 777, which also carries `notify` and other extensions. */
