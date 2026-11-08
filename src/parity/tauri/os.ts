@@ -35,7 +35,11 @@ export type Arch =
   | "s390x"
   | "sparc64"
 
-const info = manifest.platform
+const platformName =
+  typeof window === "undefined"
+    ? "macos"
+    : (new URLSearchParams(window.location.search).get("platform") ?? "macos")
+const info = platformName === "windows" ? manifest.platforms.windows : manifest.platform
 
 /** The operating system, e.g. `macos`. */
 export function platform(): Platform {

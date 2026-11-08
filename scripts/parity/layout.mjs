@@ -35,14 +35,22 @@ export function collectLayout(screen) {
     return parsed
   }
   const canonicalFontFamily = (stack) => {
-    const first = (stack.split(",")[0] ?? "").trim().replace(/^["']|["']$/g, "").toLowerCase()
-    if (
-      first === "-apple-system" ||
-      first === "blinkmacsystemfont" ||
-      first === "system-ui" ||
-      first === ".systemuifont" ||
-      first === ".applesystemuifont"
-    ) {
+    const candidates = stack
+      .split(",")
+      .map((font) => font.trim().replace(/^["']|["']$/g, "").toLowerCase())
+      .filter(Boolean)
+    const platform = new URLSearchParams(window.location.search).get("platform")
+    const first =
+      platform === "windows"
+        ? candidates.find((font) =>
+            document.fonts.check(`12px "${font}"`) &&
+            !["-apple-system", "blinkmacsystemfont", "system-ui"].includes(font),
+          ) ?? candidates[0] ?? ""
+        : candidates[0] ?? ""
+    if (platform === "windows" && ["-apple-system", "blinkmacsystemfont", "system-ui"].includes(first)) {
+      return "system-ui"
+    }
+    if (first === "-apple-system" || first === "blinkmacsystemfont" || first === ".systemuifont" || first === ".applesystemuifont") {
       return "system-ui"
     }
     return first

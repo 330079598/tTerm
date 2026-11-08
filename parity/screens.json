@@ -1,6 +1,7 @@
 {
   "version": 2,
   "viewport": { "width": 800, "height": 600, "deviceScaleFactor": 2 },
+  "windowsViewport": { "width": 800, "height": 600, "deviceScaleFactor": 1 },
   "theme": "dark",
   "uiScalePercent": 100,
   "platform": {
@@ -11,6 +12,17 @@
     "type": "macos",
     "exeExtension": "",
     "eol": "\n"
+  },
+  "platforms": {
+    "windows": {
+      "os": "windows",
+      "version": "11.0.0",
+      "family": "windows",
+      "arch": "x86_64",
+      "type": "windows",
+      "exeExtension": ".exe",
+      "eol": "\r\n"
+    }
   },
   "screens": [
     {
