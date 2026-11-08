@@ -17,6 +17,7 @@ $paths = @('\Process(*)\ID Process', '\Process(*)\% Processor Time',
     '\Process(*)\Working Set', '\Process(*)\Working Set - Private', '\Process(*)\Private Bytes')
 $gpuAvailable = $true
 $gpuError = ''
+$skippedQueries = 0
 while ($clock.Elapsed.TotalSeconds -lt $Seconds) {
     $sampleStart = $clock.Elapsed.TotalSeconds
     $processes = @(Get-CimInstance Win32_Process)
@@ -41,7 +42,11 @@ while ($clock.Elapsed.TotalSeconds -lt $Seconds) {
     $instances = @($counter.CounterSamples | Where-Object {
         $_.Path.EndsWith('\id process') -and [int]$_.CookedValue -in $ids
     } | ForEach-Object { $_.Path.Substring(0, $_.Path.LastIndexOf('\')) })
-    if (!$instances.Count) { throw 'No performance counter instances matched the application tree.' }
+    if (!$instances.Count) {
+        $skippedQueries++
+        Start-Sleep -Milliseconds 500
+        continue
+    }
     $values = @{}
     foreach ($name in @('% processor time', 'working set', 'working set - private', 'private bytes')) {
         $matching = @($counter.CounterSamples | Where-Object {
@@ -81,6 +86,7 @@ while ($clock.Elapsed.TotalSeconds -lt $Seconds) {
 }
 $metadata = @{ platform = 'windows'; build = $Build; workload = $Workload
     root_pid = $RootPid; logical_processors = $logical; requested_seconds = $Seconds
-    gpu_error = $gpuError; samples = $rows }
+    gpu_error = $gpuError; skipped_queries = $skippedQueries; samples = $rows }
+if ($rows.Count -lt 2) { throw 'Fewer than two valid process-tree counter samples; retry this capture.' }
 $metadata | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $Output -Encoding utf8
 Write-Output "Captured $($rows.Count) samples: $Workload -> $Output"

@@ -40,6 +40,8 @@ node scripts/perf/summarize.mjs <原始JSON目录> docs/gpui-migration/baseline/
 
 PowerShell `Get-Counter` 读取 Process 的 `% Processor Time`、Working Set、Working Set - Private、Private Bytes。CPU 总和除逻辑处理器数，单位为整机百分比；排除首个计数器初始化样本。Working Set 是各进程 RSS 相加，会重复计共享页，同时保留 private working set 与 committed private bytes。GPU Process Memory Dedicated/Shared Usage 按树中 PID 汇总；失败保留错误并标不可获得。不存在的数值留空，不当作零。
 
+Windows PDH wildcard 查询偶尔返回空实例或其他进程的无效样本。采集器按完整计数器路径匹配本应用 PID，只接受状态有效的数值；整次未匹配应用实例时跳过并累计 skipped_queries，不填零，少于两个有效样本则报错。原始时间戳保留查询缺口。不要仅用 InstanceName 匹配同名 WebView：它会丢失实例编号，导致混入别的应用。
+
 CSV 列固定为：平台、构建、负载、指标、数值、单位、样本数、备注。均值和峰值都由原始 JSON 计算，差异为 `abs(run2-run1)/abs(run1)*100%`；run1 为零时相对差异未定义。超 10% 要在报告解释噪声来源，尤其空闲接近零的 CPU、一次性 GPU 分配与峰值，不把它们悄悄丢弃。
 
 测完退出待测应用，确认所有子进程退出；严格核对绝对路径后删除本轮 `com.stone.tTerm.perf` 与临时 APPDATA。不要删正式/开发数据目录，不操作真实 SSH 标签。启动器拒绝复用已有隔离目录。

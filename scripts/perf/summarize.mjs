@@ -43,7 +43,7 @@ for (const filename of (await fs.readdir(rawDir))
         value,
         unit,
         values.length,
-        `run=${run}; ConPTY; raw=${filename}; ${values.length ? "" : raw.gpu_error || "unavailable"}`,
+        `run=${run}; ConPTY; raw=${filename}; skipped_queries=${raw.skipped_queries || 0}; ${values.length ? "" : raw.gpu_error || "unavailable"}`,
       ])
       if (values.length) {
         const key = `${raw.workload}|${metric}`

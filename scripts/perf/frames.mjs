@@ -7,23 +7,26 @@ const [directory, output] = process.argv.slice(2)
 if (!directory || !output) throw new Error("Usage: node frames.mjs RAW_DIRECTORY OUTPUT.csv")
 const rows = [["平台", "构建", "负载", "指标", "数值", "单位", "样本数", "备注"]]
 const summaries = []
-for (const file of (await fs.readdir(directory))
-  .filter((f) => /^run[12]-.+\.trace\.json\.gz$/.test(f))
-  .sort()) {
+const inventory = await fs.readdir(directory)
+const traces = inventory.filter((f) => /^run[12]-.+\.trace\.json\.gz$/.test(f))
+const files = traces.length ? traces : inventory.filter((f) => /^run[12]-.+\.frames\.json$/.test(f))
+for (const file of files.sort()) {
   const source = await fs.readFile(path.join(directory, file))
-  const trace = JSON.parse(gunzipSync(source))
+  const full = file.endsWith(".gz")
+  const trace = JSON.parse(full ? gunzipSync(source) : source)
   const evidence = trace.traceEvents.filter(
     (event) =>
       event.name === "DrawFrame" || event.name === "process_name" || event.name === "thread_name"
   )
-  await fs.writeFile(
-    path.join(directory, file.replace(".trace.json.gz", ".frames.json")),
-    JSON.stringify({
-      source: file,
-      sha256: createHash("sha256").update(source).digest("hex"),
-      traceEvents: evidence,
-    }) + "\n"
-  )
+  if (full)
+    await fs.writeFile(
+      path.join(directory, file.replace(".trace.json.gz", ".frames.json")),
+      JSON.stringify({
+        source: file,
+        sha256: createHash("sha256").update(source).digest("hex"),
+        traceEvents: evidence,
+      }) + "\n"
+    )
   const groups = new Map()
   for (const event of trace.traceEvents) {
     if (event.name !== "DrawFrame" || event.ph !== "I") continue
@@ -40,7 +43,7 @@ for (const file of (await fs.readdir(directory))
     .map((time, i) => (time - times[i]) / 1000)
     .filter((t) => t > 0)
     .sort((a, b) => a - b)
-  const load = file.replace(/^run[12]-/, "").replace(".trace.json.gz", "")
+  const load = file.replace(/^run[12]-/, "").replace(/\.(trace\.json\.gz|frames\.json)$/, "")
   const run = file.match(/^run([12])/)[1]
   const percentile = (p) => intervals[Math.max(0, Math.ceil(intervals.length * p) - 1)]
   const metrics = intervals.length
