@@ -105,50 +105,60 @@ fn short_path(_path: &Path) -> Option<String> {
 /// single quotes as one backslash, so the string terminator's is `\134`.
 /// One `ps` lists the processes for awk, which prints each terminal to write
 /// to, whether a tmux pane holds it, and whether the report goes there
-/// unaddressed (Codex's own terminal) or with the session's id (every Codex
+/// directly (Codex's own terminal) or as a broadcast (every Codex
 /// terminal). tmux passes the report on only wrapped, and with
 /// `allow-passthrough` on.
-fn hook_command(state: &str) -> String {
+pub(super) fn hook_command(state: &str) -> String {
     let script = [
-        r#"input=$(cat); sid=$(printf "%s" "$input" | sed -n "s/.*\"session_id\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -n 1); case "$sid" in ""|*[!A-Za-z0-9-]*) sid=;; esac; [ "${#sid}" -le 64 ] || sid="#,
-        &format!(
-            r#"ps -A -o pid= -o ppid= -o tty= -o comm= 2>/dev/null | awk -v h=$PPID "{AWK}" | while read x t b; do r="codex;{state}"; if [ "$b" = 1 ]; then [ -n "$sid" ] || continue; r="$r;$sid;broadcast"; elif [ -n "$sid" ]; then r="$r;$sid;direct"; fi; s="\033]777;tterm-agent;$r\007"; [ "$x" = 0 ] || s="\033Ptmux;\033$s\033\134"; {{ printf "$s" > "/dev/$t"; }} 2>/dev/null; done"#
+        super::hook_input::script(),
+        format!(
+            r#"ps -A -o pid= -o ppid= -o tty= -o comm= 2>/dev/null | awk -v h=$PPID '{AWK}' | while read x t b; do r="codex;{state}"; if [ "$b" = 1 ]; then [ -n "$sid" ] || continue; r="$r;$sid;broadcast"; elif [ -n "$sid" ]; then r="$r;$sid;direct"; fi; [ -z "$sid" ] || r="$r;$cwd"; s="\033]777;tterm-agent;$r\007"; [ "$x" = 0 ] || s="\033Ptmux;\033$s\033\134"; {{ printf "%b" "$s" > "/dev/$t"; }} 2>/dev/null; done"#
         ),
     ]
     .join("; ");
-    format!("sh -c '{script}'")
+    let escaped = script
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('$', "\\$")
+        .replace('`', "\\`");
+    format!("sh -c \"{escaped}\"")
 }
 
-/// awk in the script's double quotes: `\$` for its fields, `\"` for its
-/// strings. `?` or `??` stands for no terminal; tmux's server is `tmux` or
+/// awk is single quoted inside the POSIX script. `?` or `??` stands for no terminal; tmux's server is `tmux` or
 /// `tmux: server`. The nearest `codex` up the hook's ancestors runs it: with
 /// a terminal it is Codex on its own, without one the shared server, even
 /// when a Codex with a terminal started that server and is its parent.
 const AWK: &str = concat!(
-    r#"function has(p) { return t[p] != \"\" && t[p] !~ /^[?]/ } "#,
+    r#"function has(p) { return t[p] != "" && t[p] !~ /^[?]/ } "#,
     r#"function emit(p, b,  q, x) { if (t[p] in s) return; s[t[p]] = 1; x = 0; for (q = p; q > 1; q = pp[q]) if (n[q] ~ /^tmux/) x = 1; print x, t[p], b } "#,
-    r#"{ pp[\$1] = \$2; t[\$1] = \$3; c = \$4; for (i = 5; i <= NF; i++) c = c \" \" \$i; sub(/.*\//, \"\", c); n[\$1] = c } "#,
-    r#"END { for (p = h; p > 1 && !has(p) && n[p] != \"codex\"; p = pp[p]); if (p > 1 && has(p)) emit(p, 0); else for (p in n) if (n[p] == \"codex\" && has(p)) emit(p, 1) }"#,
+    r#"{ pp[$1] = $2; t[$1] = $3; c = $4; for (i = 5; i <= NF; i++) c = c " " $i; sub(/.*\//, "", c); n[$1] = c } "#,
+    r#"END { for (p = h; p > 1 && !has(p) && n[p] != "codex"; p = pp[p]); if (p > 1 && has(p)) emit(p, 0); else for (p in n) if (n[p] == "codex" && has(p)) emit(p, 1) }"#,
 );
 
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
 
-    fn script(command: &str) -> &str {
-        command
-            .strip_prefix("sh -c '")
-            .and_then(|rest| rest.strip_suffix('\''))
+    fn script(command: &str) -> String {
+        let escaped = command
+            .strip_prefix("sh -c \"")
             .unwrap()
+            .strip_suffix('"')
+            .unwrap();
+        let mut chars = escaped.chars();
+        let mut script = String::new();
+        while let Some(c) = chars.next() {
+            script.push(if c == '\\' { chars.next().unwrap() } else { c });
+        }
+        script
     }
 
     #[test]
-    fn hook_is_one_single_quoted_posix_script() {
+    fn hook_is_one_quoted_posix_script() {
         let command = hook_command("waiting");
         let script = script(&command);
-        assert!(!script.contains('\''));
         let status = std::process::Command::new("sh")
-            .args(["-n", "-c", script])
+            .args(["-n", "-c", &script])
             .status()
             .unwrap();
         assert!(status.success());
@@ -177,7 +187,7 @@ mod tests {
 
         let command = hook_command(state);
         let mut child = std::process::Command::new("sh")
-            .args(["-c", script(&command)])
+            .args(["-c", &script(&command)])
             .env(
                 "PATH",
                 format!("{}:{}", dir.display(), std::env::var("PATH").unwrap()),
@@ -221,7 +231,7 @@ mod tests {
             run_hook("done", INPUT, table),
             [(
                 "ttyA".to_string(),
-                "\u{1b}Ptmux;\u{1b}\u{1b}]777;tterm-agent;codex;done;01a12490-4b68-76d0;direct\u{7}\u{1b}\\".to_string()
+                "\u{1b}Ptmux;\u{1b}\u{1b}]777;tterm-agent;codex;done;01a12490-4b68-76d0;direct;\u{7}\u{1b}\\".to_string()
             )]
         );
     }
@@ -237,7 +247,7 @@ mod tests {
                      610 1 TTY/ttyB codex\n\
                      800 1 TTY/ttyC zsh\n\
                      900 1 ? Codex (Service)\n";
-        let report = "\u{1b}]777;tterm-agent;codex;processing;01a12490-4b68-76d0;broadcast\u{7}";
+        let report = "\u{1b}]777;tterm-agent;codex;processing;01a12490-4b68-76d0;broadcast;\u{7}";
         assert_eq!(
             run_hook("processing", INPUT, table),
             [
@@ -261,7 +271,7 @@ mod tests {
                      550 1 TTY/ttyB -zsh\n\
                      500 450 TTY/ttyA codex\n\
                      450 1 TTY/ttyA -zsh\n";
-        let report = "\u{1b}]777;tterm-agent;codex;done;01a12490-4b68-76d0;broadcast\u{7}";
+        let report = "\u{1b}]777;tterm-agent;codex;done;01a12490-4b68-76d0;broadcast;\u{7}";
         assert_eq!(
             run_hook("done", INPUT, table),
             [

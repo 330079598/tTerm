@@ -1,6 +1,8 @@
 //! Hooks and plugins tTerm installs into AI coding agents so they report what
 //! they are doing (working, waiting for the user, done) to the terminal they
 //! run in, as `OSC 777 ; tterm-agent ; <agent> ; <state> BEL`. The report
+//! adds `; <session>; direct|broadcast; <percent-encoded-cwd>` when metadata is
+//! available. Only a direct report establishes a tab's resume session. It
 //! travels with the agent's own output, so it reaches tTerm from a local
 //! shell and over SSH alike; terminals that do not know it ignore it.
 //!
@@ -12,6 +14,7 @@ mod claude_code;
 mod codex;
 #[cfg(windows)]
 pub mod console_report;
+mod hook_input;
 mod hooks;
 mod json;
 mod plugin_file;

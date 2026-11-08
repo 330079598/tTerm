@@ -46,6 +46,17 @@ describe("parseAgentReport", () => {
     expect(parseAgentReport("precmd")).toBeNull()
   })
 
+  it("decodes hook cwd without allowing protocol delimiters or control sequences", () => {
+    expect(
+      parseAgentReport(
+        "tterm-agent;claude;processing;abc-123;direct;C%3A%5CJohn%E2%80%99s%20files%3Bx"
+      )?.cwd
+    ).toBe("C:\\John’s files;x")
+    for (const cwd of ["%0A", "%0D", "%09", "%00", "%1B", "%C2%85", "%FF", "%"]) {
+      expect(parseAgentReport(`tterm-agent;codex;done;abc-123;direct;${cwd}`)).toBeNull()
+    }
+  })
+
   it("rejects unknown states, odd names and extra fields", () => {
     expect(parseAgentReport("tterm-agent;claude;sleeping")).toBeNull()
     expect(parseAgentReport("tterm-agent;Claude;done")).toBeNull()
@@ -256,6 +267,31 @@ describe("direct and broadcast session ownership", () => {
       })
     ).toBe(false)
     tracker.dispose()
+  })
+
+  it("uses shell cwd at tool start, falls back to hook cwd, and freezes it for that session", () => {
+    for (const shell of [undefined, "/shell start"]) {
+      let current = shell
+      const tracker = new AgentTracker({
+        shellCwd: () => current,
+        onStatus: vi.fn(),
+        onAgent: vi.fn(),
+        onAnnounce: vi.fn(),
+      })
+      const report = {
+        agent: "claude",
+        state: "processing",
+        session: "start-1",
+        scope: "direct",
+        cwd: "/hook start",
+      } as const
+      tracker.report(report)
+      expect(tracker.resumeSession(report)?.cwd).toBe(shell ?? "/hook start")
+      current = "/changed after start"
+      tracker.report({ ...report, cwd: "/hook later" })
+      expect(tracker.resumeSession(report)?.cwd).toBe(shell ?? "/hook start")
+      tracker.dispose()
+    }
   })
 
   it("two tabs in the same directory ignore each other's broadcast even after typing", () => {

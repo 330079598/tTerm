@@ -1,6 +1,7 @@
 // What AI coding agents report through the hooks tTerm installs into them
 // (src-tauri/src/agent_integration): OSC 777 ; tterm-agent ; <agent> ; <state>,
-// Reports with sessions add ; <session> ; direct|broadcast. Legacy session reports
+// Reports with sessions add ; <session> ; direct|broadcast ; <encoded-cwd>.
+// Legacy session reports
 // are broadcasts: they must never establish a resume session.
 
 /** `idle`: stopped by the user, nothing to announce. `ended`: the agent quit. */
@@ -14,6 +15,7 @@ export interface AgentReport {
   /** Only direct reports can establish the terminal's resume session. */
   session?: string
   scope?: "direct" | "broadcast"
+  cwd?: string
 }
 
 export interface AgentResumeSession {
@@ -25,14 +27,29 @@ export interface AgentResumeSession {
 
 /** The payload of an OSC 777, which also carries `notify` and other extensions. */
 export function parseAgentReport(data: string): AgentReport | null {
-  const [command, agent, state, session, scope, ...rest] = data.split(";")
+  const [command, agent, state, session, scope, encodedCwd, ...rest] = data.split(";")
   if (command !== "tterm-agent" || rest.length > 0) return null
   if (!agent || !/^[a-z0-9][a-z0-9-]{0,31}$/.test(agent)) return null
   if (!(REPORT_STATES as readonly string[]).includes(state)) return null
   if (session === undefined) return { agent, state: state as AgentReportState }
   if (!/^[A-Za-z0-9-]{1,64}$/.test(session)) return null
   if (scope !== undefined && scope !== "direct" && scope !== "broadcast") return null
-  return { agent, state: state as AgentReportState, session, ...(scope ? { scope } : {}) }
+  let cwd: string | undefined
+  if (encodedCwd) {
+    try {
+      cwd = decodeURIComponent(encodedCwd)
+      if (cwd.length > 16384 || /[\p{Cc}]/u.test(cwd)) return null
+    } catch {
+      return null
+    }
+  }
+  return {
+    agent,
+    state: state as AgentReportState,
+    session,
+    ...(scope ? { scope } : {}),
+    ...(cwd ? { cwd } : {}),
+  }
 }
 
 const DISPLAY_NAMES: Record<string, string> = {
@@ -78,6 +95,8 @@ const AGENTS_REPORTING_STOPS: ReadonlySet<string> = new Set(["codex", "opencode"
 interface AgentTrackerCallbacks {
   /** A restored record is already owned by this tab; broadcasts cannot create it. */
   initialSession?: AgentResumeSession
+  /** The directory reported by the live shell at tool start, before hook fallback. */
+  shellCwd?: () => string | undefined
   onStatus: (status: AgentStatus | null) => void
   /** The agent running in the terminal, from its first report until it ends; null for none. */
   onAgent: (agent: string | null) => void
@@ -109,11 +128,19 @@ export class AgentTracker {
     return this.lastReportAt !== null && Date.now() - this.lastReportAt < AGENT_ECHO_WINDOW_MS
   }
 
-  report({ agent, state, session, scope }: AgentReport): boolean {
+  report({ agent, state, session, scope, cwd }: AgentReport): boolean {
     if (session !== undefined) {
       if (scope === "direct") {
         if (agent === "claude" || agent === "codex") {
-          this.resume = { agent: agent === "claude" ? "claudeCode" : "codex", sessionId: session }
+          const same =
+            this.resume?.sessionId === session &&
+            this.resume.agent === (agent === "claude" ? "claudeCode" : agent)
+          const startCwd = same ? this.resume?.cwd : (this.callbacks.shellCwd?.() ?? cwd)
+          this.resume = {
+            agent: agent === "claude" ? "claudeCode" : "codex",
+            sessionId: session,
+            ...(startCwd ? { cwd: startCwd } : {}),
+          }
         }
       } else if (
         this.resume?.sessionId !== session ||

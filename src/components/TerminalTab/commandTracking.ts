@@ -43,6 +43,7 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
   // with this session.
   const agentTracker = new AgentTracker({
     initialSession: connectionRef.current?.agentResume,
+    shellCwd: () => reportedCwd,
     onStatus: (status) => setTabAgentStatus(tabId, status),
     onAgent: (agent) => setTabRunningAgent(tabId, agent),
     onAnnounce: (announcement) => onAttentionRef.current?.({ kind: "agent", ...announcement }),
@@ -107,15 +108,7 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
   const attentionReports = watchAttentionReports(term, {
     agentTracker,
     onAttention: (event) => onAttentionRef.current?.(event),
-    onAgentSession: (session) =>
-      onAgentSessionChangeRef.current?.(
-        session
-          ? {
-              ...session,
-              cwd: reportedCwd ?? connectionRef.current?.cwd,
-            }
-          : null
-      ),
+    onAgentSession: (session) => onAgentSessionChangeRef.current?.(session),
   })
 
   // A local shell's directory, for the tab to restart in; a remote one's, for
