@@ -6,15 +6,19 @@
 
 use std::any::type_name;
 use std::fs::{self, OpenOptions};
-use std::io::{BufReader, Read, Write};
+use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Sender};
 use std::thread;
+use std::time::Duration;
 
-use gpui_kit::{AnyWindowHandle, App, Context, Entity, Keystroke};
+use gpui_kit::{AnyWindowHandle, App, Entity, EntityId, Keystroke};
 
 use super::window::Prototype;
+
+mod protocol;
+use protocol::{Command, MAX_REQUEST_BYTES, parse_request};
 
 const BIND: &str = "127.0.0.1:0";
 const TOKEN_ENV: &str = "TTERM_GPUI_AUTOMATION_TOKEN_FILE";
@@ -37,7 +41,7 @@ impl AutomationResponse {
 }
 
 struct Request {
-    command: String,
+    command: Command,
     reply: Sender<AutomationResponse>,
 }
 
@@ -58,6 +62,7 @@ pub(super) fn start(handle: AnyWindowHandle, prototype: Entity<Prototype>, cx: &
     let listener = match TcpListener::bind(BIND) {
         Ok(listener) => listener,
         Err(error) => {
+            let _ = fs::remove_file(&token_path);
             eprintln!("tterm-gpui automation disabled: {error}");
             return;
         }
@@ -68,15 +73,28 @@ pub(super) fn start(handle: AnyWindowHandle, prototype: Entity<Prototype>, cx: &
         .unwrap_or_else(|_| BIND.to_string());
     println!("tterm-gpui automation listening on {address}");
     println!("tterm-gpui automation token file: {}", token_path.display());
-    let (requests, receiver) = async_channel::unbounded::<Request>();
-    thread::spawn(move || accept_requests(listener, token, requests));
+    let close_path = token_path.clone();
+    cx.on_window_closed(move |_, id| {
+        if id == handle.window_id() {
+            let _ = fs::remove_file(&close_path);
+        }
+    })
+    .detach();
+    cx.on_app_quit(move |_| {
+        let _ = fs::remove_file(&token_path);
+        async {}
+    })
+    .detach();
+    let os = cx.platform_info().os;
+    let (requests, receiver) = async_channel::bounded::<Request>(1);
+    thread::spawn(move || accept_requests(listener, token, os, requests));
+    let prototype = prototype.downgrade();
     cx.spawn(async move |cx| {
         while let Ok(request) = receiver.recv().await {
             let reply = request.reply;
-            let response = cx.update(|app| {
-                prototype.update(app, |prototype, cx| {
-                    handle_request(&request.command, handle, prototype, cx)
-                })
+            let response = cx.update(|app| match prototype.upgrade() {
+                Some(prototype) => handle_request(request.command, handle, &prototype, app),
+                None => AutomationResponse::error("prototype was closed"),
             });
             let _ = reply.send(response);
         }
@@ -84,89 +102,99 @@ pub(super) fn start(handle: AnyWindowHandle, prototype: Entity<Prototype>, cx: &
     .detach();
 }
 
-fn accept_requests(listener: TcpListener, token: String, requests: async_channel::Sender<Request>) {
+fn accept_requests(
+    listener: TcpListener,
+    token: String,
+    os: gpui_kit::OperatingSystem,
+    requests: async_channel::Sender<Request>,
+) {
+    // One worker bounds memory/thread use even when unauthenticated users connect.
     for stream in listener.incoming().flatten() {
-        let token = token.clone();
-        let requests = requests.clone();
-        thread::spawn(move || serve(stream, &token, requests));
+        serve(stream, &token, os, &requests);
     }
 }
 
-fn serve(mut stream: TcpStream, token: &str, requests: async_channel::Sender<Request>) {
-    let mut input = String::new();
-    if BufReader::new(&mut stream)
-        .read_to_string(&mut input)
+fn serve(
+    mut stream: TcpStream,
+    token: &str,
+    os: gpui_kit::OperatingSystem,
+    requests: &async_channel::Sender<Request>,
+) {
+    let timeout = Some(Duration::from_secs(5));
+    if stream.set_read_timeout(timeout).is_err() || stream.set_write_timeout(timeout).is_err() {
+        return;
+    }
+    let mut input = Vec::new();
+    // The sentinel byte distinguishes an exact-limit request from an oversized one.
+    if (&mut stream)
+        .take((MAX_REQUEST_BYTES + 1) as u64)
+        .read_to_end(&mut input)
         .is_err()
     {
+        let _ = write_response(
+            &mut stream,
+            AutomationResponse::error("request read timed out or failed"),
+        );
         return;
     }
-    let mut supplied = None;
-    let mut command = None;
-    for line in input.lines() {
-        if let Some(value) = line.strip_prefix("token=") {
-            supplied = Some(value);
-        } else if let Some(value) = line.strip_prefix("command=") {
-            command = Some(value.to_string());
+    let command = match parse_request(&input, token, os) {
+        Ok(command) => command,
+        Err(error) => {
+            let _ = write_response(&mut stream, AutomationResponse::error(error));
+            return;
         }
-    }
-    if supplied != Some(token) {
-        let _ = write_response(&mut stream, AutomationResponse::error("invalid token"));
-        return;
-    }
-    let Some(command) = command else {
-        let _ = write_response(&mut stream, AutomationResponse::error("missing command"));
-        return;
     };
     let (reply, response) = mpsc::channel();
-    if requests.send_blocking(Request { command, reply }).is_err() {
+    if requests.try_send(Request { command, reply }).is_err() {
+        let _ = write_response(&mut stream, AutomationResponse::error("prototype is busy"));
         return;
     }
-    if let Ok(response) = response.recv() {
+    if let Ok(response) = response.recv_timeout(Duration::from_secs(5)) {
         let _ = write_response(&mut stream, response);
     }
 }
 
 fn handle_request(
-    command: &str,
+    command: Command,
     handle: AnyWindowHandle,
-    prototype: &mut Prototype,
-    cx: &mut Context<Prototype>,
+    prototype: &Entity<Prototype>,
+    cx: &mut App,
 ) -> AutomationResponse {
     match command {
-        "windows" => AutomationResponse::text(format!(
+        Command::Windows => AutomationResponse::text(format!(
             "window_id={:?}\nfocused={}\nactive={}\nroot={}\n",
             handle.window_id(),
             window_is_focused(handle, cx),
             window_is_active(handle, cx),
             type_name::<Prototype>(),
         )),
-        "state" => AutomationResponse::text(prototype.automation_state()),
-        "toggle-title" | "action=toggle-title" => {
-            prototype.automation_toggle_title(cx);
-            AutomationResponse::ok()
-        }
-        command if command.strip_prefix("key=").is_some() => {
-            if !window_is_active(handle, cx) {
-                return AutomationResponse::error("prototype window is not active");
-            }
-            let key = command.strip_prefix("key=").unwrap_or_default().to_string();
-            if key.len() > 64 || key.contains(['\r', '\n']) {
-                return AutomationResponse::error("invalid keystroke");
-            }
-            let Some(key) = supported_keystroke(&key) else {
-                return AutomationResponse::error("invalid keystroke");
-            };
-            let Ok(key) = Keystroke::parse(key) else {
-                return AutomationResponse::error("invalid keystroke");
-            };
-            let result = handle.update(cx, |_, window, app| window.dispatch_keystroke(key, app));
+        Command::State => AutomationResponse::text(prototype.read(cx).automation_state()),
+        Command::Focus | Command::Close => {
+            let result = handle.update(cx, |_, window, _| {
+                if matches!(command, Command::Focus) {
+                    window.activate_window();
+                } else {
+                    window.remove_window();
+                }
+            });
             match result {
-                Ok(true) => AutomationResponse::ok(),
-                Ok(false) => AutomationResponse::error("keystroke was not handled"),
+                Ok(()) => AutomationResponse::ok(),
                 Err(error) => AutomationResponse::error(error.to_string()),
             }
         }
-        "screenshot" => match handle.update(cx, |_, window, _| window.render_to_image()) {
+        Command::Key(key) => dispatch_keys(handle, prototype.entity_id(), vec![key], cx),
+        Command::Text(text) => {
+            let keys = text
+                .chars()
+                .map(|character| Keystroke {
+                    key: character.to_string(),
+                    key_char: Some(character.to_string()),
+                    ..Default::default()
+                })
+                .collect();
+            dispatch_keys(handle, prototype.entity_id(), keys, cx)
+        }
+        Command::Screenshot => match handle.update(cx, |_, window, _| window.render_to_image()) {
             Ok(Ok(image)) => {
                 let mut bytes = Vec::new();
                 if image::DynamicImage::ImageRgba8(image)
@@ -188,41 +216,49 @@ fn handle_request(
             Ok(Err(error)) => AutomationResponse::error(error.to_string()),
             Err(error) => AutomationResponse::error(error.to_string()),
         },
-        _ => AutomationResponse::error("unknown command"),
     }
 }
 
-fn supported_keystroke(value: &str) -> Option<&'static str> {
-    [
-        "enter",
-        "escape",
-        "tab",
-        "backspace",
-        "up",
-        "down",
-        "left",
-        "right",
-        "home",
-        "end",
-        "pageup",
-        "pagedown",
-        "ctrl-c",
-        "ctrl-d",
-        "ctrl-l",
-        "ctrl-r",
-        "cmd-q",
-    ]
-    .into_iter()
-    .find(|candidate| *candidate == value)
+fn dispatch_keys(
+    handle: AnyWindowHandle,
+    prototype_id: EntityId,
+    keys: Vec<Keystroke>,
+    cx: &mut App,
+) -> AutomationResponse {
+    // gpui-kit wraps Prototype in its own Root; the captured handle is the
+    // exact window that open_window created, rather than the active OS window.
+    let result = handle.update(cx, |_, window, app| {
+        let matches = window
+            .root::<gpui_kit::base::Root>()
+            .flatten()
+            .is_some_and(|root| root.read(app).view().entity_id() == prototype_id);
+        if !matches {
+            return Err("target is not the prototype window");
+        }
+        if !window.is_window_active() || window.focused(app).is_none() {
+            return Err("prototype window is not active and focused");
+        }
+        for key in keys {
+            if !window.dispatch_keystroke(key, app) {
+                return Err("keystroke was not handled");
+            }
+        }
+        Ok(())
+    });
+    match result {
+        Ok(Ok(())) => AutomationResponse::ok(),
+        Ok(Err(error)) => AutomationResponse::error(error),
+        Err(error) => AutomationResponse::error(error.to_string()),
+    }
 }
 
-fn window_is_active(handle: AnyWindowHandle, cx: &mut Context<Prototype>) -> bool {
+fn window_is_active(handle: AnyWindowHandle, cx: &mut App) -> bool {
     handle
         .update(cx, |_, window, _| window.is_window_active())
         .unwrap_or(false)
 }
 
-fn window_is_focused(handle: AnyWindowHandle, cx: &mut Context<Prototype>) -> bool {
+fn window_is_focused(handle: AnyWindowHandle, cx: &mut App) -> bool {
     handle
         .update(cx, |_, window, app| window.focused(app).is_some())
         .unwrap_or(false)
@@ -275,15 +311,22 @@ fn write_token(path: &PathBuf, token: &str) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let mut file = OpenOptions::new().create_new(true).write(true).open(path)?;
-    file.write_all(token.as_bytes())?;
-    file.sync_all()?;
+    let mut options = OpenOptions::new();
+    options.create_new(true).write(true);
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
     }
-    Ok(())
+    let mut file = options.open(path)?;
+    let result = file
+        .write_all(token.as_bytes())
+        .and_then(|()| file.sync_all());
+    drop(file);
+    if result.is_err() {
+        let _ = fs::remove_file(path);
+    }
+    result
 }
 
 fn make_token() -> Result<String, String> {

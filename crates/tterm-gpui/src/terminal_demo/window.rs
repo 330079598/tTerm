@@ -77,36 +77,15 @@ pub(super) struct Prototype {
     session: Option<Session>,
     /// The latest title the program set, which the next render shows.
     title: Arc<Mutex<Option<String>>>,
+    current_title: String,
+}
+
+impl Prototype {
     #[cfg(all(feature = "automation", debug_assertions))]
-    automation_toggled: bool,
-}
-
-#[cfg(all(feature = "automation", debug_assertions))]
-impl Prototype {
     pub(super) fn automation_state(&self) -> String {
-        let title = if self.automation_toggled {
-            "tTerm GPUI Automation"
-        } else {
-            DEFAULT_TITLE
-        };
-        format!("title={title}")
+        format!("title={}", self.current_title)
     }
 
-    pub(super) fn automation_toggle_title(&mut self, cx: &mut Context<Self>) {
-        self.automation_toggled = !self.automation_toggled;
-        let next = if self.automation_toggled {
-            "tTerm GPUI Automation"
-        } else {
-            DEFAULT_TITLE
-        };
-        if let Ok(mut title) = self.title.lock() {
-            *title = Some(next.to_string());
-        }
-        cx.notify();
-    }
-}
-
-impl Prototype {
     fn new(cx: &mut Context<Self>, command: &CommandSpec) -> Self {
         let terminal = Arc::new(Terminal::new(Config::default(), INITIAL_GRID, INITIAL_CELL));
         let state = SessionState {
@@ -137,8 +116,7 @@ impl Prototype {
                     view,
                     session: None,
                     title,
-                    #[cfg(all(feature = "automation", debug_assertions))]
-                    automation_toggled: false,
+                    current_title: DEFAULT_TITLE.to_string(),
                 };
             }
         };
@@ -167,8 +145,7 @@ impl Prototype {
             view,
             session: Some(session),
             title,
-            #[cfg(all(feature = "automation", debug_assertions))]
-            automation_toggled: false,
+            current_title: DEFAULT_TITLE.to_string(),
         }
     }
 }
@@ -189,6 +166,7 @@ impl Render for Prototype {
             && let Some(title) = title.take()
         {
             window.set_window_title(&title);
+            self.current_title = title;
         }
         div().size_full().child(self.view.clone())
     }
