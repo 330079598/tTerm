@@ -126,6 +126,8 @@ impl Player {
                 return;
             }
             let start = Instant::now();
+            let count = frames.len();
+            let duration = frames.last().map_or(Duration::ZERO, |frame| frame.at);
             for frame in frames {
                 if original {
                     std::thread::sleep(frame.at.saturating_sub(start.elapsed()));
@@ -142,6 +144,11 @@ impl Player {
                     return;
                 }
             }
+            println!(
+                "replay clock: {count} frames, recorded_us={}, elapsed_us={}",
+                duration.as_micros(),
+                start.elapsed().as_micros()
+            );
         });
         let handle = window.window_handle();
         cx.spawn(async move |weak, cx| {
