@@ -42,6 +42,7 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
   // An AI agent reporting through tTerm's hooks; its marks on the tab go
   // with this session.
   const agentTracker = new AgentTracker({
+    initialSession: connectionRef.current?.agentResume,
     onStatus: (status) => setTabAgentStatus(tabId, status),
     onAgent: (agent) => setTabRunningAgent(tabId, agent),
     onAnnounce: (announcement) => onAttentionRef.current?.({ kind: "agent", ...announcement }),

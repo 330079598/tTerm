@@ -1,6 +1,7 @@
 // What AI coding agents report through the hooks tTerm installs into them
 // (src-tauri/src/agent_integration): OSC 777 ; tterm-agent ; <agent> ; <state>,
-// and ; <session> when the report goes to every terminal running the agent.
+// Reports with sessions add ; <session> ; direct|broadcast. Legacy session reports
+// are broadcasts: they must never establish a resume session.
 
 /** `idle`: stopped by the user, nothing to announce. `ended`: the agent quit. */
 const REPORT_STATES = ["processing", "waiting", "done", "error", "idle", "ended"] as const
@@ -10,8 +11,9 @@ export type AgentReportState = (typeof REPORT_STATES)[number]
 export interface AgentReport {
   agent: string
   state: AgentReportState
-  /** The session reported on, when this terminal may not be the one running it. */
+  /** Only direct reports can establish the terminal's resume session. */
   session?: string
+  scope?: "direct" | "broadcast"
 }
 
 export interface AgentResumeSession {
@@ -23,13 +25,14 @@ export interface AgentResumeSession {
 
 /** The payload of an OSC 777, which also carries `notify` and other extensions. */
 export function parseAgentReport(data: string): AgentReport | null {
-  const [command, agent, state, session, ...rest] = data.split(";")
+  const [command, agent, state, session, scope, ...rest] = data.split(";")
   if (command !== "tterm-agent" || rest.length > 0) return null
   if (!agent || !/^[a-z0-9][a-z0-9-]{0,31}$/.test(agent)) return null
   if (!(REPORT_STATES as readonly string[]).includes(state)) return null
   if (session === undefined) return { agent, state: state as AgentReportState }
   if (!/^[A-Za-z0-9-]{1,64}$/.test(session)) return null
-  return { agent, state: state as AgentReportState, session }
+  if (scope !== undefined && scope !== "direct" && scope !== "broadcast") return null
+  return { agent, state: state as AgentReportState, session, ...(scope ? { scope } : {}) }
 }
 
 const DISPLAY_NAMES: Record<string, string> = {
@@ -65,13 +68,6 @@ export const AGENT_WAIT_ANNOUNCE_DELAY_MS = 3000
 const AGENT_ECHO_WINDOW_MS = 10_000
 
 /**
- * How long after Enter a terminal may take a session it is told about as its
- * own: the hook runs once the prompt is submitted, after the login shell
- * Codex starts it with.
- */
-export const AGENT_CLAIM_WINDOW_MS = 10_000
-
-/**
  * Agents that report it themselves when the user stops them or refuses what
  * they ask, which Claude Code does not. Their keys are no sign of a stop:
  * Codex's Esc closes a popup first, and its Ctrl+C clears a draft. A guess
@@ -79,10 +75,9 @@ export const AGENT_CLAIM_WINDOW_MS = 10_000
  */
 const AGENTS_REPORTING_STOPS: ReadonlySet<string> = new Set(["codex", "opencode", "pi"])
 
-/** The terminal each addressed session was submitted from, across tabs. */
-const sessionOwners = new Map<string, AgentTracker>()
-
 interface AgentTrackerCallbacks {
+  /** A restored record is already owned by this tab; broadcasts cannot create it. */
+  initialSession?: AgentResumeSession
   onStatus: (status: AgentStatus | null) => void
   /** The agent running in the terminal, from its first report until it ends; null for none. */
   onAgent: (agent: string | null) => void
@@ -95,13 +90,14 @@ export class AgentTracker {
   private agent: string | null = null
   private lastReportAt: number | null = null
   private waitTimer: ReturnType<typeof setTimeout> | null = null
-  private submittedAt: number | null = null
-  private readonly sessions = new Set<string>()
+  private resume: AgentResumeSession | null = null
 
   constructor(
     private readonly callbacks: AgentTrackerCallbacks,
     private readonly waitDelayMs = AGENT_WAIT_ANNOUNCE_DELAY_MS
-  ) {}
+  ) {
+    this.resume = callbacks.initialSession ?? null
+  }
 
   /**
    * An agent is at work, waiting, or has just reported: notifications it
@@ -113,13 +109,19 @@ export class AgentTracker {
     return this.lastReportAt !== null && Date.now() - this.lastReportAt < AGENT_ECHO_WINDOW_MS
   }
 
-  /** Enter typed in the terminal: it may take the next new session it hears of. */
-  submit() {
-    this.submittedAt = Date.now()
-  }
-
-  report({ agent, state, session }: AgentReport): boolean {
-    if (session !== undefined && !this.claim(session, state)) return false
+  report({ agent, state, session, scope }: AgentReport): boolean {
+    if (session !== undefined) {
+      if (scope === "direct") {
+        if (agent === "claude" || agent === "codex") {
+          this.resume = { agent: agent === "claude" ? "claudeCode" : "codex", sessionId: session }
+        }
+      } else if (
+        this.resume?.sessionId !== session ||
+        this.resume.agent !== (agent === "claude" ? "claudeCode" : agent)
+      )
+        return false
+    }
+    if (state === "idle") this.resume = null
     this.cancelWait()
     if (state === "ended") {
       this.reset()
@@ -148,8 +150,11 @@ export class AgentTracker {
 
   resumeSession({ agent, state, session }: AgentReport): AgentResumeSession | null {
     if (!session || state === "ended" || state === "idle") return null
-    if (agent !== "claude" && agent !== "codex") return null
-    return { agent: agent === "claude" ? "claudeCode" : "codex", sessionId: session }
+    const saved = this.resume
+    if (!saved || saved.sessionId !== session) return null
+    if (saved.agent !== (agent === "claude" ? "claudeCode" : agent)) return null
+    // Even a recently submitted Enter cannot make a broadcast a new resume record.
+    return saved
   }
 
   /**
@@ -177,7 +182,7 @@ export class AgentTracker {
   /** The shell's prompt is back or the session closed: no agent runs anymore. */
   reset() {
     this.cancelWait()
-    this.releaseSessions()
+    this.resume = null
     this.lastReportAt = null
     this.setStatus(null)
     this.setAgent(null)
@@ -185,38 +190,6 @@ export class AgentTracker {
 
   dispose() {
     this.cancelWait()
-    this.releaseSessions()
-  }
-
-  /**
-   * Codex's shared background server tells every terminal running Codex
-   * about each of its sessions. A session belongs to the terminal Enter was
-   * typed in shortly before it was first heard of, and each Enter submits one
-   * session; the others hear of it and ignore it.
-   */
-  private claim(session: string, state: AgentReportState) {
-    const owner = sessionOwners.get(session)
-    if (owner === this) {
-      if (state === "ended") this.releaseSession(session)
-      return true
-    }
-    if (owner || state === "ended") return false
-    if (this.submittedAt === null || Date.now() - this.submittedAt > AGENT_CLAIM_WINDOW_MS) {
-      return false
-    }
-    this.submittedAt = null
-    sessionOwners.set(session, this)
-    this.sessions.add(session)
-    return true
-  }
-
-  private releaseSession(session: string) {
-    if (sessionOwners.get(session) === this) sessionOwners.delete(session)
-    this.sessions.delete(session)
-  }
-
-  private releaseSessions() {
-    for (const session of this.sessions) this.releaseSession(session)
   }
 
   private cancelWait() {

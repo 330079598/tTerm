@@ -35,7 +35,7 @@ pub(super) const HOOKS: HookSet = HookSet {
 /// safe alphabet as the Codex hook before it can reach the terminal.
 fn hook_command(state: &str) -> String {
     format!(
-        r#"input=$(cat); sid=$(printf '%s' "$input" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1); case "$sid" in ''|*[!A-Za-z0-9-]*) sid=;; esac; if [ "${{#sid}}" -gt 64 ]; then sid=; fi; if [ -n "$sid" ]; then printf '%s' '{{"terminalSequence":"\u001b]777;tterm-agent;claude;{state};'$sid'\u0007"}}'; else printf '%s' '{{"terminalSequence":"\u001b]777;tterm-agent;claude;{state}\u0007"}}'; fi"#
+        r#"input=$(cat); sid=$(printf '%s' "$input" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1); case "$sid" in ''|*[!A-Za-z0-9-]*) sid=;; esac; if [ "${{#sid}}" -gt 64 ]; then sid=; fi; if [ -n "$sid" ]; then printf '%s' '{{"terminalSequence":"\u001b]777;tterm-agent;claude;{state};'$sid';direct\u0007"}}'; else printf '%s' '{{"terminalSequence":"\u001b]777;tterm-agent;claude;{state}\u0007"}}'; fi"#
     )
 }
 

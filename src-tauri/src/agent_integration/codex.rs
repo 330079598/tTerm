@@ -110,9 +110,9 @@ fn short_path(_path: &Path) -> Option<String> {
 /// `allow-passthrough` on.
 fn hook_command(state: &str) -> String {
     let script = [
-        r#"sid=$(sed -n "s/.*\"session_id\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -n 1 | tr -cd A-Za-z0-9-)"#,
+        r#"input=$(cat); sid=$(printf "%s" "$input" | sed -n "s/.*\"session_id\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -n 1); case "$sid" in ""|*[!A-Za-z0-9-]*) sid=;; esac; [ "${#sid}" -le 64 ] || sid="#,
         &format!(
-            r#"ps -A -o pid= -o ppid= -o tty= -o comm= 2>/dev/null | awk -v h=$PPID "{AWK}" | while read x t b; do r="codex;{state}"; if [ "$b" = 1 ]; then [ -n "$sid" ] || continue; r="$r;$sid"; fi; s="\033]777;tterm-agent;$r\007"; [ "$x" = 0 ] || s="\033Ptmux;\033$s\033\134"; {{ printf "$s" > "/dev/$t"; }} 2>/dev/null; done"#
+            r#"ps -A -o pid= -o ppid= -o tty= -o comm= 2>/dev/null | awk -v h=$PPID "{AWK}" | while read x t b; do r="codex;{state}"; if [ "$b" = 1 ]; then [ -n "$sid" ] || continue; r="$r;$sid;broadcast"; elif [ -n "$sid" ]; then r="$r;$sid;direct"; fi; s="\033]777;tterm-agent;$r\007"; [ "$x" = 0 ] || s="\033Ptmux;\033$s\033\134"; {{ printf "$s" > "/dev/$t"; }} 2>/dev/null; done"#
         ),
     ]
     .join("; ");
@@ -221,7 +221,7 @@ mod tests {
             run_hook("done", INPUT, table),
             [(
                 "ttyA".to_string(),
-                "\u{1b}Ptmux;\u{1b}\u{1b}]777;tterm-agent;codex;done\u{7}\u{1b}\\".to_string()
+                "\u{1b}Ptmux;\u{1b}\u{1b}]777;tterm-agent;codex;done;01a12490-4b68-76d0;direct\u{7}\u{1b}\\".to_string()
             )]
         );
     }
@@ -237,7 +237,7 @@ mod tests {
                      610 1 TTY/ttyB codex\n\
                      800 1 TTY/ttyC zsh\n\
                      900 1 ? Codex (Service)\n";
-        let report = "\u{1b}]777;tterm-agent;codex;processing;01a12490-4b68-76d0\u{7}";
+        let report = "\u{1b}]777;tterm-agent;codex;processing;01a12490-4b68-76d0;broadcast\u{7}";
         assert_eq!(
             run_hook("processing", INPUT, table),
             [
@@ -261,7 +261,7 @@ mod tests {
                      550 1 TTY/ttyB -zsh\n\
                      500 450 TTY/ttyA codex\n\
                      450 1 TTY/ttyA -zsh\n";
-        let report = "\u{1b}]777;tterm-agent;codex;done;01a12490-4b68-76d0\u{7}";
+        let report = "\u{1b}]777;tterm-agent;codex;done;01a12490-4b68-76d0;broadcast\u{7}";
         assert_eq!(
             run_hook("done", INPUT, table),
             [

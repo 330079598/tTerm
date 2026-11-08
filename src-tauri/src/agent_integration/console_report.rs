@@ -48,7 +48,7 @@ pub fn run_helper_if_requested() -> Option<i32> {
 fn report(agent: &str, state: &str, session: Option<&str>) {
     let processes = processes();
     let mut consoles = HashSet::new();
-    let own = format!("\x1b]777;tterm-agent;{agent};{state}\x07");
+    let own = report_sequence(agent, state, session, false);
     let exe = format!("{agent}.exe");
     let mut seen = HashSet::new();
     let mut pid = processes.get(&std::process::id()).map(|process| process.0);
@@ -70,11 +70,20 @@ fn report(agent: &str, state: &str, session: Option<&str>) {
     let Some(session) = session else {
         return;
     };
-    let addressed = format!("\x1b]777;tterm-agent;{agent};{state};{session}\x07");
+    let addressed = report_sequence(agent, state, Some(session), true);
     for (pid, (_, name)) in &processes {
         if name.eq_ignore_ascii_case(&exe) {
             write_to_console(*pid, &addressed, &mut consoles);
         }
+    }
+}
+
+/// Scope distinguishes a report from this console from the shared server's fanout.
+fn report_sequence(agent: &str, state: &str, session: Option<&str>, broadcast: bool) -> String {
+    let scope = if broadcast { "broadcast" } else { "direct" };
+    match session {
+        Some(session) => format!("\x1b]777;tterm-agent;{agent};{state};{session};{scope}\x07"),
+        None => format!("\x1b]777;tterm-agent;{agent};{state}\x07"),
     }
 }
 
@@ -159,6 +168,24 @@ mod tests {
         assert!(!is_name("Codex", 32));
         assert!(!is_name("done\x07\x1b]0;x", 16));
         assert!(!is_name("processing-and-more", 16));
+    }
+
+    #[test]
+    fn both_agents_report_their_session_to_their_own_console() {
+        for agent in ["claude", "codex"] {
+            assert_eq!(
+                report_sequence(agent, "processing", Some("abc-123"), false),
+                format!("\x1b]777;tterm-agent;{agent};processing;abc-123;direct\x07")
+            );
+        }
+        assert_eq!(
+            report_sequence("codex", "done", Some("abc-123"), true),
+            "\x1b]777;tterm-agent;codex;done;abc-123;broadcast\x07"
+        );
+        assert_eq!(
+            report_sequence("claude", "done", None, false),
+            "\x1b]777;tterm-agent;claude;done\x07"
+        );
     }
 
     #[test]
