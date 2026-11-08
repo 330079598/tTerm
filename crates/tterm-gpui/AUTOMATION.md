@@ -1,26 +1,82 @@
-# GPUI å¼€å‘ç‰ˆè‡ªåŠ¨åŒ–
+# GPUI ¿ª·¢°æ×Ô¶¯»¯
 
-è¿™ä¸ªå…¥å£åªç”¨äºæœ¬åœ°å¼€å‘æ„å»ºã€‚å®ƒå¿…é¡»åŒæ—¶æ»¡è¶³ `--features automation` å’Œ
-`debug_assertions`ï¼›æ™®é€š `cargo build --release` ä¸ä¼šç¼–è¯‘ç›‘å¬å™¨ã€ä»¤ç‰Œã€åŠ¨ä½œæˆ–æˆªå›¾ä»£ç ã€‚
+½Ó¿Ú±ØĞëÍ¬Ê±Âú×ã `automation` feature ºÍ `debug_assertions`¡£²»´ø feature µÄÕıÊ½¹¹½¨£¬ÒÔ¼°´ø feature µÄ release ¹¹½¨£¬¾ù²»±àÒë¿ØÖÆÄ£¿é¡£
 
-åœ¨ä»“åº“æ ¹ç›®å½•æ‰§è¡Œï¼š
+## ´ÓÍ·ÔËĞĞ
+
+ÔÚ²Ö¿â¸ùÄ¿Â¼ÏÈ¹¹½¨£¬ÔÙÔËĞĞ½Å±¾£¨Windows ĞèÒª Python 3 ºÍ PowerShell£¬Unix ĞèÒª bash£©£º
 
 ```powershell
-python scripts/gpui-automation.py --output target/gpui-automation.png
+cargo build --workspace --bin tterm-gpui --features tterm-gpui/automation
+python -u scripts/gpui-automation.py --output target/gpui-automation.png
 ```
 
-è„šæœ¬å¯åŠ¨ `cargo run -p tterm-gpui --features automation`ï¼Œè¯»å–ä»¤ç‰Œæ–‡ä»¶ï¼Œä¾æ¬¡è¯»å–çŠ¶æ€ã€åˆ‡æ¢æ ‡é¢˜çŠ¶æ€ã€å†æ¬¡è¯»å–çŠ¶æ€å¹¶ä¿å­˜ PNGã€‚GPUI åŸå‹ç›®å‰åªæœ‰ç»ˆç«¯è§†å›¾ï¼Œæ²¡æœ‰è®¾ç½®é¡µï¼Œå› æ­¤æ ‡é¢˜çŠ¶æ€æ˜¯ä»»åŠ¡å¡è¦æ±‚çš„å¯åˆ‡æ¢ä¸”å¯è¯»å›çŠ¶æ€çš„æ›¿ä»£ã€‚
+½Å±¾Ö±½ÓÆô¶¯¸Õ¹¹½¨µÄ debug ¶ş½øÖÆ£¬ÏÔÊ½Ñ¡ÔñÎŞ profile µÄ PowerShell »ò bash£¬µÈ´ıÔ­ĞÍ»ñµÃ¼¤»îÓë½¹µã£¬Í¨¹ıÎÄ±¾ÊäÈëÖ´ĞĞÏÂÃæµÄÃüÁî£¬ÔÙ·¢ËÍ Enter£¬Ö±µ½ `state` È·ÈÏÕæÊµ OSC ±êÌâ±ä¸ü£¬È»ºó½ØÍ¼²¢Õı³£¹Ø±ÕÔ­ĞÍ¡£×Ü³¬Ê±Ä¬ÈÏ 120 Ãë£¨¿ÉÓÃ `--timeout` ¸ÄĞ¡£©£»³É¹¦¡¢´íÎó¡¢³¬Ê±¾ùÇåÀí½Å±¾×Ô¼ºÆô¶¯µÄ½ø³Ì£¬²¢¾¡Á¦É¾³ıÁîÅÆÎÄ¼ş¡£
 
-ç¨‹åºåªç»‘å®š `127.0.0.1`ï¼Œæ¯æ¬¡å¯åŠ¨ç”Ÿæˆæ–°çš„ 256-bit ç³»ç»Ÿéšæœºä»¤ç‰Œã€‚ä»¤ç‰Œæ–‡ä»¶ä½äº
-`LOCALAPPDATA\com.stone.tTerm.gpui-dev`ï¼ˆæˆ– `XDG_STATE_HOME`ï¼‰ä¸‹ï¼ŒUnix æƒé™ä¸º `0600`ï¼›ä¹Ÿå¯ç”¨ `TTERM_GPUI_AUTOMATION_TOKEN_FILE` æŒ‡å®šè·¯å¾„ã€‚è¯·æ±‚æ ¼å¼ä¸ºï¼š
+```powershell
+$Host.UI.RawUI.WindowTitle = 'tTerm P0-23 OSC title'
+```
+
+```bash
+printf '\033]0;tTerm P0-23 OSC title\007'
+```
+
+Ô­ĞÍÃ»ÓĞÉèÖÃÒ³£¬Ê¾ÀıÊ¹ÓÃ³ÌĞòÍ¨¹ı OSC 0/2 ÉèÖÃµÄÕæÊµ´°¿Ú±êÌâ×÷Îª¿É¶Á»Ø×´Ì¬¡£Ã»ÓĞ×Ô¶¯»¯×¨ÓÃµÄ±êÌâ¿ª¹Ø¡£
+
+## ÊÖ¶¯Á¬½Ó
+
+```powershell
+target/debug/tterm-gpui.exe
+```
+
+Ö±½ÓÔËĞĞÄÄ¸ö¶ş½øÖÆ¾ö¶¨ÁËÊÇ·ñ°üº¬½Ó¿Ú£ºÇëÏÈÓÃÇ°Êö feature ¹¹½¨£¬ÔÙÔËĞĞ¶ÔÓ¦ debug ¶ş½øÖÆ¡£³ÌĞòÊä³ö `127.0.0.1:<port>` ºÍÁîÅÆÎÄ¼şÂ·¾¶¡£Ã¿´ÎÆô¶¯Éú³É 256-bit ÏµÍ³Ëæ»úÁîÅÆ£¬Ä¬ÈÏÎÄ¼şÔÚ `%LOCALAPPDATA%/com.stone.tTerm.gpui-dev`£¬Unix ÔÚ `XDG_STATE_HOME` »òÁÙÊ±Ä¿Â¼µÄÍ¬Ãû×ÓÄ¿Â¼£¬È¨ÏŞ´Ó´´½¨ÆğÎª `0600`¡£Windows ACL ¼Ì³Ğ×Ôµ±Ç°ÓÃ»§µÄ `%LOCALAPPDATA%`£ºµ±Ç°ÓÃ»§¡¢SYSTEM¡¢¹ÜÀíÔ±¿É·ÃÎÊ¡£`TTERM_GPUI_AUTOMATION_TOKEN_FILE` ¿ÉÖ¸¶¨Ìæ´úÂ·¾¶£¬µ÷ÓÃÕß±ØĞëÈ·±£¸¸Ä¿Â¼Ö»ÓĞµ±Ç°ÓÃ»§¿É¶Á¡£
+
+Ã¿¸ö TCP Á¬½Ó·¢Ò»¸ö UTF-8 ÇëÇó£¬È»ºó¹Ø±ÕĞ´·½Ïò£¨`shutdown(SHUT_WR)`£©£¬¼ÌĞø¶ÁÈ¡ÏìÓ¦£º
 
 ```text
-token=<token>
+token=<64 hex characters>
 command=state
 ```
 
-æ”¯æŒ `windows`ã€`state`ã€`action=toggle-title`ã€å—é™çš„ `key=<...>` å’Œ `screenshot`ã€‚æˆªå›¾é€šè¿‡ `Window::render_to_image` è¿”å› PNGï¼›æŒ‰é”®åªå‘ç»™å·²æ¿€æ´»çš„åŸå‹çª—å£ã€‚æ¥å£æ²¡æœ‰æ‰§è¡Œä»»æ„å‘½ä»¤ã€ä»»æ„æ–‡ä»¶è¯»å†™ã€è·¯å¾„å‚æ•°æˆ–ç½‘ç»œè½¬å‘èƒ½åŠ›ï¼Œé”™è¯¯ä»¤ç‰Œä¼šè¢«æ‹’ç»ã€‚
+Python µ÷ÓÃÊ¾Àı£¨`request` ·µ»ØÏìÓ¦ÕıÎÄ bytes£¬´íÎóÏìÓ¦Å×Òì³££©£º
 
-## ç¦æ­¢æ¸…å•
+½Å±¾ÎÄ¼şÃûº¬Á¬×Ö·û£¬½»»¥¿Í»§¶ËÇëÓÃ `runpy` ¼ÓÔØ£º
 
-è‡ªåŠ¨åŒ–ä¸å¾—è§¦å‘æ–‡ä»¶æ‰“å¼€/ä¿å­˜ã€ç›®å½•é€‰æ‹©ã€ç³»ç»Ÿå¯†é’¥ä¸²ã€ç³»ç»Ÿä»£ç†é…ç½®ã€æƒé™è¯·æ±‚æˆ–å¤–éƒ¨é“¾æ¥ç¡®è®¤ç­‰çœŸå®ç³»ç»Ÿå¯¹è¯æ¡†ã€‚éœ€è¦è¿™äº›æµç¨‹æ—¶æ”¹ä¸ºäººå·¥æ­¥éª¤å¹¶åœ¨æŠ¥å‘Šä¸­æ ‡ä¸º `[äººå·¥]`ã€‚ä¸è¦å‘ `com.stone.tTerm` æˆ– `com.stone.tTerm.dev` å†™å…¥æ•°æ®ã€‚
+```python
+import runpy
+import time
+from pathlib import Path
+request = runpy.run_path('scripts/gpui-automation.py')['request']
+port = 12345  # Ìæ»»Îªµ±Ç°Æô¶¯ÈÕÖ¾ÖĞµÄ¶Ë¿Ú¡£
+token = Path(r'C:/Users/stone/AppData/Local/com.stone.tTerm.gpui-dev/automation-<id>.token').read_text().strip()
+deadline = time.monotonic() + 30
+print(request(port, token, 'windows', deadline).decode())
+request(port, token, 'action=focus', deadline)
+request(port, token, 'text=hello ÖĞÎÄ', deadline)
+request(port, token, 'key=ctrl-a', deadline)
+Path('target/window.png').write_bytes(request(port, token, 'screenshot', deadline))
+print(request(port, token, 'state', deadline).decode())
+request(port, token, 'action=close', deadline)
+```
+
+ÏìÓ¦Í·Îª `OK <content-type> <byte-length>` »ò `ERR <byte-length>`£¬½ô¸úÖ¸¶¨³¤¶ÈÕıÎÄ¡£ÃüÁî£º
+
+| ÃüÁî | ĞĞÎª |
+| --- | --- |
+| `windows` | Ô­ĞÍ´°¿Ú ID¡¢½¹µã¡¢¼¤»î×´Ì¬¡£ |
+| `state` | ×îºóÊµ¼Ê´«¸ø´°¿ÚµÄ OSC ±êÌâ£¬¸ñÊ½ `title=...`¡£ |
+| `key=<keystroke>` | GPUI ½âÎöÆ÷½ÓÊÜµÄÈÎÒâ°´¼ü£¬º¬×ÖÄ¸¡¢ĞŞÊÎ¼ü¼° `secondary-`£»×î¶à 64 ×Ö½Ú£¬¾Ü¾ø¿ØÖÆ×Ö·û¡£¶¯Ì¬½âÎöÈë¿ÚÎª `Keystroke::parse_with_os`¡£ |
+| `text=<UTF-8>` | Öğ×Ö·ûÅÉ·¢µ½Ô­ĞÍ´°¿ÚÊäÈë´¦ÀíÆ÷£¬×î¶à 4096 ×Ö½Ú£¬±£Áô¿Õ¸ñÓë Unicode£¬¾Ü¾ø¿ØÖÆ×Ö·û¡£»»ĞĞÓÃµ¥¶ÀµÄ `key=enter`¡£ |
+| `action=focus` | ÇëÇó¼¤»î²¶»ñµÄÔ­ĞÍ´°¿Ú£¬Ëæºó²éÑ¯È·ÈÏÊÇ·ñ³É¹¦¡£ |
+| `action=close` | ¹Ø±Õ²¶»ñµÄÔ­ĞÍ´°¿Ú£¬´¥·¢Õı³£ÇåÀí¡£ |
+| `screenshot` | `Window::render_to_image` ·µ»Ø¿Í»§Çø PNG£¬²»º¬ÏµÍ³±êÌâÀ¸¡£ |
+
+ÊäÈëÇ°¼ì²é²¶»ñ´°¿ÚµÄ GPUI Root ÄÚÈİÊµÌåÈÔÊÇÔ­ĞÍ£¬²¢¼ì²é´°¿Ú¼¤»îºÍ½¹µã¡£²»»áÏòÏµÍ³·¢ËÍÕæÊµ°´¼ü¡£²»ÄÜ°Ñ `action=focus` µÄ³É¹¦ÏìÓ¦µ±³ÉÒÑ»ñµÃ¼¤»î£»Windows ¿ÉÄÜ¾Ü¾ø¼¤»î£¬²éÑ¯È·ÈÏºóÔÙÊäÈë¡£
+
+¼àÌıÆ÷Ö»°ó¶¨ IPv4 »Ø»·£¬µ¥Ïß³Ì´®ĞĞ´¦ÀíÁ¬½Ó£»¶ÁĞ´³¬Ê± 5 Ãë£¬ÇëÇó×î¶à 64 KiB£¬³¬ÏŞ»òÁîÅÆ²»·ûÖ±½Ó¾Ü¾ø£¬¶ÓÁĞÈİÁ¿ 1¡£ÁîÅÆ±È½ÏÉ¨Ãè¹Ì¶¨³¤¶ÈµÄÈ«²¿×Ö½Ú¡£Ã»ÓĞ shell/³ÌĞòÖ´ĞĞ RPC£¬Ò²Ã»ÓĞÈÎÒâÎÄ¼şÂ·¾¶»òÍøÂç×ª·¢ RPC¡£³ÖÓĞÁîÅÆµÄµ±Ç°ÓÃ»§¿ÉÏòÒÑÓĞÖÕ¶Ë´ò×Ö£¬¸ÃÓÃ»§±¾À´¾ÍÄÜÔËĞĞ shell¡£
+
+## ½ûÖ¹Çåµ¥ÓëÇåÀí
+
+²»µÃ×Ô¶¯´¥·¢ÎÄ¼ş´ò¿ª/±£´æ¡¢Ä¿Â¼Ñ¡Ôñ¡¢ÏµÍ³ÃÜÔ¿´®¡¢´úÀíÅäÖÃ¡¢È¨ÏŞÇëÇó¡¢Íâ²¿Á´½ÓÈ·ÈÏµÈÕæÊµÏµÍ³¶Ô»°¿ò£»ĞèÒªÊ±±êÎª `[ÈË¹¤]`¡£²»Òª¶ÁĞ´ `com.stone.tTerm` »ò `com.stone.tTerm.dev` Êı¾İ¡£
+
+´°¿Ú¹Ø±ÕºÍÕı³£ÍË³ö¾ù¾¡Á¦É¾³ıÁîÅÆ£¬°ó¶¨Ê§°ÜºÍÎÄ¼şĞ´ÈëÊ§°ÜÒ²ÇåÀí¡£Ç¿ÖÆÉ±½ø³Ì¡¢±ÀÀ£»ò¶Ïµç²»ÄÜ±£Ö¤Ö´ĞĞ»Øµ÷£»½Å±¾ÁíÓĞ finally ÇåÀí£¬ÊÖ¶¯ÔËĞĞÕß¿ÉÉ¾³ı×Ô¼ºÁôÏÂµÄ¹ıÆÚÁîÅÆ¡£ÁîÅÆÃ¿´ÎÆô¶¯²»Í¬£¬¾ÉÎÄ¼ş²»ÊÚÈ¨ĞÂÊµÀı¡£
