@@ -34,6 +34,7 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
     commandMarksRef,
     onCwdChangeRef,
     onDistroChangeRef,
+    onAgentSessionChangeRef,
   } = ctx
   let lastEmittedCommand: { text: string; at: number } | null = null
 
@@ -101,6 +102,7 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
   const attentionReports = watchAttentionReports(term, {
     agentTracker,
     onAttention: (event) => onAttentionRef.current?.(event),
+    onAgentSession: (session) => onAgentSessionChangeRef.current?.(session),
   })
 
   // A local shell's directory, for the tab to restart in; a remote one's, for

@@ -14,6 +14,11 @@ export interface AgentReport {
   session?: string
 }
 
+export interface AgentResumeSession {
+  agent: "claudeCode" | "codex"
+  sessionId: string
+}
+
 /** The payload of an OSC 777, which also carries `notify` and other extensions. */
 export function parseAgentReport(data: string): AgentReport | null {
   const [command, agent, state, session, ...rest] = data.split(";")
@@ -136,6 +141,12 @@ export class AgentTracker {
     }
     this.setStatus(null)
     this.callbacks.onAnnounce({ agent, state })
+  }
+
+  resumeSession({ agent, state, session }: AgentReport): AgentResumeSession | null {
+    if (!session || state === "ended" || state === "idle") return null
+    if (agent !== "claude" && agent !== "codex") return null
+    return { agent: agent === "claude" ? "claudeCode" : "codex", sessionId: session }
   }
 
   /**

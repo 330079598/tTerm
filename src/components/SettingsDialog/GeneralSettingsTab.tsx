@@ -45,6 +45,7 @@ interface GeneralSettingsTabProps {
   handleLanguageChange: (langCode: string) => Promise<void>
   handleRestoreAllSessionConnectionsChange: (checked: boolean) => Promise<void>
   handleRestoreTerminalContentChange: (checked: boolean) => Promise<void>
+  handleResumeAgentSessionsChange: (checked: boolean) => Promise<void>
   handleEnableDevtoolsChange: () => Promise<void>
   handleZmodemAutoDetectEnabledChange: (checked: boolean) => Promise<void>
   handleZmodemDownloadDirectoryChange: (directory: string) => Promise<void>
@@ -52,6 +53,7 @@ interface GeneralSettingsTabProps {
   languages: LanguageOption[]
   restoreAllSessionConnections: boolean
   restoreTerminalContent: boolean
+  resumeAgentSessions: boolean
   zmodemAutoDetectEnabled: boolean
   zmodemDownloadDirectory: string
 }
@@ -66,6 +68,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   handleLanguageChange,
   handleRestoreAllSessionConnectionsChange,
   handleRestoreTerminalContentChange,
+  handleResumeAgentSessionsChange,
   handleEnableDevtoolsChange,
   handleZmodemAutoDetectEnabledChange,
   handleZmodemDownloadDirectoryChange,
@@ -73,6 +76,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   languages,
   restoreAllSessionConnections,
   restoreTerminalContent,
+  resumeAgentSessions,
   zmodemAutoDetectEnabled,
   zmodemDownloadDirectory,
 }) => {
@@ -208,6 +212,16 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               <Switch
                 checked={restoreTerminalContent}
                 onCheckedChange={handleRestoreTerminalContentChange}
+              />
+            }
+          />
+          <SettingsRow
+            title={t("settings.resumeAgentSessions")}
+            description={t("settings.resumeAgentSessionsDesc")}
+            action={
+              <Switch
+                checked={resumeAgentSessions}
+                onCheckedChange={handleResumeAgentSessionsChange}
               />
             }
           />

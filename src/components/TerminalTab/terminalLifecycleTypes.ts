@@ -64,6 +64,7 @@ export type UseTerminalLifecycleOptions = {
   lastPtySizeRef: React.RefObject<{ rows: number; cols: number } | null>
   onPidChangeRef: React.RefObject<TerminalTabProps["onPidChange"]>
   onCwdChangeRef: React.RefObject<TerminalTabProps["onCwdChange"]>
+  onAgentSessionChangeRef: React.RefObject<TerminalTabProps["onAgentSessionChange"]>
   onDistroChangeRef: React.RefObject<TerminalTabProps["onDistroChange"]>
   onInputRef: React.RefObject<TerminalTabProps["onInput"]>
   onCommandExecutedRef: React.RefObject<TerminalTabProps["onCommandExecuted"]>
@@ -94,6 +95,7 @@ export type UseTerminalLifecycleOptions = {
   setStartError: (value: string | null) => void
   setSearchResults: React.Dispatch<React.SetStateAction<ISearchResultChangeEvent>>
   sessionNonce: number
+  shellName?: string
   tabId: string
   termRef: React.RefObject<Terminal | null>
   waitingForReconnectRef: React.RefObject<boolean>
@@ -131,6 +133,7 @@ export type TerminalSessionContext = Pick<
   | "onCommandExecutedRef"
   | "onConnectionProgressRef"
   | "onCwdChangeRef"
+  | "onAgentSessionChangeRef"
   | "onDistroChangeRef"
   | "onInputRef"
   | "onPidChangeRef"

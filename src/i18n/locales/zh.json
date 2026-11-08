@@ -235,6 +235,8 @@
     "restoreAllSessionConnectionsDesc": "关闭后，启动时仅连接当前标签页，其他恢复的标签页在打开时再连接。",
     "restoreTerminalContent": "重启后恢复终端内容",
     "restoreTerminalContentDesc": "每个终端标签页会在新会话上方显示关闭 tTerm 前的内容。内容以明文保存在本机，可能包含终端里出现过的任何信息。",
+    "resumeAgentSessions": "重启后继续 AI 会话",
+    "resumeAgentSessionsDesc": "自动重新打开 tTerm 关闭时仍在运行的 Claude Code 和 Codex 会话。",
     "saveFailed": "保存设置失败",
     "languageChangeFailed": "保存语言设置失败。",
     "themeChangeFailed": "保存主题失败。",

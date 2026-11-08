@@ -24,6 +24,7 @@ import { trackTerminalContent } from "@/components/TerminalTab/savedTerminalCont
 import { safePreloadFont } from "@/lib/canvasFontHost"
 import { setTabPasswordPrompt } from "@/lib/tabAttention"
 import { EMPTY_COMMAND_CAPTURE_STATE } from "@/lib/terminalCommandCapture"
+import { startAgentResume } from "@/components/TerminalTab/agentResume"
 
 export function useTerminalLifecycle({
   activateFitTimerRef,
@@ -59,6 +60,7 @@ export function useTerminalLifecycle({
   lastPtySizeRef,
   onPidChangeRef,
   onCwdChangeRef,
+  onAgentSessionChangeRef,
   onDistroChangeRef,
   onInputRef,
   onCommandExecutedRef,
@@ -86,6 +88,7 @@ export function useTerminalLifecycle({
   setStartError,
   setSearchResults,
   sessionNonce,
+  shellName,
   tabId,
   terminalRenderer,
   termRef,
@@ -218,6 +221,7 @@ export function useTerminalLifecycle({
       onCommandExecutedRef,
       onConnectionProgressRef,
       onCwdChangeRef,
+      onAgentSessionChangeRef,
       onDistroChangeRef,
       onInputRef,
       onPidChangeRef,
@@ -266,6 +270,15 @@ export function useTerminalLifecycle({
       commandMarks,
       commandTimer,
       emitTypedCommand,
+    })
+    const stopAgentResume = startAgentResume({
+      term,
+      commandMarks,
+      resume: connectionRef.current?.agentResume,
+      cwd: connectionRef.current?.cwd,
+      shell: connectionRef.current?.type === "ssh" ? "bash" : shellName,
+      tabId,
+      sessionNonce,
     })
     const { outputAcker, stopListening } = startPtySession(ctx, {
       applyConnectionState,
@@ -358,6 +371,7 @@ export function useTerminalLifecycle({
       for (const disposable of scrollbackDisposables) disposable.dispose()
       for (const disposable of shellIntegrationDisposables) disposable.dispose()
       attentionReports.dispose()
+      stopAgentResume()
       agentTracker.reset()
       commandTimer.prompt()
       commandMarks.dispose()

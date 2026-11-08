@@ -13,6 +13,7 @@ interface AttentionReportOptions {
   /** Follows the agent in the terminal; hears its reports. */
   agentTracker: AgentTracker
   onAttention: (event: TerminalAttentionEvent) => void
+  onAgentSession: (session: { agent: "claudeCode" | "codex"; sessionId: string } | null) => void
 }
 
 /**
@@ -22,7 +23,7 @@ interface AttentionReportOptions {
  */
 export function watchAttentionReports(
   term: Terminal,
-  { agentTracker, onAttention }: AttentionReportOptions
+  { agentTracker, onAttention, onAgentSession }: AttentionReportOptions
 ): IDisposable {
   // Returns false like the directory reports, so an OSC 9 reaches both
   // handlers.
@@ -32,6 +33,9 @@ export function watchAttentionReports(
       const report = osc === 777 ? parseAgentReport(data) : null
       if (report) {
         agentTracker.report(report)
+        const session = agentTracker.resumeSession(report)
+        if (session) onAgentSession(session)
+        else if (report.state === "ended" || report.state === "idle") onAgentSession(null)
         return false
       }
       // An agent's own notifications repeat what its reports say.

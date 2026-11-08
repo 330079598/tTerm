@@ -91,6 +91,8 @@ pub struct AppConfig {
     /// Whether a restart shows each terminal tab's content from before.
     #[serde(default = "defaults::default_true")]
     pub restore_terminal_content: bool,
+    #[serde(default = "defaults::default_true")]
+    pub resume_agent_sessions: bool,
     #[serde(default = "defaults::default_show_jump_host_connection_info")]
     pub show_jump_host_connection_info: bool,
     #[serde(default)]
