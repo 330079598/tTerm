@@ -5,7 +5,6 @@ import {
   agentDisplayName,
   parseAgentReport,
   type AgentAnnouncement,
-  type AgentReportState,
   type AgentStatus,
 } from "@/lib/agentStatus"
 
