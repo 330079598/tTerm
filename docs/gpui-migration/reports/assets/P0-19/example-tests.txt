@@ -1,0 +1,15 @@
+   Compiling tterm-gpui v0.1.0 (D:\code\rust\tTerm-P0-19\crates\tterm-gpui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.75s
+     Running unittests examples\p0_19_drag_out\main.rs (target\debug\examples\p0_19_drag_out-f9b9a90d2b4c18f6.exe)
+
+running 4 tests
+generate_started bytes=200000000 buffer=65536
+test tests::refuses_nonempty_or_outside_temp_target ... ok
+test tests::cancelled_native_staging_does_not_generate_or_delete_changed_copy ... ok
+test tests::shell_data_object_offers_real_placeholder_as_hdrop ... ok
+generate_finished bytes=200000000 elapsed_ms=121
+Published and verified bytes=200000000 path=\\?\C:\Users\stone\AppData\Local\Temp\com.stone.tTerm.gpui-dev\P0-19\drag-38780-1\destination\generated-200MB.bin staging=C:\Users\stone\AppData\Local\Temp\com.stone.tTerm.gpui-dev\P0-19\drag-38780-1
+test tests::delayed_large_transfer_preserves_conflicts_and_detects_corruption ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.04s
+

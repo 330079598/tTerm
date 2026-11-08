@@ -1,0 +1,2 @@
+   Compiling tterm-gpui v0.1.0 (D:\code\rust\tTerm-P0-19\crates\tterm-gpui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.85s

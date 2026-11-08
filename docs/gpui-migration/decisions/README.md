@@ -20,8 +20,9 @@
 | 008  | 实现终端的执行者可以阅读 Zed 终端源码     | [008-zed-terminal-reading.md](008-zed-terminal-reading.md)                               |
 | 009  | 重启后自动续接 AI 会话                    | [009-agent-session-resume.md](009-agent-session-resume.md)                               |
 | 010  | 远程编辑器候选方案（提议）                | [010-remote-editor-proposal.md](010-remote-editor-proposal.md)                           |
+| 011  | 文件拖出原生适配方案（提议）              | [011-drag-out-proposal.md](011-drag-out-proposal.md)                                     |
 
-- 下一个可用编号：**011**。
+- 下一个可用编号：**012**。
 
 ## 正文格式
 

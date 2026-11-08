@@ -27,6 +27,8 @@
 
 登记细节：
 
+- P0-19 没有复制外部第三方实现。`crates/tterm-gpui/examples/p0_19_drag_out/native.rs` 改编自本仓库 MIT 代码 `src-tauri/src/drag_out/windows.rs`，提交 `ede176759023f3f33af251815a7177d896bfa677`；文件头已注明原路径、提交与修改。`nyakang/zed` 的文件导出补丁仅参考 P0-07 的评估，没有复制源码、注释或测试，也未引入补丁。
+
 - Alacritty 在该提交没有 `NOTICE` 文件；仓库中的 `LICENSE-APACHE` 与 `LICENSE-MIT` 是许可文本，复制进来的文件仍按 Apache-2.0 使用，发行包附全文的要求见 P4-25、P5-02。
 - 测试文件（`*/tests.rs`）是由本卡按行为新写的，不复制 Alacritty 的测试代码；URL 的用例数据取自 Alacritty 的两个 URL 测试，其余是本卡构造的。每个期望值在测试里注明依据。
 - `crates/tterm-terminal/src/hint/path.rs` 不来自 Alacritty：Alacritty 只识别 URL 与 OSC 8 链接，没有裸路径规则；这里的路径规则是 tTerm 自己写的，因此不登记来源。
