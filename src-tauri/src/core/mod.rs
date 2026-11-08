@@ -1,3 +1,4 @@
+pub mod agent_resume;
 pub mod blocking;
 pub mod commands;
 pub mod login_shell;
