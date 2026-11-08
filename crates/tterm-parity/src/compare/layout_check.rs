@@ -186,6 +186,7 @@ fn compare_style(
         actual.border_width,
         failures,
     );
+    check_number(id, "opacity", reference.opacity, actual.opacity, failures);
     check_number(
         id,
         "padding top",
@@ -221,6 +222,8 @@ fn compare_style(
         reference.background_color,
         actual.background_color,
         backdrop,
+        reference.opacity,
+        actual.opacity,
         failures,
     );
     if reference.border_width > 0.0 || actual.border_width > 0.0 {
@@ -230,6 +233,8 @@ fn compare_style(
             reference.border_color,
             actual.border_color,
             backdrop,
+            reference.opacity,
+            actual.opacity,
             failures,
         );
     }
@@ -239,6 +244,8 @@ fn compare_style(
         reference.color,
         actual.color,
         backdrop,
+        reference.opacity,
+        actual.opacity,
         failures,
     );
 }
@@ -280,12 +287,18 @@ fn compare_color(
     reference: [u8; 4],
     actual: [u8; 4],
     backdrop: [u8; 4],
+    reference_opacity: f32,
+    actual_opacity: f32,
     failures: &mut Vec<String>,
 ) {
     if reference == actual {
         return;
     }
-    if reference[3] == 255 && actual[3] == 255 {
+    if reference[3] == 255
+        && actual[3] == 255
+        && reference_opacity >= 0.999
+        && actual_opacity >= 0.999
+    {
         failures.push(format!(
             "{id}: {field} colour {} -> {}",
             hex(reference),
@@ -293,8 +306,8 @@ fn compare_color(
         ));
         return;
     }
-    let first = composite(reference, backdrop);
-    let second = composite(actual, backdrop);
+    let first = composite_with_opacity(reference, backdrop, reference_opacity);
+    let second = composite_with_opacity(actual, backdrop, actual_opacity);
     let difference = delta_e_2000(srgb_to_lab(first), srgb_to_lab(second));
     if difference > COLOR_TOLERANCE {
         failures.push(format!(
@@ -305,14 +318,14 @@ fn compare_color(
     }
 }
 
-fn composite(color: [u8; 4], backdrop: [u8; 4]) -> [u8; 4] {
-    if color[3] == 255 {
+fn composite_with_opacity(color: [u8; 4], backdrop: [u8; 4], opacity: f32) -> [u8; 4] {
+    let alpha = (f64::from(color[3]) / 255.0) * f64::from(opacity.clamp(0.0, 1.0));
+    if alpha >= 1.0 {
         return color;
     }
-    if color[3] == 0 {
+    if alpha <= 0.0 {
         return [backdrop[0], backdrop[1], backdrop[2], 255];
     }
-    let alpha = f64::from(color[3]) / 255.0;
     let blend = |foreground: u8, background: u8| {
         (f64::from(foreground) * alpha + f64::from(background) * (1.0 - alpha)).round() as u8
     };

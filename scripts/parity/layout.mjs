@@ -76,6 +76,10 @@ export function collectLayout(screen) {
 
   const elements = [...document.querySelectorAll("[data-parity]")].map((element) => {
     const style = getComputedStyle(element)
+    let opacity = 1
+    for (let node = element; node && node.nodeType === Node.ELEMENT_NODE; node = node.parentElement) {
+      opacity *= Number.parseFloat(getComputedStyle(node).opacity) || 1
+    }
     const id = element.getAttribute("data-parity")
     if (!id) throw new Error("parity layout: an element has an empty data-parity")
     return {
@@ -92,6 +96,7 @@ export function collectLayout(screen) {
         fontWeight: parseWeight(style.fontWeight),
         lineHeight: parsePx(style.lineHeight, "line-height"),
         color: toRgba(style.color),
+        opacity,
         padding: {
           top: parsePx(style.paddingTop, "padding-top"),
           right: parsePx(style.paddingRight, "padding-right"),

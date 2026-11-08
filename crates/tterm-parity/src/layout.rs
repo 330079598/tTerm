@@ -118,6 +118,7 @@ pub struct StyleSnapshot {
     pub line_height: f32,
     /// Text color as 8-bit sRGB.
     pub color: [u8; 4],
+    pub opacity: f32,
     /// Padding in logical pixels.
     pub padding: PaddingSnapshot,
     /// The background the view declared before measurement. Keeping it lets an

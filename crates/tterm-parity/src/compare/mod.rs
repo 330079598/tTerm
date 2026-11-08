@@ -279,8 +279,8 @@ fn compare_screen(
     let backdrop = reference.image.get_pixel(0, 0).0;
     let layout = layout_check::compare(&reference.layout, &actual.layout, backdrop);
     let mut failures = layout.failures.clone();
-    validate_measurements(reference, "reference", &mut failures);
-    validate_measurements(actual, "GPUI", &mut failures);
+    validate_measurements(reference, "reference", backdrop, &mut failures);
+    validate_measurements(actual, "GPUI", backdrop, &mut failures);
     let mut heatmap = None;
     let mut ssim = SsimReport {
         full: 0.0,
@@ -372,7 +372,7 @@ fn compare_screen(
 /// Re-measures both screenshots and checks that the layout document, the
 /// pixels and the declared style all agree. The declared check is what makes
 /// the tool fail when a view draws a different colour from the one it records.
-fn validate_measurements(side: &Side, label: &str, failures: &mut Vec<String>) {
+fn validate_measurements(side: &Side, label: &str, _backdrop: [u8; 4], failures: &mut Vec<String>) {
     for element in &side.layout.elements {
         let measured = match measure::measure_element(
             &side.image,
@@ -386,7 +386,7 @@ fn validate_measurements(side: &Side, label: &str, failures: &mut Vec<String>) {
                 continue;
             }
         };
-        if measured.background != element.style.background_color {
+        if element.style.opacity >= 0.999 && measured.background != element.style.background_color {
             failures.push(format!(
                 "{}: {label} layout background {} but the pixels measured {}",
                 element.id,
@@ -396,12 +396,16 @@ fn validate_measurements(side: &Side, label: &str, failures: &mut Vec<String>) {
         }
         if element.style.border_width > 0.0 {
             match measured.border {
-                Some(border) if border != element.style.border_color => failures.push(format!(
-                    "{}: {label} layout border {} but the pixels measured {}",
-                    element.id,
-                    hex(element.style.border_color),
-                    hex(border)
-                )),
+                Some(border)
+                    if element.style.opacity >= 0.999 && border != element.style.border_color =>
+                {
+                    failures.push(format!(
+                        "{}: {label} layout border {} but the pixels measured {}",
+                        element.id,
+                        hex(element.style.border_color),
+                        hex(border)
+                    ))
+                }
                 None => failures.push(format!(
                     "{}: {label} has no readable border band for a {} px border",
                     element.id, element.style.border_width

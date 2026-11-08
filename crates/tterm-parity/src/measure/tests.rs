@@ -39,6 +39,7 @@ fn style(
         color: [204, 204, 204, 255],
         padding: PaddingSnapshot::all(0.0),
         declared_background_color: None,
+        opacity: 1.0,
         declared_border_color: None,
     }
 }

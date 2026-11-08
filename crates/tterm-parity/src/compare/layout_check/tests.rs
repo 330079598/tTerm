@@ -18,6 +18,7 @@ fn style() -> StyleSnapshot {
         color: [255, 255, 255, 255],
         padding: PaddingSnapshot::symmetric(8.0, 16.0),
         declared_background_color: None,
+        opacity: 1.0,
         declared_border_color: None,
     }
 }

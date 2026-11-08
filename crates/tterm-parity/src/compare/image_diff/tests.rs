@@ -47,6 +47,7 @@ fn element_layout() -> LayoutDocument {
                 color: [0, 0, 0, 255],
                 padding: PaddingSnapshot::all(0.0),
                 declared_background_color: None,
+                opacity: 1.0,
                 declared_border_color: None,
             },
         }],

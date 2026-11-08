@@ -53,7 +53,8 @@ pub fn apply_snapshot(mut view: Div, style: &StyleSnapshot) -> Div {
         .text_size(px(style.font_size))
         .line_height(px(style.line_height))
         .font_weight(FontWeight(style.font_weight as f32))
-        .text_color(to_gpui(style.color));
+        .text_color(to_gpui(style.color))
+        .opacity(style.opacity);
     view
 }
 

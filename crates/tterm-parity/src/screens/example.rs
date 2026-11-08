@@ -177,6 +177,7 @@ fn root_style(colors: &Colors) -> StyleSnapshot {
         color: hsl_to_rgba(colors.foreground),
         padding: PaddingSnapshot::all(PAGE_PADDING),
         declared_background_color: None,
+        opacity: 1.0,
         declared_border_color: None,
     }
 }
@@ -194,6 +195,7 @@ fn input_style(colors: &Colors) -> StyleSnapshot {
         color: hsl_to_rgba(colors.foreground),
         padding: PaddingSnapshot::symmetric(FIELD_PADDING_Y, FIELD_PADDING_X),
         declared_background_color: None,
+        opacity: 1.0,
         declared_border_color: None,
     }
 }
@@ -211,6 +213,7 @@ fn button_style(colors: &Colors) -> StyleSnapshot {
         color: hsl_to_rgba(colors.primary_foreground),
         padding: PaddingSnapshot::symmetric(BUTTON_PADDING_Y, BUTTON_PADDING_X),
         declared_background_color: None,
+        opacity: 1.0,
         declared_border_color: None,
     }
 }
