@@ -1,5 +1,7 @@
 import type { SavedProfile } from "@/types/tab"
 import exampleButtonInput from "@fixtures/example.button-input.default.json"
+import buttonFixture from "@fixtures/ui.button.default.json"
+import inputFixture from "@fixtures/ui.input.default.json"
 
 /** What the mocked `invoke` answers for one screen. */
 export interface ParityFixture {
@@ -19,4 +21,7 @@ export const fixtures: Record<string, ParityFixture> = {
       list_profiles: exampleProfiles,
     },
   },
+  "ui.button.variants": { commands: buttonFixture.commands },
+  "ui.button.sizes": { commands: buttonFixture.commands },
+  "ui.input.default": { commands: inputFixture.commands },
 }

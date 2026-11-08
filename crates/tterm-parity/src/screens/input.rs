@@ -1,0 +1,164 @@
+//! GPUI Input parity screen using tterm-ui's editable primitive.
+
+use crate::color::{hsl_to_rgba, to_gpui};
+use crate::layout::{ElementSizing, LayoutSink, PaddingSnapshot, StyleSnapshot};
+use crate::manifest::ScreensManifest;
+use crate::marker::{parity_child, parity_element};
+use gpui_kit::component::input::InputState;
+use gpui_kit::{AppContext, Context, Entity, IntoElement, ParentElement, Styled, Window, div, px};
+use tterm_ui::components::input::{InputOptions, input};
+use tterm_ui::tokens::palette::{DARK, LIGHT};
+
+pub const SCREEN_ID: &str = "ui.input.default";
+
+pub struct InputScreen {
+    layout: LayoutSink,
+    theme: tterm_ui::tokens::theme::Theme,
+    states: Option<Vec<Entity<InputState>>>,
+}
+
+impl InputScreen {
+    pub fn load(manifest: &ScreensManifest, layout: LayoutSink) -> Result<Self, String> {
+        let theme = match manifest.theme.as_str() {
+            "dark" => DARK,
+            "light" => LIGHT,
+            other => return Err(format!("unsupported theme {other}")),
+        };
+        Ok(Self {
+            layout,
+            theme,
+            states: None,
+        })
+    }
+
+    fn ensure_states(&mut self, window: &mut Window, cx: &mut impl AppContext) {
+        if self.states.is_some() {
+            return;
+        }
+        let empty = cx.new(|cx| InputState::new(window, cx).placeholder("Placeholder"));
+        let long = cx.new(|cx| {
+            InputState::new(window, cx)
+                .default_value("A long input value used to verify clipping and horizontal layout")
+        });
+        let focused = cx.new(|cx| InputState::new(window, cx).placeholder("Focus me"));
+        let disabled = cx.new(|cx| InputState::new(window, cx).default_value("Disabled"));
+        focused.update(cx, |state, cx| state.focus(window, cx));
+        disabled.update(cx, |state, cx| state.set_disabled(true, cx));
+        self.states = Some(vec![empty, long, focused, disabled]);
+    }
+
+    fn style(&self) -> StyleSnapshot {
+        let c = self.theme.colors;
+        StyleSnapshot {
+            background_color: hsl_to_rgba(c.background),
+            border_color: hsl_to_rgba(c.border),
+            border_width: 1.0,
+            border_radius: 6.0,
+            font_family: "system-ui".into(),
+            font_size: 14.0,
+            font_weight: 400,
+            line_height: 16.8,
+            color: hsl_to_rgba(c.foreground),
+            padding: PaddingSnapshot::symmetric(4.0, 12.0),
+            declared_background_color: None,
+            declared_border_color: None,
+        }
+    }
+
+    pub fn render(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<crate::screens::ScreenView>,
+    ) -> impl IntoElement {
+        self.ensure_states(window, cx);
+        let states = self.states.as_ref().expect("input states initialized");
+        let screen_style = StyleSnapshot {
+            background_color: hsl_to_rgba(self.theme.colors.background),
+            border_color: hsl_to_rgba(self.theme.colors.border),
+            border_width: 0.0,
+            border_radius: 0.0,
+            font_family: "system-ui".into(),
+            font_size: 14.0,
+            font_weight: 400,
+            line_height: 16.0,
+            color: hsl_to_rgba(self.theme.colors.foreground),
+            padding: PaddingSnapshot::all(32.0),
+            declared_background_color: None,
+            declared_border_color: None,
+        };
+        let field_style = self.style();
+        let children = [
+            parity_child(
+                &self.layout,
+                "ui.input.empty",
+                ElementSizing::Fixed,
+                field_style.clone(),
+                input(
+                    &states[0],
+                    InputOptions {
+                        colors: Some(self.theme.colors),
+                        ..InputOptions::default()
+                    },
+                ),
+            ),
+            parity_child(
+                &self.layout,
+                "ui.input.long",
+                ElementSizing::Fixed,
+                field_style.clone(),
+                input(
+                    &states[1],
+                    InputOptions {
+                        colors: Some(self.theme.colors),
+                        ..InputOptions::default()
+                    },
+                ),
+            ),
+            parity_child(
+                &self.layout,
+                "ui.input.focus",
+                ElementSizing::Fixed,
+                field_style.clone(),
+                input(
+                    &states[2],
+                    InputOptions {
+                        colors: Some(self.theme.colors),
+                        ..InputOptions::default()
+                    },
+                ),
+            ),
+            parity_child(
+                &self.layout,
+                "ui.input.disabled",
+                ElementSizing::Fixed,
+                field_style,
+                input(
+                    &states[3],
+                    InputOptions {
+                        disabled: true,
+                        colors: Some(self.theme.colors),
+                        ..InputOptions::default()
+                    },
+                ),
+            ),
+        ];
+        let bg = to_gpui(hsl_to_rgba(self.theme.colors.background));
+        parity_element(
+            &self.layout,
+            "ui.input.screen",
+            ElementSizing::Fixed,
+            screen_style,
+            move |view| {
+                view.size_full().p(px(32.0)).bg(bg).child(
+                    div()
+                        .w(px(576.0))
+                        .flex()
+                        .flex_col()
+                        .gap(px(16.0))
+                        .children(children),
+                )
+            },
+        )
+        .size_full()
+    }
+}
