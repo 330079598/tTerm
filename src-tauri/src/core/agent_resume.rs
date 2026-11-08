@@ -4,9 +4,9 @@
 //! place that turns them into text that may be sent to a shell, so callers
 //! cannot accidentally replay saved screen text as a command.
 
-/// The agents whose sessions tTerm can resume.
 use serde::Deserialize;
 
+/// The agents whose sessions tTerm can resume.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ResumeAgent {
@@ -117,7 +117,19 @@ fn quote_posix(value: &str) -> String {
 }
 
 fn quote_powershell(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "''"))
+    let mut literal = String::from("'");
+    for character in value.chars() {
+        // PowerShell recognizes typographic apostrophes as string delimiters too.
+        if matches!(
+            character,
+            '\'' | '\u{2018}' | '\u{2019}' | '\u{201a}' | '\u{201b}'
+        ) {
+            literal.push(character);
+        }
+        literal.push(character);
+    }
+    literal.push('\'');
+    literal
 }
 
 fn quote_fish(value: &str) -> String {
@@ -222,5 +234,57 @@ mod tests {
         assert!(build_resume_command(&request("unknown", "/safe", "abc-123")).is_none());
         assert!(build_resume_command(&request("bash", "/safe", "")).is_none());
         assert!(build_resume_command(&request("bash", "/safe", "abc_def")).is_none());
+    }
+
+    #[test]
+    fn powershell_doubles_every_apostrophe_delimiter() {
+        for quote in ['\'', '\u{2018}', '\u{2019}', '\u{201a}', '\u{201b}'] {
+            let cwd = format!("C:\\x{quote}; calc; {quote}");
+            assert_eq!(
+                quote_powershell(&cwd),
+                format!("'C:\\x{quote}{quote}; calc; {quote}{quote}'")
+            );
+            assert_eq!(
+                build_resume_command(&request("pwsh", &cwd, "abc-123")),
+                Some(format!("Set-Location -LiteralPath 'C:\\x{quote}{quote}; calc; {quote}{quote}'; if ($?) {{ claude --resume 'abc-123' }}"))
+            );
+        }
+        assert_eq!(quote_powershell("C:\\John’s files"), "'C:\\John’’s files'");
+    }
+
+    #[test]
+    fn other_shells_keep_unicode_quote_lookalikes_literal() {
+        let cwd = "John‘s ’ ‚ ‛ “ ” ＇ ＂ files";
+        assert_eq!(quote_posix(cwd), format!("'{cwd}'"));
+        assert_eq!(quote_fish(cwd), format!("'{cwd}'"));
+        assert_eq!(quote_cmd(cwd), Some(format!("\"{cwd}\"")));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn powershell_parser_keeps_curly_quote_injections_inside_the_path_argument() {
+        for cwd in [
+            "C:\\x‘; calc; ‘",
+            "C:\\x’; calc; ’",
+            "C:\\x‚; calc; ‚",
+            "C:\\x‛; calc; ‛",
+            "C:\\John’s files",
+        ] {
+            let command = build_resume_command(&request("powershell", cwd, "abc-123")).unwrap();
+            // Parse only. Never evaluate the generated command or its malicious directory.
+            let output = std::process::Command::new("powershell.exe")
+                .args(["-NoProfile", "-NonInteractive", "-Command", r#"
+$tokens = $null; $errors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseInput($env:TTERM_TEST_COMMAND, [ref]$tokens, [ref]$errors)
+if ($errors.Count -ne 0 -or $ast.EndBlock.Statements.Count -ne 2) { exit 1 }
+$elements = $ast.EndBlock.Statements[0].PipelineElements[0].CommandElements
+if ($elements.Count -ne 3 -or $elements[2].Value -cne $env:TTERM_TEST_CWD) { exit 2 }
+"#])
+                .env("TTERM_TEST_COMMAND", command)
+                .env("TTERM_TEST_CWD", cwd)
+                .output()
+                .unwrap();
+            assert!(output.status.success(), "{cwd}: {output:?}");
+        }
     }
 }
