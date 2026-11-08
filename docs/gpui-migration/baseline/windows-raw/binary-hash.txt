@@ -1,0 +1,5 @@
+
+Algorithm : SHA256
+Hash      : 2B231D788DF7B5998BEE8917D8964281F55FF00DC3E23B5B68625F922ED6BD9B
+Path      : D:\code\rust\tTerm-P0-01\target\release\tTerm.exe
+

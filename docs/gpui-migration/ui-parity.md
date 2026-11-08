@@ -114,7 +114,9 @@ tterm-parity compare → 每屏的布局差、颜色差、图像差热力图，�
 - **截图只在 macOS 自动化。** `HeadlessAppContext` 只在 macOS 上有，用的是真实平台渲染，窗口放在屏幕外。Windows 与 Linux 做人工截图对照（第 5.3 节）。
 - **布局 JSON 记录：** 每个标记元素的位置与尺寸、背景色、边框色与宽度、圆角、字体族、字号、字重、行高、文字颜色。其中背景色与边框色由 PNG 实测（背景取内缩后圆角矩形内的像素众数，边框取四条直边中段的像素众数，均排除文字区域）；`padding`、`fontFamily`、`fontSize`、`fontWeight`、`lineHeight`、`borderRadius`、`borderWidth` 无法从像素可靠反推，绘制和记录共用同一个 `StyleSnapshot`（`apply_snapshot`），但只能证明代码意图一致。声明颜色另存为 `declaredBackgroundColor` / `declaredBorderColor`，用于和实测值交叉校验，不能代替实测。
 
-### 5.2 通过门槛（macOS，DPR 2）
+### 5.2 通过门槛（Windows，100% 缩放；macOS，DPR 2）
+
+按决策 012，先以 Windows（100% 缩放）为准；macOS 的对比在发布 macOS 版之前补做。
 
 | 检查 | 对象                                                       | 门槛                                                                         |
 | ---- | ---------------------------------------------------------- | ---------------------------------------------------------------------------- |

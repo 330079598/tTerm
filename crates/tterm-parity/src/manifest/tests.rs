@@ -8,6 +8,7 @@ fn manifest() -> ScreensManifest {
             height: 600,
             device_scale_factor: 2.0,
         },
+        windows_viewport: None,
         theme: "dark".to_owned(),
         ui_scale_percent: 100,
         platform: PlatformSpec {
@@ -19,6 +20,7 @@ fn manifest() -> ScreensManifest {
             exe_extension: String::new(),
             eol: "\n".to_owned(),
         },
+        platforms: std::collections::BTreeMap::new(),
         screens: vec![ScreenSpec {
             id: "example.button-input.default".to_owned(),
             title: "Example".to_owned(),

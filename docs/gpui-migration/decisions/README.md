@@ -19,8 +19,11 @@
 | 007  | 只用官方来源，终端以官方 Alacritty 为内核 | [007-official-sources-and-terminal-route.md](007-official-sources-and-terminal-route.md) |
 | 008  | 实现终端的执行者可以阅读 Zed 终端源码     | [008-zed-terminal-reading.md](008-zed-terminal-reading.md)                               |
 | 009  | 重启后自动续接 AI 会话                    | [009-agent-session-resume.md](009-agent-session-resume.md)                               |
+| 010  | 远程编辑器候选方案（提议）                | [010-remote-editor-proposal.md](010-remote-editor-proposal.md)                           |
+| 011  | 文件拖出原生适配方案（提议）              | [011-drag-out-proposal.md](011-drag-out-proposal.md)                                     |
+| 012  | 先做 Windows，macOS 与 Linux 的验证推后   | [012-windows-first.md](012-windows-first.md)                                             |
 
-- 下一个可用编号：**010**。
+- 下一个可用编号：**013**。
 
 ## 正文格式
 

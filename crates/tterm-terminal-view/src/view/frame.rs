@@ -10,6 +10,7 @@ use tterm_terminal::snapshot::Snapshot;
 use super::font::CellGeometry;
 use super::paint::{CursorPaint, PaintContext};
 use super::row::RowLayout;
+use super::scrollbar::ScrollbarGeometry;
 use super::style::hsla;
 
 /// One snapshot plus its shaped rows.
@@ -33,6 +34,11 @@ impl FrameData {
     pub fn grid(&self) -> GridSize {
         self.snapshot.grid()
     }
+
+    /// Whether this frame belongs to the same scrollback generation.
+    pub fn scrollback_generation(&self) -> u64 {
+        self.snapshot.scrollback_generation()
+    }
 }
 
 /// What an element's prepaint found to paint.
@@ -52,6 +58,8 @@ pub enum PreparedFrame {
         cursor: Option<CursorPaint>,
         /// Whether the cursor is in its visible blink phase.
         show_cursor: bool,
+        /// The scrollbar geometry for the current snapshot.
+        scrollbar: Option<ScrollbarGeometry>,
     },
 }
 
@@ -67,6 +75,7 @@ impl PreparedFrame {
                 origin,
                 cursor,
                 show_cursor,
+                scrollbar,
             } => {
                 let mask = ContentMask { bounds };
                 window.with_content_mask(Some(mask), |window| {
@@ -88,6 +97,24 @@ impl PreparedFrame {
                         && let Some(row) = data.rows.get(cursor.row)
                     {
                         context.paint_cursor(row);
+                    }
+                    if let Some(scrollbar) = scrollbar {
+                        let track = Bounds {
+                            origin: gpui_kit::point(
+                                bounds.origin.x + gpui_kit::px(bounds.size.width.as_f32() - 10.0),
+                                bounds.origin.y,
+                            ),
+                            size: gpui_kit::size(gpui_kit::px(10.0), gpui_kit::px(scrollbar.track)),
+                        };
+                        window.paint_quad(gpui_kit::fill(track, hsla(data.palette.bright_black)));
+                        let thumb = Bounds {
+                            origin: gpui_kit::point(
+                                track.origin.x,
+                                track.origin.y + gpui_kit::px(scrollbar.top),
+                            ),
+                            size: gpui_kit::size(gpui_kit::px(10.0), gpui_kit::px(scrollbar.thumb)),
+                        };
+                        window.paint_quad(gpui_kit::fill(thumb, hsla(data.palette.cursor)));
                     }
                 });
             }

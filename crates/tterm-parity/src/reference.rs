@@ -133,6 +133,12 @@ pub fn ensure_reference(
     }
     let status = Command::new("node")
         .arg("scripts/parity/capture.mjs")
+        .args(
+            std::env::var("PARITY_PLATFORM")
+                .ok()
+                .map(|platform| vec!["--platform".to_owned(), platform])
+                .unwrap_or_default(),
+        )
         .arg("--out")
         .arg(&dir)
         .arg("--commit")

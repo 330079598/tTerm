@@ -1,0 +1,9 @@
+prototype-pid: 44108
+prototype-cleanup: exited (1)
+Traceback (most recent call last):
+  File "D:\code\rust\tTerm-P0-23\scripts\gpui-automation.py", line 160, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "D:\code\rust\tTerm-P0-23\scripts\gpui-automation.py", line 102, in main
+    raise TimeoutError("automation endpoint was not ready")
+TimeoutError: automation endpoint was not ready

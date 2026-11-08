@@ -18,7 +18,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { webkit } from "playwright"
+import { chromium, webkit } from "playwright"
 import { createServer } from "vite"
 
 import { collectLayout } from "./layout.mjs"
@@ -71,9 +71,10 @@ async function main() {
     await server.listen()
     const base = server.resolvedUrls?.local?.[0]
     if (!base) throw new Error("Vite started without a local URL")
-    browser = await launchBrowser()
+    const platform = selectedPlatform(manifest, options.platform)
+    browser = await launchBrowser(platform)
     for (const screen of screens) {
-      await captureScreen(browser, base, manifest, screen, outDir)
+      await captureScreen(browser, base, manifest, screen, outDir, platform)
     }
     const output = {
       version: 2,
@@ -93,8 +94,9 @@ async function main() {
   }
 }
 
-async function captureScreen(browser, base, manifest, screen, outDir) {
-  const { width, height, deviceScaleFactor } = manifest.viewport
+async function captureScreen(browser, base, manifest, screen, outDir, platform) {
+  const viewport = platform === "windows" ? manifest.windowsViewport ?? manifest.viewport : manifest.viewport
+  const { width, height, deviceScaleFactor } = viewport
   const context = await browser.newContext({
     viewport: { width, height },
     deviceScaleFactor,
@@ -111,6 +113,7 @@ async function captureScreen(browser, base, manifest, screen, outDir) {
     url.searchParams.set("screen", screen.id)
     url.searchParams.set("theme", manifest.theme)
     url.searchParams.set("scale", String(manifest.uiScalePercent))
+    url.searchParams.set("platform", platform)
     await page.goto(url.href, { waitUntil: "load" })
     await page.waitForFunction(() => window.__PARITY_READY__ === true, undefined, {
       timeout: 30_000,
@@ -142,13 +145,15 @@ async function captureScreen(browser, base, manifest, screen, outDir) {
   }
 }
 
-async function launchBrowser() {
+async function launchBrowser(platform) {
   try {
-    return await webkit.launch()
+    return platform === "windows" ? await chromium.launch({ channel: "msedge" }) : await webkit.launch()
   } catch (error) {
     throw new Error(
-      `Could not start Playwright's WebKit. Install it with:\n` +
-        `  pnpm exec playwright install webkit\n` +
+      platform === "windows"
+        ? `Could not start the installed Microsoft Edge channel. Confirm Edge is installed and Playwright 1.54.0 is available.`
+        : `Could not start Playwright's WebKit. Install it with:\n` +
+          `  pnpm exec playwright install webkit\n` +
         `(${error instanceof Error ? error.message : String(error)})`
     )
   }
@@ -179,7 +184,7 @@ function frontendCommit() {
 }
 
 function parseArgs(args) {
-  const options = { out: undefined, commit: undefined, screens: [] }
+  const options = { out: undefined, commit: undefined, screens: [], platform: undefined }
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index]
     const value = args[index + 1]
@@ -192,11 +197,25 @@ function parseArgs(args) {
     } else if (argument === "--screen" && value) {
       options.screens.push(value)
       index += 1
+    } else if (argument === "--platform" && value) {
+      options.platform = value
+      index += 1
     } else {
       throw new Error(`Unknown or incomplete argument: ${argument}`)
     }
   }
   return options
+}
+
+function selectedPlatform(manifest, requested) {
+  const platform = requested ?? process.env.PARITY_PLATFORM ?? "macos"
+  if (platform !== "macos" && platform !== "windows") {
+    throw new Error(`Unknown parity platform "${platform}"; expected macos or windows`)
+  }
+  if (platform !== "macos" && !manifest.platforms?.[platform]) {
+    throw new Error(`parity/screens.json has no platform configuration for "${platform}"`)
+  }
+  return platform
 }
 
 main().catch((error) => {

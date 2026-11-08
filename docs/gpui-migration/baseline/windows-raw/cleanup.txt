@@ -1,0 +1,3 @@
+Removed/absent: C:\Users\stone\AppData\Roaming\com.stone.tTerm.perf
+Removed/absent: D:\code\rust\tTerm-P0-01\target\perf\empty-appdata
+Removed/absent: C:\Users\stone\AppData\Local\com.stone.tTerm.perf

@@ -1,1 +1,4 @@
 * text=auto eol=lf
+# Replay streams contain significant CR/LF, escape sequences and trailing spaces.
+crates/tterm-terminal/tests/fixtures/replay/*.bin binary
+crates/tterm-terminal/tests/fixtures/replay/*.ansi binary

@@ -64,18 +64,28 @@ fn open_window(cx: &mut App, command: CommandSpec) -> Result<(), String> {
             window.focus(&focus, cx);
             window.activate_window();
         })
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+
+    #[cfg(all(feature = "automation", debug_assertions))]
+    super::automation::start(handle, prototype, cx);
+    Ok(())
 }
 
 /// The window's root view: the terminal and the session that feeds it.
-struct Prototype {
+pub(super) struct Prototype {
     view: Entity<TerminalView>,
     session: Option<Session>,
     /// The latest title the program set, which the next render shows.
     title: Arc<Mutex<Option<String>>>,
+    current_title: String,
 }
 
 impl Prototype {
+    #[cfg(all(feature = "automation", debug_assertions))]
+    pub(super) fn automation_state(&self) -> String {
+        format!("title={}", self.current_title)
+    }
+
     fn new(cx: &mut Context<Self>, command: &CommandSpec) -> Self {
         let terminal = Arc::new(Terminal::new(Config::default(), INITIAL_GRID, INITIAL_CELL));
         let state = SessionState {
@@ -106,6 +116,7 @@ impl Prototype {
                     view,
                     session: None,
                     title,
+                    current_title: DEFAULT_TITLE.to_string(),
                 };
             }
         };
@@ -134,6 +145,7 @@ impl Prototype {
             view,
             session: Some(session),
             title,
+            current_title: DEFAULT_TITLE.to_string(),
         }
     }
 }
@@ -154,6 +166,7 @@ impl Render for Prototype {
             && let Some(title) = title.take()
         {
             window.set_window_title(&title);
+            self.current_title = title;
         }
         div().size_full().child(self.view.clone())
     }

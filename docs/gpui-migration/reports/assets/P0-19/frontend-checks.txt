@@ -1,0 +1,14 @@
+COMMAND: pnpm lint
+$ eslint src
+EXIT: 0
+COMMAND: pnpm format:check
+$ prettier --check src
+Checking formatting...
+All matched files use Prettier code style!
+EXIT: 0
+COMMAND: pnpm check:tokens
+$ node scripts/tokens/generate.mjs --check
+EXIT: 0
+COMMAND: pnpm typecheck
+$ tsc --noEmit
+EXIT: 0

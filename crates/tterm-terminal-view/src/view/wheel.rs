@@ -15,22 +15,31 @@ impl TerminalView {
         let Some(data) = self.last_frame.as_ref() else {
             return;
         };
-        let lines = self.scroll.lines(event.delta, data.metrics.cell_height);
+        let modes = data.snapshot.modes();
+        let application = matches!(
+            wheel_action(
+                modes,
+                event.modifiers.shift,
+                Wheel {
+                    lines: 1,
+                    columns: 0
+                }
+            ),
+            WheelAction::Alternate(_) | WheelAction::Report(_)
+        );
+        let lines = self
+            .scroll
+            .lines(event.delta, data.metrics.cell_height, application);
         if lines == 0 {
             return;
         }
-        let action = wheel_action(
-            data.snapshot.modes(),
-            event.modifiers.shift,
-            Wheel { lines, columns: 0 },
-        );
+        let action = wheel_action(modes, event.modifiers.shift, Wheel { lines, columns: 0 });
         match action {
             WheelAction::Scroll(lines) => {
                 self.terminal.scroll(Scroll::Delta(lines));
                 self.invalidate(cx);
             }
             WheelAction::Alternate(arrows) => {
-                self.scroll.reset();
                 if let Some(input) = &self.input {
                     for arrow in arrows {
                         input(arrow.sequence());
@@ -38,7 +47,6 @@ impl TerminalView {
                 }
             }
             WheelAction::Report(buttons) => {
-                self.scroll.reset();
                 if let Some((point, _)) = self.pointer_cell(event.position) {
                     for button in buttons {
                         self.report_button(
@@ -55,3 +63,6 @@ impl TerminalView {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

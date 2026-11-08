@@ -1,0 +1,10 @@
+xterm	cursor	4	10
+tterm	cursor	7	10
+xterm	0	4	20	1	default	default	000000	0	default	-	-
+tterm	0	4	58	1	default	default	000000	0	default	-	-
+xterm	2	4	58	1	default	default	000000	0	default	-	-
+tterm	2	4	20	1	default	default	000000	0	default	-	-
+xterm	4	9	59	1	default	default	000000	0	default	-	-
+tterm	4	9	20	1	default	default	000000	0	default	-	-
+xterm	7	9	20	1	default	default	000000	0	default	-	-
+tterm	7	9	59	1	default	default	000000	0	default	-	-

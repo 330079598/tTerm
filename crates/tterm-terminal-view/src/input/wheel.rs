@@ -2,15 +2,16 @@
 // commit 94e7c8874e526b1e67b349d9ba30ddf81669119e (v0.17.0), Apache-2.0.
 // SPDX-License-Identifier: Apache-2.0
 //
-// Changes: pixel accumulation and the scrolling multiplier stay in the view;
+// Changes: pixel accumulation and history scaling stay in the view;
 // this module only turns an already-quantised wheel movement into reports,
-// alternate-screen arrows or a local scroll.
+// alternate-screen arrows or a local scroll. Vertical application input emits
+// at most one report or arrow per event, matching tTerm's xterm frontend.
 
 //! What a wheel movement means in the current terminal modes.
 //!
 //! The order is Alacritty's `scroll_terminal`:
 //!
-//! 1. A program that asked for mouse reports gets one report per wheel line.
+//! 1. A program that asked for mouse reports gets one report per vertical event.
 //! 2. On the alternate screen with alternate scroll (mode 1007), and not with
 //!    Shift held, the wheel sends arrow keys instead.
 //! 3. Otherwise the viewport scrolls locally.
@@ -56,9 +57,9 @@ pub struct Wheel {
 /// What the view should do with one wheel movement.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WheelAction {
-    /// Report each step to the program, in order.
+    /// Report one vertical step, followed by any horizontal steps.
     Report(Vec<MouseButton>),
-    /// Send one arrow sequence per step, in order.
+    /// Send one vertical arrow, followed by any horizontal arrows.
     Alternate(Vec<AlternateArrow>),
     /// Scroll the viewport locally; positive values go back into history.
     Scroll(i32),
@@ -81,7 +82,7 @@ pub fn wheel_action(modes: Modes, shift: bool, wheel: Wheel) -> WheelAction {
     if super::mouse::reports_mouse(modes) {
         let mut reports = Vec::new();
         reports.extend(repeat_wheel(
-            wheel.lines,
+            wheel.lines.signum(),
             MouseButton::WheelUp,
             MouseButton::WheelDown,
         ));
@@ -97,7 +98,7 @@ pub fn wheel_action(modes: Modes, shift: bool, wheel: Wheel) -> WheelAction {
     if !shift && alternate_scroll {
         let mut arrows = Vec::new();
         arrows.extend(repeat_arrow(
-            wheel.lines,
+            wheel.lines.signum(),
             AlternateArrow::Up,
             AlternateArrow::Down,
         ));

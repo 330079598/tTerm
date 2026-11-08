@@ -1,0 +1,2 @@
+平台,构建,负载,指标,数值,单位,样本数,备注
+macos,release,all,unverified,,,0,未运行验证；本轮只有 Windows 采集；macOS 暂缓

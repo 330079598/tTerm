@@ -143,10 +143,12 @@ fn compare_style(
     backdrop: [u8; 4],
     failures: &mut Vec<String>,
 ) {
-    if reference.font_family != actual.font_family {
+    let reference_font = canonical_font_family(&reference.font_family);
+    let actual_font = canonical_font_family(&actual.font_family);
+    if reference_font != actual_font {
         failures.push(format!(
             "{id}: font family {:?} -> {:?}",
-            reference.font_family, actual.font_family
+            reference_font, actual_font
         ));
     }
     check_number(
@@ -239,6 +241,28 @@ fn compare_style(
         backdrop,
         failures,
     );
+}
+
+fn canonical_font_family(family: &str) -> String {
+    let first = family
+        .split(',')
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .trim_matches(['"', '\''])
+        .to_ascii_lowercase();
+    if matches!(
+        first.as_str(),
+        "-apple-system"
+            | "blinkmacsystemfont"
+            | ".systemuifont"
+            | ".applesystemuifont"
+            | "segoe ui"
+    ) {
+        "system-ui".to_owned()
+    } else {
+        first
+    }
 }
 
 fn check_number(id: &str, field: &str, reference: f32, actual: f32, failures: &mut Vec<String>) {

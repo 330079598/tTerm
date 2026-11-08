@@ -1,0 +1,80 @@
+COMMAND: target/debug/examples/terminal_replay.exe session --fast --screenshot docs/gpui-migration/reports/assets/P0-11/session-fast.png
+replay clock: 8 frames, recorded_us=600000, elapsed_us=13500
+window comparison: 0 changed records, exact documented result
+replay complete: 44x9, mode=fast
+screenshot: docs/gpui-migration/reports/assets/P0-11/session-fast.png
+COMMAND: target/debug/examples/terminal_replay.exe unicode --fast --screenshot docs/gpui-migration/reports/assets/P0-11/unicode-fast.png
+replay clock: 3 frames, recorded_us=80000, elapsed_us=17267
+window comparison: 4 changed records, exact documented result
+replay complete: 40x10, mode=fast
+screenshot: docs/gpui-migration/reports/assets/P0-11/unicode-fast.png
+COMMAND: target/debug/examples/terminal_replay.exe alternate-restored --fast --screenshot docs/gpui-migration/reports/assets/P0-11/alternate-restored-fast.png
+replay clock: 4 frames, recorded_us=200000, elapsed_us=6743
+window comparison: 0 changed records, exact documented result
+replay complete: 40x8, mode=fast
+screenshot: docs/gpui-migration/reports/assets/P0-11/alternate-restored-fast.png
+COMMAND: target/debug/examples/terminal_replay.exe alternate-active --fast --screenshot docs/gpui-migration/reports/assets/P0-11/alternate-active-fast.png
+replay clock: 2 frames, recorded_us=0, elapsed_us=2971
+window comparison: 0 changed records, exact documented result
+replay complete: 40x8, mode=fast
+screenshot: docs/gpui-migration/reports/assets/P0-11/alternate-active-fast.png
+COMMAND: target/debug/examples/terminal_replay.exe scroll-region --fast --screenshot docs/gpui-migration/reports/assets/P0-11/scroll-region-fast.png
+replay clock: 3 frames, recorded_us=100000, elapsed_us=5089
+window comparison: 0 changed records, exact documented result
+replay complete: 40x8, mode=fast
+screenshot: docs/gpui-migration/reports/assets/P0-11/scroll-region-fast.png
+COMMAND: target/debug/examples/terminal_replay.exe margin-motion --fast --screenshot docs/gpui-migration/reports/assets/P0-11/margin-motion-fast.png
+replay clock: 2 frames, recorded_us=0, elapsed_us=2510
+window comparison: 5 changed records, exact documented result
+replay complete: 40x8, mode=fast
+screenshot: docs/gpui-migration/reports/assets/P0-11/margin-motion-fast.png
+COMMAND: target/debug/examples/terminal_replay.exe attributes --fast --screenshot docs/gpui-migration/reports/assets/P0-11/attributes-fast.png
+replay clock: 6 frames, recorded_us=160000, elapsed_us=9238
+window comparison: 0 changed records, exact documented result
+replay complete: 40x8, mode=fast
+screenshot: docs/gpui-migration/reports/assets/P0-11/attributes-fast.png
+COMMAND: target/debug/examples/terminal_replay.exe charset-replies --fast --screenshot docs/gpui-migration/reports/assets/P0-11/charset-replies-fast.png
+replay clock: 2 frames, recorded_us=0, elapsed_us=3418
+window comparison: 2 changed records, exact documented result
+replay complete: 40x8, mode=fast
+screenshot: docs/gpui-migration/reports/assets/P0-11/charset-replies-fast.png
+COMMAND: target/debug/examples/terminal_replay.exe session --original --screenshot docs/gpui-migration/reports/assets/P0-11/session-original.png
+replay clock: 8 frames, recorded_us=600000, elapsed_us=601286
+window comparison: 0 changed records, exact documented result
+replay complete: 44x9, mode=original
+screenshot: docs/gpui-migration/reports/assets/P0-11/session-original.png
+COMMAND: target/debug/examples/terminal_replay.exe unicode --original --screenshot docs/gpui-migration/reports/assets/P0-11/unicode-original.png
+replay clock: 3 frames, recorded_us=80000, elapsed_us=87460
+window comparison: 4 changed records, exact documented result
+replay complete: 40x10, mode=original
+screenshot: docs/gpui-migration/reports/assets/P0-11/unicode-original.png
+COMMAND: target/debug/examples/terminal_replay.exe alternate-restored --original --screenshot docs/gpui-migration/reports/assets/P0-11/alternate-restored-original.png
+replay clock: 4 frames, recorded_us=200000, elapsed_us=200839
+window comparison: 0 changed records, exact documented result
+replay complete: 40x8, mode=original
+screenshot: docs/gpui-migration/reports/assets/P0-11/alternate-restored-original.png
+COMMAND: target/debug/examples/terminal_replay.exe alternate-active --original --screenshot docs/gpui-migration/reports/assets/P0-11/alternate-active-original.png
+replay clock: 2 frames, recorded_us=0, elapsed_us=3461
+window comparison: 0 changed records, exact documented result
+replay complete: 40x8, mode=original
+screenshot: docs/gpui-migration/reports/assets/P0-11/alternate-active-original.png
+COMMAND: target/debug/examples/terminal_replay.exe scroll-region --original --screenshot docs/gpui-migration/reports/assets/P0-11/scroll-region-original.png
+replay clock: 3 frames, recorded_us=100000, elapsed_us=101970
+window comparison: 0 changed records, exact documented result
+replay complete: 40x8, mode=original
+screenshot: docs/gpui-migration/reports/assets/P0-11/scroll-region-original.png
+COMMAND: target/debug/examples/terminal_replay.exe margin-motion --original --screenshot docs/gpui-migration/reports/assets/P0-11/margin-motion-original.png
+replay clock: 2 frames, recorded_us=0, elapsed_us=2378
+window comparison: 5 changed records, exact documented result
+replay complete: 40x8, mode=original
+screenshot: docs/gpui-migration/reports/assets/P0-11/margin-motion-original.png
+COMMAND: target/debug/examples/terminal_replay.exe attributes --original --screenshot docs/gpui-migration/reports/assets/P0-11/attributes-original.png
+replay clock: 6 frames, recorded_us=160000, elapsed_us=161671
+window comparison: 0 changed records, exact documented result
+replay complete: 40x8, mode=original
+screenshot: docs/gpui-migration/reports/assets/P0-11/attributes-original.png
+COMMAND: target/debug/examples/terminal_replay.exe charset-replies --original --screenshot docs/gpui-migration/reports/assets/P0-11/charset-replies-original.png
+replay clock: 2 frames, recorded_us=0, elapsed_us=2802
+window comparison: 2 changed records, exact documented result
+replay complete: 40x8, mode=original
+screenshot: docs/gpui-migration/reports/assets/P0-11/charset-replies-original.png

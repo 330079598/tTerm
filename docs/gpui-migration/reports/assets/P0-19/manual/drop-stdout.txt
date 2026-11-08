@@ -1,0 +1,5 @@
+generate_started bytes=200000000 buffer=65536
+native_drag_started hwnd=HWND(0x4e0b66) placeholder_bytes=0
+generate_finished bytes=200000000 elapsed_ms=155
+native_drag_ended accepted=true
+Published and verified bytes=200000000 path=\\?\C:\Users\stone\AppData\Local\Temp\tTerm-P0-19-target-e3cda754ccfd4479ab1f1fa801ced712\generated-200MB.bin staging=C:\Users\stone\AppData\Local\Temp\com.stone.tTerm.gpui-dev\P0-19\drag-43692-0

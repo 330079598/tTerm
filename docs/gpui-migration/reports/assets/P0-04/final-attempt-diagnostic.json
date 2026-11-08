@@ -1,0 +1,26 @@
+{
+  "attempt": "final-latency-and-split",
+  "date": "2026-11-08",
+  "isolation": {
+    "identifier": "com.stone.tTerm.p004",
+    "temporaryAppData": "target/p004-dev-appdata6 and target/p004-dev-appdata7",
+    "localAppDataChanged": false,
+    "cleanup": "pending in this diagnostic; directories removed before final report"
+  },
+  "script": "scripts/perf/p004-dev-profile.mjs",
+  "changes": [
+    "latency samples are read only from window.__P004_LATENCY__",
+    "DOM .xterm-rows polling removed",
+    "buffer.active last 20 lines and screenshots are collected after each command",
+    "20, 2000 and 20000 line scenarios",
+    "split uses PaneHeader Split right button before workspace-sash drag"
+  ],
+  "run": {
+    "status": "not_completed",
+    "reason": "Vite/Tauri dev orchestration could not keep a CDP endpoint available: port 1420 was occupied by an existing Vite process and a separate 1421 process remained; the attempted Tauri process exited before CDP attachment.",
+    "samples": null,
+    "screenshots": [],
+    "buffer": null,
+    "paneDiagnostics": null
+  }
+}

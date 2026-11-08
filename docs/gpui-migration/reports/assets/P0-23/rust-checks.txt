@@ -1,0 +1,1302 @@
+    Checking tterm-gpui v0.1.0 (D:\code\rust\tTerm-P0-23\crates\tterm-gpui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.29s
+   Compiling tterm-gpui v0.1.0 (D:\code\rust\tTerm-P0-23\crates\tterm-gpui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.31s
+     Running unittests src\lib.rs (target\debug\deps\t_term_lib-80c06ce39f42aeff.exe)
+
+running 835 tests
+test agent_integration::console_report::tests::reports_only_names_the_frontend_reads ... ok
+test agent_integration::codex::windows_tests::hook_on_windows_runs_tterm_itself ... ok
+test agent_integration::codex::windows_tests::hook_path_never_needs_quotes ... ok
+test agent_integration::hooks::tests::refuses_hooks_it_cannot_extend ... ok
+test agent_integration::remote::tests::finds_each_config_directory ... ok
+test agent_integration::hooks::tests::uninstall_drops_the_hooks_section_it_created ... ok
+test agent_integration::hooks::tests::installs_next_to_the_users_hooks ... ok
+test agent_integration::hooks::tests::uninstall_keeps_empty_sections_the_user_wrote ... ok
+test agent_integration::hooks::tests::a_changed_or_partial_install_is_outdated ... ok
+test agent_integration::hooks::tests::uninstall_restores_the_users_file ... ok
+test agent_integration::json::tests::keeps_key_order_and_values ... ok
+test agent_integration::json::tests::refuses_what_is_not_a_json_object ... ok
+test agent_integration::remote::tests::hooks_on_a_host_never_run_this_computers_tterm ... ok
+test agent_integration::hooks::tests::installing_twice_changes_nothing ... ok
+test agent_integration::remote::tests::reads_the_login_shells_variables_over_those_sh_got ... ok
+test agent_integration::tests::plugins_report_to_tterm ... ok
+test agent_integration::tests::settings_keys_match_the_agents_names ... ok
+test background::exit_guard::tests::exit_is_held_once_while_something_is_at_stake ... ok
+test background::exit_guard::tests::files_not_uploaded_are_at_stake ... ok
+test background::quit::tests::a_quit_waits_only_when_the_ui_has_something_to_save ... ok
+test background::quit::tests::quitting_again_while_waiting_goes_ahead ... ok
+test background::tests::behavior_round_trips_through_the_state ... ok
+test background::tests::closing_again_while_asking_goes_ahead ... ok
+test background::tests::unknown_close_behavior_asks ... ok
+test background::tray::tests::ampersands_stay_literal_in_windows_menus ... ok
+test backup::remote::tests::live_archive_upload_prune_and_restore ... ignored
+test agent_integration::json::tests::treats_a_missing_or_blank_file_as_empty ... ok
+test background::tray::tests::tooltip_counts_sessions_and_tunnels ... ok
+test background::tray::tests::dot_sits_in_the_top_right_corner_apart_from_the_icon ... ok
+test background::tray::tests::tunnel_labels_say_what_is_not_plainly_on_or_off ... ok
+test backup::remote::tests::lists_newest_first_and_prunes_only_this_device ... ok
+test backup::remote::tests::sanitizes_device_names ... ok
+test backup::remote::tests::normalizes_and_validates_settings ... ok
+test backup::remote::tests::round_trips_backup_file_names ... ok
+test backup::remote::tests::schedules_by_frequency ... ok
+test backup::tests::automatic_backups_never_accept_credentials ... ok
+test backup::remote::tests::validates_remote_file_names ... ok
+test backup::tests::backups_without_tunnels_still_load_and_validate ... ok
+test backup::tests::device_setup_secrets_stay_unless_webdav_settings_travel ... ok
+test backup::tests::frontend_state_is_filtered_by_selected_category ... ok
+test backup::tests::imported_settings_bring_their_tab_icons_along ... ok
+test backup::tests::imported_settings_bring_their_agent_badge_and_spinner_style_along ... ok
+test backup::tests::imported_schedule_keeps_this_devices_folder_unless_the_backups_exists ... ok
+test backup::tests::imported_settings_keep_this_devices_unlock_mode_and_missing_paths ... ok
+test backup::tests::kdf_parameters_are_bounded ... ok
+test backup::tests::imported_shells_under_an_id_used_here_come_in_as_their_own ... ok
+test agent_integration::plugin_file::tests::leaves_someone_elses_file_alone ... ok
+test backup::tests::imported_settings_keep_this_devices_shells_and_add_those_found_here ... ok
+test backup::tests::missing_certificate_files_are_listed_with_the_key_files ... ok
+test backup::tests::missing_key_files_are_listed_once_with_the_profiles_using_them ... ok
+test backup::tests::profile_merge_updates_by_id_and_preserves_other_profiles ... ok
+test backup::tests::real_pre_database_backups_import ... ignored
+test agent_integration::remote::tests::leaves_settings_it_cannot_read_alone ... ok
+test agent_integration::json::tests::backs_up_the_previous_file_and_skips_unchanged_writes ... ok
+test agent_integration::plugin_file::tests::installs_updates_and_removes_its_own_file ... ok
+test backup::tests::session_sanitizer_removes_legacy_inline_credentials ... ok
+test backup::tests::terminal_log_paths_reject_traversal_and_platform_separators ... ok
+test backup::tests::tunnel_data_is_validated_on_import ... ok
+test agent_integration::remote::tests::writes_and_deletes_a_plugin_file_and_the_folders_it_needs ... ok
+test agent_integration::console_report::tests::finds_this_process_and_its_parent ... ok
+test agent_integration::remote::tests::installs_and_removes_hooks_beside_the_users_settings ... ok
+test backup::webdav::tests::live_conditional_requests ... ignored
+test backup::webdav::tests::builds_encoded_urls_under_the_base_path ... ok
+test backup::webdav::tests::live_server_round_trip ... ignored
+test backup::webdav::tests::parses_jianguoyun_style_listing ... ok
+test backup::webdav::tests::parses_full_url_hrefs_other_prefixes_and_encoding ... ok
+test backup::webdav::tests::rejects_malformed_listing ... ok
+test backup::webdav::tests::validates_server_urls ... ok
+test backup::webdav::tests::splits_remote_directories ... ok
+test agent_integration::codex::windows_tests::cmd_runs_the_hook_as_codex_starts_it ... ok
+test backup::remote::tests::saving_settings_keeps_history_and_clearing_forgets_everything ... ok
+test backup::tests::merge_import_keeps_existing_data_and_updates_by_key ... ok
+test backup::tests::database_snapshot_undoes_an_import ... ok
+test backup::tests::imported_settings_and_session_land_in_the_database_and_roll_back ... ok
+test backup::tests::replacing_profiles_keeps_passwords_of_profiles_that_stay ... ok
+test backup::tests::replace_import_drops_data_missing_from_the_backup ... ok
+test backup::tests::unselected_settings_and_session_are_not_touched ... ok
+test backup::tests::unselected_categories_are_not_touched ... ok
+test backup::tests::backup_and_sync_setup_round_trips_with_its_passwords ... ok
+test config::atomic::tests::atomic_write_creates_missing_parent_directories ... ok
+test config::atomic::tests::atomic_write_creates_new_file_with_full_contents ... ok
+test config::atomic::tests::atomic_write_handles_binary_and_utf8_payloads ... ok
+test config::atomic::tests::atomic_write_rejects_paths_without_file_name ... ok
+test config::atomic::tests::atomic_write_replaces_existing_file_atomically ... ok
+test config::atomic::tests::failed_replace_keeps_existing_target_and_cleans_temp_file ... ok
+test config::local_shells::tests::gives_migrated_shells_the_same_id_only_for_the_same_shell ... ok
+test config::local_shells::tests::hides_each_wsl_distribution_where_wsl_was_hidden ... ok
+test config::local_shells::tests::keeps_an_older_custom_default_as_the_first_shell ... ok
+test config::local_shells::tests::leaves_other_configs_alone ... ok
+test config::local_shells::tests::names_shells_by_program ... ok
+test config::tests::default_font_matches_the_frontend_default ... ok
+test config::tests::explicit_sftp_transfer_parallelism_round_trips ... ok
+test config::tests::explicit_tab_width_config_is_deserialized ... ok
+test config::tests::invalid_tab_width_config_is_normalized ... ok
+test config::tests::keymap_config_accepts_legacy_single_chord_values ... ok
+test config::tests::keymap_config_ignores_removed_preset_field ... ok
+test config::tests::keymap_config_round_trips ... ok
+test config::tests::keyword_highlight_defaults_to_the_built_in_set ... ok
+test config::tests::keyword_highlight_keeps_the_users_sets ... ok
+test config::tests::legacy_config_gets_default_keymap ... ok
+test config::tests::legacy_config_shows_its_one_theme ... ok
+test config::tests::legacy_config_uses_adaptive_tab_width_defaults ... ok
+test config::tests::only_local_shell_integration_turned_on_carries_over_from_older_configs ... ok
+test config::tests::panes_default_to_headers_shown_and_no_dimming ... ok
+test config::tests::panes_keep_saved_templates_as_written ... ok
+test config::tests::predictive_echo_settings_are_brought_into_range ... ok
+test config::tests::profile_sort_falls_back_to_the_grouped_list ... ok
+test config::tests::reconnect_enabled_round_trips ... ok
+test config::tests::reconnect_max_attempts_round_trips ... ok
+test config::tests::sftp_bandwidth_limits_default_to_unlimited_and_round_trip ... ok
+test config::tests::sftp_external_upload_falls_back_to_asking ... ok
+test config::tests::tab_agent_indicator_defaults_to_the_ring_and_pause_bars ... ok
+test config::tests::tab_agent_indicator_keeps_a_partial_choice ... ok
+test config::tests::tab_icons_default_to_shown_with_built_in_looks ... ok
+test config::tests::tab_icons_keep_each_shells_choice ... ok
+test config::tests::terminal_line_height_and_letter_spacing_are_clamped ... ok
+test config::tests::ui_scale_config_is_rounded_and_clamped ... ok
+test config::tests::ui_style_starts_islands_but_keeps_older_files_classic ... ok
+test config::tests::window_blur_config_is_clamped ... ok
+test config::update_channel::tests::prerelease_versions_follow_the_beta_channel ... ok
+test app_state::tests::state_round_trips ... ok
+test config::window_background::tests::parses_six_digit_hex ... ok
+test config::window_background::tests::rejects_other_forms ... ok
+test core::commands::batch_write::tests::disconnected_guard_prevents_target_writes ... ok
+test core::commands::batch_write::tests::failed_guard_prevents_target_writes ... ok
+test core::commands::batch_write::tests::snapshot_deduplicates_and_classifies_targets_in_request_order ... ok
+test core::commands::batch_write::tests::writable_guard_receives_input_without_targets ... ok
+test core::runtime::tests::invalid_override_falls_back_to_available_parallelism ... ok
+test core::runtime::tests::worker_count_honors_a_valid_bounded_override ... ok
+test core::runtime::tests::worker_count_uses_bounded_available_parallelism ... ok
+test core::session::saved_hops::tests::a_hop_takes_the_address_and_login_of_its_saved_connection ... ok
+test core::session::saved_hops::tests::a_password_hop_keeps_the_password_typed_for_it ... ok
+test core::session::saved_hops::tests::only_an_ssh_connection_can_be_a_hop ... ok
+test core::session::tests::a_certificate_is_kept_only_for_key_authentication ... ok
+test core::session::tests::sanitize_session_tabs_migrates_legacy_jump_host_to_jump_hosts ... ok
+test core::supervisor::tests::decayed_attempt_is_fully_forgiven_after_a_full_stable_window ... ok
+test core::supervisor::tests::decayed_attempt_is_untouched_after_an_immediate_drop ... ok
+test core::supervisor::tests::decayed_attempt_prorates_a_partial_stable_window ... ok
+test core::supervisor::tests::equal_jitter_stays_within_the_nominal_window ... ok
+test core::supervisor::tests::nominal_backoff_doubles_then_caps ... ok
+test core::supervisor::tests::nominal_backoff_never_exceeds_cap_for_large_attempts ... ok
+test backup::tests::encrypted_payload_round_trip_and_rejects_wrong_password ... ok
+test backup::tests::encrypted_archive_round_trips_manifest_and_credentials ... ok
+test backup::tests::merge_import_never_lets_a_name_only_entry_replace_a_profile_entry ... ok
+test db::legacy_import::tests::imports_a_real_config_directory_copy ... ignored
+test backup::tests::exported_data_imports_back_unchanged ... ok
+test backup::tests::merge_import_keeps_known_hosts_of_profiles_sharing_a_host_key ... ok
+test backup::tests::serial_sends_merge_by_their_later_use_or_replace ... ok
+test command_library::commands::tests::creates_and_normalizes_user_input ... ok
+test backup::tests::merged_collapsed_groups_add_to_this_devices ... ok
+test command_library::commands::tests::rejects_malformed_variables ... ok
+test command_library::commands::tests::update_requires_an_existing_id ... ok
+test command_library::commands::tests::rejects_whitespace_only_command_text ... ok
+test db::migrations::tests::newer_database_versions_are_rejected ... ok
+test command_library::repository::tests::records_command_use_without_changing_content ... ok
+test command_library::repository::tests::rejects_secret_defaults_before_writing ... ok
+test command_library::commands::tests::updates_preserve_server_owned_and_future_fields ... ok
+test drag_out::windows::tests::placeholder_name_keeps_plain_extensions_only ... ok
+test launch_dir::tests::opens_nothing_without_a_directory ... ok
+test command_library::repository::tests::delete_cascades_relations_and_search_index ... ok
+test launch_dir::tests::reads_a_drive_whose_closing_quote_was_escaped ... ok
+test launch_dir::tests::reports_a_path_that_is_not_a_directory ... ok
+test launch_dir::tests::resolves_a_relative_directory_against_where_it_was_run ... ok
+test launch_dir::tests::takes_every_argument_after_a_double_dash ... ok
+test main_window::background_throttling_tests::unknown_values_fall_back_to_throttle ... ok
+test launch_dir::tests::takes_every_argument_that_is_not_an_option ... ok
+test monitor::metrics::tests::an_old_freebsd_is_named_from_uname ... ok
+test migrate::retired_file_tests::retired_copies_go_once_kept_long_enough ... ok
+test command_library::repository::tests::saves_reads_and_updates_a_command_with_relations ... ok
+test monitor::metrics::tests::an_unknown_system_is_unsupported_but_named ... ok
+test monitor::metrics::tests::df_rows_keep_spaces_in_devices_and_mount_points ... ok
+test monitor::metrics::tests::macos_disks_skip_hidden_volumes_and_count_the_apfs_container ... ok
+test monitor::metrics::tests::missing_swap_is_reported_as_unconfigured ... ok
+test monitor::metrics::tests::freebsd_zfs_datasets_fold_into_their_pool ... ok
+test monitor::metrics::tests::names_a_host_from_os_release_or_sw_vers ... ok
+test monitor::metrics::tests::netstat_counters_are_matched_from_the_right ... ok
+test monitor::metrics::tests::parses_and_orders_real_filesystems ... ok
+test monitor::metrics::tests::parses_bsd_load_average_in_braces ... ok
+test monitor::metrics::tests::parses_load_average ... ok
+test monitor::metrics::tests::parses_memory_and_swap_usage ... ok
+test monitor::metrics::tests::parses_network_counters ... ok
+test monitor::metrics::tests::reads_a_freebsd_host ... ok
+test monitor::metrics::tests::reads_a_macos_host ... ok
+test monitor::metrics::tests::snapshot_includes_extended_metrics ... ok
+test monitor::session::tests::a_refusal_is_remembered_for_the_same_connection_only ... ok
+test monitor::tests::monitor_connection_fingerprint_distinguishes_embedded_separators ... ok
+test monitor::tests::monitor_connection_fingerprint_distinguishes_jump_host_boundaries ... ok
+test notification::badge::tests::overlay_must_hold_every_pixel ... ok
+test notification::sound::tests::a_restored_sound_that_is_not_base64_is_refused ... ok
+test command_library::repository::tests::commands_persist_when_the_database_is_reopened ... ok
+test notification::sound::tests::a_restored_sound_over_the_limit_is_refused ... ok
+test notification::windows::tests::toast_xml_escapes_text_and_silences_on_request ... ok
+test profiles::commands::import::proxy::tests::a_command_is_named_after_its_program ... ok
+test profiles::commands::import::proxy::tests::a_saved_server_is_reused_and_a_new_one_added_once ... ok
+test profiles::commands::tests::a_profile_keeps_its_hosts_distribution_only_while_the_host_stays ... ok
+test profiles::commands::tests::a_profile_reads_back_its_tab_icon_and_distribution ... ok
+test profiles::commands::tests::saving_a_quick_connection_fills_in_the_passwords_typed_in_its_tab ... ok
+test db::legacy_import::tests::corrupt_file_aborts_the_whole_import ... ok
+test profiles::groups::tests::groups_read_from_older_versions_are_keyed_by_their_name ... ok
+test config::window_background::tests::colors_round_trip_normalized ... ok
+test db::legacy_import::tests::an_unreadable_settings_file_stays_while_the_others_move ... ok
+test profiles::parser::include_tests::a_relative_include_is_looked_up_in_the_ssh_folder_from_any_file ... ok
+test profiles::parser::include_tests::a_warning_names_the_included_file_it_is_about ... ok
+test db::legacy_import::tests::imports_every_file_once_and_renames_them ... ok
+test profiles::parser::include_tests::an_include_loop_is_stopped ... ok
+test db::legacy_import::tests::files_written_again_by_an_older_version_do_not_overwrite_the_database ... ok
+test profiles::parser::include_tests::an_include_under_a_host_line_applies_to_that_host_only ... ok
+test profiles::parser::include_tests::included_files_are_read_in_place ... ok
+test profiles::parser::jump_tests::a_jump_host_takes_its_own_host_block ... ok
+test profiles::parser::jump_tests::a_jump_host_that_leads_back_is_skipped ... ok
+test profiles::parser::jump_tests::a_jump_host_without_a_user_signs_in_as_the_local_user ... ok
+test profiles::parser::include_tests::the_lines_after_an_include_apply_as_they_did_before_it ... ok
+test profiles::parser::match_tests::a_match_block_that_cannot_be_checked_is_not_applied ... ok
+test profiles::parser::jump_tests::the_first_jump_host_brings_its_own_jump_hosts ... ok
+test profiles::parser::match_tests::a_match_block_applies_with_what_the_lines_above_it_set ... ok
+test profiles::parser::match_tests::match_host_compares_the_host_name_set_so_far ... ok
+test profiles::parser::proxy_command::tests::other_commands_are_kept_as_they_are ... ok
+test profiles::parser::match_tests::match_user_and_localuser_compare_the_users ... ok
+test profiles::parser::match_tests::match_final_reads_the_blocks_again_for_the_host_name ... ok
+test profiles::parser::proxy_command::tests::proxy_server_commands_become_servers ... ok
+test profiles::parser::proxy_command::tests::ssh_w_becomes_a_jump_host ... ok
+test profiles::parser::tests::a_host_the_config_does_not_list_still_gets_its_wildcard_blocks ... ok
+test profiles::parser::tests::a_wildcard_hostname_names_the_host_with_percent_h ... ok
+test profiles::parser::tests::key_file_paths_fill_in_the_host_and_user ... ok
+test profiles::parser::tests::parse_ssh_config_collects_forwards_and_reports_bad_ones ... ok
+test profiles::parser::tests::parse_ssh_config_imports_a_certificate_with_its_identity_file ... ok
+test profiles::parser::tests::parse_ssh_config_imports_forward_agent_independent_of_auth ... ok
+test profiles::parser::tests::parse_ssh_config_skips_wildcard_hosts_and_tracks_unsupported_options ... ok
+test profiles::parser::tests::parse_ssh_config_imports_proxy_commands ... ok
+test profiles::parser::tests::parse_ssh_config_maps_supported_host_fields ... ok
+test profiles::parser::tests::proxy_jump_and_proxy_command_from_any_block_compete ... ok
+test profiles::parser::tests::the_first_value_in_file_order_wins_as_in_ssh ... ok
+test profiles::parser::tests::sanitize_profile_migrates_legacy_jump_host_to_chain ... ok
+test profiles::parser::tests::wildcard_host_blocks_apply_to_the_hosts_they_match ... ok
+test profiles::parser::tokens::tests::fills_in_the_local_host_the_jump_host_and_the_connection_hash ... ok
+test profiles::parser::tests::the_known_hosts_files_a_host_is_given_are_listed_with_their_tokens ... ok
+test profiles::parser::tokens::tests::finds_the_name_of_this_machine ... ok
+test profiles::parser::tokens::tests::fills_in_the_tokens_ssh_allows ... ok
+test profiles::parser::tokens::tests::passes_over_a_path_with_a_token_it_cannot_fill ... ok
+test profiles::storage::tests::a_profile_filed_under_a_group_name_is_filed_in_the_group_of_that_id ... ok
+test profiles::parser::tokens::tests::reads_environment_variables ... ok
+test profiles::storage::tests::disabled_jump_host_profiles_keep_their_chain ... ok
+test profiles::storage::tests::legacy_jump_host_profiles_remain_enabled_after_migration ... ok
+test db::meta::tests::move_file_fields_takes_the_fields_out_of_the_file ... ok
+test profiles::storage::tests::only_a_legacy_shell_integration_turned_on_stays_a_choice ... ok
+test db::migrations::tests::migrations_are_idempotent ... ok
+test profiles::types::tests::a_local_terminal_profile_reads_back_its_shell_and_directory ... ok
+test profiles::types::tests::normalizing_keeps_only_what_the_shell_uses ... ok
+test command_library::commands::tests::saves_variables_and_confirmation_from_the_input ... ok
+test proxy::command::tests::names_that_a_shell_would_interpret_are_refused ... ok
+test proxy::command::tests::the_error_keeps_the_last_lines_of_the_error_output ... ok
+test db::meta::tests::values_round_trip_and_unparsable_ones_read_as_missing ... ok
+test proxy::command::tests::tokens_are_replaced_as_openssh_does ... ok
+test proxy::command::tests::unknown_tokens_and_a_lone_percent_are_refused ... ok
+test proxy::http_connect::tests::ipv6_targets_are_bracketed ... ok
+test proxy::http_connect::tests::status_lines_are_parsed ... ok
+test proxy::resolve::tests::a_password_is_kept_only_for_a_server_with_a_user ... ok
+test proxy::socks5::tests::addresses_are_encoded_by_type ... ok
+test proxy::resolve::tests::the_default_choice_follows_the_device_default ... ok
+test proxy::socks5::tests::transient_replies_are_retryable ... ok
+test proxy::tests::a_choice_serializes_with_its_mode ... ok
+test proxy::tests::a_command_proxy_keeps_only_its_command ... ok
+test proxy::approval::tests::a_command_is_allowed_by_its_exact_text ... ok
+test proxy::tests::http_connect_keeps_the_banner_sent_with_the_response ... ok
+test proxy::tests::a_proxy_of_another_kind_is_reported_as_such ... ok
+test proxy::tests::servers_are_trimmed_and_checked ... ok
+test proxy::tests::socks5_failures_are_classified ... ok
+test proxy::tests::http_proxy_errors_say_what_to_fix ... ok
+test proxy::tests::socks5_sends_the_host_name_and_signs_in ... ok
+test db::tests::database_enables_foreign_keys ... ok
+test db::migrations::tests::profile_groups_named_before_become_records_keyed_by_their_name ... ok
+test serial::history::tests::ids_are_the_same_everywhere_and_tell_sends_apart ... ok
+test serial::history::tests::only_send_bar_keys_are_taken ... ok
+test db::tests::failed_write_rolls_back ... ok
+test profiles::groups::tests::a_group_cannot_move_into_itself_or_a_group_inside_it ... ok
+test profiles::groups::tests::a_path_finds_its_groups_and_creates_the_missing_ones ... ok
+test profiles::groups::tests::groups_nest_and_show_their_path_from_the_top ... ok
+test serial::tests::a_connection_without_a_device_opens_its_port_by_name ... ok
+test serial::tests::a_device_is_found_under_its_new_name ... ok
+test serial::tests::a_lone_cr_starts_a_new_line_when_asked ... ok
+test serial::tests::a_lone_lf_returns_to_the_line_start_when_asked ... ok
+test serial::tests::a_pause_starts_a_new_hex_line ... ok
+test serial::tests::a_port_that_reads_nothing_was_unplugged ... ok
+test serial::tests::a_serial_connection_plans_a_serial_session ... ok
+test serial::tests::a_saved_profile_keeps_its_serial_settings ... ok
+test serial::tests::a_transfer_takes_the_input_until_it_lets_go ... ok
+test serial::tests::an_unplugged_device_is_tried_under_its_saved_name ... ok
+test serial::tests::another_device_under_the_saved_name_is_not_opened ... ok
+test serial::tests::completed_line_breaks_reach_the_screen_and_the_log ... ok
+test serial::tests::open_errors_say_what_to_do ... ok
+test serial::tests::enter_sends_the_chosen_line_ending ... ok
+test serial::tests::options_default_to_115200_8n1 ... ok
+test serial::tests::options_reject_what_no_port_opens_with ... ok
+test serial::tests::ports_sort_by_their_number_and_hide_macos_dial_in_twins ... ok
+test serial::tests::output_in_another_charset_shows_as_utf8_even_split_across_reads ... ok
+test serial::tests::switching_views_starts_a_new_line ... ok
+test serial::tests::the_hex_view_shows_the_bytes_sent_sixteen_a_line ... ok
+test serial::tests::the_reader_waits_out_timeouts ... ok
+test serial::tests::the_reader_ends_once_the_tab_lets_go ... ok
+test serial::tests::the_writer_waits_out_timeouts_and_short_writes ... ok
+test serial::tests::the_writer_fails_once_the_tab_lets_go ... ok
+test serial::tests::two_alike_devices_without_serial_numbers_keep_the_saved_name ... ok
+test serial::tests::typed_text_goes_out_in_the_device_charset ... ok
+test serial::tests::usb_ports_carry_their_device ... ok
+test serial::xmodem::receive_tests::a_block_out_of_order_stops_the_receive ... ok
+test serial::xmodem::receive_tests::a_broken_block_is_asked_for_again_and_a_repeated_one_skipped ... ok
+test serial::xmodem::receive_tests::a_device_cancelling_stops_the_receive ... ok
+test serial::xmodem::receive_tests::a_device_that_never_sends_is_given_up_on_falling_back_to_checksums ... ok
+test serial::xmodem::receive_tests::a_file_without_a_size_says_so_in_the_transfer_list ... ok
+test serial::xmodem::receive_tests::names_from_the_device_stay_in_the_folder ... ok
+test serial::xmodem::receive_tests::xmodem_files_arrive_as_sent ... ok
+test serial::xmodem::receive_tests::ymodem_batches_arrive_with_their_names_and_exact_sizes ... ok
+test serial::xmodem::tests::a_device_that_never_asks_is_given_up_on ... ok
+test serial::xmodem::tests::a_receiver_cancelling_stops_the_transfer ... ok
+test serial::xmodem::tests::a_refused_block_is_sent_again ... ok
+test serial::xmodem::receive_tests::a_taken_name_gets_a_number ... ok
+test serial::xmodem::tests::crc16_matches_the_xmodem_check_value ... ok
+test serial::xmodem::tests::the_user_can_stop_a_transfer ... ok
+test serial::xmodem::tests::xmodem_sends_a_file_in_128_byte_blocks ... ok
+test serial::xmodem::tests::xmodem_uses_checksums_for_a_receiver_that_asks_with_nak ... ok
+test serial::xmodem::tests::xmodem_1k_sends_1024_byte_blocks ... ok
+test serial::xmodem::tests::ymodem_sends_several_files_with_their_names_and_sizes ... ok
+test session::scrollback::tests::a_missing_folder_has_no_snapshots ... ok
+test profiles::groups::tests::deleting_a_group_moves_what_it_holds_up_a_level ... ok
+test session::scrollback::tests::a_damaged_snapshot_is_dropped ... ok
+test session::scrollback::tests::clearing_deletes_every_snapshot ... ok
+test profiles::groups::tests::sibling_names_stay_distinct_and_free_of_the_separator ... ok
+test session::scrollback::tests::a_new_snapshot_replaces_the_old_one ... ok
+test session::scrollback::tests::tab_ids_that_could_leave_the_folder_are_refused ... ok
+test session::scrollback::tests::pruning_keeps_open_tabs_and_ignores_stray_files ... ok
+test session::tests::legacy_session_without_layout_uses_defaults ... ok
+test session::tests::sanitize_session_tabs_keeps_only_a_legacy_shell_integration_turned_on ... ok
+test session::tests::sanitize_session_tabs_migrates_legacy_jump_host_to_jump_hosts ... ok
+test session::scrollback::tests::snapshots_round_trip_with_their_escape_sequences ... ok
+test db::meta::tests::import_file_moves_the_file_into_the_database_and_deletes_it ... ok
+test profiles::groups::tests::repair_mends_missing_parents_loops_and_profiles_in_deleted_groups ... ok
+test session_log::library::tests::deletes_a_session_unless_it_is_being_logged ... ok
+test session_log::library::tests::deletes_many_and_reports_the_ones_it_could_not ... ok
+test db::legacy_import::tests::missing_files_import_as_empty ... ok
+test session_log::library::tests::deleting_removes_folders_left_empty ... ok
+test session::scrollback::tests::reading_deletes_the_snapshots_of_tabs_no_longer_open ... ok
+test session_log::library::tests::parses_log_file_names ... ok
+test session_log::library::tests::exports_asciicast_v2 ... ok
+test db::meta::tests::a_file_that_fails_to_import_stays_and_nothing_is_written ... ok
+test session_log::library::tests::lists_sessions_with_their_parts ... ok
+test session_log::library::tests::plain_text_joins_parts_without_repeated_headers ... ok
+test db::legacy_import::tests::settings_files_move_into_the_database_leaving_only_config_json ... ok
+test session_log::library::tests::lists_sessions_in_folders ... ok
+test session_log::library::tests::rejects_ids_that_are_not_sessions ... ok
+test profiles::storage::tests::move_profiles_regroups_and_reorders ... ok
+test session_log::library::tests::reads_the_plain_copy_of_a_part_also_left_compressed ... ok
+test session_log::library::tests::looks_only_as_deep_as_a_template_may_go ... ok
+test session_log::retention::tests::does_nothing_when_off_or_missing ... ok
+test session_log::library::tests::reads_metadata_from_either_header ... ok
+test session_log::retention::tests::recognizes_compressed_logs ... ok
+test session_log::library::tests::replay_frames_follow_the_parts_in_order ... ok
+test session_log::retention::tests::keeps_files_in_use_and_recently_written ... ok
+test session_log::screen::tests::clearing_the_screen_keeps_what_it_showed ... ok
+test profiles::storage::tests::delete_profiles_removes_only_the_given_ids ... ok
+test session_log::screen::tests::logs_lines_once_they_scroll_off_the_top ... ok
+test session_log::screen::tests::oldest_pending_tracks_rows_still_on_screen ... ok
+test session_log::screen::tests::lines_scrolled_out_of_a_partial_region_are_not_logged ... ok
+test session_log::screen::tests::combining_marks_stay_with_their_character ... ok
+test session_log::screen::tests::full_screen_programs_leave_a_note_instead_of_frames ... ok
+test session_log::screen::tests::keeps_only_the_last_frame_of_a_progress_line ... ok
+test session_log::screen::tests::prompt_redraw_after_backspaces_is_logged_once ... ok
+test session_log::screen::tests::rejoins_lines_the_terminal_wrapped ... ok
+test session_log::screen::tests::redraws_of_several_lines_leave_the_final_frame ... ok
+test session_log::screen::tests::shrinking_pushes_top_rows_into_the_log ... ok
+test session_log::screen::tests::wrapped_line_split_across_scroll_and_screen_stays_whole ... ok
+test session_log::screen::tests::wide_characters_take_two_columns ... ok
+test session_log::retention::tests::cleans_logs_in_folders_and_removes_emptied_folders ... ok
+test session_log::tests::input_combines_keystrokes_into_submitted_commands ... ok
+test session_log::tests::input_follows_line_editing_keys ... ok
+test session_log::tests::part_paths_follow_folders ... ok
+test session_log::tests::limits_how_deep_the_template_goes ... ok
+test session_log::tests::plain_log_writes_events_right_away_on_an_empty_screen ... ok
+test session_log::tests::policy_and_manual_choice_decide_recording ... ok
+test session_log::tests::policy_reads_profile_labels ... ok
+test session_log::retention::tests::trims_oldest_logs_to_the_size_limit ... ok
+test session_log::tests::renders_folders_from_the_template ... ok
+test profiles::storage::tests::moved_profiles_keep_their_own_order_whatever_order_they_are_named_in ... ok
+test session_log::tests::renders_session_name_tokens ... ok
+test session_log::tests::sanitizes_cross_platform_file_names ... ok
+test sftp::internal::api::archive::script::tests::compresses_entries_relative_to_their_folder ... ok
+test sftp::internal::api::archive::script::tests::decompresses_a_single_file_beside_it ... ok
+test sftp::internal::api::archive::script::tests::extracts_tar_keeping_existing_files_unless_overwriting ... ok
+test sftp::internal::api::archive::script::tests::extracts_zip_and_7z_with_their_overwrite_modes ... ok
+test sftp::internal::api::archive::script::tests::names_the_decompressed_file ... ok
+test sftp::internal::api::archive::script::tests::needs_a_destination ... ok
+test sftp::internal::api::archive::script::tests::refuses_paths_as_names ... ok
+test sftp::internal::api::archive::script::tests::zips_with_symbolic_links_kept ... ok
+test sftp::internal::api::conflict::tests::candidate_names_insert_the_copy_number_before_the_extension ... ok
+test sftp::internal::api::conflict::tests::free_destination_is_used_under_every_policy ... ok
+test sftp::internal::api::conflict::tests::overwrite_if_newer_needs_a_strictly_newer_source ... ok
+test sftp::internal::api::conflict::tests::policies_resolve_an_existing_file ... ok
+test sftp::internal::api::conflict::tests::report_counts_everything_but_lists_a_bounded_prefix ... ok
+test sftp::internal::api::conflict::tests::retry_skips_finished_files_before_the_policy ... ok
+test session_log::tests::compressed_file_prevents_name_reuse ... ok
+test session_log::retention::tests::removes_expired_tterm_logs_only ... ok
+test session_log::tests::plain_log_notes_full_screen_programs_in_order ... ok
+test sftp::internal::api::download::directory::tests::rename_takes_the_first_free_copy_name ... ok
+test session_log::tests::plain_log_puts_typed_lines_between_the_output_around_them ... ok
+test sftp::internal::api::download::directory::tests::rename_retry_skips_the_copy_an_earlier_attempt_finished ... ok
+test session_log::tests::compression_preserves_content ... ok
+test session_log::tests::plain_log_without_timestamps_keeps_output_bare ... ok
+test sftp::internal::api::edit::tests::never_sends_an_owner_without_its_group ... ok
+test sftp::internal::api::edit::tests::restores_the_owner_before_the_mode_and_only_what_changed ... ok
+test sftp::internal::api::edit::tests::the_temporary_file_gets_only_the_read_write_and_execute_bits ... ok
+test sftp::internal::api::external::tests::a_change_is_read_once_it_holds_for_a_look ... ok
+test sftp::internal::api::external::tests::a_save_that_differs_from_the_server_is_reported_each_time ... ok
+test sftp::internal::api::external::tests::a_save_after_a_failed_upload_clears_the_error ... ok
+test sftp::internal::api::external::tests::files_the_system_would_run_are_told_apart ... ok
+test sftp::internal::api::external::tests::files_with_changes_are_kept_when_their_tab_closes ... ok
+test sftp::internal::api::external::tests::local_names_avoid_what_windows_forbids ... ok
+test sftp::internal::api::download::directory::tests::skip_and_overwrite_if_newer_keep_a_newer_local_file ... ok
+test sftp::internal::api::external::tests::local_names_keep_the_remote_name_outside_windows ... ok
+test sftp::internal::api::external::tests::the_watch_ends_once_no_file_is_open ... ok
+test sftp::internal::api::external::tests::uploading_files_are_neither_watched_nor_changed ... ok
+test sftp::internal::api::search::find::tests::names_come_from_the_last_component ... ok
+test sftp::internal::api::search::find::tests::parser_reads_records_across_chunks_after_the_marker ... ok
+test sftp::internal::api::search::find::tests::parser_rejects_output_without_the_marker ... ok
+test session_log::tests::compression_leaves_no_unfinished_archive ... ok
+test sftp::internal::api::search::matcher::tests::leaves_non_ascii_and_backslashes_to_the_matcher ... ok
+test sftp::internal::api::search::find::tests::script_prunes_hidden_entries_and_prefilters_names ... ok
+test sftp::internal::api::search::matcher::tests::invalid_regex_falls_back_to_glob_or_fails ... ok
+test sftp::internal::api::search::matcher::tests::globs_match_the_whole_name ... ok
+test sftp::internal::api::search::matcher::tests::plain_text_matches_anywhere_ignoring_case ... ok
+test sftp::internal::api::tests::parallelism_cache_hits_when_config_file_is_absent ... ok
+test sftp::internal::api::search::matcher::tests::regex_option_takes_a_regular_expression ... ok
+test sftp::internal::api::tests::parallelism_cache_matches_mtime_token ... ok
+test sftp::internal::connection::tests::idle_connections_close_after_the_timeout_unless_in_use ... ok
+test sftp::internal::api::search::matcher::tests::glob_classes_follow_the_drawer_filter ... ok
+test sftp::internal::connection::tests::released_connections_close_once_unused ... ok
+test sftp::internal::exec::tests::failure_message_prefers_standard_error ... ok
+test sftp::internal::exec::tests::keeps_paths_from_reading_as_options ... ok
+test sftp::internal::exec::tests::quotes_single_quotes_inside_a_word ... ok
+test sftp::internal::sudo::host_tests::real_sudo_account_limited_to_some_commands_cannot_start_sftp ... ignored, needs a host with sudo; see the module docs
+test sftp::internal::sudo::host_tests::real_sudo_account_outside_sudoers_is_refused ... ignored, needs a host with sudo; see the module docs
+test sftp::internal::sudo::host_tests::real_sudo_asks_when_nothing_is_saved_and_again_after_a_typo ... ignored, needs a host with sudo; see the module docs
+test sftp::internal::sudo::host_tests::real_sudo_password_account_works_as_root ... ignored, needs a host with sudo; see the module docs
+test sftp::internal::sudo::host_tests::real_sudo_passwordless_account_with_fish_needs_no_password ... ignored, needs a host with sudo; see the module docs
+test sftp::internal::sudo::host_tests::real_sudo_requiretty_is_named ... ignored, needs a host with sudo; see the module docs
+test sftp::internal::sudo::host_tests::real_sudo_wrong_password_fails_at_once ... ignored, needs a host with sudo; see the module docs
+test sftp::internal::sudo::tests::a_channel_that_never_got_ready_says_why ... ok
+test sftp::internal::sudo::tests::a_refused_password_check_keeps_the_words_of_either_sudo ... ok
+test sftp::internal::sudo::tests::a_retry_prompt_means_a_wrong_password_in_both_sudos ... ok
+test sftp::internal::api::external::tests::a_save_that_replaces_the_copy_is_seen ... ok
+test sftp::internal::sudo::tests::commands_read_the_same_in_every_login_shell ... ok
+test session_log::tests::recovery_keeps_the_log_when_its_compression_was_cut_short ... ok
+test sftp::internal::sudo::tests::sudo_never_reuses_cached_credentials ... ok
+test sftp::internal::sudo::tests::the_probe_stops_only_for_a_tty_or_a_missing_sudo ... ok
+test sftp::internal::sudo::tests::the_sftp_server_script_tries_sshd_config_first_and_names_a_missing_program ... ok
+test sftp::internal::transfer::rate_limit::tests::a_rate_change_applies_to_a_waiting_request ... ok
+test sftp::internal::transfer::rate_limit::tests::cancel_interrupts_a_wait ... ok
+test sftp::internal::transfer::rate_limit::tests::lowering_the_rate_shrinks_a_full_bucket ... ok
+test sftp::internal::api::download::directory::tests::plans_files_and_folders_of_a_selection_side_by_side ... ok
+test sftp::internal::transfer::tests::bitmap_round_trips_and_rehomes ... ok
+test sftp::internal::transfer::rate_limit::tests::unlimited_never_waits ... ok
+test sftp::internal::transfer::tests::checkpoint_cadence_ignores_chunk_counts_below_byte_threshold ... ok
+test sftp::internal::api::edit::tests::a_rename_that_overwrites_keeps_the_mode_from_start_to_end ... ok
+test sftp::internal::transfer::rate_limit::tests::concurrent_requests_share_one_budget ... ok
+test sftp::internal::api::edit::tests::a_rename_that_refuses_writes_into_the_original_file ... ok
+test sftp::internal::connection::tests::a_session_that_refused_a_request_still_answers ... ok
+test sftp::internal::transfer::tests::chunk_size_is_not_clamped_by_wire_limits ... ok
+test sftp::internal::transfer::rate_limit::tests::bytes_never_run_ahead_of_the_budget ... ok
+test sftp::internal::transfer::tests::fallback_io_step_fits_openssh_max_message ... ok
+test sftp::internal::transfer::tests::effective_chunk_size_fills_window_for_small_files ... ok
+test sftp::internal::transfer::rate_limit::tests::throughput_matches_the_rate ... ok
+test profiles::storage::tests::upsert_appends_new_profiles_and_updates_in_place ... ok
+test sftp::internal::transfer::tests::local_sidecar_removal_cleans_tmp_swap_file ... ok
+test sftp::internal::api::upload::commands::tests::policies_resolve_against_a_live_sftp_server ... ok
+test sftp::internal::api::upload::commands::tests::preflight_reports_only_files_that_exist_remotely ... ok
+test sftp::internal::transfer::tests::empty_file_upload_creates_empty_final ... ok
+test serial::history::tests::deleting_a_profile_deletes_its_history ... ok
+test sftp::internal::transfer::tests::complete_checkpoint_with_missing_part_retransmits ... ok
+test sftp::internal::transfer::tests::download_resume_from_partial_local_part ... ok
+test sftp::internal::transfer::tests::single_lane_normalizes_to_a_strictly_sequential_pipeline ... ok
+test sftp::internal::transfer::tests::checkpoint_with_oversized_part_retransmits ... ok
+test sftp::internal::transfer::tests::partial_checkpoint_with_missing_part_retransmits ... ok
+test sftp::internal::transfer::tests::cancel_preserves_checkpoint_and_resumes_to_completion ... ok
+test serial::history::tests::replacing_keeps_the_limit ... ok
+test serial::history::tests::each_connection_keeps_only_its_newest_sends ... ok
+test serial::history::tests::sends_can_be_deleted_one_by_one_or_cleared ... ok
+test proxy::tests::storage_keeps_order_and_updates_in_place ... ok
+test sftp::internal::transfer::tests::remote_sidecar_tmp_fallback_recovers_checkpoint ... ok
+test serial::history::tests::sends_come_back_newest_first_and_a_repeat_moves_up ... ok
+test sftp::internal::transfer::tests::single_chunk_upload_replaces_stale_oversized_part ... ok
+test sftp::internal::transfer::tests::single_chunk_upload_skips_checkpoint_files ... ok
+test sftp::internal::transfer::tests::single_lane_writes_in_ascending_offset_order ... ok
+test sftp::internal::transfer::tests::stale_part_survives_failing_remove_and_gets_truncated ... ok
+test ssh::auth::tests::a_missing_password_is_asked_from_the_user ... ok
+test session::tests::importing_a_session_file_keeps_a_newer_one_and_drops_a_broken_one ... ok
+test session::tests::sessions_round_trip_without_secrets ... ok
+test ssh::auth::tests::a_missing_password_is_reported_where_no_prompt_can_show ... ok
+test sftp::internal::transfer::tests::rename_overwrite_and_remove_then_rename_fallback ... ok
+test ssh::auth::tests::an_unreadable_key_is_reported_with_its_path ... ok
+test sftp::internal::transfer::tests::step_level_progress_emits_before_chunk_completes ... ok
+test sftp::internal::transfer::tests::upload_fills_bitmap_holes_and_is_byte_identical ... ok
+test ssh::auth::tests::a_wrong_code_is_rejected ... ok
+test ssh::auth::tests::a_password_typed_at_a_pam_prompt_is_remembered_as_the_password ... ok
+test ssh::auth::tests::auto_answers_keyboard_interactive_prompts_through_the_user ... ok
+test ssh::auth::tests::certificates::a_certificate_and_the_key_it_certifies_are_offered_apart ... ok
+test ssh::auth::tests::auto_signs_in_with_the_key_file_and_names_it ... ok
+test ssh::auth::tests::background_sessions_report_the_prompt_they_cannot_show ... ok
+test ssh::auth::tests::cancelling_a_prompt_fails_the_connection ... ok
+test sftp::internal::transfer::tests::upload_resume_from_partial_remote_part ... ok
+test ssh::auth::tests::certificates::a_missing_configured_certificate_is_reported_with_its_path ... ok
+test ssh::auth::tests::certificates::a_certificate_for_another_key_is_not_offered ... ok
+test sftp::internal::transfer::tests::upload_mtime_or_size_mismatch_retransmits ... ok
+test ssh::auth::tests::certificates::the_agent_offers_a_certificate_as_a_certificate ... ok
+test ssh::auth::tests::interactive_method_sends_every_prompt_to_the_user ... ok
+test ssh::auth::tests::certificates::key_file_method_signs_in_with_a_configured_certificate ... ok
+test ssh::auth::tests::certificates::key_file_method_signs_in_with_the_certificate_beside_the_key ... ok
+test ssh::auth::tests::certificates::a_configured_certificate_that_cannot_be_used_is_explained ... ok
+test ssh::auth::tests::key_file_method_signs_with_the_key ... ok
+test ssh::auth::tests::password_prompts_are_told_apart_from_code_prompts ... ok
+test ssh::auth::tests::plan_fields_pick_the_method_in_precedence_order ... ok
+test ssh::auth::tests::password_method_succeeds_without_prompting ... ok
+test ssh::auth::tests::keyboard_interactive_then_password_asks_for_the_missing_password ... ok
+test ssh::auth::tests::a_remembered_password_the_server_refuses_is_replaced_by_the_typed_one ... ok
+test ssh::auth::tests::auto_asks_for_the_password_again_after_a_wrong_one ... ok
+test ssh::auth::tests::one_time_code_after_the_password_is_asked_from_the_user ... ok
+test ssh::auth::tests::auto_explains_a_server_that_takes_only_unaccepted_keys ... ok
+test ssh::client::tests::latest_queued_size_keeps_the_newest_resize ... ok
+test ssh::auth::tests::auto_remembers_a_typed_password_and_signs_in_with_it_next_time ... ok
+test ssh::jump::config::tests::explains_servers_with_only_dsa_host_keys ... ok
+test ssh::jump::config::tests::rsa_host_keys_are_offered_after_the_others ... ok
+test ssh::jump::pool::tests::a_dropped_session_is_not_found ... ok
+test ssh::auth::tests::certificates::a_refused_certificate_falls_back_to_the_bare_key ... ok
+test ssh::jump::pool::tests::a_hop_key_names_the_route_before_it ... ok
+test ssh::jump::pool::tests::a_second_connection_waits_for_the_first ... ok
+test ssh::jump::pool::tests::a_session_is_found_until_its_last_user_lets_go ... ok
+test ssh::key_file::tests::missing_key_file_names_the_path ... ok
+test ssh::jump::pool::tests::an_evicted_session_is_not_found_but_its_replacement_stays ... ok
+test ssh::auth::tests::certificates::auto_signs_in_with_the_certificate_beside_the_key_file ... ok
+test ssh::key_file::tests::unparseable_key_file_names_the_path ... ok
+test ssh::key_vault::tests::reference_names_the_key_id ... ok
+test ssh::key_vault::tests::import_refuses_missing_and_oversized_files ... ok
+test ssh::key_vault::tests::used_by_lists_profiles_that_sign_in_with_the_key ... ok
+test ssh::openssh_known_hosts::handshake_tests::a_host_proves_itself_with_a_certificate_from_a_trusted_authority ... ok
+test ssh::key_vault::tests::import_takes_only_a_certificate_for_the_key ... ok
+test ssh::key_vault::tests::keys_are_saved_secrets_that_stay_apart_from_passwords ... ok
+test ssh::openssh_known_hosts::tests::a_certificate_from_a_trusted_authority_is_trusted_for_its_principals ... ok
+test ssh::openssh_known_hosts::handshake_tests::a_host_without_a_trusted_authority_presents_its_plain_key ... ok
+test ssh::openssh_known_hosts::tests::a_certificate_from_an_unknown_authority_is_checked_as_its_plain_key ... ok
+test ssh::openssh_known_hosts::tests::a_host_on_another_port_is_named_with_its_port ... ok
+test ssh::openssh_known_hosts::tests::a_certificate_that_does_not_hold_is_refused ... ok
+test ssh::openssh_known_hosts::tests::a_revoked_key_is_refused_even_where_it_is_listed ... ok
+test ssh::openssh_known_hosts::tests::hashed_and_negated_host_names_are_matched ... ok
+test ssh::openssh_known_hosts::tests::a_listed_key_is_trusted_and_a_different_one_of_its_type_is_a_change ... ok
+test ssh::rsa_signer::tests::pem_loader_explains_what_it_cannot_read ... ok
+test ssh::openssh_known_hosts::tests::lines_that_cannot_be_read_are_passed_over ... ok
+test ssh::rsa_signer::tests::pem_loader_leaves_other_files_to_the_caller ... ok
+test ssh::secret_store::crypto::tests::base64_round_trip ... ok
+test ssh::secret_store::crypto::tests::data_key_unwraps_only_with_the_right_key_and_kind ... ok
+test ssh::secret_store::keyring_backend::tests::list_real_accounts ... ignored
+test ssh::secret_store::crypto::tests::secrets_round_trip_and_are_bound_to_their_key ... ok
+test ssh::secret_store::crypto::tests::password_derivation_depends_on_password_and_salt ... ok
+test ssh::secret_store::keyring_backend::tests::only_the_installed_app_uses_the_original_service ... ok
+test sftp::internal::transfer::tests::small_file_without_limits_shrinks_chunks_and_resumes ... ok
+test ssh::key_vault::tests::export_writes_the_key_and_its_certificate_beside_it ... ok
+test ssh::secret_store::legacy::tests::decrypts_a_legacy_vault_and_rejects_a_wrong_password ... ok
+test ssh::auth::tests::stored_password_answers_a_pam_password_prompt ... ok
+test ssh::auth::tests::wrong_password_fails_without_falling_back_while_password_is_still_offered ... ok
+test ssh::auth::tests::the_stored_password_answers_only_one_prompt ... ok
+test ssh::auth::tests::a_failed_login_remembers_nothing ... ok
+test ssh::auth::tests::auto_skips_a_key_whose_passphrase_is_cancelled ... ok
+test ssh::key_vault::tests::summary_describes_the_key ... ok
+test ssh::secret_store::store::tests::secrets_round_trip_and_follow_their_profile ... ok
+test ssh::secret_store::migration::tests::system_mode_reads_each_entry_and_keeps_unreadable_ones ... ok
+test ssh::secret_store::store::tests::a_secret_saved_before_its_profile_is_linked_later ... ok
+test ssh::secret_store::store::tests::snapshot_restores_rows_exactly ... ok
+test ssh::secret_store::types::tests::old_modes_map_onto_the_new_ones ... ok
+test ssh::secret_store::verification::tests::a_reveal_lasts_a_while_and_a_sensitive_grant_is_used_once ... ok
+test ssh::secret_store::verification::tests::the_method_follows_the_storage_mode ... ok
+test ssh::shell_integration::tests::installs_every_script_once_under_a_stable_version ... ok
+test ssh::shell_integration::tests::quotes_the_start_script_path ... ok
+test ssh::shell_integration::tests::reads_the_answer_after_startup_noise ... ok
+test ssh::shell_integration::tests::reads_the_host_name_beside_the_answer ... ok
+test ssh::shell_integration::tests::serializes_the_status_for_the_connection_header ... ok
+test ssh::shell_integration::tests::starts_without_marks_when_they_are_off ... ok
+test ssh::store::tests::known_host_lookup_does_not_match_same_profile_different_host ... ok
+test ssh::store::tests::known_host_lookup_includes_host_and_port_when_profile_id_matches ... ok
+test ssh::secret_store::store::tests::wraps_replace_by_kind ... ok
+test ssh::secret_store::migration::tests::hybrid_without_a_saved_master_waits_for_the_vault_password ... ok
+test ssh::typed_passwords::tests::passwords_are_kept_per_tab_and_account ... ok
+test ssh::types::tests::connect_error_classifies_retryability ... ok
+test ssh::types::tests::normal_mode_prompts_for_unknown_host_key ... ok
+test ssh::types::tests::test_mode_rejects_changed_known_host_key ... ok
+test ssh::types::tests::test_mode_trusts_unknown_host_key_for_session ... ok
+test sync::document::tests::history_is_bounded ... ok
+test ssh::secret_store::migration::tests::a_fresh_install_starts_with_an_empty_store ... ok
+test ssh::secret_store::migration::tests::vault_mode_becomes_master_password_mode ... ok
+test sync::merge::tests::a_field_removed_on_one_side_stays_removed ... ok
+test sync::merge::tests::an_edit_wins_over_a_deletion ... ok
+test sync::merge::tests::compares_data_without_timestamps ... ok
+test sync::merge::tests::equal_changes_keep_the_newest_timestamp ... ok
+test sync::merge::tests::first_sync_is_a_union ... ok
+test sync::merge::tests::merges_different_fields_changed_on_both_sides ... ok
+test sync::merge::tests::merging_is_stable_once_both_sides_agree ... ok
+test sync::merge::tests::non_object_conflicts_pick_a_whole_side ... ok
+test sync::merge::tests::same_field_conflicts_take_the_later_change_and_remote_on_ties ... ok
+test sync::merge::tests::takes_one_sided_changes_additions_and_deletions ... ok
+test sync::snapshot::tests::every_synced_setting_names_a_config_field ... ok
+test ssh::secret_store::tests::resetting_keeps_everything_when_the_credential_store_fails ... ok
+test ssh::store::tests::listing_shows_current_profile_names_and_deleting_forgets_entries ... ok
+test ssh::secret_store::migration::tests::hybrid_moves_the_vault_and_keeps_its_password_for_recovery ... ok
+test sync::tests::categories_this_device_skips_are_carried_over ... ok
+test ssh::store::tests::saving_a_known_host_prefers_the_profile_id_match ... ok
+test ssh::secret_store::tests::a_second_database_keeps_the_credential_store_key_of_the_first ... ok
+test ssh::secret_store::tests::resetting_drops_unreadable_secrets_and_unlocks_with_the_credential_store ... ok
+test sync::tests::lineage_decides_whether_the_base_applies ... ok
+test sync::tests::live_devices_sync_through_a_server ... ignored
+test sync::tests::live_devices_syncing_at_once_lose_nothing ... ignored
+test ssh::secret_store::tests::a_lost_credential_store_key_is_reported_and_recoverable_by_password ... ok
+test ssh::auth::tests::auto_unlocks_an_encrypted_key_with_the_typed_passphrase ... ok
+test ssh::key_vault::tests::inspect_reads_the_public_half_and_checks_a_passphrase ... ok
+test sync::tests::a_sync_file_from_before_groups_had_ids_files_profiles_by_group_name ... ok
+test sync::tests::sync_settings_default_and_validate_intervals ... ok
+test ssh::key_vault::tests::import_names_the_key_after_its_file_and_keeps_a_passphrase_only_when_asked ... ok
+test sync::document::tests::round_trips_and_hides_the_content ... ok
+test ssh::secret_store::tests::changing_the_master_password_keeps_secrets_readable ... ok
+test system_integration::choices::tests::the_last_choice_wins_over_the_default ... ok
+test system_integration::launcher::tests::the_sh_launcher_quotes_the_program_for_the_shell ... ok
+test system_integration::launcher::tests::writes_only_what_changed ... ok
+test system_integration::tests::the_folder_menu_is_named_in_the_app_language_or_english ... ok
+test system_integration::tests::the_identifier_is_the_one_tauri_uses ... ok
+test system_integration::user_path::tests::adds_the_directory_at_the_end ... ok
+test system_integration::user_path::tests::finds_the_directory_however_it_is_written ... ok
+test system_integration::user_path::tests::removes_only_the_directory ... ok
+test system_integration::windows_command::tests::the_cmd_launcher_starts_tterm_with_the_arguments ... ok
+test terminal::encoding::tests::decodes_gbk_output_split_mid_character ... ok
+test terminal::encoding::tests::encodes_input_and_replaces_unmappable_characters ... ok
+test terminal::encoding::tests::encodes_long_input_across_buffer_refills ... ok
+test terminal::encoding::tests::escape_sequences_survive_decoding ... ok
+test terminal::encoding::tests::missing_unknown_and_utf16_labels_are_utf8 ... ok
+test terminal::encoding::tests::utf8_sessions_skip_conversion ... ok
+test sync::document::tests::rejects_wrong_passwords_and_foreign_files ... ok
+test terminal::io_batcher::tests::an_echo_after_a_quiet_spell_skips_the_batching_window ... ok
+test terminal::io_batcher::tests::finish_flushes_queued_bytes_in_order ... ok
+test terminal::io_batcher::tests::finish_waits_for_blocked_reader_sends ... ok
+test terminal::io_batcher::tests::flush_all_buffers_partial_trailing_sequence ... ok
+test terminal::io_batcher::tests::flush_all_never_emits_partial_utf8_across_chunks ... ok
+test terminal::io_batcher::tests::flush_all_splits_large_batches_into_capped_chunks ... ok
+test sync::tests::triggers_record_when_rows_change ... ok
+test sync::tests::an_overwritten_upload_is_merged_back_instead_of_deleted ... ok
+test sync::tests::groups_moved_into_each_other_on_two_devices_settle_on_one_tree ... ok
+test terminal::io_batcher::tests::rapid_messages_coalesce_into_fewer_chunks ... ok
+test sync::tests::fields_from_a_newer_version_survive_an_older_device ... ok
+test terminal::io_batcher::tests::send_after_finish_is_a_noop ... ok
+test sync::tests::commands_sync_but_usage_counts_stay_per_device ... ok
+test terminal::io_batcher::tests::output_nobody_typed_for_waits_a_window_after_a_quiet_spell ... ok
+test terminal::io_batcher::tests::close_releases_a_paused_sender ... ok
+test terminal::io_batcher::tests::utf8_prefix_defers_partial_trailing_sequence ... ok
+test terminal::io_batcher::tests::utf8_prefix_handles_four_byte_sequences ... ok
+test terminal::io_batcher::tests::utf8_prefix_is_fine_for_plain_ascii_and_controls ... ok
+test terminal::io_batcher::tests::utf8_prefix_keeps_complete_sequences ... ok
+test terminal::io_batcher::tests::utf8_prefix_never_wedges_on_malformed_bytes ... ok
+test terminal::output_tail::tests::accepts_localized_prompt_with_full_width_colon ... ok
+test terminal::output_tail::tests::accepts_prompt_as_last_line ... ok
+test terminal::output_tail::tests::accepts_prompt_split_by_escapes_and_status_redraw ... ok
+test terminal::output_tail::tests::keeps_only_bounded_tail ... ok
+test terminal::output_tail::tests::rejects_prompt_followed_by_newline ... ok
+test terminal::output_tail::tests::rejects_prompt_without_colon ... ok
+test terminal::pty::tests::a_leading_tilde_names_the_home_directory ... ok
+test terminal::pty::tests::local_shell_advertises_truecolor ... ok
+test terminal::pty::tests::names_shells_by_program ... ok
+test terminal::pty::tests::starts_only_in_a_directory_that_exists ... ok
+test sync::tests::nested_groups_sync_and_merge_a_rename_with_a_move ... ok
+test terminal::shell_args::tests::keeps_a_quoted_windows_path_whole ... ok
+test terminal::shell_args::tests::reads_quotes_and_backslashes_as_a_posix_shell_does ... ok
+test terminal::shell_args::tests::runs_an_open_quote_to_the_end ... ok
+test terminal::shell_args::tests::splits_plain_words_at_any_whitespace ... ok
+test terminal::shell_integration::tests::bash_env_exports_the_report_function_after_the_user_prompt_command ... ok
+test terminal::shell_integration::tests::bash_env_with_marks_runs_the_prompt_function_before_the_user_prompt_command ... ok
+test terminal::shell_integration::tests::cmd_prompt_reports_the_directory_before_the_user_prompt ... ok
+test terminal::shell_integration::tests::detects_shells_by_executable_name ... ok
+test sync::tests::proxies_and_their_passwords_sync_in_order ... ok
+test sync::tests::groups_tunnels_and_known_hosts_sync ... ok
+test terminal::shell_integration::tests::maps_git_bash_drive_paths_to_windows_paths ... ok
+test terminal::shell_integration::tests::wsl_args_end_with_the_marks_switch ... ok
+test terminal::shell_integration::tests::powershell_script_survives_the_windows_command_line ... ok
+test terminal::ssh_query_handler::tests::clipboard_capability_query_reports_osc_52 ... ok
+test terminal::ssh_query_handler::tests::color_queries_reach_the_terminal ... ok
+test terminal::ssh_query_handler::tests::cursor_position_report_is_answered_and_consumed ... ok
+test sync::tests::themes_sync_with_their_order_edits_and_deletions ... ok
+test terminal::ssh_query_handler::tests::device_attributes_query_is_answered_and_consumed ... ok
+test terminal::ssh_query_handler::tests::incomplete_sequence_tail_is_deferred_to_pending ... ok
+test terminal::ssh_query_handler::tests::multibyte_chars_split_across_packets_survive ... ok
+test terminal::ssh_query_handler::tests::single_char_split_at_packet_boundary_survives ... ok
+test terminal::ssh_query_handler::tests::unterminated_dcs_query_is_released_past_the_cap ... ok
+test terminal::ssh_query_handler::tests::unterminated_osc_does_not_hold_back_later_output ... ok
+test sync::tests::serial_sends_sync_as_one_history_and_clearing_travels ... ok
+test terminal::types::tests::a_bracketed_paste_is_written_without_waiting_for_output ... ok
+test sync::tests::passwords_sync_and_follow_their_profile ... ok
+test terminal::ssh_query_handler::tests::large_osc_streams_through_without_buffering ... ok
+test terminal::windows_shell::tests::expands_custom_shell_paths ... ok
+test terminal::windows_shell::tests::names_the_wsl_distribution_to_start ... ok
+test terminal::windows_shell::tests::refuses_a_wsl_distribution_that_is_not_installed ... ok
+test terminal::wsl_distros::tests::lists_the_default_first_then_by_name_without_docker_or_unfinished_ones ... ok
+test terminal::wsl_distros::tests::matches_the_default_guid_whatever_its_case ... ok
+test terminal::wsl_distros::tests::reads_the_installed_distributions ... ok
+test themes::tests::dedupe_keeps_the_last_copy_in_the_first_place ... ok
+test terminal::windows_shell::tests::finds_windows_shells ... ok
+test sync::tests::two_devices_converge_and_deletions_travel ... ok
+test tunnel::commands::tests::non_ssh_profiles_are_rejected ... ok
+test tunnel::commands::tests::options_carry_key_auth_and_enabled_jump_hosts ... ok
+test tunnel::commands::tests::options_skip_a_disabled_jump_chain_and_password_profiles_carry_no_key ... ok
+test terminal::shell_integration::tests::installs_scripts_with_lf_line_endings_and_rewrites_stale_ones ... ok
+test tunnel::credentials::tests::apply_credentials_maps_secrets_onto_the_right_hop ... ok
+test terminal::types::tests::ctrl_c_drops_the_rest_of_a_paste ... ok
+test tunnel::credentials::tests::missing_password_is_requested_unless_saved_or_provided ... ok
+test tunnel::credentials::tests::outcomes_serialize_with_a_status_tag ... ok
+test terminal::types::tests::ctrl_c_ends_a_bracketed_paste_it_cuts_short ... ok
+test tunnel::credentials::tests::saved_jump_passwords_are_filled_in ... ok
+test tunnel::credentials::tests::unusable_key_files_are_errors_not_prompts ... ok
+test tunnel::forwards::tests::bind_addresses_are_parsed_in_all_spellings ... ok
+test tunnel::forwards::tests::dynamic_forward_takes_only_a_listen_address ... ok
+test tunnel::forwards::tests::local_forward_defaults_to_loopback ... ok
+test tunnel::credentials::tests::plain_keys_need_nothing ... ok
+test tunnel::forwards::tests::malformed_forwards_are_rejected ... ok
+test tunnel::forwards::tests::merging_twice_adds_nothing_new ... ok
+test tunnel::forwards::tests::remote_forward_parses_like_local ... ok
+test tunnel::forwards::tests::rules_are_named_after_their_destination ... ok
+test themes::tests::replace_keeps_order_and_touches_only_changed_themes ... ok
+test themes::tests::replace_rejects_themes_without_id_or_twice ... ok
+test terminal::io_batcher::tests::stalled_acknowledgements_do_not_wedge_the_sender ... ok
+test tunnel::hub::tests::keys_ignore_secrets_in_the_id_but_not_in_the_hash ... ok
+test terminal::io_batcher::tests::steady_trickle_flushes_without_waiting_for_disconnect ... ok
+test tunnel::hub::tests::router_hands_channels_to_the_tunnel_that_claimed_the_port ... ok
+test terminal::io_batcher::tests::moving_to_a_new_page_resumes_output_there ... ok
+test tunnel::runtime::tests::backoff_grows_and_is_capped ... ok
+test tunnel::runtime::tests::binding_a_taken_port_fails ... ok
+test tunnel::runtime::tests::channel_failures_are_classified_and_described ... ok
+test tunnel::runtime::tests::channel_failures_map_to_socks_replies ... ok
+test tunnel::runtime::tests::connection_guard_tracks_active_and_total ... ok
+test tunnel::runtime::tests::counted_stream_attributes_bytes_by_direction ... ok
+test tunnel::runtime::tests::keepalive_is_clamped_for_tunnels ... ok
+test tunnel::runtime::tests::limiter_refuses_past_the_limit_and_frees_slots ... ok
+test tunnel::runtime::tests::localhost_listens_on_ipv4_and_serves_accepts ... ok
+test tunnel::runtime::tests::refused_connections_are_closed_at_once ... ok
+test tunnel::runtime::tests::remote_star_means_all_interfaces ... ok
+test tunnel::runtime::tests::wait_for_stop_resolves_on_signal_and_when_sender_drops ... ok
+test tunnel::socks5::tests::outcomes_map_to_distinct_reply_codes ... ok
+test tunnel::socks5::tests::parses_a_domain_connect_request ... ok
+test tunnel::socks5::tests::parses_ipv4_and_ipv6_requests ... ok
+test tunnel::socks5::tests::refuses_clients_that_need_authentication ... ok
+test tunnel::socks5::tests::rejects_non_socks5_traffic ... ok
+test tunnel::socks5::tests::rejects_unsupported_commands_with_a_reply ... ok
+test tunnel::storage::tests::reset_zeroes_and_restarts_the_count ... ok
+test tunnel::storage::tests::traffic_accumulates_and_keeps_its_start ... ok
+test tunnel::storage::tests::traffic_follows_its_rule ... ok
+test tunnel::storage::tests::traffic_of_a_missing_rule_is_not_saved ... ok
+test tunnel::types::tests::only_live_states_count_as_active ... ok
+test tunnel::types::tests::rules_compete_for_a_port_only_when_they_listen_in_the_same_place ... ok
+test tunnel::types::tests::stats_record_and_reset_failures ... ok
+test tunnel::types::tests::validate_rejects_missing_fields ... ok
+test tunnel::types::tests::validate_requires_a_destination_except_for_dynamic ... ok
+test tunnel::types::tests::validate_trims_and_accepts_a_local_rule ... ok
+test updater::tests::does_not_retry_non_network_errors ... ok
+test updater::tests::retries_network_errors_until_success ... ok
+test updater::tests::stops_after_max_attempts ... ok
+test window_blur::tests::classifies_theme_backgrounds ... ok
+test window_state::tests::a_maximized_window_keeps_the_bounds_it_had_before ... ok
+test window_state::tests::a_normal_window_is_taken_as_it_is ... ok
+test window_state::tests::a_sliver_of_title_bar_is_not_enough ... ok
+test window_state::tests::a_title_bar_above_every_screen_is_off_screen ... ok
+test window_state::tests::a_window_maximized_from_the_start_falls_back_to_its_maximized_bounds ... ok
+test window_state::tests::an_empty_window_changes_nothing ... ok
+test window_state::tests::bounds_on_a_connected_monitor_are_on_screen ... ok
+test window_state::tests::bounds_on_an_unplugged_monitor_are_off_screen ... ok
+test window_state::tests::centering_keeps_the_size_that_fits ... ok
+test window_state::tests::centering_shrinks_a_window_larger_than_the_screen ... ok
+test window_state::tests::minimized_and_fullscreen_windows_change_nothing ... ok
+test zmodem::detect::tests::detects_zrinit_trigger ... ok
+test zmodem::detect::tests::detects_zrqinit_trigger_in_one_chunk ... ok
+test zmodem::detect::tests::near_miss_prefix_is_eventually_released_as_passthrough ... ok
+test zmodem::detect::tests::one_byte_at_a_time_still_finds_the_trigger ... ok
+test zmodem::detect::tests::ordinary_output_passes_through_untouched ... ok
+test zmodem::detect::tests::password_feedback_stars_are_forwarded_immediately ... ok
+test zmodem::detect::tests::trigger_split_across_every_possible_chunk_boundary_is_still_found ... ok
+test zmodem::detect::tests::trigger_starting_with_already_forwarded_stars_is_found ... ok
+test zmodem::protocol::crc::tests::crc16_matches_real_lrzsz_headers ... ok
+test zmodem::protocol::crc::tests::crc16_matches_the_xmodem_check_value ... ok
+test zmodem::protocol::crc::tests::crc32_matches_real_lrzsz_header ... ok
+test zmodem::protocol::engine::tests::abort_run_of_can_bytes_ends_the_session ... ok
+test zmodem::protocol::engine::tests::bytes_split_across_many_tiny_feeds_still_decode ... ok
+test zmodem::protocol::engine::tests::receive_handles_corrupt_subpacket_with_zrpos_resend ... ok
+test zmodem::protocol::engine::tests::receive_walkthrough_matches_real_sz_sequence ... ok
+test zmodem::protocol::engine::tests::send_mid_stream_zrpos_reroutes_the_caller ... ok
+test zmodem::protocol::engine::tests::send_walkthrough_produces_a_valid_frame_sequence ... ok
+test zmodem::protocol::frame::tests::corrupted_subpacket_is_reported_as_corrupt_not_need_more ... ok
+test zmodem::protocol::frame::tests::data_subpacket_escapes_cr_only_right_after_at_sign ... ok
+test zmodem::protocol::frame::tests::data_subpacket_round_trips_with_zdle_at_every_offset ... ok
+test zmodem::protocol::frame::tests::decodes_real_metadata_subpacket ... ok
+test zmodem::protocol::frame::tests::decodes_real_zfile_header ... ok
+test zmodem::protocol::frame::tests::encode_bin32_header_round_trips_through_scan ... ok
+test zmodem::protocol::frame::tests::encode_hex_header_round_trips_through_scan ... ok
+test zmodem::protocol::frame::tests::header_scan_discards_a_chunk_with_no_pad_at_all ... ok
+test zmodem::protocol::frame::tests::header_scan_reports_need_more_on_truncation ... ok
+test zmodem::protocol::frame::tests::header_scan_skips_stray_bytes_before_a_real_header ... ok
+test zmodem::real_interop_tests::engine_receives_a_binary_file_from_real_sz ... ignored, requires the real `sz` binary from lrzsz
+test zmodem::real_interop_tests::engine_receives_a_small_text_file_from_real_sz ... ignored, requires the real `sz` binary from lrzsz
+test zmodem::real_interop_tests::engine_sends_a_binary_file_to_real_rz ... ignored, requires the real `rz` binary from lrzsz
+test zmodem::real_pty_interop_tests::manual_trigger_receives_from_real_sz_with_auto_detect_disabled ... ignored, requires the real `sz` binary from lrzsz, and spawns a real local PTY
+test zmodem::real_pty_interop_tests::wired_driver_receives_a_file_from_real_sz_over_a_real_pty ... ignored, requires the real `sz` binary from lrzsz, and spawns a real local PTY
+test zmodem::real_pty_send_interop_tests::wired_send_uploads_a_file_to_real_rz_over_a_real_pty ... ignored, requires the real `rz` binary from lrzsz, and spawns a real local PTY
+test zmodem::real_ssh_interop_tests::wired_driver_receives_a_file_from_real_sz_over_a_real_ssh_channel ... ignored, spawns a local sshd and requires the real `sz` binary from lrzsz
+test zmodem::real_ssh_send_interop_tests::wired_send_uploads_a_file_to_real_rz_over_a_real_ssh_channel ... ignored, spawns a local sshd and requires the real `rz` binary from lrzsz
+test zmodem::session::tests::manual_override_forces_detection_on_when_auto_detect_is_disabled ... ok
+test zmodem::session::tests::manual_override_is_one_shot_for_send_triggers ... ok
+test zmodem::session::tests::resolve_download_dir_falls_back_when_empty ... ok
+test zmodem::session::tests::resolve_download_dir_uses_configured_value_when_set ... ok
+test zmodem::session::tests::unique_destination_path_avoids_collisions ... ok
+test zmodem::session::tests::unique_destination_path_strips_directory_traversal ... ok
+test tunnel::hub::tests::tunnels_asking_together_share_one_dial_and_one_connection ... ok
+test terminal::io_batcher::tests::input_stops_counting_once_its_answer_window_passes ... ok
+test tunnel::hub::tests::different_hosts_get_different_connections ... ok
+test tunnel::hub::tests::a_failure_is_not_inherited_by_tunnels_using_other_secrets ... ok
+test tunnel::hub::tests::a_failed_dial_is_shared_only_with_tunnels_that_waited_for_it ... ok
+test tunnel::hub::tests::a_dead_connection_is_replaced_and_the_old_lease_does_not_disturb_the_new_one ... ok
+test tunnel::credentials::tests::jump_hosts_are_checked_independently ... ok
+test terminal::types::tests::a_paste_runs_ahead_of_the_shell_only_by_a_window ... ok
+test terminal::io_batcher::tests::sender_pauses_at_high_watermark_until_acknowledged ... ok
+test tunnel::hub::tests::only_the_last_release_closes_the_connection ... ok
+test terminal::pty::windows_color_tests::conpty_forwards_theme_queries_and_delivers_replies_to_console_apps ... ok
+test tunnel::credentials::tests::encrypted_keys_request_a_passphrase_and_flag_a_wrong_one ... ok
+test sftp::internal::transfer::tests::large_upload_crossing_checkpoint_threshold_completes ... ok
+test sftp::internal::transfer::tests::parallel_upload_outperforms_serial_with_injected_latency ... ok
+test terminal::io_batcher::tests::reader_thread_delivers_batched_utf8_stream_in_order ... ok
+test proxy::tests::an_unreachable_or_silent_proxy_can_be_retried ... ok
+test sftp::internal::transfer::tests::rate_limited_progress_never_runs_ahead_of_the_budget ... ok
+test sftp::internal::transfer::tests::rate_limiter_caps_both_directions_across_lanes ... ok
+test sftp::internal::transfer::tests::stalled_remote_fails_instead_of_hanging ... ok
+
+test result: ok. 812 passed; 0 failed; 23 ignored; 0 measured; 0 filtered out; finished in 13.39s
+
+     Running unittests src\main.rs (target\debug\deps\tTerm-ea1810428c0f924a.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_core-70983a2e34d5cc5f.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_gpui-3822ccf83fa22766.exe)
+
+running 12 tests
+test terminal_demo::conpty::tests::only_a_complete_installed_pair_skips_source_preloading ... ok
+test terminal_demo::tests::the_byte_queue_holds_a_fixed_number_of_reads ... ok
+test terminal_demo::tests::the_command_line_picks_the_shell_ssh_or_a_program ... ok
+test terminal_demo::tests::the_home_directory_follows_the_tauri_order ... ok
+test terminal_demo::tests::windows_prefers_powershell_7_then_windows_powershell_then_cmd ... ok
+test terminal_demo::tests::a_size_reply_leaves_the_damage_for_the_view ... ok
+test terminal_demo::tests::query_replies_reach_the_writer_in_order ... ok
+test terminal_demo::tests::intents_are_drained_and_only_the_last_title_is_kept ... ok
+test terminal_demo::tests::a_title_reset_restores_the_default_title ... ok
+test terminal_demo::tests::closing_the_session_ends_the_program_without_blocking ... ok
+test terminal_demo::tests::the_pipeline_applies_every_byte_and_the_history_stays_bounded ... ok
+test terminal_demo::tests::a_program_that_ends_by_itself_leaves_the_exit_notice_and_stops_input ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running unittests src\main.rs (target\debug\deps\tterm_gpui-4fea893e5f2c500f.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_parity-97f93cfea10454e0.exe)
+
+running 60 tests
+test color::tests::dark_theme_tokens_match_the_stylesheet ... ok
+test color::tests::gpui_colours_keep_their_channels ... ok
+test color::tests::hue_wraps_and_extremes_clamp ... ok
+test color::tests::light_theme_tokens_match_the_stylesheet ... ok
+test compare::color::tests::black_and_white_differ_by_one_hundred ... ok
+test compare::color::tests::identical_colours_have_no_difference ... ok
+test compare::image_diff::tests::identical_images_score_one ... ok
+test compare::image_diff::tests::masked_pixels_are_left_out_of_the_colour_difference ... ok
+test compare::image_diff::tests::the_screen_mask_extends_the_text_mask_with_the_element_edges ... ok
+test compare::color::tests::the_dark_theme_blue_is_where_the_stylesheet_says ... ok
+test compare::image_diff::tests::a_changed_pixel_is_counted ... ok
+test compare::image_diff::tests::a_text_region_is_scaled_dilated_and_clipped ... ok
+test compare::color::tests::matches_the_sharma_reference_pair ... ok
+test compare::image_diff::tests::identical_pixels_have_no_colour_difference ... ok
+test compare::image_diff::tests::images_of_different_sizes_score_zero ... ok
+test compare::image_diff::tests::a_changed_window_lowers_ssim_and_turns_the_heatmap_red ... ok
+test compare::image_diff::tests::the_edge_mask_marks_the_one_pixel_band_not_the_interior ... ok
+test compare::image_diff::tests::masking_removes_the_differing_window ... ok
+test compare::layout_check::tests::a_fixed_element_may_move_by_one_pixel ... ok
+test compare::color::tests::matches_the_sharma_weighted_pair ... ok
+test compare::layout_check::tests::a_font_family_change_fails ... ok
+test compare::layout_check::tests::a_fixed_element_moving_more_than_one_pixel_fails_and_names_it ... ok
+test compare::layout_check::tests::a_missing_element_fails ... ok
+test compare::layout_check::tests::a_one_pixel_padding_change_is_rejected ... ok
+test compare::layout_check::tests::a_text_sized_element_gets_two_pixels_or_two_percent ... ok
+test compare::layout_check::tests::identical_layouts_pass ... ok
+test compare::layout_check::tests::transparent_colours_compare_after_compositing ... ok
+test compare::tests::a_mismatched_image_size_is_reported_instead_of_panicking ... ok
+test compare::tests::a_layout_colour_that_does_not_match_the_pixels_fails ... ok
+test compare::tests::a_changed_image_fails_the_ssim_gate ... ok
+test compare::tests::a_padding_change_fails_and_names_the_element ... ok
+test compare::tests::identical_sides_pass ... ok
+test compare::tests::the_html_report_is_deterministic_and_names_the_result ... ok
+test layout::tests::elements_are_sorted_by_id_and_overwritten_not_appended ... ok
+test layout::tests::declared_colours_are_optional_and_keep_their_names ... ok
+test compare::tests::the_screen_colour_gate_sees_a_change_outside_text_and_edges ... ok
+test layout::tests::json_uses_the_contracts_field_names ... ok
+test layout::tests::schema_version_two_is_written ... ok
+test layout::tests::text_regions_are_sorted_by_key ... ok
+test layout::tests::the_reference_reader_ignores_extra_fields ... ok
+test manifest::tests::a_duplicate_screen_id_is_rejected ... ok
+test manifest::tests::a_fixture_path_is_rejected ... ok
+test manifest::tests::a_scale_other_than_one_hundred_is_rejected ... ok
+test manifest::tests::a_zero_viewport_is_rejected ... ok
+test compare::tests::the_screen_report_serialises_identically_twice ... ok
+test manifest::tests::an_unknown_theme_is_rejected ... ok
+test compare::tests::a_declared_colour_that_does_not_match_the_pixels_fails_and_names_the_element ... ok
+test manifest::tests::the_wrong_schema_is_rejected ... ok
+test measure::tests::a_borderless_element_has_no_measured_border ... ok
+test measure::tests::an_element_outside_the_image_names_the_element ... ok
+test measure::tests::declared_colours_are_preserved_and_measured_colours_replace_them ... ok
+test measure::tests::excludes_text_regions_from_the_background_mode ... ok
+test measure::tests::measures_background_and_border_from_pixels ... ok
+test measure::tests::mode_breaks_ties_by_the_smallest_colour ... ok
+test manifest::tests::the_repository_manifest_is_valid ... ok
+test reference::tests::a_current_clean_cache_is_reused ... ok
+test reference::tests::a_dirty_frontend_is_never_reused ... ok
+test reference::tests::a_missing_or_stale_cache_is_captured ... ok
+test reference::tests::dirty_references_live_in_their_own_directory ... ok
+test reference::tests::update_reference_forces_a_capture ... ok
+
+test result: ok. 60 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\debug\deps\tterm_parity-bf4cd7a68322ce02.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_platform-c9d9f043d32fcbbb.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_terminal-8d370cafcecab024.exe)
+
+running 68 tests
+test palette::tests::colors_parse_the_forms_the_theme_uses ... ok
+test palette::tests::indexed_colors_follow_the_xterm_cube ... ok
+test palette::tests::special_and_dim_colors_resolve ... ok
+test palette::tests::bold_standard_colors_use_the_bright_variant ... ok
+test palette::tests::derived_palette_matches_the_typescript_derivation ... ok
+test palette::tests::default_palette_matches_the_default_theme ... ok
+test palette::tests::search_highlights_are_semitransparent_yellow ... ok
+test tests::a_one_column_grid_is_raised_to_two ... ok
+test tests::a_search_match_range_contains_the_cells_it_spans ... ok
+test tests::a_selection_range_knows_which_cells_it_covers ... ok
+test tests::a_utf8_sequence_split_across_writes_survives ... ok
+test tests::a_zero_sized_resize_is_clamped_instead_of_panicking ... ok
+test hint::tests::grid_line_inverts_screen_row ... ok
+test tests::attributes_and_hyperlinks_are_copied ... ok
+test tests::an_invalid_search_pattern_is_an_error_not_a_panic ... ok
+test tests::clipboard_reads_can_be_answered_when_the_caller_allows_them ... ok
+test tests::clipboard_stores_are_intents_and_reads_are_denied_by_default ... ok
+test tests::color_queries_are_answered_from_the_palette_by_the_caller ... ok
+test tests::a_size_built_from_its_fields_is_clamped_too ... ok
+test tests::combining_marks_stay_on_their_cell ... ok
+test hint::tests::a_path_can_wrap_onto_the_next_row ... ok
+test tests::cursor_style_changes_report_blinking_and_shape ... ok
+test tests::damage_is_consumed_by_a_snapshot_and_reset ... ok
+test tests::colors_keep_the_semantic_form_the_application_asked_for ... ok
+test hint::tests::a_file_url_is_not_also_a_path ... ok
+test hint::tests::a_url_can_wrap_onto_the_next_row ... ok
+test hint::tests::a_hint_that_ends_at_the_frame_edge_is_found ... ok
+test tests::extending_without_a_selection_does_nothing ... ok
+test hint::tests::hint_at_uses_grid_coordinates ... ok
+test tests::device_queries_are_answered_as_pty_writes ... ok
+test hint::tests::path_punctuation_is_trimmed ... ok
+test tests::first_frame_contains_the_visible_grid_and_its_defaults ... ok
+test tests::mode_bits_match_the_pinned_alacritty ... ok
+test tests::in_place_updates_damage_only_their_rows ... ok
+test tests::mode_sets_combine_for_groups ... ok
+test tests::invalid_utf8_becomes_replacement_characters_instead_of_panicking ... ok
+test hint::tests::the_brace_range_ends_a_url ... ok
+test tests::changing_the_scrollback_capacity_drops_the_oldest_lines ... ok
+test tests::mouse_motion_modes_map_to_alacritty_flags ... ok
+test tests::modes_follow_the_output ... ok
+test tests::boundary_sequences_are_absorbed ... ok
+test tests::search_finds_matches_in_both_directions ... ok
+test tests::selecting_a_word_reports_the_range_and_the_text ... ok
+test tests::the_bottom_line_flag_tracks_content_in_the_last_row ... ok
+test tests::state_stays_consistent_after_an_alternate_screen_switch ... ok
+test tests::the_clipboard_policy_applies_per_direction ... ok
+test tests::screen_rows_follow_the_display_offset ... ok
+test hint::tests::url_lookalikes_are_not_urls ... ok
+test hint::tests::trailing_punctuation_and_brackets_are_trimmed ... ok
+test tests::the_model_can_be_shared_across_threads ... ok
+test tests::the_cursor_row_is_damaged_in_every_frame ... ok
+test tests::window_size_queries_are_answered_from_the_snapshot ... ok
+test tests::resize_replaces_the_grid_and_damages_everything ... ok
+test tests::writes_text_and_places_the_cursor ... ok
+test tests::the_kitty_keyboard_protocol_is_opt_in ... ok
+test tests::title_and_bell_arrive_as_intents ... ok
+test tests::output_while_scrolled_back_is_fully_damaged ... ok
+test tests::scrollback_capacity_bounds_the_history ... ok
+test tests::output_that_scrolls_the_screen_is_fully_damaged ... ok
+test tests::search_finds_text_in_the_scrollback ... ok
+test hint::tests::paths_are_recognized_conservatively ... ok
+test hint::tests::alacritty_url_schemes_are_recognized ... ok
+test tests::overlong_parameters_and_strings_are_absorbed ... ok
+test hint::tests::random_text_does_not_panic ... ok
+test tests::writing_and_taking_frames_from_two_threads_do_not_deadlock ... ok
+test tests::a_scrolled_back_frame_still_copies_only_the_visible_rows ... ok
+test tests::snapshot_copy_volume_depends_on_visible_lines_not_scrollback ... ok
+test tests::absorbs_a_hundred_thousand_hostile_inputs_without_panicking ... ok
+
+test result: ok. 68 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.34s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_terminal_view-d1920bb224052428.exe)
+
+running 129 tests
+test glyphs::tests::a_full_block_and_a_partial_block_are_consistent ... ok
+test glyphs::tests::quadrants_and_sextants_meet_without_gaps ... ok
+test glyphs::tests::powerline_is_mirrored_for_the_right_hand_pair ... ok
+test glyphs::tests::straight_lines_span_the_whole_cell ... ok
+test input::click::tests::selection_kinds_follow_alacritty ... ok
+test input::click::tests::double_click_follows_a_wrapped_word ... ok
+test input::click::tests::clicks_count_within_the_threshold ... ok
+test input::keyboard::tests::alt_is_meta_or_composed ... ok
+test glyphs::tests::shades_use_the_alacritty_coverage_steps ... ok
+test input::click::tests::double_click_selects_a_word ... ok
+test input::click::tests::double_click_stops_at_a_separator ... ok
+test input::click::tests::double_click_selects_a_wide_word ... ok
+test input::click::tests::reset_forgets_the_previous_click ... ok
+test glyphs::tests::every_supported_character_has_shapes_inside_the_cell ... ok
+test input::focus::tests::focus_reports_only_when_asked_for ... ok
+test input::click::tests::a_slow_click_starts_over ... ok
+test input::keyboard::tests::application_cursor_mode ... ok
+test input::keyboard::tests::alt_is_always_a_modifier_for_functional_keys ... ok
+test input::keyboard::tests::kitty_alternate_keys_and_associated_text ... ok
+test glyphs::tests::unknown_characters_are_left_to_the_font ... ok
+test input::keyboard::tests::control_letters_and_punctuation ... ok
+test input::keyboard::tests::application_keypad_mode ... ok
+test input::click::tests::triple_click_selects_the_line ... ok
+test input::keyboard::tests::kitty_disambiguation ... ok
+test input::keyboard::tests::kitty_event_types ... ok
+test input::keyboard::tests::kitty_reports_all_keys ... ok
+test input::keyboard::tests::kitty_numpad_codes ... ok
+test input::keyboard::tests::non_ascii_key_names_are_text ... ok
+test input::keyboard::tests::modifier_keys_are_flagged ... ok
+test input::mouse::tests::normal_encoding_stops_at_223 ... ok
+test input::keyboard::tests::named_keys_without_modifiers ... ok
+test input::keyboard::tests::modifier_combinations ... ok
+test input::keyboard::tests::vi_mode_writes_nothing ... ok
+test input::mouse::tests::motion_decision_follows_the_mode ... ok
+test input::mouse::tests::motion_encoding ... ok
+test input::mouse::tests::motion_keeps_the_shift_escape_of_a_drag ... ok
+test input::mouse::tests::normal_click_encoding ... ok
+test input::mouse::tests::scrollback_is_not_reportable ... ok
+test input::mouse::tests::utf8_encoding_uses_two_bytes_from_95 ... ok
+test input::mouse::tests::shift_escapes_to_the_local_selection ... ok
+test input::wheel::tests::a_program_that_reports_the_mouse_gets_wheel_reports ... ok
+test input::mouse::tests::mouse_reports_need_a_reporting_mode ... ok
+test input::mouse::tests::wheel_reports ... ok
+test input::mouse::tests::sgr_click_encoding ... ok
+test input::wheel::tests::a_plain_screen_scrolls_locally ... ok
+test input::wheel::tests::alternate_screen_scroll_sends_arrows ... ok
+test input::wheel::tests::no_movement_does_nothing ... ok
+test input::wheel::tests::shift_drops_alternate_scroll ... ok
+test input::wheel::tests::shift_still_reports_when_the_program_takes_the_mouse ... ok
+test view::blink::tests::a_visible_focused_cursor_blinks ... ok
+test view::blink::tests::blur_hiding_and_animation_off_stop_the_timer ... ok
+test view::blink::tests::stopping_reports_whether_a_task_was_running ... ok
+test view::blink::tests::toggling_only_happens_while_running ... ok
+test view::cache::tests::clearing_drops_every_row ... ok
+test view::cache::tests::a_scrolled_screen_reuses_every_remaining_row ... ok
+test view::cache::tests::the_cache_stays_bounded ... ok
+test view::cache::tests::identical_keys_hit_and_changed_keys_miss ... ok
+test view::font::tests::family_chains_drop_quotes_and_blanks ... ok
+test view::font::tests::fractional_sizes_are_cut_to_whole_pixels_like_fit_addon ... ok
+test view::font::tests::grid_counts_reserve_the_gutter_and_keep_the_minimums ... ok
+test view::font::tests::the_default_font_matches_the_frontend ... ok
+test view::font::tests::cells_follow_the_xterm_renderer_rounding ... ok
+test view::font::tests::the_first_installed_family_wins ... ok
+test view::font::tests::the_model_cell_size_rounds_to_device_pixels ... ok
+test view::input_tests::character_preference_and_unhandled_shortcuts_propagate ... ok
+test view::ime_tests::mouse_candidate_commit_does_not_consume_the_next_enter ... ok
+test view::paint::tests::a_block_selection_keeps_the_same_columns_on_each_line ... ok
+test view::ime_tests::blur_and_hidden_views_clear_preedit ... ok
+test view::ime_tests::cancel_and_reset_remove_preedit_without_committing ... ok
+test view::paint::tests::selection_spans_merge_adjacent_columns ... ok
+test view::paint::tests::selection_uses_the_display_offset ... ok
+test view::paint::tests::the_cursor_is_a_filled_block_only_when_focused ... ok
+test view::paint::tests::the_cursor_is_drawn_over_its_own_cell ... ok
+test view::input_tests::input_restores_the_visible_cursor_phase ... ok
+test view::input_tests::alt_policy_is_configurable_at_the_view_boundary ... ok
+test view::ime_tests::preedit_bounds_follow_grid_origin_scroll_and_font_metrics ... ok
+test view::ime_tests::commit_is_not_bracketed_and_the_next_enter_still_executes ... ok
+test view::input_tests::focus_reports_are_emitted_only_when_requested ... ok
+test view::ime_tests::preedit_is_visible_without_writing_and_commit_writes_utf8_once ... ok
+test view::input_tests::repeats_and_key_releases_follow_the_active_protocol ... ok
+test view::ime_tests::composition_anchor_ignores_output_cursor_moves ... ok
+test view::ime_tests::hidden_cursor_uses_last_visible_cell_only_during_transient_hide ... ok
+test view::prepare::tests::an_out_of_range_damage_row_is_ignored ... ok
+test view::prepare::tests::full_damage_marks_every_row ... ok
+test view::prepare::tests::partial_damage_marks_only_the_named_rows ... ok
+test view::row::tests::a_style_change_breaks_the_run ... ok
+test view::row::tests::adjacent_same_backgrounds_merge ... ok
+test view::row::tests::adjacent_underlines_merge_and_keep_their_kind ... ok
+test view::ime_tests::utf16_candidate_offsets_use_the_shaped_preedit_without_exposing_scrollback ... ok
+test view::row::tests::built_in_glyphs_bypass_text ... ok
+test view::row::tests::combining_marks_stay_in_their_cell ... ok
+test view::row::tests::hidden_cells_keep_their_background_but_not_their_glyph ... ok
+test view::row::tests::row_hashes_follow_content_and_epoch ... ok
+test view::row::tests::same_styles_merge_into_one_run ... ok
+test view::ime_tests::candidate_coordinates_include_element_origin_and_resize ... ok
+test view::row::tests::wide_characters_take_two_columns_and_their_spacer_is_not_text ... ok
+test view::scroll::tests::a_line_event_moves_one_line_up ... ok
+test view::scroll::tests::a_zero_height_does_not_divide_by_zero ... ok
+test view::scroll::tests::negative_remainders_round_toward_zero ... ok
+test view::scroll::tests::pixel_fractions_accumulate ... ok
+test view::scroll::tests::reversing_drops_the_remainder ... ok
+test view::style::tests::bold_red_uses_the_bright_color ... ok
+test view::style::tests::default_cells_use_the_palette_defaults ... ok
+test view::style::tests::dim_blends_toward_the_background ... ok
+test view::ime_tests::preedit_paints_background_and_underline_at_the_candidate_anchor ... ok
+test view::style::tests::inverse_swaps_the_two_colors ... ok
+test view::style::tests::the_underline_color_defaults_to_the_foreground ... ok
+test view::tests::a_hidden_view_suppresses_output_frames ... ok
+test view::tests::a_visible_view_requests_one_frame_per_output_batch ... ok
+test view::ime_tests::composing_keys_and_confirmation_enter_never_reach_the_shell ... ok
+test view::tests::the_config_defaults_match_the_frontend ... ok
+test view::tests::the_blink_timer_stops_when_the_view_is_hidden ... ok
+test view::input_tests::keyboard_events_write_shell_bytes_once ... ok
+test view::tests::shaping_places_each_glyph_on_its_column ... ok
+test view::tests::an_idle_unfocused_window_draws_no_frames ... ok
+test view::tests::output_after_resize_prepares_rows_and_hits_the_cache ... ok
+test view::tests::a_palette_change_recolors_rows_that_received_no_output ... ok
+test view::pointer_tests::mouse_reporting_deduplicates_motion_inside_a_cell ... ok
+test view::ime_tests::scrolling_history_moves_the_preedit_anchor_with_its_grid_row ... ok
+test view::pointer_tests::shift_click_does_not_emit_an_unpaired_release ... ok
+test view::pointer_tests::clipboard_paste_normalizes_lines_and_wraps_only_in_bracketed_mode ... ok
+test view::pointer_tests::shift_wheel_keeps_the_existing_reporting_policy ... ok
+test view::ime_tests::unchanged_candidate_geometry_does_not_request_platform_updates ... ok
+test view::pointer_tests::dragging_copies_the_selected_text ... ok
+test view::pointer_tests::releasing_outside_pairs_every_reported_button_once ... ok
+test view::pointer_tests::shift_drag_selects_instead_of_reporting_to_the_application ... ok
+test view::pointer_tests::releasing_outside_finishes_local_selection ... ok
+test view::pointer_tests::returning_without_a_button_recovers_a_missed_native_release ... ok
+test view::pointer_tests::shift_right_drag_extends_selection_but_middle_drag_reports ... ok
+
+test result: ok. 129 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_ui-e87b7d1d4ad967b9.exe)
+
+running 6 tests
+test tokens::tests::a_colour_name_is_looked_up_without_its_dashes ... ok
+test tokens::tests::theme_ids_are_unique ... ok
+test tokens::tests::font_sizes_match_tokens_json ... ok
+test tokens::tests::radius_matches_tokens_json ... ok
+test tokens::tests::the_first_theme_is_the_default_one ... ok
+test tokens::tests::theme_colours_match_tokens_json ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests t_term_lib
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tterm_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tterm_gpui
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tterm_parity
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tterm_platform
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tterm_terminal
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tterm_terminal_view
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tterm_ui
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.09s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.97s
+     Running unittests src\lib.rs (target\debug\deps\t_term_lib-80c06ce39f42aeff.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 835 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\debug\deps\tTerm-ea1810428c0f924a.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_core-70983a2e34d5cc5f.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_gpui-e1544cb33c82cdeb.exe)
+
+running 6 tests
+test terminal_demo::automation::protocol::tests::invalid_utf8_and_removed_toggle_are_rejected ... ok
+test terminal_demo::automation::protocol::tests::missing_command_and_duplicate_fields_are_rejected ... ok
+test terminal_demo::automation::protocol::tests::oversized_request_is_rejected_before_parsing ... ok
+test terminal_demo::automation::protocol::tests::wrong_or_missing_tokens_never_authorize_a_command ... ok
+test terminal_demo::automation::protocol::tests::keys_use_gpui_parser_including_letters_and_modifiers ... ok
+test terminal_demo::automation::protocol::tests::text_preserves_unicode_spaces_and_punctuation_but_rejects_controls ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\debug\deps\tterm_gpui-23306f3f6a1b0d18.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_parity-97f93cfea10454e0.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 60 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\debug\deps\tterm_parity-bf4cd7a68322ce02.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_platform-c9d9f043d32fcbbb.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_terminal-8d370cafcecab024.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 68 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_terminal_view-d1920bb224052428.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 129 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_ui-e87b7d1d4ad967b9.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
