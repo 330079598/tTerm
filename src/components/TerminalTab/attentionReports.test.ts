@@ -24,6 +24,7 @@ function tab() {
   })
   return {
     sessions,
+    submit: () => tracker.submit(),
     receive: (payload: string) => osc(payload),
     dispose: () => {
       reports.dispose()
@@ -75,5 +76,24 @@ describe("resume metadata through terminal reports", () => {
     t.receive("tterm-agent;claude;processing;abc-123;direct;%0A")
     expect(t.sessions).not.toHaveBeenCalled()
     t.dispose()
+  })
+
+  it("persists a sole claimant but not competing claims through the terminal callback", () => {
+    const a = tab(),
+      b = tab()
+    a.submit()
+    a.receive("tterm-agent;codex;processing;sole;broadcast;%2Ftmp")
+    b.receive("tterm-agent;codex;processing;sole;broadcast;%2Ftmp")
+    expect(a.sessions).toHaveBeenLastCalledWith({ agent: "codex", sessionId: "sole", cwd: "/tmp" })
+    expect(b.sessions).not.toHaveBeenCalled()
+    a.sessions.mockClear()
+    a.submit()
+    b.submit()
+    a.receive("tterm-agent;codex;processing;contested;broadcast;%2Ftmp")
+    b.receive("tterm-agent;codex;processing;contested;broadcast;%2Ftmp")
+    expect(a.sessions).not.toHaveBeenCalled()
+    expect(b.sessions).not.toHaveBeenCalled()
+    a.dispose()
+    b.dispose()
   })
 })
