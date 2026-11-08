@@ -4,7 +4,9 @@ use crate::layout::{ElementSizing, LayoutSink, PaddingSnapshot, StyleSnapshot};
 use crate::manifest::ScreensManifest;
 use crate::marker::{parity_child, parity_element};
 use gpui_kit::{IntoElement, ParentElement, Styled, div, px};
-use tterm_ui::components::button::{ButtonSize, ButtonState, Variant, button};
+use tterm_ui::components::button::{
+    ButtonSize, ButtonState, Variant, button, style as button_style,
+};
 use tterm_ui::tokens::palette::{DARK, LIGHT};
 
 pub const VARIANTS_SCREEN_ID: &str = "ui.button.variants";
@@ -47,6 +49,7 @@ impl ButtonScreen {
             padding: PaddingSnapshot::all(32.0),
             declared_background_color: None,
             declared_border_color: None,
+            opacity: 1.0,
         };
         let children = if self.variants {
             self.variant_children()
@@ -141,31 +144,29 @@ impl ButtonScreen {
         label: &'static str,
     ) -> gpui_kit::AnyElement {
         let c = self.theme.colors;
+        let computed = button_style(variant, size, state, c);
         let style = StyleSnapshot {
-            background_color: hsl_to_rgba(c.primary),
-            border_color: hsl_to_rgba(c.border),
-            border_width: if state.focused || matches!(variant, Variant::Outline) {
-                1.0
-            } else {
-                0.0
-            },
+            background_color: blend(
+                hsl_to_rgba(computed.background),
+                hsl_to_rgba(c.background),
+                computed.background_alpha * computed.opacity,
+            ),
+            border_color: hsl_to_rgba(computed.border),
+            border_width: computed.border_width,
             border_radius: 6.0,
             font_family: "system-ui".into(),
-            font_size: if matches!(size, ButtonSize::Xs | ButtonSize::IconXs) {
-                12.0
-            } else {
-                14.0
-            },
+            font_size: computed.font_size,
             font_weight: 500,
-            line_height: if matches!(size, ButtonSize::Xs | ButtonSize::IconXs) {
-                13.8
-            } else {
-                16.8
-            },
-            color: hsl_to_rgba(c.primary_foreground),
-            padding: PaddingSnapshot::symmetric(8.0, 16.0),
+            line_height: computed.line_height,
+            color: blend(
+                hsl_to_rgba(computed.foreground),
+                hsl_to_rgba(c.background),
+                computed.opacity,
+            ),
+            padding: PaddingSnapshot::symmetric(computed.padding_y, computed.padding_x),
             declared_background_color: None,
             declared_border_color: None,
+            opacity: computed.opacity,
         };
         let prefix = if self.variants {
             "ui.button.variants"
@@ -195,4 +196,14 @@ impl ButtonScreen {
         )
         .into_any_element()
     }
+}
+
+fn blend(front: [u8; 4], back: [u8; 4], alpha: f32) -> [u8; 4] {
+    let f = alpha.clamp(0.0, 1.0);
+    [
+        (f32::from(front[0]) * f + f32::from(back[0]) * (1.0 - f)).round() as u8,
+        (f32::from(front[1]) * f + f32::from(back[1]) * (1.0 - f)).round() as u8,
+        (f32::from(front[2]) * f + f32::from(back[2]) * (1.0 - f)).round() as u8,
+        255,
+    ]
 }
