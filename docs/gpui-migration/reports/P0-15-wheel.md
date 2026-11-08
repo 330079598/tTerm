@@ -112,9 +112,9 @@ P0-15 既有截图已逐张查看：GPUI start 首行 160，朝用户一格后 1
 | 验收条件（照抄任务卡） | 结果 | 证据 |
 | --- | --- | --- |
 | 报告写明 GPUI 0.3.11 的 ScrollDelta 符号约定及三个平台的源码位置。 | 通过（源码调查） | 上述平台表、复核命令与输出；本轮重新阅读 GPUI 定义及 Windows/macOS/X11/Wayland 生产事件的位置。macOS、Linux 均为“源码确认，未运行验证”。 |
-| 向远离用户的方向滚一格：历史区向上进入历史；鼠标上报为一个 wheel-up（SGR 按钮 64）；备用屏幕发送 ESC O A。朝用户方向相反。每格事件数与 Tauri 版相同。 | 自动化通过；[人工] 待评估者执行 | `cargo test --workspace wheel`：13 passed，0 failed；`assets/P0-15-wheel/wheel-tests.txt`。下表列出三条路径的测试名及断言。目标数字来自上文 xterm.js 6.0.0 源码；真实设备未重跑。 |
+| 向远离用户的方向滚一格：历史区向上进入历史；鼠标上报为一个 wheel-up（SGR 按钮 64）；备用屏幕发送 ESC O A。朝用户方向相反。每格事件数与 Tauri 版相同。 | 通过（自动化与评估者真实输入） | 真实输入结果见下文“评估”一节；`cargo test --workspace wheel`：13 passed，0 failed；`assets/P0-15-wheel/wheel-tests.txt`。下表列出三条路径的测试名及断言。目标数字来自上文 xterm.js 6.0.0 源码；真实设备未重跑。 |
 | 方向与每格事件数有自动化测试，测试名列在报告中；把修正撤销后这些测试会失败（报告附失败输出，临时改动不提交）。 | 通过 | `cargo test --workspace` 包含下表测试；恢复旧符号后 5 个视图测试失败，恢复旧计数后 7 个测试失败，退出码均 101；完整输出见 `reverted-direction.txt`、`reverted-count.txt`。临时改动已用 try/finally 恢复，随后 Rust 全套检查通过。 |
-| Windows 上的真实滚轮结果有截图，或标为 [人工] 并写好步骤；macOS、Linux 为“源码确认，未运行验证”。 | [人工] 待评估者执行 | 按最新指令，真实滚轮验证由评估者执行。没有发送真实输入，没有生成新截图；保留步骤见“遗留问题”。macOS、Linux 为“源码确认，未运行验证”。 |
+| Windows 上的真实滚轮结果有截图，或标为 [人工] 并写好步骤；macOS、Linux 为“源码确认，未运行验证”。 | 通过（Windows）；macOS、Linux 未验证 | 评估者用真实滚轮完成，截图在 `assets/P0-15-wheel/manual/`，见下文“评估”一节。macOS、Linux 为“源码确认，未运行验证”。 |
 
 自动化测试均为 GPUI headless 事件/纯逻辑验证，不能代替 Windows 窗口及 ConPTY 的真实输入验证。命令从本 worktree 根执行。
 
@@ -230,3 +230,18 @@ Rust 初次构建被 `scripts/prepare-conpty.ps1` 的 NuGet 下载 TLS 错误阻
 5. 所有新截图及 RX 日志写入 `docs/gpui-migration/reports/assets/P0-15-wheel/`，补上实际结果和环境参数。该目录现有 txt 为自动化证据，不是实际输入记录。macOS、Linux 保持“源码确认，未运行验证”。
 
 自动化检查及正常提交已完成；真实 Windows 输入与截图待评估者执行。P0-12 的边界、小数滚动限制和 P0-13/P0-28 其他按键、鼠标、输入法问题仍不属于此卡。未合并到 GPUI，未开始下一张卡。
+## 评估
+
+结论：通过。评估者审查了代码与测试，在本机重跑 AGENTS.md 的全部检查（前端 1294 个测试，Rust 各测试集全部通过，fmt、clippy、尺寸检查通过），并补做了执行者在沙箱中无法完成的真实滚轮验证。
+
+真实滚轮验证：2026-11-08，Windows 11，本分支 `cargo build -p tterm-gpui` 的 debug 构建，系统滚动设置为每格 3 行，原型默认字体与窗口尺寸。驱动脚本 `assets/P0-15-wheel/manual/drive-wheel.ps1` 用 `mouse_event(MOUSEEVENTF_WHEEL, ±120)` 发送真实滚轮，每格之前确认前台窗口是原型窗口，否则停止；第一次尝试时前台是锁屏界面，脚本在发出任何输入之前停止，解锁后重跑。
+
+| 场景 | 操作 | 结果 | 截图 |
+| --- | --- | --- | --- |
+| 历史区（`seq 1 200`） | 远离用户一格 | 首行 160 → 158，向上进入历史 2 行 | `history-start.png`、`history-1-away.png` |
+| 历史区 | 再远离一格 | 158 → 155，3 行；两格共 5 行，与 P0-15 中 Tauri 版两格 5 行（163 → 158）一致 | `history-2-away.png` |
+| 历史区 | 朝用户一格 | 155 → 157，回到新内容方向 | `history-3-toward.png` |
+| 鼠标上报（探针 `--mouse 1002,1006`） | 远离、朝向各一格 | 各收到正好一个上报：`ESC[<64;76;21M`（wheel-up）与 `ESC[<65;76;21M`（wheel-down） | `mouse-start.png`、`mouse-1-away.png`、`mouse-2-toward.png` |
+| 备用屏幕（`?1049h ?1007h`，DECCKM 开） | 远离、朝向各一格 | 各收到正好一条：`1b 4f 41`（ESC O A）与 `1b 4f 42`（ESC O B） | `alternate-start.png`、`alternate-1-away.png`、`alternate-2-toward.png` |
+
+方向与每格事件数都与 Tauri 版一致，P0-15 的阻塞问题在 Windows 上解决。macOS、Linux 仍为“源码确认，未运行验证”；触控板的已知差异按决策留给 P2-04 / P2-06 复核。
