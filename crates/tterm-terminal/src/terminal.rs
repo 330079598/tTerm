@@ -25,7 +25,7 @@ use alacritty_terminal::index::Point as AnsiPoint;
 use alacritty_terminal::selection::Selection as AnsiSelection;
 use alacritty_terminal::sync::FairMutex;
 use alacritty_terminal::term::cell::Cell as AnsiCell;
-use alacritty_terminal::term::{Config as TermConfig, Osc52, Term};
+use alacritty_terminal::term::{Config as TermConfig, Osc52, Term, TermMode};
 use alacritty_terminal::vte::ansi::Processor;
 
 use crate::cell::Cell;
@@ -213,8 +213,13 @@ impl Terminal {
         let configured = state.config.scrollback;
         let before = state.logical_output_lines;
         let screen_lines = state.term.screen_lines();
+        let was_alternate = state.term.mode().contains(TermMode::ALT_SCREEN);
         let State { parser, term, .. } = &mut *state;
         parser.advance(term, bytes);
+        if was_alternate || term.mode().contains(TermMode::ALT_SCREEN) {
+            state.logical_output_lines = term.total_lines() as u64;
+            return;
+        }
         let output_lines = bytes.iter().filter(|byte| **byte == b'\n').count();
         let after = before.saturating_add(output_lines as u64);
         state.logical_output_lines = after;
@@ -246,6 +251,7 @@ impl Terminal {
         let mut state = self.state.lock();
         state.cell_size = cell_size;
         state.term.resize(grid.clamped());
+        state.logical_output_lines = state.term.total_lines() as u64;
     }
 
     /// Changes the scrollback capacity.
