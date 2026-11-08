@@ -150,8 +150,16 @@ fn capture_image(
                     .update(cx, |_, window, cx| {
                         window.set_scale_factor(device_scale_factor);
                         window.resize(size(px(width), px(height)));
+                        eprintln!(
+                            "parity window: bounds={:?} viewport={:?} scale_factor={}",
+                            window.bounds(),
+                            window.viewport_size(),
+                            window.scale_factor()
+                        );
                         let _ = window.draw(cx);
-                        window.render_to_image()
+                        let image = window.render_to_image()?;
+                        eprintln!("parity image: {}x{}", image.width(), image.height());
+                        Ok::<image::RgbaImage, gpui_kit::private::anyhow::Error>(image)
                     })
                     .map_err(|error| format!("could not capture {id}: {error}"))?
                     .map_err(|error| format!("could not capture {id}: {error}"))
